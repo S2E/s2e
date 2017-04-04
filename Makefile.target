@@ -1,0 +1,55 @@
+# Copyright (C) 2017, Cyberhaven
+# All rights reserved.
+#
+# Licensed under the Cyberhaven Research License Agreement.
+
+include config.mak
+
+ifeq ($(CONFIG_SYMBEX), 1)
+ifeq ($(CONFIG_SYMBEX_MP), 1)
+  BC_TARGETS := op_helper.bc.$(TARGET_ARCH)
+else
+  BC_TARGETS := op_helper_sp.bc.$(TARGET_ARCH)
+endif
+endif
+
+
+TARGETS := libs2e.so $(BC_TARGETS)
+
+.PHONY: libs2e/src/libs2e.so libtcg/src/libtcg.a libtcg/src/libcpu.a libs2ecore/src/libs2ecore.a libs2eplugins/src/libs2eplugins.a
+
+all: $(TARGETS)
+
+libtcg/src/libtcg.a:
+	$(MAKE) -C libtcg
+
+libcpu/src/libcpu.a:
+	$(MAKE) -C libcpu
+
+libcpu/src/op_helper.bc: libcpu/src/libcpu.a
+	@echo $@
+
+libs2ecore/src/libs2ecore.a: libcpu/src/libcpu.a libtcg/src/libtcg.a
+	$(MAKE) -C libs2ecore
+
+libs2eplugins/src/libs2eplugins.a: libs2ecore/src/libs2ecore.a
+	$(MAKE) -C libs2eplugins
+
+
+ifeq ($(CONFIG_SYMBEX), 1)
+libs2e/src/libs2e.so: libcpu/src/libcpu.a libtcg/src/libtcg.a libs2eplugins/src/libs2eplugins.a
+	$(MAKE) -C libs2e
+else
+libs2e/src/libs2e.so: libcpu/src/libcpu.a libtcg/src/libtcg.a
+	$(MAKE) -C libs2e
+endif
+
+op_helper_sp.bc.$(TARGET_ARCH) op_helper.bc.$(TARGET_ARCH): libcpu/src/op_helper.bc
+	cp -v $^ $@
+
+libs2e.so: libs2e/src/libs2e.so
+	cp -v $^ $@
+
+clean:
+	rm -f *.a *.so *.o *.bc*
+	for d in libtcg libcpu libs2ecore libs2eplugins libs2e; do cd "$$d" && make clean && cd ..; done

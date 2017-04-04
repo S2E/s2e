@@ -1,0 +1,322 @@
+#!/bin/sh
+
+# Copyright (C) 2017, Cyberhaven
+# All rights reserved.
+#
+# Licensed under the Cyberhaven Research License Agreement.
+
+
+print_usage() {
+echo "Usage: configure options..."
+echo
+echo "  --with-cc=PATH                   Path to clang"
+echo "  --with-cxx=PATH                  Path to clang++"
+echo "  --with-cflags=FLAGS              C compiler flags"
+echo "  --with-cxxflags=FLAGS            C++ compiler flags"
+echo "  --with-llvm=PATH                 LLVM binaries path (PATH/bin/llvm-config must exist)"
+echo "  --with-klee=PATH                 KLEE binaries path"
+echo "  --with-libvmi=PATH               libvmi build directory"
+echo "  --with-fsigc++=PATH              fsigc++ build directory"
+echo "  --with-libq=PATH                 libq build directory"
+echo "  --with-liblua=PATH               Path to lua binaries"
+echo "  --with-libcoroutine=PATH         libcoroutine build directory"
+echo "  --with-libtcg-src=PATH           Path to libtcg source"
+echo "  --with-libcpu-src=PATH           Path to libcpu source"
+echo "  --with-libs2ecore-src=PATH       Path to libs2ecore source"
+echo "  --with-libs2eplugins-src=PATH    Path to libs2eplugins source"
+echo "  --with-z3-incdir=PATH            Z3 include directory"
+echo "  --with-z3-libdir=PATH            Z3 library directory"
+echo "  --enable-debug                   Compile library with debug information"
+echo "  --with-s2e-guest-incdir=PATH     Path to S2E guest headers"
+}
+
+LLVM_ROOT=
+DEBUG=n
+
+for opt do
+  optarg=`expr "x$opt" : 'x[^=]*=\(.*\)'`
+  case "$opt" in
+    --with-cc=*)
+      CC="$optarg"
+    ;;
+
+    --with-cxx=*)
+      CXX="$optarg"
+    ;;
+
+    --with-cflags=*)
+      CFLAGS="$optarg"
+    ;;
+
+    --with-cxxflags=*)
+      CXXFLAGS="$optarg"
+    ;;
+
+    --with-llvm=*)
+      LLVM_ROOT="$optarg"
+    ;;
+
+    --with-klee=*)
+      KLEE_ROOT="$optarg"
+    ;;
+
+    --with-libvmi=*)
+      LIBVMI_DIR="$optarg"
+    ;;
+
+    --with-liblua=*)
+      LIBLUA_LIB="$optarg"
+    ;;
+
+    --with-z3-incdir=*)
+      Z3_INCDIR="$optarg"
+    ;;
+
+    --with-z3-libdir=*)
+      Z3_LIBDIR="$optarg"
+    ;;
+
+    --with-fsigc++*)
+      FSIGCXX_DIR="$optarg"
+    ;;
+
+    --with-libq=*)
+      LIBQ_DIR="$optarg"
+    ;;
+
+    --with-libcoroutine=*)
+      LIBCOROUTINE_DIR="$optarg"
+    ;;
+
+    --with-libtcg-src=*)
+      LIBTCG_SRC="$optarg"
+    ;;
+
+    --with-libcpu-src=*)
+      LIBCPU_SRC="$optarg"
+    ;;
+
+    --with-libs2ecore-src=*)
+      LIBS2ECORE_SRC="$optarg"
+    ;;
+
+    --with-libs2eplugins-src=*)
+      LIBS2EPLUGINS_SRC="$optarg"
+    ;;
+
+    --enable-debug)
+      DEBUG=y
+    ;;
+
+    --with-s2e-guest-incdir=*)
+        S2EGUEST_INCDIR="$optarg"
+    ;;
+
+    *) echo "Unknown option $opt"
+    ;;
+  esac
+  ARGCOUNT=$(expr $ARGCOUNT + 1)
+done
+
+if [ ! -x "$LLVM_ROOT/bin/llvm-config" ]; then
+  echo "$LLVM_ROOT/bin/llvm-config does not exist"
+  print_usage
+  exit 1
+fi
+
+if ! echo "$CC" | grep -q clang; then
+    echo "You must use clang to compile libs2e"
+    exit 1
+fi
+
+if ! echo "$CXX" | grep -q clang++; then
+    echo "You must use clang++ to compile libs2e"
+    exit 1
+fi
+
+if [ ! -e "$Z3_INCDIR/z3.h" ]; then
+  echo "Cannot find Z3 header files in $Z3_INCIDR"
+  print_usage
+  exit 1
+fi
+
+if [ ! -e "$Z3_LIBDIR/libz3.a" ]; then
+  echo "Cannot find Z3 library files in $Z3_LIBDIR"
+  print_usage
+  exit 1
+fi
+
+rm -f config.log
+echo "# libs2e configured with:" >> config.log
+printf " '%s'" "$0" "$@" >> config.log
+
+BUILD_DIR="$(pwd)"
+cd "$(dirname $0)"
+SRC_DIR="$(pwd)"
+
+cd "$BUILD_DIR"
+ln -sf "$SRC_DIR/Makefile" Makefile
+
+get_git_revision() {
+    CURDIR="$(pwd)"
+    cd $(dirname "$0")
+    git --no-pager log --pretty=format:'%H' -n 1
+    cd "$CURDIR"
+}
+
+LIBCPU_REVISION="$(get_git_revision)"
+
+#################################################################
+# Configuring each target
+#################################################################
+
+for target in i386-softmmu i386-s2e-softmmu i386-s2e_sp-softmmu x86_64-softmmu x86_64-s2e-softmmu x86_64-s2e_sp-softmmu; do
+echo "============== Configuring $target ============== "
+echo
+
+cd "$BUILD_DIR"
+mkdir -p "$target"
+cd "$target"
+
+ln -sf "$SRC_DIR/Makefile.target" Makefile
+
+ARCH="$(echo $target | cut -d '-' -f 1)"
+
+#Filter debug flags
+if [ $DEBUG = "y" ]; then
+   BUILD_TYPE=Debug
+else
+   BUILD_TYPE=RelWithDebInfo
+fi
+
+
+echo > config.mak
+
+if echo $target | grep -q s2e; then
+  echo "S2E mode activated for $target"
+
+  if ! echo $target | grep -q s2e_sp; then
+    echo "CONFIG_SYMBEX_MP := 1" >> config.mak
+  fi
+
+  echo "CONFIG_SYMBEX = 1" >> config.mak
+  echo "TARGET_ARCH := $ARCH" >> config.mak
+fi
+
+echo "CC := $CC" >> config.mak
+echo "CXX := $CXX" >> config.mak
+echo "CFLAGS := $CFLAGS" >> config.mak
+echo "CXXFLAGS := $CXXFLAGS" >> config.mak
+
+echo "=== Configuring libtcg... ==="
+rm -rf libtcg && mkdir -p libtcg && cd libtcg
+LLVM_DIR="$LLVM_ROOT/lib/cmake/llvm"
+cmake -DCMAKE_C_COMPILER=$CC -DCMAKE_CXX_COMPILER=$CXX      \
+    -DCMAKE_C_FLAGS=$CFLAGS -DCMAKE_CXX_FLAGS=$CXXFLAGS     \
+    -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DWITH_GUEST="$target"   \
+    -DLLVM_DIR="$LLVM_DIR" "$LIBTCG_SRC"
+if [ $? -ne 0 ]; then
+  exit 1
+fi
+cd ..
+
+echo "=== Configuring libcpu... ==="
+rm -rf libcpu && mkdir -p libcpu && cd libcpu
+
+cmake -DCMAKE_C_COMPILER=$CC -DCMAKE_CXX_COMPILER=$CXX      \
+    -DCMAKE_C_FLAGS=$CFLAGS -DCMAKE_CXX_FLAGS=$CXXFLAGS     \
+    -DCMAKE_BUILD_TYPE=$BUILD_TYPE                          \
+    -DLIBTCG_DIR="$(pwd)/../libtcg"                         \
+    -DHOST_INCLUDE_DIR="$(cd $(pwd)/../../ && echo $(pwd))" \
+    -DTARGET_INCLUDE_DIR="$(cd $(pwd)/../ && echo $(pwd))"  \
+    -DS2EGUEST_INCLUDE_DIR=$S2EGUEST_INCDIR                 \
+    -DLIBQ_DIR=$LIBQ_DIR                                    \
+    -DWITH_TARGET="$target"                                 \
+    -DCONFIG_DATE="$(date)"                                 \
+    -DCONFIG_LIBCPU_DATADIR="$BUILD_DIR/$target"              \
+    -DLIBCPU_REVISION="$LIBCPU_REVISION"                        \
+    "$LIBCPU_SRC"
+
+if [ $? -ne 0 ]; then
+  exit 1
+fi
+cd ..
+
+if echo $target | grep -q s2e; then
+echo "=== Configuring libs2ecore... ==="
+rm -rf libs2ecore && mkdir -p libs2ecore && cd libs2ecore
+
+cmake -DCMAKE_C_COMPILER=$CC -DCMAKE_CXX_COMPILER=$CXX      \
+    -DCMAKE_C_FLAGS=$CFLAGS -DCMAKE_CXX_FLAGS=$CXXFLAGS     \
+    -DCMAKE_BUILD_TYPE=$BUILD_TYPE                          \
+    -DLIBTCG_DIR="$(pwd)/../libtcg"                         \
+    -DLIBCPU_DIR="$(pwd)/../libcpu"                         \
+    -DLLVM_DIR="$LLVM_DIR"                                  \
+    -DKLEE_DIR="$KLEE_ROOT"                                 \
+    -DVMI_DIR="$LIBVMI_DIR"                                 \
+    -DFSIGCXX_DIR="$FSIGCXX_DIR"                            \
+    -DLIBQ_DIR=$LIBQ_DIR                                    \
+    -DLUA_DIR=$LIBLUA_LIB                                   \
+    "$LIBS2ECORE_SRC"
+
+if [ $? -ne 0 ]; then
+  exit 1
+fi
+cd ..
+
+
+echo "=== Configuring libs2eplugins... ==="
+rm -rf libs2eplugins && mkdir -p libs2eplugins && cd libs2eplugins
+
+cmake -DCMAKE_C_COMPILER=$CC -DCMAKE_CXX_COMPILER=$CXX      \
+    -DCMAKE_C_FLAGS=$CFLAGS -DCMAKE_CXX_FLAGS=$CXXFLAGS     \
+    -DCMAKE_BUILD_TYPE=$BUILD_TYPE                          \
+    -DLIBTCG_DIR="$(pwd)/../libtcg"                         \
+    -DLIBCPU_DIR="$(pwd)/../libcpu"                         \
+    -DLIBS2ECORE_DIR="$(pwd)/../libs2ecore"                 \
+    -DLLVM_DIR="$LLVM_DIR"                                  \
+    -DKLEE_DIR="$KLEE_ROOT"                                 \
+    -DVMI_DIR="$LIBVMI_DIR"                                 \
+    -DFSIGCXX_DIR="$FSIGCXX_DIR"                            \
+    -DLIBQ_DIR=$LIBQ_DIR                                    \
+    -DLUA_DIR=$LIBLUA_LIB                                   \
+    -DS2EGUEST_INCLUDE_DIR=$S2EGUEST_INCDIR                 \
+    "$LIBS2EPLUGINS_SRC"
+
+if [ $? -ne 0 ]; then
+  exit 1
+fi
+cd ..
+
+fi
+
+echo "=== Configuring libs2e... ==="
+rm -rf libs2e && mkdir -p libs2e && cd libs2e
+
+cmake -DCMAKE_C_COMPILER=$CC -DCMAKE_CXX_COMPILER=$CXX      \
+    -DCMAKE_C_FLAGS=$CFLAGS -DCMAKE_CXX_FLAGS=$CXXFLAGS     \
+    -DCMAKE_BUILD_TYPE=$BUILD_TYPE                          \
+    -DLIBTCG_DIR="$(pwd)/../libtcg"                         \
+    -DLIBCPU_DIR="$(pwd)/../libcpu"                         \
+    -DLIBS2ECORE_DIR="$(pwd)/../libs2ecore"                 \
+    -DLIBS2EPLUGINS_DIR="$(pwd)/../libs2eplugins"           \
+    -DLIBQ_DIR="$LIBQ_DIR"                                  \
+    -DLLVM_DIR="$LLVM_DIR"                                  \
+    -DLIBCOROUTINE_DIR="$LIBCOROUTINE_DIR"                  \
+    -DKLEE_DIR="$KLEE_ROOT"                                 \
+    -DVMI_DIR="$LIBVMI_DIR"                                 \
+    -DLUA_DIR="$LIBLUA_LIB"                                 \
+    -DFSIGCXX_DIR="$FSIGCXX_DIR"                            \
+    -DZ3_DIR="$Z3_LIBDIR"                                   \
+    -DWITH_TARGET="$target"                                 \
+    "$SRC_DIR"
+
+if [ $? -ne 0 ]; then
+  exit 1
+fi
+cd ..
+
+
+echo "============== Configuring $target done ============== "
+
+done
