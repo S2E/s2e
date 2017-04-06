@@ -1,0 +1,7 @@
+pdbparse
+pefile
+construct==2.5
+requests
+patool
+pyunpack
+jinja2

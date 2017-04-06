@@ -1,0 +1,11 @@
+Win7 Release
+*.user
+*.opendb
+*.db
+*.pdb
+x64
+Release
+Debug
+.vs
+venv
+*.suo

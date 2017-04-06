@@ -1,0 +1,37 @@
+///
+/// Copyright (C) 2014-2016, Dependable Systems Laboratory, EPFL
+/// Copyright (C) 2014-2017, Cyberhaven
+/// All rights reserved.
+///
+/// Licensed under the Cyberhaven Research License Agreement.
+///
+///
+#ifndef _TEST_CTL_H_
+
+#define _TEST_CTL_H_
+
+#include <windows.h>
+
+#include <s2ectl.h>
+
+INT S2EGetVersionSafe(VOID);
+VOID DebugApp(DWORD Pid, DWORD EventId);
+char *GetErrorString(DWORD ErrorCode);
+
+typedef struct _S2E_BUG_COMMAND S2E_BUG_COMMAND;
+INT S2EInvokeBugCollector(S2E_BUG_COMMAND *Command);
+
+DWORD WINAPI GetModuleBaseNameA(
+  HANDLE hProcess,
+  HMODULE hModule,
+  LPCSTR lpBaseName,
+  DWORD nSize
+);
+
+static CHAR S2EDriverDevice[] = "\\\\.\\\\S2EDriver";
+static CHAR *pS2EDriverDevice = &S2EDriverDevice[0];
+
+HANDLE OpenS2EDriver(PCSTR DeviceName);
+BOOL S2EIoCtl(HANDLE Handle, DWORD Code, PVOID Buffer, DWORD Length);
+
+#endif
