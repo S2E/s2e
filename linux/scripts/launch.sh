@@ -21,13 +21,26 @@
 # SOFTWARE.
 
 
-# This script is run in a Linux guest. If you are using s2e-env, it will be
-# automatically run at user login.
+# This script is run in a Linux guest. If you built your image with s2e-env it
+# will automatically run at user login.
 #
-# If the image is run in non-S2E mode a snapshot will infinitely loop at
-# s2eget. This gives the user the opportunity to take a snapshot so that when
-# the image is rebooted into S2E mode it will retrieve the bootstrap script and
+# If the image is run in non-S2E mode execution will loop indefinitely on
+# s2eget. This gives the user the opportunity to take a snapshot. When the
+# image is rebooted into S2E mode it will retrieve the bootstrap script and
 # start executing it immediately.
+
+echo "booted kernel $(uname -r)" > /dev/ttyS0
+
+# Receive a command from the host. Execution continues regardless of whether a
+# command is received or not.
+#
+# This is required for s2e-env. s2e-env (i.e. the host) sends commands over the
+# serial port to QEMU. The guest must be listening to the serial port,
+# otherwise QEMU does not detect the command.
+#
+# It is up to the host to handle the case when the read times out before it
+# has received anything.
+read -t 5 < /dev/ttyS0
 
 ./s2eget bootstrap.sh
 chmod +x bootstrap.sh
