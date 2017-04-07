@@ -91,8 +91,8 @@ KLEE_QEMU_DIRS=$(foreach suffix,-debug -release,$(addsuffix $(suffix),klee qemu)
 
 all: all-release guest-tools
 
-all-release: stamps/libs2e-release-make stamps/tools-release-make stamps/decree-make
-all-debug: stamps/libs2e-debug-make stamps/tools-debug-make stamps/decree-make
+all-release: stamps/qemu-release-make stamps/libs2e-release-make stamps/tools-release-make stamps/decree-make
+all-debug: stamps/qemu-debug-make stamps/libs2e-debug-make stamps/tools-debug-make stamps/decree-make
 
 guest-tools: stamps/guest-tools32-make stamps/guest-tools64-make
 guest-tools-win: stamps/guest-tools32-win-make stamps/guest-tools64-win-make
@@ -446,6 +446,46 @@ stamps/libcoroutine-release-configure: CONFIGURE_COMMAND = cmake $(LIBCOROUTINE_
 stamps/libcoroutine-debug-make: stamps/libcoroutine-debug-configure
 
 stamps/libcoroutine-release-make: stamps/libcoroutine-release-configure
+
+########
+# QEMU #
+########
+
+QEMU_TARGETS=i386-softmmu,x86_64-softmmu
+
+QEMU_CONFIGURE_FLAGS = --prefix=$(S2EPREFIX)         \
+                       --target-list=$(QEMU_TARGETS) \
+                       --disable-virtfs              \
+                       --disable-xen                 \
+                       --disable-bluez               \
+                       --disable-vde                 \
+                       --disable-libiscsi            \
+                       --disable-docs                \
+                       --disable-spice               \
+                       $(EXTRA_QEMU_FLAGS)
+
+QEMU_DEBUG_FLAGS = --enable-debug
+
+QEMU_RELEASE_FLAGS =
+
+stamps/qemu-debug-configure: export CFLAGS:=$(CFLAGS_ARCH) -fno-omit-frame-pointer
+stamps/qemu-debug-configure: export CXXFLAGS:=$(CXXFLAGS_ARCH) -fno-omit-frame-pointer
+stamps/qemu-debug-configure: CONFIGURE_COMMAND = $(S2ESRC)/qemu/configure   \
+                                                 $(QEMU_CONFIGURE_FLAGS)    \
+                                                 $(QEMU_DEBUG_FLAGS)
+
+stamps/qemu-release-configure: CONFIGURE_COMMAND = $(S2ESRC)/qemu/configure \
+                                                   $(QEMU_CONFIGURE_FLAGS)  \
+                                                   $(QEMU_RELEASE_FLAGS)
+
+stamps/qemu-debug-make:  stamps/qemu-debug-configure
+	$(MAKE) -C qemu-debug $(BUILD_OPTS) install
+	touch $@
+
+stamps/qemu-release-make: stamps/qemu-release-configure
+	$(MAKE) -C qemu-release $(BUILD_OPTS) install
+	touch $@
+
 
 ##########
 # libs2e #
