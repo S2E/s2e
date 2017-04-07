@@ -25,28 +25,21 @@ from subprocess import Popen, PIPE
 import sys
 import os
 
-blacklist = []
-sources = [
-    'libs2e', 'klee', 'libcoroutine', 'libfsigc++',
-    'libq', 'libvmi', 'tools', 'libcpu', 'libtcg',
-    'libs2ecore', 'libs2eplugins', 'docs', 'guest', 'decree'
-]
+blacklist = ['.git', '.repo', 'qemu']
 
-if os.path.isdir('.git'):
-    git_files = Popen(['git', 'ls-files'] + sources,
-                  stdout=PIPE).communicate()[0].split('\n')
-else:
-    sys.stderr.write('This is not a git repository!\n')
-    sys.exit(1)
+files = []
+for root, directories, filenames in os.walk('.'):
+    for filename in filenames:
+        files.append(os.path.join(root, filename))
 
-git_files.sort()
+files.sort()
 
 dirs = set([""])
 s2e_files = open('s2e.files', 'w')
 s2e_includes = open('s2e.includes', 'w')
-for fname in git_files:
+for fname in files:
     for b in blacklist:
-        if fname.startswith(b):
+        if b in fname:
             break
     else:
         if not os.path.isdir(fname):
