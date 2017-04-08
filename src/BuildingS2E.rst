@@ -2,12 +2,24 @@
 Building the S2E Platform
 ==========================
 
-S2E builds and runs on Ubuntu 16.04 64-bit.
+S2E builds and runs on Ubuntu 14.04 or 16.04 (64-bit).
 
 .. contents::
 
-Required packages
+Using ``s2e-env``
 =================
+
+The simplest way to build S2E is to use the ``s2e-env`` tool. See `Using s2e-env <s2e-env.rst>`_ for instructions.
+
+If you want to build S2E manually or using Docker, read below.
+
+Building S2E manually
+=====================
+
+In addition to using the ``s2e-env`` tool, you can also build S2E manually.
+
+Required packages
+-----------------
 
 .. code-block:: console
 
@@ -49,21 +61,12 @@ The following commands ask ``apt-get`` to install build dependencies for qemu:
 
     sudo apt-get build-dep qemu
 
-If you are going to be analyzing Windows binaries, you will also need to install mingw to compile the guest tools:
+If you are going to be analyzing Windows binaries, you may also want to install mingw to compile the guest tools:
 
 .. code-block:: console
 
     sudo apt-get install mingw-64
 
-Using ``s2e-env``
-=================
-
-The simplest way to build S2E is to use the ``s2e-env`` tool. See `Using s2e-env <s2e-env.rst>`_ for instructions.
-
-Building S2E manually
-=====================
-
-In addition to using the ``s2e-env`` tool, you can also build S2E manually.
 
 Checking out S2E
 ----------------
@@ -88,13 +91,13 @@ The S2E Makefile can be run as follows:
 
 .. code-block:: console
 
-    mkdir $S2EDIR/build-s2e
-    cd $S2EDIR/build-s2e
-    make -f $S2EDIR/s2e-codetickler/Makefile install
+    mkdir $S2EDIR/build
+    cd $S2EDIR/build
+    make -f $S2EDIR/Makefile install
 
-   # Go make some coffee, this will take some time (approx. 60 mins on a 4-core machine)
+    # Go make some coffee, this will take some time (approx. 60 mins on a 4-core machine)
 
-By default, the ``make`` command compiles and installs S2E in release mode to ``$S2EDIR/build-s2e/opt``. To change this
+By default, the ``make`` command compiles and installs S2E in release mode to ``$S2EDIR/build/opt``. To change this
 location, set the ``S2EPREFIX`` environment variable when running ``make``.
 
 To compile S2E in Debug mode, use ``make install-debug``.
@@ -103,7 +106,7 @@ To build the Windows guest tools:
 
 .. code-block:: console
 
-    make -f $S2EDIR/s2e/Makefile guest-tools-win-install
+    make -f $S2EDIR/Makefile guest-tools-win-install
 
 Note that the Makefile automatically uses the maximum number of available processors in order to speed up compilation.
 
@@ -123,4 +126,14 @@ documentation can be built using the S2E Makefile:
 
 .. code-block:: console
 
-    make -f $S2EDIR/s2e-codetickler/Makefile docs
+    make -f $S2EDIR/Makefile docs
+
+Building using Docker
+---------------------
+
+The following command builds a docker image called ``s2e-build``.
+
+.. code-block:: console
+
+    cd $S2EDIR
+    docker build -t s2e-build .
