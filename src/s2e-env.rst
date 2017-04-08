@@ -7,14 +7,14 @@ with S2E. The following steps describe how to use ``s2e-env``.
 
 .. contents::
 
-Getting
--------
+Installing s2e-env
+------------------
 
 ``s2e-env`` can be obtained and built from GitHub using the following commands:
 
 .. code-block:: console
 
-    git clone https://github.com/dslab-epfl/s2e-env.git
+    git clone https://github.com/s2e/s2e-env.git
     cd s2e-env
 
     # Optional: install s2e-env in a virtual env
@@ -24,14 +24,15 @@ Getting
     # By default, s2e-env uses https to clone repositories.
     # If you want ssh, please edit s2e_env/dat/config.yaml
     # before running pip install.
+    # If your key is password-protected, use ssh-agent.
     pip install .
 
 
-Using
------
+Using s2e-env
+-------------
 
 General instructions for using ``s2e-env`` can be found in its `README
-<https://github.com/dslab-epfl/s2e-env/blob/master/README.md>`_. Help for each command is available by running:
+<https://github.com/s2e/s2e-env/blob/master/README.md>`_. Help for each command is available by running:
 
 .. code-block:: console
 
@@ -48,10 +49,9 @@ To create a new S2E environment in ``/home/user/s2e``, run:
 .. code-block:: console
 
     s2e init /home/user/s2e
-    cd /home/user/s2e
 
 This will fetch the required source code, install S2E's dependencies (via apt) and create the directory structure
-described `here <https://github.com/dslab-epfl/s2e-env/blob/master/README.md>`_. If you want to skip the dependency
+described `here <https://github.com/s2e/s2e-env/blob/master/README.md>`_. If you want to skip the dependency
 installation step (e.g. if you have already installed the dependencies) use the ``--skip-dependencies`` flag.
 
 Building S2E
@@ -61,6 +61,7 @@ Building S2E is simple. Simply run:
 
 .. code-block:: console
 
+    cd /home/user/s2e
     s2e build
 
 Building S2E and QEMU takes some time (approx. 60 minutes), so go and grab a coffee while you wait. Note that you can
@@ -73,6 +74,7 @@ You will need a virtual machine image to run your analysis target in. To see wha
 
 .. code-block:: console
 
+    cd /home/user/s2e
     s2e image_templates
 
 This will list an image template name and a description of that image. For example, to build a Linux 4.9.3 i386 image
@@ -80,6 +82,7 @@ run:
 
 .. code-block:: console
 
+    cd /home/user/s2e
     s2e image_build linux-4.9.3-i386
 
 This will:
@@ -89,6 +92,8 @@ This will:
 * Install an S2E-compatible kernel that can be used with the `LinuxMonitor <Plugins/Linux/LinuxMonitor.rst>`_ plugin
   and snapshot the image
 * Create a (hidden) JSON file describing the image. This JSON description is important for the ``new_project`` command
+* Create a ready-to-run snapshot so that you do not have to reboot the guest everytime you
+  want to run an analysis.
 
 Building the image will take some time (approx. 20 minutes), so go and make another coffee.
 
@@ -100,6 +105,7 @@ to analyze your target program. To create such a project, run:
 
 .. code-block:: console
 
+    cd /home/user/s2e
     s2e new_project --image <image_name> /path/to/target/binary [target_args...]
 
 This will create a new project under the ``projects`` directory. When you run the analysis the virtual machine image

@@ -13,7 +13,7 @@ Starting with an Empty Plugin
 The first thing to do is to name the plugin and create boilerplate code. Let us name the plugin ``InstructionTracker``.
 You can copy/paste the ``Example`` plugin that ships with S2E.
 
-Create a file named ``InstructionTracker.h`` in the ``s2e-codetickler/libs2eplugins/src/s2e/Plugins`` directory with
+Create a file named ``InstructionTracker.h`` in the ``$S2EDIR/libs2eplugins/src/s2e/Plugins`` directory with
 the following content:
 
 .. code-block:: cpp
@@ -65,7 +65,7 @@ Then, create the corresponding ``InstructionTracker.cpp`` file in the same direc
     } // namespace s2e
 
 Finally, we need to compile the plugin with the rest of S2E. For this, add the following line to
-``s2e-codetickler/libs2eplugins/src/CMakeLists.txt``, near other plugin declarations::
+``$S2EDIR/libs2eplugins/src/CMakeLists.txt``, near other plugin declarations::
 
     s2e/Plugins/InstructionTracker.cpp
 
