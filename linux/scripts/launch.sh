@@ -20,27 +20,49 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-
 # This script is run in a Linux guest. If you built your image with s2e-env it
 # will automatically run at user login.
+
+
+# NOTE: be careful to not disclose magic serial port messages in case
+# the output of this script is redirected to serial port.
+set -v
+
+# When QEMU reads this message on the serial port, it exits immediately.
+# The space at the end of the string is important.
+# XXX: fix hardcoded snapshot name
+SECRET_MESSAGE_KILL='?!?MAGIC?!?k 0 '
+SECRET_MESSAGE_SAVEVM='?!?MAGIC?!?s ready '
+
+# Grub sorts kernels by version number and the CGC kernel version is
+# older than stock kernel, so it is not selected after install.
+# We need to tweak the config manually.
 #
+# This tweak somehow can't be done at installation because the grub config
+# is destroyed when packer shuts down the guest.
+if ! echo $(uname -r) | grep -q s2e; then
+  MENU_ENTRY="$(grep menuentry /boot/grub/grub.cfg  | grep s2e | cut -d "'" -f 2 | head -n 1)"
+  echo "Default menu entry: $MENU_ENTRY"
+  echo "GRUB_DEFAULT=\"1>$MENU_ENTRY\"" | sudo tee -a /etc/default/grub
+  sudo update-grub
+  sync
+  # This is to satisfy the s2e-env image creation script,
+  # so that it can kill us
+  echo "booted kernel $(uname -r)" > /dev/ttyS0
+  read -t 5 < /dev/ttyS0
+
+  # In case the s2e-env script screws up, kill ourselves
+  # NOTE: use quotes around secret to send last space character
+  echo "$SECRET_MESSAGE_KILL" > /dev/ttyS0
+fi
+
 # If the image is run in non-S2E mode execution will loop indefinitely on
 # s2eget. This gives the user the opportunity to take a snapshot. When the
 # image is rebooted into S2E mode it will retrieve the bootstrap script and
 # start executing it immediately.
-
 echo "booted kernel $(uname -r)" > /dev/ttyS0
 
-# Receive a command from the host. Execution continues regardless of whether a
-# command is received or not.
-#
-# This is required for s2e-env. s2e-env (i.e. the host) sends commands over the
-# serial port to QEMU. The guest must be listening to the serial port,
-# otherwise QEMU does not detect the command.
-#
-# It is up to the host to handle the case when the read times out before it
-# has received anything.
-read -t 5 < /dev/ttyS0
+echo "$SECRET_MESSAGE_SAVEVM" > /dev/ttyS0
 
 ./s2eget bootstrap.sh
 chmod +x bootstrap.sh
