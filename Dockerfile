@@ -10,7 +10,7 @@ FROM ubuntu:16.04
 # Install build dependencies
 RUN apt-get update &&                                                       \
     apt-get -y install build-essential cmake wget texinfo flex bison        \
-    python-dev mingw-w64
+    python-dev mingw-w64 lsb-release
 
 # Install S2E dependencies
 RUN apt-get update && apt-get -y install libdwarf-dev libelf-dev            \
@@ -46,6 +46,9 @@ COPY . s2e/
 # Build and install everything else
 RUN cd s2e-build &&                                                         \
     make -f ../s2e/Makefile S2EPREFIX=/opt/s2e install install-win
+
+# Don't keep sources and build files
+RUN rm -rf s2e-build s2e
 
 # Create an unprivileged user to run S2E
 RUN adduser --disabled-password -gecos "" s2e
