@@ -42,6 +42,8 @@ else ifeq ($(OS),Linux)
 JOBS:=$(shell grep -c ^processor /proc/cpuinfo)
 endif
 
+UBUNTU_VERSION := $(shell lsb_release -a 2>/dev/null | grep Release | cut -f 2)
+
 MAKE:=make -j$(JOBS)
 
 CFLAGS_ARCH:=-march=$(BUILD_ARCH) -mno-sse4.1
@@ -57,6 +59,10 @@ LLVM_VERSION=3.9.0
 LLVM_SRC=llvm-$(LLVM_VERSION).src.tar.xz
 LLVM_SRC_DIR=llvm-$(LLVM_VERSION).src
 LLVM_SRC_URL = http://llvm.org/releases/$(LLVM_VERSION)
+
+CLANG_BINARY_DIR=clang+llvm-3.9.0-x86_64-linux-gnu-ubuntu-$(UBUNTU_VERSION)
+
+CLANG_BINARY=$(CLANG_BINARY_DIR).tar.xz
 
 CLANG_SRC=cfe-$(LLVM_VERSION).src.tar.xz
 CLANG_SRC_DIR=cfe-$(LLVM_VERSION).src
@@ -115,7 +121,7 @@ guestclean:
 	-$(MAKE) -C $(S2ESRC)/guest clean
 
 distclean: clean guestclean
-	-rm -Rf $(LLVM_SRC_DIR) $(LLVM_DIRS) tools-debug tools-release
+	-rm -Rf $(CLANG_BINARY_DIR) $(LLVM_SRC_DIR) $(LLVM_DIRS) tools-debug tools-release
 
 .PHONY: all all-debug all-release
 .PHONY: clean distclean guestclean
@@ -144,10 +150,10 @@ stamps/%-make:
 
 ifeq ($(LLVMBUILD),$(S2EBUILD))
 # Download LLVM
-$(LLVM_SRC) $(CLANG_SRC) $(COMPILER_RT_SRC):
+$(LLVM_SRC) $(CLANG_SRC) $(COMPILER_RT_SRC) $(CLANG_BINARY):
 	wget $(LLVM_SRC_URL)/$@
 
-.INTERMEDIATE: $(CLANG_SRC_DIR) $(COMPILER_RT_SRC_DIR)
+.INTERMEDIATE: $(CLANG_SRC_DIR) $(COMPILER_RT_SRC_DIR) $(CLANG_BINARY_DIR)
 
 $(LLVM_SRC_DIR): $(LLVM_SRC) $(CLANG_SRC_DIR) $(COMPILER_RT_SRC_DIR)
 	tar -xmf $<
@@ -156,6 +162,12 @@ $(LLVM_SRC_DIR): $(LLVM_SRC) $(CLANG_SRC_DIR) $(COMPILER_RT_SRC_DIR)
 
 $(CLANG_SRC_DIR): $(CLANG_SRC)
 	tar -xmf $<
+
+$(CLANG_BINARY_DIR): $(CLANG_BINARY)
+	tar -xmf $<
+	mkdir -p $(S2EPREFIX)
+	cp -r $(CLANG_BINARY_DIR)/* $(S2EPREFIX)
+	rm -r $(CLANG_BINARY_DIR)/*
 
 $(COMPILER_RT_SRC_DIR): $(COMPILER_RT_SRC)
 	tar -xmf $<
@@ -191,28 +203,14 @@ ifeq ($(LLVMBUILD),$(S2EBUILD))
 # LLVM #
 ########
 
-# First build LLVM with the system's compiler
-stamps/llvm-native-configure: $(LLVM_SRC_DIR)
-stamps/llvm-native-configure: CONFIGURE_COMMAND = cmake -DCMAKE_INSTALL_PREFIX=$(S2EPREFIX)     \
-                                                  -DLLVM_ENABLE_ASSERTIONS=Off                  \
-                                                  -DCMAKE_BUILD_TYPE=Release                    \
-                                                  -DLLVM_INCLUDE_EXAMPLES=Off                   \
-                                                  -DLLVM_INCLUDE_DOCS=Off                       \
-                                                  -DLLVM_TARGETS_TO_BUILD="X86"                 \
-                                                  -LLVM_TARGET_ARCH="X86_64"                    \
-                                                  -G "Unix Makefiles"                           \
-                                                  $(LLVMBUILD)/$(LLVM_SRC_DIR)
-
-stamps/llvm-native-make: stamps/llvm-native-configure
-	$(MAKE) -C llvm-native
-	$(MAKE) -C llvm-native install
+# Make sure to build the system with a known version of the compiler.
+# We use pre-built clang binaries for that.
+stamps/llvm-native-make: $(CLANG_BINARY_DIR) $(LLVM_SRC_DIR) | stamps
 	touch $@
 
 CLANG_CC = $(S2EPREFIX)/bin/clang
 CLANG_CXX = $(S2EPREFIX)/bin/clang++
 CLANG_LIB = $(S2EPREFIX)/lib
-
-# Then build LLVM with the clang compiler
 
 LLVM_CONFIGURE_FLAGS = -DLLVM_TARGETS_TO_BUILD="X86"        \
                        -DLLVM_TARGET_ARCH="X86_64"          \

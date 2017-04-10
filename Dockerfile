@@ -10,7 +10,7 @@ FROM ubuntu:16.04
 # Install build dependencies
 RUN apt-get update &&                                                       \
     apt-get -y install build-essential cmake wget texinfo flex bison        \
-    python-dev mingw-w64
+    python-dev mingw-w64 lsb-release
 
 # Install S2E dependencies
 RUN apt-get update && apt-get -y install libdwarf-dev libelf-dev            \
