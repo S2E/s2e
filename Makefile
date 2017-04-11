@@ -277,6 +277,7 @@ Z3_CONFIGURE_FLAGS = -DCMAKE_INSTALL_PREFIX=$(S2EPREFIX)                \
                      -DCMAKE_C_FLAGS="-fno-omit-frame-pointer -fPIC"    \
                      -DCMAKE_CXX_FLAGS="-fno-omit-frame-pointer -fPIC"  \
                      -DBUILD_LIBZ3_SHARED=Off                           \
+                     -DUSE_OPENMP=Off                                   \
                      -G "Unix Makefiles"
 
 stamps/z3-configure: stamps/llvm-native-make $(Z3_BUILD_DIR)
