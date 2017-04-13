@@ -284,6 +284,8 @@ ref<Expr> S2EExecutionState::createConcolicValue(const std::string &name, Expr::
 
     return ret;
 #else
+    g_s2e->getWarningsStream(this) << "Cannot create symbolic data in single-path (s2e_sp) build\n";
+
     unsigned i;
     uint64_t value = 0;
     for (i = 0; i < buffer.size(); i++) {
@@ -349,6 +351,8 @@ std::vector<ref<Expr>> S2EExecutionState::createConcolicArray(const std::string 
     g_s2e->getCorePlugin()->onSymbolicVariableCreation.emit(this, name, result, mo, array);
     variableNameMapping = variableNameMapping.insert(std::make_pair(sname, originalVarName));
 #else
+    g_s2e->getWarningsStream(this) << "Cannot create symbolic data in single-path (s2e_sp) build\n";
+
     for (unsigned i = 0; i < size; ++i) {
         result.push_back(ConstantExpr::create(concreteBuffer[i], Expr::Int8));
     }
