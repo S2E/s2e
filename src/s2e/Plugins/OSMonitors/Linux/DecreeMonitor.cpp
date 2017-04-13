@@ -232,9 +232,9 @@ klee::ref<klee::Expr> DecreeMonitor::readMemory8(S2EExecutionState *state, uint6
 }
 
 uint64_t DecreeMonitor::getPid(S2EExecutionState *state, uint64_t pc) {
-    uint64_t pid;
-    uint64_t taskStructPtr = getTaskStructPtr(state);
-    unsigned pidAddress = taskStructPtr + 292; // Offsets can be found with: pahole vmlinux -C task_struct
+    target_ulong pid;
+    target_ulong taskStructPtr = getTaskStructPtr(state);
+    unsigned pidAddress = taskStructPtr + 320; // Offsets can be found with: pahole vmlinux -C task_struct
 
     if (!state->mem()->readMemoryConcrete(pidAddress, &pid, sizeof(pid))) {
         return -1;

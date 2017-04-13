@@ -104,17 +104,17 @@ protected:
     bool m_terminateOnSegfault;
 
     /// Get the base address to the \c task_struct in the kernel
-    uint64_t getTaskStructPtr(S2EExecutionState *state) {
-        uint64_t esp0;
-        uint64_t esp0Addr = env->tr.base + TSS_ESP0_OFFSET;
+    target_ulong getTaskStructPtr(S2EExecutionState *state) {
+        target_ulong esp0;
+        target_ulong esp0Addr = env->tr.base + TSS_ESP0_OFFSET;
 
         if (!state->mem()->readMemoryConcrete(esp0Addr, &esp0, sizeof(esp0))) {
             return -1;
         }
 
         // Based on the "current_stack" function in arch/x86/kernel/irq_32.c
-        uint64_t currentThreadInfo = esp0 & ~(THREAD_SIZE - 1);
-        uint64_t taskStructPtr;
+        target_ulong currentThreadInfo = esp0 & ~(THREAD_SIZE - 1);
+        target_ulong taskStructPtr;
 
         if (!state->mem()->readMemoryConcrete(currentThreadInfo, &taskStructPtr, sizeof(taskStructPtr))) {
             return -1;
