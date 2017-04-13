@@ -93,10 +93,11 @@ uint64_t LinuxMonitor::getPid(S2EExecutionState *state, uint64_t pc) {
 // Therefore the getPid method returns the TGID and getTid returns the PID.
 //
 
+// XXX: this assumes 64-bit kernels!
 uint64_t LinuxMonitor::getPid(S2EExecutionState *state) {
-    uint64_t tgid;
-    uint64_t taskStructPtr = getTaskStructPtr(state);
-    unsigned tgidAddress = taskStructPtr + linux::TASK_STRUCT_TGID_OFFSET;
+    target_ulong tgid;
+    target_ulong taskStructPtr = getTaskStructPtr(state);
+    target_ulong tgidAddress = taskStructPtr + linux::TASK_STRUCT_TGID_OFFSET;
 
     if (!state->mem()->readMemoryConcrete(tgidAddress, &tgid, sizeof(tgid))) {
         return -1;
@@ -106,9 +107,9 @@ uint64_t LinuxMonitor::getPid(S2EExecutionState *state) {
 }
 
 uint64_t LinuxMonitor::getTid(S2EExecutionState *state) {
-    uint64_t pid;
-    uint64_t taskStructPtr = getTaskStructPtr(state);
-    unsigned pidAddress = taskStructPtr + linux::TASK_STRUCT_PID_OFFSET;
+    target_ulong pid;
+    target_ulong taskStructPtr = getTaskStructPtr(state);
+    target_ulong pidAddress = taskStructPtr + linux::TASK_STRUCT_PID_OFFSET;
 
     if (!state->mem()->readMemoryConcrete(pidAddress, &pid, sizeof(pid))) {
         return -1;
