@@ -163,20 +163,27 @@ int s2e_kvm_get_supported_cpuid(int kvm_fd, struct kvm_cpuid2 *cpuid) {
 }
 
 int s2e_kvm_vcpu_set_cpuid2(int vcpu_fd, struct kvm_cpuid2 *cpuid) {
-    /**
-     * QEMU insists on using host cpuid flags when running in KVM mode.
-     * We want to use those set in DBT mode instead.
-     * TODO: for now, we have no way to configure custom flags.
-     * Snapshots will not work if using anything other that defaults.
-     */
+/**
+ * QEMU insists on using host cpuid flags when running in KVM mode.
+ * We want to use those set in DBT mode instead.
+ * TODO: for now, we have no way to configure custom flags.
+ * Snapshots will not work if using anything other that defaults.
+ */
 
-    if (cpuid->nent == 15 && strncmp(env->cpu_model_str, "qemu32", 6)) {
-        fprintf(stderr, "Libs2e for 32-bit guests is used but the KVM client requested 64-bit features\n");
-        exit(1);
-    } else if (cpuid->nent == 21 && strncmp(env->cpu_model_str, "qemu64", 6)) {
-        fprintf(stderr, "Libs2e for 64-bit guests is used but the KVM client requested 32-bit features\n");
+/// This check ensures that users don't mistakenly use the wrong build of libs2e.
+#if defined(TARGET_X86_64)
+    if (cpuid->nent == 15) {
+        fprintf(stderr, "libs2e for 64-bit guests is used but the KVM client requested 32-bit features\n");
         exit(1);
     }
+#elif defined(TARGET_I386)
+    if (cpuid->nent == 21) {
+        fprintf(stderr, "libs2e for 32-bit guests is used but the KVM client requested 64-bit features\n");
+        exit(1);
+    }
+#else
+#error unknown architecture
+#endif
 
     return 0;
 }
