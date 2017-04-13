@@ -171,7 +171,7 @@ void BaseInstructions::makeSymbolic(S2EExecutionState *state, uintptr_t address,
     }
 
     getInfoStream(state) << "Inserted symbolic data @" << hexval(address) << " of size " << hexval(size) << ": "
-                         << (varName ? *varName : nameStr) << valueSs.str() << "\n";
+                         << (varName ? *varName : nameStr) << valueSs.str() << " pc=" << hexval(state->getPc()) << "\n";
 
     for (unsigned i = 0; i < size; ++i) {
         if (!state->writeMemory8(address + i, symb[i])) {
