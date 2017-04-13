@@ -44,5 +44,7 @@ for EXT in ${FILE_EXTS}; do
     find -type f -name "*${EXT}"                    \
         -not -path "./guest/windows/*"              \
         -not -path "./lua/*"                        \
+        -not -path "./qemu/*"                       \
+        -not -path "./build-scripts/*"              \
         -exec ${CLANG_FORMAT} -i -style=file {} +
 done
