@@ -454,11 +454,11 @@ int s2e_kvm_vm_enable_cap(int vm_fd, struct kvm_enable_cap *cap) {
 }
 
 int s2e_kvm_vm_ioeventfd(int vm_fd, struct kvm_ioeventfd *event) {
+#ifdef SE_KVM_DEBUG_INTERFACE
     printf("kvm_ioeventd datamatch=%#llx addr=%#llx len=%d fd=%d flags=%#" PRIx32 "\n", event->datamatch, event->addr,
            event->len, event->fd, event->flags);
+#endif
     return -1;
-
-    assert(false && "Not implemented");
 }
 
 int s2e_kvm_vm_set_identity_map_addr(int vm_fd, uint64_t addr) {
@@ -547,7 +547,9 @@ int s2e_kvm_vcpu_set_signal_mask(int vcpu_fd, struct kvm_signal_mask *mask) {
     // not sure what the implications of spurious signals are.
     s_s2e_kvm_sigmask_size = mask->len;
     for (unsigned i = 0; i < mask->len; ++i) {
+#ifdef SE_KVM_DEBUG_INTERFACE
         printf("  signals %#04x\n", mask->sigset[i]);
+#endif
         s_s2e_kvm_sigmask.bytes[i] = mask->sigset[i];
     }
     return 0;

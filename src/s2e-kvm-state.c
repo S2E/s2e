@@ -440,7 +440,9 @@ int s2e_kvm_vcpu_get_mp_state(int vcpu_fd, struct kvm_mp_state *mp) {
 }
 
 int s2e_kvm_vm_set_tss_addr(int vm_fd, uint64_t tss_addr) {
+#ifdef SE_KVM_DEBUG_INTERFACE
     printf("Setting tss addr %#" PRIx64 " not implemented yet\n", tss_addr);
+#endif
     return 0;
 }
 

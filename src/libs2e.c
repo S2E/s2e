@@ -132,7 +132,6 @@ static int handle_kvm_vm_ioctl(int fd, int request, uint64_t arg1) {
 
         case KVM_CREATE_VCPU: {
             ret = s2e_kvm_vm_create_vcpu(fd);
-            printf("Created vcpu %d\n", ret);
         } break;
 
         case KVM_SET_USER_MEMORY_REGION: {
