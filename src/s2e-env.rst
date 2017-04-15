@@ -75,7 +75,7 @@ You will need a virtual machine image to run your analysis target in. To see wha
 .. code-block:: console
 
     cd /home/user/s2e
-    s2e image_templates
+    s2e image_build
 
 This will list an image template name and a description of that image. For example, to build a Linux 4.9.3 i386 image
 run:
@@ -91,11 +91,24 @@ This will:
 * Configure the image for S2E
 * Install an S2E-compatible kernel that can be used with the `LinuxMonitor <Plugins/Linux/LinuxMonitor.rst>`_ plugin
   and snapshot the image
-* Create a (hidden) JSON file describing the image. This JSON description is important for the ``new_project`` command
+* Create a JSON file describing the image. This JSON description is important for the ``new_project`` command
 * Create a ready-to-run snapshot so that you do not have to reboot the guest everytime you
   want to run an analysis.
 
-Building the image will take some time (approx. 20 minutes), so go and make another coffee.
+Building the image will take some time (approx. 30 minutes), so go and make another coffee.
+
+You may also build all images at once:
+
+.. code-block:: console
+
+    cd /home/user/s2e
+    s2e image_build all
+
+You may find more information about the infrastructure that builds the images
+in the following repositories:
+
+  * `guest-images <https://github.com/S2E/guest-images>`_
+  * `s2e-linux-kernel <https://github.com/S2E/s2e-linux-kernel>`_
 
 Creating a new analysis project
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -113,32 +126,27 @@ that you specified with the ``--image`` option will be used. The target binary w
 appropriate configuration files and launch scripts are generated. By default ``new_project`` will create the following
 files:
 
+launch-s2e.sh
+    This is the script that you will run most frequently. It starts S2E and runs the analysis as configured in the following
+    files. This script contains various variables that you may edit depending on how you want to run S2E (multi-core mode,
+    gdb, etc.).
+
 bootstrap.sh
-    This script is uploaded to the virtual machine and used to run the analysis in the guest. When a virtual machine is
-    created by ``s2e-env`` it is configured to run `launch.sh
-    <https://github.com/S2E/guest-tools/blob/master/linux/scripts/launch.sh>`_ automatically when the s2e user logs in. This
-    script fetches ``bootstrap.sh`` from the host and executes it. This script varies depending on your target program,
-    so you should always check this file and modify it as required **before** running your analysis.
+    S2E downloads this file from the host into the guest, then executes it. This file contains instructions on how
+    to start the program, where to inject symbolic arguments, etc. When ``s2e-env`` creates a VM image, it configures
+    the image to run `launch.sh <https://github.com/S2E/guest-tools/blob/master/linux/scripts/launch.sh>`_ automatically
+    when the s2e user logs in. This script fetches ``bootstrap.sh`` from the host and executes it.
+    This script varies depending on your target program, so you should always check this file and modify it as required
+    **before** running your analysis.
+
+s2e-config.lua
+   The main S2E configuration file. Analysis plugins are enabled and configured here.
 
 guest-tools
     A symlink to the S2E `guest tools <https://github.com/S2E/guest-tools>`_. These will be downloaded to the guest by the
-    bootstrap script, so if you need to modify these tools you are not required to rebuild your image.
+    bootstrap script every time you launch a new analysis. This way, you do not have to rebuild the VM image
+    every time you modify these tools.
 
-launch-non-s2e.sh
-    This script will run your image in QEMU in non-S2E mode (i.e. without symbolic execution). Any changes made to the
-    image will **not** persist after shutdown. This is used for taking snapshots of the virtual machine.
-
-launch-raw.sh
-    This script will run your image in QEMU in "raw" mode. This means that any changes made to the image will persist
-    after shutdown. This is useful if you want to make changes to the image, e.g. install new packages, etc.
-
-launch-s2e.sh
-    This script will run your analysis as configured in ``s2e-config.lua``.
-
-s2e-config.lua
-    The S2E configuration file. Plugins are enabled and configured here.
-
-A symbolic link to your target program will also be created.
 
 Target program arguments
 ~~~~~~~~~~~~~~~~~~~~~~~~

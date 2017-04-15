@@ -26,7 +26,7 @@ virtual machine image can be built by running the following command:
 
 .. code-block:: console
 
-    s2e image_build -n decree-img decree-cgc-cfe
+    s2e image_build cgc_debian-8.7.1-i386
 
 Analyzing a sample CB
 ---------------------
@@ -44,7 +44,7 @@ Once you have built the CADET_00001 binary you can create an S2E analysis projec
 
 .. code-block:: console
 
-    s2e new_project --image decree-img /path/to/cbs/samples/CADET_00001
+    s2e new_project --image cgc_debian-8.7.1-i386 /path/to/cbs/samples/CADET_00001
 
 This will create a ``projects/CADET_00001`` directory with various scripts and configuration files needed by S2E, as
 described `here <../s2e-env.rst>`_. Lets examine some of the generated files.
@@ -70,7 +70,7 @@ POVGenerator
     DARPA.
 
 Recipe
-    Used for defining the conditions necessary for exploit generation. Out-of-the-box S2E supports `Type 1 and Type 2
+    Used for defining the conditions necessary for exploit generation. S2E supports `Type 1 and Type 2
     <https://github.com/CyberGrandChallenge/cgc-release-documentation/blob/master/walk-throughs/understanding-cfe-povs.md>`_
     POVs. POV generation will not work without recipes.
 
@@ -128,8 +128,8 @@ Starting an analysis
 
 To start S2E, run ``launch-s2e.sh``. As S2E finds vulnerabilities, it generates POV files in the ``s2e-last``
 directory. These files have the ``.xml`` extension. Once some POVs have been
-generated you can stop S2E by killing the process with ``Ctrl+C`` or ``killall -9 qemu-system-i386`` for the reasons
-described above in the bootstrap section. For a deeper understanding of what S2E is doing you may wish to have a look
+generated you can stop S2E by killing the process with ``Ctrl+C`` or ``killall -9 qemu-system-i386``.
+For a deeper understanding of what S2E is doing you may wish to have a look
 at the ``debug.txt`` log file in ``s2e-last``.
 
 Replaying POVs
