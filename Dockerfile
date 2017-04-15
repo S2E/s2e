@@ -47,11 +47,10 @@ COPY . s2e/
 RUN cd s2e-build &&                                                         \
     make -f ../s2e/Makefile S2EPREFIX=/opt/s2e install install-win
 
+# Install s2e-env
+RUN apt-get -y install python-pip && \
+    cd s2e/s2e-env && \
+    pip install .
+
 # Don't keep sources and build files
 RUN rm -rf s2e-build s2e
-
-# Create an unprivileged user to run S2E
-RUN adduser --disabled-password -gecos "" s2e
-RUN chown -R s2e:s2e /opt/s2e
-USER s2e
-ENV PATH /opt/s2e/bin:$PATH
