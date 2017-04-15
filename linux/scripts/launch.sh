@@ -34,28 +34,6 @@ set -v
 SECRET_MESSAGE_KILL='?!?MAGIC?!?k 0 '
 SECRET_MESSAGE_SAVEVM='?!?MAGIC?!?s ready '
 
-# Grub sorts kernels by version number and the CGC kernel version is
-# older than stock kernel, so it is not selected after install.
-# We need to tweak the config manually.
-#
-# This tweak somehow can't be done at installation because the grub config
-# is destroyed when packer shuts down the guest.
-if ! echo $(uname -r) | grep -q s2e; then
-  MENU_ENTRY="$(grep menuentry /boot/grub/grub.cfg  | grep s2e | cut -d "'" -f 2 | head -n 1)"
-  echo "Default menu entry: $MENU_ENTRY"
-  echo "GRUB_DEFAULT=\"1>$MENU_ENTRY\"" | sudo tee -a /etc/default/grub
-  sudo update-grub
-  sync
-  # This is to satisfy the s2e-env image creation script,
-  # so that it can kill us
-  echo "booted kernel $(uname -r)" > /dev/ttyS0
-  read -t 5 < /dev/ttyS0
-
-  # In case the s2e-env script screws up, kill ourselves
-  # NOTE: use quotes around secret to send last space character
-  echo "$SECRET_MESSAGE_KILL" > /dev/ttyS0
-fi
-
 # If the image is run in non-S2E mode execution will loop indefinitely on
 # s2eget. This gives the user the opportunity to take a snapshot. When the
 # image is rebooted into S2E mode it will retrieve the bootstrap script and
@@ -67,3 +45,4 @@ echo "$SECRET_MESSAGE_SAVEVM" > /dev/ttyS0
 ./s2eget bootstrap.sh
 chmod +x bootstrap.sh
 ./bootstrap.sh 2>&1 > /dev/ttyS0
+./s2ecmd kill 0 "bootstrap terminated"
