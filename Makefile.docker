@@ -1,0 +1,58 @@
+# Copyright (C) 2017, Cyberhaven
+# All rights reserved.
+#
+# Licensed under the Cyberhaven Research License Agreement.
+
+# Creates a docker image containing a ready-to-run S2E demo.
+all: demo
+demo: stamps/decree-demo
+
+# Check the build directory
+ifeq ($(shell ls libs2e/src/libs2e.c 2>&1),libs2e/src/libs2e.c)
+    $(error You should not run make in the S2E source directory!)
+endif
+
+# S2E variables
+S2ESRC?=$(dir $(abspath $(lastword $(MAKEFILE_LIST))))
+S2EBUILD:=$(CURDIR)
+
+DOCKER_PREFIX=cyberhaven
+
+##########
+# Docker #
+##########
+
+stamps:
+	mkdir -p $@
+
+# Build S2E inside a docker container
+stamps/docker-s2e-build: | stamps
+	cd $(S2ESRC) && docker build -t $(DOCKER_PREFIX)/s2e-build -f Dockerfile .
+	touch $@
+
+$(S2EBUILD)/docker $(S2EBUILD)/docker-demo:
+	mkdir -p "$@"
+
+# This rule creates a container that only has S2E binaries in it.
+# Note: it is not possible to simply delete build files from the s2e-build
+# container, because docker would still keep intermediate layers.
+# That would make the cyberhaven/s2e container unnecessarily large.
+stamps/docker-s2e: stamps/docker-s2e-build $(S2EBUILD)/docker $(S2ESRC)/build-scripts/Dockerfile.dist
+	echo Preparing docker build folder...
+	cp $(S2ESRC)/build-scripts/Dockerfile.dist $(S2EBUILD)/docker
+	cp -r $(S2ESRC)/s2e-env $(S2EBUILD)/docker
+
+	echo Extracting /opt/s2e from build image
+	cd $(S2EBUILD)/docker && $(S2ESRC)/build-scripts/extract-docker-dir.sh $(DOCKER_PREFIX)/s2e-build /opt/s2e .
+
+	echo Building $(DOCKER_PREFIX)/s2e
+	cd $(S2EBUILD)/docker &&  docker build --force-rm=true -t $(DOCKER_PREFIX)/s2e -f Dockerfile.dist .
+
+	touch $@
+
+stamps/decree-demo: $(S2EBUILD)/docker-demo stamps/docker-s2e
+	echo Building demo...
+	cp -r $(S2ESRC)/build-scripts/demo/* $(S2EBUILD)/docker-demo
+	cp $(S2ESRC)/decree/samples/* $(S2EBUILD)/docker-demo
+	cd $(S2EBUILD)/docker-demo && docker build -t $(DOCKER_PREFIX)/s2e-demo -f Dockerfile.demo .
+	touch $@

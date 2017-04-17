@@ -1,0 +1,38 @@
+# Copyright (C) 2017, Cyberhaven
+# All rights reserved.
+#
+# Licensed under the Cyberhaven Research License Agreement.
+
+FROM ubuntu:16.04
+MAINTAINER Vitaly Chipounov <vitaly@cyberhaven.io>
+
+# i386 packages are required by IDA Pro, they are included here for convenience.
+# You must provide your own copy of IDA Pro.
+RUN echo "deb http://apt.postgresql.org/pub/repos/apt/ precise-pgdg main 9.4" > /etc/apt/sources.list.d/pgdg.list && \
+    apt-key adv --keyserver keyserver.ubuntu.com --recv-keys ACCC4CF8 &&     \
+    dpkg --add-architecture i386 && apt-get update
+
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y                        \
+        git netcat nano apport psmisc vim p7zip-full unzip                   \
+        python python-dev python-pip python-virtualenv                       \
+        postgresql-server-dev-9.4 postgresql-client-9.4                      \
+        wget libsvn1 libcurl3 gdb python2.7-dbg libssl-dev                   \
+        libstdc++6:i386 libpython2.7:i386 lib32ncurses5 lib32ncurses5-dev    \
+        libncurses5-dev libx32ncurses5-dev libncurses5-dev:i386              \
+        libxml2-dev libxslt1-dev libffi-dev                                  \
+        lsof psmisc libboost-serialization1.58.0 libboost-regex1.58          \
+        libmemcached11 libgettextpo0 libelf1 libprotobuf9v5 libjemalloc1     \
+        libpcre3 libpcre3-dev libxml2-dev:i386 libpcre3:i386                 \
+        liblua5.1-0 liblua5.2-0 libsigc++-2.0-dev                            \
+        python-yaml python-matplotlib python-lxml python-pip sudo  &&        \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        libc6-dev-i386 lib32stdc++-4.8-dev time                              \
+        $(apt-cache depends qemu-system-x86 | grep Depends |                 \
+          sed "s/.*ends:\ //" | grep -v '<' | tr '\n' ' ')
+
+# Copy pre-compiled S2E files
+COPY s2e /opt/s2e
+
+# Install s2e-env
+COPY s2e-env /s2e-env
+RUN cd /s2e-env && pip install .
