@@ -90,8 +90,6 @@ extern "C" {
 
 using namespace llvm;
 
-class TJITMemoryManager;
-
 struct TCGLLVMContextPrivate {
     LLVMContext& m_context;
     IRBuilder<> m_builder;
