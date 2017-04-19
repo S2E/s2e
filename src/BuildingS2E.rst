@@ -6,12 +6,55 @@ S2E builds and runs on Ubuntu 14.04 or 16.04 (64-bit).
 
 .. contents::
 
-Using ``s2e-env``
-=================
+Building with ``s2e-env``
+=========================
 
-The simplest way to build S2E is to use the ``s2e-env`` tool. See `Using s2e-env <s2e-env.rst>`_ for instructions.
+The simplest way to build S2E is to use the ``s2e-env`` tool. It is the preferred
+method for development. See `Using s2e-env <s2e-env.rst>`_ for instructions.
 
 If you want to build S2E manually or using Docker, read below.
+
+Building using Docker
+=====================
+
+You can create a self-contained docker image that lets you analyze any supported binary.
+The following command builds the demo docker image.
+
+.. code-block:: console
+
+    # Checkout S2E sources (using Google Repo)
+    # S2EDIR must be in your home folder (e.g., /home/user/s2e)
+    cd $S2EDIR
+    repo init -u https://github.com/s2e/manifest.git
+    repo sync
+
+    # Create a build directory
+    mkdir build && cd build
+
+    # Build the docker image
+    make -f $S2EDIR/Makefile.docker demo
+
+You can then run it as follows:
+
+.. code-block:: console
+
+    docker run --rm -ti -w $(pwd) -v $HOME:$HOME cyberhaven/s2e-demo /demo/run.sh $(id -u) $(id -g) /demo/CADET_00001
+
+This command starts the s2e-demo container and creates an S2E environment
+in ``$(pwd)/s2e-demo``. It then downloads a VM image and creates a default S2E
+configuration suitable for running the specified binary. Once configuration is
+done, the container starts S2E.
+
+The S2E environment in ``$(pwd)/s2e-demo`` is persistent. It is not kept in the container.
+You may run the container multiple times without losing the previous settings.
+This is possible by mounting your home folder in the container. The command also
+takes your current user and group id in order to create the environment folder
+with the right permissions (docker uses root by default).
+
+You may specify any binary you want and are not restricted to binaries stored
+inside the container. You just need to mount the folder that contains it
+using the ``-v`` option.
+
 
 Building S2E manually
 =====================
@@ -77,7 +120,7 @@ directory that will hold both the S2E source and build directories.
 .. code-block:: console
 
     cd $S2EDIR
-    repo init -u git://github.com/s2e/manifest.git
+    repo init -u https://github.com/s2e/manifest.git
     repo sync
 
 This will setup the S2E repositories in ``$S2EDIR``.
@@ -127,13 +170,3 @@ documentation can be built using the S2E Makefile:
 .. code-block:: console
 
     make -f $S2EDIR/Makefile docs
-
-Building using Docker
----------------------
-
-The following command builds a docker image called ``s2e-build``.
-
-.. code-block:: console
-
-    cd $S2EDIR
-    docker build -t s2e-build .
