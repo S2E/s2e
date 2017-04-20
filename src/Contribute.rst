@@ -51,6 +51,12 @@ Ensure your code is formatted correctly
     ``run-clang-format.sh``, that can be used to format the entire S2E source tree. Alternatively you may use the
     ``.clang-format`` file in the root of the repository. Note that Windows guest tools have their own code style.
 
+    To check Python code, run the following `pylint <https://www.pylint.org>`_-based script:
+    
+    .. code-block:: console
+    
+        $S2EDIR/build-scripts/run_pylint.py /path/to/python/code
+
 Your code must be documented
     If you write a plugin, please write Doxygen-style documentation in the source code as well as an ``.rst`` file that
     explains how to use the plugin on some real examples. Please be as thorough as possible in the documentation. The
