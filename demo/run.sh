@@ -81,15 +81,11 @@ fi
 
 cd "$ROOT"
 
-if [ ! -d images/cgc_debian-8.7.1-i386 ]; then
-  s2e image_build -d cgc_debian-8.7.1-i386
-fi
-
-echo projects/$BINARY
-
 if [ ! -d projects/$BINARY ]; then
-  echo "Creating new project"
-  s2e new_project "$BINARY_PATH" $*
+  echo "Creating new project in projects/$BINARY"
+
+  # Automatically download image if needed
+  s2e new_project -d "$BINARY_PATH" $*
 fi
 
 echo running
