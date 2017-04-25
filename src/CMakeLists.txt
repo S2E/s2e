@@ -13,6 +13,7 @@ add_library(
 
     # Support plugins
     s2e/Plugins/Support/KeyValueStore.cpp
+    s2e/Plugins/Support/WebServiceInterface.cpp
 
     # Windows guests support
     s2e/Plugins/OSMonitors/Windows/WindowsInterceptor.cpp
