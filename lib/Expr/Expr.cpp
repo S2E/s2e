@@ -890,13 +890,33 @@ static ref<Expr> AndExpr_createPartial(Expr *l, const ref<ConstantExpr> &cr) {
         return l;
     } else if (cr->isZero()) {
         return cr;
-    } else {
-        return AndExpr::alloc(l, cr);
+    } else if (OrExpr *ol = dyn_cast<OrExpr>(l)) {
+        // b and c are const =>
+        // (a or b) and c => (a and c) or (b and c) => (a and c) or const
+        // This is useful in case (b and c) evaluate to 0.
+        const ref<ConstantExpr> &c = cr;
+        const ref<Expr> a = ol->getKid(0);
+        const ref<ConstantExpr> b = dyn_cast<ConstantExpr>(ol->getKid(1));
+        if (!b.isNull() && !(c->getZExtValue() & b->getZExtValue())) {
+            return AndExpr::create(a, c);
+        }
+    } else if (AndExpr *al = dyn_cast<AndExpr>(l)) {
+        // (a and const 1) and const2 => a and (const1 and const2)
+        const ref<Expr> a = al->getKid(0);
+        const ref<ConstantExpr> c1 = cr;
+        const ref<ConstantExpr> c2 = dyn_cast<ConstantExpr>(al->getKid(1));
+        if (!c2.isNull()) {
+            return AndExpr::create(a, AndExpr::create(c1, c2));
+        }
     }
+
+    return AndExpr::alloc(l, cr);
 }
+
 static ref<Expr> AndExpr_createPartialR(const ref<ConstantExpr> &cl, Expr *r) {
     return AndExpr_createPartial(r, cl);
 }
+
 static ref<Expr> AndExpr_create(Expr *l, Expr *r) {
     if (l->isNegationOf(r))
         return ConstantExpr::create(0, Expr::Bool);
@@ -922,13 +942,22 @@ static ref<Expr> OrExpr_createPartial(Expr *l, const ref<ConstantExpr> &cr) {
         return cr;
     } else if (cr->isZero()) {
         return l;
+    } else if (const OrExpr *ol = dyn_cast<OrExpr>(l)) {
+        // Compact or(or(a, const1), const2) => or(a, const1 | const2)
+        ref<ConstantExpr> const2 = dyn_cast<ConstantExpr>(ol->getKid(1));
+        if (!const2.isNull()) {
+            return OrExpr::create(ol->getKid(0), OrExpr::create(cr, const2));
+        }
+        return OrExpr::alloc(l, cr);
     } else {
         return OrExpr::alloc(l, cr);
     }
 }
+
 static ref<Expr> OrExpr_createPartialR(const ref<ConstantExpr> &cl, Expr *r) {
     return OrExpr_createPartial(r, cl);
 }
+
 static ref<Expr> OrExpr_create(Expr *l, Expr *r) {
     if (l->isNegationOf(r))
         return ConstantExpr::create(1, Expr::Bool);
