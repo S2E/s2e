@@ -54,7 +54,7 @@ void BugCollector::initialize() {
     m_detector = static_cast<ModuleExecutionDetector *>(s2e()->getPlugin("ModuleExecutionDetector"));
 
     m_vmiPlugin = static_cast<Vmi *>(s2e()->getPlugin("Vmi"));
-    m_tc = dynamic_cast<TestCaseGenerator *>(s2e()->getPlugin("TestCaseGenerator"));
+    m_tc = dynamic_cast<testcases::TestCaseGenerator *>(s2e()->getPlugin("TestCaseGenerator"));
     if (m_tc) {
         m_tc->disable();
     }

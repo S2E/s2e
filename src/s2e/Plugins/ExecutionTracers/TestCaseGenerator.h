@@ -11,10 +11,13 @@
 
 #include <llvm/Support/raw_ostream.h>
 #include <s2e/Plugin.h>
+#include <s2e/Plugins/ExecutionTracers/ExecutionTracer.h>
 #include <string>
+#include <vector>
 
 namespace s2e {
 namespace plugins {
+namespace testcases {
 
 struct TestCaseFile {
     /* Maps a chunk id to the size */
@@ -26,6 +29,8 @@ struct TestCaseFile {
 
 typedef std::map<std::string, TestCaseFile> TestCaseFiles;
 
+enum TestCaseType : unsigned { TC_NONE = 0, TC_LOG = 1, TC_TRACE = 2, TC_FILE = 4 };
+
 /** Handler required for KLEE interpreter */
 class TestCaseGenerator : public Plugin {
     S2E_PLUGIN
@@ -33,9 +38,6 @@ class TestCaseGenerator : public Plugin {
 private:
     typedef std::pair<std::string, std::vector<unsigned char>> VarValuePair;
     typedef std::vector<VarValuePair> ConcreteInputs;
-
-    unsigned m_testIndex;     // number of tests written so far
-    unsigned m_pathsExplored; // number of paths explored so far
 
 public:
     TestCaseGenerator(S2E *s2e);
@@ -45,20 +47,25 @@ public:
     void enable();
     void disable();
 
-    void writeTestCase(S2EExecutionState *state, llvm::raw_ostream *out);
-    llvm::raw_ostream *getTestCaseFile(S2EExecutionState *state);
+    void generateTestCases(S2EExecutionState *state, const std::string &prefix, TestCaseType type);
 
 private:
     sigc::connection m_connection;
+    ExecutionTracer *m_tracer;
 
     void onStateKill(S2EExecutionState *state);
+    void onSegFault(S2EExecutionState *state, uint64_t pid, uint64_t pc);
 
-    bool isFilePart(const std::string &variableName);
+    void writeTestCaseToTrace(S2EExecutionState *state, const ConcreteInputs &inputs);
+    void writeSimpleTestCase(llvm::raw_ostream &os, const ConcreteInputs &inputs);
+
     bool getFilePart(const std::string &variableName, std::string &filePath, unsigned *part, unsigned *total) const;
     void getFiles(const ConcreteInputs &inputs, TestCaseFiles &files);
-    bool generateFile(S2EExecutionState *state, const std::string &filePath, TestCaseFile &file);
-    void generateFiles(S2EExecutionState *state, TestCaseFiles &files);
+    void assembleTestCaseToFiles(const ConcreteInputs &inputs, const std::string &prefix,
+                                 std::vector<std::string> &fileNames);
+    bool assembleChunks(const TestCaseFile &file, std::vector<uint8_t> &out);
 };
+}
 }
 }
 

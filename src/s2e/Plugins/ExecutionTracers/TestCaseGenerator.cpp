@@ -1,6 +1,6 @@
 ///
 /// Copyright (C) 2010-2015, Dependable Systems Laboratory, EPFL
-/// Copyright (C) 2016, Cyberhaven
+/// Copyright (C) 2017, Cyberhaven
 /// All rights reserved.
 ///
 /// Licensed under the Cyberhaven Research License Agreement.
@@ -10,30 +10,61 @@
 #include <fstream>
 #include <iomanip>
 
-#include <llvm/Support/Path.h>
+#include <boost/regex.hpp>
+#include <s2e/Plugins/OSMonitors/Linux/LinuxMonitor.h>
 #include <s2e/S2E.h>
 #include <s2e/S2EExecutionState.h>
 #include <s2e/S2EExecutor.h>
 #include <s2e/Utils.h>
-#include "ExecutionTracer.h"
 #include "TestCaseGenerator.h"
 
 namespace s2e {
 namespace plugins {
+namespace testcases {
 
-S2E_DEFINE_PLUGIN(TestCaseGenerator, "TestCaseGenerator plugin", "TestCaseGenerator", "ExecutionTracer");
+// TODO: this must be in sync with s2ecmd
+static const boost::regex SymbolicFileRegEx(".*?__symfile___(.+?)___(\\d+)_(\\d+)_symfile__.*", boost::regex::perl);
+
+TestCaseType operator|(TestCaseType a, TestCaseType b) {
+    return static_cast<TestCaseType>(static_cast<unsigned>(a) | static_cast<unsigned>(b));
+}
+
+bool operator&(TestCaseType a, TestCaseType b) {
+    return static_cast<bool>(static_cast<unsigned>(a) & static_cast<unsigned>(b));
+}
+
+S2E_DEFINE_PLUGIN(TestCaseGenerator, "TestCaseGenerator plugin", "TestCaseGenerator");
 
 TestCaseGenerator::TestCaseGenerator(S2E *s2e) : Plugin(s2e) {
-    m_testIndex = 0;
-    m_pathsExplored = 0;
 }
 
 void TestCaseGenerator::initialize() {
-    m_connection = s2e()->getCorePlugin()->onStateKill.connect(sigc::mem_fun(*this, &TestCaseGenerator::onStateKill));
+    ConfigFile *cfg = s2e()->getConfig();
+    bool tcOnKill = cfg->getBool(getConfigKey() + ".generateOnStateKill", true);
+    bool tcOnSegfault = cfg->getBool(getConfigKey() + ".generateOnSegfault", true);
+
+    if (tcOnKill) {
+        m_connection =
+            s2e()->getCorePlugin()->onStateKill.connect(sigc::mem_fun(*this, &TestCaseGenerator::onStateKill));
+    }
+
+    m_tracer = s2e()->getPlugin<ExecutionTracer>();
+
+    // TODO: add support for Windows
+    // TODO: refactor POV generation, which is another type of test case
+    if (tcOnSegfault) {
+        LinuxMonitor *linux = s2e()->getPlugin<LinuxMonitor>();
+        if (linux) {
+            linux->onSegFault.connect(sigc::mem_fun(*this, &TestCaseGenerator::onSegFault));
+        } else {
+            getWarningsStream() << "LinuxMonitor not enabled, cannot produce test cases on crashes\n";
+            exit(-1);
+        }
+    }
 }
 
 void TestCaseGenerator::enable() {
-    if (m_connection.connected() == false) {
+    if (!m_connection.connected()) {
         m_connection =
             s2e()->getCorePlugin()->onStateKill.connect(sigc::mem_fun(*this, &TestCaseGenerator::onStateKill));
     }
@@ -43,26 +74,50 @@ void TestCaseGenerator::disable() {
     m_connection.disconnect();
 }
 
-void TestCaseGenerator::onStateKill(S2EExecutionState *state) {
-    getInfoStream() << "TestCaseGenerator: processTestCase of state " << state->getID() << " at address "
-                    << hexval(state->getPc()) << '\n';
+void TestCaseGenerator::onSegFault(S2EExecutionState *state, uint64_t pid, uint64_t pc) {
+    std::stringstream ss;
+    ss << "crash:" << hexval(pid) << ":" << hexval(pc);
+    generateTestCases(state, ss.str(), TC_FILE);
+}
 
-    ConcreteInputs out;
-    bool success = s2e()->getExecutor()->getSymbolicSolution(*state, out);
+void TestCaseGenerator::onStateKill(S2EExecutionState *state) {
+    generateTestCases(state, "kill", TC_LOG | TC_TRACE | TC_FILE);
+}
+
+void TestCaseGenerator::generateTestCases(S2EExecutionState *state, const std::string &prefix, TestCaseType type) {
+    getInfoStream(state) << "generating test case at address " << hexval(state->getPc()) << '\n';
+
+    ConcreteInputs inputs;
+    bool success = s2e()->getExecutor()->getSymbolicSolution(*state, inputs);
 
     if (!success) {
-        getWarningsStream() << "Could not get symbolic solutions" << '\n';
+        getWarningsStream(state) << "Could not get symbolic solutions" << '\n';
         return;
     }
 
-    getInfoStream() << '\n';
+    if (type & TC_LOG) {
+        writeSimpleTestCase(getDebugStream(state), inputs);
+    }
 
-    ExecutionTracer *tracer = (ExecutionTracer *) s2e()->getPlugin("ExecutionTracer");
-    assert(tracer);
+    if (type & TC_TRACE) {
+        writeTestCaseToTrace(state, inputs);
+    }
 
+    if (type & TC_FILE) {
+        std::stringstream ss;
+        ss << "testcase-" << prefix << "-" << state->getID();
+        std::vector<std::string> fileNames;
+        assembleTestCaseToFiles(inputs, ss.str(), fileNames);
+        for (const auto &it : fileNames) {
+            getDebugStream(state) << "Generated " << it << "\n";
+        }
+    }
+}
+
+void TestCaseGenerator::writeSimpleTestCase(llvm::raw_ostream &os, const ConcreteInputs &inputs) {
     std::stringstream ss;
-    ConcreteInputs::iterator it;
-    for (it = out.begin(); it != out.end(); ++it) {
+    ConcreteInputs::const_iterator it;
+    for (it = inputs.begin(); it != inputs.end(); ++it) {
         const VarValuePair &vp = *it;
         ss << std::setw(20) << vp.first << " = {";
 
@@ -93,66 +148,66 @@ void TestCaseGenerator::onStateKill(S2EExecutionState *state) {
         ss << "\"\n";
     }
 
-    getInfoStream() << ss.str();
+    os << ss.str();
+}
+
+void TestCaseGenerator::writeTestCaseToTrace(S2EExecutionState *state, const ConcreteInputs &inputs) {
+    if (!m_tracer) {
+        getWarningsStream(state) << "ExecutionTracer not enabled, cannot write concrete inputs to trace file\n";
+        return;
+    }
 
     unsigned bufsize;
-    ExecutionTraceTestCase *tc = ExecutionTraceTestCase::serialize(&bufsize, out);
-    tracer->writeData(state, tc, bufsize, TRACE_TESTCASE);
+    ExecutionTraceTestCase *tc = ExecutionTraceTestCase::serialize(&bufsize, inputs);
+    m_tracer->writeData(state, tc, bufsize, TRACE_TESTCASE);
     ExecutionTraceTestCase::deallocate(tc);
 }
 
-llvm::raw_ostream *TestCaseGenerator::getTestCaseFile(S2EExecutionState *state) {
-    std::stringstream testCaseName;
-    testCaseName << "testcase" << state->getID() << ".txt";
-    llvm::raw_ostream *out = s2e()->openOutputFile(testCaseName.str());
-
-    if (!out) {
-        getWarningsStream(state) << "TestCaseGenerator: could not open file " << testCaseName.str() << '\n';
-        return NULL;
-    }
-
-    return out;
-}
-
-bool TestCaseGenerator::isFilePart(const std::string &variableName) {
-    const std::string startMarker = "__symfile$$$";
-    return variableName.find(startMarker) != std::string::npos;
-}
-
-/* The format of the variable is __symfile$$$/path/to/file$$$chunkid$chunkcount$symfile__ */
+///
+/// \brief Splits a variable name into chunk information
+///
+/// \param variableName the name of the variable
+/// \param filePath the file path encoded in the variable name
+/// \param part the part of the chunk encoded in the variable name
+/// \param numberOfParts the total number of chunks encoded in the variable name
+/// \return
+///
 bool TestCaseGenerator::getFilePart(const std::string &variableName, std::string &filePath, unsigned *part,
                                     unsigned *numberOfParts) const {
-    /** Find the file name */
-    const std::string startMarker = "__symfile$$$";
-    size_t fileNameStart = variableName.find(startMarker);
-    if (fileNameStart == std::string::npos) {
-        return false;
-    }
-    fileNameStart += startMarker.size();
 
-    size_t fileNameEnd = variableName.find("$$$", fileNameStart);
-    if (fileNameEnd == std::string::npos) {
+    boost::smatch what;
+    if (!boost::regex_match(variableName, what, SymbolicFileRegEx)) {
         return false;
     }
 
-    filePath = variableName.substr(fileNameStart, fileNameEnd - fileNameStart);
-
-    /** Extract the chunk id and count */
-    size_t chunkCountStart = fileNameEnd += 3;
-
-    const std::string endMarker = "$symfile__";
-    size_t endMarkerStart = variableName.find(endMarker);
-    if (endMarkerStart == std::string::npos) {
+    if (what.size() != 4) {
         return false;
     }
 
-    std::string counts = variableName.substr(chunkCountStart, endMarkerStart);
-    sscanf(counts.c_str(), "%d$%d", part, numberOfParts);
+    filePath = what[1];
+
+    std::string partStr = what[2];
+    std::string numberOfPartsStr = what[3];
+
+    *part = atoi(partStr.c_str());
+    *numberOfParts = atoi(numberOfPartsStr.c_str());
+
+    if (*part >= *numberOfParts) {
+        return false;
+    }
+
     return true;
 }
 
+///
+/// \brief Decodes file information encoded in symbolic variable names
+///
+/// \param inputs Concrete inputs whose variable names may contain file chunk data
+/// \param files The decoded information
+///
 void TestCaseGenerator::getFiles(const ConcreteInputs &inputs, TestCaseFiles &files) {
     ConcreteInputs::const_iterator it;
+
     for (it = inputs.begin(); it != inputs.end(); ++it) {
         const VarValuePair &vp = *it;
         const std::string &varName = vp.first;
@@ -171,14 +226,21 @@ void TestCaseGenerator::getFiles(const ConcreteInputs &inputs, TestCaseFiles &fi
     }
 }
 
-bool TestCaseGenerator::generateFile(S2EExecutionState *state, const std::string &filePath, TestCaseFile &file) {
+///
+/// \brief Assembles the given list of concrete file chunks
+///
+/// \param file the chunked representation of the concrete file
+/// \param out the assembled file content
+/// \return true if assembling was successful
+///
+bool TestCaseGenerator::assembleChunks(const TestCaseFile &file, std::vector<uint8_t> &out) {
     if (file.totalParts != file.chunks.size()) {
-        getWarningsStream() << "Test case for " << filePath << " has incorrect number of parts\n";
+        getWarningsStream() << "Test case has incorrect number of parts\n";
         return false;
     }
 
     if (file.chunksData.size() != file.chunks.size()) {
-        getWarningsStream() << "Test case for " << filePath << " has not enough data chunks\n";
+        getWarningsStream() << "Test case has not enough data chunks\n";
         return false;
     }
 
@@ -191,83 +253,65 @@ bool TestCaseGenerator::generateFile(S2EExecutionState *state, const std::string
         size += (*it).second;
     }
 
-    char *data = new char[size];
+    out.resize(size);
 
     foreach2 (it, file.chunksData.begin(), file.chunksData.end()) {
         unsigned id = (*it).first;
         const uint8_t *chunkData = (*it).second;
-        memcpy(data + offsets[id], chunkData, file.chunks[id]);
+        unsigned chunkSize = (*file.chunks.find(id)).second;
+        memcpy(&out[offsets[id]], chunkData, chunkSize);
     }
 
-    std::string fileName = llvm::sys::path::filename(filePath);
-    std::stringstream ss;
-    ss << "testcase" << state->getID() << "-file-" << fileName;
-
-    std::string outputFileName = s2e()->getOutputFilename(ss.str());
-
-    getDebugStream() << "TestCaseGenerator: generating concrete file for " << filePath << " in " << outputFileName
-                     << "\n";
-    std::ofstream ofs(outputFileName.c_str(), std::ios_base::out | std::ios_base::trunc | std::ios_base::binary);
-    ofs.write(data, size);
-    ofs.close();
-    delete[] data;
     return true;
 }
 
-void TestCaseGenerator::generateFiles(S2EExecutionState *state, TestCaseFiles &files) {
-    foreach2 (it, files.begin(), files.end()) {
-        TestCaseFile &file = (*it).second;
-        if (!generateFile(state, (*it).first, file)) {
-            getWarningsStream(state) << "Could not generate concrete test file for " << (*it).first << "\n";
-        }
-    }
-}
-
-void TestCaseGenerator::writeTestCase(S2EExecutionState *state, llvm::raw_ostream *out) {
-    getInfoStream() << "TestCaseGenerator: writing test case of state " << state->getID() << '\n';
-
-    ConcreteInputs inputs;
-    bool success = s2e()->getExecutor()->getSymbolicSolution(*state, inputs);
-
-    if (!success) {
-        getWarningsStream() << "TestCaseGenerator: Could not get symbolic solutions for state " << state->getID()
-                            << '\n';
-        return;
-    }
-
+///
+/// \brief Decodes concrete file chunks encoded in concrete inputs and assembles them into actual files.
+///
+/// Symbolic files may be large, it is more efficient to represent them as several
+/// symbolic arrays, each identified by a special name. Each symbolic array represents a chunk of the
+/// symbolic file. The name of the array encodes the position of the chunk in the file.
+///
+/// A chunk name looks like this:
+/// v0___symfile____(guest_file_name)___(chunk_id)_(number_of_chunks)_symfile___0
+///
+/// - (guest_file_name) is any name chosen by the guest to identify the file.
+///   It is usually the guest file path with special characters replaced with underscores.
+/// - (chunk_id) is the position of the chunk in the file.
+/// - (number_of_chunks) is the total number of chunks for the file.
+///
+/// For small files, there is often only one chunk:
+/// v0___symfile____tmp_input___0_1_symfile___0 = {0x0, .... }
+/// This is the first (0) chunk of a file that has only one (1) chunk. That file was called /tmp/input.
+///
+///
+/// \param inputs the concrete inputs that must contain symbolic file chunks
+/// \param prefix the prefix to add to the generated test case file
+/// \param fileNames returns the location of the written file names
+///
+void TestCaseGenerator::assembleTestCaseToFiles(const ConcreteInputs &inputs, const std::string &prefix,
+                                                std::vector<std::string> &fileNames) {
     TestCaseFiles files;
     getFiles(inputs, files);
-    generateFiles(state, files);
 
-    *out << "//////////////////\n";
-    *out << "//Program inputs//\n";
-    *out << "//////////////////\n\n";
-
-    ConcreteInputs::iterator it;
-    for (it = inputs.begin(); it != inputs.end(); ++it) {
-        const VarValuePair &vp = *it;
-
-        if (isFilePart(vp.first)) {
+    foreach2 (it, files.begin(), files.end()) {
+        const std::string &name = (*it).first;
+        TestCaseFile &file = (*it).second;
+        std::vector<uint8_t> out;
+        if (!assembleChunks(file, out)) {
+            getWarningsStream() << "Could not generate concrete test file for " << (*it).first << "\n";
             continue;
         }
 
-        *out << "char " << vp.first << "[] = {";
-
-        for (unsigned i = 0; i < vp.second.size(); ++i) {
-            uint8_t byte = vp.second[i];
-            if (isalnum(byte)) {
-                *out << "'" << (char) byte << "'";
-            } else {
-                *out << hexval(byte);
-            }
-
-            if (i < vp.second.size() - 1) {
-                *out << ", ";
-            }
-        }
-
-        *out << "};\n";
+        std::stringstream ss;
+        ss << prefix << "-" << name;
+        std::string outputFileName = s2e()->getOutputFilename(ss.str());
+        fileNames.push_back(outputFileName);
+        std::ofstream ofs(outputFileName.c_str(), std::ios_base::out | std::ios_base::trunc | std::ios_base::binary);
+        ofs.write((const char *) &out[0], out.size());
+        ofs.close();
     }
+}
 }
 }
 }

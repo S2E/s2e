@@ -282,7 +282,7 @@ private:
 
     Vmi *m_vmiPlugin;
     ExecutionTracer *m_tracer;
-    TestCaseGenerator *m_tc;
+    testcases::TestCaseGenerator *m_tc;
 
     void onTimer();
 
