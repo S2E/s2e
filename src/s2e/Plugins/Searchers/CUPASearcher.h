@@ -85,7 +85,6 @@ public:
 private:
     enum Classes { SEED, BATCH, PC, PAGEDIR, FORKCOUNT, PRIORITY, READCOUNT, RANDOM, VULNERABILITY, GROUP };
 
-    ProcessExecutionDetector *m_detector;
     MultiSearcher *m_searchers;
     klee::Searcher *m_top;
     std::vector<Classes> m_classes;

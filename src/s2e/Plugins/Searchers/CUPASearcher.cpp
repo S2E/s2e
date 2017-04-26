@@ -25,8 +25,7 @@
 namespace s2e {
 namespace plugins {
 
-S2E_DEFINE_PLUGIN(CUPASearcher, "CUPA searcher", "", "ModuleExecutionDetector", "FunctionMonitor", "MultiSearcher",
-                  "ProcessExecutionDetector");
+S2E_DEFINE_PLUGIN(CUPASearcher, "CUPA searcher", "", "ModuleExecutionDetector", "MultiSearcher");
 
 ///
 /// \brief Initializes the CUPA Searcher plugin
@@ -53,7 +52,6 @@ S2E_DEFINE_PLUGIN(CUPASearcher, "CUPA searcher", "", "ModuleExecutionDetector", 
 ///   searcher from updating the state properly.
 ///
 void CUPASearcher::initialize() {
-    m_detector = s2e()->getPlugin<ProcessExecutionDetector>();
     m_searchers = s2e()->getPlugin<MultiSearcher>();
 
     ConfigFile *cfg = s2e()->getConfig();
@@ -434,8 +432,9 @@ void CUPAVulnerabilitySearcherClass::initialize() {
     m_functionMonitor = m_plg->s2e()->getPlugin<FunctionMonitor>();
     CorePlugin *core = m_plg->s2e()->getCorePlugin();
 
-    if (!m_cfg) {
-        m_plg->getWarningsStream() << "ControlFlowGraph plugin does not exist\n";
+    if (!m_cfg || !m_detector || !m_functionMonitor) {
+        m_plg->getWarningsStream() << "Please enable FunctionMonitor, ModuleExecutionDetector, and ControlFlowGraph "
+                                      "plugins to use the vulnerability class\n";
         exit(-1);
     }
 
@@ -487,10 +486,6 @@ void CUPAVulnerabilitySearcherClass::initialize() {
         }
     }
 }
-
-/*
- *
- */
 
 void CUPAVulnerabilitySearcherClass::onTranslateInstruction(ExecutionSignal *signal, S2EExecutionState *state,
                                                             TranslationBlock *tb, uint64_t pc) {
