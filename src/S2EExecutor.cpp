@@ -1501,6 +1501,7 @@ ExecutionState *S2EExecutor::selectSearcherState(S2EExecutionState *state) {
             }
         }
         m_deletedStates.clear();
+        g_s2e->getCorePlugin()->onEngineShutdown.emit();
         exit(0);
     }
 

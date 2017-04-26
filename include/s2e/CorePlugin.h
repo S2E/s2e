@@ -51,6 +51,16 @@ public:
 
     // clang-format off
 
+    ///
+    /// \brief onEngineShutdown is emitted when there are no more states
+    /// to run and S2E is going to shutdown.
+    ///
+    /// The engine calls this signal before plugins are destroyed.
+    /// Gives a chance for plugins to clean up their state.
+    ///
+    sigc::signal<void> onEngineShutdown;
+
+
     /** Signal that is emitted on beginning and end of code generation
         for each translation block.
     */
