@@ -72,6 +72,7 @@ add_library(
     # Function models
     s2e/Plugins/Models/BaseFunctionModels.cpp
     s2e/Plugins/Models/FunctionModels.cpp
+    s2e/Plugins/Models/CRC.cpp
     s2e/Plugins/Models/StaticLibraryFunctionModels.cpp
 
     # Static analysis

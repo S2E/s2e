@@ -21,6 +21,19 @@ namespace s2e {
 namespace plugins {
 namespace models {
 
+bool BaseFunctionModels::readMemory(S2EExecutionState *state, std::vector<ref<Expr>> &output, uint64_t address,
+                                    unsigned length) {
+    for (unsigned i = 0; i < length; ++i) {
+        ref<Expr> e = readMemory8(state, address + i);
+        if (e.isNull()) {
+            getWarningsStream(state) << "Could not read byte at " << hexval(address + i) << "\n";
+            return false;
+        }
+        output.push_back(e);
+    }
+    return true;
+}
+
 bool BaseFunctionModels::readArgument(S2EExecutionState *state, unsigned param, uint64_t &arg) {
     target_ulong ret;
 

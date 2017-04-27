@@ -9,6 +9,7 @@
 #ifndef S2E_PLUGINS_BASE_FUNCTION_MODELS_H
 #define S2E_PLUGINS_BASE_FUNCTION_MODELS_H
 
+#include <klee/Expr.h>
 #include <s2e/Plugin.h>
 
 using namespace klee;
@@ -28,12 +29,23 @@ namespace models {
 class BaseFunctionModels : public Plugin {
 public:
     BaseFunctionModels(S2E *s2e) : Plugin(s2e) {
+        initCRCModels();
     }
 
     virtual ~BaseFunctionModels() {
     }
 
+private:
+    void initCRCModels();
+
 protected:
+    klee::UpdateList *m_crc16_ul;
+    klee::UpdateList *m_crc32_ul;
+
+    ref<Expr> crc32(const ref<Expr> &initialCrc, const std::vector<ref<Expr>> &input, bool xorResult);
+    ref<Expr> crc16(const ref<Expr> &initialCrc, const std::vector<ref<Expr>> &input);
+
+    bool readMemory(S2EExecutionState *state, std::vector<ref<Expr>> &output, uint64_t address, unsigned length);
     virtual klee::ref<klee::Expr> readMemory8(S2EExecutionState *state, uint64_t addr) = 0;
 
     bool readArgument(S2EExecutionState *state, unsigned param, uint64_t &arg);
