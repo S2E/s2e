@@ -41,6 +41,8 @@ T_printf orig_printf;
 T_fprintf orig_fprintf;
 T_strcat orig_strcat;
 T_strncat orig_strncat;
+T_crc32 orig_crc32;
+T_crc16 orig_crc16;
 
 // Save the original functions so we can use them if required
 void initialize_models() {
@@ -55,6 +57,9 @@ void initialize_models() {
     orig_fprintf = (T_fprintf) dlsym(RTLD_NEXT, "fprintf");
     orig_strcat = (T_strcat) dlsym(RTLD_NEXT, "strcat");
     orig_strncat = (T_strncat) dlsym(RTLD_NEXT, "strncat");
+
+    orig_crc32 = (T_crc32) dlsym(RTLD_NEXT, "crc32");
+    orig_crc16 = (T_crc16) dlsym(RTLD_NEXT, "crc16");
 }
 
 char *strcpy_model(char *dest, const char *src) {
@@ -363,4 +368,65 @@ int fprintf_model(FILE *stream, const char *format, ...) {
     va_end(arg);
 
     return done;
+}
+
+///
+/// \brief crc32_model emulates the crc32 function in zlib
+/// \param crc the initial crc
+/// \param buf a pointer to the buffer
+/// \param len the length of the buffer
+/// \return the crc
+///
+uint32_t crc32_model(uint32_t crc, const uint8_t *buf, unsigned len) {
+    if (!buf) {
+        return 0;
+    }
+
+    struct S2E_LIBCWRAPPER_COMMAND cmd;
+
+    cmd.Command = WRAPPER_CRC;
+    cmd.Crc.initial_value_ptr = (uintptr_t) &crc;
+    cmd.Crc.buffer = (uintptr_t) buf;
+    cmd.Crc.size = len;
+    cmd.Crc.xor_result = 1;
+    cmd.Crc.type = S2E_WRAPPER_CRC32;
+    cmd.needOrigFunc = 1;
+
+    s2e_invoke_plugin("FunctionModels", &cmd, sizeof(cmd));
+
+    if (!cmd.needOrigFunc) {
+        return cmd.Crc.ret;
+    }
+
+    return (*orig_crc32)(crc, buf, len);
+}
+
+///
+/// \brief crc16_model emulates the crc32 function
+/// \param crc the initial crc
+/// \param buf a pointer to the buffer
+/// \param len the length of the buffer
+/// \return the crc
+///
+uint16_t crc16_model(uint16_t crc, const uint8_t *buf, unsigned len) {
+    if (!buf) {
+        return 0;
+    }
+
+    struct S2E_LIBCWRAPPER_COMMAND cmd;
+
+    cmd.Command = WRAPPER_CRC;
+    cmd.Crc.initial_value_ptr = (uintptr_t) &crc;
+    cmd.Crc.buffer = (uintptr_t) buf;
+    cmd.Crc.size = len;
+    cmd.Crc.type = S2E_WRAPPER_CRC16;
+    cmd.needOrigFunc = 1;
+
+    s2e_invoke_plugin("FunctionModels", &cmd, sizeof(cmd));
+
+    if (!cmd.needOrigFunc) {
+        return cmd.Crc.ret;
+    }
+
+    return (*orig_crc16)(crc, buf, len);
 }

@@ -30,6 +30,7 @@
 #ifndef S2E_FUNCTION_MODELS_H
 #define S2E_FUNCTION_MODELS_H
 
+#include <inttypes.h>
 #include <stdio.h>
 
 // TODO replace this with a stack frame bound, check for mapped memory page, ...
@@ -52,6 +53,9 @@ typedef int (*T_fprintf)(FILE *stream, const char *format, ...);
 typedef char *(*T_strcat)(char *dest, const char *src);
 typedef char *(*T_strncat)(char *dest, const char *src, size_t n);
 
+typedef uint32_t (*T_crc32)(uint32_t crc, const uint8_t *buf, unsigned len);
+typedef uint16_t (*T_crc16)(uint16_t crc, const uint8_t *buf, unsigned len);
+
 extern T_strcpy orig_strcpy;
 extern T_strncpy orig_strncpy;
 extern T_strlen orig_strlen;
@@ -63,6 +67,8 @@ extern T_printf orig_printf;
 extern T_fprintf orig_fprintf;
 extern T_strcat orig_strcat;
 extern T_strncat orig_strncat;
+extern T_crc32 orig_crc32;
+extern T_crc16 orig_crc16;
 
 void initialize_models();
 
@@ -82,5 +88,8 @@ char *strncat_model(char *dest, const char *src, size_t n);
 
 int printf_model(const char *format, ...);
 int fprintf_model(FILE *stream, const char *format, ...);
+
+uint32_t crc32_model(uint32_t crc, const uint8_t *buf, unsigned len);
+uint16_t crc16_model(uint16_t crc, const uint8_t *buf, unsigned len);
 
 #endif

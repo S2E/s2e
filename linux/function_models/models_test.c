@@ -180,6 +180,30 @@ static void test_memcmp(const char *str1, unsigned str1_len) {
     validate_signs(res1, res2);
 }
 
+static void test_crc32(void) {
+    // Test empty buffer
+    uint32_t crc = crc32_model(0, NULL, 0);
+    s2e_assert(crc == 0);
+
+    const char *test = "test";
+    const uint32_t expected_crc = 0xd87f7e0c;
+    crc = crc32_model(crc, (const uint8_t *) test, strlen(test));
+    s2e_printf("actual crc: %#x expected: %#x\n", crc, expected_crc);
+    s2e_assert(crc == expected_crc);
+}
+
+static void test_crc16(void) {
+    // Test empty buffer
+    uint16_t crc = crc16_model(0, NULL, 0);
+    s2e_assert(crc == 0);
+
+    const char *test = "test";
+    const uint16_t expected_crc = 0xdc2e;
+    crc = crc16_model(crc, (const uint8_t *) test, strlen(test));
+    s2e_printf("actual crc: %#x expected: %#x\n", crc, expected_crc);
+    s2e_assert(crc == expected_crc);
+}
+
 int main(int argc, char *argv[]) {
     if (argc != 2) {
         s2e_printf("Usage: %s function_name\n", argv[0]);
@@ -212,6 +236,10 @@ int main(int argc, char *argv[]) {
         test_memcmp(src, src_length);
     } else if (!strcmp(argv[1], "strlen")) {
         test_strlen(src);
+    } else if (!strcmp(argv[1], "crc32")) {
+        test_crc32();
+    } else if (!strcmp(argv[1], "crc16")) {
+        test_crc16();
     } else {
         s2e_printf("Function %s is not supported!\n", argv[1]);
     }
