@@ -17,6 +17,7 @@
 #ifndef COROUTINE_H
 #define COROUTINE_H
 
+#include <inttypes.h>
 #include <stdbool.h>
 
 /**
@@ -63,7 +64,7 @@ typedef void coroutine_fn CoroutineEntry(void *opaque);
  *
  * Use coroutine_enter() to actually transfer control to the coroutine.
  */
-Coroutine *coroutine_create(CoroutineEntry *entry);
+Coroutine *coroutine_create(CoroutineEntry *entry, uint64_t stack_size);
 
 /**
  * Transfer control to a coroutine

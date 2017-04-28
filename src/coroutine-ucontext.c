@@ -32,6 +32,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/mman.h>
+#include <sys/types.h>
 #include <ucontext.h>
 #include "coroutine-int.h"
 
@@ -42,6 +44,7 @@
 typedef struct {
     Coroutine base;
     void *stack;
+    uint64_t stack_size;
     jmp_buf env;
 } CoroutineUContext;
 
@@ -116,8 +119,7 @@ static void coroutine_trampoline(int i0, int i1) {
     }
 }
 
-static Coroutine *_coroutine_new(void) {
-    const size_t stack_size = 1 << 20;
+static Coroutine *_coroutine_new(uint64_t stack_size) {
     CoroutineUContext *co;
     ucontext_t old_uc, uc;
     jmp_buf old_env;
@@ -135,7 +137,17 @@ static Coroutine *_coroutine_new(void) {
     }
 
     co = g_malloc0(sizeof(*co));
-    co->stack = g_malloc(stack_size);
+    co->stack_size = stack_size;
+
+    /* Don't allocate the stack on the heap in order to simplify debugging of potential
+     * stack overflows.
+     */
+    co->stack = mmap(NULL, stack_size, PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE | MAP_GROWSDOWN, -1, 0);
+    if (co->stack == MAP_FAILED) {
+        g_free(co);
+        return NULL;
+    }
+
     co->base.entry_arg = &old_env; /* stash away our jmp_buf */
 
     uc.uc_link = &old_uc;
@@ -154,14 +166,13 @@ static Coroutine *_coroutine_new(void) {
     return &co->base;
 }
 
-Coroutine *coroutine_new(void) {
-    return _coroutine_new();
+Coroutine *coroutine_new(uint64_t stack_size) {
+    return _coroutine_new(stack_size);
 }
 
 void coroutine_delete(Coroutine *co_) {
     CoroutineUContext *co = DO_UPCAST(CoroutineUContext, base, co_);
-
-    g_free(co->stack);
+    munmap(co->stack, co->stack_size);
     g_free(co);
 }
 

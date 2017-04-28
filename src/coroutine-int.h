@@ -39,7 +39,7 @@ struct Coroutine {
     Coroutine *caller;
 };
 
-Coroutine *coroutine_new(void);
+Coroutine *coroutine_new(uint64_t stack_size);
 void coroutine_delete(Coroutine *co);
 CoroutineAction coroutine_switch(Coroutine *from, Coroutine *to, CoroutineAction action);
 

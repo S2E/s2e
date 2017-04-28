@@ -20,8 +20,12 @@
 #include "coroutine-int.h"
 #include "coroutine.h"
 
-Coroutine *coroutine_create(CoroutineEntry *entry) {
-    Coroutine *co = coroutine_new();
+Coroutine *coroutine_create(CoroutineEntry *entry, uint64_t stack_size) {
+    Coroutine *co = coroutine_new(stack_size);
+    if (!co) {
+        return NULL;
+    }
+
     co->entry = entry;
     return co;
 }
