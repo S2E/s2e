@@ -59,6 +59,9 @@ private:
     bool handleStrncmp(S2EExecutionState *state, uint64_t pc);
     bool handleMemcmp(S2EExecutionState *state, uint64_t pc);
 
+    bool handleCrc16(S2EExecutionState *state, uint64_t pc);
+    bool handleCrc32(S2EExecutionState *state, uint64_t pc);
+
     void onCall(S2EExecutionState *state, uint64_t pc, OpHandler handler);
 };
 

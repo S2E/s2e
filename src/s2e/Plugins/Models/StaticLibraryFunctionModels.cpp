@@ -60,6 +60,8 @@ void StaticLibraryFunctionModels::initialize() {
     m_handlers["strcmp"] = &StaticLibraryFunctionModels::handleStrcmp;
     m_handlers["strncmp"] = &StaticLibraryFunctionModels::handleStrncmp;
     m_handlers["memcmp"] = &StaticLibraryFunctionModels::handleMemcmp;
+    m_handlers["crc32"] = &StaticLibraryFunctionModels::handleCrc32;
+    m_handlers["crc16"] = &StaticLibraryFunctionModels::handleCrc16;
 
     getInfoStream() << "Model count: " << getFunctionModelCount() << "\n";
 }
@@ -235,6 +237,60 @@ bool StaticLibraryFunctionModels::handleMemcmp(S2EExecutionState *state, uint64_
     } else {
         return false;
     }
+}
+
+bool StaticLibraryFunctionModels::handleCrc16(S2EExecutionState *state, uint64_t pc) {
+    uint64_t address;
+    uint64_t count;
+    ref<Expr> initialCrc = E_CONST(0, Expr::Int16);
+
+    if (!readArgument(state, 0, address)) {
+        getWarningsStream(state) << "crc16: could not read address\n";
+        return false;
+    }
+
+    if (!readArgument(state, 1, count)) {
+        getWarningsStream(state) << "crc16: could not read count\n";
+        return false;
+    }
+
+    std::vector<ref<Expr>> data;
+    if (!readMemory(state, data, address, count)) {
+        getWarningsStream(state) << "crc16: could not read data\n";
+        return false;
+    }
+
+    ref<Expr> crc = crc16(initialCrc, data);
+    state->regs()->write(offsetof(CPUX86State, regs[R_EAX]), crc);
+
+    return true;
+}
+
+bool StaticLibraryFunctionModels::handleCrc32(S2EExecutionState *state, uint64_t pc) {
+    uint64_t address;
+    uint64_t count;
+    ref<Expr> initialCrc = E_CONST(0, Expr::Int32);
+
+    if (!readArgument(state, 0, address)) {
+        getWarningsStream(state) << "crc32: could not read address\n";
+        return false;
+    }
+
+    if (!readArgument(state, 1, count)) {
+        getWarningsStream(state) << "crc32: could not read count\n";
+        return false;
+    }
+
+    std::vector<ref<Expr>> data;
+    if (!readMemory(state, data, address, count)) {
+        getWarningsStream(state) << "crc32: could not read data\n";
+        return false;
+    }
+
+    ref<Expr> crc = crc32(initialCrc, data, getBool(state, "xor_result"));
+    state->regs()->write(offsetof(CPUX86State, regs[R_EAX]), crc);
+
+    return true;
 }
 
 } // namespace models
