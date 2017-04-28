@@ -23,7 +23,7 @@ static void fcn(void *p) {
 
 // This tests the overhead of a coroutine context switch
 static void test_coroutine() {
-    s_coroutine = coroutine_create(fcn);
+    s_coroutine = coroutine_create(fcn, 1 << 20);
 
     for (uint64_t i = 0; i < s_max; ++i) {
         coroutine_enter(s_coroutine, NULL);

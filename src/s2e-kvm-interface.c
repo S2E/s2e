@@ -40,6 +40,10 @@
 
 #include "s2e-kvm-interface.h"
 
+// We may need a very large stack in case of deep expressions.
+// Default stack is a few megabytes, it's not enough.
+static const uint64_t S2E_STACK_SIZE = 1024 * 1024 * 1024;
+
 // XXX: make this clean
 int s2e_dev_save(const void *buffer, size_t size);
 int s2e_dev_restore(void *buffer, int pos, size_t size);
@@ -656,7 +660,11 @@ int s2e_kvm_vcpu_run(int vcpu_fd) {
     ++g_stats.kvm_runs;
 
     if (!s_kvm_cpu_coroutine) {
-        s_kvm_cpu_coroutine = coroutine_create(s2e_kvm_cpu_coroutine);
+        s_kvm_cpu_coroutine = coroutine_create(s2e_kvm_cpu_coroutine, S2E_STACK_SIZE);
+        if (!s_kvm_cpu_coroutine) {
+            fprintf(stderr, "Could not create cpu coroutine\n");
+            exit(-1);
+        }
     }
 
     if (!g_cpu_thread_id_inited) {
