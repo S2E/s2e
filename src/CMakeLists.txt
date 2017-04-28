@@ -73,7 +73,7 @@ add_library(
     s2e/Plugins/Models/BaseFunctionModels.cpp
     s2e/Plugins/Models/FunctionModels.cpp
     s2e/Plugins/Models/CRC.cpp
-    s2e/Plugins/Models/StaticLibraryFunctionModels.cpp
+    s2e/Plugins/Models/StaticFunctionModels.cpp
 
     # Static analysis
     s2e/Plugins/StaticAnalysis/ControlFlowGraph.cpp

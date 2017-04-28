@@ -6,8 +6,8 @@
 /// Licensed under the Cyberhaven Research License Agreement.
 ///
 
-#ifndef S2E_PLUGINS_StaticLibraryFunctionModels_H
-#define S2E_PLUGINS_StaticLibraryFunctionModels_H
+#ifndef S2E_PLUGINS_StaticFunctionModels_H
+#define S2E_PLUGINS_StaticFunctionModels_H
 
 #include <s2e/Plugins/OSMonitors/Support/ModuleExecutionDetector.h>
 
@@ -26,11 +26,11 @@ class ModuleExecutionDetector;
 
 namespace models {
 
-class StaticLibraryFunctionModels : public BaseFunctionModels {
+class StaticFunctionModels : public BaseFunctionModels {
     S2E_PLUGIN
 
 public:
-    StaticLibraryFunctionModels(S2E *s2e) : BaseFunctionModels(s2e) {
+    StaticFunctionModels(S2E *s2e) : BaseFunctionModels(s2e) {
     }
 
     void initialize();
@@ -41,7 +41,7 @@ public:
     unsigned getFunctionModelCount() const;
 
 private:
-    typedef bool (StaticLibraryFunctionModels::*OpHandler)(S2EExecutionState *state, uint64_t pc);
+    typedef bool (StaticFunctionModels::*OpHandler)(S2EExecutionState *state, uint64_t pc);
     typedef llvm::StringMap<OpHandler> HandlerMap;
 
     ModuleExecutionDetector *m_detector;
