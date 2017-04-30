@@ -28,6 +28,9 @@ S2EPREFIX?=$(CURDIR)/opt
 DESTDIR?=/
 S2EBUILD:=$(CURDIR)
 
+# Either choose Release or RelWithDebInfo
+RELEASE_BUILD_TYPE=RelWithDebInfo
+
 # corei7 avoids instructions not supported by VirtualBox. Use "native" instead
 # to optimize for your current CPU.
 BUILD_ARCH?=x86-64
@@ -325,7 +328,7 @@ stamps/klee-debug-configure: CONFIGURE_COMMAND = cmake $(KLEE_CONFIGURE_FLAGS)  
 
 stamps/klee-release-configure: stamps/llvm-release-make stamps/z3-make
 stamps/klee-release-configure: CONFIGURE_COMMAND = cmake $(KLEE_CONFIGURE_FLAGS)                        \
-                                                   -DCMAKE_BUILD_TYPE=Release                           \
+                                                   -DCMAKE_BUILD_TYPE=$(RELEASE_BUILD_TYPE)             \
                                                    -DLLVM_DIR=$(LLVMBUILD)/llvm-release/lib/cmake/llvm  \
                                                    $(S2ESRC)/klee
 
@@ -353,7 +356,7 @@ stamps/libvmi-debug-configure: CONFIGURE_COMMAND = cmake $(LIBVMI_COMMON_FLAGS) 
 stamps/libvmi-release-configure: stamps/llvm-release-make
 stamps/libvmi-release-configure: CONFIGURE_COMMAND = cmake $(LIBVMI_COMMON_FLAGS)                           \
                                                      -DLLVM_DIR=$(LLVMBUILD)/llvm-release/lib/cmake/llvm    \
-                                                     -DCMAKE_BUILD_TYPE=Release                             \
+                                                     -DCMAKE_BUILD_TYPE=$(RELEASE_BUILD_TYPE)               \
                                                      $(S2ESRC)/libvmi
 
 stamps/libvmi-debug-make: stamps/libvmi-debug-configure
@@ -383,7 +386,7 @@ stamps/libfsigc++-debug-configure: CONFIGURE_COMMAND = cmake $(LIBFSIGCXX_COMMON
 stamps/libfsigc++-release-configure: stamps/llvm-native-make
 
 stamps/libfsigc++-release-configure: CONFIGURE_COMMAND = cmake $(LIBFSIGCXX_COMMON_FLAGS)   \
-                                     -DCMAKE_BUILD_TYPE=Release                             \
+                                     -DCMAKE_BUILD_TYPE=$(RELEASE_BUILD_TYPE)               \
                                      $(S2ESRC)/libfsigc++
 
 stamps/libfsigc++-debug-make: stamps/libfsigc++-debug-configure
@@ -410,8 +413,8 @@ stamps/libq-debug-configure: CONFIGURE_COMMAND = cmake $(LIBQ_COMMON_FLAGS) \
 
 stamps/libq-release-configure: stamps/llvm-native-make
 
-stamps/libq-release-configure: CONFIGURE_COMMAND = cmake $(LIBQ_COMMON_FLAGS)   \
-                                                   -DCMAKE_BUILD_TYPE=Release   \
+stamps/libq-release-configure: CONFIGURE_COMMAND = cmake $(LIBQ_COMMON_FLAGS)                 \
+                                                   -DCMAKE_BUILD_TYPE=$(RELEASE_BUILD_TYPE)   \
                                                    $(S2ESRC)/libq
 
 stamps/libq-debug-make: stamps/libq-debug-configure
@@ -438,8 +441,8 @@ stamps/libcoroutine-debug-configure: CONFIGURE_COMMAND = cmake $(LIBCOROUTINE_CO
 
 stamps/libcoroutine-release-configure: stamps/llvm-native-make
 
-stamps/libcoroutine-release-configure: CONFIGURE_COMMAND = cmake $(LIBCOROUTINE_COMMON_FLAGS) \
-                                                           -DCMAKE_BUILD_TYPE=Release         \
+stamps/libcoroutine-release-configure: CONFIGURE_COMMAND = cmake $(LIBCOROUTINE_COMMON_FLAGS)        \
+                                                           -DCMAKE_BUILD_TYPE=$(RELEASE_BUILD_TYPE)  \
                                                            $(S2ESRC)/libcoroutine
 
 stamps/libcoroutine-debug-make: stamps/libcoroutine-debug-configure
@@ -617,7 +620,7 @@ stamps/tools-release-configure: CONFIGURE_COMMAND = cmake $(TOOLS_CONFIGURE_FLAG
                                                     -DVMI_DIR=$(S2EBUILD)/libvmi-release                \
                                                     -DFSIGCXX_DIR=$(S2EBUILD)/libfsigc++-release        \
                                                     -DLIBQ_DIR=$(S2EBUILD)/libq-release                 \
-                                                    -DCMAKE_BUILD_TYPE=Release                          \
+                                                    -DCMAKE_BUILD_TYPE=$(RELEASE_BUILD_TYPE)            \
                                                     $(S2ESRC)/tools
 
 stamps/tools-debug-make: stamps/tools-debug-configure
