@@ -178,6 +178,48 @@ void FunctionModels::handleStrncat(S2EExecutionState *state, S2E_LIBCWRAPPER_COM
     return;
 }
 
+void FunctionModels::handleCrc(S2EExecutionState *state, S2E_LIBCWRAPPER_COMMAND &cmd, ref<Expr> &ret) {
+
+    std::vector<ref<Expr>> buffer;
+    cmd.needOrigFunc = 1;
+    if (!readMemory(state, buffer, cmd.Crc.buffer, cmd.Crc.size)) {
+        return;
+    }
+
+    ref<Expr> initialCrc;
+
+    switch (cmd.Crc.type) {
+        case S2E_WRAPPER_CRC16:
+            initialCrc = state->readMemory(cmd.Crc.initial_value_ptr, Expr::Int16);
+            getDebugStream(state) << "Handling crc16(" << initialCrc << ", " << hexval(cmd.Crc.buffer) << ", "
+                                  << cmd.Crc.size << ")\n";
+            if (initialCrc.isNull()) {
+                return;
+            }
+
+            ret = crc16(initialCrc, buffer);
+            break;
+
+        case S2E_WRAPPER_CRC32:
+            initialCrc = state->readMemory(cmd.Crc.initial_value_ptr, Expr::Int32);
+            getDebugStream(state) << "Handling crc32(" << initialCrc << ", " << hexval(cmd.Crc.buffer) << ", "
+                                  << cmd.Crc.size << ")\n";
+            if (initialCrc.isNull()) {
+                return;
+            }
+
+            ret = crc32(initialCrc, buffer, cmd.Crc.xor_result);
+            break;
+
+        default:
+            s2e()->getWarningsStream(state) << "Invalid crc type " << hexval(cmd.Crc.type) << "\n";
+            return;
+    }
+
+    cmd.needOrigFunc = 0;
+}
+
+// TODO: use template
 #define UPDATE_RET_VAL(CmdType, cmd)                                         \
     do {                                                                     \
         uint32_t offRet = offsetof(S2E_LIBCWRAPPER_COMMAND, CmdType.ret);    \
@@ -263,6 +305,12 @@ void FunctionModels::handleOpcodeInvocation(S2EExecutionState *state, uint64_t g
             if (!state->mem()->writeMemory(guestDataPtr, command)) {
                 getWarningsStream(state) << "Could not write to guest memory\n";
             }
+        } break;
+
+        case WRAPPER_CRC: {
+            ref<Expr> retExpr;
+            handleCrc(state, command, retExpr);
+            UPDATE_RET_VAL(Crc, command);
         } break;
 
         default: {

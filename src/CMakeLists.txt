@@ -67,12 +67,14 @@ add_library(
     s2e/Plugins/Searchers/LoopExitSearcher.cpp
     s2e/Plugins/Searchers/CUPASearcher.cpp
     s2e/Plugins/Searchers/SeedSearcher.cpp
+    s2e/Plugins/Searchers/SeedScheduler.cpp
     s2e/Plugins/Searchers/PathSearcher.cpp
 
     # Function models
     s2e/Plugins/Models/BaseFunctionModels.cpp
     s2e/Plugins/Models/FunctionModels.cpp
-    s2e/Plugins/Models/StaticLibraryFunctionModels.cpp
+    s2e/Plugins/Models/CRC.cpp
+    s2e/Plugins/Models/StaticFunctionModels.cpp
 
     # Static analysis
     s2e/Plugins/StaticAnalysis/ControlFlowGraph.cpp

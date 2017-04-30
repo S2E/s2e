@@ -18,7 +18,7 @@
 #include <algorithm>
 #include <s2e/Plugins/ExecutionMonitors/FunctionMonitor.h>
 
-#include "StaticLibraryFunctionModels.h"
+#include "StaticFunctionModels.h"
 
 using namespace klee;
 
@@ -26,17 +26,17 @@ namespace s2e {
 namespace plugins {
 namespace models {
 
-S2E_DEFINE_PLUGIN(StaticLibraryFunctionModels, "Plugin that implements models for statically-linked libraries", "",
+S2E_DEFINE_PLUGIN(StaticFunctionModels, "Plugin that implements models for statically linked binaries", "",
                   "ModuleExecutionDetector");
 
-ref<Expr> StaticLibraryFunctionModels::readMemory8(S2EExecutionState *state, uint64_t address) {
+ref<Expr> StaticFunctionModels::readMemory8(S2EExecutionState *state, uint64_t address) {
     return m_detector->readMemory8(state, address);
 }
 
 /*
  * Sample s2e-config.lua to use this plugin:
  *
- * pluginsConfig.StaticLibraryFunctionModels = {
+ * pluginsConfig.StaticFunctionModels = {
  *   modules = {}
  * }
  *
@@ -48,29 +48,31 @@ ref<Expr> StaticLibraryFunctionModels::readMemory8(S2EExecutionState *state, uin
  *   accepts_null_input = true,
  * }
  *
- * pluginsConfig.StaticLibraryFunctionModels.modules = g_function_models
+ * pluginsConfig.StaticFunctionModels.modules = g_function_models
 */
-void StaticLibraryFunctionModels::initialize() {
+void StaticFunctionModels::initialize() {
     m_detector = s2e()->getPlugin<ModuleExecutionDetector>();
 
     m_detector->onModuleTranslateBlockEnd.connect(
-        sigc::mem_fun(*this, &StaticLibraryFunctionModels::onModuleTranslateBlockEnd));
+        sigc::mem_fun(*this, &StaticFunctionModels::onModuleTranslateBlockEnd));
 
-    m_handlers["strlen"] = &StaticLibraryFunctionModels::handleStrlen;
-    m_handlers["strcmp"] = &StaticLibraryFunctionModels::handleStrcmp;
-    m_handlers["strncmp"] = &StaticLibraryFunctionModels::handleStrncmp;
-    m_handlers["memcmp"] = &StaticLibraryFunctionModels::handleMemcmp;
+    m_handlers["strlen"] = &StaticFunctionModels::handleStrlen;
+    m_handlers["strcmp"] = &StaticFunctionModels::handleStrcmp;
+    m_handlers["strncmp"] = &StaticFunctionModels::handleStrncmp;
+    m_handlers["memcmp"] = &StaticFunctionModels::handleMemcmp;
+    m_handlers["crc32"] = &StaticFunctionModels::handleCrc32;
+    m_handlers["crc16"] = &StaticFunctionModels::handleCrc16;
 
     getInfoStream() << "Model count: " << getFunctionModelCount() << "\n";
 }
 
-unsigned StaticLibraryFunctionModels::getFunctionModelCount() const {
+unsigned StaticFunctionModels::getFunctionModelCount() const {
     ConfigFile *cfg = s2e()->getConfig();
 
     return cfg->getInt(getConfigKey() + ".count");
 }
 
-bool StaticLibraryFunctionModels::getBool(S2EExecutionState *state, const std::string &property) {
+bool StaticFunctionModels::getBool(S2EExecutionState *state, const std::string &property) {
     std::stringstream ss;
     const ModuleDescriptor *module = m_detector->getModule(state, state->getPc());
     assert(module);
@@ -80,9 +82,9 @@ bool StaticLibraryFunctionModels::getBool(S2EExecutionState *state, const std::s
     return s2e()->getConfig()->getBool(ss.str());
 }
 
-void StaticLibraryFunctionModels::onModuleTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionState *state,
-                                                            const ModuleDescriptor &module, TranslationBlock *tb,
-                                                            uint64_t endPc, bool staticTarget, uint64_t targetPc) {
+void StaticFunctionModels::onModuleTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionState *state,
+                                                     const ModuleDescriptor &module, TranslationBlock *tb,
+                                                     uint64_t endPc, bool staticTarget, uint64_t targetPc) {
     // Only instrument direct calls
     if (!staticTarget || tb->se_tb_type != TB_CALL) {
         return;
@@ -112,13 +114,12 @@ void StaticLibraryFunctionModels::onModuleTranslateBlockEnd(ExecutionSignal *sig
     }
 
     getDebugStream(state) << "Found handler for function type " << type << "\n";
-    signal->connect(sigc::bind(sigc::mem_fun(*this, &StaticLibraryFunctionModels::onCall), (*it).second));
+    signal->connect(sigc::bind(sigc::mem_fun(*this, &StaticFunctionModels::onCall), (*it).second));
 
     cfg->setSilent(origSilent);
 }
 
-void StaticLibraryFunctionModels::onCall(S2EExecutionState *state, uint64_t pc,
-                                         StaticLibraryFunctionModels::OpHandler handler) {
+void StaticFunctionModels::onCall(S2EExecutionState *state, uint64_t pc, StaticFunctionModels::OpHandler handler) {
     state->undoCallAndJumpToSymbolic();
 
     bool handled = ((*this).*handler)(state, pc);
@@ -129,7 +130,7 @@ void StaticLibraryFunctionModels::onCall(S2EExecutionState *state, uint64_t pc,
     }
 }
 
-bool StaticLibraryFunctionModels::handleStrlen(S2EExecutionState *state, uint64_t pc) {
+bool StaticFunctionModels::handleStrlen(S2EExecutionState *state, uint64_t pc) {
     // Read function arguments
     uint64_t stringAddr;
     if (!readArgument(state, 0, stringAddr)) {
@@ -149,7 +150,7 @@ bool StaticLibraryFunctionModels::handleStrlen(S2EExecutionState *state, uint64_
     }
 }
 
-bool StaticLibraryFunctionModels::handleStrcmp(S2EExecutionState *state, uint64_t pc) {
+bool StaticFunctionModels::handleStrcmp(S2EExecutionState *state, uint64_t pc) {
     // Read function arguments
     uint64_t stringAddrs[2];
     for (int i = 0; i < 2; i++) {
@@ -176,7 +177,7 @@ bool StaticLibraryFunctionModels::handleStrcmp(S2EExecutionState *state, uint64_
     }
 }
 
-bool StaticLibraryFunctionModels::handleStrncmp(S2EExecutionState *state, uint64_t pc) {
+bool StaticFunctionModels::handleStrncmp(S2EExecutionState *state, uint64_t pc) {
     // Read function arguments
     uint64_t stringAddrs[2];
     for (int i = 0; i < 2; i++) {
@@ -209,7 +210,7 @@ bool StaticLibraryFunctionModels::handleStrncmp(S2EExecutionState *state, uint64
     }
 }
 
-bool StaticLibraryFunctionModels::handleMemcmp(S2EExecutionState *state, uint64_t pc) {
+bool StaticFunctionModels::handleMemcmp(S2EExecutionState *state, uint64_t pc) {
     // Read function arguments
     uint64_t memAddrs[2];
     uint64_t memSize;
@@ -235,6 +236,60 @@ bool StaticLibraryFunctionModels::handleMemcmp(S2EExecutionState *state, uint64_
     } else {
         return false;
     }
+}
+
+bool StaticFunctionModels::handleCrc16(S2EExecutionState *state, uint64_t pc) {
+    uint64_t address;
+    uint64_t count;
+    ref<Expr> initialCrc = E_CONST(0, Expr::Int16);
+
+    if (!readArgument(state, 0, address)) {
+        getWarningsStream(state) << "crc16: could not read address\n";
+        return false;
+    }
+
+    if (!readArgument(state, 1, count)) {
+        getWarningsStream(state) << "crc16: could not read count\n";
+        return false;
+    }
+
+    std::vector<ref<Expr>> data;
+    if (!readMemory(state, data, address, count)) {
+        getWarningsStream(state) << "crc16: could not read data\n";
+        return false;
+    }
+
+    ref<Expr> crc = crc16(initialCrc, data);
+    state->regs()->write(offsetof(CPUX86State, regs[R_EAX]), crc);
+
+    return true;
+}
+
+bool StaticFunctionModels::handleCrc32(S2EExecutionState *state, uint64_t pc) {
+    uint64_t address;
+    uint64_t count;
+    ref<Expr> initialCrc = E_CONST(0, Expr::Int32);
+
+    if (!readArgument(state, 0, address)) {
+        getWarningsStream(state) << "crc32: could not read address\n";
+        return false;
+    }
+
+    if (!readArgument(state, 1, count)) {
+        getWarningsStream(state) << "crc32: could not read count\n";
+        return false;
+    }
+
+    std::vector<ref<Expr>> data;
+    if (!readMemory(state, data, address, count)) {
+        getWarningsStream(state) << "crc32: could not read data\n";
+        return false;
+    }
+
+    ref<Expr> crc = crc32(initialCrc, data, getBool(state, "xor_result"));
+    state->regs()->write(offsetof(CPUX86State, regs[R_EAX]), crc);
+
+    return true;
 }
 
 } // namespace models
