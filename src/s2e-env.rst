@@ -18,7 +18,7 @@ Installing s2e-env
     cd s2e-env
 
     # Optional: install s2e-env in a virtual env
-    virtual-env venv
+    virtualenv venv
     . venv/bin/activate
 
     # By default, s2e-env uses https to clone repositories.
@@ -77,13 +77,13 @@ You will need a virtual machine image to run your analysis target in. To see wha
     cd /home/user/s2e
     s2e image_build
 
-This will list an image template name and a description of that image. For example, to build a Linux 4.9.3 i386 image
-run:
+This will list an image template name and a description of that image. For example, to build a Linux Debian 8.7.1 i386
+image run:
 
 .. code-block:: console
 
     cd /home/user/s2e
-    s2e image_build linux-4.9.3-i386
+    s2e image_build debian-8.7.1-i386
 
 This will:
 
@@ -107,8 +107,8 @@ You may also build all images at once:
 You may find more information about the infrastructure that builds the images
 in the following repositories:
 
-  * `guest-images <https://github.com/S2E/guest-images>`_
-  * `s2e-linux-kernel <https://github.com/S2E/s2e-linux-kernel>`_
+* `guest-images <https://github.com/S2E/guest-images>`_
+* `s2e-linux-kernel <https://github.com/S2E/s2e-linux-kernel>`_
 
 Creating a new analysis project
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -126,11 +126,6 @@ that you specified with the ``--image`` option will be used. The target binary w
 appropriate configuration files and launch scripts are generated. By default ``new_project`` will create the following
 files:
 
-launch-s2e.sh
-    This is the script that you will run most frequently. It starts S2E and runs the analysis as configured in the following
-    files. This script contains various variables that you may edit depending on how you want to run S2E (multi-core mode,
-    gdb, etc.).
-
 bootstrap.sh
     S2E downloads this file from the host into the guest, then executes it. This file contains instructions on how
     to start the program, where to inject symbolic arguments, etc. When ``s2e-env`` creates a VM image, it configures
@@ -139,14 +134,24 @@ bootstrap.sh
     This script varies depending on your target program, so you should always check this file and modify it as required
     **before** running your analysis.
 
+guest-tools
+    A symlink to the S2E `guest tools <https://github.com/S2E/guest-tools>`_. These will be downloaded to the guest by
+    the bootstrap script every time you launch a new analysis. This way, you do not have to rebuild the VM image every
+    time you modify these tools.
+
+launch-s2e.sh
+    This is the script that you will run most frequently. It starts S2E and runs the analysis as configured in the
+    following files. This script contains various variables that you may edit depending on how you want to run S2E
+    (multi-core mode, gdb, etc.).
+
+library.lua
+    Contains convenience functions for the s2e-config.lua file.
+
+models.lua:
+    For specifying `function models <Plugins/Linux/FunctionModels.rst>`_.
+
 s2e-config.lua
    The main S2E configuration file. Analysis plugins are enabled and configured here.
-
-guest-tools
-    A symlink to the S2E `guest tools <https://github.com/S2E/guest-tools>`_. These will be downloaded to the guest by the
-    bootstrap script every time you launch a new analysis. This way, you do not have to rebuild the VM image
-    every time you modify these tools.
-
 
 Target program arguments
 ~~~~~~~~~~~~~~~~~~~~~~~~
