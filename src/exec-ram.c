@@ -108,7 +108,7 @@ static ram_addr_t find_ram_offset(ram_addr_t size) {
     }
 
     ram_addr_t best_offset = RAM_ADDR_MAX;
-    unsigned best_size = UINT_MAX;
+    ram_addr_t best_size = RAM_ADDR_MAX;
 
     for (unsigned i = 0; i < ram_list.block_count; ++i) {
         const RAMBlock *b = &ram_list.blocks[i];
@@ -124,7 +124,7 @@ static ram_addr_t find_ram_offset(ram_addr_t size) {
         }
 
         ram_addr_t next_gap = b->offset + b->length;
-        unsigned next_size = last ? UINT_MAX - next_gap : (b + 1)->offset - next_gap;
+        ram_addr_t next_size = last ? RAM_ADDR_MAX - next_gap : (b + 1)->offset - next_gap;
         if (next_size < size) {
             /* We don't fit in the next available gap */
             continue;
@@ -136,12 +136,9 @@ static ram_addr_t find_ram_offset(ram_addr_t size) {
         }
     }
 
-    if (best_size == UINT_MAX) {
-        abort();
-    }
-
     if (best_offset == RAM_ADDR_MAX) {
-        abort();
+        fprintf(stderr, "libcpu: Failed to find a gap of the requested size: %u\n", (unsigned) size);
+        exit(-1);
     }
 
     return best_offset;
