@@ -55,7 +55,7 @@ bool Vmi::parseDirectories(ConfigFile *cfg, const std::string &baseDirsKey) {
     // executable files.
     ConfigFile::string_list dirs = cfg->getStringList(baseDirsKey);
     foreach2 (it, dirs.begin(), dirs.end()) {
-        getDebugStream() << "Vmi: adding path " << *it << "\n";
+        getDebugStream() << "adding path " << *it << "\n";
         if (!llvm::sys::fs::exists((*it))) {
             getWarningsStream() << "Path " << (*it) << " does not exist\n";
             return false;
@@ -81,25 +81,25 @@ bool Vmi::parseModuleInfo(ConfigFile *cfg, const std::string &modules_key) {
 
         mod.Checksum = cfg->getInt(ss.str() + ".checksum", 0, &ok);
         if (!ok) {
-            getWarningsStream() << "Vmi: no checksum in " << ss.str() << "\n";
+            getWarningsStream() << "no checksum in " << ss.str() << "\n";
             return false;
         }
 
         mod.NativeBase = cfg->getInt(ss.str() + ".nativebase", 0, &ok);
         if (!ok) {
-            getWarningsStream() << "Vmi: no native base in " << ss.str() << "\n";
+            getWarningsStream() << "no native base in " << ss.str() << "\n";
             return false;
         }
 
         mod.Name = cfg->getString(ss.str() + ".name", "", &ok);
         if (!ok) {
-            getWarningsStream() << "Vmi: no name in " << ss.str() << "\n";
+            getWarningsStream() << "no name in " << ss.str() << "\n";
             return false;
         }
 
         mod.Version = cfg->getString(ss.str() + ".version", "", &ok);
         if (!ok) {
-            getWarningsStream() << "Vmi: no version in " << ss.str() << "\n";
+            getWarningsStream() << "no version in " << ss.str() << "\n";
             return false;
         }
 
@@ -110,7 +110,7 @@ bool Vmi::parseModuleInfo(ConfigFile *cfg, const std::string &modules_key) {
             fss << ss.str() << ".symbols." << name;
             uint64_t address = cfg->getInt(fss.str(), 0, &ok);
             if (!ok) {
-                getWarningsStream() << "Vmi: no address for function " << fss.str() << "\n";
+                getWarningsStream() << "no address for function " << fss.str() << "\n";
                 return false;
             }
 
@@ -223,20 +223,20 @@ bool Vmi::initializeExecutable(const std::string &file, ExeData &data) {
 
     fp = vmi::FileSystemFileProvider::get(file, false);
     if (!fp) {
-        getWarningsStream() << "Vmi: " << file << " could not be opened\n";
+        getWarningsStream() << file << " could not be opened\n";
         goto err1;
     }
 
     execFile = vmi::ExecutableFile::get(fp, false, 0);
     if (!execFile) {
-        getWarningsStream() << "Vmi: " << file << " does not appear to be a valid executable file\n";
+        getWarningsStream() << file << " does not appear to be a valid executable file\n";
         goto err1;
     }
 
     dwarf = vmi::ElfDwarf::get(getDebugStream(), file);
     if (!dwarf) {
         getWarningsStream()
-            << "Vmi: " << file
+            << file
             << " does not appear to contain valid DWARF debug info. Please recompile your kernel with debug symbols.\n";
         goto err2;
     }
@@ -297,7 +297,7 @@ bool Vmi::findModule(const std::string &module, std::string &path) {
 bool Vmi::get(const std::string &module, ExeData &data) {
     std::string file;
     if (!findModule(module, file)) {
-        getWarningsStream() << "Vmi: Could not find module file " << module << "\n";
+        getWarningsStream() << "Could not find module file " << module << "\n";
         return false;
     }
 
@@ -317,7 +317,7 @@ bool Vmi::get(const std::string &module, ExeData &data) {
 
 // XXX: avoid code duplication with getPeFromDisk
 Vmi::BinData Vmi::getFromDisk(const ModuleDescriptor &module, bool useModulePath) {
-    getDebugStream() << "Vmi: reading executable file from disk\n";
+    getDebugStream() << "reading executable file from host disk\n";
     std::string modPath;
     if (!findModule(useModulePath ? module.Path : module.Name, modPath)) {
         if (!findModule(module.Name, modPath)) {
@@ -325,12 +325,12 @@ Vmi::BinData Vmi::getFromDisk(const ModuleDescriptor &module, bool useModulePath
         }
     }
 
-    getDebugStream() << "Vmi: attempting to load executable file: " << modPath << "\n";
+    getDebugStream() << "attempting to load executable file: " << modPath << "\n";
 
     vmi::FileSystemFileProvider *fp = FileSystemFileProvider::get(modPath, false);
 
     if (!fp) {
-        getDebugStream() << "Vmi: cannot open file\n";
+        getDebugStream() << "cannot open file\n";
         delete fp;
         return BinData();
     }
@@ -339,7 +339,7 @@ Vmi::BinData Vmi::getFromDisk(const ModuleDescriptor &module, bool useModulePath
 
     if (!efile) {
         delete fp;
-        getDebugStream() << "Vmi: cannot load file\n";
+        getDebugStream() << "cannot load file\n";
         return BinData();
     }
 
@@ -350,7 +350,7 @@ Vmi::BinData Vmi::getFromDisk(const ModuleDescriptor &module, bool useModulePath
 }
 
 Vmi::PeData Vmi::getPeFromDisk(const ModuleDescriptor &module, bool caseInsensitive) {
-    getDebugStream() << "Vmi: reading PE file from disk\n";
+    getDebugStream() << "reading PE file from disk\n";
     // Try to load back pe file from disk
     std::string strippedPath = Vmi::stripWindowsModulePath(module.Path);
     std::string modPath;
@@ -371,17 +371,17 @@ Vmi::PeData Vmi::getPeFromDisk(const ModuleDescriptor &module, bool caseInsensit
         }
 
         if (!found) {
-            getDebugStream() << "Vmi: could not find " << strippedPath << "\n";
+            getDebugStream() << "could not find " << strippedPath << "\n";
             return PeData();
         }
     }
 
-    getDebugStream() << "Vmi: attempting to load PE file: " << modPath << "\n";
+    getDebugStream() << "attempting to load PE file: " << modPath << "\n";
 
     vmi::FileSystemFileProvider *fp = vmi::FileSystemFileProvider::get(modPath, false);
 
     if (!fp) {
-        getDebugStream() << "Vmi: cannot open file\n";
+        getDebugStream() << "cannot open file\n";
         delete fp;
         return PeData();
     }
@@ -390,7 +390,7 @@ Vmi::PeData Vmi::getPeFromDisk(const ModuleDescriptor &module, bool caseInsensit
 
     if (!pefile) {
         delete fp;
-        getDebugStream() << "Vmi: cannot load file\n";
+        getDebugStream() << "cannot load file\n";
         return PeData();
     }
 
