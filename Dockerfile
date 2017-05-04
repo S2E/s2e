@@ -45,7 +45,7 @@ COPY . s2e/
 
 # Build and install everything else
 RUN cd s2e-build &&                                                         \
-    make -f ../s2e/Makefile S2EPREFIX=/opt/s2e install install-win
+    make -f ../s2e/Makefile S2EPREFIX=/opt/s2e install
 
 # Install s2e-env
 RUN apt-get -y install python-pip && \

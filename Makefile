@@ -109,9 +109,8 @@ guest-tools-win: stamps/guest-tools32-win-make stamps/guest-tools64-win-make
 guest-tools-install: stamps/guest-tools32-install stamps/guest-tools64-install
 guest-tools-win-install: stamps/guest-tools32-win-install stamps/guest-tools64-win-install
 
-install: all-release stamps/libs2e-release-install stamps/tools-release-install stamps/decree-install guest-tools-install
-install-debug: all-debug stamps/libs2e-debug-install stamps/tools-debug-install stamps/decree-install guest-tools-install
-install-win: install guest-tools-win-install
+install: all-release stamps/libs2e-release-install stamps/tools-release-install stamps/decree-install guest-tools-install guest-tools-win-install
+install-debug: all-debug stamps/libs2e-debug-install stamps/tools-debug-install stamps/decree-install guest-tools-install guest-tools-win-install
 
 docs: stamps/docs
 
@@ -669,9 +668,27 @@ stamps/guest-tools32-win-make: stamps/guest-tools32-win-configure
 
 stamps/guest-tools64-win-make: stamps/guest-tools64-win-configure
 
-stamps/guest-tools%-install: stamps/guest-tools%-make
+# Install precompiled windows drivers
+guest-tools32-windrv:
+	mkdir -p $(S2EPREFIX)/bin/guest-tools32
+	cp $(S2ESRC)/guest/windows/dist/s2e32.sys $(S2EPREFIX)/bin/guest-tools32/s2e.sys
+	cp $(S2ESRC)/guest/windows/dist/s2e.inf $(S2EPREFIX)/bin/guest-tools32/s2e.inf
+	cp $(S2ESRC)/guest/windows/dist/drvctl32.exe $(S2EPREFIX)/bin/guest-tools32/drvctl.exe
+
+guest-tools64-windrv:
+	mkdir -p $(S2EPREFIX)/bin/guest-tools64
+	cp $(S2ESRC)/guest/windows/dist/s2e.sys $(S2EPREFIX)/bin/guest-tools64/
+	cp $(S2ESRC)/guest/windows/dist/s2e.inf $(S2EPREFIX)/bin/guest-tools64/
+	cp $(S2ESRC)/guest/windows/dist/drvctl.exe $(S2EPREFIX)/bin/guest-tools64/
+
+
+stamps/guest-tools%-win-install: stamps/guest-tools%-win-make guest-tools32-windrv guest-tools64-windrv
+	$(MAKE) -C guest-tools$*-win install
+
+stamps/guest-tools%-install: stamps/guest-tools%-make guest-tools32-windrv guest-tools64-windrv
 	$(MAKE) -C guest-tools$* install
-	touch $@
+
+
 
 ##########
 # DECREE #
