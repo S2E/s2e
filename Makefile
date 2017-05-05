@@ -113,8 +113,12 @@ guest-tools-win: stamps/guest-tools32-win-make stamps/guest-tools64-win-make
 guest-tools-install: stamps/guest-tools32-install stamps/guest-tools64-install
 guest-tools-win-install: stamps/guest-tools32-win-install stamps/guest-tools64-win-install
 
-install: all-release stamps/libs2e-release-install stamps/tools-release-install stamps/decree-install guest-tools-install guest-tools-win-install
-install-debug: all-debug stamps/libs2e-debug-install stamps/tools-debug-install stamps/decree-install guest-tools-install guest-tools-win-install
+install: all-release stamps/libs2e-release-install stamps/tools-release-install \
+    stamps/libvmi-release-install stamps/decree-install guest-tools-install     \
+    guest-tools-win-install
+install-debug: all-debug stamps/libs2e-debug-install stamps/tools-debug-install \
+    stamps/libvmi-debug-install stamps/decree-install guest-tools-install       \
+    guest-tools-win-install
 
 docs: stamps/docs
 
@@ -343,7 +347,8 @@ stamps/klee-release-make: stamps/klee-release-configure
 # LibVMI #
 ##########
 
-LIBVMI_COMMON_FLAGS = -DCMAKE_MODULE_PATH=$(S2ESRC)/cmake           \
+LIBVMI_COMMON_FLAGS = -DCMAKE_INSTALL_PREFIX=$(S2EPREFIX)           \
+                      -DCMAKE_MODULE_PATH=$(S2ESRC)/cmake           \
                       -DCMAKE_C_COMPILER=$(CLANG_CC)                \
                       -DCMAKE_CXX_COMPILER=$(CLANG_CXX)             \
                       -DCMAKE_C_FLAGS="$(CFLAGS_ARCH) -fPIC"        \
@@ -365,6 +370,14 @@ stamps/libvmi-release-configure: CONFIGURE_COMMAND = cmake $(LIBVMI_COMMON_FLAGS
 stamps/libvmi-debug-make: stamps/libvmi-debug-configure
 
 stamps/libvmi-release-make: stamps/libvmi-release-configure
+
+stamps/libvmi-debug-install: stamps/libvmi-debug-make
+	$(MAKE) -C libvmi-debug install
+	touch $@
+
+stamps/libvmi-release-install: stamps/libvmi-release-make
+	$(MAKE) -C libvmi-release install
+	touch $@
 
 ##############
 # libfsigc++ #
