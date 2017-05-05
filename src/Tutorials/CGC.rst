@@ -126,11 +126,23 @@ because not all states have been killed. The analysis must therefore be manually
 Starting an analysis
 ~~~~~~~~~~~~~~~~~~~~
 
-To start S2E, run ``launch-s2e.sh``. As S2E finds vulnerabilities, it generates POV files in the ``s2e-last``
-directory. These files have the ``.xml`` extension. Once some POVs have been
-generated you can stop S2E by killing the process with ``Ctrl+C`` or ``killall -9 qemu-system-i386``.
-For a deeper understanding of what S2E is doing you may wish to have a look
-at the ``debug.txt`` log file in ``s2e-last``.
+To start S2E, run the following command:
+
+.. code-block:: console
+    s2e run CADET_00001
+
+This will display a TUI-based dashboard, similar to that used by the American Fuzzy Lop (AFL) fuzzer. As S2E finds
+vulnerabilities, it generates POV files in the ``s2e-last`` directory. These files have either ``.xml`` or ``.c``
+file extensions. Once some POV files have been generated you can press ``q`` to stop S2E.
+
+.. image:: ../img/cadet_00001_tui.png
+
+Alternatively, you can run S2E without the TUI by using the ``-n`` option in ``s2e run``. Instead of the TUI you will
+see the standard S2E output.  Once some POVs have been generated you can stop S2E by killing the process with
+``Ctrl+C`` or ``killall -9 qemu-system-i386``.
+
+For a deeper understanding of what S2E is doing you may wish to have a look at the ``debug.txt`` log file in
+``s2e-last``.
 
 Replaying POVs
 --------------
