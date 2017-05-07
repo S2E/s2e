@@ -147,6 +147,8 @@ typedef struct CPUX86State {
     uint16_t intercept_dr_write;
     uint32_t intercept_exceptions;
     uint8_t v_tpr;
+    uint8_t v_apic_tpr;
+    uint64_t v_apic_base;
 
 #ifdef TARGET_X86_64
     target_ulong lstar;
