@@ -51,11 +51,11 @@ void cpu_set_apic_tpr(DeviceState *d, uint8_t val) {
 }
 
 void cpu_set_apic_base(DeviceState *d, uint64_t val) {
-    g_apic_base = val;
+    env->v_apic_base = val;
 }
 
 uint64_t cpu_get_apic_base(DeviceState *d) {
-    return g_apic_base;
+    return env->v_apic_base;
 }
 
 void cpu_set_ferr(CPUX86State *s) {

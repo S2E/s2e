@@ -60,9 +60,6 @@ CPUX86State *g_cpu_env;
 
 int g_signal_pending = 0;
 
-uint64_t g_apic_base = 0xfee00000;
-uint8_t g_apic_tpr;
-
 struct stats_t g_stats;
 
 static const int MAX_MEMORY_SLOTS = 32;
@@ -325,6 +322,7 @@ int s2e_kvm_create_vm(int kvm_fd) {
         goto err2;
     }
 
+    g_cpu_env->v_apic_base = 0xfee00000;
     g_cpu_env->size = sizeof(*g_cpu_env);
 
     if (s2e_kvm_init_cpu_lock() < 0) {
@@ -681,7 +679,7 @@ int s2e_kvm_vcpu_run(int vcpu_fd) {
 
     /* Return asap if interrupts can be injected */
     g_kvm_vcpu_buffer->if_flag = (env->mflags & IF_MASK) != 0;
-    g_kvm_vcpu_buffer->apic_base = g_apic_base;
+    g_kvm_vcpu_buffer->apic_base = env->v_apic_base;
     g_kvm_vcpu_buffer->cr8 = env->v_tpr;
 
     g_kvm_vcpu_buffer->ready_for_interrupt_injection = !g_handling_kvm_cb &&
@@ -716,7 +714,7 @@ int s2e_kvm_vcpu_run(int vcpu_fd) {
      * Eventually, we'll need to figure out how KVM handles it.
      * Having an incorrect (null) APIC base will cause the APIC to get stuck.
      */
-    g_apic_base = g_kvm_vcpu_buffer->apic_base;
+    env->v_apic_base = g_kvm_vcpu_buffer->apic_base;
     env->v_tpr = g_kvm_vcpu_buffer->cr8;
 
     g_handling_kvm_cb = 0;
@@ -742,7 +740,7 @@ int s2e_kvm_vcpu_run(int vcpu_fd) {
     // assert(env->current_tb == NULL);
 
     g_kvm_vcpu_buffer->if_flag = (env->mflags & IF_MASK) != 0;
-    g_kvm_vcpu_buffer->apic_base = g_apic_base;
+    g_kvm_vcpu_buffer->apic_base = env->v_apic_base;
     g_kvm_vcpu_buffer->cr8 = env->v_tpr;
 
     // KVM specs says that we should also check for request for interrupt window,

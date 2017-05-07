@@ -42,9 +42,6 @@ extern int g_kvm_fd;
 extern int g_kvm_vm_fd;
 extern int g_kvm_vcpu_fd;
 
-extern uint64_t g_apic_base;
-extern uint8_t g_apic_tpr;
-
 extern int g_handling_kvm_cb;
 
 struct se_libcpu_interface_t;

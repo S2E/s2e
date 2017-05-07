@@ -48,11 +48,11 @@ uint64_t s2e_kvm_mmio_read(target_phys_addr_t addr, unsigned size) {
     // of the TPR, which may confuse the guest.
     // Note that in 64-bit mode, guests should wither use cr8 or
     // MMIO, but not both, so we should still be consistent.
-    if ((addr >> TARGET_PAGE_BITS) == (g_apic_base >> TARGET_PAGE_BITS)) {
+    if ((addr >> TARGET_PAGE_BITS) == (env->v_apic_base >> TARGET_PAGE_BITS)) {
         if ((addr & 0xfff) == 0x80) {
             if (!(env->hflags & HF_LMA_MASK)) {
-                assert((g_apic_tpr & 0xf0) == (ret & 0xf0));
-                ret |= g_apic_tpr & 0x3;
+                assert((env->v_apic_tpr & 0xf0) == (ret & 0xf0));
+                ret |= env->v_apic_tpr & 0x3;
             }
         }
     }
@@ -110,10 +110,10 @@ void s2e_kvm_mmio_write(target_phys_addr_t addr, uint64_t data, unsigned size) {
             assert(false && "Can't get here");
     }
 
-    if ((addr >> TARGET_PAGE_BITS) == (g_apic_base >> TARGET_PAGE_BITS)) {
+    if ((addr >> TARGET_PAGE_BITS) == (env->v_apic_base >> TARGET_PAGE_BITS)) {
         if ((addr & 0xfff) == 0x80) {
-            g_apic_tpr = (uint8_t) data;
-            env->v_tpr = g_apic_tpr >> 4;
+            env->v_apic_tpr = (uint8_t) data;
+            env->v_tpr = env->v_apic_tpr >> 4;
         }
     }
 

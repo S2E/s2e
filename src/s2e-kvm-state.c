@@ -274,10 +274,10 @@ int s2e_kvm_vcpu_set_sregs(int vcpu_fd, struct kvm_sregs *sregs) {
     env->cr[3] = sregs->cr3;
     env->cr[4] = sregs->cr4;
     env->v_tpr = sregs->cr8;
-    g_apic_tpr = sregs->cr8 << 4;
+    env->v_apic_tpr = sregs->cr8 << 4;
 
     if (sregs->apic_base) {
-        g_apic_base = sregs->apic_base;
+        env->v_apic_base = sregs->apic_base;
     }
 
     env->efer = sregs->efer;
@@ -417,7 +417,7 @@ int s2e_kvm_vcpu_get_sregs(int vcpu_fd, struct kvm_sregs *sregs) {
     sregs->cr4 = env->cr[4];
     sregs->cr8 = env->v_tpr;
 
-    sregs->apic_base = g_apic_base;
+    sregs->apic_base = env->v_apic_base;
     sregs->cr8 = env->v_tpr;
 
     sregs->efer = env->efer;
