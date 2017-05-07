@@ -188,9 +188,6 @@ Function *ExternalDispatcher::createDispatcher(Function *target, Instruction *in
     std::ostringstream oss;
     oss << "__klee_ext__" << target->getName().str();
 
-    if (!resolveSymbol(target->getName()))
-        return 0;
-
     CallSite cs;
     if (inst->getOpcode() == Instruction::Call) {
         cs = CallSite(cast<CallInst>(inst));

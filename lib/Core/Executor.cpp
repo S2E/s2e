@@ -59,6 +59,7 @@
 #include "llvm/IR/GetElementPtrTypeIterator.h"
 #include "llvm/IR/Module.h"
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Support/DynamicLibrary.h"
 #include "llvm/Support/Process.h"
 #include "llvm/Support/raw_ostream.h"
 
@@ -1327,44 +1328,30 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
                 executeCall(state, ki, f, arguments);
             } else {
                 ref<Expr> v = eval(ki, 0, state).value;
+                ref<ConstantExpr> constantTarget = dyn_cast<ConstantExpr>(v);
+                if (constantTarget.isNull()) {
+                    terminateStateOnExecError(state, "the engine encountered a symbolic function pointer");
+                    abort();
+                }
 
-                ExecutionState *free = &state;
-                bool hasInvalid = false, first = true;
+                uint64_t addr = constantTarget->getZExtValue();
+                CallInst *ci = dyn_cast<CallInst>(i);
+                if (!ci) {
+                    terminateStateOnExecError(state, "could not cast call inst");
+                    abort();
+                }
 
-                /* XXX This is wasteful, no need to do a full evaluate since we
-                   have already got a value. But in the end the caches should
-                   handle it for us, albeit with some overhead. */
-                do {
-                    ref<ConstantExpr> value;
-                    assert(!concolicMode && "Not tested in concolic mode");
-                    bool success = _solver(state)->getValue(*free, v, value);
-                    assert(success && "FIXME: Unhandled solver failure");
-                    (void) success;
-                    ref<Expr> cond = EqExpr::create(v, value);
-                    StatePair res = fork(*free, cond, true);
-                    notifyFork(*free, cond, res);
-                    if (res.first) {
-                        uint64_t addr = value->getZExtValue();
-                        if (legalFunctions.count(addr)) {
-                            f = (Function *) addr;
+                Module *m = i->getParent()->getParent()->getParent();
+                std::stringstream ss;
+                ss << "ext_" << std::hex << addr;
+                f = dyn_cast<Function>(m->getOrInsertFunction(ss.str(), ci->getFunctionType()));
+                assert(f);
 
-                            // Don't give warning on unique resolution
-                            if (res.second || !first)
-                                klee_warning_once((void *) (uintptr_t) addr,
-                                                  "resolved symbolic function pointer to: %s", f->getName().data());
+                // XXX: this is a hack caused by how klee handles external functions.
+                // TODO: don't require registering external functions
+                llvm::sys::DynamicLibrary::AddSymbol(ss.str(), (void *) addr);
 
-                            executeCall(*res.first, ki, f, arguments);
-                        } else {
-                            if (!hasInvalid) {
-                                terminateStateOnExecError(state, "invalid function pointer");
-                                hasInvalid = true;
-                            }
-                        }
-                    }
-
-                    first = false;
-                    free = res.second;
-                } while (free);
+                executeCall(state, ki, f, arguments);
             }
             break;
         }
