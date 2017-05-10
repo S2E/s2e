@@ -1,82 +1,88 @@
 ///
-/// Copyright (C) 2011-2013, Dependable Systems Laboratory, EPFL
+/// Copyright (C) 2011-2017, Dependable Systems Laboratory, EPFL
+/// Copyright (C) 2016, Cyberhaven
 /// All rights reserved.
 ///
 /// Licensed under the Cyberhaven Research License Agreement.
 ///
 
-#ifndef S2E_PLUGINS_LIBCALLMON_H
-#define S2E_PLUGINS_LIBCALLMON_H
+#ifndef S2E_PLUGINS_LibraryCallMonitor_H
+#define S2E_PLUGINS_LibraryCallMonitor_H
 
 #include <s2e/CorePlugin.h>
 #include <s2e/Plugin.h>
-#include <s2e/S2EExecutionState.h>
-
-#include <string>
-#include <tr1/unordered_map>
-#include <tr1/unordered_set>
-
-#include <s2e/Plugins/Core/Vmi.h>
-#include <s2e/Plugins/OSMonitors/Support/ModuleExecutionDetector.h>
-#include "FunctionMonitor.h"
+#include <s2e/Plugins/OSMonitors/ModuleDescriptor.h>
 
 namespace s2e {
+
+class S2E;
+class S2EExecutionState;
+
 namespace plugins {
 
+class ModuleMap;
 class OSMonitor;
+class ProcessExecutionDetector;
+class Vmi;
 
+///
+/// \brief Monitors external library function calls.
+///
+/// This plugin can be used to determine what external library calls a particular module makes at run time (including
+/// both libraries and process main binaries). The modules to monitor are those defined in the
+/// \code ProcessExecutionDetector plugin's config.
+///
+/// The plugin works as follows:
+///   \li All indirect calls are monitored. Library calls are always made indirectly (via either the PLT in ELF
+///       binaries or the IAT in PE binaries)
+///   \li When an indirect call is made, we look up the module that contains the call target address
+///   \li Once we find that module, we can search its export table to find an entry that matches the call target
+///       address. If a match is found, report it
+///
+/// Note that this approach does not use the callee module's import table. This means that library calls that are not
+/// listed in the import table are still monitored. This is beneficial for malware analysis, where the import table
+/// is often destroyed and library calls are made "indirectly" (e.g. via \code LoadLibrary and \code GetProcAddress).
+///
+/// <h2>Configuration Options</h2>
+///
+///   \li \code monitorAllModules: enable if you want to track library calls from \a all modules used by the module
+///       specified in the \code ProcessExecutionDetector plugin config.
+///   \li \code monitorIndirectJumps: enable if you want to track library calls that are made via jumps, not just via
+///       calls. For example, malware might do this as an obfuscation technique.
+///
 class LibraryCallMonitor : public Plugin {
     S2E_PLUGIN
-public:
-    typedef std::tr1::unordered_set<std::string> StringSet;
-    typedef std::set<std::pair<uint64_t, uint64_t>> AddressPairs;
 
+public:
     LibraryCallMonitor(S2E *s2e) : Plugin(s2e) {
     }
 
     void initialize();
 
-    sigc::signal<void, S2EExecutionState *, FunctionMonitorState *,
-                 const ModuleDescriptor & /* The module  being called */>
+    /// Emitted on an external library function call.
+    sigc::signal<void, S2EExecutionState *, /* The current execution state */
+                 const ModuleDescriptor &,  /* The module that is being called */
+                 uint64_t>                  /* The called function's address */
         onLibraryCall;
 
 private:
+    ModuleMap *m_map;
     OSMonitor *m_monitor;
-    ModuleExecutionDetector *m_detector;
-    FunctionMonitor *m_functionMonitor;
+    ProcessExecutionDetector *m_procDetector;
     Vmi *m_vmi;
-    StringSet m_functionNames;
-    AddressPairs m_alreadyCalledFunctions;
 
-    // List of modules whose calls we want to track.
-    // Empty to track all modules in the system.
-    StringSet m_trackedModules;
+    bool m_monitorAllModules;
+    bool m_monitorIndirectJumps;
 
-    bool m_displayOnce;
+    void logLibraryCall(S2EExecutionState *state, const std::string &callerMod, uint64_t pc, unsigned sourceType,
+                        const std::string &calleeMod, const std::string &function) const;
 
-    void onModuleLoad(S2EExecutionState *state, const ModuleDescriptor &module);
-
-    void onModuleUnload(S2EExecutionState *state, const ModuleDescriptor &module);
-    void onFunctionCall(S2EExecutionState *state, FunctionMonitorState *fns);
-};
-
-class LibraryCallMonitorState : public PluginState {
-public:
-    typedef std::tr1::unordered_map<uint64_t, const char *> AddressToFunctionName;
-
-private:
-    AddressToFunctionName m_functions;
-
-public:
-    LibraryCallMonitorState();
-    virtual ~LibraryCallMonitorState();
-    virtual LibraryCallMonitorState *clone() const;
-    static PluginState *factory(Plugin *p, S2EExecutionState *s);
-
-    friend class LibraryCallMonitor;
+    void onTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb, uint64_t pc,
+                             bool isStatic, uint64_t staticTarget);
+    void onIndirectCallOrJump(S2EExecutionState *state, uint64_t pc, unsigned sourceType);
 };
 
 } // namespace plugins
 } // namespace s2e
 
-#endif // S2E_PLUGINS_LIBCALLMON_H
+#endif
