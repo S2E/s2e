@@ -23,9 +23,9 @@ S2E_DEFINE_PLUGIN(LibraryCallMonitor, "Flags all calls to external libraries", "
                   "FunctionMonitor", "ModuleExecutionDetector");
 
 void LibraryCallMonitor::initialize() {
-    m_functionMonitor = static_cast<FunctionMonitor *>(s2e()->getPlugin("FunctionMonitor"));
+    m_detector = s2e()->getPlugin<ModuleExecutionDetector>();
+    m_functionMonitor = s2e()->getPlugin<FunctionMonitor>();
     m_monitor = static_cast<OSMonitor *>(s2e()->getPlugin("OSMonitor"));
-    m_detector = static_cast<ModuleExecutionDetector *>(s2e()->getPlugin("ModuleExecutionDetector"));
 
     ConfigFile *cfg = s2e()->getConfig();
     m_displayOnce = cfg->getBool(getConfigKey() + ".displayOnce", false);
@@ -37,12 +37,12 @@ void LibraryCallMonitor::initialize() {
         cfg->getStringList(getConfigKey() + ".moduleIds", ConfigFile::string_list(), &ok);
 
     if (!ok || moduleList.empty()) {
-        getWarningsStream() << "LibraryCallMonitor: no modules specified, tracking everything.\n";
+        getWarningsStream() << "no modules specified, tracking everything.\n";
     }
 
     foreach2 (it, moduleList.begin(), moduleList.end()) {
         if (!m_detector->isModuleConfigured(*it)) {
-            getWarningsStream() << "LibraryCallMonitor: module " << *it << " is not configured\n";
+            getWarningsStream() << "module " << *it << " is not configured\n";
             exit(-1);
         }
         m_trackedModules.insert(*it);
@@ -57,7 +57,7 @@ void LibraryCallMonitor::onModuleLoad(S2EExecutionState *state, const ModuleDesc
     vmi::Imports imports;
 
     if (!m_monitor->getImports(state, module, imports)) {
-        getWarningsStream() << "LibraryCallMonitor could not retrieve imported functions in " << module.Name << '\n';
+        getWarningsStream() << "could not retrieve imported functions in " << module.Name << '\n';
         return;
     }
 
