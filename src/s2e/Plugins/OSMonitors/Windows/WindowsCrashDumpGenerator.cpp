@@ -26,6 +26,7 @@
 
 #include "BlueScreenInterceptor.h"
 #include "WindowsCrashDumpGenerator.h"
+#include "WindowsCrashDumpGenerator.h"
 
 namespace s2e {
 namespace plugins {
@@ -33,13 +34,13 @@ namespace plugins {
 using namespace vmi::windows;
 
 S2E_DEFINE_PLUGIN(WindowsCrashDumpGenerator, "Generates WinDbg-compatible crash dumps", "WindowsCrashDumpGenerator",
-                  "OSMonitor");
+                  "WindowsMonitor");
 
 void WindowsCrashDumpGenerator::initialize() {
     // Register the LUA API for crash dump generation
     Lunar<WindowsCrashDumpInvoker>::Register(s2e()->getConfig()->getState());
 
-    m_monitor = dynamic_cast<WindowsInterceptor *>(s2e()->getPlugin("OSMonitor"));
+    m_monitor = s2e()->getPlugin<WindowsMonitor>();
     m_generateCrashDump = s2e()->getConfig()->getBool(getConfigKey() + ".generateCrashDump", false);
 
     if (m_generateCrashDump) {

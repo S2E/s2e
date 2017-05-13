@@ -16,7 +16,7 @@
 #include <s2e/Plugins/Lua/Lua.h>
 #include <s2e/S2EExecutionState.h>
 
-#include "WindowsInterceptor.h"
+#include "WindowsMonitor.h"
 
 #include <vmi/WindowsCrashDumpGenerator.h>
 
@@ -58,7 +58,7 @@ public:
     std::string getPathForDump(S2EExecutionState *state, const std::string &prefix = "dump");
 
 private:
-    WindowsInterceptor *m_monitor;
+    WindowsMonitor *m_monitor;
     bool m_generateCrashDump;
 
     bool generateCrashDump(S2EExecutionState *state, const std::string &filename,
