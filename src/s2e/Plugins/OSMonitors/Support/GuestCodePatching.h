@@ -11,6 +11,7 @@
 #include <s2e/CorePlugin.h>
 #include <s2e/Plugin.h>
 #include <s2e/Plugins/Core/BaseInstructions.h>
+#include <s2e/Plugins/OSMonitors/Windows/WindowsMonitor.h>
 #include <s2e/Plugins/OSMonitors/Support/ModuleExecutionDetector.h>
 #include <s2e/S2EExecutionState.h>
 
@@ -127,7 +128,7 @@ public:
     }
 
 private:
-    WindowsInterceptor *m_windowsMonitor;
+    WindowsMonitor *m_monitor;
     ModuleExecutionDetector *m_detector;
 
     bool m_allowSelfCalls;

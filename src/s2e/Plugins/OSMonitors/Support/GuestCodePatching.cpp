@@ -31,18 +31,13 @@ extern "C" {
 namespace s2e {
 namespace plugins {
 
-S2E_DEFINE_PLUGIN(GuestCodePatching, "Transparent patching of guest code", "GuestCodePatching", "OSMonitor",
+S2E_DEFINE_PLUGIN(GuestCodePatching, "Transparent patching of guest code", "GuestCodePatching", "WindowsMonitor",
                   "ModuleExecutionDetector");
 
 void GuestCodePatching::initialize() {
-    m_windowsMonitor = dynamic_cast<WindowsInterceptor *>(s2e()->getPlugin("OSMonitor"));
-    if (!m_windowsMonitor) {
-        // TODO: make this plugin OS-agnostic
-        getWarningsStream() << "GuestCodePatching: you must use a Windows monitor plugin" << '\n';
-        exit(-1);
-    }
-
-    m_detector = static_cast<ModuleExecutionDetector *>(s2e()->getPlugin("ModuleExecutionDetector"));
+    // TODO: make the plugin os-agnostic
+    m_monitor = s2e()->getPlugin<WindowsMonitor>();
+    m_detector = s2e()->getPlugin<ModuleExecutionDetector>();
 
     ConfigFile *cfg = s2e()->getConfig();
 
@@ -50,22 +45,20 @@ void GuestCodePatching::initialize() {
 
     ConfigFile::string_list mods = cfg->getStringList(getConfigKey() + ".moduleNames");
     if (mods.size() == 0) {
-        getWarningsStream() << "GuestCodePatching: You must specify modules to track in moduleNames" << '\n';
+        getWarningsStream() << "You must specify modules to track in moduleNames" << '\n';
         exit(-1);
         return;
     }
 
     if (!m_detector->trackAllModules()) {
-        getWarningsStream() << "GuestCodePatching: "
-                            << "ModuleExecutionDetector should be set to track all modules\n";
+        getWarningsStream() << "ModuleExecutionDetector should be set to track all modules\n";
         exit(-1);
     }
 
     foreach2 (it, mods.begin(), mods.end()) { m_drivers.insert(*it); }
 
-    m_windowsMonitor->onModuleLoad.connect(sigc::mem_fun(*this, &GuestCodePatching::onModuleLoad));
-
-    m_windowsMonitor->onModuleUnload.connect(sigc::mem_fun(*this, &GuestCodePatching::onModuleUnload));
+    m_monitor->onModuleLoad.connect(sigc::mem_fun(*this, &GuestCodePatching::onModuleLoad));
+    m_monitor->onModuleUnload.connect(sigc::mem_fun(*this, &GuestCodePatching::onModuleUnload));
 
     /* For hooking entry points */
     m_detector->onModuleTranslateBlockStart.connect(
@@ -172,11 +165,10 @@ void GuestCodePatching::onModuleTranslateBlockStart(ExecutionSignal *signal, S2E
 void GuestCodePatching::invokeHook(S2EExecutionState *state, uint64_t pc, uint64_t hookAddress,
                                    uint64_t returnAddress) {
     uint64_t stackBase = 0, stackSize = 0;
-    m_windowsMonitor->getCurrentStack(state, &stackBase, &stackSize);
+    m_monitor->getCurrentStack(state, &stackBase, &stackSize);
 
     // Only jump if not coming from the hook itself
-    getDebugStream(state) << "GuestCodePatching: "
-                          << "jumping to address " << hexval(hookAddress) << " on stack " << hexval(stackBase)
+    getDebugStream(state) << "jumping to address " << hexval(hookAddress) << " on stack " << hexval(stackBase)
                           << " size=" << hexval(stackSize) << "\n";
 
     uint64_t pointerSize = state->getPointerSize();
@@ -203,7 +195,7 @@ void GuestCodePatching::invokeHook(S2EExecutionState *state, uint64_t pc, uint64
         DECLARE_PLUGINSTATE(GuestCodePatchingState, state);
         returnAddress = plgState->getEntryPointReturnHook();
         if (!returnAddress) {
-            getWarningsStream(state) << "GuestCodePatching: entry point return hook not inited\n";
+            getWarningsStream(state) << "entry point return hook not inited\n";
             goto err1;
         }
 
@@ -270,15 +262,14 @@ void GuestCodePatching::invokeHook(S2EExecutionState *state, uint64_t pc, uint64
     throw CpuExitException();
 
 err1:
-    s2e()->getExecutor()->terminateStateEarly(*state, "GuestCodePatching: could not setup stack");
+    s2e()->getExecutor()->terminateStateEarly(*state, "could not setup stack");
 }
 
 void GuestCodePatching::onExecuteBlockStart(S2EExecutionState *state, uint64_t pc, bool direct, uint64_t hookAddress) {
     // Get the caller
     uint64_t ra;
     if (!state->getReturnAddress(&ra)) {
-        getDebugStream(state) << "GuestCodePatching: "
-                              << "could not determine return address\n";
+        getDebugStream(state) << "could not determine return address\n";
         return;
     }
 
@@ -335,8 +326,7 @@ void GuestCodePatching::onExecuteCall(S2EExecutionState *state, uint64_t pc) {
 
     uint64_t ra;
     if (!state->getReturnAddress(&ra)) {
-        getDebugStream(state) << "GuestCodePatching: "
-                              << "could not determine return address\n";
+        getDebugStream(state) << "could not determine return address\n";
         return;
     }
 
@@ -348,19 +338,19 @@ bool GuestCodePatching::patchImports(S2EExecutionState *state, const ModuleDescr
         new vmi::GuestMemoryFileProvider(state, readMemoryCb, writeMemoryCb, module.Name);
 
     if (!guestImage) {
-        getWarningsStream(state) << "GuestCodePatching: error creating GuestMemoryFileProvider\n";
+        getWarningsStream(state) << "error creating GuestMemoryFileProvider\n";
         return false;
     }
 
     vmi::PEFile *pe = vmi::PEFile::get(guestImage, true, module.LoadBase);
     if (!pe) {
-        getWarningsStream(state) << "GuestCodePatching: could not load memory image for " << module.Name << "\n";
+        getWarningsStream(state) << "could not load memory image for " << module.Name << "\n";
         delete guestImage;
         return false;
     }
 
     if (pe->getPointerSize() > state->getPointerSize()) {
-        getWarningsStream(state) << "GuestCodePatching: image pointer size " << pe->getPointerSize()
+        getWarningsStream(state) << "image pointer size " << pe->getPointerSize()
                                  << " is bigger than the current size " << state->getPointerSize() << " ("
                                  << module.Name << "). Something is wrong in the OS.\n";
 
@@ -370,12 +360,12 @@ bool GuestCodePatching::patchImports(S2EExecutionState *state, const ModuleDescr
     }
 
     vmi::Imports imports;
-    if (!m_windowsMonitor->getImports(state, module, imports)) {
-        getDebugStream(state) << "GuestCodePatching: could not find imports\n";
+    if (!m_vmi->getImports(state, module, imports)) {
+        getDebugStream(state) << "could not find imports\n";
         return false;
     }
 
-    getDebugStream(state) << "GuestCodePatching: loaded " << module.Name
+    getDebugStream(state) << "loaded " << module.Name
                           << " - Scanning imports - Imported libs: " << imports.size() << "\n";
 
     std::stringstream ss;
@@ -406,15 +396,15 @@ bool GuestCodePatching::patchImports(S2EExecutionState *state, const ModuleDescr
                     if (state->readPointer(itl, originalAddress)) {
                         if (originalAddress == address) {
                             if (!state->writePointer(itl, hookAddress)) {
-                                getWarningsStream(state) << "GuestCodePatching: could not write hook location\n";
+                                getWarningsStream(state) << "could not write hook location\n";
                                 ss << " Hook failed";
                             }
                         } else {
-                            getWarningsStream(state) << "GuestCodePatching: IAT address mismatch\n";
+                            getWarningsStream(state) << "IAT address mismatch\n";
                             ss << " Hook failed";
                         }
                     } else {
-                        getWarningsStream(state) << "GuestCodePatching: could not read hook location\n";
+                        getWarningsStream(state) << "could not read hook location\n";
                         ss << " Hook failed";
                     }
                 }
@@ -443,18 +433,18 @@ void GuestCodePatching::opcodePatchExistingModule(S2EExecutionState *state, uint
 
     ret &= state->mem()->readString(cmd.PatchModule.ModuleName, ModuleName);
     if (!ret) {
-        getWarningsStream(state) << "GuestCodePatching: could not read module and/or function name\n";
+        getWarningsStream(state) << "could not read module and/or function name\n";
         goto err1;
     }
 
     module = m_detector->getModule(state, ModuleName);
     if (!module) {
-        getWarningsStream(state) << "GuestCodePatching: could not find a descriptor for module " << ModuleName << "\n";
+        getWarningsStream(state) << "could not find a descriptor for module " << ModuleName << "\n";
         goto err1;
     }
 
     if (!patchImports(state, *module)) {
-        getWarningsStream(state) << "GuestCodePatching: could not patch imports in module " << ModuleName << "\n";
+        getWarningsStream(state) << "could not patch imports in module " << ModuleName << "\n";
         goto err1;
     }
 
@@ -474,12 +464,11 @@ void GuestCodePatching::opcodeRegisterKernelFunction(S2EExecutionState *state, c
     ret &= state->mem()->readString(command.KernelFunction.ModuleName, ModuleName);
     ret &= state->mem()->readString(command.KernelFunction.FunctionName, FunctionName);
     if (!ret) {
-        getWarningsStream(state) << "GuestCodePatching: could not read module and/or function name\n";
+        getWarningsStream(state) << "could not read module and/or function name\n";
         return;
     }
 
-    getDebugStream(state) << "GuestCodePatching: "
-                          << "Registering hook for " << ModuleName << "!" << FunctionName << " using function @"
+    getDebugStream(state) << "Registering hook for " << ModuleName << "!" << FunctionName << " using function @"
                           << hexval(command.KernelFunction.Address) << "\n";
 
     m_registeredHooks[ModuleName][FunctionName] = command.KernelFunction.Address;
@@ -497,8 +486,7 @@ void GuestCodePatching::opcodeRegisterEntryPoint(S2EExecutionState *state, uint6
             return;
         }
 
-        getDebugStream(state) << "GuestCodePatching: "
-                              << "setting DriverEntry hook " << hexval(command.EntryPoint.Hook) << "\n";
+        getDebugStream(state) << "setting DriverEntry hook " << hexval(command.EntryPoint.Hook) << "\n";
 
         DECLARE_PLUGINSTATE(GuestCodePatchingState, state);
         plgState->setMainEntryPointHook(command.EntryPoint.Hook);
@@ -508,8 +496,7 @@ void GuestCodePatching::opcodeRegisterEntryPoint(S2EExecutionState *state, uint6
     const ModuleDescriptor *module = m_detector->getModule(state, address);
 
     if (!module) {
-        getDebugStream(state) << "GuestCodePatching: "
-                              << "opcodeRegisterEntryPoint could not get module for entry point " << hexval(address)
+        getDebugStream(state) << "opcodeRegisterEntryPoint could not get module for entry point " << hexval(address)
                               << "\n";
         return;
     }
@@ -531,7 +518,7 @@ void GuestCodePatching::opcodeRegisterEntryPoint(S2EExecutionState *state, uint6
         ep.Name = ss.str();
     }
 
-    getDebugStream(state) << "GuestCodePatching: registering entry point " << ep.Name << "@" << hexval(ep.Address)
+    getDebugStream(state) << "registering entry point " << ep.Name << "@" << hexval(ep.Address)
                           << " in module " << module->Name << " hook @" << hexval(ep.Hook) << " Handle @"
                           << hexval(ep.Handle) << "\n";
 
@@ -549,12 +536,12 @@ void GuestCodePatching::handleOpcodeInvocation(S2EExecutionState *state, uint64_
     S2E_HOOK_PLUGIN_COMMAND command;
 
     if (guestDataSize != sizeof(command)) {
-        getWarningsStream(state) << "GuestCodePatching: mismatched S2E_HOOK_PLUGIN_COMMAND size\n";
+        getWarningsStream(state) << "mismatched S2E_HOOK_PLUGIN_COMMAND size\n";
         return;
     }
 
     if (!state->mem()->readMemoryConcrete(guestDataPtr, &command, guestDataSize)) {
-        getWarningsStream(state) << "GuestCodePatching: could not read transmitted data\n";
+        getWarningsStream(state) << "could not read transmitted data\n";
         return;
     }
 
@@ -566,7 +553,7 @@ void GuestCodePatching::handleOpcodeInvocation(S2EExecutionState *state, uint64_
         case HOOK_MODULE_IMPORTS: {
             opcodePatchExistingModule(state, guestDataPtr, command);
             /* Flush the TB cache to make sure everything is instrumented properly for coverage */
-            getDebugStream(state) << "GuestCodePatching: flushing TB cache\n";
+            getDebugStream(state) << "flushing TB cache\n";
             tb_flush(env);
             state->setPc(state->getPc() + OPCODE_SIZE);
             throw CpuExitException();
@@ -587,15 +574,13 @@ void GuestCodePatching::handleOpcodeInvocation(S2EExecutionState *state, uint64_
 
         case REGISTER_RETURN_HOOK: {
             DECLARE_PLUGINSTATE(GuestCodePatchingState, state);
-            getDebugStream(state) << "GuestCodePatching: "
-                                  << "registering return hook " << hexval(command.ReturnHook) << "\n";
+            getDebugStream(state) << "registering return hook " << hexval(command.ReturnHook) << "\n";
             plgState->setEntryPointReturnHook(command.ReturnHook);
         } break;
 
         case REGISTER_DIRECT_KERNEL_HOOK: {
             DECLARE_PLUGINSTATE(GuestCodePatchingState, state);
-            getDebugStream(state) << "GuestCodePatching: "
-                                  << "registering direct kernel hook @" << hexval(command.DirectHook.HookedFunctionPc)
+            getDebugStream(state) << "registering direct kernel hook @" << hexval(command.DirectHook.HookedFunctionPc)
                                   << " hook=" << hexval(command.DirectHook.HookPc) << "\n";
             plgState->setDirectKernelHook(command.DirectHook.HookedFunctionPc, command.DirectHook.HookPc);
             tb_flush(env);
@@ -605,13 +590,12 @@ void GuestCodePatching::handleOpcodeInvocation(S2EExecutionState *state, uint64_
 
         case DEREGISTER_DIRECT_KERNEL_HOOK: {
             DECLARE_PLUGINSTATE(GuestCodePatchingState, state);
-            getDebugStream(state) << "GuestCodePatching: "
-                                  << "deregistering direct kernel hook @" << hexval(command.DirectHook.HookedFunctionPc)
+            getDebugStream(state) << "deregistering direct kernel hook @" << hexval(command.DirectHook.HookedFunctionPc)
                                   << "\n";
             if (plgState->isDirectKernelHook(command.DirectHook.HookedFunctionPc)) {
                 plgState->removeDirectKernelHook(command.DirectHook.HookedFunctionPc);
             } else {
-                getDebugStream(state) << "GuestCodePatching: " << hexval(command.DirectHook.HookedFunctionPc)
+                getDebugStream(state) << hexval(command.DirectHook.HookedFunctionPc)
                                       << " was not hooked\n";
             }
         } break;
