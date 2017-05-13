@@ -52,6 +52,10 @@ MAKE:=make -j$(JOBS)
 CFLAGS_ARCH:=-march=$(BUILD_ARCH) -mno-sse4.1
 CXXFLAGS_ARCH:=-march=$(BUILD_ARCH) -mno-sse4.1
 
+# TODO: figure out how to automatically get the latest version without
+# having to update this URL.
+GUEST_TOOLS_BINARIES_URL=https://github.com/S2E/guest-tools/releases/download/v2.0.0/
+
 # LLVM variables
 LLVMBUILD?=$(S2EBUILD)
 ifeq ($(LLVMBUILD),$(S2EBUILD))
@@ -671,23 +675,21 @@ stamps/guest-tools64-win-make: stamps/guest-tools64-win-configure
 # Install precompiled windows drivers
 guest-tools32-windrv:
 	mkdir -p $(S2EPREFIX)/bin/guest-tools32
-	cp $(S2ESRC)/guest/windows/dist/s2e32.sys $(S2EPREFIX)/bin/guest-tools32/s2e.sys
-	cp $(S2ESRC)/guest/windows/dist/s2e.inf $(S2EPREFIX)/bin/guest-tools32/s2e.inf
-	cp $(S2ESRC)/guest/windows/dist/drvctl32.exe $(S2EPREFIX)/bin/guest-tools32/drvctl.exe
+	cd $(S2EPREFIX)/bin/guest-tools32 && wget -O s2e.sys $(GUEST_TOOLS_BINARIES_URL)/s2e32.sys
+	cd $(S2EPREFIX)/bin/guest-tools32 && wget -O s2e.inf $(GUEST_TOOLS_BINARIES_URL)/s2e.inf
+	cd $(S2EPREFIX)/bin/guest-tools32 && wget -O drvctl.exe $(GUEST_TOOLS_BINARIES_URL)/drvctl32.exe
 
 guest-tools64-windrv:
 	mkdir -p $(S2EPREFIX)/bin/guest-tools64
-	cp $(S2ESRC)/guest/windows/dist/s2e.sys $(S2EPREFIX)/bin/guest-tools64/
-	cp $(S2ESRC)/guest/windows/dist/s2e.inf $(S2EPREFIX)/bin/guest-tools64/
-	cp $(S2ESRC)/guest/windows/dist/drvctl.exe $(S2EPREFIX)/bin/guest-tools64/
-
+	cd $(S2EPREFIX)/bin/guest-tools64 && wget -O s2e.sys $(GUEST_TOOLS_BINARIES_URL)/s2e.sys
+	cd $(S2EPREFIX)/bin/guest-tools64 && wget -O s2e.inf $(GUEST_TOOLS_BINARIES_URL)/s2e.inf
+	cd $(S2EPREFIX)/bin/guest-tools64 && wget -O drvctl.exe $(GUEST_TOOLS_BINARIES_URL)/drvctl.exe
 
 stamps/guest-tools%-win-install: stamps/guest-tools%-win-make guest-tools32-windrv guest-tools64-windrv
 	$(MAKE) -C guest-tools$*-win install
 
 stamps/guest-tools%-install: stamps/guest-tools%-make guest-tools32-windrv guest-tools64-windrv
 	$(MAKE) -C guest-tools$* install
-
 
 
 ##########
