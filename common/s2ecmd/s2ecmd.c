@@ -31,6 +31,7 @@
 #include <s2e/s2e.h>
 #include <s2e/seed_searcher.h>
 
+#include <ctype.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -155,8 +156,13 @@ static int handler_symbwrite_dec(const char **args) {
 
 static int handler_symbfile(const char **args) {
     const char *filename = args[0];
+    int flags = O_RDWR;
 
-    int fd = open(filename, O_RDWR);
+#ifdef _WIN32
+    flags |= O_BINARY;
+#endif
+
+    int fd = open(filename, flags);
     if (fd < 0) {
         s2e_kill_state_printf(-1, "symbfile: could not open %s\n", filename);
         return -1;
@@ -178,7 +184,7 @@ static int handler_symbfile(const char **args) {
     }
 
     /**
-     * Replace slashes in the filename with underscores.
+     * Replace special characters in the filename with underscores.
      * It should make it easier for plugins to generate
      * concrete files, while preserving info about the original path
      * and without having to deal with the slashes.
@@ -186,7 +192,7 @@ static int handler_symbfile(const char **args) {
     char cleaned_name[512];
     strncpy(cleaned_name, filename, sizeof(cleaned_name));
     for (unsigned i = 0; cleaned_name[i]; ++i) {
-        if (cleaned_name[i] == '/' || cleaned_name[i] == '.') {
+        if (!isalnum(cleaned_name[i])) {
             cleaned_name[i] = '_';
         }
     }
