@@ -32,12 +32,13 @@ namespace s2e {
 namespace plugins {
 
 S2E_DEFINE_PLUGIN(GuestCodePatching, "Transparent patching of guest code", "GuestCodePatching", "WindowsMonitor",
-                  "ModuleExecutionDetector");
+                  "ModuleExecutionDetector", "Vmi");
 
 void GuestCodePatching::initialize() {
     // TODO: make the plugin os-agnostic
     m_monitor = s2e()->getPlugin<WindowsMonitor>();
     m_detector = s2e()->getPlugin<ModuleExecutionDetector>();
+    m_vmi = s2e()->getPlugin<Vmi>();
 
     ConfigFile *cfg = s2e()->getConfig();
 
@@ -350,9 +351,9 @@ bool GuestCodePatching::patchImports(S2EExecutionState *state, const ModuleDescr
     }
 
     if (pe->getPointerSize() > state->getPointerSize()) {
-        getWarningsStream(state) << "image pointer size " << pe->getPointerSize()
-                                 << " is bigger than the current size " << state->getPointerSize() << " ("
-                                 << module.Name << "). Something is wrong in the OS.\n";
+        getWarningsStream(state) << "image pointer size " << pe->getPointerSize() << " is bigger than the current size "
+                                 << state->getPointerSize() << " (" << module.Name
+                                 << "). Something is wrong in the OS.\n";
 
         delete pe;
         delete guestImage;
@@ -365,8 +366,8 @@ bool GuestCodePatching::patchImports(S2EExecutionState *state, const ModuleDescr
         return false;
     }
 
-    getDebugStream(state) << "loaded " << module.Name
-                          << " - Scanning imports - Imported libs: " << imports.size() << "\n";
+    getDebugStream(state) << "loaded " << module.Name << " - Scanning imports - Imported libs: " << imports.size()
+                          << "\n";
 
     std::stringstream ss;
     for (vmi::Imports::const_iterator it = imports.begin(); it != imports.end(); ++it) {
@@ -518,9 +519,8 @@ void GuestCodePatching::opcodeRegisterEntryPoint(S2EExecutionState *state, uint6
         ep.Name = ss.str();
     }
 
-    getDebugStream(state) << "registering entry point " << ep.Name << "@" << hexval(ep.Address)
-                          << " in module " << module->Name << " hook @" << hexval(ep.Hook) << " Handle @"
-                          << hexval(ep.Handle) << "\n";
+    getDebugStream(state) << "registering entry point " << ep.Name << "@" << hexval(ep.Address) << " in module "
+                          << module->Name << " hook @" << hexval(ep.Hook) << " Handle @" << hexval(ep.Handle) << "\n";
 
     DECLARE_PLUGINSTATE(GuestCodePatchingState, state);
 
@@ -595,8 +595,7 @@ void GuestCodePatching::handleOpcodeInvocation(S2EExecutionState *state, uint64_
             if (plgState->isDirectKernelHook(command.DirectHook.HookedFunctionPc)) {
                 plgState->removeDirectKernelHook(command.DirectHook.HookedFunctionPc);
             } else {
-                getDebugStream(state) << hexval(command.DirectHook.HookedFunctionPc)
-                                      << " was not hooked\n";
+                getDebugStream(state) << hexval(command.DirectHook.HookedFunctionPc) << " was not hooked\n";
             }
         } break;
     }

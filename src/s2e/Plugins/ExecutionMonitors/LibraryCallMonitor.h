@@ -16,6 +16,7 @@
 #include <tr1/unordered_map>
 #include <tr1/unordered_set>
 
+#include <s2e/Plugins/Core/Vmi.h>
 #include <s2e/Plugins/OSMonitors/Support/ModuleExecutionDetector.h>
 #include "FunctionMonitor.h"
 
@@ -43,6 +44,7 @@ private:
     OSMonitor *m_monitor;
     ModuleExecutionDetector *m_detector;
     FunctionMonitor *m_functionMonitor;
+    Vmi *m_vmi;
     StringSet m_functionNames;
     AddressPairs m_alreadyCalledFunctions;
 

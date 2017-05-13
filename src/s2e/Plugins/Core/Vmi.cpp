@@ -636,5 +636,143 @@ bool Vmi::readModuleData(const ModuleDescriptor &module, uint64_t addr, uint8_t 
     return true;
 }
 
+// XXX: support other binary formats, not just PE
+bool Vmi::patchImportsFromDisk(S2EExecutionState *state, const ModuleDescriptor &module, uint32_t checkSum,
+                               vmi::Imports &imports) {
+    bool result = true;
+    getDebugStream(state) << "trying to open the on-disk image to parse imports\n";
+
+    Vmi::PeData pd = getPeFromDisk(module, true);
+    if (!pd.pe) {
+        getDebugStream(state) << "could not find on-disk image\n";
+        return false;
+    }
+
+    if (checkSum != pd.pe->getCheckSum()) {
+        getDebugStream(state) << "checksum mismatch for " << module.Name << "\n";
+        result = false;
+        goto err1;
+    }
+
+    imports = pd.pe->getImports();
+
+    for (vmi::Imports::iterator it = imports.begin(); it != imports.end(); ++it) {
+        vmi::ImportedSymbols &symbols = (*it).second;
+
+        for (vmi::ImportedSymbols::iterator fit = symbols.begin(); fit != symbols.end(); ++fit) {
+            uint64_t itl = (*fit).second.importTableLocation + module.LoadBase;
+            uint64_t address = (*fit).second.address;
+
+            if (!state->readPointer(itl, address)) {
+                getWarningsStream(state) << "could not read address " << hexval(itl) << "\n";
+                continue;
+            }
+
+            (*fit).second.importTableLocation = itl;
+            (*fit).second.address = address;
+        }
+    }
+
+err1:
+    delete pd.pe;
+    delete pd.fp;
+    return result;
+}
+
+// TODO: remove duplicate code in all these getXXX functions.
+bool Vmi::getEntryPoint(S2EExecutionState *state, const ModuleDescriptor &Desc, uint64_t &Addr) {
+    if (Desc.AddressSpace && state->getPageDir() != Desc.AddressSpace) {
+        return false;
+    }
+
+    vmi::GuestMemoryFileProvider file(state, &Vmi::readGuestVirtual, NULL, Desc.Name);
+    vmi::PEFile *image = vmi::PEFile::get(&file, true, Desc.LoadBase);
+    if (!image) {
+        return false;
+    }
+
+    Addr = image->getEntryPoint();
+    delete image;
+    return true;
+}
+
+bool Vmi::getImports(S2EExecutionState *state, const ModuleDescriptor &Desc, vmi::Imports &I) {
+    if (Desc.AddressSpace && state->getPageDir() != Desc.AddressSpace) {
+        return false;
+    }
+
+    getDebugStream(state) << "getting import for " << Desc << "\n";
+
+    bool result = true;
+    vmi::GuestMemoryFileProvider file(state, &Vmi::readGuestVirtual, NULL, Desc.Name);
+    vmi::PEFile *image = vmi::PEFile::get(&file, true, Desc.LoadBase);
+    if (!image) {
+        return false;
+    }
+
+    /**
+     * If the import table is in the INIT section, it's likely that the OS
+     * unloaded it. Instead of failing, reconstruct the import table from
+     * the original binary.
+     */
+    if (patchImportsFromDisk(state, Desc, image->getCheckSum(), I)) {
+        goto end;
+    }
+
+    I = image->getImports();
+
+end:
+    delete image;
+    return result;
+}
+
+bool Vmi::getExports(S2EExecutionState *state, const ModuleDescriptor &Desc, vmi::Exports &E) {
+    if (Desc.AddressSpace && state->getPageDir() != Desc.AddressSpace) {
+        return false;
+    }
+
+    vmi::GuestMemoryFileProvider file(state, &Vmi::readGuestVirtual, NULL, Desc.Name);
+    vmi::PEFile *image = vmi::PEFile::get(&file, true, Desc.LoadBase);
+    if (!image) {
+        return false;
+    }
+
+    E = image->getExports();
+    delete image;
+    return true;
+}
+
+bool Vmi::getRelocations(S2EExecutionState *state, const ModuleDescriptor &Desc, vmi::Relocations &R) {
+    if (Desc.AddressSpace && state->getPageDir() != Desc.AddressSpace) {
+        return false;
+    }
+
+    vmi::GuestMemoryFileProvider file(state, &Vmi::readGuestVirtual, NULL, Desc.Name);
+    vmi::PEFile *image = vmi::PEFile::get(&file, true, Desc.LoadBase);
+    if (!image) {
+        return false;
+    }
+
+    R = image->getRelocations();
+    delete image;
+    return true;
+}
+
+bool Vmi::getSections(S2EExecutionState *state, const ModuleDescriptor &Desc, vmi::Sections &S) {
+    if (Desc.AddressSpace && state->getPageDir() != Desc.AddressSpace) {
+        return false;
+    }
+
+    vmi::GuestMemoryFileProvider file(state, &Vmi::readGuestVirtual, NULL, Desc.Name);
+    vmi::ExecutableFile *image = vmi::ExecutableFile::get(&file, true, Desc.LoadBase);
+    if (!image) {
+        return false;
+    }
+
+    S = image->getSections();
+    delete image;
+    return true;
+}
+
 } // namespace plugins
 } // namespace s2e

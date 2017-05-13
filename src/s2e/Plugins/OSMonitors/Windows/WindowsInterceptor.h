@@ -26,24 +26,16 @@ namespace plugins {
  */
 class WindowsInterceptor : public OSMonitor {
 private:
-    bool patchImportsFromDisk(S2EExecutionState *state, const ModuleDescriptor &module, uint32_t checkSum,
-                              vmi::Imports &imports);
-
-    template <typename T> void getContext(S2EExecutionState *state, T &context);
+    template <typename T> static void getContext(S2EExecutionState *state, T &context);
 
 public:
     WindowsInterceptor(S2E *s2e) : OSMonitor(s2e) {
     }
 
-    void getContext32(S2EExecutionState *state, vmi::windows::CONTEXT32 &context);
-    void getContext64(S2EExecutionState *state, vmi::windows::CONTEXT64 &context);
+    static void getContext32(S2EExecutionState *state, vmi::windows::CONTEXT32 &context);
+    static void getContext64(S2EExecutionState *state, vmi::windows::CONTEXT64 &context);
 
     vmi::PEFile *getPEFile(S2EExecutionState *s, const ModuleDescriptor &desc);
-    virtual bool getEntryPoint(S2EExecutionState *s, const ModuleDescriptor &desc, uint64_t &Addr);
-    virtual bool getImports(S2EExecutionState *s, const ModuleDescriptor &desc, vmi::Imports &I);
-    virtual bool getExports(S2EExecutionState *s, const ModuleDescriptor &desc, vmi::Exports &E);
-    virtual bool getRelocations(S2EExecutionState *s, const ModuleDescriptor &desc, vmi::Relocations &R);
-    virtual bool getSections(S2EExecutionState *s, const ModuleDescriptor &desc, vmi::Sections &S);
 
     virtual bool CheckPanic(uint64_t eip) const = 0;
     virtual uint64_t getKdDebuggerDataBlock() const = 0;

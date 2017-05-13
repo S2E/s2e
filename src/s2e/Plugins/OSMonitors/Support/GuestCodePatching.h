@@ -11,8 +11,9 @@
 #include <s2e/CorePlugin.h>
 #include <s2e/Plugin.h>
 #include <s2e/Plugins/Core/BaseInstructions.h>
-#include <s2e/Plugins/OSMonitors/Windows/WindowsMonitor.h>
+#include <s2e/Plugins/Core/Vmi.h>
 #include <s2e/Plugins/OSMonitors/Support/ModuleExecutionDetector.h>
+#include <s2e/Plugins/OSMonitors/Windows/WindowsMonitor.h>
 #include <s2e/S2EExecutionState.h>
 
 namespace s2e {
@@ -130,6 +131,7 @@ public:
 private:
     WindowsMonitor *m_monitor;
     ModuleExecutionDetector *m_detector;
+    Vmi *m_vmi;
 
     bool m_allowSelfCalls;
 

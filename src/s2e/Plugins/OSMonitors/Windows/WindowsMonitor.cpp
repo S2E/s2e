@@ -329,7 +329,7 @@ void WindowsMonitor::onDriverLoad(S2EExecutionState *state, uint64_t pc) {
 
     /* Load the imported drivers too */
     vmi::Imports imports;
-    if (getImports(state, DriverDesc, imports)) {
+    if (m_vmi->getImports(state, DriverDesc, imports)) {
         StringSet importedModules;
         foreach2 (it, imports.begin(), imports.end()) { importedModules.insert((*it).first); }
 

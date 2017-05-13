@@ -20,11 +20,12 @@ namespace s2e {
 namespace plugins {
 
 S2E_DEFINE_PLUGIN(LibraryCallMonitor, "Flags all calls to external libraries", "LibraryCallMonitor", "OSMonitor",
-                  "FunctionMonitor", "ModuleExecutionDetector");
+                  "FunctionMonitor", "ModuleExecutionDetector", "Vmi");
 
 void LibraryCallMonitor::initialize() {
     m_detector = s2e()->getPlugin<ModuleExecutionDetector>();
     m_functionMonitor = s2e()->getPlugin<FunctionMonitor>();
+    m_vmi = s2e()->getPlugin<Vmi>();
     m_monitor = static_cast<OSMonitor *>(s2e()->getPlugin("OSMonitor"));
 
     ConfigFile *cfg = s2e()->getConfig();
@@ -56,7 +57,7 @@ void LibraryCallMonitor::initialize() {
 void LibraryCallMonitor::onModuleLoad(S2EExecutionState *state, const ModuleDescriptor &module) {
     vmi::Imports imports;
 
-    if (!m_monitor->getImports(state, module, imports)) {
+    if (!m_vmi->getImports(state, module, imports)) {
         getWarningsStream() << "could not retrieve imported functions in " << module.Name << '\n';
         return;
     }
