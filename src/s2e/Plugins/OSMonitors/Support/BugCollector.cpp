@@ -45,21 +45,21 @@ S2E_DEFINE_PLUGIN(
     "This plugin centralizes all the bugs found by various plugins and makes them available in a standard format", "");
 
 void BugCollector::initialize() {
-    m_linuxMonitor = static_cast<LinuxMonitor *>(s2e()->getPlugin("LinuxMonitor"));
-    m_windowsMonitor = static_cast<WindowsMonitor *>(s2e()->getPlugin("WindowsMonitor"));
+    m_linuxMonitor = s2e()->getPlugin<LinuxMonitor>();
+    m_windowsMonitor = s2e()->getPlugin<WindowsMonitor>();
 
-    m_bsodInterceptor = static_cast<BlueScreenInterceptor *>(s2e()->getPlugin("BlueScreenInterceptor"));
-    m_bsodGenerator = static_cast<WindowsCrashDumpGenerator *>(s2e()->getPlugin("WindowsCrashDumpGenerator"));
+    m_bsodInterceptor = s2e()->getPlugin<BlueScreenInterceptor>();
+    m_bsodGenerator = s2e()->getPlugin<WindowsCrashDumpGenerator>();
 
-    m_detector = static_cast<ModuleExecutionDetector *>(s2e()->getPlugin("ModuleExecutionDetector"));
+    m_detector = s2e()->getPlugin<ModuleExecutionDetector>();
 
-    m_vmiPlugin = static_cast<Vmi *>(s2e()->getPlugin("Vmi"));
-    m_tc = dynamic_cast<testcases::TestCaseGenerator *>(s2e()->getPlugin("TestCaseGenerator"));
+    m_vmiPlugin = s2e()->getPlugin<Vmi>();
+    m_tc = s2e()->getPlugin<testcases::TestCaseGenerator>();
     if (m_tc) {
         m_tc->disable();
     }
 
-    m_tracer = dynamic_cast<ExecutionTracer *>(s2e()->getPlugin("ExecutionTracer"));
+    m_tracer = s2e()->getPlugin<ExecutionTracer>();
 
     if (m_bsodInterceptor) {
         m_bsodInterceptor->onBlueScreen.connect(sigc::mem_fun(*this, &BugCollector::onBlueScreen));
@@ -270,7 +270,7 @@ std::string BugCollector::compressFile(const std::string &path) {
 
 void BugCollector::addCrashDump(S2EExecutionState *state, BugCollectorBug *bug, S2E_BUG_CRASH_OPAQUE crashOpaque) {
     if (!m_bsodGenerator) {
-        getWarningsStream(state) << "BugCollector: WindowsCrashDump generator not enabled\n";
+        getWarningsStream(state) << "WindowsCrashDump generator not enabled\n";
         return;
     }
 
@@ -307,7 +307,7 @@ void BugCollector::addCrashDump(S2EExecutionState *state, BugCollectorBug *bug, 
 
 bool BugCollector::isNewBug(BugCollectorBug *bug) {
     bool b = m_bugs.find(bug) == m_bugs.end();
-    getDebugStream() << "BugCollector: " << (b ? "new bug" : "repeated bug") << "\n";
+    getDebugStream() << (b ? "new bug" : "repeated bug") << "\n";
     return b;
 }
 
@@ -392,7 +392,7 @@ void BugCollector::opcodeCustomBug(S2EExecutionState *state, uint64_t guestDataP
     bool ret = true;
     ret &= state->mem()->readString(command.CustomBug.DescriptionStr, bug->description);
     if (!ret) {
-        getWarningsStream(state) << "BugCollector: could not read custom bug description\n";
+        getWarningsStream(state) << "could not read custom bug description\n";
         return;
     }
 
@@ -422,7 +422,7 @@ void BugCollector::opcodeWindowsUserModeBug(S2EExecutionState *state, uint64_t g
     bool ret = true;
     ret &= state->mem()->readString(command.WindowsUserModeBug.ProgramName, bug->programName);
     if (!ret) {
-        getWarningsStream(state) << "BugCollector: could not read custom program name\n";
+        getWarningsStream(state) << "could not read custom program name\n";
         return;
     }
 
@@ -437,19 +437,19 @@ void BugCollector::opcodeWindowsUserModeBug(S2EExecutionState *state, uint64_t g
         m_tracer->flushCircularBufferToFile();
     }
 
-    s2e()->getExecutor()->terminateStateEarly(*state, "BugCollector: opcodeWindowsUserModeBug");
+    s2e()->getExecutor()->terminateStateEarly(*state, "opcodeWindowsUserModeBug");
 }
 
 void BugCollector::handleOpcodeInvocation(S2EExecutionState *state, uint64_t guestDataPtr, uint64_t guestDataSize) {
     S2E_BUG_COMMAND command;
 
     if (guestDataSize != sizeof(command)) {
-        getWarningsStream(state) << "BugCollector: mismatched S2E_BUG_COMMAND size\n";
+        getWarningsStream(state) << "mismatched S2E_BUG_COMMAND size\n";
         return;
     }
 
     if (!state->mem()->readMemoryConcrete(guestDataPtr, &command, guestDataSize)) {
-        getWarningsStream(state) << "BugCollector: could not read transmitted data\n";
+        getWarningsStream(state) << "could not read transmitted data\n";
         return;
     }
 
