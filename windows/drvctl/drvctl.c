@@ -344,6 +344,7 @@ int handler_wait(const char **args)
     do {
         S2EMessageFmt("drvctl: waiting for the s2e driver...");
         hDriver = OpenS2EDriver(pS2EDriverDevice);
+        Sleep(1000);
     } while (hDriver == INVALID_HANDLE_VALUE);
 
     CloseHandle(hDriver);
