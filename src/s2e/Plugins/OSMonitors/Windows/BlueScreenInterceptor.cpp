@@ -26,12 +26,12 @@ namespace s2e {
 namespace plugins {
 
 S2E_DEFINE_PLUGIN(BlueScreenInterceptor, "Intercepts Windows blue screens of death and generated bug reports",
-                  "BlueScreenInterceptor", "OSMonitor");
+                  "BlueScreenInterceptor", "WindowsMonitor");
 
 void BlueScreenInterceptor::initialize() {
-    m_monitor = dynamic_cast<WindowsInterceptor *>(s2e()->getPlugin("OSMonitor"));
+    m_monitor = s2e()->getPlugin<WindowsMonitor>();
     if (!m_monitor) {
-        getWarningsStream() << "BlueScreenInterceptor: you must use a Windows monitor plugin" << '\n';
+        getWarningsStream() << "you must use a Windows monitor plugin\n";
         exit(-1);
     }
 
@@ -64,7 +64,7 @@ bool BlueScreenInterceptor::invokeCrashRoutine(S2EExecutionState *state, uint64_
 void BlueScreenInterceptor::onBsod(S2EExecutionState *state, uint64_t pc) {
     std::stringstream ss;
 
-    getDebugStream(state) << "BlueScreenInterceptor: caught blue screen\n";
+    getDebugStream(state) << "caught blue screen\n";
 
     if (invokeCrashRoutine(state, pc)) {
         return;
@@ -81,11 +81,11 @@ void BlueScreenInterceptor::onBsod(S2EExecutionState *state, uint64_t pc) {
     {
         bool ok = true;
         uint32_t _code, _param1, _param2, _param3, _param4;
-        ok &= WindowsInterceptor::readConcreteParameter<uint32_t>(state, 0, &_code);
-        ok &= WindowsInterceptor::readConcreteParameter<uint32_t>(state, 1, &_param1);
-        ok &= WindowsInterceptor::readConcreteParameter<uint32_t>(state, 2, &_param2);
-        ok &= WindowsInterceptor::readConcreteParameter<uint32_t>(state, 3, &_param3);
-        ok &= WindowsInterceptor::readConcreteParameter<uint32_t>(state, 4, &_param4);
+        ok &= OSMonitor::readConcreteParameter<uint32_t>(state, 0, &_code);
+        ok &= OSMonitor::readConcreteParameter<uint32_t>(state, 1, &_param1);
+        ok &= OSMonitor::readConcreteParameter<uint32_t>(state, 2, &_param2);
+        ok &= OSMonitor::readConcreteParameter<uint32_t>(state, 3, &_param3);
+        ok &= OSMonitor::readConcreteParameter<uint32_t>(state, 4, &_param4);
         code = _code;
         param1 = _param1;
         param2 = _param2;
@@ -98,7 +98,7 @@ void BlueScreenInterceptor::onBsod(S2EExecutionState *state, uint64_t pc) {
         param1 = state->regs()->read<uint64_t>(CPU_OFFSET(regs[R_EDX]));
         param2 = state->regs()->read<uint64_t>(CPU_OFFSET(regs[8]));
         param3 = state->regs()->read<uint64_t>(CPU_OFFSET(regs[9]));
-        WindowsInterceptor::readConcreteParameter<uint64_t>(state, 4, &param4);
+        OSMonitor::readConcreteParameter<uint64_t>(state, 4, &param4);
     }
 #endif
 
@@ -123,12 +123,12 @@ void BlueScreenInterceptor::handleOpcodeInvocation(S2EExecutionState *state, uin
     S2E_BSOD_COMMAND command;
 
     if (guestDataSize != sizeof(command)) {
-        getWarningsStream(state) << "BlueScreenInterceptor: mismatched S2E_BSOD_COMMAND size\n";
+        getWarningsStream(state) << "mismatched S2E_BSOD_COMMAND size\n";
         return;
     }
 
     if (!state->mem()->readMemoryConcrete(guestDataPtr, &command, guestDataSize)) {
-        getWarningsStream(state) << "BlueScreenInterceptor: could not read transmitted data\n";
+        getWarningsStream(state) << "could not read transmitted data\n";
         return;
     }
 

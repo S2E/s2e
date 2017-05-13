@@ -64,7 +64,7 @@ bool WindowsCrashDumpGenerator::generateManualDump(S2EExecutionState *state, con
     newInfo.code = 0xDEADDEAD; // MANUALLY_INITIATED_CRASH1
 
     CONTEXT32 context;
-    m_monitor->getContext32(state, context);
+    getContext32(state, context);
     context.Eip = state->getPc();
 
     return generateCrashDump(state, filename, &newInfo, context);
@@ -73,7 +73,7 @@ bool WindowsCrashDumpGenerator::generateManualDump(S2EExecutionState *state, con
 bool WindowsCrashDumpGenerator::generateDump(S2EExecutionState *state, const std::string &filename,
                                              const BugCheckDescription *info) {
     CONTEXT32 context;
-    m_monitor->getContext32(state, context);
+    getContext32(state, context);
 
     return generateCrashDump(state, filename, info, context);
 }
@@ -101,11 +101,11 @@ bool WindowsCrashDumpGenerator::generateCrashDump(S2EExecutionState *state, cons
     if (bugDesc->guestHeader) {
         if (state->getPointerSize() == 4) {
             CONTEXT32 context;
-            m_monitor->getContext32(state, context);
+            getContext32(state, context);
             retd = crashGen.generate(*bugDesc, &context, sizeof(context));
         } else {
             CONTEXT64 context;
-            m_monitor->getContext64(state, context);
+            getContext64(state, context);
             retd = crashGen.generate(*bugDesc, &context, sizeof(context));
         }
     } else {
@@ -198,6 +198,67 @@ std::string WindowsCrashDumpGenerator::getPathForDump(S2EExecutionState *state, 
     filename << prefix << state->getID() << ".dmp";
 
     return g_s2e->getOutputFilename(filename.str());
+}
+
+template <typename T> void WindowsCrashDumpGenerator::getContext(S2EExecutionState *state, T &Context) {
+    memset(&Context, 0x0, sizeof(Context));
+    S2EExecutionStateRegisters *regs = state->regs();
+
+    Context.ContextFlags = CONTEXT_FULL;
+    Context.Dr0 = regs->read<target_ulong>(offsetof(CPUX86State, dr[0]));
+    Context.Dr1 = regs->read<target_ulong>(offsetof(CPUX86State, dr[1]));
+    Context.Dr2 = regs->read<target_ulong>(offsetof(CPUX86State, dr[2]));
+    Context.Dr3 = regs->read<target_ulong>(offsetof(CPUX86State, dr[3]));
+    Context.Dr6 = regs->read<target_ulong>(offsetof(CPUX86State, dr[6]));
+    Context.Dr7 = regs->read<target_ulong>(offsetof(CPUX86State, dr[7]));
+
+    Context.SegDs = regs->read<target_ulong>(offsetof(CPUX86State, segs[R_DS]));
+    Context.SegEs = regs->read<target_ulong>(offsetof(CPUX86State, segs[R_ES]));
+    Context.SegFs = regs->read<target_ulong>(offsetof(CPUX86State, segs[R_FS]));
+    Context.SegGs = regs->read<target_ulong>(offsetof(CPUX86State, segs[R_GS]));
+
+    Context.SegCs = regs->read<target_ulong>(offsetof(CPUX86State, segs[R_CS]));
+    Context.SegSs = regs->read<target_ulong>(offsetof(CPUX86State, segs[R_SS]));
+
+    Context.EFlags = state->getFlags();
+}
+
+void WindowsCrashDumpGenerator::getContext32(S2EExecutionState *state, vmi::windows::CONTEXT32 &Context) {
+    getContext(state, Context);
+
+    S2EExecutionStateRegisters *regs = state->regs();
+
+    Context.ContextFlags = CONTEXT_FULL;
+
+    Context.Eax = regs->read<target_ulong>(offsetof(CPUX86State, regs[R_EAX]));
+    Context.Ebx = regs->read<target_ulong>(offsetof(CPUX86State, regs[R_EBX]));
+    Context.Ecx = regs->read<target_ulong>(offsetof(CPUX86State, regs[R_ECX]));
+    Context.Edx = regs->read<target_ulong>(offsetof(CPUX86State, regs[R_EDX]));
+    Context.Esi = regs->read<target_ulong>(offsetof(CPUX86State, regs[R_ESI]));
+    Context.Edi = regs->read<target_ulong>(offsetof(CPUX86State, regs[R_EDI]));
+    Context.Esp = regs->read<target_ulong>(offsetof(CPUX86State, regs[R_ESP]));
+    Context.Ebp = regs->read<target_ulong>(offsetof(CPUX86State, regs[R_EBP]));
+
+    Context.Eip = (uint32_t) state->getPc();
+}
+
+void WindowsCrashDumpGenerator::getContext64(S2EExecutionState *state, vmi::windows::CONTEXT64 &Context) {
+    getContext(state, Context);
+
+    S2EExecutionStateRegisters *regs = state->regs();
+
+    Context.ContextFlags = CONTEXT_FULL;
+
+    Context.Rax = regs->read<target_ulong>(offsetof(CPUX86State, regs[R_EAX]));
+    Context.Rbx = regs->read<target_ulong>(offsetof(CPUX86State, regs[R_EBX]));
+    Context.Rcx = regs->read<target_ulong>(offsetof(CPUX86State, regs[R_ECX]));
+    Context.Rdx = regs->read<target_ulong>(offsetof(CPUX86State, regs[R_EDX]));
+    Context.Rsi = regs->read<target_ulong>(offsetof(CPUX86State, regs[R_ESI]));
+    Context.Rdi = regs->read<target_ulong>(offsetof(CPUX86State, regs[R_EDI]));
+    Context.Rsp = regs->read<target_ulong>(offsetof(CPUX86State, regs[R_ESP]));
+    Context.Rbp = regs->read<target_ulong>(offsetof(CPUX86State, regs[R_EBP]));
+
+    Context.Rip = state->getPc();
 }
 
 } // namespace plugins

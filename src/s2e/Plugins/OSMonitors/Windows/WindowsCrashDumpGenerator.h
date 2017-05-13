@@ -61,6 +61,12 @@ private:
     WindowsMonitor *m_monitor;
     bool m_generateCrashDump;
 
+    // TODO: put these somewhere else. In principe getContext functions are generic,
+    // but for now, only WindowsCrashDumpGenerator uses them.
+    template <typename T> static void getContext(S2EExecutionState *state, T &context);
+    static void getContext32(S2EExecutionState *state, vmi::windows::CONTEXT32 &context);
+    static void getContext64(S2EExecutionState *state, vmi::windows::CONTEXT64 &context);
+
     bool generateCrashDump(S2EExecutionState *state, const std::string &filename,
                            const vmi::windows::BugCheckDescription *bugDesc, const vmi::windows::CONTEXT32 &context);
 

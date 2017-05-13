@@ -310,7 +310,7 @@ bool WindowsMonitor::readDriverDescriptorFromParameter(S2EExecutionState *state,
         }
     } else {
         uint32_t pDriverDesc = 0;
-        WindowsInterceptor::readConcreteParameter<uint32_t>(state, 0, &pDriverDesc);
+        OSMonitor::readConcreteParameter<uint32_t>(state, 0, &pDriverDesc);
         if (!readDriverDescriptor<DRIVER_OBJECT32, MODULE_ENTRY32>(state, pDriverDesc, DriverDesc)) {
             return false;
         }

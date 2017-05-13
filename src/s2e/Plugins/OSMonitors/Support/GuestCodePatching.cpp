@@ -17,7 +17,6 @@ extern "C" {
 
 #include <s2e/ConfigFile.h>
 #include <s2e/ConfigFile.h>
-#include <s2e/Plugins/OSMonitors/Windows/WindowsInterceptor.h>
 #include <s2e/S2E.h>
 #include <s2e/S2EExecutor.h>
 #include <s2e/Utils.h>
