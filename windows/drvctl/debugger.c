@@ -167,15 +167,14 @@ VOID DebugApp(DWORD Pid, DWORD EventId)
         printf("drvctl: Event code %x\n", DebugEvent.dwDebugEventCode);
 
         switch (DebugEvent.dwDebugEventCode) {
-        case CREATE_PROCESS_DEBUG_EVENT:
+        case CREATE_PROCESS_DEBUG_EVENT: {
             S2EMessageFmt("CREATE_PROCESS_DEBUG_EVENT filename: %s\n", DebugEvent.u.CreateProcessInfo.lpImageName);
-            break;
+        } break;
 
         case EXIT_PROCESS_DEBUG_EVENT: {
             S2EMessageFmt("EXIT_PROCESS_DEBUG_EVENT\n");
             ReportBug(Pid, &LastExceptionRecord);
-        }
-                                       break;
+        } break;
 
         case EXCEPTION_DEBUG_EVENT: {
             DWORD ExceptionCode = DebugEvent.u.Exception.ExceptionRecord.ExceptionCode;
@@ -207,8 +206,7 @@ VOID DebugApp(DWORD Pid, DWORD EventId)
             } else {
                 ContinueFlag = DBG_EXCEPTION_NOT_HANDLED;
             }
-        }
-                                    break;
+        } break;
 
         default: {
             S2EMessageFmt("drvctl: Unhandled event code %d\n", DebugEvent.dwDebugEventCode);
