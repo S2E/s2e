@@ -41,21 +41,6 @@ void WindowsCrashDumpGenerator::initialize() {
     Lunar<WindowsCrashDumpInvoker>::Register(s2e()->getConfig()->getState());
 
     m_monitor = s2e()->getPlugin<WindowsMonitor>();
-    m_generateCrashDump = s2e()->getConfig()->getBool(getConfigKey() + ".generateCrashDump", false);
-
-    if (m_generateCrashDump) {
-        BlueScreenInterceptor *bsod = dynamic_cast<BlueScreenInterceptor *>(s2e()->getPlugin("BlueScreenInterceptor"));
-        if (!bsod) {
-            getWarningsStream() << "WindowsCrashDumpGenerator: BlueScreenInterceptor needs to be activated\n";
-            exit(-1);
-        }
-
-        bsod->onBlueScreen.connect(sigc::mem_fun(*this, &WindowsCrashDumpGenerator::onBlueScreen));
-    }
-}
-
-void WindowsCrashDumpGenerator::onBlueScreen(S2EExecutionState *state, vmi::windows::BugCheckDescription *info) {
-    generateDump(state, getPathForDump(state), info);
 }
 
 bool WindowsCrashDumpGenerator::generateManualDump(S2EExecutionState *state, const std::string &filename,
@@ -80,12 +65,11 @@ bool WindowsCrashDumpGenerator::generateDump(S2EExecutionState *state, const std
 
 bool WindowsCrashDumpGenerator::generateCrashDump(S2EExecutionState *state, const std::string &filename,
                                                   const BugCheckDescription *bugDesc, const CONTEXT32 &context) {
-    getDebugStream(state) << "WindowsCrashDumpGenerator: generating dump in " << filename << "\n";
+    getDebugStream(state) << "generating dump in " << filename << "\n";
 
     std::unique_ptr<vmi::FileSystemFileProvider> fp(vmi::FileSystemFileProvider::get(filename, true));
     if (!fp) {
-        getWarningsStream(state) << "WindowsCrashDumpGenerator: could not open " << filename << " for writing - "
-                                 << strerror(errno) << "\n";
+        getWarningsStream(state) << "could not open " << filename << " for writing - " << strerror(errno) << "\n";
         return false;
     }
 
@@ -114,18 +98,17 @@ bool WindowsCrashDumpGenerator::generateCrashDump(S2EExecutionState *state, cons
     }
 
     if (!retd) {
-        getDebugStream(state) << "WindowsCrashDumpGenerator: could not generated dump\n";
+        getDebugStream(state) << "could not generated dump\n";
         return false;
     }
 
     uint64_t size;
     std::error_code error = llvm::sys::fs::file_size(filename, size);
     if (error) {
-        getWarningsStream(state) << "WindowsCrashDumpGenerator: Unable to determine size of " << filename << " - "
-                                 << error.message() << '\n';
+        getWarningsStream(state) << "Unable to determine size of " << filename << " - " << error.message() << '\n';
         return false;
     } else {
-        getDebugStream(state) << "WindowsCrashDumpGenerator: dump size " << hexval(size) << "\n";
+        getDebugStream(state) << "dump size " << hexval(size) << "\n";
     }
 
     return true;

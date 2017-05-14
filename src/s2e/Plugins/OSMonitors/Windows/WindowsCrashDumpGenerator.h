@@ -41,6 +41,15 @@ public:
     int generateCrashDump(lua_State *L);
 };
 
+///
+/// \brief The WindowsCrashDumpGenerator plugins provides mechanisms to generate
+/// WinDbg-compatible crash dumps.
+///
+/// Remarks:
+///  - This class has no configurable options and does not generate dumps by itself
+///  - Other plugins may use WindowsCrashDumpGenerator to request crash dumps
+///    when they detect guest bugs. BugCollector is one such plugin.
+///
 class WindowsCrashDumpGenerator : public Plugin {
     S2E_PLUGIN
 public:
@@ -59,7 +68,6 @@ public:
 
 private:
     WindowsMonitor *m_monitor;
-    bool m_generateCrashDump;
 
     // TODO: put these somewhere else. In principe getContext functions are generic,
     // but for now, only WindowsCrashDumpGenerator uses them.
@@ -69,8 +77,6 @@ private:
 
     bool generateCrashDump(S2EExecutionState *state, const std::string &filename,
                            const vmi::windows::BugCheckDescription *bugDesc, const vmi::windows::CONTEXT32 &context);
-
-    void onBlueScreen(S2EExecutionState *state, vmi::windows::BugCheckDescription *info);
 };
 
 } // namespace plugins
