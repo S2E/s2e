@@ -13,6 +13,7 @@
 #include <s2e/Plugins/Core/BaseInstructions.h>
 #include <s2e/Plugins/Core/Vmi.h>
 #include <s2e/S2EExecutionState.h>
+#include <s2e/Synchronization.h>
 
 #include <s2e/Plugins/OSMonitors/Windows/BlueScreenInterceptor.h>
 #include <s2e/Plugins/OSMonitors/Windows/WindowsCrashDumpGenerator.h>
@@ -78,6 +79,9 @@ private:
     bool m_generateCrashDump;
     bool m_compressDumps;
     bool m_terminateOnCrash;
+    int m_maxCrashDumpCount;
+
+    S2ESynchronizedObject<uint64_t> m_crashCount;
 
     void generateCrashDump(S2EExecutionState *state, const vmi::windows::BugCheckDescription *info, bool isManual);
     void onBlueScreen(S2EExecutionState *state, vmi::windows::BugCheckDescription *info);

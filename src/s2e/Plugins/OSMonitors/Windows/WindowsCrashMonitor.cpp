@@ -40,6 +40,10 @@ void WindowsCrashMonitor::initialize() {
     // This option only applies to user-space crashes
     m_terminateOnCrash = s2e()->getConfig()->getBool(getConfigKey() + ".terminateOnCrash", true);
 
+    // Generate at most this many crash dumps
+    m_maxCrashDumpCount = s2e()->getConfig()->getInt(getConfigKey() + ".maxCrashDumps", 10);
+    *m_crashCount.get() = 0;
+
     if (m_generateCrashDump) {
         m_bsodInterceptor->onBlueScreen.connect(sigc::mem_fun(*this, &WindowsCrashMonitor::onBlueScreen));
     }
@@ -51,6 +55,14 @@ void WindowsCrashMonitor::generateCrashDump(S2EExecutionState *state, const vmi:
         getWarningsStream(state) << "Crash dump generation disabled\n";
         return;
     }
+
+    uint64_t *count = m_crashCount.acquire();
+    if (*count >= m_maxCrashDumpCount) {
+        m_crashCount.release();
+        return;
+    }
+    ++*count;
+    m_crashCount.release();
 
     bool ret;
     std::string path = m_bsodGenerator->getPathForDump(state);
