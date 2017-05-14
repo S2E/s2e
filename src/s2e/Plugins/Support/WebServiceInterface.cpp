@@ -51,10 +51,20 @@ void WebServiceInterface::initialize() {
     }
 
     LinuxMonitor *linux = s2e()->getPlugin<LinuxMonitor>();
+    WindowsMonitor *windows = s2e()->getPlugin<WindowsMonitor>();
+
     if (linux) {
         linux->onSegFault.connect(sigc::mem_fun(*this, &WebServiceInterface::onSegFault));
+    } else if (windows) {
+        WindowsCrashMonitor *crash = s2e()->getPlugin<WindowsCrashMonitor>();
+        if (!crash) {
+            getWarningsStream() << "Please enable WindowsCrashMonitor to use SeedScheduler with Windows\n";
+            exit(-1);
+        }
+        crash->onUserModeCrash.connect(sigc::mem_fun(*this, &WebServiceInterface::onWindowsUserCrash));
+        crash->onKernelModeCrash.connect(sigc::mem_fun(*this, &WebServiceInterface::onWindowsKernelCrash));
     } else {
-        getWarningsStream() << "No Linux monitor enabled, segfault stats will not be available\n";
+        getWarningsStream() << "No compatible OS monitor enabled, segfault stats will not be available\n";
     }
 }
 
@@ -144,6 +154,15 @@ void WebServiceInterface::onEngineShutdown() {
 }
 
 void WebServiceInterface::onSegFault(S2EExecutionState *state, uint64_t pid, uint64_t pc) {
+    ++m_segFaults;
+}
+
+void WebServiceInterface::onWindowsUserCrash(S2EExecutionState *state, const WindowsUserModeCrash &desc) {
+    ++m_segFaults;
+}
+
+void WebServiceInterface::onWindowsKernelCrash(S2EExecutionState *state,
+                                               const vmi::windows::BugCheckDescription &desc) {
     ++m_segFaults;
 }
 
