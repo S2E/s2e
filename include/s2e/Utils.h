@@ -198,6 +198,8 @@ public:
     }
 };
 
+std::string compress_file(const std::string &path);
+
 } // namespace s2e
 
 #endif // S2E_UTILS_H
