@@ -160,6 +160,10 @@ path_cleanup:
     free(path);
 
 end:
+    if (retval < 0) {
+        retval = -retval;
+    }
+
     return retval;
 }
 

@@ -405,9 +405,10 @@ static int find_command(const char *cmd) {
 }
 
 int main(int argc, const char **argv) {
+    int retval = -1;
     if (argc < 2) {
         print_commands();
-        return -1;
+        goto err;
     }
 
     const char *cmd = argv[1];
@@ -415,7 +416,7 @@ int main(int argc, const char **argv) {
 
     if (cmd_index == -1) {
         fprintf(stderr, "Command %s not found\n", cmd);
-        return -1;
+        goto err;
     }
 
     argc -= 2;
@@ -425,8 +426,17 @@ int main(int argc, const char **argv) {
     if (argc != s_commands[cmd_index].args_count) {
         fprintf(stderr, "Invalid number of arguments supplied (received %d, expected %d)\n", argc,
                 s_commands[cmd_index].args_count);
-        return -1;
+        goto err;
     }
 
-    return s_commands[cmd_index].handler(argv);
+    retval = s_commands[cmd_index].handler(argv);
+
+err:
+    // On Windows msys bash, a negative value returned from main will appear as 0.
+    // Negate it here to avoid losing it.
+    if (retval < 0) {
+        retval = -retval;
+    }
+
+    return retval;
 }
