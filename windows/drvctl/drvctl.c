@@ -17,7 +17,7 @@
 #include <string.h>
 
 #include <s2e/s2e.h>
-#include <s2e/BugCollector.h>
+#include <s2e/WindowsCrashMonitor.h>
 
 #include <s2ectl.h>
 #include "drvctl.h"
@@ -112,7 +112,7 @@ int handler_register(const char **args)
 // Stop complaining about GetVersionEx being deprecated
 #pragma warning(disable : 4996)
 
-INT S2EInvokeBugCollector(S2E_BUG_COMMAND *Command)
+INT S2EInvokeWindowsCrashMonitor(S2E_WINDOWS_CRASH_COMMAND *Command)
 {
     OSVERSIONINFO OSVersion;
     HANDLE hDriver;
@@ -126,20 +126,22 @@ INT S2EInvokeBugCollector(S2E_BUG_COMMAND *Command)
         S2EMessage("drvctl: could not determine OS version\n");
     }
 
-    Command->CrashOpaque.CrashOpaque = 0;
-    Command->CrashOpaque.CrashOpaqueSize = 0;
+    Command->Dump.Buffer = 0;
+    Command->Dump.Size = 0;
 
     /**
      * Windows XP: invoke the plugin directly, because it can generate
      * crash dump info by itself. Later versions need support from s2e.sys.
      */
     if (OSVersion.dwMajorVersion == 5 && OSVersion.dwMinorVersion == 1) {
-        if (Command->Command == CUSTOM_BUG) {
-            __s2e_touch_string((PCSTR)(UINT_PTR)Command->CustomBug.DescriptionStr);
-        } else if (Command->Command == WINDOWS_USERMODE_BUG) {
-            __s2e_touch_string((PCSTR)(UINT_PTR)Command->WindowsUserModeBug.ProgramName);
+        if (Command->Command == WINDOWS_USERMODE_CRASH) {
+            __s2e_touch_string((PCSTR)(UINT_PTR)Command->UserModeCrash.ProgramName);
+        } else {
+            S2EMessageFmt("drvctl: invalid command for WindowsCrashMonitor: %#x\n", Command->Command);
+            return -1;
         }
-        S2EInvokePlugin("BugCollector", Command, sizeof(*Command));
+
+        S2EInvokePlugin("WindowsCrashMonitor", Command, sizeof(*Command));
         /* Not supposed to return */
         return 0;
     }
@@ -150,14 +152,10 @@ INT S2EInvokeBugCollector(S2E_BUG_COMMAND *Command)
         return -1;
     }
 
-    if (Command->Command == CUSTOM_BUG) {
-        String = (PCSTR)(UINT_PTR)Command->CustomBug.DescriptionStr;
-        Command->CustomBug.DescriptionStr = sizeof(*Command);
-        IoCtlCode = IOCTL_S2E_CUSTOM_BUG;
-    } else if (Command->Command == WINDOWS_USERMODE_BUG) {
-        String = (PCSTR)(UINT_PTR)Command->WindowsUserModeBug.ProgramName;
-        Command->WindowsUserModeBug.ProgramName = sizeof(*Command);
-        IoCtlCode = IOCTL_S2E_WINDOWS_USERMODE_BUG;
+    if (Command->Command == WINDOWS_USERMODE_CRASH) {
+        String = (PCSTR)(UINT_PTR)Command->UserModeCrash.ProgramName;
+        Command->UserModeCrash.ProgramName = sizeof(*Command);
+        IoCtlCode = IOCTL_S2E_WINDOWS_USERMODE_CRASH;
     } else {
         return -1;
     }
@@ -180,27 +178,6 @@ INT S2EInvokeBugCollector(S2E_BUG_COMMAND *Command)
     free(Buffer);
     CloseHandle(hDriver);
     return 0;
-}
-
-int handler_bug(const char **args)
-{
-    const UINT64 code = strtol(args[0], NULL, 0);
-    const char *description = args[1];
-
-    S2E_BUG_COMMAND Command;
-
-    printf("Custom bug code %#llx - %s\n", code, description);
-
-    Command.Command = CUSTOM_BUG;
-    Command.CustomBug.CustomCode = code;
-    Command.CustomBug.DescriptionStr = (UINT_PTR)description;
-
-    if (!S2EGetVersionSafe()) {
-        fprintf(stderr, "drvctl: not running in S2E mode\n");
-        return -1;
-    }
-
-    return S2EInvokeBugCollector(&Command);
 }
 
 /**
@@ -357,10 +334,6 @@ int handler_wait(const char **args)
 static cmd_t s_commands[] = {
     COMMAND(register, 1, "Register a driver that is already loaded.",
                          "Name of the driver (e.g., driver.sys)."),
-
-    COMMAND(bug, 2, "Signals a custom bug to the test engine.",
-                    "Custom code (e.g., 0x1234)",
-                    "Description"),
 
     COMMAND(crash, 0, "Just crashes", NULL),
     COMMAND(kernel_crash, 0, "Crashes the kernel", NULL),

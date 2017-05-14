@@ -21,52 +21,45 @@
 /// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 /// SOFTWARE.
 
-#ifndef S2E_BUG_COLLECTOR_H
+#ifndef S2E_WINDOWS_CRASHDUMP_MONITOR_H
 
-#define S2E_BUG_COLLECTOR_H
+#define S2E_WINDOWS_CRASHDUMP_MONITOR_H
 
 /********************************************************/
-/* Communicating with the BugCollector plugin */
+/* Communicating with the WindowsCrashMonitor plugin    */
 
-typedef struct _S2E_BUG_CUSTOM
-{
-    UINT64 CustomCode;
-    UINT64 DescriptionStr;
-} S2E_BUG_CUSTOM;
-
-typedef struct _S2E_BUG_WINDOWS_USERMODE_BUG
+typedef struct _S2E_WINDOWS_USERMODE_CRASH
 {
     UINT64 ProgramName;
     UINT64 Pid;
     UINT64 ExceptionCode;
     UINT64 ExceptionAddress;
     UINT64 ExceptionFlags;
-} S2E_BUG_WINDOWS_USERMODE_BUG;
+} S2E_WINDOWS_USERMODE_CRASH;
 
-typedef enum _S2E_BUG_COMMANDS
+typedef enum _S2E_WINDOWS_CRASH_COMMANDS
 {
-    CUSTOM_BUG, WINDOWS_USERMODE_BUG
-} S2E_BUG_COMMANDS;
+    WINDOWS_USERMODE_CRASH
+} S2E_WINDOWS_CRASH_COMMANDS;
 
-typedef struct _S2E_BUG_CRASH_OPAQUE
+typedef struct _S2E_CRASHDUMP_OPAQUE
 {
-    UINT64 CrashOpaque;
-    UINT64 CrashOpaqueSize;
-} S2E_BUG_CRASH_OPAQUE;
+    UINT64 Buffer;
+    UINT64 Size;
+} S2E_CRASHDUMP_OPAQUE;
 
 // Allow nameless structs
 #pragma warning(disable:4201)
 
-typedef struct _S2E_BUG_COMMAND
+typedef struct _S2E_WINDOWS_CRASH_COMMAND
 {
-    S2E_BUG_COMMANDS Command;
+    S2E_WINDOWS_CRASH_COMMANDS Command;
     union
     {
-        S2E_BUG_CUSTOM CustomBug;
-        S2E_BUG_WINDOWS_USERMODE_BUG WindowsUserModeBug;
+        S2E_WINDOWS_USERMODE_CRASH UserModeCrash;
     };
     /* Optional, used by the crash dump plugin. */
-    S2E_BUG_CRASH_OPAQUE CrashOpaque;
-}S2E_BUG_COMMAND;
+    S2E_CRASHDUMP_OPAQUE Dump;
+} S2E_WINDOWS_CRASH_COMMAND;
 
 #endif
