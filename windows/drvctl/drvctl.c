@@ -318,11 +318,15 @@ int handler_wait(const char **args)
     HANDLE hDriver;
     UNREFERENCED_PARAMETER(args);
 
-    do {
+
+    while (1) {
         S2EMessageFmt("drvctl: waiting for the s2e driver...");
         hDriver = OpenS2EDriver(pS2EDriverDevice);
+        if (hDriver != INVALID_HANDLE_VALUE) {
+            break;
+        }
         Sleep(1000);
-    } while (hDriver == INVALID_HANDLE_VALUE);
+    }
 
     CloseHandle(hDriver);
     S2EMessageFmt("drvctl: s2e driver loaded");
