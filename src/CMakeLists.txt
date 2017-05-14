@@ -19,6 +19,7 @@ add_library(
     s2e/Plugins/OSMonitors/Windows/BlueScreenInterceptor.cpp
     s2e/Plugins/OSMonitors/Windows/WindowsCrashDumpGenerator.cpp
     s2e/Plugins/OSMonitors/Windows/WindowsMonitor.cpp
+    s2e/Plugins/OSMonitors/Windows/WindowsCrashMonitor.cpp
 
     # Linux guests support
     s2e/Plugins/OSMonitors/Linux/LinuxMonitor.cpp
@@ -31,7 +32,6 @@ add_library(
     s2e/Plugins/OSMonitors/Support/ModuleMap.cpp
     s2e/Plugins/OSMonitors/Support/MemoryMap.cpp
     s2e/Plugins/OSMonitors/Support/GuestCodePatching.cpp
-    s2e/Plugins/OSMonitors/Support/BugCollector.cpp
     s2e/Plugins/OSMonitors/OSMonitor.cpp
 
     # CGC support

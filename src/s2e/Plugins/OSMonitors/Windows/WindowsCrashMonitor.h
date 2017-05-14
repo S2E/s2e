@@ -5,8 +5,8 @@
 /// Licensed under the Cyberhaven Research License Agreement.
 ///
 
-#ifndef S2E_PLUGINS_BugCollector_H
-#define S2E_PLUGINS_BugCollector_H
+#ifndef S2E_PLUGINS_WindowsCrashMonitor_H
+#define S2E_PLUGINS_WindowsCrashMonitor_H
 
 #include <s2e/CorePlugin.h>
 #include <s2e/Plugin.h>
@@ -48,7 +48,7 @@ struct S2E_CRASHDUMP_OPAQUE {
     uint64_t Size;
 };
 
-struct S2E_BUG_COMMAND {
+struct S2E_WINDOWS_CRASH_COMMAND {
     S2E_WINDOWS_CRASH_COMMANDS Command;
     union {
         S2E_WINDOWS_USERMODE_CRASH UserModeCrash;
@@ -57,10 +57,10 @@ struct S2E_BUG_COMMAND {
     S2E_CRASHDUMP_OPAQUE Dump;
 };
 
-class BugCollector : public Plugin, public BaseInstructionsPluginInvokerInterface {
+class WindowsCrashMonitor : public Plugin, public BaseInstructionsPluginInvokerInterface {
     S2E_PLUGIN
 public:
-    BugCollector(S2E *s2e) : Plugin(s2e) {
+    WindowsCrashMonitor(S2E *s2e) : Plugin(s2e) {
     }
 
     sigc::signal<void, S2EExecutionState *, const WindowsUserModeCrash &> onUserModeCrash;
@@ -81,10 +81,10 @@ private:
 
     void generateCrashDump(S2EExecutionState *state, const vmi::windows::BugCheckDescription *info, bool isManual);
     void onBlueScreen(S2EExecutionState *state, vmi::windows::BugCheckDescription *info);
-    void opUserModeCrash(S2EExecutionState *state, uint64_t guestDataPtr, const S2E_BUG_COMMAND &command);
+    void opUserModeCrash(S2EExecutionState *state, uint64_t guestDataPtr, const S2E_WINDOWS_CRASH_COMMAND &command);
 };
 
 } // namespace plugins
 } // namespace s2e
 
-#endif // S2E_PLUGINS_BugCollector_H
+#endif // S2E_PLUGINS_WindowsCrashMonitor_H

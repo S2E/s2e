@@ -17,15 +17,15 @@
 #include <s2e/Plugins/OSMonitors/Windows/WindowsCrashDumpGenerator.h>
 #include <s2e/Plugins/OSMonitors/Windows/WindowsMonitor.h>
 
-#include "BugCollector.h"
+#include "WindowsCrashMonitor.h"
 
 namespace s2e {
 namespace plugins {
 
-S2E_DEFINE_PLUGIN(BugCollector, "This plugin aggregates various sources of Windows crashes", "", "WindowsMonitor",
-                  "WindowsCrashDumpGenerator", "BlueScreeInterceptor");
+S2E_DEFINE_PLUGIN(WindowsCrashMonitor, "This plugin aggregates various sources of Windows crashes", "",
+                  "WindowsMonitor", "WindowsCrashDumpGenerator", "BlueScreenInterceptor");
 
-void BugCollector::initialize() {
+void WindowsCrashMonitor::initialize() {
     m_windowsMonitor = s2e()->getPlugin<WindowsMonitor>();
     m_bsodInterceptor = s2e()->getPlugin<BlueScreenInterceptor>();
     m_bsodGenerator = s2e()->getPlugin<WindowsCrashDumpGenerator>();
@@ -41,12 +41,12 @@ void BugCollector::initialize() {
     m_terminateOnCrash = s2e()->getConfig()->getBool(getConfigKey() + ".terminateOnCrash", true);
 
     if (m_generateCrashDump) {
-        m_bsodInterceptor->onBlueScreen.connect(sigc::mem_fun(*this, &BugCollector::onBlueScreen));
+        m_bsodInterceptor->onBlueScreen.connect(sigc::mem_fun(*this, &WindowsCrashMonitor::onBlueScreen));
     }
 }
 
-void BugCollector::generateCrashDump(S2EExecutionState *state, const vmi::windows::BugCheckDescription *info,
-                                     bool isManual) {
+void WindowsCrashMonitor::generateCrashDump(S2EExecutionState *state, const vmi::windows::BugCheckDescription *info,
+                                            bool isManual) {
     if (!m_generateCrashDump) {
         getWarningsStream(state) << "Crash dump generation disabled\n";
         return;
@@ -70,7 +70,7 @@ void BugCollector::generateCrashDump(S2EExecutionState *state, const vmi::window
     }
 }
 
-void BugCollector::onBlueScreen(S2EExecutionState *state, vmi::windows::BugCheckDescription *info) {
+void WindowsCrashMonitor::onBlueScreen(S2EExecutionState *state, vmi::windows::BugCheckDescription *info) {
     onKernelModeCrash.emit(state, *info);
     generateCrashDump(state, info, false);
 
@@ -80,7 +80,8 @@ void BugCollector::onBlueScreen(S2EExecutionState *state, vmi::windows::BugCheck
 
 /*****************************************************************/
 
-void BugCollector::opUserModeCrash(S2EExecutionState *state, uint64_t guestDataPtr, const S2E_BUG_COMMAND &command) {
+void WindowsCrashMonitor::opUserModeCrash(S2EExecutionState *state, uint64_t guestDataPtr,
+                                          const S2E_WINDOWS_CRASH_COMMAND &command) {
     WindowsUserModeCrash crash;
     crash.Pid = command.UserModeCrash.Pid;
     crash.ExceptionCode = command.UserModeCrash.ExceptionCode;
@@ -109,11 +110,12 @@ void BugCollector::opUserModeCrash(S2EExecutionState *state, uint64_t guestDataP
     }
 }
 
-void BugCollector::handleOpcodeInvocation(S2EExecutionState *state, uint64_t guestDataPtr, uint64_t guestDataSize) {
-    S2E_BUG_COMMAND command;
+void WindowsCrashMonitor::handleOpcodeInvocation(S2EExecutionState *state, uint64_t guestDataPtr,
+                                                 uint64_t guestDataSize) {
+    S2E_WINDOWS_CRASH_COMMAND command;
 
     if (guestDataSize != sizeof(command)) {
-        getWarningsStream(state) << "mismatched S2E_BUG_COMMAND size\n";
+        getWarningsStream(state) << "mismatched S2E_WINDOWS_CRASH_COMMAND size\n";
         return;
     }
 
