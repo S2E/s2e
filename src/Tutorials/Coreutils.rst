@@ -104,38 +104,44 @@ is shown below.
 
 .. code-block:: json
 
-    [
-        {
-            "end_addr": 134521719,
-            "function": "main",
-            "start_addr": 134521716
-        },
-        {
-            "end_addr": 134520335,
-            "function": "main",
-            "start_addr": 134520309
-        },
-        {
-            "end_addr": 134534133,
-            "function": "atexit",
-            "start_addr": 134534128
-        },
-        {
-            "end_addr": 134522543,
-            "function": "set_program_name",
-            "start_addr": 134522536
-        },
-        {
-            "end_addr": 134522670,
-            "function": "set_program_name",
-            "start_addr": 134522653
-        },
-        {
-            "end_addr": 134528828,
-            "function": "safe_write",
-            "start_addr": 134528823
+    {
+        "coverage": [
+            {
+                "end_addr": 134521719,
+                "function": "main",
+                "start_addr": 134521716
+            },
+            {
+                "end_addr": 134520335,
+                "function": "main",
+                "start_addr": 134520309
+            },
+            {
+                "end_addr": 134534133,
+                "function": "atexit",
+                "start_addr": 134534128
+            },
+            {
+                "end_addr": 134522543,
+                "function": "set_program_name",
+                "start_addr": 134522536
+            },
+            {
+                "end_addr": 134522670,
+                "function": "set_program_name",
+                "start_addr": 134522653
+            },
+            {
+                "end_addr": 134528828,
+                "function": "safe_write",
+                "start_addr": 134528823
+            }
+        ],
+        "stats": {
+            "covered_basic_blocks": ...,
+            "total_basic_blocks": ...,
         }
-    ]
+    }
 
 The user can then use this data however they require. For example, the S2E `tools <https://github.com/S2E/tools>`_ repo
 contains an IDA Pro script to highlight the basic blocks covered by S2E during analysis. This script can be found at
