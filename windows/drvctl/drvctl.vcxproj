@@ -75,16 +75,16 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <IncludePath>$(SolutionDir)/driver;$(SolutionDir)/libcommon/include;$(IncludePath);$(SolutionDir)/driver/include</IncludePath>
+    <IncludePath>$(SolutionDir)/libcommon/include;$(IncludePath);$(SolutionDir)/driver/include</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <IncludePath>$(SolutionDir)/driver;$(SolutionDir)/libcommon/include;$(IncludePath);$(SolutionDir)/driver/include</IncludePath>
+    <IncludePath>$(SolutionDir)/libcommon/include;$(IncludePath);$(SolutionDir)/driver/include</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <IncludePath>$(SolutionDir)/driver;$(SolutionDir)/libcommon/include;$(IncludePath);$(SolutionDir)/driver/include</IncludePath>
+    <IncludePath>$(SolutionDir)/libcommon/include;$(IncludePath);$(SolutionDir)/driver/include</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <IncludePath>$(SolutionDir)/driver;$(SolutionDir)/libcommon/include;$(IncludePath);$(SolutionDir)/driver/include</IncludePath>
+    <IncludePath>$(SolutionDir)/libcommon/include;$(IncludePath);$(SolutionDir)/driver/include</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <Link>
