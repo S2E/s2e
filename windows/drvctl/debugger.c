@@ -15,7 +15,7 @@
 #include <windows.h>
 
 #include <s2e/s2e.h>
-#include <s2e/BugCollector.h>
+#include <s2e/WindowsCrashMonitor.h>
 #include "drvctl.h"
 
 BOOL GetProcessName(DWORD Pid, LPSTR Name, DWORD MaxLen)
@@ -125,18 +125,18 @@ VOID PrintExceptionRecord(DWORD Pid, DWORD Tid, const EXCEPTION_RECORD *Record)
 
 int ReportBug(DWORD Pid, const EXCEPTION_RECORD *Record)
 {
-    S2E_BUG_COMMAND Command;
+    S2E_WINDOWS_CRASH_COMMAND Command;
     CHAR ProgramName[MAX_PATH + 1] = { 0 };
 
-    Command.Command = WINDOWS_USERMODE_BUG;
-    Command.WindowsUserModeBug.Pid = Pid;
-    Command.WindowsUserModeBug.ExceptionAddress = (UINT64)Record->ExceptionAddress;
-    Command.WindowsUserModeBug.ExceptionCode = Record->ExceptionCode;
-    Command.WindowsUserModeBug.ExceptionFlags = Record->ExceptionFlags;
-    Command.WindowsUserModeBug.ProgramName = 0;
+    Command.Command = WINDOWS_USERMODE_CRASH;
+    Command.UserModeCrash.Pid = Pid;
+    Command.UserModeCrash.ExceptionAddress = (UINT64)Record->ExceptionAddress;
+    Command.UserModeCrash.ExceptionCode = Record->ExceptionCode;
+    Command.UserModeCrash.ExceptionFlags = Record->ExceptionFlags;
+    Command.UserModeCrash.ProgramName = 0;
 
     if (GetProcessName(Pid, ProgramName, sizeof(ProgramName) - 1)) {
-        Command.WindowsUserModeBug.ProgramName = (UINT64)ProgramName;
+        Command.UserModeCrash.ProgramName = (UINT64)ProgramName;
     } else {
         printf("drvctl: GetProcessName failed\n");
     }
@@ -148,7 +148,7 @@ int ReportBug(DWORD Pid, const EXCEPTION_RECORD *Record)
         return -1;
     }
 
-    return S2EInvokeBugCollector(&Command);
+    return S2EInvokeWindowsCrashMonitor(&Command);
 }
 
 VOID DebugApp(DWORD Pid, DWORD EventId)
@@ -167,15 +167,14 @@ VOID DebugApp(DWORD Pid, DWORD EventId)
         printf("drvctl: Event code %x\n", DebugEvent.dwDebugEventCode);
 
         switch (DebugEvent.dwDebugEventCode) {
-        case CREATE_PROCESS_DEBUG_EVENT:
+        case CREATE_PROCESS_DEBUG_EVENT: {
             S2EMessageFmt("CREATE_PROCESS_DEBUG_EVENT filename: %s\n", DebugEvent.u.CreateProcessInfo.lpImageName);
-            break;
+        } break;
 
         case EXIT_PROCESS_DEBUG_EVENT: {
             S2EMessageFmt("EXIT_PROCESS_DEBUG_EVENT\n");
             ReportBug(Pid, &LastExceptionRecord);
-        }
-                                       break;
+        } break;
 
         case EXCEPTION_DEBUG_EVENT: {
             DWORD ExceptionCode = DebugEvent.u.Exception.ExceptionRecord.ExceptionCode;
@@ -207,8 +206,7 @@ VOID DebugApp(DWORD Pid, DWORD EventId)
             } else {
                 ContinueFlag = DBG_EXCEPTION_NOT_HANDLED;
             }
-        }
-                                    break;
+        } break;
 
         default: {
             S2EMessageFmt("drvctl: Unhandled event code %d\n", DebugEvent.dwDebugEventCode);

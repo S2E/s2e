@@ -14,7 +14,7 @@
 #include "crash.h"
 
 #include <s2e/StaticStateMerger.h>
-#include <s2e/BugCollector.h>
+#include <s2e/WindowsCrashMonitor.h>
 #include <s2e/GuestCodePatching.h>
 
 #include "kernel_functions.h"
@@ -193,7 +193,7 @@ NTSTATUS S2EIoControl(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp)
     PVOID Buffer;
     ULONG InputBufferLength;
 
-    S2E_BUG_COMMAND Command;
+    S2E_WINDOWS_CRASH_COMMAND Command;
     PVOID CrashOpaque;
     UINT64 CrashOpaqueSize;
 
@@ -225,60 +225,32 @@ NTSTATUS S2EIoControl(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp)
         }
     } break;
 
-    case IOCTL_S2E_CUSTOM_BUG: {
+    case IOCTL_S2E_WINDOWS_USERMODE_CRASH: {
         if (InputBufferLength < sizeof(Command)) {
-            LOG("IOCTL_S2E_CUSTOM_BUG command too short\n");
+            LOG("IOCTL_S2E_WINDOWS_USERMODE_CRASH command too short\n");
             NtStatus = STATUS_INVALID_USER_BUFFER;
             break;
         }
 
-        Command = *(S2E_BUG_COMMAND *)Buffer;
+        Command = *(S2E_WINDOWS_CRASH_COMMAND *)Buffer;
 
-        //S2E_BUG_CUSTOM::DescriptionStr is the offset
+        //S2E_WINDOWS_USERMODE_CRASH::ProgramName is the offset
         //of the string. Convert to absolute pointer.
-        if (Command.CustomBug.DescriptionStr >= InputBufferLength) {
-            LOG("IOCTL_S2E_CUSTOM_BUG invalid description string\n");
-            NtStatus = STATUS_INVALID_USER_BUFFER;
-            break;
-        }
-
-        if (Command.CustomBug.DescriptionStr) {
-            Command.CustomBug.DescriptionStr += (UINT64)Buffer;
-        }
-
-        InitializeManualCrash(&CrashOpaque, &CrashOpaqueSize);
-        Command.CrashOpaque.CrashOpaque = (UINT64)CrashOpaque;
-        Command.CrashOpaque.CrashOpaqueSize = CrashOpaqueSize;
-
-        S2EInvokePlugin("BugCollector", &Command, sizeof(Command));
-    } break;
-
-    case IOCTL_S2E_WINDOWS_USERMODE_BUG: {
-        if (InputBufferLength < sizeof(Command)) {
-            LOG("IOCTL_S2E_WINDOWS_USERMODE_BUG command too short\n");
-            NtStatus = STATUS_INVALID_USER_BUFFER;
-            break;
-        }
-
-        Command = *(S2E_BUG_COMMAND *)Buffer;
-
-        //S2E_BUG_CUSTOM::DescriptionStr is the offset
-        //of the string. Convert to absolute pointer.
-        if (Command.WindowsUserModeBug.ProgramName >= InputBufferLength) {
+        if (Command.UserModeCrash.ProgramName >= InputBufferLength) {
             LOG("IOCTL_S2E_WINDOWS_USERMODE_BUG invalid program name string\n");
             NtStatus = STATUS_INVALID_USER_BUFFER;
             break;
         }
 
-        if (Command.WindowsUserModeBug.ProgramName) {
-            Command.WindowsUserModeBug.ProgramName += (UINT64)Buffer;
+        if (Command.UserModeCrash.ProgramName) {
+            Command.UserModeCrash.ProgramName += (UINT64)Buffer;
         }
 
         InitializeManualCrash(&CrashOpaque, &CrashOpaqueSize);
-        Command.CrashOpaque.CrashOpaque = (UINT64)CrashOpaque;
-        Command.CrashOpaque.CrashOpaqueSize = CrashOpaqueSize;
+        Command.Dump.Buffer = (UINT64)CrashOpaque;
+        Command.Dump.Size = CrashOpaqueSize;
 
-        S2EInvokePlugin("BugCollector", &Command, sizeof(Command));
+        S2EInvokePlugin("WindowsCrashMonitor", &Command, sizeof(Command));
     } break;
 
     case IOCTL_S2E_CRASH_KERNEL: {

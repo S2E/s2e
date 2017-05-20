@@ -42,10 +42,10 @@
     <ClInclude Include="include\s2e\WindowsMonitor.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\s2e\BugCollector.h">
+    <ClInclude Include="include\s2e\BlueScreenInterceptor.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\s2e\BlueScreenInterceptor.h">
+    <ClInclude Include="include\s2e\WindowsCrashMonitor.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

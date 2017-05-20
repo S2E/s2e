@@ -128,6 +128,10 @@ fd_cleanup:
     close(fd);
 
 end:
+    if (retval < 0) {
+        retval = -retval;
+    }
+
     return retval;
 }
 

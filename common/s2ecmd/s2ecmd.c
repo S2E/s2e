@@ -31,6 +31,7 @@
 #include <s2e/s2e.h>
 #include <s2e/seed_searcher.h>
 
+#include <ctype.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -155,8 +156,13 @@ static int handler_symbwrite_dec(const char **args) {
 
 static int handler_symbfile(const char **args) {
     const char *filename = args[0];
+    int flags = O_RDWR;
 
-    int fd = open(filename, O_RDWR);
+#ifdef _WIN32
+    flags |= O_BINARY;
+#endif
+
+    int fd = open(filename, flags);
     if (fd < 0) {
         s2e_kill_state_printf(-1, "symbfile: could not open %s\n", filename);
         return -1;
@@ -178,7 +184,7 @@ static int handler_symbfile(const char **args) {
     }
 
     /**
-     * Replace slashes in the filename with underscores.
+     * Replace special characters in the filename with underscores.
      * It should make it easier for plugins to generate
      * concrete files, while preserving info about the original path
      * and without having to deal with the slashes.
@@ -186,7 +192,7 @@ static int handler_symbfile(const char **args) {
     char cleaned_name[512];
     strncpy(cleaned_name, filename, sizeof(cleaned_name));
     for (unsigned i = 0; cleaned_name[i]; ++i) {
-        if (cleaned_name[i] == '/' || cleaned_name[i] == '.') {
+        if (!isalnum(cleaned_name[i])) {
             cleaned_name[i] = '_';
         }
     }
@@ -399,9 +405,10 @@ static int find_command(const char *cmd) {
 }
 
 int main(int argc, const char **argv) {
+    int retval = -1;
     if (argc < 2) {
         print_commands();
-        return -1;
+        goto err;
     }
 
     const char *cmd = argv[1];
@@ -409,7 +416,7 @@ int main(int argc, const char **argv) {
 
     if (cmd_index == -1) {
         fprintf(stderr, "Command %s not found\n", cmd);
-        return -1;
+        goto err;
     }
 
     argc -= 2;
@@ -419,8 +426,17 @@ int main(int argc, const char **argv) {
     if (argc != s_commands[cmd_index].args_count) {
         fprintf(stderr, "Invalid number of arguments supplied (received %d, expected %d)\n", argc,
                 s_commands[cmd_index].args_count);
-        return -1;
+        goto err;
     }
 
-    return s_commands[cmd_index].handler(argv);
+    retval = s_commands[cmd_index].handler(argv);
+
+err:
+    // On Windows msys bash, a negative value returned from main will appear as 0.
+    // Negate it here to avoid losing it.
+    if (retval < 0) {
+        retval = -retval;
+    }
+
+    return retval;
 }

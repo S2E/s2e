@@ -18,8 +18,8 @@ INT S2EGetVersionSafe(VOID);
 VOID DebugApp(DWORD Pid, DWORD EventId);
 char *GetErrorString(DWORD ErrorCode);
 
-typedef struct _S2E_BUG_COMMAND S2E_BUG_COMMAND;
-INT S2EInvokeBugCollector(S2E_BUG_COMMAND *Command);
+typedef struct _S2E_WINDOWS_CRASH_COMMAND S2E_WINDOWS_CRASH_COMMAND;
+INT S2EInvokeWindowsCrashMonitor(S2E_WINDOWS_CRASH_COMMAND *Command);
 
 DWORD WINAPI GetModuleBaseNameA(
   HANDLE hProcess,
