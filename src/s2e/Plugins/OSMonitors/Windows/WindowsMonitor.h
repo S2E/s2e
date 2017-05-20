@@ -11,15 +11,18 @@
 
 #include <s2e/CorePlugin.h>
 #include <s2e/Plugin.h>
-#include <s2e/Plugins/Core/BaseInstructions.h>
-#include <s2e/Plugins/OSMonitors/Windows/WindowsInterceptor.h>
 #include <s2e/S2EExecutionState.h>
 
+#include <s2e/Plugins/Core/BaseInstructions.h>
+#include <s2e/Plugins/Core/Events.h>
 #include <s2e/Plugins/Core/Vmi.h>
+
 #include <s2e/Plugins/ExecutionTracers/MemoryTracer.h>
 #include <s2e/Plugins/ExecutionTracers/TranslationBlockTracer.h>
 
-#include <s2e/Plugins/Core/Events.h>
+#include <s2e/Plugins/OSMonitors/OSMonitor.h>
+
+#include <vmi/ntddk.h>
 
 #include <llvm/ADT/StringMap.h>
 
@@ -229,13 +232,13 @@ typedef struct S2E_WINMON2_COMMAND {
     };
 } S2E_WINMON2_COMMAND;
 
-class WindowsMonitor : public WindowsInterceptor, public BaseInstructionsPluginInvokerInterface {
+class WindowsMonitor : public OSMonitor, public BaseInstructionsPluginInvokerInterface {
     S2E_PLUGIN
 public:
     typedef std::vector<ModuleDescriptor> ModuleList;
     typedef std::set<std::string> StringSet;
 
-    WindowsMonitor(S2E *s2e) : WindowsInterceptor(s2e) {
+    WindowsMonitor(S2E *s2e) : OSMonitor(s2e) {
     }
 
     void initialize();
@@ -364,28 +367,30 @@ public:
 
     virtual bool getCurrentStack(S2EExecutionState *s, uint64_t *bottom, uint64_t *size);
 
-    virtual bool CheckPanic(uint64_t eip) const {
+    bool CheckPanic(uint64_t eip) const {
         eip = eip - m_kernel.KernelLoadBase + m_kernel.KernelNativeBase;
         return m_kernel.KeBugCheckEx && m_kernel.KeBugCheckEx == eip;
     }
 
-    virtual uint64_t getKdDebuggerDataBlock() const {
+    uint64_t getKdDebuggerDataBlock() const {
         return m_kernel.KdDebuggerDataBlock - m_kernel.KernelNativeBase + m_kernel.KernelLoadBase;
     }
 
-    virtual uint64_t getKprcbAddress() const {
+    uint64_t getKprcbAddress() const {
         return m_kernel.KPRCB;
     }
 
-    virtual bool isCheckedBuild() const {
+    bool isCheckedBuild() const {
         return m_versionBlock.MajorVersion == 0xC;
     }
 
-    virtual const vmi::windows::DBGKD_GET_VERSION64 &getVersionBlock() const {
+    const vmi::windows::DBGKD_GET_VERSION64 &getVersionBlock() const {
         return m_versionBlock;
     }
 
-    virtual uint64_t getCrashRedirectionRoutine() const {
+    /// Address of the function in the guest kernel that will handle the crash for us.
+    /// Useful to perform complex OS-specific stuff (e.g, generating crash dumps).
+    uint64_t getCrashRedirectionRoutine() const {
         return m_kernel.BugCheckHook;
     }
 

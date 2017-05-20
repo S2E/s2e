@@ -192,22 +192,6 @@ public:
         : OSMonitor(s2e), m_kernelStartAddress(startAddr), m_stackSize(stackSize), m_commandVersion(cmdVer) {
     }
 
-    //
-    // None of these methods are implemented by the Linux monitor
-    //
-
-    virtual bool getImports(S2EExecutionState *state, const ModuleDescriptor &desc, vmi::Imports &I) {
-        return false;
-    }
-
-    virtual bool getExports(S2EExecutionState *state, const ModuleDescriptor &desc, vmi::Exports &E) {
-        return false;
-    }
-
-    virtual bool getRelocations(S2EExecutionState *state, const ModuleDescriptor &desc, vmi::Relocations &R) {
-        return false;
-    }
-
     /// Returns \c true if the given program counter is located within the kernel
     virtual bool isKernelAddress(uint64_t pc) const {
         return pc >= m_kernelStartAddress;

@@ -41,8 +41,16 @@ void SeedScheduler::initialize() {
         lm->onSegFault.connect(sigc::mem_fun(*this, &SeedScheduler::onSegFault));
     } else if (auto dm = dynamic_cast<DecreeMonitor *>(monitor)) {
         dm->onSegFault.connect(sigc::mem_fun(*this, &SeedScheduler::onSegFault));
+    } else if (dynamic_cast<WindowsMonitor *>(monitor)) {
+        WindowsCrashMonitor *cmon = s2e()->getPlugin<WindowsCrashMonitor>();
+        if (!cmon) {
+            getWarningsStream() << "Please enable WindowsCrashMonitor to use SeedScheduler with Windows\n";
+            exit(-1);
+        }
+        cmon->onUserModeCrash.connect(sigc::mem_fun(*this, &SeedScheduler::onWindowsUserCrash));
+        cmon->onKernelModeCrash.connect(sigc::mem_fun(*this, &SeedScheduler::onWindowsKernelCrash));
     } else {
-        getWarningsStream() << "SeedScheduler only works with Decree or Linux monitors for now\n";
+        getWarningsStream() << "Unsupported OS monitor detected\n";
         exit(-1);
     }
 
@@ -100,6 +108,14 @@ void SeedScheduler::onSeed(const seeds::Seed &seed, seeds::SeedEvent event) {
 }
 
 void SeedScheduler::onSegFault(S2EExecutionState *state, uint64_t pid, uint64_t address) {
+    m_timeOfLastCrash = llvm::sys::TimeValue::now().seconds();
+}
+
+void SeedScheduler::onWindowsUserCrash(S2EExecutionState *state, const WindowsUserModeCrash &desc) {
+    m_timeOfLastCrash = llvm::sys::TimeValue::now().seconds();
+}
+
+void SeedScheduler::onWindowsKernelCrash(S2EExecutionState *state, const vmi::windows::BugCheckDescription &desc) {
     m_timeOfLastCrash = llvm::sys::TimeValue::now().seconds();
 }
 

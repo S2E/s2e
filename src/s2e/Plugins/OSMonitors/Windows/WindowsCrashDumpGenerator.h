@@ -16,7 +16,7 @@
 #include <s2e/Plugins/Lua/Lua.h>
 #include <s2e/S2EExecutionState.h>
 
-#include "WindowsInterceptor.h"
+#include "WindowsMonitor.h"
 
 #include <vmi/WindowsCrashDumpGenerator.h>
 
@@ -41,6 +41,15 @@ public:
     int generateCrashDump(lua_State *L);
 };
 
+///
+/// \brief The WindowsCrashDumpGenerator plugins provides mechanisms to generate
+/// WinDbg-compatible crash dumps.
+///
+/// Remarks:
+///  - This class has no configurable options and does not generate dumps by itself
+///  - Other plugins may use WindowsCrashDumpGenerator to request crash dumps
+///    when they detect guest bugs. BugCollector is one such plugin.
+///
 class WindowsCrashDumpGenerator : public Plugin {
     S2E_PLUGIN
 public:
@@ -58,13 +67,16 @@ public:
     std::string getPathForDump(S2EExecutionState *state, const std::string &prefix = "dump");
 
 private:
-    WindowsInterceptor *m_monitor;
-    bool m_generateCrashDump;
+    WindowsMonitor *m_monitor;
+
+    // TODO: put these somewhere else. In principe getContext functions are generic,
+    // but for now, only WindowsCrashDumpGenerator uses them.
+    template <typename T> static void getContext(S2EExecutionState *state, T &context);
+    static void getContext32(S2EExecutionState *state, vmi::windows::CONTEXT32 &context);
+    static void getContext64(S2EExecutionState *state, vmi::windows::CONTEXT64 &context);
 
     bool generateCrashDump(S2EExecutionState *state, const std::string &filename,
                            const vmi::windows::BugCheckDescription *bugDesc, const vmi::windows::CONTEXT32 &context);
-
-    void onBlueScreen(S2EExecutionState *state, vmi::windows::BugCheckDescription *info);
 };
 
 } // namespace plugins

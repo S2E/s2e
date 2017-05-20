@@ -119,6 +119,14 @@ public:
     static void toModuleDescriptor(ModuleDescriptor &desc, vmi::PEFile *pe);
 
     bool readModuleData(const ModuleDescriptor &module, uint64_t addr, uint8_t &val);
+    bool patchImportsFromDisk(S2EExecutionState *state, const ModuleDescriptor &module, uint32_t checkSum,
+                              vmi::Imports &imports);
+
+    static bool getEntryPoint(S2EExecutionState *s, const ModuleDescriptor &desc, uint64_t &Addr);
+    bool getImports(S2EExecutionState *s, const ModuleDescriptor &desc, vmi::Imports &I);
+    static bool getExports(S2EExecutionState *s, const ModuleDescriptor &desc, vmi::Exports &E);
+    static bool getRelocations(S2EExecutionState *s, const ModuleDescriptor &desc, vmi::Relocations &R);
+    static bool getSections(S2EExecutionState *s, const ModuleDescriptor &desc, vmi::Sections &S);
 
 private:
     typedef llvm::StringMap<ExeData> Executables;

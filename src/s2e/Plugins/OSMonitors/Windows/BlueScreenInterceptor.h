@@ -13,7 +13,7 @@
 #include <s2e/Plugins/Core/BaseInstructions.h>
 #include <s2e/S2EExecutionState.h>
 #include <vmi/WindowsCrashDumpGenerator.h>
-#include "WindowsInterceptor.h"
+#include "WindowsMonitor.h"
 
 namespace s2e {
 namespace plugins {
@@ -41,7 +41,7 @@ public:
     virtual void handleOpcodeInvocation(S2EExecutionState *state, uint64_t guestDataPtr, uint64_t guestDataSize);
 
 private:
-    WindowsInterceptor *m_monitor;
+    WindowsMonitor *m_monitor;
 
     bool invokeCrashRoutine(S2EExecutionState *state, uint64_t pc);
 
