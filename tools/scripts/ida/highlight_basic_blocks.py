@@ -6,7 +6,6 @@ TranslationBlockCoverage plugin).
 from __future__ import division
 
 import json
-import sys
 
 import idaapi
 import idautils
@@ -21,7 +20,7 @@ def _color_block(bb, color=0x00ff00):
 COVERAGE_MESSAGE = 'S2E Basic Block Coverage\n'                             \
                    '========================\n'                             \
                    'Total basic blocks: {num_bbs}\n'                        \
-                   'Covered basic blocks: {num_covered_bbs} ({percent:.1%})\n'
+                   'Covered basic blocks: {num_covered_bbs} ({percent})\n'
 
 
 def basic_block_coverage(json_path):
@@ -31,6 +30,12 @@ def basic_block_coverage(json_path):
 
     total_bbs = bb_coverage['stats']['total_basic_blocks']
     covered_bbs = bb_coverage['stats']['covered_basic_blocks']
+
+    # Calculate the coverage percentage to avoid divide-by-zero
+    if total_bbs:
+        percent_str = '{:.1%}'.format(covered_bbs / total_bbs)
+    else:
+        percent_str = '-%'
 
     for covered_basic_block in bb_coverage['coverage']:
         start_addr = covered_basic_block['start_addr']
@@ -47,7 +52,7 @@ def basic_block_coverage(json_path):
 
     idc.Message(COVERAGE_MESSAGE.format(num_bbs=total_bbs,
                                         num_covered_bbs=covered_bbs,
-                                        percent=covered_bbs / total_bbs))
+                                        percent=percent_str))
 
 
 if __name__ == '__main__':
