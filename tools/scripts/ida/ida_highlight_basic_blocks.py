@@ -23,11 +23,7 @@ COVERAGE_MESSAGE = 'S2E Basic Block Coverage\n'                             \
                    'Covered basic blocks: {num_covered_bbs} ({percent})\n'
 
 
-def basic_block_coverage(json_path):
-    bb_coverage = {}
-    with open(json_path, 'r') as f:
-        bb_coverage = json.load(f)
-
+def print_stats(bb_coverage):
     total_bbs = bb_coverage['stats']['total_basic_blocks']
     covered_bbs = bb_coverage['stats']['covered_basic_blocks']
 
@@ -36,6 +32,16 @@ def basic_block_coverage(json_path):
         percent_str = '{:.1%}'.format(covered_bbs / total_bbs)
     else:
         percent_str = '-%'
+
+    idc.Message(COVERAGE_MESSAGE.format(num_bbs=total_bbs,
+                                        num_covered_bbs=covered_bbs,
+                                        percent=percent_str))
+
+
+def basic_block_coverage(json_path):
+    bb_coverage = {}
+    with open(json_path, 'r') as f:
+        bb_coverage = json.load(f)
 
     for covered_basic_block in bb_coverage['coverage']:
         start_addr = covered_basic_block['start_addr']
@@ -50,9 +56,7 @@ def basic_block_coverage(json_path):
             if block.startEA <= start_addr and block.endEA > start_addr:
                 _color_block(block)
 
-    idc.Message(COVERAGE_MESSAGE.format(num_bbs=total_bbs,
-                                        num_covered_bbs=covered_bbs,
-                                        percent=percent_str))
+    print_stats(bb_coverage)
 
 
 if __name__ == '__main__':
