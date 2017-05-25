@@ -20,3 +20,4 @@
 # SOFTWARE.
 
 install(DIRECTORY ida/ DESTINATION bin)
+install(DIRECTORY radare/ DESTINATION bin)
