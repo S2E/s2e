@@ -25,6 +25,7 @@ Documentation
 
   1. `DARPA Cyber Grand Challenge <src/Tutorials/CGC.rst>`_
   2. `Coreutils <src/Tutorials/Coreutils.rst>`_
+  3. `Windows DLL <src/Tutorials/WindowsDLL.rst>`_
 
 * Howtos
 
