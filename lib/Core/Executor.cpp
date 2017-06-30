@@ -100,8 +100,6 @@ cl::opt<bool> DebugCheckForImpliedValues("debug-check-for-implied-values");
 
 cl::opt<bool> SimplifySymIndices("simplify-sym-indices", cl::init(true));
 
-cl::opt<unsigned> MaxSymArraySize("max-sym-array-size", cl::init(0));
-
 cl::opt<bool> SuppressExternalWarnings("suppress-external-warnings", cl::init(true));
 
 cl::opt<bool> EmitAllErrors("emit-all-errors", cl::init(false), cl::desc("Generate tests cases for all errors "
@@ -109,8 +107,8 @@ cl::opt<bool> EmitAllErrors("emit-all-errors", cl::init(false), cl::desc("Genera
 
 cl::opt<bool> NoExternals("no-externals", cl::desc("Do not allow external functin calls"));
 
-cl::opt<double> MaxSTPTime("max-stp-time", cl::desc("Maximum amount of time for a single query (default=120s)"),
-                           cl::init(120.0));
+cl::opt<double> MaxSolverTime("max-solver-time", cl::desc("Maximum amount of time for a single query (default=120s)"),
+                              cl::init(120.0));
 
 cl::opt<bool> ValidateSimplifier("validate-expr-simplifier",
                                  cl::desc("Checks that the simplification algorithm produced correct expressions"),
@@ -185,7 +183,7 @@ Executor::Executor(const InterpreterOptions &opts, InterpreterHandler *ih, Solve
       externalDispatcher(new ExternalDispatcher(context)), solverFactory(solver_factory), statsTracker(0),
       specialFunctionHandler(0), processTree(0), concolicMode(false), ivcEnabled(false) {
 
-    stpTimeout = MaxSTPTime;
+    solverTimeout = MaxSolverTime;
 
     initializeSolver();
 
@@ -644,7 +642,7 @@ Executor::StatePair Executor::fork(ExecutionState &current, ref<Expr> condition,
     condition = simplifyExpr(current, condition);
 
     Solver::Validity res;
-    double timeout = stpTimeout;
+    double timeout = solverTimeout;
 
     _solver(current)->setTimeout(timeout);
     bool success = _solver(current)->evaluate(current, condition, res);
@@ -820,7 +818,7 @@ ref<Expr> Executor::toUnique(const ExecutionState &state, ref<Expr> &e) {
     ref<ConstantExpr> value;
     bool isTrue = false;
 
-    _solver(state)->setTimeout(stpTimeout);
+    _solver(state)->setTimeout(solverTimeout);
 
     if (concolicMode) {
         ref<Expr> evalResult = state.concolics->evaluate(e);
@@ -2664,7 +2662,7 @@ bool Executor::getSymbolicSolution(TimingSolver *solver,
                                    const ConstraintManager &constraints,
                                    std::vector<std::pair<std::string, std::vector<unsigned char>>> &res,
                                    double &queryCost) {
-    solver->setTimeout(stpTimeout);
+    solver->setTimeout(solverTimeout);
 
     std::vector<std::vector<unsigned char>> values;
     std::vector<const Array *> objects;

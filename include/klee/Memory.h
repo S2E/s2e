@@ -122,8 +122,6 @@ public:
 };
 
 class MemoryObject {
-    friend class STPBuilder;
-
 private:
     static int counter;
 

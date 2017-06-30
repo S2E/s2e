@@ -17,10 +17,6 @@ set(KLEE_SOLVER_SRCS CachingSolver.cpp
                      SolverStats.cpp
 )
 
-if(ENABLE_SOLVER_STP)
-  list(APPEND KLEE_SOLVER_SRCS STPBuilder.cpp STPSolver.cpp)
-endif()
-
 if(ENABLE_SOLVER_Z3)
   list(APPEND KLEE_SOLVER_SRCS Z3ArrayBuilder.cpp
                                Z3Builder.cpp

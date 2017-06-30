@@ -57,8 +57,6 @@ cl::opt<SolverIncrementalityType> SolverIncrementality(
 // concolic mode. Disabled by default.
 cl::opt<bool> UseCexCache("use-cex-cache", cl::init(false), cl::desc("Use counterexample caching"));
 
-cl::opt<bool> UseQueryLog("use-query-log", cl::init(false));
-
 cl::opt<bool> UseQueryPCLog("use-query-pc-log", cl::init(false));
 
 cl::opt<bool> UseEndQueryPCLog("use-end-query-pc-log", cl::init(false));
@@ -99,7 +97,7 @@ Solver *DefaultSolverFactory::decorateSolver(Solver *end_solver) {
     Solver *solver = end_solver;
 
     if (UseEndQueryPCLog) {
-        solver = createPCLoggingSolver(solver, ih_->getOutputFilename("stp-queries.qlog"));
+        solver = createPCLoggingSolver(solver, ih_->getOutputFilename("solver-queries.qlog"));
     }
 
     if (UseFastCexSolver)

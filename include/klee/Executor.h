@@ -145,8 +145,8 @@ protected:
     /// false, it is buggy (it needs to validate its writes).
     bool ivcEnabled;
 
-    /// The maximum time to allow for a single stp query.
-    double stpTimeout;
+    /// The maximum time to allow for a single solver query.
+    double solverTimeout;
 
     /// Simplifier user to simplify expressions when adding them
     BitfieldSimplifier *exprSimplifier;

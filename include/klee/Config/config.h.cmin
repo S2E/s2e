@@ -4,9 +4,6 @@
 /* Enable KLEE DEBUG checks */
 #cmakedefine ENABLE_KLEE_DEBUG @ENABLE_KLEE_DEBUG@
 
-/* Using STP Solver backend */
-#cmakedefine ENABLE_STP @ENABLE_STP@
-
 /* Using Z3 Solver backend */
 #cmakedefine ENABLE_Z3 @ENABLE_Z3@
 

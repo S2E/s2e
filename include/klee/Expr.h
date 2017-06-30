@@ -840,7 +840,6 @@ private:
 
 public:
     // FIXME: This does not belong here.
-    mutable void *stpInitialArray;
     static uint64_t aggregatedSize;
 
 public:
@@ -853,8 +852,7 @@ public:
     /// distinguished once printed.
     Array(const std::string &_name, uint64_t _size, const ref<ConstantExpr> *constantValuesBegin = 0,
           const ref<ConstantExpr> *constantValuesEnd = 0, const std::string _rawName = "")
-        : rawName(_rawName), name(_name), size(_size), constantValues(constantValuesBegin, constantValuesEnd),
-          stpInitialArray(0) {
+        : rawName(_rawName), name(_name), size(_size), constantValues(constantValuesBegin, constantValuesEnd) {
         aggregatedSize += _size;
         assert((isSymbolicArray() || constantValues.size() == size) && "Invalid size for constant array!");
 #ifdef NDEBUG
