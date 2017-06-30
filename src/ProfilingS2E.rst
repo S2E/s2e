@@ -17,11 +17,9 @@ Fix perf issues
 Running perf
 ------------
 
-1. Recompile STP, KLEE and QEMU with ``-fno-omit-frame-pointer`` option in ``CFLAGS`` and ``CXXFLAGS``.
-   Perf supports dwarf stack, however it works much better with stack frame.
-2. Run QEMU through perf with the workload you want to profile: ``perf record --call-graph fp -o perf.data ${QEMU}``.
-3. Wait for some time to get statistics (remember, this is statistical profiling, time is important).
-4. Stop QEMU by pressing CTRL+C or sending SIGINT to perf.
+1. Run QEMU through perf with the workload you want to profile: ``perf record --call-graph fp -o perf.data ${QEMU}``.
+2. Wait for some time to get statistics (remember, this is statistical profiling, time is important).
+3. Stop QEMU by pressing CTRL+C or sending SIGINT to perf.
 
 Viewing perf log
 ----------------
