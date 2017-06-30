@@ -9,7 +9,8 @@ How do I know what S2E is doing?
    configuration file, enable the ``ExecutionTracer``, ``ModuleTracer`` and the ``ModuleExecutionDetector`` plugins.
    This will allow you to collect all fork locations. Additionally, you can use ``TranslationBlockTracer``  in order to
    have a detailed trace for each execution path, which you can view with the ``tbtrace`` tool. Finally,
-   ``TranslationBlockTracer`` allows you to use the basic block `coverage <Tools/CoverageGenerator.rst>`_ tool.
+   ``TranslationBlockCoverage`` allows you to view the basic block coverage in either IDA Pro or Radare (as described
+   in the `Coreutils <Tutorials/Coreutils.rst>`_ tutorial).
 
 2. Look at ``s2e-last/debug.txt`` and other files. These files list all the major events occurring during symbolic
    execution.
