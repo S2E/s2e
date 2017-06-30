@@ -161,7 +161,7 @@ should get a graph similar to the following:
 .. image:: ../img/ida_cat_coverage.png
 
 Examining the debug log in ``s2e-last/debug.txt`` you should see a fork at address 0x8049ADE. If you look at this
-address in IDA Pro, you should see a ``cmp [ebp+ch_0], 9]`` at the previous instruction (address 0x8049ADA). This is
+address in IDA Pro, you should see a ``cmp [ebp+ch_0], 9`` at the previous instruction (address 0x8049ADA). This is
 ``cat`` checking if the current character is a TAB or not (as previously mentioned the ASCII value for TAB is 0x09).
 Because the file contains symbolic data, a fork will occur at the ``jnz`` instruction.
 
