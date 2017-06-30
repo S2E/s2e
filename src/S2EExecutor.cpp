@@ -2069,12 +2069,15 @@ S2EExecutor::StatePair S2EExecutor::fork(ExecutionState &current, klee::ref<Expr
 
     StatePair res;
 
-    if (currentState->forkDisabled && !dyn_cast<klee::ConstantExpr>(condition)) {
-        g_s2e->getDebugStream(currentState) << "fork disabled\n";
-    }
-
+    // If the condition is constant, there is no need to do anything as the fork will not branch
     bool forkOk = true;
-    g_s2e->getCorePlugin()->onStateForkDecide.emit(currentState, &forkOk);
+    if (!dyn_cast<klee::ConstantExpr>(condition)) {
+        if (currentState->forkDisabled) {
+            g_s2e->getDebugStream(currentState) << "fork disabled\n";
+        }
+
+        g_s2e->getCorePlugin()->onStateForkDecide.emit(currentState, &forkOk);
+    }
 
     bool oldForkStatus = currentState->forkDisabled;
     if (!forkOk && !currentState->forkDisabled) {
