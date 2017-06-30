@@ -37,10 +37,14 @@ image (from ``linux-4.9.3-i386``). Once you have an image you can create your pr
 
 .. code-block:: console
 
-    s2e new_project --image debian-8.7.1-i386 /path/to/coreutils-8.26/build/bin/cat @@
+    s2e new_project --image debian-8.7.1-i386 /path/to/coreutils-8.26/build/bin/cat -T @@
 
 The ``@@`` symbol tells ``s2e-env`` to generate a bootstrap file that will run ``cat`` with a symbolic file as input.
 By default this symbolic file will be a 256 byte file filled with ``null`` bytes.
+
+The ``-T`` option forces ``cat`` to display TAB characters (0x09). This is important because it forces ``cat`` to read
+the symbolic values and fork two states - one state for the character being a TAB and another state for a character
+being a non-TAB.
 
 For testing ``cat`` we will have to modify this symbolic file slightly. Instead of having the symbolic file filled with
 ``null`` bytes, we will add some actual text to the file to make it more representative of using ``cat``. Open
@@ -59,7 +63,7 @@ These logs are saved as JSON files when the ``writeCoverageOnStateKill`` option 
 These JSON files will be used to produce the basic block and line coverage summary.
 
 You can then run S2E with the ``launch-s2e.sh`` script. You may wish to leverage multi-process mode by setting
-``S2E_MAX_PROCESSES=XX`` in ``launch-s2e.sh``. Let S2E run for approximately five minutes before stopping it (e.g. via
+``S2E_MAX_PROCESSES=XX`` in ``launch-s2e.sh``. Let S2E run for a few minutes minutes before stopping it (e.g. via
 ``killall -9 qemu-system-i386``).
 
 Generate line coverage
@@ -110,39 +114,39 @@ which is shown below.
     {
         "coverage": [
             {
-                "end_addr": 134521719,
-                "function": "main",
-                "start_addr": 134521716
+                "end_addr": 134516923,
+                "function": "__do_global_dtors_aux",
+                "start_addr": 134516916
             },
             {
-                "end_addr": 134520335,
-                "function": "main",
-                "start_addr": 134520309
+                "end_addr": 134516165,
+                "function": ".__fpending",
+                "start_addr": 134516160
             },
             {
-                "end_addr": 134534133,
-                "function": "atexit",
-                "start_addr": 134534128
+                "end_addr": 134515758,
+                "function": ".init_proc",
+                "start_addr": 134515754
             },
             {
-                "end_addr": 134522543,
+                "end_addr": 134516940,
+                "function": "frame_dummy",
+                "start_addr": 134516939
+            },
+            {
+                "end_addr": 134522228,
                 "function": "set_program_name",
-                "start_addr": 134522536
+                "start_addr": 134522217
             },
             {
-                "end_addr": 134522670,
-                "function": "set_program_name",
-                "start_addr": 134522653
-            },
-            {
-                "end_addr": 134528828,
-                "function": "safe_write",
-                "start_addr": 134528823
+                "end_addr": 134533853,
+                "function": "fstat64",
+                "start_addr": 134533830
             }
         ],
         "stats": {
-            "covered_basic_blocks": ...,
-            "total_basic_blocks": ...,
+            "covered_basic_blocks": 215,
+            "total_basic_blocks": 1456
         }
     }
 
@@ -155,6 +159,11 @@ S2E will be colored green. Depending on how long you let S2E run for and how man
 should get a graph similar to the following:
 
 .. image:: ../img/ida_cat_coverage.png
+
+Examining the debug log in ``s2e-last/debug.txt`` you should see a fork at address 0x8049ADE. If you look at this
+address in IDA Pro, you should see a ``cmp [ebp+ch_0], 9]`` at the previous instruction (address 0x8049ADA). This is
+``cat`` checking if the current character is a TAB or not (as previously mentioned the ASCII value for TAB is 0x09).
+Because the file contains symbolic data, a fork will occur at the ``jnz`` instruction.
 
 Similarly, Radare can be used to annotate the basic blocks covered by S2E with `metadata
 <https://radare.gitbooks.io/radare2book/content/disassembling/adding_metadata.html>`_. This script can be found at
