@@ -12,20 +12,34 @@
 #include <s2e/S2E.h>
 #include <s2e/Utils.h>
 
-#include "ModuleMap.h"
-
 #include <boost/multi_index/composite_key.hpp>
 #include <boost/multi_index/mem_fun.hpp>
 #include <boost/multi_index/member.hpp>
 #include <boost/multi_index/ordered_index.hpp>
 #include <boost/multi_index_container.hpp>
 
+#include <list>
+#include <unordered_map>
+
+#include "ModuleMap.h"
+
 namespace s2e {
 namespace plugins {
 
 S2E_DEFINE_PLUGIN(ModuleMap, "Tracks loaded modules", "", "OSMonitor");
 
+////////////////////
+// ModuleMapState //
+////////////////////
+
 namespace {
+
+///
+/// Keeps track of loaded modules across states.
+///
+/// The \c ModuleMapState can also act as a LRU cache for loaded modules' exports. The LRU cache code is adapted from
+/// https://github.com/lamerman/cpp-lru-cache
+///
 class ModuleMapState : public PluginState {
 public:
     struct pid_t {};
@@ -36,11 +50,6 @@ public:
     typedef boost::multi_index_container<
         ModuleDescriptor,
         boost::multi_index::indexed_by<
-            /** Don't need it for now
-            boost::multi_index::ordered_non_unique<
-                boost::multi_index::tag<pagedir_t>,
-                BOOST_MULTI_INDEX_MEMBER(ModuleDescriptor, uint64_t, AddressSpace)
-            >, */
             boost::multi_index::ordered_non_unique<boost::multi_index::tag<pidname_t>,
                                                    boost::multi_index::identity<ModuleDescriptor>,
                                                    ModuleDescriptor::ModuleByPidName>,
@@ -54,16 +63,24 @@ public:
     typedef Map::index<pid_t>::type ModulesByPid;
     typedef Map::index<pidpc_t>::type ModulesByPidPc;
     typedef Map::index<pidname_t>::type ModulesByPidName;
-    // typedef Map::index<pagedir_t>::type ModulesByAddressSpace;
 
 private:
+    // Module-related members
     Map m_modules;
 
+    // Export-related members
+    typedef std::pair<uint64_t, ModuleMap::Export> AddressExportPair;
+    typedef std::list<AddressExportPair>::iterator AddressExportIterator;
+
+    std::list<AddressExportPair> m_exportCacheList;
+    std::unordered_map<uint64_t, AddressExportIterator> m_exportCacheMap;
+
+    const static size_t MAX_EXPORT_CACHE_SIZE = 50;
+
 public:
-    ModuleMapState() {
-    }
     virtual ~ModuleMapState() {
     }
+
     virtual ModuleMapState *clone() const {
         return new ModuleMapState(*this);
     }
@@ -95,7 +112,7 @@ public:
             return &*it;
         }
 
-        return NULL;
+        return nullptr;
     }
 
     const ModuleDescriptor *getModule(uint64_t pid, const std::string &name) {
@@ -109,7 +126,7 @@ public:
             return &*it;
         }
 
-        return NULL;
+        return nullptr;
     }
 
     void onModuleLoad(const ModuleDescriptor &module) {
@@ -117,19 +134,30 @@ public:
     }
 
     void onModuleUnload(const ModuleDescriptor &module) {
+        // Remove the module from the map
         ModulesByPidPc &byPidPc = m_modules.get<pidpc_t>();
         ModulesByPidPc::const_iterator it = byPidPc.find(module);
-        if (it == byPidPc.end()) {
-            return;
+        if (it != byPidPc.end()) {
+            assert(it->Pid == module.Pid);
+            if (it->LoadBase != module.LoadBase) {
+                g_s2e->getDebugStream(g_s2e_state) << "ModuleMap::onModuleUnload mismatched base addresses:\n"
+                                                   << "  looked for:" << module << "\n"
+                                                   << "  found     :" << *it << "\n";
+            }
+
+            byPidPc.erase(it);
         }
 
-        assert((*it).Pid == module.Pid);
-        if ((*it).LoadBase != module.LoadBase) {
-            g_s2e->getDebugStream(g_s2e_state) << "ModuleMap::onModuleUnload mismatched base addresses:\n"
-                                               << "  looked for:" << module << "\n"
-                                               << "  found     :" << *it << "\n";
+        // When a module is unloaded, we need to invalidate all entries in the cache that correspond to the unloaded
+        // module's address space
+        for (auto it = m_exportCacheMap.begin(); it != m_exportCacheMap.end();) {
+            if (module.Contains(it->first)) {
+                m_exportCacheList.erase(it->second);
+                it = m_exportCacheMap.erase(it);
+            } else {
+                ++it;
+            }
         }
-        byPidPc.erase(it);
     }
 
     void onProcessUnload(uint64_t addressSpace, uint64_t pid) {
@@ -146,8 +174,41 @@ public:
         foreach2 (it, m_modules.begin(), m_modules.end()) { os << *it << "\n"; }
         os << "==========================================\n";
     }
+
+    void cacheExport(uint64_t address, const ModuleMap::Export &exp) {
+        auto it = m_exportCacheMap.find(address);
+        m_exportCacheList.push_front({address, exp});
+
+        if (it != m_exportCacheMap.end()) {
+            m_exportCacheList.erase(it->second);
+            m_exportCacheMap.erase(it);
+        }
+
+        m_exportCacheMap[address] = m_exportCacheList.begin();
+
+        if (m_exportCacheMap.size() > MAX_EXPORT_CACHE_SIZE) {
+            auto last = m_exportCacheList.end();
+            last--;
+            m_exportCacheMap.erase(last->first);
+            m_exportCacheList.pop_back();
+        }
+    }
+
+    const ModuleMap::Export *getExport(uint64_t address) {
+        auto it = m_exportCacheMap.find(address);
+        if (it == m_exportCacheMap.end()) {
+            return nullptr;
+        } else {
+            m_exportCacheList.splice(m_exportCacheList.begin(), m_exportCacheList, it->second);
+            return &(it->second->second);
+        }
+    }
 };
-}
+} // anonymous namespace
+
+///////////////
+// ModuleMap //
+///////////////
 
 void ModuleMap::initialize() {
     m_monitor = static_cast<OSMonitor *>(s2e()->getPlugin("OSMonitor"));
@@ -223,6 +284,16 @@ const ModuleDescriptor *ModuleMap::getModule(S2EExecutionState *state, uint64_t 
 void ModuleMap::dump(S2EExecutionState *state) {
     DECLARE_PLUGINSTATE(ModuleMapState, state);
     plgState->dump(getDebugStream(state));
+}
+
+void ModuleMap::cacheExport(S2EExecutionState *state, uint64_t address, const Export &exp) {
+    DECLARE_PLUGINSTATE(ModuleMapState, state);
+    plgState->cacheExport(address, exp);
+}
+
+const ModuleMap::Export *ModuleMap::getExport(S2EExecutionState *state, uint64_t address) {
+    DECLARE_PLUGINSTATE(ModuleMapState, state);
+    return plgState->getExport(address);
 }
 
 } // namespace plugins
