@@ -9,16 +9,16 @@ S2E builds and runs on Ubuntu 14.04 or 16.04 (64-bit).
 Building with ``s2e-env``
 =========================
 
-The simplest way to build S2E is to use the ``s2e-env`` tool. It is the preferred
-method for development. See `Using s2e-env <s2e-env.rst>`_ for instructions.
+The simplest way to build S2E is to use the ``s2e-env`` tool. It is the preferred method for development. See `Using
+s2e-env <s2e-env.rst>`_ for instructions.
 
-If you want to build S2E manually or using Docker, read below.
+If you want to build S2E using Docker or manually, read below.
 
 Building using Docker
 =====================
 
-You can create a self-contained docker image that lets you analyze any supported binary.
-The following command builds the demo docker image.
+You can create a self-contained docker image that lets you analyze any supported binary. The following command builds
+the demo docker image.
 
 .. code-block:: console
 
@@ -40,21 +40,17 @@ You can then run it as follows:
 
     docker run --rm -ti -w $(pwd) -v $HOME:$HOME cyberhaven/s2e-demo /demo/run.sh $(id -u) $(id -g) /demo/CADET_00001
 
-This command starts the s2e-demo container and creates an S2E environment
-in ``$(pwd)/s2e-demo``. It then downloads a VM image and creates a default S2E
-configuration suitable for running the specified binary. Once configuration is
-done, the container starts S2E.
+This command starts the s2e-demo container and creates an S2E environment in ``$(pwd)/s2e-demo``. It then downloads a
+VM image and creates a default S2E configuration suitable for running the specified binary. Once configuration is done,
+the container starts S2E.
 
-The S2E environment in ``$(pwd)/s2e-demo`` is persistent. It is not kept in the container.
-You may run the container multiple times without losing the previous settings.
-This is possible by mounting your home folder in the container. The command also
-takes your current user and group id in order to create the environment folder
-with the right permissions (docker uses root by default).
+The S2E environment in ``$(pwd)/s2e-demo`` is persistent. It is not kept in the container. You may run the container
+multiple times without losing the previous settings. This is possible by mounting your home folder in the container.
+The command also takes your current user and group id in order to create the environment folder with the right
+permissions (docker uses root by default).
 
-You may specify any binary you want and are not restricted to binaries stored
-inside the container. You just need to mount the folder that contains it
-using the ``-v`` option.
-
+You may specify any binary you want and are not restricted to binaries stored inside the container. You just need to
+mount the folder that contains it using the ``-v`` option.
 
 Building S2E manually
 =====================
@@ -104,12 +100,11 @@ The following commands ask ``apt-get`` to install build dependencies for qemu:
 
     sudo apt-get build-dep qemu
 
-If you are going to be analyzing Windows binaries, you may also want to install mingw to compile the guest tools:
+If you are going to be analyzing Windows binaries, you will also need to install mingw to compile the guest tools:
 
 .. code-block:: console
 
     sudo apt-get install mingw-64
-
 
 Checking out S2E
 ----------------
@@ -144,12 +139,6 @@ By default, the ``make`` command compiles and installs S2E in release mode to ``
 location, set the ``S2EPREFIX`` environment variable when running ``make``.
 
 To compile S2E in Debug mode, use ``make install-debug``.
-
-To build the Windows guest tools:
-
-.. code-block:: console
-
-    make -f $S2EDIR/Makefile guest-tools-win-install
 
 Note that the Makefile automatically uses the maximum number of available processors in order to speed up compilation.
 

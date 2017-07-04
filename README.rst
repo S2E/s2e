@@ -16,8 +16,8 @@ Documentation
 
 * Getting Started
 
-  1. `Building S2E <src/BuildingS2E.rst>`_
-  2. `Creating analysis projects with s2e-env <src/s2e-env.rst>`_
+  1. `Creating analysis projects with s2e-env <src/s2e-env.rst>`_
+  2. `Building S2E without s2e-env <src/BuildingS2E.rst>`_
   3. `Symbolic execution of Linux binaries <src/Howtos/s2e.so.rst>`_
   4. `Symbolic execution of arbitrary programs <src/ManualTesting.rst>`_
 

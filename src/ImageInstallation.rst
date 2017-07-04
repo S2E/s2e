@@ -19,18 +19,18 @@ In the following, we describe how to install a minimal version of Debian Linux i
 problems if you use QEMU that comes with your system (especially when saving/restoring snapshots).
 
 ``$S2EDIR`` refers to the directory where S2E is located. The paths below assume you followed the `installation
-tutorials <BuildingS2E.rst>`_.
+tutorials <BuildingS2E.rst>`_. Note that ``i386`` can be replaced with ``x86_64`` to build a 64-bit image.
 
 .. code-block:: console
 
     # Create an empty disk image
-    $S2EDIR/build-qemu/qemu-img create -f raw s2e_disk.raw 2G
+    $S2EDIR/build/qemu-release/qemu-img create -f raw s2e_disk.raw 2G
 
     # Download debian install CD
     wget http://cdimage.debian.org/debian-cd/current/i386/iso-cd/debian-8.7.1-i386-netinst.iso
 
     # Run QEMU and install the OS
-    $S2EDIR/build-qemu/i386-softmmu/qemu-system-i386 s2e_disk.raw -cdrom debian-8.7.1-i386-netinst.iso
+    $S2EDIR/build/qemu-release/i386-softmmu/qemu-system-i386 s2e_disk.raw -cdrom debian-8.7.1-i386-netinst.iso
     # Follow the on-screen instructions to install Debian Linux inside VM
     # Select only the "Standard System" components to install
 
@@ -39,7 +39,8 @@ tutorials <BuildingS2E.rst>`_.
     su -c "apt-get install build-essential"
 
 It is also recommended to build and install a `Linux kernel <BuildingLinux.rst>`_ that works with the `LinuxMonitor
-<Plugins/Linux/LinuxMonitor.rst>`_ plugin.
+<Plugins/Linux/LinuxMonitor.rst>`_ plugin. Finally, the `guest tools <https://github.com/S2E/guest-tools>`_ should be
+built and transferred to the image.
 
 You have just set up a disk image in RAW format. You need to convert it to the S2E format for use with S2E (the reasons
 for this are described in the next section).
@@ -50,6 +51,38 @@ Therefore, to convert from RAW to S2E, renaming the file is enough (a symlink is
 .. code-block:: console
 
     mv s2e_disk.raw s2e_disk.raw.s2e
+
+Taking Snapshots
+================
+
+Once the image has been prepared, a snapshot should be taken. This allows the boot and startup sequence to be skipped
+when running an S2E analysis. To take a snapshot, you will need to build `libs2e <https://github.com/S2E/libs2e>`_ and
+boot your image with the following command:
+
+.. code-block:: console
+
+    LD_PRELOAD=$S2EDIR/build/libs2e-release/i386-softmmu/libs2e.so              \
+        $S2EDIR/build/qemu-release/i386-softmmu/qemu-system-i386 -enable-kvm    \
+        -drive file=s2e_disk.raw.s2e,format=s2e,cache=writeback                 \
+        -serial file:serial.txt -enable-serial-commands                         \
+        -net none -net nic,model=e1000
+
+Note that we load the **non-S2E** version of ``libs2e.so``. You can then run the ``launch.sh`` script from the `guest
+tools <https://github.com/S2E/guest-tools/blob/master/linux/scripts/launch.sh>`_. This will send the snapshot command
+over the serial port to QEMU and take a ``ready`` snapshot (note that this requires the ``-enable-serial-commands``
+option). Note that if you would like to create a snapshot with a different name, modify the ``SECRET_MESSAGE_SAVEVM``
+variable in ``launch.sh``. After the snaptshot is taken, QEMU will shutdown. You should see a
+``s2e_disk.raw.s2e.ready`` file in the same directory as ``s2e_disk.raw.s2e``. To start your snapshot in S2E mode, do:
+
+.. code-block:: console
+
+    LD_PRELOAD=$S2EDIR/build/libs2e-release/i386-s2e-softmmu/libs2e.so          \
+        $S2EDIR/build/qemu-release/i386-softmmu/qemu-system-i386 -enable-kvm    \
+        -drive file=s2e_disk.raw.s2e,format=s2e,cache=writeback                 \
+        -serial file:serial.txt -net none -net nic,model=e1000 -loadvm ready
+
+Note that this time we use the **S2E** version of ``libs2e.so`` and we specify the snapshot name using the ``loadvm``
+option. The VM should boot and wait for a ``bootstrap.sh`` script that bootstraps the S2E analysis process.
 
 The S2E VM Image Format
 =======================
@@ -92,7 +125,8 @@ Here is a checklist that we recommend you follow:
   image in S2E can take a (very) long time.
 
 * It is recommended to use 128MiB of RAM for the guest OS (or less). S2E is not limited by the amount of memory in any
-  way (it is 64-bit), but your physical machine is.
+  way (it is 64-bit), but your physical machine is. Use the ``-m`` option when starting QEMU to set the amount of
+  memory.
 
 * Disable fancy desktop themes. Most OSes have a GUI, which consumes resources. Disabling all visual effects will make
   program analysis faster.
@@ -102,5 +136,5 @@ Here is a checklist that we recommend you follow:
 * Disable unnecessary services to save memory and speed up the guest. Services like file sharing, printing, wireless
   network configuration, or firewall are useless unless you want to test them in S2E.
 
-* Avoid the QEMU ``virtio`` network interface for now. In the version of QEMU that is bundled into S2E, there can be
+* Avoid the QEMU ``virtio`` network interface for now. In the version of QEMU that is supported by S2E, there can be
   random crashes.

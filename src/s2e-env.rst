@@ -124,7 +124,7 @@ to analyze your target program. To create such a project, run:
 This will create a new project under the ``projects`` directory. When you run the analysis the virtual machine image
 that you specified with the ``--image`` option will be used. The target binary will be inspected so that the
 appropriate configuration files and launch scripts are generated. By default ``new_project`` will create the following
-files:
+files and directories:
 
 bootstrap.sh
     S2E downloads this file from the host into the guest, then executes it. This file contains instructions on how
@@ -133,6 +133,10 @@ bootstrap.sh
     when the s2e user logs in. This script fetches ``bootstrap.sh`` from the host and executes it.
     This script varies depending on your target program, so you should always check this file and modify it as required
     **before** running your analysis.
+
+guestfs
+    A symlink to the images guestfs. This is essentially a copy of the guest filesystem extracted from the VM image and
+    is used by S2E's ``VMI`` plugin for virtual machine introspection. Note that not all images provide a guestfs.
 
 guest-tools
     A symlink to the S2E `guest tools <https://github.com/S2E/guest-tools>`_. These will be downloaded to the guest by
