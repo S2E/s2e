@@ -164,6 +164,8 @@ private:
     klee::StateSet m_newBlockStates;
     ModuleTBs m_localCoverage;
     GlobalCoverage m_globalCoverage;
+    unsigned m_writeCoveragePeriod;
+    unsigned m_timerTicks;
 
     void onTimer();
     void onStateKill(S2EExecutionState *state);

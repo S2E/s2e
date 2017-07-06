@@ -52,12 +52,20 @@ void TranslationBlockCoverage::initialize() {
         s2e()->getCorePlugin()->onStateKill.connect(sigc::mem_fun(*this, &TranslationBlockCoverage::onStateKill));
     }
 
+    // Also write a JSON file every x seconds, where x is specified by the `writeCoveragePeriod` option. If x == 0 then
+    // periodic writes are disabled
+    int writeCoveragePeriod = cfg->getInt(getConfigKey() + ".writeCoveragePeriod", 0);
+    if (writeCoveragePeriod) {
+        m_writeCoveragePeriod = writeCoveragePeriod;
+        s2e()->getCorePlugin()->onTimer.connect(sigc::mem_fun(*this, &TranslationBlockCoverage::onTimer));
+    }
+
     m_detector->onModuleTranslateBlockComplete.connect(
         sigc::mem_fun(*this, &TranslationBlockCoverage::onModuleTranslateBlockComplete));
 
-    s2e()->getCorePlugin()->onTimer.connect(sigc::mem_fun(*this, &TranslationBlockCoverage::onTimer));
-
     s2e()->getCorePlugin()->onUpdateStates.connect(sigc::mem_fun(*this, &TranslationBlockCoverage::onUpdateStates));
+
+    m_timerTicks = 0;
 }
 
 void TranslationBlockCoverage::onModuleTranslateBlockComplete(S2EExecutionState *state, const ModuleDescriptor &module,
@@ -113,8 +121,17 @@ void TranslationBlockCoverage::onStateKill(S2EExecutionState *state) {
     generateJsonCoverageFile(state);
 }
 
+// Periodically write the translation block coverage to the JSON file. This is for the case when a state never
+//  terminates, we still get some coverage information
 void TranslationBlockCoverage::onTimer() {
-    // TODO: print number of TBs
+    ++m_timerTicks;
+
+    if (m_timerTicks < m_writeCoveragePeriod) {
+        return;
+    }
+
+    m_timerTicks = 0;
+    generateJsonCoverageFile(g_s2e_state);
 }
 
 const ModuleTBs &TranslationBlockCoverage::getCoverage(S2EExecutionState *state) {
