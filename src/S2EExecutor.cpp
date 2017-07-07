@@ -2073,7 +2073,7 @@ S2EExecutor::StatePair S2EExecutor::fork(ExecutionState &current, klee::ref<Expr
     bool forkOk = true;
     if (!dyn_cast<klee::ConstantExpr>(condition)) {
         if (currentState->forkDisabled) {
-            g_s2e->getDebugStream(currentState) << "fork disabled\n";
+            g_s2e->getDebugStream(currentState) << "fork disabled at " << hexval(currentState->getPc()) << "\n";
         }
 
         g_s2e->getCorePlugin()->onStateForkDecide.emit(currentState, &forkOk);
