@@ -36,20 +36,19 @@ typedef struct TimersState {
     int32_t cpu_ticks_enabled;
     int64_t dummy;
 
-    /* slow down vm clock by a factor x */
-    int32_t clock_scale_enable;
-    int32_t clock_scale;
+    /* slow down vm clock by a factor x. This is shared with QEMU over the libs2e interface */
+    int32_t cpu_clock_scale_factor;
+
     int64_t cpu_clock_prev;
     int64_t cpu_clock_prev_scaled;
-
 } TimersState;
-
-void cpu_enable_scaling(int scale);
 
 extern TimersState timers_state;
 
-int64_t cpu_get_ticks(void);
-void cpu_enable_ticks(void);
-void cpu_disable_ticks(void);
+/*
+ * Called from S2EExecutor to scale down the clock when performing symbolic
+ * execution.
+ */
+void cpu_enable_scaling(int scale);
 
 #endif

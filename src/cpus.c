@@ -53,7 +53,17 @@
 /***********************************************************/
 /* guest cycle counter */
 
-TimersState timers_state;
+TimersState timers_state = {
+    .cpu_ticks_prev = 0,
+    .cpu_ticks_offset = 0,
+    .cpu_clock_offset = 0,
+    .cpu_ticks_enabled = 0,
+
+    .cpu_clock_scale_factor = 1,
+
+    .cpu_clock_prev = 0,
+    .cpu_clock_prev_scaled = 0,
+};
 
 /* return the host CPU cycle counter and handle stop/restart */
 int64_t cpu_get_ticks(void) {
@@ -74,21 +84,21 @@ int64_t cpu_get_ticks(void) {
 
 /* return the host CPU monotonic timer and handle stop/restart */
 int64_t cpu_get_clock(void) {
-    int64_t ti;
     if (!timers_state.cpu_ticks_enabled) {
-        if (timers_state.clock_scale_enable) {
+        if (timers_state.cpu_clock_scale_factor > 1) {
             return timers_state.cpu_clock_prev_scaled;
+        } else {
+            return timers_state.cpu_clock_offset;
         }
-        return timers_state.cpu_clock_offset;
     } else {
-        if (timers_state.clock_scale_enable) {
+        if (timers_state.cpu_clock_scale_factor > 1) {
             /* Compute how much real time elapsed since last request */
             int64_t cur_clock = get_clock() + timers_state.cpu_clock_offset;
             int64_t increment = cur_clock - timers_state.cpu_clock_prev;
             assert(increment > 0);
 
             /* Slow the clock down according to the scale */
-            int64_t result = timers_state.cpu_clock_prev_scaled + increment / timers_state.clock_scale;
+            int64_t result = timers_state.cpu_clock_prev_scaled + increment / timers_state.cpu_clock_scale_factor;
 
             /* Check that monotonicity is not violated */
             assert(cur_clock >= 0 && cur_clock >= timers_state.cpu_clock_prev);
@@ -97,43 +107,25 @@ int64_t cpu_get_clock(void) {
             /* Save the current time stamp */
             timers_state.cpu_clock_prev_scaled = result;
             timers_state.cpu_clock_prev = cur_clock;
-            assert(result >= 0);
+
             return result;
         } else {
-            ti = get_clock();
-            return ti + timers_state.cpu_clock_offset;
+            return get_clock() + timers_state.cpu_clock_offset;
         }
     }
 }
 
-/**
- * Allows symbolic execution engines to slow down the VM clock while
- * executing slow operations (e.g., constraint solving).
- * Assumes that rt_clock == vm_clock.
- * scale == 1 is the normal speed.
- */
-void cpu_enable_scaling(int scale) {
-    assert(scale >= 1);
-    if (!timers_state.clock_scale_enable) {
-        timers_state.cpu_clock_prev = cpu_get_clock();
-        timers_state.cpu_clock_prev_scaled = timers_state.cpu_clock_prev;
-    }
-
-    timers_state.clock_scale = scale;
-    timers_state.clock_scale_enable = 1;
-}
-
 /* enable cpu_get_ticks() */
 void cpu_enable_ticks(void) {
-    assert(timers_state.clock_scale_enable);
     if (!timers_state.cpu_ticks_enabled) {
-        int64 cur_clock = get_clock();
+        int64_t cur_clock = get_clock();
+
         timers_state.cpu_ticks_offset -= cpu_get_real_ticks();
         timers_state.cpu_clock_offset -= cur_clock;
         timers_state.cpu_ticks_enabled = 1;
 
-        if (timers_state.clock_scale_enable) {
-            // Fast-forward suspended clocks
+        if (timers_state.cpu_clock_scale_factor > 1) {
+            /* Fast-forward suspended clocks */
             timers_state.cpu_clock_prev = cur_clock + timers_state.cpu_clock_offset;
             timers_state.cpu_clock_prev_scaled = timers_state.cpu_clock_prev;
         }
@@ -148,6 +140,24 @@ void cpu_disable_ticks(void) {
         timers_state.cpu_clock_offset = cpu_get_clock();
         timers_state.cpu_ticks_enabled = 0;
     }
+}
+
+/*
+ * Allows symbolic execution engines to slow down the VM clock while
+ * executing slow operations (e.g., constraint solving).
+ *
+ * Assumes that rt_clock == vm_clock.
+ * scale == 1 is the normal speed.
+ */
+void cpu_enable_scaling(int scale) {
+    assert(scale >= 1);
+
+    if (timers_state.cpu_clock_scale_factor == 1) {
+        timers_state.cpu_clock_prev = cpu_get_clock();
+        timers_state.cpu_clock_prev_scaled = timers_state.cpu_clock_prev;
+    }
+
+    timers_state.cpu_clock_scale_factor = scale;
 }
 
 void cpu_synchronize_all_post_init(void) {
