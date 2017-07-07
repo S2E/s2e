@@ -743,7 +743,7 @@ S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMContext *tcgLLVMContext, const Interpr
                          InterpreterHandler *ie)
     : Executor(opts, ie, new DefaultSolverFactory(ie), tcgLLVMContext->getLLVMContext()), m_s2e(s2e),
       m_tcgLLVMContext(tcgLLVMContext), m_executeAlwaysKlee(false), m_forkProcTerminateCurrentState(false),
-      m_inLoadBalancing(false), m_customClockSlowDown(1) {
+      m_inLoadBalancing(false) {
     delete externalDispatcher;
     externalDispatcher = new S2EExternalDispatcher(tcgLLVMContext->getLLVMContext());
 
@@ -1724,27 +1724,21 @@ static void s2e_enable_signals(sigset_t *oldset) {
 
 #endif
 
-void S2EExecutor::updateSlowDownFactor() {
-    if (!g_s2e_fast_concrete_invocation) {
-        // XXX: adapt scaling dynamically.
-        int slowdown = 1;
+void S2EExecutor::updateClockScaling() {
+    int scaling = 1;
 
-        if (m_customClockSlowDown != 1) {
-            slowdown = m_customClockSlowDown;
-        } else {
-            slowdown = UseFastHelpers ? ClockSlowDownFastHelpers : ClockSlowDown;
+    if (g_s2e_fast_concrete_invocation) {
+        // Concrete execution
+        scaling = timers_state.cpu_clock_scale_factor / 2;
+        if (scaling == 0) {
+            scaling = 1;
         }
-        cpu_enable_scaling(slowdown);
     } else {
-        int new_scaling = timers_state.clock_scale / 2;
-        if (new_scaling == 0)
-            new_scaling = 1;
-
-        if (m_customClockSlowDown != 1) {
-            new_scaling = m_customClockSlowDown;
-        }
-        cpu_enable_scaling(new_scaling);
+        // Symbolic execution
+        scaling = UseFastHelpers ? ClockSlowDownFastHelpers : ClockSlowDown;
     }
+
+    cpu_enable_scaling(scaling);
 }
 
 void S2EExecutor::updateConcreteFastPath(S2EExecutionState *state) {
@@ -1761,7 +1755,7 @@ void S2EExecutor::updateConcreteFastPath(S2EExecutionState *state) {
     g_s2e_running_concrete = (char *) &state->m_runningConcrete;
     g_s2e_running_exception_emulation_code = (char *) &state->m_runningExceptionEmulationCode;
 
-    updateSlowDownFactor();
+    updateClockScaling();
 }
 
 uintptr_t S2EExecutor::executeTranslationBlockKlee(S2EExecutionState *state, TranslationBlock *tb) {
@@ -1954,6 +1948,7 @@ uintptr_t S2EExecutor::executeTranslationBlock(S2EExecutionState *state, Transla
             if (EnableTimingLog) {
                 TimerStatIncrementer t(stats::concreteModeTime);
             }
+
             switchToSymbolic(state);
         }
 
@@ -1962,7 +1957,6 @@ uintptr_t S2EExecutor::executeTranslationBlock(S2EExecutionState *state, Transla
         }
 
         return executeTranslationBlockKlee(state, tb);
-
     } else {
         if (!state->m_runningConcrete)
             switchToConcrete(state);

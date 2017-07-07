@@ -79,8 +79,6 @@ protected:
 
     struct CPUTimer *m_stateSwitchTimer;
 
-    int m_customClockSlowDown;
-
     /** Counts how many translation blocks reference a given LLVM function */
     typedef llvm::DenseMap<const llvm::Function *, unsigned> LLVMTbReferences;
     LLVMTbReferences m_llvmBlockReferences;
@@ -198,15 +196,6 @@ public:
     // Should be public because of manual forks in plugins
     void notifyFork(klee::ExecutionState &originalState, klee::ref<klee::Expr> &condition, StatePair &targets);
 
-    void setClockSlowDown(int factor) {
-        m_customClockSlowDown = factor;
-        updateSlowDownFactor();
-    }
-
-    int getClockSlowDown() {
-        return m_customClockSlowDown;
-    }
-
     klee::ref<klee::ConstantExpr> simplifyAndGetExample(S2EExecutionState *state, klee::ref<klee::Expr> &value);
 
     /**
@@ -215,7 +204,7 @@ public:
     klee::Executor::StatePair forkAndConcretize(S2EExecutionState *state, klee::ref<klee::Expr> &value_);
 
 protected:
-    void updateSlowDownFactor();
+    void updateClockScaling();
 
     static void handlerWriteMemIoVaddr(klee::Executor *executor, klee::ExecutionState *state,
                                        klee::KInstruction *target, std::vector<klee::ref<klee::Expr>> &args);
