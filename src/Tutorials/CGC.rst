@@ -129,6 +129,7 @@ Starting an analysis
 To start S2E, run the following command:
 
 .. code-block:: console
+
     s2e run CADET_00001
 
 This will display a TUI-based dashboard, similar to that used by the American Fuzzy Lop (AFL) fuzzer. As S2E finds
