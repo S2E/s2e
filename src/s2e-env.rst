@@ -67,6 +67,15 @@ Building S2E is simple. Simply run:
 Building S2E and QEMU takes some time (approx. 60 minutes), so go and grab a coffee while you wait. Note that you can
 build a debug version of S2E by specifying the ``--debug`` flag.
 
+``s2e build`` will build all of the S2E components, including KLEE, QEMU, libs2e, Z3, etc. To force the rebuild of a
+particular component (after the initial build), we must use the following flag:
+
+.. code-block:: console
+
+    s2e build --rebuild-components libs2e qemu
+
+This will force the rebuild of the libs2e and QEMU components.
+
 Building an image
 ~~~~~~~~~~~~~~~~~
 
