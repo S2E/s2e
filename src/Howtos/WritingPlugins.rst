@@ -11,18 +11,19 @@ Starting with an Empty Plugin
 =============================
 
 The first thing to do is to name the plugin and create boilerplate code. Let us name the plugin ``InstructionTracker``.
-You can copy/paste the ``Example`` plugin that ships with S2E.
+You can copy/paste the ``Example`` plugin that ships with S2E (in the `libs2eplugins
+<https://github.com/S2E/libs2eplugins>`_ repository).
 
-Create a file named ``InstructionTracker.h`` in the ``$S2EDIR/libs2eplugins/src/s2e/Plugins`` directory with
-the following content:
+Create a file named ``InstructionTracker.h`` in ``$S2EDIR/libs2eplugins/src/s2e/Plugins`` with the following content:
 
 .. code-block:: cpp
 
     #ifndef S2E_PLUGINS_INSTRTRACKER_H
     #define S2E_PLUGINS_INSTRTRACKER_H
 
+    // These header files are located in libs2ecore
     #include <s2e/Plugin.h>
-    #include <s2e/Plugins/CorePlugin.h>
+    #include <s2e/CorePlugin.h>
     #include <s2e/S2EExecutionState.h>
 
     namespace s2e {
@@ -42,7 +43,7 @@ the following content:
 
     #endif
 
-Then, create the corresponding ``InstructionTracker.cpp`` file in the same directory as follows:
+Then, create the corresponding ``InstructionTracker.cpp`` file in the same directory:
 
 .. code-block:: cpp
 
@@ -53,19 +54,21 @@ Then, create the corresponding ``InstructionTracker.cpp`` file in the same direc
     namespace s2e {
     namespace plugins {
 
-    //Define a plugin whose class is InstructionTracker and called "InstructionTracker".
-    //The plugin does not have any dependency.
-    S2E_DEFINE_PLUGIN(InstructionTracker, "Tutorial - Tracking instructions", "InstructionTracker",);
+    // Define a plugin whose class is InstructionTracker and called "InstructionTracker"
+    S2E_DEFINE_PLUGIN(InstructionTracker,                   // Plugin class
+                      "Tutorial - Tracking instructions",   // Description
+                      "InstructionTracker",                 // Plugin function name
+                      // Plugin dependencies would normally go here. However this plugin does not have any dependencies
+                      );
 
     void InstructionTracker::initialize() {
-
     }
 
     } // namespace plugins
     } // namespace s2e
 
 Finally, we need to compile the plugin with the rest of S2E. For this, add the following line to
-``$S2EDIR/libs2eplugins/src/CMakeLists.txt``, near other plugin declarations::
+``$S2EDIR/libs2eplugins/src/CMakeLists.txt``, near the other plugin declarations::
 
     s2e/Plugins/InstructionTracker.cpp
 
@@ -80,7 +83,24 @@ plugin would look like this:
 
     pluginsConfig.InstructionTracker = {
         -- The address we want to track
-        addressToTrack=0x12345,
+        addressToTrack = 0x12345,
+    }
+
+We also need to add our plugin to the ``Plugins`` table. This can be done one of two ways:
+
+* If using ``s2e-env``, add a call to ``add_plugin`` to ``s2e-config.lua``.
+
+.. code-block:: lua
+
+    add_plugin("InstructionTracker")
+
+* If not using ``s2e-env``, you will have to create the ``Plugins`` table yourself:
+
+.. code-block:: lua
+
+    Plugins = {
+        -- List other plugins here
+        "InstructionTracker",
     }
 
 If we run the plugin as it is now, nothing will happen. S2E ignores any unknown configuration value. We need a
@@ -89,7 +109,7 @@ In our case, we do it during the initialization phase.
 
 .. code-block:: cpp
 
-    // We need this to read configuration files
+    // From libs2ecore. We need this to read configuration files
     #include <s2e/ConfigFile.h>
 
     // ...
@@ -98,19 +118,23 @@ In our case, we do it during the initialization phase.
         m_address = (uint64_t) s2e()->getConfig()->getInt(getConfigKey() + ".addressToTrack");
     }
 
-Do not forget to add ``uint64_t m_address;`` to the private members of class ``InstructionTracker`` in
+Do not forget to add ``uint64_t m_address;`` as a private members of class ``InstructionTracker`` in
 ``InstructionTracker.h``.
 
 Instrumenting Instructions
 ==========================
 
-To instrument an instruction, an S2E plugins registers to the ``onTranslateInstructionStart``  core event. There are
-many other core events to which a plugin can register. These events are defined in  ``CorePlugin.h``.
+To instrument an instruction, an S2E plugin registers to the ``onTranslateInstructionStart`` core event. There are
+many other core events to which a plugin can register. These events are defined in ``CorePlugin.h`` in the
+`libs2ecore <https://github.com/S2E/libs2ecore>`_ repository.
 
 Extend your code as follows. Do not forget to add all new member functions to the (private) section of the class
 declaration.
 
 .. code-block:: cpp
+
+    // From libs2ecore. Provides the hexval function
+    #include <s2e/Utils.h>
 
     void InstructionTracker::initialize() {
         m_address = (uint64_t) s2e()->getConfig()->getInt(getConfigKey() + ".addressToTrack");
@@ -126,19 +150,18 @@ declaration.
                                                     TranslationBlock *tb,
                                                     uint64_t pc) {
         if(m_address == pc) {
-            // When we find an interesting address, ask S2E to invoke our
-            // callback when the address is actually executed.
+            // When we find an interesting address, ask S2E to invoke our callback when the address is actually
+            // executed
             signal->connect(sigc::mem_fun(*this, &InstructionTracker::onInstructionExecution));
         }
     }
 
     // This callback is called only when the instruction at our address is executed.
-    // The callback incurs zero overhead for all other instructions.
+    // The callback incurs zero overhead for all other instructions
     void InstructionTracker::onInstructionExecution(S2EExecutionState *state, uint64_t pc) {
         s2e()->getDebugStream() << "Executing instruction at " << hexval(pc) << '\n';
-        // The plugins can arbitrarily modify/observe the current execution state via
-        // the execution state pointer.
-        // Plugins can also call the s2e() method to use the S2E API.
+        // The plugins can arbitrarily modify/observe the current execution state via the execution state pointer.
+        // Plugins can also call the s2e() method to use the S2E API
     }
 
 Counting Instructions
@@ -153,8 +176,9 @@ The first option is trivial to implement. Simply add an additional member to the
 ``onInstructionExecution`` callback is invoked.
 
 The second option requires to keep per-state plugin information. S2E plugins manage per-state information in a class
-that derives from ``PluginState``. This class must implement a factory method that returns a new instance of the class
-when S2E starts symbolic execution. It  must also implement a ``clone`` method which S2E uses to fork the plugin state.
+that derives from ``PluginState``. This class must implement a ``factory`` method that returns a new instance of the
+class when S2E starts symbolic execution. The ``clone`` method is used to fork the plugin state. Both ``factory`` and
+``clone`` **must** be implemented.
 
 Here is how ``InstructionTracker`` could implement the plugin state.
 
@@ -169,7 +193,7 @@ Here is how ``InstructionTracker`` could implement the plugin state.
             m_count = 0;
         }
 
-        ~InstructionTrackerState() {}
+        virtual ~InstructionTrackerState() {}
 
         static PluginState *factory(Plugin*, S2EExecutionState*) {
             return new InstructionTrackerState();
@@ -188,14 +212,13 @@ Here is how ``InstructionTracker`` could implement the plugin state.
         }
     };
 
-Plugin code can refer to this state using the ``DECLARE_PLUGINSTATE`` macro, like this:
+Plugin code can refer to this state using the ``DECLARE_PLUGINSTATE`` macro:
 
 .. code-block:: cpp
 
     void InstructionTracker::onInstructionExecution(S2EExecutionState *state, uint64_t pc) {
         // This macro declares the plgState variable of type InstructionTrackerState.
-        // It automatically takes care of retrieving the right plugin state attached to the
-        // specified execution state.
+        // It automatically takes care of retrieving the right plugin state attached to the specified execution state
         DECLARE_PLUGINSTATE(InstructionTrackerState, state);
 
         s2e()->getDebugStream() << "Executing instruction at " << hexval(pc) << '\n';
@@ -208,8 +231,9 @@ Exporting Events
 ================
 
 All S2E plugins can define custom events. Other plugins can in turn connect to them and also export their own events.
-This scheme is heavily used by stock S2E plugins. For example, the ``LinuxMonitor`` plugin exports a number of events
-(e.g. segmentation fault, module load, etc.) that can be intercepted by your own plugins.
+This scheme is heavily used by stock S2E plugins. For example, the `LinuxMonitor <../Plugins/Linux/LinuxMonitor.rst>`_
+plugin exports a number of events (e.g. segmentation fault, module load, etc.) that can be intercepted by your own
+plugins.
 
 In this tutorial, we show how ``InstructionTracker`` can expose an event and trigger it when the monitored instruction
 is executed ten times.
@@ -219,20 +243,19 @@ be public, otherwise other plugins will not be able to register.
 
 .. code-block:: cpp
 
-    class InstructionTracker: public Plugin {
+    class InstructionTracker : public Plugin {
         // ...
 
         public:
-            sigc::signal<
-                void,
-                S2EExecutionState *, // The first parameter of the callback is the state
-                uint64_t             // The second parameter is an integer representing the program counter
-                > onPeriodicEvent;
+            sigc::signal<void,
+                         S2EExecutionState *, // The first parameter of the callback is the state
+                         uint64_t             // The second parameter is an integer representing the program counter
+                        > onPeriodicEvent;
 
         //...
     }
 
-Second, we add some logic to fire the event and call all the registered callbacks.
+Second, we add some logic to trigger the event and invoke the registered callbacks.
 
 .. code-block:: cpp
 
@@ -243,32 +266,31 @@ Second, we add some logic to fire the event and call all the registered callback
 
         plgState->increment();
 
-        //Fire the event
+        // Trigger the event
         if ((plgState->get() % 10) == 0) {
             onPeriodicEvent.emit(state, pc);
         }
     }
 
 That is all we need to define and trigger an event. To register for this event, a plugin invokes
-``s2e()->getPlugin("PluginName");``, where ``PluginName`` is the name of the plugin as defined in the
+``s2e()->getPlugin<PluginName>()``, where ``PluginName`` is the name of the plugin as defined in the
 ``S2E_DEFINE_PLUGIN`` macro. In our case, a plugin named ``MyClient`` would do something like this in its
 initialization routine:
 
 .. code-block:: cpp
+
+    // Include the plugin's header file
+    #include <s2e/Plugins/InstructionCounter.h>
 
     // Specify dependencies
     S2E_DEFINE_PLUGIN(MyClient, "We use InstructionTracker", "MyClient", "InstructionTracker");
 
     void MyClient::initialize() {
         // Get the instance of the plugin
-        InstructionTracker *tracker = static_cast<InstructionTracker*>(s2e()->getPlugin("InstructionTracker"));
-        assert(tracker);
+        Instructiontracker *tracker = s2e()->getPlugin<InstructionTracker>();
 
         // Register to custom events
-        tracker->onPeriodicEvent...
-
-        // Call plugin's public members
-        tracker->...
+        tracker->onPeriodicEvent.connect(/* Connect a handler method */);
     }
 
 Note that S2E enforces the plugin dependencies specified in the ``S2E_DEFINE_PLUGIN`` macro. If a dependency is not
@@ -276,5 +298,5 @@ satisfied (e.g., the plugin is not enabled in the configuration file or is not c
 emit an error message instead.
 
 It is not always necessary to specify the dependencies. For example, a plugin may want to work with reduced
-functionality if some dependent plugin is missing. Attempting to call ``s2e()->getPlugin()``  returns ``nullptr`` if
+functionality if a dependent plugin is missing. Attempting to call ``s2e()->getPlugin()`` returns ``nullptr`` if
 the requested plugin is missing.
