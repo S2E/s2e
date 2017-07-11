@@ -203,6 +203,30 @@ Some "real-world" examples of how to configure your project are presented in the
 
 Once you have finalized your configuration files and launch scripts, run ``launch-s2e.sh`` to begin the analysis.
 
+Importing and exporting projects
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Projects can be exported and shared with others. The following command will export a project named my_project as a
+tar.xz archive.
+
+.. code-block:: console
+
+    s2e export_project my_project /path/to/my/my_project_archive.tar.xz
+
+The export process will replace all absolute paths relating to your S2E environment with a placeholder string. This
+placeholder is then rewritten when the project is imported into another S2E environment via:
+
+.. code-block:: console
+
+    s2e import_project /path/to/my/my_project_archive.tar.xz
+
+There are a few things to note when exporting and importing projects:
+
+* Image information for the specific project is exported "as-is". Therefore the destination environment for the
+  imported project must have a valid image with the details provided in the ``project.json`` file.
+* The guest-tools and guestfs directories are not exported. Instead symlinks to these directories are recreated on
+  project import.
+
 Next steps
 ----------
 
