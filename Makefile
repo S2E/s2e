@@ -133,8 +133,15 @@ guestclean:
 distclean: clean guestclean
 	-rm -Rf $(CLANG_BINARY_DIR) $(LLVM_SRC_DIR) $(LLVM_DIRS) tools-debug tools-release
 
+# From https://stackoverflow.com/questions/4219255/how-do-you-get-the-list-of-targets-in-a-makefile
+list:
+	@$(MAKE) -pRrq -f $(lastword $(MAKEFILE_LIST)) : 2>/dev/null |                                  \
+		awk -v RS= -F: '/^# File/,/^# Finished Make data base/ {if ($$1 !~ "^[#.]") {print $$1}}' | \
+		sort | egrep -v -e '^[^[:alnum:]]' -e '^$@$$' | xargs
+
 .PHONY: all all-debug all-release
 .PHONY: clean distclean guestclean
+.PHONY: list
 
 ALWAYS:
 
@@ -563,7 +570,6 @@ stamps/libs2e-release-install: stamps/libs2e-release-make
 	mkdir -p $(S2EPREFIX)/share/libs2e/
 
 	install $(S2EBUILD)/libs2e-release/x86_64-softmmu/libs2e.so $(S2EPREFIX)/share/libs2e/libs2e-x86_64.so
-
 	install $(S2EBUILD)/libs2e-release/i386-softmmu/libs2e.so $(S2EPREFIX)/share/libs2e/libs2e-i386.so
 
 	install $(S2EBUILD)/libs2e-release/x86_64-s2e-softmmu/op_helper.bc.x86_64 $(S2EPREFIX)/share/libs2e/
@@ -709,7 +715,7 @@ stamps/guest-tools%-install: stamps/guest-tools%-make guest-tools32-windrv guest
 # DECREE #
 ##########
 
-stamps/decree-configure: CONFIGURE_COMMAND = cmake                                 \
+stamps/decree-configure: CONFIGURE_COMMAND = cmake                              \
                                           -DCMAKE_INSTALL_PREFIX=$(S2EPREFIX)   \
                                           $(S2ESRC)/decree
 
