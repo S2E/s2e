@@ -31,22 +31,45 @@ S2E_DEFINE_PLUGIN(DecreeMonitor, "DecreeMonitor S2E plugin", "OSMonitor", "BaseI
 
 namespace decree {
 
-/// The start address of the kernel
+///
+/// \brief The start address of the kernel
+///
+/// This is configured in the Linux kernel via the CONFIG_PAGE_OFFSET option. This is the default value for X86.
+///
 static const uint64_t KERNEL_START_ADDRESS = 0xC0000000;
 
-// TODO Get real stack size from process memory map
-static const unsigned STACK_SIZE = 16 * 1024 * 1024;
+// From arch/x86/include/asm/page_types.h
+static const unsigned PAGE_SHIFT = 12;
+static const unsigned PAGE_SIZE = 1UL << PAGE_SHIFT;
+
+// From arch/x86/include/asm/page_32_types.h
+static const unsigned THREAD_SIZE_ORDER = 1;
+
+// From arch/x86/include/asm/page_32_types.h
+static const unsigned THREAD_SIZE = PAGE_SIZE << THREAD_SIZE_ORDER;
+
+///
+/// Pointer to the address of ESP0 in the Task State Segment (TSS).
+/// ESP0 is the stack pointer to load when in kernel mode
+///
+static const unsigned TSS_ESP0_OFFSET = 4;
+
+///
+/// \brief Process identifier offset
+///
+/// Found with "pahole vmlinux -C task_struct | grep pid". Note that this
+/// requires that the kernel be built with debug information.
+///
+static const unsigned TASK_STRUCT_PID_OFFSET = 320;
+
+/// \brief We assume allocation of this amount of memory will never fail
+static const unsigned SAFE_ALLOCATE_SIZE = 16 * 1024 * 1024;
 
 } // namespace decree
 
-/// \brief We assume allocation of this amount of memory will never fail
-#define SAFE_ALLOCATE_SIZE (16 * 1024 * 1024)
-
-DecreeMonitor::DecreeMonitor(S2E *s2e)
-    : BaseLinuxMonitor(s2e, decree::KERNEL_START_ADDRESS, decree::STACK_SIZE, S2E_DECREEMON_COMMAND_VERSION) {
-}
-
 void DecreeMonitor::initialize() {
+    m_kernelStartAddress = decree::KERNEL_START_ADDRESS;
+
     m_base = s2e()->getPlugin<BaseInstructions>();
     m_vmi = s2e()->getPlugin<Vmi>();
 
@@ -59,10 +82,6 @@ void DecreeMonitor::initialize() {
 
     ConfigFile *cfg = s2e()->getConfig();
 
-    m_invokeOriginalSyscalls = cfg->getBool(getConfigKey() + ".invokeOriginalSyscalls", false);
-
-    m_printOpcodeOffsets = cfg->getBool(getConfigKey() + ".printOpcodeOffsets", false);
-
     m_symbolicReadLimitCount = cfg->getInt(getConfigKey() + ".symbolicReadLimitCount", 16 * 1024 * 1024);
     m_maxReadLimitCount = cfg->getInt(getConfigKey() + ".maxReadLimitCount", 16 * 1024 * 1024);
     if (!(m_symbolicReadLimitCount <= m_maxReadLimitCount)) {
@@ -70,17 +89,16 @@ void DecreeMonitor::initialize() {
         exit(-1);
     }
 
+    m_invokeOriginalSyscalls = cfg->getBool(getConfigKey() + ".invokeOriginalSyscalls", false);
+    m_printOpcodeOffsets = cfg->getBool(getConfigKey() + ".printOpcodeOffsets", false);
     m_terminateOnSegfault = cfg->getBool(getConfigKey() + ".terminateOnSegfault", true);
     m_terminateProcessGroupOnSegfault = cfg->getBool(getConfigKey() + ".terminateProcessGroupOnSegfault", false);
-
     m_concolicMode = cfg->getBool(getConfigKey() + ".concolicMode", false);
-
     m_logWrittenData = cfg->getBool(getConfigKey() + ".logWrittenData", true);
-
     m_handleSymbolicAllocateSize = cfg->getBool(getConfigKey() + ".handleSymbolicAllocateSize", false);
     m_handleSymbolicBufferSize = cfg->getBool(getConfigKey() + ".handleSymbolicBufferSize", false);
-
     m_feedConcreteData = cfg->getString(getConfigKey() + ".feedConcreteData", "");
+
     m_symbolicReadLimitCount += m_feedConcreteData.length();
     m_maxReadLimitCount += m_feedConcreteData.length();
 
@@ -234,7 +252,7 @@ klee::ref<klee::Expr> DecreeMonitor::readMemory8(S2EExecutionState *state, uint6
 uint64_t DecreeMonitor::getPid(S2EExecutionState *state, uint64_t pc) {
     target_ulong pid;
     target_ulong taskStructPtr = getTaskStructPtr(state);
-    unsigned pidAddress = taskStructPtr + 320; // Offsets can be found with: pahole vmlinux -C task_struct
+    target_ulong pidAddress = taskStructPtr + decree::TASK_STRUCT_PID_OFFSET;
 
     if (!state->mem()->readMemoryConcrete(pidAddress, &pid, sizeof(pid))) {
         return -1;
@@ -533,6 +551,32 @@ void DecreeMonitor::handleGetCfgBool(S2EExecutionState *state, uint64_t pid, S2E
     d.value = value;
 }
 
+///
+/// \brief Get the base address of the \c task_struct in the kernel
+///
+/// Note that the method used (i.e. reading the TSS to get the \c current_thread_info, as described at
+/// https://stackoverflow.com/questions/11961490/understanding-the-getting-of-task-struct-pointer-from-process-kernel-stack)
+/// is only appicable for Linux kernel < 4.x. The Linux kernel used for the CGC is version 3.x
+///
+target_ulong DecreeMonitor::getTaskStructPtr(S2EExecutionState *state) {
+    target_ulong esp0;
+    target_ulong esp0Addr = env->tr.base + decree::TSS_ESP0_OFFSET;
+
+    if (!state->mem()->readMemoryConcrete(esp0Addr, &esp0, sizeof(esp0))) {
+        return -1;
+    }
+
+    // Based on the "current_stack" function in arch/x86/kernel/irq_32.c
+    target_ulong currentThreadInfo = esp0 & ~(decree::THREAD_SIZE - 1);
+    target_ulong taskStructPtr;
+
+    if (!state->mem()->readMemoryConcrete(currentThreadInfo, &taskStructPtr, sizeof(taskStructPtr))) {
+        return -1;
+    }
+
+    return taskStructPtr;
+}
+
 uint64_t DecreeMonitor::getMaxValue(S2EExecutionState *state, ref<Expr> value) {
     std::pair<ref<Expr>, ref<Expr>> range;
     Query query(state->constraints, value);
@@ -604,7 +648,7 @@ void DecreeMonitor::handleSymbolicAllocateSize(S2EExecutionState *state, uint64_
         return;
     }
 
-    handleSymbolicSize(state, pid, SAFE_ALLOCATE_SIZE, size, d.size_addr);
+    handleSymbolicSize(state, pid, decree::SAFE_ALLOCATE_SIZE, size, d.size_addr);
 }
 
 /// \brief Find how many contiguous bytes we have in mapped memory

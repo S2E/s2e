@@ -100,13 +100,14 @@ template <typename T> T &operator<<(T &stream, const S2E_DECREEMON_COMMANDS &c) 
     return stream;
 }
 
-class DecreeMonitor : public BaseLinuxMonitor<S2E_DECREEMON_COMMAND> {
+class DecreeMonitor : public BaseLinuxMonitor<S2E_DECREEMON_COMMAND, S2E_DECREEMON_COMMAND_VERSION> {
     S2E_PLUGIN
 
     friend class DecreeMonitorState;
 
 public:
-    DecreeMonitor(S2E *s2e);
+    DecreeMonitor(S2E *s2e) : BaseLinuxMonitor(s2e) {
+    }
 
     void initialize();
 
@@ -245,6 +246,8 @@ public:
     static bool isWriteFd(uint32_t fd);
 
 private:
+    target_ulong getTaskStructPtr(S2EExecutionState *state);
+
     uint64_t getMaxValue(S2EExecutionState *state, klee::ref<klee::Expr> value);
     void handleSymbolicSize(S2EExecutionState *state, uint64_t pid, uint64_t safeLimit, klee::ref<klee::Expr> size,
                             uint64_t sizeAddr);

@@ -18,37 +18,6 @@ namespace plugins {
 
 S2E_DEFINE_PLUGIN(LinuxMonitor, "LinuxMonitor S2E plugin", "OSMonitor", "BaseInstructions");
 
-namespace linux {
-
-//
-// These are default values specific to version 4.9.3 of the Linux kernel. If
-// the user wishes to use different configuration values and/or a different
-// version of the kernel, these values should be recalculated as required
-//
-
-/// \brief The start address of the kernel
-///
-/// This is configured in the Linux kernel via the CONFIG_PAGE_OFFSET option.
-/// This is the default value for X86
-static const uint64_t KERNEL_START_ADDRESS = 0xC0000000;
-
-// TODO Get real stack size from process memory map
-static const unsigned STACK_SIZE = 16 * 1024 * 1024;
-
-/// \brief Process identifier offset
-///
-/// Found with "pahole vmlinux -C task_struct | grep pid". Note that this
-/// requires that the kernel be built with debug information.
-static const unsigned TASK_STRUCT_PID_OFFSET = 884;
-
-/// \brief Thread group identifier offset
-///
-/// Found with "pahole vmlinux -C task_struct | grep tgid". Note that this
-/// requires that the kernel be built with debug information.
-static const unsigned TASK_STRUCT_TGID_OFFSET = 888;
-
-} // namespace linux
-
 ///
 /// \brief Plugin state for the LinuxMonitor
 ///
@@ -70,12 +39,9 @@ public:
 
 ////////////////
 
-LinuxMonitor::LinuxMonitor(S2E *s2e)
-    : BaseLinuxMonitor(s2e, linux::KERNEL_START_ADDRESS, linux::STACK_SIZE, S2E_LINUXMON_COMMAND_VERSION) {
-}
-
 void LinuxMonitor::initialize() {
     ConfigFile *cfg = s2e()->getConfig();
+
     m_terminateOnSegfault = cfg->getBool(getConfigKey() + ".terminateOnSegfault", true);
     m_terminateOnTrap = cfg->getBool(getConfigKey() + ".terminateOnTrap", true);
 }
@@ -93,28 +59,38 @@ uint64_t LinuxMonitor::getPid(S2EExecutionState *state, uint64_t pc) {
 // Therefore the getPid method returns the TGID and getTid returns the PID.
 //
 
-// XXX: this assumes 64-bit kernels!
 uint64_t LinuxMonitor::getPid(S2EExecutionState *state) {
-    target_ulong tgid;
-    target_ulong taskStructPtr = getTaskStructPtr(state);
-    target_ulong tgidAddress = taskStructPtr + linux::TASK_STRUCT_TGID_OFFSET;
+    target_ulong currentTask;
 
-    if (!state->mem()->readMemoryConcrete(tgidAddress, &tgid, sizeof(tgid))) {
+    if (!state->mem()->readMemoryConcrete(m_currentTaskAddr, &currentTask, sizeof(currentTask))) {
         return -1;
-    } else {
-        return tgid;
     }
-}
 
-uint64_t LinuxMonitor::getTid(S2EExecutionState *state) {
-    target_ulong pid;
-    target_ulong taskStructPtr = getTaskStructPtr(state);
-    target_ulong pidAddress = taskStructPtr + linux::TASK_STRUCT_PID_OFFSET;
+    // In the kernel the `pid_t` type is just a typedef for `int` (see include/uapi/asm-generic/posix_types.h)
+    int pid;
+    target_ulong pidAddress = currentTask + m_taskStructTgidOffset;
 
     if (!state->mem()->readMemoryConcrete(pidAddress, &pid, sizeof(pid))) {
         return -1;
     } else {
         return pid;
+    }
+}
+
+uint64_t LinuxMonitor::getTid(S2EExecutionState *state) {
+    target_ulong currentTask;
+
+    if (!state->mem()->readMemoryConcrete(m_currentTaskAddr, &currentTask, sizeof(currentTask))) {
+        return -1;
+    }
+
+    target_ulong tid;
+    target_ulong tidAddress = m_currentTaskAddr + m_taskStructPidOffset;
+
+    if (!state->mem()->readMemoryConcrete(tidAddress, &tid, sizeof(tid))) {
+        return -1;
+    } else {
+        return tid;
     }
 }
 
@@ -201,7 +177,7 @@ void LinuxMonitor::handleProcessExit(S2EExecutionState *state, const S2E_LINUXMO
         return;
     }
 
-    getDebugStream(state) << "Removing task (pid=" << cmd.currentPid << ", cr3=" << mod->AddressSpace
+    getDebugStream(state) << "Removing task (pid=" << hexval(cmd.currentPid) << ", cr3=" << hexval(mod->AddressSpace)
                           << ", exitCode=" << cmd.ProcessExit.code << ") record from collector.\n";
     plgState->removeModule(*mod);
 
@@ -225,6 +201,19 @@ void LinuxMonitor::handleTrap(S2EExecutionState *state, const S2E_LINUXMON_COMMA
     }
 }
 
+void LinuxMonitor::handleInit(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd) {
+    getDebugStream(state) << "Received kernel init"
+                          << " page_offset=" << hexval(cmd.Init.page_offset)
+                          << " &current_task=" << hexval(cmd.Init.current_task_address)
+                          << " task_struct.pid offset=" << cmd.Init.task_struct_pid_offset
+                          << " task_struct.tgid offset=" << cmd.Init.task_struct_tgid_offset << "\n";
+
+    m_kernelStartAddress = cmd.Init.page_offset;
+    m_currentTaskAddr = cmd.Init.current_task_address;
+    m_taskStructPidOffset = cmd.Init.task_struct_pid_offset;
+    m_taskStructTgidOffset = cmd.Init.task_struct_tgid_offset;
+}
+
 void LinuxMonitor::handleCommand(S2EExecutionState *state, uint64_t guestDataPtr, uint64_t guestDataSize,
                                  S2E_LINUXMON_COMMAND &cmd) {
     switch (cmd.Command) {
@@ -246,6 +235,10 @@ void LinuxMonitor::handleCommand(S2EExecutionState *state, uint64_t guestDataPtr
 
         case LINUX_PROCESS_EXIT:
             handleProcessExit(state, cmd);
+            break;
+
+        case LINUX_INIT:
+            handleInit(state, cmd);
             break;
     }
 }

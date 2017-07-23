@@ -46,14 +46,24 @@ template <typename T> T &operator<<(T &stream, const S2E_LINUXMON_COMMANDS &c) {
 /// Linux 4.9.3 kernel, which can be accessed at
 /// https://github.com/S2E/s2e-linux-kernel.git in the linux-4.9.3 branch.
 ///
-class LinuxMonitor : public BaseLinuxMonitor<S2E_LINUXMON_COMMAND> {
+class LinuxMonitor : public BaseLinuxMonitor<S2E_LINUXMON_COMMAND, S2E_LINUXMON_COMMAND_VERSION> {
     S2E_PLUGIN
 public:
-    // Initialize the plugin
-    LinuxMonitor(S2E *s2e);
-    virtual void initialize();
+    LinuxMonitor(S2E *s2e) : BaseLinuxMonitor(s2e) {
+    }
+
+    void initialize();
 
 private:
+    /// Address of the \c current_task object in the Linux kernel (see arch/x86/kernel/cpu/common.c)
+    uint64_t m_currentTaskAddr;
+
+    /// Offset of the process identifier in the \c task_struct struct (see include/linux/sched.h)
+    uint64_t m_taskStructPidOffset;
+
+    /// Offset of the thread group identifier in the \c task_struct struct (see include/linux/sched.h)
+    uint64_t m_taskStructTgidOffset;
+
     /// Terminate if a trap (e.g. divide by zero) occurs
     bool m_terminateOnTrap;
 
@@ -67,14 +77,13 @@ private:
     void handleModuleLoad(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd);
     void handleProcessExit(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd);
     void handleTrap(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd);
+    void handleInit(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd);
 
 public:
     /// Emitted when a trap occurs in the kernel (e.g. divide by zero, etc.)
-    sigc::signal<void, S2EExecutionState *,
-                 uint64_t, // pid
-                 uint64_t, // pc
-                 int       // trapnr
-                 >
+    sigc::signal<void, S2EExecutionState *, uint64_t, /* pid */
+                 uint64_t,                            /* pc */
+                 int /* trapnr */>
         onTrap;
 
     // Get the current process identifier
