@@ -70,8 +70,8 @@ void ProcessExecutionDetector::onProcessLoad(S2EExecutionState *state, uint64_t 
     if (m_trackedModules.find(ImageFileName) != m_trackedModules.end()) {
         DECLARE_PLUGINSTATE(ProcessExecutionDetectorState, state);
 
-        getDebugStream() << "starting to track: " << ImageFileName << " (pid: " << hexval(pid)
-                         << " as: " << hexval(pageDir) << ")\n";
+        getDebugStream(state) << "starting to track: " << ImageFileName << " (pid: " << hexval(pid)
+                              << " as: " << hexval(pageDir) << ")\n";
 
         plgState->m_trackedPids.insert(pid);
     }
@@ -79,7 +79,7 @@ void ProcessExecutionDetector::onProcessLoad(S2EExecutionState *state, uint64_t 
 
 void ProcessExecutionDetector::onProcessUnload(S2EExecutionState *state, uint64_t pageDir, uint64_t pid) {
     DECLARE_PLUGINSTATE(ProcessExecutionDetectorState, state);
-    getDebugStream() << "Unloading process " << hexval(pid) << "\n";
+    getDebugStream(state) << "Unloading process " << hexval(pid) << "\n";
     plgState->m_trackedPids.erase(pid);
 }
 

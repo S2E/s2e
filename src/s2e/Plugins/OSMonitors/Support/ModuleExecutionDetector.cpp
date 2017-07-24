@@ -151,18 +151,18 @@ bool ModuleExecutionDetector::opAddModuleConfigEntry(S2EExecutionState *state) {
     ok &= state->readCpuRegisterConcrete(CPU_OFFSET(regs[R_EDX]), &isKernelMode, sizeof(isKernelMode));
 
     if (!ok) {
-        getWarningsStream(state) << "ModuleExecutionDetector: Could not read parameters.\n";
+        getWarningsStream(state) << "Could not read parameters\n";
         return false;
     }
 
     std::string strModuleId, strModuleName;
     if (!state->mem()->readString(moduleId, strModuleId)) {
-        getWarningsStream(state) << "ModuleExecutionDetector: Could not read the module id string.\n";
+        getWarningsStream(state) << "Could not read the module id string\n";
         return false;
     }
 
     if (!state->mem()->readString(moduleName, strModuleName)) {
-        getWarningsStream(state) << "ModuleExecutionDetector: Could not read the module name string.\n";
+        getWarningsStream(state) << "Could not read the module name string\n";
         return false;
     }
 
@@ -274,10 +274,9 @@ void ModuleExecutionDetector::moduleLoadListener(S2EExecutionState *state, const
     DECLARE_PLUGINSTATE(ModuleTransitionState, state);
 
     // If module name matches the configured ones, activate.
-    getDebugStream() << "ModuleExecutionDetector: "
-                     << "Module " << module.Name << " loaded - "
-                     << "Base=" << hexval(module.LoadBase) << " NativeBase=" << hexval(module.NativeBase)
-                     << " Size=" << hexval(module.Size) << " AS=" << hexval(module.AddressSpace) << "\n";
+    getDebugStream(state) << "Module " << module.Name << " loaded - "
+                          << "Base=" << hexval(module.LoadBase) << " NativeBase=" << hexval(module.NativeBase)
+                          << " Size=" << hexval(module.Size) << " AS=" << hexval(module.AddressSpace) << "\n";
 
     ModuleExecutionCfg cfg;
     cfg.moduleName = module.Name;
@@ -286,7 +285,7 @@ void ModuleExecutionDetector::moduleLoadListener(S2EExecutionState *state, const
         if (plgState->exists(&module, true)) {
             getWarningsStream(state) << " [ALREADY REGISTERED] " << module.Name << "\n";
         } else {
-            getDebugStream() << " [REGISTERING]" << '\n';
+            getDebugStream(state) << " [REGISTERING]\n";
             plgState->loadDescriptor(module, true);
             onModuleLoad.emit(state, module);
         }
@@ -296,20 +295,20 @@ void ModuleExecutionDetector::moduleLoadListener(S2EExecutionState *state, const
     ConfiguredModulesByName::iterator it = m_ConfiguredModulesName.find(cfg);
     if (it != m_ConfiguredModulesName.end()) {
         if (plgState->exists(&module, true)) {
-            getDebugStream() << " [ALREADY REGISTERED ID=" << (*it).id << "]" << '\n';
+            getDebugStream(state) << " [ALREADY REGISTERED ID=" << it->id << "]" << '\n';
         } else {
-            getDebugStream() << " [REGISTERING ID=" << (*it).id << "]" << '\n';
+            getDebugStream(state) << " [REGISTERING ID=" << it->id << "]" << '\n';
             plgState->loadDescriptor(module, true);
             onModuleLoad.emit(state, module);
         }
         return;
     }
 
-    getDebugStream() << '\n';
+    getDebugStream(state) << '\n';
 
     if (m_TrackAllModules) {
         if (!plgState->exists(&module, false)) {
-            getDebugStream() << " [REGISTERING NOT TRACKED]" << '\n';
+            getDebugStream(state) << " [REGISTERING NOT TRACKED]" << '\n';
             plgState->loadDescriptor(module, false);
             onModuleLoad.emit(state, module);
         }
@@ -320,7 +319,7 @@ void ModuleExecutionDetector::moduleLoadListener(S2EExecutionState *state, const
 void ModuleExecutionDetector::moduleUnloadListener(S2EExecutionState *state, const ModuleDescriptor &module) {
     DECLARE_PLUGINSTATE(ModuleTransitionState, state);
 
-    getDebugStream() << "Module " << module.Name << " is unloaded" << '\n';
+    getDebugStream(state) << "Module " << module.Name << " is unloaded" << '\n';
 
     plgState->unloadDescriptor(module);
 }
@@ -328,7 +327,7 @@ void ModuleExecutionDetector::moduleUnloadListener(S2EExecutionState *state, con
 void ModuleExecutionDetector::processUnloadListener(S2EExecutionState *state, uint64_t addressSpace, uint64_t pid) {
     DECLARE_PLUGINSTATE(ModuleTransitionState, state);
 
-    getDebugStream() << "Process " << hexval(addressSpace) << " is unloaded\n";
+    getDebugStream(state) << "Process " << hexval(addressSpace) << " is unloaded\n";
 
     plgState->unloadDescriptorsWithAddressSpace(addressSpace);
 }
@@ -378,10 +377,10 @@ const std::string *ModuleExecutionDetector::getModuleId(const ModuleDescriptor &
     }
 
     if (index) {
-        *index = (*it).index;
+        *index = it->index;
     }
 
-    return &(*it).id;
+    return &(it->id);
 }
 
 std::vector<const ModuleDescriptor *> ModuleExecutionDetector::getModules(S2EExecutionState *state,
@@ -604,7 +603,7 @@ ModuleTransitionState *ModuleTransitionState::clone() const {
 PluginState *ModuleTransitionState::factory(Plugin *p, S2EExecutionState *state) {
     ModuleTransitionState *s = new ModuleTransitionState();
 
-    p->getDebugStream() << "Creating initial module transition state" << '\n';
+    p->getDebugStream() << "Creating initial module transition state\n";
 
     return s;
 }
