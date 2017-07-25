@@ -36,6 +36,7 @@ enum S2E_LINUXMON_COMMANDS {
     LINUX_MODULE_LOAD,
     LINUX_TRAP,
     LINUX_PROCESS_EXIT,
+    LINUX_INIT,
 };
 
 struct S2E_LINUXMON_COMMAND_PROCESS_LOAD {
@@ -76,6 +77,13 @@ struct S2E_LINUXMON_COMMAND_PROCESS_EXIT {
     uint64_t code;
 } __attribute__((packed));
 
+struct S2E_LINUXMON_COMMAND_INIT {
+    uint64_t page_offset;
+    uint64_t current_task_address;
+    uint64_t task_struct_pid_offset;
+    uint64_t task_struct_tgid_offset;
+} __attribute__((packed));
+
 struct S2E_LINUXMON_COMMAND {
     uint64_t version;
     enum S2E_LINUXMON_COMMANDS Command;
@@ -86,6 +94,7 @@ struct S2E_LINUXMON_COMMAND {
         struct S2E_LINUXMON_COMMAND_SEG_FAULT SegFault;
         struct S2E_LINUXMON_COMMAND_TRAP Trap;
         struct S2E_LINUXMON_COMMAND_PROCESS_EXIT ProcessExit;
+        struct S2E_LINUXMON_COMMAND_INIT Init;
     };
     char currentName[32]; // not NULL terminated
 } __attribute__((packed));
