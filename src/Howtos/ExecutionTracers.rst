@@ -79,13 +79,15 @@ file.
 S2E comes with several tools that parse and display the execution traces. They are located in the `tools`  folder of
 the source distribution. You can find the documentation for them on the `main page <../index.rst>`_.
 
-Here is an example that prints the list of executed translation blocks and all memory accesses performed in paths #0
-and #34.
+Here is an example that prints the list of executed translation blocks and all memory accesses performed in paths 0 and
+34.
 
 .. code-block:: console
 
     $S2EDIR/build-s2e/tools-release/tools/tbtrace/tbtrace -trace=s2e-last/ExecutionTracer.dat \
         -outputdir=s2e-last/traces -pathId=0 -pathId=34 -printMemory
+
+You can also use `s2e-env <../s2e-env.rst>`_ to parse the execution trace.
 
 Mini-FAQ
 ========
