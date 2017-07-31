@@ -89,6 +89,9 @@ protected:
     /// Start address of the Linux kernel
     uint64_t m_kernelStartAddress;
 
+    /// Offset of the process identifier in the \c task_struct struct (see include/linux/sched.h)
+    uint64_t m_taskStructPidOffset;
+
     /// Terminate if a segment fault occurs
     bool m_terminateOnSegfault;
 

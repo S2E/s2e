@@ -273,6 +273,7 @@ private:
     void handleUpdateMemoryMap(S2EExecutionState *state, uint64_t pid,
                                const S2E_DECREEMON_COMMAND_UPDATE_MEMORY_MAP &d);
     void handleSetParams(S2EExecutionState *state, uint64_t pid, S2E_DECREEMON_COMMAND_SET_CB_PARAMS &d);
+    void handleInit(S2EExecutionState *state, const S2E_DECREEMON_COMMAND_INIT &d);
 };
 
 } // namespace plugins

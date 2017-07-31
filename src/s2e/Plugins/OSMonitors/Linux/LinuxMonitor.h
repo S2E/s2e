@@ -58,9 +58,6 @@ private:
     /// Address of the \c current_task object in the Linux kernel (see arch/x86/kernel/cpu/common.c)
     uint64_t m_currentTaskAddr;
 
-    /// Offset of the process identifier in the \c task_struct struct (see include/linux/sched.h)
-    uint64_t m_taskStructPidOffset;
-
     /// Offset of the thread group identifier in the \c task_struct struct (see include/linux/sched.h)
     uint64_t m_taskStructTgidOffset;
 

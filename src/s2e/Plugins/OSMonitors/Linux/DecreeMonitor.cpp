@@ -31,13 +31,6 @@ S2E_DEFINE_PLUGIN(DecreeMonitor, "DecreeMonitor S2E plugin", "OSMonitor", "BaseI
 
 namespace decree {
 
-///
-/// \brief The start address of the kernel
-///
-/// This is configured in the Linux kernel via the CONFIG_PAGE_OFFSET option. This is the default value for X86.
-///
-static const uint64_t KERNEL_START_ADDRESS = 0xC0000000;
-
 // From arch/x86/include/asm/page_types.h
 static const unsigned PAGE_SHIFT = 12;
 static const unsigned PAGE_SIZE = 1UL << PAGE_SHIFT;
@@ -54,22 +47,12 @@ static const unsigned THREAD_SIZE = PAGE_SIZE << THREAD_SIZE_ORDER;
 ///
 static const unsigned TSS_ESP0_OFFSET = 4;
 
-///
-/// \brief Process identifier offset
-///
-/// Found with "pahole vmlinux -C task_struct | grep pid". Note that this
-/// requires that the kernel be built with debug information.
-///
-static const unsigned TASK_STRUCT_PID_OFFSET = 320;
-
 /// \brief We assume allocation of this amount of memory will never fail
 static const unsigned SAFE_ALLOCATE_SIZE = 16 * 1024 * 1024;
 
 } // namespace decree
 
 void DecreeMonitor::initialize() {
-    m_kernelStartAddress = decree::KERNEL_START_ADDRESS;
-
     m_base = s2e()->getPlugin<BaseInstructions>();
     m_vmi = s2e()->getPlugin<Vmi>();
 
@@ -252,7 +235,7 @@ klee::ref<klee::Expr> DecreeMonitor::readMemory8(S2EExecutionState *state, uint6
 uint64_t DecreeMonitor::getPid(S2EExecutionState *state, uint64_t pc) {
     target_ulong pid;
     target_ulong taskStructPtr = getTaskStructPtr(state);
-    target_ulong pidAddress = taskStructPtr + decree::TASK_STRUCT_PID_OFFSET;
+    target_ulong pidAddress = taskStructPtr + m_taskStructPidOffset;
 
     if (!state->mem()->readMemoryConcrete(pidAddress, &pid, sizeof(pid))) {
         return -1;
@@ -857,6 +840,14 @@ void DecreeMonitor::handleSetParams(S2EExecutionState *state, uint64_t pid, S2E_
     memcpy(d.cgc_seed, newSeed, d.cgc_seed_len);
 }
 
+void DecreeMonitor::handleInit(S2EExecutionState *state, const S2E_DECREEMON_COMMAND_INIT &d) {
+    getDebugStream(state) << "handleInit: page_offset=" << hexval(d.page_offset)
+                          << " task_struct.pid offset=" << d.task_struct_pid_offset << "\n";
+
+    m_kernelStartAddress = d.page_offset;
+    m_taskStructPidOffset = d.task_struct_pid_offset;
+}
+
 void DecreeMonitor::printOpcodeOffsets(S2EExecutionState *state) {
     getDebugStream(state) << "S2E_DECREEMON_COMMAND offsets:\n";
 
@@ -1075,6 +1066,10 @@ void DecreeMonitor::handleCommand(S2EExecutionState *state, uint64_t guestDataPt
                 // a bit harder, it's not a show stopper.
                 s2e_warn_assert(state, false, "Could not write new seed params");
             }
+        } break;
+
+        case DECREE_INIT: {
+            handleInit(state, command.Init);
         } break;
     }
 }
