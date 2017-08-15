@@ -45,7 +45,7 @@ VOID MonitorInitCommon(S2E_WINMON2_COMMAND *Command)
     Command->Structs.KernelBuildNumber = Build;
 }
 
-static void S2ERegisterModule(const AUX_MODULE_EXTENDED_INFO *Info, UCHAR* BaseName)
+static void S2ERegisterModule(const AUX_MODULE_EXTENDED_INFO *Info, UCHAR *BaseName)
 {
     S2E_WINMON2_COMMAND Command;
 
@@ -60,8 +60,8 @@ static void S2ERegisterModule(const AUX_MODULE_EXTENDED_INFO *Info, UCHAR* BaseN
     Command.Module.FileNameOffset = Info->FileNameOffset;
 
     RtlStringCchCopyA((char *)Command.Module.FullPathName,
-        sizeof(Command.Module.FullPathName) - 1,
-        (const char*)Info->FullPathName);
+                      sizeof(Command.Module.FullPathName) - 1,
+                      (const char*)Info->FullPathName);
 
     Command.Module.LoadBase = (UINT_PTR)Info->BasicInfo.ImageBase;
     Command.Module.Size = Info->ImageSize;
@@ -92,7 +92,7 @@ static VOID CheckAccess(PVOID Buffer, SIZE_T Size)
     }
 }
 
-NTSTATUS RegisterKernelStructures(PVOID KernelBase)
+static NTSTATUS RegisterKernelStructures(PVOID KernelBase)
 {
     INT i;
     IMAGE_NT_HEADERS *NtHeaders;
@@ -121,39 +121,16 @@ NTSTATUS RegisterKernelStructures(PVOID KernelBase)
         }
     }
 
-    return STATUS_INVALID_IMAGE_FORMAT;
+    return STATUS_NOT_FOUND;
 }
 
-NTSTATUS RegisterLoadedModules()
+static NTSTATUS FindKernelAndRegisterStructures(_In_ AUX_MODULE_EXTENDED_INFO *Info, _In_ ULONG Count)
 {
-    AUX_MODULE_EXTENDED_INFO *Info;
-    unsigned int i;
-    ULONG BufferSize = 0;
-    BOOLEAN KernelDataLoaded = FALSE;
-    NTSTATUS Result = AuxKlibInitialize();
-    if (!NT_SUCCESS(Result)) {
-        goto err1;
-    }
+    ULONG i;
+    NTSTATUS Status = STATUS_NOT_FOUND;
 
-    //Get the size for the buffer
-    Result = AuxKlibQueryModuleInformation(&BufferSize, sizeof(AUX_MODULE_EXTENDED_INFO), NULL);
-    if (!NT_SUCCESS(Result)) {
-        goto err1;
-    }
-
-    Info = (AUX_MODULE_EXTENDED_INFO*)ExAllocatePoolWithTag(NonPagedPool, BufferSize, 0x12345);
-    if (!Info) {
-        Result = STATUS_INSUFFICIENT_RESOURCES;
-        goto err1;
-    }
-
-    Result = AuxKlibQueryModuleInformation(&BufferSize, sizeof(AUX_MODULE_EXTENDED_INFO), Info);
-    if (!NT_SUCCESS(Result)) {
-        goto err2;
-    }
-
-    for (i = 0; i < BufferSize / sizeof(AUX_MODULE_EXTENDED_INFO); ++i) {
-        UCHAR* BaseName = &Info[i].FullPathName[Info[i].FileNameOffset];
+    for (i = 0; i < Count; ++i) {
+        UCHAR *BaseName = &Info[i].FullPathName[Info[i].FileNameOffset];
         STRING ModuleName;
         STRING KernelName;
         RtlInitString(&ModuleName, (PCSZ)BaseName);
@@ -161,29 +138,73 @@ NTSTATUS RegisterLoadedModules()
         BaseName = (UCHAR*)_strlwr((char*)BaseName);
         if (strstr((const char*)BaseName, "ntoskrnl") || strstr((const char*)BaseName, "ntkrnlpa")) {
             try {
-                Result = RegisterKernelStructures(Info[i].BasicInfo.ImageBase);
-                if (NT_SUCCESS(Result)) {
-                    KernelDataLoaded = TRUE;
+                Status = RegisterKernelStructures(Info[i].BasicInfo.ImageBase);
+                if (NT_SUCCESS(Status)) {
+                    break;
                 }
-            } except(EXCEPTION_EXECUTE_HANDLER) {
+            } except (EXCEPTION_EXECUTE_HANDLER) {
                 LOG("Exception while parsing %s\n", BaseName);
             }
         }
+    }
 
-        /* Send the modules to S2E */
+    return Status;
+}
+
+static VOID RegisterKernelDrivers(_In_ AUX_MODULE_EXTENDED_INFO *Info, _In_ ULONG Count)
+{
+    ULONG i;
+
+    for (i = 0; i < Count; ++i) {
+        UCHAR *BaseName = &Info[i].FullPathName[Info[i].FileNameOffset];
         S2ERegisterModule(&Info[i], BaseName);
     }
+}
 
-    if (!KernelDataLoaded) {
-        S2EKillState(0, "Could not load kernel data info");
-        Result = STATUS_UNSUCCESSFUL;
-        goto err2;
+NTSTATUS RegisterLoadedModules()
+{
+    AUX_MODULE_EXTENDED_INFO *Info = NULL;
+    ULONG Count;
+    ULONG BufferSize = 0;
+
+    NTSTATUS Status = AuxKlibInitialize();
+    if (!NT_SUCCESS(Status)) {
+        goto err;
     }
 
-err2:
-    ExFreePool(Info);
-err1:
-    return Result;
+    //Get the size for the buffer
+    Status = AuxKlibQueryModuleInformation(&BufferSize, sizeof(AUX_MODULE_EXTENDED_INFO), NULL);
+    if (!NT_SUCCESS(Status)) {
+        goto err;
+    }
+
+    Info = (AUX_MODULE_EXTENDED_INFO*)ExAllocatePoolWithTag(NonPagedPool, BufferSize, 0x12345);
+    if (!Info) {
+        Status = STATUS_INSUFFICIENT_RESOURCES;
+        goto err;
+    }
+
+    Status = AuxKlibQueryModuleInformation(&BufferSize, sizeof(AUX_MODULE_EXTENDED_INFO), Info);
+    if (!NT_SUCCESS(Status)) {
+        goto err;
+    }
+
+    Count = BufferSize / sizeof(AUX_MODULE_EXTENDED_INFO);
+
+    Status = FindKernelAndRegisterStructures(Info, Count);
+    if (!NT_SUCCESS(Status)) {
+        S2EKillState(0, "Could not load kernel data info. Make sure that s2e.sys supports the guest kernel.");
+        goto err;
+    }
+
+    RegisterKernelDrivers(Info, Count);
+
+err:
+    if (Info) {
+        ExFreePool(Info);
+    }
+
+    return Status;
 }
 
 //Driver load invocation is at
