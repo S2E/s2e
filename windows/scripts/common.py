@@ -67,7 +67,7 @@ class PdbParser(object):
 
     @property
     def checksum(self):
-        return self._pe.RICH_HEADER.checksum
+        return self._pe.OPTIONAL_HEADER.CheckSum
 
     @property
     def native_base(self):

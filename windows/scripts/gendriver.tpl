@@ -131,7 +131,7 @@ static VOID Handler{{d.checksum | hex}}(UINT_PTR KernelLoadBase, UINT_PTR Kernel
 
     g_kernelStructs.PRCBProcessorStateOffset = (PVOID)(UINT_PTR)(Command.Structs.KPRCB + {{d._KPRCB_ProcessorState | hex}});
 
-    g_KernelStructs = Command.Structs;
+    g_WinmonKernelStructs = Command.Structs;
 
     S2EInvokePlugin("WindowsMonitor", &Command, sizeof(Command));
 }
