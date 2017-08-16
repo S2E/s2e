@@ -87,8 +87,9 @@ Z3_BUILD_DIR=z3
 Z3_URL=https://github.com/Z3Prover/z3
 
 # Lua variables
-LUA_SRC=lua-5.2.4.tar.gz
-LUA_DIR=lua-5.2.4
+LUA_VERSION=5.3.4
+LUA_SRC=lua-$(LUA_VERSION).tar.gz
+LUA_DIR=lua-$(LUA_VERSION)
 
 # SOCI variables
 SOCI_SRC_DIR=soci-src
