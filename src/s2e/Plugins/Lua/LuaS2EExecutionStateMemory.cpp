@@ -21,7 +21,7 @@ Lunar<LuaS2EExecutionStateMemory>::RegType LuaS2EExecutionStateMemory::methods[]
     {0, 0}};
 
 int LuaS2EExecutionStateMemory::readPointer(lua_State *L) {
-    uint64_t value = luaL_checklong(L, 1);
+    long value = (long) luaL_checkinteger(L, 1);
 
     uint64_t pointerSize = m_state->getPointerSize();
     if (pointerSize == 4) {
@@ -38,7 +38,7 @@ int LuaS2EExecutionStateMemory::readPointer(lua_State *L) {
 }
 
 int LuaS2EExecutionStateMemory::write(lua_State *L) {
-    uint64_t pointer = luaL_checklong(L, 1);
+    long pointer = (long) luaL_checkinteger(L, 1);
     void *expr = luaL_checkudata(L, 2, "LuaExpression");
 
     LuaExpression *value = *static_cast<LuaExpression **>(expr);

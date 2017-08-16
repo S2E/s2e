@@ -40,7 +40,7 @@ int LuaS2EExecutionState::regs(lua_State *L) {
 
 int LuaS2EExecutionState::createSymbolicValue(lua_State *L) {
     std::string name = luaL_checkstring(L, 1);
-    uint64_t size = luaL_checklong(L, 2);
+    long size = (long) luaL_checkinteger(L, 2);
 
     assert(size <= 8);
 
@@ -61,7 +61,7 @@ int LuaS2EExecutionState::createSymbolicValue(lua_State *L) {
 }
 
 int LuaS2EExecutionState::kill(lua_State *L) {
-    uint64_t status = luaL_checklong(L, 1);
+    long status = (long) luaL_checkinteger(L, 1);
     std::string message = luaL_checkstring(L, 2);
 
     std::stringstream ss;

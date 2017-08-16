@@ -27,8 +27,8 @@ int LuaS2EExecutionStateRegisters::getPc(lua_State *L) {
 }
 
 int LuaS2EExecutionStateRegisters::read(lua_State *L) {
-    uint64_t pointer = luaL_checklong(L, 1);
-    uint64_t size = luaL_checklong(L, 2);
+    long pointer = (long) luaL_checkinteger(L, 1);
+    long size = (long) luaL_checkinteger(L, 2);
     uint64_t value = 0;
 
     switch (size) {
@@ -58,7 +58,7 @@ int LuaS2EExecutionStateRegisters::read(lua_State *L) {
 }
 
 int LuaS2EExecutionStateRegisters::write(lua_State *L) {
-    uint64_t pointer = luaL_checklong(L, 1);
+    long pointer = (long) luaL_checkinteger(L, 1);
 
     if (lua_isuserdata(L, 2)) {
         void *expr = luaL_checkudata(L, 2, "LuaExpression");
@@ -66,8 +66,8 @@ int LuaS2EExecutionStateRegisters::write(lua_State *L) {
         g_s2e->getDebugStream(m_state) << "Writing " << value->get() << "\n";
         m_state->regs()->write(pointer, value->get());
     } else if (lua_isnumber(L, 2)) {
-        uint64_t value = luaL_checklong(L, 2);
-        uint64_t size = luaL_checklong(L, 3);
+        long value = (long) luaL_checkinteger(L, 2);
+        long size = (long) luaL_checkinteger(L, 3);
         switch (size) {
             case 1:
                 m_state->regs()->write<uint8_t>(pointer, value);
