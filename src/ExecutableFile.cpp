@@ -7,6 +7,7 @@
 ///
 
 #include <vmi/DecreeFile.h>
+#include <vmi/ELFFile.h>
 #include <vmi/PEFile.h>
 
 namespace vmi {
@@ -27,6 +28,16 @@ ExecutableFile *ExecutableFile::get(FileProvider *file, bool loaded, uint64_t lo
     }
 
     ret = DecreeFile::get(file, loaded, loadAddress);
+    if (ret) {
+        return ret;
+    }
+
+    ret = ELFFile32::get(file, loaded, loadAddress);
+    if (ret) {
+        return ret;
+    }
+
+    ret = ELFFile64::get(file, loaded, loadAddress);
     if (ret) {
         return ret;
     }

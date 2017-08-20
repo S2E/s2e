@@ -7,4 +7,9 @@ compiled binaries with debug information, etc.
 
 libvmi relies on libelf and libdwarf to do the actual debug info parsing.
 
-libvmi can be used by S2E plugins.
+libvmi can be used by S2E plugins. Currently the following file formats are
+supported:
+
+* PE
+* DECREE
+* ELF
