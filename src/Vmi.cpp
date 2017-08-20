@@ -83,13 +83,15 @@ inline const VmiTypedefType *VmiType::asTypedef() const {
 
 const VmiType *VmiType::getRealType() const {
     const VmiType *currentType = this;
-    const VmiTypedefType *td = NULL;
+    const VmiTypedefType *td = nullptr;
+
     do {
         td = currentType->asTypedef();
         if (td) {
             currentType = td->getBaseType();
         }
     } while (td);
+
     return currentType;
 }
 
@@ -100,7 +102,7 @@ const VmiType *Vmi::fetchType(const std::string &name) const {
     }
 
     const VmiType *type = m_dwarf->getType(name);
-    if (type != NULL) {
+    if (type != nullptr) {
         m_types[name] = type;
     }
 
@@ -208,10 +210,10 @@ bool Vmi::dereferencePointer(const VmiType *type, uint64_t pointer, uint64_t *va
     }
 
     switch (pointerType->getSize()) {
-        case 4:
+        case sizeof(uint32_t):
             *value = *(uint32_t *) nextAddressBuf;
             break;
-        case 8:
+        case sizeof(uint64_t):
             *value = *(uint64_t *) nextAddressBuf;
             break;
         default:
@@ -426,7 +428,7 @@ bool Vmi::getOffset(const VmiStructureType *struc, const std::string &path, uint
 
 bool Vmi::getOffset(const std::string &strucName, const std::string &path, uintptr_t &offset) const {
     const VmiType *type = fetchType(strucName)->getRealType();
-    if (type == NULL || type->getTypeEnum() != STRUCTURE) {
+    if (type == nullptr || type->getTypeEnum() != STRUCTURE) {
         return false;
     }
 
@@ -441,7 +443,7 @@ const VmiType *Vmi::get(const std::string &name) const {
 bool Vmi::dump(llvm::raw_ostream &os, const std::string &strucName, uint64_t address, void *opaque,
                unsigned margin) const {
     const VmiType *type = fetchType(strucName);
-    if (type == NULL || type->getTypeEnum() != STRUCTURE) {
+    if (type == nullptr || type->getTypeEnum() != STRUCTURE) {
         return false;
     }
 

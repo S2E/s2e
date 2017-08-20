@@ -11,10 +11,8 @@
 
 namespace vmi {
 
-ExecutableFile::ExecutableFile(FileProvider *file, bool loaded, uint64_t loadAddress) {
-    m_file = file;
-    m_loaded = loaded;
-    m_loadAddress = loadAddress;
+ExecutableFile::ExecutableFile(FileProvider *file, bool loaded, uint64_t loadAddress)
+    : m_file(file), m_loaded(loaded), m_loadAddress(loadAddress) {
 }
 
 ExecutableFile::~ExecutableFile() {
@@ -33,6 +31,6 @@ ExecutableFile *ExecutableFile::get(FileProvider *file, bool loaded, uint64_t lo
         return ret;
     }
 
-    return NULL;
+    return nullptr;
 }
 }

@@ -28,10 +28,10 @@ bool WinKernDumpFile::initializePointerSize() {
 
     switch (signature[1]) {
         case DUMP_HDR_DUMPSIGNATURE:
-            m_pointerSize = 4;
+            m_pointerSize = sizeof(uint32_t);
             break;
         case DUMP_HDR_DUMPSIGNATURE64:
-            m_pointerSize = 8;
+            m_pointerSize = sizeof(uint64_t);
             break;
         default:
             return false;
@@ -51,7 +51,7 @@ bool WinKernDumpFile::open(bool writable) {
 
     bool result;
 
-    if (m_pointerSize == 8) {
+    if (m_pointerSize == sizeof(uint64_t)) {
         result = m_file->readb(&Header64, sizeof(Header64), 0);
     } else {
         result = m_file->readb(&Header32, sizeof(Header32), 0);

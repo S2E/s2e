@@ -132,7 +132,7 @@ int main(int argc, char **argv) {
         goto err1;
     }
 
-    if (dump.getPointerSize() == 4) {
+    if (dump.getPointerSize() == sizeof(uint32_t)) {
         DUMP_HEADER32 Header;
         dump.getHeader32(Header);
         dumpHeader(Header);

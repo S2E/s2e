@@ -27,7 +27,7 @@ class BufferedFSFP : public FileSystemFileProvider {
     bool open(bool writable) {
         const char *mode = writable ? "wb" : "rb";
         m_fp = fopen(m_file.c_str(), mode);
-        return m_fp != NULL;
+        return m_fp != nullptr;
     }
 
 public:
@@ -35,12 +35,12 @@ public:
         BufferedFSFP *fp = new BufferedFSFP(filename);
         if (!fp->open(writable)) {
             delete fp;
-            fp = NULL;
+            fp = nullptr;
         }
         return fp;
     }
 
-    BufferedFSFP(const std::string &file) : FileSystemFileProvider(file), m_fp(NULL) {
+    BufferedFSFP(const std::string &file) : FileSystemFileProvider(file), m_fp(nullptr) {
     }
 
     virtual ~BufferedFSFP() {
@@ -144,7 +144,7 @@ public:
             return ret;
         }
         delete ret;
-        return NULL;
+        return nullptr;
     }
 
     virtual ssize_t read(void *buffer, size_t nbyte, off64_t offset) {
@@ -218,11 +218,8 @@ GuestMemoryFileProvider *GuestMemoryFileProvider::get(void *opaque, GuestMemoryF
 }
 
 GuestMemoryFileProvider::GuestMemoryFileProvider(void *opaque, ReadMemoryCb readCb, WriteMemoryCb writeCb,
-                                                 const std::string &name) {
-    m_opaque = opaque;
-    m_read = readCb;
-    m_write = writeCb;
-    m_name = name;
+                                                 const std::string &name)
+    : m_read(readCb), m_write(writeCb), m_opaque(opaque), m_name(name) {
 }
 
 GuestMemoryFileProvider::~GuestMemoryFileProvider() {
@@ -234,7 +231,7 @@ bool GuestMemoryFileProvider::open(bool writable) {
             return false;
         }
     } else {
-        m_write = NULL;
+        m_write = nullptr;
     }
     return true;
 }

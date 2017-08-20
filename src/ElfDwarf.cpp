@@ -27,7 +27,6 @@ extern "C" {
 namespace vmi {
 
 ElfDwarf::~ElfDwarf() {
-
     if (m_dbg) {
         for (Types::iterator it = m_types.begin(); it != m_types.end(); ++it) {
             dwarf_dealloc(m_dbg, (*it).second, DW_DLA_DIE);
@@ -66,7 +65,7 @@ void ElfDwarf::printAttributes(Dwarf_Die die) {
     Dwarf_Error err;
     Dwarf_Attribute *attributes;
     Dwarf_Signed attr_count;
-    const char *attr_name = NULL;
+    const char *attr_name = nullptr;
 
     m_errs << "ATTR: ";
 
@@ -198,12 +197,12 @@ err1:
 }
 
 bool ElfDwarf::buildType(Dwarf_Die type_die, VmiType **result) {
-    *result = NULL;
+    *result = nullptr;
 
     Dwarf_Error err;
     int res;
     bool retval = false;
-    const char *tag_name = NULL;
+    const char *tag_name = nullptr;
 
     /* Get the type of the die */
     /* Display the tag name of the DIE */
@@ -473,7 +472,7 @@ bool ElfDwarf::buildMemberType(Dwarf_Die member_die, std::string &member_name, V
 }
 
 std::string ElfDwarf::getVariableName(const std::string &anonPrefix, Dwarf_Die die) {
-    const char *name = NULL;
+    const char *name = nullptr;
     getNameAttribute(die, &name);
 
     if (name) {
@@ -507,7 +506,7 @@ bool ElfDwarf::buildStructureType(Dwarf_Die die, bool isUnion, VmiType **type) {
 
     /* Process the structure members */
 
-    Dwarf_Die kid, old_kid = NULL;
+    Dwarf_Die kid, old_kid = nullptr;
     VmiStructureType::Members members;
     std::vector<std::string> members_name;
 
@@ -551,7 +550,7 @@ bool ElfDwarf::buildStructureType(Dwarf_Die die, bool isUnion, VmiType **type) {
 bool ElfDwarf::processTypes() {
     int res;
     Dwarf_Error err;
-    Dwarf_Type *typebuf = NULL;
+    Dwarf_Type *typebuf = nullptr;
     Dwarf_Signed count = 0;
 
     res = dwarf_get_pubtypes(m_dbg, &typebuf, &count, &err);
@@ -577,7 +576,7 @@ bool ElfDwarf::processTypes() {
     }
 
     if (res == DW_DLV_ERROR) {
-        LOG_ERROR(res, NULL, err);
+        LOG_ERROR(res, nullptr, err);
     }
 
     dwarf_pubtypes_dealloc(m_dbg, typebuf, count);
@@ -589,15 +588,15 @@ bool ElfDwarf::processFile(Elf *elf) {
     int dres;
     Dwarf_Error err;
 
-    dres = dwarf_elf_init(elf, DW_DLC_READ, NULL, NULL, &m_dbg, &err);
+    dres = dwarf_elf_init(elf, DW_DLC_READ, nullptr, nullptr, &m_dbg, &err);
     if (dres == DW_DLV_NO_ENTRY) {
-        LOG_ERROR(dres, NULL, err);
+        LOG_ERROR(dres, nullptr, err);
         m_errs << "The given descriptor has no DWARF data\n";
         return false;
     }
 
     if (dres != DW_DLV_OK) {
-        LOG_ERROR(dres, NULL, err);
+        LOG_ERROR(dres, nullptr, err);
     }
 
     dwarf_set_frame_rule_initial_value(m_dbg, DW_FRAME_UNDEFINED_VAL);
@@ -609,11 +608,11 @@ bool ElfDwarf::processFile(Elf *elf) {
     /* Get address size and largest representable address */
     dres = dwarf_get_address_size(m_dbg, &m_elf_address_size, &err);
     if (dres != DW_DLV_OK) {
-        LOG_ERROR(dres, NULL, err);
+        LOG_ERROR(dres, nullptr, err);
         return false;
     }
 
-    m_elf_max_address = (m_elf_address_size == 8) ? 0xffffffffffffffffULL : 0xffffffff;
+    m_elf_max_address = (m_elf_address_size == sizeof(uint64_t)) ? 0xffffffffffffffffULL : 0xffffffff;
 
     processTypes();
 
@@ -622,7 +621,7 @@ bool ElfDwarf::processFile(Elf *elf) {
 
 bool ElfDwarf::initialize() {
     Elf *elf;
-    m_arf = elf_begin(m_fd, ELF_C_READ, NULL);
+    m_arf = elf_begin(m_fd, ELF_C_READ, nullptr);
     Elf_Cmd cmd = ELF_C_READ;
 
     if (elf_kind(m_arf) == ELF_K_AR) {
@@ -653,25 +652,24 @@ bool ElfDwarf::initialize() {
 }
 
 ElfDwarf *ElfDwarf::get(llvm::raw_ostream &errs, const std::string &elfBinary) {
-
-    ElfDwarf *elfDwarf = NULL;
+    ElfDwarf *elfDwarf = nullptr;
 
     elf_version(EV_NONE);
     if (elf_version(EV_CURRENT) == EV_NONE) {
         errs << "dwarfdump: libelf.a out of date.\n";
-        return NULL;
+        return nullptr;
     }
 
     int fd = open(elfBinary.c_str(), O_RDONLY);
     if (fd < 0) {
         errs << "Could not find file " << elfBinary << '\n';
-        return NULL;
+        return nullptr;
     }
 
     elfDwarf = new ElfDwarf(errs, fd, elfBinary);
     if (!elfDwarf->initialize()) {
         delete elfDwarf;
-        return NULL;
+        return nullptr;
     }
 
     return elfDwarf;
@@ -680,12 +678,12 @@ ElfDwarf *ElfDwarf::get(llvm::raw_ostream &errs, const std::string &elfBinary) {
 const VmiType *ElfDwarf::getType(const std::string &name) {
     Types::const_iterator it = m_types.find(name);
     if (it == m_types.end()) {
-        return NULL;
+        return nullptr;
     }
 
-    VmiType *result = NULL;
+    VmiType *result = nullptr;
     if (!buildType((*it).second, &result)) {
-        return NULL;
+        return nullptr;
     }
 
     return result;

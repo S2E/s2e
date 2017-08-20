@@ -41,7 +41,7 @@ private:
     Dwarf_Half m_elf_address_size;
 
     ElfDwarf(llvm::raw_ostream &errs, int fd, const std::string &fileName)
-        : m_errs(errs), m_fd(fd), m_arf(NULL), m_fileName(fileName) {
+        : m_errs(errs), m_fd(fd), m_arf(nullptr), m_fileName(fileName) {
     }
     bool initialize();
     bool processFile(Elf *elf);
