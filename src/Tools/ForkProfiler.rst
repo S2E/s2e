@@ -5,7 +5,8 @@ Fork Profiler
 The fork profiler tool lists all the program counters that caused a fork. This allows us to quickly identify the
 program's hot spots that cause path explosion problems (as discussed in the `FAQ <../FAQ.rst>`_).
 
-NOTE: Function names will be available only if the analysed program and libraries are built with debug symbols support.
+**NOTE**: Function names will be available only if the analyzed program and libraries are built with debug symbols
+support.
 
 Options
 -------

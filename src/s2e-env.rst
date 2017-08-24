@@ -52,7 +52,9 @@ To create a new S2E environment in ``/home/user/s2e``, run:
 
 This will fetch the required source code, install S2E's dependencies (via apt) and create the directory structure
 described `here <https://github.com/s2e/s2e-env/blob/master/README.md>`_. If you want to skip the dependency
-installation step (e.g. if you have already installed the dependencies) use the ``--skip-dependencies`` flag.
+installation step (e.g. if you have already installed the dependencies) use the ``--skip-dependencies`` flag. Note that
+if you are using Ubuntu 14.04, you must install CMake manually - S2E requires version 3.4.3 or newer, which is not
+available in the Ubuntu 14.04 repositories.
 
 Building S2E
 ~~~~~~~~~~~~
@@ -118,6 +120,9 @@ in the following repositories:
 
 * `guest-images <https://github.com/S2E/guest-images>`_
 * `s2e-linux-kernel <https://github.com/S2E/s2e-linux-kernel>`_
+
+**NOTE**: The image build process caches intermediate build output in `.tmp-output` that can grow quite large. Once
+the images have been built you may wish to delete this directory if disk space is an issue.
 
 Creating a new analysis project
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

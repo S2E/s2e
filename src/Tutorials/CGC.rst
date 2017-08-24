@@ -34,8 +34,10 @@ Analyzing a sample CB
 Once we have an image we can start analyzing CBs. Sample CBs are available `here
 <https://github.com/CyberGrandChallenge/samples>`_ and can be built using the instructions `here
 <https://github.com/CyberGrandChallenge/cgc-release-documentation/blob/master/walk-throughs/building-a-cb.md>`_ . The
-remainder of this tutorial will focus on the CADET_00001 program, but the ideas and techniques should be applicable to
-all of the CBs.
+remainder of this tutorial will focus on the CADET_00001 program (which is available `here
+<https://github.com/S2E/decree/blob/master/samples/CADET_00001>`_), but the ideas and techniques should be applicable
+to all of the CBs.
+
 
 Creating a project
 ~~~~~~~~~~~~~~~~~~
@@ -44,7 +46,7 @@ Once you have built the CADET_00001 binary you can create an S2E analysis projec
 
 .. code-block:: console
 
-    s2e new_project --image cgc_debian-8.7.1-i386 /path/to/cbs/samples/CADET_00001
+    s2e new_project --image cgc_debian-8.7.1-i386 ./source/s2e/decree/samples/CADET_00001
 
 This will create a ``projects/CADET_00001`` directory with various scripts and configuration files needed by S2E, as
 described `here <../s2e-env.rst>`_. Lets examine some of the generated files.

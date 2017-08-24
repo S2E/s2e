@@ -57,6 +57,9 @@ Building S2E manually
 
 In addition to using the ``s2e-env`` tool, you can also build S2E manually.
 
+**NOTE**: If you are using Ubuntu 14.04 you must install CMake manually - S2E requires version 3.4.3 or newer, which is
+not available in the Ubuntu 14.04 repositories.
+
 Required packages
 -----------------
 
