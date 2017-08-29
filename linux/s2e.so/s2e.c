@@ -73,39 +73,109 @@ typedef struct _procmap_entry_t {
     const char *name;
 } procmap_entry_t;
 
-// Returns each executable line of /proc/self/maps
-// as an array of entries. The last one is null.
+static inline int read_procmap_entry(char *line, uintptr_t *base, uintptr_t *limit, unsigned *inode, char *path) {
+    return sscanf(line, "%" SCNxPTR "-%" SCNxPTR " %*c%*c%*c%*c %*x %*s %d %127[^\n]", base, limit, inode, path);
+}
+
+//
+// Returns each module listed in /proc/self/maps as an array of entries. The last entry is NULL.
+//
+// Each row in /proc/self/maps describes a region of contiguous virtual memory in a process's address space. An example
+// of a /proc/self/maps listing is given below:
+//
+// address                    perms  offset    dev    inode    path
+// 00400000-0040c000          r-xp   00000000  08:01  3671038  /bin/cat
+// 0060b000-0060c000          r--p   0000b000  08:01  3671038  /bin/cat
+// 0060c000-0060d000          rw-p   0000c000  08:01  3671038  /bin/cat
+// 017d4000-017f5000          rw-p   00000000  00:00  0        [heap]
+// 7f3c75827000-7f3c75aff000  r--p   00000000  08:01  2097928  /usr/lib/locale/locale-archive
+// 7f3c75aff000-7f3c75cbf000  r-xp   00000000  08:01  2626418  /lib/x86_64-linux-gnu/libc-2.23.so
+// 7f3c75cbf000-7f3c75ebf000  ---p   001c0000  08:01  2626418  /lib/x86_64-linux-gnu/libc-2.23.so
+// 7f3c75ebf000-7f3c75ec3000  r--p   001c0000  08:01  2626418  /lib/x86_64-linux-gnu/libc-2.23.so
+// 7f3c75ec3000-7f3c75ec5000  rw-p   001c4000  08:01  2626418  /lib/x86_64-linux-gnu/libc-2.23.so
+//
+// Where:
+//   address - start and end address of the memory region in the process's address space
+//   perms   - read write execute private/shared permissions
+//   offset  - file offset from where the memory region was mapped
+//   dev     - major:minor device identifier
+//   inode   - file number
+//   path    - file path
+//
+// The inode field is used to uniquely identify modules in the map. Only non-zero inode values are considered. The
+// inode value is checked while iterating over each row in the map. While this inode value remains the same, the
+// `limit` address of the current `procmap_entry_t` is set to the maximum end address. When the inode changes, a new
+// `procmap_entry_t` is added to the module map.
+//
+// This assumes that the different memory regions of a module are contiguous in memory. As we can see in the above
+// example, this is not necessarily true - the executable region of /bin/cat ends at 0x40c000, while the next section
+// (read-only data) starts at 0x60b000. However, this is a good enough approximation for now.
+//
 static procmap_entry_t *load_process_map(void) {
     FILE *maps = fopen("/proc/self/maps", "r");
     if (!maps) {
         return NULL;
     }
 
+    int matches;
     char line[256], path[128];
     procmap_entry_t *result = NULL;
     procmap_entry_t current_entry;
     unsigned nb_entries = 0;
-    char executable;
-    while (fgets(line, sizeof(line), maps)) {
-        int matches = sscanf(line, "%" SCNxPTR "-%" SCNxPTR " %*c%*c%c%*c %*x %*s %*d %127[^\n]", &current_entry.base,
-                             &current_entry.limit, &executable, path);
+
+    uintptr_t start_addr, end_addr;
+    unsigned current_inode = 0, previous_inode = 0;
+
+    // Read /proc/self/maps until we can initialize previous_inode to a non-zero inode, then initialize the first
+    // proc map entry
+    do {
+        if (!fgets(line, sizeof(line), maps)) {
+            goto end;
+        }
+
+        matches = read_procmap_entry(line, &current_entry.base, &current_entry.limit, &previous_inode, path);
         if (matches != 4) {
             continue;
         }
 
-        if (executable != 'x') {
+        current_entry.name = strdup(path);
+    } while (previous_inode == 0);
+
+    // Read the other proc map entries
+    while (fgets(line, sizeof(line), maps)) {
+        matches = read_procmap_entry(line, &start_addr, &end_addr, &current_inode, path);
+        if (matches != 4) {
             continue;
         }
 
-        current_entry.name = strdup(path);
-        ++nb_entries;
+        if (current_inode == previous_inode && end_addr > current_entry.limit) {
+            current_entry.limit = end_addr;
+        } else if (current_inode != 0 && current_inode != previous_inode) {
+            // Save the previous proc map entry
+            ++nb_entries;
+            result = realloc(result, sizeof(*result) * nb_entries);
+            result[nb_entries - 1] = current_entry;
 
+            // Start a new proc map entry
+            current_entry.base = start_addr;
+            current_entry.limit = end_addr;
+            current_entry.name = strdup(path);
+
+            previous_inode = current_inode;
+        }
+    }
+
+    // Save the final proc map entry
+    if (current_inode != previous_inode) {
+        ++nb_entries;
         result = realloc(result, sizeof(*result) * nb_entries);
         result[nb_entries - 1] = current_entry;
     }
 
+end:
     fclose(maps);
 
+    // Add the NULL entry
     current_entry.base = current_entry.limit = 0;
     current_entry.name = NULL;
 
