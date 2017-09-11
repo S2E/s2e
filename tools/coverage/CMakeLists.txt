@@ -19,6 +19,12 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 add_executable(coverage Coverage.cpp)
-target_link_libraries(coverage executiontracer binaryreaders utils vmi fsigc++)
+target_link_libraries(coverage
+                      executiontracer
+                      binaryreaders
+                      utils
+                      vmi
+                      fsigc++
+                      elf)
 
 install(TARGETS coverage RUNTIME DESTINATION bin)

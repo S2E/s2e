@@ -20,6 +20,12 @@
 # SOFTWARE.
 
 add_executable(icounter icounter.cpp)
-target_link_libraries(icounter executiontracer binaryreaders utils vmi fsigc++)
+target_link_libraries(icounter
+                      executiontracer
+                      binaryreaders
+                      utils
+                      vmi
+                      fsigc++
+                      elf)
 
 install(TARGETS icounter RUNTIME DESTINATION bin)

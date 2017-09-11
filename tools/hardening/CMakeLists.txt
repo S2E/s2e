@@ -20,6 +20,12 @@
 # SOFTWARE.
 
 add_executable(hardening Hardening.cpp)
-target_link_libraries(hardening executiontracer binaryreaders utils vmi fsigc++)
+target_link_libraries(hardening
+                      executiontracer
+                      binaryreaders
+                      utils
+                      vmi
+                      fsigc++
+                      elf)
 
 install(TARGETS hardening RUNTIME DESTINATION bin)

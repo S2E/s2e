@@ -18,7 +18,14 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
+
 add_executable(tbtrace TbTrace.cpp)
-target_link_libraries(tbtrace executiontracer binaryreaders utils vmi fsigc++)
+target_link_libraries(tbtrace
+                      executiontracer
+                      binaryreaders
+                      utils
+                      vmi
+                      fsigc++
+                      elf)
 
 install(TARGETS tbtrace RUNTIME DESTINATION bin)

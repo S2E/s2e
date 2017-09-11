@@ -20,6 +20,12 @@
 # SOFTWARE.
 
 add_executable(debugger Debugger.cpp)
-target_link_libraries(debugger executiontracer binaryreaders utils vmi fsigc++)
+target_link_libraries(debugger
+                      executiontracer
+                      binaryreaders
+                      utils
+                      vmi
+                      fsigc++
+                      elf)
 
 install(TARGETS debugger RUNTIME DESTINATION bin)

@@ -20,6 +20,12 @@
 # SOFTWARE.
 
 add_executable(lcoverage Coverage.cpp)
-target_link_libraries(lcoverage executiontracer binaryreaders utils vmi fsigc++)
+target_link_libraries(lcoverage
+                      executiontracer
+                      binaryreaders
+                      utils
+                      vmi
+                      fsigc++
+                      elf)
 
 install(TARGETS lcoverage RUNTIME DESTINATION bin)

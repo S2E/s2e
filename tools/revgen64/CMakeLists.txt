@@ -31,6 +31,7 @@ target_link_libraries(revgen64 X8664Translator
                                vmi
                                bsd
                                fsigc++
+                               elf
                                ${LLVM_LIBS}
                                ${GLIB2_LIBRARIES})
 

@@ -20,6 +20,12 @@
 # SOFTWARE.
 
 add_executable(cacheprof cacheprof.cpp)
-target_link_libraries(cacheprof executiontracer binaryreaders utils vmi fsigc++)
+target_link_libraries(cacheprof
+                      executiontracer
+                      binaryreaders
+                      utils
+                      vmi
+                      fsigc++
+                      elf)
 
 install(TARGETS cacheprof RUNTIME DESTINATION bin)

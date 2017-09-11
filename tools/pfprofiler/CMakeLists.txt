@@ -20,6 +20,12 @@
 # SOFTWARE.
 
 add_executable(pfprofiler pfprofiler.cpp CacheProfiler.cpp)
-target_link_libraries(pfprofiler executiontracer binaryreaders utils vmi fsigc++)
+target_link_libraries(pfprofiler
+                      executiontracer
+                      binaryreaders
+                      utils
+                      vmi
+                      fsigc++
+                      elf)
 
 install(TARGETS pfprofiler RUNTIME DESTINATION bin)
