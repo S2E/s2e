@@ -21,6 +21,7 @@
 
 #include <cpu/kvm.h>
 
+#include <cpu/cpus.h>
 #include <cpu/exec.h>
 #include <cpu/memory.h>
 #include <libcpu-log.h>
@@ -212,6 +213,7 @@ int s2e_kvm_check_extension(int kvm_fd, int capability) {
 
 #ifdef CONFIG_SYMBEX
         case KVM_CAP_DISK_RW:
+        case KVM_CAP_CPU_CLOCK_SCALE:
             return 1;
 #endif
 
@@ -676,6 +678,9 @@ int s2e_kvm_vcpu_run(int vcpu_fd) {
         errno = EINTR;
         return -1;
     }
+
+    /* Share the timer's clock scaling between QEMU and libcpu */
+    g_kvm_vcpu_buffer->cpu_clock_scale_factor = timers_state.cpu_clock_scale_factor;
 
     /* Return asap if interrupts can be injected */
     g_kvm_vcpu_buffer->if_flag = (env->mflags & IF_MASK) != 0;
