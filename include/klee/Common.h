@@ -28,6 +28,11 @@ class ExecutionState;
 
 typedef std::unordered_set<ExecutionState *> StateSet;
 
+const char ALL_QUERIES_SMT2_FILE_NAME[] = "all-queries.smt2";
+const char SOLVER_QUERIES_SMT2_FILE_NAME[] = "solver-queries.smt2";
+const char ALL_QUERIES_KQUERY_FILE_NAME[] = "all-queries.kquery";
+const char SOLVER_QUERIES_KQUERY_FILE_NAME[] = "solver-queries.kquery";
+
 /*
 extern FILE* klee_warning_file;
 extern FILE* klee_message_file;

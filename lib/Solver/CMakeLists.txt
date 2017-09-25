@@ -12,7 +12,9 @@ set(KLEE_SOLVER_SRCS CachingSolver.cpp
                      FastCexSolver.cpp
                      IncompleteSolver.cpp
                      IndependentSolver.cpp
-                     PCLoggingSolver.cpp
+                     KQueryLoggingSolver.cpp
+                     QueryLoggingSolver.cpp
+                     SMTLIBLoggingSolver.cpp
                      Solver.cpp
                      SolverStats.cpp
 )

@@ -84,8 +84,7 @@ void PTree::activate(Node *n) {
 }
 #endif
 
-void PTree::dump(llvm::raw_ostream &_os) {
-    std::stringstream os;
+void PTree::dump(llvm::raw_ostream &os) {
     ExprPPrinter *pp = ExprPPrinter::create(os);
     pp->setNewline("\\l");
     os << "digraph G {\n";
@@ -120,7 +119,6 @@ void PTree::dump(llvm::raw_ostream &_os) {
         }
     }
     os << "}\n";
-    _os << os.str();
     delete pp;
 }
 

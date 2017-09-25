@@ -12,6 +12,10 @@
 
 #include "klee/Expr.h"
 
+namespace llvm {
+class raw_ostream;
+}
+
 namespace klee {
 class ConstraintManager;
 
@@ -21,12 +25,13 @@ protected:
     }
 
 public:
-    static ExprPPrinter *create(std::ostream &os);
+    static ExprPPrinter *create(llvm::raw_ostream &os);
 
     virtual ~ExprPPrinter() {
     }
 
     virtual void setNewline(const std::string &newline) = 0;
+    virtual void setForceNoLineBreaks(bool forceNoLineBreaks) = 0;
     virtual void reset() = 0;
     virtual void scan(const ref<Expr> &e) = 0;
     virtual void print(const ref<Expr> &e, unsigned indent = 0) = 0;

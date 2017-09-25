@@ -214,7 +214,19 @@ public:
     /// Returns the hash value.
     virtual unsigned computeHash();
 
-    /// Returns 0 iff b is structuraly equivalent to *this
+    /// Compares `b` to `this` Expr for structural equivalence.
+    ///
+    /// This method effectively defines a total order over all Expr.
+    ///
+    /// \param [in] b Expr to compare `this` to.
+    ///
+    /// \return One of the following values:
+    ///
+    /// * -1 iff `this` is `<` `b`
+    /// * 0 iff `this` is structurally equivalent to `b`
+    /// * 1 iff `this` is `>` `b`
+    ///
+    /// `<` and `>` are binary relations that express the total order.
     int compare(const Expr &b) const;
     virtual int compareContents(const Expr &b) const {
         return 0;
@@ -223,8 +235,6 @@ public:
     // Given an array of new kids return a copy of the expression
     // but using those children.
     virtual ref<Expr> rebuild(ref<Expr> kids[/* getNumKids() */]) const = 0;
-
-    //
 
     /// isZero - Is this a constant zero.
     bool isZero() const;
@@ -467,10 +477,10 @@ private:
 
 public:
     /**
-   * Custom allocation for constants.
-   * There is a huge amount of churn going on with constants,
-   * but the overall number of allocated constants is limited.
-   */
+     * Custom allocation for constants.
+     * There is a huge amount of churn going on with constants,
+     * but the overall number of allocated constants is limited.
+     */
     virtual ~ConstantExpr() {
         assert(!permanent);
         exprCacheClean<ConstantExpr, ExprCache>(this, s_cache);
@@ -479,6 +489,7 @@ public:
     Width getWidth() const {
         return value.getBitWidth();
     }
+
     Kind getKind() const {
         return Constant;
     }
@@ -486,6 +497,7 @@ public:
     unsigned getNumKids() const {
         return 0;
     }
+
     ref<Expr> getKid(unsigned i) const {
         return 0;
     }
@@ -571,27 +583,27 @@ public:
 
     /// isZero - Is this a constant zero.
     bool isZero() const {
-        return getZExtValue() == 0;
+        return getAPValue().isMinValue();
     }
 
     /// isOne - Is this a constant one.
     bool isOne() const {
-        return getZExtValue() == 1;
+        return getLimitedValue() == 1;
     }
 
     /// isTrue - Is this the true expression.
     bool isTrue() const {
-        return getZExtValue(1) == 1;
+        return (getWidth() == Expr::Bool && value.getBoolValue() == true);
     }
 
     /// isFalse - Is this the false expression.
     bool isFalse() const {
-        return getZExtValue(1) == 0;
+        return (getWidth() == Expr::Bool && value.getBoolValue() == false);
     }
 
     /// isAllOnes - Is this constant all ones.
     bool isAllOnes() const {
-        return getZExtValue(getWidth()) == bits64::maxValueOfNBits(getWidth());
+        return getAPValue().isAllOnesValue();
     }
 
     /* Constant Operations */
@@ -828,8 +840,12 @@ private:
 
 class Array {
 private:
-    const std::string rawName; /* The user name, before it was stripped and made unique */
+    // The user name, before it was stripped and made unique
+    const std::string rawName;
+
+    // Name of the array
     const std::string name;
+
     // FIXME: Not 64-bit clean.
     unsigned size;
 

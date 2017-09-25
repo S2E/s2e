@@ -28,6 +28,7 @@
  */
 
 #include "klee/SolverFactory.h"
+#include "klee/Common.h"
 #include "klee/Config/config.h"
 #include "klee/Interpreter.h"
 #include "klee/Solver.h"
@@ -57,7 +58,30 @@ cl::opt<SolverIncrementalityType> SolverIncrementality(
 // concolic mode. Disabled by default.
 cl::opt<bool> UseCexCache("use-cex-cache", cl::init(false), cl::desc("Use counterexample caching"));
 
-cl::opt<bool> UseQueryPCLog("use-query-pc-log", cl::init(false));
+cl::opt<int> MinQueryTimeToLog("min-query-time-to-log", cl::init(0), cl::value_desc("milliseconds"),
+                               cl::desc("Set time threshold (in ms) for queries logged in files. Only queries longer "
+                                        "than threshold will be logged. default=0). Set this param to a negative "
+                                        "value to log timeouts only."));
+
+/// The different query logging solver that can be switched on/off
+enum QueryLoggingSolverType {
+    ALL_KQUERY,    ///< Log all queries (un-optimised) in .kquery (KQuery) format
+    ALL_SMTLIB,    ///< Log all queries (un-optimised) in .smt2 (SMT-LIBv2) format
+    SOLVER_KQUERY, ///< Log all queries passed to solver (optimised) in .kquery (KQuery) format
+    SOLVER_SMTLIB, ///< Log queries passed to solver (optimised) in .smt2 (SMT-LIBv2) format
+};
+
+cl::bits<QueryLoggingSolverType> queryLoggingOptions(
+    "use-query-log", cl::desc("Log queries to a file. Multiple options can be "
+                              "separated by a comma. By default nothing is logged."),
+    cl::values(clEnumValN(ALL_KQUERY, "all:kquery", "All queries in .kquery (KQuery) format"),
+               clEnumValN(ALL_SMTLIB, "all:smt2", "All queries in .smt2 (SMT-LIBv2) format"),
+               clEnumValN(SOLVER_KQUERY, "solver:kquery", "All queries reaching the solver in .kqery "
+                                                          "(KQuery) format"),
+               clEnumValN(SOLVER_SMTLIB, "solver:smt2", "All queries reaching the solver in .smt2 "
+                                                        "(SMT-LIBv2) format"),
+               clEnumValEnd),
+    cl::CommaSeparated);
 
 cl::opt<bool> UseEndQueryPCLog("use-end-query-pc-log", cl::init(false));
 
@@ -96,18 +120,27 @@ Solver *DefaultSolverFactory::createEndSolver() {
 Solver *DefaultSolverFactory::decorateSolver(Solver *end_solver) {
     Solver *solver = end_solver;
 
-    if (UseEndQueryPCLog) {
-        solver = createPCLoggingSolver(solver, ih_->getOutputFilename("solver-queries.qlog"));
+    if (queryLoggingOptions.isSet(SOLVER_KQUERY)) {
+        solver = createKQueryLoggingSolver(solver, ih_->getOutputFilename(SOLVER_QUERIES_KQUERY_FILE_NAME),
+                                           MinQueryTimeToLog);
     }
 
-    if (UseFastCexSolver)
+    if (queryLoggingOptions.isSet(SOLVER_SMTLIB)) {
+        solver =
+            createSMTLIBLoggingSolver(solver, ih_->getOutputFilename(SOLVER_QUERIES_SMT2_FILE_NAME), MinQueryTimeToLog);
+    }
+
+    if (UseFastCexSolver) {
         solver = createFastCexSolver(solver);
+    }
 
-    if (UseCexCache)
+    if (UseCexCache) {
         solver = createCexCachingSolver(solver);
+    }
 
-    if (UseCache)
+    if (UseCache) {
         solver = createCachingSolver(solver);
+    }
 
     // FIXME: The check should be more generic (e.g., enable only for
     // non-incremental solvers)
@@ -115,11 +148,18 @@ Solver *DefaultSolverFactory::decorateSolver(Solver *end_solver) {
         solver = createIndependentSolver(solver);
     }
 
-    if (DebugValidateSolver)
+    if (DebugValidateSolver) {
         solver = createValidatingSolver(solver, end_solver);
+    }
 
-    if (UseQueryPCLog) {
-        solver = createPCLoggingSolver(solver, ih_->getOutputFilename("queries.pc"));
+    if (queryLoggingOptions.isSet(ALL_KQUERY)) {
+        solver =
+            createKQueryLoggingSolver(solver, ih_->getOutputFilename(ALL_QUERIES_KQUERY_FILE_NAME), MinQueryTimeToLog);
+    }
+
+    if (queryLoggingOptions.isSet(ALL_SMTLIB)) {
+        solver =
+            createSMTLIBLoggingSolver(solver, ih_->getOutputFilename(ALL_QUERIES_SMT2_FILE_NAME), MinQueryTimeToLog);
     }
 
     return solver;

@@ -109,6 +109,10 @@ public:
         node_ = node_->parent();
     }
 
+    void operator++(int) {
+        node_ = node_->parent();
+    }
+
     bool operator==(ConditionIterator other) const {
         return node_ == other.node_;
     }

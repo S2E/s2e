@@ -48,14 +48,12 @@ ExprSMTLIBPrinter::ExprSMTLIBPrinter()
 }
 
 ExprSMTLIBPrinter::~ExprSMTLIBPrinter() {
-    if (p != NULL)
-        delete p;
+    delete p;
 }
 
 void ExprSMTLIBPrinter::setOutput(llvm::raw_ostream &output) {
     o = &output;
-    if (p != NULL)
-        delete p;
+    delete p;
 
     p = new PrintContext(output);
 }
@@ -488,7 +486,7 @@ void ExprSMTLIBPrinter::printUpdatesAndArray(const UpdateNode *un, const Array *
 
 void ExprSMTLIBPrinter::scanAll() {
     // perform scan of all expressions
-    for (ConstraintManager::const_iterator i = query->constraints.begin(); i != query->constraints.end(); ++i)
+    for (ConstraintManager::const_iterator i = query->constraints.begin(); i != query->constraints.end(); i++)
         scan(*i);
 
     // Scan the query too
@@ -607,7 +605,7 @@ void ExprSMTLIBPrinter::printHumanReadableQuery() {
 
     if (abbrMode != ABBR_LET) {
         // Generate assert statements for each constraint
-        for (ConstraintManager::const_iterator i = query->constraints.begin(); i != query->constraints.end(); ++i) {
+        for (ConstraintManager::const_iterator i = query->constraints.begin(); i != query->constraints.end(); i++) {
             printAssert(*i);
         }
 
@@ -660,7 +658,7 @@ void ExprSMTLIBPrinter::printAction() {
             theArray = *it;
             // Loop over the array indices
             for (unsigned int index = 0; index < theArray->getSize(); ++index) {
-                *o << "(get-value ( (select " << (**it).getName() << " (_ bv" << index << " " << theArray->getDomain()
+                *o << "(get-value ( (select " << (*it)->getName() << " (_ bv" << index << " " << theArray->getDomain()
                    << ") ) ) )\n";
             }
         }

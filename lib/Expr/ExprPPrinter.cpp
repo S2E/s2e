@@ -9,15 +9,13 @@
 
 #include "klee/util/ExprPPrinter.h"
 #include "klee/Common.h"
+#include "klee/util/PrintContext.h"
 
 #include "klee/Constraints.h"
 
 #include "llvm/Support/CommandLine.h"
 
-#include <iomanip>
-#include <iostream>
 #include <map>
-#include <sstream>
 #include <vector>
 
 using namespace klee;
@@ -34,53 +32,6 @@ llvm::cl::opt<bool> PCMultibyteReads("pc-multibyte-reads", llvm::cl::init(true))
 llvm::cl::opt<bool> PCAllConstWidths("pc-all-const-widths", llvm::cl::init(false));
 }
 
-/// PrintContext - Helper class for storing extra information for
-/// the pretty printer.
-class PrintContext {
-private:
-    std::ostream &os;
-    std::stringstream ss;
-    std::string newline;
-
-public:
-    /// Number of characters on the current line.
-    unsigned pos;
-
-public:
-    PrintContext(std::ostream &_os) : os(_os), newline("\n"), pos(0) {
-    }
-
-    void setNewline(const std::string &_newline) {
-        newline = _newline;
-    }
-
-    void breakLine(unsigned indent = 0) {
-        os << newline;
-        if (indent)
-            os << std::setw(indent) << ' ';
-        pos = indent;
-    }
-
-    /// write - Output a string to the stream and update the
-    /// position. The stream should not have any newlines.
-    void write(const std::string &s) {
-        os << s;
-        pos += s.length();
-    }
-
-    template <typename T> PrintContext &operator<<(T elt) {
-        ss.str("");
-        ss.setf(os.flags(), std::ios::basefield);
-        ss << elt;
-        write(ss.str());
-        return *this;
-    }
-
-    const std::ostream &getOutputStream() const {
-        return os;
-    }
-};
-
 class PPrinter : public ExprPPrinter {
 public:
     std::set<const Array *> usedArrays;
@@ -90,10 +41,11 @@ private:
     std::map<const UpdateNode *, unsigned> updateBindings;
     std::set<ref<Expr>> couldPrint, shouldPrint;
     std::set<const UpdateNode *> couldPrintUpdates, shouldPrintUpdates;
-    std::ostream &os;
+    llvm::raw_ostream &os;
     unsigned counter;
     unsigned updateCounter;
     bool hasScan;
+    bool forceNoLineBreaks;
     std::string newline;
 
     /// shouldPrintWidth - Predicate for whether this expression should
@@ -309,7 +261,7 @@ private:
     void printExpr(const Expr *ep, PrintContext &PC, unsigned indent, bool printConstWidth = false) {
         bool simple = hasSimpleKids(ep);
 
-        print(ep->getKid(0), PC, printConstWidth);
+        print(ep->getKid(0), PC);
         for (unsigned i = 1; i < ep->getNumKids(); i++) {
             printSeparator(PC, simple, indent);
             print(ep->getKid(i), PC, printConstWidth);
@@ -317,7 +269,7 @@ private:
     }
 
 public:
-    PPrinter(std::ostream &_os) : os(_os), newline("\n") {
+    PPrinter(llvm::raw_ostream &_os) : os(_os), newline("\n") {
         reset();
     }
 
@@ -325,10 +277,15 @@ public:
         newline = _newline;
     }
 
+    void setForceNoLineBreaks(bool _forceNoLineBreaks) {
+        forceNoLineBreaks = _forceNoLineBreaks;
+    }
+
     void reset() {
         counter = 0;
         updateCounter = 0;
         hasScan = false;
+        forceNoLineBreaks = false;
         bindings.clear();
         updateBindings.clear();
         couldPrint.clear();
@@ -362,14 +319,7 @@ public:
                 PC << hexval(e->getZExtValue());
             } else {
                 std::string S;
-
-                int base;
-                std::ostream::fmtflags flags;
-                flags = PC.getOutputStream().flags();
-                if (flags & std::ios_base::hex)
-                    base = 16;
-
-                e->toString(S, 16);
+                e->toString(S);
                 PC << S;
             }
 
@@ -427,7 +377,7 @@ public:
                 } else if (e->getKind() == Expr::Concat || e->getKind() == Expr::SExt)
                     printExpr(e.get(), PC, indent, true);
                 else
-                    printExpr(e.get(), PC, indent, true);
+                    printExpr(e.get(), PC, indent);
                 PC << ")";
             }
         }
@@ -436,7 +386,7 @@ public:
     /* Public utility functions */
 
     void printSeparator(PrintContext &PC, bool simple, unsigned indent) {
-        if (simple) {
+        if (simple || forceNoLineBreaks) {
             PC << ' ';
         } else {
             PC.breakLine(indent);
@@ -444,69 +394,70 @@ public:
     }
 };
 
-ExprPPrinter *klee::ExprPPrinter::create(std::ostream &os) {
+ExprPPrinter *klee::ExprPPrinter::create(llvm::raw_ostream &os) {
     return new PPrinter(os);
 }
 
 void ExprPPrinter::printOne(llvm::raw_ostream &os, const char *message, const ref<Expr> &e) {
-    std::stringstream ss;
-    PPrinter p(ss);
+    PPrinter p(os);
     p.scan(e);
 
     // FIXME: Need to figure out what to do here. Probably print as a
     // "forward declaration" with whatever syntax we pick for that.
-    PrintContext PC(ss);
+    PrintContext PC(os);
     PC << message << ": ";
     p.print(e, PC);
     PC.breakLine();
-    os << ss.str();
 }
 
 void ExprPPrinter::printSingleExpr(llvm::raw_ostream &os, const ref<Expr> &e) {
-    std::stringstream ss;
-    PPrinter p(ss);
+    PPrinter p(os);
     p.scan(e);
 
     // FIXME: Need to figure out what to do here. Probably print as a
     // "forward declaration" with whatever syntax we pick for that.
-    PrintContext PC(ss);
+    PrintContext PC(os);
     p.print(e, PC);
-    os << ss.str();
 }
 
 void ExprPPrinter::printConstraints(llvm::raw_ostream &os, const ConstraintManager &constraints) {
     printQuery(os, constraints, ConstantExpr::alloc(false, Expr::Bool));
 }
 
+namespace {
+
+struct ArrayPtrsByName {
+    bool operator()(const Array *a1, const Array *a2) const {
+        return a1->getName() < a2->getName();
+    }
+};
+}
+
 void ExprPPrinter::printQuery(llvm::raw_ostream &os, const ConstraintManager &constraints, const ref<Expr> &q,
                               const ref<Expr> *evalExprsBegin, const ref<Expr> *evalExprsEnd,
                               const Array *const *evalArraysBegin, const Array *const *evalArraysEnd,
                               bool printArrayDecls) {
-    std::stringstream ss;
-    PPrinter p(ss);
+    PPrinter p(os);
 
     for (ConstraintManager::const_iterator it = constraints.begin(), ie = constraints.end(); it != ie; ++it)
-        p.scan(constraints.toExpr(*it));
+        p.scan(*it);
     p.scan(q);
 
     for (const ref<Expr> *it = evalExprsBegin; it != evalExprsEnd; ++it)
         p.scan(*it);
 
-    PrintContext PC(ss);
+    PrintContext PC(os);
 
     // Print array declarations.
     if (printArrayDecls) {
         for (const Array *const *it = evalArraysBegin; it != evalArraysEnd; ++it)
             p.usedArrays.insert(*it);
-        for (std::set<const Array *>::iterator it = p.usedArrays.begin(), ie = p.usedArrays.end(); it != ie; ++it) {
+        std::vector<const Array *> sortedArray(p.usedArrays.begin(), p.usedArrays.end());
+        std::sort(sortedArray.begin(), sortedArray.end(), ArrayPtrsByName());
+        for (std::vector<const Array *>::iterator it = sortedArray.begin(), ie = sortedArray.end(); it != ie; ++it) {
             const Array *A = *it;
-            // FIXME: Print correct name, domain, and range.
             PC << "array " << A->getName() << "[" << A->getSize() << "]"
-               << " : "
-               << "w32"
-               << " -> "
-               << "w8"
-               << " = ";
+               << " : w" << A->getDomain() << " -> w" << A->getRange() << " = ";
             if (A->isSymbolicArray()) {
                 PC << "symbolic";
             } else {
@@ -527,7 +478,7 @@ void ExprPPrinter::printQuery(llvm::raw_ostream &os, const ConstraintManager &co
     // Ident at constraint list;
     unsigned indent = PC.pos;
     for (ConstraintManager::const_iterator it = constraints.begin(), ie = constraints.end(); it != ie;) {
-        p.print(constraints.toExpr(*it), PC, true);
+        p.print(*it, PC);
         ++it;
         if (it != ie)
             PC.breakLine(indent);
@@ -535,7 +486,7 @@ void ExprPPrinter::printQuery(llvm::raw_ostream &os, const ConstraintManager &co
     PC << ']';
 
     p.printSeparator(PC, constraints.empty(), indent - 1);
-    p.print(q, PC, true);
+    p.print(q, PC);
 
     // Print expressions to obtain values for, if any.
     if (evalExprsBegin != evalExprsEnd) {
@@ -566,6 +517,4 @@ void ExprPPrinter::printQuery(llvm::raw_ostream &os, const ConstraintManager &co
 
     PC << ')';
     PC.breakLine();
-
-    os << ss.str();
 }

@@ -218,9 +218,13 @@ Solver *createFastCexSolver(Solver *s);
 Solver *createIndependentSolver(Solver *s);
 void getIndependentConstraintsForQuery(const Query &query, std::vector<ref<Expr>> &required);
 
-/// createPCLoggingSolver - Create a solver which will forward all queries
-/// after writing them to the given path in .pc format.
-Solver *createPCLoggingSolver(Solver *s, std::string path);
+/// createKQueryLoggingSolver - Create a solver which will forward all queries
+/// after writing them to the given path in .kquery format.
+Solver *createKQueryLoggingSolver(Solver *s, std::string path, int minQueryTimeToLog);
+
+/// createSMTLIBLoggingSolver - Create a solver which will forward all queries
+/// after writing them to the given path in .smt2 format
+Solver *createSMTLIBLoggingSolver(Solver *s, std::string path, int minQueryTimeToLog);
 
 /// createDummySolver - Create a dummy solver implementation which always
 /// fails.
