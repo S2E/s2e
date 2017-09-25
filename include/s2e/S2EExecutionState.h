@@ -500,8 +500,8 @@ public:
 
     static void dumpQuery(const klee::ConstraintManager &constraints,
                           const std::vector<std::pair<const klee::MemoryObject *, const klee::Array *>> &symbolics,
-                          std::ostream &ss);
-    void dumpQuery(std::ostream &ss) const;
+                          llvm::raw_ostream &os);
+    void dumpQuery(llvm::raw_ostream &os) const;
 };
 }
 

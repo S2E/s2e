@@ -1149,23 +1149,21 @@ void S2EExecutionState::disassemble(llvm::raw_ostream &os, uint64_t pc, unsigned
 ///
 /// \param constraints constraints
 /// \param symbolics symbolic objects
-/// \param ss output stream
+/// \param os output stream
 ///
 /// Will print query in format understandable by kleaver.
 ///
 void S2EExecutionState::dumpQuery(
     const ConstraintManager &constraints,
-    const std::vector<std::pair<const klee::MemoryObject *, const klee::Array *>> &symbolics, std::ostream &ss) {
+    const std::vector<std::pair<const klee::MemoryObject *, const klee::Array *>> &symbolics, llvm::raw_ostream &os) {
     // Extract symbolic objects
     std::vector<const Array *> symbObjects;
     for (unsigned i = 0; i < symbolics.size(); ++i) {
         symbObjects.push_back(symbolics[i].second);
     }
 
-    std::stringstream devNull;
-    ExprPPrinter *printer = ExprPPrinter::create(devNull);
+    ExprPPrinter *printer = ExprPPrinter::create(os);
 
-    llvm::raw_os_ostream os(ss);
     Query query(constraints, ConstantExpr::alloc(0, Expr::Bool));
     printer->printQuery(os, query.constraints, query.expr, 0, 0, &symbObjects[0], &symbObjects[0] + symbObjects.size());
     os.flush();
@@ -1175,12 +1173,12 @@ void S2EExecutionState::dumpQuery(
 
 /// \brief Print query to solve state constraints
 ///
-/// \param ss output stream
+/// \param os output stream
 ///
 /// Will print query in format understandable by kleaver.
 ///
-void S2EExecutionState::dumpQuery(std::ostream &ss) const {
-    dumpQuery(constraints, symbolics, ss);
+void S2EExecutionState::dumpQuery(llvm::raw_ostream &os) const {
+    dumpQuery(constraints, symbolics, os);
 }
 
 } // namespace s2e
