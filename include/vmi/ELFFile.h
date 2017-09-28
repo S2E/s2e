@@ -63,7 +63,7 @@ private:
     std::vector<PhdrT> m_phdrs;
 
     bool initLibelf();
-    int getSectionIndex(off64_t va) const;
+    int getSectionIndex(uint64_t va) const;
 
 protected:
     virtual EhdrT *getEhdr(Elf *elf) const = 0;
@@ -324,7 +324,7 @@ template <typename EhdrT, typename PhdrT> unsigned ELFFile<EhdrT, PhdrT>::getPoi
     return m_pointerSize;
 }
 
-template <typename EhdrT, typename PhdrT> int ELFFile<EhdrT, PhdrT>::getSectionIndex(off64_t va) const {
+template <typename EhdrT, typename PhdrT> int ELFFile<EhdrT, PhdrT>::getSectionIndex(uint64_t va) const {
     for (unsigned i = 0; i < m_phdrs.size(); ++i) {
         const PhdrT &phdr = m_phdrs[i];
 
