@@ -13,10 +13,7 @@
 namespace vmi {
 
 DecreeFile::DecreeFile(FileProvider *file, bool loaded, uint64_t loadAddress)
-    : ExecutableFile(file, loaded, loadAddress) {
-    m_imageBase = 0;
-    m_imageSize = 0;
-    m_entryPoint = 0;
+    : ExecutableFile(file, loaded, loadAddress), m_imageBase(0), m_imageSize(0), m_entryPoint(0) {
     m_moduleName = llvm::sys::path::filename(std::string(m_file->getName()));
 }
 
@@ -27,7 +24,7 @@ ExecutableFile *DecreeFile::get(FileProvider *file, bool loaded, uint64_t loadAd
     decree::DECREE32_hdr hdr;
 
     if (!file->readb(&hdr, sizeof(hdr), loadAddress)) {
-        return NULL;
+        return nullptr;
     }
 
     if (hdr.ci_mag0 != 0x7f || hdr.ci_mag1 != 'C' || hdr.ci_mag2 != 'G' || hdr.ci_mag3 != 'C' || hdr.ci_class != 1 ||
@@ -35,13 +32,13 @@ ExecutableFile *DecreeFile::get(FileProvider *file, bool loaded, uint64_t loadAd
         hdr.c_machine != 3 || hdr.c_version != 1 || hdr.c_flags != 0 ||
         hdr.c_phentsize != sizeof(decree::DECREE32_phdr) || hdr.c_phnum < 1 ||
         hdr.c_phnum > 65536U / sizeof(decree::DECREE32_phdr)) {
-        return NULL;
+        return nullptr;
     }
 
     DecreeFile *f = new DecreeFile(file, loaded, loadAddress);
     if (!f->initialize()) {
         delete f;
-        f = NULL;
+        f = nullptr;
     }
 
     return f;

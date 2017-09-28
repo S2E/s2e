@@ -52,13 +52,13 @@ add_executable(vmidemo src/vmidemo.cpp)
 target_link_libraries(vmidemo vmi dwarf elf ${LLVM_LIBS})
 
 add_executable(injector src/injector.cpp)
-target_link_libraries(injector vmi ${LLVM_LIBS})
+target_link_libraries(injector vmi elf ${LLVM_LIBS})
 
 add_executable(dump src/dump.cpp)
-target_link_libraries(dump vmi ${LLVM_LIBS})
+target_link_libraries(dump vmi elf ${LLVM_LIBS})
 
 add_executable(reader src/reader.cpp)
-target_link_libraries(reader vmi ${LLVM_LIBS})
+target_link_libraries(reader vmi elf ${LLVM_LIBS})
 
 install(TARGETS crashdump vmidemo injector dump reader
         RUNTIME DESTINATION bin)

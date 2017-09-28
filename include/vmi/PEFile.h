@@ -52,7 +52,7 @@ protected:
     mutable const windows::IMAGE_SECTION_HEADER *m_cachedSection;
 
 protected:
-    PEFile(FileProvider *file, bool loaded, uint64_t loadAddress);
+    PEFile(FileProvider *file, bool loaded, uint64_t loadAddress, unsigned pointerSize);
     uint64_t offset(uint64_t rva) const;
     void *readDirectory(llvm::BumpPtrAllocator &alloc, unsigned index);
 
@@ -138,9 +138,9 @@ public:
     virtual unsigned getPointerSize() const {
         switch (m_fileHeader.Machine) {
             case vmi::windows::IMAGE_FILE_MACHINE_I386:
-                return 4;
+                return sizeof(uint32_t);
             case vmi::windows::IMAGE_FILE_MACHINE_AMD64:
-                return 8;
+                return sizeof(uint64_t);
             default:
                 assert(false && "Bug");
         }

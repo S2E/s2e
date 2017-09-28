@@ -71,16 +71,16 @@ public:
             VmiPrimitiveType *ret = new VmiPrimitiveType(size);
 
             switch (ret->m_size) {
-                case 1:
+                case sizeof(uint8_t):
                     ret->m_name = "char";
                     break;
-                case 2:
+                case sizeof(uint16_t):
                     ret->m_name = "short";
                     break;
-                case 4:
+                case sizeof(uint32_t):
                     ret->m_name = "int";
                     break;
-                case 8:
+                case sizeof(uint64_t):
                     ret->m_name = "long";
                     break;
                 default:
@@ -128,7 +128,7 @@ public:
     }
 
     virtual unsigned getSize() const {
-        return 4; // XXX
+        return sizeof(uint32_t); // XXX
     }
 
     const std::string &getName() const {
@@ -200,7 +200,7 @@ public:
     static VmiTypedefType *get(const std::string &name) {
         Typedefs::iterator it = s_typedefs.find(name);
         if (it == s_typedefs.end()) {
-            return NULL;
+            return nullptr;
         }
         return (*it).second;
     }
@@ -264,13 +264,13 @@ public:
         if (it != s_structures.end()) {
             return (*it).second;
         }
-        return NULL;
+        return nullptr;
     }
 
     static VmiStructureType *build(const std::string &name, const Members &members,
                                    const std::vector<std::string> &memberNames, bool isUnion, unsigned size) {
         assert(members.size() == memberNames.size());
-        assert(get(name) == NULL);
+        assert(get(name) == nullptr);
 
         VmiStructureType *ret = new VmiStructureType(name, isUnion);
 
@@ -299,7 +299,7 @@ public:
             }
             return (*it).second.type;
         }
-        return NULL;
+        return nullptr;
     }
 };
 
@@ -337,7 +337,7 @@ private:
 
 public:
     Vmi(ElfDwarf *dwarf) : m_dwarf(dwarf) {
-        m_readMemory = NULL;
+        m_readMemory = nullptr;
     }
 
     void registerCallbacks(ReadMemoryCb cb) {
@@ -420,13 +420,13 @@ public:
         }
 
         switch (type->getSize()) {
-            case 1:
+            case sizeof(uint8_t):
                 return get(primitiveType, address, (uint8_t *) data, opaque);
-            case 2:
+            case sizeof(uint16_t):
                 return get(primitiveType, address, (uint16_t *) data, opaque);
-            case 4:
+            case sizeof(uint32_t):
                 return get(primitiveType, address, (uint32_t *) data, opaque);
-            case 8:
+            case sizeof(uint64_t):
                 return get(primitiveType, address, (uint64_t *) data, opaque);
         }
 

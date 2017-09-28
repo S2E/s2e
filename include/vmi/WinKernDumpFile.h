@@ -41,7 +41,7 @@ public:
     }
 
     bool getHeader32(DUMP_HEADER32 &Header) const {
-        if (m_pointerSize != 4) {
+        if (m_pointerSize != sizeof(uint32_t)) {
             return false;
         }
         Header = Header32;
@@ -49,7 +49,7 @@ public:
     }
 
     bool getHeader64(DUMP_HEADER64 &Header) const {
-        if (m_pointerSize != 8) {
+        if (m_pointerSize != sizeof(uint64_t)) {
             return false;
         }
         Header = Header64;

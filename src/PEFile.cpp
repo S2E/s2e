@@ -20,15 +20,10 @@ namespace vmi {
 
 using namespace vmi::windows;
 
-PEFile::PEFile(FileProvider *file, bool loaded, uint64_t loadAddress) : ExecutableFile(file, loaded, loadAddress) {
-    m_imageBase = 0;
-    m_imageSize = 0;
-    m_entryPoint = 0;
-    m_moduleName = llvm::sys::path::filename(std::string(m_file->getName()));
-    m_sectionsInited = false;
-    m_cachedSection = NULL;
-    m_pointerSize = 0;
-    m_modified = false;
+PEFile::PEFile(FileProvider *file, bool loaded, uint64_t loadAddress, unsigned pointerSize)
+    : ExecutableFile(file, loaded, loadAddress), m_imageBase(0), m_imageSize(0), m_entryPoint(0),
+      m_pointerSize(pointerSize), m_moduleName(llvm::sys::path::filename(std::string(file->getName()))),
+      m_sectionsInited(false), m_modified(false), m_cachedSection(nullptr) {
 }
 
 PEFile *PEFile::get(FileProvider *file, bool loaded, uint64_t loadAddress) {
@@ -36,22 +31,22 @@ PEFile *PEFile::get(FileProvider *file, bool loaded, uint64_t loadAddress) {
     windows::IMAGE_NT_HEADERS32 ntHeader;
 
     if (!file->readb(&dosHeader, sizeof(m_dosHeader), loadAddress)) {
-        return NULL;
+        return nullptr;
     }
 
     if (dosHeader.e_magic != IMAGE_DOS_SIGNATURE) {
-        return NULL;
+        return nullptr;
     }
 
     if (!file->readb(&ntHeader, sizeof(ntHeader), loadAddress + dosHeader.e_lfanew)) {
-        return NULL;
+        return nullptr;
     }
 
     if (ntHeader.Signature != IMAGE_NT_SIGNATURE) {
-        return NULL;
+        return nullptr;
     }
 
-    PEFile *ret = NULL;
+    PEFile *ret = nullptr;
 
     switch (ntHeader.FileHeader.Machine) {
         case IMAGE_FILE_MACHINE_I386:
@@ -71,7 +66,7 @@ PEFile *PEFile::get(FileProvider *file, bool loaded, uint64_t loadAddress) {
 
     if (ret && !ret->initialize()) {
         delete ret;
-        ret = NULL;
+        ret = nullptr;
     }
 
     return ret;
@@ -260,18 +255,18 @@ void *PEFile::readDirectory(llvm::BumpPtrAllocator &alloc, unsigned index) {
     uint32_t DirSize = DataDir->Size;
 
     if (!DataDir || !DataDir->VirtualAddress) {
-        return NULL;
+        return nullptr;
     }
 
     // Get the whole export directory
     uint8_t *Buffer = (uint8_t *) alloc.Allocate(DirSize, 1);
     if (!Buffer) {
-        return NULL;
+        return nullptr;
     }
 
     if (!m_file->readb((uint8_t *) Buffer, DirSize, offset(DirAddress))) {
         llvm::errs() << m_moduleName << ": Could not load directory " << index << "\n";
-        return NULL;
+        return nullptr;
     }
 
     return Buffer;
@@ -283,7 +278,7 @@ bool PEFile::initSections(void) {
     IMAGE_SECTION_HEADER sectionHeader;
     uint64_t pSection = m_loadAddress + m_dosHeader.e_lfanew + sizeof(IMAGE_NT_SIGNATURE) + sizeof(IMAGE_FILE_HEADER);
 
-    if (m_pointerSize == 4) {
+    if (m_pointerSize == sizeof(uint32_t)) {
         pSection += sizeof(IMAGE_OPTIONAL_HEADER32);
     } else {
         pSection += sizeof(IMAGE_OPTIONAL_HEADER64);
@@ -729,7 +724,7 @@ void PEFile::getFreeSectionHeader(windows::IMAGE_SECTION_HEADER &sec, unsigned s
 
 windows::IMAGE_SECTION_HEADER *PEFile::appendSection(const std::string &name, void *data, unsigned size) {
     uint32_t FileAlignment, SectionAlignment;
-    if (m_pointerSize == 4) {
+    if (m_pointerSize == sizeof(uint32_t)) {
         FileAlignment = m_ntHeader32.OptionalHeader.FileAlignment;
         SectionAlignment = m_ntHeader32.OptionalHeader.SectionAlignment;
     } else {
@@ -739,7 +734,7 @@ windows::IMAGE_SECTION_HEADER *PEFile::appendSection(const std::string &name, vo
 
     if (size & (FileAlignment - 1)) {
         llvm::errs() << "Size of new section must be multiple of " << m_ntHeader32.OptionalHeader.FileAlignment << "\n";
-        return NULL;
+        return nullptr;
     }
 
     IMAGE_SECTION_HEADER sec;
@@ -756,7 +751,7 @@ windows::IMAGE_SECTION_HEADER *PEFile::appendSection(const std::string &name, vo
         AlignedSize += SectionAlignment;
     }
 
-    if (m_pointerSize == 4) {
+    if (m_pointerSize == sizeof(uint32_t)) {
         m_ntHeader32.OptionalHeader.SizeOfImage += AlignedSize;
     } else {
         m_ntHeader64.OptionalHeader.SizeOfImage += AlignedSize;
@@ -764,7 +759,7 @@ windows::IMAGE_SECTION_HEADER *PEFile::appendSection(const std::string &name, vo
 
     if (!m_file->writeb(data, sec.SizeOfRawData, sec.PointerToRawData)) {
         m_peSections.pop_back();
-        return NULL;
+        return nullptr;
     }
 
     m_modified = true;
@@ -823,7 +818,7 @@ bool PEFile::rewrite() {
     /* NT header */
     unsigned ntHeaderSize, SizeOfHeaders;
 
-    if (m_pointerSize == 4) {
+    if (m_pointerSize == sizeof(uint32_t)) {
         ntHeaderSize = sizeof(m_ntHeader32);
         m_ntHeader32.OptionalHeader.CheckSum = 0;
         SizeOfHeaders = m_ntHeader32.OptionalHeader.SizeOfHeaders;
@@ -859,7 +854,7 @@ bool PEFile::rewrite() {
     /** Recompute the checksum **/
     {
         uint32_t cs = computeChecksum();
-        if (m_pointerSize == 4) {
+        if (m_pointerSize == sizeof(uint32_t)) {
             m_ntHeader32.OptionalHeader.CheckSum = cs;
         } else {
             m_ntHeader64.OptionalHeader.CheckSum = cs;
@@ -882,10 +877,10 @@ err1:
 
 windows::IMAGE_DATA_DIRECTORY *PEFile::getDataDirectory(unsigned index) {
     if (index >= IMAGE_NUMBEROF_DIRECTORY_ENTRIES) {
-        return NULL;
+        return nullptr;
     }
 
-    if (m_pointerSize == 4) {
+    if (m_pointerSize == sizeof(uint32_t)) {
         return &m_ntHeader32.OptionalHeader.DataDirectory[index];
     } else {
         return &m_ntHeader64.OptionalHeader.DataDirectory[index];
@@ -893,8 +888,8 @@ windows::IMAGE_DATA_DIRECTORY *PEFile::getDataDirectory(unsigned index) {
 }
 
 /***************************************************/
-PEFile32::PEFile32(FileProvider *file, bool loaded, uint64_t loadAddress) : PEFile(file, loaded, loadAddress) {
-    m_pointerSize = 4;
+PEFile32::PEFile32(FileProvider *file, bool loaded, uint64_t loadAddress)
+    : PEFile(file, loaded, loadAddress, sizeof(uint32_t)) {
 }
 
 bool PEFile32::initialize() {
@@ -930,8 +925,8 @@ bool PEFile32::initialize() {
 }
 
 /***************************************************/
-PEFile64::PEFile64(FileProvider *file, bool loaded, uint64_t loadAddress) : PEFile(file, loaded, loadAddress) {
-    m_pointerSize = 8;
+PEFile64::PEFile64(FileProvider *file, bool loaded, uint64_t loadAddress)
+    : PEFile(file, loaded, loadAddress, sizeof(uint64_t)) {
 }
 
 bool PEFile64::initialize() {

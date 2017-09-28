@@ -7,14 +7,13 @@
 ///
 
 #include <vmi/DecreeFile.h>
+#include <vmi/ELFFile.h>
 #include <vmi/PEFile.h>
 
 namespace vmi {
 
-ExecutableFile::ExecutableFile(FileProvider *file, bool loaded, uint64_t loadAddress) {
-    m_file = file;
-    m_loaded = loaded;
-    m_loadAddress = loadAddress;
+ExecutableFile::ExecutableFile(FileProvider *file, bool loaded, uint64_t loadAddress)
+    : m_file(file), m_loaded(loaded), m_loadAddress(loadAddress) {
 }
 
 ExecutableFile::~ExecutableFile() {
@@ -33,6 +32,16 @@ ExecutableFile *ExecutableFile::get(FileProvider *file, bool loaded, uint64_t lo
         return ret;
     }
 
-    return NULL;
+    ret = ELFFile32::get(file, loaded, loadAddress);
+    if (ret) {
+        return ret;
+    }
+
+    ret = ELFFile64::get(file, loaded, loadAddress);
+    if (ret) {
+        return ret;
+    }
+
+    return nullptr;
 }
 }

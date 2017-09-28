@@ -67,7 +67,7 @@ public:
     }
 
     virtual unsigned getPointerSize() const {
-        return 4;
+        return sizeof(uint32_t);
     }
 
     virtual ssize_t read(void *buffer, size_t nbyte, off64_t offset) const;
