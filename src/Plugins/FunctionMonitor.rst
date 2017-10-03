@@ -27,10 +27,10 @@ The following part shows the code that implements the steps explained above.
     // 1. Write a new analysis plugin (e.g., based on the Example plugin)
     void Example::initialize() {
         // 2. Get an instance of the FunctionMonitor plugin
-        FunctionMonitor *m_monitor = static_cast<FunctionMonitor*>(s2e()->getPlugin("FunctionMonitor"));
+        FunctionMonitor *m_monitor = s2e()->getPlugin<FunctionMonitor>();
 
         // 3. Monitor the translation of each translation block
-        s2e()->getCorePlugin()->onTransl ateBlockStart.connect(
+        s2e()->getCorePlugin()->onTranslateBlockStart.connect(
                 sigc::mem_fun(*this, &Example::slotTranslateBlockStart));
 
     }
@@ -43,8 +43,6 @@ For example, to monitor the kernel-mode function located at ``0xC00F012``, speci
                                           S2EExecutionState *state,
                                           TranslationBlock *tb,
                                           uint64_t pc) {
-        FunctionMonitor::CallSignal *callSignal;
-
         // 4. Obtain the address of the function to be monitored
         // The hard-coded value can be specified in the configuration file your plugin
         uint64_t functionAddress = 0xC00F0120;
@@ -61,7 +59,7 @@ For example, to monitor the kernel-mode function located at ``0xC00F012``, speci
         }
 
         // a. Register a call signal for address 0xC00F0120
-        callSignal = m_monitor->getCallSignal(state, functionAddress, -1);
+        FunctionMonitor::callSignal *callSignal = m_monitor->getCallSignal(state, functionAddress, -1);
 
         // b. Register one signal handler for the function call.
         // Whenever a call instruction whose target is 0xC00F0120 is detected, FunctionMonitor
@@ -91,7 +89,7 @@ The call handler looks as follows:
     // This handler is called after the call instruction is executed, and before the first instruction
     // of the called function is run.
     void Example::myFunctionCallMonitor(S2EExecutionState* state, FunctionMonitorState *fns) {
-        getMessagesStream() << "My function handler is called" << std::end;
+        getDebugStream(state) << "My function handler is called\n";
 
         // ...
         // Perform here any analysis or state manipulation you wish
