@@ -94,10 +94,17 @@ understand how to combine these tracers.
 Selection Plugins
 -----------------
 
-These plugins allow you to specify which paths to execute and where to inject symbolic values
+These plugins allow you to specify which paths to execute and where to inject symbolic values.
 
 * `EdgeKiller <src/Plugins/EdgeKiller.rst>`_ kills execution paths that execute some sequence of instructions (e.g.,
   polling loops).
+
+Annotation Plugins
+------------------
+
+These plugins allow the user to write plugins in `Lua <http://lua.org/>`_.
+
+* Function and Instruction `Annotations <src/Plugins/Annotations.rst>`_
 
 Miscellaneous Plugins
 ---------------------
