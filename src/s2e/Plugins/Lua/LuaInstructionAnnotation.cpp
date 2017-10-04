@@ -57,9 +57,9 @@ void LuaInstructionAnnotation::initialize() {
         exit(-1);
     }
 
-    foreach2 (kit, keys.begin(), keys.end()) {
+    for (auto const &key : keys) {
         std::stringstream ss;
-        ss << getConfigKey() << ".annotations." << *kit;
+        ss << getConfigKey() << ".annotations." << key;
 
         std::string moduleId = readStringOrFail(s2e(), ss.str() + ".module_name");
 

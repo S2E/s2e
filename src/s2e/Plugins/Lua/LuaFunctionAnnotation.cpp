@@ -60,8 +60,8 @@ bool LuaFunctionAnnotation::registerAnnotation(const Annotation &annotation) {
         return false;
     }
 
-    foreach2 (ait, m_annotations.begin(), m_annotations.end()) {
-        if (*(*ait) == annotation) {
+    for (auto const &annot : m_annotations) {
+        if (*annot == annotation) {
             getWarningsStream() << "LuaFunctionAnnotation: attempting to register existing annotation\n";
             return false;
         }
@@ -89,9 +89,9 @@ void LuaFunctionAnnotation::initialize() {
         exit(-1);
     }
 
-    foreach2 (kit, keys.begin(), keys.end()) {
+    for (auto const &key : keys) {
         std::stringstream ss;
-        ss << getConfigKey() << ".annotations." << *kit;
+        ss << getConfigKey() << ".annotations." << key;
         Annotation annotation;
         annotation.moduleId = readStringOrFail(s2e(), ss.str() + ".module_id");
         annotation.annotationName = readStringOrFail(s2e(), ss.str() + ".name");
@@ -134,8 +134,7 @@ void LuaFunctionAnnotation::onModuleLoad(S2EExecutionState *state, const ModuleD
         return;
     }
 
-    foreach2 (ait, m_annotations.begin(), m_annotations.end()) {
-        const Annotation *annotation = *ait;
+    for (auto const &annotation : m_annotations) {
         if (annotation->moduleId != *mid) {
             continue;
         }
