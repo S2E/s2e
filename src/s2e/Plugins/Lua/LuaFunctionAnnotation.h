@@ -32,15 +32,19 @@ public:
     void initialize();
 
 private:
-    enum CallingConvention { STDCALL, CDECL, MAX_CONV };
-
     struct Annotation {
-        std::string moduleId;
-        uint64_t pc;
-        unsigned paramCount;
-        std::string annotationName;
-        CallingConvention convention;
-        bool fork;
+        enum CallingConvention { STDCALL, CDECL, MAX_CONV };
+
+        const std::string moduleId;
+        const uint64_t pc;
+        const unsigned paramCount;
+        const std::string annotationName;
+        const CallingConvention convention;
+        const bool fork;
+
+        Annotation(std::string id, uint64_t pc_, unsigned pCount, std::string name, CallingConvention cc, bool fork_)
+            : moduleId(id), pc(pc_), paramCount(pCount), annotationName(name), convention(cc), fork(fork_) {
+        }
 
         bool operator==(const Annotation &a1) const {
             return moduleId == a1.moduleId && pc == a1.pc && paramCount == a1.paramCount &&
@@ -66,23 +70,6 @@ private:
 
     void onFunctionCall(S2EExecutionState *state, FunctionMonitorState *fns, const Annotation &entry);
     void onFunctionRet(S2EExecutionState *state, const Annotation &entry);
-};
-
-class LuaFunctionAnnotationState : public PluginState {
-private:
-    bool m_child;
-
-public:
-    LuaFunctionAnnotationState();
-    virtual ~LuaFunctionAnnotationState();
-    virtual LuaFunctionAnnotationState *clone() const;
-    static PluginState *factory(Plugin *p, S2EExecutionState *s);
-
-    friend class LuaFunctionAnnotation;
-
-    bool isChild() const {
-        return m_child;
-    }
 };
 
 } // namespace plugins

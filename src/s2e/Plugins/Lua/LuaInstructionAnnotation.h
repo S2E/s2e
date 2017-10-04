@@ -31,8 +31,14 @@ public:
 
 private:
     struct Annotation {
-        uint64_t pc;
-        std::string annotationName;
+        const std::string annotationName;
+        const uint64_t pc;
+
+        Annotation(std::string name, uint64_t pc_) : annotationName(name), pc(pc_) {
+        }
+
+        Annotation(uint64_t pc_) : Annotation("", pc_) {
+        }
 
         bool operator==(const Annotation &a1) const {
             return pc == a1.pc && annotationName == a1.annotationName;

@@ -26,6 +26,32 @@ namespace plugins {
 S2E_DEFINE_PLUGIN(LuaFunctionAnnotation, "Execute Lua code on a function call", "LuaFunctionAnnotation",
                   "ModuleExecutionDetector", "FunctionMonitor", "OSMonitor", "LuaBindings");
 
+class LuaFunctionAnnotationState : public PluginState {
+private:
+    bool m_child;
+
+public:
+    LuaFunctionAnnotationState() : m_child(false){};
+
+    virtual LuaFunctionAnnotationState *clone() const {
+        return new LuaFunctionAnnotationState(*this);
+    }
+
+    static PluginState *factory(Plugin *p, S2EExecutionState *s) {
+        return new LuaFunctionAnnotationState();
+    }
+
+    bool isChild() const {
+        return m_child;
+    }
+
+    void makeChild(bool child) {
+        m_child = child;
+    }
+};
+
+/*************************************************************************/
+
 static std::string readStringOrFail(S2E *s2e, const std::string &key) {
     bool ok;
     ConfigFile *cfg = s2e->getConfig();
@@ -82,24 +108,25 @@ void LuaFunctionAnnotation::initialize() {
     for (auto const &key : keys) {
         std::stringstream ss;
         ss << getConfigKey() << ".annotations." << key;
-        Annotation annotation;
-        annotation.moduleId = readStringOrFail(s2e(), ss.str() + ".module_name");
-        annotation.annotationName = readStringOrFail(s2e(), ss.str() + ".name");
-        annotation.pc = readIntOrFail(s2e(), ss.str() + ".pc");
-        annotation.paramCount = readIntOrFail(s2e(), ss.str() + ".param_count");
-        annotation.fork = readBoolOrFail(s2e(), ss.str() + ".fork");
+
+        std::string moduleId = readStringOrFail(s2e(), ss.str() + ".module_name");
+        std::string annotationName = readStringOrFail(s2e(), ss.str() + ".name");
+        uint64_t pc = readIntOrFail(s2e(), ss.str() + ".pc");
+        unsigned paramCount = readIntOrFail(s2e(), ss.str() + ".param_count");
+        bool fork = readBoolOrFail(s2e(), ss.str() + ".fork");
         std::string cc = readStringOrFail(s2e(), ss.str() + ".convention");
 
+        Annotation::CallingConvention convention;
         if (cc == "stdcall") {
-            annotation.convention = STDCALL;
+            convention = Annotation::STDCALL;
         } else if (cc == "cdecl") {
-            annotation.convention = CDECL;
+            convention = Annotation::CDECL;
         } else {
-            getWarningsStream() << "unknown convention" << cc << "\n";
+            getWarningsStream() << "unknown calling convention" << cc << "\n";
             exit(-1);
         }
 
-        if (!registerAnnotation(annotation)) {
+        if (!registerAnnotation(Annotation(moduleId, pc, paramCount, annotationName, convention, fork))) {
             exit(-1);
         }
     }
@@ -185,10 +212,10 @@ void LuaFunctionAnnotation::forkAnnotation(S2EExecutionState *state, const Annot
     S2EExecutionState *s2 = static_cast<S2EExecutionState *>(sp.second);
 
     DECLARE_PLUGINSTATE_N(LuaFunctionAnnotationState, p1, s1);
-    p1->m_child = false;
+    p1->makeChild(false);
 
     DECLARE_PLUGINSTATE_N(LuaFunctionAnnotationState, p2, s2);
-    p2->m_child = true;
+    p2->makeChild(true);
 }
 
 void LuaFunctionAnnotation::invokeAnnotation(S2EExecutionState *state, const Annotation &entry, bool isCall) {
@@ -202,7 +229,7 @@ void LuaFunctionAnnotation::invokeAnnotation(S2EExecutionState *state, const Ann
         forkAnnotation(state, entry);
 
         luaAnnotation.setChild(p->isChild());
-        p->m_child = false;
+        p->makeChild(false);
     }
 
     lua_getglobal(L, entry.annotationName.c_str());
@@ -232,7 +259,7 @@ void LuaFunctionAnnotation::invokeAnnotation(S2EExecutionState *state, const Ann
     if (luaAnnotation.doSkip()) {
         m_functionMonitor->eraseSp(state, state->regs()->getSp());
 
-        if (entry.convention == STDCALL) {
+        if (entry.convention == Annotation::STDCALL) {
             state->bypassFunction(entry.paramCount);
         } else {
             state->bypassFunction(0);
@@ -258,23 +285,6 @@ void LuaFunctionAnnotation::onFunctionRet(S2EExecutionState *state, const Annota
     state->jumpToSymbolicCpp();
     getDebugStream() << "Invoking return annotation " << entry.annotationName << '\n';
     invokeAnnotation(state, entry, false);
-}
-
-/*************************************************************************/
-
-LuaFunctionAnnotationState::LuaFunctionAnnotationState() {
-    m_child = false;
-}
-
-LuaFunctionAnnotationState::~LuaFunctionAnnotationState() {
-}
-
-LuaFunctionAnnotationState *LuaFunctionAnnotationState::clone() const {
-    return new LuaFunctionAnnotationState(*this);
-}
-
-PluginState *LuaFunctionAnnotationState::factory(Plugin *p, S2EExecutionState *s) {
-    return new LuaFunctionAnnotationState();
 }
 
 } // namespace plugins

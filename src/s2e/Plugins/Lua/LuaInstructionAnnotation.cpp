@@ -69,12 +69,10 @@ void LuaInstructionAnnotation::initialize() {
         ss << getConfigKey() << ".annotations." << key;
 
         std::string moduleId = readStringOrFail(s2e(), ss.str() + ".module_name");
+        std::string annotationName = readStringOrFail(s2e(), ss.str() + ".name");
+        uint64_t pc = readIntOrFail(s2e(), ss.str() + ".pc");
 
-        Annotation annotation;
-        annotation.annotationName = readStringOrFail(s2e(), ss.str() + ".name");
-        annotation.pc = readIntOrFail(s2e(), ss.str() + ".pc");
-
-        if (!registerAnnotation(moduleId, annotation)) {
+        if (!registerAnnotation(moduleId, Annotation(annotationName, pc))) {
             exit(-1);
         }
     }
@@ -96,6 +94,7 @@ bool LuaInstructionAnnotation::registerAnnotation(const std::string &moduleId, c
 
     getDebugStream() << "loaded " << moduleId << " " << annotation.annotationName << " " << hexval(annotation.pc)
                      << "\n";
+
     return true;
 }
 
@@ -135,8 +134,8 @@ void LuaInstructionAnnotation::onTranslateInstructionStart(ExecutionSignal *sign
                                                            TranslationBlock *tb, uint64_t pc,
                                                            const ModuleAnnotations *annotations, uint64_t addend) {
     uint64_t modulePc = pc + addend;
-    Annotation tofind;
-    tofind.pc = modulePc;
+    Annotation tofind(modulePc);
+
     if (annotations->find(tofind) == annotations->end()) {
         return;
     }
@@ -155,8 +154,7 @@ void LuaInstructionAnnotation::onInstruction(S2EExecutionState *state, uint64_t 
         return;
     }
 
-    Annotation tofind;
-    tofind.pc = modulePc;
+    Annotation tofind(modulePc);
     ModuleAnnotations::const_iterator it = annotations->find(tofind);
     if (it == annotations->end()) {
         return;
