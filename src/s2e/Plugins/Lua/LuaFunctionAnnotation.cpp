@@ -7,10 +7,14 @@
 ///
 
 #include <s2e/ConfigFile.h>
-#include <s2e/Plugins/OSMonitors/OSMonitor.h>
 #include <s2e/S2E.h>
 #include <s2e/S2EExecutor.h>
 #include <s2e/Utils.h>
+
+#include <s2e/Plugins/ExecutionMonitors/FunctionMonitor.h>
+#include <s2e/Plugins/OSMonitors/OSMonitor.h>
+#include <s2e/Plugins/OSMonitors/Support/ModuleExecutionDetector.h>
+#include <s2e/Plugins/Support/KeyValueStore.h>
 
 #include "LuaAnnotationState.h"
 #include "LuaFunctionAnnotation.h"
@@ -19,17 +23,19 @@
 namespace s2e {
 namespace plugins {
 
-S2E_DEFINE_PLUGIN(LuaFunctionAnnotation, "LuaFunctionAnnotation S2E plugin", "LuaFunctionAnnotation",
+S2E_DEFINE_PLUGIN(LuaFunctionAnnotation, "Execute Lua code on a function call", "LuaFunctionAnnotation",
                   "ModuleExecutionDetector", "FunctionMonitor", "OSMonitor", "LuaBindings");
 
 static std::string readStringOrFail(S2E *s2e, const std::string &key) {
     bool ok;
     ConfigFile *cfg = s2e->getConfig();
     std::string ret = cfg->getString(key, "", &ok);
+
     if (!ok) {
         s2e->getWarningsStream() << "LuaFunctionAnnotation: " << key << " is missing\n";
         exit(-1);
     }
+
     return ret;
 }
 
@@ -37,10 +43,12 @@ static uint64_t readIntOrFail(S2E *s2e, const std::string &key) {
     bool ok;
     ConfigFile *cfg = s2e->getConfig();
     uint64_t ret = cfg->getInt(key, 0, &ok);
+
     if (!ok) {
         s2e->getWarningsStream() << "LuaFunctionAnnotation: " << key << " is missing\n";
         exit(-1);
     }
+
     return ret;
 }
 
@@ -48,44 +56,26 @@ static bool readBoolOrFail(S2E *s2e, const std::string &key) {
     bool ok;
     ConfigFile *cfg = s2e->getConfig();
     bool ret = cfg->getBool(key, 0, &ok);
+
     if (!ok) {
         s2e->getWarningsStream() << "LuaFunctionAnnotation: " << key << " is missing\n";
         exit(-1);
     }
+
     return ret;
-}
-bool LuaFunctionAnnotation::registerAnnotation(const Annotation &annotation) {
-    if (!m_detector->isModuleConfigured(annotation.moduleId)) {
-        getWarningsStream() << "LuaFunctionAnnotation: unknown module id " << annotation.moduleId << "\n";
-        return false;
-    }
-
-    for (auto const &annot : m_annotations) {
-        if (*annot == annotation) {
-            getWarningsStream() << "LuaFunctionAnnotation: attempting to register existing annotation\n";
-            return false;
-        }
-    }
-
-    m_annotations.push_back(new Annotation(annotation));
-
-    getDebugStream() << "LuaFunctionAnnotation: loaded " << annotation.moduleId << " " << annotation.annotationName
-                     << " " << hexval(annotation.pc) << " "
-                     << "convention: " << annotation.convention << "\n";
-    return true;
 }
 
 void LuaFunctionAnnotation::initialize() {
     m_monitor = dynamic_cast<OSMonitor *>(s2e()->getPlugin("OSMonitor"));
-    m_detector = static_cast<ModuleExecutionDetector *>(s2e()->getPlugin("ModuleExecutionDetector"));
-    m_functionMonitor = static_cast<FunctionMonitor *>(s2e()->getPlugin("FunctionMonitor"));
-    m_kvs = static_cast<KeyValueStore *>(s2e()->getPlugin("KeyValueStore"));
+    m_detector = s2e()->getPlugin<ModuleExecutionDetector>();
+    m_functionMonitor = s2e()->getPlugin<FunctionMonitor>();
+    m_kvs = s2e()->getPlugin<KeyValueStore>();
 
     bool ok;
     ConfigFile *cfg = s2e()->getConfig();
     ConfigFile::string_list keys = cfg->getListKeys(getConfigKey() + ".annotations", &ok);
     if (!ok) {
-        getWarningsStream() << "LuaFunctionAnnotation: must have an .annotations section\n";
+        getWarningsStream() << "must have an .annotations section\n";
         exit(-1);
     }
 
@@ -105,7 +95,7 @@ void LuaFunctionAnnotation::initialize() {
         } else if (cc == "cdecl") {
             annotation.convention = CDECL;
         } else {
-            getWarningsStream() << "LuaFunctionAnnotation: unknown convention" << cc << "\n";
+            getWarningsStream() << "unknown convention" << cc << "\n";
             exit(-1);
         }
 
@@ -115,15 +105,37 @@ void LuaFunctionAnnotation::initialize() {
     }
 
     m_monitor->onModuleLoad.connect(sigc::mem_fun(*this, &LuaFunctionAnnotation::onModuleLoad));
-
     m_monitor->onModuleUnload.connect(sigc::mem_fun(*this, &LuaFunctionAnnotation::onModuleUnload));
 }
 
+bool LuaFunctionAnnotation::registerAnnotation(const Annotation &annotation) {
+    if (!m_detector->isModuleConfigured(annotation.moduleId)) {
+        getWarningsStream() << "unknown module id " << annotation.moduleId << "\n";
+
+        return false;
+    }
+
+    for (auto const &annot : m_annotations) {
+        if (annot == annotation) {
+            getWarningsStream() << "attempting to register existing annotation\n";
+
+            return false;
+        }
+    }
+
+    m_annotations.push_back(annotation);
+
+    getDebugStream() << "loaded " << annotation.moduleId << " " << annotation.annotationName << " "
+                     << hexval(annotation.pc) << " convention: " << annotation.convention << "\n";
+
+    return true;
+}
+
 void LuaFunctionAnnotation::hookAnnotation(S2EExecutionState *state, const ModuleDescriptor &module,
-                                           const Annotation *annotation) {
-    FunctionMonitor::CallSignal *cs;
-    uint64_t funcPc = module.ToRuntime(annotation->pc);
-    cs = m_functionMonitor->getCallSignal(state, funcPc, m_monitor->getPid(state, funcPc));
+                                           const Annotation &annotation) {
+    uint64_t funcPc = module.ToRuntime(annotation.pc);
+
+    FunctionMonitor::CallSignal *cs = m_functionMonitor->getCallSignal(state, funcPc, m_monitor->getPid(state, funcPc));
     cs->connect(sigc::bind(sigc::mem_fun(*this, &LuaFunctionAnnotation::onFunctionCall), annotation));
 }
 
@@ -135,7 +147,7 @@ void LuaFunctionAnnotation::onModuleLoad(S2EExecutionState *state, const ModuleD
     }
 
     for (auto const &annotation : m_annotations) {
-        if (annotation->moduleId != *mid) {
+        if (annotation.moduleId != *mid) {
             continue;
         }
 
@@ -157,7 +169,7 @@ void LuaFunctionAnnotation::forkAnnotation(S2EExecutionState *state, const Annot
     std::stringstream ss;
     ss << "annotation_" << entry.annotationName << "_child";
 
-    /* Use the KVS to make sure that we exercise the annotated function only once */
+    // Use the KVS to make sure that we exercise the annotated function only once
     if (m_kvs) {
         bool exists = false;
         m_kvs->put(ss.str(), "1", exists);
@@ -168,7 +180,7 @@ void LuaFunctionAnnotation::forkAnnotation(S2EExecutionState *state, const Annot
 
     klee::ref<klee::Expr> cond = state->createConcolicValue<uint8_t>(ss.str(), 0);
     cond = klee::Expr::createIsZero(cond);
-    S2EExecutor::StatePair sp = g_s2e->getExecutor()->forkCondition(state, cond);
+    S2EExecutor::StatePair sp = s2e()->getExecutor()->forkCondition(state, cond);
     S2EExecutionState *s1 = static_cast<S2EExecutionState *>(sp.first);
     S2EExecutionState *s2 = static_cast<S2EExecutionState *>(sp.second);
 
@@ -182,7 +194,7 @@ void LuaFunctionAnnotation::forkAnnotation(S2EExecutionState *state, const Annot
 void LuaFunctionAnnotation::invokeAnnotation(S2EExecutionState *state, const Annotation &entry, bool isCall) {
     lua_State *L = s2e()->getConfig()->getState();
 
-    LuaS2EExecutionState lua_s2e_state(state);
+    LuaS2EExecutionState luaS2EState(state);
     LuaAnnotationState luaAnnotation;
 
     if (isCall && entry.fork) {
@@ -194,18 +206,17 @@ void LuaFunctionAnnotation::invokeAnnotation(S2EExecutionState *state, const Ann
     }
 
     lua_getglobal(L, entry.annotationName.c_str());
-    Lunar<LuaS2EExecutionState>::push(L, &lua_s2e_state);
+    Lunar<LuaS2EExecutionState>::push(L, &luaS2EState);
     Lunar<LuaAnnotationState>::push(L, &luaAnnotation);
 
     if (entry.paramCount > 0 && state->getPointerSize() == 8) {
-        g_s2e->getExecutor()->terminateStateEarly(*state, "LuaFunctionAnnotation: 64-bits support not implemented");
+        s2e()->getExecutor()->terminateStateEarly(*state, "64-bit support not implemented");
     }
 
     lua_pushboolean(L, isCall);
 
     uint64_t pointerSize = state->getPointerSize();
-    uint64_t paramSp = state->getSp();
-    paramSp += pointerSize;
+    uint64_t paramSp = state->getSp() + pointerSize;
 
     for (unsigned i = 0; i < entry.paramCount; ++i) {
         uint64_t address = paramSp + i * pointerSize;
@@ -232,21 +243,21 @@ void LuaFunctionAnnotation::invokeAnnotation(S2EExecutionState *state, const Ann
 }
 
 void LuaFunctionAnnotation::onFunctionCall(S2EExecutionState *state, FunctionMonitorState *fns,
-                                           const Annotation *entry) {
+                                           const Annotation &entry) {
     state->undoCallAndJumpToSymbolic();
-    getDebugStream() << "LuaFunctionAnnotation: Invoking call annotation " << entry->annotationName << '\n';
+    getDebugStream() << "Invoking call annotation " << entry.annotationName << '\n';
 
     FunctionMonitor::ReturnSignal returnSignal;
     returnSignal.connect(sigc::bind(sigc::mem_fun(*this, &LuaFunctionAnnotation::onFunctionRet), entry));
     fns->registerReturnSignal(state, returnSignal);
 
-    invokeAnnotation(state, *entry, true);
+    invokeAnnotation(state, entry, true);
 }
 
-void LuaFunctionAnnotation::onFunctionRet(S2EExecutionState *state, const Annotation *entry) {
+void LuaFunctionAnnotation::onFunctionRet(S2EExecutionState *state, const Annotation &entry) {
     state->jumpToSymbolicCpp();
-    getDebugStream() << "LuaFunctionAnnotation: Invoking return annotation " << entry->annotationName << '\n';
-    invokeAnnotation(state, *entry, false);
+    getDebugStream() << "Invoking return annotation " << entry.annotationName << '\n';
+    invokeAnnotation(state, entry, false);
 }
 
 /*************************************************************************/

@@ -53,14 +53,13 @@ void LuaCoreEvents::registerCoreSignals(const std::string &cfgname) {
     }
 }
 
-///////////////////////////////////////////////////////////////////////////////////////
 void LuaCoreEvents::onStateKill(S2EExecutionState *state) {
     lua_State *L = s2e()->getConfig()->getState();
-    LuaS2EExecutionState lua_s2e_state(state);
+    LuaS2EExecutionState luaS2EState(state);
     LuaAnnotationState luaAnnotation;
 
     lua_getglobal(L, m_onStateKill.c_str());
-    Lunar<LuaS2EExecutionState>::push(L, &lua_s2e_state);
+    Lunar<LuaS2EExecutionState>::push(L, &luaS2EState);
     Lunar<LuaAnnotationState>::push(L, &luaAnnotation);
 
     lua_call(L, 2, 0);

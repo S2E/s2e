@@ -20,30 +20,24 @@ private:
     bool m_child;
     bool m_exitCpuLoop;
 
-    void init() {
-        m_skip = false;
-        m_child = false;
-        m_exitCpuLoop = false;
-    }
-
 public:
     static const char className[];
     static Lunar<LuaAnnotationState>::RegType methods[];
 
-    LuaAnnotationState(lua_State *lua) {
-        init();
+    LuaAnnotationState(lua_State *L) : LuaAnnotationState() {
     }
 
-    LuaAnnotationState() {
-        init();
+    LuaAnnotationState() : m_skip(false), m_child(false), m_exitCpuLoop(false) {
     }
 
     void setChild(bool c) {
         m_child = c;
     }
+
     bool doSkip() const {
         return m_skip;
     }
+
     bool exitCpuLoop() const {
         return m_exitCpuLoop;
     }

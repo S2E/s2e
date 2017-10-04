@@ -27,8 +27,8 @@ void LuaBindings::initialize() {
     Lunar<LuaModuleDescriptor>::Register(L);
     Lunar<LuaS2E>::Register(L);
 
-    m_lua_s2e = new LuaS2E(L);
-    Lunar<LuaS2E>::push(L, m_lua_s2e);
+    m_luaS2E = new LuaS2E(L);
+    Lunar<LuaS2E>::push(L, m_luaS2E);
     lua_setglobal(L, "g_s2e");
 
     Lunar<LuaAnnotationState>::Register(L);

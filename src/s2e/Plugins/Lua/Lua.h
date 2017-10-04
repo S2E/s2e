@@ -7,7 +7,6 @@
 ///
 
 #ifndef _S2E_LUA_H_
-
 #define _S2E_LUA_H_
 
 extern "C" {
@@ -22,7 +21,7 @@ namespace plugins {
 #define LUAS2E "LuaS2E"
 
 // Copied from lua-gd
-/* Emulates lua_(un)boxpointer from Lua 5.0 (don't exists on Lua 5.1) */
+// Emulates lua_(un)boxpointer from Lua 5.0 (don't exists on Lua 5.1)
 #define boxptr(L, p) (*(void **) (lua_newuserdata(L, sizeof(void *))) = (p))
 #define unboxptr(L, i) (*(void **) (lua_touserdata(L, i)))
 
@@ -31,12 +30,13 @@ template <typename T> class Lunar {
 
 public:
     typedef int (T::*mfp)(lua_State *L);
+
     typedef struct {
         const char *name;
         mfp mfunc;
     } RegType;
 
-    /* This was removed since Lua 5.2 */
+    // This was removed in Lua 5.2
     static int luaL_typerror(lua_State *L, int narg, const char *tname) {
         const char *msg = lua_pushfstring(L, "%s expected, got %s", tname, luaL_typename(L, narg));
         return luaL_argerror(L, narg, msg);
@@ -49,8 +49,7 @@ public:
         luaL_newmetatable(L, T::className);
         int metatable = lua_gettop(L);
 
-        // store method table in globals so that
-        // scripts can add functions written in Lua.
+        // store method table in globals so that scripts can add functions written in Lua
         lua_pushvalue(L, methods);
         lua_setglobal(L, T::className);
 
@@ -82,7 +81,8 @@ public:
             lua_settable(L, methods);
         }
 
-        lua_pop(L, 2); // drop metatable and method table
+        // drop metatable and method table
+        lua_pop(L, 2);
     }
 
     // call named lua method from userdata method table
@@ -103,30 +103,41 @@ public:
         }
         lua_insert(L, base); // put method under userdata, args
 
-        int status = lua_pcall(L, 1 + nargs, nresults, errfunc); // call method
+        // call method
+        int status = lua_pcall(L, 1 + nargs, nresults, errfunc);
         if (status) {
             const char *msg = lua_tostring(L, -1);
-            if (msg == NULL)
+            if (msg == nullptr) {
                 msg = "(error with no message)";
+            }
+
             lua_pushfstring(L, "%s:%s status = %d\n%s", T::className, method, status, msg);
             lua_remove(L, base); // remove old message
+
             return -1;
         }
-        return lua_gettop(L) - base + 1; // number of results
+
+        // number of results
+        return lua_gettop(L) - base + 1;
     }
 
     // push onto the Lua stack a userdata containing a pointer to T object
     static int push(lua_State *L, T *obj, bool gc = false) {
         if (!obj) {
             lua_pushnil(L);
+
             return 0;
         }
+
         luaL_getmetatable(L, T::className); // lookup metatable in Lua registry
-        if (lua_isnil(L, -1))
+        if (lua_isnil(L, -1)) {
             luaL_error(L, "%s missing metatable", T::className);
+        }
+
         int mt = lua_gettop(L);
         subtable(L, mt, "userdata", "v");
         userdataType *ud = static_cast<userdataType *>(pushuserdata(L, obj, sizeof(userdataType)));
+
         if (ud) {
             ud->pT = obj; // store pointer to object in userdata
             lua_pushvalue(L, mt);
@@ -142,7 +153,9 @@ public:
         }
         lua_replace(L, mt);
         lua_settop(L, mt);
-        return mt; // index of userdata containing pointer to T object
+
+        // index of userdata containing pointer to T object
+        return mt;
     }
 
     // get userdata from Lua stack and return pointer to T object
@@ -150,31 +163,39 @@ public:
         userdataType *ud = static_cast<userdataType *>(luaL_checkudata(L, narg, T::className));
         if (!ud) {
             luaL_typerror(L, narg, T::className);
-            return NULL;
+
+            return nullptr;
         }
-        return ud->pT; // pointer to T object
+
+        // pointer to T object
+        return ud->pT;
     }
 
 private:
-    Lunar(); // hide default constructor
+    // hide default constructor
+    Lunar();
 
     // member function dispatcher
     static int thunk(lua_State *L) {
         // stack has userdata, followed by method args
         T *obj = check(L, 1); // get 'self', or if you prefer, 'this'
         lua_remove(L, 1);     // remove self so member function args start at index 1
+
         // get member function from upvalue
         RegType *l = static_cast<RegType *>(lua_touserdata(L, lua_upvalueindex(1)));
-        return (obj->*(l->mfunc))(L); // call member function
+
+        // call member function
+        return (obj->*(l->mfunc))(L);
     }
 
-    // create a new T object and
-    // push onto the Lua stack a userdata containing a pointer to T object
+    // create a new T object and  push onto the Lua stack a userdata containing a pointer to T object
     static int new_T(lua_State *L) {
         lua_remove(L, 1);   // use classname:new(), instead of classname.new()
         T *obj = new T(L);  // call constructor for T objects
         push(L, obj, true); // gc_T will delete this object
-        return 1;           // userdata containing pointer to T object
+
+        // userdata containing pointer to T object
+        return 1;
     }
 
     // garbage collection metamethod
@@ -182,13 +203,19 @@ private:
         if (luaL_getmetafield(L, 1, "do not trash")) {
             lua_pushvalue(L, 1); // dup userdata
             lua_gettable(L, -2);
-            if (!lua_isnil(L, -1))
+            if (!lua_isnil(L, -1)) {
                 return 0; // do not delete object
+            }
         }
+
         userdataType *ud = static_cast<userdataType *>(lua_touserdata(L, 1));
         T *obj = ud->pT;
-        if (obj)
-            delete obj; // call destructor for T objects
+
+        // call destructor for T objects
+        if (obj) {
+            delete obj;
+        }
+
         return 0;
     }
 
@@ -242,6 +269,7 @@ private:
             lua_pushvalue(L, -2); // dup userdata
             lua_settable(L, -4);  // lookup[key] = userdata
         }
+
         return ud;
     }
 };

@@ -11,6 +11,9 @@
 #include <s2e/S2EExecutor.h>
 #include <s2e/Utils.h>
 
+#include <s2e/Plugins/OSMonitors/Support/ModuleMap.h>
+#include <s2e/Plugins/OSMonitors/Support/ProcessExecutionDetector.h>
+
 #include "LuaAnnotationState.h"
 #include "LuaInstructionAnnotation.h"
 #include "LuaS2EExecutionState.h"
@@ -18,7 +21,7 @@
 namespace s2e {
 namespace plugins {
 
-S2E_DEFINE_PLUGIN(LuaInstructionAnnotation, "Plugin to annotate instructions", "LuaInstructionAnnotation",
+S2E_DEFINE_PLUGIN(LuaInstructionAnnotation, "Execute Lua code on an instruction", "LuaInstructionAnnotation",
                   "LuaBindings", "ProcessExecutionDetector", "ModuleMap");
 
 // XXX: don't duplicate with LuaFunctionAnnotation, move to ConfigFile?
@@ -26,10 +29,12 @@ static std::string readStringOrFail(S2E *s2e, const std::string &key) {
     bool ok;
     ConfigFile *cfg = s2e->getConfig();
     std::string ret = cfg->getString(key, "", &ok);
+
     if (!ok) {
         s2e->getWarningsStream() << "LuaFunctionAnnotation: " << key << " is missing\n";
         exit(-1);
     }
+
     return ret;
 }
 
@@ -37,10 +42,12 @@ static uint64_t readIntOrFail(S2E *s2e, const std::string &key) {
     bool ok;
     ConfigFile *cfg = s2e->getConfig();
     uint64_t ret = cfg->getInt(key, 0, &ok);
+
     if (!ok) {
         s2e->getWarningsStream() << "LuaFunctionAnnotation: " << key << " is missing\n";
         exit(-1);
     }
+
     return ret;
 }
 
@@ -53,7 +60,7 @@ void LuaInstructionAnnotation::initialize() {
     ConfigFile *cfg = s2e()->getConfig();
     ConfigFile::string_list keys = cfg->getListKeys(getConfigKey() + ".annotations", &ok);
     if (!ok) {
-        getWarningsStream() << "LuaInstructionAnnotation: must have an .annotations section\n";
+        getWarningsStream() << "must have an .annotations section\n";
         exit(-1);
     }
 
@@ -76,19 +83,19 @@ void LuaInstructionAnnotation::initialize() {
 }
 
 bool LuaInstructionAnnotation::registerAnnotation(const std::string &moduleId, const Annotation &annotation) {
-    if (m_annotations[moduleId] == NULL) {
+    if (m_annotations[moduleId] == nullptr) {
         m_annotations[moduleId] = new ModuleAnnotations();
     }
 
     if (m_annotations[moduleId]->find(annotation) != m_annotations[moduleId]->end()) {
-        getWarningsStream() << "LuaInstructionAnnotation: attempting to register existing annotation\n";
+        getWarningsStream() << "attempting to register existing annotation\n";
         return false;
     }
 
     m_annotations[moduleId]->insert(annotation);
 
-    getDebugStream() << "LuaInstructionAnnotation: loaded " << moduleId << " " << annotation.annotationName << " "
-                     << hexval(annotation.pc) << "\n";
+    getDebugStream() << "loaded " << moduleId << " " << annotation.annotationName << " " << hexval(annotation.pc)
+                     << "\n";
     return true;
 }
 
@@ -119,7 +126,7 @@ void LuaInstructionAnnotation::onTranslateBlockStart(ExecutionSignal *signal, S2
     }
 
     m_instructionStart = plg->onTranslateInstructionStart.connect(
-        sigc::bind(sigc::mem_fun(*this, &LuaInstructionAnnotation::onTranslateInstructionStart), (*it).second,
+        sigc::bind(sigc::mem_fun(*this, &LuaInstructionAnnotation::onTranslateInstructionStart), it->second,
                    (-module->LoadBase + module->NativeBase) /* Pass an addend to convert the program counter */
                    ));
 }
@@ -144,7 +151,6 @@ void LuaInstructionAnnotation::onTranslateBlockComplete(S2EExecutionState *state
 
 void LuaInstructionAnnotation::onInstruction(S2EExecutionState *state, uint64_t pc,
                                              const ModuleAnnotations *annotations, uint64_t modulePc) {
-
     if (!m_detector->isTracked(state)) {
         return;
     }
@@ -156,16 +162,16 @@ void LuaInstructionAnnotation::onInstruction(S2EExecutionState *state, uint64_t 
         return;
     }
 
-    getDebugStream(state) << "LuaInstructionAnnotation: instruction " << hexval(modulePc) << " triggered annotation "
-                          << (*it).annotationName << "\n";
+    getDebugStream(state) << "instruction " << hexval(modulePc) << " triggered annotation " << it->annotationName
+                          << "\n";
 
     lua_State *L = s2e()->getConfig()->getState();
 
-    LuaS2EExecutionState lua_s2e_state(state);
+    LuaS2EExecutionState luaS2EState(state);
     LuaAnnotationState luaAnnotation;
 
-    lua_getglobal(L, (*it).annotationName.c_str());
-    Lunar<LuaS2EExecutionState>::push(L, &lua_s2e_state);
+    lua_getglobal(L, it->annotationName.c_str());
+    Lunar<LuaS2EExecutionState>::push(L, &luaS2EState);
     Lunar<LuaAnnotationState>::push(L, &luaAnnotation);
 
     lua_call(L, 2, 0);

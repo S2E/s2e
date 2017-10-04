@@ -67,6 +67,7 @@ int LuaS2EExecutionState::kill(lua_State *L) {
     std::stringstream ss;
     ss << "LuaS2EExecutionState: killed status:" << status << " message:" << message;
     g_s2e->getExecutor()->terminateStateEarly(*m_state, ss.str());
+
     return 0;
 }
 
@@ -77,18 +78,19 @@ int LuaS2EExecutionState::getPluginProperty(lua_State *L) {
 
     Plugin *plugin = g_s2e->getPlugin(pluginName);
     if (!plugin) {
-        g_s2e->getWarningsStream(m_state) << "LuaS2EExecutionState: BaseInstructions plugin not loaded\n";
-        goto err1;
+        g_s2e->getWarningsStream(m_state) << "BaseInstructions plugin not loaded\n";
+        goto err;
     }
 
     if (!plugin->getProperty(m_state, property, value)) {
-        goto err1;
+        goto err;
     }
 
     lua_pushstring(L, value.c_str());
+
     return 1;
 
-err1:
+err:
     return 0;
 }
 
@@ -99,13 +101,13 @@ int LuaS2EExecutionState::setPluginProperty(lua_State *L) {
     bool ret = false;
     Plugin *plugin = g_s2e->getPlugin(pluginName);
     if (!plugin) {
-        g_s2e->getWarningsStream(m_state) << "LuaS2EExecutionState: BaseInstructions plugin not loaded\n";
-        goto err1;
+        g_s2e->getWarningsStream(m_state) << "BaseInstructions plugin not loaded\n";
+        goto err;
     }
 
     ret = plugin->setProperty(m_state, property, value);
 
-err1:
+err:
     lua_pushboolean(L, ret);
     return 1;
 }
@@ -113,10 +115,13 @@ err1:
 int LuaS2EExecutionState::debug(lua_State *L) {
     std::string str = luaL_checkstring(L, 1);
     char c = 0;
+
     if (str[str.length() - 1] != '\n') {
         c = '\n';
     }
-    g_s2e->getDebugStream(m_state) << "LuaS2EExecutionState debug: " << str << c;
+
+    g_s2e->getDebugStream(m_state) << str << c;
+
     return 0;
 }
 }

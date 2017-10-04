@@ -6,10 +6,11 @@
 /// Licensed under the Cyberhaven Research License Agreement.
 ///
 
-#include "LuaS2E.h"
 #include <s2e/S2E.h>
 #include <s2e/S2EExecutionState.h>
 #include <s2e/s2e_libcpu.h>
+
+#include "LuaS2E.h"
 
 namespace s2e {
 namespace plugins {

@@ -8,20 +8,23 @@
 #ifndef S2E_PLUGINS_LuaFunctionAnnotation_H
 #define S2E_PLUGINS_LuaFunctionAnnotation_H
 
-#include <s2e/CorePlugin.h>
 #include <s2e/Plugin.h>
-#include <s2e/Plugins/ExecutionMonitors/FunctionMonitor.h>
-#include <s2e/Plugins/OSMonitors/Support/ModuleExecutionDetector.h>
-#include <s2e/Plugins/Support/KeyValueStore.h>
-#include <s2e/S2EExecutionState.h>
 
 namespace s2e {
+
+class S2EExecutionState;
+
 namespace plugins {
 
+class FunctionMonitor;
+class FunctionMonitorState;
+class KeyValueStore;
+class ModuleExecutionDetector;
 class OSMonitor;
 
 class LuaFunctionAnnotation : public Plugin {
     S2E_PLUGIN
+
 public:
     LuaFunctionAnnotation(S2E *s2e) : Plugin(s2e) {
     }
@@ -45,7 +48,7 @@ private:
         }
     };
 
-    typedef std::vector<Annotation *> Annotations;
+    typedef std::vector<Annotation> Annotations;
     Annotations m_annotations;
 
     OSMonitor *m_monitor;
@@ -54,16 +57,15 @@ private:
     KeyValueStore *m_kvs;
 
     bool registerAnnotation(const Annotation &annotation);
-    void hookAnnotation(S2EExecutionState *state, const ModuleDescriptor &module, const Annotation *annotation);
+    void hookAnnotation(S2EExecutionState *state, const ModuleDescriptor &module, const Annotation &annotation);
     void invokeAnnotation(S2EExecutionState *state, const Annotation &entry, bool isCall);
     void forkAnnotation(S2EExecutionState *state, const Annotation &entry);
 
     void onModuleLoad(S2EExecutionState *state, const ModuleDescriptor &module);
     void onModuleUnload(S2EExecutionState *state, const ModuleDescriptor &module);
 
-    void onFunctionCall(S2EExecutionState *state, FunctionMonitorState *fns, const Annotation *entry);
-
-    void onFunctionRet(S2EExecutionState *state, const Annotation *entry);
+    void onFunctionCall(S2EExecutionState *state, FunctionMonitorState *fns, const Annotation &entry);
+    void onFunctionRet(S2EExecutionState *state, const Annotation &entry);
 };
 
 class LuaFunctionAnnotationState : public PluginState {

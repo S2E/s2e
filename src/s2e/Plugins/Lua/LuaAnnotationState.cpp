@@ -5,9 +5,10 @@
 /// Licensed under the Cyberhaven Research License Agreement.
 ///
 
-#include "LuaAnnotationState.h"
 #include <s2e/S2E.h>
 #include <s2e/s2e_libcpu.h>
+
+#include "LuaAnnotationState.h"
 
 namespace s2e {
 namespace plugins {
@@ -22,8 +23,7 @@ Lunar<LuaAnnotationState>::RegType LuaAnnotationState::methods[] = {
 
 int LuaAnnotationState::setSkip(lua_State *L) {
     m_skip = lua_toboolean(L, 1);
-
-    g_s2e->getDebugStream() << "LuaAnnotationState: setSkip " << m_skip << '\n';
+    g_s2e->getDebugStream() << "setSkip " << m_skip << '\n';
     return 0;
 }
 
@@ -33,7 +33,7 @@ int LuaAnnotationState::isChild(lua_State *L) {
 }
 
 int LuaAnnotationState::setExitCpuLoop(lua_State *L) {
-    g_s2e->getDebugStream() << "LuaAnnotationState: requested to  exit cpu loop\n";
+    g_s2e->getDebugStream() << "requested to exit cpu loop\n";
     m_exitCpuLoop = true;
     return 0;
 }

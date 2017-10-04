@@ -23,7 +23,8 @@ namespace plugins {
 class LuaBindings : public Plugin {
     S2E_PLUGIN
 
-    LuaS2E *m_lua_s2e;
+private:
+    LuaS2E *m_luaS2E;
 
 public:
     LuaBindings(S2E *s2e) : Plugin(s2e) {

@@ -5,9 +5,6 @@
 /// Licensed under the Cyberhaven Research License Agreement.
 ///
 
-#include <s2e/S2E.h>
-#include <s2e/S2EExecutor.h>
-
 #include "LuaExpression.h"
 
 namespace s2e {
@@ -16,5 +13,6 @@ namespace plugins {
 const char LuaExpression::className[] = "LuaExpression";
 
 Lunar<LuaExpression>::RegType LuaExpression::methods[] = {{0, 0}};
-}
-}
+
+} // namespace plugins
+} // namespace s2e

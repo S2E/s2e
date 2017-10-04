@@ -10,15 +10,19 @@
 
 #include <s2e/CorePlugin.h>
 #include <s2e/Plugin.h>
-#include <s2e/Plugins/OSMonitors/Support/ModuleMap.h>
-#include <s2e/Plugins/OSMonitors/Support/ProcessExecutionDetector.h>
-#include <s2e/S2EExecutionState.h>
 
 namespace s2e {
+
+class S2EExecutionState;
+
 namespace plugins {
+
+class ModuleMap;
+class ProcessExecutionDetector;
 
 class LuaInstructionAnnotation : public Plugin {
     S2E_PLUGIN
+
 public:
     LuaInstructionAnnotation(S2E *s2e) : Plugin(s2e) {
     }

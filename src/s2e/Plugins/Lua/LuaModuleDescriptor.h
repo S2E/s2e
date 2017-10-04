@@ -23,7 +23,7 @@ public:
     static const char className[];
     static Lunar<LuaModuleDescriptor>::RegType methods[];
 
-    LuaModuleDescriptor(lua_State *lua) {
+    LuaModuleDescriptor(lua_State *L) {
     }
 
     LuaModuleDescriptor(const ModuleDescriptor &desc) {

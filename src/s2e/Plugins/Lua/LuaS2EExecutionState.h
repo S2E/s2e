@@ -27,13 +27,11 @@ public:
     static const char className[];
     static Lunar<LuaS2EExecutionState>::RegType methods[];
 
-    LuaS2EExecutionState(lua_State *lua)
-        : m_memory((S2EExecutionState *) NULL), m_registers((S2EExecutionState *) NULL) {
-        m_state = NULL;
+    LuaS2EExecutionState(lua_State *L)
+        : m_state(nullptr), m_memory((S2EExecutionState *) nullptr), m_registers((S2EExecutionState *) nullptr) {
     }
 
-    LuaS2EExecutionState(S2EExecutionState *state) : m_memory(state), m_registers(state) {
-        m_state = state;
+    LuaS2EExecutionState(S2EExecutionState *state) : m_state(state), m_memory(state), m_registers(state) {
     }
 
     int mem(lua_State *L);
