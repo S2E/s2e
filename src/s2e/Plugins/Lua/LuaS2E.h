@@ -27,7 +27,7 @@ public:
     int debug(lua_State *L);
 
     /* Print a message */
-    int message(lua_State *L);
+    int info(lua_State *L);
 
     /* Print a warning */
     int warning(lua_State *L);
