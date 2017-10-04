@@ -10,7 +10,6 @@
 
 #include <s2e/CorePlugin.h>
 #include <s2e/Plugin.h>
-#include <s2e/Plugins/Core/BaseInstructions.h>
 #include <s2e/Plugins/ExecutionMonitors/FunctionMonitor.h>
 #include <s2e/Plugins/OSMonitors/Support/ModuleExecutionDetector.h>
 #include <s2e/Plugins/Support/KeyValueStore.h>
@@ -21,32 +20,13 @@ namespace plugins {
 
 class OSMonitor;
 
-enum S2E_LUA_FCN_ANN_COMMANDS { REGISTER_ANNOTATION } __attribute__((aligned(8)));
-
-struct S2E_LUA_FCN_ANN_REGISTER {
-    uint64_t Pc;
-    uint64_t ParamCount;
-    uint64_t AnnotationNameStr;
-    uint64_t CallingConvention;
-} __attribute__((aligned(8)));
-
-struct S2E_LUA_FCN_ANN_COMMAND {
-    S2E_LUA_FCN_ANN_COMMANDS Command;
-    union {
-        uint64_t Result;
-        S2E_LUA_FCN_ANN_REGISTER RegisterAnnotation;
-    };
-} __attribute__((aligned(8)));
-
-class LuaFunctionAnnotation : public Plugin, public BaseInstructionsPluginInvokerInterface {
+class LuaFunctionAnnotation : public Plugin {
     S2E_PLUGIN
 public:
     LuaFunctionAnnotation(S2E *s2e) : Plugin(s2e) {
     }
 
     void initialize();
-
-    void handleOpcodeInvocation(S2EExecutionState *state, uint64_t guestDataPtr, uint64_t guestDataSize);
 
 private:
     enum CallingConvention { STDCALL, CDECL, MAX_CONV };

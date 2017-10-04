@@ -10,7 +10,6 @@
 
 #include <s2e/CorePlugin.h>
 #include <s2e/Plugin.h>
-#include <s2e/Plugins/Core/BaseInstructions.h>
 #include <s2e/Plugins/OSMonitors/Support/ModuleMap.h>
 #include <s2e/Plugins/OSMonitors/Support/ProcessExecutionDetector.h>
 #include <s2e/S2EExecutionState.h>
@@ -18,30 +17,13 @@
 namespace s2e {
 namespace plugins {
 
-enum S2E_LUA_INS_ANN_COMMANDS { REGISTER_ANNOTATION } __attribute__((aligned(8)));
-
-struct S2E_LUA_INS_ANN_REGISTER {
-    uint64_t Pc;
-    uint64_t AnnotationNameStr;
-} __attribute__((aligned(8)));
-
-struct S2E_LUA_INS_ANN_COMMAND {
-    S2E_LUA_INS_ANN_COMMANDS Command;
-    union {
-        uint64_t Result;
-        S2E_LUA_INS_ANN_REGISTER RegisterAnnotation;
-    };
-} __attribute__((aligned(8)));
-
-class LuaInstructionAnnotation : public Plugin, public BaseInstructionsPluginInvokerInterface {
+class LuaInstructionAnnotation : public Plugin {
     S2E_PLUGIN
 public:
     LuaInstructionAnnotation(S2E *s2e) : Plugin(s2e) {
     }
 
     void initialize();
-
-    void handleOpcodeInvocation(S2EExecutionState *state, uint64_t guestDataPtr, uint64_t guestDataSize);
 
 private:
     struct Annotation {

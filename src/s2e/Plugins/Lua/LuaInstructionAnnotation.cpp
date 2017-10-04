@@ -175,49 +175,5 @@ void LuaInstructionAnnotation::onInstruction(S2EExecutionState *state, uint64_t 
     }
 }
 
-void LuaInstructionAnnotation::handleOpcodeInvocation(S2EExecutionState *state, uint64_t guestDataPtr,
-                                                      uint64_t guestDataSize) {
-    S2E_LUA_INS_ANN_COMMAND command;
-
-    if (guestDataSize != sizeof(command)) {
-        getWarningsStream(state) << "LuaInstructionAnnotation: mismatched S2E_LUA_INS_ANN_COMMAND size\n";
-        return;
-    }
-
-    if (!state->mem()->readMemoryConcrete(guestDataPtr, &command, guestDataSize)) {
-        getWarningsStream(state) << "LuaInstructionAnnotation: could not read transmitted data\n";
-        return;
-    }
-
-    switch (command.Command) {
-        case REGISTER_ANNOTATION: {
-            Annotation annotation;
-            bool ok = true;
-
-            const ModuleDescriptor *module = m_modules->getModule(state, command.RegisterAnnotation.Pc);
-            if (!module) {
-                command.Result = 0;
-                break;
-            }
-
-            ok &= state->mem()->readString(command.RegisterAnnotation.AnnotationNameStr, annotation.annotationName);
-            annotation.pc = command.RegisterAnnotation.Pc;
-
-            if (!ok) {
-                command.Result = 0;
-            } else {
-                command.Result = 1;
-                command.Result = registerAnnotation(module->Name, annotation);
-            }
-        } break;
-
-        default: {
-            getWarningsStream(state) << "LuaInstructionAnnotation: incorrect command " << command.Command << "\n";
-        }
-    }
-
-    state->mem()->writeMemoryConcrete(guestDataPtr, &command, guestDataSize);
-}
-
 } // namespace plugins
 } // namespace s2e

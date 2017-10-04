@@ -250,64 +250,6 @@ void LuaFunctionAnnotation::onFunctionRet(S2EExecutionState *state, const Annota
     invokeAnnotation(state, *entry, false);
 }
 
-void LuaFunctionAnnotation::handleOpcodeInvocation(S2EExecutionState *state, uint64_t guestDataPtr,
-                                                   uint64_t guestDataSize) {
-    S2E_LUA_FCN_ANN_COMMAND command;
-
-    if (guestDataSize != sizeof(command)) {
-        getWarningsStream(state) << "LuaFunctionAnnotation: mismatched S2E_LUA_FCN_ANN_COMMAND size\n";
-        return;
-    }
-
-    if (!state->mem()->readMemoryConcrete(guestDataPtr, &command, guestDataSize)) {
-        getWarningsStream(state) << "LuaFunctionAnnotation: could not read transmitted data\n";
-        return;
-    }
-
-    switch (command.Command) {
-        case REGISTER_ANNOTATION: {
-            Annotation annotation;
-            bool ok = true;
-
-            const ModuleDescriptor *module = m_detector->getModule(state, command.RegisterAnnotation.Pc);
-            if (!module) {
-                command.Result = 0;
-                break;
-            }
-            const std::string *moduleId = m_detector->getModuleId(*module);
-            if (!moduleId) {
-                command.Result = 0;
-                break;
-            }
-
-            annotation.moduleId = *moduleId;
-
-            ok &= state->mem()->readString(command.RegisterAnnotation.AnnotationNameStr, annotation.annotationName);
-            annotation.pc = command.RegisterAnnotation.Pc;
-            annotation.paramCount = command.RegisterAnnotation.ParamCount;
-            annotation.convention = (CallingConvention) command.RegisterAnnotation.CallingConvention;
-            if (annotation.convention >= MAX_CONV) {
-                ok &= false;
-            }
-
-            if (!ok) {
-                command.Result = 0;
-            } else {
-                command.Result = 1;
-                command.Result = registerAnnotation(annotation);
-                if (command.Result) {
-                    assert(m_annotations.size() > 0);
-                    hookAnnotation(state, *module, m_annotations[m_annotations.size() - 1]);
-                }
-            }
-        } break;
-
-        default: { getWarningsStream(state) << "LuaFunctionAnnotation: incorrect command " << command.Command << "\n"; }
-    }
-
-    state->mem()->writeMemoryConcrete(guestDataPtr, &command, guestDataSize);
-}
-
 /*************************************************************************/
 
 LuaFunctionAnnotationState::LuaFunctionAnnotationState() {
