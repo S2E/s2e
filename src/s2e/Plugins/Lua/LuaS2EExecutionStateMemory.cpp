@@ -5,6 +5,8 @@
 /// Licensed under the Cyberhaven Research License Agreement.
 ///
 
+#include <vector>
+
 #include <s2e/S2E.h>
 #include <s2e/S2EExecutionState.h>
 #include <s2e/Utils.h>
@@ -19,6 +21,7 @@ const char LuaS2EExecutionStateMemory::className[] = "LuaS2EExecutionStateMemory
 
 Lunar<LuaS2EExecutionStateMemory>::RegType LuaS2EExecutionStateMemory::methods[] = {
     LUNAR_DECLARE_METHOD(LuaS2EExecutionStateMemory, readPointer),
+    LUNAR_DECLARE_METHOD(LuaS2EExecutionStateMemory, readBytes),
     LUNAR_DECLARE_METHOD(LuaS2EExecutionStateMemory, write),
     {0, 0}};
 
@@ -35,6 +38,23 @@ int LuaS2EExecutionStateMemory::readPointer(lua_State *L) {
         m_state->mem()->readMemoryConcrete(address, &data, sizeof(data));
         lua_pushinteger(L, data);
     }
+
+    return 1;
+}
+
+int LuaS2EExecutionStateMemory::readBytes(lua_State *L) {
+    long address = (long) luaL_checkinteger(L, 1);
+    long size = (long) luaL_checkinteger(L, 2);
+    std::vector<uint8_t> bytes(size);
+
+    if (!m_state->mem()->readMemoryConcrete(address, bytes.data(), size * sizeof(uint8_t))) {
+        return 0;
+    }
+
+    luaL_Buffer buff;
+    luaL_buffinit(L, &buff);
+    luaL_addlstring(&buff, (char*) bytes.data(), size * sizeof(uint8_t));
+    luaL_pushresult(&buff);
 
     return 1;
 }

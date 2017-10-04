@@ -31,6 +31,7 @@ public:
     }
 
     int readPointer(lua_State *L);
+    int readBytes(lua_State *L);
     int write(lua_State *L);
 };
 
