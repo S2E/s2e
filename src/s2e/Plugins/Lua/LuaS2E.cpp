@@ -41,8 +41,11 @@ int LuaS2E::warning(lua_State *L) {
 }
 
 int LuaS2E::exit(lua_State *L) {
+    long returnCode = (long) luaL_checkinteger(L, 1);
+
     g_s2e->getInfoStream(g_s2e_state) << "Lua annotation requested S2E exit\n";
-    ::exit(0);
+
+    ::exit(returnCode);
     return 0;
 }
 }
