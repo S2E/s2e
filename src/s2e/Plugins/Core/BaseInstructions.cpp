@@ -148,17 +148,18 @@ void BaseInstructions::allowCurrentPid(S2EExecutionState *state) {
 void BaseInstructions::makeSymbolic(S2EExecutionState *state, uintptr_t address, unsigned size,
                                     const std::string &nameStr, bool makeConcolic,
                                     std::vector<klee::ref<Expr>> *varData, std::string *varName) {
-    std::vector<unsigned char> concreteData;
     std::vector<klee::ref<Expr>> symb;
-
     std::stringstream valueSs;
+
     if (makeConcolic) {
+        std::vector<uint8_t> concreteData;
+
         valueSs << "='";
         for (unsigned i = 0; i < size; ++i) {
             uint8_t byte = 0;
             if (!state->readMemoryConcrete8(address + i, &byte, VirtualAddress, false)) {
-                getWarningsStream(state) << "Can not concretize/read symbolic value"
-                                         << " at " << hexval(address + i) << ". System state not modified.\n";
+                getWarningsStream(state) << "Can not concretize/read symbolic value at " << hexval(address + i)
+                                         << ". System state not modified\n";
                 return;
             }
             concreteData.push_back(byte);
@@ -175,8 +176,8 @@ void BaseInstructions::makeSymbolic(S2EExecutionState *state, uintptr_t address,
 
     for (unsigned i = 0; i < size; ++i) {
         if (!state->writeMemory8(address + i, symb[i])) {
-            getWarningsStream(state) << "Can not insert symbolic value"
-                                     << " at " << hexval(address + i) << ": can not write to memory\n";
+            getWarningsStream(state) << "Can not insert symbolic value at " << hexval(address + i)
+                                     << ": can not write to memory\n";
         }
     }
 
