@@ -185,6 +185,9 @@ A ``LuaS2EExecutionStateMemory`` object provides a wrapper around the ``S2EExecu
 **readPointer(address)**
     Read a (concrete) pointer at the given address.
 
+**readBytes(address, size)**
+    Read a string of (concrete) bytes from the given address.
+
 **write(address, expr)**
     Write a ``LuaExpression`` object at the given address.
 
