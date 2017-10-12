@@ -27,8 +27,8 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef S2E_LIBC_WRAPPER_H
-#define S2E_LIBC_WRAPPER_H
+#ifndef S2E_SO_H
+#define S2E_SO_H
 
 #include <s2e/function_models/models.h>
 

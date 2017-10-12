@@ -22,8 +22,8 @@
 
 #include <stdint.h>
 
-#include <s2e/function_models/libc_wrapper.h>
 #include <s2e/function_models/models.h>
+#include <s2e/function_models/s2e_so.h>
 
 // ****************************
 // Overriding libz functions

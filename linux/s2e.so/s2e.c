@@ -38,7 +38,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include <s2e/function_models/libc_wrapper.h>
+#include <s2e/function_models/s2e_so.h>
 #include <s2e/monitors/linux.h>
 #include <s2e/monitors/raw.h>
 #include <s2e/monitors/raw.h>
