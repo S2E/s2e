@@ -23,6 +23,7 @@
 
 add_library(s2e SHARED s2e.c
                        ../function_models/libc_wrapper.c
+                       ../function_models/libz_wrapper.c
                        ../function_models/models.c)
 target_link_libraries(s2e dl)
 set_target_properties(s2e PROPERTIES POSITION_INDEPENDENT_CODE ON)
