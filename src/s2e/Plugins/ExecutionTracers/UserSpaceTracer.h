@@ -49,6 +49,7 @@ private:
     bool m_traceExecution;
     bool m_traceTranslation;
 
+    void onMonitorLoad(S2EExecutionState *state);
     void onModuleLoad(S2EExecutionState *state, const ModuleDescriptor &module);
     void onProcessUnload(S2EExecutionState *state, uint64_t pageDir, uint64_t pid);
 

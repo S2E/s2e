@@ -36,6 +36,10 @@ void UserSpaceTracer::initialize() {
     m_traceExecution = cfg->getBool(getConfigKey() + ".traceExecution", true);
     m_traceTranslation = cfg->getBool(getConfigKey() + ".traceTranslation", true);
 
+    m_monitor->onMonitorLoad.connect(sigc::mem_fun(*this, &UserSpaceTracer::onMonitorLoad));
+}
+
+void UserSpaceTracer::onMonitorLoad(S2EExecutionState *state) {
     if (m_traceTranslation) {
         if (m_monitor) {
             m_monitor->onModuleLoad.connect(sigc::mem_fun(*this, &UserSpaceTracer::onModuleLoad));
