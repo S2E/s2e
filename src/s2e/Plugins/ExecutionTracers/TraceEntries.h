@@ -77,7 +77,7 @@ struct ExecutionTraceModuleUnload {
 } __attribute__((packed));
 
 struct ExecutionTraceProcessUnload {
-
+    uint64_t returnCode;
 } __attribute__((packed));
 
 struct ExecutionTraceCall {
