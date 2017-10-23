@@ -95,6 +95,7 @@ static VOID Handler{{d.checksum | hex}}(UINT_PTR KernelLoadBase, UINT_PTR Kernel
     Command.Structs.EProcessVirtualSizeOffset = {{d._EPROCESS_VirtualSize | hex}};
     Command.Structs.EProcessPeakVirtualSizeOffset = {{d._EPROCESS_PeakVirtualSize | hex}};
     Command.Structs.EProcessCommitChargePeakOffset = {{d._EPROCESS_CommitChargePeak | hex}};
+    Command.Structs.EProcessExitStatusOffset = {{d._EPROCESS_ExitStatus | hex}};
 
     Command.Structs.EProcessVadRootOffset = {{d._EPROCESS_VadRoot | hex}};
 

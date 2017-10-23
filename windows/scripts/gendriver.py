@@ -51,6 +51,7 @@ def get_info(pdb):
         '_EPROCESS_VirtualSize': pdb.get_field_offset('_EPROCESS:VirtualSize'),
         '_EPROCESS_PeakVirtualSize': pdb.get_field_offset('_EPROCESS:PeakVirtualSize'),
         '_EPROCESS_CommitChargePeak': pdb.get_field_offset('_EPROCESS:CommitChargePeak'),
+        '_EPROCESS_ExitStatus': pdb.get_field_offset('_EPROCESS:ExitStatus'),
         '_ETHREAD_ThreadListEntry': pdb.get_field_offset('_ETHREAD:ThreadListEntry'),
         '_ETHREAD_Cid': pdb.get_field_offset('_ETHREAD:Cid'),
 

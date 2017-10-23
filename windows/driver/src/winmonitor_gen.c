@@ -1,6 +1,6 @@
 ///
+/// Copyright (C) 2014-2016, Dependable Systems Laboratory, EPFL
 /// Copyright (C) 2014-2017, Cyberhaven
-/// Copyright (C) 2014, Dependable Systems Laboratory, EPFL
 /// All rights reserved.
 ///
 /// Licensed under the Cyberhaven Research License Agreement.
@@ -73,6 +73,7 @@ REGISTER_KERNEL_STRUCTS_HANDLERS g_KernelStructHandlers [] = {
     #endif
 };
 
+
 #if defined(_X86_)
 
 /* Version (5, 1, 2600, 5512), 32-bits */
@@ -108,6 +109,7 @@ static VOID Handler0x2247c2(UINT_PTR KernelLoadBase, UINT_PTR KernelNativeBase)
     Command.Structs.EProcessVirtualSizeOffset = 0xb0;
     Command.Structs.EProcessPeakVirtualSizeOffset = 0xac;
     Command.Structs.EProcessCommitChargePeakOffset = 0x1ec;
+    Command.Structs.EProcessExitStatusOffset = 0x24c;
 
     Command.Structs.EProcessVadRootOffset = 0x11c;
 
@@ -182,6 +184,7 @@ static VOID Handler0x21a293(UINT_PTR KernelLoadBase, UINT_PTR KernelNativeBase)
     Command.Structs.EProcessVirtualSizeOffset = 0xb0;
     Command.Structs.EProcessPeakVirtualSizeOffset = 0xac;
     Command.Structs.EProcessCommitChargePeakOffset = 0x1ec;
+    Command.Structs.EProcessExitStatusOffset = 0x24c;
 
     Command.Structs.EProcessVadRootOffset = 0x11c;
 
@@ -255,6 +258,7 @@ static VOID Handler0x3c88ac(UINT_PTR KernelLoadBase, UINT_PTR KernelNativeBase)
     Command.Structs.EProcessVirtualSizeOffset = 0xe0;
     Command.Structs.EProcessPeakVirtualSizeOffset = 0xdc;
     Command.Structs.EProcessCommitChargePeakOffset = 0x1e4;
+    Command.Structs.EProcessExitStatusOffset = 0x274;
 
     Command.Structs.EProcessVadRootOffset = 0x278;
 
@@ -327,6 +331,7 @@ static VOID Handler0x3c05d5(UINT_PTR KernelLoadBase, UINT_PTR KernelNativeBase)
     Command.Structs.EProcessVirtualSizeOffset = 0xe0;
     Command.Structs.EProcessPeakVirtualSizeOffset = 0xdc;
     Command.Structs.EProcessCommitChargePeakOffset = 0x1e4;
+    Command.Structs.EProcessExitStatusOffset = 0x274;
 
     Command.Structs.EProcessVadRootOffset = 0x278;
 
@@ -400,6 +405,7 @@ static VOID Handler0x55ce0c(UINT_PTR KernelLoadBase, UINT_PTR KernelNativeBase)
     Command.Structs.EProcessVirtualSizeOffset = 0x1d8;
     Command.Structs.EProcessPeakVirtualSizeOffset = 0x1d0;
     Command.Structs.EProcessCommitChargePeakOffset = 0x380;
+    Command.Structs.EProcessExitStatusOffset = 0x444;
 
     Command.Structs.EProcessVadRootOffset = 0x448;
 
@@ -472,6 +478,7 @@ static VOID Handler0x3cbb94(UINT_PTR KernelLoadBase, UINT_PTR KernelNativeBase)
     Command.Structs.EProcessVirtualSizeOffset = 0xe0;
     Command.Structs.EProcessPeakVirtualSizeOffset = 0xdc;
     Command.Structs.EProcessCommitChargePeakOffset = 0x1e4;
+    Command.Structs.EProcessExitStatusOffset = 0x274;
 
     Command.Structs.EProcessVadRootOffset = 0x278;
 
@@ -544,6 +551,7 @@ static VOID Handler0x3cdec5(UINT_PTR KernelLoadBase, UINT_PTR KernelNativeBase)
     Command.Structs.EProcessVirtualSizeOffset = 0xe0;
     Command.Structs.EProcessPeakVirtualSizeOffset = 0xdc;
     Command.Structs.EProcessCommitChargePeakOffset = 0x1e4;
+    Command.Structs.EProcessExitStatusOffset = 0x274;
 
     Command.Structs.EProcessVadRootOffset = 0x278;
 
@@ -617,6 +625,7 @@ static VOID Handler0x556afe(UINT_PTR KernelLoadBase, UINT_PTR KernelNativeBase)
     Command.Structs.EProcessVirtualSizeOffset = 0x1d8;
     Command.Structs.EProcessPeakVirtualSizeOffset = 0x1d0;
     Command.Structs.EProcessCommitChargePeakOffset = 0x380;
+    Command.Structs.EProcessExitStatusOffset = 0x444;
 
     Command.Structs.EProcessVadRootOffset = 0x448;
 
@@ -689,6 +698,7 @@ static VOID Handler0x3cca4b(UINT_PTR KernelLoadBase, UINT_PTR KernelNativeBase)
     Command.Structs.EProcessVirtualSizeOffset = 0xe0;
     Command.Structs.EProcessPeakVirtualSizeOffset = 0xdc;
     Command.Structs.EProcessCommitChargePeakOffset = 0x1e4;
+    Command.Structs.EProcessExitStatusOffset = 0x274;
 
     Command.Structs.EProcessVadRootOffset = 0x278;
 
@@ -761,6 +771,7 @@ static VOID Handler0x3cb498(UINT_PTR KernelLoadBase, UINT_PTR KernelNativeBase)
     Command.Structs.EProcessVirtualSizeOffset = 0xe0;
     Command.Structs.EProcessPeakVirtualSizeOffset = 0xdc;
     Command.Structs.EProcessCommitChargePeakOffset = 0x1e4;
+    Command.Structs.EProcessExitStatusOffset = 0x274;
 
     Command.Structs.EProcessVadRootOffset = 0x278;
 
@@ -834,6 +845,7 @@ static VOID Handler0x5546f7(UINT_PTR KernelLoadBase, UINT_PTR KernelNativeBase)
     Command.Structs.EProcessVirtualSizeOffset = 0x1d8;
     Command.Structs.EProcessPeakVirtualSizeOffset = 0x1d0;
     Command.Structs.EProcessCommitChargePeakOffset = 0x380;
+    Command.Structs.EProcessExitStatusOffset = 0x444;
 
     Command.Structs.EProcessVadRootOffset = 0x448;
 
@@ -907,6 +919,7 @@ static VOID Handler0x71a4f4(UINT_PTR KernelLoadBase, UINT_PTR KernelNativeBase)
     Command.Structs.EProcessVirtualSizeOffset = 0x328;
     Command.Structs.EProcessPeakVirtualSizeOffset = 0x320;
     Command.Structs.EProcessCommitChargePeakOffset = 0x4e0;
+    Command.Structs.EProcessExitStatusOffset = 0x5d4;
 
     Command.Structs.EProcessVadRootOffset = 0x5d8;
 
@@ -980,6 +993,7 @@ static VOID Handler0x7f010a(UINT_PTR KernelLoadBase, UINT_PTR KernelNativeBase)
     Command.Structs.EProcessVirtualSizeOffset = 0x338;
     Command.Structs.EProcessPeakVirtualSizeOffset = 0x330;
     Command.Structs.EProcessCommitChargePeakOffset = 0x4f8;
+    Command.Structs.EProcessExitStatusOffset = 0x624;
 
     Command.Structs.EProcessVadRootOffset = 0x628;
 

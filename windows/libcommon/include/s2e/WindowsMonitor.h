@@ -97,6 +97,7 @@ typedef struct S2E_WINMON2_KERNEL_STRUCTS
     UINT64 EProcessPeakVirtualSizeOffset;
     UINT64 EProcessCommitChargePeakOffset;
     UINT64 EProcessVadRootOffset;
+    UINT64 EProcessExitStatusOffset;
 
     UINT64 DPCStackBasePtr;
     UINT64 DPCStackSize;
