@@ -55,7 +55,7 @@ private:
 
     void onModuleLoad(S2EExecutionState *state, const ModuleDescriptor &module);
     void onModuleUnload(S2EExecutionState *state, const ModuleDescriptor &module);
-    void onProcessUnload(S2EExecutionState *state, uint64_t addressSpace, uint64_t pid);
+    void onProcessUnload(S2EExecutionState *state, uint64_t addressSpace, uint64_t pid, uint64_t returnCode);
     void onNtUnmapViewOfSection(S2EExecutionState *state, const S2E_WINMON2_UNMAP_SECTION &s);
     void onMonitorLoad(S2EExecutionState *state);
 };

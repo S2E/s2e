@@ -916,11 +916,18 @@ void WindowsMonitor::handleOpcodeInvocation(S2EExecutionState *state, uint64_t g
         } break;
 
         case UNLOAD_PROCESS: {
+            uint64_t returnCode = 0;
+            if (!state->mem()->readMemoryConcrete(command.Process.EProcess + m_kernel.EProcessExitStatusOffset,
+                                                  &returnCode, sizeof(uint64_t))) {
+                getWarningsStream(state) << "could not read process return code\n";
+            }
+
             DECLARE_PLUGINSTATE(WindowsMonitorState, state);
             plgState->removeHandles(command.Process.ProcessId);
             plgState->removeProcess(command.Process.ProcessId);
             target_ulong cr3 = state->regs()->getPageDir();
-            onProcessUnload.emit(state, cr3, command.Process.ProcessId);
+
+            onProcessUnload.emit(state, cr3, command.Process.ProcessId, returnCode);
         } break;
 
         case ACCESS_FAULT: {

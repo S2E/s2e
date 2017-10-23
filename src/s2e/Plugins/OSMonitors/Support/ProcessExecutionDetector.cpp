@@ -76,7 +76,8 @@ void ProcessExecutionDetector::onProcessLoad(S2EExecutionState *state, uint64_t 
     }
 }
 
-void ProcessExecutionDetector::onProcessUnload(S2EExecutionState *state, uint64_t pageDir, uint64_t pid) {
+void ProcessExecutionDetector::onProcessUnload(S2EExecutionState *state, uint64_t pageDir, uint64_t pid,
+                                               uint64_t returnCode) {
     DECLARE_PLUGINSTATE(ProcessExecutionDetectorState, state);
     getDebugStream(state) << "Unloading process " << hexval(pid) << "\n";
     plgState->m_trackedPids.erase(pid);

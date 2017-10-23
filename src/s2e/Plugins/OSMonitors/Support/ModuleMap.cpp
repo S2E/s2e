@@ -160,7 +160,7 @@ public:
         }
     }
 
-    void onProcessUnload(uint64_t addressSpace, uint64_t pid) {
+    void onProcessUnload(uint64_t addressSpace, uint64_t pid, uint64_t returnCode) {
         ModulesByPid &byPid = m_modules.get<pid_t>();
         ModulesByPid::const_iterator it;
         while ((it = byPid.find(pid)) != byPid.end()) {
@@ -256,9 +256,9 @@ void ModuleMap::onModuleUnload(S2EExecutionState *state, const ModuleDescriptor 
     plgState->onModuleUnload(module);
 }
 
-void ModuleMap::onProcessUnload(S2EExecutionState *state, uint64_t addressSpace, uint64_t pid) {
+void ModuleMap::onProcessUnload(S2EExecutionState *state, uint64_t addressSpace, uint64_t pid, uint64_t returnCode) {
     DECLARE_PLUGINSTATE(ModuleMapState, state);
-    plgState->onProcessUnload(addressSpace, pid);
+    plgState->onProcessUnload(addressSpace, pid, returnCode);
 }
 
 ModuleDescriptorList ModuleMap::getModulesByPid(S2EExecutionState *state, uint64_t pid) {

@@ -36,7 +36,7 @@ protected:
 
     void moduleUnloadListener(S2EExecutionState *state, const ModuleDescriptor &desc);
 
-    void processUnloadListener(S2EExecutionState *state, uint64_t pageDir, uint64_t pid);
+    void processUnloadListener(S2EExecutionState *state, uint64_t pageDir, uint64_t pid, uint64_t returnCode);
 };
 
 class ModuleTracerState : public PluginState {

@@ -95,7 +95,7 @@ private:
     sigc::connection m_onTranslateRegisterAccessConnection;
 
     void onThreadExit(S2EExecutionState *state, const ThreadDescriptor &thread);
-    void onProcessUnload(S2EExecutionState *state, uint64_t pageDir, uint64_t pid);
+    void onProcessUnload(S2EExecutionState *state, uint64_t pageDir, uint64_t pid, uint64_t returnCode);
 
     void onTranslateBlockStart(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb, uint64_t pc);
 

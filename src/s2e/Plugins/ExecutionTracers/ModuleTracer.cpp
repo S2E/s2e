@@ -69,7 +69,8 @@ void ModuleTracer::moduleUnloadListener(S2EExecutionState *state, const ModuleDe
     m_Tracer->writeData(state, &te, sizeof(te), TRACE_MOD_UNLOAD);
 }
 
-void ModuleTracer::processUnloadListener(S2EExecutionState *state, uint64_t pageDir, uint64_t pid) {
+void ModuleTracer::processUnloadListener(S2EExecutionState *state, uint64_t pageDir, uint64_t pid,
+                                         uint64_t returnCode) {
     m_Tracer->writeData(state, NULL, 0, TRACE_PROC_UNLOAD);
 }
 }

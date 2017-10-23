@@ -68,6 +68,7 @@ typedef struct S2E_WINMON2_KERNEL_STRUCTS {
     uint64_t BugCheckHook;
 
     uint64_t KPCR;
+
     // The KPRCB is a struct at the end of the KPCR
     uint64_t KPRCB;
 
@@ -91,6 +92,7 @@ typedef struct S2E_WINMON2_KERNEL_STRUCTS {
     uint64_t EProcessPeakVirtualSizeOffset;
     uint64_t EProcessCommitChargePeakOffset;
     uint64_t EProcessVadRootOffset;
+    uint64_t EProcessExitStatusOffset;
 
     uint64_t DPCStackBasePtr;
     uint64_t DPCStackSize;

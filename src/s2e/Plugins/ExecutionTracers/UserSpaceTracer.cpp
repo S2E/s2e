@@ -64,7 +64,7 @@ void UserSpaceTracer::onModuleLoad(S2EExecutionState *state, const ModuleDescrip
     startTracing(state, module.AddressSpace);
 }
 
-void UserSpaceTracer::onProcessUnload(S2EExecutionState *state, uint64_t pageDir, uint64_t pid) {
+void UserSpaceTracer::onProcessUnload(S2EExecutionState *state, uint64_t pageDir, uint64_t pid, uint64_t returnCode) {
     foreach2 (it, p_pidsToTrace.begin(), p_pidsToTrace.end()) {
         if (*it == pid) {
             getDebugStream(state) << "Not tracing " << hexval(pid) << " anymore\n";

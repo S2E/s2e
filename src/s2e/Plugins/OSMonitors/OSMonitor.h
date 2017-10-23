@@ -38,7 +38,8 @@ public:
     sigc::signal<void, S2EExecutionState *, const ModuleDescriptor &> onModuleUnload;
     sigc::signal<void, S2EExecutionState *, uint64_t /* cr3 */, uint64_t /* pid */, const std::string & /*ImageName*/>
         onProcessLoad;
-    sigc::signal<void, S2EExecutionState *, uint64_t /* cr3 */, uint64_t /* pid */> onProcessUnload;
+    sigc::signal<void, S2EExecutionState *, uint64_t /* cr3 */, uint64_t /* pid */, uint64_t /* ReturnCode */>
+        onProcessUnload;
 
     sigc::signal<void, S2EExecutionState *, const ThreadDescriptor &> onThreadCreate;
     sigc::signal<void, S2EExecutionState *, const ThreadDescriptor &> onThreadExit;

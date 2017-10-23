@@ -142,7 +142,7 @@ private:
 
     void moduleUnloadListener(S2EExecutionState *state, const ModuleDescriptor &desc);
 
-    void processUnloadListener(S2EExecutionState *state, uint64_t addressSpace, uint64_t pid);
+    void processUnloadListener(S2EExecutionState *state, uint64_t addressSpace, uint64_t pid, uint64_t returnCode);
 
     void handleOpcodeGetModule(S2EExecutionState *state, uint64_t guestDataPtr, S2E_MODEX_DETECTOR_COMMAND command);
 

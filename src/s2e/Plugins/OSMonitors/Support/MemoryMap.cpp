@@ -141,7 +141,7 @@ void MemoryMap::initialize() {
     m_monitor->onNtUnmapViewOfSection.connect(sigc::mem_fun(*this, &MemoryMap::onNtUnmapViewOfSection));
 }
 
-void MemoryMap::onProcessUnload(S2EExecutionState *state, uint64_t pageDir, uint64_t pid) {
+void MemoryMap::onProcessUnload(S2EExecutionState *state, uint64_t pageDir, uint64_t pid, uint64_t returnCode) {
     DECLARE_PLUGINSTATE(MemoryMapState, state);
     plgState->removePid(pid);
 }

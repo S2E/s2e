@@ -47,7 +47,7 @@ private:
 
     void updateMemoryStats(S2EExecutionState *state);
 
-    void onProcessUnload(S2EExecutionState *state, uint64_t pageDir, uint64_t pid);
+    void onProcessUnload(S2EExecutionState *state, uint64_t pageDir, uint64_t pid, uint64_t returnCode);
     void onNtAllocateVirtualMemory(S2EExecutionState *state, const S2E_WINMON2_ALLOCATE_VM &d);
     void onNtFreeVirtualMemory(S2EExecutionState *state, const S2E_WINMON2_FREE_VM &d);
     void onNtProtectVirtualMemory(S2EExecutionState *state, const S2E_WINMON2_PROTECT_VM &d);

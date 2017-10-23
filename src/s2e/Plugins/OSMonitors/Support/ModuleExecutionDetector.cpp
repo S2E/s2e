@@ -324,7 +324,8 @@ void ModuleExecutionDetector::moduleUnloadListener(S2EExecutionState *state, con
     plgState->unloadDescriptor(module);
 }
 
-void ModuleExecutionDetector::processUnloadListener(S2EExecutionState *state, uint64_t addressSpace, uint64_t pid) {
+void ModuleExecutionDetector::processUnloadListener(S2EExecutionState *state, uint64_t addressSpace, uint64_t pid,
+                                                    uint64_t returnCode) {
     DECLARE_PLUGINSTATE(ModuleTransitionState, state);
 
     getDebugStream(state) << "Process " << hexval(addressSpace) << " (pid=" << hexval(pid) << ") is unloaded\n";

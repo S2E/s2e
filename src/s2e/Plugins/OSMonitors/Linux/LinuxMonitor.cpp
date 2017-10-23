@@ -169,7 +169,7 @@ void LinuxMonitor::handleModuleLoad(S2EExecutionState *state, const S2E_LINUXMON
 }
 
 void LinuxMonitor::handleProcessExit(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd) {
-    onProcessUnload.emit(state, state->getPageDir(), cmd.currentPid);
+    onProcessUnload.emit(state, state->getPageDir(), cmd.currentPid, cmd.ProcessExit.code);
 
     DECLARE_PLUGINSTATE(LinuxMonitorState, state);
     const ModuleDescriptor *mod = plgState->getModule(cmd.currentPid);

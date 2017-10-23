@@ -318,7 +318,7 @@ void StackMonitor::onThreadExit(S2EExecutionState *state, const ThreadDescriptor
     plgState->deleteStack(state, thread.Pid, thread.Tid);
 }
 
-void StackMonitor::onProcessUnload(S2EExecutionState *state, uint64_t pageDir, uint64_t pid) {
+void StackMonitor::onProcessUnload(S2EExecutionState *state, uint64_t pageDir, uint64_t pid, uint64_t returnCode) {
     if (!m_processDetector->isTracked(state, pid)) {
         return;
     }
