@@ -74,21 +74,22 @@ typedef struct S2E_WINMON2_KERNEL_STRUCTS
 
     UINT64 KPCR;
 
-    //The KPRCB is a struct at the end of the KPCR
+    // The KPRCB is a struct at the end of the KPCR
     UINT64 KPRCB;
-    UINT64 KdDebuggerDataBlock; //Address in the kernel file
-    UINT64 KdVersionBlock; //Stored in the KPCR
+
+    UINT64 KdDebuggerDataBlock; // Address in the kernel file
+    UINT64 KdVersionBlock; // Stored in the KPCR
 
     /**
      * Index of the segment that contains the pointer
      * to the current thread.
      */
-    UINT64 EThreadSegment; //R_FS / RG_S
+    UINT64 EThreadSegment; // R_FS / RG_S
     UINT64 EThreadSegmentOffset;
     UINT64 EThreadStackBaseOffset;
     UINT64 EThreadStackLimitOffset;
     UINT64 EThreadProcessOffset;
-    UINT64 EThreadCid;
+    UINT64 EThreadCidOffset;
 
     UINT64 EProcessUniqueIdOffset;
     UINT64 EProcessCommitChargeOffset;

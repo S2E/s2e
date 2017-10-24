@@ -73,7 +73,6 @@ REGISTER_KERNEL_STRUCTS_HANDLERS g_KernelStructHandlers [] = {
     #endif
 };
 
-
 #if defined(_X86_)
 
 /* Version (5, 1, 2600, 5512), 32-bits */
@@ -102,7 +101,7 @@ static VOID Handler0x2247c2(UINT_PTR KernelLoadBase, UINT_PTR KernelNativeBase)
     Command.Structs.EThreadStackBaseOffset = 0x168;
     Command.Structs.EThreadStackLimitOffset = 0x1c;
     Command.Structs.EThreadProcessOffset = 0x220;
-    Command.Structs.EThreadCid = 0x1ec;
+    Command.Structs.EThreadCidOffset = 0x1ec;
 
     Command.Structs.EProcessUniqueIdOffset = 0x84;
     Command.Structs.EProcessCommitChargeOffset = 0xa8;
@@ -176,7 +175,7 @@ static VOID Handler0x21a293(UINT_PTR KernelLoadBase, UINT_PTR KernelNativeBase)
     Command.Structs.EThreadStackBaseOffset = 0x168;
     Command.Structs.EThreadStackLimitOffset = 0x1c;
     Command.Structs.EThreadProcessOffset = 0x220;
-    Command.Structs.EThreadCid = 0x1ec;
+    Command.Structs.EThreadCidOffset = 0x1ec;
 
     Command.Structs.EProcessUniqueIdOffset = 0x84;
     Command.Structs.EProcessCommitChargeOffset = 0xa8;
@@ -249,7 +248,7 @@ static VOID Handler0x3c88ac(UINT_PTR KernelLoadBase, UINT_PTR KernelNativeBase)
     Command.Structs.EThreadStackBaseOffset = 0x190;
     Command.Structs.EThreadStackLimitOffset = 0x2c;
     Command.Structs.EThreadProcessOffset = 0x150;
-    Command.Structs.EThreadCid = 0x22c;
+    Command.Structs.EThreadCidOffset = 0x22c;
 
     Command.Structs.EProcessUniqueIdOffset = 0xb4;
     Command.Structs.EProcessCommitChargeOffset = 0xd0;
@@ -321,7 +320,7 @@ static VOID Handler0x3c05d5(UINT_PTR KernelLoadBase, UINT_PTR KernelNativeBase)
     Command.Structs.EThreadStackBaseOffset = 0x190;
     Command.Structs.EThreadStackLimitOffset = 0x2c;
     Command.Structs.EThreadProcessOffset = 0x150;
-    Command.Structs.EThreadCid = 0x22c;
+    Command.Structs.EThreadCidOffset = 0x22c;
 
     Command.Structs.EProcessUniqueIdOffset = 0xb4;
     Command.Structs.EProcessCommitChargeOffset = 0xd0;
@@ -394,7 +393,7 @@ static VOID Handler0x55ce0c(UINT_PTR KernelLoadBase, UINT_PTR KernelNativeBase)
     Command.Structs.EThreadStackBaseOffset = 0x278;
     Command.Structs.EThreadStackLimitOffset = 0x30;
     Command.Structs.EThreadProcessOffset = 0x210;
-    Command.Structs.EThreadCid = 0x3b0;
+    Command.Structs.EThreadCidOffset = 0x3b0;
 
     Command.Structs.EProcessUniqueIdOffset = 0x180;
     Command.Structs.EProcessCommitChargeOffset = 0x1b8;
@@ -466,7 +465,7 @@ static VOID Handler0x3cbb94(UINT_PTR KernelLoadBase, UINT_PTR KernelNativeBase)
     Command.Structs.EThreadStackBaseOffset = 0x190;
     Command.Structs.EThreadStackLimitOffset = 0x2c;
     Command.Structs.EThreadProcessOffset = 0x150;
-    Command.Structs.EThreadCid = 0x22c;
+    Command.Structs.EThreadCidOffset = 0x22c;
 
     Command.Structs.EProcessUniqueIdOffset = 0xb4;
     Command.Structs.EProcessCommitChargeOffset = 0xd0;
@@ -538,7 +537,7 @@ static VOID Handler0x3cdec5(UINT_PTR KernelLoadBase, UINT_PTR KernelNativeBase)
     Command.Structs.EThreadStackBaseOffset = 0x190;
     Command.Structs.EThreadStackLimitOffset = 0x2c;
     Command.Structs.EThreadProcessOffset = 0x150;
-    Command.Structs.EThreadCid = 0x22c;
+    Command.Structs.EThreadCidOffset = 0x22c;
 
     Command.Structs.EProcessUniqueIdOffset = 0xb4;
     Command.Structs.EProcessCommitChargeOffset = 0xd0;
@@ -611,7 +610,7 @@ static VOID Handler0x556afe(UINT_PTR KernelLoadBase, UINT_PTR KernelNativeBase)
     Command.Structs.EThreadStackBaseOffset = 0x278;
     Command.Structs.EThreadStackLimitOffset = 0x30;
     Command.Structs.EThreadProcessOffset = 0x210;
-    Command.Structs.EThreadCid = 0x3b8;
+    Command.Structs.EThreadCidOffset = 0x3b8;
 
     Command.Structs.EProcessUniqueIdOffset = 0x180;
     Command.Structs.EProcessCommitChargeOffset = 0x1b8;
@@ -683,7 +682,7 @@ static VOID Handler0x3cca4b(UINT_PTR KernelLoadBase, UINT_PTR KernelNativeBase)
     Command.Structs.EThreadStackBaseOffset = 0x190;
     Command.Structs.EThreadStackLimitOffset = 0x2c;
     Command.Structs.EThreadProcessOffset = 0x150;
-    Command.Structs.EThreadCid = 0x22c;
+    Command.Structs.EThreadCidOffset = 0x22c;
 
     Command.Structs.EProcessUniqueIdOffset = 0xb4;
     Command.Structs.EProcessCommitChargeOffset = 0xd0;
@@ -755,7 +754,7 @@ static VOID Handler0x3cb498(UINT_PTR KernelLoadBase, UINT_PTR KernelNativeBase)
     Command.Structs.EThreadStackBaseOffset = 0x190;
     Command.Structs.EThreadStackLimitOffset = 0x2c;
     Command.Structs.EThreadProcessOffset = 0x150;
-    Command.Structs.EThreadCid = 0x22c;
+    Command.Structs.EThreadCidOffset = 0x22c;
 
     Command.Structs.EProcessUniqueIdOffset = 0xb4;
     Command.Structs.EProcessCommitChargeOffset = 0xd0;
@@ -828,7 +827,7 @@ static VOID Handler0x5546f7(UINT_PTR KernelLoadBase, UINT_PTR KernelNativeBase)
     Command.Structs.EThreadStackBaseOffset = 0x278;
     Command.Structs.EThreadStackLimitOffset = 0x30;
     Command.Structs.EThreadProcessOffset = 0x210;
-    Command.Structs.EThreadCid = 0x3b8;
+    Command.Structs.EThreadCidOffset = 0x3b8;
 
     Command.Structs.EProcessUniqueIdOffset = 0x180;
     Command.Structs.EProcessCommitChargeOffset = 0x1b8;
@@ -901,7 +900,7 @@ static VOID Handler0x71a4f4(UINT_PTR KernelLoadBase, UINT_PTR KernelNativeBase)
     Command.Structs.EThreadStackBaseOffset = 0x38;
     Command.Structs.EThreadStackLimitOffset = 0x30;
     Command.Structs.EThreadProcessOffset = 0x220;
-    Command.Structs.EThreadCid = 0x620;
+    Command.Structs.EThreadCidOffset = 0x620;
 
     Command.Structs.EProcessUniqueIdOffset = 0x2e0;
     Command.Structs.EProcessCommitChargeOffset = 0x4d8;
@@ -974,7 +973,7 @@ static VOID Handler0x7f010a(UINT_PTR KernelLoadBase, UINT_PTR KernelNativeBase)
     Command.Structs.EThreadStackBaseOffset = 0x38;
     Command.Structs.EThreadStackLimitOffset = 0x30;
     Command.Structs.EThreadProcessOffset = 0x220;
-    Command.Structs.EThreadCid = 0x638;
+    Command.Structs.EThreadCidOffset = 0x638;
 
     Command.Structs.EProcessUniqueIdOffset = 0x2e0;
     Command.Structs.EProcessCommitChargeOffset = 0x4f0;

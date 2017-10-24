@@ -88,7 +88,7 @@ static VOID Handler{{d.checksum | hex}}(UINT_PTR KernelLoadBase, UINT_PTR Kernel
     Command.Structs.EThreadStackBaseOffset = {{d._KTHREAD_StackBase | hex}};
     Command.Structs.EThreadStackLimitOffset = {{d._KTHREAD_StackLimit | hex}};
     Command.Structs.EThreadProcessOffset = {{d._KTHREAD_Process | hex}};
-    Command.Structs.EThreadCid = {{d._ETHREAD_Cid | hex}};
+    Command.Structs.EThreadCidOffset = {{d._ETHREAD_Cid | hex}};
 
     Command.Structs.EProcessUniqueIdOffset = {{d._EPROCESS_UniqueProcessId | hex}};
     Command.Structs.EProcessCommitChargeOffset = {{d._EPROCESS_CommitCharge | hex}};
