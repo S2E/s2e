@@ -107,7 +107,7 @@ If you are going to be analyzing Windows binaries, you will also need to install
 
 .. code-block:: console
 
-    sudo apt-get install mingw-64
+    sudo apt-get install mingw-w64
 
 Checking out S2E
 ----------------
