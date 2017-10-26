@@ -142,9 +142,7 @@ void FunctionModels::handleStrcat(S2EExecutionState *state, S2E_LIBCWRAPPER_COMM
     stringAddrs[0] = (uint64_t) cmd.Strcat.dst;
     stringAddrs[1] = (uint64_t) cmd.Strcat.src;
 
-    getDebugStream(state) << "Handling strcat(" << hexval(stringAddrs[0]) << ", " << hexval(stringAddrs[1]) << ")\n";
-
-    // Assemble the string concatination expression. We don't use the return expression here because it is just a
+    // Assemble the string concatenation expression. We don't use the return expression here because it is just a
     // concrete address
     ref<Expr> retExpr;
     if (strcatHelper(state, stringAddrs, retExpr)) {
@@ -152,8 +150,6 @@ void FunctionModels::handleStrcat(S2EExecutionState *state, S2E_LIBCWRAPPER_COMM
     } else {
         cmd.needOrigFunc = 1;
     }
-
-    return;
 }
 
 void FunctionModels::handleStrncat(S2EExecutionState *state, S2E_LIBCWRAPPER_COMMAND &cmd) {
@@ -163,10 +159,7 @@ void FunctionModels::handleStrncat(S2EExecutionState *state, S2E_LIBCWRAPPER_COM
     stringAddrs[1] = (uint64_t) cmd.Strncat.src;
     uint64_t numBytes = (int) cmd.Strncat.n;
 
-    getDebugStream(state) << "Handling strncat(" << hexval(stringAddrs[0]) << ", " << hexval(stringAddrs[1]) << ", "
-                          << numBytes << ")\n";
-
-    // Assemble the string concatination expression. We don't use the return expression here because it is just a
+    // Assemble the string concatenation expression. We don't use the return expression here because it is just a
     // concrete address
     ref<Expr> retExpr;
     if (strcatHelper(state, stringAddrs, retExpr, true, numBytes)) {
@@ -174,8 +167,6 @@ void FunctionModels::handleStrncat(S2EExecutionState *state, S2E_LIBCWRAPPER_COM
     } else {
         cmd.needOrigFunc = 1;
     }
-
-    return;
 }
 
 void FunctionModels::handleCrc(S2EExecutionState *state, S2E_LIBCWRAPPER_COMMAND &cmd, ref<Expr> &ret) {

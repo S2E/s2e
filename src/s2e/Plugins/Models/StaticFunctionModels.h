@@ -57,8 +57,12 @@ private:
     bool handleStrlen(S2EExecutionState *state, uint64_t pc);
     bool handleStrcmp(S2EExecutionState *state, uint64_t pc);
     bool handleStrncmp(S2EExecutionState *state, uint64_t pc);
+    bool handleStrcpy(S2EExecutionState *state, uint64_t pc);
+    bool handleStrncpy(S2EExecutionState *state, uint64_t pc);
+    bool handleMemcpy(S2EExecutionState *state, uint64_t pc);
     bool handleMemcmp(S2EExecutionState *state, uint64_t pc);
-
+    bool handleStrcat(S2EExecutionState *state, uint64_t pc);
+    bool handleStrncat(S2EExecutionState *state, uint64_t pc);
     bool handleCrc16(S2EExecutionState *state, uint64_t pc);
     bool handleCrc32(S2EExecutionState *state, uint64_t pc);
 

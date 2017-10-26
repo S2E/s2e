@@ -519,6 +519,14 @@ bool BaseFunctionModels::memcpyHelper(S2EExecutionState *state, const uint64_t m
 ///
 bool BaseFunctionModels::strcatHelper(S2EExecutionState *state, const uint64_t strAddrs[2], ref<Expr> &retExpr,
                                       uint64_t numBytes, bool isNcat) {
+    getDebugStream(state) << "Handling str" << (isNcat ? "n" : "") << "cat(" << hexval(strAddrs[0]) << ", "
+                          << hexval(strAddrs[1]);
+    if (isNcat) {
+        getDebugStream(state) << ", " << numBytes << ")\n";
+    } else {
+        getDebugStream(state) << ")\n";
+    }
+
     size_t srcStrLen, destStrLen;
     ref<Expr> srcExprLen, dstExprLen;
 

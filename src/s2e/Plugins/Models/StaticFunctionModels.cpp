@@ -59,9 +59,14 @@ void StaticFunctionModels::initialize() {
     m_handlers["strlen"] = &StaticFunctionModels::handleStrlen;
     m_handlers["strcmp"] = &StaticFunctionModels::handleStrcmp;
     m_handlers["strncmp"] = &StaticFunctionModels::handleStrncmp;
+    m_handlers["strcpy"] = &StaticFunctionModels::handleStrcpy;
+    m_handlers["strncpy"] = &StaticFunctionModels::handleStrncpy;
+    m_handlers["memcpy"] = &StaticFunctionModels::handleMemcpy;
     m_handlers["memcmp"] = &StaticFunctionModels::handleMemcmp;
-    m_handlers["crc32"] = &StaticFunctionModels::handleCrc32;
+    m_handlers["strcat"] = &StaticFunctionModels::handleStrcat;
+    m_handlers["strncat"] = &StaticFunctionModels::handleStrncat;
     m_handlers["crc16"] = &StaticFunctionModels::handleCrc16;
+    m_handlers["crc32"] = &StaticFunctionModels::handleCrc32;
 
     getInfoStream() << "Model count: " << getFunctionModelCount() << "\n";
 }
@@ -210,11 +215,78 @@ bool StaticFunctionModels::handleStrncmp(S2EExecutionState *state, uint64_t pc) 
     }
 }
 
+bool StaticFunctionModels::handleStrcpy(S2EExecutionState *state, uint64_t pc) {
+    // Read function arguments
+    uint64_t stringAddrs[2];
+    for (int i = 0; i < 2; i++) {
+        if (!readArgument(state, i, stringAddrs[i])) {
+            getDebugStream(state) << "Failed to read stringAddr argument\n";
+            return false;
+        }
+    }
+
+    // Assemble the string copy expression
+    ref<Expr> retExpr;
+    if (strcpyHelper(state, stringAddrs, retExpr)) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+bool StaticFunctionModels::handleStrncpy(S2EExecutionState *state, uint64_t pc) {
+    // Read function arguments
+    uint64_t stringAddrs[2];
+    for (int i = 0; i < 2; i++) {
+        if (!readArgument(state, i, stringAddrs[i])) {
+            getDebugStream(state) << "Failed to read stringAddr argument\n";
+            return false;
+        }
+    }
+
+    uint64_t numBytes;
+    if (!readArgument(state, 2, numBytes)) {
+        getDebugStream(state) << "Failed to read numBytes argument\n";
+        return false;
+    }
+
+    // Assemble the string copy expression
+    ref<Expr> retExpr;
+    if (strncpyHelper(state, stringAddrs, numBytes, retExpr)) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+bool StaticFunctionModels::handleMemcpy(S2EExecutionState *state, uint64_t pc) {
+    // Read function arguments
+    uint64_t memAddrs[2];
+    for (int i = 0; i < 2; i++) {
+        if (!readArgument(state, i, memAddrs[i])) {
+            getDebugStream(state) << "Failed to read memAddr argument\n";
+            return false;
+        }
+    }
+
+    uint64_t numBytes;
+    if (!readArgument(state, 2, numBytes)) {
+        getDebugStream(state) << "Failed to read numBytes argument\n";
+        return false;
+    }
+
+    // Assemble the memory copy expression
+    ref<Expr> retExpr;
+    if (memcpyHelper(state, memAddrs, numBytes, retExpr)) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
 bool StaticFunctionModels::handleMemcmp(S2EExecutionState *state, uint64_t pc) {
     // Read function arguments
     uint64_t memAddrs[2];
-    uint64_t memSize;
-
     for (int i = 0; i < 2; i++) {
         if (!readArgument(state, i, memAddrs[i])) {
             getDebugStream(state) << "Failed to read memory address argument\n";
@@ -222,6 +294,7 @@ bool StaticFunctionModels::handleMemcmp(S2EExecutionState *state, uint64_t pc) {
         }
     }
 
+    uint64_t memSize;
     if (!readArgument(state, 2, memSize)) {
         getDebugStream(state) << "Failed to read memSize argument\n";
         return false;
@@ -238,16 +311,58 @@ bool StaticFunctionModels::handleMemcmp(S2EExecutionState *state, uint64_t pc) {
     }
 }
 
+bool StaticFunctionModels::handleStrcat(S2EExecutionState *state, uint64_t pc) {
+    // Read function arguments
+    uint64_t stringAddrs[2];
+    for (int i = 0; i < 2; i++) {
+        if (!readArgument(state, i, stringAddrs[i])) {
+            getDebugStream(state) << "Failed to read stringAddr argument\n";
+            return false;
+        }
+    }
+
+    // Assemble the string concatenation expression
+    ref<Expr> retExpr;
+    if (strcatHelper(state, stringAddrs, retExpr)) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+bool StaticFunctionModels::handleStrncat(S2EExecutionState *state, uint64_t pc) {
+    // Read function arguments
+    uint64_t stringAddrs[2];
+    for (int i = 0; i < 2; i++) {
+        if (!readArgument(state, i, stringAddrs[i])) {
+            getDebugStream(state) << "Failed to read stringAddr argument\n";
+            return false;
+        }
+    }
+
+    uint64_t numBytes;
+    if (!readArgument(state, 2, numBytes)) {
+        getDebugStream(state) << "Failed to read numBytes argument\n";
+        return false;
+    }
+
+    // Assemble the string concatenation expression
+    ref<Expr> retExpr;
+    if (strcatHelper(state, stringAddrs, retExpr, true, numBytes)) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
 bool StaticFunctionModels::handleCrc16(S2EExecutionState *state, uint64_t pc) {
     uint64_t address;
-    uint64_t count;
-    ref<Expr> initialCrc = E_CONST(0, Expr::Int16);
-
     if (!readArgument(state, 0, address)) {
         getWarningsStream(state) << "crc16: could not read address\n";
         return false;
     }
 
+    uint64_t count;
     if (!readArgument(state, 1, count)) {
         getWarningsStream(state) << "crc16: could not read count\n";
         return false;
@@ -259,6 +374,7 @@ bool StaticFunctionModels::handleCrc16(S2EExecutionState *state, uint64_t pc) {
         return false;
     }
 
+    ref<Expr> initialCrc = E_CONST(0, Expr::Int16);
     ref<Expr> crc = crc16(initialCrc, data);
     state->regs()->write(offsetof(CPUX86State, regs[R_EAX]), crc);
 
@@ -267,14 +383,12 @@ bool StaticFunctionModels::handleCrc16(S2EExecutionState *state, uint64_t pc) {
 
 bool StaticFunctionModels::handleCrc32(S2EExecutionState *state, uint64_t pc) {
     uint64_t address;
-    uint64_t count;
-    ref<Expr> initialCrc = E_CONST(0, Expr::Int32);
-
     if (!readArgument(state, 0, address)) {
         getWarningsStream(state) << "crc32: could not read address\n";
         return false;
     }
 
+    uint64_t count;
     if (!readArgument(state, 1, count)) {
         getWarningsStream(state) << "crc32: could not read count\n";
         return false;
@@ -286,6 +400,7 @@ bool StaticFunctionModels::handleCrc32(S2EExecutionState *state, uint64_t pc) {
         return false;
     }
 
+    ref<Expr> initialCrc = E_CONST(0, Expr::Int32);
     ref<Expr> crc = crc32(initialCrc, data, getBool(state, "xor_result"));
     state->regs()->write(offsetof(CPUX86State, regs[R_EAX]), crc);
 
