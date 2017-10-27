@@ -356,52 +356,66 @@ bool StaticFunctionModels::handleStrncat(S2EExecutionState *state, uint64_t pc) 
 }
 
 bool StaticFunctionModels::handleCrc16(S2EExecutionState *state, uint64_t pc) {
-    uint64_t address;
-    if (!readArgument(state, 0, address)) {
-        getWarningsStream(state) << "crc16: could not read address\n";
+    uint64_t initialCrc;
+    if (!readArgument(state, 0, initialCrc)) {
+        getWarningsStream(state) << "crc16: could not read initial crc\n";
         return false;
     }
 
-    uint64_t count;
-    if (!readArgument(state, 1, count)) {
-        getWarningsStream(state) << "crc16: could not read count\n";
+    uint64_t dataAddr;
+    if (!readArgument(state, 1, dataAddr)) {
+        getWarningsStream(state) << "crc16: could not read data address\n";
+        return false;
+    }
+
+    uint64_t len;
+    if (!readArgument(state, 2, len)) {
+        getWarningsStream(state) << "crc16: could not read len\n";
         return false;
     }
 
     std::vector<ref<Expr>> data;
-    if (!readMemory(state, data, address, count)) {
+    if (!readMemory(state, data, dataAddr, len)) {
         getWarningsStream(state) << "crc16: could not read data\n";
         return false;
     }
 
-    ref<Expr> initialCrc = E_CONST(0, Expr::Int16);
-    ref<Expr> crc = crc16(initialCrc, data);
+    getDebugStream(state) << "Handling crc16(" << initialCrc << ", " << hexval(dataAddr) << ", " << len << ")\n";
+
+    ref<Expr> crc = crc16(E_CONST(initialCrc, Expr::Int16), data);
     state->regs()->write(offsetof(CPUX86State, regs[R_EAX]), crc);
 
     return true;
 }
 
 bool StaticFunctionModels::handleCrc32(S2EExecutionState *state, uint64_t pc) {
-    uint64_t address;
-    if (!readArgument(state, 0, address)) {
-        getWarningsStream(state) << "crc32: could not read address\n";
+    uint64_t initialCrc;
+    if (!readArgument(state, 0, initialCrc)) {
+        getWarningsStream(state) << "crc32: could not read initial crc\n";
         return false;
     }
 
-    uint64_t count;
-    if (!readArgument(state, 1, count)) {
-        getWarningsStream(state) << "crc32: could not read count\n";
+    uint64_t dataAddr;
+    if (!readArgument(state, 1, dataAddr)) {
+        getWarningsStream(state) << "crc32: could not read data address\n";
+        return false;
+    }
+
+    uint64_t len;
+    if (!readArgument(state, 2, len)) {
+        getWarningsStream(state) << "crc32: could not read len\n";
         return false;
     }
 
     std::vector<ref<Expr>> data;
-    if (!readMemory(state, data, address, count)) {
+    if (!readMemory(state, data, dataAddr, len)) {
         getWarningsStream(state) << "crc32: could not read data\n";
         return false;
     }
 
-    ref<Expr> initialCrc = E_CONST(0, Expr::Int32);
-    ref<Expr> crc = crc32(initialCrc, data, getBool(state, "xor_result"));
+    getDebugStream(state) << "Handling crc32(" << initialCrc << ", " << hexval(dataAddr) << ", " << len << ")\n";
+
+    ref<Expr> crc = crc32(E_CONST(initialCrc, Expr::Int32), data, getBool(state, "xor_result"));
     state->regs()->write(offsetof(CPUX86State, regs[R_EAX]), crc);
 
     return true;
