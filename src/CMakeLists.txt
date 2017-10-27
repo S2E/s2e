@@ -29,14 +29,26 @@ endif()
 set(LIBS ${LIBS} ${LIBCPU_LIBRARY_DIR}/libcpu.a ${LIBTCG_LIBRARY_DIR}/libtcg.a)
 
 if(WITH_TARGET MATCHES "s2e")
-set(LIBS ${LIBS} ${KLEE_DIR}/lib/libkleeCore.a ${KLEE_DIR}/lib/libkleeModule.a ${KLEE_DIR}/lib/libkleaverSolver.a ${KLEE_DIR}/lib/libkleaverExpr.a ${KLEE_DIR}/lib/libkleeSupport.a ${KLEE_DIR}/lib/libkleeBasic.a)
-set(LIBS ${LIBS} ${VMI_LIBRARY_DIR}/libvmi.a memcached lua ${LLVM_LIBS} z3 ${FSIGCXX_LIBRARY_DIR}/libfsigc++.a ${LIBQ_LIBRARY_DIR}/libq.a)
-set(LIBS ${LIBS} boost_serialization boost_system boost_regex)
+    set(LIBS ${LIBS} ${KLEE_DIR}/lib/libkleeCore.a
+                     ${KLEE_DIR}/lib/libkleeModule.a
+                     ${KLEE_DIR}/lib/libkleaverSolver.a
+                     ${KLEE_DIR}/lib/libkleaverExpr.a
+                     ${KLEE_DIR}/lib/libkleeSupport.a
+                     ${KLEE_DIR}/lib/libkleeBasic.a)
+    set(LIBS ${LIBS} ${VMI_LIBRARY_DIR}/libvmi.a
+                     elf)
+    set(LIBS ${LIBS} memcached
+                     lua
+                     ${LLVM_LIBS}
+                     z3
+                     ${FSIGCXX_LIBRARY_DIR}/libfsigc++.a
+                     ${LIBQ_LIBRARY_DIR}/libq.a)
+    set(LIBS ${LIBS} boost_serialization
+                     boost_system
+                     boost_regex)
 endif()
 
 set(LIBS ${LIBS} ${LIBCOROUTINE_LIBRARY_DIR}/libcoroutine.a pthread glib-2.0 bsd)
-
-
 
 target_link_libraries(tests2e PUBLIC ${LIBCOROUTINE_LIBRARY_DIR}/libcoroutine.a pthread glib-2.0)
 target_link_libraries(s2e ${LIBS})
