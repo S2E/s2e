@@ -819,6 +819,11 @@ int s2e_kvm_vcpu_interrupt(int vcpu_fd, struct kvm_interrupt *interrupt) {
     return 0;
 }
 
+int s2e_kvm_vcpu_nmi(int vcpu_fd) {
+    env->interrupt_request |= CPU_INTERRUPT_NMI;
+    return 0;
+}
+
 ///
 /// \brief s2e_kvm_request_exit triggers an exit from the cpu loop
 ///

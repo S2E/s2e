@@ -111,6 +111,7 @@ int s2e_kvm_vcpu_get_mp_state(int vcpu_fd, struct kvm_mp_state *mp);
 
 int s2e_kvm_vcpu_run(int vcpu_fd);
 int s2e_kvm_vcpu_interrupt(int vcpu_fd, struct kvm_interrupt *interrupt);
+int s2e_kvm_vcpu_nmi(int vcpu_fd);
 
 void s2e_kvm_request_exit(void);
 void s2e_kvm_request_process_exit(exit_t original_exit, int code) __attribute__((noreturn));
