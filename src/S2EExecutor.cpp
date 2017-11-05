@@ -1437,6 +1437,9 @@ void S2EExecutor::doStateSwitch(S2EExecutionState *oldState, S2EExecutionState *
         }
 
         timers_state = *newState->m_timersState;
+        if (g_sqi.exec.clock_scaling_factor) {
+            *g_sqi.exec.clock_scaling_factor = timers_state.cpu_clock_scale_factor;
+        }
 
         jmp_buf jmp_env;
         memcpy(&jmp_env, &env->jmp_env, sizeof(jmp_buf));
@@ -1741,6 +1744,10 @@ void S2EExecutor::updateClockScaling() {
     } else {
         // Symbolic execution
         scaling = UseFastHelpers ? ClockSlowDownFastHelpers : ClockSlowDown;
+    }
+
+    if (g_sqi.exec.clock_scaling_factor) {
+        *g_sqi.exec.clock_scaling_factor = scaling;
     }
 
     cpu_enable_scaling(scaling);
