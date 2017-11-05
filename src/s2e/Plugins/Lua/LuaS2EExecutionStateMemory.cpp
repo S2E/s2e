@@ -55,7 +55,7 @@ int LuaS2EExecutionStateMemory::readBytes(lua_State *L) {
 
     luaL_Buffer buff;
     luaL_buffinit(L, &buff);
-    luaL_addlstring(&buff, (char*) bytes.data(), size * sizeof(uint8_t));
+    luaL_addlstring(&buff, (char *) bytes.data(), size * sizeof(uint8_t));
     luaL_pushresult(&buff);
 
     return 1;

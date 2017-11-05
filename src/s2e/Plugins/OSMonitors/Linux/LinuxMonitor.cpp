@@ -240,6 +240,10 @@ void LinuxMonitor::handleCommand(S2EExecutionState *state, uint64_t guestDataPtr
         case LINUX_INIT:
             handleInit(state, cmd);
             break;
+
+        case LINUX_KERNEL_PANIC:
+            handleKernelPanic(state, cmd.Panic.message, cmd.Panic.message_size);
+            break;
     }
 }
 
