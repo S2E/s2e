@@ -70,6 +70,8 @@ struct se_libcpu_interface_t {
 
         se_libcpu_tb_exec_t tb_exec;
         se_do_interrupt_all_t do_interrupt_all;
+
+        unsigned *clock_scaling_factor;
     } exec;
 
     /* TB management */
