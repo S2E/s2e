@@ -1071,6 +1071,10 @@ void DecreeMonitor::handleCommand(S2EExecutionState *state, uint64_t guestDataPt
         case DECREE_INIT: {
             handleInit(state, command.Init);
         } break;
+
+        case DECREE_KERNEL_PANIC: {
+            handleKernelPanic(state, command.Panic.message, command.Panic.message_size);
+        } break;
     }
 }
 
