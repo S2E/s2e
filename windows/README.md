@@ -80,7 +80,7 @@ the ```exe``` and ```pdb``` files of the desired Windows kernel using the
 
 ```
 # Install the environment
-pacman -S gcc python2-setuptools
+pacman -Syy gcc python2-setuptools
 easy_install-2.7 pip virtualenv
 
 # Install guest tools requirements
