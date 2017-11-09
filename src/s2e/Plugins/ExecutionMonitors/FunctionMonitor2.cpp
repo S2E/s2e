@@ -6,10 +6,12 @@
 ///
 
 #include <s2e/ConfigFile.h>
-#include <s2e/Plugins/OSMonitors/OSMonitor.h>
 #include <s2e/S2E.h>
-#include <s2e/Utils.h>
 #include <s2e/cpu.h>
+
+#include <s2e/Plugins/OSMonitors/OSMonitor.h>
+#include <s2e/Plugins/OSMonitors/Support/ModuleMap.h>
+#include <s2e/Plugins/OSMonitors/Support/ProcessExecutionDetector.h>
 
 #include "FunctionMonitor2.h"
 
@@ -21,7 +23,6 @@ S2E_DEFINE_PLUGIN(FunctionMonitor2, "Function monitoring plugin", "", "Execution
 
 void FunctionMonitor2::initialize() {
     m_monitor = static_cast<OSMonitor *>(s2e()->getPlugin("OSMonitor"));
-    m_tracer = s2e()->getPlugin<ExecutionTracer>();
     m_map = s2e()->getPlugin<ModuleMap>();
     m_processDetector = s2e()->getPlugin<ProcessExecutionDetector>();
 
@@ -30,38 +31,34 @@ void FunctionMonitor2::initialize() {
 
 void FunctionMonitor2::onTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb,
                                            uint64_t pc, bool isStatic, uint64_t staticTarget) {
-    enum ETranslationBlockType tb_type = tb->se_tb_type;
-    if (!(tb_type == TB_CALL || tb_type == TB_CALL_IND)) {
-        return;
-    }
-
     if (m_monitor->isKernelAddress(pc)) {
         return;
     }
 
-    signal->connect(sigc::mem_fun(*this, &FunctionMonitor2::onExecuteStart));
+    if (tb->se_tb_type == TB_CALL || tb->se_tb_type == TB_CALL_IND) {
+        signal->connect(sigc::mem_fun(*this, &FunctionMonitor2::onFunctionCall));
+    }
 }
 
-void FunctionMonitor2::onExecuteStart(S2EExecutionState *state, uint64_t pc) {
+void FunctionMonitor2::onFunctionCall(S2EExecutionState *state, uint64_t callerPc) {
     if (!m_processDetector->isTracked(state)) {
         return;
     }
 
-    uint64_t ra = 0;
-    state->getReturnAddress(&ra);
+    uint64_t calleePc = state->getPc();
 
-    const ModuleDescriptor *sm = m_map->getModule(state, pc);
-    const ModuleDescriptor *dm = m_map->getModule(state, pc);
+    const ModuleDescriptor *callerMod = m_map->getModule(state, callerPc);
+    const ModuleDescriptor *calleeMod = m_map->getModule(state, calleePc);
 
-    if (sm) {
-        ra = sm->ToNativeBase(ra);
+    if (callerMod) {
+        callerPc = callerMod->ToNativeBase(callerPc);
     }
 
-    if (dm) {
-        pc = dm->ToNativeBase(pc);
+    if (calleeMod) {
+        calleePc = calleeMod->ToNativeBase(calleePc);
     }
 
-    onCall.emit(state, sm, dm, ra, pc);
+    onCall.emit(state, callerMod, calleeMod, callerPc, calleePc);
 }
 
 } // namespace plugins
