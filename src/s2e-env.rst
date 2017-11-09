@@ -103,8 +103,7 @@ This will:
 * Install an S2E-compatible kernel that can be used with the `LinuxMonitor <Plugins/Linux/LinuxMonitor.rst>`_ plugin
   and snapshot the image
 * Create a JSON file describing the image. This JSON description is important for the ``new_project`` command
-* Create a ready-to-run snapshot so that you do not have to reboot the guest everytime you
-  want to run an analysis.
+* Create a ready-to-run snapshot so that you do not have to reboot the guest everytime you want to run an analysis
 
 Building the image will take some time (approx. 30 minutes), so go and make another coffee.
 
@@ -115,14 +114,33 @@ You may also build all images at once:
     cd /home/user/s2e
     s2e image_build all
 
-You may find more information about the infrastructure that builds the images
-in the following repositories:
+Note that this will build all Linux **and** Windows images. To only build the Linux images, use ``s2e image_build
+linux``. You can find more information about the infrastructure that builds the images in the following repositories:
 
 * `guest-images <https://github.com/S2E/guest-images>`_
 * `s2e-linux-kernel <https://github.com/S2E/s2e-linux-kernel>`_
 
-**NOTE**: The image build process caches intermediate build output in `.tmp-output` that can grow quite large. Once
+**NOTE**: The image build process caches intermediate build output in ``.tmp-output`` that can grow quite large. Once
 the images have been built you may wish to delete this directory if disk space is an issue.
+
+Windows images
+^^^^^^^^^^^^^^
+
+``s2e-env`` can also be used to build Windows images. The supported Windows versions can be found
+`here <https://github.com/S2E/guest-images/blob/master/images.json>`_. The ``--iso-dir`` option **must** be
+specified when building Windows images. The directory specified must also contain an ISO with the name listed in
+`images.json <https://github.com/S2E/guest-images/blob/master/images.json>`_. For example, the following command can
+be used to build a Windows 7, SP1 image:
+
+.. code-block:: console
+
+    s2e image_build --iso-dir /path/to/isos windows-7sp1ent-x86_64
+
+Where ``/path/to/isos`` is a directory containing
+``en_windows_7_enterprise_with_sp1_x64_dvd_u_677651.so``.
+
+The ISOs listed in ``images.json`` are available from `MSDN <https://msdn.microsoft.com/>`_. ``s2e image_build
+--iso-dir /path/to/isos windows`` can be used to build all Windows images.
 
 Creating a new analysis project
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
