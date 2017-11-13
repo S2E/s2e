@@ -327,9 +327,9 @@ void ModuleExecutionDetector::moduleUnloadListener(S2EExecutionState *state, con
 void ModuleExecutionDetector::processUnloadListener(S2EExecutionState *state, uint64_t addressSpace, uint64_t pid) {
     DECLARE_PLUGINSTATE(ModuleTransitionState, state);
 
-    getDebugStream(state) << "Process " << hexval(addressSpace) << " is unloaded\n";
+    getDebugStream(state) << "Process " << hexval(addressSpace) << " (pid=" << hexval(pid) << ") is unloaded\n";
 
-    plgState->unloadDescriptorsWithAddressSpace(addressSpace);
+    plgState->unloadDescriptor(pid);
 }
 
 // Check that the module id is valid
@@ -491,7 +491,7 @@ const ModuleDescriptor *ModuleExecutionDetector::getCurrentDescriptor(S2EExecuti
     DECLARE_PLUGINSTATE_CONST(ModuleTransitionState, state);
 
     uint64_t pc = state->getPc();
-    uint64_t addressSpace = m_Monitor->getAddressSpace(state, state->getPc());
+    uint64_t addressSpace = m_Monitor->getAddressSpace(state, pc);
 
     return plgState->getDescriptor(addressSpace, pc);
 }
@@ -701,11 +701,11 @@ void ModuleTransitionState::unloadDescriptor(const ModuleDescriptor &desc) {
     }
 }
 
-void ModuleTransitionState::unloadDescriptorsWithAddressSpace(uint64_t addressSpace) {
+void ModuleTransitionState::unloadDescriptor(uint64_t pid) {
     DescriptorSet::iterator it, it1;
 
     for (it = m_Descriptors.begin(); it != m_Descriptors.end();) {
-        if ((*it)->AddressSpace != addressSpace) {
+        if ((*it)->Pid != pid) {
             ++it;
         } else {
             it1 = it;
@@ -729,7 +729,7 @@ void ModuleTransitionState::unloadDescriptorsWithAddressSpace(uint64_t addressSp
 
     // XXX: avoid copy/paste
     for (it = m_NotTrackedDescriptors.begin(); it != m_NotTrackedDescriptors.end();) {
-        if ((*it)->AddressSpace != addressSpace) {
+        if ((*it)->Pid != pid) {
             ++it;
         } else {
             it1 = it;

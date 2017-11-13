@@ -213,7 +213,7 @@ private:
 
     bool loadDescriptor(const ModuleDescriptor &desc, bool track);
     void unloadDescriptor(const ModuleDescriptor &desc);
-    void unloadDescriptorsWithAddressSpace(uint64_t addressSpace);
+    void unloadDescriptor(uint64_t pid);
     bool exists(const ModuleDescriptor *desc, bool tracked) const;
 
 public:
