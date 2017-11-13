@@ -50,6 +50,14 @@ void LibraryCallMonitor::logLibraryCall(S2EExecutionState *state, const std::str
 
 void LibraryCallMonitor::onTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb,
                                              uint64_t pc, bool isStatic, uint64_t staticTarget) {
+    // Library calls/jumps are always indirect
+    if (tb->se_tb_type == TB_CALL_IND || (m_monitorIndirectJumps && tb->se_tb_type == TB_JMP_IND)) {
+        signal->connect(
+            sigc::bind(sigc::mem_fun(*this, &LibraryCallMonitor::onIndirectCallOrJump), (unsigned) tb->se_tb_type));
+    }
+}
+
+void LibraryCallMonitor::onIndirectCallOrJump(S2EExecutionState *state, uint64_t pc, unsigned sourceType) {
     // Only interested in the processes specified in the ProcessExecutionDetector config
     if (!m_procDetector->isTracked(state)) {
         return;
@@ -61,18 +69,9 @@ void LibraryCallMonitor::onTranslateBlockEnd(ExecutionSignal *signal, S2EExecuti
         return;
     }
 
-    // Library calls/jumps are always indirect
-    if (tb->se_tb_type == TB_CALL_IND || (m_monitorIndirectJumps && tb->se_tb_type == TB_JMP_IND)) {
-        signal->connect(
-            sigc::bind(sigc::mem_fun(*this, &LibraryCallMonitor::onIndirectCallOrJump), (unsigned) tb->se_tb_type));
-    }
-}
-
-void LibraryCallMonitor::onIndirectCallOrJump(S2EExecutionState *state, uint64_t pc, unsigned sourceType) {
-    // Get the current and loaded modules for the executing process
+    // Get the loaded modules for the executing process
     uint64_t pid = m_monitor->getPid(state);
     ModuleDescriptorList mods = m_map->getModulesByPid(state, pid);
-    const ModuleDescriptor *currentMod = m_map->getModule(state, pc);
 
     uint64_t targetAddr = state->getPc();
 
