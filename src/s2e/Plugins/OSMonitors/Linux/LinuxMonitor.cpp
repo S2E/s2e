@@ -180,8 +180,6 @@ void LinuxMonitor::handleProcessExit(S2EExecutionState *state, const S2E_LINUXMO
     getDebugStream(state) << "Removing task (pid=" << hexval(cmd.currentPid) << ", cr3=" << hexval(mod->AddressSpace)
                           << ", exitCode=" << cmd.ProcessExit.code << ") record from collector.\n";
     plgState->removeModule(*mod);
-
-    return;
 }
 
 void LinuxMonitor::handleTrap(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd) {

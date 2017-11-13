@@ -168,7 +168,7 @@ public:
 
     /// Get the base address and size of the stack
     virtual bool getCurrentStack(S2EExecutionState *state, uint64_t *base, uint64_t *size) {
-        ModuleExecutionDetector *detector = (ModuleExecutionDetector *) s2e()->getPlugin("ModuleExecutionDetector");
+        ModuleExecutionDetector *detector = s2e()->template getPlugin<ModuleExecutionDetector>();
         assert(detector);
 
         const ModuleDescriptor *module = detector->getCurrentDescriptor(state);
