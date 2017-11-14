@@ -22,7 +22,7 @@ namespace plugins {
 S2E_DEFINE_PLUGIN(ControlFlowGraph, "Manages control flow graphs for modules", "", "ModuleExecutionDetector");
 
 void ControlFlowGraph::initialize() {
-    m_detector = static_cast<ModuleExecutionDetector *>(s2e()->getPlugin("ModuleExecutionDetector"));
+    m_detector = s2e()->getPlugin<ModuleExecutionDetector>();
     loadConfiguration();
 
     // This sets up a timer that will periodically check if the lua script

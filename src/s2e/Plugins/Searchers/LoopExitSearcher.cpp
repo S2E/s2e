@@ -28,11 +28,11 @@ S2E_DEFINE_PLUGIN(LoopExitSearcher, "Searcher that prioritizes states that exit 
 void LoopExitSearcher::initialize() {
     s2e()->getExecutor()->setSearcher(this);
 
-    m_loopDetector = static_cast<LoopDetector *>(s2e()->getPlugin("LoopDetector"));
-    m_cfg = static_cast<ControlFlowGraph *>(s2e()->getPlugin("ControlFlowGraph"));
-    m_detector = static_cast<ModuleExecutionDetector *>(s2e()->getPlugin("ModuleExecutionDetector"));
-    m_bbcov = static_cast<coverage::BasicBlockCoverage *>(s2e()->getPlugin("BasicBlockCoverage"));
-    m_ecov = static_cast<EdgeCoverage *>(s2e()->getPlugin("EdgeCoverage"));
+    m_loopDetector = s2e()->getPlugin<LoopDetector>();
+    m_cfg = s2e()->getPlugin<ControlFlowGraph>();
+    m_detector = s2e()->getPlugin<ModuleExecutionDetector>();
+    m_bbcov = s2e()->getPlugin<coverage::BasicBlockCoverage>();
+    m_ecov = s2e()->getPlugin<EdgeCoverage>();
 
     s2e()->getCorePlugin()->onStateFork.connect(sigc::mem_fun(*this, &LoopExitSearcher::onFork));
 

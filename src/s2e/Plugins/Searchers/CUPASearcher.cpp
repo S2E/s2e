@@ -379,7 +379,7 @@ sigc::connection CUPASearcherReadCountClass::s_read_conn;
 
 CUPASearcherReadCountClass::CUPASearcherReadCountClass(CUPASearcher *plugin, unsigned level)
     : CUPASearcherClass(plugin, level) {
-    m_monitor = static_cast<DecreeMonitor *>(plugin->s2e()->getPlugin("DecreeMonitor"));
+    m_monitor = plugin->s2e()->getPlugin<DecreeMonitor>();
 
     if (!s_read_conn.connected()) {
         s_read_conn = m_monitor->onSymbolicRead.connect(sigc::ptr_fun(&CUPASearcherReadCountClass::onSymbolicRead));

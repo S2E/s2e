@@ -27,8 +27,8 @@ S2E_DEFINE_PLUGIN(TranslationBlockTracer, "Tracer for executed translation block
                   "ExecutionTracer");
 
 void TranslationBlockTracer::initialize() {
-    m_tracer = (ExecutionTracer *) s2e()->getPlugin("ExecutionTracer");
-    m_detector = (ModuleExecutionDetector *) s2e()->getPlugin("ModuleExecutionDetector");
+    m_tracer = s2e()->getPlugin<ExecutionTracer>();
+    m_detector = s2e()->getPlugin<ModuleExecutionDetector>();
 
     // Retrict monitoring to configured modules only
     m_monitorModules = s2e()->getConfig()->getBool(getConfigKey() + ".monitorModules");

@@ -333,8 +333,8 @@ void CacheSim::initialize() {
 
     ConfigFile *conf = s2e()->getConfig();
 
-    m_execDetector = (ModuleExecutionDetector *) s2e()->getPlugin("ModuleExecutionDetector");
-    m_Tracer = (ExecutionTracer *) s2e()->getPlugin("ExecutionTracer");
+    m_execDetector = s2e()->getPlugin<ModuleExecutionDetector>();
+    m_Tracer = s2e()->getPlugin<ExecutionTracer>();
 
     if (!m_execDetector) {
         getInfoStream() << "ModuleExecutionDetector not found, will profile the whole system" << '\n';

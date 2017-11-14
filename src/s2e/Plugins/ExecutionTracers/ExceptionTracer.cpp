@@ -18,7 +18,7 @@ namespace plugins {
 S2E_DEFINE_PLUGIN(ExceptionTracer, "Traces CPU exception", "", "ExecutionTracer");
 
 void ExceptionTracer::initialize() {
-    m_tracer = static_cast<ExecutionTracer *>(s2e()->getPlugin("ExecutionTracer"));
+    m_tracer = s2e()->getPlugin<ExecutionTracer>();
 
     s2e()->getCorePlugin()->onException.connect(sigc::mem_fun(*this, &ExceptionTracer::onException));
 }

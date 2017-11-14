@@ -32,7 +32,7 @@ ModuleTracer::~ModuleTracer() {
 }
 
 void ModuleTracer::initialize() {
-    m_Tracer = (ExecutionTracer *) s2e()->getPlugin("ExecutionTracer");
+    m_Tracer = s2e()->getPlugin<ExecutionTracer>();
     assert(m_Tracer);
 
     OSMonitor *monitor = (OSMonitor *) s2e()->getPlugin("OSMonitor");

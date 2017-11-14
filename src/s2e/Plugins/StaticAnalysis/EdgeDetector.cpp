@@ -27,7 +27,7 @@ S2E_DEFINE_PLUGIN(EdgeDetector, "Fires an event when a specified sequence of ins
                   "EdgeDetector", "ModuleExecutionDetector");
 
 void EdgeDetector::initialize() {
-    m_detector = static_cast<ModuleExecutionDetector *>(s2e()->getPlugin("ModuleExecutionDetector"));
+    m_detector = s2e()->getPlugin<ModuleExecutionDetector>();
 
     readConfig(getConfigKey(), this);
 

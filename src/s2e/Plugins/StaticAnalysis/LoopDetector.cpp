@@ -21,9 +21,9 @@ S2E_DEFINE_PLUGIN(LoopDetector, "LoopDetector S2E plugin", "", "EdgeDetector", "
                   "ControlFlowGraph");
 
 void LoopDetector::initialize() {
-    m_detector = static_cast<ModuleExecutionDetector *>(s2e()->getPlugin("ModuleExecutionDetector"));
-    m_edgeDetector = static_cast<EdgeDetector *>(s2e()->getPlugin("EdgeDetector"));
-    m_cfg = static_cast<ControlFlowGraph *>(s2e()->getPlugin("ControlFlowGraph"));
+    m_detector = s2e()->getPlugin<ModuleExecutionDetector>();
+    m_edgeDetector = s2e()->getPlugin<EdgeDetector>();
+    m_cfg = s2e()->getPlugin<ControlFlowGraph>();
 
     /**
      * Sample configuration entry:

@@ -24,7 +24,7 @@ S2E_DEFINE_PLUGIN(FunctionMonitor, "Function calls/returns monitoring plugin", "
 
 void FunctionMonitor::initialize() {
     m_monitor = static_cast<OSMonitor *>(s2e()->getPlugin("OSMonitor"));
-    m_detector = static_cast<ModuleExecutionDetector *>(s2e()->getPlugin("ModuleExecutionDetector"));
+    m_detector = s2e()->getPlugin<ModuleExecutionDetector>();
 
     m_localCalls = s2e()->getConfig()->getBool(getConfigKey() + ".monitorLocalFunctions");
 

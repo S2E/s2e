@@ -27,10 +27,10 @@ EventTracer::~EventTracer() {
 
 void EventTracer::initialize() {
     // Check that the tracer is there
-    m_Tracer = (ExecutionTracer *) s2e()->getPlugin("ExecutionTracer");
+    m_Tracer = s2e()->getPlugin<ExecutionTracer>();
     assert(m_Tracer);
 
-    m_Detector = (ModuleExecutionDetector *) s2e()->getPlugin("ModuleExecutionDetector");
+    m_Detector = s2e()->getPlugin<ModuleExecutionDetector>();
     assert(m_Detector);
 
     m_TraceAll = false;

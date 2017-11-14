@@ -16,7 +16,7 @@ namespace plugins {
 S2E_DEFINE_PLUGIN(StateSwitchTracer, "Traces state switches", "", "ExecutionTracer");
 
 void StateSwitchTracer::initialize() {
-    m_tracer = static_cast<ExecutionTracer *>(s2e()->getPlugin("ExecutionTracer"));
+    m_tracer = s2e()->getPlugin<ExecutionTracer>();
 
     s2e()->getCorePlugin()->onStateSwitch.connect(sigc::mem_fun(*this, &StateSwitchTracer::onStateSwitch));
 }

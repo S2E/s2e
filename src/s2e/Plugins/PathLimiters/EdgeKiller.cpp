@@ -21,8 +21,8 @@ S2E_DEFINE_PLUGIN(EdgeKiller, "Kills states that encounter a given (start_pc, en
                   "ModuleExecutionDetector");
 
 void EdgeKiller::initialize() {
-    m_detector = static_cast<ModuleExecutionDetector *>(s2e()->getPlugin("ModuleExecutionDetector"));
-    m_edgeDetector = static_cast<EdgeDetector *>(s2e()->getPlugin("EdgeDetector"));
+    m_detector = s2e()->getPlugin<ModuleExecutionDetector>();
+    m_edgeDetector = s2e()->getPlugin<EdgeDetector>();
     m_edgeDetector->readConfig(getConfigKey(), this);
     m_edgeDetector->onEdge.connect(sigc::mem_fun(*this, &EdgeKiller::onEdge));
 }

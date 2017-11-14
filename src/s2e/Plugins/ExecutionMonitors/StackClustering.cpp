@@ -23,10 +23,10 @@ S2E_DEFINE_PLUGIN(StackClustering, "Aggregates the call stack in all states", ""
                   "ModuleExecutionDetector", "ControlFlowGraph", "OSMonitor");
 
 void StackClustering::initialize() {
-    m_stackMonitor = static_cast<StackMonitor *>(s2e()->getPlugin("StackMonitor"));
-    m_detector = static_cast<ModuleExecutionDetector *>(s2e()->getPlugin("ModuleExecutionDetector"));
+    m_stackMonitor = s2e()->getPlugin<StackMonitor>();
+    m_detector = s2e()->getPlugin<ModuleExecutionDetector>();
     m_monitor = static_cast<OSMonitor *>(s2e()->getPlugin("OSMonitor"));
-    m_cfg = static_cast<ControlFlowGraph *>(s2e()->getPlugin("ControlFlowGraph"));
+    m_cfg = s2e()->getPlugin<ControlFlowGraph>();
 
     s2e()->getCorePlugin()->onStateFork.connect(sigc::mem_fun(*this, &StackClustering::onStateFork));
 

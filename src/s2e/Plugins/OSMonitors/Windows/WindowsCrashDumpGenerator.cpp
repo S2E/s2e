@@ -124,7 +124,7 @@ WindowsCrashDumpInvoker::WindowsCrashDumpInvoker(WindowsCrashDumpGenerator *plg)
 }
 
 WindowsCrashDumpInvoker::WindowsCrashDumpInvoker(lua_State *lua) {
-    m_plugin = static_cast<WindowsCrashDumpGenerator *>(g_s2e->getPlugin("WindowsCrashDumpGenerator"));
+    m_plugin = g_s2e->getPlugin<WindowsCrashDumpGenerator>();
 }
 
 WindowsCrashDumpInvoker::~WindowsCrashDumpInvoker() {

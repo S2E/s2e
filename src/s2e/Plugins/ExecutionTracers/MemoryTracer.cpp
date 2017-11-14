@@ -32,8 +32,8 @@ MemoryTracer::MemoryTracer(S2E *s2e) : Plugin(s2e) {
 }
 
 void MemoryTracer::initialize() {
-    m_tracer = static_cast<ExecutionTracer *>(s2e()->getPlugin("ExecutionTracer"));
-    m_execDetector = static_cast<ModuleExecutionDetector *>(s2e()->getPlugin("ModuleExecutionDetector"));
+    m_tracer = s2e()->getPlugin<ExecutionTracer>();
+    m_execDetector = s2e()->getPlugin<ModuleExecutionDetector>();
 
     // Retrict monitoring to configured modules only
     m_monitorModules = s2e()->getConfig()->getBool(getConfigKey() + ".monitorModules");

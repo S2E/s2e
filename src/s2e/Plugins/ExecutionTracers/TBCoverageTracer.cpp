@@ -50,8 +50,8 @@ S2E_DEFINE_PLUGIN(TBCoverageTracer, "Tracer for translation blocks", "TBCoverage
                   "ModuleExecutionDetector");
 
 void TBCoverageTracer::initialize() {
-    m_tracer = (ExecutionTracer *) s2e()->getPlugin("ExecutionTracer");
-    m_detector = (ModuleExecutionDetector *) s2e()->getPlugin("ModuleExecutionDetector");
+    m_tracer = s2e()->getPlugin<ExecutionTracer>();
+    m_detector = s2e()->getPlugin<ModuleExecutionDetector>();
 
     m_manualTrigger = s2e()->getConfig()->getBool(getConfigKey() + ".manualTrigger", false, NULL);
 

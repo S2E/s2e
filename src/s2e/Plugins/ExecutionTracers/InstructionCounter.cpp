@@ -29,10 +29,10 @@ S2E_DEFINE_PLUGIN(InstructionCounter, "Instruction counter plugin", "Instruction
 void InstructionCounter::initialize() {
     m_tb = NULL;
 
-    m_executionTracer = static_cast<ExecutionTracer *>(s2e()->getPlugin("ExecutionTracer"));
+    m_executionTracer = s2e()->getPlugin<ExecutionTracer>();
     assert(m_executionTracer);
 
-    m_executionDetector = static_cast<ModuleExecutionDetector *>(s2e()->getPlugin("ModuleExecutionDetector"));
+    m_executionDetector = s2e()->getPlugin<ModuleExecutionDetector>();
     assert(m_executionDetector);
 
     // TODO: whole-system counting

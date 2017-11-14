@@ -195,7 +195,7 @@ void execution_tracer_flush(void);
 void execution_tracer_flush(void) {
     s2e::plugins::ExecutionTracer *tracer;
 
-    tracer = static_cast<s2e::plugins::ExecutionTracer *>(g_s2e->getPlugin("ExecutionTracer"));
+    tracer = g_s2e->getPlugin<s2e::plugins::ExecutionTracer>();
     if (!tracer) {
         return;
     }

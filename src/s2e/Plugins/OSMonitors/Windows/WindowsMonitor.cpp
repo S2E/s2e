@@ -157,10 +157,10 @@ void WindowsMonitor::initialize() {
     m_kernelStart = 0;
 
     // Optional plugins for debugging
-    m_tbTracer = static_cast<TranslationBlockTracer *>(s2e()->getPlugin("TranslationBlockTracer"));
-    m_memTracer = static_cast<MemoryTracer *>(s2e()->getPlugin("MemoryTracer"));
+    m_tbTracer = s2e()->getPlugin<TranslationBlockTracer>();
+    m_memTracer = s2e()->getPlugin<MemoryTracer>();
 
-    m_vmi = static_cast<Vmi *>(s2e()->getPlugin("Vmi"));
+    m_vmi = s2e()->getPlugin<Vmi>();
 
     ConfigFile *cfg = s2e()->getConfig();
     m_debugDpc = cfg->getBool(getConfigKey() + ".debugDpc");

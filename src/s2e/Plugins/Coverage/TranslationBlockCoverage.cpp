@@ -42,7 +42,7 @@ struct TBCoverageState : public PluginState {
 }
 
 void TranslationBlockCoverage::initialize() {
-    m_detector = static_cast<ModuleExecutionDetector *>(s2e()->getPlugin("ModuleExecutionDetector"));
+    m_detector = s2e()->getPlugin<ModuleExecutionDetector>();
 
     auto cfg = s2e()->getConfig();
 

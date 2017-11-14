@@ -45,8 +45,8 @@ struct BasicBlockCoverageState : public PluginState {
 }
 
 void BasicBlockCoverage::initialize() {
-    m_detector = static_cast<ModuleExecutionDetector *>(s2e()->getPlugin("ModuleExecutionDetector"));
-    m_cfg = static_cast<ControlFlowGraph *>(s2e()->getPlugin("ControlFlowGraph"));
+    m_detector = s2e()->getPlugin<ModuleExecutionDetector>();
+    m_cfg = s2e()->getPlugin<ControlFlowGraph>();
 
     m_detector->onModuleTranslateBlockComplete.connect(
         sigc::mem_fun(*this, &BasicBlockCoverage::onModuleTranslateBlockComplete));
