@@ -157,6 +157,11 @@ namespace {
             cl::init(101));
 
     cl::opt<unsigned>
+    ClockSlowDownConcrete("clock-slow-down-concrete",
+            cl::desc("Slow down factor when running concrete code"),
+            cl::init(1));
+
+    cl::opt<unsigned>
     ClockSlowDownFastHelpers("clock-slow-down-fast-helpers",
             cl::desc("Slow down factor when interpreting LLVM code and using fast helpers"),
             cl::init(11));
@@ -1432,6 +1437,9 @@ void S2EExecutor::doStateSwitch(S2EExecutionState *oldState, S2EExecutionState *
         }
 
         timers_state = *newState->m_timersState;
+        if (g_sqi.exec.clock_scaling_factor) {
+            *g_sqi.exec.clock_scaling_factor = timers_state.cpu_clock_scale_factor;
+        }
 
         jmp_buf jmp_env;
         memcpy(&jmp_env, &env->jmp_env, sizeof(jmp_buf));
@@ -1725,17 +1733,21 @@ static void s2e_enable_signals(sigset_t *oldset) {
 #endif
 
 void S2EExecutor::updateClockScaling() {
-    int scaling = 1;
+    int scaling = ClockSlowDownConcrete;
 
     if (g_s2e_fast_concrete_invocation) {
         // Concrete execution
         scaling = timers_state.cpu_clock_scale_factor / 2;
         if (scaling == 0) {
-            scaling = 1;
+            scaling = ClockSlowDownConcrete;
         }
     } else {
         // Symbolic execution
         scaling = UseFastHelpers ? ClockSlowDownFastHelpers : ClockSlowDown;
+    }
+
+    if (g_sqi.exec.clock_scaling_factor) {
+        *g_sqi.exec.clock_scaling_factor = scaling;
     }
 
     cpu_enable_scaling(scaling);
