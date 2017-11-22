@@ -91,6 +91,7 @@ int s2e_kvm_vm_mem_rw(int vm_fd, struct kvm_mem_rw *mem);
 int s2e_kvm_vm_register_fixed_region(int vm_fd, struct kvm_fixed_region *region);
 int s2e_kvm_vm_disk_rw(int vm_fd, struct kvm_disk_rw *d);
 int s2e_kvm_vm_dev_snapshot(int vm_fd, struct kvm_dev_snapshot *s);
+int s2e_kvm_set_clock_scale_ptr(int vm_fd, unsigned *scale);
 
 /**** vcpu ioctl handlers *******/
 

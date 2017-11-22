@@ -183,6 +183,10 @@ static int handle_kvm_vm_ioctl(int fd, int request, uint64_t arg1) {
             ret = s2e_kvm_vm_dev_snapshot(fd, (struct kvm_dev_snapshot *) arg1);
         } break;
 
+        case KVM_SET_CLOCK_SCALE: {
+            ret = s2e_kvm_set_clock_scale_ptr(fd, (unsigned *) arg1);
+        } break;
+
         default: {
             fprintf(stderr, "libs2e: unknown KVM VM IOCTL %x\n", request);
             exit(-1);

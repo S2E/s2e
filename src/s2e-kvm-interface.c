@@ -39,6 +39,10 @@
 #include <cpu/i386/cpu.h>
 #include <cpu/ioport.h>
 
+#ifdef CONFIG_SYMBEX
+#include <cpu/se_libcpu.h>
+#endif
+
 #include "s2e-kvm-interface.h"
 
 // We may need a very large stack in case of deep expressions.
@@ -532,6 +536,19 @@ int s2e_kvm_vm_mem_rw(int vm_fd, struct kvm_mem_rw *mem) {
     return 0;
 }
 
+int s2e_kvm_set_clock_scale_ptr(int vm_fd, unsigned *scale) {
+#ifdef CONFIG_SYMBEX
+    if (!scale) {
+        return -1;
+    }
+
+    g_sqi.exec.clock_scaling_factor = scale;
+    return 0;
+#else
+    return -1;
+#endif
+}
+
 /**** vcpu ioctl handlers *******/
 
 int s2e_kvm_vcpu_get_clock(int vcpu_fd, struct kvm_clock_data *clock) {
@@ -678,9 +695,6 @@ int s2e_kvm_vcpu_run(int vcpu_fd) {
         errno = EINTR;
         return -1;
     }
-
-    /* Share the timer's clock scaling between QEMU and libcpu */
-    g_kvm_vcpu_buffer->cpu_clock_scale_factor = timers_state.cpu_clock_scale_factor;
 
     /* Return asap if interrupts can be injected */
     g_kvm_vcpu_buffer->if_flag = (env->mflags & IF_MASK) != 0;
