@@ -329,9 +329,6 @@ struct kvm_run {
         struct kvm_sync_regs regs;
         char padding[1024];
     } s;
-
-    /* Share timer's clock scaling between QEMU and libcpu */
-    int32_t cpu_clock_scale_factor;
 };
 
 /* for KVM_REGISTER_COALESCED_MMIO / KVM_UNREGISTER_COALESCED_MMIO */
@@ -1197,6 +1194,8 @@ struct kvm_dev_snapshot {
 };
 
 #define KVM_DEV_SNAPSHOT _IOWR(KVMIO, 0xf7, struct kvm_dev_snapshot)
+
+#define KVM_SET_CLOCK_SCALE _IOWR(KVMIO, 0xf8, unsigned *)
 
 #define KVM_DEV_ASSIGN_ENABLE_IOMMU (1 << 0)
 #define KVM_DEV_ASSIGN_PCI_2_3 (1 << 1)
