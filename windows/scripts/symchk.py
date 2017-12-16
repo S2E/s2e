@@ -72,7 +72,10 @@ def progress(blocks, blocksz, totalsz):
 
 
 def download(url, path):
+    print('Downloading %s to %s' % (url, path))
     r = requests.get(url)
+    r.raise_for_status()
+
     with open(path, 'wb') as fp:
         fp.write(r.content)
 
