@@ -17,7 +17,7 @@
 #include "log.h"
 
 {% for d in data %}
-static REGISTER_KERNEL_STRUCTS Handler{{d.checksum | hex}};
+static REGISTER_KERNEL_STRUCTS Handler{{d.checksum | hex}}; /* {{d.version}} - {{d.bits}}*/
 {% endfor %}
 
 REGISTER_KERNEL_STRUCTS_HANDLERS g_KernelStructHandlers [] = {
