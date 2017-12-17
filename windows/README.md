@@ -68,18 +68,13 @@ This tool is used to add support for new kernels to the S2E driver.
 Adding Support for new Kernels
 ==============================
 
-In order to add support for new kernels, you need to update the
-```winmonitor_gen.c``` file. This information is generated from
-the ```exe``` and ```pdb``` files of the desired Windows kernel using the
-```gendriver.py``` script. The Windows kernel ```exe```s can be extracted
-directly from an ISO using the ```extract_kernels.py``` script. Note that to
-use this script you must have 7-Zip version 9.30 or newer available on your
-PATH.
+Adding support for new kernels is straightforward. Please follow the following steps:
 
 - Download the MSYS-GIT SDK from ```https://github.com/git-for-windows/build-extra/releases```
 
 - Launch ```C:\git-sdk-32\msys2.exe``` and type the following commands.
 
+Note: you must use Windows as these steps require parsing PDB files, which can only be done with Microsoft tools.
 
 ```
 # Install the environment
@@ -92,18 +87,16 @@ virtualenv venv
 . venv/bin/activate
 pip install -r requirements.txt
 
-# Copy the Windows kernel exe file into the current folder
-cp /path/to/ntoskrnl.exe .
-./scripts/symchk.py ntoskrnl.exe
-./scripts/gendriver.py -d . -p x64/Release/pdbparser.exe -o gen.c
+# Run the driver generation script
+./scripts/gendriver.sh /path/to/Windows/ISOs
 ```
 
-This will give you ```gen.c```, which should be pasted into
-```winmonitor_gen.c```. Make sure to update ```g_KernelStructHandlers```
-after you paste the ```HandlerXXXX``` function at the end of the file.
+The ```gendriver.sh``` script takes as input a folder containing the ISOs of all Windows versions to support.
+It extracts all kernel binaries from the ISOs, downloads corresponding symbol files (PDB), then generates
+the ```driver/src/winmonitor_gen.c``` file.
 
-Finally, rebuild the driver. Note that new OS versions may considerably
-change the kernel structure, requiring upgrading the generation scripts.
+Finally, rebuild the driver. Note that new OS versions may considerably change the kernel structure, requiring upgrading
+the generation scripts.
 
 Code Style
 ==========

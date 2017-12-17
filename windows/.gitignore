@@ -9,3 +9,4 @@ Debug
 .vs
 venv
 *.suo
+*.pyc
