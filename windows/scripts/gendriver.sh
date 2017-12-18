@@ -44,7 +44,11 @@ mkdir -p "$OUTPUT_DIR"
 
 cd "$OUTPUT_DIR"
 for f in *.exe; do
-    $SCRIPT_DIR/symchk.py "$f"
+    PDB_FILE="$(basename "${f%.*}.pdb")"
+    if [ ! -f "$PDB_FILE" ]; then
+        echo "Getting PDB for $f"
+        $SCRIPT_DIR/symchk.py "$f"
+    fi
 done
 
 cd "$CUR_DIR"
