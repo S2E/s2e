@@ -222,6 +222,19 @@ def get_full_name(container_path, filepath):
 
     return '%s_%s_%s' % (container, hash, basename)
 
+# Quick and dirty method to ensure that a kernel is not extracted twice.
+# Note that this script may be called several times with subset of kernels,
+# so we need to check the file system.
+def kernel_already_extracted(output_dir, filepath):
+    hash = calc_hash(filepath)
+
+    files = get_files_in_dir(output_dir)
+    for file in files:
+        if hash in file:
+            return True
+
+    return False
+
 def get_base_name(path):
     filename = os.path.basename(path)
     base, _ = os.path.splitext(filename)
@@ -290,11 +303,16 @@ def extract_kernels_from_container(output_dir, container, files):
         if container_is_dir:
             new_name = get_full_name(container, kernel)
             final_path = os.path.join(output_dir, new_name)
-            os.rename(kernel, final_path)
+            dest_path = kernel
         else:
             dest_path = extract_file(output_dir, container, kernel)
             new_name = get_full_name(container, dest_path)
             final_path = os.path.join(output_dir, new_name)
+
+        if kernel_already_extracted(output_dir, dest_path):
+            print(u'    [\u2717] %s has already been extracted' % final_path)
+            continue
+        else:
             os.rename(dest_path, final_path)
 
         if not is_valid_kernel(final_path):
