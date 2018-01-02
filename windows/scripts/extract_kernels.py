@@ -309,15 +309,14 @@ def extract_kernels_from_container(output_dir, container, files):
             new_name = get_full_name(container, dest_path)
             final_path = os.path.join(output_dir, new_name)
 
-        if kernel_already_extracted(output_dir, dest_path):
+        if not is_valid_kernel(dest_path):
+            print(u'    [\u2717] %s is not a valid kernel' % dest_path)
+            os.remove(dest_path)
+        elif kernel_already_extracted(output_dir, dest_path):
             print(u'    [\u2717] %s has already been extracted' % final_path)
-            continue
+            os.remove(dest_path)
         else:
             os.rename(dest_path, final_path)
-
-        if not is_valid_kernel(final_path):
-            print(u'    [\u2717] %s is not a valid kernel' % final_path)
-        else:
             print(u'    [\u2713] Extracted %s' % final_path)
 
 def extract_kernels_wim(output_dir, iso_file):
