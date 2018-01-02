@@ -23,7 +23,9 @@ CUR_DIR="$(pwd)"
 SCRIPT_DIR="$(cd "$(dirname $0)" && pwd)"
 BASE_DIR="$SCRIPT_DIR/../"
 OUTPUT_DIR="$BASE_DIR/kernels"
+KB_DIR="$BASE_DIR/kb"
 
+WGET="wget --no-use-server-timestamps -O"
 DRIVER_OUTPUT="$BASE_DIR/driver/src/winmonitor_gen.c"
 PDBPARSER="$CUR_DIR/x64/Release/pdbparser.exe"
 
@@ -38,8 +40,28 @@ if [ ! -d $ISO_DIR ]; then
     exit 1
 fi
 
-mkdir -p "$OUTPUT_DIR"
+mkdir -p "$OUTPUT_DIR" "$KB_DIR"
 
+download_patch()
+{
+    local URL="$1"
+    local FILE="$(basename $URL)"
+    local DEST_FILE="$KB_DIR/$FILE"
+    if [ -f "$DEST_FILE" ]; then
+        echo "$DEST_FILE already exists, skipping."
+    else
+        $WGET "$DEST_FILE" "$URL"
+    fi
+}
+
+# Download patches for driver signature checks
+download_patch https://download.microsoft.com/download/C/8/7/C87AE67E-A228-48FB-8F02-B2A9A1238099/Windows6.1-KB3033929-x64.msu
+download_patch https://download.microsoft.com/download/3/7/4/37473F39-5728-4153-9A25-64C09DE9ED52/Windows6.1-KB3033929-x86.msu
+
+# Extract kernels from KBs first
+./scripts/extract_kernels.py  --iso-dir "$KB_DIR" -o "$OUTPUT_DIR"
+
+# Extract ISOs
 ./scripts/extract_kernels.py  --iso-dir "$ISO_DIR" -o "$OUTPUT_DIR"
 
 cd "$OUTPUT_DIR"
