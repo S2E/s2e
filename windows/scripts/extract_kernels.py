@@ -56,6 +56,9 @@ SEVEN_ZIP_VERSION_REGEX = re.compile(r'7-Zip .*?(?P<major>\d+)\.(?P<minor>\d+)')
 
 NT_PATTERN = re.compile('(ntoskrnl|ntkrnlmp|ntkrnlpa)$')
 
+# This will work only on msys
+EXPAND_PATH = '/c/Windows/System32/expand.exe'
+
 # Adapted from http://stackoverflow.com/a/19299884/5894531
 class TemporaryDirectory(object):
     """
@@ -159,6 +162,20 @@ def seven_zip_extract(source, wildcard_includes, wildcard_excludes=None,
     if proc.returncode:
         raise Exception(u'Failed to extract file %s from %s: "%s"' % (wildcard_includes, source, stderr))
 
+# We can't use 7z to extract files from CABs because some files inside may use delta encoding.
+# Such a cab file would contain XML files describing the various chunks of a file.
+# 7z would get us the chunks and we need the reassembled files.
+def cab_extract(source, dest_dir, pattern = '*'):
+    args = [EXPAND_PATH, source, '-F:%s' % (pattern), dest_dir]
+
+    print("    %s - %s" % (" ".join(args), dest_dir))
+
+    proc = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=dest_dir)
+    stdout, stderr = proc.communicate()
+
+    if proc.returncode:
+        raise Exception(u'Failed to extract files from %s: "%s %s"' % (source, stdout, stderr))
+
 def seven_zip_list(source):
     args = ['7z', 'l', source]
     proc = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -190,6 +207,13 @@ def check_7z_version():
               u'extracted from those ISOs.\n    7-Zip 9.30 or newer is '
               u'required to extract files from Windows 8 WIM '
               u'images' % (seven_zip_ver[0], seven_zip_ver[1]))
+
+def check_expand():
+    if not os.path.exists(EXPAND_PATH):
+        print(u'[\u2717] Could not find %s. It is required in order to extract kernels from *.msu files.')
+        return False
+
+    return True
 
 def get_full_name(container_path, filepath):
     hash = calc_hash(filepath)
@@ -241,13 +265,38 @@ def is_valid_kernel(path):
         b = fp.read(2)
         return b == 'MZ'
 
+def get_files_in_dir(dir):
+    ret = []
+
+    for root, _, files in os.walk(dir):
+        for f in files:
+            filepath = os.path.join(root, f)
+            ret.append(filepath)
+
+    return ret
+
 def extract_kernels_from_container(output_dir, container, files):
+    container_is_dir = False
+
+    if os.path.isdir(container):
+        if files:
+            raise Exception('Files must be null if container is a folder')
+
+        container_is_dir = True
+        files = get_files_in_dir(container)
+
     kernels = filter_kernels(files)
     for kernel in kernels:
-        dest_path = extract_file(output_dir, container, kernel)
-        new_name = get_full_name(container, dest_path)
-        final_path = os.path.join(output_dir, new_name)
-        os.rename(dest_path, final_path)
+        if container_is_dir:
+            new_name = get_full_name(container, kernel)
+            final_path = os.path.join(output_dir, new_name)
+            os.rename(kernel, final_path)
+        else:
+            dest_path = extract_file(output_dir, container, kernel)
+            new_name = get_full_name(container, dest_path)
+            final_path = os.path.join(output_dir, new_name)
+            os.rename(dest_path, final_path)
+
         if not is_valid_kernel(final_path):
             print(u'    [\u2717] %s is not a valid kernel' % final_path)
         else:
@@ -280,12 +329,31 @@ def extract_kernels_from_iso(output_dir, iso_file):
     else:
         print("Invalid install iso")
 
+def extract_kernels_from_msu(output_dir, msu_file):
+    if not check_expand():
+        return
+
+    with TemporaryDirectory() as temp_dir:
+        seven_zip_extract(msu_file, ['*.cab'], dest_dir=temp_dir)
+        for root, _, files in os.walk(temp_dir):
+            for f in files:
+                filepath = os.path.join(root, f)
+
+                with TemporaryDirectory(prefix=f) as cab_dir:
+                    # We could also add support for cab files to extract_kernels_from_container,
+                    # but given the low number of files in MSU files, just extract everything
+                    # and filter afterwards.
+                    cab_extract(filepath, cab_dir, '*.exe')
+                    extract_kernels_from_container(output_dir, cab_dir, None)
+
 def extract_kernels(output_dir, filepath):
     print('Extracting kernels from %s' % filepath)
 
     _, ext = os.path.splitext(filepath)
     if ext == '.iso':
         extract_kernels_from_iso(output_dir, filepath)
+    elif ext == '.msu':
+        extract_kernels_from_msu(output_dir, filepath)
     elif ext == '.wim':
         files = seven_zip_list(filepath)
         extract_kernels_from_container(output_dir, filepath, files)
