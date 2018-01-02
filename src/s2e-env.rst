@@ -187,7 +187,9 @@ models.lua:
     For specifying `function models <Plugins/Linux/FunctionModels.rst>`_.
 
 s2e-config.lua
-   The main S2E configuration file. Analysis plugins are enabled and configured here.
+   The main S2E configuration file. Analysis plugins are enabled and configured here (in the ``pluginsConfig`` table).
+   S2E (and KLEE) arguments are also specified here (under ``kleeArgs`` in the ``s2e`` table). The available S2E
+   arguments are defined in `S2EExecutor.cpp <https://github.com/S2E/libs2ecore/blob/master/src/S2EExecutor.cpp>`_.
 
 Target program arguments
 ~~~~~~~~~~~~~~~~~~~~~~~~
