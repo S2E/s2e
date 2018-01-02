@@ -111,10 +111,11 @@ def extract_info(pdbparser, directory, cb):
         parser = PdbParser(pdbparser, exe_file, pdb_file)
         info = cb(parser)
         if info is not None:
+            info['file'] = os.path.basename(pdb_file)
             result.append(info)
             print('Processing %s %s' % (f, info['version']))
 
-    return result
+    return sorted(result, key=lambda x: x['version'])
 
 
 def extract(cb, template_name):

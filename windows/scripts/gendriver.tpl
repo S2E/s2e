@@ -7,6 +7,7 @@
 ///
 
 /* Automatically generated code. Do not edit. */
+// Resharper disable all
 
 #include <ntddk.h>
 #include <ntimage.h>
@@ -17,7 +18,7 @@
 #include "log.h"
 
 {% for d in data %}
-static REGISTER_KERNEL_STRUCTS Handler{{d.checksum | hex}}; /* {{d.version}} - {{d.bits}}*/
+static REGISTER_KERNEL_STRUCTS Handler{{d.checksum | hex}}; /* {{d.version}} - {{d.bits}} - {{d.file}} */
 {% endfor %}
 
 REGISTER_KERNEL_STRUCTS_HANDLERS g_KernelStructHandlers [] = {
@@ -62,12 +63,14 @@ static VOID Handler{{d.checksum | hex}}(UINT_PTR KernelLoadBase, UINT_PTR Kernel
 
     pKpcr = (KPCR*) __readmsr(IA32_GS_BASE);
     {%- else %}
-    {%- if d.version[0] == '5' %}
+    {%- if d.version[0] == 5 %}
 
     pKpcr = (KPCR*) 0xffdff000;
     {%- else %}
     {% if d.KiInitialPCR == 0 %}
+
     #error KiInitialPCR cannot be null
+
     {% endif %}
     pKpcr = (KPCR*) ({{d.KiInitialPCR | hex}} - KernelNativeBase + KernelLoadBase);
     {%- endif %}
@@ -77,13 +80,11 @@ static VOID Handler{{d.checksum | hex}}(UINT_PTR KernelLoadBase, UINT_PTR Kernel
     Command.Structs.KPRCB = (UINT_PTR) pKpcr->{{ 'CurrentPrcb' if d.bits == 64 else 'Prcb' }};
 
     Command.Structs.EThreadSegment = {{ 'R_GS' if d.bits == 64 else 'R_FS' }};
-
-    {%- if d.version[0] == '5' %}
+    {% if d.version[0] == 5 -%}
     Command.Structs.EThreadSegmentOffset = {{d._KPCR_PrcbData | hex}} + {{d._KPRCB_CurrentThread | hex}};
-    {%- else %}
+    {% else -%}
     Command.Structs.EThreadSegmentOffset = {{d._KPCR_Prcb | hex}} + {{d._KPRCB_CurrentThread | hex}};
-    {%- endif %}
-
+    {% endif -%}
     Command.Structs.EThreadStackBaseOffset = {{d._KTHREAD_StackBase | hex}};
     Command.Structs.EThreadStackLimitOffset = {{d._KTHREAD_StackLimit | hex}};
     Command.Structs.EThreadProcessOffset = {{d._KTHREAD_Process | hex}};
@@ -120,7 +121,7 @@ static VOID Handler{{d.checksum | hex}}(UINT_PTR KernelLoadBase, UINT_PTR Kernel
     /* Crash dump functionality */
     Command.Structs.KeBugCheckEx = {{d.KeBugCheck2 | hex}}; //KeBugCheck2
 
-    {%- if d.version[0] == '5' %}
+    {%- if d.version[0] == 5 %}
 
     Command.Structs.KdVersionBlock = *(UINT_PTR*)(UINT_PTR)(Command.Structs.KPCR + {{d._KPCR_KdVersionBlock | hex}});
     {%- endif %}
