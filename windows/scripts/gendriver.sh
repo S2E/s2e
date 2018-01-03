@@ -55,25 +55,41 @@ download_patch()
 }
 
 # Download patches for driver signature checks
-download_patch https://download.microsoft.com/download/C/8/7/C87AE67E-A228-48FB-8F02-B2A9A1238099/Windows6.1-KB3033929-x64.msu
-download_patch https://download.microsoft.com/download/3/7/4/37473F39-5728-4153-9A25-64C09DE9ED52/Windows6.1-KB3033929-x86.msu
+download_patches()
+{
+    download_patch https://download.microsoft.com/download/C/8/7/C87AE67E-A228-48FB-8F02-B2A9A1238099/Windows6.1-KB3033929-x64.msu
+    download_patch https://download.microsoft.com/download/3/7/4/37473F39-5728-4153-9A25-64C09DE9ED52/Windows6.1-KB3033929-x86.msu
+}
 
-# Extract kernels from KBs first
-./scripts/extract_kernels.py  --iso-dir "$KB_DIR" -o "$OUTPUT_DIR"
+extract_kernels()
+{
+    # Extract kernels from KBs first
+    $SCRIPT_DIR/extract_kernels.py  --iso-dir "$KB_DIR" -o "$OUTPUT_DIR"
 
-# Extract ISOs
-./scripts/extract_kernels.py  --iso-dir "$ISO_DIR" -o "$OUTPUT_DIR"
+    # Extract ISOs
+    $SCRIPT_DIR/extract_kernels.py  --iso-dir "$ISO_DIR" -o "$OUTPUT_DIR"
+}
 
-cd "$OUTPUT_DIR"
-for f in *.exe; do
-    PDB_FILE="$(basename "${f%.*}.pdb")"
-    if [ ! -f "$PDB_FILE" ]; then
-        echo "Getting PDB for $f"
-        $SCRIPT_DIR/symchk.py "$f"
-    fi
-done
+get_pdbs()
+{
+    cd "$OUTPUT_DIR"
+    for f in *.exe; do
+        PDB_FILE="$(basename "${f%.*}.pdb")"
+        if [ ! -f "$PDB_FILE" ]; then
+            echo "Getting PDB for $f"
+            $SCRIPT_DIR/symchk.py "$f"
+        fi
+    done
+    cd "$CUR_DIR"
+}
 
-cd "$CUR_DIR"
-./scripts/gendriver.py -d "$OUTPUT_DIR" -p "$PDBPARSER" -o "$DRIVER_OUTPUT"
+generate_driver()
+{
+    $SCRIPT_DIR/gendriver.py -d "$OUTPUT_DIR" -p "$PDBPARSER" -o "$DRIVER_OUTPUT"
+    echo "The S2E driver file $DRIVER_OUTPUT has been updated. Please rebuild the solution."
+}
 
-echo "The S2E driver file $DRIVER_OUTPUT has been updated. Please rebuild the solution."
+download_patches
+extract_kernels
+get_pdbs
+generate_driver
