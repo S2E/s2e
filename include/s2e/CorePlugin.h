@@ -209,7 +209,8 @@ public:
     ///
     /// \brief Signal that is emitted on each memory access.
     ///
-    /// Note that this signal is still not emitted for code.
+    /// Valid \c flags are defined in s2e_libcpu_coreplugin.h (\c MEM_TRACE_FLAG_*). Note that this signal is still not
+    /// emitted for code.
     ///
     /// Important: when the \c MEM_TRACE_FLAG_PRECISE is not set, the reported program counter in the execution state
     /// is not synchronized and the handler must not attempt to exit the cpu loop or tweak the control flow.
@@ -238,6 +239,8 @@ public:
 
     ///
     /// Optimized signal for concrete accesses.
+    ///
+    /// Valid \c flags are defined in s2e_libcpu_coreplugin.h (\c MEM_TRACE_FLAG_*).
     ///
     sigc::signal<void,
                  S2EExecutionState*,
