@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 # Copyright (C) 2017, Adrian Herrera
+# Copyright (C) 2018, Cyberhaven
 # All rights reserved.
 #
 # Licensed under the MIT License.
@@ -42,19 +43,13 @@ import os
 import re
 import shutil
 import subprocess
-
-try:
-    from subprocess import DEVNULL
-except ImportError:
-    DEVNULL = open(os.devnull, 'wb')
-
 import sys
 import tempfile
 
 
 SEVEN_ZIP_VERSION_REGEX = re.compile(r'7-Zip .*?(?P<major>\d+)\.(?P<minor>\d+)')
 
-NT_PATTERN = re.compile('(ntoskrnl|ntkrnlmp|ntkrnlpa)$')
+NT_PATTERN = re.compile(r'(ntoskrnl|ntkrnlmp|ntkrnlpa)$')
 
 # This will work only on msys
 EXPAND_PATH = '/c/Windows/System32/expand.exe'
@@ -113,7 +108,6 @@ def parse_args():
 
     return parser.parse_args()
 
-
 def seven_zip_version():
     """Get the 7-Zip version number."""
     proc = subprocess.Popen(['7z'], stdout=subprocess.PIPE,
@@ -153,40 +147,46 @@ def seven_zip_extract(source, wildcard_includes, wildcard_excludes=None,
 
     args.append(source)
 
-    print("    %s - %s" % (" ".join(args), dest_dir))
+    print('    %s - %s' % (' '.join(args), dest_dir))
 
     # Run 7-Zip
     proc = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=dest_dir)
     _, stderr = proc.communicate()
 
     if proc.returncode:
-        raise Exception(u'Failed to extract file %s from %s: "%s"' % (wildcard_includes, source, stderr))
+        raise Exception(u'[\u2717] Failed to extract file %s from %s: "%s"' % (wildcard_includes, source, stderr))
 
 # We can't use 7z to extract files from CABs because some files inside may use delta encoding.
 # Such a cab file would contain XML files describing the various chunks of a file.
 # 7z would get us the chunks and we need the reassembled files.
-def cab_extract(source, dest_dir, pattern = '*'):
+def cab_extract(source, dest_dir, pattern='*'):
     args = [EXPAND_PATH, source, '-F:%s' % (pattern), dest_dir]
 
-    print("    %s - %s" % (" ".join(args), dest_dir))
+    print('    %s - %s' % (' '.join(args), dest_dir))
 
     proc = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=dest_dir)
     stdout, stderr = proc.communicate()
 
     if proc.returncode:
-        raise Exception(u'Failed to extract files from %s: "%s %s"' % (source, stdout, stderr))
+        raise Exception(u'[\u2717] Failed to extract files from %s: "%s %s"' % (source, stdout, stderr))
 
 def seven_zip_list(source):
+    # A filename line has 6 elements on it
+    ELEM_COUNT = 6
+
+    # This is the relative path of the file
+    FILE_PATH_INDEX = 5
+
     args = ['7z', 'l', source]
     proc = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    stdout, stderr = proc.communicate()
+    stdout, _ = proc.communicate()
 
     files = []
 
     for line in stdout.splitlines():
         els = line.split()
-        if len(els) == 6:
-            files.append(els[5])
+        if len(els) == ELEM_COUNT:
+            files.append(els[FILE_PATH_INDEX])
 
     return files
 
@@ -200,8 +200,7 @@ def check_7z_version():
     if not seven_zip_ver:
         print(u'[\u2717] Unable to determine 7-Zip version. Some kernels may '
               u'not be extracted')
-    elif (seven_zip_ver[0] < 9 or
-              (seven_zip_ver[0] == 9 and seven_zip_ver[1] < 30)):
+    elif (seven_zip_ver[0] < 9 or (seven_zip_ver[0] == 9 and seven_zip_ver[1] < 30)):
         print(u'[\u2717] This version of 7-Zip (%d.%d) is unable to extract '
               u'WIM images from Windows 8 or newer - no kernels will be '
               u'extracted from those ISOs.\n    7-Zip 9.30 or newer is '
@@ -216,21 +215,21 @@ def check_expand():
     return True
 
 def get_full_name(container_path, filepath):
-    hash = calc_hash(filepath)
+    hashvalue = calc_hash(filepath)
     basename = os.path.basename(filepath)
     container, _ = os.path.splitext(os.path.basename(container_path))
 
-    return '%s_%s_%s' % (container, hash, basename)
+    return '%s_%s_%s' % (container, hashvalue, basename)
 
 # Quick and dirty method to ensure that a kernel is not extracted twice.
 # Note that this script may be called several times with subset of kernels,
 # so we need to check the file system.
 def kernel_already_extracted(output_dir, filepath):
-    hash = calc_hash(filepath)
+    hashvalue = calc_hash(filepath)
 
     files = get_files_in_dir(output_dir)
-    for file in files:
-        if hash in file:
+    for f in files:
+        if hashvalue in f:
             return True
 
     return False
@@ -243,11 +242,11 @@ def get_base_name(path):
 def filter_kernels(files):
     ret = []
 
-    for file in files:
-        base = get_base_name(file.lower())
+    for f in files:
+        base = get_base_name(f.lower())
 
         if NT_PATTERN.match(base):
-           ret.append(file)
+            ret.append(f)
 
     return ret
 
@@ -268,8 +267,8 @@ def expand_file(output_dir, filepath):
     dest_path = os.path.join(output_dir, filename.replace('.ex_', '.exe'))
     with TemporaryDirectory() as temp_dir:
         seven_zip_extract(filepath, [], dest_dir=temp_dir)
-        file = glob.glob(os.path.join(temp_dir, '*.exe'))[0]
-        os.rename(file, dest_path)
+        f = glob.glob(os.path.join(temp_dir, '*.exe'))[0]
+        os.rename(f, dest_path)
 
     return dest_path
 
@@ -278,10 +277,10 @@ def is_valid_kernel(path):
         b = fp.read(2)
         return b == 'MZ'
 
-def get_files_in_dir(dir):
+def get_files_in_dir(directory):
     ret = []
 
-    for root, _, files in os.walk(dir):
+    for root, _, files in os.walk(directory):
         for f in files:
             filepath = os.path.join(root, f)
             ret.append(filepath)
@@ -289,16 +288,9 @@ def get_files_in_dir(dir):
     return ret
 
 def extract_kernels_from_container(output_dir, container, files):
-    container_is_dir = False
-
-    if os.path.isdir(container):
-        if files:
-            raise Exception('Files must be null if container is a folder')
-
-        container_is_dir = True
-        files = get_files_in_dir(container)
-
+    container_is_dir = os.path.isdir(container)
     kernels = filter_kernels(files)
+
     for kernel in kernels:
         if container_is_dir:
             new_name = get_full_name(container, kernel)
@@ -327,7 +319,7 @@ def extract_kernels_wim(output_dir, iso_file):
         wim = os.path.join(temp_dir, 'install.wim')
 
         # Rename the wim to have more informative kernel name
-        dest_wim = os.path.join(temp_dir, iso_basename + '.wim')
+        dest_wim = os.path.join(temp_dir, '%s.wim' % iso_basename)
         os.rename(wim, dest_wim)
 
         files = seven_zip_list(dest_wim)
@@ -344,7 +336,7 @@ def extract_kernels_from_iso(output_dir, iso_file):
     elif 'WIN51' in files:
         extract_kernels_from_container(output_dir, iso_file, files)
     else:
-        print("Invalid install iso")
+        print('Invalid install iso')
 
 def extract_kernels_from_msu(output_dir, msu_file):
     if not check_expand():
@@ -361,7 +353,8 @@ def extract_kernels_from_msu(output_dir, msu_file):
                     # but given the low number of files in MSU files, just extract everything
                     # and filter afterwards.
                     cab_extract(filepath, cab_dir, '*.exe')
-                    extract_kernels_from_container(output_dir, cab_dir, None)
+                    files = get_files_in_dir(cab_dir)
+                    extract_kernels_from_container(output_dir, cab_dir, files)
 
 def extract_kernels(output_dir, filepath):
     print('Extracting kernels from %s' % filepath)
