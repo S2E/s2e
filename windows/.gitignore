@@ -10,3 +10,6 @@ Debug
 venv
 *.suo
 *.pyc
+kb
+kernels
+dist

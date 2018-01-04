@@ -75,7 +75,7 @@ def get_info(pdb):
             raise RuntimeError('Could not find process field')
         ret['_KTHREAD_Process'] = process
 
-    if ret['version'][0] == '5':
+    if ret['version'][0] == 5:
         ret['_KPCR_PrcbData'] = pdb.get_field_offset('_KPCR:PrcbData')
 
     return ret
