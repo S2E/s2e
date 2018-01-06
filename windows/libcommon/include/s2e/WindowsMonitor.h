@@ -108,13 +108,14 @@ typedef struct S2E_WINMON2_KERNEL_STRUCTS
 } S2E_WINMON2_KERNEL_STRUCTS;
 
 #define S2E_MODULE_MAX_LEN 255
+
 typedef struct S2E_WINMON2_MODULE
 {
     UINT64 LoadBase;
     UINT64 Size;
     UINT64 FileNameOffset;
-    UCHAR  FullPathName[S2E_MODULE_MAX_LEN + 1];
-}S2E_WINMON2_MODULE;
+    UCHAR FullPathName[S2E_MODULE_MAX_LEN + 1];
+} S2E_WINMON2_MODULE;
 
 typedef struct S2E_WINMON2_MODULE2
 {
@@ -123,7 +124,7 @@ typedef struct S2E_WINMON2_MODULE2
     UINT64 Pid;
     UINT64 UnicodeModulePath;
     UINT64 UnicodeModulePathSizeInBytes;
-}S2E_WINMON2_MODULE2;
+} S2E_WINMON2_MODULE2;
 
 typedef struct S2E_WINMON2_ACCESS_FAULT
 {
@@ -151,7 +152,7 @@ typedef struct S2E_WINMON2_THREAD_CREATION
 
 typedef struct S2E_WINMON2_PROCESS_HANDLE_CREATION
 {
-/* The process that requested the handle */
+    /* The process that requested the handle */
     UINT64 SourceProcessId;
 
     /* The process that the handle is referencing */
@@ -222,6 +223,7 @@ typedef struct S2E_WINMON2_NORMALIZED_NAME
 typedef struct S2E_WINMON2_COMMAND
 {
     S2E_WINMON2_COMMANDS Command;
+
     union
     {
         S2E_WINMON2_MODULE Module;
@@ -251,6 +253,32 @@ static VOID WinMon2SendNormalizedName(PUNICODE_STRING Original, PUNICODE_STRING 
     Command.NormalizedName.NormalizedName = (UINT_PTR)Normalized->Buffer;
     Command.NormalizedName.NormalizedNameSizeInBytes = (UINT_PTR)Normalized->Length;
 
+    S2EInvokePlugin("WindowsMonitor", &Command, sizeof(Command));
+}
+
+static VOID WinMon2LoadImage(PCUNICODE_STRING FilePath, UINT64 LoadBase, UINT64 Size, UINT64 Pid)
+{
+    S2E_WINMON2_COMMAND Command;
+
+    Command.Command = LOAD_IMAGE;
+    Command.Module2.LoadBase = (UINT_PTR)LoadBase;
+    Command.Module2.Size = Size;
+    Command.Module2.Pid = Pid;
+    Command.Module2.UnicodeModulePath = (UINT_PTR)FilePath->Buffer;
+    Command.Module2.UnicodeModulePathSizeInBytes = FilePath->Length;
+    S2EInvokePlugin("WindowsMonitor", &Command, sizeof(Command));
+}
+
+static VOID WinMon2LoadDriver(PCUNICODE_STRING FilePath, UINT64 LoadBase, UINT64 Size)
+{
+    S2E_WINMON2_COMMAND Command;
+
+    Command.Command = LOAD_DRIVER;
+    Command.Module2.LoadBase = (UINT_PTR)LoadBase;
+    Command.Module2.Size = Size;
+    Command.Module2.Pid = 0;
+    Command.Module2.UnicodeModulePath = (UINT_PTR)FilePath->Buffer;
+    Command.Module2.UnicodeModulePathSizeInBytes = FilePath->Length;
     S2EInvokePlugin("WindowsMonitor", &Command, sizeof(Command));
 }
 
