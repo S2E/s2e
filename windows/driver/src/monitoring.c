@@ -93,8 +93,6 @@ static VOID OnImageLoad(
     HANDLE ProcessId,
     PIMAGE_INFO ImageInfo)
 {
-    S2E_WINMON2_COMMAND Command;
-
     LOG("detected image load pid=%p addr=%p size=%#x %wZ kernel=%d allpids=%d\n",
         ProcessId,
         ImageInfo->ImageBase,
@@ -104,37 +102,36 @@ static VOID OnImageLoad(
         ImageInfo->ImageMappedToAllPids);
 
     if (ImageInfo->SystemModeImage) {
-        //Ignore drivers for now, we load them differently
-        return;
+        WinMon2LoadDriver(FullImageName, (UINT_PTR)ImageInfo->ImageBase, ImageInfo->ImageSize);
+    } else {
+        WinMon2LoadImage(FullImageName, (UINT_PTR)ImageInfo->ImageBase, ImageInfo->ImageSize, (UINT64)ProcessId);
     }
-
-    Command.Command = LOAD_IMAGE;
-    Command.Module2.LoadBase = (UINT_PTR)ImageInfo->ImageBase;
-    Command.Module2.Size = ImageInfo->ImageSize;
-    Command.Module2.Pid = (UINT64)ProcessId;
-    Command.Module2.UnicodeModulePath = (UINT_PTR)FullImageName->Buffer;
-    Command.Module2.UnicodeModulePathSizeInBytes = FullImageName->Length;
-    S2EInvokePlugin("WindowsMonitor", &Command, sizeof(Command));
 }
 
-VOID MonitoringInitialize(VOID)
+NTSTATUS MonitoringInitialize(VOID)
 {
     NTSTATUS Status;
 
     Status = PsSetCreateProcessNotifyRoutine(OnProcessNotification, FALSE);
     if (!NT_SUCCESS(Status)) {
-        LOG("could not register process watchdog\n");
+        LOG("Could not register process watchdog\n");
+        goto err;
     }
 
     Status = PsSetCreateThreadNotifyRoutine(OnThreadNotification);
     if (!NT_SUCCESS(Status)) {
-        LOG("could not register thread notification routine\n");
+        LOG("Could not register thread notification routine\n");
+        goto err;
     }
 
     Status = PsSetLoadImageNotifyRoutine(OnImageLoad);
     if (!NT_SUCCESS(Status)) {
-        S2EKillState(0, "could not register image loading notification routine\n");
+        LOG("could not register image loading notification routine\n");
+        goto err;
     }
+
+err:
+    return Status;
 }
 
 VOID MonitoringDeinitialize(VOID)

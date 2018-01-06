@@ -13,6 +13,7 @@
 #include <s2e/WindowsMonitor.h>
 
 #include "kernel_structs.h"
+#include "adt/strings.h"
 #include "winmonitor.h"
 #include "crash.h"
 #include "log.h"
@@ -45,28 +46,32 @@ VOID MonitorInitCommon(S2E_WINMON2_COMMAND *Command)
     Command->Structs.KernelBuildNumber = Build;
 }
 
-static void S2ERegisterKernelDriver(const AUX_MODULE_EXTENDED_INFO *Info, UCHAR *BaseName)
-{
-    S2E_WINMON2_COMMAND Command;
 
-    LOG("Module Name:%s (%s) LoadBase:%#p Size:%#x\n",
+static NTSTATUS S2ERegisterKernelDriver(const AUX_MODULE_EXTENDED_INFO *Info, UCHAR *BaseName)
+{
+    NTSTATUS Status;
+    UNICODE_STRING DriverPath = { 0, 0, NULL };
+
+    LOG("Registering kernel driver: %s (%s) LoadBase:%#p Size:%#x\n",
         Info->FullPathName,
         BaseName,
         Info->BasicInfo.ImageBase,
         Info->ImageSize
     );
 
-    Command.Command = LOAD_DRIVER;
-    Command.Module.FileNameOffset = Info->FileNameOffset;
+    Status = StringToUnicode((LPCSTR)Info->FullPathName, sizeof(Info->FullPathName), &DriverPath);
+    if (!NT_SUCCESS(Status)) {
+        LOG("Could not allocate unicode string\n");
+        goto err;
+    }
 
-    RtlStringCchCopyA((char *)Command.Module.FullPathName,
-                      sizeof(Command.Module.FullPathName) - 1,
-                      (const char*)Info->FullPathName);
+    WinMon2LoadDriver(&DriverPath, (UINT_PTR)Info->BasicInfo.ImageBase, Info->ImageSize);
 
-    Command.Module.LoadBase = (UINT_PTR)Info->BasicInfo.ImageBase;
-    Command.Module.Size = Info->ImageSize;
+    Status = STATUS_SUCCESS;
 
-    S2EInvokePlugin("WindowsMonitor", &Command, sizeof(Command));
+err:
+    StringFree(&DriverPath);
+    return Status;
 }
 
 static VOID CheckAccess(PVOID Buffer, SIZE_T Size)
@@ -121,6 +126,11 @@ static NTSTATUS RegisterKernelStructures(PVOID KernelBase)
         }
     }
 
+    LOG("This version of s2e.sys does not support kernel with checksum %#x. "
+        "Check the readme for instructions on how to add support for new kernels.\n",
+        NtHeaders->OptionalHeader.CheckSum)
+    ;
+
     return STATUS_NOT_FOUND;
 }
 
@@ -128,6 +138,8 @@ static NTSTATUS FindKernelAndRegisterStructures(_In_ AUX_MODULE_EXTENDED_INFO *I
 {
     ULONG i;
     NTSTATUS Status = STATUS_NOT_FOUND;
+
+    LOG("Looking for kernel module in %u modules...\n", Count);
 
     for (i = 0; i < Count; ++i) {
         UCHAR *BaseName = &Info[i].FullPathName[Info[i].FileNameOffset];
@@ -151,14 +163,21 @@ static NTSTATUS FindKernelAndRegisterStructures(_In_ AUX_MODULE_EXTENDED_INFO *I
     return Status;
 }
 
-static VOID RegisterKernelDrivers(_In_ AUX_MODULE_EXTENDED_INFO *Info, _In_ ULONG Count)
+static BOOLEAN RegisterKernelDrivers(_In_ AUX_MODULE_EXTENDED_INFO *Info, _In_ ULONG Count)
 {
     ULONG i;
+    BOOLEAN Success = TRUE;
 
     for (i = 0; i < Count; ++i) {
         UCHAR *BaseName = &Info[i].FullPathName[Info[i].FileNameOffset];
-        S2ERegisterKernelDriver(&Info[i], BaseName);
+        NTSTATUS Status = S2ERegisterKernelDriver(&Info[i], BaseName);
+        if (!NT_SUCCESS(Status)) {
+            LOG("Could not register kernel driver (%#x)\n", Status);
+            Success = FALSE;
+        }
     }
+
+    return Success;
 }
 
 NTSTATUS RegisterLoadedModules()
@@ -175,6 +194,7 @@ NTSTATUS RegisterLoadedModules()
     //Get the size for the buffer
     Status = AuxKlibQueryModuleInformation(&BufferSize, sizeof(AUX_MODULE_EXTENDED_INFO), NULL);
     if (!NT_SUCCESS(Status)) {
+        LOG("Could not query kernel module information (%#x)\n", Status);
         goto err;
     }
 
@@ -186,6 +206,7 @@ NTSTATUS RegisterLoadedModules()
 
     Status = AuxKlibQueryModuleInformation(&BufferSize, sizeof(AUX_MODULE_EXTENDED_INFO), Info);
     if (!NT_SUCCESS(Status)) {
+        LOG("Could not query kernel module information (%#x)\n", Status);
         goto err;
     }
 
@@ -193,11 +214,15 @@ NTSTATUS RegisterLoadedModules()
 
     Status = FindKernelAndRegisterStructures(Info, Count);
     if (!NT_SUCCESS(Status)) {
-        S2EKillState(0, "Could not load kernel data info. Make sure that s2e.sys supports the guest kernel.");
+        LOG("Could not load kernel data info. Make sure that s2e.sys supports the guest kernel (%#x).\n", Status);
         goto err;
     }
 
-    RegisterKernelDrivers(Info, Count);
+    if (!RegisterKernelDrivers(Info, Count)) {
+        LOG("There was at least on module that failed to load\n");
+        Status = STATUS_UNSUCCESSFUL;
+        goto err;
+    }
 
 err:
     if (Info) {
@@ -207,31 +232,17 @@ err:
     return Status;
 }
 
-//Driver load invocation is at
-//0000000140492769 call    qword ptr [rbx+58h]
-//Preceded by event KMPnPEvt_DriverInit_Start
-//call EtwWrite
-
-//Scan the memory to find the kernel's load base
-//==> would be useful to hook specific functions from the S2E plugins
-
-VOID InitializeWindowsMonitor(VOID)
+NTSTATUS InitializeWindowsMonitor(VOID)
 {
-    LOG("InitializeWindowsMonitor\n");
-    //GS contains the pointer to KPCR structure
-    //KdDebugger block pointer seems to be NULL.
-    //void *GsBase = (void*)__readmsr(IA32_GS_BASE);
-    //LOG("GsBase=%p\n", GsBase);
-    RegisterLoadedModules();
+    NTSTATUS Status;
+    LOG("Initializing WindowsMonitor...\n");
 
-    //AuxKlibQueryModuleInformation
-    //can be used to retrieve the list of loaded modules
+    Status = RegisterLoadedModules();
+    if (!NT_SUCCESS(Status)) {
+        LOG("Could not register loaded modules (%#x)\n", Status);
+        goto err;
+    }
 
-    //Check if BugCheckDumpIoCallback works.
-
-    //Could use OB_OPERATION_REGISTRATION to track
-    //process/thread creation deletion.
-    //Sample code: http://code.msdn.microsoft.com/windowshardware/ObCallback-Sample-67a47841
-
-    //PsSetLoadImageNotifyRoutine
+err:
+    return Status;
 }
