@@ -45,7 +45,7 @@ VOID MonitorInitCommon(S2E_WINMON2_COMMAND *Command)
     Command->Structs.KernelBuildNumber = Build;
 }
 
-static void S2ERegisterModule(const AUX_MODULE_EXTENDED_INFO *Info, UCHAR *BaseName)
+static void S2ERegisterKernelDriver(const AUX_MODULE_EXTENDED_INFO *Info, UCHAR *BaseName)
 {
     S2E_WINMON2_COMMAND Command;
 
@@ -157,7 +157,7 @@ static VOID RegisterKernelDrivers(_In_ AUX_MODULE_EXTENDED_INFO *Info, _In_ ULON
 
     for (i = 0; i < Count; ++i) {
         UCHAR *BaseName = &Info[i].FullPathName[Info[i].FileNameOffset];
-        S2ERegisterModule(&Info[i], BaseName);
+        S2ERegisterKernelDriver(&Info[i], BaseName);
     }
 }
 
