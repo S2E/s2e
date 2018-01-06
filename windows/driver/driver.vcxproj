@@ -132,6 +132,7 @@
     <ClInclude Include="src\adt\strings.h" />
     <ClInclude Include="src\crash.h" />
     <ClInclude Include="src\enumeration.h" />
+    <ClInclude Include="src\filter.h" />
     <ClInclude Include="src\kernel_functions.h" />
     <ClInclude Include="src\kernel_hooks.h" />
     <ClInclude Include="src\kernel_structs.h" />

@@ -7,12 +7,14 @@
 ///
 
 #include <fltKernel.h>
+#include "filter.h"
 
 #include <s2e/s2e.h>
 #include <s2e/WindowsMonitor.h>
 
 #include "log.h"
 
+// TODO: centralize global driver data
 typedef struct _NORMALIZER_DATA
 {
     PFLT_FILTER Filter;
@@ -20,24 +22,19 @@ typedef struct _NORMALIZER_DATA
 
 NORMALIZER_DATA NormalizerData = { 0 };
 
-NTSTATUS RegisterFilesystemFilter(
-    __in PDRIVER_OBJECT DriverObject,
-    __in PUNICODE_STRING RegistryPath
-);
-
-NTSTATUS NormalizerInstanceSetup(
+static NTSTATUS NormalizerInstanceSetup(
     __in PCFLT_RELATED_OBJECTS FltObjects,
     __in FLT_INSTANCE_SETUP_FLAGS Flags,
     __in DEVICE_TYPE VolumeDeviceType,
     __in FLT_FILESYSTEM_TYPE VolumeFilesystemType
 );
 
-NTSTATUS NormalizerQueryTeardown(
+static NTSTATUS NormalizerQueryTeardown(
     __in PCFLT_RELATED_OBJECTS FltObjects,
     __in FLT_INSTANCE_QUERY_TEARDOWN_FLAGS Flags
 );
 
-FLT_POSTOP_CALLBACK_STATUS
+static FLT_POSTOP_CALLBACK_STATUS
 NormalizerPostCreate(
     __inout PFLT_CALLBACK_DATA Data,
     __in PCFLT_RELATED_OBJECTS FltObjects,
@@ -45,70 +42,76 @@ NormalizerPostCreate(
     __in FLT_POST_OPERATION_FLAGS Flags
 );
 
-NTSTATUS UnregisterFilesystemFilter(__in FLT_FILTER_UNLOAD_FLAGS Flags);
+static NTSTATUS UnregisterFilesystemFilter(__in FLT_FILTER_UNLOAD_FLAGS Flags);
 
 #ifdef ALLOC_PRAGMA
-#pragma alloc_text(INIT, RegisterFilesystemFilter)
+#pragma alloc_text(INIT, FilterRegister)
 #pragma alloc_text(PAGE, NormalizerInstanceSetup)
 #pragma alloc_text(PAGE, NormalizerPostCreate)
 #endif
 
-const FLT_OPERATION_REGISTRATION Callbacks[] = {
-    { IRP_MJ_CREATE, 0, NULL, NormalizerPostCreate},
-    { IRP_MJ_OPERATION_END}
+static const FLT_OPERATION_REGISTRATION Callbacks[] = {
+    { IRP_MJ_CREATE, 0, NULL, NormalizerPostCreate },
+    { IRP_MJ_OPERATION_END }
 };
 
-const FLT_CONTEXT_REGISTRATION ContextRegistration[] = {
+static const FLT_CONTEXT_REGISTRATION ContextRegistration[] = {
     { FLT_CONTEXT_END }
 };
 
-const FLT_REGISTRATION FilterRegistration = {
-    sizeof(FLT_REGISTRATION),           //  Size
-    FLT_REGISTRATION_VERSION,           //  Version
-    0,                                  //  Flags
-    ContextRegistration,                //  Context Registration.
-    Callbacks,                          //  Operation callbacks
-    UnregisterFilesystemFilter,         //  FilterUnload
-    NormalizerInstanceSetup,               //  InstanceSetup
-    NormalizerQueryTeardown,               //  InstanceQueryTeardown
-    NULL,                               //  InstanceTeardownStart
-    NULL,                               //  InstanceTeardownComplete
-    NULL,                               //  GenerateFileName
-    NULL,                               //  GenerateDestinationFileName
-    NULL                                //  NormalizeNameComponent
+static const FLT_REGISTRATION FilterRegistration = {
+    sizeof(FLT_REGISTRATION), //  Size
+    FLT_REGISTRATION_VERSION, //  Version
+    0, //  Flags
+    ContextRegistration, //  Context Registration.
+    Callbacks, //  Operation callbacks
+    UnregisterFilesystemFilter, //  FilterUnload
+    NormalizerInstanceSetup, //  InstanceSetup
+    NormalizerQueryTeardown, //  InstanceQueryTeardown
+    NULL, //  InstanceTeardownStart
+    NULL, //  InstanceTeardownComplete
+    NULL, //  GenerateFileName
+    NULL, //  GenerateDestinationFileName
+    NULL //  NormalizeNameComponent
 };
 
-NTSTATUS RegisterFilesystemFilter(
+NTSTATUS FilterRegister(
     __in PDRIVER_OBJECT DriverObject,
     __in PUNICODE_STRING RegistryPath
 )
 {
-    NTSTATUS status;
+    NTSTATUS Status;
 
     UNREFERENCED_PARAMETER(RegistryPath);
 
     LOG("registering filesystem filter");
 
     /* Register with filter manager. */
-    status = FltRegisterFilter(DriverObject, &FilterRegistration, &NormalizerData.Filter);
-
-    if (!NT_SUCCESS(status)) {
+    Status = FltRegisterFilter(DriverObject, &FilterRegistration, &NormalizerData.Filter);
+    if (!NT_SUCCESS(Status)) {
+        LOG("Could not register filter (%#x)\n", Status);
         goto err0;
     }
 
     /* Start filtering I/O. */
-    status = FltStartFiltering(NormalizerData.Filter);
-    if (!NT_SUCCESS(status)) {
+    Status = FltStartFiltering(NormalizerData.Filter);
+    if (!NT_SUCCESS(Status)) {
+        LOG("Could not start filtering (%#x)\n", Status);
         goto err1;
     }
 
-    return status;
+    return Status;
 
 err1: FltUnregisterFilter(NormalizerData.Filter);
-err0: return status;
+err0: return Status;
 }
 
-NTSTATUS UnregisterFilesystemFilter(__in FLT_FILTER_UNLOAD_FLAGS Flags)
+NTSTATUS FilterUnregister(VOID)
+{
+    return UnregisterFilesystemFilter(0);
+}
+
+static NTSTATUS UnregisterFilesystemFilter(__in FLT_FILTER_UNLOAD_FLAGS Flags)
 {
     UNREFERENCED_PARAMETER(Flags);
 
@@ -120,7 +123,7 @@ NTSTATUS UnregisterFilesystemFilter(__in FLT_FILTER_UNLOAD_FLAGS Flags)
     return STATUS_SUCCESS;
 }
 
-NTSTATUS NormalizerInstanceSetup(
+static NTSTATUS NormalizerInstanceSetup(
     __in PCFLT_RELATED_OBJECTS FltObjects,
     __in FLT_INSTANCE_SETUP_FLAGS Flags,
     __in DEVICE_TYPE VolumeDeviceType,
@@ -143,7 +146,7 @@ NTSTATUS NormalizerInstanceSetup(
     return STATUS_SUCCESS;
 }
 
-NTSTATUS NormalizerQueryTeardown(
+static NTSTATUS NormalizerQueryTeardown(
     __in PCFLT_RELATED_OBJECTS FltObjects,
     __in FLT_INSTANCE_QUERY_TEARDOWN_FLAGS Flags
 )
@@ -154,7 +157,7 @@ NTSTATUS NormalizerQueryTeardown(
     return STATUS_SUCCESS;
 }
 
-FLT_POSTOP_CALLBACK_STATUS
+static FLT_POSTOP_CALLBACK_STATUS
 NormalizerPostCreate(
     __inout PFLT_CALLBACK_DATA Data,
     __in PCFLT_RELATED_OBJECTS FltObjects,
@@ -209,22 +212,4 @@ end:
     }
 
     return FLT_POSTOP_FINISHED_PROCESSING;
-}
-
-NTSTATUS MyRtlDuplicateUnicodeString(PUNICODE_STRING Dest, PUNICODE_STRING Source)
-{
-    *Dest = *Source;
-    Dest->Buffer = (PWCH)ExAllocatePoolWithTag(NonPagedPool, Source->MaximumLength, 0xdead);
-    if (!Dest->Buffer) {
-        return STATUS_NO_MEMORY;
-    }
-
-    memcpy(Dest->Buffer, Source->Buffer, Source->MaximumLength);
-
-    return STATUS_SUCCESS;
-}
-
-VOID MyRtlFreeUnicodeString(PUNICODE_STRING Str)
-{
-    ExFreePoolWithTag(Str->Buffer, 0xdead);
 }

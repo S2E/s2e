@@ -81,6 +81,9 @@
     <ClInclude Include="src\log.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\filter.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
     <ClInclude Include="src\adt\strings.h">
       <Filter>Source Files\adt</Filter>
     </ClInclude>
