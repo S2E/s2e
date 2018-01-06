@@ -17,6 +17,9 @@
       <UniqueIdentifier>{8E41214B-6785-4CFE-B992-037D68949A14}</UniqueIdentifier>
       <Extensions>inf;inv;inx;mof;mc;</Extensions>
     </Filter>
+    <Filter Include="Source Files\adt">
+      <UniqueIdentifier>{960bf71b-b23f-48ba-85e0-db2275c39a23}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\crash.c">
@@ -46,6 +49,9 @@
     <ClCompile Include="src\winmonitor_gen.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\adt\strings.c">
+      <Filter>Source Files\adt</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\crash.h">
@@ -74,6 +80,9 @@
     </ClInclude>
     <ClInclude Include="src\log.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\adt\strings.h">
+      <Filter>Source Files\adt</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
