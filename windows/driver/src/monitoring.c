@@ -16,9 +16,9 @@
 NTKERNELAPI NTSTATUS PsLookupThreadByThreadId(HANDLE ThreadId, PETHREAD *Thread);
 
 static VOID OnThreadNotification(
-    IN HANDLE  ProcessId,
-    IN HANDLE  ThreadId,
-    IN BOOLEAN  Create
+    IN HANDLE ProcessId,
+    IN HANDLE ThreadId,
+    IN BOOLEAN Create
 )
 {
     PETHREAD Thread;
@@ -26,7 +26,7 @@ static VOID OnThreadNotification(
     S2E_WINMON2_COMMAND Command;
 
     LOG("caught thread %s pid=%#x tid=%#x create=%d",
-                  Create ? "creation" : "termination", ProcessId, ThreadId, Create);
+        Create ? "creation" : "termination", ProcessId, ThreadId, Create);
 
     //XXX: fails when create is true. Maybe the thread wasn't fully inited yet.
     Status = PsLookupThreadByThreadId(ThreadId, &Thread);
@@ -57,7 +57,7 @@ static VOID OnProcessNotification(
     S2E_WINMON2_COMMAND Command;
 
     LOG("caught process %s pid=%p parent=%p\n",
-                  Create ? "creation" : "termination", ProcessId, ParentId);
+        Create ? "creation" : "termination", ProcessId, ParentId);
 
     Status = PsLookupProcessByProcessId(ProcessId, &Process);
     if (!NT_SUCCESS(Status)) {
@@ -89,41 +89,24 @@ static VOID OnProcessNotification(
  * the load-image notify routine runs in the context of the new process.
  */
 static VOID OnImageLoad(
-    PUNICODE_STRING  FullImageName,
-    HANDLE  ProcessId,
-    PIMAGE_INFO  ImageInfo)
+    PUNICODE_STRING FullImageName,
+    HANDLE ProcessId,
+    PIMAGE_INFO ImageInfo)
 {
     S2E_WINMON2_COMMAND Command;
 
     LOG("detected image load pid=%p addr=%p size=%#x %wZ kernel=%d allpids=%d\n",
-                  ProcessId,
-                  ImageInfo->ImageBase,
-                  ImageInfo->ImageSize,
-                  FullImageName,
-                  ImageInfo->SystemModeImage,
-                  ImageInfo->ImageMappedToAllPids);
+        ProcessId,
+        ImageInfo->ImageBase,
+        ImageInfo->ImageSize,
+        FullImageName,
+        ImageInfo->SystemModeImage,
+        ImageInfo->ImageMappedToAllPids);
 
     if (ImageInfo->SystemModeImage) {
         //Ignore drivers for now, we load them differently
         return;
     }
-
-#if 0 //We have the binaries on disk anyway
-//Page in the image
-    __try {
-        UINT8 *Data = ImageInfo->ImageBase;
-        SIZE_T i = 0;
-
-        ProbeForRead(ImageInfo->ImageBase, ImageInfo->ImageSize, 1);
-        while (i < ImageInfo->ImageSize) {
-            volatile UINT8 Byte = *Data;
-            i += 0x1000;
-            Data += 0x1000;
-        }
-    } __except (EXCEPTION_EXECUTE_HANDLER) {
-        LOG("  Could not probe for read the module\n");
-    }
-#endif
 
     Command.Command = LOAD_IMAGE;
     Command.Module2.LoadBase = (UINT_PTR)ImageInfo->ImageBase;
