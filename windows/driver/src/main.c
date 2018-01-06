@@ -39,11 +39,11 @@ NTSTATUS RegisterFilesystemFilter(
 #define NT_DEVICE_NAME          L"\\Device\\S2EDriver"
 #define DOS_DEVICE_NAME         L"\\DosDevices\\S2EDriver"
 
-PDEVICE_OBJECT  g_DeviceObject = NULL;
+PDEVICE_OBJECT g_DeviceObject = NULL;
 
 static UINT32 GetOSVersion(VOID)
 {
-    RTL_OSVERSIONINFOEXW  Version;
+    RTL_OSVERSIONINFOEXW Version;
 
     Version.dwOSVersionInfoSize = sizeof(Version);
     RtlGetVersion((PRTL_OSVERSIONINFOW)&Version);
@@ -62,13 +62,15 @@ static UINT32 GetOSVersion(VOID)
     return NTVersion;
 }
 
-NTSTATUS DriverEntry(IN PDRIVER_OBJECT DriverObject,
-                     IN PUNICODE_STRING RegistryPath)
+NTSTATUS DriverEntry(
+    IN PDRIVER_OBJECT DriverObject,
+    IN PUNICODE_STRING RegistryPath
+)
 {
     NTSTATUS Status = STATUS_SUCCESS;
-    UNICODE_STRING  NtDeviceName;
-    UNICODE_STRING  Win32DeviceName;
-    PDEVICE_OBJECT  DeviceObject = NULL;
+    UNICODE_STRING NtDeviceName;
+    UNICODE_STRING Win32DeviceName;
+    PDEVICE_OBJECT DeviceObject = NULL;
 
     INT S2EVersion = 0;
     UNREFERENCED_PARAMETER(DriverObject);
@@ -84,7 +86,7 @@ NTSTATUS DriverEntry(IN PDRIVER_OBJECT DriverObject,
 
     try {
         S2EVersion = S2EGetVersion();
-    } except(EXCEPTION_EXECUTE_HANDLER) {
+    } except (EXCEPTION_EXECUTE_HANDLER) {
         LOG("Could not execute S2E opcode");
         Status = STATUS_NO_SUCH_DEVICE;
         goto err2;
@@ -98,15 +100,15 @@ NTSTATUS DriverEntry(IN PDRIVER_OBJECT DriverObject,
 
     RtlInitUnicodeString(&NtDeviceName, NT_DEVICE_NAME);
     Status = IoCreateDeviceSecure(
-                 DriverObject,
-                 0,
-                 &NtDeviceName,
-                 FILE_DEVICE_UNKNOWN,
-                 FILE_DEVICE_SECURE_OPEN,
-                 FALSE,
-                 &SDDL_DEVOBJ_SYS_ALL_ADM_ALL,
-                 NULL,
-                 &DeviceObject
+        DriverObject,
+        0,
+        &NtDeviceName,
+        FILE_DEVICE_UNKNOWN,
+        FILE_DEVICE_SECURE_OPEN,
+        FALSE,
+        &SDDL_DEVOBJ_SYS_ALL_ADM_ALL,
+        NULL,
+        &DeviceObject
     );
 
     if (!NT_SUCCESS(Status)) {
@@ -150,8 +152,8 @@ err2: MonitoringDeinitialize();
 
 NTSTATUS S2EOpen(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp)
 {
-    PIO_STACK_LOCATION      IrpSp;
-    NTSTATUS                NtStatus = STATUS_SUCCESS;
+    PIO_STACK_LOCATION IrpSp;
+    NTSTATUS NtStatus = STATUS_SUCCESS;
     PAGED_CODE();
 
     UNREFERENCED_PARAMETER(DeviceObject);
@@ -168,8 +170,8 @@ NTSTATUS S2EOpen(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp)
 
 NTSTATUS S2EClose(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp)
 {
-    NTSTATUS                NtStatus;
-    PIO_STACK_LOCATION      IrpSp;
+    NTSTATUS NtStatus;
+    PIO_STACK_LOCATION IrpSp;
     PAGED_CODE();
 
     UNREFERENCED_PARAMETER(DeviceObject);
@@ -184,91 +186,114 @@ NTSTATUS S2EClose(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp)
     return NtStatus;
 }
 
+static NTSTATUS S2EIoCtlRegisterModule(_In_ PVOID Buffer, _In_ ULONG InputBufferLength)
+{
+    NTSTATUS Status = STATUS_SUCCESS;
+
+    PCHAR DriverName = Buffer;
+    ULONG NameLength = 0;
+
+    if (!InputBufferLength) {
+        LOG("Invaliid input length\n");
+        Status = STATUS_INVALID_USER_BUFFER;
+        goto err;
+    }
+
+    while (DriverName[NameLength] && (NameLength < 128 && (NameLength < InputBufferLength - 1))) {
+        NameLength++;
+    }
+
+    DriverName[NameLength] = 0;
+    LOG("IOCTL_S2E_REGISTER_MODULE (%s)", DriverName);
+
+    RegisterModule(DriverName);
+
+err:
+    return Status;
+}
+
+static NTSTATUS S2EIoCtlUserModeCrash(_In_ PVOID Buffer, _In_ ULONG InputBufferLength)
+{
+    NTSTATUS Status = STATUS_SUCCESS;
+    S2E_WINDOWS_CRASH_COMMAND Command;
+
+    PVOID CrashOpaque;
+    UINT64 CrashOpaqueSize;
+
+    if (InputBufferLength < sizeof(Command)) {
+        LOG("IOCTL_S2E_WINDOWS_USERMODE_CRASH command too short\n");
+        Status = STATUS_INVALID_USER_BUFFER;
+        goto err;
+    }
+
+    Command = *(S2E_WINDOWS_CRASH_COMMAND *)Buffer;
+
+    //S2E_WINDOWS_USERMODE_CRASH::ProgramName is the offset
+    //of the string. Convert to absolute pointer.
+    if (Command.UserModeCrash.ProgramName >= InputBufferLength) {
+        LOG("IOCTL_S2E_WINDOWS_USERMODE_BUG invalid program name string\n");
+        Status = STATUS_INVALID_USER_BUFFER;
+        goto err;
+    }
+
+    if (Command.UserModeCrash.ProgramName) {
+        Command.UserModeCrash.ProgramName += (UINT64)Buffer;
+    }
+
+    InitializeManualCrash(&CrashOpaque, &CrashOpaqueSize);
+    Command.Dump.Buffer = (UINT64)CrashOpaque;
+    Command.Dump.Size = CrashOpaqueSize;
+
+    S2EInvokePlugin("WindowsCrashMonitor", &Command, sizeof(Command));
+
+err:
+    return Status;
+}
+
 NTSTATUS S2EIoControl(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp)
 {
     PIO_STACK_LOCATION IrpSp;
     ULONG FunctionCode;
-    NTSTATUS NtStatus = STATUS_SUCCESS;
+    NTSTATUS Status = STATUS_SUCCESS;
     ULONG BytesReturned;
     PVOID Buffer;
     ULONG InputBufferLength;
-
-    S2E_WINDOWS_CRASH_COMMAND Command;
-    PVOID CrashOpaque;
-    UINT64 CrashOpaqueSize;
 
     UNREFERENCED_PARAMETER(DeviceObject);
 
     IrpSp = IoGetCurrentIrpStackLocation(Irp);
 
     FunctionCode = IrpSp->Parameters.DeviceIoControl.IoControlCode;
-    //OpenContext = (PNDISPROT_OPEN_CONTEXT)IrpSp->FileObject->FsContext;
     BytesReturned = 0;
 
     Buffer = Irp->AssociatedIrp.SystemBuffer;
     InputBufferLength = IrpSp->Parameters.DeviceIoControl.InputBufferLength;
 
     switch (FunctionCode) {
-    case IOCTL_S2E_REGISTER_MODULE: {
-        PCHAR DriverName = Buffer;
-        ULONG NameLength = 0;
-        if (InputBufferLength) {
-            while (DriverName[NameLength] && (NameLength < 128 && (NameLength < InputBufferLength - 1))) {
-                NameLength++;
-            }
-            DriverName[NameLength] = 0;
-            LOG("IOCTL_S2E_REGISTER_MODULE (%s)", DriverName);
-            //ReloadModuleImports(DeviceObject->DriverObject, DriverName);
-            RegisterModule(DriverName);
-        } else {
-            NtStatus = STATUS_INVALID_USER_BUFFER;
-        }
-    } break;
-
-    case IOCTL_S2E_WINDOWS_USERMODE_CRASH: {
-        if (InputBufferLength < sizeof(Command)) {
-            LOG("IOCTL_S2E_WINDOWS_USERMODE_CRASH command too short\n");
-            NtStatus = STATUS_INVALID_USER_BUFFER;
+        case IOCTL_S2E_REGISTER_MODULE:
+            Status = S2EIoCtlRegisterModule(Buffer, InputBufferLength);
             break;
-        }
 
-        Command = *(S2E_WINDOWS_CRASH_COMMAND *)Buffer;
-
-        //S2E_WINDOWS_USERMODE_CRASH::ProgramName is the offset
-        //of the string. Convert to absolute pointer.
-        if (Command.UserModeCrash.ProgramName >= InputBufferLength) {
-            LOG("IOCTL_S2E_WINDOWS_USERMODE_BUG invalid program name string\n");
-            NtStatus = STATUS_INVALID_USER_BUFFER;
+        case IOCTL_S2E_WINDOWS_USERMODE_CRASH:
+            Status = S2EIoCtlUserModeCrash(Buffer, InputBufferLength);
             break;
-        }
 
-        if (Command.UserModeCrash.ProgramName) {
-            Command.UserModeCrash.ProgramName += (UINT64)Buffer;
-        }
+        case IOCTL_S2E_CRASH_KERNEL:
+            KeBugCheck(0xDEADDEAD);
+            break;
 
-        InitializeManualCrash(&CrashOpaque, &CrashOpaqueSize);
-        Command.Dump.Buffer = (UINT64)CrashOpaque;
-        Command.Dump.Size = CrashOpaqueSize;
-
-        S2EInvokePlugin("WindowsCrashMonitor", &Command, sizeof(Command));
-    } break;
-
-    case IOCTL_S2E_CRASH_KERNEL: {
-        KeBugCheck(0xDEADDEAD);
-    } break;
-
-    default: {
-        NtStatus = STATUS_NOT_SUPPORTED;
-    } break;
+        default:
+            Status = STATUS_NOT_SUPPORTED;
+            break;
     }
 
-    if (NtStatus != STATUS_PENDING) {
+    if (Status != STATUS_PENDING) {
         Irp->IoStatus.Information = BytesReturned;
-        Irp->IoStatus.Status = NtStatus;
+        Irp->IoStatus.Status = Status;
         IoCompleteRequest(Irp, IO_NO_INCREMENT);
     }
 
-    return NtStatus;
+    return Status;
 }
 
 VOID DriverUnload(PDRIVER_OBJECT DriverObject)
