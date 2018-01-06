@@ -147,7 +147,7 @@ def seven_zip_extract(source, wildcard_includes, wildcard_excludes=None,
 
     args.append(source)
 
-    print('    %s - %s' % (' '.join(args), dest_dir))
+    print(u'    [\u00b7] %s - %s' % (' '.join(args), dest_dir))
 
     # Run 7-Zip
     proc = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=dest_dir)
@@ -162,7 +162,7 @@ def seven_zip_extract(source, wildcard_includes, wildcard_excludes=None,
 def cab_extract(source, dest_dir, pattern='*'):
     args = [EXPAND_PATH, source, '-F:%s' % (pattern), dest_dir]
 
-    print('    %s - %s' % (' '.join(args), dest_dir))
+    print(u'    [\u00b7] %s - %s' % (' '.join(args), dest_dir))
 
     proc = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=dest_dir)
     stdout, stderr = proc.communicate()
@@ -209,7 +209,8 @@ def check_7z_version():
 
 def check_expand():
     if not os.path.exists(EXPAND_PATH):
-        print(u'[\u2717] Could not find %s. It is required in order to extract kernels from *.msu files.')
+        print(u'[\u2717] Could not find %s. It is required in order to '
+              u'extract kernels from *.msu files.' % EXPAND_PATH)
         return False
 
     return True
@@ -336,7 +337,7 @@ def extract_kernels_from_iso(output_dir, iso_file):
     elif 'WIN51' in files:
         extract_kernels_from_container(output_dir, iso_file, files)
     else:
-        print('Invalid install iso')
+        print(u'    [\u2717] Invalid install iso')
 
 def extract_kernels_from_msu(output_dir, msu_file):
     if not check_expand():
@@ -357,7 +358,7 @@ def extract_kernels_from_msu(output_dir, msu_file):
                     extract_kernels_from_container(output_dir, cab_dir, files)
 
 def extract_kernels(output_dir, filepath):
-    print('Extracting kernels from %s' % filepath)
+    print('Extracting kernels from %s to %s' % (filepath, output_dir))
 
     _, ext = os.path.splitext(filepath)
     if ext == '.iso':
@@ -368,7 +369,7 @@ def extract_kernels(output_dir, filepath):
         files = seven_zip_list(filepath)
         extract_kernels_from_container(output_dir, filepath, files)
     else:
-        print('Unknown file type: %s' % ext)
+        print(u'    [\u2717] Unknown file type: %s' % ext)
 
 def main():
     """The main function."""
