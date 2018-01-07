@@ -101,7 +101,11 @@ the generation scripts.
 Code Style
 ==========
 
-Set up the Visual Studio formatter as follows:
+The preferred code formatter is ReSharper. The solution contains ```s2e.sln.DotSettings```,
+which is automatically picked up by ReSharper.
+
+If you don't have ReSharper, you may also use the CodeMaid formatter, as follows. Note that CodeMaid
+does not format the code in exactly the same way as ReSharper, but it should be sufficient to keep it clean.
 
 1. Load the customized C++ formatting settings
    (Tools->Import and Export settings / Import settings from ```VS2015_cpp_formatting_settings.vssettings```)
