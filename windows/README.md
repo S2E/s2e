@@ -98,6 +98,42 @@ the ```driver/src/winmonitor_gen.c``` file.
 Finally, rebuild the driver. Note that new OS versions may considerably change the kernel structure, requiring upgrading
 the generation scripts.
 
+Code Coverage for Windows Binaries
+==================================
+
+Binaries produced by Microsoft tools contain line information in PDB files. These files have a proprietary
+format and are not readable by Linux tools. This poses several challenges in order to covert program counters
+produced by S2E's coverage plugin into say LCOV reports.
+
+The following instructions explain how to get LCOV coverage reports for Windows binaries.
+
+- Build the solution in Visual Studio
+
+- Run ```pdbparser.exe``` as follows:
+
+    ```
+    ./x64/Release/pdbparser.exe -l my_binary.exe my_binary.pdb > my_binary.exe.lines
+    ```
+
+    The ```*.lines``` file contains line information in JSON format.
+
+- Run your binary in S2E using ```s2e-env```. At the end of the run, you should have ```tb-coverage*.json```
+  files in your ```s2e-last``` folder.
+
+- Run ```s2e coverage lcov my_binary```. Make sure that the ```my_binary.exe.lines``` is located in the same
+  directory as ```my_binary.exe```.  This should produce the ```coverage.info``` file, which contains
+  LCOV coverage info.
+
+- You must use LCOV on Windows in order to generate the report, because the LCOV files contain Windows path.
+  You can also patch the files yourself to convert the paths inside to the Linux format. Run the following command in MSYS after
+  installing LCOV from ```https://github.com/linux-test-project/lcov```:
+
+  ```genhtml --ignore-errors source -p "c:/" -p 'd:/' -o coverage_report coverage.info```
+
+  **Note:** it is important to strip all the drive prefixes (```-p``` option) so that ```genhtml``` does not attempt
+  to write HTML files all over the file system. The command also ignores sources files that cannot be opened, e.g.,
+  those from the standard library, which are typically unavailable.
+
 Code Style
 ==========
 
