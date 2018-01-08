@@ -16,9 +16,9 @@
 NTKERNELAPI NTSTATUS PsLookupThreadByThreadId(HANDLE ThreadId, PETHREAD *Thread);
 
 static VOID OnThreadNotification(
-    IN HANDLE  ProcessId,
-    IN HANDLE  ThreadId,
-    IN BOOLEAN  Create
+    IN HANDLE ProcessId,
+    IN HANDLE ThreadId,
+    IN BOOLEAN Create
 )
 {
     PETHREAD Thread;
@@ -26,7 +26,7 @@ static VOID OnThreadNotification(
     S2E_WINMON2_COMMAND Command;
 
     LOG("caught thread %s pid=%#x tid=%#x create=%d",
-                  Create ? "creation" : "termination", ProcessId, ThreadId, Create);
+        Create ? "creation" : "termination", ProcessId, ThreadId, Create);
 
     //XXX: fails when create is true. Maybe the thread wasn't fully inited yet.
     Status = PsLookupThreadByThreadId(ThreadId, &Thread);
@@ -57,7 +57,7 @@ static VOID OnProcessNotification(
     S2E_WINMON2_COMMAND Command;
 
     LOG("caught process %s pid=%p parent=%p\n",
-                  Create ? "creation" : "termination", ProcessId, ParentId);
+        Create ? "creation" : "termination", ProcessId, ParentId);
 
     Status = PsLookupProcessByProcessId(ProcessId, &Process);
     if (!NT_SUCCESS(Status)) {
@@ -89,69 +89,49 @@ static VOID OnProcessNotification(
  * the load-image notify routine runs in the context of the new process.
  */
 static VOID OnImageLoad(
-    PUNICODE_STRING  FullImageName,
-    HANDLE  ProcessId,
-    PIMAGE_INFO  ImageInfo)
+    PUNICODE_STRING FullImageName,
+    HANDLE ProcessId,
+    PIMAGE_INFO ImageInfo)
 {
-    S2E_WINMON2_COMMAND Command;
-
     LOG("detected image load pid=%p addr=%p size=%#x %wZ kernel=%d allpids=%d\n",
-                  ProcessId,
-                  ImageInfo->ImageBase,
-                  ImageInfo->ImageSize,
-                  FullImageName,
-                  ImageInfo->SystemModeImage,
-                  ImageInfo->ImageMappedToAllPids);
+        ProcessId,
+        ImageInfo->ImageBase,
+        ImageInfo->ImageSize,
+        FullImageName,
+        ImageInfo->SystemModeImage,
+        ImageInfo->ImageMappedToAllPids);
 
     if (ImageInfo->SystemModeImage) {
-        //Ignore drivers for now, we load them differently
-        return;
+        WinMon2LoadDriver(FullImageName, (UINT_PTR)ImageInfo->ImageBase, ImageInfo->ImageSize);
+    } else {
+        WinMon2LoadImage(FullImageName, (UINT_PTR)ImageInfo->ImageBase, ImageInfo->ImageSize, (UINT64)ProcessId);
     }
-
-#if 0 //We have the binaries on disk anyway
-//Page in the image
-    __try {
-        UINT8 *Data = ImageInfo->ImageBase;
-        SIZE_T i = 0;
-
-        ProbeForRead(ImageInfo->ImageBase, ImageInfo->ImageSize, 1);
-        while (i < ImageInfo->ImageSize) {
-            volatile UINT8 Byte = *Data;
-            i += 0x1000;
-            Data += 0x1000;
-        }
-    } __except (EXCEPTION_EXECUTE_HANDLER) {
-        LOG("  Could not probe for read the module\n");
-    }
-#endif
-
-    Command.Command = LOAD_IMAGE;
-    Command.Module2.LoadBase = (UINT_PTR)ImageInfo->ImageBase;
-    Command.Module2.Size = ImageInfo->ImageSize;
-    Command.Module2.Pid = (UINT64)ProcessId;
-    Command.Module2.UnicodeModulePath = (UINT_PTR)FullImageName->Buffer;
-    Command.Module2.UnicodeModulePathSizeInBytes = FullImageName->Length;
-    S2EInvokePlugin("WindowsMonitor", &Command, sizeof(Command));
 }
 
-VOID MonitoringInitialize(VOID)
+NTSTATUS MonitoringInitialize(VOID)
 {
     NTSTATUS Status;
 
     Status = PsSetCreateProcessNotifyRoutine(OnProcessNotification, FALSE);
     if (!NT_SUCCESS(Status)) {
-        LOG("could not register process watchdog\n");
+        LOG("Could not register process watchdog\n");
+        goto err;
     }
 
     Status = PsSetCreateThreadNotifyRoutine(OnThreadNotification);
     if (!NT_SUCCESS(Status)) {
-        LOG("could not register thread notification routine\n");
+        LOG("Could not register thread notification routine\n");
+        goto err;
     }
 
     Status = PsSetLoadImageNotifyRoutine(OnImageLoad);
     if (!NT_SUCCESS(Status)) {
-        S2EKillState(0, "could not register image loading notification routine\n");
+        LOG("could not register image loading notification routine\n");
+        goto err;
     }
+
+err:
+    return Status;
 }
 
 VOID MonitoringDeinitialize(VOID)

@@ -12,7 +12,8 @@
 
 #include <ntddk.h>
 
-VOID MonitoringInitialize(VOID);
+NTSTATUS MonitoringInitialize(VOID);
+
 VOID MonitoringDeinitialize(VOID);
 
 VOID MonitorWatchPidTermination(DWORD Pid);

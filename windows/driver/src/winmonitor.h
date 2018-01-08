@@ -25,7 +25,7 @@ VOID MonitorInitCommon(S2E_WINMON2_COMMAND *Command);
 extern S2E_WINMON2_KERNEL_STRUCTS g_WinmonKernelStructs;
 extern REGISTER_KERNEL_STRUCTS_HANDLERS g_KernelStructHandlers[];
 
-VOID InitializeWindowsMonitor(VOID);
+NTSTATUS InitializeWindowsMonitor(VOID);
 
 #define IA32_FS_BASE 0xc0000100
 #define IA32_GS_BASE 0xc0000101

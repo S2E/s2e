@@ -11,12 +11,12 @@
 
 #include <ntddk.h>
 
-typedef PPEB(*PSGETPROCESSPB)(PEPROCESS Process);
-typedef PCHAR(*GET_PROCESS_IMAGE_NAME) (PEPROCESS Process);
+typedef PPEB (*PSGETPROCESSPB)(PEPROCESS Process);
+typedef PCHAR (*GET_PROCESS_IMAGE_NAME)(PEPROCESS Process);
 
 extern PSGETPROCESSPB g_pPsGetProcessPeb;
 extern GET_PROCESS_IMAGE_NAME g_pGetProcessImageFileName;
 
-VOID InitializeKernelFunctionPointers(VOID);
+NTSTATUS InitializeKernelFunctionPointers(VOID);
 
 #endif
