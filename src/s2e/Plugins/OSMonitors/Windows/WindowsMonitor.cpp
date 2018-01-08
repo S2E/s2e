@@ -143,6 +143,12 @@ static inline std::string GetStrippedPath(const std::string &path) {
     return Vmi::stripWindowsModulePath(path);
 }
 
+// Windows may use arbitrary paths for module load/unload events
+// (e.g., a short name like progra~1 instead of "program files").
+// WindowsMonitor and all plugins always want to use the normalized path.
+// s2e.sys intercepts every file access, checks if file path is normalized,
+// and if not, sends to WindowsMonitor the normalized version, which the
+// plugin keeps here in a map.
 std::string WindowsMonitor::GetNormalizedPath(const std::string &path) {
     std::string str = GetStrippedPath(path);
 
@@ -151,6 +157,27 @@ std::string WindowsMonitor::GetNormalizedPath(const std::string &path) {
         return (*it).second;
     }
     return str;
+}
+
+void WindowsMonitor::NormalizePath(ModuleDescriptor &module, const std::string &path) {
+    module.Path = GetNormalizedPath(path);
+    module.Name = GetFileName(path);
+
+    // Sometimes we don't know where the module is, especially if the windows api
+    // did not provide the full path of the binary. Vmi will try its best to
+    // locate the file.
+    if (module.Name == module.Path) {
+        module.Path = "";
+    }
+
+    // We always want the module name to be lower case on windows. This simplifies configuration
+    // of all the plugins that rely on the module name (e.g., ModuleExecutionDetector).
+    // Windows tends to use different cases depending on the context, which would cause config to break.
+    std::transform(module.Name.begin(), module.Name.end(), module.Name.begin(), ::tolower);
+
+    // Don't lower-case the full path for now. Plugins will do it themselves if needed
+    // (e.g., Vmi will try to lookup the original path, and if failed, lower case it).
+    // std::transform(module.Path.begin(), module.Path.end(), module.Path.begin(), ::tolower);
 }
 
 void WindowsMonitor::initialize() {
@@ -280,13 +307,14 @@ bool WindowsMonitor::readDriverDescriptor(S2EExecutionState *state, uint64_t pDr
         return false;
     }
 
+    // TODO: figure out full path of the driver
     std::string DriverName;
     state->mem()->readUnicodeString(ModuleEntry.DriverName.Buffer, DriverName, ModuleEntry.DriverName.Length);
-    std::transform(DriverName.begin(), DriverName.end(), DriverName.begin(), ::tolower);
+
+    NormalizePath(DriverDesc, DriverName);
 
     DriverDesc.LoadBase = DriverObject.DriverStart;
     DriverDesc.Size = DriverObject.DriverSize;
-    DriverDesc.Name = DriverName;
     DriverDesc.EntryPoint = DriverObject.DriverInit;
 
     DriverDesc.NativeBase = 0;
@@ -338,22 +366,14 @@ void WindowsMonitor::onDriverLoad(S2EExecutionState *state, uint64_t pc) {
 
         foreach2 (it, modules.begin(), modules.end()) {
             ModuleDescriptor &DriverDesc = *it;
-            getDebugStream(state) << "[IMPORTED]"
-                                  << " Name=" << DriverDesc.Name << " Path=" << DriverDesc.Path
-                                  << " LoadBase=" << hexval(DriverDesc.LoadBase)
-                                  << " NativeBase=" << hexval(DriverDesc.NativeBase)
-                                  << " Size=" << hexval(DriverDesc.Size)
-                                  << " EntryPoint=" << hexval(DriverDesc.EntryPoint) << "\n";
+            getDebugStream(state) << "[IMPORTED] " << DriverDesc << "\n";
 
             // The clients are supposed to filter duplicated load events
             onModuleLoad.emit(state, DriverDesc);
         }
     }
 
-    getDebugStream(state) << " Name=" << DriverDesc.Name << " Path=" << DriverDesc.Path
-                          << " LoadBase=" << hexval(DriverDesc.LoadBase)
-                          << " NativeBase=" << hexval(DriverDesc.NativeBase) << " Size=" << hexval(DriverDesc.Size)
-                          << " EntryPoint=" << hexval(DriverDesc.EntryPoint) << "\n";
+    getDebugStream(state) << DriverDesc << "\n";
 
     onModuleLoad.emit(state, DriverDesc);
 
@@ -516,22 +536,24 @@ void WindowsMonitor::onPerfLogImageUnload(S2EExecutionState *state, uint64_t pc)
     std::string modulePath;
     state->mem()->readUnicodeString(Name.Buffer, modulePath, Name.Length / 2);
 
-    getDebugStream(state) << "onModuleUnload"
-                          << " name: " << modulePath << " pid: " << hexval(pid) << " base: " << hexval(base)
-                          << " size: " << hexval(size) << "\n";
-
     ModuleDescriptor module;
-    module.Name = GetFileName(modulePath);
+    NormalizePath(module, modulePath);
+
     module.LoadBase = base;
     module.AddressSpace = getAddressSpace(state, base);
     module.Size = size;
     module.Pid = pid;
+
+    getDebugStream(state) << "onPerfLogImageUnload " << module << "\n";
+
+    // Note: module unload may be triggered twice for device drivers,
+    // the first time in IopDeleteDriver and the 2nd time here.
     onModuleUnload.emit(state, module);
 }
 
 /* IopDeleteDriver */
 void WindowsMonitor::onDriverUnload(S2EExecutionState *state, uint64_t pc) {
-    getDebugStream(state) << "detected driver unload\n";
+    getDebugStream(state) << "onDriverUnload: detected driver unload\n";
 
     ModuleDescriptor DriverDesc;
 
@@ -539,10 +561,7 @@ void WindowsMonitor::onDriverUnload(S2EExecutionState *state, uint64_t pc) {
         return;
     }
 
-    getDebugStream(state) << "WindowsMonitor:"
-                          << " Name=" << DriverDesc.Name << " LoadBase=" << hexval(DriverDesc.LoadBase)
-                          << " NativeBase=" << hexval(DriverDesc.NativeBase) << " Size=" << hexval(DriverDesc.Size)
-                          << "\n";
+    getDebugStream(state) << "onDriverUnload: " << DriverDesc << "\n";
 
     onModuleUnload.emit(state, DriverDesc);
 }
@@ -789,39 +808,27 @@ void WindowsMonitor::opcodeInitKernelStructs(S2EExecutionState *state, uint64_t 
     return;
 }
 
-void WindowsMonitor::loadUnloadOpcode(S2EExecutionState *state, uint64_t guestDataPtr,
-                                      const S2E_WINMON2_COMMAND &command) {
-    ModuleDescriptor DriverDesc;
+bool WindowsMonitor::getModuleDescriptorFromCommand(S2EExecutionState *state, const S2E_WINMON2_COMMAND &command,
+                                                    ModuleDescriptor &module) {
 
-    if (command.Module.FileNameOffset >= S2E_MODULE_MAX_LEN) {
-        getDebugStream(state) << "Invalid filename offset\n";
-        return;
+    module.LoadBase = command.Module2.LoadBase;
+    module.Size = command.Module2.Size;
+    module.AddressSpace = getAddressSpace(state, module.LoadBase);
+    module.Pid = command.Module2.Pid;
+
+    uint64_t characters = command.Module2.UnicodeModulePathSizeInBytes / sizeof(uint16_t);
+    if (!state->mem()->readUnicodeString(command.Module2.UnicodeModulePath, module.Path, characters)) {
+        getWarningsStream(state) << "could not read module name\n";
+        return false;
     }
 
-    DriverDesc.AddressSpace = 0;
-    DriverDesc.Pid = 0;
-    DriverDesc.LoadBase = command.Module.LoadBase;
-    DriverDesc.Size = command.Module.Size;
-    DriverDesc.Path = (const char *) command.Module.FullPathName;
-    DriverDesc.Name = (const char *) &command.Module.FullPathName[command.Module.FileNameOffset];
-    if (!computeImageData(state, DriverDesc)) {
-        getDebugStream(state) << "could not compute image data for " << DriverDesc.Name << "\n";
-        return;
+    NormalizePath(module, module.Path);
+
+    if (!computeImageData(state, module)) {
+        getWarningsStream(state) << "could not initialize module information\n";
     }
 
-    if (command.Command == LOAD_DRIVER) {
-        getDebugStream(state) << "detected manual driver load\n";
-    } else {
-        getDebugStream(state) << "detected manual driver unload\n";
-    }
-
-    getDebugStream(state) << DriverDesc << "\n";
-
-    if (command.Command == LOAD_DRIVER) {
-        onModuleLoad.emit(state, DriverDesc);
-    } else {
-        onModuleUnload.emit(state, DriverDesc);
-    }
+    return true;
 }
 
 void WindowsMonitor::handleOpcodeInvocation(S2EExecutionState *state, uint64_t guestDataPtr, uint64_t guestDataSize) {
@@ -848,11 +855,19 @@ void WindowsMonitor::handleOpcodeInvocation(S2EExecutionState *state, uint64_t g
         } break;
 
         case LOAD_DRIVER: {
-            loadUnloadOpcode(state, guestDataPtr, command);
+            ModuleDescriptor module;
+            if (getModuleDescriptorFromCommand(state, command, module)) {
+                getDebugStream(state) << "onDriverLoad " << module << "\n";
+                onModuleLoad.emit(state, module);
+            }
         } break;
 
         case UNLOAD_DRIVER: {
-            loadUnloadOpcode(state, guestDataPtr, command);
+            ModuleDescriptor module;
+            if (getModuleDescriptorFromCommand(state, command, module)) {
+                getDebugStream(state) << "onDriverUnload " << module << "\n";
+                onModuleUnload.emit(state, module);
+            }
         } break;
 
         case THREAD_CREATE: {
@@ -880,30 +895,11 @@ void WindowsMonitor::handleOpcodeInvocation(S2EExecutionState *state, uint64_t g
         } break;
 
         case LOAD_IMAGE: {
-            ModuleDescriptor Module;
-            Module.LoadBase = command.Module2.LoadBase;
-            Module.Size = command.Module2.Size;
-            Module.AddressSpace = state->regs()->getPageDir();
-            Module.Pid = command.Module2.Pid;
-
-            uint64_t characters = command.Module2.UnicodeModulePathSizeInBytes / sizeof(uint16_t);
-            if (!state->mem()->readUnicodeString(command.Module2.UnicodeModulePath, Module.Path, characters)) {
-                getWarningsStream(state) << "could not read module name\n";
-                break;
+            ModuleDescriptor module;
+            if (getModuleDescriptorFromCommand(state, command, module)) {
+                getDebugStream(state) << "onModuleLoad " << module << "\n";
+                onModuleLoad.emit(state, module);
             }
-
-            Module.Path = GetNormalizedPath(Module.Path);
-
-            // Only keep the file name of the module
-            Module.Name = GetFileName(Module.Path);
-
-            if (!computeImageData(state, Module)) {
-                getWarningsStream(state) << "could not initialize module information\n";
-            }
-
-            getDebugStream(state) << "onModuleLoad " << Module << "\n";
-
-            onModuleLoad.emit(state, Module);
         } break;
 
         case LOAD_PROCESS: {

@@ -324,8 +324,8 @@ private:
 
     void opcodeInitKernelStructs(S2EExecutionState *state, uint64_t guestDataPtr, const S2E_WINMON2_COMMAND &command);
 
-    void loadUnloadOpcode(S2EExecutionState *state, uint64_t guestDataPtr, const S2E_WINMON2_COMMAND &command);
-
+    bool getModuleDescriptorFromCommand(S2EExecutionState *state, const S2E_WINMON2_COMMAND &command,
+                                        ModuleDescriptor &module);
     bool computeImageData(S2EExecutionState *state, ModuleDescriptor &Desc);
 
     template <typename DRIVER_OBJECT, typename MODULE_ENTRY>
@@ -343,6 +343,7 @@ private:
     void clearCache();
 
     std::string GetNormalizedPath(const std::string &path);
+    void NormalizePath(ModuleDescriptor &module, const std::string &path);
 
 public:
     virtual void handleOpcodeInvocation(S2EExecutionState *state, uint64_t guestDataPtr, uint64_t guestDataSize);
