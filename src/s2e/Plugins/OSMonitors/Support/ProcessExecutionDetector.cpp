@@ -53,7 +53,6 @@ void ProcessExecutionDetector::initialize() {
 
     if (moduleList.empty()) {
         getWarningsStream() << "no modules configured\n";
-        exit(-1);
     }
 
     foreach2 (it, moduleList.begin(), moduleList.end()) { m_trackedModules.insert(*it); }
