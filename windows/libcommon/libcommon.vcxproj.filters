@@ -48,6 +48,9 @@
     <ClInclude Include="include\s2e\WindowsCrashMonitor.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\s2e\ModuleMap.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <MASM Include="src\amd64\s2e.asm">
