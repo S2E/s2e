@@ -155,13 +155,6 @@ static INT NTAPI S2EInvokePluginConcrete(PCSTR PluginName, PVOID Data, UINT32 Da
     return Ret;
 }
 
-#if !defined(USER_APP)
-static VOID S2EGetSymbolicName(PSTR Out, size_t DestSize, PCSTR Prefix, PCSTR CallSiteIdStr)
-{
-    RtlStringCbPrintfA(Out, DestSize, "%s_%s", Prefix, CallSiteIdStr);
-}
-#endif
-
 static VOID S2EMessageFmt(PCHAR DebugMessage, ...)
 {
     va_list ap;

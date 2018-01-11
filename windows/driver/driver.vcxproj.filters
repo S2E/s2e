@@ -20,6 +20,9 @@
     <Filter Include="Source Files\adt">
       <UniqueIdentifier>{960bf71b-b23f-48ba-85e0-db2275c39a23}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\faultinj">
+      <UniqueIdentifier>{e3d1628b-00a7-4254-9548-41833b419fd9}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\crash.c">
@@ -51,6 +54,12 @@
     </ClCompile>
     <ClCompile Include="src\adt\strings.c">
       <Filter>Source Files\adt</Filter>
+    </ClCompile>
+    <ClCompile Include="src\faultinj\ex.c">
+      <Filter>Source Files\faultinj</Filter>
+    </ClCompile>
+    <ClCompile Include="src\faultinj\faultinj.c">
+      <Filter>Source Files\faultinj</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -86,6 +95,12 @@
     </ClInclude>
     <ClInclude Include="src\adt\strings.h">
       <Filter>Source Files\adt</Filter>
+    </ClInclude>
+    <ClInclude Include="src\faultinj\apis.h">
+      <Filter>Source Files\faultinj</Filter>
+    </ClInclude>
+    <ClInclude Include="src\faultinj\faultinj.h">
+      <Filter>Source Files\faultinj</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

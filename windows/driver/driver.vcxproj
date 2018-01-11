@@ -119,6 +119,8 @@
     <ClCompile Include="src\adt\strings.c" />
     <ClCompile Include="src\crash.c" />
     <ClCompile Include="src\enumeration.c" />
+    <ClCompile Include="src\faultinj\ex.c" />
+    <ClCompile Include="src\faultinj\faultinj.c" />
     <ClCompile Include="src\filter.c" />
     <ClCompile Include="src\kernel_functions.c" />
     <ClCompile Include="src\kernel_hooks.c" />
@@ -132,6 +134,8 @@
     <ClInclude Include="src\adt\strings.h" />
     <ClInclude Include="src\crash.h" />
     <ClInclude Include="src\enumeration.h" />
+    <ClInclude Include="src\faultinj\apis.h" />
+    <ClInclude Include="src\faultinj\faultinj.h" />
     <ClInclude Include="src\filter.h" />
     <ClInclude Include="src\kernel_functions.h" />
     <ClInclude Include="src\kernel_hooks.h" />

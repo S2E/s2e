@@ -24,6 +24,8 @@
 #include "winmonitor.h"
 #include "filter.h"
 
+#include "faultinj/faultinj.h"
+
 #include "log.h"
 
 DRIVER_UNLOAD DriverUnload;
@@ -169,6 +171,8 @@ NTSTATUS DriverEntry(
 
     InitializeKernelHooks();
     S2ERegisterMergeCallback();
+
+    FaultInjectionInit();
 
 #if defined(_AMD64_)
     S2ERegisterReturnHook64();
