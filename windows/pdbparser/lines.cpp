@@ -9,7 +9,11 @@
 #include <stdlib.h>
 
 #include <windows.h>
+#pragma warning(push)
+#pragma warning(disable:4189)
+#pragma warning(disable:4091)
 #include <imagehlp.h>
+#pragma warning(pop)
 
 #include <map>
 #include <unordered_map>

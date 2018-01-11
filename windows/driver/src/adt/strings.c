@@ -8,7 +8,7 @@
 NTSTATUS StringToUnicode(_In_ LPCSTR String, _In_ SIZE_T MaxInputLen, _Out_ PUNICODE_STRING Unicode)
 {
     NTSTATUS Status;
-    SIZE_T Len;
+    size_t Len;
     PVOID Buffer;
 
     Status = RtlStringCchLengthA(String, MaxInputLen, &Len);

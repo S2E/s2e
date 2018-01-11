@@ -10,7 +10,12 @@
 #include <stdlib.h>
 
 #include <windows.h>
+
+#pragma warning(push)
+#pragma warning(disable:4189)
+#pragma warning(disable:4091)
 #include <imagehlp.h>
+#pragma warning(pop)
 
 #include <map>
 #include <vector>
@@ -180,7 +185,7 @@ static VOID Usage(VOID)
 
 static BOOL GetImageInfo(const char *FileName, ULONG64 *LoadBase, DWORD *CheckSum, BOOL *Is64)
 {
-    FILE *fp;
+    FILE *fp = nullptr;
     BOOL Ret = FALSE;
     IMAGE_DOS_HEADER Header;
 
@@ -190,8 +195,7 @@ static BOOL GetImageInfo(const char *FileName, ULONG64 *LoadBase, DWORD *CheckSu
         IMAGE_NT_HEADERS64 Headers64;
     } Headers;
 
-    fp = fopen(FileName, "rb");
-    if (!fp) {
+    if (fopen_s(&fp, FileName, "rb")) {
         fprintf(stderr, "Could not open %s\n", FileName);
         goto err0;
     }

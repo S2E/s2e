@@ -93,6 +93,8 @@ typedef enum _S2E_HOOK_PLUGIN_COMMANDS
     DEREGISTER_DIRECT_KERNEL_HOOK
 }S2E_HOOK_PLUGIN_COMMANDS;
 
+#pragma warning(push)
+#pragma warning(disable:4201) //Nameless union
 typedef struct _S2E_HOOK_PLUGIN_COMMAND
 {
     S2E_HOOK_PLUGIN_COMMANDS Command;
@@ -105,6 +107,7 @@ typedef struct _S2E_HOOK_PLUGIN_COMMAND
         UINT64 ReturnHook;
     };
 }S2E_HOOK_PLUGIN_COMMAND;
+#pragma warning(pop)
 
 static VOID GuestCodePatchingRegisterHook(const S2E_HOOK *Hook)
 {
