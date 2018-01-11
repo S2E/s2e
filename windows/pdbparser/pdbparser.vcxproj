@@ -132,7 +132,12 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="json.cpp" />
+    <ClCompile Include="lines.cpp" />
     <ClCompile Include="pdbparser.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="pdbparser.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -16,6 +16,8 @@
 #include <vector>
 #include <xstring>
 
+#include "pdbparser.h"
+
 struct symbol_t
 {
     unsigned offset;
@@ -29,8 +31,8 @@ typedef std::vector<symbol_t> TypeMembers;
 typedef std::vector<std::wstring> TypePath;
 
 BOOL GetTypeMembers(HANDLE hProcess, ULONG64 ModuleBase,
-                    const std::string &SymbolName,
-                    TypeMembers &Members)
+    const std::string &SymbolName,
+    TypeMembers &Members)
 {
     SYMBOL_INFO SymbolInfo;
     DWORD ChildrenCount, ChildrenSize;
@@ -95,8 +97,8 @@ err1:
 }
 
 BOOL ComputeOffset(HANDLE hProcess, ULONG64 ModuleBase,
-                   const std::string &TypeName, const std::wstring &TypeMember,
-                   ULONG *Offset)
+    const std::string &TypeName, const std::wstring &TypeMember,
+    ULONG *Offset)
 {
     TypeMembers Members;
     if (!GetTypeMembers(hProcess, ModuleBase, TypeName, Members)) {
@@ -121,7 +123,7 @@ BOOL OurGetFileSize(const char *pFileName, DWORD *pFileSize)
 {
     BOOLEAN Ret = FALSE;
     HANDLE hFile = CreateFile(pFileName, GENERIC_READ, FILE_SHARE_READ,
-                                 NULL, OPEN_EXISTING, 0, NULL);
+                              NULL, OPEN_EXISTING, 0, NULL);
 
     if (hFile == INVALID_HANDLE_VALUE) {
         goto err0;
@@ -142,9 +144,9 @@ bool g_printSymbolAddress = true;
 UINT64 g_symbolAddress = -1;
 
 static BOOL CALLBACK EnumSymbolsCallback(
-        PSYMBOL_INFO pSymInfo,
-        ULONG SymbolSize,
-        PVOID UserContext)
+    PSYMBOL_INFO pSymInfo,
+    ULONG SymbolSize,
+    PVOID UserContext)
 {
     if (g_printSymbolAddress) {
         printf("Sym %s %#llx\n", pSymInfo->Name, pSymInfo->Address);
@@ -155,9 +157,9 @@ static BOOL CALLBACK EnumSymbolsCallback(
 }
 
 static BOOL CALLBACK EnumTypesCallback(
-        PSYMBOL_INFO pSymInfo,
-        ULONG SymbolSize,
-        PVOID UserContext)
+    PSYMBOL_INFO pSymInfo,
+    ULONG SymbolSize,
+    PVOID UserContext)
 {
     const char *SearchedName = (const char *)UserContext;
 
@@ -173,7 +175,7 @@ static BOOL CALLBACK EnumTypesCallback(
 static VOID Usage(VOID)
 {
     printf("Usage:\n");
-    printf("   pdbparser [-f function | -t type | -i | -s] file.exe file.pdb\n");
+    printf("   pdbparser [-f function | -t type | -i | -s | -l] file.exe file.pdb\n");
 }
 
 static BOOL GetImageInfo(const char *FileName, ULONG64 *LoadBase, DWORD *CheckSum, BOOL *Is64)
@@ -215,21 +217,23 @@ static BOOL GetImageInfo(const char *FileName, ULONG64 *LoadBase, DWORD *CheckSu
     }
 
     switch (Headers.Headers32.FileHeader.Machine) {
-    case IMAGE_FILE_MACHINE_I386: {
-        *LoadBase = Headers.Headers32.OptionalHeader.ImageBase;
-        *CheckSum = Headers.Headers32.OptionalHeader.CheckSum;
-        *Is64 = FALSE;
-    } break;
-    case IMAGE_FILE_MACHINE_AMD64: {
-        *LoadBase = Headers.Headers64.OptionalHeader.ImageBase;
-        *CheckSum = Headers.Headers64.OptionalHeader.CheckSum;
-        *Is64 = TRUE;
-    } break;
+        case IMAGE_FILE_MACHINE_I386: {
+            *LoadBase = Headers.Headers32.OptionalHeader.ImageBase;
+            *CheckSum = Headers.Headers32.OptionalHeader.CheckSum;
+            *Is64 = FALSE;
+        }
+            break;
+        case IMAGE_FILE_MACHINE_AMD64: {
+            *LoadBase = Headers.Headers64.OptionalHeader.ImageBase;
+            *CheckSum = Headers.Headers64.OptionalHeader.CheckSum;
+            *Is64 = TRUE;
+        }
+            break;
 
-    default: {
-        fprintf(stderr, "Unsupported architecture %x for %s\n", Headers.Headers32.FileHeader.Machine, FileName);
-        goto err1;
-    }
+        default: {
+            fprintf(stderr, "Unsupported architecture %x for %s\n", Headers.Headers32.FileHeader.Machine, FileName);
+            goto err1;
+        }
     }
 
     Ret = TRUE;
@@ -253,10 +257,11 @@ bool GetSymbolAddress(HANDLE hProcess, ULONG64 ModuleBase, const char *SymbolNam
 }
 
 static std::map<UINT64, std::string> g_symbolMap;
+
 static BOOL CALLBACK EnumInitSymbolsCallback(
-        PSYMBOL_INFO pSymInfo,
-        ULONG SymbolSize,
-        PVOID UserContext)
+    PSYMBOL_INFO pSymInfo,
+    ULONG SymbolSize,
+    PVOID UserContext)
 {
     g_symbolMap[pSymInfo->Address] = pSymInfo->Name;
     return TRUE;
@@ -283,6 +288,7 @@ bool ReadPe(PLOADED_IMAGE Image, UINT64 NativeLoadBase, UINT64 NativeAddress, T 
 
     return false;
 }
+
 
 int main(int argc, char **argv)
 {
@@ -353,6 +359,9 @@ int main(int argc, char **argv)
 
     if (!strcmp(Action, "-f")) {
         SymEnumSymbols(hProcess, ModuleBase, SymbolName, EnumSymbolsCallback, NULL);
+    }
+    if (!strcmp(Action, "-l")) {
+        DumpLineInfo(hProcess, ModuleBase);
     } else if (!strcmp(Action, "-t")) {
         ULONG Offset = 0;
         TypePath Path;

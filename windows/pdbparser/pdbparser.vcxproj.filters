@@ -18,5 +18,16 @@
     <ClCompile Include="pdbparser.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="lines.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="json.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="pdbparser.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
