@@ -296,5 +296,53 @@ const ModuleMap::Export *ModuleMap::getExport(S2EExecutionState *state, uint64_t
     return plgState->getExport(address);
 }
 
+void ModuleMap::handleOpcodeInvocation(S2EExecutionState *state, uint64_t guestDataPtr, uint64_t guestDataSize) {
+    S2E_MODULE_MAP_COMMAND command;
+
+    // TODO: factor these checks out from all plugins
+    // TODO: handleOpcodeInvocation should really return error code
+    if (guestDataSize != sizeof(command)) {
+        getWarningsStream(state) << "mismatched S2E_MODULE_MAP_COMMAND size\n";
+        exit(-1);
+    }
+
+    if (!state->mem()->readMemoryConcrete(guestDataPtr, &command, guestDataSize)) {
+        getWarningsStream(state) << "could not read transmitted data\n";
+        exit(-1);
+    }
+
+    switch (command.Command) {
+        case GET_MODULE_INFO: {
+            DECLARE_PLUGINSTATE(ModuleMapState, state);
+            auto module = plgState->getModule(command.ModuleInfo.Pid, command.ModuleInfo.Address);
+            if (!module) {
+                getWarningsStream(state) << "Could not get module for pid=" << hexval(command.ModuleInfo.Pid)
+                                         << " addr=" << hexval(command.ModuleInfo.Address) << "\n";
+                break;
+            }
+
+            // Caller inits the buffer to 0, so subtract 1 to make it asciiz
+            auto maxLen = std::min(command.ModuleInfo.ModuleNameSize - 1, module->Name.size());
+
+            if (!state->mem()->writeMemoryConcrete(command.ModuleInfo.ModuleName, module->Name.c_str(), maxLen)) {
+                getWarningsStream(state) << "could not write module name to memory\n";
+                break;
+            }
+
+            // Init these last, guest will check them for 0 for errors
+            command.ModuleInfo.NativeLoadBase = module->NativeBase;
+            command.ModuleInfo.RuntimeLoadBase = module->LoadBase;
+            command.ModuleInfo.Size = module->Size;
+
+            if (!state->mem()->writeMemoryConcrete(guestDataPtr, &command, guestDataSize)) {
+                getWarningsStream(state) << "could not write module info to memory\n";
+                break;
+            }
+        } break;
+
+        default: { getWarningsStream(state) << "unknown command\n"; } break;
+    }
+}
+
 } // namespace plugins
 } // namespace s2e
