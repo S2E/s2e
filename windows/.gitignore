@@ -13,3 +13,6 @@ venv
 kb
 kernels
 dist
+*PVS-Studio*
+*.idea
+
