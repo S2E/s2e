@@ -12,6 +12,7 @@
 #include <llvm/Support/raw_ostream.h>
 #include <s2e/Plugin.h>
 #include <s2e/Plugins/ExecutionTracers/ExecutionTracer.h>
+#include <s2e/Plugins/OSMonitors/Windows/WindowsCrashMonitor.h>
 #include <string>
 #include <vector>
 
@@ -55,6 +56,8 @@ private:
 
     void onStateKill(S2EExecutionState *state);
     void onSegFault(S2EExecutionState *state, uint64_t pid, uint64_t pc);
+    void onWindowsUserCrash(S2EExecutionState *state, const WindowsUserModeCrash &desc);
+    void onWindowsKernelCrash(S2EExecutionState *state, const vmi::windows::BugCheckDescription &desc);
 
     void writeTestCaseToTrace(S2EExecutionState *state, const ConcreteInputs &inputs);
     void writeSimpleTestCase(llvm::raw_ostream &os, const ConcreteInputs &inputs);
