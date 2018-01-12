@@ -48,6 +48,18 @@ BOOLEAN FaultInjDecideInjectFault(
 
 VOID FaultInjectionInit(VOID)
 {
-    LOG("Hooking ExXXX apis...");
+    LOG("Hooking ExXxx apis...");
     RegisterHooks(g_kernelExHooks);
+
+    LOG("Hooking MmXxx apis...");
+    RegisterHooks(g_kernelMmHooks);
+
+    LOG("Hooking PsXxx apis...");
+    RegisterHooks(g_kernelPsHooks);
+
+    LOG("Hooking ObXxx apis...");
+    RegisterHooks(g_kernelObHooks);
+
+    LOG("Hooking Registry apis...");
+    RegisterHooks(g_kernelRegHooks);
 }

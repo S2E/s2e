@@ -55,10 +55,22 @@
     <ClCompile Include="src\adt\strings.c">
       <Filter>Source Files\adt</Filter>
     </ClCompile>
-    <ClCompile Include="src\faultinj\ex.c">
+    <ClCompile Include="src\faultinj\faultinj.c">
       <Filter>Source Files\faultinj</Filter>
     </ClCompile>
-    <ClCompile Include="src\faultinj\faultinj.c">
+    <ClCompile Include="src\faultinj\ex.cpp">
+      <Filter>Source Files\faultinj</Filter>
+    </ClCompile>
+    <ClCompile Include="src\faultinj\mm.cpp">
+      <Filter>Source Files\faultinj</Filter>
+    </ClCompile>
+    <ClCompile Include="src\faultinj\ps.cpp">
+      <Filter>Source Files\faultinj</Filter>
+    </ClCompile>
+    <ClCompile Include="src\faultinj\ob.cpp">
+      <Filter>Source Files\faultinj</Filter>
+    </ClCompile>
+    <ClCompile Include="src\faultinj\reg.cpp">
       <Filter>Source Files\faultinj</Filter>
     </ClCompile>
   </ItemGroup>
@@ -100,6 +112,9 @@
       <Filter>Source Files\faultinj</Filter>
     </ClInclude>
     <ClInclude Include="src\faultinj\faultinj.h">
+      <Filter>Source Files\faultinj</Filter>
+    </ClInclude>
+    <ClInclude Include="src\faultinj\faultinj.hpp">
       <Filter>Source Files\faultinj</Filter>
     </ClInclude>
   </ItemGroup>

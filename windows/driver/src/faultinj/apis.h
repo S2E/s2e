@@ -11,3 +11,7 @@
 #include <s2e/GuestCodePatching.h>
 
 extern const S2E_HOOK g_kernelExHooks[];
+extern const S2E_HOOK g_kernelMmHooks[];
+extern const S2E_HOOK g_kernelPsHooks[];
+extern const S2E_HOOK g_kernelObHooks[];
+extern const S2E_HOOK g_kernelRegHooks[];
