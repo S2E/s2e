@@ -96,32 +96,32 @@ UINT32 NTAPI S2EWriteMemory(PVOID Destination, PVOID Source, DWORD Count);
 VOID NTAPI S2EDisableAllApicInterrupts(VOID);
 VOID NTAPI S2EEnableAllApicInterrupts(VOID);
 
-static VOID NTAPI S2EMakeConcolic(PVOID Buffer, UINT32 Size, PCSTR Name)
+static inline VOID NTAPI S2EMakeConcolic(PVOID Buffer, UINT32 Size, PCSTR Name)
 {
     __s2e_touch_string(Name);
     __s2e_touch_buffer(Buffer, Size);
     S2EMakeConcolicRaw(Buffer, Size, Name);
 }
 
-static INT NTAPI S2EConcolicInt(PCSTR Name, INT InitialValue)
+static inline INT NTAPI S2EConcolicInt(PCSTR Name, INT InitialValue)
 {
     S2EMakeConcolic(&InitialValue, sizeof(InitialValue), Name);
     return InitialValue;
 }
 
-static UINT8 NTAPI S2EConcolicChar(PCSTR Name, UINT8 InitialValue)
+static inline UINT8 NTAPI S2EConcolicChar(PCSTR Name, UINT8 InitialValue)
 {
     S2EMakeConcolic(&InitialValue, sizeof(InitialValue), Name);
     return InitialValue;
 }
 
-static NTSTATUS NTAPI S2EConcolicStatus(PCSTR Name, NTSTATUS InitialValue)
+static inline NTSTATUS NTAPI S2EConcolicStatus(PCSTR Name, NTSTATUS InitialValue)
 {
     S2EMakeConcolic(&InitialValue, sizeof(InitialValue), Name);
     return InitialValue;
 }
 
-static VOID NTAPI S2EMessage(PCSTR Message)
+static inline VOID NTAPI S2EMessage(PCSTR Message)
 {
     __try {
         __s2e_touch_string(Message);
@@ -131,7 +131,7 @@ static VOID NTAPI S2EMessage(PCSTR Message)
     }
 }
 
-static INT NTAPI S2EInvokePlugin(PCSTR PluginName, PVOID Data, UINT32 DataSize)
+static inline INT NTAPI S2EInvokePlugin(PCSTR PluginName, PVOID Data, UINT32 DataSize)
 {
     INT Ret = 0;
     __try {
@@ -144,7 +144,7 @@ static INT NTAPI S2EInvokePlugin(PCSTR PluginName, PVOID Data, UINT32 DataSize)
     return Ret;
 }
 
-static INT NTAPI S2EInvokePluginConcrete(PCSTR PluginName, PVOID Data, UINT32 DataSize)
+static inline INT NTAPI S2EInvokePluginConcrete(PCSTR PluginName, PVOID Data, UINT32 DataSize)
 {
     INT Ret = 0;
     __try {
@@ -155,7 +155,7 @@ static INT NTAPI S2EInvokePluginConcrete(PCSTR PluginName, PVOID Data, UINT32 Da
     return Ret;
 }
 
-static VOID S2EMessageFmt(PCHAR DebugMessage, ...)
+static inline VOID S2EMessageFmt(PCHAR DebugMessage, ...)
 {
     va_list ap;
     CHAR String[512];
@@ -169,7 +169,7 @@ static VOID S2EMessageFmt(PCHAR DebugMessage, ...)
     va_end(ap);
 }
 
-static UINT32 S2EWriteMemorySafe(PVOID Destination, PVOID Source, DWORD Count)
+static inline UINT32 S2EWriteMemorySafe(PVOID Destination, PVOID Source, DWORD Count)
 {
     INT Ret = 0;
     __try {

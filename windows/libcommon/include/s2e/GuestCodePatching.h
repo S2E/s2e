@@ -91,13 +91,14 @@ typedef enum _S2E_HOOK_PLUGIN_COMMANDS
      */
     REGISTER_DIRECT_KERNEL_HOOK,
     DEREGISTER_DIRECT_KERNEL_HOOK
-}S2E_HOOK_PLUGIN_COMMANDS;
+} S2E_HOOK_PLUGIN_COMMANDS;
 
 #pragma warning(push)
 #pragma warning(disable:4201) //Nameless union
 typedef struct _S2E_HOOK_PLUGIN_COMMAND
 {
     S2E_HOOK_PLUGIN_COMMANDS Command;
+
     union
     {
         S2E_HOOK KernelFunction;
@@ -106,10 +107,10 @@ typedef struct _S2E_HOOK_PLUGIN_COMMAND
         S2E_DIRECT_HOOK DirectHook;
         UINT64 ReturnHook;
     };
-}S2E_HOOK_PLUGIN_COMMAND;
+} S2E_HOOK_PLUGIN_COMMAND;
 #pragma warning(pop)
 
-static VOID GuestCodePatchingRegisterHook(const S2E_HOOK *Hook)
+static inline VOID GuestCodePatchingRegisterHook(const S2E_HOOK *Hook)
 {
     S2E_HOOK_PLUGIN_COMMAND Command;
     Command.Command = REGISTER_KERNEL_FUNCTION;
@@ -117,7 +118,7 @@ static VOID GuestCodePatchingRegisterHook(const S2E_HOOK *Hook)
     S2EInvokePlugin("GuestCodePatching", &Command, sizeof(Command));
 }
 
-static VOID RegisterHooks(const S2E_HOOK *Hooks)
+static inline VOID RegisterHooks(const S2E_HOOK *Hooks)
 {
     while (Hooks->Address) {
         GuestCodePatchingRegisterHook(Hooks);
@@ -125,7 +126,7 @@ static VOID RegisterHooks(const S2E_HOOK *Hooks)
     }
 }
 
-static VOID S2ERegisterDriverEntryPoint(UINT64 Handle, PCSTR Name, PVOID Address, PVOID Hook)
+static inline VOID S2ERegisterDriverEntryPoint(UINT64 Handle, PCSTR Name, PVOID Address, PVOID Hook)
 {
     S2E_HOOK_PLUGIN_COMMAND Command;
 
@@ -143,7 +144,7 @@ static VOID S2ERegisterDriverEntryPoint(UINT64 Handle, PCSTR Name, PVOID Address
     S2EInvokePlugin("GuestCodePatching", &Command, sizeof(Command));
 }
 
-static VOID S2ERegisterExternalFunctionHook(UINT64 Handle, PCSTR Name, PVOID ModuleAddress, PVOID Address, PVOID Hook)
+static inline VOID S2ERegisterExternalFunctionHook(UINT64 Handle, PCSTR Name, PVOID ModuleAddress, PVOID Address, PVOID Hook)
 {
     S2E_HOOK_PLUGIN_COMMAND Command;
 
@@ -166,12 +167,12 @@ static VOID S2ERegisterExternalFunctionHook(UINT64 Handle, PCSTR Name, PVOID Mod
     S2EInvokePlugin("GuestCodePatching", &Command, sizeof(Command));
 }
 
-static VOID S2EDeregisterDriverEntryPoint(UINT64 Handle, PVOID Address)
+static inline VOID S2EDeregisterDriverEntryPoint(UINT64 Handle, PVOID Address)
 {
     S2E_HOOK_PLUGIN_COMMAND Command;
 
     S2EMessageFmt("Deregistering entry point Handle=%p Address=%p\n",
-        (UINT_PTR)Handle, Address);
+                  (UINT_PTR)Handle, Address);
 
     Command.Command = DEREGISTER_ENTRY_POINT;
     Command.EntryPoint.Address = (UINT_PTR)Address;
@@ -180,7 +181,7 @@ static VOID S2EDeregisterDriverEntryPoint(UINT64 Handle, PVOID Address)
     S2EInvokePlugin("GuestCodePatching", &Command, sizeof(Command));
 }
 
-static INT RegisterModule(PCSTR ModuleName)
+static inline INT RegisterModule(PCSTR ModuleName)
 {
     S2E_HOOK_PLUGIN_COMMAND Command;
 
@@ -194,7 +195,7 @@ static INT RegisterModule(PCSTR ModuleName)
     return Command.PatchModule.Outcome;
 }
 
-static VOID GuestCodePatchingRegisterDirectKernelHook(UINT64 HookedFunction, UINT64 Hook)
+static inline VOID GuestCodePatchingRegisterDirectKernelHook(UINT64 HookedFunction, UINT64 Hook)
 {
     S2E_HOOK_PLUGIN_COMMAND Command;
 
@@ -204,7 +205,7 @@ static VOID GuestCodePatchingRegisterDirectKernelHook(UINT64 HookedFunction, UIN
     S2EInvokePlugin("GuestCodePatching", &Command, sizeof(Command));
 }
 
-static VOID GuestCodePatchingDeregisterDirectKernelHook(UINT64 HookedFunction)
+static inline VOID GuestCodePatchingDeregisterDirectKernelHook(UINT64 HookedFunction)
 {
     S2E_HOOK_PLUGIN_COMMAND Command;
 
@@ -215,7 +216,7 @@ static VOID GuestCodePatchingDeregisterDirectKernelHook(UINT64 HookedFunction)
 }
 
 #if defined(_AMD64_)
-static VOID S2ERegisterReturnHook64(VOID)
+static inline VOID S2ERegisterReturnHook64(VOID)
 {
     S2E_HOOK_PLUGIN_COMMAND Command;
     Command.Command = REGISTER_RETURN_HOOK;
