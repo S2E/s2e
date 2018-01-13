@@ -76,13 +76,20 @@ extern "C"
         return FaultInjTemplate1<PVOID>(CallSite, "ExAllocatePoolWithTagPriority", RaiseOnFailure, nullptr, &ExAllocatePoolWithTagPriority, PoolType, NumberOfBytes, Tag, Priority);
     }
 
+    // Note: the documentation states that this function always returns STATUS_SUCCESS.
+    // https://msdn.microsoft.com/en-us/library/windows/hardware/ff545317(v=vs.85).aspx
+    // We still inject faults for future-proofing.
     NTSTATUS S2EHook_ExInitializeResourceLite(
         _Out_ PERESOURCE Resource
     )
     {
-        UINT_PTR CallSite = (UINT_PTR)_ReturnAddress();
-        BOOLEAN RaiseOnFailure = FALSE;
-        return FaultInjTemplate1<NTSTATUS>(CallSite, "ExInitializeResourceLite", RaiseOnFailure, STATUS_INSUFFICIENT_RESOURCES, &ExInitializeResourceLite, Resource);
+        if (g_faultInjOverApproximate) {
+            UINT_PTR CallSite = (UINT_PTR)_ReturnAddress();
+            BOOLEAN RaiseOnFailure = FALSE;
+            return FaultInjTemplate1<NTSTATUS>(CallSite, "ExInitializeResourceLite", RaiseOnFailure, STATUS_INSUFFICIENT_RESOURCES, &ExInitializeResourceLite, Resource);
+        } else {
+            return ExInitializeResourceLite(Resource);
+        }
     }
 
 

@@ -8,7 +8,9 @@
 
 #pragma once
 
-VOID FaultInjectionInit(VOID);
+extern BOOLEAN g_faultInjOverApproximate;
+
+VOID FaultInjectionInit(BOOLEAN OverApproximate);
 
 BOOLEAN FaultInjectionCreateVarName(
     _In_ PCHAR ModuleName,

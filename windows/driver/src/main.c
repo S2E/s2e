@@ -184,7 +184,7 @@ NTSTATUS DriverEntry(
     S2ERegisterMergeCallback();
 
     if (Config.FaultInjectionEnabled) {
-        FaultInjectionInit();
+        FaultInjectionInit(Config.FaultInjectionOverapproximate);
     }
 
 #if defined(_AMD64_)

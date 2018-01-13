@@ -12,6 +12,9 @@
 
 #include "../log.h"
 #include "apis.h"
+#include "faultinj.h"
+
+BOOLEAN g_faultInjOverApproximate;
 
 BOOLEAN FaultInjectionCreateVarName(
     _In_ PCHAR ModuleName,
@@ -46,8 +49,10 @@ BOOLEAN FaultInjDecideInjectFault(
     return TRUE;
 }
 
-VOID FaultInjectionInit(VOID)
+VOID FaultInjectionInit(BOOLEAN OverApproximate)
 {
+    g_faultInjOverApproximate = OverApproximate;
+
     LOG("Hooking ExXxx apis...");
     RegisterHooks(g_kernelExHooks);
 
