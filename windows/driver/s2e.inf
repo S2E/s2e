@@ -67,5 +67,5 @@ DiskId1                 = "S2E Device Installation Disk"
 ;Instances specific information.
 DefaultInstance         = "S2E Instance"
 Instance1.Name          = "S2E Instance"
-Instance1.Altitude      = "265000"
+Instance1.Altitude      = "360123"
 Instance1.Flags         = 0x0          ; Allow all attachments
