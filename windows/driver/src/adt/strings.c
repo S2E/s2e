@@ -25,8 +25,8 @@ NTSTATUS StringToUnicode(_In_ LPCSTR String, _In_ SIZE_T MaxInputLen, _Out_ PUNI
     }
 
     Unicode->Buffer = Buffer;
-    Unicode->MaximumLength = (USHORT)MaxInputLen;
-    Unicode->Length = (USHORT)Len;
+    Unicode->MaximumLength = (USHORT)(MaxInputLen * sizeof(WCHAR));
+    Unicode->Length = (USHORT)(Len * sizeof(USHORT));
 
     for (unsigned i = 0; i < Unicode->Length; ++i) {
         Unicode->Buffer[i] = String[i];
