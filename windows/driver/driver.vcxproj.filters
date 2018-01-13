@@ -79,6 +79,9 @@
     <ClCompile Include="src\config\config.c">
       <Filter>Source Files\config</Filter>
     </ClCompile>
+    <ClCompile Include="src\utils.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\crash.h">
@@ -125,6 +128,9 @@
     </ClInclude>
     <ClInclude Include="src\config\config.h">
       <Filter>Source Files\config</Filter>
+    </ClInclude>
+    <ClInclude Include="src\utils.h">
+      <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
