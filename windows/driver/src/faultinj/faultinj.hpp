@@ -7,6 +7,10 @@
 ///
 
 #pragma once
+extern "C"
+{
+#include "../utils.h"
+}
 
 template <typename RET, typename FCN, typename ... ARGS>
 RET FaultInjTemplate1(
@@ -40,6 +44,8 @@ RET FaultInjTemplate1(
         LOG("Invoking original function %s\n", FunctionName);
         goto original;
     }
+
+    S2EDumpBackTrace();
 
     if (RaiseOnFailure) {
         ExRaiseStatus(STATUS_INSUFFICIENT_RESOURCES);

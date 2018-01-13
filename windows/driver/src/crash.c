@@ -12,6 +12,7 @@
 #include "kernel_structs.h"
 #include "crash.h"
 #include "log.h"
+#include "utils.h"
 
 #include <s2e/WindowsMonitor.h>
 #include <s2e/BlueScreenInterceptor.h>
@@ -30,7 +31,7 @@ extern S2E_WINMON2_KERNEL_STRUCTS g_WinmonKernelStructs;
 UINT_PTR ToRuntimeAddress(UINT64 Address)
 {
     return (UINT_PTR)(Address - (UINT_PTR)g_WinmonKernelStructs.KernelNativeBase
-                   + (UINT_PTR)g_WinmonKernelStructs.KernelLoadBase);
+        + (UINT_PTR)g_WinmonKernelStructs.KernelLoadBase);
 }
 
 /**
@@ -72,7 +73,7 @@ static NTSTATUS LfiKeInitializeCrashDumpHeader(
 )
 {
     UNICODE_STRING Str;
-    typedef NTSTATUS(*KeInitializeCrashDumpHeader_t)(ULONG DumpType, ULONG Flags, PVOID Buffer,
+    typedef NTSTATUS (*KeInitializeCrashDumpHeader_t)(ULONG DumpType, ULONG Flags, PVOID Buffer,
         ULONG BufferSize, PULONG BufferNeeded);
 
     static KeInitializeCrashDumpHeader_t _KeInitializeCrashDumpHeader = NULL;
@@ -152,7 +153,10 @@ VOID S2EBSODHook(
 {
     S2E_BSOD_CRASH Command;
     ULONG BufferNeeded = 0;
-    LOG("invoked S2EBSODHook\n");
+    LOG("Invoked S2EBSODHook\n");
+
+    S2EDumpBackTrace();
+
     InitializeCrashDumpHeader(&BufferNeeded);
 
 #if _WIN32_WINNT >= _WIN32_WINNT_WIN8
@@ -178,7 +182,7 @@ UINT_PTR GetS2ECrashHookAddress()
     RtlGetVersion(&Version);
 
     if (Version.dwMajorVersion == 0x5 && Version.dwMinorVersion == 0x1) {
-        LOG("no S2EBSODHook for this Windows version\n");
+        LOG("No S2EBSODHook for this Windows version\n");
         return 0;
     }
 
