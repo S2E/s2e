@@ -117,6 +117,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\adt\strings.c" />
+    <ClCompile Include="src\config\config.c" />
     <ClCompile Include="src\crash.c" />
     <ClCompile Include="src\enumeration.c" />
     <ClCompile Include="src\faultinj\ex.cpp" />
@@ -136,6 +137,7 @@
   <ItemGroup>
     <ClInclude Include="include\s2ectl.h" />
     <ClInclude Include="src\adt\strings.h" />
+    <ClInclude Include="src\config\config.h" />
     <ClInclude Include="src\crash.h" />
     <ClInclude Include="src\enumeration.h" />
     <ClInclude Include="src\faultinj\apis.h" />
