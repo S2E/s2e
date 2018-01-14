@@ -121,7 +121,7 @@ The following instructions explain how to get LCOV coverage reports for Windows 
   files in your `s2e-last` folder.
 
 - Run `s2e coverage lcov my_binary`. Make sure that the `my_binary.exe.lines` is located in the same
-  directory as `my_binary.exe`.  This should produce the `coverage.info` file, which contains
+  directory as `my_binary.exe`.  This should produce the `my_binary.exe.info` file, which contains
   LCOV coverage info.
 
 - You must use LCOV on Windows in order to generate the report, because the LCOV files contain Windows path.
@@ -129,7 +129,7 @@ The following instructions explain how to get LCOV coverage reports for Windows 
   installing LCOV from [here](https://github.com/linux-test-project/lcov):
 
   ```
-  genhtml --ignore-errors source -p "c:/" -p 'd:/' -o coverage_report coverage.info
+  genhtml --ignore-errors source -p "c:/" -p "d:/" -o coverage_report my_binary.exe.info
   ```
 
   **Note:** it is important to strip all the drive prefixes (`-p` option) so that `genhtml` does not attempt
