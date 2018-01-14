@@ -120,11 +120,9 @@ void LinuxMonitor::handleSegfault(S2EExecutionState *state, const S2E_LINUXMON_C
 }
 
 void LinuxMonitor::handleProcessLoad(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd) {
-    static bool loaded = false;
-
-    if (!loaded) {
+    if (!m_initialized) {
+        m_initialized = true;
         onMonitorLoad.emit(state);
-        loaded = true;
     }
 
     std::string processPath(cmd.ProcessLoad.process_path,

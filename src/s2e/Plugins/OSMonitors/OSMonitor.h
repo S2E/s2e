@@ -48,7 +48,10 @@ public:
     sigc::signal<void, S2EExecutionState *> onMonitorLoad;
 
 protected:
-    OSMonitor(S2E *s2e) : Plugin(s2e) {
+    /// Indicates whether the monitor is ready to be called by other plugins
+    bool m_initialized;
+
+    OSMonitor(S2E *s2e) : Plugin(s2e), m_initialized(false) {
     }
 
 public:
@@ -77,6 +80,14 @@ public:
     virtual bool getProcessName(S2EExecutionState *state, uint64_t pid, std::string &name) = 0;
 
     void dumpUserspaceMemory(S2EExecutionState *state, std::ostream &ss);
+
+    // Indicates whether the monitor is loaded and that calling its APIs is allowed.
+    // This is useful for monitors that rely on a guest kernel driver to provide
+    // information to plugins. Plugins should wait that the monitor is initialized
+    // before calling any APIs. This call can be used together with the onMonitorLoad signal.
+    bool initialized() const {
+        return m_initialized;
+    }
 
     template <typename T> static bool readConcreteParameter(S2EExecutionState *s, unsigned param, T *val) {
         return s->readMemoryConcrete(s->getSp() + (param + 1) * sizeof(T), val, sizeof(*val));
