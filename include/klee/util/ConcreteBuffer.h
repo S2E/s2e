@@ -35,6 +35,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <klee/Common.h>
 
 namespace klee {
 class ObjectState;
@@ -55,7 +56,8 @@ class ConcreteBuffer {
     uint8_t *osAlloc() const {
         void *ret = (uint8_t *) mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
         if (ret == MAP_FAILED) {
-            abort();
+            *klee_warning_stream << "Memory allocation failed: " << errno << "\n";
+            return NULL;
         }
         return (uint8_t *) ret;
     }
