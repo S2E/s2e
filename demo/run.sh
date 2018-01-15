@@ -44,8 +44,11 @@ if [ ! -f "$BINARY_PATH" ]; then
   exit 1
 fi
 
-BINARY_PATH=$(readlink -f "$BINARY_PATH")
-BINARY=$(basename "$BINARY_PATH")
+BINARY_PATH="$(readlink -f "$BINARY_PATH")"
+BINARY="$(basename "$BINARY_PATH")"
+
+# Project name doesn't have the extension
+PROJECT="$(echo $BINARY | cut -f 1 -d '.')"
 
 # Verify that the specified group and user ids don't exist locally.
 # If so, delete them. This may happen if the host OS is not Debian-based,
@@ -76,19 +79,19 @@ ROOT="$(pwd)/s2e-demo"
 exec sudo -u s2e /bin/bash - << EOF
 
 if [ ! -d "$ROOT" ]; then
-  s2e init -b /opt/s2e $ROOT
+  s2e init -b /opt/s2e "$ROOT"
 fi
 
 cd "$ROOT"
 
-if [ ! -d projects/$BINARY ]; then
-  echo "Creating new project in projects/$BINARY"
+if [ ! -d "projects/$PROJECT" ]; then
+  echo "Creating new project in projects/$PROJECT"
 
   # Automatically download image if needed
-  s2e new_project -d "$BINARY_PATH" $*
+  s2e new_project -n "$PROJECT" -d "$BINARY_PATH" $*
 fi
 
-echo running
-s2e run $BINARY
+echo Running $PROJECT
+s2e run "$PROJECT"
 
 EOF
