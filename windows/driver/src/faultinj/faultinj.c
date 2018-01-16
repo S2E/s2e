@@ -6,9 +6,9 @@
 /// Licensed under the Cyberhaven Research License Agreement.
 ///
 
-#include <ntddk.h>
-
+#include <fltKernel.h>
 #include <s2e/ModuleMap.h>
+#include <s2e/KeyValueStore.h>
 
 #include "../log.h"
 #include "apis.h"
@@ -39,14 +39,44 @@ BOOLEAN FaultInjectionCreateVarName(
     return TRUE;
 }
 
+#define STACK_FRAME_COUNT 32
+#define CALL_SITE_ID_SIZE 128
+
+// Compute a hash of the call stack and store it in a global key-value store.
+// This ensures that different states don't inject the same faults needlessly.
 BOOLEAN FaultInjDecideInjectFault(
     _In_ UINT_PTR CallSite,
     _In_ UINT_PTR TargetFunction
 )
 {
+    S2E_MODULE_INFO Info;
+    UINT_PTR ModuleAddress = CallSite;
+    PVOID BackTrace[STACK_FRAME_COUNT] = { 0 };
+    CHAR CallSiteId[CALL_SITE_ID_SIZE];
+    ULONG Hash;
+    UINT64 AlreadyExercised = 0;
+
     UNREFERENCED_PARAMETER(CallSite);
     UNREFERENCED_PARAMETER(TargetFunction);
-    return TRUE;
+
+    if (S2EModuleMapGetModuleInfo(CallSite, 0, &Info)) {
+        ModuleAddress = CallSite - (UINT_PTR)Info.RuntimeLoadBase + (UINT_PTR)Info.NativeLoadBase;
+    }
+
+    RtlCaptureStackBackTrace(0, STACK_FRAME_COUNT, BackTrace, &Hash);
+    sprintf_s(CallSiteId, sizeof(CallSiteId), "%s_%p_%x", Info.ModuleName, (PVOID)ModuleAddress, Hash);
+    LOG("CallSiteId: %s\n", CallSiteId);
+
+    if (!S2EKVSGetValue(CallSiteId, &AlreadyExercised)) {
+        // Key not found, means that we have no exercised yet
+        if (!S2EKVSSetValue(CallSiteId, 1, NULL)) {
+            LOG("Could not set key %s\n", CallSiteId);
+        }
+    }
+
+    LOG("AlreadyExercised: %d\n", AlreadyExercised);
+
+    return !AlreadyExercised;
 }
 
 VOID FaultInjectionInit(BOOLEAN OverApproximate)
