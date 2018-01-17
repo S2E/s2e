@@ -25,21 +25,26 @@ RET FaultInjTemplate1(
     RET RetVal;
     INT Inject;
     UINT8 InvokeOriginal;
-    CHAR SymbolicVarName[128];
+    CHAR *SymbolicVarName;
 
     LOG("Calling %s from %p\n", FunctionName, (PVOID)CallSite);
-
-    if (!FaultInjectionCreateVarName("ntoskrnl.exe", FunctionName, CallSite, SymbolicVarName, sizeof(SymbolicVarName))) {
-        LOG("Could not create variable name\n");
-        goto original;
-    }
 
     Inject = FaultInjDecideInjectFault(CallSite, (UINT_PTR)Orig);
     if (!Inject) {
         goto original;
     }
 
+    if (!FaultInjectionCreateVarName("ntoskrnl.exe", FunctionName, CallSite, &SymbolicVarName)) {
+        LOG("Could not create variable name\n");
+        goto original;
+    }
+
     InvokeOriginal = S2EConcolicChar(SymbolicVarName, 1);
+
+    if (SymbolicVarName) {
+        ExFreePool(SymbolicVarName);
+    }
+
     if (InvokeOriginal) {
         LOG("Invoking original function %s\n", FunctionName);
         goto original;
@@ -54,7 +59,6 @@ RET FaultInjTemplate1(
     return DefaultConcreteFailure;
 
 original:
-
     RetVal = Orig(Args...);
     S2EMessageFmt("%s returned %#x\n", FunctionName, RetVal);
     return RetVal;

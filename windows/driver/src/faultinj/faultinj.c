@@ -10,9 +10,11 @@
 #include <s2e/ModuleMap.h>
 #include <s2e/KeyValueStore.h>
 
+#include "../adt/strings.h"
 #include "../log.h"
 #include "apis.h"
 #include "faultinj.h"
+#include "../utils.h"
 
 BOOLEAN g_faultInjOverApproximate;
 
@@ -20,23 +22,49 @@ BOOLEAN FaultInjectionCreateVarName(
     _In_ PCHAR ModuleName,
     _In_ PCHAR FunctionName,
     _In_ UINT_PTR CallSite,
-    _Out_ PCHAR VarName,
-    _In_ SIZE_T VarNameSize
+    _Out_ PCHAR *VarName
 )
 {
+    BOOLEAN Result = FALSE;
+    NTSTATUS Status;
     S2E_MODULE_INFO Info;
+    CHAR Prefix[128];
+    CHAR *BackTraceStr = NULL;
 
     if (!S2EModuleMapGetModuleInfo(CallSite, 0, &Info)) {
         LOG("Could not read module info for callsite %p\n", (PVOID)CallSite);
-        return FALSE;
+        goto err;
     }
 
-    UINT64 RelativeCallSite = CallSite - Info.RuntimeLoadBase + Info.NativeLoadBase;
+    Status = S2EEncodeBackTraceForKnownModules(&BackTraceStr, NULL, 3);
+    if (!NT_SUCCESS(Status)) {
+        LOG("Could not encode backtrace\n");
+        goto err;
+    }
 
-    sprintf_s(VarName, VarNameSize, "FaultInjInvokeOrig %s:%llx %s:%s",
-              Info.ModuleName, RelativeCallSite, ModuleName, FunctionName);
+    // TODO: do we actually need a separate call site given that we have a backtrace?
+    const UINT64 RelativeCallSite = CallSite - Info.RuntimeLoadBase + Info.NativeLoadBase;
 
-    return TRUE;
+    sprintf_s(
+        Prefix, sizeof(Prefix), "FaultInjInvokeOrig %s:%llx %s:%s ",
+        Info.ModuleName[0] ? Info.ModuleName : "<unknown>",
+        RelativeCallSite, ModuleName, FunctionName
+    );
+
+    *VarName = StringCat(Prefix, BackTraceStr);
+    if (!*VarName) {
+        LOG("Could not concatenate string\n");
+        goto err;
+    }
+
+    Result = TRUE;
+
+err:
+    if (BackTraceStr) {
+        ExFreePool(BackTraceStr);
+    }
+
+    return Result;
 }
 
 #define STACK_FRAME_COUNT 32

@@ -16,8 +16,7 @@ BOOLEAN FaultInjectionCreateVarName(
     _In_ PCHAR ModuleName,
     _In_ PCHAR FunctionName,
     _In_ UINT_PTR CallSite,
-    _Out_ PCHAR VarName,
-    _In_ SIZE_T VarNameSize
+    _Out_ PCHAR *VarName
 );
 
 BOOLEAN FaultInjDecideInjectFault(
