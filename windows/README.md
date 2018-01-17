@@ -41,7 +41,7 @@ will not load it otherwise.
 Copy `s2e.sys`, `s2e.inf`, as well as the other binaries you need in your guest. You
 can do this using the `s2eget` utility as part of the bootstrap file.
 
-```
+```bash
 # Copy files
 mkdir c:\s2e
 cd c:\s2e
@@ -76,7 +76,7 @@ Adding support for new kernels is straightforward. Please follow the following s
 
 Note: you must use Windows as these steps require parsing PDB files, which can only be done with Microsoft tools.
 
-```
+```bash
 # Install the environment
 pacman -Syy gcc python2-setuptools
 easy_install-2.7 pip virtualenv
@@ -135,6 +135,27 @@ The following instructions explain how to get LCOV coverage reports for Windows 
   **Note:** it is important to strip all the drive prefixes (`-p` option) so that `genhtml` does not attempt
   to write HTML files all over the file system. The command also ignores sources files that cannot be opened, e.g.,
   those from the standard library, which are typically unavailable.
+
+Options for pdbparser.exe
+=========================
+
+Getting Pretty-Printed Callstacks
+---------------------------------
+
+`s2e.sys` outputs testcases containing underscore-separated address lists for each module.
+You can use the following command in order to get a pretty-printed representation of these addresses.
+
+```bash
+pdbparser.exe -a "140035c76_1400355ed_140035a66_14003887e_1400090ca_14000afda_140059201_140001109" driver.sys driver.pdb
+[0] 140035c76, user\driver\src\support\malloc.c:120
+[1] 1400355ed, user\driver\src\support\callback.c:35
+[2] 140035a66, user\driver\src\support\callback.c:93
+[3] 14003887e, user\driver\src\support\periodic_task.c:137
+[4] 1400090ca, user\driver\src\config\token_cache.c:80
+[5] 14000afda, user\driver\src\driver.c:270
+[6] 140059201, user\driver\src\driver.c:478
+[7] 140001109, d:\5359\minkernel\wdf\framework\kmdf\src\dynamic\stub\stub.cpp:287
+```
 
 Code Style
 ==========

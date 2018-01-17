@@ -302,6 +302,7 @@ int main(int argc, char **argv)
     const char *ExeFileName;
     const char *SymbolName;
     const char *Action;
+    const char *Addresses;
     DWORD PdbSize;
     DWORD CheckSum;
     BOOL Is64;
@@ -316,6 +317,7 @@ int main(int argc, char **argv)
     Action = argv[1];
     int nextArg = 2;
 
+    // TODO: refactor parameter parsing
     if (!strcmp(Action, "-f")) {
         SymbolName = argv[nextArg++];
         if (argc != 5) {
@@ -324,6 +326,12 @@ int main(int argc, char **argv)
         }
     } else if (!strcmp(Action, "-t")) {
         SymbolName = argv[nextArg++];
+        if (argc != 5) {
+            Usage();
+            goto err0;
+        }
+    } if (!strcmp(Action, "-a")) {
+        Addresses = argv[nextArg++];
         if (argc != 5) {
             Usage();
             goto err0;
@@ -363,9 +371,10 @@ int main(int argc, char **argv)
 
     if (!strcmp(Action, "-f")) {
         SymEnumSymbols(hProcess, ModuleBase, SymbolName, EnumSymbolsCallback, NULL);
-    }
-    if (!strcmp(Action, "-l")) {
+    } else if (!strcmp(Action, "-l")) {
         DumpLineInfo(hProcess, ModuleBase);
+    } else if (!strcmp(Action, "-a")) {
+        AddrToLine(hProcess, Addresses);
     } else if (!strcmp(Action, "-t")) {
         ULONG Offset = 0;
         TypePath Path;
