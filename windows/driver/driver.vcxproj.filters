@@ -82,6 +82,9 @@
     <ClCompile Include="src\utils.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\faultinj\flt.cpp">
+      <Filter>Source Files\faultinj</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\crash.h">

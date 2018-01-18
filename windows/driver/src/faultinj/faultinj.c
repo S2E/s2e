@@ -125,4 +125,7 @@ VOID FaultInjectionInit(BOOLEAN OverApproximate)
 
     LOG("Hooking Registry apis...");
     RegisterHooks(g_kernelRegHooks);
+
+    LOG("Hooking FS filter apis...");
+    RegisterHooks(g_kernelFltHooks);
 }

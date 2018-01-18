@@ -134,6 +134,7 @@
     <ClCompile Include="src\enumeration.c" />
     <ClCompile Include="src\faultinj\ex.cpp" />
     <ClCompile Include="src\faultinj\faultinj.c" />
+    <ClCompile Include="src\faultinj\flt.cpp" />
     <ClCompile Include="src\faultinj\mm.cpp" />
     <ClCompile Include="src\faultinj\ob.cpp" />
     <ClCompile Include="src\faultinj\ps.cpp" />
