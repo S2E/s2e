@@ -93,24 +93,36 @@
       <AdditionalDependencies>$(DDK_LIB_PATH)wdmsec.lib;$(DDK_LIB_PATH)Aux_klib.lib;$(IFSKIT_LIB_PATH)fltMgr.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
     </Link>
+    <ClCompile>
+      <ForcedIncludeFiles>$(KIT_SHARED_IncludePath)\warning.h;$(SolutionDir)\formatting.h</ForcedIncludeFiles>
+    </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <Link>
       <AdditionalDependencies>$(DDK_LIB_PATH)wdmsec.lib;$(DDK_LIB_PATH)Aux_klib.lib;$(IFSKIT_LIB_PATH)fltMgr.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
     </Link>
+    <ClCompile>
+      <ForcedIncludeFiles>$(KIT_SHARED_IncludePath)\warning.h;$(SolutionDir)\formatting.h</ForcedIncludeFiles>
+    </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <Link>
       <AdditionalDependencies>$(DDK_LIB_PATH)wdmsec.lib;$(DDK_LIB_PATH)Aux_klib.lib;$(IFSKIT_LIB_PATH)fltMgr.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
     </Link>
+    <ClCompile>
+      <ForcedIncludeFiles>$(KIT_SHARED_IncludePath)\warning.h;$(SolutionDir)\formatting.h</ForcedIncludeFiles>
+    </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <Link>
       <AdditionalDependencies>$(DDK_LIB_PATH)wdmsec.lib;$(DDK_LIB_PATH)Aux_klib.lib;$(IFSKIT_LIB_PATH)fltMgr.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
     </Link>
+    <ClCompile>
+      <ForcedIncludeFiles>$(KIT_SHARED_IncludePath)\warning.h;$(SolutionDir)\formatting.h</ForcedIncludeFiles>
+    </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
     <FilesToPackage Include="$(TargetPath)" />
