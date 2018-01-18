@@ -43,10 +43,14 @@
 
 #define CCASSERT(predicate) _x_CCASSERT_LINE_CAT(predicate, __LINE__)
 
-static VOID __s2e_touch_buffer(const void *buffer, size_t size)
+static VOID __s2e_touch_buffer(const void* Buffer, SIZE_T Size)
 {
-    UINT_PTR StartPage = (UINT_PTR)buffer & ~(UINT_PTR)0xFFF;
-    UINT_PTR EndPage = (((UINT_PTR)buffer) + size) & ~(UINT_PTR)0xFFF;
+    if (!Size) {
+        return;
+    }
+
+    UINT_PTR StartPage = (UINT_PTR)Buffer & ~(UINT_PTR)0xFFF;
+    UINT_PTR EndPage = (((UINT_PTR)Buffer) + Size - 1) & ~(UINT_PTR)0xFFF;
 
     while (StartPage <= EndPage) {
         volatile char *b = (volatile char *)StartPage;
