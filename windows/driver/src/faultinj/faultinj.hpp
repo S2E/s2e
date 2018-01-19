@@ -34,7 +34,7 @@ RET FaultInjTemplate1(
         goto original;
     }
 
-    if (!FaultInjectionCreateVarName("ntoskrnl.exe", FunctionName, CallSite, &SymbolicVarName)) {
+    if (!FaultInjectionCreateVarName(FunctionName, &SymbolicVarName)) {
         LOG("Could not create variable name\n");
         goto original;
     }

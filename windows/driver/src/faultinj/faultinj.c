@@ -19,22 +19,14 @@
 BOOLEAN g_faultInjOverApproximate;
 
 BOOLEAN FaultInjectionCreateVarName(
-    _In_ PCHAR ModuleName,
     _In_ PCHAR FunctionName,
-    _In_ UINT_PTR CallSite,
     _Out_ PCHAR *VarName
 )
 {
     BOOLEAN Result = FALSE;
     NTSTATUS Status;
-    S2E_MODULE_INFO Info;
     CHAR Prefix[128];
     CHAR *BackTraceStr = NULL;
-
-    if (!S2EModuleMapGetModuleInfo(CallSite, 0, &Info)) {
-        LOG("Could not read module info for callsite %p\n", (PVOID)CallSite);
-        goto err;
-    }
 
     Status = S2EEncodeBackTraceForKnownModules(&BackTraceStr, NULL, 3);
     if (!NT_SUCCESS(Status)) {
@@ -42,14 +34,7 @@ BOOLEAN FaultInjectionCreateVarName(
         goto err;
     }
 
-    // TODO: do we actually need a separate call site given that we have a backtrace?
-    const UINT64 RelativeCallSite = CallSite - Info.RuntimeLoadBase + Info.NativeLoadBase;
-
-    sprintf_s(
-        Prefix, sizeof(Prefix), "FaultInjInvokeOrig %s:%llx %s:%s ",
-        Info.ModuleName[0] ? Info.ModuleName : "<unknown>",
-        RelativeCallSite, ModuleName, FunctionName
-    );
+    sprintf_s(Prefix, sizeof(Prefix), "FaultInjInvokeOrig %s ", FunctionName);
 
     *VarName = StringCat(Prefix, BackTraceStr);
     if (!*VarName) {
@@ -72,6 +57,7 @@ err:
 
 // Compute a hash of the call stack and store it in a global key-value store.
 // This ensures that different states don't inject the same faults needlessly.
+// TODO: it may not be required to pass callsite if we use the stack trace
 BOOLEAN FaultInjDecideInjectFault(
     _In_ UINT_PTR CallSite,
     _In_ UINT_PTR TargetFunction

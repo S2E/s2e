@@ -13,9 +13,7 @@ extern BOOLEAN g_faultInjOverApproximate;
 VOID FaultInjectionInit(BOOLEAN OverApproximate);
 
 BOOLEAN FaultInjectionCreateVarName(
-    _In_ PCHAR ModuleName,
     _In_ PCHAR FunctionName,
-    _In_ UINT_PTR CallSite,
     _Out_ PCHAR *VarName
 );
 
