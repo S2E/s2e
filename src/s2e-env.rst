@@ -105,7 +105,10 @@ This will:
 * Create a JSON file describing the image. This JSON description is important for the ``new_project`` command
 * Create a ready-to-run snapshot so that you do not have to reboot the guest everytime you want to run an analysis
 
-Building the image will take some time (approx. 30 minutes), so go and make another coffee.
+Building the image will take some time (approx. 30 minutes), so go and make another coffee. By default, ``image_build``
+requires `KVM <https://www.linux-kvm.org>`_ to accelerate the build process. If you do not have access to KVM (e.g. you
+are running S2E in `WSL <https://blogs.msdn.microsoft.com/wsl/>`_), you can disable this requirement with the ``-n``
+option.
 
 You may also build all images at once:
 
