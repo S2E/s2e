@@ -12,6 +12,7 @@
 
 #include <boost/regex.hpp>
 #include <s2e/Plugins/OSMonitors/Linux/LinuxMonitor.h>
+#include <s2e/Plugins/OSMonitors/Windows/WindowsCrashMonitor.h>
 #include <s2e/S2E.h>
 #include <s2e/S2EExecutionState.h>
 #include <s2e/S2EExecutor.h>
@@ -50,14 +51,17 @@ void TestCaseGenerator::initialize() {
 
     m_tracer = s2e()->getPlugin<ExecutionTracer>();
 
-    // TODO: add support for Windows
     // TODO: refactor POV generation, which is another type of test case
     if (tcOnSegfault) {
+        WindowsCrashMonitor *windows = s2e()->getPlugin<WindowsCrashMonitor>();
         LinuxMonitor *linux = s2e()->getPlugin<LinuxMonitor>();
         if (linux) {
             linux->onSegFault.connect(sigc::mem_fun(*this, &TestCaseGenerator::onSegFault));
+        } else if (windows) {
+            windows->onUserModeCrash.connect(sigc::mem_fun(*this, &TestCaseGenerator::onWindowsUserCrash));
+            windows->onKernelModeCrash.connect(sigc::mem_fun(*this, &TestCaseGenerator::onWindowsKernelCrash));
         } else {
-            getWarningsStream() << "LinuxMonitor not enabled, cannot produce test cases on crashes\n";
+            getWarningsStream() << "No suitable crash sources enabled, cannot produce test cases on crashes\n";
             exit(-1);
         }
     }
@@ -72,6 +76,14 @@ void TestCaseGenerator::enable() {
 
 void TestCaseGenerator::disable() {
     m_connection.disconnect();
+}
+
+void TestCaseGenerator::onWindowsUserCrash(S2EExecutionState *state, const WindowsUserModeCrash &desc) {
+    onSegFault(state, desc.Pid, desc.ExceptionAddress);
+}
+
+void TestCaseGenerator::onWindowsKernelCrash(S2EExecutionState *state, const vmi::windows::BugCheckDescription &desc) {
+    onSegFault(state, 0, state->pc);
 }
 
 void TestCaseGenerator::onSegFault(S2EExecutionState *state, uint64_t pid, uint64_t pc) {

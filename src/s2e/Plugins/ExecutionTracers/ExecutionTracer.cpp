@@ -115,7 +115,7 @@ uint32_t ExecutionTracer::writeData(S2EExecutionState *state, void *data, unsign
     item.stateId = state->getID();
 
     item.pid = state->getPageDir();
-    if (m_Monitor) {
+    if (m_Monitor && m_Monitor->initialized()) {
         item.pid = m_Monitor->getPid(state, state->getPc());
     }
 

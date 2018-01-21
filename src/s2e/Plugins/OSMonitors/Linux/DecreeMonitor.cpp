@@ -168,11 +168,9 @@ unsigned DecreeMonitor::getSymbolicReadsCount(S2EExecutionState *state) const {
 }
 
 void DecreeMonitor::handleProcessLoad(S2EExecutionState *state, const S2E_DECREEMON_COMMAND_PROCESS_LOAD &p) {
-    static bool loaded = false;
-
-    if (!loaded) {
+    if (!m_initialized) {
+        m_initialized = true;
         onMonitorLoad.emit(state);
-        loaded = true;
     }
 
     std::string processPath(p.process_path, strnlen(p.process_path, sizeof(p.process_path)));
