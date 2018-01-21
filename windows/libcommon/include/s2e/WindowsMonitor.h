@@ -220,8 +220,8 @@ typedef struct S2E_WINMON2_NORMALIZED_NAME
 } S2E_WINMON2_NORMALIZED_NAME;
 
 // Allow nameless structs
+#pragma warning(push)
 #pragma warning(disable:4201)
-
 typedef struct S2E_WINMON2_COMMAND
 {
     S2E_WINMON2_COMMANDS Command;
@@ -245,6 +245,7 @@ typedef struct S2E_WINMON2_COMMAND
         S2E_WINMON2_NORMALIZED_NAME NormalizedName;
     };
 } S2E_WINMON2_COMMAND;
+#pragma warning(pop)
 
 static VOID WinMon2SendNormalizedName(PUNICODE_STRING Original, PUNICODE_STRING Normalized)
 {

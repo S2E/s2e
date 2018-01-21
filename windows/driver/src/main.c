@@ -24,6 +24,9 @@
 #include "winmonitor.h"
 #include "filter.h"
 
+#include "config/config.h"
+#include "faultinj/faultinj.h"
+
 #include "log.h"
 
 DRIVER_UNLOAD DriverUnload;
@@ -98,6 +101,8 @@ NTSTATUS DriverEntry(
     BOOLEAN SymlinkInited = FALSE;
     BOOLEAN FsFilterInited = FALSE;
 
+    S2E_CONFIG Config;
+
     UNREFERENCED_PARAMETER(DriverObject);
     UNREFERENCED_PARAMETER(RegistryPath);
 
@@ -111,6 +116,14 @@ NTSTATUS DriverEntry(
         goto err;
     }
     S2EValidated = TRUE;
+
+    Status = ConfigInit(&Config);
+    if (!NT_SUCCESS(Status)) {
+        LOG("Could not read S2E configuration from registry (%#x)\n", Status);
+        goto err;
+    }
+
+    ConfigDump(&Config);
 
     Status = InitializeKernelFunctionPointers();
     if (!NT_SUCCESS(Status)) {
@@ -169,6 +182,10 @@ NTSTATUS DriverEntry(
 
     InitializeKernelHooks();
     S2ERegisterMergeCallback();
+
+    if (Config.FaultInjectionEnabled) {
+        FaultInjectionInit(Config.FaultInjectionOverapproximate);
+    }
 
 #if defined(_AMD64_)
     S2ERegisterReturnHook64();

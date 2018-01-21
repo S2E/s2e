@@ -194,8 +194,8 @@ VOID DebugApp(DWORD Pid, DWORD EventId)
 
             if (!Attached && (ExceptionCode == EXCEPTION_BREAKPOINT)) {
                 //printf("Attached!\n");
-                SetEvent((HANDLE)EventId);
-                CloseHandle((HANDLE)EventId);
+                SetEvent(ULongToHandle(EventId));
+                CloseHandle(ULongToHandle(EventId));
                 Attached = TRUE;
             }
 

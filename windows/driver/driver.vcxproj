@@ -93,51 +93,77 @@
       <AdditionalDependencies>$(DDK_LIB_PATH)wdmsec.lib;$(DDK_LIB_PATH)Aux_klib.lib;$(IFSKIT_LIB_PATH)fltMgr.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
     </Link>
+    <ClCompile>
+      <ForcedIncludeFiles>$(KIT_SHARED_IncludePath)\warning.h;$(SolutionDir)\formatting.h</ForcedIncludeFiles>
+    </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <Link>
       <AdditionalDependencies>$(DDK_LIB_PATH)wdmsec.lib;$(DDK_LIB_PATH)Aux_klib.lib;$(IFSKIT_LIB_PATH)fltMgr.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
     </Link>
+    <ClCompile>
+      <ForcedIncludeFiles>$(KIT_SHARED_IncludePath)\warning.h;$(SolutionDir)\formatting.h</ForcedIncludeFiles>
+    </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <Link>
       <AdditionalDependencies>$(DDK_LIB_PATH)wdmsec.lib;$(DDK_LIB_PATH)Aux_klib.lib;$(IFSKIT_LIB_PATH)fltMgr.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
     </Link>
+    <ClCompile>
+      <ForcedIncludeFiles>$(KIT_SHARED_IncludePath)\warning.h;$(SolutionDir)\formatting.h</ForcedIncludeFiles>
+    </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <Link>
       <AdditionalDependencies>$(DDK_LIB_PATH)wdmsec.lib;$(DDK_LIB_PATH)Aux_klib.lib;$(IFSKIT_LIB_PATH)fltMgr.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
     </Link>
+    <ClCompile>
+      <ForcedIncludeFiles>$(KIT_SHARED_IncludePath)\warning.h;$(SolutionDir)\formatting.h</ForcedIncludeFiles>
+    </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
     <FilesToPackage Include="$(TargetPath)" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\adt\strings.c" />
+    <ClCompile Include="src\config\config.c" />
     <ClCompile Include="src\crash.c" />
     <ClCompile Include="src\enumeration.c" />
+    <ClCompile Include="src\faultinj\ex.cpp" />
+    <ClCompile Include="src\faultinj\faultinj.c" />
+    <ClCompile Include="src\faultinj\flt.cpp" />
+    <ClCompile Include="src\faultinj\mm.cpp" />
+    <ClCompile Include="src\faultinj\ob.cpp" />
+    <ClCompile Include="src\faultinj\ps.cpp" />
+    <ClCompile Include="src\faultinj\reg.cpp" />
     <ClCompile Include="src\filter.c" />
     <ClCompile Include="src\kernel_functions.c" />
     <ClCompile Include="src\kernel_hooks.c" />
     <ClCompile Include="src\main.c" />
     <ClCompile Include="src\monitoring.c" />
+    <ClCompile Include="src\utils.c" />
     <ClCompile Include="src\winmonitor_common.c" />
     <ClCompile Include="src\winmonitor_gen.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\s2ectl.h" />
     <ClInclude Include="src\adt\strings.h" />
+    <ClInclude Include="src\config\config.h" />
     <ClInclude Include="src\crash.h" />
     <ClInclude Include="src\enumeration.h" />
+    <ClInclude Include="src\faultinj\apis.h" />
+    <ClInclude Include="src\faultinj\faultinj.h" />
+    <ClInclude Include="src\faultinj\faultinj.hpp" />
     <ClInclude Include="src\filter.h" />
     <ClInclude Include="src\kernel_functions.h" />
     <ClInclude Include="src\kernel_hooks.h" />
     <ClInclude Include="src\kernel_structs.h" />
     <ClInclude Include="src\log.h" />
     <ClInclude Include="src\monitoring.h" />
+    <ClInclude Include="src\utils.h" />
     <ClInclude Include="src\winmonitor.h" />
   </ItemGroup>
   <ItemGroup>

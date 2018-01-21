@@ -12,3 +12,4 @@
 
 VOID DumpLineInfo(HANDLE hProcess, ULONG64 Base);
 std::string JsonEscapeString(const std::string String);
+VOID AddrToLine(HANDLE Process, const std::string &AddressesStr);

@@ -1,3 +1,11 @@
+///
+/// Copyright (C) 2014-2016, Dependable Systems Laboratory, EPFL
+/// Copyright (C) 2014-2017, Cyberhaven
+/// All rights reserved.
+///
+/// Licensed under the Cyberhaven Research License Agreement.
+///
+
 #include <ntddk.h>
 #include <ntstrsafe.h>
 #include "../log.h"
@@ -8,7 +16,7 @@
 NTSTATUS StringToUnicode(_In_ LPCSTR String, _In_ SIZE_T MaxInputLen, _Out_ PUNICODE_STRING Unicode)
 {
     NTSTATUS Status;
-    SIZE_T Len;
+    size_t Len;
     PVOID Buffer;
 
     Status = RtlStringCchLengthA(String, MaxInputLen, &Len);
@@ -25,8 +33,8 @@ NTSTATUS StringToUnicode(_In_ LPCSTR String, _In_ SIZE_T MaxInputLen, _Out_ PUNI
     }
 
     Unicode->Buffer = Buffer;
-    Unicode->MaximumLength = (USHORT)MaxInputLen;
-    Unicode->Length = (USHORT)Len;
+    Unicode->MaximumLength = (USHORT)(MaxInputLen * sizeof(WCHAR));
+    Unicode->Length = (USHORT)(Len * sizeof(USHORT));
 
     for (unsigned i = 0; i < Unicode->Length; ++i) {
         Unicode->Buffer[i] = String[i];
@@ -58,6 +66,48 @@ NTSTATUS StringDuplicate(_Out_ PUNICODE_STRING Dest, _In_ PCUNICODE_STRING Sourc
     }
 
     memcpy(Dest->Buffer, Source->Buffer, Source->MaximumLength);
+
+    return STATUS_SUCCESS;
+}
+
+PCHAR StringCat(_In_opt_ PCCHAR Str1, _In_opt_ PCCHAR Str2)
+{
+    PCHAR Ret = NULL;
+    size_t Len1 = Str1 ? strlen(Str1) : 0;
+    size_t Len2 = Str2 ? strlen(Str2) : 0;
+    size_t ToAllocate = Len1 + Len2 + 1;
+
+    Ret = ExAllocatePoolWithTag(NonPagedPool, ToAllocate, TAG_STR);
+    if (!Ret) {
+        return NULL;
+    }
+
+    if (Str1) {
+        memcpy(Ret, Str1, Len1);
+    }
+
+    if (Str2) {
+        memcpy(Ret + Len1, Str2, Len2);
+    }
+
+    Ret[ToAllocate - 1] = 0;
+
+    return Ret;
+}
+
+NTSTATUS StringCatInPlace(_Inout_ PCCHAR *Str1, _Out_ PCCHAR Str2)
+{
+    PCHAR NewBuffer = StringCat(*Str1, Str2);
+    if (!NewBuffer) {
+        LOG("Could not allocate buffer");
+        return STATUS_INSUFFICIENT_RESOURCES;
+    }
+
+    if (*Str1) {
+        ExFreePoolWithTag(*Str1, TAG_STR);
+    }
+
+    *Str1 = NewBuffer;
 
     return STATUS_SUCCESS;
 }
