@@ -354,6 +354,40 @@ err:
     return Status;
 }
 
+static NTSTATUS S2EIoCtlInvokePlugin(_In_ PVOID Buffer, _In_ ULONG InputBufferLength)
+{
+    NTSTATUS Status;
+    S2E_IOCTL_INVOKE_PLUGIN *Config = (S2E_IOCTL_INVOKE_PLUGIN*)Buffer;
+    if (InputBufferLength < sizeof(*Config)) {
+        Status = STATUS_INVALID_PARAMETER;
+        goto err;
+    }
+
+    // Make sure there is no overflow by casting
+    if ((UINT64)Config->DataOffset + (UINT64)Config->DataSize > (UINT64)InputBufferLength) {
+        Status = STATUS_INVALID_PARAMETER;
+        goto err;
+    }
+
+    if ((UINT64)Config->PluginNameOffset + (UINT64)Config->PluginNameSize > (UINT64)InputBufferLength) {
+        Status = STATUS_INVALID_PARAMETER;
+        goto err;
+    }
+
+    // Make sure plugin name is null-terminated
+    PSTR PluginName = (PSTR)(((UINT_PTR)Config) + Config->PluginNameOffset);
+    PluginName[Config->PluginNameSize - 1] = 0;
+
+    UINT_PTR Data = ((UINT_PTR)Config) + Config->DataOffset;
+
+    LOG("Invoking plugin %s with data size %#x\n", PluginName, Config->DataSize);
+    Config->Result = S2EInvokePlugin(PluginName, (PVOID)Data, Config->DataSize);
+    Status = STATUS_SUCCESS;
+
+err:
+    return Status;
+}
+
 NTSTATUS S2EIoControl(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp)
 {
     PIO_STACK_LOCATION IrpSp;
@@ -388,6 +422,13 @@ NTSTATUS S2EIoControl(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp)
 
         case IOCTL_S2E_SET_CONFIG:
             Status = S2EIoCtlSetConfig(Buffer, InputBufferLength);
+            break;
+
+        case IOCTL_S2E_INVOKE_PLUGIN:
+            Status = S2EIoCtlInvokePlugin(Buffer, InputBufferLength);
+            if (NT_SUCCESS(Status)) {
+                BytesReturned = InputBufferLength;
+            }
             break;
 
         default:

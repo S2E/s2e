@@ -376,6 +376,50 @@ err:
     return 0;
 }
 
+int handler_invoke_plugin(const char **args)
+{
+    HANDLE Driver = INVALID_HANDLE_VALUE;
+    LPCSTR PluginName = args[0];
+    LPCSTR Data = args[1];
+    UINT DataSize = strlen(Data) + 1;
+
+    S2E_IOCTL_INVOKE_PLUGIN *Plugin = NULL;
+
+    // Does not need to be freed
+    PVOID Output = NULL;
+
+    Driver = S2EOpenDriver(S2EDriverDevice);
+    if (Driver == INVALID_HANDLE_VALUE) {
+        LOG("Could not open %s\n", S2EDriverDevice);
+        goto err;
+    }
+
+    LOG("Invoking plugin %s with data \"%s\"\n", PluginName, Data);
+
+    Plugin = S2ESerializeIoctlInvokePlugin(PluginName, Data, DataSize, &Output);
+    if (!Plugin) {
+        LOG("Could not allocate memory\n");
+        goto err;
+    }
+
+    Plugin->Result = 0xdeadbeef;
+    if (!S2EIoCtlOut(Driver, IOCTL_S2E_INVOKE_PLUGIN, Plugin, Plugin->Size)) {
+        LOG("S2EIoCtl failed (%#x)\n", GetLastError());
+        goto err;
+    }
+
+    LOG("Result: %#x\n", Plugin->Result);
+
+err:
+    free(Plugin);
+
+    if (Driver != INVALID_HANDLE_VALUE) {
+        CloseHandle(Driver);
+    }
+
+    return 0;
+}
+
 #define COMMAND(c, args, desc, ...) { #c, handler_##c, args, desc, {__VA_ARGS__} }
 
 static cmd_t s_commands[] = {
@@ -386,6 +430,7 @@ static cmd_t s_commands[] = {
     COMMAND(kernel_crash, 0, "Crashes the kernel", NULL),
     COMMAND(wait, 0, "Waits for the s2e driver to finish loading", NULL),
     COMMAND(set_config, 2, "Sets s2e driver configuration (name=value)", NULL),
+    COMMAND(invoke_plugin, 2, "Invokes the specified plugin with the given data", NULL),
 
     COMMAND(debug, 2, "Handle debug request from Windows",
         "Pid of the program that crashed",
