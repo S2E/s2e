@@ -28,6 +28,7 @@ Documentation
   3. `Windows DLL <src/Tutorials/WindowsDLL.rst>`_
   4. `Combining Kaitai Struct and S2E for analyzing parsers <https://adrianherrera.github.io/post/kaitai-s2e>`_
      (external link)
+  5. `Testing Error Recovery Code in Windows Drivers with Multi-Path Fault Injection <src/Tutorials/WindowsDrivers/FaultInjection.rst>`_
 
 * Howtos
 
