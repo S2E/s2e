@@ -88,7 +88,8 @@ NTSTATUS ConfigInit(_Out_ S2E_CONFIG *Config)
 
     Status = ConfigGetDword(Key, &S2EFaultInjOverapproximate, &Data);
     if (!NT_SUCCESS(Status)) {
-        LOG("Could not get fault injection configuration %wZ\\%wZ (%#x)\n", &S2EConfigKey, &S2EFaultInjOverapproximate, Status);
+        LOG("Could not get fault injection configuration %wZ\\%wZ (%#x)\n", &S2EConfigKey, &S2EFaultInjOverapproximate,
+            Status);
         goto err;
     }
     Config->FaultInjectionOverapproximate = Data != 0;
@@ -102,9 +103,35 @@ err:
     return Status;
 }
 
+NTSTATUS ConfigSet(_Inout_ S2E_CONFIG *Config, _In_ LPCSTR Name, _In_ UINT64 Value)
+{
+    NTSTATUS Status = STATUS_SUCCESS;
+
+    LOG("Setting %s=%#x\n", Name, Value);
+
+    if (!strcmp(Name, "FaultInjectionEnabled")) {
+        LOG("Cannot set FaultInjectionEnabled at runtime\n");
+        Status = STATUS_INVALID_PARAMETER;
+    } else if (!strcmp(Name, "FaultInjectionActive")) {
+        Config->FaultInjectionActive = (BOOLEAN)Value;
+    } else if (!strcmp(Name, "FaultInjectionOverapproximate")) {
+        Config->FaultInjectionOverapproximate = (BOOLEAN)Value;
+    } else {
+        LOG("Invalid option %s=%#x\n", Name, Value);
+        Status = STATUS_INVALID_PARAMETER;
+    }
+
+    if (NT_SUCCESS(Status)) {
+        ConfigDump(Config);
+    }
+
+    return Status;
+}
+
 VOID ConfigDump(_In_ const S2E_CONFIG *Config)
 {
     LOG("s2e.sys configuration:\n");
     LOG("  FaultInjectionEnabled:         %d\n", Config->FaultInjectionEnabled);
+    LOG("  FaultInjectionActive:          %d\n", Config->FaultInjectionActive);
     LOG("  FaultInjectionOverapproximate: %d\n", Config->FaultInjectionOverapproximate);
 }

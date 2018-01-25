@@ -8,9 +8,9 @@
 
 #pragma once
 
-extern BOOLEAN g_faultInjOverApproximate;
+#include "../config/config.h"
 
-VOID FaultInjectionInit(BOOLEAN OverApproximate);
+VOID FaultInjectionInit(VOID);
 
 BOOLEAN FaultInjectionCreateVarName(
     _In_ PCHAR FunctionName,

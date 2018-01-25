@@ -10,6 +10,7 @@
 extern "C"
 {
 #include "../utils.h"
+#include "../config/config.h"
 }
 
 template <typename RET, typename FCN, typename ... ARGS>
@@ -28,6 +29,10 @@ RET FaultInjTemplate1(
     CHAR *SymbolicVarName;
 
     LOG("Calling %s from %p\n", FunctionName, (PVOID)CallSite);
+
+    if (!g_config.FaultInjectionActive) {
+        goto original;
+    }
 
     Inject = FaultInjDecideInjectFault(CallSite, (UINT_PTR)Orig);
     if (!Inject) {

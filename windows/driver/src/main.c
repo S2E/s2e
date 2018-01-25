@@ -40,6 +40,8 @@ NTSTATUS S2EIoControl(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp);
 
 PDEVICE_OBJECT g_DeviceObject = NULL;
 
+S2E_CONFIG g_config;
+
 static UINT32 GetOSVersion(VOID)
 {
     RTL_OSVERSIONINFOEXW Version;
@@ -101,8 +103,6 @@ NTSTATUS DriverEntry(
     BOOLEAN SymlinkInited = FALSE;
     BOOLEAN FsFilterInited = FALSE;
 
-    S2E_CONFIG Config;
-
     UNREFERENCED_PARAMETER(DriverObject);
     UNREFERENCED_PARAMETER(RegistryPath);
 
@@ -117,13 +117,13 @@ NTSTATUS DriverEntry(
     }
     S2EValidated = TRUE;
 
-    Status = ConfigInit(&Config);
+    Status = ConfigInit(&g_config);
     if (!NT_SUCCESS(Status)) {
         LOG("Could not read S2E configuration from registry (%#x)\n", Status);
         goto err;
     }
 
-    ConfigDump(&Config);
+    ConfigDump(&g_config);
 
     Status = InitializeKernelFunctionPointers();
     if (!NT_SUCCESS(Status)) {
@@ -183,8 +183,8 @@ NTSTATUS DriverEntry(
     InitializeKernelHooks();
     S2ERegisterMergeCallback();
 
-    if (Config.FaultInjectionEnabled) {
-        FaultInjectionInit(Config.FaultInjectionOverapproximate);
+    if (g_config.FaultInjectionEnabled) {
+        FaultInjectionInit();
     }
 
 #if defined(_AMD64_)
@@ -324,6 +324,36 @@ err:
     return Status;
 }
 
+static NTSTATUS S2EIoCtlSetConfig(_In_ PVOID Buffer, _In_ ULONG InputBufferLength)
+{
+    NTSTATUS Status;
+    S2E_IOCTL_SET_CONFIG *Config = (S2E_IOCTL_SET_CONFIG*)Buffer;
+    if (InputBufferLength < sizeof(*Config)) {
+        Status = STATUS_INVALID_PARAMETER;
+        goto err;
+    }
+
+    if (Config->Size < sizeof(*Config)) {
+        Status = STATUS_INVALID_PARAMETER;
+        goto err;
+    }
+
+    UINT64 NameSize = Config->Size - sizeof(*Config);
+
+    if (NameSize == 0) {
+        Status = STATUS_INVALID_PARAMETER;
+        goto err;
+    }
+
+    // Make sure the input is null-terminated
+    Config->Name[NameSize - 1] = 0;
+
+    Status = ConfigSet(&g_config, Config->Name, Config->Value);
+
+err:
+    return Status;
+}
+
 NTSTATUS S2EIoControl(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp)
 {
     PIO_STACK_LOCATION IrpSp;
@@ -354,6 +384,10 @@ NTSTATUS S2EIoControl(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp)
 
         case IOCTL_S2E_CRASH_KERNEL:
             KeBugCheck(0xDEADDEAD);
+            break;
+
+        case IOCTL_S2E_SET_CONFIG:
+            Status = S2EIoCtlSetConfig(Buffer, InputBufferLength);
             break;
 
         default:

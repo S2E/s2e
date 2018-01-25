@@ -33,7 +33,7 @@ INT S2EGetVersionSafe(VOID)
     }
 }
 
-char *GetErrorString(DWORD ErrorCode)
+char* GetErrorString(DWORD ErrorCode)
 {
     char *err;
     DWORD Ret = FormatMessageA(
@@ -53,7 +53,7 @@ char *GetErrorString(DWORD ErrorCode)
     return err;
 }
 
-typedef int(*cmd_handler_t)(const char **args);
+typedef int (*cmd_handler_t)(const char **args);
 
 typedef struct _cmd_t
 {
@@ -68,12 +68,12 @@ HANDLE OpenS2EDriver(PCSTR DeviceName)
 {
     HANDLE Handle;
     Handle = CreateFileA(DeviceName,
-                        GENERIC_READ | GENERIC_WRITE,
-                        0,
-                        NULL,
-                        OPEN_EXISTING,
-                        FILE_ATTRIBUTE_NORMAL,
-                        (HANDLE)INVALID_HANDLE_VALUE);
+                         GENERIC_READ | GENERIC_WRITE,
+                         0,
+                         NULL,
+                         OPEN_EXISTING,
+                         FILE_ATTRIBUTE_NORMAL,
+                         (HANDLE)INVALID_HANDLE_VALUE);
     return Handle;
 }
 
@@ -231,7 +231,7 @@ static int register_debug(const char *AeDebugKey)
         LocalFree(err);
     }
 
-    Status = RegSetValueExA(Key, "Auto", 0, REG_SZ, (const BYTE*) "1", 1);
+    Status = RegSetValueExA(Key, "Auto", 0, REG_SZ, (const BYTE*)"1", 1);
     if (Status != ERROR_SUCCESS) {
         char *err = GetErrorString(Status);
         printf("Could not enable autostart for JIT debugger (%p - %#x %s)\n", AeDebugKey, Status, err);
@@ -256,7 +256,7 @@ static void disable_windows_error_reporting()
         return;
     }
 
-    Status = RegSetValueExA(Key, "DontShowUI", 0, REG_SZ, (const BYTE*) "1", 1);
+    Status = RegSetValueExA(Key, "DontShowUI", 0, REG_SZ, (const BYTE*)"1", 1);
     if (Status != ERROR_SUCCESS) {
         char *err = GetErrorString(Status);
         printf("Could not disable WER (%p - %#x - %s)\n", WerPath, Status, err);
@@ -318,7 +318,6 @@ int handler_wait(const char **args)
     HANDLE hDriver;
     UNREFERENCED_PARAMETER(args);
 
-
     while (1) {
         S2EMessageFmt("drvctl: waiting for the s2e driver...");
         hDriver = OpenS2EDriver(pS2EDriverDevice);
@@ -333,19 +332,47 @@ int handler_wait(const char **args)
     return 0;
 }
 
+int handler_set_config(const char **args)
+{
+    LPCSTR ConfigName = args[0];
+    UINT64 ConfigValue = strtoll(args[1], NULL, 0);
+    S2E_IOCTL_SET_CONFIG *Config = NULL;
+
+    HANDLE hDriver = OpenS2EDriver(S2EDriverDevice);
+    if (hDriver == INVALID_HANDLE_VALUE) {
+        S2EMessageFmt("Could not open %s\n", S2EDriverDevice);
+        goto err;
+    }
+
+    S2EMessageFmt("Setting %s=%#llx\n", ConfigName, ConfigValue);
+
+    Config = S2ESerializeIoctlSetConfig(ConfigName, ConfigValue);
+    if (!Config) {
+        S2EMessage("Could not allocate memory\n");
+        goto err;
+    }
+
+    S2EIoCtl(hDriver, IOCTL_S2E_SET_CONFIG, Config, Config->Size);
+    free(Config);
+
+err:
+    return 0;
+}
+
 #define COMMAND(c, args, desc, ...) { #c, handler_##c, args, desc, {__VA_ARGS__} }
 
 static cmd_t s_commands[] = {
     COMMAND(register, 1, "Register a driver that is already loaded.",
-                         "Name of the driver (e.g., driver.sys)."),
+        "Name of the driver (e.g., driver.sys)."),
 
     COMMAND(crash, 0, "Just crashes", NULL),
     COMMAND(kernel_crash, 0, "Crashes the kernel", NULL),
     COMMAND(wait, 0, "Waits for the s2e driver to finish loading", NULL),
+    COMMAND(set_config, 2, "Sets s2e driver configuration (name=value)", NULL),
 
     COMMAND(debug, 2, "Handle debug request from Windows",
-                      "Pid of the program that crashed",
-                      "Event handle"),
+        "Pid of the program that crashed",
+        "Event handle"),
 
     COMMAND(register_debug, 0, "Registers drvctl as a Windows JIT debugger.", NULL),
 

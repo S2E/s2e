@@ -83,7 +83,7 @@ extern "C"
         _Out_ PERESOURCE Resource
     )
     {
-        if (g_faultInjOverApproximate) {
+        if (g_config.FaultInjectionOverapproximate) {
             UINT_PTR CallSite = (UINT_PTR)_ReturnAddress();
             BOOLEAN RaiseOnFailure = FALSE;
             return FaultInjTemplate1<NTSTATUS>(CallSite, "ExInitializeResourceLite", RaiseOnFailure, STATUS_INSUFFICIENT_RESOURCES, &ExInitializeResourceLite, Resource);
