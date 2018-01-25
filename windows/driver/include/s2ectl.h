@@ -14,6 +14,9 @@
 #include <windows.h>
 #include <stdlib.h>
 #include <string.h>
+#include <tchar.h>
+
+static TCHAR S2EDriverDevice[] = _T("\\\\.\\\\S2EDriver");
 #endif
 
 #define FSCTL_S2E_BASE      FILE_DEVICE_UNKNOWN
@@ -51,6 +54,26 @@ typedef struct
 #pragma warning(pop)
 
 #if defined(USER_APP)
+static HANDLE S2EOpenDriver(LPCTSTR DeviceName)
+{
+    return CreateFile(
+        DeviceName,
+        GENERIC_READ | GENERIC_WRITE,
+        0,
+        NULL,
+        OPEN_EXISTING,
+        FILE_ATTRIBUTE_NORMAL,
+        (HANDLE)INVALID_HANDLE_VALUE
+    );
+}
+
+static BOOL S2EIoCtl(HANDLE Handle, DWORD Code, PVOID Buffer, DWORD Length)
+{
+    CHAR Output[128];
+    DWORD BytesReturned;
+    return DeviceIoControl(Handle, Code, Buffer, Length, Output, sizeof(Output), &BytesReturned, NULL);
+}
+
 static S2E_IOCTL_SET_CONFIG *S2ESerializeIoctlSetConfig(LPCSTR Name, UINT64 Value)
 {
     size_t NameSize = strlen(Name) + 1;

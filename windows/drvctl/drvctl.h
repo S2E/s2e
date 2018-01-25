@@ -28,10 +28,4 @@ DWORD WINAPI GetModuleBaseNameA(
   DWORD nSize
 );
 
-static CHAR S2EDriverDevice[] = "\\\\.\\\\S2EDriver";
-static CHAR *pS2EDriverDevice = &S2EDriverDevice[0];
-
-HANDLE OpenS2EDriver(PCSTR DeviceName);
-BOOL S2EIoCtl(HANDLE Handle, DWORD Code, PVOID Buffer, DWORD Length);
-
 #endif
