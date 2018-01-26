@@ -24,6 +24,7 @@
 #include "winmonitor.h"
 #include "filter.h"
 
+#include "adt/strings.h"
 #include "config/config.h"
 #include "faultinj/faultinj.h"
 
@@ -388,6 +389,43 @@ err:
     return Status;
 }
 
+static NTSTATUS S2EIoCtlMakeConcolic(_In_ PVOID Buffer, _In_ ULONG InputBufferLength)
+{
+    NTSTATUS Status;
+    PSTR VariableName = NULL;
+    S2E_IOCTL_MAKE_CONCOLIC *Req = (S2E_IOCTL_MAKE_CONCOLIC*)Buffer;
+    if (InputBufferLength < sizeof(*Req)) {
+        Status = STATUS_INVALID_PARAMETER;
+        goto err;
+    }
+
+    try {
+        ProbeForRead((PVOID)Req->VariableNamePointer, Req->VariableNameSize, 1);
+        ProbeForWrite((PVOID)Req->DataPointer, Req->DataSize, 1);
+
+        VariableName = StringDuplicateA((PVOID)Req->VariableNamePointer, Req->VariableNameSize);
+        if (!VariableName) {
+            Status = STATUS_INSUFFICIENT_RESOURCES;
+            goto err;
+        }
+
+        S2EMakeConcolic((PVOID)Req->DataPointer, Req->DataSize, VariableName);
+
+    } except (EXCEPTION_EXECUTE_HANDLER) {
+        Status = STATUS_INVALID_PARAMETER;
+        goto err;
+    }
+
+    Status = STATUS_SUCCESS;
+
+err:
+    if (VariableName) {
+        ExFreePool(VariableName);
+    }
+
+    return Status;
+}
+
 NTSTATUS S2EIoControl(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp)
 {
     PIO_STACK_LOCATION IrpSp;
@@ -429,6 +467,10 @@ NTSTATUS S2EIoControl(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp)
             if (NT_SUCCESS(Status)) {
                 BytesReturned = InputBufferLength;
             }
+            break;
+
+        case IOCTL_S2E_MAKE_CONCOLIC:
+            Status = S2EIoCtlMakeConcolic(Buffer, InputBufferLength);
             break;
 
         default:

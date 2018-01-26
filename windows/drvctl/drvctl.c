@@ -420,6 +420,49 @@ err:
     return 0;
 }
 
+int handler_fork(const char **args)
+{
+    HANDLE Driver = INVALID_HANDLE_VALUE;
+    LPCSTR VariableName = args[0];
+    UINT DataSize = strtol(args[1], NULL, 0);
+    PCHAR Data = NULL;
+
+    if (!DataSize) {
+        goto err;
+    }
+
+    Driver = S2EOpenDriver(S2EDriverDevice);
+    if (Driver == INVALID_HANDLE_VALUE) {
+        LOG("Could not open %s\n", S2EDriverDevice);
+        goto err;
+    }
+
+    Data = calloc(1, DataSize);
+    if (!Data) {
+        goto err;
+    }
+
+    if (!S2EIoctlMakeConcolic(Driver, VariableName, Data, DataSize)) {
+        LOG("Could not make data concolic\n");
+        goto err;
+    }
+
+    if (Data[0]) {
+        LOG("fork: true");
+    } else {
+        LOG("fork: false");
+    }
+
+err:
+    free(Data);
+
+    if (Driver != INVALID_HANDLE_VALUE) {
+        CloseHandle(Driver);
+    }
+
+    return 0;
+}
+
 #define COMMAND(c, args, desc, ...) { #c, handler_##c, args, desc, {__VA_ARGS__} }
 
 static cmd_t s_commands[] = {
@@ -431,6 +474,7 @@ static cmd_t s_commands[] = {
     COMMAND(wait, 0, "Waits for the s2e driver to finish loading", NULL),
     COMMAND(set_config, 2, "Sets s2e driver configuration (name=value)", NULL),
     COMMAND(invoke_plugin, 2, "Invokes the specified plugin with the given data", NULL),
+    COMMAND(fork, 2, "Forks the current state, takes a variable name and size", NULL),
 
     COMMAND(debug, 2, "Handle debug request from Windows",
         "Pid of the program that crashed",
