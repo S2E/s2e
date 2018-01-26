@@ -60,7 +60,7 @@ VOID StringFree(_Inout_ PUNICODE_STRING String)
 NTSTATUS StringDuplicate(_Out_ PUNICODE_STRING Dest, _In_ PCUNICODE_STRING Source)
 {
     *Dest = *Source;
-    Dest->Buffer = (PWCH)ExAllocatePoolWithTag(NonPagedPool, Source->MaximumLength, 0xdead);
+    Dest->Buffer = (PWCH)ExAllocatePoolWithTag(NonPagedPool, Source->MaximumLength, TAG_STR);
     if (!Dest->Buffer) {
         return STATUS_INSUFFICIENT_RESOURCES;
     }
@@ -68,6 +68,19 @@ NTSTATUS StringDuplicate(_Out_ PUNICODE_STRING Dest, _In_ PCUNICODE_STRING Sourc
     memcpy(Dest->Buffer, Source->Buffer, Source->MaximumLength);
 
     return STATUS_SUCCESS;
+}
+
+PSTR StringDuplicateA(_In_ PCSTR Source, _In_ SIZE_T Size)
+{
+    PSTR Ret;
+    Ret = (PSTR)ExAllocatePoolWithTag(NonPagedPool, Size, TAG_STR);
+    if (!Ret) {
+        return NULL;
+    }
+
+    memcpy(Ret, Source, Size);
+
+    return Ret;
 }
 
 PCHAR StringCat(_In_opt_ PCCHAR Str1, _In_opt_ PCCHAR Str2)
