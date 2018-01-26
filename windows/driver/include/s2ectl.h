@@ -9,6 +9,11 @@
 /// This is a standalone header file that you can use in your projects
 /// to interact with the S2E driver. Make sure to define the USER_APP
 /// macro first.
+///
+/// If you cannot use S2E instructions in your program, you can use this
+/// header to call the driver using standard Windows APIs in order to have it
+/// run the custom instructions instead. This may be handy when it is too
+/// cumbersome to add external object files that implement custom instructions.
 
 #ifndef __S2E_CTL__
 
@@ -62,10 +67,6 @@ typedef struct
     CHAR Name[];
 } S2E_IOCTL_SET_CONFIG;
 
-// Allows user space to call S2E plugins without
-// having to use custom instructions. This may be handy
-// when it is too cumbersome to add external object files
-// that implement the custom instructions.
 typedef struct
 {
     // Total size of this structure in bytes (including name and data)
