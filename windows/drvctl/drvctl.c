@@ -463,8 +463,39 @@ err:
     return 0;
 }
 
+int handler_pathid(const char **args)
+{
+    UNREFERENCED_PARAMETER(args);
+    HANDLE Driver = INVALID_HANDLE_VALUE;
+    UINT64 PathId;
+
+    Driver = S2EOpenDriver(S2EDriverDevice);
+    if (Driver == INVALID_HANDLE_VALUE) {
+        LOG("Could not open %s\n", S2EDriverDevice);
+        goto err;
+    }
+
+    if (!S2EIoctlGetPathId(Driver, &PathId)) {
+        fprintf(stderr, "Could not get path id");
+        goto err;
+    }
+
+    printf("%lld\n", PathId);
+
+err:
+
+    if (Driver != INVALID_HANDLE_VALUE) {
+        CloseHandle(Driver);
+    }
+
+    return 0;
+}
+
 #define COMMAND(c, args, desc, ...) { #c, handler_##c, args, desc, {__VA_ARGS__} }
 
+// Note: some of these commands duplicate those in s2ecmd.
+// This is to illustrate the use of s2e.sys to run S2E instructions,
+// see s2ectl.h for more details.
 static cmd_t s_commands[] = {
     COMMAND(register, 1, "Register a driver that is already loaded.",
         "Name of the driver (e.g., driver.sys)."),
@@ -475,6 +506,7 @@ static cmd_t s_commands[] = {
     COMMAND(set_config, 2, "Sets s2e driver configuration (name=value)", NULL),
     COMMAND(invoke_plugin, 2, "Invokes the specified plugin with the given data", NULL),
     COMMAND(fork, 2, "Forks the current state, takes a variable name and size", NULL),
+    COMMAND(pathid, 0, "Prints the current path id", NULL),
 
     COMMAND(debug, 2, "Handle debug request from Windows",
         "Pid of the program that crashed",

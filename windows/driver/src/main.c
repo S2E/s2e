@@ -426,6 +426,23 @@ err:
     return Status;
 }
 
+static NTSTATUS S2EIoCtlGetPathId(_In_ PVOID Buffer, _In_ ULONG InputBufferLength)
+{
+    NTSTATUS Status;
+    S2E_IOCTL_GET_PATH_ID *Req = (S2E_IOCTL_GET_PATH_ID*)Buffer;
+    if (InputBufferLength < sizeof(*Req)) {
+        Status = STATUS_INVALID_PARAMETER;
+        goto err;
+    }
+
+    Req->PathId = S2EGetPathId();
+
+    Status = STATUS_SUCCESS;
+
+err:
+    return Status;
+}
+
 NTSTATUS S2EIoControl(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp)
 {
     PIO_STACK_LOCATION IrpSp;
@@ -471,6 +488,13 @@ NTSTATUS S2EIoControl(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp)
 
         case IOCTL_S2E_MAKE_CONCOLIC:
             Status = S2EIoCtlMakeConcolic(Buffer, InputBufferLength);
+            break;
+
+        case IOCTL_S2E_GET_PATH_ID:
+            Status = S2EIoCtlGetPathId(Buffer, InputBufferLength);
+            if (NT_SUCCESS(Status)) {
+                BytesReturned = InputBufferLength;
+            }
             break;
 
         default:
