@@ -35,7 +35,7 @@ struct symbol_t
 typedef std::vector<symbol_t> TypeMembers;
 typedef std::vector<std::wstring> TypePath;
 
-BOOL GetTypeMembers(HANDLE hProcess, ULONG64 ModuleBase,
+BOOL GetTypeMembers(HANDLE Process, ULONG64 ModuleBase,
     const std::string &SymbolName,
     TypeMembers &Members)
 {
@@ -48,12 +48,12 @@ BOOL GetTypeMembers(HANDLE hProcess, ULONG64 ModuleBase,
     memset(&SymbolInfo, 0, sizeof(SymbolInfo));
     SymbolInfo.SizeOfStruct = sizeof(SymbolInfo);
 
-    if (!SymGetTypeFromName(hProcess, ModuleBase, SymbolName.c_str(), &SymbolInfo)) {
+    if (!SymGetTypeFromName(Process, ModuleBase, SymbolName.c_str(), &SymbolInfo)) {
         fprintf(stderr, "Could not get symbol info for %s (%d)\n", SymbolName.c_str(), GetLastError());
         goto err1;
     }
 
-    if (!SymGetTypeInfo(hProcess, ModuleBase, SymbolInfo.TypeIndex, TI_GET_CHILDRENCOUNT, &ChildrenCount)) {
+    if (!SymGetTypeInfo(Process, ModuleBase, SymbolInfo.TypeIndex, TI_GET_CHILDRENCOUNT, &ChildrenCount)) {
         fprintf(stderr, "Could not get children count for %s (%d)\n", SymbolName.c_str(), GetLastError());
         goto err1;
     }
@@ -71,7 +71,7 @@ BOOL GetTypeMembers(HANDLE hProcess, ULONG64 ModuleBase,
     Children->Start = 0;
     Children->Count = ChildrenCount;
 
-    if (!SymGetTypeInfo(hProcess, ModuleBase, SymbolInfo.TypeIndex, TI_FINDCHILDREN, Children)) {
+    if (!SymGetTypeInfo(Process, ModuleBase, SymbolInfo.TypeIndex, TI_FINDCHILDREN, Children)) {
         free(Children);
         fprintf(stderr, "Could not read children for %s (%d)\n", SymbolName.c_str(), GetLastError());
         goto err1;
@@ -83,8 +83,8 @@ BOOL GetTypeMembers(HANDLE hProcess, ULONG64 ModuleBase,
         WCHAR *Name;
         DWORD Offset = 0;
 
-        SymGetTypeInfo(hProcess, ModuleBase, Children->ChildId[i], TI_GET_SYMNAME, &Name);
-        SymGetTypeInfo(hProcess, ModuleBase, Children->ChildId[i], TI_GET_OFFSET, &Offset);
+        SymGetTypeInfo(Process, ModuleBase, Children->ChildId[i], TI_GET_SYMNAME, &Name);
+        SymGetTypeInfo(Process, ModuleBase, Children->ChildId[i], TI_GET_OFFSET, &Offset);
 
         Symbol.child_id = Children->ChildId[i];
         Symbol.offset = Offset;
@@ -101,12 +101,12 @@ err1:
     return Ret;
 }
 
-BOOL ComputeOffset(HANDLE hProcess, ULONG64 ModuleBase,
+BOOL ComputeOffset(HANDLE Process, ULONG64 ModuleBase,
     const std::string &TypeName, const std::wstring &TypeMember,
     ULONG *Offset)
 {
     TypeMembers Members;
-    if (!GetTypeMembers(hProcess, ModuleBase, TypeName, Members)) {
+    if (!GetTypeMembers(Process, ModuleBase, TypeName, Members)) {
         return FALSE;
     }
 
@@ -180,10 +180,16 @@ static BOOL CALLBACK EnumTypesCallback(
 static VOID Usage(VOID)
 {
     printf("Usage:\n");
-    printf("   pdbparser [-f function | -t type | -i | -s | -l] file.exe file.pdb\n");
+    printf("   pdbparser [-f function | -t type | -a addresses | -i | -s | -l] file.exe file.pdb\n");
 }
 
-static BOOL GetImageInfo(const char *FileName, ULONG64 *LoadBase, DWORD *CheckSum, BOOL *Is64)
+_Success_(return)
+static BOOL GetImageInfo(
+    _In_    const char *FileName,
+    _Out_    ULONG64 *LoadBase,
+    _Out_    DWORD *CheckSum,
+    _Out_    bool *Is64
+)
 {
     FILE *fp = nullptr;
     BOOL Ret = FALSE;
@@ -195,62 +201,66 @@ static BOOL GetImageInfo(const char *FileName, ULONG64 *LoadBase, DWORD *CheckSu
         IMAGE_NT_HEADERS64 Headers64;
     } Headers;
 
-    if (fopen_s(&fp, FileName, "rb")) {
+    if (fopen_s(&fp, FileName, "rb") || !fp) {
         fprintf(stderr, "Could not open %s\n", FileName);
-        goto err0;
+        goto err;
     }
 
     if (fread(&Header, sizeof(Header), 1, fp) != 1) {
         fprintf(stderr, "Could not read DOS header for %s\n", FileName);
-        goto err1;
+        goto err;
     }
 
     if (Header.e_magic != IMAGE_DOS_SIGNATURE) {
         fprintf(stderr, "Incorrect magic for %s\n", FileName);
-        goto err1;
+        goto err;
     }
 
     if (fseek(fp, Header.e_lfanew, SEEK_SET) < 0) {
         fprintf(stderr, "Could not seek to NT header %s\n", FileName);
-        goto err1;
+        goto err;
     }
 
     if (fread(&Headers.Headers64, sizeof(Headers.Headers64), 1, fp) != 1) {
         fprintf(stderr, "Could not read NT headers for %s\n", FileName);
-        goto err1;
+        goto err;
     }
 
     switch (Headers.Headers32.FileHeader.Machine) {
         case IMAGE_FILE_MACHINE_I386: {
             *LoadBase = Headers.Headers32.OptionalHeader.ImageBase;
             *CheckSum = Headers.Headers32.OptionalHeader.CheckSum;
-            *Is64 = FALSE;
+            *Is64 = false;
         }
             break;
         case IMAGE_FILE_MACHINE_AMD64: {
             *LoadBase = Headers.Headers64.OptionalHeader.ImageBase;
             *CheckSum = Headers.Headers64.OptionalHeader.CheckSum;
-            *Is64 = TRUE;
+            *Is64 = true;
         }
             break;
 
         default: {
             fprintf(stderr, "Unsupported architecture %x for %s\n", Headers.Headers32.FileHeader.Machine, FileName);
-            goto err1;
+            goto err;
         }
     }
 
     Ret = TRUE;
 
-err1: fclose(fp);
-err0: return Ret;
+err:
+    if (fp) {
+        fclose(fp);
+    }
+
+    return Ret;
 }
 
-bool GetSymbolAddress(HANDLE hProcess, ULONG64 ModuleBase, const char *SymbolName, UINT64 *address)
+bool GetSymbolAddress(HANDLE Process, ULONG64 ModuleBase, const char *SymbolName, UINT64 *address)
 {
     g_printSymbolAddress = FALSE;
     g_symbolAddress = -1;
-    SymEnumSymbols(hProcess, ModuleBase, SymbolName, EnumSymbolsCallback, NULL);
+    SymEnumSymbols(Process, ModuleBase, SymbolName, EnumSymbolsCallback, NULL);
     if (g_symbolAddress == -1) {
         fprintf(stderr, "Could not find %s\n", SymbolName);
         return false;
@@ -271,9 +281,9 @@ static BOOL CALLBACK EnumInitSymbolsCallback(
     return TRUE;
 }
 
-void InitializeSymbolMap(HANDLE hProcess, ULONG64 ModuleBase)
+void InitializeSymbolMap(HANDLE Process, ULONG64 ModuleBase)
 {
-    SymEnumSymbols(hProcess, ModuleBase, "*!*", EnumInitSymbolsCallback, NULL);
+    SymEnumSymbols(Process, ModuleBase, "*!*", EnumInitSymbolsCallback, NULL);
 }
 
 template <typename T>
@@ -293,172 +303,260 @@ bool ReadPe(PLOADED_IMAGE Image, UINT64 NativeLoadBase, UINT64 NativeAddress, T 
     return false;
 }
 
+static void DumpTypeOffset(HANDLE Process, ULONG64 ModuleBase, const std::string &SymbolName)
+{
+    ULONG Offset = 0;
+    TypePath Path;
+
+    std::string::size_type pos = SymbolName.find(':');
+    if (pos != std::string::npos) {
+        std::string TypeName = std::string(SymbolName.begin(), SymbolName.begin() + pos);
+        std::wstring MemberName = std::wstring(SymbolName.begin() + pos + 1, SymbolName.end());
+
+        //printf("Looking for %s:%S\n", TypeName.c_str(), MemberName.c_str());
+        if (ComputeOffset(Process, ModuleBase, TypeName, MemberName, &Offset)) {
+            printf("%s offset %#x\n", SymbolName.c_str(), Offset);
+        } else {
+            fprintf(stderr, "Could not find %s\n", SymbolName.c_str());
+        }
+    }
+
+    //TypeMembers Members;
+    //GetTypeMembers(Process, ModuleBase, SymbolName, Members);
+}
+
+// Print the syscall table
+static void DumpSyscalls(HANDLE Process, const std::string &ImagePath, ULONG64 ModuleBase, UINT64 NativeLoadBase,
+    bool Is64)
+{
+    PLOADED_IMAGE Img = nullptr;
+
+    // 1. look for the syscall table boundary
+    UINT64 KiServiceTable, KiServiceLimit;
+
+    if (!GetSymbolAddress(Process, ModuleBase, "KiServiceTable", &KiServiceTable)) {
+        fprintf(stderr, "Could not find KiServiceTable\n");
+        goto err;
+    }
+
+    if (!GetSymbolAddress(Process, ModuleBase, "KiServiceLimit", &KiServiceLimit)) {
+        fprintf(stderr, "Could not find KiServiceLimit\n");
+        goto err;
+    }
+
+    InitializeSymbolMap(Process, ModuleBase);
+
+    UINT64 PtrSize = Is64 ? 8 : 4;
+
+    // 2. Load the image
+    Img = ImageLoad((PSTR)ImagePath.c_str(), NULL);
+    if (!Img) {
+        fprintf(stderr, "Could not load image\n");
+        goto err;
+    }
+
+    UINT32 SyscallCount;
+    if (!ReadPe(Img, NativeLoadBase, KiServiceLimit, &SyscallCount)) {
+        fprintf(stderr, "Could not ready syscall count\n");
+        goto err;
+    }
+
+    // 3. Read the array of syscall pointers
+    UINT64 *SyscallPtrs = new UINT64[SyscallCount];
+    for (UINT i = 0; i < SyscallCount; ++i) {
+        bool Result;
+
+        if (Is64) {
+            UINT32 Ret;
+            Result = ReadPe(Img, NativeLoadBase, KiServiceTable + i * sizeof(UINT32), &Ret);
+            SyscallPtrs[i] = NativeLoadBase + Ret;
+        } else {
+            UINT32 Ret;
+            Result = ReadPe(Img, NativeLoadBase, KiServiceTable + i * sizeof(UINT32), &Ret);
+            SyscallPtrs[i] = Ret;
+        }
+
+        const std::string &symbolName = g_symbolMap[SyscallPtrs[i]];
+        printf("%d %#llx %s\n", i, SyscallPtrs[i], symbolName.c_str());
+
+        if (!Result) {
+            printf("Syscall extraction failed\n");
+            goto err;
+        }
+    }
+
+err:
+    if (Img) {
+        ImageUnload(Img);
+    }
+}
+
+enum ACTION
+{
+    ENUM_SYMBOLS,
+    DUMP_LINE_INFO,
+    ADDR_TO_LINE,
+    DUMP_TYPE,
+    DUMP_PE_INFO,
+    DUMP_SYSCALLS
+};
+
+struct ARGUMENTS
+{
+    ACTION Action;
+    std::string SymbolName;
+    std::string Addresses;
+
+    std::string PdbFileName;
+    std::string ExeFileName;
+};
+
+static bool ParseArguments(ARGUMENTS &Args, int argc, char **argv)
+{
+    int NextArg = 1;
+    bool Result = false;
+    std::string Action;
+
+    if (argc < 2) {
+        goto err;
+    }
+
+    Action = argv[NextArg++];
+    if (Action.size() != 2) {
+        goto err;
+    }
+
+    std::string *destArg = nullptr;
+
+    switch (Action[1]) {
+        case 'f':
+            Args.Action = ENUM_SYMBOLS;
+            destArg = &Args.SymbolName;
+            break;
+        case 't':
+            Args.Action = DUMP_TYPE;
+            destArg = &Args.SymbolName;
+            break;
+        case 'a':
+            Args.Action = ADDR_TO_LINE;
+            destArg = &Args.Addresses;
+            break;
+        case 'l':
+            Args.Action = DUMP_LINE_INFO;
+            break;
+        case 'i':
+            Args.Action = DUMP_PE_INFO;
+            break;
+        case 's':
+            Args.Action = DUMP_SYSCALLS;
+            break;
+        default:
+            goto err;
+    }
+
+    if (destArg) {
+        if (NextArg >= argc) {
+            goto err;
+        }
+        *destArg = argv[NextArg++];
+    }
+
+    if (NextArg >= argc) {
+        goto err;
+    }
+    Args.ExeFileName = argv[NextArg++];
+
+    if (NextArg >= argc) {
+        goto err;
+    }
+    Args.PdbFileName = argv[NextArg++];
+
+    Result = true;
+
+err:
+    return Result;
+}
 
 int main(int argc, char **argv)
 {
     int Ret = -1;
-    HANDLE hProcess;
-    const char *PdbFileName;
-    const char *ExeFileName;
-    const char *SymbolName;
-    const char *Action;
-    const char *Addresses;
+    ARGUMENTS Args;
+    bool SymInited = false;
+    bool ModuleLoaded = false;
+
+    HANDLE Process;
     DWORD PdbSize;
     DWORD CheckSum;
-    BOOL Is64;
+    bool Is64;
     ULONG64 ModuleBase;
     ULONG64 NativeLoadBase;
 
-    if (argc < 2) {
+    if (!ParseArguments(Args, argc, argv)) {
         Usage();
-        goto err0;
+        goto err;
     }
 
-    Action = argv[1];
-    int nextArg = 2;
+    Process = GetCurrentProcess();
 
-    // TODO: refactor parameter parsing
-    if (!strcmp(Action, "-f")) {
-        SymbolName = argv[nextArg++];
-        if (argc != 5) {
-            Usage();
-            goto err0;
-        }
-    } else if (!strcmp(Action, "-t")) {
-        SymbolName = argv[nextArg++];
-        if (argc != 5) {
-            Usage();
-            goto err0;
-        }
-    } if (!strcmp(Action, "-a")) {
-        Addresses = argv[nextArg++];
-        if (argc != 5) {
-            Usage();
-            goto err0;
-        }
-    } else if (argc != 4) {
-        Usage();
-        goto err0;
-    }
-
-    ExeFileName = argv[nextArg++];
-    PdbFileName = argv[nextArg++];
-
-    hProcess = GetCurrentProcess();
-
-    if (!SymInitialize(hProcess, NULL, FALSE)) {
+    if (!SymInitialize(Process, NULL, FALSE)) {
         fprintf(stderr, "SymInitialize returned error : %d\n", GetLastError());
-        goto err0;
+        goto err;
+    }
+    SymInited = true;
+
+    if (!OurGetFileSize(Args.PdbFileName.c_str(), &PdbSize)) {
+        fprintf(stderr, "Could not get size of %s (error %d)\n", Args.PdbFileName.c_str(), GetLastError());
+        goto err;
     }
 
-    if (!OurGetFileSize(PdbFileName, &PdbSize)) {
-        fprintf(stderr, "Could not get size of %s (error %d)\n", PdbFileName, GetLastError());
-        goto err1;
-    }
-
-    if (!GetImageInfo(ExeFileName, &NativeLoadBase, &CheckSum, &Is64)) {
-        fprintf(stderr, "Could not get native load base of %s (error %d)\n", ExeFileName, GetLastError());
-        goto err1;
+    if (!GetImageInfo(Args.ExeFileName.c_str(), &NativeLoadBase, &CheckSum, &Is64)) {
+        fprintf(stderr, "Could not get native load base of %s (error %d)\n", Args.ExeFileName.c_str(), GetLastError());
+        goto err;
     }
 
     //printf("Native load base: %llx Size:%d\n", NativeLoadBase, PdbSize);
 
-    ModuleBase = SymLoadModuleEx(hProcess, NULL, PdbFileName, NULL, NativeLoadBase, PdbSize, NULL, 0);
+    ModuleBase = SymLoadModuleEx(Process, NULL, Args.PdbFileName.c_str(), NULL, NativeLoadBase, PdbSize, NULL, 0);
     if (!ModuleBase) {
-        fprintf(stderr, "SymLoadModuleEx returned error : %d (%s)\n", GetLastError(), PdbFileName);
-        goto err1;
+        fprintf(stderr, "SymLoadModuleEx returned error : %d (%s)\n", GetLastError(), Args.PdbFileName.c_str());
+        goto err;
     }
+    ModuleLoaded = true;
 
-    if (!strcmp(Action, "-f")) {
-        SymEnumSymbols(hProcess, ModuleBase, SymbolName, EnumSymbolsCallback, NULL);
-    } else if (!strcmp(Action, "-l")) {
-        DumpLineInfo(hProcess, ModuleBase);
-    } else if (!strcmp(Action, "-a")) {
-        AddrToLine(hProcess, Addresses);
-    } else if (!strcmp(Action, "-t")) {
-        ULONG Offset = 0;
-        TypePath Path;
-        std::string SymNameStr = SymbolName;
-        std::string::size_type pos = SymNameStr.find(':');
-        if (pos != std::string::npos) {
-            std::string TypeName = std::string(SymNameStr.begin(), SymNameStr.begin() + pos);
-            std::wstring MemberName = std::wstring(SymNameStr.begin() + pos + 1, SymNameStr.end());
-
-            //printf("Looking for %s:%S\n", TypeName.c_str(), MemberName.c_str());
-            if (ComputeOffset(hProcess, ModuleBase, TypeName, MemberName, &Offset)) {
-                printf("%s offset %#x\n", SymbolName, Offset);
-            } else {
-                fprintf(stderr, "Could not find %s\n", SymbolName);
-            }
-        }
-
-        //TypeMembers Members;
-        //GetTypeMembers(hProcess, ModuleBase, SymbolName, Members);
-    } else if (!strcmp(Action, "-i")) {
-        printf("%#x %d %#llx\n", CheckSum, Is64 ? 64 : 32, ModuleBase);
-    } else if (!strcmp(Action, "-s")) {
-        /* Print the syscall table */
-        /* 1. look for the syscall table boundary */
-        UINT64 KiServiceTable, KiServiceLimit;
-
-        if (!GetSymbolAddress(hProcess, ModuleBase, "KiServiceTable", &KiServiceTable)) {
-            fprintf(stderr, "Could not find KiServiceTable\n");
-            goto err2;
-        }
-
-        if (!GetSymbolAddress(hProcess, ModuleBase, "KiServiceLimit", &KiServiceLimit)) {
-            fprintf(stderr, "Could not find KiServiceLimit\n");
-            goto err2;
-        }
-
-        InitializeSymbolMap(hProcess, ModuleBase);
-
-        UINT64 PtrSize = Is64 ? 8 : 4;
-
-        /* 2. Load the image */
-        PLOADED_IMAGE Img = ImageLoad((PSTR)ExeFileName, NULL);
-        if (!Img) {
-            fprintf(stderr, "Could not load image\n");
-            goto err2;
-        }
-
-        UINT32 SyscallCount;
-        if (!ReadPe(Img, NativeLoadBase, KiServiceLimit, &SyscallCount)) {
-            fprintf(stderr, "Could not ready syscall count\n");
-            goto err2;
-        }
-
-        /* 3. Read the array of syscall pointers */
-        UINT64 *SyscallPtrs = new UINT64[SyscallCount];
-        for (UINT i = 0; i < SyscallCount; ++i) {
-            bool Result;
-            if (Is64) {
-                UINT32 Ret;
-                Result = ReadPe(Img, NativeLoadBase, KiServiceTable + i * sizeof(UINT32), &Ret);
-                SyscallPtrs[i] = NativeLoadBase + Ret;
-            } else {
-                UINT32 Ret;
-                Result = ReadPe(Img, NativeLoadBase, KiServiceTable + i * sizeof(UINT32), &Ret);
-                SyscallPtrs[i] = Ret;
-            }
-
-            const std::string &symbolName = g_symbolMap[SyscallPtrs[i]];
-            printf("%d %#llx %s\n", i, SyscallPtrs[i], symbolName.c_str());
-
-            if (!Result) {
-                printf("Syscall extraction failed\n");
-                goto err2;
-            }
-        }
-
-        ImageUnload(Img);
-    } else {
-        fprintf(stderr, "Unknown action %s\n", Action);
+    switch (Args.Action) {
+        case ENUM_SYMBOLS:
+            SymEnumSymbols(Process, ModuleBase, Args.SymbolName.c_str(), EnumSymbolsCallback, NULL);
+            break;
+        case DUMP_LINE_INFO:
+            DumpLineInfo(Process, ModuleBase);
+            break;
+        case ADDR_TO_LINE:
+            AddrToLine(Process, Args.Addresses);
+            break;
+        case DUMP_TYPE:
+            DumpTypeOffset(Process, ModuleBase, Args.SymbolName);
+            break;
+        case DUMP_PE_INFO:
+            printf("%#x %d %#llx\n", CheckSum, Is64 ? 64 : 32, ModuleBase);
+            break;
+        case DUMP_SYSCALLS:
+            DumpSyscalls(Process, Args.ExeFileName, ModuleBase, NativeLoadBase, Is64);
+            break;
+        default:
+            fprintf(stderr, "Unknown action %d\n", Args.Action);
+            break;
     }
 
     Ret = 0;
-err2:
-    SymUnloadModule64(hProcess, ModuleBase);
-err1: SymCleanup(hProcess);
-err0: return Ret;
+
+err:
+    if (ModuleLoaded) {
+        SymUnloadModule64(Process, ModuleBase);
+    }
+
+    if (SymInited) {
+        SymCleanup(Process);
+    }
+
+    return Ret;
 }
