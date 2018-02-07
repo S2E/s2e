@@ -66,9 +66,9 @@ NTSTATUS S2EEncodeBackTraceForKnownModules(
 
             if (!strcmp(PrevInfo.ModuleName, Info.ModuleName)) {
                 // Omit identical consecutive module names to reduce the size of the string
-                sprintf_s(StrAddr, sizeof(StrAddr), "-%llx", RelativeAddress);
+                RtlStringCbPrintfA(StrAddr, sizeof(StrAddr), "-%llx", RelativeAddress);
             } else {
-                sprintf_s(StrAddr, sizeof(StrAddr), " %s:%llx", Info.ModuleName, RelativeAddress);
+                RtlStringCbPrintfA(StrAddr, sizeof(StrAddr), " %s:%llx", Info.ModuleName, RelativeAddress);
             }
 
             Status = StringCatInPlace(Buffer, StrAddr);

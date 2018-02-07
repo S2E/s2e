@@ -74,14 +74,15 @@ static VOID OnProcessNotification(
 
     // TODO: fix this to handle full process names
     // PsGetProcessImageFileName does not return the full path
-    if (strncpy_s(Command.Process.ImageFileName, sizeof(Command.Process.ImageFileName),
-                  ImageFileName, sizeof(Command.Process.ImageFileName))) {
+    Status = RtlStringCbCopyNA(Command.Process.ImageFileName, sizeof(Command.Process.ImageFileName),
+                               ImageFileName, sizeof(Command.Process.ImageFileName));
+
+    if (Status == STATUS_INVALID_PARAMETER) {
         LOG("Could not copy process image name %s\n", ImageFileName);
-        S2EKillState(0, "strncpy_s failed");
+        S2EKillState(0, "RtlStringCbCopyNA failed");
     }
 
     Command.Command = Create ? LOAD_PROCESS : UNLOAD_PROCESS;
-
     S2EInvokePlugin("WindowsMonitor", &Command, sizeof(Command));
 }
 

@@ -399,16 +399,16 @@ static NTSTATUS S2EIoCtlMakeConcolic(_In_ PVOID Buffer, _In_ ULONG InputBufferLe
     }
 
     try {
-        ProbeForRead((PVOID)Req->VariableNamePointer, Req->VariableNameSize, 1);
-        ProbeForWrite((PVOID)Req->DataPointer, Req->DataSize, 1);
+        ProbeForRead((PVOID)(UINT_PTR)Req->VariableNamePointer, Req->VariableNameSize, 1);
+        ProbeForWrite((PVOID)(UINT_PTR)Req->DataPointer, Req->DataSize, 1);
 
-        VariableName = StringDuplicateA((PVOID)Req->VariableNamePointer, Req->VariableNameSize);
+        VariableName = StringDuplicateA((PVOID)(UINT_PTR)Req->VariableNamePointer, Req->VariableNameSize);
         if (!VariableName) {
             Status = STATUS_INSUFFICIENT_RESOURCES;
             goto err;
         }
 
-        S2EMakeConcolic((PVOID)Req->DataPointer, Req->DataSize, VariableName);
+        S2EMakeConcolic((PVOID)(UINT_PTR)Req->DataPointer, Req->DataSize, VariableName);
 
     } except (EXCEPTION_EXECUTE_HANDLER) {
         Status = STATUS_INVALID_PARAMETER;
