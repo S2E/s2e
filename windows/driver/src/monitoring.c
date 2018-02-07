@@ -52,7 +52,7 @@ static VOID OnProcessNotification(
     PEPROCESS Process;
     NTSTATUS Status;
     CHAR *ImageFileName;
-    S2E_WINMON2_COMMAND Command;
+    S2E_WINMON2_COMMAND Command = { 0 };
 
     LOG("caught process %s pid=%p parent=%p\n",
         Create ? "creation" : "termination", ProcessId, ParentId);
@@ -71,7 +71,14 @@ static VOID OnProcessNotification(
     Command.Process.EProcess = (UINT64)Process;
     Command.Process.ProcessId = (UINT64)ProcessId;
     Command.Process.ParentProcessId = (UINT64)ParentId;
-    strncpy(Command.Process.ImageFileName, ImageFileName, sizeof(Command.Process.ImageFileName) - 1);
+
+    // TODO: fix this to handle full process names
+    // PsGetProcessImageFileName does not return the full path
+    if (strncpy_s(Command.Process.ImageFileName, sizeof(Command.Process.ImageFileName),
+                  ImageFileName, sizeof(Command.Process.ImageFileName))) {
+        LOG("Could not copy process image name %s\n", ImageFileName);
+        S2EKillState(0, "strncpy_s failed");
+    }
 
     Command.Command = Create ? LOAD_PROCESS : UNLOAD_PROCESS;
 
