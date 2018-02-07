@@ -13,8 +13,6 @@
 #include "kernel_functions.h"
 #include "log.h"
 
-NTKERNELAPI NTSTATUS PsLookupThreadByThreadId(HANDLE ThreadId, PETHREAD *Thread);
-
 static VOID OnThreadNotification(
     IN HANDLE ProcessId,
     IN HANDLE ThreadId,

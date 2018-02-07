@@ -30,11 +30,12 @@
 
 #include "log.h"
 
-DRIVER_UNLOAD DriverUnload;
+DRIVER_INITIALIZE DriverEntry;
+static DRIVER_UNLOAD DriverUnload;
 
-NTSTATUS S2EOpen(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp);
-NTSTATUS S2EClose(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp);
-NTSTATUS S2EIoControl(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp);
+_Dispatch_type_(IRP_MJ_CREATE) static DRIVER_DISPATCH S2EOpen;
+_Dispatch_type_(IRP_MJ_CLOSE) static DRIVER_DISPATCH S2EClose;
+_Dispatch_type_(IRP_MJ_DEVICE_CONTROL) static DRIVER_DISPATCH S2EIoControl;
 
 #define NT_DEVICE_NAME          L"\\Device\\S2EDriver"
 #define DOS_DEVICE_NAME         L"\\DosDevices\\S2EDriver"
@@ -89,8 +90,8 @@ err:
 }
 
 NTSTATUS DriverEntry(
-    IN PDRIVER_OBJECT DriverObject,
-    IN PUNICODE_STRING RegistryPath
+    _In_ PDRIVER_OBJECT DriverObject,
+    _In_ PUNICODE_STRING RegistryPath
 )
 {
     NTSTATUS Status = STATUS_SUCCESS;
@@ -225,11 +226,10 @@ err:
     return Status;
 }
 
-NTSTATUS S2EOpen(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp)
+static NTSTATUS S2EOpen(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp)
 {
     PIO_STACK_LOCATION IrpSp;
     NTSTATUS NtStatus = STATUS_SUCCESS;
-    PAGED_CODE();
 
     UNREFERENCED_PARAMETER(DeviceObject);
 
@@ -243,11 +243,10 @@ NTSTATUS S2EOpen(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp)
     return NtStatus;
 }
 
-NTSTATUS S2EClose(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp)
+static NTSTATUS S2EClose(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp)
 {
     NTSTATUS NtStatus;
     PIO_STACK_LOCATION IrpSp;
-    PAGED_CODE();
 
     UNREFERENCED_PARAMETER(DeviceObject);
 
@@ -443,7 +442,7 @@ err:
     return Status;
 }
 
-NTSTATUS S2EIoControl(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp)
+static NTSTATUS S2EIoControl(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp)
 {
     PIO_STACK_LOCATION IrpSp;
     ULONG FunctionCode;
@@ -472,7 +471,10 @@ NTSTATUS S2EIoControl(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp)
             break;
 
         case IOCTL_S2E_CRASH_KERNEL:
+#pragma warning(push)
+#pragma warning(disable: 28159)
             KeBugCheck(0xDEADDEAD);
+#pragma warning(pop)
             break;
 
         case IOCTL_S2E_SET_CONFIG:
@@ -511,10 +513,9 @@ NTSTATUS S2EIoControl(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp)
     return Status;
 }
 
-VOID DriverUnload(PDRIVER_OBJECT DriverObject)
+static VOID DriverUnload(PDRIVER_OBJECT DriverObject)
 {
     UNICODE_STRING Win32DeviceName;
-    PAGED_CODE();
 
     UNREFERENCED_PARAMETER(DriverObject);
     LOG("Unloading s2e.sys\n");

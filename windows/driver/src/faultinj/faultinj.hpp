@@ -18,7 +18,7 @@ RET FaultInjTemplate1(
     _In_ UINT_PTR CallSite,
     _In_ PCCHAR FunctionName,
     _In_ BOOLEAN RaiseOnFailure,
-    _In_ RET DefaultConcreteFailure,
+    _In_opt_ RET DefaultConcreteFailure,
     _In_ FCN Orig,
     ARGS ... Args
 )

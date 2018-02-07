@@ -10,6 +10,7 @@
 
 VOID S2EDumpBackTrace(VOID);
 
+_Success_(return)
 NTSTATUS S2EEncodeBackTraceForKnownModules(
     _Out_ PCHAR *Buffer,
     _Out_opt_ PULONG Hash,

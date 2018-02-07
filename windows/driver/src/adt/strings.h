@@ -13,4 +13,4 @@ VOID StringFree(_Inout_ PUNICODE_STRING String);
 NTSTATUS StringDuplicate(_Out_ PUNICODE_STRING Dest, _In_ PCUNICODE_STRING Source);
 PSTR StringDuplicateA(_In_ PCSTR Source, _In_ SIZE_T Size);
 PCHAR StringCat(_In_opt_ PCCHAR Str1, _In_opt_ PCCHAR Str2);
-NTSTATUS StringCatInPlace(_Inout_ PCCHAR *Str1, _Out_ PCCHAR Str2);
+NTSTATUS StringCatInPlace(_Inout_ PCCHAR *Str1, _In_ PCCHAR Str2);

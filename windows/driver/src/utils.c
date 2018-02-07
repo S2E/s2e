@@ -38,6 +38,7 @@ VOID S2EDumpBackTrace(VOID)
     }
 }
 
+_Success_(return)
 NTSTATUS S2EEncodeBackTraceForKnownModules(
     _Out_ PCHAR *Buffer,
     _Out_opt_ PULONG Hash,
@@ -50,6 +51,8 @@ NTSTATUS S2EEncodeBackTraceForKnownModules(
     PVOID BackTrace[STACK_FRAME_COUNT] = { 0 };
 
     RtlZeroMemory(&PrevInfo, sizeof(PrevInfo));
+
+    *Buffer = NULL;
 
     USHORT CapturedCount = RtlCaptureStackBackTrace(FramesToSkip, STACK_FRAME_COUNT, BackTrace, Hash);
     for (USHORT i = 0; i < CapturedCount; ++i) {

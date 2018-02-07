@@ -31,7 +31,8 @@ KERNEL_STRUCTS g_kernelStructs;
 
 VOID MonitorInitCommon(S2E_WINMON2_COMMAND *Command)
 {
-    ULONG Major, Minor, Build;
+    RTL_OSVERSIONINFOW Version = { 0 };
+
     memset(Command, 0, sizeof(*Command));
 
     Command->Command = INIT_KERNEL_STRUCTS;
@@ -40,10 +41,16 @@ VOID MonitorInitCommon(S2E_WINMON2_COMMAND *Command)
     Command->Structs.BugCheckHook = GetS2ECrashHookAddress();
     Command->Structs.LoadDriverHook = (UINT_PTR)NULL;
 
-    PsGetVersion(&Major, &Minor, &Build, NULL);
-    Command->Structs.KernelMajorVersion = Major;
-    Command->Structs.KernelMinorVersion = Minor;
-    Command->Structs.KernelBuildNumber = Build;
+    Version.dwOSVersionInfoSize = sizeof(Version);
+
+    if (!NT_SUCCESS(RtlGetVersion(&Version))) {
+        S2EKillState(0, "Could not get version info");
+        return;
+    }
+
+    Command->Structs.KernelMajorVersion = Version.dwMajorVersion;
+    Command->Structs.KernelMinorVersion = Version.dwMinorVersion;
+    Command->Structs.KernelBuildNumber = Version.dwBuildNumber;
 }
 
 
@@ -198,7 +205,7 @@ NTSTATUS RegisterLoadedModules()
         goto err;
     }
 
-    Info = (AUX_MODULE_EXTENDED_INFO*)ExAllocatePoolWithTag(NonPagedPool, BufferSize, 0x12345);
+    Info = (AUX_MODULE_EXTENDED_INFO*)ExAllocatePoolWithTag(NonPagedPoolNx, BufferSize, 0x12345);
     if (!Info) {
         Status = STATUS_INSUFFICIENT_RESOURCES;
         goto err;

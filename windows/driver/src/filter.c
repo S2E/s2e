@@ -76,8 +76,8 @@ static const FLT_REGISTRATION FilterRegistration = {
 };
 
 NTSTATUS FilterRegister(
-    __in PDRIVER_OBJECT DriverObject,
-    __in PUNICODE_STRING RegistryPath
+    _In_ PDRIVER_OBJECT DriverObject,
+    _In_ PUNICODE_STRING RegistryPath
 )
 {
     NTSTATUS Status;
@@ -169,6 +169,8 @@ NormalizerPostCreate(
     NTSTATUS Status;
     BOOLEAN HasTilda = FALSE;
     unsigned i;
+
+    PAGED_CODE();
 
     UNREFERENCED_PARAMETER(Data);
     UNREFERENCED_PARAMETER(FltObjects);
