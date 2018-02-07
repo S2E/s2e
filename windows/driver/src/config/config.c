@@ -64,13 +64,14 @@ NTSTATUS ConfigInit(_Out_ S2E_CONFIG *Config)
 {
     UNICODE_STRING S2EConfigKey = RTL_CONSTANT_STRING(S2E_CONFIG_KEY);
     UNICODE_STRING S2EFaultInjEnabled = RTL_CONSTANT_STRING(S2E_CONFIG_FAULT_INJ_ENABLED);
-    UNICODE_STRING S2EFaultInjOverapproximate = RTL_CONSTANT_STRING(S2E_CONFIG_FAULT_INJ_OVERAPPROXIMATE);
 
     OBJECT_ATTRIBUTES oa = { 0 };
     ULONG CreateDisposition = 0;
     NTSTATUS Status;
     HANDLE Key = NULL;
     DWORD Data;
+
+    RtlZeroMemory(Config, sizeof(*Config));
 
     InitializeObjectAttributes(&oa, &S2EConfigKey, OBJ_CASE_INSENSITIVE | OBJ_KERNEL_HANDLE, NULL, NULL);
     Status = ZwCreateKey(&Key, KEY_READ, &oa, 0, NULL, REG_OPTION_NON_VOLATILE, &CreateDisposition);
@@ -85,14 +86,6 @@ NTSTATUS ConfigInit(_Out_ S2E_CONFIG *Config)
         goto err;
     }
     Config->FaultInjectionEnabled = Data != 0;
-
-    Status = ConfigGetDword(Key, &S2EFaultInjOverapproximate, &Data);
-    if (!NT_SUCCESS(Status)) {
-        LOG("Could not get fault injection configuration %wZ\\%wZ (%#x)\n", &S2EConfigKey, &S2EFaultInjOverapproximate,
-            Status);
-        goto err;
-    }
-    Config->FaultInjectionOverapproximate = Data != 0;
 
 err:
 
