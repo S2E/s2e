@@ -2,10 +2,15 @@
 DARPA Cyber Grand Challenge
 ===========================
 
-DARPA's `Cyber Grand Challenge <https://www.cybergrandchallenge.com/>`_ (CGC) was the world's first all-machine hacking
+DARPA's `Cyber Grand Challenge <http://archive.darpa.mil/cybergrandchallenge/>`_ (CGC) was the world's first all-machine hacking
 tournament. S2E was a key component in CodeJitsu's Cyber Reasoning System (CRS) and was used to automatically to find
 vulnerabilities and exploit them. This demo walks you through the process of using S2E to find and generate a "proof of
 vulnerability" (POV - i.e. an exploit) in a CGC challenge binary (CB).
+
+.. Note::
+
+    You may want to refer to the tutorial on `Automated Generation of Proofs of Vulnerability with S2E <pov.rst>`_
+    in order to understand what S2E does behind the scenes in order to generate PoVs.
 
 .. contents::
 
