@@ -11,37 +11,49 @@
 #include "log.h"
 #include "kernel_functions.h"
 
-PSGETPROCESSPB g_pPsGetProcessPeb;
-GET_PROCESS_IMAGE_NAME g_pGetProcessImageFileName;
 
-// MmGetSystemRoutineAddress returns PVOID when it shoudl return FARPROC
-#pragma warning(disable:4055)
+PsSetContextThread_t PsSetContextThread;
+PsGetContextThread_t PsGetContextThread;
+ZwQueryInformationProcess_t ZwQueryInformationProcess;
+ZwQueryInformationThread_t ZwQueryInformationThread;
 
-NTSTATUS InitializeKernelFunctionPointers(VOID)
+static PVOID InitializeApi(LPCWSTR Name)
 {
-    NTSTATUS Status;
-    UNICODE_STRING MethodName;
+    UNICODE_STRING ApiName;
+    RtlInitUnicodeString(&ApiName, Name);
+    return MmGetSystemRoutineAddress(&ApiName);
+}
 
-    RtlInitUnicodeString(&MethodName, L"PsGetProcessPeb");
-    g_pPsGetProcessPeb = (PSGETPROCESSPB)MmGetSystemRoutineAddress(&MethodName);
+typedef struct _API
+{
+    PCWSTR Name;
+    PVOID *Var;
+} API;
 
-    if (!g_pPsGetProcessPeb) {
-        LOG("Could not find PsGetProcessPeb routine\n");
-        Status = STATUS_NOT_FOUND;
-        goto err;
+#define DECLARE_API(Name) {L#Name, (PVOID*) &Name}
+
+#pragma warning(push)
+// A data pointer is cast (possibly incorrectly) to a function pointer.
+#pragma warning(disable:4055)
+static API s_apis[] = {
+    DECLARE_API(PsSetContextThread),
+    DECLARE_API(PsGetContextThread),
+    DECLARE_API(ZwQueryInformationProcess),
+    DECLARE_API(ZwQueryInformationThread)
+};
+#pragma warning(pop)
+
+BOOLEAN ApiInitialize()
+{
+    for (unsigned i = 0; i < ARRAYSIZE(s_apis); ++i) {
+        UNICODE_STRING ApiName;
+        RtlInitUnicodeString(&ApiName, s_apis[i].Name);
+        *s_apis[i].Var = MmGetSystemRoutineAddress(&ApiName);
+        if (!*s_apis[i].Var) {
+            LOG("Could not find address of %S\n", s_apis[i].Name);
+            return FALSE;
+        }
     }
 
-    RtlInitUnicodeString(&MethodName, L"PsGetProcessImageFileName");
-    g_pGetProcessImageFileName = (GET_PROCESS_IMAGE_NAME)MmGetSystemRoutineAddress(&MethodName);
-
-    if (!g_pGetProcessImageFileName) {
-        LOG("Could not find PsGetProcessImageFileName routine\n");
-        Status = STATUS_NOT_FOUND;
-        goto err;
-    }
-
-    Status = STATUS_SUCCESS;
-
-err:
-    return Status;
+    return TRUE;
 }

@@ -11,12 +11,32 @@
 
 #include <ntddk.h>
 
-typedef PPEB (*PSGETPROCESSPB)(PEPROCESS Process);
-typedef PCHAR (*GET_PROCESS_IMAGE_NAME)(PEPROCESS Process);
+typedef NTSTATUS (NTAPI *PsSetContextThread_t)(PETHREAD Thread, PCONTEXT ThreadContext, KPROCESSOR_MODE PreviousMode);
+typedef NTSTATUS (NTAPI *PsGetContextThread_t)(PETHREAD Thread, PCONTEXT ThreadContext, KPROCESSOR_MODE PreviousMode);
 
-extern PSGETPROCESSPB g_pPsGetProcessPeb;
-extern GET_PROCESS_IMAGE_NAME g_pGetProcessImageFileName;
+// Taken from https://www.osronline.com/article.cfm?article=472
+typedef NTSTATUS (NTAPI *ZwQueryInformationProcess_t)(
+    _In_ HANDLE ProcessHandle,
+    _In_ PROCESSINFOCLASS ProcessInformationClass,
+    _Out_bytecap_(ProcessInformationLength) PVOID ProcessInformation,
+    _In_ ULONG ProcessInformationLength,
+    _Out_opt_ PULONG ReturnLength
+);
 
-NTSTATUS InitializeKernelFunctionPointers(VOID);
+typedef NTSTATUS (NTAPI *ZwQueryInformationThread_t)(
+    _In_ HANDLE ThreadHandle,
+    _In_ THREADINFOCLASS ThreadInformationClass,
+    _In_ PVOID ThreadInformation,
+    _In_ ULONG ThreadInformationLength,
+    _Out_opt_ PULONG ReturnLength
+);
+
+extern PsSetContextThread_t PsSetContextThread;
+extern PsGetContextThread_t PsGetContextThread;
+extern ZwQueryInformationProcess_t ZwQueryInformationProcess;
+extern ZwQueryInformationThread_t ZwQueryInformationThread;
+
+BOOLEAN ApiInitialize();
+
 
 #endif

@@ -127,8 +127,7 @@ NTSTATUS DriverEntry(
 
     ConfigDump(&g_config);
 
-    Status = InitializeKernelFunctionPointers();
-    if (!NT_SUCCESS(Status)) {
+    if (!ApiInitialize()) {
         LOG("Could not initialize kernel function pointers (%#x)\n", Status);
         goto err;
     }
