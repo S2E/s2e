@@ -38,6 +38,7 @@ VOID S2EDumpBackTrace(VOID)
     }
 }
 
+_Success_(return)
 NTSTATUS S2EEncodeBackTraceForKnownModules(
     _Out_ PCHAR *Buffer,
     _Out_opt_ PULONG Hash,
@@ -51,6 +52,8 @@ NTSTATUS S2EEncodeBackTraceForKnownModules(
 
     RtlZeroMemory(&PrevInfo, sizeof(PrevInfo));
 
+    *Buffer = NULL;
+
     USHORT CapturedCount = RtlCaptureStackBackTrace(FramesToSkip, STACK_FRAME_COUNT, BackTrace, Hash);
     for (USHORT i = 0; i < CapturedCount; ++i) {
         S2E_MODULE_INFO Info;
@@ -63,9 +66,9 @@ NTSTATUS S2EEncodeBackTraceForKnownModules(
 
             if (!strcmp(PrevInfo.ModuleName, Info.ModuleName)) {
                 // Omit identical consecutive module names to reduce the size of the string
-                sprintf_s(StrAddr, sizeof(StrAddr), "-%llx", RelativeAddress);
+                RtlStringCbPrintfA(StrAddr, sizeof(StrAddr), "-%llx", RelativeAddress);
             } else {
-                sprintf_s(StrAddr, sizeof(StrAddr), " %s:%llx", Info.ModuleName, RelativeAddress);
+                RtlStringCbPrintfA(StrAddr, sizeof(StrAddr), " %s:%llx", Info.ModuleName, RelativeAddress);
             }
 
             Status = StringCatInPlace(Buffer, StrAddr);

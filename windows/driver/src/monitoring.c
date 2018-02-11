@@ -13,8 +13,6 @@
 #include "kernel_functions.h"
 #include "log.h"
 
-NTKERNELAPI NTSTATUS PsLookupThreadByThreadId(HANDLE ThreadId, PETHREAD *Thread);
-
 static VOID OnThreadNotification(
     IN HANDLE ProcessId,
     IN HANDLE ThreadId,
@@ -54,7 +52,7 @@ static VOID OnProcessNotification(
     PEPROCESS Process;
     NTSTATUS Status;
     CHAR *ImageFileName;
-    S2E_WINMON2_COMMAND Command;
+    S2E_WINMON2_COMMAND Command = { 0 };
 
     LOG("caught process %s pid=%p parent=%p\n",
         Create ? "creation" : "termination", ProcessId, ParentId);
@@ -73,10 +71,18 @@ static VOID OnProcessNotification(
     Command.Process.EProcess = (UINT64)Process;
     Command.Process.ProcessId = (UINT64)ProcessId;
     Command.Process.ParentProcessId = (UINT64)ParentId;
-    strncpy(Command.Process.ImageFileName, ImageFileName, sizeof(Command.Process.ImageFileName) - 1);
+
+    // TODO: fix this to handle full process names
+    // PsGetProcessImageFileName does not return the full path
+    Status = RtlStringCbCopyNA(Command.Process.ImageFileName, sizeof(Command.Process.ImageFileName),
+                               ImageFileName, sizeof(Command.Process.ImageFileName));
+
+    if (Status == STATUS_INVALID_PARAMETER) {
+        LOG("Could not copy process image name %s\n", ImageFileName);
+        S2EKillState(0, "RtlStringCbCopyNA failed");
+    }
 
     Command.Command = Create ? LOAD_PROCESS : UNLOAD_PROCESS;
-
     S2EInvokePlugin("WindowsMonitor", &Command, sizeof(Command));
 }
 

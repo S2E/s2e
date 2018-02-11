@@ -64,13 +64,14 @@ NTSTATUS ConfigInit(_Out_ S2E_CONFIG *Config)
 {
     UNICODE_STRING S2EConfigKey = RTL_CONSTANT_STRING(S2E_CONFIG_KEY);
     UNICODE_STRING S2EFaultInjEnabled = RTL_CONSTANT_STRING(S2E_CONFIG_FAULT_INJ_ENABLED);
-    UNICODE_STRING S2EFaultInjOverapproximate = RTL_CONSTANT_STRING(S2E_CONFIG_FAULT_INJ_OVERAPPROXIMATE);
 
     OBJECT_ATTRIBUTES oa = { 0 };
     ULONG CreateDisposition = 0;
     NTSTATUS Status;
     HANDLE Key = NULL;
     DWORD Data;
+
+    RtlZeroMemory(Config, sizeof(*Config));
 
     InitializeObjectAttributes(&oa, &S2EConfigKey, OBJ_CASE_INSENSITIVE | OBJ_KERNEL_HANDLE, NULL, NULL);
     Status = ZwCreateKey(&Key, KEY_READ, &oa, 0, NULL, REG_OPTION_NON_VOLATILE, &CreateDisposition);
@@ -86,13 +87,6 @@ NTSTATUS ConfigInit(_Out_ S2E_CONFIG *Config)
     }
     Config->FaultInjectionEnabled = Data != 0;
 
-    Status = ConfigGetDword(Key, &S2EFaultInjOverapproximate, &Data);
-    if (!NT_SUCCESS(Status)) {
-        LOG("Could not get fault injection configuration %wZ\\%wZ (%#x)\n", &S2EConfigKey, &S2EFaultInjOverapproximate, Status);
-        goto err;
-    }
-    Config->FaultInjectionOverapproximate = Data != 0;
-
 err:
 
     if (Key) {
@@ -102,9 +96,35 @@ err:
     return Status;
 }
 
+NTSTATUS ConfigSet(_Inout_ S2E_CONFIG *Config, _In_ LPCSTR Name, _In_ UINT64 Value)
+{
+    NTSTATUS Status = STATUS_SUCCESS;
+
+    LOG("Setting %s=%#x\n", Name, Value);
+
+    if (!strcmp(Name, "FaultInjectionEnabled")) {
+        LOG("Cannot set FaultInjectionEnabled at runtime\n");
+        Status = STATUS_INVALID_PARAMETER;
+    } else if (!strcmp(Name, "FaultInjectionActive")) {
+        Config->FaultInjectionActive = (BOOLEAN)Value;
+    } else if (!strcmp(Name, "FaultInjectionOverapproximate")) {
+        Config->FaultInjectionOverapproximate = (BOOLEAN)Value;
+    } else {
+        LOG("Invalid option %s=%#x\n", Name, Value);
+        Status = STATUS_INVALID_PARAMETER;
+    }
+
+    if (NT_SUCCESS(Status)) {
+        ConfigDump(Config);
+    }
+
+    return Status;
+}
+
 VOID ConfigDump(_In_ const S2E_CONFIG *Config)
 {
     LOG("s2e.sys configuration:\n");
     LOG("  FaultInjectionEnabled:         %d\n", Config->FaultInjectionEnabled);
+    LOG("  FaultInjectionActive:          %d\n", Config->FaultInjectionActive);
     LOG("  FaultInjectionOverapproximate: %d\n", Config->FaultInjectionOverapproximate);
 }

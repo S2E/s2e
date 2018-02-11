@@ -15,13 +15,14 @@
 
 #if _WIN32_WINNT >= _WIN32_WINNT_WS03
 
-NTKERNELAPI NTSTATUS
+NTKERNELAPI
+NTSTATUS
 KeInitializeCrashDumpHeader(
-  ULONG  DumpType,
-  ULONG  Flags,
-  PVOID  Buffer,
-  ULONG  BufferSize,
-  PULONG  BufferNeeded
+    _In_ ULONG DumpType,
+    _In_ ULONG Flags,
+    _Out_writes_bytes_(BufferSize) PVOID Buffer,
+    _In_ ULONG BufferSize,
+    _Out_opt_ PULONG BufferNeeded
 );
 
 #endif

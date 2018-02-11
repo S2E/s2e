@@ -15,9 +15,11 @@
 #include "apis.h"
 #include "faultinj.h"
 #include "../utils.h"
+#include "../config/config.h"
 
-BOOLEAN g_faultInjOverApproximate;
+BOOLEAN *g_faultInjOverApproximate;
 
+_Success_(return)
 BOOLEAN FaultInjectionCreateVarName(
     _In_ PCHAR FunctionName,
     _Out_ PCHAR *VarName
@@ -34,7 +36,7 @@ BOOLEAN FaultInjectionCreateVarName(
         goto err;
     }
 
-    sprintf_s(Prefix, sizeof(Prefix), "FaultInjInvokeOrig %s ", FunctionName);
+    RtlStringCbPrintfA(Prefix, sizeof(Prefix), "FaultInjInvokeOrig %s ", FunctionName);
 
     *VarName = StringCat(Prefix, BackTraceStr);
     if (!*VarName) {
@@ -78,7 +80,7 @@ BOOLEAN FaultInjDecideInjectFault(
     }
 
     RtlCaptureStackBackTrace(0, STACK_FRAME_COUNT, BackTrace, &Hash);
-    sprintf_s(CallSiteId, sizeof(CallSiteId), "%s_%p_%x", Info.ModuleName, (PVOID)ModuleAddress, Hash);
+    RtlStringCbPrintfA(CallSiteId, sizeof(CallSiteId), "%s_%p_%x", Info.ModuleName, (PVOID)ModuleAddress, Hash);
     LOG("CallSiteId: %s\n", CallSiteId);
 
     if (!S2EKVSGetValue(CallSiteId, &AlreadyExercised)) {
@@ -93,10 +95,8 @@ BOOLEAN FaultInjDecideInjectFault(
     return !AlreadyExercised;
 }
 
-VOID FaultInjectionInit(BOOLEAN OverApproximate)
+VOID FaultInjectionInit(VOID)
 {
-    g_faultInjOverApproximate = OverApproximate;
-
     LOG("Hooking ExXxx apis...");
     RegisterHooks(g_kernelExHooks);
 

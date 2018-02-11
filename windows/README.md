@@ -64,6 +64,17 @@ crash.
  `pdbparser.exe` takes an `exe` and `pdb` file, and extracts various information.
 This tool is used to add support for new kernels to the S2E driver.
 
+Using `s2e.sys` in your projects
+--------------------------------
+
+Guest programs can open `s2e.sys` and communicate with it through an IOCTL interface. The `testctl.exe` tool
+shows how to call `s2e.sys`. In order to communicate with it, user programs need to include the `s2ectl.h`
+header file. This header provides an API to open the driver and send commands to it. It is particularly
+useful when a user app wants to use S2E custom instructions but cannot easily include the S2E library,
+because it would require extensive changes to the project (e.g., importing pre-compiled S2E library).
+In this case, the `s2ectl.h` header provides a simple, self-contained way of using S2E custom
+instructions through the S2E driver.
+
 
 Adding Support for new Kernels
 ==============================
@@ -97,6 +108,7 @@ the `driver/src/winmonitor_gen.c` file.
 
 Finally, rebuild the driver. Note that new OS versions may considerably change the kernel structure, requiring upgrading
 the generation scripts.
+
 
 Code Coverage for Windows Binaries
 ==================================

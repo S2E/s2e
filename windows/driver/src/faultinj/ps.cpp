@@ -29,7 +29,7 @@ extern "C"
         _In_opt_ HANDLE ProcessHandle,
         _Out_opt_ PCLIENT_ID ClientId,
         _In_ PKSTART_ROUTINE StartRoutine,
-        _In_opt_ _When_(return >= 0, __drv_aliasesMem) PVOID StartContext
+        _In_opt_ PVOID StartContext
     )
     {
         UINT_PTR CallSite = (UINT_PTR)_ReturnAddress();

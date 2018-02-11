@@ -2,6 +2,7 @@
 #include <string>
 
 // Check whether the given character has to be escaped in a JSON string
+_Success_(return)
 static BOOL IsSpecialChar(_In_ CHAR Char, _Out_ CHAR *EscapeChar)
 {
     switch (Char) {

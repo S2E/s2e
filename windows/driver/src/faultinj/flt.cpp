@@ -60,7 +60,7 @@ extern "C"
         _In_ HANDLE FileHandle
     )
     {
-        if (g_faultInjOverApproximate) {
+        if (g_config.FaultInjectionOverapproximate) {
             UINT_PTR CallSite = (UINT_PTR)_ReturnAddress();
             return FaultInjTemplate1<NTSTATUS>(
                 CallSite, "FltClose", FALSE, STATUS_INSUFFICIENT_RESOURCES,

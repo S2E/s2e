@@ -22,6 +22,19 @@
 #include <s2ectl.h>
 #include "drvctl.h"
 
+#define LOG(x, ...) S2EMessageFmt("drvctl.exe: " ## x, __VA_ARGS__)
+
+typedef int (*cmd_handler_t)(const char **args);
+
+typedef struct _cmd_t
+{
+    char *name;
+    cmd_handler_t handler;
+    int args_count;
+    const char *description;
+    const char *arg_desc[4];
+} cmd_t;
+
 INT S2EGetVersionSafe(VOID)
 {
     /* Avoid crashing with illegal instruction when
@@ -33,15 +46,15 @@ INT S2EGetVersionSafe(VOID)
     }
 }
 
-char *GetErrorString(DWORD ErrorCode)
+LPSTR GetErrorString(DWORD ErrorCode)
 {
-    char *err;
+    LPSTR Msg;
     DWORD Ret = FormatMessageA(
         FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM,
         NULL,
         ErrorCode,
         MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), // default language
-        (LPSTR)&err,
+        (LPSTR)&Msg,
         0,
         NULL
     );
@@ -50,154 +63,132 @@ char *GetErrorString(DWORD ErrorCode)
         return NULL;
     }
 
-    return err;
-}
-
-typedef int(*cmd_handler_t)(const char **args);
-
-typedef struct _cmd_t
-{
-    char *name;
-    cmd_handler_t handler;
-    int args_count;
-    const char *description;
-    const char *arg_desc[4];
-} cmd_t;
-
-HANDLE OpenS2EDriver(PCSTR DeviceName)
-{
-    HANDLE Handle;
-    Handle = CreateFileA(DeviceName,
-                        GENERIC_READ | GENERIC_WRITE,
-                        0,
-                        NULL,
-                        OPEN_EXISTING,
-                        FILE_ATTRIBUTE_NORMAL,
-                        (HANDLE)INVALID_HANDLE_VALUE);
-    return Handle;
-}
-
-BOOL S2EIoCtl(HANDLE Handle, DWORD Code, PVOID Buffer, DWORD Length)
-{
-    CHAR Output[128];
-    DWORD BytesReturned;
-    BOOL Ret = DeviceIoControl(Handle, Code, Buffer, Length, Output, sizeof(Output), &BytesReturned, NULL);
-    if (!Ret) {
-        S2EMessageFmt("S2EIoCtl failed (%s)\n", GetErrorString(GetLastError()));
-    }
-    return Ret;
+    return Msg;
 }
 
 int handler_register(const char **args)
 {
+    int Ret = -1;
     PCSTR ModuleName = args[0];
 
-    HANDLE Handle = OpenS2EDriver(pS2EDriverDevice);
+    HANDLE Handle = S2EOpenDriver(S2EDriverDevice);
     if (Handle == INVALID_HANDLE_VALUE) {
-        printf("Could not open %s\n", pS2EDriverDevice);
-        return -1;
+        _tprintf(_T("Could not open %s\n"), S2EDriverDevice);
+        goto err;
     }
 
-    printf("Registering %s...\n", ModuleName);
+    LOG("Registering %s...\n", ModuleName);
     if (!S2EIoCtl(Handle, IOCTL_S2E_REGISTER_MODULE, (PVOID)ModuleName, (DWORD)(strlen(ModuleName) + 1))) {
-        printf("Could not perform IOCTL %s\n", pS2EDriverDevice);
-        CloseHandle(Handle);
-        return -1;
+        LOG("S2EIoCtl failed (%#x)\n", GetLastError());
+        goto err;
     }
 
-    CloseHandle(Handle);
-    return 0;
+    Ret = 0;
+
+err:
+    if (Handle != INVALID_HANDLE_VALUE) {
+        CloseHandle(Handle);
+    }
+
+    return Ret;
 }
 
 // Stop complaining about GetVersionEx being deprecated
 #pragma warning(disable : 4996)
 
-INT S2EInvokeWindowsCrashMonitor(S2E_WINDOWS_CRASH_COMMAND *Command)
+static BOOL IsWindowsXp()
 {
     OSVERSIONINFO OSVersion;
-    HANDLE hDriver;
+    OSVersion.dwOSVersionInfoSize = sizeof(OSVersion);
+    if (!GetVersionEx(&OSVersion)) {
+        LOG("could not determine OS version\n");
+        goto err;
+    }
+
+    return OSVersion.dwMajorVersion == 5 && OSVersion.dwMinorVersion == 1;
+
+err:
+    return FALSE;
+}
+
+INT S2EInvokeWindowsCrashMonitor(S2E_WINDOWS_CRASH_COMMAND *Command)
+{
+    HANDLE Driver;
     UINT8 *Buffer;
     PCSTR String;
     size_t BufferSize, StringSize;
     DWORD IoCtlCode;
 
-    OSVersion.dwOSVersionInfoSize = sizeof(OSVersion);
-    if (!GetVersionEx(&OSVersion)) {
-        S2EMessage("drvctl: could not determine OS version\n");
-    }
-
     Command->Dump.Buffer = 0;
     Command->Dump.Size = 0;
 
-    /**
-     * Windows XP: invoke the plugin directly, because it can generate
-     * crash dump info by itself. Later versions need support from s2e.sys.
-     */
-    if (OSVersion.dwMajorVersion == 5 && OSVersion.dwMinorVersion == 1) {
+    // Windows XP: invoke the plugin directly, because it can generate
+    // crash dump info by itself. Later versions need support from s2e.sys.
+    if (IsWindowsXp()) {
         if (Command->Command == WINDOWS_USERMODE_CRASH) {
             __s2e_touch_string((PCSTR)(UINT_PTR)Command->UserModeCrash.ProgramName);
         } else {
-            S2EMessageFmt("drvctl: invalid command for WindowsCrashMonitor: %#x\n", Command->Command);
+            LOG("invalid command for WindowsCrashMonitor: %#x\n", Command->Command);
             return -1;
         }
 
         S2EInvokePlugin("WindowsCrashMonitor", Command, sizeof(*Command));
-        /* Not supposed to return */
+        // Not supposed to return
         return 0;
     }
 
-    hDriver = OpenS2EDriver(pS2EDriverDevice);
-    if (hDriver == INVALID_HANDLE_VALUE) {
-        S2EMessageFmt("drvctl: could not open %s\n", pS2EDriverDevice);
-        return -1;
+    Driver = S2EOpenDriver(S2EDriverDevice);
+    if (Driver == INVALID_HANDLE_VALUE) {
+        LOG("could not open %s\n", S2EDriverDevice);
+        goto err;
     }
 
-    if (Command->Command == WINDOWS_USERMODE_CRASH) {
-        String = (PCSTR)(UINT_PTR)Command->UserModeCrash.ProgramName;
-        Command->UserModeCrash.ProgramName = sizeof(*Command);
-        IoCtlCode = IOCTL_S2E_WINDOWS_USERMODE_CRASH;
-    } else {
-        return -1;
+    if (Command->Command != WINDOWS_USERMODE_CRASH) {
+        goto err;
     }
+
+    String = (PCSTR)(UINT_PTR)Command->UserModeCrash.ProgramName;
+    Command->UserModeCrash.ProgramName = sizeof(*Command);
+    IoCtlCode = IOCTL_S2E_WINDOWS_USERMODE_CRASH;
 
     StringSize = (strlen(String) + 1) * sizeof(String[0]);
     BufferSize = sizeof(*Command) + StringSize;
     Buffer = (UINT8 *)malloc(BufferSize);
     if (!Buffer) {
-        CloseHandle(hDriver);
-        return -1;
+        goto err;
     }
 
     memcpy(Buffer + sizeof(*Command), String, StringSize);
     memcpy(Buffer, Command, sizeof(*Command));
 
-    if (!S2EIoCtl(hDriver, IoCtlCode, Buffer, (DWORD)BufferSize)) {
-        S2EMessageFmt("drvctl: could not issue ioctl\n");
+    if (!S2EIoCtl(Driver, IoCtlCode, Buffer, (DWORD)BufferSize)) {
+        LOG("S2EIoCtl failed (%#x)\n", GetLastError());
+        goto err;
     }
 
+err:
     free(Buffer);
-    CloseHandle(hDriver);
+    if (Driver != INVALID_HANDLE_VALUE) {
+        CloseHandle(Driver);
+    }
     return 0;
 }
 
-/**
- * Use the HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\AeDebug
- * key to invoke s2edbg.exe.
- *
- * Add or edit the Debugger value, using a REG_SZ string that specifies the
- * command line for the debugger.
- *
- * "C:\test\drvctl.exe" %ld %ld
- *
- * s2edbg.exe -p pid -e eventhandle
- */
-
+// Use the HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\AeDebug
+// key to invoke s2edbg.exe.
+//
+// Add or edit the Debugger value, using a REG_SZ string that specifies the
+// command line for the debugger.
+//
+// "C:\test\drvctl.exe" %ld %ld
+//
+// s2edbg.exe -p pid -e eventhandle
 int handler_debug(const char **args)
 {
     long pid = strtol(args[0], NULL, 0);
     long event_id = strtol(args[1], NULL, 0);
 
-    printf("Program with pid %d crashed (event id: %#x)\n", pid, event_id);
+    LOG("Program with pid %d crashed (event id: %#x)\n", pid, event_id);
 
     DebugApp(pid, event_id);
     return 0;
@@ -205,72 +196,87 @@ int handler_debug(const char **args)
 
 static int register_debug(const char *AeDebugKey)
 {
-    HMODULE hModule;
-    CHAR path[MAX_PATH], str[MAX_PATH];
-    HKEY Key;
+    HMODULE Module;
+    CHAR Path[MAX_PATH];
+    CHAR Value[MAX_PATH];
+    HKEY Key = NULL;
+    LPSTR ErrMsg = NULL;
+
     LSTATUS Status = RegCreateKeyA(HKEY_LOCAL_MACHINE, AeDebugKey, &Key);
     if (Status != ERROR_SUCCESS) {
-        char *err = GetErrorString(Status);
-        printf("Could not open key %s (%#x)\n", AeDebugKey, Status);
-        LocalFree(err);
-        return -1;
+        LOG("Could not open key %s (%#x)\n", AeDebugKey, Status);
+        goto err;
     }
 
-    hModule = GetModuleHandle(NULL);
-    GetModuleFileNameA(hModule, path, MAX_PATH);
-    printf("Setting JIT debugger to %s\n", path);
+    Module = GetModuleHandle(NULL);
+    GetModuleFileNameA(Module, Path, MAX_PATH);
+    LOG("Setting JIT debugger to %s\n", Path);
 
-    sprintf_s(str, sizeof(str), "\"%s\" debug %%ld %%ld", path);
-    printf("Writing registry key value %s\n", str);
+    sprintf_s(Value, sizeof(Value), "\"%s\" debug %%ld %%ld", Path);
+    LOG("Writing registry key value %s\n", Value);
 
-    Status = RegSetValueExA(Key, "Debugger", 0, REG_SZ, (const BYTE*)str, (DWORD)strlen(str));
-    printf("Status %#x\n", Status);
+    Status = RegSetValueExA(Key, "Debugger", 0, REG_SZ, (const BYTE*)Value, (DWORD)strlen(Value));
     if (Status != ERROR_SUCCESS) {
-        char *err = GetErrorString(Status);
-        printf("Could not register %s as a JIT debugger (%#x - %s)\n", AeDebugKey, Status, err);
-        LocalFree(err);
+        ErrMsg = GetErrorString(Status);
+        LOG("Could not register %s as a JIT debugger (%#x - %s)\n", AeDebugKey, Status, ErrMsg);
+        goto err;
     }
 
-    Status = RegSetValueExA(Key, "Auto", 0, REG_SZ, (const BYTE*) "1", 1);
+    Status = RegSetValueExA(Key, "Auto", 0, REG_SZ, (const BYTE*)"1", 1);
     if (Status != ERROR_SUCCESS) {
-        char *err = GetErrorString(Status);
-        printf("Could not enable autostart for JIT debugger (%p - %#x %s)\n", AeDebugKey, Status, err);
-        LocalFree(err);
+        char *ErrMsg = GetErrorString(Status);
+        LOG("Could not enable autostart for JIT debugger (%p - %#x %s)\n", AeDebugKey, Status, ErrMsg);
+        goto err;
     }
 
-    RegCloseKey(Key);
+err:
+    if (ErrMsg) {
+        LocalFree(ErrMsg);
+    }
+
+    if (Key != NULL) {
+        RegCloseKey(Key);
+    }
 
     return 0;
 }
 
 static void disable_windows_error_reporting()
 {
-    const char *WerPath = "SOFTWARE\\Microsoft\\Windows\\Windows Error Reporting";
-    HKEY Key;
+    LPSTR ErrMsg = NULL;
+    LPCSTR WerPath = "SOFTWARE\\Microsoft\\Windows\\Windows Error Reporting";
+    HKEY Key = NULL;
 
     LSTATUS Status = RegCreateKeyA(HKEY_LOCAL_MACHINE, WerPath, &Key);
     if (Status != ERROR_SUCCESS) {
-        char *err = GetErrorString(Status);
-        printf("Could not open key %s (%#x)\n", WerPath, Status);
-        LocalFree(err);
-        return;
+        LOG("Could not open key %s (%#x)\n", WerPath, Status);
+        goto err;
     }
 
-    Status = RegSetValueExA(Key, "DontShowUI", 0, REG_SZ, (const BYTE*) "1", 1);
+    Status = RegSetValueExA(Key, "DontShowUI", 0, REG_SZ, (const BYTE*)"1", 1);
     if (Status != ERROR_SUCCESS) {
-        char *err = GetErrorString(Status);
-        printf("Could not disable WER (%p - %#x - %s)\n", WerPath, Status, err);
-        LocalFree(err);
+        char *ErrMsg = GetErrorString(Status);
+        LOG("Could not disable WER (%p - %#x - %s)\n", WerPath, Status, ErrMsg);
+        goto err;
     }
 
-    RegCloseKey(Key);
+err:
+    if (ErrMsg) {
+        LocalFree(ErrMsg);
+    }
+
+    if (Key) {
+        RegCloseKey(Key);
+    }
 }
 
 int handler_register_debug(const char **args)
 {
-    const char *Path = "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\AeDebug";
+    UNREFERENCED_PARAMETER(args);
+
+    LPCSTR Path = "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\AeDebug";
 #if defined(_AMD64_)
-    const char *WowPath = "SOFTWARE\\Wow6432Node\\Microsoft\\Windows NT\\CurrentVersion\\AeDebug";
+    LPCSTR WowPath = "SOFTWARE\\Wow6432Node\\Microsoft\\Windows NT\\CurrentVersion\\AeDebug";
 #endif
 
     register_debug(Path);
@@ -279,73 +285,232 @@ int handler_register_debug(const char **args)
     register_debug(WowPath);
 #endif
 
-    printf("Disabling WER...\n");
+    LOG("Disabling WER...\n");
     disable_windows_error_reporting();
 
-    args;
     return 0;
 }
 
 int handler_crash(const char **args)
 {
+    UNREFERENCED_PARAMETER(args);
     *(char *)0 = 0;
-    args;
     return 0;
 }
 
 int handler_kernel_crash(const char **args)
 {
-    HANDLE hDriver = OpenS2EDriver(pS2EDriverDevice);
-    if (hDriver == INVALID_HANDLE_VALUE) {
-        S2EMessageFmt("drvctl: could not open %s\n", pS2EDriverDevice);
-        return -1;
-    }
-
-    S2EMessage("drvctl: crashing the kernel...");
-    if (!S2EIoCtl(hDriver, IOCTL_S2E_CRASH_KERNEL, NULL, 0)) {
-        printf("Could not perform IOCTL %s\n", pS2EDriverDevice);
-        CloseHandle(hDriver);
-        return -1;
-    }
-
-    CloseHandle(hDriver);
     UNREFERENCED_PARAMETER(args);
+
+    HANDLE Driver = S2EOpenDriver(S2EDriverDevice);
+    if (Driver == INVALID_HANDLE_VALUE) {
+        LOG("could not open %s\n", S2EDriverDevice);
+        goto err;
+    }
+
+    S2EMessage("crashing the kernel...");
+    if (!S2EIoCtl(Driver, IOCTL_S2E_CRASH_KERNEL, NULL, 0)) {
+        LOG("S2EIoCtl failed (%#x)\n", GetLastError());
+        goto err;
+    }
+
+err:
+    if (Driver != INVALID_HANDLE_VALUE) {
+        CloseHandle(Driver);
+    }
     return 0;
 }
 
 int handler_wait(const char **args)
 {
-    HANDLE hDriver;
+    HANDLE Driver;
     UNREFERENCED_PARAMETER(args);
 
-
     while (1) {
-        S2EMessageFmt("drvctl: waiting for the s2e driver...");
-        hDriver = OpenS2EDriver(pS2EDriverDevice);
-        if (hDriver != INVALID_HANDLE_VALUE) {
+        LOG("waiting for the s2e driver...");
+        Driver = S2EOpenDriver(S2EDriverDevice);
+        if (Driver != INVALID_HANDLE_VALUE) {
             break;
         }
+
         Sleep(1000);
     }
 
-    CloseHandle(hDriver);
-    S2EMessageFmt("drvctl: s2e driver loaded");
+    CloseHandle(Driver);
+    LOG("s2e driver loaded");
+    return 0;
+}
+
+int handler_set_config(const char **args)
+{
+    HANDLE Driver = INVALID_HANDLE_VALUE;
+    LPCSTR ConfigName = args[0];
+    UINT64 ConfigValue = strtoll(args[1], NULL, 0);
+    S2E_IOCTL_SET_CONFIG *Config = NULL;
+
+    Driver = S2EOpenDriver(S2EDriverDevice);
+    if (Driver == INVALID_HANDLE_VALUE) {
+        LOG("Could not open %s\n", S2EDriverDevice);
+        goto err;
+    }
+
+    LOG("Setting %s=%#llx\n", ConfigName, ConfigValue);
+
+    Config = S2ESerializeIoctlSetConfig(ConfigName, ConfigValue);
+    if (!Config) {
+        LOG("Could not allocate memory\n");
+        goto err;
+    }
+
+    if (!S2EIoCtl(Driver, IOCTL_S2E_SET_CONFIG, Config, Config->Size)) {
+        LOG("S2EIoCtl failed (%#x)\n", GetLastError());
+    }
+
+err:
+    free(Config);
+
+    if (Driver != INVALID_HANDLE_VALUE) {
+        CloseHandle(Driver);
+    }
+
+    return 0;
+}
+
+int handler_invoke_plugin(const char **args)
+{
+    HANDLE Driver = INVALID_HANDLE_VALUE;
+    LPCSTR PluginName = args[0];
+    LPCSTR Data = args[1];
+    UINT DataSize = strlen(Data) + 1;
+
+    S2E_IOCTL_INVOKE_PLUGIN *Plugin = NULL;
+
+    // Does not need to be freed
+    PVOID Output = NULL;
+
+    Driver = S2EOpenDriver(S2EDriverDevice);
+    if (Driver == INVALID_HANDLE_VALUE) {
+        LOG("Could not open %s\n", S2EDriverDevice);
+        goto err;
+    }
+
+    LOG("Invoking plugin %s with data \"%s\"\n", PluginName, Data);
+
+    Plugin = S2ESerializeIoctlInvokePlugin(PluginName, Data, DataSize, &Output);
+    if (!Plugin) {
+        LOG("Could not allocate memory\n");
+        goto err;
+    }
+
+    Plugin->Result = 0xdeadbeef;
+    if (!S2EIoCtlOut(Driver, IOCTL_S2E_INVOKE_PLUGIN, Plugin, Plugin->Size)) {
+        LOG("S2EIoCtl failed (%#x)\n", GetLastError());
+        goto err;
+    }
+
+    LOG("Result: %#x\n", Plugin->Result);
+
+err:
+    free(Plugin);
+
+    if (Driver != INVALID_HANDLE_VALUE) {
+        CloseHandle(Driver);
+    }
+
+    return 0;
+}
+
+int handler_fork(const char **args)
+{
+    HANDLE Driver = INVALID_HANDLE_VALUE;
+    LPCSTR VariableName = args[0];
+    UINT DataSize = strtol(args[1], NULL, 0);
+    PCHAR Data = NULL;
+
+    if (!DataSize) {
+        goto err;
+    }
+
+    Driver = S2EOpenDriver(S2EDriverDevice);
+    if (Driver == INVALID_HANDLE_VALUE) {
+        LOG("Could not open %s\n", S2EDriverDevice);
+        goto err;
+    }
+
+    Data = calloc(1, DataSize);
+    if (!Data) {
+        goto err;
+    }
+
+    if (!S2EIoctlMakeConcolic(Driver, VariableName, Data, DataSize)) {
+        LOG("Could not make data concolic\n");
+        goto err;
+    }
+
+    if (Data[0]) {
+        LOG("fork: true");
+    } else {
+        LOG("fork: false");
+    }
+
+err:
+    free(Data);
+
+    if (Driver != INVALID_HANDLE_VALUE) {
+        CloseHandle(Driver);
+    }
+
+    return 0;
+}
+
+int handler_pathid(const char **args)
+{
+    UNREFERENCED_PARAMETER(args);
+    HANDLE Driver = INVALID_HANDLE_VALUE;
+    UINT64 PathId;
+
+    Driver = S2EOpenDriver(S2EDriverDevice);
+    if (Driver == INVALID_HANDLE_VALUE) {
+        LOG("Could not open %s\n", S2EDriverDevice);
+        goto err;
+    }
+
+    if (!S2EIoctlGetPathId(Driver, &PathId)) {
+        fprintf(stderr, "Could not get path id");
+        goto err;
+    }
+
+    printf("%lld\n", PathId);
+
+err:
+
+    if (Driver != INVALID_HANDLE_VALUE) {
+        CloseHandle(Driver);
+    }
+
     return 0;
 }
 
 #define COMMAND(c, args, desc, ...) { #c, handler_##c, args, desc, {__VA_ARGS__} }
 
+// Note: some of these commands duplicate those in s2ecmd.
+// This is to illustrate the use of s2e.sys to run S2E instructions,
+// see s2ectl.h for more details.
 static cmd_t s_commands[] = {
     COMMAND(register, 1, "Register a driver that is already loaded.",
-                         "Name of the driver (e.g., driver.sys)."),
+        "Name of the driver (e.g., driver.sys)."),
 
     COMMAND(crash, 0, "Just crashes", NULL),
     COMMAND(kernel_crash, 0, "Crashes the kernel", NULL),
     COMMAND(wait, 0, "Waits for the s2e driver to finish loading", NULL),
+    COMMAND(set_config, 2, "Sets s2e driver configuration (name=value)", NULL),
+    COMMAND(invoke_plugin, 2, "Invokes the specified plugin with the given data", NULL),
+    COMMAND(fork, 2, "Forks the current state, takes a variable name and size", NULL),
+    COMMAND(pathid, 0, "Prints the current path id", NULL),
 
     COMMAND(debug, 2, "Handle debug request from Windows",
-                      "Pid of the program that crashed",
-                      "Event handle"),
+        "Pid of the program that crashed",
+        "Event handle"),
 
     COMMAND(register_debug, 0, "Registers drvctl as a Windows JIT debugger.", NULL),
 
@@ -356,13 +521,13 @@ static void print_commands(void)
 {
     unsigned i = 0;
     unsigned j = 0;
-    printf("%-15s  %s %s\n\n", "Command name", "Argument count", "Description");
+    LOG("%-15s  %s %s\n\n", "Command name", "Argument count", "Description");
     while (s_commands[i].handler) {
-        printf("%-15s  %d              %s\n", s_commands[i].name,
-               s_commands[i].args_count, s_commands[i].description);
+        LOG("%-15s  %d              %s\n", s_commands[i].name,
+            s_commands[i].args_count, s_commands[i].description);
 
         for (j = 0; s_commands[i].arg_desc[j]; ++j) {
-            printf("                                arg %d: %s\n", j, s_commands[i].arg_desc[j]);
+            LOG("                                arg %d: %s\n", j, s_commands[i].arg_desc[j]);
         }
 
         ++i;
@@ -395,7 +560,7 @@ int __cdecl main(int argc, const char **argv)
     cmd_index = find_command(cmd);
 
     if (cmd_index == -1) {
-        printf("Command %s not found\n", cmd);
+        LOG("Command %s not found\n", cmd);
         return -1;
     }
 
@@ -404,8 +569,8 @@ int __cdecl main(int argc, const char **argv)
     ++argv;
 
     if (argc != s_commands[cmd_index].args_count) {
-        printf("Invalid number of arguments supplied (%d instead of %d)\n",
-               argc, s_commands[cmd_index].args_count);
+        LOG("Invalid number of arguments supplied (%d instead of %d)\n",
+            argc, s_commands[cmd_index].args_count);
         return -1;
     }
 

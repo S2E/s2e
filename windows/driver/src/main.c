@@ -24,21 +24,25 @@
 #include "winmonitor.h"
 #include "filter.h"
 
+#include "adt/strings.h"
 #include "config/config.h"
 #include "faultinj/faultinj.h"
 
 #include "log.h"
 
-DRIVER_UNLOAD DriverUnload;
+DRIVER_INITIALIZE DriverEntry;
+static DRIVER_UNLOAD DriverUnload;
 
-NTSTATUS S2EOpen(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp);
-NTSTATUS S2EClose(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp);
-NTSTATUS S2EIoControl(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp);
+_Dispatch_type_(IRP_MJ_CREATE) static DRIVER_DISPATCH S2EOpen;
+_Dispatch_type_(IRP_MJ_CLOSE) static DRIVER_DISPATCH S2EClose;
+_Dispatch_type_(IRP_MJ_DEVICE_CONTROL) static DRIVER_DISPATCH S2EIoControl;
 
 #define NT_DEVICE_NAME          L"\\Device\\S2EDriver"
 #define DOS_DEVICE_NAME         L"\\DosDevices\\S2EDriver"
 
 PDEVICE_OBJECT g_DeviceObject = NULL;
+
+S2E_CONFIG g_config;
 
 static UINT32 GetOSVersion(VOID)
 {
@@ -86,8 +90,8 @@ err:
 }
 
 NTSTATUS DriverEntry(
-    IN PDRIVER_OBJECT DriverObject,
-    IN PUNICODE_STRING RegistryPath
+    _In_ PDRIVER_OBJECT DriverObject,
+    _In_ PUNICODE_STRING RegistryPath
 )
 {
     NTSTATUS Status = STATUS_SUCCESS;
@@ -100,8 +104,6 @@ NTSTATUS DriverEntry(
     BOOLEAN DeviceObjectInited = FALSE;
     BOOLEAN SymlinkInited = FALSE;
     BOOLEAN FsFilterInited = FALSE;
-
-    S2E_CONFIG Config;
 
     UNREFERENCED_PARAMETER(DriverObject);
     UNREFERENCED_PARAMETER(RegistryPath);
@@ -117,13 +119,13 @@ NTSTATUS DriverEntry(
     }
     S2EValidated = TRUE;
 
-    Status = ConfigInit(&Config);
+    Status = ConfigInit(&g_config);
     if (!NT_SUCCESS(Status)) {
         LOG("Could not read S2E configuration from registry (%#x)\n", Status);
         goto err;
     }
 
-    ConfigDump(&Config);
+    ConfigDump(&g_config);
 
     Status = InitializeKernelFunctionPointers();
     if (!NT_SUCCESS(Status)) {
@@ -183,8 +185,8 @@ NTSTATUS DriverEntry(
     InitializeKernelHooks();
     S2ERegisterMergeCallback();
 
-    if (Config.FaultInjectionEnabled) {
-        FaultInjectionInit(Config.FaultInjectionOverapproximate);
+    if (g_config.FaultInjectionEnabled) {
+        FaultInjectionInit();
     }
 
 #if defined(_AMD64_)
@@ -224,11 +226,10 @@ err:
     return Status;
 }
 
-NTSTATUS S2EOpen(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp)
+static NTSTATUS S2EOpen(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp)
 {
     PIO_STACK_LOCATION IrpSp;
     NTSTATUS NtStatus = STATUS_SUCCESS;
-    PAGED_CODE();
 
     UNREFERENCED_PARAMETER(DeviceObject);
 
@@ -242,11 +243,10 @@ NTSTATUS S2EOpen(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp)
     return NtStatus;
 }
 
-NTSTATUS S2EClose(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp)
+static NTSTATUS S2EClose(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp)
 {
     NTSTATUS NtStatus;
     PIO_STACK_LOCATION IrpSp;
-    PAGED_CODE();
 
     UNREFERENCED_PARAMETER(DeviceObject);
 
@@ -324,7 +324,125 @@ err:
     return Status;
 }
 
-NTSTATUS S2EIoControl(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp)
+static NTSTATUS S2EIoCtlSetConfig(_In_ PVOID Buffer, _In_ ULONG InputBufferLength)
+{
+    NTSTATUS Status;
+    S2E_IOCTL_SET_CONFIG *Config = (S2E_IOCTL_SET_CONFIG*)Buffer;
+    if (InputBufferLength < sizeof(*Config)) {
+        Status = STATUS_INVALID_PARAMETER;
+        goto err;
+    }
+
+    if (Config->Size < sizeof(*Config)) {
+        Status = STATUS_INVALID_PARAMETER;
+        goto err;
+    }
+
+    UINT64 NameSize = Config->Size - sizeof(*Config);
+
+    if (NameSize == 0) {
+        Status = STATUS_INVALID_PARAMETER;
+        goto err;
+    }
+
+    // Make sure the input is null-terminated
+    Config->Name[NameSize - 1] = 0;
+
+    Status = ConfigSet(&g_config, Config->Name, Config->Value);
+
+err:
+    return Status;
+}
+
+static NTSTATUS S2EIoCtlInvokePlugin(_In_ PVOID Buffer, _In_ ULONG InputBufferLength)
+{
+    NTSTATUS Status;
+    S2E_IOCTL_INVOKE_PLUGIN *Config = (S2E_IOCTL_INVOKE_PLUGIN*)Buffer;
+    if (InputBufferLength < sizeof(*Config)) {
+        Status = STATUS_INVALID_PARAMETER;
+        goto err;
+    }
+
+    // Make sure there is no overflow by casting
+    if ((UINT64)Config->DataOffset + (UINT64)Config->DataSize > (UINT64)InputBufferLength) {
+        Status = STATUS_INVALID_PARAMETER;
+        goto err;
+    }
+
+    if ((UINT64)Config->PluginNameOffset + (UINT64)Config->PluginNameSize > (UINT64)InputBufferLength) {
+        Status = STATUS_INVALID_PARAMETER;
+        goto err;
+    }
+
+    // Make sure plugin name is null-terminated
+    PSTR PluginName = (PSTR)(((UINT_PTR)Config) + Config->PluginNameOffset);
+    PluginName[Config->PluginNameSize - 1] = 0;
+
+    UINT_PTR Data = ((UINT_PTR)Config) + Config->DataOffset;
+
+    LOG("Invoking plugin %s with data size %#x\n", PluginName, Config->DataSize);
+    Config->Result = S2EInvokePlugin(PluginName, (PVOID)Data, Config->DataSize);
+    Status = STATUS_SUCCESS;
+
+err:
+    return Status;
+}
+
+static NTSTATUS S2EIoCtlMakeConcolic(_In_ PVOID Buffer, _In_ ULONG InputBufferLength)
+{
+    NTSTATUS Status;
+    PSTR VariableName = NULL;
+    S2E_IOCTL_MAKE_CONCOLIC *Req = (S2E_IOCTL_MAKE_CONCOLIC*)Buffer;
+    if (InputBufferLength < sizeof(*Req)) {
+        Status = STATUS_INVALID_PARAMETER;
+        goto err;
+    }
+
+    try {
+        ProbeForRead((PVOID)(UINT_PTR)Req->VariableNamePointer, Req->VariableNameSize, 1);
+        ProbeForWrite((PVOID)(UINT_PTR)Req->DataPointer, Req->DataSize, 1);
+
+        VariableName = StringDuplicateA((PVOID)(UINT_PTR)Req->VariableNamePointer, Req->VariableNameSize);
+        if (!VariableName) {
+            Status = STATUS_INSUFFICIENT_RESOURCES;
+            goto err;
+        }
+
+        S2EMakeConcolic((PVOID)(UINT_PTR)Req->DataPointer, Req->DataSize, VariableName);
+
+    } except (EXCEPTION_EXECUTE_HANDLER) {
+        Status = STATUS_INVALID_PARAMETER;
+        goto err;
+    }
+
+    Status = STATUS_SUCCESS;
+
+err:
+    if (VariableName) {
+        ExFreePool(VariableName);
+    }
+
+    return Status;
+}
+
+static NTSTATUS S2EIoCtlGetPathId(_In_ PVOID Buffer, _In_ ULONG InputBufferLength)
+{
+    NTSTATUS Status;
+    S2E_IOCTL_GET_PATH_ID *Req = (S2E_IOCTL_GET_PATH_ID*)Buffer;
+    if (InputBufferLength < sizeof(*Req)) {
+        Status = STATUS_INVALID_PARAMETER;
+        goto err;
+    }
+
+    Req->PathId = S2EGetPathId();
+
+    Status = STATUS_SUCCESS;
+
+err:
+    return Status;
+}
+
+static NTSTATUS S2EIoControl(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp)
 {
     PIO_STACK_LOCATION IrpSp;
     ULONG FunctionCode;
@@ -353,7 +471,32 @@ NTSTATUS S2EIoControl(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp)
             break;
 
         case IOCTL_S2E_CRASH_KERNEL:
+#pragma warning(push)
+#pragma warning(disable: 28159)
             KeBugCheck(0xDEADDEAD);
+#pragma warning(pop)
+            break;
+
+        case IOCTL_S2E_SET_CONFIG:
+            Status = S2EIoCtlSetConfig(Buffer, InputBufferLength);
+            break;
+
+        case IOCTL_S2E_INVOKE_PLUGIN:
+            Status = S2EIoCtlInvokePlugin(Buffer, InputBufferLength);
+            if (NT_SUCCESS(Status)) {
+                BytesReturned = InputBufferLength;
+            }
+            break;
+
+        case IOCTL_S2E_MAKE_CONCOLIC:
+            Status = S2EIoCtlMakeConcolic(Buffer, InputBufferLength);
+            break;
+
+        case IOCTL_S2E_GET_PATH_ID:
+            Status = S2EIoCtlGetPathId(Buffer, InputBufferLength);
+            if (NT_SUCCESS(Status)) {
+                BytesReturned = InputBufferLength;
+            }
             break;
 
         default:
@@ -370,10 +513,9 @@ NTSTATUS S2EIoControl(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp)
     return Status;
 }
 
-VOID DriverUnload(PDRIVER_OBJECT DriverObject)
+static VOID DriverUnload(PDRIVER_OBJECT DriverObject)
 {
     UNICODE_STRING Win32DeviceName;
-    PAGED_CODE();
 
     UNREFERENCED_PARAMETER(DriverObject);
     LOG("Unloading s2e.sys\n");

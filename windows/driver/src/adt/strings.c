@@ -18,6 +18,7 @@ NTSTATUS StringToUnicode(_In_ LPCSTR String, _In_ SIZE_T MaxInputLen, _Out_ PUNI
     NTSTATUS Status;
     size_t Len;
     PVOID Buffer;
+    size_t BufferSize;
 
     Status = RtlStringCchLengthA(String, MaxInputLen, &Len);
     if (!NT_SUCCESS(Status)) {
@@ -25,7 +26,13 @@ NTSTATUS StringToUnicode(_In_ LPCSTR String, _In_ SIZE_T MaxInputLen, _Out_ PUNI
         goto err;
     }
 
-    Buffer = ExAllocatePoolWithTag(NonPagedPool, MaxInputLen * sizeof(WCHAR), TAG_STR);
+    BufferSize = Len * sizeof(WCHAR);
+    if (BufferSize > 65534) {
+        Status = STATUS_BUFFER_OVERFLOW;
+        goto err;
+    }
+
+    Buffer = ExAllocatePoolWithTag(NonPagedPoolNx, BufferSize, TAG_STR);
     if (!Buffer) {
         LOG("Could not allocate buffer for string\n");
         Status = STATUS_INSUFFICIENT_RESOURCES;
@@ -33,10 +40,10 @@ NTSTATUS StringToUnicode(_In_ LPCSTR String, _In_ SIZE_T MaxInputLen, _Out_ PUNI
     }
 
     Unicode->Buffer = Buffer;
-    Unicode->MaximumLength = (USHORT)(MaxInputLen * sizeof(WCHAR));
-    Unicode->Length = (USHORT)(Len * sizeof(USHORT));
+    Unicode->MaximumLength = (USHORT) BufferSize;
+    Unicode->Length = (USHORT) BufferSize;
 
-    for (unsigned i = 0; i < Unicode->Length; ++i) {
+    for (unsigned i = 0; i < BufferSize / sizeof(WCHAR); ++i) {
         Unicode->Buffer[i] = String[i];
     }
 
@@ -60,7 +67,7 @@ VOID StringFree(_Inout_ PUNICODE_STRING String)
 NTSTATUS StringDuplicate(_Out_ PUNICODE_STRING Dest, _In_ PCUNICODE_STRING Source)
 {
     *Dest = *Source;
-    Dest->Buffer = (PWCH)ExAllocatePoolWithTag(NonPagedPool, Source->MaximumLength, 0xdead);
+    Dest->Buffer = (PWCH)ExAllocatePoolWithTag(NonPagedPoolNx, Source->MaximumLength, TAG_STR);
     if (!Dest->Buffer) {
         return STATUS_INSUFFICIENT_RESOURCES;
     }
@@ -70,6 +77,19 @@ NTSTATUS StringDuplicate(_Out_ PUNICODE_STRING Dest, _In_ PCUNICODE_STRING Sourc
     return STATUS_SUCCESS;
 }
 
+PSTR StringDuplicateA(_In_ PCSTR Source, _In_ SIZE_T Size)
+{
+    PSTR Ret;
+    Ret = (PSTR)ExAllocatePoolWithTag(NonPagedPoolNx, Size, TAG_STR);
+    if (!Ret) {
+        return NULL;
+    }
+
+    memcpy(Ret, Source, Size);
+
+    return Ret;
+}
+
 PCHAR StringCat(_In_opt_ PCCHAR Str1, _In_opt_ PCCHAR Str2)
 {
     PCHAR Ret = NULL;
@@ -77,7 +97,7 @@ PCHAR StringCat(_In_opt_ PCCHAR Str1, _In_opt_ PCCHAR Str2)
     size_t Len2 = Str2 ? strlen(Str2) : 0;
     size_t ToAllocate = Len1 + Len2 + 1;
 
-    Ret = ExAllocatePoolWithTag(NonPagedPool, ToAllocate, TAG_STR);
+    Ret = ExAllocatePoolWithTag(NonPagedPoolNx, ToAllocate, TAG_STR);
     if (!Ret) {
         return NULL;
     }
@@ -95,7 +115,7 @@ PCHAR StringCat(_In_opt_ PCCHAR Str1, _In_opt_ PCCHAR Str2)
     return Ret;
 }
 
-NTSTATUS StringCatInPlace(_Inout_ PCCHAR *Str1, _Out_ PCCHAR Str2)
+NTSTATUS StringCatInPlace(_Inout_ PCCHAR *Str1, _In_ PCCHAR Str2)
 {
     PCHAR NewBuffer = StringCat(*Str1, Str2);
     if (!NewBuffer) {
