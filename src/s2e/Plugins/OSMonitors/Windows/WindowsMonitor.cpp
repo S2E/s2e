@@ -159,25 +159,29 @@ std::string WindowsMonitor::GetNormalizedPath(const std::string &path) {
     return str;
 }
 
-void WindowsMonitor::NormalizePath(ModuleDescriptor &module, const std::string &path) {
-    module.Path = GetNormalizedPath(path);
-    module.Name = GetFileName(path);
+void WindowsMonitor::NormalizePath(const std::string &path, std::string &normalizedPath, std::string &fileName) {
+    normalizedPath = GetNormalizedPath(path);
+    fileName = GetFileName(path);
 
     // Sometimes we don't know where the module is, especially if the windows api
     // did not provide the full path of the binary. Vmi will try its best to
     // locate the file.
-    if (module.Name == module.Path) {
-        module.Path = "";
+    if (fileName == normalizedPath) {
+        normalizedPath = "";
     }
 
     // We always want the module name to be lower case on windows. This simplifies configuration
     // of all the plugins that rely on the module name (e.g., ModuleExecutionDetector).
     // Windows tends to use different cases depending on the context, which would cause config to break.
-    std::transform(module.Name.begin(), module.Name.end(), module.Name.begin(), ::tolower);
+    std::transform(fileName.begin(), fileName.end(), fileName.begin(), ::tolower);
 
     // Don't lower-case the full path for now. Plugins will do it themselves if needed
     // (e.g., Vmi will try to lookup the original path, and if failed, lower case it).
-    // std::transform(module.Path.begin(), module.Path.end(), module.Path.begin(), ::tolower);
+    // std::transform(normalizedPath.begin(), normalizedPath.end(), normalizedPath.begin(), ::tolower);
+}
+
+void WindowsMonitor::NormalizePath(ModuleDescriptor &module, const std::string &path) {
+    NormalizePath(path, module.Path, module.Name);
 }
 
 void WindowsMonitor::initialize() {
@@ -908,12 +912,18 @@ void WindowsMonitor::handleOpcodeInvocation(S2EExecutionState *state, uint64_t g
             target_ulong cr3 = state->regs()->getPageDir();
             plgState->addProcess(command.Process.ProcessId, command.Process.ParentProcessId, command.Process.EProcess);
 
-            std::string name = command.Process.ImageFileName;
-            if (name == "FoxitReader.ex") {
-                name = "FoxitReader.exe"; // XXX: the driver truncates long process names
+            uint64_t characters = command.Process.UnicodeImagePathSizeInBytes / sizeof(uint16_t);
+            std::string path, normalizedPath, fileName;
+            if (!state->mem()->readUnicodeString(command.Process.UnicodeImagePath, path, characters)) {
+                getWarningsStream(state) << "could not read process path\n";
+                break;
             }
 
-            onProcessLoad.emit(state, cr3, command.Process.ProcessId, name);
+            NormalizePath(path, normalizedPath, fileName);
+
+            getDebugStream(state) << "Process load " << normalizedPath << " (" << fileName << ")\n";
+
+            onProcessLoad.emit(state, cr3, command.Process.ProcessId, fileName);
         } break;
 
         case UNLOAD_PROCESS: {
@@ -924,6 +934,9 @@ void WindowsMonitor::handleOpcodeInvocation(S2EExecutionState *state, uint64_t g
             }
 
             DECLARE_PLUGINSTATE(WindowsMonitorState, state);
+
+            getDebugStream(state) << "Process unload pid=" << hexval(command.Process.ProcessId) << "\n";
+
             plgState->removeHandles(command.Process.ProcessId);
             plgState->removeProcess(command.Process.ProcessId);
             target_ulong cr3 = state->regs()->getPageDir();
