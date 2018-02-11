@@ -142,7 +142,8 @@ typedef struct S2E_WINMON2_PROCESS_CREATION
     UINT64 ProcessId;
     UINT64 ParentProcessId;
     UINT64 EProcess;
-    CHAR ImageFileName[16];
+    UINT64 UnicodeImagePath;
+    UINT64 UnicodeImagePathSizeInBytes;
 } S2E_WINMON2_PROCESS_CREATION;
 
 typedef struct S2E_WINMON2_THREAD_CREATION
@@ -282,6 +283,26 @@ static VOID WinMon2LoadDriver(PCUNICODE_STRING FilePath, UINT64 LoadBase, UINT64
     Command.Module2.Pid = 0;
     Command.Module2.UnicodeModulePath = (UINT_PTR)FilePath->Buffer;
     Command.Module2.UnicodeModulePathSizeInBytes = FilePath->Length;
+    S2EInvokePlugin("WindowsMonitor", &Command, sizeof(Command));
+}
+
+static VOID WinMon2LoadUnloadProcess(
+    _In_ BOOLEAN IsLoad,
+    _In_ PCUNICODE_STRING ProcessImageName,
+    _In_ UINT64 ProcessId,
+    _In_ UINT64 ParentId,
+    _In_ UINT64 EProcess
+)
+{
+    S2E_WINMON2_COMMAND Command = { 0 };
+
+    Command.Process.EProcess = EProcess;
+    Command.Process.ProcessId = ProcessId;
+    Command.Process.ParentProcessId = ParentId;
+    Command.Process.UnicodeImagePath = (UINT_PTR)ProcessImageName->Buffer;
+    Command.Process.UnicodeImagePathSizeInBytes = (UINT_PTR)ProcessImageName->Length;
+    Command.Command = IsLoad ? LOAD_PROCESS : UNLOAD_PROCESS;
+
     S2EInvokePlugin("WindowsMonitor", &Command, sizeof(Command));
 }
 
