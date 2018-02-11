@@ -131,3 +131,30 @@ NTSTATUS StringCatInPlace(_Inout_ PCCHAR *Str1, _In_ PCCHAR Str2)
 
     return STATUS_SUCCESS;
 }
+
+NTSTATUS StringAllocateUnicode(_Inout_ PUNICODE_STRING String)
+{
+    NTSTATUS Status = STATUS_INVALID_PARAMETER;
+
+    if (!String) {
+        goto err;
+    }
+
+    String->Buffer = 0;
+    String->Length = 0;
+
+    if (!(String->MaximumLength >= sizeof(WCHAR))) {
+        goto err;
+    }
+
+    String->Buffer = ExAllocatePoolWithTag(NonPagedPool, String->MaximumLength, TAG_STR);
+    if (String->Buffer == NULL) {
+        Status = STATUS_INSUFFICIENT_RESOURCES;
+        goto err;
+    }
+
+    Status = STATUS_SUCCESS;
+
+err:
+    return Status;
+}
