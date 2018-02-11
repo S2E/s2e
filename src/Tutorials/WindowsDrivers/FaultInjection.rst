@@ -207,12 +207,24 @@ Locate the following code in ``bootstrap.sh``:
 .. code-block:: console
 
     function execute_target {
+        # Activate fault injection right before loading the driver
+        ./drvctl.exe set_config FaultInjectionActive 1
+
+        # Set this to 1 if you would like more aggressive fault injection, to help harden your driver
+        # against arbitrary API call errors. This may add false positives.
+        ./drvctl.exe set_config FaultInjectionOverapproximate 1
+
+        # Ask windows to load the driver
         install_driver "$(win_path "$1")"
 
-        # TODO: you may need to manually start the driver using "sc start your_driver_service"
-        # TODO: you may want to download additional binaries with s2eget.exe (e.g., a test driver)
+        # TODO: you may need to manually start the driver using sc
+        # sc start my_driver_service
 
-        # Give some time for the driver to load
+        # TODO: you may want to download additional binaries with s2eget.exe (e.g., a test harness)
+        # $S2EGET TestHarness.exe
+
+        # Give some time for the driver to load.
+        # You do not need this if your test harness knows when the driver is done loading.
         sleep 30
     }
 
@@ -228,13 +240,6 @@ Modify it as follows:
         # Give some time for the driver to load
         sleep 30
     }
-
-In addition to this, disable for now fault injection by replacing the line that contains ``FaultInjectionEnabled``
-with the following:
-
-.. code-block:: console
-
-    run_cmd "reg add HKLM\\Software\\S2E /v FaultInjectionEnabled /t REG_DWORD /d 0x0 /f"
 
 You may also want to have a look at ``scanuser.exe`` to see how it works and invoke it from the ``bootstrap.sh`` script.
 This is however not required for this tutorial.
@@ -337,15 +342,22 @@ In the coverage report that you generated previously, you can observe that the e
 ``ZwQueryValueKey`` and ``ExAllocatePoolWithTag`` has not been exercised. In this section, you will learn how
 to inject errors in these calls in order to check that the error recovery code behaves properly.
 
-First of all, enable fault injection by replacing in ``bootstrap.sh`` the line in that contains
-``FaultInjectionEnabled`` with the following one:
+First of all, enable fault injection by setting ``FaultInjectionActive`` to ``1`` in ``bootstrap.sh``:
 
 .. code-block:: console
 
-    run_cmd "reg add HKLM\\Software\\S2E /v FaultInjectionEnabled /t REG_DWORD /d  0x1  /f"
+    function execute_target {
+        ./drvctl.exe set_config FaultInjectionActive 1
 
-You have set the flag to 0 earlier in the tutorial, you need to set it back to 1. After you have done so,
-rerun S2E and re-generate coverage files.
+        install_driver "$(win_path "$1")"
+
+        sc start scanner
+
+        # Give some time for the driver to load
+        sleep 30
+    }
+
+After you have done so, rerun S2E and re-generate coverage files.
 
 **Tip:** S2E can test multiple fault scenarios in parallel and complete testing quicker. For this, in the ``launch-s2e.sh``
 file, set the ``S2E_MAX_PROCESSES`` variable to the number of threads you wish to use and make sure that
