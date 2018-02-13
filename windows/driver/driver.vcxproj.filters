@@ -26,6 +26,9 @@
     <Filter Include="Source Files\config">
       <UniqueIdentifier>{132d0b9d-ca70-42e9-afd5-d6f7ee6ad738}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\utils">
+      <UniqueIdentifier>{e79076b7-1d0f-43bd-b49c-ad498e8bb6df}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\crash.c">
@@ -85,6 +88,9 @@
     <ClCompile Include="src\faultinj\flt.cpp">
       <Filter>Source Files\faultinj</Filter>
     </ClCompile>
+    <ClCompile Include="src\utils\process.c">
+      <Filter>Source Files\utils</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\crash.h">
@@ -134,6 +140,9 @@
     </ClInclude>
     <ClInclude Include="src\utils.h">
       <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\utils\process.h">
+      <Filter>Source Files\utils</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

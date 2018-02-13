@@ -11,7 +11,9 @@
 #include <s2e/WindowsMonitor.h>
 #include "kernel_structs.h"
 #include "kernel_functions.h"
+#include "utils/process.h"
 #include "log.h"
+#include "adt/strings.h"
 
 static VOID OnThreadNotification(
     IN HANDLE ProcessId,
@@ -49,41 +51,36 @@ static VOID OnProcessNotification(
     HANDLE ProcessId,
     BOOLEAN Create)
 {
-    PEPROCESS Process;
     NTSTATUS Status;
-    CHAR *ImageFileName;
-    S2E_WINMON2_COMMAND Command = { 0 };
+    PEPROCESS Process = NULL;
+    UNICODE_STRING ProcessImageName = { 0 };
 
     LOG("caught process %s pid=%p parent=%p\n",
         Create ? "creation" : "termination", ProcessId, ParentId);
 
     Status = PsLookupProcessByProcessId(ProcessId, &Process);
     if (!NT_SUCCESS(Status)) {
-        S2EKillState(0, "PsLookupProcessByProcessId failed");
+        LOG("Could not lookup process (%#)\n", Status);
+        goto err;
     }
 
-    ImageFileName = g_pGetProcessImageFileName(Process);
-
-    LOG("process image %s\n", ImageFileName);
-
-    ObDereferenceObject(Process);
-
-    Command.Process.EProcess = (UINT64)Process;
-    Command.Process.ProcessId = (UINT64)ProcessId;
-    Command.Process.ParentProcessId = (UINT64)ParentId;
-
-    // TODO: fix this to handle full process names
-    // PsGetProcessImageFileName does not return the full path
-    Status = RtlStringCbCopyNA(Command.Process.ImageFileName, sizeof(Command.Process.ImageFileName),
-                               ImageFileName, sizeof(Command.Process.ImageFileName));
-
-    if (Status == STATUS_INVALID_PARAMETER) {
-        LOG("Could not copy process image name %s\n", ImageFileName);
-        S2EKillState(0, "RtlStringCbCopyNA failed");
+    Status = ProcessGetImageNameFromPid(HandleToULong(ProcessId), &ProcessImageName);
+    if (!NT_SUCCESS(Status)) {
+        LOG("Could not get process image name\n");
+        goto err;
     }
 
-    Command.Command = Create ? LOAD_PROCESS : UNLOAD_PROCESS;
-    S2EInvokePlugin("WindowsMonitor", &Command, sizeof(Command));
+    LOG("Process image %wZ\n", &ProcessImageName);
+
+    WinMon2LoadUnloadProcess(Create, &ProcessImageName, HandleToULong(ProcessId),
+                             HandleToULong(ParentId), (UINT_PTR)Process);
+
+err:
+    if (Process) {
+        ObDereferenceObject(Process);
+    }
+
+    StringFree(&ProcessImageName);
 }
 
 /**

@@ -153,6 +153,7 @@
     <ClCompile Include="src\main.c" />
     <ClCompile Include="src\monitoring.c" />
     <ClCompile Include="src\utils.c" />
+    <ClCompile Include="src\utils\process.c" />
     <ClCompile Include="src\winmonitor_common.c" />
     <ClCompile Include="src\winmonitor_gen.c" />
   </ItemGroup>
@@ -172,6 +173,7 @@
     <ClInclude Include="src\log.h" />
     <ClInclude Include="src\monitoring.h" />
     <ClInclude Include="src\utils.h" />
+    <ClInclude Include="src\utils\process.h" />
     <ClInclude Include="src\winmonitor.h" />
   </ItemGroup>
   <ItemGroup>
