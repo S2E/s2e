@@ -133,7 +133,8 @@ typedef struct S2E_WINMON2_PROCESS_CREATION {
     uint64_t ProcessId;
     uint64_t ParentProcessId;
     uint64_t EProcess;
-    char ImageFileName[16];
+    uint64_t UnicodeImagePath;
+    uint64_t UnicodeImagePathSizeInBytes;
 } S2E_WINMON2_PROCESS_CREATION;
 
 typedef struct S2E_WINMON2_THREAD_CREATION {
@@ -346,6 +347,7 @@ private:
 
     std::string GetNormalizedPath(const std::string &path);
     void NormalizePath(ModuleDescriptor &module, const std::string &path);
+    void NormalizePath(const std::string &path, std::string &normalizedPath, std::string &fileName);
 
 public:
     virtual void handleOpcodeInvocation(S2EExecutionState *state, uint64_t guestDataPtr, uint64_t guestDataSize);
