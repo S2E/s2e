@@ -60,8 +60,8 @@ void HostFiles::open(S2EExecutionState *state) {
     target_ulong fnamePtr = 0, flags = 0;
     target_ulong guestFd = (target_ulong) -1;
     bool ok = true;
-    ok &= state->readCpuRegisterConcrete(CPU_OFFSET(regs[R_EBX]), &fnamePtr, sizeof(target_ulong));
-    ok &= state->readCpuRegisterConcrete(CPU_OFFSET(regs[R_ECX]), &flags, sizeof(target_ulong));
+    ok &= state->regs()->read(CPU_OFFSET(regs[R_EBX]), &fnamePtr, sizeof(target_ulong), false);
+    ok &= state->regs()->read(CPU_OFFSET(regs[R_ECX]), &flags, sizeof(target_ulong), false);
 
     state->writeCpuRegisterConcrete(CPU_OFFSET(regs[R_EAX]), &guestFd, sizeof(target_ulong));
 
@@ -119,9 +119,9 @@ void HostFiles::read(S2EExecutionState *state) {
     ssize_t read_ret = -1;
 
     bool ok = true;
-    ok &= state->readCpuRegisterConcrete(CPU_OFFSET(regs[R_EBX]), &guestFd, sizeof(target_ulong));
-    ok &= state->readCpuRegisterConcrete(CPU_OFFSET(regs[R_ECX]), &bufAddr, sizeof(target_ulong));
-    ok &= state->readCpuRegisterConcrete(CPU_OFFSET(regs[R_EDX]), &count, sizeof(target_ulong));
+    ok &= state->regs()->read(CPU_OFFSET(regs[R_EBX]), &guestFd, sizeof(target_ulong), false);
+    ok &= state->regs()->read(CPU_OFFSET(regs[R_ECX]), &bufAddr, sizeof(target_ulong), false);
+    ok &= state->regs()->read(CPU_OFFSET(regs[R_EDX]), &count, sizeof(target_ulong), false);
 
     state->writeCpuRegisterConcrete(CPU_OFFSET(regs[R_EAX]), &ret, sizeof(target_ulong));
 
@@ -170,7 +170,7 @@ void HostFiles::close(S2EExecutionState *state) {
     target_ulong ret = (target_ulong) -1;
 
     bool ok = true;
-    ok &= state->readCpuRegisterConcrete(CPU_OFFSET(regs[R_EBX]), &guestFd, sizeof(target_ulong));
+    ok &= state->regs()->read(CPU_OFFSET(regs[R_EBX]), &guestFd, sizeof(target_ulong), false);
 
     state->writeCpuRegisterConcrete(CPU_OFFSET(regs[R_EAX]), &ret, sizeof(target_ulong));
 
@@ -200,9 +200,9 @@ void HostFiles::create(S2EExecutionState *state) {
     target_ulong fnamePtr = 0, flags = 0;
     target_ulong guestFd = (target_ulong) -1;
     bool ok = true;
-    ok &= state->readCpuRegisterConcrete(CPU_OFFSET(regs[R_EBX]), &fnamePtr, sizeof(target_ulong));
+    ok &= state->regs()->read(CPU_OFFSET(regs[R_EBX]), &fnamePtr, sizeof(target_ulong), false);
 
-    ok &= state->readCpuRegisterConcrete(CPU_OFFSET(regs[R_ECX]), &flags, sizeof(target_ulong));
+    ok &= state->regs()->read(CPU_OFFSET(regs[R_ECX]), &flags, sizeof(target_ulong), false);
 
     state->writeCpuRegisterConcrete(CPU_OFFSET(regs[R_EAX]), &guestFd, sizeof(target_ulong));
 
@@ -290,9 +290,9 @@ void HostFiles::write(S2EExecutionState *state) {
     ssize_t write_ret = -1;
 
     bool ok = true;
-    ok &= state->readCpuRegisterConcrete(CPU_OFFSET(regs[R_EBX]), &guestFd, sizeof(target_ulong));
-    ok &= state->readCpuRegisterConcrete(CPU_OFFSET(regs[R_ECX]), &bufAddr, sizeof(target_ulong));
-    ok &= state->readCpuRegisterConcrete(CPU_OFFSET(regs[R_EDX]), &count, sizeof(target_ulong));
+    ok &= state->regs()->read(CPU_OFFSET(regs[R_EBX]), &guestFd, sizeof(target_ulong), false);
+    ok &= state->regs()->read(CPU_OFFSET(regs[R_ECX]), &bufAddr, sizeof(target_ulong), false);
+    ok &= state->regs()->read(CPU_OFFSET(regs[R_EDX]), &count, sizeof(target_ulong), false);
 
     state->writeCpuRegisterConcrete(CPU_OFFSET(regs[R_EAX]), &ret, sizeof(target_ulong));
 

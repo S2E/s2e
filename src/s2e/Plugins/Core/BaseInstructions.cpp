@@ -189,9 +189,9 @@ void BaseInstructions::makeSymbolic(S2EExecutionState *state, uintptr_t address,
 void BaseInstructions::makeSymbolic(S2EExecutionState *state, bool makeConcolic) {
     target_ulong address, size, name;
     bool ok = true;
-    ok &= state->readCpuRegisterConcrete(CPU_OFFSET(regs[R_EAX]), &address, sizeof address);
-    ok &= state->readCpuRegisterConcrete(CPU_OFFSET(regs[R_EBX]), &size, sizeof size);
-    ok &= state->readCpuRegisterConcrete(CPU_OFFSET(regs[R_ECX]), &name, sizeof name);
+    ok &= state->regs()->read(CPU_OFFSET(regs[R_EAX]), &address, sizeof address, false);
+    ok &= state->regs()->read(CPU_OFFSET(regs[R_EBX]), &size, sizeof size, false);
+    ok &= state->regs()->read(CPU_OFFSET(regs[R_ECX]), &name, sizeof name, false);
 
     if (!ok) {
         getWarningsStream(state) << "ERROR: symbolic argument was passed to s2e_op "
@@ -213,9 +213,9 @@ void BaseInstructions::isSymbolic(S2EExecutionState *state) {
     target_ulong result;
 
     bool ok = true;
-    ok &= state->readCpuRegisterConcrete(CPU_OFFSET(regs[R_ECX]), &address, sizeof(address));
+    ok &= state->regs()->read(CPU_OFFSET(regs[R_ECX]), &address, sizeof(address), false);
 
-    ok &= state->readCpuRegisterConcrete(CPU_OFFSET(regs[R_EAX]), &size, sizeof(size));
+    ok &= state->regs()->read(CPU_OFFSET(regs[R_EAX]), &size, sizeof(size), false);
 
     if (!ok) {
         getWarningsStream(state) << "ERROR: symbolic argument was passed to s2e_op is_symbolic\n";
@@ -253,8 +253,8 @@ void BaseInstructions::killState(S2EExecutionState *state) {
 #endif
 
     bool ok = true;
-    klee::ref<klee::Expr> status = state->readCpuRegister(CPU_OFFSET(regs[R_EAX]), width);
-    ok &= state->readCpuRegisterConcrete(CPU_OFFSET(regs[R_EBX]), &messagePtr, sizeof messagePtr);
+    klee::ref<klee::Expr> status = state->regs()->read(CPU_OFFSET(regs[R_EAX]), width);
+    ok &= state->regs()->read(CPU_OFFSET(regs[R_EBX]), &messagePtr, sizeof messagePtr, false);
 
     if (!ok) {
         getWarningsStream(state) << "ERROR: symbolic argument was passed to s2e_kill_state \n";
@@ -284,8 +284,8 @@ void BaseInstructions::printExpression(S2EExecutionState *state) {
 
     target_ulong name;
     bool ok = true;
-    klee::ref<Expr> val = state->readCpuRegister(offsetof(CPUX86State, regs[R_EAX]), width);
-    ok &= state->readCpuRegisterConcrete(CPU_OFFSET(regs[R_ECX]), &name, sizeof name);
+    klee::ref<Expr> val = state->regs()->read(offsetof(CPUX86State, regs[R_EAX]), width);
+    ok &= state->regs()->read(CPU_OFFSET(regs[R_ECX]), &name, sizeof name, false);
 
     if (!ok) {
         getWarningsStream(state) << "ERROR: symbolic argument was passed to s2e_op "
@@ -309,9 +309,9 @@ void BaseInstructions::printExpression(S2EExecutionState *state) {
 void BaseInstructions::printMemory(S2EExecutionState *state) {
     target_ulong address, size, name;
     bool ok = true;
-    ok &= state->readCpuRegisterConcrete(CPU_OFFSET(regs[R_EAX]), &address, sizeof address);
-    ok &= state->readCpuRegisterConcrete(CPU_OFFSET(regs[R_EBX]), &size, sizeof size);
-    ok &= state->readCpuRegisterConcrete(CPU_OFFSET(regs[R_ECX]), &name, sizeof name);
+    ok &= state->regs()->read(CPU_OFFSET(regs[R_EAX]), &address, sizeof address, false);
+    ok &= state->regs()->read(CPU_OFFSET(regs[R_EBX]), &size, sizeof size, false);
+    ok &= state->regs()->read(CPU_OFFSET(regs[R_ECX]), &name, sizeof name, false);
 
     if (!ok) {
         getWarningsStream(state) << "ERROR: symbolic argument was passed to s2e_op "
@@ -341,9 +341,9 @@ void BaseInstructions::printMemory(S2EExecutionState *state) {
 void BaseInstructions::hexDump(S2EExecutionState *state) {
     target_ulong address, size, name;
     bool ok = true;
-    ok &= state->readCpuRegisterConcrete(CPU_OFFSET(regs[R_EAX]), &address, sizeof address);
-    ok &= state->readCpuRegisterConcrete(CPU_OFFSET(regs[R_EBX]), &size, sizeof size);
-    ok &= state->readCpuRegisterConcrete(CPU_OFFSET(regs[R_ECX]), &name, sizeof name);
+    ok &= state->regs()->read(CPU_OFFSET(regs[R_EAX]), &address, sizeof address, false);
+    ok &= state->regs()->read(CPU_OFFSET(regs[R_EBX]), &size, sizeof size, false);
+    ok &= state->regs()->read(CPU_OFFSET(regs[R_ECX]), &name, sizeof name, false);
 
     if (!ok) {
         getWarningsStream(state) << "ERROR: symbolic argument was passed to s2e_op "
@@ -404,8 +404,8 @@ void BaseInstructions::concretize(S2EExecutionState *state, bool addConstraint) 
     target_ulong address, size;
 
     bool ok = true;
-    ok &= state->readCpuRegisterConcrete(CPU_OFFSET(regs[R_EAX]), &address, sizeof address);
-    ok &= state->readCpuRegisterConcrete(CPU_OFFSET(regs[R_EDX]), &size, sizeof size);
+    ok &= state->regs()->read(CPU_OFFSET(regs[R_EAX]), &address, sizeof address, false);
+    ok &= state->regs()->read(CPU_OFFSET(regs[R_EDX]), &size, sizeof size, false);
 
     if (!ok) {
         getWarningsStream(state) << "ERROR: symbolic argument was passed to s2e_op "
@@ -433,7 +433,7 @@ void BaseInstructions::concretize(S2EExecutionState *state, bool addConstraint) 
 
 void BaseInstructions::sleep(S2EExecutionState *state) {
     long duration = 0;
-    state->readCpuRegisterConcrete(CPU_OFFSET(regs[R_EAX]), &duration, sizeof(duration));
+    state->regs()->read(CPU_OFFSET(regs[R_EAX]), &duration, sizeof(duration), false);
     getDebugStream() << "Sleeping " << duration << " seconds\n";
 
     llvm::sys::TimeValue startTime = llvm::sys::TimeValue::now();
@@ -449,7 +449,7 @@ void BaseInstructions::sleep(S2EExecutionState *state) {
 
 void BaseInstructions::printMessage(S2EExecutionState *state, bool isWarning) {
     target_ulong address = 0;
-    bool ok = state->readCpuRegisterConcrete(CPU_OFFSET(regs[R_EAX]), &address, sizeof address);
+    bool ok = state->regs()->read(CPU_OFFSET(regs[R_EAX]), &address, sizeof address, false);
     if (!ok) {
         getWarningsStream(state) << "ERROR: symbolic argument was passed to s2e_op "
                                     " message opcode\n";
@@ -481,7 +481,7 @@ void BaseInstructions::checkPlugin(S2EExecutionState *state) const {
     target_ulong loaded = 0;
     bool ok = true;
 
-    ok &= state->readCpuRegisterConcrete(CPU_OFFSET(regs[R_EAX]), &pluginNamePointer, sizeof(pluginNamePointer));
+    ok &= state->regs()->read(CPU_OFFSET(regs[R_EAX]), &pluginNamePointer, sizeof(pluginNamePointer), false);
     if (!ok) {
         getWarningsStream(state) << "ERROR: symbolic arguments were passed to s2e_op checkPlugin opcode\n";
         loaded = 0;
@@ -510,9 +510,9 @@ void BaseInstructions::invokePlugin(S2EExecutionState *state) {
     target_ulong result = 0;
     bool ok = true;
 
-    ok &= state->readCpuRegisterConcrete(CPU_OFFSET(regs[R_EAX]), &pluginNamePointer, sizeof(pluginNamePointer));
-    ok &= state->readCpuRegisterConcrete(CPU_OFFSET(regs[R_ECX]), &dataPointer, sizeof(dataPointer));
-    ok &= state->readCpuRegisterConcrete(CPU_OFFSET(regs[R_EDX]), &dataSize, sizeof(dataSize));
+    ok &= state->regs()->read(CPU_OFFSET(regs[R_EAX]), &pluginNamePointer, sizeof(pluginNamePointer), false);
+    ok &= state->regs()->read(CPU_OFFSET(regs[R_ECX]), &dataPointer, sizeof(dataPointer), false);
+    ok &= state->regs()->read(CPU_OFFSET(regs[R_EDX]), &dataSize, sizeof(dataSize), false);
     if (!ok) {
         getWarningsStream(state) << "ERROR: symbolic arguments were passed to s2e_op invokePlugin opcode\n";
         result = 1;
@@ -548,7 +548,7 @@ fail:
 }
 
 void BaseInstructions::assume(S2EExecutionState *state) {
-    klee::ref<klee::Expr> expr = state->readCpuRegister(CPU_OFFSET(regs[R_EAX]), klee::Expr::Int32);
+    klee::ref<klee::Expr> expr = state->regs()->read(CPU_OFFSET(regs[R_EAX]), klee::Expr::Int32);
     assumeInternal(state, expr);
 }
 
@@ -557,9 +557,9 @@ void BaseInstructions::assumeRange(S2EExecutionState *state) {
     klee::ref<klee::Expr> lower;
     klee::ref<klee::Expr> upper;
 
-    value = state->readCpuRegister(CPU_OFFSET(regs[R_EAX]), klee::Expr::Int32);
-    lower = state->readCpuRegister(CPU_OFFSET(regs[R_ECX]), klee::Expr::Int32);
-    upper = state->readCpuRegister(CPU_OFFSET(regs[R_EDX]), klee::Expr::Int32);
+    value = state->regs()->read(CPU_OFFSET(regs[R_EAX]), klee::Expr::Int32);
+    lower = state->regs()->read(CPU_OFFSET(regs[R_ECX]), klee::Expr::Int32);
+    upper = state->regs()->read(CPU_OFFSET(regs[R_EDX]), klee::Expr::Int32);
 
     klee::ref<klee::Expr> condition =
         klee::AndExpr::create(klee::UgeExpr::create(value, lower), klee::UleExpr::create(value, upper));
@@ -654,9 +654,9 @@ void BaseInstructions::writeBuffer(S2EExecutionState *state) {
     target_ulong source, destination, size;
     bool ok = true;
 
-    ok &= state->readCpuRegisterConcrete(CPU_OFFSET(regs[R_ESI]), &source, sizeof(source));
-    ok &= state->readCpuRegisterConcrete(CPU_OFFSET(regs[R_EDI]), &destination, sizeof(destination));
-    ok &= state->readCpuRegisterConcrete(CPU_OFFSET(regs[R_ECX]), &size, sizeof(size));
+    ok &= state->regs()->read(CPU_OFFSET(regs[R_ESI]), &source, sizeof(source), false);
+    ok &= state->regs()->read(CPU_OFFSET(regs[R_EDI]), &destination, sizeof(destination), false);
+    ok &= state->regs()->read(CPU_OFFSET(regs[R_ECX]), &size, sizeof(size), false);
 
     getDebugStream(state) << "BaseInstructions: copying " << size << " bytes from " << hexval(source) << " to "
                           << hexval(destination) << "\n";
@@ -690,9 +690,9 @@ void BaseInstructions::getRange(S2EExecutionState *state) {
     target_ulong low = 0, high = 0;
 
     unsigned size = state->getPointerSize();
-    value = state->readCpuRegister(CPU_OFFSET(regs[R_EAX]), size * 8);
-    state->readCpuRegisterConcrete(CPU_OFFSET(regs[R_ECX]), &low, size);
-    state->readCpuRegisterConcrete(CPU_OFFSET(regs[R_EDX]), &high, size);
+    value = state->regs()->read(CPU_OFFSET(regs[R_EAX]), size * 8);
+    state->regs()->read(CPU_OFFSET(regs[R_ECX]), &low, size);
+    state->regs()->read(CPU_OFFSET(regs[R_EDX]), &high, size);
 
     if (!low || !high) {
         getDebugStream(state) << "BaseInstructions: invalid arguments for range\n";
@@ -714,7 +714,7 @@ void BaseInstructions::getConstraintsCountForExpression(S2EExecutionState *state
     klee::ref<klee::Expr> value;
 
     unsigned size = state->getPointerSize();
-    value = state->readCpuRegister(CPU_OFFSET(regs[R_EAX]), size * 8);
+    value = state->regs()->read(CPU_OFFSET(regs[R_EAX]), size * 8);
 
     Query query(state->constraints, value);
     std::vector<klee::ref<klee::Expr>> requiredConstraints;
@@ -728,15 +728,13 @@ void BaseInstructions::getConstraintsCountForExpression(S2EExecutionState *state
  * Forks count times without adding constraints.
  */
 void BaseInstructions::forkCount(S2EExecutionState *state) {
-    bool ok = true;
     target_ulong count;
     target_ulong nameptr;
 
     state->jumpToSymbolicCpp();
 
-    ok &= state->readCpuRegisterConcrete(CPU_OFFSET(regs[R_EAX]), &count, sizeof count);
-
-    ok &= state->readCpuRegisterConcrete(CPU_OFFSET(regs[R_ECX]), &nameptr, sizeof nameptr);
+    state->regs()->read(CPU_OFFSET(regs[R_EAX]), &count, sizeof count);
+    state->regs()->read(CPU_OFFSET(regs[R_ECX]), &nameptr, sizeof nameptr);
 
     std::string name;
 

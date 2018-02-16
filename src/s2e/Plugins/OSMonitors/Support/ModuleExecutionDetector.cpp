@@ -146,9 +146,9 @@ bool ModuleExecutionDetector::opAddModuleConfigEntry(S2EExecutionState *state) {
     bool ok = true;
     // XXX: 32-bits guests only
     target_ulong moduleId, moduleName, isKernelMode;
-    ok &= state->readCpuRegisterConcrete(CPU_OFFSET(regs[R_ECX]), &moduleId, sizeof(moduleId));
-    ok &= state->readCpuRegisterConcrete(CPU_OFFSET(regs[R_EAX]), &moduleName, sizeof(moduleName));
-    ok &= state->readCpuRegisterConcrete(CPU_OFFSET(regs[R_EDX]), &isKernelMode, sizeof(isKernelMode));
+    ok &= state->regs()->read(CPU_OFFSET(regs[R_ECX]), &moduleId, sizeof(moduleId), false);
+    ok &= state->regs()->read(CPU_OFFSET(regs[R_EAX]), &moduleName, sizeof(moduleName), false);
+    ok &= state->regs()->read(CPU_OFFSET(regs[R_EDX]), &isKernelMode, sizeof(isKernelMode), false);
 
     if (!ok) {
         getWarningsStream(state) << "Could not read parameters\n";

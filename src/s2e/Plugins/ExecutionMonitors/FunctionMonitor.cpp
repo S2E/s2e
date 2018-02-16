@@ -202,7 +202,7 @@ void FunctionMonitorState::registerReturnSignal(S2EExecutionState *state, Functi
 
     target_ulong esp;
 
-    bool ok = state->readCpuRegisterConcrete(CPU_OFFSET(regs[R_ESP]), &esp, sizeof esp);
+    bool ok = state->regs()->read(CPU_OFFSET(regs[R_ESP]), &esp, sizeof esp, false);
     if (!ok) {
         m_plugin->getWarningsStream(state) << "Function call with symbolic ESP!\n"
                                            << "  EIP=" << hexval(state->getPc())
@@ -231,7 +231,7 @@ void FunctionMonitorState::slotRet(S2EExecutionState *state, uint64_t pc, bool e
     target_ulong cr3 = state->regs()->read<target_ulong>(CPU_OFFSET(cr[3]));
 
     target_ulong esp;
-    bool ok = state->readCpuRegisterConcrete(CPU_OFFSET(regs[R_ESP]), &esp, sizeof(target_ulong));
+    bool ok = state->regs()->read(CPU_OFFSET(regs[R_ESP]), &esp, sizeof(target_ulong), false);
     if (!ok) {
         target_ulong eip = state->regs()->read<target_ulong>(CPU_OFFSET(eip));
 

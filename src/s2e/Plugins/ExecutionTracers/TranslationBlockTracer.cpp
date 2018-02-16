@@ -117,7 +117,7 @@ void TranslationBlockTracer::onModuleTranslateBlockEnd(ExecutionSignal *signal, 
 
 bool TranslationBlockTracer::getConcolicValue(S2EExecutionState *state, unsigned offset, uint64_t *value,
                                               unsigned size) {
-    klee::ref<klee::Expr> expr = state->regs()->readSymbolicRegion(offset, size * 8);
+    klee::ref<klee::Expr> expr = state->regs()->read(offset, size * 8);
     if (isa<klee::ConstantExpr>(expr)) {
         klee::ref<klee::ConstantExpr> ce = dyn_cast<klee::ConstantExpr>(expr);
         *value = ce->getZExtValue();
@@ -181,7 +181,7 @@ void TranslationBlockTracer::trace(S2EExecutionState *state, uint64_t pc, ExecTr
         // XXX: make it portable across architectures
         unsigned size = sizeof(target_ulong) < sizeof(*tb.registers) ? sizeof(target_ulong) : sizeof(*tb.registers);
         unsigned offset = offsetof(CPUX86State, regs[i]);
-        if (!state->readCpuRegisterConcrete(offset, &tb.registers[i], size)) {
+        if (!state->regs()->read(offset, &tb.registers[i], size, false)) {
             tb.registers[i] = 0xDEADBEEF;
 
             if (ConcolicMode) {
@@ -226,7 +226,7 @@ void TranslationBlockTracer::trace(S2EExecutionState *state, uint64_t pc, ExecTr
             // XXX: make it portable across architectures
             unsigned size = sizeof(target_ulong) < sizeof(*tb.registers) ? sizeof(target_ulong) : sizeof(*tb.registers);
             unsigned offset = offsetof(CPUX86State, regs[CPU_NB_REGS32 + i]);
-            if (!state->readCpuRegisterConcrete(offset, &tb64.extendedRegisters[i], size)) {
+            if (!state->regs()->read(offset, &tb64.extendedRegisters[i], size, false)) {
                 tb64.extendedRegisters[i] = 0xDEADBEEF;
                 tb64.symbMask |= 1 << i;
 
