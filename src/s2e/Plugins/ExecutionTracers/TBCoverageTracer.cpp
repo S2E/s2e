@@ -135,7 +135,7 @@ void TBCoverageTracer::handleOpcodeInvocation(S2EExecutionState *state, uint64_t
 
     if (m_flushTbOnChange) {
         tb_flush(env);
-        state->setPc(state->getPc() + 10);
+        state->regs()->setPc(state->regs()->getPc() + 10);
         throw CpuExitException();
     }
 }

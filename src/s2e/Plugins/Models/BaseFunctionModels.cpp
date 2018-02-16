@@ -37,7 +37,7 @@ bool BaseFunctionModels::readMemory(S2EExecutionState *state, std::vector<ref<Ex
 bool BaseFunctionModels::readArgument(S2EExecutionState *state, unsigned param, uint64_t &arg) {
     target_ulong ret;
 
-    uint64_t addr = state->getSp() + (param + 1) * state->getPointerSize();
+    uint64_t addr = state->regs()->getSp() + (param + 1) * state->getPointerSize();
 
     // First check if argument is symbolic
     ref<Expr> readArg = state->mem()->readMemory(addr, state->getPointerWidth());

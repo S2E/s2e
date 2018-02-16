@@ -137,7 +137,7 @@ void BaseInstructions::allowCurrentPid(S2EExecutionState *state) {
     }
 
     DECLARE_PLUGINSTATE(BaseInstructionsState, state);
-    uint64_t pid = m_monitor->getPid(state, state->getPc());
+    uint64_t pid = m_monitor->getPid(state, state->regs()->getPc());
     plgState->allow(pid);
 
     getDebugStream(state) << "Allowing custom instructions for pid " << hexval(pid) << "\n";
@@ -172,7 +172,8 @@ void BaseInstructions::makeSymbolic(S2EExecutionState *state, uintptr_t address,
     }
 
     getInfoStream(state) << "Inserted symbolic data @" << hexval(address) << " of size " << hexval(size) << ": "
-                         << (varName ? *varName : nameStr) << valueSs.str() << " pc=" << hexval(state->getPc()) << "\n";
+                         << (varName ? *varName : nameStr) << valueSs.str() << " pc=" << hexval(state->regs()->getPc())
+                         << "\n";
 
     for (unsigned i = 0; i < size; ++i) {
         if (!state->mem()->writeMemory8(address + i, symb[i])) {
@@ -568,7 +569,7 @@ void BaseInstructions::assumeRange(S2EExecutionState *state) {
 }
 
 void BaseInstructions::assumeDisjunction(S2EExecutionState *state) {
-    uint64_t sp = state->getSp();
+    uint64_t sp = state->regs()->getSp();
     uint32_t count;
     bool ok = true;
 
@@ -748,7 +749,7 @@ void BaseInstructions::forkCount(S2EExecutionState *state) {
     klee::ref<klee::Expr> var = state->createConcolicValue<uint32_t>(name, 0);
 
     state->regs()->write(CPU_OFFSET(regs[R_EAX]), var);
-    state->regs()->write<target_ulong>(CPU_OFFSET(eip), state->getPc() + 10);
+    state->regs()->write<target_ulong>(CPU_OFFSET(eip), state->regs()->getPc() + 10);
 
     getDebugStream(state) << "s2e_fork: will fork " << count << " times with variable " << var << "\n";
 
@@ -794,8 +795,7 @@ void BaseInstructions::handleBuiltInOps(S2EExecutionState *state, uint64_t opcod
 
         case BASE_S2E_GET_PATH_ID: { /* s2e_get_path_id */
             const klee::Expr::Width width = sizeof(target_ulong) << 3;
-            state->regs()->write(offsetof(CPUX86State, regs[R_EAX]),
-                                    klee::ConstantExpr::create(state->getID(), width));
+            state->regs()->write(offsetof(CPUX86State, regs[R_EAX]), klee::ConstantExpr::create(state->getID(), width));
             break;
         }
 

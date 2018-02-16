@@ -183,12 +183,12 @@ void DecreeMonitor::handleProcessLoad(S2EExecutionState *state, const S2E_DECREE
 
     llvm::StringRef file(processPath);
 
-    onProcessLoad.emit(state, state->getPageDir(), p.process_id, llvm::sys::path::stem(file));
+    onProcessLoad.emit(state, state->regs()->getPageDir(), p.process_id, llvm::sys::path::stem(file));
 
     ModuleDescriptor mod;
     mod.Name = llvm::sys::path::stem(file);
     mod.Path = file.str();
-    mod.AddressSpace = state->getPageDir();
+    mod.AddressSpace = state->regs()->getPageDir();
     mod.Pid = p.process_id;
     mod.LoadBase = p.start_code;
     mod.NativeBase = p.start_code;
@@ -243,7 +243,7 @@ uint64_t DecreeMonitor::getPid(S2EExecutionState *state, uint64_t pc) {
 }
 
 uint64_t DecreeMonitor::getPid(S2EExecutionState *state) {
-    return getPid(state, state->getPc());
+    return getPid(state, state->regs()->getPc());
 }
 
 uint64_t DecreeMonitor::getTid(S2EExecutionState *state) {
@@ -475,7 +475,7 @@ void DecreeMonitor::handleFdWait(S2EExecutionState *state, S2E_DECREEMON_COMMAND
         ok = state->mem()->writeMemory(resultAddress, result);
         s2e_assert(state, ok, "Failed to write memory");
 
-        /*state->regs()->write<target_ulong>(CPU_OFFSET(eip), state->getPc() + 10);
+        /*state->regs()->write<target_ulong>(CPU_OFFSET(eip), state->regs()->getPc() + 10);
 
         Executor::StatePair sp = s2e()->getExecutor()->fork(*state, condition, false);
         s2e()->getExecutor()->notifyFork(*state, condition, sp);
@@ -939,7 +939,8 @@ void DecreeMonitor::handleCommand(S2EExecutionState *state, uint64_t guestDataPt
             }
 
             getWarningsStream(state) << "received segfault"
-                                     << " type=" << command.SegFault.fault << " pagedir=" << hexval(state->getPageDir())
+                                     << " type=" << command.SegFault.fault
+                                     << " pagedir=" << hexval(state->regs()->getPageDir())
                                      << " pid=" << hexval(command.currentPid) << " pc=" << hexval(command.SegFault.pc)
                                      << " addr=" << hexval(command.SegFault.address) << " name=" << currentName << "\n";
 

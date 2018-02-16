@@ -59,7 +59,7 @@ private:
         if (m_winmonitor) {
             return m_winmonitor->getCurrentProcessId(state);
         }
-        return state->getPageDir();
+        return state->regs()->getPageDir();
     }
 
     bool isTraced(uint64_t as);

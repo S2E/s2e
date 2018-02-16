@@ -79,10 +79,11 @@ unsigned StaticFunctionModels::getFunctionModelCount() const {
 
 bool StaticFunctionModels::getBool(S2EExecutionState *state, const std::string &property) {
     std::stringstream ss;
-    const ModuleDescriptor *module = m_detector->getModule(state, state->getPc());
+    const ModuleDescriptor *module = m_detector->getModule(state, state->regs()->getPc());
     assert(module);
 
-    ss << getConfigKey() << ".modules[\"" << module->Name << "\"][" << hexval(state->getPc()) << "]." << property;
+    ss << getConfigKey() << ".modules[\"" << module->Name << "\"][" << hexval(state->regs()->getPc()) << "]."
+       << property;
 
     return s2e()->getConfig()->getBool(ss.str());
 }

@@ -153,7 +153,7 @@ protected:
     virtual uint64_t getClass(S2EExecutionState *state) {
         if (!g_s2e_state)
             return 0;
-        return state->getPc();
+        return state->regs()->getPc();
     }
 };
 
@@ -165,7 +165,7 @@ protected:
     virtual uint64_t getClass(S2EExecutionState *state) {
         if (!g_s2e_state)
             return 0;
-        return state->getPageDir();
+        return state->regs()->getPageDir();
     }
 };
 
@@ -348,7 +348,7 @@ protected:
         if (!g_s2e_state)
             return 0;
 
-        auto p = std::make_pair(state->getPageDir(), state->getPc());
+        auto p = std::make_pair(state->regs()->getPageDir(), state->regs()->getPc());
         uint64_t count = m_map[p];
         m_map[p] = count + 1;
 

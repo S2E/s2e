@@ -50,7 +50,7 @@ bool WindowsCrashDumpGenerator::generateManualDump(S2EExecutionState *state, con
 
     CONTEXT32 context;
     getContext32(state, context);
-    context.Eip = state->getPc();
+    context.Eip = state->regs()->getPc();
 
     return generateCrashDump(state, filename, &newInfo, context);
 }
@@ -203,7 +203,7 @@ template <typename T> void WindowsCrashDumpGenerator::getContext(S2EExecutionSta
     Context.SegCs = regs->read<target_ulong>(offsetof(CPUX86State, segs[R_CS]));
     Context.SegSs = regs->read<target_ulong>(offsetof(CPUX86State, segs[R_SS]));
 
-    Context.EFlags = state->getFlags();
+    Context.EFlags = state->regs()->getFlags();
 }
 
 void WindowsCrashDumpGenerator::getContext32(S2EExecutionState *state, vmi::windows::CONTEXT32 &Context) {
@@ -222,7 +222,7 @@ void WindowsCrashDumpGenerator::getContext32(S2EExecutionState *state, vmi::wind
     Context.Esp = regs->read<target_ulong>(offsetof(CPUX86State, regs[R_ESP]));
     Context.Ebp = regs->read<target_ulong>(offsetof(CPUX86State, regs[R_EBP]));
 
-    Context.Eip = (uint32_t) state->getPc();
+    Context.Eip = (uint32_t) state->regs()->getPc();
 }
 
 void WindowsCrashDumpGenerator::getContext64(S2EExecutionState *state, vmi::windows::CONTEXT64 &Context) {
@@ -241,7 +241,7 @@ void WindowsCrashDumpGenerator::getContext64(S2EExecutionState *state, vmi::wind
     Context.Rsp = regs->read<target_ulong>(offsetof(CPUX86State, regs[R_ESP]));
     Context.Rbp = regs->read<target_ulong>(offsetof(CPUX86State, regs[R_EBP]));
 
-    Context.Rip = state->getPc();
+    Context.Rip = state->regs()->getPc();
 }
 
 } // namespace plugins

@@ -681,7 +681,7 @@ err1:
 
 // TODO: remove duplicate code in all these getXXX functions.
 bool Vmi::getEntryPoint(S2EExecutionState *state, const ModuleDescriptor &Desc, uint64_t &Addr) {
-    if (Desc.AddressSpace && state->getPageDir() != Desc.AddressSpace) {
+    if (Desc.AddressSpace && state->regs()->getPageDir() != Desc.AddressSpace) {
         return false;
     }
 
@@ -697,7 +697,7 @@ bool Vmi::getEntryPoint(S2EExecutionState *state, const ModuleDescriptor &Desc, 
 }
 
 bool Vmi::getImports(S2EExecutionState *state, const ModuleDescriptor &Desc, vmi::Imports &I) {
-    if (Desc.AddressSpace && state->getPageDir() != Desc.AddressSpace) {
+    if (Desc.AddressSpace && state->regs()->getPageDir() != Desc.AddressSpace) {
         return false;
     }
 
@@ -727,7 +727,7 @@ end:
 }
 
 bool Vmi::getExports(S2EExecutionState *state, const ModuleDescriptor &Desc, vmi::Exports &E) {
-    if (Desc.AddressSpace && state->getPageDir() != Desc.AddressSpace) {
+    if (Desc.AddressSpace && state->regs()->getPageDir() != Desc.AddressSpace) {
         return false;
     }
 
@@ -743,7 +743,7 @@ bool Vmi::getExports(S2EExecutionState *state, const ModuleDescriptor &Desc, vmi
 }
 
 bool Vmi::getRelocations(S2EExecutionState *state, const ModuleDescriptor &Desc, vmi::Relocations &R) {
-    if (Desc.AddressSpace && state->getPageDir() != Desc.AddressSpace) {
+    if (Desc.AddressSpace && state->regs()->getPageDir() != Desc.AddressSpace) {
         return false;
     }
 
@@ -759,7 +759,7 @@ bool Vmi::getRelocations(S2EExecutionState *state, const ModuleDescriptor &Desc,
 }
 
 bool Vmi::getSections(S2EExecutionState *state, const ModuleDescriptor &Desc, vmi::Sections &S) {
-    if (Desc.AddressSpace && state->getPageDir() != Desc.AddressSpace) {
+    if (Desc.AddressSpace && state->regs()->getPageDir() != Desc.AddressSpace) {
         return false;
     }
 

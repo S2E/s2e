@@ -129,7 +129,7 @@ void CooperativeSearcher::onCustomInstruction(S2EExecutionState *state, uint64_t
             getInfoStream(state) << "CooperativeSearcher picked the state " << nextState << '\n';
 
             // Force rescheduling
-            state->regs()->write<target_ulong>(CPU_OFFSET(eip), state->getPc() + 10);
+            state->regs()->write<target_ulong>(CPU_OFFSET(eip), state->regs()->getPc() + 10);
             throw CpuExitException();
             break;
         }
@@ -149,7 +149,7 @@ void CooperativeSearcher::onCustomInstruction(S2EExecutionState *state, uint64_t
             }
 
             // Force rescheduling
-            state->regs()->write<target_ulong>(CPU_OFFSET(eip), state->getPc() + 10);
+            state->regs()->write<target_ulong>(CPU_OFFSET(eip), state->regs()->getPc() + 10);
             throw CpuExitException();
             break;
         }

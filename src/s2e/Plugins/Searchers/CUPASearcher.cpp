@@ -540,9 +540,10 @@ void CUPAVulnerabilitySearcherClass::onReturnExecutionComplete(S2EExecutionState
     DECLARE_PLUGINSTATE_P(m_plg, CUPAVulnerabilitySearcherState, state);
     const std::vector<uint64_t> &retStack = plgState->getRetStack();
 
-    if (retStack.back() != state->getPc()) { // TODO: this happens because we do not handle CBs terminate syscall
+    if (retStack.back() !=
+        state->regs()->getPc()) { // TODO: this happens because we do not handle CBs terminate syscall
         llvm::raw_ostream &s = m_plg->getWarningsStream(state);
-        s << "Returning to PC " << hexval(state->getPc()) << " that is not in return stack: ";
+        s << "Returning to PC " << hexval(state->regs()->getPc()) << " that is not in return stack: ";
         for (unsigned j = 0; j < retStack.size(); j++) {
             s << hexval(retStack[j]) << (j != retStack.size() - 1 ? ", " : "");
         }
@@ -741,7 +742,7 @@ void CUPAVulnerabilitySearcherClass::onFork(S2EExecutionState *state, const std:
 
     uint64_t nextPc[2];
     if (!state->getStaticBranchTargets(&nextPc[0], &nextPc[1])) {
-        const ControlFlowGraph::BasicBlock *bb = m_cfg->findBasicBlock(moduleDescriptor->Name, state->getPc());
+        const ControlFlowGraph::BasicBlock *bb = m_cfg->findBasicBlock(moduleDescriptor->Name, state->regs()->getPc());
         assert(bb);
         nextPc[0] = nextPc[1] = bb->start_pc; // BB precision is enough, no need for exact PC
     }

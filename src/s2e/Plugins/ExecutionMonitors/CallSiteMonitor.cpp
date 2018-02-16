@@ -95,7 +95,7 @@ void CallSiteMonitor::onInstruction(S2EExecutionState *state, uint64_t source_pc
     cs.source = source_pc;
 
     // The pc is always concrete here
-    cs.target = state->getPc();
+    cs.target = state->regs()->getPc();
 
     if (source_type == TB_CALL_IND) {
         cs.type = INDIRECT_CALL;

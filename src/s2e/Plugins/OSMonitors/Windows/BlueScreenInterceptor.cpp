@@ -54,7 +54,7 @@ bool BlueScreenInterceptor::invokeCrashRoutine(S2EExecutionState *state, uint64_
         return false;
     }
 
-    state->setPc(crashRoutine);
+    state->regs()->setPc(crashRoutine);
     throw CpuExitException();
 
     /* We don't return */

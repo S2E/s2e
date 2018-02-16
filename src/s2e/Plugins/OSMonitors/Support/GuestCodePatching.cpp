@@ -179,17 +179,17 @@ void GuestCodePatching::invokeHook(S2EExecutionState *state, uint64_t pc, uint64
 
         // Push an extra parameter to indicate the target of the real call.
         uint32_t target = pc;
-        if (!state->mem()->writeMemoryConcrete(state->getSp(), &target, sizeof(target))) {
+        if (!state->mem()->writeMemoryConcrete(state->regs()->getSp(), &target, sizeof(target))) {
             goto err1;
         }
 
         // The return address goes down one slot
         uint32_t rap = returnAddress;
-        if (!state->mem()->writeMemoryConcrete(state->getSp() - pointerSize, &rap, sizeof(rap))) {
+        if (!state->mem()->writeMemoryConcrete(state->regs()->getSp() - pointerSize, &rap, sizeof(rap))) {
             goto err1;
         }
 
-        state->setSp(state->getSp() - pointerSize);
+        state->regs()->setSp(state->regs()->getSp() - pointerSize);
 
     } else if (pointerSize == 8) {
         DECLARE_PLUGINSTATE(GuestCodePatchingState, state);
@@ -255,10 +255,10 @@ void GuestCodePatching::invokeHook(S2EExecutionState *state, uint64_t pc, uint64
             goto err1;
         }
 
-        state->setSp(newStack);
+        state->regs()->setSp(newStack);
     }
 
-    state->setPc(hookAddress);
+    state->regs()->setPc(hookAddress);
     throw CpuExitException();
 
 err1:
@@ -281,11 +281,11 @@ void GuestCodePatching::onExecuteBlockStart(S2EExecutionState *state, uint64_t p
     }
 
     if (direct) {
-        state->setPc(hookAddress);
+        state->regs()->setPc(hookAddress);
         throw CpuExitException();
     }
 
-    const ModuleDescriptor *currentModule = m_detector->getModule(state, state->getPc());
+    const ModuleDescriptor *currentModule = m_detector->getModule(state, state->regs()->getPc());
     if (md == currentModule) {
         if (!m_allowSelfCalls) {
             /**
@@ -319,7 +319,7 @@ void GuestCodePatching::onExecuteCall(S2EExecutionState *state, uint64_t pc) {
         return;
     }
 
-    uint64_t hookAddress = plgState->getHookAddress(*module, state->getPc(), true);
+    uint64_t hookAddress = plgState->getHookAddress(*module, state->regs()->getPc(), true);
     if (!hookAddress) {
         return;
     }
@@ -330,7 +330,7 @@ void GuestCodePatching::onExecuteCall(S2EExecutionState *state, uint64_t pc) {
         return;
     }
 
-    invokeHook(state, state->getPc(), hookAddress, ra);
+    invokeHook(state, state->regs()->getPc(), hookAddress, ra);
 }
 
 bool GuestCodePatching::patchImports(S2EExecutionState *state, const ModuleDescriptor &module) {
@@ -554,7 +554,7 @@ void GuestCodePatching::handleOpcodeInvocation(S2EExecutionState *state, uint64_
             /* Flush the TB cache to make sure everything is instrumented properly for coverage */
             getDebugStream(state) << "flushing TB cache\n";
             tb_flush(env);
-            state->setPc(state->getPc() + OPCODE_SIZE);
+            state->regs()->setPc(state->regs()->getPc() + OPCODE_SIZE);
             throw CpuExitException();
         } break;
 
@@ -583,7 +583,7 @@ void GuestCodePatching::handleOpcodeInvocation(S2EExecutionState *state, uint64_
                                   << " hook=" << hexval(command.DirectHook.HookPc) << "\n";
             plgState->setDirectKernelHook(command.DirectHook.HookedFunctionPc, command.DirectHook.HookPc);
             tb_flush(env);
-            state->setPc(state->getPc() + OPCODE_SIZE);
+            state->regs()->setPc(state->regs()->getPc() + OPCODE_SIZE);
             throw CpuExitException();
         } break;
 

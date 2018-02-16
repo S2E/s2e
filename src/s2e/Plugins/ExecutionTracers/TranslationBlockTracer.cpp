@@ -156,7 +156,7 @@ void TranslationBlockTracer::trace(S2EExecutionState *state, uint64_t pc, ExecTr
     }
 
     tb.pc = pc;
-    tb.targetPc = state->getPc();
+    tb.targetPc = state->regs()->getPc();
     tb.tbType = state->getTb()->se_tb_type;
     tb.symbMask = 0;
     tb.size = state->getTb()->size;

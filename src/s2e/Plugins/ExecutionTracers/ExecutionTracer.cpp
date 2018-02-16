@@ -114,9 +114,9 @@ uint32_t ExecutionTracer::writeData(S2EExecutionState *state, void *data, unsign
     item.type = type;
     item.stateId = state->getID();
 
-    item.pid = state->getPageDir();
+    item.pid = state->regs()->getPageDir();
     if (m_Monitor && m_Monitor->initialized()) {
-        item.pid = m_Monitor->getPid(state, state->getPc());
+        item.pid = m_Monitor->getPid(state, state->regs()->getPc());
     }
 
     if (m_useCircularBuffer) {
@@ -173,7 +173,7 @@ void ExecutionTracer::onFork(S2EExecutionState *state, const std::vector<S2EExec
     uint8_t *itemBytes = new uint8_t[itemSize];
     ExecutionTraceFork *itemFork = reinterpret_cast<ExecutionTraceFork *>(itemBytes);
 
-    itemFork->pc = state->getPc();
+    itemFork->pc = state->regs()->getPc();
     itemFork->stateCount = newStates.size();
 
     for (unsigned i = 0; i < newStates.size(); i++) {

@@ -97,7 +97,7 @@ uint64_t LinuxMonitor::getTid(S2EExecutionState *state) {
 void LinuxMonitor::handleSegfault(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd) {
     std::string currentName(cmd.currentName, strnlen(cmd.currentName, sizeof(cmd.currentName)));
     getWarningsStream(state) << "Received segfault"
-                             << " type=" << cmd.SegFault.fault << " pagedir=" << hexval(state->getPageDir())
+                             << " type=" << cmd.SegFault.fault << " pagedir=" << hexval(state->regs()->getPageDir())
                              << " pid=" << hexval(cmd.currentPid) << " name=" << currentName
                              << " pc=" << hexval(cmd.SegFault.pc) << " addr=" << hexval(cmd.SegFault.address) << "\n";
 
@@ -139,12 +139,12 @@ void LinuxMonitor::handleProcessLoad(S2EExecutionState *state, const S2E_LINUXMO
 
     llvm::StringRef file(processPath);
 
-    onProcessLoad.emit(state, state->getPageDir(), cmd.ProcessLoad.process_id, llvm::sys::path::stem(file));
+    onProcessLoad.emit(state, state->regs()->getPageDir(), cmd.ProcessLoad.process_id, llvm::sys::path::stem(file));
 
     ModuleDescriptor mod;
     mod.Name = llvm::sys::path::stem(file);
     mod.Path = file.str();
-    mod.AddressSpace = state->getPageDir();
+    mod.AddressSpace = state->regs()->getPageDir();
     mod.Pid = cmd.ProcessLoad.process_id;
     mod.LoadBase = cmd.ProcessLoad.start_code;
     mod.NativeBase = cmd.ProcessLoad.start_code;
@@ -167,7 +167,7 @@ void LinuxMonitor::handleModuleLoad(S2EExecutionState *state, const S2E_LINUXMON
 }
 
 void LinuxMonitor::handleProcessExit(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd) {
-    onProcessUnload.emit(state, state->getPageDir(), cmd.currentPid, cmd.ProcessExit.code);
+    onProcessUnload.emit(state, state->regs()->getPageDir(), cmd.currentPid, cmd.ProcessExit.code);
 
     DECLARE_PLUGINSTATE(LinuxMonitorState, state);
     const ModuleDescriptor *mod = plgState->getModule(cmd.currentPid);

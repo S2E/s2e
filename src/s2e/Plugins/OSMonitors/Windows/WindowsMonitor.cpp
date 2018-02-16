@@ -448,7 +448,7 @@ void WindowsMonitor::onKiRetireDpcCallSite(S2EExecutionState *state, uint64_t pc
     target_ulong SystemArgument2 = state->regs()->read<target_ulong>(CPU_OFFSET(regs[9]));
 
     getDebugStream(state) << "DPC invoked: "
-                          << " pc=" << hexval(state->getPc()) << " Dpc=" << hexval(Dpc)
+                          << " pc=" << hexval(state->regs()->getPc()) << " Dpc=" << hexval(Dpc)
                           << " DeferredContext=" << hexval(DeferredContext)
                           << " SystemArgument1=" << hexval(SystemArgument1)
                           << " SystemArgument2=" << hexval(SystemArgument2) << "\n";
@@ -494,7 +494,8 @@ void WindowsMonitor::onPerfLogImageUnload(S2EExecutionState *state, uint64_t pc)
                     pid = state->regs()->read<target_ulong>(CPU_OFFSET(regs[8]));
                     base = state->regs()->read<target_ulong>(CPU_OFFSET(regs[9]));
 
-                    if (!state->mem()->readMemoryConcrete(state->getSp() + (1 + 4) * pointerSize, &size, pointerSize)) {
+                    if (!state->mem()->readMemoryConcrete(state->regs()->getSp() + (1 + 4) * pointerSize, &size,
+                                                          pointerSize)) {
                         s2e()->getExecutor()->terminateStateEarly(*state, "WindowsMonitor: could not read stack");
                     }
                 } break;
@@ -518,7 +519,7 @@ void WindowsMonitor::onPerfLogImageUnload(S2EExecutionState *state, uint64_t pc)
             pid = state->regs()->read<target_ulong>(CPU_OFFSET(regs[8]));
             base = state->regs()->read<target_ulong>(CPU_OFFSET(regs[9]));
 
-            if (!state->mem()->readMemoryConcrete(state->getSp() + (1 + 4) * pointerSize, &size, pointerSize)) {
+            if (!state->mem()->readMemoryConcrete(state->regs()->getSp() + (1 + 4) * pointerSize, &size, pointerSize)) {
                 s2e()->getExecutor()->terminateStateEarly(*state, "WindowsMonitor: could not read stack");
             }
         } break;
@@ -855,7 +856,7 @@ void WindowsMonitor::handleOpcodeInvocation(S2EExecutionState *state, uint64_t g
 
             // Make sure the guest code gets instrumented the next time
             tb_flush(env);
-            state->setPc(state->getPc() + OPCODE_SIZE);
+            state->regs()->setPc(state->regs()->getPc() + OPCODE_SIZE);
             throw CpuExitException();
         } break;
 
@@ -1133,7 +1134,7 @@ bool WindowsMonitor::getCurrentStack(S2EExecutionState *state, uint64_t *bottom,
     // Check if we are on the DPC stack
     uint64_t DPCStackSize = 0, DPCStackBase = 0;
     if (getDpcStack(state, &DPCStackBase, &DPCStackSize)) {
-        uint64_t sp = state->getSp();
+        uint64_t sp = state->regs()->getSp();
         if (sp >= DPCStackBase && sp < (DPCStackBase + DPCStackSize)) {
             *bottom = DPCStackBase;
             *size = DPCStackSize;

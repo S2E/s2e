@@ -297,7 +297,7 @@ void StackMonitor::onStackPointerModification(S2EExecutionState *state, uint64_t
         }
     }
 
-    plgState->update(state, state->getSp(), pc, createNewFrame);
+    plgState->update(state, state->regs()->getSp(), pc, createNewFrame);
 }
 
 void StackMonitor::update(S2EExecutionState *state, uint64_t sp, uint64_t pc, bool createNewFrame) {

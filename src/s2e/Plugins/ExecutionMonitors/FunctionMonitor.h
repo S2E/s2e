@@ -43,7 +43,7 @@ public:
 
     template <typename T> static bool readParameter(S2EExecutionState *s, unsigned param, T *val) {
         uint64_t ptrSz = s->getPointerSize();
-        return s->mem()->readMemoryConcrete(s->getSp() + (param + 1) * ptrSz, val, sizeof(*val));
+        return s->mem()->readMemoryConcrete(s->regs()->getSp() + (param + 1) * ptrSz, val, sizeof(*val));
     }
 
     static klee::ref<klee::Expr> readParameter(S2EExecutionState *s, unsigned paramIndex) {
@@ -54,7 +54,7 @@ public:
 
     static bool writeParameter(S2EExecutionState *s, unsigned param, const klee::ref<klee::Expr> &val) {
         uint64_t ptrSz = s->getPointerSize();
-        return s->mem()->writeMemory(s->getSp() + (param + 1) * ptrSz, val);
+        return s->mem()->writeMemory(s->regs()->getSp() + (param + 1) * ptrSz, val);
     }
 
 protected:

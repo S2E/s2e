@@ -73,7 +73,7 @@ void LibraryCallMonitor::onIndirectCallOrJump(S2EExecutionState *state, uint64_t
     uint64_t pid = m_monitor->getPid(state);
     ModuleDescriptorList mods = m_map->getModulesByPid(state, pid);
 
-    uint64_t targetAddr = state->getPc();
+    uint64_t targetAddr = state->regs()->getPc();
 
     // Find the module that contains the call target
     //

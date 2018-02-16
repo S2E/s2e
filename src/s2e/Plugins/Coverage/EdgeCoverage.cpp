@@ -42,13 +42,13 @@ void EdgeCoverage::onUpdateStates(S2EExecutionState *state, const klee::StateSet
 
 void EdgeCoverage::onEdge(S2EExecutionState *state, uint64_t source, EdgeType type) {
     const ModuleDescriptor *sm = m_exec->getModule(state, source);
-    const ModuleDescriptor *dm = m_exec->getModule(state, state->getPc());
+    const ModuleDescriptor *dm = m_exec->getModule(state, state->regs()->getPc());
     if (sm != dm) {
         return;
     }
 
     uint64_t s = sm->ToNativeBase(source);
-    uint64_t d = sm->ToNativeBase(state->getPc());
+    uint64_t d = sm->ToNativeBase(state->regs()->getPc());
     Edge e = std::make_pair(s, d);
 
     StateLocations::iterator cit = m_nonCoveredEdges.find(sm->Name);

@@ -142,8 +142,8 @@ FunctionMonitor::CallSignal *FunctionMonitorState::getCallSignal(uint64_t eip, u
 }
 
 void FunctionMonitorState::slotCall(S2EExecutionState *state, uint64_t pc) {
-    target_ulong cr3 = state->getPageDir();
-    target_ulong eip = state->getPc();
+    target_ulong cr3 = state->regs()->getPageDir();
+    target_ulong eip = state->regs()->getPc();
 
     if (!m_newCallDescriptors.empty()) {
         m_callDescriptors.insert(m_newCallDescriptors.begin(), m_newCallDescriptors.end());
@@ -205,14 +205,14 @@ void FunctionMonitorState::registerReturnSignal(S2EExecutionState *state, Functi
     bool ok = state->regs()->read(CPU_OFFSET(regs[R_ESP]), &esp, sizeof esp, false);
     if (!ok) {
         m_plugin->getWarningsStream(state) << "Function call with symbolic ESP!\n"
-                                           << "  EIP=" << hexval(state->getPc())
-                                           << " CR3=" << hexval(state->getPageDir()) << '\n';
+                                           << "  EIP=" << hexval(state->regs()->getPc())
+                                           << " CR3=" << hexval(state->regs()->getPageDir()) << '\n';
         return;
     }
 
-    uint64_t cr3 = state->getPageDir();
+    uint64_t cr3 = state->regs()->getPageDir();
     if (m_plugin->m_monitor) {
-        cr3 = m_plugin->m_monitor->getPageDir(state, state->getPc());
+        cr3 = m_plugin->m_monitor->getPageDir(state, state->regs()->getPc());
     }
     ReturnDescriptor descriptor = {cr3, sig};
     m_returnDescriptors.insert(std::make_pair(esp, descriptor));

@@ -211,7 +211,7 @@ void ModuleExecutionDetector::onCustomInstruction(S2EExecutionState *state, uint
                     tb_flush(env);
                 }
 
-                state->setPc(state->getPc() + OPCODE_SIZE);
+                state->regs()->setPc(state->regs()->getPc() + OPCODE_SIZE);
                 throw CpuExitException();
             }
             break;
@@ -491,7 +491,7 @@ void ModuleExecutionDetector::exceptionListener(S2EExecutionState *state, unsign
 const ModuleDescriptor *ModuleExecutionDetector::getCurrentDescriptor(S2EExecutionState *state) const {
     DECLARE_PLUGINSTATE_CONST(ModuleTransitionState, state);
 
-    uint64_t pc = state->getPc();
+    uint64_t pc = state->regs()->getPc();
     uint64_t addressSpace = m_Monitor->getAddressSpace(state, pc);
 
     return plgState->getDescriptor(addressSpace, pc);

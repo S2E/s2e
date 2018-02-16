@@ -82,10 +82,10 @@ void MemoryTracer::initialize() {
 
 bool MemoryTracer::decideTracing(S2EExecutionState *state) {
     if (m_catchAbove || m_catchBelow) {
-        if (m_catchAbove && (m_catchAbove >= state->getPc())) {
+        if (m_catchAbove && (m_catchAbove >= state->regs()->getPc())) {
             return false;
         }
-        if (m_catchBelow && (m_catchBelow < state->getPc())) {
+        if (m_catchBelow && (m_catchBelow < state->regs()->getPc())) {
             return false;
         }
     }
@@ -102,7 +102,7 @@ void MemoryTracer::traceConcreteDataMemoryAccess(S2EExecutionState *state, uint6
     // Output to the trace entry here
     ExecutionTraceMemory e;
     e.flags = 0;
-    e.pc = state->getPc();
+    e.pc = state->regs()->getPc();
 
     e.address = address;
     e.value = value;
@@ -140,7 +140,7 @@ void MemoryTracer::traceSymbolicDataMemoryAccess(S2EExecutionState *state, klee:
     // Output to the trace entry here
     ExecutionTraceMemory e;
     e.flags = 0;
-    e.pc = state->getPc();
+    e.pc = state->regs()->getPc();
 
     uint64_t concreteAddress = 0xdeadbeef;
     uint64_t concreteValue = 0xdeadbeef;
@@ -248,7 +248,7 @@ void MemoryTracer::onExecuteBlockStart(S2EExecutionState *state, uint64_t pc) {
 
 void MemoryTracer::onTlbMiss(S2EExecutionState *state, uint64_t addr, bool is_write) {
     ExecutionTraceTlbMiss e;
-    e.pc = state->getPc();
+    e.pc = state->regs()->getPc();
     e.address = addr;
     e.isWrite = is_write;
 
@@ -257,7 +257,7 @@ void MemoryTracer::onTlbMiss(S2EExecutionState *state, uint64_t addr, bool is_wr
 
 void MemoryTracer::onPageFault(S2EExecutionState *state, uint64_t addr, bool is_write) {
     ExecutionTracePageFault e;
-    e.pc = state->getPc();
+    e.pc = state->regs()->getPc();
     e.address = addr;
     e.isWrite = is_write;
 

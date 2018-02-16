@@ -161,13 +161,13 @@ void EdgeDetector::onEdgeInternal(S2EExecutionState *state, uint64_t sourcePc, u
                                   const EdgeCollection::EdgeTargets *_targets) {
     // XXX: won't work if there is a call instruction in bb a (as in edge a => b)
     const EdgeCollection::EdgeTargets &targets = *_targets;
-    uint64_t moduleDestPc = state->getPc() + addend;
+    uint64_t moduleDestPc = state->regs()->getPc() + addend;
 
     foreach2 (it, targets.begin(), targets.end()) {
         const EdgeCollection::EdgeTargetType &target = *it;
         if (moduleDestPc == target.first) {
             if (DebugEdgeDetector) {
-                getInfoStream(state) << "EdgeDetector: " << hexval(sourcePc) << " => " << hexval(state->getPc())
+                getInfoStream(state) << "EdgeDetector: " << hexval(sourcePc) << " => " << hexval(state->regs()->getPc())
                                      << "\n";
             }
             onEdge.emit(state, sourcePc, target.second);
