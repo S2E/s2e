@@ -38,6 +38,14 @@ protected:
     klee::IAddressSpaceNotification *m_notification;
     klee::IConcretizer *m_concretizer;
 
+private:
+    /** Read CPU system state, size is in bytes */
+    void readConcreteRegion(unsigned offset, void *buffer, unsigned size) const;
+
+    /** Write CPU system state, size is in bytes */
+    void writeConcreteRegion(unsigned offset, const void *buffer, unsigned size);
+
+
 public:
     S2EExecutionStateRegisters(const bool *active, const bool *running_concrete,
                                klee::IAddressSpaceNotification *notification, klee::IConcretizer *concretizer)
@@ -68,6 +76,16 @@ public:
     }
 
     CPUX86State *getNativeCpuState() const;
+
+    void addressSpaceChange(const klee::MemoryObject *mo, const klee::ObjectState *oldState,
+                            klee::ObjectState *newState);
+
+    static const klee::MemoryObject *getConcreteRegs() {
+        return s_concreteRegs;
+    }
+
+    void dump(std::ostream &ss) const;
+
 
     /**
      * Returns a pointer to the store where the concrete
@@ -117,12 +135,6 @@ public:
 
     /*****************************************************************/
 
-    /** Read CPU system state, size is in bytes */
-    void readConcreteRegion(unsigned offset, void *buffer, unsigned size) const;
-
-    /** Write CPU system state, size is in bytes */
-    void writeConcreteRegion(unsigned offset, const void *buffer, unsigned size);
-
     void read(unsigned offset, void *buffer, unsigned size) const;
 
     template <typename T> T read(unsigned offset) const {
@@ -149,15 +161,6 @@ public:
     void setPc(uint64_t pc);
     void setSp(uint64_t sp);
     void setBp(uint64_t bp);
-
-    void addressSpaceChange(const klee::MemoryObject *mo, const klee::ObjectState *oldState,
-                            klee::ObjectState *newState);
-
-    static const klee::MemoryObject *getConcreteRegs() {
-        return s_concreteRegs;
-    }
-
-    void dump(std::ostream &ss) const;
 };
 }
 

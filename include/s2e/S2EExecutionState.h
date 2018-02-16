@@ -315,16 +315,6 @@ public:
         return &m_memory;
     }
 
-    // XXX: Rename that
-    CPUX86State *getConcreteCpuState() const {
-        return m_registers.getNativeCpuState();
-    }
-
-    /** Returns a mask of registers that contains symbolic values */
-    uint64_t getSymbolicRegistersMask() const {
-        return m_registers.getSymbolicRegistersMask();
-    }
-
     /** Read CPU general purpose register */
     klee::ref<klee::Expr> readCpuRegister(unsigned offset, klee::Expr::Width width) const {
         return m_registers.readSymbolicRegion(offset, width);

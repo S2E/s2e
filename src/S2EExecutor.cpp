@@ -1754,7 +1754,7 @@ void S2EExecutor::updateClockScaling() {
 }
 
 void S2EExecutor::updateConcreteFastPath(S2EExecutionState *state) {
-    bool allConcrete = state->getSymbolicRegistersMask() == 0;
+    bool allConcrete = state->regs()->getSymbolicRegistersMask() == 0;
     g_s2e_fast_concrete_invocation = (allConcrete) && (state->m_toRunSymbolically.size() == 0) &&
                                      (state->m_startSymbexAtPC == (uint64_t) -1) &&
 
@@ -1940,7 +1940,7 @@ uintptr_t S2EExecutor::executeTranslationBlock(S2EExecutionState *state, Transla
             // because they think that execution is concrete while it should be symbolic (see issue #30).
             if (!m_forceConcretizations) {
                 /* We can not execute TB natively if it reads any symbolic regs */
-                uint64_t smask = state->getSymbolicRegistersMask();
+                uint64_t smask = state->regs()->getSymbolicRegistersMask();
                 if (smask || (tb->helper_accesses_mem & 4)) {
                     if ((smask & tb->reg_rmask) || (smask & tb->reg_wmask) || (tb->helper_accesses_mem & 4)) {
                         /* TB reads symbolic variables */
