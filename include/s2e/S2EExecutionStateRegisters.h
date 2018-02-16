@@ -58,7 +58,7 @@ private:
     /// Write concrete value to general purpose CPU register
     void writeSymbolicRegion(unsigned offset, const void *buf, unsigned size);
 
-    static bool isConcreteRegion(unsigned offset);
+    static bool isConcreteRegion(unsigned offset, unsigned size);
 
 public:
     ////////////////////////////////////////////////////////////

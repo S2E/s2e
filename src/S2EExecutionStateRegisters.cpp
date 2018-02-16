@@ -332,8 +332,14 @@ void S2EExecutionStateRegisters::writeConcreteRegion(unsigned offset, const void
 }
 
 // TODO: Check for overlaps
-bool S2EExecutionStateRegisters::isConcreteRegion(unsigned offset) {
-    return offset >= offsetof(CPUX86State, eip);
+bool S2EExecutionStateRegisters::isConcreteRegion(unsigned offset, unsigned size) {
+    if (offset + size <= offsetof(CPUX86State, eip)) {
+        return false;
+    } else if (offset >= offsetof(CPUX86State, eip)) {
+        return true;
+    } else {
+        assert(false && "Cannot have register access that overlaps a symbolic/concrete region");
+    }
 }
 
 /**
@@ -356,7 +362,7 @@ int S2EExecutionStateRegisters::compareArchitecturalConcreteState(const S2EExecu
 /***/
 
 klee::ref<klee::Expr> S2EExecutionStateRegisters::read(unsigned offset, klee::Expr::Width width) const {
-    if (isConcreteRegion(offset)) {
+    if (isConcreteRegion(offset, klee::Expr::getMinBytesForWidth(width))) {
         switch (width) {
             case klee::Expr::Bool:
                 return klee::ConstantExpr::create(read<uint8>(offset) & 1, width);
@@ -379,7 +385,7 @@ klee::ref<klee::Expr> S2EExecutionStateRegisters::read(unsigned offset, klee::Ex
 }
 
 bool S2EExecutionStateRegisters::read(unsigned offset, void *buffer, unsigned size, bool concretize) const {
-    if (isConcreteRegion(offset)) {
+    if (isConcreteRegion(offset, size)) {
         readConcreteRegion(offset, buffer, size);
         return true;
     } else {
@@ -388,7 +394,7 @@ bool S2EExecutionStateRegisters::read(unsigned offset, void *buffer, unsigned si
 }
 
 void S2EExecutionStateRegisters::write(unsigned offset, const void *buffer, unsigned size) {
-    if (isConcreteRegion(offset)) {
+    if (isConcreteRegion(offset, size)) {
         writeConcreteRegion(offset, buffer, size);
     } else {
         writeSymbolicRegion(offset, buffer, size);
@@ -396,7 +402,7 @@ void S2EExecutionStateRegisters::write(unsigned offset, const void *buffer, unsi
 }
 
 void S2EExecutionStateRegisters::write(unsigned offset, const klee::ref<klee::Expr> &value) {
-    if (isConcreteRegion(offset)) {
+    if (isConcreteRegion(offset, klee::Expr::getMinBytesForWidth(value->getWidth()))) {
         uint64_t val = m_concretizer->concretize(value, "Writing symbolic value to concrete area");
         writeConcreteRegion(offset, &val, value->getMinBytesForWidth(value->getWidth()));
     } else {
