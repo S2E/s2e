@@ -56,7 +56,7 @@ void OSMonitor::dumpUserspaceMemory(S2EExecutionState *state, std::ostream &ss) 
                 for (int n = 0; n < columnWidth; n++) {
                     int byteOffset = lineOffset + col * columnWidth + n;
 
-                    ref<Expr> e = state->readMemory8(hostAddr + byteOffset, HostAddress);
+                    ref<Expr> e = state->mem()->readMemory8(hostAddr + byteOffset, HostAddress);
 
                     if (!e.isNull() && isa<ConstantExpr>(e)) {
                         uint8_t v = dyn_cast<ConstantExpr>(e)->getZExtValue();

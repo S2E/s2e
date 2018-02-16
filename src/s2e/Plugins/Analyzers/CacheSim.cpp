@@ -537,7 +537,7 @@ void CacheSim::onTranslateBlockStart(ExecutionSignal *signal, S2EExecutionState 
     uint64_t newPc;
 
     if (m_physAddress) {
-        newPc = state->getHostAddress(tb->pc);
+        newPc = state->mem()->getHostAddress(tb->pc);
         // getDebugStream() << "tb pc=" << std::hex << tb->pc << " ha=" << newPc << '\n';
     } else {
         newPc = tb->pc;

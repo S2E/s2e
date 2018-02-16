@@ -422,7 +422,7 @@ bool WindowsMonitor::readModuleListGeneric(S2EExecutionState *state, ModuleList 
         }
 
         pItem = ListHead.Flink;
-        if (!state->readMemoryConcrete(ListHead.Flink, &ListHead, sizeof(ListHead))) {
+        if (!state->mem()->readMemoryConcrete(ListHead.Flink, &ListHead, sizeof(ListHead))) {
             return false;
         }
     }
@@ -763,7 +763,7 @@ void WindowsMonitor::opcodeInitKernelStructs(S2EExecutionState *state, uint64_t 
 
     /* Fetch the version block */
     if (m_kernel.KdVersionBlock) {
-        if (!state->readMemoryConcrete(m_kernel.KdVersionBlock, &m_versionBlock, sizeof(m_versionBlock))) {
+        if (!state->mem()->readMemoryConcrete(m_kernel.KdVersionBlock, &m_versionBlock, sizeof(m_versionBlock))) {
             getWarningsStream(state) << "could not read the DBGKD_GET_VERSION64 structure\n";
             exit(-1);
         }

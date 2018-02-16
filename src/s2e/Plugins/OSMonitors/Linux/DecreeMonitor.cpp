@@ -207,7 +207,7 @@ void DecreeMonitor::handleProcessLoad(S2EExecutionState *state, const S2E_DECREE
 }
 
 klee::ref<klee::Expr> DecreeMonitor::readMemory8(S2EExecutionState *state, uint64_t pid, uint64_t addr) {
-    klee::ref<klee::Expr> expr = state->readMemory8(addr);
+    klee::ref<klee::Expr> expr = state->mem()->readMemory8(addr);
     if (!expr.isNull()) {
         return expr;
     }
@@ -611,7 +611,7 @@ void DecreeMonitor::handleSymbolicSize(S2EExecutionState *state, uint64_t pid, u
 
 void DecreeMonitor::handleSymbolicAllocateSize(S2EExecutionState *state, uint64_t pid,
                                                const S2E_DECREEMON_COMMAND_HANDLE_SYMBOLIC_SIZE &d) {
-    ref<Expr> size = state->readMemory(d.size_addr, state->getPointerWidth());
+    ref<Expr> size = state->mem()->readMemory(d.size_addr, state->getPointerWidth());
     s2e_assert(state, !size.isNull(), "Failed to read memory");
 
     if (isa<ConstantExpr>(size)) {
@@ -667,10 +667,10 @@ static uint64_t distanceToUnmappedPage(uint64_t startAddr, const std::unordered_
 
 void DecreeMonitor::handleSymbolicBuffer(S2EExecutionState *state, uint64_t pid, SymbolicBufferType type,
                                          uint64_t ptrAddr, uint64_t sizeAddr) {
-    ref<Expr> ptr = state->readMemory(ptrAddr, state->getPointerWidth());
+    ref<Expr> ptr = state->mem()->readMemory(ptrAddr, state->getPointerWidth());
     s2e_assert(state, !ptr.isNull(), "Failed to read memory");
 
-    ref<Expr> size = state->readMemory(sizeAddr, state->getPointerWidth());
+    ref<Expr> size = state->mem()->readMemory(sizeAddr, state->getPointerWidth());
     s2e_assert(state, !size.isNull(), "Failed to read memory");
 
     bool isSymPtr = !isa<ConstantExpr>(ptr);
@@ -1056,7 +1056,7 @@ void DecreeMonitor::handleCommand(S2EExecutionState *state, uint64_t guestDataPt
 
         case DECREE_SET_CB_PARAMS: {
             handleSetParams(state, command.currentPid, command.CbParams);
-            if (!state->writeMemoryConcrete(guestDataPtr, &command, guestDataSize)) {
+            if (!state->mem()->writeMemoryConcrete(guestDataPtr, &command, guestDataSize)) {
                 // Do not kill the state in case of an error here. This would prevent
                 // any exploration at all.
                 //

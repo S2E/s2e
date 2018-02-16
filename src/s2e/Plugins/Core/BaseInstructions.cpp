@@ -157,7 +157,7 @@ void BaseInstructions::makeSymbolic(S2EExecutionState *state, uintptr_t address,
         valueSs << "='";
         for (unsigned i = 0; i < size; ++i) {
             uint8_t byte = 0;
-            if (!state->readMemoryConcrete8(address + i, &byte, VirtualAddress, false)) {
+            if (!state->mem()->readMemoryConcrete8(address + i, &byte, VirtualAddress, false)) {
                 getWarningsStream(state) << "Can not concretize/read symbolic value at " << hexval(address + i)
                                          << ". System state not modified\n";
                 return;
@@ -175,7 +175,7 @@ void BaseInstructions::makeSymbolic(S2EExecutionState *state, uintptr_t address,
                          << (varName ? *varName : nameStr) << valueSs.str() << " pc=" << hexval(state->getPc()) << "\n";
 
     for (unsigned i = 0; i < size; ++i) {
-        if (!state->writeMemory8(address + i, symb[i])) {
+        if (!state->mem()->writeMemory8(address + i, symb[i])) {
             getWarningsStream(state) << "Can not insert symbolic value at " << hexval(address + i)
                                      << ": can not write to memory\n";
         }
@@ -225,7 +225,7 @@ void BaseInstructions::isSymbolic(S2EExecutionState *state) {
     // readMemoryConcrete fails if the value is symbolic
     result = 0;
     for (unsigned i = 0; i < size; ++i) {
-        klee::ref<klee::Expr> ret = state->readMemory8(address + i);
+        klee::ref<klee::Expr> ret = state->mem()->readMemory8(address + i);
         if (ret.isNull()) {
             getWarningsStream() << "Could not read address " << hexval(address + i) << "\n";
             continue;
@@ -329,7 +329,7 @@ void BaseInstructions::printMemory(S2EExecutionState *state) {
     for (uint32_t i = 0; i < size; ++i) {
 
         getInfoStream() << hexval(address + i) << ": ";
-        klee::ref<Expr> res = state->readMemory8(address + i);
+        klee::ref<Expr> res = state->mem()->readMemory8(address + i);
         if (res.isNull()) {
             getInfoStream() << "Invalid pointer\n";
         } else {
@@ -415,14 +415,14 @@ void BaseInstructions::concretize(S2EExecutionState *state, bool addConstraint) 
 
     for (unsigned i = 0; i < size; ++i) {
         uint8_t b = 0;
-        if (!state->readMemoryConcrete8(address + i, &b, VirtualAddress, addConstraint)) {
+        if (!state->mem()->readMemoryConcrete8(address + i, &b, VirtualAddress, addConstraint)) {
             getWarningsStream(state) << "Can not concretize memory"
                                      << " at " << hexval(address + i) << '\n';
         } else {
             // readMemoryConcrete8 does not automatically overwrite the destination
             // address if we choose not to add the constraint, so we do it here
             if (!addConstraint) {
-                if (!state->writeMemoryConcrete(address + i, &b, sizeof(b))) {
+                if (!state->mem()->writeMemoryConcrete(address + i, &b, sizeof(b))) {
                     getWarningsStream(state) << "Can not write memory"
                                              << " at " << hexval(address + i) << '\n';
                 }
@@ -576,14 +576,14 @@ void BaseInstructions::assumeDisjunction(S2EExecutionState *state) {
 
     target_ulong currentParam = sp + STACK_ELEMENT_SIZE * 2;
 
-    klee::ref<klee::Expr> variable = state->readMemory(currentParam, STACK_ELEMENT_SIZE * 8);
+    klee::ref<klee::Expr> variable = state->mem()->readMemory(currentParam, STACK_ELEMENT_SIZE * 8);
     if (variable.isNull()) {
         getWarningsStream(state) << "BaseInstructions: assumeDisjunction could not read the variable\n";
         return;
     }
 
     currentParam += STACK_ELEMENT_SIZE;
-    ok &= state->readMemoryConcrete(currentParam, &count, sizeof(count));
+    ok &= state->mem()->readMemoryConcrete(currentParam, &count, sizeof(count));
     if (!ok) {
         getWarningsStream(state) << "BaseInstructions: assumeDisjunction could not read number of disjunctions\n";
         return;
@@ -599,7 +599,7 @@ void BaseInstructions::assumeDisjunction(S2EExecutionState *state) {
     klee::ref<klee::Expr> expr;
     for (unsigned i = 0; i < count; ++i) {
         // XXX: 64-bits mode!!!
-        klee::ref<klee::Expr> value = state->readMemory(currentParam, STACK_ELEMENT_SIZE * 8);
+        klee::ref<klee::Expr> value = state->mem()->readMemory(currentParam, STACK_ELEMENT_SIZE * 8);
         if (i == 0) {
             expr = klee::EqExpr::create(variable, value);
         } else {

@@ -26,7 +26,7 @@ S2E_DEFINE_PLUGIN(Vmi, "Virtual Machine Introspection", "", );
 
 static bool VmiReadMemory(void *opaque, uint64_t address, void *dest, unsigned size) {
     S2EExecutionState *state = static_cast<S2EExecutionState *>(opaque);
-    return state->readMemoryConcrete(address, dest, size);
+    return state->mem()->readMemoryConcrete(address, dest, size);
 }
 
 Vmi::~Vmi() {
