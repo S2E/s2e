@@ -117,7 +117,6 @@ public:
 
     /*****************************************************************/
 
-
     /** Write CPU general purpose register */
     void writeSymbolicRegion(unsigned offset, klee::ref<klee::Expr> value);
 
@@ -145,15 +144,19 @@ public:
     bool read(unsigned offset, void *buffer, unsigned size, bool concretize = true) const;
 
     template <typename T> T read(unsigned offset) const {
+        static_assert(std::is_fundamental<T>::value, "Read from register can only use primitive types");
         T ret;
         read(offset, &ret, sizeof(ret));
         return ret;
     }
 
     void write(unsigned offset, const void *buffer, unsigned size);
+
     void write(unsigned offset, const klee::ref<klee::Expr> &value);
 
-    template <typename T> void write(unsigned offset, T value) {
+    template <typename T, typename std::enable_if<std::is_integral<T>::value, T>::type * = nullptr>
+    void write(unsigned offset, T value) {
+        static_assert(std::is_integral<T>::value, "Write to register can only use primitive types");
         write(offset, &value, sizeof(T));
     }
 

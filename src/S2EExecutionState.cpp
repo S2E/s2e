@@ -221,7 +221,7 @@ bool S2EExecutionState::getReturnAddress(uint64_t *retAddr) {
 }
 
 TranslationBlock *S2EExecutionState::getTb() const {
-    return s2e_read_register_concrete_fast<TranslationBlock *>(CPU_OFFSET(se_current_tb));
+    return (TranslationBlock *) s2e_read_register_concrete_fast<uintptr_t>(CPU_OFFSET(se_current_tb));
 }
 
 /***/
@@ -1073,7 +1073,7 @@ bool S2EExecutionState::getStaticBranchTargets(uint64_t *truePc, uint64_t *false
 }
 
 unsigned S2EExecutionState::getPointerSize() const {
-    TranslationBlock *tb = s2e_read_register_concrete_fast<TranslationBlock *>(CPU_OFFSET(se_current_tb));
+    TranslationBlock *tb = getTb();
     bool is32 = (tb->flags >> HF_CS32_SHIFT) & 1;
     bool is64 = (tb->flags >> HF_CS64_SHIFT) & 1;
     if (is64) {
@@ -1098,7 +1098,7 @@ static int __disas_print(FILE *fp, const char *fmt, ...) {
 }
 
 void S2EExecutionState::disassemble(llvm::raw_ostream &os, uint64_t pc, unsigned size) {
-    TranslationBlock *tb = s2e_read_register_concrete_fast<TranslationBlock *>(CPU_OFFSET(se_current_tb));
+    TranslationBlock *tb = getTb();
     int flags = 0; // 32-bit code by default
 
     if (tb) {

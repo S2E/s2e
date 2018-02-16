@@ -490,10 +490,9 @@ void S2EExecutor::handlerAfterMemoryAccess(Executor *executor, ExecutionState *s
 void S2EExecutor::handlerTraceInstruction(klee::Executor *executor, klee::ExecutionState *state,
                                           klee::KInstruction *target, std::vector<klee::ref<klee::Expr>> &args) {
     S2EExecutionState *s2eState = static_cast<S2EExecutionState *>(state);
-    g_s2e->getDebugStream() << "pc=" << hexval(s2eState->getPc()) << " EAX: "
-                            << s2eState->regs()->read(offsetof(CPUX86State, regs[R_EAX]), klee::Expr::Int32)
-                            << " ECX: "
-                            << s2eState->regs()->read(offsetof(CPUX86State, regs[R_ECX]), klee::Expr::Int32)
+    g_s2e->getDebugStream() << "pc=" << hexval(s2eState->getPc())
+                            << " EAX: " << s2eState->regs()->read(offsetof(CPUX86State, regs[R_EAX]), klee::Expr::Int32)
+                            << " ECX: " << s2eState->regs()->read(offsetof(CPUX86State, regs[R_ECX]), klee::Expr::Int32)
                             << " CCSRC: " << s2eState->regs()->read(offsetof(CPUX86State, cc_src), klee::Expr::Int32)
                             << " CCDST: " << s2eState->regs()->read(offsetof(CPUX86State, cc_dst), klee::Expr::Int32)
                             << " CCTMP: " << s2eState->regs()->read(offsetof(CPUX86State, cc_tmp), klee::Expr::Int32)
