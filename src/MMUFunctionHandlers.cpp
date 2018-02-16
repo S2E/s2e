@@ -260,9 +260,9 @@ redo:
             addend = env->tlb_table[mmu_idx][index].addend;
 
             if (isWrite) {
-                s2estate->writeMemory(addr + addend, value, HostAddress);
+                s2estate->mem()->writeMemory(addr + addend, value, HostAddress);
             } else {
-                value = s2estate->readMemory(addr + addend, width, HostAddress);
+                value = s2estate->mem()->readMemory(addr + addend, width, HostAddress);
             }
 
             // Trace the access
@@ -377,9 +377,9 @@ void S2EExecutor::handle_ldst_kernel(Executor *executor, ExecutionState *state, 
         physaddr = addr + env->tlb_table[mmu_idx][page_index].addend;
 
         if (isWrite) {
-            s2estate->writeMemory(physaddr, value, HostAddress);
+            s2estate->mem()->writeMemory(physaddr, value, HostAddress);
         } else {
-            value = s2estate->readMemory(physaddr, width, HostAddress);
+            value = s2estate->mem()->readMemory(physaddr, width, HostAddress);
         }
 
         // Trace the access

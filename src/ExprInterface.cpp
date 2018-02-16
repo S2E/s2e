@@ -211,7 +211,7 @@ template <typename T> static void *s2e_expr_read_mem(void *_mgr, uint64_t virtua
         return retbox;
     }
 
-    retbox->expr = g_s2e_state->readMemory(virtual_address, sizeof(T) * 8);
+    retbox->expr = g_s2e_state->mem()->readMemory(virtual_address, sizeof(T) * 8);
 
     // XXX: What do we do if the result is NULL?
     // For now we call this function from iret-type of handlers where

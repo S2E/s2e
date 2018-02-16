@@ -440,7 +440,7 @@ void S2EExecutionState::kleeReadMemory(ref<Expr> kleeAddressExpr, uint64_t sizeI
     unsigned i;
     uint64_t caddr = address->getZExtValue();
     for (i = 0; i < sizeInBytes; i++) {
-        ref<Expr> cur = readMemory8(caddr);
+        ref<Expr> cur = mem()->readMemory8(caddr);
         result->push_back(cur);
         caddr++;
     }
@@ -478,7 +478,7 @@ void S2EExecutionState::kleeWriteMemory(ref<Expr> kleeAddressExpr, /* Address */
     unsigned i;
     uint64_t caddr = address->getZExtValue();
     for (i = 0; i < bytes.size(); i++) {
-        writeMemory8(caddr + i, bytes[i]);
+        mem()->writeMemory8(caddr + i, bytes[i]);
     }
 #endif
 }
@@ -1192,11 +1192,11 @@ void s2e_write_register_concrete(unsigned offset, uint8_t *buf, unsigned size) {
 }
 
 uint8_t se_read_dirty_mask(uint64_t host_address) {
-    return g_s2e_state->readDirtyMask(host_address);
+    return g_s2e_state->mem()->readDirtyMask(host_address);
 }
 
 void se_write_dirty_mask(uint64_t host_address, uint8_t val) {
-    return g_s2e_state->writeDirtyMask(host_address, val);
+    return g_s2e_state->mem()->writeDirtyMask(host_address, val);
 }
 
 static inline CPUTLBRAMEntry *s2e_get_ram_tlb_entry(uint64_t host_address) {
@@ -1250,7 +1250,7 @@ void s2e_dma_read(uint64_t hostAddress, uint8_t *buf, unsigned size) {
 #if defined(SE_ENABLE_PHYSRAM_TLB)
     s2e_dma_rw(hostAddress, buf, size, false);
 #else
-    g_s2e_state->readMemoryConcrete(hostAddress, buf, size, s2e::HostAddress);
+    g_s2e_state->mem()->readMemoryConcrete(hostAddress, buf, size, s2e::HostAddress);
 #endif
 }
 
@@ -1258,7 +1258,7 @@ void s2e_dma_write(uint64_t hostAddress, uint8_t *buf, unsigned size) {
 #if defined(SE_ENABLE_PHYSRAM_TLB)
     s2e_dma_rw(hostAddress, buf, size, true);
 #else
-    g_s2e_state->writeMemoryConcrete(hostAddress, buf, size, s2e::HostAddress);
+    g_s2e_state->mem()->writeMemoryConcrete(hostAddress, buf, size, s2e::HostAddress);
 #endif
 }
 
