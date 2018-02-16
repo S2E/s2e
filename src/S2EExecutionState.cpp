@@ -923,33 +923,6 @@ bool S2EExecutionState::applyConstraints(const std::vector<ref<Expr>> &c) {
 
 /***/
 
-// XXX: This should go out of here
-void S2EExecutionState::dumpStack(unsigned count) {
-    dumpStack(count, getSp());
-}
-
-// XXX: This should go out of here
-void S2EExecutionState::dumpStack(unsigned count, uint64_t sp) {
-    std::stringstream os;
-
-    os << "Dumping stack @0x" << std::hex << sp << '\n';
-
-    for (unsigned i = 0; i < count; ++i) {
-        klee::ref<klee::Expr> val = readMemory(sp + i * sizeof(uint32_t), klee::Expr::Int32);
-        klee::ConstantExpr *ce = dyn_cast<klee::ConstantExpr>(val);
-        if (ce) {
-            os << std::hex << "0x" << sp + i * sizeof(uint32_t) << " 0x" << std::setw(sizeof(uint32_t) * 2)
-               << std::setfill('0') << val;
-            os << std::setfill(' ');
-        } else {
-            os << std::hex << "0x" << sp + i * sizeof(uint32_t) << val;
-        }
-        os << '\n';
-    }
-
-    g_s2e->getDebugStream();
-}
-
 uint64_t S2EExecutionState::concretize(klee::ref<klee::Expr> expression, const std::string &reason, bool silent) {
 #ifdef CONFIG_SYMBEX_MP
     if (silent) {

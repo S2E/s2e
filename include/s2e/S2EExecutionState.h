@@ -230,9 +230,6 @@ public:
     bool needToJumpToSymbolic() const;
     void undoCallAndJumpToSymbolic();
 
-    void dumpStack(unsigned count);
-    void dumpStack(unsigned count, uint64_t sp);
-
     bool isForkingEnabled() const {
         return !forkDisabled;
     }
