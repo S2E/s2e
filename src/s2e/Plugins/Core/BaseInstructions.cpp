@@ -239,7 +239,7 @@ void BaseInstructions::isSymbolic(S2EExecutionState *state) {
     getInfoStream(state) << "Testing whether data at " << hexval(address) << " and size " << size
                          << " is symbolic: " << (result ? " true" : " false") << '\n';
 
-    state->writeCpuRegisterConcrete(CPU_OFFSET(regs[R_EAX]), &result, sizeof(result));
+    state->regs()->write(CPU_OFFSET(regs[R_EAX]), &result, sizeof(result));
 }
 
 void BaseInstructions::killState(S2EExecutionState *state) {
@@ -497,7 +497,7 @@ void BaseInstructions::checkPlugin(S2EExecutionState *state) const {
     loaded = s2e()->getPlugin(pluginName) == NULL ? 0 : 1;
 
 fail:
-    state->writeCpuRegisterConcrete(CPU_OFFSET(regs[R_EAX]), &loaded, sizeof(loaded));
+    state->regs()->write(CPU_OFFSET(regs[R_EAX]), &loaded, sizeof(loaded));
 }
 
 void BaseInstructions::invokePlugin(S2EExecutionState *state) {
@@ -544,7 +544,7 @@ void BaseInstructions::invokePlugin(S2EExecutionState *state) {
     iface->handleOpcodeInvocation(state, dataPointer, dataSize);
 
 fail:
-    state->writeCpuRegisterConcrete(CPU_OFFSET(regs[R_EAX]), &result, sizeof(result));
+    state->regs()->write(CPU_OFFSET(regs[R_EAX]), &result, sizeof(result));
 }
 
 void BaseInstructions::assume(S2EExecutionState *state) {
@@ -681,7 +681,7 @@ void BaseInstructions::writeBuffer(S2EExecutionState *state) {
     }
 
     target_ulong written = size - remaining;
-    state->writeCpuRegisterConcrete(CPU_OFFSET(regs[R_EAX]), &written, sizeof(written));
+    state->regs()->write(CPU_OFFSET(regs[R_EAX]), &written, sizeof(written));
 }
 
 void BaseInstructions::getRange(S2EExecutionState *state) {
@@ -773,7 +773,7 @@ void BaseInstructions::handleBuiltInOps(S2EExecutionState *state, uint64_t opcod
     switch ((opcode >> 8) & 0xFF) {
         case BASE_S2E_CHECK: { /* s2e_check */
             target_ulong v = 1;
-            state->writeCpuRegisterConcrete(CPU_OFFSET(regs[R_EAX]), &v, sizeof v);
+            state->regs()->write(CPU_OFFSET(regs[R_EAX]), &v, sizeof v);
         } break;
         case BASE_S2E_ENABLE_SYMBEX:
             state->enableSymbolicExecution();
@@ -794,7 +794,7 @@ void BaseInstructions::handleBuiltInOps(S2EExecutionState *state, uint64_t opcod
 
         case BASE_S2E_GET_PATH_ID: { /* s2e_get_path_id */
             const klee::Expr::Width width = sizeof(target_ulong) << 3;
-            state->writeCpuRegister(offsetof(CPUX86State, regs[R_EAX]),
+            state->regs()->write(offsetof(CPUX86State, regs[R_EAX]),
                                     klee::ConstantExpr::create(state->getID(), width));
             break;
         }
@@ -887,13 +887,13 @@ void BaseInstructions::handleBuiltInOps(S2EExecutionState *state, uint64_t opcod
 
         case BASE_S2E_STATE_COUNT: { /* Get number of active states */
             target_ulong count = s2e()->getExecutor()->getStatesCount();
-            state->writeCpuRegisterConcrete(CPU_OFFSET(regs[R_EAX]), &count, sizeof(count));
+            state->regs()->write(CPU_OFFSET(regs[R_EAX]), &count, sizeof(count));
             break;
         }
 
         case BASE_S2E_INSTANCE_COUNT: { /* Get number of active S2E instances */
             target_ulong count = s2e()->getCurrentProcessCount();
-            state->writeCpuRegisterConcrete(CPU_OFFSET(regs[R_EAX]), &count, sizeof(count));
+            state->regs()->write(CPU_OFFSET(regs[R_EAX]), &count, sizeof(count));
             break;
         }
 
@@ -943,7 +943,7 @@ void BaseInstructions::handleBuiltInOps(S2EExecutionState *state, uint64_t opcod
 
         case BASE_S2E_GET_OBJ_SZ: { /* s2e_get_ram_objects_bits */
             target_ulong size = SE_RAM_OBJECT_BITS;
-            state->writeCpuRegisterConcrete(CPU_OFFSET(regs[R_EAX]), &size, sizeof size);
+            state->regs()->write(CPU_OFFSET(regs[R_EAX]), &size, sizeof size);
             break;
         }
 
