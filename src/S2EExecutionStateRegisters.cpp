@@ -77,10 +77,6 @@ void S2EExecutionStateRegisters::copySymbRegs(bool toNative) {
     }
 }
 
-CPUX86State *S2EExecutionStateRegisters::getNativeCpuState() const {
-    return (CPUX86State *) (s_concreteRegs->address - CPU_OFFSET(eip));
-}
-
 // XXX: The returned pointer cannot be used to modify symbolic state
 // It's gonna crash the system. We should really fix that.
 CPUX86State *S2EExecutionStateRegisters::getCpuState() const {
@@ -335,6 +331,7 @@ void S2EExecutionStateRegisters::writeConcreteRegion(unsigned offset, const void
     small_memcpy(address + offset, buffer, size);
 }
 
+// TODO: Check for overlaps
 bool S2EExecutionStateRegisters::isConcreteRegion(unsigned offset) {
     return offset >= offsetof(CPUX86State, eip);
 }
@@ -413,34 +410,34 @@ uint64_t S2EExecutionStateRegisters::getPc() const {
     return read<target_ulong>(CPU_OFFSET(eip));
 }
 
-uint64_t S2EExecutionStateRegisters::getFlags() {
-    /* restore flags in standard format */
-    cpu_restore_eflags(env);
-    return cpu_get_eflags(env);
-}
-
 void S2EExecutionStateRegisters::setPc(uint64_t pc) {
     write<target_ulong>(CPU_OFFSET(eip), pc);
-}
-
-void S2EExecutionStateRegisters::setSp(uint64_t sp) {
-    write<target_ulong>(CPU_OFFSET(regs[R_ESP]), sp);
-}
-
-void S2EExecutionStateRegisters::setBp(uint64_t bp) {
-    write<target_ulong>(CPU_OFFSET(regs[R_EBP]), bp);
 }
 
 uint64_t S2EExecutionStateRegisters::getSp() const {
     return read<target_ulong>(CPU_OFFSET(regs[R_ESP]));
 }
 
+void S2EExecutionStateRegisters::setSp(uint64_t sp) {
+    write<target_ulong>(CPU_OFFSET(regs[R_ESP]), sp);
+}
+
 uint64_t S2EExecutionStateRegisters::getBp() const {
     return read<target_ulong>(CPU_OFFSET(regs[R_EBP]));
 }
 
+void S2EExecutionStateRegisters::setBp(uint64_t bp) {
+    write<target_ulong>(CPU_OFFSET(regs[R_EBP]), bp);
+}
+
 uint64_t S2EExecutionStateRegisters::getPageDir() const {
     return read<target_ulong>(CPU_OFFSET(cr[3]));
+}
+
+uint64_t S2EExecutionStateRegisters::getFlags() {
+    /* restore flags in standard format */
+    cpu_restore_eflags(env);
+    return cpu_get_eflags(env);
 }
 
 /// \brief Print register values

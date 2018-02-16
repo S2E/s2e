@@ -39,29 +39,32 @@ protected:
     klee::IConcretizer *m_concretizer;
 
 private:
-    /** Read CPU general purpose register */
+    /// Read CPU general purpose register
     klee::ref<klee::Expr> readSymbolicRegion(unsigned offset, klee::Expr::Width width) const;
 
-    /**
-     * Read concrete value from general purpose CPU register.
-     * Return false if the data was symbolic and no concretization is request.
-     */
+    /// Read concrete value from general purpose CPU register.
+    /// Return false if the data was symbolic and no concretization is request.
     bool readSymbolicRegion(unsigned offset, void *buf, unsigned size, bool concretize = false) const;
 
-    /** Read CPU system state, size is in bytes */
+    ///  Read CPU system state, size is in bytes
     void readConcreteRegion(unsigned offset, void *buffer, unsigned size) const;
 
-    /** Write CPU system state, size is in bytes */
+    /// Write CPU system state, size is in bytes
     void writeConcreteRegion(unsigned offset, const void *buffer, unsigned size);
 
-    /** Write CPU general purpose register */
+    ///  Write CPU general purpose register
     void writeSymbolicRegion(unsigned offset, klee::ref<klee::Expr> value);
 
-    /** Write concrete value to general purpose CPU register */
+    /// Write concrete value to general purpose CPU register
     void writeSymbolicRegion(unsigned offset, const void *buf, unsigned size);
 
+    static bool isConcreteRegion(unsigned offset);
 
 public:
+    ////////////////////////////////////////////////////////////
+    // The APIs below are for use by the engine only
+    ////////////////////////////////////////////////////////////
+
     S2EExecutionStateRegisters(const bool *active, const bool *running_concrete,
                                klee::IAddressSpaceNotification *notification, klee::IConcretizer *concretizer)
         : m_active(active), m_runningConcrete(running_concrete), m_notification(notification),
@@ -75,11 +78,6 @@ public:
 
     void copySymbRegs(bool toNative);
 
-    int compareConcreteState(const S2EExecutionStateRegisters &other) {
-        return memcmp(m_concreteRegs->getConcreteStore(), other.m_concreteRegs->getConcreteStore(),
-                      s_concreteRegs->size);
-    }
-
     int compareArchitecturalConcreteState(const S2EExecutionStateRegisters &other);
 
     inline void saveConcreteState() {
@@ -90,8 +88,6 @@ public:
         memcpy((void *) s_concreteRegs->address, (void *) m_concreteRegs->getConcreteStore(), s_concreteRegs->size);
     }
 
-    CPUX86State *getNativeCpuState() const;
-
     void addressSpaceChange(const klee::MemoryObject *mo, const klee::ObjectState *oldState,
                             klee::ObjectState *newState);
 
@@ -101,19 +97,17 @@ public:
 
     void dump(std::ostream &ss) const;
 
-    /**
-     * Returns a pointer to the store where the concrete
-     * data of the cpu registers reside. It can either point
-     * to the backing store if the state is inactive, or to
-     * the global CPUState object if active.
-     */
+    /// Returns a pointer to the store where the concrete
+    /// data of the cpu registers reside. It can either point
+    /// to the backing store if the state is inactive, or to
+    /// the global CPUState object if active.
     CPUX86State *getCpuState() const;
 
     bool allConcrete() const {
         return m_symbolicRegs->isAllConcrete();
     }
 
-    /** Returns a mask of registers that contains symbolic values */
+    /// Returns a mask of registers that contains symbolic values
     uint64_t getSymbolicRegistersMask() const;
 
     bool flagsRegistersAreSymbolic() const;
@@ -122,13 +116,13 @@ public:
         return s_concreteRegs != NULL && s_symbolicRegs != NULL;
     }
 
-    /*****************************************************************/
-
-    /**
-     * Same as writeSymbolicRegion but also allows writing symbolic values
-     * while running in concrete mode
-     */
+    ///  Same as writeSymbolicRegion but also allows writing symbolic values
+    ///  while running in concrete mode
     void writeSymbolicRegionUnsafe(unsigned offset, klee::ref<klee::Expr> value);
+
+    ////////////////////////////////////////////////////////////
+    // The APIs below may be used by plugins
+    ////////////////////////////////////////////////////////////
 
     klee::ref<klee::Expr> read(unsigned offset, klee::Expr::Width width) const;
 
@@ -159,17 +153,18 @@ public:
         write(offset, &value, sizeof(T));
     }
 
-    static bool isConcreteRegion(unsigned offset);
-
+    // TODO: make these inline
     uint64_t getPc() const;
-    uint64_t getPageDir() const;
-    uint64_t getSp() const;
-    uint64_t getBp() const;
-    uint64_t getFlags();
-
     void setPc(uint64_t pc);
+
+    uint64_t getSp() const;
     void setSp(uint64_t sp);
+
+    uint64_t getBp() const;
     void setBp(uint64_t bp);
+
+    uint64_t getPageDir() const;
+    uint64_t getFlags();
 };
 }
 
