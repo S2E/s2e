@@ -1188,7 +1188,7 @@ void s2e_read_register_concrete(unsigned offset, uint8_t *buf, unsigned size) {
 }
 
 void s2e_write_register_concrete(unsigned offset, uint8_t *buf, unsigned size) {
-    g_s2e_state->regs()->writeSymbolicRegion(offset, buf, size);
+    g_s2e_state->regs()->write(offset, buf, size);
 }
 
 uint8_t se_read_dirty_mask(uint64_t host_address) {

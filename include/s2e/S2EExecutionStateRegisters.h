@@ -54,6 +54,13 @@ private:
     /** Write CPU system state, size is in bytes */
     void writeConcreteRegion(unsigned offset, const void *buffer, unsigned size);
 
+    /** Write CPU general purpose register */
+    void writeSymbolicRegion(unsigned offset, klee::ref<klee::Expr> value);
+
+    /** Write concrete value to general purpose CPU register */
+    void writeSymbolicRegion(unsigned offset, const void *buf, unsigned size);
+
+
 public:
     S2EExecutionStateRegisters(const bool *active, const bool *running_concrete,
                                klee::IAddressSpaceNotification *notification, klee::IConcretizer *concretizer)
@@ -117,19 +124,11 @@ public:
 
     /*****************************************************************/
 
-    /** Write CPU general purpose register */
-    void writeSymbolicRegion(unsigned offset, klee::ref<klee::Expr> value);
-
     /**
      * Same as writeSymbolicRegion but also allows writing symbolic values
      * while running in concrete mode
      */
     void writeSymbolicRegionUnsafe(unsigned offset, klee::ref<klee::Expr> value);
-
-    /** Write concrete value to general purpose CPU register */
-    void writeSymbolicRegion(unsigned offset, const void *buf, unsigned size);
-
-    /*****************************************************************/
 
     klee::ref<klee::Expr> read(unsigned offset, klee::Expr::Width width) const;
 
