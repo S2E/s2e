@@ -132,15 +132,15 @@ uint64_t s2e_expr_to_constant(void *_expr) {
 void s2e_expr_write_cpu(void *expr, unsigned offset, unsigned size) {
     ExprBox *box = static_cast<ExprBox *>(expr);
     if (box->constant) {
-        g_s2e_state->writeCpuRegister(offset, ConstantExpr::create(box->value, size * 8));
+        g_s2e_state->regs()->write(offset, ConstantExpr::create(box->value, size * 8));
     } else {
         unsigned exprSizeInBytes = box->expr->getWidth() / 8;
         if (exprSizeInBytes == size) {
-            g_s2e_state->writeCpuRegisterSymbolic(offset, box->expr);
+            g_s2e_state->regs()->writeSymbolicRegionUnsafe(offset, box->expr);
         } else if (exprSizeInBytes > size) {
-            g_s2e_state->writeCpuRegisterSymbolic(offset, ExtractExpr::create(box->expr, 0, size * 8));
+            g_s2e_state->regs()->writeSymbolicRegionUnsafe(offset, ExtractExpr::create(box->expr, 0, size * 8));
         } else {
-            g_s2e_state->writeCpuRegisterSymbolic(offset, ZExtExpr::create(box->expr, size * 8));
+            g_s2e_state->regs()->writeSymbolicRegionUnsafe(offset, ZExtExpr::create(box->expr, size * 8));
         }
     }
 }
