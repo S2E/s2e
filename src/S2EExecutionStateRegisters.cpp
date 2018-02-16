@@ -358,11 +358,35 @@ int S2EExecutionStateRegisters::compareArchitecturalConcreteState(const S2EExecu
 
 /***/
 
-void S2EExecutionStateRegisters::read(unsigned offset, void *buffer, unsigned size) const {
+klee::ref<klee::Expr> S2EExecutionStateRegisters::read(unsigned offset, klee::Expr::Width width) const {
+    if (isConcreteRegion(offset)) {
+        switch (width) {
+            case klee::Expr::Bool:
+                return klee::ConstantExpr::create(read<uint8>(offset) & 1, width);
+            case klee::Expr::Int8:
+                return klee::ConstantExpr::create(read<uint8>(offset), width);
+            case klee::Expr::Int16:
+                return klee::ConstantExpr::create(read<uint16>(offset), width);
+            case klee::Expr::Int32:
+                return klee::ConstantExpr::create(read<uint32>(offset), width);
+            case klee::Expr::Int64:
+                return klee::ConstantExpr::create(read<uint64>(offset), width);
+            default:
+                assert(false && "Invalid width");
+        }
+
+        return nullptr;
+    } else {
+        return readSymbolicRegion(offset, width);
+    }
+}
+
+bool S2EExecutionStateRegisters::read(unsigned offset, void *buffer, unsigned size, bool concretize) const {
     if (isConcreteRegion(offset)) {
         readConcreteRegion(offset, buffer, size);
+        return true;
     } else {
-        readSymbolicRegion(offset, buffer, size, true);
+        return readSymbolicRegion(offset, buffer, size, concretize);
     }
 }
 

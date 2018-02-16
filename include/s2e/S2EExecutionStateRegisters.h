@@ -39,12 +39,20 @@ protected:
     klee::IConcretizer *m_concretizer;
 
 private:
+    /** Read CPU general purpose register */
+    klee::ref<klee::Expr> readSymbolicRegion(unsigned offset, klee::Expr::Width width) const;
+
+    /**
+     * Read concrete value from general purpose CPU register.
+     * Return false if the data was symbolic and no concretization is request.
+     */
+    bool readSymbolicRegion(unsigned offset, void *buf, unsigned size, bool concretize = false) const;
+
     /** Read CPU system state, size is in bytes */
     void readConcreteRegion(unsigned offset, void *buffer, unsigned size) const;
 
     /** Write CPU system state, size is in bytes */
     void writeConcreteRegion(unsigned offset, const void *buffer, unsigned size);
-
 
 public:
     S2EExecutionStateRegisters(const bool *active, const bool *running_concrete,
@@ -86,7 +94,6 @@ public:
 
     void dump(std::ostream &ss) const;
 
-
     /**
      * Returns a pointer to the store where the concrete
      * data of the cpu registers reside. It can either point
@@ -110,16 +117,6 @@ public:
 
     /*****************************************************************/
 
-    /** Read CPU general purpose register */
-    klee::ref<klee::Expr> readSymbolicRegion(unsigned offset, klee::Expr::Width width) const;
-
-    /**
-     * Read concrete value from general purpose CPU register.
-     * Return false if the data was symbolic and no concretization is request.
-     */
-    bool readSymbolicRegion(unsigned offset, void *buf, unsigned size, bool concretize = false) const;
-
-    /*****************************************************************/
 
     /** Write CPU general purpose register */
     void writeSymbolicRegion(unsigned offset, klee::ref<klee::Expr> value);
@@ -135,7 +132,17 @@ public:
 
     /*****************************************************************/
 
-    void read(unsigned offset, void *buffer, unsigned size) const;
+    klee::ref<klee::Expr> read(unsigned offset, klee::Expr::Width width) const;
+
+    ///
+    /// \brief read returns the concrete content of the cpu register file
+    /// \param offset where to start reading in the cpu
+    /// \param buffer where to store the data
+    /// \param size size of the date
+    /// \param concretize whether to concretize any symbolic data read
+    /// \return false if symbolic data was found and concretize is false, true otherwise
+    ///
+    bool read(unsigned offset, void *buffer, unsigned size, bool concretize = true) const;
 
     template <typename T> T read(unsigned offset) const {
         T ret;

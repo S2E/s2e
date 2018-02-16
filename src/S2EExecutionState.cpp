@@ -1184,7 +1184,7 @@ void s2e_reset_state_switch_timer(void) {
 }
 
 void s2e_read_register_concrete(unsigned offset, uint8_t *buf, unsigned size) {
-    g_s2e_state->regs()->readSymbolicRegion(offset, buf, size, true);
+    g_s2e_state->regs()->read(offset, buf, size, true);
 }
 
 void s2e_write_register_concrete(unsigned offset, uint8_t *buf, unsigned size) {

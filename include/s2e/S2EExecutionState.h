@@ -315,11 +315,6 @@ public:
         return &m_memory;
     }
 
-    /** Read CPU general purpose register */
-    klee::ref<klee::Expr> readCpuRegister(unsigned offset, klee::Expr::Width width) const {
-        return m_registers.readSymbolicRegion(offset, width);
-    }
-
     /** Write CPU general purpose register */
     void writeCpuRegister(unsigned offset, klee::ref<klee::Expr> value) {
         m_registers.writeSymbolicRegion(offset, value);
@@ -328,11 +323,6 @@ public:
     /** Same as writeCpuRegister but also allows writing symbolic values */
     void writeCpuRegisterSymbolic(unsigned offset, klee::ref<klee::Expr> value) {
         m_registers.writeSymbolicRegionUnsafe(offset, value);
-    }
-
-    /** Read concrete value from general purpose CPU register */
-    bool readCpuRegisterConcrete(unsigned offset, void *buf, unsigned size) {
-        return m_registers.readSymbolicRegion(offset, buf, size);
     }
 
     /** Write concrete value to general purpose CPU register */

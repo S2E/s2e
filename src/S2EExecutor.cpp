@@ -491,13 +491,13 @@ void S2EExecutor::handlerTraceInstruction(klee::Executor *executor, klee::Execut
                                           klee::KInstruction *target, std::vector<klee::ref<klee::Expr>> &args) {
     S2EExecutionState *s2eState = static_cast<S2EExecutionState *>(state);
     g_s2e->getDebugStream() << "pc=" << hexval(s2eState->getPc()) << " EAX: "
-                            << s2eState->readCpuRegister(offsetof(CPUX86State, regs[R_EAX]), klee::Expr::Int32)
+                            << s2eState->regs()->read(offsetof(CPUX86State, regs[R_EAX]), klee::Expr::Int32)
                             << " ECX: "
-                            << s2eState->readCpuRegister(offsetof(CPUX86State, regs[R_ECX]), klee::Expr::Int32)
-                            << " CCSRC: " << s2eState->readCpuRegister(offsetof(CPUX86State, cc_src), klee::Expr::Int32)
-                            << " CCDST: " << s2eState->readCpuRegister(offsetof(CPUX86State, cc_dst), klee::Expr::Int32)
-                            << " CCTMP: " << s2eState->readCpuRegister(offsetof(CPUX86State, cc_tmp), klee::Expr::Int32)
-                            << " CCOP: " << s2eState->readCpuRegister(offsetof(CPUX86State, cc_op), klee::Expr::Int32)
+                            << s2eState->regs()->read(offsetof(CPUX86State, regs[R_ECX]), klee::Expr::Int32)
+                            << " CCSRC: " << s2eState->regs()->read(offsetof(CPUX86State, cc_src), klee::Expr::Int32)
+                            << " CCDST: " << s2eState->regs()->read(offsetof(CPUX86State, cc_dst), klee::Expr::Int32)
+                            << " CCTMP: " << s2eState->regs()->read(offsetof(CPUX86State, cc_tmp), klee::Expr::Int32)
+                            << " CCOP: " << s2eState->regs()->read(offsetof(CPUX86State, cc_op), klee::Expr::Int32)
                             << '\n';
 }
 
@@ -2389,7 +2389,7 @@ inline void S2EExecutor::setCCOpEflags(S2EExecutionState *state) {
     // Check wether any of cc_op, cc_src, cc_dst or cc_tmp are symbolic
     if (state->m_registers.flagsRegistersAreSymbolic() || m_executeAlwaysKlee) {
         // call set_cc_op_eflags only if cc_op is symbolic or cc_op != CC_OP_EFLAGS
-        bool ok = state->readCpuRegisterConcrete(CPU_OFFSET(cc_op), &cc_op, sizeof(cc_op));
+        bool ok = state->regs()->read(CPU_OFFSET(cc_op), &cc_op, sizeof(cc_op), false);
         if (!ok || cc_op != CC_OP_EFLAGS) {
             try {
                 if (state->m_runningConcrete)
@@ -2405,7 +2405,7 @@ inline void S2EExecutor::setCCOpEflags(S2EExecutionState *state) {
             }
         }
     } else {
-        bool ok = state->readCpuRegisterConcrete(CPU_OFFSET(cc_op), &cc_op, sizeof(cc_op));
+        bool ok = state->regs()->read(CPU_OFFSET(cc_op), &cc_op, sizeof(cc_op), false);
         assert(ok);
         if (cc_op != CC_OP_EFLAGS) {
             if (!state->m_runningConcrete)

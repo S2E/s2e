@@ -149,7 +149,7 @@ void *s2e_expr_read_cpu(void *_mgr, unsigned offset, unsigned size) {
     ExprManager *mgr = static_cast<ExprManager *>(_mgr);
     ExprBox *retbox = mgr->create();
 
-    retbox->expr = g_s2e_state->readCpuRegister(offset, size * 8);
+    retbox->expr = g_s2e_state->regs()->read(offset, size * 8);
     ConstantExpr *constant = dyn_cast<ConstantExpr>(retbox->expr);
     if (constant) {
         retbox->constant = true;
