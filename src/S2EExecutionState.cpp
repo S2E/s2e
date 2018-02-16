@@ -141,7 +141,8 @@ void S2EExecutionState::enableSymbolicExecution() {
     m_symbexEnabled = true;
 
     g_s2e->getInfoStream(this) << "Enabled symbex"
-                               << " at pc = " << (void *) getPc() << " and pagedir = " << hexval(getPageDir()) << '\n';
+                               << " at pc = " << (void *) regs()->getPc()
+                               << " and pagedir = " << hexval(regs()->getPageDir()) << '\n';
 }
 
 void S2EExecutionState::disableSymbolicExecution() {
@@ -152,7 +153,8 @@ void S2EExecutionState::disableSymbolicExecution() {
     m_symbexEnabled = false;
 
     g_s2e->getInfoStream(this) << "Disabled symbex"
-                               << " at pc = " << (void *) getPc() << " and pagedir = " << hexval(getPageDir()) << '\n';
+                               << " at pc = " << (void *) regs()->getPc()
+                               << " and pagedir = " << hexval(regs()->getPageDir()) << '\n';
 }
 
 void S2EExecutionState::enableForking() {
@@ -164,8 +166,8 @@ void S2EExecutionState::enableForking() {
 
     if (PrintForkingStatus) {
         g_s2e->getInfoStream(this) << "Enabled forking"
-                                   << " at pc = " << (void *) getPc() << " and pagedir = " << hexval(getPageDir())
-                                   << '\n';
+                                   << " at pc = " << (void *) regs()->getPc()
+                                   << " and pagedir = " << hexval(regs()->getPageDir()) << '\n';
     }
 }
 
@@ -178,8 +180,8 @@ void S2EExecutionState::disableForking() {
 
     if (PrintForkingStatus) {
         g_s2e->getInfoStream(this) << "Disabled forking"
-                                   << " at pc = " << (void *) getPc() << " and pagedir = " << hexval(getPageDir())
-                                   << '\n';
+                                   << " at pc = " << (void *) regs()->getPc()
+                                   << " and pagedir = " << hexval(regs()->getPageDir()) << '\n';
     }
 }
 
@@ -192,10 +194,10 @@ bool S2EExecutionState::bypassFunction(unsigned paramCount) {
         return false;
     }
 
-    uint64_t newSp = getSp() + (paramCount + 1) * getPointerSize();
+    uint64_t newSp = regs()->getSp() + (paramCount + 1) * getPointerSize();
 
-    setSp(newSp);
-    setPc(retAddr);
+    regs()->setSp(newSp);
+    regs()->setPc(retAddr);
     return true;
 }
 
@@ -539,8 +541,8 @@ void S2EExecutionState::undoCallAndJumpToSymbolic() {
         }
 #endif
         assert(getTb()->pcOfLastInstr);
-        setSp(getSp() + size);
-        setPc(getTb()->pcOfLastInstr);
+        regs()->setSp(regs()->getSp() + size);
+        regs()->setPc(getTb()->pcOfLastInstr);
         jumpToSymbolicCpp();
     }
 }
@@ -549,8 +551,8 @@ void S2EExecutionState::jumpToSymbolicCpp() {
     if (!isRunningConcrete()) {
         return;
     }
-    m_toRunSymbolically.insert(std::make_pair(getPc(), getPageDir()));
-    m_startSymbexAtPC = getPc();
+    m_toRunSymbolically.insert(std::make_pair(regs()->getPc(), regs()->getPageDir()));
+    m_startSymbexAtPC = regs()->getPc();
 
     // XXX: how to make this cleaner?
     g_s2e->getExecutor()->updateConcreteFastPath(this);
@@ -562,8 +564,8 @@ void S2EExecutionState::jumpToSymbolicCpp() {
 void S2EExecutionState::jumpToSymbolic() {
     assert(isActive() && isRunningConcrete());
 
-    m_toRunSymbolically.insert(std::make_pair(getPc(), getPageDir()));
-    m_startSymbexAtPC = getPc();
+    m_toRunSymbolically.insert(std::make_pair(regs()->getPc(), regs()->getPageDir()));
+    m_startSymbexAtPC = regs()->getPc();
 
     // XXX: how to make this cleaner?
     g_s2e->getExecutor()->updateConcreteFastPath(this);

@@ -342,29 +342,7 @@ public:
         return false;
     }
 
-    uint64_t getPc() const {
-        return m_registers.getPc();
-    }
-
-    uint64_t getPageDir() const {
-        return m_registers.getPageDir();
-    }
-
-    uint64_t getSp() const {
-        return m_registers.getSp();
-    }
-
-    uint64_t getFlags() {
-        return m_registers.getFlags();
-    }
-
-    void setPc(uint64_t pc) {
-        m_registers.setPc(pc);
-    }
-
-    void setSp(uint64_t sp) {
-        return m_registers.setSp(sp);
-    }
+    ///////////////////////////////////////////////////////
 
     unsigned getPointerSize() const;
     klee::Expr::Width getPointerWidth() const {

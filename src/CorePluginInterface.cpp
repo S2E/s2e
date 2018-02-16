@@ -336,7 +336,7 @@ void s2e_on_exception(unsigned intNb) {
     assert(g_s2e_state->isActive());
 
     try {
-        g_s2e->getCorePlugin()->onException.emit(g_s2e_state, intNb, g_s2e_state->getPc());
+        g_s2e->getCorePlugin()->onException.emit(g_s2e_state, intNb, g_s2e_state->regs()->getPc());
     } catch (s2e::CpuExitException &) {
         longjmp(env->jmp_env, 1);
     }

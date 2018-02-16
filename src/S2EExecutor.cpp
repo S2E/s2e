@@ -490,7 +490,7 @@ void S2EExecutor::handlerAfterMemoryAccess(Executor *executor, ExecutionState *s
 void S2EExecutor::handlerTraceInstruction(klee::Executor *executor, klee::ExecutionState *state,
                                           klee::KInstruction *target, std::vector<klee::ref<klee::Expr>> &args) {
     S2EExecutionState *s2eState = static_cast<S2EExecutionState *>(state);
-    g_s2e->getDebugStream() << "pc=" << hexval(s2eState->getPc())
+    g_s2e->getDebugStream() << "pc=" << hexval(s2eState->regs()->getPc())
                             << " EAX: " << s2eState->regs()->read(offsetof(CPUX86State, regs[R_EAX]), klee::Expr::Int32)
                             << " ECX: " << s2eState->regs()->read(offsetof(CPUX86State, regs[R_ECX]), klee::Expr::Int32)
                             << " CCSRC: " << s2eState->regs()->read(offsetof(CPUX86State, cc_src), klee::Expr::Int32)
@@ -681,7 +681,7 @@ void S2EExecutor::handleForkAndConcretize(Executor *executor, ExecutionState *st
         reason = CorePlugin::symbolicAddressReason::PC;
 
     if (VerboseOnSymbolicAddress) {
-        g_s2e->getDebugStream(s2eState) << "onSymbolicAddress at " << hexval(s2eState->getPc()) << " (reason "
+        g_s2e->getDebugStream(s2eState) << "onSymbolicAddress at " << hexval(s2eState->regs()->getPc()) << " (reason "
                                         << dyn_cast<klee::ConstantExpr>(isTargetPc)->getZExtValue()
                                         << "): " << hexval(concreteAddress->getZExtValue()) << " " << address << "\n";
     }
@@ -1233,7 +1233,8 @@ void S2EExecutor::switchToConcrete(S2EExecutionState *state) {
     assert(!state->m_runningConcrete);
 
     if (PrintModeSwitch) {
-        m_s2e->getInfoStream(state) << "Switching to concrete execution at pc = " << hexval(state->getPc()) << '\n';
+        m_s2e->getInfoStream(state) << "Switching to concrete execution at pc = " << hexval(state->regs()->getPc())
+                                    << '\n';
     }
 
     /* Concretize any symbolic registers */
@@ -1251,7 +1252,8 @@ void S2EExecutor::switchToSymbolic(S2EExecutionState *state) {
     assert(state->m_runningConcrete);
 
     if (PrintModeSwitch) {
-        m_s2e->getInfoStream(state) << "Switching to symbolic execution at pc = " << hexval(state->getPc()) << '\n';
+        m_s2e->getInfoStream(state) << "Switching to symbolic execution at pc = " << hexval(state->regs()->getPc())
+                                    << '\n';
     }
 
     // assert(os && os->isAllConcrete());
@@ -1690,7 +1692,8 @@ bool S2EExecutor::finalizeTranslationBlockExec(S2EExecutionState *state) {
     bool ret = executeInstructions(state);
 
     if (VerboseTbFinalize) {
-        m_s2e->getDebugStream(state) << "Done finalizing TB execution, new pc=" << hexval(state->getPc()) << "\n";
+        m_s2e->getDebugStream(state) << "Done finalizing TB execution, new pc=" << hexval(state->regs()->getPc())
+                                     << "\n";
     }
 
     /**
@@ -1921,17 +1924,17 @@ uintptr_t S2EExecutor::executeTranslationBlock(S2EExecutionState *state, Transla
     /* Think how can we optimize if symbex is disabled */
     if (true /* state->m_symbexEnabled*/) {
         if (state->m_startSymbexAtPC != (uint64_t) -1) {
-            executeKlee |= (state->getPc() == state->m_startSymbexAtPC);
+            executeKlee |= (state->regs()->getPc() == state->m_startSymbexAtPC);
             state->m_startSymbexAtPC = (uint64_t) -1;
         }
 
         // XXX: hack to run code symbolically that may be delayed because of interrupts.
         // Size check is important to avoid expensive calls to getPc/getPid in the common case
         if (state->m_toRunSymbolically.size() > 0 &&
-            state->m_toRunSymbolically.find(std::make_pair(state->getPc(), state->getPageDir())) !=
+            state->m_toRunSymbolically.find(std::make_pair(state->regs()->getPc(), state->regs()->getPageDir())) !=
                 state->m_toRunSymbolically.end()) {
             executeKlee = true;
-            state->m_toRunSymbolically.erase(std::make_pair(state->getPc(), state->getPageDir()));
+            state->m_toRunSymbolically.erase(std::make_pair(state->regs()->getPc(), state->regs()->getPageDir()));
         }
 
         if (!executeKlee) {
@@ -2078,7 +2081,7 @@ S2EExecutor::StatePair S2EExecutor::fork(ExecutionState &current, klee::ref<Expr
     bool forkOk = true;
     if (!dyn_cast<klee::ConstantExpr>(condition)) {
         if (currentState->forkDisabled) {
-            g_s2e->getDebugStream(currentState) << "fork disabled at " << hexval(currentState->getPc()) << "\n";
+            g_s2e->getDebugStream(currentState) << "fork disabled at " << hexval(currentState->regs()->getPc()) << "\n";
         }
 
         g_s2e->getCorePlugin()->onStateForkDecide.emit(currentState, &forkOk);
@@ -2110,8 +2113,8 @@ S2EExecutor::StatePair S2EExecutor::fork(ExecutionState &current, klee::ref<Expr
     newConditions[1] = klee::NotExpr::create(condition);
 
     llvm::raw_ostream &out = m_s2e->getInfoStream(currentState);
-    out << "Forking state " << currentState->getID() << " at pc = " << hexval(currentState->getPc())
-        << " at pagedir = " << hexval(currentState->getPageDir()) << '\n';
+    out << "Forking state " << currentState->getID() << " at pc = " << hexval(currentState->regs()->getPc())
+        << " at pagedir = " << hexval(currentState->regs()->getPageDir()) << '\n';
 
     for (unsigned i = 0; i < 2; ++i) {
         if (VerboseFork) {
