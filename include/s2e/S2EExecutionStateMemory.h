@@ -35,6 +35,8 @@ protected:
     void transferRamInternal(klee::ObjectPair op, uint64_t object_offset, uint8_t *buf, uint64_t size, bool write,
                              bool exitOnSymbolicRead);
 
+    bool writeMemory8(uint64_t address, const klee::ref<klee::Expr> &value, AddressType addressType = VirtualAddress);
+
 public:
     S2EExecutionStateMemory();
 
@@ -82,9 +84,6 @@ public:
     /** Read memory to buffer, concretize if necessary */
     bool readMemoryConcrete(uint64_t address, void *buf, uint64_t size, AddressType addressType = VirtualAddress);
 
-    /** Write concrete buffer to memory */
-    bool write(uint64_t address, const void *buf, uint64_t size, AddressType addressType = VirtualAddress);
-
     /** Access to state's memory. Address is virtual or physical,
         depending on 'physical' argument. Returns NULL or false in
         case of failure (can't resolve virtual address or physical
@@ -96,11 +95,13 @@ public:
     bool readMemoryConcrete8(uint64_t address, uint8_t *result = NULL, AddressType addressType = VirtualAddress,
                              bool addConstraint = true);
 
-    bool writeMemory(uint64_t address, klee::ref<klee::Expr> value, AddressType addressType = VirtualAddress);
+    /** Write concrete buffer to memory */
+    bool write(uint64_t address, const void *buf, uint64_t size, AddressType addressType = VirtualAddress);
 
-    bool writeMemory8(uint64_t address, klee::ref<klee::Expr> value, AddressType addressType = VirtualAddress);
+    bool writeMemory(uint64_t address, const klee::ref<klee::Expr> &value, AddressType addressType = VirtualAddress);
 
     template <typename T> bool writeMemory(uint64_t address, T value, AddressType addressType = VirtualAddress) {
+        static_assert(std::is_integral<T>::value, "Write to memory can only use primitive types");
         return write(address, (T *) &value, sizeof(T), addressType);
     }
 
