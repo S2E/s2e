@@ -260,7 +260,7 @@ redo:
             addend = env->tlb_table[mmu_idx][index].addend;
 
             if (isWrite) {
-                s2estate->mem()->writeMemory(addr + addend, value, HostAddress);
+                s2estate->mem()->write(addr + addend, value, HostAddress);
             } else {
                 value = s2estate->mem()->readMemory(addr + addend, width, HostAddress);
             }
@@ -377,7 +377,7 @@ void S2EExecutor::handle_ldst_kernel(Executor *executor, ExecutionState *state, 
         physaddr = addr + env->tlb_table[mmu_idx][page_index].addend;
 
         if (isWrite) {
-            s2estate->mem()->writeMemory(physaddr, value, HostAddress);
+            s2estate->mem()->write(physaddr, value, HostAddress);
         } else {
             value = s2estate->mem()->readMemory(physaddr, width, HostAddress);
         }

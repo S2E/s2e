@@ -480,7 +480,7 @@ void S2EExecutionState::kleeWriteMemory(ref<Expr> kleeAddressExpr, /* Address */
     unsigned i;
     uint64_t caddr = address->getZExtValue();
     for (i = 0; i < bytes.size(); i++) {
-        mem()->writeMemory(caddr + i, bytes[i]);
+        mem()->write(caddr + i, bytes[i]);
     }
 #endif
 }

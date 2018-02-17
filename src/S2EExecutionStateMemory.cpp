@@ -132,7 +132,7 @@ bool S2EExecutionStateMemory::readMemoryConcrete8(uint64_t address, uint8_t *res
     }
 
     if (addConstraint) {
-        return writeMemory(address, expr);
+        return write(address, expr);
     }
 #else
     ConstantExpr *ce = dyn_cast<ConstantExpr>(expr);
@@ -184,7 +184,7 @@ bool S2EExecutionStateMemory::writeMemory8(uint64_t address, const ref<Expr> &va
     return true;
 }
 
-bool S2EExecutionStateMemory::writeMemory(uint64_t address, const ref<Expr> &value, AddressType addressType) {
+bool S2EExecutionStateMemory::write(uint64_t address, const ref<Expr> &value, AddressType addressType) {
     Expr::Width width = value->getWidth();
     unsigned numBytes = Expr::getMinBytesForWidth(value->getWidth());
 

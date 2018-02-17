@@ -98,9 +98,10 @@ public:
     /** Write concrete buffer to memory */
     bool write(uint64_t address, const void *buf, uint64_t size, AddressType addressType = VirtualAddress);
 
-    bool writeMemory(uint64_t address, const klee::ref<klee::Expr> &value, AddressType addressType = VirtualAddress);
+    bool write(uint64_t address, const klee::ref<klee::Expr> &value, AddressType addressType = VirtualAddress);
 
-    template <typename T> bool writeMemory(uint64_t address, T value, AddressType addressType = VirtualAddress) {
+    template <typename T, typename std::enable_if<std::is_integral<T>::value, T>::type * = nullptr>
+    bool write(uint64_t address, T value, AddressType addressType = VirtualAddress) {
         static_assert(std::is_integral<T>::value, "Write to memory can only use primitive types");
         return write(address, (T *) &value, sizeof(T), addressType);
     }

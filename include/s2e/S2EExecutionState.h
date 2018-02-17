@@ -334,10 +334,10 @@ public:
     bool writePointer(uint64_t address, uint64_t value) {
         if (getPointerSize() == 4) {
             if (value <= 0xffffffff) {
-                return mem()->writeMemory(address, (uint32_t) value);
+                return mem()->write(address, (uint32_t) value);
             }
         } else {
-            return mem()->writeMemory(address, value);
+            return mem()->write(address, value);
         }
         return false;
     }
