@@ -319,7 +319,7 @@ void HostFiles::write(S2EExecutionState *state) {
     HostFD hf = plgState->m_openFiles[guestFd];
     char buf[count];
 
-    ok = state->mem()->readMemoryConcrete(bufAddr, buf, count);
+    ok = state->mem()->read(bufAddr, buf, count);
     if (!ok) {
         getWarningsStream(state) << "ERROR: HostFiles can not read guest buffer\n";
         return;

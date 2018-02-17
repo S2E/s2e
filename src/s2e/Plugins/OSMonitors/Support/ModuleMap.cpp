@@ -306,7 +306,7 @@ void ModuleMap::handleOpcodeInvocation(S2EExecutionState *state, uint64_t guestD
         exit(-1);
     }
 
-    if (!state->mem()->readMemoryConcrete(guestDataPtr, &command, guestDataSize)) {
+    if (!state->mem()->read(guestDataPtr, &command, guestDataSize)) {
         getWarningsStream(state) << "could not read transmitted data\n";
         exit(-1);
     }

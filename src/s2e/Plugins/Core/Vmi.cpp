@@ -26,7 +26,7 @@ S2E_DEFINE_PLUGIN(Vmi, "Virtual Machine Introspection", "", );
 
 static bool VmiReadMemory(void *opaque, uint64_t address, void *dest, unsigned size) {
     S2EExecutionState *state = static_cast<S2EExecutionState *>(opaque);
-    return state->mem()->readMemoryConcrete(address, dest, size);
+    return state->mem()->read(address, dest, size);
 }
 
 Vmi::~Vmi() {
@@ -402,7 +402,7 @@ Vmi::PeData Vmi::getPeFromDisk(const ModuleDescriptor &module, bool caseInsensit
 
 bool Vmi::readGuestVirtual(void *opaque, uint64_t address, void *dest, unsigned size) {
     S2EExecutionState *state = static_cast<S2EExecutionState *>(opaque);
-    return state->mem()->readMemoryConcrete(address, dest, size);
+    return state->mem()->read(address, dest, size);
 }
 
 bool Vmi::writeGuestVirtual(void *opaque, uint64_t address, const void *source, unsigned size) {
@@ -412,7 +412,7 @@ bool Vmi::writeGuestVirtual(void *opaque, uint64_t address, const void *source, 
 
 bool Vmi::readGuestPhysical(void *opaque, uint64_t address, void *dest, unsigned size) {
     S2EExecutionState *state = static_cast<S2EExecutionState *>(opaque);
-    return state->mem()->readMemoryConcrete(address, dest, size, PhysicalAddress);
+    return state->mem()->read(address, dest, size, PhysicalAddress);
 }
 
 bool Vmi::writeGuestPhysical(void *opaque, uint64_t address, const void *source, unsigned size) {

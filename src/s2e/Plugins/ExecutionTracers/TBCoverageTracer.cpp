@@ -112,7 +112,7 @@ void TBCoverageTracer::handleOpcodeInvocation(S2EExecutionState *state, uint64_t
         return;
     }
 
-    if (!state->mem()->readMemoryConcrete(guestDataPtr, &code, guestDataSize)) {
+    if (!state->mem()->read(guestDataPtr, &code, guestDataSize)) {
         getWarningsStream(state) << "TBCoverageTracer: could not read transmitted data\n";
         return;
     }

@@ -235,7 +235,7 @@ uint64_t DecreeMonitor::getPid(S2EExecutionState *state, uint64_t pc) {
     target_ulong taskStructPtr = getTaskStructPtr(state);
     target_ulong pidAddress = taskStructPtr + m_taskStructPidOffset;
 
-    if (!state->mem()->readMemoryConcrete(pidAddress, &pid, sizeof(pid))) {
+    if (!state->mem()->read(pidAddress, &pid, sizeof(pid))) {
         return -1;
     } else {
         return pid;
@@ -543,7 +543,7 @@ target_ulong DecreeMonitor::getTaskStructPtr(S2EExecutionState *state) {
     target_ulong esp0;
     target_ulong esp0Addr = env->tr.base + decree::TSS_ESP0_OFFSET;
 
-    if (!state->mem()->readMemoryConcrete(esp0Addr, &esp0, sizeof(esp0))) {
+    if (!state->mem()->read(esp0Addr, &esp0, sizeof(esp0))) {
         return -1;
     }
 
@@ -551,7 +551,7 @@ target_ulong DecreeMonitor::getTaskStructPtr(S2EExecutionState *state) {
     target_ulong currentThreadInfo = esp0 & ~(decree::THREAD_SIZE - 1);
     target_ulong taskStructPtr;
 
-    if (!state->mem()->readMemoryConcrete(currentThreadInfo, &taskStructPtr, sizeof(taskStructPtr))) {
+    if (!state->mem()->read(currentThreadInfo, &taskStructPtr, sizeof(taskStructPtr))) {
         return -1;
     }
 
@@ -770,7 +770,7 @@ void DecreeMonitor::handleUpdateMemoryMap(S2EExecutionState *state, uint64_t pid
     }
 
     S2E_DECREEMON_VMA buf[d.count];
-    bool ok = state->mem()->readMemoryConcrete(d.buffer, buf, sizeof(buf));
+    bool ok = state->mem()->read(d.buffer, buf, sizeof(buf));
     s2e_assert(state, ok, "Failed to read memory");
 
     for (unsigned i = 0; i < d.count; i++) {
@@ -810,7 +810,7 @@ void DecreeMonitor::handleSetParams(S2EExecutionState *state, uint64_t pid, S2E_
         uint8_t buffer[len];
         memset(buffer, 0, len);
 
-        if (!state->mem()->readMemoryConcrete(d.cgc_seed_ptr, buffer, len)) {
+        if (!state->mem()->read(d.cgc_seed_ptr, buffer, len)) {
             ss << "\n";
             getWarningsStream(state) << "Could not read seed\n";
         } else {

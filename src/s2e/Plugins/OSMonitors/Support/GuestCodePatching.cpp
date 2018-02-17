@@ -218,7 +218,7 @@ void GuestCodePatching::invokeHook(S2EExecutionState *state, uint64_t pc, uint64
         /* Copy up to 11 params of the original function */
         for (unsigned i = 1; i < newStackSlots; ++i) {
             uint64_t param;
-            if (!state->mem()->readMemoryConcrete(origParams + (i - 1) * pointerSize, &param, sizeof(param))) {
+            if (!state->mem()->read(origParams + (i - 1) * pointerSize, &param, sizeof(param))) {
                 goto err1;
             }
             if (!state->mem()->write(newParams + i * pointerSize, &param, sizeof(param))) {
@@ -539,7 +539,7 @@ void GuestCodePatching::handleOpcodeInvocation(S2EExecutionState *state, uint64_
         return;
     }
 
-    if (!state->mem()->readMemoryConcrete(guestDataPtr, &command, guestDataSize)) {
+    if (!state->mem()->read(guestDataPtr, &command, guestDataSize)) {
         getWarningsStream(state) << "could not read transmitted data\n";
         return;
     }
@@ -604,7 +604,7 @@ void GuestCodePatching::handleOpcodeInvocation(S2EExecutionState *state, uint64_
 
 bool GuestCodePatching::readMemoryCb(void *opaque, uint64_t address, void *dest, unsigned size) {
     S2EExecutionState *state = static_cast<S2EExecutionState *>(opaque);
-    return state->mem()->readMemoryConcrete(address, dest, size);
+    return state->mem()->read(address, dest, size);
 }
 
 bool GuestCodePatching::writeMemoryCb(void *opaque, uint64_t address, const void *dest, unsigned size) {

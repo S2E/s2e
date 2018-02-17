@@ -584,7 +584,7 @@ void BaseInstructions::assumeDisjunction(S2EExecutionState *state) {
     }
 
     currentParam += STACK_ELEMENT_SIZE;
-    ok &= state->mem()->readMemoryConcrete(currentParam, &count, sizeof(count));
+    ok &= state->mem()->read(currentParam, &count, sizeof(count));
     if (!ok) {
         getWarningsStream(state) << "BaseInstructions: assumeDisjunction could not read number of disjunctions\n";
         return;
@@ -666,7 +666,7 @@ void BaseInstructions::writeBuffer(S2EExecutionState *state) {
 
     while (remaining > 0) {
         uint8_t byte;
-        if (!state->mem()->readMemoryConcrete(source, &byte, sizeof(byte))) {
+        if (!state->mem()->read(source, &byte, sizeof(byte))) {
             getDebugStream(state) << "BaseInstructions: could not read byte at " << hexval(source) << "\n";
             break;
         }
@@ -985,7 +985,7 @@ void BaseInstructions::handleOpcodeInvocation(S2EExecutionState *state, uint64_t
         exit(-1);
     }
 
-    if (!state->mem()->readMemoryConcrete(guestDataPtr, &command, guestDataSize)) {
+    if (!state->mem()->read(guestDataPtr, &command, guestDataSize)) {
         getWarningsStream(state) << "could not read transmitted data\n";
         exit(-1);
     }

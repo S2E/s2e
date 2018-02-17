@@ -62,7 +62,7 @@ uint64_t LinuxMonitor::getPid(S2EExecutionState *state, uint64_t pc) {
 uint64_t LinuxMonitor::getPid(S2EExecutionState *state) {
     target_ulong currentTask;
 
-    if (!state->mem()->readMemoryConcrete(m_currentTaskAddr, &currentTask, sizeof(currentTask))) {
+    if (!state->mem()->read(m_currentTaskAddr, &currentTask, sizeof(currentTask))) {
         return -1;
     }
 
@@ -70,7 +70,7 @@ uint64_t LinuxMonitor::getPid(S2EExecutionState *state) {
     int pid;
     target_ulong pidAddress = currentTask + m_taskStructTgidOffset;
 
-    if (!state->mem()->readMemoryConcrete(pidAddress, &pid, sizeof(pid))) {
+    if (!state->mem()->read(pidAddress, &pid, sizeof(pid))) {
         return -1;
     } else {
         return pid;
@@ -80,14 +80,14 @@ uint64_t LinuxMonitor::getPid(S2EExecutionState *state) {
 uint64_t LinuxMonitor::getTid(S2EExecutionState *state) {
     target_ulong currentTask;
 
-    if (!state->mem()->readMemoryConcrete(m_currentTaskAddr, &currentTask, sizeof(currentTask))) {
+    if (!state->mem()->read(m_currentTaskAddr, &currentTask, sizeof(currentTask))) {
         return -1;
     }
 
     target_ulong tid;
     target_ulong tidAddress = m_currentTaskAddr + m_taskStructPidOffset;
 
-    if (!state->mem()->readMemoryConcrete(tidAddress, &tid, sizeof(tid))) {
+    if (!state->mem()->read(tidAddress, &tid, sizeof(tid))) {
         return -1;
     } else {
         return tid;

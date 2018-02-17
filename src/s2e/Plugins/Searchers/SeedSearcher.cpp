@@ -472,7 +472,7 @@ void SeedSearcher::handleOpcodeInvocation(S2EExecutionState *state, uint64_t gue
         exit(-1);
     }
 
-    if (!state->mem()->readMemoryConcrete(guestDataPtr, &command, guestDataSize)) {
+    if (!state->mem()->read(guestDataPtr, &command, guestDataSize)) {
         getWarningsStream(state) << "S2E_SEEDSEARCHER_COMMAND: could not read transmitted data\n";
         exit(-1);
     }

@@ -260,7 +260,7 @@ void KeyValueStore::handleOpcodeInvocation(S2EExecutionState *state, uint64_t gu
         return;
     }
 
-    if (!state->mem()->readMemoryConcrete(guestDataPtr, &command, guestDataSize)) {
+    if (!state->mem()->read(guestDataPtr, &command, guestDataSize)) {
         getWarningsStream(state) << "KeyValueStore: could not read transmitted data\n";
         return;
     }

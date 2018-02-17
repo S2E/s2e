@@ -300,13 +300,13 @@ bool WindowsMonitor::readDriverDescriptor(S2EExecutionState *state, uint64_t pDr
                                           ModuleDescriptor &DriverDesc) {
     /* TODO: retrieve the driver descriptor */
     DRIVER_OBJECT DriverObject;
-    if (!state->mem()->readMemoryConcrete(pDriverDesc, &DriverObject, sizeof(DriverObject))) {
+    if (!state->mem()->read(pDriverDesc, &DriverObject, sizeof(DriverObject))) {
         getDebugStream(state) << "could not read driver descriptor " << hexval(pDriverDesc) << "\n";
         return false;
     }
 
     MODULE_ENTRY ModuleEntry;
-    if (!state->mem()->readMemoryConcrete(DriverObject.DriverSection, &ModuleEntry, sizeof(ModuleEntry))) {
+    if (!state->mem()->read(DriverObject.DriverSection, &ModuleEntry, sizeof(ModuleEntry))) {
         getDebugStream(state) << "could not read driver module entry " << hexval(DriverObject.DriverSection) << "\n";
         return false;
     }
@@ -394,14 +394,14 @@ bool WindowsMonitor::readModuleListGeneric(S2EExecutionState *state, ModuleList 
     MODULE_ENTRY ModuleEntry;
 
     pListHead = m_kernel.PsLoadedModuleList;
-    if (!state->mem()->readMemoryConcrete(m_kernel.PsLoadedModuleList, &ListHead, sizeof(ListHead))) {
+    if (!state->mem()->read(m_kernel.PsLoadedModuleList, &ListHead, sizeof(ListHead))) {
         return false;
     }
 
     for (pItem = ListHead.Flink; pItem != pListHead;) {
         pModuleEntry = pItem;
 
-        if (state->mem()->readMemoryConcrete(pModuleEntry, &ModuleEntry, sizeof(ModuleEntry)) < 0) {
+        if (state->mem()->read(pModuleEntry, &ModuleEntry, sizeof(ModuleEntry)) < 0) {
             getDebugStream(state) << "Could not load MODULE_ENTRY\n";
             return false;
         }
@@ -422,7 +422,7 @@ bool WindowsMonitor::readModuleListGeneric(S2EExecutionState *state, ModuleList 
         }
 
         pItem = ListHead.Flink;
-        if (!state->mem()->readMemoryConcrete(ListHead.Flink, &ListHead, sizeof(ListHead))) {
+        if (!state->mem()->read(ListHead.Flink, &ListHead, sizeof(ListHead))) {
             return false;
         }
     }
@@ -494,8 +494,7 @@ void WindowsMonitor::onPerfLogImageUnload(S2EExecutionState *state, uint64_t pc)
                     pid = state->regs()->read<target_ulong>(CPU_OFFSET(regs[8]));
                     base = state->regs()->read<target_ulong>(CPU_OFFSET(regs[9]));
 
-                    if (!state->mem()->readMemoryConcrete(state->regs()->getSp() + (1 + 4) * pointerSize, &size,
-                                                          pointerSize)) {
+                    if (!state->mem()->read(state->regs()->getSp() + (1 + 4) * pointerSize, &size, pointerSize)) {
                         s2e()->getExecutor()->terminateStateEarly(*state, "WindowsMonitor: could not read stack");
                     }
                 } break;
@@ -519,7 +518,7 @@ void WindowsMonitor::onPerfLogImageUnload(S2EExecutionState *state, uint64_t pc)
             pid = state->regs()->read<target_ulong>(CPU_OFFSET(regs[8]));
             base = state->regs()->read<target_ulong>(CPU_OFFSET(regs[9]));
 
-            if (!state->mem()->readMemoryConcrete(state->regs()->getSp() + (1 + 4) * pointerSize, &size, pointerSize)) {
+            if (!state->mem()->read(state->regs()->getSp() + (1 + 4) * pointerSize, &size, pointerSize)) {
                 s2e()->getExecutor()->terminateStateEarly(*state, "WindowsMonitor: could not read stack");
             }
         } break;
@@ -532,7 +531,7 @@ void WindowsMonitor::onPerfLogImageUnload(S2EExecutionState *state, uint64_t pc)
     }
 
     vmi::windows::UNICODE_STRING64 Name;
-    if (!state->mem()->readMemoryConcrete(pName, &Name, sizeof(Name))) {
+    if (!state->mem()->read(pName, &Name, sizeof(Name))) {
         getWarningsStream(state) << "WindowsMonitor::onPerfLogImageUnload "
                                  << " could not read module name\n";
         return;
@@ -764,7 +763,7 @@ void WindowsMonitor::opcodeInitKernelStructs(S2EExecutionState *state, uint64_t 
 
     /* Fetch the version block */
     if (m_kernel.KdVersionBlock) {
-        if (!state->mem()->readMemoryConcrete(m_kernel.KdVersionBlock, &m_versionBlock, sizeof(m_versionBlock))) {
+        if (!state->mem()->read(m_kernel.KdVersionBlock, &m_versionBlock, sizeof(m_versionBlock))) {
             getWarningsStream(state) << "could not read the DBGKD_GET_VERSION64 structure\n";
             exit(-1);
         }
@@ -845,7 +844,7 @@ void WindowsMonitor::handleOpcodeInvocation(S2EExecutionState *state, uint64_t g
         exit(-1);
     }
 
-    if (!state->mem()->readMemoryConcrete(guestDataPtr, &command, guestDataSize)) {
+    if (!state->mem()->read(guestDataPtr, &command, guestDataSize)) {
         getWarningsStream(state) << "could not read transmitted data\n";
         exit(-1);
     }
@@ -929,8 +928,8 @@ void WindowsMonitor::handleOpcodeInvocation(S2EExecutionState *state, uint64_t g
 
         case UNLOAD_PROCESS: {
             uint64_t returnCode = 0;
-            if (!state->mem()->readMemoryConcrete(command.Process.EProcess + m_kernel.EProcessExitStatusOffset,
-                                                  &returnCode, sizeof(uint64_t))) {
+            if (!state->mem()->read(command.Process.EProcess + m_kernel.EProcessExitStatusOffset, &returnCode,
+                                    sizeof(uint64_t))) {
                 getWarningsStream(state) << "could not read process return code\n";
             }
 
@@ -1028,7 +1027,7 @@ static inline bool _ReadCurrentProcessThreadId(Plugin *plg, S2EExecutionState *s
     // assert(k.PointerSizeInBytes == 8);
 
     T pkthread;
-    if (!state->mem()->readMemoryConcrete(k.KPCR + k.EThreadSegmentOffset, &pkthread, sizeof(pkthread))) {
+    if (!state->mem()->read(k.KPCR + k.EThreadSegmentOffset, &pkthread, sizeof(pkthread))) {
         plg->getDebugStream() << "_ReadCurrentProcessThreadId: Could not read KPCR "
                               << hexval(k.KPCR + k.EThreadSegmentOffset) << "\n";
         return false;
@@ -1039,7 +1038,7 @@ static inline bool _ReadCurrentProcessThreadId(Plugin *plg, S2EExecutionState *s
         T UniqueThread;
     } cid;
 
-    if (!state->mem()->readMemoryConcrete(pkthread + k.EThreadCidOffset, &cid, sizeof(cid))) {
+    if (!state->mem()->read(pkthread + k.EThreadCidOffset, &cid, sizeof(cid))) {
         plg->getDebugStream() << "_ReadCurrentProcessThreadId: Could not read thread CID "
                               << hexval(pkthread + k.EThreadCidOffset) << "\n";
         return false;
@@ -1054,7 +1053,7 @@ static inline bool _ReadCurrentProcessThreadId(Plugin *plg, S2EExecutionState *s
 
     if (_pkprocess) {
         T pkprocess;
-        if (!state->mem()->readMemoryConcrete(pkthread + k.EThreadProcessOffset, &pkprocess, sizeof(pkprocess))) {
+        if (!state->mem()->read(pkthread + k.EThreadProcessOffset, &pkprocess, sizeof(pkprocess))) {
             plg->getDebugStream() << "_ReadCurrentProcessThreadId: Could not read thread pkprocess "
                                   << hexval(pkthread + k.EThreadProcessOffset) << "\n";
             return false;
@@ -1101,8 +1100,8 @@ bool WindowsMonitor::getKernelStack(S2EExecutionState *state, uint64_t pEThread,
     uint64_t _limit = 0;
     bool ok = true;
     unsigned ps = state->getPointerSize();
-    ok &= state->mem()->readMemoryConcrete(pEThread + m_kernel.EThreadStackBaseOffset, &_base, ps);
-    ok &= state->mem()->readMemoryConcrete(pEThread + m_kernel.EThreadStackLimitOffset, &_limit, ps);
+    ok &= state->mem()->read(pEThread + m_kernel.EThreadStackBaseOffset, &_base, ps);
+    ok &= state->mem()->read(pEThread + m_kernel.EThreadStackLimitOffset, &_limit, ps);
 
     if (!ok) {
         return false;
@@ -1125,7 +1124,7 @@ bool WindowsMonitor::getDpcStack(S2EExecutionState *state, uint64_t *bottom, uin
     bool ok = true;
     *bottom = 0;
     *size = 0;
-    ok &= state->mem()->readMemoryConcrete(m_kernel.DPCStackBasePtr, bottom, state->getPointerSize());
+    ok &= state->mem()->read(m_kernel.DPCStackBasePtr, bottom, state->getPointerSize());
     *size = m_kernel.DPCStackSize;
     return ok;
 }
@@ -1165,14 +1164,12 @@ bool WindowsMonitor::getMemoryStatisticsForCurrentProcess(S2EExecutionState *sta
     uint64_t peprocess = getCurrentProcess(state);
 
     bool ok = true;
-    ok &= state->mem()->readMemoryConcrete(peprocess + m_kernel.EProcessCommitChargeOffset, &info.CommitCharge,
-                                           sizeof(uint64_t));
-    ok &= state->mem()->readMemoryConcrete(peprocess + m_kernel.EProcessVirtualSizeOffset, &info.VirtualSize,
-                                           sizeof(uint64_t));
-    ok &= state->mem()->readMemoryConcrete(peprocess + m_kernel.EProcessPeakVirtualSizeOffset, &info.PeakVirtualSize,
-                                           sizeof(uint64_t));
-    ok &= state->mem()->readMemoryConcrete(peprocess + m_kernel.EProcessCommitChargePeakOffset, &info.PeakCommitCharge,
-                                           sizeof(uint64_t));
+    ok &= state->mem()->read(peprocess + m_kernel.EProcessCommitChargeOffset, &info.CommitCharge, sizeof(uint64_t));
+    ok &= state->mem()->read(peprocess + m_kernel.EProcessVirtualSizeOffset, &info.VirtualSize, sizeof(uint64_t));
+    ok &=
+        state->mem()->read(peprocess + m_kernel.EProcessPeakVirtualSizeOffset, &info.PeakVirtualSize, sizeof(uint64_t));
+    ok &= state->mem()->read(peprocess + m_kernel.EProcessCommitChargePeakOffset, &info.PeakCommitCharge,
+                             sizeof(uint64_t));
 
     return ok;
 }
@@ -1190,7 +1187,7 @@ bool WindowsMonitor::getVirtualMemoryInfo(S2EExecutionState *state, uint64_t Pro
 
     uint64_t pVad = 0;
 
-    if (!state->mem()->readMemoryConcrete(Process + m_kernel.EProcessVadRootOffset, &pVad, sizeof(uint32_t))) {
+    if (!state->mem()->read(Process + m_kernel.EProcessVadRootOffset, &pVad, sizeof(uint32_t))) {
         return false;
     }
 
@@ -1198,7 +1195,7 @@ bool WindowsMonitor::getVirtualMemoryInfo(S2EExecutionState *state, uint64_t Pro
     uint64_t pfn = Address >> 12;
     while (pVad) {
         MMVAD32_XP Vad;
-        if (!state->mem()->readMemoryConcrete(pVad, &Vad, sizeof(MMVAD32_XP))) {
+        if (!state->mem()->read(pVad, &Vad, sizeof(MMVAD32_XP))) {
             return false;
         }
 
@@ -1260,7 +1257,7 @@ bool WindowsMonitor::dumpVad(S2EExecutionState *state) {
 
     getDebugStream(state) << "Dumping VAD tree for process " << getCurrentProcessId(state) << "\n";
 
-    if (!state->mem()->readMemoryConcrete(Process + m_kernel.EProcessVadRootOffset, &pVad, sizeof(uint32_t))) {
+    if (!state->mem()->read(Process + m_kernel.EProcessVadRootOffset, &pVad, sizeof(uint32_t))) {
         return false;
     }
 
@@ -1269,7 +1266,7 @@ bool WindowsMonitor::dumpVad(S2EExecutionState *state) {
     while (!parentStack.empty() || pVad) {
         if (pVad) {
             MMVAD32_XP Vad;
-            if (!state->mem()->readMemoryConcrete(pVad, &Vad, sizeof(MMVAD32_XP))) {
+            if (!state->mem()->read(pVad, &Vad, sizeof(MMVAD32_XP))) {
                 return false;
             }
 
@@ -1307,7 +1304,7 @@ QDict *WindowsMonitor::getTrapInformation(S2EExecutionState *state, uint64_t tra
     using namespace vmi::windows;
     if (state->getPointerSize() == 4) {
         KTRAP_FRAME32 TrapFrame;
-        if (!state->mem()->readMemoryConcrete(trapInfo, &TrapFrame, sizeof(TrapFrame))) {
+        if (!state->mem()->read(trapInfo, &TrapFrame, sizeof(TrapFrame))) {
             return info;
         }
 
@@ -1326,7 +1323,7 @@ QDict *WindowsMonitor::getTrapInformation(S2EExecutionState *state, uint64_t tra
 
     } else {
         KTRAP_FRAME64 TrapFrame;
-        if (!state->mem()->readMemoryConcrete(trapInfo, &TrapFrame, sizeof(TrapFrame))) {
+        if (!state->mem()->read(trapInfo, &TrapFrame, sizeof(TrapFrame))) {
             return info;
         }
 

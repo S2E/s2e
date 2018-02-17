@@ -33,11 +33,11 @@ int LuaS2EExecutionStateMemory::readPointer(lua_State *L) {
     uint64_t pointerSize = m_state->getPointerSize();
     if (pointerSize == 4) {
         uint32_t data = 0;
-        m_state->mem()->readMemoryConcrete(address, &data, sizeof(data));
+        m_state->mem()->read(address, &data, sizeof(data));
         lua_pushinteger(L, data);
     } else {
         uint64_t data = 0;
-        m_state->mem()->readMemoryConcrete(address, &data, sizeof(data));
+        m_state->mem()->read(address, &data, sizeof(data));
         lua_pushinteger(L, data);
     }
 
@@ -49,7 +49,7 @@ int LuaS2EExecutionStateMemory::readBytes(lua_State *L) {
     long size = (long) luaL_checkinteger(L, 2);
     std::vector<uint8_t> bytes(size);
 
-    if (!m_state->mem()->readMemoryConcrete(address, bytes.data(), size * sizeof(uint8_t))) {
+    if (!m_state->mem()->read(address, bytes.data(), size * sizeof(uint8_t))) {
         return 0;
     }
 
@@ -94,7 +94,7 @@ int LuaS2EExecutionStateMemory::makeConcolic(lua_State *L) {
     std::string name = luaL_checkstring(L, 3);
 
     std::vector<uint8_t> concreteData(size);
-    if (!m_state->mem()->readMemoryConcrete(address, concreteData.data(), size * sizeof(uint8_t))) {
+    if (!m_state->mem()->read(address, concreteData.data(), size * sizeof(uint8_t))) {
         return 0;
     }
 

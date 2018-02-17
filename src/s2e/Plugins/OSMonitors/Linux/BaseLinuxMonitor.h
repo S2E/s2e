@@ -117,7 +117,7 @@ protected:
         }
 
         // Read the instruction
-        bool ok = state->mem()->readMemoryConcrete(guestDataPtr, &cmd, sizeof(cmd));
+        bool ok = state->mem()->read(guestDataPtr, &cmd, sizeof(cmd));
         s2e_assert(state, ok, "Failed to read instruction memory");
 
         // Validate the instruction's version

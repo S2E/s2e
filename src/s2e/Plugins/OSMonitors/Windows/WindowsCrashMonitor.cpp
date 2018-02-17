@@ -131,7 +131,7 @@ void WindowsCrashMonitor::handleOpcodeInvocation(S2EExecutionState *state, uint6
         return;
     }
 
-    if (!state->mem()->readMemoryConcrete(guestDataPtr, &command, guestDataSize)) {
+    if (!state->mem()->read(guestDataPtr, &command, guestDataSize)) {
         getWarningsStream(state) << "could not read transmitted data\n";
         return;
     }

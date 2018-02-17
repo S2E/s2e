@@ -249,7 +249,7 @@ void ModuleExecutionDetector::handleOpcodeInvocation(S2EExecutionState *state, u
         return;
     }
 
-    if (!state->mem()->readMemoryConcrete(guestDataPtr, &command, guestDataSize)) {
+    if (!state->mem()->read(guestDataPtr, &command, guestDataSize)) {
         getWarningsStream(state) << "ModuleExecutionDetector: could not read transmitted data\n";
         return;
     }
