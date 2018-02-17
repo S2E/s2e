@@ -84,7 +84,7 @@ uint64_t S2EExecutionStateMemory::getHostAddress(uint64_t address, AddressType a
 
 /***/
 
-ref<Expr> S2EExecutionStateMemory::readMemory(uint64_t address, Expr::Width width, AddressType addressType) {
+ref<Expr> S2EExecutionStateMemory::read(uint64_t address, Expr::Width width, AddressType addressType) {
     assert(width == 1 || (width & 7) == 0);
     uint64_t size = width / 8;
 

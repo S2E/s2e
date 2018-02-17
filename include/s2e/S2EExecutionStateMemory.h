@@ -37,6 +37,8 @@ protected:
 
     bool writeMemory8(uint64_t address, const klee::ref<klee::Expr> &value, AddressType addressType = VirtualAddress);
 
+    klee::ref<klee::Expr> readMemory8(uint64_t address, AddressType addressType = VirtualAddress);
+
 public:
     S2EExecutionStateMemory();
 
@@ -91,9 +93,8 @@ public:
         depending on 'physical' argument. Returns NULL or false in
         case of failure (can't resolve virtual address or physical
         address is invalid) */
-    klee::ref<klee::Expr> readMemory(uint64_t address, klee::Expr::Width width,
-                                     AddressType addressType = VirtualAddress);
-    klee::ref<klee::Expr> readMemory8(uint64_t address, AddressType addressType = VirtualAddress);
+    klee::ref<klee::Expr> read(uint64_t address, klee::Expr::Width width = klee::Expr::Int8,
+                               AddressType addressType = VirtualAddress);
 
     /** Write concrete buffer to memory */
     bool write(uint64_t address, const void *buf, uint64_t size, AddressType addressType = VirtualAddress);

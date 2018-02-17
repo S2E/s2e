@@ -442,7 +442,7 @@ void S2EExecutionState::kleeReadMemory(ref<Expr> kleeAddressExpr, uint64_t sizeI
     unsigned i;
     uint64_t caddr = address->getZExtValue();
     for (i = 0; i < sizeInBytes; i++) {
-        ref<Expr> cur = mem()->readMemory8(caddr);
+        ref<Expr> cur = mem()->read(caddr);
         result->push_back(cur);
         caddr++;
     }

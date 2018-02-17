@@ -262,7 +262,7 @@ redo:
             if (isWrite) {
                 s2estate->mem()->write(addr + addend, value, HostAddress);
             } else {
-                value = s2estate->mem()->readMemory(addr + addend, width, HostAddress);
+                value = s2estate->mem()->read(addr + addend, width, HostAddress);
             }
 
             // Trace the access
@@ -379,7 +379,7 @@ void S2EExecutor::handle_ldst_kernel(Executor *executor, ExecutionState *state, 
         if (isWrite) {
             s2estate->mem()->write(physaddr, value, HostAddress);
         } else {
-            value = s2estate->mem()->readMemory(physaddr, width, HostAddress);
+            value = s2estate->mem()->read(physaddr, width, HostAddress);
         }
 
         // Trace the access
