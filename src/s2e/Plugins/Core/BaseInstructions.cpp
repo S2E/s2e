@@ -157,7 +157,7 @@ void BaseInstructions::makeSymbolic(S2EExecutionState *state, uintptr_t address,
         valueSs << "='";
         for (unsigned i = 0; i < size; ++i) {
             uint8_t byte = 0;
-            if (!state->mem()->readMemoryConcrete8(address + i, &byte, VirtualAddress, false)) {
+            if (!state->mem()->read<uint8_t>(address + i, &byte, VirtualAddress, false)) {
                 getWarningsStream(state) << "Can not concretize/read symbolic value at " << hexval(address + i)
                                          << ". System state not modified\n";
                 return;
@@ -367,7 +367,7 @@ void BaseInstructions::hexDump(S2EExecutionState *state) {
     // Process every byte in the data.
     for (i = 0; i < size; i++) {
         uint8_t data = 0;
-        state->mem()->readMemoryConcrete8(address + i, &data);
+        state->mem()->read<uint8_t>(address + i, &data);
 
         // Multiple of 16 means new line (with line offset).
 
@@ -416,11 +416,11 @@ void BaseInstructions::concretize(S2EExecutionState *state, bool addConstraint) 
 
     for (unsigned i = 0; i < size; ++i) {
         uint8_t b = 0;
-        if (!state->mem()->readMemoryConcrete8(address + i, &b, VirtualAddress, addConstraint)) {
+        if (!state->mem()->read<uint8_t>(address + i, &b, VirtualAddress, addConstraint)) {
             getWarningsStream(state) << "Can not concretize memory"
                                      << " at " << hexval(address + i) << '\n';
         } else {
-            // readMemoryConcrete8 does not automatically overwrite the destination
+            // read memory does not automatically overwrite the destination
             // address if we choose not to add the constraint, so we do it here
             if (!addConstraint) {
                 if (!state->mem()->write(address + i, &b, sizeof(b))) {
