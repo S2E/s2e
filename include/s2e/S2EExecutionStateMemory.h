@@ -45,16 +45,39 @@ public:
     void update(klee::AddressSpace *addressSpace, AddressSpaceCache *asCache, const bool *active,
                 klee::IAddressSpaceNotification *notification, klee::IConcretizer *concretizer);
 
-    /** Virtual address translation (debug mode). Returns -1 on failure. */
-    uint64_t getPhysicalAddress(uint64_t virtualAddress) const;
+    ////////////////////////////////////////////////////////////
+    // The APIs below are for use by the engine only
+    ////////////////////////////////////////////////////////////
 
-    /** Address translation (debug mode). Returns host address or -1 on failure */
-    uint64_t getHostAddress(uint64_t address, AddressType addressType = VirtualAddress) const;
+    /** Dirty mask management */
+    uint8_t readDirtyMask(uint64_t host_address);
+    void writeDirtyMask(uint64_t host_address, uint8_t val);
+    void registerDirtyMask(uint64_t host_address, uint64_t size);
 
     /** Read/write from physical memory, concretizing if necessary on reads.
         Note: this function accepts host address. Used by softmmu code. */
     void transferRam(struct CPUTLBRAMEntry *te, uint64_t hostAddress, void *buf, uint64_t size, bool isWrite,
                      bool exitOnSymbolicRead, bool isSymbolic);
+
+    static const klee::MemoryObject *getDirtyMask() {
+        return s_dirtyMask;
+    }
+
+    uintptr_t getDirtyMaskStoreAddend() const {
+        return (uintptr_t) m_dirtyMask->getConcreteStore(false) - s_dirtyMask->address;
+    }
+
+    klee::ObjectPair getMemoryObject(uint64_t address, AddressType addressType = VirtualAddress) const;
+
+    ////////////////////////////////////////////////////////////
+    // The APIs below may be used by plugins
+    ////////////////////////////////////////////////////////////
+
+    /** Virtual address translation (debug mode). Returns -1 on failure. */
+    uint64_t getPhysicalAddress(uint64_t virtualAddress) const;
+
+    /** Address translation (debug mode). Returns host address or -1 on failure */
+    uint64_t getHostAddress(uint64_t address, AddressType addressType = VirtualAddress) const;
 
     /** Read memory to buffer, concretize if necessary */
     bool readMemoryConcrete(uint64_t address, void *buf, uint64_t size, AddressType addressType = VirtualAddress);
@@ -81,11 +104,6 @@ public:
     template <typename T> bool writeMemory(uint64_t address, T value, AddressType addressType = VirtualAddress) {
         return writeMemoryConcrete(address, (T *) &value, sizeof(T), addressType);
     }
-
-    /** Dirty mask management */
-    uint8_t readDirtyMask(uint64_t host_address);
-    void writeDirtyMask(uint64_t host_address, uint8_t val);
-    void registerDirtyMask(uint64_t host_address, uint64_t size);
 
     /** Read a generic string from memory */
     template <typename T> bool readGenericString(uint64_t address, std::string &s, unsigned maxLen) {
@@ -114,16 +132,6 @@ public:
 
     /** Read a unicode string from memory */
     bool readUnicodeString(uint64_t address, std::string &s, unsigned maxLen = 256);
-
-    static const klee::MemoryObject *getDirtyMask() {
-        return s_dirtyMask;
-    }
-
-    uintptr_t getDirtyMaskStoreAddend() const {
-        return (uintptr_t) m_dirtyMask->getConcreteStore(false) - s_dirtyMask->address;
-    }
-
-    klee::ObjectPair getMemoryObject(uint64_t address, AddressType addressType = VirtualAddress) const;
 };
 
 } // namespace s2e
