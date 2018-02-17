@@ -361,7 +361,7 @@ void DecreeMonitor::handleReadData(S2EExecutionState *state, uint64_t pid, const
         bool ok = state->writePointer(d.result_addr, dyn_cast<ConstantExpr>(bytesSentExpr)->getZExtValue());
         s2e_assert(state, ok, "Failed to write memory");
     } else {
-        bool ok = state->mem()->writeMemory(d.result_addr, bytesSentExpr);
+        bool ok = state->mem()->write(d.result_addr, bytesSentExpr);
         s2e_assert(state, ok, "Failed to write memory");
     }
 
@@ -437,7 +437,7 @@ void DecreeMonitor::handleWriteData(S2EExecutionState *state, uint64_t pid, cons
 
     bool isSeedState = m_seedSearcher ? m_seedSearcher->isSeedState(state) : false;
     if (m_handleSymbolicBufferSize && !isSeedState && !isa<ConstantExpr>(countExpr)) {
-        bool ok = state->mem()->writeMemory(d.buffer_size_addr, countExpr);
+        bool ok = state->mem()->write(d.buffer_size_addr, countExpr);
         s2e_assert(state, ok, "Failed to write memory");
     }
 
@@ -472,7 +472,7 @@ void DecreeMonitor::handleFdWait(S2EExecutionState *state, S2E_DECREEMON_COMMAND
         s2e_assert(state, ok, "Failed to write memory");
 
         uintptr_t resultAddress = addr + offsetof(S2E_DECREEMON_COMMAND, FDWait.result);
-        ok = state->mem()->writeMemory(resultAddress, result);
+        ok = state->mem()->write(resultAddress, result);
         s2e_assert(state, ok, "Failed to write memory");
 
         /*state->regs()->write<target_ulong>(CPU_OFFSET(eip), state->regs()->getPc() + 10);

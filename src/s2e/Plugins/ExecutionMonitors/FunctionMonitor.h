@@ -54,7 +54,7 @@ public:
 
     static bool writeParameter(S2EExecutionState *s, unsigned param, const klee::ref<klee::Expr> &val) {
         uint64_t ptrSz = s->getPointerSize();
-        return s->mem()->writeMemory(s->regs()->getSp() + (param + 1) * ptrSz, val);
+        return s->mem()->write(s->regs()->getSp() + (param + 1) * ptrSz, val);
     }
 
 protected:

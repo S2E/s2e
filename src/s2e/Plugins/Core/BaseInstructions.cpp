@@ -176,7 +176,7 @@ void BaseInstructions::makeSymbolic(S2EExecutionState *state, uintptr_t address,
                          << "\n";
 
     for (unsigned i = 0; i < size; ++i) {
-        if (!state->mem()->writeMemory(address + i, symb[i])) {
+        if (!state->mem()->write(address + i, symb[i])) {
             getWarningsStream(state) << "Can not insert symbolic value at " << hexval(address + i)
                                      << ": can not write to memory\n";
         }
@@ -707,8 +707,8 @@ void BaseInstructions::getRange(S2EExecutionState *state) {
 
     getDebugStream(state) << "BaseInstructions: range " << range.first << " to " << range.second << "\n";
 
-    state->mem()->writeMemory(low, range.first);
-    state->mem()->writeMemory(high, range.second);
+    state->mem()->write(low, range.first);
+    state->mem()->write(high, range.second);
 }
 
 void BaseInstructions::getConstraintsCountForExpression(S2EExecutionState *state) {

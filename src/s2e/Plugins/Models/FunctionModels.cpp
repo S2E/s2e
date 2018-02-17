@@ -219,7 +219,7 @@ void FunctionModels::handleCrc(S2EExecutionState *state, S2E_LIBCWRAPPER_COMMAND
             getWarningsStream(state) << "Could not write to guest memory\n"; \
         }                                                                    \
                                                                              \
-        if (!state->mem()->writeMemory(guestDataPtr + offRet, retExpr)) {    \
+        if (!state->mem()->write(guestDataPtr + offRet, retExpr)) {          \
             getWarningsStream(state) << "Could not write to guest memory\n"; \
         }                                                                    \
     } while (0)
