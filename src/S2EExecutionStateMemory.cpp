@@ -141,7 +141,7 @@ bool S2EExecutionStateMemory::readMemoryConcrete8(uint64_t address, uint8_t *res
     return true;
 }
 
-bool S2EExecutionStateMemory::readMemoryConcrete(uint64_t address, void *buf, uint64_t size, AddressType addressType) {
+bool S2EExecutionStateMemory::read(uint64_t address, void *buf, uint64_t size, AddressType addressType) {
     while (size > 0) {
         uint64_t hostAddress = getHostAddress(address, addressType);
         if (hostAddress == (uint64_t) -1)

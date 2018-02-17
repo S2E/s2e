@@ -82,7 +82,10 @@ public:
     uint64_t getHostAddress(uint64_t address, AddressType addressType = VirtualAddress) const;
 
     /** Read memory to buffer, concretize if necessary */
-    bool readMemoryConcrete(uint64_t address, void *buf, uint64_t size, AddressType addressType = VirtualAddress);
+    bool read(uint64_t address, void *buf, uint64_t size, AddressType addressType = VirtualAddress);
+
+    bool readMemoryConcrete8(uint64_t address, uint8_t *result = NULL, AddressType addressType = VirtualAddress,
+                             bool addConstraint = true);
 
     /** Access to state's memory. Address is virtual or physical,
         depending on 'physical' argument. Returns NULL or false in
@@ -91,9 +94,6 @@ public:
     klee::ref<klee::Expr> readMemory(uint64_t address, klee::Expr::Width width,
                                      AddressType addressType = VirtualAddress);
     klee::ref<klee::Expr> readMemory8(uint64_t address, AddressType addressType = VirtualAddress);
-
-    bool readMemoryConcrete8(uint64_t address, uint8_t *result = NULL, AddressType addressType = VirtualAddress,
-                             bool addConstraint = true);
 
     /** Write concrete buffer to memory */
     bool write(uint64_t address, const void *buf, uint64_t size, AddressType addressType = VirtualAddress);
@@ -115,7 +115,7 @@ public:
         do {
             c = 0;
 
-            ret = readMemoryConcrete(address, &c, sizeof(c));
+            ret = read(address, &c, sizeof(c));
             maxLen--;
             address += sizeof(T);
 

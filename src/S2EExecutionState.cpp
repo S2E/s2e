@@ -207,12 +207,12 @@ bool S2EExecutionState::getReturnAddress(uint64_t *retAddr) {
     unsigned ptrSize = getPointerSize();
     if (ptrSize == 4) {
         uint32_t ra;
-        if (!mem()->readMemoryConcrete(regs()->getSp(), &ra, sizeof(ra))) {
+        if (!mem()->read(regs()->getSp(), &ra, sizeof(ra))) {
             return false;
         }
         *retAddr = ra;
     } else if (ptrSize == 8) {
-        if (!mem()->readMemoryConcrete(regs()->getSp(), retAddr, sizeof(*retAddr))) {
+        if (!mem()->read(regs()->getSp(), retAddr, sizeof(*retAddr))) {
             return false;
         }
     } else {
@@ -1252,7 +1252,7 @@ void s2e_dma_read(uint64_t hostAddress, uint8_t *buf, unsigned size) {
 #if defined(SE_ENABLE_PHYSRAM_TLB)
     s2e_dma_rw(hostAddress, buf, size, false);
 #else
-    g_s2e_state->mem()->readMemoryConcrete(hostAddress, buf, size, s2e::HostAddress);
+    g_s2e_state->mem()->read(hostAddress, buf, size, s2e::HostAddress);
 #endif
 }
 

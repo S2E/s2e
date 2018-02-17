@@ -319,12 +319,12 @@ public:
         bool status = false;
         if (getPointerSize() == 4) {
             uint32_t pointer = 0;
-            status = mem()->readMemoryConcrete(address, &pointer, sizeof(pointer));
+            status = mem()->read(address, &pointer, sizeof(pointer));
             value = pointer;
         } else {
             if (sizeof(T) == 8) {
                 uint64_t pointer = 0;
-                status = mem()->readMemoryConcrete(address, &pointer, sizeof(pointer));
+                status = mem()->read(address, &pointer, sizeof(pointer));
                 value = pointer;
             }
         }
