@@ -86,8 +86,34 @@ public:
     /** Read memory to buffer, concretize if necessary */
     bool read(uint64_t address, void *buf, uint64_t size, AddressType addressType = VirtualAddress);
 
-    bool readMemoryConcrete8(uint64_t address, uint8_t *result = NULL, AddressType addressType = VirtualAddress,
-                             bool addConstraint = true);
+    template <typename T, typename std::enable_if<std::is_integral<T>::value, T>::type * = nullptr>
+    bool read(uint64_t address, T *result, AddressType addressType = VirtualAddress, bool addConstraint = true) {
+        static_assert(std::is_integral<T>::value, "Read from memory can only use primitive types");
+
+#ifdef CONFIG_SYMBEX_MP
+
+        klee::ref<klee::Expr> expr = read(address, sizeof(T) * 8, addressType);
+        if (expr.isNull()) {
+            return false;
+        }
+
+        expr = klee::ConstantExpr::create(m_concretizer->concretize(expr, "readMemory", !addConstraint), sizeof(T) * 8);
+        klee::ConstantExpr *ce = dyn_cast<klee::ConstantExpr>(expr);
+        assert(ce && "Broken solver");
+
+        if (result) {
+            *result = ce->getZExtValue();
+        }
+
+        if (addConstraint) {
+            return write(address, expr);
+        }
+
+        return true;
+#else
+        return read(address, result, sizeof(T), addressType);
+#endif
+    }
 
     /** Access to state's memory. Address is virtual or physical,
         depending on 'physical' argument. Returns NULL or false in

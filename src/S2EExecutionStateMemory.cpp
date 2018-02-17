@@ -86,7 +86,7 @@ uint64_t S2EExecutionStateMemory::getHostAddress(uint64_t address, AddressType a
 
 ref<Expr> S2EExecutionStateMemory::read(uint64_t address, Expr::Width width, AddressType addressType) {
     assert(width == 1 || (width & 7) == 0);
-    uint64_t size = width / 8;
+    uint64_t size = Expr::getMinBytesForWidth(width);
 
     /* Access spawns multiple MemoryObject's */
     ref<Expr> res(0);
@@ -113,32 +113,6 @@ ref<Expr> S2EExecutionStateMemory::readMemory8(uint64_t address, AddressType add
 #endif
 
     return retVal;
-}
-
-bool S2EExecutionStateMemory::readMemoryConcrete8(uint64_t address, uint8_t *result, AddressType addressType,
-                                                  bool addConstraint) {
-    ref<Expr> expr = readMemory8(address, addressType);
-#ifdef CONFIG_SYMBEX_MP
-    if (expr.isNull()) {
-        return false;
-    }
-
-    expr = ConstantExpr::create(m_concretizer->concretize(expr, "readMemoryConcrete8", !addConstraint), Expr::Int8);
-    ConstantExpr *ce = dyn_cast<ConstantExpr>(expr);
-    assert(ce && "Broken solver");
-
-    if (result) {
-        *result = ce->getZExtValue();
-    }
-
-    if (addConstraint) {
-        return write(address, expr);
-    }
-#else
-    ConstantExpr *ce = dyn_cast<ConstantExpr>(expr);
-    *result = ce->getZExtValue();
-#endif
-    return true;
 }
 
 bool S2EExecutionStateMemory::read(uint64_t address, void *buf, uint64_t size, AddressType addressType) {
