@@ -153,7 +153,7 @@ void HostFiles::read(S2EExecutionState *state) {
     }
     ret = read_ret;
 
-    ok = state->mem()->writeMemoryConcrete(bufAddr, buf, ret);
+    ok = state->mem()->write(bufAddr, buf, ret);
     if (!ok) {
         getWarningsStream(state) << "ERROR: HostFiles can not write to guest buffer\n";
         return;

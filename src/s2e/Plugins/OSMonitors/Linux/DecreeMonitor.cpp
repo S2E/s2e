@@ -282,7 +282,7 @@ ref<Expr> DecreeMonitor::makeSymbolicRead(S2EExecutionState *state, uint64_t pid
         std::vector<uint8_t> data;
         getPreFeedData(state, pid, feedCount, data);
 
-        bool ok = state->mem()->writeMemoryConcrete(buf, &data[0], feedCount);
+        bool ok = state->mem()->write(buf, &data[0], feedCount);
         s2e_assert(state, ok, "Failed to write memory");
 
         plgState->m_readBytesCount[pid] += feedCount;
@@ -327,7 +327,7 @@ ref<Expr> DecreeMonitor::makeSymbolicRead(S2EExecutionState *state, uint64_t pid
         std::vector<uint8_t> data;
         getRandomData(state, feedCount, data);
 
-        bool ok = state->mem()->writeMemoryConcrete(buf, &data[0], feedCount);
+        bool ok = state->mem()->write(buf, &data[0], feedCount);
         s2e_assert(state, ok, "Failed to write memory");
 
         plgState->m_readBytesCount[pid] += feedCount;
@@ -468,7 +468,7 @@ void DecreeMonitor::handleFdWait(S2EExecutionState *state, S2E_DECREEMON_COMMAND
                                  E_CONST(0, Expr::Int64), E_CONST(d.FDWait.nfds, Expr::Int64));
 
         // Need to write it back, the kernel reads 'invoke_orig'
-        bool ok = state->mem()->writeMemoryConcrete(addr, &d, sizeof(d));
+        bool ok = state->mem()->write(addr, &d, sizeof(d));
         s2e_assert(state, ok, "Failed to write memory");
 
         uintptr_t resultAddress = addr + offsetof(S2E_DECREEMON_COMMAND, FDWait.result);
@@ -484,7 +484,7 @@ void DecreeMonitor::handleFdWait(S2EExecutionState *state, S2E_DECREEMON_COMMAND
 
     } else {
         d.FDWait.result = d.FDWait.nfds;
-        bool ok = state->mem()->writeMemoryConcrete(addr, &d, sizeof(d));
+        bool ok = state->mem()->write(addr, &d, sizeof(d));
         s2e_assert(state, ok, "Failed to write memory");
     }
 }
@@ -1015,7 +1015,7 @@ void DecreeMonitor::handleCommand(S2EExecutionState *state, uint64_t guestDataPt
 
         case DECREE_GET_CFG_BOOL: {
             handleGetCfgBool(state, command.currentPid, command.GetCfgBool);
-            bool ok = state->mem()->writeMemoryConcrete(guestDataPtr, &command, sizeof(command));
+            bool ok = state->mem()->write(guestDataPtr, &command, sizeof(command));
             s2e_assert(state, ok, "Failed to write memory");
         } break;
 
@@ -1057,7 +1057,7 @@ void DecreeMonitor::handleCommand(S2EExecutionState *state, uint64_t guestDataPt
 
         case DECREE_SET_CB_PARAMS: {
             handleSetParams(state, command.currentPid, command.CbParams);
-            if (!state->mem()->writeMemoryConcrete(guestDataPtr, &command, guestDataSize)) {
+            if (!state->mem()->write(guestDataPtr, &command, guestDataSize)) {
                 // Do not kill the state in case of an error here. This would prevent
                 // any exploration at all.
                 //

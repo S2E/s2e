@@ -179,13 +179,13 @@ void GuestCodePatching::invokeHook(S2EExecutionState *state, uint64_t pc, uint64
 
         // Push an extra parameter to indicate the target of the real call.
         uint32_t target = pc;
-        if (!state->mem()->writeMemoryConcrete(state->regs()->getSp(), &target, sizeof(target))) {
+        if (!state->mem()->write(state->regs()->getSp(), &target, sizeof(target))) {
             goto err1;
         }
 
         // The return address goes down one slot
         uint32_t rap = returnAddress;
-        if (!state->mem()->writeMemoryConcrete(state->regs()->getSp() - pointerSize, &rap, sizeof(rap))) {
+        if (!state->mem()->write(state->regs()->getSp() - pointerSize, &rap, sizeof(rap))) {
             goto err1;
         }
 
@@ -211,7 +211,7 @@ void GuestCodePatching::invokeHook(S2EExecutionState *state, uint64_t pc, uint64
         uint64_t newStack = newParams - pointerSize; // Return address points to guest stub
 
         /* Store the initial callee's pc as first parameter of the annotation */
-        if (!state->mem()->writeMemoryConcrete(newParams, &pc, sizeof(uint64_t))) {
+        if (!state->mem()->write(newParams, &pc, sizeof(uint64_t))) {
             goto err1;
         }
 
@@ -221,7 +221,7 @@ void GuestCodePatching::invokeHook(S2EExecutionState *state, uint64_t pc, uint64
             if (!state->mem()->readMemoryConcrete(origParams + (i - 1) * pointerSize, &param, sizeof(param))) {
                 goto err1;
             }
-            if (!state->mem()->writeMemoryConcrete(newParams + i * pointerSize, &param, sizeof(param))) {
+            if (!state->mem()->write(newParams + i * pointerSize, &param, sizeof(param))) {
                 goto err1;
             }
         }
@@ -246,12 +246,12 @@ void GuestCodePatching::invokeHook(S2EExecutionState *state, uint64_t pc, uint64
         state->regs()->write<uint64_t>(offsetof(CPUX86State, regs[9]), r8);
 
         // Spill the last reg on the stack
-        if (!state->mem()->writeMemoryConcrete(newParams + 4 * pointerSize, &r9, sizeof(r9))) {
+        if (!state->mem()->write(newParams + 4 * pointerSize, &r9, sizeof(r9))) {
             goto err1;
         }
 
         // The return hook will clean up the stack
-        if (!state->mem()->writeMemoryConcrete(newStack, &returnAddress, sizeof(uint64_t))) {
+        if (!state->mem()->write(newStack, &returnAddress, sizeof(uint64_t))) {
             goto err1;
         }
 
@@ -452,7 +452,7 @@ void GuestCodePatching::opcodePatchExistingModule(S2EExecutionState *state, uint
 
 err1:
 
-    if (!state->mem()->writeMemoryConcrete(guestDataPtr, &cmd, sizeof(cmd))) {
+    if (!state->mem()->write(guestDataPtr, &cmd, sizeof(cmd))) {
         getWarningsStream(state) << "GuestCodePatching::opcodePatchExistingModule "
                                  << "Could not write outcome\n";
     }
@@ -609,7 +609,7 @@ bool GuestCodePatching::readMemoryCb(void *opaque, uint64_t address, void *dest,
 
 bool GuestCodePatching::writeMemoryCb(void *opaque, uint64_t address, const void *dest, unsigned size) {
     S2EExecutionState *state = static_cast<S2EExecutionState *>(opaque);
-    return state->mem()->writeMemoryConcrete(address, dest, size);
+    return state->mem()->write(address, dest, size);
 }
 
 /*******************************************************/

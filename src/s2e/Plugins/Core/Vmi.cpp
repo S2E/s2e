@@ -407,7 +407,7 @@ bool Vmi::readGuestVirtual(void *opaque, uint64_t address, void *dest, unsigned 
 
 bool Vmi::writeGuestVirtual(void *opaque, uint64_t address, const void *source, unsigned size) {
     S2EExecutionState *state = static_cast<S2EExecutionState *>(opaque);
-    return state->mem()->writeMemoryConcrete(address, source, size);
+    return state->mem()->write(address, source, size);
 }
 
 bool Vmi::readGuestPhysical(void *opaque, uint64_t address, void *dest, unsigned size) {
@@ -417,7 +417,7 @@ bool Vmi::readGuestPhysical(void *opaque, uint64_t address, void *dest, unsigned
 
 bool Vmi::writeGuestPhysical(void *opaque, uint64_t address, const void *source, unsigned size) {
     S2EExecutionState *state = static_cast<S2EExecutionState *>(opaque);
-    return state->mem()->writeMemoryConcrete(address, source, size, PhysicalAddress);
+    return state->mem()->write(address, source, size, PhysicalAddress);
 }
 
 bool Vmi::readX86Register(void *opaque, unsigned reg, void *buffer, unsigned size) {

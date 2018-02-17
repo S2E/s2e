@@ -307,7 +307,7 @@ void KeyValueStore::handleOpcodeInvocation(S2EExecutionState *state, uint64_t gu
             if (command.Success) {
                 unsigned len = value.size() + 1;
                 unsigned max = command.ValueSize < len ? command.ValueSize : len;
-                command.Success = state->mem()->writeMemoryConcrete(command.ValueAddress, value.c_str(), max);
+                command.Success = state->mem()->write(command.ValueAddress, value.c_str(), max);
             }
         } break;
 
@@ -350,7 +350,7 @@ void KeyValueStore::handleOpcodeInvocation(S2EExecutionState *state, uint64_t gu
         default: { getWarningsStream(state) << "KeyValueStore: unknown command " << command.Command << "\n"; } break;
     }
 
-    if (!state->mem()->writeMemoryConcrete(guestDataPtr, &command, guestDataSize)) {
+    if (!state->mem()->write(guestDataPtr, &command, guestDataSize)) {
         getDebugStream(state) << "KeyValueStore: could not write back result to guest\n";
     }
 }

@@ -233,11 +233,11 @@ void ModuleExecutionDetector::handleOpcodeGetModule(S2EExecutionState *state, ui
         int size = std::min(moduleName.length() + 1, command.Module.ModuleNameSize);
 
         if (size > 0) {
-            state->mem()->writeMemoryConcrete(command.Module.ModuleName, moduleName.c_str(), size);
+            state->mem()->write(command.Module.ModuleName, moduleName.c_str(), size);
         }
     }
 
-    state->mem()->writeMemoryConcrete(guestDataPtr, &command, sizeof(command));
+    state->mem()->write(guestDataPtr, &command, sizeof(command));
 }
 
 void ModuleExecutionDetector::handleOpcodeInvocation(S2EExecutionState *state, uint64_t guestDataPtr,

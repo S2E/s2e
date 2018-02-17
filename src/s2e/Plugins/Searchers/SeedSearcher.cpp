@@ -400,7 +400,7 @@ void SeedSearcher::handleGetSeedFile(S2EExecutionState *state, S2E_SEEDSEARCHER_
 
     unsigned length = std::min(cmd.GetFile.FileNameSizeInBytes, m_currentSeed.filename.length() + 1);
 
-    if (!state->mem()->writeMemoryConcrete(cmd.GetFile.FileName, m_currentSeed.filename.c_str(), length)) {
+    if (!state->mem()->write(cmd.GetFile.FileName, m_currentSeed.filename.c_str(), length)) {
         getDebugStream(state) << "Could not write " << m_currentSeed.filename << " to " << hexval(cmd.GetFile.FileName)
                               << "\n";
         exit(-1);

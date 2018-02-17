@@ -423,7 +423,7 @@ void BaseInstructions::concretize(S2EExecutionState *state, bool addConstraint) 
             // readMemoryConcrete8 does not automatically overwrite the destination
             // address if we choose not to add the constraint, so we do it here
             if (!addConstraint) {
-                if (!state->mem()->writeMemoryConcrete(address + i, &b, sizeof(b))) {
+                if (!state->mem()->write(address + i, &b, sizeof(b))) {
                     getWarningsStream(state) << "Can not write memory"
                                              << " at " << hexval(address + i) << '\n';
                 }
@@ -671,7 +671,7 @@ void BaseInstructions::writeBuffer(S2EExecutionState *state) {
             break;
         }
 
-        if (!state->mem()->writeMemoryConcrete(destination, &byte, sizeof(byte))) {
+        if (!state->mem()->write(destination, &byte, sizeof(byte))) {
             getDebugStream(state) << "BaseInstructions: could not write byte to " << hexval(destination) << "\n";
             break;
         }
@@ -998,7 +998,7 @@ void BaseInstructions::handleOpcodeInvocation(S2EExecutionState *state, uint64_t
         case GET_HOST_CLOCK_MS: {
             llvm::sys::TimeValue t = llvm::sys::TimeValue::now();
             command.Milliseconds = t.seconds() * 1000 + t.milliseconds();
-            state->mem()->writeMemoryConcrete(guestDataPtr, &command, guestDataSize);
+            state->mem()->write(guestDataPtr, &command, guestDataSize);
         } break;
     }
 }

@@ -324,7 +324,7 @@ void ModuleMap::handleOpcodeInvocation(S2EExecutionState *state, uint64_t guestD
             // Caller inits the buffer to 0, so subtract 1 to make it asciiz
             auto maxLen = std::min(command.ModuleInfo.ModuleNameSize - 1, module->Name.size());
 
-            if (!state->mem()->writeMemoryConcrete(command.ModuleInfo.ModuleName, module->Name.c_str(), maxLen)) {
+            if (!state->mem()->write(command.ModuleInfo.ModuleName, module->Name.c_str(), maxLen)) {
                 getWarningsStream(state) << "could not write module name to memory\n";
                 break;
             }
@@ -334,7 +334,7 @@ void ModuleMap::handleOpcodeInvocation(S2EExecutionState *state, uint64_t guestD
             command.ModuleInfo.RuntimeLoadBase = module->LoadBase;
             command.ModuleInfo.Size = module->Size;
 
-            if (!state->mem()->writeMemoryConcrete(guestDataPtr, &command, guestDataSize)) {
+            if (!state->mem()->write(guestDataPtr, &command, guestDataSize)) {
                 getWarningsStream(state) << "could not write module info to memory\n";
                 break;
             }
