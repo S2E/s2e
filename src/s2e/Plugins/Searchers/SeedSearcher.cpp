@@ -480,7 +480,7 @@ void SeedSearcher::handleOpcodeInvocation(S2EExecutionState *state, uint64_t gue
     switch (command.Command) {
         case SEED_GET_SEED_FILE: {
             handleGetSeedFile(state, command);
-            if (!state->mem()->writeMemory(guestDataPtr, command)) {
+            if (!state->mem()->write(guestDataPtr, &command, sizeof(command))) {
                 getWarningsStream(state) << "Could not write to guest memory\n";
             }
         } break;

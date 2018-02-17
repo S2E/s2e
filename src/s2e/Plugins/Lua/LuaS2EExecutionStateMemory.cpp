@@ -80,7 +80,7 @@ int LuaS2EExecutionStateMemory::makeSymbolic(lua_State *L) {
     std::vector<klee::ref<klee::Expr>> symb = m_state->createSymbolicArray(name, size);
 
     for (unsigned i = 0; i < size; ++i) {
-        if (!m_state->mem()->writeMemory8(address + i, symb[i])) {
+        if (!m_state->mem()->writeMemory(address + i, symb[i])) {
             return 0;
         }
     }
@@ -101,7 +101,7 @@ int LuaS2EExecutionStateMemory::makeConcolic(lua_State *L) {
     std::vector<klee::ref<klee::Expr>> symb = m_state->createConcolicArray(name, size, concreteData);
 
     for (unsigned i = 0; i < size; ++i) {
-        if (!m_state->mem()->writeMemory8(address + i, symb[i])) {
+        if (!m_state->mem()->writeMemory(address + i, symb[i])) {
             return 0;
         }
     }

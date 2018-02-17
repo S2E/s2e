@@ -299,13 +299,13 @@ bool BaseFunctionModels::strcpyHelper(S2EExecutionState *state, const uint64_t s
         }
 
         ref<Expr> writeExpr = E_ITE(accuExpr, srcCharExpr, dstCharExpr);
-        if (!state->mem()->writeMemory8(strAddrs[0] + nr, writeExpr)) {
+        if (!state->mem()->writeMemory(strAddrs[0] + nr, writeExpr)) {
             getDebugStream(state) << "Failed to write to destination string.\n";
             return false;
         }
         accuExpr = E_AND(E_NOT(E_EQ(srcCharExpr, nullByteExpr)), accuExpr);
     }
-    if (!state->mem()->writeMemory8(strAddrs[0] + strLen, nullByteExpr)) {
+    if (!state->mem()->writeMemory(strAddrs[0] + strLen, nullByteExpr)) {
         getDebugStream(state) << "Failed to write to terminate byte.\n";
         return false;
     }
@@ -355,7 +355,7 @@ bool BaseFunctionModels::strncpyHelper(S2EExecutionState *state, const uint64_t 
 
         ref<Expr> writeExpr = E_ITE(AccuExpr, srcCharExpr, nullByteExpr); // null padding
 
-        if (!state->mem()->writeMemory8(strAddrs[0] + nr, writeExpr)) {
+        if (!state->mem()->writeMemory(strAddrs[0] + nr, writeExpr)) {
             getDebugStream(state) << "Failed to write to destination string.\n";
             return false;
         }
@@ -434,7 +434,7 @@ bool BaseFunctionModels::memcpyHelper(S2EExecutionState *state, const uint64_t m
             return false;
         }
 
-        if (!state->mem()->writeMemory8(memAddrs[0] + nr, srcCharExpr)) {
+        if (!state->mem()->writeMemory(memAddrs[0] + nr, srcCharExpr)) {
             getDebugStream(state) << "Failed to write to destination string.\n";
             return false;
         }
@@ -576,13 +576,13 @@ bool BaseFunctionModels::strcatHelper(S2EExecutionState *state, const uint64_t s
         }
         writeExpr = E_ITE(firstOrderCond, dstCharExpr, subWrite);
 
-        if (!state->mem()->writeMemory8(strAddrs[0] + nr, writeExpr)) {
+        if (!state->mem()->writeMemory(strAddrs[0] + nr, writeExpr)) {
             getDebugStream(state) << "Failed to write to destination string.\n";
             return false;
         }
     }
 
-    if (!state->mem()->writeMemory8(strAddrs[0] + destStrLen + extra_cat, nullByteExpr)) {
+    if (!state->mem()->writeMemory(strAddrs[0] + destStrLen + extra_cat, nullByteExpr)) {
         getDebugStream(state) << "Failed to write to terminate byte.\n";
         return false;
     }

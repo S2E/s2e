@@ -176,7 +176,7 @@ void BaseInstructions::makeSymbolic(S2EExecutionState *state, uintptr_t address,
                          << "\n";
 
     for (unsigned i = 0; i < size; ++i) {
-        if (!state->mem()->writeMemory8(address + i, symb[i])) {
+        if (!state->mem()->writeMemory(address + i, symb[i])) {
             getWarningsStream(state) << "Can not insert symbolic value at " << hexval(address + i)
                                      << ": can not write to memory\n";
         }
