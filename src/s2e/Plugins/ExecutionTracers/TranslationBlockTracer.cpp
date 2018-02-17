@@ -197,7 +197,7 @@ void TranslationBlockTracer::trace(S2EExecutionState *state, uint64_t pc, ExecTr
     assert(sizeof(tb.stackByteMask) * CHAR_BIT >= ARRAY_SIZE(tb.stack));
     assert(sizeof(tb.stackSymbMask) * CHAR_BIT >= ARRAY_SIZE(tb.stack));
     for (unsigned i = 0; i < ARRAY_SIZE(tb.stack); i++) {
-        klee::ref<klee::Expr> val = state->mem()->readMemory8(tb.registers[R_ESP] + i);
+        klee::ref<klee::Expr> val = state->mem()->read(tb.registers[R_ESP] + i);
         if (val.isNull()) {
             continue;
         }

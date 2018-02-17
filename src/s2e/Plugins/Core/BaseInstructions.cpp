@@ -226,7 +226,7 @@ void BaseInstructions::isSymbolic(S2EExecutionState *state) {
     // readMemoryConcrete fails if the value is symbolic
     result = 0;
     for (unsigned i = 0; i < size; ++i) {
-        klee::ref<klee::Expr> ret = state->mem()->readMemory8(address + i);
+        klee::ref<klee::Expr> ret = state->mem()->read(address + i);
         if (ret.isNull()) {
             getWarningsStream() << "Could not read address " << hexval(address + i) << "\n";
             continue;
@@ -330,7 +330,7 @@ void BaseInstructions::printMemory(S2EExecutionState *state) {
     for (uint32_t i = 0; i < size; ++i) {
 
         getInfoStream() << hexval(address + i) << ": ";
-        klee::ref<Expr> res = state->mem()->readMemory8(address + i);
+        klee::ref<Expr> res = state->mem()->read(address + i);
         if (res.isNull()) {
             getInfoStream() << "Invalid pointer\n";
         } else {
@@ -577,7 +577,7 @@ void BaseInstructions::assumeDisjunction(S2EExecutionState *state) {
 
     target_ulong currentParam = sp + STACK_ELEMENT_SIZE * 2;
 
-    klee::ref<klee::Expr> variable = state->mem()->readMemory(currentParam, STACK_ELEMENT_SIZE * 8);
+    klee::ref<klee::Expr> variable = state->mem()->read(currentParam, STACK_ELEMENT_SIZE * 8);
     if (variable.isNull()) {
         getWarningsStream(state) << "BaseInstructions: assumeDisjunction could not read the variable\n";
         return;
@@ -600,7 +600,7 @@ void BaseInstructions::assumeDisjunction(S2EExecutionState *state) {
     klee::ref<klee::Expr> expr;
     for (unsigned i = 0; i < count; ++i) {
         // XXX: 64-bits mode!!!
-        klee::ref<klee::Expr> value = state->mem()->readMemory(currentParam, STACK_ELEMENT_SIZE * 8);
+        klee::ref<klee::Expr> value = state->mem()->read(currentParam, STACK_ELEMENT_SIZE * 8);
         if (i == 0) {
             expr = klee::EqExpr::create(variable, value);
         } else {

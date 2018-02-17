@@ -40,7 +40,7 @@ bool BaseFunctionModels::readArgument(S2EExecutionState *state, unsigned param, 
     uint64_t addr = state->regs()->getSp() + (param + 1) * state->getPointerSize();
 
     // First check if argument is symbolic
-    ref<Expr> readArg = state->mem()->readMemory(addr, state->getPointerWidth());
+    ref<Expr> readArg = state->mem()->read(addr, state->getPointerWidth());
     if (!isa<ConstantExpr>(readArg)) {
         getDebugStream(state) << "Argument " << param << " at " << hexval(addr) << " is symbolic\n";
         return false;

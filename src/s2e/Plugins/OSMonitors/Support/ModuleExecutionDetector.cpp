@@ -511,7 +511,7 @@ void ModuleExecutionDetector::onExecution(S2EExecutionState *state, uint64_t pc)
 }
 
 klee::ref<klee::Expr> ModuleExecutionDetector::readMemory8(S2EExecutionState *state, uint64_t addr) {
-    klee::ref<klee::Expr> expr = state->mem()->readMemory8(addr);
+    klee::ref<klee::Expr> expr = state->mem()->read(addr);
     if (!expr.isNull()) {
         return expr;
     }
@@ -535,7 +535,7 @@ klee::ref<klee::Expr> ModuleExecutionDetector::readMemory8(S2EExecutionState *st
 
 klee::ref<klee::Expr> ModuleExecutionDetector::readMemory(S2EExecutionState *state, uint64_t addr,
                                                           klee::Expr::Width width) {
-    klee::ref<klee::Expr> expr = state->mem()->readMemory(addr, width);
+    klee::ref<klee::Expr> expr = state->mem()->read(addr, width);
     if (!expr.isNull()) {
         return expr;
     }

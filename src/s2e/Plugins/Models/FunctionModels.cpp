@@ -29,7 +29,7 @@ namespace models {
 S2E_DEFINE_PLUGIN(FunctionModels, "Plugin that implements models for libraries", "");
 
 ref<Expr> FunctionModels::readMemory8(S2EExecutionState *state, uint64_t addr) {
-    return state->mem()->readMemory8(addr);
+    return state->mem()->read(addr);
 }
 
 void FunctionModels::handleStrlen(S2EExecutionState *state, S2E_LIBCWRAPPER_COMMAND &cmd, ref<Expr> &retExpr) {
@@ -181,7 +181,7 @@ void FunctionModels::handleCrc(S2EExecutionState *state, S2E_LIBCWRAPPER_COMMAND
 
     switch (cmd.Crc.type) {
         case S2E_WRAPPER_CRC16:
-            initialCrc = state->mem()->readMemory(cmd.Crc.initial_value_ptr, Expr::Int16);
+            initialCrc = state->mem()->read(cmd.Crc.initial_value_ptr, Expr::Int16);
             getDebugStream(state) << "Handling crc16(" << initialCrc << ", " << hexval(cmd.Crc.buffer) << ", "
                                   << cmd.Crc.size << ")\n";
             if (initialCrc.isNull()) {
@@ -192,7 +192,7 @@ void FunctionModels::handleCrc(S2EExecutionState *state, S2E_LIBCWRAPPER_COMMAND
             break;
 
         case S2E_WRAPPER_CRC32:
-            initialCrc = state->mem()->readMemory(cmd.Crc.initial_value_ptr, Expr::Int32);
+            initialCrc = state->mem()->read(cmd.Crc.initial_value_ptr, Expr::Int32);
             getDebugStream(state) << "Handling crc32(" << initialCrc << ", " << hexval(cmd.Crc.buffer) << ", "
                                   << cmd.Crc.size << ")\n";
             if (initialCrc.isNull()) {

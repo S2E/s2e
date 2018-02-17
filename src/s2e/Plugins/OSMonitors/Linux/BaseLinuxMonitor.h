@@ -106,7 +106,7 @@ protected:
         // Read any symbolic bytes
         std::ostringstream symbolicBytes;
         for (unsigned i = 0; i < sizeof(cmd); ++i) {
-            ref<Expr> t = state->mem()->readMemory8(guestDataPtr + i);
+            ref<Expr> t = state->mem()->read(guestDataPtr + i);
             if (!t.isNull() && !isa<ConstantExpr>(t)) {
                 symbolicBytes << "  " << hexval(i, 2) << "\n";
             }

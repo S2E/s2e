@@ -49,7 +49,7 @@ public:
     static klee::ref<klee::Expr> readParameter(S2EExecutionState *s, unsigned paramIndex) {
         uint64_t ptrSz = s->getPointerSize();
         uint64_t paramAddress = s->regs()->getSp() + (paramIndex + 1) * ptrSz;
-        return s->mem()->readMemory(paramAddress, ptrSz * 8);
+        return s->mem()->read(paramAddress, ptrSz * 8);
     }
 
     static bool writeParameter(S2EExecutionState *s, unsigned param, const klee::ref<klee::Expr> &val) {
