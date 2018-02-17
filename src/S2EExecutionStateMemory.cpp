@@ -181,7 +181,7 @@ bool S2EExecutionStateMemory::writeMemory(uint64_t address, ref<Expr> value, Add
             ++size;
         }
 
-        return writeMemoryConcrete(address, &val, size, addressType);
+        return write(address, &val, size, addressType);
 
     } else {
         // Slowest case (TODO: could optimize it)
@@ -196,8 +196,7 @@ bool S2EExecutionStateMemory::writeMemory(uint64_t address, ref<Expr> value, Add
     return true;
 }
 
-bool S2EExecutionStateMemory::writeMemoryConcrete(uint64_t address, const void *buf, uint64_t size,
-                                                  AddressType addressType) {
+bool S2EExecutionStateMemory::write(uint64_t address, const void *buf, uint64_t size, AddressType addressType) {
     while (size > 0) {
         uint64_t hostAddress = getHostAddress(address, addressType);
         if (hostAddress == (uint64_t) -1)

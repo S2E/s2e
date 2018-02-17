@@ -1260,7 +1260,7 @@ void s2e_dma_write(uint64_t hostAddress, uint8_t *buf, unsigned size) {
 #if defined(SE_ENABLE_PHYSRAM_TLB)
     s2e_dma_rw(hostAddress, buf, size, true);
 #else
-    g_s2e_state->mem()->writeMemoryConcrete(hostAddress, buf, size, s2e::HostAddress);
+    g_s2e_state->mem()->write(hostAddress, buf, size, s2e::HostAddress);
 #endif
 }
 

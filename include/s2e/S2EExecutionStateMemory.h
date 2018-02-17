@@ -83,8 +83,7 @@ public:
     bool readMemoryConcrete(uint64_t address, void *buf, uint64_t size, AddressType addressType = VirtualAddress);
 
     /** Write concrete buffer to memory */
-    bool writeMemoryConcrete(uint64_t address, const void *buf, uint64_t size,
-                             AddressType addressType = VirtualAddress);
+    bool write(uint64_t address, const void *buf, uint64_t size, AddressType addressType = VirtualAddress);
 
     /** Access to state's memory. Address is virtual or physical,
         depending on 'physical' argument. Returns NULL or false in
@@ -102,7 +101,7 @@ public:
     bool writeMemory8(uint64_t address, klee::ref<klee::Expr> value, AddressType addressType = VirtualAddress);
 
     template <typename T> bool writeMemory(uint64_t address, T value, AddressType addressType = VirtualAddress) {
-        return writeMemoryConcrete(address, (T *) &value, sizeof(T), addressType);
+        return write(address, (T *) &value, sizeof(T), addressType);
     }
 
     /** Read a generic string from memory */
