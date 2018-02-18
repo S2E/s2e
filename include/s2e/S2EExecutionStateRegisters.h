@@ -75,7 +75,7 @@ private:
     /// Write concrete value to general purpose CPU register
     void writeSymbolicRegion(unsigned offset, const void *buf, unsigned size);
 
-    static bool isConcreteRegion(unsigned offset, unsigned size);
+    static bool getRegionType(unsigned offset, unsigned size, bool *isConcrete);
 
 public:
     ////////////////////////////////////////////////////////////
@@ -203,8 +203,9 @@ public:
     /// \param offset the offset of the register
     /// \param buffer a pointer to the data to write
     /// \param size the size of the data to write
+    /// \return True if the write was successful, false otherwise
     ///
-    void write(unsigned offset, const void *buffer, unsigned size);
+    bool write(unsigned offset, const void *buffer, unsigned size);
 
     ///
     /// \brief Write symbolic data to the register file
@@ -217,8 +218,9 @@ public:
     ///
     /// \param offset where to write the data
     /// \param value the symbolic expression to write
+    /// \return True if the write was successful, false otherwise
     ///
-    void write(unsigned offset, const klee::ref<klee::Expr> &value);
+    bool write(unsigned offset, const klee::ref<klee::Expr> &value);
 
     ///
     /// \brief Write data of a primitive type to the register file
@@ -228,11 +230,12 @@ public:
     ///
     /// \param offset where to write the data
     /// \param value the value to write
+    /// \return True if the write was successful, false otherwise
     ///
     template <typename T, typename std::enable_if<std::is_integral<T>::value, T>::type * = nullptr>
-    void write(unsigned offset, T value) {
+    bool write(unsigned offset, T value) {
         static_assert(std::is_integral<T>::value, "Write to register can only use primitive types");
-        write(offset, &value, sizeof(T));
+        return write(offset, &value, sizeof(T));
     }
 
     ///

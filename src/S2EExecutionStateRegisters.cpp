@@ -331,14 +331,15 @@ void S2EExecutionStateRegisters::writeConcreteRegion(unsigned offset, const void
     small_memcpy(address + offset, buffer, size);
 }
 
-// TODO: Check for overlaps
-bool S2EExecutionStateRegisters::isConcreteRegion(unsigned offset, unsigned size) {
+bool S2EExecutionStateRegisters::getRegionType(unsigned offset, unsigned size, bool *isConcrete) {
     if (offset + size <= offsetof(CPUX86State, eip)) {
-        return false;
+        *isConcrete = false;
+        return true;
     } else if (offset >= offsetof(CPUX86State, eip)) {
+        *isConcrete = true;
         return true;
     } else {
-        assert(false && "Cannot have register access that overlaps a symbolic/concrete region");
+        return false;
     }
 }
 
@@ -362,7 +363,13 @@ int S2EExecutionStateRegisters::compareArchitecturalConcreteState(const S2EExecu
 /***/
 
 klee::ref<klee::Expr> S2EExecutionStateRegisters::read(unsigned offset, klee::Expr::Width width) const {
-    if (isConcreteRegion(offset, klee::Expr::getMinBytesForWidth(width))) {
+    bool isConcrete = false;
+    unsigned size = klee::Expr::getMinBytesForWidth(width);
+    if (!getRegionType(offset, size, &isConcrete)) {
+        return nullptr;
+    }
+
+    if (isConcrete) {
         switch (width) {
             case klee::Expr::Bool:
                 return klee::ConstantExpr::create(read<uint8>(offset) & 1, width);
@@ -375,17 +382,20 @@ klee::ref<klee::Expr> S2EExecutionStateRegisters::read(unsigned offset, klee::Ex
             case klee::Expr::Int64:
                 return klee::ConstantExpr::create(read<uint64>(offset), width);
             default:
-                assert(false && "Invalid width");
+                return nullptr;
         }
-
-        return nullptr;
     } else {
         return readSymbolicRegion(offset, width);
     }
 }
 
 bool S2EExecutionStateRegisters::read(unsigned offset, void *buffer, unsigned size, bool concretize) const {
-    if (isConcreteRegion(offset, size)) {
+    bool isConcrete = false;
+    if (!getRegionType(offset, size, &isConcrete)) {
+        return false;
+    }
+
+    if (isConcrete) {
         readConcreteRegion(offset, buffer, size);
         return true;
     } else {
@@ -393,21 +403,36 @@ bool S2EExecutionStateRegisters::read(unsigned offset, void *buffer, unsigned si
     }
 }
 
-void S2EExecutionStateRegisters::write(unsigned offset, const void *buffer, unsigned size) {
-    if (isConcreteRegion(offset, size)) {
+bool S2EExecutionStateRegisters::write(unsigned offset, const void *buffer, unsigned size) {
+    bool isConcrete = false;
+    if (!getRegionType(offset, size, &isConcrete)) {
+        return false;
+    }
+
+    if (isConcrete) {
         writeConcreteRegion(offset, buffer, size);
     } else {
         writeSymbolicRegion(offset, buffer, size);
     }
+
+    return true;
 }
 
-void S2EExecutionStateRegisters::write(unsigned offset, const klee::ref<klee::Expr> &value) {
-    if (isConcreteRegion(offset, klee::Expr::getMinBytesForWidth(value->getWidth()))) {
+bool S2EExecutionStateRegisters::write(unsigned offset, const klee::ref<klee::Expr> &value) {
+    bool isConcrete = false;
+    unsigned size = klee::Expr::getMinBytesForWidth(value->getWidth());
+    if (!getRegionType(offset, size, &isConcrete)) {
+        return false;
+    }
+
+    if (isConcrete) {
         uint64_t val = m_concretizer->concretize(value, "Writing symbolic value to concrete area");
-        writeConcreteRegion(offset, &val, value->getMinBytesForWidth(value->getWidth()));
+        writeConcreteRegion(offset, &val, size);
     } else {
         writeSymbolicRegion(offset, value);
     }
+
+    return true;
 }
 
 // Get the program counter in the current state.
@@ -417,7 +442,8 @@ uint64_t S2EExecutionStateRegisters::getPc() const {
 }
 
 void S2EExecutionStateRegisters::setPc(uint64_t pc) {
-    write<target_ulong>(CPU_OFFSET(eip), pc);
+    bool ret = write<target_ulong>(CPU_OFFSET(eip), pc);
+    assert(ret);
 }
 
 uint64_t S2EExecutionStateRegisters::getSp() const {
@@ -425,7 +451,8 @@ uint64_t S2EExecutionStateRegisters::getSp() const {
 }
 
 void S2EExecutionStateRegisters::setSp(uint64_t sp) {
-    write<target_ulong>(CPU_OFFSET(regs[R_ESP]), sp);
+    bool ret = write<target_ulong>(CPU_OFFSET(regs[R_ESP]), sp);
+    assert(ret);
 }
 
 uint64_t S2EExecutionStateRegisters::getBp() const {
@@ -433,7 +460,8 @@ uint64_t S2EExecutionStateRegisters::getBp() const {
 }
 
 void S2EExecutionStateRegisters::setBp(uint64_t bp) {
-    write<target_ulong>(CPU_OFFSET(regs[R_EBP]), bp);
+    bool ret = write<target_ulong>(CPU_OFFSET(regs[R_EBP]), bp);
+    assert(ret);
 }
 
 uint64_t S2EExecutionStateRegisters::getPageDir() const {
