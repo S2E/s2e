@@ -70,7 +70,7 @@ public:
     /**
      * Signal that is emitted when an edge is detected.
      * Only transmit the source instruction. The destination can
-     * be read with state->getPc().
+     * be read with state->regs()->getPc().
      */
     sigc::signal<void, S2EExecutionState *, uint64_t /* source pc */, EdgeType> onEdge;
 

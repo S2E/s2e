@@ -167,7 +167,7 @@ void RawMonitor::handleOpcodeInvocation(S2EExecutionState *state, uint64_t guest
         return;
     }
 
-    if (!state->mem()->readMemoryConcrete(guestDataPtr, &command, guestDataSize)) {
+    if (!state->mem()->read(guestDataPtr, &command, guestDataSize)) {
         getWarningsStream(state) << "RawMonitor: could not read transmitted data\n";
         return;
     }
@@ -205,7 +205,7 @@ void RawMonitor::loadModule(S2EExecutionState *state, const Cfg &c) {
     md.NativeBase = c.nativebase;
     md.LoadBase = c.start;
     md.Size = c.size;
-    md.AddressSpace = c.kernelMode ? 0 : state->getPageDir();
+    md.AddressSpace = c.kernelMode ? 0 : state->regs()->getPageDir();
     md.EntryPoint = c.entrypoint;
 
     getDebugStream() << "RawMonitor loaded " << c.name << " " << hexval(c.start) << ' ' << hexval(c.size) << '\n';
@@ -245,7 +245,7 @@ uint64_t RawMonitor::getAddressSpace(S2EExecutionState *s, uint64_t pc) {
     if (pc >= m_kernelStart) {
         return 0;
     }
-    return s->getPageDir();
+    return s->regs()->getPageDir();
 }
 
 bool RawMonitor::getCurrentStack(S2EExecutionState *state, uint64_t *base, uint64_t *size) {
@@ -254,7 +254,7 @@ bool RawMonitor::getCurrentStack(S2EExecutionState *state, uint64_t *base, uint6
         *size = m_stack.stack_size;
     } else if (m_stack.guest_stack_descriptor_ptr) {
         S2E_RAWMON_COMMAND_STACK stack;
-        if (!state->mem()->readMemoryConcrete(m_stack.guest_stack_descriptor_ptr, &stack, sizeof(stack))) {
+        if (!state->mem()->read(m_stack.guest_stack_descriptor_ptr, &stack, sizeof(stack))) {
             return false;
         }
         *base = stack.stack_base;

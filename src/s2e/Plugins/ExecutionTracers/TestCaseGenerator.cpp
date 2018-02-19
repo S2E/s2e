@@ -97,7 +97,7 @@ void TestCaseGenerator::onStateKill(S2EExecutionState *state) {
 }
 
 void TestCaseGenerator::generateTestCases(S2EExecutionState *state, const std::string &prefix, TestCaseType type) {
-    getInfoStream(state) << "generating test case at address " << hexval(state->getPc()) << '\n';
+    getInfoStream(state) << "generating test case at address " << hexval(state->regs()->getPc()) << '\n';
 
     ConcreteInputs inputs;
     bool success = s2e()->getExecutor()->getSymbolicSolution(*state, inputs);

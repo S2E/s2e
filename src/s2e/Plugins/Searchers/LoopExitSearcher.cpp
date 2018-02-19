@@ -63,10 +63,10 @@ void LoopExitSearcher::onFork(S2EExecutionState *state, const std::vector<S2EExe
     uint64_t currentForkCount = 0;
 
     if (module) {
-        curPc = module->ToNativeBase(state->getPc());
+        curPc = module->ToNativeBase(state->regs()->getPc());
         currentForkCount = ++m_forkCount[module->Name][curPc];
     } else {
-        curPc = state->getPc();
+        curPc = state->regs()->getPc();
         currentForkCount = ++m_forkCount["unknown"][curPc];
     }
 

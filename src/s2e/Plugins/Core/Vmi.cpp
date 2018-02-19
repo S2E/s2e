@@ -26,7 +26,7 @@ S2E_DEFINE_PLUGIN(Vmi, "Virtual Machine Introspection", "", );
 
 static bool VmiReadMemory(void *opaque, uint64_t address, void *dest, unsigned size) {
     S2EExecutionState *state = static_cast<S2EExecutionState *>(opaque);
-    return state->readMemoryConcrete(address, dest, size);
+    return state->mem()->read(address, dest, size);
 }
 
 Vmi::~Vmi() {
@@ -402,22 +402,22 @@ Vmi::PeData Vmi::getPeFromDisk(const ModuleDescriptor &module, bool caseInsensit
 
 bool Vmi::readGuestVirtual(void *opaque, uint64_t address, void *dest, unsigned size) {
     S2EExecutionState *state = static_cast<S2EExecutionState *>(opaque);
-    return state->mem()->readMemoryConcrete(address, dest, size);
+    return state->mem()->read(address, dest, size);
 }
 
 bool Vmi::writeGuestVirtual(void *opaque, uint64_t address, const void *source, unsigned size) {
     S2EExecutionState *state = static_cast<S2EExecutionState *>(opaque);
-    return state->mem()->writeMemoryConcrete(address, source, size);
+    return state->mem()->write(address, source, size);
 }
 
 bool Vmi::readGuestPhysical(void *opaque, uint64_t address, void *dest, unsigned size) {
     S2EExecutionState *state = static_cast<S2EExecutionState *>(opaque);
-    return state->mem()->readMemoryConcrete(address, dest, size, PhysicalAddress);
+    return state->mem()->read(address, dest, size, PhysicalAddress);
 }
 
 bool Vmi::writeGuestPhysical(void *opaque, uint64_t address, const void *source, unsigned size) {
     S2EExecutionState *state = static_cast<S2EExecutionState *>(opaque);
-    return state->mem()->writeMemoryConcrete(address, source, size, PhysicalAddress);
+    return state->mem()->write(address, source, size, PhysicalAddress);
 }
 
 bool Vmi::readX86Register(void *opaque, unsigned reg, void *buffer, unsigned size) {
@@ -681,7 +681,7 @@ err1:
 
 // TODO: remove duplicate code in all these getXXX functions.
 bool Vmi::getEntryPoint(S2EExecutionState *state, const ModuleDescriptor &Desc, uint64_t &Addr) {
-    if (Desc.AddressSpace && state->getPageDir() != Desc.AddressSpace) {
+    if (Desc.AddressSpace && state->regs()->getPageDir() != Desc.AddressSpace) {
         return false;
     }
 
@@ -697,7 +697,7 @@ bool Vmi::getEntryPoint(S2EExecutionState *state, const ModuleDescriptor &Desc, 
 }
 
 bool Vmi::getImports(S2EExecutionState *state, const ModuleDescriptor &Desc, vmi::Imports &I) {
-    if (Desc.AddressSpace && state->getPageDir() != Desc.AddressSpace) {
+    if (Desc.AddressSpace && state->regs()->getPageDir() != Desc.AddressSpace) {
         return false;
     }
 
@@ -727,7 +727,7 @@ end:
 }
 
 bool Vmi::getExports(S2EExecutionState *state, const ModuleDescriptor &Desc, vmi::Exports &E) {
-    if (Desc.AddressSpace && state->getPageDir() != Desc.AddressSpace) {
+    if (Desc.AddressSpace && state->regs()->getPageDir() != Desc.AddressSpace) {
         return false;
     }
 
@@ -743,7 +743,7 @@ bool Vmi::getExports(S2EExecutionState *state, const ModuleDescriptor &Desc, vmi
 }
 
 bool Vmi::getRelocations(S2EExecutionState *state, const ModuleDescriptor &Desc, vmi::Relocations &R) {
-    if (Desc.AddressSpace && state->getPageDir() != Desc.AddressSpace) {
+    if (Desc.AddressSpace && state->regs()->getPageDir() != Desc.AddressSpace) {
         return false;
     }
 
@@ -759,7 +759,7 @@ bool Vmi::getRelocations(S2EExecutionState *state, const ModuleDescriptor &Desc,
 }
 
 bool Vmi::getSections(S2EExecutionState *state, const ModuleDescriptor &Desc, vmi::Sections &S) {
-    if (Desc.AddressSpace && state->getPageDir() != Desc.AddressSpace) {
+    if (Desc.AddressSpace && state->regs()->getPageDir() != Desc.AddressSpace) {
         return false;
     }
 

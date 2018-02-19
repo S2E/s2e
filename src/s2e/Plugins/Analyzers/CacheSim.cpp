@@ -492,7 +492,7 @@ void CacheSim::onMemoryAccess(S2EExecutionState *state, uint64_t address, unsign
             ExecutionTraceCacheSimEntry e;
             e.type = CACHE_ENTRY;
             e.cacheId = c->getId();
-            e.pc = state->getPc();
+            e.pc = state->regs()->getPc();
             e.address = address;
             e.size = size;
             e.isWrite = isWrite;
@@ -519,7 +519,7 @@ void CacheSim::onAfterSymbolicDataMemoryAccess(S2EExecutionState *state, klee::r
 
     if (m_physAddress) {
         constAddress = cast<ConstantExpr>(hostAddress)->getZExtValue(64);
-        //      getDebugStream() << "acc pc=" << std::hex << state->getPc() << " ha=" << constAddress << '\n';
+        //      getDebugStream() << "acc pc=" << std::hex << state->regs()->getPc() << " ha=" << constAddress << '\n';
     } else {
         constAddress = cast<ConstantExpr>(address)->getZExtValue(64);
     }
@@ -537,7 +537,7 @@ void CacheSim::onTranslateBlockStart(ExecutionSignal *signal, S2EExecutionState 
     uint64_t newPc;
 
     if (m_physAddress) {
-        newPc = state->getHostAddress(tb->pc);
+        newPc = state->mem()->getHostAddress(tb->pc);
         // getDebugStream() << "tb pc=" << std::hex << tb->pc << " ha=" << newPc << '\n';
     } else {
         newPc = tb->pc;

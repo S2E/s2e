@@ -60,10 +60,10 @@ void HostFiles::open(S2EExecutionState *state) {
     target_ulong fnamePtr = 0, flags = 0;
     target_ulong guestFd = (target_ulong) -1;
     bool ok = true;
-    ok &= state->readCpuRegisterConcrete(CPU_OFFSET(regs[R_EBX]), &fnamePtr, sizeof(target_ulong));
-    ok &= state->readCpuRegisterConcrete(CPU_OFFSET(regs[R_ECX]), &flags, sizeof(target_ulong));
+    ok &= state->regs()->read(CPU_OFFSET(regs[R_EBX]), &fnamePtr, sizeof(target_ulong), false);
+    ok &= state->regs()->read(CPU_OFFSET(regs[R_ECX]), &flags, sizeof(target_ulong), false);
 
-    state->writeCpuRegisterConcrete(CPU_OFFSET(regs[R_EAX]), &guestFd, sizeof(target_ulong));
+    state->regs()->write(CPU_OFFSET(regs[R_EAX]), &guestFd, sizeof(target_ulong));
 
     if (!ok) {
         getWarningsStream(state) << "ERROR: symbolic argument was passed to s2e_op HostFiles " << '\n';
@@ -104,7 +104,7 @@ void HostFiles::open(S2EExecutionState *state) {
         plgState->m_openFiles.push_back(hf);
         ++(plgState->nb_open);
         guestFd = plgState->m_openFiles.size() - 1;
-        state->writeCpuRegisterConcrete(CPU_OFFSET(regs[R_EAX]), &guestFd, sizeof(target_ulong));
+        state->regs()->write(CPU_OFFSET(regs[R_EAX]), &guestFd, sizeof(target_ulong));
     } else {
         getWarningsStream(state) << "HostFiles could not open " << path << "(errno " << errno << ")" << '\n';
     }
@@ -119,11 +119,11 @@ void HostFiles::read(S2EExecutionState *state) {
     ssize_t read_ret = -1;
 
     bool ok = true;
-    ok &= state->readCpuRegisterConcrete(CPU_OFFSET(regs[R_EBX]), &guestFd, sizeof(target_ulong));
-    ok &= state->readCpuRegisterConcrete(CPU_OFFSET(regs[R_ECX]), &bufAddr, sizeof(target_ulong));
-    ok &= state->readCpuRegisterConcrete(CPU_OFFSET(regs[R_EDX]), &count, sizeof(target_ulong));
+    ok &= state->regs()->read(CPU_OFFSET(regs[R_EBX]), &guestFd, sizeof(target_ulong), false);
+    ok &= state->regs()->read(CPU_OFFSET(regs[R_ECX]), &bufAddr, sizeof(target_ulong), false);
+    ok &= state->regs()->read(CPU_OFFSET(regs[R_EDX]), &count, sizeof(target_ulong), false);
 
-    state->writeCpuRegisterConcrete(CPU_OFFSET(regs[R_EAX]), &ret, sizeof(target_ulong));
+    state->regs()->write(CPU_OFFSET(regs[R_EAX]), &ret, sizeof(target_ulong));
 
     if (!ok) {
         getWarningsStream(state) << "ERROR: symbolic argument was passed to s2e_op HostFiles" << '\n';
@@ -153,13 +153,13 @@ void HostFiles::read(S2EExecutionState *state) {
     }
     ret = read_ret;
 
-    ok = state->writeMemoryConcrete(bufAddr, buf, ret);
+    ok = state->mem()->write(bufAddr, buf, ret);
     if (!ok) {
         getWarningsStream(state) << "ERROR: HostFiles can not write to guest buffer\n";
         return;
     }
 
-    state->writeCpuRegisterConcrete(CPU_OFFSET(regs[R_EAX]), &ret, sizeof(target_ulong));
+    state->regs()->write(CPU_OFFSET(regs[R_EAX]), &ret, sizeof(target_ulong));
 }
 
 void HostFiles::close(S2EExecutionState *state) {
@@ -170,9 +170,9 @@ void HostFiles::close(S2EExecutionState *state) {
     target_ulong ret = (target_ulong) -1;
 
     bool ok = true;
-    ok &= state->readCpuRegisterConcrete(CPU_OFFSET(regs[R_EBX]), &guestFd, sizeof(target_ulong));
+    ok &= state->regs()->read(CPU_OFFSET(regs[R_EBX]), &guestFd, sizeof(target_ulong), false);
 
-    state->writeCpuRegisterConcrete(CPU_OFFSET(regs[R_EAX]), &ret, sizeof(target_ulong));
+    state->regs()->write(CPU_OFFSET(regs[R_EAX]), &ret, sizeof(target_ulong));
 
     if (!ok) {
         getWarningsStream(state) << "ERROR: symbolic argument was passed to HostFiles\n";
@@ -185,7 +185,7 @@ void HostFiles::close(S2EExecutionState *state) {
         plgState->m_openFiles[guestFd].fd = -1;
         (--plgState->nb_open);
 
-        state->writeCpuRegisterConcrete(CPU_OFFSET(regs[R_EAX]), &ret, sizeof(target_ulong));
+        state->regs()->write(CPU_OFFSET(regs[R_EAX]), &ret, sizeof(target_ulong));
 
     } else {
         getWarningsStream(state) << "ERROR: invalid file handle passed to HostFiles\n";
@@ -200,11 +200,11 @@ void HostFiles::create(S2EExecutionState *state) {
     target_ulong fnamePtr = 0, flags = 0;
     target_ulong guestFd = (target_ulong) -1;
     bool ok = true;
-    ok &= state->readCpuRegisterConcrete(CPU_OFFSET(regs[R_EBX]), &fnamePtr, sizeof(target_ulong));
+    ok &= state->regs()->read(CPU_OFFSET(regs[R_EBX]), &fnamePtr, sizeof(target_ulong), false);
 
-    ok &= state->readCpuRegisterConcrete(CPU_OFFSET(regs[R_ECX]), &flags, sizeof(target_ulong));
+    ok &= state->regs()->read(CPU_OFFSET(regs[R_ECX]), &flags, sizeof(target_ulong), false);
 
-    state->writeCpuRegisterConcrete(CPU_OFFSET(regs[R_EAX]), &guestFd, sizeof(target_ulong));
+    state->regs()->write(CPU_OFFSET(regs[R_EAX]), &guestFd, sizeof(target_ulong));
 
     if (!m_allowWrite) {
         getWarningsStream(state) << "HostFiles : writes are disabled\n";
@@ -275,7 +275,7 @@ void HostFiles::create(S2EExecutionState *state) {
         guestFd = plgState->m_openFiles.size() - 1;
         (++plgState->nb_open);
 
-        state->writeCpuRegisterConcrete(CPU_OFFSET(regs[R_EAX]), &guestFd, sizeof(target_ulong));
+        state->regs()->write(CPU_OFFSET(regs[R_EAX]), &guestFd, sizeof(target_ulong));
     } else {
         getWarningsStream(state) << "HostFiles could not open " << path << "(errno " << errno << ")" << '\n';
     }
@@ -290,11 +290,11 @@ void HostFiles::write(S2EExecutionState *state) {
     ssize_t write_ret = -1;
 
     bool ok = true;
-    ok &= state->readCpuRegisterConcrete(CPU_OFFSET(regs[R_EBX]), &guestFd, sizeof(target_ulong));
-    ok &= state->readCpuRegisterConcrete(CPU_OFFSET(regs[R_ECX]), &bufAddr, sizeof(target_ulong));
-    ok &= state->readCpuRegisterConcrete(CPU_OFFSET(regs[R_EDX]), &count, sizeof(target_ulong));
+    ok &= state->regs()->read(CPU_OFFSET(regs[R_EBX]), &guestFd, sizeof(target_ulong), false);
+    ok &= state->regs()->read(CPU_OFFSET(regs[R_ECX]), &bufAddr, sizeof(target_ulong), false);
+    ok &= state->regs()->read(CPU_OFFSET(regs[R_EDX]), &count, sizeof(target_ulong), false);
 
-    state->writeCpuRegisterConcrete(CPU_OFFSET(regs[R_EAX]), &ret, sizeof(target_ulong));
+    state->regs()->write(CPU_OFFSET(regs[R_EAX]), &ret, sizeof(target_ulong));
 
     if (!ok) {
         getWarningsStream(state) << "ERROR: symbolic argument was passed to s2e_op HostFiles" << '\n';
@@ -319,7 +319,7 @@ void HostFiles::write(S2EExecutionState *state) {
     HostFD hf = plgState->m_openFiles[guestFd];
     char buf[count];
 
-    ok = state->readMemoryConcrete(bufAddr, buf, count);
+    ok = state->mem()->read(bufAddr, buf, count);
     if (!ok) {
         getWarningsStream(state) << "ERROR: HostFiles can not read guest buffer\n";
         return;
@@ -330,7 +330,7 @@ void HostFiles::write(S2EExecutionState *state) {
         return;
     ret = write_ret;
 
-    state->writeCpuRegisterConcrete(CPU_OFFSET(regs[R_EAX]), &ret, sizeof(target_ulong));
+    state->regs()->write(CPU_OFFSET(regs[R_EAX]), &ret, sizeof(target_ulong));
 }
 
 void HostFiles::onCustomInstruction(S2EExecutionState *state, uint64_t opcode) {

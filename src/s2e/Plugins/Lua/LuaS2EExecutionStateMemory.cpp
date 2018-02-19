@@ -33,11 +33,11 @@ int LuaS2EExecutionStateMemory::readPointer(lua_State *L) {
     uint64_t pointerSize = m_state->getPointerSize();
     if (pointerSize == 4) {
         uint32_t data = 0;
-        m_state->mem()->readMemoryConcrete(address, &data, sizeof(data));
+        m_state->mem()->read(address, &data, sizeof(data));
         lua_pushinteger(L, data);
     } else {
         uint64_t data = 0;
-        m_state->mem()->readMemoryConcrete(address, &data, sizeof(data));
+        m_state->mem()->read(address, &data, sizeof(data));
         lua_pushinteger(L, data);
     }
 
@@ -49,7 +49,7 @@ int LuaS2EExecutionStateMemory::readBytes(lua_State *L) {
     long size = (long) luaL_checkinteger(L, 2);
     std::vector<uint8_t> bytes(size);
 
-    if (!m_state->mem()->readMemoryConcrete(address, bytes.data(), size * sizeof(uint8_t))) {
+    if (!m_state->mem()->read(address, bytes.data(), size * sizeof(uint8_t))) {
         return 0;
     }
 
@@ -67,7 +67,7 @@ int LuaS2EExecutionStateMemory::write(lua_State *L) {
 
     LuaExpression *value = *static_cast<LuaExpression **>(expr);
     g_s2e->getDebugStream(m_state) << "Writing " << value->get() << " to " << hexval(address) << "\n";
-    m_state->mem()->writeMemory(address, value->get());
+    m_state->mem()->write(address, value->get());
 
     return 1;
 }
@@ -80,7 +80,7 @@ int LuaS2EExecutionStateMemory::makeSymbolic(lua_State *L) {
     std::vector<klee::ref<klee::Expr>> symb = m_state->createSymbolicArray(name, size);
 
     for (unsigned i = 0; i < size; ++i) {
-        if (!m_state->writeMemory8(address + i, symb[i])) {
+        if (!m_state->mem()->write(address + i, symb[i])) {
             return 0;
         }
     }
@@ -94,14 +94,14 @@ int LuaS2EExecutionStateMemory::makeConcolic(lua_State *L) {
     std::string name = luaL_checkstring(L, 3);
 
     std::vector<uint8_t> concreteData(size);
-    if (!m_state->readMemoryConcrete(address, concreteData.data(), size * sizeof(uint8_t))) {
+    if (!m_state->mem()->read(address, concreteData.data(), size * sizeof(uint8_t))) {
         return 0;
     }
 
     std::vector<klee::ref<klee::Expr>> symb = m_state->createConcolicArray(name, size, concreteData);
 
     for (unsigned i = 0; i < size; ++i) {
-        if (!m_state->writeMemory8(address + i, symb[i])) {
+        if (!m_state->mem()->write(address + i, symb[i])) {
             return 0;
         }
     }

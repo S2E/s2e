@@ -146,9 +146,9 @@ bool ModuleExecutionDetector::opAddModuleConfigEntry(S2EExecutionState *state) {
     bool ok = true;
     // XXX: 32-bits guests only
     target_ulong moduleId, moduleName, isKernelMode;
-    ok &= state->readCpuRegisterConcrete(CPU_OFFSET(regs[R_ECX]), &moduleId, sizeof(moduleId));
-    ok &= state->readCpuRegisterConcrete(CPU_OFFSET(regs[R_EAX]), &moduleName, sizeof(moduleName));
-    ok &= state->readCpuRegisterConcrete(CPU_OFFSET(regs[R_EDX]), &isKernelMode, sizeof(isKernelMode));
+    ok &= state->regs()->read(CPU_OFFSET(regs[R_ECX]), &moduleId, sizeof(moduleId), false);
+    ok &= state->regs()->read(CPU_OFFSET(regs[R_EAX]), &moduleName, sizeof(moduleName), false);
+    ok &= state->regs()->read(CPU_OFFSET(regs[R_EDX]), &isKernelMode, sizeof(isKernelMode), false);
 
     if (!ok) {
         getWarningsStream(state) << "Could not read parameters\n";
@@ -211,7 +211,7 @@ void ModuleExecutionDetector::onCustomInstruction(S2EExecutionState *state, uint
                     tb_flush(env);
                 }
 
-                state->setPc(state->getPc() + OPCODE_SIZE);
+                state->regs()->setPc(state->regs()->getPc() + OPCODE_SIZE);
                 throw CpuExitException();
             }
             break;
@@ -233,11 +233,11 @@ void ModuleExecutionDetector::handleOpcodeGetModule(S2EExecutionState *state, ui
         int size = std::min(moduleName.length() + 1, command.Module.ModuleNameSize);
 
         if (size > 0) {
-            state->mem()->writeMemoryConcrete(command.Module.ModuleName, moduleName.c_str(), size);
+            state->mem()->write(command.Module.ModuleName, moduleName.c_str(), size);
         }
     }
 
-    state->mem()->writeMemoryConcrete(guestDataPtr, &command, sizeof(command));
+    state->mem()->write(guestDataPtr, &command, sizeof(command));
 }
 
 void ModuleExecutionDetector::handleOpcodeInvocation(S2EExecutionState *state, uint64_t guestDataPtr,
@@ -249,7 +249,7 @@ void ModuleExecutionDetector::handleOpcodeInvocation(S2EExecutionState *state, u
         return;
     }
 
-    if (!state->mem()->readMemoryConcrete(guestDataPtr, &command, guestDataSize)) {
+    if (!state->mem()->read(guestDataPtr, &command, guestDataSize)) {
         getWarningsStream(state) << "ModuleExecutionDetector: could not read transmitted data\n";
         return;
     }
@@ -491,7 +491,7 @@ void ModuleExecutionDetector::exceptionListener(S2EExecutionState *state, unsign
 const ModuleDescriptor *ModuleExecutionDetector::getCurrentDescriptor(S2EExecutionState *state) const {
     DECLARE_PLUGINSTATE_CONST(ModuleTransitionState, state);
 
-    uint64_t pc = state->getPc();
+    uint64_t pc = state->regs()->getPc();
     uint64_t addressSpace = m_Monitor->getAddressSpace(state, pc);
 
     return plgState->getDescriptor(addressSpace, pc);
@@ -511,7 +511,7 @@ void ModuleExecutionDetector::onExecution(S2EExecutionState *state, uint64_t pc)
 }
 
 klee::ref<klee::Expr> ModuleExecutionDetector::readMemory8(S2EExecutionState *state, uint64_t addr) {
-    klee::ref<klee::Expr> expr = state->readMemory8(addr);
+    klee::ref<klee::Expr> expr = state->mem()->read(addr);
     if (!expr.isNull()) {
         return expr;
     }
@@ -535,7 +535,7 @@ klee::ref<klee::Expr> ModuleExecutionDetector::readMemory8(S2EExecutionState *st
 
 klee::ref<klee::Expr> ModuleExecutionDetector::readMemory(S2EExecutionState *state, uint64_t addr,
                                                           klee::Expr::Width width) {
-    klee::ref<klee::Expr> expr = state->readMemory(addr, width);
+    klee::ref<klee::Expr> expr = state->mem()->read(addr, width);
     if (!expr.isNull()) {
         return expr;
     }

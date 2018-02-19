@@ -89,7 +89,7 @@ void UserSpaceTracer::onAccessFault(S2EExecutionState *state, const S2E_WINMON2_
                               << " Address: " << hexval(AccessFault.Address)
                               << " AccessMode: " << hexval(AccessFault.AccessMode)
                               << " StatusCode: " << hexval(AccessFault.StatusCode)
-                              << " PageDir: " << hexval(state->getPageDir()) << "\n";
+                              << " PageDir: " << hexval(state->regs()->getPageDir()) << "\n";
 
         if (m_memoryTracer) {
             m_memoryTracer->disconnectMemoryTracing();

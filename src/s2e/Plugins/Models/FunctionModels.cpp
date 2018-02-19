@@ -29,7 +29,7 @@ namespace models {
 S2E_DEFINE_PLUGIN(FunctionModels, "Plugin that implements models for libraries", "");
 
 ref<Expr> FunctionModels::readMemory8(S2EExecutionState *state, uint64_t addr) {
-    return state->readMemory8(addr);
+    return state->mem()->read(addr);
 }
 
 void FunctionModels::handleStrlen(S2EExecutionState *state, S2E_LIBCWRAPPER_COMMAND &cmd, ref<Expr> &retExpr) {
@@ -181,7 +181,7 @@ void FunctionModels::handleCrc(S2EExecutionState *state, S2E_LIBCWRAPPER_COMMAND
 
     switch (cmd.Crc.type) {
         case S2E_WRAPPER_CRC16:
-            initialCrc = state->readMemory(cmd.Crc.initial_value_ptr, Expr::Int16);
+            initialCrc = state->mem()->read(cmd.Crc.initial_value_ptr, Expr::Int16);
             getDebugStream(state) << "Handling crc16(" << initialCrc << ", " << hexval(cmd.Crc.buffer) << ", "
                                   << cmd.Crc.size << ")\n";
             if (initialCrc.isNull()) {
@@ -192,7 +192,7 @@ void FunctionModels::handleCrc(S2EExecutionState *state, S2E_LIBCWRAPPER_COMMAND
             break;
 
         case S2E_WRAPPER_CRC32:
-            initialCrc = state->readMemory(cmd.Crc.initial_value_ptr, Expr::Int32);
+            initialCrc = state->mem()->read(cmd.Crc.initial_value_ptr, Expr::Int32);
             getDebugStream(state) << "Handling crc32(" << initialCrc << ", " << hexval(cmd.Crc.buffer) << ", "
                                   << cmd.Crc.size << ")\n";
             if (initialCrc.isNull()) {
@@ -215,11 +215,11 @@ void FunctionModels::handleCrc(S2EExecutionState *state, S2E_LIBCWRAPPER_COMMAND
     do {                                                                     \
         uint32_t offRet = offsetof(S2E_LIBCWRAPPER_COMMAND, CmdType.ret);    \
                                                                              \
-        if (!state->mem()->writeMemory(guestDataPtr, cmd)) {                 \
+        if (!state->mem()->write(guestDataPtr, &cmd, sizeof(cmd))) {         \
             getWarningsStream(state) << "Could not write to guest memory\n"; \
         }                                                                    \
                                                                              \
-        if (!state->mem()->writeMemory(guestDataPtr + offRet, retExpr)) {    \
+        if (!state->mem()->write(guestDataPtr + offRet, retExpr)) {          \
             getWarningsStream(state) << "Could not write to guest memory\n"; \
         }                                                                    \
     } while (0)
@@ -233,7 +233,7 @@ void FunctionModels::handleOpcodeInvocation(S2EExecutionState *state, uint64_t g
         exit(-1);
     }
 
-    if (!state->mem()->readMemoryConcrete(guestDataPtr, &command, guestDataSize)) {
+    if (!state->mem()->read(guestDataPtr, &command, guestDataSize)) {
         getWarningsStream(state) << "S2E_LIBCWRAPPER_COMMAND: could not read transmitted data\n";
         exit(-1);
     }
@@ -241,14 +241,14 @@ void FunctionModels::handleOpcodeInvocation(S2EExecutionState *state, uint64_t g
     switch (command.Command) {
         case LIBCWRAPPER_STRCPY: {
             handleStrcpy(state, command);
-            if (!state->mem()->writeMemory(guestDataPtr, command)) {
+            if (!state->mem()->write(guestDataPtr, &command, sizeof(command))) {
                 getWarningsStream(state) << "Could not write to guest memory\n";
             }
         } break;
 
         case LIBCWRAPPER_STRNCPY: {
             handleStrncpy(state, command);
-            if (!state->mem()->writeMemory(guestDataPtr, command)) {
+            if (!state->mem()->write(guestDataPtr, &command, sizeof(command))) {
                 getWarningsStream(state) << "Could not write to guest memory\n";
             }
         } break;
@@ -273,7 +273,7 @@ void FunctionModels::handleOpcodeInvocation(S2EExecutionState *state, uint64_t g
 
         case LIBCWRAPPER_MEMCPY: {
             handleMemcpy(state, command);
-            if (!state->mem()->writeMemory(guestDataPtr, command)) {
+            if (!state->mem()->write(guestDataPtr, &command, sizeof(command))) {
                 getWarningsStream(state) << "Could not write to guest memory\n";
             }
         } break;
@@ -286,14 +286,14 @@ void FunctionModels::handleOpcodeInvocation(S2EExecutionState *state, uint64_t g
 
         case LIBCWRAPPER_STRCAT: {
             handleStrcat(state, command);
-            if (!state->mem()->writeMemory(guestDataPtr, command)) {
+            if (!state->mem()->write(guestDataPtr, &command, sizeof(command))) {
                 getWarningsStream(state) << "Could not write to guest memory\n";
             }
         } break;
 
         case LIBCWRAPPER_STRNCAT: {
             handleStrncat(state, command);
-            if (!state->mem()->writeMemory(guestDataPtr, command)) {
+            if (!state->mem()->write(guestDataPtr, &command, sizeof(command))) {
                 getWarningsStream(state) << "Could not write to guest memory\n";
             }
         } break;

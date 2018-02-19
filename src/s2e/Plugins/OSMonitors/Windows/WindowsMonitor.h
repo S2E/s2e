@@ -365,7 +365,7 @@ public:
 
     virtual uint64_t getAddressSpace(S2EExecutionState *s, uint64_t pc) {
         if (!m_kernelStart || pc < m_kernelStart) {
-            return s->getPageDir();
+            return s->regs()->getPageDir();
         }
         return 0;
     }

@@ -25,7 +25,7 @@ void ExceptionTracer::initialize() {
 
 void ExceptionTracer::onException(S2EExecutionState *state, unsigned vec, uint64_t pc) {
     ExecutionTraceException e;
-    e.pc = state->getPc();
+    e.pc = state->regs()->getPc();
     e.vector = vec;
 
     m_tracer->writeData(state, &e, sizeof(e), TRACE_EXCEPTION);

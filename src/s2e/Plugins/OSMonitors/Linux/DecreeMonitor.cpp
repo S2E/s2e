@@ -183,12 +183,12 @@ void DecreeMonitor::handleProcessLoad(S2EExecutionState *state, const S2E_DECREE
 
     llvm::StringRef file(processPath);
 
-    onProcessLoad.emit(state, state->getPageDir(), p.process_id, llvm::sys::path::stem(file));
+    onProcessLoad.emit(state, state->regs()->getPageDir(), p.process_id, llvm::sys::path::stem(file));
 
     ModuleDescriptor mod;
     mod.Name = llvm::sys::path::stem(file);
     mod.Path = file.str();
-    mod.AddressSpace = state->getPageDir();
+    mod.AddressSpace = state->regs()->getPageDir();
     mod.Pid = p.process_id;
     mod.LoadBase = p.start_code;
     mod.NativeBase = p.start_code;
@@ -207,7 +207,7 @@ void DecreeMonitor::handleProcessLoad(S2EExecutionState *state, const S2E_DECREE
 }
 
 klee::ref<klee::Expr> DecreeMonitor::readMemory8(S2EExecutionState *state, uint64_t pid, uint64_t addr) {
-    klee::ref<klee::Expr> expr = state->readMemory8(addr);
+    klee::ref<klee::Expr> expr = state->mem()->read(addr);
     if (!expr.isNull()) {
         return expr;
     }
@@ -235,7 +235,7 @@ uint64_t DecreeMonitor::getPid(S2EExecutionState *state, uint64_t pc) {
     target_ulong taskStructPtr = getTaskStructPtr(state);
     target_ulong pidAddress = taskStructPtr + m_taskStructPidOffset;
 
-    if (!state->mem()->readMemoryConcrete(pidAddress, &pid, sizeof(pid))) {
+    if (!state->mem()->read(pidAddress, &pid, sizeof(pid))) {
         return -1;
     } else {
         return pid;
@@ -243,7 +243,7 @@ uint64_t DecreeMonitor::getPid(S2EExecutionState *state, uint64_t pc) {
 }
 
 uint64_t DecreeMonitor::getPid(S2EExecutionState *state) {
-    return getPid(state, state->getPc());
+    return getPid(state, state->regs()->getPc());
 }
 
 uint64_t DecreeMonitor::getTid(S2EExecutionState *state) {
@@ -282,7 +282,7 @@ ref<Expr> DecreeMonitor::makeSymbolicRead(S2EExecutionState *state, uint64_t pid
         std::vector<uint8_t> data;
         getPreFeedData(state, pid, feedCount, data);
 
-        bool ok = state->mem()->writeMemoryConcrete(buf, &data[0], feedCount);
+        bool ok = state->mem()->write(buf, &data[0], feedCount);
         s2e_assert(state, ok, "Failed to write memory");
 
         plgState->m_readBytesCount[pid] += feedCount;
@@ -327,7 +327,7 @@ ref<Expr> DecreeMonitor::makeSymbolicRead(S2EExecutionState *state, uint64_t pid
         std::vector<uint8_t> data;
         getRandomData(state, feedCount, data);
 
-        bool ok = state->mem()->writeMemoryConcrete(buf, &data[0], feedCount);
+        bool ok = state->mem()->write(buf, &data[0], feedCount);
         s2e_assert(state, ok, "Failed to write memory");
 
         plgState->m_readBytesCount[pid] += feedCount;
@@ -349,7 +349,7 @@ void DecreeMonitor::handleReadData(S2EExecutionState *state, uint64_t pid, const
 
     ref<Expr> countExpr;
     if (m_handleSymbolicBufferSize && !isSeedState) {
-        countExpr = state->mem()->readMemory(d.size_expr_addr, state->getPointerWidth());
+        countExpr = state->mem()->read(d.size_expr_addr, state->getPointerWidth());
         s2e_assert(state, !countExpr.isNull(), "Failed to read memory");
     } else {
         countExpr = E_CONST(d.buffer_size, Expr::Int32);
@@ -361,7 +361,7 @@ void DecreeMonitor::handleReadData(S2EExecutionState *state, uint64_t pid, const
         bool ok = state->writePointer(d.result_addr, dyn_cast<ConstantExpr>(bytesSentExpr)->getZExtValue());
         s2e_assert(state, ok, "Failed to write memory");
     } else {
-        bool ok = state->mem()->writeMemory(d.result_addr, bytesSentExpr);
+        bool ok = state->mem()->write(d.result_addr, bytesSentExpr);
         s2e_assert(state, ok, "Failed to write memory");
     }
 
@@ -407,7 +407,7 @@ void DecreeMonitor::handleWriteData(S2EExecutionState *state, uint64_t pid, cons
     bool ok = state->readPointer(d.buffer_size_addr, actualCount);
     s2e_assert(state, ok, "Failed to read memory");
 
-    ref<Expr> countExpr = state->mem()->readMemory(d.size_expr_addr, state->getPointerWidth());
+    ref<Expr> countExpr = state->mem()->read(d.size_expr_addr, state->getPointerWidth());
     s2e_assert(state, !countExpr.isNull(), "Failed to read memory");
     countExpr = E_MIN(countExpr, E_CONST(actualCount, state->getPointerWidth()));
 
@@ -437,7 +437,7 @@ void DecreeMonitor::handleWriteData(S2EExecutionState *state, uint64_t pid, cons
 
     bool isSeedState = m_seedSearcher ? m_seedSearcher->isSeedState(state) : false;
     if (m_handleSymbolicBufferSize && !isSeedState && !isa<ConstantExpr>(countExpr)) {
-        bool ok = state->mem()->writeMemory(d.buffer_size_addr, countExpr);
+        bool ok = state->mem()->write(d.buffer_size_addr, countExpr);
         s2e_assert(state, ok, "Failed to write memory");
     }
 
@@ -468,14 +468,14 @@ void DecreeMonitor::handleFdWait(S2EExecutionState *state, S2E_DECREEMON_COMMAND
                                  E_CONST(0, Expr::Int64), E_CONST(d.FDWait.nfds, Expr::Int64));
 
         // Need to write it back, the kernel reads 'invoke_orig'
-        bool ok = state->mem()->writeMemoryConcrete(addr, &d, sizeof(d));
+        bool ok = state->mem()->write(addr, &d, sizeof(d));
         s2e_assert(state, ok, "Failed to write memory");
 
         uintptr_t resultAddress = addr + offsetof(S2E_DECREEMON_COMMAND, FDWait.result);
-        ok = state->mem()->writeMemory(resultAddress, result);
+        ok = state->mem()->write(resultAddress, result);
         s2e_assert(state, ok, "Failed to write memory");
 
-        /*state->regs()->write<target_ulong>(CPU_OFFSET(eip), state->getPc() + 10);
+        /*state->regs()->write<target_ulong>(CPU_OFFSET(eip), state->regs()->getPc() + 10);
 
         Executor::StatePair sp = s2e()->getExecutor()->fork(*state, condition, false);
         s2e()->getExecutor()->notifyFork(*state, condition, sp);
@@ -484,7 +484,7 @@ void DecreeMonitor::handleFdWait(S2EExecutionState *state, S2E_DECREEMON_COMMAND
 
     } else {
         d.FDWait.result = d.FDWait.nfds;
-        bool ok = state->mem()->writeMemoryConcrete(addr, &d, sizeof(d));
+        bool ok = state->mem()->write(addr, &d, sizeof(d));
         s2e_assert(state, ok, "Failed to write memory");
     }
 }
@@ -543,7 +543,7 @@ target_ulong DecreeMonitor::getTaskStructPtr(S2EExecutionState *state) {
     target_ulong esp0;
     target_ulong esp0Addr = env->tr.base + decree::TSS_ESP0_OFFSET;
 
-    if (!state->mem()->readMemoryConcrete(esp0Addr, &esp0, sizeof(esp0))) {
+    if (!state->mem()->read(esp0Addr, &esp0, sizeof(esp0))) {
         return -1;
     }
 
@@ -551,7 +551,7 @@ target_ulong DecreeMonitor::getTaskStructPtr(S2EExecutionState *state) {
     target_ulong currentThreadInfo = esp0 & ~(decree::THREAD_SIZE - 1);
     target_ulong taskStructPtr;
 
-    if (!state->mem()->readMemoryConcrete(currentThreadInfo, &taskStructPtr, sizeof(taskStructPtr))) {
+    if (!state->mem()->read(currentThreadInfo, &taskStructPtr, sizeof(taskStructPtr))) {
         return -1;
     }
 
@@ -611,7 +611,7 @@ void DecreeMonitor::handleSymbolicSize(S2EExecutionState *state, uint64_t pid, u
 
 void DecreeMonitor::handleSymbolicAllocateSize(S2EExecutionState *state, uint64_t pid,
                                                const S2E_DECREEMON_COMMAND_HANDLE_SYMBOLIC_SIZE &d) {
-    ref<Expr> size = state->readMemory(d.size_addr, state->getPointerWidth());
+    ref<Expr> size = state->mem()->read(d.size_addr, state->getPointerWidth());
     s2e_assert(state, !size.isNull(), "Failed to read memory");
 
     if (isa<ConstantExpr>(size)) {
@@ -667,10 +667,10 @@ static uint64_t distanceToUnmappedPage(uint64_t startAddr, const std::unordered_
 
 void DecreeMonitor::handleSymbolicBuffer(S2EExecutionState *state, uint64_t pid, SymbolicBufferType type,
                                          uint64_t ptrAddr, uint64_t sizeAddr) {
-    ref<Expr> ptr = state->readMemory(ptrAddr, state->getPointerWidth());
+    ref<Expr> ptr = state->mem()->read(ptrAddr, state->getPointerWidth());
     s2e_assert(state, !ptr.isNull(), "Failed to read memory");
 
-    ref<Expr> size = state->readMemory(sizeAddr, state->getPointerWidth());
+    ref<Expr> size = state->mem()->read(sizeAddr, state->getPointerWidth());
     s2e_assert(state, !size.isNull(), "Failed to read memory");
 
     bool isSymPtr = !isa<ConstantExpr>(ptr);
@@ -732,7 +732,7 @@ void DecreeMonitor::handleCopyToUser(S2EExecutionState *state, uint64_t pid,
     }
 
     for (unsigned i = 0; i < d.count; ++i) {
-        ref<Expr> value = state->mem()->readMemory(d.user_addr + i, Expr::Int8);
+        ref<Expr> value = state->mem()->read(d.user_addr + i, Expr::Int8);
         if (value.isNull()) {
             getDebugStream(state) << "could not read address " << hexval(d.user_addr + i) << "\n";
             continue;
@@ -770,7 +770,7 @@ void DecreeMonitor::handleUpdateMemoryMap(S2EExecutionState *state, uint64_t pid
     }
 
     S2E_DECREEMON_VMA buf[d.count];
-    bool ok = state->mem()->readMemoryConcrete(d.buffer, buf, sizeof(buf));
+    bool ok = state->mem()->read(d.buffer, buf, sizeof(buf));
     s2e_assert(state, ok, "Failed to read memory");
 
     for (unsigned i = 0; i < d.count; i++) {
@@ -810,7 +810,7 @@ void DecreeMonitor::handleSetParams(S2EExecutionState *state, uint64_t pid, S2E_
         uint8_t buffer[len];
         memset(buffer, 0, len);
 
-        if (!state->mem()->readMemoryConcrete(d.cgc_seed_ptr, buffer, len)) {
+        if (!state->mem()->read(d.cgc_seed_ptr, buffer, len)) {
             ss << "\n";
             getWarningsStream(state) << "Could not read seed\n";
         } else {
@@ -939,7 +939,8 @@ void DecreeMonitor::handleCommand(S2EExecutionState *state, uint64_t guestDataPt
             }
 
             getWarningsStream(state) << "received segfault"
-                                     << " type=" << command.SegFault.fault << " pagedir=" << hexval(state->getPageDir())
+                                     << " type=" << command.SegFault.fault
+                                     << " pagedir=" << hexval(state->regs()->getPageDir())
                                      << " pid=" << hexval(command.currentPid) << " pc=" << hexval(command.SegFault.pc)
                                      << " addr=" << hexval(command.SegFault.address) << " name=" << currentName << "\n";
 
@@ -1014,7 +1015,7 @@ void DecreeMonitor::handleCommand(S2EExecutionState *state, uint64_t guestDataPt
 
         case DECREE_GET_CFG_BOOL: {
             handleGetCfgBool(state, command.currentPid, command.GetCfgBool);
-            bool ok = state->mem()->writeMemoryConcrete(guestDataPtr, &command, sizeof(command));
+            bool ok = state->mem()->write(guestDataPtr, &command, sizeof(command));
             s2e_assert(state, ok, "Failed to write memory");
         } break;
 
@@ -1056,7 +1057,7 @@ void DecreeMonitor::handleCommand(S2EExecutionState *state, uint64_t guestDataPt
 
         case DECREE_SET_CB_PARAMS: {
             handleSetParams(state, command.currentPid, command.CbParams);
-            if (!state->writeMemoryConcrete(guestDataPtr, &command, guestDataSize)) {
+            if (!state->mem()->write(guestDataPtr, &command, guestDataSize)) {
                 // Do not kill the state in case of an error here. This would prevent
                 // any exploration at all.
                 //

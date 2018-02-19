@@ -45,7 +45,7 @@ void FunctionMonitor2::onFunctionCall(S2EExecutionState *state, uint64_t callerP
         return;
     }
 
-    uint64_t calleePc = state->getPc();
+    uint64_t calleePc = state->regs()->getPc();
 
     const ModuleDescriptor *callerMod = m_map->getModule(state, callerPc);
     const ModuleDescriptor *calleeMod = m_map->getModule(state, calleePc);

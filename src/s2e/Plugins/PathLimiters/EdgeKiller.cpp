@@ -40,13 +40,13 @@ void EdgeKiller::onEdge(S2EExecutionState *state, uint64_t sourcePc, EdgeType ty
         return;
     }
 
-    if (!m_edges.findEdge(md->Name, md->ToNativeBase(sourcePc), md->ToNativeBase(state->getPc()), &type)) {
+    if (!m_edges.findEdge(md->Name, md->ToNativeBase(sourcePc), md->ToNativeBase(state->regs()->getPc()), &type)) {
         return;
     }
 
     std::string s;
     llvm::raw_string_ostream ss(s);
-    ss << "EdgeKiller: " << hexval(sourcePc) << " => " << hexval(state->getPc()) << "\n";
+    ss << "EdgeKiller: " << hexval(sourcePc) << " => " << hexval(state->regs()->getPc()) << "\n";
     ss.flush();
     s2e()->getExecutor()->terminateStateEarly(*state, s);
 }

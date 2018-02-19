@@ -37,10 +37,10 @@ bool BaseFunctionModels::readMemory(S2EExecutionState *state, std::vector<ref<Ex
 bool BaseFunctionModels::readArgument(S2EExecutionState *state, unsigned param, uint64_t &arg) {
     target_ulong ret;
 
-    uint64_t addr = state->getSp() + (param + 1) * state->getPointerSize();
+    uint64_t addr = state->regs()->getSp() + (param + 1) * state->getPointerSize();
 
     // First check if argument is symbolic
-    ref<Expr> readArg = state->mem()->readMemory(addr, state->getPointerWidth());
+    ref<Expr> readArg = state->mem()->read(addr, state->getPointerWidth());
     if (!isa<ConstantExpr>(readArg)) {
         getDebugStream(state) << "Argument " << param << " at " << hexval(addr) << " is symbolic\n";
         return false;
@@ -299,13 +299,13 @@ bool BaseFunctionModels::strcpyHelper(S2EExecutionState *state, const uint64_t s
         }
 
         ref<Expr> writeExpr = E_ITE(accuExpr, srcCharExpr, dstCharExpr);
-        if (!state->mem()->writeMemory8(strAddrs[0] + nr, writeExpr)) {
+        if (!state->mem()->write(strAddrs[0] + nr, writeExpr)) {
             getDebugStream(state) << "Failed to write to destination string.\n";
             return false;
         }
         accuExpr = E_AND(E_NOT(E_EQ(srcCharExpr, nullByteExpr)), accuExpr);
     }
-    if (!state->mem()->writeMemory8(strAddrs[0] + strLen, nullByteExpr)) {
+    if (!state->mem()->write(strAddrs[0] + strLen, nullByteExpr)) {
         getDebugStream(state) << "Failed to write to terminate byte.\n";
         return false;
     }
@@ -355,7 +355,7 @@ bool BaseFunctionModels::strncpyHelper(S2EExecutionState *state, const uint64_t 
 
         ref<Expr> writeExpr = E_ITE(AccuExpr, srcCharExpr, nullByteExpr); // null padding
 
-        if (!state->mem()->writeMemory8(strAddrs[0] + nr, writeExpr)) {
+        if (!state->mem()->write(strAddrs[0] + nr, writeExpr)) {
             getDebugStream(state) << "Failed to write to destination string.\n";
             return false;
         }
@@ -434,7 +434,7 @@ bool BaseFunctionModels::memcpyHelper(S2EExecutionState *state, const uint64_t m
             return false;
         }
 
-        if (!state->mem()->writeMemory8(memAddrs[0] + nr, srcCharExpr)) {
+        if (!state->mem()->write(memAddrs[0] + nr, srcCharExpr)) {
             getDebugStream(state) << "Failed to write to destination string.\n";
             return false;
         }
@@ -576,13 +576,13 @@ bool BaseFunctionModels::strcatHelper(S2EExecutionState *state, const uint64_t s
         }
         writeExpr = E_ITE(firstOrderCond, dstCharExpr, subWrite);
 
-        if (!state->mem()->writeMemory8(strAddrs[0] + nr, writeExpr)) {
+        if (!state->mem()->write(strAddrs[0] + nr, writeExpr)) {
             getDebugStream(state) << "Failed to write to destination string.\n";
             return false;
         }
     }
 
-    if (!state->mem()->writeMemory8(strAddrs[0] + destStrLen + extra_cat, nullByteExpr)) {
+    if (!state->mem()->write(strAddrs[0] + destStrLen + extra_cat, nullByteExpr)) {
         getDebugStream(state) << "Failed to write to terminate byte.\n";
         return false;
     }

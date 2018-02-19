@@ -183,7 +183,7 @@ klee::ref<klee::Expr> SymbolicHardware::createExpression(S2EExecutionState *stat
             break;
     }
 
-    ss << hexval(address) << "@" << hexval(state->getPc());
+    ss << hexval(address) << "@" << hexval(state->regs()->getPc());
 
     getDebugStream(g_s2e_state) << ss.str() << " size " << hexval(size) << " value=" << hexval(concreteValue)
                                 << " sym=" << (createVariable ? "yes" : "no") << "\n";

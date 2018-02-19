@@ -98,14 +98,15 @@ protected:
     /// Verify that the custom  at the given ptr address is valid
     bool verifyCustomInstruction(S2EExecutionState *state, uint64_t guestDataPtr, uint64_t guestDataSize, CmdT &cmd) {
         // Validate the size of the instruction
-        s2e_assert(state, guestDataSize == sizeof(cmd),
-                   "Invalid command size " << guestDataSize << " != " << sizeof(cmd) << " from pagedir="
-                                           << hexval(state->getPageDir()) << " pc=" << hexval(state->getPc()));
+        s2e_assert(state, guestDataSize == sizeof(cmd), "Invalid command size "
+                                                            << guestDataSize << " != " << sizeof(cmd)
+                                                            << " from pagedir=" << hexval(state->regs()->getPageDir())
+                                                            << " pc=" << hexval(state->regs()->getPc()));
 
         // Read any symbolic bytes
         std::ostringstream symbolicBytes;
         for (unsigned i = 0; i < sizeof(cmd); ++i) {
-            ref<Expr> t = state->readMemory8(guestDataPtr + i);
+            ref<Expr> t = state->mem()->read(guestDataPtr + i);
             if (!t.isNull() && !isa<ConstantExpr>(t)) {
                 symbolicBytes << "  " << hexval(i, 2) << "\n";
             }
@@ -116,7 +117,7 @@ protected:
         }
 
         // Read the instruction
-        bool ok = state->mem()->readMemoryConcrete(guestDataPtr, &cmd, sizeof(cmd));
+        bool ok = state->mem()->read(guestDataPtr, &cmd, sizeof(cmd));
         s2e_assert(state, ok, "Failed to read instruction memory");
 
         // Validate the instruction's version
@@ -129,9 +130,10 @@ protected:
 
             getWarningsStream(state) << "Command bytes: " << os.str() << "\n";
 
-            s2e_assert(state, false, "Invalid command version " << hexval(cmd.version) << " != " << hexval(CmdVersion)
-                                                                << " from pagedir=" << hexval(state->getPageDir())
-                                                                << " pc=" << hexval(state->getPc()));
+            s2e_assert(state, false, "Invalid command version "
+                                         << hexval(cmd.version) << " != " << hexval(CmdVersion)
+                                         << " from pagedir=" << hexval(state->regs()->getPageDir())
+                                         << " pc=" << hexval(state->regs()->getPc()));
         }
 
         return true;
@@ -162,7 +164,7 @@ public:
         if (pc >= m_kernelStartAddress) {
             return 0;
         } else {
-            return state->getPageDir();
+            return state->regs()->getPageDir();
         }
     }
 

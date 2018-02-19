@@ -269,8 +269,9 @@ void PathSearcher::onFork(S2EExecutionState *state, const std::vector<S2EExecuti
     assert(forkCount < m_forkDirectors.size());
     const forkDirector &fd = m_forkDirectors[forkCount];
 
-    if (fd.pc != state->getPc()) {
-        getWarningsStream(state) << "fork PC mismatch: " << hexval(fd.pc) << " != " << hexval(state->getPc()) << "\n";
+    if (fd.pc != state->regs()->getPc()) {
+        getWarningsStream(state) << "fork PC mismatch: " << hexval(fd.pc) << " != " << hexval(state->regs()->getPc())
+                                 << "\n";
         exit(-1);
     }
 

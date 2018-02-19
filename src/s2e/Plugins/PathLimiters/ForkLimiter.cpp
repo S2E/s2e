@@ -49,7 +49,7 @@ void ForkLimiter::onStateForkDecide(S2EExecutionState *state, bool *doFork) {
         return;
     }
 
-    uint64_t curPc = module->ToNativeBase(state->getPc());
+    uint64_t curPc = module->ToNativeBase(state->regs()->getPc());
 
     if (m_forkCount[module->Name][curPc] > m_limit) {
         *doFork = false;
@@ -63,7 +63,7 @@ void ForkLimiter::onFork(S2EExecutionState *state, const std::vector<S2EExecutio
         return;
     }
 
-    uint64_t curPc = module->ToNativeBase(state->getPc());
+    uint64_t curPc = module->ToNativeBase(state->regs()->getPc());
     ++m_forkCount[module->Name][curPc];
 }
 

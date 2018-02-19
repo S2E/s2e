@@ -54,7 +54,7 @@ bool BlueScreenInterceptor::invokeCrashRoutine(S2EExecutionState *state, uint64_
         return false;
     }
 
-    state->setPc(crashRoutine);
+    state->regs()->setPc(crashRoutine);
     throw CpuExitException();
 
     /* We don't return */
@@ -127,7 +127,7 @@ void BlueScreenInterceptor::handleOpcodeInvocation(S2EExecutionState *state, uin
         return;
     }
 
-    if (!state->mem()->readMemoryConcrete(guestDataPtr, &command, guestDataSize)) {
+    if (!state->mem()->read(guestDataPtr, &command, guestDataSize)) {
         getWarningsStream(state) << "could not read transmitted data\n";
         return;
     }

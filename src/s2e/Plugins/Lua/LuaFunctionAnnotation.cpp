@@ -243,7 +243,7 @@ void LuaFunctionAnnotation::invokeAnnotation(S2EExecutionState *state, const Ann
     lua_pushboolean(L, isCall);
 
     uint64_t pointerSize = state->getPointerSize();
-    uint64_t paramSp = state->getSp() + pointerSize;
+    uint64_t paramSp = state->regs()->getSp() + pointerSize;
 
     for (unsigned i = 0; i < entry.paramCount; ++i) {
         uint64_t address = paramSp + i * pointerSize;

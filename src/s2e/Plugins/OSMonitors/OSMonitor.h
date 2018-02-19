@@ -90,7 +90,7 @@ public:
     }
 
     template <typename T> static bool readConcreteParameter(S2EExecutionState *s, unsigned param, T *val) {
-        return s->readMemoryConcrete(s->getSp() + (param + 1) * sizeof(T), val, sizeof(*val));
+        return s->mem()->read(s->regs()->getSp() + (param + 1) * sizeof(T), val, sizeof(*val));
     }
 };
 
