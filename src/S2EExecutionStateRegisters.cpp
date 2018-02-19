@@ -77,10 +77,6 @@ void S2EExecutionStateRegisters::copySymbRegs(bool toNative) {
     }
 }
 
-CPUX86State *S2EExecutionStateRegisters::getNativeCpuState() const {
-    return (CPUX86State *) (s_concreteRegs->address - CPU_OFFSET(eip));
-}
-
 // XXX: The returned pointer cannot be used to modify symbolic state
 // It's gonna crash the system. We should really fix that.
 CPUX86State *S2EExecutionStateRegisters::getCpuState() const {
@@ -335,8 +331,16 @@ void S2EExecutionStateRegisters::writeConcreteRegion(unsigned offset, const void
     small_memcpy(address + offset, buffer, size);
 }
 
-bool S2EExecutionStateRegisters::isConcreteRegion(unsigned offset) {
-    return offset >= offsetof(CPUX86State, eip);
+bool S2EExecutionStateRegisters::getRegionType(unsigned offset, unsigned size, bool *isConcrete) {
+    if (offset + size <= offsetof(CPUX86State, eip)) {
+        *isConcrete = false;
+        return true;
+    } else if (offset >= offsetof(CPUX86State, eip)) {
+        *isConcrete = true;
+        return true;
+    } else {
+        return false;
+    }
 }
 
 /**
@@ -358,29 +362,77 @@ int S2EExecutionStateRegisters::compareArchitecturalConcreteState(const S2EExecu
 
 /***/
 
-void S2EExecutionStateRegisters::read(unsigned offset, void *buffer, unsigned size) const {
-    if (isConcreteRegion(offset)) {
-        readConcreteRegion(offset, buffer, size);
+klee::ref<klee::Expr> S2EExecutionStateRegisters::read(unsigned offset, klee::Expr::Width width) const {
+    bool isConcrete = false;
+    unsigned size = klee::Expr::getMinBytesForWidth(width);
+    if (!getRegionType(offset, size, &isConcrete)) {
+        return nullptr;
+    }
+
+    if (isConcrete) {
+        switch (width) {
+            case klee::Expr::Bool:
+                return klee::ConstantExpr::create(read<uint8>(offset) & 1, width);
+            case klee::Expr::Int8:
+                return klee::ConstantExpr::create(read<uint8>(offset), width);
+            case klee::Expr::Int16:
+                return klee::ConstantExpr::create(read<uint16>(offset), width);
+            case klee::Expr::Int32:
+                return klee::ConstantExpr::create(read<uint32>(offset), width);
+            case klee::Expr::Int64:
+                return klee::ConstantExpr::create(read<uint64>(offset), width);
+            default:
+                return nullptr;
+        }
     } else {
-        readSymbolicRegion(offset, buffer, size, true);
+        return readSymbolicRegion(offset, width);
     }
 }
 
-void S2EExecutionStateRegisters::write(unsigned offset, const void *buffer, unsigned size) {
-    if (isConcreteRegion(offset)) {
+bool S2EExecutionStateRegisters::read(unsigned offset, void *buffer, unsigned size, bool concretize) const {
+    bool isConcrete = false;
+    if (!getRegionType(offset, size, &isConcrete)) {
+        return false;
+    }
+
+    if (isConcrete) {
+        readConcreteRegion(offset, buffer, size);
+        return true;
+    } else {
+        return readSymbolicRegion(offset, buffer, size, concretize);
+    }
+}
+
+bool S2EExecutionStateRegisters::write(unsigned offset, const void *buffer, unsigned size) {
+    bool isConcrete = false;
+    if (!getRegionType(offset, size, &isConcrete)) {
+        return false;
+    }
+
+    if (isConcrete) {
         writeConcreteRegion(offset, buffer, size);
     } else {
         writeSymbolicRegion(offset, buffer, size);
     }
+
+    return true;
 }
 
-void S2EExecutionStateRegisters::write(unsigned offset, const klee::ref<klee::Expr> &value) {
-    if (isConcreteRegion(offset)) {
+bool S2EExecutionStateRegisters::write(unsigned offset, const klee::ref<klee::Expr> &value) {
+    bool isConcrete = false;
+    unsigned size = klee::Expr::getMinBytesForWidth(value->getWidth());
+    if (!getRegionType(offset, size, &isConcrete)) {
+        return false;
+    }
+
+    if (isConcrete) {
         uint64_t val = m_concretizer->concretize(value, "Writing symbolic value to concrete area");
-        writeConcreteRegion(offset, &val, value->getMinBytesForWidth(value->getWidth()));
+        writeConcreteRegion(offset, &val, size);
     } else {
         writeSymbolicRegion(offset, value);
     }
+
+    return true;
 }
 
 // Get the program counter in the current state.
@@ -389,34 +441,37 @@ uint64_t S2EExecutionStateRegisters::getPc() const {
     return read<target_ulong>(CPU_OFFSET(eip));
 }
 
-uint64_t S2EExecutionStateRegisters::getFlags() {
-    /* restore flags in standard format */
-    cpu_restore_eflags(env);
-    return cpu_get_eflags(env);
-}
-
 void S2EExecutionStateRegisters::setPc(uint64_t pc) {
-    write<target_ulong>(CPU_OFFSET(eip), pc);
-}
-
-void S2EExecutionStateRegisters::setSp(uint64_t sp) {
-    write<target_ulong>(CPU_OFFSET(regs[R_ESP]), sp);
-}
-
-void S2EExecutionStateRegisters::setBp(uint64_t bp) {
-    write<target_ulong>(CPU_OFFSET(regs[R_EBP]), bp);
+    bool ret = write<target_ulong>(CPU_OFFSET(eip), pc);
+    assert(ret);
 }
 
 uint64_t S2EExecutionStateRegisters::getSp() const {
     return read<target_ulong>(CPU_OFFSET(regs[R_ESP]));
 }
 
+void S2EExecutionStateRegisters::setSp(uint64_t sp) {
+    bool ret = write<target_ulong>(CPU_OFFSET(regs[R_ESP]), sp);
+    assert(ret);
+}
+
 uint64_t S2EExecutionStateRegisters::getBp() const {
     return read<target_ulong>(CPU_OFFSET(regs[R_EBP]));
 }
 
+void S2EExecutionStateRegisters::setBp(uint64_t bp) {
+    bool ret = write<target_ulong>(CPU_OFFSET(regs[R_EBP]), bp);
+    assert(ret);
+}
+
 uint64_t S2EExecutionStateRegisters::getPageDir() const {
     return read<target_ulong>(CPU_OFFSET(cr[3]));
+}
+
+uint64_t S2EExecutionStateRegisters::getFlags() {
+    /* restore flags in standard format */
+    cpu_restore_eflags(env);
+    return cpu_get_eflags(env);
 }
 
 /// \brief Print register values

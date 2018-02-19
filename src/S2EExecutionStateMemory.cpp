@@ -84,9 +84,9 @@ uint64_t S2EExecutionStateMemory::getHostAddress(uint64_t address, AddressType a
 
 /***/
 
-ref<Expr> S2EExecutionStateMemory::readMemory(uint64_t address, Expr::Width width, AddressType addressType) {
+ref<Expr> S2EExecutionStateMemory::read(uint64_t address, Expr::Width width, AddressType addressType) {
     assert(width == 1 || (width & 7) == 0);
-    uint64_t size = width / 8;
+    uint64_t size = Expr::getMinBytesForWidth(width);
 
     /* Access spawns multiple MemoryObject's */
     ref<Expr> res(0);
@@ -115,33 +115,7 @@ ref<Expr> S2EExecutionStateMemory::readMemory8(uint64_t address, AddressType add
     return retVal;
 }
 
-bool S2EExecutionStateMemory::readMemoryConcrete8(uint64_t address, uint8_t *result, AddressType addressType,
-                                                  bool addConstraint) {
-    ref<Expr> expr = readMemory8(address, addressType);
-#ifdef CONFIG_SYMBEX_MP
-    if (expr.isNull()) {
-        return false;
-    }
-
-    expr = ConstantExpr::create(m_concretizer->concretize(expr, "readMemoryConcrete8", !addConstraint), Expr::Int8);
-    ConstantExpr *ce = dyn_cast<ConstantExpr>(expr);
-    assert(ce && "Broken solver");
-
-    if (result) {
-        *result = ce->getZExtValue();
-    }
-
-    if (addConstraint) {
-        return writeMemory(address, expr);
-    }
-#else
-    ConstantExpr *ce = dyn_cast<ConstantExpr>(expr);
-    *result = ce->getZExtValue();
-#endif
-    return true;
-}
-
-bool S2EExecutionStateMemory::readMemoryConcrete(uint64_t address, void *buf, uint64_t size, AddressType addressType) {
+bool S2EExecutionStateMemory::read(uint64_t address, void *buf, uint64_t size, AddressType addressType) {
     while (size > 0) {
         uint64_t hostAddress = getHostAddress(address, addressType);
         if (hostAddress == (uint64_t) -1)
@@ -168,25 +142,39 @@ bool S2EExecutionStateMemory::readMemoryConcrete(uint64_t address, void *buf, ui
 
 /***/
 
-bool S2EExecutionStateMemory::writeMemory(uint64_t address, ref<Expr> value, AddressType addressType) {
+bool S2EExecutionStateMemory::writeMemory8(uint64_t address, const ref<Expr> &value, AddressType addressType) {
+    assert(value->getWidth() == 8);
+
+    uint64_t hostAddress = getHostAddress(address, addressType);
+    if (hostAddress == (uint64_t) -1)
+        return false;
+#ifdef CONFIG_SYMBEX_MP
+    transferRam(NULL, hostAddress, (void *) &value, 1, true, false, true);
+#else
+    ConstantExpr *ce = dyn_cast<ConstantExpr>(value);
+    *((uint8_t *) hostAddress) = (uint8_t) ce->getZExtValue();
+#endif
+
+    return true;
+}
+
+bool S2EExecutionStateMemory::write(uint64_t address, const ref<Expr> &value, AddressType addressType) {
     Expr::Width width = value->getWidth();
-    assert(width == 1 || (width & 7) == 0);
+    unsigned numBytes = Expr::getMinBytesForWidth(value->getWidth());
+
     ConstantExpr *constantExpr = dyn_cast<ConstantExpr>(value);
     if (constantExpr && width <= 64) {
         // Concrete write of supported width
         uint64_t val = constantExpr->getZExtValue();
-        unsigned size = width / 8;
-        if (!size) {
+        if (value->getWidth() == Expr::Bool) {
             val &= 1;
-            ++size;
         }
 
-        return writeMemoryConcrete(address, &val, size, addressType);
+        return write(address, &val, numBytes, addressType);
 
     } else {
         // Slowest case (TODO: could optimize it)
-        unsigned numBytes = width / 8;
-        for (unsigned i = 0; i != numBytes; ++i) {
+        for (unsigned i = 0; i < numBytes; ++i) {
             unsigned idx = Context::get().isLittleEndian() ? i : (numBytes - i - 1);
             if (!writeMemory8(address + idx, ExtractExpr::create(value, 8 * i, Expr::Int8), addressType)) {
                 return false;
@@ -196,8 +184,7 @@ bool S2EExecutionStateMemory::writeMemory(uint64_t address, ref<Expr> value, Add
     return true;
 }
 
-bool S2EExecutionStateMemory::writeMemoryConcrete(uint64_t address, const void *buf, uint64_t size,
-                                                  AddressType addressType) {
+bool S2EExecutionStateMemory::write(uint64_t address, const void *buf, uint64_t size, AddressType addressType) {
     while (size > 0) {
         uint64_t hostAddress = getHostAddress(address, addressType);
         if (hostAddress == (uint64_t) -1)
@@ -219,22 +206,6 @@ bool S2EExecutionStateMemory::writeMemoryConcrete(uint64_t address, const void *
         address += length;
         size -= length;
     }
-
-    return true;
-}
-
-bool S2EExecutionStateMemory::writeMemory8(uint64_t address, ref<Expr> value, AddressType addressType) {
-    assert(value->getWidth() == 8);
-
-    uint64_t hostAddress = getHostAddress(address, addressType);
-    if (hostAddress == (uint64_t) -1)
-        return false;
-#ifdef CONFIG_SYMBEX_MP
-    transferRam(NULL, hostAddress, &value, 1, true, false, true);
-#else
-    ConstantExpr *ce = dyn_cast<ConstantExpr>(value);
-    *((uint8_t *) hostAddress) = (uint8_t) ce->getZExtValue();
-#endif
 
     return true;
 }

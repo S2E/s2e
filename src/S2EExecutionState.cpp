@@ -141,7 +141,8 @@ void S2EExecutionState::enableSymbolicExecution() {
     m_symbexEnabled = true;
 
     g_s2e->getInfoStream(this) << "Enabled symbex"
-                               << " at pc = " << (void *) getPc() << " and pagedir = " << hexval(getPageDir()) << '\n';
+                               << " at pc = " << (void *) regs()->getPc()
+                               << " and pagedir = " << hexval(regs()->getPageDir()) << '\n';
 }
 
 void S2EExecutionState::disableSymbolicExecution() {
@@ -152,7 +153,8 @@ void S2EExecutionState::disableSymbolicExecution() {
     m_symbexEnabled = false;
 
     g_s2e->getInfoStream(this) << "Disabled symbex"
-                               << " at pc = " << (void *) getPc() << " and pagedir = " << hexval(getPageDir()) << '\n';
+                               << " at pc = " << (void *) regs()->getPc()
+                               << " and pagedir = " << hexval(regs()->getPageDir()) << '\n';
 }
 
 void S2EExecutionState::enableForking() {
@@ -164,8 +166,8 @@ void S2EExecutionState::enableForking() {
 
     if (PrintForkingStatus) {
         g_s2e->getInfoStream(this) << "Enabled forking"
-                                   << " at pc = " << (void *) getPc() << " and pagedir = " << hexval(getPageDir())
-                                   << '\n';
+                                   << " at pc = " << (void *) regs()->getPc()
+                                   << " and pagedir = " << hexval(regs()->getPageDir()) << '\n';
     }
 }
 
@@ -178,8 +180,8 @@ void S2EExecutionState::disableForking() {
 
     if (PrintForkingStatus) {
         g_s2e->getInfoStream(this) << "Disabled forking"
-                                   << " at pc = " << (void *) getPc() << " and pagedir = " << hexval(getPageDir())
-                                   << '\n';
+                                   << " at pc = " << (void *) regs()->getPc()
+                                   << " and pagedir = " << hexval(regs()->getPageDir()) << '\n';
     }
 }
 
@@ -192,10 +194,10 @@ bool S2EExecutionState::bypassFunction(unsigned paramCount) {
         return false;
     }
 
-    uint64_t newSp = getSp() + (paramCount + 1) * getPointerSize();
+    uint64_t newSp = regs()->getSp() + (paramCount + 1) * getPointerSize();
 
-    setSp(newSp);
-    setPc(retAddr);
+    regs()->setSp(newSp);
+    regs()->setPc(retAddr);
     return true;
 }
 
@@ -205,12 +207,12 @@ bool S2EExecutionState::getReturnAddress(uint64_t *retAddr) {
     unsigned ptrSize = getPointerSize();
     if (ptrSize == 4) {
         uint32_t ra;
-        if (!mem()->readMemoryConcrete(regs()->getSp(), &ra, sizeof(ra))) {
+        if (!mem()->read(regs()->getSp(), &ra, sizeof(ra))) {
             return false;
         }
         *retAddr = ra;
     } else if (ptrSize == 8) {
-        if (!mem()->readMemoryConcrete(regs()->getSp(), retAddr, sizeof(*retAddr))) {
+        if (!mem()->read(regs()->getSp(), retAddr, sizeof(*retAddr))) {
             return false;
         }
     } else {
@@ -221,7 +223,7 @@ bool S2EExecutionState::getReturnAddress(uint64_t *retAddr) {
 }
 
 TranslationBlock *S2EExecutionState::getTb() const {
-    return s2e_read_register_concrete_fast<TranslationBlock *>(CPU_OFFSET(se_current_tb));
+    return (TranslationBlock *) s2e_read_register_concrete_fast<uintptr_t>(CPU_OFFSET(se_current_tb));
 }
 
 /***/
@@ -440,7 +442,7 @@ void S2EExecutionState::kleeReadMemory(ref<Expr> kleeAddressExpr, uint64_t sizeI
     unsigned i;
     uint64_t caddr = address->getZExtValue();
     for (i = 0; i < sizeInBytes; i++) {
-        ref<Expr> cur = readMemory8(caddr);
+        ref<Expr> cur = mem()->read(caddr);
         result->push_back(cur);
         caddr++;
     }
@@ -478,7 +480,7 @@ void S2EExecutionState::kleeWriteMemory(ref<Expr> kleeAddressExpr, /* Address */
     unsigned i;
     uint64_t caddr = address->getZExtValue();
     for (i = 0; i < bytes.size(); i++) {
-        writeMemory8(caddr + i, bytes[i]);
+        mem()->write(caddr + i, bytes[i]);
     }
 #endif
 }
@@ -539,8 +541,8 @@ void S2EExecutionState::undoCallAndJumpToSymbolic() {
         }
 #endif
         assert(getTb()->pcOfLastInstr);
-        setSp(getSp() + size);
-        setPc(getTb()->pcOfLastInstr);
+        regs()->setSp(regs()->getSp() + size);
+        regs()->setPc(getTb()->pcOfLastInstr);
         jumpToSymbolicCpp();
     }
 }
@@ -549,8 +551,8 @@ void S2EExecutionState::jumpToSymbolicCpp() {
     if (!isRunningConcrete()) {
         return;
     }
-    m_toRunSymbolically.insert(std::make_pair(getPc(), getPageDir()));
-    m_startSymbexAtPC = getPc();
+    m_toRunSymbolically.insert(std::make_pair(regs()->getPc(), regs()->getPageDir()));
+    m_startSymbexAtPC = regs()->getPc();
 
     // XXX: how to make this cleaner?
     g_s2e->getExecutor()->updateConcreteFastPath(this);
@@ -562,8 +564,8 @@ void S2EExecutionState::jumpToSymbolicCpp() {
 void S2EExecutionState::jumpToSymbolic() {
     assert(isActive() && isRunningConcrete());
 
-    m_toRunSymbolically.insert(std::make_pair(getPc(), getPageDir()));
-    m_startSymbexAtPC = getPc();
+    m_toRunSymbolically.insert(std::make_pair(regs()->getPc(), regs()->getPageDir()));
+    m_startSymbexAtPC = regs()->getPc();
 
     // XXX: how to make this cleaner?
     g_s2e->getExecutor()->updateConcreteFastPath(this);
@@ -923,33 +925,6 @@ bool S2EExecutionState::applyConstraints(const std::vector<ref<Expr>> &c) {
 
 /***/
 
-// XXX: This should go out of here
-void S2EExecutionState::dumpStack(unsigned count) {
-    dumpStack(count, getSp());
-}
-
-// XXX: This should go out of here
-void S2EExecutionState::dumpStack(unsigned count, uint64_t sp) {
-    std::stringstream os;
-
-    os << "Dumping stack @0x" << std::hex << sp << '\n';
-
-    for (unsigned i = 0; i < count; ++i) {
-        klee::ref<klee::Expr> val = readMemory(sp + i * sizeof(uint32_t), klee::Expr::Int32);
-        klee::ConstantExpr *ce = dyn_cast<klee::ConstantExpr>(val);
-        if (ce) {
-            os << std::hex << "0x" << sp + i * sizeof(uint32_t) << " 0x" << std::setw(sizeof(uint32_t) * 2)
-               << std::setfill('0') << val;
-            os << std::setfill(' ');
-        } else {
-            os << std::hex << "0x" << sp + i * sizeof(uint32_t) << val;
-        }
-        os << '\n';
-    }
-
-    g_s2e->getDebugStream();
-}
-
 uint64_t S2EExecutionState::concretize(klee::ref<klee::Expr> expression, const std::string &reason, bool silent) {
 #ifdef CONFIG_SYMBEX_MP
     if (silent) {
@@ -1100,7 +1075,7 @@ bool S2EExecutionState::getStaticBranchTargets(uint64_t *truePc, uint64_t *false
 }
 
 unsigned S2EExecutionState::getPointerSize() const {
-    TranslationBlock *tb = s2e_read_register_concrete_fast<TranslationBlock *>(CPU_OFFSET(se_current_tb));
+    TranslationBlock *tb = getTb();
     bool is32 = (tb->flags >> HF_CS32_SHIFT) & 1;
     bool is64 = (tb->flags >> HF_CS64_SHIFT) & 1;
     if (is64) {
@@ -1125,7 +1100,7 @@ static int __disas_print(FILE *fp, const char *fmt, ...) {
 }
 
 void S2EExecutionState::disassemble(llvm::raw_ostream &os, uint64_t pc, unsigned size) {
-    TranslationBlock *tb = s2e_read_register_concrete_fast<TranslationBlock *>(CPU_OFFSET(se_current_tb));
+    TranslationBlock *tb = getTb();
     int flags = 0; // 32-bit code by default
 
     if (tb) {
@@ -1211,19 +1186,19 @@ void s2e_reset_state_switch_timer(void) {
 }
 
 void s2e_read_register_concrete(unsigned offset, uint8_t *buf, unsigned size) {
-    g_s2e_state->regs()->readSymbolicRegion(offset, buf, size, true);
+    g_s2e_state->regs()->read(offset, buf, size, true);
 }
 
 void s2e_write_register_concrete(unsigned offset, uint8_t *buf, unsigned size) {
-    g_s2e_state->regs()->writeSymbolicRegion(offset, buf, size);
+    g_s2e_state->regs()->write(offset, buf, size);
 }
 
 uint8_t se_read_dirty_mask(uint64_t host_address) {
-    return g_s2e_state->readDirtyMask(host_address);
+    return g_s2e_state->mem()->readDirtyMask(host_address);
 }
 
 void se_write_dirty_mask(uint64_t host_address, uint8_t val) {
-    return g_s2e_state->writeDirtyMask(host_address, val);
+    return g_s2e_state->mem()->writeDirtyMask(host_address, val);
 }
 
 static inline CPUTLBRAMEntry *s2e_get_ram_tlb_entry(uint64_t host_address) {
@@ -1277,7 +1252,7 @@ void s2e_dma_read(uint64_t hostAddress, uint8_t *buf, unsigned size) {
 #if defined(SE_ENABLE_PHYSRAM_TLB)
     s2e_dma_rw(hostAddress, buf, size, false);
 #else
-    g_s2e_state->readMemoryConcrete(hostAddress, buf, size, s2e::HostAddress);
+    g_s2e_state->mem()->read(hostAddress, buf, size, s2e::HostAddress);
 #endif
 }
 
@@ -1285,7 +1260,7 @@ void s2e_dma_write(uint64_t hostAddress, uint8_t *buf, unsigned size) {
 #if defined(SE_ENABLE_PHYSRAM_TLB)
     s2e_dma_rw(hostAddress, buf, size, true);
 #else
-    g_s2e_state->writeMemoryConcrete(hostAddress, buf, size, s2e::HostAddress);
+    g_s2e_state->mem()->write(hostAddress, buf, size, s2e::HostAddress);
 #endif
 }
 

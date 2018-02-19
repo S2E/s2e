@@ -230,9 +230,6 @@ public:
     bool needToJumpToSymbolic() const;
     void undoCallAndJumpToSymbolic();
 
-    void dumpStack(unsigned count);
-    void dumpStack(unsigned count, uint64_t sp);
-
     bool isForkingEnabled() const {
         return !forkDisabled;
     }
@@ -257,87 +254,6 @@ public:
 
     void enableSymbolicExecution();
     void disableSymbolicExecution();
-
-    /** Read value from memory, returning false if the value is symbolic */
-    bool readMemoryConcrete(uint64_t address, void *buf, uint64_t size, AddressType addressType = VirtualAddress) {
-        return m_memory.readMemoryConcrete(address, buf, size, addressType);
-    }
-
-    /** Write concrete value to memory */
-    bool writeMemoryConcrete(uint64_t address, void *buf, uint64_t size, AddressType addressType = VirtualAddress) {
-        return m_memory.writeMemoryConcrete(address, buf, size, addressType);
-    }
-
-    /** Virtual address translation (debug mode). Returns -1 on failure. */
-    uint64_t getPhysicalAddress(uint64_t virtualAddress) const {
-        return m_memory.getPhysicalAddress(virtualAddress);
-    }
-
-    /** Address translation (debug mode). Returns host address or -1 on failure */
-    uint64_t getHostAddress(uint64_t address, AddressType addressType = VirtualAddress) const {
-        return m_memory.getHostAddress(address, addressType);
-    }
-
-    /** Access to state's memory. Address is virtual or physical,
-        depending on 'physical' argument. Returns NULL or false in
-        case of failure (can't resolve virtual address or physical
-        address is invalid) */
-    klee::ref<klee::Expr> readMemory(uint64_t address, klee::Expr::Width width,
-                                     AddressType addressType = VirtualAddress) {
-        return m_memory.readMemory(address, width, addressType);
-    }
-
-    klee::ref<klee::Expr> readMemory8(uint64_t address, AddressType addressType = VirtualAddress) {
-        return m_memory.readMemory8(address, addressType);
-    }
-
-    bool readMemoryConcrete8(uint64_t address, uint8_t *result = NULL, AddressType addressType = VirtualAddress,
-                             bool addConstraint = true) {
-        return m_memory.readMemoryConcrete8(address, result, addressType, addConstraint);
-    }
-
-    bool writeMemory(uint64_t address, klee::ref<klee::Expr> value, AddressType addressType = VirtualAddress) {
-        return m_memory.writeMemory(address, value, addressType);
-    }
-
-    bool writeMemory(uint64_t address, uint8_t *buf, klee::Expr::Width width,
-                     AddressType addressType = VirtualAddress) {
-        return m_memory.writeMemoryConcrete(address, buf, width / 8, addressType);
-    }
-
-    bool writeMemory8(uint64_t address, klee::ref<klee::Expr> value, AddressType addressType = VirtualAddress) {
-        return m_memory.writeMemory8(address, value, addressType);
-    }
-
-    // XXX: this should be templatized
-    bool writeMemory8(uint64_t address, uint8_t value, AddressType addressType = VirtualAddress) {
-        return m_memory.writeMemory(address, value, addressType);
-    }
-
-    bool writeMemory16(uint64_t address, uint16_t value, AddressType addressType = VirtualAddress) {
-        return m_memory.writeMemory(address, value, addressType);
-    }
-
-    bool writeMemory32(uint64_t address, uint32_t value, AddressType addressType = VirtualAddress) {
-        return m_memory.writeMemory(address, value, addressType);
-    }
-
-    bool writeMemory64(uint64_t address, uint64_t value, AddressType addressType = VirtualAddress) {
-        return m_memory.writeMemory(address, value, addressType);
-    }
-
-    /** Dirty mask management */
-    uint8_t readDirtyMask(uint64_t hostAddress) {
-        return m_memory.readDirtyMask(hostAddress);
-    }
-
-    void writeDirtyMask(uint64_t hostAddress, uint8_t value) {
-        m_memory.writeDirtyMask(hostAddress, value);
-    }
-
-    void registerDirtyMask(uint64_t hostAddress, uint64_t size) {
-        m_memory.registerDirtyMask(hostAddress, size);
-    }
 
     virtual void addConstraint(klee::ref<klee::Expr> e);
     bool testConstraints(const std::vector<klee::ref<klee::Expr>> &c, klee::ConstraintManager *newConstraints = NULL,
@@ -399,51 +315,16 @@ public:
         return &m_memory;
     }
 
-    // XXX: Rename that
-    CPUX86State *getConcreteCpuState() const {
-        return m_registers.getNativeCpuState();
-    }
-
-    /** Returns a mask of registers that contains symbolic values */
-    uint64_t getSymbolicRegistersMask() const {
-        return m_registers.getSymbolicRegistersMask();
-    }
-
-    /** Read CPU general purpose register */
-    klee::ref<klee::Expr> readCpuRegister(unsigned offset, klee::Expr::Width width) const {
-        return m_registers.readSymbolicRegion(offset, width);
-    }
-
-    /** Write CPU general purpose register */
-    void writeCpuRegister(unsigned offset, klee::ref<klee::Expr> value) {
-        m_registers.writeSymbolicRegion(offset, value);
-    }
-
-    /** Same as writeCpuRegister but also allows writing symbolic values */
-    void writeCpuRegisterSymbolic(unsigned offset, klee::ref<klee::Expr> value) {
-        m_registers.writeSymbolicRegionUnsafe(offset, value);
-    }
-
-    /** Read concrete value from general purpose CPU register */
-    bool readCpuRegisterConcrete(unsigned offset, void *buf, unsigned size) {
-        return m_registers.readSymbolicRegion(offset, buf, size);
-    }
-
-    /** Write concrete value to general purpose CPU register */
-    void writeCpuRegisterConcrete(unsigned offset, const void *buf, unsigned size) {
-        m_registers.writeSymbolicRegion(offset, buf, size);
-    }
-
     template <typename T> bool readPointer(uint64_t address, T &value) {
         bool status = false;
         if (getPointerSize() == 4) {
             uint32_t pointer = 0;
-            status = mem()->readMemoryConcrete(address, &pointer, sizeof(pointer));
+            status = mem()->read(address, &pointer, sizeof(pointer));
             value = pointer;
         } else {
             if (sizeof(T) == 8) {
                 uint64_t pointer = 0;
-                status = mem()->readMemoryConcrete(address, &pointer, sizeof(pointer));
+                status = mem()->read(address, &pointer, sizeof(pointer));
                 value = pointer;
             }
         }
@@ -453,37 +334,15 @@ public:
     bool writePointer(uint64_t address, uint64_t value) {
         if (getPointerSize() == 4) {
             if (value <= 0xffffffff) {
-                return mem()->writeMemory(address, (uint32_t) value);
+                return mem()->write(address, (uint32_t) value);
             }
         } else {
-            return mem()->writeMemory(address, value);
+            return mem()->write(address, value);
         }
         return false;
     }
 
-    uint64_t getPc() const {
-        return m_registers.getPc();
-    }
-
-    uint64_t getPageDir() const {
-        return m_registers.getPageDir();
-    }
-
-    uint64_t getSp() const {
-        return m_registers.getSp();
-    }
-
-    uint64_t getFlags() {
-        return m_registers.getFlags();
-    }
-
-    void setPc(uint64_t pc) {
-        m_registers.setPc(pc);
-    }
-
-    void setSp(uint64_t sp) {
-        return m_registers.setSp(sp);
-    }
+    ///////////////////////////////////////////////////////
 
     unsigned getPointerSize() const;
     klee::Expr::Width getPointerWidth() const {
