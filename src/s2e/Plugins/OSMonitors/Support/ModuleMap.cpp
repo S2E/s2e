@@ -78,6 +78,13 @@ private:
     const static size_t MAX_EXPORT_CACHE_SIZE = 50;
 
 public:
+    ModuleMapState() : m_modules(), m_exportCacheList(), m_exportCacheMap() {
+    }
+
+    // Start with an empty cache on state clone
+    ModuleMapState(const ModuleMapState &state) : m_modules(state.m_modules), m_exportCacheList(), m_exportCacheMap() {
+    }
+
     virtual ~ModuleMapState() {
     }
 
@@ -177,14 +184,14 @@ public:
 
     void cacheExport(uint64_t address, const ModuleMap::Export &exp) {
         auto it = m_exportCacheMap.find(address);
-        m_exportCacheList.push_front({address, exp});
 
         if (it != m_exportCacheMap.end()) {
             m_exportCacheList.erase(it->second);
             m_exportCacheMap.erase(it);
         }
 
-        m_exportCacheMap[address] = m_exportCacheList.begin();
+        m_exportCacheList.push_front({address, exp});
+        m_exportCacheMap.insert({address, m_exportCacheList.begin()});
 
         if (m_exportCacheMap.size() > MAX_EXPORT_CACHE_SIZE) {
             auto last = m_exportCacheList.end();
