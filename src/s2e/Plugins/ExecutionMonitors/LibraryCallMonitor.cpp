@@ -41,11 +41,12 @@ void LibraryCallMonitor::initialize() {
 }
 
 void LibraryCallMonitor::logLibraryCall(S2EExecutionState *state, const std::string &callerMod, uint64_t pc,
-                                        unsigned sourceType, const std::string &calleeMod,
-                                        const std::string &function) const {
+                                        unsigned sourceType, const std::string &calleeMod, const std::string &function,
+                                        uint64_t pid) const {
     std::string sourceTypeDesc = (sourceType == TB_CALL_IND) ? " called " : " jumped to ";
 
-    getInfoStream(state) << callerMod << "@" << hexval(pc) << sourceTypeDesc << calleeMod << "." << function << "\n";
+    getInfoStream(state) << callerMod << "@" << hexval(pc) << sourceTypeDesc << calleeMod << "." << function
+                         << " (pid=" << hexval(pid) << ")\n";
 }
 
 void LibraryCallMonitor::onTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb,
@@ -82,7 +83,7 @@ void LibraryCallMonitor::onIndirectCallOrJump(S2EExecutionState *state, uint64_t
     const ModuleMap::Export *cachedExp = m_map->getExport(state, targetAddr);
 
     if (cachedExp) {
-        logLibraryCall(state, currentMod->Name, pc, sourceType, cachedExp->first->Name, cachedExp->second);
+        logLibraryCall(state, currentMod->Name, pc, sourceType, cachedExp->first->Name, cachedExp->second, pid);
         onLibraryCall.emit(state, *(cachedExp->first), targetAddr);
     } else {
         for (auto const &mod : mods) {
@@ -96,7 +97,7 @@ void LibraryCallMonitor::onIndirectCallOrJump(S2EExecutionState *state, uint64_t
                 // Find the export that matches the call target
                 for (auto const &exp : exps) {
                     if (targetAddr == exp.second) {
-                        logLibraryCall(state, currentMod->Name, pc, sourceType, mod->Name, exp.first);
+                        logLibraryCall(state, currentMod->Name, pc, sourceType, mod->Name, exp.first, pid);
                         onLibraryCall.emit(state, *mod, targetAddr);
 
                         // Cache the result
