@@ -8,7 +8,7 @@ To run S2E, you need a QEMU-compatible virtual machine disk image. S2E can run a
 In this section, we describe how to build a Linux image and present general requirements and guidelines for various
 operating systems.
 
-Note that you only need to follow these steps if you are **not** using `s2e-env <s2e-env.rst>`_.
+Note that you only need to follow these steps if you are **not** using `s2e-env <s2e-env.rst>`__.
 
 Preparing a Linux VM Image
 ==========================
@@ -19,7 +19,7 @@ In the following, we describe how to install a minimal version of Debian Linux i
 problems if you use QEMU that comes with your system (especially when saving/restoring snapshots).
 
 ``$S2EDIR`` refers to the directory where S2E is located. The paths below assume you followed the `installation
-tutorials <BuildingS2E.rst>`_. Note that ``i386`` can be replaced with ``x86_64`` to build a 64-bit image.
+tutorials <BuildingS2E.rst>`__. Note that ``i386`` can be replaced with ``x86_64`` to build a 64-bit image.
 
 .. code-block:: console
 
@@ -38,8 +38,8 @@ tutorials <BuildingS2E.rst>`_. Note that ``i386`` can be replaced with ``x86_64`
     # inside the guest to install C and C++ compilers
     su -c "apt-get install build-essential"
 
-It is also recommended to build and install a `Linux kernel <BuildingLinux.rst>`_ that works with the `LinuxMonitor
-<Plugins/Linux/LinuxMonitor.rst>`_ plugin. Finally, the `guest tools <https://github.com/S2E/guest-tools>`_ should be
+It is also recommended to build and install a `Linux kernel <BuildingLinux.rst>`__ that works with the `LinuxMonitor
+<Plugins/Linux/LinuxMonitor.rst>`__ plugin. Finally, the `guest tools <https://github.com/S2E/guest-tools>`__ should be
 built and transferred to the image.
 
 You have just set up a disk image in RAW format. You need to convert it to the S2E format for use with S2E (the reasons
@@ -56,7 +56,7 @@ Taking Snapshots
 ================
 
 Once the image has been prepared, a snapshot should be taken. This allows the boot and startup sequence to be skipped
-when running an S2E analysis. To take a snapshot, you will need to build `libs2e <https://github.com/S2E/libs2e>`_ and
+when running an S2E analysis. To take a snapshot, you will need to build `libs2e <https://github.com/S2E/libs2e>`__ and
 boot your image with the following command:
 
 .. code-block:: console
@@ -68,7 +68,7 @@ boot your image with the following command:
         -net none -net nic,model=e1000
 
 Note that we load the **non-S2E** version of ``libs2e.so``. You can then run the ``launch.sh`` script from the `guest
-tools <https://github.com/S2E/guest-tools/blob/master/linux/scripts/launch.sh>`_. This will send the snapshot command
+tools <https://github.com/S2E/guest-tools/blob/master/linux/scripts/launch.sh>`__. This will send the snapshot command
 over the serial port to QEMU and take a ``ready`` snapshot (note that this requires the ``-enable-serial-commands``
 option). Note that if you would like to create a snapshot with a different name, modify the ``SECRET_MESSAGE_SAVEVM``
 variable in ``launch.sh``. After the snaptshot is taken, QEMU will shutdown. You should see a

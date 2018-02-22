@@ -65,8 +65,7 @@ FAQ
   getting lost in the large state space. However, it is very likely to get stuck in the constraint solver when checking
   the feasibility of a a branch condition (and computing new sets of concrete inputs).
 
-* *I implemented custom plugins to aggressively prune paths because symbolic execution was getting stuck.
-   Are these plugins still useful?*
+* *I implemented custom plugins to aggressively prune paths because symbolic execution was getting stuck. Are these plugins still useful?*
 
   Yes, reducing state space by discarding uninteresting paths is always useful. Concolic execution does not solve the path
   explosion problem by itself. It merely helps getting to deep parts of the program faster.
