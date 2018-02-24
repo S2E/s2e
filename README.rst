@@ -25,7 +25,7 @@ Documentation
 
   1. `Automated Generation of Proofs of Vulnerability with S2E <src/Tutorials/pov.rst>`_
   2. `DARPA Cyber Grand Challenge <src/Tutorials/CGC.rst>`_
-  3. `Coreutils <src/Tutorials/Coreutils.rst>`_
+  3. `Coreutils <src/Tutorials/coreutils/index.rst>`_
   4. `Analysis of Windows DLLs <src/Tutorials/WindowsDLL/index.rst>`_
   5. `Combining Kaitai Struct and S2E for analyzing parsers <https://adrianherrera.github.io/post/kaitai-s2e>`_
      (external link)
