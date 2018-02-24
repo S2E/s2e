@@ -58,4 +58,4 @@ This will generate ``projects/kernel32/s2e-last/basic_block_coverage.json``. Run
 ``install/bin/ida_highlight_basic_blocks.py`` script to highlight the basic block coverage should give a similar
 result to the following:
 
-.. image:: ../img/ida_kernel32_beep_coverage.png
+.. image:: ida_kernel32_beep_coverage.png
