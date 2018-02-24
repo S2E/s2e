@@ -143,7 +143,7 @@ This will display a TUI-based dashboard, similar to that used by the American Fu
 vulnerabilities, it generates POV files in the ``s2e-last`` directory. These files have either ``.xml`` or ``.c``
 file extensions. Once some POV files have been generated you can press ``q`` to stop S2E.
 
-.. image:: ../img/cadet_00001_tui.png
+.. image:: cadet_00001_tui.png
 
 Alternatively, you can run S2E without the TUI by using the ``-n`` option in ``s2e run``. Instead of the TUI you will
 see the standard S2E output.  Once some POVs have been generated you can stop S2E by killing the process with
