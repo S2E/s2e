@@ -40,7 +40,7 @@ The astute reader will note that while this will reduce the number of forked sta
 so by increasing the complexity of the path constraints. This may put pressure on the constraint solver and cause it to
 take more time to solve path constraints. It is up to the user to decide if this is an acceptable trade-off.
 
-The ``FunctionModels`` plugin uses `s2e.so <../../Howtos/s2e.so.rst>`_ to replace the function calls (e.g. ``strlen``,
+The ``FunctionModels`` plugin uses `s2e.so <../../Tutorials/BasicLinuxSymbex/s2e.so.rst>`_ to replace the function calls (e.g. ``strlen``,
 ``memcpy``, etc.) with calls to the functions in ``guest/linux/function_models/models.c``. The functions in
 ``models.c`` determine whether any of the function arguments are symbolic, and if so invoke the ``FunctionModels``
 plugin to generate the appropriate symbolic expression. Function call replacement relies on the target program being

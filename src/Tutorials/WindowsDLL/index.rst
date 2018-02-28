@@ -10,7 +10,7 @@ the `Beep <https://msdn.microsoft.com/en-us/library/windows/desktop/ms679277>`_ 
 Preparing the test environment
 ==============================
 
-As usual, use `s2e-env <../s2e-env.rst>`_ to create your S2E environment. Build a Windows image using the
+As usual, use `s2e-env <../../s2e-env.rst>`_ to create your S2E environment. Build a Windows image using the
 ``image_build`` command. Note that when building a Windows image the ``--iso-dir`` option must be provided. E.g.
 
 .. code-block:: console
@@ -47,7 +47,7 @@ it (e.g. via ``killall -9 qemu-system-x86_64``).
 Generate basic block coverage
 =============================
 
-As in the `coreutils <Coreutils.rst>`_ tutorial, you can use ``s2e-env`` to generate basic block coverage to confirm
+As in the `coreutils <../coreutils/index.rst>`_ tutorial, you can use ``s2e-env`` to generate basic block coverage to confirm
 that the ``Beep`` function was executed.
 
 .. code-block:: console

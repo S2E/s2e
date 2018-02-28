@@ -32,7 +32,7 @@ The coreutils programs will be available in ``coreutils-8.26/build/bin``.
 Setting up the test environment
 ===============================
 
-Use ``s2e-env`` to create your S2E environment. Follow `these <../s2e-env.rst>`_ instructions to build a 32-bit Linux
+Use ``s2e-env`` to create your S2E environment. Follow `these <../../s2e-env.rst>`_ instructions to build a 32-bit Linux
 image (from ``linux-4.9.3-i386``). Once you have an image you can create your project.
 
 .. code-block:: console

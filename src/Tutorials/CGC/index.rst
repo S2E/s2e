@@ -9,7 +9,7 @@ vulnerability" (POV - i.e. an exploit) in a CGC challenge binary (CB).
 
 .. Note::
 
-    You may want to refer to the tutorial on `Automated Generation of Proofs of Vulnerability with S2E <pov.rst>`_
+    You may want to refer to the tutorial on `Automated Generation of Proofs of Vulnerability with S2E <../pov.rst>`_
     in order to understand what S2E does behind the scenes in order to generate PoVs.
 
 .. contents::
@@ -18,7 +18,7 @@ Setting up the S2E environment
 ------------------------------
 
 The first step is to setup the environment. This can be done automatically using the ``s2e-env`` tool.
-Follow `these <../s2e-env.rst>`_ instructions to create your S2E environment and build S2E.
+Follow `these <../../s2e-env.rst>`_ instructions to create your S2E environment and build S2E.
 
 Creating a CGC image
 ~~~~~~~~~~~~~~~~~~~~
@@ -54,7 +54,7 @@ Once you have built the CADET_00001 binary you can create an S2E analysis projec
     s2e new_project --image cgc_debian-8.7.1-i386 ./source/s2e/decree/samples/CADET_00001
 
 This will create a ``projects/CADET_00001`` directory with various scripts and configuration files needed by S2E, as
-described `here <../s2e-env.rst>`__. Lets examine some of the generated files.
+described `here <../../s2e-env.rst>`__. Lets examine some of the generated files.
 
 s2e-config.lua
 ~~~~~~~~~~~~~~
@@ -120,7 +120,7 @@ The bootstrap script
 ~~~~~~~~~~~~~~~~~~~~
 
 The bootstrap script is a file called ``bootstrap.sh`` that the guest fetches from the host and executes. It contains
-instructions on how to execute the program under analysis. More detail can be found in the `s2e-env <../s2e-env.rst>`_
+instructions on how to execute the program under analysis. More detail can be found in the `s2e-env <../../s2e-env.rst>`_
 documentation.
 
 The CGC ``bootstrap.sh`` script slightly differs from Linux bootstraps. One key difference is that seeds will always be

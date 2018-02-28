@@ -226,7 +226,7 @@ seed files can then be used by S2E to concolically guide execution in the target
 To enable seed files in your project, use the ``new_project`` subcommand's ``--use-seeds`` flag. This will create a
 ``seeds`` directory in your project where seed files can be placed.
 
-For further discussion on seed files please see the `CGC tutorial <Tutorials/CGC.rst>`__.
+For further discussion on seed files please see the `CGC tutorial <Tutorials/CGC/index.rst>`__.
 
 Running your analysis
 ~~~~~~~~~~~~~~~~~~~~~
@@ -287,4 +287,4 @@ Next steps
 ----------
 
 Now that you know how to use ``s2e-env``, why not start using it to analyze binaries from `DARPA's Cyber Grand
-Challenge <Tutorials/CGC.rst>`__, programs from `Coreutils <Tutorials/Coreutils.rst>`__, or even your own programs!
+Challenge <Tutorials/CGC/index.rst>`__, programs from `Coreutils <Tutorials/coreutils/index.rst>`__, or even your own programs!

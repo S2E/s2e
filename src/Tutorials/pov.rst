@@ -29,7 +29,7 @@ focus on explaining how to generate the PoV.
     DARPA's `Cyber Grand Challenge <http://archive.darpa.mil/cybergrandchallenge/>`_ (CGC) was the world's first
     all-machine hacking tournament. S2E was a key component in CodeJitsu's Cyber Reasoning System (CRS) and was used to
     automatically to find vulnerabilities and exploit them. This tutorial walks you through the theory behind automated
-    PoV generation. After you are done reading it, you can get your hands dirty in this `follow-up <CGC.rst>`_.
+    PoV generation. After you are done reading it, you can get your hands dirty in this `follow-up <CGC/index.rst>`_.
 
 
 Understanding the Execution of a Vulnerable Program
@@ -596,4 +596,4 @@ Conclusion
 
 In this tutorial, you have learnt the theory behind automated PoV generation as well as various practical
 issues that arise when building a robust PoV generator. Now it is a good time to get your hands dirty
-by actually `generating <CGC.rst>`_ PoVs for a few vulnerable binaries.
+by actually `generating <CGC/index.rst>`_ PoVs for a few vulnerable binaries.

@@ -2,12 +2,12 @@
 Instrumenting Program Source Code for S2E
 =========================================
 
-`s2e-env <s2e-env.rst>`_ and `s2e.so <s2e.so.rst>`_ automate most of the tedious tasks of setting up virtual
+`s2e-env <../../s2e-env.rst>`_ and `s2e.so <s2e.so.rst>`_ automate most of the tedious tasks of setting up virtual
 machines, S2E configuration files, launch scripts, etc. This tutorial assumes that you have already built S2E and
 prepared a VM image as described on the `Building the S2E Platform <../../BuildingS2E.rst>`_ page, that you are familiar with
-`s2e-env <s2e-env.rst>`_, and that you tried symbolic execution on simple `Linux binaries <s2e.so.rst>`_.
+`s2e-env <../../s2e-env.rst>`_, and that you tried symbolic execution on simple `Linux binaries <s2e.so.rst>`_.
 
-In this tutorial, you will learn in more details what happens under the hood of `s2e-env <s2e-env.rst>`_ and `s2e.so
+In this tutorial, you will learn in more details what happens under the hood of `s2e-env <../../s2e-env.rst>`_ and `s2e.so
 <s2e.so.rst>`_, in particular how they actually make input symbolic, and how you can do the same for arbitrary
 programs. This may be useful on targets and platforms that are not supported yet by S2E's project creation scripts.
 We advise you to study how these tools work and adapt them to your own needs. Don't hesitate to look at their source code.
@@ -68,7 +68,7 @@ First, compile and run the program as usual, to make sure that it works.
    First char is not a digit
    First and second chars are not the same
 
-Then, create a new project using the `s2e-env <s2e-env.rst>`_ script. Once it is created, run it, and check that it runs
+Then, create a new project using the `s2e-env <../../s2e-env.rst>`_ script. Once it is created, run it, and check that it runs
 properly in the guest. You will need to run S2E with graphics output enabled so that you can type the input.
 
 Preparing the Program for S2E

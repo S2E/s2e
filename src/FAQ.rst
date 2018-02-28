@@ -10,7 +10,7 @@ How do I know what S2E is doing?
    This will allow you to collect all fork locations. Additionally, you can use ``TranslationBlockTracer``  in order to
    have a detailed trace for each execution path, which you can view with the ``tbtrace`` tool. Finally,
    ``TranslationBlockCoverage`` allows you to view the basic block coverage in either IDA Pro or Radare (as described
-   in the `Coreutils <Tutorials/Coreutils.rst>`_ tutorial).
+   in the `Coreutils <Tutorials/coreutils/index.rst>`_ tutorial).
 
 2. Look at ``s2e-last/debug.txt`` and other files. These files list all the major events occurring during symbolic
    execution.
@@ -52,8 +52,8 @@ Third, use S2E to *selectively* relax and/or over-constrain path constraints.
 
 * First, run the `fork profiler <Tools/ForkProfiler.rst>`_ to understand which program counters in your program fork
   the most. Usually, functions such as ``printf`` can be stubbed out, and others like ``strlen`` can be modeled
-  to decrease drastically the number of forks. `s2e.so <Howtos/s2e.so.rst>`_ comes with models for several such functions.
-  You can also give `state merging <StateMerging.rst>`_ a try.
+  to decrease drastically the number of forks. `s2e.so <Tutorials/BasicLinuxSymbex/s2e.so.rst>`_ comes with models for
+  several such functions. You can also give `state merging <StateMerging.rst>`_ a try.
 
 * Understanding what to select can be made considerably easier if you `attach a debugger <Howtos/Debugging.rst>`_ to
   the S2E instance.

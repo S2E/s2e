@@ -36,5 +36,5 @@ Limitations
   machines for now.
 * It is not possible to have a separate S2E window for each process for now. If you start with ``-nographic``, you will
   not be able to manipulate the console. To start the program that you want to symbolically execute in the guest, use
-  the `HostFiles <../UsingS2EGet.rst>`_ plugin or the ``-vnc :1`` option.
+  the `HostFiles <../MovingFiles.rst>`_ plugin or the ``-vnc :1`` option.
 * Because S2E uses the ``fork`` system call, S2E cannot run on Windows in multi-core mode.
