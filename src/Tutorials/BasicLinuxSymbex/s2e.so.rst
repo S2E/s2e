@@ -5,9 +5,7 @@ Symbolic Execution of Linux Binaries
 .. contents::
 
 In this tutorial, we will show how to symbolically (or concolically) execute *existing* Linux programs, *without*
-modifying their source code. In the `Testing a Simple Program <../TestingMinimalProgram.rst>`_ tutorial, we
-instrumented the source code with S2E instructions to inject symbolic values. This tutorial shows how to do this
-directly from the program's command line.
+modifying their source code. This tutorial shows how to do this directly from the program's command line.
 
 To do so, we use the ``s2e.so`` shared library and ``LD_PRELOAD``. This library intercepts the call to the ``main``
 function and inserts user-configured symbolic arguments.
