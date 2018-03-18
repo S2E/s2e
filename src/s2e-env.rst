@@ -88,13 +88,13 @@ You will need a virtual machine image to run your analysis target in. To see wha
     cd /home/user/s2e
     s2e image_build
 
-This will list an image template name and a description of that image. For example, to build a Linux Debian 8.7.1 i386
+This will list an image template name and a description of that image. For example, to build a Linux Debian 9.2.1 i386
 image run:
 
 .. code-block:: console
 
     cd /home/user/s2e
-    s2e image_build debian-8.7.1-i386
+    s2e image_build debian-9.2.1-i386
 
 This will:
 

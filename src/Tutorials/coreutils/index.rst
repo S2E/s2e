@@ -37,7 +37,7 @@ image (from ``linux-4.9.3-i386``). Once you have an image you can create your pr
 
 .. code-block:: console
 
-    s2e new_project --image debian-8.7.1-i386 /path/to/coreutils-8.26/build/bin/cat -T @@
+    s2e new_project --image debian-9.2.1-i386 /path/to/coreutils-8.26/build/bin/cat -T @@
 
 The ``@@`` symbol tells ``s2e-env`` to generate a bootstrap file that will run ``cat`` with a symbolic file as input.
 By default this symbolic file will be a 256 byte file filled with ``null`` bytes.

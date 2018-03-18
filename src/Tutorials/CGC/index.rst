@@ -31,7 +31,7 @@ virtual machine image can be built by running the following command:
 
 .. code-block:: console
 
-    s2e image_build cgc_debian-8.7.1-i386
+    s2e image_build cgc_debian-9.2.1-i386
 
 Analyzing a sample CB
 ---------------------
@@ -51,7 +51,7 @@ Once you have built the CADET_00001 binary you can create an S2E analysis projec
 
 .. code-block:: console
 
-    s2e new_project --image cgc_debian-8.7.1-i386 ./source/s2e/decree/samples/CADET_00001
+    s2e new_project --image cgc_debian-9.2.1-i386 ./source/s2e/decree/samples/CADET_00001
 
 This will create a ``projects/CADET_00001`` directory with various scripts and configuration files needed by S2E, as
 described `here <../../s2e-env.rst>`__. Lets examine some of the generated files.
