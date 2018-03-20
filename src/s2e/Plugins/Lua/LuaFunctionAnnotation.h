@@ -68,8 +68,8 @@ private:
     void onModuleLoad(S2EExecutionState *state, const ModuleDescriptor &module);
     void onModuleUnload(S2EExecutionState *state, const ModuleDescriptor &module);
 
-    void onFunctionCall(S2EExecutionState *state, FunctionMonitorState *fns, const Annotation &entry);
-    void onFunctionRet(S2EExecutionState *state, const Annotation &entry);
+    void onFunctionCall(S2EExecutionState *state, FunctionMonitorState *fns, Annotation entry);
+    void onFunctionRet(S2EExecutionState *state, Annotation entry);
 };
 
 } // namespace plugins

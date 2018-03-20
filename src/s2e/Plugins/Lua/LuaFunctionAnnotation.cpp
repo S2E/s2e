@@ -162,7 +162,8 @@ void LuaFunctionAnnotation::hookAnnotation(S2EExecutionState *state, const Modul
                                            const Annotation &annotation) {
     uint64_t funcPc = module.ToRuntime(annotation.pc);
 
-    FunctionMonitor::CallSignal *cs = m_functionMonitor->getCallSignal(state, funcPc, m_monitor->getPid(state, funcPc));
+    FunctionMonitor::CallSignal *cs =
+        m_functionMonitor->getCallSignal(state, funcPc, m_monitor->getAddressSpace(state, funcPc));
     cs->connect(sigc::bind(sigc::mem_fun(*this, &LuaFunctionAnnotation::onFunctionCall), annotation));
 }
 
@@ -269,8 +270,7 @@ void LuaFunctionAnnotation::invokeAnnotation(S2EExecutionState *state, const Ann
     }
 }
 
-void LuaFunctionAnnotation::onFunctionCall(S2EExecutionState *state, FunctionMonitorState *fns,
-                                           const Annotation &entry) {
+void LuaFunctionAnnotation::onFunctionCall(S2EExecutionState *state, FunctionMonitorState *fns, Annotation entry) {
     state->undoCallAndJumpToSymbolic();
     getDebugStream() << "Invoking call annotation " << entry.annotationName << '\n';
 
@@ -281,7 +281,7 @@ void LuaFunctionAnnotation::onFunctionCall(S2EExecutionState *state, FunctionMon
     invokeAnnotation(state, entry, true);
 }
 
-void LuaFunctionAnnotation::onFunctionRet(S2EExecutionState *state, const Annotation &entry) {
+void LuaFunctionAnnotation::onFunctionRet(S2EExecutionState *state, Annotation entry) {
     state->jumpToSymbolicCpp();
     getDebugStream() << "Invoking return annotation " << entry.annotationName << '\n';
     invokeAnnotation(state, entry, false);
