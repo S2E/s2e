@@ -26,7 +26,7 @@ Options
 Usage Example
 -------------
 
-1. Create a new project using `s2e-env<../s2e-env.rst>`_.
+1. Create a new project using `s2e-env <../s2e-env.rst>`_.
 2. Enable the ``ExecutionTracer`` plugin in ``s2e-config.lua``.
 3. Start symbolic execution using ``./launch-s2e.sh``
 4. When analysis is done and the VM has shut down the ``forkprofiler`` may be run.

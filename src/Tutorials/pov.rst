@@ -19,6 +19,7 @@ Automating this can be decomposed in two parts: finding the vulnerable program l
 vulnerability (PoV). In this tutorial, we will assume that the vulnerable instruction has been found and will
 focus on explaining how to generate the PoV.
 
+.. note::
 
     Although not required, we recommend that you get familiar with the DARPA CyberGrandChallenge (CGC) in order to have
     a better understanding of this tutorial. The CGC documentation is on
@@ -28,7 +29,7 @@ focus on explaining how to generate the PoV.
     DARPA's `Cyber Grand Challenge <http://archive.darpa.mil/cybergrandchallenge/>`_ (CGC) was the world's first
     all-machine hacking tournament. S2E was a key component in CodeJitsu's Cyber Reasoning System (CRS) and was used to
     automatically to find vulnerabilities and exploit them. This tutorial walks you through the theory behind automated
-    PoV generation. After you are done reading it, you can get your hands dirty in this `follow-up <CGC.rst>`_.
+    PoV generation. After you are done reading it, you can get your hands dirty in this `follow-up <CGC/index.rst>`_.
 
 
 Understanding the Execution of a Vulnerable Program
@@ -51,7 +52,7 @@ of 4 bytes and the receive function tries to write 12 bytes into it, causing a b
 Since the processor executes machine instructions, we must reason about the binary form of this program. Here is how the
 assembly code for this program could look like, with the most important instructions explained.
 
-.. code-block:: asm
+.. code-block:: none
     :number-lines:
 
     push    ebp
@@ -69,7 +70,7 @@ Let's now see what the program would execute if the attacker sends the string ``
 pointer register is ``0xf0`` at instruction 1 and the frame pointer is ``0x1000``. After executing instruction 6 and
 right before calling receive, the program stack could look like this:
 
-.. code-block::
+.. code-block:: none
 
     0xf8: 0xabc0    ; argv
     0xf4: 0xdef0    ; argc
@@ -81,7 +82,7 @@ right before calling receive, the program stack could look like this:
 
 After calling receive, the stack looks like this:
 
-.. code-block::
+.. code-block:: none
 
     0xf8: 0xabc0    ; argv
     0xf4: 0xdef0    ; argc
@@ -146,7 +147,7 @@ memory location. Each symbolic variable gets a name (e.g., ``"input_buffer"``) i
 generation. When running the previous example inside a symbolic execution engine, the stack would look like this when
 receive returns:
 
-.. code-block::
+.. code-block:: none
 
     0xf8: 0xabc0     ; argv
     0xf4: 0xdef0     ; argc
@@ -188,12 +189,12 @@ the form ``EIP[0] == $eip[0]`` represent constraints on the symbolic registers. 
 right hand side is a variable that represents a concrete value negotiated with the CGC framework (the framework chooses
 a random ``EIP`` value to check that the exploit works for any ``EIP`` value).
 
-
+.. note::
 
     We use the DARPA CyberGrandChallenge terminology, which defines ``Type 1`` and ``Type 2`` vulnerabilities.
     Refer to the CGC `documentation <https://github.com/CyberGrandChallenge/cgc-release-documentation/blob/master/walk-throughs/understanding-cfe-povs.md>`_ for more details.
 
-.. code-block::
+.. code-block:: none
 
     *type 1*
     *gp = EAX*
@@ -213,7 +214,7 @@ constraint on a memory location at address ``EIP + XXX``. For example, ``EIP+0``
 symbolic execution engine encounters a symbolic program counter, it checks that the recipe constraints can be satisfied,
 and if so, generates the PoV.
 
-.. code-block::
+.. code-block:: none
 
     # Set GP and EIP with shellcode
     # mov eax $gp
@@ -595,4 +596,4 @@ Conclusion
 
 In this tutorial, you have learnt the theory behind automated PoV generation as well as various practical
 issues that arise when building a robust PoV generator. Now it is a good time to get your hands dirty
-by actually `generating <CGC.rst>`_ PoVs for a few vulnerable binaries.
+by actually `generating <CGC/index.rst>`_ PoVs for a few vulnerable binaries.

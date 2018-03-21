@@ -18,22 +18,29 @@ Documentation
 
   1. `Creating analysis projects with s2e-env <src/s2e-env.rst>`_
   2. `Building S2E without s2e-env <src/BuildingS2E.rst>`_
-  3. `Symbolic execution of Linux binaries <src/Howtos/s2e.so.rst>`_
-  4. `Symbolic execution of arbitrary programs <src/ManualTesting.rst>`_
+  3. `Symbolic execution of Linux binaries <src/Tutorials/BasicLinuxSymbex/s2e.so.rst>`_
+  4. `Symbolic execution of arbitrary programs <src/Tutorials/BasicLinuxSymbex/SourceCode.rst>`_
 
 * Tutorials
 
   1. `Automated Generation of Proofs of Vulnerability with S2E <src/Tutorials/pov.rst>`_
-  2. `DARPA Cyber Grand Challenge <src/Tutorials/CGC.rst>`_
-  3. `Coreutils <src/Tutorials/Coreutils.rst>`_
-  4. `Windows DLL <src/Tutorials/WindowsDLL.rst>`_
-  5. `Combining Kaitai Struct and S2E for analyzing parsers <https://adrianherrera.github.io/post/kaitai-s2e>`_
+  2. `DARPA Cyber Grand Challenge <src/Tutorials/CGC/index.rst>`_
+  3. `Combining Kaitai Struct and S2E for analyzing parsers <https://adrianherrera.github.io/post/kaitai-s2e>`_
      (external link)
-  6. `Testing Error Recovery Code in Windows Drivers with Multi-Path Fault Injection <src/Tutorials/WindowsDrivers/FaultInjection.rst>`_
+
+  4. Analysis of Linux binaries
+
+     a. `Symbolic execution of Coreutils <src/Tutorials/coreutils/index.rst>`_
+     b. `Using SystemTap with S2E <src/Tutorials/SystemTap/index.rst>`_
+
+  5. Analysis of Windows binaries
+
+     a. `Analysis of Windows DLLs <src/Tutorials/WindowsDLL/index.rst>`_
+     b. `Testing Error Recovery Code in Windows Drivers with Multi-Path Fault Injection <src/Tutorials/WindowsDrivers/FaultInjection.rst>`_
 
 * Howtos
 
-  1. `Preparing a VM image for S2E <src/ImageInstallation.rst>`_
+  1. `Customizing stock VM images <src/ImageInstallation.rst>`_
   2. `Moving files between the guest and host <src/MovingFiles.rst>`_
   3. `Using execution tracers <src/Howtos/ExecutionTracers.rst>`_
   4. `Running S2E on multiple cores <src/Howtos/Parallel.rst>`_
@@ -49,8 +56,7 @@ Documentation
 
 * Analyzing the Linux Kernel
 
-  1. `Building the Linux kernel <src/BuildingLinux.rst>`_
-  2. `Using SystemTap with S2E <src/SystemTap.rst>`_
+
 
 * S2E Tools
 

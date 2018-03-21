@@ -9,7 +9,7 @@ vulnerability" (POV - i.e. an exploit) in a CGC challenge binary (CB).
 
 .. Note::
 
-    You may want to refer to the tutorial on `Automated Generation of Proofs of Vulnerability with S2E <pov.rst>`_
+    You may want to refer to the tutorial on `Automated Generation of Proofs of Vulnerability with S2E <../pov.rst>`_
     in order to understand what S2E does behind the scenes in order to generate PoVs.
 
 .. contents::
@@ -18,7 +18,7 @@ Setting up the S2E environment
 ------------------------------
 
 The first step is to setup the environment. This can be done automatically using the ``s2e-env`` tool.
-Follow `these <../s2e-env.rst>`_ instructions to create your S2E environment and build S2E.
+Follow `these <../../s2e-env.rst>`_ instructions to create your S2E environment and build S2E.
 
 Creating a CGC image
 ~~~~~~~~~~~~~~~~~~~~
@@ -31,16 +31,16 @@ virtual machine image can be built by running the following command:
 
 .. code-block:: console
 
-    s2e image_build cgc_debian-8.7.1-i386
+    s2e image_build cgc_debian-9.2.1-i386
 
 Analyzing a sample CB
 ---------------------
 
 Once we have an image we can start analyzing CBs. Sample CBs are available `here
-<https://github.com/CyberGrandChallenge/samples>`_ and can be built using the instructions `here
-<https://github.com/CyberGrandChallenge/cgc-release-documentation/blob/master/walk-throughs/building-a-cb.md>`_ . The
+<https://github.com/CyberGrandChallenge/samples>`__ and can be built using the instructions `here
+<https://github.com/CyberGrandChallenge/cgc-release-documentation/blob/master/walk-throughs/building-a-cb.md>`__ . The
 remainder of this tutorial will focus on the CADET_00001 program (which is available `here
-<https://github.com/S2E/decree/blob/master/samples/CADET_00001>`_), but the ideas and techniques should be applicable
+<https://github.com/S2E/decree/blob/master/samples/CADET_00001>`__), but the ideas and techniques should be applicable
 to all of the CBs.
 
 
@@ -51,10 +51,10 @@ Once you have built the CADET_00001 binary you can create an S2E analysis projec
 
 .. code-block:: console
 
-    s2e new_project --image cgc_debian-8.7.1-i386 ./source/s2e/decree/samples/CADET_00001
+    s2e new_project --image cgc_debian-9.2.1-i386 ./source/s2e/decree/samples/CADET_00001
 
 This will create a ``projects/CADET_00001`` directory with various scripts and configuration files needed by S2E, as
-described `here <../s2e-env.rst>`_. Lets examine some of the generated files.
+described `here <../../s2e-env.rst>`__. Lets examine some of the generated files.
 
 s2e-config.lua
 ~~~~~~~~~~~~~~
@@ -114,13 +114,13 @@ SeedSearcher
 
 CUPA Searcher
     This searcher implements the Class Uniform Path Analysis (CUPA) algorithm as described in `this
-    <http://www.stefanbucur.net/assets/pubs/chef.pdf>`_ paper. It can work together with the ``SeedSearcher`` plugin.
+    <http://www.stefanbucur.net/assets/pubs/chef.pdf>`__ paper. It can work together with the ``SeedSearcher`` plugin.
 
 The bootstrap script
 ~~~~~~~~~~~~~~~~~~~~
 
 The bootstrap script is a file called ``bootstrap.sh`` that the guest fetches from the host and executes. It contains
-instructions on how to execute the program under analysis. More detail can be found in the `s2e-env <../s2e-env.rst>`_
+instructions on how to execute the program under analysis. More detail can be found in the `s2e-env <../../s2e-env.rst>`_
 documentation.
 
 The CGC ``bootstrap.sh`` script slightly differs from Linux bootstraps. One key difference is that seeds will always be
@@ -143,7 +143,7 @@ This will display a TUI-based dashboard, similar to that used by the American Fu
 vulnerabilities, it generates POV files in the ``s2e-last`` directory. These files have either ``.xml`` or ``.c``
 file extensions. Once some POV files have been generated you can press ``q`` to stop S2E.
 
-.. image:: ../img/cadet_00001_tui.png
+.. image:: cadet_00001_tui.png
 
 Alternatively, you can run S2E without the TUI by using the ``-n`` option in ``s2e run``. Instead of the TUI you will
 see the standard S2E output.  Once some POVs have been generated you can stop S2E by killing the process with
@@ -156,15 +156,15 @@ Replaying POVs
 --------------
 
 POVs are an XML description of an exploit (for more detail, see `here
-<https://github.com/CyberGrandChallenge/cgc-release-documentation/blob/master/walk-throughs/understanding-cfe-povs.md>`_).
+<https://github.com/CyberGrandChallenge/cgc-release-documentation/blob/master/walk-throughs/understanding-cfe-povs.md>`__).
 They can be compiled to C code and then to an executable format to test that the exploit is correct.
 
 1. Follow the instructions `here
-   <https://github.com/CyberGrandChallenge/cgc-release-documentation/blob/master/walk-throughs/running-the-vm.md>`_ to
+   <https://github.com/CyberGrandChallenge/cgc-release-documentation/blob/master/walk-throughs/running-the-vm.md>`__ to
    setup and run the CGC testing VM
 2. As discussed in the instructions in the previous step, files can be shared between the host and CGC testing VM via
    the ``/vagrant`` directory. Copy the CADET_00001 binary, the POV XML files generated by S2E and `this
-   <https://github.com/S2E/cgc/blob/master/scripts/test_pov.sh>`_ script (located in your S2E environment in
+   <https://github.com/S2E/cgc/blob/master/scripts/test_pov.sh>`__ script (located in your S2E environment in
    ``bin/cgc-tools/test_pov.sh``) to the CGC testing VM.
 3. Run ``vagrant ssh`` to access the VM and copy the files from ``/vagrant`` into ``/home/vagrant``. Then run the
    ``test_pov.sh`` script to check your POV's correctness.

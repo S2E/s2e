@@ -11,7 +11,7 @@ Setting up the HostFiles Plugin
 -------------------------------
 
 To use ``s2eget`` and ``s2eput`` you **must** enable the ``HostFiles`` plugin in the S2E configuration file. To do so,
-add the following lines to your ``s2e-config.lua`:
+add the following lines to your ``s2e-config.lua``:
 
 .. code-block:: lua
 

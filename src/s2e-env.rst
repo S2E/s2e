@@ -32,7 +32,7 @@ Using s2e-env
 -------------
 
 General instructions for using ``s2e-env`` can be found in its `README
-<https://github.com/s2e/s2e-env/blob/master/README.md>`_. Help for each command is available by running:
+<https://github.com/s2e/s2e-env/blob/master/README.md>`__. Help for each command is available by running:
 
 .. code-block:: console
 
@@ -51,7 +51,7 @@ To create a new S2E environment in ``/home/user/s2e``, run:
     s2e init /home/user/s2e
 
 This will fetch the required source code, install S2E's dependencies (via apt) and create the directory structure
-described `here <https://github.com/s2e/s2e-env/blob/master/README.md>`_. If you want to skip the dependency
+described `here <https://github.com/s2e/s2e-env/blob/master/README.md>`__. If you want to skip the dependency
 installation step (e.g. if you have already installed the dependencies) use the ``--skip-dependencies`` flag. Note that
 if you are using Ubuntu 14.04, you must install CMake manually - S2E requires version 3.4.3 or newer, which is not
 available in the Ubuntu 14.04 repositories.
@@ -88,26 +88,26 @@ You will need a virtual machine image to run your analysis target in. To see wha
     cd /home/user/s2e
     s2e image_build
 
-This will list an image template name and a description of that image. For example, to build a Linux Debian 8.7.1 i386
+This will list an image template name and a description of that image. For example, to build a Linux Debian 9.2.1 i386
 image run:
 
 .. code-block:: console
 
     cd /home/user/s2e
-    s2e image_build debian-8.7.1-i386
+    s2e image_build debian-9.2.1-i386
 
 This will:
 
 * Create a Debian-based image under the ``images`` directory of your environment
 * Configure the image for S2E
-* Install an S2E-compatible kernel that can be used with the `LinuxMonitor <Plugins/Linux/LinuxMonitor.rst>`_ plugin
+* Install an S2E-compatible kernel that can be used with the `LinuxMonitor <Plugins/Linux/LinuxMonitor.rst>`__ plugin
   and snapshot the image
 * Create a JSON file describing the image. This JSON description is important for the ``new_project`` command
 * Create a ready-to-run snapshot so that you do not have to reboot the guest everytime you want to run an analysis
 
 Building the image will take some time (approx. 30 minutes), so go and make another coffee. By default, ``image_build``
-requires `KVM <https://www.linux-kvm.org>`_ to accelerate the build process. If you do not have access to KVM (e.g. you
-are running S2E in `WSL <https://blogs.msdn.microsoft.com/wsl/>`_), you can disable this requirement with the ``-n``
+requires `KVM <https://www.linux-kvm.org>`__ to accelerate the build process. If you do not have access to KVM (e.g. you
+are running S2E in `WSL <https://blogs.msdn.microsoft.com/wsl/>`__), you can disable this requirement with the ``-n``
 option.
 
 You may also build all images at once:
@@ -120,8 +120,8 @@ You may also build all images at once:
 Note that this will build all Linux **and** Windows images. To only build the Linux images, use ``s2e image_build
 linux``. You can find more information about the infrastructure that builds the images in the following repositories:
 
-* `guest-images <https://github.com/S2E/guest-images>`_
-* `s2e-linux-kernel <https://github.com/S2E/s2e-linux-kernel>`_
+* `guest-images <https://github.com/S2E/guest-images>`__
+* `s2e-linux-kernel <https://github.com/S2E/s2e-linux-kernel>`__
 
 **NOTE**: The image build process caches intermediate build output in ``.tmp-output`` that can grow quite large. Once
 the images have been built you may wish to delete this directory if disk space is an issue.
@@ -130,9 +130,9 @@ Windows images
 ^^^^^^^^^^^^^^
 
 ``s2e-env`` can also be used to build Windows images. The supported Windows versions can be found
-`here <https://github.com/S2E/guest-images/blob/master/images.json>`_. The ``--iso-dir`` option **must** be
+`here <https://github.com/S2E/guest-images/blob/master/images.json>`__. The ``--iso-dir`` option **must** be
 specified when building Windows images. The directory specified must also contain an ISO with the name listed in
-`images.json <https://github.com/S2E/guest-images/blob/master/images.json>`_. For example, the following command can
+`images.json <https://github.com/S2E/guest-images/blob/master/images.json>`__. For example, the following command can
 be used to build a Windows 7, SP1 image:
 
 .. code-block:: console
@@ -142,7 +142,7 @@ be used to build a Windows 7, SP1 image:
 Where ``/path/to/isos`` is a directory containing
 ``en_windows_7_enterprise_with_sp1_x64_dvd_u_677651.so``.
 
-The ISOs listed in ``images.json`` are available from `MSDN <https://msdn.microsoft.com/>`_. ``s2e image_build
+The ISOs listed in ``images.json`` are available from `MSDN <https://msdn.microsoft.com/>`__. ``s2e image_build
 --iso-dir /path/to/isos windows`` can be used to build all Windows images.
 
 Creating a new analysis project
@@ -164,7 +164,7 @@ files and directories:
 bootstrap.sh
     S2E downloads this file from the host into the guest, then executes it. This file contains instructions on how
     to start the program, where to inject symbolic arguments, etc. When ``s2e-env`` creates a VM image, it configures
-    the image to run `launch.sh <https://github.com/S2E/guest-tools/blob/master/linux/scripts/launch.sh>`_ automatically
+    the image to run `launch.sh <https://github.com/S2E/guest-tools/blob/master/linux/scripts/launch.sh>`__ automatically
     when the s2e user logs in. This script fetches ``bootstrap.sh`` from the host and executes it.
     This script varies depending on your target program, so you should always check this file and modify it as required
     **before** running your analysis.
@@ -174,7 +174,7 @@ guestfs
     is used by S2E's ``VMI`` plugin for virtual machine introspection. Note that not all images provide a guestfs.
 
 guest-tools
-    A symlink to the S2E `guest tools <https://github.com/S2E/guest-tools>`_. These will be downloaded to the guest by
+    A symlink to the S2E `guest tools <https://github.com/S2E/guest-tools>`__. These will be downloaded to the guest by
     the bootstrap script every time you launch a new analysis. This way, you do not have to rebuild the VM image every
     time you modify these tools.
 
@@ -187,12 +187,12 @@ library.lua
     Contains convenience functions for the s2e-config.lua file.
 
 models.lua:
-    For specifying `function models <Plugins/Linux/FunctionModels.rst>`_.
+    For specifying `function models <Plugins/Linux/FunctionModels.rst>`__.
 
 s2e-config.lua
    The main S2E configuration file. Analysis plugins are enabled and configured here (in the ``pluginsConfig`` table).
    S2E (and KLEE) arguments are also specified here (under ``kleeArgs`` in the ``s2e`` table). The available S2E
-   arguments are defined in `S2EExecutor.cpp <https://github.com/S2E/libs2ecore/blob/master/src/S2EExecutor.cpp>`_.
+   arguments are defined in `S2EExecutor.cpp <https://github.com/S2E/libs2ecore/blob/master/src/S2EExecutor.cpp>`__.
 
 Target program arguments
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -226,7 +226,7 @@ seed files can then be used by S2E to concolically guide execution in the target
 To enable seed files in your project, use the ``new_project`` subcommand's ``--use-seeds`` flag. This will create a
 ``seeds`` directory in your project where seed files can be placed.
 
-For further discussion on seed files please see the `CGC tutorial <Tutorials/CGC.rst>`_.
+For further discussion on seed files please see the `CGC tutorial <Tutorials/CGC/index.rst>`__.
 
 Running your analysis
 ~~~~~~~~~~~~~~~~~~~~~
@@ -244,7 +244,7 @@ Parsing an execution trace
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The ``execution_trace`` command can be used to parse one or more ``ExecutionTracer.dat`` files generated by S2E's
-`execution tracer <Howtos/ExecutionTracers.rst>`_ plugins.
+`execution tracer <Howtos/ExecutionTracers.rst>`__ plugins.
 
 The following can be used to output the complete execution trace in ``s2e-last`` in JSON format:
 
@@ -287,4 +287,4 @@ Next steps
 ----------
 
 Now that you know how to use ``s2e-env``, why not start using it to analyze binaries from `DARPA's Cyber Grand
-Challenge <Tutorials/CGC.rst>`_, programs from `Coreutils <Tutorials/Coreutils.rst>`_, or even your own programs!
+Challenge <Tutorials/CGC/index.rst>`__, programs from `Coreutils <Tutorials/coreutils/index.rst>`__, or even your own programs!
