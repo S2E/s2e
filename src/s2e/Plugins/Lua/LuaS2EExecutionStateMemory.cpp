@@ -63,11 +63,35 @@ int LuaS2EExecutionStateMemory::readBytes(lua_State *L) {
 
 int LuaS2EExecutionStateMemory::write(lua_State *L) {
     long address = (long) luaL_checkinteger(L, 1);
-    void *expr = luaL_checkudata(L, 2, "LuaExpression");
 
-    LuaExpression *value = *static_cast<LuaExpression **>(expr);
-    g_s2e->getDebugStream(m_state) << "Writing " << value->get() << " to " << hexval(address) << "\n";
-    m_state->mem()->write(address, value->get());
+    if (lua_isuserdata(L, 2)) {
+        void *expr = luaL_checkudata(L, 2, "LuaExpression");
+        LuaExpression *value = *static_cast<LuaExpression **>(expr);
+        g_s2e->getDebugStream(m_state) << "Writing " << value->get() << "\n";
+        m_state->mem()->write(address, value->get());
+    } else if (lua_isnumber(L, 2)) {
+        long value = (long) luaL_checkinteger(L, 2);
+        long size = (long) luaL_checkinteger(L, 3);
+        g_s2e->getDebugStream(m_state) << "Writing " << value << " of size " << size << "\n";
+        switch (size) {
+            case 1:
+                m_state->mem()->write<uint8_t>(address, value);
+                break;
+            case 2:
+                m_state->mem()->write<uint16_t>(address, value);
+                break;
+            case 4:
+                m_state->mem()->write<uint32_t>(address, value);
+                break;
+            case 8:
+                m_state->mem()->write<uint64_t>(address, value);
+                break;
+            default:
+                g_s2e->getDebugStream(m_state) << "LuaS2EExecutionStateRegisters::write: Incorrect size " << size
+                                               << "\n";
+                break;
+        }
+    }
 
     return 1;
 }
