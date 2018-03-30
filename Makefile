@@ -198,7 +198,7 @@ endif
 $(LUA_SRC):
 	wget http://www.lua.org/ftp/$(LUA_SRC)
 
-$(LUA_DIR): $(LUA_SRC)
+$(LUA_DIR): | $(LUA_SRC)
 	tar -zxf $(LUA_SRC)
 	cp $(S2ESRC)/lua/luaconf.h $(LUA_DIR)/src
 
