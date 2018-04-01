@@ -154,6 +154,10 @@ public:
     BaseLinuxMonitor(S2E *s2e) : OSMonitor(s2e) {
     }
 
+    virtual uint64_t getKernelStart() const {
+        return m_kernelStartAddress;
+    }
+
     /// Returns \c true if the given program counter is located within the kernel
     virtual bool isKernelAddress(uint64_t pc) const {
         return pc >= m_kernelStartAddress;

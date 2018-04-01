@@ -38,6 +38,9 @@ void ExecutionTracer::initialize() {
     }
 
     m_Monitor = static_cast<OSMonitor *>(s2e()->getPlugin("OSMonitor"));
+    if (m_Monitor) {
+        m_Monitor->onMonitorLoad.connect(sigc::mem_fun(*this, &ExecutionTracer::onMonitorLoad));
+    }
 }
 
 ExecutionTracer::~ExecutionTracer() {
@@ -185,6 +188,12 @@ void ExecutionTracer::onFork(S2EExecutionState *state, const std::vector<S2EExec
     writeData(state, itemFork, itemSize, TRACE_FORK);
 
     delete[] itemBytes;
+}
+
+void ExecutionTracer::onMonitorLoad(S2EExecutionState *state) {
+    ExecutionTraceOSInfo info;
+    info.kernelStart = m_Monitor->getKernelStart();
+    writeData(state, &info, sizeof(info), TRACE_OSINFO);
 }
 
 } // namespace plugins

@@ -238,7 +238,7 @@ bool RawMonitor::getRelocations(S2EExecutionState *s, const ModuleDescriptor &de
 }
 
 bool RawMonitor::isKernelAddress(uint64_t pc) const {
-    return false;
+    return pc >= m_kernelStart;
 }
 
 uint64_t RawMonitor::getAddressSpace(S2EExecutionState *s, uint64_t pc) {

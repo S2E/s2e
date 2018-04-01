@@ -55,6 +55,8 @@ protected:
     }
 
 public:
+    virtual uint64_t getKernelStart() const = 0;
+
     virtual bool isKernelAddress(uint64_t pc) const = 0;
 
     virtual uint64_t getAddressSpace(S2EExecutionState *s, uint64_t pc) = 0;

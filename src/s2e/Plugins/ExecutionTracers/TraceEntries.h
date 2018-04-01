@@ -51,6 +51,7 @@ enum ExecTraceEntryType {
     TRACE_TB_START_X64,
     TRACE_TB_END_X64,
     TRACE_BLOCK,
+    TRACE_OSINFO,
     TRACE_MAX
 };
 
@@ -71,6 +72,18 @@ struct ExecutionTraceItemHeader {
 
     // uint8_t  payload[];
 } __attribute__((packed));
+
+// Records various information about the guest OS.
+// This info is useful for trace processors that need to know
+// which OS is running in order to correctly process other
+// trace items (e.g., know if a program counter belongs to kernel space
+// in order to assign it to the right module).
+struct ExecutionTraceOSInfo {
+    // The address above which lies the kernel space.
+    // Trace processors consider that any address above this is mapped
+    // into every address space.
+    uint64_t kernelStart;
+};
 
 struct ExecutionTraceModuleLoad {
     char name[32];

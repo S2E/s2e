@@ -71,6 +71,8 @@ private:
                 const std::vector<klee::ref<klee::Expr>> &newConditions);
 
     void onProcessFork(bool preFork, bool isChild, unsigned parentProcId);
+
+    void onMonitorLoad(S2EExecutionState *state);
 };
 
 } // namespace plugins
