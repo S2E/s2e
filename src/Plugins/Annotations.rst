@@ -190,6 +190,9 @@ A ``LuaS2EExecutionStateMemory`` object provides a wrapper around the ``S2EExecu
 
 **write(address, expr)**
     Write a ``LuaExpression`` object at the given address.
+    
+**write(address, value, size)** 
+    Write the given ``value`` at the specified ``address``.
 
 **makeSymbolic(address, size, name)**
     Make a region of memory symbolic.
