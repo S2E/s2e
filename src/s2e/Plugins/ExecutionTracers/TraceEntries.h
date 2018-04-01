@@ -27,6 +27,7 @@
 namespace s2e {
 namespace plugins {
 
+// TODO: cleanup entries that are not used by any plugin
 enum ExecTraceEntryType {
     TRACE_MOD_LOAD = 0,
     TRACE_MOD_UNLOAD,
@@ -54,11 +55,20 @@ enum ExecTraceEntryType {
 };
 
 struct ExecutionTraceItemHeader {
-    uint64_t timeStamp;
-    uint32_t size; // Size of the payload
-    uint8_t type;
+    uint32_t type;
     uint32_t stateId;
+    uint64_t timeStamp;
+
+    // These items are needed by pretty much every entry,
+    // so we keep them in the header.
+    // TODO: remove them from other entries.
+    uint64_t addressSpace;
     uint64_t pid;
+    uint64_t pc;
+
+    // Size of the payload
+    uint32_t size;
+
     // uint8_t  payload[];
 } __attribute__((packed));
 
@@ -68,6 +78,10 @@ struct ExecutionTraceModuleLoad {
     uint64_t loadBase;
     uint64_t nativeBase;
     uint64_t size;
+
+    // These two fields refer to the module and may be
+    // different from those in the header (e.g., OS process at pid 4
+    // may load a module into pid 5).
     uint64_t addressSpace;
     uint64_t pid;
 } __attribute__((packed));
@@ -91,7 +105,6 @@ struct ExecutionTraceReturn {
 } __attribute__((packed));
 
 struct ExecutionTraceFork {
-    uint64_t pc;
     uint32_t stateCount;
     // Array of states (uint32_t)...
     uint32_t children[1];
