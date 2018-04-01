@@ -65,6 +65,8 @@ void ModuleTracer::moduleLoadListener(S2EExecutionState *state, const ModuleDesc
 void ModuleTracer::moduleUnloadListener(S2EExecutionState *state, const ModuleDescriptor &desc) {
     ExecutionTraceModuleUnload te;
     te.loadBase = desc.LoadBase;
+    te.pid = desc.Pid;
+    te.addressSpace = desc.AddressSpace;
 
     m_Tracer->writeData(state, &te, sizeof(te), TRACE_MOD_UNLOAD);
 }

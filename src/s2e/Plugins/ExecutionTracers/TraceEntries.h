@@ -88,6 +88,12 @@ struct ExecutionTraceModuleLoad {
 
 struct ExecutionTraceModuleUnload {
     uint64_t loadBase;
+
+    // These two fields refer to the module and may be
+    // different from those in the header (e.g., OS process at pid 4
+    // may load a module into pid 5).
+    uint64_t addressSpace;
+    uint64_t pid;
 } __attribute__((packed));
 
 struct ExecutionTraceProcessUnload {
