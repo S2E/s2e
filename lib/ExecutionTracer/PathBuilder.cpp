@@ -164,7 +164,7 @@ void PathBuilder::onItem(unsigned traceIndex, const s2e::plugins::ExecutionTrace
         // assert(f->stateCount == 2);
         for (unsigned i = 0; i < f->stateCount; ++i) {
             std::cout << "Forking " << hdr.stateId << " to " << f->children[i] << std::endl;
-            PathSegment *newSeg = new PathSegment(m_CurrentSegment, f->children[i], f->pc);
+            PathSegment *newSeg = new PathSegment(m_CurrentSegment, f->children[i], hdr.pc);
             m_Leaves[f->children[i]].push_back(newSeg);
         }
 

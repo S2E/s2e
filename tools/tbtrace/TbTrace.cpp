@@ -390,9 +390,8 @@ void TbTrace::onItem(unsigned traceIndex, const s2e::plugins::ExecutionTraceItem
     }
 
     if (hdr.type == s2e::plugins::TRACE_FORK) {
-        s2e::plugins::ExecutionTraceFork *f = (s2e::plugins::ExecutionTraceFork *) item;
-        m_output << "Forked at 0x" << std::hex << f->pc << " process " << hdr.pid << " - ";
-        printDebugInfo(hdr.pid, f->pc, 0, false);
+        m_output << "Forked at 0x" << std::hex << hdr.pc << " process " << hdr.pid << " - ";
+        printDebugInfo(hdr.pid, hdr.pc, 0, false);
         m_output << std::endl;
         return;
     }

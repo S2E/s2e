@@ -56,15 +56,15 @@ void ForkProfiler::doProfile(const s2e::plugins::ExecutionTraceItemHeader &hdr,
                              const s2e::plugins::ExecutionTraceFork *te) {
     ModuleCacheState *mcs = static_cast<ModuleCacheState *>(m_events->getState(m_cache, &ModuleCacheState::factory));
 
-    const ModuleInstance *mi = mcs->getInstance(hdr.pid, te->pc);
+    const ModuleInstance *mi = mcs->getInstance(hdr.pid, hdr.pc);
 
     ForkPoint fp;
-    fp.pc = te->pc;
+    fp.pc = hdr.pc;
     fp.pid = hdr.pid;
     fp.count = 1;
     fp.line = 0;
 
-    m_library->getInfo(mi, te->pc, fp.file, fp.line, fp.function);
+    m_library->getInfo(mi, hdr.pc, fp.file, fp.line, fp.function);
 
     ForkPoints::iterator it = m_forkPoints.find(fp);
     if (it == m_forkPoints.end()) {
@@ -90,17 +90,17 @@ void ForkProfiler::doGraph(const s2e::plugins::ExecutionTraceItemHeader &hdr,
                            const s2e::plugins::ExecutionTraceFork *te) {
     ModuleCacheState *mcs = static_cast<ModuleCacheState *>(m_events->getState(m_cache, &ModuleCacheState::factory));
 
-    const ModuleInstance *mi = mcs->getInstance(hdr.pid, te->pc);
+    const ModuleInstance *mi = mcs->getInstance(hdr.pid, hdr.pc);
 
     Fork f;
     f.id = hdr.stateId;
     f.pid = hdr.pid;
-    f.pc = te->pc;
+    f.pc = hdr.pc;
     if (mi) {
         f.module = mi->Name;
-        f.relPc = te->pc - mi->LoadBase + mi->ImageBase;
+        f.relPc = hdr.pc - mi->LoadBase + mi->ImageBase;
     } else {
-        f.relPc = te->pc;
+        f.relPc = hdr.pc;
     }
 
     for (unsigned i = 0; i < te->stateCount; ++i) {
