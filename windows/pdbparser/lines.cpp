@@ -16,28 +16,17 @@
 #pragma warning(pop)
 
 #include <map>
-#include <unordered_map>
 #include <sstream>
+#include <unordered_map>
+#include <unordered_set>
 
 #include "pdbparser.h"
 
 using namespace std;
 
-struct LINE_DATA
-{
-    std::string File;
-    DWORD Line;
-    UINT64 Address;
-};
-
-struct FILE_LINE_DATA
-{
-    DWORD Line;
-    UINT64 Address;
-};
-
-typedef map<DWORD, UINT64> LINE_TO_ADDRESS;
-typedef unordered_map<string, LINE_TO_ADDRESS> FILES;
+typedef unordered_set<UINT64> ADDRESSES;
+typedef map<DWORD, ADDRESSES> LINE_TO_ADDRESSES;
+typedef unordered_map<string, LINE_TO_ADDRESSES> FILES;
 
 struct LINE_INFO
 {
@@ -50,14 +39,32 @@ static BOOL CALLBACK EnumLinesCb(
 )
 {
     LINE_INFO *OurLineInfo = static_cast<LINE_INFO*>(UserContext);
-    LINE_DATA Data;
 
-    Data.File = LineInfo->FileName;
-    Data.Line = LineInfo->LineNumber;
-    Data.Address = LineInfo->Address;
+    std::string File = LineInfo->FileName;
+    DWORD Line = LineInfo->LineNumber;
 
-    OurLineInfo->Files[Data.File][Data.Line] = Data.Address;
+    OurLineInfo->Files[File][Line].insert(LineInfo->Address);
     return TRUE;
+}
+
+template <typename T>
+static VOID PrintArray(const T &Array)
+{
+    unsigned Index = 0;
+
+    printf("[");
+
+    for (auto it : Array) {
+        printf("%llu", it);
+
+        if (Index < Array.size() - 1) {
+            printf(", ");
+        }
+
+        ++Index;
+    }
+
+    printf("]");
 }
 
 static VOID PrintJson(const LINE_INFO &LineInfo)
@@ -76,9 +83,11 @@ static VOID PrintJson(const LINE_INFO &LineInfo)
 
         for (auto lit : File) {
             auto Line = lit.first;
-            auto Address = lit.second;
+            auto Addresses = lit.second;
 
-            printf("    [%d, %#llu]", Line, Address);
+            printf("    [%d, ", Line);
+            PrintArray(Addresses);
+            printf("]");
 
             if (LineIndex == File.size() - 1) {
                 printf("\n");
