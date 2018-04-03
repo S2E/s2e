@@ -42,6 +42,7 @@ static inline void s2e_linux_load_module(uint64_t pid, const char *name, const c
     cmd.currentPid = pid;
     strncpy(cmd.currentName, name, sizeof(cmd.currentName));
     cmd.ModuleLoad = *m;
+    strncpy(cmd.ModuleLoad.module_path, path, sizeof(cmd.ModuleLoad.module_path));
 
     s2e_invoke_plugin("LinuxMonitor", &cmd, sizeof(cmd));
 }
