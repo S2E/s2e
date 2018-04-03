@@ -163,7 +163,22 @@ void LinuxMonitor::handleProcessLoad(S2EExecutionState *state, const S2E_LINUXMO
 }
 
 void LinuxMonitor::handleModuleLoad(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd) {
-    getWarningsStream(state) << "Module load not yet implemented\n";
+    ModuleDescriptor module;
+
+    auto moduleNameLen = strnlen(cmd.currentName, sizeof(cmd.currentName));
+    auto pathLen = strnlen(cmd.ModuleLoad.module_path, sizeof(cmd.ModuleLoad.module_path));
+
+    module.Path = std::string(cmd.ModuleLoad.module_path, pathLen);
+    module.Name = std::string(cmd.currentName, moduleNameLen);
+    module.Size = cmd.ModuleLoad.size;
+    module.AddressSpace = state->regs()->getPageDir();
+    module.Pid = cmd.currentPid;
+    module.LoadBase = cmd.ModuleLoad.load_base;
+    module.NativeBase = cmd.ModuleLoad.start_code;
+
+    getDebugStream(state) << module << '\n';
+
+    onModuleLoad.emit(state, module);
 }
 
 void LinuxMonitor::handleProcessExit(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd) {
