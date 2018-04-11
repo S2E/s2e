@@ -35,4 +35,4 @@ COPY s2e /opt/s2e
 
 # Install s2e-env
 COPY s2e-env /s2e-env
-RUN cd /s2e-env && pip install .
+RUN cd /s2e-env && pip install --process-dependency-links .

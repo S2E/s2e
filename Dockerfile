@@ -50,7 +50,7 @@ RUN cd s2e-build &&                                                         \
 # Install s2e-env
 RUN apt-get -y install python-pip && \
     cd s2e/s2e-env && \
-    pip install .
+    pip install --process-dependency-links .
 
 # Don't keep sources and build files
 RUN rm -rf s2e-build s2e
