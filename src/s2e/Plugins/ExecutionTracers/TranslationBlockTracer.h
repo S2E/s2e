@@ -74,4 +74,4 @@ public:
 } // namespace plugins
 } // namespace s2e
 
-#endif // S2E_PLUGINS_EXAMPLE_H
+#endif // S2E_PLUGINS_TBTRACER_H
