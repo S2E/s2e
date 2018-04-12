@@ -97,6 +97,18 @@ Required packages
     sudo apt-get install libglib2.0-dev
     sudo apt-get install python-docutils
 
+    # S2E image build dependencies
+    sudo apt-get install libguestfs-tools
+    sudo apt-get install genisoimage
+    sudo apt-get install python-pip
+    sudo apt-get install xz-utils
+    sudo apt-get install docker.io
+    sudo apt-get install p7zip-full
+    sudo apt-get install pxz
+    sudo apt-get install fuse
+    sudo apt-get install libhivex-bin
+    sudo apt-get install jigdo-file
+
 The following commands ask ``apt-get`` to install build dependencies for qemu:
 
 .. code-block:: console
