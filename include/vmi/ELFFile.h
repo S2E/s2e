@@ -252,7 +252,10 @@ template <typename EhdrT, typename PhdrT> bool ELFFile<EhdrT, PhdrT>::initialize
         imageSize += phdr->p_memsz;
 
         // The image base will be the lowest loadable address
-        if ((imageBase == 0) || (phdr->p_vaddr < imageBase)) {
+        // XXX: skip the 0 virtual address for now. Note that the the concept of image
+        // base doesn't really make sense on ELF files, whose sections can be loaded
+        // anywhere in virtual memory.
+        if ((imageBase == 0) || ((phdr->p_vaddr < imageBase) && (phdr->p_vaddr > 0))) {
             imageBase = phdr->p_vaddr;
         }
 
