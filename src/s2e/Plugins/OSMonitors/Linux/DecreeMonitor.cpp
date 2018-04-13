@@ -844,6 +844,13 @@ void DecreeMonitor::handleInit(S2EExecutionState *state, const S2E_DECREEMON_COM
 
     m_kernelStartAddress = d.page_offset;
     m_taskStructPidOffset = d.task_struct_pid_offset;
+
+    if (!m_initialized) {
+        m_initialized = true;
+        onMonitorLoad.emit(state);
+    }
+
+    loadKernelImage(state, d.start_kernel);
 }
 
 void DecreeMonitor::printOpcodeOffsets(S2EExecutionState *state) {
