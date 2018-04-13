@@ -132,6 +132,7 @@ public:
     virtual bool getSymbolAddress(const std::string &name, uint64_t *address) = 0;
     virtual bool getSourceInfo(uint64_t addr, std::string &source, uint64_t &line, std::string &function) = 0;
     virtual unsigned getPointerSize() const = 0;
+    virtual uint32_t getCheckSum() const = 0;
     virtual ssize_t read(void *buffer, size_t nbyte, off64_t va) const {
         return -1;
     }

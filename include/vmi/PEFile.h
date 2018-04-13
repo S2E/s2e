@@ -149,8 +149,6 @@ public:
         abort();
     }
 
-    virtual uint32_t getCheckSum() const = 0;
-
     virtual ssize_t read(void *buffer, size_t nbyte, off64_t va) const;
     virtual ssize_t write(void *buffer, size_t nbyte, off64_t va);
 

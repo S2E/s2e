@@ -71,6 +71,10 @@ public:
     }
 
     virtual ssize_t read(void *buffer, size_t nbyte, off64_t offset) const;
+
+    virtual uint32_t getCheckSum() const {
+        return 0;
+    }
 };
 }
 

@@ -87,6 +87,10 @@ public:
     virtual unsigned getPointerSize() const;
     virtual ssize_t read(void *buffer, size_t nbyte, off64_t va) const;
     virtual const Sections &getSections() const;
+    virtual uint32_t getCheckSum() const {
+        // TODO: implement this
+        return 0;
+    }
 };
 
 ///
