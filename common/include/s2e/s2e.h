@@ -878,6 +878,15 @@ static inline void s2e_hex_dump(const char *name, void *addr, unsigned size) {
     );
 }
 
+///
+/// \brief Flush the CPU translation block cache
+///
+static inline void s2e_flush_tbs(void) {
+    __asm__ __volatile__(
+        S2E_INSTRUCTION_SIMPLE(BASE_S2E_FLUSH_TBS)
+    );
+}
+
 // clang-format on
 
 #endif

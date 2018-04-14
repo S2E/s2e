@@ -96,6 +96,7 @@ extern "C" {
 #define BASE_S2E_GET_OBJ_SZ     0x52
 #define BASE_S2E_CLEAR_TEMPS    0x53
 #define BASE_S2E_FORK_COUNT     0x54
+#define BASE_S2E_FLUSH_TBS      0x55
 
 // Maximum S2E opcode allowed
 #define BASE_S2E_MAX_OPCODE     0x70
