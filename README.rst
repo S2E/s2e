@@ -46,6 +46,7 @@ Documentation
   4. `Running S2E on multiple cores <src/Howtos/Parallel.rst>`_
   5. `Writing S2E plugins <src/Howtos/WritingPlugins.rst>`_
   6. `Communicating between the guest and S2E plugins <src/Plugins/BaseInstructions.rst>`_
+  7. `Measuring code coverage with S2E <src/Howtos/Coverage/index.rst>`_
 
 * Advanced topics
 
