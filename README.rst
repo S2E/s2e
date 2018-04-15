@@ -54,10 +54,6 @@ Documentation
   3. `How to debug guest code? <src/Howtos/Debugging.rst>`_
   4. `Executing large programs with concolic execution <src/Howtos/Concolic.rst>`_
 
-* Analyzing the Linux Kernel
-
-
-
 * S2E Tools
 
   1. `Fork profiler <src/Tools/ForkProfiler.rst>`_
