@@ -27,33 +27,32 @@ Documentation
   2. `DARPA Cyber Grand Challenge <src/Tutorials/CGC/index.rst>`_
   3. `Combining Kaitai Struct and S2E for analyzing parsers <https://adrianherrera.github.io/post/kaitai-s2e>`_
      (external link)
+  4. `Measuring code coverage with S2E <src/Howtos/Coverage/index.rst>`_
 
-  4. Analysis of Linux binaries
+  5. Analysis of Linux binaries
 
      a. `Symbolic execution of Coreutils <src/Tutorials/coreutils/index.rst>`_
      b. `Using SystemTap with S2E <src/Tutorials/SystemTap/index.rst>`_
 
-  5. Analysis of Windows binaries
+  6. Analysis of Windows binaries
 
      a. `Analysis of Windows DLLs <src/Tutorials/WindowsDLL/index.rst>`_
      b. `Testing Error Recovery Code in Windows Drivers with Multi-Path Fault Injection <src/Tutorials/WindowsDrivers/FaultInjection.rst>`_
 
-* Howtos
 
-  1. `Customizing stock VM images <src/ImageInstallation.rst>`_
-  2. `Moving files between the guest and host <src/MovingFiles.rst>`_
-  3. `Using execution tracers <src/Howtos/ExecutionTracers.rst>`_
-  4. `Running S2E on multiple cores <src/Howtos/Parallel.rst>`_
-  5. `Writing S2E plugins <src/Howtos/WritingPlugins.rst>`_
-  6. `Communicating between the guest and S2E plugins <src/Plugins/BaseInstructions.rst>`_
-  7. `Measuring code coverage with S2E <src/Howtos/Coverage/index.rst>`_
+  7. `Customizing stock VM images <src/ImageInstallation.rst>`_
+  8. `Moving files between the guest and host <src/MovingFiles.rst>`_
+  9. `Communicating between the guest and S2E plugins <src/Plugins/BaseInstructions.rst>`_
+  10. `Running S2E on multiple cores <src/Howtos/Parallel.rst>`_
+  11. `Writing S2E plugins <src/Howtos/WritingPlugins.rst>`_
+  12. `Using execution tracers <src/Howtos/ExecutionTracers.rst>`_
 
 * Advanced topics
 
-  1. `Equivalence testing <src/EquivalenceTesting.rst>`_
+  1. `Executing large programs with concolic execution <src/Howtos/Concolic.rst>`_
   2. `Exponential analysis speedup with state merging <src/StateMerging.rst>`_
-  3. `How to debug guest code? <src/Howtos/Debugging.rst>`_
-  4. `Executing large programs with concolic execution <src/Howtos/Concolic.rst>`_
+  3. `Equivalence testing <src/EquivalenceTesting.rst>`_
+  4. `How to debug guest code? <src/Howtos/Debugging.rst>`_
 
 * S2E Tools
 
