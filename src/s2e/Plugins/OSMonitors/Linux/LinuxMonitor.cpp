@@ -148,7 +148,7 @@ void LinuxMonitor::handleProcessLoad(S2EExecutionState *state, const S2E_LINUXMO
     mod.Pid = cmd.ProcessLoad.process_id;
     mod.LoadBase = cmd.ProcessLoad.start_code;
     mod.NativeBase = cmd.ProcessLoad.start_code;
-    mod.Size = cmd.ProcessLoad.end_data - cmd.ProcessLoad.start_code;
+    mod.Size = cmd.ProcessLoad.end_code - cmd.ProcessLoad.start_code;
     mod.EntryPoint = cmd.ProcessLoad.entry_point;
     mod.DataBase = cmd.ProcessLoad.start_data;
     mod.DataSize = cmd.ProcessLoad.end_data - cmd.ProcessLoad.start_data;
