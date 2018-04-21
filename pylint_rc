@@ -98,7 +98,7 @@ indent-string='    '
 [MISCELLANEOUS]
 
 # List of note tags to take in consideration, separated by a comma.
-notes=FIXME,XXX,TODO
+notes=FIXME,XXX
 
 
 [TYPECHECK]
@@ -124,7 +124,7 @@ generated-members=REQUEST,acl_users,aq_parent
 [SIMILARITIES]
 
 # Minimum lines number of a similarity.
-min-similarity-lines=4
+min-similarity-lines=10
 
 # Ignore comments when computing similarities.
 ignore-comments=yes
