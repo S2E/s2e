@@ -39,15 +39,15 @@ At a high level, image build creation scripts proceed as follows:
 
 3. Run the installation. The OS will first perform its own installation, then will install any additional software.
 
-4. Take a ready-to-run snapshot. The S2E launch scripts resumes the snapshot when starting the analysis. The snapshot
+4. Take a ready-to-run snapshot. The S2E launch script resumes the snapshot when starting the analysis. The snapshot
    is built in such a way that when it is resumed, it automatically retrieves a bootstrap script from the host.
-   That script contains further commands on how to setup the analysis. This kind of setup makes it very convenient
-   to re-run analyses as often as needed without having to wait for the guest to boot.
+   The bootstrap script contains further commands on how to set up the analysis. This kind of setup makes it more
+   convenient to re-run analyses as often as needed without having to wait for the guest to boot.
 
 The S2E image format is identical to the RAW format, except that the image file name has the ``.s2e`` extension.
 Snapshots are saved in a ``.s2e.snapshot_name`` file, alongside the base image.
 
-.. warning:
+.. warning::
 
     When you copy S2E images, make sure to preserve time stamps of both the base image and the snapshots
     (i.e., use ``cp -p``). If the timestamps do not match, the snapshots will fail to resume. This is a protection
