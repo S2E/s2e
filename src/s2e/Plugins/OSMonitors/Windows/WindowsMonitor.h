@@ -356,6 +356,10 @@ public:
     // if they suspect the value might be wrong.
     bool initCurrentProcessThreadId(S2EExecutionState *state);
 
+    virtual uint64_t getKernelStart() const {
+        return m_kernelStart;
+    }
+
     virtual bool isKernelAddress(uint64_t pc) const {
         if (!m_kernelStart) {
             return false;

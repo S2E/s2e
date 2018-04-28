@@ -38,6 +38,9 @@ void ExecutionTracer::initialize() {
     }
 
     m_Monitor = static_cast<OSMonitor *>(s2e()->getPlugin("OSMonitor"));
+    if (m_Monitor) {
+        m_Monitor->onMonitorLoad.connect(sigc::mem_fun(*this, &ExecutionTracer::onMonitorLoad));
+    }
 }
 
 ExecutionTracer::~ExecutionTracer() {
@@ -113,10 +116,13 @@ uint32_t ExecutionTracer::writeData(S2EExecutionState *state, void *data, unsign
     item.size = size;
     item.type = type;
     item.stateId = state->getID();
+    item.addressSpace = state->regs()->getPageDir();
+    item.pc = state->regs()->getPc();
 
-    item.pid = state->regs()->getPageDir();
     if (m_Monitor && m_Monitor->initialized()) {
-        item.pid = m_Monitor->getPid(state, state->regs()->getPc());
+        item.pid = m_Monitor->getPid(state, item.pc);
+    } else {
+        item.pid = 0;
     }
 
     if (m_useCircularBuffer) {
@@ -173,7 +179,6 @@ void ExecutionTracer::onFork(S2EExecutionState *state, const std::vector<S2EExec
     uint8_t *itemBytes = new uint8_t[itemSize];
     ExecutionTraceFork *itemFork = reinterpret_cast<ExecutionTraceFork *>(itemBytes);
 
-    itemFork->pc = state->regs()->getPc();
     itemFork->stateCount = newStates.size();
 
     for (unsigned i = 0; i < newStates.size(); i++) {
@@ -183,6 +188,12 @@ void ExecutionTracer::onFork(S2EExecutionState *state, const std::vector<S2EExec
     writeData(state, itemFork, itemSize, TRACE_FORK);
 
     delete[] itemBytes;
+}
+
+void ExecutionTracer::onMonitorLoad(S2EExecutionState *state) {
+    ExecutionTraceOSInfo info;
+    info.kernelStart = m_Monitor->getKernelStart();
+    writeData(state, &info, sizeof(info), TRACE_OSINFO);
 }
 
 } // namespace plugins

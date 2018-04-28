@@ -116,7 +116,6 @@ public:
     }
 
 private:
-    Vmi *m_vmi;
     BaseInstructions *m_base;
     seeds::SeedSearcher *m_seedSearcher;
 

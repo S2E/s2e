@@ -78,6 +78,9 @@ public:
     virtual bool getExports(S2EExecutionState *s, const ModuleDescriptor &desc, vmi::Exports &E);
     virtual bool getRelocations(S2EExecutionState *s, const ModuleDescriptor &desc, vmi::Relocations &R);
     virtual bool isKernelAddress(uint64_t pc) const;
+    virtual uint64_t getKernelStart() const {
+        return m_kernelStart;
+    }
     virtual uint64_t getAddressSpace(S2EExecutionState *s, uint64_t pc);
 
     virtual bool getCurrentStack(S2EExecutionState *state, uint64_t *base, uint64_t *size);

@@ -116,7 +116,7 @@ public:
         return m_addresses;
     }
 
-    static void toModuleDescriptor(ModuleDescriptor &desc, vmi::PEFile *pe);
+    static void toModuleDescriptor(ModuleDescriptor &desc, vmi::ExecutableFile *pe);
 
     bool readModuleData(const ModuleDescriptor &module, uint64_t addr, uint8_t &val);
     bool patchImportsFromDisk(S2EExecutionState *state, const ModuleDescriptor &module, uint32_t checkSum,

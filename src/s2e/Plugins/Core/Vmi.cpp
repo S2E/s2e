@@ -573,7 +573,7 @@ bool Vmi::writeX86Register(void *opaque, unsigned reg, const void *buffer, unsig
     return true;
 }
 
-void Vmi::toModuleDescriptor(ModuleDescriptor &desc, vmi::PEFile *pe) {
+void Vmi::toModuleDescriptor(ModuleDescriptor &desc, vmi::ExecutableFile *pe) {
     if (!desc.Size) {
         desc.Size = pe->getImageSize();
     }

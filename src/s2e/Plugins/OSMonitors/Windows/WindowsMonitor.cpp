@@ -544,9 +544,15 @@ void WindowsMonitor::onPerfLogImageUnload(S2EExecutionState *state, uint64_t pc)
     NormalizePath(module, modulePath);
 
     module.LoadBase = base;
-    module.AddressSpace = getAddressSpace(state, base);
     module.Size = size;
-    module.Pid = pid;
+
+    if (isKernelAddress(base)) {
+        module.Pid = 0;
+        module.AddressSpace = 0;
+    } else {
+        module.AddressSpace = getAddressSpace(state, base);
+        module.Pid = pid;
+    }
 
     getDebugStream(state) << "onPerfLogImageUnload " << module << "\n";
 
@@ -758,6 +764,7 @@ void WindowsMonitor::opcodeInitKernelStructs(S2EExecutionState *state, uint64_t 
     if (m_kernel.PointerSizeInBytes == 8) {
         m_kernelStart = 0x8000000000000000;
     } else {
+        // XXX: this may be 0xc0000000 with the 3gb switch
         m_kernelStart = 0x80000000;
     }
 
@@ -818,8 +825,14 @@ bool WindowsMonitor::getModuleDescriptorFromCommand(S2EExecutionState *state, co
 
     module.LoadBase = command.Module2.LoadBase;
     module.Size = command.Module2.Size;
-    module.AddressSpace = getAddressSpace(state, module.LoadBase);
-    module.Pid = command.Module2.Pid;
+
+    if (isKernelAddress(module.LoadBase)) {
+        module.Pid = 0;
+        module.AddressSpace = 0;
+    } else {
+        module.Pid = command.Module2.Pid;
+        module.AddressSpace = getAddressSpace(state, module.LoadBase);
+    }
 
     uint64_t characters = command.Module2.UnicodeModulePathSizeInBytes / sizeof(uint16_t);
     if (!state->mem()->readUnicodeString(command.Module2.UnicodeModulePath, module.Path, characters)) {

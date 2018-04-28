@@ -77,16 +77,16 @@ void TranslationBlockCoverage::onModuleTranslateBlockComplete(S2EExecutionState 
     ntb.size = tb->size;
 
     DECLARE_PLUGINSTATE(TBCoverageState, state);
-    auto &tbs = plgState->coverage[module.Name];
+    auto &tbs = plgState->coverage[module.Path];
     auto newTbs = tbs.insert(ntb);
-    plgState->coverage[module.Name] = newTbs;
+    plgState->coverage[module.Path] = newTbs;
 
     // Also save aggregated coverage info
     // and keep track of the states that discovered
     // new blocks so that it is easier to retrieve
     // them, e.g., every few minutes.
     bool newBlock = false;
-    auto mit = m_localCoverage.find(module.Name);
+    auto mit = m_localCoverage.find(module.Path);
     if (mit == m_localCoverage.end()) {
         newBlock = true;
     } else {
@@ -102,7 +102,7 @@ void TranslationBlockCoverage::onModuleTranslateBlockComplete(S2EExecutionState 
     }
 
     if (newBlock) {
-        m_localCoverage[module.Name].insert(ntb);
+        m_localCoverage[module.Path].insert(ntb);
         m_newBlockStates.insert(state);
         if (!wasCovered) {
             onNewBlockCovered.emit(state);

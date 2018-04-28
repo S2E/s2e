@@ -27,6 +27,7 @@
 namespace s2e {
 namespace plugins {
 
+// TODO: cleanup entries that are not used by any plugin
 enum ExecTraceEntryType {
     TRACE_MOD_LOAD = 0,
     TRACE_MOD_UNLOAD,
@@ -50,17 +51,39 @@ enum ExecTraceEntryType {
     TRACE_TB_START_X64,
     TRACE_TB_END_X64,
     TRACE_BLOCK,
+    TRACE_OSINFO,
     TRACE_MAX
 };
 
 struct ExecutionTraceItemHeader {
-    uint64_t timeStamp;
-    uint32_t size; // Size of the payload
-    uint8_t type;
+    uint32_t type;
     uint32_t stateId;
+    uint64_t timeStamp;
+
+    // These items are needed by pretty much every entry,
+    // so we keep them in the header.
+    // TODO: remove them from other entries.
+    uint64_t addressSpace;
     uint64_t pid;
+    uint64_t pc;
+
+    // Size of the payload
+    uint32_t size;
+
     // uint8_t  payload[];
 } __attribute__((packed));
+
+// Records various information about the guest OS.
+// This info is useful for trace processors that need to know
+// which OS is running in order to correctly process other
+// trace items (e.g., know if a program counter belongs to kernel space
+// in order to assign it to the right module).
+struct ExecutionTraceOSInfo {
+    // The address above which lies the kernel space.
+    // Trace processors consider that any address above this is mapped
+    // into every address space.
+    uint64_t kernelStart;
+};
 
 struct ExecutionTraceModuleLoad {
     char name[32];
@@ -68,12 +91,22 @@ struct ExecutionTraceModuleLoad {
     uint64_t loadBase;
     uint64_t nativeBase;
     uint64_t size;
+
+    // These two fields refer to the module and may be
+    // different from those in the header (e.g., OS process at pid 4
+    // may load a module into pid 5).
     uint64_t addressSpace;
     uint64_t pid;
 } __attribute__((packed));
 
 struct ExecutionTraceModuleUnload {
     uint64_t loadBase;
+
+    // These two fields refer to the module and may be
+    // different from those in the header (e.g., OS process at pid 4
+    // may load a module into pid 5).
+    uint64_t addressSpace;
+    uint64_t pid;
 } __attribute__((packed));
 
 struct ExecutionTraceProcessUnload {
@@ -91,7 +124,6 @@ struct ExecutionTraceReturn {
 } __attribute__((packed));
 
 struct ExecutionTraceFork {
-    uint64_t pc;
     uint32_t stateCount;
     // Array of states (uint32_t)...
     uint32_t children[1];

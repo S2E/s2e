@@ -16,7 +16,7 @@ using namespace klee;
 namespace s2e {
 namespace plugins {
 
-S2E_DEFINE_PLUGIN(LinuxMonitor, "LinuxMonitor S2E plugin", "OSMonitor", "BaseInstructions");
+S2E_DEFINE_PLUGIN(LinuxMonitor, "LinuxMonitor S2E plugin", "OSMonitor", "BaseInstructions", "Vmi");
 
 ///
 /// \brief Plugin state for the LinuxMonitor
@@ -41,6 +41,8 @@ public:
 
 void LinuxMonitor::initialize() {
     ConfigFile *cfg = s2e()->getConfig();
+
+    m_vmi = s2e()->getPlugin<Vmi>();
 
     m_terminateOnSegfault = cfg->getBool(getConfigKey() + ".terminateOnSegfault", true);
     m_terminateOnTrap = cfg->getBool(getConfigKey() + ".terminateOnTrap", true);
@@ -163,7 +165,22 @@ void LinuxMonitor::handleProcessLoad(S2EExecutionState *state, const S2E_LINUXMO
 }
 
 void LinuxMonitor::handleModuleLoad(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd) {
-    getWarningsStream(state) << "Module load not yet implemented\n";
+    ModuleDescriptor module;
+
+    auto moduleNameLen = strnlen(cmd.currentName, sizeof(cmd.currentName));
+    auto pathLen = strnlen(cmd.ModuleLoad.module_path, sizeof(cmd.ModuleLoad.module_path));
+
+    module.Path = std::string(cmd.ModuleLoad.module_path, pathLen);
+    module.Name = std::string(cmd.currentName, moduleNameLen);
+    module.Size = cmd.ModuleLoad.size;
+    module.AddressSpace = state->regs()->getPageDir();
+    module.Pid = cmd.currentPid;
+    module.LoadBase = cmd.ModuleLoad.load_base;
+    module.NativeBase = cmd.ModuleLoad.start_code;
+
+    getDebugStream(state) << module << '\n';
+
+    onModuleLoad.emit(state, module);
 }
 
 void LinuxMonitor::handleProcessExit(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd) {
@@ -208,6 +225,13 @@ void LinuxMonitor::handleInit(S2EExecutionState *state, const S2E_LINUXMON_COMMA
     m_currentTaskAddr = cmd.Init.current_task_address;
     m_taskStructPidOffset = cmd.Init.task_struct_pid_offset;
     m_taskStructTgidOffset = cmd.Init.task_struct_tgid_offset;
+
+    if (!m_initialized) {
+        m_initialized = true;
+        onMonitorLoad.emit(state);
+    }
+
+    loadKernelImage(state, cmd.Init.start_kernel);
 }
 
 void LinuxMonitor::handleCommand(S2EExecutionState *state, uint64_t guestDataPtr, uint64_t guestDataSize,

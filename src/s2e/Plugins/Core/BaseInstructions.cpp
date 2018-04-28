@@ -963,6 +963,11 @@ void BaseInstructions::handleBuiltInOps(S2EExecutionState *state, uint64_t opcod
             forkCount(state);
         } break;
 
+        // This may be useful for properly measuring kernel coverage
+        case BASE_S2E_FLUSH_TBS: { /* s2e_flush_tbs */
+            se_tb_safe_flush();
+        } break;
+
         default:
             getWarningsStream(state) << "BaseInstructions: Invalid built-in opcode " << hexval(opcode) << '\n';
             break;

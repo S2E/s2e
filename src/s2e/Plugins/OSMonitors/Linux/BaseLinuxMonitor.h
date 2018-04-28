@@ -86,6 +86,8 @@ public:
 template <typename CmdT, uint64_t CmdVersion>
 class BaseLinuxMonitor : public OSMonitor, public BaseInstructionsPluginInvokerInterface {
 protected:
+    Vmi *m_vmi;
+
     /// Start address of the Linux kernel
     uint64_t m_kernelStartAddress;
 
@@ -139,6 +141,27 @@ protected:
         return true;
     }
 
+    void loadKernelImage(S2EExecutionState *state, uint64_t start_kernel) {
+        ModuleDescriptor mod, vmlinux;
+        mod.Name = "vmlinux";
+
+        Vmi::BinData data = m_vmi->getFromDisk(mod, false);
+        if (!data.ef) {
+            getWarningsStream(state) << "Could not load vmlinux from disk\n";
+            return;
+        }
+
+        Vmi::toModuleDescriptor(vmlinux, data.ef);
+        delete data.ef;
+        delete data.fp;
+
+        vmlinux.Name = vmlinux.Path = "vmlinux";
+        vmlinux.LoadBase = start_kernel;
+        vmlinux.AddressSpace = 0;
+        vmlinux.Pid = 0;
+        onModuleLoad.emit(state, vmlinux);
+    }
+
 public:
     /// Emitted when one of the custom instructions is executed in the kernel
     sigc::signal<void, S2EExecutionState *, const CmdT &, bool /* done */> onCustomInstruction;
@@ -152,6 +175,10 @@ public:
     /// \param s2e The global S2E object
     ///
     BaseLinuxMonitor(S2E *s2e) : OSMonitor(s2e) {
+    }
+
+    virtual uint64_t getKernelStart() const {
+        return m_kernelStartAddress;
     }
 
     /// Returns \c true if the given program counter is located within the kernel
