@@ -361,6 +361,11 @@ static int handler_seedsearcher_enable(const char **args) {
     return 0;
 }
 
+static int handler_flush_tbs(const char **args) {
+    s2e_flush_tbs();
+    return 0;
+}
+
 #define COMMAND(c, args, desc) \
     { #c, handler_##c, args, desc }
 
@@ -382,6 +387,7 @@ static cmd_t s_commands[] = {
     COMMAND(register_module, 8, "params: name path loadbase size entrypoint nativebase kernelmode pid"),
     COMMAND(get_seed_file, 0, "Returns the name of the currently available seed file"),
     COMMAND(seedsearcher_enable, 0, "Activates the seed searcher"),
+    COMMAND(flush_tbs, 0, "Flush the translation block cache"),
     {NULL, NULL, 0, NULL}};
 
 static void print_commands(void) {
