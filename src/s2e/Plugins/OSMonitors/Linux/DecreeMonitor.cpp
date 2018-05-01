@@ -495,7 +495,7 @@ void DecreeMonitor::handleRandom(S2EExecutionState *state, uint64_t pid, const S
     std::vector<klee::ref<klee::Expr>> data;
 
     // It is important to create one variable for each random byte.
-    // The POVGenerator will assume one byte var == one byte nonce.
+    // The DecreePovGenerator will assume one byte var == one byte nonce.
     for (uint64_t i = 0; i < d.buffer_size; ++i) {
         std::vector<klee::ref<klee::Expr>> sd;
         m_base->makeSymbolic(state, d.buffer + i, 1, "random", true, &sd);
