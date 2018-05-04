@@ -37,6 +37,7 @@ add_library(
     # CGC support
     # TODO: make recipes plugins generic
     s2e/Plugins/VulnerabilityAnalysis/CGCInterface.cpp
+    s2e/Plugins/VulnerabilityAnalysis/PovGenerator.cpp
     s2e/Plugins/VulnerabilityAnalysis/DecreePovGenerator.cpp
     s2e/Plugins/VulnerabilityAnalysis/PovGenerationPolicy.cpp
     s2e/Plugins/VulnerabilityAnalysis/Recipe/Recipe.cpp
