@@ -303,26 +303,47 @@ bool TestCaseGenerator::assembleChunks(const TestCaseFile &file, std::vector<uin
 ///
 void TestCaseGenerator::assembleTestCaseToFiles(const ConcreteInputs &inputs, const std::string &prefix,
                                                 std::vector<std::string> &fileNames) {
-    TestCaseFiles files;
-    getFiles(inputs, files);
+    TestCaseData data;
+    assembleTestCaseToFiles(inputs, data);
 
-    foreach2 (it, files.begin(), files.end()) {
-        const std::string &name = (*it).first;
-        TestCaseFile &file = (*it).second;
-        std::vector<uint8_t> out;
-        if (!assembleChunks(file, out)) {
-            getWarningsStream() << "Could not generate concrete test file for " << (*it).first << "\n";
-            continue;
-        }
+    for (const auto &it : data) {
+        const std::string &name = it.first;
+        const auto &tcData = it.second;
 
         std::stringstream ss;
         ss << prefix << "-" << name;
         std::string outputFileName = s2e()->getOutputFilename(ss.str());
         fileNames.push_back(outputFileName);
         std::ofstream ofs(outputFileName.c_str(), std::ios_base::out | std::ios_base::trunc | std::ios_base::binary);
-        ofs.write((const char *) &out[0], out.size());
+        ofs.write((const char *) &tcData[0], tcData.size());
         ofs.close();
     }
+}
+
+void TestCaseGenerator::assembleTestCaseToFiles(const ConcreteInputs &inputs, TestCaseData &data) {
+    TestCaseFiles files;
+    getFiles(inputs, files);
+
+    for (const auto &it : files) {
+        const std::string &name = it.first;
+        const TestCaseFile &file = it.second;
+        std::vector<uint8_t> &out = data[name];
+        if (!assembleChunks(file, out)) {
+            getWarningsStream() << "Could not generate concrete test file for " << name << "\n";
+            continue;
+        }
+    }
+}
+
+void TestCaseGenerator::assembleTestCaseToFiles(const klee::Assignment &assignment, TestCaseData &data) {
+    ConcreteInputs inputs;
+    for (const auto &it : assignment.bindings) {
+        const Array *array = it.first;
+        const std::vector<unsigned char> &varData = it.second;
+        inputs.push_back(std::make_pair(array->getName(), varData));
+    }
+
+    assembleTestCaseToFiles(inputs, data);
 }
 }
 }
