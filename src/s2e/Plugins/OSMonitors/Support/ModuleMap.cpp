@@ -178,7 +178,12 @@ public:
     void dump(llvm::raw_ostream &os) const {
         os << "==========================================\n";
         os << "Dumping loaded modules\n";
-        foreach2 (it, m_modules.begin(), m_modules.end()) { os << *it << "\n"; }
+
+        const ModulesByPid &byPid = m_modules.get<pid_t>();
+        for (const auto &it : byPid) {
+            os << "pid:" << hexval(it.Pid) << " - " << it << "\n";
+        }
+
         os << "==========================================\n";
     }
 
