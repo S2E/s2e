@@ -47,8 +47,6 @@ private:
     ModuleExecutionDetector *m_detector;
     HandlerMap m_handlers;
 
-    virtual klee::ref<klee::Expr> readMemory8(S2EExecutionState *state, uint64_t address);
-
     void onModuleTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionState *state, const ModuleDescriptor &module,
                                    TranslationBlock *tb, uint64_t endPc, bool staticTarget, uint64_t targetPc);
 
