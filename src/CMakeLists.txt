@@ -31,6 +31,7 @@ add_library(
     s2e/Plugins/OSMonitors/Support/ProcessExecutionDetector.cpp
     s2e/Plugins/OSMonitors/Support/ModuleMap.cpp
     s2e/Plugins/OSMonitors/Support/MemoryMap.cpp
+    s2e/Plugins/OSMonitors/Support/MemUtils.cpp
     s2e/Plugins/OSMonitors/Support/GuestCodePatching.cpp
     s2e/Plugins/OSMonitors/OSMonitor.cpp
 
