@@ -23,6 +23,7 @@ namespace plugins {
 class DecreeMonitorState;
 class ProcessExecutionDetector;
 class Vmi;
+class MemoryMap;
 
 namespace seeds {
 class SeedSearcher;
@@ -116,6 +117,7 @@ public:
     }
 
 private:
+    MemoryMap *m_map;
     BaseInstructions *m_base;
     seeds::SeedSearcher *m_seedSearcher;
 
@@ -205,16 +207,12 @@ public:
                  >
         onSymbolicBuffer;
 
-    typedef std::vector<S2E_DECREEMON_VMA> MemoryMap;
-
     /// \brief onUpdateMemoryMap is emitted when the memory layout
     /// of the guest process changes
     ///
     /// Currently event is emitted after process is loaded, and also
     /// after allocate and deallocate syscalls.
-    sigc::signal<void, S2EExecutionState *, uint64_t /* pid */, const MemoryMap & /* map */
-                 >
-        onUpdateMemoryMap;
+    sigc::signal<void, S2EExecutionState *, uint64_t /* pid */, const S2E_DECREEMON_VMA & /* vma */> onUpdateMemoryMap;
 
     void handleProcessLoad(S2EExecutionState *s, const S2E_DECREEMON_COMMAND_PROCESS_LOAD &p);
 
@@ -231,13 +229,6 @@ public:
 
     virtual void handleCommand(S2EExecutionState *state, uint64_t guestDataPtr, uint64_t guestDataSize,
                                S2E_DECREEMON_COMMAND &command);
-
-    static void FindMemoryPages(const MemoryMap &map, bool mustBeWritable, bool mustBeExecutable,
-                                std::unordered_set<uint64_t> &pages);
-    const MemoryMap &getMemoryMap(S2EExecutionState *state, uint64_t pid);
-    const MemoryMap &getMemoryMap(S2EExecutionState *state) {
-        return getMemoryMap(state, getPid(state));
-    }
 
     unsigned getSymbolicReadsCount(S2EExecutionState *state) const;
 

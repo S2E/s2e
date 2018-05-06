@@ -7,6 +7,7 @@
 ///
 
 #include <s2e/ConfigFile.h>
+#include <s2e/Plugins/OSMonitors/Support/MemoryMap.h>
 #include <s2e/Plugins/OSMonitors/Support/ModuleExecutionDetector.h>
 #include <s2e/Plugins/OSMonitors/Support/ProcessExecutionDetector.h>
 #include <s2e/Plugins/Searchers/SeedSearcher.h>
@@ -56,6 +57,13 @@ void DecreeMonitor::initialize() {
     m_base = s2e()->getPlugin<BaseInstructions>();
     m_vmi = s2e()->getPlugin<Vmi>();
 
+    // XXX: this is a circular dependency, will require further refactoring
+    m_map = s2e()->getPlugin<MemoryMap>();
+    if (!m_map) {
+        getWarningsStream() << "Requires MemoryMap\n";
+        exit(-1);
+    }
+
     // XXX: fix me. Very basic plugins like monitors probably
     // shouldn't call other plugins.
     m_seedSearcher = s2e()->getPlugin<seeds::SeedSearcher>();
@@ -102,8 +110,6 @@ public:
     bool m_invokeOriginalSyscalls;
     bool m_concolicMode;
 
-    std::unordered_map<uint64_t /* pid */, DecreeMonitor::MemoryMap> m_memory;
-
     virtual DecreeMonitorState *clone() const {
         DecreeMonitorState *ret = new DecreeMonitorState(*this);
         /**
@@ -129,38 +135,6 @@ public:
     virtual ~DecreeMonitorState() {
     }
 };
-
-/// \brief find memory pages with given access rights
-///
-/// \param map process memory map
-/// \param mustBeWritable true if page must be writable
-/// \param mustBeExecutable true if page must be executable
-/// \param pages the pages that have been found
-///
-void DecreeMonitor::FindMemoryPages(const DecreeMonitor::MemoryMap &map, bool mustBeWritable, bool mustBeExecutable,
-                                    std::unordered_set<uint64_t> &pages) {
-    foreach2 (it, map.begin(), map.end()) {
-        assert((it->flags & S2E_DECREEMON_VM_READ) && "Memory area has no read access");
-        assert(it->start % TARGET_PAGE_SIZE == 0 && "Memory area is not aligned to page boundary");
-        assert(it->end % TARGET_PAGE_SIZE == 0 && "Memory area is not aligned to page boundary");
-
-        if (mustBeWritable && !(it->flags & S2E_DECREEMON_VM_WRITE)) {
-            continue;
-        }
-        if (mustBeExecutable && !(it->flags & S2E_DECREEMON_VM_EXEC)) {
-            continue;
-        }
-
-        for (uint64_t addr = it->start; addr < it->end; addr += TARGET_PAGE_SIZE) {
-            pages.insert(addr);
-        }
-    }
-}
-
-const DecreeMonitor::MemoryMap &DecreeMonitor::getMemoryMap(S2EExecutionState *state, uint64_t pid) {
-    DECLARE_PLUGINSTATE(DecreeMonitorState, state);
-    return plgState->m_memory[pid];
-}
 
 unsigned DecreeMonitor::getSymbolicReadsCount(S2EExecutionState *state) const {
     DECLARE_PLUGINSTATE_CONST(DecreeMonitorState, state);
@@ -632,39 +606,6 @@ void DecreeMonitor::handleSymbolicAllocateSize(S2EExecutionState *state, uint64_
     handleSymbolicSize(state, pid, decree::SAFE_ALLOCATE_SIZE, size, d.size_addr);
 }
 
-/// \brief Find how many contiguous bytes we have in mapped memory
-///
-/// \param startAddr start from this address
-/// \param pages set of mapped memory pages
-/// \return size of memory region starting at \p startAddr and ending at first page not in the \p pages set
-///
-static uint64_t distanceToUnmappedPage(uint64_t startAddr, const std::unordered_set<uint64_t> &pages) {
-    std::set<uint64_t> sortedPages(pages.begin(), pages.end());
-
-    auto it = sortedPages.find(startAddr & TARGET_PAGE_MASK);
-    if (it == sortedPages.end()) {
-        return 0;
-    }
-
-    while (true) {
-        auto nextIt = std::next(it);
-
-        if (nextIt == sortedPages.end()) { // next page is not mapped
-            break;
-        }
-
-        if (*nextIt != *it + TARGET_PAGE_SIZE) { // next page is not adjacent to *it
-            break;
-        }
-
-        it = nextIt;
-    }
-
-    uint64_t endAddr = *it + TARGET_PAGE_SIZE;
-
-    return endAddr - startAddr;
-}
-
 void DecreeMonitor::handleSymbolicBuffer(S2EExecutionState *state, uint64_t pid, SymbolicBufferType type,
                                          uint64_t ptrAddr, uint64_t sizeAddr) {
     ref<Expr> ptr = state->mem()->read(ptrAddr, state->getPointerWidth());
@@ -691,11 +632,23 @@ void DecreeMonitor::handleSymbolicBuffer(S2EExecutionState *state, uint64_t pid,
             return;
         }
 
-        std::unordered_set<uint64_t> pages;
-        FindMemoryPages(getMemoryMap(state), bufferMustBeWritable(type), false, pages);
-
+        bool writable = bufferMustBeWritable(type);
         uint64_t ptrVal = dyn_cast<ConstantExpr>(ptr)->getZExtValue();
-        uint64_t safeSize = distanceToUnmappedPage(ptrVal, pages);
+
+        uint64_t regionStart, regionEnd;
+        MemoryMapRegionType regionType;
+
+        bool res = m_map->lookupRegion(state, pid, ptrVal, regionStart, regionEnd, regionType);
+        if (!res || (writable && !(regionType & MM_WRITE))) {
+            return;
+        }
+
+        // Get the distance from ptrVal to the first unmapped page.
+        // XXX: lookupRegion will return contiguous regions of the same type,
+        // we might need to handle cases when next region is mapped but has
+        // different flags.
+        assert(regionEnd > ptrVal);
+        uint64_t safeSize = regionEnd - ptrVal;
         if (!safeSize) {
             getDebugStream(state) << "no memory in buffer at " << hexval(ptrVal) << "\n";
             return;
@@ -761,24 +714,14 @@ void DecreeMonitor::handleUpdateMemoryMap(S2EExecutionState *state, uint64_t pid
                                           const S2E_DECREEMON_COMMAND_UPDATE_MEMORY_MAP &d) {
     getDebugStream(state) << "New memory map for pid=" << hexval(pid) << "\n";
 
-    DECLARE_PLUGINSTATE(DecreeMonitorState, state);
-
-    if (!d.count) {
-        plgState->m_memory[pid] = MemoryMap();
-        onUpdateMemoryMap.emit(state, pid, plgState->m_memory[pid]);
-        return;
-    }
-
     S2E_DECREEMON_VMA buf[d.count];
     bool ok = state->mem()->read(d.buffer, buf, sizeof(buf));
     s2e_assert(state, ok, "Failed to read memory");
 
     for (unsigned i = 0; i < d.count; i++) {
         getDebugStream(state) << "  " << buf[i] << "\n";
+        onUpdateMemoryMap.emit(state, pid, buf[i]);
     }
-
-    plgState->m_memory[pid] = MemoryMap(buf, buf + d.count);
-    onUpdateMemoryMap.emit(state, pid, plgState->m_memory[pid]);
 }
 
 ///
