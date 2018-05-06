@@ -37,44 +37,6 @@ static const uint64_t STACK_SIZE = 16 * 1024 * 1024;
 } // namespace linux_common
 
 ///
-/// \brief Base state for X86 Linux monitors, including the Linux and CGC monitors
-///
-class BaseLinuxMonitorState : public PluginState {
-protected:
-    /// Map of PIDs to modules
-    std::map<uint64_t, ModuleDescriptor> m_modulesByPid;
-
-public:
-    virtual ~BaseLinuxMonitorState() {
-    }
-
-    virtual BaseLinuxMonitorState *clone() const {
-        return new BaseLinuxMonitorState(*this);
-    }
-
-    static PluginState *factory(Plugin *p, S2EExecutionState *state) {
-        return new BaseLinuxMonitorState();
-    }
-
-    const ModuleDescriptor *getModule(uint64_t pid) const {
-        auto it = m_modulesByPid.find(pid);
-        if (it == m_modulesByPid.end()) {
-            return nullptr;
-        } else {
-            return &(it->second);
-        }
-    }
-
-    void saveModule(const ModuleDescriptor &mod) {
-        m_modulesByPid[mod.Pid] = mod;
-    }
-
-    void removeModule(const ModuleDescriptor &mod) {
-        m_modulesByPid.erase(mod.Pid);
-    }
-};
-
-///
 /// \brief Abstract base plugin for X86 Linux monitors, including the Linux and
 /// CGC monitors
 ///
@@ -248,16 +210,7 @@ public:
 
     /// Get the name of the process with the given PID
     virtual bool getProcessName(S2EExecutionState *state, uint64_t pid, std::string &name) {
-        DECLARE_PLUGINSTATE_CONST(BaseLinuxMonitorState, state);
-        const ModuleDescriptor *mod = plgState->getModule(pid);
-
-        if (mod) {
-            name = mod->Name;
-
-            return true;
-        } else {
-            return false;
-        }
+        return false;
     }
 
     virtual void handleKernelPanic(S2EExecutionState *state, uint64_t message, uint64_t messageSize) {

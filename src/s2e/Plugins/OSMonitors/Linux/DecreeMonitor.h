@@ -22,7 +22,7 @@ namespace plugins {
 
 class DecreeMonitorState;
 class ProcessExecutionDetector;
-class Vmi;
+class MemUtils;
 class MemoryMap;
 
 namespace seeds {
@@ -117,6 +117,7 @@ public:
     }
 
 private:
+    MemUtils *m_memutils;
     MemoryMap *m_map;
     BaseInstructions *m_base;
     seeds::SeedSearcher *m_seedSearcher;
@@ -152,8 +153,6 @@ private:
     void onLoadBinary_Return(S2EExecutionState *state, uint64_t pc);
     void onReceive(S2EExecutionState *state, uint64_t pc);
     void onSigSegv(S2EExecutionState *state, uint64_t pc);
-
-    klee::ref<klee::Expr> readMemory8(S2EExecutionState *state, uint64_t pid, uint64_t addr);
 
 public:
     enum SymbolicBufferType { SYMBUFF_RECEIVE, SYMBUFF_TRANSMIT, SYMBUFF_RANDOM };

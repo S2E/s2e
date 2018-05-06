@@ -18,27 +18,6 @@ namespace plugins {
 
 S2E_DEFINE_PLUGIN(LinuxMonitor, "LinuxMonitor S2E plugin", "OSMonitor", "BaseInstructions", "Vmi");
 
-///
-/// \brief Plugin state for the LinuxMonitor
-///
-/// It doesn't really do anything more than the \c BaseLinuxMonitorState
-///
-class LinuxMonitorState : public BaseLinuxMonitorState {
-public:
-    virtual LinuxMonitorState *clone() const {
-        return new LinuxMonitorState(*this);
-    }
-
-    static PluginState *factory(Plugin *p, S2EExecutionState *s) {
-        return new LinuxMonitorState();
-    }
-
-    virtual ~LinuxMonitorState() {
-    }
-};
-
-////////////////
-
 void LinuxMonitor::initialize() {
     ConfigFile *cfg = s2e()->getConfig();
 
@@ -159,9 +138,6 @@ void LinuxMonitor::handleProcessLoad(S2EExecutionState *state, const S2E_LINUXMO
     getDebugStream(state) << mod << "\n";
 
     onModuleLoad.emit(state, mod);
-
-    DECLARE_PLUGINSTATE(LinuxMonitorState, state);
-    plgState->saveModule(mod);
 }
 
 void LinuxMonitor::handleModuleLoad(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd) {
@@ -184,17 +160,11 @@ void LinuxMonitor::handleModuleLoad(S2EExecutionState *state, const S2E_LINUXMON
 }
 
 void LinuxMonitor::handleProcessExit(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd) {
-    onProcessUnload.emit(state, state->regs()->getPageDir(), cmd.currentPid, cmd.ProcessExit.code);
+    auto pd = state->regs()->getPageDir();
+    getDebugStream(state) << "Removing task (pid=" << hexval(cmd.currentPid) << ", cr3=" << hexval(pd)
+                          << ", exitCode=" << cmd.ProcessExit.code << ").\n";
 
-    DECLARE_PLUGINSTATE(LinuxMonitorState, state);
-    const ModuleDescriptor *mod = plgState->getModule(cmd.currentPid);
-    if (!mod) {
-        return;
-    }
-
-    getDebugStream(state) << "Removing task (pid=" << hexval(cmd.currentPid) << ", cr3=" << hexval(mod->AddressSpace)
-                          << ", exitCode=" << cmd.ProcessExit.code << ") record from collector.\n";
-    plgState->removeModule(*mod);
+    onProcessUnload.emit(state, pd, cmd.currentPid, cmd.ProcessExit.code);
 }
 
 void LinuxMonitor::handleTrap(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd) {

@@ -7,6 +7,7 @@
 ///
 
 #include <s2e/ConfigFile.h>
+#include <s2e/Plugins/OSMonitors/Support/MemUtils.h>
 #include <s2e/Plugins/OSMonitors/Support/MemoryMap.h>
 #include <s2e/Plugins/OSMonitors/Support/ModuleExecutionDetector.h>
 #include <s2e/Plugins/OSMonitors/Support/ProcessExecutionDetector.h>
@@ -28,7 +29,7 @@ using namespace klee;
 namespace s2e {
 namespace plugins {
 
-S2E_DEFINE_PLUGIN(DecreeMonitor, "DecreeMonitor S2E plugin", "OSMonitor", "BaseInstructions", "Vmi");
+S2E_DEFINE_PLUGIN(DecreeMonitor, "DecreeMonitor S2E plugin", "OSMonitor", "BaseInstructions");
 
 namespace decree {
 
@@ -55,7 +56,19 @@ static const unsigned SAFE_ALLOCATE_SIZE = 16 * 1024 * 1024;
 
 void DecreeMonitor::initialize() {
     m_base = s2e()->getPlugin<BaseInstructions>();
+
     m_vmi = s2e()->getPlugin<Vmi>();
+    if (!m_vmi) {
+        getWarningsStream() << "Requires Vmi\n";
+        exit(-1);
+    }
+
+    // XXX: this is a circular dependency, will require further refactoring
+    m_memutils = s2e()->getPlugin<MemUtils>();
+    if (!m_memutils) {
+        getWarningsStream() << "Requires MemUtils\n";
+        exit(-1);
+    }
 
     // XXX: this is a circular dependency, will require further refactoring
     m_map = s2e()->getPlugin<MemoryMap>();
@@ -98,7 +111,7 @@ void DecreeMonitor::initialize() {
     time(&m_startTime);
 }
 
-class DecreeMonitorState : public BaseLinuxMonitorState {
+class DecreeMonitorState : public PluginState {
 public:
     /* How many bytes (symbolic or concrete) were read by each pid */
     std::map<uint64_t /* pid */, uint64_t> m_readBytesCount;
@@ -130,9 +143,6 @@ public:
     static PluginState *factory(Plugin *p, S2EExecutionState *s) {
         DecreeMonitor *plugin = static_cast<DecreeMonitor *>(p);
         return new DecreeMonitorState(plugin->m_invokeOriginalSyscalls, plugin->m_concolicMode);
-    }
-
-    virtual ~DecreeMonitorState() {
     }
 };
 
@@ -175,33 +185,6 @@ void DecreeMonitor::handleProcessLoad(S2EExecutionState *state, const S2E_DECREE
     getDebugStream(state) << mod << "\n";
 
     onModuleLoad.emit(state, mod);
-
-    DECLARE_PLUGINSTATE(DecreeMonitorState, state);
-    plgState->saveModule(mod);
-}
-
-klee::ref<klee::Expr> DecreeMonitor::readMemory8(S2EExecutionState *state, uint64_t pid, uint64_t addr) {
-    klee::ref<klee::Expr> expr = state->mem()->read(addr);
-    if (!expr.isNull()) {
-        return expr;
-    }
-
-    /* Try to read data from executable image */
-
-    DECLARE_PLUGINSTATE(DecreeMonitorState, state);
-    const ModuleDescriptor *mod = plgState->getModule(pid);
-    if (!mod) {
-        getDebugStream(state) << "No module for pid " << pid << "\n";
-        return klee::ref<klee::Expr>(NULL);
-    }
-
-    uint8_t byte;
-    if (!m_vmi->readModuleData(*mod, addr, byte)) {
-        getDebugStream(state) << "Failed to read memory at address " << hexval(addr) << "\n";
-        return klee::ref<klee::Expr>(NULL);
-    }
-
-    return klee::ConstantExpr::create(byte, klee::Expr::Int8);
 }
 
 uint64_t DecreeMonitor::getPid(S2EExecutionState *state, uint64_t pc) {
@@ -340,8 +323,7 @@ void DecreeMonitor::handleReadData(S2EExecutionState *state, uint64_t pid, const
     }
 
     DECLARE_PLUGINSTATE(DecreeMonitorState, state);
-    getDebugStream(state) << "handleReadData: readCount=" << plgState->m_readBytesCount[pid]
-                          << " for module=" << plgState->getModule(pid)->Name << "\n";
+    getDebugStream(state) << "handleReadData: readCount=" << plgState->m_readBytesCount[pid] << "\n";
 }
 
 void DecreeMonitor::handleReadDataPost(S2EExecutionState *state, uint64_t pid,
@@ -367,8 +349,7 @@ void DecreeMonitor::handleReadDataPost(S2EExecutionState *state, uint64_t pid,
         plgState->m_totalReadBytesCount += d.buffer_size;
         onSymbolicRead.emit(state, pid, d.fd, d.buffer_size, data, ConstantExpr::create(d.buffer_size, Expr::Int32));
 
-        getDebugStream(state) << "handleReadData: readCount=" << plgState->m_readBytesCount[pid]
-                              << " for module=" << plgState->getModule(pid)->Name << "\n";
+        getDebugStream(state) << "handleReadData: readCount=" << plgState->m_readBytesCount[pid] << "\n";
     }
 }
 
@@ -389,7 +370,7 @@ void DecreeMonitor::handleWriteData(S2EExecutionState *state, uint64_t pid, cons
 
     std::vector<klee::ref<klee::Expr>> vec;
     for (unsigned i = 0; i < actualCount; ++i) {
-        klee::ref<klee::Expr> e = readMemory8(state, pid, d.buffer + i);
+        klee::ref<klee::Expr> e = m_memutils->read(state, d.buffer + i);
         s2e_assert(state, !e.isNull(), "Failed to read memory byte of pid " << hexval(pid) << " at "
                                                                             << hexval(d.buffer + i));
 
