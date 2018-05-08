@@ -268,20 +268,6 @@ if (NOT LLVM_ENABLE_EH)
   klee_component_add_cxx_flag("-fno-exceptions" REQUIRED)
 endif()
 
-###############################################################################
-# RTTI
-###############################################################################
-if (NOT LLVM_ENABLE_RTTI)
-  if (ENABLE_SOLVER_METASMT)
-    message(WARNING "Not disabling RTTI because metaSMT uses them")
-    # FIXME: Should this be FATAL_ERROR rather than ERROR?
-    message(WARNING
-      "This build configuration is not supported and will likely not work."
-      "You should recompile LLVM with RTTI enabled.")
-  else()
-    klee_component_add_cxx_flag("-fno-rtti" REQUIRED)
-  endif()
-endif()
 
 ################################################################################
 # Generate `config.h`
@@ -328,6 +314,14 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 ################################################################################
+# Report the value of various variables to aid debugging
+################################################################################
+message(STATUS "KLEE_COMPONENT_EXTRA_INCLUDE_DIRS: '${KLEE_COMPONENT_EXTRA_INCLUDE_DIRS}'")
+message(STATUS "KLEE_COMPONENT_CXX_DEFINES: '${KLEE_COMPONENT_CXX_DEFINES}'")
+message(STATUS "KLEE_COMPONENT_CXX_FLAGS: '${KLEE_COMPONENT_CXX_FLAGS}'")
+message(STATUS "KLEE_COMPONENT_EXTRA_LIBRARIES: '${KLEE_COMPONENT_EXTRA_LIBRARIES}'")
+
+################################################################################
 # KLEE components
 ################################################################################
 include("${CMAKE_SOURCE_DIR}/cmake/klee_add_component.cmake")
@@ -336,62 +330,36 @@ add_subdirectory(lib)
 ################################################################################
 # Testing
 ################################################################################
-option(ENABLE_TESTS "Enable tests" ON)
+option(ENABLE_UNIT_TESTS "Enable unittests" ON)
 
-if (ENABLE_TESTS)
-  # Find lit
-  set(LIT_TOOL_NAMES "llvm-lit" "lit")
-  find_program(
-    LIT_TOOL
-    NAMES ${LIT_TOOL_NAMES}
-    HINTS "${LLVM_TOOLS_BINARY_DIR}"
-    DOC "Path to lit tool"
-  )
+if (ENABLE_UNIT_TESTS)
+    # Find lit
+      set(LIT_TOOL_NAMES "llvm-lit" "lit")
+      find_program(
+        LIT_TOOL
+        NAMES ${LIT_TOOL_NAMES}
+        HINTS "${LLVM_TOOLS_BINARY_DIR}"
+        DOC "Path to lit tool"
+      )
 
-  set(LIT_ARGS
-    "-v;-s"
-    CACHE
-    STRING
-    "Lit arguments"
-  )
+      set(LIT_ARGS
+        "-v;-s"
+        CACHE
+        STRING
+        "Lit arguments"
+    )
 
-if ((NOT LIT_TOOL) OR (NOT EXISTS "${LIT_TOOL}"))
-    message(FATAL_ERROR "The lit tool is required for testing."
-      " CMake tried to find lit with the following names \"${LIT_TOOL_NAMES}\""
-      " but it could not be found.\n"
-      "You should either disable testing by passing \"-DENABLE_TESTS=OFF\" to cmake"
-      " or you should install the lit tool from the Python Package Index by running"
-      " \"pip install lit\". Note \"pip\" requires root privileges to run. If you"
-      " don't have root privileges you can create a virtual python environment using"
-      " the \"virtualenv\" tool and run \"pip\" from there.")
-  else()
-    message(STATUS "Using lit: ${LIT_TOOL}")
-  endif()
+    # Add global test target
+      add_custom_target(check
+        COMMENT "Running tests"
+    )
 
-  option(ENABLE_UNIT_TESTS "Enable unittests" ON)
-  if (ENABLE_UNIT_TESTS)
-    message(STATUS "Unit tests enabled")
-    add_subdirectory(unittests)
-  else()
-    message(STATUS "Unit tests disabled")
-  endif()
-  option(ENABLE_INTEGRATION_TESTS "Enable integration tests" ON)
-  if (ENABLE_INTEGRATION_TESTS)
-    message(STATUS "Integration tests enabled")
-    add_subdirectory(test)
-  else()
-    message(STATUS "Integration tests disabled")
-  endif()
-
-  # Add global test target
-  add_custom_target(check
-    DEPENDS unittests integrationtests
-    COMMENT "Running tests"
-  )
+  message(STATUS "Unit tests enabled")
+  add_subdirectory(unittests)
+  add_dependencies(check unittests)
 else()
-  message(STATUS "Testing disabled")
+  message(STATUS "Unit tests disabled")
 endif()
-
 
 ################################################################################
 # Miscellaneous install

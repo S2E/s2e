@@ -31,11 +31,11 @@
 #ifndef KLEE_ConcreteBuffer_H
 #define KLEE_ConcreteBuffer_H
 
+#include <klee/Common.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <klee/Common.h>
 
 namespace klee {
 class ObjectState;
