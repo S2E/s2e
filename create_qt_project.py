@@ -25,7 +25,7 @@ from subprocess import Popen, PIPE
 import sys
 import os
 
-blacklist = ['.git', '.repo', 'qemu']
+blacklist = ['.git', '.repo', 'qemu', 'docs', 'doxygen']
 
 files = []
 for root, directories, filenames in os.walk('.'):
