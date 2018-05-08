@@ -97,6 +97,11 @@ SOCI_BUILD_DIR=soci
 SOCI_GIT_REV=f0c0d25a9160a237c9ef8eddf9f28651621192f3
 SOCI_GIT_URL=https://github.com/SOCI/soci.git
 
+# Google Test
+GTEST_VERSION=1.8.0
+GTEST_SRC_DIR=$(S2EBUILD)/googletest-release-$(GTEST_VERSION)
+GTEST_URL=https://github.com/google/googletest/archive/release-$(GTEST_VERSION).tar.gz
+
 KLEE_QEMU_DIRS=$(foreach suffix,-debug -release,$(addsuffix $(suffix),klee qemu))
 
 ###########
@@ -214,6 +219,11 @@ $(SOCI_BUILD_DIR):
 	cd $(SOCI_SRC_DIR) && git checkout $(SOCI_GIT_REV)
 	mkdir -p $(S2EBUILD)/$(SOCI_BUILD_DIR)
 
+# Download GTest
+$(GTEST_SRC_DIR):
+	cd $(S2EBUILD) && wget -O $(GTEST_SRC_DIR).tar.gz $(GTEST_URL)
+	cd $(S2EBUILD) && tar xzvf $(GTEST_SRC_DIR).tar.gz
+
 ifeq ($(LLVMBUILD),$(S2EBUILD))
 
 
@@ -329,19 +339,20 @@ KLEE_CONFIGURE_FLAGS = -DCMAKE_INSTALL_PREFIX=$(S2EPREFIX)                      
                        -DCMAKE_C_COMPILER=$(CLANG_CC)                                       \
                        -DCMAKE_CXX_COMPILER=$(CLANG_CXX)                                    \
                        -DUSE_CMAKE_FIND_PACKAGE_LLVM=On                                     \
-                       -DENABLE_TESTS=Off                                                   \
+                       -DENABLE_UNIT_TESTS=On                                               \
+                       -DGTEST_SRC_DIR=$(S2EBUILD)/googletest-release-1.8.0                 \
                        -DENABLE_DOCS=Off                                                    \
                        -DENABLE_SOLVER_Z3=On                                                \
                        -DZ3_INCLUDE_DIRS=$(S2EPREFIX)/include                               \
                        -DZ3_LIBRARIES=$(S2EPREFIX)/lib/libz3.a
 
-stamps/klee-debug-configure: stamps/llvm-debug-make stamps/z3-make
+stamps/klee-debug-configure: stamps/llvm-debug-make stamps/z3-make | $(GTEST_SRC_DIR)
 stamps/klee-debug-configure: CONFIGURE_COMMAND = cmake $(KLEE_CONFIGURE_FLAGS)                      \
                                                  -DCMAKE_BUILD_TYPE=Debug                           \
                                                  -DLLVM_DIR=$(LLVMBUILD)/llvm-debug/lib/cmake/llvm  \
                                                  $(S2ESRC)/klee
 
-stamps/klee-release-configure: stamps/llvm-release-make stamps/z3-make
+stamps/klee-release-configure: stamps/llvm-release-make stamps/z3-make | $(GTEST_SRC_DIR)
 stamps/klee-release-configure: CONFIGURE_COMMAND = cmake $(KLEE_CONFIGURE_FLAGS)                        \
                                                    -DCMAKE_BUILD_TYPE=$(RELEASE_BUILD_TYPE)             \
                                                    -DLLVM_DIR=$(LLVMBUILD)/llvm-release/lib/cmake/llvm  \
