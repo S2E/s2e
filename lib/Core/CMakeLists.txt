@@ -27,3 +27,13 @@ klee_add_component(kleeCore
 	TimingSolver.cpp
 	UserSearcher.cpp
 )
+
+set(LLVM_COMPONENTS
+  core
+  support
+)
+
+# list(APPEND LLVM_COMPONENTS engine)
+
+klee_get_llvm_libs(LLVM_LIBS ${LLVM_COMPONENTS})
+target_link_libraries(kleeCore PUBLIC ${LLVM_LIBS})

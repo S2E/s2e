@@ -10,9 +10,16 @@
 #include <iostream>
 #include "gtest/gtest.h"
 
-#include "klee/Expr.h"
+#include <klee/Expr.h>
+#include <klee/Memory.h>
+#include <llvm/Support/Casting.h>
 
 using namespace klee;
+using llvm::isa;
+using llvm::cast;
+using llvm::cast_or_null;
+using llvm::dyn_cast;
+using llvm::dyn_cast_or_null;
 
 namespace {
 
@@ -25,6 +32,112 @@ ref<Expr> getConstant(int value, Expr::Width width) {
 TEST(ExprTest, BasicConstruction) {
     EXPECT_EQ(ref<Expr>(ConstantExpr::alloc(0, 32)),
               SubExpr::create(ConstantExpr::alloc(10, 32), ConstantExpr::alloc(10, 32)));
+}
+
+/// \brief create an array of 8-bit read expressions for the given variable names
+static std::vector<ref<Expr>> GenerateLoads(const std::vector<std::string> &varNames) {
+    std::vector<ref<Expr>> ret;
+
+    for (const auto &name : varNames) {
+        Array *array = new Array(name, 1);
+        auto rd = Expr::createTempRead(array, 8);
+        ret.push_back(rd);
+    }
+
+    return ret;
+}
+
+/// \brief Simulate an unaligned read from memory.
+/// An unaligned read is a read whose start address is not a multiple of the access size.
+/// Unaligned reads are broken down into two aligned reads which are then
+/// shifted and merged, which results in an expression that looks like this:
+///
+/// (v7 v6 v5 v4) << 0x18 || (v3 v2 v1 v0) >> 0x8)
+///
+/// The expression above represents a read of size 4 starting from address 1.s
+static ref<Expr> ReadUnalignedWord(ObjectState *os, unsigned addr, unsigned dataSize) {
+    unsigned addr1 = addr & ~(dataSize - 1);
+    unsigned addr2 = addr1 + dataSize;
+    unsigned shift = (addr & (dataSize - 1)) * 8;
+    ref<Expr> res1 = os->read(addr1, dataSize * 8);
+    ref<Expr> res2 = os->read(addr2, dataSize * 8);
+
+    // clang-format off
+    ref<Expr> res =
+            OrExpr::create(
+                LShrExpr::create(
+                    res1, ConstantExpr::alloc(shift, dataSize * 8)
+                ),
+                ShlExpr::create(
+                    res2, ConstantExpr::alloc((dataSize * 8) - shift, dataSize * 8)
+                )
+            );
+    // clang-format on
+
+    return res;
+}
+
+///
+/// \brief Check that unaligned read patterns are properly simplified.
+///
+/// This test checks all combinations of data sizes and alignments.
+///
+TEST(ExprTest, UnalignedLoadSimplification1) {
+
+    // Initialize a dummy memory object
+    Context::initialize(true, Expr::Int64);
+    MemoryObject *mo = new MemoryObject(0, 64, false, false, false, nullptr);
+    ObjectState *os = new ObjectState(mo);
+
+    // Create symbolic variable names
+    std::vector<std::string> vars;
+    for (unsigned i = 0; i < 32; ++i) {
+        std::stringstream ss;
+        ss << "v" << i;
+        vars.push_back(ss.str());
+    }
+
+    // Generate symbolic expressions and store them to memory
+    auto loads = GenerateLoads(vars);
+    for (unsigned i = 0; i < loads.size(); ++i) {
+        os->write(i, loads[i]);
+    }
+
+    // Check 2, 4, 8-byte memory accesses
+    for (unsigned i = 2; i < 16; i = i * 2) {
+        // Check arbitrary alignment
+        for (unsigned j = 0; j < i; ++j) {
+            auto ret = ReadUnalignedWord(os, j, i);
+            auto native = os->read(j, i * 8);
+            EXPECT_EQ(native, ret);
+        }
+    }
+
+    delete os;
+    delete mo;
+}
+
+///
+/// \brief Check transformation of ExtractN(a, LShr(b, c)) to ExtractN(b, c)
+///
+TEST(ExprTest, TestExtractLShr) {
+    // Create symbolic variable names
+    std::vector<std::string> vars;
+    for (unsigned i = 0; i < 4; ++i) {
+        std::stringstream ss;
+        ss << "v" << i;
+        vars.push_back(ss.str());
+    }
+
+    // Generate symbolic expressions and store them to memory
+    auto loads = GenerateLoads(vars);
+
+    for (unsigned i = 0; i < loads.size(); ++i) {
+        auto e = ConcatExpr::createN(loads.size(), &loads[0]);
+        e = LShrExpr::create(e, ConstantExpr::alloc(i * 8, Expr::Int32));
+        e = ExtractExpr::create(e, 0, Expr::Int8);
+        EXPECT_EQ(loads[loads.size() - 1 - i], e);
+    }
 }
 
 TEST(ExprTest, ConcatExtract) {
