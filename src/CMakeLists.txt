@@ -38,6 +38,7 @@ add_library(
     # CGC support
     s2e/Plugins/VulnerabilityAnalysis/CGCInterface.cpp
     s2e/Plugins/VulnerabilityAnalysis/PovGenerator.cpp
+    s2e/Plugins/VulnerabilityAnalysis/FilePovGenerator.cpp
     s2e/Plugins/VulnerabilityAnalysis/DecreePovGenerator.cpp
     s2e/Plugins/VulnerabilityAnalysis/PovGenerationPolicy.cpp
     s2e/Plugins/VulnerabilityAnalysis/Recipe/Recipe.cpp
