@@ -10,7 +10,7 @@
 #include <ntstrsafe.h>
 #include <s2e/s2e.h>
 #include <s2e/WindowsMonitor.h>
-#include <s2e/GuestCodePatching.h>
+#include <s2e/GuestCodeHooking.h>
 #include "kernel_structs.h"
 #include "log.h"
 
@@ -371,15 +371,15 @@ NTSTATUS MiUnmapViewOfSection(
 VOID InitializeKernelHooks(VOID)
 {
     if (g_kernelStructs.ObpCreateHandle) {
-        GuestCodePatchingRegisterDirectKernelHook(g_kernelStructs.ObpCreateHandle, (UINT_PTR)ObpCreateHandleHook);
+        GuestCodeHookingRegisterDirectKernelHook(g_kernelStructs.ObpCreateHandle, (UINT_PTR)ObpCreateHandleHook);
     } else {
         S2EKillState(0, "no ObpCreateHandle hook available");
     }
 
-    GuestCodePatchingRegisterDirectKernelHook(g_kernelStructs.MmAccessFault, (UINT_PTR)MmAccessFault);
-    GuestCodePatchingRegisterDirectKernelHook(g_kernelStructs.NtAllocateVirtualMemory, (UINT_PTR)NtAllocateVirtualMemory);
-    GuestCodePatchingRegisterDirectKernelHook(g_kernelStructs.NtFreeVirtualMemory, (UINT_PTR)NtFreeVirtualMemory);
-    GuestCodePatchingRegisterDirectKernelHook(g_kernelStructs.NtProtectVirtualMemory, (UINT_PTR)NtProtectVirtualMemory);
-    GuestCodePatchingRegisterDirectKernelHook(g_kernelStructs.NtMapViewOfSection, (UINT_PTR)NtMapViewOfSection);
-    GuestCodePatchingRegisterDirectKernelHook(g_kernelStructs.MiUnmapViewOfSection, (UINT_PTR)MiUnmapViewOfSection);
+    GuestCodeHookingRegisterDirectKernelHook(g_kernelStructs.MmAccessFault, (UINT_PTR)MmAccessFault);
+    GuestCodeHookingRegisterDirectKernelHook(g_kernelStructs.NtAllocateVirtualMemory, (UINT_PTR)NtAllocateVirtualMemory);
+    GuestCodeHookingRegisterDirectKernelHook(g_kernelStructs.NtFreeVirtualMemory, (UINT_PTR)NtFreeVirtualMemory);
+    GuestCodeHookingRegisterDirectKernelHook(g_kernelStructs.NtProtectVirtualMemory, (UINT_PTR)NtProtectVirtualMemory);
+    GuestCodeHookingRegisterDirectKernelHook(g_kernelStructs.NtMapViewOfSection, (UINT_PTR)NtMapViewOfSection);
+    GuestCodeHookingRegisterDirectKernelHook(g_kernelStructs.MiUnmapViewOfSection, (UINT_PTR)MiUnmapViewOfSection);
 }

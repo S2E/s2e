@@ -24,9 +24,6 @@
     <ClInclude Include="..\libcommon\include\s2e\BugCollector.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\libcommon\include\s2e\GuestCodePatching.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\libcommon\include\s2e\keyvalue.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -43,6 +40,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\libcommon\include\s2e\WindowsMonitor.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\libcommon\include\s2e\GuestCodeHooking.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

@@ -98,20 +98,20 @@ BOOLEAN FaultInjDecideInjectFault(
 VOID FaultInjectionInit(VOID)
 {
     LOG("Hooking ExXxx apis...");
-    RegisterHooks(g_kernelExHooks);
+    GuestCodeHookingRegisterLibFcnCallHooks(g_kernelExHooks);
 
     LOG("Hooking MmXxx apis...");
-    RegisterHooks(g_kernelMmHooks);
+    GuestCodeHookingRegisterLibFcnCallHooks(g_kernelMmHooks);
 
     LOG("Hooking PsXxx apis...");
-    RegisterHooks(g_kernelPsHooks);
+    GuestCodeHookingRegisterLibFcnCallHooks(g_kernelPsHooks);
 
     LOG("Hooking ObXxx apis...");
-    RegisterHooks(g_kernelObHooks);
+    GuestCodeHookingRegisterLibFcnCallHooks(g_kernelObHooks);
 
     LOG("Hooking Registry apis...");
-    RegisterHooks(g_kernelRegHooks);
+    GuestCodeHookingRegisterLibFcnCallHooks(g_kernelRegHooks);
 
     LOG("Hooking FS filter apis...");
-    RegisterHooks(g_kernelFltHooks);
+    GuestCodeHookingRegisterLibFcnCallHooks(g_kernelFltHooks);
 }

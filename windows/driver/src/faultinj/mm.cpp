@@ -11,7 +11,7 @@
 extern "C"
 {
 #include <s2e/s2e.h>
-#include <s2e/GuestCodePatching.h>
+#include <s2e/GuestCodeHooking.h>
 
 #include "../log.h"
 #include "faultinj.h"
@@ -30,9 +30,9 @@ extern "C"
         return FaultInjTemplate1<PVOID>(CallSite, "MmGetSystemRoutineAddress", FALSE, NULL, &MmGetSystemRoutineAddress, SystemRoutineName);
     }
 
-    const S2E_HOOK g_kernelMmHooks[] = {
+    const S2E_GUEST_HOOK_LIBRARY_FCN g_kernelMmHooks[] = {
         // Failing MmGetSystemRoutineAddress may cause false positives in WPP tracing code
-        // { (UINT_PTR)"ntoskrnl.exe", (UINT_PTR)"MmGetSystemRoutineAddress", (UINT_PTR)S2EHook_MmGetSystemRoutineAddress },
-        { 0,0,0 }
+        // S2E_KERNEL_FCN_HOOK("ntoskrnl.exe", "MmGetSystemRoutineAddress", S2EHook_MmGetSystemRoutineAddress),
+        S2E_KERNEL_FCN_HOOK_END()
     };
 }

@@ -11,7 +11,7 @@
 extern "C"
 {
 #include <s2e/s2e.h>
-#include <s2e/GuestCodePatching.h>
+#include <s2e/GuestCodeHooking.h>
 
 #include "../log.h"
 #include "faultinj.h"
@@ -306,39 +306,26 @@ extern "C"
         );
     }
 
-    const S2E_HOOK g_kernelFltHooks[] = {
-        { (UINT_PTR)"fltmgr.sys", (UINT_PTR)"FltAllocateContext", (UINT_PTR)S2EHook_FltAllocateContext },
-        {
-            (UINT_PTR)"fltmgr.sys", (UINT_PTR)"FltAllocateDeferredIoWorkItem",
-            (UINT_PTR)S2EHook_FltAllocateDeferredIoWorkItem
-        },
-        {
-            (UINT_PTR)"fltmgr.sys", (UINT_PTR)"FltBuildDefaultSecurityDescriptor",
-            (UINT_PTR)S2EHook_FltBuildDefaultSecurityDescriptor
-        },
-        { (UINT_PTR)"fltmgr.sys", (UINT_PTR)"FltClose", (UINT_PTR)S2EHook_FltClose },
-        {
-            (UINT_PTR)"fltmgr.sys", (UINT_PTR)"FltCreateCommunicationPort", (UINT_PTR)S2EHook_FltCreateCommunicationPort
-        },
-        { (UINT_PTR)"fltmgr.sys", (UINT_PTR)"FltCreateFileEx", (UINT_PTR)S2EHook_FltCreateFileEx },
-        {
-            (UINT_PTR)"fltmgr.sys", (UINT_PTR)"FltGetDestinationFileNameInformation",
-            (UINT_PTR)S2EHook_FltGetDestinationFileNameInformation
-        },
-        { (UINT_PTR)"fltmgr.sys", (UINT_PTR)"FltGetFileNameInformation", (UINT_PTR)S2EHook_FltGetFileNameInformation },
-        { (UINT_PTR)"fltmgr.sys", (UINT_PTR)"FltGetStreamContext", (UINT_PTR)S2EHook_FltGetStreamContext },
-        { (UINT_PTR)"fltmgr.sys", (UINT_PTR)"FltGetStreamHandleContext", (UINT_PTR)S2EHook_FltGetStreamHandleContext },
-        { (UINT_PTR)"fltmgr.sys", (UINT_PTR)"FltParseFileName", (UINT_PTR)S2EHook_FltParseFileName },
-        { (UINT_PTR)"fltmgr.sys", (UINT_PTR)"FltQueryInformationFile", (UINT_PTR)S2EHook_FltQueryInformationFile },
-        { (UINT_PTR)"fltmgr.sys", (UINT_PTR)"FltQuerySecurityObject", (UINT_PTR)S2EHook_FltQuerySecurityObject },
-        {
-            (UINT_PTR)"fltmgr.sys", (UINT_PTR)"FltQueueDeferredIoWorkItem", (UINT_PTR)S2EHook_FltQueueDeferredIoWorkItem
-        },
-        { (UINT_PTR)"fltmgr.sys", (UINT_PTR)"FltRegisterFilter", (UINT_PTR)S2EHook_FltRegisterFilter },
-        { (UINT_PTR)"fltmgr.sys", (UINT_PTR)"FltSendMessage", (UINT_PTR)S2EHook_FltSendMessage },
-        { (UINT_PTR)"fltmgr.sys", (UINT_PTR)"FltSetStreamContext", (UINT_PTR)S2EHook_FltSetStreamContext },
-        { (UINT_PTR)"fltmgr.sys", (UINT_PTR)"FltSetStreamHandleContext", (UINT_PTR)S2EHook_FltSetStreamHandleContext },
-        { (UINT_PTR)"fltmgr.sys", (UINT_PTR)"FltStartFiltering", (UINT_PTR)S2EHook_FltStartFiltering },
-        { 0,0,0 }
+    const S2E_GUEST_HOOK_LIBRARY_FCN g_kernelFltHooks[] = {
+        S2E_KERNEL_FCN_HOOK("fltmgr.sys", "FltAllocateContext", S2EHook_FltAllocateContext),
+        S2E_KERNEL_FCN_HOOK("fltmgr.sys", "FltAllocateDeferredIoWorkItem", S2EHook_FltAllocateDeferredIoWorkItem),
+        S2E_KERNEL_FCN_HOOK("fltmgr.sys", "FltBuildDefaultSecurityDescriptor", S2EHook_FltBuildDefaultSecurityDescriptor),
+        S2E_KERNEL_FCN_HOOK("fltmgr.sys", "FltClose", S2EHook_FltClose),
+        S2E_KERNEL_FCN_HOOK("fltmgr.sys", "FltCreateCommunicationPort", S2EHook_FltCreateCommunicationPort),
+        S2E_KERNEL_FCN_HOOK("fltmgr.sys", "FltCreateFileEx", S2EHook_FltCreateFileEx),
+        S2E_KERNEL_FCN_HOOK("fltmgr.sys", "FltGetDestinationFileNameInformation", S2EHook_FltGetDestinationFileNameInformation),
+        S2E_KERNEL_FCN_HOOK("fltmgr.sys", "FltGetFileNameInformation", S2EHook_FltGetFileNameInformation),
+        S2E_KERNEL_FCN_HOOK("fltmgr.sys", "FltGetStreamContext", S2EHook_FltGetStreamContext),
+        S2E_KERNEL_FCN_HOOK("fltmgr.sys", "FltGetStreamHandleContext", S2EHook_FltGetStreamHandleContext),
+        S2E_KERNEL_FCN_HOOK("fltmgr.sys", "FltParseFileName", S2EHook_FltParseFileName),
+        S2E_KERNEL_FCN_HOOK("fltmgr.sys", "FltQueryInformationFile", S2EHook_FltQueryInformationFile),
+        S2E_KERNEL_FCN_HOOK("fltmgr.sys", "FltQuerySecurityObject", S2EHook_FltQuerySecurityObject),
+        S2E_KERNEL_FCN_HOOK("fltmgr.sys", "FltQueueDeferredIoWorkItem", S2EHook_FltQueueDeferredIoWorkItem),
+        S2E_KERNEL_FCN_HOOK("fltmgr.sys", "FltRegisterFilter", S2EHook_FltRegisterFilter),
+        S2E_KERNEL_FCN_HOOK("fltmgr.sys", "FltSendMessage", S2EHook_FltSendMessage),
+        S2E_KERNEL_FCN_HOOK("fltmgr.sys", "FltSetStreamContext", S2EHook_FltSetStreamContext),
+        S2E_KERNEL_FCN_HOOK("fltmgr.sys", "FltSetStreamHandleContext", S2EHook_FltSetStreamHandleContext),
+        S2E_KERNEL_FCN_HOOK("fltmgr.sys", "FltStartFiltering", S2EHook_FltStartFiltering),
+        S2E_KERNEL_FCN_HOOK_END()
     };
 }

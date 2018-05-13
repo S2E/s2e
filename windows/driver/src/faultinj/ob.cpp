@@ -11,7 +11,7 @@
 extern "C"
 {
 #include <s2e/s2e.h>
-#include <s2e/GuestCodePatching.h>
+#include <s2e/GuestCodeHooking.h>
 
 #include "../log.h"
 #include "faultinj.h"
@@ -38,8 +38,8 @@ extern "C"
         );
     }
 
-    const S2E_HOOK g_kernelObHooks[] = {
-        { (UINT_PTR)"ntoskrnl.exe", (UINT_PTR)"ObReferenceObjectByHandle", (UINT_PTR)S2EHook_ObReferenceObjectByHandle },
-        { 0,0,0 }
+    const S2E_GUEST_HOOK_LIBRARY_FCN g_kernelObHooks[] = {
+        S2E_KERNEL_FCN_HOOK("ntoskrnl.exe", "ObReferenceObjectByHandle", S2EHook_ObReferenceObjectByHandle),
+        S2E_KERNEL_FCN_HOOK_END()
     };
 }

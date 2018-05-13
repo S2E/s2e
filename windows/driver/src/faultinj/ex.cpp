@@ -11,7 +11,7 @@
 extern "C"
 {
 #include <s2e/s2e.h>
-#include <s2e/GuestCodePatching.h>
+#include <s2e/GuestCodeHooking.h>
 
 #include "../log.h"
 #include "faultinj.h"
@@ -92,15 +92,13 @@ extern "C"
         }
     }
 
-
-    const S2E_HOOK g_kernelExHooks[] = {
-        { (UINT_PTR)"ntoskrnl.exe", (UINT_PTR)"ExAllocatePool", (UINT_PTR)S2EHook_ExAllocatePool },
-        { (UINT_PTR)"ntoskrnl.exe", (UINT_PTR)"ExAllocatePoolWithQuota", (UINT_PTR)S2EHook_ExAllocatePoolWithQuota },
-        { (UINT_PTR)"ntoskrnl.exe", (UINT_PTR)"ExAllocatePoolWithQuotaTag", (UINT_PTR)S2EHook_ExAllocatePoolWithQuotaTag },
-        { (UINT_PTR)"ntoskrnl.exe", (UINT_PTR)"ExAllocatePoolWithTag", (UINT_PTR)S2EHook_ExAllocatePoolWithTag },
-        { (UINT_PTR)"ntoskrnl.exe", (UINT_PTR)"ExAllocatePoolWithTagPriority", (UINT_PTR)S2EHook_ExAllocatePoolWithTagPriority },
-
-        { (UINT_PTR)"ntoskrnl.exe", (UINT_PTR)"ExInitializeResourceLite", (UINT_PTR)S2EHook_ExInitializeResourceLite },
-        { 0,0,0 }
+    const S2E_GUEST_HOOK_LIBRARY_FCN g_kernelExHooks[] = {
+        S2E_KERNEL_FCN_HOOK("ntoskrnl.exe", "ExAllocatePool", S2EHook_ExAllocatePool),
+        S2E_KERNEL_FCN_HOOK("ntoskrnl.exe", "ExAllocatePoolWithQuota", S2EHook_ExAllocatePoolWithQuota),
+        S2E_KERNEL_FCN_HOOK("ntoskrnl.exe", "ExAllocatePoolWithQuotaTag", S2EHook_ExAllocatePoolWithQuotaTag),
+        S2E_KERNEL_FCN_HOOK("ntoskrnl.exe", "ExAllocatePoolWithTag", S2EHook_ExAllocatePoolWithTag),
+        S2E_KERNEL_FCN_HOOK("ntoskrnl.exe", "ExAllocatePoolWithTagPriority", S2EHook_ExAllocatePoolWithTagPriority),
+        S2E_KERNEL_FCN_HOOK("ntoskrnl.exe", "ExInitializeResourceLite", S2EHook_ExInitializeResourceLite),
+        S2E_KERNEL_FCN_HOOK_END()
     };
 }

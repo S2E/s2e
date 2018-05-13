@@ -11,7 +11,7 @@
 extern "C"
 {
 #include <s2e/s2e.h>
-#include <s2e/GuestCodePatching.h>
+#include <s2e/GuestCodeHooking.h>
 
 #include "../log.h"
 #include "faultinj.h"
@@ -39,8 +39,8 @@ extern "C"
         );
     }
 
-    const S2E_HOOK g_kernelPsHooks[] = {
-        { (UINT_PTR)"ntoskrnl.exe", (UINT_PTR)"PsCreateSystemThread", (UINT_PTR)S2EHook_PsCreateSystemThread },
-        { 0,0,0 }
+    const S2E_GUEST_HOOK_LIBRARY_FCN g_kernelPsHooks[] = {
+        S2E_KERNEL_FCN_HOOK("ntoskrnl.exe", "PsCreateSystemThread", S2EHook_PsCreateSystemThread),
+        S2E_KERNEL_FCN_HOOK_END()
     };
 }

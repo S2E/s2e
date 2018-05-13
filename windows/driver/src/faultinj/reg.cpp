@@ -11,7 +11,7 @@
 extern "C"
 {
 #include <s2e/s2e.h>
-#include <s2e/GuestCodePatching.h>
+#include <s2e/GuestCodeHooking.h>
 
 #include "../log.h"
 #include "faultinj.h"
@@ -68,10 +68,10 @@ extern "C"
         );
     }
 
-    const S2E_HOOK g_kernelRegHooks[] = {
-        { (UINT_PTR)"ntoskrnl.exe", (UINT_PTR)"ZwCreateKey", (UINT_PTR)S2EHook_ZwCreateKey },
-        { (UINT_PTR)"ntoskrnl.exe", (UINT_PTR)"ZwOpenKey", (UINT_PTR)S2EHook_ZwOpenKey },
-        { (UINT_PTR)"ntoskrnl.exe", (UINT_PTR)"ZwQueryValueKey", (UINT_PTR)S2EHook_ZwQueryValueKey },
-        { 0,0,0 }
+    const S2E_GUEST_HOOK_LIBRARY_FCN g_kernelRegHooks[] = {
+        S2E_KERNEL_FCN_HOOK("ntoskrnl.exe", "ZwCreateKey", S2EHook_ZwCreateKey),
+        S2E_KERNEL_FCN_HOOK("ntoskrnl.exe", "ZwOpenKey", S2EHook_ZwOpenKey),
+        S2E_KERNEL_FCN_HOOK("ntoskrnl.exe", "ZwQueryValueKey", S2EHook_ZwQueryValueKey),
+        S2E_KERNEL_FCN_HOOK_END()
     };
 }

@@ -147,7 +147,7 @@ NTSTATUS StringAllocateUnicode(_Inout_ PUNICODE_STRING String)
         goto err;
     }
 
-    String->Buffer = ExAllocatePoolWithTag(NonPagedPool, String->MaximumLength, TAG_STR);
+    String->Buffer = ExAllocatePoolWithTag(NonPagedPoolNx, String->MaximumLength, TAG_STR);
     if (String->Buffer == NULL) {
         Status = STATUS_INSUFFICIENT_RESOURCES;
         goto err;
