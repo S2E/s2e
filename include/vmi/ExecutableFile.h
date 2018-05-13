@@ -14,6 +14,7 @@
 #include <llvm/Support/Path.h>
 #include <map>
 #include <string>
+#include <unordered_map>
 #include <vector>
 #include "FileProvider.h"
 
@@ -100,10 +101,10 @@ struct ImportedSymbol {
 };
 
 // Maps the name of the function to its actual address
-typedef std::map<std::string, ImportedSymbol> ImportedSymbols;
+typedef std::unordered_map<std::string, ImportedSymbol> ImportedSymbols;
 
-// Maps the library name to the set of functions it exports
-typedef std::map<std::string, ImportedSymbols> Imports;
+// Maps the library name to the set of functions imported from it
+typedef std::unordered_map<std::string, ImportedSymbols> Imports;
 
 // List of virtual addresses whose content needs to be relocated.
 typedef std::vector<std::pair<uint64_t, uint64_t>> Relocations;
