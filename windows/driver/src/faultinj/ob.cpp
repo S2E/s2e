@@ -8,8 +8,7 @@
 
 #include <ntddk.h>
 
-extern "C"
-{
+extern "C" {
 #include <s2e/s2e.h>
 #include <s2e/GuestCodeHooking.h>
 
@@ -20,26 +19,27 @@ extern "C"
 
 #include "faultinj.hpp"
 
-extern "C"
-{
-    NTSTATUS S2EHook_ObReferenceObjectByHandle(
-        _In_ HANDLE Handle,
-        _In_ ACCESS_MASK DesiredAccess,
-        _In_opt_ POBJECT_TYPE ObjectType,
-        _In_ KPROCESSOR_MODE AccessMode,
-        _Out_ PVOID *Object,
-        _Out_opt_ POBJECT_HANDLE_INFORMATION HandleInformation
-    )
-    {
-        UINT_PTR CallSite = (UINT_PTR)_ReturnAddress();
-        return FaultInjTemplate1<NTSTATUS>(
-            CallSite, "ObReferenceObjectByHandle", FALSE, STATUS_INSUFFICIENT_RESOURCES, &ObReferenceObjectByHandle,
-            Handle, DesiredAccess, ObjectType, AccessMode, Object, HandleInformation
-        );
-    }
+extern "C" {
 
-    const S2E_GUEST_HOOK_LIBRARY_FCN g_kernelObHooks[] = {
-        S2E_KERNEL_FCN_HOOK("ntoskrnl.exe", "ObReferenceObjectByHandle", S2EHook_ObReferenceObjectByHandle),
-        S2E_KERNEL_FCN_HOOK_END()
-    };
+NTSTATUS S2EHook_ObReferenceObjectByHandle(
+    _In_ HANDLE Handle,
+    _In_ ACCESS_MASK DesiredAccess,
+    _In_opt_ POBJECT_TYPE ObjectType,
+    _In_ KPROCESSOR_MODE AccessMode,
+    _Out_ PVOID *Object,
+    _Out_opt_ POBJECT_HANDLE_INFORMATION HandleInformation
+)
+{
+    UINT_PTR CallSite = (UINT_PTR)_ReturnAddress();
+    return FaultInjTemplate1<NTSTATUS>(
+        CallSite, "ObReferenceObjectByHandle", FALSE, STATUS_INSUFFICIENT_RESOURCES, &ObReferenceObjectByHandle,
+        Handle, DesiredAccess, ObjectType, AccessMode, Object, HandleInformation
+    );
+}
+
+const S2E_GUEST_HOOK_LIBRARY_FCN g_kernelObHooks[] = {
+    S2E_KERNEL_FCN_HOOK("ntoskrnl.exe", "ObReferenceObjectByHandle", S2EHook_ObReferenceObjectByHandle),
+    S2E_KERNEL_FCN_HOOK_END()
+};
+
 }
