@@ -85,7 +85,6 @@ public:
 
     // Get the current process identifier
     virtual uint64_t getPid(S2EExecutionState *state, uint64_t pc);
-    virtual uint64_t getPid(S2EExecutionState *state);
 
     /// Get the current thread identifier
     virtual uint64_t getTid(S2EExecutionState *state);

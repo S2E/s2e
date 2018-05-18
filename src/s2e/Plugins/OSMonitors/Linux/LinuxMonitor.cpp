@@ -27,20 +27,19 @@ void LinuxMonitor::initialize() {
     m_terminateOnTrap = cfg->getBool(getConfigKey() + ".terminateOnTrap", true);
 }
 
+///
+/// \brief Get the process id for the current state
+///
+/// In the Linux kernel, each thread has its own task_struct that contains:
+///  * Its own identifier, the process identifier (PID)
+///  * The identifier of the process that started the thread, the thread group
+///    (TGID)
+///
+/// Therefore the getPid method returns the TGID and getTid returns the PID.
+///
+/// \return The process id
+///
 uint64_t LinuxMonitor::getPid(S2EExecutionState *state, uint64_t pc) {
-    return getPid(state);
-}
-
-//
-// In the Linux kernel, each thread has its own task_struct that contains:
-//  * Its own identifier, the process identifier (PID)
-//  * The identifier of the process that started the thread, the thread group
-//    (TGID)
-//
-// Therefore the getPid method returns the TGID and getTid returns the PID.
-//
-
-uint64_t LinuxMonitor::getPid(S2EExecutionState *state) {
     target_ulong currentTask;
 
     if (!state->mem()->read(m_currentTaskAddr, &currentTask, sizeof(currentTask))) {

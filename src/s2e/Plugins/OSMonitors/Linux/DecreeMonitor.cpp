@@ -199,12 +199,8 @@ uint64_t DecreeMonitor::getPid(S2EExecutionState *state, uint64_t pc) {
     }
 }
 
-uint64_t DecreeMonitor::getPid(S2EExecutionState *state) {
-    return getPid(state, state->regs()->getPc());
-}
-
 uint64_t DecreeMonitor::getTid(S2EExecutionState *state) {
-    return getPid(state);
+    return OSMonitor::getPid(state);
 }
 
 void DecreeMonitor::getPreFeedData(S2EExecutionState *state, uint64_t pid, uint64_t count, std::vector<uint8_t> &data) {
