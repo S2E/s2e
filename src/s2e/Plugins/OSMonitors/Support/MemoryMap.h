@@ -88,6 +88,13 @@ public:
     ///
     void dump(S2EExecutionState *state) const;
 
+    ///
+    /// \brief dump the memory map of the given tracked process
+    /// \param state the execution state
+    /// \param pid the pid of the process to dump
+    ///
+    void dump(S2EExecutionState *state, uint64_t pid) const;
+
 private:
     OSMonitor *m_monitor;
     WindowsMonitor *m_windows;

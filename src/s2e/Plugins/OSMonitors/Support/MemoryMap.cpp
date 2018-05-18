@@ -171,22 +171,31 @@ public:
         }
     }
 
+    void dump(llvm::raw_ostream &os, uint64_t pid) const {
+        const auto it = m_regions.find(pid);
+        if (it == m_regions.end()) {
+            return;
+        }
+
+        const MemoryMapRegion *p = &(*it).second;
+
+        foreach2 (iit, p->begin(), p->end()) {
+            uint64_t it_addr = iit.start();
+            uint64_t it_end = iit.stop();
+            MemoryMapRegionType type = (*iit);
+            os << "pid=" << hexval(pid);
+            os << " [" << hexval(it_addr) << ", " << hexval(it_end) << "] ";
+            os << (type & MM_READ ? 'R' : '-');
+            os << (type & MM_WRITE ? 'W' : '-');
+            os << (type & MM_EXEC ? 'X' : '-');
+            os << "\n";
+        }
+    }
+
     void dump(llvm::raw_ostream &os) const {
         foreach2 (it, m_regions.begin(), m_regions.end()) {
             uint64_t pid = (*it).first;
-            const MemoryMapRegion *p = &(*it).second;
-
-            foreach2 (iit, p->begin(), p->end()) {
-                uint64_t it_addr = iit.start();
-                uint64_t it_end = iit.stop();
-                MemoryMapRegionType type = (*iit);
-                os << "pid=" << hexval(pid);
-                os << " [" << hexval(it_addr) << ", " << hexval(it_end) << "] ";
-                os << (type & MM_READ ? 'R' : '-');
-                os << (type & MM_WRITE ? 'W' : '-');
-                os << (type & MM_EXEC ? 'X' : '-');
-                os << "\n";
-            }
+            dump(os, pid);
         }
     }
 };
@@ -268,6 +277,10 @@ public:
 
     void dump(llvm::raw_ostream &os) const {
         m_manager.dump(os);
+    }
+
+    void dump(llvm::raw_ostream &os, uint64_t pid) const {
+        m_manager.dump(os, pid);
     }
 };
 }
@@ -476,6 +489,14 @@ void MemoryMap::dump(S2EExecutionState *state) const {
     llvm::raw_ostream &os = getDebugStream(state);
     os << "Dumping memory map\n";
     plgState->dump(os);
+}
+
+void MemoryMap::dump(S2EExecutionState *state, uint64_t pid) const {
+    DECLARE_PLUGINSTATE(MemoryMapState, state);
+
+    llvm::raw_ostream &os = getDebugStream(state);
+    os << "Dumping memory map for pid " << pid << "\n";
+    plgState->dump(os, pid);
 }
 
 uint64_t MemoryMap::getPeakCommitCharge(S2EExecutionState *state) const {
