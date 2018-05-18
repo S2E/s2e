@@ -347,6 +347,17 @@ void MemoryMap::onProcessUnload(S2EExecutionState *state, uint64_t pageDir, uint
     plgState->removePid(pid);
 }
 
+///
+/// \brief Rounds down address to the nearest page boundary, rounds up
+/// address + size to the nearest page boundary.
+///
+/// E.g., address==1 and size==2 => start==0 and end == 0x1000;
+///
+static void ComputeStartEndAddress(uint64_t address, uint64_t size, uint64_t &start, uint64_t &end) {
+    start = address & TARGET_PAGE_MASK;
+    end = (address + size + (TARGET_PAGE_SIZE - 1)) & TARGET_PAGE_MASK;
+}
+
 void MemoryMap::onNtAllocateVirtualMemory(S2EExecutionState *state, const S2E_WINMON2_ALLOCATE_VM &d) {
     using namespace vmi::windows;
     if (!NT_SUCCESS(d.Status)) {
@@ -356,30 +367,26 @@ void MemoryMap::onNtAllocateVirtualMemory(S2EExecutionState *state, const S2E_WI
     uint64_t pid = m_windows->getCurrentProcessId(state);
     assert(pid);
 
-    if (!m_proc->isTracked(state, pid)) {
+    uint64_t target_pid = m_windows->getPidFromHandle(state, pid, d.ProcessHandle);
+    uint64_t real_pid = target_pid ? target_pid : pid;
+
+    if (!m_proc->isTracked(state, real_pid)) {
         return;
     }
 
     // XXX: this will not update stats for a remote process!
     updateMemoryStats(state);
 
-    uint64_t target_pid = m_windows->getPidFromHandle(state, pid, d.ProcessHandle);
-    uint64_t real_pid = target_pid ? target_pid : pid;
-
     getDebugStream() << __FUNCTION__ << " pid=" << hexval(pid) << " target pid=" << hexval(target_pid)
                      << " base=" << hexval(d.BaseAddress) << " size=" << hexval(d.Size)
                      << " protect=" << hexval(d.Protection) << "\n";
 
-    uint64_t address = d.BaseAddress;
-    uint64_t size = d.Size;
-
-    uint64_t end = address + size;
-    address &= ~0xfff;
-    end = (end + 0xfff) & ~0xfff;
+    uint64_t start;
+    uint64_t end;
+    ComputeStartEndAddress(d.BaseAddress, d.Size, start, end);
 
     MemoryMapRegionType type = WindowsProtectionToInternal(d.Protection);
-
-    addRegion(state, real_pid, address, end, type);
+    addRegion(state, real_pid, start, end, type);
 }
 
 void MemoryMap::onNtFreeVirtualMemory(S2EExecutionState *state, const S2E_WINMON2_FREE_VM &d) {
@@ -390,29 +397,26 @@ void MemoryMap::onNtFreeVirtualMemory(S2EExecutionState *state, const S2E_WINMON
     uint64_t pid = m_windows->getCurrentProcessId(state);
     assert(pid);
 
-    if (!m_proc->isTracked(state, pid)) {
-        return;
-    }
-
-    DECLARE_PLUGINSTATE(MemoryMapState, state);
-
     // XXX: this will not update stats for a remote process!
     updateMemoryStats(state);
 
     uint64_t target_pid = m_windows->getPidFromHandle(state, pid, d.ProcessHandle);
     uint64_t real_pid = target_pid ? target_pid : pid;
 
+    if (!m_proc->isTracked(state, real_pid)) {
+        return;
+    }
+
     getDebugStream() << __FUNCTION__ << " pid=" << hexval(pid) << " target pid=" << hexval(target_pid)
                      << " base=" << hexval(d.BaseAddress) << " size=" << hexval(d.Size) << "\n";
 
     if (d.FreeType & 0x8000 || d.FreeType & 0x4000) { // MEM_RELEASE || MEM_DECOMMIT
-        uint64_t address = d.BaseAddress;
-        uint64_t size = d.Size;
-        uint64_t end = address + size;
-        address &= ~0xfff;
-        end = (end + 0xfff) & ~0xfff;
+        uint64_t start;
+        uint64_t end;
+        ComputeStartEndAddress(d.BaseAddress, d.Size, start, end);
 
-        plgState->removeRegion(real_pid, address, end);
+        DECLARE_PLUGINSTATE(MemoryMapState, state);
+        plgState->removeRegion(real_pid, start, end);
     }
 }
 
@@ -420,37 +424,59 @@ void MemoryMap::onNtProtectVirtualMemory(S2EExecutionState *state, const S2E_WIN
     uint64_t pid = m_windows->getCurrentProcessId(state);
     assert(pid);
 
-    if (!m_proc->isTracked(state, pid)) {
+    uint64_t target_pid = m_windows->getPidFromHandle(state, pid, d.ProcessHandle);
+    uint64_t real_pid = target_pid ? target_pid : pid;
+
+    if (!m_proc->isTracked(state, real_pid)) {
         return;
     }
 
-    DECLARE_PLUGINSTATE(MemoryMapState, state);
-
     // XXX: this will not update stats for a remote process!
     updateMemoryStats(state);
-
-    uint64_t target_pid = m_windows->getPidFromHandle(state, pid, d.ProcessHandle);
-
-    uint64_t address = d.BaseAddress;
-    uint64_t end = d.BaseAddress + d.Size;
-    address = address & ~0xfff;
-    end = (end + 0xfff) & ~0xfff;
 
     getDebugStream() << __FUNCTION__ << " pid=" << hexval(pid) << " target pid=" << hexval(target_pid)
                      << " base=" << hexval(d.BaseAddress) << " size=" << hexval(d.Size)
                      << " protection=" << hexval(d.NewProtection) << "\n";
 
-    MemoryMapRegionType type = WindowsProtectionToInternal(d.NewProtection);
+    uint64_t start;
+    uint64_t end;
+    ComputeStartEndAddress(d.BaseAddress, d.Size, start, end);
 
-    plgState->addRegion(target_pid ? target_pid : pid, address, end, type);
+    DECLARE_PLUGINSTATE(MemoryMapState, state);
+    MemoryMapRegionType type = WindowsProtectionToInternal(d.NewProtection);
+    plgState->addRegion(real_pid, start, end, type);
 }
 
 void MemoryMap::onNtMapViewOfSection(S2EExecutionState *state, const S2E_WINMON2_MAP_SECTION &d) {
-    // Unused?
+    uint64_t pid = m_windows->getCurrentProcessId(state);
+    assert(pid);
+
+    uint64_t target_pid = m_windows->getPidFromHandle(state, pid, d.ProcessHandle);
+    uint64_t real_pid = target_pid ? target_pid : pid;
+
+    if (!m_proc->isTracked(state, real_pid)) {
+        return;
+    }
+
+    // XXX: this will not update stats for a remote process!
+    updateMemoryStats(state);
+
+    getDebugStream() << __FUNCTION__ << " pid=" << hexval(pid) << " target pid=" << hexval(target_pid)
+                     << " base=" << hexval(d.BaseAddress) << " size=" << hexval(d.Size)
+                     << " protection=" << hexval(d.Win32Protect) << "\n";
+
+    uint64_t start;
+    uint64_t end;
+    ComputeStartEndAddress(d.BaseAddress, d.Size, start, end);
+
+    DECLARE_PLUGINSTATE(MemoryMapState, state);
+    MemoryMapRegionType type = WindowsProtectionToInternal(d.Win32Protect);
+    plgState->addRegion(real_pid, start, end, type);
 }
 
 void MemoryMap::onNtUnmapViewOfSection(S2EExecutionState *state, const S2E_WINMON2_UNMAP_SECTION &d) {
-    // Unused?
+    // XXX: not implemented. This would require to convert somehow the given address
+    // to the section start and size.
 }
 
 void MemoryMap::updateMemoryStats(S2EExecutionState *state) {
