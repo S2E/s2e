@@ -278,9 +278,16 @@ ModuleDescriptorList ModuleMap::getModulesByPid(S2EExecutionState *state, uint64
     return plgState->getModulesByPid(pid);
 }
 
+const ModuleDescriptor *ModuleMap::getModule(S2EExecutionState *state) {
+    DECLARE_PLUGINSTATE(ModuleMapState, state);
+    auto pid = m_monitor->getPid(state);
+    return plgState->getModule(pid, state->regs()->getPc());
+}
+
 const ModuleDescriptor *ModuleMap::getModule(S2EExecutionState *state, uint64_t pc) {
     DECLARE_PLUGINSTATE(ModuleMapState, state);
-    return plgState->getModule(m_monitor->getPid(state, pc), pc);
+    auto pid = m_monitor->getPid(state, pc);
+    return plgState->getModule(pid, pc);
 }
 
 const ModuleDescriptor *ModuleMap::getModule(S2EExecutionState *state, uint64_t pid, uint64_t pc) {
