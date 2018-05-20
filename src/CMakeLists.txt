@@ -43,7 +43,6 @@ add_library(
     s2e/Plugins/VulnerabilityAnalysis/PovGenerationPolicy.cpp
     s2e/Plugins/VulnerabilityAnalysis/Recipe/Recipe.cpp
     s2e/Plugins/VulnerabilityAnalysis/Recipe/RecipeDescriptor.cpp
-    s2e/Plugins/VulnerabilityAnalysis/Recipe/MemoryHelpers.cpp
 
     # Tracing plugins
     s2e/Plugins/ExecutionTracers/ExecutionTracer.cpp
