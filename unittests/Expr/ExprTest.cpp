@@ -34,13 +34,13 @@ TEST(ExprTest, BasicConstruction) {
               SubExpr::create(ConstantExpr::alloc(10, 32), ConstantExpr::alloc(10, 32)));
 }
 
-/// \brief create an array of 8-bit read expressions for the given variable names
-static std::vector<ref<Expr>> GenerateLoads(const std::vector<std::string> &varNames) {
+/// \brief create an array read expressions for the given variable names
+static std::vector<ref<Expr>> GenerateLoads(const std::vector<std::string> &varNames, Expr::Width width = Expr::Int8) {
     std::vector<ref<Expr>> ret;
 
     for (const auto &name : varNames) {
-        Array *array = new Array(name, 1);
-        auto rd = Expr::createTempRead(array, 8);
+        Array *array = new Array(name, width / 8);
+        auto rd = Expr::createTempRead(array, width);
         ret.push_back(rd);
     }
 
@@ -115,6 +115,38 @@ TEST(ExprTest, UnalignedLoadSimplification1) {
 
     delete os;
     delete mo;
+}
+
+static ref<Expr> GetExtractAndZExtExpr(ref<Expr> load, Expr::Width width, Expr::Width ptrWidth, uint64_t mask) {
+    ref<Expr> zext = ZExtExpr::create(load, ptrWidth);
+    ref<Expr> me = ConstantExpr::create(mask, ptrWidth);
+    return ExtractExpr::create(AndExpr::create(zext, me), 0, width);
+}
+
+///
+/// \brief Check simplification of Extract_z(0, And_x(ZExt_x(X_y), mask))
+///
+TEST(ExprTest, TestAndZext) {
+    Expr::Width widths[] = {Expr::Int8, Expr::Int16, Expr::Int32, Expr::Int64, 0};
+    uint64_t masks[] = {0xff, 0xffff, 0xffffffff, 0xffffffffffffffff};
+
+    for (unsigned i = 0; widths[i]; ++i) {
+        for (unsigned j = 0; widths[j]; ++j) {
+            auto ptrWidth = widths[i];
+            auto loadWidth = widths[j];
+            auto mask = masks[j];
+
+            if (ptrWidth < loadWidth) {
+                continue;
+            }
+
+            std::vector<std::string> vars;
+            vars.push_back("v1");
+            auto loads = GenerateLoads(vars, loadWidth);
+            auto ret = GetExtractAndZExtExpr(loads[0], loadWidth, ptrWidth, mask);
+            EXPECT_EQ(loads[0], ret);
+        }
+    }
 }
 
 ///
