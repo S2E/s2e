@@ -892,7 +892,7 @@ S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMContext *tcgLLVMContext, const Interpr
     std::string chosenModule;
 
     if (PersistentTbCache.size() && !persistentCacheExists) {
-        llvm::errs() << "Cannot use persistent cache, " << PersistentTbCache << " does not exist\n";
+        s2e->getWarningsStream() << "Cannot use persistent cache, " << PersistentTbCache << " does not exist\n";
     }
 
     if (PersistentTbCache.size() && persistentCacheExists) {
@@ -909,7 +909,7 @@ S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMContext *tcgLLVMContext, const Interpr
         g_free(filename);
     }
 
-    llvm::outs() << "Using module " << chosenModule << "\n";
+    s2e->getInfoStream() << "Using module " << chosenModule << "\n";
 
     MOpts = ModuleOptions(vector<string>(1, chosenModule.c_str()),
                           /* Optimize= */ true, /* CheckDivZero= */ false, m_tcgLLVMContext->getFunctionPassManager());
