@@ -240,7 +240,9 @@ ref<Expr> S2EExecutionStateRegisters::readSymbolicRegion(unsigned offset, Expr::
     assert(offset + Expr::getMinBytesForWidth(width) <= CPU_OFFSET(eip));
 
     if (!(*m_runningConcrete) || !m_symbolicRegs->isConcrete(offset, width)) {
-        return m_symbolicRegs->read(offset, width);
+        klee::BitfieldSimplifier simpl;
+        auto ret = m_symbolicRegs->read(offset, width);
+        return simpl.simplify(ret);
     } else {
         /* XXX: should we check getSymbolicRegisterMask ? */
         uint64_t ret = 0;
