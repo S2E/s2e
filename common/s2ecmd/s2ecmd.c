@@ -50,7 +50,8 @@ typedef int (*cmd_handler_t)(int argc, const char **args);
 typedef struct _cmd_t {
     char *name;
     cmd_handler_t handler;
-    unsigned args_count;
+    unsigned min_args_count;
+    unsigned max_args_count;
     char *description;
 } cmd_t;
 
@@ -175,7 +176,7 @@ static int handler_symbfile(int argc, const char **args) {
         return -2;
     }
 
-    char buffer[0x1000];
+    char buffer[0x1];
 
     unsigned current_chunk = 0;
     unsigned total_chunks = size / sizeof(buffer);
@@ -366,8 +367,11 @@ static int handler_flush_tbs(int argc, const char **args) {
     return 0;
 }
 
-#define COMMAND(c, args, desc) \
-    { #c, handler_##c, args, desc }
+#define COMMAND(c, arg_count, desc) \
+    { #c, handler_##c, arg_count, arg_count, desc }
+
+#define COMMAND2(c, min_arg_count, max_arg_count, desc) \
+    { #c, handler_##c, min_arg_count, max_arg_count, desc }
 
 static cmd_t s_commands[] = {
     COMMAND(kill, 2, "Kill the current state with the specified numeric status and message"),
@@ -388,13 +392,14 @@ static cmd_t s_commands[] = {
     COMMAND(get_seed_file, 0, "Returns the name of the currently available seed file"),
     COMMAND(seedsearcher_enable, 0, "Activates the seed searcher"),
     COMMAND(flush_tbs, 0, "Flush the translation block cache"),
-    {NULL, NULL, 0, NULL}};
+    {NULL, NULL, 0, 0, NULL}};
 
 static void print_commands(void) {
     unsigned i = 0;
     printf("%-15s  %s %s\n\n", "Command name", "Argument count", "Description");
     while (s_commands[i].handler) {
-        printf("%-15s  %d              %s\n", s_commands[i].name, s_commands[i].args_count, s_commands[i].description);
+        printf("%-15s  %d              %s\n", s_commands[i].name, s_commands[i].min_args_count,
+               s_commands[i].description);
         ++i;
     }
 }
@@ -429,9 +434,12 @@ int main(int argc, const char **argv) {
     ++argv;
     ++argv;
 
-    if (argc != s_commands[cmd_index].args_count) {
+    unsigned min_args = s_commands[cmd_index].min_args_count;
+    unsigned max_args = s_commands[cmd_index].max_args_count;
+
+    if (!(argc >= min_args && argc <= max_args)) {
         fprintf(stderr, "Invalid number of arguments supplied (received %d, expected %d)\n", argc,
-                s_commands[cmd_index].args_count);
+                s_commands[cmd_index].min_args_count);
         goto err;
     }
 
