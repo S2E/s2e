@@ -686,8 +686,14 @@ void S2EExecutor::handleForkAndConcretize(Executor *executor, ExecutionState *st
                                         << "): " << hexval(concreteAddress->getZExtValue()) << " " << address << "\n";
     }
 
-    g_s2e->getCorePlugin()->onSymbolicAddress.emit(s2eState, address, concreteAddress->getZExtValue(), doConcretize,
-                                                   reason);
+    unsigned ptrSize = s2eState->getPointerSize();
+    klee::ref<klee::Expr> castedAddress = address;
+    if (ptrSize == sizeof(uint32_t)) {
+        castedAddress = klee::ExtractExpr::create(address, 0, klee::Expr::Int32);
+    }
+
+    g_s2e->getCorePlugin()->onSymbolicAddress.emit(s2eState, castedAddress, concreteAddress->getZExtValue(),
+                                                   doConcretize, reason);
 
     klee::ref<klee::Expr> condition = EqExpr::create(concreteAddress, address);
 
