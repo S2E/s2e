@@ -45,7 +45,7 @@
 #define SLEEP(x) sleep(x)
 #endif
 
-typedef int (*cmd_handler_t)(const char **args);
+typedef int (*cmd_handler_t)(int argc, const char **args);
 
 typedef struct _cmd_t {
     char *name;
@@ -54,7 +54,7 @@ typedef struct _cmd_t {
     char *description;
 } cmd_t;
 
-static int handler_register_module(const char **args) {
+static int handler_register_module(int argc, const char **args) {
     const char *name = args[0];
     const char *path = args[1];
     uint64_t base = strtoul(args[2], NULL, 0);
@@ -78,24 +78,24 @@ static int handler_register_module(const char **args) {
     return 0;
 }
 
-static int handler_kill(const char **args) {
+static int handler_kill(int argc, const char **args) {
     int status = atoi(args[0]);
     const char *message = args[1];
     s2e_kill_state(status, message);
     return 0;
 }
 
-static int handler_message(const char **args) {
+static int handler_message(int argc, const char **args) {
     s2e_message(args[0]);
     return 0;
 }
 
-static int handler_check(const char **args) {
+static int handler_check(int argc, const char **args) {
     // Return 0 if we are running in S2E mode, or 1 otherwise
     return s2e_check() == 0 ? 1 : 0;
 }
 
-static int handler_wait(const char **args) {
+static int handler_wait(int argc, const char **args) {
     s2e_message("Waiting for S2E...");
     while (!s2e_check()) {
         SLEEP(1);
@@ -104,7 +104,7 @@ static int handler_wait(const char **args) {
     return 0;
 }
 
-static int handler_symbwrite(const char **args) {
+static int handler_symbwrite(int argc, const char **args) {
     int n_bytes = -1;
     int i;
 
@@ -128,7 +128,7 @@ static int handler_symbwrite(const char **args) {
     return 0;
 }
 
-static int handler_symbwrite_dec(const char **args) {
+static int handler_symbwrite_dec(int argc, const char **args) {
     int n_bytes = -1;
     int i;
 
@@ -154,7 +154,7 @@ static int handler_symbwrite_dec(const char **args) {
     return 0;
 }
 
-static int handler_symbfile(const char **args) {
+static int handler_symbfile(int argc, const char **args) {
     const char *filename = args[0];
     int flags = O_RDWR;
 
@@ -255,7 +255,7 @@ static int handler_symbfile(const char **args) {
     return 0;
 }
 
-static int handler_exemplify(const char **args) {
+static int handler_exemplify(int argc, const char **args) {
 #define BUF_SIZE 32
     char buffer[BUF_SIZE] = {0};
     unsigned int i;
@@ -280,7 +280,7 @@ static int handler_exemplify(const char **args) {
  * e.g., if symbex trashes the filesystem during testing and
  * the OS can't read files anymore.
  */
-static int handler_launch(const char **args) {
+static int handler_launch(int argc, const char **args) {
     const char *prog = args[0];
     const char *message = args[1];
     int ret = system(prog);
@@ -288,7 +288,7 @@ static int handler_launch(const char **args) {
     return ret; // Doesn't matter...
 }
 
-static int handler_fork(const char **args) {
+static int handler_fork(int argc, const char **args) {
     if (!strcmp(args[0], "disable") || !strcmp(args[0], "0")) {
         s2e_disable_forking();
     } else {
@@ -298,24 +298,24 @@ static int handler_fork(const char **args) {
     return 0;
 }
 
-static int handler_pathid(const char **args) {
+static int handler_pathid(int argc, const char **args) {
     printf("%u\n", s2e_get_path_id());
     return 0;
 }
 
-static int handler_yield(const char **args) {
+static int handler_yield(int argc, const char **args) {
     s2e_yield();
     return 0;
 }
 
-static int handler_invoke(const char **args) {
+static int handler_invoke(int argc, const char **args) {
     const char *plugin = args[0];
     const char *value = args[1];
 
     return s2e_invoke_plugin(plugin, (void *) value, strlen(value) + 1);
 }
 
-static int handler_get_seed_file(const char **args) {
+static int handler_get_seed_file(int argc, const char **args) {
     unsigned path_id = s2e_get_path_id();
     if (path_id != 0) {
         s2e_kill_state(-1, "s2ecmd: wrong state for getting seed file");
@@ -356,12 +356,12 @@ static int handler_get_seed_file(const char **args) {
     return -1;
 }
 
-static int handler_seedsearcher_enable(const char **args) {
+static int handler_seedsearcher_enable(int argc, const char **args) {
     s2e_seed_searcher_enable();
     return 0;
 }
 
-static int handler_flush_tbs(const char **args) {
+static int handler_flush_tbs(int argc, const char **args) {
     s2e_flush_tbs();
     return 0;
 }
@@ -435,7 +435,7 @@ int main(int argc, const char **argv) {
         goto err;
     }
 
-    retval = s_commands[cmd_index].handler(argv);
+    retval = s_commands[cmd_index].handler(argc, argv);
 
 err:
     // On Windows msys bash, a negative value returned from main will appear as 0.
