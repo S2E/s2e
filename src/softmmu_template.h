@@ -191,7 +191,16 @@ inline DATA_TYPE glue(glue(io_read_chk, SUFFIX), MMUSUFFIX)(ENV_PARAM target_phy
 
 inline DATA_TYPE glue(glue(io_read_chk, SUFFIX), MMUSUFFIX)(ENV_PARAM target_phys_addr_t physaddr, target_ulong addr,
                                                             void *retaddr) {
-    DATA_TYPE res;
+    // Putting together two 32-bit values involves an or and a shift,
+    // which produces hard-to-simplify symbolic expressions.
+    // Instead, we use a union to force casting, which will generate
+    // simpler concats and extract expression. The union must be volatile,
+    // otherwise the compiler would optimize away this trick.
+    volatile union {
+        DATA_TYPE res;
+        uint8_t raw[DATA_SIZE];
+    } res;
+
     target_phys_addr_t origaddr = physaddr;
     const struct MemoryDescOps *ops = phys_get_ops(physaddr);
 
@@ -204,7 +213,7 @@ inline DATA_TYPE glue(glue(io_read_chk, SUFFIX), MMUSUFFIX)(ENV_PARAM target_phy
 #if SHIFT <= 2
     if (se_ismemfunc(ops, 0)) {
         uintptr_t pa = se_notdirty_mem_read(naddr & TARGET_PAGE_MASK) | (naddr & (TARGET_PAGE_SIZE - 1));
-        res = glue(glue(ld, USUFFIX), _raw)((uint8_t *) (intptr_t)(pa));
+        res.res = glue(glue(ld, USUFFIX), _raw)((uint8_t *) (intptr_t)(pa));
 
         goto end;
     }
@@ -212,31 +221,28 @@ inline DATA_TYPE glue(glue(io_read_chk, SUFFIX), MMUSUFFIX)(ENV_PARAM target_phy
 #ifdef TARGET_WORDS_BIGENDIAN
     if (se_ismemfunc(ops, 0)) {
         uintptr_t pa = se_notdirty_mem_read(naddr & TARGET_PAGE_MASK) | (naddr & (TARGET_PAGE_SIZE - 1));
-
-        res = glue(glue(ld, USUFFIX), _raw)((uint8_t *) (intptr_t)(pa)) << 32;
-        res |= glue(glue(ld, USUFFIX), _raw)((uint8_t *) (intptr_t)(pa + 4));
-
+        *(uint32_t *) &res.raw[sizeof(uint32_t)] = glue(glue(ld, USUFFIX), _raw)((uint8_t *) (intptr_t)(pa));
+        *(uint32_t *) &res.raw[0] = glue(glue(ld, USUFFIX), _raw)((uint8_t *) (intptr_t)(pa + 4));
         goto end;
     }
 #else
     if (se_ismemfunc(ops, 0)) {
         uintptr_t pa = se_notdirty_mem_read(naddr & TARGET_PAGE_MASK) | (naddr & (TARGET_PAGE_SIZE - 1));
-        res = glue(glue(ld, USUFFIX), _raw)((uint8_t *) (intptr_t)(pa));
-        res |= glue(glue(ld, USUFFIX), _raw)((uint8_t *) (intptr_t)(pa + 4)) << 32;
-
+        *(uint32_t *) &res.raw[0] = glue(glue(ld, USUFFIX), _raw)((uint8_t *) (intptr_t)(pa));
+        *(uint32_t *) &res.raw[sizeof(uint32_t)] = glue(glue(ld, USUFFIX), _raw)((uint8_t *) (intptr_t)(pa + 4));
         goto end;
     }
 #endif
 #endif /* SHIFT > 2 */
 
     // By default, call the original io_read function, which is external
-    res = glue(glue(io_read, SUFFIX), MMUSUFFIX)(ENV_VAR origaddr, addr, retaddr);
+    res.res = glue(glue(io_read, SUFFIX), MMUSUFFIX)(ENV_VAR origaddr, addr, retaddr);
 
 end:
-    res = tcg_llvm_trace_mmio_access(addr, res, DATA_SIZE, 0);
+    tcg_llvm_trace_mmio_access(addr, res.res, DATA_SIZE, 0);
 
     SE_SET_MEM_IO_VADDR(env, 0, 1);
-    return res;
+    return res.res;
 }
 
 #endif
