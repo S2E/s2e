@@ -16,7 +16,7 @@ endif
 
 TARGETS := libs2e.so $(BC_TARGETS)
 
-.PHONY: libs2e/src/libs2e.so libtcg/src/libtcg.a libtcg/src/libcpu.a libs2ecore/src/libs2ecore.a libs2eplugins/src/libs2eplugins.a
+.PHONY: libs2e/src/libs2e.so libtcg/src/libtcg.a libcpu/src/libcpu.a libs2ecore/src/libs2ecore.a libs2eplugins/src/libs2eplugins.a
 
 all: $(TARGETS)
 
