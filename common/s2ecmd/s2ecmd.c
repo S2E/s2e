@@ -156,12 +156,21 @@ static int handler_symbwrite_dec(int argc, const char **args) {
 }
 
 static int handler_symbfile(int argc, const char **args) {
-    const char *filename = args[0];
     int flags = O_RDWR;
 
 #ifdef _WIN32
     flags |= O_BINARY;
 #endif
+
+    unsigned block_size = 0x1000;
+
+    if (argc == 2) {
+        block_size = atoi(args[0]);
+        ++args;
+        --argc;
+    }
+
+    const char *filename = args[0];
 
     int fd = open(filename, flags);
     if (fd < 0) {
@@ -176,7 +185,7 @@ static int handler_symbfile(int argc, const char **args) {
         return -2;
     }
 
-    char buffer[0x1];
+    char buffer[block_size];
 
     unsigned current_chunk = 0;
     unsigned total_chunks = size / sizeof(buffer);
@@ -381,7 +390,8 @@ static cmd_t s_commands[] = {
     COMMAND(yield, 0, "Yield the current state"),
     COMMAND(symbwrite, 1, "Write n symbolic bytes to stdout"),
     COMMAND(symbwrite_dec, 1, "Write n symbolic decimal digits to stdout"),
-    COMMAND(symbfile, 1, "Makes the specified file concolic. The file should be stored in a ramdisk."),
+    COMMAND2(symbfile, 1, 2, "Makes the specified file concolic. The file should be stored in a ramdisk. File name may "
+                             "be preceded by block size."),
     COMMAND(exemplify, 0, "Read from stdin and write an example to stdout"),
     COMMAND(launch, 2,
             "Launch the specified program or script, then kill the state with the specified message when done."),
