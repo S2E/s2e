@@ -40,26 +40,37 @@ TestCaseGenerator::TestCaseGenerator(S2E *s2e) : Plugin(s2e) {
 }
 
 void TestCaseGenerator::initialize() {
+    m_tracer = s2e()->getPlugin<ExecutionTracer>();
+    enable();
+}
+
+void TestCaseGenerator::enable() {
     ConfigFile *cfg = s2e()->getConfig();
+
     bool tcOnKill = cfg->getBool(getConfigKey() + ".generateOnStateKill", true);
     bool tcOnSegfault = cfg->getBool(getConfigKey() + ".generateOnSegfault", true);
 
     if (tcOnKill) {
-        m_connection =
+        m_stateKillConnection.disconnect();
+        m_stateKillConnection =
             s2e()->getCorePlugin()->onStateKill.connect(sigc::mem_fun(*this, &TestCaseGenerator::onStateKill));
     }
-
-    m_tracer = s2e()->getPlugin<ExecutionTracer>();
 
     // TODO: refactor POV generation, which is another type of test case
     if (tcOnSegfault) {
         WindowsCrashMonitor *windows = s2e()->getPlugin<WindowsCrashMonitor>();
         LinuxMonitor *linux = s2e()->getPlugin<LinuxMonitor>();
         if (linux) {
-            linux->onSegFault.connect(sigc::mem_fun(*this, &TestCaseGenerator::onSegFault));
+            m_linuxSegFaultConnection.disconnect();
+            m_linuxSegFaultConnection = linux->onSegFault.connect(sigc::mem_fun(*this, &TestCaseGenerator::onSegFault));
         } else if (windows) {
-            windows->onUserModeCrash.connect(sigc::mem_fun(*this, &TestCaseGenerator::onWindowsUserCrash));
-            windows->onKernelModeCrash.connect(sigc::mem_fun(*this, &TestCaseGenerator::onWindowsKernelCrash));
+            m_windowsKernelCrashConnection.disconnect();
+            m_windowsKernelCrashConnection.disconnect();
+
+            m_windowsUserCrashConnection =
+                windows->onUserModeCrash.connect(sigc::mem_fun(*this, &TestCaseGenerator::onWindowsUserCrash));
+            m_windowsKernelCrashConnection =
+                windows->onKernelModeCrash.connect(sigc::mem_fun(*this, &TestCaseGenerator::onWindowsKernelCrash));
         } else {
             getWarningsStream() << "No suitable crash sources enabled, cannot produce test cases on crashes\n";
             exit(-1);
@@ -67,15 +78,11 @@ void TestCaseGenerator::initialize() {
     }
 }
 
-void TestCaseGenerator::enable() {
-    if (!m_connection.connected()) {
-        m_connection =
-            s2e()->getCorePlugin()->onStateKill.connect(sigc::mem_fun(*this, &TestCaseGenerator::onStateKill));
-    }
-}
-
 void TestCaseGenerator::disable() {
-    m_connection.disconnect();
+    m_stateKillConnection.disconnect();
+    m_linuxSegFaultConnection.disconnect();
+    m_windowsKernelCrashConnection.disconnect();
+    m_windowsUserCrashConnection.disconnect();
 }
 
 void TestCaseGenerator::onWindowsUserCrash(S2EExecutionState *state, const WindowsUserModeCrash &desc) {

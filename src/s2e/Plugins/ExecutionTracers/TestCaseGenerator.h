@@ -60,7 +60,11 @@ public:
     void assembleTestCaseToFiles(const klee::Assignment &assignment, TestCaseData &data);
 
 private:
-    sigc::connection m_connection;
+    sigc::connection m_stateKillConnection;
+    sigc::connection m_linuxSegFaultConnection;
+    sigc::connection m_windowsUserCrashConnection;
+    sigc::connection m_windowsKernelCrashConnection;
+
     ExecutionTracer *m_tracer;
 
     void onStateKill(S2EExecutionState *state);
