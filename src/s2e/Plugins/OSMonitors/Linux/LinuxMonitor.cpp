@@ -9,6 +9,8 @@
 #include <s2e/ConfigFile.h>
 #include <s2e/S2E.h>
 
+#include <s2e/Plugins/OSMonitors/Support/MemoryMap.h>
+
 #include "LinuxMonitor.h"
 
 using namespace klee;
@@ -23,8 +25,18 @@ void LinuxMonitor::initialize() {
 
     m_vmi = s2e()->getPlugin<Vmi>();
 
+    // XXX: this is a circular dependency, will require further refactoring
+    m_map = s2e()->getPlugin<MemoryMap>();
+    if (!m_map) {
+        getWarningsStream() << "Requires MemoryMap\n";
+        exit(-1);
+    }
+
     m_terminateOnSegfault = cfg->getBool(getConfigKey() + ".terminateOnSegfault", true);
     m_terminateOnTrap = cfg->getBool(getConfigKey() + ".terminateOnTrap", true);
+
+    m_commandSize = sizeof(S2E_LINUXMON_COMMAND);
+    m_commandVersion = S2E_LINUXMON_COMMAND_VERSION;
 }
 
 ///
@@ -75,11 +87,10 @@ uint64_t LinuxMonitor::getTid(S2EExecutionState *state) {
 }
 
 void LinuxMonitor::handleSegfault(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd) {
-    std::string currentName(cmd.currentName, strnlen(cmd.currentName, sizeof(cmd.currentName)));
     getWarningsStream(state) << "Received segfault"
                              << " type=" << cmd.SegFault.fault << " pagedir=" << hexval(state->regs()->getPageDir())
-                             << " pid=" << hexval(cmd.currentPid) << " name=" << currentName
-                             << " pc=" << hexval(cmd.SegFault.pc) << " addr=" << hexval(cmd.SegFault.address) << "\n";
+                             << " pid=" << hexval(cmd.currentPid) << " pc=" << hexval(cmd.SegFault.pc)
+                             << " addr=" << hexval(cmd.SegFault.address) << "\n";
 
     // Don't switch states until it finishes and gets killed by
     // bootstrap.
@@ -105,53 +116,44 @@ void LinuxMonitor::handleProcessLoad(S2EExecutionState *state, const S2E_LINUXMO
         onMonitorLoad.emit(state);
     }
 
-    std::string processPath(cmd.ProcessLoad.process_path,
-                            strnlen(cmd.ProcessLoad.process_path, sizeof(cmd.ProcessLoad.process_path)));
+    std::string processPath;
+    if (!state->mem()->readString(cmd.ProcessLoad.process_path, processPath)) {
+        getWarningsStream(state) << "could not read process path of pid " << hexval(cmd.currentPid) << "\n";
+    }
 
     getDebugStream(state) << "Process " << processPath << " loaded"
-                          << " entry_point=" << hexval(cmd.ProcessLoad.entry_point)
-                          << " pid=" << hexval(cmd.ProcessLoad.process_id)
-                          << " start_code=" << hexval(cmd.ProcessLoad.start_code)
-                          << " end_code=" << hexval(cmd.ProcessLoad.end_code)
-                          << " start_data=" << hexval(cmd.ProcessLoad.start_data)
-                          << " end_data=" << hexval(cmd.ProcessLoad.end_data)
-                          << " start_stack=" << hexval(cmd.ProcessLoad.start_stack) << "\n";
+                          << " pid=" << hexval(cmd.currentPid) << "\n";
 
     llvm::StringRef file(processPath);
 
-    onProcessLoad.emit(state, state->regs()->getPageDir(), cmd.ProcessLoad.process_id, llvm::sys::path::stem(file));
-
-    ModuleDescriptor mod;
-    mod.Name = llvm::sys::path::stem(file);
-    mod.Path = file.str();
-    mod.AddressSpace = state->regs()->getPageDir();
-    mod.Pid = cmd.ProcessLoad.process_id;
-    mod.LoadBase = cmd.ProcessLoad.start_code;
-    mod.NativeBase = cmd.ProcessLoad.start_code;
-    mod.Size = cmd.ProcessLoad.end_code - cmd.ProcessLoad.start_code;
-    mod.EntryPoint = cmd.ProcessLoad.entry_point;
-    mod.DataBase = cmd.ProcessLoad.start_data;
-    mod.DataSize = cmd.ProcessLoad.end_data - cmd.ProcessLoad.start_data;
-    mod.StackTop = cmd.ProcessLoad.start_stack;
-
-    getDebugStream(state) << mod << "\n";
-
-    onModuleLoad.emit(state, mod);
+    onProcessLoad.emit(state, state->regs()->getPageDir(), cmd.currentPid, llvm::sys::path::filename(file));
 }
 
 void LinuxMonitor::handleModuleLoad(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd) {
     ModuleDescriptor module;
 
-    auto moduleNameLen = strnlen(cmd.currentName, sizeof(cmd.currentName));
-    auto pathLen = strnlen(cmd.ModuleLoad.module_path, sizeof(cmd.ModuleLoad.module_path));
+    if (!state->mem()->readString(cmd.ModuleLoad.module_path, module.Path)) {
+        getWarningsStream(state) << "could not read module path\n";
+        return;
+    }
 
-    module.Path = std::string(cmd.ModuleLoad.module_path, pathLen);
-    module.Name = std::string(cmd.currentName, moduleNameLen);
+    module.Name = llvm::sys::path::filename(module.Path);
     module.Size = cmd.ModuleLoad.size;
+
+    Vmi::BinData data = m_vmi->getFromDisk(module, true);
+    if (!data.ef) {
+        getWarningsStream(state) << "Could not load " << module.Path << " from disk. Check your guestfs settings.\n";
+        goto end;
+    }
+
+    Vmi::toModuleDescriptor(module, data.ef);
+    delete data.ef;
+    delete data.fp;
+
+end:
     module.AddressSpace = state->regs()->getPageDir();
     module.Pid = cmd.currentPid;
     module.LoadBase = cmd.ModuleLoad.load_base;
-    module.NativeBase = cmd.ModuleLoad.start_code;
 
     getDebugStream(state) << module << '\n';
 
@@ -203,8 +205,31 @@ void LinuxMonitor::handleInit(S2EExecutionState *state, const S2E_LINUXMON_COMMA
     loadKernelImage(state, cmd.Init.start_kernel);
 }
 
-void LinuxMonitor::handleCommand(S2EExecutionState *state, uint64_t guestDataPtr, uint64_t guestDataSize,
-                                 S2E_LINUXMON_COMMAND &cmd) {
+void LinuxMonitor::handleMemMap(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd) {
+    getDebugStream(state) << "mmap pid=" << hexval(cmd.currentPid) << " addr=" << hexval(cmd.MemMap.address)
+                          << " size=" << hexval(cmd.MemMap.size) << " prot=" << hexval(cmd.MemMap.prot)
+                          << " flag=" << hexval(cmd.MemMap.flag) << " pgoff=" << hexval(cmd.MemMap.pgoff) << "\n";
+
+    onMemoryMap.emit(state, cmd.currentPid, cmd.MemMap.address, cmd.MemMap.size, cmd.MemMap.prot);
+}
+
+void LinuxMonitor::handleMemUnmap(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd) {
+    getDebugStream(state) << "munmap pid=" << hexval(cmd.currentPid) << " start=" << hexval(cmd.MemUnmap.start)
+                          << " end=" << hexval(cmd.MemUnmap.end) << "\n";
+
+    uint64_t size = cmd.MemUnmap.end - cmd.MemUnmap.start;
+    onMemoryUnmap.emit(state, cmd.currentPid, cmd.MemUnmap.start, size);
+}
+
+void LinuxMonitor::handleMemProtect(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd) {
+    getDebugStream(state) << "mprotect pid=" << hexval(cmd.currentPid) << " start=" << hexval(cmd.MemProtect.start)
+                          << " size=" << hexval(cmd.MemProtect.size) << " prot=" << hexval(cmd.MemProtect.prot) << "\n";
+
+    onMemoryProtect.emit(state, cmd.currentPid, cmd.MemProtect.start, cmd.MemProtect.size, cmd.MemProtect.prot);
+}
+
+void LinuxMonitor::handleCommand(S2EExecutionState *state, uint64_t guestDataPtr, uint64_t guestDataSize, void *_cmd) {
+    S2E_LINUXMON_COMMAND &cmd = *(S2E_LINUXMON_COMMAND *) _cmd;
     switch (cmd.Command) {
         case LINUX_SEGFAULT:
             handleSegfault(state, cmd);
@@ -232,6 +257,18 @@ void LinuxMonitor::handleCommand(S2EExecutionState *state, uint64_t guestDataPtr
 
         case LINUX_KERNEL_PANIC:
             handleKernelPanic(state, cmd.Panic.message, cmd.Panic.message_size);
+            break;
+
+        case LINUX_MEMORY_MAP:
+            handleMemMap(state, cmd);
+            break;
+
+        case LINUX_MEMORY_UNMAP:
+            handleMemUnmap(state, cmd);
+            break;
+
+        case LINUX_MEMORY_PROTECT:
+            handleMemProtect(state, cmd);
             break;
     }
 }

@@ -109,6 +109,9 @@ void DecreeMonitor::initialize() {
     m_firstSegfault = true;
     m_timeToFirstSegfault = -1;
     time(&m_startTime);
+
+    m_commandSize = sizeof(S2E_DECREEMON_COMMAND);
+    m_commandVersion = S2E_DECREEMON_COMMAND_VERSION;
 }
 
 class DecreeMonitorState : public PluginState {
@@ -178,9 +181,6 @@ void DecreeMonitor::handleProcessLoad(S2EExecutionState *state, const S2E_DECREE
     mod.NativeBase = p.start_code;
     mod.Size = p.end_data - p.start_code;
     mod.EntryPoint = p.entry_point;
-    mod.DataBase = p.start_data;
-    mod.DataSize = p.end_data - p.start_data;
-    mod.StackTop = p.start_stack;
 
     getDebugStream(state) << mod << "\n";
 
@@ -845,8 +845,8 @@ void DecreeMonitor::printOpcodeOffsets(S2EExecutionState *state) {
     PRINTOFF(currentName);
 }
 
-void DecreeMonitor::handleCommand(S2EExecutionState *state, uint64_t guestDataPtr, uint64_t guestDataSize,
-                                  S2E_DECREEMON_COMMAND &command) {
+void DecreeMonitor::handleCommand(S2EExecutionState *state, uint64_t guestDataPtr, uint64_t guestDataSize, void *cmd) {
+    S2E_DECREEMON_COMMAND &command = *(S2E_DECREEMON_COMMAND *) cmd;
     std::string currentName(command.currentName, strnlen(command.currentName, sizeof(command.currentName)));
 
     bool processSyscall = true;

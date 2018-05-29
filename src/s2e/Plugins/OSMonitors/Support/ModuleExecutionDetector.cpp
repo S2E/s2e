@@ -274,9 +274,7 @@ void ModuleExecutionDetector::moduleLoadListener(S2EExecutionState *state, const
     DECLARE_PLUGINSTATE(ModuleTransitionState, state);
 
     // If module name matches the configured ones, activate.
-    getDebugStream(state) << "Module " << module.Name << " loaded - "
-                          << "Base=" << hexval(module.LoadBase) << " NativeBase=" << hexval(module.NativeBase)
-                          << " Size=" << hexval(module.Size) << " AS=" << hexval(module.AddressSpace) << "\n";
+    getDebugStream(state) << "Module loaded: " << module << "\n";
 
     ModuleExecutionCfg cfg;
     cfg.moduleName = module.Name;

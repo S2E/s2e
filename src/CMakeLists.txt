@@ -22,6 +22,7 @@ add_library(
     s2e/Plugins/OSMonitors/Windows/WindowsCrashMonitor.cpp
 
     # Linux guests support
+    s2e/Plugins/OSMonitors/Linux/BaseLinuxMonitor.cpp
     s2e/Plugins/OSMonitors/Linux/LinuxMonitor.cpp
     s2e/Plugins/OSMonitors/Linux/DecreeMonitor.cpp
     s2e/Plugins/OSMonitors/Raw/RawMonitor.cpp

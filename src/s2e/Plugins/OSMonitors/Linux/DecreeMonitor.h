@@ -101,7 +101,7 @@ template <typename T> T &operator<<(T &stream, const S2E_DECREEMON_COMMANDS &c) 
     return stream;
 }
 
-class DecreeMonitor : public BaseLinuxMonitor<S2E_DECREEMON_COMMAND, S2E_DECREEMON_COMMAND_VERSION> {
+class DecreeMonitor : public BaseLinuxMonitor {
     S2E_PLUGIN
 
     friend class DecreeMonitorState;
@@ -118,7 +118,6 @@ public:
 
 private:
     MemUtils *m_memutils;
-    MemoryMap *m_map;
     BaseInstructions *m_base;
     seeds::SeedSearcher *m_seedSearcher;
 
@@ -225,8 +224,7 @@ public:
     klee::ref<klee::Expr> makeSymbolicRead(S2EExecutionState *state, uint64_t pid, uint64_t fd, uint64_t buf,
                                            uint64_t count, klee::ref<klee::Expr> countExpr);
 
-    virtual void handleCommand(S2EExecutionState *state, uint64_t guestDataPtr, uint64_t guestDataSize,
-                               S2E_DECREEMON_COMMAND &command);
+    virtual void handleCommand(S2EExecutionState *state, uint64_t guestDataPtr, uint64_t guestDataSize, void *cmd);
 
     unsigned getSymbolicReadsCount(S2EExecutionState *state) const;
 
