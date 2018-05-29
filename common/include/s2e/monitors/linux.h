@@ -34,15 +34,13 @@
 
 #include "commands/linux.h"
 
-static inline void s2e_linux_load_module(uint64_t pid, const char *name, const char *path,
-                                         const struct S2E_LINUXMON_COMMAND_MODULE_LOAD *m) {
+static inline void s2e_linux_load_module(uint64_t pid, const struct S2E_LINUXMON_COMMAND_MODULE_LOAD *m) {
     struct S2E_LINUXMON_COMMAND cmd = {0};
     cmd.version = S2E_LINUXMON_COMMAND_VERSION;
     cmd.Command = LINUX_MODULE_LOAD;
     cmd.currentPid = pid;
-    strncpy(cmd.currentName, name, sizeof(cmd.currentName));
     cmd.ModuleLoad = *m;
-    strncpy(cmd.ModuleLoad.module_path, path, sizeof(cmd.ModuleLoad.module_path));
+    __s2e_touch_string((char *) cmd.ModuleLoad.module_path);
 
     s2e_invoke_plugin("LinuxMonitor", &cmd, sizeof(cmd));
 }
