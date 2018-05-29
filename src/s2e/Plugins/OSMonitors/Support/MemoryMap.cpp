@@ -309,6 +309,17 @@ void MemoryMap::initialize() {
         decree->onUpdateMemoryMap.connect(sigc::mem_fun(*this, &MemoryMap::onDecreeUpdateMemoryMap));
         return;
     }
+
+    // Register Linux events
+    LinuxMonitor *linmon = dynamic_cast<LinuxMonitor *>(m_monitor);
+    if (linmon) {
+        linmon->onMemoryMap.connect(sigc::mem_fun(*this, &MemoryMap::onLinuxMemoryMap));
+        linmon->onMemoryUnmap.connect(sigc::mem_fun(*this, &MemoryMap::onLinuxMemoryUnmap));
+
+        // Memory protect and mapping share the same handler
+        linmon->onMemoryProtect.connect(sigc::mem_fun(*this, &MemoryMap::onLinuxMemoryMap));
+        return;
+    }
 }
 
 void MemoryMap::addRegion(S2EExecutionState *state, uint64_t pid, uint64_t address, uint64_t end,
@@ -317,6 +328,54 @@ void MemoryMap::addRegion(S2EExecutionState *state, uint64_t pid, uint64_t addre
     // is reponsible for the check.
     DECLARE_PLUGINSTATE(MemoryMapState, state);
     plgState->addRegion(pid, address, end, type);
+}
+
+///
+/// \brief Rounds down address to the nearest page boundary, rounds up
+/// address + size to the nearest page boundary.
+///
+/// E.g., address==1 and size==2 => start==0 and end == 0x1000;
+///
+static void ComputeStartEndAddress(uint64_t address, uint64_t size, uint64_t &start, uint64_t &end) {
+    start = address & TARGET_PAGE_MASK;
+    end = (address + size + (TARGET_PAGE_SIZE - 1)) & TARGET_PAGE_MASK;
+}
+
+void MemoryMap::onLinuxMemoryMap(S2EExecutionState *state, uint64_t pid, uint64_t addr, uint64_t size, uint64_t prot) {
+    if (!m_proc->isTracked(state, pid)) {
+        return;
+    }
+
+    MemoryMapRegionType type = MM_NONE;
+
+    if (prot & PROT_READ) {
+        type |= MM_READ;
+    }
+
+    if (prot & PROT_WRITE) {
+        type |= MM_WRITE;
+    }
+
+    if (prot & PROT_EXEC) {
+        type |= MM_EXEC;
+    }
+
+    uint64_t start, end;
+    ComputeStartEndAddress(addr, size, start, end);
+
+    DECLARE_PLUGINSTATE(MemoryMapState, state);
+    plgState->addRegion(pid, start, end, type);
+}
+
+void MemoryMap::onLinuxMemoryUnmap(S2EExecutionState *state, uint64_t pid, uint64_t addr, uint64_t size) {
+    if (!m_proc->isTracked(state, pid)) {
+        return;
+    }
+    uint64_t start, end;
+    ComputeStartEndAddress(addr, size, start, end);
+
+    DECLARE_PLUGINSTATE(MemoryMapState, state);
+    plgState->removeRegion(pid, start, end);
 }
 
 void MemoryMap::onDecreeUpdateMemoryMap(S2EExecutionState *state, uint64_t pid, const S2E_DECREEMON_VMA &vma) {
@@ -345,17 +404,6 @@ void MemoryMap::onDecreeUpdateMemoryMap(S2EExecutionState *state, uint64_t pid, 
 void MemoryMap::onProcessUnload(S2EExecutionState *state, uint64_t pageDir, uint64_t pid, uint64_t returnCode) {
     DECLARE_PLUGINSTATE(MemoryMapState, state);
     plgState->removePid(pid);
-}
-
-///
-/// \brief Rounds down address to the nearest page boundary, rounds up
-/// address + size to the nearest page boundary.
-///
-/// E.g., address==1 and size==2 => start==0 and end == 0x1000;
-///
-static void ComputeStartEndAddress(uint64_t address, uint64_t size, uint64_t &start, uint64_t &end) {
-    start = address & TARGET_PAGE_MASK;
-    end = (address + size + (TARGET_PAGE_SIZE - 1)) & TARGET_PAGE_MASK;
 }
 
 void MemoryMap::onNtAllocateVirtualMemory(S2EExecutionState *state, const S2E_WINMON2_ALLOCATE_VM &d) {
