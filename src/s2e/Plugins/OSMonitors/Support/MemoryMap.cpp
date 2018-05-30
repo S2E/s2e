@@ -75,7 +75,9 @@ public:
     }
 
     MemoryMapRegion(const MemoryMapRegion &other) : IntervalMap(s_alloc) {
-        foreach2 (it, other.begin(), other.end()) { insert(it.start(), it.stop(), *it); }
+        for (auto it = other.begin(); it != other.end(); ++it) {
+            insert(it.start(), it.stop(), *it);
+        }
     }
 };
 
@@ -157,7 +159,7 @@ public:
 
         // XXX: somehow c++11 for (auto it:map) doesn't work
         const MemoryMapRegion &map = (*it).second;
-        foreach2 (rit, map.begin(), map.end()) {
+        for (auto rit = map.begin(); rit != map.end(); ++rit) {
             if (!callback(rit.start(), rit.stop(), *rit)) {
                 break;
             }
@@ -179,7 +181,7 @@ public:
 
         const MemoryMapRegion *p = &(*it).second;
 
-        foreach2 (iit, p->begin(), p->end()) {
+        for (auto iit = p->begin(); iit != p->end(); ++iit) {
             uint64_t it_addr = iit.start();
             uint64_t it_end = iit.stop();
             MemoryMapRegionType type = (*iit);
@@ -193,7 +195,7 @@ public:
     }
 
     void dump(llvm::raw_ostream &os) const {
-        foreach2 (it, m_regions.begin(), m_regions.end()) {
+        for (auto it = m_regions.begin(); it != m_regions.end(); ++it) {
             uint64_t pid = (*it).first;
             dump(os, pid);
         }
@@ -262,8 +264,8 @@ public:
 
         /** Report aggregated memory usage for all tracked processes */
         uint64_t totalCommitChargePeak = 0;
-        foreach2 (it, m_memoryInfo.begin(), m_memoryInfo.end()) {
-            totalCommitChargePeak += (*it).second.PeakCommitCharge;
+        for (auto &it : m_memoryInfo) {
+            totalCommitChargePeak += it.second.PeakCommitCharge;
         }
 
         if (totalCommitChargePeak > m_peakCommitCharge) {
