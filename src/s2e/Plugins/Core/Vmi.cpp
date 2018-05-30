@@ -289,6 +289,26 @@ bool Vmi::findModule(const std::string &module, std::string &path) {
             path = tempPath.c_str();
             return true;
         }
+
+        char buffer[1024];
+        ssize_t slLen;
+
+        // Try to resolve the symlink
+        if ((slLen = readlink(tempPath.c_str(), buffer, sizeof(buffer) - 1)) != -1) {
+            buffer[slLen] = '\0';
+        } else {
+            continue;
+        }
+
+        std::string sl = buffer;
+
+        tempPath.clear();
+        llvm::sys::path::append(tempPath, *it);
+        llvm::sys::path::append(tempPath, sl);
+        if (llvm::sys::fs::exists(tempPath)) {
+            path = tempPath.c_str();
+            return true;
+        }
     }
 
     return false;
