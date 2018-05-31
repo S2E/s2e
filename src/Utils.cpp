@@ -22,6 +22,8 @@ static void print_stacktrace(const char *reason) {
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <s2e/Utils.h>
+
 // stacktrace.h (c) 2008, Timo Bingmann from http://idlebox.net/
 // published under the WTFPL v2.0
 
@@ -117,5 +119,25 @@ std::string compress_file(const std::string &path) {
     }
 
     return path;
+}
+
+bool ReadLines(const std::string &file, std::vector<std::string> &lines, bool doTrim) {
+    std::ifstream fs(file);
+
+    if (!fs.is_open()) {
+        return false;
+    }
+
+    std::string line;
+
+    while (std::getline(fs, line)) {
+        if (doTrim) {
+            line = trim(line);
+        }
+        lines.push_back(line);
+    }
+
+    fs.close();
+    return true;
 }
 }

@@ -686,8 +686,14 @@ void S2EExecutor::handleForkAndConcretize(Executor *executor, ExecutionState *st
                                         << "): " << hexval(concreteAddress->getZExtValue()) << " " << address << "\n";
     }
 
-    g_s2e->getCorePlugin()->onSymbolicAddress.emit(s2eState, address, concreteAddress->getZExtValue(), doConcretize,
-                                                   reason);
+    unsigned ptrSize = s2eState->getPointerSize();
+    klee::ref<klee::Expr> castedAddress = address;
+    if (ptrSize == sizeof(uint32_t)) {
+        castedAddress = klee::ExtractExpr::create(address, 0, klee::Expr::Int32);
+    }
+
+    g_s2e->getCorePlugin()->onSymbolicAddress.emit(s2eState, castedAddress, concreteAddress->getZExtValue(),
+                                                   doConcretize, reason);
 
     klee::ref<klee::Expr> condition = EqExpr::create(concreteAddress, address);
 
@@ -886,7 +892,7 @@ S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMContext *tcgLLVMContext, const Interpr
     std::string chosenModule;
 
     if (PersistentTbCache.size() && !persistentCacheExists) {
-        llvm::errs() << "Cannot use persistent cache, " << PersistentTbCache << " does not exist\n";
+        s2e->getWarningsStream() << "Cannot use persistent cache, " << PersistentTbCache << " does not exist\n";
     }
 
     if (PersistentTbCache.size() && persistentCacheExists) {
@@ -903,7 +909,7 @@ S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMContext *tcgLLVMContext, const Interpr
         g_free(filename);
     }
 
-    llvm::outs() << "Using module " << chosenModule << "\n";
+    s2e->getInfoStream() << "Using module " << chosenModule << "\n";
 
     MOpts = ModuleOptions(vector<string>(1, chosenModule.c_str()),
                           /* Optimize= */ true, /* CheckDivZero= */ false, m_tcgLLVMContext->getFunctionPassManager());
