@@ -10,9 +10,16 @@
 #ifndef KLEE_UTIL_BITS_H
 #define KLEE_UTIL_BITS_H
 
+#include <climits>
 #include "llvm/Support/DataTypes.h"
 
 namespace klee {
+
+// This returns (1 << onecount) - 1 in a safe way
+template <typename R> static constexpr R bitmask(unsigned int const onecount) {
+    return static_cast<R>(-(onecount != 0)) & (static_cast<R>(-1) >> ((sizeof(R) * CHAR_BIT) - onecount));
+}
+
 namespace bits32 {
 // @pre(0 <= N <= 32)
 // @post(retval = max([truncateToNBits(i,N) for i in naturals()]))
