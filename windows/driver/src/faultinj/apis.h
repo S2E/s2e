@@ -8,11 +8,11 @@
 
 #pragma once
 
-#include <s2e/GuestCodePatching.h>
+#include <s2e/GuestCodeHooking.h>
 
-extern const S2E_HOOK g_kernelExHooks[];
-extern const S2E_HOOK g_kernelMmHooks[];
-extern const S2E_HOOK g_kernelPsHooks[];
-extern const S2E_HOOK g_kernelObHooks[];
-extern const S2E_HOOK g_kernelRegHooks[];
-extern const S2E_HOOK g_kernelFltHooks[];
+extern const S2E_GUEST_HOOK_LIBRARY_FCN g_kernelExHooks[];
+extern const S2E_GUEST_HOOK_LIBRARY_FCN g_kernelMmHooks[];
+extern const S2E_GUEST_HOOK_LIBRARY_FCN g_kernelPsHooks[];
+extern const S2E_GUEST_HOOK_LIBRARY_FCN g_kernelObHooks[];
+extern const S2E_GUEST_HOOK_LIBRARY_FCN g_kernelRegHooks[];
+extern const S2E_GUEST_HOOK_LIBRARY_FCN g_kernelFltHooks[];

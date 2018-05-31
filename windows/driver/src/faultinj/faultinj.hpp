@@ -7,8 +7,7 @@
 ///
 
 #pragma once
-extern "C"
-{
+extern "C" {
 #include "../utils.h"
 #include "../config/config.h"
 }

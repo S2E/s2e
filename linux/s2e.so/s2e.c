@@ -221,8 +221,9 @@ static void register_modules(procmap_entry_t *map) {
             m.end_code = 0;
             m.start_data = 0;
             m.end_data = 0;
+            m.module_path = (uint64_t) map->name;
 
-            s2e_linux_load_module(getpid(), __base_name(map->name), map->name, &m);
+            s2e_linux_load_module(getpid(), &m);
             ++map;
         }
     }

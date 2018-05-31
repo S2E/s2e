@@ -15,7 +15,7 @@
 
 #include <s2e/StaticStateMerger.h>
 #include <s2e/WindowsCrashMonitor.h>
-#include <s2e/GuestCodePatching.h>
+#include <s2e/GuestCodeHooking.h>
 
 #include "kernel_functions.h"
 #include "kernel_hooks.h"
@@ -188,10 +188,6 @@ NTSTATUS DriverEntry(
         FaultInjectionInit();
     }
 
-#if defined(_AMD64_)
-    S2ERegisterReturnHook64();
-#endif
-
     DriverObject->DriverUnload = DriverUnload;
     DriverObject->MajorFunction[IRP_MJ_CREATE] = S2EOpen;
     DriverObject->MajorFunction[IRP_MJ_CLOSE] = S2EClose;
@@ -267,7 +263,7 @@ static NTSTATUS S2EIoCtlRegisterModule(_In_ PVOID Buffer, _In_ ULONG InputBuffer
     ULONG NameLength = 0;
 
     if (!InputBufferLength) {
-        LOG("Invaliid input length\n");
+        LOG("Invalid input length\n");
         Status = STATUS_INVALID_USER_BUFFER;
         goto err;
     }
@@ -279,7 +275,9 @@ static NTSTATUS S2EIoCtlRegisterModule(_In_ PVOID Buffer, _In_ ULONG InputBuffer
     DriverName[NameLength] = 0;
     LOG("IOCTL_S2E_REGISTER_MODULE (%s)", DriverName);
 
-    RegisterModule(DriverName);
+    // TODO: pass the driver name to the GuestCodeHooking plugin so that
+    // driver API hooking could start.
+    S2EKillState(0, "S2EIoCtlRegisterModule is not implemented, see code for comments");
 
 err:
     return Status;
