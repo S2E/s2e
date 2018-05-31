@@ -431,7 +431,11 @@ void StackMonitorState::update(S2EExecutionState *state, uint64_t sp, uint64_t p
 void StackMonitorState::deleteStack(S2EExecutionState *state, uint64_t pid, uint64_t tid) {
     PidTid p = std::make_pair(pid, tid);
     Stacks::iterator it = m_stacks.find(p);
-    s2e_assert(state, it != m_stacks.end(), "No stack to delete");
+    if (it == m_stacks.end()) {
+        g_s2e->getWarningsStream(state) << "No stack for pid " << hexval(pid) << " tid " << hexval(tid) << '\n';
+        return;
+    }
+
     m_stacks.erase(it);
 }
 

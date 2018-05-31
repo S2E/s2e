@@ -29,6 +29,8 @@ using namespace klee;
 namespace s2e {
 namespace plugins {
 
+class MemoryMap;
+
 namespace linux_common {
 
 // TODO Get the real stack size from the process memory map
@@ -37,56 +39,16 @@ static const uint64_t STACK_SIZE = 16 * 1024 * 1024;
 } // namespace linux_common
 
 ///
-/// \brief Base state for X86 Linux monitors, including the Linux and CGC monitors
-///
-class BaseLinuxMonitorState : public PluginState {
-protected:
-    /// Map of PIDs to modules
-    std::map<uint64_t, ModuleDescriptor> m_modulesByPid;
-
-public:
-    virtual ~BaseLinuxMonitorState() {
-    }
-
-    virtual BaseLinuxMonitorState *clone() const {
-        return new BaseLinuxMonitorState(*this);
-    }
-
-    static PluginState *factory(Plugin *p, S2EExecutionState *state) {
-        return new BaseLinuxMonitorState();
-    }
-
-    const ModuleDescriptor *getModule(uint64_t pid) const {
-        auto it = m_modulesByPid.find(pid);
-        if (it == m_modulesByPid.end()) {
-            return nullptr;
-        } else {
-            return &(it->second);
-        }
-    }
-
-    void saveModule(const ModuleDescriptor &mod) {
-        m_modulesByPid[mod.Pid] = mod;
-    }
-
-    void removeModule(const ModuleDescriptor &mod) {
-        m_modulesByPid.erase(mod.Pid);
-    }
-};
-
-///
 /// \brief Abstract base plugin for X86 Linux monitors, including the Linux and
 /// CGC monitors
 ///
 /// This class contains a number of virtual getter methods that return values specific to the kernel in use.
 ///
-/// \tparam CmdT The type of command that will be emitted by the kernel and captured by a Linux monitor plugin
-/// \tparam CmdVersion The command version that is expected to be emitted from the kernel when an event occurs
-///
-template <typename CmdT, uint64_t CmdVersion>
 class BaseLinuxMonitor : public OSMonitor, public BaseInstructionsPluginInvokerInterface {
 protected:
     Vmi *m_vmi;
+
+    MemoryMap *m_map;
 
     /// Start address of the Linux kernel
     uint64_t m_kernelStartAddress;
@@ -97,49 +59,8 @@ protected:
     /// Terminate if a segment fault occurs
     bool m_terminateOnSegfault;
 
-    /// Verify that the custom  at the given ptr address is valid
-    bool verifyCustomInstruction(S2EExecutionState *state, uint64_t guestDataPtr, uint64_t guestDataSize, CmdT &cmd) {
-        // Validate the size of the instruction
-        s2e_assert(state, guestDataSize == sizeof(cmd), "Invalid command size "
-                                                            << guestDataSize << " != " << sizeof(cmd)
-                                                            << " from pagedir=" << hexval(state->regs()->getPageDir())
-                                                            << " pc=" << hexval(state->regs()->getPc()));
-
-        // Read any symbolic bytes
-        std::ostringstream symbolicBytes;
-        for (unsigned i = 0; i < sizeof(cmd); ++i) {
-            ref<Expr> t = state->mem()->read(guestDataPtr + i);
-            if (!t.isNull() && !isa<ConstantExpr>(t)) {
-                symbolicBytes << "  " << hexval(i, 2) << "\n";
-            }
-        }
-
-        if (symbolicBytes.str().length()) {
-            getWarningsStream(state) << "Command has symbolic bytes at " << symbolicBytes.str() << "\n";
-        }
-
-        // Read the instruction
-        bool ok = state->mem()->read(guestDataPtr, &cmd, sizeof(cmd));
-        s2e_assert(state, ok, "Failed to read instruction memory");
-
-        // Validate the instruction's version
-        if (cmd.version != CmdVersion) {
-            std::ostringstream os;
-
-            for (unsigned i = 0; i < sizeof(cmd); ++i) {
-                os << hexval(((uint8_t *) &cmd)[i]) << " ";
-            }
-
-            getWarningsStream(state) << "Command bytes: " << os.str() << "\n";
-
-            s2e_assert(state, false, "Invalid command version "
-                                         << hexval(cmd.version) << " != " << hexval(CmdVersion)
-                                         << " from pagedir=" << hexval(state->regs()->getPageDir())
-                                         << " pc=" << hexval(state->regs()->getPc()));
-        }
-
-        return true;
-    }
+    uint64_t m_commandVersion;
+    uint64_t m_commandSize;
 
     void loadKernelImage(S2EExecutionState *state, uint64_t start_kernel) {
         ModuleDescriptor mod, vmlinux;
@@ -162,10 +83,9 @@ protected:
         onModuleLoad.emit(state, vmlinux);
     }
 
-public:
-    /// Emitted when one of the custom instructions is executed in the kernel
-    sigc::signal<void, S2EExecutionState *, const CmdT &, bool /* done */> onCustomInstruction;
+    bool verifyLinuxCommand(S2EExecutionState *state, uint64_t guestDataPtr, uint64_t guestDataSize, uint8_t *cmd);
 
+public:
     /// Emitted when a segment fault occurs in the kernel
     sigc::signal<void, S2EExecutionState *, uint64_t, /* pid */ uint64_t /* pc */> onSegFault;
 
@@ -181,14 +101,9 @@ public:
         return m_kernelStartAddress;
     }
 
-    /// Returns \c true if the given program counter is located within the kernel
-    virtual bool isKernelAddress(uint64_t pc) const {
-        return pc >= m_kernelStartAddress;
-    }
-
     /// Get the page directory
     virtual uint64_t getAddressSpace(S2EExecutionState *state, uint64_t pc) {
-        if (pc >= m_kernelStartAddress) {
+        if (isKernelAddress(pc)) {
             return 0;
         } else {
             return state->regs()->getPageDir();
@@ -196,23 +111,7 @@ public:
     }
 
     /// Get the base address and size of the stack
-    virtual bool getCurrentStack(S2EExecutionState *state, uint64_t *base, uint64_t *size) {
-        ModuleExecutionDetector *detector = s2e()->template getPlugin<ModuleExecutionDetector>();
-        assert(detector);
-
-        const ModuleDescriptor *module = detector->getCurrentDescriptor(state);
-        if (!module) {
-            return false;
-        }
-
-        *base = module->StackTop - linux_common::STACK_SIZE;
-        *size = linux_common::STACK_SIZE;
-
-        // 'pop' instruction can be executed when ESP is set to STACK_TOP
-        *size += state->getPointerSize() + 1;
-
-        return true;
-    }
+    virtual bool getCurrentStack(S2EExecutionState *state, uint64_t *base, uint64_t *size);
 
     ///
     /// \brief Handle a custom command emitted by the kernel
@@ -225,15 +124,14 @@ public:
     ///  - The \c onCustomInstruction signal is emitted with \c done set to \c true
     ///
     virtual void handleOpcodeInvocation(S2EExecutionState *state, uint64_t guestDataPtr, uint64_t guestDataSize) {
-        CmdT cmd;
+        uint8_t cmd[guestDataSize];
+        memset(cmd, 0, guestDataSize);
 
-        if (!verifyCustomInstruction(state, guestDataPtr, guestDataSize, cmd)) {
+        if (!verifyLinuxCommand(state, guestDataPtr, guestDataSize, cmd)) {
             return;
         }
 
-        onCustomInstruction.emit(state, cmd, false);
         handleCommand(state, guestDataPtr, guestDataSize, cmd);
-        onCustomInstruction.emit(state, cmd, true);
     }
 
     ///
@@ -244,20 +142,11 @@ public:
     /// \param guestDataSize Size of the raw data emitted by the kernel
     /// \param cmd The custom instruction emitted by the kernel
     ///
-    virtual void handleCommand(S2EExecutionState *state, uint64_t guestDataPtr, uint64_t guestDataSize, CmdT &cmd) = 0;
+    virtual void handleCommand(S2EExecutionState *state, uint64_t guestDataPtr, uint64_t guestDataSize, void *cmd) = 0;
 
     /// Get the name of the process with the given PID
     virtual bool getProcessName(S2EExecutionState *state, uint64_t pid, std::string &name) {
-        DECLARE_PLUGINSTATE_CONST(BaseLinuxMonitorState, state);
-        const ModuleDescriptor *mod = plgState->getModule(pid);
-
-        if (mod) {
-            name = mod->Name;
-
-            return true;
-        } else {
-            return false;
-        }
+        return false;
     }
 
     virtual void handleKernelPanic(S2EExecutionState *state, uint64_t message, uint64_t messageSize) {

@@ -46,7 +46,7 @@ template <typename T> T &operator<<(T &stream, const S2E_LINUXMON_COMMANDS &c) {
 /// Linux 4.9.3 kernel, which can be accessed at
 /// https://github.com/S2E/s2e-linux-kernel.git in the linux-4.9.3 branch.
 ///
-class LinuxMonitor : public BaseLinuxMonitor<S2E_LINUXMON_COMMAND, S2E_LINUXMON_COMMAND_VERSION> {
+class LinuxMonitor : public BaseLinuxMonitor {
     S2E_PLUGIN
 public:
     LinuxMonitor(S2E *s2e) : BaseLinuxMonitor(s2e) {
@@ -67,14 +67,17 @@ private:
     //
     // Handle the various commands emitted by the kernel
     //
-    virtual void handleCommand(S2EExecutionState *state, uint64_t guestDataPtr, uint64_t guestDataSize,
-                               S2E_LINUXMON_COMMAND &cmd);
+    virtual void handleCommand(S2EExecutionState *state, uint64_t guestDataPtr, uint64_t guestDataSize, void *cmd);
+
     void handleSegfault(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd);
     void handleProcessLoad(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd);
     void handleModuleLoad(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd);
     void handleProcessExit(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd);
     void handleTrap(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd);
     void handleInit(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd);
+    void handleMemMap(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd);
+    void handleMemUnmap(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd);
+    void handleMemProtect(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd);
 
 public:
     /// Emitted when a trap occurs in the kernel (e.g. divide by zero, etc.)
@@ -83,9 +86,19 @@ public:
                  int /* trapnr */>
         onTrap;
 
+    sigc::signal<void, S2EExecutionState *, uint64_t /* pid */, uint64_t /* start */, uint64_t /* size */,
+                 uint64_t /* flags */>
+        onMemoryMap;
+
+    sigc::signal<void, S2EExecutionState *, uint64_t /* pid */, uint64_t /* start */, uint64_t /* size */>
+        onMemoryUnmap;
+
+    sigc::signal<void, S2EExecutionState *, uint64_t /* pid */, uint64_t /* start */, uint64_t /* size */,
+                 uint64_t /* prot */>
+        onMemoryProtect;
+
     // Get the current process identifier
     virtual uint64_t getPid(S2EExecutionState *state, uint64_t pc);
-    virtual uint64_t getPid(S2EExecutionState *state);
 
     /// Get the current thread identifier
     virtual uint64_t getTid(S2EExecutionState *state);

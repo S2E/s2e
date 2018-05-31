@@ -40,26 +40,37 @@ TestCaseGenerator::TestCaseGenerator(S2E *s2e) : Plugin(s2e) {
 }
 
 void TestCaseGenerator::initialize() {
+    m_tracer = s2e()->getPlugin<ExecutionTracer>();
+    enable();
+}
+
+void TestCaseGenerator::enable() {
     ConfigFile *cfg = s2e()->getConfig();
+
     bool tcOnKill = cfg->getBool(getConfigKey() + ".generateOnStateKill", true);
     bool tcOnSegfault = cfg->getBool(getConfigKey() + ".generateOnSegfault", true);
 
     if (tcOnKill) {
-        m_connection =
+        m_stateKillConnection.disconnect();
+        m_stateKillConnection =
             s2e()->getCorePlugin()->onStateKill.connect(sigc::mem_fun(*this, &TestCaseGenerator::onStateKill));
     }
-
-    m_tracer = s2e()->getPlugin<ExecutionTracer>();
 
     // TODO: refactor POV generation, which is another type of test case
     if (tcOnSegfault) {
         WindowsCrashMonitor *windows = s2e()->getPlugin<WindowsCrashMonitor>();
         LinuxMonitor *linux = s2e()->getPlugin<LinuxMonitor>();
         if (linux) {
-            linux->onSegFault.connect(sigc::mem_fun(*this, &TestCaseGenerator::onSegFault));
+            m_linuxSegFaultConnection.disconnect();
+            m_linuxSegFaultConnection = linux->onSegFault.connect(sigc::mem_fun(*this, &TestCaseGenerator::onSegFault));
         } else if (windows) {
-            windows->onUserModeCrash.connect(sigc::mem_fun(*this, &TestCaseGenerator::onWindowsUserCrash));
-            windows->onKernelModeCrash.connect(sigc::mem_fun(*this, &TestCaseGenerator::onWindowsKernelCrash));
+            m_windowsKernelCrashConnection.disconnect();
+            m_windowsKernelCrashConnection.disconnect();
+
+            m_windowsUserCrashConnection =
+                windows->onUserModeCrash.connect(sigc::mem_fun(*this, &TestCaseGenerator::onWindowsUserCrash));
+            m_windowsKernelCrashConnection =
+                windows->onKernelModeCrash.connect(sigc::mem_fun(*this, &TestCaseGenerator::onWindowsKernelCrash));
         } else {
             getWarningsStream() << "No suitable crash sources enabled, cannot produce test cases on crashes\n";
             exit(-1);
@@ -67,15 +78,11 @@ void TestCaseGenerator::initialize() {
     }
 }
 
-void TestCaseGenerator::enable() {
-    if (!m_connection.connected()) {
-        m_connection =
-            s2e()->getCorePlugin()->onStateKill.connect(sigc::mem_fun(*this, &TestCaseGenerator::onStateKill));
-    }
-}
-
 void TestCaseGenerator::disable() {
-    m_connection.disconnect();
+    m_stateKillConnection.disconnect();
+    m_linuxSegFaultConnection.disconnect();
+    m_windowsKernelCrashConnection.disconnect();
+    m_windowsUserCrashConnection.disconnect();
 }
 
 void TestCaseGenerator::onWindowsUserCrash(S2EExecutionState *state, const WindowsUserModeCrash &desc) {
@@ -303,26 +310,47 @@ bool TestCaseGenerator::assembleChunks(const TestCaseFile &file, std::vector<uin
 ///
 void TestCaseGenerator::assembleTestCaseToFiles(const ConcreteInputs &inputs, const std::string &prefix,
                                                 std::vector<std::string> &fileNames) {
-    TestCaseFiles files;
-    getFiles(inputs, files);
+    TestCaseData data;
+    assembleTestCaseToFiles(inputs, data);
 
-    foreach2 (it, files.begin(), files.end()) {
-        const std::string &name = (*it).first;
-        TestCaseFile &file = (*it).second;
-        std::vector<uint8_t> out;
-        if (!assembleChunks(file, out)) {
-            getWarningsStream() << "Could not generate concrete test file for " << (*it).first << "\n";
-            continue;
-        }
+    for (const auto &it : data) {
+        const std::string &name = it.first;
+        const auto &tcData = it.second;
 
         std::stringstream ss;
         ss << prefix << "-" << name;
         std::string outputFileName = s2e()->getOutputFilename(ss.str());
         fileNames.push_back(outputFileName);
         std::ofstream ofs(outputFileName.c_str(), std::ios_base::out | std::ios_base::trunc | std::ios_base::binary);
-        ofs.write((const char *) &out[0], out.size());
+        ofs.write((const char *) &tcData[0], tcData.size());
         ofs.close();
     }
+}
+
+void TestCaseGenerator::assembleTestCaseToFiles(const ConcreteInputs &inputs, TestCaseData &data) {
+    TestCaseFiles files;
+    getFiles(inputs, files);
+
+    for (const auto &it : files) {
+        const std::string &name = it.first;
+        const TestCaseFile &file = it.second;
+        std::vector<uint8_t> &out = data[name];
+        if (!assembleChunks(file, out)) {
+            getWarningsStream() << "Could not generate concrete test file for " << name << "\n";
+            continue;
+        }
+    }
+}
+
+void TestCaseGenerator::assembleTestCaseToFiles(const klee::Assignment &assignment, TestCaseData &data) {
+    ConcreteInputs inputs;
+    for (const auto &it : assignment.bindings) {
+        const Array *array = it.first;
+        const std::vector<unsigned char> &varData = it.second;
+        inputs.push_back(std::make_pair(array->getName(), varData));
+    }
+
+    assembleTestCaseToFiles(inputs, data);
 }
 }
 }

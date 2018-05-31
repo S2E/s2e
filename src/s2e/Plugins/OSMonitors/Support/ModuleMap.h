@@ -65,6 +65,7 @@ public:
     void initialize();
 
     ModuleDescriptorList getModulesByPid(S2EExecutionState *state, uint64_t pid);
+    const ModuleDescriptor *getModule(S2EExecutionState *state);
     const ModuleDescriptor *getModule(S2EExecutionState *state, uint64_t pc);
     const ModuleDescriptor *getModule(S2EExecutionState *state, uint64_t pid, uint64_t pc);
     const ModuleDescriptor *getModule(S2EExecutionState *state, uint64_t pid, const std::string &name);

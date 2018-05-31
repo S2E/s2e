@@ -22,7 +22,8 @@ namespace plugins {
 
 class DecreeMonitorState;
 class ProcessExecutionDetector;
-class Vmi;
+class MemUtils;
+class MemoryMap;
 
 namespace seeds {
 class SeedSearcher;
@@ -100,7 +101,7 @@ template <typename T> T &operator<<(T &stream, const S2E_DECREEMON_COMMANDS &c) 
     return stream;
 }
 
-class DecreeMonitor : public BaseLinuxMonitor<S2E_DECREEMON_COMMAND, S2E_DECREEMON_COMMAND_VERSION> {
+class DecreeMonitor : public BaseLinuxMonitor {
     S2E_PLUGIN
 
     friend class DecreeMonitorState;
@@ -116,6 +117,7 @@ public:
     }
 
 private:
+    MemUtils *m_memutils;
     BaseInstructions *m_base;
     seeds::SeedSearcher *m_seedSearcher;
 
@@ -150,8 +152,6 @@ private:
     void onLoadBinary_Return(S2EExecutionState *state, uint64_t pc);
     void onReceive(S2EExecutionState *state, uint64_t pc);
     void onSigSegv(S2EExecutionState *state, uint64_t pc);
-
-    klee::ref<klee::Expr> readMemory8(S2EExecutionState *state, uint64_t pid, uint64_t addr);
 
 public:
     enum SymbolicBufferType { SYMBUFF_RECEIVE, SYMBUFF_TRANSMIT, SYMBUFF_RANDOM };
@@ -205,23 +205,18 @@ public:
                  >
         onSymbolicBuffer;
 
-    typedef std::vector<S2E_DECREEMON_VMA> MemoryMap;
-
     /// \brief onUpdateMemoryMap is emitted when the memory layout
     /// of the guest process changes
     ///
     /// Currently event is emitted after process is loaded, and also
     /// after allocate and deallocate syscalls.
-    sigc::signal<void, S2EExecutionState *, uint64_t /* pid */, const MemoryMap & /* map */
-                 >
-        onUpdateMemoryMap;
+    sigc::signal<void, S2EExecutionState *, uint64_t /* pid */, const S2E_DECREEMON_VMA & /* vma */> onUpdateMemoryMap;
 
     void handleProcessLoad(S2EExecutionState *s, const S2E_DECREEMON_COMMAND_PROCESS_LOAD &p);
 
     bool getFaultAddress(S2EExecutionState *state, uint64_t siginfo_ptr, uint64_t *address);
 
     virtual uint64_t getPid(S2EExecutionState *state, uint64_t pc);
-    virtual uint64_t getPid(S2EExecutionState *state);
     virtual uint64_t getTid(S2EExecutionState *state);
 
     void getPreFeedData(S2EExecutionState *state, uint64_t pid, uint64_t count, std::vector<uint8_t> &data);
@@ -229,15 +224,7 @@ public:
     klee::ref<klee::Expr> makeSymbolicRead(S2EExecutionState *state, uint64_t pid, uint64_t fd, uint64_t buf,
                                            uint64_t count, klee::ref<klee::Expr> countExpr);
 
-    virtual void handleCommand(S2EExecutionState *state, uint64_t guestDataPtr, uint64_t guestDataSize,
-                               S2E_DECREEMON_COMMAND &command);
-
-    static void FindMemoryPages(const MemoryMap &map, bool mustBeWritable, bool mustBeExecutable,
-                                std::unordered_set<uint64_t> &pages);
-    const MemoryMap &getMemoryMap(S2EExecutionState *state, uint64_t pid);
-    const MemoryMap &getMemoryMap(S2EExecutionState *state) {
-        return getMemoryMap(state, getPid(state));
-    }
+    virtual void handleCommand(S2EExecutionState *state, uint64_t guestDataPtr, uint64_t guestDataSize, void *cmd);
 
     unsigned getSymbolicReadsCount(S2EExecutionState *state) const;
 

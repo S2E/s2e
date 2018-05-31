@@ -22,15 +22,21 @@ struct ThreadDescriptor;
 
 namespace plugins {
 
-/**
- *  Base class for default OS actions.
- *  It provides an interface for loading/unloading modules and processes.
- *  If you wish to add support for a new OS, implement this interface.
- *
- *  Note: several events use ModuleDescriptor as a parameter.
- *  The passed reference is valid only during the call. Do not store pointers
- *  to such objects, but make a copy instead.
- */
+///
+/// \brief Base class for plugins that export OS events
+///
+/// This class provides a generic way for client plugins to react
+/// to OS events, such as module and process loads/unloads, thread
+/// and process creation, etc. It also provides an interface to
+/// get the current state of the OS (currently running pid/tid,
+/// stack, etc.)
+///
+/// If you wish to add support for a new OS, implement this interface.
+///
+///  Note: several events use ModuleDescriptor as a parameter.
+///  The passed reference is valid only during the call. Do not store pointers
+///  to such objects, but make a copy instead.
+///
 class OSMonitor : public Plugin {
 public:
     sigc::signal<void, S2EExecutionState *, const ModuleDescriptor &> onModuleLoad;
@@ -44,7 +50,16 @@ public:
     sigc::signal<void, S2EExecutionState *, const ThreadDescriptor &> onThreadCreate;
     sigc::signal<void, S2EExecutionState *, const ThreadDescriptor &> onThreadExit;
 
-    /* The monitoring plugin triggers this when it is ready to be used */
+    ///
+    /// \brief Triggered when the OSMonitor plugin is ready for use.
+    ///
+    /// Before this signal is triggered, it may be unsafe to call certain
+    /// OS monitor functions (e.g., getPid() may crash or not work as expected).
+    ///
+    /// In general, OS monitors rely on a guest kernel driver in order
+    /// to monitor for events. Before this driver is loaded, most of the interface
+    /// may be unavailable.
+    ///
     sigc::signal<void, S2EExecutionState *> onMonitorLoad;
 
 protected:
@@ -57,7 +72,10 @@ protected:
 public:
     virtual uint64_t getKernelStart() const = 0;
 
-    virtual bool isKernelAddress(uint64_t pc) const = 0;
+    /// Returns \c true if the given program counter is located within the kernel space
+    inline bool isKernelAddress(uint64_t pc) const {
+        return pc >= getKernelStart();
+    }
 
     virtual uint64_t getAddressSpace(S2EExecutionState *s, uint64_t pc) = 0;
 
@@ -65,8 +83,25 @@ public:
         return getAddressSpace(s, pc);
     }
 
+    ///
+    /// \brief Return the pid of the process currently active in the given state.
+    ///
+    /// Note: OSes may split the address space into two, the upper part being
+    /// mapped across every process. Depending on the OS monitor, this function
+    /// may return 0 if the program counter points to kernel space. This is to
+    /// simplify client plugins (e.g., module map) and avoid making them duplicate every
+    /// kernel module in all address space.
+    ///
+    /// \param state the execution state
+    /// \param pc the program counter (user/kernel space)
+    /// \return the program id
+    ///
     virtual uint64_t getPid(S2EExecutionState *state, uint64_t pc) = 0;
-    virtual uint64_t getPid(S2EExecutionState *state) = 0;
+
+    uint64_t getPid(S2EExecutionState *state) {
+        return getPid(state, state->regs()->getPc());
+    }
+
     virtual uint64_t getTid(S2EExecutionState *state) = 0;
 
     virtual bool getCurrentStack(S2EExecutionState *s, uint64_t *base, uint64_t *size) = 0;

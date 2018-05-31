@@ -356,10 +356,6 @@ public:
     // if they suspect the value might be wrong.
     bool initCurrentProcessThreadId(S2EExecutionState *state);
 
-    virtual uint64_t getKernelStart() const {
-        return m_kernelStart;
-    }
-
     virtual bool isKernelAddress(uint64_t pc) const {
         if (!m_kernelStart) {
             return false;
@@ -431,15 +427,19 @@ public:
     }
 
     uint64_t getPid(S2EExecutionState *state, uint64_t pc) {
-        return getCurrentProcessId(state);
-    }
+        if (isKernelAddress(pc)) {
+            return 0;
+        }
 
-    uint64_t getPid(S2EExecutionState *state) {
         return getCurrentProcessId(state);
     }
 
     uint64_t getTid(S2EExecutionState *state) {
         return getCurrentThreadId(state);
+    }
+
+    uint64_t getKernelStart() const {
+        return m_kernelStart;
     }
 
     static uint64_t getTidReg(S2EExecutionState *state);

@@ -26,10 +26,10 @@ namespace s2e {
 namespace plugins {
 namespace models {
 
-S2E_DEFINE_PLUGIN(FunctionModels, "Plugin that implements models for libraries", "");
+S2E_DEFINE_PLUGIN(FunctionModels, "Plugin that implements models for libraries", "", "MemUtils");
 
-ref<Expr> FunctionModels::readMemory8(S2EExecutionState *state, uint64_t addr) {
-    return state->mem()->read(addr);
+void FunctionModels::initialize() {
+    m_memutils = s2e()->getPlugin<MemUtils>();
 }
 
 void FunctionModels::handleStrlen(S2EExecutionState *state, S2E_LIBCWRAPPER_COMMAND &cmd, ref<Expr> &retExpr) {
@@ -173,7 +173,7 @@ void FunctionModels::handleCrc(S2EExecutionState *state, S2E_LIBCWRAPPER_COMMAND
 
     std::vector<ref<Expr>> buffer;
     cmd.needOrigFunc = 1;
-    if (!readMemory(state, buffer, cmd.Crc.buffer, cmd.Crc.size)) {
+    if (!m_memutils->read(state, buffer, cmd.Crc.buffer, cmd.Crc.size)) {
         return;
     }
 

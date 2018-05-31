@@ -21,19 +21,6 @@ namespace s2e {
 namespace plugins {
 namespace models {
 
-bool BaseFunctionModels::readMemory(S2EExecutionState *state, std::vector<ref<Expr>> &output, uint64_t address,
-                                    unsigned length) {
-    for (unsigned i = 0; i < length; ++i) {
-        ref<Expr> e = readMemory8(state, address + i);
-        if (e.isNull()) {
-            getWarningsStream(state) << "Could not read byte at " << hexval(address + i) << "\n";
-            return false;
-        }
-        output.push_back(e);
-    }
-    return true;
-}
-
 bool BaseFunctionModels::readArgument(S2EExecutionState *state, unsigned param, uint64_t &arg) {
     target_ulong ret;
 
@@ -68,7 +55,7 @@ bool BaseFunctionModels::findNullChar(S2EExecutionState *state, uint64_t stringA
 
     for (len = 0; len < MAX_STRLEN; len++) {
         assert(stringAddr <= UINT64_MAX - len);
-        ref<Expr> charExpr = readMemory8(state, stringAddr + len);
+        ref<Expr> charExpr = m_memutils->read(state, stringAddr + len);
         if (charExpr.isNull()) {
             getDebugStream(state) << "Failed to read char " << len << " of string " << hexval(stringAddr) << "\n";
             return false;
@@ -140,7 +127,7 @@ bool BaseFunctionModels::strlenHelper(S2EExecutionState *state, uint64_t stringA
     retExpr = E_CONST(len, width);
 
     for (int nr = len - 1; nr >= 0; nr--) {
-        ref<Expr> charExpr = readMemory8(state, stringAddr + nr);
+        ref<Expr> charExpr = m_memutils->read(state, stringAddr + nr);
         if (charExpr.isNull()) {
             getDebugStream(state) << "Failed to read char " << nr << " of string " << hexval(stringAddr) << "\n";
             return false;
@@ -222,13 +209,13 @@ bool BaseFunctionModels::strcmpHelperCommon(S2EExecutionState *state, const uint
 
     for (int nr = memSize - 1; nr >= 0; nr--) { // also compare null char
         ref<Expr> charExpr[2];
-        charExpr[0] = readMemory8(state, strAddrs[0] + nr);
+        charExpr[0] = m_memutils->read(state, strAddrs[0] + nr);
         if (charExpr[0].isNull()) {
             getDebugStream(state) << "Failed to read char " << nr << " of string " << hexval(strAddrs[0]) << "\n";
             return false;
         }
 
-        charExpr[1] = readMemory8(state, strAddrs[1] + nr);
+        charExpr[1] = m_memutils->read(state, strAddrs[1] + nr);
         if (charExpr[1].isNull()) {
             getDebugStream(state) << "Failed to read char " << nr << " of string " << hexval(strAddrs[1]) << "\n";
             return false;
@@ -287,8 +274,8 @@ bool BaseFunctionModels::strcpyHelper(S2EExecutionState *state, const uint64_t s
     retExpr = E_CONST(strAddrs[0], width);
 
     for (unsigned nr = 0; nr < strLen; nr++) {
-        ref<Expr> dstCharExpr = readMemory8(state, strAddrs[0] + nr);
-        ref<Expr> srcCharExpr = readMemory8(state, strAddrs[1] + nr);
+        ref<Expr> dstCharExpr = m_memutils->read(state, strAddrs[0] + nr);
+        ref<Expr> srcCharExpr = m_memutils->read(state, strAddrs[1] + nr);
         if (dstCharExpr.isNull()) {
             getDebugStream(state) << "Failed to read char " << nr << " of string " << hexval(strAddrs[0]) << "\n";
             return false;
@@ -347,7 +334,7 @@ bool BaseFunctionModels::strncpyHelper(S2EExecutionState *state, const uint64_t 
     retExpr = E_CONST(strAddrs[0], width);
 
     for (unsigned nr = 0; nr < numBytes; nr++) {
-        ref<Expr> srcCharExpr = readMemory8(state, strAddrs[1] + nr);
+        ref<Expr> srcCharExpr = m_memutils->read(state, strAddrs[1] + nr);
         if (srcCharExpr.isNull()) {
             getDebugStream(state) << "Failed to read char " << nr << " of string " << hexval(strAddrs[1]) << "\n";
             return false;
@@ -396,7 +383,7 @@ bool BaseFunctionModels::memcmpHelper(S2EExecutionState *state, const uint64_t m
     for (int nr = numBytes - 1; nr >= 0; nr--) {
         ref<Expr> charExpr[2];
         for (unsigned i = 0; i < 2; i++) {
-            charExpr[i] = readMemory8(state, memAddrs[i] + nr);
+            charExpr[i] = m_memutils->read(state, memAddrs[i] + nr);
             if (charExpr[i].isNull()) {
                 getDebugStream(state) << "Failed to read byte " << nr << " of memory " << hexval(memAddrs[i]) << "\n";
                 return false;
@@ -428,7 +415,7 @@ bool BaseFunctionModels::memcpyHelper(S2EExecutionState *state, const uint64_t m
     retExpr = E_CONST(memAddrs[0], width);
 
     for (unsigned nr = 0; nr < numBytes; nr++) {
-        ref<Expr> srcCharExpr = readMemory8(state, memAddrs[1] + nr);
+        ref<Expr> srcCharExpr = m_memutils->read(state, memAddrs[1] + nr);
         if (srcCharExpr.isNull()) {
             getDebugStream(state) << "Failed to read char " << nr << " of string " << hexval(memAddrs[1]) << "\n";
             return false;
@@ -548,7 +535,7 @@ bool BaseFunctionModels::strcatHelper(S2EExecutionState *state, const uint64_t s
 
     // FIXME: O(n2)
     for (int nr = destStrLen + extra_cat; nr >= 0; nr--) {
-        ref<Expr> dstCharExpr = readMemory8(state, strAddrs[0] + nr);
+        ref<Expr> dstCharExpr = m_memutils->read(state, strAddrs[0] + nr);
         if (dstCharExpr.isNull()) {
             getDebugStream(state) << "Failed to read char " << nr << " of string " << hexval(strAddrs[0]) << "\n";
             return false;
@@ -562,7 +549,7 @@ bool BaseFunctionModels::strcatHelper(S2EExecutionState *state, const uint64_t s
             ref<Expr> srclenConds_eq = E_EQ(srcExprLen, E_CONST(i, width));
             ref<Expr> srclenConds_lower = E_LT(srcExprLen, E_CONST(i, width));
 
-            ref<Expr> srcCharExpr = readMemory8(state, strAddrs[1] + i);
+            ref<Expr> srcCharExpr = m_memutils->read(state, strAddrs[1] + i);
             if (srcCharExpr.isNull()) {
                 getDebugStream(state) << "Failed to read char " << nr << " of string " << hexval(strAddrs[1]) << "\n";
                 return false;

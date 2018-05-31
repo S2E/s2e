@@ -187,9 +187,6 @@ public:
         return m_TrackAllModules;
     }
 
-    klee::ref<klee::Expr> readMemory8(S2EExecutionState *state, uint64_t addr);
-    klee::ref<klee::Expr> readMemory(S2EExecutionState *state, uint64_t addr, klee::Expr::Width width);
-
     friend class ModuleTransitionState;
 };
 

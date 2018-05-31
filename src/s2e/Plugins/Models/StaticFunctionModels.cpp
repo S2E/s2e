@@ -26,12 +26,8 @@ namespace s2e {
 namespace plugins {
 namespace models {
 
-S2E_DEFINE_PLUGIN(StaticFunctionModels, "Plugin that implements models for statically linked binaries", "",
+S2E_DEFINE_PLUGIN(StaticFunctionModels, "Plugin that implements models for statically linked binaries", "", "MemUtils",
                   "ModuleExecutionDetector");
-
-ref<Expr> StaticFunctionModels::readMemory8(S2EExecutionState *state, uint64_t address) {
-    return m_detector->readMemory8(state, address);
-}
 
 /*
  * Sample s2e-config.lua to use this plugin:
@@ -52,6 +48,7 @@ ref<Expr> StaticFunctionModels::readMemory8(S2EExecutionState *state, uint64_t a
 */
 void StaticFunctionModels::initialize() {
     m_detector = s2e()->getPlugin<ModuleExecutionDetector>();
+    m_memutils = s2e()->getPlugin<MemUtils>();
 
     m_detector->onModuleTranslateBlockEnd.connect(
         sigc::mem_fun(*this, &StaticFunctionModels::onModuleTranslateBlockEnd));
@@ -376,7 +373,7 @@ bool StaticFunctionModels::handleCrc16(S2EExecutionState *state, uint64_t pc) {
     }
 
     std::vector<ref<Expr>> data;
-    if (!readMemory(state, data, dataAddr, len)) {
+    if (!m_memutils->read(state, data, dataAddr, len)) {
         getWarningsStream(state) << "crc16: could not read data\n";
         return false;
     }
@@ -409,7 +406,7 @@ bool StaticFunctionModels::handleCrc32(S2EExecutionState *state, uint64_t pc) {
     }
 
     std::vector<ref<Expr>> data;
-    if (!readMemory(state, data, dataAddr, len)) {
+    if (!m_memutils->read(state, data, dataAddr, len)) {
         getWarningsStream(state) << "crc32: could not read data\n";
         return false;
     }

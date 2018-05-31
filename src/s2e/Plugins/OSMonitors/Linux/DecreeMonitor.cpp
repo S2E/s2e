@@ -7,6 +7,8 @@
 ///
 
 #include <s2e/ConfigFile.h>
+#include <s2e/Plugins/OSMonitors/Support/MemUtils.h>
+#include <s2e/Plugins/OSMonitors/Support/MemoryMap.h>
 #include <s2e/Plugins/OSMonitors/Support/ModuleExecutionDetector.h>
 #include <s2e/Plugins/OSMonitors/Support/ProcessExecutionDetector.h>
 #include <s2e/Plugins/Searchers/SeedSearcher.h>
@@ -27,7 +29,7 @@ using namespace klee;
 namespace s2e {
 namespace plugins {
 
-S2E_DEFINE_PLUGIN(DecreeMonitor, "DecreeMonitor S2E plugin", "OSMonitor", "BaseInstructions", "Vmi");
+S2E_DEFINE_PLUGIN(DecreeMonitor, "DecreeMonitor S2E plugin", "OSMonitor", "BaseInstructions");
 
 namespace decree {
 
@@ -54,7 +56,26 @@ static const unsigned SAFE_ALLOCATE_SIZE = 16 * 1024 * 1024;
 
 void DecreeMonitor::initialize() {
     m_base = s2e()->getPlugin<BaseInstructions>();
+
     m_vmi = s2e()->getPlugin<Vmi>();
+    if (!m_vmi) {
+        getWarningsStream() << "Requires Vmi\n";
+        exit(-1);
+    }
+
+    // XXX: this is a circular dependency, will require further refactoring
+    m_memutils = s2e()->getPlugin<MemUtils>();
+    if (!m_memutils) {
+        getWarningsStream() << "Requires MemUtils\n";
+        exit(-1);
+    }
+
+    // XXX: this is a circular dependency, will require further refactoring
+    m_map = s2e()->getPlugin<MemoryMap>();
+    if (!m_map) {
+        getWarningsStream() << "Requires MemoryMap\n";
+        exit(-1);
+    }
 
     // XXX: fix me. Very basic plugins like monitors probably
     // shouldn't call other plugins.
@@ -88,9 +109,12 @@ void DecreeMonitor::initialize() {
     m_firstSegfault = true;
     m_timeToFirstSegfault = -1;
     time(&m_startTime);
+
+    m_commandSize = sizeof(S2E_DECREEMON_COMMAND);
+    m_commandVersion = S2E_DECREEMON_COMMAND_VERSION;
 }
 
-class DecreeMonitorState : public BaseLinuxMonitorState {
+class DecreeMonitorState : public PluginState {
 public:
     /* How many bytes (symbolic or concrete) were read by each pid */
     std::map<uint64_t /* pid */, uint64_t> m_readBytesCount;
@@ -101,8 +125,6 @@ public:
     std::vector<uint8_t> m_concreteData;
     bool m_invokeOriginalSyscalls;
     bool m_concolicMode;
-
-    std::unordered_map<uint64_t /* pid */, DecreeMonitor::MemoryMap> m_memory;
 
     virtual DecreeMonitorState *clone() const {
         DecreeMonitorState *ret = new DecreeMonitorState(*this);
@@ -125,42 +147,7 @@ public:
         DecreeMonitor *plugin = static_cast<DecreeMonitor *>(p);
         return new DecreeMonitorState(plugin->m_invokeOriginalSyscalls, plugin->m_concolicMode);
     }
-
-    virtual ~DecreeMonitorState() {
-    }
 };
-
-/// \brief find memory pages with given access rights
-///
-/// \param map process memory map
-/// \param mustBeWritable true if page must be writable
-/// \param mustBeExecutable true if page must be executable
-/// \param pages the pages that have been found
-///
-void DecreeMonitor::FindMemoryPages(const DecreeMonitor::MemoryMap &map, bool mustBeWritable, bool mustBeExecutable,
-                                    std::unordered_set<uint64_t> &pages) {
-    foreach2 (it, map.begin(), map.end()) {
-        assert((it->flags & S2E_DECREEMON_VM_READ) && "Memory area has no read access");
-        assert(it->start % TARGET_PAGE_SIZE == 0 && "Memory area is not aligned to page boundary");
-        assert(it->end % TARGET_PAGE_SIZE == 0 && "Memory area is not aligned to page boundary");
-
-        if (mustBeWritable && !(it->flags & S2E_DECREEMON_VM_WRITE)) {
-            continue;
-        }
-        if (mustBeExecutable && !(it->flags & S2E_DECREEMON_VM_EXEC)) {
-            continue;
-        }
-
-        for (uint64_t addr = it->start; addr < it->end; addr += TARGET_PAGE_SIZE) {
-            pages.insert(addr);
-        }
-    }
-}
-
-const DecreeMonitor::MemoryMap &DecreeMonitor::getMemoryMap(S2EExecutionState *state, uint64_t pid) {
-    DECLARE_PLUGINSTATE(DecreeMonitorState, state);
-    return plgState->m_memory[pid];
-}
 
 unsigned DecreeMonitor::getSymbolicReadsCount(S2EExecutionState *state) const {
     DECLARE_PLUGINSTATE_CONST(DecreeMonitorState, state);
@@ -194,40 +181,10 @@ void DecreeMonitor::handleProcessLoad(S2EExecutionState *state, const S2E_DECREE
     mod.NativeBase = p.start_code;
     mod.Size = p.end_data - p.start_code;
     mod.EntryPoint = p.entry_point;
-    mod.DataBase = p.start_data;
-    mod.DataSize = p.end_data - p.start_data;
-    mod.StackTop = p.start_stack;
 
     getDebugStream(state) << mod << "\n";
 
     onModuleLoad.emit(state, mod);
-
-    DECLARE_PLUGINSTATE(DecreeMonitorState, state);
-    plgState->saveModule(mod);
-}
-
-klee::ref<klee::Expr> DecreeMonitor::readMemory8(S2EExecutionState *state, uint64_t pid, uint64_t addr) {
-    klee::ref<klee::Expr> expr = state->mem()->read(addr);
-    if (!expr.isNull()) {
-        return expr;
-    }
-
-    /* Try to read data from executable image */
-
-    DECLARE_PLUGINSTATE(DecreeMonitorState, state);
-    const ModuleDescriptor *mod = plgState->getModule(pid);
-    if (!mod) {
-        getDebugStream(state) << "No module for pid " << pid << "\n";
-        return klee::ref<klee::Expr>(NULL);
-    }
-
-    uint8_t byte;
-    if (!m_vmi->readModuleData(*mod, addr, byte)) {
-        getDebugStream(state) << "Failed to read memory at address " << hexval(addr) << "\n";
-        return klee::ref<klee::Expr>(NULL);
-    }
-
-    return klee::ConstantExpr::create(byte, klee::Expr::Int8);
 }
 
 uint64_t DecreeMonitor::getPid(S2EExecutionState *state, uint64_t pc) {
@@ -242,12 +199,8 @@ uint64_t DecreeMonitor::getPid(S2EExecutionState *state, uint64_t pc) {
     }
 }
 
-uint64_t DecreeMonitor::getPid(S2EExecutionState *state) {
-    return getPid(state, state->regs()->getPc());
-}
-
 uint64_t DecreeMonitor::getTid(S2EExecutionState *state) {
-    return getPid(state);
+    return OSMonitor::getPid(state);
 }
 
 void DecreeMonitor::getPreFeedData(S2EExecutionState *state, uint64_t pid, uint64_t count, std::vector<uint8_t> &data) {
@@ -366,8 +319,7 @@ void DecreeMonitor::handleReadData(S2EExecutionState *state, uint64_t pid, const
     }
 
     DECLARE_PLUGINSTATE(DecreeMonitorState, state);
-    getDebugStream(state) << "handleReadData: readCount=" << plgState->m_readBytesCount[pid]
-                          << " for module=" << plgState->getModule(pid)->Name << "\n";
+    getDebugStream(state) << "handleReadData: readCount=" << plgState->m_readBytesCount[pid] << "\n";
 }
 
 void DecreeMonitor::handleReadDataPost(S2EExecutionState *state, uint64_t pid,
@@ -393,8 +345,7 @@ void DecreeMonitor::handleReadDataPost(S2EExecutionState *state, uint64_t pid,
         plgState->m_totalReadBytesCount += d.buffer_size;
         onSymbolicRead.emit(state, pid, d.fd, d.buffer_size, data, ConstantExpr::create(d.buffer_size, Expr::Int32));
 
-        getDebugStream(state) << "handleReadData: readCount=" << plgState->m_readBytesCount[pid]
-                              << " for module=" << plgState->getModule(pid)->Name << "\n";
+        getDebugStream(state) << "handleReadData: readCount=" << plgState->m_readBytesCount[pid] << "\n";
     }
 }
 
@@ -415,7 +366,7 @@ void DecreeMonitor::handleWriteData(S2EExecutionState *state, uint64_t pid, cons
 
     std::vector<klee::ref<klee::Expr>> vec;
     for (unsigned i = 0; i < actualCount; ++i) {
-        klee::ref<klee::Expr> e = readMemory8(state, pid, d.buffer + i);
+        klee::ref<klee::Expr> e = m_memutils->read(state, d.buffer + i);
         s2e_assert(state, !e.isNull(), "Failed to read memory byte of pid " << hexval(pid) << " at "
                                                                             << hexval(d.buffer + i));
 
@@ -495,7 +446,7 @@ void DecreeMonitor::handleRandom(S2EExecutionState *state, uint64_t pid, const S
     std::vector<klee::ref<klee::Expr>> data;
 
     // It is important to create one variable for each random byte.
-    // The POVGenerator will assume one byte var == one byte nonce.
+    // The DecreePovGenerator will assume one byte var == one byte nonce.
     for (uint64_t i = 0; i < d.buffer_size; ++i) {
         std::vector<klee::ref<klee::Expr>> sd;
         m_base->makeSymbolic(state, d.buffer + i, 1, "random", true, &sd);
@@ -632,39 +583,6 @@ void DecreeMonitor::handleSymbolicAllocateSize(S2EExecutionState *state, uint64_
     handleSymbolicSize(state, pid, decree::SAFE_ALLOCATE_SIZE, size, d.size_addr);
 }
 
-/// \brief Find how many contiguous bytes we have in mapped memory
-///
-/// \param startAddr start from this address
-/// \param pages set of mapped memory pages
-/// \return size of memory region starting at \p startAddr and ending at first page not in the \p pages set
-///
-static uint64_t distanceToUnmappedPage(uint64_t startAddr, const std::unordered_set<uint64_t> &pages) {
-    std::set<uint64_t> sortedPages(pages.begin(), pages.end());
-
-    auto it = sortedPages.find(startAddr & TARGET_PAGE_MASK);
-    if (it == sortedPages.end()) {
-        return 0;
-    }
-
-    while (true) {
-        auto nextIt = std::next(it);
-
-        if (nextIt == sortedPages.end()) { // next page is not mapped
-            break;
-        }
-
-        if (*nextIt != *it + TARGET_PAGE_SIZE) { // next page is not adjacent to *it
-            break;
-        }
-
-        it = nextIt;
-    }
-
-    uint64_t endAddr = *it + TARGET_PAGE_SIZE;
-
-    return endAddr - startAddr;
-}
-
 void DecreeMonitor::handleSymbolicBuffer(S2EExecutionState *state, uint64_t pid, SymbolicBufferType type,
                                          uint64_t ptrAddr, uint64_t sizeAddr) {
     ref<Expr> ptr = state->mem()->read(ptrAddr, state->getPointerWidth());
@@ -691,11 +609,23 @@ void DecreeMonitor::handleSymbolicBuffer(S2EExecutionState *state, uint64_t pid,
             return;
         }
 
-        std::unordered_set<uint64_t> pages;
-        FindMemoryPages(getMemoryMap(state), bufferMustBeWritable(type), false, pages);
-
+        bool writable = bufferMustBeWritable(type);
         uint64_t ptrVal = dyn_cast<ConstantExpr>(ptr)->getZExtValue();
-        uint64_t safeSize = distanceToUnmappedPage(ptrVal, pages);
+
+        uint64_t regionStart, regionEnd;
+        MemoryMapRegionType regionType;
+
+        bool res = m_map->lookupRegion(state, pid, ptrVal, regionStart, regionEnd, regionType);
+        if (!res || (writable && !(regionType & MM_WRITE))) {
+            return;
+        }
+
+        // Get the distance from ptrVal to the first unmapped page.
+        // XXX: lookupRegion will return contiguous regions of the same type,
+        // we might need to handle cases when next region is mapped but has
+        // different flags.
+        assert(regionEnd > ptrVal);
+        uint64_t safeSize = regionEnd - ptrVal;
         if (!safeSize) {
             getDebugStream(state) << "no memory in buffer at " << hexval(ptrVal) << "\n";
             return;
@@ -761,24 +691,14 @@ void DecreeMonitor::handleUpdateMemoryMap(S2EExecutionState *state, uint64_t pid
                                           const S2E_DECREEMON_COMMAND_UPDATE_MEMORY_MAP &d) {
     getDebugStream(state) << "New memory map for pid=" << hexval(pid) << "\n";
 
-    DECLARE_PLUGINSTATE(DecreeMonitorState, state);
-
-    if (!d.count) {
-        plgState->m_memory[pid] = MemoryMap();
-        onUpdateMemoryMap.emit(state, pid, plgState->m_memory[pid]);
-        return;
-    }
-
     S2E_DECREEMON_VMA buf[d.count];
     bool ok = state->mem()->read(d.buffer, buf, sizeof(buf));
     s2e_assert(state, ok, "Failed to read memory");
 
     for (unsigned i = 0; i < d.count; i++) {
         getDebugStream(state) << "  " << buf[i] << "\n";
+        onUpdateMemoryMap.emit(state, pid, buf[i]);
     }
-
-    plgState->m_memory[pid] = MemoryMap(buf, buf + d.count);
-    onUpdateMemoryMap.emit(state, pid, plgState->m_memory[pid]);
 }
 
 ///
@@ -925,8 +845,8 @@ void DecreeMonitor::printOpcodeOffsets(S2EExecutionState *state) {
     PRINTOFF(currentName);
 }
 
-void DecreeMonitor::handleCommand(S2EExecutionState *state, uint64_t guestDataPtr, uint64_t guestDataSize,
-                                  S2E_DECREEMON_COMMAND &command) {
+void DecreeMonitor::handleCommand(S2EExecutionState *state, uint64_t guestDataPtr, uint64_t guestDataSize, void *cmd) {
+    S2E_DECREEMON_COMMAND &command = *(S2E_DECREEMON_COMMAND *) cmd;
     std::string currentName(command.currentName, strnlen(command.currentName, sizeof(command.currentName)));
 
     bool processSyscall = true;

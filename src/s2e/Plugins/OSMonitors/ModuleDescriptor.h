@@ -116,13 +116,6 @@ struct ModuleDescriptor {
     // The entry point of the module
     uint64_t EntryPoint;
 
-    // Data section
-    uint64_t DataBase;
-    uint64_t DataSize;
-
-    // Initial SP value
-    uint64_t StackTop;
-
     // PE checksum
     uint32_t Checksum;
 

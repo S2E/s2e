@@ -10,12 +10,12 @@
 
 #include <s2e/CorePlugin.h>
 #include <s2e/Plugin.h>
+#include <s2e/Plugins/OSMonitors/Linux/DecreeMonitor.h>
+#include <s2e/Plugins/OSMonitors/Support/ProcessExecutionDetector.h>
 #include <s2e/Plugins/OSMonitors/Windows/WindowsMonitor.h>
 #include <s2e/S2EExecutionState.h>
 
-#include <llvm/ADT/DenseMap.h>
-#include <llvm/ADT/DenseSet.h>
-#include <llvm/ADT/IntervalMap.h>
+#include <functional>
 
 namespace s2e {
 namespace plugins {
@@ -26,6 +26,15 @@ static const unsigned MM_READ = 1;
 static const unsigned MM_WRITE = 2;
 static const unsigned MM_EXEC = 4;
 
+typedef std::function<bool(uint64_t, uint64_t, MemoryMapRegionType)> MemoryMapCb;
+
+///
+/// \brief This plugin keeps track of allocated memory regions in tracked processes.
+///
+/// In order to use this plugin, configure ProcessExecutionDetector first with
+/// the process names of which you want to know the memory map. You can then use
+/// this plugin to query region types (read, write, exec) for given pid/address pairs.
+///
 class MemoryMap : public Plugin {
     S2E_PLUGIN
 public:
@@ -34,18 +43,68 @@ public:
 
     void initialize();
 
-    void trackPid(S2EExecutionState *state, uint64_t pid, bool track = true);
+    ///
+    /// \brief determines the region type of the given address
+    /// \param state the execution state where the region will be searched
+    /// \param pid the process id that contains the given address
+    /// \param address the address to query
+    /// \return the region type
+    ///
     MemoryMapRegionType getType(S2EExecutionState *state, uint64_t pid, uint64_t address) const;
-    void addRegion(S2EExecutionState *state, uint64_t pid, uint64_t address, uint64_t end, MemoryMapRegionType type);
 
-    void dump(S2EExecutionState *state) const;
+    ///
+    /// \brief Retrieves information about the memory region of the given address
+    /// \param state the execution state where the region will be searched
+    /// \param pid the process id that contains the given address
+    /// \param addr the address to query
+    /// \param start the first byte of the region
+    /// \param end the last byte of the region
+    /// \param type the region type
+    /// \return true if a region such that start <= addr <= end could be found.
+    ///
+    bool lookupRegion(S2EExecutionState *state, uint64_t pid, uint64_t addr, uint64_t &start, uint64_t &end,
+                      MemoryMapRegionType &type) const;
+
+    ///
+    /// \brief iterates over all regions of the given state/pid while invoking the
+    /// specified callback
+    ///
+    /// \param state the execution state
+    /// \param pid the program id
+    /// \param callback the function to invoke for each memory region
+    ///
+    void iterateRegions(S2EExecutionState *state, uint64_t pid, MemoryMapCb callback) const;
+
+    ///
+    /// \brief return the peak commit charge (Windows-specifiec)
+    /// \param state the execution state
+    /// \return the commit charge
+    ///
     uint64_t getPeakCommitCharge(S2EExecutionState *state) const;
 
+    ///
+    /// \brief dump the memory map of all tracked processes
+    /// \param state the execution state
+    ///
+    void dump(S2EExecutionState *state) const;
+
+    ///
+    /// \brief dump the memory map of the given tracked process
+    /// \param state the execution state
+    /// \param pid the pid of the process to dump
+    ///
+    void dump(S2EExecutionState *state, uint64_t pid) const;
+
 private:
-    // TODO: use a generic interface
-    WindowsMonitor *m_monitor;
+    OSMonitor *m_monitor;
+    WindowsMonitor *m_windows;
+    ProcessExecutionDetector *m_proc;
 
     void updateMemoryStats(S2EExecutionState *state);
+
+    void onDecreeUpdateMemoryMap(S2EExecutionState *state, uint64_t pid, const s2e::plugins::S2E_DECREEMON_VMA &vma);
+    void onLinuxMemoryMap(S2EExecutionState *state, uint64_t pid, uint64_t addr, uint64_t size, uint64_t prot);
+    void onLinuxMemoryUnmap(S2EExecutionState *state, uint64_t pid, uint64_t addr, uint64_t size);
 
     void onProcessUnload(S2EExecutionState *state, uint64_t pageDir, uint64_t pid, uint64_t returnCode);
     void onNtAllocateVirtualMemory(S2EExecutionState *state, const S2E_WINMON2_ALLOCATE_VM &d);
@@ -53,103 +112,8 @@ private:
     void onNtProtectVirtualMemory(S2EExecutionState *state, const S2E_WINMON2_PROTECT_VM &d);
     void onNtMapViewOfSection(S2EExecutionState *state, const S2E_WINMON2_MAP_SECTION &d);
     void onNtUnmapViewOfSection(S2EExecutionState *state, const S2E_WINMON2_UNMAP_SECTION &d);
-};
 
-/* Maps a region to a set of flags */
-typedef llvm::IntervalMap<uint64_t, MemoryMapRegionType> MemoryMapRegion;
-
-/* Maintains a region map for each process id */
-typedef llvm::DenseMap<uint64_t, MemoryMapRegion *> MemoryMapRegionProcess;
-
-class MemoryMapRegionManager {
-private:
-    MemoryMapRegionProcess m_regions;
-    MemoryMapRegion::Allocator m_alloc;
-
-public:
-    void addRegion(uint64_t pid, uint64_t addr, uint64_t end, MemoryMapRegionType type) {
-        assert(end > addr);
-        removeRegion(pid, addr, end); // FIXME: make it faster
-
-        MemoryMapRegion *map = getMap(pid);
-        map->insert(addr, end - 1, type);
-    }
-
-    void removeRegion(uint64_t target_pid, uint64_t addr, uint64_t end) {
-        assert(end > addr);
-
-        MemoryMapRegion &map = *getMap(target_pid);
-
-        MemoryMapRegion::iterator ie = map.end();
-        MemoryMapRegion::iterator it;
-
-        while (((it = map.find(addr)) != ie) && (it.start() < end)) {
-            uint64_t it_addr = it.start();
-            uint64_t it_end = it.stop();
-            MemoryMapRegionType type = (*it);
-            it.erase();
-
-            if (it_addr < addr) {
-                map.insert(it_addr, addr - 1, type);
-            }
-            if (it_end > end - 1) {
-                map.insert(end, it_end, type);
-            }
-        }
-    }
-
-    MemoryMapRegionType lookupRegion(uint64_t pid, uint64_t addr) const {
-        MemoryMapRegionProcess::const_iterator it = m_regions.find(pid);
-        if (it == m_regions.end()) {
-            return MM_NONE;
-        }
-
-        return (*it).second->lookup(addr, MM_NONE);
-    }
-
-    void removePid(uint64_t pid) {
-        MemoryMapRegionProcess::iterator it = m_regions.find(pid);
-        if (it != m_regions.end()) {
-            delete ((*it).second);
-            m_regions.erase(it);
-        }
-    }
-
-    void dump(llvm::raw_ostream &os) const {
-        foreach2 (it, m_regions.begin(), m_regions.end()) {
-            uint64_t pid = (*it).first;
-            const MemoryMapRegion *p = (*it).second;
-
-            foreach2 (iit, p->begin(), p->end()) {
-                uint64_t it_addr = iit.start();
-                uint64_t it_end = iit.stop();
-                MemoryMapRegionType type = (*iit);
-                os << "pid=" << hexval(pid);
-                os << " [" << hexval(it_addr) << ", " << hexval(it_end) << "] ";
-                os << (type & MM_READ ? 'R' : '-');
-                os << (type & MM_WRITE ? 'W' : '-');
-                os << (type & MM_EXEC ? 'X' : '-');
-                os << "\n";
-            }
-        }
-    }
-
-    ~MemoryMapRegionManager() {
-        foreach2 (it, m_regions.begin(), m_regions.end()) { delete (*it).second; }
-    }
-
-private:
-    MemoryMapRegion *getMap(uint64_t pid) {
-        MemoryMapRegionProcess::iterator it = m_regions.find(pid);
-        MemoryMapRegion *map;
-        if (it == m_regions.end()) {
-            map = new MemoryMapRegion(m_alloc);
-            m_regions[pid] = map;
-        } else {
-            map = (*it).second;
-        }
-        return map;
-    }
+    void addRegion(S2EExecutionState *state, uint64_t pid, uint64_t start, uint64_t end, MemoryMapRegionType type);
 };
 
 } // namespace plugins

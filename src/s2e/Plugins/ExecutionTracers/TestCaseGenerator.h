@@ -14,6 +14,7 @@
 #include <s2e/Plugins/ExecutionTracers/ExecutionTracer.h>
 #include <s2e/Plugins/OSMonitors/Windows/WindowsCrashMonitor.h>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace s2e {
@@ -29,6 +30,9 @@ struct TestCaseFile {
 };
 
 typedef std::map<std::string, TestCaseFile> TestCaseFiles;
+
+typedef std::vector<uint8_t> Data;
+typedef std::unordered_map<std::string, Data> TestCaseData;
 
 enum TestCaseType : unsigned { TC_NONE = 0, TC_LOG = 1, TC_TRACE = 2, TC_FILE = 4 };
 
@@ -50,8 +54,17 @@ public:
 
     void generateTestCases(S2EExecutionState *state, const std::string &prefix, TestCaseType type);
 
+    void assembleTestCaseToFiles(const ConcreteInputs &inputs, const std::string &prefix,
+                                 std::vector<std::string> &fileNames);
+    void assembleTestCaseToFiles(const ConcreteInputs &inputs, TestCaseData &data);
+    void assembleTestCaseToFiles(const klee::Assignment &assignment, TestCaseData &data);
+
 private:
-    sigc::connection m_connection;
+    sigc::connection m_stateKillConnection;
+    sigc::connection m_linuxSegFaultConnection;
+    sigc::connection m_windowsUserCrashConnection;
+    sigc::connection m_windowsKernelCrashConnection;
+
     ExecutionTracer *m_tracer;
 
     void onStateKill(S2EExecutionState *state);
@@ -64,8 +77,6 @@ private:
 
     bool getFilePart(const std::string &variableName, std::string &filePath, unsigned *part, unsigned *total) const;
     void getFiles(const ConcreteInputs &inputs, TestCaseFiles &files);
-    void assembleTestCaseToFiles(const ConcreteInputs &inputs, const std::string &prefix,
-                                 std::vector<std::string> &fileNames);
     bool assembleChunks(const TestCaseFile &file, std::vector<uint8_t> &out);
 };
 }

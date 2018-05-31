@@ -1,24 +1,31 @@
 ///
 /// Copyright (C) 2015, Dependable Systems Laboratory, EPFL
-/// Copyright (C) 2014-2015, Cyberhaven
+/// Copyright (C) 2014-2018, Cyberhaven
 /// All rights reserved.
 ///
 /// Licensed under the Cyberhaven Research License Agreement.
 ///
 
+#include <llvm/ADT/DenseMap.h>
+#include <llvm/ADT/DenseSet.h>
+#include <llvm/ADT/IntervalMap.h>
+
+#include <unordered_map>
+
 #include <s2e/ConfigFile.h>
 #include <s2e/S2E.h>
 #include <s2e/Utils.h>
+
+#include <s2e/Plugins/OSMonitors/Linux/DecreeMonitor.h>
+#include <s2e/Plugins/OSMonitors/Linux/LinuxMonitor.h>
+#include <s2e/Plugins/OSMonitors/Windows/WindowsMonitor.h>
 
 #include "MemoryMap.h"
 
 namespace s2e {
 namespace plugins {
 
-S2E_DEFINE_PLUGIN(MemoryMap, "MemoryMap S2E plugin", "", "WindowsMonitor");
-
-// Maps a pid to the pointer size
-typedef llvm::DenseSet<uint64_t> TrackedPidsMap;
+S2E_DEFINE_PLUGIN(MemoryMap, "MemoryMap S2E plugin", "", "OSMonitor", "ProcessExecutionDetector");
 
 static MemoryMapRegionType WindowsProtectionToInternal(uint64_t protection) {
     uint64_t type = MM_NONE;
@@ -48,12 +55,158 @@ static MemoryMapRegionType WindowsProtectionToInternal(uint64_t protection) {
     return (MemoryMapRegionType) type;
 }
 
+namespace {
+
+///
+/// \brief Maps a region to a set of flags
+///
+/// It is not possible to just use a typedef of `llvm::IntervalMap` because
+/// the interval map requires a non-default constructor and the required
+/// allocator cannot be copy-constructed on state forks.
+///
+class MemoryMapRegion : public llvm::IntervalMap<uint64_t, MemoryMapRegionType> {
+private:
+    // This cannot be a non-static variable because it's used by the
+    // parent class but would be destroyed first, causing corruptions.
+    static Allocator s_alloc;
+
+public:
+    MemoryMapRegion() : IntervalMap(s_alloc) {
+    }
+
+    MemoryMapRegion(const MemoryMapRegion &other) : IntervalMap(s_alloc) {
+        for (auto it = other.begin(); it != other.end(); ++it) {
+            insert(it.start(), it.stop(), *it);
+        }
+    }
+};
+
+MemoryMapRegion::Allocator MemoryMapRegion::s_alloc;
+
+///
+/// \brief Maintains a region map for each process id
+///
+typedef std::unordered_map<uint64_t, MemoryMapRegion> MemoryMapRegionProcess;
+
+class MemoryMapRegionManager {
+private:
+    MemoryMapRegionProcess m_regions;
+
+public:
+    void addRegion(uint64_t pid, uint64_t addr, uint64_t end, MemoryMapRegionType type) {
+        assert(end > addr);
+        removeRegion(pid, addr, end); // FIXME: make it faster
+
+        auto &map = m_regions[pid];
+        map.insert(addr, end - 1, type);
+    }
+
+    void removeRegion(uint64_t target_pid, uint64_t addr, uint64_t end) {
+        assert(end > addr);
+
+        MemoryMapRegion &map = m_regions[target_pid];
+
+        MemoryMapRegion::iterator ie = map.end();
+        MemoryMapRegion::iterator it;
+
+        while (((it = map.find(addr)) != ie) && (it.start() < end)) {
+            uint64_t it_addr = it.start();
+            uint64_t it_end = it.stop();
+            MemoryMapRegionType type = (*it);
+            it.erase();
+
+            if (it_addr < addr) {
+                map.insert(it_addr, addr - 1, type);
+            }
+            if (it_end > end - 1) {
+                map.insert(end, it_end, type);
+            }
+        }
+    }
+
+    MemoryMapRegionType lookupRegion(uint64_t pid, uint64_t addr) const {
+        MemoryMapRegionProcess::const_iterator it = m_regions.find(pid);
+        if (it == m_regions.end()) {
+            return MM_NONE;
+        }
+
+        return (*it).second.lookup(addr, MM_NONE);
+    }
+
+    bool lookupRegion(uint64_t pid, uint64_t addr, uint64_t &start, uint64_t &end, MemoryMapRegionType &type) const {
+        MemoryMapRegionProcess::const_iterator it = m_regions.find(pid);
+        if (it == m_regions.end()) {
+            return false;
+        }
+
+        const MemoryMapRegion *map = &(*it).second;
+        auto rit = map->find(start);
+        if (rit == map->end()) {
+            return false;
+        }
+
+        start = rit.start();
+        end = rit.stop();
+        type = *rit;
+        return true;
+    }
+
+    void iterateRegions(uint64_t pid, MemoryMapCb &callback) const {
+        MemoryMapRegionProcess::const_iterator it = m_regions.find(pid);
+        if (it == m_regions.end()) {
+            return;
+        }
+
+        // XXX: somehow c++11 for (auto it:map) doesn't work
+        const MemoryMapRegion &map = (*it).second;
+        for (auto rit = map.begin(); rit != map.end(); ++rit) {
+            if (!callback(rit.start(), rit.stop(), *rit)) {
+                break;
+            }
+        }
+    }
+
+    void removePid(uint64_t pid) {
+        MemoryMapRegionProcess::iterator it = m_regions.find(pid);
+        if (it != m_regions.end()) {
+            m_regions.erase(it);
+        }
+    }
+
+    void dump(llvm::raw_ostream &os, uint64_t pid) const {
+        const auto it = m_regions.find(pid);
+        if (it == m_regions.end()) {
+            return;
+        }
+
+        const MemoryMapRegion *p = &(*it).second;
+
+        for (auto iit = p->begin(); iit != p->end(); ++iit) {
+            uint64_t it_addr = iit.start();
+            uint64_t it_end = iit.stop();
+            MemoryMapRegionType type = (*iit);
+            os << "pid=" << hexval(pid);
+            os << " [" << hexval(it_addr) << ", " << hexval(it_end) << "] ";
+            os << (type & MM_READ ? 'R' : '-');
+            os << (type & MM_WRITE ? 'W' : '-');
+            os << (type & MM_EXEC ? 'X' : '-');
+            os << "\n";
+        }
+    }
+
+    void dump(llvm::raw_ostream &os) const {
+        for (auto it = m_regions.begin(); it != m_regions.end(); ++it) {
+            uint64_t pid = (*it).first;
+            dump(os, pid);
+        }
+    }
+};
+
 class MemoryMapState : public PluginState {
 private:
     Plugin *m_plugin;
 
 public:
-    TrackedPidsMap m_trackedPids;
     /* Manage per-process memory stats */
     typedef llvm::DenseMap<uint64_t, WindowsMonitor::MemoryInformation> MemoryInfoMap;
     MemoryInfoMap m_memoryInfo;
@@ -76,6 +229,14 @@ public:
         return m_manager.lookupRegion(pid, addr);
     }
 
+    bool lookupRegion(uint64_t pid, uint64_t addr, uint64_t &start, uint64_t &end, MemoryMapRegionType &type) const {
+        return m_manager.lookupRegion(pid, addr, start, end, type);
+    }
+
+    void iterateRegions(uint64_t pid, MemoryMapCb &callback) const {
+        return m_manager.iterateRegions(pid, callback);
+    }
+
     void removePid(uint64_t pid) {
         m_manager.removePid(pid);
 
@@ -86,11 +247,7 @@ public:
     }
 
     virtual MemoryMapState *clone() const {
-        assert(0); // XXX
-        /// XXX: must copy the interval map
-        return NULL;
-        // MemoryMapState *ret = new MemoryMapState(m_regionsAlloc);
-        // return ret;
+        return new MemoryMapState(*this);
     }
 
     MemoryMapState(Plugin *p) {
@@ -107,8 +264,8 @@ public:
 
         /** Report aggregated memory usage for all tracked processes */
         uint64_t totalCommitChargePeak = 0;
-        foreach2 (it, m_memoryInfo.begin(), m_memoryInfo.end()) {
-            totalCommitChargePeak += (*it).second.PeakCommitCharge;
+        for (auto &it : m_memoryInfo) {
+            totalCommitChargePeak += it.second.PeakCommitCharge;
         }
 
         if (totalCommitChargePeak > m_peakCommitCharge) {
@@ -117,28 +274,133 @@ public:
     }
 
     uint64_t getPeakCommitCharge() const {
-        return m_peakCommitCharge * 4096;
+        return m_peakCommitCharge * TARGET_PAGE_SIZE;
     }
 
     void dump(llvm::raw_ostream &os) const {
         m_manager.dump(os);
     }
+
+    void dump(llvm::raw_ostream &os, uint64_t pid) const {
+        m_manager.dump(os, pid);
+    }
 };
+}
 
 void MemoryMap::initialize() {
-    m_monitor = s2e()->getPlugin<WindowsMonitor>();
+    m_proc = s2e()->getPlugin<ProcessExecutionDetector>();
+    m_monitor = static_cast<OSMonitor *>(s2e()->getPlugin("OSMonitor"));
 
+    // Register generic events
     m_monitor->onProcessUnload.connect(sigc::mem_fun(*this, &MemoryMap::onProcessUnload));
 
-    m_monitor->onNtAllocateVirtualMemory.connect(sigc::mem_fun(*this, &MemoryMap::onNtAllocateVirtualMemory));
+    // Register Windows events
+    m_windows = dynamic_cast<WindowsMonitor *>(m_monitor);
+    if (m_windows) {
+        m_windows->onNtAllocateVirtualMemory.connect(sigc::mem_fun(*this, &MemoryMap::onNtAllocateVirtualMemory));
+        m_windows->onNtFreeVirtualMemory.connect(sigc::mem_fun(*this, &MemoryMap::onNtFreeVirtualMemory));
+        m_windows->onNtProtectVirtualMemory.connect(sigc::mem_fun(*this, &MemoryMap::onNtProtectVirtualMemory));
+        m_windows->onNtMapViewOfSection.connect(sigc::mem_fun(*this, &MemoryMap::onNtMapViewOfSection));
+        m_windows->onNtUnmapViewOfSection.connect(sigc::mem_fun(*this, &MemoryMap::onNtUnmapViewOfSection));
+        return;
+    }
 
-    m_monitor->onNtFreeVirtualMemory.connect(sigc::mem_fun(*this, &MemoryMap::onNtFreeVirtualMemory));
+    // Register Decree events
+    DecreeMonitor *decree = dynamic_cast<DecreeMonitor *>(m_monitor);
+    if (decree) {
+        decree->onUpdateMemoryMap.connect(sigc::mem_fun(*this, &MemoryMap::onDecreeUpdateMemoryMap));
+        return;
+    }
 
-    m_monitor->onNtProtectVirtualMemory.connect(sigc::mem_fun(*this, &MemoryMap::onNtProtectVirtualMemory));
+    // Register Linux events
+    LinuxMonitor *linmon = dynamic_cast<LinuxMonitor *>(m_monitor);
+    if (linmon) {
+        linmon->onMemoryMap.connect(sigc::mem_fun(*this, &MemoryMap::onLinuxMemoryMap));
+        linmon->onMemoryUnmap.connect(sigc::mem_fun(*this, &MemoryMap::onLinuxMemoryUnmap));
 
-    m_monitor->onNtMapViewOfSection.connect(sigc::mem_fun(*this, &MemoryMap::onNtMapViewOfSection));
+        // Memory protect and mapping share the same handler
+        linmon->onMemoryProtect.connect(sigc::mem_fun(*this, &MemoryMap::onLinuxMemoryMap));
+        return;
+    }
+}
 
-    m_monitor->onNtUnmapViewOfSection.connect(sigc::mem_fun(*this, &MemoryMap::onNtUnmapViewOfSection));
+void MemoryMap::addRegion(S2EExecutionState *state, uint64_t pid, uint64_t address, uint64_t end,
+                          MemoryMapRegionType type) {
+    // Don't check if the pid is tracked, this is a private method and the caller
+    // is reponsible for the check.
+    DECLARE_PLUGINSTATE(MemoryMapState, state);
+    plgState->addRegion(pid, address, end, type);
+}
+
+///
+/// \brief Rounds down address to the nearest page boundary, rounds up
+/// address + size to the nearest page boundary.
+///
+/// E.g., address==1 and size==2 => start==0 and end == 0x1000;
+///
+static void ComputeStartEndAddress(uint64_t address, uint64_t size, uint64_t &start, uint64_t &end) {
+    start = address & TARGET_PAGE_MASK;
+    end = (address + size + (TARGET_PAGE_SIZE - 1)) & TARGET_PAGE_MASK;
+}
+
+void MemoryMap::onLinuxMemoryMap(S2EExecutionState *state, uint64_t pid, uint64_t addr, uint64_t size, uint64_t prot) {
+    if (!m_proc->isTracked(state, pid)) {
+        return;
+    }
+
+    MemoryMapRegionType type = MM_NONE;
+
+    if (prot & PROT_READ) {
+        type |= MM_READ;
+    }
+
+    if (prot & PROT_WRITE) {
+        type |= MM_WRITE;
+    }
+
+    if (prot & PROT_EXEC) {
+        type |= MM_EXEC;
+    }
+
+    uint64_t start, end;
+    ComputeStartEndAddress(addr, size, start, end);
+
+    DECLARE_PLUGINSTATE(MemoryMapState, state);
+    plgState->addRegion(pid, start, end, type);
+}
+
+void MemoryMap::onLinuxMemoryUnmap(S2EExecutionState *state, uint64_t pid, uint64_t addr, uint64_t size) {
+    if (!m_proc->isTracked(state, pid)) {
+        return;
+    }
+    uint64_t start, end;
+    ComputeStartEndAddress(addr, size, start, end);
+
+    DECLARE_PLUGINSTATE(MemoryMapState, state);
+    plgState->removeRegion(pid, start, end);
+}
+
+void MemoryMap::onDecreeUpdateMemoryMap(S2EExecutionState *state, uint64_t pid, const S2E_DECREEMON_VMA &vma) {
+    if (!m_proc->isTracked(state, pid)) {
+        return;
+    }
+
+    MemoryMapRegionType type = MM_NONE;
+
+    if (vma.flags & S2E_DECREEMON_VM_READ) {
+        type |= MM_READ;
+    }
+
+    if (vma.flags & S2E_DECREEMON_VM_WRITE) {
+        type |= MM_WRITE;
+    }
+
+    if (vma.flags & S2E_DECREEMON_VM_EXEC) {
+        type |= MM_EXEC;
+    }
+
+    DECLARE_PLUGINSTATE(MemoryMapState, state);
+    plgState->addRegion(pid, vma.start, vma.end, type);
 }
 
 void MemoryMap::onProcessUnload(S2EExecutionState *state, uint64_t pageDir, uint64_t pid, uint64_t returnCode) {
@@ -152,44 +414,29 @@ void MemoryMap::onNtAllocateVirtualMemory(S2EExecutionState *state, const S2E_WI
         return;
     }
 
-    uint64_t pid = m_monitor->getCurrentProcessId(state);
+    uint64_t pid = m_windows->getCurrentProcessId(state);
     assert(pid);
 
-    DECLARE_PLUGINSTATE(MemoryMapState, state);
-    if (plgState->m_trackedPids.find(pid) == plgState->m_trackedPids.end()) {
+    uint64_t target_pid = m_windows->getPidFromHandle(state, pid, d.ProcessHandle);
+    uint64_t real_pid = target_pid ? target_pid : pid;
+
+    if (!m_proc->isTracked(state, real_pid)) {
         return;
     }
 
     // XXX: this will not update stats for a remote process!
     updateMemoryStats(state);
 
-    uint64_t target_pid = m_monitor->getPidFromHandle(state, pid, d.ProcessHandle);
-    uint64_t real_pid = target_pid ? target_pid : pid;
-
     getDebugStream() << __FUNCTION__ << " pid=" << hexval(pid) << " target pid=" << hexval(target_pid)
                      << " base=" << hexval(d.BaseAddress) << " size=" << hexval(d.Size)
                      << " protect=" << hexval(d.Protection) << "\n";
 
-    uint64_t address = d.BaseAddress;
-    uint64_t size = d.Size;
-
-    uint64_t end = address + size;
-    address &= ~0xfff;
-    end = (end + 0xfff) & ~0xfff;
+    uint64_t start;
+    uint64_t end;
+    ComputeStartEndAddress(d.BaseAddress, d.Size, start, end);
 
     MemoryMapRegionType type = WindowsProtectionToInternal(d.Protection);
-
-    addRegion(state, real_pid, address, end, type);
-}
-
-void MemoryMap::addRegion(S2EExecutionState *state, uint64_t pid, uint64_t address, uint64_t end,
-                          MemoryMapRegionType type) {
-    DECLARE_PLUGINSTATE(MemoryMapState, state);
-    if (plgState->m_trackedPids.find(pid) == plgState->m_trackedPids.end()) {
-        return;
-    }
-
-    plgState->addRegion(pid, address, end, type);
+    addRegion(state, real_pid, start, end, type);
 }
 
 void MemoryMap::onNtFreeVirtualMemory(S2EExecutionState *state, const S2E_WINMON2_FREE_VM &d) {
@@ -197,91 +444,119 @@ void MemoryMap::onNtFreeVirtualMemory(S2EExecutionState *state, const S2E_WINMON
         return;
     }
 
-    DECLARE_PLUGINSTATE(MemoryMapState, state);
-    uint64_t pid = m_monitor->getCurrentProcessId(state);
+    uint64_t pid = m_windows->getCurrentProcessId(state);
     assert(pid);
-
-    if (plgState->m_trackedPids.find(pid) == plgState->m_trackedPids.end()) {
-        return;
-    }
 
     // XXX: this will not update stats for a remote process!
     updateMemoryStats(state);
 
-    uint64_t target_pid = m_monitor->getPidFromHandle(state, pid, d.ProcessHandle);
+    uint64_t target_pid = m_windows->getPidFromHandle(state, pid, d.ProcessHandle);
     uint64_t real_pid = target_pid ? target_pid : pid;
+
+    if (!m_proc->isTracked(state, real_pid)) {
+        return;
+    }
 
     getDebugStream() << __FUNCTION__ << " pid=" << hexval(pid) << " target pid=" << hexval(target_pid)
                      << " base=" << hexval(d.BaseAddress) << " size=" << hexval(d.Size) << "\n";
 
     if (d.FreeType & 0x8000 || d.FreeType & 0x4000) { // MEM_RELEASE || MEM_DECOMMIT
-        uint64_t address = d.BaseAddress;
-        uint64_t size = d.Size;
-        uint64_t end = address + size;
-        address &= ~0xfff;
-        end = (end + 0xfff) & ~0xfff;
+        uint64_t start;
+        uint64_t end;
+        ComputeStartEndAddress(d.BaseAddress, d.Size, start, end);
 
-        plgState->removeRegion(real_pid, address, end);
+        DECLARE_PLUGINSTATE(MemoryMapState, state);
+        plgState->removeRegion(real_pid, start, end);
     }
 }
 
 void MemoryMap::onNtProtectVirtualMemory(S2EExecutionState *state, const S2E_WINMON2_PROTECT_VM &d) {
-    DECLARE_PLUGINSTATE(MemoryMapState, state);
-    uint64_t pid = m_monitor->getCurrentProcessId(state);
+    uint64_t pid = m_windows->getCurrentProcessId(state);
     assert(pid);
 
-    if (plgState->m_trackedPids.find(pid) == plgState->m_trackedPids.end()) {
+    uint64_t target_pid = m_windows->getPidFromHandle(state, pid, d.ProcessHandle);
+    uint64_t real_pid = target_pid ? target_pid : pid;
+
+    if (!m_proc->isTracked(state, real_pid)) {
         return;
     }
 
     // XXX: this will not update stats for a remote process!
     updateMemoryStats(state);
 
-    uint64_t target_pid = m_monitor->getPidFromHandle(state, pid, d.ProcessHandle);
-
-    uint64_t address = d.BaseAddress;
-    uint64_t end = d.BaseAddress + d.Size;
-    address = address & ~0xfff;
-    end = (end + 0xfff) & ~0xfff;
-
     getDebugStream() << __FUNCTION__ << " pid=" << hexval(pid) << " target pid=" << hexval(target_pid)
                      << " base=" << hexval(d.BaseAddress) << " size=" << hexval(d.Size)
                      << " protection=" << hexval(d.NewProtection) << "\n";
 
-    MemoryMapRegionType type = WindowsProtectionToInternal(d.NewProtection);
+    uint64_t start;
+    uint64_t end;
+    ComputeStartEndAddress(d.BaseAddress, d.Size, start, end);
 
-    plgState->addRegion(target_pid ? target_pid : pid, address, end, type);
+    DECLARE_PLUGINSTATE(MemoryMapState, state);
+    MemoryMapRegionType type = WindowsProtectionToInternal(d.NewProtection);
+    plgState->addRegion(real_pid, start, end, type);
 }
 
 void MemoryMap::onNtMapViewOfSection(S2EExecutionState *state, const S2E_WINMON2_MAP_SECTION &d) {
-    // Unused?
+    uint64_t pid = m_windows->getCurrentProcessId(state);
+    assert(pid);
+
+    uint64_t target_pid = m_windows->getPidFromHandle(state, pid, d.ProcessHandle);
+    uint64_t real_pid = target_pid ? target_pid : pid;
+
+    if (!m_proc->isTracked(state, real_pid)) {
+        return;
+    }
+
+    // XXX: this will not update stats for a remote process!
+    updateMemoryStats(state);
+
+    getDebugStream() << __FUNCTION__ << " pid=" << hexval(pid) << " target pid=" << hexval(target_pid)
+                     << " base=" << hexval(d.BaseAddress) << " size=" << hexval(d.Size)
+                     << " protection=" << hexval(d.Win32Protect) << "\n";
+
+    uint64_t start;
+    uint64_t end;
+    ComputeStartEndAddress(d.BaseAddress, d.Size, start, end);
+
+    DECLARE_PLUGINSTATE(MemoryMapState, state);
+    MemoryMapRegionType type = WindowsProtectionToInternal(d.Win32Protect);
+    plgState->addRegion(real_pid, start, end, type);
 }
 
 void MemoryMap::onNtUnmapViewOfSection(S2EExecutionState *state, const S2E_WINMON2_UNMAP_SECTION &d) {
-    // Unused?
+    // XXX: not implemented. This would require to convert somehow the given address
+    // to the section start and size.
 }
 
 void MemoryMap::updateMemoryStats(S2EExecutionState *state) {
+    if (!m_windows) {
+        getWarningsStream(state) << "updateMemoryStats requires WindowsMonitor\n";
+        return;
+    }
+
     WindowsMonitor::MemoryInformation info;
-    if (m_monitor->getMemoryStatisticsForCurrentProcess(state, info)) {
+    if (m_windows->getMemoryStatisticsForCurrentProcess(state, info)) {
         DECLARE_PLUGINSTATE(MemoryMapState, state);
-        uint64_t pid = m_monitor->getCurrentProcessId(state);
+        uint64_t pid = m_windows->getCurrentProcessId(state);
         plgState->updateMemoryStats(info, pid);
     }
 }
 
 MemoryMapRegionType MemoryMap::getType(S2EExecutionState *state, uint64_t pid, uint64_t address) const {
-    DECLARE_PLUGINSTATE(MemoryMapState, state);
+    DECLARE_PLUGINSTATE_CONST(MemoryMapState, state);
     return plgState->lookupRegion(pid, address);
 }
 
-void MemoryMap::trackPid(S2EExecutionState *state, uint64_t pid, bool track) {
-    DECLARE_PLUGINSTATE(MemoryMapState, state);
-    if (track) {
-        plgState->m_trackedPids.insert(pid);
-    } else {
-        plgState->m_trackedPids.erase(pid);
-    }
+bool MemoryMap::lookupRegion(S2EExecutionState *state, uint64_t pid, uint64_t addr, uint64_t &start, uint64_t &end,
+                             MemoryMapRegionType &type) const {
+    DECLARE_PLUGINSTATE_CONST(MemoryMapState, state);
+    return plgState->lookupRegion(pid, addr, start, end, type);
+}
+
+void MemoryMap::iterateRegions(S2EExecutionState *state, uint64_t pid, MemoryMapCb callback) const {
+    DECLARE_PLUGINSTATE_CONST(MemoryMapState, state);
+    return plgState->iterateRegions(pid, callback);
 }
 
 void MemoryMap::dump(S2EExecutionState *state) const {
@@ -290,6 +565,14 @@ void MemoryMap::dump(S2EExecutionState *state) const {
     llvm::raw_ostream &os = getDebugStream(state);
     os << "Dumping memory map\n";
     plgState->dump(os);
+}
+
+void MemoryMap::dump(S2EExecutionState *state, uint64_t pid) const {
+    DECLARE_PLUGINSTATE(MemoryMapState, state);
+
+    llvm::raw_ostream &os = getDebugStream(state);
+    os << "Dumping memory map for pid " << pid << "\n";
+    plgState->dump(os, pid);
 }
 
 uint64_t MemoryMap::getPeakCommitCharge(S2EExecutionState *state) const {

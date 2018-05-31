@@ -29,9 +29,9 @@ public:
     FunctionModels(S2E *s2e) : BaseFunctionModels(s2e) {
     }
 
-private:
-    virtual klee::ref<klee::Expr> readMemory8(S2EExecutionState *state, uint64_t addr);
+    void initialize();
 
+private:
     void handleStrlen(S2EExecutionState *state, S2E_LIBCWRAPPER_COMMAND &cmd, klee::ref<klee::Expr> &expr);
     void handleStrcmp(S2EExecutionState *state, S2E_LIBCWRAPPER_COMMAND &cmd, klee::ref<klee::Expr> &expr);
     void handleStrncmp(S2EExecutionState *state, S2E_LIBCWRAPPER_COMMAND &cmd, klee::ref<klee::Expr> &expr);

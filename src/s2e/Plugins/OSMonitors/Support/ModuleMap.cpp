@@ -178,7 +178,12 @@ public:
     void dump(llvm::raw_ostream &os) const {
         os << "==========================================\n";
         os << "Dumping loaded modules\n";
-        foreach2 (it, m_modules.begin(), m_modules.end()) { os << *it << "\n"; }
+
+        const ModulesByPid &byPid = m_modules.get<pid_t>();
+        for (const auto &it : byPid) {
+            os << "pid:" << hexval(it.Pid) << " - " << it << "\n";
+        }
+
         os << "==========================================\n";
     }
 
@@ -273,9 +278,16 @@ ModuleDescriptorList ModuleMap::getModulesByPid(S2EExecutionState *state, uint64
     return plgState->getModulesByPid(pid);
 }
 
+const ModuleDescriptor *ModuleMap::getModule(S2EExecutionState *state) {
+    DECLARE_PLUGINSTATE(ModuleMapState, state);
+    auto pid = m_monitor->getPid(state);
+    return plgState->getModule(pid, state->regs()->getPc());
+}
+
 const ModuleDescriptor *ModuleMap::getModule(S2EExecutionState *state, uint64_t pc) {
     DECLARE_PLUGINSTATE(ModuleMapState, state);
-    return plgState->getModule(m_monitor->getPid(state, pc), pc);
+    auto pid = m_monitor->getPid(state, pc);
+    return plgState->getModule(pid, pc);
 }
 
 const ModuleDescriptor *ModuleMap::getModule(S2EExecutionState *state, uint64_t pid, uint64_t pc) {

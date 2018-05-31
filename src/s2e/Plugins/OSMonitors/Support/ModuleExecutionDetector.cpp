@@ -274,9 +274,7 @@ void ModuleExecutionDetector::moduleLoadListener(S2EExecutionState *state, const
     DECLARE_PLUGINSTATE(ModuleTransitionState, state);
 
     // If module name matches the configured ones, activate.
-    getDebugStream(state) << "Module " << module.Name << " loaded - "
-                          << "Base=" << hexval(module.LoadBase) << " NativeBase=" << hexval(module.NativeBase)
-                          << " Size=" << hexval(module.Size) << " AS=" << hexval(module.AddressSpace) << "\n";
+    getDebugStream(state) << "Module loaded: " << module << "\n";
 
     ModuleExecutionCfg cfg;
     cfg.moduleName = module.Name;
@@ -508,57 +506,6 @@ void ModuleExecutionDetector::onExecution(S2EExecutionState *state, uint64_t pc)
 
         plgState->m_PreviousModule = currentModule;
     }
-}
-
-klee::ref<klee::Expr> ModuleExecutionDetector::readMemory8(S2EExecutionState *state, uint64_t addr) {
-    klee::ref<klee::Expr> expr = state->mem()->read(addr);
-    if (!expr.isNull()) {
-        return expr;
-    }
-
-    /* Try to read data from executable image */
-
-    const ModuleDescriptor *module = getCurrentDescriptor(state);
-    if (!module) {
-        getDebugStream(state) << "No current module\n";
-        return klee::ref<klee::Expr>(NULL);
-    }
-
-    uint8_t byte;
-    if (!m_vmi->readModuleData(*module, addr, byte)) {
-        getDebugStream(state) << "Failed to read memory at address " << hexval(addr) << "\n";
-        return klee::ref<klee::Expr>(NULL);
-    }
-
-    return klee::ConstantExpr::create(byte, klee::Expr::Int8);
-}
-
-klee::ref<klee::Expr> ModuleExecutionDetector::readMemory(S2EExecutionState *state, uint64_t addr,
-                                                          klee::Expr::Width width) {
-    klee::ref<klee::Expr> expr = state->mem()->read(addr, width);
-    if (!expr.isNull()) {
-        return expr;
-    }
-
-    /* Try to read data from executable image */
-
-    const ModuleDescriptor *module = getCurrentDescriptor(state);
-    if (!module) {
-        getDebugStream(state) << "No current module\n";
-        return klee::ref<klee::Expr>(NULL);
-    }
-
-    uintmax_t value = 0;
-    for (unsigned i = 0; i < width / CHAR_BIT; i++) {
-        uint8_t byte;
-        if (!m_vmi->readModuleData(*module, addr + i, byte)) {
-            getDebugStream(state) << "Failed to read memory at address " << hexval(addr) << "\n";
-            return klee::ref<klee::Expr>(NULL);
-        }
-        value |= ((uintmax_t) byte) << (i * CHAR_BIT);
-    }
-
-    return klee::ConstantExpr::create(value, width);
 }
 
 /*****************************************************************************/

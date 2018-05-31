@@ -11,6 +11,7 @@
 
 #include <klee/Expr.h>
 #include <s2e/Plugin.h>
+#include <s2e/Plugins/OSMonitors/Support/MemUtils.h>
 
 using namespace klee;
 
@@ -39,14 +40,13 @@ private:
     void initCRCModels();
 
 protected:
+    MemUtils *m_memutils;
+
     klee::UpdateList *m_crc16_ul;
     klee::UpdateList *m_crc32_ul;
 
     ref<Expr> crc32(const ref<Expr> &initialCrc, const std::vector<ref<Expr>> &input, bool xorResult);
     ref<Expr> crc16(const ref<Expr> &initialCrc, const std::vector<ref<Expr>> &input);
-
-    bool readMemory(S2EExecutionState *state, std::vector<ref<Expr>> &output, uint64_t address, unsigned length);
-    virtual klee::ref<klee::Expr> readMemory8(S2EExecutionState *state, uint64_t addr) = 0;
 
     bool readArgument(S2EExecutionState *state, unsigned param, uint64_t &arg);
     bool findNullChar(S2EExecutionState *state, uint64_t stringAddr, size_t &len);

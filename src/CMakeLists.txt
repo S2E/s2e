@@ -22,6 +22,7 @@ add_library(
     s2e/Plugins/OSMonitors/Windows/WindowsCrashMonitor.cpp
 
     # Linux guests support
+    s2e/Plugins/OSMonitors/Linux/BaseLinuxMonitor.cpp
     s2e/Plugins/OSMonitors/Linux/LinuxMonitor.cpp
     s2e/Plugins/OSMonitors/Linux/DecreeMonitor.cpp
     s2e/Plugins/OSMonitors/Raw/RawMonitor.cpp
@@ -31,17 +32,19 @@ add_library(
     s2e/Plugins/OSMonitors/Support/ProcessExecutionDetector.cpp
     s2e/Plugins/OSMonitors/Support/ModuleMap.cpp
     s2e/Plugins/OSMonitors/Support/MemoryMap.cpp
-    s2e/Plugins/OSMonitors/Support/GuestCodePatching.cpp
+    s2e/Plugins/OSMonitors/Support/MemUtils.cpp
+    s2e/Plugins/OSMonitors/Support/GuestCodeHooking.cpp
     s2e/Plugins/OSMonitors/OSMonitor.cpp
 
     # CGC support
-    # TODO: make recipes plugins generic
     s2e/Plugins/VulnerabilityAnalysis/CGCInterface.cpp
-    s2e/Plugins/VulnerabilityAnalysis/POVGenerator.cpp
-    s2e/Plugins/VulnerabilityAnalysis/ExploitGenerator.cpp
+    s2e/Plugins/VulnerabilityAnalysis/PovGenerator.cpp
+    s2e/Plugins/VulnerabilityAnalysis/FilePovGenerator.cpp
+    s2e/Plugins/VulnerabilityAnalysis/DecreePovGenerator.cpp
+    s2e/Plugins/VulnerabilityAnalysis/PovGenerationPolicy.cpp
     s2e/Plugins/VulnerabilityAnalysis/Recipe/Recipe.cpp
     s2e/Plugins/VulnerabilityAnalysis/Recipe/RecipeDescriptor.cpp
-    s2e/Plugins/VulnerabilityAnalysis/Recipe/MemoryHelpers.cpp
+    s2e/Plugins/VulnerabilityAnalysis/Recipe/Register.cpp
 
     # Tracing plugins
     s2e/Plugins/ExecutionTracers/ExecutionTracer.cpp
