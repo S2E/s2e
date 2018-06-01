@@ -90,7 +90,7 @@ Using the native fork profiler
        rmdir /tmp/img-mount
 
 Multiple Nodes
-~~~~~~~~~~~~~~
+--------------
 
 If analysis is run on multiple cores each node will produce its own ``ExecutionTracer.dat`` file in
 ``./s2e-last/<node_number>/ExecutionTracer.dat``. The following script may be used to process such cases. Save it in

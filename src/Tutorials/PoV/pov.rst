@@ -29,7 +29,7 @@ focus on explaining how to generate the PoV.
     DARPA's `Cyber Grand Challenge <http://archive.darpa.mil/cybergrandchallenge/>`_ (CGC) was the world's first
     all-machine hacking tournament. S2E was a key component in CodeJitsu's Cyber Reasoning System (CRS) and was used to
     automatically to find vulnerabilities and exploit them. This tutorial walks you through the theory behind automated
-    PoV generation. After you are done reading it, you can get your hands dirty in this `follow-up <CGC/index.rst>`_.
+    PoV generation. After you are done reading it, you can get your hands dirty in this `follow-up <index.rst>`_.
 
 
 Understanding the Execution of a Vulnerable Program
@@ -185,7 +185,7 @@ following concrete input bytes: ``ff ff ff ff ef be ad de 02 10 80 00``. Values 
 The following is the simplest possible recipe accepted by the ``Recipe`` plugin. It specifies a ``Type 1``
 vulnerability, in which the attacker can control the program counter (EIP register), as well as a general purpose
 register (here, it is ``EAX``). The mask specifies which bits of these registers the attacker can control. The lines of
-the form ``EIP[0] == $eip[0]`` represent constraints on the symbolic registers. The left hand side is the register, the
+the form ``EIP[0] == $pc[0]`` represent constraints on the symbolic registers. The left hand side is the register, the
 right hand side is a variable that represents a concrete value negotiated with the CGC framework (the framework chooses
 a random ``EIP`` value to check that the exploit works for any ``EIP`` value).
 
@@ -196,14 +196,16 @@ a random ``EIP`` value to check that the exploit works for any ``EIP`` value).
 
 .. code-block:: none
 
-    *type 1*
-    *gp = EAX*
-    *regMask = 0xffffffff*
-    *ipMask = 0xffffffff*
-    EIP[0] == $eip[0]
-    EIP[1] == $eip[1]
-    EIP[2] == $eip[2]
-    EIP[3] == $eip[3]
+    :type=1
+    :arch=i386
+    :platform=generic
+    :gp=EAX
+    :reg_mask=0xffffffff
+    :pc_mask=0xffffffff
+    EIP[0] == $pc[0]
+    EIP[1] == $pc[1]
+    EIP[2] == $pc[2]
+    EIP[3] == $pc[3]
     EAX[0] == $gp[0]
     EAX[1] == $gp[1]
     EAX[2] == $gp[2]
@@ -218,23 +220,23 @@ and if so, generates the PoV.
 
     # Set GP and EIP with shellcode
     # mov eax $gp
-    # mov ebx, $eip
+    # mov ebx, $pc
     # jmp ebx
-    *regMask = 0xffffffff*
-    *ipMask = 0xffffffff*
-    *type 1*
-    *gp = EAX*
-    *EIP points to executable memory*
+    :type 1
+    :reg_mask=0xffffffff
+    :pc_mask=0xffffffff
+    :gp=EAX
+    :exec_mem=EIP
     [EIP+0] == 0xb8
     [EIP+1] == $gp[0]
     [EIP+2] == $gp[1]
     [EIP+3] == $gp[2]
     [EIP+4] == $gp[3]
     [EIP+5] == 0xbb
-    [EIP+6] == $eip[0]
-    [EIP+7] == $eip[1]
-    [EIP+8] == $eip[2]
-    [EIP+9] == $eip[3]
+    [EIP+6] == $pc[0]
+    [EIP+7] == $pc[1]
+    [EIP+8] == $pc[2]
+    [EIP+9] == $pc[3]
     [EIP+10] == 0xff
     [EIP+11] == 0xe3
 
@@ -596,4 +598,4 @@ Conclusion
 
 In this tutorial, you have learnt the theory behind automated PoV generation as well as various practical
 issues that arise when building a robust PoV generator. Now it is a good time to get your hands dirty
-by actually `generating <CGC/index.rst>`_ PoVs for a few vulnerable binaries.
+by actually `generating <index.rst>`_ PoVs for a few vulnerable binaries.
