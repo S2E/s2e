@@ -116,6 +116,13 @@ Miscellaneous plugins
 Publications
 ============
 
+* `S2E: A Platform for In-Vivo Multi-Path Analysis of Software Systems <http://dslab.epfl.ch/pubs/EPFL_TH6251.pdf>`_.
+  Vitaly Chipounov. EPFL PhD Thesis, July 2014
+
+* `The S2E Platform: Design, Implementation, and Applications <http://dslab.epfl.ch/pubs/s2e-tocs.pdf>`_.
+  Vitaly Chipounov, Volodymyr Kuznetsov, George Candea.
+  ACM Transactions on Computer Systems (TOCS), 30(1), Special issue: Best papers of ASPLOS, February 2012.
+
 * `S2E: A Platform for In Vivo Multi-Path Analysis of Software Systems <http://dslab.epfl.ch/pubs/s2e.pdf>`_.
   Vitaly Chipounov, Volodymyr Kuznetsov, George Candea. 16th Intl. Conference on Architectural Support for Programming
   Languages and Operating Systems (`ASPLOS <http://asplos11.cs.ucr.edu/>`_), Newport Beach, CA, March 2011.
