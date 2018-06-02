@@ -13,12 +13,8 @@ How do I know what S2E is doing?
    in the `Coreutils <Tutorials/coreutils/index.rst>`_ tutorial).
 
 2. Look at ``s2e-last/debug.txt`` and other files. These files list all the major events occurring during symbolic
-   execution.
-
-   S2E outputs "Firing timer event" into ``s2e-last/debug.txt`` once per second. If you do not see this event every
-   second, it means that S2E is stuck running plugin code (most likely because of a plugin bug) or constraint solver
-   code (because of a complex query). To see which query is causing the problem, look at the query log. Even better,
-   fire up GDB and look at the stack trace.
+   execution. If there are no messages in the logs and the CPU usage is 100%, it may be that execution is stuck
+   in the constraint solver. Use the `perf top` Linux utility to get a call stack to identify which part of S2E is busy.
 
 3. ``run.stats`` contains many types of statistics. S2E updates this file about every second, when executing symbolic
    code. See later in this FAQ for a description of its fields.
@@ -26,11 +22,8 @@ How do I know what S2E is doing?
 Execution seems stuck/slow. What to do?
 =======================================
 
-First, ensure that you configured S2E properly. The ``s2e-env`` does its best to have a mimimal default configuration
+First, ensure that you configured S2E properly. The ``s2e-env`` does its best to have a minimal default configuration
 that works in most cases.
-
-* If you used ``s2e_disable_all_apic_interrupts``, you probably forgot an ``s2e_enable_all_apic_interrupts`` call
-  somewhere in your code. Use this functionality with care, disabling interrupts can easily hang your guest OS.
 
 * By default, S2E flushes the translation block cache on every state switch. S2E does not implement copy-on-write for
   this cache, therefore it must flush the cache to ensure correct execution. Flushing avoids clobbering in case there
