@@ -26,3 +26,5 @@ if [ "x${GOOGLE_ANALYTICS_ID}" != "x" ]; then
   echo "Customizing google analytics id"
   $(cd build/html && sed -i "s/UA-XXXX-X/${GOOGLE_ANALYTICS_ID}/g" $(find . -name '*.html'))
 fi
+
+linkchecker ./build/html/index.html
