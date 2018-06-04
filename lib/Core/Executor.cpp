@@ -772,6 +772,17 @@ ref<klee::ConstantExpr> Executor::evalConstant(Constant *c) {
             }
             ref<Expr> res = ConcatExpr::createN(kids.size(), kids.data());
             return cast<ConstantExpr>(res);
+        } else if (const ConstantVector *cv = dyn_cast<ConstantVector>(c)) {
+            llvm::SmallVector<ref<Expr>, 8> kids;
+            const size_t numOperands = cv->getNumOperands();
+            kids.reserve(numOperands);
+            for (unsigned i = numOperands; i != 0; --i) {
+                kids.push_back(evalConstant(cv->getOperand(i - 1)));
+            }
+            assert(Context::get().isLittleEndian() && "FIXME:Broken for big endian");
+            ref<Expr> res = ConcatExpr::createN(numOperands, kids.data());
+            assert(isa<ConstantExpr>(res) && "result of constant vector built is not a constant");
+            return cast<ConstantExpr>(res);
         } else {
             // Constant{Vector}
             *klee_warning_stream << *c << "\n";
@@ -1904,54 +1915,76 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
             break;
         }
 
-        case Instruction::ExtractElement: {
-            ExtractElementInst *eei = cast<ExtractElementInst>(i);
-            ref<Expr> vec = eval(ki, 0, state).value;
-            ref<Expr> idx = eval(ki, 1, state).value;
-
-            assert(isa<ConstantExpr>(idx) && "symbolic index unsupported");
-            ConstantExpr *cIdx = cast<ConstantExpr>(idx);
-            uint64_t iIdx = cIdx->getZExtValue();
-
-            const llvm::VectorType *vt = eei->getVectorOperandType();
-            unsigned EltBits = getWidthForLLVMType(vt->getElementType());
-
-            ref<Expr> Result = ExtractExpr::create(vec, EltBits * iIdx, EltBits);
-
-            bindLocal(ki, state, Result);
-            break;
-        }
         case Instruction::InsertElement: {
             InsertElementInst *iei = cast<InsertElementInst>(i);
             ref<Expr> vec = eval(ki, 0, state).value;
             ref<Expr> newElt = eval(ki, 1, state).value;
             ref<Expr> idx = eval(ki, 2, state).value;
 
-            assert(isa<ConstantExpr>(idx) && "symbolic index unsupported");
-            ConstantExpr *cIdx = cast<ConstantExpr>(idx);
+            ConstantExpr *cIdx = dyn_cast<ConstantExpr>(idx);
+            if (cIdx == NULL) {
+                terminateStateOnError(state, "InsertElement, support for symbolic index not implemented",
+                                      "unhandled.err");
+                return;
+            }
             uint64_t iIdx = cIdx->getZExtValue();
-
             const llvm::VectorType *vt = iei->getType();
             unsigned EltBits = getWidthForLLVMType(vt->getElementType());
 
-            unsigned ElemCount = vt->getNumElements();
-            ref<Expr> *elems = new ref<Expr>[ vt->getNumElements() ];
-            for (unsigned i = 0; i < ElemCount; ++i)
-                elems[ElemCount - i - 1] = i == iIdx ? newElt : ExtractExpr::create(vec, EltBits * i, EltBits);
+            if (iIdx >= vt->getNumElements()) {
+                // Out of bounds write
+                terminateStateOnError(state, "Out of bounds write when inserting element", "badvecaccess.err");
+                return;
+            }
 
-            ref<Expr> Result = ConcatExpr::createN(ElemCount, elems);
-            delete[] elems;
+            const unsigned elementCount = vt->getNumElements();
+            llvm::SmallVector<ref<Expr>, 8> elems;
+            elems.reserve(elementCount);
+            for (unsigned i = elementCount; i != 0; --i) {
+                auto of = i - 1;
+                unsigned bitOffset = EltBits * of;
+                elems.push_back(of == iIdx ? newElt : ExtractExpr::create(vec, bitOffset, EltBits));
+            }
 
+            assert(Context::get().isLittleEndian() && "FIXME:Broken for big endian");
+            ref<Expr> Result = ConcatExpr::createN(elementCount, elems.data());
             bindLocal(ki, state, Result);
             break;
         }
+        case Instruction::ExtractElement: {
+            ExtractElementInst *eei = cast<ExtractElementInst>(i);
+            ref<Expr> vec = eval(ki, 0, state).value;
+            ref<Expr> idx = eval(ki, 1, state).value;
+
+            ConstantExpr *cIdx = dyn_cast<ConstantExpr>(idx);
+            if (cIdx == NULL) {
+                terminateStateOnError(state, "ExtractElement, support for symbolic index not implemented",
+                                      "unhandled.err");
+                return;
+            }
+            uint64_t iIdx = cIdx->getZExtValue();
+            const llvm::VectorType *vt = eei->getVectorOperandType();
+            unsigned EltBits = getWidthForLLVMType(vt->getElementType());
+
+            if (iIdx >= vt->getNumElements()) {
+                // Out of bounds read
+                terminateStateOnError(state, "Out of bounds read when extracting element", "badvecaccess.err");
+                return;
+            }
+
+            unsigned bitOffset = EltBits * iIdx;
+            ref<Expr> Result = ExtractExpr::create(vec, bitOffset, EltBits);
+            bindLocal(ki, state, Result);
+            break;
+        }
+        case Instruction::ShuffleVector:
+            // Should never happen due to Scalarizer pass removing ShuffleVector
+            // instructions.
+            terminateStateOnExecError(state, "Unexpected ShuffleVector instruction");
+            break;
 
         // Other instructions...
         // Unhandled
-        case Instruction::ShuffleVector:
-            terminateStateOnError(state, "XXX vector instructions unhandled", "xxx.err");
-            break;
-
         default: {
             std::string errstr;
             llvm::raw_string_ostream err(errstr);

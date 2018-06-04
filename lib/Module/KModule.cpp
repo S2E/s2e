@@ -234,6 +234,15 @@ void KModule::prepare(const Interpreter::ModuleOptions &opts, InterpreterHandler
     // module.
     legacy::PassManager pm;
     pm.add(new RaiseAsmPass());
+
+    // This pass will scalarize as much code as possible so that the Executor
+    // does not need to handle operands of vector type for most instructions
+    // other than InsertElementInst and ExtractElementInst.
+    //
+    // NOTE: Must come before division/overshift checks because those passes
+    // don't know how to handle vector instructions.
+    pm.add(createScalarizerPass());
+
     if (opts.CheckDivZero)
         pm.add(new DivCheckPass());
     // FIXME: This false here is to work around a bug in
@@ -278,6 +287,10 @@ void KModule::prepare(const Interpreter::ModuleOptions &opts, InterpreterHandler
     // going to be unresolved. We really need to handle the intrinsics
     // directly I think?
     legacy::PassManager pm3;
+
+    // the additional linked in libraries may also have vector instructions
+    // so run ScalarizerPass once again to make sure of vector instr cleaned up
+    pm3.add(createScalarizerPass());
     pm3.add(createCFGSimplificationPass());
     switch (SwitchType) {
         case eSwitchTypeInternal:
@@ -291,9 +304,18 @@ void KModule::prepare(const Interpreter::ModuleOptions &opts, InterpreterHandler
         default:
             klee_error("invalid --switch-type");
     }
+    InstructionOperandTypeCheckPass *operandTypeCheckPass = new InstructionOperandTypeCheckPass();
     pm3.add(new IntrinsicCleanerPass(*dataLayout));
     pm3.add(new PhiCleanerPass());
+    pm3.add(operandTypeCheckPass);
     pm3.run(*module);
+
+    // Enforce the operand type invariants that the Executor expects.  This
+    // implicitly depends on the "Scalarizer" pass to be run in order to succeed
+    // in the presence of vector instructions.
+    if (!operandTypeCheckPass->checkPassed()) {
+        klee_error("Unexpected instruction operand types detected");
+    }
 
     // For cleanliness see if we can discard any of the functions we
     // forced to import.
