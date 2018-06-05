@@ -169,30 +169,40 @@ bool S2EExecutionStateRegisters::readSymbolicRegion(unsigned offset, void *_buf,
 
     // XXX: deal with alignment and overlaps?
 
-    ref<Expr> value = wos->read(offset, size * 8);
-    uint64_t concreteValue;
-    if (!isa<ConstantExpr>(value)) {
-        if (!concretize) {
-            return false;
+    // m_concretizer->concretize require value size <= sizeof(uint64_t), to
+    // support data size > sizeof(uint64_t), we do concretization every
+    // sizeof(uint64_t) bytes in a loop, or we can rewrite m_concretizer->concretize
+    // to remove the sizeof(uint64_t) bytes limitation
+    for (unsigned i = 0; i < size; i += sizeof(uint64_t)) {
+        unsigned csize = (size - i) > sizeof(uint64_t) ? sizeof(uint64_t) : (size - i);
+        ref<Expr> value = wos->read(offset + i, csize * 8);
+        uint64_t concreteValue;
+        if (!isa<ConstantExpr>(value)) {
+            if (!concretize) {
+                return false;
+            }
+
+            size_t regIndex = offset / sizeof(target_ulong);
+            std::string regName = regIndex < (sizeof(regNames) / sizeof(regNames[0]))
+                                      ? regNames[regIndex]
+                                      : "CPUOffset-" + std::to_string(offset);
+            std::string reason = "access to " + regName + " register from libcpu helper";
+
+            concreteValue = m_concretizer->concretize(value, reason.c_str());
+            wos->write(offset, ConstantExpr::create(concreteValue, csize * 8));
+        } else {
+            ConstantExpr *ce = dyn_cast<ConstantExpr>(value);
+            concreteValue = ce->getZExtValue(csize * 8);
         }
-        std::string reason =
-            std::string("access to ") + regNames[offset / sizeof(target_ulong)] + " register from libcpu helper";
 
-        concreteValue = m_concretizer->concretize(value, reason.c_str());
-        wos->write(offset, ConstantExpr::create(concreteValue, size * 8));
-    } else {
-        ConstantExpr *ce = dyn_cast<ConstantExpr>(value);
-        concreteValue = ce->getZExtValue(size * 8);
+        bool newAllConcrete = wos->isAllConcrete();
+        if ((oldAllConcrete != newAllConcrete) && (wos->getObject()->doNotifyOnConcretenessChange)) {
+            m_notification->addressSpaceSymbolicStatusChange(wos, newAllConcrete);
+        }
+
+        // XXX: endianness issues on the host...
+        small_memcpy((char *) _buf + i, &concreteValue, csize);
     }
-
-    bool newAllConcrete = wos->isAllConcrete();
-    if ((oldAllConcrete != newAllConcrete) && (wos->getObject()->doNotifyOnConcretenessChange)) {
-        m_notification->addressSpaceSymbolicStatusChange(wos, newAllConcrete);
-    }
-
-    // XXX: endianness issues on the host...
-    small_memcpy(_buf, &concreteValue, size);
-
 #ifdef S2E_TRACE_EFLAGS
     if (offsetof(CPUX86State, cc_src) == offset) {
         m_s2e->getDebugStream() << std::hex << getPc() << "read conc cc_src " << (*(uint32_t *) ((uint8_t *) buf))
