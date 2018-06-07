@@ -169,8 +169,13 @@ Building the documentation
 --------------------------
 
 The S2E documentation is written in `reStructuredText <http://docutils.sourceforge.net/rst.html>`_ format. HTML
-documentation can be built using the S2E Makefile:
+documentation can be built as follows:
 
 .. code-block:: console
 
-    make -f $S2EDIR/Makefile docs
+    $ sudo apt-get install linkchecker
+    $ pip install sphinx_rtd_theme
+    $ cd $S2EDIR/docs/sphinx
+    $ ./build.sh
+
+The documentation will be located in ``$S2EDIR/docs/sphinx/build/html/index.html``.
