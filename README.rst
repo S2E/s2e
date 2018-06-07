@@ -66,6 +66,8 @@ S2E development
 * `Contributing to S2E <src/Contribute.rst>`_
 * `Profiling S2E <src/ProfilingS2E.rst>`_
 * `Debugging S2E <src/DebuggingS2E.rst>`_
+* `Setting up a Windows development environment <src/WindowsEnvSetup.rst>`_
+
 
 
 Plugin reference
