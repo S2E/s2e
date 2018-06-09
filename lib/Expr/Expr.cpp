@@ -148,11 +148,17 @@ static ref<Expr> SimplifyExtractLShr(const ref<Expr> &e) {
         return e;
     }
 
-    if (shift->getZExtValue() % 8) {
+    auto offset = shift->getZExtValue();
+    if (offset % 8) {
         return e;
     }
 
-    return ExtractExpr::create(lshr->getLeft(), shift->getZExtValue(), e->getWidth());
+    // The shift amount may be larger than the type itself
+    if (!(offset + e->getWidth() <= lshr->getLeft()->getWidth())) {
+        return e;
+    }
+
+    return ExtractExpr::create(lshr->getLeft(), offset, e->getWidth());
 }
 
 ///
