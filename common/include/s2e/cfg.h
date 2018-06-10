@@ -30,18 +30,28 @@
 #ifndef S2E_CFG_H
 #define S2E_CFG_H
 
-#include "cfg/comamnds.h"
-#include "s2e.h"
+#include <s2e/s2e.h>
+#include "cfg/commands.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 static void s2e_cfg_register_function(void *function, const char *name) {
-    S2E_CFG_COMMAND Command;
-    Command.Command = CFG_REGISTER_FUNCTION;
-    Command.Function.FunctionName = (uintptr_t) name;
-    Command.Function.RunTimeFunctionAddress = (uintptr_t) function;
+    S2E_CFG_COMMAND cmd;
+    memset(&cmd, 0, sizeof(cmd));
 
-    s2e_invoke_plugin("ControlFlowGraph", &Command, sizeof(Command));
+    cmd.Command = CFG_REGISTER_FUNCTION;
+    cmd.Function.FunctionName = (uintptr_t) name;
+    cmd.Function.RunTimeFunctionAddress = (uintptr_t) function;
+
+    s2e_invoke_plugin("ControlFlowGraph", &cmd, sizeof(cmd));
 }
 
 #define S2E_CFG_REG_FUNC(func) s2e_cfg_register_function(&func, #func)
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -40,6 +40,10 @@
 #include <inttypes.h>
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "opcodes.h"
 
 // clang-format off
@@ -99,9 +103,11 @@ static inline void __s2e_touch_string(volatile const char *string) {
 ///
 static inline void __s2e_touch_buffer(volatile void *buffer, unsigned size) {
     unsigned i;
+    unsigned t __attribute__((unused));
     volatile char *b = (volatile char *) buffer;
     for (i = 0; i < size; ++i) {
-        *b; ++b;
+	t = *b;
+	++b;
     }
 }
 
@@ -888,5 +894,9 @@ static inline void s2e_flush_tbs(void) {
 }
 
 // clang-format on
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

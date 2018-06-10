@@ -30,11 +30,11 @@
 #ifndef S2E_RAW_COMMANDS_H
 #define S2E_RAW_COMMANDS_H
 
+#include <inttypes.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include <inttypes.h>
 
 enum S2E_RAWMON_COMMANDS {
     RAW_MODULE_LOAD,
