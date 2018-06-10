@@ -151,7 +151,7 @@ function(build_llvm_bitcode_lib OUTPUT FLAGS INC_DIRS SRC)
 
   # Build the bitcode library
   add_custom_command(OUTPUT ${OUTPUT}
-                     COMMAND ${AR} rcsf ${OUTPUT} ${BC_FILES}
+                     COMMAND ${AR} rcs ${OUTPUT} ${BC_FILES}
                      DEPENDS ${BC_FILES})
   add_custom_target(${OUTPUT_BASE} ALL DEPENDS ${OUTPUT})
 endfunction(build_llvm_bitcode_lib)
