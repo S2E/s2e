@@ -266,10 +266,10 @@ target_ulong glue(helper_rcl, SUFFIX)(target_ulong t0, target_ulong t1) {
         if (count > 1)
             res |= t0 >> (DATA_BITS + 1 - count);
         t0 = res;
-        env->cc_tmp = (eflags & ~(CC_C | CC_O)) | (lshift(src ^ t0, 11 - (DATA_BITS - 1)) & CC_O) |
-                      ((src >> (DATA_BITS - count)) & CC_C);
+        CC_TMP_W(((eflags & ~(CC_C | CC_O)) | (lshift(src ^ t0, 11 - (DATA_BITS - 1)) & CC_O) |
+                  ((src >> (DATA_BITS - count)) & CC_C)));
     } else {
-        env->cc_tmp = -1;
+        CC_TMP_W(-1);
     }
     return t0;
 }
@@ -293,10 +293,10 @@ target_ulong glue(helper_rcr, SUFFIX)(target_ulong t0, target_ulong t1) {
         if (count > 1)
             res |= t0 << (DATA_BITS + 1 - count);
         t0 = res;
-        env->cc_tmp =
-            (eflags & ~(CC_C | CC_O)) | (lshift(src ^ t0, 11 - (DATA_BITS - 1)) & CC_O) | ((src >> (count - 1)) & CC_C);
+        CC_TMP_W(((eflags & ~(CC_C | CC_O)) | (lshift(src ^ t0, 11 - (DATA_BITS - 1)) & CC_O) |
+                  ((src >> (count - 1)) & CC_C)));
     } else {
-        env->cc_tmp = -1;
+        CC_TMP_W(-1);
     }
     return t0;
 }

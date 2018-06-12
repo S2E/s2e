@@ -303,10 +303,12 @@ static inline int hw_breakpoint_len(unsigned long dr7, int index) {
 #define CC_SRC (RR_cpu(env, cc_src))
 #define CC_DST (RR_cpu(env, cc_dst))
 #define CC_OP (RR_cpu(env, cc_op))
+#define CC_TMP (RR_cpu(env, cc_tmp))
 
 #define CC_SRC_W(v) (WR_cpu(env, cc_src, v))
 #define CC_DST_W(v) (WR_cpu(env, cc_dst, v))
 #define CC_OP_W(v) (WR_cpu(env, cc_op, v))
+#define CC_TMP_W(v) (WR_cpu(env, cc_tmp, v))
 
 #define DF (env->df)
 #define DF_W(v) (env->df = (v))
