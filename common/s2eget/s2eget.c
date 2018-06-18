@@ -45,81 +45,86 @@
 const char *g_host_file = NULL;
 const char *g_dest_file = NULL;
 
-static int copy_file(const char *dest_file, const char *host_file) {
-    char *path;
-    int retval = 0;
+static char *get_dest_file(const char *dest_file, const char *host_file) {
+    char *path = NULL;
+    char *cwd = NULL;
 
-    // If no destination file path was given, construct a destination path based on the host file's name and the
-    // guest's current working directory. Otherwise use the given destination file path
-    if (!dest_file) {
+    if (dest_file) {
+        // Make a copy of the destination file path so that we don't mess around with argv
+        unsigned max_len = strlen(dest_file) + 1;
+        path = calloc(max_len, sizeof(char));
+        if (!path) {
+            fprintf(stderr, "Could not allocate memory for the file path\n");
+            goto end;
+        }
+
+        strncpy(path, dest_file, max_len);
+    } else {
+        // If no destination file path was given, construct a destination path based on the host file's name and the
+        // guest's current working directory. Otherwise use the given destination file path
+
         // Get the base name of the host file. Note that this buffer should not be passed to free()
         char *host_file_basename = basename((char *) host_file);
         if (!host_file_basename) {
             fprintf(stderr, "Could not allocate memory for the file basename\n");
-
-            retval = -1;
             goto end;
         }
 
         // Get the current working directory
-        char *cwd = getcwd(NULL, 0);
+        cwd = getcwd(NULL, 0);
         if (!cwd) {
             fprintf(stderr, "Could not allocate memory for the current directory\n");
-
-            retval = -1;
             goto end;
         }
 
         // Allocate a buffer for the destination path. When allocating this buffer we must take into account the
         // path separator between the current working directory and the file name, plus the null terminator
-        path = calloc(strlen(cwd) + strlen(host_file_basename) + 1 + 1, sizeof(char));
+        unsigned max_len = strlen(cwd) + strlen(host_file_basename) + 1 + 1;
+        path = calloc(max_len, sizeof(char));
         if (!path) {
             fprintf(stderr, "Could not allocate memory for the file path\n");
-            free(cwd);
-
-            retval = -1;
             goto end;
         }
 
         // Construct the destination path and clean up
-        sprintf(path, "%s/%s", cwd, host_file_basename);
-        free(cwd);
-    } else {
-        // Make a copy of the destination file path so that we don't mess around with argv
-        path = calloc(strlen(dest_file) + 1, sizeof(char));
-        if (!path) {
-            fprintf(stderr, "Could not allocate memory for the file path\n");
+        snprintf(path, max_len, "%s/%s", cwd, host_file_basename);
+    }
 
-            retval = -1;
-            goto end;
-        }
+end:
+    free(cwd);
+    return path;
+}
 
-        strcpy(path, dest_file);
+static int copy_file(const char *dest_file, const char *host_file) {
+    char *path = NULL;
+    int retval = -1;
+    int fd = -1;
+    int s2e_fd = -1;
+
+    path = get_dest_file(dest_file, host_file);
+    if (!path) {
+        goto end;
     }
 
     // Delete anything that already exists at this location
     unlink(path);
 
+    // Open the host file path for reading.
+    s2e_fd = s2e_open(host_file);
+    if (s2e_fd < 0) {
+        fprintf(stderr, "s2e_open of %s failed\n", host_file);
+        goto end;
+    }
+
 // Open the destination file path for writing
 #ifdef _WIN32
-    int fd = open(path, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, S_IRWXU);
+    fd = open(path, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, S_IRWXU);
 #else
-    int fd = creat(path, S_IRWXU);
+    fd = creat(path, S_IRWXU);
 #endif
     if (fd < 0) {
         fprintf(stderr, "Could not create file %s\n", path);
-
-        retval = -1;
-        goto path_cleanup;
-    }
-
-    // Open the host file path for reading
-    int s2e_fd = s2e_open(host_file);
-    if (s2e_fd < 0) {
-        fprintf(stderr, "s2e_open of %s failed\n", host_file);
-
-        retval = -1;
-        goto fd_cleanup;
+        goto end;
     }
 
     int fsize = 0;
@@ -130,9 +135,7 @@ static int copy_file(const char *dest_file, const char *host_file) {
         int ret = s2e_read(s2e_fd, buf, sizeof(buf));
         if (ret == -1) {
             fprintf(stderr, "s2e_read failed\n");
-
-            retval = -1;
-            goto s2e_fd_cleanup;
+            goto end;
         } else if (ret == 0) {
             break;
         }
@@ -140,9 +143,7 @@ static int copy_file(const char *dest_file, const char *host_file) {
         int ret1 = write(fd, buf, ret);
         if (ret1 != ret) {
             fprintf(stderr, "Could not write to file\n");
-
-            retval = -1;
-            goto s2e_fd_cleanup;
+            goto end;
         }
 
         fsize += ret;
@@ -150,17 +151,24 @@ static int copy_file(const char *dest_file, const char *host_file) {
 
     printf("... file %s of size %d was transferred successfully to %s\n", host_file, fsize, path);
 
-s2e_fd_cleanup:
-    s2e_close(s2e_fd);
-
-fd_cleanup:
-    close(fd);
-
-path_cleanup:
-    free(path);
+    retval = 0;
 
 end:
+    if (s2e_fd >= 0) {
+        s2e_close(s2e_fd);
+    }
+
+    if (fd >= 0) {
+        close(fd);
+    }
+
+    free(path);
+
     if (retval < 0) {
+        // There was an error, clean up any partially transferred files
+        if (path) {
+            unlink(path);
+        }
         retval = -retval;
     }
 
