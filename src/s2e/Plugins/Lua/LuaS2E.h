@@ -21,6 +21,9 @@ public:
     LuaS2E(lua_State *L) {
     }
 
+    /* Get an instance to a plugin */
+    int getPlugin(lua_State *L);
+
     /* Print a debug string */
     int debug(lua_State *L);
 
