@@ -12,6 +12,7 @@
 #include <s2e/CorePlugin.h>
 #include <s2e/Plugin.h>
 #include <s2e/Plugins/Core/BaseInstructions.h>
+#include <s2e/Plugins/Lua/LuaPlugin.h>
 #include <s2e/Plugins/OSMonitors/ModuleDescriptor.h>
 #include <s2e/S2EExecutionState.h>
 
@@ -53,7 +54,7 @@ typedef struct S2E_MODULE_MAP_COMMAND {
 class OSMonitor;
 struct S2E_WINMON2_UNMAP_SECTION;
 
-class ModuleMap : public Plugin, public BaseInstructionsPluginInvokerInterface {
+class ModuleMap : public Plugin, public BaseInstructionsPluginInvokerInterface, public ILuaPlugin {
     S2E_PLUGIN
 
 public:
@@ -83,6 +84,8 @@ public:
     const Export *getExport(S2EExecutionState *state, uint64_t address);
 
     virtual void handleOpcodeInvocation(S2EExecutionState *state, uint64_t guestDataPtr, uint64_t guestDataSize);
+
+    virtual int getLuaPlugin(lua_State *L);
 
 private:
     OSMonitor *m_monitor;

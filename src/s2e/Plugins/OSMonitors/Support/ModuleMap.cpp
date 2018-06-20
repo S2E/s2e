@@ -1,12 +1,15 @@
 ///
 /// Copyright (C) 2014-2015, Dependable Systems Laboratory, EPFL
-/// Copyright (C) 2014-2015, Cyberhaven
+/// Copyright (C) 2014-2018, Cyberhaven
 /// All rights reserved.
 ///
 /// Licensed under the Cyberhaven Research License Agreement.
 ///
 
 #include <s2e/ConfigFile.h>
+#include <s2e/Plugins/Lua/Lua.h>
+#include <s2e/Plugins/Lua/LuaModuleDescriptor.h>
+#include <s2e/Plugins/Lua/LuaS2EExecutionState.h>
 #include <s2e/Plugins/OSMonitors/OSMonitor.h>
 #include <s2e/Plugins/OSMonitors/Windows/WindowsMonitor.h>
 #include <s2e/S2E.h>
@@ -216,6 +219,51 @@ public:
         }
     }
 };
+
+/////////////////////////////
+// ModuleMap Lua Interface //
+/////////////////////////////
+
+class LuaModuleMap {
+private:
+    ModuleMap *m_map;
+
+public:
+    static const char className[];
+    static Lunar<LuaModuleMap>::RegType methods[];
+
+    LuaModuleMap(lua_State *L) : m_map(nullptr) {
+    }
+
+    LuaModuleMap(ModuleMap *plg) : m_map(plg) {
+    }
+
+    int getModule(lua_State *L) {
+        void *data = luaL_checkudata(L, 1, "LuaS2EExecutionState");
+        if (!data) {
+            m_map->getWarningsStream() << "Incorrect lua invocation\n";
+            return 0;
+        }
+
+        LuaS2EExecutionState **ls = reinterpret_cast<LuaS2EExecutionState **>(data);
+        const ModuleDescriptor *md = m_map->getModule((*ls)->getState());
+        if (!md) {
+            return 0;
+        }
+
+        LuaModuleDescriptor **c =
+            static_cast<LuaModuleDescriptor **>(lua_newuserdata(L, sizeof(LuaModuleDescriptor *)));
+        *c = new LuaModuleDescriptor(*md);
+        luaL_getmetatable(L, "LuaModuleDescriptor");
+        lua_setmetatable(L, -2);
+        return 1;
+    }
+};
+
+const char LuaModuleMap::className[] = "LuaModuleMap";
+
+Lunar<LuaModuleMap>::RegType LuaModuleMap::methods[] = {LUNAR_DECLARE_METHOD(LuaModuleMap, getModule), {0, 0}};
+
 } // anonymous namespace
 
 ///////////////
@@ -233,6 +281,18 @@ void ModuleMap::initialize() {
     if (winmon2) {
         winmon2->onMonitorLoad.connect(sigc::mem_fun(*this, &ModuleMap::onMonitorLoad));
     }
+
+    lua_State *L = s2e()->getConfig()->getState();
+    Lunar<LuaModuleMap>::Register(L);
+}
+
+int ModuleMap::getLuaPlugin(lua_State *L) {
+    // lua will manage the LuaExpression** ptr
+    LuaModuleMap **c = static_cast<LuaModuleMap **>(lua_newuserdata(L, sizeof(LuaModuleMap *)));
+    *c = new LuaModuleMap(this); // we manage this
+    luaL_getmetatable(L, "LuaModuleMap");
+    lua_setmetatable(L, -2);
+    return 1;
 }
 
 void ModuleMap::onMonitorLoad(S2EExecutionState *state) {
