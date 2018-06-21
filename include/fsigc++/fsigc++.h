@@ -25,6 +25,7 @@
 
 #include <cassert>
 #include <stdlib.h>
+#include <vector>
 
 //#define FASSERT assert
 #define FASSERT(x)
@@ -155,96 +156,72 @@ public:
     typedef functor_base<RET, PARAM_TYPES...> *func_t;
 
     unsigned m_activeSignals;
-    unsigned m_size;
 
 private:
-    func_t *m_funcs;
+    std::vector<func_t> m_funcs;
 
 public:
     signal() {
-        m_size = 0;
-        m_funcs = 0;
         m_activeSignals = 0;
     }
 
     signal(const signal &one) {
         m_activeSignals = one.m_activeSignals;
-        m_size = one.m_size;
-        m_funcs = new func_t[m_size];
-        for (unsigned i = 0; i < m_size; ++i) {
-            m_funcs[i] = one.m_funcs[i];
-            m_funcs[i]->incref();
+        m_funcs = one.m_funcs;
+
+        for (auto &it : m_funcs) {
+            if (it) {
+                it->incref();
+            }
         }
     }
 
     virtual ~signal() {
         disconnectAll();
-        if (m_funcs) {
-            delete[] m_funcs;
-        }
     }
 
     void disconnectAll() {
-        for (unsigned i = 0; i < m_size; ++i) {
-            if (m_funcs[i] && !m_funcs[i]->decref()) {
-                delete m_funcs[i];
+        for (auto &it : m_funcs) {
+            if (it && !it->decref()) {
+                delete it;
+                it = nullptr;
             }
-            m_funcs[i] = NULL;
         }
     }
 
     virtual void disconnect(void *functor) {
         assert(m_activeSignals > 0);
 
-        for (unsigned i = 0; i < m_size; ++i) {
-            if (m_funcs[i] == functor) {
-                if (!m_funcs[i]->decref()) {
-                    delete m_funcs[i];
+        for (auto &it : m_funcs) {
+            if (it == functor) {
+                if (!it->decref()) {
+                    delete it;
                 }
                 --m_activeSignals;
-                m_funcs[i] = NULL;
-                break;
+                it = nullptr;
             }
         }
     }
 
     connection connect_front(func_t fcn) {
-        if (!m_size) {
-            return connect(fcn);
-        }
-
+        m_funcs.insert(m_funcs.begin(), fcn);
         fcn->incref();
         ++m_activeSignals;
-
-        ++m_size;
-        func_t *nf = new func_t[m_size];
-
-        memcpy(nf + 1, m_funcs, sizeof(func_t) * (m_size - 1));
-        delete[] m_funcs;
-        m_funcs = nf;
-        m_funcs[0] = fcn;
         return connection(this, fcn);
     }
 
     connection connect(func_t fcn) {
         fcn->incref();
         ++m_activeSignals;
-        for (unsigned i = 0; i < m_size; ++i) {
-            if (!m_funcs[i]) {
-                m_funcs[i] = fcn;
+
+        for (auto &it : m_funcs) {
+            if (!it) {
+                it = fcn;
                 return connection(this, fcn);
             }
         }
-        ++m_size;
-        func_t *nf = new func_t[m_size];
 
-        if (m_funcs) {
-            memcpy(nf, m_funcs, sizeof(func_t) * (m_size - 1));
-            delete[] m_funcs;
-        }
-        m_funcs = nf;
-
-        m_funcs[m_size - 1] = fcn;
+        m_funcs.push_back(fcn);
         return connection(this, fcn);
     }
 
@@ -253,9 +230,9 @@ public:
     }
 
     void emit(PARAM_TYPES... params) {
-        for (unsigned i = 0; i < m_size; ++i) {
-            if (m_funcs[i]) {
-                m_funcs[i]->operator()(params...);
+        for (auto &it : m_funcs) {
+            if (it) {
+                it->operator()(params...);
             }
         }
     }
