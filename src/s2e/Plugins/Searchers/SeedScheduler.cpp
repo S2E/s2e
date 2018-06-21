@@ -54,7 +54,8 @@ void SeedScheduler::initialize() {
         exit(-1);
     }
 
-    s2e()->getCorePlugin()->onTimer.connect_front(sigc::mem_fun(*this, &SeedScheduler::onTimer));
+    s2e()->getCorePlugin()->onTimer.connect(sigc::mem_fun(*this, &SeedScheduler::onTimer),
+                                            fsigc::signal_base::HIGH_PRIORITY);
 
     s2e()->getCorePlugin()->onStateKill.connect(sigc::mem_fun(*this, &SeedScheduler::onStateKill));
     m_stateKilled = false;

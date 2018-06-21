@@ -25,11 +25,20 @@ S2E_DEFINE_PLUGIN(ExecutionTracer, "ExecutionTracer plugin", "", );
 void ExecutionTracer::initialize() {
     createNewTraceFile(false);
 
-    s2e()->getCorePlugin()->onStateFork.connect_front(sigc::mem_fun(*this, &ExecutionTracer::onFork));
+    // Execution tracers must have the highest signal priority.
+    // That's because others plugins might kill states. If these other plugins have
+    // a higher priority, the tracer's handlers won't be calle and the execution
+    // trace won't have the corresponding record. This would essentially render
+    // the trace corrupted. So we trust that other plugins assign themselves
+    // a lower priority if they can potentially kill states in their signal handlers.
+    s2e()->getCorePlugin()->onStateFork.connect(sigc::mem_fun(*this, &ExecutionTracer::onFork),
+                                                fsigc::signal_base::HIGHEST_PRIORITY);
 
-    s2e()->getCorePlugin()->onTimer.connect_front(sigc::mem_fun(*this, &ExecutionTracer::onTimer));
+    s2e()->getCorePlugin()->onTimer.connect(sigc::mem_fun(*this, &ExecutionTracer::onTimer),
+                                            fsigc::signal_base::HIGHEST_PRIORITY);
 
-    s2e()->getCorePlugin()->onProcessFork.connect_front(sigc::mem_fun(*this, &ExecutionTracer::onProcessFork));
+    s2e()->getCorePlugin()->onProcessFork.connect(sigc::mem_fun(*this, &ExecutionTracer::onProcessFork),
+                                                  fsigc::signal_base::HIGHEST_PRIORITY);
 
     m_useCircularBuffer = s2e()->getConfig()->getBool(getConfigKey() + ".useCircularBuffer");
 
