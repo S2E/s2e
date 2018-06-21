@@ -369,7 +369,6 @@ void SeedSearcher::onTimer() {
     fetchNewSeeds();
 
     if (!m_enableSeeds) {
-        getDebugStream() << " Seeds are disabled\n";
         return;
     }
 

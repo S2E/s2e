@@ -56,6 +56,9 @@ void SeedScheduler::initialize() {
 
     s2e()->getCorePlugin()->onTimer.connect_front(sigc::mem_fun(*this, &SeedScheduler::onTimer));
 
+    s2e()->getCorePlugin()->onStateKill.connect(sigc::mem_fun(*this, &SeedScheduler::onStateKill));
+    m_stateKilled = false;
+
     ConfigFile *cfg = s2e()->getConfig();
 
     // How long do we wait before using new seeds.
@@ -74,6 +77,10 @@ void SeedScheduler::initialize() {
         getWarningsStream() << "lowPrioritySeedThreshold must be set\n";
         exit(-1);
     }
+}
+
+void SeedScheduler::onStateKill(S2EExecutionState *state) {
+    m_stateKilled = true;
 }
 
 void SeedScheduler::onSeed(const seeds::Seed &seed, seeds::SeedEvent event) {
@@ -147,11 +154,18 @@ void SeedScheduler::processSeedStateMachine(uint64_t currentTime) {
                      << "hpSeed: " << recentHighPrioritySeedD << "s\n";
 
     if (m_explorationState == WARM_UP) {
-        /* The warm up phase allows S2E to quickly find crashes and POVS
-         * in easy CBs, without incurring overhead of fetching
-         * and running the seeds. How long the plugin stays in this phase
-         * depends on S2E's success in finding new basic blocks and crashes.*/
+        // The warm up phase allows S2E to quickly find crashes and POVS
+        // in easy CBs, without incurring overhead of fetching
+        // and running the seeds. How long the plugin stays in this phase
+        // depends on S2E's success in finding new basic blocks and crashes.
         if (!foundBlocks && !foundCrashes) {
+            m_explorationState = WAIT_FOR_NEW_SEEDS;
+        } else if (m_stateKilled && (s2e()->getExecutor()->getStatesCount() == 1)) {
+            // The warm up phase terminates if no seedless states remain, i.e., there
+            // is only state 0 remaining, in which case we have to wait for new seeds
+            // as there is nothing else to do. We have to check for m_stateKilled because
+            // otherwise we'd always skip the warm up phase (as there is always only one
+            // state when S2E starts).
             m_explorationState = WAIT_FOR_NEW_SEEDS;
         } else {
             m_seeds->enableSeeds(false);
@@ -169,7 +183,10 @@ void SeedScheduler::processSeedStateMachine(uint64_t currentTime) {
             /* Prioritize normal seeds if S2E couldn't find coverage on its own */
             m_seeds->enableSeeds(true);
             m_explorationState = WAIT_SEED_SCHEDULING;
-
+        } else if (s2e()->getExecutor()->getStatesCount() == 1) {
+            /* Prioritize normal seeds if no other states are running */
+            m_seeds->enableSeeds(true);
+            m_explorationState = WAIT_SEED_SCHEDULING;
         } else {
             /* Otherwise, disable seed scheduling to avoid overloading */
             m_seeds->enableSeeds(false);

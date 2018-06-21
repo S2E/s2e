@@ -49,6 +49,7 @@ private:
 
     uint64_t m_stateMachineTimeout;
     unsigned m_lowPrioritySeedThreshold;
+    bool m_stateKilled;
 
     ExplorationState m_explorationState;
     uint64_t m_timeOfLastCoveredBlock;
@@ -63,6 +64,7 @@ private:
     void onWindowsKernelCrash(S2EExecutionState *state, const vmi::windows::BugCheckDescription &desc);
 
     void onTimer();
+    void onStateKill(S2EExecutionState *state);
 
     void processSeedStateMachine(uint64_t currentTime);
 };
