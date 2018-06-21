@@ -20,8 +20,7 @@
 /// SOFTWARE.
 
 #include <iostream>
-#include <sigc++/sigc++.h>
-#include "signals.h"
+#include <fsigc++/fsigc++.h>
 
 class MyPlugin {
 public:
