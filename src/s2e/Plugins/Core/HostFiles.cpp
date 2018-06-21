@@ -76,6 +76,8 @@ void HostFiles::open(S2EExecutionState *state) {
         return;
     }
 
+    getDebugStream(state) << "opening " << fname << "\n";
+
     /* Check that there aren't any ../ in the path */
     if (fname.find("..") != std::string::npos) {
         getWarningsStream(state) << "HostFiles: file name must not contain .. sequences (" << fname << ")\n;";
@@ -106,7 +108,7 @@ void HostFiles::open(S2EExecutionState *state) {
         guestFd = plgState->m_openFiles.size() - 1;
         state->regs()->write(CPU_OFFSET(regs[R_EAX]), &guestFd, sizeof(target_ulong));
     } else {
-        getWarningsStream(state) << "HostFiles could not open " << path << "(errno " << errno << ")" << '\n';
+        getWarningsStream(state) << "could not open " << path << "(errno " << errno << ")" << '\n';
     }
 }
 
