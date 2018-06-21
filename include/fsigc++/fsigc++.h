@@ -33,9 +33,16 @@
 
 namespace fsigc {
 
-class mysignal_base {
+class signal_base {
 public:
-    virtual ~mysignal_base() {
+    // Indicative priority levels that can be used to connect signals
+    static const int HIGHEST_PRIORITY = 10;
+    static const int HIGH_PRIORITY = 5;
+    static const int MEDIUM_PRIORITY = 0;
+    static const int LOW_PRIORITY = -5;
+    static const int LOWEST_PRIORITY = -10;
+
+    virtual ~signal_base() {
     }
 
     virtual void disconnect(void *functor) = 0;
@@ -44,7 +51,7 @@ public:
 class connection {
 private:
     void *m_functor;
-    mysignal_base *m_sig;
+    signal_base *m_sig;
     bool m_connected;
 
 public:
@@ -54,7 +61,7 @@ public:
         m_connected = false;
     }
 
-    connection(mysignal_base *sig, void *func);
+    connection(signal_base *sig, void *func);
     inline bool connected() const {
         return m_connected;
     }
@@ -151,14 +158,18 @@ inline functor_base<RET, PARAM_TYPES...> *mem_fun(T &obj, RET (T::*f)(PARAM_TYPE
     return new functorn<T, RET, PARAM_TYPES...>(&obj, f);
 }
 
-template <typename RET, typename... PARAM_TYPES> class signal : public mysignal_base {
+template <typename RET, typename... PARAM_TYPES> class signal : public signal_base {
 public:
     typedef functor_base<RET, PARAM_TYPES...> *func_t;
 
     unsigned m_activeSignals;
 
 private:
-    std::vector<func_t> m_funcs;
+    // Each signal has a priority. Any new signal will be inserted
+    // in the list according to its priority.
+    // Higher priorities go first in the list.
+    typedef std::pair<func_t, int> func_priority_t;
+    std::vector<func_priority_t> m_funcs;
 
 public:
     signal() {
@@ -170,8 +181,8 @@ public:
         m_funcs = one.m_funcs;
 
         for (auto &it : m_funcs) {
-            if (it) {
-                it->incref();
+            if (it.first) {
+                it.first->incref();
             }
         }
     }
@@ -182,9 +193,9 @@ public:
 
     void disconnectAll() {
         for (auto &it : m_funcs) {
-            if (it && !it->decref()) {
-                delete it;
-                it = nullptr;
+            if (it.first && !it.first->decref()) {
+                delete it.first;
+                it.first = nullptr;
             }
         }
     }
@@ -192,36 +203,31 @@ public:
     virtual void disconnect(void *functor) {
         assert(m_activeSignals > 0);
 
-        for (auto &it : m_funcs) {
-            if (it == functor) {
-                if (!it->decref()) {
-                    delete it;
+        for (auto it = m_funcs.begin(); it != m_funcs.end(); ++it) {
+            auto fcn = (*it).first;
+            if (fcn == functor) {
+                if (!fcn->decref()) {
+                    delete fcn;
                 }
                 --m_activeSignals;
-                it = nullptr;
+                m_funcs.erase(it);
             }
         }
     }
 
-    connection connect_front(func_t fcn) {
-        m_funcs.insert(m_funcs.begin(), fcn);
+    connection connect(func_t fcn, int priority = MEDIUM_PRIORITY) {
         fcn->incref();
         ++m_activeSignals;
-        return connection(this, fcn);
-    }
+        auto p = func_priority_t(fcn, priority);
 
-    connection connect(func_t fcn) {
-        fcn->incref();
-        ++m_activeSignals;
-
-        for (auto &it : m_funcs) {
-            if (!it) {
-                it = fcn;
+        for (auto it = m_funcs.begin(); it != m_funcs.end(); ++it) {
+            if ((*it).second < priority) {
+                m_funcs.insert(it, p);
                 return connection(this, fcn);
             }
         }
 
-        m_funcs.push_back(fcn);
+        m_funcs.push_back(p);
         return connection(this, fcn);
     }
 
@@ -231,9 +237,7 @@ public:
 
     void emit(PARAM_TYPES... params) {
         for (auto &it : m_funcs) {
-            if (it) {
-                it->operator()(params...);
-            }
+            it.first->operator()(params...);
         }
     }
 

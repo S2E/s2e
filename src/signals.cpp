@@ -23,7 +23,7 @@
 
 namespace fsigc {
 
-connection::connection(mysignal_base *sig, void *func) {
+connection::connection(signal_base *sig, void *func) {
     m_functor = func;
     m_sig = sig;
     m_connected = true;
