@@ -26,7 +26,7 @@ struct PluginInfo;
 class PluginState;
 class S2EExecutionState;
 
-class Plugin : public sigc::trackable {
+class Plugin {
 private:
     S2E *m_s2e;
     LogLevel m_logLevel;

@@ -52,8 +52,21 @@ protected:
 
     static unsigned s_lastSymbolicId;
 
-    /** Unique numeric ID for the state */
+    ///
+    /// \brief State identifier
+    ///
+    /// This identifier is guaranteed to be unique on each instance of S2E.
+    /// It may not be unique across instances, as load balancing may
+    /// choose to keep one state in both the child and the parent instance.
+    ///
     int m_stateID;
+
+    ///
+    /// \brief Globally unique state identifier
+    ///
+    /// This uniquely identifes a state across all S2E instances.
+    ///
+    unsigned m_guid;
 
     PluginStateMap m_PluginState;
 
@@ -149,6 +162,18 @@ public:
     int getID() const {
         return m_stateID;
     }
+
+    int getGuid() const {
+        return m_guid;
+    }
+
+    ///
+    /// \brief Assign a new state id.
+    ///
+    /// This must only be done by the S2EExecutor when load-balancing
+    /// states.
+    ///
+    void assignNewGuid();
 
     S2EDeviceState *getDeviceState() {
         return &m_deviceState;

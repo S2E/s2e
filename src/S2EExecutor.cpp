@@ -1352,6 +1352,19 @@ void S2EExecutor::doLoadBalancing() {
         }
     }
 
+    // We have to re-assign globally unique IDs to states that
+    // have been kept in both child and parent sets. This is required
+    // to avoid confusing execution tracers.
+    if (child) {
+        for (auto state : currentSet) {
+            if (parentSet.count(state)) {
+                S2EExecutionState *s2estate = static_cast<S2EExecutionState *>(state);
+                g_s2e->getDebugStream() << "Reassigning id to state " << s2estate->getID() << "\n";
+                s2estate->assignNewGuid();
+            }
+        }
+    }
+
     m_s2e->getCorePlugin()->onProcessForkComplete.emit(child);
 
     m_inLoadBalancing = false;

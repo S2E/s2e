@@ -84,6 +84,10 @@ S2EExecutionState::~S2EExecutionState() {
     delete m_timersState;
 }
 
+void S2EExecutionState::assignNewGuid() {
+    m_guid = g_s2e->fetchAndIncrementStateId();
+}
+
 /***/
 
 ExecutionState *S2EExecutionState::clone() {
@@ -106,6 +110,7 @@ ExecutionState *S2EExecutionState::clone() {
     }
 
     ret->m_stateID = g_s2e->fetchAndIncrementStateId();
+    ret->m_guid = ret->m_stateID;
 
     ret->m_timersState = new TimersState;
     *ret->m_timersState = *m_timersState;
