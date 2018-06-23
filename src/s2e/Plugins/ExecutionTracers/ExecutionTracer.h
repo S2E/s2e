@@ -67,6 +67,8 @@ private:
     void appendToCircularBuffer(const ExecutionTraceItemHeader *header, const void *data, unsigned size);
     bool appendToTraceFile(const ExecutionTraceItemHeader *header, const void *data, unsigned size);
 
+    void onStateGuidAssignment(S2EExecutionState *state, uint64_t newGuid);
+
     void onFork(S2EExecutionState *state, const std::vector<S2EExecutionState *> &newStates,
                 const std::vector<klee::ref<klee::Expr>> &newConditions);
 

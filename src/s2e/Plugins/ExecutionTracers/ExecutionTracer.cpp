@@ -40,6 +40,9 @@ void ExecutionTracer::initialize() {
     s2e()->getCorePlugin()->onProcessFork.connect(sigc::mem_fun(*this, &ExecutionTracer::onProcessFork),
                                                   fsigc::signal_base::HIGHEST_PRIORITY);
 
+    s2e()->getCorePlugin()->onStateGuidAssignment.connect(sigc::mem_fun(*this, &ExecutionTracer::onStateGuidAssignment),
+                                                          fsigc::signal_base::HIGHEST_PRIORITY);
+
     m_useCircularBuffer = s2e()->getConfig()->getBool(getConfigKey() + ".useCircularBuffer");
 
     if (m_useCircularBuffer) {
@@ -124,7 +127,11 @@ uint32_t ExecutionTracer::writeData(S2EExecutionState *state, void *data, unsign
     item.timeStamp = llvm::sys::TimeValue::now().usec();
     item.size = size;
     item.type = type;
-    item.stateId = state->getID();
+
+    // We must take the guid instead of the id, because duplicate ids
+    // across multiple traces will confuse the execution trace reader.
+    item.stateId = state->getGuid();
+
     item.addressSpace = state->regs()->getPageDir();
     item.pc = state->regs()->getPc();
 
@@ -179,6 +186,32 @@ void ExecutionTracer::onProcessFork(bool preFork, bool isChild, unsigned parentP
     }
 }
 
+///
+/// \brief Handle state guid reassignment by creating a fake fork
+///
+/// When the load blancer forks a new instance of S2E, that child instance
+/// may contain states that are also present in the parent. This fork must be
+/// reflected in the trace so that trace processing tools can still
+/// reconstruct a proper execution tree. For this, the execution tracer
+/// creates a fork entry that works in the same way as if the state was
+/// forked normally as part of normal symbolic execution. This fork entry
+/// is created in the parent instance's execution trace.
+///
+/// \param state the state that was split.
+///
+void ExecutionTracer::onStateGuidAssignment(S2EExecutionState *state, uint64_t newGuid) {
+    unsigned itemSize = sizeof(ExecutionTraceFork) + 1 * sizeof(uint32_t);
+    uint8_t *itemBytes = new uint8_t[itemSize];
+    ExecutionTraceFork *itemFork = reinterpret_cast<ExecutionTraceFork *>(itemBytes);
+
+    itemFork->stateCount = 2;
+    itemFork->children[0] = state->getGuid();
+    itemFork->children[1] = newGuid;
+    writeData(state, itemFork, itemSize, TRACE_FORK);
+
+    delete[] itemBytes;
+}
+
 void ExecutionTracer::onFork(S2EExecutionState *state, const std::vector<S2EExecutionState *> &newStates,
                              const std::vector<klee::ref<klee::Expr>> &newConditions) {
     assert(newStates.size() > 0);
@@ -191,7 +224,7 @@ void ExecutionTracer::onFork(S2EExecutionState *state, const std::vector<S2EExec
     itemFork->stateCount = newStates.size();
 
     for (unsigned i = 0; i < newStates.size(); i++) {
-        itemFork->children[i] = newStates[i]->getID();
+        itemFork->children[i] = newStates[i]->getGuid();
     }
 
     writeData(state, itemFork, itemSize, TRACE_FORK);
