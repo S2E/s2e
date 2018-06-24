@@ -52,10 +52,15 @@ Ensure your code is formatted correctly
     ``.clang-format`` file in the root of the repository. Note that Windows guest tools have their own code style.
 
     To check Python code, run the following `pylint <https://www.pylint.org>`_-based script:
-    
+
     .. code-block:: console
-    
-        $S2EDIR/build-scripts/run_pylint.py /path/to/python/code
+
+        $ cd $S2EDIR/s2e-env
+        $ . venv/bin/activate
+        $ pip install pylint
+        $ pylint -rn -j8 --rcfile=~/s2e/s2e/build-scripts/pylint_rc s2e_env
+
+    There must be no warnings.
 
 Your code must be documented
     If you write a plugin, please write Doxygen-style documentation in the source code as well as an ``.rst`` file that

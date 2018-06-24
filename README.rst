@@ -66,6 +66,8 @@ S2E development
 * `Contributing to S2E <src/Contribute.rst>`_
 * `Profiling S2E <src/ProfilingS2E.rst>`_
 * `Debugging S2E <src/DebuggingS2E.rst>`_
+* `Setting up a Windows development environment <src/WindowsEnvSetup.rst>`_
+
 
 
 Plugin reference
@@ -123,18 +125,22 @@ Publications
   Vitaly Chipounov, Volodymyr Kuznetsov, George Candea.
   ACM Transactions on Computer Systems (TOCS), 30(1), Special issue: Best papers of ASPLOS, February 2012.
 
+* `Enabling Sophisticated Analysis of x86 Binaries with RevGen <http://dslab.epfl.ch/pubs/revgen.pdf>`_.
+  Vitaly Chipounov and George Candea.
+  7th Workshop on Hot Topics in System Dependability (HotDep), Hong Kong, China, June 2011
+
 * `S2E: A Platform for In Vivo Multi-Path Analysis of Software Systems <http://dslab.epfl.ch/pubs/s2e.pdf>`_.
   Vitaly Chipounov, Volodymyr Kuznetsov, George Candea. 16th Intl. Conference on Architectural Support for Programming
   Languages and Operating Systems (`ASPLOS <http://asplos11.cs.ucr.edu/>`_), Newport Beach, CA, March 2011.
 
-* `Testing Closed-Source Binary Device Drivers with DDT <http://dslab.epfl.ch/pubs/ddt>`_.
+* `Testing Closed-Source Binary Device Drivers with DDT <http://dslab.epfl.ch/pubs/ddt.pdf>`_.
   Volodymyr Kuznetsov, Vitaly Chipounov, George Candea. USENIX Annual Technical Conference (`USENIX
   <http://www.usenix.org/event/atc10/>`_), Boston, MA, June 2010.
 
-* `Reverse Engineering of Binary Device Drivers with RevNIC <http://dslab.epfl.ch/pubs/revnic>`_.
+* `Reverse Engineering of Binary Device Drivers with RevNIC <http://dslab.epfl.ch/pubs/revnic.pdf>`_.
   Vitaly Chipounov and George Candea. 5th ACM SIGOPS/EuroSys European Conference on Computer Systems (`EuroSys
   <http://eurosys2010.sigops-france.fr/>`_), Paris, France, April 2010.
 
-* `Selective Symbolic Execution <http://dslab.epfl.ch/pubs/selsymbex>`_.
+* `Selective Symbolic Execution <http://dslab.epfl.ch/pubs/selsymbex.pdf>`_.
   Vitaly Chipounov, Vlad Georgescu, Cristian Zamfir, George Candea. Proc. 5th Workshop on Hot Topics in System
   Dependability, Lisbon, Portugal, June 2009
