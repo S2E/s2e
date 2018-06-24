@@ -262,6 +262,11 @@ void SeedSearcher::fetchNewSeeds() {
             continue;
         }
 
+        // Skip symbolic map
+        if (fileName.find(".symranges") != std::string::npos) {
+            continue;
+        }
+
         if (what.size() != 3) {
             continue;
         }
