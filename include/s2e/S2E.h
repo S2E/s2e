@@ -112,6 +112,7 @@ protected:
     void initExecutor();
     void initLogging();
     void initPlugins();
+    bool backupConfigFiles(const std::string &configFilePath);
 
     void setupStreams(bool forked, bool reopen);
 

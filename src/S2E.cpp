@@ -46,6 +46,8 @@
 
 #include <sys/stat.h>
 
+#include <boost/algorithm/string/predicate.hpp>
+#include <boost/filesystem.hpp>
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/labeled_graph.hpp>
 #include <boost/graph/topological_sort.hpp>
@@ -110,17 +112,6 @@ bool S2E::initialize(int argc, char **argv, TCGLLVMContext *tcgLLVMContext, cons
        other init* functions can use it. */
     initOutputDirectory(outputDirectory, verbose, false);
 
-    /* Copy the config file into the output directory */
-    {
-        llvm::raw_ostream *out = openOutputFile("s2e.config.lua");
-        ifstream in(configFileName.c_str());
-        char c;
-        while (in.get(c)) {
-            (*out) << c;
-        }
-        delete out;
-    }
-
     /* Parse configuration file */
     m_configFile = new s2e::ConfigFile(configFileName);
 
@@ -135,9 +126,67 @@ bool S2E::initialize(int argc, char **argv, TCGLLVMContext *tcgLLVMContext, cons
     /* Load and initialize plugins */
     initPlugins();
 
-    /* Init the custom memory allocator */
-    // void slab_init();
-    // slab_init();
+    // Save all configuration files so that users can restore them if needed.
+    // This is useful to reproduce runs.
+    return backupConfigFiles(configFileName);
+}
+
+///
+/// \brief Backup all the *.lua, *.sh, and *.bat files in the directory where the
+/// main S2E config file resides. This is useful in case one needs to retrieve
+/// the configuration of older experiments.
+///
+/// TODO: It really should be the caller's responsibility to do that. The S2E launch
+/// script shall compute the s2e-last folder and make a backup of all the configuration.
+/// For a fully-reproducible run, all binary files should be copied too.
+///
+/// \param configFileName the name of the config file (e.g., s2e-config.lua)
+/// \return false is a file could not be copied, true otherwise
+///
+bool S2E::backupConfigFiles(const std::string &configFileName) {
+    auto configFileDir = llvm::sys::path::parent_path(configFileName);
+    if (configFileDir == "") {
+        configFileDir = ".";
+    }
+
+    std::error_code error;
+
+    auto outputDir = getOutputFilename("config-backup");
+    error = llvm::sys::fs::create_directory(outputDir);
+    if (error) {
+        getWarningsStream() << "Could not create " << outputDir << '\n';
+        return false;
+    }
+
+    for (llvm::sys::fs::directory_iterator i(configFileDir, error), e; i != e; i.increment(error)) {
+        std::string entry = i->path();
+        llvm::sys::fs::file_status status;
+        error = i->status(status);
+
+        if (error) {
+            getWarningsStream() << "Error when querying " << entry << " - " << error.message() << '\n';
+            continue;
+        }
+
+        if (status.type() != llvm::sys::fs::file_type::regular_file) {
+            continue;
+        }
+
+        const char *extensions[] = {".lua", ".sh", ".bat", nullptr};
+        for (unsigned i = 0; extensions[i]; ++i) {
+            if (!boost::algorithm::ends_with(entry, extensions[i])) {
+                continue;
+            }
+            auto fileName = llvm::sys::path::filename(entry);
+            std::stringstream destination;
+            destination << outputDir << "/" << fileName.str();
+            error = llvm::sys::fs::copy_file(entry, destination.str());
+            if (error) {
+                getWarningsStream() << "Could not backup " << entry << " to " << destination.str() << "\n";
+                return false;
+            }
+        }
+    }
 
     return true;
 }
