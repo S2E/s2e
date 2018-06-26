@@ -389,6 +389,12 @@ private:
     /// Enables or disables seed scheduling
     bool m_enableSeeds;
 
+    /// Stores a backup of the fetched seeds in the s2e-last/seeds folder
+    bool m_backupSeeds;
+
+    /// Location where seeds will be backed up
+    std::string m_seedBackupDirectory;
+
     /// How many seed states are allowed concurrently
     unsigned m_maxSeedStates;
 
@@ -409,6 +415,7 @@ private:
 
     void onStateKill(S2EExecutionState *state);
 
+    void backupSeed(const std::string &seedFilePath);
     void fetchNewSeeds();
     bool scheduleNextSeed();
     void onTimer();

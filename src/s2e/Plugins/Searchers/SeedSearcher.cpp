@@ -90,6 +90,7 @@ void SeedSearcher::initialize() {
 
     m_initialStateHasSeedFile = false;
 
+    m_backupSeeds = cfg->getBool(getConfigKey() + ".backupSeeds", true);
     m_enableSeeds = cfg->getBool(getConfigKey() + ".enableSeeds");
     m_maxSeedStates = cfg->getInt(getConfigKey() + ".maxSeedStates");
     m_parallelSeeds = cfg->getBool(getConfigKey() + ".enableParallelSeeding", true);
@@ -97,6 +98,15 @@ void SeedSearcher::initialize() {
     if (m_parallelSeeds) {
         plg->onStatesSplit.connect(sigc::mem_fun(*this, &SeedSearcher::onStateSplit));
         plg->onProcessForkComplete.connect(sigc::mem_fun(*this, &SeedSearcher::onProcessForkComplete));
+    }
+
+    if (m_backupSeeds) {
+        m_seedBackupDirectory = s2e()->getOutputFilename("seeds-backup");
+        auto error = llvm::sys::fs::create_directory(m_seedBackupDirectory);
+        if (error) {
+            getWarningsStream() << "Could not create " << m_seedBackupDirectory << '\n';
+            exit(-1);
+        }
     }
 }
 
@@ -231,6 +241,29 @@ bool SeedSearcher::empty() {
     return m_states.empty();
 }
 
+void SeedSearcher::backupSeed(const std::string &seedFilePath) {
+    std::string fileName = llvm::sys::path::filename(seedFilePath);
+
+    std::stringstream destination;
+    destination << m_seedBackupDirectory << "/" << fileName;
+    auto error = llvm::sys::fs::copy_file(seedFilePath, destination.str());
+    if (error) {
+        getWarningsStream() << "Could not backup " << seedFilePath << " to " << destination.str() << "\n";
+        return;
+    }
+
+    // Copy the symbolic ranges file if it's present.
+    auto symRangesPath = seedFilePath + ".symranges";
+    if (llvm::sys::fs::exists(symRangesPath)) {
+        destination << ".symranges";
+        llvm::sys::fs::copy_file(symRangesPath, destination.str());
+        if (error) {
+            getWarningsStream() << "Could not backup " << symRangesPath << " to " << destination.str() << "\n";
+            return;
+        }
+    }
+}
+
 void SeedSearcher::fetchNewSeeds() {
     // First group is the seed index, second group is the priority,
     // the remainder of the string is the optional suffix.
@@ -286,6 +319,10 @@ void SeedSearcher::fetchNewSeeds() {
                              << "\n";
         } else if (count == 5) {
             getDebugStream() << "Reached max display count, further seeds won't be displayed\n";
+        }
+
+        if (m_backupSeeds) {
+            backupSeed(entry);
         }
 
         ++count;
