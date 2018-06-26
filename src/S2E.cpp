@@ -121,17 +121,6 @@ bool S2E::initialize(int argc, char **argv, TCGLLVMContext *tcgLLVMContext, cons
         delete out;
     }
 
-    /* Save command line arguments */
-    {
-        llvm::raw_ostream *out = openOutputFile("s2e.cmdline");
-        for (int i = 0; i < argc; ++i) {
-            if (i != 0)
-                (*out) << " ";
-            (*out) << "'" << argv[i] << "'";
-        }
-        delete out;
-    }
-
     /* Parse configuration file */
     m_configFile = new s2e::ConfigFile(configFileName);
 
