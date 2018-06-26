@@ -127,6 +127,22 @@ void SeedSearcher::onStateSplit(klee::StateSet &parent, klee::StateSet &child) {
     }
 }
 
+void SeedSearcher::updateIdleStatus() {
+    Seed s;
+    bool idle = !getTopPrioritySeed(s) && s2e()->getExecutor()->getStatesCount() == 1;
+    unsigned id = s2e()->getCurrentProcessId();
+    SeedStats *stats = m_globalStats.acquire();
+    stats->idle[id] = idle;
+    getDebugStream() << "idle setting: idx=" << id << " idle=" << idle << "\n";
+    m_globalStats.release();
+}
+
+void SeedSearcher::getSeedStats(SeedStats &stats) {
+    SeedStats *s = m_globalStats.acquire();
+    stats = *s;
+    m_globalStats.release();
+}
+
 void SeedSearcher::onProcessForkComplete(bool isChild) {
     if (isChild) {
         m_usedSeedsCount = 0;
@@ -395,6 +411,8 @@ void SeedSearcher::onTimer() {
     if (!m_initialState) {
         return;
     }
+
+    updateIdleStatus();
 
     getDebugStream() << "Looking for new seeds\n";
 

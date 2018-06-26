@@ -252,9 +252,32 @@ enum SeedEvent {
     TERMINATED
 };
 
-/// Collects global seed statistics
+/// Collects global seed statistics.
+/// An instance of this class is shared between all S2E instances.
 struct SeedStats {
     unsigned usedSeeds;
+
+    // This array signals to other S2E instances which other instance
+    // currently has available seeds. It is used to terminate idle instances.
+    bool idle[S2E_MAX_PROCESSES];
+
+    bool getLowestIdleInstanceId(unsigned &id) {
+        auto icnt = std::min((unsigned) S2E_MAX_PROCESSES, g_s2e->getMaxProcesses());
+        for (unsigned i = 0; i < icnt; ++i) {
+            auto index = g_s2e->getProcessIndexForId(i);
+            if (index == -1) {
+                // The process is dead, skip it.
+                continue;
+            }
+
+            if (idle[i]) {
+                id = i;
+                return true;
+            }
+        }
+
+        return false;
+    }
 };
 
 ///
@@ -415,6 +438,12 @@ private:
 
     void onStateKill(S2EExecutionState *state);
 
+    ///
+    /// \brief Signals to other S2E instances whether or not we currently have
+    /// seeds available.
+    ///
+    void updateIdleStatus();
+
     void backupSeed(const std::string &seedFilePath);
     void fetchNewSeeds();
     bool scheduleNextSeed();
@@ -491,6 +520,11 @@ public:
     bool getTopPrioritySeed(Seed &s) const {
         return m_availableSeeds.getTopPrioritySeed(s);
     }
+
+    ///
+    /// \brief Return a copy of the shared stats structure
+    ///
+    void getSeedStats(SeedStats &stats);
 };
 
 } // namespace seeds

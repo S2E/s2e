@@ -131,6 +131,45 @@ void SeedScheduler::onNewBlockCovered(S2EExecutionState *state) {
     m_timeOfLastCoveredBlock = llvm::sys::TimeValue::now().seconds();
 }
 
+void SeedScheduler::terminateIdleInstance() {
+    if (s2e()->getExecutor()->getStatesCount() > 1) {
+        getDebugStream() << "idle detection: too many states\n";
+        return;
+    }
+
+    if (s2e()->getCurrentProcessCount() == 1) {
+        // We are the only S2E instance running, don't kill ourselves
+        getDebugStream() << "idle detection: single instance\n";
+        return;
+    }
+
+    SeedStats stats;
+    m_seeds->getSeedStats(stats);
+
+    unsigned id;
+    if (!stats.getLowestIdleInstanceId(id)) {
+        // Every S2E instance has seeds to run, return
+        getDebugStream() << "idle detection: every instance has seeds\n";
+        return;
+    }
+
+    if (id != s2e()->getCurrentProcessId()) {
+        // We are not the lowest instance
+        getDebugStream() << "idle detection: we are not the lowest instance id (" << s2e()->getCurrentProcessId()
+                         << ") "
+                         << " without seeds (" << id << ")\n";
+        return;
+    }
+
+    // This is a simple way to synchronize instances in order
+    // to avoid multiple instances killing themselves at the
+    // same time. Only the instance with the lowest index is
+    // allowed to terminate. This means that if there are several
+    // idle instances, they will terminate in turn.
+    getInfoStream() << "Terminating idle S2E instance\n";
+    exit(0);
+}
+
 void SeedScheduler::processSeedStateMachine(uint64_t currentTime) {
     /* Only works for instances that have state 0 */
     if (!m_seeds->isAvailable()) {
@@ -207,6 +246,8 @@ void SeedScheduler::onTimer() {
 
     // Update the state machine ~ every second
     processSeedStateMachine(curTime);
+
+    terminateIdleInstance();
 }
 
 } // namespace seeds
