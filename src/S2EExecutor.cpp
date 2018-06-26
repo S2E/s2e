@@ -1500,11 +1500,7 @@ void S2EExecutor::doStateSwitch(S2EExecutionState *oldState, S2EExecutionState *
         se_tb_safe_flush();
     }
 
-    /**
-     * Forking has saved the pointer to the current tb. By the time the state
-     * resumes, this pointer might have become invalid. We must clear it here.
-     */
-    env->current_tb = NULL;
+    assert(env->current_tb == NULL);
 
     g_se_disable_tlb_flush = 0;
 
@@ -2269,7 +2265,14 @@ void S2EExecutor::notifyBranch(ExecutionState &state) {
     s2eState->m_tlb.clearRamTlb();
 #endif
 
+    // We must not save the current tb, because this pointer will become
+    // stale on state restore. If a signal occurs while restoring the state,
+    // its handler will try to unlink a stale tb, which could cause a hang
+    // or a crash.
+    auto old_tb = env->current_tb;
+    env->current_tb = nullptr;
     s2eState->m_registers.saveConcreteState();
+    env->current_tb = old_tb;
 
     cpu_disable_ticks();
     s2e_kvm_save_device_state();
