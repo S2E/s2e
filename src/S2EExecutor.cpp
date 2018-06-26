@@ -1496,8 +1496,9 @@ void S2EExecutor::doStateSwitch(S2EExecutionState *oldState, S2EExecutionState *
         s2e_debug_print("Copied %d (count=%d)\n", totalCopied, objectsCopied);
     }
 
-    if (FlushTBsOnStateSwitch)
-        tb_flush(env);
+    if (FlushTBsOnStateSwitch) {
+        se_tb_safe_flush();
+    }
 
     /**
      * Forking has saved the pointer to the current tb. By the time the state
