@@ -15,7 +15,7 @@ extern "C" {
 template <typename RET, typename FCN, typename ... ARGS>
 RET FaultInjTemplate1(
     _In_ UINT_PTR CallSite,
-    _In_ PCCHAR FunctionName,
+    _In_ LPCSTR FunctionName,
     _In_ BOOLEAN RaiseOnFailure,
     _In_opt_ RET DefaultConcreteFailure,
     _In_ FCN Orig,

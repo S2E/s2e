@@ -91,6 +91,12 @@
     <ClCompile Include="src\utils\process.c">
       <Filter>Source Files\utils</Filter>
     </ClCompile>
+    <ClCompile Include="src\faultinj\fs.cpp">
+      <Filter>Source Files\faultinj</Filter>
+    </ClCompile>
+    <ClCompile Include="src\faultinj\io.cpp">
+      <Filter>Source Files\faultinj</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\crash.h">

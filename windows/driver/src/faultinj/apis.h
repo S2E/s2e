@@ -16,3 +16,5 @@ extern const S2E_GUEST_HOOK_LIBRARY_FCN g_kernelPsHooks[];
 extern const S2E_GUEST_HOOK_LIBRARY_FCN g_kernelObHooks[];
 extern const S2E_GUEST_HOOK_LIBRARY_FCN g_kernelRegHooks[];
 extern const S2E_GUEST_HOOK_LIBRARY_FCN g_kernelFltHooks[];
+extern const S2E_GUEST_HOOK_LIBRARY_FCN g_kernelFsHooks[];
+extern const S2E_GUEST_HOOK_LIBRARY_FCN g_kernelIoHooks[];

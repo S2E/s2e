@@ -21,7 +21,7 @@ BOOLEAN *g_faultInjOverApproximate;
 
 _Success_(return)
 BOOLEAN FaultInjectionCreateVarName(
-    _In_ PCHAR FunctionName,
+    _In_ LPCSTR FunctionName,
     _Out_ PCHAR *VarName
 )
 {
@@ -114,4 +114,10 @@ VOID FaultInjectionInit(VOID)
 
     LOG("Hooking FS filter apis...");
     GuestCodeHookingRegisterLibFcnCallHooks(g_kernelFltHooks);
+
+    LOG("Hooking Fs apis...");
+    GuestCodeHookingRegisterLibFcnCallHooks(g_kernelFsHooks);
+
+    LOG("Hooking Io apis...");
+    GuestCodeHookingRegisterLibFcnCallHooks(g_kernelIoHooks);
 }

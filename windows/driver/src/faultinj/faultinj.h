@@ -14,7 +14,7 @@ VOID FaultInjectionInit(VOID);
 
 _Success_(return)
 BOOLEAN FaultInjectionCreateVarName(
-    _In_ PCHAR FunctionName,
+    _In_ LPCSTR FunctionName,
     _Out_ PCHAR *VarName
 );
 
