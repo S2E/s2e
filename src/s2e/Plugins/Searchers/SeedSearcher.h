@@ -148,34 +148,54 @@ public:
     /// \return  false if no seed could be found, true otherwise
     ///
     bool dequeue(Seed &seed) {
+        return pick(seed, true);
+    }
+
+    ///
+    /// \brief pick the first available seed, with or without removing
+    /// it from the queue.
+    ///
+    /// This function skips and cleans any seeds that have been picked
+    /// by another instance.
+    ///
+    /// \param seed is the returned seed
+    /// \param dequeue keep the seed in the queue if false
+    /// \return true if a seed could be picked, false if no seeds are available
+    ///
+    bool pick(Seed &seed, bool dequeue) {
         bool ret = false;
         SeedBitmap *bmp = m_bitmap.acquire();
 
         while (m_seeds.size() > 0) {
-            seed = doDequeue();
+            if (dequeue) {
+                seed = doDequeue();
+            } else {
+                seed = m_seeds.top();
+            }
 
             // Too many seeds to keep track of
             if (seed.index >= MAX_SEEDS) {
-                goto end;
+                break;
             }
 
             // Some other instance caught this seed
             if (bmp->get(seed.index)) {
+                if (!dequeue) {
+                    // Clean this seed, as it is used by someone else
+                    doDequeue();
+                }
                 continue;
             }
 
-            bmp->set(seed.index, true);
-            assert(bmp->get(seed.index));
+            if (dequeue) {
+                bmp->set(seed.index, true);
+                assert(bmp->get(seed.index));
+            }
 
             ret = true;
-            goto end;
+            break;
         }
 
-    // If getting here because the queue is empty,
-    // other instances were too quick, couldn't grab seeds
-    // quick enough.
-
-    end:
         m_bitmap.release();
         return ret;
     }
@@ -217,13 +237,8 @@ public:
     /// \param s the returned seed
     /// \return false if there are no seeds, true otherwise
     ///
-    bool getTopPrioritySeed(Seed &s) const {
-        if (size() == 0) {
-            return false;
-        }
-
-        s = m_seeds.top();
-        return true;
+    bool getTopPrioritySeed(Seed &s) {
+        return pick(s, false);
     }
 };
 
@@ -517,7 +532,7 @@ public:
     /// \param s the returned seed
     /// \return false if there are no seeds, true otherwise
     ///
-    bool getTopPrioritySeed(Seed &s) const {
+    bool getTopPrioritySeed(Seed &s) {
         return m_availableSeeds.getTopPrioritySeed(s);
     }
 
