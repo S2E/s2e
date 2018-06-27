@@ -73,8 +73,8 @@ void WebServiceInterface::initialize() {
 QDict *WebServiceInterface::getGlobalStats() {
     QDict *stats = qdict_new();
 
-    qdict_put_obj(stats, "instance_current_count", QOBJECT(qint_from_int(s2e()->getCurrentProcessCount())));
-    qdict_put_obj(stats, "instance_max_count", QOBJECT(qint_from_int(s2e()->getMaxProcesses())));
+    qdict_put_obj(stats, "instance_current_count", QOBJECT(qint_from_int(s2e()->getCurrentInstanceCount())));
+    qdict_put_obj(stats, "instance_max_count", QOBJECT(qint_from_int(s2e()->getMaxInstances())));
 
     // state_highest_id is the highest state id across all currently running nodes.
     // To obtain number of queued paths, sum all state_completed_count and subtract from highest_state_id.

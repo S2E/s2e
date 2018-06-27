@@ -892,7 +892,7 @@ void BaseInstructions::handleBuiltInOps(S2EExecutionState *state, uint64_t opcod
         }
 
         case BASE_S2E_INSTANCE_COUNT: { /* Get number of active S2E instances */
-            target_ulong count = s2e()->getCurrentProcessCount();
+            target_ulong count = s2e()->getCurrentInstanceCount();
             state->regs()->write(CPU_OFFSET(regs[R_EAX]), &count, sizeof(count));
             break;
         }

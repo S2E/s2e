@@ -130,10 +130,10 @@ void SeedSearcher::onStateSplit(klee::StateSet &parent, klee::StateSet &child) {
 void SeedSearcher::updateIdleStatus() {
     Seed s;
     bool idle = !getTopPrioritySeed(s) && s2e()->getExecutor()->getStatesCount() == 1;
-    unsigned id = s2e()->getCurrentProcessId();
+    unsigned index = s2e()->getCurrentInstanceIndex();
     SeedStats *stats = m_globalStats.acquire();
-    stats->idle[id] = idle;
-    getDebugStream() << "idle setting: idx=" << id << " idle=" << idle << "\n";
+    stats->idle[index] = idle;
+    getDebugStream() << "idle setting: idx=" << index << " idle=" << idle << "\n";
     m_globalStats.release();
 }
 

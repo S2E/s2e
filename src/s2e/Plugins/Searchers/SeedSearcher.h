@@ -261,17 +261,17 @@ struct SeedStats {
     // currently has available seeds. It is used to terminate idle instances.
     bool idle[S2E_MAX_PROCESSES];
 
-    bool getLowestIdleInstanceId(unsigned &id) {
-        auto icnt = std::min((unsigned) S2E_MAX_PROCESSES, g_s2e->getMaxProcesses());
+    bool getLowestIdleInstanceIndex(unsigned &index) {
+        auto icnt = std::min((unsigned) S2E_MAX_PROCESSES, g_s2e->getMaxInstances());
         for (unsigned i = 0; i < icnt; ++i) {
-            auto index = g_s2e->getProcessIndexForId(i);
-            if (index == -1) {
+            auto id = g_s2e->getInstanceId(i);
+            if (id == -1) {
                 // The process is dead, skip it.
                 continue;
             }
 
             if (idle[i]) {
-                id = i;
+                index = i;
                 return true;
             }
         }

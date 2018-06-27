@@ -137,7 +137,7 @@ void SeedScheduler::terminateIdleInstance() {
         return;
     }
 
-    if (s2e()->getCurrentProcessCount() == 1) {
+    if (s2e()->getCurrentInstanceCount() == 1) {
         // We are the only S2E instance running, don't kill ourselves
         getDebugStream() << "idle detection: single instance\n";
         return;
@@ -146,18 +146,18 @@ void SeedScheduler::terminateIdleInstance() {
     SeedStats stats;
     m_seeds->getSeedStats(stats);
 
-    unsigned id;
-    if (!stats.getLowestIdleInstanceId(id)) {
+    unsigned index;
+    if (!stats.getLowestIdleInstanceIndex(index)) {
         // Every S2E instance has seeds to run, return
         getDebugStream() << "idle detection: every instance has seeds\n";
         return;
     }
 
-    if (id != s2e()->getCurrentProcessId()) {
+    if (index != s2e()->getCurrentInstanceIndex()) {
         // We are not the lowest instance
-        getDebugStream() << "idle detection: we are not the lowest instance id (" << s2e()->getCurrentProcessId()
+        getDebugStream() << "idle detection: we are not the lowest instance index (" << s2e()->getCurrentInstanceIndex()
                          << ") "
-                         << " without seeds (" << id << ")\n";
+                         << " without seeds (" << index << ")\n";
         return;
     }
 
