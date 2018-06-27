@@ -1278,7 +1278,7 @@ void S2EExecutor::doLoadBalancing() {
     }
 
     // Don't bother copying stuff if it's obvious that it'll very likely fail
-    if (m_s2e->getCurrentProcessCount() == m_s2e->getMaxProcesses()) {
+    if (m_s2e->getCurrentInstanceCount() == m_s2e->getMaxInstances()) {
         return;
     }
 
@@ -1324,7 +1324,7 @@ void S2EExecutor::doLoadBalancing() {
 
     m_inLoadBalancing = true;
 
-    unsigned parentId = m_s2e->getCurrentProcessIndex();
+    unsigned parentId = m_s2e->getCurrentInstanceId();
     m_s2e->getCorePlugin()->onProcessFork.emit(true, false, -1);
     int child = m_s2e->fork();
     if (child < 0) {

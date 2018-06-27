@@ -49,7 +49,7 @@ class Database;
 
 // Structure used for synchronization among multiple instances of S2E
 struct S2EShared {
-    unsigned currentProcessCount;
+    unsigned currentInstanceCount;
     unsigned lastFileId;
     // We must have unique state ids across all processes
     // otherwise offline tools will be extremely confused when
@@ -59,12 +59,12 @@ struct S2EShared {
     // Array of currently running instances.
     // Each entry either contains -1 (no instance running) or
     // the instance index.
-    unsigned processIds[S2E_MAX_PROCESSES];
-    unsigned processPids[S2E_MAX_PROCESSES];
+    unsigned instanceIds[S2E_MAX_PROCESSES];
+    unsigned instancePids[S2E_MAX_PROCESSES];
     S2EShared() {
         for (unsigned i = 0; i < S2E_MAX_PROCESSES; ++i) {
-            processIds[i] = (unsigned) -1;
-            processPids[i] = (unsigned) -1;
+            instanceIds[i] = (unsigned) -1;
+            instancePids[i] = (unsigned) -1;
         }
     }
 };
@@ -96,9 +96,9 @@ protected:
     uint64_t m_startTimeSeconds;
 
     /* How many processes can S2E fork */
-    unsigned m_maxProcesses;
-    unsigned m_currentProcessIndex;
-    unsigned m_currentProcessId;
+    unsigned m_maxInstances;
+    unsigned m_currentInstanceIndex;
+    unsigned m_currentInstanceId;
 
     std::string m_outputDirectoryBase;
 
@@ -222,20 +222,20 @@ public:
 
     unsigned fetchAndIncrementStateId();
     unsigned fetchNextStateId();
-    unsigned getMaxProcesses() const {
-        return m_maxProcesses;
+    unsigned getMaxInstances() const {
+        return m_maxInstances;
     }
-    unsigned getCurrentProcessId() const {
-        return m_currentProcessId;
-    }
-
-    unsigned getCurrentProcessIndex() const {
-        return m_currentProcessIndex;
+    unsigned getCurrentInstanceId() const {
+        return m_currentInstanceId;
     }
 
-    unsigned getProcessIndexForId(unsigned id);
+    unsigned getCurrentInstanceIndex() const {
+        return m_currentInstanceIndex;
+    }
 
-    unsigned getCurrentProcessCount();
+    unsigned getInstanceId(unsigned index);
+
+    unsigned getCurrentInstanceCount();
 
     inline uint64_t getStartTime() const {
         return m_startTimeSeconds;
