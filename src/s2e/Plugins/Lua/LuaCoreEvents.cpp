@@ -70,6 +70,10 @@ void LuaCoreEvents::onStateForkDecide(S2EExecutionState *state, bool *allowForki
     lua_call(L, 2, 1);
     *allowForking = lua_toboolean(L, -1) != 0;
     lua_pop(L, 1);
+
+    if (!*allowForking) {
+        s2e()->getInfoStream() << "annotation prevented forking at pc=" << hexval(state->regs()->getPc()) << "\n";
+    }
 }
 
 void LuaCoreEvents::onStateKill(S2EExecutionState *state) {

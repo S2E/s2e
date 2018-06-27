@@ -934,7 +934,8 @@ void WindowsMonitor::handleOpcodeInvocation(S2EExecutionState *state, uint64_t g
 
             NormalizePath(path, normalizedPath, fileName);
 
-            getDebugStream(state) << "Process load " << normalizedPath << " (" << fileName << ")\n";
+            getDebugStream(state) << "Process load " << normalizedPath << " (" << fileName << ")"
+                                  << " pid=" << command.Process.ProcessId << "\n";
 
             onProcessLoad.emit(state, cr3, command.Process.ProcessId, fileName);
         } break;
