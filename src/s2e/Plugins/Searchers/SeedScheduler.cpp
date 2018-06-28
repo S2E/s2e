@@ -60,6 +60,8 @@ void SeedScheduler::initialize() {
     s2e()->getCorePlugin()->onStateKill.connect(sigc::mem_fun(*this, &SeedScheduler::onStateKill));
     m_stateKilled = false;
 
+    s2e()->getCorePlugin()->onProcessForkDecide.connect(sigc::mem_fun(*this, &SeedScheduler::onProcessForkDecide));
+
     ConfigFile *cfg = s2e()->getConfig();
 
     // How long do we wait before using new seeds.
@@ -77,6 +79,105 @@ void SeedScheduler::initialize() {
     if (!ok) {
         getWarningsStream() << "lowPrioritySeedThreshold must be set\n";
         exit(-1);
+    }
+}
+
+///
+/// \brief This function prevents needless forking of new instances
+/// when there are no available seeds.
+///
+/// In seed mode, each S2E instance has a copy of state 0, which is
+/// scheduled when a new seed is available. This state never gets
+/// killed and as a result there are usually at least two states on
+/// each S2E instance: the seed fetcher and one or more states that
+/// actually execute the seeds.
+///
+/// The problem is that S2E's load balancer
+/// kicks in as soon as there are more than two states availble, in order
+/// to spread them across free CPU cores. This will cause an instance fork.
+/// In normal circumstances, this is fine. However, if there are not
+/// enough seeds available to keep the new instances busy, they will just
+/// contain an idle seed fetching state (which will get killed quickly
+/// by the idle instance detection mechanism).
+///
+/// So, in order to prevent excessive instance forking, we use
+/// the following algorithm:
+///
+/// 1. The state with the lowest id gets to decide when to fork a
+/// new instance. All other instances just prevent instance forking
+/// if there are less than 2 states available.
+///
+/// 2. The deciding instance forks a new state when there are seeds
+/// available and all other nodes are busy. It uses a heuristic for
+/// that for now to keep it simple.
+///
+/// \param proceed is set to false in case the method wants to prevent
+/// forking. It is never set to true as this is the default.
+///
+void SeedScheduler::onProcessForkDecide(bool *proceed) {
+    static unsigned previousAvailableSeedCount = 0;
+    static uint64_t lastSeedFetchTime = 0;
+
+    if (s2e()->getExecutor()->getStatesCount() >= 3) {
+        // We have plenty of states to load balance, so no need
+        // to block instance forking.
+        return;
+    }
+
+    bool isLeader = s2e()->getCurrentInstanceIndex() == s2e()->getInstanceIndexWithLowestId();
+    if (!isLeader) {
+        // Only the leader gets to fork new processes, this avoids
+        // complex synchronization.
+        *proceed = false;
+        s2e()->getDebugStream() << "Preventing instance fork because we are not the leader\n";
+        return;
+    }
+
+    SeedStats stats;
+    m_seeds->getSeedStats(stats);
+
+    unsigned idleIdx;
+    if (stats.getLowestIdleInstanceIndex(idleIdx)) {
+        // Some instances are doing nothing, no point in forking a new one
+        *proceed = false;
+        s2e()->getDebugStream() << "Preventing instance fork because there are idle instances\n";
+        return;
+    }
+
+    Seed s;
+    if (!m_seeds->getTopPrioritySeed(s)) {
+        // There are no more seeds left, don't fork
+        s2e()->getDebugStream() << "Preventing instance fork because there are no more seeds\n";
+        *proceed = false;
+        return;
+    }
+
+    // There are seeds left
+    uint64_t curTime = llvm::sys::TimeValue::now().seconds();
+    unsigned currentAvailableSeedCount = m_seeds->getSeedCount();
+    if (previousAvailableSeedCount > currentAvailableSeedCount) {
+        // The number of available seeds has decreased, which means
+        // that some worker picked up one of them.
+        lastSeedFetchTime = curTime;
+    }
+    previousAvailableSeedCount = currentAvailableSeedCount;
+
+    uint64_t lastSeedFetchElapsed = curTime - lastSeedFetchTime;
+
+    // The 10 seconds delay allows to workaround busy workers.
+    // Ideally, workers should be fast enough to process seeds as they come,
+    // but they may often be busy with other tasks and will ignore the
+    // new seeds. In this case, we have to spawn new instances if possible,
+    // after waiting for a while.
+    // TODO: figure out an algorithm that knows exactly which instances
+    // won't fetch a seed for a long time, so that there is no need for
+    // magic timeout.
+    if (lastSeedFetchElapsed < 10 && (s2e()->getCurrentInstanceCount() > currentAvailableSeedCount)) {
+        s2e()->getDebugStream() << "Preventing instance fork because there are enough workers\n"
+                                << "instanceCnt=" << s2e()->getCurrentInstanceCount()
+                                << " availSeeds=" << currentAvailableSeedCount << "\n";
+        *proceed = false;
+        return;
     }
 }
 

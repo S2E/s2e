@@ -63,6 +63,7 @@ private:
     void onWindowsUserCrash(S2EExecutionState *state, const WindowsUserModeCrash &desc);
     void onWindowsKernelCrash(S2EExecutionState *state, const vmi::windows::BugCheckDescription &desc);
 
+    void onProcessForkDecide(bool *proceed);
     void onTimer();
     void onStateKill(S2EExecutionState *state);
 
