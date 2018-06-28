@@ -288,11 +288,11 @@ void SeedScheduler::processSeedStateMachine(uint64_t currentTime) {
     bool recentHighPrioritySeed = recentHighPrioritySeedD < m_stateMachineTimeout;
     bool recentSeedFetch = timeOfLastFetchedSeedD < m_stateMachineTimeout;
 
-    getDebugStream() << "explorationState: " << m_explorationState << " "
-                     << "timeOfLastFetchedSeed: " << timeOfLastFetchedSeedD << " "
-                     << "foundBlocks: " << foundBlocksD << "s "
-                     << "foundCrashes: " << foundCrashesD << "s "
-                     << "hpSeed: " << recentHighPrioritySeedD << "s\n";
+    getInfoStream() << "explorationState: " << m_explorationState << " "
+                    << "timeOfLastFetchedSeed: " << timeOfLastFetchedSeedD << " "
+                    << "foundBlocks: " << foundBlocksD << "s "
+                    << "foundCrashes: " << foundCrashesD << "s "
+                    << "hpSeed: " << recentHighPrioritySeedD << "s\n";
 
     if (m_explorationState == WARM_UP) {
         // The warm up phase allows S2E to quickly find crashes and POVS
@@ -301,7 +301,8 @@ void SeedScheduler::processSeedStateMachine(uint64_t currentTime) {
         // depends on S2E's success in finding new basic blocks and crashes.
         if (!foundBlocks && !foundCrashes) {
             m_explorationState = WAIT_FOR_NEW_SEEDS;
-        } else if (m_stateKilled && (s2e()->getExecutor()->getStatesCount() == 1)) {
+        } else if ((m_stateKilled || s2e()->getCurrentInstanceCount() > 1) &&
+                   (s2e()->getExecutor()->getStatesCount() == 1)) {
             // The warm up phase terminates if no seedless states remain, i.e., there
             // is only state 0 remaining, in which case we have to wait for new seeds
             // as there is nothing else to do. We have to check for m_stateKilled because
@@ -335,7 +336,7 @@ void SeedScheduler::processSeedStateMachine(uint64_t currentTime) {
 
     } else if (m_explorationState == WAIT_SEED_EXECUTION) {
         /* Give newly fetched seed some time to execute */
-        if (!recentSeedFetch) {
+        if (!recentSeedFetch || (s2e()->getExecutor()->getStatesCount() == 1)) {
             m_explorationState = WAIT_FOR_NEW_SEEDS;
         }
     }
