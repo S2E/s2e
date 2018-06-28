@@ -67,6 +67,22 @@ struct S2EShared {
             instancePids[i] = (unsigned) -1;
         }
     }
+
+    // This API can be used for synchronization
+    // (e.g., when a task must be performed by only one instance,
+    // and there is a need to get a consensus on what that instance is).
+    unsigned getInstanceIndexWithLowestId() const {
+        unsigned id = -1;
+        unsigned ret = -1;
+        for (unsigned i = 0; i < S2E_MAX_PROCESSES; ++i) {
+            if (instanceIds[i] < id) {
+                ret = i;
+                id = instanceIds[i];
+            }
+        }
+        assert(ret >= 0);
+        return ret;
+    }
 };
 
 class S2E {
@@ -236,6 +252,8 @@ public:
     unsigned getInstanceId(unsigned index);
 
     unsigned getCurrentInstanceCount();
+
+    unsigned getInstanceIndexWithLowestId();
 
     inline uint64_t getStartTime() const {
         return m_startTimeSeconds;

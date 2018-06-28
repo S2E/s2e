@@ -207,7 +207,7 @@ void S2E::writeBitCodeToFile() {
 }
 
 S2E::~S2E() {
-    getWarningsStream() << "Terminating node id" << m_currentInstanceId << " (instance slot " << m_currentInstanceIndex
+    getWarningsStream() << "Terminating node id " << m_currentInstanceId << " (instance slot " << m_currentInstanceIndex
                         << ")\n";
 
     // Delete all the stuff used by the instance
@@ -546,12 +546,13 @@ int S2E::fork() {
         assert(i < m_maxInstances && "Failed to find a free slot");
         m_sync.release();
 
+        unsigned oldInstanceId = m_currentInstanceId;
         m_currentInstanceId = newProcessId;
-        // We are the child process, setup the log files again
+        // We are the child process, set up the log files again
         initOutputDirectory(m_outputDirectoryBase, 0, true);
 
-        getWarningsStream() << "Started new node " << newProcessId << " (instance slot " << m_currentInstanceIndex
-                            << " pid " << getpid() << ")\n";
+        getWarningsStream() << "Started new node id=" << newProcessId << " index=" << m_currentInstanceIndex
+                            << " pid=" << getpid() << " parent_id=" << oldInstanceId << "\n";
 
         // Also recreate new statistics files
         m_s2eExecutor->initializeStatistics();
@@ -590,6 +591,13 @@ unsigned S2E::getInstanceId(unsigned index) {
     assert(index < m_maxInstances);
     S2EShared *shared = m_sync.acquire();
     unsigned ret = shared->instanceIds[index];
+    m_sync.release();
+    return ret;
+}
+
+unsigned S2E::getInstanceIndexWithLowestId() {
+    S2EShared *shared = m_sync.acquire();
+    unsigned ret = shared->getInstanceIndexWithLowestId();
     m_sync.release();
     return ret;
 }
