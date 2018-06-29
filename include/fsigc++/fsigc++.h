@@ -171,6 +171,16 @@ private:
     typedef std::pair<func_t, int> func_priority_t;
     std::vector<func_priority_t> m_funcs;
 
+    void disconnectAll() {
+        for (auto &it : m_funcs) {
+            if (it.first && !it.first->decref()) {
+                delete it.first;
+                it.first = nullptr;
+            }
+        }
+        m_funcs.clear();
+    }
+
 public:
     signal() {
         m_activeSignals = 0;
@@ -191,15 +201,6 @@ public:
         disconnectAll();
     }
 
-    void disconnectAll() {
-        for (auto &it : m_funcs) {
-            if (it.first && !it.first->decref()) {
-                delete it.first;
-                it.first = nullptr;
-            }
-        }
-    }
-
     virtual void disconnect(void *functor) {
         assert(m_activeSignals > 0);
 
@@ -211,6 +212,7 @@ public:
                 }
                 --m_activeSignals;
                 m_funcs.erase(it);
+                break;
             }
         }
     }
@@ -232,7 +234,7 @@ public:
     }
 
     bool empty() const {
-        return m_activeSignals == 0;
+        return m_funcs.size() == 0;
     }
 
     void emit(PARAM_TYPES... params) {
