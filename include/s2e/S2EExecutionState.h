@@ -173,7 +173,7 @@ public:
     /// This must only be done by the S2EExecutor when load-balancing
     /// states.
     ///
-    void assignNewGuid();
+    void assignGuid(uint64_t guid);
 
     S2EDeviceState *getDeviceState() {
         return &m_deviceState;
