@@ -243,7 +243,7 @@ by S2E, as described `here <../../s2e-env.rst>`__.
 
 .. code-block:: console
 
-    $ s2e new_project --image cgc_debian-9.2.1-i386 ./source/s2e/Decree/samples/CADET_00001
+    $ s2e new_project --image cgc_debian-9.2.1-i386 ./source/s2e/decree/samples/CADET_00001
 
 Finally, to start S2E, run the following command:
 
