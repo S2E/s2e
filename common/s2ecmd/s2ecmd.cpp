@@ -48,22 +48,24 @@
 typedef int (*cmd_handler_t)(int argc, const char **args);
 
 typedef struct _cmd_t {
-    char *name;
+    const char *name;
     cmd_handler_t handler;
     unsigned min_args_count;
     unsigned max_args_count;
-    char *description;
+    const char *description;
 } cmd_t;
+
+int handler_symbfile(int argc, const char **args);
 
 static int handler_register_module(int argc, const char **args) {
     const char *name = args[0];
     const char *path = args[1];
-    uint64_t base = strtoul(args[2], NULL, 0);
-    uint64_t size = strtoul(args[3], NULL, 0);
-    uint64_t entry_point = strtoul(args[4], NULL, 0);
-    uint64_t native_base = strtoul(args[5], NULL, 0);
-    uint64_t kernel_mode = strtoul(args[6], NULL, 0);
-    uint64_t pid = strtoul(args[7], NULL, 0);
+    uint64_t base = strtoul(args[2], nullptr, 0);
+    uint64_t size = strtoul(args[3], nullptr, 0);
+    uint64_t entry_point = strtoul(args[4], nullptr, 0);
+    uint64_t native_base = strtoul(args[5], nullptr, 0);
+    uint64_t kernel_mode = strtoul(args[6], nullptr, 0);
+    uint64_t pid = strtoul(args[7], nullptr, 0);
 
     struct S2E_RAWMON_COMMAND_MODULE_LOAD m;
     m.name = (uintptr_t) name;
@@ -117,7 +119,7 @@ static int handler_symbwrite(int argc, const char **args) {
         return -2;
     }
 
-    char *buffer = calloc(1, n_bytes + 1);
+    char *buffer = (char *) calloc(1, n_bytes + 1);
     s2e_make_symbolic(buffer, n_bytes, "buffer");
 
     for (i = 0; i < n_bytes; ++i) {
@@ -141,7 +143,7 @@ static int handler_symbwrite_dec(int argc, const char **args) {
         return -1;
     }
 
-    char *buffer = calloc(1, n_bytes + 1);
+    char *buffer = (char *) calloc(1, n_bytes + 1);
     memset(buffer, '0', n_bytes);
     s2e_make_concolic(buffer, n_bytes, "buffer");
 
@@ -152,116 +154,6 @@ static int handler_symbwrite_dec(int argc, const char **args) {
 
     free(buffer);
 
-    return 0;
-}
-
-static int handler_symbfile(int argc, const char **args) {
-    int flags = O_RDWR;
-
-#ifdef _WIN32
-    flags |= O_BINARY;
-#endif
-
-    unsigned block_size = 0x1000;
-
-    if (argc == 2) {
-        block_size = atoi(args[0]);
-        ++args;
-        --argc;
-    }
-
-    const char *filename = args[0];
-
-    int fd = open(filename, flags);
-    if (fd < 0) {
-        s2e_kill_state_printf(-1, "symbfile: could not open %s\n", filename);
-        return -1;
-    }
-
-    /* Determine the size of the file */
-    off_t size = lseek(fd, 0, SEEK_END);
-    if (size < 0) {
-        s2e_kill_state_printf(-1, "symbfile: could not determine the size of %s\n", filename);
-        return -2;
-    }
-
-    char buffer[block_size];
-
-    unsigned current_chunk = 0;
-    unsigned total_chunks = size / sizeof(buffer);
-    if (size % sizeof(buffer)) {
-        ++total_chunks;
-    }
-
-    /**
-     * Replace special characters in the filename with underscores.
-     * It should make it easier for plugins to generate
-     * concrete files, while preserving info about the original path
-     * and without having to deal with the slashes.
-     **/
-    char cleaned_name[512];
-    strncpy(cleaned_name, filename, sizeof(cleaned_name));
-    for (unsigned i = 0; cleaned_name[i]; ++i) {
-        if (!isalnum(cleaned_name[i])) {
-            cleaned_name[i] = '_';
-        }
-    }
-
-    off_t offset = 0;
-    do {
-        /* Read the file in chunks of 4K and make them concolic */
-        char symbvarname[512];
-
-        if (lseek(fd, offset, SEEK_SET) < 0) {
-            s2e_kill_state_printf(-1, "symbfile: could not seek to position %d", offset);
-            return -3;
-        }
-
-        ssize_t totransfer = size > sizeof(buffer) ? sizeof(buffer) : size;
-
-        /* Read the data */
-        ssize_t read_count = read(fd, buffer, totransfer);
-        if (read_count < 0) {
-            s2e_kill_state_printf(-1, "symbfile: could not read from file %s", filename);
-            return -4;
-        }
-
-        /**
-         * Make the buffer concolic.
-         * The symbolic variable name encodes the original file name with its path
-         * as well as the chunk id contained in the buffer.
-         * A test case generator should therefore be able to reconstruct concrete
-         * files easily.
-         */
-        snprintf(symbvarname, sizeof(symbvarname), "__symfile___%s___%d_%d_symfile__", cleaned_name, current_chunk,
-                 total_chunks);
-        s2e_make_concolic(buffer, read_count, symbvarname);
-
-        /* Write it back */
-        if (lseek(fd, offset, SEEK_SET) < 0) {
-            s2e_kill_state_printf(-1, "symbfile: could not seek to position %d", offset);
-            return -5;
-        }
-
-        ssize_t written_count = write(fd, buffer, read_count);
-        if (written_count < 0) {
-            s2e_kill_state_printf(-1, "symbfile: could not write to file %s", filename);
-            return -6;
-        }
-
-        if (read_count != written_count) {
-            /* XXX: should probably retry...*/
-            s2e_kill_state_printf(-1, "symbfile: could not write the read amount");
-            return -7;
-        }
-
-        offset += read_count;
-        size -= read_count;
-        ++current_chunk;
-
-    } while (size > 0);
-
-    close(fd);
     return 0;
 }
 
@@ -402,7 +294,7 @@ static cmd_t s_commands[] = {
     COMMAND(get_seed_file, 0, "Returns the name of the currently available seed file"),
     COMMAND(seedsearcher_enable, 0, "Activates the seed searcher"),
     COMMAND(flush_tbs, 0, "Flush the translation block cache"),
-    {NULL, NULL, 0, 0, NULL}};
+    {nullptr, nullptr, 0, 0, nullptr}};
 
 static void print_commands(void) {
     unsigned i = 0;
@@ -426,14 +318,19 @@ static int find_command(const char *cmd) {
 }
 
 int main(int argc, const char **argv) {
+    const char *cmd = nullptr;
+    int cmd_index = 0;
     int retval = -1;
+
+    unsigned min_args, max_args;
+
     if (argc < 2) {
         print_commands();
         goto err;
     }
 
-    const char *cmd = argv[1];
-    int cmd_index = find_command(cmd);
+    cmd = argv[1];
+    cmd_index = find_command(cmd);
 
     if (cmd_index == -1) {
         fprintf(stderr, "Command %s not found\n", cmd);
@@ -444,8 +341,8 @@ int main(int argc, const char **argv) {
     ++argv;
     ++argv;
 
-    unsigned min_args = s_commands[cmd_index].min_args_count;
-    unsigned max_args = s_commands[cmd_index].max_args_count;
+    min_args = s_commands[cmd_index].min_args_count;
+    max_args = s_commands[cmd_index].max_args_count;
 
     if (!(argc >= min_args && argc <= max_args)) {
         fprintf(stderr, "Invalid number of arguments supplied (received %d, expected %d)\n", argc,

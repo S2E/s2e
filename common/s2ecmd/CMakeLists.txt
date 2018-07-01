@@ -1,6 +1,7 @@
 # S2E Selective Symbolic Execution Platform
 #
 # Copyright (c) 2017 Dependable Systems Laboratory, EPFL
+# Copyright (c) 2018 Cyberhaven
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -20,6 +21,6 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-add_executable(s2ecmd s2ecmd.c)
+add_executable(s2ecmd s2ecmd.cpp symfile.cpp)
 
 install(TARGETS s2ecmd RUNTIME DESTINATION .)

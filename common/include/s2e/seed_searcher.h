@@ -23,11 +23,17 @@
 #ifndef S2E_SEED_H
 #define S2E_SEED_H
 
-#include "s2e.h"
+#include <s2e/s2e.h>
 #include "seed_searcher/commands.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 static int s2e_seed_get_file(char *file, size_t bytes, int *should_fork) {
-    struct S2E_SEEDSEARCHER_COMMAND cmd = {0};
+    struct S2E_SEEDSEARCHER_COMMAND cmd;
+    memset(&cmd, 0, sizeof(cmd));
+
     cmd.Command = SEED_GET_SEED_FILE;
     cmd.GetFile.FileName = (uintptr_t) file;
     cmd.GetFile.FileNameSizeInBytes = bytes;
@@ -64,7 +70,9 @@ static int s2e_seed_get_file(char *file, size_t bytes, int *should_fork) {
 }
 
 static void s2e_seed_searcher_enable(void) {
-    struct S2E_SEEDSEARCHER_COMMAND cmd = {0};
+    struct S2E_SEEDSEARCHER_COMMAND cmd;
+    memset(&cmd, 0, sizeof(cmd));
+
     cmd.Command = SEED_ENABLE_SEARCHER;
 
     s2e_begin_atomic();
@@ -73,5 +81,9 @@ static void s2e_seed_searcher_enable(void) {
     s2e_enable_all_apic_interrupts();
     s2e_end_atomic();
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

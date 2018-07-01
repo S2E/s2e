@@ -44,10 +44,18 @@ if(NOT BITS)
 endif()
 if(${BITS} EQUAL 32)
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -m32 -march=i386 -mtune=generic")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -m32 -march=i386 -mtune=generic")
 elseif(${BITS} EQUAL 64)
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -m64 -march=x86-64 -mtune=generic")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -m64 -march=x86-64 -mtune=generic")
 else()
   message(FATAL_ERROR "Invalid number of bits: ${BITS}. Guest must be either 32 or 64 bits")
+endif()
+
+if(${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
+  # C++ requires special run time libraries in the guest, which we don't have.
+  # Compile C++ binaries statically to make it simpler.
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static")
 endif()
 
 # Build for all systems

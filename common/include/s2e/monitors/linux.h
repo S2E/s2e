@@ -30,12 +30,19 @@
 #ifndef S2E_LINUX_MONITOR_H
 #define S2E_LINUX_MONITOR_H
 
+#include <memory.h>
 #include <s2e/s2e.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #include "commands/linux.h"
 
 static inline void s2e_linux_load_module(uint64_t pid, const struct S2E_LINUXMON_COMMAND_MODULE_LOAD *m) {
-    struct S2E_LINUXMON_COMMAND cmd = {0};
+    struct S2E_LINUXMON_COMMAND cmd;
+    memset(&cmd, 0, sizeof(cmd));
+
     cmd.version = S2E_LINUXMON_COMMAND_VERSION;
     cmd.Command = LINUX_MODULE_LOAD;
     cmd.currentPid = pid;
@@ -44,5 +51,9 @@ static inline void s2e_linux_load_module(uint64_t pid, const struct S2E_LINUXMON
 
     s2e_invoke_plugin("LinuxMonitor", &cmd, sizeof(cmd));
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -30,12 +30,19 @@
 #ifndef S2E_RAW_MONITOR_H
 #define S2E_RAW_MONITOR_H
 
+#include <memory.h>
 #include <s2e/s2e.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #include "commands/raw.h"
 
 static inline void s2e_raw_register_stack(struct S2E_RAWMON_COMMAND_STACK *stack) {
-    struct S2E_RAWMON_COMMAND cmd = {0};
+    struct S2E_RAWMON_COMMAND cmd;
+    memset(&cmd, 0, sizeof(cmd));
+
     cmd.Command = RAW_SET_CURRENT_STACK;
     cmd.Stack.guest_stack_descriptor_ptr = (uintptr_t) stack;
     cmd.Stack.stack_base = 0;
@@ -45,11 +52,17 @@ static inline void s2e_raw_register_stack(struct S2E_RAWMON_COMMAND_STACK *stack
 }
 
 static inline void s2e_raw_load_module(const struct S2E_RAWMON_COMMAND_MODULE_LOAD *module) {
-    struct S2E_RAWMON_COMMAND cmd = {0};
+    struct S2E_RAWMON_COMMAND cmd;
+    memset(&cmd, 0, sizeof(cmd));
+
     cmd.Command = RAW_MODULE_LOAD;
     cmd.ModuleLoad = *module;
 
     s2e_invoke_plugin("RawMonitor", &cmd, sizeof(cmd));
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
