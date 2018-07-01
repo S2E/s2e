@@ -38,6 +38,18 @@ set(FSIGCXX_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/include")
 set(FSIGCXX_LIBRARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/src")
 configure_file(FSIGCXXConfig.cmake.in ${CMAKE_CONFIG_FILE} @ONLY)
 
+# We want to remove NDEBUG from all builds
+foreach (flags_var_to_scrub
+    CMAKE_CXX_FLAGS_RELEASE
+    CMAKE_CXX_FLAGS_RELWITHDEBINFO
+    CMAKE_CXX_FLAGS_MINSIZEREL
+    CMAKE_C_FLAGS_RELEASE
+    CMAKE_C_FLAGS_RELWITHDEBINFO
+    CMAKE_C_FLAGS_MINSIZEREL)
+string (REGEX REPLACE "(^| )[/-]D *NDEBUG($| )" " "
+    "${flags_var_to_scrub}" "${${flags_var_to_scrub}}")
+endforeach()
+
 include_directories(${FSIGCXX_INCLUDE_DIR})
 
 add_subdirectory(src)

@@ -18,7 +18,10 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+set(CMAKE_C_FLAGS "-Wall -Werror -fPIC")
+set(CMAKE_CXX_FLAGS "-Wall -Werror -fPIC -std=c++11")
+
 add_library (fsigc++ signals.cpp)
 
-set(CMAKE_C_FLAGS "-Wall -Werror -fPIC")
-set(CMAKE_CXX_FLAGS "-Wall -Werror -fPIC")
+add_executable(sigtest test.cpp)
+target_link_libraries(sigtest fsigc++)
