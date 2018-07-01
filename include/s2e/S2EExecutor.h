@@ -9,6 +9,8 @@
 #ifndef S2E_EXECUTOR_H
 #define S2E_EXECUTOR_H
 
+#include <unordered_map>
+
 #include <klee/Executor.h>
 #include <llvm/Support/raw_ostream.h>
 #include <s2e/s2e_libcpu.h>
@@ -248,6 +250,11 @@ protected:
     void deleteState(klee::ExecutionState *state);
 
     void doStateSwitch(S2EExecutionState *oldState, S2EExecutionState *newState);
+
+    void splitStates(const std::vector<S2EExecutionState *> &allStates, klee::StateSet &parentSet,
+                     klee::StateSet &childSet);
+    void computeNewStateGuids(std::unordered_map<klee::ExecutionState *, uint64_t> &newIds, klee::StateSet &parentSet,
+                              klee::StateSet &childSet);
 
     void doLoadBalancing();
 

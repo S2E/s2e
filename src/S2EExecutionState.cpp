@@ -59,6 +59,7 @@ S2EExecutionState::S2EExecutionState(klee::KFunction *kf)
       m_runningExceptionEmulationCode(false) {
     // XXX: make this a struct, not a pointer...
     m_timersState = new TimersState;
+    m_guid = m_stateID;
 }
 
 S2EExecutionState::~S2EExecutionState() {
@@ -84,8 +85,8 @@ S2EExecutionState::~S2EExecutionState() {
     delete m_timersState;
 }
 
-void S2EExecutionState::assignNewGuid() {
-    m_guid = g_s2e->fetchAndIncrementStateId();
+void S2EExecutionState::assignGuid(uint64_t guid) {
+    m_guid = guid;
 }
 
 /***/

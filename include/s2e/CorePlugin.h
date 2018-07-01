@@ -286,6 +286,22 @@ public:
         onStateFork;
 
     ///
+    /// \brief This signal is emitted by the load balancer
+    /// after it forks an S2E instance that contains
+    /// one or more states copied from the parent, which
+    /// forces an assignment of a new GUID.
+    ///
+    /// The signal is only emitted by the parent instance.
+    ///
+    /// The signal is used by the execution tracer
+    /// plugin in order to make sure the trace contains
+    /// a well-formed tree.
+    ///
+    sigc::signal<void, S2EExecutionState* /* state */,
+                 uint64_t /* newGuid */>
+        onStateGuidAssignment;
+
+    ///
     /// Signal that is emitted when two states are merged.
     //
     sigc::signal<void,

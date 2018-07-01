@@ -1272,13 +1272,45 @@ void S2EExecutor::switchToSymbolic(S2EExecutionState *state) {
     state->m_runningConcrete = false;
 }
 
+void S2EExecutor::splitStates(const std::vector<S2EExecutionState *> &allStates, StateSet &parentSet,
+                              StateSet &childSet) {
+    unsigned size = allStates.size();
+    unsigned n = size / 2;
+
+    for (unsigned i = 0; i < n; ++i) {
+        parentSet.insert(allStates[i]);
+    }
+
+    for (unsigned i = n; i < allStates.size(); ++i) {
+        childSet.insert(allStates[i]);
+    }
+}
+
+void S2EExecutor::computeNewStateGuids(std::unordered_map<ExecutionState *, uint64_t> &newIds, StateSet &parentSet,
+                                       StateSet &childSet) {
+    StateSet commonStates;
+
+    // If we there are states that appear in both sets, we must
+    // reassign a guid to them.
+    std::set_intersection(parentSet.begin(), parentSet.end(), childSet.begin(), childSet.end(),
+                          std::inserter(commonStates, commonStates.begin()));
+
+    for (auto state : commonStates) {
+        // TODO: if fork fails, we'll end up with unused state ids...
+        // It doesn't matter in practice, but may be unintuitive
+        // (i.e., why do I have missing state ids in my trace?)
+        // Reverting this increment is hard unfortunately.
+        newIds[state] = g_s2e->fetchAndIncrementStateId();
+    }
+}
+
 void S2EExecutor::doLoadBalancing() {
     if (states.size() < 2) {
         return;
     }
 
     // Don't bother copying stuff if it's obvious that it'll very likely fail
-    if (m_s2e->getCurrentProcessCount() == m_s2e->getMaxProcesses()) {
+    if (m_s2e->getCurrentInstanceCount() == m_s2e->getMaxInstances()) {
         return;
     }
 
@@ -1295,36 +1327,31 @@ void S2EExecutor::doLoadBalancing() {
         return;
     }
 
+    g_s2e->getDebugStream() << "LoadBalancing: starting\n";
+
     bool proceed = true;
     m_s2e->getCorePlugin()->onProcessForkDecide.emit(&proceed);
     if (!proceed) {
+        g_s2e->getDebugStream() << "LoadBalancing: a plugin stopped load balancing\n";
         return;
     }
-
-    // Do the splitting before the fork, because we want to
-    // let plugins modify the partition. Some plugins might
-    // even want to keep a state in all instances.
-    unsigned size = allStates.size();
-    unsigned n = size / 2;
 
     // These two sets are the two partitions.
     StateSet parentSet, childSet;
 
-    for (unsigned i = 0; i < n; ++i) {
-        parentSet.insert(allStates[i]);
-    }
-
-    for (unsigned i = n; i < allStates.size(); ++i) {
-        childSet.insert(allStates[i]);
-    }
+    // Do the splitting before the fork, because we want to
+    // let plugins modify the partition. Some plugins might
+    // even want to keep a state in all instances.
+    splitStates(allStates, parentSet, childSet);
 
     m_s2e->getCorePlugin()->onStatesSplit.emit(parentSet, childSet);
 
-    g_s2e->getDebugStream() << "LoadBalancing: starting\n";
+    std::unordered_map<ExecutionState *, uint64_t> newIds;
+    computeNewStateGuids(newIds, parentSet, childSet);
 
     m_inLoadBalancing = true;
 
-    unsigned parentId = m_s2e->getCurrentProcessIndex();
+    unsigned parentId = m_s2e->getCurrentInstanceId();
     m_s2e->getCorePlugin()->onProcessFork.emit(true, false, -1);
     int child = m_s2e->fork();
     if (child < 0) {
@@ -1355,13 +1382,14 @@ void S2EExecutor::doLoadBalancing() {
     // We have to re-assign globally unique IDs to states that
     // have been kept in both child and parent sets. This is required
     // to avoid confusing execution tracers.
-    if (child) {
-        for (auto state : currentSet) {
-            if (parentSet.count(state)) {
-                S2EExecutionState *s2estate = static_cast<S2EExecutionState *>(state);
-                g_s2e->getDebugStream() << "Reassigning id to state " << s2estate->getID() << "\n";
-                s2estate->assignNewGuid();
-            }
+    for (auto &state : newIds) {
+        S2EExecutionState *s2estate = static_cast<S2EExecutionState *>(state.first);
+        if (child) {
+            g_s2e->getDebugStream(s2estate) << "Assigning new guid " << state.second << "\n";
+            s2estate->assignGuid(state.second);
+        } else {
+            g_s2e->getDebugStream(s2estate) << "Notifying guid assignment " << state.second << "\n";
+            m_s2e->getCorePlugin()->onStateGuidAssignment.emit(s2estate, state.second);
         }
     }
 
@@ -1496,14 +1524,11 @@ void S2EExecutor::doStateSwitch(S2EExecutionState *oldState, S2EExecutionState *
         s2e_debug_print("Copied %d (count=%d)\n", totalCopied, objectsCopied);
     }
 
-    if (FlushTBsOnStateSwitch)
-        tb_flush(env);
+    if (FlushTBsOnStateSwitch) {
+        se_tb_safe_flush();
+    }
 
-    /**
-     * Forking has saved the pointer to the current tb. By the time the state
-     * resumes, this pointer might have become invalid. We must clear it here.
-     */
-    env->current_tb = NULL;
+    assert(env->current_tb == NULL);
 
     g_se_disable_tlb_flush = 0;
 
@@ -2104,6 +2129,9 @@ S2EExecutor::StatePair S2EExecutor::fork(ExecutionState &current, klee::ref<Expr
         }
 
         g_s2e->getCorePlugin()->onStateForkDecide.emit(currentState, &forkOk);
+        if (!forkOk) {
+            g_s2e->getDebugStream(currentState) << "fork prevented by request from plugin\n";
+        }
     }
 
     bool oldForkStatus = currentState->forkDisabled;
@@ -2268,7 +2296,14 @@ void S2EExecutor::notifyBranch(ExecutionState &state) {
     s2eState->m_tlb.clearRamTlb();
 #endif
 
+    // We must not save the current tb, because this pointer will become
+    // stale on state restore. If a signal occurs while restoring the state,
+    // its handler will try to unlink a stale tb, which could cause a hang
+    // or a crash.
+    auto old_tb = env->current_tb;
+    env->current_tb = nullptr;
     s2eState->m_registers.saveConcreteState();
+    env->current_tb = old_tb;
 
     cpu_disable_ticks();
     s2e_kvm_save_device_state();

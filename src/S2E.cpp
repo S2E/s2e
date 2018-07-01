@@ -46,6 +46,8 @@
 
 #include <sys/stat.h>
 
+#include <boost/algorithm/string/predicate.hpp>
+#include <boost/filesystem.hpp>
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/labeled_graph.hpp>
 #include <boost/graph/topological_sort.hpp>
@@ -95,42 +97,20 @@ bool S2E::initialize(int argc, char **argv, TCGLLVMContext *tcgLLVMContext, cons
     setpgid(0, 0);
 
     m_setupUnbufferedStream = setupUnbufferedStream;
-    m_maxProcesses = s2e_max_processes;
-    m_currentProcessIndex = 0;
-    m_currentProcessId = 0;
+    m_maxInstances = s2e_max_processes;
+    m_currentInstanceIndex = 0;
+    m_currentInstanceId = 0;
     S2EShared *shared = m_sync.acquire();
-    shared->currentProcessCount = 1;
+    shared->currentInstanceCount = 1;
     shared->lastStateId = 0;
     shared->lastFileId = 1;
-    shared->processIds[m_currentProcessId] = m_currentProcessIndex;
-    shared->processPids[m_currentProcessId] = getpid();
+    shared->instanceIds[m_currentInstanceIndex] = m_currentInstanceId;
+    shared->instancePids[m_currentInstanceIndex] = getpid();
     m_sync.release();
 
     /* Open output directory. Do it at the very beginning so that
        other init* functions can use it. */
     initOutputDirectory(outputDirectory, verbose, false);
-
-    /* Copy the config file into the output directory */
-    {
-        llvm::raw_ostream *out = openOutputFile("s2e.config.lua");
-        ifstream in(configFileName.c_str());
-        char c;
-        while (in.get(c)) {
-            (*out) << c;
-        }
-        delete out;
-    }
-
-    /* Save command line arguments */
-    {
-        llvm::raw_ostream *out = openOutputFile("s2e.cmdline");
-        for (int i = 0; i < argc; ++i) {
-            if (i != 0)
-                (*out) << " ";
-            (*out) << "'" << argv[i] << "'";
-        }
-        delete out;
-    }
 
     /* Parse configuration file */
     m_configFile = new s2e::ConfigFile(configFileName);
@@ -146,9 +126,67 @@ bool S2E::initialize(int argc, char **argv, TCGLLVMContext *tcgLLVMContext, cons
     /* Load and initialize plugins */
     initPlugins();
 
-    /* Init the custom memory allocator */
-    // void slab_init();
-    // slab_init();
+    // Save all configuration files so that users can restore them if needed.
+    // This is useful to reproduce runs.
+    return backupConfigFiles(configFileName);
+}
+
+///
+/// \brief Backup all the *.lua, *.sh, and *.bat files in the directory where the
+/// main S2E config file resides. This is useful in case one needs to retrieve
+/// the configuration of older experiments.
+///
+/// TODO: It really should be the caller's responsibility to do that. The S2E launch
+/// script shall compute the s2e-last folder and make a backup of all the configuration.
+/// For a fully-reproducible run, all binary files should be copied too.
+///
+/// \param configFileName the name of the config file (e.g., s2e-config.lua)
+/// \return false is a file could not be copied, true otherwise
+///
+bool S2E::backupConfigFiles(const std::string &configFileName) {
+    auto configFileDir = llvm::sys::path::parent_path(configFileName);
+    if (configFileDir == "") {
+        configFileDir = ".";
+    }
+
+    std::error_code error;
+
+    auto outputDir = getOutputFilename("config-backup");
+    error = llvm::sys::fs::create_directory(outputDir);
+    if (error) {
+        getWarningsStream() << "Could not create " << outputDir << '\n';
+        return false;
+    }
+
+    for (llvm::sys::fs::directory_iterator i(configFileDir, error), e; i != e; i.increment(error)) {
+        std::string entry = i->path();
+        llvm::sys::fs::file_status status;
+        error = i->status(status);
+
+        if (error) {
+            getWarningsStream() << "Error when querying " << entry << " - " << error.message() << '\n';
+            continue;
+        }
+
+        if (status.type() != llvm::sys::fs::file_type::regular_file) {
+            continue;
+        }
+
+        const char *extensions[] = {".lua", ".sh", ".bat", nullptr};
+        for (unsigned i = 0; extensions[i]; ++i) {
+            if (!boost::algorithm::ends_with(entry, extensions[i])) {
+                continue;
+            }
+            auto fileName = llvm::sys::path::filename(entry);
+            std::stringstream destination;
+            destination << outputDir << "/" << fileName.str();
+            error = llvm::sys::fs::copy_file(entry, destination.str());
+            if (error) {
+                getWarningsStream() << "Could not backup " << entry << " to " << destination.str() << "\n";
+                return false;
+            }
+        }
+    }
 
     return true;
 }
@@ -169,7 +207,7 @@ void S2E::writeBitCodeToFile() {
 }
 
 S2E::~S2E() {
-    getWarningsStream() << "Terminating node " << m_currentProcessIndex << " (instance slot " << m_currentProcessId
+    getWarningsStream() << "Terminating node id " << m_currentInstanceId << " (instance slot " << m_currentInstanceIndex
                         << ")\n";
 
     // Delete all the stuff used by the instance
@@ -178,11 +216,11 @@ S2E::~S2E() {
     // Tell other instances we are dead so they can fork more
     S2EShared *shared = m_sync.acquire();
 
-    assert(shared->processIds[m_currentProcessId] == m_currentProcessIndex);
-    shared->processIds[m_currentProcessId] = (unsigned) -1;
-    shared->processPids[m_currentProcessId] = (unsigned) -1;
-    assert(shared->currentProcessCount > 0);
-    --shared->currentProcessCount;
+    assert(shared->instanceIds[m_currentInstanceIndex] == m_currentInstanceId);
+    shared->instanceIds[m_currentInstanceIndex] = (unsigned) -1;
+    shared->instancePids[m_currentInstanceIndex] = (unsigned) -1;
+    assert(shared->currentInstanceCount > 0);
+    --shared->currentInstanceCount;
 
     m_sync.release();
 
@@ -254,13 +292,13 @@ void S2E::initOutputDirectory(const string &outputDirectory, int verbose, bool f
     }
 
 #ifndef _WIN32
-    if (m_maxProcesses > 1) {
+    if (m_maxInstances > 1) {
         // Create one output directory per child process.
         // This prevents child processes from clobbering each other's output.
         llvm::SmallString<128> dirPath(m_outputDirectory);
 
         ostringstream oss;
-        oss << m_currentProcessIndex;
+        oss << m_currentInstanceId;
 
         llvm::sys::path::append(dirPath, oss.str());
 
@@ -439,8 +477,8 @@ llvm::raw_ostream &S2E::getStream(llvm::raw_ostream &stream, const S2EExecutionS
         llvm::sys::TimeValue curTime = llvm::sys::TimeValue::now();
         stream << (curTime.seconds() - m_startTimeSeconds) << ' ';
 
-        if (m_maxProcesses > 1) {
-            stream << "[Node " << m_currentProcessIndex << "/" << m_currentProcessId << " - State " << state->getID()
+        if (m_maxInstances > 1) {
+            stream << "[Node " << m_currentInstanceId << "/" << m_currentInstanceIndex << " - State " << state->getID()
                    << "] ";
         } else {
             stream << "[State " << state->getID() << "] ";
@@ -465,15 +503,15 @@ int S2E::fork() {
 
     S2EShared *shared = m_sync.acquire();
 
-    assert(shared->currentProcessCount > 0);
-    if (shared->currentProcessCount == m_maxProcesses) {
+    assert(shared->currentInstanceCount > 0);
+    if (shared->currentInstanceCount == m_maxInstances) {
         m_sync.release();
         return -1;
     }
 
-    unsigned newProcessIndex = shared->lastFileId;
+    unsigned newProcessId = shared->lastFileId;
     ++shared->lastFileId;
-    ++shared->currentProcessCount;
+    ++shared->currentInstanceCount;
 
     m_sync.release();
 
@@ -486,8 +524,8 @@ int S2E::fork() {
         // Do not decrement lastFileId, as other fork may have
         // succeeded while we were handling the failure.
 
-        assert(shared->currentProcessCount > 1);
-        --shared->currentProcessCount;
+        assert(shared->currentInstanceCount > 1);
+        --shared->currentInstanceCount;
 
         m_sync.release();
         return -1;
@@ -497,23 +535,24 @@ int S2E::fork() {
         // Find a free slot in the instance map
         shared = m_sync.acquire();
         unsigned i = 0;
-        for (i = 0; i < m_maxProcesses; ++i) {
-            if (shared->processIds[i] == (unsigned) -1) {
-                shared->processIds[i] = newProcessIndex;
-                shared->processPids[i] = getpid();
-                m_currentProcessId = i;
+        for (i = 0; i < m_maxInstances; ++i) {
+            if (shared->instanceIds[i] == (unsigned) -1) {
+                shared->instanceIds[i] = newProcessId;
+                shared->instancePids[i] = getpid();
+                m_currentInstanceIndex = i;
                 break;
             }
         }
-        assert(i < m_maxProcesses && "Failed to find a free slot");
+        assert(i < m_maxInstances && "Failed to find a free slot");
         m_sync.release();
 
-        m_currentProcessIndex = newProcessIndex;
-        // We are the child process, setup the log files again
+        unsigned oldInstanceId = m_currentInstanceId;
+        m_currentInstanceId = newProcessId;
+        // We are the child process, set up the log files again
         initOutputDirectory(m_outputDirectoryBase, 0, true);
 
-        getWarningsStream() << "Started new node " << newProcessIndex << " (instance slot " << m_currentProcessId
-                            << " pid " << getpid() << ")\n";
+        getWarningsStream() << "Started new node id=" << newProcessId << " index=" << m_currentInstanceIndex
+                            << " pid=" << getpid() << " parent_id=" << oldInstanceId << "\n";
 
         // Also recreate new statistics files
         m_s2eExecutor->initializeStatistics();
@@ -541,17 +580,24 @@ unsigned S2E::fetchNextStateId() {
     return ret;
 }
 
-unsigned S2E::getCurrentProcessCount() {
+unsigned S2E::getCurrentInstanceCount() {
     S2EShared *shared = m_sync.acquire();
-    unsigned ret = shared->currentProcessCount;
+    unsigned ret = shared->currentInstanceCount;
     m_sync.release();
     return ret;
 }
 
-unsigned S2E::getProcessIndexForId(unsigned id) {
-    assert(id < m_maxProcesses);
+unsigned S2E::getInstanceId(unsigned index) {
+    assert(index < m_maxInstances);
     S2EShared *shared = m_sync.acquire();
-    unsigned ret = shared->processIds[id];
+    unsigned ret = shared->instanceIds[index];
+    m_sync.release();
+    return ret;
+}
+
+unsigned S2E::getInstanceIndexWithLowestId() {
+    S2EShared *shared = m_sync.acquire();
+    unsigned ret = shared->getInstanceIndexWithLowestId();
     m_sync.release();
     return ret;
 }
