@@ -49,6 +49,7 @@ private:
 
     uint64_t m_stateMachineTimeout;
     unsigned m_lowPrioritySeedThreshold;
+    bool m_stateKilled;
 
     ExplorationState m_explorationState;
     uint64_t m_timeOfLastCoveredBlock;
@@ -62,9 +63,26 @@ private:
     void onWindowsUserCrash(S2EExecutionState *state, const WindowsUserModeCrash &desc);
     void onWindowsKernelCrash(S2EExecutionState *state, const vmi::windows::BugCheckDescription &desc);
 
+    void onProcessForkDecide(bool *proceed);
     void onTimer();
+    void onStateKill(S2EExecutionState *state);
 
     void processSeedStateMachine(uint64_t currentTime);
+
+    ///
+    /// \brief Terminates an idle S2E instance
+    ///
+    /// An idle S2E instance is an instance that only has one state running,
+    /// and that state waits for new seeds. It may happen that the system
+    /// is filled with idle instances. This situation prevents busy instances
+    /// to offload some of their states by forking new S2E instances because
+    /// all the slots are taken by idle instances. Killing the idle instances
+    /// frees up instance slots so that the busy S2E process can fork a child again.
+    ///
+    /// NOTE: this is required only because S2E has no mechanism to migrate
+    /// states between already running instances.
+    ///
+    void terminateIdleInstance();
 };
 
 } // namespace seeds

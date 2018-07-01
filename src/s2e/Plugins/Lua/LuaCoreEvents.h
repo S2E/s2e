@@ -30,12 +30,14 @@ public:
 private:
     std::string m_onStateKill;
     std::string m_onTimer;
+    std::string m_onStateForkDecide;
 
     void registerCoreSignals(const std::string &cfgname);
     std::string checkCoreSignal(const std::string &cfgname, const std::string &name);
 
     void onTimer();
     void onStateKill(S2EExecutionState *state);
+    void onStateForkDecide(S2EExecutionState *state, bool *allowForking);
 };
 
 } // namespace plugins

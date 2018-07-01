@@ -444,7 +444,8 @@ void CUPAVulnerabilitySearcherClass::initialize() {
         m_detector->onModuleLoad.connect(sigc::mem_fun(*this, &CUPAVulnerabilitySearcherClass::onModuleLoad));
     tb_end_conn =
         core->onTranslateBlockEnd.connect(sigc::mem_fun(*this, &CUPAVulnerabilitySearcherClass::onTranslateBlockEnd));
-    fork_conn = core->onStateFork.connect_front(sigc::mem_fun(*this, &CUPAVulnerabilitySearcherClass::onFork));
+    fork_conn = core->onStateFork.connect(sigc::mem_fun(*this, &CUPAVulnerabilitySearcherClass::onFork),
+                                          fsigc::signal_base::HIGH_PRIORITY);
 
     ConfigFile *config = m_plg->s2e()->getConfig();
 

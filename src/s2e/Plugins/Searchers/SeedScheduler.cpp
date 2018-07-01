@@ -54,7 +54,13 @@ void SeedScheduler::initialize() {
         exit(-1);
     }
 
-    s2e()->getCorePlugin()->onTimer.connect_front(sigc::mem_fun(*this, &SeedScheduler::onTimer));
+    s2e()->getCorePlugin()->onTimer.connect(sigc::mem_fun(*this, &SeedScheduler::onTimer),
+                                            fsigc::signal_base::HIGH_PRIORITY);
+
+    s2e()->getCorePlugin()->onStateKill.connect(sigc::mem_fun(*this, &SeedScheduler::onStateKill));
+    m_stateKilled = false;
+
+    s2e()->getCorePlugin()->onProcessForkDecide.connect(sigc::mem_fun(*this, &SeedScheduler::onProcessForkDecide));
 
     ConfigFile *cfg = s2e()->getConfig();
 
@@ -74,6 +80,109 @@ void SeedScheduler::initialize() {
         getWarningsStream() << "lowPrioritySeedThreshold must be set\n";
         exit(-1);
     }
+}
+
+///
+/// \brief This function prevents needless forking of new instances
+/// when there are no available seeds.
+///
+/// In seed mode, each S2E instance has a copy of state 0, which is
+/// scheduled when a new seed is available. This state never gets
+/// killed and as a result there are usually at least two states on
+/// each S2E instance: the seed fetcher and one or more states that
+/// actually execute the seeds.
+///
+/// The problem is that S2E's load balancer
+/// kicks in as soon as there are more than two states availble, in order
+/// to spread them across free CPU cores. This will cause an instance fork.
+/// In normal circumstances, this is fine. However, if there are not
+/// enough seeds available to keep the new instances busy, they will just
+/// contain an idle seed fetching state (which will get killed quickly
+/// by the idle instance detection mechanism).
+///
+/// So, in order to prevent excessive instance forking, we use
+/// the following algorithm:
+///
+/// 1. The state with the lowest id gets to decide when to fork a
+/// new instance. All other instances just prevent instance forking
+/// if there are less than 2 states available.
+///
+/// 2. The deciding instance forks a new state when there are seeds
+/// available and all other nodes are busy. It uses a heuristic for
+/// that for now to keep it simple.
+///
+/// \param proceed is set to false in case the method wants to prevent
+/// forking. It is never set to true as this is the default.
+///
+void SeedScheduler::onProcessForkDecide(bool *proceed) {
+    static unsigned previousAvailableSeedCount = 0;
+    static uint64_t lastSeedFetchTime = 0;
+
+    if (s2e()->getExecutor()->getStatesCount() >= 3) {
+        // We have plenty of states to load balance, so no need
+        // to block instance forking.
+        return;
+    }
+
+    bool isLeader = s2e()->getCurrentInstanceIndex() == s2e()->getInstanceIndexWithLowestId();
+    if (!isLeader) {
+        // Only the leader gets to fork new processes, this avoids
+        // complex synchronization.
+        *proceed = false;
+        s2e()->getDebugStream() << "Preventing instance fork because we are not the leader\n";
+        return;
+    }
+
+    SeedStats stats;
+    m_seeds->getSeedStats(stats);
+
+    unsigned idleIdx;
+    if (stats.getLowestIdleInstanceIndex(idleIdx)) {
+        // Some instances are doing nothing, no point in forking a new one
+        *proceed = false;
+        s2e()->getDebugStream() << "Preventing instance fork because there are idle instances\n";
+        return;
+    }
+
+    Seed s;
+    if (!m_seeds->getTopPrioritySeed(s)) {
+        // There are no more seeds left, don't fork
+        s2e()->getDebugStream() << "Preventing instance fork because there are no more seeds\n";
+        *proceed = false;
+        return;
+    }
+
+    // There are seeds left
+    uint64_t curTime = llvm::sys::TimeValue::now().seconds();
+    unsigned currentAvailableSeedCount = m_seeds->getSeedCount();
+    if (previousAvailableSeedCount > currentAvailableSeedCount) {
+        // The number of available seeds has decreased, which means
+        // that some worker picked up one of them.
+        lastSeedFetchTime = curTime;
+    }
+    previousAvailableSeedCount = currentAvailableSeedCount;
+
+    uint64_t lastSeedFetchElapsed = curTime - lastSeedFetchTime;
+
+    // The 10 seconds delay allows to workaround busy workers.
+    // Ideally, workers should be fast enough to process seeds as they come,
+    // but they may often be busy with other tasks and will ignore the
+    // new seeds. In this case, we have to spawn new instances if possible,
+    // after waiting for a while.
+    // TODO: figure out an algorithm that knows exactly which instances
+    // won't fetch a seed for a long time, so that there is no need for
+    // magic timeout.
+    if (lastSeedFetchElapsed < 10 && (s2e()->getCurrentInstanceCount() > currentAvailableSeedCount)) {
+        s2e()->getDebugStream() << "Preventing instance fork because there are enough workers\n"
+                                << "instanceCnt=" << s2e()->getCurrentInstanceCount()
+                                << " availSeeds=" << currentAvailableSeedCount << "\n";
+        *proceed = false;
+        return;
+    }
+}
+
+void SeedScheduler::onStateKill(S2EExecutionState *state) {
+    m_stateKilled = true;
 }
 
 void SeedScheduler::onSeed(const seeds::Seed &seed, seeds::SeedEvent event) {
@@ -123,6 +232,45 @@ void SeedScheduler::onNewBlockCovered(S2EExecutionState *state) {
     m_timeOfLastCoveredBlock = llvm::sys::TimeValue::now().seconds();
 }
 
+void SeedScheduler::terminateIdleInstance() {
+    if (s2e()->getExecutor()->getStatesCount() > 1) {
+        getDebugStream() << "idle detection: too many states\n";
+        return;
+    }
+
+    if (s2e()->getCurrentInstanceCount() == 1) {
+        // We are the only S2E instance running, don't kill ourselves
+        getDebugStream() << "idle detection: single instance\n";
+        return;
+    }
+
+    SeedStats stats;
+    m_seeds->getSeedStats(stats);
+
+    unsigned index;
+    if (!stats.getLowestIdleInstanceIndex(index)) {
+        // Every S2E instance has seeds to run, return
+        getDebugStream() << "idle detection: every instance has seeds\n";
+        return;
+    }
+
+    if (index != s2e()->getCurrentInstanceIndex()) {
+        // We are not the lowest instance
+        getDebugStream() << "idle detection: we are not the lowest instance index (" << s2e()->getCurrentInstanceIndex()
+                         << ") "
+                         << " without seeds (" << index << ")\n";
+        return;
+    }
+
+    // This is a simple way to synchronize instances in order
+    // to avoid multiple instances killing themselves at the
+    // same time. Only the instance with the lowest index is
+    // allowed to terminate. This means that if there are several
+    // idle instances, they will terminate in turn.
+    getInfoStream() << "Terminating idle S2E instance\n";
+    exit(0);
+}
+
 void SeedScheduler::processSeedStateMachine(uint64_t currentTime) {
     /* Only works for instances that have state 0 */
     if (!m_seeds->isAvailable()) {
@@ -140,18 +288,26 @@ void SeedScheduler::processSeedStateMachine(uint64_t currentTime) {
     bool recentHighPrioritySeed = recentHighPrioritySeedD < m_stateMachineTimeout;
     bool recentSeedFetch = timeOfLastFetchedSeedD < m_stateMachineTimeout;
 
-    getDebugStream() << "explorationState: " << m_explorationState << " "
-                     << "timeOfLastFetchedSeed: " << timeOfLastFetchedSeedD << " "
-                     << "foundBlocks: " << foundBlocksD << "s "
-                     << "foundCrashes: " << foundCrashesD << "s "
-                     << "hpSeed: " << recentHighPrioritySeedD << "s\n";
+    getInfoStream() << "explorationState: " << m_explorationState << " "
+                    << "timeOfLastFetchedSeed: " << timeOfLastFetchedSeedD << " "
+                    << "foundBlocks: " << foundBlocksD << "s "
+                    << "foundCrashes: " << foundCrashesD << "s "
+                    << "hpSeed: " << recentHighPrioritySeedD << "s\n";
 
     if (m_explorationState == WARM_UP) {
-        /* The warm up phase allows S2E to quickly find crashes and POVS
-         * in easy CBs, without incurring overhead of fetching
-         * and running the seeds. How long the plugin stays in this phase
-         * depends on S2E's success in finding new basic blocks and crashes.*/
+        // The warm up phase allows S2E to quickly find crashes and POVS
+        // in easy CBs, without incurring overhead of fetching
+        // and running the seeds. How long the plugin stays in this phase
+        // depends on S2E's success in finding new basic blocks and crashes.
         if (!foundBlocks && !foundCrashes) {
+            m_explorationState = WAIT_FOR_NEW_SEEDS;
+        } else if ((m_stateKilled || s2e()->getCurrentInstanceCount() > 1) &&
+                   (s2e()->getExecutor()->getStatesCount() == 1)) {
+            // The warm up phase terminates if no seedless states remain, i.e., there
+            // is only state 0 remaining, in which case we have to wait for new seeds
+            // as there is nothing else to do. We have to check for m_stateKilled because
+            // otherwise we'd always skip the warm up phase (as there is always only one
+            // state when S2E starts).
             m_explorationState = WAIT_FOR_NEW_SEEDS;
         } else {
             m_seeds->enableSeeds(false);
@@ -169,7 +325,10 @@ void SeedScheduler::processSeedStateMachine(uint64_t currentTime) {
             /* Prioritize normal seeds if S2E couldn't find coverage on its own */
             m_seeds->enableSeeds(true);
             m_explorationState = WAIT_SEED_SCHEDULING;
-
+        } else if (s2e()->getExecutor()->getStatesCount() == 1) {
+            /* Prioritize normal seeds if no other states are running */
+            m_seeds->enableSeeds(true);
+            m_explorationState = WAIT_SEED_SCHEDULING;
         } else {
             /* Otherwise, disable seed scheduling to avoid overloading */
             m_seeds->enableSeeds(false);
@@ -177,7 +336,7 @@ void SeedScheduler::processSeedStateMachine(uint64_t currentTime) {
 
     } else if (m_explorationState == WAIT_SEED_EXECUTION) {
         /* Give newly fetched seed some time to execute */
-        if (!recentSeedFetch) {
+        if (!recentSeedFetch || (s2e()->getExecutor()->getStatesCount() == 1)) {
             m_explorationState = WAIT_FOR_NEW_SEEDS;
         }
     }
@@ -189,6 +348,8 @@ void SeedScheduler::onTimer() {
 
     // Update the state machine ~ every second
     processSeedStateMachine(curTime);
+
+    terminateIdleInstance();
 }
 
 } // namespace seeds

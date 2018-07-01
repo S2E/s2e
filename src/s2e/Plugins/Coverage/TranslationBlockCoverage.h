@@ -169,6 +169,7 @@ private:
 
     void onTimer();
     void onStateKill(S2EExecutionState *state);
+    void onStateSwitch(S2EExecutionState *current, S2EExecutionState *next);
     void onModuleTranslateBlockComplete(S2EExecutionState *state, const ModuleDescriptor &module, TranslationBlock *tb,
                                         uint64_t last_pc);
 

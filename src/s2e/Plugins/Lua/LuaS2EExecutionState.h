@@ -34,6 +34,10 @@ public:
     LuaS2EExecutionState(S2EExecutionState *state) : m_state(state), m_memory(state), m_registers(state) {
     }
 
+    S2EExecutionState *getState() const {
+        return m_state;
+    }
+
     int mem(lua_State *L);
     int regs(lua_State *L);
     int createSymbolicValue(lua_State *L);

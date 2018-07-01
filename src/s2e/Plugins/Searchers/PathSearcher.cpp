@@ -32,7 +32,7 @@ void PathSearcher::initialize() {
     s2e()->getExecutor()->setSearcher(this);
 
     CorePlugin *core = s2e()->getCorePlugin();
-    core->onStateFork.connect_front(sigc::mem_fun(*this, &PathSearcher::onFork));
+    core->onStateFork.connect(sigc::mem_fun(*this, &PathSearcher::onFork), fsigc::signal_base::HIGH_PRIORITY);
     core->onTranslateInstructionStart.connect(sigc::mem_fun(*this, &PathSearcher::onTranslateInstruction));
     s2e()->getPlugin<DecreeMonitor>()->onSegFault.connect(sigc::mem_fun(*this, &PathSearcher::onSegFault));
 

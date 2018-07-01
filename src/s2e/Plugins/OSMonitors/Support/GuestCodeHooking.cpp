@@ -204,8 +204,8 @@ void GuestCodeHooking::onTranslateBlockStart(ExecutionSignal *signal, S2EExecuti
 
     const Hook &hook = (*it).second;
 
-    signal->connect_front(
-        sigc::bind(sigc::mem_fun(*this, &GuestCodeHooking::onExecuteBlockStart), hook.target_pc, true));
+    signal->connect(sigc::bind(sigc::mem_fun(*this, &GuestCodeHooking::onExecuteBlockStart), hook.target_pc, true),
+                    fsigc::signal_base::HIGH_PRIORITY);
 }
 
 void GuestCodeHooking::onExecuteBlockStart(S2EExecutionState *state, uint64_t pc, uint64_t hookAddress,

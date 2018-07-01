@@ -52,6 +52,11 @@ void TranslationBlockCoverage::initialize() {
         s2e()->getCorePlugin()->onStateKill.connect(sigc::mem_fun(*this, &TranslationBlockCoverage::onStateKill));
     }
 
+    bool writeCoverageOnStateSwitch = cfg->getBool(getConfigKey() + ".writeCoverageOnStateSwitch");
+    if (writeCoverageOnStateSwitch) {
+        s2e()->getCorePlugin()->onStateSwitch.connect(sigc::mem_fun(*this, &TranslationBlockCoverage::onStateSwitch));
+    }
+
     // Also write a JSON file every x seconds, where x is specified by the `writeCoveragePeriod` option. If x == 0 then
     // periodic writes are disabled
     int writeCoveragePeriod = cfg->getInt(getConfigKey() + ".writeCoveragePeriod", 0);
@@ -119,6 +124,12 @@ void TranslationBlockCoverage::onUpdateStates(S2EExecutionState *currentState, c
 
 void TranslationBlockCoverage::onStateKill(S2EExecutionState *state) {
     generateJsonCoverageFile(state);
+}
+
+void TranslationBlockCoverage::onStateSwitch(S2EExecutionState *current, S2EExecutionState *next) {
+    if (current) {
+        generateJsonCoverageFile(current);
+    }
 }
 
 // Periodically write the translation block coverage to the JSON file. This is for the case when a state never

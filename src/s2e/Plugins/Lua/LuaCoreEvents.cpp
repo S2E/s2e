@@ -42,6 +42,11 @@ std::string LuaCoreEvents::checkCoreSignal(const std::string &cfgname, const std
 }
 
 void LuaCoreEvents::registerCoreSignals(const std::string &cfgname) {
+    m_onStateForkDecide = checkCoreSignal(cfgname, "onStateForkDecide");
+    if (m_onStateForkDecide.length() > 0) {
+        s2e()->getCorePlugin()->onStateForkDecide.connect(sigc::mem_fun(*this, &LuaCoreEvents::onStateForkDecide));
+    }
+
     m_onStateKill = checkCoreSignal(cfgname, "onStateKill");
     if (m_onStateKill.length() > 0) {
         s2e()->getCorePlugin()->onStateKill.connect(sigc::mem_fun(*this, &LuaCoreEvents::onStateKill));
@@ -50,6 +55,24 @@ void LuaCoreEvents::registerCoreSignals(const std::string &cfgname) {
     m_onTimer = checkCoreSignal(cfgname, "onTimer");
     if (m_onTimer.length() > 0) {
         s2e()->getCorePlugin()->onTimer.connect(sigc::mem_fun(*this, &LuaCoreEvents::onTimer));
+    }
+}
+
+void LuaCoreEvents::onStateForkDecide(S2EExecutionState *state, bool *allowForking) {
+    lua_State *L = s2e()->getConfig()->getState();
+    LuaS2EExecutionState luaS2EState(state);
+    LuaAnnotationState luaAnnotation;
+
+    lua_getglobal(L, m_onStateForkDecide.c_str());
+    Lunar<LuaS2EExecutionState>::push(L, &luaS2EState);
+    Lunar<LuaAnnotationState>::push(L, &luaAnnotation);
+
+    lua_call(L, 2, 1);
+    *allowForking = lua_toboolean(L, -1) != 0;
+    lua_pop(L, 1);
+
+    if (!*allowForking) {
+        s2e()->getInfoStream() << "annotation prevented forking at pc=" << hexval(state->regs()->getPc()) << "\n";
     }
 }
 

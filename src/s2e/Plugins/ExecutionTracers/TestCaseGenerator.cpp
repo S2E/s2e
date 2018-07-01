@@ -1,6 +1,6 @@
 ///
 /// Copyright (C) 2010-2015, Dependable Systems Laboratory, EPFL
-/// Copyright (C) 2017, Cyberhaven
+/// Copyright (C) 2017-2018, Cyberhaven
 /// All rights reserved.
 ///
 /// Licensed under the Cyberhaven Research License Agreement.
@@ -11,17 +11,63 @@
 #include <iomanip>
 
 #include <boost/regex.hpp>
+#include <klee/Internal/ADT/ImmutableMap.h>
 #include <s2e/Plugins/OSMonitors/Linux/LinuxMonitor.h>
 #include <s2e/Plugins/OSMonitors/Windows/WindowsCrashMonitor.h>
 #include <s2e/S2E.h>
 #include <s2e/S2EExecutionState.h>
 #include <s2e/S2EExecutor.h>
 #include <s2e/Utils.h>
+
 #include "TestCaseGenerator.h"
 
 namespace s2e {
 namespace plugins {
 namespace testcases {
+
+namespace {
+
+class TestCaseGeneratorState : public PluginState {
+private:
+    ConcreteFileTemplates m_concreteFiles;
+
+public:
+    virtual TestCaseGeneratorState *clone() const {
+        return new TestCaseGeneratorState(*this);
+    }
+
+    static PluginState *factory(Plugin *p, S2EExecutionState *s) {
+        return new TestCaseGeneratorState();
+    }
+
+    Data getChunk(const std::string &name) {
+        auto dataPtr = m_concreteFiles.lookup(name);
+        if (dataPtr == nullptr) {
+            return Data();
+        } else {
+            return dataPtr->second;
+        }
+    }
+
+    void addChunk(const std::string &name, unsigned offset, const Data &chunk) {
+        auto data = getChunk(name);
+
+        if (data.size() < (offset + chunk.size())) {
+            data.resize(offset + chunk.size());
+        }
+
+        for (unsigned i = 0; i < chunk.size(); ++i) {
+            data[offset + i] = chunk[i];
+        }
+
+        m_concreteFiles = m_concreteFiles.replace(std::make_pair(name, data));
+    }
+
+    const ConcreteFileTemplates &getTemplates() const {
+        return m_concreteFiles;
+    }
+};
+}
 
 // TODO: this must be in sync with s2ecmd
 static const boost::regex SymbolicFileRegEx(".*?__symfile___(.+?)___(\\d+)_(\\d+)_symfile__.*", boost::regex::perl);
@@ -103,6 +149,11 @@ void TestCaseGenerator::onStateKill(S2EExecutionState *state) {
     generateTestCases(state, "kill", TC_LOG | TC_TRACE | TC_FILE);
 }
 
+const ConcreteFileTemplates &TestCaseGenerator::getTemplates(S2EExecutionState *state) const {
+    DECLARE_PLUGINSTATE_CONST(TestCaseGeneratorState, state);
+    return plgState->getTemplates();
+}
+
 void TestCaseGenerator::generateTestCases(S2EExecutionState *state, const std::string &prefix, TestCaseType type) {
     getInfoStream(state) << "generating test case at address " << hexval(state->regs()->getPc()) << '\n';
 
@@ -126,7 +177,7 @@ void TestCaseGenerator::generateTestCases(S2EExecutionState *state, const std::s
         std::stringstream ss;
         ss << "testcase-" << prefix << "-" << state->getID();
         std::vector<std::string> fileNames;
-        assembleTestCaseToFiles(inputs, ss.str(), fileNames);
+        assembleTestCaseToFiles(inputs, getTemplates(state), ss.str(), fileNames);
         for (const auto &it : fileNames) {
             getDebugStream(state) << "Generated " << it << "\n";
         }
@@ -248,45 +299,6 @@ void TestCaseGenerator::getFiles(const ConcreteInputs &inputs, TestCaseFiles &fi
 ///
 /// \brief Assembles the given list of concrete file chunks
 ///
-/// \param file the chunked representation of the concrete file
-/// \param out the assembled file content
-/// \return true if assembling was successful
-///
-bool TestCaseGenerator::assembleChunks(const TestCaseFile &file, std::vector<uint8_t> &out) {
-    if (file.totalParts != file.chunks.size()) {
-        getWarningsStream() << "Test case has incorrect number of parts\n";
-        return false;
-    }
-
-    if (file.chunksData.size() != file.chunks.size()) {
-        getWarningsStream() << "Test case has not enough data chunks\n";
-        return false;
-    }
-
-    // Get the total size
-    // The loop supposes the chunks are traversed in increasing order
-    unsigned size = 0;
-    std::vector<unsigned> offsets;
-    foreach2 (it, file.chunks.begin(), file.chunks.end()) {
-        offsets.push_back(size);
-        size += (*it).second;
-    }
-
-    out.resize(size);
-
-    foreach2 (it, file.chunksData.begin(), file.chunksData.end()) {
-        unsigned id = (*it).first;
-        const uint8_t *chunkData = (*it).second;
-        unsigned chunkSize = (*file.chunks.find(id)).second;
-        memcpy(&out[offsets[id]], chunkData, chunkSize);
-    }
-
-    return true;
-}
-
-///
-/// \brief Decodes concrete file chunks encoded in concrete inputs and assembles them into actual files.
-///
 /// Symbolic files may be large, it is more efficient to represent them as several
 /// symbolic arrays, each identified by a special name. Each symbolic array represents a chunk of the
 /// symbolic file. The name of the array encodes the position of the chunk in the file.
@@ -303,15 +315,77 @@ bool TestCaseGenerator::assembleChunks(const TestCaseFile &file, std::vector<uin
 /// v0___symfile____tmp_input___0_1_symfile___0 = {0x0, .... }
 /// This is the first (0) chunk of a file that has only one (1) chunk. That file was called /tmp/input.
 ///
+/// \param file the chunked representation of the concrete file
+/// \param out the assembled file content
+/// \return true if assembling was successful
 ///
-/// \param inputs the concrete inputs that must contain symbolic file chunks
-/// \param prefix the prefix to add to the generated test case file
-/// \param fileNames returns the location of the written file names
-///
-void TestCaseGenerator::assembleTestCaseToFiles(const ConcreteInputs &inputs, const std::string &prefix,
-                                                std::vector<std::string> &fileNames) {
+bool TestCaseGenerator::assembleChunks(const std::string &name, const TestCaseFile &file,
+                                       const ConcreteFileTemplates &templates, std::vector<uint8_t> &out) {
+    const auto tpl = templates.lookup_previous(name);
+
+    if (tpl == nullptr) {
+        // The file has no concrete template, so all its data must be contained
+        // in symbolic variables.
+        if (file.totalParts != file.chunks.size()) {
+            getWarningsStream() << "Test case has incorrect number of parts\n";
+            return false;
+        }
+
+        if (file.chunksData.size() != file.chunks.size()) {
+            getWarningsStream() << "Test case has not enough data chunks\n";
+            return false;
+        }
+
+        // Get the total size
+        // The loop supposes the chunks are traversed in increasing order
+        unsigned size = 0;
+        std::vector<unsigned> offsets;
+        foreach2 (it, file.chunks.begin(), file.chunks.end()) {
+            offsets.push_back(size);
+            size += (*it).second;
+        }
+
+        out.resize(size);
+
+        foreach2 (it, file.chunksData.begin(), file.chunksData.end()) {
+            unsigned id = (*it).first;
+            const uint8_t *chunkData = (*it).second;
+            unsigned chunkSize = (*file.chunks.find(id)).second;
+            unsigned offset = offsets[id];
+
+            memcpy(&out[offset], chunkData, chunkSize);
+        }
+    } else {
+        // We have a concrete template for the file. We use it as the base, and overwrite
+        // parts that were made symbolic.
+        out = tpl->second;
+
+        foreach2 (it, file.chunksData.begin(), file.chunksData.end()) {
+            unsigned id = (*it).first;
+            const uint8_t *chunkData = (*it).second;
+            unsigned chunkSize = (*file.chunks.find(id)).second;
+
+            if (chunkSize != 1) {
+                getWarningsStream() << "symbolic chunk sizes must be of size 1\n";
+                return false;
+            }
+
+            if (id >= out.size()) {
+                getWarningsStream() << "symbolic chunk id is greater than concrete file template\n";
+                return false;
+            }
+
+            out[id] = *chunkData;
+        }
+    }
+
+    return true;
+}
+
+void TestCaseGenerator::assembleTestCaseToFiles(const ConcreteInputs &inputs, const ConcreteFileTemplates &templates,
+                                                const std::string &prefix, std::vector<std::string> &fileNames) {
     TestCaseData data;
-    assembleTestCaseToFiles(inputs, data);
+    assembleTestCaseToFiles(inputs, templates, data);
 
     for (const auto &it : data) {
         const std::string &name = it.first;
@@ -327,7 +401,8 @@ void TestCaseGenerator::assembleTestCaseToFiles(const ConcreteInputs &inputs, co
     }
 }
 
-void TestCaseGenerator::assembleTestCaseToFiles(const ConcreteInputs &inputs, TestCaseData &data) {
+void TestCaseGenerator::assembleTestCaseToFiles(const ConcreteInputs &inputs, const ConcreteFileTemplates &templates,
+                                                TestCaseData &data) {
     TestCaseFiles files;
     getFiles(inputs, files);
 
@@ -335,14 +410,15 @@ void TestCaseGenerator::assembleTestCaseToFiles(const ConcreteInputs &inputs, Te
         const std::string &name = it.first;
         const TestCaseFile &file = it.second;
         std::vector<uint8_t> &out = data[name];
-        if (!assembleChunks(file, out)) {
+        if (!assembleChunks(name, file, templates, out)) {
             getWarningsStream() << "Could not generate concrete test file for " << name << "\n";
             continue;
         }
     }
 }
 
-void TestCaseGenerator::assembleTestCaseToFiles(const klee::Assignment &assignment, TestCaseData &data) {
+void TestCaseGenerator::assembleTestCaseToFiles(const klee::Assignment &assignment,
+                                                const ConcreteFileTemplates &templates, TestCaseData &data) {
     ConcreteInputs inputs;
     for (const auto &it : assignment.bindings) {
         const Array *array = it.first;
@@ -350,7 +426,48 @@ void TestCaseGenerator::assembleTestCaseToFiles(const klee::Assignment &assignme
         inputs.push_back(std::make_pair(array->getName(), varData));
     }
 
-    assembleTestCaseToFiles(inputs, data);
+    assembleTestCaseToFiles(inputs, templates, data);
+}
+
+void TestCaseGenerator::handleAddConcreteFileChunk(S2EExecutionState *state,
+                                                   const S2E_TCGEN_CONCRETE_FILE_CHUNK &chunk) {
+    std::string name;
+    if (!state->mem()->readString(chunk.name, name)) {
+        getWarningsStream() << "could not read file name at address " << hexval(chunk.name) << "\n";
+        s2e()->getExecutor()->terminateStateEarly(*state, "TestCaseGenerator call failed");
+    }
+
+    std::vector<uint8_t> data;
+    data.resize(chunk.size);
+
+    if (!state->mem()->read(chunk.data, data.data(), chunk.size)) {
+        getWarningsStream() << "could not read chunk data from guest at address " << hexval(chunk.data) << "\n";
+        s2e()->getExecutor()->terminateStateEarly(*state, "TestCaseGenerator call failed");
+    }
+
+    DECLARE_PLUGINSTATE(TestCaseGeneratorState, state);
+    plgState->addChunk(name, chunk.offset, data);
+}
+
+void TestCaseGenerator::handleOpcodeInvocation(S2EExecutionState *state, uint64_t guestDataPtr,
+                                               uint64_t guestDataSize) {
+    S2E_TCGEN_COMMAND command;
+
+    if (guestDataSize != sizeof(command)) {
+        getWarningsStream(state) << "mismatched S2E_TCGEN_COMMAND size\n";
+        return;
+    }
+
+    if (!state->mem()->read(guestDataPtr, &command, guestDataSize)) {
+        getWarningsStream(state) << "could not read transmitted data\n";
+        return;
+    }
+
+    switch (command.Command) {
+        case TCGEN_ADD_CONCRETE_FILE_CHUNK: {
+            handleAddConcreteFileChunk(state, command.Chunk);
+        } break;
+    }
 }
 }
 }

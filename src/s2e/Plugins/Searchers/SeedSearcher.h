@@ -148,34 +148,54 @@ public:
     /// \return  false if no seed could be found, true otherwise
     ///
     bool dequeue(Seed &seed) {
+        return pick(seed, true);
+    }
+
+    ///
+    /// \brief pick the first available seed, with or without removing
+    /// it from the queue.
+    ///
+    /// This function skips and cleans any seeds that have been picked
+    /// by another instance.
+    ///
+    /// \param seed is the returned seed
+    /// \param dequeue keep the seed in the queue if false
+    /// \return true if a seed could be picked, false if no seeds are available
+    ///
+    bool pick(Seed &seed, bool dequeue) {
         bool ret = false;
         SeedBitmap *bmp = m_bitmap.acquire();
 
         while (m_seeds.size() > 0) {
-            seed = doDequeue();
+            if (dequeue) {
+                seed = doDequeue();
+            } else {
+                seed = m_seeds.top();
+            }
 
             // Too many seeds to keep track of
             if (seed.index >= MAX_SEEDS) {
-                goto end;
+                break;
             }
 
             // Some other instance caught this seed
             if (bmp->get(seed.index)) {
+                if (!dequeue) {
+                    // Clean this seed, as it is used by someone else
+                    doDequeue();
+                }
                 continue;
             }
 
-            bmp->set(seed.index, true);
-            assert(bmp->get(seed.index));
+            if (dequeue) {
+                bmp->set(seed.index, true);
+                assert(bmp->get(seed.index));
+            }
 
             ret = true;
-            goto end;
+            break;
         }
 
-    // If getting here because the queue is empty,
-    // other instances were too quick, couldn't grab seeds
-    // quick enough.
-
-    end:
         m_bitmap.release();
         return ret;
     }
@@ -217,13 +237,8 @@ public:
     /// \param s the returned seed
     /// \return false if there are no seeds, true otherwise
     ///
-    bool getTopPrioritySeed(Seed &s) const {
-        if (size() == 0) {
-            return false;
-        }
-
-        s = m_seeds.top();
-        return true;
+    bool getTopPrioritySeed(Seed &s) {
+        return pick(s, false);
     }
 };
 
@@ -252,9 +267,32 @@ enum SeedEvent {
     TERMINATED
 };
 
-/// Collects global seed statistics
+/// Collects global seed statistics.
+/// An instance of this class is shared between all S2E instances.
 struct SeedStats {
     unsigned usedSeeds;
+
+    // This array signals to other S2E instances which other instance
+    // currently has available seeds. It is used to terminate idle instances.
+    bool idle[S2E_MAX_PROCESSES];
+
+    bool getLowestIdleInstanceIndex(unsigned &index) {
+        auto icnt = std::min((unsigned) S2E_MAX_PROCESSES, g_s2e->getMaxInstances());
+        for (unsigned i = 0; i < icnt; ++i) {
+            auto id = g_s2e->getInstanceId(i);
+            if (id == -1) {
+                // The process is dead, skip it.
+                continue;
+            }
+
+            if (idle[i]) {
+                index = i;
+                return true;
+            }
+        }
+
+        return false;
+    }
 };
 
 ///
@@ -389,6 +427,12 @@ private:
     /// Enables or disables seed scheduling
     bool m_enableSeeds;
 
+    /// Stores a backup of the fetched seeds in the s2e-last/seeds folder
+    bool m_backupSeeds;
+
+    /// Location where seeds will be backed up
+    std::string m_seedBackupDirectory;
+
     /// How many seed states are allowed concurrently
     unsigned m_maxSeedStates;
 
@@ -409,6 +453,13 @@ private:
 
     void onStateKill(S2EExecutionState *state);
 
+    ///
+    /// \brief Signals to other S2E instances whether or not we currently have
+    /// seeds available.
+    ///
+    void updateIdleStatus();
+
+    void backupSeed(const std::string &seedFilePath);
     void fetchNewSeeds();
     bool scheduleNextSeed();
     void onTimer();
@@ -481,9 +532,14 @@ public:
     /// \param s the returned seed
     /// \return false if there are no seeds, true otherwise
     ///
-    bool getTopPrioritySeed(Seed &s) const {
+    bool getTopPrioritySeed(Seed &s) {
         return m_availableSeeds.getTopPrioritySeed(s);
     }
+
+    ///
+    /// \brief Return a copy of the shared stats structure
+    ///
+    void getSeedStats(SeedStats &stats);
 };
 
 } // namespace seeds

@@ -33,10 +33,12 @@ void WebServiceInterface::initialize() {
     m_segFaults = 0;
 
     s2e()->getCorePlugin()->onEngineShutdown.connect(sigc::mem_fun(*this, &WebServiceInterface::onEngineShutdown));
-    s2e()->getCorePlugin()->onStateKill.connect_front(sigc::mem_fun(*this, &WebServiceInterface::onStateKill));
-    s2e()->getCorePlugin()->onTimer.connect_front(sigc::mem_fun(*this, &WebServiceInterface::onTimer));
-    s2e()->getCorePlugin()->onProcessForkComplete.connect_front(
-        sigc::mem_fun(*this, &WebServiceInterface::onProcessForkComplete));
+    s2e()->getCorePlugin()->onStateKill.connect(sigc::mem_fun(*this, &WebServiceInterface::onStateKill),
+                                                fsigc::signal_base::HIGHEST_PRIORITY);
+    s2e()->getCorePlugin()->onTimer.connect(sigc::mem_fun(*this, &WebServiceInterface::onTimer),
+                                            fsigc::signal_base::HIGHEST_PRIORITY);
+    s2e()->getCorePlugin()->onProcessForkComplete.connect(
+        sigc::mem_fun(*this, &WebServiceInterface::onProcessForkComplete), fsigc::signal_base::HIGHEST_PRIORITY);
 
     m_seedSearcher = s2e()->getPlugin<seeds::SeedSearcher>();
     if (m_seedSearcher) {
@@ -71,8 +73,8 @@ void WebServiceInterface::initialize() {
 QDict *WebServiceInterface::getGlobalStats() {
     QDict *stats = qdict_new();
 
-    qdict_put_obj(stats, "instance_current_count", QOBJECT(qint_from_int(s2e()->getCurrentProcessCount())));
-    qdict_put_obj(stats, "instance_max_count", QOBJECT(qint_from_int(s2e()->getMaxProcesses())));
+    qdict_put_obj(stats, "instance_current_count", QOBJECT(qint_from_int(s2e()->getCurrentInstanceCount())));
+    qdict_put_obj(stats, "instance_max_count", QOBJECT(qint_from_int(s2e()->getMaxInstances())));
 
     // state_highest_id is the highest state id across all currently running nodes.
     // To obtain number of queued paths, sum all state_completed_count and subtract from highest_state_id.

@@ -85,7 +85,7 @@ void ModuleExecutionDetector::initializeConfiguration() {
     ConfigFile::string_list keyList = cfg->getListKeys(getConfigKey());
 
     if (keyList.size() == 0) {
-        getWarningsStream() << "ModuleExecutionDetector: no configuration keys!" << '\n';
+        getWarningsStream() << "no configuration keys!" << '\n';
     }
 
     m_TrackAllModules = cfg->getBool(getConfigKey() + ".trackAllModules");
@@ -95,7 +95,7 @@ void ModuleExecutionDetector::initializeConfiguration() {
 
     unsigned moduleIndex = 0;
     foreach2 (it, keyList.begin(), keyList.end()) {
-        if (*it == "trackAllModules" || *it == "configureAllModules" || *it == "trackExecution") {
+        if (*it == "trackAllModules" || *it == "configureAllModules" || *it == "trackExecution" || *it == "logLevel") {
             continue;
         }
 
@@ -118,20 +118,17 @@ void ModuleExecutionDetector::initializeConfiguration() {
             exit(-1);
         }
 
-        getDebugStream() << "ModuleExecutionDetector: "
-                         << "id=" << d.id << " "
+        getDebugStream() << "id=" << d.id << " "
                          << "moduleName=" << d.moduleName << " "
                          << "context=" << d.context << '\n';
 
         if (m_ConfiguredModulesName.find(d) != m_ConfiguredModulesName.end()) {
-            getWarningsStream() << "ModuleExecutionDetector: "
-                                << "module names must be unique!" << '\n';
+            getWarningsStream() << "module names must be unique!" << '\n';
             exit(-1);
         }
 
         if (m_ConfiguredModulesId.find(d) != m_ConfiguredModulesId.end()) {
-            getWarningsStream() << "ModuleExecutionDetector: "
-                                << "module ids must be unique!" << '\n';
+            getWarningsStream() << "module ids must be unique!" << '\n';
             exit(-1);
         }
 
@@ -171,19 +168,17 @@ bool ModuleExecutionDetector::opAddModuleConfigEntry(S2EExecutionState *state) {
     desc.moduleName = strModuleName;
     desc.kernelMode = (bool) isKernelMode;
 
-    getInfoStream() << "ModuleExecutionDetector: Adding module "
+    getInfoStream() << "adding module "
                     << "id=" << desc.id << " moduleName=" << desc.moduleName << " kernelMode=" << desc.kernelMode
                     << "\n";
 
     if (m_ConfiguredModulesName.find(desc) != m_ConfiguredModulesName.end()) {
-        getWarningsStream() << "ModuleExecutionDetector: "
-                            << "module name " << desc.moduleName << " already exists\n";
+        getWarningsStream() << "module name " << desc.moduleName << " already exists\n";
         return false;
     }
 
     if (m_ConfiguredModulesId.find(desc) != m_ConfiguredModulesId.end()) {
-        getWarningsStream() << "ModuleExecutionDetector: "
-                            << "module id " << desc.id << " already exists\n";
+        getWarningsStream() << "module id " << desc.id << " already exists\n";
         return false;
     }
 
@@ -274,16 +269,17 @@ void ModuleExecutionDetector::moduleLoadListener(S2EExecutionState *state, const
     DECLARE_PLUGINSTATE(ModuleTransitionState, state);
 
     // If module name matches the configured ones, activate.
-    getDebugStream(state) << "Module loaded: " << module << "\n";
+    getDebugStream(state) << "module loaded: " << module << "\n";
 
     ModuleExecutionCfg cfg;
     cfg.moduleName = module.Name;
 
     if (m_ConfigureAllModules) {
         if (plgState->exists(&module, true)) {
-            getWarningsStream(state) << " [ALREADY REGISTERED] " << module.Name << "\n";
+            getWarningsStream(state) << module.Name << " is already registered"
+                                     << "\n";
         } else {
-            getDebugStream(state) << " [REGISTERING]\n";
+            getInfoStream(state) << "registering " << module.Name << "\n";
             plgState->loadDescriptor(module, true);
             onModuleLoad.emit(state, module);
         }
@@ -293,9 +289,9 @@ void ModuleExecutionDetector::moduleLoadListener(S2EExecutionState *state, const
     ConfiguredModulesByName::iterator it = m_ConfiguredModulesName.find(cfg);
     if (it != m_ConfiguredModulesName.end()) {
         if (plgState->exists(&module, true)) {
-            getDebugStream(state) << " [ALREADY REGISTERED ID=" << it->id << "]" << '\n';
+            getInfoStream(state) << "module ID=" << it->id << " is already registered" << '\n';
         } else {
-            getDebugStream(state) << " [REGISTERING ID=" << it->id << "]" << '\n';
+            getInfoStream(state) << "registering ID=" << it->id << '\n';
             plgState->loadDescriptor(module, true);
             onModuleLoad.emit(state, module);
         }
@@ -306,7 +302,7 @@ void ModuleExecutionDetector::moduleLoadListener(S2EExecutionState *state, const
 
     if (m_TrackAllModules) {
         if (!plgState->exists(&module, false)) {
-            getDebugStream(state) << " [REGISTERING NOT TRACKED]" << '\n';
+            getDebugStream(state) << "registering " << module.Name << " (tracking all modules)\n";
             plgState->loadDescriptor(module, false);
             onModuleLoad.emit(state, module);
         }
@@ -317,7 +313,7 @@ void ModuleExecutionDetector::moduleLoadListener(S2EExecutionState *state, const
 void ModuleExecutionDetector::moduleUnloadListener(S2EExecutionState *state, const ModuleDescriptor &module) {
     DECLARE_PLUGINSTATE(ModuleTransitionState, state);
 
-    getDebugStream(state) << "Module " << module.Name << " is unloaded" << '\n';
+    getDebugStream(state) << "module " << module.Name << " is unloaded" << '\n';
 
     plgState->unloadDescriptor(module);
 }
@@ -326,7 +322,7 @@ void ModuleExecutionDetector::processUnloadListener(S2EExecutionState *state, ui
                                                     uint64_t returnCode) {
     DECLARE_PLUGINSTATE(ModuleTransitionState, state);
 
-    getDebugStream(state) << "Process " << hexval(addressSpace) << " (pid=" << hexval(pid) << ") is unloaded\n";
+    getDebugStream(state) << "process " << hexval(addressSpace) << " (pid=" << hexval(pid) << ") is unloaded\n";
 
     plgState->unloadDescriptor(pid);
 }
@@ -551,7 +547,7 @@ ModuleTransitionState *ModuleTransitionState::clone() const {
 PluginState *ModuleTransitionState::factory(Plugin *p, S2EExecutionState *state) {
     ModuleTransitionState *s = new ModuleTransitionState();
 
-    p->getDebugStream() << "Creating initial module transition state\n";
+    p->getDebugStream() << "creating initial module transition state\n";
 
     return s;
 }
