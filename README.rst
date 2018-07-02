@@ -2,8 +2,8 @@
 S2E: The Selective Symbolic Execution Platform
 ==============================================
 
-S2E is a platform for writing tools that analyze the properties and behavior of software systems. S²E comes as a modular
-library that gives virtual machines symbolic execution and program analysis capabilities. S²E runs unmodified x86,
+S2E is a platform for writing tools that analyze the properties and behavior of software systems. S2E comes as a modular
+library that gives virtual machines symbolic execution and program analysis capabilities. S2E runs unmodified x86,
 x86-64, or ARM software stacks, including programs, libraries, the kernel, and drivers. Symbolic execution then
 automatically explores hundreds of thousands of paths through the system, while analyzers check that the desired
 properties hold on these paths and selectors focus path exploration on components of interest.
