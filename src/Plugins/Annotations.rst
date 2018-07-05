@@ -106,7 +106,7 @@ given below.
         -- Do something in the success state
 
         -- No need to continue running S2E - terminate
-        g_s2e:exit()
+        g_s2e:exit(0)
     end
 
     function on_failure(state, annotation_state)
