@@ -28,6 +28,16 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(GLIB_PKG glib-2.0)
 include_directories(${GLIB_PKG_INCLUDE_DIRS})
 
+##### libdwarf #####
+find_path(LIBDWARF_INCLUDE_DIRS
+          NAMES libdwarf.h dwarf.h
+          PATHS /usr/include
+                /usr/include/libdwarf
+                /usr/local/include
+                /usr/local/include/libdwarf)
+
+include_directories(${LIBDWARF_INCLUDE_DIRS})
+
 ##### LLVM #####
 find_package(LLVM REQUIRED)
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
