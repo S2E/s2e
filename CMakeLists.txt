@@ -28,7 +28,15 @@ message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 
 add_definitions(${LLVM_DEFINITIONS})
 
+find_path(LIBDWARF_INCLUDE_DIRS
+          NAMES libdwarf.h dwarf.h
+          PATHS /usr/include
+                /usr/include/libdwarf
+                /usr/local/include
+                /usr/local/include/libdwarf)
+
 include_directories("include"
+                    ${LIBDWARF_INCLUDE_DIRS}
                     ${LLVM_INCLUDE_DIRS})
 
 llvm_map_components_to_libnames(LLVM_LIBS core)
