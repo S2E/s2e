@@ -235,4 +235,29 @@ static inline void tb_add_jump(TranslationBlock *tb, int n, TranslationBlock *tb
     }
 }
 
-#endif
+#ifdef CONFIG_SYMBEX
+
+///
+/// \brief tb_get_instruction_size returns the size of the guest machine
+/// instruction starting at the given address and belonging to the given
+/// translation block. Useful for variable-length instruction sets.
+///
+/// \param tb the translation block in which the instruction is located
+/// \param addr the absolute virtual address at which the instruction starts
+/// \returns the size of the instruction in bytes, or 0 if no instruction
+/// starting at the given address is found in the translation block
+///
+static inline uint8_t tb_get_instruction_size(TranslationBlock *tb, uint64_t addr) {
+    int i;
+
+    for (i = 0; i < tb->precise_entries; i++) {
+        if (tb->pc + tb->precise_pcs[i].guest_pc_increment == addr) {
+            return tb->precise_pcs[i].guest_inst_size;
+        }
+    }
+
+    return 0;
+}
+#endif /* CONFIG_SYMBEX */
+
+#endif /* __LIBCPU_TB_H__ */
