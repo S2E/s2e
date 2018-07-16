@@ -87,7 +87,6 @@ Required packages
     sudo apt-get install libvdeplug-dev
     sudo apt-get install libpq-dev
     sudo apt-get install libc6-dev-i386
-    sudo apt-get install libprocps4-dev
     sudo apt-get install libboost-system-dev
     sudo apt-get install libboost-serialization-dev
     sudo apt-get install libboost-regex-dev
