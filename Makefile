@@ -62,13 +62,12 @@ ifeq ($(LLVMBUILD),$(S2EBUILD))
 LLVM_DIRS=llvm-native llvm-debug llvm-release
 endif
 
-LLVM_VERSION=3.9.0
+LLVM_VERSION=3.9.1
 LLVM_SRC=llvm-$(LLVM_VERSION).src.tar.xz
 LLVM_SRC_DIR=llvm-$(LLVM_VERSION).src
 LLVM_SRC_URL = http://llvm.org/releases/$(LLVM_VERSION)
 
-CLANG_BINARY_DIR=clang+llvm-3.9.0-x86_64-linux-gnu-ubuntu-$(UBUNTU_VERSION)
-
+CLANG_BINARY_DIR=clang+llvm-$(LLVM_VERSION)-x86_64-linux-gnu-ubuntu-$(UBUNTU_VERSION)
 CLANG_BINARY=$(CLANG_BINARY_DIR).tar.xz
 
 CLANG_SRC=cfe-$(LLVM_VERSION).src.tar.xz
