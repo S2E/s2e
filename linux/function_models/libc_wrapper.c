@@ -33,6 +33,10 @@
 
 char *strcpy(char *dest, const char *src) {
     if (!g_enable_function_models) {
+        if (!orig_strcpy) {
+            initialize_models();
+        }
+
         return (*orig_strcpy)(dest, src);
     }
 
@@ -41,6 +45,10 @@ char *strcpy(char *dest, const char *src) {
 
 char *strncpy(char *dest, const char *src, size_t n) {
     if (!g_enable_function_models) {
+        if (!orig_strncpy) {
+            initialize_models();
+        }
+
         return (*orig_strncpy)(dest, src, n);
     }
     return strncpy_model(dest, src, n);
@@ -48,6 +56,10 @@ char *strncpy(char *dest, const char *src, size_t n) {
 
 size_t strlen(const char *str) {
     if (!g_enable_function_models) {
+        if (!orig_strlen) {
+            initialize_models();
+        }
+
         return (*orig_strlen)(str);
     }
 
@@ -56,6 +68,10 @@ size_t strlen(const char *str) {
 
 int strcmp(const char *str1, const char *str2) {
     if (!g_enable_function_models) {
+        if (!orig_strcmp) {
+            initialize_models();
+        }
+
         return (*orig_strcmp)(str1, str2);
     }
 
@@ -64,6 +80,10 @@ int strcmp(const char *str1, const char *str2) {
 
 int strncmp(const char *str1, const char *str2, size_t n) {
     if (!g_enable_function_models) {
+        if (!orig_strncmp) {
+            initialize_models();
+        }
+
         return (*orig_strncmp)(str1, str2, n);
     }
 
@@ -72,6 +92,10 @@ int strncmp(const char *str1, const char *str2, size_t n) {
 
 void *memcpy(void *dest, const void *src, size_t n) {
     if (!g_enable_function_models) {
+        if (!orig_memcpy) {
+            initialize_models();
+        }
+
         return (*orig_memcpy)(dest, src, n);
     }
 
@@ -80,6 +104,10 @@ void *memcpy(void *dest, const void *src, size_t n) {
 
 int memcmp(const void *str1, const void *str2, size_t n) {
     if (!g_enable_function_models) {
+        if (!orig_memcmp) {
+            initialize_models();
+        }
+
         return (*orig_memcmp)(str1, str2, n);
     }
 
@@ -88,6 +116,10 @@ int memcmp(const void *str1, const void *str2, size_t n) {
 
 char *strcat(char *dest, const char *src) {
     if (!g_enable_function_models) {
+        if (!orig_strcat) {
+            initialize_models();
+        }
+
         return (*orig_strcat)(dest, src);
     }
 
@@ -96,6 +128,10 @@ char *strcat(char *dest, const char *src) {
 
 char *strncat(char *dest, const char *src, size_t n) {
     if (!g_enable_function_models) {
+        if (!orig_strncat) {
+            initialize_models();
+        }
+
         return (*orig_strncat)(dest, src, n);
     }
 

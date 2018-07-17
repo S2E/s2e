@@ -67,6 +67,7 @@ extern T_printf orig_printf;
 extern T_fprintf orig_fprintf;
 extern T_strcat orig_strcat;
 extern T_strncat orig_strncat;
+
 extern T_crc32 orig_crc32;
 extern T_crc16 orig_crc16;
 

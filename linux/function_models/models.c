@@ -30,19 +30,20 @@
 #include <s2e/function_models/models.h>
 #include <s2e/s2e.h>
 
-T_strcpy orig_strcpy;
-T_strncpy orig_strncpy;
-T_strlen orig_strlen;
-T_strcmp orig_strcmp;
-T_strncmp orig_strncmp;
-T_memcpy orig_memcpy;
-T_memcmp orig_memcmp;
-T_printf orig_printf;
-T_fprintf orig_fprintf;
-T_strcat orig_strcat;
-T_strncat orig_strncat;
-T_crc32 orig_crc32;
-T_crc16 orig_crc16;
+T_strcpy orig_strcpy = NULL;
+T_strncpy orig_strncpy = NULL;
+T_strlen orig_strlen = NULL;
+T_strcmp orig_strcmp = NULL;
+T_strncmp orig_strncmp = NULL;
+T_memcpy orig_memcpy = NULL;
+T_memcmp orig_memcmp = NULL;
+T_printf orig_printf = NULL;
+T_fprintf orig_fprintf = NULL;
+T_strcat orig_strcat = NULL;
+T_strncat orig_strncat = NULL;
+
+T_crc32 orig_crc32 = NULL;
+T_crc16 orig_crc16 = NULL;
 
 // Save the original functions so we can use them if required
 void initialize_models() {
@@ -177,8 +178,9 @@ int strncmp_model(const char *str1, const char *str2, size_t n) {
         return (*orig_strncmp)(str1, str2, n);
     }
 
-    if (!n)
+    if (!n) {
         return 0;
+    }
 
     struct S2E_LIBCWRAPPER_COMMAND cmd;
     cmd.Command = LIBCWRAPPER_STRNCMP;
@@ -208,8 +210,9 @@ void *memcpy_model(void *dest, const void *src, size_t n) {
         return (*orig_memcpy)(dest, src, n);
     }
 
-    if (!n)
+    if (!n) {
         return dest;
+    }
 
     if (n > MAX_STRLEN) {
         return (*orig_memcpy)(dest, src, n);
