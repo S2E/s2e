@@ -34,8 +34,7 @@ Tutorials
 
   4. Analysis of Linux binaries
 
-     a. `Symbolic execution of Coreutils <src/Tutorials/coreutils/index.rst>`_
-     b. `Using SystemTap with S2E <src/Tutorials/SystemTap/index.rst>`_
+     a. `Using SystemTap with S2E <src/Tutorials/SystemTap/index.rst>`_
 
   5. Analysis of Windows binaries
 

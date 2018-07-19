@@ -66,8 +66,8 @@ symbols (so that we can generate line coverage).
 
 The coreutils programs will be available in ``coreutils-8.26/build/bin``.
 
-Running Coreutils in S2E
-------------------------
+Running Coreutils concretely in S2E
+-----------------------------------
 
 Run the following command in order to create a ``cat`` project. This will instruct S2E to run cat and display
 the contents of ``/etc/fstab``. For the sake of simplicity, no symbolic execution will occur here (as the file
@@ -75,16 +75,14 @@ is concrete and we will not instruct S2E to make it symbolic).
 
 .. code-block:: console
 
-    $ s2e new_project --image debian-9.2.1-i386 /path/to/coreutils-8.26/build/bin/cat /etc/fstab
-
+    s2e new_project --image debian-9.2.1-i386 /path/to/coreutils-8.26/build/bin/cat /etc/fstab
 
 After creating the project, run S2E. This should take a few seconds and terminate.
 
 .. code-block:: console
 
-    $ cd projects/cat
-    $ ./launch.s2e.sh
-
+    cd projects/cat
+    ./launch.s2e.sh
 
 Generating line coverage
 ------------------------
@@ -94,7 +92,7 @@ The following command will generate an HTML report.
 
 .. code-block:: console
 
-    $ s2e coverage lcov --html cat
+    s2e coverage lcov --html cat
 
 This will generate the following in ``projects/cat/s2e-last``:
 
@@ -106,8 +104,6 @@ The image below shows a snippet from the generated HTML report:
 .. image:: lcov-cat-sp1.png
    :width: 640px
 
-|
-
 .. image:: lcov-cat-sp2.png
    :width: 640px
 
@@ -115,7 +111,6 @@ The image below shows a snippet from the generated HTML report:
 
   At the moment, S2E does not generate branch coverage or function coverage information, so these will be
   missing from the report.
-
 
 Line coverage for shared libraries
 ==================================
@@ -144,9 +139,8 @@ Then re-generate the coverage:
 
 .. code-block:: console
 
-    $ cd projects/cat && ./launch.s2e.sh
-    $ cd ../..
-    $ s2e coverage lcov --html cat
+    cd projects/cat && ./launch.s2e.sh
+    s2e coverage lcov --html cat
 
 The command should display errors about source code not found:
 
@@ -161,13 +155,14 @@ yourself and did not use the pre-built ones, otherwise the docker image ``linux-
 
 .. code-block:: console
 
-    $ docker run --rm -ti -v "$HOME":"$HOME" linux-build-i386
-    # cd /home/user/s2e/env/projects/cat
-    # echo "deb-src http://deb.debian.org/debian/ stretch main" >> /etc/apt/sources.list
-    # apt-get update
-    # apt-get install dpkg-dev
-    # apt-get source libc6:i386
-    # exit
+    docker run --rm -ti -v "$HOME":"$HOME" linux-build-i386
+    # In the container's Bash prompt
+    cd /home/user/s2e/env/projects/cat
+    echo "deb-src http://deb.debian.org/debian/ stretch main" >> /etc/apt/sources.list
+    apt-get update
+    apt-get install dpkg-dev
+    apt-get source libc6:i386
+    exit
 
 After you have run the commands above, you should have the ``glibc-2.24`` folder in your project directory.
 Simply re-run the code coverage command above. You should now get the following report:
@@ -175,28 +170,30 @@ Simply re-run the code coverage command above. You should now get the following 
 .. image:: lcov-libc-sp1.png
    :width: 640px
 
-
 Basic block coverage
 ====================
 
 Sometimes, you do not have source code or debug information. In this case, you can use S2E to compute
 basic block coverage.
 
-``s2e-env`` provides a subcommand that generates basic block coverage. This subcommand requires either IDA Pro or
-Radare to disassemble the target binary and extract the basic blocks from it. If you are using IDA Pro, you must
-specify the path to its location ``s2e-env`` config file. If you are using Radare, it must be installed into a location
-on your path and you must have the ``r2pipe`` Python package installed via pip (see
-`here <https://github.com/S2E/s2e-env/blob/master/README.md>`_ for details). In order to produce this basic block
-listing you can run one of the following commands:
+``s2e-env`` provides a subcommand that generates basic block coverage. This subcommand requires either IDA Pro, Radare
+or Binary Ninja to disassemble the target binary and extract the basic blocks from it. The different disassemblers have
+different requirements.
 
-.. code-block:: console
+- **Ida Pro**: You must specify the path to its location ``s2e-env`` config file.
+- **Radare**: Radare must be installed into a location on your path and you must have the ``r2pipe`` Python package
+  installed via pip (see `here <https://github.com/S2E/s2e-env/blob/master/README.md>`_ for details).
+- **Binary Ninja**: You must have a Binary Ninja license that allows "GUI-less processing".
+  
+In order to produce this basic block listing you can run one of the following commands:
 
-    $ s2e coverage basic_block --disassembler=ida cat
-    $ s2e coverage basic_block --disassembler=r2 cat
+- ``s2e coverage basic_block --disassembler=ida cat``
+- ``s2e coverage basic_block --disassembler=r2 cat``
+- ``s2e coverage basic_block --disassembler=binaryninja cat``
 
 The basic block coverage subcommand will perform a block coverage analysis on ``s2e-last`` in the ``cat`` project by
 mapping translation block coverage generated by the ``TranslationBlockCoverage`` plugin to the basic block information
-extracted by IDA Pro/Radare. The result will be written to ``projects/cat/s2e-last/cat_coverage.json``, part of
+extracted by your disassembler. The result will be written to ``projects/cat/s2e-last/cat_coverage.json``, part of
 which is shown below.
 
 .. code-block:: json
@@ -227,6 +224,65 @@ which is shown below.
         }
     }
 
+Later we will show how you can use this basic block coverage together with your chosen disassembler.
+
+Code coverage during symbolic execution
+=======================================
+
+So far, we have seen how to get code coverage in concrete single-path executions. Everything works the same
+when symbolic execution is enabled. Each path will get its own coverage file and ``s2e-env`` will automatically
+aggregate all of them to produce a coverage report. In this section, we will configure ``cat`` to use symbolic
+inputs and will measure the corresponding increase in coverage.
+
+First, create a new project called ``cat-symb`` as follows. This will re-generate a new configuration for ``cat``
+with symbolic execution enabled. The project that you generated earlier in this tutorial is preserved in the ``cat``
+folder.
+
+.. code-block:: console
+
+    s2e new_project -n cat-symb --image debian-9.2.1-i386 /path/to/coreutils-8.26/build/bin/cat -T @@
+
+The ``@@`` symbol tells ``s2e-env`` to generate a bootstrap file that will run ``cat`` with a symbolic file as input.
+By default this symbolic file will be a 256 byte file filled with ``null`` bytes as concolic values.
+
+The ``-T`` option forces ``cat`` to display TAB characters (0x09). This is important because it forces ``cat`` to read
+the symbolic values and fork two states - one state for the character being a TAB and another state for a character
+being a non-TAB.
+
+To make symbolic execution a bit more interesting for ``cat``, we will have to modify this symbolic file slightly.
+Instead of having the symbolic file filled with ``null`` bytes, we will add some actual text to the file to make it
+more representative of using ``cat``. Open ``bootstrap.sh`` and replace ``truncate -s 256 ${SYMB_FILE}`` with:
+
+.. code-block:: bash
+
+    python -c "print 'A' * 8" > ${SYMB_FILE}
+
+Then run S2E for a moment and terminate it.
+
+.. code-block:: console
+
+    cd projects/cat-symb && ./launch-s2e.sh
+    # ...
+    # Terminate S2E after a while
+    killall -9 qemu-system-i386
+
+Finally, get the code coverage:
+
+.. code-block:: console
+
+    s2e coverage lcov --html cat-symb
+
+Compare the obtained results with the previous single-path run. Line coverage percentage should be higher.
+
+.. image:: lcov-cat-mp1.png
+   :width: 640
+
+Now generate the basic block coverage (using your chosen disassembler, in this case IDA Pro):
+
+.. code-block:: console
+
+    s2e coverage basic_block --disassembler=ida cat-symb
+
 You can then use this data for further analysis. For example, the S2E `tools <https://github.com/S2E/tools>`_ repo
 contains an IDA Pro script to highlight the basic blocks covered by S2E during analysis. This script can be found at
 ``install/bin/ida_highlight_basic_blocks.py`` in your S2E environment. To run the script, open the ``cat`` binary in
@@ -250,68 +306,13 @@ Radare as follows:
 
 .. code-block:: console
 
-    $ r2 -i install/bin/r2_highlight_basic_blocks.py projects/cat/cat
+    r2 -i install/bin/r2_highlight_basic_blocks.py projects/cat-symb/cat
 
 You will be prompted for the ``basic_block_coverage.json`` file generated by S2E. Enter the path to this file and the
 basic blocks executed by S2E will be annotated with a ``Covered by S2E`` comment. The image below illustrates this.
 
 .. image:: r2_cat_coverage.png
    :width: 640
-
-
-Code coverage during symbolic execution
-=======================================
-
-So far, we have seen how to get code coverage in concrete single-path executions. Everything works the same
-when symbolic execution is enabled. Each path will get its own coverage file and ``s2e-env`` will automatically
-aggregate all of them to produce a coverage report. In this section, we will configure ``cat`` to use symbolic
-inputs and will measure the corresponding increase in coverage.
-
-First, create a new project called ``cat-symb`` as follows. This will re-generate a new configuration for ``cat``
-with symbolic execution enabled. The project that you generated earlier in this tutorial is preserved in the ``cat``
-folder.
-
-.. code-block:: console
-
-    $ s2e new_project -n cat-symb -i debian-9.2.1-i386 /home/vitaly/softs/coreutils-8.26/build/bin/cat -T @@
-
-The ``@@`` symbol tells ``s2e-env`` to generate a bootstrap file that will run ``cat`` with a symbolic file as input.
-By default this symbolic file will be a 256 byte file filled with ``null`` bytes as concolic values.
-
-The ``-T`` option forces ``cat`` to display TAB characters (0x09). This is important because it forces ``cat`` to read
-the symbolic values and fork two states - one state for the character being a TAB and another state for a character
-being a non-TAB.
-
-To make symbolic execution a bit more interesting for ``cat``, we will have to modify this symbolic file slightly.
-Instead of having the symbolic file filled with ``null`` bytes, we will add some actual text to the file to make it
-more representative of using ``cat``. Open ``bootstrap.sh`` and replace ``truncate -s 256 ${SYMB_FILE}`` with:
-
-.. code-block:: bash
-
-    echo "Here is some text" > ${SYMB_FILE}
-
-Then run S2E for a moment and terminate it.
-
-.. code-block:: bash
-
-    $ cd projects/cat-symb && ./launch-s2e.sh
-    ...
-    # Terminate S2E after a while
-    $ killall -9 qemu-system-i386
-
-
-Finally, get the code coverage:
-
-.. code-block:: bash
-
-    $ s2e coverage lcov --html cat-symb
-
-Compare the obtained results with the previous single-path run. Line coverage percentage should be higher.
-
-.. image:: lcov-cat-mp1.png
-   :width: 640
-
-
 
 How does S2E record and compute coverage?
 =========================================
@@ -380,13 +381,11 @@ other program.
     the Linux source on your system and the coverage report may be empty.
 
 1. Create a new project or pick an existing one. The analysis target does not matter, so you may also create
-   an empty project.
+   an empty project. In your S2E environment:
 
-   .. code-block:: bash
+   .. code-block:: console
 
-       $ cd /home/user/s2e/env
-       $ s2e new_project -n linux-kernel -i debian-9.2.1-x86_64 --no-target --type linux
-
+       s2e new_project -n linux-kernel -i debian-9.2.1-x86_64 --no-target --type linux
 
 2. Add ``vmlinux`` to the ``ModuleExecutionDetector`` plugin configuration:
 
@@ -420,7 +419,6 @@ other program.
         # Kill states before exiting
         ${S2ECMD} kill $? "Target execution terminated"
 
-
    Alternatively, if you specified a binary to analyze during project creation, add ``${S2ECMD} flush_tbs``
    to the ``execute_target`` function in ``bootstrap.sh`` as follows.
 
@@ -443,29 +441,26 @@ other program.
             # ...
         }
 
-
 4. Run S2E. The ``TranslationBlockCoverage`` plugins writes coverage files when states terminate so make sure
    at least one state is completed before killing S2E.
 
-   .. code-block:: bash
+   .. code-block:: console
 
-       $ cd projects/linux-kernel
-       $ ./launch-s2e.sh
-
+       cd projects/linux-kernel
+       ./launch-s2e.sh
 
 5. Generate line coverage information. This may take a few minutes as ``vmlinux`` is large and ``pyelftools`` that
    ``s2e-env`` uses internally is slow. Do not forget the ``--include-covered-files-only`` option to keep the report
    as short as possible (source files with no coverage will be omitted).
 
-   .. code-block:: bash
+   .. code-block:: console
 
-       $ s2e coverage lcov --html --include-covered-files-only linux-kernel
+       s2e coverage lcov --html --include-covered-files-only linux-kernel
 
    This should produce a report that looks like this:
 
    .. image:: linux-cov.png
       :width: 640px
-
 
 Line coverage for Windows binaries
 ==================================
@@ -484,7 +479,6 @@ Line coverage support for Windows binaries is currently in progress. There are t
 
    The Windows device driver testing `tutorial <../../Tutorials/WindowsDrivers/FaultInjection.rst>`__
    shows in details how to obtain line coverage for Windows kernel binaries.
-
 
 
 Debugging code coverage
@@ -529,7 +523,7 @@ The typical symptom is that the coverage report is empty. Here is a checklist to
 
 - Check that your project directory contains a symlink to guestfs:
 
-  .. code-block:: bash
+  .. code-block:: console
 
         $ ls -l /home/user/s2e/env/projects/my_project
         ...
@@ -540,9 +534,9 @@ The typical symptom is that the coverage report is empty. Here is a checklist to
 
 - Check that you did not delete temporary image build files, in particular the Linux source code.
 
-  .. code-block:: bash
+  .. code-block:: console
 
-      (venv) localhost:~/s2e/env$ ls -l images/.tmp-output/linux-4.9.3-x86_64/linux-4.9.3/
+      $ ls -l images/.tmp-output/linux-4.9.3-x86_64/linux-4.9.3/
       drwxrwxr-x  34 user user      4096 Apr 13 19:22 arch
       drwxrwxr-x   3 user user      4096 Apr 13 19:14 block
       drwxrwxr-x   2 user user      4096 Apr 13 19:12 certs
