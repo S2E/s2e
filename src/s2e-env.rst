@@ -307,4 +307,5 @@ Next steps
 ==========
 
 Now that you know how to use ``s2e-env``, why not start using it to analyze binaries from `DARPA's Cyber Grand
-Challenge <Tutorials/PoV/index.rst>`__, programs from `Coreutils <Tutorials/coreutils/index.rst>`__, or even your own programs!
+Challenge <Tutorials/PoV/index.rst>`__, programs from `Coreutils <Howtos/Coverage/index.rst>`__, or even your own
+programs!

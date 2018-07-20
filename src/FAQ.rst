@@ -10,7 +10,7 @@ How do I know what S2E is doing?
    This will allow you to collect all fork locations. Additionally, you can use ``TranslationBlockTracer``  in order to
    have a detailed trace for each execution path, which you can view with the ``tbtrace`` tool. Finally,
    ``TranslationBlockCoverage`` allows you to view the basic block coverage in either IDA Pro or Radare (as described
-   in the `Coreutils <Tutorials/coreutils/index.rst>`_ tutorial).
+   in the `Coverage <Howtos/Coverage/index.rst>`_ tutorial).
 
 2. Look at ``s2e-last/debug.txt`` and other files. These files list all the major events occurring during symbolic
    execution. If there are no messages in the logs and the CPU usage is 100%, it may be that execution is stuck
