@@ -21,4 +21,4 @@ all the plugins that listen for a custom opcode (i.e. those that implement the
 ``BaseInstructionsPluginInvokerInterface`` interface) in the order of their registration.
 
 s2e.h is well documented, so see the `source code
-<https://github.com/S2E/guest-tools/blob/master/common/include/s2e/s2e.h>`_ for more information on what instructions exist.
+<https://github.com/S2E/guest-tools/blob/master/common/include/s2e/s2e.h>`__ for more information on what instructions exist.

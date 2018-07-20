@@ -41,7 +41,7 @@ concrete values and allows the substitution of symbolic inputs with the concrete
 Using the ``s2e.so`` plugin
 -----------------------------
 
-The `s2e.so <../Tutorials/BasicLinuxSymbex/s2e.so.rst>`_ library enables symbolic execution without modifying the
+The `s2e.so <../Tutorials/BasicLinuxSymbex/s2e.so.rst>`__ library enables symbolic execution without modifying the
 program's source code. This library also supports concolic execution with the ``--concolic`` switch, that can be added
 right before the concrete program arguments. The following example invokes the ``tr`` Unix utility via the ``tr ab ab
 ab`` command. The library automatically assigns symbolic arguments to all arguments while keeping the concrete ``ab``

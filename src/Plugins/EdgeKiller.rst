@@ -9,14 +9,14 @@ Options
 -------
 
 The configuration requires one section per module to be monitored. The section name must match the module identifier
-defined in the configuration section of the `ModuleExecutionDetector <ModuleExecutionDetector.rst>`_ plugin. Each
+defined in the configuration section of the `ModuleExecutionDetector <ModuleExecutionDetector.rst>`__ plugin. Each
 section contains a list of named pairs of program counters that define the program edges. All program counters are
 relative to the native load base of the module. The name of each pair is not important, but must be unique.
 
 Required Plugins
 ----------------
 
-* `ModuleExecutionDetector <ModuleExecutionDetector.rst>`_
+* `ModuleExecutionDetector <ModuleExecutionDetector.rst>`__
 
 Configuration Sample
 --------------------

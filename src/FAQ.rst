@@ -10,7 +10,7 @@ How do I know what S2E is doing?
    This will allow you to collect all fork locations. Additionally, you can use ``TranslationBlockTracer``  in order to
    have a detailed trace for each execution path, which you can view with the ``tbtrace`` tool. Finally,
    ``TranslationBlockCoverage`` allows you to view the basic block coverage in either IDA Pro or Radare (as described
-   in the `Coverage <Howtos/Coverage/index.rst>`_ tutorial).
+   in the `Coverage <Howtos/Coverage/index.rst>`__ tutorial).
 
 2. Look at ``s2e-last/debug.txt`` and other files. These files list all the major events occurring during symbolic
    execution. If there are no messages in the logs and the CPU usage is 100%, it may be that execution is stuck
@@ -35,20 +35,20 @@ that works in most cases.
 * Make sure your VM image is minimal for the components you want to test. ``s2e-env`` generates working Linux images,
   but if you created it manually, make sure it follows some basic guidelines. In most cases, it should not have swap
   enabled and all unnecessary background daemons should be disabled. Refer to the `image installation
-  <ImageInstallation.rst>`_ tutorial for more information.
+  <ImageInstallation.rst>`__ tutorial for more information.
 
 Second, throw hardware at your problem
 
-* Refer to the `How to run S2E on multiple cores <Howtos/Parallel.rst>`_ tutorial for instructions.
+* Refer to the `How to run S2E on multiple cores <Howtos/Parallel.rst>`__ tutorial for instructions.
 
 Third, use S2E to *selectively* relax and/or over-constrain path constraints.
 
-* First, run the `fork profiler <Tools/ForkProfiler.rst>`_ to understand which program counters in your program fork
+* First, run the `fork profiler <Tools/ForkProfiler.rst>`__ to understand which program counters in your program fork
   the most. Usually, functions such as ``printf`` can be stubbed out, and others like ``strlen`` can be modeled
-  to decrease drastically the number of forks. `s2e.so <Tutorials/BasicLinuxSymbex/s2e.so.rst>`_ comes with models for
-  several such functions. You can also give `state merging <StateMerging.rst>`_ a try.
+  to decrease drastically the number of forks. `s2e.so <Tutorials/BasicLinuxSymbex/s2e.so.rst>`__ comes with models for
+  several such functions. You can also give `state merging <StateMerging.rst>`__ a try.
 
-* Understanding what to select can be made considerably easier if you `attach a debugger <Howtos/Debugging.rst>`_ to
+* Understanding what to select can be made considerably easier if you `attach a debugger <Howtos/Debugging.rst>`__ to
   the S2E instance.
 
 * If you use a depth-first search and execution hits a polling loop, rapid forking may occur and execution may never
@@ -84,7 +84,7 @@ following describes concrete steps that allowed us to explore programs most effi
    * Provide example values to library functions (e.g., to ``printf``, as described previously)
    * Minimize amount of symbolic data leakage into the kernel (e.g., symbolic file names or symbolic stdio). Redirect
      output to ``/dev/null``.
-   * For dynamically-linked Linux binaries, enable the `FunctionModels <Plugins/Linux/FunctionModels.rst>`_ plugin to
+   * For dynamically-linked Linux binaries, enable the `FunctionModels <Plugins/Linux/FunctionModels.rst>`__ plugin to
      return a symbolic expression rather than forking in common libc functions.
 
 5. Kill the paths that you are not interested in:
@@ -94,7 +94,7 @@ following describes concrete steps that allowed us to explore programs most effi
    * Write a custom plugin that probes the program's state to decide when to kill the path.
    * If you exercise multiple entry points of a library (e.g., a device driver), it may make sense to choose only one
      successful path when an entry point exits and kill all the others.
-   * Kill back-edges of polling loops using the `EdgeKiller <Plugins/EdgeKiller.rst>`_ plugin. You can also use this
+   * Kill back-edges of polling loops using the `EdgeKiller <Plugins/EdgeKiller.rst>`__ plugin. You can also use this
      plugin when execution enters some block of code (e.g., error recovery).
 
 6. Prioritize paths according to a metric that makes sense for your problem. This may be done by writing a custom state

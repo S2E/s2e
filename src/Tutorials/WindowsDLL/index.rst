@@ -3,14 +3,14 @@ Windows DLL Analysis
 ====================
 
 This tutorial outlines how a Windows dynamic-link library (DLL) can be analyzed in S2E. As an example we will analyze
-the `Beep <https://msdn.microsoft.com/en-us/library/windows/desktop/ms679277>`_ function in ``kernel32.dll``.
+the `Beep <https://msdn.microsoft.com/en-us/library/windows/desktop/ms679277>`__ function in ``kernel32.dll``.
 
 .. contents::
 
 Preparing the test environment
 ==============================
 
-As usual, use `s2e-env <../../s2e-env.rst>`_ to create your S2E environment. Build a Windows image using the
+As usual, use `s2e-env <../../s2e-env.rst>`__ to create your S2E environment. Build a Windows image using the
 ``image_build`` command. Note that when building a Windows image the ``--iso-dir`` option must be provided. E.g.
 
 .. code-block:: console
@@ -28,7 +28,7 @@ This will create the ``kernel32`` project in your S2E environment. Note that whe
 program will be used to execute the DLL and that the ``Beep`` function will be used as the entry point. The arguments
 5000 and 1000 were also specified when creating the new project. These correspond to the frequency and duration of the
 sound, as specified in the ``Beep``
-`documentation <https://msdn.microsoft.com/en-us/library/windows/desktop/ms679277>`_.
+`documentation <https://msdn.microsoft.com/en-us/library/windows/desktop/ms679277>`__.
 
 ``rundll32`` never terminates after launching, so we must modify ``s2e-config.lua`` to ensure that translation block
 coverage is recorded. To do so, we will enable periodic coverage updates for the ``TranslationBlockCoverage`` plugin.
@@ -47,7 +47,7 @@ it (e.g. via ``killall -9 qemu-system-x86_64``).
 Generate basic block coverage
 =============================
 
-As in the `coreutils <../coreutils/index.rst>`_ tutorial, you can use ``s2e-env`` to generate basic block coverage to confirm
+As in the `coreutils <../coreutils/index.rst>`__ tutorial, you can use ``s2e-env`` to generate basic block coverage to confirm
 that the ``Beep`` function was executed.
 
 .. code-block:: console

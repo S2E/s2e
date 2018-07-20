@@ -12,7 +12,7 @@ Starting with an Empty Plugin
 
 The first thing to do is to name the plugin and create boilerplate code. Let us name the plugin ``InstructionTracker``.
 You can copy/paste the ``Example`` plugin that ships with S2E (in the `libs2eplugins
-<https://github.com/S2E/libs2eplugins>`_ repository).
+<https://github.com/S2E/libs2eplugins>`__ repository).
 
 Create a file named ``InstructionTracker.h`` in ``$S2EDIR/libs2eplugins/src/s2e/Plugins`` with the following content:
 
@@ -126,7 +126,7 @@ Instrumenting Instructions
 
 To instrument an instruction, an S2E plugin registers to the ``onTranslateInstructionStart`` core event. There are
 many other core events to which a plugin can register. These events are defined in ``CorePlugin.h`` in the
-`libs2ecore <https://github.com/S2E/libs2ecore>`_ repository.
+`libs2ecore <https://github.com/S2E/libs2ecore>`__ repository.
 
 Extend your code as follows. Do not forget to add all new member functions to the (private) section of the class
 declaration.
@@ -231,7 +231,7 @@ Exporting Events
 ================
 
 All S2E plugins can define custom events. Other plugins can in turn connect to them and also export their own events.
-This scheme is heavily used by stock S2E plugins. For example, the `LinuxMonitor <../Plugins/Linux/LinuxMonitor.rst>`_
+This scheme is heavily used by stock S2E plugins. For example, the `LinuxMonitor <../Plugins/Linux/LinuxMonitor.rst>`__
 plugin exports a number of events (e.g. segmentation fault, module load, etc.) that can be intercepted by your own
 plugins.
 

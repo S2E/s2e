@@ -37,7 +37,7 @@ directory will be exported.
 
 The ``pluginsConfig.HostFiles.allowWrite`` must be set to ``true`` for allowing writes to the base directories.
 
-If you are using a VM created with `s2e-env <s2e-env.rst>`_ then both ``s2eget`` and ``s2eput`` should already exist in
+If you are using a VM created with `s2e-env <s2e-env.rst>`__ then both ``s2eget`` and ``s2eput`` should already exist in
 the home directory. Otherwise they can be copied into the guest over SSH (or any other method).
 
 Running ``s2eget``

@@ -14,11 +14,11 @@ few clicks from GitHub.
 
 Patches must include a Signed-off-by: line
     For more information see `submitting patches
-    <https://github.com/torvalds/linux/blob/master/Documentation/process/submitting-patches.rst>`_. This is vital or we
+    <https://github.com/torvalds/linux/blob/master/Documentation/process/submitting-patches.rst>`__. This is vital or we
     will not be able to apply your patch! Please use your real name to sign a patch (not an alias name).
 
 Correct English is appreciated
-    If you are not sure, `codespell <http://wiki.qemu.org/Contribute/SpellCheck>`_ or other programs help finding the
+    If you are not sure, `codespell <http://wiki.qemu.org/Contribute/SpellCheck>`__ or other programs help finding the
     most common spelling mistakes in code and documentation.
 
 Patches should be against current git master
@@ -28,7 +28,7 @@ Patches should be against current git master
 Split up longer patches
     Into a patch series of logical code changes. Each change should compile and execute successfully. For instance, do
     not add a file to the makefile in patch one and then add the file itself in patch two. This rule is here so that
-    people can later use tools like `git bisect <http://git-scm.com/docs/git-bisect>`_ without hitting points in the
+    people can later use tools like `git bisect <http://git-scm.com/docs/git-bisect>`__ without hitting points in the
     commit history where S2E does not work for reasons unrelated to the bug they are chasing.
 
 Don't include irrelevant changes
@@ -51,7 +51,7 @@ Ensure your code is formatted correctly
     ``run-clang-format.sh``, that can be used to format the entire S2E source tree. Alternatively you may use the
     ``.clang-format`` file in the root of the repository. Note that Windows guest tools have their own code style.
 
-    To check Python code, run the following `pylint <https://www.pylint.org>`_-based script:
+    To check Python code, run the following `pylint <https://www.pylint.org>`__-based script:
 
     .. code-block:: console
 

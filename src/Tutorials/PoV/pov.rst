@@ -23,13 +23,13 @@ focus on explaining how to generate the PoV.
 
     Although not required, we recommend that you get familiar with the DARPA CyberGrandChallenge (CGC) in order to have
     a better understanding of this tutorial. The CGC documentation is on
-    `Github <https://github.com/CyberGrandChallenge/cgc-release-documentation>`_
-    and details about the event are `here <http://archive.darpa.mil/cybergrandchallenge/>`_.
+    `Github <https://github.com/CyberGrandChallenge/cgc-release-documentation>`__
+    and details about the event are `here <http://archive.darpa.mil/cybergrandchallenge/>`__.
 
-    DARPA's `Cyber Grand Challenge <http://archive.darpa.mil/cybergrandchallenge/>`_ (CGC) was the world's first
+    DARPA's `Cyber Grand Challenge <http://archive.darpa.mil/cybergrandchallenge/>`__ (CGC) was the world's first
     all-machine hacking tournament. S2E was a key component in CodeJitsu's Cyber Reasoning System (CRS) and was used to
     automatically to find vulnerabilities and exploit them. This tutorial walks you through the theory behind automated
-    PoV generation. After you are done reading it, you can get your hands dirty in this `follow-up <index.rst>`_.
+    PoV generation. After you are done reading it, you can get your hands dirty in this `follow-up <index.rst>`__.
 
 
 Understanding the Execution of a Vulnerable Program
@@ -192,7 +192,7 @@ a random ``EIP`` value to check that the exploit works for any ``EIP`` value).
 .. note::
 
     We use the DARPA CyberGrandChallenge terminology, which defines ``Type 1`` and ``Type 2`` vulnerabilities.
-    Refer to the CGC `documentation <https://github.com/CyberGrandChallenge/cgc-release-documentation/blob/master/walk-throughs/understanding-cfe-povs.md>`_ for more details.
+    Refer to the CGC `documentation <https://github.com/CyberGrandChallenge/cgc-release-documentation/blob/master/walk-throughs/understanding-cfe-povs.md>`__ for more details.
 
 .. code-block:: none
 
@@ -395,7 +395,7 @@ the function produces the expected output, identification succeeded.
 
 
 
-    S2E uses `RevGen <https://github.com/S2E/tools/tree/master/tools/revgen32>`_, an x86-to-LLVM translator,
+    S2E uses `RevGen <https://github.com/S2E/tools/tree/master/tools/revgen32>`__, an x86-to-LLVM translator,
     in order to extract function types from the binary before analyzing it.
 
 
@@ -598,4 +598,4 @@ Conclusion
 
 In this tutorial, you have learnt the theory behind automated PoV generation as well as various practical
 issues that arise when building a robust PoV generator. Now it is a good time to get your hands dirty
-by actually `generating <index.rst>`_ PoVs for a few vulnerable binaries.
+by actually `generating <index.rst>`__ PoVs for a few vulnerable binaries.

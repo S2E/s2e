@@ -21,5 +21,5 @@ flushTbCache=[true|false] (default=true)
 Required Plugins
 ----------------
 
-* `ExecutionTracer <ExecutionTracer.rst>`_
-* `ModuleExecutionDetector <../ModuleExecutionDetector.rst>`_
+* `ExecutionTracer <ExecutionTracer.rst>`__
+* `ModuleExecutionDetector <../ModuleExecutionDetector.rst>`__

@@ -4,7 +4,7 @@ Annotations
 
 The annotation plugins combine monitoring and instrumentation capabilities to let users annotate either individual
 instructions or entire function calls. The user writes the annotation directly inside the S2E configuration file using
-the `Lua <http://lua.org>`_ programming language.
+the `Lua <http://lua.org>`__ programming language.
 
 There are two types of annotation plugins:
 

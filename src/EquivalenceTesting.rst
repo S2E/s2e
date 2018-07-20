@@ -108,7 +108,7 @@ would drive the program down the corresponding execution path.
 Running the Program in S2E
 --------------------------
 
-Run the program in S2E. Refer to `this tuorial <Tutorials/BasicLinuxSymbex/SourceCode.rst>`_ for more details. S2E will
+Run the program in S2E. Refer to `this tuorial <Tutorials/BasicLinuxSymbex/SourceCode.rst>`__ for more details. S2E will
 exit when all paths terminate.
 
 Make sure to have at least 8 GB of available virtual memory and set the stack size to unlimited using ``ulimit -s

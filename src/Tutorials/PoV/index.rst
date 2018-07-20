@@ -12,7 +12,7 @@ In this tutorial, you will learn:
 .. note::
 
     Before starting this tutorial, make sure that...
-        * you understand the `theory <pov.rst>`_ behind automated PoV generation
+        * you understand the `theory <pov.rst>`__ behind automated PoV generation
         * you have a working S2E environment ready (e.g, in the ``~/s2e/env/`` directory)
 
 
@@ -21,7 +21,7 @@ Quickstart on Windows and Linux
 
 S2E comes with a ``vulnerabilities`` demo which demonstrates several types of vulnerabilities that S2E can detect.
 You can find the corresponding source file in
-`vulnerabilities.c <https://github.com/S2E/guest-tools/blob/master/common/demos/vulnerabilities.c>`_.
+`vulnerabilities.c <https://github.com/S2E/guest-tools/blob/master/common/demos/vulnerabilities.c>`__.
 
 1. Build the guest tools. We will use the 32-bit Linux version here.
    You may also use the 64-bit version and/or the Windows version (in ``guest-tools{32|64}-win``).
@@ -214,13 +214,13 @@ Here is what every line of this recipe means:
 PoVs for DARPA Decree/CGC binaries
 ==================================
 
-DARPA's `Cyber Grand Challenge <http://archive.darpa.mil/cybergrandchallenge/>`_ (CGC) was the world's first all-machine
+DARPA's `Cyber Grand Challenge <http://archive.darpa.mil/cybergrandchallenge/>`__ (CGC) was the world's first all-machine
 hacking tournament. S2E was a key component in CodeJitsu's Cyber Reasoning System (CRS) and was used to automatically
 find vulnerabilities and exploit them. This demo walks you through the process of using S2E to find and generate a
 "proof of vulnerability" (PoV - i.e. an exploit) in a CGC challenge binary (CB).
 
 The CGC Final Event (CFE) ran on the Decree operating system. Decree is a modified Linux OS with a reduced number of
-`system calls  <https://github.com/CyberGrandChallenge/libcgc>`_. In addition to this, the Decree OS has been modified
+`system calls  <https://github.com/CyberGrandChallenge/libcgc>`__. In addition to this, the Decree OS has been modified
 to add "hook points" for S2E (e.g. to signal process creation, termination, etc.) and to allow S2E to inject symbolic
 values. The source code for the Decree OS is available at https://github.com/S2E/s2e-linux-kernel. A Decree
 virtual machine image can be built by running the following command:
@@ -306,7 +306,7 @@ the relationship between plugins.
 .. image:: arch.svg
 
 S2E has an event-based plugin architecture. The execution engine exports a core set of low level events (declared in
-`CorePlugin.h <https://github.com/S2E/libs2ecore/blob/master/include/s2e/CorePlugin.h>`_) to which plugins must
+`CorePlugin.h <https://github.com/S2E/libs2ecore/blob/master/include/s2e/CorePlugin.h>`__) to which plugins must
 subscribe if they want to do anything useful. The most important core events are related to guest instruction
 translation. Plugins must use them if they want to instrument guest code (e.g., to be notified when some instructions
 of interest are executed).  Plugins may also define and export their own high-level events that other plugins can
@@ -355,7 +355,7 @@ plugins that are involved in detecting vulnerabilities and generating PoVs.
     addresses (assignment to program counters and memory reads/writes). When it finds one, it tries to constrain
     the address in such a way that leads to controlling registers and memory content according to the specification in
     the recipe. The recipe plugin supports `Type 1 and Type 2
-    <https://github.com/CyberGrandChallenge/cgc-release-documentation/blob/master/walk-throughs/understanding-cfe-povs.md>`_
+    <https://github.com/CyberGrandChallenge/cgc-release-documentation/blob/master/walk-throughs/understanding-cfe-povs.md>`__
     PoVs. PoV generation will not work without recipes.
 
 **PovGenerationPolicy**
@@ -366,7 +366,7 @@ plugins that are involved in detecting vulnerabilities and generating PoVs.
 
 **DecreePovGenerator**
     This plugin generates PoVs using the `standard
-    <https://github.com/CyberGrandChallenge/cgc-release-documentation/blob/master/cfe-pov-markup-spec.txt>`_ defined by
+    <https://github.com/CyberGrandChallenge/cgc-release-documentation/blob/master/cfe-pov-markup-spec.txt>`__ defined by
     DARPA. This PoV generator is designed for interactive programs that consist of a sequence of reads and writes to the
     standard input/output pair.
 
@@ -422,7 +422,7 @@ The bootstrap script
 
 The bootstrap script is a file called ``bootstrap.sh`` that the guest fetches from the host and executes. It contains
 instructions on how to execute the program under analysis. More detail can be found in the
-`s2e-env <../../s2e-env.rst>`_ documentation.
+`s2e-env <../../s2e-env.rst>`__ documentation.
 
 The CGC ``bootstrap.sh`` script slightly differs from Linux bootstraps. One key difference is that seeds will always be
 enabled for CGC projects, so the ``while`` loop in the ``execute`` function will exist even if you do not intend to use

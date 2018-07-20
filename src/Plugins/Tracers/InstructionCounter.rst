@@ -13,4 +13,4 @@ This plugin does not have any options.
 Required Plugins
 ----------------
 
-* `ExecutionTracer <ExecutionTracer.rst>`_
+* `ExecutionTracer <ExecutionTracer.rst>`__

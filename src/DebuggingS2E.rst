@@ -79,13 +79,13 @@ S2E kernel debugging
 --------------------
 
 Sometimes you may need to debug the modified Linux kernel. To do this please refer to the following `page
-<http://wiki.osdev.org/Kernel_Debugging#Use_GDB_with_QEMU>`_.
+<http://wiki.osdev.org/Kernel_Debugging#Use_GDB_with_QEMU>`__.
 
 S2E debug functions
 -------------------
 
 In order to simplify debugging a number of functions for gdb are `available
-<https://github.com/S2E/libs2ecore/blob/master/src/S2E.cpp>`_:
+<https://github.com/S2E/libs2ecore/blob/master/src/S2E.cpp>`__:
 
 s2e_debug_print_hex(void \*addr, int len)
     Print memory (in hex) at address ``addr`` of length ``len``

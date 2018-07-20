@@ -10,7 +10,7 @@ Building with ``s2e-env``
 =========================
 
 The simplest way to build S2E is to use the ``s2e-env`` tool. It is the preferred method for development. See `Using
-s2e-env <s2e-env.rst>`_ for instructions.
+s2e-env <s2e-env.rst>`__ for instructions.
 
 If you want to build S2E using Docker or manually, read below.
 
@@ -135,7 +135,7 @@ directory that will hold both the S2E source and build directories.
 
 This will setup the S2E repositories in ``$S2EDIR``.
 
-In order to contribute to S2E (e.g., submit new features or report bugs), please see `here <Contribute.rst>`_.
+In order to contribute to S2E (e.g., submit new features or report bugs), please see `here <Contribute.rst>`__.
 
 Building
 --------
@@ -168,7 +168,7 @@ the corresponding files from the ``stamps`` subdirectory.
 Building the documentation
 --------------------------
 
-The S2E documentation is written in `reStructuredText <http://docutils.sourceforge.net/rst.html>`_ format. HTML
+The S2E documentation is written in `reStructuredText <http://docutils.sourceforge.net/rst.html>`__ format. HTML
 documentation can be built as follows:
 
 .. code-block:: console

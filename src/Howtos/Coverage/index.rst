@@ -39,7 +39,7 @@ This tutorial covers the following topics:
 Line coverage for Linux binaries
 ================================
 
-We will use `GNU Core Utilities <https://www.gnu.org/software/coreutils/coreutils.html>`_ to illustrate how to get
+We will use `GNU Core Utilities <https://www.gnu.org/software/coreutils/coreutils.html>`__ to illustrate how to get
 code coverage for Linux binaries. Coreutils are the basic file, shell and text
 manipulation utilities of the GNU operating system. This part of the tutorial walks you through the process of using
 S2E to analyze the ``cat`` program and generate basic block and line coverage information.
@@ -49,7 +49,7 @@ Building Coreutils
 ------------------
 
 The first step is to build the coreutils package. In this tutorial, we will use version `8.26
-<https://ftp.gnu.org/gnu/coreutils/coreutils-8.26.tar.xz>`_ . We will build a 32-bit version of Coreutils with debug
+<https://ftp.gnu.org/gnu/coreutils/coreutils-8.26.tar.xz>`__ . We will build a 32-bit version of Coreutils with debug
 symbols (so that we can generate line coverage).
 
 .. code-block:: console
@@ -87,7 +87,7 @@ After creating the project, run S2E. This should take a few seconds and terminat
 Generating line coverage
 ------------------------
 
-``s2e-env`` generates line coverage information in the `lcov <http://ltp.sourceforge.net/coverage/lcov.php>`_ format.
+``s2e-env`` generates line coverage information in the `lcov <http://ltp.sourceforge.net/coverage/lcov.php>`__ format.
 The following command will generate an HTML report.
 
 .. code-block:: console
@@ -182,7 +182,7 @@ different requirements.
 
 - **Ida Pro**: You must specify the path to its location ``s2e-env`` config file.
 - **Radare**: Radare must be installed into a location on your path and you must have the ``r2pipe`` Python package
-  installed via pip (see `here <https://github.com/S2E/s2e-env/blob/master/README.md>`_ for details).
+  installed via pip (see `here <https://github.com/S2E/s2e-env/blob/master/README.md>`__ for details).
 - **Binary Ninja**: You must have a Binary Ninja license that allows "GUI-less processing".
   
 In order to produce this basic block listing you can run one of the following commands:
@@ -283,7 +283,7 @@ Now generate the basic block coverage (using your chosen disassembler, in this c
 
     s2e coverage basic_block --disassembler=ida cat-symb
 
-You can then use this data for further analysis. For example, the S2E `tools <https://github.com/S2E/tools>`_ repo
+You can then use this data for further analysis. For example, the S2E `tools <https://github.com/S2E/tools>`__ repo
 contains an IDA Pro script to highlight the basic blocks covered by S2E during analysis. This script can be found at
 ``install/bin/ida_highlight_basic_blocks.py`` in your S2E environment. To run the script, open the ``cat`` binary in
 IDA Pro, select "Script file" from the "File" menu and open ``install/bin/ida_highlight_basic_blocks.py``. You will be
@@ -300,7 +300,7 @@ address in IDA Pro, you should see a ``cmp [ebp+ch_0], 9`` at the previous instr
 Because the file contains symbolic data, a fork will occur at the ``jnz`` instruction.
 
 Similarly, Radare can be used to annotate the basic blocks covered by S2E with `metadata
-<https://radare.gitbooks.io/radare2book/content/disassembling/adding_metadata.html>`_. This script can be found at
+<https://radare.gitbooks.io/radare2book/content/disassembling/adding_metadata.html>`__. This script can be found at
 ``install/bin/r2_highlight_basic_blocks.py`` in your S2E environment. To run the script, open the ``cat`` binary in
 Radare as follows:
 
@@ -473,7 +473,7 @@ Line coverage support for Windows binaries is currently in progress. There are t
 
 2. Using the PDB file produced by Microsoft compilers.
    This format is not officially documented. Microsoft released some
-   `source code <https://github.com/Microsoft/microsoft-pdb>`_ that helped LLVM add support for it, so Python parsers
+   `source code <https://github.com/Microsoft/microsoft-pdb>`__ that helped LLVM add support for it, so Python parsers
    should come soon too. In the meantime, S2E provides a tool that converts PDB files to a JSON format
    that can be read by ``s2e-env``.
 

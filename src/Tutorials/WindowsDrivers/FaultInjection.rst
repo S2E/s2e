@@ -51,7 +51,7 @@ For this tutorial, you will need:
 * a Windows environment to build the driver (see `here <../../WindowsEnvSetup.rst>`__ for details on how to set it up)
 * up to 110GB of disk space. The Windows 7 image alone will take 25GB and the Windows 10 build VM up to 60 GB.
 
-Please refer to `Creating analysis projects with s2e-env <../../s2e-env.rst>`_ for more details.
+Please refer to `Creating analysis projects with s2e-env <../../s2e-env.rst>`__ for more details.
 
 Here is a summary of the commands to run:
 
@@ -76,14 +76,14 @@ Setting up the Windows Environment
 In order to build Windows drivers, you need the following:
 
 1. A Windows environment (can be a VM)
-2. `Microsoft Visual Studio <https://www.visualstudio.com/downloads/>`_ 2015 or 2017
-3. `Windows Driver Kit <https://docs.microsoft.com/en-us/windows-hardware/drivers/>`_ (the latest version supported by your Visual Studio version)
+2. `Microsoft Visual Studio <https://www.visualstudio.com/downloads/>`__ 2015 or 2017
+3. `Windows Driver Kit <https://docs.microsoft.com/en-us/windows-hardware/drivers/>`__ (the latest version supported by your Visual Studio version)
 
 Please refer to the Microsoft's documentation on how to set up and build drivers.
 
 You will also need MSYS2 in order to run LCOV for code coverage:
 
-1. Download the MSYS-GIT SDK from `here <https://github.com/git-for-windows/build-extra/releases>`_
+1. Download the MSYS-GIT SDK from `here <https://github.com/git-for-windows/build-extra/releases>`__
 2. Launch ``C:\git-sdk-32\msys2.exe`` and type the following commands:
 
 .. code-block:: console
@@ -99,7 +99,7 @@ You will also need MSYS2 in order to run LCOV for code coverage:
     # LCOV will be used to display code coverage
     git clone https://github.com/linux-test-project/lcov
 
-Please refer to the ``guest-tools`` `readme <https://github.com/S2E/guest-tools/blob/master/windows/README.md>`_ for more details.
+Please refer to the ``guest-tools`` `readme <https://github.com/S2E/guest-tools/blob/master/windows/README.md>`__ for more details.
 
 Building the Sample Driver
 ==========================
@@ -284,7 +284,7 @@ when source code is available.
 - Build the ``guest-tools/windows/s2e.ln`` solution in Visual Studio in release mode and x64 architecture.
   This solution is located in the ``guest-tools`` repository that you cloned earlier in this tutorial.
   It contains a number of tools to test Windows binaries. If you would like to learn more about it, please refer to
-  its `readme <https://github.com/S2E/guest-tools/blob/master/windows/README.md>`_.
+  its `readme <https://github.com/S2E/guest-tools/blob/master/windows/README.md>`__.
 
 - Extract line information from the driver's PDB file using `pdbparser.exe` as follows:
 
@@ -313,7 +313,7 @@ when source code is available.
     INFO: [lcov] Line coverage saved to /home/user/s2e/env/projects/scanner/s2e-last/scanner.sys.info
 
 - If you want to generate LCOV files on windows, proceed as follows. Run the following command in MSYS after
-  installing LCOV from `this repository <https://github.com/linux-test-project/lcov>`_:
+  installing LCOV from `this repository <https://github.com/linux-test-project/lcov>`__:
 
   .. code-block:: console
 
@@ -533,7 +533,7 @@ can run on its own. This forking process is recursive: when ``s2e.sys``
 encounters the next API call, it forks again, eventually forming an execution tree of all possible API failures.
 
 When an execution path terminates (i.e., ``bootstrap.sh`` calls ``s2ecmd.exe kill``), S2E invokes a constraint solver
-(currently `Z3 <https://github.com/Z3Prover/z3>`_), in order to compute concrete assignments to symbolic variable.
+(currently `Z3 <https://github.com/Z3Prover/z3>`__), in order to compute concrete assignments to symbolic variable.
 
 Let us know look at all the components of a symbolic variable name. They will be very useful to locate the source of
 the bug. They have five components:
@@ -572,7 +572,7 @@ the bug. They have five components:
       ntoskrnl.sys: 1400668e6
 
    You may pretty-print the addresses using ``pdbparser.exe`` from the ``guest-tools`` repository. Please refer
-   to the ``guest-tools`` `readme <https://github.com/S2E/guest-tools/blob/master/windows/README.md>`_ for more details
+   to the ``guest-tools`` `readme <https://github.com/S2E/guest-tools/blob/master/windows/README.md>`__ for more details
    about how to use ``pdbparser.exe``.
 
 
@@ -609,7 +609,7 @@ Debugging Tips
   be fetched by the S2E build system. This file may sometimes be outdated. In case of doubt, rebuild the ``s2e.sln``
   solution, then run ``makedist.bat``, and copy the driver files in ``guest-tools/windows/dist`` to the ``guest-tools``
   directory of your project.
-  Refer to this `readme <https://github.com/S2E/guest-tools/blob/master/windows/README.md>`_ for more information about
+  Refer to this `readme <https://github.com/S2E/guest-tools/blob/master/windows/README.md>`__ for more information about
   how to build ``s2e.sys``.
 
 * If you do not see any output at all and execution terminates in a few seconds, check that ``s2e.sys`` got loaded

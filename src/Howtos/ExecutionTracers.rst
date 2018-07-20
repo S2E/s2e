@@ -30,7 +30,7 @@ Tracers rely on the ``ModuleExecutionDetector`` plugin to obtain this informatio
 itself on OS monitor plugins to be notified whenever the OS loads or unloads the modules.
 
 Here is an end-to-end example of how to generate an execution trace for the ``echo`` utility using the `s2e.so
-<../Tutorials/BasicLinuxSymbex/s2e.so.rst>`_ library. The trace will contain all memory accesses done by ``echo``, as
+<../Tutorials/BasicLinuxSymbex/s2e.so.rst>`__ library. The trace will contain all memory accesses done by ``echo``, as
 well as the list of executed translation blocks and test cases.
 
 1. Minimal Configuration File
@@ -66,7 +66,7 @@ well as the list of executed translation blocks and test cases.
 2. Guest Configuration
 ======================
 
-The `s2e.so <../Tutorials/BasicLinuxSymbex/s2e.so.rst>`_ library will instruct S2E to trace the program as specified in
+The `s2e.so <../Tutorials/BasicLinuxSymbex/s2e.so.rst>`__ library will instruct S2E to trace the program as specified in
 the configuration file.
 
 .. code-block:: console
@@ -77,7 +77,7 @@ the configuration file.
 =====================
 
 S2E comes with several tools that parse and display the execution traces. They are located in the `tools`  folder of
-the source distribution. You can find the documentation for them on the `main page <../../index.rst>`_.
+the source distribution. You can find the documentation for them on the `main page <../../index.rst>`__.
 
 Here is an example that prints the list of executed translation blocks and all memory accesses performed in paths 0 and
 34.
@@ -87,7 +87,7 @@ Here is an example that prints the list of executed translation blocks and all m
     $S2EDIR/build-s2e/tools-release/tools/tbtrace/tbtrace -trace=s2e-last/ExecutionTracer.dat \
         -outputdir=s2e-last/traces -pathId=0 -pathId=34 -printMemory
 
-You can also use `s2e-env <../s2e-env.rst>`_ to parse the execution trace.
+You can also use `s2e-env <../s2e-env.rst>`__ to parse the execution trace.
 
 Mini-FAQ
 ========

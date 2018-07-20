@@ -27,7 +27,7 @@ The S2E configuration file must contain default settings for these plugins, as f
 ``s2e.so`` communicates process module information to both the ``RawMonitor`` and ``LinuxMonitor`` plugins. However,
 only **one** of these plugins can be enabled at any one time. ``LinuxMonitor`` is preferred over ``RawMonitor`` because
 it provides more information. However ``LinuxMonitor`` can only be used with a modified `Linux kernel
-<../../ImageInstallation.rst>`_.
+<../../ImageInstallation.rst>`__.
 
 .. code-block:: lua
 
@@ -70,7 +70,7 @@ Analyzing large programs with concolic execution
 ------------------------------------------------
 
 Depending on the program under analysis, symbolic execution may get stuck in a large state space. In general it is
-better to use `concolic execution <../../Howtos/Concolic.rst>`_. The following command runs ``echo`` in concolic mode,
+better to use `concolic execution <../../Howtos/Concolic.rst>`__. The following command runs ``echo`` in concolic mode,
 based on the concrete parameter ``abc`` (i.e. the first path will print ``abc``, while the others will print other
 strings).
 
