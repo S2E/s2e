@@ -26,7 +26,8 @@ RUN apt-get -y install git
 # Build LLVM first (to avoid rebuilding it for every change)
 RUN mkdir s2e
 RUN mkdir s2e-build
-COPY Makefile s2e/Makefile
+COPY build-scripts/Makefile s2e/
+COPY build-scripts/determine_clang_binary_suffix.py s2e/
 RUN cd s2e-build &&                                                         \
     make -f ../s2e/Makefile S2EPREFIX=/opt/s2e stamps/llvm-native-make
 

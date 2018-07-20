@@ -23,9 +23,9 @@ endif
 #############
 
 # S2E variables
-S2ESRC?=$(dir $(abspath $(lastword $(MAKEFILE_LIST))))
+BUILD_SCRIPTS_SRC?=$(dir $(realpath $(lastword $(MAKEFILE_LIST))))
+S2ESRC?=$(realpath $(BUILD_SCRIPTS_SRC)/../)
 S2EPREFIX?=$(CURDIR)/opt
-DESTDIR?=/
 S2EBUILD:=$(CURDIR)
 
 # Either choose Release or RelWithDebInfo
@@ -44,8 +44,6 @@ JOBS:=$(patsubst hw.ncpu:%,%,$(shell sysctl hw.ncpu))
 else ifeq ($(OS),Linux)
 JOBS:=$(shell grep -c ^processor /proc/cpuinfo)
 endif
-
-UBUNTU_VERSION := $(shell lsb_release -a 2>/dev/null | grep Release | cut -f 2)
 
 MAKE:=make -j$(JOBS)
 
@@ -67,7 +65,15 @@ LLVM_SRC=llvm-$(LLVM_VERSION).src.tar.xz
 LLVM_SRC_DIR=llvm-$(LLVM_VERSION).src
 LLVM_SRC_URL = http://llvm.org/releases/$(LLVM_VERSION)
 
-CLANG_BINARY_DIR=clang+llvm-$(LLVM_VERSION)-x86_64-linux-gnu-ubuntu-$(UBUNTU_VERSION)
+# The Python script should only return a single word - the suffix of the Clang
+# binary to download. If an error message is printed to stderr, the Makefile
+# error will be triggered.
+CLANG_BINARY_SUFFIX=$(shell python $(BUILD_SCRIPTS_SRC)/determine_clang_binary_suffix.py 2>&1)
+ifneq ($(words $(CLANG_BINARY_SUFFIX)), 1)
+$(error "Failed to determine Clang binary to download: $(CLANG_BINARY_SUFFIX)")
+endif
+
+CLANG_BINARY_DIR=clang+llvm-$(LLVM_VERSION)-$(CLANG_BINARY_SUFFIX)
 CLANG_BINARY=$(CLANG_BINARY_DIR).tar.xz
 
 CLANG_SRC=cfe-$(LLVM_VERSION).src.tar.xz
@@ -243,8 +249,10 @@ LLVM_CONFIGURE_FLAGS = -DLLVM_TARGETS_TO_BUILD="X86"        \
                        -DLLVM_TARGET_ARCH="X86_64"          \
                        -DLLVM_INCLUDE_EXAMPLES=Off          \
                        -DLLVM_INCLUDE_DOCS=Off              \
+                       -DLLVM_INCLUDE_TESTS=Off             \
                        -DLLVM_ENABLE_RTTI=On                \
                        -DLLVM_ENABLE_EH=On                  \
+                       -DCOMPILER_RT_BUILD_SANITIZERS=Off   \
                        -DENABLE_ASSERTIONS=On               \
                        -DCMAKE_C_COMPILER=$(CLANG_CC)       \
                        -DCMAKE_CXX_COMPILER=$(CLANG_CXX)    \
