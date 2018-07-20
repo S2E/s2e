@@ -8,7 +8,7 @@ with S2E. The following steps describe how to use ``s2e-env``.
 .. contents::
 
 Installing s2e-env
-------------------
+==================
 
 ``s2e-env`` can be obtained and built from GitHub using the following commands:
 
@@ -29,7 +29,7 @@ Installing s2e-env
 
 
 Using s2e-env
--------------
+=============
 
 General instructions for using ``s2e-env`` can be found in its `README
 <https://github.com/s2e/s2e-env/blob/master/README.md>`__. Help for each command is available by running:
@@ -39,7 +39,7 @@ General instructions for using ``s2e-env`` can be found in its `README
     s2e <subcommand> --help
 
 Creating a new environment
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+--------------------------
 
 An S2E environment consists of the S2E engine and associated tools, one or more virtual machine images and one or more
 analysis targets, known as "projects".
@@ -56,14 +56,27 @@ installation step (e.g. if you have already installed the dependencies) use the 
 if you are using Ubuntu 14.04, you must install CMake manually - S2E requires version 3.4.3 or newer, which is not
 available in the Ubuntu 14.04 repositories.
 
+``s2e_activate``
+~~~~~~~~~~~~~~~~
+
+By default, all other ``s2e`` subcommands only work when executed in the root directory of your environment. However,
+you can change this behaviour by sourcing ``s2e_activate`` in the root directory of your environment. Sourcing
+``s2e_activate`` will set the ``S2EDIR`` environment variable to the current environment, and so all ``s2e``
+subcommands will execute relative to this directory. Sourcing ``s2e_activate`` also makes the ``s2e_deactivate``
+command available, which unsets the S2E environment variables.
+
+.. note::
+
+    The remainder of this document assumes that you have activated your S2E environment, and so all ``s2e`` subcommands
+    will operate in this environment.
+
 Building S2E
-~~~~~~~~~~~~
+------------
 
 Building S2E is simple. Simply run:
 
 .. code-block:: console
 
-    cd /home/user/s2e
     s2e build
 
 Building S2E and QEMU takes some time (approx. 60 minutes), so go and grab a coffee while you wait. Note that you can
@@ -78,14 +91,25 @@ particular component (after the initial build), we must use the following flag:
 
 This will force the rebuild of the libs2e and QEMU components.
 
+Updating the source code
+------------------------
+
+To update the source code under ``source/s2e``, run:
+
+.. code-block:: console
+
+    s2e update
+
+This essentially acts as a wrapper around Google's `Repo <https://code.google.com/p/git-repo/`__ tool, which is used to
+manage the core S2E code.
+
 Building an image
-~~~~~~~~~~~~~~~~~
+-----------------
 
 You will need a virtual machine image to run your analysis target in. To see what images are available to build, run:
 
 .. code-block:: console
 
-    cd /home/user/s2e
     s2e image_build
 
 This will list an image template name and a description of that image. For example, to build a Linux Debian 9.2.1 i386
@@ -93,7 +117,6 @@ image run:
 
 .. code-block:: console
 
-    cd /home/user/s2e
     s2e image_build debian-9.2.1-i386
 
 This will:
@@ -114,7 +137,6 @@ You may also build all images at once:
 
 .. code-block:: console
 
-    cd /home/user/s2e
     s2e image_build all
 
 Note that this will build all Linux **and** Windows images. To only build the Linux images, use ``s2e image_build
@@ -127,7 +149,7 @@ linux``. You can find more information about the infrastructure that builds the 
 the images have been built you may wish to delete this directory if disk space is an issue.
 
 Windows images
-^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~
 
 ``s2e-env`` can also be used to build Windows images. The supported Windows versions can be found
 `here <https://github.com/S2E/guest-images/blob/master/images.json>`__. The ``--iso-dir`` option **must** be
@@ -139,21 +161,19 @@ be used to build a Windows 7, SP1 image:
 
     s2e image_build --iso-dir /path/to/isos windows-7sp1ent-x86_64
 
-Where ``/path/to/isos`` is a directory containing
-``en_windows_7_enterprise_with_sp1_x64_dvd_u_677651.so``.
+Where ``/path/to/isos`` is a directory containing ``en_windows_7_enterprise_with_sp1_x64_dvd_u_677651.so``.
 
 The ISOs listed in ``images.json`` are available from `MSDN <https://msdn.microsoft.com/>`__. ``s2e image_build
 --iso-dir /path/to/isos windows`` can be used to build all Windows images.
 
 Creating a new analysis project
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-------------------------------
 
 Now that you have a virtual machine image that you can use to analyze programs in, you will need to create a "project"
 to analyze your target program. To create such a project, run:
 
 .. code-block:: console
 
-    cd /home/user/s2e
     s2e new_project --image <image_name> /path/to/target/binary [target_args...]
 
 This will create a new project under the ``projects`` directory. When you run the analysis the virtual machine image
@@ -195,10 +215,10 @@ s2e-config.lua
    arguments are defined in `S2EExecutor.cpp <https://github.com/S2E/libs2ecore/blob/master/src/S2EExecutor.cpp>`__.
 
 Target program arguments
-~~~~~~~~~~~~~~~~~~~~~~~~
+------------------------
 
-The `new_project` command also allows the user to specify any command line arguments they may wish to run their program
-with. These are specified as if the user was running the program normally.
+The ``new_project`` command also allows the user to specify any command line arguments they may wish to run their
+program with. These are specified as if the user was running the program normally.
 
 For example, the following command would create a new project based on ``ls`` executing with the ``-a`` option (i.e.
 all entries):
@@ -217,7 +237,7 @@ appropriate bootstrap script that creates this symbolic file and substitutes it 
     s2e new_project --image <image_name> /bin/cat @@
 
 Using seed files
-~~~~~~~~~~~~~~~~
+----------------
 
 Seed files (or test inputs) are concrete inputs for the target program. These files can be anything that the target
 program accepts (e.g. PNG files, documents, etc.). They can be obtained from a fuzzer, generated by hand, etc. These
@@ -229,7 +249,7 @@ To enable seed files in your project, use the ``new_project`` subcommand's ``--u
 For further discussion on seed files please see the `CGC tutorial <Tutorials/PoV/index.rst>`__.
 
 Running your analysis
-~~~~~~~~~~~~~~~~~~~~~
+---------------------
 
 You will need to ``cd`` into your project directory to run the analysis. While ``s2e new_project`` does its best to
 create suitable configuration files, you should first examine these files and modify them as required. You may want to
@@ -241,7 +261,7 @@ Some "real-world" examples of how to configure your project are presented in the
 Once you have finalized your configuration files and launch scripts, run ``launch-s2e.sh`` to begin the analysis.
 
 Parsing an execution trace
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+--------------------------
 
 The ``execution_trace`` command can be used to parse one or more ``ExecutionTracer.dat`` files generated by S2E's
 `execution tracer <Howtos/ExecutionTracers.rst>`__ plugins.
@@ -260,7 +280,7 @@ For example, to only output the execution trace for states 0 and 34, do:
     s2e execution_trace -p 0 -p 34 my_project
 
 Importing and exporting projects
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--------------------------------
 
 Projects can be exported and shared with others. The following command will export a project named my_project as a
 tar.xz archive.
@@ -284,7 +304,7 @@ There are a few things to note when exporting and importing projects:
   project import.
 
 Next steps
-----------
+==========
 
 Now that you know how to use ``s2e-env``, why not start using it to analyze binaries from `DARPA's Cyber Grand
 Challenge <Tutorials/PoV/index.rst>`__, programs from `Coreutils <Tutorials/coreutils/index.rst>`__, or even your own programs!
