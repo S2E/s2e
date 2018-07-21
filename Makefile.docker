@@ -13,8 +13,9 @@ ifeq ($(shell ls libs2e/src/libs2e.c 2>&1),libs2e/src/libs2e.c)
 endif
 
 # S2E variables
-S2ESRC?=$(dir $(abspath $(lastword $(MAKEFILE_LIST))))
-S2EBUILD:=$(CURDIR)
+BUILD_SCRIPTS_SRC?=$(dir $(realpath $(lastword $(MAKEFILE_LIST))))
+S2E_SRC?=$(realpath $(BUILD_SCRIPTS_SRC)/../)
+S2E_BUILD:=$(CURDIR)
 
 DOCKER_PREFIX=cyberhaven
 
@@ -27,32 +28,33 @@ stamps:
 
 # Build S2E inside a docker container
 stamps/docker-s2e-build: | stamps
-	cd $(S2ESRC) && docker build -t $(DOCKER_PREFIX)/s2e-build -f Dockerfile .
+	echo Building S2E inside docker container...
+	cd $(S2E_SRC) && docker build -t $(DOCKER_PREFIX)/s2e-build -f Dockerfile .
 	touch $@
 
-$(S2EBUILD)/docker $(S2EBUILD)/docker-demo:
+$(S2E_BUILD)/docker $(S2E_BUILD)/docker-demo:
 	mkdir -p "$@"
 
 # This rule creates a container that only has S2E binaries in it.
 # Note: it is not possible to simply delete build files from the s2e-build
 # container, because docker would still keep intermediate layers.
 # That would make the cyberhaven/s2e container unnecessarily large.
-stamps/docker-s2e: stamps/docker-s2e-build $(S2EBUILD)/docker $(S2ESRC)/build-scripts/Dockerfile.dist
+stamps/docker-s2e: stamps/docker-s2e-build $(S2E_BUILD)/docker $(BUILD_SCRIPTS_SRC)/Dockerfile.dist
 	echo Preparing docker build folder...
-	cp $(S2ESRC)/build-scripts/Dockerfile.dist $(S2EBUILD)/docker
-	rsync -av --delete --exclude=venv --exclude=.git $(S2ESRC)/s2e-env $(S2EBUILD)/docker/
+	cp $(BUILD_SCRIPTS_SRC)/Dockerfile.dist $(S2E_BUILD)/docker
+	rsync -av --delete --exclude=venv --exclude=.git $(S2E_SRC)/s2e-env $(S2E_BUILD)/docker/
 
 	echo Extracting /opt/s2e from build image
-	cd $(S2EBUILD)/docker && $(S2ESRC)/build-scripts/extract-docker-dir.sh $(DOCKER_PREFIX)/s2e-build /opt/s2e .
+	cd $(S2E_BUILD)/docker && $(BUILD_SCRIPTS_SRC)/extract-docker-dir.sh $(DOCKER_PREFIX)/s2e-build /opt/s2e .
 
 	echo Building $(DOCKER_PREFIX)/s2e
-	cd $(S2EBUILD)/docker &&  docker build --force-rm=true -t $(DOCKER_PREFIX)/s2e -f Dockerfile.dist .
+	cd $(S2E_BUILD)/docker &&  docker build --force-rm=true -t $(DOCKER_PREFIX)/s2e -f Dockerfile.dist .
 
 	touch $@
 
-stamps/decree-demo: $(S2EBUILD)/docker-demo stamps/docker-s2e
+stamps/decree-demo: $(S2E_BUILD)/docker-demo stamps/docker-s2e
 	echo Building demo...
-	cp -r $(S2ESRC)/build-scripts/demo/* $(S2EBUILD)/docker-demo
-	cp $(S2ESRC)/decree/samples/* $(S2EBUILD)/docker-demo
-	cd $(S2EBUILD)/docker-demo && docker build -t $(DOCKER_PREFIX)/s2e-demo -f Dockerfile.demo .
+	cp -r $(BUILD_SCRIPTS_SRC)/demo/* $(S2E_BUILD)/docker-demo
+	cp $(S2E_SRC)/decree/samples/* $(S2E_BUILD)/docker-demo
+	cd $(S2E_BUILD)/docker-demo && docker build -t $(DOCKER_PREFIX)/s2e-demo -f Dockerfile.demo .
 	touch $@

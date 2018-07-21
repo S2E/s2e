@@ -29,24 +29,24 @@ RUN mkdir s2e-build
 COPY build-scripts/Makefile s2e/
 COPY build-scripts/determine_clang_binary_suffix.py s2e/
 RUN cd s2e-build &&                                                         \
-    make -f ../s2e/Makefile S2EPREFIX=/opt/s2e stamps/llvm-native-make
+    make -f ../s2e/Makefile S2E_PREFIX=/opt/s2e stamps/clang-binary
 
 RUN cd s2e-build &&                                                         \
-    make -f ../s2e/Makefile S2EPREFIX=/opt/s2e stamps/llvm-release-make
+    make -f ../s2e/Makefile S2E_PREFIX=/opt/s2e stamps/llvm-release-make
 
 # Build S2E dependencies
 RUN cd s2e-build &&                                                         \
-    make -f ../s2e/Makefile S2EPREFIX=/opt/s2e stamps/soci-make
+    make -f ../s2e/Makefile S2E_PREFIX=/opt/s2e stamps/soci-make
 
 RUN cd s2e-build &&                                                         \
-    make -f ../s2e/Makefile S2EPREFIX=/opt/s2e stamps/z3-make
+    make -f ../s2e/Makefile S2E_PREFIX=/opt/s2e stamps/z3-make
 
 # Make the S2E codebase available in the container
 COPY . s2e/
 
 # Build and install everything else
 RUN cd s2e-build &&                                                         \
-    make -f ../s2e/Makefile S2EPREFIX=/opt/s2e install
+    make -f ../s2e/Makefile S2E_PREFIX=/opt/s2e install
 
 # Install s2e-env
 RUN apt-get -y install python-pip && \
