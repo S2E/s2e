@@ -79,7 +79,7 @@ z3::expr Z3Builder::makeExpr(ref<Expr> e) {
             if (width == 1)
                 return context_.bool_val(CE->isTrue());
             if (width <= 64)
-                return context_.bv_val((__uint64) CE->getZExtValue(), width);
+                return context_.bv_val((uint64_t) CE->getZExtValue(), width);
 
             // This is slower than concatenating 64-bit extractions, like STPBuilder
             // does, but the assumption is that it's quite infrequent.
