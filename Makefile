@@ -85,7 +85,7 @@ COMPILER_RT_SRC_DIR=compiler-rt-$(LLVM_VERSION).src
 COMPILER_RT_DEST_DIR=$(LLVM_SRC_DIR)/projects/compiler-rt
 
 # Z3 variables
-Z3_VERSION=4.6.0
+Z3_VERSION=4.7.1
 Z3_SRC=z3-$(Z3_VERSION).tar.gz
 Z3_SRC_DIR=z3-z3-$(Z3_VERSION)
 Z3_BUILD_DIR=z3
