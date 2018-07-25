@@ -15,7 +15,7 @@ Obtaining and compiling ``s2e.so``
 
 The ``s2e.so`` library can be found in the ``guest`` folder of the S2E distribution and is built during the standard
 S2E build process. It can also be built by running ``make guest-tools-install``. This will create ``guest-tools32`` and
-``guest-tools64`` in ``$S2EDIR/build-s2e/$S2EPREFIX/bin`` (remember that by default ``$S2EPREFIX`` is equal to
+``guest-tools64`` in ``$S2EDIR/build-s2e/$S2E_PREFIX/bin`` (remember that by default ``$S2E_PREFIX`` is equal to
 ``opt``). Copy the directory matching your guest's architecture into the guest virtual machine.
 
 Configuring S2E for use with ``s2e.so``

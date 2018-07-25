@@ -150,7 +150,7 @@ The S2E Makefile can be run as follows:
     # Go make some coffee, this will take some time (approx. 60 mins on a 4-core machine)
 
 By default, the ``make`` command compiles and installs S2E in release mode to ``$S2EDIR/build/opt``. To change this
-location, set the ``S2EPREFIX`` environment variable when running ``make``.
+location, set the ``S2E_PREFIX`` environment variable when running ``make``.
 
 To compile S2E in Debug mode, use ``make install-debug``.
 
