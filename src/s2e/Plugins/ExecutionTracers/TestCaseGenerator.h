@@ -13,7 +13,8 @@
 #include <s2e/Plugin.h>
 #include <s2e/Plugins/ExecutionTracers/ExecutionTracer.h>
 #include <s2e/Plugins/OSMonitors/Windows/WindowsCrashMonitor.h>
-#include <s2e/test_case_generator.h>
+#include <s2e/test_case_generator/commands.h>
+
 #include <string>
 #include <unordered_map>
 #include <vector>
