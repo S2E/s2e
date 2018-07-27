@@ -47,9 +47,9 @@
 
 #define MAX_S2E_SYM_ARGS_SIZE 44
 
-// ***********************************
+//
 // global libc functions' declaration
-// ***********************************
+//
 uint8_t g_enable_function_models = 0;
 
 static void __emit_error(const char *msg) {
@@ -153,7 +153,7 @@ static procmap_entry_t *load_process_map(void) {
         } else if (current_inode != 0 && current_inode != previous_inode) {
             // Save the previous proc map entry
             ++nb_entries;
-            result = realloc(result, sizeof(*result) * nb_entries);
+            result = (procmap_entry_t *) realloc(result, sizeof(*result) * nb_entries);
             result[nb_entries - 1] = current_entry;
 
             // Start a new proc map entry
@@ -168,7 +168,7 @@ static procmap_entry_t *load_process_map(void) {
     // Save the final proc map entry
     if (current_inode != previous_inode) {
         ++nb_entries;
-        result = realloc(result, sizeof(*result) * nb_entries);
+        result = (procmap_entry_t *) realloc(result, sizeof(*result) * nb_entries);
         result[nb_entries - 1] = current_entry;
     }
 
@@ -180,7 +180,7 @@ end:
     current_entry.name = NULL;
 
     ++nb_entries;
-    result = realloc(result, sizeof(*result) * nb_entries);
+    result = (procmap_entry_t *) realloc(result, sizeof(*result) * nb_entries);
     result[nb_entries - 1] = current_entry;
 
     return result;
@@ -248,12 +248,11 @@ static void initialize_cmdline(int argc, char **argv) {
 
     size_t str_args_len = strlen(sym_args);
 
-    // 1 - concolic; 0 - concrete
+    // 1 - concolic, 0 - concrete
     char *args_type = (char *) calloc(argc, sizeof(char));
     if (!args_type) {
         __emit_error("Memory allocation failed");
     }
-    memset(args_type, 0, argc);
 
     int valid = 1;
     char *str_tmp = sym_args;
@@ -290,9 +289,9 @@ static void initialize_cmdline(int argc, char **argv) {
     free(args_type);
 }
 
-// ****************************
+//
 // Overriding __libc_start_main
-// ****************************
+//
 
 // The type of __libc_start_main
 typedef int (*T_libc_start_main)(int *(main)(int, char **, char **), int argc, char **ubp_av, void (*init)(void),

@@ -344,7 +344,7 @@ int main(int argc, const char **argv) {
     min_args = s_commands[cmd_index].min_args_count;
     max_args = s_commands[cmd_index].max_args_count;
 
-    if (!(argc >= min_args && argc <= max_args)) {
+    if (!((unsigned) argc >= min_args && (unsigned) argc <= max_args)) {
         fprintf(stderr, "Invalid number of arguments supplied (received %d, expected %d)\n", argc,
                 s_commands[cmd_index].min_args_count);
         goto err;
