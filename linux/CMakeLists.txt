@@ -22,6 +22,8 @@
 # away functions like strlen, strcmp, etc. and replacing them with precomputed,
 # constant values
 
+include_directories("include")
+
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O0")
 add_subdirectory(function_models)
 

@@ -24,8 +24,8 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#include <s2e/function_models/models.h>
-#include <s2e/function_models/s2e_so.h>
+#include "function_models.h"
+#include "s2e_so.h"
 
 // ****************************
 // Overriding libc functions

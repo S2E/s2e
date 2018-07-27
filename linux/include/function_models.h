@@ -33,9 +33,9 @@
 #include <inttypes.h>
 #include <stdio.h>
 
-// TODO replace this with a stack frame bound, check for mapped memory page, ...
-static const unsigned MAX_STRLEN = 4096;
-
+//
+// Modelled functions types
+//
 typedef char *(*T_strcpy)(char *dest, const char *src);
 typedef char *(*T_strncpy)(char *dest, const char *src, size_t n);
 
@@ -56,6 +56,9 @@ typedef char *(*T_strncat)(char *dest, const char *src, size_t n);
 typedef uint32_t (*T_crc32)(uint32_t crc, const uint8_t *buf, unsigned len);
 typedef uint16_t (*T_crc16)(uint16_t crc, const uint8_t *buf, unsigned len);
 
+//
+// Pointers to copies of modelled functions
+//
 extern T_strcpy orig_strcpy;
 extern T_strncpy orig_strncpy;
 extern T_strlen orig_strlen;
@@ -71,7 +74,12 @@ extern T_strncat orig_strncat;
 extern T_crc32 orig_crc32;
 extern T_crc16 orig_crc16;
 
+/// Initialize the pointers to the original modelled functions
 void initialize_models();
+
+//
+// Function model prototypes
+//
 
 char *strcpy_model(char *dest, const char *src);
 char *strncpy_model(char *dest, const char *src, size_t n);

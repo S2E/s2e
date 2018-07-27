@@ -27,7 +27,7 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <s2e/s2e.h>
-#include <s2e/test_case_generator.h>
+#include <s2e/test_case_generator/commands.h>
 
 #include <ctype.h>
 #include <fcntl.h>

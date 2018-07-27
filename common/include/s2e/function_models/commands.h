@@ -30,14 +30,17 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef S2E_LIBC_COMMANDS_H
-#define S2E_LIBC_COMMANDS_H
+#ifndef S2E_FUNCTION_MODEL_COMMANDS_H
+#define S2E_FUNCTION_MODEL_COMMANDS_H
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 #include <inttypes.h>
+
+// TODO replace this with a stack frame bound, check for mapped memory page, ...
+static const unsigned MAX_STRLEN = 4096;
 
 enum S2E_LIBCWRAPPER_COMMANDS {
     LIBCWRAPPER_STRCPY,

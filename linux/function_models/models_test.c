@@ -20,9 +20,11 @@
 /// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 /// SOFTWARE.
 
-#include <s2e/function_models/models.h>
-#include <s2e/s2e.h>
 #include <string.h>
+
+#include <s2e/s2e.h>
+
+#include "function_models.h"
 
 #define STR_LEN 8
 

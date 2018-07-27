@@ -30,8 +30,6 @@
 #ifndef S2E_SO_H
 #define S2E_SO_H
 
-#include <s2e/function_models/models.h>
-
 #include <stdint.h>
 
 // Declare external global functions

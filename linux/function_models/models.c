@@ -27,9 +27,11 @@
 #include <stdio.h>
 
 #include <s2e/function_models/commands.h>
-#include <s2e/function_models/models.h>
 #include <s2e/s2e.h>
 
+#include "function_models.h"
+
+// Initialize copies of the modelled functions
 T_strcpy orig_strcpy = NULL;
 T_strncpy orig_strncpy = NULL;
 T_strlen orig_strlen = NULL;

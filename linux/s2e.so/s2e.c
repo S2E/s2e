@@ -38,12 +38,12 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include <s2e/function_models/s2e_so.h>
 #include <s2e/monitors/linux.h>
 #include <s2e/monitors/raw.h>
-#include <s2e/monitors/raw.h>
 #include <s2e/s2e.h>
-#include <s2e/s2e.h>
+
+#include "function_models.h"
+#include "s2e_so.h"
 
 #define MAX_S2E_SYM_ARGS_SIZE 44
 
