@@ -7,7 +7,7 @@
 ///
 
 #include <s2e/cpu.h>
-#include <s2e/function_models/models.h>
+#include <s2e/function_models/commands.h>
 
 #include <s2e/S2E.h>
 #include <s2e/S2EExecutionState.h>
