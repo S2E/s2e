@@ -30,25 +30,9 @@
 // ****************************
 
 uint32_t crc32(uint32_t crc, const uint8_t *buf, unsigned len) {
-    if (!g_enable_function_models) {
-        if (!orig_crc32) {
-            initialize_models();
-        }
-
-        return (*orig_crc32)(crc, buf, len);
-    }
-
-    return crc32_model(crc, buf, len);
+    FUNC_MODEL_BODY(crc32, crc, buf, len);
 }
 
 uint16_t crc16(uint16_t crc, const uint8_t *buf, unsigned len) {
-    if (!g_enable_function_models) {
-        if (!orig_crc16) {
-            initialize_models();
-        }
-
-        return (*orig_crc16)(crc, buf, len);
-    }
-
-    return crc16_model(crc, buf, len);
+    FUNC_MODEL_BODY(crc16, crc, buf, len);
 }

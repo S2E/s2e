@@ -32,110 +32,39 @@
 // ****************************
 
 char *strcpy(char *dest, const char *src) {
-    if (!g_enable_function_models) {
-        if (!orig_strcpy) {
-            initialize_models();
-        }
-
-        return (*orig_strcpy)(dest, src);
-    }
-
-    return strcpy_model(dest, src);
+    FUNC_MODEL_BODY(strcpy, dest, src);
 }
 
 char *strncpy(char *dest, const char *src, size_t n) {
-    if (!g_enable_function_models) {
-        if (!orig_strncpy) {
-            initialize_models();
-        }
-
-        return (*orig_strncpy)(dest, src, n);
-    }
-    return strncpy_model(dest, src, n);
+    FUNC_MODEL_BODY(strncpy, dest, src, n);
 }
 
 size_t strlen(const char *str) {
-    if (!g_enable_function_models) {
-        if (!orig_strlen) {
-            initialize_models();
-        }
-
-        return (*orig_strlen)(str);
-    }
-
-    return strlen_model(str);
+    FUNC_MODEL_BODY(strlen, str);
 }
 
 int strcmp(const char *str1, const char *str2) {
-    if (!g_enable_function_models) {
-        if (!orig_strcmp) {
-            initialize_models();
-        }
-
-        return (*orig_strcmp)(str1, str2);
-    }
-
-    return strcmp_model(str1, str2);
+    FUNC_MODEL_BODY(strcmp, str1, str2);
 }
 
 int strncmp(const char *str1, const char *str2, size_t n) {
-    if (!g_enable_function_models) {
-        if (!orig_strncmp) {
-            initialize_models();
-        }
-
-        return (*orig_strncmp)(str1, str2, n);
-    }
-
-    return strncmp_model(str1, str2, n);
+    FUNC_MODEL_BODY(strncmp, str1, str2, n);
 }
 
 void *memcpy(void *dest, const void *src, size_t n) {
-    if (!g_enable_function_models) {
-        if (!orig_memcpy) {
-            initialize_models();
-        }
-
-        return (*orig_memcpy)(dest, src, n);
-    }
-
-    return memcpy_model(dest, src, n);
+    FUNC_MODEL_BODY(memcpy, dest, src, n);
 }
 
 int memcmp(const void *str1, const void *str2, size_t n) {
-    if (!g_enable_function_models) {
-        if (!orig_memcmp) {
-            initialize_models();
-        }
-
-        return (*orig_memcmp)(str1, str2, n);
-    }
-
-    return memcmp_model(str1, str2, n);
+    FUNC_MODEL_BODY(memcmp, str1, str2, n);
 }
 
 char *strcat(char *dest, const char *src) {
-    if (!g_enable_function_models) {
-        if (!orig_strcat) {
-            initialize_models();
-        }
-
-        return (*orig_strcat)(dest, src);
-    }
-
-    return strcat_model(dest, src);
+    FUNC_MODEL_BODY(strcat, dest, src);
 }
 
 char *strncat(char *dest, const char *src, size_t n) {
-    if (!g_enable_function_models) {
-        if (!orig_strncat) {
-            initialize_models();
-        }
-
-        return (*orig_strncat)(dest, src, n);
-    }
-
-    return strncat_model(dest, src, n);
+    FUNC_MODEL_BODY(strncat, dest, src, n);
 }
 
 int printf(const char *format, ...) {

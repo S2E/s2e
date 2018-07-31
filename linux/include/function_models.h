@@ -77,6 +77,21 @@ extern T_crc16 orig_crc16;
 /// Initialize the pointers to the original modelled functions
 void initialize_models();
 
+#define CONCAT__(x, y) x##_##y
+#define CONCAT_(x, y) CONCAT__(x, y)
+#define CONCAT(x, y) CONCAT_(x, y)
+
+#define FUNC_MODEL_BODY(func, ...)                 \
+    if (!g_enable_function_models) {               \
+        if (!CONCAT(orig, func)) {                 \
+            initialize_models();                   \
+        }                                          \
+                                                   \
+        return (*CONCAT(orig, func))(__VA_ARGS__); \
+    }                                              \
+                                                   \
+    return CONCAT(func, model)(__VA_ARGS__);
+
 //
 // Function model prototypes
 //
