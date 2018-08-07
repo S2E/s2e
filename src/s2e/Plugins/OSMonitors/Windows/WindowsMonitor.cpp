@@ -1038,10 +1038,8 @@ template <typename T>
 static inline bool _ReadCurrentProcessThreadId(Plugin *plg, S2EExecutionState *state,
                                                const S2E_WINMON2_KERNEL_STRUCTS &k, uint64_t *pid, uint64_t *tid,
                                                uint64_t *_pkthread = NULL, uint64_t *_pkprocess = NULL) {
-    // assert(k.PointerSizeInBytes == 8);
-
     T pkthread;
-    if (!state->mem()->read(k.KPCR + k.EThreadSegmentOffset, &pkthread, sizeof(pkthread))) {
+    if (!state->mem()->read(k.KPRCB + k.EThreadSegmentOffset, &pkthread, sizeof(pkthread))) {
         plg->getDebugStream() << "_ReadCurrentProcessThreadId: Could not read KPCR "
                               << hexval(k.KPCR + k.EThreadSegmentOffset) << "\n";
         return false;
