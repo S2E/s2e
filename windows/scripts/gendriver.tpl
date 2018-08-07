@@ -80,11 +80,7 @@ static VOID Handler{{d.checksum | hex}}(UINT_PTR KernelLoadBase, UINT_PTR Kernel
     Command.Structs.KPRCB = (UINT_PTR) pKpcr->{{ 'CurrentPrcb' if d.bits == 64 else 'Prcb' }};
 
     Command.Structs.EThreadSegment = {{ 'R_GS' if d.bits == 64 else 'R_FS' }};
-    {% if d.version[0] == 5 -%}
-    Command.Structs.EThreadSegmentOffset = {{d._KPCR_PrcbData | hex}} + {{d._KPRCB_CurrentThread | hex}};
-    {% else -%}
-    Command.Structs.EThreadSegmentOffset = {{d._KPCR_Prcb | hex}} + {{d._KPRCB_CurrentThread | hex}};
-    {% endif -%}
+    Command.Structs.EThreadSegmentOffset = {{d._KPRCB_CurrentThread | hex}};
     Command.Structs.EThreadStackBaseOffset = {{d._KTHREAD_StackBase | hex}};
     Command.Structs.EThreadStackLimitOffset = {{d._KTHREAD_StackLimit | hex}};
     Command.Structs.EThreadProcessOffset = {{d._KTHREAD_Process | hex}};

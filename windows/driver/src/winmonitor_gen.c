@@ -98,7 +98,7 @@ static VOID Handler0x2247c2(UINT_PTR KernelLoadBase, UINT_PTR KernelNativeBase)
     Command.Structs.KPRCB = (UINT_PTR) pKpcr->Prcb;
 
     Command.Structs.EThreadSegment = R_FS;
-    Command.Structs.EThreadSegmentOffset = 0x120 + 0x4;
+    Command.Structs.EThreadSegmentOffset = 0x4;
     Command.Structs.EThreadStackBaseOffset = 0x168;
     Command.Structs.EThreadStackLimitOffset = 0x1c;
     Command.Structs.EThreadProcessOffset = 0x220;
@@ -173,7 +173,7 @@ static VOID Handler0x21a293(UINT_PTR KernelLoadBase, UINT_PTR KernelNativeBase)
     Command.Structs.KPRCB = (UINT_PTR) pKpcr->Prcb;
 
     Command.Structs.EThreadSegment = R_FS;
-    Command.Structs.EThreadSegmentOffset = 0x120 + 0x4;
+    Command.Structs.EThreadSegmentOffset = 0x4;
     Command.Structs.EThreadStackBaseOffset = 0x168;
     Command.Structs.EThreadStackLimitOffset = 0x1c;
     Command.Structs.EThreadProcessOffset = 0x220;
@@ -247,7 +247,7 @@ static VOID Handler0x3c88ac(UINT_PTR KernelLoadBase, UINT_PTR KernelNativeBase)
     Command.Structs.KPRCB = (UINT_PTR) pKpcr->Prcb;
 
     Command.Structs.EThreadSegment = R_FS;
-    Command.Structs.EThreadSegmentOffset = 0x20 + 0x4;
+    Command.Structs.EThreadSegmentOffset = 0x4;
     Command.Structs.EThreadStackBaseOffset = 0x190;
     Command.Structs.EThreadStackLimitOffset = 0x2c;
     Command.Structs.EThreadProcessOffset = 0x150;
@@ -320,7 +320,7 @@ static VOID Handler0x3c05d5(UINT_PTR KernelLoadBase, UINT_PTR KernelNativeBase)
     Command.Structs.KPRCB = (UINT_PTR) pKpcr->Prcb;
 
     Command.Structs.EThreadSegment = R_FS;
-    Command.Structs.EThreadSegmentOffset = 0x20 + 0x4;
+    Command.Structs.EThreadSegmentOffset = 0x4;
     Command.Structs.EThreadStackBaseOffset = 0x190;
     Command.Structs.EThreadStackLimitOffset = 0x2c;
     Command.Structs.EThreadProcessOffset = 0x150;
@@ -394,7 +394,7 @@ static VOID Handler0x55ce0c(UINT_PTR KernelLoadBase, UINT_PTR KernelNativeBase)
     Command.Structs.KPRCB = (UINT_PTR) pKpcr->CurrentPrcb;
 
     Command.Structs.EThreadSegment = R_GS;
-    Command.Structs.EThreadSegmentOffset = 0x180 + 0x8;
+    Command.Structs.EThreadSegmentOffset = 0x8;
     Command.Structs.EThreadStackBaseOffset = 0x278;
     Command.Structs.EThreadStackLimitOffset = 0x30;
     Command.Structs.EThreadProcessOffset = 0x210;
@@ -467,7 +467,7 @@ static VOID Handler0x3cbb94(UINT_PTR KernelLoadBase, UINT_PTR KernelNativeBase)
     Command.Structs.KPRCB = (UINT_PTR) pKpcr->Prcb;
 
     Command.Structs.EThreadSegment = R_FS;
-    Command.Structs.EThreadSegmentOffset = 0x20 + 0x4;
+    Command.Structs.EThreadSegmentOffset = 0x4;
     Command.Structs.EThreadStackBaseOffset = 0x190;
     Command.Structs.EThreadStackLimitOffset = 0x2c;
     Command.Structs.EThreadProcessOffset = 0x150;
@@ -540,7 +540,7 @@ static VOID Handler0x3cdec5(UINT_PTR KernelLoadBase, UINT_PTR KernelNativeBase)
     Command.Structs.KPRCB = (UINT_PTR) pKpcr->Prcb;
 
     Command.Structs.EThreadSegment = R_FS;
-    Command.Structs.EThreadSegmentOffset = 0x20 + 0x4;
+    Command.Structs.EThreadSegmentOffset = 0x4;
     Command.Structs.EThreadStackBaseOffset = 0x190;
     Command.Structs.EThreadStackLimitOffset = 0x2c;
     Command.Structs.EThreadProcessOffset = 0x150;
@@ -614,7 +614,7 @@ static VOID Handler0x556afe(UINT_PTR KernelLoadBase, UINT_PTR KernelNativeBase)
     Command.Structs.KPRCB = (UINT_PTR) pKpcr->CurrentPrcb;
 
     Command.Structs.EThreadSegment = R_GS;
-    Command.Structs.EThreadSegmentOffset = 0x180 + 0x8;
+    Command.Structs.EThreadSegmentOffset = 0x8;
     Command.Structs.EThreadStackBaseOffset = 0x278;
     Command.Structs.EThreadStackLimitOffset = 0x30;
     Command.Structs.EThreadProcessOffset = 0x210;
@@ -687,7 +687,7 @@ static VOID Handler0x3cca4b(UINT_PTR KernelLoadBase, UINT_PTR KernelNativeBase)
     Command.Structs.KPRCB = (UINT_PTR) pKpcr->Prcb;
 
     Command.Structs.EThreadSegment = R_FS;
-    Command.Structs.EThreadSegmentOffset = 0x20 + 0x4;
+    Command.Structs.EThreadSegmentOffset = 0x4;
     Command.Structs.EThreadStackBaseOffset = 0x190;
     Command.Structs.EThreadStackLimitOffset = 0x2c;
     Command.Structs.EThreadProcessOffset = 0x150;
@@ -760,7 +760,7 @@ static VOID Handler0x3cb498(UINT_PTR KernelLoadBase, UINT_PTR KernelNativeBase)
     Command.Structs.KPRCB = (UINT_PTR) pKpcr->Prcb;
 
     Command.Structs.EThreadSegment = R_FS;
-    Command.Structs.EThreadSegmentOffset = 0x20 + 0x4;
+    Command.Structs.EThreadSegmentOffset = 0x4;
     Command.Structs.EThreadStackBaseOffset = 0x190;
     Command.Structs.EThreadStackLimitOffset = 0x2c;
     Command.Structs.EThreadProcessOffset = 0x150;
@@ -834,7 +834,7 @@ static VOID Handler0x5546f7(UINT_PTR KernelLoadBase, UINT_PTR KernelNativeBase)
     Command.Structs.KPRCB = (UINT_PTR) pKpcr->CurrentPrcb;
 
     Command.Structs.EThreadSegment = R_GS;
-    Command.Structs.EThreadSegmentOffset = 0x180 + 0x8;
+    Command.Structs.EThreadSegmentOffset = 0x8;
     Command.Structs.EThreadStackBaseOffset = 0x278;
     Command.Structs.EThreadStackLimitOffset = 0x30;
     Command.Structs.EThreadProcessOffset = 0x210;
@@ -908,7 +908,7 @@ static VOID Handler0x71a4f4(UINT_PTR KernelLoadBase, UINT_PTR KernelNativeBase)
     Command.Structs.KPRCB = (UINT_PTR) pKpcr->CurrentPrcb;
 
     Command.Structs.EThreadSegment = R_GS;
-    Command.Structs.EThreadSegmentOffset = 0x180 + 0x8;
+    Command.Structs.EThreadSegmentOffset = 0x8;
     Command.Structs.EThreadStackBaseOffset = 0x38;
     Command.Structs.EThreadStackLimitOffset = 0x30;
     Command.Structs.EThreadProcessOffset = 0x220;
@@ -982,7 +982,7 @@ static VOID Handler0x7f010a(UINT_PTR KernelLoadBase, UINT_PTR KernelNativeBase)
     Command.Structs.KPRCB = (UINT_PTR) pKpcr->CurrentPrcb;
 
     Command.Structs.EThreadSegment = R_GS;
-    Command.Structs.EThreadSegmentOffset = 0x180 + 0x8;
+    Command.Structs.EThreadSegmentOffset = 0x8;
     Command.Structs.EThreadStackBaseOffset = 0x38;
     Command.Structs.EThreadStackLimitOffset = 0x30;
     Command.Structs.EThreadProcessOffset = 0x220;
