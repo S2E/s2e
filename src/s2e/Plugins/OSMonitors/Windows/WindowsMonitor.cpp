@@ -479,16 +479,24 @@ void WindowsMonitor::onKiRetireDpcCallSite(S2EExecutionState *state, uint64_t pc
 
 /* PerfLogImageUnload */
 void WindowsMonitor::onPerfLogImageUnload(S2EExecutionState *state, uint64_t pc) {
+    if (state->getPointerSize() == 8) {
+        unloadModule<vmi::windows::UNICODE_STRING64>(state);
+    } else {
+        unloadModule<vmi::windows::UNICODE_STRING32>(state);
+    }
+}
+
+template <typename UNICODE_STRING> void WindowsMonitor::unloadModule(S2EExecutionState *state) {
     target_ulong pName = 0, pid = 0, base = 0, size = 0;
     uint64_t pointerSize = state->getPointerSize();
 
     switch (m_kernel.KernelMajorVersion) {
         case 6: {
-            assert(pointerSize == 8);
-
             switch (m_kernel.KernelMinorVersion) {
                 case 3:   /* Windows 8.1 */
                 case 2: { /* Windows 8 */
+                    assert(pointerSize == 8);
+
                     pName = state->regs()->read<target_ulong>(CPU_OFFSET(regs[R_ECX]));
                     // unknown = state->regs()->read<target_ulong>(CPU_OFFSET(regs[R_EDX]));
                     pid = state->regs()->read<target_ulong>(CPU_OFFSET(regs[8]));
@@ -500,10 +508,24 @@ void WindowsMonitor::onPerfLogImageUnload(S2EExecutionState *state, uint64_t pc)
                 } break;
 
                 case 1: { /* Windows 7 */
-                    pName = state->regs()->read<target_ulong>(CPU_OFFSET(regs[R_ECX]));
-                    pid = state->regs()->read<target_ulong>(CPU_OFFSET(regs[R_EDX]));
-                    base = state->regs()->read<target_ulong>(CPU_OFFSET(regs[8]));
-                    size = state->regs()->read<target_ulong>(CPU_OFFSET(regs[9]));
+                    if (pointerSize == 8) {
+                        /* Microsoft x64 */
+                        pName = state->regs()->read<target_ulong>(CPU_OFFSET(regs[R_ECX]));
+                        pid = state->regs()->read<target_ulong>(CPU_OFFSET(regs[R_EDX]));
+                        base = state->regs()->read<target_ulong>(CPU_OFFSET(regs[8]));
+                        size = state->regs()->read<target_ulong>(CPU_OFFSET(regs[9]));
+                    } else {
+                        /* Microsoft fastcall */
+                        size = state->regs()->read<target_ulong>(CPU_OFFSET(regs[R_ECX]));
+                        pName = state->regs()->read<target_ulong>(CPU_OFFSET(regs[R_EDX]));
+
+                        if (!state->mem()->read(state->regs()->getSp() + 1 * pointerSize, &pid, pointerSize)) {
+                            s2e()->getExecutor()->terminateStateEarly(*state, "WindowsMonitor: could not read stack");
+                        }
+                        if (!state->mem()->read(state->regs()->getSp() + 2 * pointerSize, &base, pointerSize)) {
+                            s2e()->getExecutor()->terminateStateEarly(*state, "WindowsMonitor: could not read stack");
+                        }
+                    }
                 } break;
 
                 default:
@@ -513,6 +535,8 @@ void WindowsMonitor::onPerfLogImageUnload(S2EExecutionState *state, uint64_t pc)
         } break;
 
         case 10: { /* Windows 10 */
+            assert(pointerSize == 8);
+
             pName = state->regs()->read<target_ulong>(CPU_OFFSET(regs[R_ECX]));
             // unknown = state->regs()->read<target_ulong>(CPU_OFFSET(regs[R_EDX]));
             pid = state->regs()->read<target_ulong>(CPU_OFFSET(regs[8]));
@@ -530,7 +554,7 @@ void WindowsMonitor::onPerfLogImageUnload(S2EExecutionState *state, uint64_t pc)
         }
     }
 
-    vmi::windows::UNICODE_STRING64 Name;
+    UNICODE_STRING Name;
     if (!state->mem()->read(pName, &Name, sizeof(Name))) {
         getWarningsStream(state) << "WindowsMonitor::onPerfLogImageUnload "
                                  << " could not read module name\n";

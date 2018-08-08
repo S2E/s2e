@@ -349,6 +349,8 @@ private:
     void NormalizePath(ModuleDescriptor &module, const std::string &path);
     void NormalizePath(const std::string &path, std::string &normalizedPath, std::string &fileName);
 
+    template <typename UNICODE_STRING> void unloadModule(S2EExecutionState *state);
+
 public:
     virtual void handleOpcodeInvocation(S2EExecutionState *state, uint64_t guestDataPtr, uint64_t guestDataSize);
 
