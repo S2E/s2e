@@ -16,8 +16,8 @@
 #include <s2e/Plugins/OSMonitors/Support/ModuleExecutionDetector.h>
 #include <s2e/Plugins/Support/KeyValueStore.h>
 
-#include "LuaAnnotationState.h"
 #include "LuaFunctionAnnotation.h"
+#include "LuaFunctionAnnotationState.h"
 #include "LuaS2EExecutionState.h"
 
 namespace s2e {
@@ -26,19 +26,19 @@ namespace plugins {
 S2E_DEFINE_PLUGIN(LuaFunctionAnnotation, "Execute Lua code on a function call", "LuaFunctionAnnotation",
                   "ModuleExecutionDetector", "FunctionMonitor", "OSMonitor", "LuaBindings");
 
-class LuaFunctionAnnotationState : public PluginState {
+class LuaFunctionAnnotationPluginState : public PluginState {
 private:
     bool m_child;
 
 public:
-    LuaFunctionAnnotationState() : m_child(false){};
+    LuaFunctionAnnotationPluginState() : m_child(false){};
 
-    virtual LuaFunctionAnnotationState *clone() const {
-        return new LuaFunctionAnnotationState(*this);
+    virtual LuaFunctionAnnotationPluginState *clone() const {
+        return new LuaFunctionAnnotationPluginState(*this);
     }
 
     static PluginState *factory(Plugin *p, S2EExecutionState *s) {
-        return new LuaFunctionAnnotationState();
+        return new LuaFunctionAnnotationPluginState();
     }
 
     bool isChild() const {
@@ -189,7 +189,7 @@ void LuaFunctionAnnotation::onModuleUnload(S2EExecutionState *state, const Modul
 }
 
 void LuaFunctionAnnotation::forkAnnotation(S2EExecutionState *state, const Annotation &entry) {
-    DECLARE_PLUGINSTATE_N(LuaFunctionAnnotationState, p, state);
+    DECLARE_PLUGINSTATE_N(LuaFunctionAnnotationPluginState, p, state);
     if (p->isChild()) {
         return;
     }
@@ -212,10 +212,10 @@ void LuaFunctionAnnotation::forkAnnotation(S2EExecutionState *state, const Annot
     S2EExecutionState *s1 = static_cast<S2EExecutionState *>(sp.first);
     S2EExecutionState *s2 = static_cast<S2EExecutionState *>(sp.second);
 
-    DECLARE_PLUGINSTATE_N(LuaFunctionAnnotationState, p1, s1);
+    DECLARE_PLUGINSTATE_N(LuaFunctionAnnotationPluginState, p1, s1);
     p1->makeChild(false);
 
-    DECLARE_PLUGINSTATE_N(LuaFunctionAnnotationState, p2, s2);
+    DECLARE_PLUGINSTATE_N(LuaFunctionAnnotationPluginState, p2, s2);
     p2->makeChild(true);
 }
 
@@ -223,10 +223,10 @@ void LuaFunctionAnnotation::invokeAnnotation(S2EExecutionState *state, const Ann
     lua_State *L = s2e()->getConfig()->getState();
 
     LuaS2EExecutionState luaS2EState(state);
-    LuaAnnotationState luaAnnotation;
+    LuaFunctionAnnotationState luaAnnotation;
 
     if (isCall && entry.fork) {
-        DECLARE_PLUGINSTATE_N(LuaFunctionAnnotationState, p, state);
+        DECLARE_PLUGINSTATE_N(LuaFunctionAnnotationPluginState, p, state);
         forkAnnotation(state, entry);
 
         luaAnnotation.setChild(p->isChild());
@@ -235,7 +235,7 @@ void LuaFunctionAnnotation::invokeAnnotation(S2EExecutionState *state, const Ann
 
     lua_getglobal(L, entry.annotationName.c_str());
     Lunar<LuaS2EExecutionState>::push(L, &luaS2EState);
-    Lunar<LuaAnnotationState>::push(L, &luaAnnotation);
+    Lunar<LuaFunctionAnnotationState>::push(L, &luaAnnotation);
 
     if (entry.paramCount > 0 && state->getPointerSize() == 8) {
         s2e()->getExecutor()->terminateStateEarly(*state, "64-bit support not implemented");

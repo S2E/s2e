@@ -6,6 +6,8 @@
 /// Licensed under the Cyberhaven Research License Agreement.
 ///
 
+#include <s2e/cpu.h>
+
 #include <s2e/ConfigFile.h>
 #include <s2e/S2E.h>
 #include <s2e/S2EExecutor.h>
@@ -14,8 +16,8 @@
 #include <s2e/Plugins/OSMonitors/Support/ModuleMap.h>
 #include <s2e/Plugins/OSMonitors/Support/ProcessExecutionDetector.h>
 
-#include "LuaAnnotationState.h"
 #include "LuaInstructionAnnotation.h"
+#include "LuaInstructionAnnotationState.h"
 #include "LuaS2EExecutionState.h"
 
 namespace s2e {
@@ -166,15 +168,31 @@ void LuaInstructionAnnotation::onInstruction(S2EExecutionState *state, uint64_t 
     lua_State *L = s2e()->getConfig()->getState();
 
     LuaS2EExecutionState luaS2EState(state);
-    LuaAnnotationState luaAnnotation;
+    LuaInstructionAnnotationState luaAnnotation;
 
     lua_getglobal(L, it->annotationName.c_str());
     Lunar<LuaS2EExecutionState>::push(L, &luaS2EState);
-    Lunar<LuaAnnotationState>::push(L, &luaAnnotation);
+    Lunar<LuaInstructionAnnotationState>::push(L, &luaAnnotation);
 
     lua_call(L, 2, 0);
 
     if (luaAnnotation.exitCpuLoop()) {
+        throw CpuExitException();
+    }
+
+    if (luaAnnotation.doSkip()) {
+        TranslationBlock *tb = state->getTb();
+
+        getDebugStream(state) << "Annotation " << it->annotationName << " asked to skip instruction at "
+                              << hexval(it->pc) << '\n';
+
+        uint64_t next_pc = pc + tb_get_instruction_size(tb, pc);
+
+        assert(next_pc != pc);
+
+        getDebugStream(state) << "PC of next instruction: " << hexval(next_pc) << '\n';
+
+        state->regs()->setPc(next_pc);
         throw CpuExitException();
     }
 }

@@ -9,6 +9,8 @@
 #include <s2e/S2E.h>
 
 #include "LuaAnnotationState.h"
+#include "LuaFunctionAnnotationState.h"
+#include "LuaInstructionAnnotationState.h"
 #include "LuaBindings.h"
 #include "LuaExpression.h"
 #include "LuaModuleDescriptor.h"
@@ -32,6 +34,8 @@ void LuaBindings::initialize() {
     lua_setglobal(L, "g_s2e");
 
     Lunar<LuaAnnotationState>::Register(L);
+    Lunar<LuaFunctionAnnotationState>::Register(L);
+    Lunar<LuaInstructionAnnotationState>::Register(L);
     Lunar<LuaS2EExecutionState>::Register(L);
     Lunar<LuaS2EExecutionStateMemory>::Register(L);
     Lunar<LuaS2EExecutionStateRegisters>::Register(L);

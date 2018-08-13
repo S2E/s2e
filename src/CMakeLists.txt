@@ -115,6 +115,8 @@ add_library(
     s2e/Plugins/Lua/LuaFunctionAnnotation.cpp
     s2e/Plugins/Lua/LuaInstructionAnnotation.cpp
     s2e/Plugins/Lua/LuaAnnotationState.cpp
+    s2e/Plugins/Lua/LuaInstructionAnnotationState.cpp
+    s2e/Plugins/Lua/LuaFunctionAnnotationState.cpp
     s2e/Plugins/Lua/LuaExpression.cpp
     s2e/Plugins/Lua/LuaCoreEvents.cpp
 )
