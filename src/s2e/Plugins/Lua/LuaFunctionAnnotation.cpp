@@ -109,7 +109,7 @@ void LuaFunctionAnnotation::initialize() {
         std::stringstream ss;
         ss << getConfigKey() << ".annotations." << key;
 
-        std::string moduleId = readStringOrFail(s2e(), ss.str() + ".module_name");
+        std::string moduleId = readStringOrFail(s2e(), ss.str() + ".module_id");
         std::string annotationName = readStringOrFail(s2e(), ss.str() + ".name");
         uint64_t pc = readIntOrFail(s2e(), ss.str() + ".pc");
         unsigned paramCount = readIntOrFail(s2e(), ss.str() + ".param_count");
