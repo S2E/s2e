@@ -16,7 +16,6 @@ namespace plugins {
 
 class LuaAnnotationState {
 private:
-    bool m_child;
     bool m_exitCpuLoop;
 
 public:
@@ -26,11 +25,7 @@ public:
     LuaAnnotationState(lua_State *L) : LuaAnnotationState() {
     }
 
-    LuaAnnotationState() : m_child(false), m_exitCpuLoop(false) {
-    }
-
-    void setChild(bool c) {
-        m_child = c;
+    LuaAnnotationState() : m_exitCpuLoop(false) {
     }
 
     bool exitCpuLoop() const {
@@ -38,7 +33,6 @@ public:
     }
 
     int setExitCpuLoop(lua_State *L);
-    int isChild(lua_State *L);
 };
 } // namespace plugins
 } // namespace s2e

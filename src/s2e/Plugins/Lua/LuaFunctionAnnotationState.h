@@ -17,6 +17,7 @@ namespace plugins {
 
 class LuaFunctionAnnotationState : public LuaAnnotationState {
 private:
+    bool m_child;
     bool m_skip;
 
 public:
@@ -25,7 +26,11 @@ public:
     LuaFunctionAnnotationState(lua_State *L) : LuaAnnotationState(L) {
     }
 
-    LuaFunctionAnnotationState() : LuaAnnotationState(), m_skip(false) {
+    LuaFunctionAnnotationState() : LuaAnnotationState(), m_child(false), m_skip(false) {
+    }
+
+    void setChild(bool c) {
+        m_child = c;
     }
 
     bool doSkip() const {
@@ -33,6 +38,7 @@ public:
     }
 
     int skipFunction(lua_State *L);
+    int isChild(lua_State *L);
 };
 } // namespace plugins
 } // namespace s2e

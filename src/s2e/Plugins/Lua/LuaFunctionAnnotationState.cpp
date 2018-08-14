@@ -20,6 +20,11 @@ Lunar<LuaFunctionAnnotationState>::RegType LuaFunctionAnnotationState::methods[]
     LUNAR_DECLARE_METHOD(LuaFunctionAnnotationState, setExitCpuLoop),
     {0, 0}};
 
+int LuaFunctionAnnotationState::isChild(lua_State *L) {
+    lua_pushboolean(L, m_child);
+    return 1;
+}
+
 int LuaFunctionAnnotationState::skipFunction(lua_State *L) {
     if (lua_gettop(L) < 1) {
         m_skip = true;

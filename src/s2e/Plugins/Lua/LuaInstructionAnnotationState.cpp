@@ -16,7 +16,6 @@ const char LuaInstructionAnnotationState::className[] = "LuaInstructionAnnotatio
 
 Lunar<LuaInstructionAnnotationState>::RegType LuaInstructionAnnotationState::methods[] = {
     LUNAR_DECLARE_METHOD(LuaInstructionAnnotationState, skipInstruction),
-    LUNAR_DECLARE_METHOD(LuaInstructionAnnotationState, isChild),
     LUNAR_DECLARE_METHOD(LuaInstructionAnnotationState, setExitCpuLoop),
     {0, 0}};
 
