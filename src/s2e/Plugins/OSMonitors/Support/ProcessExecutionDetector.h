@@ -26,11 +26,11 @@ public:
     void initialize();
 
     bool isTracked(S2EExecutionState *state);
-    bool isTrackedPc(S2EExecutionState *state, uint64_t pc, bool checkCpl = false);
     bool isTracked(S2EExecutionState *state, uint64_t pid);
-    bool isTracked(const std::string &module) const {
-        return m_trackedModules.find(module) != m_trackedModules.end();
-    }
+    bool isTracked(const std::string &module) const;
+    bool isTrackedPc(S2EExecutionState *state, uint64_t pc, bool checkCpl = false);
+
+    void trackModule(const std::string &module);
 
     sigc::signal<void, S2EExecutionState *> onMonitorLoad;
 

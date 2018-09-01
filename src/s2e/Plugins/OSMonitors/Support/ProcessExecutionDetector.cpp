@@ -84,6 +84,10 @@ void ProcessExecutionDetector::onProcessUnload(S2EExecutionState *state, uint64_
     }
 }
 
+bool ProcessExecutionDetector::isTracked(S2EExecutionState *state) {
+    return isTrackedPc(state, state->regs()->getPc());
+}
+
 bool ProcessExecutionDetector::isTracked(S2EExecutionState *state, uint64_t pid) {
     DECLARE_PLUGINSTATE(ProcessExecutionDetectorState, state);
 
@@ -94,8 +98,8 @@ bool ProcessExecutionDetector::isTracked(S2EExecutionState *state, uint64_t pid)
     return plgState->m_trackedPids.count(pid) > 0;
 }
 
-bool ProcessExecutionDetector::isTracked(S2EExecutionState *state) {
-    return isTrackedPc(state, state->regs()->getPc());
+bool ProcessExecutionDetector::isTracked(const std::string &module) const {
+    return m_trackedModules.find(module) != m_trackedModules.end();
 }
 
 bool ProcessExecutionDetector::isTrackedPc(S2EExecutionState *state, uint64_t pc, bool checkCpl) {
@@ -124,6 +128,10 @@ bool ProcessExecutionDetector::isTrackedPc(S2EExecutionState *state, uint64_t pc
     uint64_t pid = m_monitor->getPid(state, state->regs()->getPc());
 
     return plgState->m_trackedPids.count(pid) > 0;
+}
+
+void ProcessExecutionDetector::trackModule(const std::string &module) {
+    m_trackedModules.insert(module);
 }
 
 void ProcessExecutionDetector::onMonitorLoadCb(S2EExecutionState *state) {
