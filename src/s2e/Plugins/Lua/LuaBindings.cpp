@@ -9,10 +9,10 @@
 #include <s2e/S2E.h>
 
 #include "LuaAnnotationState.h"
-#include "LuaFunctionAnnotationState.h"
-#include "LuaInstructionAnnotationState.h"
 #include "LuaBindings.h"
 #include "LuaExpression.h"
+#include "LuaFunctionAnnotationState.h"
+#include "LuaInstructionAnnotationState.h"
 #include "LuaModuleDescriptor.h"
 #include "LuaS2E.h"
 #include "LuaS2EExecutionState.h"
