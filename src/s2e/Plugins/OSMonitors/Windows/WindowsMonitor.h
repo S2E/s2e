@@ -429,10 +429,6 @@ public:
     }
 
     uint64_t getPid(S2EExecutionState *state, uint64_t pc) {
-        if (isKernelAddress(pc)) {
-            return 0;
-        }
-
         return getCurrentProcessId(state);
     }
 
