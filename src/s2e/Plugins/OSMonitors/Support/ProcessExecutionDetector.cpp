@@ -130,8 +130,11 @@ bool ProcessExecutionDetector::isTrackedPc(S2EExecutionState *state, uint64_t pc
     return plgState->m_trackedPids.count(pid) > 0;
 }
 
-void ProcessExecutionDetector::trackModule(const std::string &module) {
-    m_trackedModules.insert(module);
+void ProcessExecutionDetector::trackPid(S2EExecutionState *state, uint64_t pid) {
+    DECLARE_PLUGINSTATE(ProcessExecutionDetectorState, state);
+
+    getDebugStream(state) << "starting to track pid: " << hexval(pid) << "\n";
+    plgState->m_trackedPids.insert(pid);
 }
 
 void ProcessExecutionDetector::onMonitorLoadCb(S2EExecutionState *state) {

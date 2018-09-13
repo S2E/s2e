@@ -30,7 +30,7 @@ public:
     bool isTracked(const std::string &module) const;
     bool isTrackedPc(S2EExecutionState *state, uint64_t pc, bool checkCpl = false);
 
-    void trackModule(const std::string &module);
+    void trackPid(S2EExecutionState *state, uint64_t pid);
 
     sigc::signal<void, S2EExecutionState *> onMonitorLoad;
 
