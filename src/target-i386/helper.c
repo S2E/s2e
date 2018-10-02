@@ -20,6 +20,8 @@
 
 #include "cpu.h"
 
+#include <cpu/memdbg.h>
+
 ///
 /// \brief cpu_compute_hflags gathers info scattered across different
 /// cpu registers into the hflags register.

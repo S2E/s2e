@@ -17,6 +17,7 @@
 /// License along with this library; if not, see <http://www.gnu.org/licenses/>.
 
 #include <cpu/config.h>
+#include <cpu/memdbg.h>
 #include <cpu/memory.h>
 #include <inttypes.h>
 #include "osdep.h"
@@ -154,10 +155,11 @@ void cpu_physical_memory_rw(target_phys_addr_t addr, uint8_t *buf, int len, int 
 }
 
 /* virtual memory access for debug (includes writing to ROM) */
-int cpu_memory_rw_debug(CPUArchState *env, target_ulong addr, uint8_t *buf, int len, int is_write) {
+int cpu_memory_rw_debug(void *opaque_env, target_ulong addr, uint8_t *buf, int len, int is_write) {
     int l;
     target_phys_addr_t phys_addr;
     target_ulong page;
+    CPUArchState *env = (CPUArchState *) opaque_env;
 
     while (len > 0) {
         page = addr & TARGET_PAGE_MASK;
