@@ -78,7 +78,7 @@ typedef int (*fprintf_function)(FILE *f, const char *fmt, ...) GCC_FMT_ATTR(2, 3
             log_cpu_state((env), (f)); \
     } while (0)
 
-#define log_target_disas(start, len, flags) target_disas(logfile, (start), (len), (flags))
+#define log_target_disas(env, start, len, flags) target_disas(env, logfile, (start), (len), (flags))
 
 /* page_dump() output to the log file: */
 #define log_page_dump() page_dump(logfile)

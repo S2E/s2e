@@ -21,6 +21,9 @@
 #include <cpu/i386/cpu.h>
 
 #include <cpu/disas.h>
+#include <cpu/memdbg.h>
+
+#include <capstone/capstone.h>
 
 ///
 /// \brief target_disas_ex disassembles a chunk of guest code
@@ -30,10 +33,51 @@
 /// \param size  the size of the chunk to disassemble
 /// \param flags i386: 2 => 64-bit, 1 => 16-bit, 0 => 32-bit
 ///
-void target_disas_ex(FILE *out, fprintf_function_t func, target_ulong pc, target_ulong size, int flags) {
-    func(out, "Disassembly not supported\n");
+void target_disas_ex(void *env, FILE *out, fprintf_function_t func, target_ulong pc, target_ulong size, int flags) {
+    csh handle;
+    cs_insn *insn;
+    size_t count;
+    cs_mode mode;
+
+    switch (flags) {
+        case 0:
+            mode = CS_MODE_32;
+            break;
+        case 1:
+            mode = CS_MODE_16;
+            break;
+        case 2:
+            mode = CS_MODE_64;
+            break;
+        default:
+            func(out, "Invalid mode %d\n", flags);
+            return;
+    }
+
+    if (cs_open(CS_ARCH_X86, mode, &handle) != CS_ERR_OK) {
+        func(out, "Could not open disassembler\n");
+        return;
+    }
+
+    uint8_t buffer[size];
+    cpu_memory_rw_debug(env, pc, buffer, size, 0);
+
+    count = cs_disasm(handle, buffer, size, pc, 0, &insn);
+
+    if (count > 0) {
+        size_t j;
+        for (j = 0; j < count; j++) {
+            func(out, "0x%" PRIx64 ":  %-7s %s\n", insn[j].address, insn[j].mnemonic, insn[j].op_str);
+        }
+
+        cs_free(insn, count);
+    } else {
+        func(out, "ERROR: Failed to disassemble given code!\n");
+    }
+
+    cs_close(&handle);
 }
 
-void target_disas(FILE *out, target_ulong pc, target_ulong size, int flags) {
-    target_disas_ex(out, fprintf, pc, size, flags);
+void target_disas(void *env, FILE *out, target_ulong pc, target_ulong size, int flags) {
+    target_disas_ex(env, out, fprintf, pc, size, flags);
 }

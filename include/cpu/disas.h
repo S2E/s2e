@@ -20,9 +20,9 @@
 #include <cpu/types.h>
 #include <stdio.h>
 
-void target_disas(FILE *out, target_ulong code, target_ulong size, int flags);
+void target_disas(void *env, FILE *out, target_ulong code, target_ulong size, int flags);
 
 typedef int (*fprintf_function_t)(FILE *f, const char *fmt, ...);
-void target_disas_ex(FILE *out, fprintf_function_t func, target_ulong code, target_ulong size, int flags);
+void target_disas_ex(void *env, FILE *out, fprintf_function_t func, target_ulong code, target_ulong size, int flags);
 
 #endif /* _LIBCPU_DISAS_H */

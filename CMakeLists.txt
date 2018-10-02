@@ -103,6 +103,7 @@ endforeach()
 
 include_directories(${GLIB_PKG_INCLUDE_DIRS}
                     ${LIBQ_INCLUDE_DIR}
+                    ${CAPSTONE_INCLUDE_DIR}
                     ${LIBTCG_INCLUDE_DIR}
                     ${HOST_INCLUDE_DIR}
                     ${TARGET_INCLUDE_DIR}

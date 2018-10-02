@@ -7947,14 +7947,14 @@ static inline void gen_intermediate_code_internal(CPUX86State *env, TranslationB
     if (libcpu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
         int disas_flags;
         libcpu_log("----------------\n");
-        libcpu_log("IN:\n");
+        libcpu_log("IN %#" PRIx64 ":\n", (uint64_t) pc_start);
 #ifdef TARGET_X86_64
         if (dc->code64)
             disas_flags = 2;
         else
 #endif
             disas_flags = !dc->code32;
-        log_target_disas(pc_start, pc_ptr - pc_start, disas_flags);
+        log_target_disas(env, pc_start, pc_ptr - pc_start, disas_flags);
         libcpu_log("\n");
     }
 #endif
