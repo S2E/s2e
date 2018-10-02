@@ -84,6 +84,13 @@ COMPILER_RT_SRC=compiler-rt-$(LLVM_VERSION).src.tar.xz
 COMPILER_RT_SRC_DIR=compiler-rt-$(LLVM_VERSION).src
 COMPILER_RT_DEST_DIR=$(LLVM_SRC_DIR)/projects/compiler-rt
 
+# Capstone variables
+CAPSTONE_VERSION=3.0.5
+CAPSTONE_SRC=$(CAPSTONE_VERSION).tar.gz
+CAPSTONE_BUILD_DIR=capstone-$(CAPSTONE_VERSION)-build
+CAPSTONE_SRC_DIR=capstone-$(CAPSTONE_VERSION)
+CAPSTONE_URL=https://github.com/aquynh/capstone/archive/$(CAPSTONE_SRC)
+
 # Z3 variables
 Z3_VERSION=4.7.1
 Z3_SRC=z3-$(Z3_VERSION).tar.gz
@@ -210,6 +217,12 @@ $(GTEST_SRC_DIR):
 	cd $(S2E_BUILD) && wget -O $(GTEST_SRC_DIR).tar.gz $(GTEST_URL)
 	cd $(S2E_BUILD) && tar xzvf $(GTEST_SRC_DIR).tar.gz
 
+# Download Capstone
+$(CAPSTONE_BUILD_DIR):
+	wget -O $(CAPSTONE_SRC_DIR).tar.gz $(CAPSTONE_URL)
+	tar -zxf $(CAPSTONE_SRC_DIR).tar.gz
+	mkdir -p $(S2E_BUILD)/$(CAPSTONE_BUILD_DIR)
+
 ifeq ($(LLVM_BUILD),$(S2E_BUILD))
 
 
@@ -306,6 +319,27 @@ stamps/z3-configure: stamps/clang-binary $(Z3_BUILD_DIR)
 stamps/z3-make: stamps/z3-configure
 	$(MAKE) -C $(Z3_BUILD_DIR)
 	$(MAKE) -C $(Z3_BUILD_DIR) install
+	touch $@
+
+############
+# Capstone #
+############
+
+CAPSTONE_CONFIGURE_FLAGS = -DCMAKE_INSTALL_PREFIX=$(S2E_PREFIX)         \
+                     -DCMAKE_C_COMPILER=$(CLANG_CC)                     \
+                     -DCMAKE_CXX_COMPILER=$(CLANG_CXX)                  \
+                     -DCMAKE_C_FLAGS="-fno-omit-frame-pointer -fPIC"    \
+                     -DCMAKE_CXX_FLAGS="-fno-omit-frame-pointer -fPIC"  \
+                     -G "Unix Makefiles"
+
+stamps/capstone-configure: stamps/clang-binary $(CAPSTONE_BUILD_DIR)
+	cd $(CAPSTONE_BUILD_DIR) &&                                         \
+	cmake $(CAPSTONE_CONFIGURE_FLAGS) $(S2E_BUILD)/$(CAPSTONE_SRC_DIR)
+	touch $@
+
+stamps/capstone-make: stamps/capstone-configure
+	$(MAKE) -C $(CAPSTONE_BUILD_DIR)
+	$(MAKE) -C $(CAPSTONE_BUILD_DIR) install
 	touch $@
 
 #######
@@ -420,7 +454,7 @@ stamps/libfsigc++-release-make: stamps/libfsigc++-release-configure
 # libq #
 ########
 
-LIBQ_COMMON_FLAGS = -DCMAKE_MODULE_PATH=$(S2E_SRC)/cmake     \
+LIBQ_COMMON_FLAGS = -DCMAKE_MODULE_PATH=$(S2E_SRC)/cmake    \
                     -DCMAKE_C_COMPILER=$(CLANG_CC)          \
                     -DCMAKE_CXX_COMPILER=$(CLANG_CXX)       \
                     -DCMAKE_C_FLAGS="$(CFLAGS_ARCH)"        \
@@ -524,6 +558,8 @@ LIBS2E_CONFIGURE_FLAGS = --with-cc=$(CLANG_CC)                                  
                          --with-s2e-guest-incdir=$(S2E_SRC)/guest/common/include    \
                          --with-z3-incdir=$(S2E_PREFIX)/include                     \
                          --with-z3-libdir=$(S2E_PREFIX)/lib                         \
+                         --with-capstone-incdir=$(S2E_PREFIX)/include               \
+                         --with-capstone-libdir=$(S2E_PREFIX)/lib                   \
                          --with-libtcg-src=$(S2E_SRC)/libtcg                        \
                          --with-libcpu-src=$(S2E_SRC)/libcpu                        \
                          --with-libs2ecore-src=$(S2E_SRC)/libs2ecore                \
@@ -548,7 +584,7 @@ LIBS2E_RELEASE_FLAGS = --with-llvm=$(LLVM_BUILD)/llvm-release                   
 stamps/libs2e-debug-configure: $(S2E_SRC)/libs2e/configure
 stamps/libs2e-debug-configure: stamps/lua-make stamps/libvmi-debug-make         \
     stamps/klee-debug-make stamps/soci-make stamps/libfsigc++-debug-make        \
-    stamps/libq-debug-make stamps/libcoroutine-debug-make
+    stamps/libq-debug-make stamps/libcoroutine-debug-make stamps/capstone-make
 stamps/libs2e-debug-configure: CONFIGURE_COMMAND = $(S2E_SRC)/libs2e/configure  \
                                                    $(LIBS2E_CONFIGURE_FLAGS)    \
                                                    $(LIBS2E_DEBUG_FLAGS)
@@ -556,7 +592,7 @@ stamps/libs2e-debug-configure: CONFIGURE_COMMAND = $(S2E_SRC)/libs2e/configure  
 stamps/libs2e-release-configure: $(S2E_SRC)/libs2e/configure
 stamps/libs2e-release-configure: stamps/lua-make stamps/libvmi-release-make     \
     stamps/klee-release-make stamps/soci-make stamps/libfsigc++-release-make    \
-    stamps/libq-release-make stamps/libcoroutine-release-make
+    stamps/libq-release-make stamps/libcoroutine-release-make  stamps/capstone-make
 stamps/libs2e-release-configure: CONFIGURE_COMMAND = $(S2E_SRC)/libs2e/configure    \
                                                      $(LIBS2E_CONFIGURE_FLAGS)      \
                                                      $(LIBS2E_RELEASE_FLAGS)
