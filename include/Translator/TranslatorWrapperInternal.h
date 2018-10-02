@@ -228,11 +228,11 @@ void qemu_init_vcpu(void *_env) {
 }
 
 extern "C" {
-void target_disas(FILE *out, target_ulong code, target_ulong size, int flags) {
+void target_disas(void *env, FILE *out, target_ulong code, target_ulong size, int flags) {
     assert(false && "Not usable statically");
 }
 
-void disas(FILE *out, void *code, unsigned long size) {
+void disas(void *env, FILE *out, void *code, unsigned long size) {
     assert(false && "Not usable statically");
 }
 
