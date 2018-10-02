@@ -1123,7 +1123,7 @@ void S2EExecutionState::disassemble(llvm::raw_ostream &os, uint64_t pc, unsigned
     }
 
     FILE *fp = reinterpret_cast<FILE *>(&os);
-    target_disas_ex(fp, __disas_print, pc, size, flags);
+    target_disas_ex(regs()->getCpuState(), fp, __disas_print, pc, size, flags);
 }
 
 /// \brief Print query to solve constraints
