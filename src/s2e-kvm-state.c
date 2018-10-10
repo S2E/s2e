@@ -5,6 +5,7 @@
 /// Licensed under the Cyberhaven Research License Agreement.
 ///
 
+#include <assert.h>
 #include <errno.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -246,7 +247,12 @@ int s2e_kvm_vcpu_set_regs(int vcpu_fd, struct kvm_regs *regs) {
     env->eip = regs->rip;
 
     if (g_handling_kvm_cb) {
-        fprintf(stderr, "warning: kvm asking cpu state while handling io\n");
+        fprintf(stderr, "warning: kvm setting cpu state while handling io\n");
+        // TODO: try to set the system part of the flags register.
+        // It should be OK to skip these because the KVM client usually writes
+        // back the value it has just read when KVM_RUN exits. That value
+        // is already stored in the CPU state of the symbex engine.
+        assert(regs->rflags == env->mflags);
     } else {
         cpu_set_eflags(env, regs->rflags);
     }
@@ -382,6 +388,9 @@ int s2e_kvm_vcpu_get_regs(int vcpu_fd, struct kvm_regs *regs) {
         regs->rflags = cpu_get_eflags(env);
     } else {
         fprintf(stderr, "warning: kvm asking cpu state while handling io\n");
+        // We must at least give the system flags to the KVM client, which
+        // may use them to compute the segment registers.
+        regs->rflags = env->mflags;
     }
 
     return 0;
