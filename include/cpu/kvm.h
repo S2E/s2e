@@ -188,7 +188,8 @@ struct kvm_pit_config {
 struct kvm_run {
     /* in */
     __u8 request_interrupt_window;
-    __u8 padding1[7];
+    __u8 immediate_exit;
+    __u8 padding1[6];
 
     /* out */
     __u32 exit_reason;
@@ -757,6 +758,8 @@ struct kvm_ppc_smmu_info {
 #define KVM_CAP_PPC_FIXUP_HCALL 103
 #define KVM_CAP_PPC_ENABLE_HCALL 104
 #define KVM_CAP_CHECK_EXTENSION_VM 105
+
+#define KVM_CAP_IMMEDIATE_EXIT 136
 
 /***** custom capabilities for symbolic execution support *****/
 #define KVM_CAP_MEM_RW 1021
