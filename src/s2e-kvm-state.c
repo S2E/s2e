@@ -325,7 +325,7 @@ int s2e_kvm_vcpu_set_msrs(int vcpu_fd, struct kvm_msrs *msrs) {
     for (unsigned i = 0; i < msrs->nmsrs; ++i) {
         helper_wrmsr_v(msrs->entries[i].index, msrs->entries[i].data);
     }
-    return 0;
+    return msrs->nmsrs;
 }
 
 int s2e_kvm_vcpu_set_mp_state(int vcpu_fd, struct kvm_mp_state *mp) {
