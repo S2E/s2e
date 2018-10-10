@@ -80,7 +80,7 @@ bool init_ram_size(int argc, char **argv) {
     // Extra buffer for video ram and other devices.
     // This is arbitrary, if it's not enough, execution will
     // abort later.
-    length += 10 * 1024 * 1024;
+    length += 17 * 1024 * 1024;
     length >>= TARGET_PAGE_BITS;
 
     ram_list.phys_dirty_size = length;
