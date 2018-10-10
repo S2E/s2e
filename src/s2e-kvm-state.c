@@ -6,6 +6,7 @@
 ///
 
 #include <errno.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -14,6 +15,7 @@
 #include <cpu/kvm.h>
 
 #include <cpu/i386/cpu.h>
+#include <cpu/se_libcpu.h>
 #include <timer.h>
 #include "s2e-kvm-interface.h"
 
@@ -188,7 +190,38 @@ int s2e_kvm_vcpu_set_cpuid2(int vcpu_fd, struct kvm_cpuid2 *cpuid) {
     return 0;
 }
 
+#define WR_cpu(cpu, reg, value) \
+    g_sqi.regs.write_concrete(offsetof(CPUX86State, reg), (uint8_t *) &value, sizeof(target_ulong))
+#define RR_cpu(cpu, reg, value) \
+    g_sqi.regs.read_concrete(offsetof(CPUX86State, reg), (uint8_t *) &value, sizeof(target_ulong))
+
 int s2e_kvm_vcpu_set_regs(int vcpu_fd, struct kvm_regs *regs) {
+    if (g_handling_kvm_cb) {
+        fprintf(stderr, "warning: kvm setting cpu state while handling io\n");
+        return 0;
+    }
+
+#ifdef CONFIG_SYMBEX
+    WR_cpu(env, regs[R_EAX], regs->rax);
+    WR_cpu(env, regs[R_EBX], regs->rbx);
+    WR_cpu(env, regs[R_ECX], regs->rcx);
+    WR_cpu(env, regs[R_EDX], regs->rdx);
+    WR_cpu(env, regs[R_ESI], regs->rsi);
+    WR_cpu(env, regs[R_EDI], regs->rdi);
+    WR_cpu(env, regs[R_ESP], regs->rsp);
+    WR_cpu(env, regs[R_EBP], regs->rbp);
+
+#ifdef TARGET_X86_64
+    WR_cpu(env, regs[8], regs->r8);
+    WR_cpu(env, regs[9], regs->r9);
+    WR_cpu(env, regs[10], regs->r10);
+    WR_cpu(env, regs[11], regs->r11);
+    WR_cpu(env, regs[12], regs->r12);
+    WR_cpu(env, regs[13], regs->r13);
+    WR_cpu(env, regs[14], regs->r14);
+    WR_cpu(env, regs[15], regs->r15);
+#endif
+#else
     env->regs[R_EAX] = regs->rax;
     env->regs[R_EBX] = regs->rbx;
     env->regs[R_ECX] = regs->rcx;
@@ -207,6 +240,7 @@ int s2e_kvm_vcpu_set_regs(int vcpu_fd, struct kvm_regs *regs) {
     env->regs[13] = regs->r13;
     env->regs[14] = regs->r14;
     env->regs[15] = regs->r15;
+#endif
 #endif
 
     env->eip = regs->rip;
@@ -300,6 +334,27 @@ int s2e_kvm_vcpu_set_mp_state(int vcpu_fd, struct kvm_mp_state *mp) {
 }
 
 int s2e_kvm_vcpu_get_regs(int vcpu_fd, struct kvm_regs *regs) {
+#ifdef CONFIG_SYMBEX
+    RR_cpu(env, regs[R_EAX], regs->rax);
+    RR_cpu(env, regs[R_EBX], regs->rbx);
+    RR_cpu(env, regs[R_ECX], regs->rcx);
+    RR_cpu(env, regs[R_EDX], regs->rdx);
+    RR_cpu(env, regs[R_ESI], regs->rsi);
+    RR_cpu(env, regs[R_EDI], regs->rdi);
+    RR_cpu(env, regs[R_ESP], regs->rsp);
+    RR_cpu(env, regs[R_EBP], regs->rbp);
+
+#ifdef TARGET_X86_64
+    RR_cpu(env, regs[8], regs->r8);
+    RR_cpu(env, regs[9], regs->r9);
+    RR_cpu(env, regs[10], regs->r10);
+    RR_cpu(env, regs[11], regs->r11);
+    RR_cpu(env, regs[12], regs->r12);
+    RR_cpu(env, regs[13], regs->r13);
+    RR_cpu(env, regs[14], regs->r14);
+    RR_cpu(env, regs[15], regs->r15);
+#endif
+#else
     regs->rax = env->regs[R_EAX];
     regs->rbx = env->regs[R_EBX];
     regs->rcx = env->regs[R_ECX];
@@ -318,6 +373,7 @@ int s2e_kvm_vcpu_get_regs(int vcpu_fd, struct kvm_regs *regs) {
     regs->r13 = env->regs[13];
     regs->r14 = env->regs[14];
     regs->r15 = env->regs[15];
+#endif
 #endif
 
     regs->rip = env->eip;
