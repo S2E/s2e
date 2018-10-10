@@ -202,6 +202,7 @@ int s2e_kvm_check_extension(int kvm_fd, int capability) {
             return MAX_MEMORY_SLOTS;
         } break;
 
+        case KVM_CAP_JOIN_MEMORY_REGIONS_WORKS:
         case KVM_CAP_MP_STATE:
         case KVM_CAP_EXT_CPUID:
         case KVM_CAP_SET_TSS_ADDR:
@@ -210,12 +211,17 @@ int s2e_kvm_check_extension(int kvm_fd, int capability) {
         case KVM_CAP_NR_VCPUS:
         case KVM_CAP_MAX_VCPUS:
 
+        // We don't really need to support this call, just pretend that we do.
+        // The real exit will be done through our custom KVM_CAP_FORCE_EXIT.
+        case KVM_CAP_IMMEDIATE_EXIT:
+
         /* libs2e-specific calls */
         case KVM_CAP_MEM_RW:
         case KVM_CAP_FORCE_EXIT:
             return 1;
 
 #ifdef CONFIG_SYMBEX
+        case KVM_CAP_MEM_FIXED_REGION:
         case KVM_CAP_DISK_RW:
         case KVM_CAP_CPU_CLOCK_SCALE:
             return 1;
