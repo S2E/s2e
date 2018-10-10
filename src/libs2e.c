@@ -126,6 +126,13 @@ static int handle_kvm_ioctl(int fd, int request, uint64_t arg1) {
 static int handle_kvm_vm_ioctl(int fd, int request, uint64_t arg1) {
     int ret = -1;
     switch ((uint32_t) request) {
+        case KVM_CHECK_EXTENSION:
+            ret = s2e_kvm_check_extension(fd, arg1);
+            if (ret < 0) {
+                errno = 1;
+            }
+            break;
+
         case KVM_SET_TSS_ADDR: {
             ret = s2e_kvm_vm_set_tss_addr(fd, arg1);
         } break;
