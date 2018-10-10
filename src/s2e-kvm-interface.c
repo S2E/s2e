@@ -43,6 +43,9 @@
 #include <cpu/se_libcpu.h>
 #endif
 
+// #define SE_KVM_DEBUG_IRQ
+// #define SE_KVM_DEBUG_DEV_STATE
+
 #include "s2e-kvm-interface.h"
 
 // We may need a very large stack in case of deep expressions.
@@ -73,6 +76,10 @@ static const int MAX_MEMORY_SLOTS = 32;
 // This happens when an instruction had to suspend its execution
 // to let the kvm client handle the operation (e.g., mmio, snapshot, etc.).
 int g_handling_kvm_cb;
+
+// Indicates that the cpu loop is handling a device state snaphsot load/save.
+// This implies that g_handling_kvm_cb is 1.
+int g_handling_dev_state;
 
 static const int CPU_EXIT_SIGNAL = SIGUSR2;
 bool g_cpu_thread_id_inited = false;
@@ -598,16 +605,27 @@ static void unblock_signals(void) {
 
 void s2e_kvm_flush_disk(void) {
     g_kvm_vcpu_buffer->exit_reason = KVM_EXIT_FLUSH_DISK;
+    g_handling_dev_state = 1;
     coroutine_yield();
 }
 
 void s2e_kvm_save_device_state(void) {
+#ifdef SE_KVM_DEBUG_DEV_STATE
+    libcpu_log("Saving device state\n");
+    log_cpu_state(g_cpu_env, 0);
+#endif
     g_kvm_vcpu_buffer->exit_reason = KVM_EXIT_SAVE_DEV_STATE;
+    g_handling_dev_state = 1;
     coroutine_yield();
 }
 
 void s2e_kvm_restore_device_state(void) {
+#ifdef SE_KVM_DEBUG_DEV_STATE
+    libcpu_log("Restoring device state\n");
+    log_cpu_state(g_cpu_env, 0);
+#endif
     g_kvm_vcpu_buffer->exit_reason = KVM_EXIT_RESTORE_DEV_STATE;
+    g_handling_dev_state = 1;
     coroutine_yield();
 }
 
@@ -743,6 +761,7 @@ int s2e_kvm_vcpu_run(int vcpu_fd) {
     env->v_tpr = g_kvm_vcpu_buffer->cr8;
 
     g_handling_kvm_cb = 0;
+    g_handling_dev_state = 0;
 
     coroutine_enter(s_kvm_cpu_coroutine, NULL);
 

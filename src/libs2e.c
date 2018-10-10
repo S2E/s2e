@@ -219,28 +219,62 @@ static int handle_kvm_vcpu_ioctl(int fd, int request, uint64_t arg1) {
         } break;
 
         /***********************************************/
+        // When the symbolic execution engine needs to take a system snapshot,
+        // it must rely on the KVM client to save the device state. That client
+        // will typically also save/restore the CPU state. We don't want the client
+        // to do that, so in order to not modify the client too much, we ignore
+        // the calls to register setters when they are done in the context of
+        // device state snapshotting.
         case KVM_SET_REGS: {
-            ret = s2e_kvm_vcpu_set_regs(fd, (struct kvm_regs *) arg1);
+            if (g_handling_dev_state) {
+                ret = 0;
+            } else {
+                ret = s2e_kvm_vcpu_set_regs(fd, (struct kvm_regs *) arg1);
+            }
         } break;
 
         case KVM_SET_FPU: {
-            ret = s2e_kvm_vcpu_set_fpu(fd, (struct kvm_fpu *) arg1);
+            if (g_handling_dev_state) {
+                ret = 0;
+            } else {
+                ret = s2e_kvm_vcpu_set_fpu(fd, (struct kvm_fpu *) arg1);
+            }
         } break;
 
         case KVM_SET_SREGS: {
-            ret = s2e_kvm_vcpu_set_sregs(fd, (struct kvm_sregs *) arg1);
+            if (g_handling_dev_state) {
+                ret = 0;
+            } else {
+                ret = s2e_kvm_vcpu_set_sregs(fd, (struct kvm_sregs *) arg1);
+            }
         } break;
 
         case KVM_SET_MSRS: {
-            ret = s2e_kvm_vcpu_set_msrs(fd, (struct kvm_msrs *) arg1);
+            if (g_handling_dev_state) {
+                ret = ((struct kvm_msrs *) arg1)->nmsrs;
+            } else {
+                ret = s2e_kvm_vcpu_set_msrs(fd, (struct kvm_msrs *) arg1);
+            }
         } break;
 
         case KVM_SET_MP_STATE: {
-            ret = s2e_kvm_vcpu_set_mp_state(fd, (struct kvm_mp_state *) arg1);
+            if (g_handling_dev_state) {
+                ret = 0;
+            } else {
+                ret = s2e_kvm_vcpu_set_mp_state(fd, (struct kvm_mp_state *) arg1);
+            }
         } break;
         /***********************************************/
         case KVM_GET_REGS: {
-            ret = s2e_kvm_vcpu_get_regs(fd, (struct kvm_regs *) arg1);
+            if (g_handling_dev_state) {
+                // Poison the returned registers to make sure we don't use
+                // it again by accident. We can't just fail the call because
+                // the client needs it to save the cpu state (that we ignore).
+                memset((void *) arg1, 0xff, sizeof(struct kvm_regs));
+                ret = 0;
+            } else {
+                ret = s2e_kvm_vcpu_get_regs(fd, (struct kvm_regs *) arg1);
+            }
         } break;
 
         case KVM_GET_FPU: {
