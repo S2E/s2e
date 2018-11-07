@@ -514,6 +514,7 @@ QEMU_TARGETS=i386-softmmu,x86_64-softmmu
 
 QEMU_CONFIGURE_FLAGS = --prefix=$(S2E_PREFIX)        \
                        --target-list=$(QEMU_TARGETS) \
+                       --disable-smartcard           \
                        --disable-virtfs              \
                        --disable-xen                 \
                        --disable-bluez               \
