@@ -4012,9 +4012,6 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start) {
     target_ulong next_eip, tval;
     int rex_w, rex_r;
 
-// if (pc_start == 0xffffff800039b183)
-//    asm("int $3");
-
 #if defined(CONFIG_SYMBEX)
 // tcg_gen_debug_insn_start(pc_start);
 #else
