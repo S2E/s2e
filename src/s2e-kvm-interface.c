@@ -81,6 +81,8 @@ int g_handling_kvm_cb;
 // This implies that g_handling_kvm_cb is 1.
 int g_handling_dev_state;
 
+int g_cpu_state_is_precise = 1;
+
 static const int CPU_EXIT_SIGNAL = SIGUSR2;
 bool g_cpu_thread_id_inited = false;
 pthread_t g_cpu_thread_id;
@@ -674,8 +676,10 @@ static void coroutine_fn s2e_kvm_cpu_coroutine(void *opaque) {
         uint64_t prev_eip = env->eip;
 #endif
 
+        g_cpu_state_is_precise = 0;
         env->exit_request = 0;
         cpu_x86_exec(env);
+        g_cpu_state_is_precise = 1;
 // printf("cpu_exec return %#x\n", ret);
 
 #ifdef SE_KVM_DEBUG_IRQ

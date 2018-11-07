@@ -196,9 +196,45 @@ int s2e_kvm_vcpu_set_cpuid2(int vcpu_fd, struct kvm_cpuid2 *cpuid) {
 #define RR_cpu(cpu, reg, value) \
     g_sqi.regs.read_concrete(offsetof(CPUX86State, reg), (uint8_t *) &value, sizeof(target_ulong))
 
+///
+/// \brief s2e_kvm_vcpu_set_regs set the general purpose registers of the CPU
+///
+/// libcpu does not track register the program counter and eflags state precisely,
+/// in order to speed up execution. More precisely, it will not update these registers
+/// after each instruction is executed. This has important implications for KVM clients.
+/// When guest code executes an instruction that causes a VM exit (e.g., memory access
+/// to a device), the following happens:
+///
+/// 1. libcpu suspends the current translation block and calls the I/O handler in libs2e
+/// 2. Functions in s2e-kvm-io.c trigger a coroutine switch to s2e_kvm_vcpu_run,
+///    which returns to the KVM client
+/// 3. The KVM client handles the I/O emulation
+/// 4. The KVM client re-enters s2e_kvm_vcpu_run, which switches back to the coroutine
+///    interrupted in step 2.
+/// 5. Execution of the translation block resumes
+///
+/// During step 3, I/O emulation may want to access the guest cpu register state using
+/// the corresponding KVM APIs. In vanilla KVM, these APIs expect the CPU state to be
+/// fully consistent. However, this consistency is broken in libs2e because of how CPU
+/// emulation works (see explanation above). Luckily, this situation does not usually
+/// happen in practice, as the KVM client reads the CPU state when it is in sync.
+/// This function nevertheless checks for this and prints a warning.
+///
+/// Same remarks apply for register setters, which may corrupt CPU state if called
+/// at a time where the CPU state is not properly committed.
+///
+/// In principle, fixing this issue would require calling cpu_restore_state at every
+/// exit point.
+///
 int s2e_kvm_vcpu_set_regs(int vcpu_fd, struct kvm_regs *regs) {
     if (g_handling_kvm_cb) {
         fprintf(stderr, "warning: kvm setting cpu state while handling io\n");
+        return 0;
+    }
+
+    // Do not let any state change to avoid corruption
+    if (!g_cpu_state_is_precise) {
+        fprintf(stderr, "Can't set registers in the middle of a translation block\n");
         return 0;
     }
 
@@ -340,6 +376,11 @@ int s2e_kvm_vcpu_set_mp_state(int vcpu_fd, struct kvm_mp_state *mp) {
 }
 
 int s2e_kvm_vcpu_get_regs(int vcpu_fd, struct kvm_regs *regs) {
+    if (!g_cpu_state_is_precise) {
+        // Probably OK to let execution continue
+        fprintf(stderr, "Getting register state in the middle of a translation block, eip/flags may be imprecise\n");
+    }
+
 #ifdef CONFIG_SYMBEX
     RR_cpu(env, regs[R_EAX], regs->rax);
     RR_cpu(env, regs[R_EBX], regs->rbx);

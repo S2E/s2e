@@ -44,6 +44,7 @@ extern int g_kvm_vcpu_fd;
 
 extern int g_handling_kvm_cb;
 extern int g_handling_dev_state;
+extern int g_cpu_state_is_precise;
 
 struct se_libcpu_interface_t;
 void init_s2e_libcpu_interface(struct se_libcpu_interface_t *sqi);
