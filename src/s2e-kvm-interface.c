@@ -636,11 +636,11 @@ void s2e_kvm_clone_process(void) {
 
     coroutine_yield();
 
+    g_cpu_thread_id = pthread_self();
+
     if (s2e_kvm_init_timer_thread() < 0) {
         exit(-1);
     }
-
-    g_cpu_thread_id = pthread_self();
 }
 
 static void coroutine_fn s2e_kvm_cpu_coroutine(void *opaque) {
