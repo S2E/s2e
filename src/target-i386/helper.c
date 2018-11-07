@@ -284,65 +284,72 @@ void cpu_dump_state(CPUX86State *env, FILE *f, fprintf_function cpu_fprintf, int
     eflags = cpu_get_eflags_dirty(env);
     assert(!(eflags & 0xffc08028));
 
+    if (flags & X86_DUMP_GPREGS) {
 #ifdef TARGET_X86_64
-    if (env->hflags & HF_CS64_MASK) {
-        cpu_fprintf(f, "RAX=%016" PRIx64 " RBX=%016" PRIx64 " RCX=%016" PRIx64 " RDX=%016" PRIx64 "\n"
-                       "RSI=%016" PRIx64 " RDI=%016" PRIx64 " RBP=%016" PRIx64 " RSP=%016" PRIx64 "\n"
-                       "R8 =%016" PRIx64 " R9 =%016" PRIx64 " R10=%016" PRIx64 " R11=%016" PRIx64 "\n"
-                       "R12=%016" PRIx64 " R13=%016" PRIx64 " R14=%016" PRIx64 " R15=%016" PRIx64 "\n"
-                       "RIP=%016" PRIx64 " RFL=%08x [%c%c%c%c%c%c%c] CPL=%d II=%d A20=%d SMM=%d HLT=%d\n",
-                    RR_cpu(env, regs[R_EAX]), RR_cpu(env, regs[R_EBX]), RR_cpu(env, regs[R_ECX]),
-                    RR_cpu(env, regs[R_EDX]), RR_cpu(env, regs[R_ESI]), RR_cpu(env, regs[R_EDI]),
-                    RR_cpu(env, regs[R_EBP]), RR_cpu(env, regs[R_ESP]), RR_cpu(env, regs[8]), RR_cpu(env, regs[9]),
-                    RR_cpu(env, regs[10]), RR_cpu(env, regs[11]), RR_cpu(env, regs[12]), RR_cpu(env, regs[13]),
-                    RR_cpu(env, regs[14]), RR_cpu(env, regs[15]), env->eip, eflags, eflags & DF_MASK ? 'D' : '-',
-                    eflags & CC_O ? 'O' : '-', eflags & CC_S ? 'S' : '-', eflags & CC_Z ? 'Z' : '-',
-                    eflags & CC_A ? 'A' : '-', eflags & CC_P ? 'P' : '-', eflags & CC_C ? 'C' : '-',
-                    env->hflags & HF_CPL_MASK, (env->hflags >> HF_INHIBIT_IRQ_SHIFT) & 1, (env->a20_mask >> 20) & 1,
-                    (env->hflags >> HF_SMM_SHIFT) & 1, env->halted);
-    } else
+        if (env->hflags & HF_CS64_MASK) {
+            cpu_fprintf(f, "RAX=%016" PRIx64 " RBX=%016" PRIx64 " RCX=%016" PRIx64 " RDX=%016" PRIx64 "\n"
+                           "RSI=%016" PRIx64 " RDI=%016" PRIx64 " RBP=%016" PRIx64 " RSP=%016" PRIx64 "\n"
+                           "R8 =%016" PRIx64 " R9 =%016" PRIx64 " R10=%016" PRIx64 " R11=%016" PRIx64 "\n"
+                           "R12=%016" PRIx64 " R13=%016" PRIx64 " R14=%016" PRIx64 " R15=%016" PRIx64 "\n"
+                           "RIP=%016" PRIx64 " RFL=%08x [%c%c%c%c%c%c%c] CPL=%d II=%d A20=%d SMM=%d HLT=%d\n",
+                        RR_cpu(env, regs[R_EAX]), RR_cpu(env, regs[R_EBX]), RR_cpu(env, regs[R_ECX]),
+                        RR_cpu(env, regs[R_EDX]), RR_cpu(env, regs[R_ESI]), RR_cpu(env, regs[R_EDI]),
+                        RR_cpu(env, regs[R_EBP]), RR_cpu(env, regs[R_ESP]), RR_cpu(env, regs[8]), RR_cpu(env, regs[9]),
+                        RR_cpu(env, regs[10]), RR_cpu(env, regs[11]), RR_cpu(env, regs[12]), RR_cpu(env, regs[13]),
+                        RR_cpu(env, regs[14]), RR_cpu(env, regs[15]), env->eip, eflags, eflags & DF_MASK ? 'D' : '-',
+                        eflags & CC_O ? 'O' : '-', eflags & CC_S ? 'S' : '-', eflags & CC_Z ? 'Z' : '-',
+                        eflags & CC_A ? 'A' : '-', eflags & CC_P ? 'P' : '-', eflags & CC_C ? 'C' : '-',
+                        env->hflags & HF_CPL_MASK, (env->hflags >> HF_INHIBIT_IRQ_SHIFT) & 1, (env->a20_mask >> 20) & 1,
+                        (env->hflags >> HF_SMM_SHIFT) & 1, env->halted);
+        } else
 #endif
-    {
-        cpu_fprintf(f, "EAX=%08x EBX=%08x ECX=%08x EDX=%08x\n"
-                       "ESI=%08x EDI=%08x EBP=%08x ESP=%08x\n"
-                       "EIP=%08x EFL=%08x [%c%c%c%c%c%c%c] CPL=%d II=%d A20=%d SMM=%d HLT=%d\n",
-                    (uint32_t) RR_cpu(env, regs[R_EAX]), (uint32_t) RR_cpu(env, regs[R_EBX]),
-                    (uint32_t) RR_cpu(env, regs[R_ECX]), (uint32_t) RR_cpu(env, regs[R_EDX]),
-                    (uint32_t) RR_cpu(env, regs[R_ESI]), (uint32_t) RR_cpu(env, regs[R_EDI]),
-                    (uint32_t) RR_cpu(env, regs[R_EBP]), (uint32_t) RR_cpu(env, regs[R_ESP]), (uint32_t) env->eip,
-                    eflags, eflags & DF_MASK ? 'D' : '-', eflags & CC_O ? 'O' : '-', eflags & CC_S ? 'S' : '-',
-                    eflags & CC_Z ? 'Z' : '-', eflags & CC_A ? 'A' : '-', eflags & CC_P ? 'P' : '-',
-                    eflags & CC_C ? 'C' : '-', env->hflags & HF_CPL_MASK, (env->hflags >> HF_INHIBIT_IRQ_SHIFT) & 1,
-                    (env->a20_mask >> 20) & 1, (env->hflags >> HF_SMM_SHIFT) & 1, env->halted);
-    }
-
-    for (i = 0; i < 6; i++) {
-        cpu_x86_dump_seg_cache(env, f, cpu_fprintf, seg_name[i], &env->segs[i]);
-    }
-    cpu_x86_dump_seg_cache(env, f, cpu_fprintf, "LDT", &env->ldt);
-    cpu_x86_dump_seg_cache(env, f, cpu_fprintf, "TR", &env->tr);
-
-#ifdef TARGET_X86_64
-    if (env->hflags & HF_LMA_MASK) {
-        cpu_fprintf(f, "GDT=     %016" PRIx64 " %08x\n", env->gdt.base, env->gdt.limit);
-        cpu_fprintf(f, "IDT=     %016" PRIx64 " %08x\n", env->idt.base, env->idt.limit);
-        cpu_fprintf(f, "CR0=%08x CR2=%016" PRIx64 " CR3=%016" PRIx64 " CR4=%08x\n", (uint32_t) env->cr[0], env->cr[2],
-                    env->cr[3], (uint32_t) env->cr[4]);
-        for (i = 0; i < 4; i++)
-            cpu_fprintf(f, "DR%d=%016" PRIx64 " ", i, env->dr[i]);
-        cpu_fprintf(f, "\nDR6=%016" PRIx64 " DR7=%016" PRIx64 "\n", env->dr[6], env->dr[7]);
-    } else
-#endif
-    {
-        cpu_fprintf(f, "GDT=     %08x %08x\n", (uint32_t) env->gdt.base, env->gdt.limit);
-        cpu_fprintf(f, "IDT=     %08x %08x\n", (uint32_t) env->idt.base, env->idt.limit);
-        cpu_fprintf(f, "CR0=%08x CR2=%08x CR3=%08x CR4=%08x\n", (uint32_t) env->cr[0], (uint32_t) env->cr[2],
-                    (uint32_t) env->cr[3], (uint32_t) env->cr[4]);
-        for (i = 0; i < 4; i++) {
-            cpu_fprintf(f, "DR%d=" TARGET_FMT_lx " ", i, env->dr[i]);
+        {
+            cpu_fprintf(f, "EAX=%08x EBX=%08x ECX=%08x EDX=%08x\n"
+                           "ESI=%08x EDI=%08x EBP=%08x ESP=%08x\n"
+                           "EIP=%08x EFL=%08x [%c%c%c%c%c%c%c] CPL=%d II=%d A20=%d SMM=%d HLT=%d\n",
+                        (uint32_t) RR_cpu(env, regs[R_EAX]), (uint32_t) RR_cpu(env, regs[R_EBX]),
+                        (uint32_t) RR_cpu(env, regs[R_ECX]), (uint32_t) RR_cpu(env, regs[R_EDX]),
+                        (uint32_t) RR_cpu(env, regs[R_ESI]), (uint32_t) RR_cpu(env, regs[R_EDI]),
+                        (uint32_t) RR_cpu(env, regs[R_EBP]), (uint32_t) RR_cpu(env, regs[R_ESP]), (uint32_t) env->eip,
+                        eflags, eflags & DF_MASK ? 'D' : '-', eflags & CC_O ? 'O' : '-', eflags & CC_S ? 'S' : '-',
+                        eflags & CC_Z ? 'Z' : '-', eflags & CC_A ? 'A' : '-', eflags & CC_P ? 'P' : '-',
+                        eflags & CC_C ? 'C' : '-', env->hflags & HF_CPL_MASK, (env->hflags >> HF_INHIBIT_IRQ_SHIFT) & 1,
+                        (env->a20_mask >> 20) & 1, (env->hflags >> HF_SMM_SHIFT) & 1, env->halted);
         }
-        cpu_fprintf(f, "\nDR6=" TARGET_FMT_lx " DR7=" TARGET_FMT_lx "\n", env->dr[6], env->dr[7]);
     }
+
+    if (flags & X86_DUMP_SEGREGS) {
+        for (i = 0; i < 6; i++) {
+            cpu_x86_dump_seg_cache(env, f, cpu_fprintf, seg_name[i], &env->segs[i]);
+        }
+        cpu_x86_dump_seg_cache(env, f, cpu_fprintf, "LDT", &env->ldt);
+        cpu_x86_dump_seg_cache(env, f, cpu_fprintf, "TR", &env->tr);
+    }
+
+    if (flags & X86_DUMP_SYSREGS) {
+#ifdef TARGET_X86_64
+        if (env->hflags & HF_LMA_MASK) {
+            cpu_fprintf(f, "GDT=     %016" PRIx64 " %08x\n", env->gdt.base, env->gdt.limit);
+            cpu_fprintf(f, "IDT=     %016" PRIx64 " %08x\n", env->idt.base, env->idt.limit);
+            cpu_fprintf(f, "CR0=%08x CR2=%016" PRIx64 " CR3=%016" PRIx64 " CR4=%08x\n", (uint32_t) env->cr[0],
+                        env->cr[2], env->cr[3], (uint32_t) env->cr[4]);
+            for (i = 0; i < 4; i++)
+                cpu_fprintf(f, "DR%d=%016" PRIx64 " ", i, env->dr[i]);
+            cpu_fprintf(f, "\nDR6=%016" PRIx64 " DR7=%016" PRIx64 "\n", env->dr[6], env->dr[7]);
+        } else
+#endif
+        {
+            cpu_fprintf(f, "GDT=     %08x %08x\n", (uint32_t) env->gdt.base, env->gdt.limit);
+            cpu_fprintf(f, "IDT=     %08x %08x\n", (uint32_t) env->idt.base, env->idt.limit);
+            cpu_fprintf(f, "CR0=%08x CR2=%08x CR3=%08x CR4=%08x\n", (uint32_t) env->cr[0], (uint32_t) env->cr[2],
+                        (uint32_t) env->cr[3], (uint32_t) env->cr[4]);
+            for (i = 0; i < 4; i++) {
+                cpu_fprintf(f, "DR%d=" TARGET_FMT_lx " ", i, env->dr[i]);
+            }
+            cpu_fprintf(f, "\nDR6=" TARGET_FMT_lx " DR7=" TARGET_FMT_lx "\n", env->dr[6], env->dr[7]);
+        }
+    }
+
     if (flags & X86_DUMP_CCOP) {
         if ((unsigned) env->cc_op < CC_OP_NB)
             snprintf(cc_op_name, sizeof(cc_op_name), "%s", cc_op_str[env->cc_op]);
@@ -357,7 +364,11 @@ void cpu_dump_state(CPUX86State *env, FILE *f, fprintf_function cpu_fprintf, int
             cpu_fprintf(f, "CCS=%08x CCD=%08x CCO=%-8s\n", (uint32_t) env->cc_src, (uint32_t) env->cc_dst, cc_op_name);
         }
     }
-    cpu_fprintf(f, "EFER=%016" PRIx64 "\n", env->efer);
+
+    if (flags & X86_DUMP_SYSENTER) {
+        cpu_fprintf(f, "EFER=%016" PRIx64 "\n", env->efer);
+    }
+
     if (flags & X86_DUMP_FPU) {
         int fptag;
         fptag = 0;

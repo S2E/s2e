@@ -394,13 +394,10 @@ static bool execution_loop(CPUArchState *env) {
 
 #if defined(DEBUG_DISAS) || defined(CONFIG_DEBUG_EXEC)
         if (libcpu_loglevel_mask(CPU_LOG_TB_CPU)) {
-/* restore flags in standard format */
 #if defined(TARGET_I386)
-            /*env->eflags = env->eflags | cpu_cc_compute_all(env, CC_OP)
-                | (DF & DF_MASK); */
-            log_cpu_state(env, X86_DUMP_CCOP);
-            // env->eflags &= ~(DF_MASK | CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
-            log_cpu_state(env, 0);
+            // It's too heavy to log all cpu state, usually gp regs are enough
+            // TODO: add an option to customize which regs to print
+            log_cpu_state(env, X86_DUMP_GPREGS);
 #endif
         }
 #endif /* DEBUG_DISAS || CONFIG_DEBUG_EXEC */
