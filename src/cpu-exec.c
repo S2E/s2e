@@ -216,6 +216,9 @@ static uintptr_t fetch_and_run_tb(uintptr_t prev_tb, CPUArchState *env) {
        starting execution if there is a pending interrupt. */
 
     env->current_tb = tb;
+
+    env->translate_single_instruction = 0;
+
     barrier();
     if (unlikely(env->exit_request)) {
         env->current_tb = NULL;

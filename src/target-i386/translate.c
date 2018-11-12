@@ -7911,7 +7911,7 @@ static inline void gen_intermediate_code_internal(CPUX86State *env, TranslationB
         /* if irq were inhibited with HF_INHIBIT_IRQ_MASK, we clear
            the flag and abort the translation to give the irqs a
            change to be happen */
-        if (dc->tf || dc->singlestep_enabled || (flags & HF_INHIBIT_IRQ_MASK)) {
+        if (dc->tf || dc->singlestep_enabled || (flags & HF_INHIBIT_IRQ_MASK) || env->translate_single_instruction) {
             gen_jmp_im(dc, pc_ptr - dc->cs_base);
 #ifdef CONFIG_SYMBEX
             gen_eob_event(dc, 1, pc_ptr - dc->cs_base);

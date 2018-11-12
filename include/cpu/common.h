@@ -53,7 +53,10 @@ typedef struct CPUWatchpoint {
                                   accessed */                                                         \
     target_ulong mem_io_vaddr; /* target virtual addr at which the                                    \
                                      memory was accessed */                                           \
-    uint32_t halted;           /* Nonzero if the CPU is in suspend state */                           \
+    /* When set, this forces the translator to put only one instruction in the next TB.               \
+     * This variable is automatically reset before code execution */                                  \
+    uint32_t translate_single_instruction;                                                            \
+    uint32_t halted; /* Nonzero if the CPU is in suspend state */                                     \
     uint32_t interrupt_request;                                                                       \
     volatile sig_atomic_t exit_request;                                                               \
     CPU_COMMON_TLB                                                                                    \
