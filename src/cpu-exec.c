@@ -26,6 +26,8 @@
 
 #define barrier() asm volatile("" ::: "memory")
 
+// #define DEBUG_EXEC
+
 #ifdef DEBUG_EXEC
 #define DPRINTF(...) printf(__VA_ARGS__)
 #else
@@ -452,7 +454,7 @@ int cpu_exec(CPUArchState *env) {
              */
             env->current_tb = NULL;
 
-            DPRINTF("  setjmp entered\n");
+            DPRINTF("  setjmp entered eip=%#lx\n", (uint64_t) env->eip);
 
 #ifdef CONFIG_SYMBEX
             assert(env->exception_index != EXCP_SE);
@@ -495,7 +497,7 @@ int cpu_exec(CPUArchState *env) {
             env = cpu_single_env;
         }
     } /* for(;;) */
-    DPRINTF("cpu_loop exit ret=%#x\n", ret);
+    DPRINTF("cpu_loop exit ret=%#x eip=%#lx\n", ret, (uint64_t) env->eip);
 
     env->current_tb = NULL;
 
