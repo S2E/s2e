@@ -306,6 +306,15 @@ static inline void gen_op_andl_A0_ffff(void) {
 #define REG_LH_OFFSET 4
 #endif
 
+// The translator does not update the program counter before each
+// instruction for performance reasons. Sometimes we still want the
+// pc to be updated, but without the performance overhead of the
+// a cpu_restore_state() call.
+static inline void gen_save_eip(DisasContext *s, target_ulong pc) {
+    tcg_gen_movi_tl(cpu_tmp0, pc - s->cs_base);
+    tcg_gen_st_tl(cpu_tmp0, cpu_env, offsetof(CPUArchState, eip));
+}
+
 #ifdef CONFIG_SYMBEX
 void *g_invokeCallRetInstrumentation __attribute__((weak));
 
@@ -6010,6 +6019,9 @@ reswitch:
                 ot = OT_BYTE;
             else
                 ot = dflag ? OT_LONG : OT_WORD;
+
+            gen_save_eip(s, pc_start);
+
             gen_op_mov_TN_reg(OT_WORD, 0, R_EDX);
             gen_op_andl_T0_ffff();
             gen_check_io(s, ot, pc_start - s->cs_base, SVM_IOIO_TYPE_MASK | svm_is_rep(prefixes) | 4);
@@ -6025,6 +6037,9 @@ reswitch:
                 ot = OT_BYTE;
             else
                 ot = dflag ? OT_LONG : OT_WORD;
+
+            gen_save_eip(s, pc_start);
+
             gen_op_mov_TN_reg(OT_WORD, 0, R_EDX);
             gen_op_andl_T0_ffff();
             gen_check_io(s, ot, pc_start - s->cs_base, svm_is_rep(prefixes) | 4);
@@ -6044,6 +6059,9 @@ reswitch:
                 ot = OT_BYTE;
             else
                 ot = dflag ? OT_LONG : OT_WORD;
+
+            gen_save_eip(s, pc_start);
+
             val = ldub_code(s->pc++);
             gen_op_movl_T0_im(val);
             gen_check_io(s, ot, pc_start - s->cs_base, SVM_IOIO_TYPE_MASK | svm_is_rep(prefixes));
@@ -6057,6 +6075,9 @@ reswitch:
                 ot = OT_BYTE;
             else
                 ot = dflag ? OT_LONG : OT_WORD;
+
+            gen_save_eip(s, pc_start);
+
             val = ldub_code(s->pc++);
             gen_op_movl_T0_im(val);
             gen_check_io(s, ot, pc_start - s->cs_base, svm_is_rep(prefixes));
@@ -6072,6 +6093,9 @@ reswitch:
                 ot = OT_BYTE;
             else
                 ot = dflag ? OT_LONG : OT_WORD;
+
+            gen_save_eip(s, pc_start);
+
             gen_op_mov_TN_reg(OT_WORD, 0, R_EDX);
             gen_op_andl_T0_ffff();
             gen_check_io(s, ot, pc_start - s->cs_base, SVM_IOIO_TYPE_MASK | svm_is_rep(prefixes));
@@ -6085,6 +6109,9 @@ reswitch:
                 ot = OT_BYTE;
             else
                 ot = dflag ? OT_LONG : OT_WORD;
+
+            gen_save_eip(s, pc_start);
+
             gen_op_mov_TN_reg(OT_WORD, 0, R_EDX);
             gen_op_andl_T0_ffff();
             gen_check_io(s, ot, pc_start - s->cs_base, svm_is_rep(prefixes));
