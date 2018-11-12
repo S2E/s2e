@@ -260,4 +260,8 @@ static inline uint8_t tb_get_instruction_size(TranslationBlock *tb, uint64_t add
 }
 #endif /* CONFIG_SYMBEX */
 
+void tb_free(TranslationBlock *tb);
+void tb_link_page(TranslationBlock *tb, tb_page_addr_t phys_pc, tb_page_addr_t phys_page2);
+void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr);
+
 #endif /* __LIBCPU_TB_H__ */
