@@ -227,17 +227,6 @@ int s2e_kvm_vcpu_set_cpuid2(int vcpu_fd, struct kvm_cpuid2 *cpuid) {
 /// exit point.
 ///
 int s2e_kvm_vcpu_set_regs(int vcpu_fd, struct kvm_regs *regs) {
-    if (g_handling_kvm_cb) {
-        fprintf(stderr, "warning: kvm setting cpu state while handling io\n");
-        return 0;
-    }
-
-    // Do not let any state change to avoid corruption
-    if (!g_cpu_state_is_precise) {
-        fprintf(stderr, "Can't set registers in the middle of a translation block\n");
-        return 0;
-    }
-
 #ifdef CONFIG_SYMBEX
     WR_cpu(env, regs[R_EAX], regs->rax);
     WR_cpu(env, regs[R_EBX], regs->rbx);
@@ -279,6 +268,14 @@ int s2e_kvm_vcpu_set_regs(int vcpu_fd, struct kvm_regs *regs) {
     env->regs[15] = regs->r15;
 #endif
 #endif
+
+    if (regs->rip != env->eip) {
+        if (g_handling_kvm_cb || !g_cpu_state_is_precise) {
+            // We don't support this at all, it's better to crash than to risk
+            // guest corruption.
+            abort();
+        }
+    }
 
     env->eip = regs->rip;
 
