@@ -26,7 +26,7 @@ extern CPUX86State *env;
 // It is useful when the KVM client modifies the program counter during
 // an I/O operation (e.g., VAPIC emulation).
 static void abort_and_retranslate_if_needed() {
-#if ENABLE_RETRANSLATE
+#ifdef ENABLE_RETRANSLATE
     if (env->se_current_tb->icount == 1) {
         return;
     }
@@ -148,18 +148,26 @@ void s2e_kvm_mmio_write(target_phys_addr_t addr, uint64_t data, unsigned size) {
             assert(false && "Can't get here");
     }
 
+    bool is_apic_tpr_access = false;
     if ((addr >> TARGET_PAGE_BITS) == (env->v_apic_base >> TARGET_PAGE_BITS)) {
         if ((addr & 0xfff) == 0x80) {
             abort_and_retranslate_if_needed();
             env->v_apic_tpr = (uint8_t) data;
             env->v_tpr = env->v_apic_tpr >> 4;
-#ifdef ENABLE_RETRANSLATE
-            cpu_exit(env);
-#endif
+            is_apic_tpr_access = true;
         }
     }
 
     coroutine_yield();
+
+    // A write to the task priority register may umask hardware interrupts.
+    // A real KVM implementation would handle them ASAP on the next instruction.
+    // We try to do it as best as we can here by requesting an exit from the CPU loop.
+    // Some buggy guests may crash if we exit too late (e.g., winxp).
+    // This mechanism is complementary to s2e_kvm_request_exit().
+    if (is_apic_tpr_access) {
+        cpu_exit(env);
+    }
 }
 
 uint64_t s2e_kvm_ioport_read(pio_addr_t addr, unsigned size) {
