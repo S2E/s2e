@@ -84,9 +84,9 @@ uint64_t s2e_kvm_mmio_read(target_phys_addr_t addr, unsigned size) {
     }
 
     // This is a fix for 32-bits guests that access apic directly
-    // and don't use cr8. Writing to cr8 clears the low for bits
+    // and don't use cr8. Writing to cr8 clears the low four bits
     // of the TPR, which may confuse the guest.
-    // Note that in 64-bit mode, guests should wither use cr8 or
+    // Note that in 64-bit mode, guests should either use cr8 or
     // MMIO, but not both, so we should still be consistent.
     if (is_apic_tpr_access) {
         if (!(env->hflags & HF_LMA_MASK)) {
