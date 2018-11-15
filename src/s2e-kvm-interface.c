@@ -225,6 +225,7 @@ int s2e_kvm_check_extension(int kvm_fd, int capability) {
         case KVM_CAP_IMMEDIATE_EXIT:
 
         /* libs2e-specific calls */
+        case KVM_CAP_DBT:
         case KVM_CAP_MEM_RW:
         case KVM_CAP_FORCE_EXIT:
             return 1;
@@ -244,7 +245,6 @@ int s2e_kvm_check_extension(int kvm_fd, int capability) {
 #endif
 
         default:
-// return s_original_ioctl(fd, request, arg1);
 #ifdef SE_KVM_DEBUG_INTERFACE
             printf("Unsupported cap %x\n", capability);
 #endif
