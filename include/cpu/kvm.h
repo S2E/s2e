@@ -779,6 +779,9 @@ struct kvm_ppc_smmu_info {
 /* Indicates presence of device snapshots */
 #define KVM_CAP_DEV_SNAPSHOT 258
 
+/* Indicates that the KVM provided uses DBT instead of actual KVM */
+#define KVM_CAP_DBT 259
+
 /****************************************/
 
 #ifdef KVM_CAP_IRQ_ROUTING
