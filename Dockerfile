@@ -17,7 +17,7 @@ RUN apt-get update && apt-get -y install libdwarf-dev libelf-dev            \
     libboost-dev zlib1g-dev libjemalloc-dev nasm pkg-config                 \
     libmemcached-dev libpq-dev libc6-dev-i386                               \
     libboost-system-dev libboost-serialization-dev libboost-regex-dev       \
-    libprotobuf-dev protobuf-compiler libbsd-dev                            \
+    libprotobuf-dev protobuf-compiler libbsd-dev libpixman-1-dev            \
     libglib2.0-dev python-docutils libpng12-dev gcc-multilib g++-multilib
 
 # Install S2E git
