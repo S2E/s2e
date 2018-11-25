@@ -15,6 +15,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#undef __REDIRECT_NTH
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -369,6 +371,8 @@ void exit(int code) {
     s2e_kvm_request_process_exit(s_original_exit, code);
 }
 
+#undef mmap
+
 static mmap_t s_original_mmap;
 void *mmap(void *addr, size_t len, int prot, int flags, int fd, off_t offset) {
     if (fd < 0 || (fd != g_kvm_vcpu_fd)) {
@@ -380,6 +384,30 @@ void *mmap(void *addr, size_t len, int prot, int flags, int fd, off_t offset) {
     assert(g_kvm_vcpu_buffer);
 
     return g_kvm_vcpu_buffer;
+}
+
+static mmap_t s_original_mmap64;
+void *mmap64(void *addr, size_t len, int prot, int flags, int fd, off_t offset) {
+    if (fd < 0 || (fd != g_kvm_vcpu_fd)) {
+        return s_original_mmap64(addr, len, prot, flags, fd, offset);
+    }
+
+    int real_size = s2e_kvm_get_vcpu_mmap_size();
+    assert(real_size == len);
+    assert(g_kvm_vcpu_buffer);
+
+    return g_kvm_vcpu_buffer;
+}
+
+static dup_t s_original_dup;
+int dup(int fd) {
+    if (fd == g_kvm_vcpu_fd) {
+        // This should work most of the time, but may break if the client
+        // assumes that the returned fd must be different.
+        return g_kvm_vcpu_fd;
+    }
+
+    return s_original_dup(fd);
 }
 
 static madvise_t s_original_madvise;
@@ -471,8 +499,10 @@ int __libc_start_main(int *(main)(int, char **, char **), int argc, char **ubp_a
     s_original_select = (select_t) dlsym(RTLD_NEXT, "select");
     s_original_poll = (poll_t) dlsym(RTLD_NEXT, "poll");
     s_original_exit = (exit_t) dlsym(RTLD_NEXT, "exit");
-    s_original_mmap = (mmap_t) dlsym(RTLD_NEXT, "mmap64");
+    s_original_mmap = (mmap_t) dlsym(RTLD_NEXT, "mmap");
+    s_original_mmap64 = (mmap_t) dlsym(RTLD_NEXT, "mmap64");
     s_original_madvise = (madvise_t) dlsym(RTLD_NEXT, "madvise");
+    s_original_dup = (dup_t) dlsym(RTLD_NEXT, "dup");
 
 #ifdef CONFIG_SYMBEX
     s_original_printf = (printf_t) dlsym(RTLD_NEXT, "printf");

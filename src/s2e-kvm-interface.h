@@ -24,6 +24,7 @@ typedef int (*open_t)(const char *pathname, int flags, mode_t mode);
 typedef int (*close_t)(int fd);
 typedef int (*ioctl_t)(int d, int request, ...);
 typedef ssize_t (*write_t)(int fd, const void *buf, size_t count);
+typedef int (*dup_t)(int fd);
 
 typedef int (*poll_t)(struct pollfd *fds, nfds_t nfds, int timeout);
 typedef int (*select_t)(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, struct timeval *timeout);
