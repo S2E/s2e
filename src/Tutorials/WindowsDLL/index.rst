@@ -1,6 +1,6 @@
-====================
-Windows DLL Analysis
-====================
+========================
+Analysis of Windows DLLs
+========================
 
 This tutorial outlines how a Windows dynamic-link library (DLL) can be analyzed in S2E. As an example we will analyze
 the `Beep <https://msdn.microsoft.com/en-us/library/windows/desktop/ms679277>`__ function in ``kernel32.dll``.

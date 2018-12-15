@@ -1,6 +1,6 @@
-=============
-Fork Profiler
-=============
+===============================================
+Debugging path explosion with the fork profiler
+===============================================
 
 The fork profile gives you a summary of all the locations in the system that forked.
 This helps debug sources of path explosion.
