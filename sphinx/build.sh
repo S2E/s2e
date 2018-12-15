@@ -8,14 +8,10 @@
 GOOGLE_ANALYTICS_ID="$1"
 
 # Copy files into a temp folder, then patch them to make sphinx happy
-mkdir -p source1
-cp -rp ../README.rst source1
-cp -rp ../src source1
-$(cd source1 && sed -i 's/number-lines/linenos/g' $(find . -name '*.rst'))
-
-# rsync modified files
 mkdir -p source
-rsync -v -cr --delete source1/* source/
+rsync -v -cr --delete ../src/* source/
+cp -rp source_templates/* source
+$(cd source && sed -i 's/number-lines/linenos/g' $(find . -name '*.rst'))
 
 make html
 
