@@ -63,6 +63,7 @@ vulnerabilities in them.
    :caption: Development
    :maxdepth: 1
 
+   DesignAndImplementation/KvmInterface
    Contribute
    ProfilingS2E
    DebuggingS2E
