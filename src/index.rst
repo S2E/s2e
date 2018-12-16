@@ -29,7 +29,8 @@ vulnerabilities in them.
    Tutorials/PoV/pov
    Tutorials/PoV/index
 
-   Combining Kaitai Struct and S2E for analyzing parsers <https://adrianherrera.github.io/post/kaitai-s2e>
+   Combining Kaitai Struct and S2E for analyzing parsers [external] <https://adrianherrera.github.io/post/kaitai-s2e>
+   Analyzing trigger-based malware with S2E [external] <https://adrianherrera.github.io/post/malware-s2e>
 
    Tutorials/SystemTap/index.rst
    Tutorials/WindowsDLL/index.rst
