@@ -14,9 +14,14 @@ extern "C" {
 #include <cpu/i386/cpu.h>
 #include <cpu/memory.h>
 #include <cpu/types.h>
+
+#ifdef CONFIG_SYMBEX
+#include <cpu/se_libcpu.h>
+#endif
+
 extern struct CPUX86State *env;
 uintptr_t s2e_get_host_address(target_phys_addr_t paddr);
-void generate_crashdump(CPUX86State *env);
+void generate_crashdump(void);
 }
 
 #include <llvm/Support/TimeValue.h>
@@ -132,11 +137,19 @@ bool rwGuestVirtual(void *opaque, uint64_t address, void *buf, unsigned size, bo
             length = size;
         }
 
+#ifdef CONFIG_SYMBEX
+        if (is_write) {
+            g_sqi.mem.write_ram_concrete(hostAddress, (const uint8_t *) buf, length);
+        } else {
+            g_sqi.mem.read_ram_concrete(hostAddress, buf, length);
+        }
+#else
         if (is_write) {
             memcpy((void *) hostAddress, buf, length);
         } else {
             memcpy(buf, (void *) hostAddress, length);
         }
+#endif
 
         buf = (uint8_t *) buf + length;
         address += length;

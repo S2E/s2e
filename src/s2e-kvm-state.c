@@ -5,7 +5,9 @@
 /// Licensed under the Cyberhaven Research License Agreement.
 ///
 
+#include <assert.h>
 #include <errno.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -14,6 +16,7 @@
 #include <cpu/kvm.h>
 
 #include <cpu/i386/cpu.h>
+#include <cpu/se_libcpu.h>
 #include <timer.h>
 #include "s2e-kvm-interface.h"
 
@@ -188,7 +191,63 @@ int s2e_kvm_vcpu_set_cpuid2(int vcpu_fd, struct kvm_cpuid2 *cpuid) {
     return 0;
 }
 
+#define WR_cpu(cpu, reg, value) \
+    g_sqi.regs.write_concrete(offsetof(CPUX86State, reg), (uint8_t *) &value, sizeof(target_ulong))
+#define RR_cpu(cpu, reg, value) \
+    g_sqi.regs.read_concrete(offsetof(CPUX86State, reg), (uint8_t *) &value, sizeof(target_ulong))
+
+///
+/// \brief s2e_kvm_vcpu_set_regs set the general purpose registers of the CPU
+///
+/// libcpu does not track register the program counter and eflags state precisely,
+/// in order to speed up execution. More precisely, it will not update these registers
+/// after each instruction is executed. This has important implications for KVM clients.
+/// When guest code executes an instruction that causes a VM exit (e.g., memory access
+/// to a device), the following happens:
+///
+/// 1. libcpu suspends the current translation block and calls the I/O handler in libs2e
+/// 2. Functions in s2e-kvm-io.c trigger a coroutine switch to s2e_kvm_vcpu_run,
+///    which returns to the KVM client
+/// 3. The KVM client handles the I/O emulation
+/// 4. The KVM client re-enters s2e_kvm_vcpu_run, which switches back to the coroutine
+///    interrupted in step 2.
+/// 5. Execution of the translation block resumes
+///
+/// During step 3, I/O emulation may want to access the guest cpu register state using
+/// the corresponding KVM APIs. In vanilla KVM, these APIs expect the CPU state to be
+/// fully consistent. However, this consistency is broken in libs2e because of how CPU
+/// emulation works (see explanation above). Luckily, this situation does not usually
+/// happen in practice, as the KVM client reads the CPU state when it is in sync.
+/// This function nevertheless checks for this and prints a warning.
+///
+/// Same remarks apply for register setters, which may corrupt CPU state if called
+/// at a time where the CPU state is not properly committed.
+///
+/// In principle, fixing this issue would require calling cpu_restore_state at every
+/// exit point.
+///
 int s2e_kvm_vcpu_set_regs(int vcpu_fd, struct kvm_regs *regs) {
+#ifdef CONFIG_SYMBEX
+    WR_cpu(env, regs[R_EAX], regs->rax);
+    WR_cpu(env, regs[R_EBX], regs->rbx);
+    WR_cpu(env, regs[R_ECX], regs->rcx);
+    WR_cpu(env, regs[R_EDX], regs->rdx);
+    WR_cpu(env, regs[R_ESI], regs->rsi);
+    WR_cpu(env, regs[R_EDI], regs->rdi);
+    WR_cpu(env, regs[R_ESP], regs->rsp);
+    WR_cpu(env, regs[R_EBP], regs->rbp);
+
+#ifdef TARGET_X86_64
+    WR_cpu(env, regs[8], regs->r8);
+    WR_cpu(env, regs[9], regs->r9);
+    WR_cpu(env, regs[10], regs->r10);
+    WR_cpu(env, regs[11], regs->r11);
+    WR_cpu(env, regs[12], regs->r12);
+    WR_cpu(env, regs[13], regs->r13);
+    WR_cpu(env, regs[14], regs->r14);
+    WR_cpu(env, regs[15], regs->r15);
+#endif
+#else
     env->regs[R_EAX] = regs->rax;
     env->regs[R_EBX] = regs->rbx;
     env->regs[R_ECX] = regs->rcx;
@@ -208,11 +267,25 @@ int s2e_kvm_vcpu_set_regs(int vcpu_fd, struct kvm_regs *regs) {
     env->regs[14] = regs->r14;
     env->regs[15] = regs->r15;
 #endif
+#endif
+
+    if (regs->rip != env->eip) {
+        if (g_handling_kvm_cb || !g_cpu_state_is_precise) {
+            // We don't support this at all, it's better to crash than to risk
+            // guest corruption.
+            abort();
+        }
+    }
 
     env->eip = regs->rip;
 
     if (g_handling_kvm_cb) {
-        fprintf(stderr, "warning: kvm asking cpu state while handling io\n");
+        fprintf(stderr, "warning: kvm setting cpu state while handling io\n");
+        // TODO: try to set the system part of the flags register.
+        // It should be OK to skip these because the KVM client usually writes
+        // back the value it has just read when KVM_RUN exits. That value
+        // is already stored in the CPU state of the symbex engine.
+        assert(regs->rflags == env->mflags);
     } else {
         cpu_set_eflags(env, regs->rflags);
     }
@@ -291,7 +364,7 @@ int s2e_kvm_vcpu_set_msrs(int vcpu_fd, struct kvm_msrs *msrs) {
     for (unsigned i = 0; i < msrs->nmsrs; ++i) {
         helper_wrmsr_v(msrs->entries[i].index, msrs->entries[i].data);
     }
-    return 0;
+    return msrs->nmsrs;
 }
 
 int s2e_kvm_vcpu_set_mp_state(int vcpu_fd, struct kvm_mp_state *mp) {
@@ -300,6 +373,32 @@ int s2e_kvm_vcpu_set_mp_state(int vcpu_fd, struct kvm_mp_state *mp) {
 }
 
 int s2e_kvm_vcpu_get_regs(int vcpu_fd, struct kvm_regs *regs) {
+    if (!g_cpu_state_is_precise) {
+        // Probably OK to let execution continue
+        fprintf(stderr, "Getting register state in the middle of a translation block, eip/flags may be imprecise\n");
+    }
+
+#ifdef CONFIG_SYMBEX
+    RR_cpu(env, regs[R_EAX], regs->rax);
+    RR_cpu(env, regs[R_EBX], regs->rbx);
+    RR_cpu(env, regs[R_ECX], regs->rcx);
+    RR_cpu(env, regs[R_EDX], regs->rdx);
+    RR_cpu(env, regs[R_ESI], regs->rsi);
+    RR_cpu(env, regs[R_EDI], regs->rdi);
+    RR_cpu(env, regs[R_ESP], regs->rsp);
+    RR_cpu(env, regs[R_EBP], regs->rbp);
+
+#ifdef TARGET_X86_64
+    RR_cpu(env, regs[8], regs->r8);
+    RR_cpu(env, regs[9], regs->r9);
+    RR_cpu(env, regs[10], regs->r10);
+    RR_cpu(env, regs[11], regs->r11);
+    RR_cpu(env, regs[12], regs->r12);
+    RR_cpu(env, regs[13], regs->r13);
+    RR_cpu(env, regs[14], regs->r14);
+    RR_cpu(env, regs[15], regs->r15);
+#endif
+#else
     regs->rax = env->regs[R_EAX];
     regs->rbx = env->regs[R_EBX];
     regs->rcx = env->regs[R_ECX];
@@ -319,6 +418,7 @@ int s2e_kvm_vcpu_get_regs(int vcpu_fd, struct kvm_regs *regs) {
     regs->r14 = env->regs[14];
     regs->r15 = env->regs[15];
 #endif
+#endif
 
     regs->rip = env->eip;
 
@@ -326,6 +426,9 @@ int s2e_kvm_vcpu_get_regs(int vcpu_fd, struct kvm_regs *regs) {
         regs->rflags = cpu_get_eflags(env);
     } else {
         fprintf(stderr, "warning: kvm asking cpu state while handling io\n");
+        // We must at least give the system flags to the KVM client, which
+        // may use them to compute the segment registers.
+        regs->rflags = env->mflags;
     }
 
     return 0;

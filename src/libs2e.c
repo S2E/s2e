@@ -15,6 +15,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#undef __REDIRECT_NTH
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -126,6 +128,13 @@ static int handle_kvm_ioctl(int fd, int request, uint64_t arg1) {
 static int handle_kvm_vm_ioctl(int fd, int request, uint64_t arg1) {
     int ret = -1;
     switch ((uint32_t) request) {
+        case KVM_CHECK_EXTENSION:
+            ret = s2e_kvm_check_extension(fd, arg1);
+            if (ret < 0) {
+                errno = 1;
+            }
+            break;
+
         case KVM_SET_TSS_ADDR: {
             ret = s2e_kvm_vm_set_tss_addr(fd, arg1);
         } break;
@@ -212,28 +221,62 @@ static int handle_kvm_vcpu_ioctl(int fd, int request, uint64_t arg1) {
         } break;
 
         /***********************************************/
+        // When the symbolic execution engine needs to take a system snapshot,
+        // it must rely on the KVM client to save the device state. That client
+        // will typically also save/restore the CPU state. We don't want the client
+        // to do that, so in order to not modify the client too much, we ignore
+        // the calls to register setters when they are done in the context of
+        // device state snapshotting.
         case KVM_SET_REGS: {
-            ret = s2e_kvm_vcpu_set_regs(fd, (struct kvm_regs *) arg1);
+            if (g_handling_dev_state) {
+                ret = 0;
+            } else {
+                ret = s2e_kvm_vcpu_set_regs(fd, (struct kvm_regs *) arg1);
+            }
         } break;
 
         case KVM_SET_FPU: {
-            ret = s2e_kvm_vcpu_set_fpu(fd, (struct kvm_fpu *) arg1);
+            if (g_handling_dev_state) {
+                ret = 0;
+            } else {
+                ret = s2e_kvm_vcpu_set_fpu(fd, (struct kvm_fpu *) arg1);
+            }
         } break;
 
         case KVM_SET_SREGS: {
-            ret = s2e_kvm_vcpu_set_sregs(fd, (struct kvm_sregs *) arg1);
+            if (g_handling_dev_state) {
+                ret = 0;
+            } else {
+                ret = s2e_kvm_vcpu_set_sregs(fd, (struct kvm_sregs *) arg1);
+            }
         } break;
 
         case KVM_SET_MSRS: {
-            ret = s2e_kvm_vcpu_set_msrs(fd, (struct kvm_msrs *) arg1);
+            if (g_handling_dev_state) {
+                ret = ((struct kvm_msrs *) arg1)->nmsrs;
+            } else {
+                ret = s2e_kvm_vcpu_set_msrs(fd, (struct kvm_msrs *) arg1);
+            }
         } break;
 
         case KVM_SET_MP_STATE: {
-            ret = s2e_kvm_vcpu_set_mp_state(fd, (struct kvm_mp_state *) arg1);
+            if (g_handling_dev_state) {
+                ret = 0;
+            } else {
+                ret = s2e_kvm_vcpu_set_mp_state(fd, (struct kvm_mp_state *) arg1);
+            }
         } break;
         /***********************************************/
         case KVM_GET_REGS: {
-            ret = s2e_kvm_vcpu_get_regs(fd, (struct kvm_regs *) arg1);
+            if (g_handling_dev_state) {
+                // Poison the returned registers to make sure we don't use
+                // it again by accident. We can't just fail the call because
+                // the client needs it to save the cpu state (that we ignore).
+                memset((void *) arg1, 0xff, sizeof(struct kvm_regs));
+                ret = 0;
+            } else {
+                ret = s2e_kvm_vcpu_get_regs(fd, (struct kvm_regs *) arg1);
+            }
         } break;
 
         case KVM_GET_FPU: {
@@ -328,6 +371,8 @@ void exit(int code) {
     s2e_kvm_request_process_exit(s_original_exit, code);
 }
 
+#undef mmap
+
 static mmap_t s_original_mmap;
 void *mmap(void *addr, size_t len, int prot, int flags, int fd, off_t offset) {
     if (fd < 0 || (fd != g_kvm_vcpu_fd)) {
@@ -339,6 +384,30 @@ void *mmap(void *addr, size_t len, int prot, int flags, int fd, off_t offset) {
     assert(g_kvm_vcpu_buffer);
 
     return g_kvm_vcpu_buffer;
+}
+
+static mmap_t s_original_mmap64;
+void *mmap64(void *addr, size_t len, int prot, int flags, int fd, off_t offset) {
+    if (fd < 0 || (fd != g_kvm_vcpu_fd)) {
+        return s_original_mmap64(addr, len, prot, flags, fd, offset);
+    }
+
+    int real_size = s2e_kvm_get_vcpu_mmap_size();
+    assert(real_size == len);
+    assert(g_kvm_vcpu_buffer);
+
+    return g_kvm_vcpu_buffer;
+}
+
+static dup_t s_original_dup;
+int dup(int fd) {
+    if (fd == g_kvm_vcpu_fd) {
+        // This should work most of the time, but may break if the client
+        // assumes that the returned fd must be different.
+        return g_kvm_vcpu_fd;
+    }
+
+    return s_original_dup(fd);
 }
 
 static madvise_t s_original_madvise;
@@ -430,8 +499,10 @@ int __libc_start_main(int *(main)(int, char **, char **), int argc, char **ubp_a
     s_original_select = (select_t) dlsym(RTLD_NEXT, "select");
     s_original_poll = (poll_t) dlsym(RTLD_NEXT, "poll");
     s_original_exit = (exit_t) dlsym(RTLD_NEXT, "exit");
-    s_original_mmap = (mmap_t) dlsym(RTLD_NEXT, "mmap64");
+    s_original_mmap = (mmap_t) dlsym(RTLD_NEXT, "mmap");
+    s_original_mmap64 = (mmap_t) dlsym(RTLD_NEXT, "mmap64");
     s_original_madvise = (madvise_t) dlsym(RTLD_NEXT, "madvise");
+    s_original_dup = (dup_t) dlsym(RTLD_NEXT, "dup");
 
 #ifdef CONFIG_SYMBEX
     s_original_printf = (printf_t) dlsym(RTLD_NEXT, "printf");

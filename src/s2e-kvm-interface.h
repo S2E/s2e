@@ -24,6 +24,7 @@ typedef int (*open_t)(const char *pathname, int flags, mode_t mode);
 typedef int (*close_t)(int fd);
 typedef int (*ioctl_t)(int d, int request, ...);
 typedef ssize_t (*write_t)(int fd, const void *buf, size_t count);
+typedef int (*dup_t)(int fd);
 
 typedef int (*poll_t)(struct pollfd *fds, nfds_t nfds, int timeout);
 typedef int (*select_t)(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, struct timeval *timeout);
@@ -43,6 +44,8 @@ extern int g_kvm_vm_fd;
 extern int g_kvm_vcpu_fd;
 
 extern int g_handling_kvm_cb;
+extern int g_handling_dev_state;
+extern int g_cpu_state_is_precise;
 
 struct se_libcpu_interface_t;
 void init_s2e_libcpu_interface(struct se_libcpu_interface_t *sqi);
