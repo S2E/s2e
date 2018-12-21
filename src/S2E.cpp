@@ -515,6 +515,8 @@ int S2E::fork() {
 
     m_sync.release();
 
+    s2e_kvm_flush_disk();
+
     pid_t pid = ::fork();
     if (pid < 0) {
         // Fork failed

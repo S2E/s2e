@@ -49,10 +49,14 @@ void s2e_init_device_state(void) {
 } // extern C
 
 S2EDeviceState::S2EDeviceState(const S2EDeviceState &state) : m_deviceState(state.m_deviceState) {
-    assert(state.m_stateBuffer);
-    m_stateBuffer = (uint8_t *) malloc(state.m_stateBufferSize);
-    m_stateBufferSize = state.m_stateBufferSize;
-    memcpy(m_stateBuffer, state.m_stateBuffer, m_stateBufferSize);
+    if (state.m_stateBuffer) {
+        m_stateBuffer = (uint8_t *) malloc(state.m_stateBufferSize);
+        m_stateBufferSize = state.m_stateBufferSize;
+        memcpy(m_stateBuffer, state.m_stateBuffer, m_stateBufferSize);
+    } else {
+        m_stateBuffer = nullptr;
+        m_stateBufferSize = 0;
+    }
 }
 
 S2EDeviceState::S2EDeviceState(klee::ExecutionState *state) : m_deviceState(state) {
