@@ -26,6 +26,8 @@
 
 #define barrier() asm volatile("" ::: "memory")
 
+// #define DEBUG_EXEC
+
 #ifdef DEBUG_EXEC
 #define DPRINTF(...) printf(__VA_ARGS__)
 #else
@@ -214,6 +216,9 @@ static uintptr_t fetch_and_run_tb(uintptr_t prev_tb, CPUArchState *env) {
        starting execution if there is a pending interrupt. */
 
     env->current_tb = tb;
+
+    env->translate_single_instruction = 0;
+
     barrier();
     if (unlikely(env->exit_request)) {
         env->current_tb = NULL;
@@ -394,13 +399,10 @@ static bool execution_loop(CPUArchState *env) {
 
 #if defined(DEBUG_DISAS) || defined(CONFIG_DEBUG_EXEC)
         if (libcpu_loglevel_mask(CPU_LOG_TB_CPU)) {
-/* restore flags in standard format */
 #if defined(TARGET_I386)
-            /*env->eflags = env->eflags | cpu_cc_compute_all(env, CC_OP)
-                | (DF & DF_MASK); */
-            log_cpu_state(env, X86_DUMP_CCOP);
-            // env->eflags &= ~(DF_MASK | CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
-            log_cpu_state(env, 0);
+            // It's too heavy to log all cpu state, usually gp regs are enough
+            // TODO: add an option to customize which regs to print
+            log_cpu_state(env, X86_DUMP_GPREGS);
 #endif
         }
 #endif /* DEBUG_DISAS || CONFIG_DEBUG_EXEC */
@@ -455,7 +457,7 @@ int cpu_exec(CPUArchState *env) {
              */
             env->current_tb = NULL;
 
-            DPRINTF("  setjmp entered\n");
+            DPRINTF("  setjmp entered eip=%#lx\n", (uint64_t) env->eip);
 
 #ifdef CONFIG_SYMBEX
             assert(env->exception_index != EXCP_SE);
@@ -498,7 +500,7 @@ int cpu_exec(CPUArchState *env) {
             env = cpu_single_env;
         }
     } /* for(;;) */
-    DPRINTF("cpu_loop exit ret=%#x\n", ret);
+    DPRINTF("cpu_loop exit ret=%#x eip=%#lx\n", ret, (uint64_t) env->eip);
 
     env->current_tb = NULL;
 

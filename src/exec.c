@@ -119,7 +119,7 @@ void cpu_abort(CPUArchState *env, const char *fmt, ...) {
     vfprintf(stderr, fmt, ap);
     fprintf(stderr, "\n");
 #ifdef TARGET_I386
-    cpu_dump_state(env, stderr, fprintf, X86_DUMP_FPU | X86_DUMP_CCOP);
+    cpu_dump_state(env, stderr, fprintf, X86_DUMP_ALL);
 #else
     cpu_dump_state(env, stderr, fprintf, 0);
 #endif
@@ -128,7 +128,7 @@ void cpu_abort(CPUArchState *env, const char *fmt, ...) {
         libcpu_log_vprintf(fmt, ap2);
         libcpu_log("\n");
 #ifdef TARGET_I386
-        log_cpu_state(env, X86_DUMP_FPU | X86_DUMP_CCOP);
+        log_cpu_state(env, X86_DUMP_ALL);
 #else
         log_cpu_state(env, 0);
 #endif

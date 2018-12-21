@@ -146,10 +146,6 @@ static inline unsigned int tb_phys_hash_func(tb_page_addr_t pc) {
     return (pc >> 2) & (CODE_GEN_PHYS_HASH_SIZE - 1);
 }
 
-void tb_free(TranslationBlock *tb);
-void tb_link_page(TranslationBlock *tb, tb_page_addr_t phys_pc, tb_page_addr_t phys_page2);
-void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr);
-
 extern TranslationBlock *tb_phys_hash[CODE_GEN_PHYS_HASH_SIZE];
 
 #include "qemu-lock.h"
