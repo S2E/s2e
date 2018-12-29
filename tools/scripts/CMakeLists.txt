@@ -21,3 +21,4 @@
 
 install(DIRECTORY ida/ DESTINATION bin)
 install(DIRECTORY radare/ DESTINATION bin)
+install(DIRECTORY revgen/ DESTINATION bin USE_SOURCE_PERMISSIONS)
