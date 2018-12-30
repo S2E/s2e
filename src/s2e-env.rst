@@ -100,7 +100,7 @@ To update the source code under ``source/s2e``, run:
 
     s2e update
 
-This essentially acts as a wrapper around Google's `Repo <https://code.google.com/p/git-repo/`__ tool, which is used to
+This essentially acts as a wrapper around Google's `Repo <https://code.google.com/p/git-repo/>`__ tool, which is used to
 manage the core S2E code.
 
 Building an image
