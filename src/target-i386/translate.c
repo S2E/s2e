@@ -6799,8 +6799,8 @@ reswitch:
         case 0xe2: /* loop */
         case 0xe3: /* jecxz */
         {
-            int l1, l2, l3;
-            SET_TB_TYPE(TB_JMP);
+            int l1, l3;
+            SET_TB_TYPE(TB_COND_JMP);
 
             tval = (int8_t) insn_get(s, OT_BYTE);
             next_eip = s->pc - s->cs_base;
@@ -6809,7 +6809,6 @@ reswitch:
                 tval &= 0xffff;
 
             l1 = gen_new_label();
-            l2 = gen_new_label();
             l3 = gen_new_label();
             b &= 3;
             switch (b) {
@@ -6842,14 +6841,13 @@ reswitch:
 #ifdef CONFIG_SYMBEX
             gen_eob_event(s, 1, next_eip);
 #endif
-            tcg_gen_br(l2);
+            gen_eob(s);
 
             gen_set_label(l1);
             gen_jmp_im(s, tval);
 #ifdef CONFIG_SYMBEX
             gen_eob_event(s, 1, tval);
 #endif
-            gen_set_label(l2);
             gen_eob(s);
         } break;
         case 0x130: /* wrmsr */
