@@ -14,8 +14,9 @@
 #include <s2e/cpu.h>
 
 #include <s2e/Plugins/Core/BaseInstructions.h>
+#include <s2e/Plugins/Core/Vmi.h>
+#include <s2e/Plugins/OSMonitors/ModuleDescriptor.h>
 #include <s2e/Plugins/OSMonitors/OSMonitor.h>
-#include <s2e/Plugins/OSMonitors/Support/ModuleExecutionDetector.h>
 
 #include <map>
 #include <sstream>

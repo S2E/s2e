@@ -9,7 +9,6 @@
 #include <s2e/ConfigFile.h>
 #include <s2e/Plugins/OSMonitors/Support/MemUtils.h>
 #include <s2e/Plugins/OSMonitors/Support/MemoryMap.h>
-#include <s2e/Plugins/OSMonitors/Support/ModuleExecutionDetector.h>
 #include <s2e/Plugins/OSMonitors/Support/ProcessExecutionDetector.h>
 #include <s2e/Plugins/Searchers/SeedSearcher.h>
 #include <s2e/S2E.h>
