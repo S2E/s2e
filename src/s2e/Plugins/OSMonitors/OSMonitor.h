@@ -77,12 +77,6 @@ public:
         return pc >= getKernelStart();
     }
 
-    virtual uint64_t getAddressSpace(S2EExecutionState *s, uint64_t pc) = 0;
-
-    virtual uint64_t getPageDir(S2EExecutionState *s, uint64_t pc) {
-        return getAddressSpace(s, pc);
-    }
-
     ///
     /// \brief Return the pid of the process currently active in the given state.
     ///

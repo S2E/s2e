@@ -82,14 +82,12 @@ public:
         return m_kernelStart;
     }
 
-    virtual uint64_t getAddressSpace(S2EExecutionState *s, uint64_t pc);
-
     virtual bool getCurrentStack(S2EExecutionState *state, uint64_t *base, uint64_t *size);
 
     void handleOpcodeInvocation(S2EExecutionState *state, uint64_t guestDataPtr, uint64_t guestDataSize);
 
     uint64_t getPid(S2EExecutionState *state) {
-        return getAddressSpace(state, state->regs()->getPc());
+        return state->regs()->getPageDir();
     }
 
     virtual uint64_t getTid(S2EExecutionState *state) {

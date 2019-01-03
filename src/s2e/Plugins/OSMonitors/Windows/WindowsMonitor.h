@@ -365,13 +365,6 @@ public:
         return pc >= m_kernelStart;
     }
 
-    virtual uint64_t getAddressSpace(S2EExecutionState *s, uint64_t pc) {
-        if (!m_kernelStart || pc < m_kernelStart) {
-            return s->regs()->getPageDir();
-        }
-        return 0;
-    }
-
     virtual bool getCurrentStack(S2EExecutionState *s, uint64_t *bottom, uint64_t *size);
 
     bool CheckPanic(uint64_t eip) const {

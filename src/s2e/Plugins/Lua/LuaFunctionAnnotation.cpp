@@ -162,8 +162,7 @@ void LuaFunctionAnnotation::hookAnnotation(S2EExecutionState *state, const Modul
                                            const Annotation &annotation) {
     uint64_t funcPc = module.ToRuntime(annotation.pc);
 
-    FunctionMonitor::CallSignal *cs =
-        m_functionMonitor->getCallSignal(state, funcPc, m_monitor->getAddressSpace(state, funcPc));
+    FunctionMonitor::CallSignal *cs = m_functionMonitor->getCallSignal(state, funcPc, state->regs()->getPageDir());
     cs->connect(sigc::bind(sigc::mem_fun(*this, &LuaFunctionAnnotation::onFunctionCall), annotation));
 }
 

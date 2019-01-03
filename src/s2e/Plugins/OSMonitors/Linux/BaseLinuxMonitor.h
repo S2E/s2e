@@ -101,15 +101,6 @@ public:
         return m_kernelStartAddress;
     }
 
-    /// Get the page directory
-    virtual uint64_t getAddressSpace(S2EExecutionState *state, uint64_t pc) {
-        if (isKernelAddress(pc)) {
-            return 0;
-        } else {
-            return state->regs()->getPageDir();
-        }
-    }
-
     /// Get the base address and size of the stack
     virtual bool getCurrentStack(S2EExecutionState *state, uint64_t *base, uint64_t *size);
 

@@ -341,7 +341,7 @@ bool ModuleExecutionDetector::isModuleConfigured(const std::string &moduleId) co
 
 const ModuleDescriptor *ModuleExecutionDetector::getModule(S2EExecutionState *state, uint64_t pc, bool tracked) {
     DECLARE_PLUGINSTATE(ModuleTransitionState, state);
-    uint64_t addressSpace = m_Monitor->getAddressSpace(state, pc);
+    uint64_t addressSpace = state->regs()->getPageDir();
 
     const ModuleDescriptor *currentModule = plgState->getDescriptor(addressSpace, pc, tracked);
     return currentModule;
@@ -402,7 +402,7 @@ void ModuleExecutionDetector::onTranslateBlockStart(ExecutionSignal *signal, S2E
                                                     TranslationBlock *tb, uint64_t pc) {
     DECLARE_PLUGINSTATE(ModuleTransitionState, state);
 
-    uint64_t addressSpace = m_Monitor->getAddressSpace(state, pc);
+    uint64_t addressSpace = state->regs()->getPageDir();
 
     const ModuleDescriptor *currentModule = plgState->getDescriptor(addressSpace, pc);
 
@@ -432,8 +432,7 @@ void ModuleExecutionDetector::onTranslateBlockEnd(ExecutionSignal *signal, S2EEx
 
     if (m_TrackExecution) {
         if (staticTarget) {
-            const ModuleDescriptor *targetModule =
-                plgState->getDescriptor(m_Monitor->getAddressSpace(state, targetPc), targetPc);
+            const ModuleDescriptor *targetModule = plgState->getDescriptor(state->regs()->getPageDir(), targetPc);
 
             if (targetModule != currentModule) {
                 // Only instrument in case there is a module change
@@ -486,7 +485,7 @@ const ModuleDescriptor *ModuleExecutionDetector::getCurrentDescriptor(S2EExecuti
     DECLARE_PLUGINSTATE_CONST(ModuleTransitionState, state);
 
     uint64_t pc = state->regs()->getPc();
-    uint64_t addressSpace = m_Monitor->getAddressSpace(state, pc);
+    uint64_t addressSpace = state->regs()->getPageDir();
 
     return plgState->getDescriptor(addressSpace, pc);
 }
