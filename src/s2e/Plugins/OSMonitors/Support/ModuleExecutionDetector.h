@@ -148,9 +148,6 @@ public:
     const ModuleDescriptor *getCurrentDescriptor(S2EExecutionState *state) const;
     const std::string *getModuleId(const ModuleDescriptor &desc, unsigned *index = NULL) const;
 
-    std::vector<const ModuleDescriptor *> getModules(S2EExecutionState *state, uint64_t addressSpace,
-                                                     bool tracked = true);
-
     bool getModuleConfig(const std::string &id, ModuleExecutionCfg &cfg) const {
         ModuleExecutionCfg tofind;
         tofind.id = id;

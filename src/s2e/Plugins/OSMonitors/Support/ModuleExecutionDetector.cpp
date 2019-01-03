@@ -288,26 +288,6 @@ const std::string *ModuleExecutionDetector::getModuleId(const ModuleDescriptor &
     return &(it->id);
 }
 
-std::vector<const ModuleDescriptor *> ModuleExecutionDetector::getModules(S2EExecutionState *state,
-                                                                          uint64_t addressSpace, bool tracked) {
-    DECLARE_PLUGINSTATE(ModuleTransitionState, state);
-    std::vector<const ModuleDescriptor *> modules;
-
-    foreach2 (it, plgState->m_Descriptors.begin(), plgState->m_Descriptors.end()) {
-        if ((*it)->AddressSpace == addressSpace)
-            modules.push_back(*it);
-    }
-
-    if (!tracked) {
-        foreach2 (it, plgState->m_NotTrackedDescriptors.begin(), plgState->m_NotTrackedDescriptors.end()) {
-            if ((*it)->AddressSpace == addressSpace)
-                modules.push_back(*it);
-        }
-    }
-
-    return modules;
-}
-
 void ModuleExecutionDetector::onTranslateBlockStart(ExecutionSignal *signal, S2EExecutionState *state,
                                                     TranslationBlock *tb, uint64_t pc) {
     DECLARE_PLUGINSTATE(ModuleTransitionState, state);
