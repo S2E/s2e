@@ -88,8 +88,8 @@ public:
 
     void handleOpcodeInvocation(S2EExecutionState *state, uint64_t guestDataPtr, uint64_t guestDataSize);
 
-    uint64_t getPid(S2EExecutionState *state, uint64_t pc) {
-        return getAddressSpace(state, pc);
+    uint64_t getPid(S2EExecutionState *state) {
+        return getAddressSpace(state, state->regs()->getPc());
     }
 
     virtual uint64_t getTid(S2EExecutionState *state) {

@@ -346,7 +346,7 @@ const ModuleDescriptor *ModuleMap::getModule(S2EExecutionState *state) {
 
 const ModuleDescriptor *ModuleMap::getModule(S2EExecutionState *state, uint64_t pc) {
     DECLARE_PLUGINSTATE(ModuleMapState, state);
-    auto pid = m_monitor->getPid(state, pc);
+    auto pid = m_monitor->getPid(state);
     return plgState->getModule(pid, pc);
 }
 

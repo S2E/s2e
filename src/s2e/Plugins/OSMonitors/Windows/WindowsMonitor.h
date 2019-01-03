@@ -428,7 +428,7 @@ public:
         return m_cachedTid;
     }
 
-    uint64_t getPid(S2EExecutionState *state, uint64_t pc) {
+    uint64_t getPid(S2EExecutionState *state) {
         return getCurrentProcessId(state);
     }
 

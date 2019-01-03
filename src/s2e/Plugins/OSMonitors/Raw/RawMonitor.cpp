@@ -238,9 +238,6 @@ bool RawMonitor::getRelocations(S2EExecutionState *s, const ModuleDescriptor &de
 }
 
 uint64_t RawMonitor::getAddressSpace(S2EExecutionState *s, uint64_t pc) {
-    if (pc >= m_kernelStart) {
-        return 0;
-    }
     return s->regs()->getPageDir();
 }
 

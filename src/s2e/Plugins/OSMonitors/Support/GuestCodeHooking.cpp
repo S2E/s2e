@@ -191,7 +191,7 @@ void GuestCodeHooking::onTranslateBlockStart(ExecutionSignal *signal, S2EExecuti
     }
 
     DECLARE_PLUGINSTATE(GuestCodeHookingState, state);
-    auto pid = m_monitor->getPid(state, pc);
+    auto pid = m_monitor->getPid(state);
 
     HookLocation loc;
     loc.pc = pc;

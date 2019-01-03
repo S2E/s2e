@@ -51,7 +51,7 @@ void LinuxMonitor::initialize() {
 ///
 /// \return The process id
 ///
-uint64_t LinuxMonitor::getPid(S2EExecutionState *state, uint64_t pc) {
+uint64_t LinuxMonitor::getPid(S2EExecutionState *state) {
     target_ulong currentTask;
 
     if (!state->mem()->read(m_currentTaskAddr, &currentTask, sizeof(currentTask))) {

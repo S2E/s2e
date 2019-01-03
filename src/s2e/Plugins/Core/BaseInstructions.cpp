@@ -125,7 +125,7 @@ void BaseInstructions::onTranslateBlockStart(ExecutionSignal *signal, S2EExecuti
         return;
     }
 
-    uint64_t pid = m_monitor->getPid(state, pc);
+    uint64_t pid = m_monitor->getPid(state);
     g_s2e_allow_custom_instructions = plgState->allowed(pid);
 }
 
@@ -137,7 +137,7 @@ void BaseInstructions::allowCurrentPid(S2EExecutionState *state) {
     }
 
     DECLARE_PLUGINSTATE(BaseInstructionsState, state);
-    uint64_t pid = m_monitor->getPid(state, state->regs()->getPc());
+    uint64_t pid = m_monitor->getPid(state);
     plgState->allow(pid);
 
     getDebugStream(state) << "Allowing custom instructions for pid " << hexval(pid) << "\n";

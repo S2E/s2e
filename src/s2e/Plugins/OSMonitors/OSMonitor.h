@@ -86,21 +86,10 @@ public:
     ///
     /// \brief Return the pid of the process currently active in the given state.
     ///
-    /// Note: OSes may split the address space into two, the upper part being
-    /// mapped across every process. Depending on the OS monitor, this function
-    /// may return 0 if the program counter points to kernel space. This is to
-    /// simplify client plugins (e.g., module map) and avoid making them duplicate every
-    /// kernel module in all address space.
-    ///
     /// \param state the execution state
-    /// \param pc the program counter (user/kernel space)
     /// \return the program id
     ///
-    virtual uint64_t getPid(S2EExecutionState *state, uint64_t pc) = 0;
-
-    uint64_t getPid(S2EExecutionState *state) {
-        return getPid(state, state->regs()->getPc());
-    }
+    virtual uint64_t getPid(S2EExecutionState *state) = 0;
 
     virtual uint64_t getTid(S2EExecutionState *state) = 0;
 

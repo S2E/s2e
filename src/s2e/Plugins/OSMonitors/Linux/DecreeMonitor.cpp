@@ -187,7 +187,7 @@ void DecreeMonitor::handleProcessLoad(S2EExecutionState *state, const S2E_DECREE
     onModuleLoad.emit(state, mod);
 }
 
-uint64_t DecreeMonitor::getPid(S2EExecutionState *state, uint64_t pc) {
+uint64_t DecreeMonitor::getPid(S2EExecutionState *state) {
     target_ulong pid;
     target_ulong taskStructPtr = getTaskStructPtr(state);
     target_ulong pidAddress = taskStructPtr + m_taskStructPidOffset;
@@ -200,7 +200,7 @@ uint64_t DecreeMonitor::getPid(S2EExecutionState *state, uint64_t pc) {
 }
 
 uint64_t DecreeMonitor::getTid(S2EExecutionState *state) {
-    return OSMonitor::getPid(state);
+    return getPid(state);
 }
 
 void DecreeMonitor::getPreFeedData(S2EExecutionState *state, uint64_t pid, uint64_t count, std::vector<uint8_t> &data) {
