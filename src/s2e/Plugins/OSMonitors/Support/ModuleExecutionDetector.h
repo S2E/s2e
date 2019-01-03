@@ -16,6 +16,7 @@
 #include <s2e/Plugin.h>
 #include <s2e/Plugins/Core/BaseInstructions.h>
 #include <s2e/Plugins/Core/Vmi.h>
+#include <s2e/Plugins/OSMonitors/Support/ModuleMap.h>
 
 #include <inttypes.h>
 
@@ -56,7 +57,7 @@ typedef boost::multi_index_container<
 typedef ConfiguredModules::index<modbyid_t>::type ConfiguredModulesById;
 typedef ConfiguredModules::index<modbyname_t>::type ConfiguredModulesByName;
 
-class ModuleExecutionDetector : public Plugin, public BaseInstructionsPluginInvokerInterface {
+class ModuleExecutionDetector : public Plugin {
     S2E_PLUGIN
 
 public:
@@ -89,6 +90,7 @@ public:
 private:
     OSMonitor *m_monitor;
     Vmi *m_vmi;
+    ModuleMap *m_modules;
     ConfiguredModules m_configuredModules;
 
     bool m_trackAllModules;
@@ -111,14 +113,6 @@ private:
 
     void moduleLoadListener(S2EExecutionState *state, const ModuleDescriptor &module);
 
-    void moduleUnloadListener(S2EExecutionState *state, const ModuleDescriptor &desc);
-
-    void processUnloadListener(S2EExecutionState *state, uint64_t addressSpace, uint64_t pid, uint64_t returnCode);
-
-    void handleOpcodeGetModule(S2EExecutionState *state, uint64_t guestDataPtr, S2E_MODEX_DETECTOR_COMMAND command);
-
-    virtual void handleOpcodeInvocation(S2EExecutionState *state, uint64_t guestDataPtr, uint64_t guestDataSize);
-
     bool exists(const std::string &id, const std::string &name) const {
         const ConfiguredModulesById &byId = m_configuredModules.get<modbyid_t>();
         if (byId.find(id) != byId.end()) {
@@ -140,12 +134,9 @@ public:
 
     void initialize();
 
-    // bool toExecutionDesc(ModuleExecutionDesc *desc, const ModuleDescriptor *md);
-    const ModuleDescriptor *getModule(S2EExecutionState *state, uint64_t pc, bool tracked = true);
-    const ModuleDescriptor *getModule(S2EExecutionState *state, uint64_t addressSpace, uint64_t pc,
-                                      bool tracked = true);
-    const ModuleDescriptor *getModule(S2EExecutionState *state, const std::string &moduleName, bool tracked = true);
+    const ModuleDescriptor *getModule(S2EExecutionState *state, uint64_t pc);
     const ModuleDescriptor *getCurrentDescriptor(S2EExecutionState *state) const;
+    const ModuleDescriptor *getDescriptor(S2EExecutionState *state, uint64_t pc) const;
     const std::string *getModuleId(const ModuleDescriptor &desc, unsigned *index = NULL) const;
 
     bool getModuleConfig(const std::string &id, ModuleExecutionCfg &cfg) const {
@@ -164,49 +155,22 @@ public:
     }
 
     bool isModuleConfigured(const std::string &moduleId) const;
+    bool isModuleNameConfigured(const std::string &moduleName) const;
     bool trackAllModules() const {
         return m_trackAllModules;
     }
-
-    friend class ModuleTransitionState;
 };
 
 class ModuleTransitionState : public PluginState {
-private:
-    typedef std::set<const ModuleDescriptor *, ModuleDescriptor::ModuleByLoadBase> DescriptorSet;
-
-    const ModuleDescriptor *m_PreviousModule;
-    mutable const ModuleDescriptor *m_CachedModule;
-
-    DescriptorSet m_Descriptors;
-    DescriptorSet m_NotTrackedDescriptors;
-
-    const ModuleDescriptor *getDescriptor(uint64_t addressSpace, uint64_t pc, bool tracked = true) const;
-
-    /**
-     * Get a loaded descriptor by module name. If multiple descriptors have the same name,
-     * returns one of them without any particular order
-     */
-    const ModuleDescriptor *getDescriptor(const std::string &moduleName, bool tracked = true) const;
-
-    bool loadDescriptor(const ModuleDescriptor &desc, bool track);
-    void unloadDescriptor(const ModuleDescriptor &desc);
-    void unloadDescriptor(uint64_t pid);
-    bool exists(const ModuleDescriptor *desc, bool tracked) const;
-
 public:
-    sigc::signal<void, S2EExecutionState *,
-                 const ModuleDescriptor *, // PreviousModule
-                 const ModuleDescriptor *  // NewModule
-                 >
-        onModuleTransition;
+    // XXX: until we use shared_ptr, this will not work and we can't
+    // track module execution.
+    const ModuleDescriptor *m_previousModule;
 
     ModuleTransitionState();
     virtual ~ModuleTransitionState();
     virtual ModuleTransitionState *clone() const;
     static PluginState *factory(Plugin *p, S2EExecutionState *s);
-
-    friend class ModuleExecutionDetector;
 };
 
 } // namespace plugins

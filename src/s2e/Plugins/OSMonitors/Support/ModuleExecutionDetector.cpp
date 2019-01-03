@@ -54,13 +54,10 @@ void ModuleExecutionDetector::initialize() {
     m_monitor = (OSMonitor *) s2e()->getPlugin("OSMonitor");
     assert(m_monitor);
 
+    m_modules = s2e()->getPlugin<ModuleMap>();
     m_vmi = s2e()->getPlugin<Vmi>();
 
     m_monitor->onModuleLoad.connect(sigc::mem_fun(*this, &ModuleExecutionDetector::moduleLoadListener));
-
-    m_monitor->onModuleUnload.connect(sigc::mem_fun(*this, &ModuleExecutionDetector::moduleUnloadListener));
-
-    m_monitor->onProcessUnload.connect(sigc::mem_fun(*this, &ModuleExecutionDetector::processUnloadListener));
 
     s2e()->getCorePlugin()->onTranslateBlockStart.connect(
         sigc::mem_fun(*this, &ModuleExecutionDetector::onTranslateBlockStart));
@@ -87,8 +84,16 @@ void ModuleExecutionDetector::initializeConfiguration() {
 
     m_trackAllModules = cfg->getBool(getConfigKey() + ".trackAllModules");
     m_configureAllModules = cfg->getBool(getConfigKey() + ".configureAllModules");
-    m_trackExecution = cfg->getBool(getConfigKey() + ".trackExecution", true);
+    m_trackExecution = cfg->getBool(getConfigKey() + ".trackExecution", false);
 
+    if (m_trackExecution) {
+        // TODO: this is temporary
+        getWarningsStream() << "Tracking module execution is not supported yet\n";
+        exit(-1);
+    }
+
+    // TODO: get rid of all this stuff eventually (e.g., we don't need kernelMode anymore).
+    // Plugin should primarily use ModuleMap.
     unsigned moduleIndex = 0;
     foreach2 (it, keyList.begin(), keyList.end()) {
         if (*it == "trackAllModules" || *it == "configureAllModules" || *it == "trackExecution" || *it == "logLevel") {
@@ -127,118 +132,34 @@ void ModuleExecutionDetector::initializeConfiguration() {
         m_configuredModules.insert(d);
     }
 }
-/*****************************************************************************/
-/*****************************************************************************/
-/*****************************************************************************/
-void ModuleExecutionDetector::handleOpcodeGetModule(S2EExecutionState *state, uint64_t guestDataPtr,
-                                                    S2E_MODEX_DETECTOR_COMMAND command) {
-    const ModuleDescriptor *module = getModule(state, command.Module.AbsoluteAddress, false);
-    if (!module) {
-        return;
-    }
-
-    command.Module.NativeBaseAddress = module->ToNativeBase(command.Module.AbsoluteAddress);
-
-    if (command.Module.ModuleName && command.Module.ModuleNameSize > 0) {
-        std::string moduleName = module->Name;
-        int size = std::min(moduleName.length() + 1, command.Module.ModuleNameSize);
-
-        if (size > 0) {
-            state->mem()->write(command.Module.ModuleName, moduleName.c_str(), size);
-        }
-    }
-
-    state->mem()->write(guestDataPtr, &command, sizeof(command));
-}
-
-void ModuleExecutionDetector::handleOpcodeInvocation(S2EExecutionState *state, uint64_t guestDataPtr,
-                                                     uint64_t guestDataSize) {
-    S2E_MODEX_DETECTOR_COMMAND command;
-
-    if (guestDataSize != sizeof(command)) {
-        getWarningsStream(state) << "ModuleExecutionDetector: mismatched S2E_MODEX_DETECTOR_COMMAND size\n";
-        return;
-    }
-
-    if (!state->mem()->read(guestDataPtr, &command, guestDataSize)) {
-        getWarningsStream(state) << "ModuleExecutionDetector: could not read transmitted data\n";
-        return;
-    }
-
-    switch (command.Command) {
-        case GET_MODULE: {
-            handleOpcodeGetModule(state, guestDataPtr, command);
-        } break;
-
-        default: {
-            getInfoStream(state) << "ModuleExecutionDetector: "
-                                 << "Invalid command " << hexval(command.Command) << "\n";
-        }
-    }
-}
 
 /*****************************************************************************/
 /*****************************************************************************/
 /*****************************************************************************/
 
 void ModuleExecutionDetector::moduleLoadListener(S2EExecutionState *state, const ModuleDescriptor &module) {
-    DECLARE_PLUGINSTATE(ModuleTransitionState, state);
-
     // If module name matches the configured ones, activate.
     getDebugStream(state) << "module loaded: " << module << "\n";
 
     if (m_configureAllModules) {
-        if (plgState->exists(&module, true)) {
-            getWarningsStream(state) << module.Name << " is already registered"
-                                     << "\n";
-        } else {
-            getInfoStream(state) << "registering " << module.Name << "\n";
-            plgState->loadDescriptor(module, true);
-            onModuleLoad.emit(state, module);
-        }
+        getInfoStream(state) << "loading " << module.Name << "\n";
+        onModuleLoad.emit(state, module);
         return;
     }
 
     const ConfiguredModulesByName &byName = m_configuredModules.get<modbyname_t>();
     const auto it = byName.find(module.Name);
     if (it != byName.end()) {
-        if (plgState->exists(&module, true)) {
-            getInfoStream(state) << "module ID=" << it->id << " is already registered" << '\n';
-        } else {
-            getInfoStream(state) << "registering ID=" << it->id << '\n';
-            plgState->loadDescriptor(module, true);
-            onModuleLoad.emit(state, module);
-        }
+        getInfoStream(state) << "loading id " << it->id << "\n";
+        onModuleLoad.emit(state, module);
         return;
     }
-
-    getDebugStream(state) << '\n';
 
     if (m_trackAllModules) {
-        if (!plgState->exists(&module, false)) {
-            getDebugStream(state) << "registering " << module.Name << " (tracking all modules)\n";
-            plgState->loadDescriptor(module, false);
-            onModuleLoad.emit(state, module);
-        }
+        getDebugStream(state) << "registering " << module.Name << " (tracking all modules)\n";
+        onModuleLoad.emit(state, module);
         return;
     }
-}
-
-void ModuleExecutionDetector::moduleUnloadListener(S2EExecutionState *state, const ModuleDescriptor &module) {
-    DECLARE_PLUGINSTATE(ModuleTransitionState, state);
-
-    getDebugStream(state) << "module " << module.Name << " is unloaded" << '\n';
-
-    plgState->unloadDescriptor(module);
-}
-
-void ModuleExecutionDetector::processUnloadListener(S2EExecutionState *state, uint64_t addressSpace, uint64_t pid,
-                                                    uint64_t returnCode) {
-    DECLARE_PLUGINSTATE(ModuleTransitionState, state);
-
-    getDebugStream(state) << "process " << hexval(addressSpace) << " (pid=" << hexval(pid) << ") is unloaded\n";
-
-    plgState->unloadDescriptor(pid);
 }
 
 // Check that the module id is valid
@@ -247,82 +168,43 @@ bool ModuleExecutionDetector::isModuleConfigured(const std::string &moduleId) co
     return byId.find(moduleId) != byId.end();
 }
 
-/*****************************************************************************/
-/*****************************************************************************/
-/*****************************************************************************/
-
-const ModuleDescriptor *ModuleExecutionDetector::getModule(S2EExecutionState *state, uint64_t pc, bool tracked) {
-    DECLARE_PLUGINSTATE(ModuleTransitionState, state);
-    uint64_t addressSpace = state->regs()->getPageDir();
-
-    const ModuleDescriptor *currentModule = plgState->getDescriptor(addressSpace, pc, tracked);
-    return currentModule;
-}
-
-const ModuleDescriptor *ModuleExecutionDetector::getModule(S2EExecutionState *state, uint64_t addressSpace, uint64_t pc,
-                                                           bool tracked) {
-    DECLARE_PLUGINSTATE(ModuleTransitionState, state);
-
-    const ModuleDescriptor *currentModule = plgState->getDescriptor(addressSpace, pc, tracked);
-    return currentModule;
-}
-
-const ModuleDescriptor *ModuleExecutionDetector::getModule(S2EExecutionState *state, const std::string &moduleName,
-                                                           bool tracked) {
-    DECLARE_PLUGINSTATE(ModuleTransitionState, state);
-    const ModuleDescriptor *currentModule = plgState->getDescriptor(moduleName, tracked);
-    return currentModule;
-}
-
-const std::string *ModuleExecutionDetector::getModuleId(const ModuleDescriptor &desc, unsigned *index) const {
+bool ModuleExecutionDetector::isModuleNameConfigured(const std::string &moduleName) const {
     const ConfiguredModulesByName &byName = m_configuredModules.get<modbyname_t>();
-    const auto it = byName.find(desc.Name);
-    if (it == byName.end()) {
-        return NULL;
-    }
-
-    if (index) {
-        *index = it->index;
-    }
-
-    return &(it->id);
+    return byName.find(moduleName) != byName.end();
 }
+
+/*****************************************************************************/
+/*****************************************************************************/
+/*****************************************************************************/
 
 void ModuleExecutionDetector::onTranslateBlockStart(ExecutionSignal *signal, S2EExecutionState *state,
                                                     TranslationBlock *tb, uint64_t pc) {
-    DECLARE_PLUGINSTATE(ModuleTransitionState, state);
 
-    uint64_t addressSpace = state->regs()->getPageDir();
-
-    const ModuleDescriptor *currentModule = plgState->getDescriptor(addressSpace, pc);
-
-    if (currentModule) {
-        // S2E::printf(getDebugStream(), "Translating block %#"PRIx64" belonging to %s\n",pc,
-        // currentModule->Name.c_str());
-        if (m_trackExecution) {
-            signal->connect(sigc::mem_fun(*this, &ModuleExecutionDetector::onExecution));
-        }
-
-        onModuleTranslateBlockStart.emit(signal, state, *currentModule, tb, pc);
+    const ModuleDescriptor *currentModule = getDescriptor(state, pc);
+    if (!currentModule) {
+        return;
     }
+
+    if (m_trackExecution) {
+        signal->connect(sigc::mem_fun(*this, &ModuleExecutionDetector::onExecution));
+    }
+
+    onModuleTranslateBlockStart.emit(signal, state, *currentModule, tb, pc);
 }
 
 void ModuleExecutionDetector::onTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionState *state,
                                                   TranslationBlock *tb, uint64_t endPc, bool staticTarget,
                                                   uint64_t targetPc) {
-    DECLARE_PLUGINSTATE(ModuleTransitionState, state);
-
     const ModuleDescriptor *currentModule = getCurrentDescriptor(state);
 
     if (!currentModule) {
-        // Outside of any module, do not need
-        // to instrument tb exits.
+        // Outside of any module, do not need to instrument tb exits.
         return;
     }
 
     if (m_trackExecution) {
         if (staticTarget) {
-            const ModuleDescriptor *targetModule = plgState->getDescriptor(state->regs()->getPageDir(), targetPc);
+            const ModuleDescriptor *targetModule = getDescriptor(state, targetPc);
 
             if (targetModule != currentModule) {
                 // Only instrument in case there is a module change
@@ -355,29 +237,12 @@ void ModuleExecutionDetector::onTranslateBlockComplete(S2EExecutionState *state,
 }
 
 void ModuleExecutionDetector::exceptionListener(S2EExecutionState *state, unsigned intNb, uint64_t pc) {
-    // std::cout << "Exception index " << intNb << '\n';
-    // onExecution(state, pc);
-
     DECLARE_PLUGINSTATE(ModuleTransitionState, state);
 
-    // gTRACE("addressSpace=%#"PRIx64" pc=%#"PRIx64"\n", pid, pc);
-    if (plgState->m_PreviousModule != NULL) {
-        onModuleTransition.emit(state, plgState->m_PreviousModule, NULL);
-        plgState->m_PreviousModule = NULL;
+    if (plgState->m_previousModule != NULL) {
+        onModuleTransition.emit(state, plgState->m_previousModule, NULL);
+        plgState->m_previousModule = NULL;
     }
-}
-
-/**
- *  This returns the descriptor of the module that is currently being executed.
- *  This works only when tracking of all modules is activated.
- */
-const ModuleDescriptor *ModuleExecutionDetector::getCurrentDescriptor(S2EExecutionState *state) const {
-    DECLARE_PLUGINSTATE_CONST(ModuleTransitionState, state);
-
-    uint64_t pc = state->regs()->getPc();
-    uint64_t addressSpace = state->regs()->getPageDir();
-
-    return plgState->getDescriptor(addressSpace, pc);
 }
 
 void ModuleExecutionDetector::onExecution(S2EExecutionState *state, uint64_t pc) {
@@ -385,12 +250,49 @@ void ModuleExecutionDetector::onExecution(S2EExecutionState *state, uint64_t pc)
 
     const ModuleDescriptor *currentModule = getCurrentDescriptor(state);
 
-    // gTRACE("addressSpace=%#"PRIx64" pc=%#"PRIx64"\n", pid, pc);
-    if (plgState->m_PreviousModule != currentModule) {
-        onModuleTransition.emit(state, plgState->m_PreviousModule, currentModule);
-
-        plgState->m_PreviousModule = currentModule;
+    if (plgState->m_previousModule != currentModule) {
+        plgState->m_previousModule = currentModule;
+        onModuleTransition.emit(state, plgState->m_previousModule, currentModule);
     }
+}
+
+const ModuleDescriptor *ModuleExecutionDetector::getModule(S2EExecutionState *state, uint64_t pc) {
+    return getDescriptor(state, pc);
+}
+
+const std::string *ModuleExecutionDetector::getModuleId(const ModuleDescriptor &desc, unsigned *index) const {
+    const ConfiguredModulesByName &byName = m_configuredModules.get<modbyname_t>();
+    const auto it = byName.find(desc.Name);
+    if (it == byName.end()) {
+        return NULL;
+    }
+
+    if (index) {
+        *index = it->index;
+    }
+
+    return &(it->id);
+}
+
+/**
+ *  This returns the descriptor of the module that is currently being executed.
+ *  This works only when tracking of all modules is activated.
+ */
+const ModuleDescriptor *ModuleExecutionDetector::getCurrentDescriptor(S2EExecutionState *state) const {
+    return getDescriptor(state, state->regs()->getPc());
+}
+
+const ModuleDescriptor *ModuleExecutionDetector::getDescriptor(S2EExecutionState *state, uint64_t pc) const {
+    const ModuleDescriptor *module = m_modules->getModule(state, pc);
+    if (!module) {
+        return nullptr;
+    }
+
+    if (m_configureAllModules || isModuleNameConfigured(module->Name)) {
+        return module;
+    }
+
+    return nullptr;
 }
 
 /*****************************************************************************/
@@ -398,203 +300,16 @@ void ModuleExecutionDetector::onExecution(S2EExecutionState *state, uint64_t pc)
 /*****************************************************************************/
 
 ModuleTransitionState::ModuleTransitionState() {
-    m_PreviousModule = NULL;
-    m_CachedModule = NULL;
+    m_previousModule = nullptr;
 }
 
 ModuleTransitionState::~ModuleTransitionState() {
-    foreach2 (it, m_Descriptors.begin(), m_Descriptors.end()) { delete *it; }
-
-    foreach2 (it, m_NotTrackedDescriptors.begin(), m_NotTrackedDescriptors.end()) { delete *it; }
 }
 
 ModuleTransitionState *ModuleTransitionState::clone() const {
-    ModuleTransitionState *ret = new ModuleTransitionState();
-
-    foreach2 (it, m_Descriptors.begin(), m_Descriptors.end()) { ret->m_Descriptors.insert(new ModuleDescriptor(**it)); }
-
-    foreach2 (it, m_NotTrackedDescriptors.begin(), m_NotTrackedDescriptors.end()) {
-        assert(*it != m_CachedModule && *it != m_PreviousModule);
-        ret->m_NotTrackedDescriptors.insert(new ModuleDescriptor(**it));
-    }
-
-    if (m_CachedModule) {
-        DescriptorSet::iterator it = ret->m_Descriptors.find(m_CachedModule);
-        assert(it != ret->m_Descriptors.end());
-        ret->m_CachedModule = *it;
-    }
-
-    if (m_PreviousModule) {
-        DescriptorSet::iterator it = ret->m_Descriptors.find(m_PreviousModule);
-        assert(it != ret->m_Descriptors.end());
-        ret->m_PreviousModule = *it;
-    }
-
-    return ret;
+    return new ModuleTransitionState(*this);
 }
 
 PluginState *ModuleTransitionState::factory(Plugin *p, S2EExecutionState *state) {
-    ModuleTransitionState *s = new ModuleTransitionState();
-
-    p->getDebugStream() << "creating initial module transition state\n";
-
-    return s;
-}
-
-const ModuleDescriptor *ModuleTransitionState::getDescriptor(const std::string &moduleName, bool tracked) const {
-    const DescriptorSet &descs = tracked ? m_Descriptors : m_NotTrackedDescriptors;
-
-    foreach2 (it, descs.begin(), descs.end()) {
-        if ((*it)->Name == moduleName) {
-            return *it;
-        }
-    }
-
-    return NULL;
-}
-
-const ModuleDescriptor *ModuleTransitionState::getDescriptor(uint64_t addressSpace, uint64_t pc, bool tracked) const {
-    if (m_CachedModule) {
-        const ModuleDescriptor &md = *m_CachedModule;
-        uint64_t prevModStart = md.LoadBase;
-        uint64_t prevModSize = md.Size;
-        uint64_t prevModAddressSpace = md.AddressSpace;
-        if (addressSpace == prevModAddressSpace && pc >= prevModStart && pc < prevModStart + prevModSize) {
-            // We stayed in the same module
-            return m_CachedModule;
-        }
-    }
-
-    ModuleDescriptor d;
-    d.AddressSpace = addressSpace;
-    d.LoadBase = pc;
-    d.Size = 1;
-    DescriptorSet::iterator it = m_Descriptors.find(&d);
-    if (it != m_Descriptors.end()) {
-        m_CachedModule = *it;
-        return *it;
-    }
-
-    m_CachedModule = NULL;
-
-    if (!tracked) {
-        it = m_NotTrackedDescriptors.find(&d);
-        if (it != m_NotTrackedDescriptors.end()) {
-            // XXX: implement proper caching
-            assert(*it != m_CachedModule && *it != m_PreviousModule);
-            return *it;
-        }
-    }
-
-    return NULL;
-}
-
-bool ModuleTransitionState::loadDescriptor(const ModuleDescriptor &desc, bool track) {
-    if (track) {
-        m_Descriptors.insert(new ModuleDescriptor(desc));
-    } else {
-        if (m_NotTrackedDescriptors.find(&desc) == m_NotTrackedDescriptors.end()) {
-            m_NotTrackedDescriptors.insert(new ModuleDescriptor(desc));
-        } else {
-            return false;
-        }
-    }
-    return true;
-}
-
-void ModuleTransitionState::unloadDescriptor(const ModuleDescriptor &desc) {
-    ModuleDescriptor d;
-    d.LoadBase = desc.LoadBase;
-    d.AddressSpace = desc.AddressSpace;
-    d.Size = desc.Size;
-
-    DescriptorSet::iterator it = m_Descriptors.find(&d);
-    if (it != m_Descriptors.end()) {
-        if (m_CachedModule == *it) {
-            m_CachedModule = NULL;
-        }
-
-        if (m_PreviousModule == *it) {
-            m_PreviousModule = NULL;
-        }
-
-        const ModuleDescriptor *md = *it;
-        size_t s = m_Descriptors.erase(*it);
-        assert(s == 1);
-        delete md;
-    }
-
-    it = m_NotTrackedDescriptors.find(&d);
-    if (it != m_NotTrackedDescriptors.end()) {
-        assert(*it != m_CachedModule && *it != m_PreviousModule);
-        const ModuleDescriptor *md = *it;
-        size_t s = m_NotTrackedDescriptors.erase(*it);
-        assert(s == 1);
-        delete md;
-    }
-}
-
-void ModuleTransitionState::unloadDescriptor(uint64_t pid) {
-    DescriptorSet::iterator it, it1;
-
-    for (it = m_Descriptors.begin(); it != m_Descriptors.end();) {
-        if ((*it)->Pid != pid) {
-            ++it;
-        } else {
-            it1 = it;
-            ++it1;
-
-            if (m_CachedModule == *it) {
-                m_CachedModule = NULL;
-            }
-
-            if (m_PreviousModule == *it) {
-                m_PreviousModule = NULL;
-            }
-
-            const ModuleDescriptor *md = *it;
-            m_Descriptors.erase(*it);
-            delete md;
-
-            it = it1;
-        }
-    }
-
-    // XXX: avoid copy/paste
-    for (it = m_NotTrackedDescriptors.begin(); it != m_NotTrackedDescriptors.end();) {
-        if ((*it)->Pid != pid) {
-            ++it;
-        } else {
-            it1 = it;
-            ++it1;
-
-            if (m_CachedModule == *it) {
-                m_CachedModule = NULL;
-            }
-
-            if (m_PreviousModule == *it) {
-                m_PreviousModule = NULL;
-            }
-
-            const ModuleDescriptor *md = *it;
-            m_NotTrackedDescriptors.erase(*it);
-            delete md;
-
-            it = it1;
-        }
-    }
-}
-
-bool ModuleTransitionState::exists(const ModuleDescriptor *desc, bool tracked) const {
-    bool ret;
-    ret = m_Descriptors.find(desc) != m_Descriptors.end();
-    if (ret) {
-        return ret;
-    }
-
-    if (tracked) {
-        return false;
-    }
-
-    return m_NotTrackedDescriptors.find(desc) != m_NotTrackedDescriptors.end();
+    return new ModuleTransitionState();
 }
