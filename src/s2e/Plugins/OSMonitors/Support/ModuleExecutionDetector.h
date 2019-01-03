@@ -30,35 +30,6 @@ namespace plugins {
 
 class OSMonitor;
 
-struct S2E_MODEX_MODULE {
-    /**
-     * IN: absolute address which we want
-     * to convert to a module name and a relative address.
-     */
-    uint64_t AbsoluteAddress;
-
-    /* IN: number of bytes in ModuleName */
-    uint64_t ModuleNameSize;
-
-    /* OPTIONAL IN/OUT: pointer to to the module name in guest space */
-    uint64_t ModuleName;
-
-    /* OUT: the computed address relative to the module's native base */
-    uint64_t NativeBaseAddress;
-};
-
-enum S2E_MODEX_DETECTOR_COMMANDS { GET_MODULE };
-
-/**
- * Structure to invoke ModuleExecutionDetector form guest code.
- */
-struct S2E_MODEX_DETECTOR_COMMAND {
-    S2E_MODEX_DETECTOR_COMMANDS Command;
-    union {
-        S2E_MODEX_MODULE Module;
-    };
-};
-
 /**
  *  Module description from configuration file
  */
@@ -126,9 +97,6 @@ private:
     bool m_trackExecution;
 
     void initializeConfiguration();
-    bool opAddModuleConfigEntry(S2EExecutionState *state);
-
-    void onCustomInstruction(S2EExecutionState *state, uint64_t operand);
 
     void onTranslateBlockStart(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb, uint64_t pc);
 

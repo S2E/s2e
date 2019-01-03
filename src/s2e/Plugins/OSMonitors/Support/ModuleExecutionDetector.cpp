@@ -45,7 +45,7 @@ using namespace s2e;
 using namespace s2e::plugins;
 
 S2E_DEFINE_PLUGIN(ModuleExecutionDetector, "Plugin for monitoring module execution", "ModuleExecutionDetector",
-                  "OSMonitor", "Vmi");
+                  "ModuleMap", "OSMonitor", "Vmi");
 
 ModuleExecutionDetector::~ModuleExecutionDetector() {
 }
@@ -73,9 +73,6 @@ void ModuleExecutionDetector::initialize() {
 
     s2e()->getCorePlugin()->onException.connect(sigc::mem_fun(*this, &ModuleExecutionDetector::exceptionListener));
 
-    s2e()->getCorePlugin()->onCustomInstruction.connect(
-        sigc::mem_fun(*this, &ModuleExecutionDetector::onCustomInstruction));
-
     initializeConfiguration();
 }
 
@@ -90,7 +87,6 @@ void ModuleExecutionDetector::initializeConfiguration() {
 
     m_trackAllModules = cfg->getBool(getConfigKey() + ".trackAllModules");
     m_configureAllModules = cfg->getBool(getConfigKey() + ".configureAllModules");
-
     m_trackExecution = cfg->getBool(getConfigKey() + ".trackExecution", true);
 
     unsigned moduleIndex = 0;
@@ -134,76 +130,6 @@ void ModuleExecutionDetector::initializeConfiguration() {
 /*****************************************************************************/
 /*****************************************************************************/
 /*****************************************************************************/
-bool ModuleExecutionDetector::opAddModuleConfigEntry(S2EExecutionState *state) {
-    bool ok = true;
-    // XXX: 32-bits guests only
-    target_ulong moduleId, moduleName, isKernelMode;
-    ok &= state->regs()->read(CPU_OFFSET(regs[R_ECX]), &moduleId, sizeof(moduleId), false);
-    ok &= state->regs()->read(CPU_OFFSET(regs[R_EAX]), &moduleName, sizeof(moduleName), false);
-    ok &= state->regs()->read(CPU_OFFSET(regs[R_EDX]), &isKernelMode, sizeof(isKernelMode), false);
-
-    if (!ok) {
-        getWarningsStream(state) << "Could not read parameters\n";
-        return false;
-    }
-
-    std::string strModuleId, strModuleName;
-    if (!state->mem()->readString(moduleId, strModuleId)) {
-        getWarningsStream(state) << "Could not read the module id string\n";
-        return false;
-    }
-
-    if (!state->mem()->readString(moduleName, strModuleName)) {
-        getWarningsStream(state) << "Could not read the module name string\n";
-        return false;
-    }
-
-    ModuleExecutionCfg desc;
-    desc.id = strModuleId;
-    desc.moduleName = strModuleName;
-    desc.kernelMode = (bool) isKernelMode;
-
-    getInfoStream() << "adding module "
-                    << "id=" << desc.id << " moduleName=" << desc.moduleName << " kernelMode=" << desc.kernelMode
-                    << "\n";
-
-    if (exists(desc.id, desc.moduleName)) {
-        getWarningsStream() << "module with id " << desc.id << " or name " << desc.moduleName << " already exists"
-                            << '\n';
-        return false;
-    }
-
-    m_configuredModules.insert(desc);
-
-    return true;
-}
-
-void ModuleExecutionDetector::onCustomInstruction(S2EExecutionState *state, uint64_t operand) {
-    if (!OPCODE_CHECK(operand, MODULE_EXECUTION_DETECTOR_OPCODE)) {
-        return;
-    }
-
-    uint64_t subfunction = OPCODE_GETSUBFUNCTION(operand);
-
-    switch (subfunction) {
-        case 0: {
-            if (opAddModuleConfigEntry(state)) {
-                if (s2e()->getExecutor()->getStatesCount() > 1) {
-                    getWarningsStream(state)
-                        << "ModuleExecutionDetector attempts to flush the TB cache while having more than 1 state.\n"
-                        << "Doing that in S2E is dangerous for many reasons, so we ignore the request.\n";
-                } else {
-                    tb_flush(env);
-                }
-
-                state->regs()->setPc(state->regs()->getPc() + OPCODE_SIZE);
-                throw CpuExitException();
-            }
-            break;
-        }
-    }
-}
-
 void ModuleExecutionDetector::handleOpcodeGetModule(S2EExecutionState *state, uint64_t guestDataPtr,
                                                     S2E_MODEX_DETECTOR_COMMAND command) {
     const ModuleDescriptor *module = getModule(state, command.Module.AbsoluteAddress, false);
