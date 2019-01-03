@@ -111,16 +111,16 @@ public:
     sigc::signal<void, S2EExecutionState *, const ModuleDescriptor &> onModuleLoad;
 
 private:
-    OSMonitor *m_Monitor;
+    OSMonitor *m_monitor;
     Vmi *m_vmi;
 
-    ConfiguredModulesById m_ConfiguredModulesId;
-    ConfiguredModulesByName m_ConfiguredModulesName;
+    ConfiguredModulesById m_configuredModulesId;
+    ConfiguredModulesByName m_configuredModulesName;
 
-    bool m_TrackAllModules;
-    bool m_ConfigureAllModules;
+    bool m_trackAllModules;
+    bool m_configureAllModules;
 
-    bool m_TrackExecution;
+    bool m_trackExecution;
 
     void initializeConfiguration();
     bool opAddModuleConfigEntry(S2EExecutionState *state);
@@ -169,8 +169,8 @@ public:
     bool getModuleConfig(const std::string &id, ModuleExecutionCfg &cfg) const {
         ModuleExecutionCfg tofind;
         tofind.id = id;
-        ConfiguredModulesById::const_iterator it = m_ConfiguredModulesId.find(tofind);
-        if (it == m_ConfiguredModulesId.end()) {
+        ConfiguredModulesById::const_iterator it = m_configuredModulesId.find(tofind);
+        if (it == m_configuredModulesId.end()) {
             return false;
         }
 
@@ -179,12 +179,12 @@ public:
     }
 
     const ConfiguredModulesById &getConfiguredModulesById() const {
-        return m_ConfiguredModulesId;
+        return m_configuredModulesId;
     }
 
     bool isModuleConfigured(const std::string &moduleId) const;
     bool trackAllModules() const {
-        return m_TrackAllModules;
+        return m_trackAllModules;
     }
 
     friend class ModuleTransitionState;

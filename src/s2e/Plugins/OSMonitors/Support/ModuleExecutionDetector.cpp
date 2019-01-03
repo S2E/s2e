@@ -51,16 +51,16 @@ ModuleExecutionDetector::~ModuleExecutionDetector() {
 }
 
 void ModuleExecutionDetector::initialize() {
-    m_Monitor = (OSMonitor *) s2e()->getPlugin("OSMonitor");
-    assert(m_Monitor);
+    m_monitor = (OSMonitor *) s2e()->getPlugin("OSMonitor");
+    assert(m_monitor);
 
     m_vmi = s2e()->getPlugin<Vmi>();
 
-    m_Monitor->onModuleLoad.connect(sigc::mem_fun(*this, &ModuleExecutionDetector::moduleLoadListener));
+    m_monitor->onModuleLoad.connect(sigc::mem_fun(*this, &ModuleExecutionDetector::moduleLoadListener));
 
-    m_Monitor->onModuleUnload.connect(sigc::mem_fun(*this, &ModuleExecutionDetector::moduleUnloadListener));
+    m_monitor->onModuleUnload.connect(sigc::mem_fun(*this, &ModuleExecutionDetector::moduleUnloadListener));
 
-    m_Monitor->onProcessUnload.connect(sigc::mem_fun(*this, &ModuleExecutionDetector::processUnloadListener));
+    m_monitor->onProcessUnload.connect(sigc::mem_fun(*this, &ModuleExecutionDetector::processUnloadListener));
 
     s2e()->getCorePlugin()->onTranslateBlockStart.connect(
         sigc::mem_fun(*this, &ModuleExecutionDetector::onTranslateBlockStart));
@@ -88,10 +88,10 @@ void ModuleExecutionDetector::initializeConfiguration() {
         getWarningsStream() << "no configuration keys!" << '\n';
     }
 
-    m_TrackAllModules = cfg->getBool(getConfigKey() + ".trackAllModules");
-    m_ConfigureAllModules = cfg->getBool(getConfigKey() + ".configureAllModules");
+    m_trackAllModules = cfg->getBool(getConfigKey() + ".trackAllModules");
+    m_configureAllModules = cfg->getBool(getConfigKey() + ".configureAllModules");
 
-    m_TrackExecution = cfg->getBool(getConfigKey() + ".trackExecution", true);
+    m_trackExecution = cfg->getBool(getConfigKey() + ".trackExecution", true);
 
     unsigned moduleIndex = 0;
     foreach2 (it, keyList.begin(), keyList.end()) {
@@ -122,18 +122,18 @@ void ModuleExecutionDetector::initializeConfiguration() {
                          << "moduleName=" << d.moduleName << " "
                          << "context=" << d.context << '\n';
 
-        if (m_ConfiguredModulesName.find(d) != m_ConfiguredModulesName.end()) {
+        if (m_configuredModulesName.find(d) != m_configuredModulesName.end()) {
             getWarningsStream() << "module names must be unique!" << '\n';
             exit(-1);
         }
 
-        if (m_ConfiguredModulesId.find(d) != m_ConfiguredModulesId.end()) {
+        if (m_configuredModulesId.find(d) != m_configuredModulesId.end()) {
             getWarningsStream() << "module ids must be unique!" << '\n';
             exit(-1);
         }
 
-        m_ConfiguredModulesId.insert(d);
-        m_ConfiguredModulesName.insert(d);
+        m_configuredModulesId.insert(d);
+        m_configuredModulesName.insert(d);
     }
 }
 /*****************************************************************************/
@@ -172,18 +172,18 @@ bool ModuleExecutionDetector::opAddModuleConfigEntry(S2EExecutionState *state) {
                     << "id=" << desc.id << " moduleName=" << desc.moduleName << " kernelMode=" << desc.kernelMode
                     << "\n";
 
-    if (m_ConfiguredModulesName.find(desc) != m_ConfiguredModulesName.end()) {
+    if (m_configuredModulesName.find(desc) != m_configuredModulesName.end()) {
         getWarningsStream() << "module name " << desc.moduleName << " already exists\n";
         return false;
     }
 
-    if (m_ConfiguredModulesId.find(desc) != m_ConfiguredModulesId.end()) {
+    if (m_configuredModulesId.find(desc) != m_configuredModulesId.end()) {
         getWarningsStream() << "module id " << desc.id << " already exists\n";
         return false;
     }
 
-    m_ConfiguredModulesId.insert(desc);
-    m_ConfiguredModulesName.insert(desc);
+    m_configuredModulesId.insert(desc);
+    m_configuredModulesName.insert(desc);
 
     return true;
 }
@@ -274,7 +274,7 @@ void ModuleExecutionDetector::moduleLoadListener(S2EExecutionState *state, const
     ModuleExecutionCfg cfg;
     cfg.moduleName = module.Name;
 
-    if (m_ConfigureAllModules) {
+    if (m_configureAllModules) {
         if (plgState->exists(&module, true)) {
             getWarningsStream(state) << module.Name << " is already registered"
                                      << "\n";
@@ -286,8 +286,8 @@ void ModuleExecutionDetector::moduleLoadListener(S2EExecutionState *state, const
         return;
     }
 
-    ConfiguredModulesByName::iterator it = m_ConfiguredModulesName.find(cfg);
-    if (it != m_ConfiguredModulesName.end()) {
+    ConfiguredModulesByName::iterator it = m_configuredModulesName.find(cfg);
+    if (it != m_configuredModulesName.end()) {
         if (plgState->exists(&module, true)) {
             getInfoStream(state) << "module ID=" << it->id << " is already registered" << '\n';
         } else {
@@ -300,7 +300,7 @@ void ModuleExecutionDetector::moduleLoadListener(S2EExecutionState *state, const
 
     getDebugStream(state) << '\n';
 
-    if (m_TrackAllModules) {
+    if (m_trackAllModules) {
         if (!plgState->exists(&module, false)) {
             getDebugStream(state) << "registering " << module.Name << " (tracking all modules)\n";
             plgState->loadDescriptor(module, false);
@@ -332,7 +332,7 @@ bool ModuleExecutionDetector::isModuleConfigured(const std::string &moduleId) co
     ModuleExecutionCfg cfg;
     cfg.id = moduleId;
 
-    return m_ConfiguredModulesId.find(cfg) != m_ConfiguredModulesId.end();
+    return m_configuredModulesId.find(cfg) != m_configuredModulesId.end();
 }
 
 /*****************************************************************************/
@@ -366,8 +366,8 @@ const std::string *ModuleExecutionDetector::getModuleId(const ModuleDescriptor &
     ModuleExecutionCfg cfg;
     cfg.moduleName = desc.Name;
 
-    ConfiguredModulesByName::iterator it = m_ConfiguredModulesName.find(cfg);
-    if (it == m_ConfiguredModulesName.end()) {
+    ConfiguredModulesByName::iterator it = m_configuredModulesName.find(cfg);
+    if (it == m_configuredModulesName.end()) {
         return NULL;
     }
 
@@ -409,7 +409,7 @@ void ModuleExecutionDetector::onTranslateBlockStart(ExecutionSignal *signal, S2E
     if (currentModule) {
         // S2E::printf(getDebugStream(), "Translating block %#"PRIx64" belonging to %s\n",pc,
         // currentModule->Name.c_str());
-        if (m_TrackExecution) {
+        if (m_trackExecution) {
             signal->connect(sigc::mem_fun(*this, &ModuleExecutionDetector::onExecution));
         }
 
@@ -430,7 +430,7 @@ void ModuleExecutionDetector::onTranslateBlockEnd(ExecutionSignal *signal, S2EEx
         return;
     }
 
-    if (m_TrackExecution) {
+    if (m_trackExecution) {
         if (staticTarget) {
             const ModuleDescriptor *targetModule = plgState->getDescriptor(state->regs()->getPageDir(), targetPc);
 
