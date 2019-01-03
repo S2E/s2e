@@ -122,18 +122,13 @@ void ModuleExecutionDetector::initializeConfiguration() {
                          << "moduleName=" << d.moduleName << " "
                          << "context=" << d.context << '\n';
 
-        if (m_configuredModulesName.find(d) != m_configuredModulesName.end()) {
-            getWarningsStream() << "module names must be unique!" << '\n';
+        if (exists(d.id, d.moduleName)) {
+            getWarningsStream() << "module with id " << d.id << " or name " << d.moduleName << " already exists"
+                                << '\n';
             exit(-1);
         }
 
-        if (m_configuredModulesId.find(d) != m_configuredModulesId.end()) {
-            getWarningsStream() << "module ids must be unique!" << '\n';
-            exit(-1);
-        }
-
-        m_configuredModulesId.insert(d);
-        m_configuredModulesName.insert(d);
+        m_configuredModules.insert(d);
     }
 }
 /*****************************************************************************/
@@ -172,18 +167,13 @@ bool ModuleExecutionDetector::opAddModuleConfigEntry(S2EExecutionState *state) {
                     << "id=" << desc.id << " moduleName=" << desc.moduleName << " kernelMode=" << desc.kernelMode
                     << "\n";
 
-    if (m_configuredModulesName.find(desc) != m_configuredModulesName.end()) {
-        getWarningsStream() << "module name " << desc.moduleName << " already exists\n";
+    if (exists(desc.id, desc.moduleName)) {
+        getWarningsStream() << "module with id " << desc.id << " or name " << desc.moduleName << " already exists"
+                            << '\n';
         return false;
     }
 
-    if (m_configuredModulesId.find(desc) != m_configuredModulesId.end()) {
-        getWarningsStream() << "module id " << desc.id << " already exists\n";
-        return false;
-    }
-
-    m_configuredModulesId.insert(desc);
-    m_configuredModulesName.insert(desc);
+    m_configuredModules.insert(desc);
 
     return true;
 }
@@ -271,9 +261,6 @@ void ModuleExecutionDetector::moduleLoadListener(S2EExecutionState *state, const
     // If module name matches the configured ones, activate.
     getDebugStream(state) << "module loaded: " << module << "\n";
 
-    ModuleExecutionCfg cfg;
-    cfg.moduleName = module.Name;
-
     if (m_configureAllModules) {
         if (plgState->exists(&module, true)) {
             getWarningsStream(state) << module.Name << " is already registered"
@@ -286,8 +273,9 @@ void ModuleExecutionDetector::moduleLoadListener(S2EExecutionState *state, const
         return;
     }
 
-    ConfiguredModulesByName::iterator it = m_configuredModulesName.find(cfg);
-    if (it != m_configuredModulesName.end()) {
+    const ConfiguredModulesByName &byName = m_configuredModules.get<modbyname_t>();
+    const auto it = byName.find(module.Name);
+    if (it != byName.end()) {
         if (plgState->exists(&module, true)) {
             getInfoStream(state) << "module ID=" << it->id << " is already registered" << '\n';
         } else {
@@ -329,10 +317,8 @@ void ModuleExecutionDetector::processUnloadListener(S2EExecutionState *state, ui
 
 // Check that the module id is valid
 bool ModuleExecutionDetector::isModuleConfigured(const std::string &moduleId) const {
-    ModuleExecutionCfg cfg;
-    cfg.id = moduleId;
-
-    return m_configuredModulesId.find(cfg) != m_configuredModulesId.end();
+    const ConfiguredModulesById &byId = m_configuredModules.get<modbyid_t>();
+    return byId.find(moduleId) != byId.end();
 }
 
 /*****************************************************************************/
@@ -363,11 +349,9 @@ const ModuleDescriptor *ModuleExecutionDetector::getModule(S2EExecutionState *st
 }
 
 const std::string *ModuleExecutionDetector::getModuleId(const ModuleDescriptor &desc, unsigned *index) const {
-    ModuleExecutionCfg cfg;
-    cfg.moduleName = desc.Name;
-
-    ConfiguredModulesByName::iterator it = m_configuredModulesName.find(cfg);
-    if (it == m_configuredModulesName.end()) {
+    const ConfiguredModulesByName &byName = m_configuredModules.get<modbyname_t>();
+    const auto it = byName.find(desc.Name);
+    if (it == byName.end()) {
         return NULL;
     }
 

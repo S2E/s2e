@@ -19,6 +19,12 @@
 
 #include <inttypes.h>
 
+#include <boost/multi_index/composite_key.hpp>
+#include <boost/multi_index/mem_fun.hpp>
+#include <boost/multi_index/member.hpp>
+#include <boost/multi_index/ordered_index.hpp>
+#include <boost/multi_index_container.hpp>
+
 namespace s2e {
 namespace plugins {
 
@@ -64,21 +70,20 @@ struct ModuleExecutionCfg {
     std::string context;
 };
 
-struct ModuleExecCfgById {
-    bool operator()(const ModuleExecutionCfg &d1, const ModuleExecutionCfg &d2) const {
-        // return d1.compare(d2.id) < 0;
-        return d1.id < d2.id;
-    }
-};
+struct modbyid_t {};
+struct modbyname_t {};
 
-struct ModuleExecCfgByName {
-    bool operator()(const ModuleExecutionCfg &d1, const ModuleExecutionCfg &d2) const {
-        return d1.moduleName < d2.moduleName;
-    }
-};
+typedef boost::multi_index_container<
+    ModuleExecutionCfg,
+    boost::multi_index::indexed_by<
+        boost::multi_index::ordered_unique<boost::multi_index::tag<modbyid_t>,
+                                           BOOST_MULTI_INDEX_MEMBER(ModuleExecutionCfg, std::string, id)>,
+        boost::multi_index::ordered_unique<boost::multi_index::tag<modbyname_t>,
+                                           BOOST_MULTI_INDEX_MEMBER(ModuleExecutionCfg, std::string, moduleName)>>>
+    ConfiguredModules;
 
-typedef std::set<ModuleExecutionCfg, ModuleExecCfgById> ConfiguredModulesById;
-typedef std::set<ModuleExecutionCfg, ModuleExecCfgByName> ConfiguredModulesByName;
+typedef ConfiguredModules::index<modbyid_t>::type ConfiguredModulesById;
+typedef ConfiguredModules::index<modbyname_t>::type ConfiguredModulesByName;
 
 class ModuleExecutionDetector : public Plugin, public BaseInstructionsPluginInvokerInterface {
     S2E_PLUGIN
@@ -113,9 +118,7 @@ public:
 private:
     OSMonitor *m_monitor;
     Vmi *m_vmi;
-
-    ConfiguredModulesById m_configuredModulesId;
-    ConfiguredModulesByName m_configuredModulesName;
+    ConfiguredModules m_configuredModules;
 
     bool m_trackAllModules;
     bool m_configureAllModules;
@@ -148,6 +151,20 @@ private:
 
     virtual void handleOpcodeInvocation(S2EExecutionState *state, uint64_t guestDataPtr, uint64_t guestDataSize);
 
+    bool exists(const std::string &id, const std::string &name) const {
+        const ConfiguredModulesById &byId = m_configuredModules.get<modbyid_t>();
+        if (byId.find(id) != byId.end()) {
+            return true;
+        }
+
+        const ConfiguredModulesByName &byName = m_configuredModules.get<modbyname_t>();
+        if (byName.find(name) != byName.end()) {
+            return true;
+        }
+
+        return false;
+    }
+
 public:
     ModuleExecutionDetector(S2E *s2e) : Plugin(s2e) {
     }
@@ -169,17 +186,16 @@ public:
     bool getModuleConfig(const std::string &id, ModuleExecutionCfg &cfg) const {
         ModuleExecutionCfg tofind;
         tofind.id = id;
-        ConfiguredModulesById::const_iterator it = m_configuredModulesId.find(tofind);
-        if (it == m_configuredModulesId.end()) {
+
+        const ConfiguredModulesById &byId = m_configuredModules.get<modbyid_t>();
+
+        ConfiguredModulesById::const_iterator it = byId.find(id);
+        if (it == byId.end()) {
             return false;
         }
 
         cfg = *it;
         return true;
-    }
-
-    const ConfiguredModulesById &getConfiguredModulesById() const {
-        return m_configuredModulesId;
     }
 
     bool isModuleConfigured(const std::string &moduleId) const;
