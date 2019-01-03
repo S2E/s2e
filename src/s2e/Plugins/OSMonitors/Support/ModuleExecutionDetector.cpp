@@ -57,6 +57,12 @@ void ModuleExecutionDetector::initialize() {
     m_modules = s2e()->getPlugin<ModuleMap>();
     m_vmi = s2e()->getPlugin<Vmi>();
 
+    m_monitor->onMonitorLoad.connect(sigc::mem_fun(*this, &ModuleExecutionDetector::onMonitorLoad));
+
+    initializeConfiguration();
+}
+
+void ModuleExecutionDetector::onMonitorLoad(S2EExecutionState *state) {
     m_monitor->onModuleLoad.connect(sigc::mem_fun(*this, &ModuleExecutionDetector::moduleLoadListener));
 
     s2e()->getCorePlugin()->onTranslateBlockStart.connect(
@@ -69,8 +75,6 @@ void ModuleExecutionDetector::initialize() {
         sigc::mem_fun(*this, &ModuleExecutionDetector::onTranslateBlockComplete));
 
     s2e()->getCorePlugin()->onException.connect(sigc::mem_fun(*this, &ModuleExecutionDetector::exceptionListener));
-
-    initializeConfiguration();
 }
 
 void ModuleExecutionDetector::initializeConfiguration() {

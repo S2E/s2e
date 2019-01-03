@@ -100,6 +100,8 @@ private:
 
     void initializeConfiguration();
 
+    void onMonitorLoad(S2EExecutionState *state);
+
     void onTranslateBlockStart(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb, uint64_t pc);
 
     void onTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb, uint64_t endPc,
