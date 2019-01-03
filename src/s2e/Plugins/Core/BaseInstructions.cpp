@@ -237,8 +237,8 @@ void BaseInstructions::isSymbolic(S2EExecutionState *state) {
         }
     }
 
-    getInfoStream(state) << "Testing whether data at " << hexval(address) << " and size " << size
-                         << " is symbolic: " << (result ? " true" : " false") << '\n';
+    getDebugStream(state) << "Testing whether data at " << hexval(address) << " and size " << size
+                          << " is symbolic: " << (result ? " true" : " false") << '\n';
 
     state->regs()->write(CPU_OFFSET(regs[R_EAX]), &result, sizeof(result));
 }
@@ -328,7 +328,6 @@ void BaseInstructions::printMemory(S2EExecutionState *state) {
     getInfoStream() << "Symbolic memory dump of " << nameStr << '\n';
 
     for (uint32_t i = 0; i < size; ++i) {
-
         getInfoStream() << hexval(address + i) << ": ";
         klee::ref<Expr> res = state->mem()->read(address + i);
         if (res.isNull()) {
