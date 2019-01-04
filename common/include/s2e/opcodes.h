@@ -42,7 +42,6 @@ extern "C" {
 #define RAW_MONITOR_OPCODE                  0xAA
 #define MEMORY_TRACER_OPCODE                0xAC
 #define STATE_MANAGER_OPCODE                0xAD
-#define MODULE_EXECUTION_DETECTOR_OPCODE    0xAF
 
 #define HOST_FILES_OPCODE                   0xEE
 #define HOST_FILES_OPEN_OPCODE              0x00

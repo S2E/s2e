@@ -21,9 +21,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="include/s2e/ModuleExecutionDetector.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="include/s2e/ResourceTracker.h">
       <Filter>Header Files</Filter>
     </ClInclude>

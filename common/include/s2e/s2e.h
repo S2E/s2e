@@ -693,22 +693,6 @@ static inline void s2e_memtracer_disable(void) {
 }
 
 ///
-/// \brief Programmatically add a new configuration entry to the \c ModuleExecutionDetector plugin
-///
-/// \param[in] moduleId The module's ID
-/// \param[in] moduleName The module's name
-/// \param[in] kernelMode Set to 1 if the module is in the kernel, or 0 otherwise
-///
-static inline void s2e_moduleexec_add_module(const char *moduleId, const char *moduleName, int kernelMode) {
-    __s2e_touch_string(moduleId);
-    __s2e_touch_string(moduleName);
-    __asm__ __volatile__(
-        S2E_INSTRUCTION_SIMPLE(MODULE_EXECUTION_DETECTOR_OPCODE)
-            : : "c" (moduleId), "a" (moduleName), "d" (kernelMode)
-    );
-}
-
-///
 /// \brief Terminate the currently-executing state if \c b is zero
 ///
 /// \param[in] b boolean value to determine whether to terminate the current state
