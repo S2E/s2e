@@ -126,12 +126,10 @@ file and modify the ``ModuleExecutionDetector`` plugin configuration as follows:
     pluginsConfig.ModuleExecutionDetector = {
         mod_0 = {
             moduleName = "cat",
-            kernelMode =  false,
         },
 
         mod_1 = {
             moduleName = "libc-2.24.so",
-            kernelMode =  false,
         }
     }
 
@@ -184,7 +182,7 @@ different requirements.
 - **Radare**: Radare must be installed into a location on your path and you must have the ``r2pipe`` Python package
   installed via pip (see `here <https://github.com/S2E/s2e-env/blob/master/README.md>`__ for details).
 - **Binary Ninja**: You must have a Binary Ninja license that allows "GUI-less processing".
-  
+
 In order to produce this basic block listing you can run one of the following commands:
 
 - ``s2e coverage basic_block --disassembler=ida cat``
@@ -396,7 +394,6 @@ other program.
        pluginsConfig.ModuleExecutionDetector = {
            mod_vmlinux = {
             moduleName = "vmlinux",
-            kernelMode = true
            }
        }
 
@@ -502,8 +499,7 @@ The typical symptom is that the coverage report is empty. Here is a checklist to
   If coverage files are empty or are missing some modules, check that the S2E configuration is correct.
 
 - Check that ``ModuleExecutionDetector`` in ``s2e-config.lua`` is configured properly. If a module is missing,
-  ``TranslationBlockCoverage`` will not generate any coverage information for it. Make sure that ``kernelMode`` is set
-  appropriately (it must be false for user-space modules, true for kernel drivers).
+  ``TranslationBlockCoverage`` will not generate any coverage information for it.
 
 - Check that the ``Vmi`` plugin in ``s2e-config.lua`` is configured properly. You do not normally need to touch
   this plugin as it is automatically configured with the right settings. If however you have a project generated with
