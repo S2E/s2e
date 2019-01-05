@@ -91,8 +91,6 @@ private:
     ModuleMap *m_modules;
     ConfiguredModules m_configuredModules;
 
-    bool m_trackAllModules;
-    bool m_configureAllModules;
     bool m_trackExecution;
 
     void initializeConfiguration();
@@ -117,6 +115,7 @@ private:
 public:
     ModuleExecutionDetector(S2E *s2e) : Plugin(s2e) {
     }
+
     virtual ~ModuleExecutionDetector(){};
 
     void initialize();
@@ -129,9 +128,6 @@ public:
     bool getModuleConfig(const std::string &id, ModuleExecutionCfg &cfg) const;
     bool isModuleConfigured(const std::string &moduleId) const;
     bool isModuleNameConfigured(const std::string &moduleName) const;
-    bool trackAllModules() const {
-        return m_trackAllModules;
-    }
 };
 
 } // namespace plugins

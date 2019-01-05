@@ -101,14 +101,12 @@ void ModuleExecutionDetector::initializeConfiguration() {
         getWarningsStream() << "no configuration keys!" << '\n';
     }
 
-    m_trackAllModules = cfg->getBool(getConfigKey() + ".trackAllModules");
-    m_configureAllModules = cfg->getBool(getConfigKey() + ".configureAllModules");
     m_trackExecution = cfg->getBool(getConfigKey() + ".trackExecution", true);
 
     unsigned moduleIndex = 0;
 
     foreach2 (it, keyList.begin(), keyList.end()) {
-        if (*it == "trackAllModules" || *it == "configureAllModules" || *it == "trackExecution" || *it == "logLevel") {
+        if (*it == "trackExecution" || *it == "logLevel") {
             continue;
         }
 
@@ -160,22 +158,10 @@ void ModuleExecutionDetector::moduleLoadListener(S2EExecutionState *state, const
     // If module name matches the configured ones, activate.
     getDebugStream(state) << "module loaded: " << module << "\n";
 
-    if (m_configureAllModules) {
-        getInfoStream(state) << "loading " << module.Name << "\n";
-        onModuleLoad.emit(state, module);
-        return;
-    }
-
     const ConfiguredModulesByName &byName = m_configuredModules.get<modbyname_t>();
     const auto it = byName.find(module.Name);
     if (it != byName.end()) {
         getInfoStream(state) << "loading id " << it->id << "\n";
-        onModuleLoad.emit(state, module);
-        return;
-    }
-
-    if (m_trackAllModules) {
-        getDebugStream(state) << "registering " << module.Name << " (tracking all modules)\n";
         onModuleLoad.emit(state, module);
         return;
     }
@@ -311,7 +297,7 @@ ModuleDescriptorConstPtr ModuleExecutionDetector::getDescriptor(S2EExecutionStat
         return nullptr;
     }
 
-    if (m_configureAllModules || isModuleNameConfigured(module->Name)) {
+    if (isModuleNameConfigured(module->Name)) {
         return module;
     }
 
