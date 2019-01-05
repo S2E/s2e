@@ -29,31 +29,46 @@
 #include <s2e/cpu.h>
 #include <s2e/opcodes.h>
 
+#include <s2e/S2E.h>
+#include <s2e/S2EExecutionState.h>
+#include <s2e/S2EExecutor.h>
+
 #include <s2e/ConfigFile.h>
 #include <s2e/Plugins/OSMonitors/ModuleDescriptor.h>
 #include <s2e/Plugins/OSMonitors/OSMonitor.h>
-#include <s2e/S2E.h>
-#include <s2e/S2EExecutor.h>
+#include <s2e/Plugins/OSMonitors/Support/ModuleExecutionDetector.h>
 #include <s2e/Utils.h>
 #include <s2e/s2e_libcpu.h>
 
 #include <assert.h>
-#include <s2e/Plugins/OSMonitors/Support/ModuleExecutionDetector.h>
 #include <sstream>
 
-using namespace s2e;
-using namespace s2e::plugins;
+namespace s2e {
+namespace plugins {
 
 S2E_DEFINE_PLUGIN(ModuleExecutionDetector, "Plugin for monitoring module execution", "ModuleExecutionDetector",
                   "ModuleMap", "OSMonitor", "Vmi");
 
-ModuleExecutionDetector::~ModuleExecutionDetector() {
+namespace {
+class ModuleTransitionState : public PluginState {
+public:
+    ModuleDescriptorConstPtr m_previousModule;
+
+    ModuleTransitionState() : m_previousModule(nullptr) {
+    }
+    virtual ~ModuleTransitionState() {
+    }
+    virtual ModuleTransitionState *clone() const {
+        return new ModuleTransitionState(*this);
+    }
+    static PluginState *factory(Plugin *p, S2EExecutionState *s) {
+        return new ModuleTransitionState();
+    }
+};
 }
 
 void ModuleExecutionDetector::initialize() {
     m_monitor = (OSMonitor *) s2e()->getPlugin("OSMonitor");
-    assert(m_monitor);
-
     m_modules = s2e()->getPlugin<ModuleMap>();
     m_vmi = s2e()->getPlugin<Vmi>();
 
@@ -88,13 +103,7 @@ void ModuleExecutionDetector::initializeConfiguration() {
 
     m_trackAllModules = cfg->getBool(getConfigKey() + ".trackAllModules");
     m_configureAllModules = cfg->getBool(getConfigKey() + ".configureAllModules");
-    m_trackExecution = cfg->getBool(getConfigKey() + ".trackExecution", false);
-
-    if (m_trackExecution) {
-        // TODO: this is temporary
-        getWarningsStream() << "Tracking module execution is not supported yet\n";
-        exit(-1);
-    }
+    m_trackExecution = cfg->getBool(getConfigKey() + ".trackExecution", true);
 
     // TODO: get rid of all this stuff eventually (e.g., we don't need kernelMode anymore).
     // Plugin should primarily use ModuleMap.
@@ -190,7 +199,7 @@ void ModuleExecutionDetector::onTranslateBlockStart(ExecutionSignal *signal, S2E
     }
 
     if (m_trackExecution) {
-        signal->connect(sigc::mem_fun(*this, &ModuleExecutionDetector::onExecution));
+        signal->connect(sigc::bind(sigc::mem_fun(*this, &ModuleExecutionDetector::onExecution), currentModule));
     }
 
     onModuleTranslateBlockStart.emit(signal, state, *currentModule, tb, pc);
@@ -201,7 +210,6 @@ void ModuleExecutionDetector::onTranslateBlockEnd(ExecutionSignal *signal, S2EEx
                                                   uint64_t targetPc) {
     auto currentModule = getCurrentDescriptor(state);
     if (!currentModule) {
-        // Outside of any module, do not need to instrument tb exits.
         return;
     }
 
@@ -210,17 +218,10 @@ void ModuleExecutionDetector::onTranslateBlockEnd(ExecutionSignal *signal, S2EEx
             auto targetModule = getDescriptor(state, targetPc);
 
             if (targetModule != currentModule) {
-                // Only instrument in case there is a module change
-                // TRACE("Static transition from %#"PRIx64" to %#"PRIx64"\n",
-                //    endPc, targetPc);
-                signal->connect(sigc::mem_fun(*this, &ModuleExecutionDetector::onExecution));
+                signal->connect(sigc::bind(sigc::mem_fun(*this, &ModuleExecutionDetector::onExecution), currentModule));
             }
         } else {
-            // TRACE("Dynamic transition from %#"PRIx64" to %#"PRIx64"\n",
-            //        endPc, targetPc);
-            // In case of dynamic targets, conservatively
-            // instrument code.
-            signal->connect(sigc::mem_fun(*this, &ModuleExecutionDetector::onExecution));
+            signal->connect(sigc::bind(sigc::mem_fun(*this, &ModuleExecutionDetector::onExecution), currentModule));
         }
     }
 
@@ -241,20 +242,19 @@ void ModuleExecutionDetector::onTranslateBlockComplete(S2EExecutionState *state,
 void ModuleExecutionDetector::exceptionListener(S2EExecutionState *state, unsigned intNb, uint64_t pc) {
     DECLARE_PLUGINSTATE(ModuleTransitionState, state);
 
-    if (plgState->m_previousModule != nullptr) {
+    if (plgState->m_previousModule) {
         onModuleTransition.emit(state, plgState->m_previousModule, nullptr);
         plgState->m_previousModule = nullptr;
     }
 }
 
-void ModuleExecutionDetector::onExecution(S2EExecutionState *state, uint64_t pc) {
+void ModuleExecutionDetector::onExecution(S2EExecutionState *state, uint64_t pc,
+                                          ModuleDescriptorConstPtr currentModule) {
     DECLARE_PLUGINSTATE(ModuleTransitionState, state);
 
-    auto currentModule = getCurrentDescriptor(state);
-
     if (plgState->m_previousModule != currentModule) {
-        plgState->m_previousModule = currentModule;
         onModuleTransition.emit(state, plgState->m_previousModule, currentModule);
+        plgState->m_previousModule = currentModule;
     }
 }
 
@@ -297,21 +297,5 @@ ModuleDescriptorConstPtr ModuleExecutionDetector::getDescriptor(S2EExecutionStat
     return nullptr;
 }
 
-/*****************************************************************************/
-/*****************************************************************************/
-/*****************************************************************************/
-
-ModuleTransitionState::ModuleTransitionState() {
-    m_previousModule = nullptr;
-}
-
-ModuleTransitionState::~ModuleTransitionState() {
-}
-
-ModuleTransitionState *ModuleTransitionState::clone() const {
-    return new ModuleTransitionState(*this);
-}
-
-PluginState *ModuleTransitionState::factory(Plugin *p, S2EExecutionState *state) {
-    return new ModuleTransitionState();
-}
+} // namespace plugins
+} // namespace s2e

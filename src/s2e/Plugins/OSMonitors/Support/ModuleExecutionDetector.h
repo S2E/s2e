@@ -109,7 +109,7 @@ private:
 
     void onTranslateBlockComplete(S2EExecutionState *state, TranslationBlock *tb, uint64_t pc);
 
-    void onExecution(S2EExecutionState *state, uint64_t pc);
+    void onExecution(S2EExecutionState *state, uint64_t pc, ModuleDescriptorConstPtr currentModule);
 
     void exceptionListener(S2EExecutionState *state, unsigned intNb, uint64_t pc);
 
@@ -132,7 +132,7 @@ private:
 public:
     ModuleExecutionDetector(S2E *s2e) : Plugin(s2e) {
     }
-    virtual ~ModuleExecutionDetector();
+    virtual ~ModuleExecutionDetector(){};
 
     void initialize();
 
@@ -161,18 +161,6 @@ public:
     bool trackAllModules() const {
         return m_trackAllModules;
     }
-};
-
-class ModuleTransitionState : public PluginState {
-public:
-    // XXX: until we use shared_ptr, this will not work and we can't
-    // track module execution.
-    ModuleDescriptorConstPtr m_previousModule;
-
-    ModuleTransitionState();
-    virtual ~ModuleTransitionState();
-    virtual ModuleTransitionState *clone() const;
-    static PluginState *factory(Plugin *p, S2EExecutionState *s);
 };
 
 } // namespace plugins
