@@ -105,9 +105,8 @@ void ModuleExecutionDetector::initializeConfiguration() {
     m_configureAllModules = cfg->getBool(getConfigKey() + ".configureAllModules");
     m_trackExecution = cfg->getBool(getConfigKey() + ".trackExecution", true);
 
-    // TODO: get rid of all this stuff eventually (e.g., we don't need kernelMode anymore).
-    // Plugin should primarily use ModuleMap.
     unsigned moduleIndex = 0;
+
     foreach2 (it, keyList.begin(), keyList.end()) {
         if (*it == "trackAllModules" || *it == "configureAllModules" || *it == "trackExecution" || *it == "logLevel") {
             continue;
@@ -126,15 +125,8 @@ void ModuleExecutionDetector::initializeConfiguration() {
             exit(-1);
         }
 
-        d.kernelMode = cfg->getBool(s.str() + "kernelMode", false, &ok);
-        if (!ok) {
-            getWarningsStream() << "You must specifiy " << s.str() + "kernelMode" << '\n';
-            exit(-1);
-        }
-
         getDebugStream() << "id=" << d.id << " "
-                         << "moduleName=" << d.moduleName << " "
-                         << "context=" << d.context << '\n';
+                         << "moduleName=" << d.moduleName << "\n";
 
         if (exists(d.id, d.moduleName)) {
             getWarningsStream() << "module with id " << d.id << " or name " << d.moduleName << " already exists"

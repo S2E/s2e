@@ -38,8 +38,6 @@ struct ModuleExecutionCfg {
     unsigned index;
     std::string id;
     std::string moduleName;
-    bool kernelMode;
-    std::string context;
 };
 
 struct modbyid_t {};
