@@ -138,6 +138,20 @@ void ModuleExecutionDetector::initializeConfiguration() {
     }
 }
 
+bool ModuleExecutionDetector::exists(const std::string &id, const std::string &name) const {
+    const ConfiguredModulesById &byId = m_configuredModules.get<modbyid_t>();
+    if (byId.find(id) != byId.end()) {
+        return true;
+    }
+
+    const ConfiguredModulesByName &byName = m_configuredModules.get<modbyname_t>();
+    if (byName.find(name) != byName.end()) {
+        return true;
+    }
+
+    return false;
+}
+
 /*****************************************************************************/
 /*****************************************************************************/
 /*****************************************************************************/
@@ -176,6 +190,21 @@ bool ModuleExecutionDetector::isModuleConfigured(const std::string &moduleId) co
 bool ModuleExecutionDetector::isModuleNameConfigured(const std::string &moduleName) const {
     const ConfiguredModulesByName &byName = m_configuredModules.get<modbyname_t>();
     return byName.find(moduleName) != byName.end();
+}
+
+bool ModuleExecutionDetector::getModuleConfig(const std::string &id, ModuleExecutionCfg &cfg) const {
+    ModuleExecutionCfg tofind;
+    tofind.id = id;
+
+    const ConfiguredModulesById &byId = m_configuredModules.get<modbyid_t>();
+
+    ConfiguredModulesById::const_iterator it = byId.find(id);
+    if (it == byId.end()) {
+        return false;
+    }
+
+    cfg = *it;
+    return true;
 }
 
 /*****************************************************************************/

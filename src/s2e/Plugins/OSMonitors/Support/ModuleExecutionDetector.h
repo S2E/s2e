@@ -93,7 +93,6 @@ private:
 
     bool m_trackAllModules;
     bool m_configureAllModules;
-
     bool m_trackExecution;
 
     void initializeConfiguration();
@@ -113,19 +112,7 @@ private:
 
     void moduleLoadListener(S2EExecutionState *state, const ModuleDescriptor &module);
 
-    bool exists(const std::string &id, const std::string &name) const {
-        const ConfiguredModulesById &byId = m_configuredModules.get<modbyid_t>();
-        if (byId.find(id) != byId.end()) {
-            return true;
-        }
-
-        const ConfiguredModulesByName &byName = m_configuredModules.get<modbyname_t>();
-        if (byName.find(name) != byName.end()) {
-            return true;
-        }
-
-        return false;
-    }
+    bool exists(const std::string &id, const std::string &name) const;
 
 public:
     ModuleExecutionDetector(S2E *s2e) : Plugin(s2e) {
@@ -137,23 +124,9 @@ public:
     ModuleDescriptorConstPtr getModule(S2EExecutionState *state, uint64_t pc);
     ModuleDescriptorConstPtr getCurrentDescriptor(S2EExecutionState *state) const;
     ModuleDescriptorConstPtr getDescriptor(S2EExecutionState *state, uint64_t pc) const;
+
     const std::string *getModuleId(const ModuleDescriptor &desc, unsigned *index = NULL) const;
-
-    bool getModuleConfig(const std::string &id, ModuleExecutionCfg &cfg) const {
-        ModuleExecutionCfg tofind;
-        tofind.id = id;
-
-        const ConfiguredModulesById &byId = m_configuredModules.get<modbyid_t>();
-
-        ConfiguredModulesById::const_iterator it = byId.find(id);
-        if (it == byId.end()) {
-            return false;
-        }
-
-        cfg = *it;
-        return true;
-    }
-
+    bool getModuleConfig(const std::string &id, ModuleExecutionCfg &cfg) const;
     bool isModuleConfigured(const std::string &moduleId) const;
     bool isModuleNameConfigured(const std::string &moduleName) const;
     bool trackAllModules() const {
