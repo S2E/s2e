@@ -23,7 +23,7 @@ namespace plugins {
 ///
 /// \brief The ControlFlowGraph class represents a CFG
 ///
-class ControlFlowGraph : public Plugin, public BaseInstructionsPluginInvokerInterface {
+class ControlFlowGraph : public Plugin, public IPluginInvoker {
     S2E_PLUGIN
 public:
     ControlFlowGraph(S2E *s2e) : Plugin(s2e) {

@@ -45,7 +45,7 @@ static const uint64_t STACK_SIZE = 16 * 1024 * 1024;
 ///
 /// This class contains a number of virtual getter methods that return values specific to the kernel in use.
 ///
-class BaseLinuxMonitor : public OSMonitor, public BaseInstructionsPluginInvokerInterface {
+class BaseLinuxMonitor : public OSMonitor, public IPluginInvoker {
 protected:
     Vmi *m_vmi;
 

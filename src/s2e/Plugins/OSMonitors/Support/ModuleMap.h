@@ -54,7 +54,7 @@ typedef struct S2E_MODULE_MAP_COMMAND {
 class OSMonitor;
 struct S2E_WINMON2_UNMAP_SECTION;
 
-class ModuleMap : public Plugin, public BaseInstructionsPluginInvokerInterface, public ILuaPlugin {
+class ModuleMap : public Plugin, public IPluginInvoker, public ILuaPlugin {
     S2E_PLUGIN
 
 public:

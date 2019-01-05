@@ -19,9 +19,9 @@ namespace plugins {
 
 class OSMonitor;
 
-class BaseInstructionsPluginInvokerInterface {
+class IPluginInvoker {
 public:
-    virtual ~BaseInstructionsPluginInvokerInterface() {
+    virtual ~IPluginInvoker() {
     }
     virtual void handleOpcodeInvocation(S2EExecutionState *state, uint64_t guestDataPtr, uint64_t guestDataSize) = 0;
 };
@@ -35,7 +35,7 @@ typedef struct S2E_BASEINSTRUCTION_COMMAND {
     };
 } S2E_BASEINSTRUCTION_COMMAND;
 
-class BaseInstructions : public Plugin, public BaseInstructionsPluginInvokerInterface {
+class BaseInstructions : public Plugin, public IPluginInvoker {
     S2E_PLUGIN
 public:
     BaseInstructions(S2E *s2e) : Plugin(s2e) {

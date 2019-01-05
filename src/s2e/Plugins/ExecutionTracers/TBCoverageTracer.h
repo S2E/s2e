@@ -49,7 +49,7 @@
 namespace s2e {
 namespace plugins {
 
-class TBCoverageTracer : public Plugin, public BaseInstructionsPluginInvokerInterface {
+class TBCoverageTracer : public Plugin, public IPluginInvoker {
     S2E_PLUGIN
 public:
     TBCoverageTracer(S2E *s2e) : Plugin(s2e) {

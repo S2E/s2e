@@ -25,7 +25,7 @@ struct S2E_BSOD_COMMAND {
     uint64_t HeaderSize;
 };
 
-class BlueScreenInterceptor : public Plugin, public BaseInstructionsPluginInvokerInterface {
+class BlueScreenInterceptor : public Plugin, public IPluginInvoker {
     S2E_PLUGIN
 public:
     BlueScreenInterceptor(S2E *s2e) : Plugin(s2e) {

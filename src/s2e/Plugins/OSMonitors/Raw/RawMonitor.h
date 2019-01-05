@@ -25,7 +25,7 @@
 namespace s2e {
 namespace plugins {
 
-class RawMonitor : public OSMonitor, public BaseInstructionsPluginInvokerInterface {
+class RawMonitor : public OSMonitor, public IPluginInvoker {
     S2E_PLUGIN
 
 public:

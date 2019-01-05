@@ -235,7 +235,7 @@ typedef struct S2E_WINMON2_COMMAND {
     };
 } S2E_WINMON2_COMMAND;
 
-class WindowsMonitor : public OSMonitor, public BaseInstructionsPluginInvokerInterface {
+class WindowsMonitor : public OSMonitor, public IPluginInvoker {
     S2E_PLUGIN
 public:
     typedef std::vector<ModuleDescriptor> ModuleList;
