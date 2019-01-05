@@ -112,8 +112,8 @@ bool EdgeDetector::findEdge(const std::string &moduleName, uint64_t start, uint6
 }
 
 //////////////////////////////////////////////////////
-void EdgeDetector::onModuleTransition(S2EExecutionState *state, const ModuleDescriptor *prevModule,
-                                      const ModuleDescriptor *nextModule) {
+void EdgeDetector::onModuleTransition(S2EExecutionState *state, ModuleDescriptorConstPtr prevModule,
+                                      ModuleDescriptorConstPtr nextModule) {
     /**
      * This handles the case when an exception that is thrown during translation.
      * We don't want the signals to be attached for code outside of the module.

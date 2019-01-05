@@ -184,7 +184,7 @@ bool ModuleExecutionDetector::isModuleNameConfigured(const std::string &moduleNa
 void ModuleExecutionDetector::onTranslateBlockStart(ExecutionSignal *signal, S2EExecutionState *state,
                                                     TranslationBlock *tb, uint64_t pc) {
 
-    const ModuleDescriptor *currentModule = getDescriptor(state, pc);
+    auto currentModule = getDescriptor(state, pc);
     if (!currentModule) {
         return;
     }
@@ -199,8 +199,7 @@ void ModuleExecutionDetector::onTranslateBlockStart(ExecutionSignal *signal, S2E
 void ModuleExecutionDetector::onTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionState *state,
                                                   TranslationBlock *tb, uint64_t endPc, bool staticTarget,
                                                   uint64_t targetPc) {
-    const ModuleDescriptor *currentModule = getCurrentDescriptor(state);
-
+    auto currentModule = getCurrentDescriptor(state);
     if (!currentModule) {
         // Outside of any module, do not need to instrument tb exits.
         return;
@@ -208,7 +207,7 @@ void ModuleExecutionDetector::onTranslateBlockEnd(ExecutionSignal *signal, S2EEx
 
     if (m_trackExecution) {
         if (staticTarget) {
-            const ModuleDescriptor *targetModule = getDescriptor(state, targetPc);
+            auto targetModule = getDescriptor(state, targetPc);
 
             if (targetModule != currentModule) {
                 // Only instrument in case there is a module change
@@ -231,8 +230,7 @@ void ModuleExecutionDetector::onTranslateBlockEnd(ExecutionSignal *signal, S2EEx
 }
 
 void ModuleExecutionDetector::onTranslateBlockComplete(S2EExecutionState *state, TranslationBlock *tb, uint64_t pc) {
-    const ModuleDescriptor *currentModule = getCurrentDescriptor(state);
-
+    auto currentModule = getCurrentDescriptor(state);
     if (!currentModule) {
         return;
     }
@@ -243,16 +241,16 @@ void ModuleExecutionDetector::onTranslateBlockComplete(S2EExecutionState *state,
 void ModuleExecutionDetector::exceptionListener(S2EExecutionState *state, unsigned intNb, uint64_t pc) {
     DECLARE_PLUGINSTATE(ModuleTransitionState, state);
 
-    if (plgState->m_previousModule != NULL) {
-        onModuleTransition.emit(state, plgState->m_previousModule, NULL);
-        plgState->m_previousModule = NULL;
+    if (plgState->m_previousModule != nullptr) {
+        onModuleTransition.emit(state, plgState->m_previousModule, nullptr);
+        plgState->m_previousModule = nullptr;
     }
 }
 
 void ModuleExecutionDetector::onExecution(S2EExecutionState *state, uint64_t pc) {
     DECLARE_PLUGINSTATE(ModuleTransitionState, state);
 
-    const ModuleDescriptor *currentModule = getCurrentDescriptor(state);
+    auto currentModule = getCurrentDescriptor(state);
 
     if (plgState->m_previousModule != currentModule) {
         plgState->m_previousModule = currentModule;
@@ -260,7 +258,7 @@ void ModuleExecutionDetector::onExecution(S2EExecutionState *state, uint64_t pc)
     }
 }
 
-const ModuleDescriptor *ModuleExecutionDetector::getModule(S2EExecutionState *state, uint64_t pc) {
+ModuleDescriptorConstPtr ModuleExecutionDetector::getModule(S2EExecutionState *state, uint64_t pc) {
     return getDescriptor(state, pc);
 }
 
@@ -282,12 +280,12 @@ const std::string *ModuleExecutionDetector::getModuleId(const ModuleDescriptor &
  *  This returns the descriptor of the module that is currently being executed.
  *  This works only when tracking of all modules is activated.
  */
-const ModuleDescriptor *ModuleExecutionDetector::getCurrentDescriptor(S2EExecutionState *state) const {
+ModuleDescriptorConstPtr ModuleExecutionDetector::getCurrentDescriptor(S2EExecutionState *state) const {
     return getDescriptor(state, state->regs()->getPc());
 }
 
-const ModuleDescriptor *ModuleExecutionDetector::getDescriptor(S2EExecutionState *state, uint64_t pc) const {
-    const ModuleDescriptor *module = m_modules->getModule(state, pc);
+ModuleDescriptorConstPtr ModuleExecutionDetector::getDescriptor(S2EExecutionState *state, uint64_t pc) const {
+    auto module = m_modules->getModule(state, pc);
     if (!module) {
         return nullptr;
     }

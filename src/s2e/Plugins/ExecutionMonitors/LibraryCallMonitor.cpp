@@ -65,7 +65,7 @@ void LibraryCallMonitor::onIndirectCallOrJump(S2EExecutionState *state, uint64_t
     }
 
     // Only interested in particular modules loaded in the process
-    const ModuleDescriptor *currentMod = m_map->getModule(state, pc);
+    auto currentMod = m_map->getModule(state, pc);
     if (!(m_monitorAllModules || (currentMod && m_procDetector->isTracked(state)))) {
         return;
     }

@@ -28,7 +28,7 @@ ref<Expr> MemUtils::read(S2EExecutionState *state, uint64_t addr, klee::Expr::Wi
     }
 
     // Try to read data from executable image
-    const ModuleDescriptor *module = m_map->getModule(state, state->regs()->getPc());
+    auto module = m_map->getModule(state, state->regs()->getPc());
     if (!module) {
         getDebugStream(state) << "no current module\n";
         return ref<Expr>(NULL);

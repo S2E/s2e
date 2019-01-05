@@ -58,7 +58,7 @@ class ModuleMap : public Plugin, public BaseInstructionsPluginInvokerInterface, 
     S2E_PLUGIN
 
 public:
-    typedef std::pair<const ModuleDescriptor * /* Module */, std::string /* Exported symbol name */> Export;
+    typedef std::pair<ModuleDescriptorConstPtr /* Module */, std::string /* Exported symbol name */> Export;
 
     ModuleMap(S2E *s2e) : Plugin(s2e) {
     }
@@ -66,10 +66,10 @@ public:
     void initialize();
 
     ModuleDescriptorList getModulesByPid(S2EExecutionState *state, uint64_t pid);
-    const ModuleDescriptor *getModule(S2EExecutionState *state);
-    const ModuleDescriptor *getModule(S2EExecutionState *state, uint64_t pc);
-    const ModuleDescriptor *getModule(S2EExecutionState *state, uint64_t pid, uint64_t pc);
-    const ModuleDescriptor *getModule(S2EExecutionState *state, uint64_t pid, const std::string &name);
+    ModuleDescriptorConstPtr getModule(S2EExecutionState *state);
+    ModuleDescriptorConstPtr getModule(S2EExecutionState *state, uint64_t pc);
+    ModuleDescriptorConstPtr getModule(S2EExecutionState *state, uint64_t pid, uint64_t pc);
+    ModuleDescriptorConstPtr getModule(S2EExecutionState *state, uint64_t pid, const std::string &name);
 
     void dump(S2EExecutionState *state);
 

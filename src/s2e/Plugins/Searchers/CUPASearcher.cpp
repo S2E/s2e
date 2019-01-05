@@ -490,7 +490,7 @@ void CUPAVulnerabilitySearcherClass::initialize() {
 
 void CUPAVulnerabilitySearcherClass::onTranslateInstruction(ExecutionSignal *signal, S2EExecutionState *state,
                                                             TranslationBlock *tb, uint64_t pc) {
-    const ModuleDescriptor *moduleDescriptor = m_detector->getCurrentDescriptor(state);
+    auto moduleDescriptor = m_detector->getCurrentDescriptor(state);
     if (moduleDescriptor) {
         assert(m_modules.find(moduleDescriptor->Name) != m_modules.end());
         Module &module = m_modules[moduleDescriptor->Name];
@@ -530,7 +530,7 @@ void CUPAVulnerabilitySearcherClass::onTranslateBlockEnd(ExecutionSignal *signal
                                                          TranslationBlock *tb, uint64_t pc, bool hasStaticTarget,
                                                          uint64_t staticPc) {
     if (tb->se_tb_type == TB_RET) {
-        const ModuleDescriptor *moduleDescriptor = m_detector->getCurrentDescriptor(state);
+        auto moduleDescriptor = m_detector->getCurrentDescriptor(state);
         if (moduleDescriptor && m_modules.find(moduleDescriptor->Name) != m_modules.end()) {
             signal->connect(sigc::mem_fun(*this, &CUPAVulnerabilitySearcherClass::onReturnExecutionComplete));
         }
@@ -729,7 +729,7 @@ void CUPAVulnerabilitySearcherClass::onFork(S2EExecutionState *state, const std:
                                             const std::vector<klee::ref<klee::Expr>> &newConditions) {
     assert(newStates.size() == 2);
 
-    const ModuleDescriptor *moduleDescriptor = m_detector->getCurrentDescriptor(state);
+    auto moduleDescriptor = m_detector->getCurrentDescriptor(state);
     if (!moduleDescriptor) {
         // Probably this is a fork within a kernel
         return;

@@ -217,7 +217,10 @@ void GuestCodeHooking::onExecuteBlockStart(S2EExecutionState *state, uint64_t pc
         return;
     }
 
-    const ModuleDescriptor *module = m_map->getModule(state, ra);
+    auto module = m_map->getModule(state, ra);
+    if (!module) {
+        return;
+    }
 
     // Prevent infinite recursion.
     if (module->Name.find("s2e.sys") != std::string::npos) {
@@ -242,7 +245,7 @@ void GuestCodeHooking::onTranslateBlockEnd(ExecutionSignal *signal, S2EExecution
         return;
     }
 
-    const ModuleDescriptor *module = m_map->getModule(state);
+    auto module = m_map->getModule(state);
     if (!module) {
         return;
     }

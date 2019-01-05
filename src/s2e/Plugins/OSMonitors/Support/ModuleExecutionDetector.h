@@ -61,7 +61,7 @@ class ModuleExecutionDetector : public Plugin {
     S2E_PLUGIN
 
 public:
-    sigc::signal<void, S2EExecutionState *, const ModuleDescriptor *, const ModuleDescriptor *> onModuleTransition;
+    sigc::signal<void, S2EExecutionState *, ModuleDescriptorConstPtr, ModuleDescriptorConstPtr> onModuleTransition;
 
     /** Signal that is emitted on beginning and end of code generation
         for each translation block belonging to the module.
@@ -136,9 +136,9 @@ public:
 
     void initialize();
 
-    const ModuleDescriptor *getModule(S2EExecutionState *state, uint64_t pc);
-    const ModuleDescriptor *getCurrentDescriptor(S2EExecutionState *state) const;
-    const ModuleDescriptor *getDescriptor(S2EExecutionState *state, uint64_t pc) const;
+    ModuleDescriptorConstPtr getModule(S2EExecutionState *state, uint64_t pc);
+    ModuleDescriptorConstPtr getCurrentDescriptor(S2EExecutionState *state) const;
+    ModuleDescriptorConstPtr getDescriptor(S2EExecutionState *state, uint64_t pc) const;
     const std::string *getModuleId(const ModuleDescriptor &desc, unsigned *index = NULL) const;
 
     bool getModuleConfig(const std::string &id, ModuleExecutionCfg &cfg) const {
@@ -167,7 +167,7 @@ class ModuleTransitionState : public PluginState {
 public:
     // XXX: until we use shared_ptr, this will not work and we can't
     // track module execution.
-    const ModuleDescriptor *m_previousModule;
+    ModuleDescriptorConstPtr m_previousModule;
 
     ModuleTransitionState();
     virtual ~ModuleTransitionState();

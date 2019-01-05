@@ -96,8 +96,8 @@ private:
     void onModuleTranslateBlockComplete(S2EExecutionState *state, const ModuleDescriptor &module, TranslationBlock *tb,
                                         uint64_t endPc);
 
-    void onModuleTransition(S2EExecutionState *state, const ModuleDescriptor *prevModule,
-                            const ModuleDescriptor *nextModule);
+    void onModuleTransition(S2EExecutionState *state, ModuleDescriptorConstPtr prevModule,
+                            ModuleDescriptorConstPtr nextModule);
 
     void onEdgeInternal(S2EExecutionState *state, uint64_t sourcePc, uint64_t addend,
                         const EdgeCollection::EdgeTargets *target);

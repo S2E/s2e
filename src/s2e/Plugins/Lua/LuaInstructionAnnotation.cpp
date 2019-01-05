@@ -116,7 +116,7 @@ void LuaInstructionAnnotation::onTranslateBlockStart(ExecutionSignal *signal, S2
     CorePlugin *plg = s2e()->getCorePlugin();
     m_instructionStart.disconnect();
 
-    const ModuleDescriptor *module = m_modules->getModule(state, pc);
+    auto module = m_modules->getModule(state, pc);
     if (!module) {
         return;
     }
