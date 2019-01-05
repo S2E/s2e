@@ -1,6 +1,6 @@
 ///
 /// Copyright (C) 2010-2016, Dependable Systems Laboratory, EPFL
-/// Copyright (C) 2016, Cyberhaven
+/// Copyright (C) 2016-2019, Cyberhaven
 /// All rights reserved.
 ///
 /// Licensed under the Cyberhaven Research License Agreement.
@@ -31,9 +31,9 @@ namespace plugins {
 
 class OSMonitor;
 
-/**
- *  Module description from configuration file
- */
+///
+/// \brief Represents one configuration entry
+///
 struct ModuleExecutionCfg {
     unsigned index;
     std::string id;
@@ -55,34 +55,78 @@ typedef boost::multi_index_container<
 typedef ConfiguredModules::index<modbyid_t>::type ConfiguredModulesById;
 typedef ConfiguredModules::index<modbyname_t>::type ConfiguredModulesByName;
 
+///
+/// \brief The ModuleExecutionDetector plugin allows users to specify a list
+/// of modules to track.
+///
+/// This plugin lets other plugins to:
+/// - be notified when execution enters or leaves a specific module.
+/// - be notified when the DBT translates code that belongs to a specific module.
+///
+/// A sample configuration looks like this:
+///
+/// \code{.lua}
+/// pluginsConfig.ModuleExecutionDetector = {
+///     mod_0 = {
+///         moduleName = "fastfat2.sys",
+///     },
+///
+///     trackExecution=true,
+/// }
+/// \endcode
+///
+/// It is possible to set trackExecution to false in order to decrease the overhead,
+/// at the expense of not being notified when execution enters or leaves a configured
+/// module.
 class ModuleExecutionDetector : public Plugin {
     S2E_PLUGIN
 
 public:
-    sigc::signal<void, S2EExecutionState *, ModuleDescriptorConstPtr, ModuleDescriptorConstPtr> onModuleTransition;
+    ///
+    /// \brief onModuleTransition is emitted when execution leaves one module
+    /// and enters another one.
+    ///
+    sigc::signal<void, S2EExecutionState *, ModuleDescriptorConstPtr /* previousModule */,
+                 ModuleDescriptorConstPtr /* nextModule */
+                 >
+        onModuleTransition;
 
-    /** Signal that is emitted on beginning and end of code generation
-        for each translation block belonging to the module.
-    */
+    ///
+    /// \brief onModuleTranslateBlockStart is emmitted when the DBT starts
+    /// translating a block that belongs to a configured module.
+    ///
     sigc::signal<void, ExecutionSignal *, S2EExecutionState *, const ModuleDescriptor &, TranslationBlock *,
-                 uint64_t /* block PC */>
+                 uint64_t /* block PC */
+                 >
         onModuleTranslateBlockStart;
 
-    /** Signal that is emitted upon end of translation block of the module */
+    ///
+    /// \brief onModuleTranslateBlockEnd is emitted for each exit point of a
+    /// configured module's translation block.
+    ///
     sigc::signal<void, ExecutionSignal *, S2EExecutionState *, const ModuleDescriptor &, TranslationBlock *,
                  uint64_t /* ending instruction pc */, bool /* static target is valid */,
-                 uint64_t /* static target pc */>
+                 uint64_t /* static target pc */
+                 >
         onModuleTranslateBlockEnd;
 
-    /**
-     * Signal that is emitted when the translator finishes
-     * translating the block.
-     */
+    ///
+    /// \brief onModuleTranslateBlockComplete is emitted when the DBT finishes
+    /// translating a block for a configured module.
+    ///
     sigc::signal<void, S2EExecutionState *, const ModuleDescriptor &, TranslationBlock *,
-                 uint64_t /* ending instruction pc */>
+                 uint64_t /* ending instruction pc */
+                 >
         onModuleTranslateBlockComplete;
 
-    /** This filters module loads passed by OSInterceptor */
+    ///
+    /// \brief onModuleLoad is emitted when a configured module is loaded.
+    ///
+    /// This signal works like onModuleLoad in OSMonitor, except that it filters
+    /// out any module that was not specified in ModuleExecutionDetector's config
+    /// section. Plugins may subscribe to this signal if they only care about
+    /// modules that the user configured.
+    ///
     sigc::signal<void, S2EExecutionState *, const ModuleDescriptor &> onModuleLoad;
 
 private:

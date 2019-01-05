@@ -6,26 +6,6 @@
 /// Licensed under the Cyberhaven Research License Agreement.
 ///
 
-/**
- *  This plugin tracks the modules which are being executed at any given point.
- *  A module is a piece of code defined by a name. Currently the pieces of code
- *  are derived from the actual executable files reported by the OS monitor.
- *  TODO: allow specifying any kind of regions.
- *
- *  XXX: distinguish between processes and libraries, which should be tracked in all processes.
- *
- *  XXX: might translate a block without instrumentation and reuse it in instrumented part...
- *
- *  NOTE: it is not possible to track relationships between modules here.
- *  For example, tracking of a library of a particular process. Instead, the
- *  plugin tracks all libraries in all processes. This is because the instrumented
- *  code can be shared between different processes. We have to conservatively instrument
- *  all code, otherwise if some interesting code is translated first within the context
- *  of an irrelevant process, there would be no detection instrumentation, and when the
- *  code is executed in the relevant process, the module execution detection would fail.
- */
-//#define NDEBUG
-
 #include <s2e/cpu.h>
 #include <s2e/opcodes.h>
 
