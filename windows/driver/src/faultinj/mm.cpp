@@ -25,8 +25,8 @@ PVOID S2EHook_MmGetSystemRoutineAddress(
     _In_ PUNICODE_STRING SystemRoutineName
 )
 {
-    UINT_PTR CallSite = (UINT_PTR)_ReturnAddress();
-    return FaultInjTemplate1<PVOID>(CallSite, "MmGetSystemRoutineAddress", FALSE, NULL, &MmGetSystemRoutineAddress,
+    const UINT_PTR CallSite = reinterpret_cast<UINT_PTR>(_ReturnAddress());
+    return FaultInjTemplate1<PVOID>(CallSite, "MmGetSystemRoutineAddress", FALSE, nullptr, &MmGetSystemRoutineAddress,
                                     SystemRoutineName);
 }
 

@@ -29,7 +29,7 @@ NTSTATUS S2EHook_FltAllocateContext(
     _Out_ PFLT_CONTEXT *ReturnedContext
 )
 {
-    UINT_PTR CallSite = (UINT_PTR)_ReturnAddress();
+    const UINT_PTR CallSite = reinterpret_cast<UINT_PTR>(_ReturnAddress());
     return FaultInjTemplate1<NTSTATUS>(
         CallSite, "FltAllocateContext", FALSE, STATUS_INSUFFICIENT_RESOURCES, &FltAllocateContext,
         Filter, ContextType, ContextSize, PoolType, ReturnedContext
@@ -38,7 +38,7 @@ NTSTATUS S2EHook_FltAllocateContext(
 
 PFLT_DEFERRED_IO_WORKITEM S2EHook_FltAllocateDeferredIoWorkItem(void)
 {
-    UINT_PTR CallSite = (UINT_PTR)_ReturnAddress();
+    const UINT_PTR CallSite = reinterpret_cast<UINT_PTR>(_ReturnAddress());
     return FaultInjTemplate1<PFLT_DEFERRED_IO_WORKITEM>(
         CallSite, "FltAllocateDeferredIoWorkItem", FALSE, nullptr, &FltAllocateDeferredIoWorkItem);
 }
@@ -48,7 +48,7 @@ NTSTATUS S2EHook_FltBuildDefaultSecurityDescriptor(
     _In_ ACCESS_MASK DesiredAccess
 )
 {
-    UINT_PTR CallSite = (UINT_PTR)_ReturnAddress();
+    const UINT_PTR CallSite = reinterpret_cast<UINT_PTR>(_ReturnAddress());
     return FaultInjTemplate1<NTSTATUS>(
         CallSite, "FltBuildDefaultSecurityDescriptor", FALSE, STATUS_INSUFFICIENT_RESOURCES,
         &FltBuildDefaultSecurityDescriptor,
@@ -60,7 +60,7 @@ NTSTATUS S2EHook_FltClose(
 )
 {
     if (g_config.FaultInjectionOverapproximate) {
-        UINT_PTR CallSite = (UINT_PTR)_ReturnAddress();
+        const UINT_PTR CallSite = reinterpret_cast<UINT_PTR>(_ReturnAddress());
         return FaultInjTemplate1<NTSTATUS>(
             CallSite, "FltClose", FALSE, STATUS_INSUFFICIENT_RESOURCES,
             &FltClose, FileHandle);
@@ -80,7 +80,7 @@ NTSTATUS S2EHook_FltCreateCommunicationPort(
     _In_ LONG MaxConnections
 )
 {
-    UINT_PTR CallSite = (UINT_PTR)_ReturnAddress();
+    const UINT_PTR CallSite = reinterpret_cast<UINT_PTR>(_ReturnAddress());
     return FaultInjTemplate1<NTSTATUS>(
         CallSite, "FltCreateCommunicationPort", FALSE, STATUS_INSUFFICIENT_RESOURCES,
         &FltCreateCommunicationPort,
@@ -106,7 +106,7 @@ NTSTATUS S2EHook_FltCreateFileEx(
     _In_ ULONG Flags
 )
 {
-    UINT_PTR CallSite = (UINT_PTR)_ReturnAddress();
+    const UINT_PTR CallSite = reinterpret_cast<UINT_PTR>(_ReturnAddress());
     return FaultInjTemplate1<NTSTATUS>(
         CallSite, "FltCreateFileEx", FALSE, STATUS_INSUFFICIENT_RESOURCES, &FltCreateFileEx,
         Filter, Instance, FileHandle, FileObject, DesiredAccess, ObjectAttributes, IoStatusBlock,
@@ -125,7 +125,7 @@ NTSTATUS S2EHook_FltGetDestinationFileNameInformation(
     _Out_ PFLT_FILE_NAME_INFORMATION *RetFileNameInformation
 )
 {
-    UINT_PTR CallSite = (UINT_PTR)_ReturnAddress();
+    const UINT_PTR CallSite = reinterpret_cast<UINT_PTR>(_ReturnAddress());
     return FaultInjTemplate1<NTSTATUS>(
         CallSite, "FltGetDestinationFileNameInformation", FALSE, STATUS_INSUFFICIENT_RESOURCES,
         &FltGetDestinationFileNameInformation,
@@ -139,7 +139,7 @@ NTSTATUS S2EHook_FltGetFileNameInformation(
     _Out_ PFLT_FILE_NAME_INFORMATION *FileNameInformation
 )
 {
-    UINT_PTR CallSite = (UINT_PTR)_ReturnAddress();
+    const UINT_PTR CallSite = reinterpret_cast<UINT_PTR>(_ReturnAddress());
     return FaultInjTemplate1<NTSTATUS>(
         CallSite, "FltGetFileNameInformation", FALSE, STATUS_INSUFFICIENT_RESOURCES, &FltGetFileNameInformation,
         CallbackData, NameOptions, FileNameInformation
@@ -152,7 +152,7 @@ NTSTATUS S2EHook_FltGetStreamContext(
     _Out_ PFLT_CONTEXT *Context
 )
 {
-    UINT_PTR CallSite = (UINT_PTR)_ReturnAddress();
+    const UINT_PTR CallSite = reinterpret_cast<UINT_PTR>(_ReturnAddress());
     return FaultInjTemplate1<NTSTATUS>(
         CallSite, "FltGetStreamContext", FALSE, STATUS_INSUFFICIENT_RESOURCES, &FltGetStreamContext,
         Instance, FileObject, Context
@@ -165,7 +165,7 @@ NTSTATUS S2EHook_FltGetStreamHandleContext(
     _Out_ PFLT_CONTEXT *Context
 )
 {
-    UINT_PTR CallSite = (UINT_PTR)_ReturnAddress();
+    const UINT_PTR CallSite = reinterpret_cast<UINT_PTR>(_ReturnAddress());
     return FaultInjTemplate1<NTSTATUS>(
         CallSite, "FltGetStreamHandleContext", FALSE, STATUS_INSUFFICIENT_RESOURCES, &FltGetStreamHandleContext,
         Instance, FileObject, Context
@@ -179,7 +179,7 @@ NTSTATUS S2EHook_FltParseFileName(
     _Inout_ PUNICODE_STRING FinalComponent
 )
 {
-    UINT_PTR CallSite = (UINT_PTR)_ReturnAddress();
+    const UINT_PTR CallSite = reinterpret_cast<UINT_PTR>(_ReturnAddress());
     return FaultInjTemplate1<NTSTATUS>(
         CallSite, "FltParseFileName", FALSE, STATUS_INSUFFICIENT_RESOURCES, &FltParseFileName,
         FileName, Extension, Stream, FinalComponent
@@ -195,7 +195,7 @@ NTSTATUS S2EHook_FltQueryInformationFile(
     _Out_opt_ PULONG LengthReturned
 )
 {
-    UINT_PTR CallSite = (UINT_PTR)_ReturnAddress();
+    const UINT_PTR CallSite = reinterpret_cast<UINT_PTR>(_ReturnAddress());
     return FaultInjTemplate1<NTSTATUS>(
         CallSite, "FltQueryInformationFile", FALSE, STATUS_INSUFFICIENT_RESOURCES, &FltQueryInformationFile,
         Instance, FileObject, FileInformation, Length, FileInformationClass, LengthReturned
@@ -211,7 +211,7 @@ NTSTATUS S2EHook_FltQuerySecurityObject(
     _Out_opt_ PULONG LengthNeeded
 )
 {
-    UINT_PTR CallSite = (UINT_PTR)_ReturnAddress();
+    const UINT_PTR CallSite = reinterpret_cast<UINT_PTR>(_ReturnAddress());
     return FaultInjTemplate1<NTSTATUS>(
         CallSite, "FltQuerySecurityObject", FALSE, STATUS_INSUFFICIENT_RESOURCES, &FltQuerySecurityObject,
         Instance, FileObject, SecurityInformation, SecurityDescriptor, Length, LengthNeeded
@@ -226,7 +226,7 @@ NTSTATUS S2EHook_FltQueueDeferredIoWorkItem(
     _In_ PVOID Context
 )
 {
-    UINT_PTR CallSite = (UINT_PTR)_ReturnAddress();
+    const UINT_PTR CallSite = reinterpret_cast<UINT_PTR>(_ReturnAddress());
     return FaultInjTemplate1<NTSTATUS>(
         CallSite, "FltQueueDeferredIoWorkItem", FALSE, STATUS_INSUFFICIENT_RESOURCES, &FltQueueDeferredIoWorkItem,
         FltWorkItem, Data, WorkerRoutine, QueueType, Context
@@ -240,7 +240,7 @@ NTSTATUS S2EHook_FltRegisterFilter(
     _Out_ PFLT_FILTER *RetFilter
 )
 {
-    UINT_PTR CallSite = (UINT_PTR)_ReturnAddress();
+    const UINT_PTR CallSite = reinterpret_cast<UINT_PTR>(_ReturnAddress());
     return FaultInjTemplate1<NTSTATUS>(
         CallSite, "FltRegisterFilter", FALSE, STATUS_INSUFFICIENT_RESOURCES, &FltRegisterFilter,
         Driver, Registration, RetFilter
@@ -257,7 +257,7 @@ NTSTATUS S2EHook_FltSendMessage(
     _In_opt_ PLARGE_INTEGER Timeout
 )
 {
-    UINT_PTR CallSite = (UINT_PTR)_ReturnAddress();
+    const UINT_PTR CallSite = reinterpret_cast<UINT_PTR>(_ReturnAddress());
     return FaultInjTemplate1<NTSTATUS>(
         CallSite, "FltSendMessage", FALSE, STATUS_INSUFFICIENT_RESOURCES, &FltSendMessage,
         Filter, ClientPort, SenderBuffer, SenderBufferLength, ReplyBuffer, ReplyLength, Timeout
@@ -272,7 +272,7 @@ NTSTATUS S2EHook_FltSetStreamContext(
     _Out_ PFLT_CONTEXT *OldContext
 )
 {
-    UINT_PTR CallSite = (UINT_PTR)_ReturnAddress();
+    const UINT_PTR CallSite = reinterpret_cast<UINT_PTR>(_ReturnAddress());
     return FaultInjTemplate1<NTSTATUS>(
         CallSite, "FltSetStreamContext", FALSE, STATUS_INSUFFICIENT_RESOURCES, &FltSetStreamContext,
         Instance, FileObject, Operation, NewContext, OldContext
@@ -287,7 +287,7 @@ NTSTATUS S2EHook_FltSetStreamHandleContext(
     _Out_opt_ PFLT_CONTEXT *OldContext
 )
 {
-    UINT_PTR CallSite = (UINT_PTR)_ReturnAddress();
+    const UINT_PTR CallSite = reinterpret_cast<UINT_PTR>(_ReturnAddress());
     return FaultInjTemplate1<NTSTATUS>(
         CallSite, "FltSetStreamHandleContext", FALSE, STATUS_INSUFFICIENT_RESOURCES, &FltSetStreamHandleContext,
         Instance, FileObject, Operation, NewContext, OldContext
@@ -298,7 +298,7 @@ NTSTATUS S2EHook_FltStartFiltering(
     _In_ PFLT_FILTER Filter
 )
 {
-    UINT_PTR CallSite = (UINT_PTR)_ReturnAddress();
+    const UINT_PTR CallSite = reinterpret_cast<UINT_PTR>(_ReturnAddress());
     return FaultInjTemplate1<NTSTATUS>(
         CallSite, "FltStartFiltering", FALSE, STATUS_INSUFFICIENT_RESOURCES, &FltStartFiltering,
         Filter

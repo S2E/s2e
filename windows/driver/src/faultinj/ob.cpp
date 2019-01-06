@@ -30,7 +30,7 @@ NTSTATUS S2EHook_ObReferenceObjectByHandle(
     _Out_opt_ POBJECT_HANDLE_INFORMATION HandleInformation
 )
 {
-    UINT_PTR CallSite = (UINT_PTR)_ReturnAddress();
+    const UINT_PTR CallSite = reinterpret_cast<UINT_PTR>(_ReturnAddress());
     return FaultInjTemplate1<NTSTATUS>(
         CallSite, "ObReferenceObjectByHandle", FALSE, STATUS_INSUFFICIENT_RESOURCES, &ObReferenceObjectByHandle,
         Handle, DesiredAccess, ObjectType, AccessMode, Object, HandleInformation

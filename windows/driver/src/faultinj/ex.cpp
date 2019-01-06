@@ -26,8 +26,8 @@ PVOID S2EHook_ExAllocatePool(
     _In_ SIZE_T NumberOfBytes
 )
 {
-    UINT_PTR CallSite = (UINT_PTR)_ReturnAddress();
-    BOOLEAN RaiseOnFailure = PoolType & POOL_RAISE_IF_ALLOCATION_FAILURE;
+    const UINT_PTR CallSite = (UINT_PTR)_ReturnAddress();
+    const BOOLEAN RaiseOnFailure = PoolType & POOL_RAISE_IF_ALLOCATION_FAILURE;
     return FaultInjTemplate1<PVOID>(CallSite, "ExAllocatePool", RaiseOnFailure, nullptr, &ExAllocatePool, PoolType,
                                     NumberOfBytes);
 }
@@ -37,8 +37,8 @@ PVOID S2EHook_ExAllocatePoolWithQuota(
     _In_ SIZE_T NumberOfBytes
 )
 {
-    UINT_PTR CallSite = (UINT_PTR)_ReturnAddress();
-    BOOLEAN RaiseOnFailure = TRUE;
+    const UINT_PTR CallSite = (UINT_PTR)_ReturnAddress();
+    const BOOLEAN RaiseOnFailure = TRUE;
     return FaultInjTemplate1<PVOID>(CallSite, "ExAllocatePoolWithQuota", RaiseOnFailure, nullptr,
                                     &ExAllocatePoolWithQuota, PoolType, NumberOfBytes);
 }
@@ -49,8 +49,8 @@ PVOID S2EHook_ExAllocatePoolWithQuotaTag(
     _In_ ULONG Tag
 )
 {
-    UINT_PTR CallSite = (UINT_PTR)_ReturnAddress();
-    BOOLEAN RaiseOnFailure = !(PoolType & POOL_QUOTA_FAIL_INSTEAD_OF_RAISE);
+    const UINT_PTR CallSite = (UINT_PTR)_ReturnAddress();
+    const BOOLEAN RaiseOnFailure = !(PoolType & POOL_QUOTA_FAIL_INSTEAD_OF_RAISE);
     return FaultInjTemplate1<PVOID>(CallSite, "ExAllocatePoolWithQuotaTag", RaiseOnFailure, nullptr,
                                     &ExAllocatePoolWithQuotaTag, PoolType, NumberOfBytes, Tag);
 }
@@ -61,8 +61,8 @@ PVOID S2EHook_ExAllocatePoolWithTag(
     _In_ ULONG Tag
 )
 {
-    UINT_PTR CallSite = (UINT_PTR)_ReturnAddress();
-    BOOLEAN RaiseOnFailure = PoolType & POOL_RAISE_IF_ALLOCATION_FAILURE;
+    const UINT_PTR CallSite = (UINT_PTR)_ReturnAddress();
+    const BOOLEAN RaiseOnFailure = PoolType & POOL_RAISE_IF_ALLOCATION_FAILURE;
     return FaultInjTemplate1<PVOID>(CallSite, "ExAllocatePoolWithTag", RaiseOnFailure, nullptr, &ExAllocatePoolWithTag,
                                     PoolType, NumberOfBytes, Tag);
 }
@@ -74,8 +74,8 @@ PVOID S2EHook_ExAllocatePoolWithTagPriority(
     _In_ EX_POOL_PRIORITY Priority
 )
 {
-    UINT_PTR CallSite = (UINT_PTR)_ReturnAddress();
-    BOOLEAN RaiseOnFailure = PoolType & POOL_RAISE_IF_ALLOCATION_FAILURE;
+    const UINT_PTR CallSite = (UINT_PTR)_ReturnAddress();
+    const BOOLEAN RaiseOnFailure = PoolType & POOL_RAISE_IF_ALLOCATION_FAILURE;
     return FaultInjTemplate1<PVOID>(CallSite, "ExAllocatePoolWithTagPriority", RaiseOnFailure, nullptr,
                                     &ExAllocatePoolWithTagPriority, PoolType, NumberOfBytes, Tag, Priority);
 }
@@ -88,8 +88,8 @@ NTSTATUS S2EHook_ExInitializeResourceLite(
 )
 {
     if (g_config.FaultInjectionOverapproximate) {
-        UINT_PTR CallSite = (UINT_PTR)_ReturnAddress();
-        BOOLEAN RaiseOnFailure = FALSE;
+        const UINT_PTR CallSite = (UINT_PTR)_ReturnAddress();
+        const BOOLEAN RaiseOnFailure = FALSE;
         return FaultInjTemplate1<NTSTATUS>(CallSite, "ExInitializeResourceLite", RaiseOnFailure,
                                            STATUS_INSUFFICIENT_RESOURCES, &ExInitializeResourceLite, Resource);
     } else {

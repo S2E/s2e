@@ -12,6 +12,9 @@ extern "C" {
 #include "../config/config.h"
 }
 
+#pragma warning(push)
+#pragma warning(disable: 26477) // We can't use nullptr here because of generic types
+
 template <typename RET, typename FCN, typename ... ARGS>
 RET FaultInjTemplate1(
     _In_ UINT_PTR CallSite,
@@ -22,10 +25,10 @@ RET FaultInjTemplate1(
     ARGS ... Args
 )
 {
-    RET RetVal;
-    INT Inject;
-    UINT8 InvokeOriginal;
-    CHAR *SymbolicVarName;
+    RET RetVal = 0;
+    INT Inject = 0;
+    UINT8 InvokeOriginal = 0;
+    CHAR *SymbolicVarName = nullptr;
 
     LOG("Calling %s from %p\n", FunctionName, (PVOID)CallSite);
 
@@ -33,7 +36,7 @@ RET FaultInjTemplate1(
         goto original;
     }
 
-    Inject = FaultInjDecideInjectFault(CallSite, (UINT_PTR)Orig);
+    Inject = FaultInjDecideInjectFault(CallSite, reinterpret_cast<UINT_PTR>(Orig));
     if (!Inject) {
         goto original;
     }
@@ -67,3 +70,5 @@ original:
     S2EMessageFmt("%s returned %#x\n", FunctionName, RetVal);
     return RetVal;
 }
+
+#pragma warning(pop)

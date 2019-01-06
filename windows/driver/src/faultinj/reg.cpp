@@ -31,7 +31,7 @@ NTSTATUS S2EHook_ZwCreateKey(
     _Out_opt_ PULONG Disposition
 )
 {
-    UINT_PTR CallSite = (UINT_PTR)_ReturnAddress();
+    const UINT_PTR CallSite = reinterpret_cast<UINT_PTR>(_ReturnAddress());
     return FaultInjTemplate1<NTSTATUS>(
         CallSite, "ZwCreateKey", FALSE, STATUS_INSUFFICIENT_RESOURCES, &ZwCreateKey,
         KeyHandle, DesiredAccess, ObjectAttributes, TitleIndex, Class, CreateOptions, Disposition
@@ -44,7 +44,7 @@ NTSTATUS S2EHook_ZwOpenKey(
     _In_ POBJECT_ATTRIBUTES ObjectAttributes
 )
 {
-    UINT_PTR CallSite = (UINT_PTR)_ReturnAddress();
+    const UINT_PTR CallSite = reinterpret_cast<UINT_PTR>(_ReturnAddress());
     return FaultInjTemplate1<NTSTATUS>(
         CallSite, "ZwOpenKey", FALSE, STATUS_INSUFFICIENT_RESOURCES, &ZwOpenKey,
         KeyHandle, DesiredAccess, ObjectAttributes
@@ -60,7 +60,7 @@ NTSTATUS S2EHook_ZwQueryValueKey(
     _Out_ PULONG ResultLength
 )
 {
-    UINT_PTR CallSite = (UINT_PTR)_ReturnAddress();
+    const UINT_PTR CallSite = reinterpret_cast<UINT_PTR>(_ReturnAddress());
     return FaultInjTemplate1<NTSTATUS>(
         CallSite, "ZwQueryValueKey", FALSE, STATUS_INSUFFICIENT_RESOURCES, &ZwQueryValueKey,
         KeyHandle, ValueName, KeyValueInformationClass, KeyValueInformation, Length, ResultLength

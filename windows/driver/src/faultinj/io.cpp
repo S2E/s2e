@@ -23,7 +23,7 @@ PIRP S2EHook_IoAllocateIrp(
     BOOLEAN ChargeQuota
 )
 {
-    UINT_PTR CallSite = (UINT_PTR)_ReturnAddress();
+    const UINT_PTR CallSite = reinterpret_cast<UINT_PTR>(_ReturnAddress());
     return FaultInjTemplate1<PIRP>(
         CallSite, "IoAllocateIrp", FALSE, nullptr, &IoAllocateIrp,
         StackSize, ChargeQuota
@@ -38,7 +38,7 @@ PMDL S2EHook_IoAllocateMdl(
     PIRP Irp
 )
 {
-    UINT_PTR CallSite = (UINT_PTR)_ReturnAddress();
+    const UINT_PTR CallSite = reinterpret_cast<UINT_PTR>(_ReturnAddress());
     return FaultInjTemplate1<PMDL>(
         CallSite, "IoAllocateMdl", FALSE, nullptr, &IoAllocateMdl,
         VirtualAddress, Length, SecondaryBuffer, ChargeQuota, Irp
@@ -49,7 +49,7 @@ PIO_WORKITEM S2EHook_IoAllocateWorkItem(
     PDEVICE_OBJECT DeviceObject
 )
 {
-    UINT_PTR CallSite = (UINT_PTR)_ReturnAddress();
+    const UINT_PTR CallSite = reinterpret_cast<UINT_PTR>(_ReturnAddress());
     return FaultInjTemplate1<PIO_WORKITEM>(
         CallSite, "IoAllocateWorkItem", FALSE, nullptr, &IoAllocateWorkItem,
         DeviceObject
@@ -68,7 +68,7 @@ PIRP S2EHook_IoBuildDeviceIoControlRequest(
     PIO_STATUS_BLOCK IoStatusBlock
 )
 {
-    UINT_PTR CallSite = (UINT_PTR)_ReturnAddress();
+    const UINT_PTR CallSite = reinterpret_cast<UINT_PTR>(_ReturnAddress());
     return FaultInjTemplate1<PIRP>(
         CallSite, "IoBuildDeviceIoControlRequest", FALSE, nullptr, &IoBuildDeviceIoControlRequest,
         IoControlCode, DeviceObject, InputBuffer, InputBufferLength, OutputBuffer, OutputBufferLength,
@@ -86,7 +86,7 @@ PIRP S2EHook_IoBuildSynchronousFsdRequest(
     PIO_STATUS_BLOCK IoStatusBlock
 )
 {
-    UINT_PTR CallSite = (UINT_PTR)_ReturnAddress();
+    const UINT_PTR CallSite = reinterpret_cast<UINT_PTR>(_ReturnAddress());
     return FaultInjTemplate1<PIRP>(
         CallSite, "IoBuildSynchronousFsdRequest", FALSE, nullptr, &IoBuildSynchronousFsdRequest,
         MajorFunction, DeviceObject, Buffer, Length, StartingOffset, Event, IoStatusBlock
@@ -103,7 +103,7 @@ NTSTATUS S2EHook_IoCreateDevice(
     PDEVICE_OBJECT *DeviceObject
 )
 {
-    UINT_PTR CallSite = (UINT_PTR)_ReturnAddress();
+    const UINT_PTR CallSite = reinterpret_cast<UINT_PTR>(_ReturnAddress());
     return FaultInjTemplate1<NTSTATUS>(
         CallSite, "IoCreateDevice", FALSE, STATUS_INSUFFICIENT_RESOURCES, &IoCreateDevice,
         DriverObject, DeviceExtensionSize, DeviceName, DeviceType, DeviceCharacteristics, Exclusive, DeviceObject
@@ -116,7 +116,7 @@ PFILE_OBJECT S2EHook_IoCreateStreamFileObjectLite(
     PDEVICE_OBJECT DeviceObject
 )
 {
-    UINT_PTR CallSite = (UINT_PTR)_ReturnAddress();
+    const UINT_PTR CallSite = reinterpret_cast<UINT_PTR>(_ReturnAddress());
     return FaultInjTemplate1<PFILE_OBJECT>(
         CallSite, "IoCreateStreamFileObjectLite", FALSE, nullptr, &IoCreateStreamFileObjectLite,
         FileObject, DeviceObject
@@ -128,7 +128,7 @@ NTSTATUS S2EHook_IoVerifyVolume(
     BOOLEAN AllowRawMount
 )
 {
-    UINT_PTR CallSite = (UINT_PTR)_ReturnAddress();
+    const UINT_PTR CallSite = reinterpret_cast<UINT_PTR>(_ReturnAddress());
     return FaultInjTemplate1<NTSTATUS>(
         CallSite, "IoVerifyVolume", FALSE, STATUS_INSUFFICIENT_RESOURCES, &IoVerifyVolume,
         DeviceObject, AllowRawMount

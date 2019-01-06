@@ -17,6 +17,9 @@
 #include "kernel_structs.h"
 #include "log.h"
 
+#pragma warning(push)
+#pragma warning(disable: 26451) // Arithmetic overflow
+
 static REGISTER_KERNEL_STRUCTS Handler0x2247c2; /* (5, 1, 2600, 5512) - 32 - en_windows_xp_professional_with_service_pack_3_x86_cd_x14-80428_0c89243c7c3ee199b96fcc16990e0679_ntoskrnl.pdb */
 static REGISTER_KERNEL_STRUCTS Handler0x21a293; /* (5, 1, 2600, 5512) - 32 - en_windows_xp_professional_with_service_pack_3_x86_cd_x14-80428_40f8880122a030a7e9e1fedea833b33d_ntkrnlmp.pdb */
 static REGISTER_KERNEL_STRUCTS Handler0x3c88ac; /* (6, 1, 7601, 17514) - 32 - en_windows_7_enterprise_with_sp1_x64_dvd_u_677651_144bd78c6103c8616de047b3532142db_ntkrnlpa.pdb */
@@ -1031,3 +1034,5 @@ static VOID Handler0x7f010a(UINT_PTR KernelLoadBase, UINT_PTR KernelNativeBase)
 }
 #endif
 
+
+#pragma warning(pop)
