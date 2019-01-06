@@ -1561,6 +1561,10 @@ ExecutionState *S2EExecutor::selectSearcherState(S2EExecutionState *state) {
         }
         m_deletedStates.clear();
         g_s2e->getCorePlugin()->onEngineShutdown.emit();
+
+        // Flush here just in case ~S2E() is not called (e.g., if atexit()
+        // shutdown handler was not called properly).
+        g_s2e->flushOutputStreams();
         exit(0);
     }
 

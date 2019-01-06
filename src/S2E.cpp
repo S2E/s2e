@@ -237,6 +237,11 @@ S2E::~S2E() {
 
     delete m_configFile;
 
+    // This is the last thing that will show in the debug log,
+    // it helps making sure that shutdown went fine.
+    getDebugStream() << "Engine terminated.\n";
+    flushOutputStreams();
+
     delete m_warningStream;
     delete m_infoStream;
     delete m_debugStream;
