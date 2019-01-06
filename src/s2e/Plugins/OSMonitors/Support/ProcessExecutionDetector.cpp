@@ -125,7 +125,7 @@ bool ProcessExecutionDetector::isTrackedPc(S2EExecutionState *state, uint64_t pc
         }
     }
 
-    uint64_t pid = m_monitor->getPid(state, state->regs()->getPc());
+    uint64_t pid = m_monitor->getPid(state);
 
     return plgState->m_trackedPids.count(pid) > 0;
 }

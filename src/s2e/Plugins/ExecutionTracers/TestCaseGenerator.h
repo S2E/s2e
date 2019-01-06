@@ -164,7 +164,7 @@ typedef klee::ImmutableMap<std::string, Data> ConcreteFileTemplates;
 ///
 /// - When using partial symbolic files, the chunk size must be one.
 ///
-class TestCaseGenerator : public Plugin, public BaseInstructionsPluginInvokerInterface {
+class TestCaseGenerator : public Plugin, public IPluginInvoker {
     S2E_PLUGIN
 
 private:

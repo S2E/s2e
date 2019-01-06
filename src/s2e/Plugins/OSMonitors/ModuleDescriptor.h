@@ -177,6 +177,16 @@ struct ModuleDescriptor {
         }
     };
 
+    struct ModuleByPid {
+        bool operator()(const struct ModuleDescriptor &s1, const struct ModuleDescriptor &s2) const {
+            return s1.Pid < s2.Pid;
+        }
+
+        bool operator()(const struct ModuleDescriptor *s1, const struct ModuleDescriptor *s2) const {
+            return s1->Pid < s2->Pid;
+        }
+    };
+
     struct ModuleByLoadBasePid {
         bool operator()(const struct ModuleDescriptor &s1, const struct ModuleDescriptor &s2) const {
             if (s1.Pid == s2.Pid) {
@@ -231,7 +241,8 @@ inline llvm::raw_ostream &operator<<(llvm::raw_ostream &out, const ModuleDescrip
     return out;
 }
 
-typedef std::vector<const ModuleDescriptor *> ModuleDescriptorList;
+typedef std::shared_ptr<const ModuleDescriptor> ModuleDescriptorConstPtr;
+typedef std::vector<ModuleDescriptorConstPtr> ModuleDescriptorList;
 }
 
 #endif

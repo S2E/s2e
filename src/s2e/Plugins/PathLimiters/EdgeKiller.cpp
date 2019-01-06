@@ -35,7 +35,7 @@ void EdgeKiller::addEdge(const std::string &moduleName, uint64_t start, uint64_t
 }
 
 void EdgeKiller::onEdge(S2EExecutionState *state, uint64_t sourcePc, EdgeType type) {
-    const ModuleDescriptor *md = m_detector->getCurrentDescriptor(state);
+    auto md = m_detector->getCurrentDescriptor(state);
     if (!md) {
         return;
     }

@@ -58,7 +58,7 @@ struct S2E_WINDOWS_CRASH_COMMAND {
     S2E_CRASHDUMP_OPAQUE Dump;
 };
 
-class WindowsCrashMonitor : public Plugin, public BaseInstructionsPluginInvokerInterface {
+class WindowsCrashMonitor : public Plugin, public IPluginInvoker {
     S2E_PLUGIN
 public:
     WindowsCrashMonitor(S2E *s2e) : Plugin(s2e) {

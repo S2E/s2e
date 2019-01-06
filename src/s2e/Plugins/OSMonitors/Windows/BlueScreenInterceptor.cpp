@@ -7,7 +7,6 @@
 ///
 
 #include <s2e/ConfigFile.h>
-#include <s2e/Plugins/OSMonitors/Support/ModuleExecutionDetector.h>
 #include <s2e/S2E.h>
 #include <s2e/S2EExecutor.h>
 #include <s2e/cpu.h>

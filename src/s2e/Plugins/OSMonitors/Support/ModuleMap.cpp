@@ -26,6 +26,8 @@
 
 #include "ModuleMap.h"
 
+namespace bmi = boost::multi_index;
+
 namespace s2e {
 namespace plugins {
 
@@ -51,16 +53,13 @@ public:
     struct pidpc_t {};
 
     typedef boost::multi_index_container<
-        ModuleDescriptor,
-        boost::multi_index::indexed_by<
-            boost::multi_index::ordered_non_unique<boost::multi_index::tag<pidname_t>,
-                                                   boost::multi_index::identity<ModuleDescriptor>,
-                                                   ModuleDescriptor::ModuleByPidName>,
-            boost::multi_index::ordered_non_unique<boost::multi_index::tag<pid_t>,
-                                                   BOOST_MULTI_INDEX_MEMBER(ModuleDescriptor, uint64_t, Pid)>,
-            boost::multi_index::ordered_unique<boost::multi_index::tag<pidpc_t>,
-                                               boost::multi_index::identity<ModuleDescriptor>,
-                                               ModuleDescriptor::ModuleByLoadBasePid>>>
+        ModuleDescriptorConstPtr,
+        bmi::indexed_by<bmi::ordered_non_unique<bmi::tag<pidname_t>, bmi::identity<const ModuleDescriptor>,
+                                                ModuleDescriptor::ModuleByPidName>,
+                        bmi::ordered_non_unique<bmi::tag<pid_t>,
+                                                bmi::member<ModuleDescriptor, const uint64_t, &ModuleDescriptor::Pid>>,
+                        bmi::ordered_unique<bmi::tag<pidpc_t>, bmi::identity<const ModuleDescriptor>,
+                                            ModuleDescriptor::ModuleByLoadBasePid>>>
         Map;
 
     typedef Map::index<pid_t>::type ModulesByPid;
@@ -103,14 +102,14 @@ public:
         ModuleDescriptorList result;
         ModulesByPid &byPid = m_modules.get<pid_t>();
 
-        std::pair<ModulesByPid::const_iterator, ModulesByPid::const_iterator> p = byPid.equal_range(pid);
+        auto p = byPid.equal_range(pid);
 
-        foreach2 (it, p.first, p.second) { result.push_back(&(*it)); }
+        foreach2 (it, p.first, p.second) { result.push_back(*it); }
 
         return result;
     }
 
-    const ModuleDescriptor *getModule(uint64_t pid, uint64_t pc) {
+    ModuleDescriptorConstPtr getModule(uint64_t pid, uint64_t pc) {
         ModuleDescriptor md;
         md.Pid = pid;
         md.LoadBase = pc;
@@ -119,13 +118,13 @@ public:
         ModulesByPidPc &byPidPc = m_modules.get<pidpc_t>();
         ModulesByPidPc::const_iterator it = byPidPc.find(md);
         if (it != byPidPc.end()) {
-            return &*it;
+            return *it;
         }
 
         return nullptr;
     }
 
-    const ModuleDescriptor *getModule(uint64_t pid, const std::string &name) {
+    ModuleDescriptorConstPtr getModule(uint64_t pid, const std::string &name) {
         ModuleDescriptor md;
         md.Pid = pid;
         md.Name = name;
@@ -133,14 +132,15 @@ public:
         ModulesByPidName &byPidName = m_modules.get<pidname_t>();
         ModulesByPidName::const_iterator it = byPidName.find(md);
         if (it != byPidName.end()) {
-            return &*it;
+            return *it;
         }
 
         return nullptr;
     }
 
     void onModuleLoad(const ModuleDescriptor &module) {
-        m_modules.insert(module);
+        auto ptr = std::make_shared<const ModuleDescriptor>(module);
+        m_modules.insert(ptr);
     }
 
     void onModuleUnload(const ModuleDescriptor &module) {
@@ -148,11 +148,11 @@ public:
         ModulesByPidPc &byPidPc = m_modules.get<pidpc_t>();
         ModulesByPidPc::const_iterator it = byPidPc.find(module);
         if (it != byPidPc.end()) {
-            assert(it->Pid == module.Pid);
-            if (it->LoadBase != module.LoadBase) {
+            assert((*it)->Pid == module.Pid);
+            if ((*it)->LoadBase != module.LoadBase) {
                 g_s2e->getDebugStream(g_s2e_state) << "ModuleMap::onModuleUnload mismatched base addresses:\n"
                                                    << "  looked for:" << module << "\n"
-                                                   << "  found     :" << *it << "\n";
+                                                   << "  found     :" << **it << "\n";
             }
 
             byPidPc.erase(it);
@@ -184,7 +184,7 @@ public:
 
         const ModulesByPid &byPid = m_modules.get<pid_t>();
         for (const auto &it : byPid) {
-            os << "pid:" << hexval(it.Pid) << " - " << it << "\n";
+            os << "pid:" << hexval(it->Pid) << " - " << *it << "\n";
         }
 
         os << "==========================================\n";
@@ -246,14 +246,14 @@ public:
         }
 
         LuaS2EExecutionState **ls = reinterpret_cast<LuaS2EExecutionState **>(data);
-        const ModuleDescriptor *md = m_map->getModule((*ls)->getState());
+        auto md = m_map->getModule((*ls)->getState());
         if (!md) {
             return 0;
         }
 
         LuaModuleDescriptor **c =
             static_cast<LuaModuleDescriptor **>(lua_newuserdata(L, sizeof(LuaModuleDescriptor *)));
-        *c = new LuaModuleDescriptor(*md);
+        *c = new LuaModuleDescriptor(md);
         luaL_getmetatable(L, "LuaModuleDescriptor");
         lua_setmetatable(L, -2);
         return 1;
@@ -282,6 +282,8 @@ void ModuleMap::initialize() {
         winmon2->onMonitorLoad.connect(sigc::mem_fun(*this, &ModuleMap::onMonitorLoad));
     }
 
+    m_cachedKernelStart = -1;
+
     lua_State *L = s2e()->getConfig()->getState();
     Lunar<LuaModuleMap>::Register(L);
 }
@@ -301,6 +303,7 @@ void ModuleMap::onMonitorLoad(S2EExecutionState *state) {
         getDebugStream() << "Guest OS does not support native module unload, using workaround\n";
         winmon2->onNtUnmapViewOfSection.connect(sigc::mem_fun(*this, &ModuleMap::onNtUnmapViewOfSection));
     }
+    m_cachedKernelStart = m_monitor->getKernelStart();
 }
 
 void ModuleMap::onNtUnmapViewOfSection(S2EExecutionState *state, const S2E_WINMON2_UNMAP_SECTION &s) {
@@ -309,7 +312,7 @@ void ModuleMap::onNtUnmapViewOfSection(S2EExecutionState *state, const S2E_WINMO
         return;
     }
 
-    const ModuleDescriptor *module = plgState->getModule(s.Pid, s.BaseAddress);
+    auto module = plgState->getModule(s.Pid, s.BaseAddress);
     if (!module) {
         return;
     }
@@ -338,24 +341,28 @@ ModuleDescriptorList ModuleMap::getModulesByPid(S2EExecutionState *state, uint64
     return plgState->getModulesByPid(pid);
 }
 
-const ModuleDescriptor *ModuleMap::getModule(S2EExecutionState *state) {
+ModuleDescriptorConstPtr ModuleMap::getModule(S2EExecutionState *state) {
     DECLARE_PLUGINSTATE(ModuleMapState, state);
     auto pid = m_monitor->getPid(state);
-    return plgState->getModule(pid, state->regs()->getPc());
-}
-
-const ModuleDescriptor *ModuleMap::getModule(S2EExecutionState *state, uint64_t pc) {
-    DECLARE_PLUGINSTATE(ModuleMapState, state);
-    auto pid = m_monitor->getPid(state, pc);
+    auto pc = state->regs()->getPc();
+    pid = translatePid(pid, pc);
     return plgState->getModule(pid, pc);
 }
 
-const ModuleDescriptor *ModuleMap::getModule(S2EExecutionState *state, uint64_t pid, uint64_t pc) {
+ModuleDescriptorConstPtr ModuleMap::getModule(S2EExecutionState *state, uint64_t pc) {
     DECLARE_PLUGINSTATE(ModuleMapState, state);
+    auto pid = m_monitor->getPid(state);
+    pid = translatePid(pid, pc);
     return plgState->getModule(pid, pc);
 }
 
-const ModuleDescriptor *ModuleMap::getModule(S2EExecutionState *state, uint64_t pid, const std::string &name) {
+ModuleDescriptorConstPtr ModuleMap::getModule(S2EExecutionState *state, uint64_t pid, uint64_t pc) {
+    DECLARE_PLUGINSTATE(ModuleMapState, state);
+    pid = translatePid(pid, pc);
+    return plgState->getModule(pid, pc);
+}
+
+ModuleDescriptorConstPtr ModuleMap::getModule(S2EExecutionState *state, uint64_t pid, const std::string &name) {
     DECLARE_PLUGINSTATE(ModuleMapState, state);
     return plgState->getModule(pid, name);
 }

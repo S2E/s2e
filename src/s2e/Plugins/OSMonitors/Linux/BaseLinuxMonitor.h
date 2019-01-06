@@ -14,8 +14,9 @@
 #include <s2e/cpu.h>
 
 #include <s2e/Plugins/Core/BaseInstructions.h>
+#include <s2e/Plugins/Core/Vmi.h>
+#include <s2e/Plugins/OSMonitors/ModuleDescriptor.h>
 #include <s2e/Plugins/OSMonitors/OSMonitor.h>
-#include <s2e/Plugins/OSMonitors/Support/ModuleExecutionDetector.h>
 
 #include <map>
 #include <sstream>
@@ -44,7 +45,7 @@ static const uint64_t STACK_SIZE = 16 * 1024 * 1024;
 ///
 /// This class contains a number of virtual getter methods that return values specific to the kernel in use.
 ///
-class BaseLinuxMonitor : public OSMonitor, public BaseInstructionsPluginInvokerInterface {
+class BaseLinuxMonitor : public OSMonitor, public IPluginInvoker {
 protected:
     Vmi *m_vmi;
 
@@ -99,15 +100,6 @@ public:
 
     virtual uint64_t getKernelStart() const {
         return m_kernelStartAddress;
-    }
-
-    /// Get the page directory
-    virtual uint64_t getAddressSpace(S2EExecutionState *state, uint64_t pc) {
-        if (isKernelAddress(pc)) {
-            return 0;
-        } else {
-            return state->regs()->getPageDir();
-        }
     }
 
     /// Get the base address and size of the stack

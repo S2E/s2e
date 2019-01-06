@@ -216,7 +216,7 @@ public:
 
     bool getFaultAddress(S2EExecutionState *state, uint64_t siginfo_ptr, uint64_t *address);
 
-    virtual uint64_t getPid(S2EExecutionState *state, uint64_t pc);
+    virtual uint64_t getPid(S2EExecutionState *state);
     virtual uint64_t getTid(S2EExecutionState *state);
 
     void getPreFeedData(S2EExecutionState *state, uint64_t pid, uint64_t count, std::vector<uint8_t> &data);

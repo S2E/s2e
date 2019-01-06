@@ -58,7 +58,7 @@ void LoopExitSearcher::onFork(S2EExecutionState *state, const std::vector<S2EExe
                               const std::vector<klee::ref<klee::Expr>> &newConditions) {
     /**********/
     /* Update the fork count stats */
-    const ModuleDescriptor *module = m_detector->getCurrentDescriptor(state);
+    auto module = m_detector->getCurrentDescriptor(state);
     uint64_t curPc = 0;
     uint64_t currentForkCount = 0;
 

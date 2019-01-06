@@ -33,7 +33,7 @@ public:
     virtual void setActive(S2EExecutionState *state, bool active) = 0;
 };
 
-class MergingSearcher : public Plugin, public klee::Searcher, public BaseInstructionsPluginInvokerInterface {
+class MergingSearcher : public Plugin, public klee::Searcher, public IPluginInvoker {
     S2E_PLUGIN
 
 public:

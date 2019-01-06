@@ -10,6 +10,7 @@
 
 #include <s2e/CorePlugin.h>
 #include <s2e/Plugin.h>
+#include <s2e/Plugins/OSMonitors/ModuleDescriptor.h>
 
 namespace s2e {
 
@@ -30,8 +31,8 @@ public:
 
     void initialize();
 
-    sigc::signal<void, S2EExecutionState *, const ModuleDescriptor * /* caller module */,
-                 const ModuleDescriptor * /* callee module */, uint64_t /* caller PC */, uint64_t /* callee PC */>
+    sigc::signal<void, S2EExecutionState *, ModuleDescriptorConstPtr /* caller module */,
+                 ModuleDescriptorConstPtr /* callee module */, uint64_t /* caller PC */, uint64_t /* callee PC */>
         onCall;
 
 private:

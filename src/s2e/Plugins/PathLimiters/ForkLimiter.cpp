@@ -44,7 +44,7 @@ void ForkLimiter::initialize() {
 }
 
 void ForkLimiter::onStateForkDecide(S2EExecutionState *state, bool *doFork) {
-    const ModuleDescriptor *module = m_detector->getCurrentDescriptor(state);
+    auto module = m_detector->getCurrentDescriptor(state);
     if (!module) {
         return;
     }
@@ -58,7 +58,7 @@ void ForkLimiter::onStateForkDecide(S2EExecutionState *state, bool *doFork) {
 
 void ForkLimiter::onFork(S2EExecutionState *state, const std::vector<S2EExecutionState *> &newStates,
                          const std::vector<klee::ref<klee::Expr>> &newConditions) {
-    const ModuleDescriptor *module = m_detector->getCurrentDescriptor(state);
+    auto module = m_detector->getCurrentDescriptor(state);
     if (!module) {
         return;
     }

@@ -25,7 +25,7 @@
 namespace s2e {
 namespace plugins {
 
-class RawMonitor : public OSMonitor, public BaseInstructionsPluginInvokerInterface {
+class RawMonitor : public OSMonitor, public IPluginInvoker {
     S2E_PLUGIN
 
 public:
@@ -82,14 +82,12 @@ public:
         return m_kernelStart;
     }
 
-    virtual uint64_t getAddressSpace(S2EExecutionState *s, uint64_t pc);
-
     virtual bool getCurrentStack(S2EExecutionState *state, uint64_t *base, uint64_t *size);
 
     void handleOpcodeInvocation(S2EExecutionState *state, uint64_t guestDataPtr, uint64_t guestDataSize);
 
-    uint64_t getPid(S2EExecutionState *state, uint64_t pc) {
-        return getAddressSpace(state, pc);
+    uint64_t getPid(S2EExecutionState *state) {
+        return state->regs()->getPageDir();
     }
 
     virtual uint64_t getTid(S2EExecutionState *state) {

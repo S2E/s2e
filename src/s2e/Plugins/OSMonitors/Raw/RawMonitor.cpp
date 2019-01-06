@@ -237,13 +237,6 @@ bool RawMonitor::getRelocations(S2EExecutionState *s, const ModuleDescriptor &de
     return false;
 }
 
-uint64_t RawMonitor::getAddressSpace(S2EExecutionState *s, uint64_t pc) {
-    if (pc >= m_kernelStart) {
-        return 0;
-    }
-    return s->regs()->getPageDir();
-}
-
 bool RawMonitor::getCurrentStack(S2EExecutionState *state, uint64_t *base, uint64_t *size) {
     if (m_stack.stack_base && m_stack.stack_size) {
         *base = m_stack.stack_base;

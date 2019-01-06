@@ -376,7 +376,7 @@ struct SeedStats {
 ///        is 1, SeedSearcher will wait for the seed state to terminate before fetching
 ///        another seed. A value of 0 disables waiting.
 ///
-class SeedSearcher : public Plugin, public klee::Searcher, public BaseInstructionsPluginInvokerInterface {
+class SeedSearcher : public Plugin, public klee::Searcher, public IPluginInvoker {
     S2E_PLUGIN
 
 public:

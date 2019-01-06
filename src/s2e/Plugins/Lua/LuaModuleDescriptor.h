@@ -17,7 +17,7 @@ namespace plugins {
 
 class LuaModuleDescriptor {
 private:
-    ModuleDescriptor m_desc;
+    ModuleDescriptorConstPtr m_desc;
 
 public:
     static const char className[];
@@ -26,7 +26,7 @@ public:
     LuaModuleDescriptor(lua_State *L) {
     }
 
-    LuaModuleDescriptor(const ModuleDescriptor &desc) {
+    LuaModuleDescriptor(ModuleDescriptorConstPtr desc) {
         m_desc = desc;
     }
 

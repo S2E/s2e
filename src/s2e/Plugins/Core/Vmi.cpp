@@ -280,6 +280,10 @@ std::string Vmi::stripWindowsModulePath(const std::string &path) {
 }
 
 bool Vmi::findModule(const std::string &module, std::string &path) {
+    if (module.empty()) {
+        return false;
+    }
+
     /* Find the path prefix for the given relative file */
     foreach2 (it, m_baseDirectories.begin(), m_baseDirectories.end()) {
         llvm::SmallString<128> tempPath(*it);

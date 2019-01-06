@@ -99,7 +99,7 @@ struct Hook {
     uint64_t hook_return_64;
 };
 
-class GuestCodeHooking : public Plugin, public BaseInstructionsPluginInvokerInterface {
+class GuestCodeHooking : public Plugin, public IPluginInvoker {
     S2E_PLUGIN
 public:
     GuestCodeHooking(S2E *s2e) : Plugin(s2e) {

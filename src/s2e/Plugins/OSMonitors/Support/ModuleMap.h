@@ -54,11 +54,11 @@ typedef struct S2E_MODULE_MAP_COMMAND {
 class OSMonitor;
 struct S2E_WINMON2_UNMAP_SECTION;
 
-class ModuleMap : public Plugin, public BaseInstructionsPluginInvokerInterface, public ILuaPlugin {
+class ModuleMap : public Plugin, public IPluginInvoker, public ILuaPlugin {
     S2E_PLUGIN
 
 public:
-    typedef std::pair<const ModuleDescriptor * /* Module */, std::string /* Exported symbol name */> Export;
+    typedef std::pair<ModuleDescriptorConstPtr /* Module */, std::string /* Exported symbol name */> Export;
 
     ModuleMap(S2E *s2e) : Plugin(s2e) {
     }
@@ -66,10 +66,10 @@ public:
     void initialize();
 
     ModuleDescriptorList getModulesByPid(S2EExecutionState *state, uint64_t pid);
-    const ModuleDescriptor *getModule(S2EExecutionState *state);
-    const ModuleDescriptor *getModule(S2EExecutionState *state, uint64_t pc);
-    const ModuleDescriptor *getModule(S2EExecutionState *state, uint64_t pid, uint64_t pc);
-    const ModuleDescriptor *getModule(S2EExecutionState *state, uint64_t pid, const std::string &name);
+    ModuleDescriptorConstPtr getModule(S2EExecutionState *state);
+    ModuleDescriptorConstPtr getModule(S2EExecutionState *state, uint64_t pc);
+    ModuleDescriptorConstPtr getModule(S2EExecutionState *state, uint64_t pid, uint64_t pc);
+    ModuleDescriptorConstPtr getModule(S2EExecutionState *state, uint64_t pid, const std::string &name);
 
     void dump(S2EExecutionState *state);
 
@@ -89,12 +89,36 @@ public:
 
 private:
     OSMonitor *m_monitor;
+    uint64_t m_cachedKernelStart;
 
     void onModuleLoad(S2EExecutionState *state, const ModuleDescriptor &module);
     void onModuleUnload(S2EExecutionState *state, const ModuleDescriptor &module);
     void onProcessUnload(S2EExecutionState *state, uint64_t addressSpace, uint64_t pid, uint64_t returnCode);
     void onNtUnmapViewOfSection(S2EExecutionState *state, const S2E_WINMON2_UNMAP_SECTION &s);
     void onMonitorLoad(S2EExecutionState *state);
+
+    ///
+    /// \brief translatePid
+    ///
+    /// Windows and Linux OSes typically split the address space in two: kernel and user.
+    /// The kernel is shared between all address spaces and processes. Therefore, any module
+    /// loaded in kernel space is "visible" to all processes. By convention, S2E plugins
+    /// assign a pid 0 to such modules. When a plugin wants to get a module loaded at a given
+    /// (pid, pc), we need to set the pid to 0 if pc falls in the kernel area. It is the
+    /// responsibility of the OS monitor plugins to set the pid to 0 when they emit an
+    /// onModuleLoad signal for a module that is loaded in kernel space.
+    ///
+    /// \param pid the original process id
+    /// \param pc the program counter to query
+    /// \return 0 if pc is in kernel space, pid otherwise
+    ///
+    uint64_t translatePid(uint64_t pid, uint64_t pc) const {
+        if (pc >= m_cachedKernelStart) {
+            return 0;
+        } else {
+            return pid;
+        }
+    }
 };
 
 } // namespace plugins

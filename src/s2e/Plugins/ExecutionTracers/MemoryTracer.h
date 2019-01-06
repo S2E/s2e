@@ -74,8 +74,8 @@ private:
     void onConcreteDataMemoryAccess(S2EExecutionState *state, uint64_t vaddr, uint64_t value, uint8_t size,
                                     unsigned flags);
 
-    void onModuleTransition(S2EExecutionState *state, const ModuleDescriptor *prevModule,
-                            const ModuleDescriptor *nextModule);
+    void onModuleTransition(S2EExecutionState *state, ModuleDescriptorConstPtr prevModule,
+                            ModuleDescriptorConstPtr nextModule);
 
     void onModuleTranslateBlockStart(ExecutionSignal *signal, S2EExecutionState *state, const ModuleDescriptor &module,
                                      TranslationBlock *tb, uint64_t pc);

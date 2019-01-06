@@ -70,7 +70,7 @@ typedef struct _S2E_KVSTORE_PLUGIN_COMMAND {
  * The native store supports sessions. It is also possible to use the local
  * store, without any server (e.g., in single-core mode).
  */
-class KeyValueStore : public Plugin, public BaseInstructionsPluginInvokerInterface {
+class KeyValueStore : public Plugin, public IPluginInvoker {
     S2E_PLUGIN
 
     enum ServerType { ST_MEMCACHED, ST_NATIVE, ST_LOCAL };

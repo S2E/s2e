@@ -228,8 +228,8 @@ void MemoryTracer::onConcreteDataMemoryAccess(S2EExecutionState *state, uint64_t
     traceConcreteDataMemoryAccess(state, address, value, size, flags);
 }
 
-void MemoryTracer::onModuleTransition(S2EExecutionState *state, const ModuleDescriptor *prevModule,
-                                      const ModuleDescriptor *nextModule) {
+void MemoryTracer::onModuleTransition(S2EExecutionState *state, ModuleDescriptorConstPtr prevModule,
+                                      ModuleDescriptorConstPtr nextModule) {
     if (nextModule && !m_symbolicMemoryMonitor.connected()) {
         connectMemoryTracing();
     } else {

@@ -235,7 +235,7 @@ typedef struct S2E_WINMON2_COMMAND {
     };
 } S2E_WINMON2_COMMAND;
 
-class WindowsMonitor : public OSMonitor, public BaseInstructionsPluginInvokerInterface {
+class WindowsMonitor : public OSMonitor, public IPluginInvoker {
     S2E_PLUGIN
 public:
     typedef std::vector<ModuleDescriptor> ModuleList;
@@ -365,13 +365,6 @@ public:
         return pc >= m_kernelStart;
     }
 
-    virtual uint64_t getAddressSpace(S2EExecutionState *s, uint64_t pc) {
-        if (!m_kernelStart || pc < m_kernelStart) {
-            return s->regs()->getPageDir();
-        }
-        return 0;
-    }
-
     virtual bool getCurrentStack(S2EExecutionState *s, uint64_t *bottom, uint64_t *size);
 
     bool CheckPanic(uint64_t eip) const {
@@ -428,7 +421,7 @@ public:
         return m_cachedTid;
     }
 
-    uint64_t getPid(S2EExecutionState *state, uint64_t pc) {
+    uint64_t getPid(S2EExecutionState *state) {
         return getCurrentProcessId(state);
     }
 

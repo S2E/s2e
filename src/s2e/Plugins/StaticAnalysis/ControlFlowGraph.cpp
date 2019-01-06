@@ -307,7 +307,7 @@ void ControlFlowGraph::handleOpcodeInvocation(S2EExecutionState *state, uint64_t
 
     switch (command.Command) {
         case CFG_REGISTER_FUNCTION: {
-            const ModuleDescriptor *desc = m_detector->getModule(state, command.Function.RunTimeFunctionAddress);
+            auto desc = m_detector->getModule(state, command.Function.RunTimeFunctionAddress);
             if (!desc) {
                 getWarningsStream(state) << "could not resolve module for address "
                                          << hexval(command.Function.RunTimeFunctionAddress) << "\n";

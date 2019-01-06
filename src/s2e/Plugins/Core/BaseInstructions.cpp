@@ -125,7 +125,7 @@ void BaseInstructions::onTranslateBlockStart(ExecutionSignal *signal, S2EExecuti
         return;
     }
 
-    uint64_t pid = m_monitor->getPid(state, pc);
+    uint64_t pid = m_monitor->getPid(state);
     g_s2e_allow_custom_instructions = plgState->allowed(pid);
 }
 
@@ -137,7 +137,7 @@ void BaseInstructions::allowCurrentPid(S2EExecutionState *state) {
     }
 
     DECLARE_PLUGINSTATE(BaseInstructionsState, state);
-    uint64_t pid = m_monitor->getPid(state, state->regs()->getPc());
+    uint64_t pid = m_monitor->getPid(state);
     plgState->allow(pid);
 
     getDebugStream(state) << "Allowing custom instructions for pid " << hexval(pid) << "\n";
@@ -501,7 +501,7 @@ fail:
 }
 
 void BaseInstructions::invokePlugin(S2EExecutionState *state) {
-    BaseInstructionsPluginInvokerInterface *iface = NULL;
+    IPluginInvoker *iface = NULL;
     Plugin *plugin;
     std::string pluginName;
     target_ulong pluginNamePointer = 0;
@@ -532,11 +532,10 @@ void BaseInstructions::invokePlugin(S2EExecutionState *state) {
         goto fail;
     }
 
-    iface = dynamic_cast<BaseInstructionsPluginInvokerInterface *>(plugin);
+    iface = dynamic_cast<IPluginInvoker *>(plugin);
 
     if (!iface) {
-        getWarningsStream(state) << "ERROR: " << pluginName
-                                 << " is not an instance of BaseInstructionsPluginInvokerInterface\n";
+        getWarningsStream(state) << "ERROR: " << pluginName << " is not an instance of IPluginInvoker\n";
         result = 4;
         goto fail;
     }

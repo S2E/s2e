@@ -22,7 +22,7 @@ class S2EExecutionState;
 namespace plugins {
 namespace models {
 
-class FunctionModels : public BaseFunctionModels, public BaseInstructionsPluginInvokerInterface {
+class FunctionModels : public BaseFunctionModels, public IPluginInvoker {
     S2E_PLUGIN
 
 public:

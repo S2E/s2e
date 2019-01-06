@@ -156,9 +156,6 @@ void FunctionMonitorState::slotCall(S2EExecutionState *state, uint64_t pc) {
             m_callDescriptors.equal_range((uint64_t) -1);
         for (CallDescriptorsMap::iterator it = range.first; it != range.second; ++it) {
             CallDescriptor cd = (*it).second;
-            if (m_plugin->m_monitor) {
-                cr3 = m_plugin->m_monitor->getPageDir(state, pc);
-            }
             if (it->second.cr3 == (uint64_t) -1 || it->second.cr3 == cr3) {
                 cd.signal.emit(state, this);
             }
@@ -176,9 +173,6 @@ void FunctionMonitorState::slotCall(S2EExecutionState *state, uint64_t pc) {
         range = m_callDescriptors.equal_range(eip);
         for (CallDescriptorsMap::iterator it = range.first; it != range.second; ++it) {
             CallDescriptor cd = (*it).second;
-            if (m_plugin->m_monitor) {
-                cr3 = m_plugin->m_monitor->getPageDir(state, pc);
-            }
             if (it->second.cr3 == (uint64_t) -1 || it->second.cr3 == cr3) {
                 cd.signal.emit(state, this);
             }
@@ -211,9 +205,6 @@ void FunctionMonitorState::registerReturnSignal(S2EExecutionState *state, Functi
     }
 
     uint64_t cr3 = state->regs()->getPageDir();
-    if (m_plugin->m_monitor) {
-        cr3 = m_plugin->m_monitor->getPageDir(state, state->regs()->getPc());
-    }
     ReturnDescriptor descriptor = {cr3, sig};
     m_returnDescriptors.insert(std::make_pair(esp, descriptor));
 }
@@ -228,7 +219,7 @@ void FunctionMonitorState::registerReturnSignal(S2EExecutionState *state, Functi
  * whenever this function is called from within a return handler.
  */
 void FunctionMonitorState::slotRet(S2EExecutionState *state, uint64_t pc, bool emitSignal) {
-    target_ulong cr3 = state->regs()->read<target_ulong>(CPU_OFFSET(cr[3]));
+    target_ulong cr3 = state->regs()->getPageDir();
 
     target_ulong esp;
     bool ok = state->regs()->read(CPU_OFFSET(regs[R_ESP]), &esp, sizeof(target_ulong), false);
@@ -253,10 +244,6 @@ void FunctionMonitorState::slotRet(S2EExecutionState *state, uint64_t pc, bool e
         std::pair<ReturnDescriptorsMap::iterator, ReturnDescriptorsMap::iterator> range =
             m_returnDescriptors.equal_range(esp);
         for (ReturnDescriptorsMap::iterator it = range.first; it != range.second; ++it) {
-            if (m_plugin->m_monitor) {
-                cr3 = m_plugin->m_monitor->getAddressSpace(state, pc);
-            }
-
             if (it->second.cr3 == cr3) {
                 if (emitSignal) {
                     it->second.signal.emit(state);

@@ -574,7 +574,7 @@ template <typename UNICODE_STRING> void WindowsMonitor::unloadModule(S2EExecutio
         module.Pid = 0;
         module.AddressSpace = 0;
     } else {
-        module.AddressSpace = getAddressSpace(state, base);
+        module.AddressSpace = state->regs()->getPageDir();
         module.Pid = pid;
     }
 
@@ -855,7 +855,7 @@ bool WindowsMonitor::getModuleDescriptorFromCommand(S2EExecutionState *state, co
         module.AddressSpace = 0;
     } else {
         module.Pid = command.Module2.Pid;
-        module.AddressSpace = getAddressSpace(state, module.LoadBase);
+        module.AddressSpace = state->regs()->getPageDir();
     }
 
     uint64_t characters = command.Module2.UnicodeModulePathSizeInBytes / sizeof(uint16_t);
