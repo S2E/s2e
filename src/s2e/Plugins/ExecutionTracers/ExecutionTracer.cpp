@@ -43,6 +43,8 @@ void ExecutionTracer::initialize() {
     s2e()->getCorePlugin()->onStateGuidAssignment.connect(sigc::mem_fun(*this, &ExecutionTracer::onStateGuidAssignment),
                                                           fsigc::signal_base::HIGHEST_PRIORITY);
 
+    s2e()->getCorePlugin()->onEngineShutdown.connect(sigc::mem_fun(*this, &ExecutionTracer::onEngineShutdown));
+
     m_useCircularBuffer = s2e()->getConfig()->getBool(getConfigKey() + ".useCircularBuffer");
 
     if (m_useCircularBuffer) {
@@ -56,8 +58,13 @@ void ExecutionTracer::initialize() {
 }
 
 ExecutionTracer::~ExecutionTracer() {
+    onEngineShutdown();
+}
+
+void ExecutionTracer::onEngineShutdown() {
     if (m_LogFile) {
         fclose(m_LogFile);
+        m_LogFile = nullptr;
     }
 }
 
