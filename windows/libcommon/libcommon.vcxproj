@@ -21,7 +21,6 @@
   <ItemGroup>
     <ClInclude Include="include\s2e\GuestCodeHooking.h" />
     <ClInclude Include="include\s2e\KeyValueStore.h" />
-    <ClInclude Include="include/s2e/ModuleExecutionDetector.h" />
     <ClInclude Include="include/s2e/ResourceTracker.h" />
     <ClInclude Include="include/s2e/s2e.h" />
     <ClInclude Include="include/s2e/StaticStateMerger.h" />

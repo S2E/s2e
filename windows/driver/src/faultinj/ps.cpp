@@ -31,7 +31,7 @@ NTSTATUS S2EHook_PsCreateSystemThread(
     _In_opt_ PVOID StartContext
 )
 {
-    UINT_PTR CallSite = (UINT_PTR)_ReturnAddress();
+    const UINT_PTR CallSite = reinterpret_cast<UINT_PTR>(_ReturnAddress());
     return FaultInjTemplate1<NTSTATUS>(
         CallSite, "PsCreateSystemThread", FALSE, STATUS_INSUFFICIENT_RESOURCES, &PsCreateSystemThread,
         ThreadHandle, DesiredAccess, ObjectAttributes, ProcessHandle, ClientId, StartRoutine, StartContext

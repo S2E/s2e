@@ -27,9 +27,6 @@
     <ClInclude Include="..\libcommon\include\s2e\keyvalue.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\libcommon\include\s2e\ModuleExecutionDetector.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\libcommon\include\s2e\ResourceTracker.h">
       <Filter>Header Files</Filter>
     </ClInclude>

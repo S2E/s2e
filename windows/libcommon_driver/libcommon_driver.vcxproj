@@ -24,7 +24,6 @@
     <ClInclude Include="..\libcommon\include\s2e\BugCollector.h" />
     <ClInclude Include="..\libcommon\include\s2e\GuestCodeHooking.h" />
     <ClInclude Include="..\libcommon\include\s2e\keyvalue.h" />
-    <ClInclude Include="..\libcommon\include\s2e\ModuleExecutionDetector.h" />
     <ClInclude Include="..\libcommon\include\s2e\ResourceTracker.h" />
     <ClInclude Include="..\libcommon\include\s2e\s2e.h" />
     <ClInclude Include="..\libcommon\include\s2e\StaticStateMerger.h" />

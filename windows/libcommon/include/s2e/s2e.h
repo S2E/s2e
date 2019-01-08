@@ -1,6 +1,6 @@
 /// S2E Selective Symbolic Execution Platform
 ///
-/// Copyright (c) 2017 Cyberhaven
+/// Copyright (c) 2017-2019 Cyberhaven
 /// Copyright (c) 2013 Dependable Systems Lab, EPFL
 ///
 /// Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -37,6 +37,12 @@
 #include <Ntstrsafe.h>
 #endif
 
+#pragma warning(push)
+#pragma warning(disable: 26477) // We can't use nullptr here because the header can be used from C
+#pragma warning(disable: 26494) // Uninited variable, caused by va_list
+#pragma warning(disable: 26485) // Array to pointer decay in various vprintf functions
+#pragma warning(disable: 26486) // Complains about passing ap to vprintf functions
+
 /** Use these to validate the size of the structures at compile time */
 #define _x_CCASSERT_LINE_CAT(predicate, line) \
     typedef char constraint_violated_on_line_##line[2*((predicate)!=0)-1]
@@ -50,10 +56,10 @@ static VOID __s2e_touch_buffer(const void* Buffer, SIZE_T Size)
     }
 
     UINT_PTR StartPage = (UINT_PTR)Buffer & ~(UINT_PTR)0xFFF;
-    UINT_PTR EndPage = (((UINT_PTR)Buffer) + Size - 1) & ~(UINT_PTR)0xFFF;
+    const UINT_PTR EndPage = (((UINT_PTR)Buffer) + Size - 1) & ~(UINT_PTR)0xFFF;
 
     while (StartPage <= EndPage) {
-        volatile char *b = (volatile char *)StartPage;
+        const volatile char *b = (volatile char *)StartPage;
         *b;
         StartPage += 0x1000;
     }
@@ -64,7 +70,7 @@ static VOID __s2e_touch_buffer(const void* Buffer, SIZE_T Size)
   * before passing them to S2E, which can't page in memory by itself. */
 static VOID __s2e_touch_string(PCSTR string)
 {
-    size_t len = strlen(string);
+    const size_t len = strlen(string);
     __s2e_touch_buffer(string, len + 1);
 }
 
@@ -137,7 +143,7 @@ static inline VOID NTAPI S2EMessage(PCSTR Message)
 
 static inline INT NTAPI S2EInvokePlugin(PCSTR PluginName, PVOID Data, UINT32 DataSize)
 {
-    INT Ret = 0;
+    const INT Ret = 0;
     __try {
         __s2e_touch_string(PluginName);
         __s2e_touch_buffer(Data, DataSize);
@@ -150,7 +156,7 @@ static inline INT NTAPI S2EInvokePlugin(PCSTR PluginName, PVOID Data, UINT32 Dat
 
 static inline INT NTAPI S2EInvokePluginConcrete(PCSTR PluginName, PVOID Data, UINT32 DataSize)
 {
-    INT Ret = 0;
+    const INT Ret = 0;
     __try {
         return S2EInvokePluginConcreteModeRaw(PluginName, Data, DataSize);
     } __except (EXCEPTION_EXECUTE_HANDLER) {
@@ -162,7 +168,7 @@ static inline INT NTAPI S2EInvokePluginConcrete(PCSTR PluginName, PVOID Data, UI
 static inline VOID S2EMessageFmt(PCHAR DebugMessage, ...)
 {
     va_list ap;
-    CHAR String[512];
+    CHAR String[512] = {0};
     va_start(ap, DebugMessage);
 #if defined(USER_APP)
     vsprintf_s(String, sizeof(String) - 1, DebugMessage, ap);
@@ -175,7 +181,7 @@ static inline VOID S2EMessageFmt(PCHAR DebugMessage, ...)
 
 static inline UINT32 S2EWriteMemorySafe(PVOID Destination, PVOID Source, DWORD Count)
 {
-    INT Ret = 0;
+    const INT Ret = 0;
     __try {
         return S2EWriteMemory(Destination, Source, Count);
     } __except (EXCEPTION_EXECUTE_HANDLER) {
@@ -183,5 +189,7 @@ static inline UINT32 S2EWriteMemorySafe(PVOID Destination, PVOID Source, DWORD C
     }
     return Ret;
 }
+
+#pragma warning(pop)
 
 #endif

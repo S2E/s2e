@@ -17,6 +17,9 @@
 #include "kernel_structs.h"
 #include "log.h"
 
+#pragma warning(push)
+#pragma warning(disable: 26451) // Arithmetic overflow
+
 {% for d in data %}
 static REGISTER_KERNEL_STRUCTS Handler{{d.checksum | hex}}; /* {{d.version}} - {{d.bits}} - {{d.file}} */
 {% endfor %}
@@ -136,3 +139,5 @@ static VOID Handler{{d.checksum | hex}}(UINT_PTR KernelLoadBase, UINT_PTR Kernel
 #endif
 
 {% endfor %}
+
+#pragma warning(pop)
