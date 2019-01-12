@@ -133,10 +133,10 @@ guest-tools-win-install: stamps/guest-tools32-win-install stamps/guest-tools64-w
 
 install: all-release stamps/libs2e-release-install stamps/tools-release-install \
     stamps/libvmi-release-install stamps/decree-install guest-tools-install     \
-    guest-tools-win-install
+    guest-tools-win-install stamps/llvm-release-install
 install-debug: all-debug stamps/libs2e-debug-install stamps/tools-debug-install \
     stamps/libvmi-debug-install stamps/decree-install guest-tools-install       \
-    guest-tools-win-install
+    guest-tools-win-install stamps/llvm-release-install
 
 # From https://stackoverflow.com/questions/4219255/how-do-you-get-the-list-of-targets-in-a-makefile
 list:
@@ -248,6 +248,7 @@ LLVM_CONFIGURE_FLAGS = -DLLVM_TARGETS_TO_BUILD="X86"        \
                        -DLLVM_INCLUDE_TESTS=Off             \
                        -DLLVM_ENABLE_RTTI=On                \
                        -DLLVM_ENABLE_EH=On                  \
+                       -DLLVM_BINUTILS_INCDIR=/usr/include  \
                        -DCOMPILER_RT_BUILD_SANITIZERS=Off   \
                        -DENABLE_ASSERTIONS=On               \
                        -DCMAKE_C_COMPILER=$(CLANG_CC)       \
@@ -270,10 +271,15 @@ stamps/llvm-debug-make: stamps/llvm-debug-configure
 
 stamps/llvm-release-make: stamps/llvm-release-configure
 
+stamps/llvm-release-install: stamps/llvm-release-make
+	cp $(S2E_BUILD)/llvm-release/lib/LLVMgold.so $(S2E_PREFIX)/lib
+
 else
 stamps/llvm-release-make:
 	echo "Won't build"
 stamps/llvm-debug-make:
+	echo "Won't build"
+stamps/llvm-release-install:
 	echo "Won't build"
 endif
 
