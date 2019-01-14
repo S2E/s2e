@@ -107,8 +107,8 @@ S2EGetConstraintCount endp
 public S2EConcretize
 S2EConcretize proc frame ; _Buffer: near ptr dword, _Size: dword
     .endprolog
-    ;mov rcx, rcx
-    mov rax, rdx
+    mov rax, rcx  ; _Buffer
+    ;mov edx, edx ; _Size
     db 0fh, 3fh
     db 00h, 20h, 00h, 00h
     db 00h, 00h, 00h, 00h

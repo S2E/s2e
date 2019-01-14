@@ -96,8 +96,8 @@ S2EGetConstraintCount endp
 
 public S2EConcretize
 S2EConcretize proc near _Buffer: near ptr dword, _Size: dword
-    mov ecx, _Buffer
-    mov eax, _Size
+    mov eax, _Buffer
+    mov edx, _Size
     db 0fh, 3fh
     db 00h, 20h, 00h, 00h
     db 00h, 00h, 00h, 00h
