@@ -35,6 +35,7 @@ vulnerabilities in them.
    Tutorials/SystemTap/index.rst
    Tutorials/WindowsDLL/index.rst
    Tutorials/WindowsDrivers/FaultInjection.rst
+   Tutorials/Revgen/Revgen.rst
    EquivalenceTesting
 
 .. toctree::
