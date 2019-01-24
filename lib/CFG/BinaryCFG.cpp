@@ -11,10 +11,21 @@
 namespace llvm {
 
 void BinaryBasicBlock::addSucc(BinaryBasicBlock *BB) {
+    for (auto &it : successors) {
+        if (it == BB) {
+            return;
+        }
+    }
     successors.push_back(BB);
 }
 
 void BinaryBasicBlock::addPred(BinaryBasicBlock *BB) {
+    for (auto &it : predecessors) {
+        if (it == BB) {
+            return;
+        }
+    }
+
     predecessors.push_back(BB);
 }
 
