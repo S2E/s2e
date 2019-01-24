@@ -616,7 +616,7 @@ Function *RevGen::reconstructFunction(BinaryFunction *bf) {
 
         TranslatedBlock *tb = m_tbs[address];
         if (!tb) {
-            LOGERROR("Could not find bb at address " << hexval(address) << ", generating return instead\n");
+            LOGERROR("Could not find bb at address " << hexval(address) << "\n");
             generateIncompleteMarker(builder, address);
             ConstantInt *ci = ConstantInt::get(ctx, APInt(64, 0));
             builder.CreateRet(ci);
