@@ -102,6 +102,7 @@ endforeach()
 include_directories(${GLIB_PKG_INCLUDE_DIRS}
                     ${LIBTCG_INCLUDE_DIR}
                     ${LIBCPU_INCLUDE_DIR}
+                    ${FSIGCXX_INCLUDE_DIR}
                     ${LIBQ_INCLUDE_DIR}
                     ${LIBCOROUTINE_INCLUDE_DIR}
                     ${VMI_INCLUDE_DIR})

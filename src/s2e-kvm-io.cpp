@@ -15,9 +15,13 @@
 #include <cpu/exec.h>
 #include <cpu/i386/cpu.h>
 #include <libcpu-log.h>
-#include "s2e-kvm-interface.h"
+#include "s2e-kvm-vcpu.h"
+#include "s2e-kvm.h"
 
 extern CPUX86State *env;
+
+namespace s2e {
+namespace kvm {
 
 // This is an experimental feature
 // #define ENABLE_RETRANSLATE
@@ -255,3 +259,5 @@ struct cpu_io_funcs_t g_io = {
     .mmio_read = s2e_kvm_mmio_read,
     .mmio_write = s2e_kvm_mmio_write,
 };
+}
+}
