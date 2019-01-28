@@ -20,6 +20,10 @@
 #include <inttypes.h>
 #include <stdbool.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * Coroutines are a mechanism for stack switching and can be used for
  * cooperative userspace threading.  These functions provide a simple but
@@ -95,5 +99,9 @@ Coroutine *coroutine_fn coroutine_self(void);
  * coroutine_fn annotation since they work outside coroutine context.
  */
 bool in_coroutine(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* COROUTINE_H */
