@@ -61,7 +61,7 @@ much better CFG recovery. We plan to port Revgen to the latest version.
 
 S2E comes with a Docker image and `instructions <https://github.com/S2E/decree/blob/master/README.md>`__ on how to build
 all DARPA CyberGrandChallenge binaries. After you have completed this step, you should have a ``samples`` folder that
-contains 279 binaries:
+contains ~280 binaries:
 
 .. code-block:: bash
 
@@ -108,7 +108,7 @@ The meaning of each file is explained in the ``revgen.sh`` script, but here is a
 ones:
 
     * ``CADET_00001``: the original binary
-    * ``CADET_00001.pbcfg``: the CGC extracted by IDA Pro / McSema
+    * ``CADET_00001.pbcfg``: the CFG extracted by IDA Pro / McSema
     * ``CADET_00001.bc``: the LLVM bitcode file created by RevGen
     * ``CADET_00001.rev``: the LLVM bitcode file compiled to an ELF binary that you can run on your Linux host
 
@@ -279,7 +279,7 @@ Stitching basic blocks into functions
 
 Now that Revgen created a set of LLVM functions that represent individual basic blocks of the binary,
 it needs to assemble them into a bigger function that represents the original function of the binary.
-This is straightforward: Revgen creates a new LLVM function and fills it with calls to the original basic blocks.
+This is straightforward: Revgen creates a new LLVM function and fills it with calls to the translated basic blocks.
 So our example above would look like this:
 
 
@@ -362,14 +362,14 @@ In the previous section, we have seen how Revgen translates machine code to LLVM
 requires linking the translated bitcode file with a run time that sets up the initial CPU state and provides
 emulation helpers that resolve memory accesses and translate system calls.
 
-**Initializing the stack.**
+**Initializing the CPU state.**
 The runtime must first initialize the emulated CPU state, in particular the stack pointer register. The translated code
 retains all the assumptions of the original binary about the stack layout. In particular, it assumes that local
 variables, return addresses, and parameters are located at precise memory addresses when doing stack pointer arithmetic.
 The runtime library preserves the original stack layout by using a dual-stack architecture.  There is one *native* stack
-used by  the LLVM program and one *implicit* stack, whose pointer is stored in the CPU state structure (e.g., ``esp``
-for x86) to each LLVM function, and which is manipulated by the LLVM functions. The runtime allocates the implicit stack
-and sets the implicit stack pointer before calling the main entry point of the program.
+used by  the LLVM program and one *implicit* stack, whose pointer is stored in the CPU state structure (e.g.,
+``env->regs[R_ESP]`` for x86) and which is manipulated by the translated code. The runtime
+allocates the implicit stack and sets the implicit stack pointer before calling the main entry point of the program.
 
 **Resolving pointer arithmetic.**
 Revgen embeds a copy of the original binary in the translated binary in order to resolve accesses to its sections at
@@ -430,7 +430,7 @@ benchmark Revgen. Here is a sample output of the script:
 You can find the complete data in the ``cgc-binaries.stats`` in the `documentation
 <https://github.com/S2E/docs/tree/master/src/Tutorials/Revgen>`__ repository. The bar chart below shows the size overhead
 of binaries produced by Revgen by comparing the original and translated binary size. You can generate the chart using
-this `script <https://github.com/S2E/tools/tree/master/tools/scripts/revgen-plot-stats.r>`__ (written in `R
+this `script <https://github.com/S2E/tools/blob/master/tools/scripts/revgen/revgen-plot-stats.r>`__ (written in `R
 <https://www.r-project.org/>`__).
 
 .. image:: cgc-binaries.svg
