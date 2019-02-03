@@ -221,7 +221,6 @@ struct func_and_addr *get_revgen_functions(void) {
 
 int __detect_library_functions(int argc, char **argv) {
     if (!__revgen_detect_library_functions) {
-        printf("Library function detection has not been enabled\n");
         return -1;
     }
 

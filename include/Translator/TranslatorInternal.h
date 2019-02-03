@@ -485,10 +485,11 @@ TranslatedBlock *X86Translator::translate(uint64_t address, uint64_t lastAddress
 
     // We need precise pc to attach metadata to llvm instructions
     // tb.precise_entries = 0;
-
     cpu_gen_llvm(&env, &tb);
 
-    // verifyFunction(*(Function*)tb.llvm_function);
+    LOGDEBUG(*(Function *) tb.llvm_function);
+
+    verifyFunction(*(Function *) tb.llvm_function);
     LOGDEBUG("tb type: " << hexval(tb.se_tb_type) << "\n");
 
     ETranslatedBlockType bbType;
@@ -538,7 +539,7 @@ TranslatedBlock *X86Translator::translate(uint64_t address, uint64_t lastAddress
         case TB_JMP:
         case TB_CALL:
             if (info.staticBranchTargets.size() != 1) {
-                LOGERROR("TB static targets mismatch TB type\n");
+                LOGERROR("TB " << hexval(address) << " static targets mismatch TB type\n");
                 return NULL;
             }
             break;
@@ -546,7 +547,7 @@ TranslatedBlock *X86Translator::translate(uint64_t address, uint64_t lastAddress
         case TB_COND_JMP:
         case TB_REP:
             if (info.staticBranchTargets.size() != 2) {
-                LOGERROR("TB static targets mismatch TB type\n");
+                LOGERROR("TB " << hexval(address) << " static targets mismatch TB type\n");
                 return NULL;
             }
             break;
@@ -560,7 +561,7 @@ TranslatedBlock *X86Translator::translate(uint64_t address, uint64_t lastAddress
         case TB_EXCP:
         case TB_SYSENTER:
             if (info.staticBranchTargets.size() != 0) {
-                LOGERROR("TB static targets mismatch TB type\n");
+                LOGERROR("TB " << hexval(address) << " static targets mismatch TB type\n");
                 return NULL;
             }
             break;
