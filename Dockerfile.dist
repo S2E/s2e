@@ -1,9 +1,9 @@
-# Copyright (C) 2017, Cyberhaven
+# Copyright (C) 2017-2019, Cyberhaven
 # All rights reserved.
 #
 # Licensed under the Cyberhaven Research License Agreement.
 
-FROM ubuntu:16.04
+FROM ubuntu:18.04
 MAINTAINER Vitaly Chipounov <vitaly@cyberhaven.io>
 
 RUN sed -i '1ideb mirror://mirrors.ubuntu.com/mirrors.txt xenial main restricted' /etc/apt/sources.list && \
@@ -20,11 +20,11 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install -y                        \
         wget libsvn1 libcurl3 gdb python2.7-dbg libssl-dev                   \
         libstdc++6:i386 libpython2.7:i386 lib32ncurses5 lib32ncurses5-dev    \
         libncurses5-dev libx32ncurses5-dev libncurses5-dev:i386              \
-        libxml2-dev libxslt1-dev libffi-dev                                  \
-        lsof psmisc libboost-serialization1.58.0 libboost-regex1.58          \
+        libxml2-dev libicu-dev libxslt1-dev libffi-dev                       \
+        lsof psmisc libboost-system1.65.1 libboost-serialization1.65.1 libboost-regex1.65.1  \
         libmemcached11 libgettextpo0 libelf1 libelf1:i386 libjemalloc1       \
-        libpcre3 libpcre3-dev libxml2-dev:i386 libpcre3:i386                 \
-        liblua5.1-0 liblua5.2-0 libsigc++-2.0-dev jq                         \
+        libpcre3 libpcre3-dev libpcre3:i386 \
+        liblua5.1-0 liblua5.2-0 libsigc++-2.0-dev jq libpng12-0              \
         python-yaml python-matplotlib python-lxml python-pip sudo  &&        \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
         libc6-dev-i386 lib32stdc++-4.8-dev time                              \
