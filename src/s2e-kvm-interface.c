@@ -244,6 +244,9 @@ int s2e_kvm_check_extension(int kvm_fd, int capability) {
             return 1;
 #endif
 
+        case KVM_CAP_ADJUST_CLOCK:
+            return KVM_CLOCK_TSC_STABLE;
+
         default:
 #ifdef SE_KVM_DEBUG_INTERFACE
             printf("Unsupported cap %x\n", capability);
