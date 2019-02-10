@@ -20,12 +20,16 @@ Installing s2e-env
     # Optional: install s2e-env in a virtual env
     virtualenv venv
     . venv/bin/activate
+    pip install --upgrade pip
 
     # By default, s2e-env uses https to clone repositories.
     # If you want ssh, please edit s2e_env/dat/config.yaml before running pip install.
     # If your key is password-protected, use ssh-agent.
-    # It is important to add --process-dependency-links as s2e-env has some dependencies that are not on PyPI.
+    pip install .
+
+    # Note: if your pip version is earlier than v19, use the following command:
     pip install --process-dependency-links .
+
 
 
 Using s2e-env
