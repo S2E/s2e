@@ -3185,6 +3185,12 @@ void helper_write_crN(int reg, target_ulong t0) {
                 cpu_set_apic_tpr(env->apic_state, t0);
             }
             env->v_tpr = t0 & 0x0f;
+
+            // Give a chance to the KVM client to inject any
+            // pending interrupts. Failing to exit the CPU loop
+            // may cause missed interrupts in the guest and
+            // result in various lock ups.
+            cpu_exit(env);
             break;
         default:
             env->cr[reg] = t0;
