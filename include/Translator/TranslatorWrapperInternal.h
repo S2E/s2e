@@ -446,6 +446,10 @@ void cpu_loop_exit(CPUArchState *env) {
     assert(false && "Not usable statically");
 }
 
+void cpu_exit(CPUArchState *env) {
+    assert(false && "Not usable statically");
+}
+
 void cpu_resume_from_signal(CPUArchState *env1, void *puc) {
     assert(false && "Not usable statically");
 }
