@@ -1,0 +1,8 @@
+windows32*
+windows64*
+linux64*
+linux32*
+cgc32*
+bin/*
+*.o
+

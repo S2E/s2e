@@ -1,0 +1,6 @@
+test:
+    description: "Checks that the CADET_00001 sample produces POVs"
+    targets:
+        - CADET_00001/bin/CADET_00001
+    scripts:
+        run_tests: run-tests.tpl
