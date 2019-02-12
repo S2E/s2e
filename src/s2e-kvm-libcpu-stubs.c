@@ -42,12 +42,15 @@ uint64_t cpu_get_tsc(CPUX86State *env) {
 
 extern CPUX86State *env;
 
+// TODO: remove all these APIC functions, op_helper
+// can modify the values directly.
 uint8_t cpu_get_apic_tpr(DeviceState *d) {
     return env->v_tpr;
 }
 
 void cpu_set_apic_tpr(DeviceState *d, uint8_t val) {
-    env->v_tpr = val;
+    // TODO: remove this function
+    abort();
 }
 
 void cpu_set_apic_base(DeviceState *d, uint64_t val) {

@@ -78,6 +78,10 @@ static uint32_t s_msr_list [] = {
     MSR_MC0_MISC
 };
 
+#define KVM_CPUID_SIGNATURE 0x40000000
+#define KVM_CPUID_FEATURES 0x40000001
+#define KVM_FEATURE_CLOCKSOURCE 0
+
 /* Array of valid (function, index) entries */
 static uint32_t s_cpuid_entries[][2] = {
     {0, -1},
@@ -93,6 +97,8 @@ static uint32_t s_cpuid_entries[][2] = {
     {9, -1},
     {0xa, -1},
     {0xd, -1},
+    {KVM_CPUID_SIGNATURE, -1},
+    {KVM_CPUID_FEATURES, -1},
     {0x80000000, -1},
     {0x80000001, -1},
     {0x80000002, -1},
@@ -141,13 +147,33 @@ int s2e_kvm_get_supported_cpuid(int kvm_fd, struct kvm_cpuid2 *cpuid) {
         return -1;
     } else if (cpuid->nent >= nentries) {
         cpuid->nent = nentries;
-        // errno = ENOMEM;
-        // return -1;
     }
 
     for (unsigned i = 0; i < nentries; ++i) {
         struct kvm_cpuid_entry2 *e = &cpuid->entries[i];
-        cpu_x86_cpuid(env, s_cpuid_entries[i][0], s_cpuid_entries[i][1], &e->eax, &e->ebx, &e->ecx, &e->edx);
+
+        // KVM-specific CPUIDs go here rather than to cpu_x86_cpuid
+        // because we don't want to expose them to the guest.
+        switch (s_cpuid_entries[i][0]) {
+            case KVM_CPUID_SIGNATURE:
+                // This returns "KVMKVMVKM"
+                e->eax = 0x40000001;
+                e->ebx = 0x4b4d564b;
+                e->ecx = 0x564b4d56;
+                e->edx = 0x4d;
+                break;
+
+            case KVM_CPUID_FEATURES:
+                // Unlike QEMU 1.0, QEMU 3.0 required this CPUID flag to be set
+                // in order to use get/set clock. Not implementing this feature
+                // may cause guests to hang on resume because the TSC is not
+                // restored in that case.
+                e->eax = 1 << KVM_FEATURE_CLOCKSOURCE;
+                break;
+            default:
+                cpu_x86_cpuid(env, s_cpuid_entries[i][0], s_cpuid_entries[i][1], &e->eax, &e->ebx, &e->ecx, &e->edx);
+                break;
+        }
 
         e->flags = 0;
         e->index = 0;

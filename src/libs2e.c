@@ -450,9 +450,11 @@ int fprintf(FILE *fp, const char *fmt, ...) {
     int ret = vfprintf(fp, fmt, vl);
     va_end(vl);
 
-    va_start(vl, fmt);
-    s2e_vprintf(fmt, false, vl);
-    va_end(vl);
+    if (fp == stdout || fp == stderr) {
+        va_start(vl, fmt);
+        s2e_vprintf(fmt, false, vl);
+        va_end(vl);
+    }
 
     return ret;
 }
