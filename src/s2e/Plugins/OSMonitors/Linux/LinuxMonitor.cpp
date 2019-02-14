@@ -111,10 +111,7 @@ void LinuxMonitor::handleSegfault(S2EExecutionState *state, const S2E_LINUXMON_C
 }
 
 void LinuxMonitor::handleProcessLoad(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd) {
-    if (!m_initialized) {
-        m_initialized = true;
-        onMonitorLoad.emit(state);
-    }
+    completeInitialization(state);
 
     std::string processPath;
     if (!state->mem()->readString(cmd.ProcessLoad.process_path, processPath)) {
@@ -197,10 +194,7 @@ void LinuxMonitor::handleInit(S2EExecutionState *state, const S2E_LINUXMON_COMMA
     m_taskStructPidOffset = cmd.Init.task_struct_pid_offset;
     m_taskStructTgidOffset = cmd.Init.task_struct_tgid_offset;
 
-    if (!m_initialized) {
-        m_initialized = true;
-        onMonitorLoad.emit(state);
-    }
+    completeInitialization(state);
 
     loadKernelImage(state, cmd.Init.start_kernel);
 }

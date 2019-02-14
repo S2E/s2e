@@ -834,8 +834,7 @@ void WindowsMonitor::opcodeInitKernelStructs(S2EExecutionState *state, uint64_t 
 
     enableInstrumentation(state);
 
-    m_initialized = true;
-    onMonitorLoad.emit(state);
+    completeInitialization(state);
 
     bool ret = checkNewProcess(state, true);
     assert(ret);

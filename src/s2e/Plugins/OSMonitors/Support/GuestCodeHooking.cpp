@@ -192,6 +192,7 @@ void GuestCodeHooking::onTranslateBlockStart(ExecutionSignal *signal, S2EExecuti
 
     DECLARE_PLUGINSTATE(GuestCodeHookingState, state);
     auto pid = m_monitor->getPid(state);
+    pid = m_monitor->translatePid(pid, pc);
 
     HookLocation loc;
     loc.pc = pc;
@@ -261,7 +262,7 @@ void GuestCodeHooking::onTranslateBlockEnd(ExecutionSignal *signal, S2EExecution
 void GuestCodeHooking::onExecuteCall(S2EExecutionState *state, uint64_t pc) {
     HookLocation callee;
     callee.pc = state->regs()->getPc();
-    callee.pid = m_monitor->getPid(state);
+    callee.pid = m_monitor->translatePid(m_monitor->getPid(state), callee.pc);
 
     DECLARE_PLUGINSTATE(GuestCodeHookingState, state);
     const auto it = plgState->m_callSiteHooks.find(callee);
@@ -278,7 +279,7 @@ void GuestCodeHooking::onExecuteCall(S2EExecutionState *state, uint64_t pc) {
 bool GuestCodeHooking::parseGHLFcn(S2EExecutionState *state, const S2E_GUEST_HOOK_LIBRARY_FCN &in,
                                    S2E_GUEST_HOOK_LIBRARY_FCN_CPP &out) {
     out.HookPc = in.HookPc;
-    out.Pid = in.Pid;
+    out.Pid = m_monitor->translatePid(in.Pid, in.HookPc);
     out.HookReturn64 = in.HookReturn64;
 
     bool ok = true;
@@ -309,7 +310,7 @@ void GuestCodeHooking::handleOpcodeInvocation(S2EExecutionState *state, uint64_t
         case REGISTER_DIRECT_HOOK: {
             HookLocation loc;
             loc.pc = command.DirectHook.OriginalPc;
-            loc.pid = command.DirectHook.Pid;
+            loc.pid = m_monitor->translatePid(command.DirectHook.Pid, loc.pc);
 
             Hook hook;
             hook.hook_return_64 = 0;
@@ -326,7 +327,7 @@ void GuestCodeHooking::handleOpcodeInvocation(S2EExecutionState *state, uint64_t
         case UNREGISTER_DIRECT_HOOK: {
             HookLocation loc;
             loc.pc = command.DirectHook.OriginalPc;
-            loc.pid = command.DirectHook.Pid;
+            loc.pid = m_monitor->translatePid(command.DirectHook.Pid, loc.pc);
             plgState->m_functionHooks.erase(loc);
 
             getInfoStream(state) << "Unregistered function hook at " << hexval(loc.pid) << ":" << hexval(loc.pc)

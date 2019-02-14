@@ -154,10 +154,7 @@ unsigned DecreeMonitor::getSymbolicReadsCount(S2EExecutionState *state) const {
 }
 
 void DecreeMonitor::handleProcessLoad(S2EExecutionState *state, const S2E_DECREEMON_COMMAND_PROCESS_LOAD &p) {
-    if (!m_initialized) {
-        m_initialized = true;
-        onMonitorLoad.emit(state);
-    }
+    completeInitialization(state);
 
     std::string processPath(p.process_path, strnlen(p.process_path, sizeof(p.process_path)));
 
@@ -764,10 +761,7 @@ void DecreeMonitor::handleInit(S2EExecutionState *state, const S2E_DECREEMON_COM
     m_kernelStartAddress = d.page_offset;
     m_taskStructPidOffset = d.task_struct_pid_offset;
 
-    if (!m_initialized) {
-        m_initialized = true;
-        onMonitorLoad.emit(state);
-    }
+    completeInitialization(state);
 
     loadKernelImage(state, d.start_kernel);
 }
