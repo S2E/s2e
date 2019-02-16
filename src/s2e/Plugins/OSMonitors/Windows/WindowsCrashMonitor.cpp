@@ -83,8 +83,9 @@ void WindowsCrashMonitor::generateCrashDump(S2EExecutionState *state, const vmi:
 }
 
 void WindowsCrashMonitor::onBlueScreen(S2EExecutionState *state, vmi::windows::BugCheckDescription *info) {
-    onKernelModeCrash.emit(state, *info);
     generateCrashDump(state, info, false);
+
+    onKernelModeCrash.emit(state, *info);
 
     // There is no point of letting the state up at this point, the guest is stuck with a BSOD
     s2e()->getExecutor()->terminateStateEarly(*state, "BSOD");
