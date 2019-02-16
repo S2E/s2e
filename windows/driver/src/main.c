@@ -44,25 +44,21 @@ PDEVICE_OBJECT g_DeviceObject = NULL;
 
 S2E_CONFIG g_config;
 
-static UINT32 GetOSVersion(VOID)
+static NTSTATUS GetOSVersion(RTL_OSVERSIONINFOEXW *Version)
 {
-    RTL_OSVERSIONINFOEXW Version;
+    NTSTATUS Status;
 
-    Version.dwOSVersionInfoSize = sizeof(Version);
-    RtlGetVersion((PRTL_OSVERSIONINFOW)&Version);
+    Version->dwOSVersionInfoSize = sizeof(*Version);
+    Status = RtlGetVersion((PRTL_OSVERSIONINFOW)Version);
 
-    UINT32 NTVersion =
-        (Version.dwMajorVersion << 24) |
-        (Version.dwMinorVersion << 16) |
-        (Version.wServicePackMajor << 8);
+    if (NT_SUCCESS(Status)) {
+        LOG("Detected kernel version %d.%d.%d\n",
+            Version->dwMajorVersion,
+            Version->dwMinorVersion,
+            Version->dwBuildNumber);
+    }
 
-    LOG("Detected kernel version %d.%d.%d (NTDDI %#x)\n",
-        Version.dwMajorVersion,
-        Version.dwMinorVersion,
-        Version.dwBuildNumber,
-        NTVersion);
-
-    return NTVersion;
+    return Status;
 }
 
 static NTSTATUS ValidateS2E()
@@ -110,7 +106,11 @@ NTSTATUS DriverEntry(
 
     LOG("Driver build for %#x\n", _WIN32_WINNT);
 
-    g_kernelStructs.Version = GetOSVersion();
+    Status = GetOSVersion(&g_kernelStructs.Version);
+    if (!NT_SUCCESS(Status)) {
+        LOG("Could not get kernel version (%#x)\n", Status);
+        goto err;
+    }
 
     Status = ValidateS2E();
     if (!NT_SUCCESS(Status)) {

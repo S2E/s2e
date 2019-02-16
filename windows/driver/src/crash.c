@@ -177,11 +177,7 @@ VOID S2EBSODHook(
 
 UINT_PTR GetS2ECrashHookAddress()
 {
-    RTL_OSVERSIONINFOW Version;
-    Version.dwOSVersionInfoSize = sizeof(Version);
-    RtlGetVersion(&Version);
-
-    if (Version.dwMajorVersion == 0x5 && Version.dwMinorVersion == 0x1) {
+    if (g_kernelStructs.Version.dwMajorVersion == 0x5 && g_kernelStructs.Version.dwMinorVersion == 0x1) {
         LOG("No S2EBSODHook for this Windows version\n");
         return 0;
     }
