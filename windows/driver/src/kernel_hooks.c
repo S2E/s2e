@@ -13,6 +13,7 @@
 #include <s2e/GuestCodeHooking.h>
 #include "kernel_structs.h"
 #include "log.h"
+#include "utils.h"
 
 void* _ReturnAddress(VOID);
 
@@ -29,10 +30,8 @@ typedef enum _OB_OPEN_REASON
     ObMaxOpenReason = 4
 } OB_OPEN_REASON;
 
-/**
- * ObpCreateHandle has 10 parameters, whose type we don't know.
- * Set the types to UINT_PTR to make sure that there is no truncation.
- */
+// Version with 10 parameters in use up to Win10?
+// We don't really know the types, so set them to UINT_PTR to make sure that there is no truncation.
 typedef NTSTATUS(*OBPCREATEHANDLE)(
     OB_OPEN_REASON OpenReason,
     PVOID Object,
@@ -46,35 +45,32 @@ typedef NTSTATUS(*OBPCREATEHANDLE)(
     PHANDLE ReturnedHandle
 );
 
-static NTSTATUS ObpCreateHandleHook(
+// Version with 11 parameters used by Win10
+// We don't really know the types, so set them to UINT_PTR to make sure that there is no truncation.
+typedef NTSTATUS(*OBPCREATEHANDLE2)(
     OB_OPEN_REASON OpenReason,
     PVOID Object,
     UINT_PTR Type,
     UINT_PTR AccessState,
     UINT_PTR AdditionalReferences,
     UINT_PTR HandleAttributes,
-    UINT_PTR Context,
     UINT_PTR AccessMode,
+    UINT_PTR Unknown1,
+    UINT_PTR Unknown2,
     PVOID *pReturnedObject,
     PHANDLE ReturnedHandle
-)
+);
+
+
+static VOID HandleCreateHandleHook(PHANDLE ReturnedHandle)
 {
-    NTSTATUS Ret;
-    PEPROCESS Process = NULL;
     NTSTATUS Result;
+    PEPROCESS Process = NULL;
     HANDLE ProcessId;
-    OBPCREATEHANDLE Original = (OBPCREATEHANDLE)(UINT_PTR)g_kernelStructs.ObpCreateHandle;
-
-    Ret = Original(OpenReason, Object, Type, AccessState, AdditionalReferences, HandleAttributes,
-            Context, AccessMode, pReturnedObject, ReturnedHandle);
-
-    if ((Ret != STATUS_SUCCESS) || !ReturnedHandle) {
-        return Ret;
-    }
 
     Result = ObReferenceObjectByHandle(*ReturnedHandle, READ_CONTROL, *PsProcessType, KernelMode, &Process, NULL);
     if (Result != STATUS_SUCCESS) {
-        return Ret;
+        return;
     }
 
     ProcessId = PsGetProcessId(Process);
@@ -93,6 +89,61 @@ static NTSTATUS ObpCreateHandleHook(
         Cmd.ProcessHandle.Handle = (UINT_PTR)*ReturnedHandle;
         S2EInvokePlugin("WindowsMonitor", &Cmd, sizeof(Cmd));
     }
+}
+
+static NTSTATUS ObpCreateHandleHook(
+    OB_OPEN_REASON OpenReason,
+    PVOID Object,
+    UINT_PTR Type,
+    UINT_PTR AccessState,
+    UINT_PTR AdditionalReferences,
+    UINT_PTR HandleAttributes,
+    UINT_PTR Context,
+    UINT_PTR AccessMode,
+    PVOID *pReturnedObject,
+    PHANDLE ReturnedHandle
+)
+{
+    NTSTATUS Ret;
+    OBPCREATEHANDLE Original = (OBPCREATEHANDLE)(UINT_PTR)g_kernelStructs.ObpCreateHandle;
+
+    Ret = Original(OpenReason, Object, Type, AccessState, AdditionalReferences, HandleAttributes,
+            Context, AccessMode, pReturnedObject, ReturnedHandle);
+
+    if ((Ret != STATUS_SUCCESS) || !ReturnedHandle) {
+        return Ret;
+    }
+
+    HandleCreateHandleHook(ReturnedHandle);
+
+    return Ret;
+}
+
+static NTSTATUS ObpCreateHandleHook2(
+    OB_OPEN_REASON OpenReason,
+    PVOID Object,
+    UINT_PTR Type,
+    UINT_PTR AccessState,
+    UINT_PTR AdditionalReferences,
+    UINT_PTR HandleAttributes,
+    UINT_PTR AccessMode,
+    UINT_PTR Unknown1,
+    UINT_PTR Unknown2,
+    PVOID *pReturnedObject,
+    PHANDLE ReturnedHandle
+)
+{
+    NTSTATUS Ret;
+    OBPCREATEHANDLE2 Original = (OBPCREATEHANDLE2)(UINT_PTR)g_kernelStructs.ObpCreateHandle;
+
+    Ret = Original(OpenReason, Object, Type, AccessState, AdditionalReferences, HandleAttributes,
+        AccessMode, Unknown1, Unknown2, pReturnedObject, ReturnedHandle);
+
+    if ((Ret != STATUS_SUCCESS) || !ReturnedHandle) {
+        return Ret;
+    }
+
+    HandleCreateHandleHook(ReturnedHandle);
 
     return Ret;
 }
@@ -371,7 +422,11 @@ NTSTATUS MiUnmapViewOfSection(
 VOID InitializeKernelHooks(VOID)
 {
     if (g_kernelStructs.ObpCreateHandle) {
-        GuestCodeHookingRegisterDirectKernelHook(g_kernelStructs.ObpCreateHandle, (UINT_PTR)ObpCreateHandleHook);
+        if (IsWindows10OrAbove(&g_kernelStructs.Version)) {
+            GuestCodeHookingRegisterDirectKernelHook(g_kernelStructs.ObpCreateHandle, (UINT_PTR)ObpCreateHandleHook2);
+        } else {
+            GuestCodeHookingRegisterDirectKernelHook(g_kernelStructs.ObpCreateHandle, (UINT_PTR)ObpCreateHandleHook);
+        }
     } else {
         S2EKillState(0, "no ObpCreateHandle hook available");
     }
