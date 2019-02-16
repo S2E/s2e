@@ -132,9 +132,9 @@ NTSTATUS InitializeManualCrash(PVOID *Header, UINT64 *HeaderSize)
 
     InitializeCrashDumpHeader(&BufferNeeded);
 
-#if _WIN32_WINNT >= _WIN32_WINNT_WIN8
-    DecryptKdDataBlock();
-#endif
+    if (IsWindows8OrAbove(&g_kernelStructs.Version)) {
+        DecryptKdDataBlock();
+    }
 
     KeSaveStateForHibernate(g_kernelStructs.PRCBProcessorStateOffset);
 
@@ -159,9 +159,9 @@ VOID S2EBSODHook(
 
     InitializeCrashDumpHeader(&BufferNeeded);
 
-#if _WIN32_WINNT >= _WIN32_WINNT_WIN8
-    DecryptKdDataBlock();
-#endif
+    if (IsWindows8OrAbove(&g_kernelStructs.Version)) {
+        DecryptKdDataBlock();
+    }
 
     Command.Header = (UINT_PTR)s_BugCheckHeaderBuffer;
     Command.HeaderSize = BufferNeeded;
