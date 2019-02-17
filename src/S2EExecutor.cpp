@@ -830,6 +830,7 @@ S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMContext *tcgLLVMContext, const Interpr
     __DEFINE_EXT_FUNCTION(cpu_loop_exit)
     __DEFINE_EXT_FUNCTION(cpu_get_tsc)
     __DEFINE_EXT_FUNCTION(tb_find_pc)
+    __DEFINE_EXT_FUNCTION(cpu_exit)
 
     __DEFINE_EXT_FUNCTION(hw_breakpoint_insert)
     __DEFINE_EXT_FUNCTION(hw_breakpoint_remove)
