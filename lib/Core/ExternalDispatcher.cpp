@@ -8,6 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "klee/ExternalDispatcher.h"
+#include "klee/Common.h"
 #include "klee/Config/config.h"
 
 // Ugh.
@@ -243,7 +244,10 @@ Function *ExternalDispatcher::createDispatcher(Function *target, Instruction *in
     uintptr_t targetFunctionAddress =
         (uintptr_t) llvm::sys::DynamicLibrary::SearchForAddressOfSymbol(target->getName());
 
-    assert(targetFunctionAddress && "External function not registered");
+    if (!targetFunctionAddress) {
+        *klee_warning_stream << "External function " << target->getName() << " not registered\n";
+        abort();
+    }
 
     Instruction *toPtr = new IntToPtrInst(
         ConstantInt::get(Type::getInt64Ty(context), APInt(sizeof(targetFunctionAddress) * 8, targetFunctionAddress)),
