@@ -68,6 +68,7 @@ vulnerabilities in them.
    Contribute
    ProfilingS2E
    DebuggingS2E
+   Testsuite
    WindowsEnvSetup
 
 
