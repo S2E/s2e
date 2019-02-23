@@ -123,9 +123,14 @@ static void *timer_cb(void *param) {
     while (!s_s2e_exiting) {
         usleep(100 * 1000);
 
-        // Required for shutdown, otherwise kvm clients may get stuck
-        // Also required to give a chance timers to run
-        s2e_kvm_send_cpu_exit_signal();
+        // Send a signal to exit CPU loop only when no slow KLEE code
+        // is running. Otherwise, there are too many exits and little
+        // progress in the guest.
+        if (timers_state.cpu_clock_scale_factor == 1) {
+            // Required for shutdown, otherwise kvm clients may get stuck
+            // Also required to give a chance timers to run
+            s2e_kvm_send_cpu_exit_signal();
+        }
     }
 
     s_timer_exited = true;
