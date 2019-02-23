@@ -1,0 +1,13 @@
+test:
+    description: "Maze demo that demonstrates more complex symbex with many states"
+
+    targets:
+        - windows64-basic2-maze.exe
+        - windows32-basic2-maze.exe
+        - linux32-basic2-maze
+        - linux64-basic2-maze
+
+    # Avoid forced concretizations on these images
+    blacklisted-images:
+        - windows-8.1ent-x86_64
+        - windows-10ent1703-x86_64
