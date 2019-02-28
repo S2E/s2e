@@ -1,0 +1,14 @@
+test:
+    description: "Tests that fault injection works properly"
+
+    targets:
+        - ./scanner/filter/x64/Debug/scanner.inf
+        - ./scanner/filter/Debug/scanner.inf
+
+    target-images:
+        - windows-xpsp3pro-i386
+        - windows-7sp1ent-x86_64
+
+    build-options:
+        windows-build-server: true
+        post-project-generation-script: fix-config.sh
