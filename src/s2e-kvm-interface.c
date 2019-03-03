@@ -123,9 +123,14 @@ static void *timer_cb(void *param) {
     while (!s_s2e_exiting) {
         usleep(100 * 1000);
 
-        // Required for shutdown, otherwise kvm clients may get stuck
-        // Also required to give a chance timers to run
-        s2e_kvm_send_cpu_exit_signal();
+        // Send a signal to exit CPU loop only when no slow KLEE code
+        // is running. Otherwise, there are too many exits and little
+        // progress in the guest.
+        if (timers_state.cpu_clock_scale_factor == 1) {
+            // Required for shutdown, otherwise kvm clients may get stuck
+            // Also required to give a chance timers to run
+            s2e_kvm_send_cpu_exit_signal();
+        }
     }
 
     s_timer_exited = true;
@@ -359,17 +364,6 @@ int s2e_kvm_create_vm(int kvm_fd) {
         exit(-1);
     }
 
-    struct sigaction act;
-    memset(&act, 0, sizeof(act));
-    sigfillset(&act.sa_mask);
-    act.sa_flags = 0;
-    act.sa_handler = s2e_kvm_cpu_exit_signal;
-
-    if (sigaction(CPU_EXIT_SIGNAL, &act, NULL) < 0) {
-        perror("Could not initialize cpu exit signal");
-        exit(-1);
-    }
-
 #ifdef CONFIG_SYMBEX
     g_s2e_shared_dir = getenv("S2E_SHARED_DIR");
     if (!g_s2e_shared_dir) {
@@ -575,7 +569,7 @@ int s2e_kvm_vcpu_get_clock(int vcpu_fd, struct kvm_clock_data *clock) {
 
 static unsigned s_s2e_kvm_sigmask_size;
 
-static union {
+static union s2e_kvm_sigmask_t {
     sigset_t sigset;
     uint8_t bytes[32];
 } s_s2e_kvm_sigmask;
@@ -594,16 +588,23 @@ int s2e_kvm_vcpu_set_signal_mask(int vcpu_fd, struct kvm_signal_mask *mask) {
     return 0;
 }
 
-static void block_signals(void) {
-    sigdelset(&s_s2e_kvm_sigmask.sigset, CPU_EXIT_SIGNAL);
-    if (pthread_sigmask(SIG_BLOCK, &s_s2e_kvm_sigmask.sigset, NULL) < 0) {
-        abort();
-    }
-}
+static void initialize_cpu_exit_signal(void) {
+    struct sigaction act;
+    memset(&act, 0, sizeof(act));
+    sigfillset(&act.sa_mask);
+    act.sa_flags = 0;
+    act.sa_handler = s2e_kvm_cpu_exit_signal;
 
-static void unblock_signals(void) {
-    sigaddset(&s_s2e_kvm_sigmask.sigset, CPU_EXIT_SIGNAL);
-    if (pthread_sigmask(SIG_UNBLOCK, &s_s2e_kvm_sigmask.sigset, NULL) < 0) {
+    if (sigaction(CPU_EXIT_SIGNAL, &act, NULL) < 0) {
+        perror("Could not initialize cpu exit signal");
+        exit(-1);
+    }
+
+    // The KVM client usually blocks all signals on the CPU thread.
+    // This interferes with our ability to exit the CPU loop, so we must unblock it.
+    union s2e_kvm_sigmask_t mask = s_s2e_kvm_sigmask;
+    sigaddset(&mask.sigset, CPU_EXIT_SIGNAL);
+    if (pthread_sigmask(SIG_UNBLOCK, &mask.sigset, NULL) < 0) {
         abort();
     }
 }
@@ -716,6 +717,7 @@ int s2e_kvm_vcpu_run(int vcpu_fd) {
     }
 
     if (!g_cpu_thread_id_inited) {
+        initialize_cpu_exit_signal();
         g_cpu_thread_id = pthread_self();
         g_cpu_thread_id_inited = true;
     }
@@ -744,7 +746,6 @@ int s2e_kvm_vcpu_run(int vcpu_fd) {
         return 0;
     }
 
-    block_signals();
     pthread_mutex_lock(&s_cpu_lock);
 
     s_in_kvm_run = true;
@@ -840,7 +841,6 @@ int s2e_kvm_vcpu_run(int vcpu_fd) {
     s_in_kvm_run = false;
 
     pthread_mutex_unlock(&s_cpu_lock);
-    unblock_signals();
 
     return ret;
 }
