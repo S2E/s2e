@@ -76,7 +76,8 @@ private:
     BlueScreenInterceptor *m_bsodInterceptor;
     WindowsCrashDumpGenerator *m_bsodGenerator;
 
-    bool m_generateCrashDump;
+    bool m_generateDumpOnKernelCrash;
+    bool m_generateDumpOnUserCrash;
     bool m_compressDumps;
     bool m_terminateOnCrash;
     int m_maxCrashDumpCount;

@@ -30,32 +30,28 @@ void WindowsCrashMonitor::initialize() {
     m_bsodInterceptor = s2e()->getPlugin<BlueScreenInterceptor>();
     m_bsodGenerator = s2e()->getPlugin<WindowsCrashDumpGenerator>();
 
+    auto cfg = s2e()->getConfig();
+
     // Crash dumps may be heavy, disable them by default
-    m_generateCrashDump = s2e()->getConfig()->getBool(getConfigKey() + ".generateCrashDump", false);
+    m_generateDumpOnKernelCrash = cfg->getBool(getConfigKey() + ".generateCrashDumpOnKernelCrash", false);
+    m_generateDumpOnUserCrash = cfg->getBool(getConfigKey() + ".generateCrashDumpOnUserCrash", false);
 
     // Dumps may be vers large, compress them by default
-    m_compressDumps = s2e()->getConfig()->getBool(getConfigKey() + ".compressDumps", true);
+    m_compressDumps = cfg->getBool(getConfigKey() + ".compressDumps", true);
 
     // Turn this off to let other plugins decide whether to kill the state or not
     // This option only applies to user-space crashes
-    m_terminateOnCrash = s2e()->getConfig()->getBool(getConfigKey() + ".terminateOnCrash", true);
+    m_terminateOnCrash = cfg->getBool(getConfigKey() + ".terminateOnCrash", true);
 
     // Generate at most this many crash dumps
-    m_maxCrashDumpCount = s2e()->getConfig()->getInt(getConfigKey() + ".maxCrashDumps", 10);
+    m_maxCrashDumpCount = cfg->getInt(getConfigKey() + ".maxCrashDumps", 10);
     *m_crashCount.get() = 0;
 
-    if (m_generateCrashDump) {
-        m_bsodInterceptor->onBlueScreen.connect(sigc::mem_fun(*this, &WindowsCrashMonitor::onBlueScreen));
-    }
+    m_bsodInterceptor->onBlueScreen.connect(sigc::mem_fun(*this, &WindowsCrashMonitor::onBlueScreen));
 }
 
 void WindowsCrashMonitor::generateCrashDump(S2EExecutionState *state, const vmi::windows::BugCheckDescription *info,
                                             bool isManual) {
-    if (!m_generateCrashDump) {
-        getWarningsStream(state) << "Crash dump generation disabled\n";
-        return;
-    }
-
     uint64_t *count = m_crashCount.acquire();
     if (*count >= m_maxCrashDumpCount) {
         m_crashCount.release();
@@ -83,8 +79,11 @@ void WindowsCrashMonitor::generateCrashDump(S2EExecutionState *state, const vmi:
 }
 
 void WindowsCrashMonitor::onBlueScreen(S2EExecutionState *state, vmi::windows::BugCheckDescription *info) {
+    if (m_generateDumpOnKernelCrash) {
+        generateCrashDump(state, info, false);
+    }
+
     onKernelModeCrash.emit(state, *info);
-    generateCrashDump(state, info, false);
 
     // There is no point of letting the state up at this point, the guest is stuck with a BSOD
     s2e()->getExecutor()->terminateStateEarly(*state, "BSOD");
@@ -107,15 +106,17 @@ void WindowsCrashMonitor::opUserModeCrash(S2EExecutionState *state, uint64_t gue
         return;
     }
 
-    crash.CrashDumpHeader.Buffer = command.Dump.Buffer;
-    crash.CrashDumpHeader.Size = command.Dump.Size;
+    if (m_generateDumpOnUserCrash) {
+        crash.CrashDumpHeader.Buffer = command.Dump.Buffer;
+        crash.CrashDumpHeader.Size = command.Dump.Size;
 
-    onUserModeCrash.emit(state, crash);
+        onUserModeCrash.emit(state, crash);
 
-    vmi::windows::BugCheckDescription info;
-    info.guestHeader = crash.CrashDumpHeader.Buffer;
-    info.headerSize = crash.CrashDumpHeader.Size;
-    generateCrashDump(state, &info, true);
+        vmi::windows::BugCheckDescription info;
+        info.guestHeader = crash.CrashDumpHeader.Buffer;
+        info.headerSize = crash.CrashDumpHeader.Size;
+        generateCrashDump(state, &info, true);
+    }
 
     if (m_terminateOnCrash) {
         s2e()->getExecutor()->terminateStateEarly(*state, "User mode crash");

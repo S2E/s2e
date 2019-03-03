@@ -217,12 +217,14 @@ public:
 
     void addRegion(uint64_t pid, uint64_t addr, uint64_t end, MemoryMapRegionType type) {
         m_manager.addRegion(pid, addr, end, type);
-        m_plugin->getDebugStream() << "MemoryMap: adding region: [" << hexval(addr) << ", " << hexval(end) << "]\n";
+        m_plugin->getDebugStream() << "MemoryMap: adding region:"
+                                   << " pid=" << hexval(pid) << " [" << hexval(addr) << ", " << hexval(end) << "]\n";
     }
 
-    void removeRegion(uint64_t target_pid, uint64_t addr, uint64_t end) {
-        m_plugin->getDebugStream() << "MemoryMap: removing region: [" << hexval(addr) << ", " << hexval(end) << "]\n";
-        m_manager.removeRegion(target_pid, addr, end);
+    void removeRegion(uint64_t pid, uint64_t addr, uint64_t end) {
+        m_plugin->getDebugStream() << "MemoryMap: removing region: "
+                                   << " pid=" << hexval(pid) << "[" << hexval(addr) << ", " << hexval(end) << "]\n";
+        m_manager.removeRegion(pid, addr, end);
     }
 
     MemoryMapRegionType lookupRegion(uint64_t pid, uint64_t addr) const {
@@ -329,6 +331,7 @@ void MemoryMap::addRegion(S2EExecutionState *state, uint64_t pid, uint64_t addre
     // Don't check if the pid is tracked, this is a private method and the caller
     // is reponsible for the check.
     DECLARE_PLUGINSTATE(MemoryMapState, state);
+    pid = m_monitor->translatePid(pid, address);
     plgState->addRegion(pid, address, end, type);
 }
 

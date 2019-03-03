@@ -282,8 +282,6 @@ void ModuleMap::initialize() {
         winmon2->onMonitorLoad.connect(sigc::mem_fun(*this, &ModuleMap::onMonitorLoad));
     }
 
-    m_cachedKernelStart = -1;
-
     lua_State *L = s2e()->getConfig()->getState();
     Lunar<LuaModuleMap>::Register(L);
 }
@@ -303,7 +301,6 @@ void ModuleMap::onMonitorLoad(S2EExecutionState *state) {
         getDebugStream() << "Guest OS does not support native module unload, using workaround\n";
         winmon2->onNtUnmapViewOfSection.connect(sigc::mem_fun(*this, &ModuleMap::onNtUnmapViewOfSection));
     }
-    m_cachedKernelStart = m_monitor->getKernelStart();
 }
 
 void ModuleMap::onNtUnmapViewOfSection(S2EExecutionState *state, const S2E_WINMON2_UNMAP_SECTION &s) {
@@ -345,20 +342,20 @@ ModuleDescriptorConstPtr ModuleMap::getModule(S2EExecutionState *state) {
     DECLARE_PLUGINSTATE(ModuleMapState, state);
     auto pid = m_monitor->getPid(state);
     auto pc = state->regs()->getPc();
-    pid = translatePid(pid, pc);
+    pid = m_monitor->translatePid(pid, pc);
     return plgState->getModule(pid, pc);
 }
 
 ModuleDescriptorConstPtr ModuleMap::getModule(S2EExecutionState *state, uint64_t pc) {
     DECLARE_PLUGINSTATE(ModuleMapState, state);
     auto pid = m_monitor->getPid(state);
-    pid = translatePid(pid, pc);
+    pid = m_monitor->translatePid(pid, pc);
     return plgState->getModule(pid, pc);
 }
 
 ModuleDescriptorConstPtr ModuleMap::getModule(S2EExecutionState *state, uint64_t pid, uint64_t pc) {
     DECLARE_PLUGINSTATE(ModuleMapState, state);
-    pid = translatePid(pid, pc);
+    pid = m_monitor->translatePid(pid, pc);
     return plgState->getModule(pid, pc);
 }
 

@@ -66,7 +66,18 @@ protected:
     /// Indicates whether the monitor is ready to be called by other plugins
     bool m_initialized;
 
-    OSMonitor(S2E *s2e) : Plugin(s2e), m_initialized(false) {
+    /// Cache kernel address for quicker translation
+    uint64_t m_cachedKernelStart;
+
+    OSMonitor(S2E *s2e) : Plugin(s2e), m_initialized(false), m_cachedKernelStart(-1) {
+    }
+
+    void completeInitialization(S2EExecutionState *state) {
+        if (!m_initialized) {
+            m_cachedKernelStart = getKernelStart();
+            m_initialized = true;
+            onMonitorLoad.emit(state);
+        }
     }
 
 public:
@@ -111,6 +122,29 @@ public:
 
     template <typename T> static bool readConcreteParameter(S2EExecutionState *s, unsigned param, T *val) {
         return s->mem()->read(s->regs()->getSp() + (param + 1) * sizeof(T), val, sizeof(*val));
+    }
+
+    ///
+    /// \brief translatePid
+    ///
+    /// Windows and Linux OSes typically split the address space in two: kernel and user.
+    /// The kernel is shared between all address spaces and processes. Therefore, any module
+    /// loaded in kernel space is "visible" to all processes. By convention, S2E plugins
+    /// assign a pid 0 to such modules. When a plugin wants to get a module loaded at a given
+    /// (pid, pc), we need to set the pid to 0 if pc falls in the kernel area. It is the
+    /// responsibility of the OS monitor plugins to set the pid to 0 when they emit an
+    /// onModuleLoad signal for a module that is loaded in kernel space.
+    ///
+    /// \param pid the original process id
+    /// \param pc the program counter to query
+    /// \return 0 if pc is in kernel space, pid otherwise
+    ///
+    uint64_t translatePid(uint64_t pid, uint64_t pc) const {
+        if (pc >= m_cachedKernelStart) {
+            return 0;
+        } else {
+            return pid;
+        }
     }
 };
 

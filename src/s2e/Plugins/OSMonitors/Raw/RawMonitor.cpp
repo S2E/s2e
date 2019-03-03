@@ -172,10 +172,7 @@ void RawMonitor::handleOpcodeInvocation(S2EExecutionState *state, uint64_t guest
         return;
     }
 
-    if (!m_initialized) {
-        m_initialized = true;
-        onMonitorLoad.emit(state);
-    }
+    completeInitialization(state);
 
     switch (command.Command) {
         case RAW_MODULE_LOAD: {
