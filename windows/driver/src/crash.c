@@ -132,9 +132,9 @@ NTSTATUS InitializeManualCrash(PVOID *Header, UINT64 *HeaderSize)
 
     InitializeCrashDumpHeader(&BufferNeeded);
 
-#if _WIN32_WINNT >= _WIN32_WINNT_WIN8
-    DecryptKdDataBlock();
-#endif
+    if (IsWindows8OrAbove(&g_kernelStructs.Version)) {
+        DecryptKdDataBlock();
+    }
 
     KeSaveStateForHibernate(g_kernelStructs.PRCBProcessorStateOffset);
 
@@ -159,9 +159,9 @@ VOID S2EBSODHook(
 
     InitializeCrashDumpHeader(&BufferNeeded);
 
-#if _WIN32_WINNT >= _WIN32_WINNT_WIN8
-    DecryptKdDataBlock();
-#endif
+    if (IsWindows8OrAbove(&g_kernelStructs.Version)) {
+        DecryptKdDataBlock();
+    }
 
     Command.Header = (UINT_PTR)s_BugCheckHeaderBuffer;
     Command.HeaderSize = BufferNeeded;
@@ -177,11 +177,7 @@ VOID S2EBSODHook(
 
 UINT_PTR GetS2ECrashHookAddress()
 {
-    RTL_OSVERSIONINFOW Version;
-    Version.dwOSVersionInfoSize = sizeof(Version);
-    RtlGetVersion(&Version);
-
-    if (Version.dwMajorVersion == 0x5 && Version.dwMinorVersion == 0x1) {
+    if (g_kernelStructs.Version.dwMajorVersion == 0x5 && g_kernelStructs.Version.dwMinorVersion == 0x1) {
         LOG("No S2EBSODHook for this Windows version\n");
         return 0;
     }

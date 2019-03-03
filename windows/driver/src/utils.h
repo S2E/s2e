@@ -16,3 +16,22 @@ NTSTATUS S2EEncodeBackTraceForKnownModules(
     _Out_opt_ PULONG Hash,
     _In_ ULONG FramesToSkip
 );
+
+
+static inline BOOLEAN IsWindows8OrAbove(_In_ const RTL_OSVERSIONINFOEXW *Version)
+{
+    if (Version->dwMajorVersion > 6) {
+        return TRUE;
+    }
+
+    if (Version->dwMajorVersion < 6) {
+        return FALSE;
+    }
+
+    return Version->dwMinorVersion >= 2;
+}
+
+static inline BOOLEAN IsWindows10OrAbove(_In_ const RTL_OSVERSIONINFOEXW *Version)
+{
+    return Version->dwMajorVersion >= 10;
+}

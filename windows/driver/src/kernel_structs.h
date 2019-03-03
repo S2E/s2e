@@ -12,7 +12,7 @@
 
 typedef struct KERNEL_STRUCTS
 {
-    UINT32 Version;
+    RTL_OSVERSIONINFOEXW Version;
 
     /**
     * Address of the Kernel debugger data block

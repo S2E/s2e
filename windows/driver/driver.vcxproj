@@ -103,6 +103,7 @@
     </Link>
     <ClCompile>
       <ForcedIncludeFiles>$(KIT_SHARED_IncludePath)\warning.h;$(SolutionDir)\formatting.h</ForcedIncludeFiles>
+      <SupportJustMyCode>false</SupportJustMyCode>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -121,6 +122,7 @@
     </Link>
     <ClCompile>
       <ForcedIncludeFiles>$(KIT_SHARED_IncludePath)\warning.h;$(SolutionDir)\formatting.h</ForcedIncludeFiles>
+      <SupportJustMyCode>false</SupportJustMyCode>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
