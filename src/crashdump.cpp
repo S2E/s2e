@@ -176,20 +176,19 @@ void generate_crashdump(void) {
     extern CPUX86State *env;
     uint64_t KernelNativeBase = 0x400000;
 
-    std::unique_ptr<GuestMemoryFileProvider> vp(
-        GuestMemoryFileProvider::get(env, readGuestVirtual, writeGuestVirtual, "virt"));
-    std::unique_ptr<GuestMemoryFileProvider> pp(GuestMemoryFileProvider::get(env, readGuestPhysical, NULL, "phys"));
+    auto vp = GuestMemoryFileProvider::get(env, readGuestVirtual, writeGuestVirtual, "virt");
+    auto pp = GuestMemoryFileProvider::get(env, readGuestPhysical, NULL, "phys");
     X86RegisterProvider rp(env, readX86Register, NULL);
 
     std::stringstream ss;
     ss << "crash-" << llvm::sys::TimeValue::now().seconds() << ".dmp";
 
-    std::unique_ptr<FileSystemFileProvider> fp(FileSystemFileProvider::get(ss.str(), true));
+    auto fp = FileSystemFileProvider::get(ss.str(), true);
     if (!fp) {
         return;
     }
 
-    WindowsCrashDumpGenerator cgen(vp.get(), pp.get(), &rp, fp.get());
+    auto cgen = WindowsCrashDumpGenerator::get(vp, pp, &rp, fp);
 
     uint64_t KPCR = 0xffdff000;
     uint64_t KPCRB = KPCR + 0x120;
@@ -254,5 +253,5 @@ void generate_crashdump(void) {
         vp->read(&bugDesc.parameters[i], sizeof(uint32_t), env->regs[R_ESP] + 4 + (i + 1) * 4);
     }
 
-    cgen.generate(KdDebuggerDataBlock, KPCRB, kdVersion, context, bugDesc);
+    cgen->generate(KdDebuggerDataBlock, KPCRB, kdVersion, context, bugDesc);
 }
