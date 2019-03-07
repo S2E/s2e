@@ -17,8 +17,8 @@ using namespace vmi;
 static void dumpSections(ExecutableFile *file, std::ostream &ss, bool compact) {
     if (!compact) {
         ss << '\n'
-           << "Sections (Name, Type, Size)\n"
-           << "===========================\n";
+           << "Sections (Name, Type, VirtualAddr, PhysicalAddr, Size)\n"
+           << "======================================================\n";
     }
 
     const Sections &sections = file->getSections();
@@ -31,11 +31,12 @@ static void dumpSections(ExecutableFile *file, std::ostream &ss, bool compact) {
 
     for (Sections::const_iterator it = sections.begin(); it != sections.end(); ++it) {
         const SectionDescriptor &section = *it;
-        char R = section.isReadable() ? 'R' : '-';
-        char W = section.isWritable() ? 'W' : '-';
-        char X = section.isExecutable() ? 'X' : '-';
+        char R = section.readable ? 'R' : '-';
+        char W = section.writable ? 'W' : '-';
+        char X = section.executable ? 'X' : '-';
         ss << std::setfill(' ') << std::setw(20) << std::left << section.name << " " << R << W << X << " 0x" << std::hex
            << std::setfill('0') << std::right << std::setw(10) << section.start << " 0x" << std::hex
+           << std::setfill('0') << std::right << std::setw(10) << section.physStart << " 0x" << std::hex
            << std::setfill('0') << std::right << std::setw(10) << section.size << '\n';
     }
 

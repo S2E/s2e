@@ -62,9 +62,9 @@ bool DecreeFile::initialize(void) {
             continue;
         }
 
-        sd.setRead(phdr.p_flags & decree::CPF_R);
-        sd.setWrite(phdr.p_flags & decree::CPF_W);
-        sd.setExecute(phdr.p_flags & decree::CPF_X);
+        sd.readable = phdr.p_flags & decree::CPF_R;
+        sd.writable = phdr.p_flags & decree::CPF_W;
+        sd.executable = phdr.p_flags & decree::CPF_X;
 
         assert(phdr.p_memsz >= phdr.p_filesz);
 

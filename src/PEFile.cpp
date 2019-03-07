@@ -296,9 +296,9 @@ bool PEFile::initSections(void) {
             sectionDesc.name += sectionHeader.Name[i];
         }
 
-        sectionDesc.setWrite(sectionHeader.Characteristics & IMAGE_SCN_MEM_WRITE);
-        sectionDesc.setRead(sectionHeader.Characteristics & IMAGE_SCN_MEM_READ);
-        sectionDesc.setExecute(sectionHeader.Characteristics & IMAGE_SCN_MEM_EXECUTE);
+        sectionDesc.writable = sectionHeader.Characteristics & IMAGE_SCN_MEM_WRITE;
+        sectionDesc.readable = sectionHeader.Characteristics & IMAGE_SCN_MEM_READ;
+        sectionDesc.executable = sectionHeader.Characteristics & IMAGE_SCN_MEM_EXECUTE;
         m_sections.push_back(sectionDesc);
         m_peSections.push_back(sectionHeader);
 

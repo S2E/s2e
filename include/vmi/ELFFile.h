@@ -261,11 +261,12 @@ template <typename EhdrT, typename PhdrT> bool ELFFile<EhdrT, PhdrT>::initialize
             std::stringstream ss;
             ss << "section_" << i;
 
-            sd.setRead(phdr->p_flags & PF_R);
-            sd.setWrite(phdr->p_flags & PF_W);
-            sd.setExecute(phdr->p_flags & PF_X);
+            sd.readable = phdr->p_flags & PF_R;
+            sd.writable = phdr->p_flags & PF_W;
+            sd.executable = phdr->p_flags & PF_X;
 
             sd.start = phdr->p_vaddr;
+            sd.physStart = phdr->p_paddr;
             sd.size = phdr->p_filesz;
             sd.hasData = true;
             sd.name = ss.str();
