@@ -651,8 +651,8 @@ bool ElfDwarf::initialize() {
     return true;
 }
 
-ElfDwarf *ElfDwarf::get(llvm::raw_ostream &errs, const std::string &elfBinary) {
-    ElfDwarf *elfDwarf = nullptr;
+std::shared_ptr<ElfDwarf> ElfDwarf::get(llvm::raw_ostream &errs, const std::string &elfBinary) {
+    std::shared_ptr<ElfDwarf> elfDwarf = nullptr;
 
     elf_version(EV_NONE);
     if (elf_version(EV_CURRENT) == EV_NONE) {
@@ -666,9 +666,8 @@ ElfDwarf *ElfDwarf::get(llvm::raw_ostream &errs, const std::string &elfBinary) {
         return nullptr;
     }
 
-    elfDwarf = new ElfDwarf(errs, fd, elfBinary);
+    elfDwarf = std::shared_ptr<ElfDwarf>{new ElfDwarf(errs, fd, elfBinary)};
     if (!elfDwarf->initialize()) {
-        delete elfDwarf;
         return nullptr;
     }
 

@@ -28,13 +28,13 @@ using namespace vmi;
 int main(int argc, char **argv) {
     cl::ParseCommandLineOptions(argc, (char **) argv, " reader");
 
-    FileProvider *fp = FileSystemFileProvider::get(File, false);
+    auto fp = FileSystemFileProvider::get(File, false);
     if (!fp) {
         llvm::errs() << "Can't open " << File << "\n";
         return -1;
     }
 
-    ExecutableFile *binary = vmi::ExecutableFile::get(fp, false, 0);
+    auto binary = vmi::ExecutableFile::get(fp, false, 0);
     if (!binary) {
         llvm::errs() << "Can't parse " << File << "\n";
         return -1;
@@ -55,9 +55,6 @@ int main(int argc, char **argv) {
     }
 
     delete[] buffer;
-
-    delete binary;
-    delete fp;
 
     return 0;
 }

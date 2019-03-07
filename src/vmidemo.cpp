@@ -20,12 +20,12 @@ int main(int argc, char **argv) {
         return -1;
     }
 
-    ElfDwarf *d = ElfDwarf::get(llvm::errs(), argv[1]);
+    auto d = ElfDwarf::get(llvm::errs(), argv[1]);
     if (!d) {
         return -1;
     }
 
-    Vmi *vmi = new Vmi(d);
+    auto vmi = Vmi::get(d);
 
     uintptr_t offset;
     if (vmi->getOffset(argv[2], argv[3], offset)) {
@@ -35,13 +35,13 @@ int main(int argc, char **argv) {
     }
 
     std::string path(argv[1]);
-    FileSystemFileProvider *fp = FileSystemFileProvider::get(path, false);
+    auto fp = FileSystemFileProvider::get(path, false);
     if (!fp) {
         llvm::errs() << "Could not open " << path << "\n";
         return -1;
     }
 
-    ExecutableFile *exec = ExecutableFile::get(fp, false, 0);
+    auto exec = ExecutableFile::get(fp, false, 0);
     if (exec) {
         std::stringstream ss;
         ss << "ModuleName: " << exec->getModuleName() << '\n';
@@ -52,7 +52,5 @@ int main(int argc, char **argv) {
         llvm::errs() << ss.str();
     }
 
-    delete vmi;
-    delete d;
     return 0;
 }

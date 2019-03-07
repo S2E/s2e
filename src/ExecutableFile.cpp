@@ -12,15 +12,16 @@
 
 namespace vmi {
 
-ExecutableFile::ExecutableFile(FileProvider *file, bool loaded, uint64_t loadAddress)
+ExecutableFile::ExecutableFile(std::shared_ptr<FileProvider> file, bool loaded, uint64_t loadAddress)
     : m_file(file), m_loaded(loaded), m_loadAddress(loadAddress) {
 }
 
 ExecutableFile::~ExecutableFile() {
 }
 
-ExecutableFile *ExecutableFile::get(FileProvider *file, bool loaded, uint64_t loadAddress) {
-    ExecutableFile *ret;
+std::shared_ptr<ExecutableFile> ExecutableFile::get(std::shared_ptr<FileProvider> file, bool loaded,
+                                                    uint64_t loadAddress) {
+    std::shared_ptr<ExecutableFile> ret;
 
     ret = PEFile::get(file, loaded, loadAddress);
     if (ret) {

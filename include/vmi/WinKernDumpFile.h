@@ -17,7 +17,7 @@ namespace windows {
 
 class WinKernDumpFile : public FileProvider {
 private:
-    FileProvider *m_file;
+    std::shared_ptr<FileProvider> m_file;
     unsigned m_pointerSize;
 
     DUMP_HEADER64 Header64;
@@ -26,7 +26,7 @@ private:
     bool initializePointerSize();
 
 public:
-    WinKernDumpFile(FileProvider *file) : m_file(file) {
+    WinKernDumpFile(std::shared_ptr<FileProvider> file) : m_file(file) {
     }
     virtual ~WinKernDumpFile();
 

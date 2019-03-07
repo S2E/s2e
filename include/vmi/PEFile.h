@@ -12,6 +12,7 @@
 
 #include <llvm/ADT/StringMap.h>
 #include <map>
+#include <memory>
 #include <set>
 #include "ExecutableFile.h"
 #include "Pe.h"
@@ -52,7 +53,7 @@ protected:
     mutable const windows::IMAGE_SECTION_HEADER *m_cachedSection;
 
 protected:
-    PEFile(FileProvider *file, bool loaded, uint64_t loadAddress, unsigned pointerSize);
+    PEFile(std::shared_ptr<FileProvider> file, bool loaded, uint64_t loadAddress, unsigned pointerSize);
     uint64_t offset(uint64_t rva) const;
     void *readDirectory(llvm::BumpPtrAllocator &alloc, unsigned index);
 
@@ -75,7 +76,7 @@ protected:
     bool rewrite();
 
 public:
-    static PEFile *get(FileProvider *file, bool loaded, uint64_t loadAddress);
+    static std::shared_ptr<PEFile> get(std::shared_ptr<FileProvider> file, bool loaded, uint64_t loadAddress);
 
     virtual ~PEFile();
 
@@ -158,7 +159,7 @@ public:
 
 class PEFile32 : public PEFile {
 public:
-    PEFile32(FileProvider *file, bool loaded, uint64_t loadAddress);
+    PEFile32(std::shared_ptr<FileProvider> file, bool loaded, uint64_t loadAddress);
 
 protected:
     virtual bool initialize();
@@ -182,7 +183,7 @@ private:
     uint64_t offset(uint64_t rva) const;
 
 public:
-    PEFile64(FileProvider *file, bool loaded, uint64_t loadAddress);
+    PEFile64(std::shared_ptr<FileProvider> file, bool loaded, uint64_t loadAddress);
 
 protected:
     virtual bool initialize();

@@ -331,10 +331,10 @@ private:
 
     DBGKD_GET_VERSION64 m_kdVersion;
 
-    FileProvider *m_physicalMemory;
-    FileProvider *m_virtualMemory;
+    std::shared_ptr<FileProvider> m_physicalMemory;
+    std::shared_ptr<FileProvider> m_virtualMemory;
     X86RegisterProvider *m_registers;
-    FileProvider *m_out;
+    std::shared_ptr<FileProvider> m_out;
 
     std::vector<uint8_t> m_rawHeader;
 
@@ -345,14 +345,22 @@ private:
     template <typename HEADER, typename CONTEXT>
     bool writeHeader(HEADER *Header, const CONTEXT *context, const BugCheckDescription &bugDesc);
 
-public:
-    WindowsCrashDumpGenerator(FileProvider *virtualMemory, FileProvider *physicalMemory, X86RegisterProvider *registers,
-                              FileProvider *out) {
+    WindowsCrashDumpGenerator(std::shared_ptr<FileProvider> virtualMemory, std::shared_ptr<FileProvider> physicalMemory,
+                              X86RegisterProvider *registers, std::shared_ptr<FileProvider> out) {
 
         m_virtualMemory = virtualMemory;
         m_physicalMemory = physicalMemory;
         m_registers = registers;
         m_out = out;
+    }
+
+public:
+    static std::shared_ptr<WindowsCrashDumpGenerator> get(std::shared_ptr<FileProvider> virtualMemory,
+                                                          std::shared_ptr<FileProvider> physicalMemory,
+                                                          X86RegisterProvider *registers,
+                                                          std::shared_ptr<FileProvider> out) {
+        return std::shared_ptr<WindowsCrashDumpGenerator>{
+            new WindowsCrashDumpGenerator(virtualMemory, physicalMemory, registers, out)};
     }
 
     /* Windows XP */

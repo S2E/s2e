@@ -70,11 +70,11 @@ protected:
     virtual PhdrT *getPhdr(Elf *elf) const = 0;
 
 public:
-    ELFFile(FileProvider *file, bool loaded, uint64_t loadAddress, unsigned pointerSize);
+    ELFFile(std::shared_ptr<FileProvider> file, bool loaded, uint64_t loadAddress, unsigned pointerSize);
     virtual ~ELFFile();
 
     template <typename ELF_T, unsigned ELFClass>
-    static ELF_T *get(FileProvider *file, bool loaded, uint64_t loadAddress);
+    static std::shared_ptr<ELF_T> get(std::shared_ptr<FileProvider> file, bool loaded, uint64_t loadAddress);
 
     bool initialize();
 
@@ -102,9 +102,9 @@ protected:
     virtual Elf32_Phdr *getPhdr(Elf *elf) const;
 
 public:
-    ELFFile32(FileProvider *file, bool loaded, uint64_t loadAddress);
+    ELFFile32(std::shared_ptr<FileProvider> file, bool loaded, uint64_t loadAddress);
 
-    static ELFFile32 *get(FileProvider *file, bool loaded, uint64_t loadAddress);
+    static std::shared_ptr<ELFFile32> get(std::shared_ptr<FileProvider> file, bool loaded, uint64_t loadAddress);
 };
 
 ///
@@ -116,15 +116,16 @@ protected:
     virtual Elf64_Phdr *getPhdr(Elf *elf) const;
 
 public:
-    ELFFile64(FileProvider *file, bool loaded, uint64_t loadAddress);
+    ELFFile64(std::shared_ptr<FileProvider> file, bool loaded, uint64_t loadAddress);
 
-    static ELFFile64 *get(FileProvider *file, bool loaded, uint64_t loadAddress);
+    static std::shared_ptr<ELFFile64> get(std::shared_ptr<FileProvider> file, bool loaded, uint64_t loadAddress);
 };
 
 /***************************************************/
 
 template <typename EhdrT, typename PhdrT>
-ELFFile<EhdrT, PhdrT>::ELFFile(FileProvider *file, bool loaded, uint64_t loadAddress, unsigned pointerSize)
+ELFFile<EhdrT, PhdrT>::ELFFile(std::shared_ptr<FileProvider> file, bool loaded, uint64_t loadAddress,
+                               unsigned pointerSize)
     : ExecutableFile(file, loaded, loadAddress), m_elf(nullptr), m_imageBase(0), m_imageSize(0), m_entryPoint(0),
       m_pointerSize(pointerSize), m_moduleName(llvm::sys::path::filename(std::string(file->getName()))) {
 }
@@ -142,7 +143,8 @@ template <typename EhdrT, typename PhdrT> ELFFile<EhdrT, PhdrT>::~ELFFile() {
 
 template <typename EhdrT, typename PhdrT>
 template <typename ELF_T, unsigned ELFClass>
-ELF_T *ELFFile<EhdrT, PhdrT>::get(FileProvider *file, bool loaded, uint64_t loadAddress) {
+std::shared_ptr<ELF_T> ELFFile<EhdrT, PhdrT>::get(std::shared_ptr<FileProvider> file, bool loaded,
+                                                  uint64_t loadAddress) {
     uint8_t e_ident[EI_NIDENT];
 
     // Read the ELF header's e_ident field
@@ -159,10 +161,9 @@ ELF_T *ELFFile<EhdrT, PhdrT>::get(FileProvider *file, bool loaded, uint64_t load
 
     // Check that the ELF class is the one that we are expecting
     if (e_ident[EI_CLASS] == ELFClass) {
-        ELF_T *ret = new ELF_T(file, loaded, loadAddress);
+        std::shared_ptr<ELF_T> ret{new ELF_T(file, loaded, loadAddress)};
 
         if (ret && !ret->initialize()) {
-            delete ret;
             ret = nullptr;
         }
 
@@ -373,11 +374,11 @@ template <typename EhdrT, typename PhdrT> const Sections &ELFFile<EhdrT, PhdrT>:
 
 /***************************************************/
 
-ELFFile32::ELFFile32(FileProvider *file, bool loaded, uint64_t loadAddress)
+ELFFile32::ELFFile32(std::shared_ptr<FileProvider> file, bool loaded, uint64_t loadAddress)
     : ELFFile(file, loaded, loadAddress, sizeof(uint32_t)) {
 }
 
-ELFFile32 *ELFFile32::get(FileProvider *file, bool loaded, uint64_t loadAddress) {
+std::shared_ptr<ELFFile32> ELFFile32::get(std::shared_ptr<FileProvider> file, bool loaded, uint64_t loadAddress) {
     return ELFFile::get<ELFFile32, ELFCLASS32>(file, loaded, loadAddress);
 }
 
@@ -391,11 +392,11 @@ Elf32_Phdr *ELFFile32::getPhdr(Elf *elf) const {
 
 /***************************************************/
 
-ELFFile64::ELFFile64(FileProvider *file, bool loaded, uint64_t loadAddress)
+ELFFile64::ELFFile64(std::shared_ptr<FileProvider> file, bool loaded, uint64_t loadAddress)
     : ELFFile(file, loaded, loadAddress, sizeof(uint64_t)) {
 }
 
-ELFFile64 *ELFFile64::get(FileProvider *file, bool loaded, uint64_t loadAddress) {
+std::shared_ptr<ELFFile64> ELFFile64::get(std::shared_ptr<FileProvider> file, bool loaded, uint64_t loadAddress) {
     return ELFFile::get<ELFFile64, ELFCLASS64>(file, loaded, loadAddress);
 }
 

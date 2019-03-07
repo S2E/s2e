@@ -120,7 +120,7 @@ int main(int argc, char **argv) {
     }
 
     std::string path(argv[1]);
-    FileSystemFileProvider *fp = FileSystemFileProvider::get(path, false);
+    auto fp = FileSystemFileProvider::get(path, false);
     if (!fp) {
         llvm::errs() << "Could not open " << path << "\n";
         return -1;
@@ -143,7 +143,6 @@ int main(int argc, char **argv) {
     }
 
 err1:
-    delete fp;
 
     return 0;
 }

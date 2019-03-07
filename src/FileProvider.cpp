@@ -30,17 +30,17 @@ class BufferedFSFP : public FileSystemFileProvider {
         return m_fp != nullptr;
     }
 
+protected:
+    BufferedFSFP(const std::string &file) : FileSystemFileProvider(file), m_fp(nullptr) {
+    }
+
 public:
-    static BufferedFSFP *get(const std::string &filename, bool writable) {
-        BufferedFSFP *fp = new BufferedFSFP(filename);
+    static std::shared_ptr<BufferedFSFP> get(const std::string &filename, bool writable) {
+        std::shared_ptr<BufferedFSFP> fp{new BufferedFSFP(filename)};
         if (!fp->open(writable)) {
-            delete fp;
             fp = nullptr;
         }
         return fp;
-    }
-
-    BufferedFSFP(const std::string &file) : FileSystemFileProvider(file), m_fp(nullptr) {
     }
 
     virtual ~BufferedFSFP() {
@@ -137,13 +137,12 @@ class MappedFSFP : public FileSystemFileProvider {
     }
 
 public:
-    static MappedFSFP *get(const std::string &filename, bool writable) {
+    static std::shared_ptr<MappedFSFP> get(const std::string &filename, bool writable) {
         assert(!writable);
-        MappedFSFP *ret = new MappedFSFP(filename);
+        std::shared_ptr<MappedFSFP> ret{new MappedFSFP(filename)};
         if (ret->open(writable)) {
             return ret;
         }
-        delete ret;
         return nullptr;
     }
 
@@ -190,7 +189,7 @@ public:
 
 /************************************************************/
 
-FileSystemFileProvider *FileSystemFileProvider::get(const std::string &filename, bool writable) {
+std::shared_ptr<FileSystemFileProvider> FileSystemFileProvider::get(const std::string &filename, bool writable) {
     // We use mapped files for the read-only case
     if (!writable) {
         return MappedFSFP::get(filename, writable);
@@ -211,10 +210,11 @@ const char *FileSystemFileProvider::getName() const {
 
 /************************************************************/
 
-GuestMemoryFileProvider *GuestMemoryFileProvider::get(void *opaque, GuestMemoryFileProvider::ReadMemoryCb readCb,
-                                                      GuestMemoryFileProvider::WriteMemoryCb writeCb,
-                                                      const std::string &name) {
-    return new GuestMemoryFileProvider(opaque, readCb, writeCb, name);
+std::shared_ptr<GuestMemoryFileProvider> GuestMemoryFileProvider::get(void *opaque,
+                                                                      GuestMemoryFileProvider::ReadMemoryCb readCb,
+                                                                      GuestMemoryFileProvider::WriteMemoryCb writeCb,
+                                                                      const std::string &name) {
+    return std::shared_ptr<GuestMemoryFileProvider>{new GuestMemoryFileProvider(opaque, readCb, writeCb, name)};
 }
 
 GuestMemoryFileProvider::GuestMemoryFileProvider(void *opaque, ReadMemoryCb readCb, WriteMemoryCb writeCb,

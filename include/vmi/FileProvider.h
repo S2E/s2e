@@ -11,6 +11,7 @@
 #define VMI_FILEPROVIDER_H
 
 #include <inttypes.h>
+#include <memory>
 #include <stdio.h>
 #include <string>
 #include <sys/stat.h>
@@ -105,7 +106,7 @@ protected:
     FileSystemFileProvider(const std::string &file);
 
 public:
-    static FileSystemFileProvider *get(const std::string &filename, bool writable);
+    static std::shared_ptr<FileSystemFileProvider> get(const std::string &filename, bool writable);
 
     virtual ~FileSystemFileProvider();
 
@@ -125,12 +126,11 @@ private:
 
     bool open(bool writable);
 
-public:
-    static GuestMemoryFileProvider *get(void *opaque, ReadMemoryCb readCb, WriteMemoryCb writeCb,
-                                        const std::string &name);
-
-    // Keep constructor public as convenience to allocate on the stack
     GuestMemoryFileProvider(void *opaque, ReadMemoryCb readCb, WriteMemoryCb writeCb, const std::string &name);
+
+public:
+    static std::shared_ptr<GuestMemoryFileProvider> get(void *opaque, ReadMemoryCb readCb, WriteMemoryCb writeCb,
+                                                        const std::string &name);
 
     virtual ~GuestMemoryFileProvider();
 

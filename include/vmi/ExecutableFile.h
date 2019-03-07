@@ -13,6 +13,7 @@
 #include <inttypes.h>
 #include <llvm/Support/Path.h>
 #include <map>
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -87,14 +88,14 @@ typedef std::vector<uint64_t> FunctionAddresses;
 class ExecutableFile {
 
 protected:
-    FileProvider *m_file;
+    std::shared_ptr<FileProvider> m_file;
     bool m_loaded;
     uint64_t m_loadAddress;
 
-    ExecutableFile(FileProvider *file, bool loaded, uint64_t loadAddress);
+    ExecutableFile(std::shared_ptr<FileProvider> file, bool loaded, uint64_t loadAddress);
 
 public:
-    static ExecutableFile *get(FileProvider *file, bool loaded, uint64_t loadAddress);
+    static std::shared_ptr<ExecutableFile> get(std::shared_ptr<FileProvider> file, bool loaded, uint64_t loadAddress);
 
     virtual ~ExecutableFile();
 
@@ -114,7 +115,7 @@ public:
     }
 
     virtual const Sections &getSections() const = 0;
-    FileProvider *get() {
+    std::shared_ptr<FileProvider> get() {
         return m_file;
     }
 };

@@ -12,7 +12,7 @@
 
 namespace vmi {
 
-DecreeFile::DecreeFile(FileProvider *file, bool loaded, uint64_t loadAddress)
+DecreeFile::DecreeFile(std::shared_ptr<FileProvider> file, bool loaded, uint64_t loadAddress)
     : ExecutableFile(file, loaded, loadAddress), m_imageBase(0), m_imageSize(0), m_entryPoint(0) {
     m_moduleName = llvm::sys::path::filename(std::string(m_file->getName()));
 }
@@ -20,7 +20,7 @@ DecreeFile::DecreeFile(FileProvider *file, bool loaded, uint64_t loadAddress)
 DecreeFile::~DecreeFile() {
 }
 
-ExecutableFile *DecreeFile::get(FileProvider *file, bool loaded, uint64_t loadAddress) {
+std::shared_ptr<ExecutableFile> DecreeFile::get(std::shared_ptr<FileProvider> file, bool loaded, uint64_t loadAddress) {
     decree::DECREE32_hdr hdr;
 
     if (!file->readb(&hdr, sizeof(hdr), loadAddress)) {
@@ -35,12 +35,10 @@ ExecutableFile *DecreeFile::get(FileProvider *file, bool loaded, uint64_t loadAd
         return nullptr;
     }
 
-    DecreeFile *f = new DecreeFile(file, loaded, loadAddress);
+    std::shared_ptr<DecreeFile> f{new DecreeFile(file, loaded, loadAddress)};
     if (!f->initialize()) {
-        delete f;
-        f = nullptr;
+        return nullptr;
     }
-
     return f;
 }
 

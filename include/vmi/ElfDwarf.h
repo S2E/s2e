@@ -17,6 +17,7 @@ extern "C" {
 #include <llvm/ADT/StringMap.h>
 #include <llvm/Support/raw_ostream.h>
 #include <map>
+#include <memory>
 #include "Vmi.h"
 
 namespace vmi {
@@ -71,7 +72,7 @@ private:
 
 public:
     ~ElfDwarf();
-    static ElfDwarf *get(llvm::raw_ostream &errs, const std::string &elfBinary);
+    static std::shared_ptr<ElfDwarf> get(llvm::raw_ostream &errs, const std::string &elfBinary);
 
     const VmiType *getType(const std::string &name);
 };

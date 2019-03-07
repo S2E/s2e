@@ -31,10 +31,10 @@ private:
     int getSectionIndex(uint64_t va) const;
 
 protected:
-    DecreeFile(FileProvider *file, bool loaded, uint64_t loadAddress);
+    DecreeFile(std::shared_ptr<FileProvider> file, bool loaded, uint64_t loadAddress);
 
 public:
-    static ExecutableFile *get(FileProvider *file, bool loaded, uint64_t loadAddress);
+    static std::shared_ptr<ExecutableFile> get(std::shared_ptr<FileProvider> file, bool loaded, uint64_t loadAddress);
 
     virtual ~DecreeFile();
 

@@ -20,13 +20,13 @@ namespace vmi {
 
 using namespace vmi::windows;
 
-PEFile::PEFile(FileProvider *file, bool loaded, uint64_t loadAddress, unsigned pointerSize)
+PEFile::PEFile(std::shared_ptr<FileProvider> file, bool loaded, uint64_t loadAddress, unsigned pointerSize)
     : ExecutableFile(file, loaded, loadAddress), m_imageBase(0), m_imageSize(0), m_entryPoint(0),
       m_pointerSize(pointerSize), m_moduleName(llvm::sys::path::filename(std::string(file->getName()))),
       m_sectionsInited(false), m_modified(false), m_cachedSection(nullptr) {
 }
 
-PEFile *PEFile::get(FileProvider *file, bool loaded, uint64_t loadAddress) {
+std::shared_ptr<PEFile> PEFile::get(std::shared_ptr<FileProvider> file, bool loaded, uint64_t loadAddress) {
     vmi::windows::IMAGE_DOS_HEADER dosHeader;
     windows::IMAGE_NT_HEADERS32 ntHeader;
 
@@ -46,16 +46,18 @@ PEFile *PEFile::get(FileProvider *file, bool loaded, uint64_t loadAddress) {
         return nullptr;
     }
 
-    PEFile *ret = nullptr;
+    std::shared_ptr<PEFile> ret;
 
     switch (ntHeader.FileHeader.Machine) {
-        case IMAGE_FILE_MACHINE_I386:
-            ret = new PEFile32(file, loaded, loadAddress);
-            break;
+        case IMAGE_FILE_MACHINE_I386: {
+            std::shared_ptr<PEFile32> p{new PEFile32(file, loaded, loadAddress)};
+            ret = p;
+        } break;
 
-        case IMAGE_FILE_MACHINE_AMD64:
-            ret = new PEFile64(file, loaded, loadAddress);
-            break;
+        case IMAGE_FILE_MACHINE_AMD64: {
+            std::shared_ptr<PEFile64> p{new PEFile64(file, loaded, loadAddress)};
+            ret = p;
+        } break;
 
         default: {
             std::string moduleName = llvm::sys::path::filename(std::string(file->getName()));
@@ -65,7 +67,6 @@ PEFile *PEFile::get(FileProvider *file, bool loaded, uint64_t loadAddress) {
     }
 
     if (ret && !ret->initialize()) {
-        delete ret;
         ret = nullptr;
     }
 
@@ -888,7 +889,7 @@ windows::IMAGE_DATA_DIRECTORY *PEFile::getDataDirectory(unsigned index) {
 }
 
 /***************************************************/
-PEFile32::PEFile32(FileProvider *file, bool loaded, uint64_t loadAddress)
+PEFile32::PEFile32(std::shared_ptr<FileProvider> file, bool loaded, uint64_t loadAddress)
     : PEFile(file, loaded, loadAddress, sizeof(uint32_t)) {
 }
 
@@ -925,7 +926,7 @@ bool PEFile32::initialize() {
 }
 
 /***************************************************/
-PEFile64::PEFile64(FileProvider *file, bool loaded, uint64_t loadAddress)
+PEFile64::PEFile64(std::shared_ptr<FileProvider> file, bool loaded, uint64_t loadAddress)
     : PEFile(file, loaded, loadAddress, sizeof(uint64_t)) {
 }
 

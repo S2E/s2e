@@ -323,7 +323,7 @@ private:
     typedef bool (*ReadMemoryCb)(void *opaque, uint64_t address, void *dest, unsigned size);
 
     mutable Types m_types;
-    ElfDwarf *m_dwarf;
+    std::shared_ptr<ElfDwarf> m_dwarf;
     ReadMemoryCb m_readMemory;
 
     const VmiType *fetchType(const std::string &name) const;
@@ -335,9 +335,13 @@ private:
 
     bool parseExpression(const std::string &path, PathElements &elements) const;
 
-public:
-    Vmi(ElfDwarf *dwarf) : m_dwarf(dwarf) {
+    Vmi(std::shared_ptr<ElfDwarf> dwarf) : m_dwarf(dwarf) {
         m_readMemory = nullptr;
+    }
+
+public:
+    static std::shared_ptr<Vmi> get(std::shared_ptr<ElfDwarf> dwarf) {
+        return std::shared_ptr<Vmi>{new Vmi(dwarf)};
     }
 
     void registerCallbacks(ReadMemoryCb cb) {

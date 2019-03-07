@@ -21,19 +21,19 @@ int main(int argc, char **argv) {
     }
 
     std::string path(argv[1]);
-    FileSystemFileProvider *fp = FileSystemFileProvider::get(path, true);
+    auto fp = FileSystemFileProvider::get(path, true);
     if (!fp) {
         llvm::errs() << "Could not open " << path << "\n";
         return -1;
     }
 
-    ExecutableFile *file = ExecutableFile::get(fp, false, 0);
+    auto file = ExecutableFile::get(fp, false, 0);
     if (!file) {
         llvm::errs() << path << " is not a valid executable file\n";
         return -1;
     }
 
-    PEFile *peFile = dynamic_cast<PEFile *>(file);
+    auto peFile = std::dynamic_pointer_cast<PEFile>(file);
     if (!peFile) {
         llvm::errs() << "Only PE files are supported for now\n";
     }
@@ -50,9 +50,5 @@ int main(int argc, char **argv) {
     }
 
     delete[] sec;
-
-    delete peFile;
-    delete fp;
-
     return 0;
 }

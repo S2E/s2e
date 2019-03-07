@@ -14,7 +14,7 @@
 
 using namespace vmi;
 
-static void dumpSections(ExecutableFile *file, std::ostream &ss, bool compact) {
+static void dumpSections(std::shared_ptr<ExecutableFile> file, std::ostream &ss, bool compact) {
     if (!compact) {
         ss << '\n'
            << "Sections (Name, Type, VirtualAddr, PhysicalAddr, Size)\n"
@@ -45,7 +45,7 @@ static void dumpSections(ExecutableFile *file, std::ostream &ss, bool compact) {
     }
 }
 
-static void dumpExports(PEFile *peFile, std::ostream &ss, bool compact) {
+static void dumpExports(std::shared_ptr<PEFile> peFile, std::ostream &ss, bool compact) {
     if (!compact) {
         ss << '\n'
            << "Export Directory\n"
@@ -71,7 +71,7 @@ static void dumpExports(PEFile *peFile, std::ostream &ss, bool compact) {
     }
 }
 
-static void dumpImports(PEFile *peFile, std::ostream &ss, bool compact) {
+static void dumpImports(std::shared_ptr<PEFile> peFile, std::ostream &ss, bool compact) {
     if (!compact) {
         ss << '\n'
            << "Import Directory\n"
@@ -106,7 +106,7 @@ static void dumpImports(PEFile *peFile, std::ostream &ss, bool compact) {
     }
 }
 
-static void dumpRelocations(PEFile *peFile, std::ostream &ss, bool compact) {
+static void dumpRelocations(std::shared_ptr<PEFile> peFile, std::ostream &ss, bool compact) {
     if (!compact) {
         ss << '\n'
            << "Relocations\n"
@@ -131,7 +131,7 @@ static void dumpRelocations(PEFile *peFile, std::ostream &ss, bool compact) {
     }
 }
 
-static void dumpExceptions(PEFile *peFile, std::ostream &ss, bool compact) {
+static void dumpExceptions(std::shared_ptr<PEFile> peFile, std::ostream &ss, bool compact) {
     if (!compact) {
         ss << '\n'
            << "Exceptions\n"
@@ -164,8 +164,8 @@ static void printUsage(const char *progName) {
     fprintf(stderr, "Example: %s -s driver.sys\n", progName);
 }
 
-static void dumpPeFile(PEFile *peFile, bool printHeader, bool printExports, bool printImports, bool printSections,
-                       bool printRelocations, bool printExceptions, bool compact) {
+static void dumpPeFile(std::shared_ptr<PEFile> peFile, bool printHeader, bool printExports, bool printImports,
+                       bool printSections, bool printRelocations, bool printExceptions, bool compact) {
     std::stringstream ss;
     if (printHeader) {
         ss << "Dumping contents of " << peFile->getModuleName() << '\n';
@@ -198,7 +198,7 @@ static void dumpPeFile(PEFile *peFile, bool printHeader, bool printExports, bool
     llvm::outs() << ss.str();
 }
 
-static void dumpDefault(ExecutableFile *file, bool printHeader, bool printSections, bool compact) {
+static void dumpDefault(std::shared_ptr<ExecutableFile> file, bool printHeader, bool printSections, bool compact) {
     std::stringstream ss;
 
     if (printHeader) {
@@ -269,19 +269,19 @@ int main(int argc, char **argv) {
     }
 
     std::string path(argv[argc - 1]);
-    FileSystemFileProvider *fp = FileSystemFileProvider::get(path, false);
+    auto fp = FileSystemFileProvider::get(path, false);
     if (!fp) {
         llvm::errs() << "Could not open " << path << '\n';
         return -1;
     }
 
-    ExecutableFile *file = ExecutableFile::get(fp, false, 0);
+    auto file = ExecutableFile::get(fp, false, 0);
     if (!file) {
         llvm::errs() << path << " is not a valid executable file\n";
         return -1;
     }
 
-    PEFile *peFile = dynamic_cast<PEFile *>(file);
+    auto peFile = std::dynamic_pointer_cast<PEFile>(file);
     if (peFile) {
         dumpPeFile(peFile, printHeader, printExports, printImports, printSections, printRelocations, printExceptions,
                    compact);
