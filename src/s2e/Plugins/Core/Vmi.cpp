@@ -30,10 +30,6 @@ static bool VmiReadMemory(void *opaque, uint64_t address, void *dest, unsigned s
 }
 
 Vmi::~Vmi() {
-    foreach2 (it, m_cachedBinData.begin(), m_cachedBinData.end()) {
-        delete it->second.fp;
-        delete it->second.ef;
-    }
     m_cachedBinData.clear();
 }
 
@@ -214,34 +210,27 @@ bool Vmi::getSyscallInfo(uint64_t PeChecksum, unsigned num, uint64_t &address, s
 }
 
 bool Vmi::initializeExecutable(const std::string &file, ExeData &data) {
-
-    vmi::Vmi *vmi;
-    vmi::ElfDwarf *dwarf;
-    vmi::FileSystemFileProvider *fp;
-    vmi::ExecutableFile *execFile;
-    std::string moduleName = llvm::sys::path::filename(file);
-
-    fp = vmi::FileSystemFileProvider::get(file, false);
+    auto fp = vmi::FileSystemFileProvider::get(file, false);
     if (!fp) {
         getWarningsStream() << file << " could not be opened\n";
-        goto err1;
+        return false;
     }
 
-    execFile = vmi::ExecutableFile::get(fp, false, 0);
+    auto execFile = vmi::ExecutableFile::get(fp, false, 0);
     if (!execFile) {
         getWarningsStream() << file << " does not appear to be a valid executable file\n";
-        goto err1;
+        return false;
     }
 
-    dwarf = vmi::ElfDwarf::get(getDebugStream(), file);
+    auto dwarf = vmi::ElfDwarf::get(getDebugStream(), file);
     if (!dwarf) {
         getWarningsStream()
             << file
             << " does not appear to contain valid DWARF debug info. Please recompile your kernel with debug symbols.\n";
-        goto err2;
+        return false;
     }
 
-    vmi = new vmi::Vmi(dwarf);
+    auto vmi = vmi::Vmi::get(dwarf);
     vmi->registerCallbacks(&VmiReadMemory);
 
     data.dwarf = dwarf;
@@ -249,12 +238,6 @@ bool Vmi::initializeExecutable(const std::string &file, ExeData &data) {
     data.vmi = vmi;
 
     return true;
-
-err2:
-    delete execFile;
-err1:
-    delete fp;
-    return false;
 }
 
 std::string Vmi::stripWindowsModulePath(const std::string &path) {
@@ -351,18 +334,16 @@ Vmi::BinData Vmi::getFromDisk(const ModuleDescriptor &module, bool useModulePath
 
     getDebugStream() << "attempting to load executable file: " << modPath << "\n";
 
-    vmi::FileSystemFileProvider *fp = FileSystemFileProvider::get(modPath, false);
+    auto fp = FileSystemFileProvider::get(modPath, false);
 
     if (!fp) {
         getDebugStream() << "cannot open file\n";
-        delete fp;
         return BinData();
     }
 
-    vmi::ExecutableFile *efile = vmi::ExecutableFile::get(fp, false, 0);
+    auto efile = vmi::ExecutableFile::get(fp, false, 0);
 
     if (!efile) {
-        delete fp;
         getDebugStream() << "cannot load file\n";
         return BinData();
     }
@@ -402,18 +383,16 @@ Vmi::PeData Vmi::getPeFromDisk(const ModuleDescriptor &module, bool caseInsensit
 
     getDebugStream() << "attempting to load PE file: " << modPath << "\n";
 
-    vmi::FileSystemFileProvider *fp = vmi::FileSystemFileProvider::get(modPath, false);
+    auto fp = vmi::FileSystemFileProvider::get(modPath, false);
 
     if (!fp) {
         getDebugStream() << "cannot open file\n";
-        delete fp;
         return PeData();
     }
 
-    vmi::PEFile *pefile = vmi::PEFile::get(fp, false, 0);
+    auto pefile = vmi::PEFile::get(fp, false, 0);
 
     if (!pefile) {
-        delete fp;
         getDebugStream() << "cannot load file\n";
         return PeData();
     }
@@ -597,7 +576,7 @@ bool Vmi::writeX86Register(void *opaque, unsigned reg, const void *buffer, unsig
     return true;
 }
 
-void Vmi::toModuleDescriptor(ModuleDescriptor &desc, vmi::ExecutableFile *pe) {
+void Vmi::toModuleDescriptor(ModuleDescriptor &desc, std::shared_ptr<vmi::ExecutableFile> pe) {
     if (!desc.Size) {
         desc.Size = pe->getImageSize();
     }
@@ -611,9 +590,11 @@ void Vmi::toModuleDescriptor(ModuleDescriptor &desc, vmi::ExecutableFile *pe) {
         d.loadBase = desc.ToRuntime(vd.start);
         d.size = vd.size;
         d.name = vd.name;
-        d.setExecute(vd.isExecutable());
-        d.setRead(vd.isReadable());
-        d.setWrite(vd.isWritable());
+
+        d.executable = vd.executable;
+        d.readable = vd.readable;
+        d.writable = vd.writable;
+
         desc.Sections.push_back(d);
     }
 }
@@ -622,7 +603,7 @@ void Vmi::toModuleDescriptor(ModuleDescriptor &desc, vmi::ExecutableFile *pe) {
  * Read memory from binary data.
  */
 bool Vmi::readModuleData(const ModuleDescriptor &module, uint64_t addr, uint8_t &val) {
-    vmi::ExecutableFile *file;
+    std::shared_ptr<vmi::ExecutableFile> file;
     std::map<std::string, Vmi::BinData>::const_iterator it = m_cachedBinData.find(module.Name);
     if (it == m_cachedBinData.end()) {
         Vmi::BinData bindata = getFromDisk(module, false);
@@ -663,7 +644,6 @@ bool Vmi::readModuleData(const ModuleDescriptor &module, uint64_t addr, uint8_t 
 // XXX: support other binary formats, not just PE
 bool Vmi::patchImportsFromDisk(S2EExecutionState *state, const ModuleDescriptor &module, uint32_t checkSum,
                                vmi::Imports &imports) {
-    bool result = true;
     getDebugStream(state) << "trying to open the on-disk image to parse imports\n";
 
     Vmi::PeData pd = getPeFromDisk(module, true);
@@ -674,8 +654,7 @@ bool Vmi::patchImportsFromDisk(S2EExecutionState *state, const ModuleDescriptor 
 
     if (checkSum != pd.pe->getCheckSum()) {
         getDebugStream(state) << "checksum mismatch for " << module.Name << "\n";
-        result = false;
-        goto err1;
+        return false;
     }
 
     imports = pd.pe->getImports();
@@ -697,10 +676,7 @@ bool Vmi::patchImportsFromDisk(S2EExecutionState *state, const ModuleDescriptor 
         }
     }
 
-err1:
-    delete pd.pe;
-    delete pd.fp;
-    return result;
+    return true;
 }
 
 // TODO: remove duplicate code in all these getXXX functions.
@@ -709,14 +685,13 @@ bool Vmi::getEntryPoint(S2EExecutionState *state, const ModuleDescriptor &Desc, 
         return false;
     }
 
-    vmi::GuestMemoryFileProvider file(state, &Vmi::readGuestVirtual, NULL, Desc.Name);
-    vmi::PEFile *image = vmi::PEFile::get(&file, true, Desc.LoadBase);
+    auto file = vmi::GuestMemoryFileProvider::get(state, &Vmi::readGuestVirtual, NULL, Desc.Name);
+    auto image = vmi::PEFile::get(file, true, Desc.LoadBase);
     if (!image) {
         return false;
     }
 
     Addr = image->getEntryPoint();
-    delete image;
     return true;
 }
 
@@ -727,27 +702,23 @@ bool Vmi::getImports(S2EExecutionState *state, const ModuleDescriptor &Desc, vmi
 
     getDebugStream(state) << "getting import for " << Desc << "\n";
 
-    bool result = true;
-    vmi::GuestMemoryFileProvider file(state, &Vmi::readGuestVirtual, NULL, Desc.Name);
-    vmi::PEFile *image = vmi::PEFile::get(&file, true, Desc.LoadBase);
+    auto file = vmi::GuestMemoryFileProvider::get(state, &Vmi::readGuestVirtual, NULL, Desc.Name);
+    auto image = vmi::PEFile::get(file, true, Desc.LoadBase);
     if (!image) {
         return false;
     }
 
-    /**
-     * If the import table is in the INIT section, it's likely that the OS
-     * unloaded it. Instead of failing, reconstruct the import table from
-     * the original binary.
-     */
+    // If the import table is in the INIT section, it's likely that the OS
+    // unloaded it. Instead of failing, reconstruct the import table from
+    // the original binary.
     if (patchImportsFromDisk(state, Desc, image->getCheckSum(), I)) {
-        goto end;
+        return true;
     }
 
+    // We couldn't patch the imports, return the original ones.
     I = image->getImports();
 
-end:
-    delete image;
-    return result;
+    return true;
 }
 
 bool Vmi::getExports(S2EExecutionState *state, const ModuleDescriptor &Desc, vmi::Exports &E) {
@@ -755,14 +726,13 @@ bool Vmi::getExports(S2EExecutionState *state, const ModuleDescriptor &Desc, vmi
         return false;
     }
 
-    vmi::GuestMemoryFileProvider file(state, &Vmi::readGuestVirtual, NULL, Desc.Name);
-    vmi::PEFile *image = vmi::PEFile::get(&file, true, Desc.LoadBase);
+    auto file = vmi::GuestMemoryFileProvider::get(state, &Vmi::readGuestVirtual, NULL, Desc.Name);
+    auto image = vmi::PEFile::get(file, true, Desc.LoadBase);
     if (!image) {
         return false;
     }
 
     E = image->getExports();
-    delete image;
     return true;
 }
 
@@ -771,14 +741,13 @@ bool Vmi::getRelocations(S2EExecutionState *state, const ModuleDescriptor &Desc,
         return false;
     }
 
-    vmi::GuestMemoryFileProvider file(state, &Vmi::readGuestVirtual, NULL, Desc.Name);
-    vmi::PEFile *image = vmi::PEFile::get(&file, true, Desc.LoadBase);
+    auto file = vmi::GuestMemoryFileProvider::get(state, &Vmi::readGuestVirtual, NULL, Desc.Name);
+    auto image = vmi::PEFile::get(file, true, Desc.LoadBase);
     if (!image) {
         return false;
     }
 
     R = image->getRelocations();
-    delete image;
     return true;
 }
 
@@ -787,14 +756,14 @@ bool Vmi::getSections(S2EExecutionState *state, const ModuleDescriptor &Desc, vm
         return false;
     }
 
-    vmi::GuestMemoryFileProvider file(state, &Vmi::readGuestVirtual, NULL, Desc.Name);
-    vmi::ExecutableFile *image = vmi::ExecutableFile::get(&file, true, Desc.LoadBase);
+    auto file = vmi::GuestMemoryFileProvider::get(state, &Vmi::readGuestVirtual, NULL, Desc.Name);
+    auto image = vmi::ExecutableFile::get(file, true, Desc.LoadBase);
     if (!image) {
         return false;
     }
 
     S = image->getSections();
-    delete image;
+
     return true;
 }
 

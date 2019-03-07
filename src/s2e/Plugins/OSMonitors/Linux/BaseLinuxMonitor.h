@@ -74,8 +74,6 @@ protected:
         }
 
         Vmi::toModuleDescriptor(vmlinux, data.ef);
-        delete data.ef;
-        delete data.fp;
 
         vmlinux.Name = vmlinux.Path = "vmlinux";
         vmlinux.LoadBase = start_kernel;

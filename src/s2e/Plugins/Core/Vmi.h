@@ -36,24 +36,19 @@ class Vmi : public Plugin {
     S2E_PLUGIN
 public:
     struct ExeData {
-        vmi::ExecutableFile *execFile;
-        vmi::ElfDwarf *dwarf;
-        vmi::Vmi *vmi;
+        std::shared_ptr<vmi::ExecutableFile> execFile;
+        std::shared_ptr<vmi::ElfDwarf> dwarf;
+        std::shared_ptr<vmi::Vmi> vmi;
     };
 
-    // XXX: really need some ref counting for fp
     struct BinData {
-        vmi::FileProvider *fp;
-        vmi::ExecutableFile *ef;
-        BinData() : fp(NULL), ef(NULL) {
-        }
+        std::shared_ptr<vmi::FileProvider> fp;
+        std::shared_ptr<vmi::ExecutableFile> ef;
     };
 
     struct PeData {
-        vmi::FileProvider *fp;
-        vmi::PEFile *pe;
-        PeData() : fp(NULL), pe(NULL) {
-        }
+        std::shared_ptr<vmi::FileProvider> fp;
+        std::shared_ptr<vmi::PEFile> pe;
     };
 
     typedef uint64_t PeChecksum;
@@ -116,7 +111,7 @@ public:
         return m_addresses;
     }
 
-    static void toModuleDescriptor(ModuleDescriptor &desc, vmi::ExecutableFile *pe);
+    static void toModuleDescriptor(ModuleDescriptor &desc, std::shared_ptr<vmi::ExecutableFile> pe);
 
     bool readModuleData(const ModuleDescriptor &module, uint64_t addr, uint8_t &val);
     bool patchImportsFromDisk(S2EExecutionState *state, const ModuleDescriptor &module, uint32_t checkSum,

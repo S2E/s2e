@@ -147,8 +147,6 @@ void RawMonitor::handleModuleLoad(S2EExecutionState *state, const S2E_RAWMON_COM
             Vmi::BinData data = m_vmi->getFromDisk(module, mp[i]);
             if (data.ef) {
                 module.NativeBase = data.ef->getImageBase();
-                delete data.fp;
-                delete data.ef;
                 break;
             }
         }

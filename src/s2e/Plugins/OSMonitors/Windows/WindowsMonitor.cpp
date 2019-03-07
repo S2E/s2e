@@ -221,16 +221,14 @@ void WindowsMonitor::onTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionSt
 
 bool WindowsMonitor::computeImageData(S2EExecutionState *state, ModuleDescriptor &Desc) {
     // Use locally-stored files first
-    Vmi::PeData pe = m_vmi->getPeFromDisk(Desc, true);
+    auto pe = m_vmi->getPeFromDisk(Desc, true);
     if (pe.pe) {
         Vmi::toModuleDescriptor(Desc, pe.pe);
-        delete pe.pe;
-        delete pe.fp;
         return true;
     }
 
-    vmi::GuestMemoryFileProvider file(state, &Vmi::readGuestVirtual, NULL, Desc.Name);
-    vmi::PEFile *image = vmi::PEFile::get(&file, true, Desc.LoadBase);
+    auto file = vmi::GuestMemoryFileProvider::get(state, &Vmi::readGuestVirtual, NULL, Desc.Name);
+    auto image = vmi::PEFile::get(file, true, Desc.LoadBase);
 
     uint64_t NativeBase = 0;
     uint64_t EntryPoint = 0;
@@ -250,9 +248,9 @@ bool WindowsMonitor::computeImageData(S2EExecutionState *state, ModuleDescriptor
         // XXX: this may be redundant with the stuff above
         std::string modulePath;
         if (m_vmi->findModule(Desc.Name, modulePath)) {
-            std::unique_ptr<vmi::FileSystemFileProvider> fp(vmi::FileSystemFileProvider::get(modulePath, false));
+            auto fp = vmi::FileSystemFileProvider::get(modulePath, false);
             if (fp) {
-                vmi::PEFile *peFile = vmi::PEFile::get(fp.get(), false, 0);
+                auto peFile = vmi::PEFile::get(fp, false, 0);
                 if (peFile->getImageBase() != NativeBase) {
                     getDebugStream(state) << Desc.Name << " has different image bases: " << hexval(NativeBase)
                                           << " and (original) " << hexval(peFile->getImageBase()) << "\n";
@@ -260,7 +258,6 @@ bool WindowsMonitor::computeImageData(S2EExecutionState *state, ModuleDescriptor
                 NativeBase = peFile->getImageBase();
 
                 vmiOk = true;
-                delete peFile;
             } else {
                 getDebugStream(state) << "Could not open " << modulePath << "\n";
             }
@@ -286,10 +283,6 @@ bool WindowsMonitor::computeImageData(S2EExecutionState *state, ModuleDescriptor
                                      << " and (original) " << hexval(EntryPoint) << "\n";
         }
         Desc.EntryPoint = NativeEntryPoint;
-    }
-
-    if (image) {
-        delete image;
     }
 
     return true;
@@ -717,8 +710,6 @@ void WindowsMonitor::onPageDirectoryChange(S2EExecutionState *state, uint64_t pr
 
 void WindowsMonitor::opcodeInitKernelStructs(S2EExecutionState *state, uint64_t guestDataPtr,
                                              const S2E_WINMON2_COMMAND &command) {
-    vmi::GuestMemoryFileProvider *guestImage;
-    vmi::PEFile *pe;
     m_kernel = command.Structs;
 
     getDebugStream(state) << "initializing kernel data structures\n"
@@ -767,14 +758,14 @@ void WindowsMonitor::opcodeInitKernelStructs(S2EExecutionState *state, uint64_t 
         exit(-1);
     }
 
-    guestImage = new vmi::GuestMemoryFileProvider(state, &Vmi::readGuestVirtual, NULL, "ntoskrnl.exe");
+    auto guestImage = vmi::GuestMemoryFileProvider::get(state, &Vmi::readGuestVirtual, NULL, "ntoskrnl.exe");
 
     if (!guestImage) {
         getWarningsStream(state) << "error creating GuestMemoryFileProvider\n";
         exit(-1);
     }
 
-    pe = vmi::PEFile::get(guestImage, true, m_kernel.KernelLoadBase);
+    auto pe = vmi::PEFile::get(guestImage, true, m_kernel.KernelLoadBase);
     if (!pe) {
         getWarningsStream(state) << "could not load memory image for the kernel\n";
         exit(-1);
@@ -837,9 +828,11 @@ void WindowsMonitor::opcodeInitKernelStructs(S2EExecutionState *state, uint64_t 
     completeInitialization(state);
 
     bool ret = checkNewProcess(state, true);
-    assert(ret);
+    if (!ret) {
+        getWarningsStream(state) << "Cannot init initial process\n";
+        exit(-1);
+    }
 
-    delete guestImage;
     return;
 }
 

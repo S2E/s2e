@@ -67,18 +67,19 @@ bool WindowsCrashDumpGenerator::generateCrashDump(S2EExecutionState *state, cons
                                                   const BugCheckDescription *bugDesc, const CONTEXT32 &context) {
     getDebugStream(state) << "generating dump in " << filename << "\n";
 
-    std::unique_ptr<vmi::FileSystemFileProvider> fp(vmi::FileSystemFileProvider::get(filename, true));
+    auto fp = vmi::FileSystemFileProvider::get(filename, true);
     if (!fp) {
         getWarningsStream(state) << "could not open " << filename << " for writing - " << strerror(errno) << "\n";
         return false;
     }
 
-    vmi::GuestMemoryFileProvider physicalMemory(state, &Vmi::readGuestPhysical, NULL, filename);
-    vmi::GuestMemoryFileProvider virtualMemory(state, &Vmi::readGuestVirtual, &Vmi::writeGuestVirtual, filename);
+    auto physicalMemory = vmi::GuestMemoryFileProvider::get(state, &Vmi::readGuestPhysical, NULL, filename);
+    auto virtualMemory =
+        vmi::GuestMemoryFileProvider::get(state, &Vmi::readGuestVirtual, &Vmi::writeGuestVirtual, filename);
 
     vmi::X86RegisterProvider registers(state, &Vmi::readX86Register, NULL);
 
-    vmi::windows::WindowsCrashDumpGenerator crashGen(&virtualMemory, &physicalMemory, &registers, fp.get());
+    auto crashGen = vmi::windows::WindowsCrashDumpGenerator::get(virtualMemory, physicalMemory, &registers, fp);
 
     bool retd = false;
 
@@ -86,15 +87,15 @@ bool WindowsCrashDumpGenerator::generateCrashDump(S2EExecutionState *state, cons
         if (state->getPointerSize() == 4) {
             CONTEXT32 context;
             getContext32(state, context);
-            retd = crashGen.generate(*bugDesc, &context, sizeof(context));
+            retd = crashGen->generate(*bugDesc, &context, sizeof(context));
         } else {
             CONTEXT64 context;
             getContext64(state, context);
-            retd = crashGen.generate(*bugDesc, &context, sizeof(context));
+            retd = crashGen->generate(*bugDesc, &context, sizeof(context));
         }
     } else {
-        retd = crashGen.generate(m_monitor->getKdDebuggerDataBlock(), m_monitor->getKprcbAddress(),
-                                 m_monitor->getVersionBlock(), context, *bugDesc);
+        retd = crashGen->generate(m_monitor->getKdDebuggerDataBlock(), m_monitor->getKprcbAddress(),
+                                  m_monitor->getVersionBlock(), context, *bugDesc);
     }
 
     if (!retd) {

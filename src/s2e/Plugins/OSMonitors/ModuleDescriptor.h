@@ -27,45 +27,14 @@ namespace s2e {
  *  Defines some section of memory
  */
 struct SectionDescriptor {
-    enum SectionType { NONE = 0, READ = 1, WRITE = 2, READWRITE = 3, EXECUTE = 4 };
-
     uint64_t loadBase;
     uint64_t size;
-    SectionType type;
+    bool readable;
+    bool writable;
+    bool executable;
     std::string name;
 
-    SectionDescriptor() : loadBase(0), size(0), type(NONE) {
-    }
-
-    void setRead(bool b) {
-        if (b)
-            type = SectionType(type | READ);
-        else
-            type = SectionType(type & (-1 - READ));
-    }
-
-    void setWrite(bool b) {
-        if (b)
-            type = SectionType(type | WRITE);
-        else
-            type = SectionType(type & (-1 - WRITE));
-    }
-
-    void setExecute(bool b) {
-        if (b)
-            type = SectionType(type | EXECUTE);
-        else
-            type = SectionType(type & (-1 - EXECUTE));
-    }
-
-    bool isReadable() const {
-        return type & READ;
-    }
-    bool isWritable() const {
-        return type & WRITE;
-    }
-    bool isExecutable() const {
-        return type & EXECUTE;
+    SectionDescriptor() : loadBase(0), size(0), readable(false), writable(false), executable(false) {
     }
 
     bool contains(uint64_t address) const {
