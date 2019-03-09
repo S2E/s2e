@@ -221,9 +221,9 @@ void WindowsMonitor::onTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionSt
 
 bool WindowsMonitor::computeImageData(S2EExecutionState *state, ModuleDescriptor &Desc) {
     // Use locally-stored files first
-    auto pe = m_vmi->getPeFromDisk(Desc, true);
-    if (pe.pe) {
-        Vmi::toModuleDescriptor(Desc, pe.pe);
+    auto pe = m_vmi->getFromDisk(Desc, true);
+    if (pe) {
+        Vmi::toModuleDescriptor(Desc, pe);
         return true;
     }
 
