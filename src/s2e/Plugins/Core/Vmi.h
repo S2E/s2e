@@ -73,7 +73,7 @@ public:
 
     Vmi(S2E *s2e) : Plugin(s2e) {
     }
-    ~Vmi();
+    ~Vmi(){};
 
     void initialize();
 
@@ -100,8 +100,7 @@ public:
         return m_moduleInfo;
     }
 
-    Vmi::BinData getFromDisk(const ModuleDescriptor &module, bool useModulePath = true);
-    Vmi::PeData getPeFromDisk(const ModuleDescriptor &module, bool caseInsensitive = false);
+    std::shared_ptr<vmi::ExecutableFile> getFromDisk(const ModuleDescriptor &module, bool caseInsensitive = false);
 
     void addFuctionAddress(uint64_t PeChecksum, uint64_t address) {
         m_addresses[PeChecksum].insert(address);
@@ -119,7 +118,6 @@ public:
 
     static bool getEntryPoint(S2EExecutionState *s, const ModuleDescriptor &desc, uint64_t &Addr);
     bool getImports(S2EExecutionState *s, const ModuleDescriptor &desc, vmi::Imports &I);
-    static bool getExports(S2EExecutionState *s, const ModuleDescriptor &desc, vmi::Exports &E);
     static bool getRelocations(S2EExecutionState *s, const ModuleDescriptor &desc, vmi::Relocations &R);
     static bool getSections(S2EExecutionState *s, const ModuleDescriptor &desc, vmi::Sections &S);
 
@@ -132,7 +130,7 @@ private:
 
     ModuleAddresses m_addresses;
 
-    std::map<std::string /* moduleName */, Vmi::BinData> m_cachedBinData;
+    std::unordered_map<std::string /* guestfs path */, std::shared_ptr<vmi::ExecutableFile>> m_cache;
 
     bool initializeExecutable(const std::string &path, ExeData &data);
     bool parseModuleInfo(ConfigFile *cfg, const std::string &modules_key);

@@ -29,10 +29,6 @@ static bool VmiReadMemory(void *opaque, uint64_t address, void *dest, unsigned s
     return state->mem()->read(address, dest, size);
 }
 
-Vmi::~Vmi() {
-    m_cachedBinData.clear();
-}
-
 void Vmi::initialize() {
     // Load the list of directories in which to search for
     // executable files.
@@ -322,41 +318,10 @@ bool Vmi::get(const std::string &module, ExeData &data) {
     return true;
 }
 
-// XXX: avoid code duplication with getPeFromDisk
-Vmi::BinData Vmi::getFromDisk(const ModuleDescriptor &module, bool useModulePath) {
-    getDebugStream() << "reading executable file from host disk\n";
-    std::string modPath;
-    if (!findModule(useModulePath ? module.Path : module.Name, modPath)) {
-        if (!findModule(module.Name, modPath)) {
-            return BinData();
-        }
-    }
+std::shared_ptr<vmi::ExecutableFile> Vmi::getFromDisk(const ModuleDescriptor &module, bool caseInsensitive) {
+    getDebugStream() << "Loading module from disk\n";
 
-    getDebugStream() << "attempting to load executable file: " << modPath << "\n";
-
-    auto fp = FileSystemFileProvider::get(modPath, false);
-
-    if (!fp) {
-        getDebugStream() << "cannot open file\n";
-        return BinData();
-    }
-
-    auto efile = vmi::ExecutableFile::get(fp, false, 0);
-
-    if (!efile) {
-        getDebugStream() << "cannot load file\n";
-        return BinData();
-    }
-
-    BinData pd;
-    pd.fp = fp;
-    pd.ef = efile;
-    return pd;
-}
-
-Vmi::PeData Vmi::getPeFromDisk(const ModuleDescriptor &module, bool caseInsensitive) {
-    getDebugStream() << "reading PE file from disk\n";
-    // Try to load back pe file from disk
+    // This is a no-op for Linux systems, normally.
     std::string strippedPath = Vmi::stripWindowsModulePath(module.Path);
     std::string modPath;
     if (!findModule(strippedPath, modPath)) {
@@ -376,31 +341,34 @@ Vmi::PeData Vmi::getPeFromDisk(const ModuleDescriptor &module, bool caseInsensit
         }
 
         if (!found) {
-            getDebugStream() << "could not find " << strippedPath << "\n";
-            return PeData();
+            getDebugStream() << "Could not find " << strippedPath << "\n";
+            return nullptr;
         }
     }
 
-    getDebugStream() << "attempting to load PE file: " << modPath << "\n";
+    auto it = m_cache.find(modPath);
+    if (it != m_cache.end()) {
+        getDebugStream() << "Found cached entry for " << modPath << "\n";
+        return (*it).second;
+    }
 
+    getDebugStream() << "Attempting to load binary file: " << modPath << "\n";
     auto fp = vmi::FileSystemFileProvider::get(modPath, false);
 
     if (!fp) {
-        getDebugStream() << "cannot open file\n";
-        return PeData();
+        getDebugStream() << "Cannot open file " << modPath << "\n";
+        return nullptr;
     }
 
-    auto pefile = vmi::PEFile::get(fp, false, 0);
+    auto exe = vmi::ExecutableFile::get(fp, false, 0);
 
-    if (!pefile) {
-        getDebugStream() << "cannot load file\n";
-        return PeData();
+    if (!exe) {
+        getDebugStream() << "Cannot parse file " << modPath << "\n";
+        return nullptr;
     }
 
-    PeData pd;
-    pd.fp = fp;
-    pd.pe = pefile;
-    return pd;
+    m_cache[modPath] = exe;
+    return exe;
 }
 
 bool Vmi::readGuestVirtual(void *opaque, uint64_t address, void *dest, unsigned size) {
@@ -603,18 +571,10 @@ void Vmi::toModuleDescriptor(ModuleDescriptor &desc, std::shared_ptr<vmi::Execut
  * Read memory from binary data.
  */
 bool Vmi::readModuleData(const ModuleDescriptor &module, uint64_t addr, uint8_t &val) {
-    std::shared_ptr<vmi::ExecutableFile> file;
-    std::map<std::string, Vmi::BinData>::const_iterator it = m_cachedBinData.find(module.Name);
-    if (it == m_cachedBinData.end()) {
-        Vmi::BinData bindata = getFromDisk(module, false);
-        if (!bindata.ef) {
-            getDebugStream() << "No executable file for " << module.Name << "\n";
-            return false;
-        }
-        m_cachedBinData[module.Name] = bindata;
-        file = bindata.ef;
-    } else {
-        file = it->second.ef;
+    auto file = getFromDisk(module, false);
+    if (!file) {
+        getDebugStream() << "No executable file for " << module.Name << "\n";
+        return false;
     }
 
     bool addrInSection = false;
@@ -646,18 +606,24 @@ bool Vmi::patchImportsFromDisk(S2EExecutionState *state, const ModuleDescriptor 
                                vmi::Imports &imports) {
     getDebugStream(state) << "trying to open the on-disk image to parse imports\n";
 
-    Vmi::PeData pd = getPeFromDisk(module, true);
-    if (!pd.pe) {
+    auto exe = getFromDisk(module, true);
+    if (!exe) {
         getDebugStream(state) << "could not find on-disk image\n";
         return false;
     }
 
-    if (checkSum != pd.pe->getCheckSum()) {
+    auto pe = std::dynamic_pointer_cast<vmi::PEFile>(exe);
+    if (!pe) {
+        getWarningsStream(state) << "patchImportsFromDisk only supports PE files\n";
+        return false;
+    }
+
+    if (checkSum != pe->getCheckSum()) {
         getDebugStream(state) << "checksum mismatch for " << module.Name << "\n";
         return false;
     }
 
-    imports = pd.pe->getImports();
+    imports = pe->getImports();
 
     for (vmi::Imports::iterator it = imports.begin(); it != imports.end(); ++it) {
         vmi::ImportedSymbols &symbols = (*it).second;
@@ -695,6 +661,9 @@ bool Vmi::getEntryPoint(S2EExecutionState *state, const ModuleDescriptor &Desc, 
     return true;
 }
 
+// TODO: first read from disk, then try to read from memory as last resort.
+// Might even get rid of reading from memory as well, since we have a mirror
+// of the guest file system.
 bool Vmi::getImports(S2EExecutionState *state, const ModuleDescriptor &Desc, vmi::Imports &I) {
     if (Desc.AddressSpace && state->regs()->getPageDir() != Desc.AddressSpace) {
         return false;
@@ -718,21 +687,6 @@ bool Vmi::getImports(S2EExecutionState *state, const ModuleDescriptor &Desc, vmi
     // We couldn't patch the imports, return the original ones.
     I = image->getImports();
 
-    return true;
-}
-
-bool Vmi::getExports(S2EExecutionState *state, const ModuleDescriptor &Desc, vmi::Exports &E) {
-    if (Desc.AddressSpace && state->regs()->getPageDir() != Desc.AddressSpace) {
-        return false;
-    }
-
-    auto file = vmi::GuestMemoryFileProvider::get(state, &Vmi::readGuestVirtual, NULL, Desc.Name);
-    auto image = vmi::PEFile::get(file, true, Desc.LoadBase);
-    if (!image) {
-        return false;
-    }
-
-    E = image->getExports();
     return true;
 }
 
