@@ -136,7 +136,7 @@ bool PEFile::initExports(void) {
         }
 
         HasName[NameOrd] = true;
-        m_exports[FunctionName] = FuncRva + m_loadAddress;
+        m_exports[FuncRva + m_loadAddress] = FunctionName;
     }
 
     for (unsigned i = 0; i < FunctionPointers.size(); ++i) {
@@ -153,7 +153,7 @@ bool PEFile::initExports(void) {
         std::string _str;
         llvm::raw_string_ostream FunctionName(_str);
         FunctionName << i;
-        m_exports[FunctionName.str()] = FuncRva + m_loadAddress;
+        m_exports[FuncRva + m_loadAddress] = FunctionName.str();
     }
 
     return true;

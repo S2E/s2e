@@ -49,8 +49,8 @@ struct SectionDescriptor {
 
 typedef std::vector<SectionDescriptor> Sections;
 
-// Maps the name of the exported function to its actual address
-typedef std::map<std::string, uint64_t> Exports;
+// Maps the address of an exported function to its name
+typedef std::map<uint64_t, std::string> Exports;
 
 /* The actual values may vary depending if the image file
    is actually loaded or not */

@@ -61,8 +61,8 @@ static void dumpExports(std::shared_ptr<PEFile> peFile, std::ostream &ss, bool c
     }
 
     for (Exports::const_iterator it = exports.begin(); it != exports.end(); ++it) {
-        uint64_t address = peFile->getImageBase() + (*it).second;
-        std::string name = (*it).first;
+        uint64_t address = peFile->getImageBase() + (*it).first;
+        std::string name = (*it).second;
         ss << std::setfill(' ') << std::setw(40) << std::left << name << " @0x" << std::hex << address << '\n';
     }
 
