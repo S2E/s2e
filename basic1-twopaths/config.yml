@@ -14,3 +14,6 @@ test:
     blacklisted-images:
         - windows-8.1ent-x86_64
         - windows-10ent1703-x86_64
+
+    build-options:
+        post-project-generation-script: fix-config.sh

@@ -8,6 +8,11 @@ echo === Checking that program forked
 grep -q "Value is 1" $S2E_LAST/debug.txt
 grep -q "Value is not 1" $S2E_LAST/debug.txt
 
+{% if 'windows' in project_name %}
+echo === Checking that LibraryCallMonitor works properly
+grep -q "called ntdll.dll!RtlEnterCriticalSection" $S2E_LAST/debug.txt
+{% endif %}
+
 echo === Computing code coverage
 s2e coverage lcov --html {{ project_name }} | tee $S2E_LAST/cov.log
 
