@@ -318,32 +318,37 @@ bool Vmi::get(const std::string &module, ExeData &data) {
     return true;
 }
 
+bool Vmi::getHostPathForModule(const ModuleDescriptor &module, bool caseInsensitive, std::string &modPath) {
+    // This is a no-op for Linux systems, normally.
+    std::string strippedPath = Vmi::stripWindowsModulePath(module.Path);
+
+    if (findModule(strippedPath, modPath)) {
+        return true;
+    }
+
+    if (caseInsensitive) {
+        std::transform(strippedPath.begin(), strippedPath.end(), strippedPath.begin(), ::tolower);
+        if (findModule(strippedPath, modPath)) {
+            return true;
+        }
+    }
+
+    if (findModule(module.Name, modPath)) {
+        return true;
+    }
+
+    std::string Name = module.Name;
+    std::transform(Name.begin(), Name.end(), Name.begin(), ::tolower);
+    return findModule(Name, modPath);
+}
+
 std::shared_ptr<vmi::ExecutableFile> Vmi::getFromDisk(const ModuleDescriptor &module, bool caseInsensitive) {
     getDebugStream() << "Loading module from disk\n";
 
-    // This is a no-op for Linux systems, normally.
-    std::string strippedPath = Vmi::stripWindowsModulePath(module.Path);
     std::string modPath;
-    if (!findModule(strippedPath, modPath)) {
-        bool found = false;
-        if (caseInsensitive) {
-            std::transform(strippedPath.begin(), strippedPath.end(), strippedPath.begin(), ::tolower);
-            found = findModule(strippedPath, modPath);
-        }
-
-        if (!found) {
-            found = findModule(module.Name, modPath);
-            if (!found) {
-                std::string Name = module.Name;
-                std::transform(Name.begin(), Name.end(), Name.begin(), ::tolower);
-                found = findModule(Name, modPath);
-            }
-        }
-
-        if (!found) {
-            getDebugStream() << "Could not find " << strippedPath << "\n";
-            return nullptr;
-        }
+    if (!getHostPathForModule(module, caseInsensitive, modPath)) {
+        getWarningsStream() << "Could not find host path for " << module.Name << "\n";
+        return nullptr;
     }
 
     auto it = m_cache.find(modPath);

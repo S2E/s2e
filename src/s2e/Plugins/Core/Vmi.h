@@ -135,6 +135,8 @@ private:
     bool initializeExecutable(const std::string &path, ExeData &data);
     bool parseModuleInfo(ConfigFile *cfg, const std::string &modules_key);
     bool parseDirectories(ConfigFile *cfg, const std::string &baseDirsKey);
+
+    bool getHostPathForModule(const ModuleDescriptor &module, bool caseInsensitive, std::string &modPath);
 };
 
 } // namespace plugins
