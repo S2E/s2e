@@ -74,6 +74,9 @@ private:
     bool m_monitorAllModules;
     bool m_monitorIndirectJumps;
 
+    void onModuleUnload(S2EExecutionState *state, const ModuleDescriptor &module);
+    void onProcessUnload(S2EExecutionState *state, uint64_t addressSpace, uint64_t pid, uint64_t returnCode);
+
     void logLibraryCall(S2EExecutionState *state, const std::string &callerMod, uint64_t pc, unsigned sourceType,
                         const std::string &calleeMod, const std::string &function, uint64_t pid) const;
 

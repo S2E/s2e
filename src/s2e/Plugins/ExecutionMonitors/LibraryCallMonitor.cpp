@@ -27,6 +27,71 @@ namespace plugins {
 S2E_DEFINE_PLUGIN(LibraryCallMonitor, "Monitors external library function calls", "", "ModuleMap", "OSMonitor",
                   "ProcessExecutionDetector", "Vmi");
 
+namespace {
+
+class LibraryCallMonitorState : public PluginState {
+    typedef std::unordered_map<uint64_t, std::string> ExportMap;
+    std::unordered_map<uint64_t, ExportMap> m_map;
+
+public:
+    LibraryCallMonitorState() {
+    }
+
+    virtual ~LibraryCallMonitorState() {
+    }
+
+    virtual LibraryCallMonitorState *clone() const {
+        return new LibraryCallMonitorState(*this);
+    }
+
+    static PluginState *factory(Plugin *p, S2EExecutionState *s) {
+        return new LibraryCallMonitorState();
+    }
+
+    bool get(uint64_t pid, uint64_t address, std::string &exportName) const {
+        auto it = m_map.find(pid);
+        if (it == m_map.end()) {
+            return false;
+        }
+
+        auto it2 = (*it).second.find(address);
+        if (it2 == (*it).second.end()) {
+            return false;
+        }
+
+        exportName = (*it2).second;
+        return true;
+    }
+
+    void add(uint64_t pid, uint64_t address, const std::string &exportName) {
+        m_map[pid][address] = exportName;
+    }
+
+    void remove(uint64_t pid) {
+        m_map.erase(pid);
+    }
+
+    void remove(const ModuleDescriptor &mod) {
+        auto it = m_map.find(mod.Pid);
+        if (it == m_map.end()) {
+            return;
+        }
+
+        std::vector<uint64_t> toDelete;
+        auto exports = (*it).second;
+        for (auto eit : exports) {
+            if (mod.Contains(eit.first)) {
+                toDelete.push_back(eit.first);
+            }
+        }
+
+        for (auto it2 : toDelete) {
+            exports.erase(it2);
+        }
+    }
+};
+}
+
 void LibraryCallMonitor::initialize() {
     m_map = s2e()->getPlugin<ModuleMap>();
     m_monitor = static_cast<OSMonitor *>(s2e()->getPlugin("OSMonitor"));
@@ -38,6 +103,20 @@ void LibraryCallMonitor::initialize() {
     m_monitorIndirectJumps = cfg->getBool(getConfigKey() + ".monitorIndirectJumps");
 
     s2e()->getCorePlugin()->onTranslateBlockEnd.connect(sigc::mem_fun(*this, &LibraryCallMonitor::onTranslateBlockEnd));
+
+    m_monitor->onProcessUnload.connect(sigc::mem_fun(*this, &LibraryCallMonitor::onProcessUnload));
+    m_monitor->onModuleUnload.connect(sigc::mem_fun(*this, &LibraryCallMonitor::onModuleUnload));
+}
+
+void LibraryCallMonitor::onProcessUnload(S2EExecutionState *state, uint64_t addressSpace, uint64_t pid,
+                                         uint64_t returnCode) {
+    DECLARE_PLUGINSTATE(LibraryCallMonitorState, state);
+    plgState->remove(pid);
+}
+
+void LibraryCallMonitor::onModuleUnload(S2EExecutionState *state, const ModuleDescriptor &module) {
+    DECLARE_PLUGINSTATE(LibraryCallMonitorState, state);
+    plgState->remove(module);
 }
 
 void LibraryCallMonitor::logLibraryCall(S2EExecutionState *state, const std::string &callerMod, uint64_t pc,
@@ -45,7 +124,7 @@ void LibraryCallMonitor::logLibraryCall(S2EExecutionState *state, const std::str
                                         uint64_t pid) const {
     std::string sourceTypeDesc = (sourceType == TB_CALL_IND) ? " called " : " jumped to ";
 
-    getInfoStream(state) << callerMod << "@" << hexval(pc) << sourceTypeDesc << calleeMod << "." << function
+    getInfoStream(state) << callerMod << "@" << hexval(pc) << sourceTypeDesc << calleeMod << "!" << function
                          << " (pid=" << hexval(pid) << ")\n";
 }
 
@@ -70,47 +149,56 @@ void LibraryCallMonitor::onIndirectCallOrJump(S2EExecutionState *state, uint64_t
         return;
     }
 
-    // Get the loaded modules for the executing process
-    uint64_t pid = m_monitor->getPid(state);
-    ModuleDescriptorList mods = m_map->getModulesByPid(state, pid);
+    auto current_mod = m_map->getModule(state, pc);
+
+    auto mod = m_map->getModule(state);
+    if (!mod) {
+        return;
+    }
+
+    if (mod == current_mod) {
+        // Indirect calls within the same module don't count as library calls
+        return;
+    }
 
     uint64_t targetAddr = state->regs()->getPc();
 
-    // Find the module that contains the call target
-    //
-    // First check the ModuleMap cache. If it is not in the cache, search all the loaded modules until the one that
-    // exports the call target is found
-    const ModuleMap::Export *cachedExp = m_map->getExport(state, targetAddr);
+    DECLARE_PLUGINSTATE(LibraryCallMonitorState, state);
 
-    if (cachedExp) {
-        logLibraryCall(state, currentMod->Name, pc, sourceType, cachedExp->first->Name, cachedExp->second, pid);
-        onLibraryCall.emit(state, *(cachedExp->first), targetAddr);
-    } else {
-        for (auto const &mod : mods) {
-            if (mod->Contains(targetAddr)) {
-                vmi::Exports exps;
-                if (!m_vmi->getExports(state, *mod, exps)) {
-                    getWarningsStream(state) << "unable to get exports for " << mod->Name << "\n";
-                    break;
-                }
+    std::string exportName;
+    if (!plgState->get(mod->Pid, targetAddr, exportName)) {
+        vmi::Exports exps;
+        auto exe = m_vmi->getFromDisk(*mod, true);
+        if (!exe) {
+            return;
+        }
 
-                // Find the export that matches the call target
-                for (auto const &exp : exps) {
-                    if (targetAddr == exp.second) {
-                        logLibraryCall(state, currentMod->Name, pc, sourceType, mod->Name, exp.first, pid);
-                        onLibraryCall.emit(state, *mod, targetAddr);
+        auto pe = std::dynamic_pointer_cast<vmi::PEFile>(exe);
+        if (!pe) {
+            getWarningsStream(state) << "we only support PE files for now\n";
+            return;
+        }
 
-                        // Cache the result
-                        m_map->cacheExport(state, targetAddr, {mod, exp.first});
-
-                        break;
-                    }
-                }
-
-                break;
-            }
+        auto exports = pe->getExports();
+        auto it = exports.find(targetAddr - mod->LoadBase);
+        if (it != exports.end()) {
+            plgState->add(mod->Pid, targetAddr, (*it).second);
+            exportName = (*it).second;
+        } else {
+            // Did not find any export
+            getWarningsStream(state) << "Could not get export name for address " << hexval(targetAddr) << "\n";
+            // Entry with an empty name is a blacklist, so we don't incur lookup costs all the time
+            plgState->add(mod->Pid, targetAddr, "");
+            return;
         }
     }
+
+    if (exportName.size() == 0) {
+        return;
+    }
+
+    logLibraryCall(state, mod->Name, pc, sourceType, mod->Name, exportName, mod->Pid);
+    onLibraryCall.emit(state, *mod, targetAddr);
 }
 
 } // namespace plugins
