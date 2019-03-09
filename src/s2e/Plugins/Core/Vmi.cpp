@@ -1,6 +1,6 @@
 ///
 /// Copyright (C) 2012-2016, Dependable Systems Laboratory, EPFL
-/// Copyright (C) 2014-2016, Cyberhaven
+/// Copyright (C) 2014-2019, Cyberhaven
 /// All rights reserved.
 ///
 /// Licensed under the Cyberhaven Research License Agreement.
@@ -24,20 +24,11 @@ namespace plugins {
 
 S2E_DEFINE_PLUGIN(Vmi, "Virtual Machine Introspection", "", );
 
-static bool VmiReadMemory(void *opaque, uint64_t address, void *dest, unsigned size) {
-    S2EExecutionState *state = static_cast<S2EExecutionState *>(opaque);
-    return state->mem()->read(address, dest, size);
-}
-
 void Vmi::initialize() {
     // Load the list of directories in which to search for
     // executable files.
     ConfigFile *cfg = s2e()->getConfig();
     if (!parseDirectories(cfg, getConfigKey() + ".baseDirs")) {
-        exit(-1);
-    }
-
-    if (!parseModuleInfo(cfg, getConfigKey() + ".modules")) {
         exit(-1);
     }
 }
@@ -59,179 +50,6 @@ bool Vmi::parseDirectories(ConfigFile *cfg, const std::string &baseDirsKey) {
     if (m_baseDirectories.empty()) {
         m_baseDirectories.push_back(s2e()->getOutputDirectory());
     }
-
-    return true;
-}
-
-bool Vmi::parseModuleInfo(ConfigFile *cfg, const std::string &modules_key) {
-    ConfigFile::string_list checksums = cfg->getListKeys(modules_key);
-    foreach2 (it, checksums.begin(), checksums.end()) {
-        Module mod;
-        std::stringstream ss;
-        bool ok = true;
-        ss << modules_key << "." << *it;
-
-        mod.Checksum = cfg->getInt(ss.str() + ".checksum", 0, &ok);
-        if (!ok) {
-            getWarningsStream() << "no checksum in " << ss.str() << "\n";
-            return false;
-        }
-
-        mod.NativeBase = cfg->getInt(ss.str() + ".nativebase", 0, &ok);
-        if (!ok) {
-            getWarningsStream() << "no native base in " << ss.str() << "\n";
-            return false;
-        }
-
-        mod.Name = cfg->getString(ss.str() + ".name", "", &ok);
-        if (!ok) {
-            getWarningsStream() << "no name in " << ss.str() << "\n";
-            return false;
-        }
-
-        mod.Version = cfg->getString(ss.str() + ".version", "", &ok);
-        if (!ok) {
-            getWarningsStream() << "no version in " << ss.str() << "\n";
-            return false;
-        }
-
-        ConfigFile::string_list symbols = cfg->getListKeys(ss.str() + ".symbols");
-        foreach2 (fit, symbols.begin(), symbols.end()) {
-            std::string name = *fit;
-            std::stringstream fss;
-            fss << ss.str() << ".symbols." << name;
-            uint64_t address = cfg->getInt(fss.str(), 0, &ok);
-            if (!ok) {
-                getWarningsStream() << "no address for function " << fss.str() << "\n";
-                return false;
-            }
-
-            mod.Symbols[name] = address;
-            if (name == "__C_specific_handler") {
-                mod.CHandler = address;
-            } else if (name == "__CxxFrameHandler3") {
-                mod.CXXHandlers.insert(address);
-            } else if (name == "__GSHandlerCheck") {
-                mod.CXXHandlers.insert(address);
-            } else if (name == "__GSHandlerCheck_EH") {
-                mod.CXXHandlers.insert(address);
-            }
-        }
-
-        unsigned syscallCount = cfg->getListSize(ss.str() + ".syscalls");
-        for (unsigned i = 0; i < syscallCount; ++i) {
-            std::stringstream fss;
-            fss << ss.str() << ".syscalls[" << (i + 1) << "]";
-
-            uint64_t address = cfg->getInt(fss.str() + "[1]", 0, &ok);
-            std::string name = cfg->getString(fss.str() + "[2]", "", &ok);
-
-            if (!ok || name == "") {
-                getWarningsStream() << "Could not get syscall for " << fss.str() << "\n";
-                break;
-            }
-
-            mod.Syscalls.push_back(std::make_pair(address, name));
-        }
-
-        ConfigFile::integer_list range = cfg->getIntegerList(ss.str() + ".range");
-        if (range.size() == 2) {
-            mod.IgnoredAddressRanges.push_back(std::make_pair(range[0], range[1]));
-        }
-
-        llvm::raw_ostream &os = getDebugStream();
-        os << "added module " << mod.Name << " " << mod.Version << " " << hexval(mod.Checksum) << " "
-           << "- " << mod.Symbols.size() << " functions "
-           << "- " << mod.Syscalls.size() << " syscalls";
-
-        if (mod.IgnoredAddressRanges.size() > 0) {
-            os << " range: " << hexval(mod.IgnoredAddressRanges[0].first) << ","
-               << hexval(mod.IgnoredAddressRanges[0].second) << "\n";
-        } else {
-            os << "\n";
-        }
-
-        m_moduleInfo[mod.Checksum] = mod;
-    }
-
-    return true;
-}
-
-bool Vmi::getSymbolAddress(uint64_t PeChecksum, const std::string &symbolName, bool relative, uint64_t *address) const {
-    Modules::const_iterator mit = m_moduleInfo.find(PeChecksum);
-    if (mit == m_moduleInfo.end()) {
-        return false;
-    }
-
-    const Module &mod = (*mit).second;
-    Symbols::const_iterator sit = mod.Symbols.find(symbolName);
-    if (sit == mod.Symbols.end()) {
-        return false;
-    }
-
-    *address = (*sit).second;
-    if (relative) {
-        *address -= mod.NativeBase;
-    }
-    return true;
-}
-
-bool Vmi::getVersion(uint64_t PeChecksum, std::string &version) const {
-    Modules::const_iterator mit = m_moduleInfo.find(PeChecksum);
-    if (mit == m_moduleInfo.end()) {
-        return false;
-    }
-
-    const Module &mod = (*mit).second;
-    version = mod.Version;
-
-    return true;
-}
-
-bool Vmi::getSyscallInfo(uint64_t PeChecksum, unsigned num, uint64_t &address, std::string &name) const {
-    Modules::const_iterator mit = m_moduleInfo.find(PeChecksum);
-    if (mit == m_moduleInfo.end()) {
-        return false;
-    }
-
-    const Module &mod = (*mit).second;
-
-    if (num >= mod.Syscalls.size()) {
-        return false;
-    }
-
-    address = mod.Syscalls[num].first;
-    name = mod.Syscalls[num].second;
-    return true;
-}
-
-bool Vmi::initializeExecutable(const std::string &file, ExeData &data) {
-    auto fp = vmi::FileSystemFileProvider::get(file, false);
-    if (!fp) {
-        getWarningsStream() << file << " could not be opened\n";
-        return false;
-    }
-
-    auto execFile = vmi::ExecutableFile::get(fp, false, 0);
-    if (!execFile) {
-        getWarningsStream() << file << " does not appear to be a valid executable file\n";
-        return false;
-    }
-
-    auto dwarf = vmi::ElfDwarf::get(getDebugStream(), file);
-    if (!dwarf) {
-        getWarningsStream()
-            << file
-            << " does not appear to contain valid DWARF debug info. Please recompile your kernel with debug symbols.\n";
-        return false;
-    }
-
-    auto vmi = vmi::Vmi::get(dwarf);
-    vmi->registerCallbacks(&VmiReadMemory);
-
-    data.dwarf = dwarf;
-    data.execFile = execFile;
-    data.vmi = vmi;
 
     return true;
 }
@@ -295,27 +113,6 @@ bool Vmi::findModule(const std::string &module, std::string &path) {
     }
 
     return false;
-}
-
-bool Vmi::get(const std::string &module, ExeData &data) {
-    std::string file;
-    if (!findModule(module, file)) {
-        getWarningsStream() << "Could not find module file " << module << "\n";
-        return false;
-    }
-
-    Executables::const_iterator it = m_executables.find(module);
-    if (it != m_executables.end()) {
-        data = (*it).second;
-        return true;
-    }
-
-    if (!initializeExecutable(file, data)) {
-        return false;
-    }
-
-    m_executables[module] = data;
-    return true;
 }
 
 bool Vmi::getHostPathForModule(const ModuleDescriptor &module, bool caseInsensitive, std::string &modPath) {
@@ -645,53 +442,6 @@ bool Vmi::getResolvedImports(S2EExecutionState *state, const ModuleDescriptor &m
     }
 
     imports = resolveImports(state, module.LoadBase, pe->getImports());
-    return true;
-}
-
-// TODO: remove duplicate code in all these getXXX functions.
-bool Vmi::getEntryPoint(S2EExecutionState *state, const ModuleDescriptor &Desc, uint64_t &Addr) {
-    if (Desc.AddressSpace && state->regs()->getPageDir() != Desc.AddressSpace) {
-        return false;
-    }
-
-    auto file = vmi::GuestMemoryFileProvider::get(state, &Vmi::readGuestVirtual, NULL, Desc.Name);
-    auto image = vmi::PEFile::get(file, true, Desc.LoadBase);
-    if (!image) {
-        return false;
-    }
-
-    Addr = image->getEntryPoint();
-    return true;
-}
-
-bool Vmi::getRelocations(S2EExecutionState *state, const ModuleDescriptor &Desc, vmi::Relocations &R) {
-    if (Desc.AddressSpace && state->regs()->getPageDir() != Desc.AddressSpace) {
-        return false;
-    }
-
-    auto file = vmi::GuestMemoryFileProvider::get(state, &Vmi::readGuestVirtual, NULL, Desc.Name);
-    auto image = vmi::PEFile::get(file, true, Desc.LoadBase);
-    if (!image) {
-        return false;
-    }
-
-    R = image->getRelocations();
-    return true;
-}
-
-bool Vmi::getSections(S2EExecutionState *state, const ModuleDescriptor &Desc, vmi::Sections &S) {
-    if (Desc.AddressSpace && state->regs()->getPageDir() != Desc.AddressSpace) {
-        return false;
-    }
-
-    auto file = vmi::GuestMemoryFileProvider::get(state, &Vmi::readGuestVirtual, NULL, Desc.Name);
-    auto image = vmi::ExecutableFile::get(file, true, Desc.LoadBase);
-    if (!image) {
-        return false;
-    }
-
-    S = image->getSections();
-
     return true;
 }
 
