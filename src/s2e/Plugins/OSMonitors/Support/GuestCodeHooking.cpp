@@ -95,7 +95,7 @@ void GuestCodeHooking::onModuleLoad(S2EExecutionState *state, const ModuleDescri
     }
 
     vmi::Imports imports;
-    if (!m_vmi->getImports(state, module, imports)) {
+    if (!m_vmi->getResolvedImports(state, module, imports)) {
         getWarningsStream(state) << "could not load imports for " << module << "\n";
         return;
     }

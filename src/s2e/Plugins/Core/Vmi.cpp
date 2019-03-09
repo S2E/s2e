@@ -544,7 +544,7 @@ bool Vmi::writeX86Register(void *opaque, unsigned reg, const void *buffer, unsig
     return true;
 }
 
-void Vmi::toModuleDescriptor(ModuleDescriptor &desc, std::shared_ptr<vmi::ExecutableFile> pe) {
+void Vmi::toModuleDescriptor(ModuleDescriptor &desc, const std::shared_ptr<vmi::ExecutableFile> &pe) {
     if (!desc.Size) {
         desc.Size = pe->getImageSize();
     }
@@ -579,8 +579,8 @@ bool Vmi::readModuleData(const ModuleDescriptor &module, uint64_t addr, uint8_t 
 
     bool addrInSection = false;
     const vmi::Sections &sections = file->getSections();
-    foreach2 (it, sections.begin(), sections.end()) {
-        if (it->start <= addr && addr + sizeof(char) <= it->start + it->size) {
+    for (auto it : sections) {
+        if (it.start <= addr && addr + sizeof(char) <= it.start + it.size) {
             addrInSection = true;
             break;
         }
@@ -601,10 +601,31 @@ bool Vmi::readModuleData(const ModuleDescriptor &module, uint64_t addr, uint8_t 
     return true;
 }
 
+vmi::Imports Vmi::resolveImports(S2EExecutionState *state, uint64_t loadBase, const vmi::Imports &imports) {
+    vmi::Imports ret;
+    for (auto it : imports) {
+        auto &symbols = it.second;
+        for (auto fit : symbols) {
+            uint64_t itl = fit.second.importTableLocation + loadBase;
+            uint64_t address = fit.second.address;
+
+            if (!state->readPointer(itl, address)) {
+                getWarningsStream(state) << "could not read address " << hexval(itl) << "\n";
+                continue;
+            }
+
+            ret[it.first][fit.first] = ImportedSymbol(address, itl);
+        }
+    }
+
+    return ret;
+}
+
 // XXX: support other binary formats, not just PE
-bool Vmi::patchImportsFromDisk(S2EExecutionState *state, const ModuleDescriptor &module, uint32_t checkSum,
-                               vmi::Imports &imports) {
-    getDebugStream(state) << "trying to open the on-disk image to parse imports\n";
+bool Vmi::getResolvedImports(S2EExecutionState *state, const ModuleDescriptor &module, vmi::Imports &imports) {
+    if (module.AddressSpace && state->regs()->getPageDir() != module.AddressSpace) {
+        return false;
+    }
 
     auto exe = getFromDisk(module, true);
     if (!exe) {
@@ -614,34 +635,11 @@ bool Vmi::patchImportsFromDisk(S2EExecutionState *state, const ModuleDescriptor 
 
     auto pe = std::dynamic_pointer_cast<vmi::PEFile>(exe);
     if (!pe) {
-        getWarningsStream(state) << "patchImportsFromDisk only supports PE files\n";
+        getWarningsStream(state) << "getResolvedImports only supports PE files\n";
         return false;
     }
 
-    if (checkSum != pe->getCheckSum()) {
-        getDebugStream(state) << "checksum mismatch for " << module.Name << "\n";
-        return false;
-    }
-
-    imports = pe->getImports();
-
-    for (vmi::Imports::iterator it = imports.begin(); it != imports.end(); ++it) {
-        vmi::ImportedSymbols &symbols = (*it).second;
-
-        for (vmi::ImportedSymbols::iterator fit = symbols.begin(); fit != symbols.end(); ++fit) {
-            uint64_t itl = (*fit).second.importTableLocation + module.LoadBase;
-            uint64_t address = (*fit).second.address;
-
-            if (!state->readPointer(itl, address)) {
-                getWarningsStream(state) << "could not read address " << hexval(itl) << "\n";
-                continue;
-            }
-
-            (*fit).second.importTableLocation = itl;
-            (*fit).second.address = address;
-        }
-    }
-
+    imports = resolveImports(state, module.LoadBase, pe->getImports());
     return true;
 }
 
@@ -658,35 +656,6 @@ bool Vmi::getEntryPoint(S2EExecutionState *state, const ModuleDescriptor &Desc, 
     }
 
     Addr = image->getEntryPoint();
-    return true;
-}
-
-// TODO: first read from disk, then try to read from memory as last resort.
-// Might even get rid of reading from memory as well, since we have a mirror
-// of the guest file system.
-bool Vmi::getImports(S2EExecutionState *state, const ModuleDescriptor &Desc, vmi::Imports &I) {
-    if (Desc.AddressSpace && state->regs()->getPageDir() != Desc.AddressSpace) {
-        return false;
-    }
-
-    getDebugStream(state) << "getting import for " << Desc << "\n";
-
-    auto file = vmi::GuestMemoryFileProvider::get(state, &Vmi::readGuestVirtual, NULL, Desc.Name);
-    auto image = vmi::PEFile::get(file, true, Desc.LoadBase);
-    if (!image) {
-        return false;
-    }
-
-    // If the import table is in the INIT section, it's likely that the OS
-    // unloaded it. Instead of failing, reconstruct the import table from
-    // the original binary.
-    if (patchImportsFromDisk(state, Desc, image->getCheckSum(), I)) {
-        return true;
-    }
-
-    // We couldn't patch the imports, return the original ones.
-    I = image->getImports();
-
     return true;
 }
 

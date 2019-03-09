@@ -110,16 +110,16 @@ public:
         return m_addresses;
     }
 
-    static void toModuleDescriptor(ModuleDescriptor &desc, std::shared_ptr<vmi::ExecutableFile> pe);
+    static void toModuleDescriptor(ModuleDescriptor &desc, const std::shared_ptr<vmi::ExecutableFile> &pe);
 
     bool readModuleData(const ModuleDescriptor &module, uint64_t addr, uint8_t &val);
-    bool patchImportsFromDisk(S2EExecutionState *state, const ModuleDescriptor &module, uint32_t checkSum,
-                              vmi::Imports &imports);
 
     static bool getEntryPoint(S2EExecutionState *s, const ModuleDescriptor &desc, uint64_t &Addr);
-    bool getImports(S2EExecutionState *s, const ModuleDescriptor &desc, vmi::Imports &I);
     static bool getRelocations(S2EExecutionState *s, const ModuleDescriptor &desc, vmi::Relocations &R);
     static bool getSections(S2EExecutionState *s, const ModuleDescriptor &desc, vmi::Sections &S);
+
+    vmi::Imports resolveImports(S2EExecutionState *state, uint64_t loadBase, const vmi::Imports &imports);
+    bool getResolvedImports(S2EExecutionState *state, const ModuleDescriptor &module, vmi::Imports &imports);
 
 private:
     typedef llvm::StringMap<ExeData> Executables;
