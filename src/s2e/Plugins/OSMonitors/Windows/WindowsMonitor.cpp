@@ -229,50 +229,21 @@ bool WindowsMonitor::computeImageData(S2EExecutionState *state, ModuleDescriptor
 
     auto file = vmi::GuestMemoryFileProvider::get(state, &Vmi::readGuestVirtual, NULL, Desc.Name);
     auto image = vmi::PEFile::get(file, true, Desc.LoadBase);
-
-    uint64_t NativeBase = 0;
-    uint64_t EntryPoint = 0;
-    uint64_t ImageSize = 0;
-
-    if (image) {
-        NativeBase = image->getImageBase();
-        EntryPoint = image->getEntryPoint();
-        ImageSize = image->getImageSize();
+    if (!image) {
+        return false;
     }
 
-    bool vmiOk = false;
+    Desc.NativeBase = image->getImageBase();
 
-    // Sometimes, ImageBase read from memory differs from the one in the original binary.
-    // If so, use the one reported by the binary.
-    if (m_vmi) {
-        // XXX: this may be redundant with the stuff above
-        std::string modulePath;
-        if (m_vmi->findModule(Desc.Name, modulePath)) {
-            auto fp = vmi::FileSystemFileProvider::get(modulePath, false);
-            if (fp) {
-                auto peFile = vmi::PEFile::get(fp, false, 0);
-                if (peFile->getImageBase() != NativeBase) {
-                    getDebugStream(state) << Desc.Name << " has different image bases: " << hexval(NativeBase)
-                                          << " and (original) " << hexval(peFile->getImageBase()) << "\n";
-                }
-                NativeBase = peFile->getImageBase();
-
-                vmiOk = true;
-            } else {
-                getDebugStream(state) << "Could not open " << modulePath << "\n";
-            }
-        }
-    }
-
-    Desc.NativeBase = NativeBase;
-
-    if (!Desc.NativeBase && !image && !vmiOk) {
+    if (!Desc.NativeBase) {
         return false;
     }
 
     if (!Desc.Size) {
-        Desc.Size = ImageSize;
+        Desc.Size = image->getImageSize();
     }
+
+    uint64_t EntryPoint = image->getEntryPoint();
 
     if (!Desc.EntryPoint) {
         Desc.EntryPoint = EntryPoint;
