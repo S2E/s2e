@@ -73,7 +73,7 @@ protected:
             return;
         }
 
-        Vmi::toModuleDescriptor(vmlinux, exe);
+        Vmi::toModuleDescriptor(vmlinux, *exe.get());
 
         vmlinux.Name = vmlinux.Path = "vmlinux";
         vmlinux.LoadBase = start_kernel;

@@ -54,7 +54,7 @@ public:
 
     std::shared_ptr<vmi::ExecutableFile> getFromDisk(const ModuleDescriptor &module, bool caseInsensitive = false);
 
-    static void toModuleDescriptor(ModuleDescriptor &desc, const std::shared_ptr<vmi::ExecutableFile> &pe);
+    static void toModuleDescriptor(ModuleDescriptor &desc, const vmi::ExecutableFile &pe);
 
     bool readModuleData(const ModuleDescriptor &module, uint64_t addr, uint8_t &val);
 

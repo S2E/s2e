@@ -346,15 +346,15 @@ bool Vmi::writeX86Register(void *opaque, unsigned reg, const void *buffer, unsig
     return true;
 }
 
-void Vmi::toModuleDescriptor(ModuleDescriptor &desc, const std::shared_ptr<vmi::ExecutableFile> &pe) {
+void Vmi::toModuleDescriptor(ModuleDescriptor &desc, const vmi::ExecutableFile &pe) {
     if (!desc.Size) {
-        desc.Size = pe->getImageSize();
+        desc.Size = pe.getImageSize();
     }
-    desc.NativeBase = pe->getImageBase();
-    desc.EntryPoint = pe->getEntryPoint();
-    desc.Checksum = pe->getCheckSum();
+    desc.NativeBase = pe.getImageBase();
+    desc.EntryPoint = pe.getEntryPoint();
+    desc.Checksum = pe.getCheckSum();
 
-    for (auto it : pe->getSections()) {
+    for (auto it : pe.getSections()) {
         const vmi::SectionDescriptor &vd = it;
         SectionDescriptor d;
         d.loadBase = desc.ToRuntime(vd.start);

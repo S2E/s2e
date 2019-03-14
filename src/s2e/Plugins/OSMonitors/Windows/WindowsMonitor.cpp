@@ -223,7 +223,7 @@ bool WindowsMonitor::computeImageData(S2EExecutionState *state, ModuleDescriptor
     // Use locally-stored files first
     auto pe = m_vmi->getFromDisk(Desc, true);
     if (pe) {
-        Vmi::toModuleDescriptor(Desc, pe);
+        Vmi::toModuleDescriptor(Desc, *pe.get());
         return true;
     }
 
