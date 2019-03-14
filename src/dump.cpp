@@ -14,14 +14,14 @@
 
 using namespace vmi;
 
-static void dumpSections(std::shared_ptr<ExecutableFile> file, std::ostream &ss, bool compact) {
+static void dumpSections(const ExecutableFile &file, std::ostream &ss, bool compact) {
     if (!compact) {
         ss << '\n'
            << "Sections (Name, Type, VirtualAddr, PhysicalAddr, Size)\n"
            << "======================================================\n";
     }
 
-    const Sections &sections = file->getSections();
+    auto sections = file.getSections();
     if (sections.size() == 0) {
         if (!compact) {
             ss << "No sections present\n";
@@ -29,8 +29,7 @@ static void dumpSections(std::shared_ptr<ExecutableFile> file, std::ostream &ss,
         return;
     }
 
-    for (Sections::const_iterator it = sections.begin(); it != sections.end(); ++it) {
-        const SectionDescriptor &section = *it;
+    for (auto &section : sections) {
         char R = section.readable ? 'R' : '-';
         char W = section.writable ? 'W' : '-';
         char X = section.executable ? 'X' : '-';
@@ -45,14 +44,14 @@ static void dumpSections(std::shared_ptr<ExecutableFile> file, std::ostream &ss,
     }
 }
 
-static void dumpExports(std::shared_ptr<PEFile> peFile, std::ostream &ss, bool compact) {
+static void dumpExports(const PEFile &peFile, std::ostream &ss, bool compact) {
     if (!compact) {
         ss << '\n'
            << "Export Directory\n"
            << "================\n";
     }
 
-    const Exports &exports = peFile->getExports();
+    auto exports = peFile.getExports();
     if (exports.size() == 0) {
         if (!compact) {
             ss << "Export directory is empty\n";
@@ -60,9 +59,9 @@ static void dumpExports(std::shared_ptr<PEFile> peFile, std::ostream &ss, bool c
         return;
     }
 
-    for (Exports::const_iterator it = exports.begin(); it != exports.end(); ++it) {
-        uint64_t address = peFile->getImageBase() + (*it).first;
-        std::string name = (*it).second;
+    for (auto it : exports) {
+        uint64_t address = peFile.getImageBase() + it.first;
+        std::string name = it.second;
         ss << std::setfill(' ') << std::setw(40) << std::left << name << " @0x" << std::hex << address << '\n';
     }
 
@@ -71,14 +70,14 @@ static void dumpExports(std::shared_ptr<PEFile> peFile, std::ostream &ss, bool c
     }
 }
 
-static void dumpImports(std::shared_ptr<PEFile> peFile, std::ostream &ss, bool compact) {
+static void dumpImports(const PEFile &peFile, std::ostream &ss, bool compact) {
     if (!compact) {
         ss << '\n'
            << "Import Directory\n"
            << "================\n";
     }
 
-    const Imports &imports = peFile->getImports();
+    auto imports = peFile.getImports();
 
     if (imports.size() == 0) {
         if (!compact) {
@@ -87,15 +86,15 @@ static void dumpImports(std::shared_ptr<PEFile> peFile, std::ostream &ss, bool c
         return;
     }
 
-    for (Imports::const_iterator it = imports.begin(); it != imports.end(); ++it) {
-        const std::string &libName = (*it).first;
-        const ImportedSymbols &symbols = (*it).second;
+    for (auto it : imports) {
+        const std::string &libName = it.first;
+        const ImportedSymbols &symbols = it.second;
         ss << libName << std::dec << " (" << symbols.size() << " symbols)\n";
 
-        for (ImportedSymbols::const_iterator fit = symbols.begin(); fit != symbols.end(); ++fit) {
-            std::string symbolName = (*fit).first;
-            uint64_t address = (*fit).second.address;
-            uint64_t itl = (*fit).second.importTableLocation;
+        for (auto fit : symbols) {
+            std::string symbolName = fit.first;
+            uint64_t address = fit.second.address;
+            uint64_t itl = fit.second.importTableLocation;
             ss << std::setfill(' ') << std::setw(40) << std::left << symbolName << " @0x" << std::hex << address
                << " @0x" << std::hex << itl << '\n';
         }
@@ -106,14 +105,14 @@ static void dumpImports(std::shared_ptr<PEFile> peFile, std::ostream &ss, bool c
     }
 }
 
-static void dumpRelocations(std::shared_ptr<PEFile> peFile, std::ostream &ss, bool compact) {
+static void dumpRelocations(const PEFile &peFile, std::ostream &ss, bool compact) {
     if (!compact) {
         ss << '\n'
            << "Relocations\n"
            << "===========\n";
     }
 
-    const vmi::Relocations &relocations = peFile->getRelocations();
+    auto relocations = peFile.getRelocations();
 
     if (relocations.size() == 0) {
         if (!compact) {
@@ -122,8 +121,8 @@ static void dumpRelocations(std::shared_ptr<PEFile> peFile, std::ostream &ss, bo
         return;
     }
 
-    for (vmi::Relocations::const_iterator it = relocations.begin(); it != relocations.end(); ++it) {
-        ss << std::hex << it->first << ": " << it->second << '\n';
+    for (auto it : relocations) {
+        ss << std::hex << it.first << ": " << it.second << '\n';
     }
 
     if (!compact) {
@@ -131,14 +130,14 @@ static void dumpRelocations(std::shared_ptr<PEFile> peFile, std::ostream &ss, bo
     }
 }
 
-static void dumpExceptions(std::shared_ptr<PEFile> peFile, std::ostream &ss, bool compact) {
+static void dumpExceptions(const PEFile &peFile, std::ostream &ss, bool compact) {
     if (!compact) {
         ss << '\n'
            << "Exceptions\n"
            << "==========\n";
     }
 
-    const vmi::ExceptionHandlers &h = peFile->getExceptions();
+    auto h = peFile.getExceptions();
 
     ss << std::hex;
 
@@ -164,15 +163,15 @@ static void printUsage(const char *progName) {
     fprintf(stderr, "Example: %s -s driver.sys\n", progName);
 }
 
-static void dumpPeFile(std::shared_ptr<PEFile> peFile, bool printHeader, bool printExports, bool printImports,
-                       bool printSections, bool printRelocations, bool printExceptions, bool compact) {
+static void dumpPeFile(const PEFile &peFile, bool printHeader, bool printExports, bool printImports, bool printSections,
+                       bool printRelocations, bool printExceptions, bool compact) {
     std::stringstream ss;
     if (printHeader) {
-        ss << "Dumping contents of " << peFile->getModuleName() << '\n';
-        ss << "Base address: 0x" << std::hex << peFile->getImageBase() << '\n';
-        ss << "Image size:   0x" << std::hex << peFile->getImageSize() << '\n';
-        ss << "Entry point:  0x" << std::hex << peFile->getEntryPoint() << '\n';
-        ss << "Checksum:     0x" << std::hex << peFile->getCheckSum() << '\n';
+        ss << "Dumping contents of " << peFile.getModuleName() << '\n';
+        ss << "Base address: 0x" << std::hex << peFile.getImageBase() << '\n';
+        ss << "Image size:   0x" << std::hex << peFile.getImageSize() << '\n';
+        ss << "Entry point:  0x" << std::hex << peFile.getEntryPoint() << '\n';
+        ss << "Checksum:     0x" << std::hex << peFile.getCheckSum() << '\n';
     }
 
     if (printSections) {
@@ -198,14 +197,14 @@ static void dumpPeFile(std::shared_ptr<PEFile> peFile, bool printHeader, bool pr
     llvm::outs() << ss.str();
 }
 
-static void dumpDefault(std::shared_ptr<ExecutableFile> file, bool printHeader, bool printSections, bool compact) {
+static void dumpDefault(const ExecutableFile &file, bool printHeader, bool printSections, bool compact) {
     std::stringstream ss;
 
     if (printHeader) {
-        ss << "Dumping contents of " << file->getModuleName() << '\n';
-        ss << "Base address: 0x" << std::hex << file->getImageBase() << '\n';
-        ss << "Image size:   0x" << std::hex << file->getImageSize() << '\n';
-        ss << "Entry point:  0x" << std::hex << file->getEntryPoint() << '\n';
+        ss << "Dumping contents of " << file.getModuleName() << '\n';
+        ss << "Base address: 0x" << std::hex << file.getImageBase() << '\n';
+        ss << "Image size:   0x" << std::hex << file.getImageSize() << '\n';
+        ss << "Entry point:  0x" << std::hex << file.getEntryPoint() << '\n';
     }
 
     if (printSections) {
@@ -283,10 +282,10 @@ int main(int argc, char **argv) {
 
     auto peFile = std::dynamic_pointer_cast<PEFile>(file);
     if (peFile) {
-        dumpPeFile(peFile, printHeader, printExports, printImports, printSections, printRelocations, printExceptions,
-                   compact);
+        dumpPeFile(*peFile.get(), printHeader, printExports, printImports, printSections, printRelocations,
+                   printExceptions, compact);
     } else {
-        dumpDefault(file, printHeader, printSections, compact);
+        dumpDefault(*file.get(), printHeader, printSections, compact);
     }
 
     return 0;
