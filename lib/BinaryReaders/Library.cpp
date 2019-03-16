@@ -33,11 +33,6 @@ uint64_t Library::translatePid(uint64_t pid, uint64_t pc) {
 }
 
 Library::~Library() {
-    for (auto &library : m_libraries) {
-        vmi::FileProvider *fp = library.second->get();
-        delete library.second;
-        delete fp;
-    }
 }
 
 void Library::addPath(const std::string &path) {
@@ -97,9 +92,6 @@ bool Library::addLibrary(const std::string &libName) {
 }
 
 bool Library::addLibraryAbs(const std::string &libName) {
-    vmi::FileProvider *fp = NULL;
-    vmi::ExecutableFile *exec = NULL;
-
     if (m_libraries.find(libName) != m_libraries.end()) {
         return true;
     }
@@ -108,48 +100,32 @@ bool Library::addLibraryAbs(const std::string &libName) {
         return false;
     }
 
-    std::string ProgFile = libName;
+    std::string progFile = libName;
 
-    fp = vmi::FileSystemFileProvider::get(ProgFile, false);
-    if (!fp) {
-        goto err1;
+    if (auto fp = vmi::FileSystemFileProvider::get(progFile, false)) {
+        if (auto exec = vmi::ExecutableFile::get(fp, false, 0)) {
+            m_libraries[libName] = exec;
+            return true;
+        }
     }
 
-    exec = vmi::ExecutableFile::get(fp, false, 0);
-    if (!exec) {
-        goto err1;
-    }
-
-    m_libraries[libName] = exec;
-
-    return true;
-
-err1:
-    if (exec) {
-        delete exec;
-    }
-
-    if (fp) {
-        delete fp;
-    }
-
-    m_badLibraries.insert(ProgFile);
+    m_badLibraries.insert(progFile);
     return false;
 }
 
-vmi::ExecutableFile *Library::get(const std::string &name) {
+std::shared_ptr<vmi::ExecutableFile> Library::get(const std::string &name) {
     std::string s;
     if (!findLibrary(name, s)) {
-        return NULL;
+        return nullptr;
     }
 
     if (!addLibraryAbs(s)) {
-        return NULL;
+        return nullptr;
     }
 
     ModuleNameToExec::const_iterator it = m_libraries.find(s);
     if (it == m_libraries.end()) {
-        return NULL;
+        return nullptr;
     } else {
         return (*it).second;
     }
@@ -160,7 +136,7 @@ bool Library::getInfo(const ModuleInstance *mi, uint64_t pc, std::string &file, 
         return false;
     }
 
-    vmi::ExecutableFile *exec = get(mi->Name);
+    auto exec = get(mi->Name);
     if (!exec) {
         return false;
     }
@@ -175,7 +151,7 @@ bool Library::getInfo(const ModuleInstance *mi, uint64_t pc, std::string &file, 
 
 bool Library::print(const std::string &modName, uint64_t loadBase, uint64_t imageBase, uint64_t pc, std::string &out,
                     bool file, bool line, bool func) {
-    vmi::ExecutableFile *exec = get(modName);
+    auto exec = get(modName);
     if (!exec) {
         return false;
     }

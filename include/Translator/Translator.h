@@ -177,7 +177,7 @@ public:
 
 private:
     static LogKey TAG;
-    const vmi::ExecutableFile *m_binary;
+    std::shared_ptr<const vmi::ExecutableFile> m_binary;
     static bool s_translatorInited;
     bool m_singlestep;
 
@@ -186,11 +186,11 @@ private:
     static void initializeHelperMask();
 
 public:
-    Translator(const std::string &bitcodeLibrary, const vmi::ExecutableFile *binary);
+    Translator(const std::string &bitcodeLibrary, const std::shared_ptr<vmi::ExecutableFile> binary);
 
     virtual ~Translator();
 
-    const vmi::ExecutableFile *getBinaryFile() const {
+    const std::shared_ptr<const vmi::ExecutableFile> getBinaryFile() const {
         return m_binary;
     }
 
@@ -239,7 +239,7 @@ private:
     llvm::legacy::FunctionPassManager *m_functionOptPasses;
 
 public:
-    X86Translator(const std::string &bitcodeLibrary, const vmi::ExecutableFile *binary);
+    X86Translator(const std::string &bitcodeLibrary, const std::shared_ptr<vmi::ExecutableFile> binary);
     virtual ~X86Translator();
 
     virtual TranslatedBlock *translate(uint64_t address, uint64_t lastAddress);

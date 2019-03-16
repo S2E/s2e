@@ -24,8 +24,8 @@ class Hardening {
     static LogKey TAG;
 
     std::string m_inputBinaryPath;
-    vmi::PEFile *m_inputBinary;
-    vmi::FileSystemFileProvider *m_fp;
+    std::shared_ptr<vmi::PEFile> m_inputBinary;
+    std::shared_ptr<vmi::FileSystemFileProvider> m_fp;
 
     uint8_t *assemble(const std::string &assembly, unsigned *size);
     uint64_t getImportedFunction(const std::string &dll, const std::string &function);
@@ -35,8 +35,6 @@ public:
         m_inputBinary = NULL;
         m_fp = NULL;
     }
-
-    ~Hardening();
 
     bool initialize();
     bool harden(uint64_t pc);

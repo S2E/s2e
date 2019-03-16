@@ -36,8 +36,8 @@ private:
     std::string m_binaryFile;
     std::string m_bitcodeLibrary;
 
-    vmi::ExecutableFile *m_binary;
-    vmi::FileSystemFileProvider *m_fp;
+    std::shared_ptr<vmi::ExecutableFile> m_binary;
+    std::shared_ptr<vmi::FileSystemFileProvider> m_fp;
     Translator *m_translator;
 
     llvm::BinaryFunctions m_functions;
@@ -83,7 +83,7 @@ public:
 
     void writeBitcodeFile(const std::string &bitcodeFile);
 
-    const vmi::ExecutableFile *getBinary() const {
+    std::shared_ptr<const vmi::ExecutableFile> getBinary() const {
         return m_binary;
     }
 };

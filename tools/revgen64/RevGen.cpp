@@ -64,14 +64,6 @@ RevGen::~RevGen() {
     if (m_translator) {
         delete m_translator;
     }
-
-    if (m_binary) {
-        delete m_binary;
-    }
-
-    if (m_fp) {
-        delete m_fp;
-    }
 }
 
 bool RevGen::initialize(void) {

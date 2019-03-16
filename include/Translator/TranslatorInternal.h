@@ -32,7 +32,7 @@ extern "C" {
 using namespace llvm;
 namespace s2etools {
 
-const vmi::ExecutableFile *s_currentBinary = NULL;
+std::shared_ptr<const vmi::ExecutableFile> s_currentBinary;
 bool Translator::s_translatorInited = false;
 LogKey TranslatedBlock::TAG = LogKey("TranslatedBlock");
 LogKey Translator::TAG = LogKey("Translator");
@@ -128,7 +128,7 @@ void TranslatedBlock::print(llvm::raw_ostream &os) const {
 
 using namespace llvm;
 
-Translator::Translator(const std::string &bitcodeLibrary, const vmi::ExecutableFile *binary) {
+Translator::Translator(const std::string &bitcodeLibrary, const std::shared_ptr<vmi::ExecutableFile> binary) {
     m_binary = binary;
     s_currentBinary = binary;
     m_singlestep = false;
@@ -365,7 +365,7 @@ uint64_t Translator::getRegisterBitMask(llvm::Value *gepv) {
 
 const char *X86Translator::s_regNames[8] = {"eax", "ecx", "edx", "ebx", "esp", "ebp", "esi", "edi"};
 
-X86Translator::X86Translator(const std::string &bitcodeLibrary, const vmi::ExecutableFile *binary)
+X86Translator::X86Translator(const std::string &bitcodeLibrary, const std::shared_ptr<vmi::ExecutableFile> binary)
     : Translator(bitcodeLibrary, binary) {
     m_functionPasses = new legacy::FunctionPassManager(tcg_llvm_ctx->getModule());
     m_functionPasses->add(createCFGSimplificationPass());

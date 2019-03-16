@@ -30,16 +30,6 @@ cl::opt<unsigned> ByteCount("bytes",
                             cl::init(1), cl::Optional);
 }
 
-Hardening::~Hardening() {
-    if (m_inputBinary) {
-        delete m_inputBinary;
-    }
-
-    if (m_fp) {
-        delete m_fp;
-    }
-}
-
 bool Hardening::initialize() {
     m_fp = FileSystemFileProvider::get(m_inputBinaryPath, true);
     if (!m_fp) {
@@ -47,15 +37,14 @@ bool Hardening::initialize() {
         return false;
     }
 
-    ExecutableFile *file = ExecutableFile::get(m_fp, false, 0);
+    auto file = ExecutableFile::get(m_fp, false, 0);
     if (!file) {
         llvm::errs() << m_inputBinaryPath << " is not a valid executable file\n";
         return false;
     }
 
-    m_inputBinary = dynamic_cast<PEFile *>(file);
+    m_inputBinary = std::dynamic_pointer_cast<PEFile>(file);
     if (!m_inputBinary) {
-        delete file;
         llvm::errs() << "Only PE files are supported for now\n";
         return false;
     }
@@ -66,9 +55,9 @@ bool Hardening::initialize() {
 uint8_t *Hardening::assemble(const std::string &assembly, unsigned *size) {
     LOGINFO("Generating instrumentation\n");
 
+    std::shared_ptr<FileSystemFileProvider> binasm;
     uint8_t *ret = NULL;
     uint8_t *section;
-    std::unique_ptr<FileSystemFileProvider> binasm;
     struct stat s;
 
     char asmfile[] = "/tmp/XXXXXXXXXX";
@@ -98,7 +87,7 @@ uint8_t *Hardening::assemble(const std::string &assembly, unsigned *size) {
     }
 
     /* Read the content of the binary file */
-    binasm = std::unique_ptr<FileSystemFileProvider>(FileSystemFileProvider::get(binfile, false));
+    binasm = FileSystemFileProvider::get(binfile, false);
     if (!binasm) {
         LOGERROR("Could not open " << binfile << "\n");
         goto err3;

@@ -25,7 +25,7 @@ struct ModuleInstance;
 
 class Library {
 public:
-    typedef std::map<std::string, vmi::ExecutableFile *> ModuleNameToExec;
+    typedef std::map<std::string, std::shared_ptr<vmi::ExecutableFile>> ModuleNameToExec;
     typedef std::vector<std::string> PathList;
     typedef std::set<std::string> StringSet;
 
@@ -44,7 +44,7 @@ public:
     bool addLibraryAbs(const std::string &libName);
 
     /// Get a library using a name.
-    vmi::ExecutableFile *get(const std::string &name);
+    std::shared_ptr<vmi::ExecutableFile> get(const std::string &name);
 
     void addPath(const std::string &s);
     void setPaths(const PathList &s);
