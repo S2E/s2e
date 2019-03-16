@@ -58,8 +58,6 @@ class ModuleMap : public Plugin, public IPluginInvoker, public ILuaPlugin {
     S2E_PLUGIN
 
 public:
-    typedef std::pair<ModuleDescriptorConstPtr /* Module */, std::string /* Exported symbol name */> Export;
-
     ModuleMap(S2E *s2e) : Plugin(s2e) {
     }
 
@@ -72,16 +70,6 @@ public:
     ModuleDescriptorConstPtr getModule(S2EExecutionState *state, uint64_t pid, const std::string &name);
 
     void dump(S2EExecutionState *state);
-
-    /// Cache a module export at the given address.
-    void cacheExport(S2EExecutionState *state, uint64_t address, const Export &exp);
-
-    ///
-    /// \brief Get an export at the given runtime address.
-    ///
-    /// Returns a \c nullptr if no export at the given address exists in the cache.
-    ///
-    const Export *getExport(S2EExecutionState *state, uint64_t address);
 
     virtual void handleOpcodeInvocation(S2EExecutionState *state, uint64_t guestDataPtr, uint64_t guestDataSize);
 

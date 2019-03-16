@@ -1,6 +1,6 @@
 ///
 /// Copyright (C) 2014-2015, Dependable Systems Laboratory, EPFL
-/// Copyright (C) 2014-2018, Cyberhaven
+/// Copyright (C) 2014-2019, Cyberhaven
 /// All rights reserved.
 ///
 /// Licensed under the Cyberhaven Research License Agreement.
@@ -42,9 +42,6 @@ namespace {
 ///
 /// Keeps track of loaded modules across states.
 ///
-/// The \c ModuleMapState can also act as a LRU cache for loaded modules' exports. The LRU cache code is adapted from
-/// https://github.com/lamerman/cpp-lru-cache
-///
 class ModuleMapState : public PluginState {
 public:
     struct pid_t {};
@@ -70,21 +67,8 @@ private:
     // Module-related members
     Map m_modules;
 
-    // Export-related members
-    typedef std::pair<uint64_t, ModuleMap::Export> AddressExportPair;
-    typedef std::list<AddressExportPair>::iterator AddressExportIterator;
-
-    std::list<AddressExportPair> m_exportCacheList;
-    std::unordered_map<uint64_t, AddressExportIterator> m_exportCacheMap;
-
-    const static size_t MAX_EXPORT_CACHE_SIZE = 50;
-
 public:
-    ModuleMapState() : m_modules(), m_exportCacheList(), m_exportCacheMap() {
-    }
-
-    // Start with an empty cache on state clone
-    ModuleMapState(const ModuleMapState &state) : m_modules(state.m_modules), m_exportCacheList(), m_exportCacheMap() {
+    ModuleMapState() {
     }
 
     virtual ~ModuleMapState() {
@@ -157,17 +141,6 @@ public:
 
             byPidPc.erase(it);
         }
-
-        // When a module is unloaded, we need to invalidate all entries in the cache that correspond to the unloaded
-        // module's address space
-        for (auto it = m_exportCacheMap.begin(); it != m_exportCacheMap.end();) {
-            if (module.Contains(it->first)) {
-                m_exportCacheList.erase(it->second);
-                it = m_exportCacheMap.erase(it);
-            } else {
-                ++it;
-            }
-        }
     }
 
     void onProcessUnload(uint64_t addressSpace, uint64_t pid, uint64_t returnCode) {
@@ -188,35 +161,6 @@ public:
         }
 
         os << "==========================================\n";
-    }
-
-    void cacheExport(uint64_t address, const ModuleMap::Export &exp) {
-        auto it = m_exportCacheMap.find(address);
-
-        if (it != m_exportCacheMap.end()) {
-            m_exportCacheList.erase(it->second);
-            m_exportCacheMap.erase(it);
-        }
-
-        m_exportCacheList.push_front({address, exp});
-        m_exportCacheMap.insert({address, m_exportCacheList.begin()});
-
-        if (m_exportCacheMap.size() > MAX_EXPORT_CACHE_SIZE) {
-            auto last = m_exportCacheList.end();
-            last--;
-            m_exportCacheMap.erase(last->first);
-            m_exportCacheList.pop_back();
-        }
-    }
-
-    const ModuleMap::Export *getExport(uint64_t address) {
-        auto it = m_exportCacheMap.find(address);
-        if (it == m_exportCacheMap.end()) {
-            return nullptr;
-        } else {
-            m_exportCacheList.splice(m_exportCacheList.begin(), m_exportCacheList, it->second);
-            return &(it->second->second);
-        }
     }
 };
 
@@ -367,16 +311,6 @@ ModuleDescriptorConstPtr ModuleMap::getModule(S2EExecutionState *state, uint64_t
 void ModuleMap::dump(S2EExecutionState *state) {
     DECLARE_PLUGINSTATE(ModuleMapState, state);
     plgState->dump(getDebugStream(state));
-}
-
-void ModuleMap::cacheExport(S2EExecutionState *state, uint64_t address, const Export &exp) {
-    DECLARE_PLUGINSTATE(ModuleMapState, state);
-    plgState->cacheExport(address, exp);
-}
-
-const ModuleMap::Export *ModuleMap::getExport(S2EExecutionState *state, uint64_t address) {
-    DECLARE_PLUGINSTATE(ModuleMapState, state);
-    return plgState->getExport(address);
 }
 
 void ModuleMap::handleOpcodeInvocation(S2EExecutionState *state, uint64_t guestDataPtr, uint64_t guestDataSize) {

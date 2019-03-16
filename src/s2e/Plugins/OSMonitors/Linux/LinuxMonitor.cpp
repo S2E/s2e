@@ -137,11 +137,11 @@ void LinuxMonitor::handleModuleLoad(S2EExecutionState *state, const S2E_LINUXMON
     module.Name = llvm::sys::path::filename(module.Path);
     module.Size = cmd.ModuleLoad.size;
 
-    Vmi::BinData data = m_vmi->getFromDisk(module, true);
-    if (!data.ef) {
+    auto exe = m_vmi->getFromDisk(module, true);
+    if (!exe) {
         getWarningsStream(state) << "Could not load " << module.Path << " from disk. Check your guestfs settings.\n";
     } else {
-        Vmi::toModuleDescriptor(module, data.ef);
+        Vmi::toModuleDescriptor(module, *exe.get());
     }
 
     module.AddressSpace = state->regs()->getPageDir();

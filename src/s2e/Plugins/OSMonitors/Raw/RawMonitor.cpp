@@ -144,9 +144,9 @@ void RawMonitor::handleModuleLoad(S2EExecutionState *state, const S2E_RAWMON_COM
     if (m_vmi) {
         bool mp[2] = {true, false};
         for (int i = 0; i < 2; ++i) {
-            Vmi::BinData data = m_vmi->getFromDisk(module, mp[i]);
-            if (data.ef) {
-                module.NativeBase = data.ef->getImageBase();
+            auto exe = m_vmi->getFromDisk(module, mp[i]);
+            if (exe) {
+                module.NativeBase = exe->getImageBase();
                 break;
             }
         }

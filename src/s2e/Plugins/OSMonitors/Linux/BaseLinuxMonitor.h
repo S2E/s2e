@@ -67,13 +67,13 @@ protected:
         ModuleDescriptor mod, vmlinux;
         mod.Name = "vmlinux";
 
-        Vmi::BinData data = m_vmi->getFromDisk(mod, false);
-        if (!data.ef) {
+        auto exe = m_vmi->getFromDisk(mod, false);
+        if (!exe) {
             getWarningsStream(state) << "Could not load vmlinux from disk\n";
             return;
         }
 
-        Vmi::toModuleDescriptor(vmlinux, data.ef);
+        Vmi::toModuleDescriptor(vmlinux, *exe.get());
 
         vmlinux.Name = vmlinux.Path = "vmlinux";
         vmlinux.LoadBase = start_kernel;
