@@ -28,7 +28,7 @@
 extern "C" {
 #endif
 
-#define S2E_DECREEMON_COMMAND_VERSION 0x201711041408ULL // date +%Y%m%d%H%M
+#define S2E_DECREEMON_COMMAND_VERSION 0x201903202239ULL // date +%Y%m%d%H%M
 
 enum S2E_DECREEMON_COMMANDS {
     DECREE_SEGFAULT,
@@ -52,6 +52,12 @@ enum S2E_DECREEMON_COMMANDS {
     DECREE_KERNEL_PANIC,
 };
 
+struct S2E_DECREEMON_PHDR_DESC {
+    uint64_t index;
+    uint64_t vma;
+    uint64_t size;
+} __attribute__((packed));
+
 struct S2E_DECREEMON_COMMAND_PROCESS_LOAD {
     uint64_t process_id;
     uint64_t entry_point;
@@ -61,6 +67,8 @@ struct S2E_DECREEMON_COMMAND_PROCESS_LOAD {
     uint64_t start_data;
     uint64_t end_data;
     uint64_t start_stack;
+    uint64_t phdr;
+    uint64_t phdr_size;
     char process_path[128]; // not NULL terminated
 } __attribute__((packed));
 
