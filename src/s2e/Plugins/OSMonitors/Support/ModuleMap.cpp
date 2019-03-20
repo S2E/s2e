@@ -193,8 +193,8 @@ int ModuleMap::getLuaPlugin(lua_State *L) {
 }
 
 void ModuleMap::onMonitorLoad(S2EExecutionState *state) {
-    WindowsMonitor *winmon2 = dynamic_cast<WindowsMonitor *>(m_monitor);
-    if (!winmon2->moduleUnloadSupported()) {
+    auto winmon2 = dynamic_cast<WindowsMonitor *>(m_monitor);
+    if (winmon2 && !winmon2->moduleUnloadSupported()) {
         getDebugStream() << "Guest OS does not support native module unload, using workaround\n";
         winmon2->onNtUnmapViewOfSection.connect(sigc::mem_fun(*this, &ModuleMap::onNtUnmapViewOfSection));
     }
