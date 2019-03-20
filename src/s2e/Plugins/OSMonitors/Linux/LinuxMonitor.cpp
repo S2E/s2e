@@ -127,26 +127,33 @@ void LinuxMonitor::handleProcessLoad(S2EExecutionState *state, const S2E_LINUXMO
 }
 
 void LinuxMonitor::handleModuleLoad(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd) {
-    ModuleDescriptor module;
+    std::string modulePath;
 
-    if (!state->mem()->readString(cmd.ModuleLoad.module_path, module.Path)) {
+    if (!state->mem()->readString(cmd.ModuleLoad.module_path, modulePath)) {
         getWarningsStream(state) << "could not read module path\n";
         return;
     }
 
-    module.Name = llvm::sys::path::filename(module.Path);
-    module.Size = cmd.ModuleLoad.size;
+    auto moduleName = llvm::sys::path::filename(modulePath);
+    auto moduleSize = cmd.ModuleLoad.size;
 
-    auto exe = m_vmi->getFromDisk(module, true);
+    auto exe = m_vmi->getFromDisk(modulePath, moduleName, false);
     if (!exe) {
-        getWarningsStream(state) << "Could not load " << module.Path << " from disk. Check your guestfs settings.\n";
-    } else {
-        Vmi::toModuleDescriptor(module, *exe.get());
+        getWarningsStream(state) << "Could not load " << modulePath << " from disk. Check your guestfs settings.\n";
+        return;
     }
 
-    module.AddressSpace = state->regs()->getPageDir();
-    module.Pid = cmd.currentPid;
+    // XXX: fix this
+    std::vector<uint64_t> sections;
+    auto module = ModuleDescriptor::get(*exe.get(), state->regs()->getPageDir(), cmd.currentPid, moduleName, modulePath,
+                                        sections);
+
+    // XXX: fix this
     module.LoadBase = cmd.ModuleLoad.load_base;
+
+    if (module.Size != moduleSize) {
+        getWarningsStream(state) << "Module size mismatch for " << modulePath << "\n";
+    }
 
     getDebugStream(state) << module << '\n';
 

@@ -52,9 +52,8 @@ public:
 
     static std::string stripWindowsModulePath(const std::string &path);
 
-    std::shared_ptr<vmi::ExecutableFile> getFromDisk(const ModuleDescriptor &module, bool caseInsensitive = false);
-
-    static void toModuleDescriptor(ModuleDescriptor &desc, const vmi::ExecutableFile &pe);
+    std::shared_ptr<vmi::ExecutableFile> getFromDisk(const std::string &modulePath, const std::string &moduleName,
+                                                     bool caseInsensitive);
 
     bool readModuleData(const ModuleDescriptor &module, uint64_t addr, uint8_t &val);
 
@@ -67,7 +66,8 @@ private:
     bool findModule(const std::string &module, std::string &path);
     bool parseDirectories(ConfigFile *cfg, const std::string &baseDirsKey);
 
-    bool getHostPathForModule(const ModuleDescriptor &module, bool caseInsensitive, std::string &modPath);
+    bool getHostPathForModule(const std::string &modulePath, const std::string &moduleName, bool caseInsensitive,
+                              std::string &hostPath);
     vmi::Imports resolveImports(S2EExecutionState *state, uint64_t loadBase, const vmi::Imports &imports);
 };
 

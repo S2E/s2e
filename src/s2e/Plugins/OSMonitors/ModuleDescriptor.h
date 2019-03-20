@@ -21,24 +21,26 @@
 #include <cstring>
 #include <s2e/Utils.h>
 
+#include <vmi/ExecutableFile.h>
+#include <vmi/PEFile.h>
+
 namespace s2e {
 
-/**
- *  Defines some section of memory
- */
 struct SectionDescriptor {
-    uint64_t loadBase;
+    uint64_t runtimeLoadBase;
+    uint64_t nativeLoadBase;
     uint64_t size;
     bool readable;
     bool writable;
     bool executable;
     std::string name;
 
-    SectionDescriptor() : loadBase(0), size(0), readable(false), writable(false), executable(false) {
+    SectionDescriptor()
+        : runtimeLoadBase(0), nativeLoadBase(0), size(0), readable(false), writable(false), executable(false) {
     }
 
     bool contains(uint64_t address) const {
-        return address >= loadBase && address < (loadBase + size);
+        return address >= runtimeLoadBase && address < (runtimeLoadBase + size);
     }
 };
 
@@ -120,6 +122,11 @@ struct ModuleDescriptor {
     bool EqualInsensitive(const char *Name) const {
         return strcasecmp(this->Name.c_str(), Name) == 0;
     }
+
+    static ModuleDescriptor get(const vmi::PEFile &bin, uint64_t as, uint64_t pid, const std::string &name,
+                                const std::string &path, uint64_t loadbase);
+    static ModuleDescriptor get(const vmi::ExecutableFile &bin, uint64_t as, uint64_t pid, const std::string &name,
+                                const std::string &path, const std::vector<uint64_t> &runTimeAddresses);
 
     const SectionDescriptor *getSection(uint64_t RunTimeAddress) const {
         for (unsigned i = 0; i < Sections.size(); ++i) {

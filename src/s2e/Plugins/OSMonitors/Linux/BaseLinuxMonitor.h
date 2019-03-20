@@ -65,20 +65,19 @@ protected:
 
     void loadKernelImage(S2EExecutionState *state, uint64_t start_kernel) {
         ModuleDescriptor mod, vmlinux;
-        mod.Name = "vmlinux";
+        std::string vmlinuxName = "vmlinux";
 
-        auto exe = m_vmi->getFromDisk(mod, false);
+        auto exe = m_vmi->getFromDisk("", vmlinuxName, false);
         if (!exe) {
             getWarningsStream(state) << "Could not load vmlinux from disk\n";
             return;
         }
 
-        Vmi::toModuleDescriptor(vmlinux, *exe.get());
+        std::vector<uint64_t> sections;
+        vmlinux = ModuleDescriptor::get(*exe.get(), 0, 0, vmlinuxName, "", sections);
 
-        vmlinux.Name = vmlinux.Path = "vmlinux";
+        // XXX: fix this
         vmlinux.LoadBase = start_kernel;
-        vmlinux.AddressSpace = 0;
-        vmlinux.Pid = 0;
         onModuleLoad.emit(state, vmlinux);
     }
 
