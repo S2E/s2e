@@ -15,18 +15,10 @@
 #include <s2e/S2E.h>
 #include <s2e/Utils.h>
 
-#include <boost/multi_index/composite_key.hpp>
-#include <boost/multi_index/mem_fun.hpp>
-#include <boost/multi_index/member.hpp>
-#include <boost/multi_index/ordered_index.hpp>
-#include <boost/multi_index_container.hpp>
-
-#include <list>
+#include <map>
 #include <unordered_map>
 
 #include "ModuleMap.h"
-
-namespace bmi = boost::multi_index;
 
 namespace s2e {
 namespace plugins {
@@ -39,33 +31,27 @@ S2E_DEFINE_PLUGIN(ModuleMap, "Tracks loaded modules", "", "OSMonitor");
 
 namespace {
 
+struct AddressRange {
+    uint64_t start;
+    uint64_t size;
+
+    AddressRange(uint64_t start_, uint64_t size_) : start(start_), size(size_) {
+    }
+
+    bool operator<(const AddressRange &s2) const {
+        return start + size <= s2.start;
+    }
+};
+
 ///
 /// Keeps track of loaded modules across states.
 ///
 class ModuleMapState : public PluginState {
-public:
-    struct pid_t {};
-    struct pidname_t {};
-    struct pagedir_t {};
-    struct pidpc_t {};
-
-    typedef boost::multi_index_container<
-        ModuleDescriptorConstPtr,
-        bmi::indexed_by<bmi::ordered_non_unique<bmi::tag<pidname_t>, bmi::identity<const ModuleDescriptor>,
-                                                ModuleDescriptor::ModuleByPidName>,
-                        bmi::ordered_non_unique<bmi::tag<pid_t>,
-                                                bmi::member<ModuleDescriptor, const uint64_t, &ModuleDescriptor::Pid>>,
-                        bmi::ordered_unique<bmi::tag<pidpc_t>, bmi::identity<const ModuleDescriptor>,
-                                            ModuleDescriptor::ModuleByLoadBasePid>>>
-        Map;
-
-    typedef Map::index<pid_t>::type ModulesByPid;
-    typedef Map::index<pidpc_t>::type ModulesByPidPc;
-    typedef Map::index<pidname_t>::type ModulesByPidName;
-
 private:
-    // Module-related members
-    Map m_modules;
+    using SectionMap = std::map<AddressRange, ModuleDescriptorConstPtr>;
+    using PidSectionMap = std::unordered_map<uint64_t, SectionMap>;
+
+    PidSectionMap m_sections;
 
 public:
     ModuleMapState() {
@@ -82,82 +68,53 @@ public:
         return new ModuleMapState();
     }
 
-    ModuleDescriptorList getModulesByPid(uint64_t pid) {
-        ModuleDescriptorList result;
-        ModulesByPid &byPid = m_modules.get<pid_t>();
-
-        auto p = byPid.equal_range(pid);
-
-        foreach2 (it, p.first, p.second) { result.push_back(*it); }
-
-        return result;
-    }
-
-    ModuleDescriptorConstPtr getModule(uint64_t pid, uint64_t pc) {
-        ModuleDescriptor md;
-        md.Pid = pid;
-        md.LoadBase = pc;
-        md.Size = 1;
-
-        ModulesByPidPc &byPidPc = m_modules.get<pidpc_t>();
-        ModulesByPidPc::const_iterator it = byPidPc.find(md);
-        if (it != byPidPc.end()) {
-            return *it;
+    ModuleDescriptorConstPtr getModule(uint64_t pid, uint64_t pc) const {
+        auto pidit = m_sections.find(pid);
+        if (pidit == m_sections.end()) {
+            return nullptr;
         }
 
-        return nullptr;
-    }
-
-    ModuleDescriptorConstPtr getModule(uint64_t pid, const std::string &name) {
-        ModuleDescriptor md;
-        md.Pid = pid;
-        md.Name = name;
-
-        ModulesByPidName &byPidName = m_modules.get<pidname_t>();
-        ModulesByPidName::const_iterator it = byPidName.find(md);
-        if (it != byPidName.end()) {
-            return *it;
+        auto range = AddressRange(pc, 1);
+        auto section = pidit->second.find(range);
+        if (section == pidit->second.end()) {
+            return nullptr;
         }
 
-        return nullptr;
+        return section->second;
     }
 
     void onModuleLoad(const ModuleDescriptor &module) {
         auto ptr = std::make_shared<const ModuleDescriptor>(module);
-        m_modules.insert(ptr);
+
+        auto &sections = m_sections[module.Pid];
+
+        for (auto &section : module.Sections) {
+            auto range = AddressRange(section.runtimeLoadBase, section.size);
+            sections[range] = ptr;
+        }
     }
 
     void onModuleUnload(const ModuleDescriptor &module) {
-        // Remove the module from the map
-        ModulesByPidPc &byPidPc = m_modules.get<pidpc_t>();
-        ModulesByPidPc::const_iterator it = byPidPc.find(module);
-        if (it != byPidPc.end()) {
-            assert((*it)->Pid == module.Pid);
-            if ((*it)->LoadBase != module.LoadBase) {
-                g_s2e->getDebugStream(g_s2e_state) << "ModuleMap::onModuleUnload mismatched base addresses:\n"
-                                                   << "  looked for:" << module << "\n"
-                                                   << "  found     :" << **it << "\n";
-            }
+        auto sections = m_sections[module.Pid];
 
-            byPidPc.erase(it);
+        for (auto &section : module.Sections) {
+            auto range = AddressRange(section.runtimeLoadBase, section.size);
+            sections.erase(range);
         }
     }
 
     void onProcessUnload(uint64_t addressSpace, uint64_t pid, uint64_t returnCode) {
-        ModulesByPid &byPid = m_modules.get<pid_t>();
-        ModulesByPid::const_iterator it;
-        while ((it = byPid.find(pid)) != byPid.end()) {
-            byPid.erase(it);
-        }
+        m_sections.erase(pid);
     }
 
     void dump(llvm::raw_ostream &os) const {
         os << "==========================================\n";
-        os << "Dumping loaded modules\n";
-
-        const ModulesByPid &byPid = m_modules.get<pid_t>();
-        for (const auto &it : byPid) {
-            os << "pid:" << hexval(it->Pid) << " - " << *it << "\n";
+        os << "Dumping loaded sections\n";
+        for (auto &pid : m_sections) {
+            for (auto &section : pid.second) {
+                os << "pid: " << hexval(pid.first) << " start: " << hexval(section.first.start)
+                   << " size: " << hexval(section.first.size) << " " << *section.second.get() << "\n";
+            }
         }
 
         os << "==========================================\n";
@@ -217,14 +174,10 @@ Lunar<LuaModuleMap>::RegType LuaModuleMap::methods[] = {LUNAR_DECLARE_METHOD(Lua
 void ModuleMap::initialize() {
     m_monitor = static_cast<OSMonitor *>(s2e()->getPlugin("OSMonitor"));
 
+    m_monitor->onMonitorLoad.connect(sigc::mem_fun(*this, &ModuleMap::onMonitorLoad));
     m_monitor->onModuleLoad.connect(sigc::mem_fun(*this, &ModuleMap::onModuleLoad));
-
     m_monitor->onModuleUnload.connect(sigc::mem_fun(*this, &ModuleMap::onModuleUnload));
-
-    WindowsMonitor *winmon2 = dynamic_cast<WindowsMonitor *>(m_monitor);
-    if (winmon2) {
-        winmon2->onMonitorLoad.connect(sigc::mem_fun(*this, &ModuleMap::onMonitorLoad));
-    }
+    m_monitor->onProcessUnload.connect(sigc::mem_fun(*this, &ModuleMap::onProcessUnload));
 
     lua_State *L = s2e()->getConfig()->getState();
     Lunar<LuaModuleMap>::Register(L);
@@ -277,11 +230,6 @@ void ModuleMap::onProcessUnload(S2EExecutionState *state, uint64_t addressSpace,
     plgState->onProcessUnload(addressSpace, pid, returnCode);
 }
 
-ModuleDescriptorList ModuleMap::getModulesByPid(S2EExecutionState *state, uint64_t pid) {
-    DECLARE_PLUGINSTATE(ModuleMapState, state);
-    return plgState->getModulesByPid(pid);
-}
-
 ModuleDescriptorConstPtr ModuleMap::getModule(S2EExecutionState *state) {
     DECLARE_PLUGINSTATE(ModuleMapState, state);
     auto pid = m_monitor->getPid(state);
@@ -301,11 +249,6 @@ ModuleDescriptorConstPtr ModuleMap::getModule(S2EExecutionState *state, uint64_t
     DECLARE_PLUGINSTATE(ModuleMapState, state);
     pid = m_monitor->translatePid(pid, pc);
     return plgState->getModule(pid, pc);
-}
-
-ModuleDescriptorConstPtr ModuleMap::getModule(S2EExecutionState *state, uint64_t pid, const std::string &name) {
-    DECLARE_PLUGINSTATE(ModuleMapState, state);
-    return plgState->getModule(pid, name);
 }
 
 void ModuleMap::dump(S2EExecutionState *state) {
