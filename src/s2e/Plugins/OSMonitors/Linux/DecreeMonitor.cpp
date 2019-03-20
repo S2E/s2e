@@ -28,7 +28,7 @@ using namespace klee;
 namespace s2e {
 namespace plugins {
 
-S2E_DEFINE_PLUGIN(DecreeMonitor, "DecreeMonitor S2E plugin", "OSMonitor", "BaseInstructions");
+S2E_DEFINE_PLUGIN(DecreeMonitor, "DecreeMonitor S2E plugin", "OSMonitor", "BaseInstructions", "Vmi");
 
 namespace decree {
 
@@ -57,10 +57,6 @@ void DecreeMonitor::initialize() {
     m_base = s2e()->getPlugin<BaseInstructions>();
 
     m_vmi = s2e()->getPlugin<Vmi>();
-    if (!m_vmi) {
-        getWarningsStream() << "Requires Vmi\n";
-        exit(-1);
-    }
 
     // XXX: this is a circular dependency, will require further refactoring
     m_memutils = s2e()->getPlugin<MemUtils>();
@@ -157,6 +153,8 @@ void DecreeMonitor::handleProcessLoad(S2EExecutionState *state, const S2E_DECREE
     completeInitialization(state);
 
     std::string processPath(p.process_path, strnlen(p.process_path, sizeof(p.process_path)));
+    llvm::StringRef filePath(processPath);
+    auto name = llvm::sys::path::stem(filePath);
 
     getWarningsStream(state) << "ProcessLoad: " << processPath << " entry_point: " << hexval(p.entry_point)
                              << " pid: " << hexval(p.process_id) << " start_code: " << hexval(p.start_code)
@@ -164,19 +162,51 @@ void DecreeMonitor::handleProcessLoad(S2EExecutionState *state, const S2E_DECREE
                              << " end_data: " << hexval(p.end_data) << " start_stack: " << hexval(p.start_stack)
                              << "\n";
 
-    llvm::StringRef file(processPath);
+    onProcessLoad.emit(state, state->regs()->getPageDir(), p.process_id, name);
 
-    onProcessLoad.emit(state, state->regs()->getPageDir(), p.process_id, llvm::sys::path::stem(file));
+    auto bin = m_vmi->getFromDisk(processPath, filePath, false);
+    if (!bin) {
+        getWarningsStream(state) << "Could not load binary from disk: " << processPath << "\n";
+        return;
+    }
 
-    ModuleDescriptor mod;
-    mod.Name = llvm::sys::path::stem(file);
-    mod.Path = file.str();
-    mod.AddressSpace = state->regs()->getPageDir();
-    mod.Pid = p.process_id;
-    mod.LoadBase = p.start_code;
-    mod.NativeBase = p.start_code;
-    mod.Size = p.end_data - p.start_code;
-    mod.EntryPoint = p.entry_point;
+    if (p.phdr_size % sizeof(S2E_DECREEMON_PHDR_DESC)) {
+        getWarningsStream(state) << "Invalid process load structure\n";
+        return;
+    }
+
+    auto headers_count = p.phdr_size / sizeof(S2E_DECREEMON_PHDR_DESC);
+    auto headers = std::unique_ptr<S2E_DECREEMON_PHDR_DESC[]>{new S2E_DECREEMON_PHDR_DESC[headers_count]};
+
+    if (!state->mem()->read(p.phdr, headers.get(), p.phdr_size)) {
+        getWarningsStream(state) << "Could not read headers\n";
+        return;
+    }
+
+    auto &bin_sections = bin->getSections();
+
+    std::vector<uint64_t> sections;
+
+    for (unsigned i = 0; i < headers_count; ++i) {
+        if (!headers[i].vma && !headers[i].size) {
+            continue;
+        }
+
+        if (headers[i].index != i) {
+            getWarningsStream(state) << "Invalid section index\n";
+            return;
+        }
+
+        sections.push_back(headers[i].vma);
+    }
+
+    if (sections.size() != bin_sections.size()) {
+        getWarningsStream(state) << "Invalid section count\n";
+        return;
+    }
+
+    auto mod =
+        ModuleDescriptor::get(*bin.get(), state->regs()->getPageDir(), p.process_id, name, processPath, sections);
 
     getDebugStream(state) << mod << "\n";
 

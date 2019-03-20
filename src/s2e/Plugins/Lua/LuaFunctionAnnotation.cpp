@@ -160,7 +160,11 @@ bool LuaFunctionAnnotation::registerAnnotation(const Annotation &annotation) {
 
 void LuaFunctionAnnotation::hookAnnotation(S2EExecutionState *state, const ModuleDescriptor &module,
                                            const Annotation &annotation) {
-    uint64_t funcPc = module.ToRuntime(annotation.pc);
+    uint64_t funcPc = 0;
+    if (!module.ToRuntime(annotation.pc, funcPc)) {
+        getWarningsStream(state) << "Could not insert hook for annotation " << annotation.annotationName << "\n";
+        return;
+    }
 
     FunctionMonitor::CallSignal *cs = m_functionMonitor->getCallSignal(state, funcPc, state->regs()->getPageDir());
     cs->connect(sigc::bind(sigc::mem_fun(*this, &LuaFunctionAnnotation::onFunctionCall), annotation));

@@ -64,13 +64,6 @@ struct ModuleDescriptor {
     // The name of the module (eg. MYAPP.EXE or DRIVER.SYS)
     std::string Name;
 
-    // Where the the preferred load address of the module.
-    // This is defined by the linker and put into the header of the image.
-    uint64_t NativeBase;
-
-    // Where the image of the module was actually loaded by the OS.
-    uint64_t LoadBase;
-
     // The size of the image of the module
     uint64_t Size;
 
@@ -83,30 +76,68 @@ struct ModuleDescriptor {
     // A list of sections
     ModuleSections Sections;
 
+    // This is the address where the module's header is loaded.
+    // When 0, there is no mapped header. This field is mostly
+    // useful on Windows, where binaries have a load base.
+    uint64_t LoadBase;
+
+    // Only valid for Windows binaries for now, which have
+    // a native load base. Linux and other ELF binaries don't have
+    // that, they map sections instead.
+    uint64_t NativeBase;
+
     ModuleDescriptor() {
         AddressSpace = 0;
-        NativeBase = 0;
-        LoadBase = 0;
         Size = 0;
         EntryPoint = 0;
+        LoadBase = 0;
+        NativeBase = 0;
     }
 
     bool Contains(uint64_t RunTimeAddress) const {
-        uint64_t RVA = RunTimeAddress - LoadBase;
-        return RVA < Size;
+        return getSection(RunTimeAddress) != nullptr;
     }
 
-    uint64_t ToRelative(uint64_t RunTimeAddress) const {
-        uint64_t RVA = RunTimeAddress - LoadBase;
-        return RVA;
+    bool ToNativeBase(uint64_t RunTimeAddress, uint64_t &NativeAddress) const {
+        if (NativeBase && LoadBase) {
+            NativeAddress = RunTimeAddress - LoadBase + NativeBase;
+            return true;
+        }
+
+        auto section = getSection(RunTimeAddress);
+        if (!section) {
+            return false;
+        }
+
+        NativeAddress = RunTimeAddress - section->runtimeLoadBase + section->nativeLoadBase;
+        return true;
     }
 
+    // This function is a workaround until we convert all the call sites to
+    // the one that returns a bool.
     uint64_t ToNativeBase(uint64_t RunTimeAddress) const {
-        return RunTimeAddress - LoadBase + NativeBase;
+        uint64_t ret = 0;
+        if (!ToNativeBase(RunTimeAddress, ret)) {
+            assert(false && "Could not compute native base");
+            abort();
+        }
+        return ret;
     }
 
-    uint64_t ToRuntime(uint64_t NativeAddress) const {
-        return NativeAddress - NativeBase + LoadBase;
+    bool ToRuntime(uint64_t NativeAddress, uint64_t RunTimeAddress) const {
+        if (NativeBase && LoadBase) {
+            RunTimeAddress = NativeAddress - NativeBase + LoadBase;
+            return true;
+        }
+
+        for (auto &section : Sections) {
+            if (NativeAddress >= section.nativeLoadBase && (NativeAddress < section.nativeLoadBase + section.size)) {
+                RunTimeAddress = NativeAddress - section.nativeLoadBase + section.runtimeLoadBase;
+                return true;
+            }
+        }
+
+        return false;
     }
 
     static ModuleDescriptor get(const vmi::PEFile &bin, uint64_t as, uint64_t pid, const std::string &name,
@@ -125,8 +156,7 @@ struct ModuleDescriptor {
 };
 
 inline llvm::raw_ostream &operator<<(llvm::raw_ostream &out, const ModuleDescriptor &md) {
-    out << "ModuleDescriptor Name=" << md.Name << " Path=" << md.Path << " NativeBase=" << hexval(md.NativeBase)
-        << " LoadBase=" << hexval(md.LoadBase) << " Size=" << hexval(md.Size)
+    out << "ModuleDescriptor Name=" << md.Name << " Path=" << md.Path << " Size=" << hexval(md.Size)
         << " AddressSpace=" << hexval(md.AddressSpace) << " Pid=" << hexval(md.Pid)
         << " EntryPoint=" << hexval(md.EntryPoint) << " Checksum=" << hexval(md.Checksum);
 
