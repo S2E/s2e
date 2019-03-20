@@ -44,23 +44,13 @@ struct SectionDescriptor {
     }
 };
 
-typedef std::vector<SectionDescriptor> ModuleSections;
+using ModuleSections = std::vector<SectionDescriptor>;
 
-struct SymbolDescriptor {
-    std::string name;
-    unsigned size;
-
-    bool operator()(const SymbolDescriptor &s1, const SymbolDescriptor &s2) const {
-        return s1.name.compare(s2.name) < 0;
-    }
-};
-
-typedef std::set<SymbolDescriptor, SymbolDescriptor> SymbolDescriptors;
-
-/**
- *  Characterizes whatever module can be loaded in the memory.
- *  This can be a user-mode library, or a kernel-mode driver.
- */
+///
+/// \brief The ModuleDescriptor structure describes a module loaded in memory.
+///
+/// The module can be a user space binary, a kernel driver, etc.
+///
 struct ModuleDescriptor {
     // The page directory register value
     uint64_t AddressSpace;
@@ -68,7 +58,7 @@ struct ModuleDescriptor {
     // The OS-defined PID where this module resides
     uint64_t Pid;
 
-    // Full paths to the module
+    // Full path to the module
     std::string Path;
 
     // The name of the module (eg. MYAPP.EXE or DRIVER.SYS)
@@ -119,10 +109,6 @@ struct ModuleDescriptor {
         return NativeAddress - NativeBase + LoadBase;
     }
 
-    bool EqualInsensitive(const char *Name) const {
-        return strcasecmp(this->Name.c_str(), Name) == 0;
-    }
-
     static ModuleDescriptor get(const vmi::PEFile &bin, uint64_t as, uint64_t pid, const std::string &name,
                                 const std::string &path, uint64_t loadbase);
     static ModuleDescriptor get(const vmi::ExecutableFile &bin, uint64_t as, uint64_t pid, const std::string &name,
@@ -134,78 +120,8 @@ struct ModuleDescriptor {
                 return &Sections[i];
             }
         }
-        return NULL;
+        return nullptr;
     }
-
-    struct ModuleByLoadBase {
-        bool operator()(const struct ModuleDescriptor &s1, const struct ModuleDescriptor &s2) const {
-            if (s1.AddressSpace == s2.AddressSpace) {
-                return s1.LoadBase + s1.Size <= s2.LoadBase;
-            }
-            return s1.AddressSpace < s2.AddressSpace;
-        }
-
-        bool operator()(const struct ModuleDescriptor *s1, const struct ModuleDescriptor *s2) const {
-            if (s1->AddressSpace == s2->AddressSpace) {
-                return s1->LoadBase + s1->Size <= s2->LoadBase;
-            }
-            return s1->AddressSpace < s2->AddressSpace;
-        }
-    };
-
-    struct ModuleByPid {
-        bool operator()(const struct ModuleDescriptor &s1, const struct ModuleDescriptor &s2) const {
-            return s1.Pid < s2.Pid;
-        }
-
-        bool operator()(const struct ModuleDescriptor *s1, const struct ModuleDescriptor *s2) const {
-            return s1->Pid < s2->Pid;
-        }
-    };
-
-    struct ModuleByLoadBasePid {
-        bool operator()(const struct ModuleDescriptor &s1, const struct ModuleDescriptor &s2) const {
-            if (s1.Pid == s2.Pid) {
-                return s1.LoadBase + s1.Size <= s2.LoadBase;
-            }
-            return s1.Pid < s2.Pid;
-        }
-
-        bool operator()(const struct ModuleDescriptor *s1, const struct ModuleDescriptor *s2) const {
-            if (s1->Pid == s2->Pid) {
-                return s1->LoadBase + s1->Size <= s2->LoadBase;
-            }
-            return s1->Pid < s2->Pid;
-        }
-    };
-
-    struct ModuleByPidName {
-        bool operator()(const struct ModuleDescriptor &s1, const struct ModuleDescriptor &s2) const {
-            if (s1.Pid == s2.Pid) {
-                return s1.Name < s2.Name;
-            }
-            return s1.Pid < s2.Pid;
-        }
-
-        bool operator()(const struct ModuleDescriptor *s1, const struct ModuleDescriptor *s2) const {
-            if (s1->Pid == s2->Pid) {
-                return s1->Name < s2->Name;
-            }
-            return s1->Pid < s2->Pid;
-        }
-    };
-
-    struct ModuleByName {
-        bool operator()(const struct ModuleDescriptor &s1, const struct ModuleDescriptor &s2) const {
-            return s1.Name < s2.Name;
-        }
-
-        bool operator()(const struct ModuleDescriptor *s1, const struct ModuleDescriptor *s2) const {
-            return s1->Name < s2->Name;
-        }
-    };
-
-    typedef std::set<struct ModuleDescriptor, ModuleByLoadBase> MDSet;
 };
 
 inline llvm::raw_ostream &operator<<(llvm::raw_ostream &out, const ModuleDescriptor &md) {
@@ -217,8 +133,8 @@ inline llvm::raw_ostream &operator<<(llvm::raw_ostream &out, const ModuleDescrip
     return out;
 }
 
-typedef std::shared_ptr<const ModuleDescriptor> ModuleDescriptorConstPtr;
-typedef std::vector<ModuleDescriptorConstPtr> ModuleDescriptorList;
+using ModuleDescriptorConstPtr = std::shared_ptr<const ModuleDescriptor>;
+using ModuleDescriptorList = std::vector<ModuleDescriptorConstPtr>;
 }
 
 #endif
