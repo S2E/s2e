@@ -32,16 +32,12 @@ ModuleTracer::~ModuleTracer() {
 }
 
 void ModuleTracer::initialize() {
-    m_Tracer = s2e()->getPlugin<ExecutionTracer>();
-    assert(m_Tracer);
+    m_tracer = s2e()->getPlugin<ExecutionTracer>();
 
-    OSMonitor *monitor = (OSMonitor *) s2e()->getPlugin("OSMonitor");
-    assert(monitor);
+    OSMonitor *monitor = static_cast<OSMonitor *>(s2e()->getPlugin("OSMonitor"));
 
     monitor->onModuleLoad.connect(sigc::mem_fun(*this, &ModuleTracer::moduleLoadListener));
-
     monitor->onModuleUnload.connect(sigc::mem_fun(*this, &ModuleTracer::moduleUnloadListener));
-
     monitor->onProcessUnload.connect(sigc::mem_fun(*this, &ModuleTracer::processUnloadListener));
 }
 
@@ -59,7 +55,7 @@ void ModuleTracer::moduleLoadListener(S2EExecutionState *state, const ModuleDesc
     te.addressSpace = module.AddressSpace;
     te.pid = module.Pid;
 
-    m_Tracer->writeData(state, &te, sizeof(te), TRACE_MOD_LOAD);
+    m_tracer->writeData(state, &te, sizeof(te), TRACE_MOD_LOAD);
 }
 
 void ModuleTracer::moduleUnloadListener(S2EExecutionState *state, const ModuleDescriptor &desc) {
@@ -68,7 +64,7 @@ void ModuleTracer::moduleUnloadListener(S2EExecutionState *state, const ModuleDe
     te.pid = desc.Pid;
     te.addressSpace = desc.AddressSpace;
 
-    m_Tracer->writeData(state, &te, sizeof(te), TRACE_MOD_UNLOAD);
+    m_tracer->writeData(state, &te, sizeof(te), TRACE_MOD_UNLOAD);
 }
 
 void ModuleTracer::processUnloadListener(S2EExecutionState *state, uint64_t pageDir, uint64_t pid,
@@ -76,7 +72,7 @@ void ModuleTracer::processUnloadListener(S2EExecutionState *state, uint64_t page
     ExecutionTraceProcessUnload te;
     te.returnCode = returnCode;
 
-    m_Tracer->writeData(state, &te, sizeof(te), TRACE_PROC_UNLOAD);
+    m_tracer->writeData(state, &te, sizeof(te), TRACE_PROC_UNLOAD);
 }
 }
 }

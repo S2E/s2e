@@ -25,9 +25,6 @@ namespace plugins {
 
 class OSMonitor;
 
-// Maps a module descriptor to an id, for compression purposes
-typedef std::multimap<ModuleDescriptor, uint16_t, ModuleDescriptor::ModuleByLoadBase> ExecTracerModules;
-
 /**
  *  This plugin manages the binary execution trace file.
  *  It makes sure that all the writes properly go through it.
@@ -41,9 +38,6 @@ class ExecutionTracer : public Plugin {
     FILE *m_LogFile;
     uint32_t m_CurrentIndex;
     OSMonitor *m_Monitor;
-    ExecTracerModules m_Modules;
-
-    uint16_t getCompressedId(const ModuleDescriptor *desc);
 
     void onTimer();
     void createNewTraceFile(bool append);
