@@ -143,6 +143,8 @@ struct TCGLLVMContextPrivate {
     Value *m_eip;
     Value *m_ccop;
 
+    static unsigned m_eip_last_gep_index;
+
     typedef DenseMap<unsigned, Value *> GepMap;
     GepMap m_registers;
 
@@ -288,7 +290,11 @@ public:
 
     Function *createTbFunction(const std::string &name);
     Function *generateCode(TCGContext *s);
+
+    bool getCpuFieldGepIndexes(unsigned offset, SmallVector<Value*, 3>& gepIndexes);
 };
+
+unsigned TCGLLVMContextPrivate::m_eip_last_gep_index = 0;
 
 TCGLLVMContextPrivate::TCGLLVMContextPrivate(LLVMContext& context)
     : m_context(context), m_builder(m_context), m_tbCount(0),
@@ -705,11 +711,24 @@ inline Value* TCGLLVMContextPrivate::generateCpuStatePtr(TCGArg registerOffset, 
             if (it != m_registers.end()) {
                 ret = (*it).second;
             } else {
+                /*
                 unsigned reg = (registerOffset - m_tcgContext->env_offset_ccop) / TARGET_LONG_BYTES;
                 gepElements.push_back(ConstantInt::get(m_module->getContext(), APInt(32,  0)));
                 gepElements.push_back(ConstantInt::get(m_module->getContext(), APInt(32,  1 + reg)));
                 ret = m_builder.CreateGEP(m_cpuState, ArrayRef<Value*>(gepElements.begin(), gepElements.end()));
                 m_registers[registerOffset] = ret;
+                */
+               bool ok = getCpuFieldGepIndexes(registerOffset, gepElements);
+               if (ok) {
+                   ret = m_builder.CreateGEP(m_cpuState, ArrayRef<Value*>(gepElements.begin(), gepElements.end()));
+                   m_registers[registerOffset] = ret;
+
+                   if (m_eip_last_gep_index == 0 && registerOffset == m_tcgContext->env_offset_eip) {
+                        m_eip_last_gep_index = (unsigned)dyn_cast<ConstantInt>(gepElements.back())->getZExtValue();
+                   }
+               } else {
+                   ret = nullptr;
+               }
             }
         }
     }
@@ -1686,6 +1705,57 @@ void TCGLLVMContextPrivate::computeStaticBranchTargets()
 
 #endif
 
+bool TCGLLVMContextPrivate::getCpuFieldGepIndexes(unsigned offset, SmallVector<Value*, 3>& gepIndexes) {
+
+    Type* curType = m_cpuType;
+    auto& dataLayout = m_module->getDataLayout();
+    auto I32Ty = Type::getInt32Ty(m_module->getContext());
+
+    auto coffset = offset;
+    gepIndexes.push_back(ConstantInt::get(I32Ty, 0));
+    do {
+        bool notCompositeType = true;
+
+        if (curType->isStructTy()) {
+
+            notCompositeType = false;
+            StructType* curStructTy = dyn_cast<StructType>(curType);
+            const StructLayout* curStructLayout = dataLayout.getStructLayout(curStructTy);
+
+            auto curIdx = curStructLayout->getElementContainingOffset(coffset);
+
+            gepIndexes.push_back(ConstantInt::get(I32Ty, curIdx));
+            curType = curStructTy->getTypeAtIndex(curIdx);
+            coffset -= curStructLayout->getElementOffset(curIdx);
+
+            //llvm::errs() << curStructTy->getName() << " : " << coffset << "\n";
+        } else if (curType->isArrayTy()) {
+
+            notCompositeType = false;
+            ArrayType* curArrayTy = dyn_cast<ArrayType>(curType);
+            auto numElem = curArrayTy->getNumElements();
+            auto elemSize = dataLayout.getTypeStoreSize(curArrayTy->getElementType());
+
+            auto curIdx = coffset / elemSize;
+
+            (void) numElem;
+            assert(curIdx < numElem && "Illegal field offset into CPUState!");
+
+            gepIndexes.push_back(ConstantInt::get(I32Ty, curIdx));
+            coffset %= elemSize;
+            curType = curArrayTy->getElementType();
+
+            //llvm::errs() << "coffset: " << coffset << " array: " << numElem << " : " << elemSize << "\n";
+        }
+
+        if (notCompositeType) {
+            //assert(coffset == 0 && "Invalid offset into CPUState!");
+            return coffset == 0;
+        }
+    } while (true);
+    return false;
+}
+
 /***********************************/
 /* External interface for C++ code */
 
@@ -1788,7 +1858,7 @@ bool TCGLLVMContext::GetStaticBranchTarget(const llvm::BasicBlock *BB, uint64_t 
         }
 
         //XXX: hard-coded pc index
-        if (!go1->isZero() || go2->getZExtValue() != 5) {
+        if (!go1->isZero() || go2->getZExtValue() != TCGLLVMContextPrivate::m_eip_last_gep_index) {
             continue;
         }
 
