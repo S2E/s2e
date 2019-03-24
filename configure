@@ -233,9 +233,9 @@ echo "CXXFLAGS := $CXXFLAGS" >> config.mak
 echo "=== Configuring libtcg... ==="
 rm -rf libtcg && mkdir -p libtcg && cd libtcg
 LLVM_DIR="$LLVM_ROOT/lib/cmake/llvm"
-cmake -DCMAKE_C_COMPILER=$CC -DCMAKE_CXX_COMPILER=$CXX      \
-    -DCMAKE_C_FLAGS=$CFLAGS -DCMAKE_CXX_FLAGS=$CXXFLAGS     \
-    -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DWITH_GUEST="$target"   \
+cmake -DCMAKE_C_COMPILER="$CC" -DCMAKE_CXX_COMPILER="$CXX"      \
+    -DCMAKE_C_FLAGS="$CFLAGS" -DCMAKE_CXX_FLAGS="$CXXFLAGS"     \
+    -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DWITH_GUEST="$target"       \
     -DLLVM_DIR="$LLVM_DIR" "$LIBTCG_SRC"
 if [ $? -ne 0 ]; then
   exit 1
@@ -245,8 +245,8 @@ cd ..
 echo "=== Configuring libcpu... ==="
 rm -rf libcpu && mkdir -p libcpu && cd libcpu
 
-cmake -DCMAKE_C_COMPILER=$CC -DCMAKE_CXX_COMPILER=$CXX      \
-    -DCMAKE_C_FLAGS=$CFLAGS -DCMAKE_CXX_FLAGS=$CXXFLAGS     \
+cmake -DCMAKE_C_COMPILER="$CC" -DCMAKE_CXX_COMPILER="$CXX"  \
+    -DCMAKE_C_FLAGS="$CFLAGS" -DCMAKE_CXX_FLAGS="$CXXFLAGS" \
     -DCMAKE_BUILD_TYPE=$BUILD_TYPE                          \
     -DLIBTCG_DIR="$(pwd)/../libtcg"                         \
     -DHOST_INCLUDE_DIR="$(cd $(pwd)/../../ && echo $(pwd))" \
@@ -256,8 +256,8 @@ cmake -DCMAKE_C_COMPILER=$CC -DCMAKE_CXX_COMPILER=$CXX      \
     -DCAPSTONE_INCLUDE_DIR=$CAPSTONE_INCDIR                 \
     -DWITH_TARGET="$target"                                 \
     -DCONFIG_DATE="$(date)"                                 \
-    -DCONFIG_LIBCPU_DATADIR="$BUILD_DIR/$target"              \
-    -DLIBCPU_REVISION="$LIBCPU_REVISION"                        \
+    -DCONFIG_LIBCPU_DATADIR="$BUILD_DIR/$target"            \
+    -DLIBCPU_REVISION="$LIBCPU_REVISION"                    \
     "$LIBCPU_SRC"
 
 if [ $? -ne 0 ]; then
@@ -269,8 +269,8 @@ if echo $target | grep -q s2e; then
 echo "=== Configuring libs2ecore... ==="
 rm -rf libs2ecore && mkdir -p libs2ecore && cd libs2ecore
 
-cmake -DCMAKE_C_COMPILER=$CC -DCMAKE_CXX_COMPILER=$CXX      \
-    -DCMAKE_C_FLAGS=$CFLAGS -DCMAKE_CXX_FLAGS=$CXXFLAGS     \
+cmake -DCMAKE_C_COMPILER="$CC" -DCMAKE_CXX_COMPILER="$CXX"  \
+    -DCMAKE_C_FLAGS="$CFLAGS" -DCMAKE_CXX_FLAGS="$CXXFLAGS" \
     -DCMAKE_BUILD_TYPE=$BUILD_TYPE                          \
     -DLIBTCG_DIR="$(pwd)/../libtcg"                         \
     -DLIBCPU_DIR="$(pwd)/../libcpu"                         \
@@ -278,8 +278,8 @@ cmake -DCMAKE_C_COMPILER=$CC -DCMAKE_CXX_COMPILER=$CXX      \
     -DKLEE_DIR="$KLEE_ROOT"                                 \
     -DVMI_DIR="$LIBVMI_DIR"                                 \
     -DFSIGCXX_DIR="$FSIGCXX_DIR"                            \
-    -DLIBQ_DIR=$LIBQ_DIR                                    \
-    -DLUA_DIR=$LIBLUA_LIB                                   \
+    -DLIBQ_DIR="$LIBQ_DIR"                                  \
+    -DLUA_DIR="$LIBLUA_LIB"                                 \
     "$LIBS2ECORE_SRC"
 
 if [ $? -ne 0 ]; then
@@ -291,8 +291,8 @@ cd ..
 echo "=== Configuring libs2eplugins... ==="
 rm -rf libs2eplugins && mkdir -p libs2eplugins && cd libs2eplugins
 
-cmake -DCMAKE_C_COMPILER=$CC -DCMAKE_CXX_COMPILER=$CXX      \
-    -DCMAKE_C_FLAGS=$CFLAGS -DCMAKE_CXX_FLAGS=$CXXFLAGS     \
+cmake -DCMAKE_C_COMPILER="$CC" -DCMAKE_CXX_COMPILER="$CXX"  \
+    -DCMAKE_C_FLAGS="$CFLAGS" -DCMAKE_CXX_FLAGS="$CXXFLAGS" \
     -DCMAKE_BUILD_TYPE=$BUILD_TYPE                          \
     -DLIBTCG_DIR="$(pwd)/../libtcg"                         \
     -DLIBCPU_DIR="$(pwd)/../libcpu"                         \
@@ -316,8 +316,8 @@ fi
 echo "=== Configuring libs2e... ==="
 rm -rf libs2e && mkdir -p libs2e && cd libs2e
 
-cmake -DCMAKE_C_COMPILER=$CC -DCMAKE_CXX_COMPILER=$CXX      \
-    -DCMAKE_C_FLAGS=$CFLAGS -DCMAKE_CXX_FLAGS=$CXXFLAGS     \
+cmake -DCMAKE_C_COMPILER="$CC" -DCMAKE_CXX_COMPILER="$CXX"  \
+    -DCMAKE_C_FLAGS="$CFLAGS" -DCMAKE_CXX_FLAGS="$CXXFLAGS" \
     -DCMAKE_BUILD_TYPE=$BUILD_TYPE                          \
     -DLIBTCG_DIR="$(pwd)/../libtcg"                         \
     -DLIBCPU_DIR="$(pwd)/../libcpu"                         \
