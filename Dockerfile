@@ -8,12 +8,12 @@
 FROM ubuntu:16.04
 
 # Install build dependencies
-RUN apt-get update &&                                                       \
+RUN dpkg --add-architecture i386 && apt-get update &&                       \
     apt-get -y install build-essential cmake wget texinfo flex bison        \
     python-dev mingw-w64 lsb-release
 
 # Install S2E dependencies
-RUN apt-get update && apt-get -y install libdwarf-dev libelf-dev            \
+RUN apt-get update && apt-get -y install libdwarf-dev libelf-dev libelf-dev:i386 \
     libboost-dev zlib1g-dev libjemalloc-dev nasm pkg-config                 \
     libmemcached-dev libpq-dev libc6-dev-i386 binutils-dev                  \
     libboost-system-dev libboost-serialization-dev libboost-regex-dev       \
