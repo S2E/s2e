@@ -217,12 +217,12 @@ public:
 
     void addRegion(uint64_t pid, uint64_t addr, uint64_t end, MemoryMapRegionType type) {
         m_manager.addRegion(pid, addr, end, type);
-        m_plugin->getDebugStream() << "MemoryMap: adding region:"
+        m_plugin->getDebugStream() << "adding region:"
                                    << " pid=" << hexval(pid) << " [" << hexval(addr) << ", " << hexval(end) << "]\n";
     }
 
     void removeRegion(uint64_t pid, uint64_t addr, uint64_t end) {
-        m_plugin->getDebugStream() << "MemoryMap: removing region: "
+        m_plugin->getDebugStream() << "removing region: "
                                    << " pid=" << hexval(pid) << "[" << hexval(addr) << ", " << hexval(end) << "]\n";
         m_manager.removeRegion(pid, addr, end);
     }
