@@ -142,8 +142,8 @@ struct ModuleDescriptor {
 
     static ModuleDescriptor get(const vmi::PEFile &bin, uint64_t as, uint64_t pid, const std::string &name,
                                 const std::string &path, uint64_t loadbase);
-    static ModuleDescriptor get(const vmi::ExecutableFile &bin, uint64_t as, uint64_t pid, const std::string &name,
-                                const std::string &path, const std::vector<uint64_t> &runTimeAddresses);
+    static ModuleDescriptor get(const std::string &path, const std::string &name, uint64_t pid, uint64_t as,
+                                uint64_t entryPoint, const std::vector<SectionDescriptor> &mappedSections);
 
     const SectionDescriptor *getSection(uint64_t RunTimeAddress) const {
         for (unsigned i = 0; i < Sections.size(); ++i) {

@@ -6,6 +6,7 @@
 ///
 
 #include "ModuleDescriptor.h"
+#include <llvm/ADT/DenseSet.h>
 
 namespace s2e {
 
@@ -40,39 +41,23 @@ ModuleDescriptor ModuleDescriptor::get(const vmi::PEFile &bin, uint64_t as, uint
     return ret;
 }
 
-ModuleDescriptor ModuleDescriptor::get(const vmi::ExecutableFile &bin, uint64_t as, uint64_t pid,
-                                       const std::string &name, const std::string &path,
-                                       const std::vector<uint64_t> &runTimeAddresses) {
+ModuleDescriptor ModuleDescriptor::get(const std::string &path, const std::string &name, uint64_t pid, uint64_t as,
+                                       uint64_t entryPoint, const std::vector<SectionDescriptor> &mappedSections) {
     ModuleDescriptor ret;
 
     ret.AddressSpace = as;
     ret.Pid = pid;
     ret.Name = name;
     ret.Path = path;
-    ret.EntryPoint = bin.getEntryPoint();
-    ret.Checksum = bin.getCheckSum();
-    ret.Size = bin.getImageSize();
+    ret.EntryPoint = entryPoint;
+    ret.Checksum = 0;
+    ret.Size = 0;
 
-    auto &sections = bin.getSections();
-    if (sections.size() != runTimeAddresses.size()) {
-        // XXX: may want to abort here
-        return ret;
+    for (auto &s : mappedSections) {
+        ret.Size += s.size;
     }
 
-    auto i = 0;
-
-    for (auto &section : bin.getSections()) {
-        SectionDescriptor sd;
-        sd.nativeLoadBase = section.start;
-        sd.runtimeLoadBase = runTimeAddresses[i++];
-        sd.size = section.size;
-        sd.readable = section.readable;
-        sd.writable = section.writable;
-        sd.executable = section.executable;
-        sd.name = section.name;
-
-        ret.Sections.push_back(sd);
-    }
+    ret.Sections = mappedSections;
 
     return ret;
 }
