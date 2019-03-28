@@ -24,11 +24,13 @@
 #ifndef S2E_LINUX_COMMANDS_H
 #define S2E_LINUX_COMMANDS_H
 
+#include <inttypes.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#define S2E_LINUXMON_COMMAND_VERSION 0x201805271439ULL // date +%Y%m%d%H%M
+#define S2E_LINUXMON_COMMAND_VERSION 0x201903212249ULL // date +%Y%m%d%H%M
 
 enum S2E_LINUXMON_COMMANDS {
     LINUX_SEGFAULT,
@@ -67,16 +69,28 @@ struct S2E_LINUXMON_COMMAND_PROCESS_LOAD {
     uint64_t process_path;
 } __attribute__((packed));
 
+struct S2E_LINUXMON_PHDR_DESC {
+    uint64_t index;
+    uint64_t vma;
+
+    // Copy of the program header contents
+    uint64_t p_type;
+    uint64_t p_offset;
+    uint64_t p_vaddr;
+    uint64_t p_paddr;
+    uint64_t p_filesz;
+    uint64_t p_memsz;
+    uint64_t p_flags;
+    uint64_t p_align;
+
+    struct S2E_LINUXMON_COMMAND_MEMORY_MAP mmap;
+} __attribute__((packed));
+
 struct S2E_LINUXMON_COMMAND_MODULE_LOAD {
     uint64_t module_path;
-    uint64_t load_base;
-    uint64_t size;
     uint64_t entry_point;
-
-    uint64_t start_code;
-    uint64_t end_code;
-    uint64_t start_data;
-    uint64_t end_data;
+    uint64_t phdr;
+    uint64_t phdr_size;
 } __attribute__((packed));
 
 struct S2E_LINUXMON_COMMAND_SEG_FAULT {
