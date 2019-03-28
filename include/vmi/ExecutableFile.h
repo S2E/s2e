@@ -29,7 +29,8 @@ struct SectionDescriptor {
     uint64_t physStart;
     uint64_t size;
 
-    bool hasData;
+    bool loadable;
+
     bool readable;
     bool writable;
     bool executable;
@@ -37,9 +38,9 @@ struct SectionDescriptor {
     std::string name;
 
     SectionDescriptor() {
+        loadable = false;
         physStart = start = size = 0;
         readable = writable = executable = false;
-        hasData = false;
     }
 
     bool operator<(const SectionDescriptor &s) const {

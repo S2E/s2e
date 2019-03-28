@@ -30,11 +30,12 @@ static void dumpSections(const ExecutableFile &file, std::ostream &ss, bool comp
     }
 
     for (auto &section : sections) {
+        char L = section.loadable ? 'L' : '-';
         char R = section.readable ? 'R' : '-';
         char W = section.writable ? 'W' : '-';
         char X = section.executable ? 'X' : '-';
-        ss << std::setfill(' ') << std::setw(20) << std::left << section.name << " " << R << W << X << " 0x" << std::hex
-           << std::setfill('0') << std::right << std::setw(10) << section.start << " 0x" << std::hex
+        ss << std::setfill(' ') << std::setw(20) << std::left << section.name << " " << L << R << W << X << " 0x"
+           << std::hex << std::setfill('0') << std::right << std::setw(10) << section.start << " 0x" << std::hex
            << std::setfill('0') << std::right << std::setw(10) << section.physStart << " 0x" << std::hex
            << std::setfill('0') << std::right << std::setw(10) << section.size << '\n';
     }

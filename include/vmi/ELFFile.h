@@ -53,7 +53,6 @@ private:
     char *m_elfBuffer;
     Elf *m_elf;
 
-    uint64_t m_imageBase;
     uint64_t m_imageSize;
     uint64_t m_entryPoint;
     uint64_t m_pointerSize;
@@ -126,7 +125,7 @@ public:
 template <typename EhdrT, typename PhdrT>
 ELFFile<EhdrT, PhdrT>::ELFFile(std::shared_ptr<FileProvider> file, bool loaded, uint64_t loadAddress,
                                unsigned pointerSize)
-    : ExecutableFile(file, loaded, loadAddress), m_elf(nullptr), m_imageBase(0), m_imageSize(0), m_entryPoint(0),
+    : ExecutableFile(file, loaded, loadAddress), m_elf(nullptr), m_imageSize(0), m_entryPoint(0),
       m_pointerSize(pointerSize), m_moduleName(llvm::sys::path::filename(std::string(file->getName()))) {
 }
 
@@ -244,57 +243,29 @@ template <typename EhdrT, typename PhdrT> bool ELFFile<EhdrT, PhdrT>::initialize
     PhdrT *phdr = getPhdr(m_elf);
 
     for (unsigned i = 0; i < numPhdrs; ++i, ++phdr) {
-        // Only segments of type PT_LOAD are loaded into memory
-        if (phdr->p_type != PT_LOAD) {
-            continue;
+        SectionDescriptor sd;
+
+        if (phdr->p_type == PT_LOAD) {
+            imageSize += phdr->p_memsz;
+            sd.loadable = true;
         }
 
-        // Use the memory image size to account for any bss data that will not exist on disk
-        imageSize += phdr->p_memsz;
+        std::stringstream ss;
+        ss << "section_" << i;
 
-        // The image base will be the lowest loadable address
-        addresses.push_back(phdr->p_vaddr);
+        sd.readable = phdr->p_flags & PF_R;
+        sd.writable = phdr->p_flags & PF_W;
+        sd.executable = phdr->p_flags & PF_X;
 
-        // Create a section descriptor for sections that contain data at runtime
-        if (phdr->p_memsz > 0) {
-            SectionDescriptor sd;
+        sd.start = phdr->p_vaddr;
+        sd.physStart = phdr->p_paddr;
+        sd.size = phdr->p_filesz;
+        sd.name = ss.str();
 
-            std::stringstream ss;
-            ss << "section_" << i;
-
-            sd.readable = phdr->p_flags & PF_R;
-            sd.writable = phdr->p_flags & PF_W;
-            sd.executable = phdr->p_flags & PF_X;
-
-            sd.start = phdr->p_vaddr;
-            sd.physStart = phdr->p_paddr;
-            sd.size = phdr->p_filesz;
-            sd.hasData = true;
-            sd.name = ss.str();
-
-            m_sections.push_back(sd);
-            m_phdrs.push_back(*phdr);
-
-            // If the section has uninitialized data, we need to create a corresponding section (bss)
-            if (phdr->p_memsz > phdr->p_filesz) {
-                SectionDescriptor bss = sd;
-
-                ss << "_bss";
-
-                bss.start += phdr->p_filesz;
-                bss.size = phdr->p_memsz - phdr->p_filesz;
-                bss.hasData = false;
-                bss.name = ss.str();
-
-                m_sections.push_back(bss);
-            }
-        }
+        m_sections.push_back(sd);
+        m_phdrs.push_back(*phdr);
     }
 
-    // The image base will be the lowest loadable address (which could be 0).
-    std::sort(addresses.begin(), addresses.end());
-
-    m_imageBase = addresses[0];
     m_imageSize = imageSize;
     m_entryPoint = ehdr->e_entry;
 
@@ -306,7 +277,7 @@ template <typename EhdrT, typename PhdrT> std::string ELFFile<EhdrT, PhdrT>::get
 }
 
 template <typename EhdrT, typename PhdrT> uint64_t ELFFile<EhdrT, PhdrT>::getImageBase() const {
-    return m_imageBase;
+    return 0;
 }
 
 template <typename EhdrT, typename PhdrT> uint64_t ELFFile<EhdrT, PhdrT>::getImageSize() const {
@@ -356,14 +327,11 @@ ssize_t ELFFile<EhdrT, PhdrT>::read(void *buffer, size_t nbyte, off64_t va) cons
     size_t overflow = rend - end;
     ssize_t maxSize = std::min(nbyte, nbyte - overflow);
 
-    if (!sd.hasData) {
-        memset(buffer, 0, maxSize);
-
-        return maxSize;
+    if (!sd.loadable) {
+        return 0;
     } else {
         const PhdrT &phdr = m_phdrs[idx];
         off64_t offset = va - phdr.p_vaddr + phdr.p_offset;
-
         return m_file->read(buffer, maxSize, offset);
     }
 }

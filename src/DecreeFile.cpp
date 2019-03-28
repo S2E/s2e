@@ -47,6 +47,8 @@ bool DecreeFile::initialize(void) {
         return false;
     }
 
+    auto imageSize = 0LL;
+
     for (unsigned i = 0; i < m_header.c_phnum; ++i) {
         SectionDescriptor sd;
         decree::DECREE32_phdr phdr;
@@ -56,72 +58,29 @@ bool DecreeFile::initialize(void) {
             return false;
         }
 
-        if (phdr.p_type != decree::PT_LOAD) {
-            continue;
+        if (phdr.p_type == decree::PT_LOAD) {
+            imageSize += phdr.p_memsz;
+            sd.loadable = true;
         }
 
         sd.readable = phdr.p_flags & decree::CPF_R;
         sd.writable = phdr.p_flags & decree::CPF_W;
         sd.executable = phdr.p_flags & decree::CPF_X;
 
-        assert(phdr.p_memsz >= phdr.p_filesz);
-
         std::stringstream ss;
         ss << "section_" << i;
 
-        /**
-         * Handle sections that contain data
-         */
-        if (phdr.p_memsz > 0) {
-            decree::DECREE32_phdr nphdr = phdr;
+        sd.start = phdr.p_vaddr;
+        sd.physStart = phdr.p_paddr;
+        sd.size = phdr.p_filesz;
+        sd.name = ss.str();
 
-            sd.size = phdr.p_filesz;
-            sd.start = phdr.p_vaddr;
-            sd.hasData = true;
-            sd.name = ss.str();
-
-            nphdr.p_memsz = phdr.p_filesz;
-
-            m_sections.push_back(sd);
-            m_phdrs.push_back(nphdr);
-
-            m_imageSize += sd.size;
-
-            if ((m_imageBase == 0) || (sd.start < m_imageBase)) {
-                m_imageBase = sd.start;
-            }
-        }
-
-        /**
-         * If the section has uninitialized data, we need to create
-         * a corresponding section (bss).
-         */
-        if (phdr.p_memsz > phdr.p_filesz) {
-            SectionDescriptor bss = sd;
-            decree::DECREE32_phdr bss_phdr = phdr;
-
-            bss_phdr.p_vaddr = phdr.p_vaddr + phdr.p_filesz;
-            bss_phdr.p_memsz = phdr.p_memsz - phdr.p_filesz;
-            bss_phdr.p_filesz = 0;
-            bss_phdr.p_offset = 0;
-
-            bss.size = bss_phdr.p_memsz;
-            bss.start = bss_phdr.p_vaddr;
-            bss.hasData = false;
-
-            ss << "_bss";
-            bss.name = ss.str();
-
-            m_sections.push_back(bss);
-            m_phdrs.push_back(bss_phdr);
-
-            if ((m_imageBase == 0) || (bss.start < m_imageBase)) {
-                m_imageBase = bss.start;
-            }
-        }
+        m_sections.push_back(sd);
+        m_phdrs.push_back(phdr);
     }
 
     m_entryPoint = m_header.c_entry;
+    m_imageSize = imageSize;
 
     return true;
 }
@@ -150,9 +109,8 @@ ssize_t DecreeFile::read(void *buffer, size_t nbyte, off64_t va) const {
     size_t overflow = rend - end;
     ssize_t maxSize = std::min(nbyte, nbyte - overflow);
 
-    if (!sd.hasData) {
-        memset(buffer, 0, maxSize);
-        return maxSize;
+    if (!sd.loadable) {
+        return 0;
     } else {
         const decree::DECREE32_phdr &hdr = m_phdrs[idx];
         off64_t offset = va - hdr.p_vaddr + hdr.p_offset;

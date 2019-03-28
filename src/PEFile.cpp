@@ -297,6 +297,7 @@ bool PEFile::initSections(void) {
             sectionDesc.name += sectionHeader.Name[i];
         }
 
+        sectionDesc.loadable = true;
         sectionDesc.writable = sectionHeader.Characteristics & IMAGE_SCN_MEM_WRITE;
         sectionDesc.readable = sectionHeader.Characteristics & IMAGE_SCN_MEM_READ;
         sectionDesc.executable = sectionHeader.Characteristics & IMAGE_SCN_MEM_EXECUTE;
