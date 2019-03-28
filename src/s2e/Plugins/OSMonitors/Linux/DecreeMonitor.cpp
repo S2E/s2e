@@ -149,70 +149,6 @@ unsigned DecreeMonitor::getSymbolicReadsCount(S2EExecutionState *state) const {
     return plgState->m_totalReadBytesCount;
 }
 
-void DecreeMonitor::handleProcessLoad(S2EExecutionState *state, const S2E_DECREEMON_COMMAND_PROCESS_LOAD &p) {
-    completeInitialization(state);
-
-    std::string processPath(p.process_path, strnlen(p.process_path, sizeof(p.process_path)));
-    llvm::StringRef filePath(processPath);
-    auto name = llvm::sys::path::stem(filePath);
-
-    getWarningsStream(state) << "ProcessLoad: " << processPath << " entry_point: " << hexval(p.entry_point)
-                             << " pid: " << hexval(p.process_id) << " start_code: " << hexval(p.start_code)
-                             << " end_code: " << hexval(p.end_code) << " start_data: " << hexval(p.start_data)
-                             << " end_data: " << hexval(p.end_data) << " start_stack: " << hexval(p.start_stack)
-                             << "\n";
-
-    onProcessLoad.emit(state, state->regs()->getPageDir(), p.process_id, name);
-
-    auto bin = m_vmi->getFromDisk(processPath, filePath, false);
-    if (!bin) {
-        getWarningsStream(state) << "Could not load binary from disk: " << processPath << "\n";
-        return;
-    }
-
-    if (p.phdr_size % sizeof(S2E_DECREEMON_PHDR_DESC)) {
-        getWarningsStream(state) << "Invalid process load structure\n";
-        return;
-    }
-
-    auto headers_count = p.phdr_size / sizeof(S2E_DECREEMON_PHDR_DESC);
-    auto headers = std::unique_ptr<S2E_DECREEMON_PHDR_DESC[]>{new S2E_DECREEMON_PHDR_DESC[headers_count]};
-
-    if (!state->mem()->read(p.phdr, headers.get(), p.phdr_size)) {
-        getWarningsStream(state) << "Could not read headers\n";
-        return;
-    }
-
-    auto &bin_sections = bin->getSections();
-
-    std::vector<uint64_t> sections;
-
-    for (unsigned i = 0; i < headers_count; ++i) {
-        if (!headers[i].vma && !headers[i].size) {
-            continue;
-        }
-
-        if (headers[i].index != i) {
-            getWarningsStream(state) << "Invalid section index\n";
-            return;
-        }
-
-        sections.push_back(headers[i].vma);
-    }
-
-    if (sections.size() != bin_sections.size()) {
-        getWarningsStream(state) << "Invalid section count\n";
-        return;
-    }
-
-    auto mod =
-        ModuleDescriptor::get(*bin.get(), state->regs()->getPageDir(), p.process_id, name, processPath, sections);
-
-    getDebugStream(state) << mod << "\n";
-
-    onModuleLoad.emit(state, mod);
-}
-
 uint64_t DecreeMonitor::getPid(S2EExecutionState *state) {
     target_ulong pid;
     target_ulong taskStructPtr = getTaskStructPtr(state);
@@ -809,16 +745,6 @@ void DecreeMonitor::printOpcodeOffsets(S2EExecutionState *state) {
     PRINTOFF(Command);
     PRINTOFF(currentPid);
 
-    PRINTOFF(ProcessLoad.process_id);
-    PRINTOFF(ProcessLoad.entry_point);
-    PRINTOFF(ProcessLoad.cgc_header);
-    PRINTOFF(ProcessLoad.start_code);
-    PRINTOFF(ProcessLoad.end_code);
-    PRINTOFF(ProcessLoad.start_data);
-    PRINTOFF(ProcessLoad.end_data);
-    PRINTOFF(ProcessLoad.start_stack);
-    PRINTOFF(ProcessLoad.process_path);
-
     PRINTOFF(Data.fd);
     PRINTOFF(Data.buffer);
     PRINTOFF(Data.buffer_size);
@@ -916,7 +842,7 @@ void DecreeMonitor::handleCommand(S2EExecutionState *state, uint64_t guestDataPt
         } break;
 
         case DECREE_PROCESS_LOAD: {
-            handleProcessLoad(state, command.ProcessLoad);
+            handleProcessLoad(state, command.currentPid, command.ProcessLoad);
         } break;
 
         case DECREE_READ_DATA: {
@@ -1024,6 +950,11 @@ void DecreeMonitor::handleCommand(S2EExecutionState *state, uint64_t guestDataPt
         case DECREE_KERNEL_PANIC: {
             handleKernelPanic(state, command.Panic.message, command.Panic.message_size);
         } break;
+
+        case DECREE_MODULE_LOAD: {
+            handleModuleLoad(state, command.currentPid, command.ModuleLoad);
+            break;
+        }
     }
 }
 

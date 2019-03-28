@@ -110,56 +110,6 @@ void LinuxMonitor::handleSegfault(S2EExecutionState *state, const S2E_LINUXMON_C
     }
 }
 
-void LinuxMonitor::handleProcessLoad(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd) {
-    completeInitialization(state);
-
-    std::string processPath;
-    if (!state->mem()->readString(cmd.ProcessLoad.process_path, processPath)) {
-        getWarningsStream(state) << "could not read process path of pid " << hexval(cmd.currentPid) << "\n";
-    }
-
-    getDebugStream(state) << "Process " << processPath << " loaded"
-                          << " pid=" << hexval(cmd.currentPid) << "\n";
-
-    llvm::StringRef file(processPath);
-
-    onProcessLoad.emit(state, state->regs()->getPageDir(), cmd.currentPid, llvm::sys::path::filename(file));
-}
-
-void LinuxMonitor::handleModuleLoad(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd) {
-    std::string modulePath;
-
-    if (!state->mem()->readString(cmd.ModuleLoad.module_path, modulePath)) {
-        getWarningsStream(state) << "could not read module path\n";
-        return;
-    }
-
-    auto moduleName = llvm::sys::path::filename(modulePath);
-    auto moduleSize = cmd.ModuleLoad.size;
-
-    auto exe = m_vmi->getFromDisk(modulePath, moduleName, false);
-    if (!exe) {
-        getWarningsStream(state) << "Could not load " << modulePath << " from disk. Check your guestfs settings.\n";
-        return;
-    }
-
-    // XXX: fix this
-    std::vector<uint64_t> sections;
-    auto module = ModuleDescriptor::get(*exe.get(), state->regs()->getPageDir(), cmd.currentPid, moduleName, modulePath,
-                                        sections);
-
-    // XXX: fix this
-    module.LoadBase = cmd.ModuleLoad.load_base;
-
-    if (module.Size != moduleSize) {
-        getWarningsStream(state) << "Module size mismatch for " << modulePath << "\n";
-    }
-
-    getDebugStream(state) << module << '\n';
-
-    onModuleLoad.emit(state, module);
-}
-
 void LinuxMonitor::handleProcessExit(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd) {
     auto pd = state->regs()->getPageDir();
     getDebugStream(state) << "Removing task (pid=" << hexval(cmd.currentPid) << ", cr3=" << hexval(pd)
@@ -233,11 +183,11 @@ void LinuxMonitor::handleCommand(S2EExecutionState *state, uint64_t guestDataPtr
             break;
 
         case LINUX_PROCESS_LOAD:
-            handleProcessLoad(state, cmd);
+            handleProcessLoad(state, cmd.currentPid, cmd.ProcessLoad);
             break;
 
         case LINUX_MODULE_LOAD:
-            handleModuleLoad(state, cmd);
+            handleModuleLoad(state, cmd.currentPid, cmd.ModuleLoad);
             break;
 
         case LINUX_TRAP:

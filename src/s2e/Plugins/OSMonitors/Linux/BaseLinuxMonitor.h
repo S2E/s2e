@@ -27,6 +27,9 @@ extern CPUX86State *env;
 
 using namespace klee;
 
+struct S2E_LINUXMON_COMMAND_MODULE_LOAD;
+struct S2E_LINUXMON_COMMAND_PROCESS_LOAD;
+
 namespace s2e {
 namespace plugins {
 
@@ -63,25 +66,46 @@ protected:
     uint64_t m_commandVersion;
     uint64_t m_commandSize;
 
-    void loadKernelImage(S2EExecutionState *state, uint64_t start_kernel) {
-        ModuleDescriptor mod, vmlinux;
-        std::string vmlinuxName = "vmlinux";
-
-        auto exe = m_vmi->getFromDisk("", vmlinuxName, false);
-        if (!exe) {
-            getWarningsStream(state) << "Could not load vmlinux from disk\n";
-            return;
-        }
-
-        std::vector<uint64_t> sections;
-        vmlinux = ModuleDescriptor::get(*exe.get(), 0, 0, vmlinuxName, "", sections);
-
-        // XXX: fix this
-        vmlinux.LoadBase = start_kernel;
-        onModuleLoad.emit(state, vmlinux);
-    }
+    void loadKernelImage(S2EExecutionState *state, uint64_t kernelStart);
 
     bool verifyLinuxCommand(S2EExecutionState *state, uint64_t guestDataPtr, uint64_t guestDataSize, uint8_t *cmd);
+
+    void handleModuleLoad(S2EExecutionState *state, uint64_t pid, const S2E_LINUXMON_COMMAND_MODULE_LOAD &modLoad);
+    void handleProcessLoad(S2EExecutionState *state, uint64_t pid, const S2E_LINUXMON_COMMAND_PROCESS_LOAD &procLoad);
+
+    template <typename T>
+    bool loadSections(S2EExecutionState *state, uint64_t phdr, uint64_t phdr_size,
+                      std::vector<SectionDescriptor> &mappedSections) {
+        if (phdr_size % sizeof(T)) {
+            getWarningsStream(state) << "Invalid phdr_size\n";
+            return false;
+        }
+
+        auto headers_count = phdr_size / sizeof(T);
+        auto headers = std::unique_ptr<T[]>{new T[headers_count]};
+
+        if (!state->mem()->read(phdr, headers.get(), phdr_size)) {
+            getWarningsStream(state) << "Could not read headers\n";
+            return false;
+        }
+
+        for (unsigned i = 0; i < headers_count; ++i) {
+            if (headers[i].mmap.address == 0 && headers[i].mmap.size == 0) {
+                continue;
+            }
+
+            auto sd = SectionDescriptor();
+            sd.nativeLoadBase = headers[i].p_vaddr;
+            sd.runtimeLoadBase = headers[i].vma + (headers[i].p_vaddr & 0xfff);
+            sd.size = headers[i].p_filesz;
+            sd.executable = headers[i].mmap.prot & PROT_EXEC;
+            sd.readable = headers[i].mmap.prot & PROT_READ;
+            sd.writable = headers[i].mmap.prot & PROT_WRITE;
+            mappedSections.push_back(sd);
+        }
+
+        return true;
+    }
 
 public:
     /// Emitted when a segment fault occurs in the kernel
