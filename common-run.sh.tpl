@@ -53,3 +53,29 @@ get_platform() {
         exit 1
     fi
 }
+
+check_coverage() {
+    local PROJECT_NAME="$1"
+    local EXPECTED_COVERAGE="$2"
+    local SYMPATH="$3"
+
+    if [ -d "$SYMPATH" ]; then
+        local EXTRA_PARAMS="--sympath $SYMPATH"
+    fi
+
+    echo === Computing code coverage
+    s2e coverage $EXTRA_PARAMS lcov --html {{ project_name }} | tee $S2E_LAST/cov.log
+
+    echo === Checking code coverage
+
+    COV_PC=$(grep "lines......" $S2E_LAST/cov.log | cut -d : -f 2 | cut -d '%' -f 1)
+    if [ "x$COV_PC" = "x" ]; then
+        echo Could not get coverage
+        exit 1
+    fi
+
+    if (( $(bc <<< "$COV_PC < $EXPECTED_COVERAGE") )); then
+        echo Bad coverage: $COV_PC
+        exit 1
+    fi
+}
