@@ -7,6 +7,11 @@
 
 FROM ubuntu:16.04
 
+# Use local mirrors if possible
+RUN sed -i '1ideb mirror://mirrors.ubuntu.com/mirrors.txt xenial main restricted' /etc/apt/sources.list && \
+    sed -i '1ideb mirror://mirrors.ubuntu.com/mirrors.txt xenial-updates main restricted' /etc/apt/sources.list && \
+    sed -i '1ideb mirror://mirrors.ubuntu.com/mirrors.txt xenial-security main restricted' /etc/apt/sources.list
+
 # Install build dependencies
 RUN dpkg --add-architecture i386 && apt-get update &&                       \
     apt-get -y install build-essential cmake wget texinfo flex bison        \
