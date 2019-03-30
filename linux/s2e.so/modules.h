@@ -99,7 +99,7 @@ void procmap_free(procmap_entries_t *entries);
 
 void s2e_load_modules_from_procmap(void);
 
-// This is not a C99 function, so we have to provide it ourselves
-char *strdup(const char *s);
+// strdup is not a C99 function, so we have to provide it ourselves
+char *our_strdup(const char *s);
 
 #endif

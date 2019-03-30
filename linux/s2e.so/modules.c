@@ -26,6 +26,16 @@
 
 #include "modules.h"
 
+char *our_strdup(const char *str) {
+    size_t len = strlen(str);
+    char *ret = malloc(len + 1);
+    if (!ret) {
+        return ret;
+    }
+    strcpy(ret, str);
+    return ret;
+}
+
 void module_dump(const procmap_module_t *module) {
     for (list_entry_t *entry = module->sections.next; entry != &module->sections; entry = entry->next) {
         procmap_entry_t *section = CONTAINING_RECORD(entry, procmap_entry_t, entry);
@@ -46,7 +56,7 @@ procmap_module_t *module_init(const char *path) {
     }
 
     memset(ret, 0, sizeof(*ret));
-    ret->path = strdup(path);
+    ret->path = our_strdup(path);
     if (!ret->path) {
         goto err;
     }

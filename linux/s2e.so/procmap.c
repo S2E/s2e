@@ -52,7 +52,7 @@ static int procmap_read_entry(procmap_entry_t *entry, const char *line) {
         entry->perms |= PROT_EXEC;
     }
 
-    entry->name = strdup(path);
+    entry->name = our_strdup(path);
 
     return 0;
 }
