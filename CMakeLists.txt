@@ -68,7 +68,10 @@ target_link_libraries(dump vmi elf ${LLVM_LIBS})
 add_executable(reader src/reader.cpp)
 target_link_libraries(reader vmi elf ${LLVM_LIBS})
 
-install(TARGETS crashdump vmidemo injector dump reader
+add_executable(addrs2lines src/addrs2lines.cpp)
+target_link_libraries(addrs2lines vmi dwarf elf ${LLVM_LIBS})
+
+install(TARGETS crashdump vmidemo injector dump reader addrs2lines
         RUNTIME DESTINATION bin)
 install(DIRECTORY "include/vmi"
         DESTINATION include)

@@ -49,3 +49,4 @@ libvmi uses 3rd-party libraries that have their own licenses:
 
 libelf: LGPL v2.1 (http://www.mr511.de/software/)
 libdwarf: LGPL v2.1 (https://www.prevanders.net/dwarflicense.html)
+rapidjson: MIT/BSD (https://github.com/Tencent/rapidjson/blob/master/license.txt)
