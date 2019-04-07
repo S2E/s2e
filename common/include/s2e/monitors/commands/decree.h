@@ -24,11 +24,13 @@
 #ifndef S2E_DECREE_COMMANDS_H
 #define S2E_DECREE_COMMANDS_H
 
+#include "linux.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#define S2E_DECREEMON_COMMAND_VERSION 0x201711041408ULL // date +%Y%m%d%H%M
+#define S2E_DECREEMON_COMMAND_VERSION 0x201903202239ULL // date +%Y%m%d%H%M
 
 enum S2E_DECREEMON_COMMANDS {
     DECREE_SEGFAULT,
@@ -50,19 +52,8 @@ enum S2E_DECREEMON_COMMANDS {
     DECREE_SET_CB_PARAMS,
     DECREE_INIT,
     DECREE_KERNEL_PANIC,
+    DECREE_MODULE_LOAD,
 };
-
-struct S2E_DECREEMON_COMMAND_PROCESS_LOAD {
-    uint64_t process_id;
-    uint64_t entry_point;
-    uint64_t cgc_header;
-    uint64_t start_code;
-    uint64_t end_code;
-    uint64_t start_data;
-    uint64_t end_data;
-    uint64_t start_stack;
-    char process_path[128]; // not NULL terminated
-} __attribute__((packed));
 
 struct S2E_DECREEMON_COMMAND_READ_DATA {
     uint64_t fd;
@@ -191,7 +182,8 @@ struct S2E_DECREEMON_COMMAND {
     enum S2E_DECREEMON_COMMANDS Command;
     uint64_t currentPid;
     union {
-        struct S2E_DECREEMON_COMMAND_PROCESS_LOAD ProcessLoad;
+        struct S2E_LINUXMON_COMMAND_PROCESS_LOAD ProcessLoad;
+        struct S2E_LINUXMON_COMMAND_MODULE_LOAD ModuleLoad;
         struct S2E_DECREEMON_COMMAND_READ_DATA Data;
         struct S2E_DECREEMON_COMMAND_WRITE_DATA WriteData;
         struct S2E_DECREEMON_COMMAND_FD_WAIT FDWait;

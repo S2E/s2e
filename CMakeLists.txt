@@ -38,8 +38,8 @@ write_basic_package_version_file(${CMAKE_VERSION_FILE}
 include_directories("common/include")
 
 # Determine the architecture to build for. By default build for 64-bit
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -std=c99 -Werror")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=c++11 -Werror")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -std=c99 -Werror -g")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=c++11 -Werror -g")
 if(NOT BITS)
   set(BITS 64)
 endif()
