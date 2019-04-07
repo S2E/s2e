@@ -15,6 +15,9 @@ add_library(
     s2e/Plugins/Support/KeyValueStore.cpp
     s2e/Plugins/Support/WebServiceInterface.cpp
 
+    # OS support
+    s2e/Plugins/OSMonitors/ModuleDescriptor.cpp
+
     # Windows guests support
     s2e/Plugins/OSMonitors/Windows/BlueScreenInterceptor.cpp
     s2e/Plugins/OSMonitors/Windows/WindowsCrashDumpGenerator.cpp

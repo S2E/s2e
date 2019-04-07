@@ -168,7 +168,7 @@ void LibraryCallMonitor::onIndirectCallOrJump(S2EExecutionState *state, uint64_t
     std::string exportName;
     if (!plgState->get(mod->Pid, targetAddr, exportName)) {
         vmi::Exports exps;
-        auto exe = m_vmi->getFromDisk(*mod, true);
+        auto exe = m_vmi->getFromDisk(mod->Path, mod->Name, true);
         if (!exe) {
             return;
         }

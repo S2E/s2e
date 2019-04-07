@@ -329,11 +329,14 @@ private:
 
     bool getModuleDescriptorFromCommand(S2EExecutionState *state, const S2E_WINMON2_COMMAND &command,
                                         ModuleDescriptor &module);
-    bool computeImageData(S2EExecutionState *state, ModuleDescriptor &Desc);
 
     template <typename DRIVER_OBJECT, typename MODULE_ENTRY>
     bool readDriverDescriptor(S2EExecutionState *state, uint64_t pDriverDesc, ModuleDescriptor &DriverDesc);
     bool readDriverDescriptorFromParameter(S2EExecutionState *state, ModuleDescriptor &DriverDesc);
+
+    template <typename UNICODE_STRING>
+    bool getDriver(S2EExecutionState *state, uint64_t expectedSize, uint64_t expectedEntryPoint,
+                   const UNICODE_STRING &nameOrPath, uint64_t baseAddress, ModuleDescriptor &desc);
 
     template <typename LIST_ENTRY, typename MODULE_ENTRY, typename POINTER>
     bool readModuleListGeneric(S2EExecutionState *state, ModuleList &modules, const StringSet &filter);
@@ -346,10 +349,12 @@ private:
     void clearCache();
 
     std::string GetNormalizedPath(const std::string &path);
-    void NormalizePath(ModuleDescriptor &module, const std::string &path);
     void NormalizePath(const std::string &path, std::string &normalizedPath, std::string &fileName);
 
     template <typename UNICODE_STRING> void unloadModule(S2EExecutionState *state);
+
+    std::shared_ptr<vmi::PEFile> getFromDiskOrMemory(S2EExecutionState *state, const std::string &modulePath,
+                                                     const std::string &moduleName, uint64_t loadBase);
 
 public:
     virtual void handleOpcodeInvocation(S2EExecutionState *state, uint64_t guestDataPtr, uint64_t guestDataSize);

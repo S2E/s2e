@@ -70,8 +70,6 @@ private:
     virtual void handleCommand(S2EExecutionState *state, uint64_t guestDataPtr, uint64_t guestDataSize, void *cmd);
 
     void handleSegfault(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd);
-    void handleProcessLoad(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd);
-    void handleModuleLoad(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd);
     void handleProcessExit(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd);
     void handleTrap(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd);
     void handleInit(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd);

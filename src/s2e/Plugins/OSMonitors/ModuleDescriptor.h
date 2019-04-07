@@ -21,44 +21,36 @@
 #include <cstring>
 #include <s2e/Utils.h>
 
+#include <vmi/ExecutableFile.h>
+#include <vmi/PEFile.h>
+
 namespace s2e {
 
-/**
- *  Defines some section of memory
- */
 struct SectionDescriptor {
-    uint64_t loadBase;
+    uint64_t runtimeLoadBase;
+    uint64_t nativeLoadBase;
     uint64_t size;
     bool readable;
     bool writable;
     bool executable;
     std::string name;
 
-    SectionDescriptor() : loadBase(0), size(0), readable(false), writable(false), executable(false) {
+    SectionDescriptor()
+        : runtimeLoadBase(0), nativeLoadBase(0), size(0), readable(false), writable(false), executable(false) {
     }
 
     bool contains(uint64_t address) const {
-        return address >= loadBase && address < (loadBase + size);
+        return address >= runtimeLoadBase && address < (runtimeLoadBase + size);
     }
 };
 
-typedef std::vector<SectionDescriptor> ModuleSections;
+using ModuleSections = std::vector<SectionDescriptor>;
 
-struct SymbolDescriptor {
-    std::string name;
-    unsigned size;
-
-    bool operator()(const SymbolDescriptor &s1, const SymbolDescriptor &s2) const {
-        return s1.name.compare(s2.name) < 0;
-    }
-};
-
-typedef std::set<SymbolDescriptor, SymbolDescriptor> SymbolDescriptors;
-
-/**
- *  Characterizes whatever module can be loaded in the memory.
- *  This can be a user-mode library, or a kernel-mode driver.
- */
+///
+/// \brief The ModuleDescriptor structure describes a module loaded in memory.
+///
+/// The module can be a user space binary, a kernel driver, etc.
+///
 struct ModuleDescriptor {
     // The page directory register value
     uint64_t AddressSpace;
@@ -66,18 +58,11 @@ struct ModuleDescriptor {
     // The OS-defined PID where this module resides
     uint64_t Pid;
 
-    // Full paths to the module
+    // Full path to the module
     std::string Path;
 
     // The name of the module (eg. MYAPP.EXE or DRIVER.SYS)
     std::string Name;
-
-    // Where the the preferred load address of the module.
-    // This is defined by the linker and put into the header of the image.
-    uint64_t NativeBase;
-
-    // Where the image of the module was actually loaded by the OS.
-    uint64_t LoadBase;
 
     // The size of the image of the module
     uint64_t Size;
@@ -91,35 +76,74 @@ struct ModuleDescriptor {
     // A list of sections
     ModuleSections Sections;
 
+    // This is the address where the module's header is loaded.
+    // When 0, there is no mapped header. This field is mostly
+    // useful on Windows, where binaries have a load base.
+    uint64_t LoadBase;
+
+    // Only valid for Windows binaries for now, which have
+    // a native load base. Linux and other ELF binaries don't have
+    // that, they map sections instead.
+    uint64_t NativeBase;
+
     ModuleDescriptor() {
         AddressSpace = 0;
-        NativeBase = 0;
-        LoadBase = 0;
         Size = 0;
         EntryPoint = 0;
+        LoadBase = 0;
+        NativeBase = 0;
     }
 
     bool Contains(uint64_t RunTimeAddress) const {
-        uint64_t RVA = RunTimeAddress - LoadBase;
-        return RVA < Size;
+        return getSection(RunTimeAddress) != nullptr;
     }
 
-    uint64_t ToRelative(uint64_t RunTimeAddress) const {
-        uint64_t RVA = RunTimeAddress - LoadBase;
-        return RVA;
+    bool ToNativeBase(uint64_t RunTimeAddress, uint64_t &NativeAddress) const {
+        if (NativeBase && LoadBase) {
+            NativeAddress = RunTimeAddress - LoadBase + NativeBase;
+            return true;
+        }
+
+        auto section = getSection(RunTimeAddress);
+        if (!section) {
+            return false;
+        }
+
+        NativeAddress = RunTimeAddress - section->runtimeLoadBase + section->nativeLoadBase;
+        return true;
     }
 
+    // This function is a workaround until we convert all the call sites to
+    // the one that returns a bool.
     uint64_t ToNativeBase(uint64_t RunTimeAddress) const {
-        return RunTimeAddress - LoadBase + NativeBase;
+        uint64_t ret = 0;
+        if (!ToNativeBase(RunTimeAddress, ret)) {
+            assert(false && "Could not compute native base");
+            abort();
+        }
+        return ret;
     }
 
-    uint64_t ToRuntime(uint64_t NativeAddress) const {
-        return NativeAddress - NativeBase + LoadBase;
+    bool ToRuntime(uint64_t NativeAddress, uint64_t RunTimeAddress) const {
+        if (NativeBase && LoadBase) {
+            RunTimeAddress = NativeAddress - NativeBase + LoadBase;
+            return true;
+        }
+
+        for (auto &section : Sections) {
+            if (NativeAddress >= section.nativeLoadBase && (NativeAddress < section.nativeLoadBase + section.size)) {
+                RunTimeAddress = NativeAddress - section.nativeLoadBase + section.runtimeLoadBase;
+                return true;
+            }
+        }
+
+        return false;
     }
 
-    bool EqualInsensitive(const char *Name) const {
-        return strcasecmp(this->Name.c_str(), Name) == 0;
-    }
+    static ModuleDescriptor get(const vmi::PEFile &bin, uint64_t as, uint64_t pid, const std::string &name,
+                                const std::string &path, uint64_t loadbase);
+    static ModuleDescriptor get(const std::string &path, const std::string &name, uint64_t pid, uint64_t as,
+                                uint64_t entryPoint, const std::vector<SectionDescriptor> &mappedSections);
 
     const SectionDescriptor *getSection(uint64_t RunTimeAddress) const {
         for (unsigned i = 0; i < Sections.size(); ++i) {
@@ -127,91 +151,20 @@ struct ModuleDescriptor {
                 return &Sections[i];
             }
         }
-        return NULL;
+        return nullptr;
     }
-
-    struct ModuleByLoadBase {
-        bool operator()(const struct ModuleDescriptor &s1, const struct ModuleDescriptor &s2) const {
-            if (s1.AddressSpace == s2.AddressSpace) {
-                return s1.LoadBase + s1.Size <= s2.LoadBase;
-            }
-            return s1.AddressSpace < s2.AddressSpace;
-        }
-
-        bool operator()(const struct ModuleDescriptor *s1, const struct ModuleDescriptor *s2) const {
-            if (s1->AddressSpace == s2->AddressSpace) {
-                return s1->LoadBase + s1->Size <= s2->LoadBase;
-            }
-            return s1->AddressSpace < s2->AddressSpace;
-        }
-    };
-
-    struct ModuleByPid {
-        bool operator()(const struct ModuleDescriptor &s1, const struct ModuleDescriptor &s2) const {
-            return s1.Pid < s2.Pid;
-        }
-
-        bool operator()(const struct ModuleDescriptor *s1, const struct ModuleDescriptor *s2) const {
-            return s1->Pid < s2->Pid;
-        }
-    };
-
-    struct ModuleByLoadBasePid {
-        bool operator()(const struct ModuleDescriptor &s1, const struct ModuleDescriptor &s2) const {
-            if (s1.Pid == s2.Pid) {
-                return s1.LoadBase + s1.Size <= s2.LoadBase;
-            }
-            return s1.Pid < s2.Pid;
-        }
-
-        bool operator()(const struct ModuleDescriptor *s1, const struct ModuleDescriptor *s2) const {
-            if (s1->Pid == s2->Pid) {
-                return s1->LoadBase + s1->Size <= s2->LoadBase;
-            }
-            return s1->Pid < s2->Pid;
-        }
-    };
-
-    struct ModuleByPidName {
-        bool operator()(const struct ModuleDescriptor &s1, const struct ModuleDescriptor &s2) const {
-            if (s1.Pid == s2.Pid) {
-                return s1.Name < s2.Name;
-            }
-            return s1.Pid < s2.Pid;
-        }
-
-        bool operator()(const struct ModuleDescriptor *s1, const struct ModuleDescriptor *s2) const {
-            if (s1->Pid == s2->Pid) {
-                return s1->Name < s2->Name;
-            }
-            return s1->Pid < s2->Pid;
-        }
-    };
-
-    struct ModuleByName {
-        bool operator()(const struct ModuleDescriptor &s1, const struct ModuleDescriptor &s2) const {
-            return s1.Name < s2.Name;
-        }
-
-        bool operator()(const struct ModuleDescriptor *s1, const struct ModuleDescriptor *s2) const {
-            return s1->Name < s2->Name;
-        }
-    };
-
-    typedef std::set<struct ModuleDescriptor, ModuleByLoadBase> MDSet;
 };
 
 inline llvm::raw_ostream &operator<<(llvm::raw_ostream &out, const ModuleDescriptor &md) {
-    out << "ModuleDescriptor Name=" << md.Name << " Path=" << md.Path << " NativeBase=" << hexval(md.NativeBase)
-        << " LoadBase=" << hexval(md.LoadBase) << " Size=" << hexval(md.Size)
+    out << "ModuleDescriptor Name=" << md.Name << " Path=" << md.Path << " Size=" << hexval(md.Size)
         << " AddressSpace=" << hexval(md.AddressSpace) << " Pid=" << hexval(md.Pid)
         << " EntryPoint=" << hexval(md.EntryPoint) << " Checksum=" << hexval(md.Checksum);
 
     return out;
 }
 
-typedef std::shared_ptr<const ModuleDescriptor> ModuleDescriptorConstPtr;
-typedef std::vector<ModuleDescriptorConstPtr> ModuleDescriptorList;
+using ModuleDescriptorConstPtr = std::shared_ptr<const ModuleDescriptor>;
+using ModuleDescriptorList = std::vector<ModuleDescriptorConstPtr>;
 }
 
 #endif

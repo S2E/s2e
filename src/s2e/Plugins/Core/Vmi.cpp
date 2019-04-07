@@ -115,61 +115,63 @@ bool Vmi::findModule(const std::string &module, std::string &path) {
     return false;
 }
 
-bool Vmi::getHostPathForModule(const ModuleDescriptor &module, bool caseInsensitive, std::string &modPath) {
+bool Vmi::getHostPathForModule(const std::string &modulePath, const std::string &moduleName, bool caseInsensitive,
+                               std::string &hostPath) {
     // This is a no-op for Linux systems, normally.
-    std::string strippedPath = Vmi::stripWindowsModulePath(module.Path);
+    std::string strippedPath = Vmi::stripWindowsModulePath(modulePath);
 
-    if (findModule(strippedPath, modPath)) {
+    if (findModule(strippedPath, hostPath)) {
         return true;
     }
 
     if (caseInsensitive) {
         std::transform(strippedPath.begin(), strippedPath.end(), strippedPath.begin(), ::tolower);
-        if (findModule(strippedPath, modPath)) {
+        if (findModule(strippedPath, hostPath)) {
             return true;
         }
     }
 
-    if (findModule(module.Name, modPath)) {
+    if (findModule(moduleName, hostPath)) {
         return true;
     }
 
-    std::string Name = module.Name;
+    std::string Name = moduleName;
     std::transform(Name.begin(), Name.end(), Name.begin(), ::tolower);
-    return findModule(Name, modPath);
+    return findModule(Name, hostPath);
 }
 
-std::shared_ptr<vmi::ExecutableFile> Vmi::getFromDisk(const ModuleDescriptor &module, bool caseInsensitive) {
-    getDebugStream() << "Loading module from disk\n";
+std::shared_ptr<vmi::ExecutableFile> Vmi::getFromDisk(const std::string &modulePath, const std::string &moduleName,
+                                                      bool caseInsensitive) {
+    getDebugStream() << "Loading module from disk " << modulePath << " (" << moduleName << ")\n";
 
-    std::string modPath;
-    if (!getHostPathForModule(module, caseInsensitive, modPath)) {
-        getWarningsStream() << "Could not find host path for " << module.Name << "\n";
+    std::string hostPath;
+    if (!getHostPathForModule(modulePath, moduleName, caseInsensitive, hostPath)) {
+        getWarningsStream() << "Could not find host path for " << moduleName << "\n";
         return nullptr;
     }
 
-    auto it = m_cache.find(modPath);
+    auto it = m_cache.find(hostPath);
     if (it != m_cache.end()) {
-        getDebugStream() << "Found cached entry for " << modPath << "\n";
+        getDebugStream() << "Found cached entry for " << hostPath << "\n";
         return (*it).second;
     }
 
-    getDebugStream() << "Attempting to load binary file: " << modPath << "\n";
-    auto fp = vmi::FileSystemFileProvider::get(modPath, false);
+    getDebugStream() << "Attempting to load binary file: " << hostPath << "\n";
+    auto fp = vmi::FileSystemFileProvider::get(hostPath, false);
 
     if (!fp) {
-        getDebugStream() << "Cannot open file " << modPath << "\n";
+        getDebugStream() << "Cannot open file " << hostPath << "\n";
         return nullptr;
     }
 
     auto exe = vmi::ExecutableFile::get(fp, false, 0);
 
     if (!exe) {
-        getDebugStream() << "Cannot parse file " << modPath << "\n";
+        getDebugStream() << "Cannot parse file " << hostPath << "\n";
         return nullptr;
     }
 
-    m_cache[modPath] = exe;
+    m_cache[hostPath] = exe;
     return exe;
 }
 
@@ -346,34 +348,8 @@ bool Vmi::writeX86Register(void *opaque, unsigned reg, const void *buffer, unsig
     return true;
 }
 
-void Vmi::toModuleDescriptor(ModuleDescriptor &desc, const vmi::ExecutableFile &pe) {
-    if (!desc.Size) {
-        desc.Size = pe.getImageSize();
-    }
-    desc.NativeBase = pe.getImageBase();
-    desc.EntryPoint = pe.getEntryPoint();
-    desc.Checksum = pe.getCheckSum();
-
-    for (auto it : pe.getSections()) {
-        const vmi::SectionDescriptor &vd = it;
-        SectionDescriptor d;
-        d.loadBase = desc.ToRuntime(vd.start);
-        d.size = vd.size;
-        d.name = vd.name;
-
-        d.executable = vd.executable;
-        d.readable = vd.readable;
-        d.writable = vd.writable;
-
-        desc.Sections.push_back(d);
-    }
-}
-
-/*
- * Read memory from binary data.
- */
 bool Vmi::readModuleData(const ModuleDescriptor &module, uint64_t addr, uint8_t &val) {
-    auto file = getFromDisk(module, false);
+    auto file = getFromDisk(module.Path, module.Name, false);
     if (!file) {
         getDebugStream() << "No executable file for " << module.Name << "\n";
         return false;
@@ -429,7 +405,7 @@ bool Vmi::getResolvedImports(S2EExecutionState *state, const ModuleDescriptor &m
         return false;
     }
 
-    auto exe = getFromDisk(module, true);
+    auto exe = getFromDisk(module.Path, module.Name, true);
     if (!exe) {
         getDebugStream(state) << "could not find on-disk image\n";
         return false;

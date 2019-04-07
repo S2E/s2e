@@ -28,7 +28,7 @@ using namespace klee;
 namespace s2e {
 namespace plugins {
 
-S2E_DEFINE_PLUGIN(DecreeMonitor, "DecreeMonitor S2E plugin", "OSMonitor", "BaseInstructions");
+S2E_DEFINE_PLUGIN(DecreeMonitor, "DecreeMonitor S2E plugin", "OSMonitor", "BaseInstructions", "Vmi");
 
 namespace decree {
 
@@ -57,10 +57,6 @@ void DecreeMonitor::initialize() {
     m_base = s2e()->getPlugin<BaseInstructions>();
 
     m_vmi = s2e()->getPlugin<Vmi>();
-    if (!m_vmi) {
-        getWarningsStream() << "Requires Vmi\n";
-        exit(-1);
-    }
 
     // XXX: this is a circular dependency, will require further refactoring
     m_memutils = s2e()->getPlugin<MemUtils>();
@@ -151,36 +147,6 @@ public:
 unsigned DecreeMonitor::getSymbolicReadsCount(S2EExecutionState *state) const {
     DECLARE_PLUGINSTATE_CONST(DecreeMonitorState, state);
     return plgState->m_totalReadBytesCount;
-}
-
-void DecreeMonitor::handleProcessLoad(S2EExecutionState *state, const S2E_DECREEMON_COMMAND_PROCESS_LOAD &p) {
-    completeInitialization(state);
-
-    std::string processPath(p.process_path, strnlen(p.process_path, sizeof(p.process_path)));
-
-    getWarningsStream(state) << "ProcessLoad: " << processPath << " entry_point: " << hexval(p.entry_point)
-                             << " pid: " << hexval(p.process_id) << " start_code: " << hexval(p.start_code)
-                             << " end_code: " << hexval(p.end_code) << " start_data: " << hexval(p.start_data)
-                             << " end_data: " << hexval(p.end_data) << " start_stack: " << hexval(p.start_stack)
-                             << "\n";
-
-    llvm::StringRef file(processPath);
-
-    onProcessLoad.emit(state, state->regs()->getPageDir(), p.process_id, llvm::sys::path::stem(file));
-
-    ModuleDescriptor mod;
-    mod.Name = llvm::sys::path::stem(file);
-    mod.Path = file.str();
-    mod.AddressSpace = state->regs()->getPageDir();
-    mod.Pid = p.process_id;
-    mod.LoadBase = p.start_code;
-    mod.NativeBase = p.start_code;
-    mod.Size = p.end_data - p.start_code;
-    mod.EntryPoint = p.entry_point;
-
-    getDebugStream(state) << mod << "\n";
-
-    onModuleLoad.emit(state, mod);
 }
 
 uint64_t DecreeMonitor::getPid(S2EExecutionState *state) {
@@ -779,16 +745,6 @@ void DecreeMonitor::printOpcodeOffsets(S2EExecutionState *state) {
     PRINTOFF(Command);
     PRINTOFF(currentPid);
 
-    PRINTOFF(ProcessLoad.process_id);
-    PRINTOFF(ProcessLoad.entry_point);
-    PRINTOFF(ProcessLoad.cgc_header);
-    PRINTOFF(ProcessLoad.start_code);
-    PRINTOFF(ProcessLoad.end_code);
-    PRINTOFF(ProcessLoad.start_data);
-    PRINTOFF(ProcessLoad.end_data);
-    PRINTOFF(ProcessLoad.start_stack);
-    PRINTOFF(ProcessLoad.process_path);
-
     PRINTOFF(Data.fd);
     PRINTOFF(Data.buffer);
     PRINTOFF(Data.buffer_size);
@@ -886,7 +842,7 @@ void DecreeMonitor::handleCommand(S2EExecutionState *state, uint64_t guestDataPt
         } break;
 
         case DECREE_PROCESS_LOAD: {
-            handleProcessLoad(state, command.ProcessLoad);
+            handleProcessLoad(state, command.currentPid, command.ProcessLoad);
         } break;
 
         case DECREE_READ_DATA: {
@@ -994,6 +950,11 @@ void DecreeMonitor::handleCommand(S2EExecutionState *state, uint64_t guestDataPt
         case DECREE_KERNEL_PANIC: {
             handleKernelPanic(state, command.Panic.message, command.Panic.message_size);
         } break;
+
+        case DECREE_MODULE_LOAD: {
+            handleModuleLoad(state, command.currentPid, command.ModuleLoad);
+            break;
+        }
     }
 }
 

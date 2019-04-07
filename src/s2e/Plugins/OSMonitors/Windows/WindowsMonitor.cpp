@@ -159,29 +159,26 @@ std::string WindowsMonitor::GetNormalizedPath(const std::string &path) {
     return str;
 }
 
-void WindowsMonitor::NormalizePath(const std::string &path, std::string &normalizedPath, std::string &fileName) {
+void WindowsMonitor::NormalizePath(const std::string &path, std::string &normalizedPath,
+                                   std::string &normalizedFileName) {
     normalizedPath = GetNormalizedPath(path);
-    fileName = GetFileName(path);
+    normalizedFileName = GetFileName(path);
 
     // Sometimes we don't know where the module is, especially if the windows api
     // did not provide the full path of the binary. Vmi will try its best to
     // locate the file.
-    if (fileName == normalizedPath) {
+    if (normalizedFileName == normalizedPath) {
         normalizedPath = "";
     }
 
     // We always want the module name to be lower case on windows. This simplifies configuration
     // of all the plugins that rely on the module name (e.g., ModuleExecutionDetector).
     // Windows tends to use different cases depending on the context, which would cause config to break.
-    std::transform(fileName.begin(), fileName.end(), fileName.begin(), ::tolower);
+    std::transform(normalizedFileName.begin(), normalizedFileName.end(), normalizedFileName.begin(), ::tolower);
 
     // Don't lower-case the full path for now. Plugins will do it themselves if needed
     // (e.g., Vmi will try to lookup the original path, and if failed, lower case it).
     // std::transform(normalizedPath.begin(), normalizedPath.end(), normalizedPath.begin(), ::tolower);
-}
-
-void WindowsMonitor::NormalizePath(ModuleDescriptor &module, const std::string &path) {
-    NormalizePath(path, module.Path, module.Name);
 }
 
 void WindowsMonitor::initialize() {
@@ -219,41 +216,43 @@ void WindowsMonitor::onTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionSt
     }
 }
 
-bool WindowsMonitor::computeImageData(S2EExecutionState *state, ModuleDescriptor &Desc) {
+std::shared_ptr<vmi::PEFile> WindowsMonitor::getFromDiskOrMemory(S2EExecutionState *state,
+                                                                 const std::string &modulePath,
+                                                                 const std::string &moduleName, uint64_t loadBase) {
     // Use locally-stored files first
-    auto pe = m_vmi->getFromDisk(Desc, true);
+    auto pe = m_vmi->getFromDisk(modulePath, moduleName, true);
     if (pe) {
-        Vmi::toModuleDescriptor(Desc, *pe.get());
-        return true;
+        return std::dynamic_pointer_cast<vmi::PEFile>(pe);
     }
 
-    auto file = vmi::GuestMemoryFileProvider::get(state, &Vmi::readGuestVirtual, NULL, Desc.Name);
-    auto image = vmi::PEFile::get(file, true, Desc.LoadBase);
-    if (!image) {
+    auto file = vmi::GuestMemoryFileProvider::get(state, &Vmi::readGuestVirtual, NULL, moduleName);
+    return vmi::PEFile::get(file, true, loadBase);
+}
+
+template <typename UNICODE_STRING>
+bool WindowsMonitor::getDriver(S2EExecutionState *state, uint64_t expectedSize, uint64_t expectedEntryPoint,
+                               const UNICODE_STRING &nameOrPath, uint64_t baseAddress, ModuleDescriptor &desc) {
+    // TODO: figure out full path of the driver
+    std::string driverName;
+    state->mem()->readUnicodeString(nameOrPath.Buffer, driverName, nameOrPath.Length);
+
+    std::string normalizedPath, normalizedFileName;
+    NormalizePath(driverName, normalizedPath, normalizedFileName);
+
+    auto exec = getFromDiskOrMemory(state, normalizedPath, normalizedFileName, baseAddress);
+    if (!exec) {
+        getDebugStream(state) << "could not compute image data for " << driverName << "\n";
         return false;
     }
 
-    Desc.NativeBase = image->getImageBase();
+    desc = ModuleDescriptor::get(*exec.get(), 0, 0, normalizedFileName, normalizedPath, baseAddress);
 
-    if (!Desc.NativeBase) {
-        return false;
+    if (desc.Size != expectedSize) {
+        getWarningsStream(state) << "Driver size mismatch for " << driverName << "\n";
     }
 
-    if (!Desc.Size) {
-        Desc.Size = image->getImageSize();
-    }
-
-    uint64_t EntryPoint = image->getEntryPoint();
-
-    if (!Desc.EntryPoint) {
-        Desc.EntryPoint = EntryPoint;
-    } else {
-        uint64_t NativeEntryPoint = Desc.ToNativeBase(Desc.EntryPoint);
-        if (EntryPoint && (NativeEntryPoint != EntryPoint)) {
-            getWarningsStream(state) << Desc.Name << " has different entry points: " << hexval(Desc.EntryPoint)
-                                     << " and (original) " << hexval(EntryPoint) << "\n";
-        }
-        Desc.EntryPoint = NativeEntryPoint;
+    if (desc.EntryPoint != expectedEntryPoint) {
+        getWarningsStream(state) << "Driver entry point mismatch for " << driverName << "\n";
     }
 
     return true;
@@ -275,26 +274,8 @@ bool WindowsMonitor::readDriverDescriptor(S2EExecutionState *state, uint64_t pDr
         return false;
     }
 
-    // TODO: figure out full path of the driver
-    std::string DriverName;
-    state->mem()->readUnicodeString(ModuleEntry.DriverName.Buffer, DriverName, ModuleEntry.DriverName.Length);
-
-    NormalizePath(DriverDesc, DriverName);
-
-    DriverDesc.LoadBase = DriverObject.DriverStart;
-    DriverDesc.Size = DriverObject.DriverSize;
-    DriverDesc.EntryPoint = DriverObject.DriverInit;
-
-    DriverDesc.NativeBase = 0;
-    if (!computeImageData(state, DriverDesc)) {
-        getDebugStream(state) << "could not compute image data for " << DriverName << "\n";
-        return false;
-    }
-
-    DriverDesc.AddressSpace = 0;
-    DriverDesc.Pid = 0;
-
-    return true;
+    return getDriver(state, DriverObject.DriverSize, DriverObject.DriverStart, ModuleEntry.DriverPath,
+                     DriverObject.DriverStart, DriverDesc);
 }
 
 bool WindowsMonitor::readDriverDescriptorFromParameter(S2EExecutionState *state, ModuleDescriptor &DriverDesc) {
@@ -372,16 +353,13 @@ bool WindowsMonitor::readModuleListGeneric(S2EExecutionState *state, ModuleList 
 
         ModuleDescriptor desc;
 
-        desc.AddressSpace = 0;
-
-        state->mem()->readUnicodeString(ModuleEntry.DriverName.Buffer, desc.Name, ModuleEntry.DriverName.Length);
-        std::transform(desc.Name.begin(), desc.Name.end(), desc.Name.begin(), ::tolower);
+        if (!getDriver(state, ModuleEntry.ImageSize, ModuleEntry.EntryPoint, ModuleEntry.DriverPath,
+                       ModuleEntry.BaseAddress, desc)) {
+            getWarningsStream(state) << "Could not read driver module info\n";
+            return false;
+        }
 
         if (filter.empty() || (filter.find(desc.Name) != filter.end())) {
-            desc.NativeBase = 0;
-            desc.LoadBase = ModuleEntry.BaseAddress;
-
-            computeImageData(state, desc);
             modules.push_back(desc);
         }
 
@@ -518,29 +496,38 @@ template <typename UNICODE_STRING> void WindowsMonitor::unloadModule(S2EExecutio
         }
     }
 
-    UNICODE_STRING Name;
-    if (!state->mem()->read(pName, &Name, sizeof(Name))) {
+    UNICODE_STRING unicodeName;
+    if (!state->mem()->read(pName, &unicodeName, sizeof(unicodeName))) {
         getWarningsStream(state) << "WindowsMonitor::onPerfLogImageUnload "
                                  << " could not read module name\n";
         return;
     }
 
-    std::string modulePath;
-    state->mem()->readUnicodeString(Name.Buffer, modulePath, Name.Length / 2);
-
-    ModuleDescriptor module;
-    NormalizePath(module, modulePath);
-
-    module.LoadBase = base;
-    module.Size = size;
-
-    if (isKernelAddress(base)) {
-        module.Pid = 0;
-        module.AddressSpace = 0;
-    } else {
-        module.AddressSpace = state->regs()->getPageDir();
-        module.Pid = pid;
+    std::string path, normalizedPath, normalizedName;
+    if (!state->mem()->readUnicodeString(unicodeName.Buffer, path, unicodeName.Length / 2)) {
+        getWarningsStream(state) << "WindowsMonitor::onPerfLogImageUnload "
+                                 << " could not read module name\n";
+        return;
     }
+
+    NormalizePath(path, normalizedPath, normalizedName);
+
+    auto exec = getFromDiskOrMemory(state, normalizedPath, normalizedName, base);
+    if (!exec) {
+        getWarningsStream(state) << "WindowsMonitor::onPerfLogImageUnload "
+                                 << " could not get module " << path << "\n";
+        return;
+    }
+
+    auto addressSpace = 0L;
+    auto modulePid = 0L;
+
+    if (!isKernelAddress(base)) {
+        addressSpace = state->regs()->getPageDir();
+        modulePid = pid;
+    }
+
+    auto module = ModuleDescriptor::get(*exec.get(), addressSpace, modulePid, normalizedName, normalizedPath, base);
 
     getDebugStream(state) << "onPerfLogImageUnload " << module << "\n";
 
@@ -810,27 +797,38 @@ void WindowsMonitor::opcodeInitKernelStructs(S2EExecutionState *state, uint64_t 
 bool WindowsMonitor::getModuleDescriptorFromCommand(S2EExecutionState *state, const S2E_WINMON2_COMMAND &command,
                                                     ModuleDescriptor &module) {
 
-    module.LoadBase = command.Module2.LoadBase;
-    module.Size = command.Module2.Size;
+    auto pid = 0L;
+    auto addressSpace = 0L;
+    auto loadBase = command.Module2.LoadBase;
+    auto size = command.Module2.Size;
 
     if (isKernelAddress(module.LoadBase)) {
-        module.Pid = 0;
-        module.AddressSpace = 0;
+        pid = 0;
+        addressSpace = 0;
     } else {
-        module.Pid = command.Module2.Pid;
-        module.AddressSpace = state->regs()->getPageDir();
+        pid = command.Module2.Pid;
+        addressSpace = state->regs()->getPageDir();
     }
 
+    std::string path;
     uint64_t characters = command.Module2.UnicodeModulePathSizeInBytes / sizeof(uint16_t);
-    if (!state->mem()->readUnicodeString(command.Module2.UnicodeModulePath, module.Path, characters)) {
+    if (!state->mem()->readUnicodeString(command.Module2.UnicodeModulePath, path, characters)) {
         getWarningsStream(state) << "could not read module name\n";
         return false;
     }
 
-    NormalizePath(module, module.Path);
+    std::string normalizedName, normalizedPath;
+    NormalizePath(path, normalizedPath, normalizedName);
 
-    if (!computeImageData(state, module)) {
+    auto exec = getFromDiskOrMemory(state, normalizedPath, normalizedName, loadBase);
+    if (!exec) {
         getWarningsStream(state) << "could not initialize module information\n";
+        return false;
+    }
+
+    module = ModuleDescriptor::get(*exec.get(), addressSpace, pid, normalizedName, normalizedPath, loadBase);
+    if (exec->getImageSize() != size) {
+        getWarningsStream(state) << "Size mismatch for " << normalizedName << "\n";
     }
 
     return true;

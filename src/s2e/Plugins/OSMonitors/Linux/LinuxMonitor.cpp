@@ -110,49 +110,6 @@ void LinuxMonitor::handleSegfault(S2EExecutionState *state, const S2E_LINUXMON_C
     }
 }
 
-void LinuxMonitor::handleProcessLoad(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd) {
-    completeInitialization(state);
-
-    std::string processPath;
-    if (!state->mem()->readString(cmd.ProcessLoad.process_path, processPath)) {
-        getWarningsStream(state) << "could not read process path of pid " << hexval(cmd.currentPid) << "\n";
-    }
-
-    getDebugStream(state) << "Process " << processPath << " loaded"
-                          << " pid=" << hexval(cmd.currentPid) << "\n";
-
-    llvm::StringRef file(processPath);
-
-    onProcessLoad.emit(state, state->regs()->getPageDir(), cmd.currentPid, llvm::sys::path::filename(file));
-}
-
-void LinuxMonitor::handleModuleLoad(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd) {
-    ModuleDescriptor module;
-
-    if (!state->mem()->readString(cmd.ModuleLoad.module_path, module.Path)) {
-        getWarningsStream(state) << "could not read module path\n";
-        return;
-    }
-
-    module.Name = llvm::sys::path::filename(module.Path);
-    module.Size = cmd.ModuleLoad.size;
-
-    auto exe = m_vmi->getFromDisk(module, true);
-    if (!exe) {
-        getWarningsStream(state) << "Could not load " << module.Path << " from disk. Check your guestfs settings.\n";
-    } else {
-        Vmi::toModuleDescriptor(module, *exe.get());
-    }
-
-    module.AddressSpace = state->regs()->getPageDir();
-    module.Pid = cmd.currentPid;
-    module.LoadBase = cmd.ModuleLoad.load_base;
-
-    getDebugStream(state) << module << '\n';
-
-    onModuleLoad.emit(state, module);
-}
-
 void LinuxMonitor::handleProcessExit(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd) {
     auto pd = state->regs()->getPageDir();
     getDebugStream(state) << "Removing task (pid=" << hexval(cmd.currentPid) << ", cr3=" << hexval(pd)
@@ -226,11 +183,11 @@ void LinuxMonitor::handleCommand(S2EExecutionState *state, uint64_t guestDataPtr
             break;
 
         case LINUX_PROCESS_LOAD:
-            handleProcessLoad(state, cmd);
+            handleProcessLoad(state, cmd.currentPid, cmd.ProcessLoad);
             break;
 
         case LINUX_MODULE_LOAD:
-            handleModuleLoad(state, cmd);
+            handleModuleLoad(state, cmd.currentPid, cmd.ModuleLoad);
             break;
 
         case LINUX_TRAP:

@@ -212,8 +212,6 @@ public:
     /// after allocate and deallocate syscalls.
     sigc::signal<void, S2EExecutionState *, uint64_t /* pid */, const S2E_DECREEMON_VMA & /* vma */> onUpdateMemoryMap;
 
-    void handleProcessLoad(S2EExecutionState *s, const S2E_DECREEMON_COMMAND_PROCESS_LOAD &p);
-
     bool getFaultAddress(S2EExecutionState *state, uint64_t siginfo_ptr, uint64_t *address);
 
     virtual uint64_t getPid(S2EExecutionState *state);

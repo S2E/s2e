@@ -75,5 +75,80 @@ bool BaseLinuxMonitor::getCurrentStack(S2EExecutionState *state, uint64_t *base,
 
     return true;
 }
+
+void BaseLinuxMonitor::handleProcessLoad(S2EExecutionState *state, uint64_t pid,
+                                         const S2E_LINUXMON_COMMAND_PROCESS_LOAD &procLoad) {
+    completeInitialization(state);
+
+    std::string processPath;
+    if (!state->mem()->readString(procLoad.process_path, processPath)) {
+        getWarningsStream(state) << "could not read process path of pid " << hexval(pid) << "\n";
+    }
+
+    getDebugStream(state) << "Process " << processPath << " loaded"
+                          << " pid=" << hexval(pid) << "\n";
+
+    llvm::StringRef file(processPath);
+
+    onProcessLoad.emit(state, state->regs()->getPageDir(), pid, llvm::sys::path::filename(file));
+}
+
+void BaseLinuxMonitor::handleModuleLoad(S2EExecutionState *state, uint64_t pid,
+                                        const S2E_LINUXMON_COMMAND_MODULE_LOAD &modLoad) {
+    std::string modulePath;
+
+    if (!state->mem()->readString(modLoad.module_path, modulePath)) {
+        getWarningsStream(state) << "could not read module path\n";
+        return;
+    }
+
+    auto moduleName = llvm::sys::path::filename(modulePath);
+
+    std::vector<SectionDescriptor> sections;
+    if (!loadSections<S2E_LINUXMON_PHDR_DESC>(state, modLoad.phdr, modLoad.phdr_size, sections)) {
+        return;
+    }
+
+    auto module =
+        ModuleDescriptor::get(modulePath, moduleName, pid, state->regs()->getPageDir(), modLoad.entry_point, sections);
+
+    getDebugStream(state) << module << '\n';
+
+    onModuleLoad.emit(state, module);
+}
+
+void BaseLinuxMonitor::loadKernelImage(S2EExecutionState *state, uint64_t kernelStart) {
+    ModuleDescriptor vmlinux;
+    std::string kernelName = "vmlinux";
+
+    getDebugStream(state) << "Kernel is at address " << hexval(kernelStart) << "\n";
+
+    auto exe = m_vmi->getFromDisk("", kernelName, false);
+    if (!exe) {
+        getWarningsStream(state) << "Could not load vmlinux from disk\n";
+        return;
+    }
+
+    std::vector<SectionDescriptor> sections;
+    for (const auto &s : exe->getSections()) {
+        if (!s.loadable) {
+            continue;
+        }
+
+        // XXX: assume native load base == runtime load base?
+        SectionDescriptor sd;
+        sd.readable = s.readable;
+        sd.writable = s.writable;
+        sd.executable = s.executable;
+        sd.size = s.size;
+        sd.nativeLoadBase = s.start;
+        sd.runtimeLoadBase = s.start;
+        sections.push_back(sd);
+    }
+
+    vmlinux = ModuleDescriptor::get(kernelName, kernelName, 0, 0, 0, sections);
+
+    onModuleLoad.emit(state, vmlinux);
+}
 }
 }
