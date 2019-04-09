@@ -118,6 +118,13 @@ GTEST_VERSION=1.8.0
 GTEST_SRC_DIR=$(S2E_BUILD)/googletest-release-$(GTEST_VERSION)
 GTEST_URL=https://github.com/google/googletest/archive/release-$(GTEST_VERSION).tar.gz
 
+# libdwarf
+# We don't use the one that ships with the distro because we need
+# the latest features (PE file support mostly).
+LIBDWARF_URL=https://www.prevanders.net/libdwarf-20190110.tar.gz
+LIBDWARF_SRC_DIR=libdwarf-20190110
+LIBDWARF_BUILD_DIR=libdwarf
+
 KLEE_QEMU_DIRS=$(foreach suffix,-debug -release,$(addsuffix $(suffix),klee qemu))
 
 ###########
@@ -226,6 +233,11 @@ $(CAPSTONE_BUILD_DIR):
 	wget -O $(CAPSTONE_SRC_DIR).tar.gz $(CAPSTONE_URL)
 	tar -zxf $(CAPSTONE_SRC_DIR).tar.gz
 	mkdir -p $(S2E_BUILD)/$(CAPSTONE_BUILD_DIR)
+
+$(LIBDWARF_BUILD_DIR):
+	wget -O $(S2E_BUILD)/$(LIBDWARF_BUILD_DIR).tar.gz $(LIBDWARF_URL)
+	tar -zxf $(S2E_BUILD)/$(LIBDWARF_BUILD_DIR).tar.gz
+	mkdir -p $(S2E_BUILD)/$(LIBDWARF_BUILD_DIR)
 
 ifeq ($(LLVM_BUILD),$(S2E_BUILD))
 
@@ -353,6 +365,20 @@ stamps/capstone-make: stamps/capstone-configure
 	$(MAKE) -C $(CAPSTONE_BUILD_DIR) install
 	touch $@
 
+############
+# libdwarf #
+############
+
+stamps/libdwarf-configure: stamps/clang-binary $(LIBDWARF_BUILD_DIR)
+	cd $(LIBDWARF_BUILD_DIR) &&                                         \
+	CC=$(CLANG_CC) CXX=$(CLANG_CXX) $(S2E_BUILD)/$(LIBDWARF_SRC_DIR)/configure --prefix=$(S2E_PREFIX)
+	touch $@
+
+stamps/libdwarf-make: stamps/libdwarf-configure
+	$(MAKE) -C $(LIBDWARF_BUILD_DIR)
+	$(MAKE) -C $(LIBDWARF_BUILD_DIR) install
+	touch $@
+
 #######
 # Lua #
 #######
@@ -407,14 +433,14 @@ LIBVMI_COMMON_FLAGS = -DCMAKE_INSTALL_PREFIX=$(S2E_PREFIX)          \
                       -DCMAKE_C_FLAGS="$(CFLAGS_ARCH) -fPIC"        \
                       -G "Unix Makefiles"
 
-stamps/libvmi-debug-configure: stamps/llvm-debug-make
+stamps/libvmi-debug-configure: stamps/llvm-debug-make stamps/libdwarf-make
 stamps/libvmi-debug-configure: CONFIGURE_COMMAND = cmake $(LIBVMI_COMMON_FLAGS)                         \
                                                    -DLLVM_DIR=$(LLVM_BUILD)/llvm-debug/lib/cmake/llvm   \
                                                    -DCMAKE_BUILD_TYPE=Debug                             \
                                                    -DCMAKE_CXX_FLAGS="$(CXXFLAGS_DEBUG) -fPIC"          \
                                                    $(S2E_SRC)/libvmi
 
-stamps/libvmi-release-configure: stamps/llvm-release-make
+stamps/libvmi-release-configure: stamps/llvm-release-make stamps/libdwarf-make
 stamps/libvmi-release-configure: CONFIGURE_COMMAND = cmake $(LIBVMI_COMMON_FLAGS)                           \
                                                      -DLLVM_DIR=$(LLVM_BUILD)/llvm-release/lib/cmake/llvm   \
                                                      -DCMAKE_BUILD_TYPE=$(RELEASE_BUILD_TYPE)               \
