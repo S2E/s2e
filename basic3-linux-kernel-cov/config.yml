@@ -1,0 +1,8 @@
+test:
+    description: "Checks that S2E and s2e-env can handle Linux kernel code coverage properly"
+    targets:
+        - linux32-basic3-linux-kernel-cov
+
+    build-options:
+        post-project-generation-script: fix-config.sh
+
