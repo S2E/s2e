@@ -127,6 +127,15 @@ LIBDWARF_BUILD_DIR=libdwarf
 
 KLEE_QEMU_DIRS=$(foreach suffix,-debug -release,$(addsuffix $(suffix),klee qemu))
 
+# rapidjson
+# We don't use the one that ships with the distro because we need
+# the latest features.
+RAPIDJSON_GIT_URL=https://github.com/Tencent/rapidjson.git
+RAPIDJSON_GIT_REV=e80257a924b701dcbf5f6e78a7ab47efff6073ac
+RAPIDJSON_SRC_DIR=rapidjson
+RAPIDJSON_BUILD_DIR=rapidjson-build
+
+
 ###########
 # Targets #
 ###########
@@ -238,6 +247,11 @@ $(LIBDWARF_BUILD_DIR):
 	wget -O $(S2E_BUILD)/$(LIBDWARF_BUILD_DIR).tar.gz $(LIBDWARF_URL)
 	tar -zxf $(S2E_BUILD)/$(LIBDWARF_BUILD_DIR).tar.gz
 	mkdir -p $(S2E_BUILD)/$(LIBDWARF_BUILD_DIR)
+
+$(RAPIDJSON_BUILD_DIR):
+	git clone $(RAPIDJSON_GIT_URL) $(RAPIDJSON_SRC_DIR)
+	cd $(RAPIDJSON_SRC_DIR) && git checkout $(RAPIDJSON_GIT_REV)
+	mkdir -p $(S2E_BUILD)/$(RAPIDJSON_BUILD_DIR)
 
 ifeq ($(LLVM_BUILD),$(S2E_BUILD))
 
@@ -379,6 +393,25 @@ stamps/libdwarf-make: stamps/libdwarf-configure
 	$(MAKE) -C $(LIBDWARF_BUILD_DIR) install
 	touch $@
 
+#############
+# rapidjson #
+#############
+
+RAPIDJSON_CONFIGURE_FLAGS = -DCMAKE_INSTALL_PREFIX=$(S2E_PREFIX)                                 \
+                            -DCMAKE_C_FLAGS="$(CFLAGS_ARCH) -fno-omit-frame-pointer -fPIC"       \
+                            -DCMAKE_C_COMPILER=$(CLANG_CC)                                       \
+                            -DCMAKE_CXX_COMPILER=$(CLANG_CXX)                                    \
+
+
+stamps/rapidjson-configure: stamps/clang-binary $(RAPIDJSON_BUILD_DIR)
+	cd $(RAPIDJSON_BUILD_DIR) &&                                         \
+	cmake $(RAPIDJSON_CONFIGURE_FLAGS) $(S2E_BUILD)/$(RAPIDJSON_SRC_DIR)
+	touch $@
+
+stamps/rapidjson-make: stamps/rapidjson-configure
+	$(MAKE) -C $(RAPIDJSON_BUILD_DIR) install
+	touch $@
+
 #######
 # Lua #
 #######
@@ -433,14 +466,14 @@ LIBVMI_COMMON_FLAGS = -DCMAKE_INSTALL_PREFIX=$(S2E_PREFIX)          \
                       -DCMAKE_C_FLAGS="$(CFLAGS_ARCH) -fPIC"        \
                       -G "Unix Makefiles"
 
-stamps/libvmi-debug-configure: stamps/llvm-debug-make stamps/libdwarf-make
+stamps/libvmi-debug-configure: stamps/llvm-debug-make stamps/libdwarf-make stamps/rapidjson-make
 stamps/libvmi-debug-configure: CONFIGURE_COMMAND = cmake $(LIBVMI_COMMON_FLAGS)                         \
                                                    -DLLVM_DIR=$(LLVM_BUILD)/llvm-debug/lib/cmake/llvm   \
                                                    -DCMAKE_BUILD_TYPE=Debug                             \
                                                    -DCMAKE_CXX_FLAGS="$(CXXFLAGS_DEBUG) -fPIC"          \
                                                    $(S2E_SRC)/libvmi
 
-stamps/libvmi-release-configure: stamps/llvm-release-make stamps/libdwarf-make
+stamps/libvmi-release-configure: stamps/llvm-release-make stamps/libdwarf-make stamps/rapidjson-make
 stamps/libvmi-release-configure: CONFIGURE_COMMAND = cmake $(LIBVMI_COMMON_FLAGS)                           \
                                                      -DLLVM_DIR=$(LLVM_BUILD)/llvm-release/lib/cmake/llvm   \
                                                      -DCMAKE_BUILD_TYPE=$(RELEASE_BUILD_TYPE)               \
