@@ -27,7 +27,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install -y                        \
         lsof psmisc libboost-serialization1.58.0 libboost-regex1.58          \
         libmemcached11 libgettextpo0 libelf1 libelf1:i386 libprotobuf9v5 libjemalloc1     \
         libpcre3 libpcre3-dev libxml2-dev:i386 libpcre3:i386                 \
-        liblua5.1-0 liblua5.2-0 libsigc++-2.0-dev                            \
+        liblua5.1-0 liblua5.2-0 libsigc++-2.0-dev jq                         \
         python-yaml python-matplotlib python-lxml python-pip sudo  &&        \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
         libc6-dev-i386 lib32stdc++-4.8-dev time                              \
