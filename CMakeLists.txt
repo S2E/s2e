@@ -36,8 +36,8 @@ find_library(LIBDWARF_LIB
              libdwarf.a
              HINTS ${CMAKE_INSTALL_PREFIX}/lib)
 
-
 include_directories("include"
+                    ${CMAKE_INSTALL_PREFIX}/include
                     ${LIBDWARF_INCLUDE_DIRS}
                     ${LLVM_INCLUDE_DIRS})
 
