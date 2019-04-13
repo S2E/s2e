@@ -30,14 +30,18 @@ add_definitions(${LLVM_DEFINITIONS})
 
 find_path(LIBDWARF_INCLUDE_DIRS
           NAMES libdwarf.h dwarf.h
-          PATHS /usr/include
-                /usr/include/libdwarf
-                /usr/local/include
-                /usr/local/include/libdwarf)
+          HINTS ${CMAKE_INSTALL_PREFIX}/include)
+
+find_library(LIBDWARF_LIB
+             libdwarf.a
+             HINTS ${CMAKE_INSTALL_PREFIX}/lib)
 
 include_directories("include"
+                    ${CMAKE_INSTALL_PREFIX}/include
                     ${LIBDWARF_INCLUDE_DIRS}
                     ${LLVM_INCLUDE_DIRS})
+
+link_directories(${LIBDWARF_LIB_DIRS})
 
 llvm_map_components_to_libnames(LLVM_LIBS core)
 
@@ -57,7 +61,7 @@ add_executable(crashdump src/crashdump.cpp)
 target_link_libraries(crashdump vmi ${LLVM_LIBS})
 
 add_executable(vmidemo src/vmidemo.cpp)
-target_link_libraries(vmidemo vmi dwarf elf ${LLVM_LIBS})
+target_link_libraries(vmidemo vmi ${LIBDWARF_LIB} elf ${LLVM_LIBS})
 
 add_executable(injector src/injector.cpp)
 target_link_libraries(injector vmi elf ${LLVM_LIBS})
@@ -68,7 +72,10 @@ target_link_libraries(dump vmi elf ${LLVM_LIBS})
 add_executable(reader src/reader.cpp)
 target_link_libraries(reader vmi elf ${LLVM_LIBS})
 
-install(TARGETS crashdump vmidemo injector dump reader
+add_executable(addrs2lines src/addrs2lines.cpp)
+target_link_libraries(addrs2lines vmi ${LIBDWARF_LIB} elf ${LLVM_LIBS})
+
+install(TARGETS crashdump vmidemo injector dump reader addrs2lines
         RUNTIME DESTINATION bin)
 install(DIRECTORY "include/vmi"
         DESTINATION include)
