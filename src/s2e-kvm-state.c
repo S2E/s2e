@@ -214,6 +214,19 @@ int s2e_kvm_vcpu_set_cpuid2(int vcpu_fd, struct kvm_cpuid2 *cpuid) {
 #error unknown architecture
 #endif
 
+    for (unsigned i = 0; i < cpuid->nent; ++i) {
+        const struct kvm_cpuid_entry2 *e = &cpuid->entries[i];
+        if (e->function == 1) {
+            // Allow the KVM client to disable MMX/SSE features.
+            // E.g., in QEMU, one could do -cpu pentium,-mmx.
+            // We don't let control all CPUID features yet.
+            uint32_t allowed_bits = CPUID_MMX | CPUID_SSE | CPUID_SSE2;
+            uint32_t mask = e->edx & allowed_bits;
+            env->cpuid_features &= ~allowed_bits;
+            env->cpuid_features |= mask;
+        }
+    }
+
     return 0;
 }
 
