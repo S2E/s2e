@@ -20,15 +20,7 @@
 # SOFTWARE.
 
 add_subdirectory(analysis)
-add_subdirectory(cacheprof)
-add_subdirectory(coverage)
-add_subdirectory(debugger)
-add_subdirectory(forkprofiler)
 add_subdirectory(hardening)
-add_subdirectory(icounter)
-add_subdirectory(lcoverage)
-add_subdirectory(pfprofiler)
 add_subdirectory(revgen32)
 add_subdirectory(revgen64)
 add_subdirectory(scripts)
-add_subdirectory(tbtrace)

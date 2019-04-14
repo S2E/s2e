@@ -20,6 +20,6 @@
 # SOFTWARE.
 
 add_executable(analysis Analysis.cpp)
-target_link_libraries(analysis executiontracer binaryreaders cfg utils fsigc++)
+target_link_libraries(analysis cfg utils fsigc++)
 
 install(TARGETS analysis RUNTIME DESTINATION bin)

@@ -19,9 +19,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-add_subdirectory(BinaryReaders)
 add_subdirectory(CFG)
-add_subdirectory(ExecutionTracer)
 add_subdirectory(Utils)
 add_subdirectory(X8664BitcodeLibrary)
 add_subdirectory(X8664Translator)
