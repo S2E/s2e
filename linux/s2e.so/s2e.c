@@ -53,20 +53,21 @@ static void s2e_load_module(procmap_module_t *module, const char *current_proces
 
     int i = 0;
 
-    for (list_entry_t *entry = module->sections.next; entry != &module->sections && i < module->elf->loadable_phdr_num;
-         entry = entry->next, ++i) {
+    for (list_entry_t *entry = module->sections.next;
+         (entry != &module->sections) && (i < module->elf->loadable_phdr_num); entry = entry->next, ++i) {
         const procmap_entry_t *section = CONTAINING_RECORD(entry, procmap_entry_t, entry);
         const procmap_elf_phdr_t *lphdr = &module->elf->loadable_phdr[i];
-        phdr[i].index = lphdr[i].index;
+
+        phdr[i].index = lphdr->index;
         phdr[i].vma = section->base;
-        phdr[i].p_type = lphdr[i].p_type;
-        phdr[i].p_offset = lphdr[i].p_offset;
-        phdr[i].p_vaddr = lphdr[i].p_vaddr;
-        phdr[i].p_paddr = lphdr[i].p_paddr;
-        phdr[i].p_filesz = lphdr[i].p_filesz;
-        phdr[i].p_memsz = lphdr[i].p_memsz;
-        phdr[i].p_flags = lphdr[i].p_flags;
-        phdr[i].p_align = lphdr[i].p_align;
+        phdr[i].p_type = lphdr->p_type;
+        phdr[i].p_offset = lphdr->p_offset;
+        phdr[i].p_vaddr = lphdr->p_vaddr;
+        phdr[i].p_paddr = lphdr->p_paddr;
+        phdr[i].p_filesz = lphdr->p_filesz;
+        phdr[i].p_memsz = lphdr->p_memsz;
+        phdr[i].p_flags = lphdr->p_flags;
+        phdr[i].p_align = lphdr->p_align;
 
         phdr[i].mmap.address = section->base;
         phdr[i].mmap.size = section->size;
