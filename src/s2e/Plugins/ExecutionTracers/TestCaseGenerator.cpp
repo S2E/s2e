@@ -19,6 +19,8 @@
 #include <s2e/S2EExecutor.h>
 #include <s2e/Utils.h>
 
+#include <TraceEntries.pb.h>
+
 #include "TestCaseGenerator.h"
 
 namespace s2e {
@@ -227,10 +229,18 @@ void TestCaseGenerator::writeTestCaseToTrace(S2EExecutionState *state, const Con
         return;
     }
 
-    unsigned bufsize;
-    ExecutionTraceTestCase *tc = ExecutionTraceTestCase::serialize(&bufsize, inputs);
-    m_tracer->writeData(state, tc, bufsize, TRACE_TESTCASE);
-    ExecutionTraceTestCase::deallocate(tc);
+    s2e_trace::PbTraceTestCase item;
+
+    for (const auto &it : inputs) {
+        const auto &name = it.first;
+        const auto &value = it.second;
+
+        auto tc_item = item.add_items();
+        tc_item->set_key(name);
+        tc_item->set_value(reinterpret_cast<const char *>(value.data()), value.size());
+    }
+
+    m_tracer->writeData(state, item, s2e_trace::TRACE_TESTCASE);
 }
 
 ///

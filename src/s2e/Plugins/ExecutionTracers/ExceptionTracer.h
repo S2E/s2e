@@ -1,5 +1,6 @@
 ///
 /// Copyright (C) 2014, Dependable Systems Laboratory, EPFL
+/// Copyright (C) 2019, Cyberhaven
 /// All rights reserved.
 ///
 /// Licensed under the Cyberhaven Research License Agreement.

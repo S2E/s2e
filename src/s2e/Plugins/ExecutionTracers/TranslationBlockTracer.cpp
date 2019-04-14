@@ -11,9 +11,11 @@
 
 #include <iostream>
 
+#include <TraceEntries.pb.h>
 #include <s2e/ConfigFile.h>
 #include <s2e/S2E.h>
 #include <s2e/Utils.h>
+
 #include "TranslationBlockTracer.h"
 
 #include <llvm/Support/CommandLine.h>
@@ -115,8 +117,10 @@ void TranslationBlockTracer::onModuleTranslateBlockEnd(ExecutionSignal *signal, 
     signal->connect(sigc::mem_fun(*this, &TranslationBlockTracer::onExecuteBlockEnd));
 }
 
-bool TranslationBlockTracer::getConcolicValue(S2EExecutionState *state, unsigned offset, uint64_t *value,
-                                              unsigned size) {
+template <typename T>
+bool TranslationBlockTracer::getConcolicValue(S2EExecutionState *state, unsigned offset, T *value) {
+    auto size = sizeof(T);
+
     klee::ref<klee::Expr> expr = state->regs()->read(offset, size * 8);
     if (isa<klee::ConstantExpr>(expr)) {
         klee::ref<klee::ConstantExpr> ce = dyn_cast<klee::ConstantExpr>(expr);
@@ -130,23 +134,14 @@ bool TranslationBlockTracer::getConcolicValue(S2EExecutionState *state, unsigned
         *value = ce->getZExtValue();
         return true;
     } else {
-        *value = 0xdeadbeef;
         return false;
     }
 }
 
-// The real tracing is done here
-//-----------------------------
-void TranslationBlockTracer::trace(S2EExecutionState *state, uint64_t pc, ExecTraceEntryType type) {
-    // XXX: dirty hack
-    // tb and tb64 must overlap.
-    // We use tb for 32-bits morde and tb64 for 64-bits.
-    union {
-        ExecutionTraceTb tb;
-        ExecutionTraceTb64 tb64;
-    };
+void TranslationBlockTracer::trace(S2EExecutionState *state, uint64_t pc, uint32_t type) {
+    s2e_trace::PbTraceTranslationBlockFull tb;
 
-    if (type == TRACE_TB_START) {
+    if (type == s2e_trace::PbTraceItemHeaderType::TRACE_TB_START) {
         if (state->getPointerSize() != 2) {
             if (pc != state->getTb()->pc) {
                 getWarningsStream() << "BUG! pc=" << hexval(pc) << " tbpc=" << hexval(state->getTb()->pc) << '\n';
@@ -155,111 +150,44 @@ void TranslationBlockTracer::trace(S2EExecutionState *state, uint64_t pc, ExecTr
         }
     }
 
-    tb.pc = pc;
-    tb.targetPc = state->regs()->getPc();
-    tb.tbType = state->getTb()->se_tb_type;
-    tb.symbMask = 0;
-    tb.size = state->getTb()->size;
-    tb.flags = 0;
-    if (state->isRunningConcrete()) {
-        tb.flags |= ExecutionTraceTb::RUNNING_CONCRETE;
-    }
-    if (state->isRunningExceptionEmulationCode()) {
-        tb.flags |= ExecutionTraceTb::RUNNING_EXCEPTION_EMULATION_CODE;
-    }
-    memset(tb.registers, 0x55, sizeof(tb.registers));
+    tb.set_pc(pc);
+    tb.set_target_pc(state->regs()->getPc());
+    tb.set_tb_type(s2e_trace::PbTraceTbType(state->getTb()->se_tb_type));
+    tb.set_symb_mask(0);
+    tb.set_size(state->getTb()->size);
+    tb.set_running_concrete(state->isRunningConcrete());
+    tb.set_running_exception_emulation_code(state->isRunningExceptionEmulationCode());
 
-#ifdef ENABLE_TRACE_STACK
-    memset(tb.stackByteMask, 0, sizeof(tb.stackByteMask));
-    memset(tb.stackSymbMask, 0, sizeof(tb.stackSymbMask));
-    memset(tb.stack, 0x55, sizeof(tb.stack));
-#endif
+    uint32_t symbMask = 0;
 
-    /* Handle the first 8 gp registers */
-    assert(sizeof(tb.symbMask) * 8 >= sizeof(tb.registers) / sizeof(tb.registers[0]));
-    for (unsigned i = 0; i < sizeof(tb.registers) / sizeof(tb.registers[0]); ++i) {
+    for (unsigned i = 0; i < sizeof(env->regs) / sizeof(env->regs[0]); ++i) {
         // XXX: make it portable across architectures
-        unsigned size = sizeof(target_ulong) < sizeof(*tb.registers) ? sizeof(target_ulong) : sizeof(*tb.registers);
         unsigned offset = offsetof(CPUX86State, regs[i]);
-        if (!state->regs()->read(offset, &tb.registers[i], size, false)) {
-            tb.registers[i] = 0xDEADBEEF;
-
+        target_ulong concrete_data;
+        if (!state->regs()->read(offset, &concrete_data, sizeof(concrete_data), false)) {
             if (ConcolicMode) {
-                getConcolicValue(state, offset, &tb.registers[i], size);
+                getConcolicValue(state, offset, &concrete_data);
             }
 
-            tb.symbMask |= 1 << i;
+            symbMask |= 1 << i;
         }
+
+        tb.add_registers(concrete_data);
     }
 
-#ifdef ENABLE_TRACE_STACK
-    assert(TRACE_STACK_SIZE % CHAR_BIT == 0);
-    assert(sizeof(tb.stackByteMask) * CHAR_BIT >= ARRAY_SIZE(tb.stack));
-    assert(sizeof(tb.stackSymbMask) * CHAR_BIT >= ARRAY_SIZE(tb.stack));
-    for (unsigned i = 0; i < ARRAY_SIZE(tb.stack); i++) {
-        klee::ref<klee::Expr> val = state->mem()->read(tb.registers[R_ESP] + i);
-        if (val.isNull()) {
-            continue;
-        }
-
-        BITMASK_SET(tb.stackByteMask, i);
-
-        if (isa<klee::ConstantExpr>(val)) {
-            tb.stack[i] = dyn_cast<klee::ConstantExpr>(val)->getZExtValue();
-        } else {
-            BITMASK_SET(tb.stackSymbMask, i);
-
-            if (ConcolicMode) {
-                klee::ref<klee::ConstantExpr> ce;
-                ce = dyn_cast<klee::ConstantExpr>(state->concolics->evaluate(val));
-                tb.stack[i] = ce->getZExtValue();
-            }
-        }
-    }
-#endif
-
-#ifdef TARGET_X86_64
-    if (state->getPointerSize() == 8) {
-        /* Handle the 8 other regs */
-        tb64.symbMask = 0;
-        for (unsigned i = 0; i < sizeof(tb64.extendedRegisters) / sizeof(tb64.extendedRegisters[0]); ++i) {
-            // XXX: make it portable across architectures
-            unsigned size = sizeof(target_ulong) < sizeof(*tb.registers) ? sizeof(target_ulong) : sizeof(*tb.registers);
-            unsigned offset = offsetof(CPUX86State, regs[CPU_NB_REGS32 + i]);
-            if (!state->regs()->read(offset, &tb64.extendedRegisters[i], size, false)) {
-                tb64.extendedRegisters[i] = 0xDEADBEEF;
-                tb64.symbMask |= 1 << i;
-
-                if (ConcolicMode) {
-                    getConcolicValue(state, offset, &tb64.extendedRegisters[i], size);
-                }
-            }
-        }
-
-        if (type == TRACE_TB_START) {
-            type = TRACE_TB_START_X64;
-        } else if (type == TRACE_TB_END) {
-            type = TRACE_TB_END_X64;
-        }
-
-        m_tracer->writeData(state, &tb64, sizeof(tb64), type);
-    } else {
-        m_tracer->writeData(state, &tb, sizeof(tb), type);
-    }
-
-#else
-    m_tracer->writeData(state, &tb, sizeof(tb), type);
-#endif
+    tb.set_symb_mask(symbMask);
+    m_tracer->writeData(state, tb, type);
 }
 
 void TranslationBlockTracer::onExecuteBlockStart(S2EExecutionState *state, uint64_t pc) {
-    trace(state, pc, TRACE_TB_START);
+    trace(state, pc, s2e_trace::PbTraceItemHeaderType::TRACE_TB_START);
 }
 
 void TranslationBlockTracer::onExecuteBlockEnd(S2EExecutionState *state, uint64_t pc) {
-    trace(state, pc, TRACE_TB_END);
+    trace(state, pc, s2e_trace::PbTraceItemHeaderType::TRACE_TB_END);
 }
 
+// TODO: remove this (or switch to s2e_invoke_plugin)
 void TranslationBlockTracer::onCustomInstruction(S2EExecutionState *state, uint64_t opcode) {
     // XXX: find a better way of allocating custom opcodes
     if (!OPCODE_CHECK(opcode, TB_TRACER_OPCODE)) {
@@ -283,7 +211,7 @@ void TranslationBlockTracer::onCustomInstruction(S2EExecutionState *state, uint6
             break;
 
         default:
-            getWarningsStream() << "MemoryTracer: unsupported opcode " << hexval(opc) << '\n';
+            getWarningsStream() << "unsupported opcode " << hexval(opc) << '\n';
             break;
     }
 }

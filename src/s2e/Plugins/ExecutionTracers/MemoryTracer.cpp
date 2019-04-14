@@ -19,6 +19,8 @@
 #include <inttypes.h>
 #include <iomanip>
 
+#include <TraceEntries.pb.h>
+
 #include "MemoryTracer.h"
 
 extern llvm::cl::opt<bool> ConcolicMode;
@@ -99,31 +101,27 @@ void MemoryTracer::traceConcreteDataMemoryAccess(S2EExecutionState *state, uint6
         return;
     }
 
-    // Output to the trace entry here
-    ExecutionTraceMemory e;
-    e.flags = 0;
-    e.pc = state->regs()->getPc();
+    s2e_trace::PbTraceMemoryAccess item;
+    item.set_pc(state->regs()->getPc());
 
-    e.address = address;
-    e.value = value;
-    e.size = size;
+    item.set_address(address);
+    item.set_value(value);
+    item.set_size(size);
+    item.set_host_address(0);
+
+    uint32_t traceFlags = 0;
 
     if (flags & MEM_TRACE_FLAG_WRITE) {
-        e.flags |= EXECTRACE_MEM_WRITE;
+        traceFlags |= s2e_trace::PbTraceMemoryAccess::EXECTRACE_MEM_WRITE;
     }
 
     if (flags & MEM_TRACE_FLAG_IO) {
-        e.flags |= EXECTRACE_MEM_IO;
+        traceFlags |= s2e_trace::PbTraceMemoryAccess::EXECTRACE_MEM_IO;
     }
 
-    e.hostAddress = 0;
+    item.set_flags(s2e_trace::PbTraceMemoryAccess::Flags(traceFlags));
 
-    unsigned strucSize = sizeof(e);
-    if (!(e.flags & EXECTRACE_MEM_HASHOSTADDR)) {
-        strucSize -= sizeof(e.hostAddress);
-    }
-
-    m_tracer->writeData(state, &e, strucSize, TRACE_MEMORY);
+    m_tracer->writeData(state, item, s2e_trace::TRACE_MEMORY);
 }
 
 void MemoryTracer::traceSymbolicDataMemoryAccess(S2EExecutionState *state, klee::ref<klee::Expr> &address,
@@ -137,10 +135,10 @@ void MemoryTracer::traceSymbolicDataMemoryAccess(S2EExecutionState *state, klee:
     bool isValCste = isa<klee::ConstantExpr>(value);
     bool isHostAddrCste = isa<klee::ConstantExpr>(hostAddress);
 
-    // Output to the trace entry here
-    ExecutionTraceMemory e;
-    e.flags = 0;
-    e.pc = state->regs()->getPc();
+    uint32_t traceFlags = 0;
+
+    s2e_trace::PbTraceMemoryAccess item;
+    item.set_pc(state->regs()->getPc());
 
     uint64_t concreteAddress = 0xdeadbeef;
     uint64_t concreteValue = 0xdeadbeef;
@@ -152,28 +150,27 @@ void MemoryTracer::traceSymbolicDataMemoryAccess(S2EExecutionState *state, klee:
         concreteValue = ce->getZExtValue();
     }
 
-    e.address = isAddrCste ? cast<klee::ConstantExpr>(address)->getZExtValue(64) : concreteAddress;
-    e.value = isValCste ? cast<klee::ConstantExpr>(value)->getZExtValue(64) : concreteValue;
-    e.size = klee::Expr::getMinBytesForWidth(value->getWidth());
+    item.set_address(isAddrCste ? cast<klee::ConstantExpr>(address)->getZExtValue(64) : concreteAddress);
+    item.set_value(isValCste ? cast<klee::ConstantExpr>(value)->getZExtValue(64) : concreteValue);
+    item.set_size(klee::Expr::getMinBytesForWidth(value->getWidth()));
 
     if (flags & MEM_TRACE_FLAG_WRITE) {
-        e.flags |= EXECTRACE_MEM_WRITE;
+        traceFlags |= s2e_trace::PbTraceMemoryAccess::EXECTRACE_MEM_WRITE;
     }
 
     if (flags & MEM_TRACE_FLAG_IO) {
-        e.flags |= EXECTRACE_MEM_IO;
+        traceFlags |= s2e_trace::PbTraceMemoryAccess::EXECTRACE_MEM_IO;
     }
 
-    e.hostAddress = isHostAddrCste ? cast<klee::ConstantExpr>(hostAddress)->getZExtValue(64) : 0xDEADBEEF;
+    item.set_host_address(isHostAddrCste ? cast<klee::ConstantExpr>(hostAddress)->getZExtValue(64) : 0xDEADBEEF);
 
     if (m_traceHostAddresses) {
-        e.flags |= EXECTRACE_MEM_HASHOSTADDR;
-        e.flags |= EXECTRACE_MEM_OBJECTSTATE;
+        traceFlags |= s2e_trace::PbTraceMemoryAccess::EXECTRACE_MEM_HASHOSTADDR;
+        traceFlags |= s2e_trace::PbTraceMemoryAccess::EXECTRACE_MEM_OBJECTSTATE;
 
-        klee::ObjectPair op = state->addressSpace.findObject(e.hostAddress & SE_RAM_OBJECT_MASK);
-        e.concreteBuffer = 0;
+        klee::ObjectPair op = state->addressSpace.findObject(item.host_address() & SE_RAM_OBJECT_MASK);
         if (op.first && op.second) {
-            e.concreteBuffer = (uint64_t) op.second->getConcreteStore();
+            item.set_concrete_buffer((uint64_t) op.second->getConcreteStore());
             if ((flags & MEM_TRACE_FLAG_WRITE) && m_debugObjectStates) {
                 assert(state->addressSpace.isOwnedByUs(op.second));
             }
@@ -181,23 +178,20 @@ void MemoryTracer::traceSymbolicDataMemoryAccess(S2EExecutionState *state, klee:
     }
 
     if (!isAddrCste) {
-        e.flags |= EXECTRACE_MEM_SYMBADDR;
+        traceFlags |= s2e_trace::PbTraceMemoryAccess::EXECTRACE_MEM_SYMBADDR;
     }
 
     if (!isValCste) {
-        e.flags |= EXECTRACE_MEM_SYMBVAL;
+        traceFlags |= s2e_trace::PbTraceMemoryAccess::EXECTRACE_MEM_SYMBVAL;
     }
 
     if (!isHostAddrCste) {
-        e.flags |= EXECTRACE_MEM_SYMBHOSTADDR;
+        traceFlags |= s2e_trace::PbTraceMemoryAccess::EXECTRACE_MEM_SYMBHOSTADDR;
     }
 
-    unsigned strucSize = sizeof(e);
-    if (!(e.flags & EXECTRACE_MEM_HASHOSTADDR) && !(e.flags & EXECTRACE_MEM_OBJECTSTATE)) {
-        strucSize -= (sizeof(e.hostAddress) + sizeof(e.concreteBuffer));
-    }
+    item.set_flags(s2e_trace::PbTraceMemoryAccess::Flags(traceFlags));
 
-    m_tracer->writeData(state, &e, strucSize, TRACE_MEMORY);
+    m_tracer->writeData(state, item, s2e_trace::TRACE_MEMORY);
 }
 
 bool MemoryTracer::forceDisconnect(S2EExecutionState *state) {
@@ -247,21 +241,28 @@ void MemoryTracer::onExecuteBlockStart(S2EExecutionState *state, uint64_t pc) {
 }
 
 void MemoryTracer::onTlbMiss(S2EExecutionState *state, uint64_t addr, bool is_write) {
-    ExecutionTraceTlbMiss e;
-    e.pc = state->regs()->getPc();
-    e.address = addr;
-    e.isWrite = is_write;
+    s2e_trace::PbTraceSimpleMemoryAccess item;
 
-    m_tracer->writeData(state, &e, sizeof(e), TRACE_TLBMISS);
+    item.set_pc(state->regs()->getPc());
+    item.set_address(addr);
+    item.set_is_write(is_write);
+
+    std::string data;
+    if (!item.AppendToString(&data)) {
+        return;
+    }
+
+    m_tracer->writeData(state, data.c_str(), data.size(), s2e_trace::TRACE_TLBMISS);
 }
 
 void MemoryTracer::onPageFault(S2EExecutionState *state, uint64_t addr, bool is_write) {
-    ExecutionTracePageFault e;
-    e.pc = state->regs()->getPc();
-    e.address = addr;
-    e.isWrite = is_write;
+    s2e_trace::PbTraceSimpleMemoryAccess item;
 
-    m_tracer->writeData(state, &e, sizeof(e), TRACE_PAGEFAULT);
+    item.set_pc(state->regs()->getPc());
+    item.set_address(addr);
+    item.set_is_write(is_write);
+
+    m_tracer->writeData(state, item, s2e_trace::TRACE_PAGEFAULT);
 }
 
 void MemoryTracer::enableTracing() {

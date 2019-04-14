@@ -11,6 +11,7 @@
 #include <s2e/Utils.h>
 #include <s2e/cpu.h>
 
+#include <TraceEntries.pb.h>
 #include "UserSpaceTracer.h"
 
 namespace s2e {
@@ -100,17 +101,18 @@ void UserSpaceTracer::onAccessFault(S2EExecutionState *state, const S2E_WINMON2_
     }
 }
 
-void UserSpaceTracer::trace(S2EExecutionState *state, uint64_t startPc, uint64_t endPc, ExecTraceEntryType type,
+void UserSpaceTracer::trace(S2EExecutionState *state, uint64_t startPc, uint64_t endPc, uint32_t type,
                             TranslationBlock *tb) {
-    ExecutionTraceBlock traceItem;
+    s2e_trace::PbTraceTranslationBlock item;
 
-    assert(type == TRACE_BLOCK);
+    assert(type == s2e_trace::TRACE_BLOCK);
 
-    traceItem.startPc = startPc;
-    traceItem.endPc = endPc;
-    traceItem.tbType = tb->se_tb_type;
+    item.set_pc(startPc);
+    item.set_last_pc(endPc);
+    item.set_size(tb->size);
+    item.set_tb_type(s2e_trace::PbTraceTbType(tb->se_tb_type));
 
-    m_tracer->writeData(state, &traceItem, sizeof(traceItem), type);
+    m_tracer->writeData(state, item, type);
 }
 
 void UserSpaceTracer::onTranslateBlockComplete(S2EExecutionState *state, TranslationBlock *tb, uint64_t endPc) {
@@ -119,7 +121,7 @@ void UserSpaceTracer::onTranslateBlockComplete(S2EExecutionState *state, Transla
     }
 
     if (isTraced(getCurrentPid(state))) {
-        trace(state, tb->pc, endPc, TRACE_BLOCK, tb);
+        trace(state, tb->pc, endPc, s2e_trace::TRACE_BLOCK, tb);
     }
 }
 
@@ -134,7 +136,7 @@ void UserSpaceTracer::onTranslateBlockStart(ExecutionSignal *signal, S2EExecutio
 
 void UserSpaceTracer::onExecuteBlockStart(S2EExecutionState *state, uint64_t pc) {
     if (isTraced(getCurrentPid(state))) {
-        m_tbTracer->trace(state, pc, TRACE_TB_START);
+        m_tbTracer->trace(state, pc, s2e_trace::TRACE_TB_START);
     }
 }
 

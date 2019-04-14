@@ -6,17 +6,17 @@
 /// Licensed under the Cyberhaven Research License Agreement.
 ///
 
-#include "ModuleTracer.h"
-#include "TraceEntries.h"
+#include <iostream>
+#include <llvm/Support/TimeValue.h>
 
 #include <s2e/ConfigFile.h>
 #include <s2e/Plugins/OSMonitors/OSMonitor.h>
 #include <s2e/S2E.h>
 #include <s2e/Utils.h>
 
-#include <llvm/Support/TimeValue.h>
+#include <TraceEntries.pb.h>
 
-#include <iostream>
+#include "ModuleTracer.h"
 
 namespace s2e {
 namespace plugins {
@@ -45,34 +45,47 @@ bool ModuleTracer::initSection(TracerConfigEntry *cfgEntry, const std::string &c
     return true;
 }
 
-void ModuleTracer::moduleLoadListener(S2EExecutionState *state, const ModuleDescriptor &module) {
-    ExecutionTraceModuleLoad te;
-    strncpy(te.name, module.Name.c_str(), sizeof(te.name));
-    strncpy(te.path, module.Path.c_str(), sizeof(te.path));
-    te.loadBase = module.LoadBase;
-    te.nativeBase = module.NativeBase;
-    te.size = module.Size;
-    te.addressSpace = module.AddressSpace;
-    te.pid = module.Pid;
+bool ModuleTracer::moduleToProtobuf(const ModuleDescriptor &module, std::string &data) {
+    s2e_trace::PbTraceModuleLoadUnload te;
+    te.set_name(module.Name.c_str());
+    te.set_path(module.Path.c_str());
+    te.set_pid(module.Pid);
+    te.set_address_space(module.AddressSpace);
 
-    m_tracer->writeData(state, &te, sizeof(te), TRACE_MOD_LOAD);
+    for (const auto &section : module.Sections) {
+        auto s = te.add_sections();
+        s->set_name(section.name.c_str());
+        s->set_runtime_load_base(section.runtimeLoadBase);
+        s->set_native_load_base(section.nativeLoadBase);
+        s->set_size(section.size);
+        s->set_readable(section.readable);
+        s->set_writable(section.writable);
+        s->set_executable(section.executable);
+    }
+
+    return te.AppendToString(&data);
 }
 
-void ModuleTracer::moduleUnloadListener(S2EExecutionState *state, const ModuleDescriptor &desc) {
-    ExecutionTraceModuleUnload te;
-    te.loadBase = desc.LoadBase;
-    te.pid = desc.Pid;
-    te.addressSpace = desc.AddressSpace;
+void ModuleTracer::moduleLoadListener(S2EExecutionState *state, const ModuleDescriptor &module) {
 
-    m_tracer->writeData(state, &te, sizeof(te), TRACE_MOD_UNLOAD);
+    std::string data;
+    if (moduleToProtobuf(module, data)) {
+        m_tracer->writeData(state, data.c_str(), data.size(), s2e_trace::TRACE_MOD_LOAD);
+    }
+}
+
+void ModuleTracer::moduleUnloadListener(S2EExecutionState *state, const ModuleDescriptor &module) {
+    std::string data;
+    if (moduleToProtobuf(module, data)) {
+        m_tracer->writeData(state, data.c_str(), data.size(), s2e_trace::TRACE_MOD_UNLOAD);
+    }
 }
 
 void ModuleTracer::processUnloadListener(S2EExecutionState *state, uint64_t pageDir, uint64_t pid,
                                          uint64_t returnCode) {
-    ExecutionTraceProcessUnload te;
-    te.returnCode = returnCode;
-
-    m_tracer->writeData(state, &te, sizeof(te), TRACE_PROC_UNLOAD);
+    s2e_trace::PbTraceProcessUnload item;
+    item.set_return_code(returnCode);
+    m_tracer->writeData(state, item, s2e_trace::TRACE_PROC_UNLOAD);
 }
 }
 }

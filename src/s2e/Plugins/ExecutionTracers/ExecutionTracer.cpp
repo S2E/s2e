@@ -6,8 +6,6 @@
 /// Licensed under the Cyberhaven Research License Agreement.
 ///
 
-#include "ExecutionTracer.h"
-
 #include <s2e/ConfigFile.h>
 #include <s2e/Plugins/OSMonitors/OSMonitor.h>
 #include <s2e/S2E.h>
@@ -15,7 +13,9 @@
 
 #include <llvm/Support/TimeValue.h>
 
-#include <iostream>
+#include <TraceEntries.pb.h>
+
+#include "ExecutionTracer.h"
 
 namespace s2e {
 namespace plugins {
@@ -45,15 +45,9 @@ void ExecutionTracer::initialize() {
 
     s2e()->getCorePlugin()->onEngineShutdown.connect(sigc::mem_fun(*this, &ExecutionTracer::onEngineShutdown));
 
-    m_useCircularBuffer = s2e()->getConfig()->getBool(getConfigKey() + ".useCircularBuffer");
-
-    if (m_useCircularBuffer) {
-        m_circularBuffer.set_capacity(10000000);
-    }
-
-    m_Monitor = static_cast<OSMonitor *>(s2e()->getPlugin("OSMonitor"));
-    if (m_Monitor) {
-        m_Monitor->onMonitorLoad.connect(sigc::mem_fun(*this, &ExecutionTracer::onMonitorLoad));
+    m_monitor = static_cast<OSMonitor *>(s2e()->getPlugin("OSMonitor"));
+    if (m_monitor) {
+        m_monitor->onMonitorLoad.connect(sigc::mem_fun(*this, &ExecutionTracer::onMonitorLoad));
     }
 }
 
@@ -62,9 +56,9 @@ ExecutionTracer::~ExecutionTracer() {
 }
 
 void ExecutionTracer::onEngineShutdown() {
-    if (m_LogFile) {
-        fclose(m_LogFile);
-        m_LogFile = nullptr;
+    if (m_logFile) {
+        fclose(m_logFile);
+        m_logFile = nullptr;
     }
 }
 
@@ -72,118 +66,94 @@ void ExecutionTracer::createNewTraceFile(bool append) {
 
     if (append) {
         assert(m_fileName.size() > 0);
-        m_LogFile = fopen(m_fileName.c_str(), "a");
+        m_logFile = fopen(m_fileName.c_str(), "a");
     } else {
         m_fileName = s2e()->getOutputFilename("ExecutionTracer.dat");
-        m_LogFile = fopen(m_fileName.c_str(), "wb");
+        m_logFile = fopen(m_fileName.c_str(), "wb");
     }
 
-    if (!m_LogFile) {
+    if (!m_logFile) {
         getWarningsStream() << "Could not create ExecutionTracer.dat" << '\n';
         exit(-1);
     }
-    m_CurrentIndex = 0;
+    m_currentIndex = 0;
 }
 
 void ExecutionTracer::onTimer() {
-    if (m_LogFile) {
-        fflush(m_LogFile);
+    if (m_logFile) {
+        fflush(m_logFile);
     }
 }
 
-void ExecutionTracer::appendToCircularBuffer(const ExecutionTraceItemHeader *header, const void *data, unsigned size) {
-    if (m_circularBuffer.full()) {
-        const ExecutionTraceAllItems &item = *m_circularBuffer.begin();
-        const ExecutionTraceItemHeader &h = item.header;
-
-        /* Don't record heavy-weight stuff */
-        bool notTraceable = (h.type == TRACE_MEMORY || h.type == TRACE_TB_START || h.type == TRACE_TB_END);
-        if (!notTraceable) {
-            appendToTraceFile(&item.header, &item.u, item.header.size);
-        }
+bool ExecutionTracer::appendToTraceFile(const s2e_trace::PbTraceItemHeader &header, const void *data, unsigned size) {
+    std::string headerStr;
+    if (!header.AppendToString(&headerStr)) {
+        return false;
     }
 
-    ExecutionTraceAllItems item;
-    if (sizeof(*header) + size <= sizeof(item)) {
-        item.header = *header;
-        memcpy(&item.u, data, size);
-        m_circularBuffer.push_back(item);
-    }
-}
+    // Start each trace entry (header + item) with a magic number
+    // in order to easily spot corruptions during trace processing.
+    uint32_t prefix[] = {0xdeaddead, (uint32_t) headerStr.size()};
 
-bool ExecutionTracer::appendToTraceFile(const ExecutionTraceItemHeader *header, const void *data, unsigned size) {
-    if (fwrite(header, sizeof(*header), 1, m_LogFile) != 1) {
+    if (fwrite(&prefix[0], sizeof(prefix), 1, m_logFile) != 1) {
+        return false;
+    }
+
+    if (fwrite(headerStr.c_str(), headerStr.size(), 1, m_logFile) != 1) {
+        return false;
+    }
+
+    if (fwrite(&size, sizeof(size), 1, m_logFile) != 1) {
         return false;
     }
 
     if (size) {
-        if (fwrite(data, size, 1, m_LogFile) != 1) {
-            // at this point the log is corrupted.
-            assert(false);
+        if (fwrite(data, size, 1, m_logFile) != 1) {
+            return false;
         }
     }
 
     return true;
 }
 
-uint32_t ExecutionTracer::writeData(S2EExecutionState *state, void *data, unsigned size, ExecTraceEntryType type) {
-    ExecutionTraceItemHeader item;
+uint32_t ExecutionTracer::writeData(S2EExecutionState *state, const void *data, unsigned size, uint32_t type) {
+    assert(m_logFile);
 
-    assert(m_LogFile);
+    s2e_trace::PbTraceItemHeader header;
 
-    item.timeStamp = llvm::sys::TimeValue::now().usec();
-    item.size = size;
-    item.type = type;
+    header.set_address_space(state->regs()->getPageDir());
+    header.set_pc(state->regs()->getPc());
+
+    if (m_monitor && m_monitor->initialized()) {
+        header.set_pid(m_monitor->getPid(state));
+    } else {
+        header.set_pid(0);
+    }
 
     // We must take the guid instead of the id, because duplicate ids
     // across multiple traces will confuse the execution trace reader.
-    item.stateId = state->getGuid();
+    header.set_state_id(state->getGuid());
+    header.set_timestamp(llvm::sys::TimeValue::now().usec());
+    header.set_type(s2e_trace::PbTraceItemHeaderType(type));
 
-    item.addressSpace = state->regs()->getPageDir();
-    item.pc = state->regs()->getPc();
-
-    if (m_Monitor && m_Monitor->initialized()) {
-        item.pid = m_Monitor->getPid(state);
-    } else {
-        item.pid = 0;
+    if (!appendToTraceFile(header, data, size)) {
+        getWarningsStream(state) << "Could not write to trace file\n";
+        exit(-1);
     }
 
-    if (m_useCircularBuffer) {
-        appendToCircularBuffer(&item, data, size);
-    } else {
-        appendToTraceFile(&item, data, size);
-    }
-
-    return ++m_CurrentIndex;
-}
-
-bool ExecutionTracer::flushCircularBufferToFile() {
-    if (!m_useCircularBuffer) {
-        return false;
-    }
-
-    foreach2 (it, m_circularBuffer.begin(), m_circularBuffer.end()) {
-        const ExecutionTraceAllItems &item = *it;
-        appendToTraceFile(&item.header, &item.u, item.header.size);
-    }
-
-    m_circularBuffer.clear();
-
-    flush();
-
-    return true;
+    return ++m_currentIndex;
 }
 
 void ExecutionTracer::flush() {
-    if (m_LogFile) {
-        fflush(m_LogFile);
+    if (m_logFile) {
+        fflush(m_logFile);
     }
 }
 
 void ExecutionTracer::onProcessFork(bool preFork, bool isChild, unsigned parentProcId) {
     if (preFork) {
-        fclose(m_LogFile);
-        m_LogFile = NULL;
+        fclose(m_logFile);
+        m_logFile = NULL;
     } else {
         if (isChild) {
             createNewTraceFile(false);
@@ -207,42 +177,29 @@ void ExecutionTracer::onProcessFork(bool preFork, bool isChild, unsigned parentP
 /// \param state the state that was split.
 ///
 void ExecutionTracer::onStateGuidAssignment(S2EExecutionState *state, uint64_t newGuid) {
-    unsigned itemSize = sizeof(ExecutionTraceFork) + 1 * sizeof(uint32_t);
-    uint8_t *itemBytes = new uint8_t[itemSize];
-    ExecutionTraceFork *itemFork = reinterpret_cast<ExecutionTraceFork *>(itemBytes);
-
-    itemFork->stateCount = 2;
-    itemFork->children[0] = state->getGuid();
-    itemFork->children[1] = newGuid;
-    writeData(state, itemFork, itemSize, TRACE_FORK);
-
-    delete[] itemBytes;
+    s2e_trace::PbTraceItemFork item;
+    item.add_children(state->getGuid());
+    item.add_children(newGuid);
+    writeData(state, item, s2e_trace::PbTraceItemHeaderType::TRACE_FORK);
 }
 
 void ExecutionTracer::onFork(S2EExecutionState *state, const std::vector<S2EExecutionState *> &newStates,
                              const std::vector<klee::ref<klee::Expr>> &newConditions) {
     assert(newStates.size() > 0);
 
-    unsigned itemSize = sizeof(ExecutionTraceFork) + (newStates.size() - 1) * sizeof(uint32_t);
-
-    uint8_t *itemBytes = new uint8_t[itemSize];
-    ExecutionTraceFork *itemFork = reinterpret_cast<ExecutionTraceFork *>(itemBytes);
-
-    itemFork->stateCount = newStates.size();
+    s2e_trace::PbTraceItemFork item;
 
     for (unsigned i = 0; i < newStates.size(); i++) {
-        itemFork->children[i] = newStates[i]->getGuid();
+        item.add_children(newStates[i]->getGuid());
     }
 
-    writeData(state, itemFork, itemSize, TRACE_FORK);
-
-    delete[] itemBytes;
+    writeData(state, item, s2e_trace::PbTraceItemHeaderType::TRACE_FORK);
 }
 
 void ExecutionTracer::onMonitorLoad(S2EExecutionState *state) {
-    ExecutionTraceOSInfo info;
-    info.kernelStart = m_Monitor->getKernelStart();
-    writeData(state, &info, sizeof(info), TRACE_OSINFO);
+    s2e_trace::PbTraceOsInfo item;
+    item.set_kernel_start(m_monitor->getKernelStart());
+    writeData(state, item, s2e_trace::PbTraceItemHeaderType::TRACE_OSINFO);
 }
 
 } // namespace plugins
@@ -260,7 +217,6 @@ void execution_tracer_flush(void) {
         return;
     }
 
-    tracer->flushCircularBufferToFile();
     tracer->flush();
 }
 }

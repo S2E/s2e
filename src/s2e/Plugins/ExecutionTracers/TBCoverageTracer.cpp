@@ -1,5 +1,5 @@
 ///
-/// Copyright (C) 2016, Cyberhaven
+/// Copyright (C) 2016-2019, Cyberhaven
 /// All rights reserved.
 ///
 /// Licensed under the Cyberhaven Research License Agreement.
@@ -34,12 +34,13 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <iostream>
 #include <s2e/ConfigFile.h>
 #include <s2e/S2E.h>
 #include <s2e/S2EExecutor.h>
 #include <s2e/Utils.h>
 #include <s2e/cpu.h>
+
+#include <TraceEntries.pb.h>
 
 #include "TBCoverageTracer.h"
 
@@ -70,50 +71,48 @@ void TBCoverageTracer::initialize() {
 }
 
 void TBCoverageTracer::enableTracing() {
-    getWarningsStream() << "TBCoverageTracer: enabling tracing " << '\n';
+    getWarningsStream() << "enabling tracing " << '\n';
 
     m_tbCompleteConnection = m_detector->onModuleTranslateBlockComplete.connect(
         sigc::mem_fun(*this, &TBCoverageTracer::onModuleTranslateBlockComplete));
 }
 
 void TBCoverageTracer::disableTracing() {
-    getWarningsStream() << "TBCoverageTracer: disabling tracing " << '\n';
+    getWarningsStream() << "disabling tracing " << '\n';
 
     m_tbCompleteConnection.disconnect();
 }
 
 void TBCoverageTracer::onModuleTranslateBlockComplete(S2EExecutionState *state, const ModuleDescriptor &module,
                                                       TranslationBlock *tb, uint64_t endPc) {
-    trace(state, tb->pc, endPc, TRACE_BLOCK, tb);
+    trace(state, tb->pc, endPc, tb);
 }
 
-void TBCoverageTracer::trace(S2EExecutionState *state, uint64_t startPc, uint64_t endPc, ExecTraceEntryType type,
-                             TranslationBlock *tb) {
-    ExecutionTraceBlock traceItem;
+void TBCoverageTracer::trace(S2EExecutionState *state, uint64_t startPc, uint64_t endPc, TranslationBlock *tb) {
+    s2e_trace::PbTraceTranslationBlock item;
 
-    assert(type == TRACE_BLOCK);
+    item.set_pc(startPc);
+    item.set_size(tb->size);
+    item.set_last_pc(endPc);
+    item.set_tb_type(s2e_trace::PbTraceTbType(tb->se_tb_type));
 
-    traceItem.startPc = startPc;
-    traceItem.endPc = endPc;
-    traceItem.tbType = tb->se_tb_type;
-
-    m_tracer->writeData(state, &traceItem, sizeof(traceItem), type);
+    m_tracer->writeData(state, item, s2e_trace::TRACE_BLOCK);
 }
 
 void TBCoverageTracer::handleOpcodeInvocation(S2EExecutionState *state, uint64_t guestDataPtr, uint64_t guestDataSize) {
     if (!m_manualTrigger) {
-        getWarningsStream(state) << "TBCoverageTracer : ignoring command, manualTrigger disabled\n";
+        getWarningsStream(state) << "ignoring command, manualTrigger disabled\n";
         return;
     }
 
     TraceOpcode code;
     if (guestDataSize != sizeof(code)) {
-        getWarningsStream(state) << "TBCoverageTracer: mismatched TraceOpcode size\n";
+        getWarningsStream(state) << "mismatched TraceOpcode size\n";
         return;
     }
 
     if (!state->mem()->read(guestDataPtr, &code, guestDataSize)) {
-        getWarningsStream(state) << "TBCoverageTracer: could not read transmitted data\n";
+        getWarningsStream(state) << "could not read transmitted data\n";
         return;
     }
 
@@ -127,8 +126,7 @@ void TBCoverageTracer::handleOpcodeInvocation(S2EExecutionState *state, uint64_t
         } break;
 
         default: {
-            getInfoStream(state) << "TBCoverageTracer: "
-                                 << "Invalid command " << hexval(code) << "\n";
+            getInfoStream(state) << "Invalid command " << hexval(code) << "\n";
             return;
         }
     }

@@ -64,8 +64,8 @@ private:
 
     bool isTraced(uint64_t as);
 
-    void trace(S2EExecutionState *state, uint64_t startPc, uint64_t endPc, ExecTraceEntryType type,
-               TranslationBlock *tb);
+    void trace(S2EExecutionState *state, uint64_t startPc, uint64_t endPc,
+               uint32_t type /* s2e_trace::PbTraceItemHeaderType */, TranslationBlock *tb);
 
     void onTranslateBlockComplete(S2EExecutionState *state, TranslationBlock *tb, uint64_t endPc);
 

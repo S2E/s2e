@@ -20,6 +20,8 @@
 #include <iostream>
 #include <sstream>
 
+#include <TraceEntries.pb.h>
+
 namespace s2e {
 namespace plugins {
 
@@ -101,9 +103,9 @@ void InstructionCounter::onTraceTb(S2EExecutionState *state, uint64_t pc) {
     }
 
     // Flush the counter
-    ExecutionTraceICount e;
-    e.count = plgState->m_iCount;
-    m_executionTracer->writeData(state, &e, sizeof(e), TRACE_ICOUNT);
+    s2e_trace::PbTraceInstructionCount item;
+    item.set_count(plgState->m_iCount);
+    m_executionTracer->writeData(state, item, s2e_trace::TRACE_ICOUNT);
 }
 
 void InstructionCounter::onTraceInstruction(S2EExecutionState *state, uint64_t pc) {

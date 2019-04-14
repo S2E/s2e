@@ -1,5 +1,6 @@
 ///
 /// Copyright (C) 2014, Dependable Systems Laboratory, EPFL
+/// Copyright (C) 2019, Cyberhaven
 /// All rights reserved.
 ///
 /// Licensed under the Cyberhaven Research License Agreement.
@@ -10,7 +11,7 @@
 #include <s2e/S2E.h>
 #include <s2e/Utils.h>
 
-#include "TraceEntries.h"
+#include <TraceEntries.pb.h>
 
 namespace s2e {
 namespace plugins {
@@ -24,11 +25,10 @@ void ExceptionTracer::initialize() {
 }
 
 void ExceptionTracer::onException(S2EExecutionState *state, unsigned vec, uint64_t pc) {
-    ExecutionTraceException e;
-    e.pc = state->regs()->getPc();
-    e.vector = vec;
-
-    m_tracer->writeData(state, &e, sizeof(e), TRACE_EXCEPTION);
+    s2e_trace::PbTraceException item;
+    item.set_pc(state->regs()->getPc());
+    item.set_vector(vec);
+    m_tracer->writeData(state, item, s2e_trace::TRACE_EXCEPTION);
 }
 
 } // namespace plugins

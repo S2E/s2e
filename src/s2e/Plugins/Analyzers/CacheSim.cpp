@@ -1,6 +1,6 @@
 ///
 /// Copyright (C) 2010-2016, Dependable Systems Laboratory, EPFL
-/// Copyright (C) 2016, Cyberhaven
+/// Copyright (C) 2016-2019, Cyberhaven
 /// All rights reserved.
 ///
 /// Licensed under the Cyberhaven Research License Agreement.
@@ -16,6 +16,8 @@
 #include <s2e/Utils.h>
 
 #include <llvm/Support/TimeValue.h>
+
+#include <TraceEntries.pb.h>
 
 #include <iostream>
 #include <stdio.h>
@@ -375,35 +377,26 @@ void CacheSim::writeCacheDescriptionToLog(S2EExecutionState *state) {
 
     DECLARE_PLUGINSTATE(CacheSimState, state);
 
-    // Output the names of the caches
     uint8_t cacheId = 0;
-    foreach2 (it, plgState->m_caches.begin(), plgState->m_caches.end()) {
-        (*it).second->setId(cacheId++);
-        uint32_t retsize;
-        ExecutionTraceCacheSimName *n =
-            ExecutionTraceCacheSimName::allocate((*it).second->getId(), (*it).first, &retsize);
-
-        m_Tracer->writeData(state, n, retsize, TRACE_CACHESIM);
-        ExecutionTraceCacheSimName::deallocate(n);
-        m_Tracer->flush();
-    }
 
     // Output the configuration of the caches
     foreach2 (it, plgState->m_caches.begin(), plgState->m_caches.end()) {
-        ExecutionTraceCacheSimParams p;
-        p.type = CACHE_PARAMS;
-        p.size = (*it).second->getSize();
-        p.associativity = (*it).second->getAssociativity();
-        p.lineSize = (*it).second->getLineSize();
+        (*it).second->setId(cacheId++);
+
+        s2e_trace::PbTraceCacheSimParams item;
+        item.set_cache_id((*it).second->getId());
+        item.set_size((*it).second->getSize());
+        item.set_associativity((*it).second->getAssociativity());
+        item.set_line_size((*it).second->getLineSize());
+        item.set_name((*it).first.c_str());
 
         if ((*it).second->getUpperCache()) {
-            p.upperCacheId = (*it).second->getUpperCache()->getId();
+            item.set_upper_cache_id((*it).second->getUpperCache()->getId());
         } else {
-            p.upperCacheId = (unsigned) -1;
+            item.set_upper_cache_id(-1);
         }
 
-        p.cacheId = (*it).second->getId();
-        m_Tracer->writeData(state, &p, sizeof(p), TRACE_CACHESIM);
+        m_Tracer->writeData(state, item, s2e_trace::TRACE_CACHE_SIM_PARAMS);
         m_Tracer->flush();
     }
 
@@ -460,8 +453,9 @@ bool CacheSim::reportAccess(S2EExecutionState *state) const {
 
 void CacheSim::onMemoryAccess(S2EExecutionState *state, uint64_t address, unsigned size, bool isWrite, bool isIO,
                               bool isCode) {
-    if (isIO) /* this is only an estimation - should look at registers! */
+    if (isIO) { /* this is only an estimation - should look at registers! */
         return;
+    }
 
     DECLARE_PLUGINSTATE(CacheSimState, state);
 
@@ -470,8 +464,9 @@ void CacheSim::onMemoryAccess(S2EExecutionState *state, uint64_t address, unsign
     }
 
     Cache *cache = isCode ? plgState->m_i1 : plgState->m_d1;
-    if (!cache)
+    if (!cache) {
         return;
+    }
 
     // Done only on the first invocation
     writeCacheDescriptionToLog(state);
@@ -489,20 +484,21 @@ void CacheSim::onMemoryAccess(S2EExecutionState *state, uint64_t address, unsign
     unsigned i = 0;
     for (Cache *c = cache; c != NULL; c = c->getUpperCache(), ++i) {
         if (m_reportZeroMisses || missCount[i]) {
-            ExecutionTraceCacheSimEntry e;
-            e.type = CACHE_ENTRY;
-            e.cacheId = c->getId();
-            e.pc = state->regs()->getPc();
-            e.address = address;
-            e.size = size;
-            e.isWrite = isWrite;
-            e.isCode = isCode;
-            e.missCount = missCount[i];
-            m_Tracer->writeData(state, &e, sizeof(e), TRACE_CACHESIM);
+            s2e_trace::PbTraceCacheSimEntry item;
+            item.set_cache_id(c->getId());
+            item.set_pc(state->regs()->getPc());
+            item.set_address(address);
+            item.set_size(size);
+            item.set_is_code(isCode);
+            item.set_is_write(isWrite);
+            item.set_miss_count(missCount[i]);
+
+            m_Tracer->writeData(state, item, s2e_trace::TRACE_CACHE_SIM_ENTRY);
         }
 
-        if (missCount[i] == 0)
+        if (missCount[i] == 0) {
             break;
+        }
     }
 }
 
