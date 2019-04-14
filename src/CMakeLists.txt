@@ -1,7 +1,9 @@
-# Copyright (C) 2017, Cyberhaven
+# Copyright (C) 2017-2019, Cyberhaven
 # All rights reserved.
 #
 # Licensed under the Cyberhaven Research License Agreement.
+
+PROTOBUF_GENERATE_CPP(PROTO_SRCS PROTO_HDRS ${CMAKE_CURRENT_SOURCE_DIR}/s2e/Plugins/ExecutionTracers/TraceEntries.proto)
 
 add_library(
     s2eplugins
@@ -122,10 +124,12 @@ add_library(
     s2e/Plugins/Lua/LuaFunctionAnnotationState.cpp
     s2e/Plugins/Lua/LuaExpression.cpp
     s2e/Plugins/Lua/LuaCoreEvents.cpp
+
+    ${PROTO_SRCS} ${PROTO_HDRS}
 )
 
 
-target_include_directories (s2eplugins PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories (s2eplugins PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
 
 
 set(WERROR_FLAGS "-Werror -Wno-zero-length-array -Wno-c99-extensions          \
