@@ -95,7 +95,7 @@ public:
     }
 
     void onModuleUnload(const ModuleDescriptor &module) {
-        auto sections = m_sections[module.Pid];
+        auto &sections = m_sections[module.Pid];
 
         for (auto &section : module.Sections) {
             auto range = AddressRange(section.runtimeLoadBase, section.size);
