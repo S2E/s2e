@@ -55,6 +55,9 @@ for fname in files:
 s2e_includes.write('\n'.join([
     '../build/llvm-3.9.0.src/include',
     '../build/llvm-release/include',
+
+    # This is for protobuf headers, pick one build folder
+    '../build/libs2e-release/i386-s2e-softmmu/libs2eplugins/src/',
 ]))
 
 s2e_files.close()
