@@ -29,13 +29,15 @@ ModuleDescriptor ModuleDescriptor::get(const vmi::PEFile &bin, uint64_t as, uint
         SectionDescriptor sd;
         sd.nativeLoadBase = section.start;
         sd.runtimeLoadBase = section.start - ret.NativeBase + ret.LoadBase;
-        sd.size = section.size;
+        sd.size = section.virtualSize;
         sd.readable = section.readable;
         sd.writable = section.writable;
         sd.executable = section.executable;
         sd.name = section.name;
 
-        ret.Sections.push_back(sd);
+        if (sd.size) {
+            ret.Sections.push_back(sd);
+        }
     }
 
     return ret;
