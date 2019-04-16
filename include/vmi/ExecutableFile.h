@@ -28,6 +28,7 @@ struct SectionDescriptor {
     uint64_t start;
     uint64_t physStart;
     uint64_t size;
+    uint64_t virtualSize;
 
     bool loadable;
 

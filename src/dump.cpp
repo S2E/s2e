@@ -17,8 +17,8 @@ using namespace vmi;
 static void dumpSections(const ExecutableFile &file, std::ostream &ss, bool compact) {
     if (!compact) {
         ss << '\n'
-           << "Sections (Name, Type, VirtualAddr, PhysicalAddr, Size)\n"
-           << "======================================================\n";
+           << "Sections (Name, Type, VirtualAddr, PhysicalAddr, FileSize, VirtSize)\n"
+           << "====================================================================\n";
     }
 
     auto sections = file.getSections();
@@ -37,7 +37,8 @@ static void dumpSections(const ExecutableFile &file, std::ostream &ss, bool comp
         ss << std::setfill(' ') << std::setw(20) << std::left << section.name << " " << L << R << W << X << " 0x"
            << std::hex << std::setfill('0') << std::right << std::setw(10) << section.start << " 0x" << std::hex
            << std::setfill('0') << std::right << std::setw(10) << section.physStart << " 0x" << std::hex
-           << std::setfill('0') << std::right << std::setw(10) << section.size << '\n';
+           << std::setfill('0') << std::right << std::setw(10) << section.size << " 0x" << std::hex << std::setfill('0')
+           << std::right << std::setw(10) << section.virtualSize << '\n';
     }
 
     if (!compact) {

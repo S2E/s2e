@@ -73,6 +73,7 @@ bool DecreeFile::initialize(void) {
         sd.start = phdr.p_vaddr;
         sd.physStart = phdr.p_paddr;
         sd.size = phdr.p_filesz;
+        sd.virtualSize = phdr.p_memsz;
         sd.name = ss.str();
 
         m_sections.push_back(sd);

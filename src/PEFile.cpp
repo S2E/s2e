@@ -292,6 +292,7 @@ bool PEFile::initSections(void) {
         SectionDescriptor sectionDesc;
         sectionDesc.start = getImageBase() + sectionHeader.VirtualAddress;
         sectionDesc.size = sectionHeader.SizeOfRawData;
+        sectionDesc.virtualSize = sectionHeader.Misc.VirtualSize;
 
         for (unsigned i = 0; i < IMAGE_SIZEOF_SHORT_NAME && sectionHeader.Name[i]; ++i) {
             sectionDesc.name += sectionHeader.Name[i];
