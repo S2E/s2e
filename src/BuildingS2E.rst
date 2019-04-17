@@ -2,7 +2,8 @@
 Building the S2E Platform
 ==========================
 
-S2E builds and runs on Ubuntu 14.04, 16.04 and 18.04 (64-bit).
+S2E builds and runs on Ubuntu 16.04 LTS and 18.04 LTS (64-bit). Ubuntu 14.04 LTS may still work, but we do not support
+it anymore.
 
 .. contents::
 
