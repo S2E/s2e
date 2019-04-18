@@ -48,6 +48,19 @@ function(_get_compiler COMPILER SRC)
   endif()
 endfunction(_get_compiler)
 
+# Determine language (C or CXX) (based on the file extension)
+function(_get_language LANG SRC)
+  get_filename_component(SRC_EXT ${SRC} EXT)
+
+  if(SRC_EXT STREQUAL ".c")
+    set(LANG C PARENT_SCOPE)
+  elseif(SRC_EXT STREQUAL ".cpp" OR SRC_EXT STREQUAL ".cc")
+    set(LANG CXX PARENT_SCOPE)
+  else()
+    message(FATAL_ERROR "Unknown file extension \"${SRC_EXT}\" for ${SRC} LLVM bitcode build")
+  endif()
+endfunction(_get_language)
+
 ###############################################################################
 # Public functions
 ###############################################################################
@@ -62,6 +75,7 @@ endfunction(_get_compiler)
 #
 function(build_llvm_bitcode OUTPUT FLAGS INC_DIRS SRC)
   _get_compiler(COMPILER ${SRC})
+  _get_language(LANG ${SRC})
   _format_includes(INCS ${INC_DIRS})
   get_filename_component(SRC_BASE ${SRC} NAME_WE)
 
@@ -70,6 +84,7 @@ function(build_llvm_bitcode OUTPUT FLAGS INC_DIRS SRC)
                              -emit-llvm -c ${FLAGS}
                              -o ${OUTPUT}
                              ${SRC}
+                     IMPLICIT_DEPENDS ${LANG} ${SRC}
                      DEPENDS ${SRC})
 
   add_custom_target(${SRC_BASE}.bc ALL DEPENDS ${OUTPUT})
@@ -95,6 +110,7 @@ function(link_llvm_bitcode OUTPUT FLAGS INC_DIRS SRC)
     set(BC_FILE ${CMAKE_CURRENT_BINARY_DIR}/${SRC_BASE}.bc)
 
     _get_compiler(COMPILER ${INPUT_FILE})
+    _get_language(LANG ${INPUT_FILE})
     _format_includes(INCS ${INC_DIRS})
 
     add_custom_command(OUTPUT ${BC_FILE}
@@ -102,6 +118,7 @@ function(link_llvm_bitcode OUTPUT FLAGS INC_DIRS SRC)
                                -emit-llvm -c ${FLAGS}
                                -o ${BC_FILE}
                                ${INPUT_FILE}
+                       IMPLICIT_DEPENDS ${LANG} ${INPUT_FILE}
                        DEPENDS ${INPUT_FILE})
     # No need to add a custom target for individual Bitcode files
 
@@ -136,6 +153,7 @@ function(build_llvm_bitcode_lib OUTPUT FLAGS INC_DIRS SRC)
     set(BC_FILE ${CMAKE_CURRENT_BINARY_DIR}/${SRC_BASE}.bc)
 
     _get_compiler(COMPILER ${INPUT_FILE})
+    _get_language(LANG ${INPUT_FILE})
     _format_includes(INCS ${INC_DIRS})
 
     add_custom_command(OUTPUT ${BC_FILE}
@@ -143,6 +161,7 @@ function(build_llvm_bitcode_lib OUTPUT FLAGS INC_DIRS SRC)
                                -emit-llvm -c ${FLAGS}
                                -o ${BC_FILE}
                                ${INPUT_FILE}
+                       IMPLICIT_DEPENDS ${LANG} ${INPUT_FILE}
                        DEPENDS ${INPUT_FILE})
     # No need to add a custom target for individual Bitcode files
 
