@@ -1,19 +1,16 @@
-==========================
-Building the S2E Platform
-==========================
-
-S2E builds and runs on Ubuntu 16.04 LTS and 18.04 LTS (64-bit). Ubuntu 14.04 LTS may still work, but we do not support
-it anymore.
-
-.. contents::
-
-Building with ``s2e-env``
-=========================
+==================================
+Building the S2E platform manually
+==================================
 
 The simplest way to build S2E is to use the ``s2e-env`` tool. It is the preferred method for development. See `Using
-s2e-env <s2e-env.rst>`__ for instructions.
+s2e-env <s2e-env.rst>`__ for instructions. However, some build features are not exposed by ``s2e-env`` and you will have
+to run them manually.
 
-If you want to build S2E using Docker or manually, read below.
+.. note::
+
+    S2E builds and runs on Ubuntu 16.04 LTS and 18.04 LTS (64-bit).
+    Ubuntu 14.04 LTS may still work, but we do not support it anymore.
+
 
 Building using Docker
 =====================
@@ -64,67 +61,19 @@ not available in the Ubuntu 14.04 repositories.
 Required packages
 -----------------
 
-.. code-block:: console
+You must install a few packages in order to build S2E manually. Instead of giving you a list that will get out-of-date
+very quickly, we will give you some pointers that should be always up-to-date:
 
-    # Build dependencies
-    sudo apt-get install build-essential
-    sudo apt-get install cmake
-    sudo apt-get install wget
-    sudo apt-get install git
-    sudo apt-get install texinfo
-    sudo apt-get install flex
-    sudo apt-get install bison
-    sudo apt-get install python-dev
+- The packages for the build toolchain and S2E dependencies can be found in the S2E docker
+  `file <https://github.com/S2E/build-scripts/blob/master/Dockerfile>`__.
 
-    # S2E dependencies
-    sudo apt-get install libdwarf-dev
-    sudo apt-get install libelf-dev
-    sudo apt-get install libboost-dev
-    sudo apt-get install zlib1g-dev
-    sudo apt-get install libjemalloc-dev
-    sudo apt-get install nasm
-    sudo apt-get install pkg-config
-    sudo apt-get install libmemcached-dev
-    sudo apt-get install libvdeplug-dev
-    sudo apt-get install libpq-dev
-    sudo apt-get install libc6-dev-i386
-    sudo apt-get install libboost-system-dev
-    sudo apt-get install libboost-serialization-dev
-    sudo apt-get install libboost-regex-dev
-    sudo apt-get install libprotobuf-dev
-    sudo apt-get install protobuf-compiler
-    sudo apt-get install libbsd-dev
-    sudo apt-get install libglib2.0-dev
-    sudo apt-get install python-docutils
-
-    # S2E image build dependencies
-    sudo apt-get install libguestfs-tools
-    sudo apt-get install genisoimage
-    sudo apt-get install python-pip
-    sudo apt-get install xz-utils
-    sudo apt-get install docker.io
-    sudo apt-get install p7zip-full
-    sudo apt-get install pxz
-    sudo apt-get install fuse
-    sudo apt-get install libhivex-bin
-    sudo apt-get install jigdo-file
-
-The following commands ask ``apt-get`` to install build dependencies for qemu:
-
-.. code-block:: console
-
-    sudo apt-get build-dep qemu
-
-If you are going to be analyzing Windows binaries, you will also need to install mingw to compile the guest tools:
-
-.. code-block:: console
-
-    sudo apt-get install mingw-w64
+- The packages required to build the guest images can be found
+  `here <https://github.com/S2E/guest-images/blob/master/README.md>`__.
 
 Checking out S2E
 ----------------
 
-S2E source code can be obtained from the S2E git repository using the following commands. Here ``$S2EDIR`` is the
+The S2E source code can be obtained from the S2E git repository using the following commands. Here ``$S2EDIR`` is the
 directory that will hold both the S2E source and build directories.
 
 .. code-block:: console
@@ -133,7 +82,7 @@ directory that will hold both the S2E source and build directories.
     repo init -u https://github.com/s2e/manifest.git
     repo sync
 
-This will setup the S2E repositories in ``$S2EDIR``.
+This will set up the S2E repositories in ``$S2EDIR``.
 
 In order to contribute to S2E (e.g., submit new features or report bugs), please see `here <Contribute.rst>`__.
 
@@ -153,7 +102,7 @@ The S2E Makefile can be run as follows:
 By default, the ``make`` command compiles and installs S2E in release mode to ``$S2EDIR/build/opt``. To change this
 location, set the ``S2E_PREFIX`` environment variable when running ``make``.
 
-To compile S2E in Debug mode, use ``make install-debug``.
+To compile S2E in debug mode, use ``make install-debug``.
 
 Note that the Makefile automatically uses the maximum number of available processors in order to speed up compilation.
 
