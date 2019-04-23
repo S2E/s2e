@@ -129,6 +129,8 @@ file and modify the ``ModuleExecutionDetector`` plugin configuration as follows:
         },
 
         mod_1 = {
+            # Do not forget to adapt the library name to your system.
+            # You can check which library your binary uses using ldd.
             moduleName = "libc-2.24.so",
         }
     }
@@ -159,6 +161,8 @@ yourself and did not use the pre-built ones, otherwise the docker image ``linux-
     echo "deb-src http://deb.debian.org/debian/ stretch main" >> /etc/apt/sources.list
     apt-get update
     apt-get install dpkg-dev
+
+    # Check out the source for the i386 version, since we run tests on the 32-bit version of the binary
     apt-get source libc6:i386
     exit
 
@@ -446,8 +450,7 @@ other program.
        cd projects/linux-kernel
        ./launch-s2e.sh
 
-5. Generate line coverage information. This may take a few minutes as ``vmlinux`` is large and ``pyelftools`` that
-   ``s2e-env`` uses internally is slow. Do not forget the ``--include-covered-files-only`` option to keep the report
+5. Generate line coverage information. Do not forget the ``--include-covered-files-only`` option to keep the report
    as short as possible (source files with no coverage will be omitted).
 
    .. code-block:: console

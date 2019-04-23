@@ -9,14 +9,14 @@ automatically explores hundreds of thousands of paths through the system, while 
 properties hold on these paths and selectors focus path exploration on components of interest.
 
 This documentation explains in details how to set up S2E, how to symbolically execute programs, and how to find
-vulnerabilities in them.
+vulnerabilities in them. S2E is pronounced *S two E*.
 
 
 .. toctree::
    :caption: Getting Started
    :maxdepth: 1
 
-   s2e-env
+   Start here: setting up S2E <s2e-env>
    BuildingS2E
    Tutorials/BasicLinuxSymbex/s2e.so
    Tutorials/BasicLinuxSymbex/SourceCode

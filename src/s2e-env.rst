@@ -1,9 +1,18 @@
 ===========================================
-Creating Analysis Projects with ``s2e-env``
+Creating analysis projects with ``s2e-env``
 ===========================================
 
+S2E is a powerful platform that can analyze software at any level of the software stack. This flexibility requires
+quite a bit of configuration. Most of it is boilerplate that can be automatically generated based on the type of
+binary to analyze.
+
 ``s2e-env`` is a Python-based tool that automates much of the build and configuration steps that are required to work
-with S2E. The following steps describe how to use ``s2e-env``.
+with S2E. It entirely automates the complex tasks of building guest VM images ready for symbolic execution and
+generating configuration files to run various types of binaries. The following steps describe how to use ``s2e-env``.
+You will find in the documentation various tutorials that go deeper into various topics.
+
+Before you start, make sure you have a working 64-bit Ubuntu 16.04 LTS or 18.04 LTS installation. Ubuntu 14.04 LTS may
+still work, but we do not actively support it anymore.
 
 .. contents::
 
@@ -29,7 +38,6 @@ Installing s2e-env
 
     # Note: if your pip version is earlier than v19, use the following command:
     pip install --process-dependency-links .
-
 
 
 Using s2e-env
@@ -306,6 +314,7 @@ There are a few things to note when exporting and importing projects:
   imported project must have a valid image with the details provided in the ``project.json`` file.
 * The guest-tools and guestfs directories are not exported. Instead symlinks to these directories are recreated on
   project import.
+
 
 Next steps
 ==========
