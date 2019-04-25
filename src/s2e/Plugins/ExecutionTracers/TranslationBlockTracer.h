@@ -15,7 +15,6 @@
 
 #include <s2e/Plugins/OSMonitors/Support/ModuleExecutionDetector.h>
 #include "ExecutionTracer.h"
-#include "TraceEntries.h"
 
 namespace s2e {
 namespace plugins {
@@ -56,7 +55,7 @@ private:
     void onTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb, uint64_t endPc,
                              bool staticTarget, uint64_t targetPc);
 
-    bool getConcolicValue(S2EExecutionState *state, unsigned offset, uint64_t *value, unsigned size);
+    template <typename T> bool getConcolicValue(S2EExecutionState *state, unsigned offset, T *value);
 
     void onExecuteBlockStart(S2EExecutionState *state, uint64_t pc);
     void onExecuteBlockEnd(S2EExecutionState *state, uint64_t pc);
@@ -68,7 +67,7 @@ public:
     void disableTracing();
     bool tracingEnabled();
 
-    void trace(S2EExecutionState *state, uint64_t pc, ExecTraceEntryType type);
+    void trace(S2EExecutionState *state, uint64_t pc, uint32_t type /* s2e_trace::PbTraceItemHeaderType */);
 };
 
 } // namespace plugins

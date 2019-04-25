@@ -1,5 +1,5 @@
 ///
-/// Copyright (C) 2016, Cyberhaven
+/// Copyright (C) 2016-2019, Cyberhaven
 /// All rights reserved.
 ///
 /// Licensed under the Cyberhaven Research License Agreement.
@@ -37,14 +37,12 @@
 #ifndef S2E__BLOCK_COVERAGE_TRACER_H
 #define S2E__BLOCK_COVERAGE_TRACER_H
 
-#include <fstream>
 #include <s2e/CorePlugin.h>
 #include <s2e/Plugin.h>
 #include <s2e/S2EExecutionState.h>
 
 #include <s2e/Plugins/OSMonitors/Support/ModuleExecutionDetector.h>
 #include "ExecutionTracer.h"
-#include "TraceEntries.h"
 
 namespace s2e {
 namespace plugins {
@@ -71,8 +69,7 @@ private:
     void onModuleTranslateBlockComplete(S2EExecutionState *state, const ModuleDescriptor &module, TranslationBlock *tb,
                                         uint64_t endPc);
 
-    void trace(S2EExecutionState *state, uint64_t startPc, uint64_t endPc, ExecTraceEntryType type,
-               TranslationBlock *tb);
+    void trace(S2EExecutionState *state, uint64_t startPc, uint64_t endPc, TranslationBlock *tb);
 
     void enableTracing();
     void disableTracing();

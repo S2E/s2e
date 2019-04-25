@@ -7,8 +7,9 @@
 
 #include <s2e/S2E.h>
 
+#include <TraceEntries.pb.h>
+
 #include "StateSwitchTracer.h"
-#include "TraceEntries.h"
 
 namespace s2e {
 namespace plugins {
@@ -22,10 +23,9 @@ void StateSwitchTracer::initialize() {
 }
 
 void StateSwitchTracer::onStateSwitch(S2EExecutionState *currentState, S2EExecutionState *nextState) {
-    ExecutionTraceStateSwitch e;
-    e.newStateId = nextState->getID();
-
-    m_tracer->writeData(currentState, &e, sizeof(e), TRACE_STATE_SWITCH);
+    s2e_trace::PbTraceStateSwitch item;
+    item.set_new_state(nextState->getID());
+    m_tracer->writeData(currentState, item, s2e_trace::TRACE_STATE_SWITCH);
 }
 
 } // namespace plugins

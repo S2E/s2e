@@ -57,6 +57,9 @@ execute_process(COMMAND ${LLVM_CONFIG} "--cxxflags"
 
 ##################
 
+include(FindProtobuf)
+find_package(Protobuf REQUIRED)
+
 find_package(LIBQ REQUIRED)
 message(STATUS "Found libq ${LIBQ_PACKAGE_VERSION}")
 

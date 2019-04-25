@@ -12,9 +12,10 @@
 #include <s2e/Plugin.h>
 #include <s2e/S2EExecutionState.h>
 
-#include "EventTracer.h"
-
 #include <s2e/Plugins/OSMonitors/Support/ModuleExecutionDetector.h>
+
+#include "EventTracer.h"
+#include "ExecutionTracer.h"
 
 namespace s2e {
 namespace plugins {
@@ -31,6 +32,8 @@ public:
 
 protected:
     virtual bool initSection(TracerConfigEntry *cfgEntry, const std::string &cfgKey, const std::string &entryId);
+
+    static bool moduleToProtobuf(const ModuleDescriptor &module, std::string &data);
 
     void moduleLoadListener(S2EExecutionState *state, const ModuleDescriptor &module);
 
