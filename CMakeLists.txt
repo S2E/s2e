@@ -29,6 +29,9 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(GLIB_PKG glib-2.0)
 include_directories(${GLIB_PKG_INCLUDE_DIRS})
 
+include(FindProtobuf)
+find_package(Protobuf REQUIRED)
+
 ##### LLVM #####
 find_package(LLVM REQUIRED)
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
@@ -72,7 +75,7 @@ if(WITH_TARGET MATCHES "s2e")
     message(STATUS "Found s2e core ${LIBS2ECORE_PACKAGE_VERSION}")
 
     find_package(LIBS2EPLUGINS REQUIRED)
-    message(STATUS "Found s2e plguins ${LIBS2EPLUGINS_PACKAGE_VERSION}")
+    message(STATUS "Found s2e plugins ${LIBS2EPLUGINS_PACKAGE_VERSION}")
 
     include_directories(${LIBS2ECORE_INCLUDE_DIR} ${LIBS2EPLUGINS_INCLUDE_DIR})
 endif()
