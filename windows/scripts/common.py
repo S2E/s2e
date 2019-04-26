@@ -60,8 +60,8 @@ class PdbParser(object):
 
     @property
     def product_version(self):
-        ms = self._pe.VS_FIXEDFILEINFO.ProductVersionMS
-        ls = self._pe.VS_FIXEDFILEINFO.ProductVersionLS
+        ms = self._pe.VS_FIXEDFILEINFO[0].ProductVersionMS
+        ls = self._pe.VS_FIXEDFILEINFO[0].ProductVersionLS
 
         return HIWORD(ms), LOWORD(ms), HIWORD(ls), LOWORD(ls)
 
