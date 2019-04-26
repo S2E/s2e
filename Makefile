@@ -746,7 +746,7 @@ stamps/tools-debug-configure: CONFIGURE_COMMAND = cmake $(TOOLS_CONFIGURE_FLAGS)
                                                   -DFSIGCXX_DIR=$(S2E_BUILD)/libfsigc++-debug           \
                                                   -DLIBQ_DIR=$(S2E_BUILD)/libq-debug                    \
                                                   -DCMAKE_BUILD_TYPE=Debug                              \
-                                                  -DCMAKE_CXX_FLAGS="$(CXXFLAGS_RELEASE)                \
+                                                  -DCMAKE_CXX_FLAGS="$(CXXFLAGS_DEBUG)"                 \
                                                   $(S2E_SRC)/tools
 
 stamps/tools-release-configure: stamps/llvm-release-make stamps/libvmi-release-make stamps/libfsigc++-release-make stamps/libq-release-make
@@ -756,7 +756,7 @@ stamps/tools-release-configure: CONFIGURE_COMMAND = cmake $(TOOLS_CONFIGURE_FLAG
                                                     -DFSIGCXX_DIR=$(S2E_BUILD)/libfsigc++-release           \
                                                     -DLIBQ_DIR=$(S2E_BUILD)/libq-release                    \
                                                     -DCMAKE_BUILD_TYPE=$(RELEASE_BUILD_TYPE)                \
-                                                    -DCMAKE_CXX_FLAGS=$(CXXFLAGS_RELEASE)                   \
+                                                    -DCMAKE_CXX_FLAGS="$(CXXFLAGS_RELEASE)"                 \
                                                     $(S2E_SRC)/tools
 
 stamps/tools-debug-make: stamps/tools-debug-configure
