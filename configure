@@ -9,6 +9,7 @@
 print_usage() {
 echo "Usage: configure options..."
 echo
+echo "  --prefix=PATH                    Installation prefix (e.g., /opt)"
 echo "  --with-cc=PATH                   Path to clang"
 echo "  --with-cxx=PATH                  Path to clang++"
 echo "  --with-cflags=FLAGS              C compiler flags"
@@ -38,6 +39,10 @@ DEBUG=n
 for opt do
   optarg=`expr "x$opt" : 'x[^=]*=\(.*\)'`
   case "$opt" in
+    --prefix=*)
+      PREFIX="$optarg"
+    ;;
+
     --with-cc=*)
       CC="$optarg"
     ;;
@@ -272,6 +277,7 @@ rm -rf libs2ecore && mkdir -p libs2ecore && cd libs2ecore
 cmake -DCMAKE_C_COMPILER="$CC" -DCMAKE_CXX_COMPILER="$CXX"  \
     -DCMAKE_C_FLAGS="$CFLAGS" -DCMAKE_CXX_FLAGS="$CXXFLAGS" \
     -DCMAKE_BUILD_TYPE=$BUILD_TYPE                          \
+    -DCMAKE_PREFIX_PATH="$PREFIX"                           \
     -DLIBTCG_DIR="$(pwd)/../libtcg"                         \
     -DLIBCPU_DIR="$(pwd)/../libcpu"                         \
     -DLLVM_DIR="$LLVM_DIR"                                  \
@@ -294,6 +300,7 @@ rm -rf libs2eplugins && mkdir -p libs2eplugins && cd libs2eplugins
 cmake -DCMAKE_C_COMPILER="$CC" -DCMAKE_CXX_COMPILER="$CXX"  \
     -DCMAKE_C_FLAGS="$CFLAGS" -DCMAKE_CXX_FLAGS="$CXXFLAGS" \
     -DCMAKE_BUILD_TYPE=$BUILD_TYPE                          \
+    -DCMAKE_PREFIX_PATH="$PREFIX"                           \
     -DLIBTCG_DIR="$(pwd)/../libtcg"                         \
     -DLIBCPU_DIR="$(pwd)/../libcpu"                         \
     -DLIBS2ECORE_DIR="$(pwd)/../libs2ecore"                 \
@@ -319,6 +326,7 @@ rm -rf libs2e && mkdir -p libs2e && cd libs2e
 cmake -DCMAKE_C_COMPILER="$CC" -DCMAKE_CXX_COMPILER="$CXX"  \
     -DCMAKE_C_FLAGS="$CFLAGS" -DCMAKE_CXX_FLAGS="$CXXFLAGS" \
     -DCMAKE_BUILD_TYPE=$BUILD_TYPE                          \
+    -DCMAKE_PREFIX_PATH="$PREFIX"                           \
     -DLIBTCG_DIR="$(pwd)/../libtcg"                         \
     -DLIBCPU_DIR="$(pwd)/../libcpu"                         \
     -DLIBS2ECORE_DIR="$(pwd)/../libs2ecore"                 \
