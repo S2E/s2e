@@ -39,6 +39,13 @@ write_basic_package_version_file(${CMAKE_VERSION_FILE}
 include(FindPkgConfig)
 pkg_check_modules(GLIB2 glib-2.0)
 
+set(Protobuf_USE_STATIC_LIBS ON)
+include(FindProtobuf)
+find_package(Protobuf REQUIRED)
+
+# Old CMake does not support static libraries, so we have to patch the library manually
+string(REPLACE .so .a PROTOBUF_LIBRARIES "${PROTOBUF_LIBRARIES}")
+
 find_package(LLVM REQUIRED)
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 
@@ -82,7 +89,8 @@ include_directories("include"
                     ${S2EPLUGINS_SRC_DIR}
                     ${VMI_INCLUDE_DIR}
                     ${LIBQ_INCLUDE_DIR}
-                    ${FSIGCXX_INCLUDE_DIR})
+                    ${FSIGCXX_INCLUDE_DIR}
+                    ${PROTOBUF_INCLUDE_DIRS})
 
 link_directories(${VMI_LIBRARY_DIR} ${FSIGCXX_LIBRARY_DIR} ${LIBQ_LIBRARY_DIR})
 
