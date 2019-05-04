@@ -20,6 +20,10 @@
 
 #include <cpu/config.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifdef CONFIG_SYMBEX
 
 /** Enables symbolic execution TLB to speed-up concrete memory accesses */
@@ -79,5 +83,9 @@
 //#define TCG_KEEP_OPC
 
 #endif // CONFIG_SYMBEX
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // SE_CPU_CONFIG_H

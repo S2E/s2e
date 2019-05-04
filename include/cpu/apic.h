@@ -23,6 +23,10 @@
 #include <cpu/types.h>
 #include <inttypes.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct DeviceState;
 typedef struct DeviceState DeviceState;
 
@@ -37,5 +41,9 @@ void apic_handle_tpr_access_report(DeviceState *d, target_ulong ip, TPRAccess ac
 
 /* pc.c */
 int cpu_is_bsp(CPUX86State *env);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

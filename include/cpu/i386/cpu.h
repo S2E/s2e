@@ -29,6 +29,10 @@
 #include <stdbool.h>
 #include "defs.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct SegmentCache {
     uint32_t selector;
     target_ulong base;
@@ -285,5 +289,9 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr, int is_write, 
 void cpu_set_eflags(CPUX86State *env, target_ulong eflags);
 
 uint32_t cpu_compute_hflags(const CPUX86State *env);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

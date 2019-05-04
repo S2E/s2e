@@ -5,6 +5,10 @@
 
 #include <cpu/config-host.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*----------------------------------------------------------------------------
 | The macro LIBCPU_GNUC_PREREQ tests for minimum version of the GNU C compiler.
 | The code is a copy of SOFTFLOAT_GNUC_PREREQ, see softfloat-macros.h.
@@ -53,6 +57,10 @@
 
 #ifndef ARRAY_SIZE
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 
 #endif /* COMPILER_H */

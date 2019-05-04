@@ -27,6 +27,10 @@
 #ifndef SOFTMMU_DEFS_H
 #define SOFTMMU_DEFS_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifndef CONFIG_TCG_PASS_AREG0
 uint8_t __ldb_mmu(target_ulong addr, int mmu_idx);
 void __stb_mmu(target_ulong addr, uint8_t val, int mmu_idx);
@@ -152,6 +156,10 @@ uintptr_t se_notdirty_mem_read(target_phys_addr_t ram_addr);
 uintptr_t se_notdirty_mem_write(target_phys_addr_t ram_addr);
 uintptr_t se_notdirty_mem_read(target_phys_addr_t ram_addr);
 
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 
 #endif

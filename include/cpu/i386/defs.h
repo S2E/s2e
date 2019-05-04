@@ -20,6 +20,10 @@
 
 #define __CPU_I386_DEFS__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // clang-format off
 
 /*******************************************/
@@ -539,6 +543,10 @@ enum {
 
     CC_OP_NB,
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 // clang-format on
 #endif

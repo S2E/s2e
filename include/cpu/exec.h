@@ -28,6 +28,10 @@
 #include <libcpu-compiler.h>
 #include <libcpu-log.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* The return address may point to the start of the next instruction.
    Subtracting one gets us the call instruction itself.  */
 #if defined(CONFIG_TCG_INTERPRETER)
@@ -105,6 +109,10 @@ bool is_notdirty_ops(const struct MemoryDescOps *ops);
 
 #ifdef CONFIG_SYMBEX
 bool se_ismemfunc(const struct MemoryDescOps *ops, int isWrite);
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 
 #endif

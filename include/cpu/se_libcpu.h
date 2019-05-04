@@ -20,9 +20,14 @@
 
 #define __QEMU_CPU_SE__
 
-#include <cpu/types.h>
 #include <inttypes.h>
 #include <stdbool.h>
+
+#include <cpu/types.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 struct TranslationBlock;
 struct CPUX86State;
@@ -248,6 +253,10 @@ uint64_t tcg_llvm_trace_mmio_access(uint64_t physaddr, uint64_t value, unsigned 
 
 void tcg_llvm_write_mem_io_vaddr(uint64_t value, int reset);
 void tcg_llvm_get_value(void *addr, unsigned nbytes, bool addConstraint);
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 
 #endif

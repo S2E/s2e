@@ -27,6 +27,10 @@
 
 #include <inttypes.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // strtosz() suffixes used to specify the default treatment of an
 // argument passed to strtosz() without an explicit suffix.
 // These should be defined using upper case characters in the range
@@ -42,5 +46,9 @@ int64_t strtosz_suffix_unit(const char *nptr, char **end, const char default_suf
 
 int64_t strtosz_suffix(const char *nptr, char **end, const char default_suffix);
 int64_t strtosz(const char *nptr, char **end);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

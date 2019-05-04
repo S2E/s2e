@@ -20,8 +20,13 @@
 
 #define __LIBCPU_TYPES_H__
 
-#include <cpu/config.h>
 #include <inttypes.h>
+
+#include <cpu/config.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #ifdef TARGET_X86_64
 #define TARGET_LONG_BITS 64
@@ -79,5 +84,9 @@ typedef uint64_t target_phys_addr_t;
 #endif
 
 typedef uintptr_t ram_addr_t;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

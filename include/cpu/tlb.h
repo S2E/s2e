@@ -23,6 +23,10 @@
 #include <cpu/config.h>
 #include <cpu/types.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define CPU_TLB_BITS 10
 #define CPU_TLB_SIZE (1 << CPU_TLB_BITS)
 
@@ -103,6 +107,10 @@ typedef struct CPUTLBRAMEntry {
 
 /* Set if TLB entry points to a page that does not belong to us (only for write) */
 #define TLB_NOT_OURS (1 << 7)
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 
 #endif

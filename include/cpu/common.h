@@ -27,6 +27,10 @@
 #include <setjmp.h>
 #include <signal.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct CPUBreakpoint {
     target_ulong pc;
     int flags; /* BP_* */
@@ -94,5 +98,9 @@ typedef struct CPUWatchpoint {
     uint32_t stop; /* Stop request */                                                                 \
     const char *cpu_model_str;                                                                        \
     int se_common_end; /* Dummy variable to mark the end of the common area */
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -24,6 +24,10 @@
 #include <cpu/types.h>
 #include <inttypes.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef uint32_t pio_addr_t;
 
 #define MAX_IOPORTS (64 * 1024)
@@ -53,5 +57,9 @@ struct cpu_io_funcs_t {
 };
 
 void cpu_register_io(const struct cpu_io_funcs_t *f);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

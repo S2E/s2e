@@ -19,6 +19,11 @@
 #define QEMU_LOG_H
 
 #include <stdio.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "libcpu-compiler.h"
 
 /* The deprecated global variables: */
@@ -111,5 +116,9 @@ typedef int (*fprintf_function)(FILE *f, const char *fmt, ...) GCC_FMT_ATTR(2, 3
 void cpu_set_log(int log_flags);
 void cpu_set_log_filename(const char *filename);
 int cpu_str_to_log_mask(const char *str);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

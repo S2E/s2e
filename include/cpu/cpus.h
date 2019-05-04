@@ -21,6 +21,10 @@
 
 #include <inttypes.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void qemu_init_cpu_loop(void);
 void resume_all_vcpus(void);
 void pause_all_vcpus(void);
@@ -50,5 +54,9 @@ extern TimersState timers_state;
  * execution.
  */
 void cpu_enable_scaling(int scale);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
