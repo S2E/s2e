@@ -94,7 +94,6 @@ typedef struct CPUWatchpoint {
                                                                                                       \
     uint32_t created;                                                                                 \
     uint32_t stop; /* Stop request */                                                                 \
-    const char *cpu_model_str;                                                                        \
     int se_common_end; /* Dummy variable to mark the end of the common area */
 
 #ifdef __cplusplus
