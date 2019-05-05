@@ -19,12 +19,11 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-find_package(Protobuf REQUIRED)
-protobuf_generate_cpp(CFG_PROTO_SRCS CFG_PROTO_HDRS cfg.proto)
+protobuf_generate_cpp(CFG_PROTO_SRCS CFG_PROTO_HDRS ${CMAKE_CURRENT_SOURCE_DIR}/cfg.proto)
 
 add_library(utils STATIC BasicBlockListParser.cpp
                          BinaryCFGReader.cpp
                          Log.cpp
-                         ${CFG_PROTO_SRCS})
+                         ${CFG_PROTO_SRCS} ${CFG_PROTO_HDRS})
 target_include_directories(utils PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 target_link_libraries(utils ${PROTOBUF_LIBRARIES})
