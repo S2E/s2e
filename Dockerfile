@@ -22,7 +22,7 @@ RUN apt-get update && apt-get -y install libdwarf-dev libelf-dev libelf-dev:i386
     libboost-dev zlib1g-dev libjemalloc-dev nasm pkg-config                 \
     libmemcached-dev libpq-dev libc6-dev-i386 binutils-dev                  \
     libboost-system-dev libboost-serialization-dev libboost-regex-dev       \
-    libprotobuf-dev protobuf-compiler libbsd-dev libpixman-1-dev            \
+    libbsd-dev libpixman-1-dev                                              \
     libglib2.0-dev python-docutils libpng12-dev gcc-multilib g++-multilib
 
 # Install S2E git
@@ -45,6 +45,9 @@ RUN cd s2e-build &&                                                         \
 
 RUN cd s2e-build &&                                                         \
     make -f ../s2e/Makefile S2E_PREFIX=/opt/s2e stamps/z3-make
+
+RUN cd s2e-build &&                                                         \
+    make -f ../s2e/Makefile S2E_PREFIX=/opt/s2e stamps/protobuf-make
 
 # Make the S2E codebase available in the container
 COPY . s2e/

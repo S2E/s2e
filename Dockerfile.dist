@@ -12,20 +12,17 @@ RUN sed -i '1ideb mirror://mirrors.ubuntu.com/mirrors.txt xenial main restricted
 
 # i386 packages are required by IDA Pro, they are included here for convenience.
 # You must provide your own copy of IDA Pro.
-RUN echo "deb http://apt.postgresql.org/pub/repos/apt/ xenial-pgdg main" > /etc/apt/sources.list.d/pgdg.list && \
-    apt-key adv --keyserver keyserver.ubuntu.com --recv-keys ACCC4CF8 &&     \
-    dpkg --add-architecture i386 && apt-get update
+RUN dpkg --add-architecture i386 && apt-get update
 
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y                        \
         git netcat nano apport psmisc vim p7zip-full unzip                   \
         python python-dev python-pip python-virtualenv                       \
-        postgresql-server-dev-11 postgresql-client-11                        \
         wget libsvn1 libcurl3 gdb python2.7-dbg libssl-dev                   \
         libstdc++6:i386 libpython2.7:i386 lib32ncurses5 lib32ncurses5-dev    \
         libncurses5-dev libx32ncurses5-dev libncurses5-dev:i386              \
         libxml2-dev libxslt1-dev libffi-dev                                  \
         lsof psmisc libboost-serialization1.58.0 libboost-regex1.58          \
-        libmemcached11 libgettextpo0 libelf1 libelf1:i386 libprotobuf9v5 libjemalloc1     \
+        libmemcached11 libgettextpo0 libelf1 libelf1:i386 libjemalloc1       \
         libpcre3 libpcre3-dev libxml2-dev:i386 libpcre3:i386                 \
         liblua5.1-0 liblua5.2-0 libsigc++-2.0-dev jq                         \
         python-yaml python-matplotlib python-lxml python-pip sudo  &&        \

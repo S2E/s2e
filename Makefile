@@ -77,6 +77,8 @@ ifneq ($(words $(CLANG_BINARY_SUFFIX)), 1)
 $(error "Failed to determine Clang binary to download: $(CLANG_BINARY_SUFFIX)")
 endif
 
+KLEE_QEMU_DIRS=$(foreach suffix,-debug -release,$(addsuffix $(suffix),klee qemu))
+
 CLANG_BINARY_DIR=clang+llvm-$(LLVM_VERSION)-$(CLANG_BINARY_SUFFIX)
 CLANG_BINARY=$(CLANG_BINARY_DIR).tar.xz
 
@@ -125,8 +127,6 @@ LIBDWARF_URL=https://www.prevanders.net/libdwarf-20190110.tar.gz
 LIBDWARF_SRC_DIR=libdwarf-20190110
 LIBDWARF_BUILD_DIR=libdwarf
 
-KLEE_QEMU_DIRS=$(foreach suffix,-debug -release,$(addsuffix $(suffix),klee qemu))
-
 # rapidjson
 # We don't use the one that ships with the distro because we need
 # the latest features.
@@ -134,6 +134,12 @@ RAPIDJSON_GIT_URL=https://github.com/Tencent/rapidjson.git
 RAPIDJSON_GIT_REV=e80257a924b701dcbf5f6e78a7ab47efff6073ac
 RAPIDJSON_SRC_DIR=rapidjson
 RAPIDJSON_BUILD_DIR=rapidjson-build
+
+# protobuf
+# We build our own because the one on Ubuntu 16 crashes.
+PROTOBUF_URL=https://github.com/protocolbuffers/protobuf/releases/download/v3.7.1/protobuf-cpp-3.7.1.tar.gz
+PROTOBUF_SRC_DIR=protobuf-3.7.1
+PROTOBUF_BUILD_DIR=protobuf
 
 
 ###########
@@ -252,6 +258,11 @@ $(RAPIDJSON_BUILD_DIR):
 	git clone $(RAPIDJSON_GIT_URL) $(RAPIDJSON_SRC_DIR)
 	cd $(RAPIDJSON_SRC_DIR) && git checkout $(RAPIDJSON_GIT_REV)
 	mkdir -p $(S2E_BUILD)/$(RAPIDJSON_BUILD_DIR)
+
+$(PROTOBUF_BUILD_DIR):
+	wget -O $(S2E_BUILD)/$(PROTOBUF_SRC_DIR).tar.gz $(PROTOBUF_URL)
+	tar -zxf $(S2E_BUILD)/$(PROTOBUF_SRC_DIR).tar.gz
+	mkdir -p $(S2E_BUILD)/$(PROTOBUF_BUILD_DIR)
 
 ifeq ($(LLVM_BUILD),$(S2E_BUILD))
 
@@ -411,6 +422,20 @@ stamps/rapidjson-configure: stamps/clang-binary $(RAPIDJSON_BUILD_DIR)
 stamps/rapidjson-make: stamps/rapidjson-configure
 	$(MAKE) -C $(RAPIDJSON_BUILD_DIR) install
 	touch $@
+
+############
+# protobuf #
+############
+
+stamps/protobuf-configure: stamps/clang-binary $(PROTOBUF_BUILD_DIR)
+	cd $(PROTOBUF_BUILD_DIR) &&                                         \
+	CC=$(CLANG_CC) CXX=$(CLANG_CXX) CXXFLAGS=-fPIC CFLAGS=-fPIC $(S2E_BUILD)/$(PROTOBUF_SRC_DIR)/configure --prefix=$(S2E_PREFIX)
+	touch $@
+
+stamps/protobuf-make: stamps/protobuf-configure
+	$(MAKE) -C $(PROTOBUF_BUILD_DIR) install
+	touch $@
+
 
 #######
 # Lua #
@@ -639,6 +664,7 @@ LIBS2E_CONFIGURE_FLAGS = --with-cc=$(CLANG_CC)                                  
                          --with-libcpu-src=$(S2E_SRC)/libcpu                        \
                          --with-libs2ecore-src=$(S2E_SRC)/libs2ecore                \
                          --with-libs2eplugins-src=$(S2E_SRC)/libs2eplugins          \
+                         --prefix=$(S2E_PREFIX)                                     \
                          $(EXTRA_QEMU_FLAGS)
 
 LIBS2E_DEBUG_FLAGS = --with-llvm=$(LLVM_BUILD)/llvm-debug                           \
@@ -661,7 +687,8 @@ LIBS2E_RELEASE_FLAGS = --with-llvm=$(LLVM_BUILD)/llvm-release                   
 stamps/libs2e-debug-configure: $(S2E_SRC)/libs2e/configure
 stamps/libs2e-debug-configure: stamps/lua-make stamps/libvmi-debug-make         \
     stamps/klee-debug-make stamps/soci-make stamps/libfsigc++-debug-make        \
-    stamps/libq-debug-make stamps/libcoroutine-debug-make stamps/capstone-make
+    stamps/libq-debug-make stamps/libcoroutine-debug-make stamps/capstone-make  \
+    stamps/protobuf-make
 stamps/libs2e-debug-configure: CONFIGURE_COMMAND = $(S2E_SRC)/libs2e/configure  \
                                                    $(LIBS2E_CONFIGURE_FLAGS)    \
                                                    $(LIBS2E_DEBUG_FLAGS)
@@ -669,7 +696,8 @@ stamps/libs2e-debug-configure: CONFIGURE_COMMAND = $(S2E_SRC)/libs2e/configure  
 stamps/libs2e-release-configure: $(S2E_SRC)/libs2e/configure
 stamps/libs2e-release-configure: stamps/lua-make stamps/libvmi-release-make     \
     stamps/klee-release-make stamps/soci-make stamps/libfsigc++-release-make    \
-    stamps/libq-release-make stamps/libcoroutine-release-make  stamps/capstone-make
+    stamps/libq-release-make stamps/libcoroutine-release-make  stamps/capstone-make \
+    stamps/protobuf-make
 stamps/libs2e-release-configure: CONFIGURE_COMMAND = $(S2E_SRC)/libs2e/configure    \
                                                      $(LIBS2E_CONFIGURE_FLAGS)      \
                                                      $(LIBS2E_RELEASE_FLAGS)
@@ -734,6 +762,7 @@ TOOLS_CONFIGURE_FLAGS = -DCMAKE_INSTALL_PREFIX=$(S2E_PREFIX)              \
                         -DCMAKE_C_COMPILER=$(CLANG_CC)                    \
                         -DCMAKE_CXX_COMPILER=$(CLANG_CXX)                 \
                         -DCMAKE_C_FLAGS="$(CFLAGS_ARCH)"                  \
+                        -DCMAKE_PREFIX_PATH="$(S2E_PREFIX)"               \
                         -DLIBCPU_SRC_DIR=$(S2E_SRC)/libcpu                \
                         -DLIBTCG_SRC_DIR=$(S2E_SRC)/libtcg                \
                         -DS2EPLUGINS_SRC_DIR=$(S2E_SRC)/libs2eplugins/src \
