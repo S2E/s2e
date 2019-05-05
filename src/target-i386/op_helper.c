@@ -2207,9 +2207,9 @@ void helper_cpuid(void) {
 
     // XXX: workaround to avoid passing symbolic count information
     if (index == 4) {
-        cpu_x86_cpuid(env, (uint32_t) EAX, (uint32_t) ECX, &eax, &ebx, &ecx, &edx);
+        cpu_x86_cpuid(&env->cpuid, (uint32_t) EAX, (uint32_t) ECX, &eax, &ebx, &ecx, &edx);
     } else {
-        cpu_x86_cpuid(env, (uint32_t) EAX, 0, &eax, &ebx, &ecx, &edx);
+        cpu_x86_cpuid(&env->cpuid, (uint32_t) EAX, 0, &eax, &ebx, &ecx, &edx);
     }
     EAX_W(eax);
     EBX_W(ebx);
@@ -3275,17 +3275,17 @@ void helper_wrmsr_v(target_ulong index, uint64_t val) {
         case MSR_EFER: {
             uint64_t update_mask;
             update_mask = 0;
-            if (env->cpuid_ext2_features & CPUID_EXT2_SYSCALL)
+            if (env->cpuid.cpuid_ext2_features & CPUID_EXT2_SYSCALL)
                 update_mask |= MSR_EFER_SCE;
-            if (env->cpuid_ext2_features & CPUID_EXT2_LM)
+            if (env->cpuid.cpuid_ext2_features & CPUID_EXT2_LM)
                 update_mask |= MSR_EFER_LME;
-            if (env->cpuid_ext2_features & CPUID_EXT2_FFXSR)
+            if (env->cpuid.cpuid_ext2_features & CPUID_EXT2_FFXSR)
                 update_mask |= MSR_EFER_FFXSR;
-            if (env->cpuid_ext2_features & CPUID_EXT2_NX)
+            if (env->cpuid.cpuid_ext2_features & CPUID_EXT2_NX)
                 update_mask |= MSR_EFER_NXE;
-            if (env->cpuid_ext3_features & CPUID_EXT3_SVM)
+            if (env->cpuid.cpuid_ext3_features & CPUID_EXT3_SVM)
                 update_mask |= MSR_EFER_SVME;
-            if (env->cpuid_ext2_features & CPUID_EXT2_FFXSR)
+            if (env->cpuid.cpuid_ext2_features & CPUID_EXT2_FFXSR)
                 update_mask |= MSR_EFER_FFXSR;
             cpu_load_efer(env, (env->efer & ~update_mask) | (val & update_mask));
         } break;
@@ -3490,7 +3490,7 @@ uint64_t helper_rdmsr_v(uint64_t index) {
             val = env->mtrr_deftype;
             break;
         case MSR_MTRRcap:
-            if (env->cpuid_features & CPUID_MTRR)
+            if (env->cpuid.cpuid_features & CPUID_MTRR)
                 val = MSR_MTRRcap_VCNT | MSR_MTRRcap_FIXRANGE_SUPPORT | MSR_MTRRcap_WC_SUPPORTED;
             else
                 /* XXX: exception ? */

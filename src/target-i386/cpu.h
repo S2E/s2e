@@ -129,7 +129,6 @@ static inline target_ulong cpu_get_eflags_dirty(CPUX86State *env) {
 }
 
 void cpu_x86_close(CPUX86State *s);
-void x86_cpu_list(FILE *f, fprintf_function cpu_fprintf, const char *optarg);
 int cpu_x86_support_mca_broadcast(CPUX86State *env);
 
 int cpu_get_pic_interrupt(CPUX86State *s);
@@ -223,10 +222,6 @@ void cpu_x86_frstor(CPUX86State *s, target_ulong ptr, int data32);
    signal handlers to inform the virtual CPU of exceptions. non zero
    is returned if the signal was handled by the virtual CPU.  */
 int cpu_x86_signal_handler(int host_signum, void *pinfo, void *puc);
-
-/* cpuid.c */
-int cpu_x86_register(CPUX86State *env, const char *cpu_model);
-void cpu_clear_apic_feature(CPUX86State *env);
 
 /* helper.c */
 

@@ -149,7 +149,7 @@ void cpu_state_reset(CPUX86State *env) {
 
     env->eip = 0xfff0;
     WR_se_eip(env, 0xfff0);
-    env->regs[R_EDX] = env->cpuid_version;
+    env->regs[R_EDX] = env->cpuid.cpuid_version;
 
     WR_cpu(env, cc_op, CC_OP_EFLAGS);
     WR_cpu(env, cc_src, 0);
@@ -181,7 +181,7 @@ void cpu_x86_close(CPUX86State *env) {
 }
 
 static void cpu_x86_version(CPUX86State *env, int *family, int *model) {
-    int cpuver = env->cpuid_version;
+    int cpuver = env->cpuid.cpuid_version;
 
     if (family == NULL || model == NULL) {
         return;
@@ -506,7 +506,7 @@ void cpu_x86_update_cr4(CPUX86State *env, uint32_t new_cr4) {
         tlb_flush(env, 1);
     }
     /* SSE handling */
-    if (!(env->cpuid_features & CPUID_SSE))
+    if (!(env->cpuid.cpuid_features & CPUID_SSE))
         new_cr4 &= ~CR4_OSFXSR_MASK;
     if (new_cr4 & CR4_OSFXSR_MASK)
         env->hflags |= HF_OSFXSR_MASK;
@@ -994,8 +994,8 @@ void cpu_report_tpr_access(CPUX86State *env, TPRAccess access) {
 static void mce_init(CPUX86State *cenv) {
     unsigned int bank;
 
-    if (((cenv->cpuid_version >> 8) & 0xf) >= 6 &&
-        (cenv->cpuid_features & (CPUID_MCE | CPUID_MCA)) == (CPUID_MCE | CPUID_MCA)) {
+    if (((cenv->cpuid.cpuid_version >> 8) & 0xf) >= 6 &&
+        (cenv->cpuid.cpuid_features & (CPUID_MCE | CPUID_MCA)) == (CPUID_MCE | CPUID_MCA)) {
         cenv->mcg_cap = MCE_CAP_DEF | MCE_BANKS_DEF;
         cenv->mcg_ctl = ~(uint64_t) 0;
         for (bank = 0; bank < MCE_BANKS_DEF; bank++) {
@@ -1044,11 +1044,11 @@ CPUX86State *cpu_x86_init(const char *cpu_model) {
         optimize_flags_init();
         prev_debug_excp_handler = cpu_set_debug_excp_handler(breakpoint_handler);
     }
-    if (cpu_x86_register(env, cpu_model) < 0) {
+    if (cpu_x86_register(&env->cpuid, cpu_model) < 0) {
         cpu_x86_close(env);
         return NULL;
     }
-    env->cpuid_apic_id = env->cpu_index;
+    env->cpuid.cpuid_apic_id = env->cpu_index;
     mce_init(env);
 
     qemu_init_vcpu(env);

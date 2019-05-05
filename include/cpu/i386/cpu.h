@@ -27,6 +27,7 @@
 #include <cpu/types.h>
 #include <fpu/softfloat.h>
 #include <stdbool.h>
+#include "cpuid.h"
 #include "defs.h"
 
 #ifdef __cplusplus
@@ -194,22 +195,7 @@ typedef struct CPUX86State {
     uint64_t pat;
 
     /* processor features (e.g. for CPUID insn) */
-    uint32_t cpuid_level;
-    uint32_t cpuid_vendor1;
-    uint32_t cpuid_vendor2;
-    uint32_t cpuid_vendor3;
-    uint32_t cpuid_version;
-    uint32_t cpuid_features;
-    uint32_t cpuid_ext_features;
-    uint32_t cpuid_xlevel;
-    uint32_t cpuid_model[12];
-    uint32_t cpuid_ext2_features;
-    uint32_t cpuid_ext3_features;
-    uint32_t cpuid_apic_id;
-    int cpuid_vendor_override;
-    /* Store the results of Centaur's CPUID instructions */
-    uint32_t cpuid_xlevel2;
-    uint32_t cpuid_ext4_features;
+    struct cpuid_t cpuid;
 
     /* MTRRs */
     uint64_t mtrr_fixed[11];
@@ -217,9 +203,6 @@ typedef struct CPUX86State {
     MTRRVar mtrr_var[8];
 
     /* For KVM */
-    uint32_t cpuid_kvm_features;
-    uint32_t cpuid_svm_features;
-    int tsc_khz;
     int kvm_request_interrupt_window;
     int kvm_irq;
 
@@ -252,10 +235,6 @@ typedef struct CPUX86State {
 
 void do_cpu_init(CPUX86State *env);
 
-void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count, uint32_t *eax, uint32_t *ebx, uint32_t *ecx,
-                   uint32_t *edx);
-
-void x86_cpudef_setup(void);
 CPUX86State *cpu_x86_init(const char *cpu_model);
 int cpu_x86_exec(CPUX86State *s);
 
