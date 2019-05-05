@@ -235,7 +235,7 @@ typedef struct CPUX86State {
 
 void do_cpu_init(CPUX86State *env);
 
-CPUX86State *cpu_x86_init(const char *cpu_model);
+CPUX86State *cpu_x86_init(const cpuid_t *cpuid);
 int cpu_x86_exec(CPUX86State *s);
 
 static inline bool cpu_has_work(CPUX86State *env) {

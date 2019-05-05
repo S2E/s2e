@@ -1030,7 +1030,7 @@ int cpu_x86_get_descr_debug(CPUX86State *env, unsigned int selector, target_ulon
     return 1;
 }
 
-CPUX86State *cpu_x86_init(const char *cpu_model) {
+CPUX86State *cpu_x86_init(const cpuid_t *cpuid) {
     CPUX86State *env;
     static int inited;
 
@@ -1043,10 +1043,9 @@ CPUX86State *cpu_x86_init(const char *cpu_model) {
         optimize_flags_init();
         prev_debug_excp_handler = cpu_set_debug_excp_handler(breakpoint_handler);
     }
-    if (cpu_x86_register(&env->cpuid, cpu_model) < 0) {
-        cpu_x86_close(env);
-        return NULL;
-    }
+
+    env->cpuid = *cpuid;
+
     env->cpuid.cpuid_apic_id = env->cpu_index;
     mce_init(env);
 
