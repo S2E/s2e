@@ -16,7 +16,6 @@
 /// You should have received a copy of the GNU Library General Public
 /// License along with this library; if not, see <http://www.gnu.org/licenses/>.
 
-#include <bsd/string.h>
 #include <glib.h>
 #include <inttypes.h>
 #include <stdbool.h>
@@ -205,8 +204,6 @@ typedef struct model_features_t {
     uint32_t cpuid;
 } model_features_t;
 
-#define iswhite(c) ((c) && ((c) <= ' ' || '~' < (c)))
-
 /* general substring compare of *[s1..e1) and *[s2..e2).  sx is start of
  * a substring.  ex if !NULL points to the first char after a substring,
  * otherwise the string is assumed to sized by a terminating nul.
@@ -295,39 +292,45 @@ typedef struct x86_def_t {
     uint32_t xlevel2;
 } x86_def_t;
 
-#define I486_FEATURES (CPUID_FP87 | CPUID_VME | CPUID_PSE)
-#define PENTIUM_FEATURES \
-    (I486_FEATURES | CPUID_DE | CPUID_TSC | CPUID_MSR | CPUID_MCE | CPUID_CX8 | CPUID_MMX | CPUID_APIC)
-#define PENTIUM2_FEATURES                                                                                     \
-    (PENTIUM_FEATURES | CPUID_PAE | CPUID_SEP | CPUID_MTRR | CPUID_PGE | CPUID_MCA | CPUID_CMOV | CPUID_PAT | \
-     CPUID_PSE36 | CPUID_FXSR)
-#define PENTIUM3_FEATURES (PENTIUM2_FEATURES | CPUID_SSE)
-#define PPRO_FEATURES                                                                                             \
-    (CPUID_FP87 | CPUID_DE | CPUID_PSE | CPUID_TSC | CPUID_MSR | CPUID_MCE | CPUID_CX8 | CPUID_PGE | CPUID_CMOV | \
-     CPUID_PAT | CPUID_FXSR | CPUID_MMX | CPUID_SSE | CPUID_SSE2 | CPUID_PAE | CPUID_SEP | CPUID_APIC)
-#define EXT2_FEATURE_MASK 0x0183F3FF
+static const uint32_t I486_FEATURES = CPUID_FP87 | CPUID_VME | CPUID_PSE;
+static const uint32_t PENTIUM_FEATURES =
+    I486_FEATURES | CPUID_DE | CPUID_TSC | CPUID_MSR | CPUID_MCE | CPUID_CX8 | CPUID_MMX | CPUID_APIC;
 
-#define TCG_FEATURES                                                                                              \
-    (CPUID_FP87 | CPUID_DE | CPUID_PSE | CPUID_TSC | CPUID_MSR | CPUID_PAE | CPUID_MCE | CPUID_CX8 | CPUID_APIC | \
-     CPUID_SEP | CPUID_MTRR | CPUID_PGE | CPUID_MCA | CPUID_CMOV | CPUID_PAT | CPUID_PSE36 | CPUID_CLFLUSH |      \
-     CPUID_ACPI | CPUID_MMX | CPUID_FXSR | CPUID_SSE | CPUID_SSE2 | CPUID_SS)
+static const uint32_t PENTIUM2_FEATURES = (PENTIUM_FEATURES | CPUID_PAE | CPUID_SEP | CPUID_MTRR | CPUID_PGE |
+                                           CPUID_MCA | CPUID_CMOV | CPUID_PAT | CPUID_PSE36 | CPUID_FXSR);
+
+static const uint32_t PENTIUM3_FEATURES = PENTIUM2_FEATURES | CPUID_SSE;
+
+static const uint32_t PPRO_FEATURES =
+    (CPUID_FP87 | CPUID_DE | CPUID_PSE | CPUID_TSC | CPUID_MSR | CPUID_MCE | CPUID_CX8 | CPUID_PGE | CPUID_CMOV |
+     CPUID_PAT | CPUID_FXSR | CPUID_MMX | CPUID_SSE | CPUID_SSE2 | CPUID_PAE | CPUID_SEP | CPUID_APIC);
+
+static const uint32_t EXT2_FEATURE_MASK = 0x0183F3FF;
+
+static const uint32_t TCG_FEATURES =
+    (CPUID_FP87 | CPUID_DE | CPUID_PSE | CPUID_TSC | CPUID_MSR | CPUID_PAE | CPUID_MCE | CPUID_CX8 | CPUID_APIC |
+     CPUID_SEP | CPUID_MTRR | CPUID_PGE | CPUID_MCA | CPUID_CMOV | CPUID_PAT | CPUID_PSE36 | CPUID_CLFLUSH |
+     CPUID_ACPI | CPUID_MMX | CPUID_FXSR | CPUID_SSE | CPUID_SSE2 | CPUID_SS);
+
 /* partly implemented:
 CPUID_MTRR, CPUID_MCA, CPUID_CLFLUSH (needed for Win64)
 CPUID_PSE36 (needed for Solaris) */
 /* missing:
 CPUID_VME, CPUID_DTS, CPUID_SS, CPUID_HT, CPUID_TM, CPUID_PBE */
-#define TCG_EXT_FEATURES \
-    (CPUID_EXT_SSE3 | CPUID_EXT_MONITOR | CPUID_EXT_CX16 | CPUID_EXT_POPCNT | CPUID_EXT_HYPERVISOR | CPUID_EXT_S2E)
+static const uint32_t TCG_EXT_FEATURES =
+    (CPUID_EXT_SSE3 | CPUID_EXT_MONITOR | CPUID_EXT_CX16 | CPUID_EXT_POPCNT | CPUID_EXT_HYPERVISOR | CPUID_EXT_S2E);
+
 /* missing:
 CPUID_EXT_DTES64, CPUID_EXT_DSCPL, CPUID_EXT_VMX, CPUID_EXT_EST,
 CPUID_EXT_TM2, CPUID_EXT_XTPR, CPUID_EXT_PDCM, CPUID_EXT_XSAVE */
-#define TCG_EXT2_FEATURES                                                                                            \
-    ((TCG_FEATURES & EXT2_FEATURE_MASK) | CPUID_EXT2_NX | CPUID_EXT2_MMXEXT | CPUID_EXT2_RDTSCP | CPUID_EXT2_3DNOW | \
-     CPUID_EXT2_3DNOWEXT)
+static const uint32_t TCG_EXT2_FEATURES = ((TCG_FEATURES & EXT2_FEATURE_MASK) | CPUID_EXT2_NX | CPUID_EXT2_MMXEXT |
+                                           CPUID_EXT2_RDTSCP | CPUID_EXT2_3DNOW | CPUID_EXT2_3DNOWEXT);
+
 /* missing:
 CPUID_EXT2_PDPE1GB */
-#define TCG_EXT3_FEATURES (CPUID_EXT3_LAHF_LM | CPUID_EXT3_SVM | CPUID_EXT3_CR8LEG | CPUID_EXT3_ABM | CPUID_EXT3_SSE4A)
-#define TCG_SVM_FEATURES 0
+static const uint32_t TCG_EXT3_FEATURES =
+    (CPUID_EXT3_LAHF_LM | CPUID_EXT3_SVM | CPUID_EXT3_CR8LEG | CPUID_EXT3_ABM | CPUID_EXT3_SSE4A);
+static const uint32_t TCG_SVM_FEATURES = 0;
 
 /* maintains list of cpu model definitions
  */
