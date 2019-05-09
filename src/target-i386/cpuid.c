@@ -707,7 +707,7 @@ void x86_cpu_list(FILE *f, fprintf_function cpu_fprintf, const char *optarg) {
     }
 }
 
-int cpu_x86_register(cpuid_t *cpuid, const char *cpu_model) {
+int cpu_x86_register(cpuid_t *cpuid, const char *cpu_model, int is64) {
     x86_def_t def1, *def = &def1;
 
     memset(def, 0, sizeof(*def));
@@ -741,11 +741,13 @@ int cpu_x86_register(cpuid_t *cpuid, const char *cpu_model) {
 
     cpuid->cpuid_features &= TCG_FEATURES;
     cpuid->cpuid_ext_features &= TCG_EXT_FEATURES;
-    cpuid->cpuid_ext2_features &= (TCG_EXT2_FEATURES
-#ifdef TARGET_X86_64
-                                   | CPUID_EXT2_SYSCALL | CPUID_EXT2_LM
-#endif
-                                   );
+
+    uint32_t ext2_features = TCG_EXT2_FEATURES;
+    if (is64) {
+        ext2_features |= CPUID_EXT2_SYSCALL | CPUID_EXT2_LM;
+    }
+
+    cpuid->cpuid_ext2_features &= ext2_features;
 
     cpuid->cpuid_ext3_features &= TCG_EXT3_FEATURES;
     cpuid->cpuid_svm_features &= TCG_SVM_FEATURES;

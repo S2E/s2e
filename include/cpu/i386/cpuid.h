@@ -59,7 +59,7 @@ void x86_cpudef_setup(void);
 
 void cpu_clear_apic_feature(cpuid_t *cpuid);
 
-int cpu_x86_register(cpuid_t *cpuid, const char *cpu_model);
+int cpu_x86_register(cpuid_t *cpuid, const char *cpu_model, int is64);
 
 void x86_cpu_list(FILE *f, fprintf_function cpu_fprintf, const char *optarg);
 
