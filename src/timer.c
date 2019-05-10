@@ -217,3 +217,11 @@ static void __attribute__((constructor)) init_get_clock(void) {
     }
 #endif
 }
+
+/* TSC handling */
+uint64_t g_clock_start;
+uint64_t g_clock_offset;
+
+uint64_t cpu_get_tsc(void) {
+    return cpu_get_real_ticks() - g_clock_offset + g_clock_start;
+}

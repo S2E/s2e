@@ -18,6 +18,7 @@
 
 #include <cpu/ioport.h>
 #include <math.h>
+#include <timer.h>
 #include "cpu-defs.h"
 #include "cpu.h"
 #include "dyngen-exec.h"
@@ -3235,7 +3236,7 @@ void helper_rdtsc(void) {
     }
     helper_svm_check_intercept_param(SVM_EXIT_RDTSC, 0);
 
-    val = cpu_get_tsc(env) + env->tsc_offset;
+    val = cpu_get_tsc() + env->tsc_offset;
     EAX_W((uint32_t)(val));
     EDX_W((uint32_t)(val >> 32));
 }

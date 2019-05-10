@@ -67,6 +67,10 @@ int64_t cpu_get_ticks(void);
 void cpu_enable_ticks(void);
 void cpu_disable_ticks(void);
 
+uint64_t cpu_get_tsc(void);
+extern uint64_t g_clock_start;
+extern uint64_t g_clock_offset;
+
 static inline CPUTimer *libcpu_new_timer_ms(CPUClock *clock, CPUTimerCB *cb, void *opaque) {
     return libcpu_new_timer(clock, SCALE_MS, cb, opaque);
 }
