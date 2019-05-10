@@ -1577,9 +1577,6 @@ void do_interrupt_x86_hardirq(CPUX86State *env1, int intno, int is_hw) {
     env = saved_env;
 }
 
-/* This should come from sysemu.h - if we could include it here... */
-void libcpu_system_reset_request(void);
-
 /*
  * Check nested exceptions and change to double or triple fault if
  * needed. It should only be called, if this is not an interrupt.
@@ -1597,7 +1594,8 @@ static int check_exception(int intno, int *error_code) {
 
         libcpu_log_mask(CPU_LOG_RESET, "Triple fault\n");
 
-        libcpu_system_reset_request();
+        // TODO: do a reboot
+        exit(-1);
         return EXCP_HLT;
     }
 
@@ -1663,6 +1661,10 @@ void raise_exception_env(int exception_index, CPUX86State *nenv) {
 #else
 #define SMM_REVISION_ID 0x00020000
 #endif
+
+static void cpu_smm_update(CPUX86State *env) {
+    assert(0 && "Not implemented");
+}
 
 void do_smm_enter(CPUX86State *env1) {
     target_ulong sm_state;
@@ -3158,11 +3160,7 @@ target_ulong helper_read_crN(int reg) {
             val = env->cr[reg];
             break;
         case 8:
-            if (!(env->hflags2 & HF2_VINTR_MASK)) {
-                val = cpu_get_apic_tpr(env->apic_state);
-            } else {
-                val = env->v_tpr;
-            }
+            val = env->v_tpr;
             break;
     }
     return val;
@@ -3270,7 +3268,7 @@ void helper_wrmsr_v(target_ulong index, uint64_t val) {
             env->sysenter_eip = val;
             break;
         case MSR_IA32_APICBASE:
-            cpu_set_apic_base(env->apic_state, val);
+            env->v_apic_base = val;
             break;
         case MSR_EFER: {
             uint64_t update_mask;
@@ -3406,7 +3404,7 @@ uint64_t helper_rdmsr_v(uint64_t index) {
             val = env->sysenter_eip;
             break;
         case MSR_IA32_APICBASE:
-            val = cpu_get_apic_base(env->apic_state);
+            val = env->v_apic_base;
             break;
         case MSR_EFER:
             val = env->efer;
@@ -3725,7 +3723,7 @@ static void fpu_raise_exception(void) {
     if (env->cr[0] & CR0_NE_MASK) {
         raise_exception(EXCP10_COPR);
     } else {
-        cpu_set_ferr(env);
+        perror("Not implemented");
     }
 }
 

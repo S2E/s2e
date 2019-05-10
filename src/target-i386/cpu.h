@@ -131,10 +131,6 @@ static inline target_ulong cpu_get_eflags_dirty(CPUX86State *env) {
 void cpu_x86_close(CPUX86State *s);
 int cpu_x86_support_mca_broadcast(CPUX86State *env);
 
-int cpu_get_pic_interrupt(CPUX86State *s);
-/* MSDOS compatibility mode FPU exception support */
-void cpu_set_ferr(CPUX86State *s);
-
 /* this function must always be used to load data in the segment
    cache: it synchronizes the hflags with the segment cache values */
 static inline void cpu_x86_load_seg_cache(CPUX86State *env, int seg_reg, unsigned int selector, target_ulong base,
@@ -344,8 +340,6 @@ static inline void cpu_get_tb_cpu_state(CPUX86State *env, target_ulong *pc, targ
     *flags = env->hflags | (env->mflags & (IOPL_MASK | TF_MASK | RF_MASK | VM_MASK));
 }
 
-void do_cpu_sipi(CPUX86State *env);
-
 /* op_helper.c */
 void do_interrupt(CPUX86State *env);
 void do_interrupt_x86_hardirq(CPUX86State *env, int intno, int is_hw);
@@ -357,7 +351,5 @@ void do_smm_enter(CPUX86State *env1);
 void svm_check_intercept(CPUX86State *env1, uint32_t type);
 
 uint32_t cpu_cc_compute_all(CPUX86State *env1, int op);
-
-void cpu_report_tpr_access(CPUX86State *env, TPRAccess access);
 
 #endif /* CPU_I386_H */

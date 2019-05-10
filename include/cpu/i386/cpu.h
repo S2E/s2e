@@ -255,7 +255,6 @@ int check_hw_breakpoints(CPUX86State *env, int force_dr6_update);
 void hw_breakpoint_insert(CPUX86State *env, int index);
 void hw_breakpoint_remove(CPUX86State *env, int index);
 
-void cpu_smm_update(CPUX86State *env);
 uint64_t cpu_get_tsc(CPUX86State *env);
 
 /* will be suppressed */

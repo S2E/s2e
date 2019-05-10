@@ -982,15 +982,6 @@ static void breakpoint_handler(CPUX86State *env) {
         prev_debug_excp_handler(env);
 }
 
-void cpu_report_tpr_access(CPUX86State *env, TPRAccess access) {
-    TranslationBlock *tb;
-
-    tb = tb_find_pc(env->mem_io_pc);
-    cpu_restore_state(tb, env, env->mem_io_pc);
-
-    apic_handle_tpr_access_report(env->apic_state, env->eip, access);
-}
-
 static void mce_init(CPUX86State *cenv) {
     unsigned int bank;
 
@@ -1063,10 +1054,9 @@ void do_cpu_init(CPUX86State *env1) {
     cpu_state_reset(env);
     env->interrupt_request = sipi;
     env->pat = pat;
-    apic_init_reset(env->apic_state);
     env->halted = !cpu_is_bsp(env);
 }
 
-void do_cpu_sipi(CPUX86State *env) {
-    apic_sipi(env->apic_state);
+int cpu_is_bsp(CPUX86State *env) {
+    return env->cpu_index == 0;
 }

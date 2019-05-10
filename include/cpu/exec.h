@@ -77,10 +77,6 @@ void *get_ram_list_phys_dirty(void);
 uint64_t get_ram_list_phys_dirty_size(void);
 ram_addr_t last_ram_offset(void);
 
-#define FILE_TYPE_BIOS 0
-#define FILE_TYPE_KEYMAP 1
-char *libcpu_find_file(int type, const char *name);
-
 void cpu_dump_state(CPUArchState *env, FILE *f, fprintf_function cpu_fprintf, int flags);
 void cpu_dump_statistics(CPUArchState *env, FILE *f, fprintf_function cpu_fprintf, int flags);
 

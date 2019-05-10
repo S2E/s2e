@@ -30,15 +30,6 @@ extern "C" {
 struct DeviceState;
 typedef struct DeviceState DeviceState;
 
-/* apic.c */
-void cpu_set_apic_base(DeviceState *s, uint64_t val);
-uint64_t cpu_get_apic_base(DeviceState *s);
-void cpu_set_apic_tpr(DeviceState *s, uint8_t val);
-uint8_t cpu_get_apic_tpr(DeviceState *s);
-void apic_init_reset(DeviceState *s);
-void apic_sipi(DeviceState *s);
-void apic_handle_tpr_access_report(DeviceState *d, target_ulong ip, TPRAccess access);
-
 /* pc.c */
 int cpu_is_bsp(CPUX86State *env);
 
