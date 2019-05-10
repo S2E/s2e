@@ -900,20 +900,7 @@ S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMContext *tcgLLVMContext, const Interpr
         chosenModule = PersistentTbCache;
         persistentCacheEnabled = true;
     } else {
-#ifdef CONFIG_SYMBEX_MP
-        const char *op_helper_name = "op_helper.bc." TARGET_ARCH;
-#else
-        const char *op_helper_name = "op_helper_sp.bc." TARGET_ARCH;
-#endif
-        char *filename = libcpu_find_file(FILE_TYPE_BIOS, op_helper_name);
-        if (!filename) {
-            s2e->getWarningsStream() << "Could not find " << op_helper_name << ".\n"
-                                     << "Make sure that the environment variable S2E_SHARED_DIR is set properly.\n";
-            exit(-1);
-        }
-
-        chosenModule = filename;
-        g_free(filename);
+        chosenModule = g_s2e->getBitcodeLibrary();
     }
 
     s2e->getInfoStream() << "Using module " << chosenModule << "\n";
