@@ -168,14 +168,6 @@ void tlb_flush(CPUArchState *env, int flush_global) {
     not_usable_statically(__FUNCTION__, __FILE__, __LINE__);
 }
 
-void apic_init_reset(DeviceState *env) {
-    not_usable_statically(__FUNCTION__, __FILE__, __LINE__);
-}
-
-void apic_sipi(DeviceState *env) {
-    not_usable_statically(__FUNCTION__, __FILE__, __LINE__);
-}
-
 void helper_register_symbol(const char *name, void *address) {
     not_usable_statically(__FUNCTION__, __FILE__, __LINE__);
 }
@@ -201,16 +193,12 @@ void tlb_set_page(CPUArchState *env, target_ulong vaddr, target_phys_addr_t padd
     not_usable_statically(__FUNCTION__, __FILE__, __LINE__);
 }
 
-int cpu_x86_register(CPUX86State *env, const char *cpu_model) {
+int cpu_x86_register(cpuid_t *cpuid, const char *cpu_model, int is64) {
     not_usable_statically(__FUNCTION__, __FILE__, __LINE__);
 }
 
-void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count, uint32_t *eax, uint32_t *ebx, uint32_t *ecx,
+void cpu_x86_cpuid(cpuid_t *cpuid, uint32_t index, uint32_t count, uint32_t *eax, uint32_t *ebx, uint32_t *ecx,
                    uint32_t *edx) {
-    not_usable_statically(__FUNCTION__, __FILE__, __LINE__);
-}
-
-int cpu_is_bsp(CPUX86State *env) {
     not_usable_statically(__FUNCTION__, __FILE__, __LINE__);
 }
 
@@ -261,30 +249,11 @@ void cpu_io_recompile(CPUArchState *env, void *retaddr) {
     not_usable_statically(__FUNCTION__, __FILE__, __LINE__);
 }
 
-uint64_t cpu_get_tsc(CPUX86State *env) {
-    not_usable_statically(__FUNCTION__, __FILE__, __LINE__);
-}
-
 void cpu_loop_exit(CPUArchState *env) {
     not_usable_statically(__FUNCTION__, __FILE__, __LINE__);
 }
 
 void cpu_resume_from_signal(CPUArchState *env1, void *puc) {
-    not_usable_statically(__FUNCTION__, __FILE__, __LINE__);
-}
-
-uint8_t cpu_get_apic_tpr(DeviceState *s) {
-    not_usable_statically(__FUNCTION__, __FILE__, __LINE__);
-}
-
-void apic_handle_tpr_access_report(DeviceState *d, target_ulong ip, TPRAccess access) {
-}
-
-void cpu_set_ferr(CPUX86State *s) {
-    not_usable_statically(__FUNCTION__, __FILE__, __LINE__);
-}
-
-void cpu_smm_update(CPUArchState *env) {
     not_usable_statically(__FUNCTION__, __FILE__, __LINE__);
 }
 
@@ -296,27 +265,11 @@ void cpu_abort(CPUArchState *env, const char *fmt, ...) {
     not_usable_statically(__FUNCTION__, __FILE__, __LINE__);
 }
 
-void cpu_set_apic_base(DeviceState *env, uint64_t val) {
-    not_usable_statically(__FUNCTION__, __FILE__, __LINE__);
-}
-
 int cpu_memory_rw_debug(CPUArchState *env, target_ulong addr, uint8_t *buf, int len, int is_write) {
     not_usable_statically(__FUNCTION__, __FILE__, __LINE__);
 }
 
-uint64_t cpu_get_apic_base(DeviceState *env) {
-    not_usable_statically(__FUNCTION__, __FILE__, __LINE__);
-}
-
 void cpu_exec_init(CPUArchState *env) {
-    not_usable_statically(__FUNCTION__, __FILE__, __LINE__);
-}
-
-void cpu_set_apic_tpr(DeviceState *env, uint8_t val) {
-    not_usable_statically(__FUNCTION__, __FILE__, __LINE__);
-}
-
-void libcpu_system_reset_request(void) {
     not_usable_statically(__FUNCTION__, __FILE__, __LINE__);
 }
 

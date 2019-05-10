@@ -31,7 +31,6 @@ int g_s2e_fork_on_symbolic_address = 0;
 int g_s2e_allow_custom_instructions = 0;
 
 int execute_llvm = 0;
-int generate_llvm = 0;
 int kvm_allowed = 0;
 
 int singlestep = 0;
@@ -454,21 +453,6 @@ void cpu_resume_from_signal(CPUArchState *env1, void *puc) {
     assert(false && "Not usable statically");
 }
 
-uint8_t cpu_get_apic_tpr(DeviceState *s) {
-    assert(false && "Not usable statically");
-}
-
-void apic_handle_tpr_access_report(DeviceState *d, target_ulong ip, TPRAccess access) {
-}
-
-void cpu_set_ferr(CPUX86State *s) {
-    assert(false && "Not usable statically");
-}
-
-void cpu_smm_update(CPUArchState *env) {
-    assert(false && "Not usable statically");
-}
-
 CPUDebugExcpHandler *cpu_set_debug_excp_handler(CPUDebugExcpHandler *handler) {
     assert(false && "Not usable statically");
 }
@@ -477,15 +461,7 @@ void cpu_abort(CPUArchState *env, const char *fmt, ...) {
     assert(false && "Not usable statically");
 }
 
-void cpu_set_apic_base(DeviceState *env, uint64_t val) {
-    assert(false && "Not usable statically");
-}
-
 int cpu_memory_rw_debug(CPUArchState *env, target_ulong addr, uint8_t *buf, int len, int is_write) {
-    assert(false && "Not usable statically");
-}
-
-uint64_t cpu_get_apic_base(DeviceState *env) {
     assert(false && "Not usable statically");
 }
 
@@ -493,14 +469,7 @@ void cpu_exec_init(CPUArchState *env) {
     assert(false && "Not usable statically");
 }
 
-void cpu_set_apic_tpr(DeviceState *env, uint8_t val) {
-    assert(false && "Not usable statically");
-}
-
 extern "C" {
-void libcpu_system_reset_request(void) {
-    assert(false && "Not usable statically");
-}
 
 /* Memory operations */
 void stq_phys(target_phys_addr_t addr, uint64_t val) {
@@ -667,12 +636,6 @@ int tlb_set_page_exec(CPUArchState *env, target_ulong vaddr, target_phys_addr_t 
 void tlb_flush(CPUArchState *env, int flush_global) {
 }
 
-void apic_init_reset(DeviceState *env) {
-}
-
-void apic_sipi(DeviceState *env) {
-}
-
 void helper_register_symbol(const char *name, void *address) {
     llvm::sys::DynamicLibrary::AddSymbol(name, address);
 }
@@ -694,14 +657,11 @@ void tlb_set_page(CPUArchState *env, target_ulong vaddr, target_phys_addr_t padd
                   target_ulong size) {
 }
 
-int cpu_x86_register(CPUX86State *env, const char *cpu_model) {
+int cpu_x86_register(cpuid_t *cpuid, const char *cpu_model, int is64) {
 }
 
-void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count, uint32_t *eax, uint32_t *ebx, uint32_t *ecx,
+void cpu_x86_cpuid(cpuid_t *cpuid, uint32_t index, uint32_t count, uint32_t *eax, uint32_t *ebx, uint32_t *ecx,
                    uint32_t *edx) {
-}
-
-int cpu_is_bsp(CPUX86State *env) {
 }
 
 void s2e_on_privilege_change(unsigned previous, unsigned current) {
