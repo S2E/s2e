@@ -36,10 +36,7 @@
 
 #if defined(CONFIG_SYMBEX)
 #include "tcg/tcg-llvm.h"
-const int has_llvm_engine = 1;
 #endif
-
-int generate_llvm = 0;
 
 int tb_invalidated_flag;
 

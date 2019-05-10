@@ -145,7 +145,7 @@ static void code_gen_alloc(unsigned long tb_size) {
     code_gen_buffer_size = tb_size;
     if (code_gen_buffer_size == 0) {
         /* XXX: needs adjustments */
-        code_gen_buffer_size = (unsigned long) (ram_size / 4);
+        code_gen_buffer_size = (unsigned long) (get_ram_size() / 4);
     }
     if (code_gen_buffer_size < MIN_CODE_GEN_BUFFER_SIZE)
         code_gen_buffer_size = MIN_CODE_GEN_BUFFER_SIZE;

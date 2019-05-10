@@ -73,6 +73,7 @@ TranslationBlock *tb_find_pc(uintptr_t pc_ptr);
 
 bool init_ram_size(int argc, char **argv);
 
+uint64_t get_ram_size(void);
 void *get_ram_list_phys_dirty(void);
 uint64_t get_ram_list_phys_dirty_size(void);
 ram_addr_t last_ram_offset(void);

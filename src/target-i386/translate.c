@@ -7932,14 +7932,6 @@ static inline void gen_intermediate_code_internal(CPUX86State *env, TranslationB
             break;
         }
 #endif
-        if (singlestep) {
-            gen_jmp_im(dc, pc_ptr - dc->cs_base);
-#ifdef CONFIG_SYMBEX
-            gen_eob_event(dc, 1, pc_ptr - dc->cs_base);
-#endif
-            gen_eob(dc);
-            break;
-        }
 
 #if defined(CONFIG_SYMBEX) && defined(STATIC_TRANSLATOR)
         if (tb->last_pc && dc->insPc == tb->last_pc) {

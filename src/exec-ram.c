@@ -94,6 +94,10 @@ bool init_ram_size(int argc, char **argv) {
     return true;
 }
 
+uint64_t get_ram_size(void) {
+    return s_ram_size;
+}
+
 void *get_ram_list_phys_dirty(void) {
     return ram_list.phys_dirty;
 }
