@@ -286,7 +286,10 @@ llvm::ExecutionEngine *ExternalDispatcher::compileModule(llvm::Module *M) {
 
     std::string ErrStr;
     std::unique_ptr<llvm::Module> Owner(M);
-    llvm::ExecutionEngine *EE = EngineBuilder(std::move(Owner)).setErrorStr(&ErrStr).create();
+
+    // Disable optimizations because they cause crashes in LLVM code
+    llvm::ExecutionEngine *EE =
+        EngineBuilder(std::move(Owner)).setOptLevel(CodeGenOpt::None).setErrorStr(&ErrStr).create();
 
     if (!EE) {
         llvm::errs() << "unable to make jit: " << ErrStr << "\n";
