@@ -20,6 +20,10 @@
 
 #define __LIBCPU_INTERRUPT_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Flags for use in ENV->INTERRUPT_PENDING.
 
    The numbers assigned here are non-sequential in order to preserve
@@ -72,6 +76,10 @@
 #define EXCP_HALTED 0x10003    /* cpu is halted (waiting for external event) */
 #ifdef CONFIG_SYMBEX
 #define EXCP_SE 0x10004 /* Symbex engine requested exiting cpu loop */
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 
 #endif

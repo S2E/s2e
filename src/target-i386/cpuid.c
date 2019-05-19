@@ -16,14 +16,16 @@
 /// You should have received a copy of the GNU Library General Public
 /// License along with this library; if not, see <http://www.gnu.org/licenses/>.
 
-#include <bsd/string.h>
 #include <glib.h>
 #include <inttypes.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "cpu.h"
+#include <cpu/config-host.h>
+#include <cpu/i386/cpuid.h>
+#include <libcpu-log.h>
 
 /* feature flags taken from "Intel Processor Identification and the CPUID
  * Instruction" and AMD's "CPUID Specification".  In cases of disagreement
@@ -202,8 +204,6 @@ typedef struct model_features_t {
     uint32_t cpuid;
 } model_features_t;
 
-#define iswhite(c) ((c) && ((c) <= ' ' || '~' < (c)))
-
 /* general substring compare of *[s1..e1) and *[s2..e2).  sx is start of
  * a substring.  ex if !NULL points to the first char after a substring,
  * otherwise the string is assumed to sized by a terminating nul.
@@ -292,39 +292,45 @@ typedef struct x86_def_t {
     uint32_t xlevel2;
 } x86_def_t;
 
-#define I486_FEATURES (CPUID_FP87 | CPUID_VME | CPUID_PSE)
-#define PENTIUM_FEATURES \
-    (I486_FEATURES | CPUID_DE | CPUID_TSC | CPUID_MSR | CPUID_MCE | CPUID_CX8 | CPUID_MMX | CPUID_APIC)
-#define PENTIUM2_FEATURES                                                                                     \
-    (PENTIUM_FEATURES | CPUID_PAE | CPUID_SEP | CPUID_MTRR | CPUID_PGE | CPUID_MCA | CPUID_CMOV | CPUID_PAT | \
-     CPUID_PSE36 | CPUID_FXSR)
-#define PENTIUM3_FEATURES (PENTIUM2_FEATURES | CPUID_SSE)
-#define PPRO_FEATURES                                                                                             \
-    (CPUID_FP87 | CPUID_DE | CPUID_PSE | CPUID_TSC | CPUID_MSR | CPUID_MCE | CPUID_CX8 | CPUID_PGE | CPUID_CMOV | \
-     CPUID_PAT | CPUID_FXSR | CPUID_MMX | CPUID_SSE | CPUID_SSE2 | CPUID_PAE | CPUID_SEP | CPUID_APIC)
-#define EXT2_FEATURE_MASK 0x0183F3FF
+static const uint32_t I486_FEATURES = CPUID_FP87 | CPUID_VME | CPUID_PSE;
+static const uint32_t PENTIUM_FEATURES =
+    I486_FEATURES | CPUID_DE | CPUID_TSC | CPUID_MSR | CPUID_MCE | CPUID_CX8 | CPUID_MMX | CPUID_APIC;
 
-#define TCG_FEATURES                                                                                              \
-    (CPUID_FP87 | CPUID_DE | CPUID_PSE | CPUID_TSC | CPUID_MSR | CPUID_PAE | CPUID_MCE | CPUID_CX8 | CPUID_APIC | \
-     CPUID_SEP | CPUID_MTRR | CPUID_PGE | CPUID_MCA | CPUID_CMOV | CPUID_PAT | CPUID_PSE36 | CPUID_CLFLUSH |      \
-     CPUID_ACPI | CPUID_MMX | CPUID_FXSR | CPUID_SSE | CPUID_SSE2 | CPUID_SS)
+static const uint32_t PENTIUM2_FEATURES = (PENTIUM_FEATURES | CPUID_PAE | CPUID_SEP | CPUID_MTRR | CPUID_PGE |
+                                           CPUID_MCA | CPUID_CMOV | CPUID_PAT | CPUID_PSE36 | CPUID_FXSR);
+
+static const uint32_t PENTIUM3_FEATURES = PENTIUM2_FEATURES | CPUID_SSE;
+
+static const uint32_t PPRO_FEATURES =
+    (CPUID_FP87 | CPUID_DE | CPUID_PSE | CPUID_TSC | CPUID_MSR | CPUID_MCE | CPUID_CX8 | CPUID_PGE | CPUID_CMOV |
+     CPUID_PAT | CPUID_FXSR | CPUID_MMX | CPUID_SSE | CPUID_SSE2 | CPUID_PAE | CPUID_SEP | CPUID_APIC);
+
+static const uint32_t EXT2_FEATURE_MASK = 0x0183F3FF;
+
+static const uint32_t TCG_FEATURES =
+    (CPUID_FP87 | CPUID_DE | CPUID_PSE | CPUID_TSC | CPUID_MSR | CPUID_PAE | CPUID_MCE | CPUID_CX8 | CPUID_APIC |
+     CPUID_SEP | CPUID_MTRR | CPUID_PGE | CPUID_MCA | CPUID_CMOV | CPUID_PAT | CPUID_PSE36 | CPUID_CLFLUSH |
+     CPUID_ACPI | CPUID_MMX | CPUID_FXSR | CPUID_SSE | CPUID_SSE2 | CPUID_SS);
+
 /* partly implemented:
 CPUID_MTRR, CPUID_MCA, CPUID_CLFLUSH (needed for Win64)
 CPUID_PSE36 (needed for Solaris) */
 /* missing:
 CPUID_VME, CPUID_DTS, CPUID_SS, CPUID_HT, CPUID_TM, CPUID_PBE */
-#define TCG_EXT_FEATURES \
-    (CPUID_EXT_SSE3 | CPUID_EXT_MONITOR | CPUID_EXT_CX16 | CPUID_EXT_POPCNT | CPUID_EXT_HYPERVISOR | CPUID_EXT_S2E)
+static const uint32_t TCG_EXT_FEATURES =
+    (CPUID_EXT_SSE3 | CPUID_EXT_MONITOR | CPUID_EXT_CX16 | CPUID_EXT_POPCNT | CPUID_EXT_HYPERVISOR | CPUID_EXT_S2E);
+
 /* missing:
 CPUID_EXT_DTES64, CPUID_EXT_DSCPL, CPUID_EXT_VMX, CPUID_EXT_EST,
 CPUID_EXT_TM2, CPUID_EXT_XTPR, CPUID_EXT_PDCM, CPUID_EXT_XSAVE */
-#define TCG_EXT2_FEATURES                                                                                            \
-    ((TCG_FEATURES & EXT2_FEATURE_MASK) | CPUID_EXT2_NX | CPUID_EXT2_MMXEXT | CPUID_EXT2_RDTSCP | CPUID_EXT2_3DNOW | \
-     CPUID_EXT2_3DNOWEXT)
+static const uint32_t TCG_EXT2_FEATURES = ((TCG_FEATURES & EXT2_FEATURE_MASK) | CPUID_EXT2_NX | CPUID_EXT2_MMXEXT |
+                                           CPUID_EXT2_RDTSCP | CPUID_EXT2_3DNOW | CPUID_EXT2_3DNOWEXT);
+
 /* missing:
 CPUID_EXT2_PDPE1GB */
-#define TCG_EXT3_FEATURES (CPUID_EXT3_LAHF_LM | CPUID_EXT3_SVM | CPUID_EXT3_CR8LEG | CPUID_EXT3_ABM | CPUID_EXT3_SSE4A)
-#define TCG_SVM_FEATURES 0
+static const uint32_t TCG_EXT3_FEATURES =
+    (CPUID_EXT3_LAHF_LM | CPUID_EXT3_SVM | CPUID_EXT3_CR8LEG | CPUID_EXT3_ABM | CPUID_EXT3_SSE4A);
+static const uint32_t TCG_SVM_FEATURES = 0;
 
 /* maintains list of cpu model definitions
  */
@@ -538,26 +544,26 @@ static x86_def_t builtin_x86_defs[] = {
     },
 };
 
-static void x86_cpuid_version_set_family(CPUX86State *env, int family) {
-    env->cpuid_version &= ~0xff00f00;
+static void x86_cpuid_version_set_family(cpuid_t *cpuid, int family) {
+    cpuid->cpuid_version &= ~0xff00f00;
     if (family > 0x0f) {
-        env->cpuid_version |= 0xf00 | ((family - 0x0f) << 20);
+        cpuid->cpuid_version |= 0xf00 | ((family - 0x0f) << 20);
     } else {
-        env->cpuid_version |= family << 8;
+        cpuid->cpuid_version |= family << 8;
     }
 }
 
-static void x86_cpuid_version_set_model(CPUX86State *env, int model) {
-    env->cpuid_version &= ~0xf00f0;
-    env->cpuid_version |= ((model & 0xf) << 4) | ((model >> 4) << 16);
+static void x86_cpuid_version_set_model(cpuid_t *cpuid, int model) {
+    cpuid->cpuid_version &= ~0xf00f0;
+    cpuid->cpuid_version |= ((model & 0xf) << 4) | ((model >> 4) << 16);
 }
 
-static void x86_cpuid_version_set_stepping(CPUX86State *env, int stepping) {
-    env->cpuid_version &= ~0xf;
-    env->cpuid_version |= stepping & 0xf;
+static void x86_cpuid_version_set_stepping(cpuid_t *cpuid, int stepping) {
+    cpuid->cpuid_version &= ~0xf;
+    cpuid->cpuid_version |= stepping & 0xf;
 }
 
-static void x86_cpuid_set_model_id(CPUX86State *env, const char *model_id) {
+static void x86_cpuid_set_model_id(cpuid_t *cpuid, const char *model_id) {
     int c, len, i;
 
     if (model_id == NULL) {
@@ -570,7 +576,7 @@ static void x86_cpuid_set_model_id(CPUX86State *env, const char *model_id) {
         } else {
             c = (uint8_t) model_id[i];
         }
-        env->cpuid_model[i >> 2] |= c << (8 * (i & 3));
+        cpuid->cpuid_model[i >> 2] |= c << (8 * (i & 3));
     }
 }
 
@@ -704,7 +710,7 @@ void x86_cpu_list(FILE *f, fprintf_function cpu_fprintf, const char *optarg) {
     }
 }
 
-int cpu_x86_register(CPUX86State *env, const char *cpu_model) {
+int cpu_x86_register(cpuid_t *cpuid, const char *cpu_model, int is64) {
     x86_def_t def1, *def = &def1;
 
     memset(def, 0, sizeof(*def));
@@ -712,47 +718,49 @@ int cpu_x86_register(CPUX86State *env, const char *cpu_model) {
     if (cpu_x86_find_by_name(def, cpu_model) < 0)
         return -1;
     if (def->vendor1) {
-        env->cpuid_vendor1 = def->vendor1;
-        env->cpuid_vendor2 = def->vendor2;
-        env->cpuid_vendor3 = def->vendor3;
+        cpuid->cpuid_vendor1 = def->vendor1;
+        cpuid->cpuid_vendor2 = def->vendor2;
+        cpuid->cpuid_vendor3 = def->vendor3;
     } else {
-        env->cpuid_vendor1 = CPUID_VENDOR_INTEL_1;
-        env->cpuid_vendor2 = CPUID_VENDOR_INTEL_2;
-        env->cpuid_vendor3 = CPUID_VENDOR_INTEL_3;
+        cpuid->cpuid_vendor1 = CPUID_VENDOR_INTEL_1;
+        cpuid->cpuid_vendor2 = CPUID_VENDOR_INTEL_2;
+        cpuid->cpuid_vendor3 = CPUID_VENDOR_INTEL_3;
     }
-    env->cpuid_vendor_override = def->vendor_override;
-    env->cpuid_level = def->level;
-    x86_cpuid_version_set_family(env, def->family);
-    x86_cpuid_version_set_model(env, def->model);
-    x86_cpuid_version_set_stepping(env, def->stepping);
-    env->cpuid_features = def->features;
-    env->cpuid_ext_features = def->ext_features;
-    env->cpuid_ext2_features = def->ext2_features;
-    env->cpuid_ext3_features = def->ext3_features;
-    env->cpuid_xlevel = def->xlevel;
-    env->cpuid_kvm_features = def->kvm_features;
-    env->cpuid_svm_features = def->svm_features;
-    env->cpuid_ext4_features = def->ext4_features;
-    env->cpuid_xlevel2 = def->xlevel2;
-    env->tsc_khz = def->tsc_khz;
+    cpuid->cpuid_vendor_override = def->vendor_override;
+    cpuid->cpuid_level = def->level;
+    x86_cpuid_version_set_family(cpuid, def->family);
+    x86_cpuid_version_set_model(cpuid, def->model);
+    x86_cpuid_version_set_stepping(cpuid, def->stepping);
+    cpuid->cpuid_features = def->features;
+    cpuid->cpuid_ext_features = def->ext_features;
+    cpuid->cpuid_ext2_features = def->ext2_features;
+    cpuid->cpuid_ext3_features = def->ext3_features;
+    cpuid->cpuid_xlevel = def->xlevel;
+    cpuid->cpuid_kvm_features = def->kvm_features;
+    cpuid->cpuid_svm_features = def->svm_features;
+    cpuid->cpuid_ext4_features = def->ext4_features;
+    cpuid->cpuid_xlevel2 = def->xlevel2;
+    cpuid->tsc_khz = def->tsc_khz;
 
-    env->cpuid_features &= TCG_FEATURES;
-    env->cpuid_ext_features &= TCG_EXT_FEATURES;
-    env->cpuid_ext2_features &= (TCG_EXT2_FEATURES
-#ifdef TARGET_X86_64
-                                 | CPUID_EXT2_SYSCALL | CPUID_EXT2_LM
-#endif
-                                 );
+    cpuid->cpuid_features &= TCG_FEATURES;
+    cpuid->cpuid_ext_features &= TCG_EXT_FEATURES;
 
-    env->cpuid_ext3_features &= TCG_EXT3_FEATURES;
-    env->cpuid_svm_features &= TCG_SVM_FEATURES;
+    uint32_t ext2_features = TCG_EXT2_FEATURES;
+    if (is64) {
+        ext2_features |= CPUID_EXT2_SYSCALL | CPUID_EXT2_LM;
+    }
 
-    x86_cpuid_set_model_id(env, def->model_id);
+    cpuid->cpuid_ext2_features &= ext2_features;
+
+    cpuid->cpuid_ext3_features &= TCG_EXT3_FEATURES;
+    cpuid->cpuid_svm_features &= TCG_SVM_FEATURES;
+
+    x86_cpuid_set_model_id(cpuid, def->model_id);
     return 0;
 }
 
-void cpu_clear_apic_feature(CPUX86State *env) {
-    env->cpuid_features &= ~CPUID_APIC;
+void cpu_clear_apic_feature(cpuid_t *cpuid) {
+    cpuid->cpuid_features &= ~CPUID_APIC;
 }
 
 /* register "cpudef" models defined in configuration file.  Here we first
@@ -768,45 +776,45 @@ void x86_cpudef_setup(void) {
     }
 }
 
-static void get_cpuid_vendor(CPUX86State *env, uint32_t *ebx, uint32_t *ecx, uint32_t *edx) {
-    *ebx = env->cpuid_vendor1;
-    *edx = env->cpuid_vendor2;
-    *ecx = env->cpuid_vendor3;
+static void get_cpuid_vendor(cpuid_t *cpuid, uint32_t *ebx, uint32_t *ecx, uint32_t *edx) {
+    *ebx = cpuid->cpuid_vendor1;
+    *edx = cpuid->cpuid_vendor2;
+    *ecx = cpuid->cpuid_vendor3;
 }
 
-void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count, uint32_t *eax, uint32_t *ebx, uint32_t *ecx,
+void cpu_x86_cpuid(cpuid_t *cpuid, uint32_t index, uint32_t count, uint32_t *eax, uint32_t *ebx, uint32_t *ecx,
                    uint32_t *edx) {
     /* test if maximum index reached */
     if (index & 0x80000000) {
-        if (index > env->cpuid_xlevel) {
-            if (env->cpuid_xlevel2 > 0) {
+        if (index > cpuid->cpuid_xlevel) {
+            if (cpuid->cpuid_xlevel2 > 0) {
                 /* Handle the Centaur's CPUID instruction. */
-                if (index > env->cpuid_xlevel2) {
-                    index = env->cpuid_xlevel2;
+                if (index > cpuid->cpuid_xlevel2) {
+                    index = cpuid->cpuid_xlevel2;
                 } else if (index < 0xC0000000) {
-                    index = env->cpuid_xlevel;
+                    index = cpuid->cpuid_xlevel;
                 }
             } else {
-                index = env->cpuid_xlevel;
+                index = cpuid->cpuid_xlevel;
             }
         }
     } else {
-        if (index > env->cpuid_level)
-            index = env->cpuid_level;
+        if (index > cpuid->cpuid_level)
+            index = cpuid->cpuid_level;
     }
 
     switch (index) {
         case 0:
-            *eax = env->cpuid_level;
-            get_cpuid_vendor(env, ebx, ecx, edx);
+            *eax = cpuid->cpuid_level;
+            get_cpuid_vendor(cpuid, ebx, ecx, edx);
             break;
         case 1:
-            *eax = env->cpuid_version;
-            *ebx = (env->cpuid_apic_id << 24) | 8 << 8; /* CLFLUSH size in quad words, Linux wants it. */
-            *ecx = env->cpuid_ext_features;
-            *edx = env->cpuid_features;
-            if (env->nr_cores * env->nr_threads > 1) {
-                *ebx |= (env->nr_cores * env->nr_threads) << 16;
+            *eax = cpuid->cpuid_version;
+            *ebx = (cpuid->cpuid_apic_id << 24) | 8 << 8; /* CLFLUSH size in quad words, Linux wants it. */
+            *ecx = cpuid->cpuid_ext_features;
+            *edx = cpuid->cpuid_features;
+            if (cpuid->nr_cores * cpuid->nr_threads > 1) {
+                *ebx |= (cpuid->nr_cores * cpuid->nr_threads) << 16;
                 *edx |= 1 << 28; /* HTT bit */
             }
             break;
@@ -819,8 +827,8 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count, uint32_t *e
             break;
         case 4:
             /* cache info: needed for Core compatibility */
-            if (env->nr_cores > 1) {
-                *eax = (env->nr_cores - 1) << 26;
+            if (cpuid->nr_cores > 1) {
+                *eax = (cpuid->nr_cores - 1) << 26;
             } else {
                 *eax = 0;
             }
@@ -839,8 +847,8 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count, uint32_t *e
                     break;
                 case 2: /* L2 cache info */
                     *eax |= 0x0000143;
-                    if (env->nr_threads > 1) {
-                        *eax |= (env->nr_threads - 1) << 14;
+                    if (cpuid->nr_threads > 1) {
+                        *eax |= (cpuid->nr_threads - 1) << 14;
                     }
                     *ebx = 0x3c0003f;
                     *ecx = 0x0000fff;
@@ -889,7 +897,7 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count, uint32_t *e
             break;
         case 0xD:
             /* Processor Extended State */
-            if (!(env->cpuid_ext_features & CPUID_EXT_XSAVE)) {
+            if (!(cpuid->cpuid_ext_features & CPUID_EXT_XSAVE)) {
                 *eax = 0;
                 *ebx = 0;
                 *ecx = 0;
@@ -902,24 +910,24 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count, uint32_t *e
             *edx = 0;
             break;
         case 0x80000000:
-            *eax = env->cpuid_xlevel;
-            *ebx = env->cpuid_vendor1;
-            *edx = env->cpuid_vendor2;
-            *ecx = env->cpuid_vendor3;
+            *eax = cpuid->cpuid_xlevel;
+            *ebx = cpuid->cpuid_vendor1;
+            *edx = cpuid->cpuid_vendor2;
+            *ecx = cpuid->cpuid_vendor3;
             break;
         case 0x80000001:
-            *eax = env->cpuid_version;
+            *eax = cpuid->cpuid_version;
             *ebx = 0;
-            *ecx = env->cpuid_ext3_features;
-            *edx = env->cpuid_ext2_features;
+            *ecx = cpuid->cpuid_ext3_features;
+            *edx = cpuid->cpuid_ext2_features;
 
             /* The Linux kernel checks for the CMPLegacy bit and
              * discards multiple thread information if it is set.
              * So dont set it here for Intel to make Linux guests happy.
              */
-            if (env->nr_cores * env->nr_threads > 1) {
+            if (cpuid->nr_cores * cpuid->nr_threads > 1) {
                 uint32_t tebx, tecx, tedx;
-                get_cpuid_vendor(env, &tebx, &tecx, &tedx);
+                get_cpuid_vendor(cpuid, &tebx, &tecx, &tedx);
                 if (tebx != CPUID_VENDOR_INTEL_1 || tedx != CPUID_VENDOR_INTEL_2 || tecx != CPUID_VENDOR_INTEL_3) {
                     *ecx |= 1 << 1; /* CmpLegacy bit */
                 }
@@ -928,10 +936,10 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count, uint32_t *e
         case 0x80000002:
         case 0x80000003:
         case 0x80000004:
-            *eax = env->cpuid_model[(index - 0x80000002) * 4 + 0];
-            *ebx = env->cpuid_model[(index - 0x80000002) * 4 + 1];
-            *ecx = env->cpuid_model[(index - 0x80000002) * 4 + 2];
-            *edx = env->cpuid_model[(index - 0x80000002) * 4 + 3];
+            *eax = cpuid->cpuid_model[(index - 0x80000002) * 4 + 0];
+            *ebx = cpuid->cpuid_model[(index - 0x80000002) * 4 + 1];
+            *ecx = cpuid->cpuid_model[(index - 0x80000002) * 4 + 2];
+            *edx = cpuid->cpuid_model[(index - 0x80000002) * 4 + 3];
             break;
         case 0x80000005:
             /* cache info (L1 cache) */
@@ -950,12 +958,12 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count, uint32_t *e
         case 0x80000008:
             /* virtual & phys address size in low 2 bytes. */
             /* XXX: This value must match the one used in the MMU code. */
-            if (env->cpuid_ext2_features & CPUID_EXT2_LM) {
+            if (cpuid->cpuid_ext2_features & CPUID_EXT2_LM) {
                 /* 64 bit processor */
                 /* XXX: The physical address space is limited to 42 bits in exec.c. */
                 *eax = 0x00003028; /* 48 bits virtual, 40 bits physical */
             } else {
-                if (env->cpuid_features & CPUID_PSE36)
+                if (cpuid->cpuid_features & CPUID_PSE36)
                     *eax = 0x00000024; /* 36 bits physical */
                 else
                     *eax = 0x00000020; /* 32 bits physical */
@@ -963,16 +971,16 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count, uint32_t *e
             *ebx = 0;
             *ecx = 0;
             *edx = 0;
-            if (env->nr_cores * env->nr_threads > 1) {
-                *ecx |= (env->nr_cores * env->nr_threads) - 1;
+            if (cpuid->nr_cores * cpuid->nr_threads > 1) {
+                *ecx |= (cpuid->nr_cores * cpuid->nr_threads) - 1;
             }
             break;
         case 0x8000000A:
-            if (env->cpuid_ext3_features & CPUID_EXT3_SVM) {
+            if (cpuid->cpuid_ext3_features & CPUID_EXT3_SVM) {
                 *eax = 0x00000001; /* SVM Revision */
                 *ebx = 0x00000010; /* nr of ASIDs */
                 *ecx = 0;
-                *edx = env->cpuid_svm_features; /* optional features */
+                *edx = cpuid->cpuid_svm_features; /* optional features */
             } else {
                 *eax = 0;
                 *ebx = 0;
@@ -981,17 +989,17 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count, uint32_t *e
             }
             break;
         case 0xC0000000:
-            *eax = env->cpuid_xlevel2;
+            *eax = cpuid->cpuid_xlevel2;
             *ebx = 0;
             *ecx = 0;
             *edx = 0;
             break;
         case 0xC0000001:
             /* Support for VIA CPU's CPUID instruction */
-            *eax = env->cpuid_version;
+            *eax = cpuid->cpuid_version;
             *ebx = 0;
             *ecx = 0;
-            *edx = env->cpuid_ext4_features;
+            *edx = cpuid->cpuid_ext4_features;
             break;
         case 0xC0000002:
         case 0xC0000003:

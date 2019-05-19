@@ -6885,7 +6885,7 @@ reswitch:
         case 0x134: /* sysenter */
             SET_TB_TYPE(TB_SYSENTER);
             /* For Intel SYSENTER is valid on 64-bit */
-            if (CODE64(s) && cpu_single_env->cpuid_vendor1 != CPUID_VENDOR_INTEL_1)
+            if (CODE64(s) && cpu_single_env->cpuid.cpuid_vendor1 != CPUID_VENDOR_INTEL_1)
                 goto illegal_op;
             if (!s->pe) {
                 gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
@@ -6903,7 +6903,7 @@ reswitch:
             break;
         case 0x135: /* sysexit */
             /* For Intel SYSEXIT is valid on 64-bit */
-            if (CODE64(s) && cpu_single_env->cpuid_vendor1 != CPUID_VENDOR_INTEL_1)
+            if (CODE64(s) && cpu_single_env->cpuid.cpuid_vendor1 != CPUID_VENDOR_INTEL_1)
                 goto illegal_op;
             if (!s->pe) {
                 gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
@@ -7725,10 +7725,10 @@ static inline void gen_intermediate_code_internal(CPUX86State *env, TranslationB
         else
             dc->mem_index = 1 * 4;
     }
-    dc->cpuid_features = env->cpuid_features;
-    dc->cpuid_ext_features = env->cpuid_ext_features;
-    dc->cpuid_ext2_features = env->cpuid_ext2_features;
-    dc->cpuid_ext3_features = env->cpuid_ext3_features;
+    dc->cpuid_features = env->cpuid.cpuid_features;
+    dc->cpuid_ext_features = env->cpuid.cpuid_ext_features;
+    dc->cpuid_ext2_features = env->cpuid.cpuid_ext2_features;
+    dc->cpuid_ext3_features = env->cpuid.cpuid_ext3_features;
 #ifdef TARGET_X86_64
     dc->lma = (flags >> HF_LMA_SHIFT) & 1;
     dc->code64 = (flags >> HF_CS64_SHIFT) & 1;
@@ -7932,14 +7932,6 @@ static inline void gen_intermediate_code_internal(CPUX86State *env, TranslationB
             break;
         }
 #endif
-        if (singlestep) {
-            gen_jmp_im(dc, pc_ptr - dc->cs_base);
-#ifdef CONFIG_SYMBEX
-            gen_eob_event(dc, 1, pc_ptr - dc->cs_base);
-#endif
-            gen_eob(dc);
-            break;
-        }
 
 #if defined(CONFIG_SYMBEX) && defined(STATIC_TRANSLATOR)
         if (tb->last_pc && dc->insPc == tb->last_pc) {

@@ -46,7 +46,6 @@ ram_addr_t qemu_ram_alloc_from_ptr(ram_addr_t size, void *host);
 void qemu_ram_free_from_ptr(ram_addr_t addr);
 
 /* memory API */
-extern ram_addr_t ram_size;
 
 typedef struct RAMBlock {
     uint8_t *host;

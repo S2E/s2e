@@ -28,6 +28,10 @@
 #include <libcpu-compiler.h>
 #include <libcpu-log.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* The return address may point to the start of the next instruction.
    Subtracting one gets us the call instruction itself.  */
 #if defined(CONFIG_TCG_INTERPRETER)
@@ -69,13 +73,10 @@ TranslationBlock *tb_find_pc(uintptr_t pc_ptr);
 
 bool init_ram_size(int argc, char **argv);
 
+uint64_t get_ram_size(void);
 void *get_ram_list_phys_dirty(void);
 uint64_t get_ram_list_phys_dirty_size(void);
 ram_addr_t last_ram_offset(void);
-
-#define FILE_TYPE_BIOS 0
-#define FILE_TYPE_KEYMAP 1
-char *libcpu_find_file(int type, const char *name);
 
 void cpu_dump_state(CPUArchState *env, FILE *f, fprintf_function cpu_fprintf, int flags);
 void cpu_dump_statistics(CPUArchState *env, FILE *f, fprintf_function cpu_fprintf, int flags);
@@ -105,6 +106,10 @@ bool is_notdirty_ops(const struct MemoryDescOps *ops);
 
 #ifdef CONFIG_SYMBEX
 bool se_ismemfunc(const struct MemoryDescOps *ops, int isWrite);
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 
 #endif

@@ -22,8 +22,16 @@
 #include <cpu/i386/cpu.h>
 #include <inttypes.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void cpu_host_memory_rw(uintptr_t source, uintptr_t dest, int length, int is_write);
 int cpu_memory_rw_debug(void *opaque_env, target_ulong addr, uint8_t *buf, int len, int is_write);
 void cpu_physical_memory_rw(target_phys_addr_t addr, uint8_t *buf, int len, int is_write);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

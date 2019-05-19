@@ -24,6 +24,10 @@
 #include <cpu/types.h>
 #include <tcg/cpu.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 enum ETranslationBlockType {
     TB_DEFAULT = 0,
     TB_JMP,
@@ -263,5 +267,9 @@ static inline uint8_t tb_get_instruction_size(TranslationBlock *tb, uint64_t add
 void tb_free(TranslationBlock *tb);
 void tb_link_page(TranslationBlock *tb, tb_page_addr_t phys_pc, tb_page_addr_t phys_page2);
 void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __LIBCPU_TB_H__ */

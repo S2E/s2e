@@ -20,6 +20,10 @@
 
 #define __CPU_I386_DEFS__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // clang-format off
 
 /*******************************************/
@@ -345,111 +349,7 @@
 
 #define MSR_VM_HSAVE_PA                 0xc0010117
 
-/* cpuid_features bits */
-#define CPUID_FP87 (1 << 0)
-#define CPUID_VME  (1 << 1)
-#define CPUID_DE   (1 << 2)
-#define CPUID_PSE  (1 << 3)
-#define CPUID_TSC  (1 << 4)
-#define CPUID_MSR  (1 << 5)
-#define CPUID_PAE  (1 << 6)
-#define CPUID_MCE  (1 << 7)
-#define CPUID_CX8  (1 << 8)
-#define CPUID_APIC (1 << 9)
-#define CPUID_SEP  (1 << 11) /* sysenter/sysexit */
-#define CPUID_MTRR (1 << 12)
-#define CPUID_PGE  (1 << 13)
-#define CPUID_MCA  (1 << 14)
-#define CPUID_CMOV (1 << 15)
-#define CPUID_PAT  (1 << 16)
-#define CPUID_PSE36   (1 << 17)
-#define CPUID_PN   (1 << 18)
-#define CPUID_CLFLUSH (1 << 19)
-#define CPUID_DTS (1 << 21)
-#define CPUID_ACPI (1 << 22)
-#define CPUID_MMX  (1 << 23)
-#define CPUID_FXSR (1 << 24)
-#define CPUID_SSE  (1 << 25)
-#define CPUID_SSE2 (1 << 26)
-#define CPUID_SS (1 << 27)
-#define CPUID_HT (1 << 28)
-#define CPUID_TM (1 << 29)
-#define CPUID_IA64 (1 << 30)
-#define CPUID_PBE (1 << 31)
-
-#define CPUID_EXT_SSE3     (1 << 0)
-#define CPUID_EXT_DTES64   (1 << 2)
-#define CPUID_EXT_MONITOR  (1 << 3)
-#define CPUID_EXT_DSCPL    (1 << 4)
-#define CPUID_EXT_VMX      (1 << 5)
-#define CPUID_EXT_SMX      (1 << 6)
-#define CPUID_EXT_EST      (1 << 7)
-#define CPUID_EXT_TM2      (1 << 8)
-#define CPUID_EXT_SSSE3    (1 << 9)
-#define CPUID_EXT_CID      (1 << 10)
-#define CPUID_EXT_CX16     (1 << 13)
-#define CPUID_EXT_XTPR     (1 << 14)
-#define CPUID_EXT_PDCM     (1 << 15)
-#define CPUID_EXT_S2E      (1 << 16)
-#define CPUID_EXT_DCA      (1 << 18)
-#define CPUID_EXT_SSE41    (1 << 19)
-#define CPUID_EXT_SSE42    (1 << 20)
-#define CPUID_EXT_X2APIC   (1 << 21)
-#define CPUID_EXT_MOVBE    (1 << 22)
-#define CPUID_EXT_POPCNT   (1 << 23)
-#define CPUID_EXT_XSAVE    (1 << 26)
-#define CPUID_EXT_OSXSAVE  (1 << 27)
-#define CPUID_EXT_HYPERVISOR  (1 << 31)
-
-#define CPUID_EXT2_SYSCALL (1 << 11)
-#define CPUID_EXT2_MP      (1 << 19)
-#define CPUID_EXT2_NX      (1 << 20)
-#define CPUID_EXT2_MMXEXT  (1 << 22)
-#define CPUID_EXT2_FFXSR   (1 << 25)
-#define CPUID_EXT2_PDPE1GB (1 << 26)
-#define CPUID_EXT2_RDTSCP  (1 << 27)
-#define CPUID_EXT2_LM      (1 << 29)
-#define CPUID_EXT2_3DNOWEXT (1 << 30)
-#define CPUID_EXT2_3DNOW   (1 << 31)
-
-#define CPUID_EXT3_LAHF_LM (1 << 0)
-#define CPUID_EXT3_CMP_LEG (1 << 1)
-#define CPUID_EXT3_SVM     (1 << 2)
-#define CPUID_EXT3_EXTAPIC (1 << 3)
-#define CPUID_EXT3_CR8LEG  (1 << 4)
-#define CPUID_EXT3_ABM     (1 << 5)
-#define CPUID_EXT3_SSE4A   (1 << 6)
-#define CPUID_EXT3_MISALIGNSSE (1 << 7)
-#define CPUID_EXT3_3DNOWPREFETCH (1 << 8)
-#define CPUID_EXT3_OSVW    (1 << 9)
-#define CPUID_EXT3_IBS     (1 << 10)
-#define CPUID_EXT3_SKINIT  (1 << 12)
-
-#define CPUID_SVM_NPT          (1 << 0)
-#define CPUID_SVM_LBRV         (1 << 1)
-#define CPUID_SVM_SVMLOCK      (1 << 2)
-#define CPUID_SVM_NRIPSAVE     (1 << 3)
-#define CPUID_SVM_TSCSCALE     (1 << 4)
-#define CPUID_SVM_VMCBCLEAN    (1 << 5)
-#define CPUID_SVM_FLUSHASID    (1 << 6)
-#define CPUID_SVM_DECODEASSIST (1 << 7)
-#define CPUID_SVM_PAUSEFILTER  (1 << 10)
-#define CPUID_SVM_PFTHRESHOLD  (1 << 12)
-
-#define CPUID_VENDOR_INTEL_1 0x756e6547 /* "Genu" */
-#define CPUID_VENDOR_INTEL_2 0x49656e69 /* "ineI" */
-#define CPUID_VENDOR_INTEL_3 0x6c65746e /* "ntel" */
-
-#define CPUID_VENDOR_AMD_1   0x68747541 /* "Auth" */
-#define CPUID_VENDOR_AMD_2   0x69746e65 /* "enti" */
-#define CPUID_VENDOR_AMD_3   0x444d4163 /* "cAMD" */
-
-#define CPUID_VENDOR_VIA_1   0x746e6543 /* "Cent" */
-#define CPUID_VENDOR_VIA_2   0x48727561 /* "aurH" */
-#define CPUID_VENDOR_VIA_3   0x736c7561 /* "auls" */
-
-#define CPUID_MWAIT_IBE     (1 << 1) /* Interrupts can exit capability */
-#define CPUID_MWAIT_EMX     (1 << 0) /* enumeration supported */
+#include "cpuid.h"
 
 #define EXCP00_DIVZ	0
 #define EXCP01_DB	1
@@ -539,6 +439,10 @@ enum {
 
     CC_OP_NB,
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 // clang-format on
 #endif

@@ -186,13 +186,7 @@ typedef void(CPUDebugExcpHandler)(CPUArchState *env);
 
 CPUDebugExcpHandler *cpu_set_debug_excp_handler(CPUDebugExcpHandler *handler);
 
-/* vl.c */
-extern int singlestep;
-
 /* cpu-exec.c */
 extern volatile sig_atomic_t exit_request;
-
-extern int generate_llvm;
-extern const int has_llvm_engine;
 
 #endif

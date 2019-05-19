@@ -24,6 +24,10 @@
 #include "kvm.h"
 #include "types.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /////////////////////////////////////////////////////////////////////
 typedef uint64_t (*mem_read_t)(uint64_t guest_phys_addr, unsigned size);
 typedef void (*mem_write_t)(uint64_t guest_phys_addr, uint64_t value, unsigned size);
@@ -69,5 +73,9 @@ static inline uint64_t mem_desc_get_offset(const MemoryDesc *r, uint64_t phys_ad
 }
 
 void *mem_desc_get_ram_ptr(const MemoryDesc *r);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

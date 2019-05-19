@@ -18,6 +18,7 @@
 
 #include <cpu/ioport.h>
 #include <math.h>
+#include <timer.h>
 #include "cpu-defs.h"
 #include "cpu.h"
 #include "dyngen-exec.h"
@@ -1577,9 +1578,6 @@ void do_interrupt_x86_hardirq(CPUX86State *env1, int intno, int is_hw) {
     env = saved_env;
 }
 
-/* This should come from sysemu.h - if we could include it here... */
-void libcpu_system_reset_request(void);
-
 /*
  * Check nested exceptions and change to double or triple fault if
  * needed. It should only be called, if this is not an interrupt.
@@ -1597,7 +1595,8 @@ static int check_exception(int intno, int *error_code) {
 
         libcpu_log_mask(CPU_LOG_RESET, "Triple fault\n");
 
-        libcpu_system_reset_request();
+        // TODO: do a reboot
+        exit(-1);
         return EXCP_HLT;
     }
 
@@ -1663,6 +1662,10 @@ void raise_exception_env(int exception_index, CPUX86State *nenv) {
 #else
 #define SMM_REVISION_ID 0x00020000
 #endif
+
+static void cpu_smm_update(CPUX86State *env) {
+    assert(0 && "Not implemented");
+}
 
 void do_smm_enter(CPUX86State *env1) {
     target_ulong sm_state;
@@ -2207,9 +2210,9 @@ void helper_cpuid(void) {
 
     // XXX: workaround to avoid passing symbolic count information
     if (index == 4) {
-        cpu_x86_cpuid(env, (uint32_t) EAX, (uint32_t) ECX, &eax, &ebx, &ecx, &edx);
+        cpu_x86_cpuid(&env->cpuid, (uint32_t) EAX, (uint32_t) ECX, &eax, &ebx, &ecx, &edx);
     } else {
-        cpu_x86_cpuid(env, (uint32_t) EAX, 0, &eax, &ebx, &ecx, &edx);
+        cpu_x86_cpuid(&env->cpuid, (uint32_t) EAX, 0, &eax, &ebx, &ecx, &edx);
     }
     EAX_W(eax);
     EBX_W(ebx);
@@ -3158,11 +3161,7 @@ target_ulong helper_read_crN(int reg) {
             val = env->cr[reg];
             break;
         case 8:
-            if (!(env->hflags2 & HF2_VINTR_MASK)) {
-                val = cpu_get_apic_tpr(env->apic_state);
-            } else {
-                val = env->v_tpr;
-            }
+            val = env->v_tpr;
             break;
     }
     return val;
@@ -3237,7 +3236,7 @@ void helper_rdtsc(void) {
     }
     helper_svm_check_intercept_param(SVM_EXIT_RDTSC, 0);
 
-    val = cpu_get_tsc(env) + env->tsc_offset;
+    val = cpu_get_tsc() + env->tsc_offset;
     EAX_W((uint32_t)(val));
     EDX_W((uint32_t)(val >> 32));
 }
@@ -3270,22 +3269,22 @@ void helper_wrmsr_v(target_ulong index, uint64_t val) {
             env->sysenter_eip = val;
             break;
         case MSR_IA32_APICBASE:
-            cpu_set_apic_base(env->apic_state, val);
+            env->v_apic_base = val;
             break;
         case MSR_EFER: {
             uint64_t update_mask;
             update_mask = 0;
-            if (env->cpuid_ext2_features & CPUID_EXT2_SYSCALL)
+            if (env->cpuid.cpuid_ext2_features & CPUID_EXT2_SYSCALL)
                 update_mask |= MSR_EFER_SCE;
-            if (env->cpuid_ext2_features & CPUID_EXT2_LM)
+            if (env->cpuid.cpuid_ext2_features & CPUID_EXT2_LM)
                 update_mask |= MSR_EFER_LME;
-            if (env->cpuid_ext2_features & CPUID_EXT2_FFXSR)
+            if (env->cpuid.cpuid_ext2_features & CPUID_EXT2_FFXSR)
                 update_mask |= MSR_EFER_FFXSR;
-            if (env->cpuid_ext2_features & CPUID_EXT2_NX)
+            if (env->cpuid.cpuid_ext2_features & CPUID_EXT2_NX)
                 update_mask |= MSR_EFER_NXE;
-            if (env->cpuid_ext3_features & CPUID_EXT3_SVM)
+            if (env->cpuid.cpuid_ext3_features & CPUID_EXT3_SVM)
                 update_mask |= MSR_EFER_SVME;
-            if (env->cpuid_ext2_features & CPUID_EXT2_FFXSR)
+            if (env->cpuid.cpuid_ext2_features & CPUID_EXT2_FFXSR)
                 update_mask |= MSR_EFER_FFXSR;
             cpu_load_efer(env, (env->efer & ~update_mask) | (val & update_mask));
         } break;
@@ -3406,7 +3405,7 @@ uint64_t helper_rdmsr_v(uint64_t index) {
             val = env->sysenter_eip;
             break;
         case MSR_IA32_APICBASE:
-            val = cpu_get_apic_base(env->apic_state);
+            val = env->v_apic_base;
             break;
         case MSR_EFER:
             val = env->efer;
@@ -3490,7 +3489,7 @@ uint64_t helper_rdmsr_v(uint64_t index) {
             val = env->mtrr_deftype;
             break;
         case MSR_MTRRcap:
-            if (env->cpuid_features & CPUID_MTRR)
+            if (env->cpuid.cpuid_features & CPUID_MTRR)
                 val = MSR_MTRRcap_VCNT | MSR_MTRRcap_FIXRANGE_SUPPORT | MSR_MTRRcap_WC_SUPPORTED;
             else
                 /* XXX: exception ? */
@@ -3725,7 +3724,7 @@ static void fpu_raise_exception(void) {
     if (env->cr[0] & CR0_NE_MASK) {
         raise_exception(EXCP10_COPR);
     } else {
-        cpu_set_ferr(env);
+        perror("Not implemented");
     }
 }
 

@@ -27,6 +27,10 @@
 #include <setjmp.h>
 #include <signal.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct CPUBreakpoint {
     target_ulong pc;
     int flags; /* BP_* */
@@ -83,16 +87,17 @@ typedef struct CPUWatchpoint {
     CPUArchState *next_cpu; /* next CPU sharing TB cache */                                           \
     int cpu_index;          /* CPU index (informative) */                                             \
     int numa_node;          /* NUMA node this cpu is belonging to  */                                 \
-    int nr_cores;           /* number of cores within this CPU package */                             \
-    int nr_threads;         /* number of threads within this CPU */                                   \
     int running;            /* Nonzero if cpu is currently running(usermode).  */                                \
     /* user data */                                                                                   \
     void *opaque;                                                                                     \
     unsigned size; /* Size of this structure */                                                       \
                                                                                                       \
     uint32_t created;                                                                                 \
-    uint32_t stop; /* Stop request */                                                                 \
-    const char *cpu_model_str;                                                                        \
+    uint32_t stop;     /* Stop request */                                                             \
     int se_common_end; /* Dummy variable to mark the end of the common area */
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

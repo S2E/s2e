@@ -36,10 +36,7 @@
 
 #if defined(CONFIG_SYMBEX)
 #include "tcg/tcg-llvm.h"
-const int has_llvm_engine = 1;
 #endif
-
-int generate_llvm = 0;
 
 int tb_invalidated_flag;
 
@@ -288,7 +285,6 @@ static bool process_interrupt_request(CPUArchState *env) {
         env->exception_index = EXCP_HALTED;
         cpu_loop_exit(env);
     } else if (interrupt_request & CPU_INTERRUPT_SIPI) {
-        do_cpu_sipi(env);
         perror("Not implemented");
     } else if (env->hflags2 & HF2_GIF_MASK) {
         if ((interrupt_request & CPU_INTERRUPT_SMI) && !(env->hflags & HF_SMM_MASK)) {
@@ -312,7 +308,8 @@ static bool process_interrupt_request(CPUArchState *env) {
             int intno;
             svm_check_intercept(env, SVM_EXIT_INTR);
             env->interrupt_request &= ~(CPU_INTERRUPT_HARD | CPU_INTERRUPT_VIRQ);
-            intno = cpu_get_pic_interrupt(env);
+            intno = env->kvm_irq;
+            env->kvm_irq = -1;
 
             libcpu_log_mask(CPU_LOG_INT, "Servicing hardware INT=0x%02x\n", intno);
             if (intno >= 0) {

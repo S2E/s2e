@@ -374,9 +374,6 @@ void run_on_cpu(CPUArchState *env, void (*func)(void *data), void *data);
 void list_mapped_pages(CPUX86State *env, unsigned rw_only, unsigned user_only, target_ulong **pages_addr,
                        size_t *pages_count);
 
-extern const char *mem_path;
-extern int mem_prealloc;
-
 void cpu_tlb_update_dirty(CPUArchState *env);
 
 void dump_exec_info(FILE *f, fprintf_function cpu_fprintf);

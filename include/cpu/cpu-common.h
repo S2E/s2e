@@ -22,6 +22,10 @@
 
 #include <cpu/types.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void cpu_physical_memory_rw(target_phys_addr_t addr, uint8_t *buf, int len, int is_write);
 
 void cpu_host_memory_rw(uintptr_t source, uintptr_t dest, int length, int is_write);
@@ -45,5 +49,9 @@ void stl_phys(target_phys_addr_t addr, uint32_t val);
 void stq_phys(target_phys_addr_t addr, uint64_t val);
 
 void stl_phys_notdirty(target_phys_addr_t addr, uint32_t val);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* !CPU_COMMON_H */

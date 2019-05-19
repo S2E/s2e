@@ -27,7 +27,12 @@
 #include <cpu/types.h>
 #include <fpu/softfloat.h>
 #include <stdbool.h>
+#include "cpuid.h"
 #include "defs.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef struct SegmentCache {
     uint32_t selector;
@@ -190,22 +195,7 @@ typedef struct CPUX86State {
     uint64_t pat;
 
     /* processor features (e.g. for CPUID insn) */
-    uint32_t cpuid_level;
-    uint32_t cpuid_vendor1;
-    uint32_t cpuid_vendor2;
-    uint32_t cpuid_vendor3;
-    uint32_t cpuid_version;
-    uint32_t cpuid_features;
-    uint32_t cpuid_ext_features;
-    uint32_t cpuid_xlevel;
-    uint32_t cpuid_model[12];
-    uint32_t cpuid_ext2_features;
-    uint32_t cpuid_ext3_features;
-    uint32_t cpuid_apic_id;
-    int cpuid_vendor_override;
-    /* Store the results of Centaur's CPUID instructions */
-    uint32_t cpuid_xlevel2;
-    uint32_t cpuid_ext4_features;
+    struct cpuid_t cpuid;
 
     /* MTRRs */
     uint64_t mtrr_fixed[11];
@@ -213,9 +203,6 @@ typedef struct CPUX86State {
     MTRRVar mtrr_var[8];
 
     /* For KVM */
-    uint32_t cpuid_kvm_features;
-    uint32_t cpuid_svm_features;
-    int tsc_khz;
     int kvm_request_interrupt_window;
     int kvm_irq;
 
@@ -248,11 +235,7 @@ typedef struct CPUX86State {
 
 void do_cpu_init(CPUX86State *env);
 
-void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count, uint32_t *eax, uint32_t *ebx, uint32_t *ecx,
-                   uint32_t *edx);
-
-void x86_cpudef_setup(void);
-CPUX86State *cpu_x86_init(const char *cpu_model);
+CPUX86State *cpu_x86_init(const cpuid_t *cpuid);
 int cpu_x86_exec(CPUX86State *s);
 
 static inline bool cpu_has_work(CPUX86State *env) {
@@ -272,9 +255,6 @@ int check_hw_breakpoints(CPUX86State *env, int force_dr6_update);
 void hw_breakpoint_insert(CPUX86State *env, int index);
 void hw_breakpoint_remove(CPUX86State *env, int index);
 
-void cpu_smm_update(CPUX86State *env);
-uint64_t cpu_get_tsc(CPUX86State *env);
-
 /* will be suppressed */
 void cpu_x86_update_cr0(CPUX86State *env, uint32_t new_cr0);
 void cpu_x86_update_cr3(CPUX86State *env, target_ulong new_cr3);
@@ -285,5 +265,9 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr, int is_write, 
 void cpu_set_eflags(CPUX86State *env, target_ulong eflags);
 
 uint32_t cpu_compute_hflags(const CPUX86State *env);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
