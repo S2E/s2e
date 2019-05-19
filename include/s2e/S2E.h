@@ -93,6 +93,8 @@ protected:
     PluginManager m_pluginManager;
     std::string m_outputDirectory;
 
+    std::string m_bitcodeLibraryDir;
+
     LogLevel m_globalLogLevel;
     bool m_hasGlobalLogLevel;
     LogLevel m_consoleLevel;
@@ -135,7 +137,7 @@ protected:
     llvm::raw_ostream &getStream(llvm::raw_ostream &stream, const S2EExecutionState *state) const;
 
 public:
-    S2E();
+    S2E(const std::string &bitcodeLibraryDir);
     ~S2E();
 
     /** Construct S2E */
@@ -232,6 +234,7 @@ public:
         m_pluginManager.refreshPlugins();
     }
 
+    std::string getBitcodeLibrary();
     void writeBitCodeToFile();
 
     int fork();

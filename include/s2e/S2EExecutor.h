@@ -205,6 +205,8 @@ public:
      */
     klee::Executor::StatePair forkAndConcretize(S2EExecutionState *state, klee::ref<klee::Expr> &value_);
 
+    static bool findFile(const std::string &dataDir, const std::string &name, std::string &ret);
+
 protected:
     void updateClockScaling();
 

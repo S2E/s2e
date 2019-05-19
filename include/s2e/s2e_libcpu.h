@@ -43,7 +43,8 @@ struct PCIBus;
 
 /** Initialize S2E instance. Called by main() */
 void s2e_initialize(int argc, char **argv, struct TCGLLVMContext *tcgLLVMContext, const char *s2e_config_file,
-                    const char *s2e_output_dir, int setup_unbuffered_stream, int verbose, unsigned max_processes);
+                    const char *s2e_output_dir, int setup_unbuffered_stream, int verbose, unsigned max_processes,
+                    const char *shared_dir);
 
 /** Relese S2E instance and all S2E-related objects. Called by main() */
 void s2e_close(void);

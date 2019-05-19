@@ -65,7 +65,8 @@ namespace s2e {
 
 using namespace std;
 
-S2E::S2E() {
+S2E::S2E(const std::string &bitcodeLibraryDir) {
+    m_bitcodeLibraryDir = bitcodeLibraryDir;
 }
 
 bool S2E::initialize(int argc, char **argv, TCGLLVMContext *tcgLLVMContext, const std::string &configFileName,
@@ -189,6 +190,25 @@ bool S2E::backupConfigFiles(const std::string &configFileName) {
     }
 
     return true;
+}
+
+std::string S2E::getBitcodeLibrary() {
+#ifdef CONFIG_SYMBEX_MP
+    std::string name = "op_helper.bc." TARGET_ARCH;
+#else
+    std::string name = "op_helper_sp.bc." TARGET_ARCH;
+#endif
+
+    std::stringstream ss;
+    ss << m_bitcodeLibraryDir << "/" << name;
+    auto ret = ss.str();
+    if (access(ret.c_str(), R_OK)) {
+        getWarningsStream() << "Could not find " << ret << ".\n"
+                            << "Make sure that the environment variable S2E_SHARED_DIR is set properly.\n";
+        exit(-1);
+    }
+
+    return ret;
 }
 
 void S2E::writeBitCodeToFile() {
@@ -622,8 +642,9 @@ void *get_s2e(void) {
 }
 
 void s2e_initialize(int argc, char **argv, TCGLLVMContext *tcgLLVMContext, const char *s2e_config_file,
-                    const char *s2e_output_dir, int setup_unbuffered_stream, int verbose, unsigned s2e_max_processes) {
-    g_s2e = new s2e::S2E();
+                    const char *s2e_output_dir, int setup_unbuffered_stream, int verbose, unsigned s2e_max_processes,
+                    const char *bitcode_lib_dir) {
+    g_s2e = new s2e::S2E(bitcode_lib_dir);
     if (!g_s2e->initialize(argc, argv, tcgLLVMContext, s2e_config_file ? s2e_config_file : "",
                            s2e_output_dir ? s2e_output_dir : "", setup_unbuffered_stream, verbose, s2e_max_processes)) {
         exit(-1);
