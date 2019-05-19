@@ -13,6 +13,7 @@
 #include <s2e/ExprInterface.h>
 #include <s2e/s2e_libcpu.h>
 
+extern "C" {
 // XXX: move these declarations to s2e
 uint8_t __ldb_mmu_trace(uint8_t *host_addr, target_ulong vaddr);
 uint16_t __ldw_mmu_trace(uint16_t *host_addr, target_ulong vaddr);
@@ -25,6 +26,7 @@ void __stl_mmu_trace(uint32_t *host_addr, target_ulong vaddr);
 void __stq_mmu_trace(uint64_t *host_addr, target_ulong vaddr);
 
 extern se_do_interrupt_all_t g_s2e_do_interrupt_all;
+}
 #endif
 
 void init_s2e_libcpu_interface(struct se_libcpu_interface_t *sqi) {

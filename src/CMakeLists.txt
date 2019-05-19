@@ -5,19 +5,20 @@
 
 add_library(
     s2e SHARED
-    libs2e.c
-    s2e-kvm-interface.c
-    s2e-kvm-io.c
-    s2e-kvm-libcpu-stubs.c
-    s2e-kvm-state.c
-    s2e-kvm-trace.c
-    s2e-libcpu-interface.c
+    libs2e.cpp
+    s2e-kvm-io.cpp
+    s2e-kvm-state.cpp
+    s2e-kvm-trace.cpp
+    s2e-kvm.cpp
+    s2e-kvm-vm.cpp
+    s2e-kvm-vcpu.cpp
+    s2e-libcpu-interface.cpp
     crashdump.cpp
 )
 
 add_executable(
     tests2e
-    test.c
+    test.cpp
 )
 
 # Specify whole path for libraries so that libs2e can be relinked if any of them changes.
@@ -41,7 +42,6 @@ if(WITH_TARGET MATCHES "s2e")
                      lua
                      ${LLVM_LIBS}
                      z3
-                     ${FSIGCXX_LIBRARY_DIR}/libfsigc++.a
                      ${LIBQ_LIBRARY_DIR}/libq.a
                      ${PROTOBUF_LIBRARIES})
     set(LIBS ${LIBS} boost_serialization
@@ -49,7 +49,7 @@ if(WITH_TARGET MATCHES "s2e")
                      boost_regex)
 endif()
 
-set(LIBS ${LIBS} ${LIBCOROUTINE_LIBRARY_DIR}/libcoroutine.a  ${CAPSTONE_LIB_DIR}/libcapstone.a pthread glib-2.0 bsd)
+set(LIBS ${LIBS} ${LIBCOROUTINE_LIBRARY_DIR}/libcoroutine.a ${FSIGCXX_LIBRARY_DIR}/libfsigc++.a ${CAPSTONE_LIB_DIR}/libcapstone.a pthread glib-2.0 bsd)
 
 target_link_libraries(tests2e PUBLIC ${LIBCOROUTINE_LIBRARY_DIR}/libcoroutine.a pthread glib-2.0)
 target_link_libraries(s2e ${LIBS})
