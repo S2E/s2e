@@ -9,6 +9,10 @@
 
 #include <linux/types.h>
 
+#ifndef BIT
+#define BIT(n) (1 << (n))
+#endif
+
 #include <asm/kvm.h>
 #include <linux/ioctl.h>
 
