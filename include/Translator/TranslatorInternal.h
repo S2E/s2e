@@ -22,6 +22,8 @@
 
 #include <tcg/tcg-llvm.h>
 
+#include <cpu/i386/cpuid.h>
+
 extern "C" {
 #include <cpu-all.h>
 #include <exec-all.h>
@@ -444,13 +446,14 @@ TranslatedBlock *X86Translator::translate(uint64_t address, uint64_t lastAddress
     // It is much easier to rebuild basic blocks this way.
     env.singlestep_enabled = isSingleStep();
 
-    env.cpuid_features = PPRO_FEATURES | CPUID_MTRR | CPUID_CLFLUSH | CPUID_MCA | CPUID_PSE36;
+    env.cpuid.cpuid_features = PPRO_FEATURES | CPUID_MTRR | CPUID_CLFLUSH | CPUID_MCA | CPUID_PSE36;
 
-    env.cpuid_ext_features = CPUID_EXT_SSE3 | CPUID_EXT_CX16 | CPUID_EXT_POPCNT;
+    env.cpuid.cpuid_ext_features = CPUID_EXT_SSE3 | CPUID_EXT_CX16 | CPUID_EXT_POPCNT;
 
-    env.cpuid_ext2_features = (PPRO_FEATURES & EXT2_FEATURE_MASK) | CPUID_EXT2_LM | CPUID_EXT2_SYSCALL | CPUID_EXT2_NX;
+    env.cpuid.cpuid_ext2_features =
+        (PPRO_FEATURES & EXT2_FEATURE_MASK) | CPUID_EXT2_LM | CPUID_EXT2_SYSCALL | CPUID_EXT2_NX;
 
-    env.cpuid_ext3_features = CPUID_EXT3_LAHF_LM | CPUID_EXT3_SVM | CPUID_EXT3_ABM | CPUID_EXT3_SSE4A;
+    env.cpuid.cpuid_ext3_features = CPUID_EXT3_LAHF_LM | CPUID_EXT3_SVM | CPUID_EXT3_ABM | CPUID_EXT3_SSE4A;
 
     env.eip = address;
     tb.pc = env.eip;
