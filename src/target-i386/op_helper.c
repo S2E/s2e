@@ -94,13 +94,13 @@ static inline target_long lshift(target_long x, int n) {
 #define BIASEXPONENT(fp) fp.l.upper = (fp.l.upper & ~(0x7fff)) | EXPBIAS
 
 static inline void fpush(void) {
-    env->fpstt = (env->fpstt - 1) & 7;
-    env->fptags[env->fpstt] = 0; /* validate stack entry */
+    FPSTT_W((FPSTT - 1) & 7);
+    FPTAGS_W(FPSTT, 0); /* validate stack entry */
 }
 
 static inline void fpop(void) {
-    env->fptags[env->fpstt] = 1; /* invvalidate stack entry */
-    env->fpstt = (env->fpstt + 1) & 7;
+    FPTAGS_W(FPSTT, 1); /* invvalidate stack entry */
+    FPSTT_W((FPSTT + 1) & 7);
 }
 
 static inline floatx80 helper_fldt(target_ulong ptr) {
@@ -3685,8 +3685,6 @@ void helper_verw(target_ulong selector1) {
 }
 
 /* x87 FPU helpers */
-
-#if !defined(CONFIG_SYMBEX) || (defined(CONFIG_SYMBEX) && !defined(SYMBEX_LLVM_LIB)) || defined(STATIC_TRANSLATOR)
 static inline double floatx80_to_double(floatx80 a) {
     union {
         float64 f64;
@@ -3708,9 +3706,9 @@ static inline floatx80 double_to_floatx80(double a) {
 }
 
 static void fpu_set_exception(int mask) {
-    env->fpus |= mask;
-    if (env->fpus & (~env->fpuc & FPUC_EM))
-        env->fpus |= FPUS_SE | FPUS_B;
+    FPUS_W(FPUS | mask);
+    if (FPUS & (~FPUC & FPUC_EM))
+        FPUS_W(FPUS | FPUS_SE | FPUS_B);
 }
 
 static inline floatx80 helper_fdiv(floatx80 a, floatx80 b) {
@@ -3734,7 +3732,7 @@ void helper_flds_FT0(uint32_t val) {
         uint32_t i;
     } u;
     u.i = val;
-    FT0 = float32_to_floatx80(u.f, &env->fp_status);
+    FT0_W((float32_to_floatx80(u.f, &env->fp_status)));
 }
 
 void helper_fldl_FT0(uint64_t val) {
@@ -3743,11 +3741,11 @@ void helper_fldl_FT0(uint64_t val) {
         uint64_t i;
     } u;
     u.i = val;
-    FT0 = float64_to_floatx80(u.f, &env->fp_status);
+    FT0_W(float64_to_floatx80(u.f, &env->fp_status));
 }
 
 void helper_fildl_FT0(int32_t val) {
-    FT0 = int32_to_floatx80(val, &env->fp_status);
+    FT0_W(int32_to_floatx80(val, &env->fp_status));
 }
 
 void helper_flds_ST0(uint32_t val) {
@@ -3756,11 +3754,11 @@ void helper_flds_ST0(uint32_t val) {
         float32 f;
         uint32_t i;
     } u;
-    new_fpstt = (env->fpstt - 1) & 7;
+    new_fpstt = (FPSTT - 1) & 7;
     u.i = val;
-    env->fpregs[new_fpstt].d = float32_to_floatx80(u.f, &env->fp_status);
-    env->fpstt = new_fpstt;
-    env->fptags[new_fpstt] = 0; /* validate stack entry */
+    WR_cpu_fp80(env, fpregs[new_fpstt].d, float32_to_floatx80(u.f, &env->fp_status));
+    FPSTT_W(new_fpstt);
+    FPTAGS_W(new_fpstt, 0); /* validate stack entry */
 }
 
 void helper_fldl_ST0(uint64_t val) {
@@ -3769,27 +3767,27 @@ void helper_fldl_ST0(uint64_t val) {
         float64 f;
         uint64_t i;
     } u;
-    new_fpstt = (env->fpstt - 1) & 7;
+    new_fpstt = (FPSTT - 1) & 7;
     u.i = val;
-    env->fpregs[new_fpstt].d = float64_to_floatx80(u.f, &env->fp_status);
-    env->fpstt = new_fpstt;
-    env->fptags[new_fpstt] = 0; /* validate stack entry */
+    WR_cpu_fp80(env, fpregs[new_fpstt].d, float64_to_floatx80(u.f, &env->fp_status));
+    FPSTT_W(new_fpstt);
+    FPTAGS_W(new_fpstt, 0); /* validate stack entry */
 }
 
 void helper_fildl_ST0(int32_t val) {
     int new_fpstt;
-    new_fpstt = (env->fpstt - 1) & 7;
-    env->fpregs[new_fpstt].d = int32_to_floatx80(val, &env->fp_status);
-    env->fpstt = new_fpstt;
-    env->fptags[new_fpstt] = 0; /* validate stack entry */
+    new_fpstt = (FPSTT - 1) & 7;
+    WR_cpu_fp80(env, fpregs[new_fpstt].d, int32_to_floatx80(val, &env->fp_status));
+    FPSTT_W(new_fpstt);
+    FPTAGS_W(new_fpstt, 0); /* validate stack entry */
 }
 
 void helper_fildll_ST0(int64_t val) {
     int new_fpstt;
-    new_fpstt = (env->fpstt - 1) & 7;
-    env->fpregs[new_fpstt].d = int64_to_floatx80(val, &env->fp_status);
-    env->fpstt = new_fpstt;
-    env->fptags[new_fpstt] = 0; /* validate stack entry */
+    new_fpstt = (FPSTT - 1) & 7;
+    WR_cpu_fp80(env, fpregs[new_fpstt].d, int64_to_floatx80(val, &env->fp_status));
+    FPSTT_W(new_fpstt);
+    FPTAGS_W(new_fpstt, 0); /* validate stack entry */
 }
 
 uint32_t helper_fsts_ST0(void) {
@@ -3852,10 +3850,10 @@ int64_t helper_fisttll_ST0(void) {
 
 void helper_fldt_ST0(target_ulong ptr) {
     int new_fpstt;
-    new_fpstt = (env->fpstt - 1) & 7;
-    env->fpregs[new_fpstt].d = helper_fldt(ptr);
-    env->fpstt = new_fpstt;
-    env->fptags[new_fpstt] = 0; /* validate stack entry */
+    new_fpstt = (FPSTT - 1) & 7;
+    WR_cpu_fp80(env, fpregs[new_fpstt].d, helper_fldt(ptr));
+    FPSTT_W(new_fpstt);
+    FPTAGS_W(new_fpstt, 0); /* validate stack entry */
 }
 
 void helper_fstt_ST0(target_ulong ptr) {
@@ -3871,42 +3869,42 @@ void helper_fpop(void) {
 }
 
 void helper_fdecstp(void) {
-    env->fpstt = (env->fpstt - 1) & 7;
-    env->fpus &= (~0x4700);
+    FPSTT_W((FPSTT - 1) & 7);
+    FPUS_W(FPUS & (~0x4700));
 }
 
 void helper_fincstp(void) {
-    env->fpstt = (env->fpstt + 1) & 7;
-    env->fpus &= (~0x4700);
+    FPSTT_W((FPSTT + 1) & 7);
+    FPUS_W(FPUS & (~0x4700));
 }
 
 /* FPU move */
 
 void helper_ffree_STN(int st_index) {
-    env->fptags[(env->fpstt + st_index) & 7] = 1;
+    FPTAGS_W(((FPSTT + st_index) & 7), 1);
 }
 
 void helper_fmov_ST0_FT0(void) {
-    ST0 = FT0;
+    ST0_W(FT0);
 }
 
 void helper_fmov_FT0_STN(int st_index) {
-    FT0 = ST(st_index);
+    FT0_W(ST(st_index));
 }
 
 void helper_fmov_ST0_STN(int st_index) {
-    ST0 = ST(st_index);
+    ST0_W(ST(st_index));
 }
 
 void helper_fmov_STN_ST0(int st_index) {
-    ST(st_index) = ST0;
+    ST_W(st_index, ST0);
 }
 
 void helper_fxchg_ST0_STN(int st_index) {
     floatx80 tmp;
     tmp = ST(st_index);
-    ST(st_index) = ST0;
-    ST0 = tmp;
+    ST_W(st_index, ST0);
+    ST0_W(tmp);
 }
 
 /* FPU operations */
@@ -3917,14 +3915,14 @@ void helper_fcom_ST0_FT0(void) {
     int ret;
 
     ret = floatx80_compare(ST0, FT0, &env->fp_status);
-    env->fpus = (env->fpus & ~0x4500) | fcom_ccval[ret + 1];
+    FPUS_W((FPUS & ~0x4500) | fcom_ccval[ret + 1]);
 }
 
 void helper_fucom_ST0_FT0(void) {
     int ret;
 
     ret = floatx80_compare_quiet(ST0, FT0, &env->fp_status);
-    env->fpus = (env->fpus & ~0x4500) | fcom_ccval[ret + 1];
+    FPUS_W((FPUS & ~0x4500) | fcom_ccval[ret + 1]);
 }
 
 static const int fcomi_ccval[4] = {CC_C, CC_Z, 0, CC_Z | CC_P | CC_C};
@@ -3950,113 +3948,122 @@ void helper_fucomi_ST0_FT0(void) {
 }
 
 void helper_fadd_ST0_FT0(void) {
-    ST0 = floatx80_add(ST0, FT0, &env->fp_status);
+    ST0_W(floatx80_add(ST0, FT0, &env->fp_status));
 }
 
 void helper_fmul_ST0_FT0(void) {
-    ST0 = floatx80_mul(ST0, FT0, &env->fp_status);
+    ST0_W(floatx80_mul(ST0, FT0, &env->fp_status));
 }
 
 void helper_fsub_ST0_FT0(void) {
-    ST0 = floatx80_sub(ST0, FT0, &env->fp_status);
+    ST0_W(floatx80_sub(ST0, FT0, &env->fp_status));
 }
 
 void helper_fsubr_ST0_FT0(void) {
-    ST0 = floatx80_sub(FT0, ST0, &env->fp_status);
+    ST0_W(floatx80_sub(FT0, ST0, &env->fp_status));
 }
 
 void helper_fdiv_ST0_FT0(void) {
-    ST0 = helper_fdiv(ST0, FT0);
+    ST0_W(helper_fdiv(ST0, FT0));
 }
 
 void helper_fdivr_ST0_FT0(void) {
-    ST0 = helper_fdiv(FT0, ST0);
+    ST0_W(helper_fdiv(FT0, ST0));
 }
 
 /* fp operations between STN and ST0 */
 
 void helper_fadd_STN_ST0(int st_index) {
-    ST(st_index) = floatx80_add(ST(st_index), ST0, &env->fp_status);
+    ST_W(st_index, floatx80_add(ST(st_index), ST0, &env->fp_status));
 }
 
 void helper_fmul_STN_ST0(int st_index) {
-    ST(st_index) = floatx80_mul(ST(st_index), ST0, &env->fp_status);
+    ST_W(st_index, floatx80_mul(ST(st_index), ST0, &env->fp_status));
 }
 
 void helper_fsub_STN_ST0(int st_index) {
-    ST(st_index) = floatx80_sub(ST(st_index), ST0, &env->fp_status);
+    ST_W(st_index, floatx80_sub(ST(st_index), ST0, &env->fp_status));
 }
 
 void helper_fsubr_STN_ST0(int st_index) {
-    ST(st_index) = floatx80_sub(ST0, ST(st_index), &env->fp_status);
+    ST_W(st_index, floatx80_sub(ST0, ST(st_index), &env->fp_status));
 }
 
 void helper_fdiv_STN_ST0(int st_index) {
+#if 0
     floatx80 *p;
+
     p = &ST(st_index);
     *p = helper_fdiv(*p, ST0);
+#endif
+    floatx80 v = ST(st_index);
+    ST_W(st_index, helper_fdiv(v, ST0));
 }
 
 void helper_fdivr_STN_ST0(int st_index) {
+#if 0
     floatx80 *p;
     p = &ST(st_index);
     *p = helper_fdiv(ST0, *p);
+#endif
+    floatx80 v = ST(st_index);
+    ST_W(st_index, helper_fdiv(ST0, v));
 }
 
 /* misc FPU operations */
 void helper_fchs_ST0(void) {
-    ST0 = floatx80_chs(ST0);
+    ST0_W(floatx80_chs(ST0));
 }
 
 void helper_fabs_ST0(void) {
-    ST0 = floatx80_abs(ST0);
+    ST0_W(floatx80_abs(ST0));
 }
 
 void helper_fld1_ST0(void) {
-    ST0 = floatx80_one;
+    ST0_W(floatx80_one);
 }
 
 void helper_fldl2t_ST0(void) {
-    ST0 = floatx80_l2t;
+    ST0_W(floatx80_l2t);
 }
 
 void helper_fldl2e_ST0(void) {
-    ST0 = floatx80_l2e;
+    ST0_W(floatx80_l2e);
 }
 
 void helper_fldpi_ST0(void) {
-    ST0 = floatx80_pi;
+    ST0_W(floatx80_pi);
 }
 
 void helper_fldlg2_ST0(void) {
-    ST0 = floatx80_lg2;
+    ST0_W(floatx80_lg2);
 }
 
 void helper_fldln2_ST0(void) {
-    ST0 = floatx80_ln2;
+    ST0_W(floatx80_ln2);
 }
 
 void helper_fldz_ST0(void) {
-    ST0 = floatx80_zero;
+    ST0_W(floatx80_zero);
 }
 
 void helper_fldz_FT0(void) {
-    FT0 = floatx80_zero;
+    FT0_W(floatx80_zero);
 }
 
 uint32_t helper_fnstsw(void) {
-    return (env->fpus & ~0x3800) | (env->fpstt & 0x7) << 11;
+    return (FPUS & ~0x3800) | (FPSTT & 0x7) << 11;
 }
 
 uint32_t helper_fnstcw(void) {
-    return env->fpuc;
+    return FPUC;
 }
 
 static void update_fp_status(void) {
     int rnd_type;
 
     /* set rounding mode */
-    switch (env->fpuc & FPU_RC_MASK) {
+    switch (FPUC & FPU_RC_MASK) {
         default:
         case FPU_RC_NEAR:
             rnd_type = float_round_nearest_even;
@@ -4072,7 +4079,7 @@ static void update_fp_status(void) {
             break;
     }
     set_float_rounding_mode(rnd_type, &env->fp_status);
-    switch ((env->fpuc >> 8) & 3) {
+    switch ((FPUC >> 8) & 3) {
         case 0:
             rnd_type = 32;
             break;
@@ -4088,31 +4095,31 @@ static void update_fp_status(void) {
 }
 
 void helper_fldcw(uint32_t val) {
-    env->fpuc = val;
+    FPUC_W(val);
     update_fp_status();
 }
 
 void helper_fclex(void) {
-    env->fpus &= 0x7f00;
+    FPUS_W(FPUS & 0x7f00);
 }
 
 void helper_fwait(void) {
-    if (env->fpus & FPUS_SE)
+    if (FPUS & FPUS_SE)
         fpu_raise_exception();
 }
 
 void helper_fninit(void) {
-    env->fpus = 0;
-    env->fpstt = 0;
-    env->fpuc = 0x37f;
-    env->fptags[0] = 1;
-    env->fptags[1] = 1;
-    env->fptags[2] = 1;
-    env->fptags[3] = 1;
-    env->fptags[4] = 1;
-    env->fptags[5] = 1;
-    env->fptags[6] = 1;
-    env->fptags[7] = 1;
+    FPUS_W(0);
+    FPSTT_W(0);
+    FPUC_W(0x37f);
+    FPTAGS_W(0, 1);
+    FPTAGS_W(1, 1);
+    FPTAGS_W(2, 1);
+    FPTAGS_W(3, 1);
+    FPTAGS_W(4, 1);
+    FPTAGS_W(5, 1);
+    FPTAGS_W(6, 1);
+    FPTAGS_W(7, 1);
 }
 
 /* BCD ops */
@@ -4133,7 +4140,7 @@ void helper_fbld_ST0(target_ulong ptr) {
         floatx80_chs(tmp);
     }
     fpush();
-    ST0 = tmp;
+    ST0_W(tmp);
 }
 
 void helper_fbst_ST0(target_ulong ptr) {
@@ -4166,7 +4173,7 @@ void helper_fbst_ST0(target_ulong ptr) {
 void helper_f2xm1(void) {
     double val = floatx80_to_double(ST0);
     val = pow(2.0, val) - 1.0;
-    ST0 = double_to_floatx80(val);
+    ST0_W(double_to_floatx80(val));
 }
 
 void helper_fyl2x(void) {
@@ -4175,11 +4182,11 @@ void helper_fyl2x(void) {
     if (fptemp > 0.0) {
         fptemp = log(fptemp) / log(2.0); /* log2(ST) */
         fptemp *= floatx80_to_double(ST1);
-        ST1 = double_to_floatx80(fptemp);
+        ST1_W(double_to_floatx80(fptemp));
         fpop();
     } else {
-        env->fpus &= (~0x4700);
-        env->fpus |= 0x400;
+        FPUS_W(FPUS & (~0x4700));
+        FPUS_W(FPUS | 0x400);
     }
 }
 
@@ -4187,13 +4194,13 @@ void helper_fptan(void) {
     double fptemp = floatx80_to_double(ST0);
 
     if ((fptemp > MAXTAN) || (fptemp < -MAXTAN)) {
-        env->fpus |= 0x400;
+        FPUS_W(FPUS | 0x400);
     } else {
         fptemp = tan(fptemp);
-        ST0 = double_to_floatx80(fptemp);
+        ST0_W(double_to_floatx80(fptemp));
         fpush();
-        ST0 = floatx80_one;
-        env->fpus &= (~0x400); /* C2 <-- 0 */
+        ST0_W(floatx80_one);
+        FPUS_W(FPUS & (~0x400)); /* C2 <-- 0 */
         /* the above code is for  |arg| < 2**52 only */
     }
 }
@@ -4203,7 +4210,7 @@ void helper_fpatan(void) {
 
     fpsrcop = floatx80_to_double(ST1);
     fptemp = floatx80_to_double(ST0);
-    ST1 = double_to_floatx80(atan2(fpsrcop, fptemp));
+    ST1_W(double_to_floatx80(atan2(fpsrcop, fptemp)));
     fpop();
 }
 
@@ -4214,18 +4221,18 @@ void helper_fxtract(void) {
 
     if (floatx80_is_zero(ST0)) {
         /* Easy way to generate -inf and raising division by 0 exception */
-        ST0 = floatx80_div(floatx80_chs(floatx80_one), floatx80_zero, &env->fp_status);
+        ST0_W(floatx80_div(floatx80_chs(floatx80_one), floatx80_zero, &env->fp_status));
         fpush();
-        ST0 = temp.d;
+        ST0_W(temp.d);
     } else {
         int expdif;
 
         expdif = EXPD(temp) - EXPBIAS;
         /*DP exponent bias*/
-        ST0 = int32_to_floatx80(expdif, &env->fp_status);
+        ST0_W(int32_to_floatx80(expdif, &env->fp_status));
         fpush();
         BIASEXPONENT(temp);
-        ST0 = temp.d;
+        ST0_W(temp.d);
     }
 }
 
@@ -4239,8 +4246,8 @@ void helper_fprem1(void) {
     st1 = floatx80_to_double(ST1);
 
     if (isinf(st0) || isnan(st0) || isnan(st1) || (st1 == 0.0)) {
-        ST0 = double_to_floatx80(0.0 / 0.0); /* NaN */
-        env->fpus &= (~0x4700);              /* (C3,C2,C1,C0) <-- 0000 */
+        ST0_W(double_to_floatx80(0.0 / 0.0)); /* NaN */
+        FPUS_W(FPUS & (~0x4700));             /* (C3,C2,C1,C0) <-- 0000 */
         return;
     }
 
@@ -4252,7 +4259,7 @@ void helper_fprem1(void) {
 
     if (expdif < 0) {
         /* optimisation? taken from the AMD docs */
-        env->fpus &= (~0x4700); /* (C3,C2,C1,C0) <-- 0000 */
+        FPUS_W(FPUS & (~0x4700)); /* (C3,C2,C1,C0) <-- 0000 */
         /* ST0 is unchanged */
         return;
     }
@@ -4269,20 +4276,20 @@ void helper_fprem1(void) {
         else
             q = (signed long long int) dblq;
 
-        env->fpus &= (~0x4700);             /* (C3,C2,C1,C0) <-- 0000 */
-                                            /* (C0,C3,C1) <-- (q2,q1,q0) */
-        env->fpus |= (q & 0x4) << (8 - 2);  /* (C0) <-- q2 */
-        env->fpus |= (q & 0x2) << (14 - 1); /* (C3) <-- q1 */
-        env->fpus |= (q & 0x1) << (9 - 0);  /* (C1) <-- q0 */
+        FPUS_W(FPUS & (~0x4700));               /* (C3,C2,C1,C0) <-- 0000 */
+                                                /* (C0,C3,C1) <-- (q2,q1,q0) */
+        FPUS_W(FPUS | ((q & 0x4) << (8 - 2)));  /* (C0) <-- q2 */
+        FPUS_W(FPUS | ((q & 0x2) << (14 - 1))); /* (C3) <-- q1 */
+        FPUS_W(FPUS | ((q & 0x1) << (9 - 0)));  /* (C1) <-- q0 */
     } else {
-        env->fpus |= 0x400; /* C2 <-- 1 */
+        FPUS_W(FPUS | 0x400); /* C2 <-- 1 */
         fptemp = pow(2.0, expdif - 50);
         fpsrcop = (st0 / st1) / fptemp;
         /* fpsrcop = integer obtained by chopping */
         fpsrcop = (fpsrcop < 0.0) ? -(floor(fabs(fpsrcop))) : floor(fpsrcop);
         st0 -= (st1 * fpsrcop * fptemp);
     }
-    ST0 = double_to_floatx80(st0);
+    ST0_W(double_to_floatx80(st0));
 }
 
 void helper_fprem(void) {
@@ -4295,8 +4302,8 @@ void helper_fprem(void) {
     st1 = floatx80_to_double(ST1);
 
     if (isinf(st0) || isnan(st0) || isnan(st1) || (st1 == 0.0)) {
-        ST0 = double_to_floatx80(0.0 / 0.0); /* NaN */
-        env->fpus &= (~0x4700);              /* (C3,C2,C1,C0) <-- 0000 */
+        ST0_W(double_to_floatx80(0.0 / 0.0)); /* NaN */
+        FPUS_W(FPUS & (~0x4700));             /* (C3,C2,C1,C0) <-- 0000 */
         return;
     }
 
@@ -4308,7 +4315,7 @@ void helper_fprem(void) {
 
     if (expdif < 0) {
         /* optimisation? taken from the AMD docs */
-        env->fpus &= (~0x4700); /* (C3,C2,C1,C0) <-- 0000 */
+        FPUS_W(FPUS & (~0x4700)); /* (C3,C2,C1,C0) <-- 0000 */
         /* ST0 is unchanged */
         return;
     }
@@ -4325,21 +4332,21 @@ void helper_fprem(void) {
         else
             q = (signed long long int) dblq;
 
-        env->fpus &= (~0x4700);             /* (C3,C2,C1,C0) <-- 0000 */
-                                            /* (C0,C3,C1) <-- (q2,q1,q0) */
-        env->fpus |= (q & 0x4) << (8 - 2);  /* (C0) <-- q2 */
-        env->fpus |= (q & 0x2) << (14 - 1); /* (C3) <-- q1 */
-        env->fpus |= (q & 0x1) << (9 - 0);  /* (C1) <-- q0 */
+        FPUS_W(FPUS & (~0x4700));               /* (C3,C2,C1,C0) <-- 0000 */
+                                                /* (C0,C3,C1) <-- (q2,q1,q0) */
+        FPUS_W(FPUS | ((q & 0x4) << (8 - 2)));  /* (C0) <-- q2 */
+        FPUS_W(FPUS | ((q & 0x2) << (14 - 1))); /* (C3) <-- q1 */
+        FPUS_W(FPUS | ((q & 0x1) << (9 - 0)));  /* (C1) <-- q0 */
     } else {
         int N = 32 + (expdif % 32); /* as per AMD docs */
-        env->fpus |= 0x400;         /* C2 <-- 1 */
+        FPUS_W(FPUS | 0x400);       /* C2 <-- 1 */
         fptemp = pow(2.0, (double) (expdif - N));
         fpsrcop = (st0 / st1) / fptemp;
         /* fpsrcop = integer obtained by chopping */
         fpsrcop = (fpsrcop < 0.0) ? -(floor(fabs(fpsrcop))) : floor(fpsrcop);
         st0 -= (st1 * fpsrcop * fptemp);
     }
-    ST0 = double_to_floatx80(st0);
+    ST0_W(double_to_floatx80(st0));
 }
 
 void helper_fyl2xp1(void) {
@@ -4348,46 +4355,46 @@ void helper_fyl2xp1(void) {
     if ((fptemp + 1.0) > 0.0) {
         fptemp = log(fptemp + 1.0) / log(2.0); /* log2(ST+1.0) */
         fptemp *= floatx80_to_double(ST1);
-        ST1 = double_to_floatx80(fptemp);
+        ST1_W(double_to_floatx80(fptemp));
         fpop();
     } else {
-        env->fpus &= (~0x4700);
-        env->fpus |= 0x400;
+        FPUS_W(FPUS & (~0x4700));
+        FPUS_W(FPUS | 0x400);
     }
 }
 
 void helper_fsqrt(void) {
     if (floatx80_is_neg(ST0)) {
-        env->fpus &= (~0x4700); /* (C3,C2,C1,C0) <-- 0000 */
-        env->fpus |= 0x400;
+        FPUS_W(FPUS & (~0x4700)); /* (C3,C2,C1,C0) <-- 0000 */
+        FPUS_W(FPUS | 0x400);
     }
-    ST0 = floatx80_sqrt(ST0, &env->fp_status);
+    ST0_W(floatx80_sqrt(ST0, &env->fp_status));
 }
 
 void helper_fsincos(void) {
     double fptemp = floatx80_to_double(ST0);
 
     if ((fptemp > MAXTAN) || (fptemp < -MAXTAN)) {
-        env->fpus |= 0x400;
+        FPUS_W(FPUS | 0x400);
     } else {
-        ST0 = double_to_floatx80(sin(fptemp));
+        ST0_W(double_to_floatx80(sin(fptemp)));
         fpush();
-        ST0 = double_to_floatx80(cos(fptemp));
-        env->fpus &= (~0x400); /* C2 <-- 0 */
+        ST0_W(double_to_floatx80(cos(fptemp)));
+        FPUS_W(FPUS & (~0x400)); /* C2 <-- 0 */
         /* the above code is for  |arg| < 2**63 only */
     }
 }
 
 void helper_frndint(void) {
-    ST0 = floatx80_round_to_int(ST0, &env->fp_status);
+    ST0_W(floatx80_round_to_int(ST0, &env->fp_status));
 }
 
 void helper_fscale(void) {
     if (floatx80_is_any_nan(ST1)) {
-        ST0 = ST1;
+        ST0_W(ST1);
     } else {
         int n = floatx80_to_int32_round_to_zero(ST1, &env->fp_status);
-        ST0 = floatx80_scalbn(ST0, n, &env->fp_status);
+        ST0_W(floatx80_scalbn(ST0, n, &env->fp_status));
     }
 }
 
@@ -4395,10 +4402,10 @@ void helper_fsin(void) {
     double fptemp = floatx80_to_double(ST0);
 
     if ((fptemp > MAXTAN) || (fptemp < -MAXTAN)) {
-        env->fpus |= 0x400;
+        FPUS_W(FPUS | 0x400);
     } else {
-        ST0 = double_to_floatx80(sin(fptemp));
-        env->fpus &= (~0x400); /* C2 <-- 0 */
+        ST0_W(double_to_floatx80(sin(fptemp)));
+        FPUS_W(FPUS & (~0x400)); /* C2 <-- 0 */
         /* the above code is for  |arg| < 2**53 only */
     }
 }
@@ -4407,10 +4414,10 @@ void helper_fcos(void) {
     double fptemp = floatx80_to_double(ST0);
 
     if ((fptemp > MAXTAN) || (fptemp < -MAXTAN)) {
-        env->fpus |= 0x400;
+        FPUS_W(FPUS | 0x400);
     } else {
-        ST0 = double_to_floatx80(cos(fptemp));
-        env->fpus &= (~0x400); /* C2 <-- 0 */
+        ST0_W(double_to_floatx80(cos(fptemp)));
+        FPUS_W(FPUS & (~0x400)); /* C2 <-- 0 */
         /* the above code is for  |arg5 < 2**63 only */
     }
 }
@@ -4421,24 +4428,24 @@ void helper_fxam_ST0(void) {
 
     temp.d = ST0;
 
-    env->fpus &= (~0x4700); /* (C3,C2,C1,C0) <-- 0000 */
+    FPUS_W(FPUS & (~0x4700)); /* (C3,C2,C1,C0) <-- 0000 */
     if (SIGND(temp))
-        env->fpus |= 0x200; /* C1 <-- 1 */
+        FPUS_W(FPUS | 0x200); /* C1 <-- 1 */
 
     /* XXX: test fptags too */
     expdif = EXPD(temp);
     if (expdif == MAXEXPD) {
         if (MANTD(temp) == 0x8000000000000000ULL)
-            env->fpus |= 0x500 /*Infinity*/;
+            FPUS_W(FPUS | 0x500 /*Infinity*/);
         else
-            env->fpus |= 0x100 /*NaN*/;
+            FPUS_W(FPUS | 0x100 /*NaN*/);
     } else if (expdif == 0) {
         if (MANTD(temp) == 0)
-            env->fpus |= 0x4000 /*Zero*/;
+            FPUS_W(FPUS | 0x4000 /*Zero*/);
         else
-            env->fpus |= 0x4400 /*Denormal*/;
+            FPUS_W(FPUS | 0x4400 /*Denormal*/);
     } else {
-        env->fpus |= 0x400;
+        FPUS_W(FPUS | 0x400);
     }
 }
 
@@ -4447,14 +4454,14 @@ void helper_fstenv(target_ulong ptr, int data32) {
     uint64_t mant;
     CPU_LDoubleU tmp;
 
-    fpus = (env->fpus & ~0x3800) | (env->fpstt & 0x7) << 11;
+    fpus = (FPUS & ~0x3800) | (FPSTT & 0x7) << 11;
     fptag = 0;
     for (i = 7; i >= 0; i--) {
         fptag <<= 2;
-        if (env->fptags[i]) {
+        if (FPTAGS(i)) {
             fptag |= 3;
         } else {
-            tmp.d = env->fpregs[i].d;
+            tmp.d = RR_cpu_fp80(env, fpregs[i].d);
             exp = EXPD(tmp);
             mant = MANTD(tmp);
             if (exp == 0 && mant == 0) {
@@ -4468,7 +4475,7 @@ void helper_fstenv(target_ulong ptr, int data32) {
     }
     if (data32) {
         /* 32 bit */
-        stl(ptr, env->fpuc);
+        stl(ptr, FPUC);
         stl(ptr + 4, fpus);
         stl(ptr + 8, fptag);
         stl(ptr + 12, 0); /* fpip */
@@ -4477,7 +4484,7 @@ void helper_fstenv(target_ulong ptr, int data32) {
         stl(ptr + 24, 0); /* fpos */
     } else {
         /* 16 bit */
-        stw(ptr, env->fpuc);
+        stw(ptr, FPUC);
         stw(ptr + 2, fpus);
         stw(ptr + 4, fptag);
         stw(ptr + 6, 0);
@@ -4491,18 +4498,18 @@ void helper_fldenv(target_ulong ptr, int data32) {
     int i, fpus, fptag;
 
     if (data32) {
-        env->fpuc = lduw(ptr);
+        FPUC_W(lduw(ptr));
         fpus = lduw(ptr + 4);
         fptag = lduw(ptr + 8);
     } else {
-        env->fpuc = lduw(ptr);
+        FPUC_W(lduw(ptr));
         fpus = lduw(ptr + 2);
         fptag = lduw(ptr + 4);
     }
-    env->fpstt = (fpus >> 11) & 7;
-    env->fpus = fpus & ~0x3800;
+    FPSTT_W((fpus >> 11) & 7);
+    FPUS_W(fpus & ~0x3800);
     for (i = 0; i < 8; i++) {
-        env->fptags[i] = ((fptag & 3) == 3);
+        FPTAGS_W(i, ((fptag & 3) == 3));
         fptag >>= 2;
     }
 }
@@ -4521,17 +4528,17 @@ void helper_fsave(target_ulong ptr, int data32) {
     }
 
     /* fninit */
-    env->fpus = 0;
-    env->fpstt = 0;
-    env->fpuc = 0x37f;
-    env->fptags[0] = 1;
-    env->fptags[1] = 1;
-    env->fptags[2] = 1;
-    env->fptags[3] = 1;
-    env->fptags[4] = 1;
-    env->fptags[5] = 1;
-    env->fptags[6] = 1;
-    env->fptags[7] = 1;
+    FPUS_W(0);
+    FPSTT_W(0);
+    FPUC_W(0x37f);
+    FPTAGS_W(0, 1);
+    FPTAGS_W(1, 1);
+    FPTAGS_W(2, 1);
+    FPTAGS_W(3, 1);
+    FPTAGS_W(4, 1);
+    FPTAGS_W(5, 1);
+    FPTAGS_W(6, 1);
+    FPTAGS_W(7, 1);
 }
 
 void helper_frstor(target_ulong ptr, int data32) {
@@ -4543,13 +4550,11 @@ void helper_frstor(target_ulong ptr, int data32) {
 
     for (i = 0; i < 8; i++) {
         tmp = helper_fldt(ptr);
-        ST(i) = tmp;
+        ST_W(i, tmp);
         ptr += 10;
     }
 }
-#endif
 
-#if !defined(CONFIG_SYMBEX) || (defined(CONFIG_SYMBEX) && !defined(SYMBEX_LLVM_LIB))
 void helper_fxsave(target_ulong ptr, int data64) {
     int fpus, fptag, i, nb_xmm_regs;
     floatx80 tmp;
@@ -4560,12 +4565,12 @@ void helper_fxsave(target_ulong ptr, int data64) {
         raise_exception(EXCP0D_GPF);
     }
 
-    fpus = (env->fpus & ~0x3800) | (env->fpstt & 0x7) << 11;
+    fpus = (FPUS & ~0x3800) | (FPSTT & 0x7) << 11;
     fptag = 0;
     for (i = 0; i < 8; i++) {
-        fptag |= (env->fptags[i] << i);
+        fptag |= (FPTAGS(i) << i);
     }
-    stw(ptr, env->fpuc);
+    stw(ptr, FPUC);
     stw(ptr + 2, fpus);
     stw(ptr + 4, fptag ^ 0xff);
 #ifdef TARGET_X86_64
@@ -4590,7 +4595,7 @@ void helper_fxsave(target_ulong ptr, int data64) {
 
     if (env->cr[4] & CR4_OSFXSR_MASK) {
         /* XXX: finish it */
-        stl(ptr + 0x18, env->mxcsr); /* mxcsr */
+        stl(ptr + 0x18, MXCSR);      /* mxcsr */
         stl(ptr + 0x1c, 0x0000ffff); /* mxcsr_mask */
         if (env->hflags & HF_CS64_MASK)
             nb_xmm_regs = 16;
@@ -4600,8 +4605,8 @@ void helper_fxsave(target_ulong ptr, int data64) {
         /* Fast FXSAVE leaves out the XMM registers */
         if (!(env->efer & MSR_EFER_FFXSR) || (env->hflags & HF_CPL_MASK) || !(env->hflags & HF_LMA_MASK)) {
             for (i = 0; i < nb_xmm_regs; i++) {
-                stq(addr, env->xmm_regs[i].XMM_Q(0));
-                stq(addr + 8, env->xmm_regs[i].XMM_Q(1));
+                stq(addr, RR_cpu_dyn(&env->xmm_regs[i].XMM_Q(0), 8));
+                stq(addr + 8, RR_cpu_dyn(&env->xmm_regs[i].XMM_Q(1), 8));
                 addr += 16;
             }
         }
@@ -4618,26 +4623,26 @@ void helper_fxrstor(target_ulong ptr, int data64) {
         raise_exception(EXCP0D_GPF);
     }
 
-    env->fpuc = lduw(ptr);
+    FPUC_W(lduw(ptr));
     fpus = lduw(ptr + 2);
     fptag = lduw(ptr + 4);
-    env->fpstt = (fpus >> 11) & 7;
-    env->fpus = fpus & ~0x3800;
+    FPSTT_W((fpus >> 11) & 7);
+    FPUS_W(fpus & ~0x3800);
     fptag ^= 0xff;
     for (i = 0; i < 8; i++) {
-        env->fptags[i] = ((fptag >> i) & 1);
+        FPTAGS_W(i, ((fptag >> i) & 1));
     }
 
     addr = ptr + 0x20;
     for (i = 0; i < 8; i++) {
         tmp = helper_fldt(addr);
-        ST(i) = tmp;
+        ST_W(i, tmp);
         addr += 16;
     }
 
     if (env->cr[4] & CR4_OSFXSR_MASK) {
         /* XXX: finish it */
-        env->mxcsr = ldl(ptr + 0x18);
+        MXCSR_W(ldl(ptr + 0x18));
         // ldl(ptr + 0x1c);
         if (env->hflags & HF_CS64_MASK)
             nb_xmm_regs = 16;
@@ -4647,8 +4652,8 @@ void helper_fxrstor(target_ulong ptr, int data64) {
         /* Fast FXRESTORE leaves out the XMM registers */
         if (!(env->efer & MSR_EFER_FFXSR) || (env->hflags & HF_CPL_MASK) || !(env->hflags & HF_LMA_MASK)) {
             for (i = 0; i < nb_xmm_regs; i++) {
-                env->xmm_regs[i].XMM_Q(0) = ldq(addr);
-                env->xmm_regs[i].XMM_Q(1) = ldq(addr + 8);
+                WR_cpu_dyn(&env->xmm_regs[i].XMM_Q(0), 8, ldq(addr));
+                WR_cpu_dyn(&env->xmm_regs[i].XMM_Q(1), 8, ldq(addr + 8));
                 addr += 16;
             }
         }
@@ -4670,7 +4675,6 @@ floatx80 cpu_set_fp80(uint64_t mant, uint16_t upper) {
     temp.l.lower = mant;
     return temp.d;
 }
-#endif
 
 #ifdef TARGET_X86_64
 
@@ -5557,7 +5561,7 @@ static void update_sse_status(void) {
     int rnd_type;
 
     /* set rounding mode */
-    switch (env->mxcsr & SSE_RC_MASK) {
+    switch (MXCSR & SSE_RC_MASK) {
         default:
         case SSE_RC_NEAR:
             rnd_type = float_round_nearest_even;
@@ -5575,27 +5579,25 @@ static void update_sse_status(void) {
     set_float_rounding_mode(rnd_type, &env->sse_status);
 
     /* set denormals are zero */
-    set_flush_inputs_to_zero((env->mxcsr & SSE_DAZ) ? 1 : 0, &env->sse_status);
+    set_flush_inputs_to_zero((MXCSR & SSE_DAZ) ? 1 : 0, &env->sse_status);
 
     /* set flush to zero */
-    set_flush_to_zero((env->mxcsr & SSE_FZ) ? 1 : 0, &env->fp_status);
+    set_flush_to_zero((MXCSR & SSE_FZ) ? 1 : 0, &env->fp_status);
 }
 
 void helper_ldmxcsr(uint32_t val) {
-    env->mxcsr = val;
+    MXCSR_W(val);
     update_sse_status();
 }
 
 void helper_enter_mmx(void) {
-    env->fpstt = 0;
-    *(uint32_t *) (env->fptags) = 0;
-    *(uint32_t *) (env->fptags + 4) = 0;
+    FPSTT_W(0);
+    WR_cpu_dyn((uint64_t *) env->fptags, sizeof(env->fptags), 0);
 }
 
 void helper_emms(void) {
     /* set to empty state */
-    *(uint32_t *) (env->fptags) = 0x01010101;
-    *(uint32_t *) (env->fptags + 4) = 0x01010101;
+    WR_cpu_dyn((uint64_t *) env->fptags, sizeof(env->fptags), 0x0101010101010101ULL);
 }
 
 /* XXX: suppress */
@@ -5603,13 +5605,11 @@ void helper_movq(void *d, void *s) {
     *(uint64_t *) d = *(uint64_t *) s;
 }
 
-#if !defined(SYMBEX_LLVM_LIB) || defined(STATIC_TRANSLATOR)
 #define SHIFT 0
 #include "ops_sse.h"
 
 #define SHIFT 1
 #include "ops_sse.h"
-#endif
 
 #define SHIFT 0
 #include "helper_template.h"
@@ -5966,5 +5966,17 @@ void helper_se_opcode(uint64_t opcode) {
         exit(status);
     }
 #endif
+}
+#endif
+
+#if defined(CONFIG_SYMBEX) && !defined(SYMBEX_LLVM_LIB)
+uint8_t RR_cpu_float_status(void *p, unsigned size) {
+    CHECK_ASSERT(size == 1 && "unexpected status field width");
+    return (uint8_t) __RR_env_dyn(p, size);
+}
+
+void WR_cpu_float_status(void *p, unsigned size, int v) {
+    CHECK_ASSERT(size == 1 && "unexpected status field width");
+    __WR_env_dyn(p, size, v);
 }
 #endif

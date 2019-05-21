@@ -159,10 +159,10 @@ void cpu_state_reset(CPUX86State *env) {
 
     /* FPU init */
     for (i = 0; i < 8; i++)
-        env->fptags[i] = 1;
-    env->fpuc = 0x37f;
+        FPTAGS_W(i, 1);
+    FPUC_W(0x37f);
 
-    env->mxcsr = 0x1f80;
+    MXCSR_W(0x1f80);
 
     env->pat = 0x0007040600070406ULL;
     env->msr_ia32_misc_enable = MSR_IA32_MISC_ENABLE_DEFAULT;
@@ -373,13 +373,13 @@ void cpu_dump_state(CPUX86State *env, FILE *f, fprintf_function cpu_fprintf, int
         int fptag;
         fptag = 0;
         for (i = 0; i < 8; i++) {
-            fptag |= ((!env->fptags[i]) << i);
+            fptag |= ((!FPTAGS(i)) << i);
         }
-        cpu_fprintf(f, "FCW=%04x FSW=%04x [ST=%d] FTW=%02x MXCSR=%08x\n", env->fpuc,
-                    (env->fpus & ~0x3800) | (env->fpstt & 0x7) << 11, env->fpstt, fptag, env->mxcsr);
+        cpu_fprintf(f, "FCW=%04x FSW=%04x [ST=%d] FTW=%02x MXCSR=%08x\n", FPUC, (FPUS & ~0x3800) | (FPSTT & 0x7) << 11,
+                    FPSTT, fptag, MXCSR);
         for (i = 0; i < 8; i++) {
             CPU_LDoubleU u;
-            u.d = env->fpregs[i].d;
+            u.d = RR_cpu_fp80(env, fpregs[i].d);
             cpu_fprintf(f, "FPR%d=%016" PRIx64 " %04x", i, u.l.lower, u.l.upper);
             if ((i & 1) == 1)
                 cpu_fprintf(f, "\n");
