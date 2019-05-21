@@ -74,8 +74,18 @@ typedef int64_t int64;
 #define SINLINE static inline
 
 #define STATUS_PARAM , float_status *status
-#define STATUS(field) status->field
 #define STATUS_VAR , status
+
+#if defined(CONFIG_SYMBEX) && !defined(SYMBEX_LLVM_LIB)
+uint8_t RR_cpu_float_status(void *p, unsigned size);
+void WR_cpu_float_status(void *p, unsigned size, int v);
+
+#define STATUS(field) RR_cpu_float_status(&status->field, sizeof(status->field))
+#define STATUS_W(field, v) WR_cpu_float_status(&status->field, sizeof(status->field), v)
+#else
+#define STATUS(field) status->field
+#define STATUS_W(field, v) status->field = v
+#endif
 
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE floating-point ordering relations
@@ -189,16 +199,16 @@ typedef struct float_status {
 void set_float_rounding_mode(int val STATUS_PARAM);
 void set_float_exception_flags(int val STATUS_PARAM);
 SINLINE void set_float_detect_tininess(int val STATUS_PARAM) {
-    STATUS(float_detect_tininess) = val;
+    STATUS_W(float_detect_tininess, val);
 }
 SINLINE void set_flush_to_zero(flag val STATUS_PARAM) {
-    STATUS(flush_to_zero) = val;
+    STATUS_W(flush_to_zero, val);
 }
 SINLINE void set_flush_inputs_to_zero(flag val STATUS_PARAM) {
-    STATUS(flush_inputs_to_zero) = val;
+    STATUS_W(flush_inputs_to_zero, val);
 }
 SINLINE void set_default_nan_mode(flag val STATUS_PARAM) {
-    STATUS(default_nan_mode) = val;
+    STATUS_W(default_nan_mode, val);
 }
 SINLINE int get_float_exception_flags(float_status *status) {
     return STATUS(float_exception_flags);

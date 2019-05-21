@@ -113,7 +113,7 @@ const float128 float128_default_nan = make_float128_init(float128_default_nan_hi
 *----------------------------------------------------------------------------*/
 
 void float_raise(uint8_t flags STATUS_PARAM) {
-    STATUS(float_exception_flags) |= flags;
+    STATUS_W(float_exception_flags, (STATUS(float_exception_flags) | flags));
 }
 
 /*----------------------------------------------------------------------------
