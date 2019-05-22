@@ -64,7 +64,7 @@
 #if defined(CONFIG_SYMBEX) && !defined(SYMBEX_LLVM_LIB)
 
 /* uncomment this to compile assertions in */
-/* #define DO_SANITY_CHECK */
+// #define DO_SANITY_CHECK
 
 #ifdef DO_SANITY_CHECK
 #define CHECK_ASSERT(x) assert(x)
@@ -154,9 +154,9 @@ static inline void __WR_env_large(CPUArchState *cpuState, unsigned offset, void 
 }
 
 static inline uint64_t __RR_env_dyn(void *p, unsigned size) {
-    int off = (char *) p - (char *) env;
-    CHECK_ASSERT(size <= sizeof(uint64_t) && off >= 0 && (off + size) <= offsetof(CPUArchState, eip) &&
-                 "unexpected calling context");
+    int off = (uintptr_t) p - (uintptr_t) env;
+    CHECK_ASSERT(size <= sizeof(uint64_t) && ((uintptr_t) p >= (uintptr_t) env) && off >= 0 &&
+                 (off + size) <= offsetof(CPUArchState, eip) && "unexpected calling context");
 
     if (size <= sizeof(target_ulong)) {
         return __RR_env_raw(env, off, size);
@@ -167,9 +167,9 @@ static inline uint64_t __RR_env_dyn(void *p, unsigned size) {
 }
 
 static inline uint64_t __WR_env_dyn(void *p, unsigned size, uint64_t v) {
-    int off = (char *) p - (char *) env;
-    CHECK_ASSERT(size <= sizeof(uint64_t) && off >= 0 && (off + size) <= offsetof(CPUArchState, eip) &&
-                 "unexpected calling context");
+    int off = (uintptr_t) p - (uintptr_t) env;
+    CHECK_ASSERT(size <= sizeof(uint64_t) && ((uintptr_t) p >= (uintptr_t) env) && off >= 0 &&
+                 (off + size) <= offsetof(CPUArchState, eip) && "unexpected calling context");
 
     if (size <= sizeof(target_ulong)) {
         __WR_env_raw(env, off, v, size);

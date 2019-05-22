@@ -390,8 +390,13 @@ void glue(helper_pmaddwd, SUFFIX)(Reg *d, Reg *s) {
     int i;
 
     for (i = 0; i < (2 << SHIFT); i++) {
-        W_D(d, L(i), (int16_t) R_S(s, W(2 * i)) *
-                         (int16_t) R_D(d, W(2 * i) + (int16_t) R_S(s, W(2 * i + 1)) * (int16_t) R_D(d, W(2 * i + 1))));
+        int16_t v1 = (int16_t) R_S(s, W(2 * i));
+        int16_t v2 = (int16_t) R_D(d, W(2 * i));
+
+        int16_t v11 = (int16_t) R_S(s, W(2 * i + 1));
+        int16_t v12 = (int16_t) R_D(d, W(2 * i + 1));
+
+        W_D(d, L(i), v1 * v2 + v11 * v12);
     }
 }
 
