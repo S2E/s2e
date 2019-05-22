@@ -2579,9 +2579,6 @@ void s2e_switch_to_symbolic(void *retaddr) {
     assert(tb);
     cpu_restore_state(tb, env, (uintptr_t) retaddr);
 
-    // XXX: For now, we assume that symbolic hardware, when triggered,
-    // will want to start symbexec.
-    g_s2e_state->enableSymbolicExecution();
     g_s2e_state->jumpToSymbolic();
 }
 
