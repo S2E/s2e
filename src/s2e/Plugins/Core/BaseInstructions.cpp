@@ -774,12 +774,6 @@ void BaseInstructions::handleBuiltInOps(S2EExecutionState *state, uint64_t opcod
             target_ulong v = 1;
             state->regs()->write(CPU_OFFSET(regs[R_EAX]), &v, sizeof v);
         } break;
-        case BASE_S2E_ENABLE_SYMBEX:
-            state->enableSymbolicExecution();
-            break;
-        case BASE_S2E_DISABLE_SYMBEX:
-            state->disableSymbolicExecution();
-            break;
 
         case BASE_S2E_MAKE_SYMBOLIC: { /* s2e_make_symbolic */
             makeSymbolic(state, false);
