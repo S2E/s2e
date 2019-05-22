@@ -61,8 +61,6 @@ extern "C" {
 #define OPCODE_GETSUBFUNCTION(operand) (((operand) >> 16) & 0xFF)
 
 #define BASE_S2E_CHECK          0x00
-#define BASE_S2E_ENABLE_SYMBEX  0x01
-#define BASE_S2E_DISABLE_SYMBEX 0x02
 #define BASE_S2E_MAKE_SYMBOLIC  0x03
 #define BASE_S2E_IS_SYMBOLIC    0x04
 #define BASE_S2E_GET_PATH_ID    0x05
