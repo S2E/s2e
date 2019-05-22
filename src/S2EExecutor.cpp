@@ -1793,7 +1793,7 @@ void S2EExecutor::updateClockScaling() {
 }
 
 void S2EExecutor::updateConcreteFastPath(S2EExecutionState *state) {
-    bool allConcrete = state->regs()->getSymbolicRegistersMask() == 0;
+    bool allConcrete = state->regs()->allConcrete();
     g_s2e_fast_concrete_invocation = (allConcrete) && (state->m_toRunSymbolically.size() == 0) &&
                                      (state->m_startSymbexAtPC == (uint64_t) -1) &&
 
@@ -1958,40 +1958,24 @@ uintptr_t S2EExecutor::executeTranslationBlock(S2EExecutionState *state, Transla
 
     bool executeKlee = m_executeAlwaysKlee;
 
-    /* Think how can we optimize if symbex is disabled */
-    if (true /* state->m_symbexEnabled*/) {
-        if (state->m_startSymbexAtPC != (uint64_t) -1) {
-            executeKlee |= (state->regs()->getPc() == state->m_startSymbexAtPC);
-            state->m_startSymbexAtPC = (uint64_t) -1;
-        }
+    if (state->m_startSymbexAtPC != (uint64_t) -1) {
+        executeKlee |= (state->regs()->getPc() == state->m_startSymbexAtPC);
+        state->m_startSymbexAtPC = (uint64_t) -1;
+    }
 
-        // XXX: hack to run code symbolically that may be delayed because of interrupts.
-        // Size check is important to avoid expensive calls to getPc/getPid in the common case
-        if (state->m_toRunSymbolically.size() > 0 &&
-            state->m_toRunSymbolically.find(std::make_pair(state->regs()->getPc(), state->regs()->getPageDir())) !=
-                state->m_toRunSymbolically.end()) {
-            executeKlee = true;
-            state->m_toRunSymbolically.erase(std::make_pair(state->regs()->getPc(), state->regs()->getPageDir()));
-        }
+    // XXX: hack to run code symbolically that may be delayed because of interrupts.
+    // Size check is important to avoid expensive calls to getPc/getPid in the common case
+    if (state->m_toRunSymbolically.size() > 0 &&
+        state->m_toRunSymbolically.find(std::make_pair(state->regs()->getPc(), state->regs()->getPageDir())) !=
+            state->m_toRunSymbolically.end()) {
+        executeKlee = true;
+        state->m_toRunSymbolically.erase(std::make_pair(state->regs()->getPc(), state->regs()->getPageDir()));
+    }
 
-        if (!executeKlee) {
-            // XXX: This should be fixed to make sure that helpers do not read/write corrupted data
-            // because they think that execution is concrete while it should be symbolic (see issue #30).
-            if (!m_forceConcretizations) {
-                /* We can not execute TB natively if it reads any symbolic regs */
-                uint64_t smask = state->regs()->getSymbolicRegistersMask();
-                if (smask || (tb->helper_accesses_mem & 4)) {
-                    if ((smask & tb->reg_rmask) || (smask & tb->reg_wmask) || (tb->helper_accesses_mem & 4)) {
-                        /* TB reads symbolic variables */
-                        executeKlee = true;
-
-                    } else {
-                        se_tb_reset_jump_smask(tb, 0, smask);
-                        se_tb_reset_jump_smask(tb, 1, smask);
-                    }
-                }
-            } // forced concretizations
-        }
+    // S2E cannot execute TB natively if it reads any symbolic regs
+    auto allConcrete = state->regs()->allConcrete();
+    if (!allConcrete) {
+        executeKlee = true;
     }
 
     if (executeKlee) {
