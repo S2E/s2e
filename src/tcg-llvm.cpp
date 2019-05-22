@@ -291,7 +291,7 @@ public:
     Function *createTbFunction(const std::string &name);
     Function *generateCode(TCGContext *s);
 
-    bool getCpuFieldGepIndexes(unsigned offset, SmallVector<Value*, 3>& gepIndexes);
+    bool getCpuFieldGepIndexes(unsigned offset, SmallVector<Value*, 3> &gepIndexes);
 };
 
 unsigned TCGLLVMContextPrivate::m_eip_last_gep_index = 0;
@@ -711,23 +711,16 @@ inline Value* TCGLLVMContextPrivate::generateCpuStatePtr(TCGArg registerOffset, 
             if (it != m_registers.end()) {
                 ret = (*it).second;
             } else {
-                /*
-                unsigned reg = (registerOffset - m_tcgContext->env_offset_ccop) / TARGET_LONG_BYTES;
-                gepElements.push_back(ConstantInt::get(m_module->getContext(), APInt(32,  0)));
-                gepElements.push_back(ConstantInt::get(m_module->getContext(), APInt(32,  1 + reg)));
-                ret = m_builder.CreateGEP(m_cpuState, ArrayRef<Value*>(gepElements.begin(), gepElements.end()));
-                m_registers[registerOffset] = ret;
-                */
                bool ok = getCpuFieldGepIndexes(registerOffset, gepElements);
-               if (ok) {
-                   ret = m_builder.CreateGEP(m_cpuState, ArrayRef<Value*>(gepElements.begin(), gepElements.end()));
-                   m_registers[registerOffset] = ret;
+               if (!ok) {
+                   tcg_abort();
+               }
 
-                   if (m_eip_last_gep_index == 0 && registerOffset == m_tcgContext->env_offset_eip) {
-                        m_eip_last_gep_index = (unsigned)dyn_cast<ConstantInt>(gepElements.back())->getZExtValue();
-                   }
-               } else {
-                   ret = nullptr;
+               ret = m_builder.CreateGEP(m_cpuState, ArrayRef<Value*>(gepElements.begin(), gepElements.end()));
+               m_registers[registerOffset] = ret;
+
+               if (m_eip_last_gep_index == 0 && registerOffset == m_tcgContext->env_offset_eip) {
+                    m_eip_last_gep_index = (unsigned)dyn_cast<ConstantInt>(gepElements.back())->getZExtValue();
                }
             }
         }
@@ -742,16 +735,6 @@ inline Value* TCGLLVMContextPrivate::generateCpuStatePtr(TCGArg registerOffset, 
     return NULL;
 #endif
 }
-#if 0
-assert(getValue(args[1])->getType() == wordType());         \
-v = m_builder.CreateAdd(getValue(args[1]),                  \
-            ConstantInt::get(wordType(), args[2]));         \
-v = m_builder.CreateIntToPtr(v, intPtrType(memBits));       \
-v = m_builder.CreateLoad(v);                                \
-setValue(args[0], m_builder.Create ## signE ## Ext(         \
-            v, intType(regBits)));                          \
-
-#endif
 
 inline void TCGLLVMContextPrivate::generateQemuCpuLoad(const TCGArg *args, unsigned memBits, unsigned regBits, bool signExtend)
 {
@@ -1705,54 +1688,47 @@ void TCGLLVMContextPrivate::computeStaticBranchTargets()
 
 #endif
 
-bool TCGLLVMContextPrivate::getCpuFieldGepIndexes(unsigned offset, SmallVector<Value*, 3>& gepIndexes) {
+bool TCGLLVMContextPrivate::getCpuFieldGepIndexes(unsigned offset, SmallVector<Value*, 3> &gepIndexes) {
 
-    Type* curType = m_cpuType;
-    auto& dataLayout = m_module->getDataLayout();
+    Type *curType = m_cpuType;
+    auto &dataLayout = m_module->getDataLayout();
     auto I32Ty = Type::getInt32Ty(m_module->getContext());
 
     auto coffset = offset;
     gepIndexes.push_back(ConstantInt::get(I32Ty, 0));
+
     do {
-        bool notCompositeType = true;
+        bool compositeType = false;
 
         if (curType->isStructTy()) {
-
-            notCompositeType = false;
-            StructType* curStructTy = dyn_cast<StructType>(curType);
-            const StructLayout* curStructLayout = dataLayout.getStructLayout(curStructTy);
+            compositeType = true;
+            StructType *curStructTy = dyn_cast<StructType>(curType);
+            const StructLayout *curStructLayout = dataLayout.getStructLayout(curStructTy);
 
             auto curIdx = curStructLayout->getElementContainingOffset(coffset);
 
             gepIndexes.push_back(ConstantInt::get(I32Ty, curIdx));
             curType = curStructTy->getTypeAtIndex(curIdx);
             coffset -= curStructLayout->getElementOffset(curIdx);
-
-            //llvm::errs() << curStructTy->getName() << " : " << coffset << "\n";
         } else if (curType->isArrayTy()) {
-
-            notCompositeType = false;
-            ArrayType* curArrayTy = dyn_cast<ArrayType>(curType);
-            auto numElem = curArrayTy->getNumElements();
+            compositeType = true;
+            ArrayType *curArrayTy = dyn_cast<ArrayType>(curType);
             auto elemSize = dataLayout.getTypeStoreSize(curArrayTy->getElementType());
 
             auto curIdx = coffset / elemSize;
 
-            (void) numElem;
-            assert(curIdx < numElem && "Illegal field offset into CPUState!");
+            assert(curIdx < curArrayTy->getNumElements() && "Illegal field offset into CPUState!");
 
             gepIndexes.push_back(ConstantInt::get(I32Ty, curIdx));
             coffset %= elemSize;
             curType = curArrayTy->getElementType();
-
-            //llvm::errs() << "coffset: " << coffset << " array: " << numElem << " : " << elemSize << "\n";
         }
 
-        if (notCompositeType) {
-            //assert(coffset == 0 && "Invalid offset into CPUState!");
+        if (!compositeType) {
             return coffset == 0;
         }
     } while (true);
+
     return false;
 }
 
