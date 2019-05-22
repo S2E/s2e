@@ -1878,7 +1878,11 @@ uintptr_t S2EExecutor::executeTranslationBlock(S2EExecutionState *state, Transla
         state->m_toRunSymbolically.erase(std::make_pair(state->regs()->getPc(), state->regs()->getPageDir()));
     }
 
-    // S2E cannot execute TB natively if it reads any symbolic regs
+    // If the CPU state has symbolic registers, run in KLEE.
+    // In theory, we could check which registers are symbolic and decide whether
+    // the TB should be ran symbolically if it accesses symbolic registers.
+    // In practice, the implementation complexity of this check is just too high
+    // and it doesn't give a lot of speedup anyway.
     auto allConcrete = state->regs()->allConcrete();
     if (!allConcrete) {
         executeKlee = true;
