@@ -123,31 +123,6 @@ bool S2EExecutionStateRegisters::flagsRegistersAreSymbolic() const {
     return false;
 }
 
-uint64_t S2EExecutionStateRegisters::getSymbolicRegistersMask() const {
-    if (m_symbolicRegs->isAllConcrete())
-        return 0;
-
-    uint64_t mask = 0;
-    uint64_t offset = 0;
-    /* XXX: x86-specific */
-    for (int i = 0; i < CPU_NB_REGS; ++i) { /* regs */
-        if (!m_symbolicRegs->isConcrete(offset, sizeof(*env->regs) * 8)) {
-            mask |= (1 << (i + 5));
-        }
-        offset += sizeof(*env->regs);
-    }
-
-    if (!m_symbolicRegs->isConcrete(offsetof(CPUX86State, cc_op), sizeof(env->cc_op) * 8)) // cc_op
-        mask |= _M_CC_OP;
-    if (!m_symbolicRegs->isConcrete(offsetof(CPUX86State, cc_src), sizeof(env->cc_src) * 8)) // cc_src
-        mask |= _M_CC_SRC;
-    if (!m_symbolicRegs->isConcrete(offsetof(CPUX86State, cc_dst), sizeof(env->cc_dst) * 8)) // cc_dst
-        mask |= _M_CC_DST;
-    if (!m_symbolicRegs->isConcrete(offsetof(CPUX86State, cc_tmp), sizeof(env->cc_tmp) * 8)) // cc_tmp
-        mask |= _M_CC_TMP;
-    return mask;
-}
-
 bool S2EExecutionStateRegisters::readSymbolicRegion(unsigned offset, void *_buf, unsigned size, bool concretize) const {
     static const char *regNames[] = {"eax", "ecx", "edx",   "ebx",    "esp",    "ebp",
                                      "esi", "edi", "cc_op", "cc_src", "cc_dst", "cc_tmp"};

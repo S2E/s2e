@@ -124,9 +124,6 @@ public:
         return m_symbolicRegs->isAllConcrete();
     }
 
-    /// Returns a mask of registers that contains symbolic values
-    uint64_t getSymbolicRegistersMask() const;
-
     bool flagsRegistersAreSymbolic() const;
 
     static bool initialized() {

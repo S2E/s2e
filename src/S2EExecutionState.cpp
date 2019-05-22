@@ -601,9 +601,6 @@ bool S2EExecutionState::merge(const ExecutionState &_b) {
         if (DebugLogStateMerge) {
             s << "merge failed: different KLEE pc\n" << *(*pc).inst << "\n" << *(*b.pc).inst << "\n";
 
-            s << "symb regs a: " << hexval(regs()->getSymbolicRegistersMask()) << "\n";
-            s << "symb regs b: " << hexval(b.regs()->getSymbolicRegistersMask()) << "\n";
-
             std::stringstream ss;
             g_s2e->getExecutor()->printStack(*this, NULL, ss);
             g_s2e->getExecutor()->printStack(b, NULL, ss);

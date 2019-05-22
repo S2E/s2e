@@ -1010,8 +1010,6 @@ S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMContext *tcgLLVMContext, const Interpr
 
     searcher = constructUserSearcher(*this);
 
-    m_forceConcretizations = false;
-
     g_s2e_fork_on_symbolic_address = ForkOnSymbolicAddress;
     g_s2e_concretize_io_addresses = ConcretizeIoAddress;
     g_s2e_concretize_io_writes = ConcretizeIoWrites;
@@ -1230,11 +1228,6 @@ void S2EExecutor::switchToConcrete(S2EExecutionState *state) {
     if (PrintModeSwitch) {
         m_s2e->getInfoStream(state) << "Switching to concrete execution at pc = " << hexval(state->regs()->getPc())
                                     << '\n';
-    }
-
-    /* Concretize any symbolic registers */
-    if (m_forceConcretizations) {
-        assert(false && "Deprecated");
     }
 
     // assert(os->isAllConcrete());
@@ -1742,35 +1735,6 @@ bool S2EExecutor::finalizeTranslationBlockExec(S2EExecutionState *state) {
     return ret;
 }
 
-#ifdef _WIN32
-
-extern "C" volatile LONG g_signals_enabled;
-
-typedef int sigset_t;
-
-static void s2e_disable_signals(sigset_t *oldset) {
-    while (InterlockedCompareExchange(&g_signals_enabled, 0, 1) == 0)
-        ;
-}
-
-static void s2e_enable_signals(sigset_t *oldset) {
-    g_signals_enabled = 1;
-}
-
-#else
-
-static void s2e_disable_signals(sigset_t *oldset) {
-    sigset_t set;
-    sigfillset(&set);
-    sigprocmask(SIG_BLOCK, &set, oldset);
-}
-
-static void s2e_enable_signals(sigset_t *oldset) {
-    sigprocmask(SIG_SETMASK, oldset, NULL);
-}
-
-#endif
-
 void S2EExecutor::updateClockScaling() {
     int scaling = ClockSlowDownConcrete;
 
@@ -1862,64 +1826,6 @@ uintptr_t S2EExecutor::executeTranslationBlockConcrete(S2EExecutionState *state,
 
     memcpy(env->jmp_env, s2e_cpuExitJmpBuf, sizeof(env->jmp_env));
     return ret;
-}
-
-static inline void se_tb_reset_jump(TranslationBlock *tb, unsigned int n) {
-    TranslationBlock *tb1, *tb_next, **ptb;
-    unsigned int n1;
-
-    tb1 = tb->jmp_next[n];
-    if (tb1 != NULL) {
-        /* find head of list */
-        for (;;) {
-            n1 = (intptr_t) tb1 & 3;
-            tb1 = (TranslationBlock *) ((intptr_t) tb1 & ~3);
-            if (n1 == 2)
-                break;
-            tb1 = tb1->jmp_next[n1];
-        }
-        /* we are now sure now that tb jumps to tb1 */
-        tb_next = tb1;
-
-        /* remove tb from the jmp_first list */
-        ptb = &tb_next->jmp_first;
-        for (;;) {
-            tb1 = *ptb;
-            n1 = (intptr_t) tb1 & 3;
-            tb1 = (TranslationBlock *) ((intptr_t) tb1 & ~3);
-            if (n1 == n && tb1 == tb)
-                break;
-            ptb = &tb1->jmp_next[n1];
-        }
-        *ptb = tb->jmp_next[n];
-        tb->jmp_next[n] = NULL;
-
-        /* suppress the jump to next tb in generated code */
-        tb_set_jmp_target(tb, n, (uintptr_t)(tb->tc_ptr + tb->tb_next_offset[n]));
-        tb->se_tb_next[n] = NULL;
-    }
-}
-
-// XXX: inline causes compiler internal errors
-static void se_tb_reset_jump_smask(TranslationBlock *tb, unsigned int n, uint64_t smask, int depth = 0) {
-    TranslationBlock *tb1 = tb->se_tb_next[n];
-    sigset_t oldset;
-    if (depth == 0) {
-        s2e_disable_signals(&oldset);
-    }
-
-    if (tb1) {
-        if (depth > 2 || (smask & tb1->reg_rmask) || (smask & tb1->reg_wmask) || (tb1->helper_accesses_mem & 4)) {
-            se_tb_reset_jump(tb, n);
-        } else if (tb1 != tb) {
-            se_tb_reset_jump_smask(tb1, 0, smask, depth + 1);
-            se_tb_reset_jump_smask(tb1, 1, smask, depth + 1);
-        }
-    }
-
-    if (depth == 0) {
-        s2e_enable_signals(&oldset);
-    }
 }
 
 uintptr_t S2EExecutor::executeTranslationBlockSlow(struct CPUX86State *env1, struct TranslationBlock *tb) {
