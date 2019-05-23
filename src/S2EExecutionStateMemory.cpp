@@ -216,6 +216,40 @@ ObjectPair S2EExecutionStateMemory::getMemoryObject(uint64_t address, AddressTyp
     return m_addressSpace->findObject(pageAddr);
 }
 
+bool S2EExecutionStateMemory::symbolic(uint64_t address, uint64_t size, AddressType addressType) {
+#ifdef CONFIG_SYMBEX_MP
+    while (size > 0) {
+        uint64_t hostAddress = getHostAddress(address, addressType);
+        if (hostAddress == (uint64_t) -1) {
+            return false;
+        }
+
+        uint64_t pageAddr = hostAddress & SE_RAM_OBJECT_MASK;
+        ObjectPair op = m_asCache->get(pageAddr);
+        assert(op.first && op.second);
+
+        uint64_t pageOffset = address % op.first->size;
+        uint64_t pageLength = op.first->size - pageOffset;
+
+        if (pageLength > size) {
+            pageLength = size;
+        }
+
+        if (!op.second->isAllConcrete()) {
+            for (unsigned i = 0; i < pageLength; ++i) {
+                if (!op.second->isConcrete(pageOffset + i, klee::Expr::Int8)) {
+                    return true;
+                }
+            }
+        }
+
+        address += pageLength;
+        size -= pageLength;
+    }
+#endif
+    return false;
+}
+
 /***/
 
 void S2EExecutionStateMemory::transferRamInternal(ObjectPair op, uint64_t object_offset, uint8_t *buf, uint64_t size,

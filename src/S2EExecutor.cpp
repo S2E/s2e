@@ -854,6 +854,7 @@ S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMContext *tcgLLVMContext, const Interpr
     __DEFINE_EXT_FUNCTION(se_is_mmio_symbolic_w)
     __DEFINE_EXT_FUNCTION(se_is_mmio_symbolic_l)
     __DEFINE_EXT_FUNCTION(se_is_mmio_symbolic_q)
+    __DEFINE_EXT_FUNCTION(se_is_vmem_symbolic)
 
     __DEFINE_EXT_FUNCTION(s2e_on_privilege_change);
     __DEFINE_EXT_FUNCTION(s2e_on_page_fault);
@@ -2588,6 +2589,10 @@ void s2e_switch_to_symbolic(void *retaddr) {
 
 void se_ensure_symbolic() {
     g_s2e_state->jumpToSymbolic();
+}
+
+int se_is_vmem_symbolic(uint64_t vmem, unsigned size) {
+    return g_s2e_state->mem()->symbolic(vmem, size);
 }
 
 void se_tb_alloc(TranslationBlock *tb) {

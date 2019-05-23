@@ -159,6 +159,7 @@ void s2e_execute_cmd(const char *cmd);
 void s2e_switch_to_symbolic(void *retaddr) __attribute__((noreturn));
 
 void se_ensure_symbolic(void);
+int se_is_vmem_symbolic(uint64_t vmem, unsigned size);
 
 int s2e_is_port_symbolic(uint64_t port);
 int s2e_is_mmio_symbolic(uint64_t physaddr, unsigned size);
