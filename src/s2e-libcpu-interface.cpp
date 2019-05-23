@@ -78,6 +78,7 @@ void init_s2e_libcpu_interface(struct se_libcpu_interface_t *sqi) {
     sqi->mem.read_mem_io_vaddr = s2e_read_mem_io_vaddr;
     sqi->mem.is_port_symbolic = s2e_is_port_symbolic;
     sqi->mem.is_mmio_symbolic = s2e_is_mmio_symbolic;
+    sqi->mem.is_vmem_symbolic = se_is_vmem_symbolic;
     sqi->mem.get_host_address = se_get_host_address;
 
     sqi->mem.__ldb_mmu_trace = __ldb_mmu_trace;
