@@ -4623,6 +4623,12 @@ void helper_fxrstor(target_ulong ptr, int data64) {
         raise_exception(EXCP0D_GPF);
     }
 
+#if defined(CONFIG_SYMBEX) && !defined(SYMBEX_LLVM_LIB)
+    if (g_sqi.mem.is_vmem_symbolic(ptr, 0x200)) {
+        g_sqi.exec.switch_to_symbolic(GETPC());
+    }
+#endif
+
     FPUC_W(lduw(ptr));
     fpus = lduw(ptr + 2);
     fptag = lduw(ptr + 4);
