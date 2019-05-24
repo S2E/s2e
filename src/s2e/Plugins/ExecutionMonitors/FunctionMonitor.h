@@ -14,7 +14,7 @@
 #include <s2e/Plugins/OSMonitors/Support/ModuleExecutionDetector.h>
 #include <s2e/S2EExecutionState.h>
 
-#include <tr1/unordered_map>
+#include <unordered_map>
 
 namespace s2e {
 namespace plugins {
@@ -95,8 +95,8 @@ class FunctionMonitorState : public PluginState {
         // TODO: add sourceModuleID and targetModuleID
         FunctionMonitor::ReturnSignal signal;
     };
-    typedef std::tr1::unordered_multimap<uint64_t, CallDescriptor> CallDescriptorsMap;
-    typedef std::tr1::unordered_multimap<uint64_t, ReturnDescriptor> ReturnDescriptorsMap;
+    typedef std::unordered_multimap<uint64_t, CallDescriptor> CallDescriptorsMap;
+    typedef std::unordered_multimap<uint64_t, ReturnDescriptor> ReturnDescriptorsMap;
 
     CallDescriptorsMap m_callDescriptors;
     CallDescriptorsMap m_newCallDescriptors;

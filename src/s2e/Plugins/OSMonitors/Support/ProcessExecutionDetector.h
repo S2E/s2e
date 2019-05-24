@@ -35,7 +35,7 @@ public:
     sigc::signal<void, S2EExecutionState *> onMonitorLoad;
 
 private:
-    typedef std::tr1::unordered_set<std::string> StringSet;
+    typedef std::unordered_set<std::string> StringSet;
 
     OSMonitor *m_monitor;
 
