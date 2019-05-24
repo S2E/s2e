@@ -132,8 +132,11 @@ static inline void helper_fstt(floatx80 f, target_ulong ptr) {
 #define FPUC_EM 0x3f
 
 uint32_t compute_eflags(void) {
-    /* Bit 1 must always be set according to x86 architecture */
-    return env->mflags | helper_cc_compute_all(CC_OP) | (DF & DF_MASK) | 2;
+    // Bit 1 must always be set according to x86 architecture
+    // The cast to uint32_t is required to reduce the complexity of LLVM instructions,
+    // which would otherwise create deep expression trees during symbolic execution
+    // (chains of extract/zext).
+    return ((uint32_t) env->mflags) | helper_cc_compute_all(CC_OP) | (DF & DF_MASK) | 2;
 }
 
 #if defined(CONFIG_SYMBEX) && !defined(SYMBEX_LLVM_LIB) && !defined(STATIC_TRANSLATOR)
