@@ -51,14 +51,14 @@ protected:
 
     ExprHashMap<ExprBitsInfo> m_simplifiedExpressions;
 
-    ref<Expr> replaceWithConstant(ref<Expr> e, uint64_t value);
+    ref<Expr> replaceWithConstant(const ref<Expr> &e, uint64_t value);
 
-    ExprBitsInfo doSimplifyBits(ref<Expr> e, uint64_t ignoredBits);
+    ExprBitsInfo doSimplifyBits(const ref<Expr> &e, uint64_t ignoredBits);
 
 public:
     uint64_t m_cacheHits, m_cacheMisses;
 
-    ref<Expr> simplify(ref<Expr> e, uint64_t *knownZeroBits = NULL);
+    ref<Expr> simplify(const ref<Expr> &e, uint64_t *knownZeroBits = NULL);
 
     BitfieldSimplifier() {
         m_cacheHits = 0;
