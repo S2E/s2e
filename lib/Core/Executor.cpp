@@ -729,8 +729,7 @@ ref<klee::ConstantExpr> Executor::evalConstant(Constant *c) {
         } else if (const ConstantFP *cf = dyn_cast<ConstantFP>(c)) {
             return ConstantExpr::alloc(cf->getValueAPF().bitcastToAPInt());
         } else if (const GlobalValue *gv = dyn_cast<GlobalValue>(c)) {
-            std::tr1::unordered_map<const llvm::GlobalValue *, ref<ConstantExpr>>::iterator it =
-                globalAddresses.find(gv);
+            std::unordered_map<const llvm::GlobalValue *, ref<ConstantExpr>>::iterator it = globalAddresses.find(gv);
             assert(it != globalAddresses.end());
             return it->second;
         } else if (isa<ConstantPointerNull>(c)) {
