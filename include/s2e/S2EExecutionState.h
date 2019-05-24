@@ -42,7 +42,6 @@ class S2EDeviceState;
 class S2EExecutionState;
 struct S2ETranslationBlock;
 
-// typedef std::tr1::unordered_map<const Plugin*, PluginState*> PluginStateMap;
 typedef std::map<const Plugin *, PluginState *> PluginStateMap;
 typedef PluginState *(*PluginStateFactory)(Plugin *p, S2EExecutionState *s);
 

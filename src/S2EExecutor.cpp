@@ -66,7 +66,7 @@
 #include <sys/mman.h>
 #endif
 
-#include <tr1/functional>
+#include <functional>
 
 //#define S2E_DEBUG_MEMORY
 //#define S2E_DEBUG_INSTRUCTIONS

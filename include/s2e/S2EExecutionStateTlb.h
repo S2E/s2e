@@ -11,7 +11,7 @@
 #define S2E_EXECUTION_STATE_TLB
 
 #include <klee/Memory.h>
-#include <tr1/unordered_map>
+#include <unordered_map>
 #include <vector>
 #include "AddressSpaceCache.h"
 #include "S2EExecutionStateRegisters.h"
@@ -30,7 +30,7 @@ public:
      */
     typedef std::pair<unsigned int, unsigned int> TlbCoordinates;
     typedef llvm::SmallVector<TlbCoordinates, 8> ObjectStateTlbReferences;
-    typedef std::tr1::unordered_map<klee::ObjectState *, ObjectStateTlbReferences> TlbMap;
+    typedef std::unordered_map<klee::ObjectState *, ObjectStateTlbReferences> TlbMap;
 
 private:
     TlbMap m_tlbMap;

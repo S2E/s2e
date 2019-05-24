@@ -130,8 +130,6 @@ struct PluginInfo {
     Plugin *(*instanceCreator)(S2E *);
 };
 
-// typedef std::tr1::unordered_map<std::string, const PluginInfo*> PluginMap;
-
 typedef struct PluginGraphData { const PluginInfo *info; } PluginGraphData;
 
 class PluginsFactory {
