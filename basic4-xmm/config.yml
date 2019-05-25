@@ -1,0 +1,7 @@
+test:
+    description: "This tests that FP/MMX/XMM registers can hold symbolic data"
+    targets:
+        - windows32-basic4-xmm.exe
+        - windows64-basic4-xmm.exe
+        - linux32-basic4-xmm
+        - linux64-basic4-xmm
