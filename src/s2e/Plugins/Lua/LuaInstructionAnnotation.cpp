@@ -126,16 +126,17 @@ void LuaInstructionAnnotation::onTranslateBlockStart(ExecutionSignal *signal, S2
         return;
     }
 
+    uint64_t addend = module->ToNativeBase(pc);
+
     m_instructionStart = plg->onTranslateInstructionStart.connect(
-        sigc::bind(sigc::mem_fun(*this, &LuaInstructionAnnotation::onTranslateInstructionStart), it->second,
-                   (-module->LoadBase + module->NativeBase) /* Pass an addend to convert the program counter */
-                   ));
+        sigc::bind(sigc::mem_fun(*this, &LuaInstructionAnnotation::onTranslateInstructionStart), it->second, addend));
 }
 
 void LuaInstructionAnnotation::onTranslateInstructionStart(ExecutionSignal *signal, S2EExecutionState *state,
                                                            TranslationBlock *tb, uint64_t pc,
                                                            const ModuleAnnotations *annotations, uint64_t addend) {
-    uint64_t modulePc = pc + addend;
+    uint64_t offset = pc - tb->pc;
+    uint64_t modulePc = offset + addend;
     Annotation tofind(modulePc);
 
     if (annotations->find(tofind) == annotations->end()) {
