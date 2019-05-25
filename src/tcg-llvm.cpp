@@ -711,17 +711,18 @@ inline Value* TCGLLVMContextPrivate::generateCpuStatePtr(TCGArg registerOffset, 
             if (it != m_registers.end()) {
                 ret = (*it).second;
             } else {
-               bool ok = getCpuFieldGepIndexes(registerOffset, gepElements);
-               if (!ok) {
-                   tcg_abort();
-               }
+                bool ok = getCpuFieldGepIndexes(registerOffset, gepElements);
+                if (ok) {
+                   ret = m_builder.CreateGEP(m_cpuState, ArrayRef<Value*>(gepElements.begin(), gepElements.end()));
+                   m_registers[registerOffset] = ret;
 
-               ret = m_builder.CreateGEP(m_cpuState, ArrayRef<Value*>(gepElements.begin(), gepElements.end()));
-               m_registers[registerOffset] = ret;
-
-               if (m_eip_last_gep_index == 0 && registerOffset == m_tcgContext->env_offset_eip) {
-                    m_eip_last_gep_index = (unsigned)dyn_cast<ConstantInt>(gepElements.back())->getZExtValue();
-               }
+                   if (m_eip_last_gep_index == 0 && registerOffset == m_tcgContext->env_offset_eip) {
+                       m_eip_last_gep_index = (unsigned)dyn_cast<ConstantInt>(gepElements.back())->getZExtValue();
+                   }
+                } else {
+                   // We might have run into a union, can't use GEP
+                   return NULL;
+                }
             }
         }
     }
