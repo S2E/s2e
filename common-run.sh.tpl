@@ -30,6 +30,10 @@ ulimit -c unlimited
 DIR_NAME="$(cd $(dirname $0) && pwd)"
 S2E_LAST="$DIR_NAME/s2e-last"
 
+# Make sure we don't have left overs from a previous run,
+# otherwise, if S2E fails to start, the script will mistakenly look at old results.
+rm -f "$S2E_LAST"
+
 get_bitness() {
     local TARGET_NAME="$(basename $1)"
     if echo $TARGET_NAME | grep -q 32; then
