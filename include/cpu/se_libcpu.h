@@ -118,6 +118,7 @@ struct se_libcpu_interface_t {
         uint64_t (*read_mem_io_vaddr)(int masked);
         int (*is_port_symbolic)(uint64_t port);
         int (*is_mmio_symbolic)(uint64_t phys_addr, unsigned size);
+        int (*is_vmem_symbolic)(uint64_t vaddr, unsigned size);
 
         uintptr_t (*get_host_address)(uint64_t paddr);
 

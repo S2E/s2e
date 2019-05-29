@@ -62,6 +62,19 @@
 #define MMX_Q(n) q
 
 #if defined(CONFIG_SYMBEX) && !defined(SYMBEX_LLVM_LIB)
+
+/* uncomment this to compile assertions in */
+// #define DO_SANITY_CHECK
+
+#ifdef DO_SANITY_CHECK
+#define CHECK_ASSERT(x) assert(x)
+#else
+#define CHECK_ASSERT(x)
+#endif
+
+/* fwd decl to make compiler happy */
+extern struct CPUX86State *env;
+
 /* Macros to access registers */
 static inline target_ulong __RR_env_raw(CPUX86State *cpuState, unsigned offset, unsigned size) {
     if (likely(*g_sqi.mode.fast_concrete_invocation)) {
@@ -107,12 +120,96 @@ static inline void __WR_env_raw(CPUX86State *cpuState, unsigned offset, target_u
     }
 }
 
+static inline floatx80 __RR_env_floatx80(CPUArchState *cpuState, unsigned offset) {
+    if (likely(*g_sqi.mode.fast_concrete_invocation)) {
+        return *(floatx80 *) ((uint8_t *) cpuState + offset);
+    }
+    floatx80 result;
+    g_sqi.regs.read_concrete(offset, (uint8_t *) &result, sizeof(result));
+    return result;
+}
+
+static inline void __WR_env_floatx80(CPUArchState *cpuState, unsigned offset, floatx80 value) {
+    if (likely(*g_sqi.mode.fast_concrete_invocation)) {
+        *(floatx80 *) ((uint8_t *) cpuState + offset) = value;
+    } else {
+        g_sqi.regs.write_concrete(offset, (uint8_t *) &value, sizeof(value));
+    }
+}
+
+static inline void __RR_env_large(CPUArchState *cpuState, unsigned offset, void *buf, unsigned size) {
+    if (likely(*g_sqi.mode.fast_concrete_invocation)) {
+        __builtin_memcpy(buf, (uint8_t *) cpuState + offset, size);
+    } else {
+        g_sqi.regs.read_concrete(offset, (uint8_t *) buf, size);
+    }
+}
+
+static inline void __WR_env_large(CPUArchState *cpuState, unsigned offset, void *buf, unsigned size) {
+    if (likely(*g_sqi.mode.fast_concrete_invocation)) {
+        __builtin_memcpy((uint8_t *) cpuState + offset, buf, size);
+    } else {
+        g_sqi.regs.write_concrete(offset, (uint8_t *) buf, size);
+    }
+}
+
+static inline uint64_t __RR_env_dyn(void *p, unsigned size) {
+    int off = (uintptr_t) p - (uintptr_t) env;
+    CHECK_ASSERT(size <= sizeof(uint64_t) && ((uintptr_t) p >= (uintptr_t) env) && off >= 0 &&
+                 (off + size) <= offsetof(CPUArchState, eip) && "unexpected calling context");
+
+    if (size <= sizeof(target_ulong)) {
+        return __RR_env_raw(env, off, size);
+    }
+    uint64_t result;
+    __RR_env_large(env, off, &result, size);
+    return result;
+}
+
+static inline uint64_t __WR_env_dyn(void *p, unsigned size, uint64_t v) {
+    int off = (uintptr_t) p - (uintptr_t) env;
+    CHECK_ASSERT(size <= sizeof(uint64_t) && ((uintptr_t) p >= (uintptr_t) env) && off >= 0 &&
+                 (off + size) <= offsetof(CPUArchState, eip) && "unexpected calling context");
+
+    if (size <= sizeof(target_ulong)) {
+        __WR_env_raw(env, off, v, size);
+    } else {
+        __WR_env_large(env, off, &v, size);
+    }
+    return v;
+}
+
 #define RR_cpu(cpu, reg) ((__typeof__(cpu->reg)) __RR_env_raw(cpu, offsetof(CPUX86State, reg), sizeof(cpu->reg)))
 
 #define WR_cpu(cpu, reg, value) __WR_env_raw(cpu, offsetof(CPUX86State, reg), (target_ulong) value, sizeof(cpu->reg))
+
+#define RR_cpu_fp80(cpu, reg) (__RR_env_floatx80(cpu, offsetof(CPUX86State, reg)))
+#define WR_cpu_fp80(cpu, reg, value) __WR_env_floatx80(cpu, offsetof(CPUX86State, reg), value)
+
+#define RR_cpu_dyn(p, size) ((__typeof__(*p)) __RR_env_dyn(p, size))
+#define WR_cpu_dyn(p, size, v) __WR_env_dyn(p, size, v)
+
+#define WR_reg(r, v)                                                                                                \
+    {                                                                                                               \
+        int off = (char *) r - (char *) env;                                                                        \
+        CHECK_ASSERT(off >= 0 && (off + sizeof(v)) <= offsetof(CPUArchState, eip) && "unexpected calling context"); \
+        __WR_env_large(env, off, &v, sizeof(v));                                                                    \
+    }
+
 #else
+
 #define RR_cpu(cpu, reg) cpu->reg
 #define WR_cpu(cpu, reg, value) cpu->reg = value
+
+#define RR_cpu_fp80(cpu, reg) cpu->reg
+#define WR_cpu_fp80(cpu, reg, value) cpu->reg = value
+
+#define RR_cpu_dyn(p, size) (*p)
+#define WR_cpu_dyn(p, size, v) *p = v
+
+#define WR_reg(r, v) *r = v
+
+#define __RR_env_dyn(p, size) *p
 #endif
 
 #ifdef ENABLE_PRECISE_EXCEPTION_DEBUGGING
@@ -307,6 +404,21 @@ static inline int hw_breakpoint_len(unsigned long dr7, int index) {
 #define CC_OP_W(v) (WR_cpu(env, cc_op, v))
 #define CC_TMP_W(v) (WR_cpu(env, cc_tmp, v))
 
+#define FPSTT (RR_cpu(env, fpstt))
+#define FPSTT_W(v) (WR_cpu(env, fpstt, v))
+
+#define FPUS (RR_cpu(env, fpus))
+#define FPUS_W(v) (WR_cpu(env, fpus, v))
+
+#define FPUC (RR_cpu(env, fpuc))
+#define FPUC_W(v) (WR_cpu(env, fpuc, v))
+
+#define MXCSR (RR_cpu(env, mxcsr))
+#define MXCSR_W(v) (WR_cpu(env, mxcsr, v))
+
+#define FPTAGS(i) (RR_cpu(env, fptags[i]))
+#define FPTAGS_W(i, v) (WR_cpu(env, fptags[i], v))
+
 #define DF (env->df)
 #define DF_W(v) (env->df = (v))
 
@@ -314,10 +426,22 @@ static inline int hw_breakpoint_len(unsigned long dr7, int index) {
 #define EIP (env->eip)
 
 /* float macros */
+#if 0
 #define FT0 (env->ft0)
 #define ST0 (env->fpregs[env->fpstt].d)
 #define ST(n) (env->fpregs[(env->fpstt + (n)) & 7].d)
+#endif
+#define FT0 (RR_cpu_fp80(env, ft0))
+#define FT0_W(v) (WR_cpu_fp80(env, ft0, v))
+
+#define ST0 (RR_cpu_fp80(env, fpregs[FPSTT].d))
+#define ST0_W(v) (WR_cpu_fp80(env, fpregs[FPSTT].d, v))
+
+#define ST(n) (RR_cpu_fp80(env, fpregs[(FPSTT + (n)) & 7].d))
+#define ST_W(n, v) (WR_cpu_fp80(env, fpregs[(FPSTT + (n)) & 7].d, v))
+
 #define ST1 ST(1)
+#define ST1_W(v) ST_W(1, v)
 
 /* translate.c */
 void optimize_flags_init(void);
