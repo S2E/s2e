@@ -827,61 +827,66 @@ ref<Expr> ExtractExpr::create(const ref<Expr> &expr, unsigned off, Width w) {
 
     if (w == kw) {
         return expr;
-    } else if (ConstantExpr *CE = dyn_cast<ConstantExpr>(expr)) {
+    }
+
+    else if (ConstantExpr *CE = dyn_cast<ConstantExpr>(expr)) {
         return CE->Extract(off, w);
-    } else {
-        // simplify E(Zext(x)) = x
-        if (ZExtExpr *ze = dyn_cast<ZExtExpr>(expr)) {
-            // Convenience variables
-            ref<Expr> x = ze->getKid(0);
-            Width xw = x->getWidth();
-            Width zew = ze->getWidth();
-            Width ew = w;
+    }
 
-            if (xw == w && off == 0) {
-                return x;
-            }
-            if (ew <= zew && ew >= xw && off == 0) {
-                return ZExtExpr::create(x, ew);
-            }
-        } else
+    // simplify E(Zext(x)) = x
+    else if (ZExtExpr *ze = dyn_cast<ZExtExpr>(expr)) {
+        // Convenience variables
+        ref<Expr> x = ze->getKid(0);
+        Width xw = x->getWidth();
+        Width zew = ze->getWidth();
+        Width ew = w;
 
-            // Extract(Concat)
-            if (ConcatExpr *ce = dyn_cast<ConcatExpr>(expr)) {
+        if (xw == w && off == 0) {
+            return x;
+        }
+        if (ew <= zew && ew >= xw && off == 0) {
+            return ZExtExpr::create(x, ew);
+        }
+    }
 
-            // if the extract skips the right side of the concat
-            if (off >= ce->getRight()->getWidth())
-                return ExtractExpr::create(ce->getLeft(), off - ce->getRight()->getWidth(), w);
+    // Extract(Concat)
+    else if (ConcatExpr *ce = dyn_cast<ConcatExpr>(expr)) {
+        // if the extract skips the right side of the concat
+        if (off >= ce->getRight()->getWidth()) {
+            return ExtractExpr::create(ce->getLeft(), off - ce->getRight()->getWidth(), w);
+        }
 
-            // if the extract skips the left side of the concat
-            if (off + w <= ce->getRight()->getWidth())
-                return ExtractExpr::create(ce->getRight(), off, w);
+        // if the extract skips the left side of the concat
+        if (off + w <= ce->getRight()->getWidth()) {
+            return ExtractExpr::create(ce->getRight(), off, w);
+        }
 
-            // E(C(x,y)) = C(E(x), E(y))
-            return ConcatExpr::create(ExtractExpr::create(ce->getKid(0), 0, w - ce->getKid(1)->getWidth() + off),
-                                      ExtractExpr::create(ce->getKid(1), off, ce->getKid(1)->getWidth() - off));
-        } else
+        // E(C(x,y)) = C(E(x), E(y))
+        return ConcatExpr::create(ExtractExpr::create(ce->getKid(0), 0, w - ce->getKid(1)->getWidth() + off),
+                                  ExtractExpr::create(ce->getKid(1), off, ce->getKid(1)->getWidth() - off));
+    }
 
+    else if (SExtExpr *se = dyn_cast<SExtExpr>(expr)) {
+        ref<Expr> x = se->getKid(0);
+        Width xw = x->getWidth();
+
+        if (off == 0 && w == Int8 && xw == Int8) {
             // Extract w8 0 (SExt w32 (xxx w8))
-            if (SExtExpr *se = dyn_cast<SExtExpr>(expr)) {
-            ref<Expr> x = se->getKid(0);
-            Width xw = x->getWidth();
+            return x;
+        } else if (off == 0) {
+            // Extract(SExt)
+            return SExtExpr::create(se->getSrc(), w);
+        }
+    }
 
-            if (off == 0 && w == Int8 && xw == Int8) {
-                return x;
-            }
+    // Extract(ZExt)
+    else if (ZExtExpr *ze = dyn_cast<ZExtExpr>(expr)) {
+        if (off == 0) {
+            return ZExtExpr::create(ze->getSrc(), w);
         }
-        // Extract(ZExt)
-        else if (ZExtExpr *ze = dyn_cast<ZExtExpr>(expr)) {
-            if (off == 0)
-                return ZExtExpr::create(ze->getSrc(), w);
-            else if (off >= ze->getSrc()->getWidth())
-                return ConstantExpr::alloc(0, w);
-        }
-        // Extract(SExt)
-        else if (SExtExpr *se = dyn_cast<SExtExpr>(expr)) {
-            if (off == 0)
-                return SExtExpr::create(se->getSrc(), w);
+
+        if (off >= ze->getSrc()->getWidth()) {
+            return ConstantExpr::alloc(0, w);
         }
     }
 

@@ -23,7 +23,7 @@ class Assignment {
 public:
     typedef std::map<const Array *, std::vector<unsigned char>> bindings_ty;
     typedef ExprHashMap<ref<Expr>> ExpressionCache;
-    typedef std::tr1::unordered_map<const Array *, UpdateList> UpdateListCache;
+    typedef std::unordered_map<const Array *, UpdateList> UpdateListCache;
 
     bool allowFreeValues;
     bindings_ty bindings;

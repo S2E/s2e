@@ -10,15 +10,15 @@
 #ifndef KLEE_EXPRHASHMAP_H
 #define KLEE_EXPRHASHMAP_H
 
-#include <tr1/unordered_map>
-#include <tr1/unordered_set>
+#include <unordered_map>
+#include <unordered_set>
 #include "klee/Expr.h"
 
 namespace klee {
 
 namespace util {
 struct ExprHash {
-    unsigned operator()(const ref<Expr> e) const {
+    unsigned operator()(const ref<Expr> &e) const {
         return e->hash();
     }
 };
@@ -33,9 +33,9 @@ struct ExprCmp {
 template <class T>
 class ExprHashMap :
 
-    public std::tr1::unordered_map<ref<Expr>, T, klee::util::ExprHash, klee::util::ExprCmp> {};
+    public std::unordered_map<ref<Expr>, T, klee::util::ExprHash, klee::util::ExprCmp> {};
 
-typedef std::tr1::unordered_set<ref<Expr>, klee::util::ExprHash, klee::util::ExprCmp> ExprHashSet;
+typedef std::unordered_set<ref<Expr>, klee::util::ExprHash, klee::util::ExprCmp> ExprHashSet;
 }
 
 #endif

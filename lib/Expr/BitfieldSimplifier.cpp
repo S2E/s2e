@@ -50,7 +50,7 @@ cl::opt<bool> DebugSimplifier("debug-expr-simplifier", cl::init(false));
 cl::opt<bool> PrintSimplifier("print-expr-simplifier", cl::init(false));
 }
 
-ref<Expr> BitfieldSimplifier::replaceWithConstant(ref<Expr> e, uint64_t value) {
+ref<Expr> BitfieldSimplifier::replaceWithConstant(const ref<Expr> &e, uint64_t value) {
     ConstantExpr *ce = dyn_cast<ConstantExpr>(e);
     if (ce && ce->getZExtValue() == value)
         return e;
@@ -66,7 +66,7 @@ ref<Expr> BitfieldSimplifier::replaceWithConstant(ref<Expr> e, uint64_t value) {
     return ConstantExpr::create(value & ~zeroMask(e->getWidth()), e->getWidth());
 }
 
-BitfieldSimplifier::ExprBitsInfo BitfieldSimplifier::doSimplifyBits(ref<Expr> e, uint64_t ignoredBits) {
+BitfieldSimplifier::ExprBitsInfo BitfieldSimplifier::doSimplifyBits(const ref<Expr> &e, uint64_t ignoredBits) {
     ExprHashMap<BitsInfo>::iterator it = m_bitsInfoCache.find(e);
     if (it != m_bitsInfoCache.end()) {
         return *it;
@@ -93,8 +93,9 @@ BitfieldSimplifier::ExprBitsInfo BitfieldSimplifier::doSimplifyBits(ref<Expr> e,
         oldIgnoredBits[i] = bits[i].ignoredBits;
     }
 
-    if (DebugSimplifier)
+    if (DebugSimplifier) {
         *klee_message_stream << "Considering " << e << '\n';
+    }
 
     /* Apply kind-specific knowledge to obtain knownBits for e and
        ignoredBits for kids of e, then to optimize e */
@@ -280,13 +281,15 @@ BitfieldSimplifier::ExprBitsInfo BitfieldSimplifier::doSimplifyBits(ref<Expr> e,
     assert((rbits.knownOneBits & zeroMask(e->getWidth())) == 0);
     assert((rbits.knownZeroBits & zeroMask(e->getWidth())) == zeroMask(e->getWidth()));
 
+    auto rebuilt = e;
+
     if (!isa<ConstantExpr>(e) && (~(rbits.knownOneBits | rbits.knownZeroBits | ignoredBits)) == 0) {
 
         if (DebugSimplifier) {
             *klee_message_stream << "CS Replacing " << e << " with constant " << hexval(rbits.knownOneBits) << '\n';
         }
 
-        e = replaceWithConstant(e, rbits.knownOneBits);
+        rebuilt = replaceWithConstant(e, rbits.knownOneBits);
     } else {
         // Check wether we want to reoptimize or replace kids
         for (unsigned i = 0; i < e->getNumKids(); ++i) {
@@ -311,20 +314,21 @@ BitfieldSimplifier::ExprBitsInfo BitfieldSimplifier::doSimplifyBits(ref<Expr> e,
         for (unsigned i = 0; i < e->getNumKids(); ++i) {
             if (kids[i] != e->getKid(i)) {
                 // Kid was changed, we must rebuild the expression
-                e = e->rebuild(kids);
+                rebuilt = e->rebuild(kids);
                 break;
             }
         }
     }
 
     /* Cache knownBits information, but only for complex expressions */
-    if (e->getNumKids() > 1)
-        m_bitsInfoCache.insert(std::make_pair(e, rbits));
+    if (rebuilt->getNumKids() > 1) {
+        m_bitsInfoCache.insert(std::make_pair(rebuilt, rbits));
+    }
 
-    return std::make_pair(e, rbits);
+    return std::make_pair(rebuilt, rbits);
 }
 
-ref<Expr> BitfieldSimplifier::simplify(ref<Expr> e, uint64_t *knownZeroBits) {
+ref<Expr> BitfieldSimplifier::simplify(const ref<Expr> &e, uint64_t *knownZeroBits) {
     bool cste = isa<ConstantExpr>(e);
     if (PrintSimplifier && !cste && klee_message_stream)
         *klee_message_stream << "BEFORE SIMPL: " << e << '\n';
