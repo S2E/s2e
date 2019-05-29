@@ -42,7 +42,6 @@ class S2EDeviceState;
 class S2EExecutionState;
 struct S2ETranslationBlock;
 
-// typedef std::tr1::unordered_map<const Plugin*, PluginState*> PluginStateMap;
 typedef std::map<const Plugin *, PluginState *> PluginStateMap;
 typedef PluginState *(*PluginStateFactory)(Plugin *p, S2EExecutionState *s);
 
@@ -69,8 +68,6 @@ protected:
     unsigned m_guid;
 
     PluginStateMap m_PluginState;
-
-    bool m_symbexEnabled;
 
     /* Internal variable - set to PC where execution should be
        switched to symbolic (e.g., due to access to symbolic memory */
@@ -265,10 +262,6 @@ public:
     void enableForking();
     void disableForking();
 
-    bool isSymbolicExecutionEnabled() const {
-        return m_symbexEnabled;
-    }
-
     bool isRunningExceptionEmulationCode() const {
         return m_runningExceptionEmulationCode;
     }
@@ -276,9 +269,6 @@ public:
     inline void setRunningExceptionEmulationCode(bool val) {
         m_runningExceptionEmulationCode = val;
     }
-
-    void enableSymbolicExecution();
-    void disableSymbolicExecution();
 
     virtual void addConstraint(klee::ref<klee::Expr> e);
     bool testConstraints(const std::vector<klee::ref<klee::Expr>> &c, klee::ConstraintManager *newConstraints = NULL,

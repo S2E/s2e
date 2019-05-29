@@ -161,6 +161,15 @@ public:
     }
 
     ///
+    /// \brief Determine if the given memory region contains symbolic data
+    /// \param address the beginning of the region
+    /// \param size the size of the region
+    /// \param addressType the type of address
+    /// \return true if the region contains symbolic data
+    ///
+    bool symbolic(uint64_t address, uint64_t size, AddressType addressType = VirtualAddress);
+
+    ///
     /// \brief Read symbolic data from memory
     ///
     /// This function reads symbolic data at the given address.

@@ -12,11 +12,10 @@
 #undef NDEBUG
 
 #include <fstream>
-#include <string>
-#include <vector>
-//#include <tr1/unordered_map>
 #include <llvm/Support/raw_ostream.h>
 #include <map>
+#include <string>
+#include <vector>
 
 // Undefine cat from "compiler.h"
 #undef cat

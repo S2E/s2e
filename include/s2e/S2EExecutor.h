@@ -73,8 +73,6 @@ protected:
 
     bool m_executeAlwaysKlee;
 
-    bool m_forceConcretizations;
-
     bool m_forkProcTerminateCurrentState;
 
     bool m_inLoadBalancing;
@@ -162,10 +160,6 @@ public:
                                                    const std::vector<klee::ref<klee::Expr>> &values);
 
     bool merge(klee::ExecutionState &base, klee::ExecutionState &other);
-
-    void setForceConcretizations(bool b) {
-        m_forceConcretizations = true;
-    }
 
     void refLLVMTb(llvm::Function *tb);
     void unrefLLVMTb(llvm::Function *tb);

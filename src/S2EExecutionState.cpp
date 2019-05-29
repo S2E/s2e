@@ -51,9 +51,9 @@ using namespace klee;
 unsigned S2EExecutionState::s_lastSymbolicId = 0;
 
 S2EExecutionState::S2EExecutionState(klee::KFunction *kf)
-    : klee::ExecutionState(kf), m_stateID(g_s2e->fetchAndIncrementStateId()), m_symbexEnabled(true),
-      m_startSymbexAtPC((uint64_t) -1), m_active(true), m_zombie(false), m_yielded(false), m_runningConcrete(true),
-      m_pinned(false), m_isStateSwitchForbidden(false), m_deviceState(this), m_asCache(&addressSpace),
+    : klee::ExecutionState(kf), m_stateID(g_s2e->fetchAndIncrementStateId()), m_startSymbexAtPC((uint64_t) -1),
+      m_active(true), m_zombie(false), m_yielded(false), m_runningConcrete(true), m_pinned(false),
+      m_isStateSwitchForbidden(false), m_deviceState(this), m_asCache(&addressSpace),
       m_registers(&m_active, &m_runningConcrete, this, this), m_memory(), m_lastS2ETb(NULL),
       m_needFinalizeTBExec(false), m_forkAborted(false), m_nextSymbVarId(0), m_tlb(&m_asCache, &m_registers),
       m_runningExceptionEmulationCode(false) {
@@ -138,30 +138,6 @@ ExecutionState *S2EExecutionState::clone() {
 }
 
 /***/
-
-void S2EExecutionState::enableSymbolicExecution() {
-    if (m_symbexEnabled) {
-        return;
-    }
-
-    m_symbexEnabled = true;
-
-    g_s2e->getInfoStream(this) << "Enabled symbex"
-                               << " at pc = " << (void *) regs()->getPc()
-                               << " and pagedir = " << hexval(regs()->getPageDir()) << '\n';
-}
-
-void S2EExecutionState::disableSymbolicExecution() {
-    if (!m_symbexEnabled) {
-        return;
-    }
-
-    m_symbexEnabled = false;
-
-    g_s2e->getInfoStream(this) << "Disabled symbex"
-                               << " at pc = " << (void *) regs()->getPc()
-                               << " and pagedir = " << hexval(regs()->getPageDir()) << '\n';
-}
 
 void S2EExecutionState::enableForking() {
     if (!forkDisabled) {
@@ -600,9 +576,6 @@ bool S2EExecutionState::merge(const ExecutionState &_b) {
     if (pc != b.pc) {
         if (DebugLogStateMerge) {
             s << "merge failed: different KLEE pc\n" << *(*pc).inst << "\n" << *(*b.pc).inst << "\n";
-
-            s << "symb regs a: " << hexval(regs()->getSymbolicRegistersMask()) << "\n";
-            s << "symb regs b: " << hexval(b.regs()->getSymbolicRegistersMask()) << "\n";
 
             std::stringstream ss;
             g_s2e->getExecutor()->printStack(*this, NULL, ss);
@@ -1272,10 +1245,8 @@ void s2e_dma_write(uint64_t hostAddress, uint8_t *buf, unsigned size) {
 
 void s2e_read_ram_concrete_check(uint64_t host_address, uint8_t *buf, uint64_t size) {
     assert(g_s2e_state->isRunningConcrete());
-
-    bool exitOnSymbolicRead = g_s2e_state->isSymbolicExecutionEnabled();
     CPUTLBRAMEntry *re = s2e_get_ram_tlb_entry(host_address);
-    g_s2e_state->mem()->transferRam(re, host_address, buf, size, false, exitOnSymbolicRead, false);
+    g_s2e_state->mem()->transferRam(re, host_address, buf, size, false, true, false);
 }
 
 void s2e_read_ram_concrete(uint64_t host_address, void *buf, uint64_t size) {

@@ -66,7 +66,7 @@
 #include <sys/mman.h>
 #endif
 
-#include <tr1/functional>
+#include <functional>
 
 //#define S2E_DEBUG_MEMORY
 //#define S2E_DEBUG_INSTRUCTIONS
@@ -854,6 +854,7 @@ S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMContext *tcgLLVMContext, const Interpr
     __DEFINE_EXT_FUNCTION(se_is_mmio_symbolic_w)
     __DEFINE_EXT_FUNCTION(se_is_mmio_symbolic_l)
     __DEFINE_EXT_FUNCTION(se_is_mmio_symbolic_q)
+    __DEFINE_EXT_FUNCTION(se_is_vmem_symbolic)
 
     __DEFINE_EXT_FUNCTION(s2e_on_privilege_change);
     __DEFINE_EXT_FUNCTION(s2e_on_page_fault);
@@ -1009,8 +1010,6 @@ S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMContext *tcgLLVMContext, const Interpr
     initializeStatistics();
 
     searcher = constructUserSearcher(*this);
-
-    m_forceConcretizations = false;
 
     g_s2e_fork_on_symbolic_address = ForkOnSymbolicAddress;
     g_s2e_concretize_io_addresses = ConcretizeIoAddress;
@@ -1230,11 +1229,6 @@ void S2EExecutor::switchToConcrete(S2EExecutionState *state) {
     if (PrintModeSwitch) {
         m_s2e->getInfoStream(state) << "Switching to concrete execution at pc = " << hexval(state->regs()->getPc())
                                     << '\n';
-    }
-
-    /* Concretize any symbolic registers */
-    if (m_forceConcretizations) {
-        assert(false && "Deprecated");
     }
 
     // assert(os->isAllConcrete());
@@ -1742,35 +1736,6 @@ bool S2EExecutor::finalizeTranslationBlockExec(S2EExecutionState *state) {
     return ret;
 }
 
-#ifdef _WIN32
-
-extern "C" volatile LONG g_signals_enabled;
-
-typedef int sigset_t;
-
-static void s2e_disable_signals(sigset_t *oldset) {
-    while (InterlockedCompareExchange(&g_signals_enabled, 0, 1) == 0)
-        ;
-}
-
-static void s2e_enable_signals(sigset_t *oldset) {
-    g_signals_enabled = 1;
-}
-
-#else
-
-static void s2e_disable_signals(sigset_t *oldset) {
-    sigset_t set;
-    sigfillset(&set);
-    sigprocmask(SIG_BLOCK, &set, oldset);
-}
-
-static void s2e_enable_signals(sigset_t *oldset) {
-    sigprocmask(SIG_SETMASK, oldset, NULL);
-}
-
-#endif
-
 void S2EExecutor::updateClockScaling() {
     int scaling = ClockSlowDownConcrete;
 
@@ -1793,7 +1758,7 @@ void S2EExecutor::updateClockScaling() {
 }
 
 void S2EExecutor::updateConcreteFastPath(S2EExecutionState *state) {
-    bool allConcrete = state->regs()->getSymbolicRegistersMask() == 0;
+    bool allConcrete = state->regs()->allConcrete();
     g_s2e_fast_concrete_invocation = (allConcrete) && (state->m_toRunSymbolically.size() == 0) &&
                                      (state->m_startSymbexAtPC == (uint64_t) -1) &&
 
@@ -1864,64 +1829,6 @@ uintptr_t S2EExecutor::executeTranslationBlockConcrete(S2EExecutionState *state,
     return ret;
 }
 
-static inline void se_tb_reset_jump(TranslationBlock *tb, unsigned int n) {
-    TranslationBlock *tb1, *tb_next, **ptb;
-    unsigned int n1;
-
-    tb1 = tb->jmp_next[n];
-    if (tb1 != NULL) {
-        /* find head of list */
-        for (;;) {
-            n1 = (intptr_t) tb1 & 3;
-            tb1 = (TranslationBlock *) ((intptr_t) tb1 & ~3);
-            if (n1 == 2)
-                break;
-            tb1 = tb1->jmp_next[n1];
-        }
-        /* we are now sure now that tb jumps to tb1 */
-        tb_next = tb1;
-
-        /* remove tb from the jmp_first list */
-        ptb = &tb_next->jmp_first;
-        for (;;) {
-            tb1 = *ptb;
-            n1 = (intptr_t) tb1 & 3;
-            tb1 = (TranslationBlock *) ((intptr_t) tb1 & ~3);
-            if (n1 == n && tb1 == tb)
-                break;
-            ptb = &tb1->jmp_next[n1];
-        }
-        *ptb = tb->jmp_next[n];
-        tb->jmp_next[n] = NULL;
-
-        /* suppress the jump to next tb in generated code */
-        tb_set_jmp_target(tb, n, (uintptr_t)(tb->tc_ptr + tb->tb_next_offset[n]));
-        tb->se_tb_next[n] = NULL;
-    }
-}
-
-// XXX: inline causes compiler internal errors
-static void se_tb_reset_jump_smask(TranslationBlock *tb, unsigned int n, uint64_t smask, int depth = 0) {
-    TranslationBlock *tb1 = tb->se_tb_next[n];
-    sigset_t oldset;
-    if (depth == 0) {
-        s2e_disable_signals(&oldset);
-    }
-
-    if (tb1) {
-        if (depth > 2 || (smask & tb1->reg_rmask) || (smask & tb1->reg_wmask) || (tb1->helper_accesses_mem & 4)) {
-            se_tb_reset_jump(tb, n);
-        } else if (tb1 != tb) {
-            se_tb_reset_jump_smask(tb1, 0, smask, depth + 1);
-            se_tb_reset_jump_smask(tb1, 1, smask, depth + 1);
-        }
-    }
-
-    if (depth == 0) {
-        s2e_enable_signals(&oldset);
-    }
-}
-
 uintptr_t S2EExecutor::executeTranslationBlockSlow(struct CPUX86State *env1, struct TranslationBlock *tb) {
     try {
         uintptr_t ret = g_s2e->getExecutor()->executeTranslationBlock(g_s2e_state, tb);
@@ -1958,40 +1865,28 @@ uintptr_t S2EExecutor::executeTranslationBlock(S2EExecutionState *state, Transla
 
     bool executeKlee = m_executeAlwaysKlee;
 
-    /* Think how can we optimize if symbex is disabled */
-    if (true /* state->m_symbexEnabled*/) {
-        if (state->m_startSymbexAtPC != (uint64_t) -1) {
-            executeKlee |= (state->regs()->getPc() == state->m_startSymbexAtPC);
-            state->m_startSymbexAtPC = (uint64_t) -1;
-        }
+    if (state->m_startSymbexAtPC != (uint64_t) -1) {
+        executeKlee |= (state->regs()->getPc() == state->m_startSymbexAtPC);
+        state->m_startSymbexAtPC = (uint64_t) -1;
+    }
 
-        // XXX: hack to run code symbolically that may be delayed because of interrupts.
-        // Size check is important to avoid expensive calls to getPc/getPid in the common case
-        if (state->m_toRunSymbolically.size() > 0 &&
-            state->m_toRunSymbolically.find(std::make_pair(state->regs()->getPc(), state->regs()->getPageDir())) !=
-                state->m_toRunSymbolically.end()) {
-            executeKlee = true;
-            state->m_toRunSymbolically.erase(std::make_pair(state->regs()->getPc(), state->regs()->getPageDir()));
-        }
+    // XXX: hack to run code symbolically that may be delayed because of interrupts.
+    // Size check is important to avoid expensive calls to getPc/getPid in the common case
+    if (state->m_toRunSymbolically.size() > 0 &&
+        state->m_toRunSymbolically.find(std::make_pair(state->regs()->getPc(), state->regs()->getPageDir())) !=
+            state->m_toRunSymbolically.end()) {
+        executeKlee = true;
+        state->m_toRunSymbolically.erase(std::make_pair(state->regs()->getPc(), state->regs()->getPageDir()));
+    }
 
-        if (!executeKlee) {
-            // XXX: This should be fixed to make sure that helpers do not read/write corrupted data
-            // because they think that execution is concrete while it should be symbolic (see issue #30).
-            if (!m_forceConcretizations) {
-                /* We can not execute TB natively if it reads any symbolic regs */
-                uint64_t smask = state->regs()->getSymbolicRegistersMask();
-                if (smask || (tb->helper_accesses_mem & 4)) {
-                    if ((smask & tb->reg_rmask) || (smask & tb->reg_wmask) || (tb->helper_accesses_mem & 4)) {
-                        /* TB reads symbolic variables */
-                        executeKlee = true;
-
-                    } else {
-                        se_tb_reset_jump_smask(tb, 0, smask);
-                        se_tb_reset_jump_smask(tb, 1, smask);
-                    }
-                }
-            } // forced concretizations
-        }
+    // If the CPU state has symbolic registers, run in KLEE.
+    // In theory, we could check which registers are symbolic and decide whether
+    // the TB should be ran symbolically if it accesses symbolic registers.
+    // In practice, the implementation complexity of this check is just too high
+    // and it doesn't give a lot of speedup anyway.
+    auto allConcrete = state->regs()->allConcrete();
+    if (!allConcrete) {
+        executeKlee = true;
     }
 
     if (executeKlee) {
@@ -2689,14 +2584,15 @@ void s2e_switch_to_symbolic(void *retaddr) {
     assert(tb);
     cpu_restore_state(tb, env, (uintptr_t) retaddr);
 
-    // XXX: For now, we assume that symbolic hardware, when triggered,
-    // will want to start symbexec.
-    g_s2e_state->enableSymbolicExecution();
     g_s2e_state->jumpToSymbolic();
 }
 
 void se_ensure_symbolic() {
     g_s2e_state->jumpToSymbolic();
+}
+
+int se_is_vmem_symbolic(uint64_t vmem, unsigned size) {
+    return g_s2e_state->mem()->symbolic(vmem, size);
 }
 
 void se_tb_alloc(TranslationBlock *tb) {
