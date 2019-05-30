@@ -26,8 +26,8 @@ static void test_xmm(void) {
     uint64_t hi1 = 222222222222L;
     uint64_t lo2, hi2;
 
-    s2e_make_concolic(&lo1, sizeof(lo1), "lo1");
-    s2e_make_concolic(&hi1, sizeof(hi1), "hi1");
+    s2e_make_symbolic(&lo1, sizeof(lo1), "lo1");
+    s2e_make_symbolic(&hi1, sizeof(hi1), "hi1");
 
     __asm__ __volatile__ (
             "movq    %3, %%xmm0      ;" // set high 64 bits
