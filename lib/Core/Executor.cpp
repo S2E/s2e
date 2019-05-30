@@ -91,8 +91,6 @@ cl::opt<bool> UseAsmAddresses("use-asm-addresses", cl::init(false));
 
 cl::opt<bool> RandomizeFork("randomize-fork", cl::init(false));
 
-cl::opt<bool> AllowExternalSymCalls("allow-external-sym-calls", cl::init(false));
-
 cl::opt<bool> DebugPrintInstructions("debug-print-instructions", cl::desc("Print instructions during execution."),
                                      cl::init(false));
 
@@ -181,7 +179,7 @@ Executor::Executor(const InterpreterOptions &opts, InterpreterHandler *ih, Solve
                    LLVMContext &context)
     : Interpreter(opts), kmodule(0), interpreterHandler(ih), searcher(0),
       externalDispatcher(new ExternalDispatcher(context)), solverFactory(solver_factory), statsTracker(0),
-      specialFunctionHandler(0), processTree(0), concolicMode(false), ivcEnabled(false) {
+      specialFunctionHandler(0), processTree(0), ivcEnabled(false) {
 
     solverTimeout = MaxSolverTime;
 
@@ -249,15 +247,9 @@ ref<Expr> Executor::simplifyExpr(const ExecutionState &s, ref<Expr> e) {
         if (ValidateSimplifier) {
             bool isEqual;
 
-            if (concolicMode) {
-                ref<Expr> originalConcrete = s.concolics->evaluate(e);
-                ref<Expr> simplifiedConcrete = s.concolics->evaluate(simplified);
-                isEqual = originalConcrete == simplifiedConcrete;
-            } else {
-                ref<Expr> eq = EqExpr::create(simplified, e);
-                bool result = _solver(s)->mustBeTrue(s, eq, isEqual);
-                assert(result);
-            }
+            ref<Expr> originalConcrete = s.concolics->evaluate(e);
+            ref<Expr> simplifiedConcrete = s.concolics->evaluate(simplified);
+            isEqual = originalConcrete == simplifiedConcrete;
 
             if (!isEqual) {
                 llvm::errs() << "Error in expression simplifier:" << '\n';
@@ -830,15 +822,9 @@ ref<Expr> Executor::toUnique(const ExecutionState &state, ref<Expr> &e) {
 
     _solver(state)->setTimeout(solverTimeout);
 
-    if (concolicMode) {
-        ref<Expr> evalResult = state.concolics->evaluate(e);
-        assert(isa<ConstantExpr>(evalResult) && "Must be concrete");
-        value = dyn_cast<ConstantExpr>(evalResult);
-    } else {
-        if (!_solver(state)->getValue(state, e, value)) {
-            return result;
-        }
-    }
+    ref<Expr> evalResult = state.concolics->evaluate(e);
+    assert(isa<ConstantExpr>(evalResult) && "Must be concrete");
+    value = dyn_cast<ConstantExpr>(evalResult);
 
     bool success = _solver(state)->mustBeTrue(state, simplifyExpr(state, EqExpr::create(e, value)), isTrue);
 
@@ -861,15 +847,9 @@ ref<klee::ConstantExpr> Executor::toConstant(ExecutionState &state, ref<Expr> e,
 
     ref<ConstantExpr> value;
 
-    if (concolicMode) {
-        ref<Expr> evalResult = state.concolics->evaluate(e);
-        assert(isa<ConstantExpr>(evalResult) && "Must be concrete");
-        value = dyn_cast<ConstantExpr>(evalResult);
-    } else {
-        bool success = _solver(state)->getValue(state, e, value);
-        assert(success && "FIXME: Unhandled solver failure");
-        (void) success;
-    }
+    ref<Expr> evalResult = state.concolics->evaluate(e);
+    assert(isa<ConstantExpr>(evalResult) && "Must be concrete");
+    value = dyn_cast<ConstantExpr>(evalResult);
 
     std::string s;
     raw_string_ostream os(s);
@@ -898,15 +878,9 @@ ref<klee::ConstantExpr> Executor::toConstantSilent(ExecutionState &state, ref<Ex
 
     ref<ConstantExpr> value;
 
-    if (concolicMode) {
-        ref<Expr> evalResult = state.concolics->evaluate(e);
-        assert(isa<ConstantExpr>(evalResult) && "Must be concrete");
-        value = dyn_cast<ConstantExpr>(evalResult);
-    } else {
-        bool success = _solver(state)->getValue(state, e, value);
-        assert(success && "FIXME: Unhandled solver failure");
-        (void) success;
-    }
+    ref<Expr> evalResult = state.concolics->evaluate(e);
+    assert(isa<ConstantExpr>(evalResult) && "Must be concrete");
+    value = dyn_cast<ConstantExpr>(evalResult);
 
     return value;
 }
@@ -1184,24 +1158,18 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
         case Instruction::Switch: {
             SwitchInst *si = cast<SwitchInst>(i);
             ref<Expr> cond = eval(ki, 0, state).value;
-            BasicBlock *bb = si->getParent();
 
             cond = simplifyExpr(state, toUnique(state, cond));
 
-            if (concolicMode) {
-                klee::ref<klee::Expr> concreteCond = state.concolics->evaluate(cond);
-                klee::ref<klee::Expr> condition = EqExpr::create(concreteCond, cond);
-                StatePair sp = fork(state, condition, true, true);
-                assert(sp.first == &state);
-                if (sp.second) {
-                    sp.second->pc = sp.second->prevPC;
-                }
-                notifyFork(state, cond, sp);
-                cond = concreteCond;
-            } else {
-                // TODO: proper support for symbolic switches
-                cond = toConstant(state, cond, "Symbolic switch condition");
+            klee::ref<klee::Expr> concreteCond = state.concolics->evaluate(cond);
+            klee::ref<klee::Expr> condition = EqExpr::create(concreteCond, cond);
+            StatePair sp = fork(state, condition, true, true);
+            assert(sp.first == &state);
+            if (sp.second) {
+                sp.second->pc = sp.second->prevPC;
             }
+            notifyFork(state, cond, sp);
+            cond = concreteCond;
 
             if (ConstantExpr *CE = dyn_cast<ConstantExpr>(cond)) {
                 // Somewhat gross to create these all the time, but fine till we
@@ -1211,51 +1179,8 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
                 SwitchInst::CaseIt cit = si->findCaseValue(ci);
                 transferToBasicBlock(cit.getCaseSuccessor(), si->getParent(), state);
             } else {
-                std::map<BasicBlock *, ref<Expr>> targets;
-                assert(false && "Not tested");
-                ref<Expr> isDefault = ConstantExpr::alloc(1, Expr::Bool);
-                for (SwitchInst::CaseIt cit = si->case_begin(); cit != si->case_end(); ++cit) {
-                    ref<Expr> value = evalConstant(cit.getCaseValue());
-                    ref<Expr> match = EqExpr::create(cond, value);
-                    isDefault = simplifyExpr(state, AndExpr::create(isDefault, Expr::createIsZero(match)));
-                    bool result;
-                    bool success = _solver(state)->mayBeTrue(state, match, result);
-                    assert(success && "FIXME: Unhandled solver failure");
-                    (void) success;
-                    if (result) {
-                        std::map<BasicBlock *, ref<Expr>>::iterator it =
-                            targets
-                                .insert(std::make_pair(si->getSuccessor(cit.getCaseIndex()),
-                                                       ConstantExpr::alloc(0, Expr::Bool)))
-                                .first;
-                        it->second = OrExpr::create(match, it->second);
-                    }
-                }
-
-                bool res;
-                assert(!concolicMode && "Not tested in concolic mode");
-                bool success = _solver(state)->mayBeTrue(state, isDefault, res);
-                assert(success && "FIXME: Unhandled solver failure");
-                (void) success;
-                if (res)
-                    targets.insert(std::make_pair(si->getSuccessor(0), isDefault));
-
-                std::vector<ref<Expr>> conditions;
-                for (std::map<BasicBlock *, ref<Expr>>::iterator it = targets.begin(), ie = targets.end(); it != ie;
-                     ++it)
-                    conditions.push_back(it->second);
-
-                std::vector<ExecutionState *> branches;
-                branch(state, conditions, branches);
-
-                std::vector<ExecutionState *>::iterator bit = branches.begin();
-                for (std::map<BasicBlock *, ref<Expr>>::iterator it = targets.begin(), ie = targets.end(); it != ie;
-                     ++it) {
-                    ExecutionState *es = *bit;
-                    if (es)
-                        transferToBasicBlock(it->first, bb, *es);
-                    ++bit;
-                }
+                assert(false && "Cannot get here in concolic mode");
+                abort();
             }
             break;
         }
@@ -2067,16 +1992,8 @@ std::string Executor::getAddressInfo(ExecutionState &state, ref<Expr> address) c
         example = CE->getZExtValue();
         info << "\taddress: 0x" << std::hex << example << std::dec << "\n";
     } else {
-        info << "\taddress: " << address << "\n";
-        ref<ConstantExpr> value;
-        assert(!concolicMode && "Not tested in concolic mode");
-        bool success = _solver(state)->getValue(state, address, value);
-        assert(success && "FIXME: Unhandled solver failure");
-        (void) success;
-        example = value->getZExtValue();
-        info << "\texample: 0x" << std::hex << example << std::dec << "\n";
-        std::pair<ref<Expr>, ref<Expr>> res = _solver(state)->getRange(state, address);
-        info << "\trange: [0x" << std::hex << res.first << ", 0x" << res.second << std::dec << "]\n";
+        assert(false && "Cannot get here in concolic mode");
+        abort();
     }
 
     MemoryObject hack((unsigned) example);
@@ -2164,12 +2081,7 @@ void Executor::printStack(const ExecutionState &state, KInstruction *target, std
             msg << ai->getName().str();
             // XXX should go through function
             ref<Expr> value = sf.locals[sf.kf->getArgRegister(index++)].value;
-            // if (isa<ConstantExpr>(value))
-            if (concolicMode) {
-                msg << " [" << state.concolics->evaluate(value) << "]";
-            } else {
-                msg << "=" << value;
-            }
+            msg << " [" << state.concolics->evaluate(value) << "]";
         }
         msg << ")";
 
@@ -2224,54 +2136,36 @@ void Executor::callExternalFunction(ExecutionState &state, KInstruction *target,
 
     unsigned i = 1;
     for (std::vector<ref<Expr>>::iterator ai = arguments.begin(), ae = arguments.end(); ai != ae; ++ai, ++i) {
-        if (AllowExternalSymCalls) { // don't bother checking uniqueness
-            ref<ConstantExpr> ce;
-            assert(!concolicMode && "Not tested in concolic mode");
-            bool success = _solver(state)->getValue(state, *ai, ce);
-            assert(success && "FIXME: Unhandled solver failure");
-            (void) success;
-            static_cast<ConstantExpr *>(ce.get())->toMemory((void *) &args[i]);
+        ref<Expr> arg = toUnique(state, *ai);
+        if (ConstantExpr *CE = dyn_cast<ConstantExpr>(arg)) {
+            // XXX kick toMemory functions from here
+            CE->toMemory((void *) &args[i]);
         } else {
-            ref<Expr> arg = toUnique(state, *ai);
-            if (ConstantExpr *CE = dyn_cast<ConstantExpr>(arg)) {
-                // XXX kick toMemory functions from here
-                CE->toMemory((void *) &args[i]);
-            } else {
-                // Fork all possible concrete solutions
-                klee::ref<klee::ConstantExpr> concreteArg;
-                if (concolicMode) {
-                    klee::ref<klee::Expr> ca = state.concolics->evaluate(arg);
-                    assert(dyn_cast<klee::ConstantExpr>(ca) && "Could not evaluate address");
-                    concreteArg = dyn_cast<klee::ConstantExpr>(ca);
-                } else {
-                    bool success = getSolver(state)->getValue(Query(state.constraints, arg), concreteArg);
+            // Fork all possible concrete solutions
+            klee::ref<klee::ConstantExpr> concreteArg;
+            klee::ref<klee::Expr> ca = state.concolics->evaluate(arg);
+            assert(dyn_cast<klee::ConstantExpr>(ca) && "Could not evaluate address");
+            concreteArg = dyn_cast<klee::ConstantExpr>(ca);
 
-                    if (!success) {
-                        terminateStateEarly(state, "Could not compute a concrete value for a symbolic external call");
-                        assert(false && "Can't get here");
-                    }
-                }
+            klee::ref<klee::Expr> condition = EqExpr::create(concreteArg, arg);
 
-                klee::ref<klee::Expr> condition = EqExpr::create(concreteArg, arg);
+            StatePair sp = fork(state, condition, true, true);
 
-                StatePair sp = fork(state, condition, true, true);
+            assert(sp.first == &state);
 
-                assert(sp.first == &state);
-
-                if (sp.second) {
-                    sp.second->pc = sp.second->prevPC;
-                }
-
-                KInstIterator savedPc = sp.first->pc;
-                sp.first->pc = sp.first->prevPC;
-
-                // This might throw an exception
-                notifyFork(state, condition, sp);
-
-                sp.first->pc = savedPc;
-
-                concreteArg->toMemory((void *) &args[i]);
+            if (sp.second) {
+                sp.second->pc = sp.second->prevPC;
             }
+
+            KInstIterator savedPc = sp.first->pc;
+            sp.first->pc = sp.first->prevPC;
+
+            // This might throw an exception
+            notifyFork(state, condition, sp);
+
+            sp.first->pc = savedPc;
+
+            concreteArg->toMemory((void *) &args[i]);
         }
     }
 
@@ -2342,75 +2236,8 @@ void Executor::executeAlloc(ExecutionState &state, ref<Expr> size, bool isLocal,
             }
         }
     } else {
-        // XXX For now we just pick a size. Ideally we would support
-        // symbolic sizes fully but even if we don't it would be better to
-        // "smartly" pick a value, for example we could fork and pick the
-        // min and max values and perhaps some intermediate (reasonable
-        // value).
-        //
-        // It would also be nice to recognize the case when size has
-        // exactly two values and just fork (but we need to get rid of
-        // return argument first). This shows up in pcre when llvm
-        // collapses the size expression with a select.
-
-        ref<ConstantExpr> example;
-        assert(!concolicMode && "Not tested in concolic mode");
-        bool success = _solver(state)->getValue(state, size, example);
-        assert(success && "FIXME: Unhandled solver failure");
-        (void) success;
-
-        // Try and start with a small example.
-        Expr::Width W = example->getWidth();
-        while (example->Ugt(ConstantExpr::alloc(128, W))->isTrue()) {
-            ref<ConstantExpr> tmp = example->LShr(ConstantExpr::alloc(1, W));
-            bool res;
-            bool success = _solver(state)->mayBeTrue(state, EqExpr::create(tmp, size), res);
-            assert(success && "FIXME: Unhandled solver failure");
-            (void) success;
-            if (!res)
-                break;
-            example = tmp;
-        }
-
-        ref<Expr> cond = EqExpr::create(example, size);
-        StatePair fixedSize = fork(state, cond, true);
-        notifyFork(state, cond, fixedSize);
-
-        if (fixedSize.second) {
-            // Check for exactly two values
-            ref<ConstantExpr> tmp;
-            bool success = _solver(state)->getValue(*fixedSize.second, size, tmp);
-            assert(success && "FIXME: Unhandled solver failure");
-            (void) success;
-            bool res;
-            success = _solver(state)->mustBeTrue(*fixedSize.second, EqExpr::create(tmp, size), res);
-            assert(success && "FIXME: Unhandled solver failure");
-            (void) success;
-            if (res) {
-                executeAlloc(*fixedSize.second, tmp, isLocal, target, zeroMemory, reallocFrom);
-            } else {
-                // See if a *really* big value is possible. If so assume
-                // malloc will fail for it, so lets fork and return 0.
-                StatePair hugeSize =
-                    fork(*fixedSize.second, UltExpr::create(ConstantExpr::alloc(1 << 31, W), size), true);
-                if (hugeSize.first) {
-                    klee_message("NOTE: found huge malloc, returing 0");
-                    bindLocal(target, *hugeSize.first, ConstantExpr::alloc(0, Context::get().getPointerWidth()));
-                }
-
-                if (hugeSize.second) {
-                    std::string ss;
-                    llvm::raw_string_ostream info(ss);
-                    ExprPPrinter::printOne(info, "  size expr", size);
-                    info << "  concretization : " << example << "\n";
-                    info << "  unbound example: " << tmp << "\n";
-                    terminateStateOnError(*hugeSize.second, "concretized symbolic size", "model.err", info.str());
-                }
-            }
-        }
-
-        if (fixedSize.first) // can be zero when fork fails
-            executeAlloc(*fixedSize.first, example, isLocal, target, zeroMemory, reallocFrom);
+        assert(false && "S2E should not cause allocs with symbolic size");
+        abort();
     }
 }
 
@@ -2565,19 +2392,8 @@ void Executor::executeMemoryOperation(ExecutionState &state, bool isWrite, ref<E
     // Pick a concrete address
     klee::ref<klee::ConstantExpr> concreteAddress;
 
-    if (concolicMode) {
-        concreteAddress = dyn_cast<ConstantExpr>(state.concolics->evaluate(address));
-        assert(!concreteAddress.isNull() && "Could not evaluate address");
-    } else {
-        // Not in concolic mode, will have to invoke the constraint solver
-        // to compute a concrete value
-        bool success = _solver(state)->getValue(state, address, concreteAddress);
-
-        if (!success) {
-            terminateStateEarly(state, "Could not compute a concrete value for a symbolic address");
-            assert(false && "Can't get here");
-        }
-    }
+    concreteAddress = dyn_cast<ConstantExpr>(state.concolics->evaluate(address));
+    assert(!concreteAddress.isNull() && "Could not evaluate address");
 
     /////////////////////////////////////////////////////////////
     // Use the concrete address to determine which page
@@ -2610,7 +2426,7 @@ void Executor::executeMemoryOperation(ExecutionState &state, bool isWrite, ref<E
         AndExpr::create(UgeExpr::create(address, op.first->getBaseExpr()),
                         UltExpr::create(address, AddExpr::create(op.first->getBaseExpr(), op.first->getSizeExpr())));
 
-    assert(!concolicMode || state.concolics->evaluate(condition)->isTrue());
+    assert(state.concolics->evaluate(condition)->isTrue());
 
     StatePair branches = fork(state, condition, true, true);
 
@@ -2724,8 +2540,6 @@ bool Executor::getSymbolicSolution(TimingSolver *solver,
 bool Executor::getSymbolicSolution(const std::vector<std::pair<const MemoryObject *, const Array *>> &symbolics,
                                    const Assignment &concolics,
                                    std::vector<std::pair<std::string, std::vector<unsigned char>>> &res) {
-    assert(concolicMode);
-
     for (unsigned i = 0; i != symbolics.size(); ++i) {
         const MemoryObject *mo = symbolics[i].first;
         const Array *arr = symbolics[i].second;
@@ -2759,11 +2573,7 @@ bool Executor::getSymbolicSolution(const std::vector<std::pair<const MemoryObjec
 
 bool Executor::getSymbolicSolution(const ExecutionState &state,
                                    std::vector<std::pair<std::string, std::vector<unsigned char>>> &res) {
-    if (concolicMode) {
-        return getSymbolicSolution(state.symbolics, *state.concolics, res);
-    } else {
-        return getSymbolicSolution(_solver(state), state.symbolics, state.constraints, res, state.queryCost);
-    }
+    return getSymbolicSolution(state.symbolics, *state.concolics, res);
 }
 
 void Executor::doImpliedValueConcretization(ExecutionState &state, ref<Expr> e, ref<ConstantExpr> value) {
