@@ -40,7 +40,6 @@ namespace {
 
 extern llvm::cl::opt<bool> PrintModeSwitch;
 extern llvm::cl::opt<bool> PrintForkingStatus;
-extern llvm::cl::opt<bool> ConcolicMode;
 extern llvm::cl::opt<bool> VerboseStateDeletion;
 extern llvm::cl::opt<bool> DebugConstraints;
 
@@ -232,7 +231,7 @@ std::string S2EExecutionState::getUniqueVarName(const std::string &name, std::st
     return filtered;
 }
 
-ref<Expr> S2EExecutionState::createConcolicValue(const std::string &name, Expr::Width width,
+ref<Expr> S2EExecutionState::createSymbolicValue(const std::string &name, Expr::Width width,
                                                  const std::vector<unsigned char> &buffer) {
 #ifdef CONFIG_SYMBEX_MP
     std::string originalVarName;
@@ -252,12 +251,7 @@ ref<Expr> S2EExecutionState::createConcolicValue(const std::string &name, Expr::
     symbolics.push_back(std::make_pair(mo, array));
 
     if (bufferSize == bytes) {
-        if (ConcolicMode) {
-            concolics->add(array, buffer);
-        } else {
-            g_s2e->getWarningsStream(this) << "Concolic mode disabled: ignoring concrete assignments for " << name
-                                           << '\n';
-        }
+        concolics->add(array, buffer);
     }
 
     variableNameMapping = variableNameMapping.insert(std::make_pair(sname, originalVarName));
@@ -280,20 +274,17 @@ ref<Expr> S2EExecutionState::createConcolicValue(const std::string &name, Expr::
 }
 
 ref<Expr> S2EExecutionState::createSymbolicValue(const std::string &name, Expr::Width width) {
-
     std::vector<unsigned char> concreteValues;
 
-    if (ConcolicMode) {
-        unsigned bytes = Expr::getMinBytesForWidth(width);
-        for (unsigned i = 0; i < bytes; ++i) {
-            concreteValues.push_back(0);
-        }
+    unsigned bytes = Expr::getMinBytesForWidth(width);
+    for (unsigned i = 0; i < bytes; ++i) {
+        concreteValues.push_back(0);
     }
 
-    return createConcolicValue(name, width, concreteValues);
+    return createSymbolicValue(name, width, concreteValues);
 }
 
-std::vector<ref<Expr>> S2EExecutionState::createConcolicArray(const std::string &name, unsigned size,
+std::vector<ref<Expr>> S2EExecutionState::createSymbolicArray(const std::string &name, unsigned size,
                                                               const std::vector<unsigned char> &concreteBuffer,
                                                               std::string *varName) {
     assert(concreteBuffer.size() == size || concreteBuffer.size() == 0);
@@ -324,12 +315,7 @@ std::vector<ref<Expr>> S2EExecutionState::createConcolicArray(const std::string 
     symbolics.push_back(std::make_pair(mo, array));
 
     if (concreteBuffer.size() == size) {
-        if (ConcolicMode) {
-            concolics->add(array, concreteBuffer);
-        } else {
-            g_s2e->getWarningsStream(this) << "Concolic mode disabled: ignoring concrete assignments for " << name
-                                           << '\n';
-        }
+        concolics->add(array, concreteBuffer);
     }
 
     g_s2e->getCorePlugin()->onSymbolicVariableCreation.emit(this, name, result, mo, array);
@@ -348,13 +334,11 @@ std::vector<ref<Expr>> S2EExecutionState::createSymbolicArray(const std::string 
                                                               std::string *varName) {
     std::vector<unsigned char> concreteBuffer;
 
-    if (ConcolicMode) {
-        for (unsigned i = 0; i < size; ++i) {
-            concreteBuffer.push_back(0);
-        }
+    for (unsigned i = 0; i < size; ++i) {
+        concreteBuffer.push_back(0);
     }
 
-    return createConcolicArray(name, size, concreteBuffer, varName);
+    return createSymbolicArray(name, size, concreteBuffer, varName);
 }
 
 /*
@@ -467,7 +451,7 @@ void S2EExecutionState::kleeWriteMemory(ref<Expr> kleeAddressExpr, /* Address */
 #endif
 }
 
-void S2EExecutionState::makeSymbolic(std::vector<ref<Expr>> &args, bool makeConcolic) {
+void S2EExecutionState::makeSymbolic(std::vector<ref<Expr>> &args) {
     assert(args.size() == 3);
 
     // KLEE address of variable
@@ -495,15 +479,11 @@ void S2EExecutionState::makeSymbolic(std::vector<ref<Expr>> &args, bool makeConc
     std::vector<uint8_t> concreteData;
     std::vector<ref<Expr>> symb;
 
-    if (makeConcolic) {
-        kleeReadMemory(labelKleeAddress, sizeInBytes, &existingData, false, true, true);
-        for (unsigned i = 0; i < sizeInBytes; ++i) {
-            concreteData.push_back(cast<klee::ConstantExpr>(existingData[i])->getZExtValue(8));
-        }
-        symb = createConcolicArray(labelStr, sizeInBytes, concreteData);
-    } else {
-        symb = createSymbolicArray(labelStr, sizeInBytes);
+    kleeReadMemory(labelKleeAddress, sizeInBytes, &existingData, false, true, true);
+    for (unsigned i = 0; i < sizeInBytes; ++i) {
+        concreteData.push_back(cast<klee::ConstantExpr>(existingData[i])->getZExtValue(8));
     }
+    symb = createSymbolicArray(labelStr, sizeInBytes, concreteData);
 
     kleeWriteMemory(kleeAddress, symb);
 }
@@ -823,10 +803,8 @@ void S2EExecutionState::enumPossibleRanges(ref<Expr> e, ref<Expr> start, ref<Exp
 void S2EExecutionState::addConstraint(klee::ref<klee::Expr> e) {
 #ifdef CONFIG_SYMBEX_MP
     if (DebugConstraints) {
-        if (ConcolicMode) {
-            klee::ref<klee::Expr> ce = concolics->evaluate(e);
-            assert(ce->isTrue() && "Expression must be true here");
-        }
+        klee::ref<klee::Expr> ce = concolics->evaluate(e);
+        assert(ce->isTrue() && "Expression must be true here");
 
         // Check that the added constraint is consistent with
         // the existing path constraints
@@ -899,7 +877,7 @@ bool S2EExecutionState::testConstraints(const std::vector<ref<Expr>> &c, Constra
 /// \return true if constraints were applied
 ///
 bool S2EExecutionState::applyConstraints(const std::vector<ref<Expr>> &c) {
-    return testConstraints(c, &constraints, ConcolicMode ? concolics : NULL);
+    return testConstraints(c, &constraints, concolics);
 }
 
 /***/
@@ -964,13 +942,9 @@ uint64_t S2EExecutionState::readMemIoVaddr(bool masked) {
 
     if (masked) {
         result = AndExpr::create(m_memIoVaddr, klee::ConstantExpr::create(TARGET_PAGE_MASK, m_memIoVaddr->getWidth()));
-        if (ConcolicMode) {
-            // This assumes that the page is already fully constrained by the MMU
-            result = concolics->evaluate(result);
-            assert(dyn_cast<ConstantExpr>(result) && "Expression must be constant here");
-        } else {
-            result = g_s2e->getExecutor()->toConstant(*this, result, "Reading mem_io_vaddr");
-        }
+        // This assumes that the page is already fully constrained by the MMU
+        result = concolics->evaluate(result);
+        assert(dyn_cast<ConstantExpr>(result) && "Expression must be constant here");
     } else {
         result = m_memIoVaddr;
         result = g_s2e->getExecutor()->toConstant(*this, result, "Reading mem_io_vaddr");

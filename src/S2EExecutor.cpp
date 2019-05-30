@@ -199,12 +199,6 @@ VerboseStateDeletion("verbose-state-deletion",
             cl::desc("Print detailed information on state deletion"),
             cl::init(false));
 
-//Concolic mode is the default because it works better than symbex.
-cl::opt<bool>
-ConcolicMode("use-concolic-execution",
-            cl::desc("Concolic execution mode"),
-            cl::init(true));
-
 cl::opt<bool>
 DebugConstraints("debug-constraints",
             cl::desc("Check that added constraints are satisfiable"),
@@ -610,24 +604,9 @@ klee::ref<klee::ConstantExpr> S2EExecutor::simplifyAndGetExample(S2EExecutionSta
         return dyn_cast<klee::ConstantExpr>(value);
     }
 
-    klee::ref<klee::ConstantExpr> concreteValue;
-
-    if (ConcolicMode) {
-        klee::ref<Expr> ca = state->concolics->evaluate(value);
-        assert(dyn_cast<klee::ConstantExpr>(ca) && "Could not evaluate address");
-        concreteValue = dyn_cast<klee::ConstantExpr>(ca);
-    } else {
-        // Not in concolic mode, will have to invoke the constraint solver
-        // to compute a concrete value
-        bool success = getSolver(*state)->getValue(Query(state->constraints, value), concreteValue);
-
-        if (!success) {
-            terminateStateEarly(*state, "Could not compute a concrete value for a symbolic address");
-            assert(false && "Can't get here");
-        }
-    }
-
-    return concreteValue;
+    klee::ref<Expr> ca = state->concolics->evaluate(value);
+    assert(dyn_cast<klee::ConstantExpr>(ca) && "Could not evaluate address");
+    return dyn_cast<klee::ConstantExpr>(ca);
 }
 
 Executor::StatePair S2EExecutor::forkAndConcretize(S2EExecutionState *state, klee::ref<Expr> &value_) {
@@ -726,7 +705,7 @@ void S2EExecutor::handleForkAndConcretize(Executor *executor, ExecutionState *st
 void S2EExecutor::handleMakeSymbolic(Executor *executor, ExecutionState *state, klee::KInstruction *target,
                                      std::vector<klee::ref<Expr>> &args) {
     S2EExecutionState *s2eState = static_cast<S2EExecutionState *>(state);
-    s2eState->makeSymbolic(args, false);
+    s2eState->makeSymbolic(args);
 }
 
 void S2EExecutor::handleGetValue(klee::Executor *executor, klee::ExecutionState *state, klee::KInstruction *target,
@@ -1014,8 +993,6 @@ S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMContext *tcgLLVMContext, const Interpr
     g_s2e_fork_on_symbolic_address = ForkOnSymbolicAddress;
     g_s2e_concretize_io_addresses = ConcretizeIoAddress;
     g_s2e_concretize_io_writes = ConcretizeIoWrites;
-
-    concolicMode = ConcolicMode;
 
     if (UseFastHelpers) {
         if (!ForkOnSymbolicAddress) {
@@ -2027,11 +2004,7 @@ S2EExecutor::StatePair S2EExecutor::fork(ExecutionState &current, klee::ref<Expr
         currentState->forkDisabled = true;
     }
 
-    if (ConcolicMode) {
-        res = Executor::concolicFork(current, condition, isInternal, keepConditionTrueInCurrentState);
-    } else {
-        res = Executor::fork(current, condition, isInternal, deterministic, keepConditionTrueInCurrentState);
-    }
+    res = Executor::concolicFork(current, condition, isInternal, keepConditionTrueInCurrentState);
 
     currentState->forkDisabled = oldForkStatus;
 

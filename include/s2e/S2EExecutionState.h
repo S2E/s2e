@@ -238,7 +238,7 @@ public:
     }
 
     /** Handler for tcg_llvm_make_symbolic, tcg_llvm_get_value. */
-    void makeSymbolic(std::vector<klee::ref<klee::Expr>> &args, bool makeConcolic);
+    void makeSymbolic(std::vector<klee::ref<klee::Expr>> &args);
     void kleeReadMemory(klee::ref<klee::Expr> kleeAddressExpr, uint64_t sizeInBytes,
                         std::vector<klee::ref<klee::Expr>> *result, bool concreteOnly = false, bool concretize = false,
                         bool addConstraint = false);
@@ -284,10 +284,10 @@ public:
 
     /** Create a symbolic value tied to an example concrete value */
     /** If the concrete buffer is empty, creates a purely symbolic value */
-    klee::ref<klee::Expr> createConcolicValue(const std::string &name, klee::Expr::Width width,
+    klee::ref<klee::Expr> createSymbolicValue(const std::string &name, klee::Expr::Width width,
                                               const std::vector<unsigned char> &buffer);
 
-    template <typename T> klee::ref<klee::Expr> createConcolicValue(const std::string &name, T val) {
+    template <typename T> klee::ref<klee::Expr> createSymbolicValue(const std::string &name, T val) {
         std::vector<uint8_t> concolicValue(sizeof(T));
         union {
             // XXX: assumes little endianness!
@@ -300,10 +300,10 @@ public:
         for (unsigned i = 0; i < sizeof(T); ++i) {
             concolicValue[i] = concolicArray[i];
         }
-        return createConcolicValue(name, sizeof(T) * 8, concolicValue);
+        return createSymbolicValue(name, sizeof(T) * 8, concolicValue);
     }
 
-    std::vector<klee::ref<klee::Expr>> createConcolicArray(const std::string &name, unsigned size,
+    std::vector<klee::ref<klee::Expr>> createSymbolicArray(const std::string &name, unsigned size,
                                                            const std::vector<unsigned char> &concreteBuffer,
                                                            std::string *varName = NULL);
 
