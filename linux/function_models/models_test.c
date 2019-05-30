@@ -90,7 +90,7 @@ static void test_strncpy(const char *src, unsigned src_len) {
 
 static void test_strcmp(const char *str1) {
     char *str2 = "123";
-    s2e_make_concolic(str2, strlen(str2), "test_string_2");
+    s2e_make_symbolic(str2, strlen(str2), "test_string_2");
 
     int res1 = strcmp(str1, str2);
     int res2 = strcmp_model(str1, str2);
@@ -100,7 +100,7 @@ static void test_strcmp(const char *str1) {
 
 static void test_strncmp(const char *str1) {
     char *str2 = "123";
-    s2e_make_concolic(str2, strlen(str2), "test_string_2");
+    s2e_make_symbolic(str2, strlen(str2), "test_string_2");
 
     int res1 = strncmp(str1, str2, 4);
     int res2 = strncmp_model(str1, str2, 4);
@@ -111,7 +111,7 @@ static void test_strncmp(const char *str1) {
 static void test_strcat(const char *src) {
     char *dest = "ABCD";
     const unsigned dest_len = strlen(dest);
-    s2e_make_concolic(dest, dest_len, "deststring");
+    s2e_make_symbolic(dest, dest_len, "deststring");
 
     char str1[STR_LEN];
     char str2[STR_LEN];
@@ -131,7 +131,7 @@ static void test_strcat(const char *src) {
 
 static void test_strncat(const char *src, unsigned src_len) {
     char *dest = "ABCD";
-    s2e_make_concolic(dest, strlen(dest), "deststring");
+    s2e_make_symbolic(dest, strlen(dest), "deststring");
 
     char str1[STR_LEN];
     char str2[STR_LEN];
@@ -174,7 +174,7 @@ static void test_memcpy(const char *src, unsigned src_len) {
 
 static void test_memcmp(const char *str1, unsigned str1_len) {
     char *str2 = "123";
-    s2e_make_concolic(str2, strlen(str2), "test_string_2");
+    s2e_make_symbolic(str2, strlen(str2), "test_string_2");
 
     int res1 = memcmp(str1, str2, str1_len);
     int res2 = memcmp_model(str1, str2, str1_len);
@@ -214,7 +214,7 @@ int main(int argc, char *argv[]) {
 
     char *src = "abc";
     const unsigned src_length = strlen(src);
-    s2e_make_concolic(src, src_length, "source_string");
+    s2e_make_symbolic(src, src_length, "source_string");
 
     s2e_printf("Testing function model for libc: %s\n", argv[1]);
 

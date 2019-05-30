@@ -233,7 +233,7 @@ void test_symbhw_symbolic_port_writes() {
 
     s2e_message("====== Testing symbolic port writes...");
     uint32_t val;
-    s2e_make_concolic(&val, sizeof(val), "symbolic_value");
+    s2e_make_symbolic(&val, sizeof(val), "symbolic_value");
     pci_write_dword(bus, device, function, 0x40, val);
     pci_write_byte(bus, device, function, PCI_CAPABILITY_LIST, val);
 }
@@ -316,7 +316,7 @@ void test_symbhw_hotplug() {
     /* Check that the device can be plugged/unplugged in different states */
     /* Note: assumes DFS search strategy */
     int val = 1;
-    s2e_make_concolic(&val, sizeof(val), "val");
+    s2e_make_symbolic(&val, sizeof(val), "val");
 
     if (val) {
         SymbhwHotPlug(0);
@@ -335,7 +335,7 @@ void test_symbhw_multiple_mappings() {
     s2e_assert(ret);
 
     int val = 1;
-    s2e_make_concolic(&val, sizeof(val), "val");
+    s2e_make_symbolic(&val, sizeof(val), "val");
 
     if (val) {
         /* Try to map the device in one memory location */
@@ -361,7 +361,7 @@ void test_symbhw_multiple_mappings_io() {
     s2e_assert(ret);
 
     int val = 1;
-    s2e_make_concolic(&val, sizeof(val), "val");
+    s2e_make_symbolic(&val, sizeof(val), "val");
 
     if (val) {
         uint32_t addr = 0xe0000000;
@@ -466,7 +466,7 @@ void test_symbhw_select_config_multi_path() {
     int is_io;
 
     int val = 0; // Back track to first config in DFS mode
-    s2e_make_concolic(&val, sizeof(val), "val");
+    s2e_make_symbolic(&val, sizeof(val), "val");
 
     if (val) {
         // Config 0 here
@@ -509,7 +509,7 @@ void test_symbhw_switch_config_symbbus() {
     pci_activate_io(bus, device, function, 1, 1);
 
     int val = 1;
-    s2e_make_concolic(&val, sizeof(val), "val");
+    s2e_make_symbolic(&val, sizeof(val), "val");
 
     if (val) {
         ActivateSymbolicPciBus();

@@ -39,8 +39,6 @@ s2e_test:
 
     call s2e_merge_test
 
-    ;call s2e_concolic_disable_fork
-    ;call s2e_concolic_3
     ;call s2e_test_memspeed
     ;call s2e_sm_test
     ;call s2e_sm_succeed_test
@@ -65,7 +63,7 @@ s2e_test:
 ;contradicts the initial concolic values.
 s2e_test_forced_concretization_in_concolic_mode:
     push 0xabcdef
-    call s2e_concolic_int
+    call s2e_symbolic_int
     add esp, 4
 
     mov dr7, eax
@@ -133,7 +131,7 @@ s2e_concolic_1:
     call s2e_fork_enable
 
     push 0xdeadbeef
-    call s2e_concolic_int
+    call s2e_symbolic_int
 
     cmp eax, 0
     ja sc11
@@ -270,7 +268,7 @@ s2e_concolic_3:
     push 0
     push SORT_STRING_SIZE
     push esi
-    call s2e_make_concolic
+    call s2e_make_symbolic
     add esp, 0x4*3
 
 
@@ -730,7 +728,7 @@ s2e_symbmem1:
 ;leads to an overlapping access at address 126
 s2e_symbmem2:
     push 126
-    call s2e_concolic_int
+    call s2e_symbolic_int
     add esp, 4
     cmp eax, 140
     ja sm2
@@ -758,7 +756,7 @@ msg_invalid_val: db "ERROR: Invalid value", 0
 
 s2e_symbmem3:
     push 126
-    call s2e_concolic_int
+    call s2e_symbolic_int
     add esp, 4
     cmp eax, 4096
     jae sm3
@@ -782,7 +780,7 @@ ret
 ;Check overlapped access not handle by the softmmu
 s2e_symbmem4:
     push 126
-    call s2e_concolic_int
+    call s2e_symbolic_int
     add esp, 4
     cmp eax, 140
     ja sm4

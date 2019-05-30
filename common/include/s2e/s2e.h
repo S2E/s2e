@@ -189,12 +189,14 @@ static inline void s2e_print_expression(const char *name, int expression) {
     );
 }
 
-//
-// These functions control symbolic and concolic values, allowing you to create symbolic values and concretize them
-//
-
 ///
 /// \brief Fill a buffer with unconstrained symbolic values
+///
+/// Before overwriting the buffer with symbolic values,
+/// the symbolic execution engine will first read and save
+/// the existing concrete values. These values can then be used
+/// to guide execution along the path that would be taken by
+/// the concrete value (similar to concolic execution).
 ///
 /// \param[out] buf The buffer to make symbolic
 /// \param[in] size The buffer's size
@@ -205,22 +207,6 @@ static inline void s2e_make_symbolic(void *buf, int size, const char *name) {
     __s2e_touch_buffer(buf, size);
     __asm__ __volatile__(
         S2E_INSTRUCTION_REGISTERS_SIMPLE(BASE_S2E_MAKE_SYMBOLIC)
-        : : "a" (buf), "d" (size), "c" (name) : "memory"
-    );
-}
-
-///
-/// \brief Fill buffer with unconstrained symbolic valies without discarding concrete data
-///
-/// \param[out] buf The buffer to make concolic
-/// \param[in] size The buffer's size
-/// \param[in] name A descriptive name for the buffer
-///
-static inline void s2e_make_concolic(void *buf, int size, const char *name) {
-    __s2e_touch_string(name);
-    __s2e_touch_buffer(buf, size);
-    __asm__ __volatile__(
-        S2E_INSTRUCTION_REGISTERS_SIMPLE(BASE_S2E_MAKE_CONCOLIC)
         : : "a" (buf), "d" (size), "c" (name) : "memory"
     );
 }
