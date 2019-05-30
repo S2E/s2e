@@ -209,7 +209,7 @@ void LuaFunctionAnnotation::forkAnnotation(S2EExecutionState *state, const Annot
         }
     }
 
-    klee::ref<klee::Expr> cond = state->createConcolicValue<uint8_t>(ss.str(), 0);
+    klee::ref<klee::Expr> cond = state->createSymbolicValue<uint8_t>(ss.str(), 0);
     cond = klee::Expr::createIsZero(cond);
     S2EExecutor::StatePair sp = s2e()->getExecutor()->forkCondition(state, cond);
     S2EExecutionState *s1 = static_cast<S2EExecutionState *>(sp.first);

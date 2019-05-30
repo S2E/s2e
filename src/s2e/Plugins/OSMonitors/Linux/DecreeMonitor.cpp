@@ -215,7 +215,7 @@ ref<Expr> DecreeMonitor::makeSymbolicRead(S2EExecutionState *state, uint64_t pid
         for (unsigned i = 0; i < feedCount; i++) {
             std::vector<ref<Expr>> varData;
             std::string varName;
-            m_base->makeSymbolic(state, buf + i, 1, "receive", true, &varData, &varName);
+            m_base->makeSymbolic(state, buf + i, 1, "receive", &varData, &varName);
             data.push_back(std::make_pair(varData, varName));
         }
 
@@ -299,7 +299,7 @@ void DecreeMonitor::handleReadDataPost(S2EExecutionState *state, uint64_t pid,
             std::vector<ref<Expr>> varData;
             std::string varName;
 
-            m_base->makeSymbolic(state, d.buffer + i, 1, "receive", true, &varData, &varName);
+            m_base->makeSymbolic(state, d.buffer + i, 1, "receive", &varData, &varName);
             data.push_back(std::make_pair(varData, varName));
         }
 
@@ -374,7 +374,7 @@ void DecreeMonitor::handleFdWait(S2EExecutionState *state, S2E_DECREEMON_COMMAND
 
         // Create a symbolic timeout variable
         uint8_t val = 0;
-        ref<Expr> timeout = state->createConcolicValue("timeout", val);
+        ref<Expr> timeout = state->createSymbolicValue("timeout", val);
 
         // Build expression: if timeout == 0 then 0 else nfds
         ref<Expr> result = E_ITE(E_EQ(timeout, E_CONST(0, Expr::Int8)), //
@@ -411,7 +411,7 @@ void DecreeMonitor::handleRandom(S2EExecutionState *state, uint64_t pid, const S
     // The DecreePovGenerator will assume one byte var == one byte nonce.
     for (uint64_t i = 0; i < d.buffer_size; ++i) {
         std::vector<klee::ref<klee::Expr>> sd;
-        m_base->makeSymbolic(state, d.buffer + i, 1, "random", true, &sd);
+        m_base->makeSymbolic(state, d.buffer + i, 1, "random", &sd);
         s2e_assert(NULL, sd.size() == 1, "makesymbolic returned wrong number of bytes");
         data.push_back(sd[0]);
     }

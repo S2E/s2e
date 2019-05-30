@@ -191,7 +191,7 @@ klee::ref<klee::Expr> SymbolicHardware::createExpression(S2EExecutionState *stat
     if (createVariable) {
         ConcreteArray concolicValue;
         SymbHwGetConcolicVector(concreteValue, size, concolicValue);
-        return state->createConcolicValue(ss.str(), size * 8, concolicValue);
+        return state->createSymbolicValue(ss.str(), size * 8, concolicValue);
     } else {
         return klee::ExtractExpr::create(klee::ConstantExpr::create(concreteValue, 64), 0, size * 8);
     }

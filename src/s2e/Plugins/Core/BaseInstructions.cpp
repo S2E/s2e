@@ -32,8 +32,6 @@
 
 #include "BaseInstructions.h"
 
-extern llvm::cl::opt<bool> ConcolicMode;
-
 extern "C" {
 /**
  * In some cases, it may be useful to forbid guest apps to use
@@ -146,30 +144,26 @@ void BaseInstructions::allowCurrentPid(S2EExecutionState *state) {
 }
 
 void BaseInstructions::makeSymbolic(S2EExecutionState *state, uintptr_t address, unsigned size,
-                                    const std::string &nameStr, bool makeConcolic,
-                                    std::vector<klee::ref<Expr>> *varData, std::string *varName) {
+                                    const std::string &nameStr, std::vector<klee::ref<Expr>> *varData,
+                                    std::string *varName) {
     std::vector<klee::ref<Expr>> symb;
     std::stringstream valueSs;
 
-    if (makeConcolic) {
-        std::vector<uint8_t> concreteData;
+    std::vector<uint8_t> concreteData;
 
-        valueSs << "='";
-        for (unsigned i = 0; i < size; ++i) {
-            uint8_t byte = 0;
-            if (!state->mem()->read<uint8_t>(address + i, &byte, VirtualAddress, false)) {
-                getWarningsStream(state) << "Can not concretize/read symbolic value at " << hexval(address + i)
-                                         << ". System state not modified\n";
-                return;
-            }
-            concreteData.push_back(byte);
-            valueSs << charval(byte);
+    valueSs << "='";
+    for (unsigned i = 0; i < size; ++i) {
+        uint8_t byte = 0;
+        if (!state->mem()->read<uint8_t>(address + i, &byte, VirtualAddress, false)) {
+            getWarningsStream(state) << "Can not concretize/read symbolic value at " << hexval(address + i)
+                                     << ". System state not modified\n";
+            return;
         }
-        valueSs << "'";
-        symb = state->createConcolicArray(nameStr, size, concreteData, varName);
-    } else {
-        symb = state->createSymbolicArray(nameStr, size, varName);
+        concreteData.push_back(byte);
+        valueSs << charval(byte);
     }
+    valueSs << "'";
+    symb = state->createSymbolicArray(nameStr, size, concreteData, varName);
 
     getInfoStream(state) << "Inserted symbolic data @" << hexval(address) << " of size " << hexval(size) << ": "
                          << (varName ? *varName : nameStr) << valueSs.str() << " pc=" << hexval(state->regs()->getPc())
@@ -187,7 +181,7 @@ void BaseInstructions::makeSymbolic(S2EExecutionState *state, uintptr_t address,
     }
 }
 
-void BaseInstructions::makeSymbolic(S2EExecutionState *state, bool makeConcolic) {
+void BaseInstructions::makeSymbolic(S2EExecutionState *state) {
     target_ulong address, size, name;
     bool ok = true;
     ok &= state->regs()->read(CPU_OFFSET(regs[R_EAX]), &address, sizeof address, false);
@@ -205,7 +199,7 @@ void BaseInstructions::makeSymbolic(S2EExecutionState *state, bool makeConcolic)
         getWarningsStream(state) << "Error reading string from the guest\n";
     }
 
-    makeSymbolic(state, address, size, nameStr, makeConcolic);
+    makeSymbolic(state, address, size, nameStr);
 }
 
 void BaseInstructions::isSymbolic(S2EExecutionState *state) {
@@ -301,7 +295,7 @@ void BaseInstructions::printExpression(S2EExecutionState *state) {
 
     getInfoStream() << "SymbExpression " << nameStr << " - " << val << '\n';
 
-    if (ConcolicMode && !isa<klee::ConstantExpr>(val)) {
+    if (!isa<klee::ConstantExpr>(val)) {
         klee::ref<klee::Expr> concrete = state->concolics->evaluate(val);
         getInfoStream() << "SymbExpression " << nameStr << " - Value: " << concrete << '\n';
     }
@@ -619,20 +613,10 @@ void BaseInstructions::assumeInternal(S2EExecutionState *state, klee::ref<klee::
     // Check that the added constraint is consistent with
     // the existing path constraints
     bool isValid = true;
-    if (ConcolicMode) {
-        klee::ref<klee::Expr> ce = state->concolics->evaluate(boolExpr);
-        assert(isa<klee::ConstantExpr>(ce) && "Expression must be constant here");
-        if (!ce->isTrue()) {
-            isValid = false;
-        }
-    } else {
-        bool truth;
-        Solver *solver = s2e()->getExecutor()->getSolver(*state);
-        Query query(state->constraints, boolExpr);
-        bool res = solver->mustBeTrue(query.negateExpr(), truth);
-        if (!res || truth) {
-            isValid = false;
-        }
+    klee::ref<klee::Expr> ce = state->concolics->evaluate(boolExpr);
+    assert(isa<klee::ConstantExpr>(ce) && "Expression must be constant here");
+    if (!ce->isTrue()) {
+        isValid = false;
     }
 
     if (!isValid) {
@@ -744,7 +728,7 @@ void BaseInstructions::forkCount(S2EExecutionState *state) {
         return;
     }
 
-    klee::ref<klee::Expr> var = state->createConcolicValue<uint32_t>(name, 0);
+    klee::ref<klee::Expr> var = state->createSymbolicValue<uint32_t>(name, 0);
 
     state->regs()->write(CPU_OFFSET(regs[R_EAX]), var);
     state->regs()->write<target_ulong>(CPU_OFFSET(eip), state->regs()->getPc() + 10);
@@ -775,8 +759,10 @@ void BaseInstructions::handleBuiltInOps(S2EExecutionState *state, uint64_t opcod
             state->regs()->write(CPU_OFFSET(regs[R_EAX]), &v, sizeof v);
         } break;
 
+        case BASE_S2E_MAKE_CONCOLIC:
+            getWarningsStream(state) << "s2e_make_concolic is deprecated. Use s2e_make_symbolic instead.\n";
         case BASE_S2E_MAKE_SYMBOLIC: { /* s2e_make_symbolic */
-            makeSymbolic(state, false);
+            makeSymbolic(state);
             break;
         }
 
@@ -848,11 +834,6 @@ void BaseInstructions::handleBuiltInOps(S2EExecutionState *state, uint64_t opcod
 
         case BASE_S2E_PRINT_MSG: { /* s2e_message */
             printMessage(state, opcode >> 16);
-            break;
-        }
-
-        case BASE_S2E_MAKE_CONCOLIC: { /* s2e_make_concolic */
-            makeSymbolic(state, true);
             break;
         }
 

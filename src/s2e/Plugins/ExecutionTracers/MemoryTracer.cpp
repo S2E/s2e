@@ -23,8 +23,6 @@
 
 #include "MemoryTracer.h"
 
-extern llvm::cl::opt<bool> ConcolicMode;
-
 namespace s2e {
 namespace plugins {
 
@@ -142,13 +140,12 @@ void MemoryTracer::traceSymbolicDataMemoryAccess(S2EExecutionState *state, klee:
 
     uint64_t concreteAddress = 0xdeadbeef;
     uint64_t concreteValue = 0xdeadbeef;
-    if (ConcolicMode) {
-        klee::ref<klee::ConstantExpr> ce = dyn_cast<klee::ConstantExpr>(state->concolics->evaluate(address));
-        concreteAddress = ce->getZExtValue();
 
-        ce = dyn_cast<klee::ConstantExpr>(state->concolics->evaluate(value));
-        concreteValue = ce->getZExtValue();
-    }
+    klee::ref<klee::ConstantExpr> ce = dyn_cast<klee::ConstantExpr>(state->concolics->evaluate(address));
+    concreteAddress = ce->getZExtValue();
+
+    ce = dyn_cast<klee::ConstantExpr>(state->concolics->evaluate(value));
+    concreteValue = ce->getZExtValue();
 
     item.set_address(isAddrCste ? cast<klee::ConstantExpr>(address)->getZExtValue(64) : concreteAddress);
     item.set_value(isValCste ? cast<klee::ConstantExpr>(value)->getZExtValue(64) : concreteValue);

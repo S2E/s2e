@@ -49,7 +49,7 @@ int LuaS2EExecutionState::createSymbolicValue(lua_State *L) {
         buffer[i] = 0;
     }
 
-    klee::ref<klee::Expr> value = m_state->createConcolicValue(name, size * 8, buffer);
+    klee::ref<klee::Expr> value = m_state->createSymbolicValue(name, size * 8, buffer);
     g_s2e->getDebugStream(m_state) << "LuaS2EExecutionState: " << value << "\n";
 
     // lua will manage the LuaExpression** ptr
