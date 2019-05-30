@@ -442,8 +442,8 @@ int handler_fork(const char **args)
         goto err;
     }
 
-    if (!S2EIoctlMakeConcolic(Driver, VariableName, Data, DataSize)) {
-        LOG("Could not make data concolic\n");
+    if (!S2EIoctlMakeSymbolic(Driver, VariableName, Data, DataSize)) {
+        LOG("Could not make data symbolic\n");
         goto err;
     }
 

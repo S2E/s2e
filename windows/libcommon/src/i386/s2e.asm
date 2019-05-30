@@ -104,18 +104,18 @@ S2EConcretize proc near _Buffer: near ptr dword, _Size: dword
     ret 08h
 S2EConcretize endp
 
-public S2EMakeConcolicRaw
-S2EMakeConcolicRaw proc near uses ebx, _Buffer: near ptr dword, _Size: dword, _Name: near ptr dword
+public S2EMakeSymbolicRaw
+S2EMakeSymbolicRaw proc near uses ebx, _Buffer: near ptr dword, _Size: dword, _Name: near ptr dword
     push ebx
     mov eax, _Buffer
     mov ebx, _Size
     mov ecx, _Name
     db 0fh, 3fh
-    db 00h, 11h, 00h, 00h
+    db 00h, 03h, 00h, 00h
     db 00h, 00h, 00h, 00h
     pop ebx
     ret 0ch
-S2EMakeConcolicRaw endp
+S2EMakeSymbolicRaw endp
 
 public S2EHexDump
 S2EHexDump proc near uses ebx, _Name: near ptr dword, _Buffer: near ptr dword, _Size: dword

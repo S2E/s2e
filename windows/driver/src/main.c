@@ -385,11 +385,11 @@ err:
     return Status;
 }
 
-static NTSTATUS S2EIoCtlMakeConcolic(_In_ PVOID Buffer, _In_ ULONG InputBufferLength)
+static NTSTATUS S2EIoctlMakeSymbolic(_In_ PVOID Buffer, _In_ ULONG InputBufferLength)
 {
     NTSTATUS Status;
     PSTR VariableName = NULL;
-    S2E_IOCTL_MAKE_CONCOLIC *Req = (S2E_IOCTL_MAKE_CONCOLIC*)Buffer;
+    S2E_IOCTL_MAKE_SYMBOLIC *Req = (S2E_IOCTL_MAKE_SYMBOLIC*)Buffer;
     if (InputBufferLength < sizeof(*Req)) {
         Status = STATUS_INVALID_PARAMETER;
         goto err;
@@ -405,7 +405,7 @@ static NTSTATUS S2EIoCtlMakeConcolic(_In_ PVOID Buffer, _In_ ULONG InputBufferLe
             goto err;
         }
 
-        S2EMakeConcolic((PVOID)(UINT_PTR)Req->DataPointer, Req->DataSize, VariableName);
+        S2EMakeSymbolic((PVOID)(UINT_PTR)Req->DataPointer, Req->DataSize, VariableName);
 
     } except (EXCEPTION_EXECUTE_HANDLER) {
         Status = STATUS_INVALID_PARAMETER;
@@ -485,8 +485,8 @@ static NTSTATUS S2EIoControl(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp)
             }
             break;
 
-        case IOCTL_S2E_MAKE_CONCOLIC:
-            Status = S2EIoCtlMakeConcolic(Buffer, InputBufferLength);
+        case IOCTL_S2E_MAKE_SYMBOLIC:
+            Status = S2EIoctlMakeSymbolic(Buffer, InputBufferLength);
             break;
 
         case IOCTL_S2E_GET_PATH_ID:

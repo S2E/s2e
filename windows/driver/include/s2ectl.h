@@ -66,7 +66,7 @@ static TCHAR S2EDriverDevice[] = _T("\\\\.\\\\S2EDriver");
 #define IOCTL_S2E_INVOKE_PLUGIN   \
             _S2E_CTL_CODE(0x205, METHOD_BUFFERED, FILE_READ_ACCESS | FILE_WRITE_ACCESS)
 
-#define IOCTL_S2E_MAKE_CONCOLIC   \
+#define IOCTL_S2E_MAKE_SYMBOLIC   \
             _S2E_CTL_CODE(0x206, METHOD_BUFFERED, FILE_READ_ACCESS | FILE_WRITE_ACCESS)
 
 #define IOCTL_S2E_GET_PATH_ID   \
@@ -102,7 +102,7 @@ typedef struct
     UINT64 DataPointer;
     UINT32 VariableNameSize;
     UINT32 DataSize;
-} S2E_IOCTL_MAKE_CONCOLIC;
+} S2E_IOCTL_MAKE_SYMBOLIC;
 
 typedef struct
 {
@@ -197,16 +197,16 @@ static S2E_IOCTL_INVOKE_PLUGIN *S2ESerializeIoctlInvokePlugin(LPCSTR PluginName,
     return Ret;
 }
 
-static BOOL S2EIoctlMakeConcolic(HANDLE Driver, LPCSTR VariableName, LPVOID Data, UINT32 Size)
+static BOOL S2EIoctlMakeSymbolic(HANDLE Driver, LPCSTR VariableName, LPVOID Data, UINT32 Size)
 {
-    S2E_IOCTL_MAKE_CONCOLIC Req;
+    S2E_IOCTL_MAKE_SYMBOLIC Req;
 
     Req.VariableNamePointer = (UINT_PTR)VariableName;
     Req.VariableNameSize = (UINT32)(strlen(VariableName) + 1);
     Req.DataPointer = (UINT_PTR)Data;
     Req.DataSize = Size;
 
-    return S2EIoCtl(Driver, IOCTL_S2E_MAKE_CONCOLIC, &Req, sizeof(Req));
+    return S2EIoCtl(Driver, IOCTL_S2E_MAKE_SYMBOLIC, &Req, sizeof(Req));
 }
 
 static BOOL S2EIoctlGetPathId(HANDLE Driver, UINT64 *PathId)
