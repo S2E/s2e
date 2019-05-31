@@ -56,7 +56,7 @@ ref<Expr> CachedAssignmentEvaluator::visit(const ref<Expr> &expr) {
     return result;
 }
 
-ref<Expr> CachedAssignmentEvaluator::evaluateActual(ref<Expr> expr) {
+ref<Expr> CachedAssignmentEvaluator::evaluateActual(const ref<Expr> &expr) {
     if (isa<ReadExpr>(expr))
         return evaluateRead(cast<ReadExpr>(expr));
 
@@ -78,7 +78,7 @@ ref<Expr> CachedAssignmentEvaluator::evaluateActual(ref<Expr> expr) {
     return expr->rebuild(kids);
 }
 
-ref<Expr> CachedAssignmentEvaluator::evaluateSelect(ref<SelectExpr> expr) {
+ref<Expr> CachedAssignmentEvaluator::evaluateSelect(const ref<SelectExpr> &expr) {
     ref<Expr> cond = visit(expr->getCondition());
     if (!isa<ConstantExpr>(cond)) {
         return SelectExpr::create(cond, visit(expr->getTrue()), visit(expr->getFalse()));
@@ -92,7 +92,7 @@ ref<Expr> CachedAssignmentEvaluator::evaluateSelect(ref<SelectExpr> expr) {
     }
 }
 
-ref<Expr> CachedAssignmentEvaluator::evaluateUSDivRem(ref<Expr> expr) {
+ref<Expr> CachedAssignmentEvaluator::evaluateUSDivRem(const ref<Expr> &expr) {
     ref<Expr> a1 = visit(expr->getKid(0));
     ref<Expr> a2 = visit(expr->getKid(1));
 
@@ -109,7 +109,7 @@ ref<Expr> CachedAssignmentEvaluator::evaluateUSDivRem(ref<Expr> expr) {
     return expr->rebuild(kids);
 }
 
-ref<Expr> CachedAssignmentEvaluator::evaluateAnd(ref<AndExpr> expr) {
+ref<Expr> CachedAssignmentEvaluator::evaluateAnd(const ref<AndExpr> &expr) {
     ref<Expr> a1 = visit(expr->getKid(0));
     ref<Expr> a2 = visit(expr->getKid(1));
 
@@ -126,7 +126,7 @@ ref<Expr> CachedAssignmentEvaluator::evaluateAnd(ref<AndExpr> expr) {
     return AndExpr::create(a1, a2);
 }
 
-ref<Expr> CachedAssignmentEvaluator::evaluateRead(ref<ReadExpr> expr) {
+ref<Expr> CachedAssignmentEvaluator::evaluateRead(const ref<ReadExpr> &expr) {
     ref<Expr> index = visit(expr->getIndex());
     ConstantExpr *const_index = dyn_cast<ConstantExpr>(index);
 
