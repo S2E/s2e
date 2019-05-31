@@ -140,10 +140,6 @@ protected:
     /// instead of being called directly.
     std::set<llvm::Function *> overridenInternalFunctions;
 
-    /// Whether implied-value concretization is enabled. Currently
-    /// false, it is buggy (it needs to validate its writes).
-    bool ivcEnabled;
-
     /// The maximum time to allow for a single solver query.
     double solverTimeout;
 
@@ -256,8 +252,6 @@ protected:
     void bindInstructionConstants(KInstruction *KI);
 
     void handlePointsToObj(ExecutionState &state, KInstruction *target, const std::vector<ref<Expr>> &arguments);
-
-    void doImpliedValueConcretization(ExecutionState &state, ref<Expr> e, ref<ConstantExpr> value);
 
     /// Add a timer to be executed periodically.
     ///

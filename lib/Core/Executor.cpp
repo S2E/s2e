@@ -22,7 +22,6 @@
 #include "klee/SolverStats.h"
 #include "klee/StatsTracker.h"
 #include "klee/UserSearcher.h"
-#include "ImpliedValue.h"
 #include "MemoryManager.h"
 #include "SpecialFunctionHandler.h"
 #include "TimingSolver.h"
@@ -93,8 +92,6 @@ cl::opt<bool> RandomizeFork("randomize-fork", cl::init(false));
 
 cl::opt<bool> DebugPrintInstructions("debug-print-instructions", cl::desc("Print instructions during execution."),
                                      cl::init(false));
-
-cl::opt<bool> DebugCheckForImpliedValues("debug-check-for-implied-values");
 
 cl::opt<bool> SimplifySymIndices("simplify-sym-indices", cl::init(true));
 
@@ -179,7 +176,7 @@ Executor::Executor(const InterpreterOptions &opts, InterpreterHandler *ih, Solve
                    LLVMContext &context)
     : Interpreter(opts), kmodule(0), interpreterHandler(ih), searcher(0),
       externalDispatcher(new ExternalDispatcher(context)), solverFactory(solver_factory), statsTracker(0),
-      specialFunctionHandler(0), processTree(0), ivcEnabled(false) {
+      specialFunctionHandler(0), processTree(0) {
 
     solverTimeout = MaxSolverTime;
 
@@ -708,8 +705,6 @@ void Executor::addConstraint(ExecutionState &state, ref<Expr> condition) {
     }
 
     state.addConstraint(condition);
-    if (ivcEnabled)
-        doImpliedValueConcretization(state, condition, ConstantExpr::alloc(1, Expr::Bool));
 }
 
 ref<klee::ConstantExpr> Executor::evalConstant(Constant *c) {
@@ -2545,36 +2540,6 @@ bool Executor::getSymbolicSolution(const std::vector<std::pair<const MemoryObjec
 bool Executor::getSymbolicSolution(const ExecutionState &state,
                                    std::vector<std::pair<std::string, std::vector<unsigned char>>> &res) {
     return getSymbolicSolution(state.symbolics, *state.concolics, res);
-}
-
-void Executor::doImpliedValueConcretization(ExecutionState &state, ref<Expr> e, ref<ConstantExpr> value) {
-    abort(); // FIXME: Broken until we sort out how to do the write back.
-
-    if (DebugCheckForImpliedValues)
-        ImpliedValue::checkForImpliedValues(_solver(state)->solver, e, value);
-
-    ImpliedValueList results;
-    ImpliedValue::getImpliedValues(e, value, results);
-    for (ImpliedValueList::iterator it = results.begin(), ie = results.end(); it != ie; ++it) {
-        ReadExpr *re = it->first.get();
-
-        if (ConstantExpr *CE = dyn_cast<ConstantExpr>(re->getIndex())) {
-            // FIXME: This is the sole remaining usage of the Array object
-            // variable. Kill me.
-            const MemoryObject *mo = 0; // re->updates.root->object;
-            const ObjectState *os = state.addressSpace.findObject(mo);
-
-            if (!os) {
-                // object has been free'd, no need to concretize (although as
-                // in other cases we would like to concretize the outstanding
-                // reads, but we have no facility for that yet)
-            } else {
-                assert(!os->readOnly && "not possible? read only object with static read?");
-                ObjectState *wos = state.addressSpace.getWriteable(mo, os);
-                wos->write(CE, it->second);
-            }
-        }
-    }
 }
 
 void Executor::addSpecialFunctionHandler(Function *function, FunctionHandler handler) {
