@@ -310,3 +310,35 @@ void ExecutionState::printStack(KInstruction *target, std::stringstream &msg) co
         target = sf.caller;
     }
 }
+
+bool ExecutionState::getSymbolicSolution(std::vector<std::pair<std::string, std::vector<unsigned char>>> &res) {
+    for (unsigned i = 0; i != symbolics.size(); ++i) {
+        const MemoryObject *mo = symbolics[i].first;
+        const Array *arr = symbolics[i].second;
+        std::vector<unsigned char> data;
+        for (unsigned s = 0; s < arr->getSize(); ++s) {
+            ref<Expr> e = concolics->evaluate(arr, s);
+            if (!isa<ConstantExpr>(e)) {
+                (*klee_warning_stream) << "Failed to evaluate concrete value for " << arr->getName() << "[" << s
+                                       << "]: " << e << "\n";
+                (*klee_warning_stream) << "  Symbolics (" << symbolics.size() << "):\n";
+                for (auto it = symbolics.begin(); it != symbolics.end(); it++) {
+                    (*klee_warning_stream) << "    " << it->second->getName() << "\n";
+                }
+                (*klee_warning_stream) << "  Assignments (" << concolics->bindings.size() << "):\n";
+                for (auto it = concolics->bindings.begin(); it != concolics->bindings.end(); it++) {
+                    (*klee_warning_stream) << "    " << it->first->getName() << "\n";
+                }
+                klee_warning_stream->flush();
+                assert(false && "Failed to evaluate concrete value");
+            }
+
+            uint8_t val = dyn_cast<ConstantExpr>(e)->getZExtValue();
+            data.push_back(val);
+        }
+
+        res.push_back(std::make_pair(mo->name, data));
+    }
+
+    return true;
+}

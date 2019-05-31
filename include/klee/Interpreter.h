@@ -92,18 +92,6 @@ public:
     /// inserted, and modified for interpretation.
     virtual const llvm::Module *setModule(llvm::Module *module, const ModuleOptions &opts,
                                           bool createStatsTracker = true) = 0;
-
-    /*** State accessor methods ***/
-    virtual bool getSymbolicSolution(TimingSolver *solver,
-                                     const std::vector<std::pair<const MemoryObject *, const Array *>> &symbolics,
-                                     const ConstraintManager &constraints,
-                                     std::vector<std::pair<std::string, std::vector<unsigned char>>> &res,
-                                     double &queryCost) = 0;
-    virtual bool getSymbolicSolution(const std::vector<std::pair<const MemoryObject *, const Array *>> &symbolics,
-                                     const Assignment &concolics,
-                                     std::vector<std::pair<std::string, std::vector<unsigned char>>> &res) = 0;
-    virtual bool getSymbolicSolution(const ExecutionState &state,
-                                     std::vector<std::pair<std::string, std::vector<unsigned char>>> &res) = 0;
 };
 
 } // End klee namespace

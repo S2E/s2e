@@ -354,17 +354,6 @@ public:
                                     bool isValueIgnored = false);
 
     /*** State accessor methods ***/
-    virtual bool getSymbolicSolution(TimingSolver *solver,
-                                     const std::vector<std::pair<const MemoryObject *, const Array *>> &symbolics,
-                                     const ConstraintManager &constraints,
-                                     std::vector<std::pair<std::string, std::vector<unsigned char>>> &res,
-                                     double &queryCost);
-    virtual bool getSymbolicSolution(const std::vector<std::pair<const MemoryObject *, const Array *>> &symbolics,
-                                     const Assignment &concolics,
-                                     std::vector<std::pair<std::string, std::vector<unsigned char>>> &res);
-    virtual bool getSymbolicSolution(const ExecutionState &state,
-                                     std::vector<std::pair<std::string, std::vector<unsigned char>>> &res);
-
     size_t getStatesCount() const {
         return states.size();
     }
