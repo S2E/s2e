@@ -121,7 +121,6 @@ RandomPathSearcher::RandomPathSearcher(Executor &_executor) : executor(_executor
 RandomPathSearcher::~RandomPathSearcher() {
 }
 
-#if 1
 ExecutionState &RandomPathSearcher::selectState() {
     unsigned flips = 0, bits = 0;
     PTree::Node *n = executor.processTree->root;
@@ -157,29 +156,6 @@ ExecutionState &RandomPathSearcher::selectState() {
 
     return *n->data;
 }
-#else
-ExecutionState &RandomPathSearcher::selectState() {
-    unsigned flips = 0, bits = 0;
-    PTree::Node *n = executor.processTree->root;
-
-    while (!n->data) {
-        if (!n->left) {
-            n = n->right;
-        } else if (!n->right) {
-            n = n->left;
-        } else {
-            if (bits == 0) {
-                flips = theRNG.getInt32();
-                bits = 32;
-            }
-            --bits;
-            n = (flips & (1 << bits)) ? n->left : n->right;
-        }
-    }
-
-    return *n->data;
-}
-#endif
 
 void RandomPathSearcher::update(ExecutionState *current, const StateSet &addedStates, const StateSet &removedStates) {
 }
