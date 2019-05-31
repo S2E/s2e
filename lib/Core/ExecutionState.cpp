@@ -417,15 +417,8 @@ ref<klee::ConstantExpr> ExecutionState::toConstant(ref<Expr> e, const std::strin
 
 // This API does not add a constraint
 ref<klee::ConstantExpr> ExecutionState::toConstantSilent(ref<Expr> e) {
-    e = simplifyExpr(e);
-    e = constraints.simplifyExpr(e);
-    if (ConstantExpr *CE = dyn_cast<ConstantExpr>(e)) {
-        return CE;
-    }
-
     ref<Expr> evalResult = concolics->evaluate(e);
     assert(isa<ConstantExpr>(evalResult) && "Must be concrete");
-
     return dyn_cast<ConstantExpr>(evalResult);
 }
 
