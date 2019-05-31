@@ -436,5 +436,12 @@ void ExecutionState::addConstraint(const ref<Expr> &constraint) {
         abort();
     }
 
+    auto ce = concolics->evaluate(expr);
+
+    if (!ce->isTrue()) {
+        assert(false && "Constraint does not evaluate to true");
+        abort();
+    }
+
     constraints.addConstraint(expr);
 }
