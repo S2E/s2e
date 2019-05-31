@@ -1980,46 +1980,6 @@ void Executor::bindModuleConstants() {
     }
 }
 
-std::string Executor::getAddressInfo(ExecutionState &state, ref<Expr> address) const {
-    std::ostringstream info;
-    uint64_t example;
-    if (ConstantExpr *CE = dyn_cast<ConstantExpr>(address)) {
-        example = CE->getZExtValue();
-        info << "\taddress: 0x" << std::hex << example << std::dec << "\n";
-    } else {
-        assert(false && "Cannot get here in concolic mode");
-        abort();
-    }
-
-    MemoryObject hack((unsigned) example);
-    MemoryMap::iterator lower = state.addressSpace.objects.upper_bound(&hack);
-    info << "\tnext: ";
-    if (lower == state.addressSpace.objects.end()) {
-        info << "none\n";
-    } else {
-        const MemoryObject *mo = lower->first;
-        std::string alloc_info;
-        mo->getAllocInfo(alloc_info);
-        info << "object at 0x" << std::hex << mo->address << " of size 0x" << mo->size << std::dec << "\n"
-             << "\t\t" << alloc_info << std::dec << "\n";
-    }
-    if (lower != state.addressSpace.objects.begin()) {
-        --lower;
-        info << "\tprev: ";
-        if (lower == state.addressSpace.objects.end()) {
-            info << "none\n";
-        } else {
-            const MemoryObject *mo = lower->first;
-            std::string alloc_info;
-            mo->getAllocInfo(alloc_info);
-            info << "object at 0x" << std::hex << mo->address << " of size 0x" << mo->size << std::dec << "\n"
-                 << "\t\t" << alloc_info << std::dec << "\n";
-        }
-    }
-
-    return info.str();
-}
-
 void Executor::deleteState(ExecutionState *state) {
     processTree->remove(state->ptreeNode);
 

@@ -238,9 +238,6 @@ protected:
 
     ref<klee::ConstantExpr> evalConstantExpr(llvm::ConstantExpr *ce);
 
-    /// Get textual information regarding a memory address.
-    std::string getAddressInfo(ExecutionState &state, ref<Expr> address) const;
-
     // delete the state (called internally by terminateState and updateStates)
     virtual void deleteState(ExecutionState *state);
 
