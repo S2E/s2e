@@ -160,7 +160,7 @@ void TestCaseGenerator::generateTestCases(S2EExecutionState *state, const std::s
     getInfoStream(state) << "generating test case at address " << hexval(state->regs()->getPc()) << '\n';
 
     ConcreteInputs inputs;
-    bool success = s2e()->getExecutor()->getSymbolicSolution(*state, inputs);
+    bool success = state->getSymbolicSolution(inputs);
 
     if (!success) {
         getWarningsStream(state) << "Could not get symbolic solutions" << '\n';
