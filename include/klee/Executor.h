@@ -279,20 +279,11 @@ protected:
     // not hold, respectively. One of the states is necessarily the
     // current state, and one of the states may be null.
     //
-    // deterministic tells whether or not to randomize forks in case forking is disabled.
-    // XXX: this is only meant to make executeMemoryOperation's life easier.
-    //
     // keepConditionTrueInCurrentState makes sure original state will have condition equal true.
     // This is useful when forking one state with several different values.
     // NOTE: In concolic mode it will recompute initial values for current state, do not use it for seed state.
-    virtual StatePair fork(ExecutionState &current, ref<Expr> condition, bool isInternal, bool deterministic = false,
+    virtual StatePair fork(ExecutionState &current, const ref<Expr> &condition,
                            bool keepConditionTrueInCurrentState = false);
-
-    // keepConditionTrueInCurrentState makes sure original state will have condition equal true.
-    // This is useful when forking one state with several different values.
-    // NOTE: In concolic mode it will recompute initial values for current state, do not use it for seed state.
-    virtual StatePair concolicFork(ExecutionState &current, ref<Expr> condition, bool isInternal,
-                                   bool keepConditionTrueInCurrentState = false);
 
 public:
     Executor(const InterpreterOptions &opts, InterpreterHandler *ie, SolverFactory *solver_factory,

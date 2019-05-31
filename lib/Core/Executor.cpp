@@ -512,13 +512,17 @@ void Executor::branch(ExecutionState &state, const std::vector<ref<Expr>> &condi
             addConstraint(*result[i], conditions[i]);
 }
 
-Executor::StatePair Executor::concolicFork(ExecutionState &current, ref<Expr> condition, bool isInternal,
-                                           bool keepConditionTrueInCurrentState) {
-    condition = simplifyExpr(current, condition);
+Executor::StatePair Executor::fork(ExecutionState &current, const ref<Expr> &condition_,
+                                   bool keepConditionTrueInCurrentState) {
+    auto condition = simplifyExpr(current, condition_);
 
-    // If we are passed a constant, no need to do anything, revert to normal fork (which won't branch)
-    if (dyn_cast<ConstantExpr>(condition)) {
-        return Executor::fork(current, condition, isInternal);
+    // If we are passed a constant, no need to do anything
+    if (auto ce = dyn_cast<ConstantExpr>(condition)) {
+        if (ce->isTrue()) {
+            return StatePair(&current, 0);
+        } else {
+            return StatePair(0, &current);
+        }
     }
 
     // Evaluate the expression using the current variable assignment
@@ -624,73 +628,6 @@ Executor::StatePair Executor::concolicFork(ExecutionState &current, ref<Expr> co
 void Executor::notifyFork(ExecutionState &originalState, ref<Expr> &condition, Executor::StatePair &targets) {
     // Should not get here
     assert(false && "Must go through S2E");
-}
-
-Executor::StatePair Executor::fork(ExecutionState &current, ref<Expr> condition, bool isInternal, bool deterministic,
-                                   bool keepConditionTrueInCurrentState) {
-    condition = simplifyExpr(current, condition);
-
-    Solver::Validity res;
-    double timeout = solverTimeout;
-
-    _solver(current)->setTimeout(timeout);
-    bool success = _solver(current)->evaluate(current, condition, res);
-    _solver(current)->setTimeout(0);
-    if (!success) {
-        current.pc = current.prevPC;
-        std::stringstream ss;
-        ss << "Query timed out on condition " << condition;
-        terminateStateEarly(current, ss.str());
-        return StatePair(0, 0);
-    }
-
-    if (res == Solver::Unknown) {
-        if (current.forkDisabled) {
-            TimerStatIncrementer timer(stats::forkTime);
-            if (deterministic || theRNG.getBool()) {
-                addConstraint(current, condition);
-                res = Solver::True;
-            } else {
-                addConstraint(current, Expr::createIsZero(condition));
-                res = Solver::False;
-            }
-        }
-    }
-
-    // XXX - even if the constraint is provable one way or the other we
-    // can probably benefit by adding this constraint and allowing it to
-    // reduce the other constraints. For example, if we do a binary
-    // search on a particular value, and then see a comparison against
-    // the value it has been fixed at, we should take this as a nice
-    // hint to just use the single constraint instead of all the binary
-    // search ones. If that makes sense.
-    if (res == Solver::True) {
-        return StatePair(&current, 0);
-    } else if (res == Solver::False) {
-        return StatePair(0, &current);
-    } else {
-        TimerStatIncrementer timer(stats::forkTime);
-        ExecutionState *falseState, *trueState = &current;
-
-        ++stats::forks;
-
-        notifyBranch(*trueState);
-        falseState = trueState->branch();
-        addedStates.insert(falseState);
-
-        if (!keepConditionTrueInCurrentState && RandomizeFork && theRNG.getBool())
-            std::swap(trueState, falseState);
-
-        current.ptreeNode->data = 0;
-        std::pair<PTree::Node *, PTree::Node *> res = processTree->split(current.ptreeNode, falseState, trueState);
-        falseState->ptreeNode = res.first;
-        trueState->ptreeNode = res.second;
-
-        addConstraint(*trueState, condition);
-        addConstraint(*falseState, Expr::createIsZero(condition));
-
-        return StatePair(trueState, falseState);
-    }
 }
 
 bool Executor::merge(ExecutionState &base, ExecutionState &other) {
@@ -1139,7 +1076,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
                 // FIXME: Find a way that we don't have this hidden dependency.
                 assert(bi->getCondition() == bi->getOperand(0) && "Wrong operand index!");
                 ref<Expr> cond = eval(ki, 0, state).value;
-                Executor::StatePair branches = fork(state, cond, false);
+                Executor::StatePair branches = fork(state, cond);
 
                 if (branches.first)
                     transferToBasicBlock(bi->getSuccessor(0), bi->getParent(), *branches.first);
@@ -1158,7 +1095,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
 
             klee::ref<klee::Expr> concreteCond = state.concolics->evaluate(cond);
             klee::ref<klee::Expr> condition = EqExpr::create(concreteCond, cond);
-            StatePair sp = fork(state, condition, true, true);
+            StatePair sp = fork(state, condition);
             assert(sp.first == &state);
             if (sp.second) {
                 sp.second->pc = sp.second->prevPC;
@@ -2075,7 +2012,7 @@ void Executor::callExternalFunction(ExecutionState &state, KInstruction *target,
 
             klee::ref<klee::Expr> condition = EqExpr::create(concreteArg, arg);
 
-            StatePair sp = fork(state, condition, true, true);
+            StatePair sp = fork(state, condition);
 
             assert(sp.first == &state);
 
@@ -2354,7 +2291,7 @@ void Executor::executeMemoryOperation(ExecutionState &state, bool isWrite, ref<E
 
     assert(state.concolics->evaluate(condition)->isTrue());
 
-    StatePair branches = fork(state, condition, true, true);
+    StatePair branches = fork(state, condition);
 
     assert(branches.first == &state);
     if (branches.second) {
@@ -2380,7 +2317,7 @@ void Executor::executeMemoryOperation(ExecutionState &state, bool isWrite, ref<E
             overlappedCondition = NotExpr::create(overlappedCondition);
         }
 
-        StatePair branches = fork(state, overlappedCondition, true, true);
+        StatePair branches = fork(state, overlappedCondition);
         if (branches.second) {
             // The forked state will have to re-execute the memory op
             branches.second->pc = branches.second->prevPC;
@@ -2408,7 +2345,7 @@ void Executor::executeMemoryOperation(ExecutionState &state, bool isWrite, ref<E
     condition = EqExpr::create(address, concreteAddress);
 
     // The number of subsequent forks is constrained by the overlappedCondition
-    branches = fork(state, condition, true, true);
+    branches = fork(state, condition);
     assert(branches.first == &state);
     if (branches.second) {
         // The forked state will have to re-execute the memory op
