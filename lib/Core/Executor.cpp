@@ -105,16 +105,8 @@ cl::opt<bool> NoExternals("no-externals", cl::desc("Do not allow external functi
 cl::opt<double> MaxSolverTime("max-solver-time", cl::desc("Maximum amount of time for a single query (default=120s)"),
                               cl::init(120.0));
 
-cl::opt<bool> ValidateSimplifier("validate-expr-simplifier",
-                                 cl::desc("Checks that the simplification algorithm produced correct expressions"),
-                                 cl::init(false));
-
 cl::opt<bool> PerStateSolver("per-state-solver", cl::desc("Create solver instance for each state"), cl::init(false));
 }
-
-// S2E: we want these to be accessible in S2E executor
-cl::opt<bool> UseExprSimplifier("use-expr-simplifier", cl::desc("Apply expression simplifier for new expressions"),
-                                cl::init(true));
 
 namespace klee {
 RNG theRNG;
@@ -183,9 +175,6 @@ Executor::Executor(const InterpreterOptions &opts, InterpreterHandler *ih, Solve
     initializeSolver();
 
     memory = new MemoryManager();
-
-    // Mandatory for AddressSpace
-    exprSimplifier = new BitfieldSimplifier;
 }
 
 const Module *Executor::setModule(llvm::Module *module, const ModuleOptions &opts, bool createStatsTracker) {
@@ -233,36 +222,6 @@ Executor::~Executor() {
 }
 
 /***/
-
-ref<Expr> Executor::simplifyExpr(const ExecutionState &s, ref<Expr> e) {
-    if (UseExprSimplifier) {
-        //*klee_message_stream << "Simpl hits:" << exprSimplifier->m_cacheHits
-        //                     << " misses:" << exprSimplifier->m_cacheMisses << "\n";
-
-        ref<Expr> simplified = exprSimplifier->simplify(e);
-
-        if (ValidateSimplifier) {
-            bool isEqual;
-
-            ref<Expr> originalConcrete = s.concolics->evaluate(e);
-            ref<Expr> simplifiedConcrete = s.concolics->evaluate(simplified);
-            isEqual = originalConcrete == simplifiedConcrete;
-
-            if (!isEqual) {
-                llvm::errs() << "Error in expression simplifier:" << '\n';
-                e->dump();
-                llvm::errs() << "!=" << '\n';
-                simplified->dump();
-                assert(false);
-            }
-        }
-
-        return simplified;
-
-    } else {
-        return e;
-    }
-}
 
 void Executor::initializeGlobalObject(ExecutionState &state, ObjectState *os, Constant *c, unsigned offset) {
     DataLayout *dataLayout = kmodule->dataLayout;
@@ -514,7 +473,7 @@ void Executor::branch(ExecutionState &state, const std::vector<ref<Expr>> &condi
 
 Executor::StatePair Executor::fork(ExecutionState &current, const ref<Expr> &condition_,
                                    bool keepConditionTrueInCurrentState) {
-    auto condition = simplifyExpr(current, condition_);
+    auto condition = current.simplifyExpr(condition_);
 
     // If we are passed a constant, no need to do anything
     if (auto ce = dyn_cast<ConstantExpr>(condition)) {
@@ -635,7 +594,7 @@ bool Executor::merge(ExecutionState &base, ExecutionState &other) {
 }
 
 void Executor::addConstraint(ExecutionState &state, ref<Expr> condition) {
-    condition = simplifyExpr(state, condition);
+    condition = state.simplifyExpr(condition);
     if (ConstantExpr *CE = dyn_cast<ConstantExpr>(condition)) {
         assert(CE->isTrue() && "attempt to add invalid constraint");
         return;
@@ -734,15 +693,15 @@ const Cell &Executor::eval(KInstruction *ki, unsigned index, ExecutionState &sta
 
 void Executor::bindLocal(KInstruction *target, ExecutionState &state, ref<Expr> value) {
 
-    getDestCell(state, target).value = simplifyExpr(state, value);
+    getDestCell(state, target).value = state.simplifyExpr(value);
 }
 
 void Executor::bindArgument(KFunction *kf, unsigned index, ExecutionState &state, ref<Expr> value) {
-    getArgumentCell(state, kf, index).value = simplifyExpr(state, value);
+    getArgumentCell(state, kf, index).value = state.simplifyExpr(value);
 }
 
 ref<Expr> Executor::toUnique(const ExecutionState &state, ref<Expr> &e) {
-    e = simplifyExpr(state, e);
+    e = state.simplifyExpr(e);
     ref<Expr> result = e;
 
     if (isa<ConstantExpr>(e)) {
@@ -758,7 +717,7 @@ ref<Expr> Executor::toUnique(const ExecutionState &state, ref<Expr> &e) {
     assert(isa<ConstantExpr>(evalResult) && "Must be concrete");
     value = dyn_cast<ConstantExpr>(evalResult);
 
-    bool success = _solver(state)->mustBeTrue(state, simplifyExpr(state, EqExpr::create(e, value)), isTrue);
+    bool success = _solver(state)->mustBeTrue(state, state.simplifyExpr(EqExpr::create(e, value)), isTrue);
 
     if (success && isTrue) {
         result = value;
@@ -772,7 +731,7 @@ ref<Expr> Executor::toUnique(const ExecutionState &state, ref<Expr> &e) {
 /* Concretize the given expression, and return a possible constant value.
    'reason' is just a documentation string stating the reason for concretization. */
 ref<klee::ConstantExpr> Executor::toConstant(ExecutionState &state, ref<Expr> e, const char *reason) {
-    e = simplifyExpr(state, e);
+    e = state.simplifyExpr(e);
     e = state.constraints.simplifyExpr(e);
     if (ConstantExpr *CE = dyn_cast<ConstantExpr>(e))
         return CE;
@@ -803,7 +762,7 @@ ref<klee::ConstantExpr> Executor::toConstant(ExecutionState &state, ref<Expr> e,
 }
 
 ref<klee::ConstantExpr> Executor::toConstantSilent(ExecutionState &state, ref<Expr> e) {
-    e = simplifyExpr(state, e);
+    e = state.simplifyExpr(e);
     e = state.constraints.simplifyExpr(e);
     if (ConstantExpr *CE = dyn_cast<ConstantExpr>(e))
         return CE;
@@ -1091,7 +1050,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
             SwitchInst *si = cast<SwitchInst>(i);
             ref<Expr> cond = eval(ki, 0, state).value;
 
-            cond = simplifyExpr(state, toUnique(state, cond));
+            cond = state.simplifyExpr(toUnique(state, cond));
 
             klee::ref<klee::Expr> concreteCond = state.concolics->evaluate(cond);
             klee::ref<klee::Expr> condition = EqExpr::create(concreteCond, cond);
@@ -2125,7 +2084,8 @@ ref<Expr> Executor::executeMemoryOperationOverlapped(ExecutionState &state, bool
     for (unsigned i = 0; i < bytes; ++i) {
         bool fastInBounds = false;
         ref<ConstantExpr> eaddress = ConstantExpr::create(concreteAddress, Expr::Int64);
-        bool success = state.addressSpace.resolveOneFast(*exprSimplifier, eaddress, Expr::Int8, op, &fastInBounds);
+        bool success =
+            state.addressSpace.resolveOneFast(ExecutionState::getSimplifier(), eaddress, Expr::Int8, op, &fastInBounds);
         assert(success && fastInBounds && "Could not resolve concrete memory address");
 
         uint64_t offset = op.first->getOffset(concreteAddress);
@@ -2225,7 +2185,7 @@ void Executor::executeMemoryOperation(ExecutionState &state, bool isWrite, ref<E
     /////////////////////////////////////////////////////////////
     // Fast pattern-matching of addresses
     // Avoids calling the constraint solver for simple cases
-    success = state.addressSpace.resolveOneFast(*exprSimplifier, address, type, op, &fastInBounds);
+    success = state.addressSpace.resolveOneFast(ExecutionState::getSimplifier(), address, type, op, &fastInBounds);
 
     if (success) {
         ref<Expr> result;
@@ -2261,7 +2221,8 @@ void Executor::executeMemoryOperation(ExecutionState &state, bool isWrite, ref<E
     /////////////////////////////////////////////////////////////
     // Use the concrete address to determine which page
     // we handle in the current state.
-    success = state.addressSpace.resolveOneFast(*exprSimplifier, concreteAddress, type, op, &fastInBounds);
+    success =
+        state.addressSpace.resolveOneFast(ExecutionState::getSimplifier(), concreteAddress, type, op, &fastInBounds);
     assert(success);
 
     // Does it really matter if it's not a memory page?
@@ -2274,7 +2235,8 @@ void Executor::executeMemoryOperation(ExecutionState &state, bool isWrite, ref<E
         assert(success && "Could not split memory object");
 
         // Resolve again, we'll get the subpage this time
-        success = state.addressSpace.resolveOneFast(*exprSimplifier, concreteAddress, type, op, &fastInBounds);
+        success = state.addressSpace.resolveOneFast(ExecutionState::getSimplifier(), concreteAddress, type, op,
+                                                    &fastInBounds);
         assert(success && "Could not resolve concrete memory address");
     }
 

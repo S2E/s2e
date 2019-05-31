@@ -143,9 +143,6 @@ protected:
     /// The maximum time to allow for a single solver query.
     double solverTimeout;
 
-    /// Simplifier user to simplify expressions when adding them
-    BitfieldSimplifier *exprSimplifier;
-
     llvm::Function *getCalledFunction(llvm::CallSite &cs, ExecutionState &state);
 
     void executeInstruction(ExecutionState &state, KInstruction *ki);
@@ -266,8 +263,6 @@ protected:
 
     /// Add a special function handler
     void addSpecialFunctionHandler(llvm::Function *function, FunctionHandler handler);
-
-    ref<Expr> simplifyExpr(const ExecutionState &state, ref<Expr> e);
 
     TimingSolver *createTimingSolver();
     void createStateSolver(const ExecutionState &state);

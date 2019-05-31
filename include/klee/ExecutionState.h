@@ -16,6 +16,7 @@
 #include "klee/AddressSpace.h"
 #include "klee/Internal/Module/KInstIterator.h"
 
+#include "klee/BitfieldSimplifier.h"
 #include "klee/util/Assignment.h"
 #include "IAddressSpaceNotification.h"
 
@@ -102,6 +103,9 @@ public:
     void removeFnAlias(std::string fn);
 
 private:
+    /// Simplifier user to simplify expressions when adding them
+    static BitfieldSimplifier s_simplifier;
+
     ExecutionState() : fakeState(false), addressSpace(this), ptreeNode(0) {
     }
 
@@ -142,6 +146,12 @@ public:
     void printStack(KInstruction *target, std::stringstream &msg) const;
 
     bool getSymbolicSolution(std::vector<std::pair<std::string, std::vector<unsigned char>>> &res);
+
+    ref<Expr> simplifyExpr(const ref<Expr> &e) const;
+
+    static BitfieldSimplifier &getSimplifier() {
+        return s_simplifier;
+    }
 };
 }
 

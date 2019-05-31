@@ -33,6 +33,13 @@ using namespace klee;
 
 namespace klee {
 cl::opt<bool> DebugLogStateMerge("debug-log-state-merge");
+
+cl::opt<bool> ValidateSimplifier("validate-expr-simplifier",
+                                 cl::desc("Checks that the simplification algorithm produced correct expressions"),
+                                 cl::init(false));
+
+cl::opt<bool> UseExprSimplifier("use-expr-simplifier", cl::desc("Apply expression simplifier for new expressions"),
+                                cl::init(true));
 }
 
 /***/
@@ -53,6 +60,8 @@ StackFrame::~StackFrame() {
 }
 
 /***/
+
+BitfieldSimplifier ExecutionState::s_simplifier;
 
 ExecutionState::ExecutionState(KFunction *kf)
     : fakeState(false), pc(kf->instructions), prevPC(pc), addressSpace(this), queryCost(0.), forkDisabled(false),
@@ -341,4 +350,30 @@ bool ExecutionState::getSymbolicSolution(std::vector<std::pair<std::string, std:
     }
 
     return true;
+}
+
+ref<Expr> ExecutionState::simplifyExpr(const ref<Expr> &e) const {
+    if (!UseExprSimplifier) {
+        return e;
+    }
+
+    ref<Expr> simplified = s_simplifier.simplify(e);
+
+    if (ValidateSimplifier) {
+        bool isEqual;
+
+        ref<Expr> originalConcrete = concolics->evaluate(e);
+        ref<Expr> simplifiedConcrete = concolics->evaluate(simplified);
+        isEqual = originalConcrete == simplifiedConcrete;
+
+        if (!isEqual) {
+            llvm::errs() << "Error in expression simplifier:" << '\n';
+            e->dump();
+            llvm::errs() << "!=" << '\n';
+            simplified->dump();
+            abort();
+        }
+    }
+
+    return simplified;
 }
