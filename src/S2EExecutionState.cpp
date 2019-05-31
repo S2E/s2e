@@ -387,10 +387,10 @@ void S2EExecutionState::kleeReadMemory(ref<Expr> kleeAddressExpr, uint64_t sizeI
         } else {
             if (concretize && addConstraint) {
                 // Add constraint if necessary
-                cur = g_s2e->getExecutor()->toConstant(*this, cur, "kleeReadMemory");
+                cur = this->toConstant(cur, "kleeReadMemory");
             } else if (concretize && !addConstraint) {
                 // Otherwise just get an example
-                cur = g_s2e->getExecutor()->toConstantSilent(*this, cur);
+                cur = this->toConstantSilent(cur);
             } else {
                 assert(false && "Expected reasonable parameters in kleeReadMemory");
             }
@@ -558,8 +558,8 @@ bool S2EExecutionState::merge(const ExecutionState &_b) {
             s << "merge failed: different KLEE pc\n" << *(*pc).inst << "\n" << *(*b.pc).inst << "\n";
 
             std::stringstream ss;
-            g_s2e->getExecutor()->printStack(*this, NULL, ss);
-            g_s2e->getExecutor()->printStack(b, NULL, ss);
+            this->printStack(NULL, ss);
+            b.printStack(NULL, ss);
             s << ss.str() << "\n";
         }
         return false;
@@ -800,12 +800,9 @@ void S2EExecutionState::enumPossibleRanges(ref<Expr> e, ref<Expr> start, ref<Exp
 
 /***/
 
-void S2EExecutionState::addConstraint(klee::ref<klee::Expr> e) {
+void S2EExecutionState::addConstraint(const klee::ref<klee::Expr> &e) {
 #ifdef CONFIG_SYMBEX_MP
     if (DebugConstraints) {
-        klee::ref<klee::Expr> ce = concolics->evaluate(e);
-        assert(ce->isTrue() && "Expression must be true here");
-
         // Check that the added constraint is consistent with
         // the existing path constraints
         bool truth;
@@ -821,7 +818,7 @@ void S2EExecutionState::addConstraint(klee::ref<klee::Expr> e) {
         assert(res && !truth && "state has invalid constraint set");
     }
 
-    constraints.addConstraint(e);
+    ExecutionState::addConstraint(e);
 #endif
 }
 
@@ -885,9 +882,9 @@ bool S2EExecutionState::applyConstraints(const std::vector<ref<Expr>> &c) {
 uint64_t S2EExecutionState::concretize(klee::ref<klee::Expr> expression, const std::string &reason, bool silent) {
 #ifdef CONFIG_SYMBEX_MP
     if (silent) {
-        return g_s2e->getExecutor()->toConstantSilent(*this, expression)->getZExtValue();
+        return this->toConstantSilent(expression)->getZExtValue();
     } else {
-        return g_s2e->getExecutor()->toConstant(*this, expression, reason.c_str())->getZExtValue();
+        return this->toConstant(expression, reason.c_str())->getZExtValue();
     }
 #else
     ConstantExpr *ce = dyn_cast<ConstantExpr>(expression);
@@ -947,7 +944,7 @@ uint64_t S2EExecutionState::readMemIoVaddr(bool masked) {
         assert(dyn_cast<ConstantExpr>(result) && "Expression must be constant here");
     } else {
         result = m_memIoVaddr;
-        result = g_s2e->getExecutor()->toConstant(*this, result, "Reading mem_io_vaddr");
+        result = this->toConstant(result, "Reading mem_io_vaddr");
     }
 
     ConstantExpr *ce = dyn_cast<ConstantExpr>(result);

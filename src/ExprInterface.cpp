@@ -123,7 +123,7 @@ uint64_t s2e_expr_to_constant(void *_expr) {
     if (box->constant) {
         return box->value;
     } else {
-        ref<Expr> expr = g_s2e->getExecutor()->toConstant(*g_s2e_state, box->expr, "klee_expr_to_constant");
+        ref<Expr> expr = g_s2e_state->toConstant(box->expr, "klee_expr_to_constant");
         ConstantExpr *cste = dyn_cast<ConstantExpr>(expr);
         return cste->getZExtValue();
     }

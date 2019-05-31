@@ -84,8 +84,8 @@ protected:
     LLVMTbReferences m_llvmBlockReferences;
 
     /** Called on fork, used to trace forks */
-    StatePair fork(klee::ExecutionState &current, klee::ref<klee::Expr> condition, bool isInternal,
-                   bool deterministic = false, bool keepConditionTrueInCurrentState = false);
+    StatePair fork(klee::ExecutionState &current, const klee::ref<klee::Expr> &condition,
+                   bool keepConditionTrueInCurrentState = false);
 
 public:
     S2EExecutor(S2E *s2e, TCGLLVMContext *tcgLVMContext, const InterpreterOptions &opts, klee::InterpreterHandler *ie);
@@ -191,8 +191,6 @@ public:
 
     // Should be public because of manual forks in plugins
     void notifyFork(klee::ExecutionState &originalState, klee::ref<klee::Expr> &condition, StatePair &targets);
-
-    klee::ref<klee::ConstantExpr> simplifyAndGetExample(S2EExecutionState *state, klee::ref<klee::Expr> &value);
 
     /**
      * To be called by plugin code

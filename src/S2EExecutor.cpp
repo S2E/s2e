@@ -523,7 +523,7 @@ void S2EExecutor::handlerTraceMmioAccess(Executor *executor, ExecutionState *sta
     assert(args.size() == 4);
     S2EExecutor *e = static_cast<S2EExecutor *>(executor);
 
-    uint64_t physAddress = e->toConstant(*state, args[0], "MMIO address")->getZExtValue();
+    uint64_t physAddress = state->toConstant(args[0], "MMIO address")->getZExtValue();
     klee::ref<Expr> value = args[1];
     unsigned size = cast<klee::ConstantExpr>(args[2])->getZExtValue();
 
@@ -555,7 +555,7 @@ void S2EExecutor::handlerTracePortAccess(Executor *executor, ExecutionState *sta
     assert(args.size() == 4);
     S2EExecutionState *s2eState = static_cast<S2EExecutionState *>(state);
 
-    klee::ref<klee::ConstantExpr> port = s2eExecutor->toConstant(*state, args[0], "Symbolic I/O port");
+    klee::ref<klee::ConstantExpr> port = state->toConstant(args[0], "Symbolic I/O port");
     klee::ref<Expr> inputValue = args[1];
     klee::Expr::Width width = cast<klee::ConstantExpr>(args[2])->getZExtValue();
     klee::ref<Expr> resizedValue = klee::ExtractExpr::create(inputValue, 0, width);
@@ -569,7 +569,7 @@ void S2EExecutor::handlerTracePortAccess(Executor *executor, ExecutionState *sta
         }
 
         if (callOrig) {
-            s2eExecutor->toConstant(*state, resizedValue, "Symbolic I/O port value");
+            state->toConstant(resizedValue, "Symbolic I/O port value");
         }
 
         s2eExecutor->bindLocal(target, *state, klee::ConstantExpr::create(callOrig, klee::Expr::Int64));
@@ -593,30 +593,14 @@ void S2EExecutor::handlerTracePortAccess(Executor *executor, ExecutionState *sta
     }
 }
 
-klee::ref<klee::ConstantExpr> S2EExecutor::simplifyAndGetExample(S2EExecutionState *state, klee::ref<Expr> &value) {
-    value = state->constraints.simplifyExpr(value);
-
-    if (UseExprSimplifier) {
-        value = simplifyExpr(*state, value);
-    }
-
-    if (isa<klee::ConstantExpr>(value)) {
-        return dyn_cast<klee::ConstantExpr>(value);
-    }
-
-    klee::ref<Expr> ca = state->concolics->evaluate(value);
-    assert(dyn_cast<klee::ConstantExpr>(ca) && "Could not evaluate address");
-    return dyn_cast<klee::ConstantExpr>(ca);
-}
-
 Executor::StatePair S2EExecutor::forkAndConcretize(S2EExecutionState *state, klee::ref<Expr> &value_) {
     assert(!state->m_runningConcrete);
 
     klee::ref<klee::Expr> value = value_;
-    klee::ref<klee::ConstantExpr> concreteValue = simplifyAndGetExample(state, value);
+    klee::ref<klee::ConstantExpr> concreteValue = state->toConstantSilent(value);
 
     klee::ref<klee::Expr> condition = EqExpr::create(concreteValue, value);
-    StatePair sp = fork(*state, condition, true, true);
+    StatePair sp = fork(*state, condition);
 
     // The condition is always true in the current state
     //(i.e., value == concreteValue holds).
@@ -644,7 +628,7 @@ void S2EExecutor::handleForkAndConcretize(Executor *executor, ExecutionState *st
     klee::ref<klee::Expr> address = args[0];
     klee::ref<klee::Expr> isTargetPc = args[3];
 
-    klee::ref<klee::ConstantExpr> concreteAddress = s2eExecutor->simplifyAndGetExample(s2eState, address);
+    klee::ref<klee::ConstantExpr> concreteAddress = s2eState->toConstantSilent(address);
 
     if (isa<klee::ConstantExpr>(address)) {
         s2eExecutor->bindLocal(target, *state, address);
@@ -677,13 +661,13 @@ void S2EExecutor::handleForkAndConcretize(Executor *executor, ExecutionState *st
     klee::ref<klee::Expr> condition = EqExpr::create(concreteAddress, address);
 
     if (doConcretize) {
-        s2eExecutor->addConstraint(*state, condition);
+        state->addConstraint(condition);
         s2eExecutor->bindLocal(target, *state, concreteAddress);
         return;
     }
 
     // XXX: may create deep paths!
-    StatePair sp = s2eExecutor->fork(*state, condition, true, true);
+    StatePair sp = s2eExecutor->fork(*state, condition);
 
     // The condition is always true in the current state
     //(i.e., expr == concreteAddress holds).
@@ -1978,8 +1962,8 @@ void S2EExecutor::notifyFork(ExecutionState &originalState, klee::ref<Expr> &con
     }
 }
 
-S2EExecutor::StatePair S2EExecutor::fork(ExecutionState &current, klee::ref<Expr> condition, bool isInternal,
-                                         bool deterministic, bool keepConditionTrueInCurrentState) {
+S2EExecutor::StatePair S2EExecutor::fork(ExecutionState &current, const klee::ref<Expr> &condition,
+                                         bool keepConditionTrueInCurrentState) {
     S2EExecutionState *currentState = dynamic_cast<S2EExecutionState *>(&current);
     assert(currentState);
     assert(!currentState->m_runningConcrete);
@@ -2004,7 +1988,7 @@ S2EExecutor::StatePair S2EExecutor::fork(ExecutionState &current, klee::ref<Expr
         currentState->forkDisabled = true;
     }
 
-    res = Executor::concolicFork(current, condition, isInternal, keepConditionTrueInCurrentState);
+    res = Executor::fork(current, condition, keepConditionTrueInCurrentState);
 
     currentState->forkDisabled = oldForkStatus;
 
@@ -2041,7 +2025,7 @@ S2EExecutor::StatePair S2EExecutor::fork(ExecutionState &current, klee::ref<Expr
 
     if (VerboseFork) {
         std::stringstream ss;
-        printStack(*currentState, NULL, ss);
+        currentState->printStack(NULL, ss);
         m_s2e->getDebugStream() << "Stack frame at fork:" << '\n' << ss.str() << "\n";
     }
 
@@ -2064,7 +2048,7 @@ S2EExecutor::StatePair S2EExecutor::fork(ExecutionState &current, klee::ref<Expr
 ///
 S2EExecutor::StatePair S2EExecutor::forkCondition(S2EExecutionState *state, klee::ref<Expr> condition,
                                                   bool keepConditionTrueInCurrentState) {
-    S2EExecutor::StatePair sp = fork(*state, condition, false, true, keepConditionTrueInCurrentState);
+    S2EExecutor::StatePair sp = fork(*state, condition, keepConditionTrueInCurrentState);
     notifyFork(*state, condition, sp);
     return sp;
 }
@@ -2109,7 +2093,7 @@ std::vector<ExecutionState *> S2EExecutor::forkValues(S2EExecutionState *state, 
             }
         }
 
-        StatePair sp = fork(*state, condition, true, true, true);
+        StatePair sp = fork(*state, condition);
         notifyFork(*state, condition, sp);
 
         ret.push_back(sp.second);

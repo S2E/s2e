@@ -270,7 +270,7 @@ public:
         m_runningExceptionEmulationCode = val;
     }
 
-    virtual void addConstraint(klee::ref<klee::Expr> e);
+    virtual void addConstraint(const klee::ref<klee::Expr> &e);
     bool testConstraints(const std::vector<klee::ref<klee::Expr>> &c, klee::ConstraintManager *newConstraints = NULL,
                          klee::Assignment *newConcolics = NULL);
     bool applyConstraints(const std::vector<klee::ref<klee::Expr>> &c);
