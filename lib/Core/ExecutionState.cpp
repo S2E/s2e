@@ -377,3 +377,64 @@ ref<Expr> ExecutionState::simplifyExpr(const ref<Expr> &e) const {
 
     return simplified;
 }
+
+///
+/// \brief Concretize the given expression, and return a possible constant value.
+/// \param e the expression to concretized
+/// \param reason documentation string stating the reason for concretization
+/// \return a concrete value
+///
+ref<klee::ConstantExpr> ExecutionState::toConstant(ref<Expr> e, const std::string &reason) {
+    e = simplifyExpr(e);
+    e = constraints.simplifyExpr(e);
+    if (ConstantExpr *CE = dyn_cast<ConstantExpr>(e))
+        return CE;
+
+    ref<ConstantExpr> value;
+
+    ref<Expr> evalResult = concolics->evaluate(e);
+    assert(isa<ConstantExpr>(evalResult) && "Must be concrete");
+    value = dyn_cast<ConstantExpr>(evalResult);
+
+    std::string s;
+    raw_string_ostream os(s);
+
+    os << "silently concretizing ";
+
+    const KInstruction *ki = prevPC;
+    if (ki && ki->inst) {
+        os << "(instruction: " << ki->inst->getParent()->getParent()->getName().str() << ": " << *ki->inst << ") ";
+    }
+
+    os << "(reason: " << reason << ") expression " << e << " to value " << value;
+
+    klee_warning_external(reason.c_str(), "%s", os.str().c_str());
+
+    addConstraint(EqExpr::create(e, value));
+
+    return value;
+}
+
+// This API does not add a constraint
+ref<klee::ConstantExpr> ExecutionState::toConstantSilent(ref<Expr> e) {
+    e = simplifyExpr(e);
+    e = constraints.simplifyExpr(e);
+    if (ConstantExpr *CE = dyn_cast<ConstantExpr>(e)) {
+        return CE;
+    }
+
+    ref<Expr> evalResult = concolics->evaluate(e);
+    assert(isa<ConstantExpr>(evalResult) && "Must be concrete");
+
+    return dyn_cast<ConstantExpr>(evalResult);
+}
+
+void ExecutionState::addConstraint(const ref<Expr> &constraint) {
+    auto expr = simplifyExpr(constraint);
+    if (ConstantExpr *CE = dyn_cast<ConstantExpr>(expr)) {
+        assert(CE->isTrue() && "attempt to add invalid constraint");
+        abort();
+    }
+
+    constraints.addConstraint(expr);
+}

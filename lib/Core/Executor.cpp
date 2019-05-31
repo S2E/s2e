@@ -466,9 +466,11 @@ void Executor::branch(ExecutionState &state, const std::vector<ref<Expr>> &condi
         es->ptreeNode = res.second;
     }
 
-    for (unsigned i = 0; i < N; ++i)
-        if (result[i])
-            addConstraint(*result[i], conditions[i]);
+    for (unsigned i = 0; i < N; ++i) {
+        if (result[i]) {
+            result[i]->addConstraint(conditions[i]);
+        }
+    }
 }
 
 Executor::StatePair Executor::fork(ExecutionState &current, const ref<Expr> &condition_,
@@ -492,10 +494,10 @@ Executor::StatePair Executor::fork(ExecutionState &current, const ref<Expr> &con
 
     if (current.forkDisabled) {
         if (conditionIsTrue) {
-            addConstraint(current, condition);
+            current.addConstraint(condition);
             return StatePair(&current, 0);
         } else {
-            addConstraint(current, Expr::createIsZero(condition));
+            current.addConstraint(Expr::createIsZero(condition));
             return StatePair(0, &current);
         }
     }
@@ -559,11 +561,11 @@ Executor::StatePair Executor::fork(ExecutionState &current, const ref<Expr> &con
 
     // Add constraint to both states
     if (conditionIsTrue) {
-        addConstraint(current, condition);
-        addConstraint(*branchedState, Expr::createIsZero(condition));
+        current.addConstraint(condition);
+        branchedState->addConstraint(Expr::createIsZero(condition));
     } else {
-        addConstraint(current, Expr::createIsZero(condition));
-        addConstraint(*branchedState, condition);
+        current.addConstraint(Expr::createIsZero(condition));
+        branchedState->addConstraint(condition);
     }
 
     // Classify states
@@ -591,16 +593,6 @@ void Executor::notifyFork(ExecutionState &originalState, ref<Expr> &condition, E
 
 bool Executor::merge(ExecutionState &base, ExecutionState &other) {
     return base.merge(other);
-}
-
-void Executor::addConstraint(ExecutionState &state, ref<Expr> condition) {
-    condition = state.simplifyExpr(condition);
-    if (ConstantExpr *CE = dyn_cast<ConstantExpr>(condition)) {
-        assert(CE->isTrue() && "attempt to add invalid constraint");
-        return;
-    }
-
-    state.addConstraint(condition);
 }
 
 ref<klee::ConstantExpr> Executor::evalConstant(Constant *c) {
@@ -726,54 +718,6 @@ ref<Expr> Executor::toUnique(const ExecutionState &state, ref<Expr> &e) {
     _solver(state)->setTimeout(0);
 
     return result;
-}
-
-/* Concretize the given expression, and return a possible constant value.
-   'reason' is just a documentation string stating the reason for concretization. */
-ref<klee::ConstantExpr> Executor::toConstant(ExecutionState &state, ref<Expr> e, const char *reason) {
-    e = state.simplifyExpr(e);
-    e = state.constraints.simplifyExpr(e);
-    if (ConstantExpr *CE = dyn_cast<ConstantExpr>(e))
-        return CE;
-
-    ref<ConstantExpr> value;
-
-    ref<Expr> evalResult = state.concolics->evaluate(e);
-    assert(isa<ConstantExpr>(evalResult) && "Must be concrete");
-    value = dyn_cast<ConstantExpr>(evalResult);
-
-    std::string s;
-    raw_string_ostream os(s);
-
-    os << "silently concretizing ";
-
-    const KInstruction *ki = state.prevPC;
-    if (ki && ki->inst) {
-        os << "(instruction: " << ki->inst->getParent()->getParent()->getName().str() << ": " << *ki->inst << ") ";
-    }
-
-    os << "(reason: " << reason << ") expression " << e << " to value " << value;
-
-    klee_warning_external(reason, "%s", os.str().c_str());
-
-    addConstraint(state, EqExpr::create(e, value));
-
-    return value;
-}
-
-ref<klee::ConstantExpr> Executor::toConstantSilent(ExecutionState &state, ref<Expr> e) {
-    e = state.simplifyExpr(e);
-    e = state.constraints.simplifyExpr(e);
-    if (ConstantExpr *CE = dyn_cast<ConstantExpr>(e))
-        return CE;
-
-    ref<ConstantExpr> value;
-
-    ref<Expr> evalResult = state.concolics->evaluate(e);
-    assert(isa<ConstantExpr>(evalResult) && "Must be concrete");
-    value = dyn_cast<ConstantExpr>(evalResult);
-
-    return value;
 }
 
 void Executor::stepInstruction(ExecutionState &state) {
@@ -1492,8 +1436,8 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
         // Floating point instructions
 
         case Instruction::FAdd: {
-            ref<ConstantExpr> left = toConstant(state, eval(ki, 0, state).value, "floating point");
-            ref<ConstantExpr> right = toConstant(state, eval(ki, 1, state).value, "floating point");
+            ref<ConstantExpr> left = state.toConstant(eval(ki, 0, state).value, "floating point");
+            ref<ConstantExpr> right = state.toConstant(eval(ki, 1, state).value, "floating point");
             llvm::APFloat Res(*fpWidthToSemantics(left->getWidth()), left->getAPValue());
             Res.add(APFloat(*fpWidthToSemantics(right->getWidth()), right->getAPValue()), APFloat::rmNearestTiesToEven);
             bindLocal(ki, state, ConstantExpr::alloc(Res.bitcastToAPInt()));
@@ -1501,8 +1445,8 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
         }
 
         case Instruction::FSub: {
-            ref<ConstantExpr> left = toConstant(state, eval(ki, 0, state).value, "floating point");
-            ref<ConstantExpr> right = toConstant(state, eval(ki, 1, state).value, "floating point");
+            ref<ConstantExpr> left = state.toConstant(eval(ki, 0, state).value, "floating point");
+            ref<ConstantExpr> right = state.toConstant(eval(ki, 1, state).value, "floating point");
             llvm::APFloat Res(*fpWidthToSemantics(left->getWidth()), left->getAPValue());
             Res.subtract(APFloat(*fpWidthToSemantics(right->getWidth()), right->getAPValue()),
                          APFloat::rmNearestTiesToEven);
@@ -1511,8 +1455,8 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
         }
 
         case Instruction::FMul: {
-            ref<ConstantExpr> left = toConstant(state, eval(ki, 0, state).value, "floating point");
-            ref<ConstantExpr> right = toConstant(state, eval(ki, 1, state).value, "floating point");
+            ref<ConstantExpr> left = state.toConstant(eval(ki, 0, state).value, "floating point");
+            ref<ConstantExpr> right = state.toConstant(eval(ki, 1, state).value, "floating point");
             llvm::APFloat Res(*fpWidthToSemantics(left->getWidth()), left->getAPValue());
             Res.multiply(APFloat(*fpWidthToSemantics(right->getWidth()), right->getAPValue()),
                          APFloat::rmNearestTiesToEven);
@@ -1521,8 +1465,8 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
         }
 
         case Instruction::FDiv: {
-            ref<ConstantExpr> left = toConstant(state, eval(ki, 0, state).value, "floating point");
-            ref<ConstantExpr> right = toConstant(state, eval(ki, 1, state).value, "floating point");
+            ref<ConstantExpr> left = state.toConstant(eval(ki, 0, state).value, "floating point");
+            ref<ConstantExpr> right = state.toConstant(eval(ki, 1, state).value, "floating point");
             llvm::APFloat Res(*fpWidthToSemantics(left->getWidth()), left->getAPValue());
             Res.divide(APFloat(*fpWidthToSemantics(right->getWidth()), right->getAPValue()),
                        APFloat::rmNearestTiesToEven);
@@ -1531,8 +1475,8 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
         }
 
         case Instruction::FRem: {
-            ref<ConstantExpr> left = toConstant(state, eval(ki, 0, state).value, "floating point");
-            ref<ConstantExpr> right = toConstant(state, eval(ki, 1, state).value, "floating point");
+            ref<ConstantExpr> left = state.toConstant(eval(ki, 0, state).value, "floating point");
+            ref<ConstantExpr> right = state.toConstant(eval(ki, 1, state).value, "floating point");
             llvm::APFloat Res(*fpWidthToSemantics(left->getWidth()), left->getAPValue());
             Res.mod(APFloat(*fpWidthToSemantics(right->getWidth()), right->getAPValue()));
             bindLocal(ki, state, ConstantExpr::alloc(Res.bitcastToAPInt()));
@@ -1542,7 +1486,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
         case Instruction::FPTrunc: {
             FPTruncInst *fi = cast<FPTruncInst>(i);
             Expr::Width resultType = getWidthForLLVMType(fi->getType());
-            ref<ConstantExpr> arg = toConstant(state, eval(ki, 0, state).value, "floating point");
+            ref<ConstantExpr> arg = state.toConstant(eval(ki, 0, state).value, "floating point");
             if (arg->getWidth() > 64)
                 return terminateStateOnExecError(state, "Unsupported FPTrunc operation");
             uint64_t value = floats::trunc(arg->getZExtValue(), resultType, arg->getWidth());
@@ -1553,7 +1497,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
         case Instruction::FPExt: {
             FPExtInst *fi = cast<FPExtInst>(i);
             Expr::Width resultType = getWidthForLLVMType(fi->getType());
-            ref<ConstantExpr> arg = toConstant(state, eval(ki, 0, state).value, "floating point");
+            ref<ConstantExpr> arg = state.toConstant(eval(ki, 0, state).value, "floating point");
             if (arg->getWidth() > 64)
                 return terminateStateOnExecError(state, "Unsupported FPExt operation");
             uint64_t value = floats::ext(arg->getZExtValue(), resultType, arg->getWidth());
@@ -1564,7 +1508,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
         case Instruction::FPToUI: {
             FPToUIInst *fi = cast<FPToUIInst>(i);
             Expr::Width resultType = getWidthForLLVMType(fi->getType());
-            ref<ConstantExpr> arg = toConstant(state, eval(ki, 0, state).value, "floating point");
+            ref<ConstantExpr> arg = state.toConstant(eval(ki, 0, state).value, "floating point");
             if (arg->getWidth() > 64)
                 return terminateStateOnExecError(state, "Unsupported FPToUI operation");
             uint64_t value = floats::toUnsignedInt(arg->getZExtValue(), resultType, arg->getWidth());
@@ -1575,7 +1519,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
         case Instruction::FPToSI: {
             FPToSIInst *fi = cast<FPToSIInst>(i);
             Expr::Width resultType = getWidthForLLVMType(fi->getType());
-            ref<ConstantExpr> arg = toConstant(state, eval(ki, 0, state).value, "floating point");
+            ref<ConstantExpr> arg = state.toConstant(eval(ki, 0, state).value, "floating point");
             if (arg->getWidth() > 64)
                 return terminateStateOnExecError(state, "Unsupported FPToSI operation");
             uint64_t value = floats::toSignedInt(arg->getZExtValue(), resultType, arg->getWidth());
@@ -1586,7 +1530,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
         case Instruction::UIToFP: {
             UIToFPInst *fi = cast<UIToFPInst>(i);
             Expr::Width resultType = getWidthForLLVMType(fi->getType());
-            ref<ConstantExpr> arg = toConstant(state, eval(ki, 0, state).value, "floating point");
+            ref<ConstantExpr> arg = state.toConstant(eval(ki, 0, state).value, "floating point");
             if (arg->getWidth() > 64)
                 return terminateStateOnExecError(state, "Unsupported UIToFP operation");
             uint64_t value = floats::UnsignedIntToFP(arg->getZExtValue(), resultType);
@@ -1597,7 +1541,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
         case Instruction::SIToFP: {
             SIToFPInst *fi = cast<SIToFPInst>(i);
             Expr::Width resultType = getWidthForLLVMType(fi->getType());
-            ref<ConstantExpr> arg = toConstant(state, eval(ki, 0, state).value, "floating point");
+            ref<ConstantExpr> arg = state.toConstant(eval(ki, 0, state).value, "floating point");
             if (arg->getWidth() > 64)
                 return terminateStateOnExecError(state, "Unsupported SIToFP operation");
             uint64_t value = floats::SignedIntToFP(arg->getZExtValue(), resultType, arg->getWidth());
@@ -1607,8 +1551,8 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
 
         case Instruction::FCmp: {
             FCmpInst *fi = cast<FCmpInst>(i);
-            ref<ConstantExpr> left = toConstant(state, eval(ki, 0, state).value, "floating point");
-            ref<ConstantExpr> right = toConstant(state, eval(ki, 1, state).value, "floating point");
+            ref<ConstantExpr> left = state.toConstant(eval(ki, 0, state).value, "floating point");
+            ref<ConstantExpr> right = state.toConstant(eval(ki, 1, state).value, "floating point");
             APFloat LHS(*fpWidthToSemantics(left->getWidth()), left->getAPValue());
             APFloat RHS(*fpWidthToSemantics(right->getWidth()), right->getAPValue());
             APFloat::cmpResult CmpRes = LHS.compare(RHS);
@@ -2128,15 +2072,15 @@ ref<Expr> Executor::executeMemoryOperation(ExecutionState &state, const ObjectPa
             if (mo->isSharedConcrete) {
                 if (!dyn_cast<ConstantExpr>(offset) || !dyn_cast<ConstantExpr>(value)) {
                     if (mo->isValueIgnored) {
-                        offset = toConstantSilent(state, offset);
-                        value = toConstantSilent(state, value);
+                        offset = state.toConstantSilent(offset);
+                        value = state.toConstantSilent(value);
                     } else {
                         std::stringstream ss;
                         ss << "write to always concrete memory name:" << mo->name << " offset=" << offset
                            << " value=" << value;
 
-                        offset = toConstant(state, offset, ss.str().c_str());
-                        value = toConstant(state, value, ss.str().c_str());
+                        offset = state.toConstant(offset, ss.str().c_str());
+                        value = state.toConstant(value, ss.str().c_str());
                     }
                 }
             }
@@ -2149,12 +2093,12 @@ ref<Expr> Executor::executeMemoryOperation(ExecutionState &state, const ObjectPa
         if (mo->isSharedConcrete) {
             if (!dyn_cast<ConstantExpr>(offset)) {
                 if (mo->isValueIgnored) {
-                    offset = toConstantSilent(state, offset);
+                    offset = state.toConstantSilent(offset);
                 } else {
                     std::stringstream ss;
                     ss << "Read from always concrete memory name:" << mo->name << " offset=" << offset;
 
-                    offset = toConstant(state, offset, ss.str().c_str());
+                    offset = state.toConstant(offset, ss.str().c_str());
                 }
             }
         }

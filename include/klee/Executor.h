@@ -212,12 +212,6 @@ protected:
     /// allows plugins to kill states and exit to the CPU loop safely.
     virtual void notifyFork(ExecutionState &originalState, ref<Expr> &condition, Executor::StatePair &targets);
 
-    /// Add the given (boolean) condition as a constraint on state. This
-    /// function is a wrapper around the state's addConstraint function
-    /// which also manages manages propagation of implied values and
-    /// validity checks.
-    void addConstraint(ExecutionState &state, ref<Expr> condition);
-
     const Cell &eval(KInstruction *ki, unsigned index, ExecutionState &state) const;
 
     Cell &getArgumentCell(ExecutionState &state, KFunction *kf, unsigned index) {
@@ -316,19 +310,6 @@ public:
     /// given state, if it has one (i.e. it provably only has a single
     /// value). Otherwise return the original expression.
     ref<Expr> toUnique(const ExecutionState &state, ref<Expr> &e);
-
-    /// Return a constant value for the given expression, forcing it to
-    /// be constant in the given state but WITHOUT adding constraints.
-    /// Note that this function could break correctness !
-    ref<klee::ConstantExpr> toConstantSilent(ExecutionState &state, ref<Expr> e);
-
-    /// Return a constant value for the given expression, forcing it to
-    /// be constant in the given state by adding a constraint if
-    /// necessary. Note that this function breaks completeness and
-    /// should generally be avoided.
-    ///
-    /// \param purpose An identify string to printed in case of concretization.
-    ref<klee::ConstantExpr> toConstant(ExecutionState &state, ref<Expr> e, const char *purpose);
 
     virtual const llvm::Module *setModule(llvm::Module *module, const ModuleOptions &opts,
                                           bool createStatsTracker = true);

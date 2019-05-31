@@ -137,9 +137,7 @@ public:
     void addSymbolic(const MemoryObject *mo, const Array *array) {
         symbolics.push_back(std::make_pair(mo, array));
     }
-    virtual void addConstraint(const ref<Expr> &e) {
-        constraints.addConstraint(e);
-    }
+    virtual void addConstraint(const ref<Expr> &e);
 
     virtual bool merge(const ExecutionState &b);
 
@@ -152,6 +150,9 @@ public:
     static BitfieldSimplifier &getSimplifier() {
         return s_simplifier;
     }
+
+    ref<klee::ConstantExpr> toConstant(ref<Expr> e, const std::string &reason);
+    ref<klee::ConstantExpr> toConstantSilent(ref<Expr> e);
 };
 }
 
