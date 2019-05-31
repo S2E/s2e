@@ -2062,35 +2062,6 @@ void Executor::terminateStateOnExit(ExecutionState &state) {
     terminateState(state);
 }
 
-void Executor::printStack(const ExecutionState &state, KInstruction *target, std::stringstream &msg) {
-    msg << "Stack: \n";
-    unsigned idx = 0;
-    for (ExecutionState::stack_ty::const_reverse_iterator it = state.stack.rbegin(), ie = state.stack.rend(); it != ie;
-         ++it) {
-        const StackFrame &sf = *it;
-        Function *f = sf.kf->function;
-
-        msg << "\t#" << idx++ << " " << std::setw(8) << std::setfill('0') << " in " << f->getName().str() << " (";
-
-        // Yawn, we could go up and print varargs if we wanted to.
-        unsigned index = 0;
-        for (Function::arg_iterator ai = f->arg_begin(), ae = f->arg_end(); ai != ae; ++ai) {
-            if (ai != f->arg_begin())
-                msg << ", ";
-
-            msg << ai->getName().str();
-            // XXX should go through function
-            ref<Expr> value = sf.locals[sf.kf->getArgRegister(index++)].value;
-            msg << " [" << state.concolics->evaluate(value) << "]";
-        }
-        msg << ")";
-
-        msg << "\n";
-
-        target = sf.caller;
-    }
-}
-
 void Executor::terminateStateOnError(ExecutionState &state, const llvm::Twine &messaget, const char *suffix,
                                      const llvm::Twine &info) {
     std::string message = messaget.str();
@@ -2105,7 +2076,7 @@ void Executor::terminateStateOnError(ExecutionState &state, const llvm::Twine &m
         std::stringstream msg;
         msg << "Error: " << message << "\n";
 
-        printStack(state, state.prevPC, msg);
+        state.printStack(state.prevPC, msg);
 
         interpreterHandler->processTestCase(state, msg.str().c_str(), suffix);
     }

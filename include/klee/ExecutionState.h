@@ -133,11 +133,13 @@ public:
     void addSymbolic(const MemoryObject *mo, const Array *array) {
         symbolics.push_back(std::make_pair(mo, array));
     }
-    virtual void addConstraint(ref<Expr> e) {
+    virtual void addConstraint(const ref<Expr> &e) {
         constraints.addConstraint(e);
     }
 
     virtual bool merge(const ExecutionState &b);
+
+    void printStack(KInstruction *target, std::stringstream &msg) const;
 };
 }
 

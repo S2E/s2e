@@ -22,6 +22,7 @@
 #include "llvm/Support/CommandLine.h"
 
 #include <cassert>
+#include <iomanip>
 #include <iostream>
 #include <map>
 #include <set>
@@ -280,4 +281,32 @@ bool ExecutionState::merge(const ExecutionState &b) {
     constraints.addConstraint(OrExpr::create(inA, inB));
 
     return true;
+}
+
+void ExecutionState::printStack(KInstruction *target, std::stringstream &msg) const {
+    msg << "Stack: \n";
+    unsigned idx = 0;
+    for (ExecutionState::stack_ty::const_reverse_iterator it = stack.rbegin(), ie = stack.rend(); it != ie; ++it) {
+        const StackFrame &sf = *it;
+        Function *f = sf.kf->function;
+
+        msg << "\t#" << idx++ << " " << std::setw(8) << std::setfill('0') << " in " << f->getName().str() << " (";
+
+        // Yawn, we could go up and print varargs if we wanted to.
+        unsigned index = 0;
+        for (Function::arg_iterator ai = f->arg_begin(), ae = f->arg_end(); ai != ae; ++ai) {
+            if (ai != f->arg_begin())
+                msg << ", ";
+
+            msg << ai->getName().str();
+            // XXX should go through function
+            ref<Expr> value = sf.locals[sf.kf->getArgRegister(index++)].value;
+            msg << " [" << concolics->evaluate(value) << "]";
+        }
+        msg << ")";
+
+        msg << "\n";
+
+        target = sf.caller;
+    }
 }
