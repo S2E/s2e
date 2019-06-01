@@ -48,9 +48,6 @@ public:
 
     /* klee-related function */
     void incPathsExplored();
-
-    /* klee-related function */
-    void processTestCase(const klee::ExecutionState &state, const char *err, const char *suffix);
 };
 
 typedef void (*StateManagerCb)(S2EExecutionState *s, bool killingState);
@@ -175,14 +172,11 @@ public:
         return m_inLoadBalancing;
     }
 
-    /** Kill the state with test case generation */
-    virtual void terminateStateEarly(klee::ExecutionState &state, const llvm::Twine &message);
-
     /** Kills the specified state and raises an exception to exit the cpu loop */
     virtual void terminateState(klee::ExecutionState &state);
 
-    /** Kills the specified state without exiting to the CPU loop */
-    void terminateStateAtFork(S2EExecutionState &state);
+    /** Kills the specified state and raises an exception to exit the cpu loop */
+    virtual void terminateState(klee::ExecutionState &state, const std::string &message);
 
     /** Yields the specified state and raises an exception to exit the cpu loop */
     virtual void yieldState(klee::ExecutionState &state);

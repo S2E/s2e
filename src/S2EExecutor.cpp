@@ -378,12 +378,6 @@ void S2EHandler::incPathsExplored() {
     m_pathsExplored++;
 }
 
-/* klee-related function */
-void S2EHandler::processTestCase(const klee::ExecutionState &state, const char *err, const char *suffix) {
-    // XXX: This stuff is not used anymore
-    // Use onTestCaseGeneration event instead.
-}
-
 void S2EExecutor::handlerWriteMemIoVaddr(klee::Executor *executor, klee::ExecutionState *state,
                                          klee::KInstruction *target, std::vector<klee::ref<klee::Expr>> &args) {
     S2EExecutionState *s2eState = static_cast<S2EExecutionState *>(state);
@@ -1316,7 +1310,7 @@ void S2EExecutor::doLoadBalancing() {
     for (auto state : allStates) {
         S2EExecutionState *s2estate = static_cast<S2EExecutionState *>(state);
         if (!currentSet.count(s2estate)) {
-            terminateStateAtFork(*s2estate);
+            Executor::terminateState(*s2estate);
 
             // This is important if we kill the current state
             s2estate->zombify();
@@ -2234,9 +2228,9 @@ bool S2EExecutor::merge(klee::ExecutionState &_base, klee::ExecutionState &_othe
     return result;
 }
 
-void S2EExecutor::terminateStateEarly(klee::ExecutionState &state, const llvm::Twine &message) {
+void S2EExecutor::terminateState(klee::ExecutionState &state, const std::string &message) {
     S2EExecutionState *s2estate = static_cast<S2EExecutionState *>(&state);
-    m_s2e->getInfoStream(s2estate) << "Terminating state early: " << message << "\n";
+    m_s2e->getInfoStream(s2estate) << "Terminating state: " << message << "\n";
     terminateState(state);
 }
 
@@ -2247,7 +2241,7 @@ void S2EExecutor::terminateState(ExecutionState &s) {
 
     m_s2e->getCorePlugin()->onStateKill.emit(&state);
 
-    terminateStateAtFork(state);
+    Executor::terminateState(state);
     state.zombify();
 
     g_s2e->getWarningsStream().flush();
@@ -2278,10 +2272,6 @@ void S2EExecutor::yieldState(ExecutionState &s) {
     // Stop current execution
     state.regs()->write<int>(CPU_OFFSET(exception_index), EXCP_SE);
     throw CpuExitException();
-}
-
-void S2EExecutor::terminateStateAtFork(S2EExecutionState &state) {
-    Executor::terminateState(state);
 }
 
 inline void S2EExecutor::setCCOpEflags(S2EExecutionState *state) {
@@ -2631,7 +2621,7 @@ uint64_t s2e_read_mem_io_vaddr(int masked) {
 }
 
 void s2e_kill_state(const char *message) {
-    g_s2e->getExecutor()->terminateStateEarly(*g_s2e_state, message);
+    g_s2e->getExecutor()->terminateState(*g_s2e_state, message);
 }
 
 #ifdef S2E_DEBUG_MEMORY

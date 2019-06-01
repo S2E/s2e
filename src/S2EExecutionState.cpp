@@ -813,7 +813,6 @@ void S2EExecutionState::addConstraint(const klee::ref<klee::Expr> &e) {
         if (!res || truth) {
             g_s2e->getWarningsStream() << "State has invalid constraints" << '\n';
             exit(-1);
-            // g_s2e->getExecutor()->terminateStateEarly(*this, "State has invalid constraint set");
         }
         assert(res && !truth && "state has invalid constraint set");
     }
