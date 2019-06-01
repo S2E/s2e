@@ -288,20 +288,7 @@ public:
     // remove state from queue and delete
     virtual void terminateState(ExecutionState &state);
 
-    // call exit handler and terminate state
-    virtual void terminateStateEarly(ExecutionState &state, const llvm::Twine &message);
-    // call exit handler and terminate state
-    void terminateStateOnExit(ExecutionState &state);
-    // call error handler and terminate state
-    void terminateStateOnError(ExecutionState &state, const llvm::Twine &message, const char *suffix,
-                               const llvm::Twine &longMessage = "");
-
-    // call error handler and terminate state, for execution errors
-    // (things that should not be possible, like illegal instruction or
-    // unlowered instrinsic, or are unsupported, like inline assembly)
-    void terminateStateOnExecError(ExecutionState &state, const llvm::Twine &message, const llvm::Twine &info = "") {
-        terminateStateOnError(state, message, "exec.err", info);
-    }
+    virtual void terminateState(ExecutionState &state, const std::string &reason);
 
     // XXX should just be moved out to utility module
     ref<klee::ConstantExpr> evalConstant(llvm::Constant *c);

@@ -48,8 +48,6 @@ public:
     virtual llvm::raw_ostream *openOutputFile(const std::string &filename) = 0;
 
     virtual void incPathsExplored() = 0;
-
-    virtual void processTestCase(const ExecutionState &state, const char *err, const char *suffix) = 0;
 };
 
 class Interpreter {
