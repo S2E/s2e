@@ -17,6 +17,7 @@
 #include "klee/Expr.h"
 
 #include "klee/Memory.h"
+#include "klee/util/ExprPPrinter.h"
 
 #include "llvm/IR/Function.h"
 #include "llvm/Support/CommandLine.h"
@@ -437,4 +438,21 @@ void ExecutionState::addConstraint(const ref<Expr> &constraint) {
     }
 
     constraints.addConstraint(expr);
+}
+
+/// \brief Print query to solve state constraints
+/// Will print query in format understandable by kleaver.
+///
+/// \param os output stream
+void ExecutionState::dumpQuery(llvm::raw_ostream &os) const {
+    std::vector<const Array *> symbObjects;
+    for (unsigned i = 0; i < symbolics.size(); ++i) {
+        symbObjects.push_back(symbolics[i].second);
+    }
+
+    auto printer = std::unique_ptr<ExprPPrinter>(ExprPPrinter::create(os));
+
+    Query query(constraints, ConstantExpr::alloc(0, Expr::Bool));
+    printer->printQuery(os, query.constraints, query.expr, 0, 0, &symbObjects[0], &symbObjects[0] + symbObjects.size());
+    os.flush();
 }

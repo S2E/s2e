@@ -153,6 +153,8 @@ public:
 
     ref<klee::ConstantExpr> toConstant(ref<Expr> e, const std::string &reason);
     ref<klee::ConstantExpr> toConstantSilent(ref<Expr> e);
+
+    void dumpQuery(llvm::raw_ostream &os) const;
 };
 }
 
