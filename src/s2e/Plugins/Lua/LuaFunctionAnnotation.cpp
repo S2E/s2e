@@ -241,7 +241,7 @@ void LuaFunctionAnnotation::invokeAnnotation(S2EExecutionState *state, const Ann
     Lunar<LuaFunctionAnnotationState>::push(L, &luaAnnotation);
 
     if (entry.paramCount > 0 && state->getPointerSize() == 8) {
-        s2e()->getExecutor()->terminateStateEarly(*state, "64-bit support not implemented");
+        s2e()->getExecutor()->terminateState(*state, "64-bit support not implemented");
     }
 
     lua_pushboolean(L, isCall);

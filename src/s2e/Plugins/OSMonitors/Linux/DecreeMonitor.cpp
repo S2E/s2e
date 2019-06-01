@@ -251,7 +251,7 @@ ref<Expr> DecreeMonitor::makeSymbolicRead(S2EExecutionState *state, uint64_t pid
         return E_CONST(feedCount, Expr::Int32);
     }
 
-    g_s2e->getExecutor()->terminateStateEarly(*state, "read data limit exceeded");
+    g_s2e->getExecutor()->terminateState(*state, "read data limit exceeded");
     return E_CONST(0, Expr::Int32);
 }
 
@@ -837,7 +837,7 @@ void DecreeMonitor::handleCommand(S2EExecutionState *state, uint64_t guestDataPt
 
             if (m_terminateOnSegfault) {
                 getDebugStream(state) << "Terminating state: received segfault\n";
-                s2e()->getExecutor()->terminateStateEarly(*state, "Segfault");
+                s2e()->getExecutor()->terminateState(*state, "Segfault");
             }
         } break;
 

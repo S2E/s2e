@@ -48,7 +48,7 @@ void EdgeKiller::onEdge(S2EExecutionState *state, uint64_t sourcePc, EdgeType ty
     llvm::raw_string_ostream ss(s);
     ss << "EdgeKiller: " << hexval(sourcePc) << " => " << hexval(state->regs()->getPc()) << "\n";
     ss.flush();
-    s2e()->getExecutor()->terminateStateEarly(*state, s);
+    s2e()->getExecutor()->terminateState(*state, s);
 }
 
 } // namespace plugins

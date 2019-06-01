@@ -266,7 +266,7 @@ void BaseInstructions::killState(S2EExecutionState *state) {
     os << "State was terminated by opcode\n"
        << "            message: \"" << message << "\"\n"
        << "            status: " << status;
-    s2e()->getExecutor()->terminateStateEarly(*state, os.str());
+    s2e()->getExecutor()->terminateState(*state, os.str());
 }
 
 void BaseInstructions::printExpression(S2EExecutionState *state) {
@@ -622,7 +622,7 @@ void BaseInstructions::assumeInternal(S2EExecutionState *state, klee::ref<klee::
     if (!isValid) {
         std::stringstream ss;
         ss << "BaseInstructions: specified assume expression cannot be true. " << boolExpr;
-        g_s2e->getExecutor()->terminateStateEarly(*state, ss.str());
+        g_s2e->getExecutor()->terminateState(*state, ss.str());
     }
 
     state->addConstraint(boolExpr);

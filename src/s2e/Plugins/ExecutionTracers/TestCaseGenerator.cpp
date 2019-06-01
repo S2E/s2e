@@ -444,7 +444,7 @@ void TestCaseGenerator::handleAddConcreteFileChunk(S2EExecutionState *state,
     std::string name;
     if (!state->mem()->readString(chunk.name, name)) {
         getWarningsStream() << "could not read file name at address " << hexval(chunk.name) << "\n";
-        s2e()->getExecutor()->terminateStateEarly(*state, "TestCaseGenerator call failed");
+        s2e()->getExecutor()->terminateState(*state, "TestCaseGenerator call failed");
     }
 
     std::vector<uint8_t> data;
@@ -452,7 +452,7 @@ void TestCaseGenerator::handleAddConcreteFileChunk(S2EExecutionState *state,
 
     if (!state->mem()->read(chunk.data, data.data(), chunk.size)) {
         getWarningsStream() << "could not read chunk data from guest at address " << hexval(chunk.data) << "\n";
-        s2e()->getExecutor()->terminateStateEarly(*state, "TestCaseGenerator call failed");
+        s2e()->getExecutor()->terminateState(*state, "TestCaseGenerator call failed");
     }
 
     DECLARE_PLUGINSTATE(TestCaseGeneratorState, state);

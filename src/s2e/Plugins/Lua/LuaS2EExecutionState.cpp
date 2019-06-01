@@ -66,7 +66,7 @@ int LuaS2EExecutionState::kill(lua_State *L) {
 
     std::stringstream ss;
     ss << "LuaS2EExecutionState: killed status:" << status << " message:" << message;
-    g_s2e->getExecutor()->terminateStateEarly(*m_state, ss.str());
+    g_s2e->getExecutor()->terminateState(*m_state, ss.str());
 
     return 0;
 }
