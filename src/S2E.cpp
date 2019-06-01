@@ -253,7 +253,6 @@ S2E::~S2E() {
     m_s2eExecutor->flushTb();
 
     delete m_s2eExecutor;
-    delete m_s2eHandler;
 
     delete m_configFile;
 
@@ -487,9 +486,7 @@ void S2E::initPlugins() {
 }
 
 void S2E::initExecutor() {
-    m_s2eHandler = new S2EHandler(this);
-    S2EExecutor::InterpreterOptions IOpts;
-    m_s2eExecutor = new S2EExecutor(this, m_tcgLLVMContext, IOpts, m_s2eHandler);
+    m_s2eExecutor = new S2EExecutor(this, m_tcgLLVMContext, this);
 }
 
 llvm::raw_ostream &S2E::getStream(llvm::raw_ostream &stream, const S2EExecutionState *state) const {

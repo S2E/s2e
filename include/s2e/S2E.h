@@ -40,7 +40,6 @@ class CorePlugin;
 class ConfigFile;
 class PluginsFactory;
 
-class S2EHandler;
 class S2EExecutor;
 class S2EExecutionState;
 
@@ -84,7 +83,7 @@ struct S2EShared {
     }
 };
 
-class S2E {
+class S2E : public klee::InterpreterHandler {
 protected:
     S2ESynchronizedObject<S2EShared> m_sync;
     ConfigFile *m_configFile;
@@ -119,7 +118,6 @@ protected:
 
     std::string m_outputDirectoryBase;
 
-    S2EHandler *m_s2eHandler;
     S2EExecutor *m_s2eExecutor;
 
     /* forked indicates whether the current S2E process was forked from a parent S2E process */
@@ -184,17 +182,17 @@ public:
     llvm::raw_ostream *openOutputFile(const std::string &filename);
 
     /** Get info stream (used only by KLEE internals) */
-    llvm::raw_ostream &getInfoStream(const S2EExecutionState *state = 0) const {
+    llvm::raw_ostream &getInfoStream(const S2EExecutionState *state = nullptr) const {
         return getStream(*m_infoStream, state);
     }
 
     /** Get debug stream (used for non-important debug info) */
-    llvm::raw_ostream &getDebugStream(const S2EExecutionState *state = 0) const {
+    llvm::raw_ostream &getDebugStream(const S2EExecutionState *state = nullptr) const {
         return getStream(*m_debugStream, state);
     }
 
     /** Get warnings stream (used for warnings, duplicated on the screen) */
-    llvm::raw_ostream &getWarningsStream(const S2EExecutionState *state = 0) const {
+    llvm::raw_ostream &getWarningsStream(const S2EExecutionState *state = nullptr) const {
         return getStream(*m_warningStream, state);
     }
 

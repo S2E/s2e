@@ -33,23 +33,6 @@ struct S2ETranslationBlock;
 
 class CpuExitException {};
 
-/** Handler required for KLEE interpreter */
-class S2EHandler : public klee::InterpreterHandler {
-private:
-    S2E *m_s2e;
-    unsigned m_pathsExplored; // number of paths explored so far
-
-public:
-    S2EHandler(S2E *s2e);
-
-    llvm::raw_ostream &getInfoStream() const;
-    std::string getOutputFilename(const std::string &fileName);
-    llvm::raw_ostream *openOutputFile(const std::string &fileName);
-
-    /* klee-related function */
-    void incPathsExplored();
-};
-
 typedef void (*StateManagerCb)(S2EExecutionState *s, bool killingState);
 
 class S2EExecutor : public klee::Executor {
@@ -85,7 +68,7 @@ protected:
                    bool keepConditionTrueInCurrentState = false);
 
 public:
-    S2EExecutor(S2E *s2e, TCGLLVMContext *tcgLVMContext, const InterpreterOptions &opts, klee::InterpreterHandler *ie);
+    S2EExecutor(S2E *s2e, TCGLLVMContext *tcgLVMContext, klee::InterpreterHandler *ie);
     virtual ~S2EExecutor();
 
     void flushTb();

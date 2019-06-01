@@ -358,26 +358,6 @@ void S2EExternalDispatcher::removeFunction(llvm::Function *f) {
     }
 }
 
-S2EHandler::S2EHandler(S2E *s2e) : m_s2e(s2e) {
-}
-
-llvm::raw_ostream &S2EHandler::getInfoStream() const {
-    return m_s2e->getInfoStream();
-}
-
-std::string S2EHandler::getOutputFilename(const std::string &fileName) {
-    return m_s2e->getOutputFilename(fileName);
-}
-
-llvm::raw_ostream *S2EHandler::openOutputFile(const std::string &fileName) {
-    return m_s2e->openOutputFile(fileName);
-}
-
-/* klee-related function */
-void S2EHandler::incPathsExplored() {
-    m_pathsExplored++;
-}
-
 void S2EExecutor::handlerWriteMemIoVaddr(klee::Executor *executor, klee::ExecutionState *state,
                                          klee::KInstruction *target, std::vector<klee::ref<klee::Expr>> &args) {
     S2EExecutionState *s2eState = static_cast<S2EExecutionState *>(state);
@@ -706,9 +686,8 @@ void S2EExecutor::handleGetValue(klee::Executor *executor, klee::ExecutionState 
     s2eState->kleeReadMemory(kleeAddress, sizeInBytes, NULL, false, true, add_constraint);
 }
 
-S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMContext *tcgLLVMContext, const InterpreterOptions &opts,
-                         InterpreterHandler *ie)
-    : Executor(opts, ie, new DefaultSolverFactory(ie), tcgLLVMContext->getLLVMContext()), m_s2e(s2e),
+S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMContext *tcgLLVMContext, InterpreterHandler *ie)
+    : Executor(ie, new DefaultSolverFactory(ie), tcgLLVMContext->getLLVMContext()), m_s2e(s2e),
       m_tcgLLVMContext(tcgLLVMContext), m_executeAlwaysKlee(false), m_forkProcTerminateCurrentState(false),
       m_inLoadBalancing(false) {
     delete externalDispatcher;
