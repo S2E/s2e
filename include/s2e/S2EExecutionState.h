@@ -273,7 +273,6 @@ public:
     virtual void addConstraint(const klee::ref<klee::Expr> &e);
     bool testConstraints(const std::vector<klee::ref<klee::Expr>> &c, klee::ConstraintManager *newConstraints = NULL,
                          klee::Assignment *newConcolics = NULL);
-    bool applyConstraints(const std::vector<klee::ref<klee::Expr>> &c);
 
     /** Creates new unconstrained symbolic value */
     klee::ref<klee::Expr> createSymbolicValue(const std::string &name = std::string(),

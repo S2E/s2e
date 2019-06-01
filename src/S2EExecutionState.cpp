@@ -866,17 +866,6 @@ bool S2EExecutionState::testConstraints(const std::vector<ref<Expr>> &c, Constra
     return true;
 }
 
-/// \brief Apply new constraints to the state
-///
-/// Checks whether new state constraints are consistent.
-///
-/// \param c additional constraints
-/// \return true if constraints were applied
-///
-bool S2EExecutionState::applyConstraints(const std::vector<ref<Expr>> &c) {
-    return testConstraints(c, &constraints, concolics);
-}
-
 /***/
 
 uint64_t S2EExecutionState::concretize(klee::ref<klee::Expr> expression, const std::string &reason, bool silent) {
