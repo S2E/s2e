@@ -370,11 +370,6 @@ public:
 
     void enumPossibleRanges(klee::ref<klee::Expr> e, klee::ref<klee::Expr> start, klee::ref<klee::Expr> end,
                             std::vector<klee::Range> &ranges);
-
-    static void dumpQuery(const klee::ConstraintManager &constraints,
-                          const std::vector<std::pair<const klee::MemoryObject *, const klee::Array *>> &symbolics,
-                          llvm::raw_ostream &os);
-    void dumpQuery(llvm::raw_ostream &os) const;
 };
 }
 

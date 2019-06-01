@@ -1059,42 +1059,6 @@ void S2EExecutionState::disassemble(llvm::raw_ostream &os, uint64_t pc, unsigned
     target_disas_ex(regs()->getCpuState(), fp, __disas_print, pc, size, flags);
 }
 
-/// \brief Print query to solve constraints
-///
-/// \param constraints constraints
-/// \param symbolics symbolic objects
-/// \param os output stream
-///
-/// Will print query in format understandable by kleaver.
-///
-void S2EExecutionState::dumpQuery(
-    const ConstraintManager &constraints,
-    const std::vector<std::pair<const klee::MemoryObject *, const klee::Array *>> &symbolics, llvm::raw_ostream &os) {
-    // Extract symbolic objects
-    std::vector<const Array *> symbObjects;
-    for (unsigned i = 0; i < symbolics.size(); ++i) {
-        symbObjects.push_back(symbolics[i].second);
-    }
-
-    ExprPPrinter *printer = ExprPPrinter::create(os);
-
-    Query query(constraints, ConstantExpr::alloc(0, Expr::Bool));
-    printer->printQuery(os, query.constraints, query.expr, 0, 0, &symbObjects[0], &symbObjects[0] + symbObjects.size());
-    os.flush();
-
-    delete printer;
-}
-
-/// \brief Print query to solve state constraints
-///
-/// \param os output stream
-///
-/// Will print query in format understandable by kleaver.
-///
-void S2EExecutionState::dumpQuery(llvm::raw_ostream &os) const {
-    dumpQuery(constraints, symbolics, os);
-}
-
 } // namespace s2e
 
 /******************************************/
