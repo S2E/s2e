@@ -164,11 +164,9 @@ Solver *Executor::getSolver(const ExecutionState &state) const {
     return _solver(state)->solver;
 }
 
-Executor::Executor(const InterpreterOptions &opts, InterpreterHandler *ih, SolverFactory *solver_factory,
-                   LLVMContext &context)
-    : Interpreter(opts), kmodule(0), interpreterHandler(ih), searcher(0),
-      externalDispatcher(new ExternalDispatcher(context)), solverFactory(solver_factory), statsTracker(0),
-      specialFunctionHandler(0), processTree(0) {
+Executor::Executor(InterpreterHandler *ih, SolverFactory *solver_factory, LLVMContext &context)
+    : kmodule(0), interpreterHandler(ih), searcher(0), externalDispatcher(new ExternalDispatcher(context)),
+      solverFactory(solver_factory), statsTracker(0), specialFunctionHandler(0), processTree(0) {
 
     solverTimeout = MaxSolverTime;
 
@@ -1830,8 +1828,6 @@ void Executor::deleteState(ExecutionState *state) {
 }
 
 void Executor::terminateState(ExecutionState &state) {
-    interpreterHandler->incPathsExplored();
-
     StateSet::iterator it = addedStates.find(&state);
     if (it == addedStates.end()) {
         // XXX: the following line makes delayed state termination impossible

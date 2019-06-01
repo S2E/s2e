@@ -275,8 +275,7 @@ protected:
                            bool keepConditionTrueInCurrentState = false);
 
 public:
-    Executor(const InterpreterOptions &opts, InterpreterHandler *ie, SolverFactory *solver_factory,
-             llvm::LLVMContext &context);
+    Executor(InterpreterHandler *ie, SolverFactory *solver_factory, llvm::LLVMContext &context);
     virtual ~Executor();
 
     const InterpreterHandler &getHandler() {

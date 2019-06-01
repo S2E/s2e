@@ -40,14 +40,12 @@ class InterpreterHandler {
 public:
     InterpreterHandler() {
     }
-    virtual ~InterpreterHandler(){};
+    virtual ~InterpreterHandler(){}
 
     virtual llvm::raw_ostream &getInfoStream() const = 0;
 
     virtual std::string getOutputFilename(const std::string &filename) = 0;
     virtual llvm::raw_ostream *openOutputFile(const std::string &filename) = 0;
-
-    virtual void incPathsExplored() = 0;
 };
 
 class Interpreter {
@@ -68,21 +66,13 @@ public:
         }
     };
 
-    /// InterpreterOptions - Options varying the runtime behavior during
-    /// interpretation.
-    /// TODO: remove this
-    struct InterpreterOptions {
-        InterpreterOptions() {
-        }
-    };
-
 protected:
-    const InterpreterOptions interpreterOpts;
-
-    Interpreter(const InterpreterOptions &_interpreterOpts) : interpreterOpts(_interpreterOpts){};
+    Interpreter() {
+    }
 
 public:
-    virtual ~Interpreter(){};
+    virtual ~Interpreter() {
+    }
 
     /// Register the module to be executed.
     ///
