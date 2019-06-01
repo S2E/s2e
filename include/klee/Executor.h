@@ -278,10 +278,6 @@ public:
     Executor(InterpreterHandler *ie, SolverFactory *solver_factory, llvm::LLVMContext &context);
     virtual ~Executor();
 
-    const InterpreterHandler &getHandler() {
-        return *interpreterHandler;
-    }
-
     virtual bool merge(ExecutionState &base, ExecutionState &other);
 
     // remove state from queue and delete

@@ -40,9 +40,8 @@ class InterpreterHandler {
 public:
     InterpreterHandler() {
     }
-    virtual ~InterpreterHandler(){}
-
-    virtual llvm::raw_ostream &getInfoStream() const = 0;
+    virtual ~InterpreterHandler() {
+    }
 
     virtual std::string getOutputFilename(const std::string &filename) = 0;
     virtual llvm::raw_ostream *openOutputFile(const std::string &filename) = 0;

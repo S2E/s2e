@@ -51,11 +51,5 @@ Searcher *klee::constructUserSearcher(Executor &executor) {
         searcher = new BatchingSearcher(searcher, BatchTime, 0);
     }
 
-    llvm::raw_ostream &os = executor.getHandler().getInfoStream();
-
-    os << "BEGIN searcher description\n";
-    searcher->printName(os);
-    os << "END searcher description\n";
-
     return searcher;
 }
