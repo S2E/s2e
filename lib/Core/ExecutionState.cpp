@@ -456,3 +456,7 @@ void ExecutionState::dumpQuery(llvm::raw_ostream &os) const {
     printer->printQuery(os, query.constraints, query.expr, 0, 0, &symbObjects[0], &symbObjects[0] + symbObjects.size());
     os.flush();
 }
+
+std::shared_ptr<TimingSolver> ExecutionState::solver() const {
+    return SolverManager::solver(*this);
+}

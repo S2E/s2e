@@ -102,8 +102,6 @@ protected:
     Searcher *searcher;
 
     ExternalDispatcher *externalDispatcher;
-    SolverFactory *solverFactory;
-    std::unordered_map<const ExecutionState *, TimingSolver *> perStateSolvers;
     MemoryManager *memory;
     StateSet states;
     StatsTracker *statsTracker;
@@ -139,9 +137,6 @@ protected:
     /// The set of functions that must be handled via custom function handlers
     /// instead of being called directly.
     std::set<llvm::Function *> overridenInternalFunctions;
-
-    /// The maximum time to allow for a single solver query.
-    double solverTimeout;
 
     llvm::Function *getCalledFunction(llvm::CallSite &cs, ExecutionState &state);
 
@@ -258,12 +253,6 @@ protected:
     /// Add a special function handler
     void addSpecialFunctionHandler(llvm::Function *function, FunctionHandler handler);
 
-    TimingSolver *createTimingSolver();
-    void createStateSolver(const ExecutionState &state);
-    void removeStateSolvers();
-
-    TimingSolver *_solver(const ExecutionState &state) const;
-
     // Fork current and return states in which condition holds / does
     // not hold, respectively. One of the states is necessarily the
     // current state, and one of the states may be null.
@@ -275,7 +264,7 @@ protected:
                            bool keepConditionTrueInCurrentState = false);
 
 public:
-    Executor(InterpreterHandler *ie, SolverFactory *solver_factory, llvm::LLVMContext &context);
+    Executor(InterpreterHandler *ie, llvm::LLVMContext &context);
     virtual ~Executor();
 
     virtual bool merge(ExecutionState &base, ExecutionState &other);
@@ -317,11 +306,6 @@ public:
     const StateSet &getRemovedStates() {
         return removedStates;
     }
-
-    TimingSolver *getTimingSolver(const ExecutionState &state) const;
-    Solver *getSolver(const ExecutionState &state) const;
-
-    void initializeSolver();
 
     Expr::Width getWidthForLLVMType(llvm::Type *type) const;
 };

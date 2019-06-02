@@ -19,12 +19,13 @@
 #include "klee/PTree.h"
 #include "klee/Searcher.h"
 #include "klee/SolverFactory.h"
+#include "klee/SolverManager.h"
 #include "klee/SolverStats.h"
 #include "klee/StatsTracker.h"
+#include "klee/TimingSolver.h"
 #include "klee/UserSearcher.h"
 #include "MemoryManager.h"
 #include "SpecialFunctionHandler.h"
-#include "TimingSolver.h"
 
 #include "klee/Config/config.h"
 #include "klee/ExecutionState.h"
@@ -101,76 +102,15 @@ cl::opt<bool> EmitAllErrors("emit-all-errors", cl::init(false), cl::desc("Genera
                                                                          "(default=one per (error,instruction) pair)"));
 
 cl::opt<bool> NoExternals("no-externals", cl::desc("Do not allow external functin calls"));
-
-cl::opt<double> MaxSolverTime("max-solver-time", cl::desc("Maximum amount of time for a single query (default=120s)"),
-                              cl::init(120.0));
-
-cl::opt<bool> PerStateSolver("per-state-solver", cl::desc("Create solver instance for each state"), cl::init(false));
 }
 
 namespace klee {
 RNG theRNG;
 }
 
-TimingSolver *Executor::createTimingSolver() {
-    Solver *endSolver = solverFactory->createEndSolver();
-    Solver *solver = solverFactory->decorateSolver(endSolver);
-    TimingSolver *timingSolver = new TimingSolver(solver);
-    return timingSolver;
-}
-
-void Executor::createStateSolver(const ExecutionState &state) {
-    if (!PerStateSolver) {
-        return;
-    }
-
-    if (perStateSolvers.find(&state) == perStateSolvers.end()) {
-        perStateSolvers[&state] = createTimingSolver();
-    }
-}
-
-void Executor::removeStateSolvers() {
-    for (auto it = perStateSolvers.begin(); it != perStateSolvers.end(); it++) {
-        delete it->second;
-    }
-    perStateSolvers.clear();
-}
-
-void Executor::initializeSolver() {
-    removeStateSolvers();
-
-    if (!PerStateSolver) { // Use one solver for all states
-        perStateSolvers[NULL] = createTimingSolver();
-    }
-}
-
-TimingSolver *Executor::_solver(const ExecutionState &state) const {
-    if (!PerStateSolver) {
-        assert(perStateSolvers.size() == 1 && "Must have only one solver for all states");
-        return perStateSolvers.begin()->second;
-    } else {
-        std::unordered_map<const ExecutionState *, TimingSolver *>::const_iterator it;
-        it = perStateSolvers.find(&state);
-        assert(it != perStateSolvers.end() && "Can't find solver for given state");
-        return it->second;
-    }
-}
-
-TimingSolver *Executor::getTimingSolver(const ExecutionState &state) const {
-    return _solver(state);
-}
-
-Solver *Executor::getSolver(const ExecutionState &state) const {
-    return _solver(state)->solver;
-}
-
-Executor::Executor(InterpreterHandler *ih, SolverFactory *solver_factory, LLVMContext &context)
+Executor::Executor(InterpreterHandler *ih, LLVMContext &context)
     : kmodule(0), interpreterHandler(ih), searcher(0), externalDispatcher(new ExternalDispatcher(context)),
-      solverFactory(solver_factory), statsTracker(0), specialFunctionHandler(0), processTree(0) {
-
-    solverTimeout = MaxSolverTime;
-
-    initializeSolver();
+      statsTracker(0), specialFunctionHandler(0), processTree(0) {
 
     memory = new MemoryManager();
 }
@@ -214,8 +154,6 @@ Executor::~Executor() {
         delete specialFunctionHandler;
     if (statsTracker)
         delete statsTracker;
-    delete solverFactory;
-    removeStateSolvers();
     delete kmodule;
 }
 
@@ -514,7 +452,8 @@ Executor::StatePair Executor::fork(ExecutionState &current, const ref<Expr> &con
         tmpConstraints.addConstraint(condition);
 
         std::vector<std::vector<unsigned char>> concreteObjects;
-        if (!_solver(current)->getInitialValues(tmpConstraints, symbObjects, concreteObjects, current.queryCost)) {
+        auto solver = SolverManager::solver(current);
+        if (!solver->getInitialValues(tmpConstraints, symbObjects, concreteObjects, current.queryCost)) {
             // Condition is always false in the current state
             return StatePair(0, &current);
         }
@@ -537,7 +476,8 @@ Executor::StatePair Executor::fork(ExecutionState &current, const ref<Expr> &con
     }
 
     std::vector<std::vector<unsigned char>> concreteObjects;
-    if (!_solver(current)->getInitialValues(tmpConstraints, symbObjects, concreteObjects, current.queryCost)) {
+    auto solver = SolverManager::solver(current);
+    if (!solver->getInitialValues(tmpConstraints, symbObjects, concreteObjects, current.queryCost)) {
         if (conditionIsTrue) {
             return StatePair(&current, 0);
         } else {
@@ -701,19 +641,16 @@ ref<Expr> Executor::toUnique(const ExecutionState &state, ref<Expr> &e) {
     ref<ConstantExpr> value;
     bool isTrue = false;
 
-    _solver(state)->setTimeout(solverTimeout);
-
     ref<Expr> evalResult = state.concolics->evaluate(e);
     assert(isa<ConstantExpr>(evalResult) && "Must be concrete");
     value = dyn_cast<ConstantExpr>(evalResult);
 
-    bool success = _solver(state)->mustBeTrue(state, state.simplifyExpr(EqExpr::create(e, value)), isTrue);
+    auto solver = SolverManager::solver(state);
+    bool success = solver->mustBeTrue(state, state.simplifyExpr(EqExpr::create(e, value)), isTrue);
 
     if (success && isTrue) {
         result = value;
     }
-
-    _solver(state)->setTimeout(0);
 
     return result;
 }
@@ -1819,10 +1756,7 @@ void Executor::bindModuleConstants() {
 void Executor::deleteState(ExecutionState *state) {
     processTree->remove(state->ptreeNode);
 
-    if (PerStateSolver) {
-        delete perStateSolvers[state];
-        perStateSolvers.erase(state);
-    }
+    SolverManager::get().removeState(state);
 
     delete state;
 }

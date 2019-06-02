@@ -17,6 +17,8 @@
 #include "klee/Internal/Module/KInstIterator.h"
 
 #include "klee/BitfieldSimplifier.h"
+#include "klee/Solver.h"
+#include "klee/SolverManager.h"
 #include "klee/util/Assignment.h"
 #include "IAddressSpaceNotification.h"
 
@@ -155,6 +157,8 @@ public:
     ref<klee::ConstantExpr> toConstantSilent(ref<Expr> e);
 
     void dumpQuery(llvm::raw_ostream &os) const;
+
+    std::shared_ptr<TimingSolver> solver() const;
 };
 }
 
