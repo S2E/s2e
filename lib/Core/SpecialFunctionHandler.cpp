@@ -10,8 +10,8 @@
 #include "klee/Common.h"
 
 #include "klee/Memory.h"
+#include "klee/TimingSolver.h"
 #include "SpecialFunctionHandler.h"
-#include "TimingSolver.h"
 
 #include "klee/ExecutionState.h"
 
