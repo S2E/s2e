@@ -50,7 +50,7 @@ bool BaseFunctionModels::findNullChar(S2EExecutionState *state, uint64_t stringA
 
     getDebugStream(state) << "Searching for NULL at " << hexval(stringAddr) << "\n";
 
-    Solver *solver = s2e()->getExecutor()->getSolver(*state);
+    Solver *solver = state->solver()->solver;
     const ref<Expr> nullByteExpr = E_CONST('\0', Expr::Int8);
 
     for (len = 0; len < MAX_STRLEN; len++) {

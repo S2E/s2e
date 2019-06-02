@@ -475,7 +475,7 @@ uint64_t DecreeMonitor::getMaxValue(S2EExecutionState *state, ref<Expr> value) {
     std::pair<ref<Expr>, ref<Expr>> range;
     Query query(state->constraints, value);
 
-    range = s2e()->getExecutor()->getSolver(*state)->getRange(query);
+    range = state->solver()->solver->getRange(query);
 
     return dyn_cast<ConstantExpr>(range.second)->getZExtValue();
 }
