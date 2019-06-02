@@ -19,6 +19,7 @@
 #include <klee/Context.h>
 #include <klee/Memory.h>
 #include <klee/Solver.h>
+#include <klee/SolverManager.h>
 #include <s2e/S2E.h>
 #include <s2e/Utils.h>
 #include <s2e/s2e_libcpu.h>
@@ -790,7 +791,7 @@ bool S2EExecutionState::merge(const ExecutionState &_b) {
 
 void S2EExecutionState::enumPossibleRanges(ref<Expr> e, ref<Expr> start, ref<Expr> end, std::vector<Range> &ranges) {
 
-    Solver *solver = g_s2e->getExecutor()->getSolver(*this);
+    Solver *solver = klee::SolverManager::solver()->solver;
 
     std::vector<const Array *> symbObjects;
     foreach2 (it, symbolics.begin(), symbolics.end()) { symbObjects.push_back(it->second); }
@@ -806,7 +807,7 @@ void S2EExecutionState::addConstraint(const klee::ref<klee::Expr> &e) {
         // Check that the added constraint is consistent with
         // the existing path constraints
         bool truth;
-        Solver *solver = g_s2e->getExecutor()->getSolver(*this);
+        Solver *solver = SolverManager::solver()->solver;
         Query query(constraints, e);
         // bool res = solver->mayBeTrue(query, mayBeTrue);
         bool res = solver->mustBeTrue(query.negateExpr(), truth);
@@ -844,7 +845,7 @@ bool S2EExecutionState::testConstraints(const std::vector<ref<Expr>> &c, Constra
     std::vector<const Array *> symbObjects;
     foreach2 (it, symbolics.begin(), symbolics.end()) { symbObjects.push_back(it->second); }
 
-    Solver *solver = g_s2e->getExecutor()->getSolver(*this);
+    Solver *solver = SolverManager::solver()->solver;
     std::vector<std::vector<unsigned char>> concreteObjects;
     if (!solver->getInitialValues(Query(tmpConstraints, ConstantExpr::create(0, Expr::Bool)), symbObjects,
                                   concreteObjects)) {

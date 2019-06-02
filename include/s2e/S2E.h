@@ -12,8 +12,10 @@
 #undef NDEBUG
 
 #include <fstream>
+#include <klee/SolverFactory.h>
 #include <llvm/Support/raw_ostream.h>
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -110,6 +112,8 @@ protected:
     TCGLLVMContext *m_tcgLLVMContext;
 
     uint64_t m_startTimeSeconds;
+
+    std::shared_ptr<klee::SolverFactory> mSolverFactory;
 
     /* How many processes can S2E fork */
     unsigned m_maxInstances;

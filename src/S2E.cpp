@@ -33,6 +33,7 @@
 
 #include <klee/Common.h>
 #include <klee/Interpreter.h>
+#include <klee/SolverManager.h>
 
 #include <assert.h>
 #include <deque>
@@ -112,6 +113,9 @@ bool S2E::initialize(int argc, char **argv, TCGLLVMContext *tcgLLVMContext, cons
     /* Open output directory. Do it at the very beginning so that
        other init* functions can use it. */
     initOutputDirectory(outputDirectory, verbose, false);
+
+    mSolverFactory = std::shared_ptr<klee::SolverFactory>(new klee::DefaultSolverFactory(this));
+    klee::SolverManager::get().initialize(mSolverFactory);
 
     /* Parse configuration file */
     m_configFile = new s2e::ConfigFile(configFileName);
@@ -580,8 +584,9 @@ int S2E::fork() {
 
         // Also recreate new statistics files
         m_s2eExecutor->initializeStatistics();
+
         // And the solver output
-        m_s2eExecutor->initializeSolver();
+        klee::SolverManager::get().initialize(mSolverFactory);
 
         s2e_kvm_clone_process();
     }

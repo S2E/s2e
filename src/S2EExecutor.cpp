@@ -50,6 +50,7 @@
 #include <klee/Searcher.h>
 #include <klee/Solver.h>
 #include <klee/SolverFactory.h>
+#include <klee/SolverManager.h>
 #include <klee/TimerStatIncrementer.h>
 #include <klee/UserSearcher.h>
 #include <klee/util/ExprTemplates.h>
@@ -687,9 +688,8 @@ void S2EExecutor::handleGetValue(klee::Executor *executor, klee::ExecutionState 
 }
 
 S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMContext *tcgLLVMContext, InterpreterHandler *ie)
-    : Executor(ie, new DefaultSolverFactory(ie), tcgLLVMContext->getLLVMContext()), m_s2e(s2e),
-      m_tcgLLVMContext(tcgLLVMContext), m_executeAlwaysKlee(false), m_forkProcTerminateCurrentState(false),
-      m_inLoadBalancing(false) {
+    : Executor(ie, tcgLLVMContext->getLLVMContext()), m_s2e(s2e), m_tcgLLVMContext(tcgLLVMContext),
+      m_executeAlwaysKlee(false), m_forkProcTerminateCurrentState(false), m_inLoadBalancing(false) {
     delete externalDispatcher;
     externalDispatcher = new S2EExternalDispatcher(tcgLLVMContext->getLLVMContext());
 
@@ -995,7 +995,7 @@ S2EExecutionState *S2EExecutor::createInitialState() {
     state->setForking(EnableForking);
 
     states.insert(state);
-    createStateSolver(*state);
+    klee::SolverManager::get().createStateSolver(*state);
     addedStates.insert(state);
     updateStates(state);
 
@@ -1325,8 +1325,7 @@ void S2EExecutor::stateSwitchTimerCallback(void *opaque) {
         S2EExecutionState *nextState = c->selectNextState(g_s2e_state);
         if (nextState) {
             // Create per state solver only when we're going to execute that state
-            c->createStateSolver(*nextState);
-
+            klee::SolverManager::get().createStateSolver(*nextState);
             g_s2e_state = nextState;
         } else {
             // Do not reschedule the timer anymore
