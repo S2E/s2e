@@ -611,22 +611,11 @@ void BaseInstructions::assumeInternal(S2EExecutionState *state, klee::ref<klee::
     klee::ref<klee::Expr> zero = klee::ConstantExpr::create(0, expr.get()->getWidth());
     klee::ref<klee::Expr> boolExpr = klee::NeExpr::create(expr, zero);
 
-    // Check that the added constraint is consistent with
-    // the existing path constraints
-    bool isValid = true;
-    klee::ref<klee::Expr> ce = state->concolics->evaluate(boolExpr);
-    assert(isa<klee::ConstantExpr>(ce) && "Expression must be constant here");
-    if (!ce->isTrue()) {
-        isValid = false;
-    }
+    getDebugStream(state) << "Assuming " << boolExpr << "\n";
 
-    if (!isValid) {
-        std::stringstream ss;
-        ss << "BaseInstructions: specified assume expression cannot be true. " << boolExpr;
-        g_s2e->getExecutor()->terminateState(*state, ss.str());
+    if (!state->addConstraint(boolExpr, true)) {
+        s2e()->getExecutor()->terminateState(*state, "Tried to add an invalid constraint");
     }
-
-    state->addConstraint(boolExpr);
 }
 
 /**
@@ -746,7 +735,9 @@ void BaseInstructions::forkCount(S2EExecutionState *state) {
     }
 
     klee::ref<klee::Expr> cond = klee::EqExpr::create(var, klee::ConstantExpr::create(0, var->getWidth()));
-    state->addConstraint(cond);
+    if (!state->addConstraint(cond)) {
+        s2e()->getExecutor()->terminateState(*state, "Could not add condition");
+    }
 }
 
 /** Handle s2e_op instruction. Instructions:
