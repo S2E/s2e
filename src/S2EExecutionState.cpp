@@ -801,27 +801,6 @@ void S2EExecutionState::enumPossibleRanges(ref<Expr> e, ref<Expr> start, ref<Exp
 
 /***/
 
-void S2EExecutionState::addConstraint(const klee::ref<klee::Expr> &e) {
-#ifdef CONFIG_SYMBEX_MP
-    if (DebugConstraints) {
-        // Check that the added constraint is consistent with
-        // the existing path constraints
-        bool truth;
-        Solver *solver = SolverManager::solver()->solver;
-        Query query(constraints, e);
-        // bool res = solver->mayBeTrue(query, mayBeTrue);
-        bool res = solver->mustBeTrue(query.negateExpr(), truth);
-        if (!res || truth) {
-            g_s2e->getWarningsStream() << "State has invalid constraints" << '\n';
-            exit(-1);
-        }
-        assert(res && !truth && "state has invalid constraint set");
-    }
-
-    ExecutionState::addConstraint(e);
-#endif
-}
-
 /// \brief Try to solve additional state constraints
 ///
 /// Find solution for merged original state constraints and

@@ -636,7 +636,9 @@ void S2EExecutor::handleForkAndConcretize(Executor *executor, ExecutionState *st
     klee::ref<klee::Expr> condition = EqExpr::create(concreteAddress, address);
 
     if (doConcretize) {
-        state->addConstraint(condition);
+        if (!state->addConstraint(condition)) {
+            abort();
+        }
         s2eExecutor->bindLocal(target, *state, concreteAddress);
         return;
     }
