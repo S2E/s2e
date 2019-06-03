@@ -1,0 +1,7 @@
+test:
+    description: "Checks that solver/constraints operations work properly"
+
+    # Trying this on all stacks is overkill
+    targets:
+        - linux32-basic5-solver
+        - linux64-basic5-solver
