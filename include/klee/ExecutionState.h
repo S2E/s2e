@@ -139,7 +139,29 @@ public:
     void addSymbolic(const MemoryObject *mo, const Array *array) {
         symbolics.push_back(std::make_pair(mo, array));
     }
-    virtual void addConstraint(const ref<Expr> &e);
+
+    ///
+    /// \brief Add a constraints to the state
+    ///
+    /// Note: it is very important for the caller to check the return
+    /// value of this function. An error while adding a constraint
+    /// can lead to incorrect execution.
+    ///
+    /// \param e the constraint to add
+    /// \param recomputeConcolics whether to compute a new set of input values if the new
+    /// constraint is valid but does not evaluate to true with the current set of concolic values
+    /// \return true if the constraint was successfully added, false otherwise
+    ///
+    virtual bool addConstraint(const ref<Expr> &e, bool recomputeConcolics = false) __attribute__((warn_unused_result));
+
+    ///
+    /// \brief Compute a set of concrete inputs for the given constraints
+    /// \param mgr the constraints
+    /// \param assignment the concrete inputs
+    /// \return true if computation was successful, false if there is no solution
+    /// or some other error occured.
+    ///
+    bool solve(const ConstraintManager &mgr, Assignment &assignment);
 
     virtual bool merge(const ExecutionState &b);
 

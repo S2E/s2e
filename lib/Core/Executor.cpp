@@ -404,7 +404,9 @@ void Executor::branch(ExecutionState &state, const std::vector<ref<Expr>> &condi
 
     for (unsigned i = 0; i < N; ++i) {
         if (result[i]) {
-            result[i]->addConstraint(conditions[i]);
+            if (!result[i]->addConstraint(conditions[i])) {
+                abort();
+            }
         }
     }
 }
@@ -430,10 +432,14 @@ Executor::StatePair Executor::fork(ExecutionState &current, const ref<Expr> &con
 
     if (current.forkDisabled) {
         if (conditionIsTrue) {
-            current.addConstraint(condition);
+            if (!current.addConstraint(condition)) {
+                abort();
+            }
             return StatePair(&current, 0);
         } else {
-            current.addConstraint(Expr::createIsZero(condition));
+            if (!current.addConstraint(Expr::createIsZero(condition))) {
+                abort();
+            }
             return StatePair(0, &current);
         }
     }
@@ -499,11 +505,19 @@ Executor::StatePair Executor::fork(ExecutionState &current, const ref<Expr> &con
 
     // Add constraint to both states
     if (conditionIsTrue) {
-        current.addConstraint(condition);
-        branchedState->addConstraint(Expr::createIsZero(condition));
+        if (!current.addConstraint(condition)) {
+            abort();
+        }
+        if (!branchedState->addConstraint(Expr::createIsZero(condition))) {
+            abort();
+        }
     } else {
-        current.addConstraint(Expr::createIsZero(condition));
-        branchedState->addConstraint(condition);
+        if (!current.addConstraint(Expr::createIsZero(condition))) {
+            abort();
+        }
+        if (!branchedState->addConstraint(condition)) {
+            abort();
+        }
     }
 
     // Classify states

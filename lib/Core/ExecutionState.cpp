@@ -411,7 +411,9 @@ ref<klee::ConstantExpr> ExecutionState::toConstant(ref<Expr> e, const std::strin
 
     klee_warning_external(reason.c_str(), "%s", os.str().c_str());
 
-    addConstraint(EqExpr::create(e, value));
+    if (!addConstraint(EqExpr::create(e, value))) {
+        abort();
+    }
 
     return value;
 }
@@ -423,21 +425,58 @@ ref<klee::ConstantExpr> ExecutionState::toConstantSilent(ref<Expr> e) {
     return dyn_cast<ConstantExpr>(evalResult);
 }
 
-void ExecutionState::addConstraint(const ref<Expr> &constraint) {
-    auto expr = simplifyExpr(constraint);
-    if (ConstantExpr *CE = dyn_cast<ConstantExpr>(expr)) {
-        assert(CE->isTrue() && "attempt to add invalid constraint");
-        abort();
+bool ExecutionState::solve(const ConstraintManager &mgr, Assignment &assignment) {
+    std::vector<const Array *> symbObjects;
+    for (unsigned i = 0; i < symbolics.size(); ++i) {
+        symbObjects.push_back(symbolics[i].second);
     }
 
-    auto ce = concolics->evaluate(expr);
+    std::vector<std::vector<unsigned char>> concreteObjects;
+    if (!solver()->getInitialValues(mgr, symbObjects, concreteObjects, queryCost)) {
+        return false;
+    }
+
+    assignment.clear();
+    for (unsigned i = 0; i < symbObjects.size(); ++i) {
+        assignment.add(symbObjects[i], concreteObjects[i]);
+    }
+
+    return true;
+}
+
+bool ExecutionState::addConstraint(const ref<Expr> &constraint, bool recomputeConcolics) {
+    auto simplified = simplifyExpr(constraint);
+    auto se = dyn_cast<ConstantExpr>(simplified);
+    if (se && !se->isTrue()) {
+        *klee_warning_stream << "Attempt to add invalid constraint:" << simplified << "\n";
+        return false;
+    }
+
+    auto evaluated = concolics->evaluate(simplified);
+    ConstantExpr *ce = dyn_cast<ConstantExpr>(evaluated);
+    if (!ce) {
+        *klee_warning_stream << "Constraint does not evaluate to a constant:" << evaluated << "\n";
+        return false;
+    }
 
     if (!ce->isTrue()) {
-        assert(false && "Constraint does not evaluate to true");
-        abort();
+        if (recomputeConcolics) {
+            ConstraintManager newConstraints = constraints;
+            newConstraints.addConstraint(simplified);
+            if (!solve(newConstraints, *concolics)) {
+                *klee_warning_stream << "Could not compute concolic values for the new constraint\n";
+                return false;
+            }
+        } else {
+            *klee_warning_stream << "Attempted to add a constraint that requires recomputing concolic values\n";
+            return false;
+        }
     }
 
-    constraints.addConstraint(expr);
+    // Constraint is good, add it to the actual set
+    constraints.addConstraint(simplified);
+
+    return true;
 }
 
 /// \brief Print query to solve state constraints
