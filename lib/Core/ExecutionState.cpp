@@ -31,9 +31,9 @@
 #include <stdarg.h>
 
 using namespace llvm;
-using namespace klee;
 
 namespace klee {
+
 cl::opt<bool> DebugLogStateMerge("debug-log-state-merge");
 
 cl::opt<bool> ValidateSimplifier("validate-expr-simplifier",
@@ -45,7 +45,6 @@ cl::opt<bool> UseExprSimplifier("use-expr-simplifier", cl::desc("Apply expressio
 
 cl::opt<bool> DebugPrintInstructions("debug-print-instructions", cl::desc("Print instructions during execution."),
                                      cl::init(false));
-}
 
 /***/
 
@@ -137,7 +136,7 @@ void ExecutionState::removeFnAlias(std::string fn) {
 
 /**/
 
-llvm::raw_ostream &klee::operator<<(llvm::raw_ostream &os, const MemoryMap &mm) {
+llvm::raw_ostream &operator<<(llvm::raw_ostream &os, const MemoryMap &mm) {
     os << "{";
     MemoryMap::iterator it = mm.begin();
     MemoryMap::iterator ie = mm.end();
@@ -554,4 +553,5 @@ void ExecutionState::stepInstruction() {
     ++stats::instructions;
     prevPC = pc;
     ++pc;
+}
 }
