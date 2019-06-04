@@ -50,38 +50,34 @@ static ref<Expr> io_read_chk(S2EExecutionState *state, target_phys_addr_t physad
 
 void S2EExecutor::handle_ldb_mmu(Executor *executor, ExecutionState *state, klee::KInstruction *target,
                                  std::vector<ref<Expr>> &args) {
-    S2EExecutor *s2eExecutor = static_cast<S2EExecutor *>(executor);
     assert(args.size() == 2);
     ref<Expr> value = handle_ldst_mmu(executor, state, target, args, false, 1, false, false);
     assert(value->getWidth() == Expr::Int8);
-    s2eExecutor->bindLocal(target, *state, value);
+    state->bindLocal(target, value);
 }
 
 void S2EExecutor::handle_ldw_mmu(Executor *executor, ExecutionState *state, klee::KInstruction *target,
                                  std::vector<ref<Expr>> &args) {
-    S2EExecutor *s2eExecutor = static_cast<S2EExecutor *>(executor);
     assert(args.size() == 2);
     ref<Expr> value = handle_ldst_mmu(executor, state, target, args, false, 2, false, false);
     assert(value->getWidth() == Expr::Int16);
-    s2eExecutor->bindLocal(target, *state, value);
+    state->bindLocal(target, value);
 }
 
 void S2EExecutor::handle_ldl_mmu(Executor *executor, ExecutionState *state, klee::KInstruction *target,
                                  std::vector<ref<Expr>> &args) {
-    S2EExecutor *s2eExecutor = static_cast<S2EExecutor *>(executor);
     assert(args.size() == 2);
     ref<Expr> value = handle_ldst_mmu(executor, state, target, args, false, 4, false, false);
     assert(value->getWidth() == Expr::Int32);
-    s2eExecutor->bindLocal(target, *state, value);
+    state->bindLocal(target, value);
 }
 
 void S2EExecutor::handle_ldq_mmu(Executor *executor, ExecutionState *state, klee::KInstruction *target,
                                  std::vector<ref<Expr>> &args) {
-    S2EExecutor *s2eExecutor = static_cast<S2EExecutor *>(executor);
     assert(args.size() == 2);
     ref<Expr> value = handle_ldst_mmu(executor, state, target, args, false, 8, false, false);
     assert(value->getWidth() == Expr::Int64);
-    s2eExecutor->bindLocal(target, *state, value);
+    state->bindLocal(target, value);
 }
 
 void S2EExecutor::handle_stb_mmu(Executor *executor, ExecutionState *state, klee::KInstruction *target,
@@ -110,7 +106,6 @@ void S2EExecutor::handle_stq_mmu(Executor *executor, ExecutionState *state, klee
 
 ref<ConstantExpr> S2EExecutor::handleForkAndConcretizeNative(Executor *executor, ExecutionState *state,
                                                              klee::KInstruction *target, std::vector<ref<Expr>> &args) {
-    S2EExecutor *s2eExecutor = static_cast<S2EExecutor *>(executor);
     ref<Expr> symbAddress = args[0];
     ref<ConstantExpr> constantAddress = dyn_cast<ConstantExpr>(symbAddress);
     if (constantAddress.isNull()) {
@@ -126,7 +121,7 @@ ref<ConstantExpr> S2EExecutor::handleForkAndConcretizeNative(Executor *executor,
         KInstruction *kinst = (*target->owner->instrMap.find(addrInst)).second;
         S2EExecutor::handleForkAndConcretize(executor, state, kinst, forkArgs);
 
-        constantAddress = dyn_cast<ConstantExpr>(s2eExecutor->getDestCell(*state, kinst).value);
+        constantAddress = dyn_cast<ConstantExpr>(state->getDestCell(kinst).value);
         assert(!constantAddress.isNull());
     }
     return constantAddress;
@@ -290,7 +285,7 @@ redo:
             assert(data_size == 2);
             value = ZExtExpr::create(value, Expr::Int32);
         }
-        // s2eExecutor->bindLocal(target, *state, value);
+        // state->bindLocal(target, value);
         return value;
     } else {
         return ref<Expr>();
@@ -333,7 +328,6 @@ void S2EExecutor::handle_ldst_kernel(Executor *executor, ExecutionState *state, 
                                      std::vector<ref<Expr>> &args, bool isWrite, unsigned data_size, bool signExtend,
                                      bool zeroExtend) {
     S2EExecutionState *s2estate = static_cast<S2EExecutionState *>(state);
-    S2EExecutor *s2eExecutor = static_cast<S2EExecutor *>(executor);
     unsigned mmu_idx = CPU_MMU_INDEX;
 
     ref<ConstantExpr> constantAddress = handleForkAndConcretizeNative(executor, state, target, args);
@@ -367,7 +361,7 @@ void S2EExecutor::handle_ldst_kernel(Executor *executor, ExecutionState *state, 
             slowArgs.push_back(constantAddress);
             slowArgs.push_back(ConstantExpr::create(mmu_idx, Expr::Int64));
             value = handle_ldst_mmu(executor, state, target, slowArgs, isWrite, data_size, signExtend, zeroExtend);
-            s2eExecutor->bindLocal(target, *state, value);
+            state->bindLocal(target, value);
         }
         return;
 
@@ -397,7 +391,7 @@ void S2EExecutor::handle_ldst_kernel(Executor *executor, ExecutionState *state, 
                 assert(data_size == 2);
                 value = ZExtExpr::create(value, Expr::Int32);
             }
-            s2eExecutor->bindLocal(target, *state, value);
+            state->bindLocal(target, value);
         }
     }
 }

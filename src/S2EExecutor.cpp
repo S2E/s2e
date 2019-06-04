@@ -496,14 +496,13 @@ void S2EExecutor::handlerOnTlbMiss(Executor *executor, ExecutionState *state, kl
 void S2EExecutor::handlerTraceMmioAccess(Executor *executor, ExecutionState *state, klee::KInstruction *target,
                                          std::vector<klee::ref<klee::Expr>> &args) {
     assert(args.size() == 4);
-    S2EExecutor *e = static_cast<S2EExecutor *>(executor);
 
     uint64_t physAddress = state->toConstant(args[0], "MMIO address")->getZExtValue();
     klee::ref<Expr> value = args[1];
     unsigned size = cast<klee::ConstantExpr>(args[2])->getZExtValue();
 
     if (!g_symbolicMemoryHook.symbolic(NULL, physAddress, size)) {
-        e->bindLocal(target, *state, value);
+        state->bindLocal(target, value);
         return;
     }
 
@@ -512,12 +511,12 @@ void S2EExecutor::handlerTraceMmioAccess(Executor *executor, ExecutionState *sta
 
     if (isWrite) {
         g_symbolicMemoryHook.write(NULL, physAddress, resizedValue, SYMB_MMIO);
-        e->bindLocal(target, *state, value);
+        state->bindLocal(target, value);
     } else {
         klee::ref<Expr> ret = g_symbolicMemoryHook.read(NULL, physAddress, resizedValue, SYMB_MMIO);
         assert(ret->getWidth() == resizedValue->getWidth());
         ret = klee::ZExtExpr::create(ret, klee::Expr::Int64);
-        e->bindLocal(target, *state, ret);
+        state->bindLocal(target, ret);
     }
 }
 
@@ -547,7 +546,7 @@ void S2EExecutor::handlerTracePortAccess(Executor *executor, ExecutionState *sta
             state->toConstant(resizedValue, "Symbolic I/O port value");
         }
 
-        s2eExecutor->bindLocal(target, *state, klee::ConstantExpr::create(callOrig, klee::Expr::Int64));
+        state->bindLocal(target, klee::ConstantExpr::create(callOrig, klee::Expr::Int64));
 
     } else {
         /**
@@ -560,7 +559,7 @@ void S2EExecutor::handlerTracePortAccess(Executor *executor, ExecutionState *sta
             outputValue = g_symbolicPortHook.read(port->getZExtValue(), width / 8, concreteInputValue->getZExtValue());
         }
 
-        s2eExecutor->bindLocal(target, *state, klee::ZExtExpr::create(outputValue, klee::Expr::Int64));
+        state->bindLocal(target, klee::ZExtExpr::create(outputValue, klee::Expr::Int64));
     }
 
     if (!s2eExecutor->m_s2e->getCorePlugin()->onPortAccess.empty()) {
@@ -606,7 +605,7 @@ void S2EExecutor::handleForkAndConcretize(Executor *executor, ExecutionState *st
     klee::ref<klee::ConstantExpr> concreteAddress = s2eState->toConstantSilent(address);
 
     if (isa<klee::ConstantExpr>(address)) {
-        s2eExecutor->bindLocal(target, *state, address);
+        state->bindLocal(target, address);
         return;
     }
 
@@ -639,7 +638,7 @@ void S2EExecutor::handleForkAndConcretize(Executor *executor, ExecutionState *st
         if (!state->addConstraint(condition)) {
             abort();
         }
-        s2eExecutor->bindLocal(target, *state, concreteAddress);
+        state->bindLocal(target, concreteAddress);
         return;
     }
 
@@ -658,7 +657,7 @@ void S2EExecutor::handleForkAndConcretize(Executor *executor, ExecutionState *st
         sp.second->pc = sp.second->prevPC;
     }
 
-    s2eExecutor->bindLocal(target, *state, concreteAddress);
+    state->bindLocal(target, concreteAddress);
 
     s2eExecutor->notifyFork(*state, condition, sp);
 }
@@ -1586,8 +1585,9 @@ void S2EExecutor::prepareFunctionExecution(S2EExecutionState *state, llvm::Funct
     state->pc = kf->instructions;
 
     /* Pass argument */
-    for (unsigned i = 0; i < args.size(); ++i)
-        bindArgument(kf, i, *state, args[i]);
+    for (unsigned i = 0; i < args.size(); ++i) {
+        state->bindArgument(kf, i, args[i]);
+    }
 }
 
 inline bool S2EExecutor::executeInstructions(S2EExecutionState *state, unsigned callerStackSize) {
@@ -1604,7 +1604,7 @@ inline bool S2EExecutor::executeInstructions(S2EExecutionState *state, unsigned 
                                              << ": " << *ki->inst << '\n';
             }
 
-            stepInstruction(*state);
+            state->stepInstruction();
             executeInstruction(*state, ki);
 
             updateStates(state);
@@ -1892,7 +1892,7 @@ klee::ref<klee::Expr> S2EExecutor::executeFunction(S2EExecutionState *state, llv
 
     klee::ref<Expr> resExpr(0);
     if (function->getReturnType()->getTypeID() != Type::VoidTyID)
-        resExpr = getDestCell(*state, state->pc).value;
+        resExpr = state->getDestCell(state->pc).value;
 
     return resExpr;
 }
