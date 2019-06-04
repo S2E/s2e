@@ -186,6 +186,13 @@ public:
     void dumpQuery(llvm::raw_ostream &os) const;
 
     std::shared_ptr<TimingSolver> solver() const;
+
+    Cell &getArgumentCell(KFunction *kf, unsigned index);
+    Cell &getDestCell(KInstruction *target);
+
+    void bindLocal(KInstruction *target, ref<Expr> value);
+    void bindArgument(KFunction *kf, unsigned index, ref<Expr> value);
+    void stepInstruction();
 };
 }
 

@@ -91,9 +91,6 @@ cl::opt<bool> UseAsmAddresses("use-asm-addresses", cl::init(false));
 
 cl::opt<bool> RandomizeFork("randomize-fork", cl::init(false));
 
-cl::opt<bool> DebugPrintInstructions("debug-print-instructions", cl::desc("Print instructions during execution."),
-                                     cl::init(false));
-
 cl::opt<bool> SimplifySymIndices("simplify-sym-indices", cl::init(true));
 
 cl::opt<bool> SuppressExternalWarnings("suppress-external-warnings", cl::init(true));
@@ -603,26 +600,6 @@ const Cell &Executor::eval(KInstruction *ki, unsigned index, ExecutionState &sta
     }
 }
 
-void Executor::bindLocal(KInstruction *target, ExecutionState &state, ref<Expr> value) {
-
-    getDestCell(state, target).value = state.simplifyExpr(value);
-}
-
-void Executor::bindArgument(KFunction *kf, unsigned index, ExecutionState &state, ref<Expr> value) {
-    getArgumentCell(state, kf, index).value = state.simplifyExpr(value);
-}
-
-void Executor::stepInstruction(ExecutionState &state) {
-    if (DebugPrintInstructions) {
-        llvm::errs() << stats::instructions << " ";
-        llvm::errs() << *(state.pc->inst) << "\n";
-    }
-
-    ++stats::instructions;
-    state.prevPC = state.pc;
-    ++state.pc;
-}
-
 void Executor::executeCall(ExecutionState &state, KInstruction *ki, Function *f, std::vector<ref<Expr>> &arguments) {
     Instruction *i = ki->inst;
 
@@ -745,8 +722,9 @@ void Executor::executeCall(ExecutionState &state, KInstruction *ki, Function *f,
         }
 
         unsigned numFormals = f->arg_size();
-        for (unsigned i = 0; i < numFormals; ++i)
-            bindArgument(kf, i, state, arguments[i]);
+        for (unsigned i = 0; i < numFormals; ++i) {
+            state.bindArgument(kf, i, arguments[i]);
+        }
     }
 }
 
@@ -850,7 +828,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
                             }
                         }
 
-                        bindLocal(kcaller, state, result);
+                        state.bindLocal(kcaller, result);
                     }
                 } else {
                     // We check that the return value has no users instead of
@@ -1017,7 +995,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
         }
         case Instruction::PHI: {
             ref<Expr> result = eval(ki, state.incomingBBIndex, state).value;
-            bindLocal(ki, state, result);
+            state.bindLocal(ki, result);
             break;
         }
 
@@ -1029,7 +1007,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
             ref<Expr> tExpr = eval(ki, 1, state).value;
             ref<Expr> fExpr = eval(ki, 2, state).value;
             ref<Expr> result = SelectExpr::create(cond, tExpr, fExpr);
-            bindLocal(ki, state, result);
+            state.bindLocal(ki, result);
             break;
         }
 
@@ -1042,21 +1020,21 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
         case Instruction::Add: {
             ref<Expr> left = eval(ki, 0, state).value;
             ref<Expr> right = eval(ki, 1, state).value;
-            bindLocal(ki, state, AddExpr::create(left, right));
+            state.bindLocal(ki, AddExpr::create(left, right));
             break;
         }
 
         case Instruction::Sub: {
             ref<Expr> left = eval(ki, 0, state).value;
             ref<Expr> right = eval(ki, 1, state).value;
-            bindLocal(ki, state, SubExpr::create(left, right));
+            state.bindLocal(ki, SubExpr::create(left, right));
             break;
         }
 
         case Instruction::Mul: {
             ref<Expr> left = eval(ki, 0, state).value;
             ref<Expr> right = eval(ki, 1, state).value;
-            bindLocal(ki, state, MulExpr::create(left, right));
+            state.bindLocal(ki, MulExpr::create(left, right));
             break;
         }
 
@@ -1064,7 +1042,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
             ref<Expr> left = eval(ki, 0, state).value;
             ref<Expr> right = eval(ki, 1, state).value;
             ref<Expr> result = UDivExpr::create(left, right);
-            bindLocal(ki, state, result);
+            state.bindLocal(ki, result);
             break;
         }
 
@@ -1072,7 +1050,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
             ref<Expr> left = eval(ki, 0, state).value;
             ref<Expr> right = eval(ki, 1, state).value;
             ref<Expr> result = SDivExpr::create(left, right);
-            bindLocal(ki, state, result);
+            state.bindLocal(ki, result);
             break;
         }
 
@@ -1080,7 +1058,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
             ref<Expr> left = eval(ki, 0, state).value;
             ref<Expr> right = eval(ki, 1, state).value;
             ref<Expr> result = URemExpr::create(left, right);
-            bindLocal(ki, state, result);
+            state.bindLocal(ki, result);
             break;
         }
 
@@ -1088,7 +1066,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
             ref<Expr> left = eval(ki, 0, state).value;
             ref<Expr> right = eval(ki, 1, state).value;
             ref<Expr> result = SRemExpr::create(left, right);
-            bindLocal(ki, state, result);
+            state.bindLocal(ki, result);
             break;
         }
 
@@ -1096,7 +1074,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
             ref<Expr> left = eval(ki, 0, state).value;
             ref<Expr> right = eval(ki, 1, state).value;
             ref<Expr> result = AndExpr::create(left, right);
-            bindLocal(ki, state, result);
+            state.bindLocal(ki, result);
             break;
         }
 
@@ -1104,7 +1082,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
             ref<Expr> left = eval(ki, 0, state).value;
             ref<Expr> right = eval(ki, 1, state).value;
             ref<Expr> result = OrExpr::create(left, right);
-            bindLocal(ki, state, result);
+            state.bindLocal(ki, result);
             break;
         }
 
@@ -1112,7 +1090,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
             ref<Expr> left = eval(ki, 0, state).value;
             ref<Expr> right = eval(ki, 1, state).value;
             ref<Expr> result = XorExpr::create(left, right);
-            bindLocal(ki, state, result);
+            state.bindLocal(ki, result);
             break;
         }
 
@@ -1120,7 +1098,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
             ref<Expr> left = eval(ki, 0, state).value;
             ref<Expr> right = eval(ki, 1, state).value;
             ref<Expr> result = ShlExpr::create(left, right);
-            bindLocal(ki, state, result);
+            state.bindLocal(ki, result);
             break;
         }
 
@@ -1128,7 +1106,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
             ref<Expr> left = eval(ki, 0, state).value;
             ref<Expr> right = eval(ki, 1, state).value;
             ref<Expr> result = LShrExpr::create(left, right);
-            bindLocal(ki, state, result);
+            state.bindLocal(ki, result);
             break;
         }
 
@@ -1136,7 +1114,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
             ref<Expr> left = eval(ki, 0, state).value;
             ref<Expr> right = eval(ki, 1, state).value;
             ref<Expr> result = AShrExpr::create(left, right);
-            bindLocal(ki, state, result);
+            state.bindLocal(ki, result);
             break;
         }
 
@@ -1151,7 +1129,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
                     ref<Expr> left = eval(ki, 0, state).value;
                     ref<Expr> right = eval(ki, 1, state).value;
                     ref<Expr> result = EqExpr::create(left, right);
-                    bindLocal(ki, state, result);
+                    state.bindLocal(ki, result);
                     break;
                 }
 
@@ -1159,7 +1137,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
                     ref<Expr> left = eval(ki, 0, state).value;
                     ref<Expr> right = eval(ki, 1, state).value;
                     ref<Expr> result = NeExpr::create(left, right);
-                    bindLocal(ki, state, result);
+                    state.bindLocal(ki, result);
                     break;
                 }
 
@@ -1167,7 +1145,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
                     ref<Expr> left = eval(ki, 0, state).value;
                     ref<Expr> right = eval(ki, 1, state).value;
                     ref<Expr> result = UgtExpr::create(left, right);
-                    bindLocal(ki, state, result);
+                    state.bindLocal(ki, result);
                     break;
                 }
 
@@ -1175,7 +1153,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
                     ref<Expr> left = eval(ki, 0, state).value;
                     ref<Expr> right = eval(ki, 1, state).value;
                     ref<Expr> result = UgeExpr::create(left, right);
-                    bindLocal(ki, state, result);
+                    state.bindLocal(ki, result);
                     break;
                 }
 
@@ -1183,7 +1161,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
                     ref<Expr> left = eval(ki, 0, state).value;
                     ref<Expr> right = eval(ki, 1, state).value;
                     ref<Expr> result = UltExpr::create(left, right);
-                    bindLocal(ki, state, result);
+                    state.bindLocal(ki, result);
                     break;
                 }
 
@@ -1191,7 +1169,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
                     ref<Expr> left = eval(ki, 0, state).value;
                     ref<Expr> right = eval(ki, 1, state).value;
                     ref<Expr> result = UleExpr::create(left, right);
-                    bindLocal(ki, state, result);
+                    state.bindLocal(ki, result);
                     break;
                 }
 
@@ -1199,7 +1177,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
                     ref<Expr> left = eval(ki, 0, state).value;
                     ref<Expr> right = eval(ki, 1, state).value;
                     ref<Expr> result = SgtExpr::create(left, right);
-                    bindLocal(ki, state, result);
+                    state.bindLocal(ki, result);
                     break;
                 }
 
@@ -1207,7 +1185,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
                     ref<Expr> left = eval(ki, 0, state).value;
                     ref<Expr> right = eval(ki, 1, state).value;
                     ref<Expr> result = SgeExpr::create(left, right);
-                    bindLocal(ki, state, result);
+                    state.bindLocal(ki, result);
                     break;
                 }
 
@@ -1215,7 +1193,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
                     ref<Expr> left = eval(ki, 0, state).value;
                     ref<Expr> right = eval(ki, 1, state).value;
                     ref<Expr> result = SltExpr::create(left, right);
-                    bindLocal(ki, state, result);
+                    state.bindLocal(ki, result);
                     break;
                 }
 
@@ -1223,7 +1201,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
                     ref<Expr> left = eval(ki, 0, state).value;
                     ref<Expr> right = eval(ki, 1, state).value;
                     ref<Expr> result = SleExpr::create(left, right);
-                    bindLocal(ki, state, result);
+                    state.bindLocal(ki, result);
                     break;
                 }
 
@@ -1280,7 +1258,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
             }
             if (kgepi->offset)
                 base = AddExpr::create(base, Expr::createPointer(kgepi->offset));
-            bindLocal(ki, state, base);
+            state.bindLocal(ki, base);
             break;
         }
 
@@ -1288,19 +1266,19 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
         case Instruction::Trunc: {
             CastInst *ci = cast<CastInst>(i);
             ref<Expr> result = ExtractExpr::create(eval(ki, 0, state).value, 0, getWidthForLLVMType(ci->getType()));
-            bindLocal(ki, state, result);
+            state.bindLocal(ki, result);
             break;
         }
         case Instruction::ZExt: {
             CastInst *ci = cast<CastInst>(i);
             ref<Expr> result = ZExtExpr::create(eval(ki, 0, state).value, getWidthForLLVMType(ci->getType()));
-            bindLocal(ki, state, result);
+            state.bindLocal(ki, result);
             break;
         }
         case Instruction::SExt: {
             CastInst *ci = cast<CastInst>(i);
             ref<Expr> result = SExtExpr::create(eval(ki, 0, state).value, getWidthForLLVMType(ci->getType()));
-            bindLocal(ki, state, result);
+            state.bindLocal(ki, result);
             break;
         }
 
@@ -1308,20 +1286,20 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
             CastInst *ci = cast<CastInst>(i);
             Expr::Width pType = getWidthForLLVMType(ci->getType());
             ref<Expr> arg = eval(ki, 0, state).value;
-            bindLocal(ki, state, ZExtExpr::create(arg, pType));
+            state.bindLocal(ki, ZExtExpr::create(arg, pType));
             break;
         }
         case Instruction::PtrToInt: {
             CastInst *ci = cast<CastInst>(i);
             Expr::Width iType = getWidthForLLVMType(ci->getType());
             ref<Expr> arg = eval(ki, 0, state).value;
-            bindLocal(ki, state, ZExtExpr::create(arg, iType));
+            state.bindLocal(ki, ZExtExpr::create(arg, iType));
             break;
         }
 
         case Instruction::BitCast: {
             ref<Expr> result = eval(ki, 0, state).value;
-            bindLocal(ki, state, result);
+            state.bindLocal(ki, result);
             break;
         }
 
@@ -1332,7 +1310,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
             ref<ConstantExpr> right = state.toConstant(eval(ki, 1, state).value, "floating point");
             llvm::APFloat Res(*fpWidthToSemantics(left->getWidth()), left->getAPValue());
             Res.add(APFloat(*fpWidthToSemantics(right->getWidth()), right->getAPValue()), APFloat::rmNearestTiesToEven);
-            bindLocal(ki, state, ConstantExpr::alloc(Res.bitcastToAPInt()));
+            state.bindLocal(ki, ConstantExpr::alloc(Res.bitcastToAPInt()));
             break;
         }
 
@@ -1342,7 +1320,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
             llvm::APFloat Res(*fpWidthToSemantics(left->getWidth()), left->getAPValue());
             Res.subtract(APFloat(*fpWidthToSemantics(right->getWidth()), right->getAPValue()),
                          APFloat::rmNearestTiesToEven);
-            bindLocal(ki, state, ConstantExpr::alloc(Res.bitcastToAPInt()));
+            state.bindLocal(ki, ConstantExpr::alloc(Res.bitcastToAPInt()));
             break;
         }
 
@@ -1352,7 +1330,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
             llvm::APFloat Res(*fpWidthToSemantics(left->getWidth()), left->getAPValue());
             Res.multiply(APFloat(*fpWidthToSemantics(right->getWidth()), right->getAPValue()),
                          APFloat::rmNearestTiesToEven);
-            bindLocal(ki, state, ConstantExpr::alloc(Res.bitcastToAPInt()));
+            state.bindLocal(ki, ConstantExpr::alloc(Res.bitcastToAPInt()));
             break;
         }
 
@@ -1362,7 +1340,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
             llvm::APFloat Res(*fpWidthToSemantics(left->getWidth()), left->getAPValue());
             Res.divide(APFloat(*fpWidthToSemantics(right->getWidth()), right->getAPValue()),
                        APFloat::rmNearestTiesToEven);
-            bindLocal(ki, state, ConstantExpr::alloc(Res.bitcastToAPInt()));
+            state.bindLocal(ki, ConstantExpr::alloc(Res.bitcastToAPInt()));
             break;
         }
 
@@ -1371,7 +1349,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
             ref<ConstantExpr> right = state.toConstant(eval(ki, 1, state).value, "floating point");
             llvm::APFloat Res(*fpWidthToSemantics(left->getWidth()), left->getAPValue());
             Res.mod(APFloat(*fpWidthToSemantics(right->getWidth()), right->getAPValue()));
-            bindLocal(ki, state, ConstantExpr::alloc(Res.bitcastToAPInt()));
+            state.bindLocal(ki, ConstantExpr::alloc(Res.bitcastToAPInt()));
             break;
         }
 
@@ -1382,7 +1360,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
             if (arg->getWidth() > 64)
                 return terminateState(state, "Unsupported FPTrunc operation");
             uint64_t value = floats::trunc(arg->getZExtValue(), resultType, arg->getWidth());
-            bindLocal(ki, state, ConstantExpr::alloc(value, resultType));
+            state.bindLocal(ki, ConstantExpr::alloc(value, resultType));
             break;
         }
 
@@ -1393,7 +1371,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
             if (arg->getWidth() > 64)
                 return terminateState(state, "Unsupported FPExt operation");
             uint64_t value = floats::ext(arg->getZExtValue(), resultType, arg->getWidth());
-            bindLocal(ki, state, ConstantExpr::alloc(value, resultType));
+            state.bindLocal(ki, ConstantExpr::alloc(value, resultType));
             break;
         }
 
@@ -1404,7 +1382,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
             if (arg->getWidth() > 64)
                 return terminateState(state, "Unsupported FPToUI operation");
             uint64_t value = floats::toUnsignedInt(arg->getZExtValue(), resultType, arg->getWidth());
-            bindLocal(ki, state, ConstantExpr::alloc(value, resultType));
+            state.bindLocal(ki, ConstantExpr::alloc(value, resultType));
             break;
         }
 
@@ -1415,7 +1393,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
             if (arg->getWidth() > 64)
                 return terminateState(state, "Unsupported FPToSI operation");
             uint64_t value = floats::toSignedInt(arg->getZExtValue(), resultType, arg->getWidth());
-            bindLocal(ki, state, ConstantExpr::alloc(value, resultType));
+            state.bindLocal(ki, ConstantExpr::alloc(value, resultType));
             break;
         }
 
@@ -1426,7 +1404,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
             if (arg->getWidth() > 64)
                 return terminateState(state, "Unsupported UIToFP operation");
             uint64_t value = floats::UnsignedIntToFP(arg->getZExtValue(), resultType);
-            bindLocal(ki, state, ConstantExpr::alloc(value, resultType));
+            state.bindLocal(ki, ConstantExpr::alloc(value, resultType));
             break;
         }
 
@@ -1437,7 +1415,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
             if (arg->getWidth() > 64)
                 return terminateState(state, "Unsupported SIToFP operation");
             uint64_t value = floats::SignedIntToFP(arg->getZExtValue(), resultType, arg->getWidth());
-            bindLocal(ki, state, ConstantExpr::alloc(value, resultType));
+            state.bindLocal(ki, ConstantExpr::alloc(value, resultType));
             break;
         }
 
@@ -1524,7 +1502,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
                     break;
             }
 
-            bindLocal(ki, state, ConstantExpr::alloc(Result, Expr::Bool));
+            state.bindLocal(ki, ConstantExpr::alloc(Result, Expr::Bool));
             break;
         }
 
@@ -1552,7 +1530,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
             else
                 result = val;
 
-            bindLocal(ki, state, result);
+            state.bindLocal(ki, result);
             break;
         }
         case Instruction::ExtractValue: {
@@ -1562,7 +1540,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
 
             ref<Expr> result = ExtractExpr::create(agg, kgepi->offset * 8, getWidthForLLVMType(i->getType()));
 
-            bindLocal(ki, state, result);
+            state.bindLocal(ki, result);
             break;
         }
 
@@ -1598,7 +1576,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
 
             assert(Context::get().isLittleEndian() && "FIXME:Broken for big endian");
             ref<Expr> Result = ConcatExpr::createN(elementCount, elems.data());
-            bindLocal(ki, state, Result);
+            state.bindLocal(ki, Result);
             break;
         }
         case Instruction::ExtractElement: {
@@ -1623,7 +1601,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
 
             unsigned bitOffset = EltBits * iIdx;
             ref<Expr> Result = ExtractExpr::create(vec, bitOffset, EltBits);
-            bindLocal(ki, state, Result);
+            state.bindLocal(ki, Result);
             break;
         }
         case Instruction::ShuffleVector:
@@ -1817,7 +1795,7 @@ void Executor::callExternalFunction(ExecutionState &state, KInstruction *target,
     Type *resultType = target->inst->getType();
     if (resultType != Type::getVoidTy(function->getContext())) {
         ref<Expr> e = ConstantExpr::fromMemory((void *) args, getWidthForLLVMType(resultType));
-        bindLocal(target, state, e);
+        state.bindLocal(target, e);
     }
 }
 
@@ -1844,7 +1822,7 @@ void Executor::executeAlloc(ExecutionState &state, ref<Expr> size, bool isLocal,
     if (ConstantExpr *CE = dyn_cast<ConstantExpr>(size)) {
         MemoryObject *mo = memory->allocate(CE->getZExtValue(), isLocal, false, state.prevPC->inst);
         if (!mo) {
-            bindLocal(target, state, ConstantExpr::alloc(0, Context::get().getPointerWidth()));
+            state.bindLocal(target, ConstantExpr::alloc(0, Context::get().getPointerWidth()));
         } else {
             ObjectState *os = bindObjectInState(state, mo, isLocal);
             if (zeroMemory) {
@@ -1852,7 +1830,7 @@ void Executor::executeAlloc(ExecutionState &state, ref<Expr> size, bool isLocal,
             } else {
                 os->initializeToRandom();
             }
-            bindLocal(target, state, mo->getBaseExpr());
+            state.bindLocal(target, mo->getBaseExpr());
 
             if (reallocFrom) {
                 unsigned count = std::min(reallocFrom->size, os->size);
@@ -2005,7 +1983,7 @@ void Executor::executeMemoryOperation(ExecutionState &state, bool isWrite, ref<E
             result = executeMemoryOperationOverlapped(state, isWrite, concreteAddress->getZExtValue(), value, bytes);
         }
         if (!isWrite) {
-            bindLocal(target, state, result);
+            state.bindLocal(target, result);
         }
         return;
     }
@@ -2099,7 +2077,7 @@ void Executor::executeMemoryOperation(ExecutionState &state, bool isWrite, ref<E
         ref<Expr> result = executeMemoryOperation(state, op, isWrite, offset, value, type, bytes);
 
         if (!isWrite) {
-            bindLocal(target, state, result);
+            state.bindLocal(target, result);
         }
 
         return;
@@ -2125,7 +2103,7 @@ void Executor::executeMemoryOperation(ExecutionState &state, bool isWrite, ref<E
     ref<Expr> result = executeMemoryOperationOverlapped(state, isWrite, concreteAddress->getZExtValue(), value, bytes);
 
     if (!isWrite) {
-        bindLocal(target, state, result);
+        state.bindLocal(target, result);
     }
 
     return;

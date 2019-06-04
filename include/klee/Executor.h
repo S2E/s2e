@@ -145,7 +145,6 @@ protected:
     void initializeGlobalObject(ExecutionState &state, ObjectState *os, llvm::Constant *c, unsigned offset);
     void initializeGlobals(ExecutionState &state);
 
-    void stepInstruction(ExecutionState &state);
     virtual void updateStates(ExecutionState *current);
     void transferToBasicBlock(llvm::BasicBlock *dst, llvm::BasicBlock *src, ExecutionState &state);
 
@@ -201,19 +200,6 @@ protected:
     virtual void notifyFork(ExecutionState &originalState, ref<Expr> &condition, Executor::StatePair &targets);
 
     const Cell &eval(KInstruction *ki, unsigned index, ExecutionState &state) const;
-
-    Cell &getArgumentCell(ExecutionState &state, KFunction *kf, unsigned index) {
-        // *klee::klee_warning_stream << std::dec << "arg idx="<< index<< " "  << kf->getArgRegister(index) << '\n';
-        return state.stack.back().locals[kf->getArgRegister(index)];
-    }
-
-    Cell &getDestCell(ExecutionState &state, KInstruction *target) {
-        // *klee_warning_stream << "dst Td="<< std::dec << target->dest << '\n';
-        return state.stack.back().locals[target->dest];
-    }
-
-    void bindLocal(KInstruction *target, ExecutionState &state, ref<Expr> value);
-    void bindArgument(KFunction *kf, unsigned index, ExecutionState &state, ref<Expr> value);
 
     ref<klee::ConstantExpr> evalConstantExpr(llvm::ConstantExpr *ce);
 

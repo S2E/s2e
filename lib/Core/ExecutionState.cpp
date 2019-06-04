@@ -8,6 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "klee/ExecutionState.h"
+#include "klee/CoreStats.h"
 
 #include "klee/Internal/Module/Cell.h"
 #include "klee/Internal/Module/InstructionInfoTable.h"
@@ -41,6 +42,9 @@ cl::opt<bool> ValidateSimplifier("validate-expr-simplifier",
 
 cl::opt<bool> UseExprSimplifier("use-expr-simplifier", cl::desc("Apply expression simplifier for new expressions"),
                                 cl::init(true));
+
+cl::opt<bool> DebugPrintInstructions("debug-print-instructions", cl::desc("Print instructions during execution."),
+                                     cl::init(false));
 }
 
 /***/
@@ -522,4 +526,32 @@ void ExecutionState::dumpQuery(llvm::raw_ostream &os) const {
 
 std::shared_ptr<TimingSolver> ExecutionState::solver() const {
     return SolverManager::solver(*this);
+}
+
+Cell &ExecutionState::getArgumentCell(KFunction *kf, unsigned index) {
+    return stack.back().locals[kf->getArgRegister(index)];
+}
+
+Cell &ExecutionState::getDestCell(KInstruction *target) {
+    return stack.back().locals[target->dest];
+}
+
+void ExecutionState::bindLocal(KInstruction *target, ref<Expr> value) {
+
+    getDestCell(target).value = simplifyExpr(value);
+}
+
+void ExecutionState::bindArgument(KFunction *kf, unsigned index, ref<Expr> value) {
+    getArgumentCell(kf, index).value = simplifyExpr(value);
+}
+
+void ExecutionState::stepInstruction() {
+    if (DebugPrintInstructions) {
+        llvm::errs() << stats::instructions << " ";
+        llvm::errs() << *(pc->inst) << "\n";
+    }
+
+    ++stats::instructions;
+    prevPC = pc;
+    ++pc;
 }
