@@ -2130,41 +2130,6 @@ void S2EExecutor::notifyBranch(ExecutionState &state) {
     cpu_enable_ticks();
 }
 
-void S2EExecutor::branch(klee::ExecutionState &state, const vector<klee::ref<Expr>> &conditions,
-                         vector<ExecutionState *> &result) {
-    S2EExecutionState *s2eState = dynamic_cast<S2EExecutionState *>(&state);
-    assert(!s2eState->m_runningConcrete);
-
-    Executor::branch(state, conditions, result);
-
-    unsigned n = conditions.size();
-
-    vector<S2EExecutionState *> newStates;
-    vector<klee::ref<Expr>> newConditions;
-
-    newStates.reserve(n);
-    newConditions.reserve(n);
-
-    for (unsigned i = 0; i < n; ++i) {
-        if (result[i]) {
-            assert(dynamic_cast<S2EExecutionState *>(result[i]));
-            newStates.push_back(static_cast<S2EExecutionState *>(result[i]));
-            newConditions.push_back(conditions[i]);
-
-            if (result[i] != &state) {
-                S2EExecutionState *s = static_cast<S2EExecutionState *>(result[i]);
-                s->m_needFinalizeTBExec = true;
-                s->m_active = false;
-            }
-        }
-    }
-
-    /*if(newStates.size() > 1) {
-        doStateFork(static_cast<S2EExecutionState*>(&state),
-                       newStates, newConditions);
-    }*/
-}
-
 bool S2EExecutor::merge(klee::ExecutionState &_base, klee::ExecutionState &_other) {
     assert(dynamic_cast<S2EExecutionState *>(&_base));
     assert(dynamic_cast<S2EExecutionState *>(&_other));

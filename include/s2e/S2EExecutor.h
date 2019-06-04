@@ -238,10 +238,6 @@ protected:
     /** Copy concrete values to the execution state storage */
     void switchToSymbolic(S2EExecutionState *state);
 
-    /** Called on branches, used to trace forks */
-    void branch(klee::ExecutionState &state, const std::vector<klee::ref<klee::Expr>> &conditions,
-                std::vector<klee::ExecutionState *> &result);
-
     void notifyBranch(klee::ExecutionState &state);
 
     void setupTimersHandler();
