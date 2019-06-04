@@ -554,4 +554,19 @@ void ExecutionState::stepInstruction() {
     prevPC = pc;
     ++pc;
 }
+
+ObjectState *ExecutionState::bindObject(const MemoryObject *mo, bool isLocal, const Array *array) {
+    ObjectState *os = array ? new ObjectState(mo, array) : new ObjectState(mo);
+    addressSpace.bindObject(mo, os);
+
+    // Its possible that multiple bindings of the same mo in the state
+    // will put multiple copies on this list, but it doesn't really
+    // matter because all we use this list for is to unbind the object
+    // on function return.
+    if (isLocal) {
+        stack.back().allocas.push_back(mo);
+    }
+
+    return os;
+}
 }

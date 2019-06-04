@@ -193,6 +193,8 @@ public:
     void bindLocal(KInstruction *target, ref<Expr> value);
     void bindArgument(KFunction *kf, unsigned index, ref<Expr> value);
     void stepInstruction();
+
+    ObjectState *bindObject(const MemoryObject *mo, bool isLocal, const Array *array = nullptr);
 };
 }
 

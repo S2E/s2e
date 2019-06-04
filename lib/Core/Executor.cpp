@@ -197,7 +197,7 @@ MemoryObject *Executor::addExternalObject(ExecutionState &state, void *addr, uns
     mo->isUserSpecified = isUserSpecified;
     mo->isSharedConcrete = isSharedConcrete;
     mo->isValueIgnored = isValueIgnored;
-    ObjectState *os = bindObjectInState(state, mo, false);
+    ObjectState *os = state.bindObject(mo, false);
     if (!isSharedConcrete) {
         memcpy(os->getConcreteStore(), addr, size);
         /*
@@ -301,7 +301,7 @@ void Executor::initializeGlobals(ExecutionState &state) {
             }
 
             MemoryObject *mo = memory->allocate(size, false, true, &*i);
-            ObjectState *os = bindObjectInState(state, mo, false);
+            ObjectState *os = state.bindObject(mo, false);
             globalObjects.insert(std::make_pair(&*i, mo));
             globalAddresses.insert(std::make_pair(&*i, mo->getBaseExpr()));
 
@@ -337,7 +337,7 @@ void Executor::initializeGlobals(ExecutionState &state) {
             if (!mo)
                 mo = memory->allocate(size, false, true, &*i);
             assert(mo && "out of memory");
-            ObjectState *os = bindObjectInState(state, mo, false);
+            ObjectState *os = state.bindObject(mo, false);
             globalObjects.insert(std::make_pair(&*i, mo));
             globalAddresses.insert(std::make_pair(&*i, mo->getBaseExpr()));
 
@@ -704,7 +704,7 @@ void Executor::executeCall(ExecutionState &state, KInstruction *ki, Function *f,
                 terminateState(state, "out of memory (varargs)");
                 return;
             }
-            ObjectState *os = bindObjectInState(state, mo, true);
+            ObjectState *os = state.bindObject(mo, true);
             unsigned offset = 0;
             for (unsigned i = funcArgs; i < callingArgs; i++) {
                 // FIXME: This is really specific to the architecture, not the pointer
@@ -1801,21 +1801,6 @@ void Executor::callExternalFunction(ExecutionState &state, KInstruction *target,
 
 /***/
 
-ObjectState *Executor::bindObjectInState(ExecutionState &state, const MemoryObject *mo, bool isLocal,
-                                         const Array *array) {
-    ObjectState *os = array ? new ObjectState(mo, array) : new ObjectState(mo);
-    state.addressSpace.bindObject(mo, os);
-
-    // Its possible that multiple bindings of the same mo in the state
-    // will put multiple copies on this list, but it doesn't really
-    // matter because all we use this list for is to unbind the object
-    // on function return.
-    if (isLocal)
-        state.stack.back().allocas.push_back(mo);
-
-    return os;
-}
-
 void Executor::executeAlloc(ExecutionState &state, ref<Expr> size, bool isLocal, KInstruction *target, bool zeroMemory,
                             const ObjectState *reallocFrom) {
     size = state.toUnique(size);
@@ -1824,7 +1809,7 @@ void Executor::executeAlloc(ExecutionState &state, ref<Expr> size, bool isLocal,
         if (!mo) {
             state.bindLocal(target, ConstantExpr::alloc(0, Context::get().getPointerWidth()));
         } else {
-            ObjectState *os = bindObjectInState(state, mo, isLocal);
+            ObjectState *os = state.bindObject(mo, isLocal);
             if (zeroMemory) {
                 os->initializeToZero();
             } else {
