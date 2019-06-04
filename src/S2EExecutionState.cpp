@@ -360,7 +360,7 @@ std::vector<ref<Expr>> S2EExecutionState::createSymbolicArray(const std::string 
 void S2EExecutionState::kleeReadMemory(ref<Expr> kleeAddressExpr, uint64_t sizeInBytes, std::vector<ref<Expr>> *result,
                                        bool requireConcrete, bool concretize, bool addConstraint) {
     ObjectPair op;
-    kleeAddressExpr = g_s2e->getExecutor()->toUnique(*this, kleeAddressExpr);
+    kleeAddressExpr = toUnique(kleeAddressExpr);
     ref<klee::ConstantExpr> address = cast<klee::ConstantExpr>(kleeAddressExpr);
 
 #ifdef CONFIG_SYMBEX_MP
@@ -380,7 +380,7 @@ void S2EExecutionState::kleeReadMemory(ref<Expr> kleeAddressExpr, uint64_t sizeI
         ref<Expr> cur = os->read8(i);
         if (requireConcrete) {
             // Here, we demand concrete results
-            cur = g_s2e->getExecutor()->toUnique(*this, cur);
+            cur = toUnique(cur);
             assert(isa<klee::ConstantExpr>(cur) && "kleeReadMemory: hit symbolic char but expected concrete data");
             if (result) {
                 result->push_back(cast<klee::ConstantExpr>(cur));
@@ -427,7 +427,7 @@ void S2EExecutionState::kleeReadMemory(ref<Expr> kleeAddressExpr, uint64_t sizeI
 void S2EExecutionState::kleeWriteMemory(ref<Expr> kleeAddressExpr, /* Address */
                                         std::vector<ref<Expr>> &bytes) {
     ObjectPair op;
-    kleeAddressExpr = g_s2e->getExecutor()->toUnique(*this, kleeAddressExpr);
+    kleeAddressExpr = toUnique(kleeAddressExpr);
     ref<klee::ConstantExpr> address = cast<klee::ConstantExpr>(kleeAddressExpr);
 #ifdef CONFIG_SYMBEX_MP
     if (!addressSpace.resolveOne(address, op))
