@@ -379,38 +379,6 @@ void Executor::notifyBranch(ExecutionState &state) {
     assert(false && "Must go through S2E");
 }
 
-void Executor::branch(ExecutionState &state, const std::vector<ref<Expr>> &conditions,
-                      std::vector<ExecutionState *> &result) {
-    TimerStatIncrementer timer(stats::forkTime);
-    unsigned N = conditions.size();
-    assert(N);
-
-    notifyBranch(state);
-
-    stats::forks += N - 1;
-
-    // XXX do proper balance or keep random?
-    result.push_back(&state);
-    for (unsigned i = 1; i < N; ++i) {
-        ExecutionState *es = result[theRNG.getInt32() % i];
-        ExecutionState *ns = es->branch();
-        addedStates.insert(ns);
-        result.push_back(ns);
-        es->ptreeNode->data = 0;
-        std::pair<PTree::Node *, PTree::Node *> res = processTree->split(es->ptreeNode, ns, es);
-        ns->ptreeNode = res.first;
-        es->ptreeNode = res.second;
-    }
-
-    for (unsigned i = 0; i < N; ++i) {
-        if (result[i]) {
-            if (!result[i]->addConstraint(conditions[i])) {
-                abort();
-            }
-        }
-    }
-}
-
 Executor::StatePair Executor::fork(ExecutionState &current, const ref<Expr> &condition_,
                                    bool keepConditionTrueInCurrentState) {
     auto condition = current.simplifyExpr(condition_);

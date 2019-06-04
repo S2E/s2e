@@ -189,13 +189,6 @@ protected:
     void executeMemoryOperation(ExecutionState &state, bool isWrite, ref<Expr> address,
                                 ref<Expr> value /* undef if read */, KInstruction *target /* undef if write */);
 
-    /// Create a new state where each input condition has been added as
-    /// a constraint and return the results. The input state is included
-    /// as one of the results. Note that the output vector may included
-    /// NULL pointers for states which were unable to be created.
-    virtual void branch(ExecutionState &state, const std::vector<ref<Expr>> &conditions,
-                        std::vector<ExecutionState *> &result);
-
     /// The current state is about to be branched.
     /// Give a chance to S2E to checkpoint the current device state
     /// so that the branched state gets it as well.
