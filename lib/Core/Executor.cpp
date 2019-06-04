@@ -644,31 +644,6 @@ void Executor::bindArgument(KFunction *kf, unsigned index, ExecutionState &state
     getArgumentCell(state, kf, index).value = state.simplifyExpr(value);
 }
 
-ref<Expr> Executor::toUnique(const ExecutionState &state, ref<Expr> &e) {
-    e = state.simplifyExpr(e);
-    ref<Expr> result = e;
-
-    if (isa<ConstantExpr>(e)) {
-        return result;
-    }
-
-    ref<ConstantExpr> value;
-    bool isTrue = false;
-
-    ref<Expr> evalResult = state.concolics->evaluate(e);
-    assert(isa<ConstantExpr>(evalResult) && "Must be concrete");
-    value = dyn_cast<ConstantExpr>(evalResult);
-
-    auto solver = SolverManager::solver(state);
-    bool success = solver->mustBeTrue(state, state.simplifyExpr(EqExpr::create(e, value)), isTrue);
-
-    if (success && isTrue) {
-        result = value;
-    }
-
-    return result;
-}
-
 void Executor::stepInstruction(ExecutionState &state) {
     if (DebugPrintInstructions) {
         llvm::errs() << stats::instructions << " ";
@@ -943,7 +918,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
             SwitchInst *si = cast<SwitchInst>(i);
             ref<Expr> cond = eval(ki, 0, state).value;
 
-            cond = state.simplifyExpr(toUnique(state, cond));
+            cond = state.simplifyExpr(state.toUnique(cond));
 
             klee::ref<klee::Expr> concreteCond = state.concolics->evaluate(cond);
             klee::ref<klee::Expr> condition = EqExpr::create(concreteCond, cond);
@@ -1817,7 +1792,7 @@ void Executor::callExternalFunction(ExecutionState &state, KInstruction *target,
 
     unsigned i = 1;
     for (std::vector<ref<Expr>>::iterator ai = arguments.begin(), ae = arguments.end(); ai != ae; ++ai, ++i) {
-        ref<Expr> arg = toUnique(state, *ai);
+        ref<Expr> arg = state.toUnique(*ai);
         if (ConstantExpr *CE = dyn_cast<ConstantExpr>(arg)) {
             // XXX kick toMemory functions from here
             CE->toMemory((void *) &args[i]);
@@ -1897,7 +1872,7 @@ ObjectState *Executor::bindObjectInState(ExecutionState &state, const MemoryObje
 
 void Executor::executeAlloc(ExecutionState &state, ref<Expr> size, bool isLocal, KInstruction *target, bool zeroMemory,
                             const ObjectState *reallocFrom) {
-    size = toUnique(state, size);
+    size = state.toUnique(size);
     if (ConstantExpr *CE = dyn_cast<ConstantExpr>(size)) {
         MemoryObject *mo = memory->allocate(CE->getZExtValue(), isLocal, false, state.prevPC->inst);
         if (!mo) {

@@ -175,8 +175,13 @@ public:
         return s_simplifier;
     }
 
-    ref<klee::ConstantExpr> toConstant(ref<Expr> e, const std::string &reason);
-    ref<klee::ConstantExpr> toConstantSilent(ref<Expr> e);
+    ref<ConstantExpr> toConstant(ref<Expr> e, const std::string &reason);
+    ref<ConstantExpr> toConstantSilent(ref<Expr> e);
+
+    /// Return a unique constant value for the given expression in the
+    /// given state, if it has one (i.e. it provably only has a single
+    /// value). Otherwise return the original expression.
+    ref<Expr> toUnique(ref<Expr> &e);
 
     void dumpQuery(llvm::raw_ostream &os) const;
 

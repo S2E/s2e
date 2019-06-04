@@ -385,7 +385,7 @@ ref<Expr> ExecutionState::simplifyExpr(const ref<Expr> &e) const {
 /// \param reason documentation string stating the reason for concretization
 /// \return a concrete value
 ///
-ref<klee::ConstantExpr> ExecutionState::toConstant(ref<Expr> e, const std::string &reason) {
+ref<ConstantExpr> ExecutionState::toConstant(ref<Expr> e, const std::string &reason) {
     e = simplifyExpr(e);
     e = constraints.simplifyExpr(e);
     if (ConstantExpr *CE = dyn_cast<ConstantExpr>(e))
@@ -419,10 +419,34 @@ ref<klee::ConstantExpr> ExecutionState::toConstant(ref<Expr> e, const std::strin
 }
 
 // This API does not add a constraint
-ref<klee::ConstantExpr> ExecutionState::toConstantSilent(ref<Expr> e) {
+ref<ConstantExpr> ExecutionState::toConstantSilent(ref<Expr> e) {
     ref<Expr> evalResult = concolics->evaluate(e);
     assert(isa<ConstantExpr>(evalResult) && "Must be concrete");
     return dyn_cast<ConstantExpr>(evalResult);
+}
+
+ref<Expr> ExecutionState::toUnique(ref<Expr> &e) {
+    e = simplifyExpr(e);
+    ref<Expr> result = e;
+
+    if (isa<ConstantExpr>(e)) {
+        return result;
+    }
+
+    ref<ConstantExpr> value;
+
+    ref<Expr> evalResult = concolics->evaluate(e);
+    assert(isa<ConstantExpr>(evalResult) && "Must be concrete");
+    value = dyn_cast<ConstantExpr>(evalResult);
+
+    bool isTrue = false;
+    bool success = solver()->mustBeTrue(*this, simplifyExpr(EqExpr::create(e, value)), isTrue);
+
+    if (success && isTrue) {
+        result = value;
+    }
+
+    return result;
 }
 
 bool ExecutionState::solve(const ConstraintManager &mgr, Assignment &assignment) {
