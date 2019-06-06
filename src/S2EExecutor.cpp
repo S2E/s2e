@@ -1508,7 +1508,7 @@ S2EExecutionState *S2EExecutor::selectNextState(S2EExecutionState *state) {
 
     assert(!newState->isZombie());
 
-    newState->yield(false);
+    newState->setYieldState(false);
 
     if (!state->m_active) {
         /* Current state might be switched off by merge method */
@@ -2197,26 +2197,6 @@ void S2EExecutor::terminateState(ExecutionState &s) {
         state.regs()->write<int>(CPU_OFFSET(exception_index), EXCP_SE);
         throw CpuExitException();
     }
-}
-
-/**
- * Yield the current state.
- * This will force to call the searcher to select the next state.
- * The next state may or may not be the same as the one that yielded.
- * It is up to the caller to define a searcher policy
- * (e.g., enforce that another different state is scheduled).
- * yieldState() only provides a mechanism.
- */
-void S2EExecutor::yieldState(ExecutionState &s) {
-    S2EExecutionState &state = static_cast<S2EExecutionState &>(s);
-
-    m_s2e->getInfoStream(&state) << "Yielding state " << state.getID() << "\n";
-
-    state.yield(true);
-
-    // Stop current execution
-    state.regs()->write<int>(CPU_OFFSET(exception_index), EXCP_SE);
-    throw CpuExitException();
 }
 
 inline void S2EExecutor::setCCOpEflags(S2EExecutionState *state) {

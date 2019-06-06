@@ -541,6 +541,16 @@ bool S2EExecutionState::needToJumpToSymbolic() const {
     return isRunningConcrete();
 }
 
+void S2EExecutionState::yield() {
+    g_s2e->getInfoStream(this) << "Yielding state " << getID() << "\n";
+
+    setYieldState(true);
+
+    // Stop current execution
+    regs()->write<int>(CPU_OFFSET(exception_index), EXCP_SE);
+    throw CpuExitException();
+}
+
 /***/
 
 bool S2EExecutionState::merge(const ExecutionState &_b) {

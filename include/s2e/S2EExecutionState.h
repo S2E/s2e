@@ -207,9 +207,21 @@ public:
     bool isYielded() const {
         return m_yielded;
     }
-    void yield(bool new_yield_state) {
+
+    void setYieldState(bool new_yield_state) {
         m_yielded = new_yield_state;
     }
+
+    ///
+    /// \brief Yields the state and raises an exception to exit the cpu loop
+    ///
+    /// This forces a call to the searcher in order to select the next state.
+    /// The next state may or may not be the same as the one that yielded.
+    /// It is up to the caller to define a searcher policy
+    /// (e.g., enforce that another state is scheduled).
+    /// yield() only provides a mechanism.
+    ///
+    void yield();
 
     bool isPinned() const {
         return m_pinned;
