@@ -508,10 +508,6 @@ void Executor::notifyFork(ExecutionState &originalState, ref<Expr> &condition, E
     assert(false && "Must go through S2E");
 }
 
-bool Executor::merge(ExecutionState &base, ExecutionState &other) {
-    return base.merge(other);
-}
-
 ref<klee::ConstantExpr> Executor::evalConstant(Constant *c) {
     if (llvm::ConstantExpr *ce = dyn_cast<llvm::ConstantExpr>(c)) {
         return evalConstantExpr(ce);

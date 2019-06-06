@@ -244,8 +244,6 @@ public:
     Executor(InterpreterHandler *ie, llvm::LLVMContext &context);
     virtual ~Executor();
 
-    virtual bool merge(ExecutionState &base, ExecutionState &other);
-
     // remove state from queue and delete
     virtual void terminateState(ExecutionState &state);
 
