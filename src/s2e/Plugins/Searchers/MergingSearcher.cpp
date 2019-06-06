@@ -192,7 +192,7 @@ bool MergingSearcher::mergeEnd(S2EExecutionState *state, bool skipOpcode, bool c
         // first_state accumulates all the merges
         mergePool.firstState = state;
         suspend(state);
-        g_s2e->getExecutor()->yieldState(*state);
+        state->yield();
         assert(false && "Can't get here");
         return false;
     }

@@ -759,7 +759,7 @@ void CUPAVulnerabilitySearcherClass::onFork(S2EExecutionState *state, const std:
         plgState->setDistances(distances);
     }
 
-    m_plg->s2e()->getExecutor()->yieldState(*state);
+    state->yield();
 }
 
 void CUPAVulnerabilitySearcherClass::update(klee::ExecutionState *current, const klee::StateSet &addedStates,

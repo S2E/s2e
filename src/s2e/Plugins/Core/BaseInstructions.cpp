@@ -820,7 +820,7 @@ void BaseInstructions::handleBuiltInOps(S2EExecutionState *state, uint64_t opcod
         }
 
         case BASE_S2E_YIELD: { /* s2e_yield */
-            s2e()->getExecutor()->yieldState(*state);
+            state->yield();
             break;
         }
 

@@ -283,7 +283,7 @@ void PathSearcher::onFork(S2EExecutionState *state, const std::vector<S2EExecuti
         plgState->increaseForkCount();
     }
 
-    s2e()->getExecutor()->yieldState(*state);
+    state->yield();
 }
 
 void PathSearcher::update(klee::ExecutionState *current, const klee::StateSet &addedStates,

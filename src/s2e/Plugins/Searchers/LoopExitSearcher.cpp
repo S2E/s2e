@@ -154,7 +154,7 @@ void LoopExitSearcher::onFork(S2EExecutionState *state, const std::vector<S2EExe
     }
 
     if (doYield) {
-        s2e()->getExecutor()->yieldState(*state);
+        state->yield();
     }
 }
 
