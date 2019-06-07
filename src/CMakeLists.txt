@@ -14,6 +14,7 @@ add_library(
     S2EDeviceState.cpp
     AddressSpaceCache.cpp
     MMUFunctionHandlers.cpp
+    FunctionHandlers.cpp
 
     PluginManager.cpp
     Plugin.cpp
