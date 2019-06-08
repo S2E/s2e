@@ -43,10 +43,10 @@ public:
     }
 
     SymbolicPortHook() {
-        m_opaque = NULL;
-        m_isSymbolic = NULL;
-        m_readCb = NULL;
-        m_writeCb = NULL;
+        m_opaque = nullptr;
+        m_isSymbolic = nullptr;
+        m_readCb = nullptr;
+        m_writeCb = nullptr;
     }
 
     inline bool symbolic(uint16_t port) const {
@@ -92,10 +92,10 @@ public:
     }
 
     SymbolicMemoryHook() {
-        m_opaque = NULL;
-        m_isSymbolic = NULL;
-        m_readCb = NULL;
-        m_writeCb = NULL;
+        m_opaque = nullptr;
+        m_isSymbolic = nullptr;
+        m_readCb = nullptr;
+        m_writeCb = nullptr;
     }
 
     inline bool symbolic(struct MemoryDesc *mr, uint64_t physAddress, uint64_t size) const {
@@ -119,11 +119,11 @@ public:
     }
 
     inline bool readable() const {
-        return m_readCb != NULL;
+        return m_readCb != nullptr;
     }
 
     inline bool writable() const {
-        return m_writeCb != NULL;
+        return m_writeCb != nullptr;
     }
 };
 

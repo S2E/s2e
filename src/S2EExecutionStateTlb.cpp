@@ -208,9 +208,9 @@ void S2EExecutionStateTlb::updateTlbEntryConcreteStatus(CPUX86State *env, unsign
 
 #if defined(SE_ENABLE_PHYSRAM_TLB)
 void S2EExecutionStateTlb::clearRamTlb() {
-    static CPUTLBRAMEntry NULLCPUTLBRAMEntry = {0, 0, NULL};
+    static CPUTLBRAMEntry nullptrCPUTLBRAMEntry = {0, 0, nullptr};
     for (unsigned i = 0; i < CPU_TLB_SIZE; i++) {
-        env->se_ram_tlb[i] = NULLCPUTLBRAMEntry;
+        env->se_ram_tlb[i] = nullptrCPUTLBRAMEntry;
     }
 }
 #endif

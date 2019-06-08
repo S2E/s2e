@@ -24,7 +24,7 @@ namespace s2e {
 
 using namespace std;
 
-CompiledPlugin::CompiledPlugins *CompiledPlugin::s_compiledPlugins = NULL;
+CompiledPlugin::CompiledPlugins *CompiledPlugin::s_compiledPlugins = nullptr;
 
 void Plugin::initialize() {
 }
@@ -109,7 +109,7 @@ const PluginInfo *PluginsFactory::getPluginInfo(const string &name) const {
     if (it != m_pluginsMap.end())
         return it->second;
     else
-        return NULL;
+        return nullptr;
 }
 
 Plugin *PluginsFactory::createPlugin(S2E *s2e, const string &name) const {
@@ -118,7 +118,7 @@ Plugin *PluginsFactory::createPlugin(S2E *s2e, const string &name) const {
     if (pluginInfo)
         return pluginInfo->instanceCreator(s2e);
     else
-        return NULL;
+        return nullptr;
 }
 
 } // namespace s2e

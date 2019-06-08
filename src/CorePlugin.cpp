@@ -19,25 +19,25 @@ S2E_DEFINE_PLUGIN(CorePlugin, "S2E core functionality", "Core", );
 } // namespace s2e
 
 extern "C" {
-unsigned *g_s2e_before_memory_access_signals_count = NULL;
-unsigned *g_s2e_after_memory_access_signals_count = NULL;
-unsigned *g_s2e_on_translate_soft_interrupt_signals_count = NULL;
-unsigned *g_s2e_on_translate_block_start_signals_count = NULL;
-unsigned *g_s2e_on_translate_block_end_signals_count = NULL;
-unsigned *g_s2e_on_translate_block_complete_signals_count = NULL;
-unsigned *g_s2e_on_translate_instruction_start_signals_count = NULL;
-unsigned *g_s2e_on_translate_special_instruction_end_signals_count = NULL;
-unsigned *g_s2e_on_translate_jump_start_signals_count = NULL;
-unsigned *g_s2e_on_translate_lea_rip_relative_signals_count = NULL;
-unsigned *g_s2e_on_translate_instruction_end_signals_count = NULL;
-unsigned *g_s2e_on_translate_register_access_signals_count = NULL;
-unsigned *g_s2e_on_exception_signals_count = NULL;
-unsigned *g_s2e_on_page_fault_signals_count = NULL;
-unsigned *g_s2e_on_tlb_miss_signals_count = NULL;
-unsigned *g_s2e_on_port_access_signals_count = NULL;
-unsigned *g_s2e_on_privilege_change_signals_count = NULL;
-unsigned *g_s2e_on_page_directory_change_signals_count = NULL;
-unsigned *g_s2e_on_call_return_signals_count = NULL;
+unsigned *g_s2e_before_memory_access_signals_count = nullptr;
+unsigned *g_s2e_after_memory_access_signals_count = nullptr;
+unsigned *g_s2e_on_translate_soft_interrupt_signals_count = nullptr;
+unsigned *g_s2e_on_translate_block_start_signals_count = nullptr;
+unsigned *g_s2e_on_translate_block_end_signals_count = nullptr;
+unsigned *g_s2e_on_translate_block_complete_signals_count = nullptr;
+unsigned *g_s2e_on_translate_instruction_start_signals_count = nullptr;
+unsigned *g_s2e_on_translate_special_instruction_end_signals_count = nullptr;
+unsigned *g_s2e_on_translate_jump_start_signals_count = nullptr;
+unsigned *g_s2e_on_translate_lea_rip_relative_signals_count = nullptr;
+unsigned *g_s2e_on_translate_instruction_end_signals_count = nullptr;
+unsigned *g_s2e_on_translate_register_access_signals_count = nullptr;
+unsigned *g_s2e_on_exception_signals_count = nullptr;
+unsigned *g_s2e_on_page_fault_signals_count = nullptr;
+unsigned *g_s2e_on_tlb_miss_signals_count = nullptr;
+unsigned *g_s2e_on_port_access_signals_count = nullptr;
+unsigned *g_s2e_on_privilege_change_signals_count = nullptr;
+unsigned *g_s2e_on_page_directory_change_signals_count = nullptr;
+unsigned *g_s2e_on_call_return_signals_count = nullptr;
 }
 
 using namespace s2e;

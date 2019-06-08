@@ -276,7 +276,7 @@ template <class PluginClass> PluginClass *S2E::getPlugin() const {
 /// `s2e_assert(state, a == b, a << " does not equal " << b)`.
 ///
 /// It is possible to avoid passing current state pointer to the function where
-/// assertion is needed. In this case, you can use NULL for the
+/// assertion is needed. In this case, you can use nullptr for the
 /// \p state parameter, and g_s2e_state will be used as current state.
 ///
 /// \note Unreachable code assertion will fail if you use a different (not
@@ -288,13 +288,13 @@ template <class PluginClass> PluginClass *S2E::getPlugin() const {
 #define s2e_assert(state, condition, message)                                                                     \
     do {                                                                                                          \
         if (!(condition)) {                                                                                       \
-            S2EExecutionState *currentState = (state) != NULL ? (state) : g_s2e_state;                            \
+            S2EExecutionState *currentState = (state) != nullptr ? (state) : g_s2e_state;                         \
             int currentStateId = currentState ? currentState->getID() : -1;                                       \
             g_s2e->getWarningsStream() << __FILE__ << ":" << __LINE__ << ": " << __PRETTY_FUNCTION__              \
                                        << ": Assertion `" << #condition << "' failed in state " << currentStateId \
                                        << ": " << message << "\n";                                                \
             print_stacktrace(s2e_warning_print, "state assertion failed");                                        \
-            assert(currentState != NULL && "state assertion failed, no current state to terminate");              \
+            assert(currentState != nullptr && "state assertion failed, no current state to terminate");           \
             g_s2e->getExecutor()->terminateState(*currentState, "state assertion failed");                        \
             assert(false && "Unreachable code - current state must be terminated");                               \
         }                                                                                                         \
@@ -308,7 +308,7 @@ template <class PluginClass> PluginClass *S2E::getPlugin() const {
 /// `s2e_warn_assert(state, a == b, a << " does not equal " << b)`.
 ///
 /// It is possible to avoid passing current state pointer to the function where
-/// assertion is needed. In this case, you can use NULL for the
+/// assertion is needed. In this case, you can use nullptr for the
 /// \p state parameter, and g_s2e_state will be used as current state.
 ///
 /// \param state current state
@@ -317,7 +317,7 @@ template <class PluginClass> PluginClass *S2E::getPlugin() const {
 #define s2e_warn_assert(state, condition, message)                                                                \
     do {                                                                                                          \
         if (!(condition)) {                                                                                       \
-            S2EExecutionState *currentState = (state) != NULL ? (state) : g_s2e_state;                            \
+            S2EExecutionState *currentState = (state) != nullptr ? (state) : g_s2e_state;                         \
             int currentStateId = currentState ? currentState->getID() : -1;                                       \
             g_s2e->getWarningsStream() << __FILE__ << ":" << __LINE__ << ": " << __PRETTY_FUNCTION__              \
                                        << ": Assertion `" << #condition << "' failed in state " << currentStateId \

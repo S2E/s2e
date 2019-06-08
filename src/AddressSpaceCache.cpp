@@ -52,7 +52,7 @@ klee::ObjectState *AddressSpaceCache::notifySplit(const klee::ObjectState *oldOb
     assert(oldMemoryObject->isSplittable && oldMemoryObject->size == TARGET_PAGE_SIZE);
     assert(newObjects.size() == SE_RAM_OBJECT_SIZE / S2E_RAM_SUBOBJECT_SIZE);
 
-    klee::ObjectState *baseObject = NULL;
+    klee::ObjectState *baseObject = nullptr;
     for (unsigned i = 0; i < newObjects.size(); ++i) {
         ObjectState *obj = newObjects[i];
         if (obj->getStoreOffset() == 0) {

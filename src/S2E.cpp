@@ -368,8 +368,8 @@ void S2E::initOutputDirectory(const string &outputDirectory, int verbose, bool f
 
     setupStreams(forked, true);
 
-    getDebugStream(NULL) << "Revision: " << LIBCPU_REVISION << "\n";
-    getDebugStream(NULL) << "Config date: " << CONFIG_DATE << "\n\n";
+    getDebugStream(nullptr) << "Revision: " << LIBCPU_REVISION << "\n";
+    getDebugStream(nullptr) << "Config date: " << CONFIG_DATE << "\n\n";
 }
 
 void S2E::setupStreams(bool forked, bool reopen) {
@@ -637,7 +637,7 @@ unsigned S2E::getInstanceIndexWithLowestId() {
 
 extern "C" {
 
-s2e::S2E *g_s2e = NULL;
+s2e::S2E *g_s2e = nullptr;
 
 void *get_s2e(void) {
     return g_s2e;
@@ -656,8 +656,8 @@ void s2e_initialize(int argc, char **argv, TCGLLVMContext *tcgLLVMContext, const
 void s2e_close(void) {
     delete g_s2e;
     tcg_llvm_close(tcg_llvm_ctx);
-    tcg_llvm_ctx = NULL;
-    g_s2e = NULL;
+    tcg_llvm_ctx = nullptr;
+    g_s2e = nullptr;
 }
 
 void s2e_flush_output_streams(void) {

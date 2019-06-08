@@ -115,8 +115,8 @@ ref<ConstantExpr> S2EExecutor::handleForkAndConcretizeNative(Executor *executor,
 
         std::vector<ref<Expr>> forkArgs;
         forkArgs.push_back(symbAddress);
-        forkArgs.push_back(ref<Expr>(NULL));
-        forkArgs.push_back(ref<Expr>(NULL));
+        forkArgs.push_back(ref<Expr>(nullptr));
+        forkArgs.push_back(ref<Expr>(nullptr));
         forkArgs.push_back(0);
         KInstruction *kinst = (*target->owner->instrMap.find(addrInst)).second;
         S2EExecutor::handleForkAndConcretize(executor, state, kinst, forkArgs);
@@ -150,7 +150,7 @@ ref<Expr> S2EExecutor::handle_ldst_mmu(Executor *executor, ExecutionState *state
     ref<Expr> value;
     target_ulong tlb_addr, addr1, addr2;
     target_phys_addr_t addend, ioaddr;
-    void *retaddr = NULL;
+    void *retaddr = nullptr;
 
     if (isWrite) {
         value = args[1];

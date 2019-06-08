@@ -61,7 +61,7 @@ S2ESynchronizedObjectInternal::S2ESynchronizedObjectInternal(unsigned size, cons
         }
     }
 
-    m_sharedBuffer = (uint8_t *) mmap(NULL, totalSize, PROT_READ | PROT_WRITE, flags, m_fd, 0);
+    m_sharedBuffer = (uint8_t *) mmap(nullptr, totalSize, PROT_READ | PROT_WRITE, flags, m_fd, 0);
     if (m_sharedBuffer == MAP_FAILED) {
         fprintf(stderr, "Could not allocate shared memory (%d, %s)", errno, strerror(errno));
         exit(-1);
@@ -82,7 +82,7 @@ S2ESynchronizedObjectInternal::~S2ESynchronizedObjectInternal() {
 
 /// \brief Try to acquire synchronization lock
 ///
-/// \returns pointer to shared memory if lock was acquired, otherwise NULL
+/// \returns pointer to shared memory if lock was acquired, otherwise nullptr
 ///
 void *S2ESynchronizedObjectInternal::tryAcquire() {
     SyncHeader *hdr = (SyncHeader *) m_sharedBuffer;
@@ -90,7 +90,7 @@ void *S2ESynchronizedObjectInternal::tryAcquire() {
     unsigned expected = SYNCHEADER_FREE; // this variable will contain actual value after call
     if (!__atomic_compare_exchange_n(&hdr->lock, &expected, SYNCHEADER_LOCKED, false, __ATOMIC_SEQ_CST,
                                      __ATOMIC_SEQ_CST)) {
-        return NULL;
+        return nullptr;
     }
 
     return ((uint8_t *) m_sharedBuffer + m_headerSize);
@@ -105,7 +105,7 @@ void *S2ESynchronizedObjectInternal::tryAcquire() {
 void *S2ESynchronizedObjectInternal::acquire() {
     while (true) {
         void *ret = tryAcquire();
-        if (ret != NULL) {
+        if (ret != nullptr) {
             return ret;
         }
     }

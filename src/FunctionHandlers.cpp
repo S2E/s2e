@@ -147,7 +147,7 @@ void S2EExecutor::handleGetValue(klee::Executor *executor, klee::ExecutionState 
     // Read the value and concretize it.
     // The value will be stored at kleeAddress
     std::vector<klee::ref<Expr>> result;
-    s2eState->kleeReadMemory(kleeAddress, sizeInBytes, NULL, false, true, add_constraint);
+    s2eState->kleeReadMemory(kleeAddress, sizeInBytes, nullptr, false, true, add_constraint);
 }
 
 void S2EExecutor::handlerWriteMemIoVaddr(klee::Executor *executor, klee::ExecutionState *state,
@@ -159,7 +159,7 @@ void S2EExecutor::handlerWriteMemIoVaddr(klee::Executor *executor, klee::Executi
     assert(reset && "Invalid parameter");
 
     if (reset->getZExtValue()) {
-        s2eState->m_memIoVaddr = NULL;
+        s2eState->m_memIoVaddr = nullptr;
     } else {
         s2eState->m_memIoVaddr = args[0];
     }
@@ -281,7 +281,7 @@ void S2EExecutor::handlerOnTlbMiss(Executor *executor, ExecutionState *state, kl
     uint64_t constAddress;
     constAddress = cast<klee::ConstantExpr>(addr)->getZExtValue(64);
 
-    s2e_on_tlb_miss(constAddress, isWrite, NULL);
+    s2e_on_tlb_miss(constAddress, isWrite, nullptr);
 }
 
 void S2EExecutor::handlerTraceMmioAccess(Executor *executor, ExecutionState *state, klee::KInstruction *target,
@@ -292,7 +292,7 @@ void S2EExecutor::handlerTraceMmioAccess(Executor *executor, ExecutionState *sta
     klee::ref<Expr> value = args[1];
     unsigned size = cast<klee::ConstantExpr>(args[2])->getZExtValue();
 
-    if (!g_symbolicMemoryHook.symbolic(NULL, physAddress, size)) {
+    if (!g_symbolicMemoryHook.symbolic(nullptr, physAddress, size)) {
         state->bindLocal(target, value);
         return;
     }
@@ -301,10 +301,10 @@ void S2EExecutor::handlerTraceMmioAccess(Executor *executor, ExecutionState *sta
     bool isWrite = cast<klee::ConstantExpr>(args[3])->getZExtValue();
 
     if (isWrite) {
-        g_symbolicMemoryHook.write(NULL, physAddress, resizedValue, SYMB_MMIO);
+        g_symbolicMemoryHook.write(nullptr, physAddress, resizedValue, SYMB_MMIO);
         state->bindLocal(target, value);
     } else {
-        klee::ref<Expr> ret = g_symbolicMemoryHook.read(NULL, physAddress, resizedValue, SYMB_MMIO);
+        klee::ref<Expr> ret = g_symbolicMemoryHook.read(nullptr, physAddress, resizedValue, SYMB_MMIO);
         assert(ret->getWidth() == resizedValue->getWidth());
         ret = klee::ZExtExpr::create(ret, klee::Expr::Int64);
         state->bindLocal(target, ret);

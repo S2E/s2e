@@ -19,11 +19,11 @@ using namespace klee;
 
 namespace s2e {
 
-MemoryObject *S2EExecutionStateMemory::s_dirtyMask = NULL;
+MemoryObject *S2EExecutionStateMemory::s_dirtyMask = nullptr;
 
 S2EExecutionStateMemory::S2EExecutionStateMemory()
-    : m_dirtyMask(NULL), m_active(NULL), m_asCache(NULL), m_addressSpace(NULL), m_notification(NULL),
-      m_concretizer(NULL) {
+    : m_dirtyMask(nullptr), m_active(nullptr), m_asCache(nullptr), m_addressSpace(nullptr), m_notification(nullptr),
+      m_concretizer(nullptr) {
 }
 
 void S2EExecutionStateMemory::initialize(klee::AddressSpace *addressSpace, AddressSpaceCache *asCache,
@@ -107,7 +107,7 @@ ref<Expr> S2EExecutionStateMemory::readMemory8(uint64_t address, AddressType add
 
     ref<Expr> retVal(0);
 #ifdef CONFIG_SYMBEX_MP
-    transferRam(NULL, hostAddress, &retVal, 1, false, false, true);
+    transferRam(nullptr, hostAddress, &retVal, 1, false, false, true);
 #else
     retVal = ConstantExpr::create(*((uint8_t *) hostAddress), Expr::Int8);
 #endif
@@ -127,7 +127,7 @@ bool S2EExecutionStateMemory::read(uint64_t address, void *buf, uint64_t size, A
             length = size;
         }
         // XXX: return failure if could not read symbolic byte
-        transferRam(NULL, hostAddress, buf, length, false, false, false);
+        transferRam(nullptr, hostAddress, buf, length, false, false, false);
 #else
         *((uint8_t *) buf) = *((uint8_t *) hostAddress);
         uint64_t length = 1;
@@ -149,7 +149,7 @@ bool S2EExecutionStateMemory::writeMemory8(uint64_t address, const ref<Expr> &va
     if (hostAddress == (uint64_t) -1)
         return false;
 #ifdef CONFIG_SYMBEX_MP
-    transferRam(NULL, hostAddress, (void *) &value, 1, true, false, true);
+    transferRam(nullptr, hostAddress, (void *) &value, 1, true, false, true);
 #else
     ConstantExpr *ce = dyn_cast<ConstantExpr>(value);
     *((uint8_t *) hostAddress) = (uint8_t) ce->getZExtValue();
@@ -196,7 +196,7 @@ bool S2EExecutionStateMemory::write(uint64_t address, const void *buf, uint64_t 
             length = size;
         }
 
-        transferRam(NULL, hostAddress, const_cast<void *>(buf), length, true, false, false);
+        transferRam(nullptr, hostAddress, const_cast<void *>(buf), length, true, false, false);
 #else
         *((uint8_t *) hostAddress) = *((uint8_t *) buf);
         uint64_t length = 1;
@@ -281,7 +281,7 @@ void S2EExecutionStateMemory::transferRamInternal(ObjectPair op, uint64_t object
         }
 
     } else {
-        ObjectState *wos = NULL;
+        ObjectState *wos = nullptr;
         for (uint64_t i = 0; i < size; ++i) {
             if (!op.second->readConcrete8(object_offset + i, buf + i)) {
                 if (exitOnSymbolicRead) {

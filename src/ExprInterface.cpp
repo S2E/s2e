@@ -45,7 +45,7 @@ struct ExprBox {
     ExprBox() {
         constant = false;
         value = 0;
-        expr = NULL;
+        expr = nullptr;
     }
 };
 
@@ -213,7 +213,7 @@ template <typename T> static void *s2e_expr_read_mem(void *_mgr, uint64_t virtua
 
     retbox->expr = g_s2e_state->mem()->read(virtual_address, sizeof(T) * 8);
 
-    // XXX: What do we do if the result is NULL?
+    // XXX: What do we do if the result is nullptr?
     // For now we call this function from iret-type of handlers where
     // some checks must have been done before accessing the memory
     assert(!retbox->expr.isNull() && "Failed memory access");

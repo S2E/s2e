@@ -26,8 +26,8 @@ namespace s2e {
 
 using namespace klee;
 
-MemoryObject *S2EExecutionStateRegisters::s_concreteRegs = NULL;
-MemoryObject *S2EExecutionStateRegisters::s_symbolicRegs = NULL;
+MemoryObject *S2EExecutionStateRegisters::s_concreteRegs = nullptr;
+MemoryObject *S2EExecutionStateRegisters::s_symbolicRegs = nullptr;
 
 void S2EExecutionStateRegisters::initialize(klee::AddressSpace &addressSpace, klee::MemoryObject *symbolicRegs,
                                             klee::MemoryObject *concreteRegs) {
@@ -41,7 +41,7 @@ void S2EExecutionStateRegisters::initialize(klee::AddressSpace &addressSpace, kl
     /* The fast path in the cpu loop relies on this */
     s_symbolicRegs->doNotifyOnConcretenessChange = true;
 
-    update(addressSpace, NULL, NULL, NULL, NULL);
+    update(addressSpace, nullptr, nullptr, nullptr, nullptr);
 }
 
 void S2EExecutionStateRegisters::update(klee::AddressSpace &addressSpace, const bool *active,
@@ -473,7 +473,7 @@ void S2EExecutionStateRegisters::dump(std::ostream &ss) const {
     do {                                                                                         \
         ref<Expr> reg;                                                                           \
         /* TODO: use state->getPointerWidth() instead of Expr::Int32. */                         \
-        /* It currenly fails because se_current_tb is NULL after state switch. */                \
+        /* It currenly fails because se_current_tb is nullptr after state switch. */             \
         reg = readSymbolicRegion(CPU_OFFSET(regs[R_##name]), Expr::Int32);                       \
         concreteBytes << #name << " ";                                                           \
         for (int i = reg->getWidth() / CHAR_BIT - 1; i >= 0; i--) {                              \

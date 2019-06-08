@@ -37,7 +37,7 @@ protected:
     mutable S2EExecutionState *m_CachedPluginS2EState;
 
 public:
-    Plugin(S2E *s2e) : m_s2e(s2e), m_CachedPluginState(NULL), m_CachedPluginS2EState(NULL) {
+    Plugin(S2E *s2e) : m_s2e(s2e), m_CachedPluginState(nullptr), m_CachedPluginS2EState(nullptr) {
     }
 
     virtual ~Plugin() {
@@ -71,8 +71,8 @@ public:
     PluginState *getPluginState(S2EExecutionState *s, PluginState *(*f)(Plugin *, S2EExecutionState *) ) const;
 
     void refresh() {
-        m_CachedPluginS2EState = NULL;
-        m_CachedPluginState = NULL;
+        m_CachedPluginS2EState = nullptr;
+        m_CachedPluginState = nullptr;
     }
 
     virtual bool getProperty(S2EExecutionState *state, const std::string &name, std::string &value) {
@@ -83,10 +83,10 @@ public:
         return false;
     }
 
-    llvm::raw_ostream &getDebugStream(S2EExecutionState *state = NULL) const;
-    llvm::raw_ostream &getInfoStream(S2EExecutionState *state = NULL) const;
-    llvm::raw_ostream &getWarningsStream(S2EExecutionState *state = NULL) const;
-    llvm::raw_ostream &getNullStream(S2EExecutionState *state = NULL) const {
+    llvm::raw_ostream &getDebugStream(S2EExecutionState *state = nullptr) const;
+    llvm::raw_ostream &getInfoStream(S2EExecutionState *state = nullptr) const;
+    llvm::raw_ostream &getWarningsStream(S2EExecutionState *state = nullptr) const;
+    llvm::raw_ostream &getNullStream(S2EExecutionState *state = nullptr) const {
         return *m_nullOutput;
     }
 };

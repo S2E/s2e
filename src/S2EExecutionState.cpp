@@ -54,7 +54,7 @@ S2EExecutionState::S2EExecutionState(klee::KFunction *kf)
     : klee::ExecutionState(kf), m_stateID(g_s2e->fetchAndIncrementStateId()), m_startSymbexAtPC((uint64_t) -1),
       m_active(true), m_zombie(false), m_yielded(false), m_runningConcrete(true), m_pinned(false),
       m_isStateSwitchForbidden(false), m_deviceState(this), m_asCache(&addressSpace),
-      m_registers(&m_active, &m_runningConcrete, this, this), m_memory(), m_lastS2ETb(NULL),
+      m_registers(&m_active, &m_runningConcrete, this, this), m_memory(), m_lastS2ETb(nullptr),
       m_needFinalizeTBExec(false), m_forkAborted(false), m_nextSymbVarId(0), m_tlb(&m_asCache, &m_registers),
       m_runningExceptionEmulationCode(false) {
     // XXX: make this a struct, not a pointer...
@@ -63,7 +63,7 @@ S2EExecutionState::S2EExecutionState(klee::KFunction *kf)
 }
 
 S2EExecutionState::~S2EExecutionState() {
-    assert(m_lastS2ETb == NULL);
+    assert(m_lastS2ETb == nullptr);
 
     PluginStateMap::iterator it;
 
@@ -244,9 +244,9 @@ ref<Expr> S2EExecutionState::createSymbolicValue(const std::string &name, Expr::
     assert((bufferSize == bytes || bufferSize == 0) &&
            "Concrete buffer must either have the same size as the expression or be empty");
 
-    const Array *array = new Array(sname, bytes, NULL, NULL, name);
+    const Array *array = new Array(sname, bytes, nullptr, nullptr, name);
 
-    MemoryObject *mo = new MemoryObject(0, bytes, false, false, false, NULL);
+    MemoryObject *mo = new MemoryObject(0, bytes, false, false, false, nullptr);
     mo->setName(sname);
 
     symbolics.push_back(std::make_pair(mo, array));
@@ -296,7 +296,7 @@ std::vector<ref<Expr>> S2EExecutionState::createSymbolicArray(const std::string 
         *varName = sname;
     }
 
-    const Array *array = new Array(sname, size, NULL, NULL, name);
+    const Array *array = new Array(sname, size, nullptr, nullptr, name);
 
     UpdateList ul(array, 0);
 
@@ -310,7 +310,7 @@ std::vector<ref<Expr>> S2EExecutionState::createSymbolicArray(const std::string 
     // Add it to the set of symbolic expressions, to be able to generate
     // test cases later.
     // Dummy memory object
-    MemoryObject *mo = new MemoryObject(0, size, false, false, false, NULL);
+    MemoryObject *mo = new MemoryObject(0, size, false, false, false, nullptr);
     mo->setName(sname);
 
     symbolics.push_back(std::make_pair(mo, array));
@@ -351,7 +351,7 @@ std::vector<ref<Expr>> S2EExecutionState::createSymbolicArray(const std::string 
  * kleeAddressExpr:  the Klee "address" of the memory object
  * sizeInBytes:  the number of bytes to read.  If this is too large
  *               read the maximum amount possible from one MemoryObject
- * result: optional parameter (can be NULL) to store the result
+ * result: optional parameter (can be nullptr) to store the result
  * requireConcrete: if true, fail if the memory is not concrete
  * concretize: if true, concretize the memory but don't necessarily
  *             add a permanent constraint (i.e. get an example)
@@ -569,8 +569,8 @@ bool S2EExecutionState::merge(const ExecutionState &_b) {
             s << "merge failed: different KLEE pc\n" << *(*pc).inst << "\n" << *(*b.pc).inst << "\n";
 
             std::stringstream ss;
-            this->printStack(NULL, ss);
-            b.printStack(NULL, ss);
+            this->printStack(nullptr, ss);
+            b.printStack(nullptr, ss);
             s << ss.str() << "\n";
         }
         return false;
@@ -817,8 +817,8 @@ void S2EExecutionState::enumPossibleRanges(ref<Expr> e, ref<Expr> start, ref<Exp
 /// supplied additional constraints.
 ///
 /// \param c additional constraints
-/// \param newConstraints merged constraints will be saved here, can be NULL
-/// \param newConcolics computed concolic values will be saved here, can be NULL
+/// \param newConstraints merged constraints will be saved here, can be nullptr
+/// \param newConcolics computed concolic values will be saved here, can be nullptr
 /// \return true if solution exists
 ///
 bool S2EExecutionState::testConstraints(const std::vector<ref<Expr>> &c, ConstraintManager *newConstraints,
@@ -1055,7 +1055,7 @@ void S2EExecutionState::disassemble(llvm::raw_ostream &os, uint64_t pc, unsigned
 
 extern "C" {
 
-s2e::S2EExecutionState *g_s2e_state = NULL;
+s2e::S2EExecutionState *g_s2e_state = nullptr;
 
 int s2e_is_zombie() {
     return g_s2e_state->isZombie();
@@ -1099,7 +1099,7 @@ static inline CPUTLBRAMEntry *s2e_get_ram_tlb_entry(uint64_t host_address) {
     CPUX86State *env = g_s2e_state->regs()->getCpuState();
     return &env->se_ram_tlb[tlb_index];
 #else
-    return NULL;
+    return nullptr;
 #endif
 }
 

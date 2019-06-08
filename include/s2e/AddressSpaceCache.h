@@ -39,7 +39,7 @@ public:
 
     void invalidate(uintptr_t page_addr) {
         assert((page_addr & ~SE_RAM_OBJECT_MASK) == 0);
-        m_memcache.put(page_addr, klee::ObjectPair(NULL, NULL));
+        m_memcache.put(page_addr, klee::ObjectPair(nullptr, nullptr));
     }
 
     void registerPool(uintptr_t hostAddress, uintptr_t size) {

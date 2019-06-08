@@ -282,15 +282,15 @@ public:
         m_runningExceptionEmulationCode = val;
     }
 
-    bool testConstraints(const std::vector<klee::ref<klee::Expr>> &c, klee::ConstraintManager *newConstraints = NULL,
-                         klee::Assignment *newConcolics = NULL);
+    bool testConstraints(const std::vector<klee::ref<klee::Expr>> &c, klee::ConstraintManager *newConstraints = nullptr,
+                         klee::Assignment *newConcolics = nullptr);
 
     /** Creates new unconstrained symbolic value */
     klee::ref<klee::Expr> createSymbolicValue(const std::string &name = std::string(),
                                               klee::Expr::Width width = klee::Expr::Int32);
 
     std::vector<klee::ref<klee::Expr>> createSymbolicArray(const std::string &name = std::string(), unsigned size = 4,
-                                                           std::string *varName = NULL);
+                                                           std::string *varName = nullptr);
 
     /** Create a symbolic value tied to an example concrete value */
     /** If the concrete buffer is empty, creates a purely symbolic value */
@@ -315,7 +315,7 @@ public:
 
     std::vector<klee::ref<klee::Expr>> createSymbolicArray(const std::string &name, unsigned size,
                                                            const std::vector<unsigned char> &concreteBuffer,
-                                                           std::string *varName = NULL);
+                                                           std::string *varName = nullptr);
 
     /** Attempt to merge two states */
     bool merge(const ExecutionState &b);

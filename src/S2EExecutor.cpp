@@ -226,9 +226,9 @@ extern "C" {
     // Avoids going through a wrapper.
     se_libcpu_tb_exec_t se_libcpu_tb_exec = &s2e::S2EExecutor::executeTranslationBlockFast;
 
-    char *g_s2e_running_concrete = NULL;
+    char *g_s2e_running_concrete = nullptr;
 
-    char *g_s2e_running_exception_emulation_code = NULL;
+    char *g_s2e_running_exception_emulation_code = nullptr;
 
     se_do_interrupt_all_t g_s2e_do_interrupt_all = &s2e::S2EExecutor::doInterruptAll;
 
@@ -795,7 +795,7 @@ void S2EExecutor::registerRam(S2EExecutionState *initialState, MemoryDesc *regio
         // we need to explicitely unmap it.
         // mprotect((void*) hostAddress, size, PROT_NONE);
         if (munmap((void *) hostAddress, size) < 0) {
-            m_s2e->getWarningsStream(NULL) << "Could not unmap host RAM\n";
+            m_s2e->getWarningsStream(nullptr) << "Could not unmap host RAM\n";
             exit(-1);
         }
 
@@ -803,7 +803,7 @@ void S2EExecutor::registerRam(S2EExecutionState *initialState, MemoryDesc *regio
         // so that there are no conflicts with klee memory objects.
         void *newhost = mmap((void *) hostAddress, size, PROT_NONE, MAP_ANONYMOUS | MAP_FIXED | MAP_PRIVATE, 0, 0);
         if (newhost == MAP_FAILED || newhost != (void *) hostAddress) {
-            m_s2e->getWarningsStream(NULL) << "Could not map host RAM\n";
+            m_s2e->getWarningsStream(nullptr) << "Could not map host RAM\n";
             exit(-1);
         }
 
@@ -985,7 +985,7 @@ void S2EExecutor::doLoadBalancing() {
 void S2EExecutor::stateSwitchTimerCallback(void *opaque) {
     S2EExecutor *c = (S2EExecutor *) opaque;
 
-    assert(env->current_tb == NULL);
+    assert(env->current_tb == nullptr);
 
     if (g_s2e_state) {
         c->doLoadBalancing();
@@ -1111,7 +1111,7 @@ void S2EExecutor::doStateSwitch(S2EExecutionState *oldState, S2EExecutionState *
         se_tb_safe_flush();
     }
 
-    assert(env->current_tb == NULL);
+    assert(env->current_tb == nullptr);
 
     g_se_disable_tlb_flush = 0;
 
@@ -1119,7 +1119,7 @@ void S2EExecutor::doStateSwitch(S2EExecutionState *oldState, S2EExecutionState *
 }
 
 ExecutionState *S2EExecutor::selectSearcherState(S2EExecutionState *state) {
-    ExecutionState *newState = NULL;
+    ExecutionState *newState = nullptr;
 
     if (!searcher->empty()) {
         newState = &searcher->selectState();
@@ -1132,7 +1132,7 @@ ExecutionState *S2EExecutor::selectSearcherState(S2EExecutionState *state) {
             // Leave the current state in a zombie form to let the process exit gracefully.
             if (s != g_s2e_state) {
                 unrefS2ETb(s->m_lastS2ETb);
-                s->m_lastS2ETb = NULL;
+                s->m_lastS2ETb = nullptr;
                 delete s;
             }
         }
@@ -1158,8 +1158,8 @@ S2EExecutionState *S2EExecutor::selectNextState(S2EExecutionState *state) {
     }
 
     ExecutionState *nstate = selectSearcherState(state);
-    if (nstate == NULL) {
-        return NULL;
+    if (nstate == nullptr) {
+        return nullptr;
     }
 
     // This assertion must go before the cast to S2EExecutionState.
@@ -1178,7 +1178,7 @@ S2EExecutionState *S2EExecutor::selectNextState(S2EExecutionState *state) {
 
     if (!state->m_active) {
         /* Current state might be switched off by merge method */
-        state = NULL;
+        state = nullptr;
     }
 
     if (newState != state) {
@@ -1192,7 +1192,7 @@ S2EExecutionState *S2EExecutor::selectNextState(S2EExecutionState *state) {
         S2EExecutionState *s = *it;
         assert(s != newState);
         unrefS2ETb(s->m_lastS2ETb);
-        s->m_lastS2ETb = NULL;
+        s->m_lastS2ETb = nullptr;
         delete s;
     }
     m_deletedStates.clear();
@@ -1577,7 +1577,7 @@ void S2EExecutor::deleteState(klee::ExecutionState *state) {
 }
 
 void S2EExecutor::notifyFork(ExecutionState &originalState, klee::ref<Expr> &condition, Executor::StatePair &targets) {
-    if (targets.first == NULL || targets.second == NULL) {
+    if (targets.first == nullptr || targets.second == nullptr) {
         return;
     }
 
@@ -1665,7 +1665,7 @@ S2EExecutor::StatePair S2EExecutor::fork(ExecutionState &current, const klee::re
 
     if (VerboseFork) {
         std::stringstream ss;
-        currentState->printStack(NULL, ss);
+        currentState->printStack(nullptr, ss);
         m_s2e->getDebugStream() << "Stack frame at fork:" << '\n' << ss.str() << "\n";
     }
 
@@ -1711,7 +1711,7 @@ S2EExecutor::StatePair S2EExecutor::forkCondition(S2EExecutionState *state, klee
 /// \param expr Expression which will equal desired value in the forked state
 /// \param values List of desired expression values
 /// \return List of forked states. State index equals index of desired value.
-/// State pointer will be NULL when forked state is infeasible.
+/// State pointer will be nullptr when forked state is infeasible.
 ///
 std::vector<ExecutionState *> S2EExecutor::forkValues(S2EExecutionState *state, bool isSeedState,
                                                       klee::ref<klee::Expr> expr,
@@ -1740,7 +1740,7 @@ std::vector<ExecutionState *> S2EExecutor::forkValues(S2EExecutionState *state, 
 
         if (!sp.first) {
             // expr always equals value, no point in trying other values
-            foreach2 (it2, it + 1, values.end()) { ret.push_back(NULL); }
+            foreach2 (it2, it + 1, values.end()) { ret.push_back(nullptr); }
             return ret;
         }
 
@@ -1806,12 +1806,12 @@ bool S2EExecutor::merge(klee::ExecutionState &_base, klee::ExecutionState &_othe
     bool s1 = false, s2 = false;
     if (base.m_active) {
         s1 = true;
-        doStateSwitch(&base, NULL);
+        doStateSwitch(&base, nullptr);
     }
 
     if (other.m_active) {
         s2 = true;
-        doStateSwitch(&other, NULL);
+        doStateSwitch(&other, nullptr);
     }
 
     bool result;
@@ -1825,11 +1825,11 @@ bool S2EExecutor::merge(klee::ExecutionState &_base, klee::ExecutionState &_othe
 
     // Reactivate the state
     if (s1) {
-        doStateSwitch(NULL, &base);
+        doStateSwitch(nullptr, &base);
     }
 
     if (s2) {
-        doStateSwitch(NULL, &other);
+        doStateSwitch(nullptr, &other);
     }
 
     if (result) {
@@ -1966,7 +1966,7 @@ bool S2EExecutor::suspendState(S2EExecutionState *state, bool onlyRemoveFromPtre
     }
 
     if (searcher) {
-        searcher->removeState(state, NULL);
+        searcher->removeState(state, nullptr);
         size_t r = states.erase(state);
         assert(r == 1);
         processTree->deactivate(state->ptreeNode);
@@ -1987,7 +1987,7 @@ bool S2EExecutor::resumeState(S2EExecutionState *state, bool onlyAddToPtree) {
         }
         processTree->activate(state->ptreeNode);
         states.insert(state);
-        searcher->addState(state, NULL);
+        searcher->addState(state, nullptr);
         return true;
     }
     return false;
@@ -2097,7 +2097,7 @@ void s2e_register_ram(MemoryDesc *region, uint64_t start_address, uint64_t size,
 }
 
 void s2e_register_ram2(const char *name, uint64_t host_address, uint64_t size, int is_shared_concrete) {
-    g_s2e->getExecutor()->registerRam(g_s2e_state, NULL, -1, size, host_address, is_shared_concrete, false, name);
+    g_s2e->getExecutor()->registerRam(g_s2e_state, nullptr, -1, size, host_address, is_shared_concrete, false, name);
 }
 
 void s2e_register_dirty_mask(uint64_t host_address, uint64_t size) {
@@ -2136,7 +2136,7 @@ int se_is_vmem_symbolic(uint64_t vmem, unsigned size) {
 void se_tb_alloc(TranslationBlock *tb) {
     S2ETranslationBlock *se_tb = new S2ETranslationBlock;
 
-    se_tb->llvm_function = NULL;
+    se_tb->llvm_function = nullptr;
     se_tb->refCount = 1;
 
     /* Push one copy of a signal to use it as a cache */
@@ -2163,7 +2163,7 @@ void s2e_set_tb_function(TranslationBlock *tb) {
 void se_tb_free(TranslationBlock *tb) {
     S2ETranslationBlock *se_tb = static_cast<S2ETranslationBlock *>(tb->se_tb);
     g_s2e->getExecutor()->unrefS2ETb(se_tb);
-    tb->se_tb = NULL;
+    tb->se_tb = nullptr;
 }
 
 void s2e_flush_tb_cache() {
@@ -2221,7 +2221,7 @@ void s2e_kill_state(const char *message) {
 #include <execinfo.h>
 #include <cxxabi.h>
 
-static FILE *s_mallocfp = NULL;
+static FILE *s_mallocfp = nullptr;
 
 static void init_mem_debug() {
     if (s_mallocfp) {
