@@ -230,6 +230,10 @@ protected:
     /// Add a special function handler
     void addSpecialFunctionHandler(llvm::Function *function, FunctionHandler handler);
 
+public:
+    Executor(InterpreterHandler *ie, llvm::LLVMContext &context);
+    virtual ~Executor();
+
     // Fork current and return states in which condition holds / does
     // not hold, respectively. One of the states is necessarily the
     // current state, and one of the states may be null.
@@ -239,10 +243,6 @@ protected:
     // NOTE: In concolic mode it will recompute initial values for current state, do not use it for seed state.
     virtual StatePair fork(ExecutionState &current, const ref<Expr> &condition,
                            bool keepConditionTrueInCurrentState = false);
-
-public:
-    Executor(InterpreterHandler *ie, llvm::LLVMContext &context);
-    virtual ~Executor();
 
     // remove state from queue and delete
     virtual void terminateState(ExecutionState &state);

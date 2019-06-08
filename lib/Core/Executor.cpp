@@ -2090,10 +2090,6 @@ void Executor::executeMemoryOperation(ExecutionState &state, bool isWrite, ref<E
     return;
 }
 
-/**
- * Solve constraints.
- */
-
 void Executor::addSpecialFunctionHandler(Function *function, FunctionHandler handler) {
     specialFunctionHandler->addUHandler(function, handler);
 }
