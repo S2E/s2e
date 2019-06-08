@@ -85,7 +85,7 @@ public:
 void BaseInstructions::initialize() {
     ConfigFile *cfg = s2e()->getConfig();
 
-    m_monitor = NULL;
+    m_monitor = nullptr;
     if (cfg->getBool(getConfigKey() + ".restrict", false)) {
         m_monitor = dynamic_cast<OSMonitor *>(s2e()->getPlugin("OSMonitor"));
         if (!m_monitor) {
@@ -489,14 +489,14 @@ void BaseInstructions::checkPlugin(S2EExecutionState *state) const {
         goto fail;
     }
 
-    loaded = s2e()->getPlugin(pluginName) == NULL ? 0 : 1;
+    loaded = s2e()->getPlugin(pluginName) == nullptr ? 0 : 1;
 
 fail:
     state->regs()->write(CPU_OFFSET(regs[R_EAX]), &loaded, sizeof(loaded));
 }
 
 void BaseInstructions::invokePlugin(S2EExecutionState *state) {
-    IPluginInvoker *iface = NULL;
+    IPluginInvoker *iface = nullptr;
     Plugin *plugin;
     std::string pluginName;
     target_ulong pluginNamePointer = 0;

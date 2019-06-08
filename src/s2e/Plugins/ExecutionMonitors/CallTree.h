@@ -136,7 +136,7 @@ public:
     FunctionCall *get(const CallStackEntry &ce) {
         typename CallSites::iterator it = m_callSites.find(ce.ReturnAddress);
         if (it == m_callSites.end()) {
-            return NULL;
+            return nullptr;
         }
 
         while (it != m_callSites.end() && (*it).first == ce.ReturnAddress) {
@@ -147,7 +147,7 @@ public:
             ++it;
         }
 
-        return NULL;
+        return nullptr;
     }
 
     void add(uint64_t callSite, FunctionCall *call) {
@@ -220,7 +220,7 @@ public:
 template <typename T> class CallTree {
 public:
     CallTree() {
-        m_root = new FunctionCall<T>(NULL, "system", 0, "<unknownfunc>");
+        m_root = new FunctionCall<T>(nullptr, "system", 0, "<unknownfunc>");
         m_removeEmptyCallStacks = false;
     }
 
@@ -256,7 +256,7 @@ public:
         FunctionCall<T> *current = m_root;
         foreach2 (it, cs.begin(), cs.end()) {
             const CallStackEntry &ce = *it;
-            FunctionCall<T> *child = NULL;
+            FunctionCall<T> *child = nullptr;
 
             child = current->get(ce);
             if (!child) {

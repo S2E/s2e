@@ -31,7 +31,7 @@ ref<Expr> MemUtils::read(S2EExecutionState *state, uint64_t addr, klee::Expr::Wi
     auto module = m_map->getModule(state, state->regs()->getPc());
     if (!module) {
         getDebugStream(state) << "no current module\n";
-        return ref<Expr>(NULL);
+        return ref<Expr>(nullptr);
     }
 
     uintmax_t value = 0;
@@ -39,7 +39,7 @@ ref<Expr> MemUtils::read(S2EExecutionState *state, uint64_t addr, klee::Expr::Wi
         uint8_t byte;
         if (!m_vmi->readModuleData(*module, addr + i, byte)) {
             getDebugStream(state) << "Failed to read memory at address " << hexval(addr) << "\n";
-            return ref<Expr>(NULL);
+            return ref<Expr>(nullptr);
         }
         value |= ((uintmax_t) byte) << (i * CHAR_BIT);
     }
@@ -119,7 +119,7 @@ void MemUtils::findSequencesOfSymbolicData(S2EExecutionState *state, const std::
         assert(concreteMask->getBitCount() == TARGET_PAGE_SIZE);
 
         // Last item from previous page (assume pages (and thus items) are sorted)
-        AddrSize *prevItem = symbolicSequences.size() ? &symbolicSequences.back() : NULL;
+        AddrSize *prevItem = symbolicSequences.size() ? &symbolicSequences.back() : nullptr;
 
         findSequencesOfSymbolicData(concreteMask, *it, prevItem, symbolicSequences);
     }

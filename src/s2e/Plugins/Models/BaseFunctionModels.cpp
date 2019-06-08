@@ -48,7 +48,7 @@ bool BaseFunctionModels::readArgument(S2EExecutionState *state, unsigned param, 
 bool BaseFunctionModels::findNullChar(S2EExecutionState *state, uint64_t stringAddr, size_t &len) {
     assert(stringAddr);
 
-    getDebugStream(state) << "Searching for NULL at " << hexval(stringAddr) << "\n";
+    getDebugStream(state) << "Searching for nullptr at " << hexval(stringAddr) << "\n";
 
     Solver *solver = state->solver()->solver;
     const ref<Expr> nullByteExpr = E_CONST('\0', Expr::Int8);
@@ -72,7 +72,7 @@ bool BaseFunctionModels::findNullChar(S2EExecutionState *state, uint64_t stringA
     }
 
     if (len == MAX_STRLEN) {
-        getDebugStream(state) << "Could not find NULL char\n";
+        getDebugStream(state) << "Could not find nullptr char\n";
         return false;
     }
 
@@ -107,13 +107,13 @@ bool BaseFunctionModels::strlenHelper(S2EExecutionState *state, uint64_t stringA
     getDebugStream(state) << "Handling strlen(" << hexval(stringAddr) << ")\n";
 
     if (!stringAddr) {
-        getDebugStream(state) << "Got NULL input\n";
+        getDebugStream(state) << "Got nullptr input\n";
         return false;
     }
 
     // Calculate the string length
     if (!findNullChar(state, stringAddr, len)) {
-        getDebugStream(state) << "Failed to find NULL char in string " << hexval(stringAddr) << "\n";
+        getDebugStream(state) << "Failed to find nullptr char in string " << hexval(stringAddr) << "\n";
         return false;
     }
 
@@ -146,7 +146,7 @@ bool BaseFunctionModels::strcmpHelper(S2EExecutionState *state, const uint64_t s
     size_t strLens[2];
     for (int i = 0; i < 2; i++) {
         if (!findNullChar(state, strAddrs[i], strLens[i])) {
-            getDebugStream(state) << "Failed to find NULL char in string " << hexval(strAddrs[i]) << "\n";
+            getDebugStream(state) << "Failed to find nullptr char in string " << hexval(strAddrs[i]) << "\n";
             return false;
         }
     }
@@ -164,7 +164,7 @@ bool BaseFunctionModels::strncmpHelper(S2EExecutionState *state, const uint64_t 
     size_t strLens[2];
     for (unsigned i = 0; i < 2; i++) {
         if (!findNullChar(state, strAddrs[i], strLens[i])) {
-            getDebugStream(state) << "Failed to find NULL char in string " << hexval(strAddrs[i]) << "\n";
+            getDebugStream(state) << "Failed to find nullptr char in string " << hexval(strAddrs[i]) << "\n";
             return false;
         }
     }
@@ -188,7 +188,7 @@ bool BaseFunctionModels::strcmpHelperCommon(S2EExecutionState *state, const uint
     getDebugStream(state) << "Comparing " << memSize << " chars\n";
 
     if (!strAddrs[0] || !strAddrs[1]) {
-        getDebugStream(state) << "Got NULL input\n";
+        getDebugStream(state) << "Got nullptr input\n";
         return false;
     }
 
@@ -259,7 +259,7 @@ bool BaseFunctionModels::strcpyHelper(S2EExecutionState *state, const uint64_t s
     // Calculate the length of the source string
     size_t strLen;
     if (!findNullChar(state, strAddrs[1], strLen)) {
-        getDebugStream(state) << "Failed to find NULL char in string " << hexval(strAddrs[1]) << "\n";
+        getDebugStream(state) << "Failed to find nullptr char in string " << hexval(strAddrs[1]) << "\n";
         return false;
     }
 
@@ -364,7 +364,7 @@ bool BaseFunctionModels::memcmpHelper(S2EExecutionState *state, const uint64_t m
                           << numBytes << ")\n";
 
     if (!memAddrs[0] || !memAddrs[1] || !numBytes) {
-        getDebugStream(state) << "Got NULL input\n";
+        getDebugStream(state) << "Got nullptr input\n";
         return false;
     }
 

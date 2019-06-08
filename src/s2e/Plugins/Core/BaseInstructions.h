@@ -48,7 +48,7 @@ public:
     void handleBuiltInOps(S2EExecutionState *state, uint64_t opcode);
 
     void makeSymbolic(S2EExecutionState *state, uintptr_t address, unsigned size, const std::string &nameStr,
-                      std::vector<klee::ref<klee::Expr>> *varData = NULL, std::string *varName = NULL);
+                      std::vector<klee::ref<klee::Expr>> *varData = nullptr, std::string *varName = nullptr);
 
     virtual void handleOpcodeInvocation(S2EExecutionState *state, uint64_t guestDataPtr, uint64_t guestDataSize);
 

@@ -412,7 +412,7 @@ void DecreeMonitor::handleRandom(S2EExecutionState *state, uint64_t pid, const S
     for (uint64_t i = 0; i < d.buffer_size; ++i) {
         std::vector<klee::ref<klee::Expr>> sd;
         m_base->makeSymbolic(state, d.buffer + i, 1, "random", &sd);
-        s2e_assert(NULL, sd.size() == 1, "makesymbolic returned wrong number of bytes");
+        s2e_assert(nullptr, sd.size() == 1, "makesymbolic returned wrong number of bytes");
         data.push_back(sd[0]);
     }
 

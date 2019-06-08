@@ -26,9 +26,9 @@ S2E_DEFINE_PLUGIN(MergingSearcher, "Searcher to be used with state merging", "Me
 
 void MergingSearcher::initialize() {
     s2e()->getExecutor()->setSearcher(this);
-    m_currentState = NULL;
+    m_currentState = nullptr;
     m_nextMergeGroupId = 1;
-    m_selector = NULL;
+    m_selector = nullptr;
 
     m_debug = s2e()->getConfig()->getBool(getConfigKey() + ".debug");
 }
@@ -71,7 +71,7 @@ void MergingSearcher::update(klee::ExecutionState *current, const klee::StateSet
         }
 
         if (state == m_currentState) {
-            m_currentState = NULL;
+            m_currentState = nullptr;
         }
     }
 
@@ -96,12 +96,12 @@ bool MergingSearcher::empty() {
 
 void MergingSearcher::suspend(S2EExecutionState *state) {
     if (m_debug) {
-        getDebugStream(NULL) << "MergingSearcher: "
-                             << "suspending state " << state->getID() << "\n";
+        getDebugStream(nullptr) << "MergingSearcher: "
+                                << "suspending state " << state->getID() << "\n";
     }
 
     if (m_currentState == state) {
-        m_currentState = NULL;
+        m_currentState = nullptr;
     }
 
     m_activeStates.erase(state);
@@ -112,8 +112,8 @@ void MergingSearcher::suspend(S2EExecutionState *state) {
 
 void MergingSearcher::resume(S2EExecutionState *state) {
     if (m_debug) {
-        getDebugStream(NULL) << "MergingSearcher: "
-                             << "resuming state " << state->getID() << "\n";
+        getDebugStream(nullptr) << "MergingSearcher: "
+                                << "resuming state " << state->getID() << "\n";
     }
 
     m_activeStates.insert(state);

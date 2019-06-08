@@ -498,7 +498,7 @@ public:
     /// \return the availability status
     ///
     bool isAvailable() const {
-        return m_initialState != NULL;
+        return m_initialState != nullptr;
     }
 
     ///

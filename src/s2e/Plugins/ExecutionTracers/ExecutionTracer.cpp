@@ -153,7 +153,7 @@ void ExecutionTracer::flush() {
 void ExecutionTracer::onProcessFork(bool preFork, bool isChild, unsigned parentProcId) {
     if (preFork) {
         fclose(m_logFile);
-        m_logFile = NULL;
+        m_logFile = nullptr;
     } else {
         if (isChild) {
             createNewTraceFile(false);

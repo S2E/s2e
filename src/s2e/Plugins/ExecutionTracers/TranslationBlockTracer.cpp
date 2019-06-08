@@ -64,7 +64,7 @@ void TranslationBlockTracer::enableTracing() {
         return;
     }
 
-    if (g_s2e_state != NULL && m_flushTbOnChange) {
+    if (g_s2e_state != nullptr && m_flushTbOnChange) {
         se_tb_safe_flush();
     }
 

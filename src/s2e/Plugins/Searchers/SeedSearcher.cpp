@@ -85,8 +85,8 @@ void SeedSearcher::initialize() {
 
     m_multiSearcher->registerSearcher("SeedSearcher", this);
 
-    m_cachedState = NULL;
-    m_initialState = NULL;
+    m_cachedState = nullptr;
+    m_initialState = nullptr;
 
     m_initialStateHasSeedFile = false;
 
@@ -203,12 +203,12 @@ void SeedSearcher::update(klee::ExecutionState *current, const klee::StateSet &a
         // This can only happen if state 0 dies for some reason
         if (es == m_initialState) {
             s2e_warn_assert(cs, false, "Initial state no longer exists, seed look up is not possible");
-            m_initialState = NULL;
+            m_initialState = nullptr;
             m_selectSeedState = false;
         }
 
         if (es == m_cachedState) {
-            m_cachedState = NULL;
+            m_cachedState = nullptr;
         }
         m_seedStates.erase(es);
         m_states.erase(es);

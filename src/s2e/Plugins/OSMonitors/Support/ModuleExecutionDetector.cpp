@@ -253,7 +253,7 @@ const std::string *ModuleExecutionDetector::getModuleId(const ModuleDescriptor &
     const ConfiguredModulesByName &byName = m_configuredModules.get<modbyname_t>();
     const auto it = byName.find(desc.Name);
     if (it == byName.end()) {
-        return NULL;
+        return nullptr;
     }
 
     if (index) {

@@ -38,7 +38,7 @@ S2E_DEFINE_PLUGIN(CooperativeSearcher, "Uses custom instructions to schedule sta
 
 void CooperativeSearcher::initialize() {
     m_searcherInited = false;
-    m_currentState = NULL;
+    m_currentState = nullptr;
     initializeSearcher();
 }
 
@@ -78,11 +78,11 @@ void CooperativeSearcher::update(klee::ExecutionState *current, const klee::Stat
         m_states.erase(es->getID());
 
         if (m_currentState == es) {
-            m_currentState = NULL;
+            m_currentState = nullptr;
         }
     }
 
-    if (m_currentState == NULL && m_states.size() > 0) {
+    if (m_currentState == nullptr && m_states.size() > 0) {
         m_currentState = (*m_states.begin()).second;
     }
 }

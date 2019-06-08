@@ -73,11 +73,11 @@ bool WindowsCrashDumpGenerator::generateCrashDump(S2EExecutionState *state, cons
         return false;
     }
 
-    auto physicalMemory = vmi::GuestMemoryFileProvider::get(state, &Vmi::readGuestPhysical, NULL, filename);
+    auto physicalMemory = vmi::GuestMemoryFileProvider::get(state, &Vmi::readGuestPhysical, nullptr, filename);
     auto virtualMemory =
         vmi::GuestMemoryFileProvider::get(state, &Vmi::readGuestVirtual, &Vmi::writeGuestVirtual, filename);
 
-    vmi::X86RegisterProvider registers(state, &Vmi::readX86Register, NULL);
+    vmi::X86RegisterProvider registers(state, &Vmi::readX86Register, nullptr);
 
     auto crashGen = vmi::windows::WindowsCrashDumpGenerator::get(virtualMemory, physicalMemory, &registers, fp);
 
@@ -145,7 +145,7 @@ int WindowsCrashDumpInvoker::generateCrashDump(lua_State *L) {
     int stateId = g_s2e_state->getID();
     if (lua_isnumber(L, 2)) {
         stateId = lua_tointeger(L, 2);
-        state = NULL;
+        state = nullptr;
 
         // Fetch the right state
         // XXX: Avoid linear search
@@ -159,7 +159,7 @@ int WindowsCrashDumpInvoker::generateCrashDump(lua_State *L) {
         }
     }
 
-    if (state == NULL) {
+    if (state == nullptr) {
         os << "State with id " << stateId << " does not exist" << '\n';
         return 0;
     }

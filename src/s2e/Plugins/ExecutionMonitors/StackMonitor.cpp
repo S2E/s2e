@@ -103,7 +103,7 @@ public:
                 uint64_t oldBottom = last->top - last->size;
                 uint64_t oldTop = last->top;
 
-                last = NULL;
+                last = nullptr;
                 m_frames.pop_back();
 
                 if (m_frames.empty()) {

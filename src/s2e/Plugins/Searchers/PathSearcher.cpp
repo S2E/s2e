@@ -24,7 +24,7 @@ S2E_DEFINE_PLUGIN(PathSearcher, "Choose fork branches that lead to desired state
                   "DecreeMonitor");
 
 PathSearcher::PathSearcher(S2E *s2e) : Plugin(s2e) {
-    m_chosenState = NULL;
+    m_chosenState = nullptr;
     m_vulnPc = 0;
 }
 

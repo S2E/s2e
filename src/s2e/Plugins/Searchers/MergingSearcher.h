@@ -53,7 +53,7 @@ private:
         States states;
 
         merge_pool_t() {
-            firstState = NULL;
+            firstState = nullptr;
         }
     };
 
