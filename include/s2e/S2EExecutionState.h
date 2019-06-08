@@ -164,6 +164,10 @@ public:
         return m_guid;
     }
 
+    void setMemIoVaddr(const klee::ref<klee::Expr> &e) {
+        m_memIoVaddr = e;
+    }
+
     ///
     /// \brief Assign a new state id.
     ///

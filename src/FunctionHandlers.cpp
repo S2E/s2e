@@ -7,6 +7,7 @@
 ///
 
 #include <klee/Expr.h>
+#include <llvm/IR/Module.h>
 #include <llvm/Support/CommandLine.h>
 
 #include <s2e/CorePlugin.h>
@@ -17,6 +18,8 @@
 
 #include <s2e/cpu.h>
 #include <s2e/s2e_config.h>
+
+#include <s2e/FunctionHandlers.h>
 
 namespace {
 using namespace llvm;
@@ -29,34 +32,8 @@ namespace s2e {
 
 using namespace klee;
 
-Executor::StatePair S2EExecutor::forkAndConcretize(S2EExecutionState *state, klee::ref<Expr> &value_) {
-    assert(!state->m_runningConcrete);
-
-    klee::ref<klee::Expr> value = value_;
-    klee::ref<klee::ConstantExpr> concreteValue = state->toConstantSilent(value);
-
-    klee::ref<klee::Expr> condition = EqExpr::create(concreteValue, value);
-    StatePair sp = fork(*state, condition);
-
-    // The condition is always true in the current state
-    //(i.e., value == concreteValue holds).
-    assert(sp.first == state);
-
-    // It may happen that the simplifier figures out that
-    // the condition is always true, in which case, no fork is needed.
-    // TODO: find a test case for that
-    if (sp.second) {
-        // Re-execute the plugin invocation in the other state
-        sp.second->pc = sp.second->prevPC;
-    }
-
-    notifyFork(*state, condition, sp);
-    value_ = concreteValue;
-    return sp;
-}
-
-void S2EExecutor::handleForkAndConcretize(Executor *executor, ExecutionState *state, klee::KInstruction *target,
-                                          std::vector<klee::ref<Expr>> &args) {
+void handleForkAndConcretize(Executor *executor, ExecutionState *state, klee::KInstruction *target,
+                             std::vector<klee::ref<Expr>> &args) {
     S2EExecutor *s2eExecutor = static_cast<S2EExecutor *>(executor);
     S2EExecutionState *s2eState = dynamic_cast<S2EExecutionState *>(state);
 
@@ -105,7 +82,7 @@ void S2EExecutor::handleForkAndConcretize(Executor *executor, ExecutionState *st
     }
 
     // XXX: may create deep paths!
-    StatePair sp = s2eExecutor->fork(*state, condition);
+    Executor::StatePair sp = s2eExecutor->fork(*state, condition);
 
     // The condition is always true in the current state
     //(i.e., expr == concreteAddress holds).
@@ -124,14 +101,8 @@ void S2EExecutor::handleForkAndConcretize(Executor *executor, ExecutionState *st
     s2eExecutor->notifyFork(*state, condition, sp);
 }
 
-void S2EExecutor::handleMakeSymbolic(Executor *executor, ExecutionState *state, klee::KInstruction *target,
-                                     std::vector<klee::ref<Expr>> &args) {
-    S2EExecutionState *s2eState = static_cast<S2EExecutionState *>(state);
-    s2eState->makeSymbolic(args);
-}
-
-void S2EExecutor::handleGetValue(klee::Executor *executor, klee::ExecutionState *state, klee::KInstruction *target,
-                                 std::vector<klee::ref<klee::Expr>> &args) {
+static void handleGetValue(klee::Executor *executor, klee::ExecutionState *state, klee::KInstruction *target,
+                           std::vector<klee::ref<klee::Expr>> &args) {
     S2EExecutionState *s2eState = static_cast<S2EExecutionState *>(state);
     assert(args.size() == 3 && "Expected three args to tcg_llvm_get_value: addr, size, add_constraint");
 
@@ -150,8 +121,8 @@ void S2EExecutor::handleGetValue(klee::Executor *executor, klee::ExecutionState 
     s2eState->kleeReadMemory(kleeAddress, sizeInBytes, nullptr, false, true, add_constraint);
 }
 
-void S2EExecutor::handlerWriteMemIoVaddr(klee::Executor *executor, klee::ExecutionState *state,
-                                         klee::KInstruction *target, std::vector<klee::ref<klee::Expr>> &args) {
+static void handlerWriteMemIoVaddr(klee::Executor *executor, klee::ExecutionState *state, klee::KInstruction *target,
+                                   std::vector<klee::ref<klee::Expr>> &args) {
     S2EExecutionState *s2eState = static_cast<S2EExecutionState *>(state);
     assert(args.size() == 2);
 
@@ -159,18 +130,15 @@ void S2EExecutor::handlerWriteMemIoVaddr(klee::Executor *executor, klee::Executi
     assert(reset && "Invalid parameter");
 
     if (reset->getZExtValue()) {
-        s2eState->m_memIoVaddr = nullptr;
+        s2eState->setMemIoVaddr(nullptr);
     } else {
-        s2eState->m_memIoVaddr = args[0];
+        s2eState->setMemIoVaddr(args[0]);
     }
 }
 
-void S2EExecutor::handlerBeforeMemoryAccess(klee::Executor *executor, klee::ExecutionState *state,
-                                            klee::KInstruction *target, std::vector<klee::ref<klee::Expr>> &args) {
-    assert(dynamic_cast<S2EExecutor *>(executor));
-    S2EExecutor *s2eExecutor = static_cast<S2EExecutor *>(executor);
-
-    if (s2eExecutor->m_s2e->getCorePlugin()->onBeforeSymbolicDataMemoryAccess.empty()) {
+static void handlerBeforeMemoryAccess(klee::Executor *executor, klee::ExecutionState *state, klee::KInstruction *target,
+                                      std::vector<klee::ref<klee::Expr>> &args) {
+    if (g_s2e->getCorePlugin()->onBeforeSymbolicDataMemoryAccess.empty()) {
         return;
     }
 
@@ -200,15 +168,12 @@ void S2EExecutor::handlerBeforeMemoryAccess(klee::Executor *executor, klee::Exec
     assert(dynamic_cast<S2EExecutionState *>(state));
     S2EExecutionState *s2eState = static_cast<S2EExecutionState *>(state);
 
-    s2eExecutor->m_s2e->getCorePlugin()->onBeforeSymbolicDataMemoryAccess.emit(s2eState, vaddr, value, flags);
+    g_s2e->getCorePlugin()->onBeforeSymbolicDataMemoryAccess.emit(s2eState, vaddr, value, flags);
 }
 
-void S2EExecutor::handlerAfterMemoryAccess(Executor *executor, ExecutionState *state, klee::KInstruction *target,
-                                           std::vector<klee::ref<klee::Expr>> &args) {
-    assert(dynamic_cast<S2EExecutor *>(executor));
-
-    S2EExecutor *s2eExecutor = static_cast<S2EExecutor *>(executor);
-    if (s2eExecutor->m_s2e->getCorePlugin()->onAfterSymbolicDataMemoryAccess.empty()) {
+void handlerAfterMemoryAccess(Executor *executor, ExecutionState *state, klee::KInstruction *target,
+                              std::vector<klee::ref<klee::Expr>> &args) {
+    if (g_s2e->getCorePlugin()->onAfterSymbolicDataMemoryAccess.empty()) {
         return;
     }
 
@@ -239,42 +204,24 @@ void S2EExecutor::handlerAfterMemoryAccess(Executor *executor, ExecutionState *s
     klee::ref<Expr> haddr = klee::ConstantExpr::create(0, klee::Expr::Int64);
 
     if (isa<klee::ConstantExpr>(value) && isa<klee::ConstantExpr>(vaddr)) {
-        s2eExecutor->m_s2e->getCorePlugin()->onConcreteDataMemoryAccess.emit(
+        g_s2e->getCorePlugin()->onConcreteDataMemoryAccess.emit(
             s2eState, cast<klee::ConstantExpr>(vaddr)->getZExtValue(), cast<klee::ConstantExpr>(value)->getZExtValue(),
             klee::Expr::getMinBytesForWidth(width), flags);
     } else {
-        s2eExecutor->m_s2e->getCorePlugin()->onAfterSymbolicDataMemoryAccess.emit(s2eState, vaddr, haddr, value, flags);
+        g_s2e->getCorePlugin()->onAfterSymbolicDataMemoryAccess.emit(s2eState, vaddr, haddr, value, flags);
     }
 }
 
-void S2EExecutor::handlerTraceInstruction(klee::Executor *executor, klee::ExecutionState *state,
-                                          klee::KInstruction *target, std::vector<klee::ref<klee::Expr>> &args) {
-    S2EExecutionState *s2eState = static_cast<S2EExecutionState *>(state);
-    g_s2e->getDebugStream() << "pc=" << hexval(s2eState->regs()->getPc())
-                            << " EAX: " << s2eState->regs()->read(offsetof(CPUX86State, regs[R_EAX]), klee::Expr::Int32)
-                            << " ECX: " << s2eState->regs()->read(offsetof(CPUX86State, regs[R_ECX]), klee::Expr::Int32)
-                            << " CCSRC: " << s2eState->regs()->read(offsetof(CPUX86State, cc_src), klee::Expr::Int32)
-                            << " CCDST: " << s2eState->regs()->read(offsetof(CPUX86State, cc_dst), klee::Expr::Int32)
-                            << " CCTMP: " << s2eState->regs()->read(offsetof(CPUX86State, cc_tmp), klee::Expr::Int32)
-                            << " CCOP: " << s2eState->regs()->read(offsetof(CPUX86State, cc_op), klee::Expr::Int32)
-                            << '\n';
-}
-
-void S2EExecutor::handlerOnTlbMiss(Executor *executor, ExecutionState *state, klee::KInstruction *target,
+// TODO: implement s2e_on_tlb_miss in symbolic mode
+#if 0
+static void handlerOnTlbMiss(Executor *executor, ExecutionState *state, klee::KInstruction *target,
                                    std::vector<klee::ref<klee::Expr>> &args) {
-    assert(dynamic_cast<S2EExecutor *>(executor));
-
     assert(args.size() == 2);
 
     klee::ref<Expr> addr = args[0];
     bool isWrite = cast<klee::ConstantExpr>(args[1])->getZExtValue();
 
     if (!isa<klee::ConstantExpr>(addr)) {
-        /*
-        g_s2e->getWarningsStream()
-                << "Warning: s2e_on_tlb_miss does not support symbolic addresses"
-                << '\n';
-                */
         return;
     }
 
@@ -283,9 +230,10 @@ void S2EExecutor::handlerOnTlbMiss(Executor *executor, ExecutionState *state, kl
 
     s2e_on_tlb_miss(constAddress, isWrite, nullptr);
 }
+#endif
 
-void S2EExecutor::handlerTraceMmioAccess(Executor *executor, ExecutionState *state, klee::KInstruction *target,
-                                         std::vector<klee::ref<klee::Expr>> &args) {
+static void handlerTraceMmioAccess(Executor *executor, ExecutionState *state, klee::KInstruction *target,
+                                   std::vector<klee::ref<klee::Expr>> &args) {
     assert(args.size() == 4);
 
     uint64_t physAddress = state->toConstant(args[0], "MMIO address")->getZExtValue();
@@ -311,12 +259,8 @@ void S2EExecutor::handlerTraceMmioAccess(Executor *executor, ExecutionState *sta
     }
 }
 
-void S2EExecutor::handlerTracePortAccess(Executor *executor, ExecutionState *state, klee::KInstruction *target,
-                                         std::vector<klee::ref<klee::Expr>> &args) {
-    assert(dynamic_cast<S2EExecutor *>(executor));
-
-    S2EExecutor *s2eExecutor = static_cast<S2EExecutor *>(executor);
-
+static void handlerTracePortAccess(Executor *executor, ExecutionState *state, klee::KInstruction *target,
+                                   std::vector<klee::ref<klee::Expr>> &args) {
     assert(args.size() == 4);
     S2EExecutionState *s2eState = static_cast<S2EExecutionState *>(state);
 
@@ -353,8 +297,39 @@ void S2EExecutor::handlerTracePortAccess(Executor *executor, ExecutionState *sta
         state->bindLocal(target, klee::ZExtExpr::create(outputValue, klee::Expr::Int64));
     }
 
-    if (!s2eExecutor->m_s2e->getCorePlugin()->onPortAccess.empty()) {
-        s2eExecutor->m_s2e->getCorePlugin()->onPortAccess.emit(s2eState, port, resizedValue, isWrite);
+    if (!g_s2e->getCorePlugin()->onPortAccess.empty()) {
+        g_s2e->getCorePlugin()->onPortAccess.emit(s2eState, port, resizedValue, isWrite);
+    }
+}
+
+static Handler s_handlers[] = {{"tcg_llvm_write_mem_io_vaddr", handlerWriteMemIoVaddr, nullptr},
+                               {"tcg_llvm_before_memory_access", handlerBeforeMemoryAccess, nullptr},
+                               {"tcg_llvm_after_memory_access", handlerAfterMemoryAccess, nullptr},
+                               {"tcg_llvm_trace_port_access", handlerTracePortAccess, nullptr},
+                               {"tcg_llvm_trace_mmio_access", handlerTraceMmioAccess, nullptr},
+                               {"tcg_llvm_fork_and_concretize", handleForkAndConcretize, nullptr},
+                               {"tcg_llvm_get_value", handleGetValue, nullptr},
+                               {"tcg_llvm_trace_instruction", handleGetValue,
+                                [](Module &M) { return FunctionType::get(Type::getVoidTy(M.getContext()), false); }},
+                               {"", nullptr, nullptr}};
+
+void S2EExecutor::registerFunctionHandlers(llvm::Module &module) {
+    for (unsigned i = 0; s_handlers[i].handler; ++i) {
+        const auto &hdlr = s_handlers[i];
+        auto function = module.getFunction(hdlr.name);
+        if (!function) {
+            if (hdlr.getOrInsertFunction) {
+                auto ty = hdlr.getOrInsertFunction(module);
+                function = dynamic_cast<Function *>(module.getOrInsertFunction(hdlr.name, ty));
+                if (!function) {
+                    abort();
+                }
+            } else {
+                abort();
+            }
+        }
+
+        addSpecialFunctionHandler(function, hdlr.handler);
     }
 }
 }

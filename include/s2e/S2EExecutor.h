@@ -63,13 +63,13 @@ protected:
     typedef llvm::DenseMap<const llvm::Function *, unsigned> LLVMTbReferences;
     LLVMTbReferences m_llvmBlockReferences;
 
-    /** Called on fork, used to trace forks */
-    StatePair fork(klee::ExecutionState &current, const klee::ref<klee::Expr> &condition,
-                   bool keepConditionTrueInCurrentState = false);
-
 public:
     S2EExecutor(S2E *s2e, TCGLLVMContext *tcgLVMContext, klee::InterpreterHandler *ie);
     virtual ~S2EExecutor();
+
+    /** Called on fork, used to trace forks */
+    StatePair fork(klee::ExecutionState &current, const klee::ref<klee::Expr> &condition,
+                   bool keepConditionTrueInCurrentState = false);
 
     void flushTb();
 
@@ -176,37 +176,6 @@ public:
 protected:
     void updateClockScaling();
 
-    static void handlerWriteMemIoVaddr(klee::Executor *executor, klee::ExecutionState *state,
-                                       klee::KInstruction *target, std::vector<klee::ref<klee::Expr>> &args);
-
-    static void handlerBeforeMemoryAccess(klee::Executor *executor, klee::ExecutionState *state,
-                                          klee::KInstruction *target, std::vector<klee::ref<klee::Expr>> &args);
-
-    static void handlerAfterMemoryAccess(klee::Executor *executor, klee::ExecutionState *state,
-                                         klee::KInstruction *target, std::vector<klee::ref<klee::Expr>> &args);
-
-    // Traces every single LLVM instruction in dyngend code
-    static void handlerTraceInstruction(klee::Executor *executor, klee::ExecutionState *state,
-                                        klee::KInstruction *target, std::vector<klee::ref<klee::Expr>> &args);
-
-    static void handlerTraceMmioAccess(Executor *executor, klee::ExecutionState *state, klee::KInstruction *target,
-                                       std::vector<klee::ref<klee::Expr>> &args);
-
-    static void handlerTracePortAccess(klee::Executor *executor, klee::ExecutionState *state,
-                                       klee::KInstruction *target, std::vector<klee::ref<klee::Expr>> &args);
-
-    static void handlerOnTlbMiss(klee::Executor *executor, klee::ExecutionState *state, klee::KInstruction *target,
-                                 std::vector<klee::ref<klee::Expr>> &args);
-
-    static void handleForkAndConcretize(klee::Executor *executor, klee::ExecutionState *state,
-                                        klee::KInstruction *target, std::vector<klee::ref<klee::Expr>> &args);
-
-    static void handleMakeSymbolic(klee::Executor *executor, klee::ExecutionState *state, klee::KInstruction *target,
-                                   std::vector<klee::ref<klee::Expr>> &args);
-
-    static void handleGetValue(klee::Executor *executor, klee::ExecutionState *state, klee::KInstruction *target,
-                               std::vector<klee::ref<klee::Expr>> &args);
-
     void prepareFunctionExecution(S2EExecutionState *state, llvm::Function *function,
                                   const std::vector<klee::ref<klee::Expr>> &args);
     bool executeInstructions(S2EExecutionState *state, unsigned callerStackSize = 1);
@@ -241,68 +210,10 @@ protected:
     void initializeStateSwitchTimer();
     static void stateSwitchTimerCallback(void *opaque);
 
-    /** The following are special handlers for MMU functions **/
-    static void handle_ldb_mmu(klee::Executor *executor, klee::ExecutionState *state, klee::KInstruction *target,
-                               std::vector<klee::ref<klee::Expr>> &args);
-
-    static void handle_ldw_mmu(klee::Executor *executor, klee::ExecutionState *state, klee::KInstruction *target,
-                               std::vector<klee::ref<klee::Expr>> &args);
-
-    static void handle_ldl_mmu(klee::Executor *executor, klee::ExecutionState *state, klee::KInstruction *target,
-                               std::vector<klee::ref<klee::Expr>> &args);
-
-    static void handle_ldq_mmu(klee::Executor *executor, klee::ExecutionState *state, klee::KInstruction *target,
-                               std::vector<klee::ref<klee::Expr>> &args);
-
-    static void handle_stb_mmu(klee::Executor *executor, klee::ExecutionState *state, klee::KInstruction *target,
-                               std::vector<klee::ref<klee::Expr>> &args);
-
-    static void handle_stw_mmu(klee::Executor *executor, klee::ExecutionState *state, klee::KInstruction *target,
-                               std::vector<klee::ref<klee::Expr>> &args);
-
-    static void handle_stl_mmu(klee::Executor *executor, klee::ExecutionState *state, klee::KInstruction *target,
-                               std::vector<klee::ref<klee::Expr>> &args);
-
-    static void handle_stq_mmu(klee::Executor *executor, klee::ExecutionState *state, klee::KInstruction *target,
-                               std::vector<klee::ref<klee::Expr>> &args);
-
-    static klee::ref<klee::Expr> handle_ldst_mmu(klee::Executor *executor, klee::ExecutionState *state,
-                                                 klee::KInstruction *target, std::vector<klee::ref<klee::Expr>> &args,
-                                                 bool isWrite, unsigned data_size, bool signExtend, bool zeroExtend);
-
-    static void handle_lduw_kernel(klee::Executor *executor, klee::ExecutionState *state, klee::KInstruction *target,
-                                   std::vector<klee::ref<klee::Expr>> &args);
-
-    static void handle_ldl_kernel(klee::Executor *executor, klee::ExecutionState *state, klee::KInstruction *target,
-                                  std::vector<klee::ref<klee::Expr>> &args);
-
-    static void handle_ldq_kernel(klee::Executor *executor, klee::ExecutionState *state, klee::KInstruction *target,
-                                  std::vector<klee::ref<klee::Expr>> &args);
-
-    static void handle_stl_kernel(klee::Executor *executor, klee::ExecutionState *state, klee::KInstruction *target,
-                                  std::vector<klee::ref<klee::Expr>> &args);
-
-    static void handle_stq_kernel(klee::Executor *executor, klee::ExecutionState *state, klee::KInstruction *target,
-                                  std::vector<klee::ref<klee::Expr>> &args);
-
-    static void handle_ldst_kernel(klee::Executor *executor, klee::ExecutionState *state, klee::KInstruction *target,
-                                   std::vector<klee::ref<klee::Expr>> &args, bool isWrite, unsigned data_size,
-                                   bool signExtend, bool zeroExtend);
-
-    static klee::ref<klee::ConstantExpr> handleForkAndConcretizeNative(klee::Executor *executor,
-                                                                       klee::ExecutionState *state,
-                                                                       klee::KInstruction *target,
-                                                                       std::vector<klee::ref<klee::Expr>> &args);
+    void registerFunctionHandlers(llvm::Module &module);
 
     void replaceExternalFunctionsWithSpecialHandlers();
     void disableConcreteLLVMHelpers();
-
-    struct HandlerInfo {
-        const char *name;
-        S2EExecutor::FunctionHandler handler;
-    };
-
-    static HandlerInfo s_handlerInfo[];
 };
 
 struct S2ETranslationBlock {

@@ -557,49 +557,9 @@ S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMContext *tcgLLVMContext, InterpreterHa
         assert(dummyMain);
         m_dummyMain = kmodule->functionMap[dummyMain];
     }
+
 #ifdef CONFIG_SYMBEX_MP
-    Function *function;
-
-    function = kmodule->module->getFunction("tcg_llvm_write_mem_io_vaddr");
-    assert(function);
-    addSpecialFunctionHandler(function, handlerWriteMemIoVaddr);
-
-    function = kmodule->module->getFunction("tcg_llvm_before_memory_access");
-    assert(function);
-    addSpecialFunctionHandler(function, handlerBeforeMemoryAccess);
-
-    function = kmodule->module->getFunction("tcg_llvm_after_memory_access");
-    assert(function);
-    addSpecialFunctionHandler(function, handlerAfterMemoryAccess);
-
-    function = kmodule->module->getFunction("tcg_llvm_trace_port_access");
-    assert(function);
-    addSpecialFunctionHandler(function, handlerTracePortAccess);
-
-    function = kmodule->module->getFunction("tcg_llvm_trace_mmio_access");
-    assert(function);
-    addSpecialFunctionHandler(function, handlerTraceMmioAccess);
-
-#if 0
-    // XXX: we need a mechanism to intercept indirect function calls
-    function = kmodule->module->getFunction("s2e_on_tlb_miss");
-    assert(function);
-    addSpecialFunctionHandler(function, handlerOnTlbMiss);
-#endif
-
-    function = kmodule->module->getFunction("tcg_llvm_fork_and_concretize");
-    assert(function);
-    addSpecialFunctionHandler(function, handleForkAndConcretize);
-
-    function = kmodule->module->getFunction("tcg_llvm_get_value");
-    assert(function);
-    addSpecialFunctionHandler(function, handleGetValue);
-
-    FunctionType *traceInstTy = FunctionType::get(Type::getVoidTy(M->getContext()), false);
-    function =
-        dynamic_cast<Function *>(kmodule->module->getOrInsertFunction("tcg_llvm_trace_instruction", traceInstTy));
-    assert(function);
-    addSpecialFunctionHandler(function, handlerTraceInstruction);
+    registerFunctionHandlers(*kmodule->module);
 
     if (UseFastHelpers) {
         replaceExternalFunctionsWithSpecialHandlers();
@@ -1600,6 +1560,32 @@ void S2EExecutor::notifyFork(ExecutionState &originalState, klee::ref<Expr> &con
         }
         throw e;
     }
+}
+
+Executor::StatePair S2EExecutor::forkAndConcretize(S2EExecutionState *state, klee::ref<Expr> &value_) {
+    assert(!state->isRunningConcrete());
+
+    klee::ref<klee::Expr> value = value_;
+    klee::ref<klee::ConstantExpr> concreteValue = state->toConstantSilent(value);
+
+    klee::ref<klee::Expr> condition = EqExpr::create(concreteValue, value);
+    Executor::StatePair sp = fork(*state, condition);
+
+    // The condition is always true in the current state
+    //(i.e., value == concreteValue holds).
+    assert(sp.first == state);
+
+    // It may happen that the simplifier figures out that
+    // the condition is always true, in which case, no fork is needed.
+    // TODO: find a test case for that
+    if (sp.second) {
+        // Re-execute the plugin invocation in the other state
+        sp.second->pc = sp.second->prevPC;
+    }
+
+    notifyFork(*state, condition, sp);
+    value_ = concreteValue;
+    return sp;
 }
 
 S2EExecutor::StatePair S2EExecutor::fork(ExecutionState &current, const klee::ref<Expr> &condition,
