@@ -60,8 +60,6 @@ using namespace boost;
 #include <unistd.h>
 #endif
 
-extern llvm::cl::opt<std::string> PersistentTbCache;
-
 namespace s2e {
 
 using namespace std;
@@ -217,9 +215,6 @@ std::string S2E::getBitcodeLibrary() {
 
 void S2E::writeBitCodeToFile() {
     std::string fileName = getOutputFilename("module.bc");
-    if (!PersistentTbCache.empty()) {
-        fileName = PersistentTbCache;
-    }
 
     std::error_code error;
     llvm::raw_fd_ostream o(fileName, error, llvm::sys::fs::F_None);

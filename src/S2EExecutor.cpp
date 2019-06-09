@@ -200,11 +200,6 @@ DebugConstraints("debug-constraints",
             cl::desc("Check that added constraints are satisfiable"),
             cl::init(false));
 
-cl::opt<std::string>
-PersistentTbCache("persistent-tb-cache",
-            cl::desc("Path to the persistent TB cache .bc file"),
-            cl::init(""));
-
 extern cl::opt<bool> UseExprSimplifier;
 
 extern "C" {
@@ -485,32 +480,12 @@ S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMContext *tcgLLVMContext, InterpreterHa
                                         /* Optimize= */ true,
                                         /* CheckDivZero= */ false);
     /* Set module for the executor */
-    bool persistentCacheEnabled = false;
-
-    bool persistentCacheExists = llvm::sys::fs::exists(PersistentTbCache);
-
-    std::string chosenModule;
-
-    if (PersistentTbCache.size() && !persistentCacheExists) {
-        s2e->getWarningsStream() << "Cannot use persistent cache, " << PersistentTbCache << " does not exist\n";
-    }
-
-    if (PersistentTbCache.size() && persistentCacheExists) {
-        chosenModule = PersistentTbCache;
-        persistentCacheEnabled = true;
-    } else {
-        chosenModule = g_s2e->getBitcodeLibrary();
-    }
-
+    auto chosenModule = g_s2e->getBitcodeLibrary();
     s2e->getInfoStream() << "Using module " << chosenModule << "\n";
 
     MOpts = ModuleOptions(vector<string>(1, chosenModule.c_str()),
                           /* Optimize= */ true, /* CheckDivZero= */ false, m_tcgLLVMContext->getFunctionPassManager());
-    MOpts.Snapshot = persistentCacheEnabled;
-
-    if (PersistentTbCache.size()) {
-        KeepLLVMFunctions = true;
-    }
+    MOpts.Snapshot = false;
 
     /* This catches obvious LLVM misconfigurations */
     Module *M = m_tcgLLVMContext->getModule();
@@ -524,39 +499,32 @@ S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMContext *tcgLLVMContext, InterpreterHa
 
     setModule(m_tcgLLVMContext->getModule(), MOpts, false);
 
-    if (UseFastHelpers && !persistentCacheEnabled) {
+    if (UseFastHelpers) {
         disableConcreteLLVMHelpers();
     }
 
     /* Add dummy TB function declaration */
-    if (!persistentCacheEnabled) {
-        PointerType *tbFunctionArgTy = PointerType::get(IntegerType::get(ctx, 64), 0);
-        FunctionType *tbFunctionTy = FunctionType::get(
-            IntegerType::get(ctx, TCG_TARGET_REG_BITS),
-            ArrayRef<Type *>(vector<Type *>(1, PointerType::get(IntegerType::get(ctx, 64), 0))), false);
+    PointerType *tbFunctionArgTy = PointerType::get(IntegerType::get(ctx, 64), 0);
+    FunctionType *tbFunctionTy =
+        FunctionType::get(IntegerType::get(ctx, TCG_TARGET_REG_BITS),
+                          ArrayRef<Type *>(vector<Type *>(1, PointerType::get(IntegerType::get(ctx, 64), 0))), false);
 
-        Function *tbFunction = Function::Create(tbFunctionTy, Function::PrivateLinkage, "s2e_dummyTbFunction",
-                                                m_tcgLLVMContext->getModule());
+    Function *tbFunction =
+        Function::Create(tbFunctionTy, Function::PrivateLinkage, "s2e_dummyTbFunction", m_tcgLLVMContext->getModule());
 
-        /* Create dummy main function containing just two instructions:
-           a call to TB function and ret */
-        Function *dummyMain =
-            Function::Create(FunctionType::get(Type::getVoidTy(ctx), false), Function::ExternalLinkage,
-                             "s2e_dummyMainFunction", m_tcgLLVMContext->getModule());
+    /* Create dummy main function containing just two instructions:
+       a call to TB function and ret */
+    Function *dummyMain = Function::Create(FunctionType::get(Type::getVoidTy(ctx), false), Function::ExternalLinkage,
+                                           "s2e_dummyMainFunction", m_tcgLLVMContext->getModule());
 
-        BasicBlock *dummyMainBB = BasicBlock::Create(ctx, "entry", dummyMain);
+    BasicBlock *dummyMainBB = BasicBlock::Create(ctx, "entry", dummyMain);
 
-        vector<Value *> tbFunctionArgs(1, ConstantPointerNull::get(tbFunctionArgTy));
-        CallInst::Create(tbFunction, ArrayRef<Value *>(tbFunctionArgs), "tbFunctionCall", dummyMainBB);
-        ReturnInst::Create(m_tcgLLVMContext->getLLVMContext(), dummyMainBB);
+    vector<Value *> tbFunctionArgs(1, ConstantPointerNull::get(tbFunctionArgTy));
+    CallInst::Create(tbFunction, ArrayRef<Value *>(tbFunctionArgs), "tbFunctionCall", dummyMainBB);
+    ReturnInst::Create(m_tcgLLVMContext->getLLVMContext(), dummyMainBB);
 
-        kmodule->updateModuleWithFunction(dummyMain);
-        m_dummyMain = kmodule->functionMap[dummyMain];
-    } else {
-        Function *dummyMain = kmodule->module->getFunction("s2e_dummyMainFunction");
-        assert(dummyMain);
-        m_dummyMain = kmodule->functionMap[dummyMain];
-    }
+    kmodule->updateModuleWithFunction(dummyMain);
+    m_dummyMain = kmodule->functionMap[dummyMain];
 
 #ifdef CONFIG_SYMBEX_MP
     registerFunctionHandlers(*kmodule->module);
@@ -1999,13 +1967,7 @@ void S2EExecutor::unrefLLVMTb(llvm::Function *tb) {
     S2EExternalDispatcher *s2eDispatcher = static_cast<S2EExternalDispatcher *>(externalDispatcher);
     s2eDispatcher->removeFunction(tb);
 
-    bool doErase = !KeepLLVMFunctions;
-    if (PersistentTbCache.size()) {
-        // Keeping instrumented blocks does not make sense for now
-        doErase |= m_tcgLLVMContext->isInstrumented(tb);
-    }
-
-    if (!doErase) {
+    if (KeepLLVMFunctions) {
         return;
     }
 
