@@ -28,6 +28,7 @@ add_library(
     S2EStatsTracker.cpp
     Synchronization.cpp
     Utils.cpp
+    MemoryDebugger.cpp
 )
 
 target_include_directories (s2ecore PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
