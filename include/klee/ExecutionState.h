@@ -33,7 +33,6 @@ struct Cell;
 struct KFunction;
 struct KInstruction;
 class MemoryObject;
-class PTreeNode;
 struct InstructionInfo;
 
 llvm::raw_ostream &operator<<(llvm::raw_ostream &os, const MemoryMap &mm);
@@ -84,8 +83,6 @@ public:
     /// Disables forking, set by user code.
     bool forkDisabled;
 
-    PTreeNode *ptreeNode;
-
     /// ordered list of symbolics: used to generate test cases.
     //
     // FIXME: Move to a shared list structure (not critical).
@@ -108,7 +105,7 @@ private:
     /// Simplifier user to simplify expressions when adding them
     static BitfieldSimplifier s_simplifier;
 
-    ExecutionState() : fakeState(false), addressSpace(this), ptreeNode(0) {
+    ExecutionState() : fakeState(false), addressSpace(this) {
     }
 
 protected:

@@ -22,8 +22,6 @@ using namespace klee;
 namespace {
 cl::opt<bool> UseDfsSearch("use-dfs-search");
 
-cl::opt<bool> UseRandomPathSearch("use-random-path");
-
 cl::opt<bool> UseRandomSearch("use-random-search");
 
 cl::opt<bool> UseBatchingSearch("use-batching-search",
@@ -39,8 +37,6 @@ Searcher *klee::constructUserSearcher(Executor &executor) {
 
     if (UseRandomSearch) {
         searcher = new RandomSearcher();
-    } else if (UseRandomPathSearch) {
-        searcher = new RandomPathSearcher(executor);
     } else if (UseDfsSearch) {
         searcher = new DFSSearcher();
     } else {

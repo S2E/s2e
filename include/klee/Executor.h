@@ -107,7 +107,6 @@ protected:
     StatsTracker *statsTracker;
     SpecialFunctionHandler *specialFunctionHandler;
     std::vector<TimerInfo *> timers;
-    PTree *processTree;
 
     /// Used to track states that have been added during the current
     /// instructions step.

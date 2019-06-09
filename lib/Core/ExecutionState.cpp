@@ -69,13 +69,12 @@ BitfieldSimplifier ExecutionState::s_simplifier;
 
 ExecutionState::ExecutionState(KFunction *kf)
     : fakeState(false), pc(kf->instructions), prevPC(pc), addressSpace(this), queryCost(0.), forkDisabled(false),
-      ptreeNode(0), concolics(new Assignment(true)) {
+      concolics(new Assignment(true)) {
     pushFrame(0, kf);
 }
 
 ExecutionState::ExecutionState(const std::vector<ref<Expr>> &assumptions)
-    : fakeState(true), constraints(assumptions), addressSpace(this), queryCost(0.), ptreeNode(0),
-      concolics(new Assignment(true)) {
+    : fakeState(true), constraints(assumptions), addressSpace(this), queryCost(0.), concolics(new Assignment(true)) {
 }
 
 ExecutionState::~ExecutionState() {

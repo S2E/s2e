@@ -107,7 +107,7 @@ RNG theRNG;
 
 Executor::Executor(InterpreterHandler *ih, LLVMContext &context)
     : kmodule(0), interpreterHandler(ih), searcher(0), externalDispatcher(new ExternalDispatcher(context)),
-      statsTracker(0), specialFunctionHandler(0), processTree(0) {
+      statsTracker(0), specialFunctionHandler(0) {
 
     memory = new MemoryManager();
 }
@@ -145,8 +145,6 @@ const Module *Executor::setModule(llvm::Module *module, const ModuleOptions &opt
 Executor::~Executor() {
     delete memory;
     delete externalDispatcher;
-    if (processTree)
-        delete processTree;
     if (specialFunctionHandler)
         delete specialFunctionHandler;
     if (statsTracker)
@@ -494,11 +492,6 @@ Executor::StatePair Executor::fork(ExecutionState &current, const ref<Expr> &con
         falseState = &current;
         trueState = branchedState;
     }
-
-    current.ptreeNode->data = 0;
-    std::pair<PTree::Node *, PTree::Node *> res = processTree->split(current.ptreeNode, falseState, trueState);
-    falseState->ptreeNode = res.first;
-    trueState->ptreeNode = res.second;
 
     return StatePair(trueState, falseState);
 }
@@ -1685,8 +1678,6 @@ void Executor::bindModuleConstants() {
 }
 
 void Executor::deleteState(ExecutionState *state) {
-    processTree->remove(state->ptreeNode);
-
     SolverManager::get().removeState(state);
 
     delete state;

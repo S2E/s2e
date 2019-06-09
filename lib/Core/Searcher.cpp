@@ -115,57 +115,6 @@ void RandomSearcher::update(ExecutionState *current, const StateSet &addedStates
 
 ///
 
-RandomPathSearcher::RandomPathSearcher(Executor &_executor) : executor(_executor) {
-}
-
-RandomPathSearcher::~RandomPathSearcher() {
-}
-
-ExecutionState &RandomPathSearcher::selectState() {
-    unsigned flips = 0, bits = 0;
-    PTree::Node *n = executor.processTree->root;
-
-    // There must be at least one leaf in the tree that is active
-    assert(n->active);
-
-    while (!n->data) {
-        if (!n->left) {
-            n = n->right;
-            assert(n->active);
-        } else if (!n->right) {
-            n = n->left;
-            assert(n->active);
-        } else {
-            if (!n->left->active) {
-                n = n->right;
-                assert(n->active);
-            } else if (!n->right->active) {
-                n = n->left;
-                assert(n->active);
-            } else {
-
-                if (bits == 0) {
-                    flips = theRNG.getInt32();
-                    bits = 32;
-                }
-                --bits;
-                n = (flips & (1 << bits)) ? n->left : n->right;
-            }
-        }
-    }
-
-    return *n->data;
-}
-
-void RandomPathSearcher::update(ExecutionState *current, const StateSet &addedStates, const StateSet &removedStates) {
-}
-
-bool RandomPathSearcher::empty() {
-    return executor.states.empty();
-}
-
-///
-
 BatchingSearcher::BatchingSearcher(Searcher *_baseSearcher, uint64_t _timeBudget, unsigned _instructionBudget)
     : baseSearcher(_baseSearcher), timeBudget(_timeBudget), instructionBudget(_instructionBudget), lastState(0) {
 }
