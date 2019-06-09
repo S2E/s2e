@@ -12,6 +12,7 @@ add_library(
     S2EExecutionStateMemory.cpp
     S2EExecutionStateTlb.cpp
     S2EDeviceState.cpp
+    S2EExternalDispatcher.cpp
     AddressSpaceCache.cpp
     MMUFunctionHandlers.cpp
     FunctionHandlers.cpp
