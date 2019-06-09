@@ -469,8 +469,6 @@ S2EExecutor::~S2EExecutor() {
 }
 
 S2EExecutionState *S2EExecutor::createInitialState() {
-    assert(!processTree);
-
     /* Create initial execution state */
     S2EExecutionState *state = new S2EExecutionState(m_dummyMain);
 
@@ -482,9 +480,6 @@ S2EExecutionState *S2EExecutor::createInitialState() {
     klee::SolverManager::get().createStateSolver(*state);
     addedStates.insert(state);
     updateStates(state);
-
-    processTree = new PTree(state);
-    state->ptreeNode = processTree->root;
 
     /* Externally accessible global vars */
     /* XXX move away */
@@ -1358,7 +1353,6 @@ klee::ref<klee::Expr> S2EExecutor::executeFunction(S2EExecutionState *state, con
 
 void S2EExecutor::deleteState(klee::ExecutionState *state) {
     assert(dynamic_cast<S2EExecutionState *>(state));
-    processTree->remove(state->ptreeNode);
     m_deletedStates.push_back(static_cast<S2EExecutionState *>(state));
 }
 
@@ -1774,33 +1768,21 @@ void S2EExecutor::setupTimersHandler() {
 }
 
 /** Suspend the given state (does not kill it) */
-bool S2EExecutor::suspendState(S2EExecutionState *state, bool onlyRemoveFromPtree) {
-    if (onlyRemoveFromPtree) {
-        processTree->deactivate(state->ptreeNode);
-        return true;
-    }
-
+bool S2EExecutor::suspendState(S2EExecutionState *state) {
     if (searcher) {
         searcher->removeState(state, nullptr);
         size_t r = states.erase(state);
         assert(r == 1);
-        processTree->deactivate(state->ptreeNode);
         return true;
     }
     return false;
 }
 
-bool S2EExecutor::resumeState(S2EExecutionState *state, bool onlyAddToPtree) {
-    if (onlyAddToPtree) {
-        processTree->activate(state->ptreeNode);
-        return true;
-    }
-
+bool S2EExecutor::resumeState(S2EExecutionState *state) {
     if (searcher) {
         if (states.find(state) != states.end()) {
             return false;
         }
-        processTree->activate(state->ptreeNode);
         states.insert(state);
         searcher->addState(state, nullptr);
         return true;
