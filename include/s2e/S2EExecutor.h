@@ -195,15 +195,6 @@ protected:
 
     void doLoadBalancing();
 
-    /** Copy concrete values to their proper location, concretizing
-        if necessary (most importantly it will concretize CPU registers.
-        Note: this is required only to execute generated code,
-        other libcpu components access all registers through wrappers. */
-    void switchToConcrete(S2EExecutionState *state);
-
-    /** Copy concrete values to the execution state storage */
-    void switchToSymbolic(S2EExecutionState *state);
-
     void notifyBranch(klee::ExecutionState &state);
 
     void setupTimersHandler();

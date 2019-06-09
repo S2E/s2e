@@ -747,38 +747,6 @@ void S2EExecutor::registerDirtyMask(S2EExecutionState *state, uint64_t hostAddre
     g_se_dirty_mask_addend = state->mem()->getDirtyMaskStoreAddend();
 }
 
-void S2EExecutor::switchToConcrete(S2EExecutionState *state) {
-    assert(!state->m_runningConcrete);
-
-    if (PrintModeSwitch) {
-        m_s2e->getInfoStream(state) << "Switching to concrete execution at pc = " << hexval(state->regs()->getPc())
-                                    << '\n';
-    }
-
-    // assert(os->isAllConcrete());
-    state->m_registers.copySymbRegs(true);
-
-    state->m_runningConcrete = true;
-}
-
-void S2EExecutor::switchToSymbolic(S2EExecutionState *state) {
-    assert(state->m_runningConcrete);
-
-    if (PrintModeSwitch) {
-        m_s2e->getInfoStream(state) << "Switching to symbolic execution at pc = " << hexval(state->regs()->getPc())
-                                    << '\n';
-    }
-
-    // assert(os && os->isAllConcrete());
-
-    // TODO: check that symbolic registers were not accessed
-    // in shared location ! Ideas: use hw breakpoints, or instrument
-    // translated code.
-
-    state->m_registers.copySymbRegs(false);
-    state->m_runningConcrete = false;
-}
-
 void S2EExecutor::splitStates(const std::vector<S2EExecutionState *> &allStates, StateSet &parentSet,
                               StateSet &childSet) {
     unsigned size = allStates.size();
@@ -963,8 +931,9 @@ void S2EExecutor::doStateSwitch(S2EExecutionState *oldState, S2EExecutionState *
             m_s2e->getDebugStream(oldState) << "Saving state\n";
         }
 
-        if (oldState->m_runningConcrete)
-            switchToSymbolic(oldState);
+        if (oldState->m_runningConcrete) {
+            oldState->switchToSymbolic();
+        }
 
         foreach2 (it, m_saveOnContextSwitch.begin(), m_saveOnContextSwitch.end()) {
             MemoryObject *mo = *it;
@@ -1372,7 +1341,7 @@ uintptr_t S2EExecutor::executeTranslationBlockFast(struct CPUX86State *env1, str
             S2EExecutor *executor = g_s2e->getExecutor();
             executor->updateConcreteFastPath(g_s2e_state);
             assert(g_s2e_fast_concrete_invocation);
-            executor->switchToConcrete(g_s2e_state);
+            g_s2e_state->switchToConcrete();
         }
         return tcg_libcpu_tb_exec(env, tb->tc_ptr);
     } else {
@@ -1419,7 +1388,7 @@ uintptr_t S2EExecutor::executeTranslationBlock(S2EExecutionState *state, Transla
                 TimerStatIncrementer t(stats::concreteModeTime);
             }
 
-            switchToSymbolic(state);
+            state->switchToSymbolic();
         }
 
         if (EnableTimingLog) {
@@ -1429,7 +1398,7 @@ uintptr_t S2EExecutor::executeTranslationBlock(S2EExecutionState *state, Transla
         return executeTranslationBlockKlee(state, tb);
     } else {
         if (!state->m_runningConcrete)
-            switchToConcrete(state);
+            state->switchToConcrete();
 
         if (EnableTimingLog) {
             if (!((++doStatsIncrementCount) & 0xFFF)) {
@@ -1823,8 +1792,9 @@ inline void S2EExecutor::setCCOpEflags(S2EExecutionState *state) {
         bool ok = state->regs()->read(CPU_OFFSET(cc_op), &cc_op, sizeof(cc_op), false);
         if (!ok || cc_op != CC_OP_EFLAGS) {
             try {
-                if (state->m_runningConcrete)
-                    switchToSymbolic(state);
+                if (state->m_runningConcrete) {
+                    state->switchToSymbolic();
+                }
                 if (EnableTimingLog) {
                     TimerStatIncrementer t(stats::symbolicModeTime);
                 }
@@ -1840,7 +1810,7 @@ inline void S2EExecutor::setCCOpEflags(S2EExecutionState *state) {
         assert(ok);
         if (cc_op != CC_OP_EFLAGS) {
             if (!state->m_runningConcrete)
-                switchToConcrete(state);
+                state->switchToConcrete();
             // TimerStatIncrementer t(stats::concreteModeTime);
             helper_set_cc_op_eflags();
         }
@@ -1850,13 +1820,15 @@ inline void S2EExecutor::setCCOpEflags(S2EExecutionState *state) {
 inline void S2EExecutor::doInterrupt(S2EExecutionState *state, int intno, int is_int, int error_code, uint64_t next_eip,
                                      int is_hw) {
     if (state->m_registers.allConcrete() && !m_executeAlwaysKlee) {
-        if (!state->m_runningConcrete)
-            switchToConcrete(state);
+        if (!state->m_runningConcrete) {
+            state->switchToConcrete();
+        }
         // TimerStatIncrementer t(stats::concreteModeTime);
         se_do_interrupt_all(intno, is_int, error_code, next_eip, is_hw);
     } else {
-        if (state->m_runningConcrete)
-            switchToSymbolic(state);
+        if (state->m_runningConcrete) {
+            state->switchToSymbolic();
+        }
         std::vector<klee::ref<klee::Expr>> args(5);
         args[0] = klee::ConstantExpr::create(intno, sizeof(int) * 8);
         args[1] = klee::ConstantExpr::create(is_int, sizeof(int) * 8);
@@ -1893,7 +1865,7 @@ void S2EExecutor::doInterruptAll(int intno, int is_int, int error_code, uintptr_
             s2e::S2EExecutor *executor = g_s2e->getExecutor();
             executor->updateConcreteFastPath(g_s2e_state);
             assert(g_s2e_fast_concrete_invocation);
-            executor->switchToConcrete(g_s2e_state);
+            g_s2e_state->switchToConcrete();
         }
         se_do_interrupt_all(intno, is_int, error_code, next_eip, is_hw);
     } else {

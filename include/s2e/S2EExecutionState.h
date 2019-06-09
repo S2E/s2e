@@ -268,6 +268,15 @@ public:
     bool needToJumpToSymbolic() const;
     void undoCallAndJumpToSymbolic();
 
+    /** Copy concrete values to their proper location, concretizing
+        if necessary (most importantly it will concretize CPU registers.
+        Note: this is required only to execute generated code,
+        other libcpu components access all registers through wrappers. */
+    void switchToConcrete();
+
+    /** Copy concrete values to the execution state storage */
+    void switchToSymbolic();
+
     bool isForkingEnabled() const {
         return !forkDisabled;
     }

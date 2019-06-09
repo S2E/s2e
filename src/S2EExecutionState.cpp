@@ -167,6 +167,36 @@ void S2EExecutionState::disableForking() {
     }
 }
 
+void S2EExecutionState::switchToConcrete() {
+    assert(!m_runningConcrete);
+
+    if (PrintModeSwitch) {
+        g_s2e->getInfoStream(this) << "Switching to concrete execution at pc = " << hexval(regs()->getPc()) << '\n';
+    }
+
+    // assert(os->isAllConcrete());
+    m_registers.copySymbRegs(true);
+
+    m_runningConcrete = true;
+}
+
+void S2EExecutionState::switchToSymbolic() {
+    assert(m_runningConcrete);
+
+    if (PrintModeSwitch) {
+        g_s2e->getInfoStream(this) << "Switching to symbolic execution at pc = " << hexval(regs()->getPc()) << '\n';
+    }
+
+    // assert(os && os->isAllConcrete());
+
+    // TODO: check that symbolic registers were not accessed
+    // in shared location ! Ideas: use hw breakpoints, or instrument
+    // translated code.
+
+    m_registers.copySymbRegs(false);
+    m_runningConcrete = false;
+}
+
 // This function must be called just after the machine call instruction
 // was executed.
 // XXX: assumes x86 architecture.
