@@ -907,7 +907,7 @@ void S2EExecutor::doStateSwitch(S2EExecutionState *oldState, S2EExecutionState *
     assert(oldState || newState);
     assert(!oldState || oldState->m_active);
     assert(!newState || !newState->m_active);
-    assert(!newState || !newState->m_runningConcrete);
+    assert(!newState || !newState->isRunningConcrete());
 
     // Some state save/restore logic flushes the cache.
     // This can have bad effects in case of saving/restoring states
@@ -931,7 +931,7 @@ void S2EExecutor::doStateSwitch(S2EExecutionState *oldState, S2EExecutionState *
             m_s2e->getDebugStream(oldState) << "Saving state\n";
         }
 
-        if (oldState->m_runningConcrete) {
+        if (oldState->isRunningConcrete()) {
             oldState->switchToSymbolic();
         }
 
@@ -1199,7 +1199,7 @@ bool S2EExecutor::finalizeTranslationBlockExec(S2EExecutionState *state) {
 
     assert(state->stack.size() != 1);
 
-    assert(!state->m_runningConcrete);
+    assert(!state->isRunningConcrete());
 
     if (VerboseTbFinalize) {
         m_s2e->getDebugStream(state) << "Finalizing TB execution\n";
@@ -1272,7 +1272,7 @@ uintptr_t S2EExecutor::executeTranslationBlockKlee(S2EExecutionState *state, Tra
     tb_function_args[1] = 0;
     tb_function_args[2] = 0;
 
-    assert(state->m_active && !state->m_runningConcrete);
+    assert(state->m_active && !state->isRunningConcrete());
     assert(state->stack.size() == 1);
     assert(state->pc == m_dummyMain->instructions);
 
@@ -1305,7 +1305,7 @@ uintptr_t S2EExecutor::executeTranslationBlockKlee(S2EExecutionState *state, Tra
 }
 
 uintptr_t S2EExecutor::executeTranslationBlockConcrete(S2EExecutionState *state, TranslationBlock *tb) {
-    assert(state->m_active && state->m_runningConcrete);
+    assert(state->isActive() && state->isRunningConcrete());
     ++state->m_stats.m_statTranslationBlockConcrete;
 
     uintptr_t ret = 0;
@@ -1383,7 +1383,7 @@ uintptr_t S2EExecutor::executeTranslationBlock(S2EExecutionState *state, Transla
     }
 
     if (executeKlee) {
-        if (state->m_runningConcrete) {
+        if (state->isRunningConcrete()) {
             if (EnableTimingLog) {
                 TimerStatIncrementer t(stats::concreteModeTime);
             }
@@ -1397,7 +1397,7 @@ uintptr_t S2EExecutor::executeTranslationBlock(S2EExecutionState *state, Transla
 
         return executeTranslationBlockKlee(state, tb);
     } else {
-        if (!state->m_runningConcrete)
+        if (!state->isRunningConcrete())
             state->switchToConcrete();
 
         if (EnableTimingLog) {
@@ -1426,7 +1426,7 @@ void S2EExecutor::cleanupTranslationBlock(S2EExecutionState *state) {
 
 klee::ref<klee::Expr> S2EExecutor::executeFunction(S2EExecutionState *state, llvm::Function *function,
                                                    const std::vector<klee::ref<klee::Expr>> &args) {
-    assert(!state->m_runningConcrete);
+    assert(!state->isRunningConcrete());
     assert(!state->prevPC);
     assert(state->stack.size() == 1);
 
@@ -1524,7 +1524,7 @@ S2EExecutor::StatePair S2EExecutor::fork(ExecutionState &current, const klee::re
                                          bool keepConditionTrueInCurrentState) {
     S2EExecutionState *currentState = dynamic_cast<S2EExecutionState *>(&current);
     assert(currentState);
-    assert(!currentState->m_runningConcrete);
+    assert(!currentState->isRunningConcrete());
 
     StatePair res;
 
@@ -1792,7 +1792,7 @@ inline void S2EExecutor::setCCOpEflags(S2EExecutionState *state) {
         bool ok = state->regs()->read(CPU_OFFSET(cc_op), &cc_op, sizeof(cc_op), false);
         if (!ok || cc_op != CC_OP_EFLAGS) {
             try {
-                if (state->m_runningConcrete) {
+                if (state->isRunningConcrete()) {
                     state->switchToSymbolic();
                 }
                 if (EnableTimingLog) {
@@ -1809,7 +1809,7 @@ inline void S2EExecutor::setCCOpEflags(S2EExecutionState *state) {
         bool ok = state->regs()->read(CPU_OFFSET(cc_op), &cc_op, sizeof(cc_op), false);
         assert(ok);
         if (cc_op != CC_OP_EFLAGS) {
-            if (!state->m_runningConcrete)
+            if (!state->isRunningConcrete())
                 state->switchToConcrete();
             // TimerStatIncrementer t(stats::concreteModeTime);
             helper_set_cc_op_eflags();
@@ -1820,13 +1820,13 @@ inline void S2EExecutor::setCCOpEflags(S2EExecutionState *state) {
 inline void S2EExecutor::doInterrupt(S2EExecutionState *state, int intno, int is_int, int error_code, uint64_t next_eip,
                                      int is_hw) {
     if (state->m_registers.allConcrete() && !m_executeAlwaysKlee) {
-        if (!state->m_runningConcrete) {
+        if (!state->isRunningConcrete()) {
             state->switchToConcrete();
         }
         // TimerStatIncrementer t(stats::concreteModeTime);
         se_do_interrupt_all(intno, is_int, error_code, next_eip, is_hw);
     } else {
-        if (state->m_runningConcrete) {
+        if (state->isRunningConcrete()) {
             state->switchToSymbolic();
         }
         std::vector<klee::ref<klee::Expr>> args(5);
