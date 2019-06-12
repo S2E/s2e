@@ -7,7 +7,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "TimingSolver.h"
+#include "klee/TimingSolver.h"
 
 #include "klee/Common.h"
 #include "klee/ExecutionState.h"

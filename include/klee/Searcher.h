@@ -107,21 +107,6 @@ public:
     }
 };
 
-class RandomPathSearcher : public Searcher {
-    Executor &executor;
-
-public:
-    RandomPathSearcher(Executor &_executor);
-    ~RandomPathSearcher();
-
-    ExecutionState &selectState();
-    void update(ExecutionState *current, const StateSet &addedStates, const StateSet &removedStates);
-    bool empty();
-    void printName(llvm::raw_ostream &os) {
-        os << "RandomPathSearcher\n";
-    }
-};
-
 class BatchingSearcher : public Searcher {
     Searcher *baseSearcher;
     uint64_t timeBudget;

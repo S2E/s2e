@@ -8,6 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "klee/ExecutionState.h"
+#include "klee/CoreStats.h"
 
 #include "klee/Internal/Module/Cell.h"
 #include "klee/Internal/Module/InstructionInfoTable.h"
@@ -17,22 +18,33 @@
 #include "klee/Expr.h"
 
 #include "klee/Memory.h"
+#include "klee/util/ExprPPrinter.h"
 
 #include "llvm/IR/Function.h"
 #include "llvm/Support/CommandLine.h"
 
 #include <cassert>
+#include <iomanip>
 #include <iostream>
 #include <map>
 #include <set>
 #include <stdarg.h>
 
 using namespace llvm;
-using namespace klee;
 
 namespace klee {
+
 cl::opt<bool> DebugLogStateMerge("debug-log-state-merge");
-}
+
+cl::opt<bool> ValidateSimplifier("validate-expr-simplifier",
+                                 cl::desc("Checks that the simplification algorithm produced correct expressions"),
+                                 cl::init(false));
+
+cl::opt<bool> UseExprSimplifier("use-expr-simplifier", cl::desc("Apply expression simplifier for new expressions"),
+                                cl::init(true));
+
+cl::opt<bool> DebugPrintInstructions("debug-print-instructions", cl::desc("Print instructions during execution."),
+                                     cl::init(false));
 
 /***/
 
@@ -53,15 +65,16 @@ StackFrame::~StackFrame() {
 
 /***/
 
+BitfieldSimplifier ExecutionState::s_simplifier;
+
 ExecutionState::ExecutionState(KFunction *kf)
     : fakeState(false), pc(kf->instructions), prevPC(pc), addressSpace(this), queryCost(0.), forkDisabled(false),
-      ptreeNode(0), concolics(new Assignment(true)) {
+      concolics(new Assignment(true)) {
     pushFrame(0, kf);
 }
 
 ExecutionState::ExecutionState(const std::vector<ref<Expr>> &assumptions)
-    : fakeState(true), constraints(assumptions), addressSpace(this), queryCost(0.), ptreeNode(0),
-      concolics(new Assignment(true)) {
+    : fakeState(true), constraints(assumptions), addressSpace(this), queryCost(0.), concolics(new Assignment(true)) {
 }
 
 ExecutionState::~ExecutionState() {
@@ -122,7 +135,7 @@ void ExecutionState::removeFnAlias(std::string fn) {
 
 /**/
 
-llvm::raw_ostream &klee::operator<<(llvm::raw_ostream &os, const MemoryMap &mm) {
+llvm::raw_ostream &operator<<(llvm::raw_ostream &os, const MemoryMap &mm) {
     os << "{";
     MemoryMap::iterator it = mm.begin();
     MemoryMap::iterator ie = mm.end();
@@ -280,4 +293,279 @@ bool ExecutionState::merge(const ExecutionState &b) {
     constraints.addConstraint(OrExpr::create(inA, inB));
 
     return true;
+}
+
+void ExecutionState::printStack(KInstruction *target, std::stringstream &msg) const {
+    msg << "Stack: \n";
+    unsigned idx = 0;
+    for (ExecutionState::stack_ty::const_reverse_iterator it = stack.rbegin(), ie = stack.rend(); it != ie; ++it) {
+        const StackFrame &sf = *it;
+        Function *f = sf.kf->function;
+
+        msg << "\t#" << idx++ << " " << std::setw(8) << std::setfill('0') << " in " << f->getName().str() << " (";
+
+        // Yawn, we could go up and print varargs if we wanted to.
+        unsigned index = 0;
+        for (Function::arg_iterator ai = f->arg_begin(), ae = f->arg_end(); ai != ae; ++ai) {
+            if (ai != f->arg_begin())
+                msg << ", ";
+
+            msg << ai->getName().str();
+            // XXX should go through function
+            ref<Expr> value = sf.locals[sf.kf->getArgRegister(index++)].value;
+            msg << " [" << concolics->evaluate(value) << "]";
+        }
+        msg << ")";
+
+        msg << "\n";
+
+        target = sf.caller;
+    }
+}
+
+bool ExecutionState::getSymbolicSolution(std::vector<std::pair<std::string, std::vector<unsigned char>>> &res) {
+    for (unsigned i = 0; i != symbolics.size(); ++i) {
+        const MemoryObject *mo = symbolics[i].first;
+        const Array *arr = symbolics[i].second;
+        std::vector<unsigned char> data;
+        for (unsigned s = 0; s < arr->getSize(); ++s) {
+            ref<Expr> e = concolics->evaluate(arr, s);
+            if (!isa<ConstantExpr>(e)) {
+                (*klee_warning_stream) << "Failed to evaluate concrete value for " << arr->getName() << "[" << s
+                                       << "]: " << e << "\n";
+                (*klee_warning_stream) << "  Symbolics (" << symbolics.size() << "):\n";
+                for (auto it = symbolics.begin(); it != symbolics.end(); it++) {
+                    (*klee_warning_stream) << "    " << it->second->getName() << "\n";
+                }
+                (*klee_warning_stream) << "  Assignments (" << concolics->bindings.size() << "):\n";
+                for (auto it = concolics->bindings.begin(); it != concolics->bindings.end(); it++) {
+                    (*klee_warning_stream) << "    " << it->first->getName() << "\n";
+                }
+                klee_warning_stream->flush();
+                assert(false && "Failed to evaluate concrete value");
+            }
+
+            uint8_t val = dyn_cast<ConstantExpr>(e)->getZExtValue();
+            data.push_back(val);
+        }
+
+        res.push_back(std::make_pair(mo->name, data));
+    }
+
+    return true;
+}
+
+ref<Expr> ExecutionState::simplifyExpr(const ref<Expr> &e) const {
+    if (!UseExprSimplifier) {
+        return e;
+    }
+
+    ref<Expr> simplified = s_simplifier.simplify(e);
+
+    if (ValidateSimplifier) {
+        bool isEqual;
+
+        ref<Expr> originalConcrete = concolics->evaluate(e);
+        ref<Expr> simplifiedConcrete = concolics->evaluate(simplified);
+        isEqual = originalConcrete == simplifiedConcrete;
+
+        if (!isEqual) {
+            llvm::errs() << "Error in expression simplifier:" << '\n';
+            e->dump();
+            llvm::errs() << "!=" << '\n';
+            simplified->dump();
+            abort();
+        }
+    }
+
+    return simplified;
+}
+
+///
+/// \brief Concretize the given expression, and return a possible constant value.
+/// \param e the expression to concretized
+/// \param reason documentation string stating the reason for concretization
+/// \return a concrete value
+///
+ref<ConstantExpr> ExecutionState::toConstant(ref<Expr> e, const std::string &reason) {
+    e = simplifyExpr(e);
+    e = constraints.simplifyExpr(e);
+    if (ConstantExpr *CE = dyn_cast<ConstantExpr>(e))
+        return CE;
+
+    ref<ConstantExpr> value;
+
+    ref<Expr> evalResult = concolics->evaluate(e);
+    assert(isa<ConstantExpr>(evalResult) && "Must be concrete");
+    value = dyn_cast<ConstantExpr>(evalResult);
+
+    std::string s;
+    raw_string_ostream os(s);
+
+    os << "silently concretizing ";
+
+    const KInstruction *ki = prevPC;
+    if (ki && ki->inst) {
+        os << "(instruction: " << ki->inst->getParent()->getParent()->getName().str() << ": " << *ki->inst << ") ";
+    }
+
+    os << "(reason: " << reason << ") expression " << e << " to value " << value;
+
+    klee_warning_external(reason.c_str(), "%s", os.str().c_str());
+
+    if (!addConstraint(EqExpr::create(e, value))) {
+        abort();
+    }
+
+    return value;
+}
+
+// This API does not add a constraint
+ref<ConstantExpr> ExecutionState::toConstantSilent(ref<Expr> e) {
+    ref<Expr> evalResult = concolics->evaluate(e);
+    assert(isa<ConstantExpr>(evalResult) && "Must be concrete");
+    return dyn_cast<ConstantExpr>(evalResult);
+}
+
+ref<Expr> ExecutionState::toUnique(ref<Expr> &e) {
+    e = simplifyExpr(e);
+    ref<Expr> result = e;
+
+    if (isa<ConstantExpr>(e)) {
+        return result;
+    }
+
+    ref<ConstantExpr> value;
+
+    ref<Expr> evalResult = concolics->evaluate(e);
+    assert(isa<ConstantExpr>(evalResult) && "Must be concrete");
+    value = dyn_cast<ConstantExpr>(evalResult);
+
+    bool isTrue = false;
+    bool success = solver()->mustBeTrue(*this, simplifyExpr(EqExpr::create(e, value)), isTrue);
+
+    if (success && isTrue) {
+        result = value;
+    }
+
+    return result;
+}
+
+bool ExecutionState::solve(const ConstraintManager &mgr, Assignment &assignment) {
+    std::vector<const Array *> symbObjects;
+    for (unsigned i = 0; i < symbolics.size(); ++i) {
+        symbObjects.push_back(symbolics[i].second);
+    }
+
+    std::vector<std::vector<unsigned char>> concreteObjects;
+    if (!solver()->getInitialValues(mgr, symbObjects, concreteObjects, queryCost)) {
+        return false;
+    }
+
+    assignment.clear();
+    for (unsigned i = 0; i < symbObjects.size(); ++i) {
+        assignment.add(symbObjects[i], concreteObjects[i]);
+    }
+
+    return true;
+}
+
+bool ExecutionState::addConstraint(const ref<Expr> &constraint, bool recomputeConcolics) {
+    auto simplified = simplifyExpr(constraint);
+    auto se = dyn_cast<ConstantExpr>(simplified);
+    if (se && !se->isTrue()) {
+        *klee_warning_stream << "Attempt to add invalid constraint:" << simplified << "\n";
+        return false;
+    }
+
+    auto evaluated = concolics->evaluate(simplified);
+    ConstantExpr *ce = dyn_cast<ConstantExpr>(evaluated);
+    if (!ce) {
+        *klee_warning_stream << "Constraint does not evaluate to a constant:" << evaluated << "\n";
+        return false;
+    }
+
+    if (!ce->isTrue()) {
+        if (recomputeConcolics) {
+            ConstraintManager newConstraints = constraints;
+            newConstraints.addConstraint(simplified);
+            if (!solve(newConstraints, *concolics)) {
+                *klee_warning_stream << "Could not compute concolic values for the new constraint\n";
+                return false;
+            }
+        } else {
+            *klee_warning_stream << "Attempted to add a constraint that requires recomputing concolic values\n";
+            return false;
+        }
+    }
+
+    // Constraint is good, add it to the actual set
+    constraints.addConstraint(simplified);
+
+    return true;
+}
+
+/// \brief Print query to solve state constraints
+/// Will print query in format understandable by kleaver.
+///
+/// \param os output stream
+void ExecutionState::dumpQuery(llvm::raw_ostream &os) const {
+    std::vector<const Array *> symbObjects;
+    for (unsigned i = 0; i < symbolics.size(); ++i) {
+        symbObjects.push_back(symbolics[i].second);
+    }
+
+    auto printer = std::unique_ptr<ExprPPrinter>(ExprPPrinter::create(os));
+
+    Query query(constraints, ConstantExpr::alloc(0, Expr::Bool));
+    printer->printQuery(os, query.constraints, query.expr, 0, 0, &symbObjects[0], &symbObjects[0] + symbObjects.size());
+    os.flush();
+}
+
+std::shared_ptr<TimingSolver> ExecutionState::solver() const {
+    return SolverManager::solver(*this);
+}
+
+Cell &ExecutionState::getArgumentCell(KFunction *kf, unsigned index) {
+    return stack.back().locals[kf->getArgRegister(index)];
+}
+
+Cell &ExecutionState::getDestCell(KInstruction *target) {
+    return stack.back().locals[target->dest];
+}
+
+void ExecutionState::bindLocal(KInstruction *target, ref<Expr> value) {
+
+    getDestCell(target).value = simplifyExpr(value);
+}
+
+void ExecutionState::bindArgument(KFunction *kf, unsigned index, ref<Expr> value) {
+    getArgumentCell(kf, index).value = simplifyExpr(value);
+}
+
+void ExecutionState::stepInstruction() {
+    if (DebugPrintInstructions) {
+        llvm::errs() << stats::instructions << " ";
+        llvm::errs() << *(pc->inst) << "\n";
+    }
+
+    ++stats::instructions;
+    prevPC = pc;
+    ++pc;
+}
+
+ObjectState *ExecutionState::bindObject(const MemoryObject *mo, bool isLocal, const Array *array) {
+    ObjectState *os = array ? new ObjectState(mo, array) : new ObjectState(mo);
+    addressSpace.bindObject(mo, os);
+
+    // Its possible that multiple bindings of the same mo in the state
+    // will put multiple copies on this list, but it doesn't really
+    // matter because all we use this list for is to unbind the object
+    // on function return.
+    if (isLocal) {
+        stack.back().allocas.push_back(mo);
+    }
+
+    return os;
+}
 }

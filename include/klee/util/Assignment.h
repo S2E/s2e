@@ -68,11 +68,11 @@ public:
 class CachedAssignmentEvaluator {
     const Assignment &m_assignment;
 
-    ref<Expr> evaluateActual(ref<Expr> expr);
-    ref<Expr> evaluateRead(ref<ReadExpr> expr);
-    ref<Expr> evaluateSelect(ref<SelectExpr> expr);
-    ref<Expr> evaluateAnd(ref<AndExpr> expr);
-    ref<Expr> evaluateUSDivRem(ref<Expr> expr);
+    ref<Expr> evaluateActual(const ref<Expr> &expr);
+    ref<Expr> evaluateRead(const ref<ReadExpr> &expr);
+    ref<Expr> evaluateSelect(const ref<SelectExpr> &expr);
+    ref<Expr> evaluateAnd(const ref<AndExpr> &expr);
+    ref<Expr> evaluateUSDivRem(const ref<Expr> &expr);
     UpdateList rewriteUpdatesUncached(const UpdateList &ul);
 
 public:

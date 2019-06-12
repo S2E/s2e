@@ -10,7 +10,7 @@
 #include "klee/AddressSpace.h"
 #include "klee/CoreStats.h"
 #include "klee/Memory.h"
-#include "TimingSolver.h"
+#include "klee/TimingSolver.h"
 
 #include "klee/ExecutionState.h"
 #include "klee/Expr.h"

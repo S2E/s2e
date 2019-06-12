@@ -40,16 +40,11 @@ class InterpreterHandler {
 public:
     InterpreterHandler() {
     }
-    virtual ~InterpreterHandler(){};
-
-    virtual llvm::raw_ostream &getInfoStream() const = 0;
+    virtual ~InterpreterHandler() {
+    }
 
     virtual std::string getOutputFilename(const std::string &filename) = 0;
     virtual llvm::raw_ostream *openOutputFile(const std::string &filename) = 0;
-
-    virtual void incPathsExplored() = 0;
-
-    virtual void processTestCase(const ExecutionState &state, const char *err, const char *suffix) = 0;
 };
 
 class Interpreter {
@@ -70,21 +65,13 @@ public:
         }
     };
 
-    /// InterpreterOptions - Options varying the runtime behavior during
-    /// interpretation.
-    /// TODO: remove this
-    struct InterpreterOptions {
-        InterpreterOptions() {
-        }
-    };
-
 protected:
-    const InterpreterOptions interpreterOpts;
-
-    Interpreter(const InterpreterOptions &_interpreterOpts) : interpreterOpts(_interpreterOpts){};
+    Interpreter() {
+    }
 
 public:
-    virtual ~Interpreter(){};
+    virtual ~Interpreter() {
+    }
 
     /// Register the module to be executed.
     ///
@@ -92,18 +79,6 @@ public:
     /// inserted, and modified for interpretation.
     virtual const llvm::Module *setModule(llvm::Module *module, const ModuleOptions &opts,
                                           bool createStatsTracker = true) = 0;
-
-    /*** State accessor methods ***/
-    virtual bool getSymbolicSolution(TimingSolver *solver,
-                                     const std::vector<std::pair<const MemoryObject *, const Array *>> &symbolics,
-                                     const ConstraintManager &constraints,
-                                     std::vector<std::pair<std::string, std::vector<unsigned char>>> &res,
-                                     double &queryCost) = 0;
-    virtual bool getSymbolicSolution(const std::vector<std::pair<const MemoryObject *, const Array *>> &symbolics,
-                                     const Assignment &concolics,
-                                     std::vector<std::pair<std::string, std::vector<unsigned char>>> &res) = 0;
-    virtual bool getSymbolicSolution(const ExecutionState &state,
-                                     std::vector<std::pair<std::string, std::vector<unsigned char>>> &res) = 0;
 };
 
 } // End klee namespace

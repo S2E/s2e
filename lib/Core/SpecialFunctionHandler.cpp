@@ -10,8 +10,8 @@
 #include "klee/Common.h"
 
 #include "klee/Memory.h"
+#include "klee/TimingSolver.h"
 #include "SpecialFunctionHandler.h"
-#include "TimingSolver.h"
 
 #include "klee/ExecutionState.h"
 
@@ -97,7 +97,7 @@ bool SpecialFunctionHandler::handle(ExecutionState &state, Function *f, KInstruc
         bool hasReturnValue = it->second.second;
         // FIXME: Check this... add test?
         if (!hasReturnValue && !target->inst->use_empty()) {
-            executor.terminateStateOnExecError(state, "expected return value from void special function");
+            executor.terminateState(state, "expected return value from void special function");
         } else {
             (this->*h)(state, target, arguments);
         }
@@ -110,7 +110,7 @@ bool SpecialFunctionHandler::handle(ExecutionState &state, Function *f, KInstruc
         bool hasReturnValue = uit->second.second;
         // FIXME: Check this... add test?
         if (!hasReturnValue && !target->inst->use_empty()) {
-            executor.terminateStateOnExecError(state, "expected return value from void special function");
+            executor.terminateState(state, "expected return value from void special function");
         } else {
             h(&executor, &state, target, arguments);
         }
