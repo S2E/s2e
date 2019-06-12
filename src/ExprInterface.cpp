@@ -45,7 +45,7 @@ struct ExprBox {
     ExprBox() {
         constant = false;
         value = 0;
-        expr = NULL;
+        expr = nullptr;
     }
 };
 
@@ -123,7 +123,7 @@ uint64_t s2e_expr_to_constant(void *_expr) {
     if (box->constant) {
         return box->value;
     } else {
-        ref<Expr> expr = g_s2e->getExecutor()->toConstant(*g_s2e_state, box->expr, "klee_expr_to_constant");
+        ref<Expr> expr = g_s2e_state->toConstant(box->expr, "klee_expr_to_constant");
         ConstantExpr *cste = dyn_cast<ConstantExpr>(expr);
         return cste->getZExtValue();
     }
@@ -213,7 +213,7 @@ template <typename T> static void *s2e_expr_read_mem(void *_mgr, uint64_t virtua
 
     retbox->expr = g_s2e_state->mem()->read(virtual_address, sizeof(T) * 8);
 
-    // XXX: What do we do if the result is NULL?
+    // XXX: What do we do if the result is nullptr?
     // For now we call this function from iret-type of handlers where
     // some checks must have been done before accessing the memory
     assert(!retbox->expr.isNull() && "Failed memory access");

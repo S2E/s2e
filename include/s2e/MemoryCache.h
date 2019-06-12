@@ -32,7 +32,7 @@ private:
 
         SecondLevel() {
             for (unsigned i = 0; i < (1 << (SUPERPAGESIZE_BITS - PAGESIZE_BITS)); ++i) {
-                level2[i] = NULL;
+                level2[i] = nullptr;
             }
         }
 
@@ -40,7 +40,7 @@ private:
             for (unsigned i = 0; i < (1 << (SUPERPAGESIZE_BITS - PAGESIZE_BITS)); ++i) {
                 if (level2[i]) {
                     delete level2[i];
-                    level2[i] = NULL;
+                    level2[i] = nullptr;
                 }
             }
         }
@@ -61,7 +61,7 @@ private:
         m_pagecount = pagecount;
         m_level1 = new SecondLevel *[pagecount];
         for (unsigned i = 0; i < pagecount; ++i) {
-            m_level1[i] = NULL;
+            m_level1[i] = nullptr;
         }
     }
 
@@ -95,7 +95,7 @@ public:
         for (unsigned i = 0; i < m_pagecount; ++i) {
             if (m_level1[i]) {
                 delete m_level1[i];
-                m_level1[i] = NULL;
+                m_level1[i] = nullptr;
             }
         }
     }
@@ -153,12 +153,12 @@ public:
 
         SecondLevel *ptrLevel2;
         if (!(ptrLevel2 = m_level1[level1])) {
-            return NULL;
+            return nullptr;
         }
 
         ThirdLevel *ptrLevel3;
         if (!(ptrLevel3 = ptrLevel2->level2[level2])) {
-            return NULL;
+            return nullptr;
         }
 
         return ptrLevel3->level3;
@@ -235,7 +235,7 @@ public:
                 return (*it)->getArray(hostAddress);
             }
         }
-        return NULL;
+        return nullptr;
     }
 
     T get(uint64_t hostAddress) {

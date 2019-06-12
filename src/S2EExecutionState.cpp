@@ -19,6 +19,7 @@
 #include <klee/Context.h>
 #include <klee/Memory.h>
 #include <klee/Solver.h>
+#include <klee/SolverManager.h>
 #include <s2e/S2E.h>
 #include <s2e/Utils.h>
 #include <s2e/s2e_libcpu.h>
@@ -40,7 +41,6 @@ namespace {
 
 extern llvm::cl::opt<bool> PrintModeSwitch;
 extern llvm::cl::opt<bool> PrintForkingStatus;
-extern llvm::cl::opt<bool> ConcolicMode;
 extern llvm::cl::opt<bool> VerboseStateDeletion;
 extern llvm::cl::opt<bool> DebugConstraints;
 
@@ -54,7 +54,7 @@ S2EExecutionState::S2EExecutionState(klee::KFunction *kf)
     : klee::ExecutionState(kf), m_stateID(g_s2e->fetchAndIncrementStateId()), m_startSymbexAtPC((uint64_t) -1),
       m_active(true), m_zombie(false), m_yielded(false), m_runningConcrete(true), m_pinned(false),
       m_isStateSwitchForbidden(false), m_deviceState(this), m_asCache(&addressSpace),
-      m_registers(&m_active, &m_runningConcrete, this, this), m_memory(), m_lastS2ETb(NULL),
+      m_registers(&m_active, &m_runningConcrete, this, this), m_memory(), m_lastS2ETb(nullptr),
       m_needFinalizeTBExec(false), m_forkAborted(false), m_nextSymbVarId(0), m_tlb(&m_asCache, &m_registers),
       m_runningExceptionEmulationCode(false) {
     // XXX: make this a struct, not a pointer...
@@ -63,7 +63,7 @@ S2EExecutionState::S2EExecutionState(klee::KFunction *kf)
 }
 
 S2EExecutionState::~S2EExecutionState() {
-    assert(m_lastS2ETb == NULL);
+    assert(m_lastS2ETb == nullptr);
 
     PluginStateMap::iterator it;
 
@@ -167,6 +167,36 @@ void S2EExecutionState::disableForking() {
     }
 }
 
+void S2EExecutionState::switchToConcrete() {
+    assert(!m_runningConcrete);
+
+    if (PrintModeSwitch) {
+        g_s2e->getInfoStream(this) << "Switching to concrete execution at pc = " << hexval(regs()->getPc()) << '\n';
+    }
+
+    // assert(os->isAllConcrete());
+    m_registers.copySymbRegs(true);
+
+    m_runningConcrete = true;
+}
+
+void S2EExecutionState::switchToSymbolic() {
+    assert(m_runningConcrete);
+
+    if (PrintModeSwitch) {
+        g_s2e->getInfoStream(this) << "Switching to symbolic execution at pc = " << hexval(regs()->getPc()) << '\n';
+    }
+
+    // assert(os && os->isAllConcrete());
+
+    // TODO: check that symbolic registers were not accessed
+    // in shared location ! Ideas: use hw breakpoints, or instrument
+    // translated code.
+
+    m_registers.copySymbRegs(false);
+    m_runningConcrete = false;
+}
+
 // This function must be called just after the machine call instruction
 // was executed.
 // XXX: assumes x86 architecture.
@@ -232,7 +262,7 @@ std::string S2EExecutionState::getUniqueVarName(const std::string &name, std::st
     return filtered;
 }
 
-ref<Expr> S2EExecutionState::createConcolicValue(const std::string &name, Expr::Width width,
+ref<Expr> S2EExecutionState::createSymbolicValue(const std::string &name, Expr::Width width,
                                                  const std::vector<unsigned char> &buffer) {
 #ifdef CONFIG_SYMBEX_MP
     std::string originalVarName;
@@ -244,20 +274,15 @@ ref<Expr> S2EExecutionState::createConcolicValue(const std::string &name, Expr::
     assert((bufferSize == bytes || bufferSize == 0) &&
            "Concrete buffer must either have the same size as the expression or be empty");
 
-    const Array *array = new Array(sname, bytes, NULL, NULL, name);
+    const Array *array = new Array(sname, bytes, nullptr, nullptr, name);
 
-    MemoryObject *mo = new MemoryObject(0, bytes, false, false, false, NULL);
+    MemoryObject *mo = new MemoryObject(0, bytes, false, false, false, nullptr);
     mo->setName(sname);
 
     symbolics.push_back(std::make_pair(mo, array));
 
     if (bufferSize == bytes) {
-        if (ConcolicMode) {
-            concolics->add(array, buffer);
-        } else {
-            g_s2e->getWarningsStream(this) << "Concolic mode disabled: ignoring concrete assignments for " << name
-                                           << '\n';
-        }
+        concolics->add(array, buffer);
     }
 
     variableNameMapping = variableNameMapping.insert(std::make_pair(sname, originalVarName));
@@ -280,20 +305,17 @@ ref<Expr> S2EExecutionState::createConcolicValue(const std::string &name, Expr::
 }
 
 ref<Expr> S2EExecutionState::createSymbolicValue(const std::string &name, Expr::Width width) {
-
     std::vector<unsigned char> concreteValues;
 
-    if (ConcolicMode) {
-        unsigned bytes = Expr::getMinBytesForWidth(width);
-        for (unsigned i = 0; i < bytes; ++i) {
-            concreteValues.push_back(0);
-        }
+    unsigned bytes = Expr::getMinBytesForWidth(width);
+    for (unsigned i = 0; i < bytes; ++i) {
+        concreteValues.push_back(0);
     }
 
-    return createConcolicValue(name, width, concreteValues);
+    return createSymbolicValue(name, width, concreteValues);
 }
 
-std::vector<ref<Expr>> S2EExecutionState::createConcolicArray(const std::string &name, unsigned size,
+std::vector<ref<Expr>> S2EExecutionState::createSymbolicArray(const std::string &name, unsigned size,
                                                               const std::vector<unsigned char> &concreteBuffer,
                                                               std::string *varName) {
     assert(concreteBuffer.size() == size || concreteBuffer.size() == 0);
@@ -304,7 +326,7 @@ std::vector<ref<Expr>> S2EExecutionState::createConcolicArray(const std::string 
         *varName = sname;
     }
 
-    const Array *array = new Array(sname, size, NULL, NULL, name);
+    const Array *array = new Array(sname, size, nullptr, nullptr, name);
 
     UpdateList ul(array, 0);
 
@@ -318,18 +340,13 @@ std::vector<ref<Expr>> S2EExecutionState::createConcolicArray(const std::string 
     // Add it to the set of symbolic expressions, to be able to generate
     // test cases later.
     // Dummy memory object
-    MemoryObject *mo = new MemoryObject(0, size, false, false, false, NULL);
+    MemoryObject *mo = new MemoryObject(0, size, false, false, false, nullptr);
     mo->setName(sname);
 
     symbolics.push_back(std::make_pair(mo, array));
 
     if (concreteBuffer.size() == size) {
-        if (ConcolicMode) {
-            concolics->add(array, concreteBuffer);
-        } else {
-            g_s2e->getWarningsStream(this) << "Concolic mode disabled: ignoring concrete assignments for " << name
-                                           << '\n';
-        }
+        concolics->add(array, concreteBuffer);
     }
 
     g_s2e->getCorePlugin()->onSymbolicVariableCreation.emit(this, name, result, mo, array);
@@ -348,13 +365,11 @@ std::vector<ref<Expr>> S2EExecutionState::createSymbolicArray(const std::string 
                                                               std::string *varName) {
     std::vector<unsigned char> concreteBuffer;
 
-    if (ConcolicMode) {
-        for (unsigned i = 0; i < size; ++i) {
-            concreteBuffer.push_back(0);
-        }
+    for (unsigned i = 0; i < size; ++i) {
+        concreteBuffer.push_back(0);
     }
 
-    return createConcolicArray(name, size, concreteBuffer, varName);
+    return createSymbolicArray(name, size, concreteBuffer, varName);
 }
 
 /*
@@ -366,7 +381,7 @@ std::vector<ref<Expr>> S2EExecutionState::createSymbolicArray(const std::string 
  * kleeAddressExpr:  the Klee "address" of the memory object
  * sizeInBytes:  the number of bytes to read.  If this is too large
  *               read the maximum amount possible from one MemoryObject
- * result: optional parameter (can be NULL) to store the result
+ * result: optional parameter (can be nullptr) to store the result
  * requireConcrete: if true, fail if the memory is not concrete
  * concretize: if true, concretize the memory but don't necessarily
  *             add a permanent constraint (i.e. get an example)
@@ -375,7 +390,7 @@ std::vector<ref<Expr>> S2EExecutionState::createSymbolicArray(const std::string 
 void S2EExecutionState::kleeReadMemory(ref<Expr> kleeAddressExpr, uint64_t sizeInBytes, std::vector<ref<Expr>> *result,
                                        bool requireConcrete, bool concretize, bool addConstraint) {
     ObjectPair op;
-    kleeAddressExpr = g_s2e->getExecutor()->toUnique(*this, kleeAddressExpr);
+    kleeAddressExpr = toUnique(kleeAddressExpr);
     ref<klee::ConstantExpr> address = cast<klee::ConstantExpr>(kleeAddressExpr);
 
 #ifdef CONFIG_SYMBEX_MP
@@ -395,7 +410,7 @@ void S2EExecutionState::kleeReadMemory(ref<Expr> kleeAddressExpr, uint64_t sizeI
         ref<Expr> cur = os->read8(i);
         if (requireConcrete) {
             // Here, we demand concrete results
-            cur = g_s2e->getExecutor()->toUnique(*this, cur);
+            cur = toUnique(cur);
             assert(isa<klee::ConstantExpr>(cur) && "kleeReadMemory: hit symbolic char but expected concrete data");
             if (result) {
                 result->push_back(cast<klee::ConstantExpr>(cur));
@@ -403,10 +418,10 @@ void S2EExecutionState::kleeReadMemory(ref<Expr> kleeAddressExpr, uint64_t sizeI
         } else {
             if (concretize && addConstraint) {
                 // Add constraint if necessary
-                cur = g_s2e->getExecutor()->toConstant(*this, cur, "kleeReadMemory");
+                cur = this->toConstant(cur, "kleeReadMemory");
             } else if (concretize && !addConstraint) {
                 // Otherwise just get an example
-                cur = g_s2e->getExecutor()->toConstantSilent(*this, cur);
+                cur = this->toConstantSilent(cur);
             } else {
                 assert(false && "Expected reasonable parameters in kleeReadMemory");
             }
@@ -442,7 +457,7 @@ void S2EExecutionState::kleeReadMemory(ref<Expr> kleeAddressExpr, uint64_t sizeI
 void S2EExecutionState::kleeWriteMemory(ref<Expr> kleeAddressExpr, /* Address */
                                         std::vector<ref<Expr>> &bytes) {
     ObjectPair op;
-    kleeAddressExpr = g_s2e->getExecutor()->toUnique(*this, kleeAddressExpr);
+    kleeAddressExpr = toUnique(kleeAddressExpr);
     ref<klee::ConstantExpr> address = cast<klee::ConstantExpr>(kleeAddressExpr);
 #ifdef CONFIG_SYMBEX_MP
     if (!addressSpace.resolveOne(address, op))
@@ -467,7 +482,7 @@ void S2EExecutionState::kleeWriteMemory(ref<Expr> kleeAddressExpr, /* Address */
 #endif
 }
 
-void S2EExecutionState::makeSymbolic(std::vector<ref<Expr>> &args, bool makeConcolic) {
+void S2EExecutionState::makeSymbolic(std::vector<ref<Expr>> &args) {
     assert(args.size() == 3);
 
     // KLEE address of variable
@@ -495,15 +510,11 @@ void S2EExecutionState::makeSymbolic(std::vector<ref<Expr>> &args, bool makeConc
     std::vector<uint8_t> concreteData;
     std::vector<ref<Expr>> symb;
 
-    if (makeConcolic) {
-        kleeReadMemory(labelKleeAddress, sizeInBytes, &existingData, false, true, true);
-        for (unsigned i = 0; i < sizeInBytes; ++i) {
-            concreteData.push_back(cast<klee::ConstantExpr>(existingData[i])->getZExtValue(8));
-        }
-        symb = createConcolicArray(labelStr, sizeInBytes, concreteData);
-    } else {
-        symb = createSymbolicArray(labelStr, sizeInBytes);
+    kleeReadMemory(labelKleeAddress, sizeInBytes, &existingData, false, true, true);
+    for (unsigned i = 0; i < sizeInBytes; ++i) {
+        concreteData.push_back(cast<klee::ConstantExpr>(existingData[i])->getZExtValue(8));
     }
+    symb = createSymbolicArray(labelStr, sizeInBytes, concreteData);
 
     kleeWriteMemory(kleeAddress, symb);
 }
@@ -560,6 +571,16 @@ bool S2EExecutionState::needToJumpToSymbolic() const {
     return isRunningConcrete();
 }
 
+void S2EExecutionState::yield() {
+    g_s2e->getInfoStream(this) << "Yielding state " << getID() << "\n";
+
+    setYieldState(true);
+
+    // Stop current execution
+    regs()->write<int>(CPU_OFFSET(exception_index), EXCP_SE);
+    throw CpuExitException();
+}
+
 /***/
 
 bool S2EExecutionState::merge(const ExecutionState &_b) {
@@ -578,8 +599,8 @@ bool S2EExecutionState::merge(const ExecutionState &_b) {
             s << "merge failed: different KLEE pc\n" << *(*pc).inst << "\n" << *(*b.pc).inst << "\n";
 
             std::stringstream ss;
-            g_s2e->getExecutor()->printStack(*this, NULL, ss);
-            g_s2e->getExecutor()->printStack(b, NULL, ss);
+            this->printStack(nullptr, ss);
+            b.printStack(nullptr, ss);
             s << ss.str() << "\n";
         }
         return false;
@@ -810,7 +831,7 @@ bool S2EExecutionState::merge(const ExecutionState &_b) {
 
 void S2EExecutionState::enumPossibleRanges(ref<Expr> e, ref<Expr> start, ref<Expr> end, std::vector<Range> &ranges) {
 
-    Solver *solver = g_s2e->getExecutor()->getSolver(*this);
+    Solver *solver = klee::SolverManager::solver()->solver;
 
     std::vector<const Array *> symbObjects;
     foreach2 (it, symbolics.begin(), symbolics.end()) { symbObjects.push_back(it->second); }
@@ -820,41 +841,14 @@ void S2EExecutionState::enumPossibleRanges(ref<Expr> e, ref<Expr> start, ref<Exp
 
 /***/
 
-void S2EExecutionState::addConstraint(klee::ref<klee::Expr> e) {
-#ifdef CONFIG_SYMBEX_MP
-    if (DebugConstraints) {
-        if (ConcolicMode) {
-            klee::ref<klee::Expr> ce = concolics->evaluate(e);
-            assert(ce->isTrue() && "Expression must be true here");
-        }
-
-        // Check that the added constraint is consistent with
-        // the existing path constraints
-        bool truth;
-        Solver *solver = g_s2e->getExecutor()->getSolver(*this);
-        Query query(constraints, e);
-        // bool res = solver->mayBeTrue(query, mayBeTrue);
-        bool res = solver->mustBeTrue(query.negateExpr(), truth);
-        if (!res || truth) {
-            g_s2e->getWarningsStream() << "State has invalid constraints" << '\n';
-            exit(-1);
-            // g_s2e->getExecutor()->terminateStateEarly(*this, "State has invalid constraint set");
-        }
-        assert(res && !truth && "state has invalid constraint set");
-    }
-
-    constraints.addConstraint(e);
-#endif
-}
-
 /// \brief Try to solve additional state constraints
 ///
 /// Find solution for merged original state constraints and
 /// supplied additional constraints.
 ///
 /// \param c additional constraints
-/// \param newConstraints merged constraints will be saved here, can be NULL
-/// \param newConcolics computed concolic values will be saved here, can be NULL
+/// \param newConstraints merged constraints will be saved here, can be nullptr
+/// \param newConcolics computed concolic values will be saved here, can be nullptr
 /// \return true if solution exists
 ///
 bool S2EExecutionState::testConstraints(const std::vector<ref<Expr>> &c, ConstraintManager *newConstraints,
@@ -870,7 +864,7 @@ bool S2EExecutionState::testConstraints(const std::vector<ref<Expr>> &c, Constra
     std::vector<const Array *> symbObjects;
     foreach2 (it, symbolics.begin(), symbolics.end()) { symbObjects.push_back(it->second); }
 
-    Solver *solver = g_s2e->getExecutor()->getSolver(*this);
+    Solver *solver = SolverManager::solver()->solver;
     std::vector<std::vector<unsigned char>> concreteObjects;
     if (!solver->getInitialValues(Query(tmpConstraints, ConstantExpr::create(0, Expr::Bool)), symbObjects,
                                   concreteObjects)) {
@@ -891,25 +885,14 @@ bool S2EExecutionState::testConstraints(const std::vector<ref<Expr>> &c, Constra
     return true;
 }
 
-/// \brief Apply new constraints to the state
-///
-/// Checks whether new state constraints are consistent.
-///
-/// \param c additional constraints
-/// \return true if constraints were applied
-///
-bool S2EExecutionState::applyConstraints(const std::vector<ref<Expr>> &c) {
-    return testConstraints(c, &constraints, ConcolicMode ? concolics : NULL);
-}
-
 /***/
 
 uint64_t S2EExecutionState::concretize(klee::ref<klee::Expr> expression, const std::string &reason, bool silent) {
 #ifdef CONFIG_SYMBEX_MP
     if (silent) {
-        return g_s2e->getExecutor()->toConstantSilent(*this, expression)->getZExtValue();
+        return this->toConstantSilent(expression)->getZExtValue();
     } else {
-        return g_s2e->getExecutor()->toConstant(*this, expression, reason.c_str())->getZExtValue();
+        return this->toConstant(expression, reason.c_str())->getZExtValue();
     }
 #else
     ConstantExpr *ce = dyn_cast<ConstantExpr>(expression);
@@ -964,16 +947,12 @@ uint64_t S2EExecutionState::readMemIoVaddr(bool masked) {
 
     if (masked) {
         result = AndExpr::create(m_memIoVaddr, klee::ConstantExpr::create(TARGET_PAGE_MASK, m_memIoVaddr->getWidth()));
-        if (ConcolicMode) {
-            // This assumes that the page is already fully constrained by the MMU
-            result = concolics->evaluate(result);
-            assert(dyn_cast<ConstantExpr>(result) && "Expression must be constant here");
-        } else {
-            result = g_s2e->getExecutor()->toConstant(*this, result, "Reading mem_io_vaddr");
-        }
+        // This assumes that the page is already fully constrained by the MMU
+        result = concolics->evaluate(result);
+        assert(dyn_cast<ConstantExpr>(result) && "Expression must be constant here");
     } else {
         result = m_memIoVaddr;
-        result = g_s2e->getExecutor()->toConstant(*this, result, "Reading mem_io_vaddr");
+        result = this->toConstant(result, "Reading mem_io_vaddr");
     }
 
     ConstantExpr *ce = dyn_cast<ConstantExpr>(result);
@@ -1099,42 +1078,6 @@ void S2EExecutionState::disassemble(llvm::raw_ostream &os, uint64_t pc, unsigned
     target_disas_ex(regs()->getCpuState(), fp, __disas_print, pc, size, flags);
 }
 
-/// \brief Print query to solve constraints
-///
-/// \param constraints constraints
-/// \param symbolics symbolic objects
-/// \param os output stream
-///
-/// Will print query in format understandable by kleaver.
-///
-void S2EExecutionState::dumpQuery(
-    const ConstraintManager &constraints,
-    const std::vector<std::pair<const klee::MemoryObject *, const klee::Array *>> &symbolics, llvm::raw_ostream &os) {
-    // Extract symbolic objects
-    std::vector<const Array *> symbObjects;
-    for (unsigned i = 0; i < symbolics.size(); ++i) {
-        symbObjects.push_back(symbolics[i].second);
-    }
-
-    ExprPPrinter *printer = ExprPPrinter::create(os);
-
-    Query query(constraints, ConstantExpr::alloc(0, Expr::Bool));
-    printer->printQuery(os, query.constraints, query.expr, 0, 0, &symbObjects[0], &symbObjects[0] + symbObjects.size());
-    os.flush();
-
-    delete printer;
-}
-
-/// \brief Print query to solve state constraints
-///
-/// \param os output stream
-///
-/// Will print query in format understandable by kleaver.
-///
-void S2EExecutionState::dumpQuery(llvm::raw_ostream &os) const {
-    dumpQuery(constraints, symbolics, os);
-}
-
 } // namespace s2e
 
 /******************************************/
@@ -1142,7 +1085,7 @@ void S2EExecutionState::dumpQuery(llvm::raw_ostream &os) const {
 
 extern "C" {
 
-s2e::S2EExecutionState *g_s2e_state = NULL;
+s2e::S2EExecutionState *g_s2e_state = nullptr;
 
 int s2e_is_zombie() {
     return g_s2e_state->isZombie();
@@ -1186,7 +1129,7 @@ static inline CPUTLBRAMEntry *s2e_get_ram_tlb_entry(uint64_t host_address) {
     CPUX86State *env = g_s2e_state->regs()->getCpuState();
     return &env->se_ram_tlb[tlb_index];
 #else
-    return NULL;
+    return nullptr;
 #endif
 }
 

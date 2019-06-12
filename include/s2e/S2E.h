@@ -12,8 +12,10 @@
 #undef NDEBUG
 
 #include <fstream>
+#include <klee/SolverFactory.h>
 #include <llvm/Support/raw_ostream.h>
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -40,7 +42,6 @@ class CorePlugin;
 class ConfigFile;
 class PluginsFactory;
 
-class S2EHandler;
 class S2EExecutor;
 class S2EExecutionState;
 
@@ -84,7 +85,7 @@ struct S2EShared {
     }
 };
 
-class S2E {
+class S2E : public klee::InterpreterHandler {
 protected:
     S2ESynchronizedObject<S2EShared> m_sync;
     ConfigFile *m_configFile;
@@ -112,6 +113,8 @@ protected:
 
     uint64_t m_startTimeSeconds;
 
+    std::shared_ptr<klee::SolverFactory> mSolverFactory;
+
     /* How many processes can S2E fork */
     unsigned m_maxInstances;
     unsigned m_currentInstanceIndex;
@@ -119,7 +122,6 @@ protected:
 
     std::string m_outputDirectoryBase;
 
-    S2EHandler *m_s2eHandler;
     S2EExecutor *m_s2eExecutor;
 
     /* forked indicates whether the current S2E process was forked from a parent S2E process */
@@ -184,17 +186,17 @@ public:
     llvm::raw_ostream *openOutputFile(const std::string &filename);
 
     /** Get info stream (used only by KLEE internals) */
-    llvm::raw_ostream &getInfoStream(const S2EExecutionState *state = 0) const {
+    llvm::raw_ostream &getInfoStream(const S2EExecutionState *state = nullptr) const {
         return getStream(*m_infoStream, state);
     }
 
     /** Get debug stream (used for non-important debug info) */
-    llvm::raw_ostream &getDebugStream(const S2EExecutionState *state = 0) const {
+    llvm::raw_ostream &getDebugStream(const S2EExecutionState *state = nullptr) const {
         return getStream(*m_debugStream, state);
     }
 
     /** Get warnings stream (used for warnings, duplicated on the screen) */
-    llvm::raw_ostream &getWarningsStream(const S2EExecutionState *state = 0) const {
+    llvm::raw_ostream &getWarningsStream(const S2EExecutionState *state = nullptr) const {
         return getStream(*m_warningStream, state);
     }
 
@@ -274,7 +276,7 @@ template <class PluginClass> PluginClass *S2E::getPlugin() const {
 /// `s2e_assert(state, a == b, a << " does not equal " << b)`.
 ///
 /// It is possible to avoid passing current state pointer to the function where
-/// assertion is needed. In this case, you can use NULL for the
+/// assertion is needed. In this case, you can use nullptr for the
 /// \p state parameter, and g_s2e_state will be used as current state.
 ///
 /// \note Unreachable code assertion will fail if you use a different (not
@@ -286,14 +288,14 @@ template <class PluginClass> PluginClass *S2E::getPlugin() const {
 #define s2e_assert(state, condition, message)                                                                     \
     do {                                                                                                          \
         if (!(condition)) {                                                                                       \
-            S2EExecutionState *currentState = (state) != NULL ? (state) : g_s2e_state;                            \
+            S2EExecutionState *currentState = (state) != nullptr ? (state) : g_s2e_state;                         \
             int currentStateId = currentState ? currentState->getID() : -1;                                       \
             g_s2e->getWarningsStream() << __FILE__ << ":" << __LINE__ << ": " << __PRETTY_FUNCTION__              \
                                        << ": Assertion `" << #condition << "' failed in state " << currentStateId \
                                        << ": " << message << "\n";                                                \
             print_stacktrace(s2e_warning_print, "state assertion failed");                                        \
-            assert(currentState != NULL && "state assertion failed, no current state to terminate");              \
-            g_s2e->getExecutor()->terminateStateEarly(*currentState, "state assertion failed");                   \
+            assert(currentState != nullptr && "state assertion failed, no current state to terminate");           \
+            g_s2e->getExecutor()->terminateState(*currentState, "state assertion failed");                        \
             assert(false && "Unreachable code - current state must be terminated");                               \
         }                                                                                                         \
     } while (0)
@@ -306,7 +308,7 @@ template <class PluginClass> PluginClass *S2E::getPlugin() const {
 /// `s2e_warn_assert(state, a == b, a << " does not equal " << b)`.
 ///
 /// It is possible to avoid passing current state pointer to the function where
-/// assertion is needed. In this case, you can use NULL for the
+/// assertion is needed. In this case, you can use nullptr for the
 /// \p state parameter, and g_s2e_state will be used as current state.
 ///
 /// \param state current state
@@ -315,7 +317,7 @@ template <class PluginClass> PluginClass *S2E::getPlugin() const {
 #define s2e_warn_assert(state, condition, message)                                                                \
     do {                                                                                                          \
         if (!(condition)) {                                                                                       \
-            S2EExecutionState *currentState = (state) != NULL ? (state) : g_s2e_state;                            \
+            S2EExecutionState *currentState = (state) != nullptr ? (state) : g_s2e_state;                         \
             int currentStateId = currentState ? currentState->getID() : -1;                                       \
             g_s2e->getWarningsStream() << __FILE__ << ":" << __LINE__ << ": " << __PRETTY_FUNCTION__              \
                                        << ": Assertion `" << #condition << "' failed in state " << currentStateId \

@@ -90,7 +90,7 @@ bool S2EQMPClient::ready() const {
 }
 }
 
-static s2e::S2EQMPClient *s_client = NULL;
+static s2e::S2EQMPClient *s_client = nullptr;
 
 extern "C" {
 

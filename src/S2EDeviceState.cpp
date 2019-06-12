@@ -60,7 +60,7 @@ S2EDeviceState::S2EDeviceState(const S2EDeviceState &state) : m_deviceState(stat
 }
 
 S2EDeviceState::S2EDeviceState(klee::ExecutionState *state) : m_deviceState(state) {
-    m_stateBuffer = NULL;
+    m_stateBuffer = nullptr;
     m_stateBufferSize = 0;
 }
 
@@ -71,7 +71,7 @@ S2EDeviceState::~S2EDeviceState() {
 }
 
 void S2EDeviceState::initDeviceState() {
-    m_stateBuffer = NULL;
+    m_stateBuffer = nullptr;
 }
 
 /*****************************************************************************/
@@ -139,8 +139,8 @@ int S2EDeviceState::writeSector(struct S2EBlockDevice *bs, int64_t sector, const
     while (nb_sectors > 0) {
         uintptr_t address = (uintptr_t) bstart + sector * SECTOR_SIZE;
         ObjectPair op = m_deviceState.findObject(address);
-        if (op.first == NULL) {
-            MemoryObject *mo = new MemoryObject(address, SECTOR_SIZE, false, false, false, NULL);
+        if (op.first == nullptr) {
+            MemoryObject *mo = new MemoryObject(address, SECTOR_SIZE, false, false, false, nullptr);
             ObjectState *os = new ObjectState(mo);
             m_deviceState.bindObject(mo, os);
             op.first = mo;

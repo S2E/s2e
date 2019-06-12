@@ -12,8 +12,10 @@ add_library(
     S2EExecutionStateMemory.cpp
     S2EExecutionStateTlb.cpp
     S2EDeviceState.cpp
+    S2EExternalDispatcher.cpp
     AddressSpaceCache.cpp
     MMUFunctionHandlers.cpp
+    FunctionHandlers.cpp
 
     PluginManager.cpp
     Plugin.cpp
@@ -27,6 +29,7 @@ add_library(
     S2EStatsTracker.cpp
     Synchronization.cpp
     Utils.cpp
+    MemoryDebugger.cpp
 )
 
 target_include_directories (s2ecore PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

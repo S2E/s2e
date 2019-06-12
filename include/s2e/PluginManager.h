@@ -34,7 +34,7 @@ private:
     ActivePluginsMap m_activePluginsMap;
 
 public:
-    PluginManager() : m_pluginsFactory(NULL), m_corePlugin(NULL) {
+    PluginManager() : m_pluginsFactory(nullptr), m_corePlugin(nullptr) {
     }
 
     ~PluginManager();

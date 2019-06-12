@@ -127,7 +127,7 @@ public:
     bool flagsRegistersAreSymbolic() const;
 
     static bool initialized() {
-        return s_concreteRegs != NULL && s_symbolicRegs != NULL;
+        return s_concreteRegs != nullptr && s_symbolicRegs != nullptr;
     }
 
     ///  Same as writeSymbolicRegion but also allows writing symbolic values

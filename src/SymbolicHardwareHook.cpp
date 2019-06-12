@@ -31,7 +31,7 @@ int s2e_is_port_symbolic(uint64_t port) {
 }
 
 int s2e_is_mmio_symbolic(uint64_t phys_addr, unsigned size) {
-    return s2e::g_symbolicMemoryHook.symbolic(NULL, phys_addr, size);
+    return s2e::g_symbolicMemoryHook.symbolic(nullptr, phys_addr, size);
 }
 
 int se_is_mmio_symbolic(struct MemoryDesc *mr, uint64_t address, uint64_t size) {

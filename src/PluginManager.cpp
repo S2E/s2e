@@ -31,7 +31,7 @@ void PluginManager::destroy() {
 
     if (m_pluginsFactory) {
         delete m_pluginsFactory;
-        m_pluginsFactory = NULL;
+        m_pluginsFactory = nullptr;
     }
 }
 
@@ -132,7 +132,7 @@ Plugin *PluginManager::getPlugin(const std::string &name) const {
     if (it != m_activePluginsMap.end()) {
         return const_cast<Plugin *>(it->second);
     } else {
-        return NULL;
+        return nullptr;
     }
 }
 

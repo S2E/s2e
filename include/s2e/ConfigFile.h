@@ -68,24 +68,24 @@ public:
          def   default value to return on error
          ok    if non-null then will be false on error
     */
-    bool getBool(const std::string &name, bool def = false, bool *ok = NULL);
-    int64_t getInt(const std::string &name, int64_t def = 0, bool *ok = NULL);
-    double getDouble(const std::string &name, double def = 0, bool *ok = NULL);
-    std::string getString(const std::string &name, const std::string &def = std::string(), bool *ok = NULL);
+    bool getBool(const std::string &name, bool def = false, bool *ok = nullptr);
+    int64_t getInt(const std::string &name, int64_t def = 0, bool *ok = nullptr);
+    double getDouble(const std::string &name, double def = 0, bool *ok = nullptr);
+    std::string getString(const std::string &name, const std::string &def = std::string(), bool *ok = nullptr);
 
     typedef std::vector<std::string> string_list;
-    string_list getStringList(const std::string &name, const string_list &def = string_list(), bool *ok = NULL);
+    string_list getStringList(const std::string &name, const string_list &def = string_list(), bool *ok = nullptr);
 
     typedef std::vector<uint64_t> integer_list;
-    integer_list getIntegerList(const std::string &name, const integer_list &def = integer_list(), bool *ok = NULL);
+    integer_list getIntegerList(const std::string &name, const integer_list &def = integer_list(), bool *ok = nullptr);
 
     /* Return all string keys for a given table.
        Fails if some keys are not strings. */
-    string_list getListKeys(const std::string &name, bool *ok = NULL);
+    string_list getListKeys(const std::string &name, bool *ok = nullptr);
 
     /* Return the size of the list. Works for all types of
        lua lists just like '#' operator in lua. */
-    int getListSize(const std::string &name, bool *ok = NULL);
+    int getListSize(const std::string &name, bool *ok = nullptr);
 
     bool setBool(const std::string &name, bool value);
 

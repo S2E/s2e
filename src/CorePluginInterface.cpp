@@ -342,7 +342,7 @@ void s2e_on_exception(unsigned intNb) {
     }
 }
 
-static CPUTimer *s_timer = NULL;
+static CPUTimer *s_timer = nullptr;
 
 static void s2e_timer_cb(void *opaque) {
     CorePlugin *c = (CorePlugin *) opaque;

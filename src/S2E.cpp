@@ -33,6 +33,7 @@
 
 #include <klee/Common.h>
 #include <klee/Interpreter.h>
+#include <klee/SolverManager.h>
 
 #include <assert.h>
 #include <deque>
@@ -58,8 +59,6 @@ using namespace boost;
 #include <sys/types.h>
 #include <unistd.h>
 #endif
-
-extern llvm::cl::opt<std::string> PersistentTbCache;
 
 namespace s2e {
 
@@ -112,6 +111,9 @@ bool S2E::initialize(int argc, char **argv, TCGLLVMContext *tcgLLVMContext, cons
     /* Open output directory. Do it at the very beginning so that
        other init* functions can use it. */
     initOutputDirectory(outputDirectory, verbose, false);
+
+    mSolverFactory = std::shared_ptr<klee::SolverFactory>(new klee::DefaultSolverFactory(this));
+    klee::SolverManager::get().initialize(mSolverFactory);
 
     /* Parse configuration file */
     m_configFile = new s2e::ConfigFile(configFileName);
@@ -213,9 +215,6 @@ std::string S2E::getBitcodeLibrary() {
 
 void S2E::writeBitCodeToFile() {
     std::string fileName = getOutputFilename("module.bc");
-    if (!PersistentTbCache.empty()) {
-        fileName = PersistentTbCache;
-    }
 
     std::error_code error;
     llvm::raw_fd_ostream o(fileName, error, llvm::sys::fs::F_None);
@@ -253,7 +252,6 @@ S2E::~S2E() {
     m_s2eExecutor->flushTb();
 
     delete m_s2eExecutor;
-    delete m_s2eHandler;
 
     delete m_configFile;
 
@@ -365,8 +363,8 @@ void S2E::initOutputDirectory(const string &outputDirectory, int verbose, bool f
 
     setupStreams(forked, true);
 
-    getDebugStream(NULL) << "Revision: " << LIBCPU_REVISION << "\n";
-    getDebugStream(NULL) << "Config date: " << CONFIG_DATE << "\n\n";
+    getDebugStream(nullptr) << "Revision: " << LIBCPU_REVISION << "\n";
+    getDebugStream(nullptr) << "Config date: " << CONFIG_DATE << "\n\n";
 }
 
 void S2E::setupStreams(bool forked, bool reopen) {
@@ -487,9 +485,7 @@ void S2E::initPlugins() {
 }
 
 void S2E::initExecutor() {
-    m_s2eHandler = new S2EHandler(this);
-    S2EExecutor::InterpreterOptions IOpts;
-    m_s2eExecutor = new S2EExecutor(this, m_tcgLLVMContext, IOpts, m_s2eHandler);
+    m_s2eExecutor = new S2EExecutor(this, m_tcgLLVMContext, this);
 }
 
 llvm::raw_ostream &S2E::getStream(llvm::raw_ostream &stream, const S2EExecutionState *state) const {
@@ -583,8 +579,9 @@ int S2E::fork() {
 
         // Also recreate new statistics files
         m_s2eExecutor->initializeStatistics();
+
         // And the solver output
-        m_s2eExecutor->initializeSolver();
+        klee::SolverManager::get().initialize(mSolverFactory);
 
         s2e_kvm_clone_process();
     }
@@ -635,7 +632,7 @@ unsigned S2E::getInstanceIndexWithLowestId() {
 
 extern "C" {
 
-s2e::S2E *g_s2e = NULL;
+s2e::S2E *g_s2e = nullptr;
 
 void *get_s2e(void) {
     return g_s2e;
@@ -654,8 +651,8 @@ void s2e_initialize(int argc, char **argv, TCGLLVMContext *tcgLLVMContext, const
 void s2e_close(void) {
     delete g_s2e;
     tcg_llvm_close(tcg_llvm_ctx);
-    tcg_llvm_ctx = NULL;
-    g_s2e = NULL;
+    tcg_llvm_ctx = nullptr;
+    g_s2e = nullptr;
 }
 
 void s2e_flush_output_streams(void) {

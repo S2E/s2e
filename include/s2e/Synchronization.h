@@ -21,7 +21,7 @@ private:
     int m_fd;
 
     S2ESynchronizedObjectInternal() {
-        m_sharedBuffer = NULL;
+        m_sharedBuffer = nullptr;
         m_size = 0;
         m_headerSize = 0;
         m_fd = -1;
@@ -56,7 +56,7 @@ private:
     S2ESynchronizedObjectInternal sync;
 
 public:
-    S2ESynchronizedObject(const char *name = NULL) : sync(S2ESynchronizedObjectInternal(sizeof(T), name)) {
+    S2ESynchronizedObject(const char *name = nullptr) : sync(S2ESynchronizedObjectInternal(sizeof(T), name)) {
         new (sync.get()) T();
     }
 
