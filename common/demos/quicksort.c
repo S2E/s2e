@@ -1,5 +1,5 @@
 /**
- * Quick sort concolic execution demo.
+ * Quick sort symbolic execution demo.
  * Code taken from http://en.wikibooks.org/wiki/Algorithm_Implementation/Sorting/Quicksort#C
  */
 
@@ -29,7 +29,7 @@ static void sort(int arr[], int beg, int end) {
 int main(void) {
     int num_list[] = {5, 4, 5, 6, 7};
 
-    s2e_make_concolic(&num_list, sizeof(num_list), "array");
+    s2e_make_symbolic(&num_list, sizeof(num_list), "array");
 
     int len = sizeof(num_list) / sizeof(num_list[0]);
     sort(num_list, 0, len);

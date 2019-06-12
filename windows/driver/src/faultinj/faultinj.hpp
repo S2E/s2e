@@ -46,7 +46,7 @@ RET FaultInjTemplate1(
         goto original;
     }
 
-    InvokeOriginal = S2EConcolicChar(SymbolicVarName, 1);
+    InvokeOriginal = S2ESymbolicChar(SymbolicVarName, 1);
 
     if (SymbolicVarName) {
         ExFreePool(SymbolicVarName);

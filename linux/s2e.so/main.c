@@ -75,7 +75,7 @@ static void initialize_cmdline(int argc, char **argv) {
 
     size_t str_args_len = strlen(sym_args);
 
-    // 1 - concolic, 0 - concrete
+    // 1 - symbolic, 0 - concrete
     char *args_type = (char *) calloc(argc, sizeof(char));
     if (!args_type) {
         __emit_error("Memory allocation failed");
@@ -93,7 +93,7 @@ static void initialize_cmdline(int argc, char **argv) {
 
         if (arg_num >= 0 && arg_num < argc && errno != ERANGE) {
             // String could have same arg_num multiple times, so
-            // use a bitmap instead of directly making value concolic here.
+            // use a bitmap instead of directly making value symbolic here.
             args_type[arg_num] = 1;
         } else {
             valid = 0;
@@ -109,7 +109,7 @@ static void initialize_cmdline(int argc, char **argv) {
     for (i = 0; i < argc; i++) {
         if (args_type[i]) {
             snprintf(sym_arg_name, MAX_S2E_SYM_ARGS_SIZE, "arg%d", i);
-            s2e_make_concolic(argv[i], strlen(argv[i]), sym_arg_name);
+            s2e_make_symbolic(argv[i], strlen(argv[i]), sym_arg_name);
         }
     }
 

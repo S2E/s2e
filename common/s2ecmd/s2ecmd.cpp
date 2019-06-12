@@ -145,7 +145,7 @@ static int handler_symbwrite_dec(int argc, const char **args) {
 
     char *buffer = (char *) calloc(1, n_bytes + 1);
     memset(buffer, '0', n_bytes);
-    s2e_make_concolic(buffer, n_bytes, "buffer");
+    s2e_make_symbolic(buffer, n_bytes, "buffer");
 
     for (i = 0; i < n_bytes; ++i) {
         s2e_assume_range(buffer[i], '0', '9');
@@ -232,7 +232,7 @@ static int handler_get_seed_file(int argc, const char **args) {
     if (should_fork) {
         /* Fork a new state that will handle the seed */
         int fk = 0;
-        s2e_make_concolic(&fk, sizeof(fk), "seed_fork");
+        s2e_make_symbolic(&fk, sizeof(fk), "seed_fork");
 
         if (fk == 0) {
             /* State 0 is always reserved for getting next seed, if available */
@@ -282,7 +282,7 @@ static cmd_t s_commands[] = {
     COMMAND(yield, 0, "Yield the current state"),
     COMMAND(symbwrite, 1, "Write n symbolic bytes to stdout"),
     COMMAND(symbwrite_dec, 1, "Write n symbolic decimal digits to stdout"),
-    COMMAND2(symbfile, 1, 2, "Makes the specified file concolic. The file should be stored in a ramdisk. File name may "
+    COMMAND2(symbfile, 1, 2, "Makes the specified file symbolic. The file should be stored in a ramdisk. File name may "
                              "be preceded by block size."),
     COMMAND(exemplify, 0, "Read from stdin and write an example to stdout"),
     COMMAND(launch, 2,

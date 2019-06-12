@@ -204,14 +204,14 @@ static std::string get_chunk_name(const std::string &cleaned_name, unsigned curr
 ///
 /// \param fd the descriptor of the file to be made symbolic (must be located in a ram disk)
 /// \param offset the offset in the file to be made symbolic
-/// \param buffer the pointer where to store the original concrete data (concolic value)
+/// \param buffer the pointer where to store the original concrete data
 /// \param buffer_size the size of the buffer in bytes
 /// \param variable_name the name of the variable that encodes the chunk information
 /// \return the number of bytes read/written to the file
 ///
 static ssize_t make_chunk_symbolic(int fd, off_t offset, void *buffer, unsigned buffer_size,
                                    const std::string &variable_name) {
-    // Read the file in chunks and make them concolic
+    // Read the file in chunks and make them symbolic
     if (lseek(fd, offset, SEEK_SET) < 0) {
         s2e_kill_state_printf(-1, "symbfile: could not seek to position %d", offset);
         return -3;
@@ -224,8 +224,8 @@ static ssize_t make_chunk_symbolic(int fd, off_t offset, void *buffer, unsigned 
         return -4;
     }
 
-    // Make the buffer concolic.
-    s2e_make_concolic(buffer, read_count, variable_name.c_str());
+    // Make the buffer symbolic
+    s2e_make_symbolic(buffer, read_count, variable_name.c_str());
 
     // Write it back
     if (lseek(fd, offset, SEEK_SET) < 0) {

@@ -24,7 +24,7 @@
 
 void test_range1() {
     uintptr_t value = 123, low, high;
-    s2e_make_concolic(&value, sizeof(value), "value");
+    s2e_make_symbolic(&value, sizeof(value), "value");
     if (value > 10222) {
         s2e_get_range(value, &low, &high);
         s2e_print_expression("low", low);
@@ -44,7 +44,7 @@ void test_range1() {
 
 void test_constraints1() {
     uint32_t value = 123;
-    s2e_make_concolic(&value, sizeof(value), "value");
+    s2e_make_symbolic(&value, sizeof(value), "value");
     s2e_assert(s2e_get_constraint_count(value) == 0);
 
     if (value > 10) {

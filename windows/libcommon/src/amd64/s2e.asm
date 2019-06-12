@@ -117,8 +117,8 @@ S2EConcretize endp
 
 
 ;RCX, RDX, R8, R9
-public S2EMakeConcolicRaw
-S2EMakeConcolicRaw proc frame ; _Buffer: near ptr dword, _Size: dword, _Name: near ptr dword
+public S2EMakeSymbolicRaw
+S2EMakeSymbolicRaw proc frame ; _Buffer: near ptr dword, _Size: dword, _Name: near ptr dword
     push rbx
     .pushreg rbx
     .endprolog
@@ -126,11 +126,11 @@ S2EMakeConcolicRaw proc frame ; _Buffer: near ptr dword, _Size: dword, _Name: ne
     mov ebx, edx
     mov rcx, r8
     db 0fh, 3fh
-    db 00h, 11h, 00h, 00h
+    db 00h, 03h, 00h, 00h
     db 00h, 00h, 00h, 00h
     pop rbx
     ret
-S2EMakeConcolicRaw endp
+S2EMakeSymbolicRaw endp
 
 
 ;RCX, RDX, R8, R9

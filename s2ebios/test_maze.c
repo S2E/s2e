@@ -60,7 +60,7 @@ void test_maze(void) {
     int max = 100;
     for (int j = 0; j < max; ++j) {
         char c = 'd';
-        s2e_make_concolic(&c, sizeof(c), "c");
+        s2e_make_symbolic(&c, sizeof(c), "c");
 
         // Save old player position
         ox = x;

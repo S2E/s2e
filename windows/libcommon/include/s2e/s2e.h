@@ -83,7 +83,7 @@ VOID NTAPI S2EGetRange(UINT_PTR Expr, UINT_PTR *Low, UINT_PTR *High);
 INT NTAPI S2EGetExample(PVOID Buffer, UINT32 Size);
 INT NTAPI S2EConcretize(PVOID Buffer, UINT32 Size);
 INT NTAPI S2EIsSymbolic(PVOID Buffer, UINT32 Size);
-VOID NTAPI S2EMakeConcolicRaw(PVOID Buffer, UINT32 Size, PCSTR Name);
+VOID NTAPI S2EMakeSymbolicRaw(PVOID Buffer, UINT32 Size, PCSTR Name);
 VOID NTAPI S2EMessageRaw(PCSTR Message);
 INT NTAPI S2EInvokePluginRaw(PCSTR PluginName, PVOID Data, UINT32 DataSize);
 INT NTAPI S2EInvokePluginConcreteModeRaw(PCSTR PluginName, PVOID Data, UINT32 DataSize);
@@ -106,28 +106,28 @@ UINT32 NTAPI S2EWriteMemory(PVOID Destination, PVOID Source, DWORD Count);
 VOID NTAPI S2EDisableAllApicInterrupts(VOID);
 VOID NTAPI S2EEnableAllApicInterrupts(VOID);
 
-static inline VOID NTAPI S2EMakeConcolic(PVOID Buffer, UINT32 Size, PCSTR Name)
+static inline VOID NTAPI S2EMakeSymbolic(PVOID Buffer, UINT32 Size, PCSTR Name)
 {
     __s2e_touch_string(Name);
     __s2e_touch_buffer(Buffer, Size);
-    S2EMakeConcolicRaw(Buffer, Size, Name);
+    S2EMakeSymbolicRaw(Buffer, Size, Name);
 }
 
-static inline INT NTAPI S2EConcolicInt(PCSTR Name, INT InitialValue)
+static inline INT NTAPI S2ESymbolicInt(PCSTR Name, INT InitialValue)
 {
-    S2EMakeConcolic(&InitialValue, sizeof(InitialValue), Name);
+    S2EMakeSymbolic(&InitialValue, sizeof(InitialValue), Name);
     return InitialValue;
 }
 
-static inline UINT8 NTAPI S2EConcolicChar(PCSTR Name, UINT8 InitialValue)
+static inline UINT8 NTAPI S2ESymbolicChar(PCSTR Name, UINT8 InitialValue)
 {
-    S2EMakeConcolic(&InitialValue, sizeof(InitialValue), Name);
+    S2EMakeSymbolic(&InitialValue, sizeof(InitialValue), Name);
     return InitialValue;
 }
 
-static inline NTSTATUS NTAPI S2EConcolicStatus(PCSTR Name, NTSTATUS InitialValue)
+static inline NTSTATUS NTAPI S2ESymbolicStatus(PCSTR Name, NTSTATUS InitialValue)
 {
-    S2EMakeConcolic(&InitialValue, sizeof(InitialValue), Name);
+    S2EMakeSymbolic(&InitialValue, sizeof(InitialValue), Name);
     return InitialValue;
 }
 

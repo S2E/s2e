@@ -75,7 +75,7 @@ extern "C" {
 #define BASE_S2E_ASSUME_RANGE   0x0E
 #define BASE_S2E_YIELD          0x0F
 #define BASE_S2E_PRINT_MSG      0x10
-#define BASE_S2E_MAKE_CONCOLIC  0x11
+#define BASE_S2E_MAKE_CONCOLIC  0x11 // Keep this for backwards compatibility, behaves like s2e_make_symbolic
 #define BASE_S2E_BEGIN_ATOMIC   0x12
 #define BASE_S2E_END_ATOMIC     0x13
 #define BASE_S2E_CONCRETIZE     0x20
