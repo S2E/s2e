@@ -20,8 +20,6 @@
 
 #include <llvm/Support/CommandLine.h>
 
-extern llvm::cl::opt<bool> ConcolicMode;
-
 namespace s2e {
 namespace plugins {
 
@@ -66,7 +64,7 @@ void TranslationBlockTracer::enableTracing() {
         return;
     }
 
-    if (g_s2e_state != NULL && m_flushTbOnChange) {
+    if (g_s2e_state != nullptr && m_flushTbOnChange) {
         se_tb_safe_flush();
     }
 
@@ -128,14 +126,10 @@ bool TranslationBlockTracer::getConcolicValue(S2EExecutionState *state, unsigned
         return true;
     }
 
-    if (ConcolicMode) {
-        klee::ref<klee::ConstantExpr> ce;
-        ce = dyn_cast<klee::ConstantExpr>(state->concolics->evaluate(expr));
-        *value = ce->getZExtValue();
-        return true;
-    } else {
-        return false;
-    }
+    klee::ref<klee::ConstantExpr> ce;
+    ce = dyn_cast<klee::ConstantExpr>(state->concolics->evaluate(expr));
+    *value = ce->getZExtValue();
+    return true;
 }
 
 void TranslationBlockTracer::trace(S2EExecutionState *state, uint64_t pc, uint32_t type) {
@@ -165,10 +159,7 @@ void TranslationBlockTracer::trace(S2EExecutionState *state, uint64_t pc, uint32
         unsigned offset = offsetof(CPUX86State, regs[i]);
         target_ulong concrete_data;
         if (!state->regs()->read(offset, &concrete_data, sizeof(concrete_data), false)) {
-            if (ConcolicMode) {
-                getConcolicValue(state, offset, &concrete_data);
-            }
-
+            getConcolicValue(state, offset, &concrete_data);
             symbMask |= 1 << i;
         }
 

@@ -107,7 +107,7 @@ S2EExecutionState *EdgeCoverage::getNonCoveredState(llvm::DenseSet<S2EExecutionS
         }
     }
 
-    return NULL;
+    return nullptr;
 }
 
 } // namespace plugins

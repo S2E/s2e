@@ -101,7 +101,7 @@ struct Events {
         const char *pluginName = p->getPluginInfo()->name.c_str();
         QObject *plg = qdict_get(command, pluginName);
         if (!plg) {
-            return NULL;
+            return nullptr;
         }
 
         return qobject_to_qdict(plg);

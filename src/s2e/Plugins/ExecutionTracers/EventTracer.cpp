@@ -34,7 +34,7 @@ void EventTracer::initialize() {
     assert(m_Detector);
 
     m_TraceAll = false;
-    m_TraceAllCfg = NULL;
+    m_TraceAllCfg = nullptr;
     m_Debug = false;
 }
 

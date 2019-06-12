@@ -48,8 +48,7 @@ public:
     void handleBuiltInOps(S2EExecutionState *state, uint64_t opcode);
 
     void makeSymbolic(S2EExecutionState *state, uintptr_t address, unsigned size, const std::string &nameStr,
-                      bool makeConcolic, std::vector<klee::ref<klee::Expr>> *varData = NULL,
-                      std::string *varName = NULL);
+                      std::vector<klee::ref<klee::Expr>> *varData = nullptr, std::string *varName = nullptr);
 
     virtual void handleOpcodeInvocation(S2EExecutionState *state, uint64_t guestDataPtr, uint64_t guestDataSize);
 
@@ -63,7 +62,7 @@ private:
     void onCustomInstruction(S2EExecutionState *state, uint64_t opcode);
     void checkPlugin(S2EExecutionState *state) const;
     void invokePlugin(S2EExecutionState *state);
-    void makeSymbolic(S2EExecutionState *state, bool makeConcolic);
+    void makeSymbolic(S2EExecutionState *state);
     void isSymbolic(S2EExecutionState *state);
     void killState(S2EExecutionState *state);
     void printExpression(S2EExecutionState *state);

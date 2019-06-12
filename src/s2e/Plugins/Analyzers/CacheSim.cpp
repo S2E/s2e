@@ -108,11 +108,11 @@ public:
         m_lines = c.m_lines;
         m_name = c.m_name;
         m_cacheId = c.m_cacheId;
-        m_upperCache = NULL;
+        m_upperCache = nullptr;
     }
 
     Cache(const std::string &name, uint64_t size, uint64_t associativity, uint64_t lineSize, uint64_t cost = 1,
-          Cache *upperCache = NULL)
+          Cache *upperCache = nullptr)
         : m_size(size), m_associativity(associativity), m_lineSize(lineSize), m_name(name), m_upperCache(upperCache) {
         assert(size && associativity && lineSize);
 
@@ -192,8 +192,8 @@ public:
 CacheSimState::CacheSimState() {
     m_i1_length = 0;
     m_d1_length = 0;
-    m_i1 = NULL;
-    m_d1 = NULL;
+    m_i1 = nullptr;
+    m_d1 = nullptr;
 }
 
 CacheSimState::CacheSimState(S2EExecutionState *s, Plugin *p) {
@@ -237,14 +237,14 @@ CacheSimState::CacheSimState(S2EExecutionState *s, Plugin *p) {
     m_d1_length = 0;
 
     s2e->getInfoStream() << "Instruction cache hierarchy:";
-    for (Cache *c = m_i1; c != NULL; c = c->getUpperCache()) {
+    for (Cache *c = m_i1; c != nullptr; c = c->getUpperCache()) {
         m_i1_length += 1;
         s2e->getInfoStream() << " -> " << c->getName();
     }
     s2e->getInfoStream() << " -> memory" << '\n';
 
     s2e->getInfoStream() << "Data cache hierarchy:";
-    for (Cache *c = m_d1; c != NULL; c = c->getUpperCache()) {
+    for (Cache *c = m_d1; c != nullptr; c = c->getUpperCache()) {
         m_d1_length += 1;
         s2e->getInfoStream() << " -> " << c->getName();
     }
@@ -442,7 +442,7 @@ bool CacheSim::reportAccess(S2EExecutionState *state) const {
 
     if (!m_reportWholeSystem) {
         if (m_execDetector) {
-            return (m_execDetector->getCurrentDescriptor(state) != NULL);
+            return (m_execDetector->getCurrentDescriptor(state) != nullptr);
         } else {
             return false;
         }
@@ -482,7 +482,7 @@ void CacheSim::onMemoryAccess(S2EExecutionState *state, uint64_t address, unsign
     }
 
     unsigned i = 0;
-    for (Cache *c = cache; c != NULL; c = c->getUpperCache(), ++i) {
+    for (Cache *c = cache; c != nullptr; c = c->getUpperCache(), ++i) {
         if (m_reportZeroMisses || missCount[i]) {
             s2e_trace::PbTraceCacheSimEntry item;
             item.set_cache_id(c->getId());

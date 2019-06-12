@@ -109,10 +109,10 @@ void KeyValueStore::connectNative() {
 void KeyValueStore::connectMemcached() {
     memcached_return rc;
 
-    m_cache = NULL;
-    m_cache_servers = NULL;
+    m_cache = nullptr;
+    m_cache_servers = nullptr;
     m_cache_servers = memcached_server_list_append(m_cache_servers, m_server.c_str(), m_port, &rc);
-    m_cache = memcached_create(NULL);
+    m_cache = memcached_create(nullptr);
 
     rc = memcached_server_push(m_cache, m_cache_servers);
 
@@ -333,7 +333,7 @@ void KeyValueStore::handleOpcodeInvocation(S2EExecutionState *state, uint64_t gu
             }
 
             if (command.Success) {
-                command.IntegerValue = strtol(value.c_str(), NULL, 0);
+                command.IntegerValue = strtol(value.c_str(), nullptr, 0);
             }
         } break;
 

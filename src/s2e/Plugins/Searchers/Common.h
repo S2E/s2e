@@ -24,7 +24,7 @@ struct StatePriority {
     int64_t priority;
 
     StatePriority() {
-        state = NULL;
+        state = nullptr;
         priority = 0;
     }
 

@@ -49,7 +49,7 @@ int LuaS2EExecutionState::createSymbolicValue(lua_State *L) {
         buffer[i] = 0;
     }
 
-    klee::ref<klee::Expr> value = m_state->createConcolicValue(name, size * 8, buffer);
+    klee::ref<klee::Expr> value = m_state->createSymbolicValue(name, size * 8, buffer);
     g_s2e->getDebugStream(m_state) << "LuaS2EExecutionState: " << value << "\n";
 
     // lua will manage the LuaExpression** ptr
@@ -66,7 +66,7 @@ int LuaS2EExecutionState::kill(lua_State *L) {
 
     std::stringstream ss;
     ss << "LuaS2EExecutionState: killed status:" << status << " message:" << message;
-    g_s2e->getExecutor()->terminateStateEarly(*m_state, ss.str());
+    g_s2e->getExecutor()->terminateState(*m_state, ss.str());
 
     return 0;
 }

@@ -54,7 +54,7 @@ void TBCoverageTracer::initialize() {
     m_tracer = s2e()->getPlugin<ExecutionTracer>();
     m_detector = s2e()->getPlugin<ModuleExecutionDetector>();
 
-    m_manualTrigger = s2e()->getConfig()->getBool(getConfigKey() + ".manualTrigger", false, NULL);
+    m_manualTrigger = s2e()->getConfig()->getBool(getConfigKey() + ".manualTrigger", false, nullptr);
 
     // Whether or not to flush the translation block cache when
     // enabling/disabling tracing.

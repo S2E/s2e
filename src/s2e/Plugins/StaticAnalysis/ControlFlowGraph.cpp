@@ -191,7 +191,7 @@ bool ControlFlowGraph::isReachable(const BasicBlocks &bbs, uint64_t source, uint
 const ControlFlowGraph::BasicBlock *ControlFlowGraph::findBasicBlock(const std::string &module, uint64_t pc) const {
     ModuleBasicBlocks::const_iterator it = m_basicBlocks.find(module);
     if (it == m_basicBlocks.end()) {
-        return NULL;
+        return nullptr;
     }
 
     const BasicBlocks &bbs = (*it).second;
@@ -209,7 +209,7 @@ const ControlFlowGraph::BasicBlock *ControlFlowGraph::findBasicBlock(const Basic
         return &*bbit;
     }
 
-    return NULL;
+    return nullptr;
 }
 
 bool ControlFlowGraph::getBasicBlockRange(const std::string &module, uint64_t start, uint64_t end,

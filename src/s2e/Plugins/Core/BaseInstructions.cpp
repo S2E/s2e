@@ -25,14 +25,13 @@
 
 #include <klee/Searcher.h>
 #include <klee/Solver.h>
+#include <klee/SolverManager.h>
 #include <llvm/ADT/DenseSet.h>
 #include <llvm/Support/TimeValue.h>
 
 #include <llvm/Support/CommandLine.h>
 
 #include "BaseInstructions.h"
-
-extern llvm::cl::opt<bool> ConcolicMode;
 
 extern "C" {
 /**
@@ -86,7 +85,7 @@ public:
 void BaseInstructions::initialize() {
     ConfigFile *cfg = s2e()->getConfig();
 
-    m_monitor = NULL;
+    m_monitor = nullptr;
     if (cfg->getBool(getConfigKey() + ".restrict", false)) {
         m_monitor = dynamic_cast<OSMonitor *>(s2e()->getPlugin("OSMonitor"));
         if (!m_monitor) {
@@ -146,30 +145,26 @@ void BaseInstructions::allowCurrentPid(S2EExecutionState *state) {
 }
 
 void BaseInstructions::makeSymbolic(S2EExecutionState *state, uintptr_t address, unsigned size,
-                                    const std::string &nameStr, bool makeConcolic,
-                                    std::vector<klee::ref<Expr>> *varData, std::string *varName) {
+                                    const std::string &nameStr, std::vector<klee::ref<Expr>> *varData,
+                                    std::string *varName) {
     std::vector<klee::ref<Expr>> symb;
     std::stringstream valueSs;
 
-    if (makeConcolic) {
-        std::vector<uint8_t> concreteData;
+    std::vector<uint8_t> concreteData;
 
-        valueSs << "='";
-        for (unsigned i = 0; i < size; ++i) {
-            uint8_t byte = 0;
-            if (!state->mem()->read<uint8_t>(address + i, &byte, VirtualAddress, false)) {
-                getWarningsStream(state) << "Can not concretize/read symbolic value at " << hexval(address + i)
-                                         << ". System state not modified\n";
-                return;
-            }
-            concreteData.push_back(byte);
-            valueSs << charval(byte);
+    valueSs << "='";
+    for (unsigned i = 0; i < size; ++i) {
+        uint8_t byte = 0;
+        if (!state->mem()->read<uint8_t>(address + i, &byte, VirtualAddress, false)) {
+            getWarningsStream(state) << "Can not concretize/read symbolic value at " << hexval(address + i)
+                                     << ". System state not modified\n";
+            return;
         }
-        valueSs << "'";
-        symb = state->createConcolicArray(nameStr, size, concreteData, varName);
-    } else {
-        symb = state->createSymbolicArray(nameStr, size, varName);
+        concreteData.push_back(byte);
+        valueSs << charval(byte);
     }
+    valueSs << "'";
+    symb = state->createSymbolicArray(nameStr, size, concreteData, varName);
 
     getInfoStream(state) << "Inserted symbolic data @" << hexval(address) << " of size " << hexval(size) << ": "
                          << (varName ? *varName : nameStr) << valueSs.str() << " pc=" << hexval(state->regs()->getPc())
@@ -187,7 +182,7 @@ void BaseInstructions::makeSymbolic(S2EExecutionState *state, uintptr_t address,
     }
 }
 
-void BaseInstructions::makeSymbolic(S2EExecutionState *state, bool makeConcolic) {
+void BaseInstructions::makeSymbolic(S2EExecutionState *state) {
     target_ulong address, size, name;
     bool ok = true;
     ok &= state->regs()->read(CPU_OFFSET(regs[R_EAX]), &address, sizeof address, false);
@@ -205,7 +200,7 @@ void BaseInstructions::makeSymbolic(S2EExecutionState *state, bool makeConcolic)
         getWarningsStream(state) << "Error reading string from the guest\n";
     }
 
-    makeSymbolic(state, address, size, nameStr, makeConcolic);
+    makeSymbolic(state, address, size, nameStr);
 }
 
 void BaseInstructions::isSymbolic(S2EExecutionState *state) {
@@ -272,7 +267,7 @@ void BaseInstructions::killState(S2EExecutionState *state) {
     os << "State was terminated by opcode\n"
        << "            message: \"" << message << "\"\n"
        << "            status: " << status;
-    s2e()->getExecutor()->terminateStateEarly(*state, os.str());
+    s2e()->getExecutor()->terminateState(*state, os.str());
 }
 
 void BaseInstructions::printExpression(S2EExecutionState *state) {
@@ -301,7 +296,7 @@ void BaseInstructions::printExpression(S2EExecutionState *state) {
 
     getInfoStream() << "SymbExpression " << nameStr << " - " << val << '\n';
 
-    if (ConcolicMode && !isa<klee::ConstantExpr>(val)) {
+    if (!isa<klee::ConstantExpr>(val)) {
         klee::ref<klee::Expr> concrete = state->concolics->evaluate(val);
         getInfoStream() << "SymbExpression " << nameStr << " - Value: " << concrete << '\n';
     }
@@ -494,14 +489,14 @@ void BaseInstructions::checkPlugin(S2EExecutionState *state) const {
         goto fail;
     }
 
-    loaded = s2e()->getPlugin(pluginName) == NULL ? 0 : 1;
+    loaded = s2e()->getPlugin(pluginName) == nullptr ? 0 : 1;
 
 fail:
     state->regs()->write(CPU_OFFSET(regs[R_EAX]), &loaded, sizeof(loaded));
 }
 
 void BaseInstructions::invokePlugin(S2EExecutionState *state) {
-    IPluginInvoker *iface = NULL;
+    IPluginInvoker *iface = nullptr;
     Plugin *plugin;
     std::string pluginName;
     target_ulong pluginNamePointer = 0;
@@ -616,32 +611,11 @@ void BaseInstructions::assumeInternal(S2EExecutionState *state, klee::ref<klee::
     klee::ref<klee::Expr> zero = klee::ConstantExpr::create(0, expr.get()->getWidth());
     klee::ref<klee::Expr> boolExpr = klee::NeExpr::create(expr, zero);
 
-    // Check that the added constraint is consistent with
-    // the existing path constraints
-    bool isValid = true;
-    if (ConcolicMode) {
-        klee::ref<klee::Expr> ce = state->concolics->evaluate(boolExpr);
-        assert(isa<klee::ConstantExpr>(ce) && "Expression must be constant here");
-        if (!ce->isTrue()) {
-            isValid = false;
-        }
-    } else {
-        bool truth;
-        Solver *solver = s2e()->getExecutor()->getSolver(*state);
-        Query query(state->constraints, boolExpr);
-        bool res = solver->mustBeTrue(query.negateExpr(), truth);
-        if (!res || truth) {
-            isValid = false;
-        }
-    }
+    getDebugStream(state) << "Assuming " << boolExpr << "\n";
 
-    if (!isValid) {
-        std::stringstream ss;
-        ss << "BaseInstructions: specified assume expression cannot be true. " << boolExpr;
-        g_s2e->getExecutor()->terminateStateEarly(*state, ss.str());
+    if (!state->addConstraint(boolExpr, true)) {
+        s2e()->getExecutor()->terminateState(*state, "Tried to add an invalid constraint");
     }
-
-    state->addConstraint(boolExpr);
 }
 
 /**
@@ -698,7 +672,7 @@ void BaseInstructions::getRange(S2EExecutionState *state) {
         return;
     }
 
-    klee::Solver *solver = g_s2e->getExecutor()->getSolver(*state);
+    Solver *solver = state->solver()->solver;
 
     Query query(state->constraints, value);
     range = solver->getRange(query);
@@ -744,7 +718,7 @@ void BaseInstructions::forkCount(S2EExecutionState *state) {
         return;
     }
 
-    klee::ref<klee::Expr> var = state->createConcolicValue<uint32_t>(name, 0);
+    klee::ref<klee::Expr> var = state->createSymbolicValue<uint32_t>(name, 0);
 
     state->regs()->write(CPU_OFFSET(regs[R_EAX]), var);
     state->regs()->write<target_ulong>(CPU_OFFSET(eip), state->regs()->getPc() + 10);
@@ -761,7 +735,9 @@ void BaseInstructions::forkCount(S2EExecutionState *state) {
     }
 
     klee::ref<klee::Expr> cond = klee::EqExpr::create(var, klee::ConstantExpr::create(0, var->getWidth()));
-    state->addConstraint(cond);
+    if (!state->addConstraint(cond)) {
+        s2e()->getExecutor()->terminateState(*state, "Could not add condition");
+    }
 }
 
 /** Handle s2e_op instruction. Instructions:
@@ -775,8 +751,10 @@ void BaseInstructions::handleBuiltInOps(S2EExecutionState *state, uint64_t opcod
             state->regs()->write(CPU_OFFSET(regs[R_EAX]), &v, sizeof v);
         } break;
 
+        case BASE_S2E_MAKE_CONCOLIC:
+            getWarningsStream(state) << "s2e_make_concolic is deprecated. Use s2e_make_symbolic instead.\n";
         case BASE_S2E_MAKE_SYMBOLIC: { /* s2e_make_symbolic */
-            makeSymbolic(state, false);
+            makeSymbolic(state);
             break;
         }
 
@@ -842,17 +820,12 @@ void BaseInstructions::handleBuiltInOps(S2EExecutionState *state, uint64_t opcod
         }
 
         case BASE_S2E_YIELD: { /* s2e_yield */
-            s2e()->getExecutor()->yieldState(*state);
+            state->yield();
             break;
         }
 
         case BASE_S2E_PRINT_MSG: { /* s2e_message */
             printMessage(state, opcode >> 16);
-            break;
-        }
-
-        case BASE_S2E_MAKE_CONCOLIC: { /* s2e_make_concolic */
-            makeSymbolic(state, true);
             break;
         }
 

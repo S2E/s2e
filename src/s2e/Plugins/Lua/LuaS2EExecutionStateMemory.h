@@ -35,7 +35,6 @@ public:
     int write(lua_State *L);
 
     int makeSymbolic(lua_State *L);
-    int makeConcolic(lua_State *L);
 };
 
 } // namespace plugins

@@ -200,7 +200,7 @@ S2EExecutionState *BasicBlockCoverage::getNonCoveredState(llvm::DenseSet<S2EExec
         }
     }
 
-    return NULL;
+    return nullptr;
 }
 
 void BasicBlockCoverage::onModuleTranslateBlockComplete(S2EExecutionState *state, const ModuleDescriptor &module,

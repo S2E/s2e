@@ -114,7 +114,7 @@ void BlueScreenInterceptor::onBsod(S2EExecutionState *state, uint64_t pc) {
     ss << "BSOD: code=" << hexval(code) << " param1=" << hexval(param1) << " param2=" << hexval(param2)
        << " param3=" << hexval(param3) << " param4=" << hexval(param4);
 
-    s2e()->getExecutor()->terminateStateEarly(*state, ss.str());
+    s2e()->getExecutor()->terminateState(*state, ss.str());
 }
 
 void BlueScreenInterceptor::handleOpcodeInvocation(S2EExecutionState *state, uint64_t guestDataPtr,
@@ -150,7 +150,7 @@ void BlueScreenInterceptor::handleOpcodeInvocation(S2EExecutionState *state, uin
 
     onBlueScreen.emit(state, &info);
 
-    s2e()->getExecutor()->terminateStateEarly(*state, ss.str());
+    s2e()->getExecutor()->terminateState(*state, ss.str());
 }
 }
 }

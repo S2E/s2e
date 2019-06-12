@@ -47,7 +47,7 @@ int LuaS2EExecutionStateRegisters::read(lua_State *L) {
         default: {
             std::stringstream ss;
             ss << "LuaS2EExecutionStateRegisters::read: Incorrect size " << size << "\n";
-            g_s2e->getExecutor()->terminateStateEarly(*m_state, ss.str());
+            g_s2e->getExecutor()->terminateState(*m_state, ss.str());
             break;
         }
     }

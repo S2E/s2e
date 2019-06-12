@@ -191,7 +191,7 @@ klee::ref<klee::Expr> SymbolicHardware::createExpression(S2EExecutionState *stat
     if (createVariable) {
         ConcreteArray concolicValue;
         SymbHwGetConcolicVector(concreteValue, size, concolicValue);
-        return state->createConcolicValue(ss.str(), size * 8, concolicValue);
+        return state->createSymbolicValue(ss.str(), size * 8, concolicValue);
     } else {
         return klee::ExtractExpr::create(klee::ConstantExpr::create(concreteValue, 64), 0, size * 8);
     }
@@ -241,7 +241,7 @@ static klee::ref<klee::Expr> symbhw_symbread(struct MemoryDesc *mr, uint64_t phy
     }
 
     unsigned size = value->getWidth() / 8;
-    uint64_t concreteValue = g_s2e->getExecutor()->toConstantSilent(*g_s2e_state, value)->getZExtValue();
+    uint64_t concreteValue = g_s2e_state->toConstantSilent(value)->getZExtValue();
     return hw->createExpression(g_s2e_state, SYMB_MMIO, physaddress, size, concreteValue);
 }
 

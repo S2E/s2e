@@ -24,7 +24,6 @@ Lunar<LuaS2EExecutionStateMemory>::RegType LuaS2EExecutionStateMemory::methods[]
     LUNAR_DECLARE_METHOD(LuaS2EExecutionStateMemory, readBytes),
     LUNAR_DECLARE_METHOD(LuaS2EExecutionStateMemory, write),
     LUNAR_DECLARE_METHOD(LuaS2EExecutionStateMemory, makeSymbolic),
-    LUNAR_DECLARE_METHOD(LuaS2EExecutionStateMemory, makeConcolic),
     {0, 0}};
 
 int LuaS2EExecutionStateMemory::readPointer(lua_State *L) {
@@ -101,28 +100,12 @@ int LuaS2EExecutionStateMemory::makeSymbolic(lua_State *L) {
     long size = (long) luaL_checkinteger(L, 2);
     std::string name = luaL_checkstring(L, 3);
 
-    std::vector<klee::ref<klee::Expr>> symb = m_state->createSymbolicArray(name, size);
-
-    for (unsigned i = 0; i < size; ++i) {
-        if (!m_state->mem()->write(address + i, symb[i])) {
-            return 0;
-        }
-    }
-
-    return 1;
-}
-
-int LuaS2EExecutionStateMemory::makeConcolic(lua_State *L) {
-    long address = (long) luaL_checkinteger(L, 1);
-    long size = (long) luaL_checkinteger(L, 2);
-    std::string name = luaL_checkstring(L, 3);
-
     std::vector<uint8_t> concreteData(size);
     if (!m_state->mem()->read(address, concreteData.data(), size * sizeof(uint8_t))) {
         return 0;
     }
 
-    std::vector<klee::ref<klee::Expr>> symb = m_state->createConcolicArray(name, size, concreteData);
+    std::vector<klee::ref<klee::Expr>> symb = m_state->createSymbolicArray(name, size, concreteData);
 
     for (unsigned i = 0; i < size; ++i) {
         if (!m_state->mem()->write(address + i, symb[i])) {

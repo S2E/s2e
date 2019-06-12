@@ -29,7 +29,7 @@ S2E_DEFINE_PLUGIN(InstructionCounter, "Instruction counter plugin", "Instruction
                   "ModuleExecutionDetector");
 
 void InstructionCounter::initialize() {
-    m_tb = NULL;
+    m_tb = nullptr;
 
     m_executionTracer = s2e()->getPlugin<ExecutionTracer>();
     assert(m_executionTracer);
@@ -71,7 +71,7 @@ void InstructionCounter::onTranslateInstructionStart(ExecutionSignal *signal, S2
                                                      TranslationBlock *tb, uint64_t pc) {
     if (tb != m_tb) {
         // We've been suddenly interrupted by some other module
-        m_tb = NULL;
+        m_tb = nullptr;
         m_tbConnection.disconnect();
         return;
     }
@@ -87,7 +87,7 @@ void InstructionCounter::onModuleTranslateBlockEnd(ExecutionSignal *signal, S2EE
     // TRACE("%"PRIx64" StaticTarget=%d TargetPc=%"PRIx64"\n", endPc, staticTarget, targetPc);
 
     // Done translating the blocks, no need to instrument anymore.
-    m_tb = NULL;
+    m_tb = nullptr;
     m_tbConnection.disconnect();
 }
 

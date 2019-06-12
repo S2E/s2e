@@ -168,7 +168,7 @@ public:
     ModuleDescriptorConstPtr getCurrentDescriptor(S2EExecutionState *state) const;
     ModuleDescriptorConstPtr getDescriptor(S2EExecutionState *state, uint64_t pc) const;
 
-    const std::string *getModuleId(const ModuleDescriptor &desc, unsigned *index = NULL) const;
+    const std::string *getModuleId(const ModuleDescriptor &desc, unsigned *index = nullptr) const;
     bool getModuleConfig(const std::string &id, ModuleExecutionCfg &cfg) const;
     bool isModuleConfigured(const std::string &moduleId) const;
     bool isModuleNameConfigured(const std::string &moduleName) const;

@@ -165,7 +165,7 @@ public:
     virtual void handleKernelPanic(S2EExecutionState *state, uint64_t message, uint64_t messageSize) {
         std::string str = "kernel panic";
         state->mem()->readString(message, str, messageSize);
-        g_s2e->getExecutor()->terminateStateEarly(*state, str);
+        g_s2e->getExecutor()->terminateState(*state, str);
     }
 };
 

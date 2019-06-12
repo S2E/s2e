@@ -225,7 +225,7 @@ std::shared_ptr<vmi::PEFile> WindowsMonitor::getFromDiskOrMemory(S2EExecutionSta
         return std::dynamic_pointer_cast<vmi::PEFile>(pe);
     }
 
-    auto file = vmi::GuestMemoryFileProvider::get(state, &Vmi::readGuestVirtual, NULL, moduleName);
+    auto file = vmi::GuestMemoryFileProvider::get(state, &Vmi::readGuestVirtual, nullptr, moduleName);
     return vmi::PEFile::get(file, true, loadBase);
 }
 
@@ -396,7 +396,7 @@ void WindowsMonitor::onKiRetireDpcCallSite(S2EExecutionState *state, uint64_t pc
                           << " SystemArgument2=" << hexval(SystemArgument2) << "\n";
 
     if (SystemArgument1 || SystemArgument2) {
-        // These are usually NULL, except when patchguard's DPC is called.
+        // These are usually nullptr, except when patchguard's DPC is called.
         // Could skip the DPC.
 
         bool tracing = false;
@@ -445,7 +445,7 @@ template <typename UNICODE_STRING> void WindowsMonitor::unloadModule(S2EExecutio
                     base = state->regs()->read<target_ulong>(CPU_OFFSET(regs[9]));
 
                     if (!state->mem()->read(state->regs()->getSp() + (1 + 4) * pointerSize, &size, pointerSize)) {
-                        s2e()->getExecutor()->terminateStateEarly(*state, "WindowsMonitor: could not read stack");
+                        s2e()->getExecutor()->terminateState(*state, "WindowsMonitor: could not read stack");
                     }
                 } break;
 
@@ -462,17 +462,17 @@ template <typename UNICODE_STRING> void WindowsMonitor::unloadModule(S2EExecutio
                         pName = state->regs()->read<target_ulong>(CPU_OFFSET(regs[R_EDX]));
 
                         if (!state->mem()->read(state->regs()->getSp() + 1 * pointerSize, &pid, pointerSize)) {
-                            s2e()->getExecutor()->terminateStateEarly(*state, "WindowsMonitor: could not read stack");
+                            s2e()->getExecutor()->terminateState(*state, "WindowsMonitor: could not read stack");
                         }
                         if (!state->mem()->read(state->regs()->getSp() + 2 * pointerSize, &base, pointerSize)) {
-                            s2e()->getExecutor()->terminateStateEarly(*state, "WindowsMonitor: could not read stack");
+                            s2e()->getExecutor()->terminateState(*state, "WindowsMonitor: could not read stack");
                         }
                     }
                 } break;
 
                 default:
-                    s2e()->getExecutor()->terminateStateEarly(
-                        *state, "WindowsMonitor: unsupported OS for onPerfLogImageUnload");
+                    s2e()->getExecutor()->terminateState(*state,
+                                                         "WindowsMonitor: unsupported OS for onPerfLogImageUnload");
             }
         } break;
 
@@ -485,13 +485,12 @@ template <typename UNICODE_STRING> void WindowsMonitor::unloadModule(S2EExecutio
             base = state->regs()->read<target_ulong>(CPU_OFFSET(regs[9]));
 
             if (!state->mem()->read(state->regs()->getSp() + (1 + 4) * pointerSize, &size, pointerSize)) {
-                s2e()->getExecutor()->terminateStateEarly(*state, "WindowsMonitor: could not read stack");
+                s2e()->getExecutor()->terminateState(*state, "WindowsMonitor: could not read stack");
             }
         } break;
 
         default: {
-            s2e()->getExecutor()->terminateStateEarly(*state,
-                                                      "WindowsMonitor: unsupported OS for onPerfLogImageUnload");
+            s2e()->getExecutor()->terminateState(*state, "WindowsMonitor: unsupported OS for onPerfLogImageUnload");
             break;
         }
     }
@@ -716,7 +715,7 @@ void WindowsMonitor::opcodeInitKernelStructs(S2EExecutionState *state, uint64_t 
         exit(-1);
     }
 
-    auto guestImage = vmi::GuestMemoryFileProvider::get(state, &Vmi::readGuestVirtual, NULL, "ntoskrnl.exe");
+    auto guestImage = vmi::GuestMemoryFileProvider::get(state, &Vmi::readGuestVirtual, nullptr, "ntoskrnl.exe");
 
     if (!guestImage) {
         getWarningsStream(state) << "error creating GuestMemoryFileProvider\n";
@@ -1016,13 +1015,13 @@ void WindowsMonitor::clearCache() {
     m_cachedTid = -1;
     m_cachedEprocess = 0;
     m_cachedEthread = 0;
-    m_cachedState = NULL;
+    m_cachedState = nullptr;
 }
 
 template <typename T>
 static inline bool _ReadCurrentProcessThreadId(Plugin *plg, S2EExecutionState *state,
                                                const S2E_WINMON2_KERNEL_STRUCTS &k, uint64_t *pid, uint64_t *tid,
-                                               uint64_t *_pkthread = NULL, uint64_t *_pkprocess = NULL) {
+                                               uint64_t *_pkthread = nullptr, uint64_t *_pkprocess = nullptr) {
     T pkthread;
     if (!state->mem()->read(k.KPRCB + k.EThreadSegmentOffset, &pkthread, sizeof(pkthread))) {
         plg->getDebugStream() << "_ReadCurrentProcessThreadId: Could not read KPCR "
@@ -1063,7 +1062,7 @@ static inline bool _ReadCurrentProcessThreadId(Plugin *plg, S2EExecutionState *s
 
 static inline bool ReadCurrentProcessThreadId(Plugin *plg, S2EExecutionState *state,
                                               const S2E_WINMON2_KERNEL_STRUCTS &k, uint64_t *pid, uint64_t *tid,
-                                              uint64_t *_pkthread = NULL, uint64_t *_pkprocess = NULL) {
+                                              uint64_t *_pkthread = nullptr, uint64_t *_pkprocess = nullptr) {
     if (k.PointerSizeInBytes == 8) {
         return _ReadCurrentProcessThreadId<uint64_t>(plg, state, k, pid, tid, _pkthread, _pkprocess);
     } else {

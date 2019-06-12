@@ -30,7 +30,7 @@ void MultiSearcher::onInitComplete(S2EExecutionState *state) {
 }
 
 bool MultiSearcher::registerSearcher(const std::string &name, klee::Searcher *searcher) {
-    if (m_searchers[name] == NULL) {
+    if (m_searchers[name] == nullptr) {
         getDebugStream() << "Registering " << name << "\n";
         m_searchers[name] = searcher;
 

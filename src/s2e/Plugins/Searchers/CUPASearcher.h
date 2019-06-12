@@ -109,7 +109,7 @@ protected:
     void doAddState(klee::ExecutionState *state, uint64_t stateClass);
     void doRemoveState(klee::ExecutionState *state);
 
-    llvm::raw_ostream &getDebugStream(S2EExecutionState *state = NULL) const;
+    llvm::raw_ostream &getDebugStream(S2EExecutionState *state = nullptr) const;
 
 protected:
     virtual uint64_t getClass(S2EExecutionState *state) = 0;
@@ -403,7 +403,7 @@ protected:
 class CUPASearcherBatchClass : public CUPASearcherClass {
 public:
     CUPASearcherBatchClass(CUPASearcher *plugin, unsigned level) : CUPASearcherClass(plugin, level) {
-        m_state = NULL;
+        m_state = nullptr;
         m_lastSelectedTime = 0;
         m_batchTime = plugin->getBatchTime();
     }
@@ -417,7 +417,7 @@ protected:
     virtual void update(klee::ExecutionState *current, const klee::StateSet &addedStates,
                         const klee::StateSet &removedStates) {
         if (removedStates.count(m_state)) {
-            m_state = NULL;
+            m_state = nullptr;
             m_lastSelectedTime = 0;
         }
 

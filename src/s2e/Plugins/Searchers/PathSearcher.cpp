@@ -24,7 +24,7 @@ S2E_DEFINE_PLUGIN(PathSearcher, "Choose fork branches that lead to desired state
                   "DecreeMonitor");
 
 PathSearcher::PathSearcher(S2E *s2e) : Plugin(s2e) {
-    m_chosenState = NULL;
+    m_chosenState = nullptr;
     m_vulnPc = 0;
 }
 
@@ -283,7 +283,7 @@ void PathSearcher::onFork(S2EExecutionState *state, const std::vector<S2EExecuti
         plgState->increaseForkCount();
     }
 
-    s2e()->getExecutor()->yieldState(*state);
+    state->yield();
 }
 
 void PathSearcher::update(klee::ExecutionState *current, const klee::StateSet &addedStates,

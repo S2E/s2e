@@ -38,7 +38,7 @@ void LoopExitSearcher::initialize() {
 
     s2e()->getCorePlugin()->onTimer.connect(sigc::mem_fun(*this, &LoopExitSearcher::onTimer));
 
-    m_currentState = NULL;
+    m_currentState = nullptr;
     m_timerTicks = 0;
 }
 
@@ -154,7 +154,7 @@ void LoopExitSearcher::onFork(S2EExecutionState *state, const std::vector<S2EExe
     }
 
     if (doYield) {
-        s2e()->getExecutor()->yieldState(*state);
+        state->yield();
     }
 }
 
@@ -254,7 +254,7 @@ void LoopExitSearcher::update(klee::ExecutionState *current, const klee::StateSe
         StatesByPointer &byPointer = m_states.get<state_t>();
         byPointer.erase(state);
         if (state == m_currentState) {
-            m_currentState = NULL;
+            m_currentState = nullptr;
         }
     }
 }

@@ -31,7 +31,7 @@ namespace plugins {
 S2E_DEFINE_PLUGIN(HostFiles, "Access to host files", "", );
 
 void HostFiles::initialize() {
-    m_allowWrite = s2e()->getConfig()->getBool(getConfigKey() + ".allowWrite", false, NULL);
+    m_allowWrite = s2e()->getConfig()->getBool(getConfigKey() + ".allowWrite", false, nullptr);
 
     ConfigFile::string_list dirs = s2e()->getConfig()->getStringList(getConfigKey() + ".baseDirs");
 

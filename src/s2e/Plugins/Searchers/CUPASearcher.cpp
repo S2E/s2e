@@ -243,7 +243,7 @@ void CUPASearcherClass::update(klee::ExecutionState *current, const klee::StateS
 klee::ExecutionState &CUPASearcherClass::selectState() {
     assert(!m_searchers.empty());
     int idx = std::uniform_int_distribution<>(0, m_searchers.size() - 1)(m_rnd);
-    getDebugStream(NULL) << "selectState class " << idx << "\n";
+    getDebugStream(nullptr) << "selectState class " << idx << "\n";
     return std::next(std::begin(m_searchers), idx)->second->selectState();
 }
 
@@ -292,7 +292,7 @@ uint64_t CUPASearcherPriorityClass::getClass(S2EExecutionState *state) {
         return 0;
     }
 
-    uint64_t p = strtol(value.c_str(), NULL, 0);
+    uint64_t p = strtol(value.c_str(), nullptr, 0);
     getDebugStream(state) << "CUPASearcherPriorityClass priority " << p << "\n";
     return p;
 }
@@ -334,7 +334,7 @@ uint64_t CUPASearcherGroupClass::getClass(S2EExecutionState *state) {
         return 0;
     }
 
-    uint64_t group = strtoull(value.c_str(), NULL, 0);
+    uint64_t group = strtoull(value.c_str(), nullptr, 0);
     getDebugStream(state) << "CUPASearcherGroupClass group " << group << "\n";
     return group;
 }
@@ -419,9 +419,9 @@ uint64_t CUPASearcherReadCountClass::getClass(S2EExecutionState *state) {
 
 CUPAVulnerabilitySearcherClass::CUPAVulnerabilitySearcherClass(CUPASearcher *plugin, unsigned level)
     : CUPASearcherClass(plugin, level) {
-    m_cfg = NULL;
-    m_detector = NULL;
-    m_functionMonitor = NULL;
+    m_cfg = nullptr;
+    m_detector = nullptr;
+    m_functionMonitor = nullptr;
     m_useParentSearcherProbability = 0;
     initialize();
 }
@@ -759,7 +759,7 @@ void CUPAVulnerabilitySearcherClass::onFork(S2EExecutionState *state, const std:
         plgState->setDistances(distances);
     }
 
-    m_plg->s2e()->getExecutor()->yieldState(*state);
+    state->yield();
 }
 
 void CUPAVulnerabilitySearcherClass::update(klee::ExecutionState *current, const klee::StateSet &addedStates,
@@ -793,7 +793,7 @@ klee::ExecutionState &CUPAVulnerabilitySearcherClass::selectState() {
         return **m_states.begin();
     }
 
-    S2EExecutionState *state = NULL;
+    S2EExecutionState *state = nullptr;
     distance_t minDist = DISTANCE_MAX;
     int rnd = rand();
 
