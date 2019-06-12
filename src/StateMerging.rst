@@ -68,7 +68,7 @@ Then, compile the following program, then run it in S2E:
 
             /* Simulates read_register() */
             uint8_t reg = 0;
-            s2e_make_concolic(&reg, sizeof(reg), "reg");
+            s2e_make_symbolic(&reg, sizeof(reg), "reg");
 
             s2e_disable_all_apic_interrupts();
             s2e_merge_group_begin();
@@ -125,7 +125,7 @@ Limitations
 * S2E must be running in concrete mode when merging states (``s2e_merge_group_end()`` ensures that it is the case).
 
 * The set of symbolic memory objects must be identical in all states that are going to be merged. For example, there
-  shouldn't be calls to ``s2e_make_concolic`` between ``s2e_merge_group_begin()`` and ``s2e_merge_group_end()``.
+  shouldn't be calls to ``s2e_make_symbolic`` between ``s2e_merge_group_begin()`` and ``s2e_merge_group_end()``.
 
 * It is not possible to merge two states if their concrete CPU state differs (e.g., floating point or MMX registers,
   program counter, etc.).

@@ -47,8 +47,7 @@ it (e.g. via ``killall -9 qemu-system-x86_64``).
 Generate basic block coverage
 =============================
 
-As in the `coreutils <../coreutils/index.rst>`__ tutorial, you can use ``s2e-env`` to generate basic block coverage to confirm
-that the ``Beep`` function was executed.
+You can use ``s2e-env`` to generate basic block coverage to confirm that the ``Beep`` function was executed.
 
 .. code-block:: console
 
