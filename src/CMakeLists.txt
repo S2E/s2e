@@ -19,7 +19,7 @@
 # SOFTWARE.
 
 set (TCG_SOURCES)
-list (APPEND TCG_SOURCES tcg.c optimize.c)
+list (APPEND TCG_SOURCES tcg.c  tcg-common.c  tcg-ldst.inc.c  tcg-op.c  tcg-op-gvec.c  tcg-op-vec.c  tcg-pool.inc.c)
 
 if (WITH_SYMBEX)
     list(APPEND TCG_SOURCES tcg-llvm.cpp)
