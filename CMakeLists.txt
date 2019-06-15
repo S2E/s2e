@@ -56,6 +56,9 @@ execute_process(COMMAND ${LLVM_CONFIG} "--cxxflags"
 
 ##################
 
+find_package(KLEE REQUIRED)
+message(STATUS "Found klee ${KLEE_PACKAGE_VERSION}")
+
 find_package(LIBQ REQUIRED)
 message(STATUS "Found libq ${LIBQ_PACKAGE_VERSION}")
 
@@ -111,7 +114,7 @@ link_directories(${GLIB_PKG_LIBRARY_DIRS}
                     ${LIBTCG_LIBRARY_DIR}
                     ${LIBCPU_LIBRARY_DIR}
                     ${LIBQ_LIBRARY_DIR}
-                    ${KLEE_DIR}/lib
+                    ${KLEE_LIBRARY_DIR}
                     ${LUA_DIR}
                     ${Z3_DIR}
                     ${FSIGCXX_LIBRARY_DIR}
