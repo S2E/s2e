@@ -30,12 +30,12 @@ endif()
 set(LIBS ${LIBS} ${LIBCPU_LIBRARY_DIR}/libcpu.a ${LIBTCG_LIBRARY_DIR}/libtcg.a)
 
 if(WITH_TARGET MATCHES "s2e")
-    set(LIBS ${LIBS} ${KLEE_DIR}/lib/libkleeCore.a
-                     ${KLEE_DIR}/lib/libkleeModule.a
-                     ${KLEE_DIR}/lib/libkleaverSolver.a
-                     ${KLEE_DIR}/lib/libkleaverExpr.a
-                     ${KLEE_DIR}/lib/libkleeSupport.a
-                     ${KLEE_DIR}/lib/libkleeBasic.a)
+    set(LIBS ${LIBS} ${KLEE_LIBRARY_DIR}/libkleeCore.a
+                     ${KLEE_LIBRARY_DIR}/libkleeModule.a
+                     ${KLEE_LIBRARY_DIR}/libkleaverSolver.a
+                     ${KLEE_LIBRARY_DIR}/libkleaverExpr.a
+                     ${KLEE_LIBRARY_DIR}/libkleeSupport.a
+                     ${KLEE_LIBRARY_DIR}/libkleeBasic.a)
     set(LIBS ${LIBS} ${VMI_LIBRARY_DIR}/libvmi.a
                      elf)
     set(LIBS ${LIBS} memcached
