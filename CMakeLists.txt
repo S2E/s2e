@@ -59,9 +59,8 @@ message(STATUS "Found libtcg ${LIBTCG_PACKAGE_VERSION}")
 find_package(FSIGCXX REQUIRED)
 message(STATUS "Found fsigc++ ${FSIGCXX_PACKAGE_VERSION}")
 
-# TODO: proper package cfg for KLEE
-# find_package(KLEE REQUIRED)
-# message(STATUS "Found klee ${KLEE_PACKAGE_VERSION}")
+find_package(KLEE REQUIRED)
+message(STATUS "Found klee ${KLEE_PACKAGE_VERSION}")
 
 include_directories(${GLIB_PKG_INCLUDE_DIRS}
                     ${LIBQ_INCLUDE_DIR}
@@ -69,7 +68,7 @@ include_directories(${GLIB_PKG_INCLUDE_DIRS}
                     ${LIBCPU_INCLUDE_DIR}
                     ${FSIGCXX_INCLUDE_DIR}
                     ${LIBS2ECORE_INCLUDE_DIR}
-                    ${KLEE_DIR}/include
+                    ${KLEE_INCLUDE_DIR}
                     ${LUA_DIR}
                     ${S2EGUEST_INCLUDE_DIR})
 
