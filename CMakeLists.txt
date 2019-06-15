@@ -11,6 +11,26 @@
 # Minimum CMake version and policies
 ###############################################################################
 cmake_minimum_required(VERSION 2.8.12)
+
+project(KLEE)
+set(KLEE_VERSION_MAJOR 1)
+set(KLEE_VERSION_MINOR 0)
+set(KLEE_VERSION_PATCH 0)
+set(KLEE_PACKAGE_VERSION
+    "${KLEE_VERSION_MAJOR}.${KLEE_VERSION_MINOR}.${KLEE_VERSION_PATCH}")
+
+include(CMakePackageConfigHelpers)
+set(CMAKE_VERSION_FILE "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Version.cmake")
+write_basic_package_version_file(${CMAKE_VERSION_FILE}
+                                 VERSION ${KLEE_PACKAGE_VERSION}
+                                 COMPATIBILITY AnyNewerVersion)
+
+set(CMAKE_CONFIG_FILE "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake")
+set(KLEE_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/include")
+set(KLEE_LIBRARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/lib")
+configure_file(KLEEConfig.cmake.in ${CMAKE_CONFIG_FILE} @ONLY)
+
+
 if (POLICY CMP0054)
   # FIXME: This is horrible. With the old behaviour,
   # quoted strings like "MSVC" in if() conditionals
