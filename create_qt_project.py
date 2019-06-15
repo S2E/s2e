@@ -53,8 +53,9 @@ for fname in files:
                     dirs.add(fdir)
 
 s2e_includes.write('\n'.join([
-    '../build/llvm-3.9.0.src/include',
+    '../build/llvm-3.9.1.src/include',
     '../build/llvm-release/include',
+    '/usr/include/glib-2.0',
 
     # This is for protobuf headers, pick one build folder
     '../build/libs2e-release/i386-s2e-softmmu/libs2eplugins/src/',
