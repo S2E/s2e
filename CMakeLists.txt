@@ -78,9 +78,8 @@ message(STATUS "Found libvmi ${VMI_PACKAGE_VERSION}")
 find_package(LIBS2ECORE REQUIRED)
 message(STATUS "Found s2e core ${LIBS2ECORE_PACKAGE_VERSION}")
 
-# TODO: proper package cfg for KLEE
-# find_package(KLEE REQUIRED)
-# message(STATUS "Found klee ${KLEE_PACKAGE_VERSION}")
+find_package(KLEE REQUIRED)
+message(STATUS "Found klee ${KLEE_PACKAGE_VERSION}")
 
 include_directories(${GLIB_PKG_INCLUDE_DIRS}
                     ${LIBQ_INCLUDE_DIR}
@@ -90,7 +89,7 @@ include_directories(${GLIB_PKG_INCLUDE_DIRS}
                     ${LIBS2ECORE_INCLUDE_DIR}
                     ${LIBS2EPLUGINS_INCLUDE_DIR}
                     ${FSIGCXX_INCLUDE_DIR}
-                    ${KLEE_DIR}/include
+                    ${KLEE_INCLUDE_DIR}
                     ${LUA_DIR}
                     ${S2EGUEST_INCLUDE_DIR})
 
