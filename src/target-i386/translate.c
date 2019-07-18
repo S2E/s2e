@@ -30,10 +30,6 @@
 
 #include <cpu/disas.h>
 
-#include "helper.h"
-#define GEN_HELPER 1
-#include "helper.h"
-
 #ifdef CONFIG_SYMBEX
 #include <cpu/se_libcpu.h>
 #endif
@@ -4026,8 +4022,9 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start) {
 #if defined(CONFIG_SYMBEX)
 // tcg_gen_debug_insn_start(pc_start);
 #else
-    if (unlikely(libcpu_loglevel_mask(CPU_LOG_TB_OP)))
-        tcg_gen_debug_insn_start(pc_start);
+    if (unlikely(libcpu_loglevel_mask(CPU_LOG_TB_OP))) {
+        tcg_gen_insn_start(pc_start);
+    }
 #endif
 
 #ifdef ENABLE_PRECISE_EXCEPTION_DEBUGGING
@@ -7327,7 +7324,6 @@ reswitch:
                     tcg_gen_mov_tl(a0, cpu_A0);
                 } else {
                     gen_op_mov_v_reg(ot, t0, rm);
-                    TCGV_UNUSED(a0);
                 }
                 gen_op_mov_v_reg(ot, t1, reg);
                 tcg_gen_andi_tl(cpu_tmp0, t0, 3);
@@ -7678,21 +7674,33 @@ void optimize_flags_init(void) {
     cpu_regs[R_ESI] = tcg_global_mem_new_i32(cpu_env, offsetof(CPUX86State, regs[R_ESI]), "esi");
     cpu_regs[R_EDI] = tcg_global_mem_new_i32(cpu_env, offsetof(CPUX86State, regs[R_EDI]), "edi");
 #endif
+}
 
-/* register helpers */
-#define GEN_HELPER 2
-#include "helper.h"
+static inline void gen_tb_start(TranslationBlock *tb) {
+    TCGv_i32 exit_request;
+
+    tcg_ctx->exitreq_label = gen_new_label();
+    exit_request = tcg_temp_new_i32();
+    tcg_gen_ld_i32(exit_request, cpu_env, offsetof(CPUState, exit_request));
+
+    tcg_gen_brcondi_i32(TCG_COND_NE, exit_request, 0, tcg_ctx->exitreq_label);
+
+    tcg_temp_free_i32(exit_request);
+}
+
+static inline void gen_tb_end(TranslationBlock *tb) {
+    assert(tcg_ctx->exitreq_label);
+    gen_set_label(tcg_ctx->exitreq_label);
+    tcg_gen_exit_tb(NULL, TB_EXIT_REQUESTED);
 }
 
 /* generate intermediate code in gen_opc_buf and gen_opparam_buf for
-   basic block 'tb'. If search_pc is TRUE, also generate PC
-   information for each intermediate instruction. */
-static inline void gen_intermediate_code_internal(CPUX86State *env, TranslationBlock *tb, int search_pc) {
+   basic block 'tb'.*/
+static inline void gen_intermediate_code_internal(CPUX86State *env, TranslationBlock *tb) {
     DisasContext dc1, *dc = &dc1;
     target_ulong pc_ptr, new_pc_ptr;
-    uint16_t *gen_opc_end;
     CPUBreakpoint *bp;
-    int j, lj, cflags;
+    int lj, cflags;
     uint64_t flags;
     target_ulong pc_start;
     target_ulong cs_base;
@@ -7742,11 +7750,6 @@ static inline void gen_intermediate_code_internal(CPUX86State *env, TranslationB
                     || (flags & HF_SOFTMMU_MASK)
 #endif
                         );
-#if 0
-    /* check addseg logic */
-    if (!dc->addseg && (dc->vm86 || !dc->pe || !dc->code32))
-        printf("ERROR addseg\n");
-#endif
 
     cpu_T[0] = tcg_temp_new();
     cpu_T[1] = tcg_temp_new();
@@ -7762,15 +7765,17 @@ static inline void gen_intermediate_code_internal(CPUX86State *env, TranslationB
     cpu_ptr0 = tcg_temp_new_ptr();
     cpu_ptr1 = tcg_temp_new_ptr();
 
-    gen_opc_end = gen_opc_buf + OPC_MAX_SIZE;
-
     dc->is_jmp = DISAS_NEXT;
     pc_ptr = pc_start;
     lj = -1;
     num_insns = 0;
     max_insns = tb->cflags & CF_COUNT_MASK;
     if (max_insns == 0)
-        max_insns = CF_COUNT_MASK;
+        max_insns = TCG_MAX_INSNS;
+
+#ifndef STATIC_TRANSLATOR
+    gen_tb_start(tb);
+#endif
 
 #ifdef CONFIG_SYMBEX
     tb_precise_pc_t *p;
@@ -7782,15 +7787,11 @@ static inline void gen_intermediate_code_internal(CPUX86State *env, TranslationB
 
     dc->invalid_instr = 0;
 
-    if (!search_pc && generate_pc_recovery_info) {
+    if (generate_pc_recovery_info) {
         p = tb->precise_pcs;
     }
 
-    if (search_pc) {
-        generate_pc_recovery_info = 0;
-    }
-
-    dc->instrument = !search_pc;
+    dc->instrument = 1;
 
     dc->enable_jmp_im = 1;
     dc->cpuState = env;
@@ -7825,38 +7826,6 @@ static inline void gen_intermediate_code_internal(CPUX86State *env, TranslationB
         }
 
 #ifdef CONFIG_SYMBEX
-        /* Generate precise PC recovery information */
-        if (generate_pc_recovery_info && !search_pc) {
-            int cur_opc = gen_opc_ptr - gen_opc_buf;
-
-            if (num_insns > 0 && (p - 1)->opc == cur_opc) {
-                // The instruction was a nop
-                --p;
-                --tb->precise_entries;
-            }
-
-            p->guest_pc_increment = pc_ptr - pc_start;
-            p->cc_op = dc->cc_op;
-            p->opc = cur_opc;
-            ++p;
-            ++tb->precise_entries;
-        }
-#endif
-
-        if (search_pc) {
-            j = gen_opc_ptr - gen_opc_buf;
-            if (lj < j) {
-                lj++;
-                while (lj < j)
-                    gen_opc_instr_start[lj++] = 0;
-            }
-            gen_opc_pc[lj] = pc_ptr;
-            gen_opc_cc_op[lj] = dc->cc_op;
-            gen_opc_instr_start[lj] = 1;
-            gen_opc_icount[lj] = num_insns;
-        }
-
-#ifdef CONFIG_SYMBEX
         dc->insPc = pc_ptr;
         dc->done_instr_end = 0;
         dc->done_reg_access_end = 0;
@@ -7868,27 +7837,15 @@ static inline void gen_intermediate_code_internal(CPUX86State *env, TranslationB
         tb->pcOfLastInstr = pc_ptr;
         dc->useNextPc = 0;
         dc->nextPc = -1;
-
-        dc->ins_opc = gen_opc_ptr;
-        dc->ins_arg = gen_opparam_ptr;
 #endif
+
         new_pc_ptr = disas_insn(dc, pc_ptr);
 
 #ifdef CONFIG_SYMBEX
-        /* Generate precise PC recovery information */
-        if (generate_pc_recovery_info && !search_pc) {
-            (p - 1)->guest_inst_size = new_pc_ptr - pc_ptr;
-        }
-#endif
-
-        if (search_pc) {
-            gen_opc_instr_size[lj] = new_pc_ptr - pc_ptr;
-        }
-
-#ifdef CONFIG_SYMBEX
         // Compute the register mask and send the onRegisterAccess event
-        if (unlikely(*g_sqi.events.on_translate_register_access_signals_count && dc->instrument))
+        if (unlikely(*g_sqi.events.on_translate_register_access_signals_count && dc->instrument)) {
             instr_translate_compute_reg_mask_end(dc);
+        }
 #endif
 
 #ifdef CONFIG_SYMBEX
@@ -7926,7 +7883,7 @@ static inline void gen_intermediate_code_internal(CPUX86State *env, TranslationB
         }
 #else
         /* if too long translation, stop generation too */
-        if (gen_opc_ptr >= gen_opc_end || (pc_ptr - pc_start) >= (TARGET_PAGE_SIZE - 32) || num_insns >= max_insns) {
+        if (tcg_op_buf_full() || (pc_ptr - pc_start) >= (TARGET_PAGE_SIZE - 32) || num_insns >= max_insns) {
             gen_jmp_im(dc, pc_ptr - dc->cs_base);
 #ifdef CONFIG_SYMBEX
             gen_eob_event(dc, 1, pc_ptr - dc->cs_base);
@@ -7945,14 +7902,9 @@ static inline void gen_intermediate_code_internal(CPUX86State *env, TranslationB
 #endif
     }
 
-    *gen_opc_ptr = INDEX_op_end;
-    /* we don't forget to fill the last values */
-    if (search_pc) {
-        j = gen_opc_ptr - gen_opc_buf;
-        lj++;
-        while (lj <= j)
-            gen_opc_instr_start[lj++] = 0;
-    }
+#ifndef STATIC_TRANSLATOR
+    gen_tb_end(tb);
+#endif
 
 #ifdef CONFIG_SYMBEX
     if (dc->invalid_instr) {
@@ -7974,26 +7926,25 @@ static inline void gen_intermediate_code_internal(CPUX86State *env, TranslationB
         log_target_disas(env, pc_start, pc_ptr - pc_start, disas_flags);
         libcpu_log("\n");
     }
+
+    if (libcpu_loglevel_mask(CPU_LOG_TB_OP)) {
+        tcg_dump_ops(tcg_ctx, 0);
+        libcpu_log("\n");
+    }
 #endif
 
-    if (!search_pc) {
-        tb->size = pc_ptr - pc_start;
-        tb->icount = num_insns;
+    tb->size = pc_ptr - pc_start;
+    tb->icount = num_insns;
 
 #ifdef CONFIG_SYMBEX
-        if (unlikely(*g_sqi.events.on_translate_block_complete_signals_count && dc->instrument)) {
-            g_sqi.events.on_translate_block_complete(tb, dc->insPc);
-        }
-#endif
+    if (unlikely(*g_sqi.events.on_translate_block_complete_signals_count && dc->instrument)) {
+        g_sqi.events.on_translate_block_complete(tb, dc->insPc);
     }
+#endif
 }
 
 void gen_intermediate_code(CPUX86State *env, TranslationBlock *tb) {
-    gen_intermediate_code_internal(env, tb, 0);
-}
-
-void gen_intermediate_code_pc(CPUX86State *env, TranslationBlock *tb) {
-    gen_intermediate_code_internal(env, tb, 1);
+    gen_intermediate_code_internal(env, tb);
 }
 
 #ifdef CONFIG_SYMBEX
@@ -8005,60 +7956,26 @@ void se_restore_state_to_opc(CPUX86State *env, TranslationBlock *tb, target_ulon
     assert(env->eip == env->precise_eip);
 #endif
 
-    if (cc_op != CC_OP_DYNAMIC)
+    if (cc_op != CC_OP_DYNAMIC) {
         WR_cpu(env, cc_op, cc_op);
-}
-
-#ifdef ENABLE_PRECISE_EXCEPTION_DEBUGGING_COMPARE
-void restore_state_to_opc_compare(CPUX86State *env, TranslationBlock *tb, int pc_pos);
-void restore_state_to_opc_compare(CPUX86State *env, TranslationBlock *tb, int pc_pos) {
-    extern target_ulong gen_opc_pc[OPC_BUF_SIZE];
-    assert(env->eip == gen_opc_pc[pc_pos] - tb->cs_base);
-
-    if (gen_opc_cc_op[pc_pos] != CC_OP_DYNAMIC)
-        assert(env->cc_op == gen_opc_cc_op[pc_pos]);
-
-    env->restored_instruction_size = gen_opc_instr_size[pc_pos];
-}
-#endif
-
-#endif
-
-void restore_state_to_opc(CPUX86State *env, TranslationBlock *tb, int pc_pos) {
-    int cc_op;
-#ifdef DEBUG_DISAS
-    if (libcpu_loglevel_mask(CPU_LOG_TB_OP)) {
-        int i;
-        libcpu_log("RESTORE:\n");
-        for (i = 0; i <= pc_pos; i++) {
-            if (gen_opc_instr_start[i]) {
-                libcpu_log("0x%04x: " TARGET_FMT_lx " cc_op=%d\n", i, gen_opc_pc[i], gen_opc_cc_op[i]);
-            }
-        }
-        libcpu_log("pc_pos=0x%x eip=" TARGET_FMT_lx " cs_base=%x\n", pc_pos, gen_opc_pc[pc_pos] - tb->cs_base,
-                   (uint32_t) tb->cs_base);
     }
+}
+
 #endif
-    extern target_ulong gen_opc_pc[OPC_BUF_SIZE];
 
-    env->eip = gen_opc_pc[pc_pos] - tb->cs_base;
-    cc_op = gen_opc_cc_op[pc_pos];
+void restore_state_to_opc(CPUX86State *env, TranslationBlock *tb, target_ulong *data) {
+    int cc_op = data[1];
+    env->eip = data[0] - tb->cs_base;
 
-    if (cc_op != CC_OP_DYNAMIC)
-        WR_cpu(env, cc_op, cc_op);
+    if (cc_op != CC_OP_DYNAMIC) {
+        env->cc_op = cc_op;
+    }
 
-    env->restored_instruction_size = gen_opc_instr_size[pc_pos];
+    if (libcpu_loglevel_mask(CPU_LOG_EXEC)) {
+        libcpu_log("restored state: eip=%#" PRIx64 " cc_op=%#x", (uint64_t) env->eip, cc_op);
+    }
 }
 
 int restore_state_to_next_pc(CPUX86State *env, TranslationBlock *tb) {
-    assert(env->restored_instruction_size);
-
-    if (tb->pc + tb->size > env->eip + env->restored_instruction_size) {
-        env->eip += env->restored_instruction_size;
-        env->restored_instruction_size = 0;
-        return 1; // Must patch the TB for exit
-    } else {
-        env->restored_instruction_size = 0;
-        return 0;
-    }
+    abort();
 }
