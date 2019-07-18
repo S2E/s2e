@@ -5022,11 +5022,11 @@ void tlb_fill(CPUX86State *env1, target_ulong addr, target_ulong page_addr, int 
         if (retaddr) {
             /* now we have a real cpu fault */
             pc = (unsigned long) retaddr;
-            tb = tb_find_pc(pc);
+            tb = tcg_tb_lookup(pc);
             if (tb) {
                 /* the PC is inside the translated code. It means that we have
                    a virtual CPU fault */
-                cpu_restore_state(tb, env1, pc);
+                cpu_restore_state(env1, pc);
             }
         }
 #if defined(CONFIG_SYMBEX)
