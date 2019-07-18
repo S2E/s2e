@@ -25,7 +25,6 @@
 
 #include <tcg/tcg-op.h>
 
-#include "helper.h"
 #include "host-utils.h"
 #include "libcpu-log.h"
 
