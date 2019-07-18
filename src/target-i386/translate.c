@@ -4402,11 +4402,11 @@ reswitch:
                             tcg_gen_extu_i32_i64(t0, cpu_T[0]);
                             tcg_gen_extu_i32_i64(t1, cpu_T[1]);
                             tcg_gen_mul_i64(t0, t0, t1);
-                            tcg_gen_trunc_i64_i32(cpu_T[0], t0);
+                            tcg_gen_trunc_i64_tl(cpu_T[0], t0);
                             gen_op_mov_reg_T0(OT_LONG, R_EAX);
                             tcg_gen_mov_tl(cpu_cc_dst, cpu_T[0]);
                             tcg_gen_shri_i64(t0, t0, 32);
-                            tcg_gen_trunc_i64_i32(cpu_T[0], t0);
+                            tcg_gen_trunc_i64_tl(cpu_T[0], t0);
                             gen_op_mov_reg_T0(OT_LONG, R_EDX);
                             tcg_gen_mov_tl(cpu_cc_src, cpu_T[0]);
                         }
@@ -4471,12 +4471,12 @@ reswitch:
                             tcg_gen_ext_i32_i64(t0, cpu_T[0]);
                             tcg_gen_ext_i32_i64(t1, cpu_T[1]);
                             tcg_gen_mul_i64(t0, t0, t1);
-                            tcg_gen_trunc_i64_i32(cpu_T[0], t0);
+                            tcg_gen_trunc_i64_tl(cpu_T[0], t0);
                             gen_op_mov_reg_T0(OT_LONG, R_EAX);
                             tcg_gen_mov_tl(cpu_cc_dst, cpu_T[0]);
                             tcg_gen_sari_tl(cpu_tmp0, cpu_T[0], 31);
                             tcg_gen_shri_i64(t0, t0, 32);
-                            tcg_gen_trunc_i64_i32(cpu_T[0], t0);
+                            tcg_gen_trunc_i64_tl(cpu_T[0], t0);
                             gen_op_mov_reg_T0(OT_LONG, R_EDX);
                             tcg_gen_sub_tl(cpu_cc_src, cpu_T[0], cpu_tmp0);
                         }
@@ -4777,11 +4777,11 @@ reswitch:
                     tcg_gen_ext_i32_i64(t0, cpu_T[0]);
                     tcg_gen_ext_i32_i64(t1, cpu_T[1]);
                     tcg_gen_mul_i64(t0, t0, t1);
-                    tcg_gen_trunc_i64_i32(cpu_T[0], t0);
+                    tcg_gen_trunc_i64_tl(cpu_T[0], t0);
                     tcg_gen_mov_tl(cpu_cc_dst, cpu_T[0]);
                     tcg_gen_sari_tl(cpu_tmp0, cpu_T[0], 31);
                     tcg_gen_shri_i64(t0, t0, 32);
-                    tcg_gen_trunc_i64_i32(cpu_T[1], t0);
+                    tcg_gen_trunc_i64_tl(cpu_T[1], t0);
                     tcg_gen_sub_tl(cpu_cc_src, cpu_T[1], cpu_tmp0);
                 }
 #endif
