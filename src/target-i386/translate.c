@@ -2368,7 +2368,7 @@ static inline void gen_goto_tb(DisasContext *s, int tb_num, target_ulong eip) {
 
 #ifdef STATIC_TRANSLATOR
     gen_jmp_im(s, eip);
-    tcg_gen_exit_tb(eip);
+    tcg_gen_exit_tb(tb, eip);
 #else
     /* NOTE: we handle the case where the TB spans two pages here */
     if ((pc & TARGET_PAGE_MASK) == (tb->pc & TARGET_PAGE_MASK) ||
@@ -2382,7 +2382,7 @@ static inline void gen_goto_tb(DisasContext *s, int tb_num, target_ulong eip) {
         tcg_gen_goto_tb(tb_num);
         gen_jmp_im(s, eip);
 #endif
-        tcg_gen_exit_tb((intptr_t) tb + tb_num);
+        tcg_gen_exit_tb(tb, tb_num);
     } else {
         /* jump to another page: currently not optimized */
         gen_jmp_im(s, eip);
@@ -2803,7 +2803,7 @@ static void gen_eob(DisasContext *s) {
     } else if (s->tf) {
         gen_helper_single_step();
     } else {
-        tcg_gen_exit_tb(0);
+        tcg_gen_exit_tb(NULL, 0);
     }
     s->is_jmp = DISAS_TB_JUMP;
 }
@@ -7114,7 +7114,7 @@ reswitch:
                                     break;
                                 } else {
                                     gen_helper_vmrun(tcg_const_i32(s->aflag), tcg_const_i32(s->pc - pc_start));
-                                    tcg_gen_exit_tb(0);
+                                    tcg_gen_exit_tb(s->tb, 0);
                                     s->is_jmp = DISAS_TB_JUMP;
                                 }
                                 break;
