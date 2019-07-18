@@ -94,8 +94,6 @@ static void tcg_handle_interrupt(CPUArchState *env, int mask) {
 
     old_mask = env->interrupt_request;
     env->interrupt_request |= mask;
-
-    cpu_unlink_tb(env);
 }
 
 CPUInterruptHandler cpu_interrupt_handler = tcg_handle_interrupt;
@@ -106,7 +104,6 @@ void cpu_reset_interrupt(CPUArchState *env, int mask) {
 
 void cpu_exit(CPUArchState *env) {
     env->exit_request = 1;
-    cpu_unlink_tb(env);
 }
 
 void cpu_abort(CPUArchState *env, const char *fmt, ...) {
