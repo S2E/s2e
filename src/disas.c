@@ -62,6 +62,11 @@ void target_disas_ex(void *env, FILE *out, fprintf_function_t func, target_ulong
     uint8_t buffer[size];
     cpu_memory_rw_debug(env, pc, buffer, size, 0);
 
+    for (unsigned i = 0; i < size; ++i) {
+        func(out, "%#02x ", buffer[i]);
+    }
+    func(out, "\n");
+
     count = cs_disasm(handle, buffer, size, pc, 0, &insn);
 
     if (count > 0) {
