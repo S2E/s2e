@@ -179,7 +179,7 @@ static SMHINLINE RES_TYPE glue(glue(glue(CPU_PREFIX, ld), USUFFIX), MEMSUFFIX)(E
     mmu_idx = CPU_MMU_INDEX;
     tlb_entry = &env->tlb_table[mmu_idx][page_index];
     if (unlikely(env->tlb_table[mmu_idx][page_index].ADDR_READ != (addr & (TARGET_PAGE_MASK | (DATA_SIZE - 1))))) {
-        res = glue(glue(glue(HELPER_PREFIX, ld), SUFFIX), MMUSUFFIX)(ENV_VAR addr, mmu_idx);
+        res = glue(glue(glue(HELPER_PREFIX, ld), SUFFIX), MMUSUFFIX)(ENV_VAR addr, mmu_idx, NULL);
     } else {
 // When we get here, the address is aligned with the size of the access,
 // which by definition means that it will fall inside the small page, without overflowing.
@@ -220,7 +220,7 @@ static SMHINLINE int glue(glue(glue(CPU_PREFIX, lds), SUFFIX), MEMSUFFIX)(ENV_PA
     mmu_idx = CPU_MMU_INDEX;
     tlb_entry = &env->tlb_table[mmu_idx][page_index];
     if (unlikely(tlb_entry->ADDR_READ != (addr & (TARGET_PAGE_MASK | (DATA_SIZE - 1))))) {
-        res = (DATA_STYPE) glue(glue(glue(HELPER_PREFIX, ld), SUFFIX), MMUSUFFIX)(ENV_VAR addr, mmu_idx);
+        res = (DATA_STYPE) glue(glue(glue(HELPER_PREFIX, ld), SUFFIX), MMUSUFFIX)(ENV_VAR addr, mmu_idx, NULL);
     } else {
 
 #if defined(CONFIG_SYMBEX) && !defined(SYMBEX_LLVM_LIB) && defined(CONFIG_SYMBEX_MP)
@@ -261,7 +261,7 @@ static SMHINLINE void glue(glue(glue(CPU_PREFIX, st), SUFFIX), MEMSUFFIX)(ENV_PA
     mmu_idx = CPU_MMU_INDEX;
     tlb_entry = &env->tlb_table[mmu_idx][page_index];
     if (unlikely(tlb_entry->addr_write != (addr & (TARGET_PAGE_MASK | (DATA_SIZE - 1))))) {
-        glue(glue(glue(HELPER_PREFIX, st), SUFFIX), MMUSUFFIX)(ENV_VAR addr, v, mmu_idx);
+        glue(glue(glue(HELPER_PREFIX, st), SUFFIX), MMUSUFFIX)(ENV_VAR addr, v, mmu_idx, NULL);
     } else {
 
 #if defined(CONFIG_SYMBEX) && !defined(SYMBEX_LLVM_LIB) && defined(CONFIG_SYMBEX_MP)

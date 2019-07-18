@@ -121,7 +121,7 @@
 
 #endif // CONFIG_SYMBEX
 
-static DATA_TYPE glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(target_ulong addr, int mmu_idx, void *retaddr);
+static DATA_TYPE glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(ENV_PARAM target_ulong addr, int mmu_idx, void *retaddr);
 
 DATA_TYPE glue(glue(io_read, SUFFIX), MMUSUFFIX)(ENV_PARAM target_phys_addr_t physaddr, target_ulong addr,
                                                  void *retaddr);
@@ -250,13 +250,14 @@ end:
 #ifndef STATIC_TRANSLATOR
 /* handle all cases except unaligned access which span two pages */
 DATA_TYPE
-glue(glue(glue(HELPER_PREFIX, ld), SUFFIX), MMUSUFFIX)(ENV_PARAM target_ulong addr, int mmu_idx) {
+glue(glue(glue(HELPER_PREFIX, ld), SUFFIX), MMUSUFFIX)(ENV_PARAM target_ulong addr, int mmu_idx, void *retaddr) {
     DATA_TYPE res;
     target_ulong object_index, index;
     target_ulong tlb_addr;
     target_phys_addr_t ioaddr;
-    void *retaddr = NULL;
     CPUTLBEntry *tlb_entry;
+
+    mmu_idx = mmu_idx & 0xf;
 
 /* test if there is match for unaligned or IO access */
 /* XXX: could done more in memory macro in a non portable way */
@@ -278,9 +279,6 @@ redo:
             /* IO access */
             if ((addr & (DATA_SIZE - 1)) != 0)
                 goto do_unaligned_access;
-#ifndef SYMBEX_LLVM_LIB
-            retaddr = GETPC();
-#endif
             ioaddr = env->iotlb[mmu_idx][index];
 #ifdef CONFIG_SYMBEX
             env->se_tlb_current = tlb_entry;
@@ -292,9 +290,6 @@ redo:
         } else if (unlikely(((addr & ~SE_RAM_OBJECT_MASK) + DATA_SIZE - 1) >= SE_RAM_OBJECT_SIZE)) {
         /* slow unaligned access (it spans two pages or IO) */
         do_unaligned_access:
-#ifndef SYMBEX_LLVM_LIB
-            retaddr = GETPC();
-#endif
 #ifdef ALIGNED_ONLY
             do_unaligned_access(ENV_VAR addr, READ_ACCESS_TYPE, mmu_idx, retaddr);
 #endif
@@ -303,9 +298,6 @@ redo:
 /* unaligned/aligned access in the same page */
 #ifdef ALIGNED_ONLY
             if ((addr & (DATA_SIZE - 1)) != 0) {
-#ifndef SYMBEX_LLVM_LIB
-                retaddr = GETPC();
-#endif
                 do_unaligned_access(ENV_VAR addr, READ_ACCESS_TYPE, mmu_idx, retaddr);
             }
 #endif
@@ -319,9 +311,6 @@ redo:
         }
     } else {
 /* the page is not in the TLB : fill it */
-#ifndef SYMBEX_LLVM_LIB
-        retaddr = GETPC();
-#endif
 #ifdef ALIGNED_ONLY
         if ((addr & (DATA_SIZE - 1)) != 0)
             do_unaligned_access(ENV_VAR addr, READ_ACCESS_TYPE, mmu_idx, retaddr);
@@ -506,12 +495,14 @@ end:
 #endif
 
 #ifndef STATIC_TRANSLATOR
-void glue(glue(glue(HELPER_PREFIX, st), SUFFIX), MMUSUFFIX)(ENV_PARAM target_ulong addr, DATA_TYPE val, int mmu_idx) {
+void glue(glue(glue(HELPER_PREFIX, st), SUFFIX), MMUSUFFIX)(ENV_PARAM target_ulong addr, DATA_TYPE val, int mmu_idx,
+                                                            void *retaddr) {
     target_phys_addr_t ioaddr;
     target_ulong tlb_addr;
-    void *retaddr = NULL;
     target_ulong object_index, index;
     CPUTLBEntry *tlb_entry;
+
+    mmu_idx = mmu_idx & 0xf;
 
 #ifdef CONFIG_SYMBEX_MP
     INSTR_BEFORE_MEMORY_ACCESS(addr, val, 1);
@@ -531,9 +522,7 @@ redo:
             /* IO access */
             if ((addr & (DATA_SIZE - 1)) != 0)
                 goto do_unaligned_access;
-#ifndef SYMBEX_LLVM_LIB
-            retaddr = GETPC();
-#endif
+
             ioaddr = env->iotlb[mmu_idx][index];
 
 #ifdef CONFIG_SYMBEX
@@ -546,9 +535,7 @@ redo:
         } else if (unlikely(((addr & ~SE_RAM_OBJECT_MASK) + DATA_SIZE - 1) >= SE_RAM_OBJECT_SIZE)) {
 
         do_unaligned_access:
-#ifndef SYMBEX_LLVM_LIB
-            retaddr = GETPC();
-#endif
+
 #ifdef ALIGNED_ONLY
             do_unaligned_access(ENV_VAR addr, 1, mmu_idx, retaddr);
 #endif
@@ -557,9 +544,6 @@ redo:
 /* aligned/unaligned access in the same page */
 #ifdef ALIGNED_ONLY
             if ((addr & (DATA_SIZE - 1)) != 0) {
-#ifndef SYMBEX_LLVM_LIB
-                retaddr = GETPC();
-#endif
                 do_unaligned_access(ENV_VAR addr, 1, mmu_idx, retaddr);
             }
 #endif
@@ -573,9 +557,6 @@ redo:
         }
     } else {
 /* the page is not in the TLB : fill it */
-#ifndef SYMBEX_LLVM_LIB
-        retaddr = GETPC();
-#endif
 #ifdef ALIGNED_ONLY
         if ((addr & (DATA_SIZE - 1)) != 0)
             do_unaligned_access(ENV_VAR addr, 1, mmu_idx, retaddr);

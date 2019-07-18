@@ -139,14 +139,14 @@
 #undef ACCESS_TYPE
 #undef MEMSUFFIX
 
-#define ldub(p) ldub_data(p)
-#define ldsb(p) ldsb_data(p)
-#define lduw(p) lduw_data(p)
-#define ldsw(p) ldsw_data(p)
-#define ldl(p) ldl_data(p)
-#define ldq(p) ldq_data(p)
+#define ldub(p) cpu_ldub_data(env, p)
+#define ldsb(p) cpu_ldsb_data(env, p)
+#define lduw(p) cpu_lduw_data(env, p)
+#define ldsw(p) cpu_ldsw_data(env, p)
+#define ldl(p) cpu_ldl_data(env, p)
+#define ldq(p) cpu_ldq_data(env, p)
 
-#define stb(p, v) stb_data(p, v)
-#define stw(p, v) stw_data(p, v)
-#define stl(p, v) stl_data(p, v)
-#define stq(p, v) stq_data(p, v)
+#define stb(p, v) cpu_stb_data(env, p, v)
+#define stw(p, v) cpu_stw_data(env, p, v)
+#define stl(p, v) cpu_stl_data(env, p, v)
+#define stq(p, v) cpu_stq_data(env, p, v)
