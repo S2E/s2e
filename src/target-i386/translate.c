@@ -768,13 +768,13 @@ static void gen_exts(int ot, TCGv reg) {
     }
 }
 
-static inline void gen_op_jnz_ecx(int size, int label1) {
+static inline void gen_op_jnz_ecx(int size, TCGLabel *label1) {
     tcg_gen_mov_tl(cpu_tmp0, cpu_regs[R_ECX]);
     gen_extu(size + 1, cpu_tmp0);
     tcg_gen_brcondi_tl(TCG_COND_NE, cpu_tmp0, 0, label1);
 }
 
-static inline void gen_op_jz_ecx(int size, int label1) {
+static inline void gen_op_jz_ecx(int size, TCGLabel *label1) {
     tcg_gen_mov_tl(cpu_tmp0, cpu_regs[R_ECX]);
     gen_extu(size + 1, cpu_tmp0);
     tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_tmp0, 0, label1);
@@ -1004,7 +1004,7 @@ static int is_fast_jcc_case(DisasContext *s, int b) {
 
 /* generate a conditional jump to label 'l1' according to jump opcode
    value 'b'. In the fast case, T0 is guaranted not to be used. */
-static inline void gen_jcc1(DisasContext *s, int cc_op, int b, int l1) {
+static inline void gen_jcc1(DisasContext *s, int cc_op, int b, struct TCGLabel *l1) {
     int inv, jcc_op, size, cond;
     TCGv t0;
 
@@ -1196,8 +1196,8 @@ static inline void gen_jcc1(DisasContext *s, int cc_op, int b, int l1) {
 
 /* XXX: does not work with gdbstub "ice" single step - not a
    serious problem */
-static int gen_jz_ecx_string(DisasContext *s, target_ulong next_eip) {
-    int l1, l2;
+static TCGLabel *gen_jz_ecx_string(DisasContext *s, target_ulong next_eip) {
+    TCGLabel *l1, *l2;
 
     l1 = gen_new_label();
     l2 = gen_new_label();
@@ -1277,7 +1277,7 @@ static inline void gen_outs(DisasContext *s, int ot) {
    instruction */
 #define GEN_REPZ(op)                                                                                         \
     static inline void gen_repz_##op(DisasContext *s, int ot, target_ulong cur_eip, target_ulong next_eip) { \
-        int l2;                                                                                              \
+        TCGLabel *l2;                                                                                        \
         SET_TB_TYPE(TB_REP);                                                                                 \
         gen_update_cc_op(s);                                                                                 \
         l2 = gen_jz_ecx_string(s, next_eip);                                                                 \
@@ -1292,7 +1292,7 @@ static inline void gen_outs(DisasContext *s, int ot) {
 
 #define GEN_REPZ2(op)                                                                                                \
     static inline void gen_repz_##op(DisasContext *s, int ot, target_ulong cur_eip, target_ulong next_eip, int nz) { \
-        int l2;                                                                                                      \
+        TCGLabel *l2;                                                                                                \
         SET_TB_TYPE(TB_REP);                                                                                         \
         gen_update_cc_op(s);                                                                                         \
         l2 = gen_jz_ecx_string(s, next_eip);                                                                         \
@@ -1487,7 +1487,7 @@ static void gen_inc(DisasContext *s1, int ot, int d, int c) {
 
 static void gen_shift_rm_T1(DisasContext *s, int ot, int op1, int is_right, int is_arith) {
     target_ulong mask;
-    int shift_label;
+    TCGLabel *shift_label;
     TCGv t0, t1, t2;
 
     if (ot == OT_QUAD) {
@@ -1626,7 +1626,8 @@ static inline void tcg_gen_lshift(TCGv ret, TCGv arg1, target_long arg2) {
 
 static void gen_rot_rm_T1(DisasContext *s, int ot, int op1, int is_right) {
     target_ulong mask;
-    int label1, label2, data_bits;
+    TCGLabel *label1, *label2;
+    int data_bits;
     TCGv t0, t1, t2, a0;
 
     /* XXX: inefficient, but we must use local temps */
@@ -1794,7 +1795,7 @@ static void gen_rot_rm_im(DisasContext *s, int ot, int op1, int op2, int is_righ
 
 /* XXX: add faster immediate = 1 case */
 static void gen_rotc_rm_T1(DisasContext *s, int ot, int op1, int is_right) {
-    int label1;
+    TCGLabel *label1;
 
     if (s->cc_op != CC_OP_DYNAMIC)
         gen_op_set_cc_op(s->cc_op);
@@ -1860,7 +1861,8 @@ static void gen_rotc_rm_T1(DisasContext *s, int ot, int op1, int is_right) {
 
 /* XXX: add faster immediate case */
 static void gen_shiftd_rm_T1_T3(DisasContext *s, int ot, int op1, int is_right) {
-    int label1, label2, data_bits;
+    TCGLabel *label1, *label2;
+    int data_bits;
     target_ulong mask;
     TCGv t0, t1, t2, a0;
 
@@ -2392,7 +2394,8 @@ static inline void gen_goto_tb(DisasContext *s, int tb_num, target_ulong eip) {
 }
 
 static inline void gen_jcc(DisasContext *s, int b, target_ulong val, target_ulong next_eip) {
-    int l1, l2, cc_op;
+    TCGLabel *l1, *l2;
+    int cc_op;
 
     cc_op = s->cc_op;
     gen_update_cc_op(s);
@@ -2428,7 +2431,8 @@ static inline void gen_jcc(DisasContext *s, int b, target_ulong val, target_ulon
 }
 
 static void gen_setcc(DisasContext *s, int b) {
-    int inv, jcc_op, l1;
+    int inv, jcc_op;
+    TCGLabel *l1;
     TCGv t0;
 
     if (is_fast_jcc_case(s, b)) {
@@ -4822,7 +4826,7 @@ reswitch:
         case 0x1b0:
         case 0x1b1: /* cmpxchg Ev, Gv */
         {
-            int label1, label2;
+            TCGLabel *label1, *label2;
             TCGv t0, t1, t2, a0;
 
             if ((b & 1) == 0)
@@ -5925,7 +5929,8 @@ reswitch:
                         break;
                     case 0x10 ... 0x13: /* fcmovxx */
                     case 0x18 ... 0x1b: {
-                        int op1, l1;
+                        int op1;
+                        struct TCGLabel *l1;
                         static const uint8_t fcmov_cc[8] = {
                             (JCC_B << 1), (JCC_Z << 1), (JCC_BE << 1), (JCC_P << 1),
                         };
@@ -6320,7 +6325,7 @@ reswitch:
             break;
         case 0x140 ... 0x14f: /* cmov Gv, Ev */
         {
-            int l1;
+            TCGLabel *l1;
             TCGv t0;
 
             ot = dflag + OT_WORD;
@@ -6553,7 +6558,7 @@ reswitch:
         case 0x1bc: /* bsf */
         case 0x1bd: /* bsr */
         {
-            int label1;
+            TCGLabel *label1;
             TCGv t0;
 
             ot = dflag + OT_WORD;
@@ -6799,7 +6804,7 @@ reswitch:
         case 0xe2: /* loop */
         case 0xe3: /* jecxz */
         {
-            int l1, l3;
+            TCGLabel *l1, *l3;
             SET_TB_TYPE(TB_COND_JMP);
 
             tval = (int8_t) insn_get(s, OT_BYTE);
@@ -7304,7 +7309,7 @@ reswitch:
             } else
 #endif
             {
-                int label1;
+                TCGLabel *label1;
                 TCGv t0, t1, t2, a0;
 
                 if (!s->pe || s->vm86)
@@ -7356,7 +7361,7 @@ reswitch:
         case 0x102: /* lar */
         case 0x103: /* lsl */
         {
-            int label1;
+            TCGLabel *label1;
             TCGv t0;
             if (!s->pe || s->vm86)
                 goto illegal_op;
