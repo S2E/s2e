@@ -87,9 +87,11 @@ void tlb_flush(CPUArchState *env, int flush_global) {
 
     int mmu_idx;
     for (mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
+        env->tlb_table[mmu_idx] = &env->_tlb_table[mmu_idx][0];
         for (i = 0; i < CPU_TLB_SIZE; i++) {
             env->tlb_table[mmu_idx][i] = s_cputlb_empty_entry;
         }
+        env->tlb_mask[mmu_idx] = (CPU_TLB_SIZE - 1) << CPU_TLB_ENTRY_BITS;
     }
 
 #if defined(CONFIG_SYMBEX) && defined(SE_ENABLE_TLB)

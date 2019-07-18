@@ -73,8 +73,10 @@ extern int CPUTLBEntry_wrong_size[sizeof(CPUTLBEntry) == (1 << CPU_TLB_ENTRY_BIT
 
 #define CPU_COMMON_TLB                                                \
     /* The meaning of the MMU modes is defined in the target code. */ \
-    CPUTLBEntry tlb_table[NB_MMU_MODES][CPU_TLB_SIZE];                \
+    CPUTLBEntry *tlb_table[NB_MMU_MODES];                             \
+    CPUTLBEntry _tlb_table[NB_MMU_MODES][CPU_TLB_SIZE];               \
     target_phys_addr_t iotlb[NB_MMU_MODES][CPU_TLB_SIZE];             \
+    uintptr_t tlb_mask[NB_MMU_MODES];                                 \
     CPU_IOTLB_CHECK                                                   \
     target_ulong tlb_flush_addr;                                      \
     target_ulong tlb_flush_mask;
@@ -92,21 +94,35 @@ typedef struct CPUTLBRAMEntry {
 #endif
 
 /* Flags stored in the low bits of the TLB virtual address.  These are
-   defined so that fast path ram access is all zeros.  */
+ * defined so that fast path ram access is all zeros.
+ * The flags all must be between TARGET_PAGE_BITS and
+ * maximum address alignment bit.
+ */
 /* Zero if TLB entry is valid.  */
-#define TLB_INVALID_MASK (1 << 3)
+#define TLB_INVALID_MASK (1 << (TARGET_PAGE_BITS - 1))
 /* Set if TLB entry references a clean RAM page.  The iotlb entry will
    contain the page physical address.  */
-#define TLB_NOTDIRTY (1 << 4)
+#define TLB_NOTDIRTY (1 << (TARGET_PAGE_BITS - 2))
 /* Set if TLB entry is an IO callback.  */
-#define TLB_MMIO (1 << 5)
+#define TLB_MMIO (1 << (TARGET_PAGE_BITS - 3))
+/* Set if TLB entry must have MMU lookup repeated for every access */
+#define TLB_RECHECK (1 << (TARGET_PAGE_BITS - 4))
 
 #ifdef CONFIG_SYMBEX
 /* Set if TLB entry points to a page that has symbolic data */
-#define TLB_SYMB (1 << 6)
+#define TLB_SYMB (1 << (TARGET_PAGE_BITS - 5))
 
 /* Set if TLB entry points to a page that does not belong to us (only for write) */
-#define TLB_NOT_OURS (1 << 7)
+#define TLB_NOT_OURS (1 << (TARGET_PAGE_BITS - 6))
+#endif
+
+/* Use this mask to check interception with an alignment mask
+ * in a TCG backend.
+ */
+#ifdef CONFIG_SYMBEX
+#define TLB_FLAGS_MASK (TLB_INVALID_MASK | TLB_NOTDIRTY | TLB_MMIO | TLB_SYMB | TLB_RECHECK | TLB_NOT_OURS)
+#else
+#define TLB_FLAGS_MASK (TLB_INVALID_MASK | TLB_NOTDIRTY | TLB_MMIO | TLB_RECHECK)
 #endif
 
 #ifdef __cplusplus
