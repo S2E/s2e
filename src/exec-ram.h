@@ -33,6 +33,8 @@
 /* memory API */
 /* This should only be used for ram local to a device.  */
 void *qemu_get_ram_ptr(ram_addr_t addr);
+/* This is a helper function that can be called from gdb */
+void *get_ram_ptr_internal(ram_addr_t addr);
 void *qemu_ram_ptr_length(ram_addr_t addr, ram_addr_t *size);
 /* Same but slower, to use for migration, where the order of
  * RAMBlocks must not change. */

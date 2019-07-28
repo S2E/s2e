@@ -258,7 +258,8 @@ static void print_ram_blocks(void) {
    It should not be used for general purpose DMA.
    Use cpu_physical_memory_map/cpu_physical_memory_rw instead.
  */
-void *qemu_get_ram_ptr(ram_addr_t addr) {
+
+void *get_ram_ptr_internal(ram_addr_t addr) {
     for (unsigned i = 0; i < ram_list.block_count; ++i) {
         RAMBlock *block = &ram_list.blocks[i];
         if (addr - block->offset < block->length) {
@@ -267,12 +268,24 @@ void *qemu_get_ram_ptr(ram_addr_t addr) {
         }
     }
 
+    return NULL;
+}
+
+void *qemu_get_ram_ptr(ram_addr_t addr) {
+    void *ret = get_ram_ptr_internal(addr);
+    if (ret) {
+        return ret;
+    }
+
     fprintf(stderr, "Bad ram offset %" PRIx64 "\n", (uint64_t) addr);
     print_ram_blocks();
     abort();
 
     return NULL;
 }
+
+// XXX: looks like the same as qemu_get_ram_ptr
+// TODO: remove qemu_ prefix from these functions
 
 /* Return a host pointer to ram allocated with qemu_ram_alloc.
  * Same as qemu_get_ram_ptr but avoid reordering ramblocks.
