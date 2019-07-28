@@ -7691,7 +7691,7 @@ static inline void gen_tb_start(TranslationBlock *tb) {
 static inline void gen_tb_end(TranslationBlock *tb) {
     assert(tcg_ctx->exitreq_label);
     gen_set_label(tcg_ctx->exitreq_label);
-    tcg_gen_exit_tb(NULL, TB_EXIT_REQUESTED);
+    tcg_gen_exit_tb(tb, TB_EXIT_REQUESTED);
 }
 
 /* generate intermediate code in gen_opc_buf and gen_opparam_buf for
