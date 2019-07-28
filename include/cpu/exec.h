@@ -48,7 +48,7 @@ extern void *tci_tb_ptr;
    This is still safe in ARM mode because instructions are 4 bytes.  */
 #define GETPC() ((void *) ((uintptr_t) __builtin_return_address(0) - 2))
 #else
-#define GETPC() ((void *) ((uintptr_t) __builtin_return_address(0) - 1))
+#define GETPC() (((uintptr_t) __builtin_return_address(0) - 1))
 #endif
 
 int cpu_restore_state(struct TranslationBlock *tb, CPUArchState *env, uintptr_t searched_pc);

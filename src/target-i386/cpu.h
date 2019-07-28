@@ -468,7 +468,9 @@ static inline void cpu_get_tb_cpu_state(CPUX86State *env, target_ulong *pc, targ
 void do_interrupt(CPUX86State *env);
 void do_interrupt_x86_hardirq(CPUX86State *env, int intno, int is_hw);
 void LIBCPU_NORETURN raise_exception_env(int exception_index, CPUX86State *nenv);
-void LIBCPU_NORETURN raise_exception_err_env(CPUX86State *nenv, int exception_index, int error_code);
+void raise_exception(CPUX86State *env, int exception_index);
+void raise_exception_err(CPUX86State *env, int exception_index, int error_code);
+void raise_exception_err_ra(CPUX86State *env, int exception_index, int error_code, uintptr_t retaddr);
 
 void do_smm_enter(CPUX86State *env1);
 
