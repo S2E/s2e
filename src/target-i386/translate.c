@@ -4019,13 +4019,8 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start) {
     target_ulong next_eip, tval;
     int rex_w, rex_r;
 
-#if defined(CONFIG_SYMBEX)
-// tcg_gen_debug_insn_start(pc_start);
-#else
-    if (unlikely(libcpu_loglevel_mask(CPU_LOG_TB_OP))) {
-        tcg_gen_insn_start(pc_start);
-    }
-#endif
+    // This is required for precise pc generation
+    tcg_gen_insn_start(pc_start, s->cc_op);
 
 #ifdef ENABLE_PRECISE_EXCEPTION_DEBUGGING
     tcg_gen_movi_tl(cpu_tmp0, pc_start - s->cs_base);
