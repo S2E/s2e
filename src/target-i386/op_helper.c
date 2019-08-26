@@ -4975,9 +4975,7 @@ void tlb_fill(CPUX86State *env1, target_ulong addr, target_ulong page_addr, int 
    from generated code or from helper.c) */
 /* XXX: fix it to restore all registers */
 void tlb_fill(CPUX86State *env1, target_ulong addr, target_ulong page_addr, int is_write, int mmu_idx, void *retaddr) {
-    TranslationBlock *tb;
     int ret;
-    unsigned long pc;
 
 #if defined(CONFIG_SYMBEX)
     if (unlikely(*g_sqi.events.on_tlb_miss_signals_count)) {
@@ -5004,16 +5002,6 @@ void tlb_fill(CPUX86State *env1, target_ulong addr, target_ulong page_addr, int 
         }
 #endif
 
-        if (retaddr) {
-            /* now we have a real cpu fault */
-            pc = (unsigned long) retaddr;
-            tb = tcg_tb_lookup(pc);
-            if (tb) {
-                /* the PC is inside the translated code. It means that we have
-                   a virtual CPU fault */
-                cpu_restore_state(env1, pc);
-            }
-        }
 #if defined(CONFIG_SYMBEX)
         if (unlikely(*g_sqi.events.on_page_fault_signals_count)) {
             g_sqi.events.on_page_fault(addr, is_write, retaddr);
