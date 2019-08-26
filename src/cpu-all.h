@@ -376,6 +376,4 @@ void list_mapped_pages(CPUX86State *env, unsigned rw_only, unsigned user_only, t
 
 void cpu_tlb_update_dirty(CPUArchState *env);
 
-void dump_exec_info(FILE *f, fprintf_function cpu_fprintf);
-
 #endif /* CPU_ALL_H */
