@@ -7911,7 +7911,8 @@ static inline void gen_intermediate_code_internal(CPUX86State *env, TranslationB
     if (libcpu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
         int disas_flags;
         libcpu_log("----------------\n");
-        libcpu_log("IN %#" PRIx64 ":\n", (uint64_t) pc_start);
+        libcpu_log("IN %#" PRIx64 " - cs:eip=%#" PRIx64 ":%#" PRIx64 "\n", (uint64_t) pc_start, (uint64_t) cs_base,
+                   (uint64_t) env->eip);
 #ifdef TARGET_X86_64
         if (dc->code64)
             disas_flags = 2;
