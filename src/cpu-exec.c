@@ -27,9 +27,10 @@
 #define barrier() asm volatile("" ::: "memory")
 
 // #define DEBUG_EXEC
+// #define TRACE_EXEC
 
 #ifdef DEBUG_EXEC
-#define DPRINTF(...) printf(__VA_ARGS__)
+#define DPRINTF(...) fprintf(logfile, __VA_ARGS__)
 #else
 #define DPRINTF(...)
 #endif
@@ -241,12 +242,19 @@ static uintptr_t fetch_and_run_tb(uintptr_t prev_tb, CPUArchState *env) {
 #else
 
 #ifdef TRACE_EXEC
-    printf("eip=%lx eax=%lx ebx=%lx ecx=%lx edx=%lx esi=%lx edi=%lx ebp=%lx esp=%lx\n", (uint64_t) env->eip,
-           (uint64_t) env->regs[R_EAX], (uint64_t) env->regs[R_EBX], (uint64_t) env->regs[R_ECX],
-           (uint64_t) env->regs[R_EDX], (uint64_t) env->regs[R_ESI], (uint64_t) env->regs[R_EDI],
-           (uint64_t) env->regs[R_EBP], (uint64_t) env->regs[R_ESP]);
-    * /
-// printf("eip: %lx\n", (uint64_t) env->eip);
+    fprintf(logfile, "s eip=%lx eax=%lx ebx=%lx ecx=%lx edx=%lx esi=%lx edi=%lx ebp=%lx esp=%lx\n", (uint64_t) env->eip,
+            (uint64_t) env->regs[R_EAX], (uint64_t) env->regs[R_EBX], (uint64_t) env->regs[R_ECX],
+            (uint64_t) env->regs[R_EDX], (uint64_t) env->regs[R_ESI], (uint64_t) env->regs[R_EDI],
+            (uint64_t) env->regs[R_EBP], (uint64_t) env->regs[R_ESP]);
+#endif
+
+    last_tb = tcg_libcpu_tb_exec(env, tc_ptr);
+
+#ifdef TRACE_EXEC
+    fprintf(logfile, "e eip=%lx eax=%lx ebx=%lx ecx=%lx edx=%lx esi=%lx edi=%lx ebp=%lx esp=%lx\n", (uint64_t) env->eip,
+            (uint64_t) env->regs[R_EAX], (uint64_t) env->regs[R_EBX], (uint64_t) env->regs[R_ECX],
+            (uint64_t) env->regs[R_EDX], (uint64_t) env->regs[R_ESI], (uint64_t) env->regs[R_EDI],
+            (uint64_t) env->regs[R_EBP], (uint64_t) env->regs[R_ESP]);
 #endif
 
         next_tb = tcg_libcpu_tb_exec(env, tc_ptr);
@@ -354,7 +362,6 @@ static int process_exceptions(CPUArchState *env) {
     }
 
     /* if an exception is pending, we execute it here */
-    DPRINTF("  process_exception exidx=%x\n", env->exception_index);
     if (env->exception_index >= EXCP_INTERRUPT) {
         /* exit request from the cpu execution loop */
         ret = env->exception_index;
@@ -362,6 +369,7 @@ static int process_exceptions(CPUArchState *env) {
             cpu_handle_debug_exception(env);
         }
     } else {
+        DPRINTF("  do_interrupt exidx=%x\n", env->exception_index);
         do_interrupt(env);
         env->exception_index = -1;
     }
