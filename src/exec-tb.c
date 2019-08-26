@@ -1,6 +1,6 @@
 /// Copyright (C) 2003  Fabrice Bellard
 /// Copyright (C) 2010  Dependable Systems Laboratory, EPFL
-/// Copyright (C) 2016  Cyberhaven
+/// Copyright (C) 2016-2019  Cyberhaven
 /// Copyrights of all contributions belong to their respective owners.
 ///
 /// This library is free software; you can redistribute it and/or
@@ -21,6 +21,7 @@
 #include <sys/mman.h>
 #include <sys/types.h>
 
+#include <cpu/types.h>
 #include <tcg/tcg.h>
 #include "cpu.h"
 #include "osdep.h"
@@ -37,9 +38,6 @@
 
 #include "exec-tb.h"
 
-TranslationBlock *g_tbs;
-int g_nb_tbs;
-
 TranslationBlock *tb_phys_hash[CODE_GEN_PHYS_HASH_SIZE];
 
 /* any access to the tbs or the page table must use this lock */
@@ -51,20 +49,6 @@ int g_tb_phys_invalidate_count;
 int code_gen_max_blocks;
 
 #define code_gen_section __attribute__((aligned(32)))
-
-uint8_t code_gen_prologue[1024] code_gen_section;
-uint8_t *code_gen_buffer;
-unsigned long code_gen_buffer_size;
-/* threshold to flush the translated code buffer */
-unsigned long g_code_gen_buffer_max_size;
-uint8_t *g_code_gen_ptr;
-
-#ifdef CONFIG_SYMBEX
-static tb_precise_pc_t *code_gen_precise_excp_buffer;
-static tb_precise_pc_t *code_gen_precise_excp_ptr;
-static unsigned long code_gen_precise_excp_count;
-static unsigned long code_gen_precise_excp_max_count;
-#endif
 
 static void page_flush_tb(void);
 
@@ -78,27 +62,6 @@ unsigned long qemu_host_page_mask;
 static uint8_t static_code_gen_buffer[DEFAULT_CODE_GEN_BUFFER_SIZE] __attribute__((aligned(CODE_GEN_ALIGN)));
 #endif
 
-#ifdef _WIN32
-static void map_exec(void *addr, long size) {
-    DWORD old_protect;
-    VirtualProtect(addr, size, PAGE_EXECUTE_READWRITE, &old_protect);
-}
-#else
-static void map_exec(void *addr, long size) {
-    unsigned long start, end, page_size;
-
-    page_size = getpagesize();
-    start = (unsigned long) addr;
-    start &= ~(page_size - 1);
-
-    end = (unsigned long) addr + size;
-    end += page_size - 1;
-    end &= ~(page_size - 1);
-
-    mprotect((void *) start, end - start, PROT_READ | PROT_WRITE | PROT_EXEC);
-}
-#endif
-
 #define mmap_lock() \
     do {            \
     } while (0)
@@ -106,126 +69,8 @@ static void map_exec(void *addr, long size) {
     do {              \
     } while (0)
 
-#ifdef CONFIG_SYMBEX
-static void code_gen_init_precise_excep(void) {
-    /**
-     * Have a 4KB overflow buffer, a TB is guaranteed not to have
-     * more than 4K guest instructions.
-     */
-
-    if (code_gen_precise_excp_count == 0) {
-        code_gen_precise_excp_count = code_gen_max_blocks;
-        code_gen_precise_excp_max_count = code_gen_precise_excp_count - 0x1000;
-        code_gen_precise_excp_buffer = g_malloc(code_gen_precise_excp_count * sizeof(tb_precise_pc_t));
-        code_gen_precise_excp_ptr = code_gen_precise_excp_buffer;
-    } else {
-        // Resize the buffer. Must be done after the TB cache is flushed.
-        // g_sqi.log.debug("Resizing precise exception buffer from %d to %d entries\n", code_gen_precise_excp_count,
-        // code_gen_precise_excp_count * 2);
-        code_gen_precise_excp_count *= 2;
-        code_gen_precise_excp_max_count = code_gen_precise_excp_count - 0x1000;
-        code_gen_precise_excp_buffer =
-            g_realloc(code_gen_precise_excp_buffer, code_gen_precise_excp_count * sizeof(tb_precise_pc_t));
-        code_gen_precise_excp_ptr = code_gen_precise_excp_buffer;
-    }
-}
-
-static bool code_gen_precise_excep_flush_needed(void) {
-    return (code_gen_precise_excp_ptr - code_gen_precise_excp_buffer) >= code_gen_precise_excp_max_count;
-}
-
-#endif
-
-static void code_gen_alloc(unsigned long tb_size) {
-#ifdef USE_STATIC_CODE_GEN_BUFFER
-    code_gen_buffer = static_code_gen_buffer;
-    code_gen_buffer_size = DEFAULT_CODE_GEN_BUFFER_SIZE;
-    map_exec(code_gen_buffer, code_gen_buffer_size);
-#else
-    code_gen_buffer_size = tb_size;
-    if (code_gen_buffer_size == 0) {
-        /* XXX: needs adjustments */
-        code_gen_buffer_size = (unsigned long) (get_ram_size() / 4);
-    }
-    if (code_gen_buffer_size < MIN_CODE_GEN_BUFFER_SIZE)
-        code_gen_buffer_size = MIN_CODE_GEN_BUFFER_SIZE;
-/* The code gen buffer location may have constraints depending on
-   the host cpu and OS */
-#if defined(__linux__)
-    {
-        int flags;
-        void *start = NULL;
-
-        flags = MAP_PRIVATE | MAP_ANONYMOUS;
-#if defined(__x86_64__)
-        flags |= MAP_32BIT;
-        /* Cannot map more than that */
-        if (code_gen_buffer_size > (800 * 1024 * 1024))
-            code_gen_buffer_size = (800 * 1024 * 1024);
-#endif
-        code_gen_buffer = mmap(start, code_gen_buffer_size, PROT_WRITE | PROT_READ | PROT_EXEC, flags, -1, 0);
-        if (code_gen_buffer == MAP_FAILED) {
-            fprintf(stderr, "Could not allocate dynamic translator buffer\n");
-            exit(1);
-        }
-    }
-#else
-    code_gen_buffer = g_malloc(code_gen_buffer_size);
-    map_exec(code_gen_buffer, code_gen_buffer_size);
-#endif
-#endif /* !USE_STATIC_CODE_GEN_BUFFER */
-    map_exec(code_gen_prologue, sizeof(code_gen_prologue));
-    g_code_gen_buffer_max_size = code_gen_buffer_size - (TCG_MAX_OP_SIZE * OPC_BUF_SIZE);
-    code_gen_max_blocks = code_gen_buffer_size / CODE_GEN_AVG_BLOCK_SIZE;
-    g_tbs = g_malloc(code_gen_max_blocks * sizeof(TranslationBlock));
-
-#ifdef CONFIG_SYMBEX
-    code_gen_init_precise_excep();
-
-    cpu_gen_init_opc();
-#endif
-}
-
-static void page_init(void) {
-/* NOTE: we can always suppose that qemu_host_page_size >=
-   TARGET_PAGE_SIZE */
-#ifdef _WIN32
-    {
-        SYSTEM_INFO system_info;
-
-        GetSystemInfo(&system_info);
-        qemu_real_host_page_size = system_info.dwPageSize;
-    }
-#else
-    qemu_real_host_page_size = getpagesize();
-#endif
-    if (qemu_host_page_size == 0)
-        qemu_host_page_size = qemu_real_host_page_size;
-    if (qemu_host_page_size < TARGET_PAGE_SIZE)
-        qemu_host_page_size = TARGET_PAGE_SIZE;
-    qemu_host_page_mask = ~(qemu_host_page_size - 1);
-}
-
-/* Must be called before using the QEMU cpus. 'tb_size' is the size
-   (in bytes) allocated to the translation buffer. Zero means default
-   size. */
-void tcg_exec_init(unsigned long tb_size) {
-    cpu_gen_init();
-    code_gen_alloc(tb_size);
-    g_code_gen_ptr = code_gen_buffer;
-#ifdef CONFIG_SYMBEX
-    code_gen_precise_excp_ptr = code_gen_precise_excp_buffer;
-#endif
-    tcg_register_jit(code_gen_buffer, code_gen_buffer_size);
-    page_init();
-
-    /* There's no guest base to take into account, so go ahead and
-       initialize the prologue now.  */
-    tcg_prologue_init(&tcg_ctx);
-}
-
 bool tcg_enabled(void) {
-    return code_gen_buffer != NULL;
+    return true;
 }
 
 /* Allocate a new translation block. Flush the translation buffer if
@@ -233,19 +78,14 @@ bool tcg_enabled(void) {
 static TranslationBlock *tb_alloc(target_ulong pc) {
     TranslationBlock *tb;
 
-#ifdef CONFIG_SYMBEX
-    if (g_nb_tbs >= code_gen_max_blocks || (g_code_gen_ptr - code_gen_buffer) >= g_code_gen_buffer_max_size ||
-        code_gen_precise_excep_flush_needed() || cpu_gen_flush_needed())
-#else
-    if (g_nb_tbs >= code_gen_max_blocks || (g_code_gen_ptr - code_gen_buffer) >= g_code_gen_buffer_max_size)
-#endif
-
-    {
+    if (tcg_ctx->code_gen_ptr + 0x1000 >= tcg_ctx->code_gen_highwater) {
         return NULL;
     }
-    tb = &g_tbs[g_nb_tbs++];
-    tb->pc = pc;
-    tb->cflags = 0;
+
+    tb = tcg_tb_alloc(tcg_ctx);
+    if (unlikely(tb == NULL)) {
+        return NULL;
+    }
 
 #ifdef CONFIG_SYMBEX
     tb->llvm_function = NULL;
@@ -257,49 +97,15 @@ static TranslationBlock *tb_alloc(target_ulong pc) {
 }
 
 void tb_free(TranslationBlock *tb) {
-    /* In practice this is mostly used for single use temporary TB
-       Ignore the hard cases and just back up if this TB happens to
-       be the last one generated.  */
-    if (g_nb_tbs > 0 && tb == &g_tbs[g_nb_tbs - 1]) {
-        g_code_gen_ptr = tb->tc_ptr;
-
-#if defined(CONFIG_SYMBEX)
-        code_gen_precise_excp_ptr = tb->precise_pcs;
-        g_sqi.tb.tb_free(tb);
-#endif
-        g_nb_tbs--;
-    }
+    abort();
 }
 
 /* flush all the translation blocks */
 /* XXX: tb_flush is currently not thread safe */
-void tb_flush(CPUArchState *env1) {
+void tb_flush(CPUArchState *env) {
 #ifdef CONFIG_SYMBEX
-    g_sqi.tb.flush_tb_cache();
+    abort();
 #endif
-
-    CPUArchState *env;
-#if defined(DEBUG_FLUSH)
-    printf("qemu: flush code_size=%ld g_nb_tbs=%d avg_tb_size=%ld\n",
-           (unsigned long) (g_code_gen_ptr - code_gen_buffer), g_nb_tbs,
-           g_nb_tbs > 0 ? ((unsigned long) (g_code_gen_ptr - code_gen_buffer)) / g_nb_tbs : 0);
-#endif
-    if ((unsigned long) (g_code_gen_ptr - code_gen_buffer) > code_gen_buffer_size)
-        cpu_abort(env1, "Internal error: code buffer overflow\n");
-
-#ifdef CONFIG_SYMBEX
-    if ((code_gen_precise_excp_ptr - code_gen_precise_excp_buffer) > code_gen_precise_excp_count) {
-        cpu_abort(env1, "Internal error: exception buffer overflow\n");
-    }
-#endif
-
-#if defined(CONFIG_SYMBEX)
-    int i1;
-    for (i1 = 0; i1 < g_nb_tbs; ++i1)
-        g_sqi.tb.tb_free(&g_tbs[i1]);
-#endif
-
-    g_nb_tbs = 0;
 
     for (env = first_cpu; env != NULL; env = env->next_cpu) {
         memset(env->tb_jmp_cache, 0, TB_JMP_CACHE_SIZE * sizeof(void *));
@@ -308,19 +114,8 @@ void tb_flush(CPUArchState *env1) {
     memset(tb_phys_hash, 0, CODE_GEN_PHYS_HASH_SIZE * sizeof(void *));
     page_flush_tb();
 
-    g_code_gen_ptr = code_gen_buffer;
+    tcg_region_reset_all();
 
-#ifdef CONFIG_SYMBEX
-    cpu_gen_flush();
-
-    if (code_gen_precise_excep_flush_needed()) {
-        code_gen_init_precise_excep();
-    }
-
-    code_gen_precise_excp_ptr = code_gen_precise_excp_buffer;
-#endif
-    /* XXX: flush processor icache at this point if cache flush is
-       expensive */
     g_tb_flush_count++;
 }
 
@@ -387,46 +182,6 @@ static inline void tb_page_remove(TranslationBlock **ptb, TranslationBlock *tb) 
     }
 }
 
-static inline void tb_jmp_remove(TranslationBlock *tb, int n) {
-    TranslationBlock *tb1, **ptb;
-    unsigned int n1;
-
-    ptb = &tb->jmp_next[n];
-    tb1 = *ptb;
-    if (tb1) {
-        /* find tb(n) in circular list */
-        for (;;) {
-            tb1 = *ptb;
-            n1 = (long) tb1 & 3;
-            tb1 = (TranslationBlock *) ((long) tb1 & ~3);
-            if (n1 == n && tb1 == tb)
-                break;
-            if (n1 == 2) {
-                ptb = &tb1->jmp_first;
-            } else {
-                ptb = &tb1->jmp_next[n1];
-            }
-        }
-        /* now we can suppress tb(n) from the list */
-        *ptb = tb->jmp_next[n];
-
-        tb->jmp_next[n] = NULL;
-#ifdef CONFIG_SYMBEX
-        tb->se_tb_next[n] = NULL;
-#endif
-    }
-}
-
-/* reset the jump entry 'n' of a TB so that it is not chained to
-   another TB */
-static inline void tb_reset_jump(TranslationBlock *tb, int n) {
-    tb_set_jmp_target(tb, n, (unsigned long) (tb->tc_ptr + tb->tb_next_offset[n]));
-
-#ifdef CONFIG_SYMBEX
-    tb->se_tb_next[n] = NULL;
-#endif
-}
-
 static inline void invalidate_page_bitmap(PageDesc *p) {
     if (p->code_bitmap) {
         g_free(p->code_bitmap);
@@ -438,9 +193,8 @@ static inline void invalidate_page_bitmap(PageDesc *p) {
 void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr) {
     CPUArchState *env;
     PageDesc *p;
-    unsigned int h, n1;
+    unsigned int h;
     tb_page_addr_t phys_pc;
-    TranslationBlock *tb1, *tb2;
 
     /* remove the TB from the hash list */
     phys_pc = tb->page_addr[0] + (tb->pc & ~TARGET_PAGE_MASK);
@@ -469,22 +223,11 @@ void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr) {
     }
 
     /* suppress this TB from the two jump lists */
-    tb_jmp_remove(tb, 0);
-    tb_jmp_remove(tb, 1);
+    tb_remove_from_jmp_list(tb, 0);
+    tb_remove_from_jmp_list(tb, 1);
 
     /* suppress any remaining jumps to this TB */
-    tb1 = tb->jmp_first;
-    for (;;) {
-        n1 = (long) tb1 & 3;
-        if (n1 == 2)
-            break;
-        tb1 = (TranslationBlock *) ((long) tb1 & ~3);
-        tb2 = tb1->jmp_next[n1];
-        tb_reset_jump(tb1, n1);
-        tb1->jmp_next[n1] = NULL;
-        tb1 = tb2;
-    }
-    tb->jmp_first = (TranslationBlock *) ((long) tb | 2); /* fail safe */
+    tb_jmp_unlink(tb);
 
     g_tb_phys_invalidate_count++;
 }
@@ -514,34 +257,16 @@ TranslationBlock *tb_gen_code(CPUArchState *env, target_ulong pc, target_ulong c
     assert(code_gen_precise_excp_ptr < code_gen_precise_excp_buffer + code_gen_precise_excp_max_count);
 #endif
 
-    tc_ptr = g_code_gen_ptr;
-    tb->tc_ptr = tc_ptr;
+    tc_ptr = tcg_ctx->code_gen_ptr;
+    tb->tc.ptr = tc_ptr;
+    tb->cflags = 0;
+    tb->pc = pc;
     tb->cs_base = cs_base;
     tb->flags = flags;
     tb->cflags = cflags;
 
     cpu_gen_code(env, tb, &code_gen_size);
-    tb->tc_size = code_gen_size;
-    g_code_gen_ptr =
-        (void *) (((unsigned long) g_code_gen_ptr + code_gen_size + CODE_GEN_ALIGN - 1) & ~(CODE_GEN_ALIGN - 1));
-
-#ifdef CONFIG_SYMBEX
-// Do not store precise TB info if the block is not instrumented
-#if !defined(SE_ENABLE_RETRANSLATION)
-    code_gen_precise_excp_ptr += tb->icount;
-    ++code_gen_precise_excp_ptr;
-    assert(code_gen_precise_excp_ptr < code_gen_precise_excp_buffer + code_gen_precise_excp_count);
-#else
-    if (tb->instrumented) {
-        code_gen_precise_excp_ptr += tb->icount;
-        ++code_gen_precise_excp_ptr;
-        assert(code_gen_precise_excp_ptr < code_gen_precise_excp_buffer + code_gen_precise_excp_count);
-    } else {
-        tb->precise_entries = -1;
-        tb->precise_pcs = NULL;
-    }
-#endif
-#endif
+    tb->tc.size = code_gen_size;
 
     /* check next page if needed */
     virt_page2 = (pc + tb->size - 1) & TARGET_PAGE_MASK;
@@ -550,7 +275,7 @@ TranslationBlock *tb_gen_code(CPUArchState *env, target_ulong pc, target_ulong c
         phys_page2 = get_page_addr_code(env, virt_page2);
     }
     tb_link_page(tb, phys_pc, phys_page2);
-
+    tcg_tb_insert(tb);
     return tb;
 }
 
@@ -578,7 +303,6 @@ void se_tb_gen_llvm(CPUArchState *env, TranslationBlock *tb) {
 #endif
 
 /* Set to NULL all the 'first_tb' fields in all PageDescs. */
-
 static void page_flush_tb_1(int level, void **lp) {
     int i;
 
@@ -711,7 +435,7 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end, int
                 current_tb = NULL;
                 if (env->mem_io_pc) {
                     /* now we have a real cpu fault */
-                    current_tb = tb_find_pc(env->mem_io_pc);
+                    current_tb = tcg_tb_lookup(env->mem_io_pc);
                 }
             }
             if (current_tb == tb && (current_tb->cflags & CF_COUNT_MASK) != 1) {
@@ -722,13 +446,16 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end, int
                 restore the CPU state */
 
                 current_tb_modified = 1;
-                cpu_restore_state(current_tb, env, env->mem_io_pc);
+                cpu_restore_state(env, env->mem_io_pc);
                 cpu_get_tb_cpu_state(env, &current_pc, &current_cs_base, &current_flags);
 
+// XXX: deal with self-modifying code
+#if 0
                 if (restore_state_to_next_pc(env, current_tb)) {
                     // XXX: could also be +2
-                    tcg_target_force_tb_exit(env->mem_io_pc + 1, (uintptr_t)(current_tb->tc_ptr + current_tb->tc_size));
+                    tcg_target_force_tb_exit(env->mem_io_pc + 1, (uintptr_t)(current_tb->tc.ptr + current_tb->tc.size));
                 }
+#endif
             }
 #endif /* TARGET_HAS_PRECISE_SMC */
             /* we need to do that to handle the case where a signal
@@ -849,111 +576,126 @@ void tb_link_page(TranslationBlock *tb, tb_page_addr_t phys_pc, tb_page_addr_t p
     else
         tb->page_addr[1] = -1;
 
-    tb->jmp_first = (TranslationBlock *) ((long) tb | 2);
-    tb->jmp_next[0] = NULL;
-    tb->jmp_next[1] = NULL;
-
-    /* init original jump addresses */
-    if (tb->tb_next_offset[0] != 0xffff)
-        tb_reset_jump(tb, 0);
-    if (tb->tb_next_offset[1] != 0xffff)
-        tb_reset_jump(tb, 1);
-
 #ifdef DEBUG_TB_CHECK
     tb_page_check();
 #endif
     mmap_unlock();
 }
 
-/* find the TB 'tb' such that tb[0].tc_ptr <= tc_ptr <
-   tb[1].tc_ptr. Return NULL if not found */
-TranslationBlock *tb_find_pc(uintptr_t tc_ptr) {
-    int m_min, m_max, m;
-    unsigned long v;
+////////////
+
+/* remove @orig from its @n_orig-th jump list */
+void tb_remove_from_jmp_list(TranslationBlock *orig, int n_orig) {
+    uintptr_t ptr, ptr_locked;
+    TranslationBlock *dest;
     TranslationBlock *tb;
+    uintptr_t *pprev;
+    int n;
 
-    if (g_nb_tbs <= 0)
-        return NULL;
-
-    if (tc_ptr < (unsigned long) code_gen_buffer || tc_ptr >= (unsigned long) g_code_gen_ptr)
-        return NULL;
-    /* binary search (cf Knuth) */
-    m_min = 0;
-    m_max = g_nb_tbs - 1;
-    while (m_min <= m_max) {
-        m = (m_min + m_max) >> 1;
-        tb = &g_tbs[m];
-        v = (unsigned long) tb->tc_ptr;
-        if (v == tc_ptr)
-            return tb;
-        else if (tc_ptr < v) {
-            m_max = m - 1;
-        } else {
-            m_min = m + 1;
-        }
+    /* mark the LSB of jmp_dest[] so that no further jumps can be inserted */
+    ptr = atomic_or_fetch(&orig->jmp_dest[n_orig], 1);
+    dest = (TranslationBlock *) (ptr & ~1);
+    if (dest == NULL) {
+        return;
     }
-    return &g_tbs[m_max];
-}
 
-static void tb_reset_jump_recursive(TranslationBlock *tb);
-
-static inline void tb_reset_jump_recursive2(TranslationBlock *tb, int n) {
-    TranslationBlock *tb1, *tb_next, **ptb;
-    unsigned int n1;
-
-    tb1 = tb->jmp_next[n];
-    if (tb1 != NULL) {
-        /* find head of list */
-        for (;;) {
-            n1 = (long) tb1 & 3;
-            tb1 = (TranslationBlock *) ((long) tb1 & ~3);
-            if (n1 == 2)
-                break;
-            tb1 = tb1->jmp_next[n1];
-        }
-        /* we are now sure now that tb jumps to tb1 */
-        tb_next = tb1;
-
-        /* remove tb from the jmp_first list */
-        ptb = &tb_next->jmp_first;
-        for (;;) {
-            tb1 = *ptb;
-            n1 = (long) tb1 & 3;
-            tb1 = (TranslationBlock *) ((long) tb1 & ~3);
-            if (n1 == n && tb1 == tb)
-                break;
-            ptb = &tb1->jmp_next[n1];
-        }
-        *ptb = tb->jmp_next[n];
-        tb->jmp_next[n] = NULL;
-
-        /* suppress the jump to next tb in generated code */
-        tb_reset_jump(tb, n);
-
-        /* suppress jumps in the tb on which we could have jumped */
-        tb_reset_jump_recursive(tb_next);
-    }
-}
-
-static void tb_reset_jump_recursive(TranslationBlock *tb) {
-    tb_reset_jump_recursive2(tb, 0);
-    tb_reset_jump_recursive2(tb, 1);
-}
-
-void cpu_unlink_tb(CPUArchState *env) {
-    TranslationBlock *tb;
-
-    /**
-     * Unlinking can happen from different threads and signals,
-     * must make it thread safe.
+    spin_lock(&dest->jmp_lock);
+    /*
+     * While acquiring the lock, the jump might have been removed if the
+     * destination TB was invalidated; check again.
      */
-    tb = env->current_tb;
-
-    /* if the cpu is currently executing code, we must unlink it and
-       all the potentially executing TB */
-    if (tb) {
-        env->current_tb = NULL;
-        tb_reset_jump_recursive(tb);
-        ++g_cpu_stats.tb_unlinks;
+    ptr_locked = atomic_read(&orig->jmp_dest[n_orig]);
+    if (ptr_locked != ptr) {
+        spin_unlock(&dest->jmp_lock);
+        /*
+         * The only possibility is that the jump was unlinked via
+         * tb_jump_unlink(dest). Seeing here another destination would be a bug,
+         * because we set the LSB above.
+         */
+        g_assert(ptr_locked == 1 && dest->cflags & CF_INVALID);
+        return;
     }
+    /*
+     * We first acquired the lock, and since the destination pointer matches,
+     * we know for sure that @orig is in the jmp list.
+     */
+    pprev = &dest->jmp_list_head;
+    TB_FOR_EACH_JMP(dest, tb, n) {
+        if (tb == orig && n == n_orig) {
+            *pprev = tb->jmp_list_next[n];
+            /* no need to set orig->jmp_dest[n]; setting the LSB was enough */
+            spin_unlock(&dest->jmp_lock);
+            return;
+        }
+        pprev = &tb->jmp_list_next[n];
+    }
+    g_assert_not_reached();
+}
+
+/* reset the jump entry 'n' of a TB so that it is not chained to
+   another TB */
+void tb_reset_jump(TranslationBlock *tb, int n) {
+    uintptr_t addr = (uintptr_t)(tb->tc.ptr + tb->jmp_reset_offset[n]);
+    tb_set_jmp_target(tb, n, addr);
+}
+
+/* remove any jumps to the TB */
+void tb_jmp_unlink(TranslationBlock *dest) {
+    TranslationBlock *tb;
+    int n;
+
+    spin_lock(&dest->jmp_lock);
+
+    TB_FOR_EACH_JMP(dest, tb, n) {
+        tb_reset_jump(tb, n);
+        atomic_and(&tb->jmp_dest[n], (uintptr_t) NULL | 1);
+        /* No need to clear the list entry; setting the dest ptr is enough */
+    }
+    dest->jmp_list_head = (uintptr_t) NULL;
+
+    spin_unlock(&dest->jmp_lock);
+}
+
+void tb_set_jmp_target(TranslationBlock *tb, int n, uintptr_t addr) {
+    if (TCG_TARGET_HAS_direct_jump) {
+        uintptr_t offset = tb->jmp_target_arg[n];
+        uintptr_t tc_ptr = (uintptr_t) tb->tc.ptr;
+        tb_target_set_jmp_target(tc_ptr, tc_ptr + offset, addr);
+    } else {
+        tb->jmp_target_arg[n] = addr;
+    }
+}
+
+void tb_add_jump(TranslationBlock *tb, int n, TranslationBlock *tb_next) {
+    uintptr_t old;
+
+    assert(n < ARRAY_SIZE(tb->jmp_list_next));
+    spin_lock(&tb_next->jmp_lock);
+
+    /* make sure the destination TB is valid */
+    if (tb_next->cflags & CF_INVALID) {
+        goto out_unlock_next;
+    }
+    /* Atomically claim the jump destination slot only if it was NULL */
+    old = atomic_cmpxchg(&tb->jmp_dest[n], (uintptr_t) NULL, (uintptr_t) tb_next);
+    if (old) {
+        goto out_unlock_next;
+    }
+
+    /* patch the native jump address */
+    tb_set_jmp_target(tb, n, (uintptr_t) tb_next->tc.ptr);
+
+    /* add in TB jmp list */
+    tb->jmp_list_next[n] = tb_next->jmp_list_head;
+    tb_next->jmp_list_head = (uintptr_t) tb | n;
+
+    spin_unlock(&tb_next->jmp_lock);
+
+    libcpu_log_mask(CPU_LOG_EXEC, "Linking TBs %p [" TARGET_FMT_lx "] index %d -> %p [" TARGET_FMT_lx "]\n", tb->tc.ptr,
+                    tb->pc, n, tb_next->tc.ptr, tb_next->pc);
+    return;
+
+out_unlock_next:
+    spin_unlock(&tb_next->jmp_lock);
+    return;
 }

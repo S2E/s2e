@@ -20,17 +20,26 @@
 
 #define __EXEC_TB_H__
 
+#include <inttypes.h>
+#include <cpu/tb.h>
+
 struct TranslationBlock;
 
-extern TranslationBlock *g_tbs;
-extern int g_nb_tbs;
-extern int code_gen_max_blocks;
-extern uint8_t *g_code_gen_ptr;
-extern unsigned long g_code_gen_buffer_max_size;
-extern int g_tb_phys_invalidate_count;
-extern int g_tb_flush_count;
-
-void cpu_unlink_tb(CPUArchState *env);
 void tb_invalidate_phys_page_fast(tb_page_addr_t start, int len);
+
+/* list iterators for lists of tagged pointers in TranslationBlock */
+#define TB_FOR_EACH_TAGGED(head, tb, n, field)                                                               \
+    for (n = (head) &1, tb = (TranslationBlock *) ((head) & ~1); tb; tb = (TranslationBlock *) tb->field[n], \
+        n = (uintptr_t) tb & 1, tb = (TranslationBlock *) ((uintptr_t) tb & ~1))
+
+#define PAGE_FOR_EACH_TB(pagedesc, tb, n) TB_FOR_EACH_TAGGED((pagedesc)->first_tb, tb, n, page_next)
+
+#define TB_FOR_EACH_JMP(head_tb, tb, n) TB_FOR_EACH_TAGGED((head_tb)->jmp_list_head, tb, n, jmp_list_next)
+
+void tb_remove_from_jmp_list(TranslationBlock *orig, int n_orig);
+void tb_reset_jump(TranslationBlock *tb, int n);
+void tb_jmp_unlink(TranslationBlock *dest);
+void tb_add_jump(TranslationBlock *tb, int n, TranslationBlock *tb_next);
+void tb_set_jmp_target(TranslationBlock *tb, int n, uintptr_t addr);
 
 #endif
