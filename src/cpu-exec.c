@@ -17,8 +17,10 @@
 /// License along with this library; if not, see <http://www.gnu.org/licenses/>.
 
 #include <cpu/config.h>
+#include <cpu/types.h>
 #include <tcg/tcg.h>
 #include "cpu.h"
+#include "exec-tb.h"
 
 #ifdef CONFIG_SYMBEX
 #include <cpu/se_libcpu.h>
@@ -56,6 +58,14 @@ void se_tb_safe_flush(void) {
 void cpu_loop_exit(CPUArchState *env) {
     env->current_tb = NULL;
     longjmp(env->jmp_env, 1);
+}
+
+void cpu_loop_exit_restore(CPUArchState *env, uintptr_t ra) {
+    if (ra) {
+        cpu_restore_state(env, ra);
+    }
+
+    cpu_loop_exit(env);
 }
 
 /* exit the current TB from a signal handler. The host registers are
@@ -177,22 +187,17 @@ static void cpu_handle_debug_exception(CPUArchState *env) {
 
 volatile sig_atomic_t exit_request;
 
-static uintptr_t fetch_and_run_tb(uintptr_t prev_tb, CPUArchState *env) {
+static uintptr_t fetch_and_run_tb(TranslationBlock *prev_tb, int tb_exit_code, CPUArchState *env) {
     uint8_t *tc_ptr;
-    uintptr_t next_tb;
-
-    DPRINTF("fetch_and_run_tb %lx fl=%lx riw=%d\n", (uint64_t) env->eip, (uint64_t) env->mflags,
-            env->kvm_request_interrupt_window);
+    uintptr_t last_tb;
 
     TranslationBlock *tb = tb_find_fast(env);
 
-    /* Note: we do it here to avoid a gcc bug on Mac OS X when
-       doing it in tb_find_slow */
+    DPRINTF("fetch_and_run_tb s=%#lx e=%#lx fl=%lx riw=%d\n", (uint64_t) env->eip, (uint64_t) env->eip + tb->size,
+            (uint64_t) env->mflags, env->kvm_request_interrupt_window);
+
     if (tb_invalidated_flag) {
-        /* as some TB could have been invalidated because
-           of memory exceptions while generating the code, we
-           must recompute the hash index here */
-        prev_tb = 0;
+        prev_tb = NULL;
         tb_invalidated_flag = 0;
     }
 
@@ -204,8 +209,8 @@ static uintptr_t fetch_and_run_tb(uintptr_t prev_tb, CPUArchState *env) {
      * see if we can patch the calling TB. When the TB
      * spans two pages, we cannot safely do a direct jump.
      */
-    if (prev_tb != 0 && tb->page_addr[1] == -1) {
-        tb_add_jump((TranslationBlock *) (prev_tb & ~3), prev_tb & 3, tb);
+    if (prev_tb && tb->page_addr[1] == -1) {
+        tb_add_jump(prev_tb, tb_exit_code, tb);
     }
 
     /* cpu_interrupt might be called while translating the
@@ -223,7 +228,7 @@ static uintptr_t fetch_and_run_tb(uintptr_t prev_tb, CPUArchState *env) {
         return 0;
     }
 
-    tc_ptr = tb->tc_ptr;
+    tc_ptr = tb->tc.ptr;
 #ifdef ENABLE_PRECISE_EXCEPTION_DEBUGGING
     assert(env->eip == env->precise_eip);
 #endif
@@ -234,9 +239,9 @@ static uintptr_t fetch_and_run_tb(uintptr_t prev_tb, CPUArchState *env) {
     env->se_current_tb = tb;
     if (likely(*g_sqi.mode.fast_concrete_invocation && **g_sqi.mode.running_concrete)) {
         **g_sqi.mode.running_exception_emulation_code = 0;
-        next_tb = tcg_libcpu_tb_exec(env, tc_ptr);
+        last_tb = tcg_libcpu_tb_exec(env, tc_ptr);
     } else {
-        next_tb = g_sqi.exec.tb_exec(env, tb);
+        last_tb = g_sqi.exec.tb_exec(env, tb);
     }
     env->se_current_tb = NULL;
 #else
@@ -257,12 +262,11 @@ static uintptr_t fetch_and_run_tb(uintptr_t prev_tb, CPUArchState *env) {
             (uint64_t) env->regs[R_EBP], (uint64_t) env->regs[R_ESP]);
 #endif
 
-        next_tb = tcg_libcpu_tb_exec(env, tc_ptr);
 #endif
 
     env->current_tb = NULL;
 
-    return next_tb;
+    return last_tb;
 }
 
 static bool process_interrupt_request(CPUArchState *env) {
@@ -378,7 +382,9 @@ static int process_exceptions(CPUArchState *env) {
 }
 
 static bool execution_loop(CPUArchState *env) {
-    uintptr_t next_tb = 0;
+    uintptr_t last_tb = 0;
+    int last_tb_exit_code = 0;
+    TranslationBlock *ltb = NULL;
 
     for (;;) {
         bool has_interrupt = false;
@@ -387,7 +393,7 @@ static bool execution_loop(CPUArchState *env) {
              * ensure that no TB jump will be modified as
              * the program flow was changed
              */
-            next_tb = 0;
+            last_tb = 0;
             has_interrupt = true;
         }
 
@@ -412,7 +418,21 @@ static bool execution_loop(CPUArchState *env) {
         }
 #endif /* DEBUG_DISAS || CONFIG_DEBUG_EXEC */
 
-        next_tb = fetch_and_run_tb(next_tb, env);
+        last_tb = fetch_and_run_tb(ltb, last_tb_exit_code, env);
+
+        last_tb_exit_code = last_tb & TB_EXIT_MASK;
+        ltb = (TranslationBlock *) (last_tb & ~TB_EXIT_MASK);
+
+        if (ltb) {
+            DPRINTF("ltb s=%#lx e=%#lx fl=%lx exit_code=%x riw=%d\n", (uint64_t) ltb->pc,
+                    (uint64_t) ltb->pc + ltb->size, (uint64_t) env->mflags, last_tb_exit_code,
+                    env->kvm_request_interrupt_window);
+        }
+
+        if (last_tb_exit_code > TB_EXIT_IDXMAX) {
+            env->eip = ltb->pc - ltb->cs_base;
+            ltb = NULL;
+        }
 
         if (env->kvm_request_interrupt_window && (env->mflags & IF_MASK)) {
             env->kvm_request_interrupt_window = 0;
