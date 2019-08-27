@@ -77,7 +77,7 @@ uint64_t LinuxMonitor::getTid(S2EExecutionState *state) {
     }
 
     target_ulong tid;
-    target_ulong tidAddress = m_currentTaskAddr + m_taskStructPidOffset;
+    target_ulong tidAddress = currentTask + m_taskStructPidOffset;
 
     if (!state->mem()->read(tidAddress, &tid, sizeof(tid))) {
         return -1;
