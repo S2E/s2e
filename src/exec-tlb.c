@@ -157,29 +157,6 @@ void tlb_unprotect_code_phys(CPUArchState *env, ram_addr_t ram_addr, target_ulon
     cpu_physical_memory_set_dirty_flags(ram_addr, CODE_DIRTY_FLAG);
 }
 
-static inline void tlb_update_dirty(CPUTLBEntry *tlb_entry) {
-    ram_addr_t ram_addr;
-    void *p;
-
-    if (tlb_is_dirty_ram(tlb_entry)) {
-        p = (void *) (unsigned long) ((tlb_entry->addr_write & TARGET_PAGE_MASK) + tlb_entry->addend);
-        ram_addr = qemu_ram_addr_from_host_nofail(p);
-        if (!cpu_physical_memory_is_dirty(ram_addr)) {
-            tlb_entry->addr_write |= TLB_NOTDIRTY;
-        }
-    }
-}
-
-/* update the TLB according to the current state of the dirty bits */
-void cpu_tlb_update_dirty(CPUArchState *env) {
-    int i;
-    int mmu_idx;
-    for (mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
-        for (i = 0; i < CPU_TLB_SIZE; i++)
-            tlb_update_dirty(&env->tlb_table[mmu_idx][i]);
-    }
-}
-
 #ifdef CONFIG_SYMBEX
 static inline int tlb_get_dirty1(CPUTLBEntry *tlb_entry, target_ulong vaddr) {
     return ((tlb_entry->addr_write & ~TLB_SYMB) == vaddr);

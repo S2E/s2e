@@ -43,23 +43,6 @@ extern struct cpu_stats_t g_cpu_stats;
 #define DISAS_UPDATE 2  /* cpu state was modified dynamically */
 #define DISAS_TB_JUMP 3 /* only pc was modified statically */
 
-/* XXX: make safe guess about sizes */
-#define MAX_OP_PER_INSTR 208
-
-#if HOST_LONG_BITS == 32
-#define MAX_OPC_PARAM_PER_ARG 2
-#else
-#define MAX_OPC_PARAM_PER_ARG 1
-#endif
-#define MAX_OPC_PARAM_IARGS 4
-#define MAX_OPC_PARAM_OARGS 1
-#define MAX_OPC_PARAM_ARGS (MAX_OPC_PARAM_IARGS + MAX_OPC_PARAM_OARGS)
-
-/* A Call op needs up to 4 + 2N parameters on 32-bit archs,
- * and up to 4 + N parameters on 64-bit archs
- * (N = number of input arguments + output arguments).  */
-#define MAX_OPC_PARAM (4 + (MAX_OPC_PARAM_PER_ARG * MAX_OPC_PARAM_ARGS))
-
 #ifdef STATIC_TRANSLATOR
 /* Accomodate large TBs */
 #define OPC_BUF_SIZE 640000
@@ -77,11 +60,6 @@ extern struct cpu_stats_t g_cpu_stats;
 
 #define OPPARAM_BUF_SIZE (OPC_BUF_SIZE * MAX_OPC_PARAM)
 
-extern target_ulong gen_opc_pc[OPC_BUF_SIZE];
-extern uint8_t gen_opc_instr_start[OPC_BUF_SIZE];
-extern uint8_t gen_opc_instr_size[OPC_BUF_SIZE];
-extern uint16_t gen_opc_icount[OPC_BUF_SIZE];
-
 #include "libcpu-log.h"
 
 void gen_intermediate_code(CPUArchState *env, struct TranslationBlock *tb);
@@ -93,7 +71,9 @@ void cpu_gen_flush(void);
 void cpu_gen_init_opc(void);
 void se_restore_state_to_opc(CPUX86State *env, TranslationBlock *tb, target_ulong pc, int cc_op, target_ulong next_pc);
 #endif
-void restore_state_to_opc(CPUArchState *env, struct TranslationBlock *tb, int pc_pos);
+
+void restore_state_to_opc(CPUArchState *env, struct TranslationBlock *tb, target_ulong *data);
+
 int restore_state_to_next_pc(CPUX86State *env, TranslationBlock *tb);
 
 #ifdef CONFIG_SYMBEX
@@ -116,8 +96,6 @@ void tlb_set_page(CPUArchState *env, target_ulong vaddr, target_phys_addr_t padd
 
 #define CODE_GEN_PHYS_HASH_BITS 15
 #define CODE_GEN_PHYS_HASH_SIZE (1 << CODE_GEN_PHYS_HASH_BITS)
-
-#define MIN_CODE_GEN_BUFFER_SIZE (128 * 1024 * 1024)
 
 /* estimated block size for TB allocation */
 /* XXX: use a per code average code fragment size and modulate it

@@ -51,9 +51,17 @@ extern void *tci_tb_ptr;
 #define GETPC() (((uintptr_t) __builtin_return_address(0) - 1))
 #endif
 
-int cpu_restore_state(struct TranslationBlock *tb, CPUArchState *env, uintptr_t searched_pc);
+/* The true return address will often point to a host insn that is part of
+   the next translated guest insn.  Adjust the address backward to point to
+   the middle of the call insn.  Subtracting one would do the job except for
+   several compressed mode architectures (arm, mips) which set the low bit
+   to indicate the compressed mode; subtracting two works around that.  It
+   is also the case that there are no host isas that contain a call insn
+   smaller than 4 bytes, so we don't worry about special-casing this.  */
+#define GETPC_ADJ 2
 
-void cpu_gen_init(void);
+bool cpu_restore_state(CPUArchState *cpu, uintptr_t host_pc);
+
 void cpu_exit(CPUArchState *s);
 void cpu_exec_init_all(void);
 void tcg_exec_init(unsigned long tb_size);
@@ -63,7 +71,6 @@ void tlb_flush_page(CPUArchState *env, target_ulong addr);
 void tlb_fill(CPUArchState *env1, target_ulong addr, target_ulong page_addr, int is_write, int mmu_idx, void *retaddr);
 
 void tb_flush(CPUArchState *env);
-TranslationBlock *tb_find_pc(uintptr_t pc_ptr);
 
 /* page related stuff */
 
@@ -93,6 +100,7 @@ typedef void (*CPUInterruptHandler)(CPUArchState *, int);
 extern CPUInterruptHandler cpu_interrupt_handler;
 
 void LIBCPU_NORETURN cpu_loop_exit(CPUArchState *env1);
+void LIBCPU_NORETURN cpu_loop_exit_restore(CPUArchState *env1, uintptr_t ra);
 
 #define VGA_DIRTY_FLAG 0x01
 #define CODE_DIRTY_FLAG 0x02

@@ -164,18 +164,10 @@ static inline int _se_check_concrete(void *objectState, target_ulong offset, int
 #endif
 }
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-extern uint8_t *code_gen_buffer;
-extern unsigned long code_gen_buffer_size;
-#ifdef __cplusplus
-}
-#endif
-
 static inline int _se_check_dyngen(void *addr) {
-    uint8_t *a = (uint8_t *) addr;
-    return a >= code_gen_buffer && a < code_gen_buffer + code_gen_buffer_size;
+    abort();
+    // uint8_t *a = (uint8_t *) addr;
+    // return a >= code_gen_buffer && a < code_gen_buffer + code_gen_buffer_size;
 }
 
 static inline void *_se_check_translate_ram_access(const void *p, unsigned size) {
@@ -373,7 +365,5 @@ void run_on_cpu(CPUArchState *env, void (*func)(void *data), void *data);
 /* Get a list of mapped pages. */
 void list_mapped_pages(CPUX86State *env, unsigned rw_only, unsigned user_only, target_ulong **pages_addr,
                        size_t *pages_count);
-
-void cpu_tlb_update_dirty(CPUArchState *env);
 
 #endif /* CPU_ALL_H */
