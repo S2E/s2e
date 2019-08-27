@@ -20,8 +20,8 @@
 
 #define __EXEC_TB_H__
 
-#include <inttypes.h>
 #include <cpu/tb.h>
+#include <inttypes.h>
 
 struct TranslationBlock;
 

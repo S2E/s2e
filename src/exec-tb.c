@@ -442,23 +442,18 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end, int
                 }
             }
             if (current_tb == tb && (current_tb->cflags & CF_COUNT_MASK) != 1) {
-                /* If we are modifying the current TB, we must stop
-                its execution. We could be more precise by checking
-                that the modification is after the current PC, but it
-                would require a specialized function to partially
-                restore the CPU state */
-
                 current_tb_modified = 1;
                 cpu_restore_state(env, env->mem_io_pc);
                 cpu_get_tb_cpu_state(env, &current_pc, &current_cs_base, &current_flags);
 
-// XXX: deal with self-modifying code
-#if 0
-                if (restore_state_to_next_pc(env, current_tb)) {
-                    // XXX: could also be +2
-                    tcg_target_force_tb_exit(env->mem_io_pc + 1, (uintptr_t)(current_tb->tc.ptr + current_tb->tc.size));
+                // When an instruction modifies itself, advance pc to the next instruction
+                // and abort the tb asap.
+                int instr_size = tb_get_instruction_size(current_tb, current_tb->cs_base + env->eip);
+                assert(instr_size);
+                if (current_tb->pc + current_tb->size > env->eip + instr_size) {
+                    env->eip += instr_size;
+                    tcg_target_force_tb_exit(env->mem_io_pc, (uintptr_t)(current_tb->tc.ptr + current_tb->tc.size));
                 }
-#endif
             }
 #endif /* TARGET_HAS_PRECISE_SMC */
             /* we need to do that to handle the case where a signal
