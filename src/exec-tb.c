@@ -45,8 +45,7 @@ spinlock_t tb_lock = SPIN_LOCK_UNLOCKED;
 
 int g_tb_flush_count;
 int g_tb_phys_invalidate_count;
-
-int code_gen_max_blocks;
+int g_tb_alloc_count;
 
 #define code_gen_section __attribute__((aligned(32)))
 
@@ -55,12 +54,6 @@ static void page_flush_tb(void);
 unsigned long qemu_real_host_page_size;
 unsigned long qemu_host_page_size;
 unsigned long qemu_host_page_mask;
-
-#define DEFAULT_CODE_GEN_BUFFER_SIZE (32 * 1024 * 1024)
-
-#ifdef USE_STATIC_CODE_GEN_BUFFER
-static uint8_t static_code_gen_buffer[DEFAULT_CODE_GEN_BUFFER_SIZE] __attribute__((aligned(CODE_GEN_ALIGN)));
-#endif
 
 #define mmap_lock() \
     do {            \
@@ -93,6 +86,8 @@ static TranslationBlock *tb_alloc(target_ulong pc) {
     g_sqi.tb.tb_alloc(tb);
 #endif
 
+    ++g_tb_alloc_count;
+
     return tb;
 }
 
@@ -117,6 +112,7 @@ void tb_flush(CPUArchState *env) {
     tcg_region_reset_all();
 
     g_tb_flush_count++;
+    g_tb_alloc_count = 0;
 }
 
 #ifdef DEBUG_TB_CHECK
@@ -240,6 +236,8 @@ TranslationBlock *tb_gen_code(CPUArchState *env, target_ulong pc, target_ulong c
     int code_gen_size;
 
     phys_pc = get_page_addr_code(env, pc);
+
+again:
     tb = tb_alloc(pc);
     if (!tb) {
         /* flush must be done */
@@ -265,7 +263,11 @@ TranslationBlock *tb_gen_code(CPUArchState *env, target_ulong pc, target_ulong c
     tb->flags = flags;
     tb->cflags = cflags;
 
-    cpu_gen_code(env, tb, &code_gen_size);
+    if (cpu_gen_code(env, tb, &code_gen_size) < 0) {
+        tb_flush(env);
+        goto again;
+    }
+
     tb->tc.size = code_gen_size;
 
     /* check next page if needed */
@@ -276,6 +278,7 @@ TranslationBlock *tb_gen_code(CPUArchState *env, target_ulong pc, target_ulong c
     }
     tb_link_page(tb, phys_pc, phys_page2);
     tcg_tb_insert(tb);
+
     return tb;
 }
 
