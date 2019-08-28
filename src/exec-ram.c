@@ -21,9 +21,9 @@
 #include <sys/mman.h>
 
 #include <cpu/config.h>
+#include <tcg/utils/osdep.h>
 #include "exec-ram.h"
 #include "exec.h"
-#include "osdep.h"
 #include "qemu-common.h"
 
 #include <cutils.h>

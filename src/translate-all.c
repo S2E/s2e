@@ -93,14 +93,14 @@ static inline void *alloc_code_gen_buffer(TCGContext *ctx) {
     size_t size;
 
     /* page-align the beginning and end of the buffer */
-    buf = QEMU_ALIGN_PTR_UP(buf, 0x1000);
-    end = QEMU_ALIGN_PTR_DOWN(end, 0x1000);
+    buf = ALIGN_PTR_UP(buf, 0x1000);
+    end = ALIGN_PTR_DOWN(end, 0x1000);
 
     size = end - buf;
 
     /* Honor a command-line option limiting the size of the buffer.  */
     if (size > ctx->code_gen_buffer_size) {
-        size = QEMU_ALIGN_DOWN(ctx->code_gen_buffer_size, 0x1000);
+        size = ALIGN_DOWN(ctx->code_gen_buffer_size, 0x1000);
     }
     ctx->code_gen_buffer_size = size;
 

@@ -21,8 +21,8 @@
 #include <cpu/config.h>
 #include <cpu/memory.h>
 #include <tcg/tcg.h>
+#include <tcg/utils/osdep.h>
 #include "exec.h"
-#include "osdep.h"
 #include "qemu-common.h"
 
 #if defined(TARGET_HAS_ICE)

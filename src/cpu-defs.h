@@ -28,7 +28,7 @@
 #include <inttypes.h>
 #include <setjmp.h>
 #include <signal.h>
-#include "osdep.h"
+#include <tcg/utils/osdep.h>
 #include "qqueue.h"
 
 #ifdef CONFIG_SYMBEX

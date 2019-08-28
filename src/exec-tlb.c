@@ -19,7 +19,7 @@
 #include <cpu/config.h>
 #include <cpu/memory.h>
 #include <inttypes.h>
-#include "osdep.h"
+#include <tcg/utils/osdep.h>
 #include "qemu-common.h"
 
 #include "exec-phys.h"

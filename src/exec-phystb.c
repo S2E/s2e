@@ -19,9 +19,9 @@
 #include <glib.h>
 
 #include <cpu/config.h>
+#include <tcg/utils/osdep.h>
 #include "exec-phystb.h"
 #include "exec.h"
-#include "osdep.h"
 #include "qemu-common.h"
 
 /* This is a multi-level map on the virtual address space.

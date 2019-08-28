@@ -51,12 +51,6 @@ extern "C" {
 #define __builtin_expect(x, n) (x)
 #endif
 
-#define likely(x) __builtin_expect(!!(x), 1)
-#define unlikely(x) __builtin_expect(!!(x), 0)
-#endif
-
-#ifndef ARRAY_SIZE
-#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 #endif
 
 #ifdef __cplusplus
