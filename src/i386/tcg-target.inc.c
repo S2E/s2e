@@ -3548,6 +3548,38 @@ static void tcg_out_nop_fill(tcg_insn_unit *p, int count)
     memset(p, 0x90, count);
 }
 
+/* Patches TB's machine code on the fly to exit prematurely. */
+void tcg_target_force_tb_exit(uintptr_t gen_code, uintptr_t max_addr) {
+    uint8_t *code = (uint8_t *) gen_code;
+
+    /* xor rax, rax */
+    if (TCG_TARGET_REG_BITS == 64) {
+        assert(gen_code + 15 <= max_addr);
+        *code++ = 0x48; // Rex prefix
+    } else {
+        assert(false && "Not implemented");
+    }
+
+    /* xor eax, eax */
+    *code++ = 0x31;
+    *code++ = 0xc0;
+
+    /* tcg_out_jmp(s, (tcg_target_long) tb_ret_addr); */
+    if (TCG_TARGET_REG_BITS == 64) {
+        /* movabs rcx, tb_ret_addr */
+        *code++ = 0x48;
+        *code++ = 0xb9;
+        *(uint64_t *) code = (uint64_t) tb_ret_addr;
+        code += 8;
+    } else {
+        assert(false && "Not implemented");
+    }
+
+    /* jmp rcx */
+    *code++ = 0xff;
+    *code++ = 0xe1;
+}
+
 static void tcg_target_init(TCGContext *s)
 {
 #ifdef CONFIG_CPUID_H
