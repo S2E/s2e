@@ -2189,7 +2189,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
             /* jump displacement must be aligned for atomic patching;
              * see if we need to add extra nops before jump
              */
-            gap = tcg_pcrel_diff(s, QEMU_ALIGN_PTR_UP(s->code_ptr + 1, 4));
+            gap = tcg_pcrel_diff(s, ALIGN_PTR_UP(s->code_ptr + 1, 4));
             if (gap != 1) {
                 tcg_out_nopn(s, gap - 1);
             }

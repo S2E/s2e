@@ -255,7 +255,7 @@ DEF(cmp_vec, 1, 2, 1, IMPLVEC)
 DEF(last_generic, 0, 0, 0, TCG_OPF_NOT_PRESENT)
 
 #if TCG_TARGET_MAYBE_vec
-#include "tcg-target.opc.h"
+#include "i386/tcg-target.opc.h"
 #endif
 
 #undef TLADDR_ARGS

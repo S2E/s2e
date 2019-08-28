@@ -25,26 +25,46 @@
 /* define it to use liveness analysis (better code) */
 #define USE_TCG_OPTIMIZATIONS
 
-#include "qemu/osdep.h"
+#include <assert.h>
+#include <bsd/string.h>
+#include <glib.h>
+#include <inttypes.h>
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <qqueue.h>
+#include <memory.h>
+#include <sys/mman.h>
+
+#include <tcg/utils/atomic.h>
+#include <tcg/utils/mutex.h>
+
+#include "cutils.h"
+
+typedef union MMXReg MMXReg;
+typedef union XMMReg XMMReg;
+
+// TODO: remove these globals
+int max_cpus = 1;
+size_t qemu_real_host_page_size = 0x1000;
+uintptr_t qemu_icache_linesize = 16;
+uintptr_t qemu_dcache_linesize = 16;
 
 /* Define to jump the ELF file used to communicate with GDB.  */
 #undef DEBUG_JIT
-
-#include "qemu/error-report.h"
-#include "qemu/cutils.h"
-#include "qemu/host-utils.h"
-#include "qemu/timer.h"
 
 /* Note: the long term plan is to reduce the dependencies on the QEMU
    CPU definitions. Currently they are used for qemu_ld/st
    instructions */
 #define NO_CPU_IO_DEFS
-#include "cpu.h"
 
-#include "exec/cpu-common.h"
-#include "exec/exec-all.h"
+#include <tcg/tcg-op.h>
 
-#include "tcg-op.h"
+tcg_settings_t g_tcg_settings;
+
+TCGContext tcg_init_ctx;
 
 #if UINTPTR_MAX == UINT32_MAX
 # define ELF_CLASS  ELFCLASS32
@@ -58,8 +78,10 @@
 #endif
 
 #include "elf.h"
-#include "exec/log.h"
-#include "sysemu/sysemu.h"
+
+extern FILE *logfile;
+#define qemu_log(...) fprintf(logfile, __VA_ARGS__)
+
 
 /* Forward declarations for functions declared in tcg-target.inc.c and
    used here. */
@@ -80,14 +102,14 @@ typedef struct {
     uint8_t return_column;
 } DebugFrameCIE;
 
-typedef struct QEMU_PACKED {
+typedef struct __attribute__((packed)) {
     uint32_t len __attribute__((aligned((sizeof(void *)))));
     uint32_t cie_offset;
     uintptr_t func_start;
     uintptr_t func_len;
 } DebugFrameFDEHeader;
 
-typedef struct QEMU_PACKED {
+typedef struct __attribute__((packed)) {
     DebugFrameCIE cie;
     DebugFrameFDEHeader fde;
 } DebugFrameHeader;
@@ -137,7 +159,7 @@ static unsigned int n_tcg_ctxs;
 TCGv_env cpu_env = 0;
 
 struct tcg_region_tree {
-    QemuMutex lock;
+    mutex_t lock;
     GTree *tree;
     /* padding to avoid false sharing is computed at run-time */
 };
@@ -149,7 +171,7 @@ struct tcg_region_tree {
  * more code than others.
  */
 struct tcg_region_state {
-    QemuMutex lock;
+    mutex_t lock;
 
     /* fields set at init time */
     void *start;
@@ -320,7 +342,7 @@ static void set_jmp_reset_offset(TCGContext *s, int which)
     assert(s->tb_jmp_reset_offset[which] == off);
 }
 
-#include "tcg-target.inc.c"
+#include "i386/tcg-target.inc.c"
 
 /* compare a pointer @ptr and a tb_tc @s */
 static int ptr_cmp_tb_tc(const void *ptr, const struct tb_tc *s)
@@ -369,11 +391,17 @@ static void tcg_region_trees_init(void)
     size_t i;
 
     tree_size = ROUND_UP(sizeof(struct tcg_region_tree), qemu_dcache_linesize);
-    region_trees = qemu_memalign(qemu_dcache_linesize, region.n * tree_size);
+
+
+    int ret = posix_memalign(&region_trees, qemu_dcache_linesize, region.n * tree_size);
+    if (ret != 0) {
+        abort();
+    }
+
     for (i = 0; i < region.n; i++) {
         struct tcg_region_tree *rt = region_trees + i * tree_size;
 
-        qemu_mutex_init(&rt->lock);
+        mutex_init(&rt->lock);
         rt->tree = g_tree_new(tb_tc_cmp);
     }
 }
@@ -400,18 +428,18 @@ void tcg_tb_insert(TranslationBlock *tb)
 {
     struct tcg_region_tree *rt = tc_ptr_to_region_tree(tb->tc.ptr);
 
-    qemu_mutex_lock(&rt->lock);
+    mutex_lock(&rt->lock);
     g_tree_insert(rt->tree, &tb->tc, tb);
-    qemu_mutex_unlock(&rt->lock);
+    mutex_unlock(&rt->lock);
 }
 
 void tcg_tb_remove(TranslationBlock *tb)
 {
     struct tcg_region_tree *rt = tc_ptr_to_region_tree(tb->tc.ptr);
 
-    qemu_mutex_lock(&rt->lock);
+    mutex_lock(&rt->lock);
     g_tree_remove(rt->tree, &tb->tc);
-    qemu_mutex_unlock(&rt->lock);
+    mutex_unlock(&rt->lock);
 }
 
 /*
@@ -425,9 +453,9 @@ TranslationBlock *tcg_tb_lookup(uintptr_t tc_ptr)
     TranslationBlock *tb;
     struct tb_tc s = { .ptr = (void *)tc_ptr };
 
-    qemu_mutex_lock(&rt->lock);
+    mutex_lock(&rt->lock);
     tb = g_tree_lookup(rt->tree, &s);
-    qemu_mutex_unlock(&rt->lock);
+    mutex_unlock(&rt->lock);
     return tb;
 }
 
@@ -438,7 +466,7 @@ static void tcg_region_tree_lock_all(void)
     for (i = 0; i < region.n; i++) {
         struct tcg_region_tree *rt = region_trees + i * tree_size;
 
-        qemu_mutex_lock(&rt->lock);
+        mutex_lock(&rt->lock);
     }
 }
 
@@ -449,7 +477,7 @@ static void tcg_region_tree_unlock_all(void)
     for (i = 0; i < region.n; i++) {
         struct tcg_region_tree *rt = region_trees + i * tree_size;
 
-        qemu_mutex_unlock(&rt->lock);
+        mutex_unlock(&rt->lock);
     }
 }
 
@@ -546,12 +574,12 @@ static bool tcg_region_alloc(TCGContext *s)
     /* read the region size now; alloc__locked will overwrite it on success */
     size_t size_full = s->code_gen_buffer_size;
 
-    qemu_mutex_lock(&region.lock);
+    mutex_lock(&region.lock);
     err = tcg_region_alloc__locked(s);
     if (!err) {
         region.agg_size_full += size_full - TCG_HIGHWATER;
     }
-    qemu_mutex_unlock(&region.lock);
+    mutex_unlock(&region.lock);
     return err;
 }
 
@@ -570,7 +598,7 @@ void tcg_region_reset_all(void)
     unsigned int n_ctxs = atomic_read(&n_tcg_ctxs);
     unsigned int i;
 
-    qemu_mutex_lock(&region.lock);
+    mutex_lock(&region.lock);
     region.current = 0;
     region.agg_size_full = 0;
 
@@ -580,7 +608,7 @@ void tcg_region_reset_all(void)
 
         g_assert(!err);
     }
-    qemu_mutex_unlock(&region.lock);
+    mutex_unlock(&region.lock);
 
     tcg_region_tree_reset_all();
 }
@@ -664,7 +692,7 @@ void tcg_region_init(void)
     n_regions = tcg_n_regions();
 
     /* The first region will be 'aligned - buf' bytes larger than the others */
-    aligned = QEMU_ALIGN_PTR_UP(buf, page_size);
+    aligned = ALIGN_PTR_UP(buf, page_size);
     g_assert(aligned < tcg_init_ctx.code_gen_buffer + size);
     /*
      * Make region_size a multiple of page_size, using aligned as the start.
@@ -672,20 +700,20 @@ void tcg_region_init(void)
      * the buffer; we will assign those to the last region.
      */
     region_size = (size - (aligned - buf)) / n_regions;
-    region_size = QEMU_ALIGN_DOWN(region_size, page_size);
+    region_size = ALIGN_DOWN(region_size, page_size);
 
     /* A region must have at least 2 pages; one code, one guard */
     g_assert(region_size >= 2 * page_size);
 
     /* init the region struct */
-    qemu_mutex_init(&region.lock);
+    mutex_init(&region.lock);
     region.n = n_regions;
     region.size = region_size - page_size;
     region.stride = region_size;
     region.start = buf;
     region.start_aligned = aligned;
     /* page-align the end, since its last page will be a guard page */
-    region.end = QEMU_ALIGN_PTR_DOWN(buf + size, page_size);
+    region.end = ALIGN_PTR_DOWN(buf + size, page_size);
     /* account for that last guard page */
     region.end -= page_size;
 
@@ -695,7 +723,8 @@ void tcg_region_init(void)
         int rc;
 
         tcg_region_bounds(i, &start, &end);
-        rc = qemu_mprotect_none(end, page_size);
+
+        rc = mprotect(end, page_size, PROT_NONE);
         g_assert(!rc);
     }
 
@@ -755,10 +784,10 @@ void tcg_register_thread(void)
     atomic_set(&tcg_ctxs[n], s);
 
     tcg_ctx = s;
-    qemu_mutex_lock(&region.lock);
+    mutex_lock(&region.lock);
     err = tcg_region_initial_alloc__locked(tcg_ctx);
     g_assert(!err);
-    qemu_mutex_unlock(&region.lock);
+    mutex_unlock(&region.lock);
 }
 #endif /* !CONFIG_USER_ONLY */
 
@@ -775,7 +804,7 @@ size_t tcg_code_size(void)
     unsigned int i;
     size_t total;
 
-    qemu_mutex_lock(&region.lock);
+    mutex_lock(&region.lock);
     total = region.agg_size_full;
     for (i = 0; i < n_ctxs; i++) {
         const TCGContext *s = atomic_read(&tcg_ctxs[i]);
@@ -785,7 +814,7 @@ size_t tcg_code_size(void)
         g_assert(size <= s->code_gen_buffer_size);
         total += size;
     }
-    qemu_mutex_unlock(&region.lock);
+    mutex_unlock(&region.lock);
     return total;
 }
 
@@ -879,10 +908,10 @@ typedef struct TCGHelperInfo {
     unsigned sizemask;
 } TCGHelperInfo;
 
-#include "exec/helper-proto.h"
+#include <tcg/helper-proto.h>
 
 static const TCGHelperInfo all_helpers[] = {
-#include "exec/helper-tcg.h"
+#include <tcg/helper-tcg.h>
 };
 static GHashTable *helper_table;
 
@@ -899,7 +928,11 @@ void tcg_context_init(TCGContext *s)
     int *sorted_args;
     TCGTemp *ts;
 
-    memset(s, 0, sizeof(*s));
+    if (sizeof(*s) != s->tcg_struct_size) {
+        abort();
+    }
+
+    memset(s, 0, offsetof(TCGContext, __caller_init));
     s->nb_globals = 0;
 
     /* Count total number of arguments and allocate the corresponding
@@ -1917,7 +1950,7 @@ static inline TCGReg tcg_regset_first(TCGRegSet d)
     }
 }
 
-static void tcg_dump_ops(TCGContext *s, bool have_prefs)
+void tcg_dump_ops(TCGContext *s, bool have_prefs)
 {
     char buf[128];
     TCGOp *op;
@@ -2055,7 +2088,7 @@ static void tcg_dump_ops(TCGContext *s, bool have_prefs)
 
         if (have_prefs || op->life) {
             for (; col < 40; ++col) {
-                putc(' ', qemu_logfile);
+                putc(' ', logfile);
             }
         }
 
@@ -3802,7 +3835,7 @@ void tcg_dump_op_count(FILE *f, fprintf_function cpu_fprintf)
 
 int64_t tcg_cpu_exec_time(void)
 {
-    error_report("%s: TCG profiler not compiled", __func__);
+    printf("%s: TCG profiler not compiled", __func__);
     exit(EXIT_FAILURE);
 }
 #endif

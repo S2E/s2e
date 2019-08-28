@@ -25,14 +25,104 @@
 #ifndef TCG_H
 #define TCG_H
 
-#include "qemu-common.h"
-#include "cpu.h"
-#include "exec/tb-context.h"
-#include "qemu/bitops.h"
-#include "qemu/queue.h"
+#include <inttypes.h>
+#include <stddef.h>
+#include <glib.h>
+
+#include <qqueue.h>
+#include <tcg/utils/bitops.h>
+#include <tcg/utils/host-utils.h>
+#include <tcg/utils/osdep.h>
+#include <tcg/utils/log.h>
+
 #include "tcg-mo.h"
-#include "tcg-target.h"
-#include "qemu/int128.h"
+// #include "qemu/int128.h"
+
+#include <tcg/i386/tcg-target.h>
+
+#define QEMU_BUILD_BUG_ON(x)
+
+#define TARGET_PAGE_BITS 12
+#define TARGET_PAGE_SIZE (1 << TARGET_PAGE_BITS)
+#define TARGET_PAGE_MASK ~(TARGET_PAGE_SIZE - 1)
+
+// XXX: we need 6 for S2E
+#define CPU_TLB_ENTRY_BITS 6
+
+// XXX: Fix me
+#define CPU_TLB_BITS 10
+#define CPU_TLB_SIZE (1 << CPU_TLB_BITS)
+
+#define QEMU_NORETURN __attribute__ ((__noreturn__))
+
+// XXX: these come from types.h
+#define TARGET_LONG_SIZE (TARGET_LONG_BITS / 8)
+#if TARGET_LONG_SIZE == 4
+#define TARGET_LONG_ALIGNMENT 4
+typedef int32_t target_long __attribute__((aligned(TARGET_LONG_ALIGNMENT)));
+typedef uint32_t target_ulong __attribute__((aligned(TARGET_LONG_ALIGNMENT)));
+#define TARGET_FMT_lx "%08x"
+#define TARGET_FMT_ld "%d"
+#define TARGET_FMT_lu "%u"
+
+#define CPU_TLB_DYN_MAX_BITS (32 - TARGET_PAGE_BITS)
+
+#elif TARGET_LONG_SIZE == 8
+#define TARGET_LONG_ALIGNMENT 8
+typedef int64_t target_long __attribute__((aligned(TARGET_LONG_ALIGNMENT)));
+typedef uint64_t target_ulong __attribute__((aligned(TARGET_LONG_ALIGNMENT)));
+#define TARGET_FMT_lx "%016" PRIx64
+#define TARGET_FMT_ld "%" PRId64
+#define TARGET_FMT_lu "%" PRIu64
+
+// XXX: fix this
+#define CPU_TLB_DYN_MAX_BITS (32 - TARGET_PAGE_BITS)
+
+#else
+#error TARGET_LONG_SIZE undefined
+#endif
+
+// XXX: fix this
+#include <tcg/tb.h>
+
+typedef struct tcg_settings_t {
+    target_ulong tlb_flags_mask; // Set to TLB_FALGS_MASK on initialization
+    uintptr_t tlb_mask_offset; //offsetof(CPUArchState, tlb_mask)
+
+    uintptr_t tlb_entry_addend_offset; // offsetof(CPUTLBEntry, addend)
+    target_ulong tlb_entry_addr_read_offset;
+    target_ulong tlb_entry_addr_write_offset;
+} tcg_settings_t;
+
+extern tcg_settings_t g_tcg_settings;
+
+#define qemu_tcg_mttcg_enabled() (0)
+
+#define qemu_loglevel_mask(x) (0)
+
+#define trace_guest_mem_before_tcg(...)
+#define trace_mem_get_info(...)
+
+typedef __int128_t Int128;
+
+typedef struct TranslationBlock TranslationBlock;
+
+/*typedef union MMXReg MMXReg;
+typedef struct ZMMReg ZMMReg;
+
+typedef union XMMReg XMMReg;*/
+
+#define CPUArchState struct CPUX86State
+#define CPUState struct CPUX86State
+struct CPUX86State;
+typedef struct CPUX86State CPUX86State;
+
+extern FILE *logfile;
+
+static inline size_t get_cpu_arch_tlb_mask_offset(int mem_index) {
+    return g_tcg_settings.tlb_mask_offset + mem_index * sizeof(uintptr_t);
+}
+
 
 /* XXX: make safe guess about sizes */
 #define MAX_OP_PER_INSTR 266
@@ -77,6 +167,8 @@ typedef uint64_t tcg_target_ulong;
 #else
 #error unsupported
 #endif
+
+
 
 /* Oversized TCG guests make things like MTTCG hard
  * as we can't use atomics for cputlb updates.
@@ -199,7 +291,7 @@ typedef uint64_t TCGRegSet;
 #endif
 
 #ifndef TARGET_INSN_START_EXTRA_WORDS
-# define TARGET_INSN_START_WORDS 1
+#error Must define TARGET_INSN_START_EXTRA_WORDS
 #else
 # define TARGET_INSN_START_WORDS (1 + TARGET_INSN_START_EXTRA_WORDS)
 #endif
@@ -417,7 +509,7 @@ static inline unsigned get_alignment_bits(TCGMemOp memop)
     }
 #if defined(CONFIG_SOFTMMU)
     /* The requested alignment cannot overlap the TLB flags.  */
-    tcg_debug_assert((TLB_FLAGS_MASK & ((1 << a) - 1)) == 0);
+    tcg_debug_assert((g_tcg_settings.tlb_flags_mask & ((1 << a) - 1)) == 0);
 #endif
     return a;
 }
@@ -662,6 +754,8 @@ typedef struct TCGProfile {
 } TCGProfile;
 
 struct TCGContext {
+    unsigned tcg_struct_size;
+
     uint8_t *pool_cur, *pool_end;
     TCGPool *pool_first, *pool_current, *pool_first_large;
     int nb_labels;
@@ -735,6 +829,51 @@ struct TCGContext {
 
     uint16_t gen_insn_end_off[TCG_MAX_INSNS];
     target_ulong gen_insn_data[TCG_MAX_INSNS][TARGET_INSN_START_WORDS];
+
+    /**
+     * Dummy marker, what follows it must be inited before calling
+     * tcg_context_init
+     */
+    void *__caller_init;
+
+    /* Everything below is set before initializing TCG */
+    /* helper signature: helper_ret_ld_mmu(CPUState *env, target_ulong addr,
+     *                                     int mmu_idx, uintptr_t ra)
+     */
+    void *qemu_ld_helpers[16];
+
+    /* helper signature: helper_ret_st_mmu(CPUState *env, target_ulong addr,
+     *                                     uintxx_t val, int mmu_idx, uintptr_t ra)
+     */
+    void *qemu_st_helpers[16];
+
+#if defined(CONFIG_SYMBEX) && defined(TCG_ENABLE_MEM_TRACING)
+    void *qemu_ld_trace_helpers[4];
+    void *qemu_st_trace_helpers[4];
+#endif
+
+    // CPU state offset information
+    uintptr_t env_ptr;
+    unsigned env_offset_eip;
+    unsigned env_sizeof_eip;
+    unsigned env_offset_ccop;
+    unsigned env_sizeof_ccop;
+    unsigned env_offset_df;
+    unsigned env_offset_tlb[3]; // Max 3 mem index
+
+    unsigned tlbe_size;
+    unsigned tlbe_offset_addend;
+    unsigned tlbe_offset_addr_read;
+    unsigned tlbe_offset_addr_write;
+
+#ifdef CONFIG_SYMBEX
+    unsigned tlbe_offset_symbex_addend;
+    uintptr_t after_memory_access_signals_count;
+#endif
+
+    unsigned target_page_bits;
+    unsigned cpu_tlb_entry_bits;
+    unsigned cpu_tlb_size;
 };
 
 extern TCGContext tcg_init_ctx;
@@ -898,7 +1037,7 @@ static inline void *tcg_malloc(int size)
     uint8_t *ptr, *ptr_end;
 
     /* ??? This is a weak placeholder for minimum malloc alignment.  */
-    size = QEMU_ALIGN_UP(size, 8);
+    size = ALIGN_UP(size, 8);
 
     ptr = s->pool_cur;
     ptr_end = ptr + size;
@@ -1220,7 +1359,7 @@ static inline unsigned get_mmuidx(TCGMemOpIdx oi)
 }
 
 /**
- * tcg_qemu_tb_exec:
+ * tcg_libcpu_tb_exec:
  * @env: pointer to CPUArchState for the CPU
  * @tb_ptr: address of generated code for the TB to execute
  *
@@ -1260,7 +1399,7 @@ static inline unsigned get_mmuidx(TCGMemOpIdx oi)
  * back to calling the CPU's set_pc method with tb->pb if no
  * synchronize_from_tb() method exists).
  *
- * Note that TCG targets may use a different definition of tcg_qemu_tb_exec
+ * Note that TCG targets may use a different definition of tcg_libcpu_tb_exec
  * to this default (which just calls the prologue.code emitted by
  * tcg_target_qemu_prologue()).
  */
@@ -1270,10 +1409,10 @@ static inline unsigned get_mmuidx(TCGMemOpIdx oi)
 #define TB_EXIT_IDXMAX    1
 #define TB_EXIT_REQUESTED 3
 
-#ifdef HAVE_TCG_QEMU_TB_EXEC
-uintptr_t tcg_qemu_tb_exec(CPUArchState *env, uint8_t *tb_ptr);
+#ifdef HAVE_tcg_libcpu_tb_exec
+uintptr_t tcg_libcpu_tb_exec(CPUArchState *env, uint8_t *tb_ptr);
 #else
-# define tcg_qemu_tb_exec(env, tb_ptr) \
+# define tcg_libcpu_tb_exec(env, tb_ptr) \
     ((uintptr_t (*)(void *, void *))tcg_ctx->code_gen_prologue)(env, tb_ptr)
 #endif
 
@@ -1491,5 +1630,9 @@ void helper_atomic_sto_le_mmu(CPUArchState *env, target_ulong addr, Int128 val,
                               TCGMemOpIdx oi, uintptr_t retaddr);
 void helper_atomic_sto_be_mmu(CPUArchState *env, target_ulong addr, Int128 val,
                               TCGMemOpIdx oi, uintptr_t retaddr);
+
+void tcg_dump_ops(TCGContext *s, bool have_prefs);
+
+void tcg_target_force_tb_exit(uintptr_t gen_code, uintptr_t max_addr);
 
 #endif /* TCG_H */
