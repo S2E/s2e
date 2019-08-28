@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 
-#include "tcg-pool.inc.c"
+#include "../tcg-pool.inc.c"
 
 #ifdef CONFIG_DEBUG_TCG
 static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
@@ -1571,33 +1571,7 @@ static void tcg_out_nopn(TCGContext *s, int n)
 }
 
 #if defined(CONFIG_SOFTMMU)
-#include "tcg-ldst.inc.c"
-
-/* helper signature: helper_ret_ld_mmu(CPUState *env, target_ulong addr,
- *                                     int mmu_idx, uintptr_t ra)
- */
-static void * const qemu_ld_helpers[16] = {
-    [MO_UB]   = helper_ret_ldub_mmu,
-    [MO_LEUW] = helper_le_lduw_mmu,
-    [MO_LEUL] = helper_le_ldul_mmu,
-    [MO_LEQ]  = helper_le_ldq_mmu,
-    [MO_BEUW] = helper_be_lduw_mmu,
-    [MO_BEUL] = helper_be_ldul_mmu,
-    [MO_BEQ]  = helper_be_ldq_mmu,
-};
-
-/* helper signature: helper_ret_st_mmu(CPUState *env, target_ulong addr,
- *                                     uintxx_t val, int mmu_idx, uintptr_t ra)
- */
-static void * const qemu_st_helpers[16] = {
-    [MO_UB]   = helper_ret_stb_mmu,
-    [MO_LEUW] = helper_le_stw_mmu,
-    [MO_LEUL] = helper_le_stl_mmu,
-    [MO_LEQ]  = helper_le_stq_mmu,
-    [MO_BEUW] = helper_be_stw_mmu,
-    [MO_BEUL] = helper_be_stl_mmu,
-    [MO_BEQ]  = helper_be_stq_mmu,
-};
+#include "../tcg-ldst.inc.c"
 
 /* Perform the TLB load and compare.
 
@@ -1654,10 +1628,10 @@ static inline void tcg_out_tlb_load(TCGContext *s, TCGReg addrlo, TCGReg addrhi,
                    TARGET_PAGE_BITS - CPU_TLB_ENTRY_BITS);
 
     tcg_out_modrm_offset(s, OPC_AND_GvEv + trexw, r0, TCG_AREG0,
-                         offsetof(CPUArchState, tlb_mask[mem_index]));
+                         get_cpu_arch_tlb_mask_offset(mem_index));
 
     tcg_out_modrm_offset(s, OPC_ADD_GvEv + hrexw, r0, TCG_AREG0,
-                         offsetof(CPUArchState, tlb_table[mem_index]));
+                         s->env_offset_tlb[mem_index]);
 
     /* If the required alignment is at least as large as the access, simply
        copy the address and mask.  For lesser alignments, check that we don't
@@ -1696,8 +1670,9 @@ static inline void tcg_out_tlb_load(TCGContext *s, TCGReg addrlo, TCGReg addrhi,
 
     /* add addend(r0), r1 */
     tcg_out_modrm_offset(s, OPC_ADD_GvEv + hrexw, r1, r0,
-                         offsetof(CPUTLBEntry, addend));
+                         g_tcg_settings.tlb_entry_addend_offset);
 }
+
 
 /*
  * Record the context of a call to the out of line helper code for the slow path
@@ -1769,7 +1744,7 @@ static void tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
                      (uintptr_t)l->raddr);
     }
 
-    tcg_out_call(s, qemu_ld_helpers[opc & (MO_BSWAP | MO_SIZE)]);
+    tcg_out_call(s, s->qemu_ld_helpers[opc & (MO_BSWAP | MO_SIZE)]);
 
     data_reg = l->datalo_reg;
     switch (opc & MO_SSIZE) {
@@ -1785,8 +1760,11 @@ static void tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
         break;
 #endif
     case MO_UB:
+        tcg_out_ext8u(s, data_reg, TCG_REG_EAX);
+        break;
     case MO_UW:
-        /* Note that the helpers have zero-extended to tcg_target_long.  */
+        tcg_out_ext16u(s, data_reg, TCG_REG_EAX);
+        break;
     case MO_UL:
         tcg_out_mov(s, TCG_TYPE_I32, data_reg, TCG_REG_EAX);
         break;
@@ -1875,7 +1853,7 @@ static void tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
 
     /* "Tail call" to the helper, with the return address back inline.  */
     tcg_out_push(s, retaddr);
-    tcg_out_jmp(s, qemu_st_helpers[opc & (MO_BSWAP | MO_SIZE)]);
+    tcg_out_jmp(s, s->qemu_st_helpers[opc & (MO_BSWAP | MO_SIZE)]);
 }
 #elif TCG_TARGET_REG_BITS == 32
 # define x86_guest_base_seg     0
@@ -2040,7 +2018,7 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, bool is64)
     mem_index = get_mmuidx(oi);
 
     tcg_out_tlb_load(s, addrlo, addrhi, mem_index, opc,
-                     label_ptr, offsetof(CPUTLBEntry, addr_read));
+                     label_ptr, g_tcg_settings.tlb_entry_addr_read_offset);
 
     /* TLB Hit.  */
     tcg_out_qemu_ld_direct(s, datalo, datahi, TCG_REG_L1, -1, 0, 0, is64, opc);
@@ -2158,7 +2136,7 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, bool is64)
     mem_index = get_mmuidx(oi);
 
     tcg_out_tlb_load(s, addrlo, addrhi, mem_index, opc,
-                     label_ptr, offsetof(CPUTLBEntry, addr_write));
+                     label_ptr, g_tcg_settings.tlb_entry_addr_write_offset);
 
     /* TLB Hit.  */
     tcg_out_qemu_st_direct(s, datalo, datahi, TCG_REG_L1, -1, 0, 0, opc);
