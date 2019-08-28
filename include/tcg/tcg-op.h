@@ -25,10 +25,13 @@
 #ifndef TCG_TCG_OP_H
 #define TCG_TCG_OP_H
 
+// XXX: do not reorder these includes
+// clang-format off
 #include "tcg.h"
 
 #include "helper-proto.h"
 #include "helper-gen.h"
+// clang-format on
 
 /* Basic output routines.  Not for general consumption.  */
 
