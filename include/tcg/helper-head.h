@@ -50,16 +50,16 @@
 #define dh_ctype(t) dh_ctype_##t
 
 //#ifdef NEED_CPU_H
-# ifdef TARGET_LONG_BITS
-#  if TARGET_LONG_BITS == 32
-#   define dh_alias_tl i32
-#  else
-#   define dh_alias_tl i64
-#  endif
-# endif
-# define dh_alias_env ptr
-# define dh_ctype_tl target_ulong
-# define dh_ctype_env CPUArchState *
+#ifdef TARGET_LONG_BITS
+#if TARGET_LONG_BITS == 32
+#define dh_alias_tl i32
+#else
+#define dh_alias_tl i64
+#endif
+#endif
+#define dh_alias_env ptr
+#define dh_ctype_tl target_ulong
+#define dh_ctype_env CPUArchState *
 //#endif
 
 /* We can't use glue() here because it falls foul of C preprocessor
@@ -102,7 +102,7 @@
 #define dh_is_signed_f16 0
 #define dh_is_signed_f32 0
 #define dh_is_signed_f64 0
-#define dh_is_signed_tl  0
+#define dh_is_signed_tl 0
 #define dh_is_signed_int 1
 /* ??? This is highly specific to the host cpu.  There are even special
    extension instructions that may be required, e.g. ia64's addp4.  But
@@ -112,42 +112,33 @@
 #define dh_is_signed_env dh_is_signed_ptr
 #define dh_is_signed(t) dh_is_signed_##t
 
-#define dh_callflag_i32  0
-#define dh_callflag_s32  0
-#define dh_callflag_int  0
-#define dh_callflag_i64  0
-#define dh_callflag_s64  0
-#define dh_callflag_f16  0
-#define dh_callflag_f32  0
-#define dh_callflag_f64  0
-#define dh_callflag_ptr  0
+#define dh_callflag_i32 0
+#define dh_callflag_s32 0
+#define dh_callflag_int 0
+#define dh_callflag_i64 0
+#define dh_callflag_s64 0
+#define dh_callflag_f16 0
+#define dh_callflag_f32 0
+#define dh_callflag_f64 0
+#define dh_callflag_ptr 0
 #define dh_callflag_cptr dh_callflag_ptr
 #define dh_callflag_void 0
 #define dh_callflag_noreturn TCG_CALL_NO_RETURN
 #define dh_callflag(t) glue(dh_callflag_, dh_alias(t))
 
-#define dh_sizemask(t, n) \
-  ((dh_is_64bit(t) << (n*2)) | (dh_is_signed(t) << (n*2+1)))
+#define dh_sizemask(t, n) ((dh_is_64bit(t) << (n * 2)) | (dh_is_signed(t) << (n * 2 + 1)))
 
-#define dh_arg(t, n) \
-  glue(glue(tcgv_, dh_alias(t)), _temp)(glue(arg, n))
+#define dh_arg(t, n) glue(glue(tcgv_, dh_alias(t)), _temp)(glue(arg, n))
 
 #define dh_arg_decl(t, n) glue(TCGv_, dh_alias(t)) glue(arg, n)
 
-#define DEF_HELPER_0(name, ret) \
-    DEF_HELPER_FLAGS_0(name, 0, ret)
-#define DEF_HELPER_1(name, ret, t1) \
-    DEF_HELPER_FLAGS_1(name, 0, ret, t1)
-#define DEF_HELPER_2(name, ret, t1, t2) \
-    DEF_HELPER_FLAGS_2(name, 0, ret, t1, t2)
-#define DEF_HELPER_3(name, ret, t1, t2, t3) \
-    DEF_HELPER_FLAGS_3(name, 0, ret, t1, t2, t3)
-#define DEF_HELPER_4(name, ret, t1, t2, t3, t4) \
-    DEF_HELPER_FLAGS_4(name, 0, ret, t1, t2, t3, t4)
-#define DEF_HELPER_5(name, ret, t1, t2, t3, t4, t5) \
-    DEF_HELPER_FLAGS_5(name, 0, ret, t1, t2, t3, t4, t5)
-#define DEF_HELPER_6(name, ret, t1, t2, t3, t4, t5, t6) \
-    DEF_HELPER_FLAGS_6(name, 0, ret, t1, t2, t3, t4, t5, t6)
+#define DEF_HELPER_0(name, ret) DEF_HELPER_FLAGS_0(name, 0, ret)
+#define DEF_HELPER_1(name, ret, t1) DEF_HELPER_FLAGS_1(name, 0, ret, t1)
+#define DEF_HELPER_2(name, ret, t1, t2) DEF_HELPER_FLAGS_2(name, 0, ret, t1, t2)
+#define DEF_HELPER_3(name, ret, t1, t2, t3) DEF_HELPER_FLAGS_3(name, 0, ret, t1, t2, t3)
+#define DEF_HELPER_4(name, ret, t1, t2, t3, t4) DEF_HELPER_FLAGS_4(name, 0, ret, t1, t2, t3, t4)
+#define DEF_HELPER_5(name, ret, t1, t2, t3, t4, t5) DEF_HELPER_FLAGS_5(name, 0, ret, t1, t2, t3, t4, t5)
+#define DEF_HELPER_6(name, ret, t1, t2, t3, t4, t5, t6) DEF_HELPER_FLAGS_6(name, 0, ret, t1, t2, t3, t4, t5, t6)
 
 /* MAX_OPC_PARAM_IARGS must be set to n if last entry is DEF_HELPER_FLAGS_n. */
 

@@ -66,16 +66,16 @@ struct TranslationBlock {
     uint16_t size;        /* size of target code for this block (1 <=
                              size <= TARGET_PAGE_SIZE) */
 
-#define CF_COUNT_MASK  0x00007fff
-#define CF_LAST_IO     0x00008000 /* Last insn may be an IO access.  */
-#define CF_NOCACHE     0x00010000 /* To be freed after execution */
-#define CF_USE_ICOUNT  0x00020000
-#define CF_INVALID     0x00040000 /* TB is stale. Set with @jmp_lock held */
-#define CF_PARALLEL    0x00080000 /* Generate code for a parallel context */
+#define CF_COUNT_MASK 0x00007fff
+#define CF_LAST_IO 0x00008000 /* Last insn may be an IO access.  */
+#define CF_NOCACHE 0x00010000 /* To be freed after execution */
+#define CF_USE_ICOUNT 0x00020000
+#define CF_INVALID 0x00040000      /* TB is stale. Set with @jmp_lock held */
+#define CF_PARALLEL 0x00080000     /* Generate code for a parallel context */
 #define CF_CLUSTER_MASK 0xff000000 /* Top 8 bits are cluster ID */
 #define CF_CLUSTER_SHIFT 24
 
-    uint16_t cflags;      /* compile flags */
+    uint16_t cflags; /* compile flags */
 
     // uint8_t *tc_ptr;  /* pointer to the translated code */
     // unsigned tc_size; /* size of the translated code */
@@ -88,7 +88,6 @@ struct TranslationBlock {
     struct TranslationBlock *page_next[2];
     tb_page_addr_t page_addr[2];
 
-
     /* jmp_lock placed here to fill a 4-byte hole. Its documentation is below */
     spinlock_t jmp_lock;
 
@@ -99,9 +98,9 @@ struct TranslationBlock {
      * setting one of the jump targets (or patching the jump instruction). Only
      * two of such jumps are supported.
      */
-    uint16_t jmp_reset_offset[2]; /* offset of original jump target */
+    uint16_t jmp_reset_offset[2];          /* offset of original jump target */
 #define TB_JMP_RESET_OFFSET_INVALID 0xffff /* indicates no jump generated */
-    uintptr_t jmp_target_arg[2];  /* target address or offset */
+    uintptr_t jmp_target_arg[2];           /* target address or offset */
 
     /*
      * Each TB has a NULL-terminated list (jmp_list_head) of incoming jumps.
@@ -123,7 +122,6 @@ struct TranslationBlock {
     uintptr_t jmp_list_head;
     uintptr_t jmp_list_next[2];
     uintptr_t jmp_dest[2];
-
 
     uint32_t icount;
 
@@ -172,8 +170,7 @@ struct TranslationBlock {
 typedef struct TranslationBlock TranslationBlock;
 
 /* Hide the atomic_read to make code a little easier on the eyes */
-static inline uint32_t tb_cflags(const TranslationBlock *tb)
-{
+static inline uint32_t tb_cflags(const TranslationBlock *tb) {
     return atomic_read(&tb->cflags);
 }
 
