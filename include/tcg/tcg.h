@@ -889,7 +889,7 @@ static inline TCGTemp *arg_temp(TCGArg a) {
    a NULL representation without having to leave index 0 unused.  */
 static inline TCGTemp *tcgv_i32_temp(TCGv_i32 v) {
     uintptr_t o = (uintptr_t) v;
-    TCGTemp *t = (void *) tcg_ctx + o;
+    TCGTemp *t = (TCGTemp *) ((uintptr_t) tcg_ctx + o);
     tcg_debug_assert(offsetof(TCGContext, temps[temp_idx(t)]) == o);
     return t;
 }
@@ -924,7 +924,7 @@ static inline TCGArg tcgv_vec_arg(TCGv_vec v) {
 
 static inline TCGv_i32 temp_tcgv_i32(TCGTemp *t) {
     (void) temp_idx(t); /* trigger embedded assert */
-    return (TCGv_i32)((void *) t - (void *) tcg_ctx);
+    return (TCGv_i32)((uintptr_t) t - (uintptr_t) tcg_ctx);
 }
 
 static inline TCGv_i64 temp_tcgv_i64(TCGTemp *t) {
@@ -1240,7 +1240,7 @@ static inline TCGLabel *arg_label(TCGArg i) {
  */
 
 static inline ptrdiff_t tcg_ptr_byte_diff(void *a, void *b) {
-    return a - b;
+    return (uintptr_t) a - (uintptr_t) b;
 }
 
 /**
@@ -1290,7 +1290,7 @@ static inline TCGMemOpIdx make_memop_idx(TCGMemOp op, unsigned idx) {
  * Extract the memory operation from the combined value.
  */
 static inline TCGMemOp get_memop(TCGMemOpIdx oi) {
-    return oi >> 4;
+    return (TCGMemOp)(oi >> 4);
 }
 
 /**
