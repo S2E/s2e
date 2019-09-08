@@ -150,7 +150,7 @@ static inline void instr_translate_compute_reg_mask_end(DisasContext *dc) {
         return;
     }
 
-    tcg_calc_regmask_ex(&tcg_ctx, &rmask, &wmask, &accesses_mem, dc->ins_opc, dc->ins_arg);
+    tcg_calc_regmask(tcg_ctx, &rmask, &wmask, &accesses_mem);
 
     // First five bits contain flag registers
     rmask >>= 5;
@@ -327,11 +327,12 @@ static inline void instr_gen_call_ret(DisasContext *s, int isCall) {
         return;
     }
 
-    int clabel = gen_new_label();
+    TCGLabel *clabel = gen_new_label();
+    TCGv_ptr ptr = tcg_const_local_ptr(&g_invokeCallRetInstrumentation);
 
-    tcg_gen_movi_i64(cpu_tmp1_i64, (uintptr_t) &g_invokeCallRetInstrumentation);
+    tcg_gen_ld_i64(cpu_tmp1_i64, ptr, 0);
+    tcg_temp_free_ptr(ptr);
 
-    tcg_gen_ld_i64(cpu_tmp1_i64, TCGV_NAT_TO_PTR(cpu_tmp1_i64), 0);
     tcg_gen_brcondi_i64(TCG_COND_EQ, cpu_tmp1_i64, 0, clabel);
 
     tcg_gen_movi_tl(cpu_T[1], s->insPc);
@@ -7773,19 +7774,6 @@ static inline void gen_intermediate_code_internal(CPUX86State *env, TranslationB
 #endif
 
 #ifdef CONFIG_SYMBEX
-    tb_precise_pc_t *p;
-
-    /* When doing retranslation to LLVM, avoid clobbering
-     * existing pc recovery info, which is relied upon by
-     * the existing machine code. */
-    int generate_pc_recovery_info = tb->precise_entries == 0;
-
-    dc->invalid_instr = 0;
-
-    if (generate_pc_recovery_info) {
-        p = tb->precise_pcs;
-    }
-
     dc->instrument = 1;
 
     dc->enable_jmp_im = 1;

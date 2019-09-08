@@ -65,8 +65,8 @@ void cpu_exec_init_all(void) {
     io_mem_init();
 
 #ifdef CONFIG_SYMBEX
-    g_sqi.libcpu.ldub_code = ldub_code;
-    g_sqi.libcpu.ldl_code = ldl_code;
+    g_sqi.libcpu.ldub_code = cpu_ldub_code;
+    g_sqi.libcpu.ldl_code = cpu_ldl_code;
 #endif
 }
 

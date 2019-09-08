@@ -35,7 +35,7 @@
 #include "qemu-lock.h"
 #include "timer.h"
 
-#ifdef CONFIG_SYMBEX
+#ifdef CONFIG_SYMBEX_MP
 #include <tcg/tcg-llvm.h>
 #endif
 
@@ -128,7 +128,7 @@ int cpu_gen_flush_needed(void) {
 }
 #endif
 
-#ifdef CONFIG_SYMBEX
+#ifdef CONFIG_SYMBEX_MP
 static void *qemu_ld_helpers[4] = {
     __ldb_mmu_symb, __ldw_mmu_symb, __ldl_mmu_symb, __ldq_mmu_symb,
 };
@@ -217,7 +217,7 @@ static void cpu_gen_init(TCGContext *ctx, tcg_settings_t *settings) {
     tcg_context_init(ctx);
 }
 
-#ifdef CONFIG_SYMBEX
+#ifdef CONFIG_SYMBEX_MP
 static void cpu_gen_code_init_ctx(TCGContext *s, TranslationBlock *tb) {
     s->tb_pc = tb->pc;
     s->tb_cs_base = tb->cs_base;
@@ -225,12 +225,9 @@ static void cpu_gen_code_init_ctx(TCGContext *s, TranslationBlock *tb) {
     s->tb_size = tb->size;
     s->tb_tc_size = tb->tc_size;
     s->tb_instrumented = tb->instrumented;
-    s->precise_pcs = tb->precise_pcs;
-    s->precise_entries = tb->precise_entries;
 
     tcg_ctx->after_memory_access_signals_count = (uintptr_t) g_sqi.events.after_memory_access_signals_count;
 }
-
 #endif
 
 /* Must be called before using the QEMU cpus. 'tb_size' is the size
@@ -355,7 +352,7 @@ int cpu_gen_code(CPUArchState *env, TranslationBlock *tb, int *gen_code_size_ptr
     /* generate machine code */
     gen_code_buf = tb->tc.ptr;
 
-#ifdef CONFIG_SYMBEX
+#ifdef CONFIG_SYMBEX_MP
     cpu_gen_code_init_ctx(s, tb);
 #endif
 
@@ -411,7 +408,6 @@ int cpu_gen_code(CPUArchState *env, TranslationBlock *tb, int *gen_code_size_ptr
     }
 
 #ifdef CONFIG_SYMBEX
-    tb->tc_size = gen_code_size;
     tcg_calc_regmask(s, &tb->reg_rmask, &tb->reg_wmask, &tb->helper_accesses_mem);
 
     tb->instrumented = g_sqi.tb.is_tb_instrumented(tb);
@@ -528,7 +524,7 @@ bool cpu_restore_state(CPUArchState *env, uintptr_t host_pc) {
     return r;
 }
 
-#ifdef CONFIG_SYMBEX
+#ifdef CONFIG_SYMBEX_MP
 
 /**
  * Generates LLVM code for already translated TB.

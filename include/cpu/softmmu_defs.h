@@ -31,32 +31,45 @@
 extern "C" {
 #endif
 
-#ifndef CONFIG_TCG_PASS_AREG0
-
-void io_write_chkb_mmu_symb(target_phys_addr_t physaddr, uint8_t val, target_ulong addr, void *retaddr);
-void io_write_chkw_mmu_symb(target_phys_addr_t physaddr, uint16_t val, target_ulong addr, void *retaddr);
-void io_write_chkl_mmu_symb(target_phys_addr_t physaddr, uint32_t val, target_ulong addr, void *retaddr);
-void io_write_chkq_mmu_symb(target_phys_addr_t physaddr, uint64_t val, target_ulong addr, void *retaddr);
-
-uint8_t io_read_chkb_mmu_symb(target_phys_addr_t physaddr, target_ulong addr, void *retaddr);
-uint16_t io_read_chkw_mmu_symb(target_phys_addr_t physaddr, target_ulong addr, void *retaddr);
-uint32_t io_read_chkl_mmu_symb(target_phys_addr_t physaddr, target_ulong addr, void *retaddr);
-uint64_t io_read_chkq_mmu_symb(target_phys_addr_t physaddr, target_ulong addr, void *retaddr);
-
 #ifdef CONFIG_SYMBEX
+uintptr_t se_notdirty_mem_write(target_phys_addr_t ram_addr);
+uintptr_t se_notdirty_mem_read(target_phys_addr_t ram_addr);
 
-uint8_t __ldb_mmu_symb(target_ulong addr, int mmu_idx, void *retaddr);
-void __stb_mmu_symb(target_ulong addr, uint8_t val, int mmu_idx, void *retaddr);
-uint16_t __ldw_mmu_symb(target_ulong addr, int mmu_idx, void *retaddr);
-void __stw_mmu_symb(target_ulong addr, uint16_t val, int mmu_idx, void *retaddr);
-uint32_t __ldl_mmu_symb(target_ulong addr, int mmu_idx, void *retaddr);
-void __stl_mmu_symb(target_ulong addr, uint32_t val, int mmu_idx, void *retaddr);
-uint64_t __ldq_mmu_symb(target_ulong addr, int mmu_idx, void *retaddr);
-void __stq_mmu_symb(target_ulong addr, uint64_t val, int mmu_idx, void *retaddr);
+uintptr_t se_notdirty_mem_write(target_phys_addr_t ram_addr);
+uintptr_t se_notdirty_mem_read(target_phys_addr_t ram_addr);
+#endif
+
+#ifdef CONFIG_SYMBEX_MP
+uint8_t __ldb_mmu_symb(CPUArchState *env, target_ulong addr, int mmu_idx, void *retaddr);
+void __stb_mmu_symb(CPUArchState *env, target_ulong addr, uint8_t val, int mmu_idx, void *retaddr);
+uint16_t __ldw_mmu_symb(CPUArchState *env, target_ulong addr, int mmu_idx, void *retaddr);
+void __stw_mmu_symb(CPUArchState *env, target_ulong addr, uint16_t val, int mmu_idx, void *retaddr);
+uint32_t __ldl_mmu_symb(CPUArchState *env, target_ulong addr, int mmu_idx, void *retaddr);
+void __stl_mmu_symb(CPUArchState *env, target_ulong addr, uint32_t val, int mmu_idx, void *retaddr);
+uint64_t __ldq_mmu_symb(CPUArchState *env, target_ulong addr, int mmu_idx, void *retaddr);
+void __stq_mmu_symb(CPUArchState *env, target_ulong addr, uint64_t val, int mmu_idx, void *retaddr);
+
+uint8_t io_make_symbolicb_mmu(const char *name);
+uint16_t io_make_symbolicw_mmu(const char *name);
+uint32_t io_make_symbolicl_mmu(const char *name);
+uint64_t io_make_symbolicq_mmu(const char *name);
+
+uint8_t io_read_chk_symb_b_mmu(const char *label, target_ulong physaddr, uintptr_t pa);
+uint16_t io_read_chk_symb_w_mmu(const char *label, target_ulong physaddr, uintptr_t pa);
+uint32_t io_read_chk_symb_l_mmu(const char *label, target_ulong physaddr, uintptr_t pa);
+uint64_t io_read_chk_symb_q_mmu(const char *label, target_ulong physaddr, uintptr_t pa);
+
+uint8_t io_readb_mmu_symb(target_phys_addr_t physaddr, target_ulong addr, void *retaddr);
+void io_writeb_mmu_symb(target_phys_addr_t physaddr, uint8_t val, target_ulong addr, void *retaddr);
+uint16_t io_readw_mmu_symb(target_phys_addr_t physaddr, target_ulong addr, void *retaddr);
+void io_writew_mmu_symb(target_phys_addr_t physaddr, uint16_t val, target_ulong addr, void *retaddr);
+uint32_t io_readl_mmu_symb(target_phys_addr_t physaddr, target_ulong addr, void *retaddr);
+void io_writel_mmu_symb(target_phys_addr_t physaddr, uint32_t val, target_ulong addr, void *retaddr);
+uint64_t io_readq_mmu_symb(target_phys_addr_t physaddr, target_ulong addr, void *retaddr);
+void io_writeq_mmu_symb(target_phys_addr_t physaddr, uint64_t val, target_ulong addr, void *retaddr);
 
 #endif
 
-#else
 uint8_t helper_ldb_mmu(CPUArchState *env, target_ulong addr, int mmu_idx, void *retaddr);
 void helper_stb_mmu(CPUArchState *env, target_ulong addr, uint8_t val, int mmu_idx, void *retaddr);
 uint16_t helper_ldw_mmu(CPUArchState *env, target_ulong addr, int mmu_idx, void *retaddr);
@@ -107,40 +120,6 @@ uint8_t io_read_chkb_cmmu(CPUArchState *env, target_phys_addr_t physaddr, target
 uint16_t io_read_chkw_cmmu(CPUArchState *env, target_phys_addr_t physaddr, target_ulong addr, void *retaddr);
 uint32_t io_read_chkl_cmmu(CPUArchState *env, target_phys_addr_t physaddr, target_ulong addr, void *retaddr);
 uint64_t io_read_chkq_cmmu(CPUArchState *env, target_phys_addr_t physaddr, target_ulong addr, void *retaddr);
-
-#endif
-
-uint8_t io_make_symbolicb_mmu(const char *name);
-uint16_t io_make_symbolicw_mmu(const char *name);
-uint32_t io_make_symbolicl_mmu(const char *name);
-uint64_t io_make_symbolicq_mmu(const char *name);
-
-uint8_t io_read_chk_symb_b_mmu(const char *label, target_ulong physaddr, uintptr_t pa);
-uint16_t io_read_chk_symb_w_mmu(const char *label, target_ulong physaddr, uintptr_t pa);
-uint32_t io_read_chk_symb_l_mmu(const char *label, target_ulong physaddr, uintptr_t pa);
-uint64_t io_read_chk_symb_q_mmu(const char *label, target_ulong physaddr, uintptr_t pa);
-
-#ifdef CONFIG_SYMBEX
-
-uint8_t io_readb_mmu_symb(target_phys_addr_t physaddr, target_ulong addr, void *retaddr);
-void io_writeb_mmu_symb(target_phys_addr_t physaddr, uint8_t val, target_ulong addr, void *retaddr);
-uint16_t io_readw_mmu_symb(target_phys_addr_t physaddr, target_ulong addr, void *retaddr);
-void io_writew_mmu_symb(target_phys_addr_t physaddr, uint16_t val, target_ulong addr, void *retaddr);
-uint32_t io_readl_mmu_symb(target_phys_addr_t physaddr, target_ulong addr, void *retaddr);
-void io_writel_mmu_symb(target_phys_addr_t physaddr, uint32_t val, target_ulong addr, void *retaddr);
-uint64_t io_readq_mmu_symb(target_phys_addr_t physaddr, target_ulong addr, void *retaddr);
-void io_writeq_mmu_symb(target_phys_addr_t physaddr, uint64_t val, target_ulong addr, void *retaddr);
-
-uintptr_t se_notdirty_mem_write(target_phys_addr_t ram_addr);
-uintptr_t se_notdirty_mem_read(target_phys_addr_t ram_addr);
-#endif
-
-#ifdef CONFIG_SYMBEX
-
-uintptr_t se_notdirty_mem_write(target_phys_addr_t ram_addr);
-uintptr_t se_notdirty_mem_read(target_phys_addr_t ram_addr);
-
-#endif
 
 #ifdef __cplusplus
 }

@@ -82,7 +82,6 @@ struct se_libcpu_interface_t {
     /* TB management */
     struct tb {
         void (*tb_alloc)(struct TranslationBlock *tb);
-        void (*tb_free)(struct TranslationBlock *tb);
         void (*flush_tb_cache)();
         void (*set_tb_function)(struct TranslationBlock *tb);
         int (*is_tb_instrumented)(struct TranslationBlock *tb);
@@ -149,8 +148,8 @@ struct se_libcpu_interface_t {
 
     /* Internal functions in libcpu. */
     struct libcpu {
-        uint32_t (*ldub_code)(target_ulong virtual_address);
-        uint32_t (*ldl_code)(target_ulong virtual_address);
+        uint32_t (*ldub_code)(struct CPUX86State *env, target_ulong virtual_address);
+        uint32_t (*ldl_code)(struct CPUX86State *env, target_ulong virtual_address);
     } libcpu;
 
     /* Core plugin interface */

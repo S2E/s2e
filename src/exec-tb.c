@@ -71,7 +71,7 @@ bool tcg_enabled(void) {
 static TranslationBlock *tb_alloc(target_ulong pc) {
     TranslationBlock *tb;
 
-    if (tcg_ctx->code_gen_ptr + 0x1000 >= tcg_ctx->code_gen_highwater) {
+    if (tcg_ctx->code_gen_ptr + 0x10000 >= tcg_ctx->code_gen_highwater) {
         return NULL;
     }
 
@@ -91,15 +91,11 @@ static TranslationBlock *tb_alloc(target_ulong pc) {
     return tb;
 }
 
-void tb_free(TranslationBlock *tb) {
-    abort();
-}
-
 /* flush all the translation blocks */
 /* XXX: tb_flush is currently not thread safe */
 void tb_flush(CPUArchState *env) {
 #ifdef CONFIG_SYMBEX
-    abort();
+    g_sqi.tb.flush_tb_cache();
 #endif
 
     for (env = first_cpu; env != NULL; env = env->next_cpu) {
@@ -250,9 +246,6 @@ again:
 
 #ifdef CONFIG_SYMBEX
     tb->originalTb = NULL;
-    tb->precise_entries = 0;
-    tb->precise_pcs = code_gen_precise_excp_ptr;
-    assert(code_gen_precise_excp_ptr < code_gen_precise_excp_buffer + code_gen_precise_excp_max_count);
 #endif
 
     tc_ptr = tcg_ctx->code_gen_ptr;
@@ -282,13 +275,7 @@ again:
     return tb;
 }
 
-#ifdef CONFIG_SYMBEX
-void se_setup_precise_pc(TranslationBlock *tb) {
-    tb->tc_ptr = g_code_gen_ptr;
-    tb->precise_entries = 0;
-    tb->precise_pcs = code_gen_precise_excp_ptr;
-    assert(code_gen_precise_excp_ptr < code_gen_precise_excp_buffer + code_gen_precise_excp_max_count);
-}
+#ifdef CONFIG_SYMBEX_MP
 
 void se_tb_gen_llvm(CPUArchState *env, TranslationBlock *tb) {
     /* Operate on a copy to avoid clobbering the original one */
@@ -480,7 +467,7 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end, int
     if (!p->first_tb) {
         invalidate_page_bitmap(p);
         if (is_cpu_write_access) {
-#ifdef CONFIG_SYMBEX
+#ifdef CONFIG_SYMBEX_MP
             target_ulong iovaddr = g_sqi.mem.read_mem_io_vaddr(1);
             tlb_unprotect_code_phys(env, start, iovaddr);
 #else

@@ -114,6 +114,9 @@ typedef struct CPUTLBRAMEntry {
 
 /* Set if TLB entry points to a page that does not belong to us (only for write) */
 #define TLB_NOT_OURS (1 << (TARGET_PAGE_BITS - 6))
+
+/* Indicates that accesses to the page must be traced */
+#define TLB_MEM_TRACE (1 << (TARGET_PAGE_BITS - 7))
 #endif
 
 /* Use this mask to check interception with an alignment mask

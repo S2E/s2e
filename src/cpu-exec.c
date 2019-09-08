@@ -37,7 +37,7 @@
 #define DPRINTF(...)
 #endif
 
-#if defined(CONFIG_SYMBEX)
+#if defined(CONFIG_SYMBEX_MP)
 #include "tcg/tcg-llvm.h"
 #endif
 
@@ -263,7 +263,6 @@ static uintptr_t fetch_and_run_tb(TranslationBlock *prev_tb, int tb_exit_code, C
 #endif
 
 #endif
-
     env->current_tb = NULL;
 
     return last_tb;
