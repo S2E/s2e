@@ -108,9 +108,9 @@ static ref<Expr> handle_ldst_mmu(Executor *executor, ExecutionState *state, klee
 redo:
 
     if (isWrite) {
-        tlb_addr = env->tlb_table[mmu_idx][index].addr_write;
+        tlb_addr = env->tlb_table[mmu_idx][index].addr_write & ~TLB_MEM_TRACE;
     } else {
-        tlb_addr = env->tlb_table[mmu_idx][index].ADDR_READ;
+        tlb_addr = env->tlb_table[mmu_idx][index].addr_read & ~TLB_MEM_TRACE;
     }
 
     if (likely((addr & TARGET_PAGE_MASK) == (tlb_addr & (TARGET_PAGE_MASK | TLB_INVALID_MASK)))) {
@@ -304,7 +304,7 @@ static void handle_ldst_kernel(Executor *executor, ExecutionState *state, klee::
     Expr::Width width = data_size * 8;
 
     target_ulong addr = constantAddress->getZExtValue();
-    target_ulong object_index, page_index;
+    target_ulong object_index, page_index, tlb_addr;
     ref<Expr> value;
     uintptr_t physaddr;
 
@@ -315,9 +315,12 @@ static void handle_ldst_kernel(Executor *executor, ExecutionState *state, klee::
 
     if (isWrite) {
         value = args[1];
+        tlb_addr = env->tlb_table[mmu_idx][page_index].addr_write & ~TLB_MEM_TRACE;
+    } else {
+        tlb_addr = env->tlb_table[mmu_idx][page_index].addr_read & ~TLB_MEM_TRACE;
     }
 
-    if (unlikely(env->tlb_table[mmu_idx][page_index].ADDR_READ != (addr & (TARGET_PAGE_MASK | (data_size - 1))))) {
+    if (unlikely(tlb_addr != (addr & (TARGET_PAGE_MASK | (data_size - 1))))) {
 
         std::vector<ref<Expr>> slowArgs;
 
