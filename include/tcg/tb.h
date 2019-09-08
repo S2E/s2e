@@ -138,11 +138,7 @@ struct TranslationBlock {
     enum ETranslationBlockType se_tb_type;
     uint64_t se_tb_call_eip;
     void *se_tb;
-    struct TranslationBlock *se_tb_next[2];
     uint64_t pcOfLastInstr; /* XXX: hack for call instructions */
-
-    tb_precise_pc_t *precise_pcs;
-    int precise_entries;
 
     /* Indicates whether there are execution handlers attached */
     int instrumented;
