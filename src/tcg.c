@@ -49,8 +49,8 @@ typedef union XMMReg XMMReg;
 // TODO: remove these globals
 int max_cpus = 1;
 size_t qemu_real_host_page_size = 0x1000;
-uintptr_t qemu_icache_linesize = 16;
-uintptr_t qemu_dcache_linesize = 16;
+uintptr_t qemu_icache_linesize = 64;
+uintptr_t qemu_dcache_linesize = 64;
 
 /* Define to jump the ELF file used to communicate with GDB.  */
 #undef DEBUG_JIT
@@ -111,9 +111,6 @@ typedef struct __attribute__((packed)) {
     DebugFrameCIE cie;
     DebugFrameFDEHeader fde;
 } DebugFrameHeader;
-
-static void tcg_register_jit_int(void *buf, size_t size, const void *debug_frame, size_t debug_frame_size)
-    __attribute__((unused));
 
 /* Forward declarations for functions declared and used in tcg-target.inc.c. */
 static const char *target_parse_constraint(TCGArgConstraint *ct, const char *ct_str, TCGType type);
@@ -853,9 +850,52 @@ static const TCGHelperInfo all_helpers[] = {
 };
 static GHashTable *helper_table;
 
+static GArray *s_additional_helpers;
+
 static int indirect_reg_alloc_order[ARRAY_SIZE(tcg_target_reg_alloc_order)];
 static void process_op_defs(TCGContext *s);
 static TCGTemp *tcg_global_reg_new_internal(TCGContext *s, TCGType type, TCGReg reg, const char *name);
+
+const char *tcg_helper_get_name(TCGContext *s, void *func) {
+    TCGHelperInfo *info = g_hash_table_lookup(helper_table, (gpointer) func);
+    return info ? info->name : NULL;
+}
+
+void tcg_register_helper(void *func, const char *name, int param_count, ...) {
+    if (!s_additional_helpers) {
+        s_additional_helpers = g_array_new(TRUE, TRUE, sizeof(TCGHelperInfo));
+    }
+
+    TCGHelperInfo helper;
+    helper.func = func;
+    helper.name = name;
+    helper.flags = dh_callflag(void);
+    helper.sizemask = 0;
+
+    va_list vl;
+    va_start(vl, param_count);
+
+    for (int i = 0; i < param_count; ++i) {
+        int size = va_arg(vl, int);
+        switch (size) {
+            case 4:
+                helper.sizemask |= dh_sizemask(i32, i + 1);
+                break;
+            case 8:
+                helper.sizemask |= dh_sizemask(i64, i + 1);
+                break;
+            default:
+                abort();
+        }
+    }
+
+    va_end(vl);
+
+    g_array_append_val(s_additional_helpers, helper);
+
+    TCGHelperInfo *h = &g_array_index(s_additional_helpers, TCGHelperInfo, s_additional_helpers->len - 1);
+    g_hash_table_insert(helper_table, (gpointer) func, (gpointer) h);
+}
 
 void tcg_context_init(TCGContext *s) {
     int op, total_args, n, i;
@@ -1004,7 +1044,7 @@ void tcg_prologue_init(TCGContext *s) {
     total_size -= prologue_size;
     s->code_gen_buffer_size = total_size;
 
-    tcg_register_jit(s->code_gen_buffer, total_size);
+// tcg_register_jit(s->code_gen_buffer, total_size);
 
 #ifdef DEBUG_DISAS
     if (qemu_loglevel_mask(CPU_LOG_TB_OUT_ASM)) {
@@ -3843,284 +3883,65 @@ void tcg_dump_info(FILE *f, fprintf_function cpu_fprintf) {
 }
 #endif
 
-#ifdef ELF_HOST_MACHINE
-/* In order to use this feature, the backend needs to do three things:
-
-   (1) Define ELF_HOST_MACHINE to indicate both what value to
-       put into the ELF image and to indicate support for the feature.
-
-   (2) Define tcg_register_jit.  This should create a buffer containing
-       the contents of a .debug_frame section that describes the post-
-       prologue unwind info for the tcg machine.
-
-   (3) Call tcg_register_jit_int, with the constructed .debug_frame.
-*/
-
-/* Begin GDB interface.  THE FOLLOWING MUST MATCH GDB DOCS.  */
-typedef enum { JIT_NOACTION = 0, JIT_REGISTER_FN, JIT_UNREGISTER_FN } jit_actions_t;
-
-struct jit_code_entry {
-    struct jit_code_entry *next_entry;
-    struct jit_code_entry *prev_entry;
-    const void *symfile_addr;
-    uint64_t symfile_size;
-};
-
-struct jit_descriptor {
-    uint32_t version;
-    uint32_t action_flag;
-    struct jit_code_entry *relevant_entry;
-    struct jit_code_entry *first_entry;
-};
-
-void __jit_debug_register_code(void) __attribute__((noinline));
-void __jit_debug_register_code(void) {
-    asm("");
-}
-
-/* Must statically initialize the version, because GDB may check
-   the version before we can set it.  */
-struct jit_descriptor __jit_debug_descriptor = {1, 0, 0, 0};
-
-/* End GDB interface.  */
-
-static int find_string(const char *strtab, const char *str) {
-    const char *p = strtab + 1;
-
-    while (1) {
-        if (strcmp(p, str) == 0) {
-            return p - strtab;
-        }
-        p += strlen(p) + 1;
-    }
-}
-
-static void tcg_register_jit_int(void *buf_ptr, size_t buf_size, const void *debug_frame, size_t debug_frame_size) {
-    struct __attribute__((packed)) DebugInfo {
-        uint32_t len;
-        uint16_t version;
-        uint32_t abbrev;
-        uint8_t ptr_size;
-        uint8_t cu_die;
-        uint16_t cu_lang;
-        uintptr_t cu_low_pc;
-        uintptr_t cu_high_pc;
-        uint8_t fn_die;
-        char fn_name[16];
-        uintptr_t fn_low_pc;
-        uintptr_t fn_high_pc;
-        uint8_t cu_eoc;
-    };
-
-    struct ElfImage {
-        ElfW(Ehdr) ehdr;
-        ElfW(Phdr) phdr;
-        ElfW(Shdr) shdr[7];
-        ElfW(Sym) sym[2];
-        struct DebugInfo di;
-        uint8_t da[24];
-        char str[80];
-    };
-
-    struct ElfImage *img;
-
-    static const struct ElfImage
-        img_template =
-            {
-                .ehdr =
-                    {
-                        .e_ident[EI_MAG0] = ELFMAG0,
-                        .e_ident[EI_MAG1] = ELFMAG1,
-                        .e_ident[EI_MAG2] = ELFMAG2,
-                        .e_ident[EI_MAG3] = ELFMAG3,
-                        .e_ident[EI_CLASS] = ELF_CLASS,
-                        .e_ident[EI_DATA] = ELF_DATA,
-                        .e_ident[EI_VERSION] = EV_CURRENT,
-                        .e_type = ET_EXEC,
-                        .e_machine = ELF_HOST_MACHINE,
-                        .e_version = EV_CURRENT,
-                        .e_phoff = offsetof(struct ElfImage, phdr),
-                        .e_shoff = offsetof(struct ElfImage, shdr),
-                        .e_ehsize = sizeof(ElfW(Shdr)),
-                        .e_phentsize = sizeof(ElfW(Phdr)),
-                        .e_phnum = 1,
-                        .e_shentsize = sizeof(ElfW(Shdr)),
-                        .e_shnum = ARRAY_SIZE(img->shdr),
-                        .e_shstrndx = ARRAY_SIZE(img->shdr) - 1,
-#ifdef ELF_HOST_FLAGS
-                        .e_flags = ELF_HOST_FLAGS,
-#endif
-#ifdef ELF_OSABI
-                        .e_ident[EI_OSABI] = ELF_OSABI,
-#endif
-                    },
-                .phdr =
-                    {
-                        .p_type = PT_LOAD, .p_flags = PF_X,
-                    },
-                .shdr = {[0] = {.sh_type = SHT_NULL},
-                         /* Trick: The contents of code_gen_buffer are not present in
-                            this fake ELF file; that got allocated elsewhere.  Therefore
-                            we mark .text as SHT_NOBITS (similar to .bss) so that readers
-                            will not look for contents.  We can record any address.  */
-                         [1] =
-                             {
-                                 /* .text */
-                                 .sh_type = SHT_NOBITS,
-                                 .sh_flags = SHF_EXECINSTR | SHF_ALLOC,
-                             },
-                         [2] =
-                             {
-                                 /* .debug_info */
-                                 .sh_type = SHT_PROGBITS,
-                                 .sh_offset = offsetof(struct ElfImage, di),
-                                 .sh_size = sizeof(struct DebugInfo),
-                             },
-                         [3] =
-                             {
-                                 /* .debug_abbrev */
-                                 .sh_type = SHT_PROGBITS,
-                                 .sh_offset = offsetof(struct ElfImage, da),
-                                 .sh_size = sizeof(img->da),
-                             },
-                         [4] =
-                             {
-                                 /* .debug_frame */
-                                 .sh_type = SHT_PROGBITS,
-                                 .sh_offset = sizeof(struct ElfImage),
-                             },
-                         [5] =
-                             {
-                                 /* .symtab */
-                                 .sh_type = SHT_SYMTAB,
-                                 .sh_offset = offsetof(struct ElfImage, sym),
-                                 .sh_size = sizeof(img->sym),
-                                 .sh_info = 1,
-                                 .sh_link = ARRAY_SIZE(img->shdr) - 1,
-                                 .sh_entsize = sizeof(ElfW(Sym)),
-                             },
-                         [6] =
-                             {
-                                 /* .strtab */
-                                 .sh_type = SHT_STRTAB,
-                                 .sh_offset = offsetof(struct ElfImage, str),
-                                 .sh_size = sizeof(img->str),
-                             }},
-                .sym = {[1] =
-                            {
-                                /* code_gen_buffer */
-                                .st_info = ELF_ST_INFO(STB_GLOBAL, STT_FUNC),
-                                .st_shndx = 1,
-                            }},
-                .di = {.len = sizeof(struct DebugInfo) - 4,
-                       .version = 2,
-                       .ptr_size = sizeof(void *),
-                       .cu_die = 1,
-                       .cu_lang = 0x8001, /* DW_LANG_Mips_Assembler */
-                       .fn_die = 2,
-                       .fn_name = "code_gen_buffer"},
-                .da =
-                    {
-                        1,         /* abbrev number (the cu) */
-                        0x11, 1,   /* DW_TAG_compile_unit, has children */
-                        0x13, 0x5, /* DW_AT_language, DW_FORM_data2 */
-                        0x11, 0x1, /* DW_AT_low_pc, DW_FORM_addr */
-                        0x12, 0x1, /* DW_AT_high_pc, DW_FORM_addr */
-                        0,    0,   /* end of abbrev */
-                        2,         /* abbrev number (the fn) */
-                        0x2e, 0,   /* DW_TAG_subprogram, no children */
-                        0x3,  0x8, /* DW_AT_name, DW_FORM_string */
-                        0x11, 0x1, /* DW_AT_low_pc, DW_FORM_addr */
-                        0x12, 0x1, /* DW_AT_high_pc, DW_FORM_addr */
-                        0,    0,   /* end of abbrev */
-                        0          /* no more abbrev */
-                    },
-                .str = "\0"
-                       ".text\0"
-                       ".debug_info\0"
-                       ".debug_abbrev\0"
-                       ".debug_frame\0"
-                       ".symtab\0"
-                       ".strtab\0"
-                       "code_gen_buffer",
-            };
-
-    /* We only need a single jit entry; statically allocate it.  */
-    static struct jit_code_entry one_entry;
-
-    uintptr_t buf = (uintptr_t) buf_ptr;
-    size_t img_size = sizeof(struct ElfImage) + debug_frame_size;
-    DebugFrameHeader *dfh;
-
-    img = g_malloc(img_size);
-    *img = img_template;
-
-    img->phdr.p_vaddr = buf;
-    img->phdr.p_paddr = buf;
-    img->phdr.p_memsz = buf_size;
-
-    img->shdr[1].sh_name = find_string(img->str, ".text");
-    img->shdr[1].sh_addr = buf;
-    img->shdr[1].sh_size = buf_size;
-
-    img->shdr[2].sh_name = find_string(img->str, ".debug_info");
-    img->shdr[3].sh_name = find_string(img->str, ".debug_abbrev");
-
-    img->shdr[4].sh_name = find_string(img->str, ".debug_frame");
-    img->shdr[4].sh_size = debug_frame_size;
-
-    img->shdr[5].sh_name = find_string(img->str, ".symtab");
-    img->shdr[6].sh_name = find_string(img->str, ".strtab");
-
-    img->sym[1].st_name = find_string(img->str, "code_gen_buffer");
-    img->sym[1].st_value = buf;
-    img->sym[1].st_size = buf_size;
-
-    img->di.cu_low_pc = buf;
-    img->di.cu_high_pc = buf + buf_size;
-    img->di.fn_low_pc = buf;
-    img->di.fn_high_pc = buf + buf_size;
-
-    dfh = (DebugFrameHeader *) (img + 1);
-    memcpy(dfh, debug_frame, debug_frame_size);
-    dfh->fde.func_start = buf;
-    dfh->fde.func_len = buf_size;
-
-#ifdef DEBUG_JIT
-    /* Enable this block to be able to debug the ELF image file creation.
-       One can use readelf, objdump, or other inspection utilities.  */
-    {
-        FILE *f = fopen("/tmp/qemu.jit", "w+b");
-        if (f) {
-            if (fwrite(img, img_size, 1, f) != img_size) {
-                /* Avoid stupid unused return value warning for fwrite.  */
-            }
-            fclose(f);
-        }
-    }
-#endif
-
-    one_entry.symfile_addr = img;
-    one_entry.symfile_size = img_size;
-
-    __jit_debug_descriptor.action_flag = JIT_REGISTER_FN;
-    __jit_debug_descriptor.relevant_entry = &one_entry;
-    __jit_debug_descriptor.first_entry = &one_entry;
-    __jit_debug_register_code();
-}
-#else
-/* No support for the feature.  Provide the entry point expected by exec.c,
-   and implement the internal function we declared earlier.  */
-
-static void tcg_register_jit_int(void *buf, size_t size, const void *debug_frame, size_t debug_frame_size) {
-}
-
-void tcg_register_jit(void *buf, size_t buf_size) {
-}
-#endif /* ELF_HOST_MACHINE */
-
 #if !TCG_TARGET_MAYBE_vec
 void tcg_expand_vec_op(TCGOpcode o, TCGType t, unsigned e, TCGArg a0, ...) {
     g_assert_not_reached();
+}
+#endif
+
+#ifdef CONFIG_SYMBEX
+void tcg_calc_regmask(TCGContext *s, uint64_t *rmask, uint64_t *wmask, uint64_t *accesses_mem) {
+    const TCGOp *op;
+    const TCGOpDef *def;
+    int c, i, nb_oargs, nb_iargs, nb_cargs;
+
+    uint64_t temps[TCG_MAX_TEMPS];
+    memset(temps, 0, sizeof(temps[0]) * (s->nb_globals + s->nb_temps));
+
+    *rmask = *wmask = *accesses_mem = 0;
+
+    QTAILQ_FOREACH (op, &s->ops, link) {
+        c = op->opc;
+        def = &tcg_op_defs[c];
+
+        if (c == INDEX_op_call) {
+            /* variable number of arguments */
+            nb_oargs = TCGOP_CALLO(op);
+            nb_iargs = TCGOP_CALLI(op);
+            nb_cargs = def->nb_cargs;
+
+            /* We don't track register masks for helpers anymore, assume access everything */
+            *rmask |= -1;
+            *wmask |= -1;
+            *accesses_mem |= 1;
+            return;
+        }
+
+        nb_oargs = def->nb_oargs;
+        nb_iargs = def->nb_iargs;
+        nb_cargs = def->nb_cargs;
+
+        for (i = 0; i < nb_iargs; i++) {
+            TCGArg arg = op->args[nb_oargs + i];
+            TCGTemp *tmp = arg_temp(arg);
+            size_t idx = temp_idx(tmp);
+
+            if (idx < s->nb_globals) {
+                if ((*wmask & (1 << idx)) == 0) {
+                    *rmask |= (1 << idx);
+                }
+            }
+        }
+
+        for (i = 0; i < nb_oargs; i++) {
+            TCGArg arg = op->args[i];
+            TCGTemp *tmp = arg_temp(arg);
+            size_t idx = temp_idx(tmp);
+
+            if (idx < s->nb_globals) {
+                *wmask |= (1 << idx);
+            }
+        }
+    }
 }
 #endif

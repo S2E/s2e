@@ -35,10 +35,8 @@
 #include <tcg/utils/log.h>
 #include <tcg/utils/osdep.h>
 
-#include "tcg-mo.h"
-// #include "qemu/int128.h"
-
 #include <tcg/i386/tcg-target.h>
+#include "tcg-mo.h"
 
 #define QEMU_BUILD_BUG_ON(x)
 
@@ -1536,5 +1534,12 @@ void helper_atomic_sto_be_mmu(CPUArchState *env, target_ulong addr, Int128 val, 
 void tcg_dump_ops(TCGContext *s, bool have_prefs);
 
 void tcg_target_force_tb_exit(uintptr_t gen_code, uintptr_t max_addr);
+
+#ifdef CONFIG_SYMBEX
+void tcg_calc_regmask(TCGContext *s, uint64_t *rmask, uint64_t *wmask, uint64_t *accesses_mem);
+#endif
+
+void tcg_register_helper(void *func, const char *name, int param_count, ...);
+const char *tcg_helper_get_name(TCGContext *s, void *func);
 
 #endif /* TCG_H */
