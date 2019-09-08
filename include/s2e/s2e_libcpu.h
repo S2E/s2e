@@ -118,8 +118,8 @@ void s2e_set_cc_op_eflags(struct CPUX86State *state);
 /** Allocate S2E parts of the tanslation block. Called from tb_alloc() */
 void se_tb_alloc(struct TranslationBlock *tb);
 
-/** Free S2E parts of the translation block. Called from tb_flush() and tb_free() */
-void se_tb_free(struct TranslationBlock *tb);
+/** Flushes S2E parts of the translation blocks */
+void se_tb_flush(void);
 
 /** Called after LLVM code generation
     in order to update tb->se_tb->llvm_function */

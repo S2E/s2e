@@ -311,7 +311,6 @@ S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMContext *tcgLLVMContext, InterpreterHa
     __DEFINE_EXT_FUNCTION(cpu_abort)
     __DEFINE_EXT_FUNCTION(cpu_loop_exit)
     __DEFINE_EXT_FUNCTION(cpu_get_tsc)
-    __DEFINE_EXT_FUNCTION(tb_find_pc)
     __DEFINE_EXT_FUNCTION(cpu_exit)
 
     __DEFINE_EXT_FUNCTION(hw_breakpoint_insert)
@@ -1204,7 +1203,7 @@ uintptr_t S2EExecutor::executeTranslationBlockConcrete(S2EExecutionState *state,
         S2EExternalDispatcher::restoreJmpBuf();
         throw CpuExitException();
     } else {
-        ret = tcg_libcpu_tb_exec(env, tb->tc_ptr);
+        ret = tcg_libcpu_tb_exec(env, tb->tc.ptr);
     }
 
     S2EExternalDispatcher::restoreJmpBuf();
@@ -1232,7 +1231,7 @@ uintptr_t S2EExecutor::executeTranslationBlockFast(struct CPUX86State *env1, str
             assert(g_s2e_fast_concrete_invocation);
             g_s2e_state->switchToConcrete();
         }
-        return tcg_libcpu_tb_exec(env, tb->tc_ptr);
+        return tcg_libcpu_tb_exec(env, tb->tc.ptr);
     } else {
         return executeTranslationBlockSlow(env, tb);
     }
@@ -1823,19 +1822,23 @@ void S2EExecutor::unrefLLVMTb(llvm::Function *tb) {
 }
 
 void S2EExecutor::refS2ETb(S2ETranslationBlock *se_tb) {
+    assert(m_s2eTbs.count(se_tb) > 0);
+
     se_tb->refCount++;
     if (se_tb->llvm_function) {
         refLLVMTb(se_tb->llvm_function);
     }
 }
 
-void S2EExecutor::unrefS2ETb(S2ETranslationBlock *se_tb) {
+bool S2EExecutor::unrefS2ETb(S2ETranslationBlock *se_tb, bool erase) {
     if (!se_tb) {
-        return;
+        return false;
     }
 
+    assert(m_s2eTbs.count(se_tb) > 0);
+
     if (--se_tb->refCount) {
-        return;
+        return false;
     }
 
     if (se_tb->llvm_function) {
@@ -1846,7 +1849,44 @@ void S2EExecutor::unrefS2ETb(S2ETranslationBlock *se_tb) {
         delete static_cast<ExecutionSignal *>(*it);
     }
 
+    if (erase) {
+        m_s2eTbs.erase(se_tb);
+    }
+
     delete se_tb;
+    return true;
+}
+
+S2ETranslationBlock *S2EExecutor::allocateS2ETb() {
+    S2ETranslationBlock *se_tb = new S2ETranslationBlock;
+
+    se_tb->llvm_function = nullptr;
+    se_tb->refCount = 1;
+    se_tb->allocated = false;
+
+    /* Push one copy of a signal to use it as a cache */
+    se_tb->executionSignals.push_back(new s2e::ExecutionSignal);
+
+    m_s2eTbs.insert(se_tb);
+
+    return se_tb;
+}
+
+void S2EExecutor::flushS2ETBs() {
+    for (auto it = m_s2eTbs.begin(); it != m_s2eTbs.end();) {
+        if (!(*it)->allocated) {
+            ++it;
+            continue;
+        }
+
+        bool needsErase = unrefS2ETb(*it, false);
+        if (needsErase) {
+            m_s2eTbs.erase(it++);
+        } else {
+            (*it)->allocated = false;
+            ++it;
+        }
+    }
 }
 
 void S2EExecutor::updateStats(S2EExecutionState *state) {
@@ -1872,8 +1912,10 @@ void s2e_create_initial_state() {
 void s2e_initialize_execution(int execute_always_klee) {
     g_s2e->getExecutor()->initializeExecution(g_s2e_state, execute_always_klee);
     // XXX: move it to better place (signal handler for this?)
-    tcg_register_helper((void *) &s2e_tcg_execution_handler, "s2e_tcg_execution_handler");
-    tcg_register_helper((void *) &s2e_tcg_custom_instruction_handler, "s2e_tcg_custom_instruction_handler");
+    tcg_register_helper((void *) &s2e_tcg_execution_handler, "s2e_tcg_execution_handler", 2, sizeof(void *),
+                        sizeof(uint64_t));
+    tcg_register_helper((void *) &s2e_tcg_custom_instruction_handler, "s2e_tcg_custom_instruction_handler", 1,
+                        sizeof(uint64_t));
 }
 
 void s2e_register_cpu(CPUX86State *cpu_env) {
@@ -1909,10 +1951,7 @@ void s2e_set_cc_op_eflags(struct CPUX86State *env1) {
 }
 
 void s2e_switch_to_symbolic(void *retaddr) {
-    TranslationBlock *tb = tb_find_pc((uintptr_t) retaddr);
-    assert(tb);
-    cpu_restore_state(tb, env, (uintptr_t) retaddr);
-
+    cpu_restore_state(env, (uintptr_t) retaddr);
     g_s2e_state->jumpToSymbolic();
 }
 
@@ -1925,17 +1964,8 @@ int se_is_vmem_symbolic(uint64_t vmem, unsigned size) {
 }
 
 void se_tb_alloc(TranslationBlock *tb) {
-    S2ETranslationBlock *se_tb = new S2ETranslationBlock;
-
-    se_tb->llvm_function = nullptr;
-    se_tb->refCount = 1;
-
-    /* Push one copy of a signal to use it as a cache */
-    se_tb->executionSignals.push_back(new s2e::ExecutionSignal);
-
-    tb->se_tb_next[0] = 0;
-    tb->se_tb_next[1] = 0;
-
+    auto se_tb = g_s2e->getExecutor()->allocateS2ETb();
+    se_tb->allocated = true;
     tb->se_tb = se_tb;
 }
 
@@ -1951,12 +1981,6 @@ void s2e_set_tb_function(TranslationBlock *tb) {
     g_s2e->getExecutor()->refLLVMTb(se_tb->llvm_function);
 }
 
-void se_tb_free(TranslationBlock *tb) {
-    S2ETranslationBlock *se_tb = static_cast<S2ETranslationBlock *>(tb->se_tb);
-    g_s2e->getExecutor()->unrefS2ETb(se_tb);
-    tb->se_tb = nullptr;
-}
-
 void s2e_flush_tb_cache() {
     klee::stats::availableTranslationBlocks += -klee::stats::availableTranslationBlocks;
     klee::stats::availableTranslationBlocksInstrumented += -klee::stats::availableTranslationBlocksInstrumented;
@@ -1965,6 +1989,8 @@ void s2e_flush_tb_cache() {
         if (!FlushTBsOnStateSwitch) {
             g_s2e->getWarningsStream() << "Flushing TB cache with more than 1 state. Dangerous. Expect crashes.\n";
         }
+
+        g_s2e->getExecutor()->flushS2ETBs();
     }
 }
 

@@ -57,8 +57,12 @@ int s2e_dev_restore(void *buffer, int pos, size_t size);
 
 
 extern struct CPUX86State *env;
-void LIBCPU_NORETURN raise_exception(int exception_index);
-void LIBCPU_NORETURN raise_exception_err(int exception_index, int error_code);
+void raise_exception(CPUX86State *env, int exception_index);
+void raise_exception_err(CPUX86State *env, int exception_index,
+                         int error_code);
+void raise_exception_err_ra(CPUX86State *env, int exception_index,
+                            int error_code, uintptr_t retaddr);
+
 extern const uint8_t parity_table[256];
 extern const uint8_t rclw_table[32];
 extern const uint8_t rclb_table[32];
