@@ -801,10 +801,10 @@ target_ulong helper_inl(uint32_t port) {
 void helper_outb(uint32_t port, uint32_t data) {
 #if defined(CONFIG_SYMBEX) && !defined(STATIC_TRANSLATOR)
     if (g_sqi.mem.is_port_symbolic(port)) {
-        g_sqi.exec.switch_to_symbolic(GETPC());
+        g_sqi.exec.switch_to_symbolic((void *) GETPC());
     }
     if (*g_sqi.events.on_port_access_signals_count)
-        g_sqi.events.trace_port_access(port, data, 8, 1, GETPC());
+        g_sqi.events.trace_port_access(port, data, 8, 1, (void *) GETPC());
 #endif
     cpu_outb(port, data & 0xff);
 }
@@ -812,13 +812,13 @@ void helper_outb(uint32_t port, uint32_t data) {
 target_ulong helper_inb(uint32_t port) {
 #if defined(CONFIG_SYMBEX) && !defined(STATIC_TRANSLATOR)
     if (g_sqi.mem.is_port_symbolic(port)) {
-        g_sqi.exec.switch_to_symbolic(GETPC());
+        g_sqi.exec.switch_to_symbolic((void *) GETPC());
     }
 #endif
     target_ulong res = cpu_inb(port);
 #if defined(CONFIG_SYMBEX) && !defined(STATIC_TRANSLATOR)
     if (*g_sqi.events.on_port_access_signals_count)
-        g_sqi.events.trace_port_access(port, res, 8, 0, GETPC());
+        g_sqi.events.trace_port_access(port, res, 8, 0, (void *) GETPC());
 #endif
     return res;
 }
@@ -826,10 +826,10 @@ target_ulong helper_inb(uint32_t port) {
 void helper_outw(uint32_t port, uint32_t data) {
 #if defined(CONFIG_SYMBEX) && !defined(STATIC_TRANSLATOR)
     if (g_sqi.mem.is_port_symbolic(port)) {
-        g_sqi.exec.switch_to_symbolic(GETPC());
+        g_sqi.exec.switch_to_symbolic((void *) GETPC());
     }
     if (*g_sqi.events.on_port_access_signals_count)
-        g_sqi.events.trace_port_access(port, data, 16, 1, GETPC());
+        g_sqi.events.trace_port_access(port, data, 16, 1, (void *) GETPC());
 #endif
     cpu_outw(port, data & 0xffff);
 }
@@ -837,13 +837,13 @@ void helper_outw(uint32_t port, uint32_t data) {
 target_ulong helper_inw(uint32_t port) {
 #if defined(CONFIG_SYMBEX) && !defined(STATIC_TRANSLATOR)
     if (g_sqi.mem.is_port_symbolic(port)) {
-        g_sqi.exec.switch_to_symbolic(GETPC());
+        g_sqi.exec.switch_to_symbolic((void *) GETPC());
     }
 #endif
     target_ulong res = cpu_inw(port);
 #if defined(CONFIG_SYMBEX) && !defined(STATIC_TRANSLATOR)
     if (*g_sqi.events.on_port_access_signals_count)
-        g_sqi.events.trace_port_access(port, res, 16, 0, GETPC());
+        g_sqi.events.trace_port_access(port, res, 16, 0, (void *) GETPC());
 #endif
     return res;
 }
@@ -851,11 +851,11 @@ target_ulong helper_inw(uint32_t port) {
 void helper_outl(uint32_t port, uint32_t data) {
 #if defined(CONFIG_SYMBEX) && !defined(STATIC_TRANSLATOR)
     if (g_sqi.mem.is_port_symbolic(port)) {
-        g_sqi.exec.switch_to_symbolic(GETPC());
+        g_sqi.exec.switch_to_symbolic((void *) GETPC());
     }
 
     if (*g_sqi.events.on_port_access_signals_count)
-        g_sqi.events.trace_port_access(port, data, 32, 1, GETPC());
+        g_sqi.events.trace_port_access(port, data, 32, 1, (void *) GETPC());
 #endif
     cpu_outl(port, data);
 }
@@ -863,13 +863,13 @@ void helper_outl(uint32_t port, uint32_t data) {
 target_ulong helper_inl(uint32_t port) {
 #if defined(CONFIG_SYMBEX) && !defined(STATIC_TRANSLATOR)
     if (g_sqi.mem.is_port_symbolic(port)) {
-        g_sqi.exec.switch_to_symbolic(GETPC());
+        g_sqi.exec.switch_to_symbolic((void *) GETPC());
     }
 #endif
     target_ulong res = cpu_inl(port);
 #if defined(CONFIG_SYMBEX) && !defined(STATIC_TRANSLATOR)
     if (*g_sqi.events.on_port_access_signals_count)
-        g_sqi.events.trace_port_access(port, res, 32, 0, GETPC());
+        g_sqi.events.trace_port_access(port, res, 32, 0, (void *) GETPC());
 #endif
     return res;
 }
@@ -4616,7 +4616,7 @@ void helper_fxrstor(target_ulong ptr, int data64) {
 
 #if defined(CONFIG_SYMBEX) && !defined(SYMBEX_LLVM_LIB)
     if (g_sqi.mem.is_vmem_symbolic(ptr, 0x200)) {
-        g_sqi.exec.switch_to_symbolic(GETPC());
+        g_sqi.exec.switch_to_symbolic((void *) GETPC());
     }
 #endif
 
