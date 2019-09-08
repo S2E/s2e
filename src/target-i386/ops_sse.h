@@ -1304,6 +1304,9 @@ void glue(helper_palignr, SUFFIX)(Reg *d, Reg *s, int32_t shift) {
     WR_reg(d, r);
 }
 
+// Silence FP warning. There can't be out of bound accesses because of if (...) checks.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Warray-bounds"
 #if SHIFT == 1
 #define SSE_HELPER_V(name, elem, num, F)                                                                        \
     void glue(name, SUFFIX)(Reg * d, Reg * s) {                                                                 \
@@ -1364,6 +1367,7 @@ void glue(helper_palignr, SUFFIX)(Reg *d, Reg *s, int32_t shift) {
 SSE_HELPER_V(helper_pblendvb, B, 16, FBLENDVB)
 SSE_HELPER_V(helper_blendvps, L, 4, FBLENDVPS)
 SSE_HELPER_V(helper_blendvpd, Q, 2, FBLENDVPD)
+#pragma GCC diagnostic pop
 
 void glue(helper_ptest, SUFFIX)(Reg *d, Reg *s) {
     uint64_t zf = (R_S(s, Q(0)) & R_D(d, Q(0))) | (R_S(s, Q(1)) & R_D(d, Q(1)));
