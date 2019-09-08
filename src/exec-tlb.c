@@ -254,12 +254,6 @@ void tlb_set_page(CPUArchState *env, target_ulong vaddr, target_phys_addr_t padd
     index = (vaddr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
     env->iotlb[mmu_idx][index] = iotlb - vaddr;
 
-#if defined(CONFIG_SYMBEX) && defined(CONFIG_SYMBEX_MP)
-// XXX: This might not be needed, as we don't have
-// device memory sections anymore.
-// env->iotlb_ramaddr[mmu_idx][index] = section->offset_within_address_space;
-#endif
-
     te = &env->tlb_table[mmu_idx][index];
     te->addend = addend - vaddr;
     if (prot & PAGE_READ) {
@@ -291,7 +285,7 @@ void tlb_set_page(CPUArchState *env, target_ulong vaddr, target_phys_addr_t padd
         te->addr_write = -1;
     }
 
-#if defined(CONFIG_SYMBEX) && defined(CONFIG_SYMBEX_MP)
+#if defined(CONFIG_SYMBEX_MP)
     if (g_sqi.mem.is_mmio_symbolic(paddr, 1LL << TARGET_PAGE_BITS)) {
         // We hijack qemu's dirty page management to redirect
         // all accesses to MMIO memory through our handlers.
@@ -302,6 +296,13 @@ void tlb_set_page(CPUArchState *env, target_ulong vaddr, target_phys_addr_t padd
         // We also need to track writes to DMA memory,
         // symbolic hardware might be interested in that.
         te->addr_write |= TLB_MMIO;
+    }
+#endif
+#if defined(CONFIG_SYMBEX)
+
+    if (*g_sqi.events.before_memory_access_signals_count || *g_sqi.events.after_memory_access_signals_count) {
+        te->addr_read |= TLB_MEM_TRACE;
+        te->addr_write |= TLB_MEM_TRACE;
     }
 #endif
 

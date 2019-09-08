@@ -161,6 +161,7 @@ static SMHINLINE RES_TYPE glue(glue(glue(CPU_PREFIX, ld), USUFFIX), MEMSUFFIX)(E
     target_ulong object_index, page_index;
     RES_TYPE res;
     target_ulong addr;
+    target_ulong tlb_addr;
     uintptr_t physaddr;
     int mmu_idx;
     CPUTLBEntry *tlb_entry;
@@ -178,7 +179,8 @@ static SMHINLINE RES_TYPE glue(glue(glue(CPU_PREFIX, ld), USUFFIX), MEMSUFFIX)(E
 
     mmu_idx = CPU_MMU_INDEX;
     tlb_entry = &env->tlb_table[mmu_idx][page_index];
-    if (unlikely(env->tlb_table[mmu_idx][page_index].ADDR_READ != (addr & (TARGET_PAGE_MASK | (DATA_SIZE - 1))))) {
+    tlb_addr = tlb_entry->ADDR_READ & ~TLB_MEM_TRACE;
+    if (unlikely(tlb_addr != (addr & (TARGET_PAGE_MASK | (DATA_SIZE - 1))))) {
         res = glue(glue(glue(HELPER_PREFIX, ld), SUFFIX), MMUSUFFIX)(ENV_VAR addr, mmu_idx, NULL);
     } else {
 // When we get here, the address is aligned with the size of the access,
@@ -201,7 +203,7 @@ static SMHINLINE RES_TYPE glue(glue(glue(CPU_PREFIX, ld), USUFFIX), MEMSUFFIX)(E
 static SMHINLINE int glue(glue(glue(CPU_PREFIX, lds), SUFFIX), MEMSUFFIX)(ENV_PARAM target_ulong ptr) {
     int res;
     target_ulong object_index, page_index;
-    target_ulong addr;
+    target_ulong addr, tlb_addr;
     uintptr_t physaddr;
     int mmu_idx;
     CPUTLBEntry *tlb_entry;
@@ -219,7 +221,8 @@ static SMHINLINE int glue(glue(glue(CPU_PREFIX, lds), SUFFIX), MEMSUFFIX)(ENV_PA
 
     mmu_idx = CPU_MMU_INDEX;
     tlb_entry = &env->tlb_table[mmu_idx][page_index];
-    if (unlikely(tlb_entry->ADDR_READ != (addr & (TARGET_PAGE_MASK | (DATA_SIZE - 1))))) {
+    tlb_addr = tlb_entry->ADDR_READ & ~TLB_MEM_TRACE;
+    if (unlikely(tlb_addr != (addr & (TARGET_PAGE_MASK | (DATA_SIZE - 1))))) {
         res = (DATA_STYPE) glue(glue(glue(HELPER_PREFIX, ld), SUFFIX), MMUSUFFIX)(ENV_VAR addr, mmu_idx, NULL);
     } else {
 
@@ -242,7 +245,7 @@ static SMHINLINE int glue(glue(glue(CPU_PREFIX, lds), SUFFIX), MEMSUFFIX)(ENV_PA
 
 static SMHINLINE void glue(glue(glue(CPU_PREFIX, st), SUFFIX), MEMSUFFIX)(ENV_PARAM target_ulong ptr, RES_TYPE v) {
     target_ulong object_index, page_index;
-    target_ulong addr;
+    target_ulong addr, tlb_addr;
     uintptr_t physaddr;
     int mmu_idx;
     CPUTLBEntry *tlb_entry;
@@ -260,7 +263,8 @@ static SMHINLINE void glue(glue(glue(CPU_PREFIX, st), SUFFIX), MEMSUFFIX)(ENV_PA
 
     mmu_idx = CPU_MMU_INDEX;
     tlb_entry = &env->tlb_table[mmu_idx][page_index];
-    if (unlikely(tlb_entry->addr_write != (addr & (TARGET_PAGE_MASK | (DATA_SIZE - 1))))) {
+    tlb_addr = tlb_entry->addr_write & ~TLB_MEM_TRACE;
+    if (unlikely(tlb_addr != (addr & (TARGET_PAGE_MASK | (DATA_SIZE - 1))))) {
         glue(glue(glue(HELPER_PREFIX, st), SUFFIX), MMUSUFFIX)(ENV_VAR addr, v, mmu_idx, NULL);
     } else {
 

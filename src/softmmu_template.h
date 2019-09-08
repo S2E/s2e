@@ -273,7 +273,7 @@ glue(glue(glue(HELPER_PREFIX, ld), SUFFIX), MMUSUFFIX)(ENV_PARAM target_ulong ad
 
 redo:
     tlb_entry = &env->tlb_table[mmu_idx][index];
-    tlb_addr = tlb_entry->ADDR_READ;
+    tlb_addr = tlb_entry->ADDR_READ & ~TLB_MEM_TRACE;
     if (likely((addr & TARGET_PAGE_MASK) == (tlb_addr & (TARGET_PAGE_MASK | TLB_INVALID_MASK)))) {
         if (unlikely(tlb_addr & ~TARGET_PAGE_MASK)) {
             /* IO access */
@@ -337,7 +337,8 @@ static DATA_TYPE glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(ENV_PARAM target_ulong a
     index = (object_index >> SE_RAM_OBJECT_DIFF) & (CPU_TLB_SIZE - 1);
 redo:
     tlb_entry = &env->tlb_table[mmu_idx][index];
-    tlb_addr = tlb_entry->ADDR_READ;
+    tlb_addr = tlb_entry->ADDR_READ & ~TLB_MEM_TRACE;
+
     if ((addr & TARGET_PAGE_MASK) == (tlb_addr & (TARGET_PAGE_MASK | TLB_INVALID_MASK))) {
         if (tlb_addr & ~TARGET_PAGE_MASK) {
             /* IO access */
@@ -516,7 +517,8 @@ void glue(glue(glue(HELPER_PREFIX, st), SUFFIX), MMUSUFFIX)(ENV_PARAM target_ulo
 
 redo:
     tlb_entry = &env->tlb_table[mmu_idx][index];
-    tlb_addr = tlb_entry->addr_write;
+    tlb_addr = tlb_entry->addr_write & ~TLB_MEM_TRACE;
+    ;
     if (likely((addr & TARGET_PAGE_MASK) == (tlb_addr & (TARGET_PAGE_MASK | TLB_INVALID_MASK)))) {
         if (unlikely(tlb_addr & ~TARGET_PAGE_MASK)) {
             /* IO access */
@@ -582,7 +584,8 @@ static void glue(glue(slow_st, SUFFIX), MMUSUFFIX)(ENV_PARAM target_ulong addr, 
     index = (object_index >> SE_RAM_OBJECT_DIFF) & (CPU_TLB_SIZE - 1);
 redo:
     tlb_entry = &env->tlb_table[mmu_idx][index];
-    tlb_addr = tlb_entry->addr_write;
+    tlb_addr = tlb_entry->addr_write & ~TLB_MEM_TRACE;
+    ;
     if ((addr & TARGET_PAGE_MASK) == (tlb_addr & (TARGET_PAGE_MASK | TLB_INVALID_MASK))) {
         if (tlb_addr & ~TARGET_PAGE_MASK) {
             /* IO access */
