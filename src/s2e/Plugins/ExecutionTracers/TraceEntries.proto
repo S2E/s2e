@@ -167,7 +167,7 @@ message PbTraceMemoryAccess {
         EXECTRACE_MEM_OBJECTSTATE = 64;
     }
 
-    required Flags flags = 5;
+    required uint32 flags = 5;
 
     // Valid only if EXECTRACE_MEM_HASHOST is set
     required uint64 host_address = 6;

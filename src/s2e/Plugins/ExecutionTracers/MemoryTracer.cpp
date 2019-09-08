@@ -106,6 +106,7 @@ void MemoryTracer::traceConcreteDataMemoryAccess(S2EExecutionState *state, uint6
     item.set_value(value);
     item.set_size(size);
     item.set_host_address(0);
+    item.set_concrete_buffer(0);
 
     uint32_t traceFlags = 0;
 
@@ -160,6 +161,7 @@ void MemoryTracer::traceSymbolicDataMemoryAccess(S2EExecutionState *state, klee:
     }
 
     item.set_host_address(isHostAddrCste ? cast<klee::ConstantExpr>(hostAddress)->getZExtValue(64) : 0xDEADBEEF);
+    item.set_concrete_buffer(0);
 
     if (m_traceHostAddresses) {
         traceFlags |= s2e_trace::PbTraceMemoryAccess::EXECTRACE_MEM_HASHOSTADDR;
