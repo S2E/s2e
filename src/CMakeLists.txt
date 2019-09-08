@@ -21,9 +21,9 @@
 set (TCG_SOURCES)
 list (APPEND TCG_SOURCES cutils.c tcg.c  tcg-common.c tcg-op.c optimize.c)
 
-# if (WITH_SYMBEX)
-#     list(APPEND TCG_SOURCES tcg-llvm.cpp)
-# endif (WITH_SYMBEX)
+if (WITH_SYMBEX)
+    list(APPEND TCG_SOURCES tcg-llvm.cpp)
+endif (WITH_SYMBEX)
 
 add_library(tcg ${TCG_SOURCES})
 

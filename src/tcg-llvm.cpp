@@ -23,9 +23,16 @@
  * THE SOFTWARE.
  */
 
+#include <type_traits>
+#define typeof(x) std::remove_reference < decltype((x)) > ::type
+
+// Enforce include order
+// clang-format off
 extern "C" {
 #include <tcg/tcg.h>
+#include <tcg/tb.h>
 }
+// clang-format on
 
 #include <tcg/tcg-llvm.h>
 
@@ -54,6 +61,7 @@ extern "C" {
 #include <sstream>
 #include <sys/types.h>
 #include <unistd.h>
+#include <unordered_map>
 
 #if TARGET_LONG_BITS == 32
 typedef uint32_t target_ulong;
@@ -122,6 +130,8 @@ struct TCGLLVMContextPrivate {
     /* TCGContext for current translation block */
     TCGContext* m_tcgContext;
 
+    TranslationBlock *m_tb;
+
     /* Function for current translation block */
     Function *m_tbFunction;
 
@@ -135,7 +145,7 @@ struct TCGLLVMContextPrivate {
      * for mem-based globals, store base value index */
     int m_globalsIdx[TCG_MAX_TEMPS];
 
-    BasicBlock* m_labels[TCG_MAX_LABELS];
+    std::unordered_map<TCGLabel*, BasicBlock*> m_labels;
 
     FunctionType *m_tbType;
     Type *m_cpuType;
@@ -171,11 +181,7 @@ public:
             return m_tbType;
         }
         SmallVector<Type*,1> args;
-        #ifdef STATIC_TRANSLATOR
         args.push_back(m_cpuType->getPointerTo());
-        #else
-        args.push_back(intPtrType(64));
-        #endif
         m_tbType = FunctionType::get(wordType(), args, false);
         return m_tbType;
     }
@@ -191,7 +197,7 @@ public:
         }
     }
 
-    Value* generateCpuStatePtr(TCGArg arg, unsigned sizeInBytes);
+    Value* generateCpuStatePtr(uint64_t arg, unsigned sizeInBytes);
     void generateQemuCpuLoad(const TCGArg *args, unsigned memBits, unsigned regBits, bool signExtend);
     void generateQemuCpuStore(const TCGArg *args, unsigned memBits, Value *valueToStore);
 
@@ -251,8 +257,8 @@ public:
     }
 
     /* Helpers */
-    Value* getValue(int idx);
-    void setValue(int idx, Value *v);
+    Value* getValue(TCGArg arg);
+    void setValue(TCGArg arg, Value *v);
     void delValue(int idx);
 
     Value* getPtrForValue(int idx);
@@ -277,19 +283,17 @@ public:
     void initializeNativeCpuState();
 #endif
 
-    BasicBlock* getLabel(int idx);
-    void delLabel(int idx);
+    BasicBlock* getLabel(TCGArg i);
     void startNewBasicBlock(BasicBlock *bb = NULL);
 
     /* Code generation */
     Value* generateQemuMemOp(bool ld, Value *value, Value *addr,
                              int mem_index, int bits);
 
-    void generateTraceCall(uintptr_t pc);
-    int generateOperation(int opc, const TCGArg *args);
+    int generateOperation(const TCGOp *op);
 
     Function *createTbFunction(const std::string &name);
-    Function *generateCode(TCGContext *s);
+    Function *generateCode(TCGContext *s, TranslationBlock *tb);
 
     bool getCpuFieldGepIndexes(unsigned offset, SmallVector<Value*, 3> &gepIndexes);
 };
@@ -303,7 +307,6 @@ TCGLLVMContextPrivate::TCGLLVMContextPrivate(LLVMContext& context)
     std::memset(m_values, 0, sizeof(m_values));
     std::memset(m_memValuesPtr, 0, sizeof(m_memValuesPtr));
     std::memset(m_globalsIdx, 0, sizeof(m_globalsIdx));
-    std::memset(m_labels, 0, sizeof(m_labels));
 
     m_module = new Module("tcg-llvm", m_context);
 
@@ -368,17 +371,17 @@ void TCGLLVMContextPrivate::initializeHelpers()
     m_helperGetValue =
             m_module->getFunction("tcg_llvm_get_value");
 
-    m_qemu_ld_helpers[0] = m_module->getFunction("__ldb_mmu");
-    m_qemu_ld_helpers[1] = m_module->getFunction("__ldw_mmu");
-    m_qemu_ld_helpers[2] = m_module->getFunction("__ldl_mmu");
-    m_qemu_ld_helpers[3] = m_module->getFunction("__ldq_mmu");
-    m_qemu_ld_helpers[4] = m_module->getFunction("__ldq_mmu");
+    m_qemu_ld_helpers[0] = m_module->getFunction("helper_ldb_mmu");
+    m_qemu_ld_helpers[1] = m_module->getFunction("helper_ldw_mmu");
+    m_qemu_ld_helpers[2] = m_module->getFunction("helper_ldl_mmu");
+    m_qemu_ld_helpers[3] = m_module->getFunction("helper_ldq_mmu");
+    m_qemu_ld_helpers[4] = m_module->getFunction("helper_ldq_mmu");
 
-    m_qemu_st_helpers[0] = m_module->getFunction("__stb_mmu");
-    m_qemu_st_helpers[1] = m_module->getFunction("__stw_mmu");
-    m_qemu_st_helpers[2] = m_module->getFunction("__stl_mmu");
-    m_qemu_st_helpers[3] = m_module->getFunction("__stq_mmu");
-    m_qemu_st_helpers[4] = m_module->getFunction("__stq_mmu");
+    m_qemu_st_helpers[0] = m_module->getFunction("helper_stb_mmu");
+    m_qemu_st_helpers[1] = m_module->getFunction("helper_stw_mmu");
+    m_qemu_st_helpers[2] = m_module->getFunction("helper_stl_mmu");
+    m_qemu_st_helpers[3] = m_module->getFunction("helper_stq_mmu");
+    m_qemu_st_helpers[4] = m_module->getFunction("helper_stq_mmu");
 
     #ifndef STATIC_TRANSLATOR
     assert(m_helperTraceMemoryAccess);
@@ -429,19 +432,17 @@ Value* TCGLLVMContextPrivate::getPtrForValue(int idx)
 
     assert(idx < s->nb_globals || s->temps[idx].temp_local);
 
-    if(m_memValuesPtr[idx] == NULL) {
+    if (m_memValuesPtr[idx] == NULL) {
         assert(idx < s->nb_globals);
 
-        if(temp.fixed_reg) {
-            Value *v = m_builder.CreateConstGEP1_32(
-                    &*(m_tbFunction->arg_begin()), m_globalsIdx[idx]);
-            m_memValuesPtr[idx] = m_builder.CreatePointerCast(
-                    v, tcgPtrType(temp.type)
-#ifndef NDEBUG
-                    , StringRef(temp.name) + "_ptr"
-#endif
-                    );
+        if (temp.fixed_reg) {
+            assert(idx == 0); // Assume we access CPUState
+            Value *v = &*m_tbFunction->arg_begin();
 
+            m_memValuesPtr[idx] = m_builder.CreatePointerCast(
+                v, tcgPtrType(temp.type),
+                StringRef(temp.name) + "_ptr"
+            );
         } else {
 #if defined(USE_GEPS)
             m_memValuesPtr[idx] =
@@ -451,14 +452,9 @@ Value* TCGLLVMContextPrivate::getPtrForValue(int idx)
             if (!m_memValuesPtr[idx]) {
                 Value *v = getValue(m_globalsIdx[idx]);
                 assert(v->getType() == wordType());
-                v = m_builder.CreateAdd(v, ConstantInt::get(
-                                wordType(), temp.mem_offset));
+                v = m_builder.CreateAdd(v, ConstantInt::get(wordType(), temp.mem_offset));
                 m_memValuesPtr[idx] =
-                    m_builder.CreateIntToPtr(v, tcgPtrType(temp.type)
-    #ifndef NDEBUG
-                            , StringRef(temp.name) + "_ptr"
-    #endif
-                            );
+                    m_builder.CreateIntToPtr(v, tcgPtrType(temp.type), StringRef(temp.name) + "_ptr");
             }
 
         }
@@ -467,7 +463,7 @@ Value* TCGLLVMContextPrivate::getPtrForValue(int idx)
     return m_memValuesPtr[idx];
 }
 
-inline void TCGLLVMContextPrivate::delValue(int idx)
+void TCGLLVMContextPrivate::delValue(int idx)
 {
     /* XXX
     if(m_values[idx] && m_values[idx]->use_empty()) {
@@ -476,10 +472,11 @@ inline void TCGLLVMContextPrivate::delValue(int idx)
             delete m_values[idx];
     }
     */
+    assert(idx >= 0 && idx < TCG_MAX_TEMPS);
     m_values[idx] = NULL;
 }
 
-inline void TCGLLVMContextPrivate::delPtrForValue(int idx)
+void TCGLLVMContextPrivate::delPtrForValue(int idx)
 {
     /* XXX
     if(m_memValuesPtr[idx] && m_memValuesPtr[idx]->use_empty()) {
@@ -488,11 +485,14 @@ inline void TCGLLVMContextPrivate::delPtrForValue(int idx)
             delete m_memValuesPtr[idx];
     }
     */
+    assert(idx >= 0 && idx < TCG_MAX_TEMPS);
     m_memValuesPtr[idx] = NULL;
 }
 
 unsigned TCGLLVMContextPrivate::getValueBits(int idx)
 {
+    assert(idx >= 0 && idx < TCG_MAX_TEMPS);
+
     switch (m_tcgContext->temps[idx].type) {
         case TCG_TYPE_I32: return 32;
         case TCG_TYPE_I64: return 64;
@@ -501,28 +501,34 @@ unsigned TCGLLVMContextPrivate::getValueBits(int idx)
     return 0;
 }
 
-Value* TCGLLVMContextPrivate::getValue(int idx)
+Value* TCGLLVMContextPrivate::getValue(TCGArg arg)
 {
-    if(m_values[idx] == NULL) {
-        if(idx < m_tcgContext->nb_globals) {
-#ifdef STATIC_TRANSLATOR
-            if (idx == 0) {
-                return m_builder.CreatePtrToInt(m_cpuState, wordType());
-            }
-#endif
+    int idx = temp_idx(arg_temp(arg));
+    assert(idx >= 0 && idx < TCG_MAX_TEMPS);
 
-            m_values[idx] = m_builder.CreateLoad(getPtrForValue(idx)
-#ifndef NDEBUG
-                    , StringRef(m_tcgContext->temps[idx].name) + "_v"
-#endif
-                    );
-        } else if(m_tcgContext->temps[idx].temp_local) {
+    const TCGTemp &temp = m_tcgContext->temps[idx];
+
+    if (m_values[idx] == NULL) {
+        if (temp.temp_global) {
+            assert(idx < m_tcgContext->nb_globals);
+            if (temp.fixed_reg) {
+                assert(idx == 0);
+                Value *v = &*m_tbFunction->arg_begin();
+                m_values[idx] = m_builder.CreatePtrToInt(
+                    v, tcgType(temp.type),
+                    StringRef(temp.name) + "_v"
+                );
+            } else {
+                m_values[idx] = m_builder.CreateLoad(
+                    getPtrForValue(idx),
+                    StringRef(temp.name) + "_v"
+                );
+            }
+        } else if (temp.temp_local) {
             m_values[idx] = m_builder.CreateLoad(getPtrForValue(idx));
-#ifndef NDEBUG
             std::ostringstream name;
             name << "loc" << (idx - m_tcgContext->nb_globals) << "_v";
             m_values[idx]->setName(name.str());
-#endif
         } else {
             // Temp value was not previousely assigned
             assert(false); // XXX: or return zero constant ?
@@ -536,16 +542,20 @@ Value* TCGLLVMContextPrivate::getValue(int idx)
 #endif
 }
 
-void TCGLLVMContextPrivate::setValue(int idx, Value *v)
+void TCGLLVMContextPrivate::setValue(TCGArg arg, Value *v)
 {
+    int idx = temp_idx(arg_temp(arg));
+    assert(idx >= 0 && idx < TCG_MAX_TEMPS);
+
     delValue(idx);
     m_values[idx] = v;
 
-    if(!v->hasName() && !isa<Constant>(v)) {
-#ifndef NDEBUG
-        if(idx < m_tcgContext->nb_globals)
-            v->setName(StringRef(m_tcgContext->temps[idx].name) + "_v");
-        if(m_tcgContext->temps[idx].temp_local) {
+    const TCGTemp *tmp = &m_tcgContext->temps[idx];
+
+    if (!v->hasName() && !isa<Constant>(v)) {
+        if (tmp->temp_global) {
+            v->setName(StringRef(tmp->name) + "_v");
+        } else if (tmp->temp_local) {
             std::ostringstream name;
             name << "loc" << (idx - m_tcgContext->nb_globals) << "_v";
             v->setName(name.str());
@@ -554,26 +564,31 @@ void TCGLLVMContextPrivate::setValue(int idx, Value *v)
             name << "tmp" << (idx - m_tcgContext->nb_globals) << "_v";
             v->setName(name.str());
         }
-#endif
     }
 
-    if(idx < m_tcgContext->nb_globals) {
+    if (tmp->temp_global) {
+        assert(idx < m_tcgContext->nb_globals);
         // We need to save a global copy of a value
         m_builder.CreateStore(v, getPtrForValue(idx));
 
-        if(m_tcgContext->temps[idx].fixed_reg) {
+        if (tmp->fixed_reg) {
             /* Invalidate all dependent global vals and pointers */
-            for(int i=0; i<m_tcgContext->nb_globals; ++i) {
-                if(i != idx && !m_tcgContext->temps[idx].fixed_reg &&
+            assert(false);
+            for (int i = 0; i < m_tcgContext->nb_globals; ++i) {
+                if (i != idx && !tmp->fixed_reg &&
                                     m_globalsIdx[i] == idx) {
                     delValue(i);
                     delPtrForValue(i);
                 }
             }
         }
-    } else if(m_tcgContext->temps[idx].temp_local) {
+    } else if (tmp->temp_local) {
         // We need to save an in-memory copy of a value
         m_builder.CreateStore(v, getPtrForValue(idx));
+    } else {
+        // We don't need to save the temp value anywhere, it will be
+        // dead at the end of the basic block. We just keep it in m_values
+        // in case some other instruction references it.
     }
 }
 
@@ -582,12 +597,14 @@ void TCGLLVMContextPrivate::initGlobalsAndLocalTemps()
     TCGContext *s = m_tcgContext;
 
     int reg_to_idx[TCG_TARGET_NB_REGS];
-    for(int i=0; i<TCG_TARGET_NB_REGS; ++i)
+
+    for (int i=0; i < TCG_TARGET_NB_REGS; ++i) {
         reg_to_idx[i] = -1;
+    }
 
     int argNumber = 0;
-    for(int i=0; i<s->nb_globals; ++i) {
-        if(s->temps[i].fixed_reg) {
+    for (int i=0; i < s->nb_globals; ++i) {
+        if (s->temps[i].fixed_reg) {
             // This global is in fixed host register. We are
             // mapping such registers to function arguments
             m_globalsIdx[i] = argNumber++;
@@ -596,21 +613,21 @@ void TCGLLVMContextPrivate::initGlobalsAndLocalTemps()
         } else {
             // This global is in memory at (mem_reg + mem_offset).
             // Base value is not known yet, so just store mem_reg
-            m_globalsIdx[i] = s->temps[i].mem_reg;
+            m_globalsIdx[i] = s->temps[i].mem_base->reg;
         }
     }
 
     // Map mem_reg to index for memory-based globals
-    for(int i=0; i<s->nb_globals; ++i) {
-        if(!s->temps[i].fixed_reg) {
+    for (int i = 0; i < s->nb_globals; ++i) {
+        if (!s->temps[i].fixed_reg) {
             assert(reg_to_idx[m_globalsIdx[i]] >= 0);
             m_globalsIdx[i] = reg_to_idx[m_globalsIdx[i]];
         }
     }
 
     // Allocate local temps
-    for(int i=s->nb_globals; i<TCG_MAX_TEMPS; ++i) {
-        if(s->temps[i].temp_local) {
+    for (int i = s->nb_globals; i < TCG_MAX_TEMPS; ++i) {
+        if (s->temps[i].temp_local) {
             std::ostringstream pName;
             pName << "loc_" << (i - s->nb_globals) << "ptr";
             m_memValuesPtr[i] = m_builder.CreateAlloca(
@@ -621,11 +638,8 @@ void TCGLLVMContextPrivate::initGlobalsAndLocalTemps()
 
 void TCGLLVMContextPrivate::loadNativeCpuState(Function *f)
 {
-#ifdef STATIC_TRANSLATOR
     m_cpuState = &*(f->arg_begin());
-#else
-    m_cpuState = m_builder.CreateIntToPtr(getValue(0), m_cpuType->getPointerTo(), "state");
-#endif
+
     /* Reinitialize left overs */
     m_eip = NULL;
     m_ccop = NULL;
@@ -633,51 +647,51 @@ void TCGLLVMContextPrivate::loadNativeCpuState(Function *f)
     m_ccop = generateCpuStatePtr(m_tcgContext->env_offset_ccop, m_tcgContext->env_sizeof_ccop);
 }
 
-inline BasicBlock* TCGLLVMContextPrivate::getLabel(int idx)
+BasicBlock* TCGLLVMContextPrivate::getLabel(TCGArg i)
 {
-    if(!m_labels[idx]) {
-        std::ostringstream bbName;
-        bbName << "label_" << idx;
-        m_labels[idx] = BasicBlock::Create(m_context, bbName.str());
-    }
-    return m_labels[idx];
-}
+    TCGLabel *label = arg_label(i);
 
-inline void TCGLLVMContextPrivate::delLabel(int idx)
-{
-    /* XXX
-    if(m_labels[idx] && m_labels[idx]->use_empty() &&
-            !m_labels[idx]->getParent())
-        delete m_labels[idx];
-    */
-    m_labels[idx] = NULL;
+    auto it = m_labels.find(label);
+    if (it != m_labels.end()) {
+        return it->second;
+    }
+
+    std::ostringstream bbName;
+    bbName << "label_" << label->id;
+    auto bb = BasicBlock::Create(m_context, bbName.str());
+    m_labels[label] = bb;
+    return bb;
 }
 
 void TCGLLVMContextPrivate::startNewBasicBlock(BasicBlock *bb)
 {
-    if(!bb)
+    if (!bb) {
         bb = BasicBlock::Create(m_context);
-    else
+    } else {
         assert(bb->getParent() == 0);
+    }
 
-    if(!m_builder.GetInsertBlock()->getTerminator())
+    if (!m_builder.GetInsertBlock()->getTerminator()) {
         m_builder.CreateBr(bb);
+    }
 
     m_tbFunction->getBasicBlockList().push_back(bb);
     m_builder.SetInsertPoint(bb);
 
     /* Invalidate all temps */
-    for(int i=0; i<TCG_MAX_TEMPS; ++i)
+    for (int i = 0; i < TCG_MAX_TEMPS; ++i) {
         delValue(i);
+    }
 
     /* Invalidate all pointers to globals */
-    for(int i=0; i<m_tcgContext->nb_globals; ++i)
+    for(int i = 0; i < m_tcgContext->nb_globals; ++i) {
         delPtrForValue(i);
+    }
 
     m_registers.clear();
 }
 
-inline Value* TCGLLVMContextPrivate::generateCpuStatePtr(TCGArg registerOffset, unsigned sizeInBytes)
+Value* TCGLLVMContextPrivate::generateCpuStatePtr(uint64_t registerOffset, unsigned sizeInBytes)
 {
 #if defined(USE_GEPS)
     SmallVector<Value*, 3> gepElements;
@@ -737,8 +751,7 @@ inline Value* TCGLLVMContextPrivate::generateCpuStatePtr(TCGArg registerOffset, 
 #endif
 }
 
-inline void TCGLLVMContextPrivate::generateQemuCpuLoad(const TCGArg *args, unsigned memBits, unsigned regBits, bool signExtend)
-{
+void TCGLLVMContextPrivate::generateQemuCpuLoad(const TCGArg *args, unsigned memBits, unsigned regBits, bool signExtend) {
     assert(getValue(args[1])->getType() == wordType());
     assert(memBits <= regBits);
     Value *gep = generateCpuStatePtr(args[2], memBits / 8);
@@ -761,15 +774,22 @@ inline void TCGLLVMContextPrivate::generateQemuCpuLoad(const TCGArg *args, unsig
     }
 }
 
-inline void TCGLLVMContextPrivate::generateQemuCpuStore(const TCGArg *args, unsigned memBits, Value *valueToStore)
+void TCGLLVMContextPrivate::generateQemuCpuStore(const TCGArg *args, unsigned memBits, Value *valueToStore)
 {
-    Value *gep = generateCpuStatePtr(args[2], memBits / 8);
+    TCGArg env = args[1];
+    tcg_target_ulong offset = args[2];
+
+    if (memBits == TARGET_LONG_BITS && offset == m_tcgContext->env_offset_eip) {
+        valueToStore = handleSymbolicPcAssignment(valueToStore);
+    }
+
+    Value *gep = generateCpuStatePtr(offset, memBits / 8);
     Value *v = NULL;
     if (gep) {
         v = m_builder.CreatePointerCast(gep, intType(memBits)->getPointerTo());
     } else {
-        v = m_builder.CreateAdd(getValue(args[1]),
-                    ConstantInt::get(wordType(), args[2]));
+        v = m_builder.CreateAdd(getValue(env),
+                    ConstantInt::get(wordType(), offset));
         v = m_builder.CreateIntToPtr(v, intPtrType(memBits));
     }
 
@@ -785,37 +805,44 @@ inline void TCGLLVMContextPrivate::generateQemuCpuStore(const TCGArg *args, unsi
 #endif
 }
 
-#if 0
-    v = m_builder.CreateAdd(getValue(args[1]),                  \
-                ConstantInt::get(wordType(), args[2]));         \
-    v = m_builder.CreateIntToPtr(v, intPtrType(memBits));       \
-    m_builder.CreateStore(m_builder.CreateTrunc(                \
-            valueToStore, intType(memBits)), v);           \
 
-#endif
-
-
-
-inline Value* TCGLLVMContextPrivate::generateQemuMemOp(bool ld,
+Value* TCGLLVMContextPrivate::generateQemuMemOp(bool ld,
         Value *value, Value *addr, int mem_index, int bits)
 {
     assert(addr->getType() == intType(TARGET_LONG_BITS));
     assert(ld || value->getType() == intType(bits));
     assert(TCG_TARGET_REG_BITS == 64); //XXX
+    TCGMemOp memop = get_memop(mem_index);
+    unsigned helper_size = memop & MO_SIZE;
 
 #ifdef CONFIG_SOFTMMU
-
 #if defined(CONFIG_SYMBEX)
-    if(ld) {
-        return attachCurrentPc(m_builder.CreateCall(m_qemu_ld_helpers[bits>>4],
-                    {addr, ConstantInt::get(intType(8*sizeof(int)), mem_index)}));
+    auto retAddr = Constant::getNullValue(intPtrType(8));
+
+    if (ld) {
+        Value *v = attachCurrentPc(m_builder.CreateCall(m_qemu_ld_helpers[helper_size],
+                    {m_cpuState, addr, ConstantInt::get(intType(8*sizeof(int)), mem_index), retAddr}));
+
+        if (memop & MO_SIGN) {
+            v = m_builder.CreateSExt(v, intType(bits));
+        } else {
+            v = m_builder.CreateZExt(v, intType(bits));
+        }
+
+        return v;
     } else {
-        attachCurrentPc(m_builder.CreateCall(m_qemu_st_helpers[bits>>4],
-                    {addr, value, ConstantInt::get(intType(8*sizeof(int)), mem_index)}));
+        auto new_bits = (1 << helper_size) * 8;
+        if (new_bits < bits) {
+            value = m_builder.CreateTrunc(value, intType(new_bits));
+        }
+
+        attachCurrentPc(m_builder.CreateCall(m_qemu_st_helpers[helper_size],
+                    {m_cpuState, addr, value, ConstantInt::get(intType(8*sizeof(int)), mem_index), retAddr}));
         return NULL;
     }
 #endif
 #else // CONFIG_SOFTMMU
+    abort();
     addr = m_builder.CreateZExt(addr, wordType());
     addr = m_builder.CreateAdd(addr,
         ConstantInt::get(wordType(), GUEST_BASE));
@@ -829,58 +856,34 @@ inline Value* TCGLLVMContextPrivate::generateQemuMemOp(bool ld,
 #endif // CONFIG_SOFTMMU
 }
 
-void TCGLLVMContextPrivate::generateTraceCall(uintptr_t pc)
-{
-#ifdef CONFIG_SYMBEX
-#if 0
-    if (pc == 0x000f56e7 || pc == 0x000f52ff || pc == 0xf530c) {
-         m_builder.CreateCall(m_helperTraceInstruction);
-    }
-#endif
-#endif
-}
-
-int TCGLLVMContextPrivate::generateOperation(int opc, const TCGArg *args)
+int TCGLLVMContextPrivate::generateOperation(const TCGOp *op)
 {
     Value *v = NULL;
-    TCGOpDef &def = tcg_op_defs[opc];
+    const TCGOpDef &def = tcg_op_defs[op->opc];
     int nb_args = def.nb_args;
 
-    switch(opc) {
-    case INDEX_op_debug_insn_start:
-        break;
-
-    /* predefined ops */
-    case INDEX_op_nop:
-    case INDEX_op_nop1:
-    case INDEX_op_nop2:
-    case INDEX_op_nop3:
-        break;
-
-    case INDEX_op_nopn:
-        nb_args = args[0];
+    switch(op->opc) {
+    case INDEX_op_insn_start:
         break;
 
     case INDEX_op_discard:
-        delValue(args[0]);
+        delValue(temp_idx(arg_temp(op->args[0])));
         break;
 
     case INDEX_op_call:
         {
-            int nb_oargs = args[0] >> 16;
-            int nb_iargs = args[0] & 0xffff;
-            nb_args = nb_oargs + nb_iargs + def.nb_cargs + 1;
+            int nb_oargs = TCGOP_CALLO(op);
+            int nb_iargs = TCGOP_CALLI(op);
+            int nb_cargs = def.nb_cargs;
 
-            //int flags = args[nb_oargs + nb_iargs + 1];
-            //assert((flags & TCG_CALL_TYPE_MASK) == TCG_CALL_TYPE_STD);
+            nb_args = nb_oargs + nb_iargs + nb_cargs + 1;
 
             std::vector<Value*> argValues;
             std::vector<Type*> argTypes;
-            argValues.reserve(nb_iargs-1);
-            argTypes.reserve(nb_iargs-1);
-            for(int i=0; i < nb_iargs-1; ++i) {
-                TCGArg arg = args[nb_oargs + i + 1];
-                if(arg != TCG_CALL_DUMMY_ARG) {
+
+            for (int i = 0; i < nb_iargs; ++i) {
+                TCGArg arg = op->args[nb_oargs + i];
+                if (arg != TCG_CALL_DUMMY_ARG) {
                     Value *v = getValue(arg);
                     argValues.push_back(v);
                     argTypes.push_back(v->getType());
@@ -888,41 +891,43 @@ int TCGLLVMContextPrivate::generateOperation(int opc, const TCGArg *args)
             }
 
             assert(nb_oargs == 0 || nb_oargs == 1);
-            Type* retType = nb_oargs == 0 ?
-                Type::getVoidTy(m_context) : wordType(getValueBits(args[1]));
 
-            Value* helperAddr = getValue(args[nb_oargs + nb_iargs]);
-            Value* result;
+            Type* retType;
+            if (nb_oargs == 0) {
+                retType = Type::getVoidTy(m_context);
+            } else {
+                int retIdx = temp_idx(arg_temp(op->args[0]));
+                retType = wordType(getValueBits(retIdx));
+            }
 
-            //Generate this in S2E mode
-            tcg_target_ulong helperAddrC = (tcg_target_ulong)
-                   cast<ConstantInt>(helperAddr)->getZExtValue();
-            assert(helperAddrC);
+            tcg_target_ulong helperAddress = op->args[nb_oargs + nb_iargs];
+            assert(helperAddress);
 
             const char *helperName = tcg_helper_get_name(m_tcgContext,
-                                                         (void*) helperAddrC);
+                                                         (void*) helperAddress);
             assert(helperName);
 
             std::string funcName = std::string("helper_") + helperName;
             Function* helperFunc = m_module->getFunction(funcName);
+
 #ifndef STATIC_TRANSLATOR
             if(!helperFunc) {
                 helperFunc = Function::Create(
                         FunctionType::get(retType, argTypes, false),
                         Function::ExternalLinkage, funcName, m_module);
                 /* XXX: Why do we need this ? */
-                sys::DynamicLibrary::AddSymbol(funcName, (void*) helperAddrC);
+                sys::DynamicLibrary::AddSymbol(funcName, (void*) helperAddress);
             }
 #endif
 
             FunctionType *FTy =
                cast<FunctionType>(cast<PointerType>(helperFunc->getType())->getElementType());
+
             /**
              * Cast arguments to target function type.
              * Types may differ, e.g., when calling mmx functions.
              * XXX: why didn't this crash in S2E mode?
              */
-
             for (unsigned i = 0; i < FTy->getNumParams(); ++i) {
                 if (FTy->getParamType(i) != argTypes[i]) {
                     if (FTy->getParamType(i)->isPointerTy()) {
@@ -934,44 +939,47 @@ int TCGLLVMContextPrivate::generateOperation(int opc, const TCGArg *args)
                 }
             }
 
-            result = m_builder.CreateCall(helperFunc,
+            Value *result = m_builder.CreateCall(helperFunc,
                                           ArrayRef<Value*>(argValues));
 
 
-            /* Invalidate in-memory values because
-             * function might have changed them */
-            for(int i=0; i<m_tcgContext->nb_globals; ++i)
+            for (int i = 0; i < m_tcgContext->nb_globals; ++i) {
+                // Invalidate in-memory values because
+                // function might have changed them
                 delValue(i);
 
-            for(int i=m_tcgContext->nb_globals; i<TCG_MAX_TEMPS; ++i)
-                if(m_tcgContext->temps[i].temp_local)
-                    delValue(i);
-
-            /* Invalidate all pointers to globals */
-            for(int i=0; i<m_tcgContext->nb_globals; ++i)
+                // Invalidate all pointers to globals
                 delPtrForValue(i);
+            }
 
-            if(nb_oargs == 1)
-                setValue(args[1], result);
+            for (int i = m_tcgContext->nb_globals; i < TCG_MAX_TEMPS; ++i) {
+                if (m_tcgContext->temps[i].temp_local) {
+                    delValue(i);
+                }
+            }
+
+            if (nb_oargs == 1) {
+                setValue(op->args[0], result);
+            }
         }
         break;
 
     case INDEX_op_br:
-        m_builder.CreateBr(getLabel(args[0]));
+        m_builder.CreateBr(getLabel(op->args[0]));
         startNewBasicBlock();
         break;
 
 #define __OP_BRCOND_C(tcg_cond, cond)                               \
             case tcg_cond:                                          \
                 v = m_builder.CreateICmp ## cond(                   \
-                        getValue(args[0]), getValue(args[1]));      \
+                        getValue(op->args[0]), getValue(op->args[1]));      \
             break;
 
 #define __OP_BRCOND(opc_name, bits)                                 \
     case opc_name: {                                                \
-        assert(getValue(args[0])->getType() == intType(bits));      \
-        assert(getValue(args[1])->getType() == intType(bits));      \
-        switch(args[2]) {                                           \
+        assert(getValue(op->args[0])->getType() == intType(bits));      \
+        assert(getValue(op->args[1])->getType() == intType(bits));      \
+        switch(op->args[2]) {                                           \
             __OP_BRCOND_C(TCG_COND_EQ,   EQ)                        \
             __OP_BRCOND_C(TCG_COND_NE,   NE)                        \
             __OP_BRCOND_C(TCG_COND_LT,  SLT)                        \
@@ -986,7 +994,7 @@ int TCGLLVMContextPrivate::generateOperation(int opc, const TCGArg *args)
                 tcg_abort();                                        \
         }                                                           \
         BasicBlock* bb = BasicBlock::Create(m_context);             \
-        m_builder.CreateCondBr(v, getLabel(args[3]), bb);           \
+        m_builder.CreateCondBr(v, getLabel(op->args[3]), bb);           \
         startNewBasicBlock(bb);                                     \
     } break;
 
@@ -999,31 +1007,31 @@ int TCGLLVMContextPrivate::generateOperation(int opc, const TCGArg *args)
 #undef __OP_BRCOND_C
 #undef __OP_BRCOND
 
-    case INDEX_op_set_label:
-        assert(getLabel(args[0])->getParent() == 0);
-        startNewBasicBlock(getLabel(args[0]));
-        break;
+    case INDEX_op_set_label: {
+        assert(getLabel(op->args[0])->getParent() == 0);
+        startNewBasicBlock(getLabel(op->args[0]));
+    } break;
 
     case INDEX_op_movi_i32:
-        setValue(args[0], ConstantInt::get(intType(32), args[1]));
+        setValue(op->args[0], ConstantInt::get(intType(32), op->args[1]));
         break;
 
     case INDEX_op_mov_i32:
         // Move operation may perform truncation of the value
-        assert(getValue(args[1])->getType() == intType(32) ||
-                getValue(args[1])->getType() == intType(64));
-        setValue(args[0],
-                m_builder.CreateTrunc(getValue(args[1]), intType(32)));
+        assert(getValue(op->args[1])->getType() == intType(32) ||
+                getValue(op->args[1])->getType() == intType(64));
+        setValue(op->args[0],
+                m_builder.CreateTrunc(getValue(op->args[1]), intType(32)));
         break;
 
 #if TCG_TARGET_REG_BITS == 64
     case INDEX_op_movi_i64:
-        setValue(args[0], ConstantInt::get(intType(64), args[1]));
+        setValue(op->args[0], ConstantInt::get(intType(64), op->args[1]));
         break;
 
     case INDEX_op_mov_i64:
-        assert(getValue(args[1])->getType() == intType(64));
-        setValue(args[0], getValue(args[1]));
+        assert(getValue(op->args[1])->getType() == intType(64));
+        setValue(op->args[0], getValue(op->args[1]));
         break;
 #endif
 
@@ -1031,12 +1039,12 @@ int TCGLLVMContextPrivate::generateOperation(int opc, const TCGArg *args)
 #define __EXT_OP(opc_name, truncBits, opBits, signE )               \
     case opc_name:                                                  \
         /*                                                          \
-        assert(getValue(args[1])->getType() == intType(opBits) ||   \
-               getValue(args[1])->getType() == intType(truncBits)); \
+        assert(getValue(op->args[1])->getType() == intType(opBits) ||   \
+               getValue(op->args[1])->getType() == intType(truncBits)); \
         */                                                          \
-        setValue(args[0], m_builder.Create ## signE ## Ext(         \
+        setValue(op->args[0], m_builder.Create ## signE ## Ext(         \
                 m_builder.CreateTrunc(                              \
-                    getValue(args[1]), intType(truncBits)),         \
+                    getValue(op->args[1]), intType(truncBits)),         \
                 intType(opBits)));                                  \
         break;
 
@@ -1050,8 +1058,13 @@ int TCGLLVMContextPrivate::generateOperation(int opc, const TCGArg *args)
     __EXT_OP(INDEX_op_ext8u_i64,   8, 64, Z)
     __EXT_OP(INDEX_op_ext16s_i64, 16, 64, S)
     __EXT_OP(INDEX_op_ext16u_i64, 16, 64, Z)
+
+    __EXT_OP(INDEX_op_ext_i32_i64, 32, 64, S)
     __EXT_OP(INDEX_op_ext32s_i64, 32, 64, S)
+
+    __EXT_OP(INDEX_op_extu_i32_i64, 32, 64, Z)
     __EXT_OP(INDEX_op_ext32u_i64, 32, 64, Z)
+    __EXT_OP(INDEX_op_extrl_i64_i32, 32, 64, Z)
 #endif
 
 #undef __EXT_OP
@@ -1060,34 +1073,28 @@ int TCGLLVMContextPrivate::generateOperation(int opc, const TCGArg *args)
     /* load/store */
 #define __LD_OP(opc_name, memBits, regBits, signE)                  \
     case opc_name:                                                  \
-        assert(getValue(args[1])->getType() == wordType());         \
-        v = m_builder.CreateAdd(getValue(args[1]),                  \
+        assert(getValue(op->args[1])->getType() == wordType());         \
+        v = m_builder.CreateAdd(getValue(op->args[1]),                  \
                     ConstantInt::get(wordType(), args[2]));         \
         v = m_builder.CreateIntToPtr(v, intPtrType(memBits));       \
         v = m_builder.CreateLoad(v);                                \
-        setValue(args[0], m_builder.Create ## signE ## Ext(         \
+        setValue(op->args[0], m_builder.Create ## signE ## Ext(         \
                     v, intType(regBits)));                          \
         break;
 #endif
 
 #define __LD_OP(opc_name, memBits, regBits, signE) \
     case opc_name: \
-        generateQemuCpuLoad(args, memBits, regBits, signE == 'S'); \
+        generateQemuCpuLoad(op->args, memBits, regBits, signE == 'S'); \
         break;
 
 #define __ST_OP(opc_name, memBits, regBits)                         \
     case opc_name:  {                                               \
-        assert(getValue(args[0])->getType() == intType(regBits));   \
-        assert(getValue(args[1])->getType() == wordType());         \
-        Value* valueToStore = getValue(args[0]);                    \
+        assert(getValue(op->args[0])->getType() == intType(regBits));   \
+        assert(getValue(op->args[1])->getType() == wordType());         \
+        Value* valueToStore = getValue(op->args[0]);                    \
                                                                     \
-        if (TARGET_LONG_BITS == memBits                             \
-            && args[1] == 0                                         \
-            && args[2] == m_tcgContext->env_offset_eip) {           \
-            valueToStore = handleSymbolicPcAssignment(valueToStore);\
-        }                                                           \
-                                                                    \
-        generateQemuCpuStore(args, memBits, valueToStore);          \
+        generateQemuCpuStore(op->args, memBits, valueToStore);          \
     } break;
 
     __LD_OP(INDEX_op_ld8u_i32,   8, 32, 'Z')
@@ -1119,66 +1126,66 @@ int TCGLLVMContextPrivate::generateOperation(int opc, const TCGArg *args)
 #undef __ST_OP
 
     /* arith */
-#define __ARITH_OP(opc_name, op, bits)                              \
+#define __ARITH_OP(opc_name, op1, bits)                              \
     case opc_name: {                                                \
-        Value *v1 = getValue(args[1]);                              \
-        Value *v2 = getValue(args[2]);                              \
+        Value *v1 = getValue(op->args[1]);                              \
+        Value *v2 = getValue(op->args[2]);                              \
         adjustTypeSize(bits, &v1, &v2);                             \
         assert(v1->getType() == intType(bits));                     \
         assert(v2->getType() == intType(bits));                     \
-        setValue(args[0], m_builder.Create ## op(v1, v2));          \
+        setValue(op->args[0], m_builder.Create ## op1(v1, v2));          \
     } break;
 
 #define __ARITH_OP_DIV2(opc_name, signE, bits)                      \
     case opc_name:                                                  \
-        assert(getValue(args[2])->getType() == intType(bits));      \
-        assert(getValue(args[3])->getType() == intType(bits));      \
-        assert(getValue(args[4])->getType() == intType(bits));      \
+        assert(getValue(op->args[2])->getType() == intType(bits));      \
+        assert(getValue(op->args[3])->getType() == intType(bits));      \
+        assert(getValue(op->args[4])->getType() == intType(bits));      \
         v = m_builder.CreateShl(                                    \
                 m_builder.CreateZExt(                               \
-                    getValue(args[3]), intType(bits*2)),            \
+                    getValue(op->args[3]), intType(bits*2)),            \
                 m_builder.CreateZExt(                               \
                     ConstantInt::get(intType(bits), bits),          \
                     intType(bits*2)));                              \
         v = m_builder.CreateOr(v,                                   \
                 m_builder.CreateZExt(                               \
-                    getValue(args[2]), intType(bits*2)));           \
-        setValue(args[0], m_builder.Create ## signE ## Div(         \
-                v, getValue(args[4])));                             \
-        setValue(args[1], m_builder.Create ## signE ## Rem(         \
-                v, getValue(args[4])));                             \
+                    getValue(op->args[2]), intType(bits*2)));           \
+        setValue(op->args[0], m_builder.Create ## signE ## Div(         \
+                v, getValue(op->args[4])));                             \
+        setValue(op->args[1], m_builder.Create ## signE ## Rem(         \
+                v, getValue(op->args[4])));                             \
         break;
 
 #define __ARITH_OP_ROT(opc_name, op1, op2, bits)                    \
     case opc_name:                                                  \
-        assert(getValue(args[1])->getType() == intType(bits));      \
-        assert(getValue(args[2])->getType() == intType(bits));      \
+        assert(getValue(op->args[1])->getType() == intType(bits));      \
+        assert(getValue(op->args[2])->getType() == intType(bits));      \
         v = m_builder.CreateSub(                                    \
                 ConstantInt::get(intType(bits), bits),              \
-                getValue(args[2]));                                 \
-        setValue(args[0], m_builder.CreateOr(                       \
+                getValue(op->args[2]));                                 \
+        setValue(op->args[0], m_builder.CreateOr(                       \
                 m_builder.Create ## op1 (                           \
-                    getValue(args[1]), getValue(args[2])),          \
+                    getValue(op->args[1]), getValue(op->args[2])),          \
                 m_builder.Create ## op2 (                           \
-                    getValue(args[1]), v)));                        \
+                    getValue(op->args[1]), v)));                        \
         break;
 
-#define __ARITH_OP_I(opc_name, op, i, bits)                         \
+#define __ARITH_OP_I(opc_name, op1, i, bits)                         \
     case opc_name:                                                  \
-        assert(getValue(args[1])->getType() == intType(bits));      \
-        setValue(args[0], m_builder.Create ## op(                   \
+        assert(getValue(op->args[1])->getType() == intType(bits));      \
+        setValue(op->args[0], m_builder.Create ## op1(                   \
                     ConstantInt::get(intType(bits), i),             \
-                    getValue(args[1])));                            \
+                    getValue(op->args[1])));                            \
         break;
 
 #define __ARITH_OP_BSWAP(opc_name, sBits, bits)                     \
     case opc_name: {                                                \
-        assert(getValue(args[1])->getType() == intType(bits));      \
+        assert(getValue(op->args[1])->getType() == intType(bits));      \
         Type* Tys[] = { intType(sBits) };                     \
         Function *bswap = Intrinsic::getDeclaration(m_module,       \
                 Intrinsic::bswap, ArrayRef<Type*>(Tys,1));                          \
-        v = m_builder.CreateTrunc(getValue(args[1]),intType(sBits));\
-        setValue(args[0], m_builder.CreateZExt(                     \
+        v = m_builder.CreateTrunc(getValue(op->args[1]),intType(sBits));\
+        setValue(op->args[0], m_builder.CreateZExt(                     \
                 m_builder.CreateCall(bswap, v), intType(bits)));    \
         } break;
 
@@ -1261,59 +1268,41 @@ int TCGLLVMContextPrivate::generateOperation(int opc, const TCGArg *args)
     case opc_name:                                                  \
         generateQemuMemOp(false,                                    \
             m_builder.CreateIntCast(                                \
-                getValue(args[0]), intType(bits), false),           \
-            getValue(args[1]), args[2], bits);                      \
+                getValue(op->args[0]), intType(bits), false),           \
+            getValue(op->args[1]), op->args[2], bits);                      \
         break;
 
 
-#define __OP_QEMU_LD(opc_name, bits, signE)                         \
+#define __OP_QEMU_LD(opc_name, bits)                         \
     case opc_name:                                                  \
         v = generateQemuMemOp(true, NULL,                           \
-            getValue(args[1]), args[2], bits);                      \
-        setValue(args[0], m_builder.Create ## signE ## Ext(         \
-            v, intType(std::max(TARGET_LONG_BITS, bits))));         \
+            getValue(op->args[1]), op->args[2], bits);                      \
+        setValue(op->args[0], v);         \
         break;
 
-#define __OP_QEMU_LDD(opc_name, bits)                               \
-    case opc_name:                                                  \
-        v = generateQemuMemOp(true, NULL,                           \
-            getValue(args[1]), args[2], bits);                      \
-        setValue(args[0], v);         \
-        break;
+    __OP_QEMU_ST(INDEX_op_qemu_st_i32, 32)
+    __OP_QEMU_ST(INDEX_op_qemu_st_i64, 64)
 
-    __OP_QEMU_ST(INDEX_op_qemu_st8,   8)
-    __OP_QEMU_ST(INDEX_op_qemu_st16, 16)
-    __OP_QEMU_ST(INDEX_op_qemu_st32, 32)
-    __OP_QEMU_ST(INDEX_op_qemu_st64, 64)
-
-    __OP_QEMU_LD(INDEX_op_qemu_ld8s,   8, S)
-    __OP_QEMU_LD(INDEX_op_qemu_ld8u,   8, Z)
-    __OP_QEMU_LD(INDEX_op_qemu_ld16s, 16, S)
-    __OP_QEMU_LD(INDEX_op_qemu_ld16u, 16, Z)
-    __OP_QEMU_LD(INDEX_op_qemu_ld32s, 32, S)
-    __OP_QEMU_LD(INDEX_op_qemu_ld32u, 32, Z)
-    __OP_QEMU_LD(INDEX_op_qemu_ld64,  64, Z)
-
-    __OP_QEMU_LDD(INDEX_op_qemu_ld32, 32)
+    __OP_QEMU_LD(INDEX_op_qemu_ld_i32, 32)
+    __OP_QEMU_LD(INDEX_op_qemu_ld_i64, 64)
 
 #undef __OP_QEMU_LD
 #undef __OP_QEMU_ST
-#undef __OP_QEMU_LDD
 
 #endif
 
     case INDEX_op_exit_tb: {
 #ifdef STATIC_TRANSLATOR
-        ReturnInst *ret = m_builder.CreateRet(ConstantInt::get(wordType(), args[0]));
+        ReturnInst *ret = m_builder.CreateRet(ConstantInt::get(wordType(), op->args[0]));
         m_info.returnInstructions.push_back(ret);
 #else
-        m_builder.CreateRet(ConstantInt::get(wordType(), args[0]));
+        m_builder.CreateRet(ConstantInt::get(wordType(), op->args[0]));
 #endif
     } break;
 
     case INDEX_op_goto_tb:
 #if defined(CONFIG_SYMBEX) && !defined(STATIC_TRANSLATOR)
-        m_builder.CreateStore(ConstantInt::get(intType(8), args[0]),
+        m_builder.CreateStore(ConstantInt::get(intType(8), op->args[0]),
                 m_builder.CreateIntToPtr(ConstantInt::get(wordType(),
                     (uint64_t) &tcg_llvm_runtime.goto_tb),
                 intPtrType(8)));
@@ -1323,20 +1312,20 @@ int TCGLLVMContextPrivate::generateOperation(int opc, const TCGArg *args)
 
     case INDEX_op_deposit_i32: {
         //llvm::errs() << *m_tbFunction << "\n";
-        Value *arg1 = getValue(args[1]);
+        Value *arg1 = getValue(op->args[1]);
         //llvm::errs() << "arg1=" << *arg1 << "\n";
         //arg1 = m_builder.CreateTrunc(arg1, intType(32));
 
 
-        Value *arg2 = getValue(args[2]);
+        Value *arg2 = getValue(op->args[2]);
         //llvm::errs() << "arg2=" << *arg2 << "\n";
         arg2 = m_builder.CreateTrunc(arg2, intType(32));
 
-        uint32_t ofs = args[3];
-        uint32_t len = args[4];
+        uint32_t ofs = op->args[3];
+        uint32_t len = op->args[4];
 
         if (ofs == 0 && len == 32) {
-            setValue(args[0], arg2);
+            setValue(op->args[0], arg2);
             break;
         }
 
@@ -1351,20 +1340,20 @@ int TCGLLVMContextPrivate::generateOperation(int opc, const TCGArg *args)
 
         ret = m_builder.CreateAnd(arg1, APInt(32, ~(mask << ofs)));
         ret = m_builder.CreateOr(ret, t1);
-        setValue(args[0], ret);
+        setValue(op->args[0], ret);
     }
     break;
 #if TCG_TARGET_REG_BITS == 64
     case INDEX_op_deposit_i64: {
-        Value *arg1 = getValue(args[1]);
-        Value *arg2 = getValue(args[2]);
+        Value *arg1 = getValue(op->args[1]);
+        Value *arg2 = getValue(op->args[2]);
         arg2 = m_builder.CreateTrunc(arg2, intType(64));
 
-        uint32_t ofs = args[3];
-        uint32_t len = args[4];
+        uint32_t ofs = op->args[3];
+        uint32_t len = op->args[4];
 
         if (0 == ofs && 64 == len) {
-            setValue(args[0], arg2);
+            setValue(op->args[0], arg2);
             break;
         }
 
@@ -1380,7 +1369,7 @@ int TCGLLVMContextPrivate::generateOperation(int opc, const TCGArg *args)
 
         ret = m_builder.CreateAnd(arg1, APInt(64, ~(mask << ofs)));
         ret = m_builder.CreateOr(ret, t1);
-        setValue(args[0], ret);
+        setValue(op->args[0], ret);
     }
     break;
 #endif
@@ -1406,19 +1395,19 @@ std::string TCGLLVMContextPrivate::generateName()
     std::ostringstream fName;
 
 #ifdef CONFIG_SYMBEX
-    if (m_tcgContext->tb_instrumented) {
+    if (m_tb->instrumented) {
         /* Instrumented TBs cannot be cached or made persistent */
         fName << "tcg-llvm-insttb-" << m_tbCount++ << "-"
-                << std::hex << m_tcgContext->tb_pc;
+                << std::hex << m_tb->pc;
     } else {
         /* Create new function for current translation block */
         /* XXX: compute the checksum of the tb to be fully  */
         fName << "tcg-llvm-tb-" << std::hex
-                << m_tcgContext->tb_pc << '-'
-                << m_tcgContext->tb_size << '-'
+                << m_tb->pc << '-'
+                << m_tb->size << '-'
                 //The size of the generated TB is important to avoid collisions
-                << m_tcgContext->tb_tc_size << '-'
-                << m_tcgContext->tb_cs_base << '-' << m_tcgContext->tb_flags;
+                << m_tb->tc.size << '-'
+                << m_tb->cs_base << '-' << m_tb->flags;
     }
 #else
     fName << "tcg-llvm-insttb-" << m_tbCount++ << "-"
@@ -1436,22 +1425,14 @@ Function *TCGLLVMContextPrivate::createTbFunction(const std::string &name)
             Function::ExternalLinkage, name, m_module);
 }
 
-Function *TCGLLVMContextPrivate::generateCode(TCGContext *s)
+Function *TCGLLVMContextPrivate::generateCode(TCGContext *s, TranslationBlock *tb)
 {
-#ifdef CONFIG_SYMBEX
-    tb_precise_pc_t *p = s->precise_pcs;
-    tb_precise_pc_t *max_p = s->precise_pcs + s->precise_entries;
-
-    //First instruction(s) can be nop, so the first entry's pc
-    //does not always match tb's pc.
-    //assert(p->guest_pc == tb->pc);
-#endif
-
 #ifdef STATIC_TRANSLATOR
     m_info.clear();
 #endif
 
     m_tcgContext = s;
+    m_tb = tb;
 
     std::string name = generateName();
 
@@ -1465,8 +1446,7 @@ Function *TCGLLVMContextPrivate::generateCode(TCGContext *s)
     m_tbFunction = createTbFunction(name);
     m_tbFunction->addFnAttr(Attribute::AlwaysInline);
 
-    BasicBlock *basicBlock = BasicBlock::Create(m_context,
-            "entry", m_tbFunction);
+    BasicBlock *basicBlock = BasicBlock::Create(m_context, "entry", m_tbFunction);
     m_builder.SetInsertPoint(basicBlock);
 
     /* Prepare globals and temps information */
@@ -1477,84 +1457,42 @@ Function *TCGLLVMContextPrivate::generateCode(TCGContext *s)
 #endif
 
     /* Generate code for each opc */
-    const TCGArg *args = gen_opparam_buf;
-    for(int opc_index=0; ;++opc_index) {
-        int opc = gen_opc_buf[opc_index];
+    const TCGOp *op;
+    QTAILQ_FOREACH (op, &s->ops, link) {
+        int opc = op->opc;
 
-        if(opc == INDEX_op_end)
-            break;
+        switch (opc) {
+            #if defined(STATIC_TRANSLATOR)
+            case INDEX_op_insn_start: {
+                m_currentPc = op->args[0] - tb->cs_base;
+            } break;
+            #elif defined(CONFIG_SYMBEX)
+            case INDEX_op_insn_start: {
+                assert(TARGET_INSN_START_WORDS == 2);
+                uint64_t curpc = op->args[0] - tb->cs_base;
+                uint64_t cc_op = op->args[1];
 
-#ifdef STATIC_TRANSLATOR
-        if (p < max_p) {
-            if (p->opc == opc_index) {
-                m_currentPc = m_tcgContext->tb_pc + p->guest_pc_increment - m_tcgContext->tb_cs_base;
-                ++p;
-            }
-        }
-
-
-#elif defined(CONFIG_SYMBEX)
-        if (p < max_p) {
-            if (p->opc == opc_index) {
-                /* Generate precise PC update */
-                uint64_t curpc = m_tcgContext->tb_pc + p->guest_pc_increment - m_tcgContext->tb_cs_base;
                 Value *valueToStore = handleSymbolicPcAssignment(ConstantInt::get(wordType(), curpc));
 
-#if defined(USE_GEPS)
                 TCGArg args[3];
+                args[0] = 0; // Unused
+                args[1] = temp_arg(&m_tcgContext->temps[0]);
                 args[2] = m_tcgContext->env_offset_eip;
                 generateQemuCpuStore(args, m_tcgContext->env_sizeof_eip * 8, valueToStore);
-#else
-                Value *ptr = m_builder.CreateAdd(getValue(0),
-                            ConstantInt::get(wordType(), m_tcgContext->env_offset_eip));
 
-                ptr = m_builder.CreateIntToPtr(ptr, intPtrType(m_tcgContext->env_sizeof_eip * 8));
-                m_builder.CreateStore(m_builder.CreateTrunc(
-                        valueToStore, intType(m_tcgContext->env_sizeof_eip * 8)), ptr);
-#endif
-
-                if (p->cc_op != CC_OP_DYNAMIC) {
-#if defined(USE_GEPS)
+                if (cc_op != CC_OP_DYNAMIC) {
+                    args[0] = 0; // Unused
+                    args[1] = temp_arg(&m_tcgContext->temps[0]);
                     args[2] = m_tcgContext->env_offset_ccop;
-                    valueToStore = ConstantInt::get(wordType(m_tcgContext->env_sizeof_ccop * 8), p->cc_op);
+                    valueToStore = ConstantInt::get(wordType(m_tcgContext->env_sizeof_ccop * 8), cc_op);
                     generateQemuCpuStore(args, m_tcgContext->env_sizeof_ccop * 8, valueToStore);
-
-#else
-                    valueToStore = ConstantInt::get(wordType(m_tcgContext->env_sizeof_ccop * 8), p->cc_op);
-                    Value *ptr = m_builder.CreateAdd(getValue(0),
-                                ConstantInt::get(wordType(), m_tcgContext->env_offset_ccop));
-
-                    ptr = m_builder.CreateIntToPtr(ptr, intPtrType(m_tcgContext->env_sizeof_ccop * 8));
-                    m_builder.CreateStore(m_builder.CreateTrunc(
-                            valueToStore, intType(m_tcgContext->env_sizeof_ccop * 8)), ptr);
-#endif
                 }
-                ++p;
-            }
-        }
-#endif
-        if(opc == INDEX_op_debug_insn_start) {
-#ifndef CONFIG_SYMBEX
-            // volatile store of current OPC index
-            m_builder.CreateStore(ConstantInt::get(wordType(), opc_index),
-                m_builder.CreateIntToPtr(
-                    ConstantInt::get(wordType(),
-                        (uint64_t) &tcg_llvm_runtime.last_opc_index),
-                    wordPtrType()),
-                true);
-            // volatile store of current PC
-            m_builder.CreateStore(ConstantInt::get(wordType(), args[0]),
-                m_builder.CreateIntToPtr(
-                    ConstantInt::get(wordType(),
-                        (uint64_t) &tcg_llvm_runtime.last_pc),
-                    wordPtrType()),
-                true);
-#endif
-        }
+            } break;
+            #endif
 
-        generateTraceCall(m_tcgContext->tb_pc);
-        args += generateOperation(opc, args);
-        //llvm::outs() << *m_tbFunction << "\n";
+            default: generateOperation(op);
+        }
+        // llvm::outs() << *m_tbFunction << "\n";
     }
 
     /* Finalize function */
@@ -1575,8 +1513,7 @@ Function *TCGLLVMContextPrivate::generateCode(TCGContext *s)
     for(int i=0; i<TCG_MAX_TEMPS; ++i)
         delPtrForValue(i);
 
-    for(int i=0; i<TCG_MAX_LABELS; ++i)
-        delLabel(i);
+    m_labels.clear();
 
 #ifndef NDEBUG
     if (verifyFunction(*m_tbFunction)) {
@@ -1796,9 +1733,9 @@ FunctionType *TCGLLVMContext::getTbType()
 
 #endif
 
-Function* TCGLLVMContext::generateCode(TCGContext *s)
+Function* TCGLLVMContext::generateCode(TCGContext *s, TranslationBlock *tb)
 {
-    return m_private->generateCode(s);
+    return m_private->generateCode(s, tb);
 }
 
 bool TCGLLVMContext::GetStaticBranchTarget(const llvm::BasicBlock *BB, uint64_t *target)
@@ -1868,7 +1805,7 @@ void tcg_llvm_close(TCGLLVMContext *l)
     delete l;
 }
 
-void* tcg_llvm_gen_code(TCGLLVMContext *l, TCGContext *s)
+void* tcg_llvm_gen_code(TCGLLVMContext *l, TCGContext *s, TranslationBlock *tb)
 {
-    return l->generateCode(s);
+    return l->generateCode(s, tb);
 }

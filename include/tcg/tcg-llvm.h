@@ -66,7 +66,7 @@ void tcg_llvm_close(struct TCGLLVMContext *l);
 
 struct TCGContext;
 
-void *tcg_llvm_gen_code(struct TCGLLVMContext *l, struct TCGContext *s);
+void *tcg_llvm_gen_code(struct TCGLLVMContext *l, struct TCGContext *s, struct TranslationBlock *tb);
 
 #ifdef __cplusplus
 }
@@ -141,7 +141,7 @@ public:
 
     static bool GetStaticBranchTarget(const llvm::BasicBlock *bb, uint64_t *target);
 
-    llvm::Function *generateCode(struct TCGContext *s);
+    llvm::Function *generateCode(struct TCGContext *s, struct TranslationBlock *tb);
 
 #ifdef STATIC_TRANSLATOR
     const TCGLLVMTBInfo &getTbInfo() const;
