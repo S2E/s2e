@@ -124,7 +124,7 @@ struct ModuleDescriptor {
         return ret;
     }
 
-    bool ToRuntime(uint64_t NativeAddress, uint64_t RunTimeAddress) const {
+    bool ToRuntime(uint64_t NativeAddress, uint64_t &RunTimeAddress) const {
         if (NativeBase && LoadBase) {
             RunTimeAddress = NativeAddress - NativeBase + LoadBase;
             return true;
