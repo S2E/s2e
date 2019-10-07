@@ -77,8 +77,9 @@ private:
     void onModuleUnload(S2EExecutionState *state, const ModuleDescriptor &module);
     void onProcessUnload(S2EExecutionState *state, uint64_t addressSpace, uint64_t pid, uint64_t returnCode);
 
-    void logLibraryCall(S2EExecutionState *state, const std::string &callerMod, uint64_t pc, unsigned sourceType,
-                        const std::string &calleeMod, const std::string &function, uint64_t pid) const;
+    void logLibraryCall(S2EExecutionState *state, const ModuleDescriptor &sourceMod, const ModuleDescriptor &destMod,
+                        uint64_t sourcePcAbsolute, uint64_t destPcAbsolute, unsigned sourceType,
+                        const std::string &function) const;
 
     void onTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb, uint64_t pc,
                              bool isStatic, uint64_t staticTarget);

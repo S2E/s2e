@@ -119,13 +119,19 @@ void LibraryCallMonitor::onModuleUnload(S2EExecutionState *state, const ModuleDe
     plgState->remove(module);
 }
 
-void LibraryCallMonitor::logLibraryCall(S2EExecutionState *state, const std::string &callerMod, uint64_t pc,
-                                        unsigned sourceType, const std::string &calleeMod, const std::string &function,
-                                        uint64_t pid) const {
+void LibraryCallMonitor::logLibraryCall(S2EExecutionState *state, const ModuleDescriptor &sourceMod,
+                                        const ModuleDescriptor &destMod, uint64_t sourcePcAbsolute,
+                                        uint64_t destPcAbsolute, unsigned sourceType,
+                                        const std::string &function) const {
     std::string sourceTypeDesc = (sourceType == TB_CALL_IND) ? " called " : " jumped to ";
 
-    getInfoStream(state) << callerMod << "@" << hexval(pc) << sourceTypeDesc << calleeMod << "!" << function
-                         << " (pid=" << hexval(pid) << ")\n";
+    uint64_t relSourcePc = sourceMod.ToNativeBase(sourcePcAbsolute);
+    uint64_t relDestPc = destMod.ToNativeBase(destPcAbsolute);
+
+    getInfoStream(state) << sourceMod.Name << ":" << hexval(relSourcePc) << " (" << hexval(sourcePcAbsolute) << ") "
+                         << sourceTypeDesc << destMod.Name << ":" << hexval(relDestPc) << " (" << hexval(destPcAbsolute)
+                         << ") "
+                         << "!" << function << " (pid=" << hexval(sourceMod.Pid) << ")\n";
 }
 
 void LibraryCallMonitor::onTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb,
@@ -197,7 +203,7 @@ void LibraryCallMonitor::onIndirectCallOrJump(S2EExecutionState *state, uint64_t
         return;
     }
 
-    logLibraryCall(state, mod->Name, pc, sourceType, mod->Name, exportName, mod->Pid);
+    logLibraryCall(state, *currentMod.get(), *mod.get(), pc, targetAddr, sourceType, exportName);
     onLibraryCall.emit(state, *mod, targetAddr);
 }
 
