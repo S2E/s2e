@@ -32,10 +32,7 @@ extern "C" {
 #endif
 
 #ifdef CONFIG_SYMBEX
-uintptr_t se_notdirty_mem_write(target_phys_addr_t ram_addr);
-uintptr_t se_notdirty_mem_read(target_phys_addr_t ram_addr);
-
-uintptr_t se_notdirty_mem_write(target_phys_addr_t ram_addr);
+uintptr_t se_notdirty_mem_write(target_phys_addr_t ram_addr, int size);
 uintptr_t se_notdirty_mem_read(target_phys_addr_t ram_addr);
 #endif
 

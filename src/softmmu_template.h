@@ -212,24 +212,27 @@ inline DATA_TYPE glue(glue(io_read_chk, SUFFIX), MMUSUFFIX)(ENV_PARAM target_phy
     SE_SET_MEM_IO_VADDR(env, addr, 0);
 #if SHIFT <= 2
     if (se_ismemfunc(ops, 0)) {
-        uintptr_t pa = se_notdirty_mem_read(naddr & TARGET_PAGE_MASK) | (naddr & (TARGET_PAGE_SIZE - 1));
+        uintptr_t pa = se_notdirty_mem_read(naddr);
         res.res = glue(glue(ld, USUFFIX), _raw)((uint8_t *) (intptr_t)(pa));
-
         goto end;
     }
 #else
 #ifdef TARGET_WORDS_BIGENDIAN
     if (se_ismemfunc(ops, 0)) {
-        uintptr_t pa = se_notdirty_mem_read(naddr & TARGET_PAGE_MASK) | (naddr & (TARGET_PAGE_SIZE - 1));
+        uintptr_t pa = se_notdirty_mem_read(naddr);
         *(uint32_t *) &res.raw[sizeof(uint32_t)] = glue(glue(ld, USUFFIX), _raw)((uint8_t *) (intptr_t)(pa));
-        *(uint32_t *) &res.raw[0] = glue(glue(ld, USUFFIX), _raw)((uint8_t *) (intptr_t)(pa + 4));
+
+        pa = se_notdirty_mem_read(naddr + 4);
+        *(uint32_t *) &res.raw[0] = glue(glue(ld, USUFFIX), _raw)((uint8_t *) (intptr_t)(pa));
         goto end;
     }
 #else
     if (se_ismemfunc(ops, 0)) {
-        uintptr_t pa = se_notdirty_mem_read(naddr & TARGET_PAGE_MASK) | (naddr & (TARGET_PAGE_SIZE - 1));
+        uintptr_t pa = se_notdirty_mem_read(naddr);
         *(uint32_t *) &res.raw[0] = glue(glue(ld, USUFFIX), _raw)((uint8_t *) (intptr_t)(pa));
-        *(uint32_t *) &res.raw[sizeof(uint32_t)] = glue(glue(ld, USUFFIX), _raw)((uint8_t *) (intptr_t)(pa + 4));
+
+        pa = se_notdirty_mem_read(naddr + 4);
+        *(uint32_t *) &res.raw[sizeof(uint32_t)] = glue(glue(ld, USUFFIX), _raw)((uint8_t *) (intptr_t)(pa));
         goto end;
     }
 #endif
@@ -468,7 +471,7 @@ inline void glue(glue(io_write_chk, SUFFIX), MMUSUFFIX)(ENV_PARAM target_phys_ad
     env->mem_io_pc = (uintptr_t) retaddr;
 #if SHIFT <= 2
     if (se_ismemfunc(ops, 1)) {
-        uintptr_t pa = se_notdirty_mem_write(physaddr & TARGET_PAGE_MASK) | (physaddr & (TARGET_PAGE_SIZE - 1));
+        uintptr_t pa = se_notdirty_mem_write(physaddr, 1 << SHIFT);
         glue(glue(st, SUFFIX), _raw)((uint8_t *) (intptr_t)(pa), val);
         goto end;
     }
@@ -477,9 +480,10 @@ inline void glue(glue(io_write_chk, SUFFIX), MMUSUFFIX)(ENV_PARAM target_phys_ad
 #error Big endian not supported
 #else
     if (se_ismemfunc(ops, 1)) {
-        uintptr_t pa = se_notdirty_mem_write(physaddr & TARGET_PAGE_MASK) | (physaddr & (TARGET_PAGE_SIZE - 1));
+        uintptr_t pa = se_notdirty_mem_write(physaddr, 1 << SHIFT);
         stl_raw((uint8_t *) (intptr_t)(pa), val);
-        stl_raw((uint8_t *) (intptr_t)(pa + 4), val >> 32);
+        pa = se_notdirty_mem_write(physaddr + 4, 1 << SHIFT);
+        stl_raw((uint8_t *) (intptr_t)(pa), val >> 32);
         goto end;
     }
 #endif

@@ -239,7 +239,7 @@ static void notdirty_mem_write(target_phys_addr_t ram_addr, uint64_t val, unsign
 }
 
 #ifdef CONFIG_SYMBEX
-uintptr_t se_notdirty_mem_write(target_phys_addr_t ram_addr) {
+uintptr_t se_notdirty_mem_write(target_phys_addr_t ram_addr, int size) {
     int dirty_flags;
 
     target_ulong iovaddr = g_sqi.mem.read_mem_io_vaddr(1);
@@ -251,7 +251,7 @@ uintptr_t se_notdirty_mem_write(target_phys_addr_t ram_addr) {
     dirty_flags = cpu_physical_memory_get_dirty_flags(ram_addr);
 
     if (!(dirty_flags & CODE_DIRTY_FLAG)) {
-        tb_invalidate_phys_page_fast(ram_addr, 4);
+        tb_invalidate_phys_page_fast(ram_addr, size);
         dirty_flags = cpu_physical_memory_get_dirty_flags(ram_addr);
     }
 
