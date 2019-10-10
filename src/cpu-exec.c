@@ -187,14 +187,42 @@ static void cpu_handle_debug_exception(CPUArchState *env) {
 
 volatile sig_atomic_t exit_request;
 
+#ifdef TRACE_EXEC
+static void dump_regs(CPUState *env, int isStart) {
+#if defined(CONFIG_SYMBEX)
+    target_ulong eax, ebx, ecx, edx, esi, edi, ebp, esp;
+    g_sqi.regs.read_concrete(offsetof(CPUState, regs[R_EAX]), (uint8_t *) &eax, sizeof(eax));
+    g_sqi.regs.read_concrete(offsetof(CPUState, regs[R_EBX]), (uint8_t *) &ebx, sizeof(ebx));
+    g_sqi.regs.read_concrete(offsetof(CPUState, regs[R_ECX]), (uint8_t *) &ecx, sizeof(ecx));
+    g_sqi.regs.read_concrete(offsetof(CPUState, regs[R_EDX]), (uint8_t *) &edx, sizeof(edx));
+    g_sqi.regs.read_concrete(offsetof(CPUState, regs[R_ESI]), (uint8_t *) &esi, sizeof(esi));
+    g_sqi.regs.read_concrete(offsetof(CPUState, regs[R_EDI]), (uint8_t *) &edi, sizeof(edi));
+    g_sqi.regs.read_concrete(offsetof(CPUState, regs[R_EBP]), (uint8_t *) &ebp, sizeof(ebp));
+    g_sqi.regs.read_concrete(offsetof(CPUState, regs[R_ESP]), (uint8_t *) &esp, sizeof(esp));
+
+    fprintf(logfile, "%c cs:eip=%lx:%lx eax=%lx ebx=%lx ecx=%lx edx=%lx esi=%lx edi=%lx ebp=%lx ss:esp=%lx:%lx\n",
+            isStart ? 's' : 'e', (uint64_t) env->segs[R_CS].selector, (uint64_t) env->eip, (uint64_t) eax,
+            (uint64_t) ebx, (uint64_t) ecx, (uint64_t) edx, (uint64_t) esi, (uint64_t) edi, (uint64_t) ebp,
+            (uint64_t) env->segs[R_SS].selector, (uint64_t) esp);
+#else
+    fprintf(logfile, "%c cs:eip=%lx:%lx eax=%lx ebx=%lx ecx=%lx edx=%lx esi=%lx edi=%lx ebp=%lx ss:esp=%lx:%lx\n",
+            isStart ? 's' : 'e', (uint64_t) env->segs[R_CS].selector, (uint64_t) env->eip, (uint64_t) env->regs[R_EAX],
+            (uint64_t) env->regs[R_EBX], (uint64_t) env->regs[R_ECX], (uint64_t) env->regs[R_EDX],
+            (uint64_t) env->regs[R_ESI], (uint64_t) env->regs[R_EDI], (uint64_t) env->regs[R_EBP],
+            (uint64_t) env->segs[R_SS].selector, (uint64_t) env->regs[R_ESP]);
+#endif
+}
+#endif
+
 static uintptr_t fetch_and_run_tb(TranslationBlock *prev_tb, int tb_exit_code, CPUArchState *env) {
     uint8_t *tc_ptr;
     uintptr_t last_tb;
 
     TranslationBlock *tb = tb_find_fast(env);
 
-    DPRINTF("fetch_and_run_tb s=%#lx e=%#lx fl=%lx riw=%d\n", (uint64_t) env->eip, (uint64_t) env->eip + tb->size,
-            (uint64_t) env->mflags, env->kvm_request_interrupt_window);
+    DPRINTF("fetch_and_run_tb cs:eip=%#lx:%#lx e=%#lx fl=%lx riw=%d\n", (uint64_t) env->segs[R_CS].selector,
+            (uint64_t) env->eip, (uint64_t) env->eip + tb->size, (uint64_t) env->mflags,
+            env->kvm_request_interrupt_window);
 
     if (tb_invalidated_flag) {
         prev_tb = NULL;
@@ -235,6 +263,10 @@ static uintptr_t fetch_and_run_tb(TranslationBlock *prev_tb, int tb_exit_code, C
 
 /* execute the generated code */
 
+#ifdef TRACE_EXEC
+    dump_regs(env, 1);
+#endif
+
 #if defined(CONFIG_SYMBEX)
     env->se_current_tb = tb;
     if (likely(*g_sqi.mode.fast_concrete_invocation && **g_sqi.mode.running_concrete)) {
@@ -246,23 +278,14 @@ static uintptr_t fetch_and_run_tb(TranslationBlock *prev_tb, int tb_exit_code, C
     env->se_current_tb = NULL;
 #else
 
-#ifdef TRACE_EXEC
-    fprintf(logfile, "s eip=%lx eax=%lx ebx=%lx ecx=%lx edx=%lx esi=%lx edi=%lx ebp=%lx esp=%lx\n", (uint64_t) env->eip,
-            (uint64_t) env->regs[R_EAX], (uint64_t) env->regs[R_EBX], (uint64_t) env->regs[R_ECX],
-            (uint64_t) env->regs[R_EDX], (uint64_t) env->regs[R_ESI], (uint64_t) env->regs[R_EDI],
-            (uint64_t) env->regs[R_EBP], (uint64_t) env->regs[R_ESP]);
-#endif
-
     last_tb = tcg_libcpu_tb_exec(env, tc_ptr);
 
-#ifdef TRACE_EXEC
-    fprintf(logfile, "e eip=%lx eax=%lx ebx=%lx ecx=%lx edx=%lx esi=%lx edi=%lx ebp=%lx esp=%lx\n", (uint64_t) env->eip,
-            (uint64_t) env->regs[R_EAX], (uint64_t) env->regs[R_EBX], (uint64_t) env->regs[R_ECX],
-            (uint64_t) env->regs[R_EDX], (uint64_t) env->regs[R_ESI], (uint64_t) env->regs[R_EDI],
-            (uint64_t) env->regs[R_EBP], (uint64_t) env->regs[R_ESP]);
 #endif
 
+#ifdef TRACE_EXEC
+    dump_regs(env, 0);
 #endif
+
     env->current_tb = NULL;
 
     return last_tb;
