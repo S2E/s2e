@@ -48,7 +48,11 @@ extern void *tci_tb_ptr;
    This is still safe in ARM mode because instructions are 4 bytes.  */
 #define GETPC() ((void *) ((uintptr_t) __builtin_return_address(0) - 2))
 #else
+#if defined(SYMBEX_LLVM_LIB)
+#define GETPC() 0
+#else
 #define GETPC() (((uintptr_t) __builtin_return_address(0) - 1))
+#endif
 #endif
 
 /* The true return address will often point to a host insn that is part of

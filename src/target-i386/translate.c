@@ -7673,6 +7673,12 @@ void optimize_flags_init(void) {
 }
 
 static inline void gen_tb_start(TranslationBlock *tb) {
+#if defined(CONFIG_SYMBEX)
+    if (tb->originalTb) {
+        return;
+    }
+#endif
+
     TCGv_i32 exit_request;
 
     tcg_ctx->exitreq_label = gen_new_label();
@@ -7685,6 +7691,12 @@ static inline void gen_tb_start(TranslationBlock *tb) {
 }
 
 static inline void gen_tb_end(TranslationBlock *tb) {
+#if defined(CONFIG_SYMBEX)
+    if (tb->originalTb) {
+        return;
+    }
+#endif
+
     assert(tcg_ctx->exitreq_label);
     gen_set_label(tcg_ctx->exitreq_label);
     tcg_gen_exit_tb(tb, TB_EXIT_REQUESTED);

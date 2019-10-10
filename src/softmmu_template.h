@@ -127,8 +127,8 @@ DATA_TYPE glue(glue(io_read, SUFFIX), MMUSUFFIX)(ENV_PARAM target_phys_addr_t ph
                                                  void *retaddr);
 
 #if defined(STATIC_TRANSLATOR)
-inline DATA_TYPE glue(glue(io_read_chk, SUFFIX), MMUSUFFIX)(ENV_PARAM target_phys_addr_t physaddr, target_ulong addr,
-                                                            void *retaddr) {
+DATA_TYPE glue(glue(io_read_chk, SUFFIX), MMUSUFFIX)(ENV_PARAM target_phys_addr_t physaddr, target_ulong addr,
+                                                     void *retaddr) {
     assert(false && "Cannot run statically");
 }
 
@@ -142,7 +142,7 @@ DATA_TYPE glue(glue(io_read, SUFFIX), MMUSUFFIX)(ENV_PARAM target_phys_addr_t ph
 
 #if defined(CONFIG_SYMBEX) && defined(CONFIG_SYMBEX_MP)
     // Can't handle symbolic mmio from helpers
-    if (unlikely(_se_check_dyngen(retaddr) && g_sqi.mem.is_mmio_symbolic(addr, DATA_SIZE))) {
+    if (unlikely(tcg_is_dyngen_addr(retaddr) && g_sqi.mem.is_mmio_symbolic(addr, DATA_SIZE))) {
         g_sqi.exec.switch_to_symbolic(retaddr);
     }
 
@@ -150,7 +150,7 @@ DATA_TYPE glue(glue(io_read, SUFFIX), MMUSUFFIX)(ENV_PARAM target_phys_addr_t ph
         CPUTLBEntry *e = env->se_tlb_current;
         if (likely(_se_check_concrete(e->objectState, addr & ~SE_RAM_OBJECT_MASK, DATA_SIZE))) {
             return glue(glue(ld, USUFFIX), _p)((uint8_t *) (addr + (e->se_addend)));
-        } else if (!_se_check_dyngen(retaddr)) {
+        } else if (!tcg_is_dyngen_addr(retaddr)) {
             /**
              * Concretize any symbolic data touched by helpers.
              * It is not possible to switch to symbolic mode in the middle
@@ -182,15 +182,15 @@ DATA_TYPE glue(glue(io_read, SUFFIX), MMUSUFFIX)(ENV_PARAM target_phys_addr_t ph
     return res;
 }
 
-inline DATA_TYPE glue(glue(io_read_chk, SUFFIX), MMUSUFFIX)(ENV_PARAM target_phys_addr_t physaddr, target_ulong addr,
-                                                            void *retaddr) {
+DATA_TYPE glue(glue(io_read_chk, SUFFIX), MMUSUFFIX)(ENV_PARAM target_phys_addr_t physaddr, target_ulong addr,
+                                                     void *retaddr) {
     return glue(glue(io_read, SUFFIX), MMUSUFFIX)(ENV_VAR physaddr, addr, retaddr);
 }
 
 #elif defined(SYMBEX_LLVM_LIB) // SYMBEX_LLVM_LIB
 
-inline DATA_TYPE glue(glue(io_read_chk, SUFFIX), MMUSUFFIX)(ENV_PARAM target_phys_addr_t physaddr, target_ulong addr,
-                                                            void *retaddr) {
+DATA_TYPE glue(glue(io_read_chk, SUFFIX), MMUSUFFIX)(ENV_PARAM target_phys_addr_t physaddr, target_ulong addr,
+                                                     void *retaddr) {
     // Putting together two 32-bit values involves an or and a shift,
     // which produces hard-to-simplify symbolic expressions.
     // Instead, we use a union to force casting, which will generate
@@ -397,8 +397,8 @@ static void glue(glue(slow_st, SUFFIX), MMUSUFFIX)(ENV_PARAM target_ulong addr, 
 void glue(glue(io_write, SUFFIX), MMUSUFFIX)(ENV_PARAM target_phys_addr_t physaddr, DATA_TYPE val, target_ulong addr,
                                              void *retaddr);
 #if defined(STATIC_TRANSLATOR)
-inline void glue(glue(io_write_chk, SUFFIX), MMUSUFFIX)(ENV_PARAM target_phys_addr_t physaddr, DATA_TYPE val,
-                                                        target_ulong addr, void *retaddr) {
+void glue(glue(io_write_chk, SUFFIX), MMUSUFFIX)(ENV_PARAM target_phys_addr_t physaddr, DATA_TYPE val,
+                                                 target_ulong addr, void *retaddr) {
     assert(false && "Cannot run statically");
 }
 
@@ -412,7 +412,7 @@ void glue(glue(io_write, SUFFIX), MMUSUFFIX)(ENV_PARAM target_phys_addr_t physad
 
 #if defined(CONFIG_SYMBEX) && defined(CONFIG_SYMBEX_MP)
     // XXX: avoid switch to symbolic mode here, not needed for writes
-    if (unlikely(_se_check_dyngen(retaddr) && g_sqi.mem.is_mmio_symbolic(addr, DATA_SIZE))) {
+    if (unlikely(tcg_is_dyngen_addr(retaddr) && g_sqi.mem.is_mmio_symbolic(addr, DATA_SIZE))) {
         g_sqi.exec.switch_to_symbolic(retaddr);
     }
 
@@ -444,14 +444,13 @@ void glue(glue(io_write, SUFFIX), MMUSUFFIX)(ENV_PARAM target_phys_addr_t physad
 #endif /* SHIFT > 2 */
 }
 
-inline void glue(glue(io_write_chk, SUFFIX), MMUSUFFIX)(ENV_PARAM target_phys_addr_t physaddr, DATA_TYPE val,
-                                                        target_ulong addr, void *retaddr) {
+void glue(glue(io_write_chk, SUFFIX), MMUSUFFIX)(ENV_PARAM target_phys_addr_t physaddr, DATA_TYPE val,
+                                                 target_ulong addr, void *retaddr) {
     // XXX: check symbolic memory mapped devices and write log here.
     glue(glue(io_write, SUFFIX), MMUSUFFIX)(ENV_VAR physaddr, val, addr, retaddr);
 }
 
 #else
-
 /**
   * Only if compiling for LLVM.
   * This function checks whether a write goes to a clean memory page.
@@ -460,8 +459,8 @@ inline void glue(glue(io_write_chk, SUFFIX), MMUSUFFIX)(ENV_PARAM target_phys_ad
   *
   * It also deals with writes to memory-mapped devices that are symbolic
   */
-inline void glue(glue(io_write_chk, SUFFIX), MMUSUFFIX)(ENV_PARAM target_phys_addr_t physaddr, DATA_TYPE val,
-                                                        target_ulong addr, void *retaddr) {
+void glue(glue(io_write_chk, SUFFIX), MMUSUFFIX)(ENV_PARAM target_phys_addr_t physaddr, DATA_TYPE val,
+                                                 target_ulong addr, void *retaddr) {
     target_phys_addr_t origaddr = physaddr;
     const struct MemoryDescOps *ops = phys_get_ops(physaddr);
 

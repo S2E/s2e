@@ -122,19 +122,13 @@ static inline void code_gen_alloc(TCGContext *tcg, size_t tb_size) {
     }
 }
 
-#ifdef CONFIG_SYMBEX
-int cpu_gen_flush_needed(void) {
-    return 0;
-}
-#endif
-
 #ifdef CONFIG_SYMBEX_MP
 static void *qemu_ld_helpers[4] = {
-    __ldb_mmu_symb, __ldw_mmu_symb, __ldl_mmu_symb, __ldq_mmu_symb,
+    helper_ldb_mmu_symb, helper_ldw_mmu_symb, helper_ldl_mmu_symb, helper_ldq_mmu_symb,
 };
 
 static void *qemu_st_helpers[4] = {
-    __stb_mmu_symb, __stw_mmu_symb, __stl_mmu_symb, __stq_mmu_symb,
+    helper_stb_mmu_symb, helper_stw_mmu_symb, helper_stl_mmu_symb, helper_stq_mmu_symb,
 };
 #else
 static void *qemu_ld_helpers[4] = {
@@ -218,14 +212,7 @@ static void cpu_gen_init(TCGContext *ctx, tcg_settings_t *settings) {
 }
 
 #ifdef CONFIG_SYMBEX_MP
-static void cpu_gen_code_init_ctx(TCGContext *s, TranslationBlock *tb) {
-    s->tb_pc = tb->pc;
-    s->tb_cs_base = tb->cs_base;
-    s->tb_flags = tb->flags;
-    s->tb_size = tb->size;
-    s->tb_tc_size = tb->tc_size;
-    s->tb_instrumented = tb->instrumented;
-
+static void cpu_gen_code_init_ctx(TCGContext *s) {
     tcg_ctx->after_memory_access_signals_count = (uintptr_t) g_sqi.events.after_memory_access_signals_count;
 }
 #endif
@@ -353,7 +340,7 @@ int cpu_gen_code(CPUArchState *env, TranslationBlock *tb, int *gen_code_size_ptr
     gen_code_buf = tb->tc.ptr;
 
 #ifdef CONFIG_SYMBEX_MP
-    cpu_gen_code_init_ctx(s, tb);
+    cpu_gen_code_init_ctx(s);
 #endif
 
     tb->jmp_reset_offset[0] = TB_JMP_RESET_OFFSET_INVALID;
@@ -533,15 +520,15 @@ bool cpu_restore_state(CPUArchState *env, uintptr_t host_pc) {
  *   - x86 and LLVM code must be semantically equivalent (same instrumentation in both, etc.)
  */
 int cpu_gen_llvm(CPUArchState *env, TranslationBlock *tb) {
-    TCGContext *s = &tcg_ctx;
+    TCGContext *s = tcg_ctx;
     assert(tb->llvm_function == NULL);
 
     /* Need to retranslate the code here because QEMU throws
        away intermediate representation once machine code is generated. */
 
-    cpu_gen_code_init_ctx(s, tb);
+    cpu_gen_code_init_ctx(s);
 
-    tb->llvm_function = tcg_llvm_gen_code(tcg_llvm_ctx, s);
+    tb->llvm_function = tcg_llvm_gen_code(tcg_llvm_ctx, s, tb);
     g_sqi.tb.set_tb_function(tb);
 
     return 0;

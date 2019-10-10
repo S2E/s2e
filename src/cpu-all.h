@@ -164,12 +164,6 @@ static inline int _se_check_concrete(void *objectState, target_ulong offset, int
 #endif
 }
 
-static inline int _se_check_dyngen(void *addr) {
-    abort();
-    // uint8_t *a = (uint8_t *) addr;
-    // return a >= code_gen_buffer && a < code_gen_buffer + code_gen_buffer_size;
-}
-
 static inline void *_se_check_translate_ram_access(const void *p, unsigned size) {
 #if defined(SE_ENABLE_PHYSRAM_TLB)
     extern CPUArchState *env;

@@ -283,7 +283,6 @@ void se_tb_gen_llvm(CPUArchState *env, TranslationBlock *tb) {
     int code_gen_size;
 
     llvm_tb.originalTb = tb;
-    se_setup_precise_pc(&llvm_tb);
     cpu_gen_code(env, &llvm_tb, &code_gen_size);
     cpu_gen_llvm(env, &llvm_tb);
     tb->llvm_function = llvm_tb.llvm_function;

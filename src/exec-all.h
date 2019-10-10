@@ -66,7 +66,6 @@ void gen_intermediate_code(CPUArchState *env, struct TranslationBlock *tb);
 void gen_intermediate_code_pc(CPUArchState *env, struct TranslationBlock *tb);
 
 #ifdef CONFIG_SYMBEX
-int cpu_gen_flush_needed(void);
 void cpu_gen_flush(void);
 void cpu_gen_init_opc(void);
 void se_restore_state_to_opc(CPUX86State *env, TranslationBlock *tb, target_ulong pc, int cc_op, target_ulong next_pc);
@@ -135,6 +134,7 @@ extern int tb_invalidated_flag;
 #include <cpu/exec.h>
 
 #include <cpu/softmmu_defs.h>
+#include <cpu/tlb.h>
 
 #define ACCESS_TYPE (NB_MMU_MODES + 1)
 #define MEMSUFFIX _code
