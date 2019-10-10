@@ -868,6 +868,14 @@ extern TCGContext tcg_init_ctx;
 extern __thread TCGContext *tcg_ctx;
 extern TCGv_env cpu_env;
 
+#ifdef CONFIG_SYMBEX
+static inline int tcg_is_dyngen_addr(void *addr) {
+    uintptr_t a = (uintptr_t) addr;
+    return (a >= (uintptr_t) tcg_ctx->code_gen_buffer) &&
+           (a < ((uintptr_t) tcg_ctx->code_gen_buffer + (uintptr_t) tcg_ctx->code_gen_buffer_size));
+}
+#endif
+
 static inline size_t temp_idx(TCGTemp *ts) {
     ptrdiff_t n = ts - tcg_ctx->temps;
     tcg_debug_assert(n >= 0 && n < tcg_ctx->nb_temps);
