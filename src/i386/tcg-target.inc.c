@@ -1504,10 +1504,15 @@ static inline void tcg_out_tlb_load(TCGContext *s, TCGReg addrlo, TCGReg addrhi,
         s->code_ptr += 4;
     }
 
-    /* TLB Hit.  */
+/* TLB Hit.  */
 
-    /* add addend(r0), r1 */
+/* add addend(r0), r1 */
+
+#if defined(CONFIG_SYMBEX) && defined(CONFIG_SYMBEX_MP)
+    tcg_out_modrm_offset(s, OPC_ADD_GvEv + hrexw, r1, r0, s->tlbe_offset_symbex_addend);
+#else
     tcg_out_modrm_offset(s, OPC_ADD_GvEv + hrexw, r1, r0, g_tcg_settings.tlb_entry_addend_offset);
+#endif
 }
 
 /*
