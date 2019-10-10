@@ -118,6 +118,22 @@ void MemoryTracer::traceConcreteDataMemoryAccess(S2EExecutionState *state, uint6
         traceFlags |= s2e_trace::PbTraceMemoryAccess::EXECTRACE_MEM_IO;
     }
 
+    if (m_traceHostAddresses) {
+        item.set_host_address(state->mem()->getHostAddress(address));
+        item.set_concrete_buffer(0);
+
+        traceFlags |= s2e_trace::PbTraceMemoryAccess::EXECTRACE_MEM_HASHOSTADDR;
+        traceFlags |= s2e_trace::PbTraceMemoryAccess::EXECTRACE_MEM_OBJECTSTATE;
+
+        klee::ObjectPair op = state->addressSpace.findObject(item.host_address() & SE_RAM_OBJECT_MASK);
+        if (op.first && op.second) {
+            item.set_concrete_buffer((uint64_t) op.second->getConcreteStore());
+            if ((flags & MEM_TRACE_FLAG_WRITE) && m_debugObjectStates) {
+                assert(state->addressSpace.isOwnedByUs(op.second));
+            }
+        }
+    }
+
     item.set_flags(s2e_trace::PbTraceMemoryAccess::Flags(traceFlags));
 
     m_tracer->writeData(state, item, s2e_trace::TRACE_MEMORY);
