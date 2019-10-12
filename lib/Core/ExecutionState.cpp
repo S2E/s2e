@@ -68,7 +68,7 @@ StackFrame::~StackFrame() {
 BitfieldSimplifier ExecutionState::s_simplifier;
 
 ExecutionState::ExecutionState(KFunction *kf)
-    : fakeState(false), pc(kf->instructions), prevPC(pc), addressSpace(this), queryCost(0.), forkDisabled(false),
+    : fakeState(false), pc(kf->instructions), prevPC(nullptr), addressSpace(this), queryCost(0.), forkDisabled(false),
       concolics(new Assignment(true)) {
     pushFrame(0, kf);
 }
