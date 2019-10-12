@@ -226,10 +226,8 @@ void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr) {
 
 TranslationBlock *tb_gen_code(CPUArchState *env, target_ulong pc, target_ulong cs_base, int flags, int cflags) {
     TranslationBlock *tb;
-    uint8_t *tc_ptr;
     tb_page_addr_t phys_pc, phys_page2;
     target_ulong virt_page2;
-    int code_gen_size;
 
     phys_pc = get_page_addr_code(env, pc);
 
@@ -248,27 +246,25 @@ again:
     tb->originalTb = NULL;
 #endif
 
-    tc_ptr = tcg_ctx->code_gen_ptr;
-    tb->tc.ptr = tc_ptr;
     tb->cflags = 0;
     tb->pc = pc;
     tb->cs_base = cs_base;
     tb->flags = flags;
     tb->cflags = cflags;
 
-    if (cpu_gen_code(env, tb, &code_gen_size) < 0) {
+    if (cpu_gen_code(env, tb) < 0) {
         tb_flush(env);
         goto again;
     }
 
-    tb->tc.size = code_gen_size;
-
     /* check next page if needed */
     virt_page2 = (pc + tb->size - 1) & TARGET_PAGE_MASK;
     phys_page2 = -1;
+
     if ((pc & TARGET_PAGE_MASK) != virt_page2) {
         phys_page2 = get_page_addr_code(env, virt_page2);
     }
+
     tb_link_page(tb, phys_pc, phys_page2);
     tcg_tb_insert(tb);
 
@@ -280,10 +276,9 @@ again:
 void se_tb_gen_llvm(CPUArchState *env, TranslationBlock *tb) {
     /* Operate on a copy to avoid clobbering the original one */
     TranslationBlock llvm_tb = *tb;
-    int code_gen_size;
 
     llvm_tb.originalTb = tb;
-    cpu_gen_code(env, &llvm_tb, &code_gen_size);
+    cpu_gen_code(env, &llvm_tb);
     cpu_gen_llvm(env, &llvm_tb);
     tb->llvm_function = llvm_tb.llvm_function;
     g_sqi.tb.set_tb_function(tb);

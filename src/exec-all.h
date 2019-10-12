@@ -79,7 +79,7 @@ int restore_state_to_next_pc(CPUX86State *env, TranslationBlock *tb);
 int cpu_gen_llvm(CPUArchState *env, TranslationBlock *tb);
 #endif
 
-int cpu_gen_code(CPUArchState *env, struct TranslationBlock *tb, int *gen_code_size_ptr);
+int cpu_gen_code(CPUArchState *env, TranslationBlock *tb);
 
 void LIBCPU_NORETURN cpu_resume_from_signal(CPUArchState *env1, void *puc);
 void LIBCPU_NORETURN cpu_io_recompile(CPUArchState *env, void *retaddr);

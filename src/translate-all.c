@@ -235,17 +235,12 @@ void tcg_exec_init(unsigned long tb_size) {
     tcg_region_init();
 }
 
-/* return non zero if the very first instruction is invalid so that
-   the virtual CPU can trigger an exception.
-
-   '*gen_code_size_ptr' contains the size of the generated code (host
-   code).
-*/
-
-int cpu_gen_code(CPUArchState *env, TranslationBlock *tb, int *gen_code_size_ptr) {
+int cpu_gen_code(CPUArchState *env, TranslationBlock *tb) {
     TCGContext *s = tcg_ctx;
     uint8_t *gen_code_buf;
     int gen_code_size;
+
+    tb->tc.ptr = tcg_ctx->code_gen_ptr;
 
     tcg_func_start(s);
 
@@ -296,7 +291,7 @@ int cpu_gen_code(CPUArchState *env, TranslationBlock *tb, int *gen_code_size_ptr
     atomic_set(&tcg_ctx->code_gen_ptr,
                (void *) ROUND_UP((uintptr_t) gen_code_buf + gen_code_size + search_size, CODE_GEN_ALIGN));
 
-    *gen_code_size_ptr = gen_code_size;
+    tb->tc.size = gen_code_size;
 
     /* init jump list */
     tb->jmp_lock = SPIN_LOCK_UNLOCKED;
