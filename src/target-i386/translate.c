@@ -7673,33 +7673,25 @@ void optimize_flags_init(void) {
 }
 
 static inline void gen_tb_start(TranslationBlock *tb) {
-#if defined(CONFIG_SYMBEX)
-    if (tb->originalTb) {
-        return;
+    if (tb->cflags & CF_HAS_INTERRUPT_EXIT) {
+        TCGv_i32 exit_request;
+
+        tcg_ctx->exitreq_label = gen_new_label();
+        exit_request = tcg_temp_new_i32();
+        tcg_gen_ld_i32(exit_request, cpu_env, offsetof(CPUState, exit_request));
+
+        tcg_gen_brcondi_i32(TCG_COND_NE, exit_request, 0, tcg_ctx->exitreq_label);
+
+        tcg_temp_free_i32(exit_request);
     }
-#endif
-
-    TCGv_i32 exit_request;
-
-    tcg_ctx->exitreq_label = gen_new_label();
-    exit_request = tcg_temp_new_i32();
-    tcg_gen_ld_i32(exit_request, cpu_env, offsetof(CPUState, exit_request));
-
-    tcg_gen_brcondi_i32(TCG_COND_NE, exit_request, 0, tcg_ctx->exitreq_label);
-
-    tcg_temp_free_i32(exit_request);
 }
 
 static inline void gen_tb_end(TranslationBlock *tb) {
-#if defined(CONFIG_SYMBEX)
-    if (tb->originalTb) {
-        return;
+    if (tb->cflags & CF_HAS_INTERRUPT_EXIT) {
+        assert(tcg_ctx->exitreq_label);
+        gen_set_label(tcg_ctx->exitreq_label);
+        tcg_gen_exit_tb(tb, TB_EXIT_REQUESTED);
     }
-#endif
-
-    assert(tcg_ctx->exitreq_label);
-    gen_set_label(tcg_ctx->exitreq_label);
-    tcg_gen_exit_tb(tb, TB_EXIT_REQUESTED);
 }
 
 /* generate intermediate code in gen_opc_buf and gen_opparam_buf for
@@ -7796,12 +7788,7 @@ static inline void gen_intermediate_code_internal(CPUX86State *env, TranslationB
 /* Make sure to refer to the original TB instead of the
    temporary one in case we regenerate LLVM bitcode */
 #ifndef STATIC_TRANSLATOR
-    if (tb->originalTb) {
-        tcg_gen_movi_i64(cpu_tmp1_i64, (uint64_t) tb->originalTb);
-    } else {
-        tcg_gen_movi_i64(cpu_tmp1_i64, (uint64_t) tb);
-    }
-
+    tcg_gen_movi_i64(cpu_tmp1_i64, (uint64_t) tb);
     tcg_gen_st_i64(cpu_tmp1_i64, cpu_env, offsetof(CPUArchState, se_current_tb));
 
     if (unlikely(*g_sqi.events.on_translate_block_start_signals_count && dc->instrument)) {

@@ -277,6 +277,14 @@ int cpu_gen_code(CPUArchState *env, TranslationBlock *tb) {
 
     tb->tc.size = gen_code_size;
 
+#ifdef CONFIG_SYMBEX_MP
+    if (env->generate_llvm) {
+        assert(tb->llvm_function == NULL);
+        tb->llvm_function = tcg_llvm_gen_code(tcg_llvm_ctx, s, tb);
+        g_sqi.tb.set_tb_function(tb);
+    }
+#endif
+
     /* init jump list */
     tb->jmp_lock = SPIN_LOCK_UNLOCKED;
     tb->jmp_list_head = (uintptr_t) NULL;
@@ -302,26 +310,3 @@ int cpu_gen_code(CPUArchState *env, TranslationBlock *tb) {
 
     return 0;
 }
-
-#ifdef CONFIG_SYMBEX_MP
-
-/**
- * Generates LLVM code for already translated TB.
- * We need to retranslate to micro-ops and to machine code because:
- *   - QEMU throws away micro-ops and storing them is too expensive
- *   - x86 and LLVM code must be semantically equivalent (same instrumentation in both, etc.)
- */
-int cpu_gen_llvm(CPUArchState *env, TranslationBlock *tb) {
-    TCGContext *s = tcg_ctx;
-    assert(tb->llvm_function == NULL);
-
-    /* Need to retranslate the code here because QEMU throws
-       away intermediate representation once machine code is generated. */
-
-    tb->llvm_function = tcg_llvm_gen_code(tcg_llvm_ctx, s, tb);
-    g_sqi.tb.set_tb_function(tb);
-
-    return 0;
-}
-
-#endif

@@ -242,15 +242,11 @@ again:
         tb_invalidated_flag = 1;
     }
 
-#ifdef CONFIG_SYMBEX
-    tb->originalTb = NULL;
-#endif
-
     tb->cflags = 0;
     tb->pc = pc;
     tb->cs_base = cs_base;
     tb->flags = flags;
-    tb->cflags = cflags;
+    tb->cflags = cflags | CF_HAS_INTERRUPT_EXIT;
 
     if (cpu_gen_code(env, tb) < 0) {
         tb_flush(env);
@@ -270,21 +266,6 @@ again:
 
     return tb;
 }
-
-#ifdef CONFIG_SYMBEX_MP
-
-void se_tb_gen_llvm(CPUArchState *env, TranslationBlock *tb) {
-    /* Operate on a copy to avoid clobbering the original one */
-    TranslationBlock llvm_tb = *tb;
-
-    llvm_tb.originalTb = tb;
-    cpu_gen_code(env, &llvm_tb);
-    cpu_gen_llvm(env, &llvm_tb);
-    tb->llvm_function = llvm_tb.llvm_function;
-    g_sqi.tb.set_tb_function(tb);
-}
-
-#endif
 
 /* Set to NULL all the 'first_tb' fields in all PageDescs. */
 static void page_flush_tb_1(int level, void **lp) {

@@ -95,17 +95,28 @@ static TranslationBlock *tb_find_slow(CPUArchState *env, target_ulong pc, target
     ptb1 = &tb_phys_hash[h];
     for (;;) {
         tb = *ptb1;
-        if (!tb)
+        if (!tb) {
             goto not_found;
-        if (tb->pc == pc && tb->page_addr[0] == phys_page1 && tb->cs_base == cs_base && tb->flags == flags) {
+        }
+
+        int llvm_nok = 0;
+#if defined(CONFIG_SYMBEX_MP)
+        if (env->generate_llvm && !tb->llvm_function) {
+            llvm_nok = 1;
+        }
+#endif
+
+        if (tb->pc == pc && tb->page_addr[0] == phys_page1 && tb->cs_base == cs_base && tb->flags == flags &&
+            !llvm_nok) {
             /* check next page if needed */
             if (tb->page_addr[1] != -1) {
                 tb_page_addr_t phys_page2;
 
                 virt_page2 = (pc & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
                 phys_page2 = get_page_addr_code(env, virt_page2);
-                if (tb->page_addr[1] == phys_page2)
+                if (tb->page_addr[1] == phys_page2) {
                     ++g_cpu_stats.tb_misses;
+                }
                 goto found;
             } else {
                 ++g_cpu_stats.tb_misses;
@@ -153,7 +164,14 @@ static inline TranslationBlock *tb_find_fast(CPUArchState *env) {
        is executed. */
     cpu_get_tb_cpu_state(env, &pc, &cs_base, &flags);
     tb = env->tb_jmp_cache[tb_jmp_cache_hash_func(pc)];
-    if (unlikely(!tb || tb->pc != pc || tb->cs_base != cs_base || tb->flags != flags)) {
+
+#ifdef CONFIG_SYMBEX
+    int llvm_nok = env->generate_llvm && (!tb || !tb->llvm_function);
+#else
+    int llvm_nok = 0;
+#endif
+
+    if (unlikely(!tb || tb->pc != pc || tb->cs_base != cs_base || tb->flags != flags || llvm_nok)) {
         tb = tb_find_slow(env, pc, cs_base, flags);
     } else {
         ++g_cpu_stats.tb_hits;
