@@ -216,6 +216,21 @@ ObjectPair S2EExecutionStateMemory::getMemoryObject(uint64_t address, AddressTyp
     return m_addressSpace->findObject(pageAddr);
 }
 
+const void *S2EExecutionStateMemory::getConcreteStore(uint64_t address, AddressType addressType) const {
+    auto op = getMemoryObject(address, addressType);
+    if (!op.first || !op.second) {
+        return nullptr;
+    }
+
+    auto obj = op.second;
+    auto store = obj->getConcreteStore();
+    if (!store) {
+        return nullptr;
+    }
+
+    return store + (address & ~SE_RAM_OBJECT_MASK);
+}
+
 bool S2EExecutionStateMemory::symbolic(uint64_t address, uint64_t size, AddressType addressType) {
 #ifdef CONFIG_SYMBEX_MP
     while (size > 0) {

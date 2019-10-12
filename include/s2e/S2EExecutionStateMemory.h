@@ -73,6 +73,14 @@ public:
 
     klee::ObjectPair getMemoryObject(uint64_t address, AddressType addressType = VirtualAddress) const;
 
+    ///
+    /// \brief Return the per-state host address where concrete data is actually stored.
+    /// \param address the address to translate
+    /// \param addressType the type of address specified
+    /// \return The address or null if the address could not be determineds
+    ///
+    const void *getConcreteStore(uint64_t address, AddressType addressType) const;
+
     ////////////////////////////////////////////////////////////
     // The APIs below may be used by plugins
     ////////////////////////////////////////////////////////////

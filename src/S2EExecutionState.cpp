@@ -1210,4 +1210,9 @@ void s2e_write_ram_concrete(uint64_t host_address, const uint8_t *buf, uint64_t 
 #endif
 }
 
+// To be used by GDB scripts to convert addresses
+uint64_t s2e_host_to_state_address(uint64_t hostaddr) {
+    return (uint64_t) g_s2e_state->mem()->getConcreteStore(hostaddr, s2e::HostAddress);
+}
+
 } // extern "C"
