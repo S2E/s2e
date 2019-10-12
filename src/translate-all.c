@@ -237,11 +237,6 @@ int cpu_gen_code(CPUArchState *env, TranslationBlock *tb) {
 
     tcg_func_start(s);
 
-#if defined(CONFIG_SYMBEX) && defined(TCG_KEEP_OPC)
-    tb->gen_opc_buf = gen_opc_buf;
-    tb->gen_opparam_buf = gen_opparam_buf;
-#endif
-
     gen_intermediate_code(env, tb);
 
     /* generate machine code */
@@ -313,7 +308,7 @@ int cpu_gen_code(CPUArchState *env, TranslationBlock *tb) {
 /**
  * Generates LLVM code for already translated TB.
  * We need to retranslate to micro-ops and to machine code because:
- *   - QEMU throws away micro-ops and storing them is too expensive (TCG_KEEP_OPC)
+ *   - QEMU throws away micro-ops and storing them is too expensive
  *   - x86 and LLVM code must be semantically equivalent (same instrumentation in both, etc.)
  */
 int cpu_gen_llvm(CPUArchState *env, TranslationBlock *tb) {

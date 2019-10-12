@@ -76,12 +76,6 @@ extern "C" {
 //#define ENABLE_PRECISE_EXCEPTION_DEBUGGING
 //#define ENABLE_PRECISE_EXCEPTION_DEBUGGING_COMPARE
 
-/**
- * Keep micro-operations in the translation cache.
- * QEMU normally discards them after generating machine code.
- */
-//#define TCG_KEEP_OPC
-
 #endif // CONFIG_SYMBEX
 
 #ifdef __cplusplus
