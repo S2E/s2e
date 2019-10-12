@@ -202,7 +202,6 @@ static void cpu_gen_init(TCGContext *ctx, tcg_settings_t *settings) {
 
 #ifdef CONFIG_SYMBEX
     ctx->tlbe_offset_symbex_addend = offsetof(CPUTLBEntry, se_addend);
-    ctx->after_memory_access_signals_count = (uintptr_t) g_sqi.events.after_memory_access_signals_count;
 #endif
 
     ctx->target_page_bits = TARGET_PAGE_BITS;
@@ -211,12 +210,6 @@ static void cpu_gen_init(TCGContext *ctx, tcg_settings_t *settings) {
 
     tcg_context_init(ctx);
 }
-
-#ifdef CONFIG_SYMBEX_MP
-static void cpu_gen_code_init_ctx(TCGContext *s) {
-    tcg_ctx->after_memory_access_signals_count = (uintptr_t) g_sqi.events.after_memory_access_signals_count;
-}
-#endif
 
 /* Must be called before using the QEMU cpus. 'tb_size' is the size
    (in bytes) allocated to the translation buffer. Zero means default
@@ -253,10 +246,6 @@ int cpu_gen_code(CPUArchState *env, TranslationBlock *tb) {
 
     /* generate machine code */
     gen_code_buf = tb->tc.ptr;
-
-#ifdef CONFIG_SYMBEX_MP
-    cpu_gen_code_init_ctx(s);
-#endif
 
     tb->jmp_reset_offset[0] = TB_JMP_RESET_OFFSET_INVALID;
     tb->jmp_reset_offset[1] = TB_JMP_RESET_OFFSET_INVALID;
@@ -333,8 +322,6 @@ int cpu_gen_llvm(CPUArchState *env, TranslationBlock *tb) {
 
     /* Need to retranslate the code here because QEMU throws
        away intermediate representation once machine code is generated. */
-
-    cpu_gen_code_init_ctx(s);
 
     tb->llvm_function = tcg_llvm_gen_code(tcg_llvm_ctx, s, tb);
     g_sqi.tb.set_tb_function(tb);
