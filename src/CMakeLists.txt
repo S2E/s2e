@@ -3,7 +3,7 @@
 
 add_library(
     cpu cpu-exec.c cpus.c exec.c exec-bp.c exec-log.c exec-memdbg.c exec-phys.c exec-phystb.c exec-ram.c exec-tb.c exec-tlb.c host-utils.c ioport.c memory.c timer.c translate-all.c
-    fpu/softfloat.c
+    fpu/softfloat.c precise-pc.c
     target-i386/cpuid.c target-i386/helper.c target-i386/op_helper.c target-i386/translate.c disas.c cutils.c
 )
 

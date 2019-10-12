@@ -64,7 +64,7 @@ extern void *tci_tb_ptr;
    smaller than 4 bytes, so we don't worry about special-casing this.  */
 #define GETPC_ADJ 2
 
-bool cpu_restore_state(CPUArchState *cpu, uintptr_t host_pc);
+#include "precise-pc.h"
 
 void cpu_exit(CPUArchState *s);
 void cpu_exec_init_all(void);
