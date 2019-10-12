@@ -310,6 +310,7 @@ S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMContext *tcgLLVMContext, InterpreterHa
     __DEFINE_EXT_FUNCTION(cpu_restore_state)
     __DEFINE_EXT_FUNCTION(cpu_abort)
     __DEFINE_EXT_FUNCTION(cpu_loop_exit)
+    __DEFINE_EXT_FUNCTION(cpu_loop_exit_restore)
     __DEFINE_EXT_FUNCTION(cpu_get_tsc)
     __DEFINE_EXT_FUNCTION(cpu_exit)
 
@@ -1152,24 +1153,22 @@ void S2EExecutor::updateConcreteFastPath(S2EExecutionState *state) {
     g_s2e_running_concrete = (char *) &state->m_runningConcrete;
     g_s2e_running_exception_emulation_code = (char *) &state->m_runningExceptionEmulationCode;
 
+    if (g_s2e_fast_concrete_invocation) {
+        env->generate_llvm = 0;
+    }
+
     updateClockScaling();
 }
 
 uintptr_t S2EExecutor::executeTranslationBlockKlee(S2EExecutionState *state, TranslationBlock *tb) {
-    tb_function_args[0] = env;
-    tb_function_args[1] = 0;
-    tb_function_args[2] = 0;
-
     assert(state->m_active && !state->isRunningConcrete());
     assert(state->stack.size() == 1);
     assert(state->pc == m_dummyMain->instructions);
 
     ++state->m_stats.m_statTranslationBlockSymbolic;
 
-    /* Generate LLVM code if necessary */
     if (!tb->llvm_function) {
-        se_tb_gen_llvm(env, tb);
-        assert(tb->llvm_function);
+        abort();
     }
 
     if (tb->se_tb != state->m_lastS2ETb) {
@@ -1179,8 +1178,10 @@ uintptr_t S2EExecutor::executeTranslationBlockKlee(S2EExecutionState *state, Tra
     }
 
     /* Prepare function execution */
-    prepareFunctionExecution(state, static_cast<Function *>(tb->llvm_function),
-                             std::vector<klee::ref<Expr>>(1, Expr::createPointer((uint64_t) tb_function_args)));
+    std::vector<klee::ref<Expr>> args;
+    args.push_back(klee::ConstantExpr::create((uint64_t) env, Expr::Int64));
+
+    prepareFunctionExecution(state, static_cast<Function *>(tb->llvm_function), args);
 
     if (executeInstructions(state)) {
         throw CpuExitException();
@@ -1248,16 +1249,26 @@ uintptr_t S2EExecutor::executeTranslationBlock(S2EExecutionState *state, Transla
 
     if (state->m_startSymbexAtPC != (uint64_t) -1) {
         executeKlee |= (state->regs()->getPc() == state->m_startSymbexAtPC);
+
+        if (executeKlee && !tb->llvm_function) {
+            env->generate_llvm = 1;
+            return 0;
+        }
+
         state->m_startSymbexAtPC = (uint64_t) -1;
     }
 
     // XXX: hack to run code symbolically that may be delayed because of interrupts.
     // Size check is important to avoid expensive calls to getPc/getPid in the common case
-    if (state->m_toRunSymbolically.size() > 0 &&
-        state->m_toRunSymbolically.find(std::make_pair(state->regs()->getPc(), state->regs()->getPageDir())) !=
-            state->m_toRunSymbolically.end()) {
-        executeKlee = true;
-        state->m_toRunSymbolically.erase(std::make_pair(state->regs()->getPc(), state->regs()->getPageDir()));
+    if (state->m_toRunSymbolically.size() > 0) {
+        auto pair = std::make_pair(state->regs()->getPc(), state->regs()->getPageDir());
+        if (state->m_toRunSymbolically.find(pair) != state->m_toRunSymbolically.end()) {
+            if (!tb->llvm_function) {
+                env->generate_llvm = 1;
+                return 0;
+            }
+            state->m_toRunSymbolically.erase(pair);
+        }
     }
 
     // If the CPU state has symbolic registers, run in KLEE.
@@ -1268,6 +1279,11 @@ uintptr_t S2EExecutor::executeTranslationBlock(S2EExecutionState *state, Transla
     auto allConcrete = state->regs()->allConcrete();
     if (!allConcrete) {
         executeKlee = true;
+    }
+
+    if (executeKlee && !tb->llvm_function) {
+        env->generate_llvm = 1;
+        return 0;
     }
 
     if (executeKlee) {
@@ -1285,6 +1301,8 @@ uintptr_t S2EExecutor::executeTranslationBlock(S2EExecutionState *state, Transla
 
         return executeTranslationBlockKlee(state, tb);
     } else {
+        env->generate_llvm = 0;
+
         if (!state->isRunningConcrete())
             state->switchToConcrete();
 
@@ -1305,8 +1323,9 @@ void S2EExecutor::cleanupTranslationBlock(S2EExecutionState *state) {
         return;
     }
 
-    while (state->stack.size() != 1)
+    while (state->stack.size() != 1) {
         state->popFrame();
+    }
 
     state->prevPC = 0;
     state->pc = m_dummyMain->instructions;
@@ -1337,8 +1356,9 @@ klee::ref<klee::Expr> S2EExecutor::executeFunction(S2EExecutionState *state, llv
     }
 
     klee::ref<Expr> resExpr(0);
-    if (function->getReturnType()->getTypeID() != Type::VoidTyID)
+    if (function->getReturnType()->getTypeID() != Type::VoidTyID) {
         resExpr = state->getDestCell(state->pc).value;
+    }
 
     return resExpr;
 }

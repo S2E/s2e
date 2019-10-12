@@ -127,8 +127,6 @@ void s2e_set_tb_function(struct TranslationBlock *tb);
 
 int s2e_is_tb_instrumented(struct TranslationBlock *tb);
 
-void se_tb_gen_llvm(struct CPUX86State *env, struct TranslationBlock *tb);
-
 void s2e_flush_tb_cache();
 void s2e_increment_tb_stats(struct TranslationBlock *tb);
 void s2e_flush_tlb_cache(void);
@@ -186,7 +184,6 @@ void s2e_on_initialization_complete(void);
 int s2e_is_load_balancing();
 int s2e_is_forking();
 
-void se_setup_precise_pc(struct TranslationBlock *tb);
 void s2e_fix_code_gen_ptr(struct TranslationBlock *tb, int code_gen_size);
 
 void se_tb_safe_flush(void);
