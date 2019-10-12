@@ -856,7 +856,6 @@ struct TCGContext {
 
 #ifdef CONFIG_SYMBEX
     unsigned tlbe_offset_symbex_addend;
-    uintptr_t after_memory_access_signals_count;
 #endif
 
     unsigned target_page_bits;

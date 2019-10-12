@@ -67,15 +67,12 @@ struct TranslationBlock {
                              size <= TARGET_PAGE_SIZE) */
 
 #define CF_COUNT_MASK 0x00007fff
-#define CF_LAST_IO 0x00008000 /* Last insn may be an IO access.  */
-#define CF_NOCACHE 0x00010000 /* To be freed after execution */
-#define CF_USE_ICOUNT 0x00020000
-#define CF_INVALID 0x00040000      /* TB is stale. Set with @jmp_lock held */
-#define CF_PARALLEL 0x00080000     /* Generate code for a parallel context */
-#define CF_CLUSTER_MASK 0xff000000 /* Top 8 bits are cluster ID */
-#define CF_CLUSTER_SHIFT 24
+#define CF_NOCACHE 0x00010000            /* To be freed after execution */
+#define CF_HAS_INTERRUPT_EXIT 0x00020000 /* The TB has a prologue to handle quick CPU loop exit */
+#define CF_INVALID 0x00040000            /* TB is stale. Set with @jmp_lock held */
+#define CF_PARALLEL 0x00080000           /* Generate code for a parallel context */
 
-    uint16_t cflags; /* compile flags */
+    uint32_t cflags; /* compile flags */
 
     // uint8_t *tc_ptr;  /* pointer to the translated code */
     // unsigned tc_size; /* size of the translated code */
@@ -142,19 +139,6 @@ struct TranslationBlock {
 
     /* Indicates whether there are execution handlers attached */
     int instrumented;
-
-    /* Points to the original TB when retranslating to LLVM */
-    struct TranslationBlock *originalTb;
-#ifdef TCG_KEEP_OPC
-    uint16_t *gen_opc_buf;
-    void *gen_opparam_buf; // TCGArg*
-    unsigned gen_opc_count;
-
-    /* Store minimum TCG state to later reconstruct LLVM bitcode */
-    void *tcg_temps;
-    int tcg_nb_globals;
-    int tcg_nb_temps;
-#endif
 
 #ifdef STATIC_TRANSLATOR
     /* pc after which to stop the translation */
