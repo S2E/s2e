@@ -1377,25 +1377,8 @@ std::string TCGLLVMContextPrivate::generateName()
 {
     std::ostringstream fName;
 
-#ifdef CONFIG_SYMBEX
-    if (m_tb->instrumented) {
-        /* Instrumented TBs cannot be cached or made persistent */
-        fName << "tcg-llvm-insttb-" << m_tbCount++ << "-"
-                << std::hex << m_tb->pc;
-    } else {
-        /* Create new function for current translation block */
-        /* XXX: compute the checksum of the tb to be fully  */
-        fName << "tcg-llvm-tb-" << std::hex
-                << m_tb->pc << '-'
-                << m_tb->size << '-'
-                //The size of the generated TB is important to avoid collisions
-                << m_tb->tc.size << '-'
-                << m_tb->cs_base << '-' << m_tb->flags;
-    }
-#else
-    fName << "tcg-llvm-insttb-" << m_tbCount++ << "-"
-            << std::hex << tb->pc;
-#endif
+    fName << "tcg-llvm-" << m_tbCount++ << "-"
+            << std::hex << m_tb->pc;
 
     return fName.str();
 }
