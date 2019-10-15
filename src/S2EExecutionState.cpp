@@ -63,8 +63,6 @@ S2EExecutionState::S2EExecutionState(klee::KFunction *kf)
 }
 
 S2EExecutionState::~S2EExecutionState() {
-    assert(m_lastS2ETb == nullptr);
-
     PluginStateMap::iterator it;
 
     if (VerboseStateDeletion) {
@@ -105,10 +103,7 @@ ExecutionState *S2EExecutionState::clone() {
     ret->addressSpace.state = ret;
     ret->m_deviceState.setExecutionState(ret);
     ret->concolics = new Assignment(true);
-
-    if (m_lastS2ETb) {
-        g_s2e->getExecutor()->refS2ETb(m_lastS2ETb);
-    }
+    ret->m_lastS2ETb = m_lastS2ETb;
 
     ret->m_stateID = g_s2e->fetchAndIncrementStateId();
     ret->m_guid = ret->m_stateID;

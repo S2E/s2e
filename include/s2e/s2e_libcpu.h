@@ -116,19 +116,19 @@ void s2e_write_register_concrete(unsigned offset, uint8_t *buf, unsigned size);
 void s2e_set_cc_op_eflags(struct CPUX86State *state);
 
 /** Allocate S2E parts of the tanslation block. Called from tb_alloc() */
-void se_tb_alloc(struct TranslationBlock *tb);
+void *se_tb_alloc(void);
 
 /** Flushes S2E parts of the translation blocks */
 void se_tb_flush(void);
 
 /** Called after LLVM code generation
     in order to update tb->se_tb->llvm_function */
-void s2e_set_tb_function(struct TranslationBlock *tb);
+void s2e_set_tb_function(void *se_tb, void *llvmFunction);
 
-int s2e_is_tb_instrumented(struct TranslationBlock *tb);
+int s2e_is_tb_instrumented(void *se_tb);
 
 void s2e_flush_tb_cache();
-void s2e_increment_tb_stats(struct TranslationBlock *tb);
+void s2e_increment_tb_stats(void *se_tb);
 void s2e_flush_tlb_cache(void);
 void se_flush_tlb_cache_page(void *objectState, int mmu_idx, int index);
 

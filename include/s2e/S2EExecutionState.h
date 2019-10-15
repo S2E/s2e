@@ -20,6 +20,7 @@
 #include "S2EExecutionStateTlb.h"
 
 #include "S2EStatsTracker.h"
+#include "S2ETranslationBlock.h"
 #include "s2e_config.h"
 
 extern "C" {
@@ -40,7 +41,6 @@ class Plugin;
 class PluginState;
 class S2EDeviceState;
 class S2EExecutionState;
-struct S2ETranslationBlock;
 
 typedef std::map<const Plugin *, PluginState *> PluginStateMap;
 typedef PluginState *(*PluginStateFactory)(Plugin *p, S2EExecutionState *s);
@@ -119,7 +119,7 @@ protected:
        variables while the state is inactive */
     TimersState *m_timersState;
 
-    S2ETranslationBlock *m_lastS2ETb;
+    S2ETranslationBlockPtr m_lastS2ETb;
 
     bool m_needFinalizeTBExec;
 

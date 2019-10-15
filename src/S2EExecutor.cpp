@@ -89,11 +89,6 @@ namespace {
                      " disabling leads to faster but possibly incorrect execution"),
             cl::init(true));
 
-    cl::opt<bool>
-    KeepLLVMFunctions("keep-llvm-functions",
-            cl::desc("Never delete generated LLVM functions"),
-            cl::init(false));
-
     //The default is true for two reasons:
     //1. Symbolic addresses are very expensive to handle
     //2. There is lazy forking which will eventually enumerate
@@ -480,18 +475,6 @@ S2EExecutionState *S2EExecutor::createInitialState() {
     klee::SolverManager::get().createStateSolver(*state);
     addedStates.insert(state);
     updateStates(state);
-
-    /* Externally accessible global vars */
-    /* XXX move away */
-    addExternalObject(*state, &tcg_llvm_runtime, sizeof(tcg_llvm_runtime), false,
-                      /* isUserSpecified = */ true,
-                      /* isSharedConcrete = */ true,
-                      /* isValueIgnored = */ true);
-
-    addExternalObject(*state, (void *) tb_function_args, sizeof(tb_function_args), false,
-                      /* isUserSpecified = */ true,
-                      /* isSharedConcrete = */ true,
-                      /* isValueIgnored = */ true);
 
 #define __DEFINE_EXT_OBJECT_RO(name)                                 \
     predefinedSymbols.insert(std::make_pair(#name, (void *) &name)); \
@@ -912,8 +895,6 @@ ExecutionState *S2EExecutor::selectSearcherState(S2EExecutionState *state) {
             S2EExecutionState *s = *it;
             // Leave the current state in a zombie form to let the process exit gracefully.
             if (s != g_s2e_state) {
-                unrefS2ETb(s->m_lastS2ETb);
-                s->m_lastS2ETb = nullptr;
                 delete s;
             }
         }
@@ -972,8 +953,6 @@ S2EExecutionState *S2EExecutor::selectNextState(S2EExecutionState *state) {
     foreach2 (it, m_deletedStates.begin(), m_deletedStates.end()) {
         S2EExecutionState *s = *it;
         assert(s != newState);
-        unrefS2ETb(s->m_lastS2ETb);
-        s->m_lastS2ETb = nullptr;
         delete s;
     }
     m_deletedStates.clear();
@@ -1171,11 +1150,7 @@ uintptr_t S2EExecutor::executeTranslationBlockKlee(S2EExecutionState *state, Tra
         abort();
     }
 
-    if (tb->se_tb != state->m_lastS2ETb) {
-        unrefS2ETb(state->m_lastS2ETb);
-        state->m_lastS2ETb = static_cast<S2ETranslationBlock *>(tb->se_tb);
-        refS2ETb(state->m_lastS2ETb);
-    }
+    state->m_lastS2ETb = S2ETranslationBlockPtr(static_cast<S2ETranslationBlock *>(tb->se_tb));
 
     /* Prepare function execution */
     std::vector<klee::ref<Expr>> args;
@@ -1186,6 +1161,8 @@ uintptr_t S2EExecutor::executeTranslationBlockKlee(S2EExecutionState *state, Tra
     if (executeInstructions(state)) {
         throw CpuExitException();
     }
+
+    state->m_lastS2ETb = nullptr;
 
     // XXX: TBs may be reused, persisted, etc.
     // The returned value stored has no meaning (could refer to
@@ -1809,104 +1786,14 @@ bool S2EExecutor::resumeState(S2EExecutionState *state) {
     return false;
 }
 
-void S2EExecutor::refLLVMTb(llvm::Function *tb) {
-    assert(tb);
-    m_llvmBlockReferences[tb]++;
-}
-
-void S2EExecutor::unrefLLVMTb(llvm::Function *tb) {
-    assert(tb);
-    LLVMTbReferences::iterator it = m_llvmBlockReferences.find(tb);
-    assert(it != m_llvmBlockReferences.end());
-    assert((*it).second > 0);
-
-    if (--(*it).second) {
-        return;
-    }
-
-    m_llvmBlockReferences.erase(it);
-
-    S2EExternalDispatcher *s2eDispatcher = static_cast<S2EExternalDispatcher *>(externalDispatcher);
-    s2eDispatcher->removeFunction(tb);
-
-    if (KeepLLVMFunctions) {
-        return;
-    }
-
-    // We may have generated LLVM code that was never executed
-    if (kmodule->functionMap.find(tb) != kmodule->functionMap.end()) {
-        kmodule->removeFunction(tb);
-    } else {
-        tb->eraseFromParent();
-    }
-}
-
-void S2EExecutor::refS2ETb(S2ETranslationBlock *se_tb) {
-    assert(m_s2eTbs.count(se_tb) > 0);
-
-    se_tb->refCount++;
-    if (se_tb->llvm_function) {
-        refLLVMTb(se_tb->llvm_function);
-    }
-}
-
-bool S2EExecutor::unrefS2ETb(S2ETranslationBlock *se_tb, bool erase) {
-    if (!se_tb) {
-        return false;
-    }
-
-    assert(m_s2eTbs.count(se_tb) > 0);
-
-    if (--se_tb->refCount) {
-        return false;
-    }
-
-    if (se_tb->llvm_function) {
-        unrefLLVMTb(se_tb->llvm_function);
-    }
-
-    foreach2 (it, se_tb->executionSignals.begin(), se_tb->executionSignals.end()) {
-        delete static_cast<ExecutionSignal *>(*it);
-    }
-
-    if (erase) {
-        m_s2eTbs.erase(se_tb);
-    }
-
-    delete se_tb;
-    return true;
-}
-
 S2ETranslationBlock *S2EExecutor::allocateS2ETb() {
-    S2ETranslationBlock *se_tb = new S2ETranslationBlock;
-
-    se_tb->llvm_function = nullptr;
-    se_tb->refCount = 1;
-    se_tb->allocated = false;
-
-    /* Push one copy of a signal to use it as a cache */
-    se_tb->executionSignals.push_back(new s2e::ExecutionSignal);
-
+    S2ETranslationBlockPtr se_tb(new S2ETranslationBlock);
     m_s2eTbs.insert(se_tb);
-
-    return se_tb;
+    return se_tb.get();
 }
 
 void S2EExecutor::flushS2ETBs() {
-    for (auto it = m_s2eTbs.begin(); it != m_s2eTbs.end();) {
-        if (!(*it)->allocated) {
-            ++it;
-            continue;
-        }
-
-        bool needsErase = unrefS2ETb(*it, false);
-        if (needsErase) {
-            m_s2eTbs.erase(it++);
-        } else {
-            (*it)->allocated = false;
-            ++it;
-        }
-    }
+    m_s2eTbs.clear();
 }
 
 void S2EExecutor::updateStats(S2EExecutionState *state) {
@@ -1983,22 +1870,19 @@ int se_is_vmem_symbolic(uint64_t vmem, unsigned size) {
     return g_s2e_state->mem()->symbolic(vmem, size);
 }
 
-void se_tb_alloc(TranslationBlock *tb) {
-    auto se_tb = g_s2e->getExecutor()->allocateS2ETb();
-    se_tb->allocated = true;
-    tb->se_tb = se_tb;
+void *se_tb_alloc(void) {
+    return g_s2e->getExecutor()->allocateS2ETb();
 }
 
-int s2e_is_tb_instrumented(TranslationBlock *tb) {
-    S2ETranslationBlock *se_tb = static_cast<S2ETranslationBlock *>(tb->se_tb);
-    unsigned size = se_tb->executionSignals.size();
-    return size > 1;
+int s2e_is_tb_instrumented(void *se_tb) {
+    auto tb = static_cast<S2ETranslationBlock *>(se_tb);
+    return tb->executionSignals.size() > 1;
 }
 
-void s2e_set_tb_function(TranslationBlock *tb) {
-    S2ETranslationBlock *se_tb = static_cast<S2ETranslationBlock *>(tb->se_tb);
-    se_tb->llvm_function = static_cast<Function *>(tb->llvm_function);
-    g_s2e->getExecutor()->refLLVMTb(se_tb->llvm_function);
+// XXX: this assumes that libcpu never deletes generated LLVM functions
+void s2e_set_tb_function(void *se_tb, void *llvmFunction) {
+    auto tb = static_cast<S2ETranslationBlock *>(se_tb);
+    tb->translationBlock = static_cast<llvm::Function *>(llvmFunction);
 }
 
 void s2e_flush_tb_cache() {
@@ -2014,9 +1898,9 @@ void s2e_flush_tb_cache() {
     }
 }
 
-void s2e_increment_tb_stats(TranslationBlock *tb) {
+void s2e_increment_tb_stats(void *se_tb) {
     ++klee::stats::availableTranslationBlocks;
-    if (tb->instrumented) {
+    if (s2e_is_tb_instrumented(se_tb)) {
         ++klee::stats::availableTranslationBlocksInstrumented;
     }
 }

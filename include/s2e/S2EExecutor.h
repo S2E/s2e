@@ -16,6 +16,8 @@
 #include <s2e/s2e_libcpu.h>
 #include <timer.h>
 
+#include "S2ETranslationBlock.h"
+
 struct TCGLLVMContext;
 
 struct TranslationBlock;
@@ -59,11 +61,8 @@ protected:
 
     struct CPUTimer *m_stateSwitchTimer;
 
-    /** Counts how many translation blocks reference a given LLVM function */
-    typedef llvm::DenseMap<const llvm::Function *, unsigned> LLVMTbReferences;
-    LLVMTbReferences m_llvmBlockReferences;
-
-    std::unordered_set<S2ETranslationBlock *> m_s2eTbs;
+    // This is a set of TBs that are currently stored in libcpu's TB cache
+    std::unordered_set<S2ETranslationBlockPtr, S2ETranslationBlockHash, S2ETranslationBlockEqual> m_s2eTbs;
 
 public:
     S2EExecutor(S2E *s2e, TCGLLVMContext *tcgLVMContext, klee::InterpreterHandler *ie);
@@ -143,11 +142,6 @@ public:
 
     bool merge(klee::ExecutionState &base, klee::ExecutionState &other);
 
-    void refLLVMTb(llvm::Function *tb);
-    void unrefLLVMTb(llvm::Function *tb);
-
-    void refS2ETb(S2ETranslationBlock *se_tb);
-    bool unrefS2ETb(S2ETranslationBlock *se_tb, bool erase = true);
     S2ETranslationBlock *allocateS2ETb();
     void flushS2ETBs();
 
@@ -209,26 +203,6 @@ protected:
 
     void replaceExternalFunctionsWithSpecialHandlers();
     void disableConcreteLLVMHelpers();
-};
-
-struct S2ETranslationBlock {
-    /// Reference counter. S2ETranslationBlock should not be freed
-    /// until all LLVM functions are completely executed. This reference
-    /// counter controls it.
-    unsigned refCount;
-
-    // Indicates whether this block has a corresponding TB in libcpu
-    bool allocated;
-
-    // A copy of TranslationBlock::llvm_function that can be used
-    // even after TranslationBlock is destroyed
-    llvm::Function *llvm_function;
-
-    // A list of all instruction execution signals associated with
-    // this basic block. All signals in the list will be deleted
-    // when this translation block will be flushed.
-    // XXX: how could we avoid using void* here ?
-    std::vector<void *> executionSignals;
 };
 
 } // namespace s2e
