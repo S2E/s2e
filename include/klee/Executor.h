@@ -277,6 +277,14 @@ public:
     }
 
     Expr::Width getWidthForLLVMType(llvm::Type *type) const;
+
+    ExternalDispatcher *getDispatcher() const {
+        return externalDispatcher;
+    }
+
+    KModule *getModule() const {
+        return kmodule;
+    }
 };
 
 } // End klee namespace
