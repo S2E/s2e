@@ -82,18 +82,6 @@ typedef uint64_t target_ulong;
 
 extern "C" {
     TCGLLVMContext* tcg_llvm_ctx = 0;
-
-    /* These data is accessible from generated code */
-    TCGLLVMRuntime tcg_llvm_runtime = {
-        0, 0, {0,0,0}
-#ifdef CONFIG_SYMBEX
-        , 0
-#endif
-#ifndef CONFIG_SYMBEX
-        , 0, 0, 0
-#endif
-    };
-
 }
 
 using namespace llvm;
@@ -1302,13 +1290,7 @@ int TCGLLVMContextPrivate::generateOperation(const TCGOp *op)
     } break;
 
     case INDEX_op_goto_tb:
-#if defined(CONFIG_SYMBEX) && !defined(STATIC_TRANSLATOR)
-        m_builder.CreateStore(ConstantInt::get(intType(8), op->args[0]),
-                m_builder.CreateIntToPtr(ConstantInt::get(wordType(),
-                    (uint64_t) &tcg_llvm_runtime.goto_tb),
-                intPtrType(8)));
-#endif
-        /* XXX: tb linking is disabled */
+        // tb linking is disabled
         break;
 
     case INDEX_op_deposit_i32: {
