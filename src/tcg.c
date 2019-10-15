@@ -1863,189 +1863,190 @@ static inline TCGReg tcg_regset_first(TCGRegSet d) {
     }
 }
 
-void tcg_dump_ops(TCGContext *s, bool have_prefs) {
+void tcg_dump_op(TCGContext *s, bool have_prefs, TCGOp *op) {
     char buf[128];
+    int i, k, nb_oargs, nb_iargs, nb_cargs;
+    const TCGOpDef *def;
+    TCGOpcode c;
+    int col = 0;
+
+    c = op->opc;
+    def = &tcg_op_defs[c];
+
+    if (c == INDEX_op_insn_start) {
+        nb_oargs = 0;
+        col += qemu_log("\n ----");
+
+        for (i = 0; i < TARGET_INSN_START_WORDS; ++i) {
+            target_ulong a;
+#if TARGET_LONG_BITS > TCG_TARGET_REG_BITS
+            a = deposit64(op->args[i * 2], 32, 32, op->args[i * 2 + 1]);
+#else
+            a = op->args[i];
+#endif
+            col += qemu_log(" " TARGET_FMT_lx, a);
+        }
+    } else if (c == INDEX_op_call) {
+        /* variable number of arguments */
+        nb_oargs = TCGOP_CALLO(op);
+        nb_iargs = TCGOP_CALLI(op);
+        nb_cargs = def->nb_cargs;
+
+        /* function name, flags, out args */
+        col += qemu_log(" %s %s,$0x%" TCG_PRIlx ",$%d", def->name, tcg_find_helper(s, op->args[nb_oargs + nb_iargs]),
+                        op->args[nb_oargs + nb_iargs + 1], nb_oargs);
+        for (i = 0; i < nb_oargs; i++) {
+            col += qemu_log(",%s", tcg_get_arg_str(s, buf, sizeof(buf), op->args[i]));
+        }
+        for (i = 0; i < nb_iargs; i++) {
+            TCGArg arg = op->args[nb_oargs + i];
+            const char *t = "<dummy>";
+            if (arg != TCG_CALL_DUMMY_ARG) {
+                t = tcg_get_arg_str(s, buf, sizeof(buf), arg);
+            }
+            col += qemu_log(",%s", t);
+        }
+    } else {
+        col += qemu_log(" %s ", def->name);
+
+        nb_oargs = def->nb_oargs;
+        nb_iargs = def->nb_iargs;
+        nb_cargs = def->nb_cargs;
+
+        if (def->flags & TCG_OPF_VECTOR) {
+            col += qemu_log("v%d,e%d,", 64 << TCGOP_VECL(op), 8 << TCGOP_VECE(op));
+        }
+
+        k = 0;
+        for (i = 0; i < nb_oargs; i++) {
+            if (k != 0) {
+                col += qemu_log(",");
+            }
+            col += qemu_log("%s", tcg_get_arg_str(s, buf, sizeof(buf), op->args[k++]));
+        }
+        for (i = 0; i < nb_iargs; i++) {
+            if (k != 0) {
+                col += qemu_log(",");
+            }
+            col += qemu_log("%s", tcg_get_arg_str(s, buf, sizeof(buf), op->args[k++]));
+        }
+        switch (c) {
+            case INDEX_op_brcond_i32:
+            case INDEX_op_setcond_i32:
+            case INDEX_op_movcond_i32:
+            case INDEX_op_brcond2_i32:
+            case INDEX_op_setcond2_i32:
+            case INDEX_op_brcond_i64:
+            case INDEX_op_setcond_i64:
+            case INDEX_op_movcond_i64:
+            case INDEX_op_cmp_vec:
+                if (op->args[k] < ARRAY_SIZE(cond_name) && cond_name[op->args[k]]) {
+                    col += qemu_log(",%s", cond_name[op->args[k++]]);
+                } else {
+                    col += qemu_log(",$0x%" TCG_PRIlx, op->args[k++]);
+                }
+                i = 1;
+                break;
+            case INDEX_op_qemu_ld_i32:
+            case INDEX_op_qemu_st_i32:
+            case INDEX_op_qemu_ld_i64:
+            case INDEX_op_qemu_st_i64: {
+                TCGMemOpIdx oi = op->args[k++];
+                TCGMemOp op = get_memop(oi);
+                unsigned ix = get_mmuidx(oi);
+
+                if (op & ~(MO_AMASK | MO_BSWAP | MO_SSIZE)) {
+                    col += qemu_log(",$0x%x,%u", op, ix);
+                } else {
+                    const char *s_al, *s_op;
+                    s_al = alignment_name[(op & MO_AMASK) >> MO_ASHIFT];
+                    s_op = ldst_name[op & (MO_BSWAP | MO_SSIZE)];
+                    col += qemu_log(",%s%s,%u", s_al, s_op, ix);
+                }
+                i = 1;
+            } break;
+            default:
+                i = 0;
+                break;
+        }
+        switch (c) {
+            case INDEX_op_set_label:
+            case INDEX_op_br:
+            case INDEX_op_brcond_i32:
+            case INDEX_op_brcond_i64:
+            case INDEX_op_brcond2_i32:
+                col += qemu_log("%s$L%d", k ? "," : "", arg_label(op->args[k])->id);
+                i++, k++;
+                break;
+            default:
+                break;
+        }
+        for (; i < nb_cargs; i++, k++) {
+            col += qemu_log("%s$0x%" TCG_PRIlx, k ? "," : "", op->args[k]);
+        }
+    }
+
+    if (have_prefs || op->life) {
+        for (; col < 40; ++col) {
+            putc(' ', logfile);
+        }
+    }
+
+    if (op->life) {
+        unsigned life = op->life;
+
+        if (life & (SYNC_ARG * 3)) {
+            qemu_log("  sync:");
+            for (i = 0; i < 2; ++i) {
+                if (life & (SYNC_ARG << i)) {
+                    qemu_log(" %d", i);
+                }
+            }
+        }
+        life /= DEAD_ARG;
+        if (life) {
+            qemu_log("  dead:");
+            for (i = 0; life; ++i, life >>= 1) {
+                if (life & 1) {
+                    qemu_log(" %d", i);
+                }
+            }
+        }
+    }
+
+    if (have_prefs) {
+        for (i = 0; i < nb_oargs; ++i) {
+            TCGRegSet set = op->output_pref[i];
+
+            if (i == 0) {
+                qemu_log("  pref=");
+            } else {
+                qemu_log(",");
+            }
+            if (set == 0) {
+                qemu_log("none");
+            } else if (set == MAKE_64BIT_MASK(0, TCG_TARGET_NB_REGS)) {
+                qemu_log("all");
+#ifdef CONFIG_DEBUG_TCG
+            } else if (tcg_regset_single(set)) {
+                TCGReg reg = tcg_regset_first(set);
+                qemu_log("%s", tcg_target_reg_names[reg]);
+#endif
+            } else if (TCG_TARGET_NB_REGS <= 32) {
+                qemu_log("%#x", (uint32_t) set);
+            } else {
+                qemu_log("%#" PRIx64, (uint64_t) set);
+            }
+        }
+    }
+
+    qemu_log("\n");
+}
+
+void tcg_dump_ops(TCGContext *s, bool have_prefs) {
     TCGOp *op;
 
-    QTAILQ_FOREACH (op, &s->ops, link) {
-        int i, k, nb_oargs, nb_iargs, nb_cargs;
-        const TCGOpDef *def;
-        TCGOpcode c;
-        int col = 0;
-
-        c = op->opc;
-        def = &tcg_op_defs[c];
-
-        if (c == INDEX_op_insn_start) {
-            nb_oargs = 0;
-            col += qemu_log("\n ----");
-
-            for (i = 0; i < TARGET_INSN_START_WORDS; ++i) {
-                target_ulong a;
-#if TARGET_LONG_BITS > TCG_TARGET_REG_BITS
-                a = deposit64(op->args[i * 2], 32, 32, op->args[i * 2 + 1]);
-#else
-                a = op->args[i];
-#endif
-                col += qemu_log(" " TARGET_FMT_lx, a);
-            }
-        } else if (c == INDEX_op_call) {
-            /* variable number of arguments */
-            nb_oargs = TCGOP_CALLO(op);
-            nb_iargs = TCGOP_CALLI(op);
-            nb_cargs = def->nb_cargs;
-
-            /* function name, flags, out args */
-            col +=
-                qemu_log(" %s %s,$0x%" TCG_PRIlx ",$%d", def->name, tcg_find_helper(s, op->args[nb_oargs + nb_iargs]),
-                         op->args[nb_oargs + nb_iargs + 1], nb_oargs);
-            for (i = 0; i < nb_oargs; i++) {
-                col += qemu_log(",%s", tcg_get_arg_str(s, buf, sizeof(buf), op->args[i]));
-            }
-            for (i = 0; i < nb_iargs; i++) {
-                TCGArg arg = op->args[nb_oargs + i];
-                const char *t = "<dummy>";
-                if (arg != TCG_CALL_DUMMY_ARG) {
-                    t = tcg_get_arg_str(s, buf, sizeof(buf), arg);
-                }
-                col += qemu_log(",%s", t);
-            }
-        } else {
-            col += qemu_log(" %s ", def->name);
-
-            nb_oargs = def->nb_oargs;
-            nb_iargs = def->nb_iargs;
-            nb_cargs = def->nb_cargs;
-
-            if (def->flags & TCG_OPF_VECTOR) {
-                col += qemu_log("v%d,e%d,", 64 << TCGOP_VECL(op), 8 << TCGOP_VECE(op));
-            }
-
-            k = 0;
-            for (i = 0; i < nb_oargs; i++) {
-                if (k != 0) {
-                    col += qemu_log(",");
-                }
-                col += qemu_log("%s", tcg_get_arg_str(s, buf, sizeof(buf), op->args[k++]));
-            }
-            for (i = 0; i < nb_iargs; i++) {
-                if (k != 0) {
-                    col += qemu_log(",");
-                }
-                col += qemu_log("%s", tcg_get_arg_str(s, buf, sizeof(buf), op->args[k++]));
-            }
-            switch (c) {
-                case INDEX_op_brcond_i32:
-                case INDEX_op_setcond_i32:
-                case INDEX_op_movcond_i32:
-                case INDEX_op_brcond2_i32:
-                case INDEX_op_setcond2_i32:
-                case INDEX_op_brcond_i64:
-                case INDEX_op_setcond_i64:
-                case INDEX_op_movcond_i64:
-                case INDEX_op_cmp_vec:
-                    if (op->args[k] < ARRAY_SIZE(cond_name) && cond_name[op->args[k]]) {
-                        col += qemu_log(",%s", cond_name[op->args[k++]]);
-                    } else {
-                        col += qemu_log(",$0x%" TCG_PRIlx, op->args[k++]);
-                    }
-                    i = 1;
-                    break;
-                case INDEX_op_qemu_ld_i32:
-                case INDEX_op_qemu_st_i32:
-                case INDEX_op_qemu_ld_i64:
-                case INDEX_op_qemu_st_i64: {
-                    TCGMemOpIdx oi = op->args[k++];
-                    TCGMemOp op = get_memop(oi);
-                    unsigned ix = get_mmuidx(oi);
-
-                    if (op & ~(MO_AMASK | MO_BSWAP | MO_SSIZE)) {
-                        col += qemu_log(",$0x%x,%u", op, ix);
-                    } else {
-                        const char *s_al, *s_op;
-                        s_al = alignment_name[(op & MO_AMASK) >> MO_ASHIFT];
-                        s_op = ldst_name[op & (MO_BSWAP | MO_SSIZE)];
-                        col += qemu_log(",%s%s,%u", s_al, s_op, ix);
-                    }
-                    i = 1;
-                } break;
-                default:
-                    i = 0;
-                    break;
-            }
-            switch (c) {
-                case INDEX_op_set_label:
-                case INDEX_op_br:
-                case INDEX_op_brcond_i32:
-                case INDEX_op_brcond_i64:
-                case INDEX_op_brcond2_i32:
-                    col += qemu_log("%s$L%d", k ? "," : "", arg_label(op->args[k])->id);
-                    i++, k++;
-                    break;
-                default:
-                    break;
-            }
-            for (; i < nb_cargs; i++, k++) {
-                col += qemu_log("%s$0x%" TCG_PRIlx, k ? "," : "", op->args[k]);
-            }
-        }
-
-        if (have_prefs || op->life) {
-            for (; col < 40; ++col) {
-                putc(' ', logfile);
-            }
-        }
-
-        if (op->life) {
-            unsigned life = op->life;
-
-            if (life & (SYNC_ARG * 3)) {
-                qemu_log("  sync:");
-                for (i = 0; i < 2; ++i) {
-                    if (life & (SYNC_ARG << i)) {
-                        qemu_log(" %d", i);
-                    }
-                }
-            }
-            life /= DEAD_ARG;
-            if (life) {
-                qemu_log("  dead:");
-                for (i = 0; life; ++i, life >>= 1) {
-                    if (life & 1) {
-                        qemu_log(" %d", i);
-                    }
-                }
-            }
-        }
-
-        if (have_prefs) {
-            for (i = 0; i < nb_oargs; ++i) {
-                TCGRegSet set = op->output_pref[i];
-
-                if (i == 0) {
-                    qemu_log("  pref=");
-                } else {
-                    qemu_log(",");
-                }
-                if (set == 0) {
-                    qemu_log("none");
-                } else if (set == MAKE_64BIT_MASK(0, TCG_TARGET_NB_REGS)) {
-                    qemu_log("all");
-#ifdef CONFIG_DEBUG_TCG
-                } else if (tcg_regset_single(set)) {
-                    TCGReg reg = tcg_regset_first(set);
-                    qemu_log("%s", tcg_target_reg_names[reg]);
-#endif
-                } else if (TCG_TARGET_NB_REGS <= 32) {
-                    qemu_log("%#x", (uint32_t) set);
-                } else {
-                    qemu_log("%#" PRIx64, (uint64_t) set);
-                }
-            }
-        }
-
-        qemu_log("\n");
-    }
+    QTAILQ_FOREACH (op, &s->ops, link) { tcg_dump_op(s, have_prefs, op); }
 }
 
 /* we give more priority to constraints with less registers */
