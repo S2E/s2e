@@ -81,11 +81,11 @@ struct se_libcpu_interface_t {
 
     /* TB management */
     struct tb {
-        void (*tb_alloc)(struct TranslationBlock *tb);
+        void *(*tb_alloc)(void);
         void (*flush_tb_cache)();
-        void (*set_tb_function)(struct TranslationBlock *tb);
-        int (*is_tb_instrumented)(struct TranslationBlock *tb);
-        void (*increment_tb_stats)(struct TranslationBlock *tb);
+        void (*set_tb_function)(void *se_tb, void *llvmFunction);
+        int (*is_tb_instrumented)(void *se_tb);
+        void (*increment_tb_stats)(void *se_tb);
     } tb;
 
     /* TLB management */

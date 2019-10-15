@@ -281,7 +281,7 @@ int cpu_gen_code(CPUArchState *env, TranslationBlock *tb) {
     if (env->generate_llvm) {
         assert(tb->llvm_function == NULL);
         tb->llvm_function = tcg_llvm_gen_code(tcg_llvm_ctx, s, tb);
-        g_sqi.tb.set_tb_function(tb);
+        g_sqi.tb.set_tb_function(tb->se_tb, tb->llvm_function);
     }
 #endif
 
@@ -304,7 +304,7 @@ int cpu_gen_code(CPUArchState *env, TranslationBlock *tb) {
 #ifdef CONFIG_SYMBEX
     tcg_calc_regmask(s, &tb->reg_rmask, &tb->reg_wmask, &tb->helper_accesses_mem);
 
-    tb->instrumented = g_sqi.tb.is_tb_instrumented(tb);
+    tb->instrumented = g_sqi.tb.is_tb_instrumented(tb->se_tb);
     g_sqi.tb.increment_tb_stats(tb);
 #endif
 

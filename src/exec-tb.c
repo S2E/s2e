@@ -82,8 +82,7 @@ static TranslationBlock *tb_alloc(target_ulong pc) {
 
 #ifdef CONFIG_SYMBEX
     tb->llvm_function = NULL;
-    tb->se_tb = NULL;
-    g_sqi.tb.tb_alloc(tb);
+    tb->se_tb = g_sqi.tb.tb_alloc();
 #endif
 
     ++g_tb_alloc_count;
