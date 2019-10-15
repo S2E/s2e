@@ -1631,6 +1631,8 @@ static void gen_rot_rm_T1(DisasContext *s, int ot, int op1, int is_right) {
     t2 = tcg_temp_local_new();
     a0 = tcg_temp_local_new();
 
+    tcg_gen_movi_tl(t2, 0);
+
     if (ot == OT_QUAD)
         mask = 0x3f;
     else
