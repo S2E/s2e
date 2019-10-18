@@ -31,7 +31,6 @@
 #include <limits.h>
 #include <stdbool.h>
 
-#ifdef CONFIG_INT128
 static inline void mulu64(uint64_t *plow, uint64_t *phigh, uint64_t a, uint64_t b) {
     __uint128_t r = (__uint128_t) a * b;
     *plow = r;
@@ -72,41 +71,6 @@ static inline int divs128(int64_t *plow, int64_t *phigh, int64_t divisor) {
         return result != *plow;
     }
 }
-#else
-
-static inline void mulu64(uint64_t *plow, uint64_t *phigh, uint64_t a, uint64_t b) {
-    __asm__("mul %0\n\t" : "=d"(*phigh), "=a"(*plow) : "a"(a), "0"(b));
-}
-
-static inline void muls64(uint64_t *plow, uint64_t *phigh, int64_t a, int64_t b) {
-    __asm__("imul %0\n\t" : "=d"(*phigh), "=a"(*plow) : "a"(a), "0"(b));
-}
-
-int divu128(uint64_t *plow, uint64_t *phigh, uint64_t divisor);
-int divs128(int64_t *plow, int64_t *phigh, int64_t divisor);
-
-static inline uint64_t muldiv64(uint64_t a, uint32_t b, uint32_t c) {
-    union {
-        uint64_t ll;
-        struct {
-#ifdef HOST_WORDS_BIGENDIAN
-            uint32_t high, low;
-#else
-            uint32_t low, high;
-#endif
-        } l;
-    } u, res;
-    uint64_t rl, rh;
-
-    u.ll = a;
-    rl = (uint64_t) u.l.low * (uint64_t) b;
-    rh = (uint64_t) u.l.high * (uint64_t) b;
-    rh += (rl >> 32);
-    res.l.high = rh / c;
-    res.l.low = (((rh % c) << 32) + (rl & 0xffffffff)) / c;
-    return res.ll;
-}
-#endif
 
 /**
  * clz32 - count leading zeros in a 32-bit value.
