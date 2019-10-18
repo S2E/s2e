@@ -25,7 +25,7 @@
 
 #include <tcg/tcg-op.h>
 
-#include "host-utils.h"
+#include <tcg/utils/host-utils.h>
 #include "libcpu-log.h"
 
 #include "softmmu_exec.h"
