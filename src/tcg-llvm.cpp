@@ -72,9 +72,6 @@ typedef uint64_t target_ulong;
 // XXX: hack
 #define CC_OP_DYNAMIC 0
 
-//#undef NDEBUG
-#define USE_GEPS
-
 // XXX: clang format gives really ugly results
 // for this file. Looks like the file needs to be
 // manually refactored.
@@ -433,10 +430,8 @@ Value* TCGLLVMContextPrivate::getPtrForValue(int idx)
                 StringRef(temp.name) + "_ptr"
             );
         } else {
-#if defined(USE_GEPS)
             m_memValuesPtr[idx] =
                 generateCpuStatePtr(temp.mem_offset, tcgType(temp.type)->getScalarSizeInBits() / 8);
-#endif
 
             if (!m_memValuesPtr[idx]) {
                 Value *v = getValue(m_globalsIdx[idx]);
@@ -454,26 +449,12 @@ Value* TCGLLVMContextPrivate::getPtrForValue(int idx)
 
 void TCGLLVMContextPrivate::delValue(int idx)
 {
-    /* XXX
-    if(m_values[idx] && m_values[idx]->use_empty()) {
-        if(!isa<Instruction>(m_values[idx]) ||
-                !cast<Instruction>(m_values[idx])->getParent())
-            delete m_values[idx];
-    }
-    */
     assert(idx >= 0 && idx < TCG_MAX_TEMPS);
     m_values[idx] = NULL;
 }
 
 void TCGLLVMContextPrivate::delPtrForValue(int idx)
 {
-    /* XXX
-    if(m_memValuesPtr[idx] && m_memValuesPtr[idx]->use_empty()) {
-        if(!isa<Instruction>(m_memValuesPtr[idx]) ||
-                !cast<Instruction>(m_memValuesPtr[idx])->getParent())
-            delete m_memValuesPtr[idx];
-    }
-    */
     assert(idx >= 0 && idx < TCG_MAX_TEMPS);
     m_memValuesPtr[idx] = NULL;
 }
@@ -682,7 +663,6 @@ void TCGLLVMContextPrivate::startNewBasicBlock(BasicBlock *bb)
 
 Value* TCGLLVMContextPrivate::generateCpuStatePtr(uint64_t registerOffset, unsigned sizeInBytes)
 {
-#if defined(USE_GEPS)
     SmallVector<Value*, 3> gepElements;
     if ((registerOffset % (TARGET_LONG_BITS / 8)) != 0) {
         return NULL;
@@ -735,9 +715,6 @@ Value* TCGLLVMContextPrivate::generateCpuStatePtr(uint64_t registerOffset, unsig
     }
 
     return ret;
-#else
-    return NULL;
-#endif
 }
 
 void TCGLLVMContextPrivate::generateQemuCpuLoad(const TCGArg *args, unsigned memBits, unsigned regBits, bool signExtend) {
@@ -1057,20 +1034,6 @@ int TCGLLVMContextPrivate::generateOperation(const TCGOp *op)
 #endif
 
 #undef __EXT_OP
-
-#if 0
-    /* load/store */
-#define __LD_OP(opc_name, memBits, regBits, signE)                  \
-    case opc_name:                                                  \
-        assert(getValue(op->args[1])->getType() == wordType());         \
-        v = m_builder.CreateAdd(getValue(op->args[1]),                  \
-                    ConstantInt::get(wordType(), args[2]));         \
-        v = m_builder.CreateIntToPtr(v, intPtrType(memBits));       \
-        v = m_builder.CreateLoad(v);                                \
-        setValue(op->args[0], m_builder.Create ## signE ## Ext(         \
-                    v, intType(regBits)));                          \
-        break;
-#endif
 
 #define __LD_OP(opc_name, memBits, regBits, signE) \
     case opc_name: \
@@ -1456,9 +1419,7 @@ Function *TCGLLVMContextPrivate::generateCode(TCGContext *s, TranslationBlock *t
     /* Prepare globals and temps information */
     initGlobalsAndLocalTemps();
 
-#if defined(USE_GEPS)
     loadNativeCpuState(m_tbFunction);
-#endif
 
     /* Generate code for each opc */
     const TCGOp *op;
@@ -1525,7 +1486,6 @@ Function *TCGLLVMContextPrivate::generateCode(TCGContext *s, TranslationBlock *t
         removeInterruptExit();
     }
 
-#ifndef NDEBUG
     if (verifyFunction(*m_tbFunction)) {
         std::error_code error;
         std::stringstream ss;
@@ -1537,7 +1497,6 @@ Function *TCGLLVMContextPrivate::generateCode(TCGContext *s, TranslationBlock *t
         os.close();
         abort();
     }
-#endif
 
 #ifdef STATIC_TRANSLATOR
     computeStaticBranchTargets();
