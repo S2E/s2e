@@ -51,17 +51,9 @@
 #define ADDR_READ addr_read
 #endif
 
-#ifndef CONFIG_TCG_PASS_AREG0
-#define ENV_PARAM
-#define ENV_VAR
-#define CPU_PREFIX
-#define HELPER_PREFIX __
-#else
-#define ENV_PARAM CPUArchState *env,
 #define ENV_VAR env,
 #define CPU_PREFIX cpu_
 #define HELPER_PREFIX helper_
-#endif
 
 #define ADDR_MAX ((target_ulong) -1)
 
@@ -121,19 +113,20 @@
 
 #endif // CONFIG_SYMBEX
 
-static DATA_TYPE glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(ENV_PARAM target_ulong addr, int mmu_idx, void *retaddr);
+static DATA_TYPE glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_ulong addr, int mmu_idx,
+                                                        void *retaddr);
 
-DATA_TYPE glue(glue(io_read, SUFFIX), MMUSUFFIX)(ENV_PARAM target_phys_addr_t physaddr, target_ulong addr,
+DATA_TYPE glue(glue(io_read, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_phys_addr_t physaddr, target_ulong addr,
                                                  void *retaddr);
 
 #if defined(STATIC_TRANSLATOR)
-DATA_TYPE glue(glue(io_read_chk, SUFFIX), MMUSUFFIX)(ENV_PARAM target_phys_addr_t physaddr, target_ulong addr,
+DATA_TYPE glue(glue(io_read_chk, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_phys_addr_t physaddr, target_ulong addr,
                                                      void *retaddr) {
     assert(false && "Cannot run statically");
 }
 
 #elif !defined(SYMBEX_LLVM_LIB)
-DATA_TYPE glue(glue(io_read, SUFFIX), MMUSUFFIX)(ENV_PARAM target_phys_addr_t physaddr, target_ulong addr,
+DATA_TYPE glue(glue(io_read, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_phys_addr_t physaddr, target_ulong addr,
                                                  void *retaddr) {
     DATA_TYPE res;
     const struct MemoryDescOps *ops = phys_get_ops(physaddr);
@@ -182,14 +175,14 @@ DATA_TYPE glue(glue(io_read, SUFFIX), MMUSUFFIX)(ENV_PARAM target_phys_addr_t ph
     return res;
 }
 
-DATA_TYPE glue(glue(io_read_chk, SUFFIX), MMUSUFFIX)(ENV_PARAM target_phys_addr_t physaddr, target_ulong addr,
+DATA_TYPE glue(glue(io_read_chk, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_phys_addr_t physaddr, target_ulong addr,
                                                      void *retaddr) {
     return glue(glue(io_read, SUFFIX), MMUSUFFIX)(ENV_VAR physaddr, addr, retaddr);
 }
 
 #elif defined(SYMBEX_LLVM_LIB) // SYMBEX_LLVM_LIB
 
-DATA_TYPE glue(glue(io_read_chk, SUFFIX), MMUSUFFIX)(ENV_PARAM target_phys_addr_t physaddr, target_ulong addr,
+DATA_TYPE glue(glue(io_read_chk, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_phys_addr_t physaddr, target_ulong addr,
                                                      void *retaddr) {
     // Putting together two 32-bit values involves an or and a shift,
     // which produces hard-to-simplify symbolic expressions.
@@ -253,7 +246,8 @@ end:
 #ifndef STATIC_TRANSLATOR
 /* handle all cases except unaligned access which span two pages */
 DATA_TYPE
-glue(glue(glue(HELPER_PREFIX, ld), SUFFIX), MMUSUFFIX)(ENV_PARAM target_ulong addr, int mmu_idx, void *retaddr) {
+glue(glue(glue(HELPER_PREFIX, ld), SUFFIX), MMUSUFFIX)(CPUArchState *env, target_ulong addr, int mmu_idx,
+                                                       void *retaddr) {
     DATA_TYPE res;
     target_ulong object_index, index;
     target_ulong tlb_addr;
@@ -327,7 +321,8 @@ redo:
 #endif /* STATIC_TRANSLATOR */
 
 /* handle all unaligned cases */
-static DATA_TYPE glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(ENV_PARAM target_ulong addr, int mmu_idx, void *retaddr) {
+static DATA_TYPE glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_ulong addr, int mmu_idx,
+                                                        void *retaddr) {
     DATA_TYPE res, res1, res2;
     target_ulong object_index, index, shift;
     target_phys_addr_t ioaddr;
@@ -391,21 +386,21 @@ redo:
 
 #ifndef SOFTMMU_CODE_ACCESS
 
-static void glue(glue(slow_st, SUFFIX), MMUSUFFIX)(ENV_PARAM target_ulong addr, DATA_TYPE val, int mmu_idx,
+static void glue(glue(slow_st, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_ulong addr, DATA_TYPE val, int mmu_idx,
                                                    void *retaddr);
 
-void glue(glue(io_write, SUFFIX), MMUSUFFIX)(ENV_PARAM target_phys_addr_t physaddr, DATA_TYPE val, target_ulong addr,
-                                             void *retaddr);
+void glue(glue(io_write, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_phys_addr_t physaddr, DATA_TYPE val,
+                                             target_ulong addr, void *retaddr);
 #if defined(STATIC_TRANSLATOR)
-void glue(glue(io_write_chk, SUFFIX), MMUSUFFIX)(ENV_PARAM target_phys_addr_t physaddr, DATA_TYPE val,
+void glue(glue(io_write_chk, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_phys_addr_t physaddr, DATA_TYPE val,
                                                  target_ulong addr, void *retaddr) {
     assert(false && "Cannot run statically");
 }
 
 #elif !defined(SYMBEX_LLVM_LIB)
 
-void glue(glue(io_write, SUFFIX), MMUSUFFIX)(ENV_PARAM target_phys_addr_t physaddr, DATA_TYPE val, target_ulong addr,
-                                             void *retaddr) {
+void glue(glue(io_write, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_phys_addr_t physaddr, DATA_TYPE val,
+                                             target_ulong addr, void *retaddr) {
     const struct MemoryDescOps *ops = phys_get_ops(physaddr);
 
     physaddr = (physaddr & TARGET_PAGE_MASK) + addr;
@@ -444,7 +439,7 @@ void glue(glue(io_write, SUFFIX), MMUSUFFIX)(ENV_PARAM target_phys_addr_t physad
 #endif /* SHIFT > 2 */
 }
 
-void glue(glue(io_write_chk, SUFFIX), MMUSUFFIX)(ENV_PARAM target_phys_addr_t physaddr, DATA_TYPE val,
+void glue(glue(io_write_chk, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_phys_addr_t physaddr, DATA_TYPE val,
                                                  target_ulong addr, void *retaddr) {
     // XXX: check symbolic memory mapped devices and write log here.
     glue(glue(io_write, SUFFIX), MMUSUFFIX)(ENV_VAR physaddr, val, addr, retaddr);
@@ -459,7 +454,7 @@ void glue(glue(io_write_chk, SUFFIX), MMUSUFFIX)(ENV_PARAM target_phys_addr_t ph
   *
   * It also deals with writes to memory-mapped devices that are symbolic
   */
-void glue(glue(io_write_chk, SUFFIX), MMUSUFFIX)(ENV_PARAM target_phys_addr_t physaddr, DATA_TYPE val,
+void glue(glue(io_write_chk, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_phys_addr_t physaddr, DATA_TYPE val,
                                                  target_ulong addr, void *retaddr) {
     target_phys_addr_t origaddr = physaddr;
     const struct MemoryDescOps *ops = phys_get_ops(physaddr);
@@ -499,8 +494,8 @@ end:
 #endif
 
 #ifndef STATIC_TRANSLATOR
-void glue(glue(glue(HELPER_PREFIX, st), SUFFIX), MMUSUFFIX)(ENV_PARAM target_ulong addr, DATA_TYPE val, int mmu_idx,
-                                                            void *retaddr) {
+void glue(glue(glue(HELPER_PREFIX, st), SUFFIX), MMUSUFFIX)(CPUArchState *env, target_ulong addr, DATA_TYPE val,
+                                                            int mmu_idx, void *retaddr) {
     target_phys_addr_t ioaddr;
     target_ulong tlb_addr;
     target_ulong object_index, index;
@@ -573,7 +568,7 @@ redo:
 #endif /* STATIC_TRANSLATOR */
 
 /* handles all unaligned cases */
-static void glue(glue(slow_st, SUFFIX), MMUSUFFIX)(ENV_PARAM target_ulong addr, DATA_TYPE val, int mmu_idx,
+static void glue(glue(slow_st, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_ulong addr, DATA_TYPE val, int mmu_idx,
                                                    void *retaddr) {
     target_phys_addr_t ioaddr;
     target_ulong tlb_addr;
@@ -650,7 +645,6 @@ redo:
 #undef USUFFIX
 #undef DATA_SIZE
 #undef ADDR_READ
-#undef ENV_PARAM
 #undef ENV_VAR
 #undef CPU_PREFIX
 #undef HELPER_PREFIX

@@ -21,7 +21,6 @@
 #include <timer.h>
 #include "cpu-defs.h"
 #include "cpu.h"
-#include "dyngen-exec.h"
 
 #include <tcg/tcg-op.h>
 

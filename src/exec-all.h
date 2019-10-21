@@ -134,9 +134,6 @@ extern int tb_invalidated_flag;
 
 #define ACCESS_TYPE (NB_MMU_MODES + 1)
 #define MEMSUFFIX _code
-#ifndef CONFIG_TCG_PASS_AREG0
-#define env cpu_single_env
-#endif
 
 #define DATA_SIZE 1
 #include "softmmu_header.h"

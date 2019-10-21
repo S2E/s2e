@@ -122,7 +122,6 @@
 
 #ifdef STATIC_TRANSLATOR
 
-#define ENV_PARAM
 #define ENV_VAR
 #define CPU_PREFIX
 #define HELPER_PREFIX __
@@ -143,21 +142,13 @@ void glue(glue(st, SUFFIX), MEMSUFFIX)(target_ulong ptr, RES_TYPE v);
 
 #else // STATIC_TRANSLATOR
 
-#ifndef CONFIG_TCG_PASS_AREG0
-#define ENV_PARAM
-#define ENV_VAR
-#define CPU_PREFIX
-#define HELPER_PREFIX __
-#else
-#define ENV_PARAM CPUArchState *env,
 #define ENV_VAR env,
 #define CPU_PREFIX cpu_
 #define HELPER_PREFIX helper_
-#endif
 
 /* generic load/store macros */
 
-static SMHINLINE RES_TYPE glue(glue(glue(CPU_PREFIX, ld), USUFFIX), MEMSUFFIX)(ENV_PARAM target_ulong ptr) {
+static SMHINLINE RES_TYPE glue(glue(glue(CPU_PREFIX, ld), USUFFIX), MEMSUFFIX)(CPUArchState *env, target_ulong ptr) {
     target_ulong object_index, page_index;
     RES_TYPE res;
     target_ulong addr;
@@ -200,7 +191,7 @@ static SMHINLINE RES_TYPE glue(glue(glue(CPU_PREFIX, ld), USUFFIX), MEMSUFFIX)(E
 }
 
 #if DATA_SIZE <= 2
-static SMHINLINE int glue(glue(glue(CPU_PREFIX, lds), SUFFIX), MEMSUFFIX)(ENV_PARAM target_ulong ptr) {
+static SMHINLINE int glue(glue(glue(CPU_PREFIX, lds), SUFFIX), MEMSUFFIX)(CPUArchState *env, target_ulong ptr) {
     int res;
     target_ulong object_index, page_index;
     target_ulong addr, tlb_addr;
@@ -243,7 +234,8 @@ static SMHINLINE int glue(glue(glue(CPU_PREFIX, lds), SUFFIX), MEMSUFFIX)(ENV_PA
 
 /* generic store macro */
 
-static SMHINLINE void glue(glue(glue(CPU_PREFIX, st), SUFFIX), MEMSUFFIX)(ENV_PARAM target_ulong ptr, RES_TYPE v) {
+static SMHINLINE void glue(glue(glue(CPU_PREFIX, st), SUFFIX), MEMSUFFIX)(CPUArchState *env, target_ulong ptr,
+                                                                          RES_TYPE v) {
     target_ulong object_index, page_index;
     target_ulong addr, tlb_addr;
     uintptr_t physaddr;
@@ -287,7 +279,7 @@ static SMHINLINE void glue(glue(glue(CPU_PREFIX, st), SUFFIX), MEMSUFFIX)(ENV_PA
 #if ACCESS_TYPE != (NB_MMU_MODES + 1)
 
 #if DATA_SIZE == 8
-static SMHINLINE float64 glue(glue(CPU_PREFIX, ldfq), MEMSUFFIX)(ENV_PARAM target_ulong ptr) {
+static SMHINLINE float64 glue(glue(CPU_PREFIX, ldfq), MEMSUFFIX)(CPUArchState *env, target_ulong ptr) {
     union {
         float64 d;
         uint64_t i;
@@ -296,7 +288,7 @@ static SMHINLINE float64 glue(glue(CPU_PREFIX, ldfq), MEMSUFFIX)(ENV_PARAM targe
     return u.d;
 }
 
-static SMHINLINE void glue(glue(CPU_PREFIX, stfq), MEMSUFFIX)(ENV_PARAM target_ulong ptr, float64 v) {
+static SMHINLINE void glue(glue(CPU_PREFIX, stfq), MEMSUFFIX)(CPUArchState *env, target_ulong ptr, float64 v) {
     union {
         float64 d;
         uint64_t i;
@@ -307,7 +299,7 @@ static SMHINLINE void glue(glue(CPU_PREFIX, stfq), MEMSUFFIX)(ENV_PARAM target_u
 #endif /* DATA_SIZE == 8 */
 
 #if DATA_SIZE == 4
-static SMHINLINE float32 glue(glue(CPU_PREFIX, ldfl), MEMSUFFIX)(ENV_PARAM target_ulong ptr) {
+static SMHINLINE float32 glue(glue(CPU_PREFIX, ldfl), MEMSUFFIX)(CPUArchState *env, target_ulong ptr) {
     union {
         float32 f;
         uint32_t i;
@@ -316,7 +308,7 @@ static SMHINLINE float32 glue(glue(CPU_PREFIX, ldfl), MEMSUFFIX)(ENV_PARAM targe
     return u.f;
 }
 
-static SMHINLINE void glue(glue(CPU_PREFIX, stfl), MEMSUFFIX)(ENV_PARAM target_ulong ptr, float32 v) {
+static SMHINLINE void glue(glue(CPU_PREFIX, stfl), MEMSUFFIX)(CPUArchState *env, target_ulong ptr, float32 v) {
     union {
         float32 f;
         uint32_t i;
@@ -345,7 +337,6 @@ static SMHINLINE void glue(glue(CPU_PREFIX, stfl), MEMSUFFIX)(ENV_PARAM target_u
 #undef CPU_MMU_INDEX
 #undef MMUSUFFIX
 #undef ADDR_READ
-#undef ENV_PARAM
 #undef ENV_VAR
 #undef CPU_PREFIX
 #undef HELPER_PREFIX
