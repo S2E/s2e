@@ -2396,6 +2396,9 @@ void tcg_gen_extr32_i64(TCGv_i64 lo, TCGv_i64 hi, TCGv_i64 arg) {
 /* QEMU specific operations.  */
 
 void tcg_gen_exit_tb(TranslationBlock *tb, unsigned idx) {
+#if defined(STATIC_TRANSLATOR)
+    tcg_gen_op1i(INDEX_op_exit_tb, idx);
+#else
     uintptr_t val = (uintptr_t) tb + idx;
 
     if (tb == NULL) {
@@ -2416,6 +2419,7 @@ void tcg_gen_exit_tb(TranslationBlock *tb, unsigned idx) {
     }
 
     tcg_gen_op1i(INDEX_op_exit_tb, val);
+#endif
 }
 
 void tcg_gen_goto_tb(unsigned idx) {
