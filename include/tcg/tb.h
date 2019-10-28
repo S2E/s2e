@@ -40,7 +40,8 @@ enum ETranslationBlockType {
     TB_RET,
     TB_IRET,
     TB_EXCP,
-    TB_SYSENTER
+    TB_SYSENTER,
+    TB_INTERRUPT
 };
 
 #ifdef CONFIG_SYMBEX
