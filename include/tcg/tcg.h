@@ -101,7 +101,15 @@ extern tcg_settings_t g_tcg_settings;
 #define trace_guest_mem_before_tcg(...)
 #define trace_mem_get_info(...)
 
+#if defined(__x86_64__)
 typedef __int128_t Int128;
+#else
+typedef struct Int128 Int128;
+struct Int128 {
+    uint64_t lo;
+    int64_t hi;
+};
+#endif
 
 typedef struct TranslationBlock TranslationBlock;
 

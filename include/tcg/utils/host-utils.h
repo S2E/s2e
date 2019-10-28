@@ -31,6 +31,7 @@
 #include <limits.h>
 #include <stdbool.h>
 
+#if defined(__x86_64__)
 static inline void mulu64(uint64_t *plow, uint64_t *phigh, uint64_t a, uint64_t b) {
     __uint128_t r = (__uint128_t) a * b;
     *plow = r;
@@ -71,6 +72,152 @@ static inline int divs128(int64_t *plow, int64_t *phigh, int64_t divisor) {
         return result != *plow;
     }
 }
+#else
+/* Long integer helpers */
+static inline void mul64(uint64_t *plow, uint64_t *phigh, uint64_t a, uint64_t b) {
+    typedef union {
+        uint64_t ll;
+        struct {
+#ifdef HOST_WORDS_BIGENDIAN
+            uint32_t high, low;
+#else
+            uint32_t low, high;
+#endif
+        } l;
+    } LL;
+    LL rl, rm, rn, rh, a0, b0;
+    uint64_t c;
+
+    a0.ll = a;
+    b0.ll = b;
+
+    rl.ll = (uint64_t) a0.l.low * b0.l.low;
+    rm.ll = (uint64_t) a0.l.low * b0.l.high;
+    rn.ll = (uint64_t) a0.l.high * b0.l.low;
+    rh.ll = (uint64_t) a0.l.high * b0.l.high;
+
+    c = (uint64_t) rl.l.high + rm.l.low + rn.l.low;
+    rl.l.high = c;
+    c >>= 32;
+    c = c + rm.l.high + rn.l.high + rh.l.low;
+    rh.l.low = c;
+    rh.l.high += (uint32_t)(c >> 32);
+
+    *plow = rl.ll;
+    *phigh = rh.ll;
+}
+
+static void mulu64(uint64_t *plow, uint64_t *phigh, uint64_t a, uint64_t b) {
+    mul64(plow, phigh, a, b);
+}
+
+static void muls64(uint64_t *plow, uint64_t *phigh, int64_t a, int64_t b) {
+    uint64_t rh;
+
+    mul64(plow, &rh, a, b);
+
+    /* Adjust for signs.  */
+    if (b < 0) {
+        rh -= a;
+    }
+    if (a < 0) {
+        rh -= b;
+    }
+    *phigh = rh;
+}
+
+static int divu128(uint64_t *plow, uint64_t *phigh, uint64_t divisor) {
+    uint64_t dhi = *phigh;
+    uint64_t dlo = *plow;
+    unsigned i;
+    uint64_t carry = 0;
+
+    if (divisor == 0) {
+        return 1;
+    } else if (dhi == 0) {
+        *plow = dlo / divisor;
+        *phigh = dlo % divisor;
+        return 0;
+    } else if (dhi > divisor) {
+        return 1;
+    } else {
+
+        for (i = 0; i < 64; i++) {
+            carry = dhi >> 63;
+            dhi = (dhi << 1) | (dlo >> 63);
+            if (carry || (dhi >= divisor)) {
+                dhi -= divisor;
+                carry = 1;
+            } else {
+                carry = 0;
+            }
+            dlo = (dlo << 1) | carry;
+        }
+
+        *plow = dlo;
+        *phigh = dhi;
+        return 0;
+    }
+}
+
+static int divs128(int64_t *plow, int64_t *phigh, int64_t divisor) {
+    int sgn_dvdnd = *phigh < 0;
+    int sgn_divsr = divisor < 0;
+    int overflow = 0;
+
+    if (sgn_dvdnd) {
+        *plow = ~(*plow);
+        *phigh = ~(*phigh);
+        if (*plow == (int64_t) -1) {
+            *plow = 0;
+            (*phigh)++;
+        } else {
+            (*plow)++;
+        }
+    }
+
+    if (sgn_divsr) {
+        divisor = 0 - divisor;
+    }
+
+    overflow = divu128((uint64_t *) plow, (uint64_t *) phigh, (uint64_t) divisor);
+
+    if (sgn_dvdnd ^ sgn_divsr) {
+        *plow = 0 - *plow;
+    }
+
+    if (!overflow) {
+        if ((*plow < 0) ^ (sgn_dvdnd ^ sgn_divsr)) {
+            overflow = 1;
+        }
+    }
+
+    return overflow;
+}
+
+static inline uint64_t muldiv64(uint64_t a, uint32_t b, uint32_t c) {
+    union {
+        uint64_t ll;
+        struct {
+#ifdef HOST_WORDS_BIGENDIAN
+            uint32_t high, low;
+#else
+            uint32_t low, high;
+#endif
+        } l;
+    } u, res;
+    uint64_t rl, rh;
+
+    u.ll = a;
+    rl = (uint64_t) u.l.low * (uint64_t) b;
+    rh = (uint64_t) u.l.high * (uint64_t) b;
+    rh += (rl >> 32);
+    res.l.high = rh / c;
+    res.l.low = (((rh % c) << 32) + (rl & 0xffffffff)) / c;
+    return res.ll;
+}
+
+#endif
 
 /**
  * clz32 - count leading zeros in a 32-bit value.
