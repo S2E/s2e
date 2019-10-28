@@ -22,9 +22,6 @@
  * THE SOFTWARE.
  */
 
-typedef union MMXReg MMXReg;
-typedef union XMMReg XMMReg;
-
 #include <tcg/tcg-mo.h>
 #include <tcg/tcg-op.h>
 #include <tcg/tcg.h>

@@ -113,8 +113,7 @@ struct Int128 {
 
 typedef struct TranslationBlock TranslationBlock;
 
-/*typedef union MMXReg MMXReg;
-typedef struct ZMMReg ZMMReg;
+/* typedef struct ZMMReg ZMMReg;
 
 typedef union XMMReg XMMReg;*/
 

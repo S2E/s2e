@@ -25,9 +25,6 @@
 
 #include <byteswap.h>
 
-typedef union MMXReg MMXReg;
-typedef union XMMReg XMMReg;
-
 #include <tcg/tcg-op.h>
 #include <tcg/tcg.h>
 

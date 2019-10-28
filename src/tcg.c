@@ -39,12 +39,8 @@
 #include <sys/mman.h>
 
 #include <tcg/utils/atomic.h>
+#include <tcg/utils/cutils.h>
 #include <tcg/utils/mutex.h>
-
-#include "cutils.h"
-
-typedef union MMXReg MMXReg;
-typedef union XMMReg XMMReg;
 
 // TODO: remove these globals
 int max_cpus = 1;
