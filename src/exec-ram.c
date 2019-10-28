@@ -26,7 +26,7 @@
 #include "exec.h"
 #include "qemu-common.h"
 
-#include <cutils.h>
+#include <tcg/utils/cutils.h>
 
 RAMList ram_list;
 
