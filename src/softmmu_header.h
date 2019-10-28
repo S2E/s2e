@@ -122,27 +122,25 @@
 
 #ifdef STATIC_TRANSLATOR
 
-#define ENV_VAR
 #define CPU_PREFIX
 #define HELPER_PREFIX __
 
 // The static translator uses QEMU's translator as a library and redirects all memory accesses
 // to its custom routines.
 // Here we simply declare the functions
-RES_TYPE glue(glue(ld, USUFFIX), MEMSUFFIX)(target_ulong ptr);
+RES_TYPE glue(glue(ld, USUFFIX), MEMSUFFIX)(CPUArchState *env, target_ulong ptr);
 
 #if DATA_SIZE <= 2
-int glue(glue(lds, SUFFIX), MEMSUFFIX)(target_ulong ptr);
+int glue(glue(lds, SUFFIX), MEMSUFFIX)(CPUArchState *env, target_ulong ptr);
 #endif
 
 #if ACCESS_TYPE != (NB_MMU_MODES + 1)
 /* generic store macro */
-void glue(glue(st, SUFFIX), MEMSUFFIX)(target_ulong ptr, RES_TYPE v);
+void glue(glue(st, SUFFIX), MEMSUFFIX)(CPUArchState *env, target_ulong ptr, RES_TYPE v);
 #endif
 
 #else // STATIC_TRANSLATOR
 
-#define ENV_VAR env,
 #define CPU_PREFIX cpu_
 #define HELPER_PREFIX helper_
 
@@ -172,7 +170,7 @@ static SMHINLINE RES_TYPE glue(glue(glue(CPU_PREFIX, ld), USUFFIX), MEMSUFFIX)(C
     tlb_entry = &env->tlb_table[mmu_idx][page_index];
     tlb_addr = tlb_entry->ADDR_READ & ~TLB_MEM_TRACE;
     if (unlikely(tlb_addr != (addr & (TARGET_PAGE_MASK | (DATA_SIZE - 1))))) {
-        res = glue(glue(glue(HELPER_PREFIX, ld), SUFFIX), MMUSUFFIX)(ENV_VAR addr, mmu_idx, NULL);
+        res = glue(glue(glue(HELPER_PREFIX, ld), SUFFIX), MMUSUFFIX)(env, addr, mmu_idx, NULL);
     } else {
 // When we get here, the address is aligned with the size of the access,
 // which by definition means that it will fall inside the small page, without overflowing.
@@ -214,7 +212,7 @@ static SMHINLINE int glue(glue(glue(CPU_PREFIX, lds), SUFFIX), MEMSUFFIX)(CPUArc
     tlb_entry = &env->tlb_table[mmu_idx][page_index];
     tlb_addr = tlb_entry->ADDR_READ & ~TLB_MEM_TRACE;
     if (unlikely(tlb_addr != (addr & (TARGET_PAGE_MASK | (DATA_SIZE - 1))))) {
-        res = (DATA_STYPE) glue(glue(glue(HELPER_PREFIX, ld), SUFFIX), MMUSUFFIX)(ENV_VAR addr, mmu_idx, NULL);
+        res = (DATA_STYPE) glue(glue(glue(HELPER_PREFIX, ld), SUFFIX), MMUSUFFIX)(env, addr, mmu_idx, NULL);
     } else {
 
 #if defined(CONFIG_SYMBEX) && !defined(SYMBEX_LLVM_LIB) && defined(CONFIG_SYMBEX_MP)
@@ -257,7 +255,7 @@ static SMHINLINE void glue(glue(glue(CPU_PREFIX, st), SUFFIX), MEMSUFFIX)(CPUArc
     tlb_entry = &env->tlb_table[mmu_idx][page_index];
     tlb_addr = tlb_entry->addr_write & ~TLB_MEM_TRACE;
     if (unlikely(tlb_addr != (addr & (TARGET_PAGE_MASK | (DATA_SIZE - 1))))) {
-        glue(glue(glue(HELPER_PREFIX, st), SUFFIX), MMUSUFFIX)(ENV_VAR addr, v, mmu_idx, NULL);
+        glue(glue(glue(HELPER_PREFIX, st), SUFFIX), MMUSUFFIX)(env, addr, v, mmu_idx, NULL);
     } else {
 
 #if defined(CONFIG_SYMBEX) && !defined(SYMBEX_LLVM_LIB) && defined(CONFIG_SYMBEX_MP)
@@ -284,7 +282,7 @@ static SMHINLINE float64 glue(glue(CPU_PREFIX, ldfq), MEMSUFFIX)(CPUArchState *e
         float64 d;
         uint64_t i;
     } u;
-    u.i = glue(glue(CPU_PREFIX, ldq), MEMSUFFIX)(ENV_VAR ptr);
+    u.i = glue(glue(CPU_PREFIX, ldq), MEMSUFFIX)(env, ptr);
     return u.d;
 }
 
@@ -294,7 +292,7 @@ static SMHINLINE void glue(glue(CPU_PREFIX, stfq), MEMSUFFIX)(CPUArchState *env,
         uint64_t i;
     } u;
     u.d = v;
-    glue(glue(CPU_PREFIX, stq), MEMSUFFIX)(ENV_VAR ptr, u.i);
+    glue(glue(CPU_PREFIX, stq), MEMSUFFIX)(env, ptr, u.i);
 }
 #endif /* DATA_SIZE == 8 */
 
@@ -304,7 +302,7 @@ static SMHINLINE float32 glue(glue(CPU_PREFIX, ldfl), MEMSUFFIX)(CPUArchState *e
         float32 f;
         uint32_t i;
     } u;
-    u.i = glue(glue(CPU_PREFIX, ldl), MEMSUFFIX)(ENV_VAR ptr);
+    u.i = glue(glue(CPU_PREFIX, ldl), MEMSUFFIX)(env, ptr);
     return u.f;
 }
 
@@ -314,7 +312,7 @@ static SMHINLINE void glue(glue(CPU_PREFIX, stfl), MEMSUFFIX)(CPUArchState *env,
         uint32_t i;
     } u;
     u.f = v;
-    glue(glue(CPU_PREFIX, stl), MEMSUFFIX)(ENV_VAR ptr, u.i);
+    glue(glue(CPU_PREFIX, stl), MEMSUFFIX)(env, ptr, u.i);
 }
 #endif /* DATA_SIZE == 4 */
 
@@ -337,6 +335,5 @@ static SMHINLINE void glue(glue(CPU_PREFIX, stfl), MEMSUFFIX)(CPUArchState *env,
 #undef CPU_MMU_INDEX
 #undef MMUSUFFIX
 #undef ADDR_READ
-#undef ENV_VAR
 #undef CPU_PREFIX
 #undef HELPER_PREFIX
