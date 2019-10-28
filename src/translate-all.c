@@ -143,20 +143,6 @@ static void *qemu_st_helpers[4] = {
 };
 #endif
 
-static void page_init(void) {
-    /* NOTE: we can always suppose that qemu_host_page_size >=
-       TARGET_PAGE_SIZE */
-
-    qemu_real_host_page_size = getpagesize();
-
-    if (qemu_host_page_size == 0)
-        qemu_host_page_size = qemu_real_host_page_size;
-    if (qemu_host_page_size < TARGET_PAGE_SIZE)
-        qemu_host_page_size = TARGET_PAGE_SIZE;
-
-    qemu_host_page_mask = ~(qemu_host_page_size - 1);
-}
-
 static void cpu_gen_init(TCGContext *ctx, tcg_settings_t *settings) {
 
     settings->tlb_flags_mask = TLB_FLAGS_MASK;
@@ -219,7 +205,6 @@ void tcg_exec_init(unsigned long tb_size) {
     code_gen_alloc(&tcg_init_ctx, tb_size);
 
     // tcg_register_jit(code_gen_buffer, code_gen_buffer_size);
-    page_init();
 
     /* There's no guest base to take into account, so go ahead and
        initialize the prologue now.  */

@@ -51,10 +51,6 @@ int g_tb_alloc_count;
 
 static void page_flush_tb(void);
 
-unsigned long qemu_real_host_page_size;
-unsigned long qemu_host_page_size;
-unsigned long qemu_host_page_mask;
-
 #define mmap_lock() \
     do {            \
     } while (0)

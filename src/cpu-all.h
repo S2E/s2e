@@ -291,13 +291,6 @@ _symbex_define_st_raw_le(float64,  fq, 8)
 // clang-format on
 #endif
 
-/* ??? These should be the larger of unsigned long and target_ulong.  */
-extern unsigned long qemu_real_host_page_size;
-extern unsigned long qemu_host_page_size;
-extern unsigned long qemu_host_page_mask;
-
-#define HOST_PAGE_ALIGN(addr) (((addr) + qemu_host_page_size - 1) & qemu_host_page_mask)
-
 /* same as PROT_xxx */
 #define PAGE_READ 0x0001
 #define PAGE_WRITE 0x0002
