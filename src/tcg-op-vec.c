@@ -17,12 +17,9 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "qemu/osdep.h"
-#include "qemu-common.h"
-#include "cpu.h"
-#include "tcg.h"
-#include "tcg-op.h"
-#include "tcg-mo.h"
+#include <tcg/tcg-mo.h>
+#include <tcg/tcg-op.h>
+#include <tcg/tcg.h>
 
 /* Reduce the number of ifdefs below.  This assumes that all uses of
    TCGV_HIGH and TCGV_LOW are properly protected by a conditional that

@@ -17,10 +17,8 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "qemu/osdep.h"
-#include "qemu-common.h"
-#include "tcg.h"
-#include "tcg-op.h"
+#include <tcg/tcg.h>
+#include <tcg/tcg-op.h>
 #include "tcg-op-gvec.h"
 #include "tcg-gvec-desc.h"
 
@@ -932,7 +930,7 @@ void tcg_gen_gvec_2(uint32_t dofs, uint32_t aofs,
          * power of 2, but always a multiple of 16.  The intent is
          * that e.g. size == 80 would be expanded with 2x32 + 1x16.
          */
-        some = QEMU_ALIGN_DOWN(oprsz, 32);
+        some = ALIGN_DOWN(oprsz, 32);
         expand_2_vec(g->vece, dofs, aofs, some, 32, TCG_TYPE_V256, g->fniv);
         if (some == oprsz) {
             break;
@@ -990,7 +988,7 @@ void tcg_gen_gvec_2i(uint32_t dofs, uint32_t aofs, uint32_t oprsz,
          * power of 2, but always a multiple of 16.  The intent is
          * that e.g. size == 80 would be expanded with 2x32 + 1x16.
          */
-        some = QEMU_ALIGN_DOWN(oprsz, 32);
+        some = ALIGN_DOWN(oprsz, 32);
         expand_2i_vec(g->vece, dofs, aofs, some, 32, TCG_TYPE_V256,
                       c, g->load_dest, g->fniv);
         if (some == oprsz) {
@@ -1062,7 +1060,7 @@ void tcg_gen_gvec_2s(uint32_t dofs, uint32_t aofs, uint32_t oprsz,
              * power of 2, but always a multiple of 16.  The intent is
              * that e.g. size == 80 would be expanded with 2x32 + 1x16.
              */
-            some = QEMU_ALIGN_DOWN(oprsz, 32);
+            some = ALIGN_DOWN(oprsz, 32);
             expand_2s_vec(g->vece, dofs, aofs, some, 32, TCG_TYPE_V256,
                           t_vec, g->scalar_first, g->fniv);
             if (some == oprsz) {
@@ -1131,7 +1129,7 @@ void tcg_gen_gvec_3(uint32_t dofs, uint32_t aofs, uint32_t bofs,
          * power of 2, but always a multiple of 16.  The intent is
          * that e.g. size == 80 would be expanded with 2x32 + 1x16.
          */
-        some = QEMU_ALIGN_DOWN(oprsz, 32);
+        some = ALIGN_DOWN(oprsz, 32);
         expand_3_vec(g->vece, dofs, aofs, bofs, some, 32, TCG_TYPE_V256,
                      g->load_dest, g->fniv);
         if (some == oprsz) {
@@ -1194,7 +1192,7 @@ void tcg_gen_gvec_4(uint32_t dofs, uint32_t aofs, uint32_t bofs, uint32_t cofs,
          * power of 2, but always a multiple of 16.  The intent is
          * that e.g. size == 80 would be expanded with 2x32 + 1x16.
          */
-        some = QEMU_ALIGN_DOWN(oprsz, 32);
+        some = ALIGN_DOWN(oprsz, 32);
         expand_4_vec(g->vece, dofs, aofs, bofs, cofs, some,
                      32, TCG_TYPE_V256, g->write_aofs, g->fniv);
         if (some == oprsz) {
@@ -2490,7 +2488,7 @@ void tcg_gen_gvec_cmp(TCGCond cond, unsigned vece, uint32_t dofs,
          * power of 2, but always a multiple of 16.  The intent is
          * that e.g. size == 80 would be expanded with 2x32 + 1x16.
          */
-        some = QEMU_ALIGN_DOWN(oprsz, 32);
+        some = ALIGN_DOWN(oprsz, 32);
         expand_cmp_vec(vece, dofs, aofs, bofs, some, 32, TCG_TYPE_V256, cond);
         if (some == oprsz) {
             break;

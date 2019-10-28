@@ -17,12 +17,14 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "qemu/osdep.h"
-#include "qemu/host-utils.h"
-#include "cpu.h"
-#include "exec/helper-proto.h"
+#include <inttypes.h>
+#include <memory.h>
+#include <tcg/utils/osdep.h>
+#include <tcg/utils/bitops.h>
 #include "tcg-gvec-desc.h"
 
+// XXX: clean this up
+#define HELPER(x) helper_ ## x
 
 /* Virtually all hosts support 16-byte vectors.  Those that don't can emulate
  * them via GCC's generic vector extension.  This turns out to be simpler and
