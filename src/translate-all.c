@@ -36,7 +36,7 @@
 #include "qemu-lock.h"
 #include "timer.h"
 
-#ifdef CONFIG_SYMBEX_MP
+#if defined(CONFIG_SYMBEX_MP) || defined(STATIC_TRANSLATOR)
 #include <tcg/tcg-llvm.h>
 #endif
 
@@ -123,7 +123,7 @@ static inline void code_gen_alloc(TCGContext *tcg, size_t tb_size) {
     }
 }
 
-#ifdef CONFIG_SYMBEX_MP
+#if defined(CONFIG_SYMBEX_MP) || defined(STATIC_TRANSLATOR)
 static void *qemu_ld_helpers[4] = {
     helper_ldb_mmu_symb, helper_ldw_mmu_symb, helper_ldl_mmu_symb, helper_ldq_mmu_symb,
 };
@@ -262,7 +262,7 @@ int cpu_gen_code(CPUArchState *env, TranslationBlock *tb) {
 
     tb->tc.size = gen_code_size;
 
-#ifdef CONFIG_SYMBEX_MP
+#if defined(CONFIG_SYMBEX_MP) || defined(STATIC_TRANSLATOR)
     if (env->generate_llvm) {
         assert(tb->llvm_function == NULL);
         tb->llvm_function = tcg_llvm_gen_code(tcg_llvm_ctx, s, tb);

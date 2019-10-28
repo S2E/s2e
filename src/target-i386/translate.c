@@ -2750,6 +2750,7 @@ static void gen_interrupt(DisasContext *s, int intno, target_ulong cur_eip, targ
         gen_op_set_cc_op(s->cc_op);
     gen_jmp_im(s, cur_eip);
 #ifdef CONFIG_SYMBEX
+    SET_TB_TYPE(TB_INTERRUPT);
     gen_eob_event(s, 0, 0);
 #endif
     gen_helper_raise_interrupt(tcg_const_i32(intno), tcg_const_i32(next_eip - cur_eip));
@@ -7715,6 +7716,8 @@ static inline void gen_intermediate_code_internal(CPUX86State *env, TranslationB
     flags = tb->flags;
     cflags = tb->cflags;
 
+    memset(dc, 0, sizeof(*dc));
+
     dc->env = env;
     dc->pe = (flags >> HF_PE_SHIFT) & 1;
     dc->code32 = (flags >> HF_CS32_SHIFT) & 1;
@@ -7861,11 +7864,7 @@ static inline void gen_intermediate_code_internal(CPUX86State *env, TranslationB
             gen_eob(dc);
             break;
         }
-#ifdef STATIC_TRANSLATOR
-        if (gen_opc_ptr >= gen_opc_end) {
-            assert(false);
-        }
-#else
+
         /* if too long translation, stop generation too */
         if (tcg_op_buf_full() || (pc_ptr - pc_start) >= (TARGET_PAGE_SIZE - 32) || num_insns >= max_insns) {
             gen_jmp_im(dc, pc_ptr - dc->cs_base);
@@ -7875,7 +7874,6 @@ static inline void gen_intermediate_code_internal(CPUX86State *env, TranslationB
             gen_eob(dc);
             break;
         }
-#endif
 
 #if defined(CONFIG_SYMBEX) && defined(STATIC_TRANSLATOR)
         if (tb->last_pc && dc->insPc == tb->last_pc) {

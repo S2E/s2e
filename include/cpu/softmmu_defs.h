@@ -36,7 +36,7 @@ uintptr_t se_notdirty_mem_write(target_phys_addr_t ram_addr, int size);
 uintptr_t se_notdirty_mem_read(target_phys_addr_t ram_addr);
 #endif
 
-#ifdef CONFIG_SYMBEX_MP
+#if defined(CONFIG_SYMBEX_MP) || defined(STATIC_TRANSLATOR)
 uint8_t helper_ldb_mmu_symb(CPUArchState *env, target_ulong addr, int mmu_idx, void *retaddr);
 void helper_stb_mmu_symb(CPUArchState *env, target_ulong addr, uint8_t val, int mmu_idx, void *retaddr);
 uint16_t helper_ldw_mmu_symb(CPUArchState *env, target_ulong addr, int mmu_idx, void *retaddr);
