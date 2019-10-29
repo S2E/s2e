@@ -17,10 +17,13 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "tcg-op-gvec.h"
+// Order of includes is important
+// clang-format off
 #include <tcg/tcg-op.h>
 #include <tcg/tcg.h>
 #include "tcg-gvec-desc.h"
+#include "tcg-op-gvec.h"
+// clang-format on
 
 #define MAX_UNROLL 4
 
