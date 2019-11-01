@@ -187,17 +187,18 @@ void RevGen::injectSections() {
     for (auto const &desc : sections) {
         LOGDEBUG(" Section " << desc.name << " va=" << hexval(desc.start) << " size=" << hexval(desc.size) << "\n");
 
-        uint8_t *buf = new uint8_t[desc.size];
+        uint8_t *buf = new uint8_t[desc.virtualSize];
+        memset(buf, 0, desc.virtualSize);
 
         ssize_t ret = m_binary->read(buf, desc.size, desc.start);
         if (ret != (ssize_t) desc.size) {
             LOGERROR("Could not read data from section " << desc.name << " (" << ret << ")\n");
         } else {
-            Constant *s = injectDataSection(desc.name, desc.start, buf, desc.size);
+            Constant *s = injectDataSection(desc.name, desc.start, buf, desc.virtualSize);
             sectionsInits.push_back(s);
 
             sectionAddresses.push_back(ConstantInt::get(ctx, APInt(64, desc.start)));
-            sectionSizes.push_back(ConstantInt::get(ctx, APInt(64, desc.size)));
+            sectionSizes.push_back(ConstantInt::get(ctx, APInt(64, desc.virtualSize)));
             ++count;
         }
 
