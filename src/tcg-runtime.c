@@ -21,15 +21,14 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "cpu.h"
-#include "disas/disas.h"
-#include "exec/cpu_ldst.h"
-#include "exec/exec-all.h"
-#include "exec/helper-proto.h"
-#include "exec/log.h"
-#include "exec/tb-lookup.h"
-#include "qemu/host-utils.h"
-#include "qemu/osdep.h"
+
+#include <inttypes.h>
+#include <memory.h>
+#include <tcg/utils/bitops.h>
+#include <tcg/utils/osdep.h>
+
+// XXX: clean this up
+#define HELPER(x) helper_##x
 
 /* 32-bit helpers */
 
@@ -121,23 +120,4 @@ uint32_t HELPER(ctpop_i32)(uint32_t arg) {
 
 uint64_t HELPER(ctpop_i64)(uint64_t arg) {
     return ctpop64(arg);
-}
-
-void *HELPER(lookup_tb_ptr)(CPUArchState *env) {
-    CPUState *cpu = ENV_GET_CPU(env);
-    TranslationBlock *tb;
-    target_ulong cs_base, pc;
-    uint32_t flags;
-
-    tb = tb_lookup__cpu_state(cpu, &pc, &cs_base, &flags, curr_cflags());
-    if (tb == NULL) {
-        return tcg_ctx->code_gen_epilogue;
-    }
-    qemu_log_mask_and_addr(CPU_LOG_EXEC, pc, "Chain %d: %p [" TARGET_FMT_lx "/" TARGET_FMT_lx "/%#x] %s\n",
-                           cpu->cpu_index, tb->tc.ptr, cs_base, pc, flags, lookup_symbol(pc));
-    return tb->tc.ptr;
-}
-
-void HELPER(exit_atomic)(CPUArchState *env) {
-    cpu_loop_exit_atomic(ENV_GET_CPU(env), GETPC());
 }
