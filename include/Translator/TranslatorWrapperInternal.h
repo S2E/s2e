@@ -37,7 +37,7 @@ int singlestep = 0;
 int loglevel = 0;
 int use_icount = 0;
 int64_t qemu_icount = 0;
-FILE *logfile = NULL;
+FILE *logfile = stdout;
 CPUArchState *first_cpu;
 CPUArchState *cpu_single_env;
 
@@ -50,15 +50,15 @@ uint8_t code_gen_prologue[1024] code_gen_section;
 // CPUReadMemoryFunc *io_mem_read[IO_MEM_NB_ENTRIES][4];
 // void *io_mem_opaque[IO_MEM_NB_ENTRIES];
 
-static int is_tb_instrumented(struct TranslationBlock *tb) {
+static int is_tb_instrumented(void *se_tb) {
     return 0;
 }
 
-static void increment_tb_stats(struct TranslationBlock *tb) {
+static void increment_tb_stats(void *se_tb) {
     return;
 }
 
-static void set_tb_function(struct TranslationBlock *tb) {
+static void set_tb_function(void *se_tb, void *llvmFunction) {
     return;
 }
 
@@ -235,18 +235,29 @@ void disas(void *env, FILE *out, void *code, unsigned long size) {
     assert(false && "Not usable statically");
 }
 
+void host_disas(FILE *out, void *pc, size_t size) {
+    assert(false && "Not usable statically");
+}
+
 const char *lookup_symbol(target_ulong orig_addr) {
     assert(false && "Not usable statically");
     return NULL;
 }
-}
 
-TranslationBlock *tb_find_pc(uintptr_t tc_ptr) {
+void tb_reset_jump(TranslationBlock *tb, int n) {
     assert(false && "Not usable statically");
-    return NULL;
 }
 
-int s2e_is_tb_instrumented(TranslationBlock *tb) {
+void LIBCPU_NORETURN cpu_loop_exit_restore(CPUArchState *env1, uintptr_t ra) {
+    assert(false && "Not usable statically");
+}
+
+void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr) {
+    assert(false && "Not usable statically");
+}
+}
+
+int s2e_is_tb_instrumented(void *tb) {
     return 0;
 }
 
@@ -536,27 +547,27 @@ uint8_t __ldb_cmmu(target_ulong addr, int mmu_idx) {
     return 0;
 }
 
-int ldsb_data(target_ulong ptr) {
+int cpu_ldsb_data(CPUArchState *env, target_ulong ptr) {
     assert(false && "Not usable statically");
     return 0;
 }
 
-int ldub_data(target_ulong ptr) {
+int cpu_ldub_data(CPUArchState *env, target_ulong ptr) {
     assert(false && "Not usable statically");
     return 0;
 }
 
-int ldub_kernel(target_ulong ptr) {
+int cpu_ldub_kernel(CPUArchState *env, target_ulong ptr) {
     assert(false && "Not usable statically");
     return 0;
 }
 
-int lduw_data(target_ulong ptr) {
+int cpu_lduw_data(CPUArchState *env, target_ulong ptr) {
     assert(false && "Not usable statically");
     return 0;
 }
 
-int lduw_kernel(target_ulong ptr) {
+int cpu_lduw_kernel(CPUArchState *env, target_ulong ptr) {
     assert(false && "Not usable statically");
     return 0;
 }
@@ -566,17 +577,22 @@ int lduw_kernel_s2e_trace(target_ulong ptr) {
     return 0;
 }
 
-int ldsw_data(target_ulong ptr) {
+int cpu_ldsw_data(CPUArchState *env, target_ulong ptr) {
     assert(false && "Not usable statically");
     return 0;
 }
 
-int ldl_data(target_ulong ptr) {
+int cpu_ldl_data(CPUArchState *env, target_ulong ptr) {
     assert(false && "Not usable statically");
     return 0;
 }
 
-int ldl_kernel(target_ulong ptr) {
+int cpu_ldl_kernel(CPUArchState *env, target_ulong ptr) {
+    assert(false && "Not usable statically");
+    return 0;
+}
+
+uint64_t cpu_ldq_kernel(CPUArchState *env, target_ulong ptr) {
     assert(false && "Not usable statically");
     return 0;
 }
@@ -586,40 +602,40 @@ int ldl_kernel_s2e_trace(target_ulong ptr) {
     return 0;
 }
 
-int ldq_data(target_ulong ptr) {
+int cpu_ldq_data(CPUArchState *env, target_ulong ptr) {
     assert(false && "Not usable statically");
     return 0;
 }
 
-void stb_data(target_ulong ptr, uint8_t data) {
+void cpu_stb_data(CPUArchState *env, target_ulong ptr, uint8_t data) {
     assert(false && "Not usable statically");
 }
 
-void stb_kernel(target_ulong ptr, uint8_t data) {
+void cpu_stb_kernel(CPUArchState *env, target_ulong ptr, uint8_t data) {
     assert(false && "Not usable statically");
 }
 
-void stw_data(target_ulong ptr, uint16_t data) {
+void cpu_stw_data(CPUArchState *env, target_ulong ptr, uint16_t data) {
     assert(false && "Not usable statically");
 }
 
-void stw_kernel(target_ulong ptr, uint16_t data) {
+void cpu_stw_kernel(CPUArchState *env, target_ulong ptr, uint16_t data) {
     assert(false && "Not usable statically");
 }
 
-void stl_data(target_ulong ptr, uint32_t data) {
+void cpu_stl_data(CPUArchState *env, target_ulong ptr, uint32_t data) {
     assert(false && "Not usable statically");
 }
 
-void stl_kernel(target_ulong ptr, uint32_t data) {
+void cpu_stl_kernel(CPUArchState *env, target_ulong ptr, uint32_t data) {
     assert(false && "Not usable statically");
 }
 
-void stq_kernel(target_ulong ptr, uint32_t data) {
+void cpu_stq_kernel(CPUArchState *env, target_ulong ptr, uint32_t data) {
     assert(false && "Not usable statically");
 }
 
-void stq_data(target_ulong ptr, uint32_t data) {
+void cpu_stq_data(CPUArchState *env, target_ulong ptr, uint32_t data) {
     assert(false && "Not usable statically");
 }
 }
