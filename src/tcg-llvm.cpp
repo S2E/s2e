@@ -281,7 +281,7 @@ public:
     Function *generateCode(TCGContext *s, TranslationBlock *tb);
     void removeInterruptExit();
 
-    bool getCpuFieldGepIndexes(unsigned offset, SmallVector<Value*, 3> &gepIndexes);
+    bool getCpuFieldGepIndexes(unsigned offset, unsigned sizeInBytes, SmallVector<Value*, 3> &gepIndexes);
 };
 
 unsigned TCGLLVMContextPrivate::m_eip_last_gep_index = 0;
@@ -694,7 +694,7 @@ Value* TCGLLVMContextPrivate::generateCpuStatePtr(uint64_t registerOffset, unsig
             if (it != m_registers.end()) {
                 ret = (*it).second;
             } else {
-                bool ok = getCpuFieldGepIndexes(registerOffset, gepElements);
+                bool ok = getCpuFieldGepIndexes(registerOffset, sizeInBytes, gepElements);
                 if (ok) {
                    ret = m_builder.CreateGEP(m_cpuState, ArrayRef<Value*>(gepElements.begin(), gepElements.end()));
                    m_registers[registerOffset] = ret;
@@ -1214,8 +1214,6 @@ int TCGLLVMContextPrivate::generateOperation(const TCGOp *op)
 #undef __ARITH_OP
 
     /* QEMU specific */
-#if TCG_TARGET_REG_BITS == 64
-
 #define __OP_QEMU_ST(opc_name, bits)                                \
     case opc_name:                                                  \
         generateQemuMemOp(false,                                    \
@@ -1240,8 +1238,6 @@ int TCGLLVMContextPrivate::generateOperation(const TCGOp *op)
 
 #undef __OP_QEMU_LD
 #undef __OP_QEMU_ST
-
-#endif
 
     case INDEX_op_exit_tb: {
 #ifdef STATIC_TRANSLATOR
@@ -1595,7 +1591,7 @@ void TCGLLVMContextPrivate::computeStaticBranchTargets()
 
 #endif
 
-bool TCGLLVMContextPrivate::getCpuFieldGepIndexes(unsigned offset, SmallVector<Value*, 3> &gepIndexes) {
+bool TCGLLVMContextPrivate::getCpuFieldGepIndexes(unsigned offset, unsigned sizeInBytes, SmallVector<Value*, 3> &gepIndexes) {
 
     Type *curType = m_cpuType;
     auto &dataLayout = m_module->getDataLayout();
@@ -1620,10 +1616,8 @@ bool TCGLLVMContextPrivate::getCpuFieldGepIndexes(unsigned offset, SmallVector<V
         } else if (curType->isArrayTy()) {
             compositeType = true;
             ArrayType *curArrayTy = dyn_cast<ArrayType>(curType);
-            auto elemSize = dataLayout.getTypeStoreSize(curArrayTy->getElementType());
-
+            auto elemSize = dataLayout.getTypeAllocSize(curArrayTy->getElementType());
             auto curIdx = coffset / elemSize;
-
             assert(curIdx < curArrayTy->getNumElements() && "Illegal field offset into CPUState!");
 
             gepIndexes.push_back(ConstantInt::get(I32Ty, curIdx));
@@ -1632,7 +1626,10 @@ bool TCGLLVMContextPrivate::getCpuFieldGepIndexes(unsigned offset, SmallVector<V
         }
 
         if (!compositeType) {
-            return coffset == 0;
+            // Offset may point in the middle of a structure/union, make sure
+            // that the element size matches the requested size.
+            auto typeSz = dataLayout.getTypeAllocSize(curType);
+            return coffset == 0 && typeSz == sizeInBytes;
         }
     } while (true);
 
