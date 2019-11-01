@@ -17,7 +17,8 @@ extern "C" {
 
 #include <BitcodeLibrary/Runtime.h>
 
-//#define DEBUG_RUNTIME
+// #define DEBUG_RUNTIME
+// #define DEBUG_MEMORY
 
 #ifdef DEBUG_RUNTIME
 #define dprintf(...) printf(__VA_ARGS__)
@@ -62,18 +63,18 @@ static void not_usable_statically(const char *function, const char *filename, in
 }
 
 /***********************************************************/
-#define DEFINE_MMU_LD(T, sz, suffix)                                                         \
-    T __ld##sz##_##suffix(target_ulong addr, int mmu_idx) {                                  \
-        target_ulong tptr = translate_pointer(addr);                                         \
-        T ret = *(T *) (tptr);                                                               \
-        mprintf("R[%llx => %llx]=%llx\n", (uint64_t) addr, (uint64_t) tptr, (uint64_t) ret); \
-        return ret;                                                                          \
+#define DEFINE_MMU_LD(T, sz, suffix)                                                               \
+    T helper_ld##sz##_##suffix(CPUArchState *env, target_ulong addr, int mmu_idx, void *retaddr) { \
+        target_ulong tptr = translate_pointer(addr);                                               \
+        T ret = *(T *) (tptr);                                                                     \
+        mprintf("R[%llx => %llx]=%llx\n", (uint64_t) addr, (uint64_t) tptr, (uint64_t) ret);       \
+        return ret;                                                                                \
     }
 
-#define DEFINE_MMU_ST(T, sz, suffix)                                   \
-    void __st##sz##_##suffix(target_ulong addr, T data, int mmu_idx) { \
-        mprintf("W[%llx]=%llx\n", (uint64_t) addr, (uint64_t) data);   \
-        *(T *) (translate_pointer(addr)) = data;                       \
+#define DEFINE_MMU_ST(T, sz, suffix)                                                                          \
+    void helper_st##sz##_##suffix(CPUArchState *env, target_ulong addr, T data, int mmu_idx, void *retaddr) { \
+        mprintf("W[%llx]=%llx\n", (uint64_t) addr, (uint64_t) data);                                          \
+        *(T *) (translate_pointer(addr)) = data;                                                              \
     }
 
 DEFINE_MMU_LD(uint8_t, b, mmu)
@@ -88,7 +89,7 @@ DEFINE_MMU_ST(uint64_t, q, mmu)
 
 /***********************************************************/
 #define DEFINE_MEM_LD(T, sz, suffix)             \
-    T ld##sz##_##suffix(target_ulong addr) {     \
+    T cpu_ld##sz##_##suffix(target_ulong addr) { \
         return *(T *) (translate_pointer(addr)); \
     }
 
@@ -103,9 +104,9 @@ DEFINE_MEM_LD(uint8_t, ub, data)
 
 /***********************************************************/
 
-#define DEFINE_MEM_ST(T, sz, suffix)                    \
-    void st##sz##_##suffix(target_ulong addr, T data) { \
-        *(T *) (translate_pointer(addr)) = data;        \
+#define DEFINE_MEM_ST(T, sz, suffix)                        \
+    void cpu_st##sz##_##suffix(target_ulong addr, T data) { \
+        *(T *) (translate_pointer(addr)) = data;            \
     }
 
 DEFINE_MEM_ST(uint64_t, q, data)
@@ -289,6 +290,24 @@ void cpu_dump_state(CPUArchState *env, FILE *f, fprintf_function cpu_fprintf, in
     not_usable_statically(__FUNCTION__, __FILE__, __LINE__);
 }
 
+uint64_t cpu_get_tsc(void) {
+    uint32_t low, high;
+    int64_t val;
+    asm volatile("rdtsc" : "=a"(low), "=d"(high));
+    val = high;
+    val <<= 32;
+    val |= low;
+    return val;
+}
+
+void cpu_exit(CPUArchState *s) {
+    not_usable_statically(__FUNCTION__, __FILE__, __LINE__);
+}
+
+void LIBCPU_NORETURN cpu_loop_exit_restore(CPUArchState *env1, uintptr_t ra) {
+    not_usable_statically(__FUNCTION__, __FILE__, __LINE__);
+}
+
 /**********************************/
 
 extern uint64_t revgen_function_count;
@@ -343,7 +362,7 @@ static uint64_t translate_pointer(uint64_t pointer) {
 
         if (pointer >= start && pointer < start + size) {
             uint64_t ret = (uintptr_t) ptr + (pointer - start);
-            mprintf("%#llx => %#llx [sec %#llx]\n", pointer, ret, ptr);
+            mprintf("%#llx => %#llx [sec %p]\n", pointer, ret, ptr);
             return ret;
         }
     }

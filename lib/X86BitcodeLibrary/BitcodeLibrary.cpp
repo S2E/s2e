@@ -31,9 +31,11 @@ extern CPUArchState *env;
 extern CPUArchState myenv;
 
 /***********************************************************/
-#define DECLARE_MMU_LD(T, sz, suffix) T __ld##sz##_##suffix(target_ulong addr, int mmu_idx);
+#define DECLARE_MMU_LD(T, sz, suffix) \
+    T helper_ld##sz##_##suffix(CPUArchState *env, target_ulong addr, int mmu_idx, void *retaddr);
 
-#define DECLARE_MMU_ST(T, sz, suffix) void __st##sz##_##suffix(target_ulong addr, T data, int mmu_idx);
+#define DECLARE_MMU_ST(T, sz, suffix) \
+    void helper_st##sz##_##suffix(CPUArchState *env, target_ulong addr, T data, int mmu_idx, void *retaddr);
 
 DECLARE_MMU_LD(uint8_t, b, mmu)
 DECLARE_MMU_LD(uint16_t, w, mmu)
@@ -46,11 +48,13 @@ DECLARE_MMU_ST(uint32_t, l, mmu)
 DECLARE_MMU_ST(uint64_t, q, mmu)
 
 extern void *__qemu_ld_helpers[5] = {
-    (void *) __ldb_mmu, (void *) __ldw_mmu, (void *) __ldl_mmu, (void *) __ldq_mmu, (void *) __ldq_mmu,
+    (void *) helper_ldb_mmu, (void *) helper_ldw_mmu, (void *) helper_ldl_mmu,
+    (void *) helper_ldq_mmu, (void *) helper_ldq_mmu,
 };
 
 extern void *__qemu_st_helpers[5] = {
-    (void *) __stb_mmu, (void *) __stw_mmu, (void *) __stl_mmu, (void *) __stq_mmu, (void *) __stq_mmu,
+    (void *) helper_stb_mmu, (void *) helper_stw_mmu, (void *) helper_stl_mmu,
+    (void *) helper_stq_mmu, (void *) helper_stq_mmu,
 };
 
 /***********************************************************/
