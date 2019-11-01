@@ -26,7 +26,7 @@ void detect_strlen(revgen_function_t func, uint64_t func_addr, uint8_t *stack, v
         str1 = push_str(tests[i]);
         push(str1);
         push(0xdeadbeef); /* Dummy return value */
-        func();
+        func(&myenv);
         pop();
 
         int expected = strlen(tests[i]);
@@ -52,7 +52,7 @@ void detect_strlen(revgen_function_t func, uint64_t func_addr, uint8_t *stack, v
      */
     push(0);
     push(0xdeadbeef); /* Dummy return value */
-    func();
+    func(&myenv);
     pop();
     if (myenv.regs[R_EAX] == 0) {
         fprintf(fp, "  accepts_null_input = true,\n");
@@ -82,7 +82,7 @@ static int detect_strcmp_invoke(uint8_t *stack, revgen_function_t func, void *b1
     push(str2);
     push(str1);
     push(0xdeadbeef); /* Dummy return value */
-    func();
+    func(&myenv);
     pop();
     pop();
     pop();
@@ -200,7 +200,7 @@ static long detect_strtol_invoke(uint8_t *stack, revgen_function_t func, const c
     push(_endptr);
     push(str1);
     push(0xdeadbeef); /* Dummy return value */
-    func();
+    func(&myenv);
     pop();
     pop();
     pop();

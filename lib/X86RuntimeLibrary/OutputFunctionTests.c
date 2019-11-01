@@ -65,7 +65,7 @@ static char detect_format_char(revgen_function_t func, uint8_t *stack, output_pa
         push(test_string_ptr);
         push_base_params(stack, param_types, param_count, 1, fmt_string_ptr, test_len, NULL, NULL);
         push(0xdeadbeef); /* Dummy return value */
-        func();
+        func(&myenv);
 
         actual_length = g_syscall_transmit_size;
         if (!strncmp(g_syscall_transmit_data, test_string, actual_length)) {
@@ -108,7 +108,7 @@ static unsigned detect_integer_formats(revgen_function_t func, uint8_t *stack, o
         int test_len = strlen(formats[i].expected_value);
         push_base_params(stack, param_types, param_count, 1, fmt_string_ptr, test_len, NULL, NULL);
         push(0xdeadbeef); /* Dummy return value */
-        func();
+        func(&myenv);
 
         printf("%s: fmtstr=%s size=%d out: %p %.*s \n", __FUNCTION__, fmtstr, g_syscall_transmit_size,
                g_syscall_transmit_data, g_syscall_transmit_size, g_syscall_transmit_data);
@@ -149,7 +149,7 @@ static unsigned detect_width_arguments(revgen_function_t func, uint8_t *stack, o
 
         push_base_params(stack, param_types, param_count, 1, fmt, strlen(result), NULL, NULL);
         push(0xdeadbeef); /* Dummy return value */
-        func();
+        func(&myenv);
 
         if (!g_syscall_transmit_size || strncmp(g_syscall_transmit_data, result, g_syscall_transmit_size) != 0) {
             break;
@@ -186,7 +186,7 @@ static unsigned detect_max_direct_arguments(revgen_function_t func, uint8_t *sta
 
         push_base_params(stack, param_types, param_count, 1, fmt, strlen(result), NULL, NULL);
         push(0xdeadbeef); /* Dummy return value */
-        func();
+        func(&myenv);
 
         if (!g_syscall_transmit_size || strncmp(g_syscall_transmit_data, result, g_syscall_transmit_size) != 0) {
             break;
@@ -222,7 +222,7 @@ static void detect_output_fcn(revgen_function_t func, uint64_t func_addr, uint8_
     int out_len = 0;
     push_base_params(stack, param_types, param_count, test_fd, fmt, test_len, &out_len, &check_length);
     push(0xdeadbeef); /* Dummy return value */
-    func();
+    func(&myenv);
 
     if (g_syscall_transmit_size == test_len) {
         uses_length = true;

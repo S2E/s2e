@@ -16,9 +16,11 @@
 extern "C" {
 #endif
 
-typedef uint64_t (*revgen_function_t)();
+typedef struct CPUX86State CPUX86State;
 
-uint64_t revgen_entrypoint();
+typedef uint64_t (*revgen_function_t)(CPUX86State *env);
+
+uint64_t revgen_entrypoint(CPUX86State *env);
 
 extern uint64_t revgen_function_count;
 extern revgen_function_t *revgen_function_pointers;

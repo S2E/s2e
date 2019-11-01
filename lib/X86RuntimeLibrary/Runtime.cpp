@@ -299,7 +299,7 @@ void call_marker(target_ulong pc) {
     for (unsigned i = 0; i < revgen_function_count; ++i) {
         if (pc == revgen_function_addresses[i]) {
             dprintf("Calling %llx\n", (uint64_t) pc);
-            revgen_function_pointers[i]();
+            revgen_function_pointers[i](&myenv);
             return;
         }
     }
@@ -559,7 +559,7 @@ static int default_main(int argc, char **argv) {
 
     myenv.regs[R_ESP] = (target_ulong)(stack + STACK_SIZE - 0x10);
 
-    revgen_entrypoint();
+    revgen_entrypoint(&myenv);
 
     free(stack);
 

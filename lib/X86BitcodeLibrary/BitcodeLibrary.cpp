@@ -115,7 +115,7 @@ void helper_raise_interrupt(int intno, int next_eip_addend);
  */
 void ___fcndefs(void) {
     myenv.regs[R_EAX] = 0;
-    revgen_entrypoint();
+    revgen_entrypoint(&myenv);
     call_marker(0);
     revgen_trace(0);
     incomplete_marker(0);

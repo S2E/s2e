@@ -240,10 +240,22 @@ void RevGen::injectFunctionPointers() {
     InjectArray(m, "revgen_function_addresses", "__revgen_function_addresses", functionAddresses);
 }
 
+llvm::Function *RevGen::createLLVMPrototype(BinaryFunction *bf) {
+    SmallVector<Type *, 0> args;
+    Module *m = m_translator->getModule();
+
+    auto f = Function::Create(m_translator->getTbType(), Function::ExternalLinkage, bf->getName(), m);
+
+    // Avoid naming collisions with libc
+    std::stringstream ss;
+    ss << "__revgen_" << f->getName().str() << "_" << std::hex << bf->getEntryBlock()->getStartPc();
+    f->setName(ss.str());
+    return f;
+}
+
 void RevGen::createFunctionPrototypes() {
     LOGDEBUG("Creating function prototypes\n");
 
-    Module *m = m_translator->getModule();
     uint64_t entryPoint = m_binary->getEntryPoint();
     bool foundEntryPoint = false;
 
@@ -263,18 +275,7 @@ void RevGen::createFunctionPrototypes() {
             }
             foundEntryPoint = true;
         } else {
-            SmallVector<Type *, 0> args;
-
-            Type *RetTy = IntegerType::get(m->getContext(), 64);
-            FunctionType *FTy = FunctionType::get(RetTy, false);
-            f = Function::Create(FTy, Function::ExternalLinkage, bf->getName(), m);
-
-            /**
-             * Avoid naming collisions with libc
-             */
-            std::stringstream ss;
-            ss << "__revgen_" << f->getName().str() << "_" << std::hex << bf->getEntryBlock()->getStartPc();
-            f->setName(ss.str());
+            f = createLLVMPrototype(bf);
         }
 
         m_llvmFunctions[bf->getEntryBlock()->getStartPc()] = f;
@@ -382,7 +383,10 @@ void RevGen::generateFunctionCall(TranslatedBlock *tb) {
 
         Function *targetTb = m_llvmFunctions[target];
 
-        CallInst::Create(targetTb, "", ri);
+        llvm::SmallVector<Value *, 1> argValues;
+        argValues.push_back(&*tbf->arg_begin());
+
+        CallInst::Create(targetTb, ArrayRef<Value *>(argValues), "", ri);
     } else {
         Function *cm = getCallMarker();
         assert(ret.size() == 1);
@@ -576,14 +580,7 @@ Function *RevGen::reconstructFunction(BinaryFunction *bf) {
     IRBuilder<> builder(ctx);
     builder.SetInsertPoint(entryBlock);
 
-    /* Load the pointer to the global cpu state */
-    GlobalVariable *v = m->getGlobalVariable("myenv");
-    if (!v) {
-        LOGERROR("myenv global var is not present in the bitcode library\n");
-        exit(-1);
-    }
-
-    Value *arg = builder.Insert(GetElementPtrInst::Create(nullptr, v, ConstantInt::get(ctx, APInt(64, 0))));
+    Value *arg = &*f->arg_begin();
 
     SmallVector<Value *, 1> args;
     args.push_back(arg);
