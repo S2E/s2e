@@ -1894,6 +1894,7 @@ void tcg_dump_op(TCGContext *s, bool have_prefs, TCGOp *op) {
         for (i = 0; i < nb_oargs; i++) {
             col += qemu_log(",%s", tcg_get_arg_str(s, buf, sizeof(buf), op->args[i]));
         }
+        qemu_log(" ");
         for (i = 0; i < nb_iargs; i++) {
             TCGArg arg = op->args[nb_oargs + i];
             const char *t = "<dummy>";
@@ -3682,7 +3683,7 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb) {
 
         QSIMPLEQ_FOREACH(l, &s->labels, next) {
             if (unlikely(!l->present) && l->refs) {
-                qemu_log_mask(CPU_LOG_TB_OP, "$L%d referenced but not present.\n", l->id);
+                qemu_log("$L%d referenced but not present.\n", l->id);
                 error = true;
             }
         }
