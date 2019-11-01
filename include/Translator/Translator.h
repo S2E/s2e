@@ -181,7 +181,6 @@ public:
         uint64_t rmask, wmask, accesses_mem;
     };
 
-    typedef llvm::DenseMap<llvm::Function *, RegisterMask> HelperMasks;
     typedef llvm::SmallVector<llvm::Function *, 4> MemoryWrappers;
 
 private:
@@ -189,10 +188,6 @@ private:
     std::shared_ptr<const vmi::ExecutableFile> m_binary;
     static bool s_translatorInited;
     bool m_singlestep;
-
-    static HelperMasks s_helperMasks;
-
-    static void initializeHelperMask();
 
 public:
     Translator(const std::string &bitcodeLibrary, const std::shared_ptr<vmi::ExecutableFile> binary);
@@ -235,7 +230,7 @@ public:
 
     static llvm::Value *getPcPtr(llvm::IRBuilder<> &builder);
 
-    static const RegisterMask *getRegisterMaskForHelper(llvm::Function *helper);
+    static RegisterMask getRegisterMaskForHelper(llvm::Function *helper);
     static uint64_t getRegisterBitMask(llvm::Value *gep);
 };
 

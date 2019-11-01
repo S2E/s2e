@@ -40,8 +40,6 @@ LogKey TranslatedBlock::TAG = LogKey("TranslatedBlock");
 LogKey Translator::TAG = LogKey("Translator");
 LogKey X86Translator::TAG = LogKey("X86Translator");
 
-Translator::HelperMasks Translator::s_helperMasks;
-
 /*****************************************************************************
  * The following functions are invoked by the QEMU translator to read code.
  * This library redirects them to the binary file
@@ -166,8 +164,6 @@ Translator::Translator(const std::string &bitcodeLibrary, const std::shared_ptr<
     tcg_llvm_ctx->initializeHelpers();
     tcg_llvm_ctx->initializeNativeCpuState();
 
-    initializeHelperMask();
-
     s_translatorInited = true;
 }
 
@@ -175,33 +171,6 @@ Translator::~Translator() {
     if (s_translatorInited) {
         tcg_llvm_close(tcg_llvm_ctx);
         s_translatorInited = false;
-    }
-}
-
-void Translator::initializeHelperMask() {
-    Module *mod = tcg_llvm_ctx->getModule();
-
-    for (int i = 0; i < tcg_ctx.nb_helpers; ++i) {
-        const TCGHelperInfo &h = tcg_ctx.helpers[i];
-
-        RegisterMask m;
-        m.accesses_mem = h.accesses_mem;
-        m.rmask = h.reg_rmask;
-        m.wmask = h.reg_wmask;
-
-        LOGDEBUG("Adding helper " << h.name << " rmask=" << hexval(m.rmask) << " wmask=" << hexval(m.wmask)
-                                  << " mem=" << hexval(m.accesses_mem) << "\n");
-
-        std::stringstream ss;
-        ss << "helper_" << h.name;
-
-        Function *f = mod->getFunction(ss.str());
-        if (!f) {
-            LOGDEBUG("Could not find helper " << ss.str() << "\n");
-            continue;
-        }
-
-        s_helperMasks[f] = m;
     }
 }
 
@@ -323,12 +292,12 @@ Value *Translator::getPcPtr(IRBuilder<> &builder) {
     return builder.CreateGEP(arg, ArrayRef<Value *>(gepElements.begin(), gepElements.end()));
 }
 
-const Translator::RegisterMask *Translator::getRegisterMaskForHelper(llvm::Function *helper) {
-    if (!s_helperMasks.count(helper)) {
-        return NULL;
-    }
-
-    return &s_helperMasks[helper];
+Translator::RegisterMask Translator::getRegisterMaskForHelper(llvm::Function *helper) {
+    Translator::RegisterMask mask;
+    mask.rmask = -1;
+    mask.wmask = -1;
+    mask.accesses_mem = 1;
+    return mask;
 }
 
 uint64_t Translator::getRegisterBitMask(llvm::Value *gepv) {
