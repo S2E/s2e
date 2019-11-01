@@ -80,6 +80,9 @@ private:
     /* Linear address of the instruction */
     uint64_t m_address;
 
+    /* Address of the last instruction */
+    uint64_t m_lastAddress;
+
     /* Raw LLVM representation of the instruction */
     llvm::Function *m_function;
 
@@ -98,14 +101,16 @@ private:
 public:
     TranslatedBlock() {
         m_address = 0;
+        m_lastAddress = 0;
         m_size = 0;
         m_function = NULL;
         m_type = BB_DEFAULT;
     }
 
-    TranslatedBlock(uint64_t address, unsigned size, llvm::Function *f, ETranslatedBlockType type,
+    TranslatedBlock(uint64_t address, uint64_t lastAddress, unsigned size, llvm::Function *f, ETranslatedBlockType type,
                     const Successors &succs, const Stores &pcstores) {
         m_address = address;
+        m_lastAddress = lastAddress;
         m_size = size;
         m_function = f;
         m_type = type;
@@ -127,6 +132,10 @@ public:
 
     uint64_t getAddress() const {
         return m_address;
+    }
+
+    uint64_t getLastAddress() const {
+        return m_lastAddress;
     }
 
     unsigned getSize() const {
