@@ -131,7 +131,7 @@ static inline size_t get_cpu_arch_tlb_mask_offset(int mem_index) {
 /* XXX: make safe guess about sizes */
 #define MAX_OP_PER_INSTR 266
 
-#if HOST_LONG_BITS == 32
+#if TCG_TARGET_REG_BITS == 32
 #define MAX_OPC_PARAM_PER_ARG 2
 #else
 #define MAX_OPC_PARAM_PER_ARG 1
@@ -149,13 +149,7 @@ static inline size_t get_cpu_arch_tlb_mask_offset(int mem_index) {
 
 /* Default target word size to pointer size.  */
 #ifndef TCG_TARGET_REG_BITS
-#if UINTPTR_MAX == UINT32_MAX
-#define TCG_TARGET_REG_BITS 32
-#elif UINTPTR_MAX == UINT64_MAX
-#define TCG_TARGET_REG_BITS 64
-#else
-#error Unknown pointer size for tcg target
-#endif
+#error Undefined TCG_TARGET_REG_BITS
 #endif
 
 #if TCG_TARGET_REG_BITS == 32
