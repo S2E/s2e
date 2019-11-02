@@ -609,6 +609,10 @@ Function *RevGen::reconstructFunction(BinaryFunction *bf) {
     uint64_t address = bf->getEntryBlock()->getStartPc();
     Function *f = m_llvmFunctions[address];
     assert(f);
+
+    if (!f->empty()) {
+        LOGERROR(*f);
+    }
     assert(f->empty());
 
     /* Create initial BB */
@@ -704,8 +708,8 @@ Function *RevGen::reconstructFunction(BinaryFunction *bf) {
                     Value *cond = builder.CreateICmpEQ(callResult, ci);
                     builder.CreateCondBr(cond, trueBB, falseBB);
                 } else {
-                    LOGWARNING("Basic block with conditional branch" << hexval(tb->getAddress())
-                                                                     << " is missing one or more successors\n");
+                    LOGWARNING("Basic block with conditional branch " << hexval(tb->getAddress())
+                                                                      << " is missing one or more successors\n");
                     /* TODO: try to handle case where one target is valid */
                     generateIncompleteMarker(builder, tb->getAddress() + tb->getSize());
                     builder.CreateRet(callResult);
@@ -732,6 +736,11 @@ void RevGen::writeBitcodeFile(const std::string &bitcodeFile) {
 
     // Output the bitcode file to stdout
     llvm::WriteBitcodeToFile(module, o);
+}
+
+// This function can be called from GDB for debugging
+void PrintValue(llvm::Value *v) {
+    llvm::outs() << *v << "\n";
 }
 
 int main(int argc, char **argv) {
