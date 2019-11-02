@@ -142,7 +142,7 @@ Translator::Translator(const std::string &bitcodeLibrary, const std::shared_ptr<
 
     tcg_exec_init(0);
     optimize_flags_init();
-    tcg_llvm_ctx = tcg_llvm_initialize();
+    m_ctx = TCGLLVMContext::create();
 
     // Read the helper bitcode file
     auto ErrorOrMemBuff = MemoryBuffer::getFile(bitcodeLibrary);
@@ -151,10 +151,10 @@ Translator::Translator(const std::string &bitcodeLibrary, const std::shared_ptr<
         return;
     }
 
-    auto ErrorOrMod = parseBitcodeFile(ErrorOrMemBuff.get()->getMemBufferRef(), tcg_llvm_ctx->getLLVMContext());
+    auto ErrorOrMod = parseBitcodeFile(ErrorOrMemBuff.get()->getMemBufferRef(), m_ctx->getLLVMContext());
 
     // Link in the helper bitcode file
-    Linker linker(*tcg_llvm_ctx->getModule());
+    Linker linker(*m_ctx->getModule());
 
     if (linker.linkInModule(std::move(ErrorOrMod.get()))) {
         LOGERROR("Linking in library " << bitcodeLibrary << " failed!\n");
@@ -163,29 +163,29 @@ Translator::Translator(const std::string &bitcodeLibrary, const std::shared_ptr<
 
     LOGINFO("Linked in library " << bitcodeLibrary << '\n');
 
-    tcg_llvm_ctx->initializeHelpers();
-    tcg_llvm_ctx->initializeNativeCpuState();
+    m_ctx->initializeHelpers();
+    m_ctx->initializeNativeCpuState();
 
     s_translatorInited = true;
 }
 
 Translator::~Translator() {
     if (s_translatorInited) {
-        tcg_llvm_close(tcg_llvm_ctx);
+        delete m_ctx;
         s_translatorInited = false;
     }
 }
 
 llvm::Module *Translator::getModule() const {
-    return tcg_llvm_ctx->getModule();
+    return m_ctx->getModule();
 }
 
 llvm::Function *Translator::createTbFunction(const std::string &name) const {
-    return tcg_llvm_ctx->createTbFunction(name);
+    return m_ctx->createTbFunction(name);
 }
 
 llvm::FunctionType *Translator::getTbType() const {
-    return tcg_llvm_ctx->getTbType();
+    return m_ctx->tbType();
 }
 
 void Translator::getRetInstructions(llvm::Function *f, llvm::SmallVector<llvm::ReturnInst *, 2> &ret) {
@@ -340,12 +340,12 @@ const char *X86Translator::s_regNames[8] = {"eax", "ecx", "edx", "ebx", "esp", "
 
 X86Translator::X86Translator(const std::string &bitcodeLibrary, const std::shared_ptr<vmi::ExecutableFile> binary)
     : Translator(bitcodeLibrary, binary) {
-    m_functionPasses = new legacy::FunctionPassManager(tcg_llvm_ctx->getModule());
+    m_functionPasses = new legacy::FunctionPassManager(m_ctx->getModule());
     m_functionPasses->add(createCFGSimplificationPass());
 
     // We need this passes to simplify the translation of the instruction.
     // The code is quite bulky, the fewer instructions, the better.
-    m_functionOptPasses = new legacy::FunctionPassManager(tcg_llvm_ctx->getModule());
+    m_functionOptPasses = new legacy::FunctionPassManager(m_ctx->getModule());
     // m_functionOptPasses->add(createVerifierPass());
     m_functionOptPasses->add(createDeadCodeEliminationPass());
     m_functionOptPasses->add(createGVNPass());
@@ -509,7 +509,7 @@ TranslatedBlock *X86Translator::translate(uint64_t address, uint64_t lastAddress
             assert(false && "Unsupported translation block type");
     }
 
-    TCGLLVMTBInfo info = tcg_llvm_ctx->getTbInfo();
+    TCGLLVMTBInfo info = m_ctx->getTbInfo();
 
     /// Check if TB type matches number of static targets.
     /// Sometimes, we have things like mov eax, constant; jmp eax,

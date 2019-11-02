@@ -19,8 +19,9 @@
 #include <llvm/Support/Path.h>
 
 #include <vmi/ExecutableFile.h>
-
 #include "lib/Utils/Log.h"
+
+class TCGLLVMContext;
 
 namespace s2etools {
 
@@ -188,6 +189,9 @@ private:
     std::shared_ptr<const vmi::ExecutableFile> m_binary;
     static bool s_translatorInited;
     bool m_singlestep;
+
+protected:
+    TCGLLVMContext *m_ctx;
 
 public:
     Translator(const std::string &bitcodeLibrary, const std::shared_ptr<vmi::ExecutableFile> binary);

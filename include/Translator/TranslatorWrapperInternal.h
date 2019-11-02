@@ -20,6 +20,8 @@ extern "C" {
 
 #include "TranslatorWrapper.h"
 
+#include <tcg/tcg-llvm.h>
+
 s2e::S2EExecutionState *g_s2e_state = NULL;
 s2e::S2E *g_s2e = NULL;
 
