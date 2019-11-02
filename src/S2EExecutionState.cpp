@@ -28,6 +28,8 @@
 #include <llvm/Support/CommandLine.h>
 #include <s2e/CorePlugin.h>
 
+#include <tcg/tcg-llvm.h>
+
 #include <iomanip>
 #include <sstream>
 

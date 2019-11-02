@@ -33,8 +33,6 @@ class Interpreter;
 class InterpreterHandler;
 }
 
-struct TCGLLVMContext;
-
 namespace s2e {
 
 class Plugin;

@@ -638,11 +638,12 @@ void *get_s2e(void) {
     return g_s2e;
 }
 
-void s2e_initialize(int argc, char **argv, TCGLLVMContext *tcgLLVMContext, const char *s2e_config_file,
+void s2e_initialize(int argc, char **argv, void *tcgLLVMContext, const char *s2e_config_file,
                     const char *s2e_output_dir, int setup_unbuffered_stream, int verbose, unsigned s2e_max_processes,
                     const char *bitcode_lib_dir) {
+    auto ctx = reinterpret_cast<TCGLLVMContext *>(tcgLLVMContext);
     g_s2e = new s2e::S2E(bitcode_lib_dir);
-    if (!g_s2e->initialize(argc, argv, tcgLLVMContext, s2e_config_file ? s2e_config_file : "",
+    if (!g_s2e->initialize(argc, argv, ctx, s2e_config_file ? s2e_config_file : "",
                            s2e_output_dir ? s2e_output_dir : "", setup_unbuffered_stream, verbose, s2e_max_processes)) {
         exit(-1);
     }

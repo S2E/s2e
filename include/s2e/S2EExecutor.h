@@ -18,10 +18,9 @@
 
 #include "S2ETranslationBlock.h"
 
-struct TCGLLVMContext;
-
 struct TranslationBlock;
 struct CPUX86State;
+class TCGLLVMContext;
 
 namespace klee {
 struct Query;

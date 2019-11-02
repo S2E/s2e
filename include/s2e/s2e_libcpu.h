@@ -26,7 +26,6 @@ struct S2ETranslationBlock;
 #endif
 
 struct TranslationBlock;
-struct TCGLLVMContext;
 struct MemoryDesc;
 
 // XXX
@@ -42,7 +41,7 @@ struct PCIBus;
 /* Functions from S2E.cpp */
 
 /** Initialize S2E instance. Called by main() */
-void s2e_initialize(int argc, char **argv, struct TCGLLVMContext *tcgLLVMContext, const char *s2e_config_file,
+void s2e_initialize(int argc, char **argv, void *tcgLLVMContext, const char *s2e_config_file,
                     const char *s2e_output_dir, int setup_unbuffered_stream, int verbose, unsigned max_processes,
                     const char *shared_dir);
 

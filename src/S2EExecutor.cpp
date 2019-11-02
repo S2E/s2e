@@ -52,6 +52,8 @@
 
 #include <llvm/Support/TimeValue.h>
 
+#include <tcg/tcg-llvm.h>
+
 #include <glib.h>
 #include <sstream>
 #include <vector>
