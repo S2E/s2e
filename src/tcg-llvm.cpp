@@ -23,9 +23,6 @@
  * THE SOFTWARE.
  */
 
-#include <type_traits>
-#define typeof(x) std::remove_reference < decltype((x)) > ::type
-
 // Enforce include order
 // clang-format off
 extern "C" {
@@ -56,6 +53,7 @@ extern "C" {
 #include <llvm/Support/raw_ostream.h>
 
 #include <llvm/ADT/DenseMap.h>
+#include <llvm-c/Core.h>
 
 #include <iostream>
 #include <sstream>
@@ -78,215 +76,15 @@ typedef uint64_t target_ulong;
 // clang-format off
 
 extern "C" {
-    TCGLLVMContext* tcg_llvm_ctx = 0;
+// TODO: get rid of this global var
+void* tcg_llvm_ctx = 0;
 }
 
 using namespace llvm;
 
-struct TCGLLVMContextPrivate {
-    LLVMContext& m_context;
-    IRBuilder<> m_builder;
+unsigned TCGLLVMContext::m_eip_last_gep_index = 0;
 
-    /* Current m_module */
-    Module *m_module;
-
-    /* Function pass manager (used for optimizing the code) */
-    legacy::FunctionPassManager *m_functionPassManager;
-
-#ifdef CONFIG_SYMBEX
-    /* Declaration of a wrapper function for helpers */
-    Function *m_helperTraceMemoryAccess;
-    Function *m_helperTraceInstruction;
-    Function *m_helperForkAndConcretize;
-    Function *m_helperGetValue;
-    Function* m_qemu_ld_helpers[5];
-    Function* m_qemu_st_helpers[5];
-#endif
-
-#ifdef STATIC_TRANSLATOR
-    TCGLLVMTBInfo m_info;
-#endif
-
-    /* Count of generated translation blocks */
-    int m_tbCount;
-
-    /* XXX: The following members are "local" to generateCode method */
-
-    /* TCGContext for current translation block */
-    TCGContext* m_tcgContext;
-
-    TranslationBlock *m_tb;
-
-    /* Function for current translation block */
-    Function *m_tbFunction;
-
-    /* Current temp m_values */
-    Value* m_values[TCG_MAX_TEMPS];
-
-    /* Pointers to in-memory versions of globals or local temps */
-    Value* m_memValuesPtr[TCG_MAX_TEMPS];
-
-    /* For reg-based globals, store argument number,
-     * for mem-based globals, store base value index */
-    int m_globalsIdx[TCG_MAX_TEMPS];
-
-    std::unordered_map<TCGLabel*, BasicBlock*> m_labels;
-
-    FunctionType *m_tbType;
-    Type *m_cpuType;
-    Value *m_cpuState;
-    Value *m_eip;
-    Value *m_ccop;
-
-    static unsigned m_eip_last_gep_index;
-
-    typedef DenseMap<std::pair<unsigned, unsigned>, Instruction *> GepMap;
-    GepMap m_registers;
-
-    std::string generateName();
-
-public:
-    TCGLLVMContextPrivate(LLVMContext&);
-    ~TCGLLVMContextPrivate();
-
-    legacy::FunctionPassManager *getFunctionPassManager() const {
-        return m_functionPassManager;
-    }
-
-    bool isInstrumented(llvm::Function *tb);
-
-    /* Shortcuts */
-    Type* intType(int w) { return IntegerType::get(m_context, w); }
-    Type* intPtrType(int w) { return PointerType::get(intType(w), 0); }
-    Type* wordType() { return intType(TCG_TARGET_REG_BITS); }
-    Type* wordType(int bits) { return intType(bits); }
-    Type* wordPtrType() { return intPtrType(TCG_TARGET_REG_BITS); }
-    FunctionType* tbType() {
-        if (m_tbType) {
-            return m_tbType;
-        }
-        SmallVector<Type*,1> args;
-        args.push_back(m_cpuType->getPointerTo());
-        m_tbType = FunctionType::get(wordType(), args, false);
-        return m_tbType;
-    }
-
-    void adjustTypeSize(unsigned target, Value **v1) {
-        Value *va = *v1;
-        if (target == 32) {
-            if (va->getType() == intType(64)) {
-                *v1 = m_builder.CreateTrunc(va, intType(target));
-            } else if (va->getType() != intType(32)) {
-                assert(false);
-            }
-        }
-    }
-
-    Value* generateCpuStatePtr(uint64_t arg, unsigned sizeInBytes);
-    void generateQemuCpuLoad(const TCGArg *args, unsigned memBits, unsigned regBits, bool signExtend);
-    void generateQemuCpuStore(const TCGArg *args, unsigned memBits, Value *valueToStore);
-
-#ifdef STATIC_TRANSLATOR
-    uint64_t m_currentPc;
-    void attachPcMetadata(Instruction *instr, uint64_t pc);
-#endif
-    Value *attachCurrentPc(Value *value);
-
-    //This handles the special case of symbolic values
-    //assigned to the program counter register
-    Value* handleSymbolicPcAssignment(Value *orig) {
-#if defined(CONFIG_SYMBEX) && !defined(STATIC_TRANSLATOR)
-        if (isa<ConstantInt>(orig)) {
-            return orig;
-        }
-        std::vector<Value*> argValues;
-        Type *t = intType(TARGET_LONG_BITS);
-        argValues.push_back(orig);
-        argValues.push_back(ConstantInt::get(t, 0));
-        argValues.push_back(ConstantInt::get(t, (target_ulong)-1));
-        argValues.push_back(ConstantInt::get(t, 1));
-        Value *valueToStore = m_builder.CreateCall(m_helperForkAndConcretize,
-                                                   ArrayRef<Value*>(argValues));
-
-        valueToStore = m_builder.CreateTrunc(valueToStore,
-                                             intType(TARGET_LONG_BITS));
-        return valueToStore;
-#else
-        return orig;
-#endif
-    }
-
-#ifdef STATIC_TRANSLATOR
-    bool isPcAssignment(Value *v) {
-        return v == m_eip;
-    }
-
-    const TCGLLVMTBInfo &getTbInfo() const {
-        return m_info;
-    }
-
-    void computeStaticBranchTargets();
-#endif
-
-    void adjustTypeSize(unsigned target, Value **v1, Value **v2) {
-        adjustTypeSize(target, v1);
-        adjustTypeSize(target, v2);
-    }
-
-    Type* tcgType(int type) {
-        return type == TCG_TYPE_I64 ? intType(64) : intType(32);
-    }
-
-    Type* tcgPtrType(int type) {
-        return type == TCG_TYPE_I64 ? intPtrType(64) : intPtrType(32);
-    }
-
-    /* Helpers */
-    Value* getValue(TCGArg arg);
-    void setValue(TCGArg arg, Value *v);
-    void delValue(int idx);
-
-    Value* getPtrForValue(int idx);
-    void delPtrForValue(int idx);
-    void initGlobalsAndLocalTemps();
-    void loadNativeCpuState(Function *f);
-    unsigned getValueBits(int idx);
-
-    void invalidateCachedMemory();
-
-    uint64_t toInteger(Value *v) const {
-        if (ConstantInt *cste = dyn_cast<ConstantInt>(v)) {
-            return *cste->getValue().getRawData();
-        }
-
-        llvm::errs() << *v << '\n';
-        assert(false && "Not a constant");
-        abort();
-    }
-#ifdef CONFIG_SYMBEX
-    void initializeHelpers();
-    void initializeNativeCpuState();
-#endif
-
-    BasicBlock* getLabel(TCGArg i);
-    void startNewBasicBlock(BasicBlock *bb = NULL);
-
-    /* Code generation */
-    Value* generateQemuMemOp(bool ld, Value *value, Value *addr,
-                             int mem_index, int bits);
-
-    int generateOperation(const TCGOp *op);
-
-    Function *createTbFunction(const std::string &name);
-    Function *generateCode(TCGContext *s, TranslationBlock *tb);
-    void removeInterruptExit();
-
-    bool getCpuFieldGepIndexes(unsigned offset, unsigned sizeInBytes, SmallVector<Value*, 3> &gepIndexes);
-};
-
-unsigned TCGLLVMContextPrivate::m_eip_last_gep_index = 0;
-
-TCGLLVMContextPrivate::TCGLLVMContextPrivate(LLVMContext& context)
+TCGLLVMContext::TCGLLVMContext(LLVMContext& context)
     : m_context(context), m_builder(m_context), m_tbCount(0),
       m_tcgContext(NULL), m_tbFunction(NULL), m_tbType(NULL)
 {
@@ -329,21 +127,89 @@ TCGLLVMContextPrivate::TCGLLVMContextPrivate(LLVMContext& context)
     m_ccop = NULL;
 }
 
-TCGLLVMContextPrivate::~TCGLLVMContextPrivate()
+TCGLLVMContext *TCGLLVMContext::create() {
+    if (!llvm_is_multithreaded()) {
+        fprintf(stderr, "Could not initialize LLVM threading\n");
+        exit(-1);
+    }
+
+    LLVMContextRef contextRef = LLVMGetGlobalContext();
+
+    auto ret = new TCGLLVMContext(*unwrap(contextRef));
+
+    tcg_llvm_ctx = ret;
+    return ret;
+}
+
+TCGLLVMContext::~TCGLLVMContext()
 {
     delete m_functionPassManager;
 }
 
+llvm::FunctionType* TCGLLVMContext::tbType() {
+    if (m_tbType) {
+        return m_tbType;
+    }
+    llvm::SmallVector<Type*,1> args;
+    args.push_back(m_cpuType->getPointerTo());
+    m_tbType = llvm::FunctionType::get(wordType(), args, false);
+    return m_tbType;
+}
+
+void TCGLLVMContext::adjustTypeSize(unsigned target, llvm::Value **v1) {
+    Value *va = *v1;
+    if (target == 32) {
+        if (va->getType() == intType(64)) {
+            *v1 = m_builder.CreateTrunc(va, intType(target));
+        } else if (va->getType() != intType(32)) {
+            assert(false);
+        }
+    }
+}
+
+llvm::Value* TCGLLVMContext::handleSymbolicPcAssignment(llvm::Value *orig) {
+#if defined(CONFIG_SYMBEX) && !defined(STATIC_TRANSLATOR)
+    if (isa<ConstantInt>(orig)) {
+        return orig;
+    }
+    std::vector<Value*> argValues;
+    Type *t = intType(TARGET_LONG_BITS);
+    argValues.push_back(orig);
+    argValues.push_back(ConstantInt::get(t, 0));
+    argValues.push_back(ConstantInt::get(t, (target_ulong)-1));
+    argValues.push_back(ConstantInt::get(t, 1));
+    Value *valueToStore = m_builder.CreateCall(m_helperForkAndConcretize,
+                                               ArrayRef<Value*>(argValues));
+
+    valueToStore = m_builder.CreateTrunc(valueToStore,
+                                         intType(TARGET_LONG_BITS));
+    return valueToStore;
+#else
+    return orig;
+#endif
+}
+
+uint64_t TCGLLVMContext::toInteger(llvm::Value *v) const {
+    if (ConstantInt *cste = dyn_cast<ConstantInt>(v)) {
+        return *cste->getValue().getRawData();
+    }
+
+    llvm::errs() << *v << '\n';
+    assert(false && "Not a constant");
+    abort();
+}
+
+
 #ifdef CONFIG_SYMBEX
 
-void TCGLLVMContextPrivate::initializeNativeCpuState()
+void TCGLLVMContext::initializeNativeCpuState()
 {
     m_cpuType = m_module->getTypeByName("struct.CPUX86State");
     assert(m_cpuType && "Could not find CPUX86State in LLVM bitcode");
 }
 
 
-void TCGLLVMContextPrivate::initializeHelpers()
+void TCGLLVMContext::initializeHelpers()
 {
     m_helperTraceMemoryAccess =
             m_module->getFunction("tcg_llvm_after_memory_access");
@@ -387,7 +253,7 @@ void TCGLLVMContextPrivate::initializeHelpers()
 #endif
 
 #ifdef STATIC_TRANSLATOR
-void TCGLLVMContextPrivate::attachPcMetadata(Instruction *instr, uint64_t pc)
+void TCGLLVMContext::attachPcMetadata(Instruction *instr, uint64_t pc)
 {
     LLVMContext& C = instr->getContext();
     SmallVector<Metadata*, 1> args;
@@ -396,7 +262,7 @@ void TCGLLVMContextPrivate::attachPcMetadata(Instruction *instr, uint64_t pc)
     instr->setMetadata("s2e.pc", N);
 }
 
-Value *TCGLLVMContextPrivate::attachCurrentPc(Value *v)
+Value *TCGLLVMContext::attachCurrentPc(Value *v)
 {
     Instruction *instr = dynamic_cast<Instruction*>(v);
     if (instr) {
@@ -405,13 +271,13 @@ Value *TCGLLVMContextPrivate::attachCurrentPc(Value *v)
     return v;
 }
 #else
-Value *TCGLLVMContextPrivate::attachCurrentPc(Value *v)
+Value *TCGLLVMContext::attachCurrentPc(Value *v)
 {
     return v;
 }
 #endif
 
-Value* TCGLLVMContextPrivate::getPtrForValue(int idx)
+Value* TCGLLVMContext::getPtrForValue(int idx)
 {
     TCGContext *s = m_tcgContext;
     TCGTemp &temp = s->temps[idx];
@@ -447,19 +313,19 @@ Value* TCGLLVMContextPrivate::getPtrForValue(int idx)
     return m_memValuesPtr[idx];
 }
 
-void TCGLLVMContextPrivate::delValue(int idx)
+void TCGLLVMContext::delValue(int idx)
 {
     assert(idx >= 0 && idx < TCG_MAX_TEMPS);
     m_values[idx] = NULL;
 }
 
-void TCGLLVMContextPrivate::delPtrForValue(int idx)
+void TCGLLVMContext::delPtrForValue(int idx)
 {
     assert(idx >= 0 && idx < TCG_MAX_TEMPS);
     m_memValuesPtr[idx] = NULL;
 }
 
-unsigned TCGLLVMContextPrivate::getValueBits(int idx)
+unsigned TCGLLVMContext::getValueBits(int idx)
 {
     assert(idx >= 0 && idx < TCG_MAX_TEMPS);
 
@@ -471,7 +337,7 @@ unsigned TCGLLVMContextPrivate::getValueBits(int idx)
     return 0;
 }
 
-Value* TCGLLVMContextPrivate::getValue(TCGArg arg)
+Value* TCGLLVMContext::getValue(TCGArg arg)
 {
     int idx = temp_idx(arg_temp(arg));
     assert(idx >= 0 && idx < TCG_MAX_TEMPS);
@@ -512,7 +378,7 @@ Value* TCGLLVMContextPrivate::getValue(TCGArg arg)
 #endif
 }
 
-void TCGLLVMContextPrivate::setValue(TCGArg arg, Value *v)
+void TCGLLVMContext::setValue(TCGArg arg, Value *v)
 {
     int idx = temp_idx(arg_temp(arg));
     assert(idx >= 0 && idx < TCG_MAX_TEMPS);
@@ -562,7 +428,7 @@ void TCGLLVMContextPrivate::setValue(TCGArg arg, Value *v)
     }
 }
 
-void TCGLLVMContextPrivate::initGlobalsAndLocalTemps()
+void TCGLLVMContext::initGlobalsAndLocalTemps()
 {
     TCGContext *s = m_tcgContext;
 
@@ -606,7 +472,7 @@ void TCGLLVMContextPrivate::initGlobalsAndLocalTemps()
     }
 }
 
-void TCGLLVMContextPrivate::loadNativeCpuState(Function *f)
+void TCGLLVMContext::loadNativeCpuState(Function *f)
 {
     m_cpuState = &*(f->arg_begin());
 
@@ -624,7 +490,7 @@ void TCGLLVMContextPrivate::loadNativeCpuState(Function *f)
     }
 }
 
-BasicBlock* TCGLLVMContextPrivate::getLabel(TCGArg i)
+BasicBlock* TCGLLVMContext::getLabel(TCGArg i)
 {
     TCGLabel *label = arg_label(i);
 
@@ -640,7 +506,7 @@ BasicBlock* TCGLLVMContextPrivate::getLabel(TCGArg i)
     return bb;
 }
 
-void TCGLLVMContextPrivate::startNewBasicBlock(BasicBlock *bb)
+void TCGLLVMContext::startNewBasicBlock(BasicBlock *bb)
 {
     if (!bb) {
         bb = BasicBlock::Create(m_context);
@@ -666,7 +532,7 @@ void TCGLLVMContextPrivate::startNewBasicBlock(BasicBlock *bb)
     }
 }
 
-Value* TCGLLVMContextPrivate::generateCpuStatePtr(uint64_t registerOffset, unsigned sizeInBytes)
+Value* TCGLLVMContext::generateCpuStatePtr(uint64_t registerOffset, unsigned sizeInBytes)
 {
     SmallVector<Value*, 3> gepElements;
     if ((registerOffset % (TARGET_LONG_BITS / 8)) != 0) {
@@ -702,7 +568,7 @@ Value* TCGLLVMContextPrivate::generateCpuStatePtr(uint64_t registerOffset, unsig
     return ret;
 }
 
-void TCGLLVMContextPrivate::generateQemuCpuLoad(const TCGArg *args, unsigned memBits, unsigned regBits, bool signExtend) {
+void TCGLLVMContext::generateQemuCpuLoad(const TCGArg *args, unsigned memBits, unsigned regBits, bool signExtend) {
     assert(getValue(args[1])->getType() == wordType());
     assert(memBits <= regBits);
     Value *gep = generateCpuStatePtr(args[2], memBits / 8);
@@ -725,7 +591,7 @@ void TCGLLVMContextPrivate::generateQemuCpuLoad(const TCGArg *args, unsigned mem
     }
 }
 
-void TCGLLVMContextPrivate::generateQemuCpuStore(const TCGArg *args, unsigned memBits, Value *valueToStore)
+void TCGLLVMContext::generateQemuCpuStore(const TCGArg *args, unsigned memBits, Value *valueToStore)
 {
     TCGArg env = args[1];
     tcg_target_ulong offset = args[2];
@@ -757,7 +623,7 @@ void TCGLLVMContextPrivate::generateQemuCpuStore(const TCGArg *args, unsigned me
 }
 
 
-Value* TCGLLVMContextPrivate::generateQemuMemOp(bool ld,
+Value* TCGLLVMContext::generateQemuMemOp(bool ld,
         Value *value, Value *addr, int mem_index, int bits)
 {
     assert(addr->getType() == intType(TARGET_LONG_BITS));
@@ -807,7 +673,7 @@ Value* TCGLLVMContextPrivate::generateQemuMemOp(bool ld,
 #endif // CONFIG_SOFTMMU
 }
 
-int TCGLLVMContextPrivate::generateOperation(const TCGOp *op)
+int TCGLLVMContext::generateOperation(const TCGOp *op)
 {
     Value *v = NULL;
     const TCGOpDef &def = tcg_op_defs[op->opc];
@@ -1311,13 +1177,13 @@ int TCGLLVMContextPrivate::generateOperation(const TCGOp *op)
     return nb_args;
 }
 
-bool TCGLLVMContextPrivate::isInstrumented(llvm::Function *tb)
+bool TCGLLVMContext::isInstrumented(llvm::Function *tb)
 {
     std::string name = tb->getName();
     return name.find("insttb") != std::string::npos;
 }
 
-std::string TCGLLVMContextPrivate::generateName()
+std::string TCGLLVMContext::generateName()
 {
     std::ostringstream fName;
 
@@ -1327,7 +1193,7 @@ std::string TCGLLVMContextPrivate::generateName()
     return fName.str();
 }
 
-Function *TCGLLVMContextPrivate::createTbFunction(const std::string &name)
+Function *TCGLLVMContext::createTbFunction(const std::string &name)
 {
     FunctionType *tbFunctionType = tbType();
 
@@ -1363,7 +1229,7 @@ Function *TCGLLVMContextPrivate::createTbFunction(const std::string &name)
 /// }
 ///
 ///
-void TCGLLVMContextPrivate::removeInterruptExit()
+void TCGLLVMContext::removeInterruptExit()
 {
     auto &bb = m_tbFunction->front();
     auto br = dyn_cast<BranchInst>(bb.getTerminator());
@@ -1373,7 +1239,7 @@ void TCGLLVMContextPrivate::removeInterruptExit()
     bb.getInstList().push_back(newBr);
 }
 
-Function *TCGLLVMContextPrivate::generateCode(TCGContext *s, TranslationBlock *tb)
+Function *TCGLLVMContext::generateCode(TCGContext *s, TranslationBlock *tb)
 {
 #ifdef STATIC_TRANSLATOR
     m_info.clear();
@@ -1503,7 +1369,7 @@ Function *TCGLLVMContextPrivate::generateCode(TCGContext *s, TranslationBlock *t
 }
 
 #ifdef STATIC_TRANSLATOR
-void TCGLLVMContextPrivate::computeStaticBranchTargets()
+void TCGLLVMContext::computeStaticBranchTargets()
 {
     unsigned sz = m_info.returnInstructions.size();
 
@@ -1576,7 +1442,7 @@ void TCGLLVMContextPrivate::computeStaticBranchTargets()
 
 #endif
 
-bool TCGLLVMContextPrivate::getCpuFieldGepIndexes(unsigned offset, unsigned sizeInBytes, SmallVector<Value*, 3> &gepIndexes) {
+bool TCGLLVMContext::getCpuFieldGepIndexes(unsigned offset, unsigned sizeInBytes, SmallVector<Value*, 3> &gepIndexes) {
 
     Type *curType = m_cpuType;
     auto &dataLayout = m_module->getDataLayout();
@@ -1621,74 +1487,6 @@ bool TCGLLVMContextPrivate::getCpuFieldGepIndexes(unsigned offset, unsigned size
     return false;
 }
 
-/***********************************/
-/* External interface for C++ code */
-
-TCGLLVMContext::TCGLLVMContext(LLVMContext& context)
-        : m_private(new TCGLLVMContextPrivate(context))
-{
-}
-
-TCGLLVMContext::~TCGLLVMContext()
-{
-    delete m_private;
-}
-
-llvm::legacy::FunctionPassManager* TCGLLVMContext::getFunctionPassManager() const
-{
-    return m_private->getFunctionPassManager();
-}
-
-LLVMContext& TCGLLVMContext::getLLVMContext()
-{
-    return m_private->m_context;
-}
-
-Module* TCGLLVMContext::getModule()
-{
-    return m_private->m_module;
-}
-
-#ifdef CONFIG_SYMBEX
-void TCGLLVMContext::initializeHelpers()
-{
-    return m_private->initializeHelpers();
-}
-
-void TCGLLVMContext::initializeNativeCpuState()
-{
-    return m_private->initializeNativeCpuState();
-}
-
-bool TCGLLVMContext::isInstrumented(llvm::Function *tb)
-{
-    return m_private->isInstrumented(tb);
-}
-#endif
-
-#ifdef STATIC_TRANSLATOR
-const TCGLLVMTBInfo &TCGLLVMContext::getTbInfo() const
-{
-    return m_private->getTbInfo();
-}
-
-Function *TCGLLVMContext::createTbFunction(const std::string &name)
-{
-    return m_private->createTbFunction(name);
-}
-
-FunctionType *TCGLLVMContext::getTbType()
-{
-    return m_private->tbType();
-}
-
-#endif
-
-Function* TCGLLVMContext::generateCode(TCGContext *s, TranslationBlock *tb)
-{
-    return m_private->generateCode(s, tb);
-}
-
 bool TCGLLVMContext::GetStaticBranchTarget(const llvm::BasicBlock *BB, uint64_t *target)
 {
     if (!isa<llvm::ReturnInst>(BB->getTerminator())) {
@@ -1723,7 +1521,7 @@ bool TCGLLVMContext::GetStaticBranchTarget(const llvm::BasicBlock *BB, uint64_t 
         }
 
         //XXX: hard-coded pc index
-        if (!go1->isZero() || go2->getZExtValue() != TCGLLVMContextPrivate::m_eip_last_gep_index) {
+        if (!go1->isZero() || go2->getZExtValue() != TCGLLVMContext::m_eip_last_gep_index) {
             continue;
         }
 
@@ -1739,24 +1537,20 @@ bool TCGLLVMContext::GetStaticBranchTarget(const llvm::BasicBlock *BB, uint64_t 
 
 #include <llvm-c/Core.h>
 
-TCGLLVMContext* tcg_llvm_initialize()
+void* tcg_llvm_initialize()
 {
-    if (!llvm_is_multithreaded()) {
-        fprintf(stderr, "Could not initialize LLVM threading\n");
-        exit(-1);
-    }
-
-    LLVMContextRef contextRef = LLVMGetGlobalContext();
-
-    return new TCGLLVMContext(*unwrap(contextRef));
+    return TCGLLVMContext::create();
 }
 
-void tcg_llvm_close(TCGLLVMContext *l)
+void tcg_llvm_close(void *l)
 {
-    delete l;
+    auto ctx = reinterpret_cast<TCGLLVMContext*>(l);
+    delete ctx;
+    tcg_llvm_ctx = nullptr;
 }
 
-void* tcg_llvm_gen_code(TCGLLVMContext *l, TCGContext *s, TranslationBlock *tb)
+void* tcg_llvm_gen_code(void *l, TCGContext *s, TranslationBlock *tb)
 {
-    return l->generateCode(s, tb);
+    auto ctx = reinterpret_cast<TCGLLVMContext*>(l);
+    return ctx->generateCode(s, tb);
 }

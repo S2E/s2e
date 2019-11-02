@@ -27,26 +27,18 @@
 #define TCG_LLVM_H
 
 #include <inttypes.h>
+#include <tcg/tcg.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-//#include "tcg.h"
+// Functions for QEMU C code
+extern void *tcg_llvm_ctx;
 
-/*****************************/
-/* Functions for QEMU c code */
-
-struct TCGLLVMContext;
-
-extern struct TCGLLVMContext *tcg_llvm_ctx;
-
-struct TCGLLVMContext *tcg_llvm_initialize(void);
-void tcg_llvm_close(struct TCGLLVMContext *l);
-
-struct TCGContext;
-
-void *tcg_llvm_gen_code(struct TCGLLVMContext *l, struct TCGContext *s, struct TranslationBlock *tb);
+void *tcg_llvm_initialize(void);
+void tcg_llvm_close(void *l);
+void *tcg_llvm_gen_code(void *llvmCtx, struct TCGContext *s, struct TranslationBlock *tb);
 
 #ifdef __cplusplus
 }
@@ -54,26 +46,24 @@ void *tcg_llvm_gen_code(struct TCGLLVMContext *l, struct TCGContext *s, struct T
 
 #ifdef __cplusplus
 
-/***********************************/
-/* External interface for C++ code */
+#include <unordered_map>
 
-// Undefine cat from "compiler.h"
-#undef cat
+// External interface for C++ code
 
-namespace llvm {
-class Function;
-class FunctionType;
-class LLVMContext;
-class Module;
-class ModuleProvider;
-class StoreInst;
-class ReturnInst;
-class BasicBlock;
-
-namespace legacy {
-class FunctionPassManager;
-}
-}
+#include <llvm/ExecutionEngine/ExecutionEngine.h>
+#include <llvm/ExecutionEngine/MCJIT.h>
+#include <llvm/IR/DataLayout.h>
+#include <llvm/IR/DerivedTypes.h>
+#include <llvm/IR/IRBuilder.h>
+#include <llvm/IR/Intrinsics.h>
+#include <llvm/IR/LLVMContext.h>
+#include <llvm/IR/LegacyPassManager.h>
+#include <llvm/IR/Module.h>
+#include <llvm/IR/Verifier.h>
+#include <llvm/Support/TargetSelect.h>
+#include <llvm/Support/Threading.h>
+#include <llvm/Transforms/Scalar.h>
+#include <llvm/Transforms/Scalar/GVN.h>
 
 #ifdef STATIC_TRANSLATOR
 #include <llvm/ADT/SmallVector.h>
@@ -95,8 +85,186 @@ struct TCGLLVMTBInfo {
 };
 #endif
 
-struct TCGLLVMContextPrivate;
+class TCGLLVMContext {
+private:
+    llvm::LLVMContext &m_context;
+    llvm::IRBuilder<> m_builder;
 
+    /* Current m_module */
+    llvm::Module *m_module;
+
+    /* Function pass manager (used for optimizing the code) */
+    llvm::legacy::FunctionPassManager *m_functionPassManager;
+
+#ifdef CONFIG_SYMBEX
+    /* Declaration of a wrapper function for helpers */
+    llvm::Function *m_helperTraceMemoryAccess;
+    llvm::Function *m_helperTraceInstruction;
+    llvm::Function *m_helperForkAndConcretize;
+    llvm::Function *m_helperGetValue;
+    llvm::Function *m_qemu_ld_helpers[5];
+    llvm::Function *m_qemu_st_helpers[5];
+#endif
+
+#ifdef STATIC_TRANSLATOR
+    TCGLLVMTBInfo m_info;
+#endif
+
+    /* Count of generated translation blocks */
+    int m_tbCount;
+
+    /* XXX: The following members are "local" to generateCode method */
+
+    /* TCGContext for current translation block */
+    TCGContext *m_tcgContext;
+
+    TranslationBlock *m_tb;
+
+    /* Function for current translation block */
+    llvm::Function *m_tbFunction;
+
+    /* Current temp m_values */
+    llvm::Value *m_values[TCG_MAX_TEMPS];
+
+    /* Pointers to in-memory versions of globals or local temps */
+    llvm::Value *m_memValuesPtr[TCG_MAX_TEMPS];
+
+    /* For reg-based globals, store argument number,
+     * for mem-based globals, store base value index */
+    int m_globalsIdx[TCG_MAX_TEMPS];
+
+    std::unordered_map<TCGLabel *, llvm::BasicBlock *> m_labels;
+
+    llvm::FunctionType *m_tbType;
+    llvm::Type *m_cpuType;
+    llvm::Value *m_cpuState;
+    llvm::Value *m_eip;
+    llvm::Value *m_ccop;
+
+    static unsigned m_eip_last_gep_index;
+
+    typedef llvm::DenseMap<std::pair<unsigned, unsigned>, llvm::Instruction *> GepMap;
+    GepMap m_registers;
+
+    std::string generateName();
+
+    TCGLLVMContext(llvm::LLVMContext &);
+
+public:
+    ~TCGLLVMContext();
+
+    static TCGLLVMContext *create();
+
+    llvm::LLVMContext &getLLVMContext() const {
+        return m_context;
+    }
+
+    llvm::Module *getModule() const {
+        return m_module;
+    }
+
+    llvm::legacy::FunctionPassManager *getFunctionPassManager() const {
+        return m_functionPassManager;
+    }
+
+    bool isInstrumented(llvm::Function *tb);
+
+    /* Shortcuts */
+    llvm::Type *intType(int w) {
+        return llvm::IntegerType::get(m_context, w);
+    }
+    llvm::Type *intPtrType(int w) {
+        return llvm::PointerType::get(intType(w), 0);
+    }
+    llvm::Type *wordType() {
+        return intType(TCG_TARGET_REG_BITS);
+    }
+    llvm::Type *wordType(int bits) {
+        return intType(bits);
+    }
+    llvm::Type *wordPtrType() {
+        return intPtrType(TCG_TARGET_REG_BITS);
+    }
+    llvm::FunctionType *tbType();
+
+    void adjustTypeSize(unsigned target, llvm::Value **v1);
+
+    llvm::Value *generateCpuStatePtr(uint64_t arg, unsigned sizeInBytes);
+    void generateQemuCpuLoad(const TCGArg *args, unsigned memBits, unsigned regBits, bool signExtend);
+    void generateQemuCpuStore(const TCGArg *args, unsigned memBits, llvm::Value *valueToStore);
+
+#ifdef STATIC_TRANSLATOR
+    uint64_t m_currentPc;
+    void attachPcMetadata(llvm::Instruction *instr, uint64_t pc);
+#endif
+    llvm::Value *attachCurrentPc(llvm::Value *value);
+
+    // This handles the special case of symbolic values
+    // assigned to the program counter register
+    llvm::Value *handleSymbolicPcAssignment(llvm::Value *orig);
+
+#ifdef STATIC_TRANSLATOR
+    bool isPcAssignment(llvm::Value *v) {
+        return v == m_eip;
+    }
+
+    const TCGLLVMTBInfo &getTbInfo() const {
+        return m_info;
+    }
+
+    void computeStaticBranchTargets();
+#endif
+
+    void adjustTypeSize(unsigned target, llvm::Value **v1, llvm::Value **v2) {
+        adjustTypeSize(target, v1);
+        adjustTypeSize(target, v2);
+    }
+
+    llvm::Type *tcgType(int type) {
+        return type == TCG_TYPE_I64 ? intType(64) : intType(32);
+    }
+
+    llvm::Type *tcgPtrType(int type) {
+        return type == TCG_TYPE_I64 ? intPtrType(64) : intPtrType(32);
+    }
+
+    /* Helpers */
+    llvm::Value *getValue(TCGArg arg);
+    void setValue(TCGArg arg, llvm::Value *v);
+    void delValue(int idx);
+
+    llvm::Value *getPtrForValue(int idx);
+    void delPtrForValue(int idx);
+    void initGlobalsAndLocalTemps();
+    void loadNativeCpuState(llvm::Function *f);
+    unsigned getValueBits(int idx);
+
+    void invalidateCachedMemory();
+
+    uint64_t toInteger(llvm::Value *v) const;
+
+#ifdef CONFIG_SYMBEX
+    void initializeHelpers();
+    void initializeNativeCpuState();
+#endif
+
+    llvm::BasicBlock *getLabel(TCGArg i);
+    void startNewBasicBlock(llvm::BasicBlock *bb = NULL);
+
+    /* Code generation */
+    llvm::Value *generateQemuMemOp(bool ld, llvm::Value *value, llvm::Value *addr, int mem_index, int bits);
+
+    int generateOperation(const TCGOp *op);
+
+    llvm::Function *createTbFunction(const std::string &name);
+    llvm::Function *generateCode(TCGContext *s, TranslationBlock *tb);
+    void removeInterruptExit();
+
+    bool getCpuFieldGepIndexes(unsigned offset, unsigned sizeInBytes, llvm::SmallVector<llvm::Value *, 3> &gepIndexes);
+    static bool GetStaticBranchTarget(const llvm::BasicBlock *bb, uint64_t *target);
+};
+
+#if 0
 struct TCGLLVMContext {
 private:
     TCGLLVMContextPrivate *m_private;
@@ -108,7 +276,6 @@ public:
     llvm::LLVMContext &getLLVMContext();
 
     llvm::Module *getModule();
-    llvm::ModuleProvider *getModuleProvider();
 
     llvm::legacy::FunctionPassManager *getFunctionPassManager() const;
 
@@ -122,13 +289,8 @@ public:
     static bool GetStaticBranchTarget(const llvm::BasicBlock *bb, uint64_t *target);
 
     llvm::Function *generateCode(struct TCGContext *s, struct TranslationBlock *tb);
-
-#ifdef STATIC_TRANSLATOR
-    const TCGLLVMTBInfo &getTbInfo() const;
-    llvm::Function *createTbFunction(const std::string &name);
-    llvm::FunctionType *getTbType();
-#endif
 };
+#endif
 
 #endif
 

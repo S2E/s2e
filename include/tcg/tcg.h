@@ -25,6 +25,10 @@
 #ifndef TCG_H
 #define TCG_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <glib.h>
 #include <inttypes.h>
 #include <stddef.h>
@@ -1549,5 +1553,9 @@ void tcg_calc_regmask(TCGContext *s, uint64_t *rmask, uint64_t *wmask, uint64_t 
 
 void tcg_register_helper(void *func, const char *name, int param_count, ...);
 const char *tcg_helper_get_name(TCGContext *s, void *func);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* TCG_H */
