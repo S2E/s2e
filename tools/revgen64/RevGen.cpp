@@ -480,7 +480,10 @@ void RevGen::translate(const llvm::BinaryFunctions &functions, const llvm::Binar
     m_functions = functions;
     m_bbs = bbs;
 
-    createFunctionPrototypes();
+    std::unordered_map<uint64_t, BinaryFunction *> fcnMap;
+    for (auto fcn : functions) {
+        fcnMap[fcn->getEntryBlock()->getStartPc()] = fcn;
+    }
 
     for (auto const &bb : m_bbs) {
         TranslatedBlock *tb = translate(bb->getStartPc(), bb->getEndPc());
@@ -488,6 +491,44 @@ void RevGen::translate(const llvm::BinaryFunctions &functions, const llvm::Binar
             m_tbs[tb->getAddress()] = tb;
         }
     }
+
+    // Create dummy functions if there are calls to functions that are
+    // not in the input CFG.
+    for (const auto p : m_tbs) {
+        auto tb = p.second;
+
+        if (tb->getType() != BB_CALL) {
+            continue;
+        }
+
+        uint64_t target = tb->getSuccessor(0);
+        if (fcnMap.find(target) != fcnMap.end()) {
+            continue;
+        }
+
+        const auto tit = m_tbs.find(target);
+        if (tit == m_tbs.end()) {
+            LOGWARNING("Could not find entry point " << hexval(target) << " for unknown function");
+            continue;
+        }
+
+        auto ttb = tit->second;
+
+        std::stringstream ss;
+        ss << "__unk_fcn_" << hexval(target);
+        BinaryFunction *newFcn = new BinaryFunction(ss.str());
+
+        auto start = ttb->getAddress();
+        auto end = ttb->getLastAddress();
+        auto size = ttb->getSize();
+        BinaryBasicBlock *newBb = new BinaryBasicBlock(start, end, size);
+        newFcn->add(newBb);
+        newFcn->setEntryBlock(newBb);
+        m_functions.insert(newFcn);
+        fcnMap[target] = newFcn;
+    }
+
+    createFunctionPrototypes();
 
     /* We need all tbs to be generated before patching them */
     for (auto const &_tb : m_tbs) {
