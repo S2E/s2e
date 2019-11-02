@@ -140,7 +140,7 @@ struct TCGLLVMContextPrivate {
 
     static unsigned m_eip_last_gep_index;
 
-    typedef DenseMap<unsigned, Value *> GepMap;
+    typedef DenseMap<std::pair<unsigned, unsigned>, Instruction *> GepMap;
     GepMap m_registers;
 
     std::string generateName();
@@ -610,11 +610,18 @@ void TCGLLVMContextPrivate::loadNativeCpuState(Function *f)
 {
     m_cpuState = &*(f->arg_begin());
 
-    /* Reinitialize left overs */
-    m_eip = NULL;
-    m_ccop = NULL;
     m_eip = generateCpuStatePtr(m_tcgContext->env_offset_eip, m_tcgContext->env_sizeof_eip);
     m_ccop = generateCpuStatePtr(m_tcgContext->env_offset_ccop, m_tcgContext->env_sizeof_ccop);
+
+    if (m_eip_last_gep_index == 0) {
+        SmallVector<Value*, 3> gepElements;
+        bool ok = getCpuFieldGepIndexes(m_tcgContext->env_offset_eip, sizeof(target_ulong), gepElements);
+        if (!ok) {
+            abort();
+        }
+
+        m_eip_last_gep_index = (unsigned) dyn_cast<ConstantInt>(gepElements.back())->getZExtValue();
+    }
 }
 
 BasicBlock* TCGLLVMContextPrivate::getLabel(TCGArg i)
@@ -654,11 +661,9 @@ void TCGLLVMContextPrivate::startNewBasicBlock(BasicBlock *bb)
     }
 
     /* Invalidate all pointers to globals */
-    for(int i = 0; i < m_tcgContext->nb_globals; ++i) {
+    for (int i = 0; i < m_tcgContext->nb_globals; ++i) {
         delPtrForValue(i);
     }
-
-    m_registers.clear();
 }
 
 Value* TCGLLVMContextPrivate::generateCpuStatePtr(uint64_t registerOffset, unsigned sizeInBytes)
@@ -670,48 +675,28 @@ Value* TCGLLVMContextPrivate::generateCpuStatePtr(uint64_t registerOffset, unsig
 
     //XXX: assumes x86
     static unsigned TARGET_LONG_BYTES = TARGET_LONG_BITS / 8;
-    Value *ret = NULL;
-    if ((registerOffset + sizeInBytes) <= m_tcgContext->env_offset_ccop) {
-        unsigned reg = registerOffset / TARGET_LONG_BYTES;
 
-        GepMap::iterator it = m_registers.find(registerOffset);
-        if (it != m_registers.end()) {
-            ret = (*it).second;
-        } else {
-            gepElements.push_back(ConstantInt::get(m_module->getContext(), APInt(32,  0)));
-            gepElements.push_back(ConstantInt::get(m_module->getContext(), APInt(32,  0))); //register array
-            gepElements.push_back(ConstantInt::get(m_module->getContext(), APInt(32,  reg)));
-            ret = m_builder.CreateGEP(m_cpuState, ArrayRef<Value*>(gepElements.begin(), gepElements.end()));
-            m_registers[registerOffset] = ret;
-        }
-    } else if ((registerOffset + sizeInBytes) <= m_tcgContext->env_offset_df) {
-        if (registerOffset == m_tcgContext->env_offset_eip && m_eip) {
-            ret = m_eip;
-        } else if (registerOffset == m_tcgContext->env_offset_ccop && m_ccop) {
-            ret = m_ccop;
-        } else {
-            GepMap::iterator it = m_registers.find(registerOffset);
-            if (it != m_registers.end()) {
-                ret = (*it).second;
-            } else {
-                bool ok = getCpuFieldGepIndexes(registerOffset, sizeInBytes, gepElements);
-                if (ok) {
-                   ret = m_builder.CreateGEP(m_cpuState, ArrayRef<Value*>(gepElements.begin(), gepElements.end()));
-                   m_registers[registerOffset] = ret;
+    Instruction *ret = nullptr;
+    auto regsz = std::make_pair(registerOffset, sizeInBytes);
 
-                   if (m_eip_last_gep_index == 0 && registerOffset == m_tcgContext->env_offset_eip) {
-                       m_eip_last_gep_index = (unsigned)dyn_cast<ConstantInt>(gepElements.back())->getZExtValue();
-                   }
-                } else {
-                   // We might have run into a union, can't use GEP
-                   return NULL;
-                }
-            }
+    auto it = m_registers.find(regsz);
+    if (it != m_registers.end()) {
+        ret = (*it).second;
+    } else {
+        bool ok = getCpuFieldGepIndexes(registerOffset, sizeInBytes, gepElements);
+        if (ok) {
+            ret = GetElementPtrInst::Create(nullptr, m_cpuState, ArrayRef<Value*>(gepElements.begin(), gepElements.end()));
+            m_tbFunction->begin()->getInstList().push_front(ret);
+            m_registers[regsz] = ret;
+        } else {
+           // We might have run into a union, can't use GEP
+           return NULL;
         }
     }
 
     if (ret && sizeInBytes < TARGET_LONG_BYTES) {
-        ret = m_builder.CreatePointerCast(ret, intPtrType(sizeInBytes * 8));
+        auto ty = intPtrType(sizeInBytes * 8);
+        ret = CastInst::CreatePointerCast(ret, ty, "", ret->getNextNode());
     }
 
     return ret;
