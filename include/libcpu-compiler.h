@@ -27,9 +27,6 @@ extern "C" {
 #define LIBCPU_PACKED __attribute__((packed))
 #endif
 
-#define cat(x, y) x##y
-#define cat2(x, y) cat(x, y)
-
 #if defined __GNUC__
 #if !LIBCPU_GNUC_PREREQ(4, 4)
 /* gcc versions before 4.4.x don't support gnu_printf, so use printf. */
