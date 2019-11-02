@@ -20,17 +20,22 @@
 #include <s2e/s2e_config.h>
 #include <s2e/s2e_libcpu.h>
 #include <tcg/tcg-llvm.h>
+#include <tcg/utils/bitops.h>
 #endif
+
+extern "C" {
+void tcg_register_thread(void);
+}
 
 #include "s2e-kvm-vcpu.h"
 #include "syscalls.h"
 
-#define BIT(n) (1 << (n))
-
+extern "C" {
 // Convenience variable to help debugging in gdb.
 // env is present in both inside qemu and libs2e, which
 // causes confusion.
 CPUX86State *g_cpu_env;
+}
 
 // TODO: remove this global var from libcpu
 extern CPUX86State *env;
@@ -54,6 +59,8 @@ VCPU::VCPU(std::shared_ptr<S2EKVM> &kvm, std::shared_ptr<VM> &vm, kvm_run *buffe
     m_cpuBuffer = buffer;
     assert(!g_kvm_vcpu_buffer);
     g_kvm_vcpu_buffer = buffer;
+
+    tcg_register_thread();
 
     m_onExit = g_syscalls.onExit.connect(sigc::mem_fun(*this, &VCPU::requestProcessExit));
     m_onSelect = g_syscalls.onSelect.connect(sigc::mem_fun(*this, &VCPU::requestExit));

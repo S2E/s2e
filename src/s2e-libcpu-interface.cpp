@@ -54,7 +54,6 @@ void init_s2e_libcpu_interface(struct se_libcpu_interface_t *sqi) {
     sqi->exec.do_interrupt_all = g_s2e_do_interrupt_all;
 
     sqi->tb.tb_alloc = se_tb_alloc;
-    sqi->tb.tb_free = se_tb_free;
     sqi->tb.flush_tb_cache = s2e_flush_tb_cache;
     sqi->tb.set_tb_function = s2e_set_tb_function;
     sqi->tb.is_tb_instrumented = s2e_is_tb_instrumented;

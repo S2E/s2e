@@ -8,7 +8,6 @@
 #include <stdio.h>
 
 #include <cpu/exec.h>
-#include <tcg/tcg.h>
 
 #include "coroutine.h"
 
