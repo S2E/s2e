@@ -10,7 +10,7 @@ set(FLAGS -D_GNU_SOURCE -DNEED_CPU_H -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE
           -DCONFIG_SOFTMMU
           -DCONFIG_SYMBEX -DSYMBEX_LLVM_LIB -DSTATIC_TRANSLATOR -m64 -w -Wundef
           -Wredundant-decls -Wendif-labels -Wwrite-strings -fno-strict-aliasing
-          -Wno-sign-compare -Wno-missing-field-initializers -O3)
+          -Wno-sign-compare -Wno-missing-field-initializers -O3 -DTARGET_INSN_START_EXTRA_WORDS=1)
 
 get_property(INC_DIRS DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY INCLUDE_DIRECTORIES)
 
