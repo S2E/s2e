@@ -138,6 +138,12 @@ private:
     llvm::FunctionType *m_tbType;
     llvm::Type *m_cpuType;
     llvm::Value *m_cpuState;
+    // Represents CPU state pointer cast to an int
+    llvm::Instruction *m_cpuStateInt;
+
+    // This instruction is a no-op in the entry block, we use it
+    // in order to simplify instruction insertion.
+    llvm::Instruction *m_noop;
     llvm::Value *m_eip;
     llvm::Value *m_ccop;
 

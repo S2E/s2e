@@ -298,15 +298,6 @@ Value* TCGLLVMContext::getPtrForValue(int idx)
         } else {
             m_memValuesPtr[idx] =
                 generateCpuStatePtr(temp.mem_offset, tcgType(temp.type)->getScalarSizeInBits() / 8);
-
-            if (!m_memValuesPtr[idx]) {
-                Value *v = getValue(m_globalsIdx[idx]);
-                assert(v->getType() == wordType());
-                v = m_builder.CreateAdd(v, ConstantInt::get(wordType(), temp.mem_offset));
-                m_memValuesPtr[idx] =
-                    m_builder.CreateIntToPtr(v, tcgPtrType(temp.type), StringRef(temp.name) + "_ptr");
-            }
-
         }
     }
 
@@ -475,6 +466,11 @@ void TCGLLVMContext::initGlobalsAndLocalTemps()
 void TCGLLVMContext::loadNativeCpuState(Function *f)
 {
     m_cpuState = &*(f->arg_begin());
+    m_cpuStateInt = dyn_cast<Instruction>(m_builder.CreatePtrToInt(m_cpuState, wordType()));
+
+    auto ci = ConstantInt::get(wordType(), 0);
+    auto add = BinaryOperator::Create(Instruction::Add, ci, ci, "");
+    m_noop = m_builder.Insert(add);
 
     m_eip = generateCpuStatePtr(m_tcgContext->env_offset_eip, m_tcgContext->env_sizeof_eip);
     m_ccop = generateCpuStatePtr(m_tcgContext->env_offset_ccop, m_tcgContext->env_sizeof_ccop);
@@ -535,34 +531,41 @@ void TCGLLVMContext::startNewBasicBlock(BasicBlock *bb)
 Value* TCGLLVMContext::generateCpuStatePtr(uint64_t registerOffset, unsigned sizeInBytes)
 {
     SmallVector<Value*, 3> gepElements;
-    if ((registerOffset % (TARGET_LONG_BITS / 8)) != 0) {
-        return NULL;
-    }
+    Instruction *ret = nullptr;
+    auto regsz = std::make_pair(registerOffset, sizeInBytes);
 
     //XXX: assumes x86
     static unsigned TARGET_LONG_BYTES = TARGET_LONG_BITS / 8;
 
-    Instruction *ret = nullptr;
-    auto regsz = std::make_pair(registerOffset, sizeInBytes);
+    if ((registerOffset % (TARGET_LONG_BITS / 8)) == 0) {
+        auto &instList = m_tbFunction->begin()->getInstList();
+        auto it = m_registers.find(regsz);
 
-    auto it = m_registers.find(regsz);
-    if (it != m_registers.end()) {
-        ret = (*it).second;
-    } else {
-        bool ok = getCpuFieldGepIndexes(registerOffset, sizeInBytes, gepElements);
-        if (ok) {
-            ret = GetElementPtrInst::Create(nullptr, m_cpuState, ArrayRef<Value*>(gepElements.begin(), gepElements.end()));
-            m_tbFunction->begin()->getInstList().push_front(ret);
-            m_registers[regsz] = ret;
+        if (it != m_registers.end()) {
+            return (*it).second;
         } else {
-           // We might have run into a union, can't use GEP
-           return NULL;
+            bool ok = getCpuFieldGepIndexes(registerOffset, sizeInBytes, gepElements);
+            if (ok) {
+                ret = GetElementPtrInst::Create(nullptr, m_cpuState, ArrayRef<Value*>(gepElements.begin(), gepElements.end()));
+                instList.push_front(ret);
+                m_registers[regsz] = ret;
+            }
         }
     }
 
     if (ret && sizeInBytes < TARGET_LONG_BYTES) {
         auto ty = intPtrType(sizeInBytes * 8);
         ret = CastInst::CreatePointerCast(ret, ty, "", ret->getNextNode());
+        m_registers[regsz] = ret;
+        return ret;
+    }
+
+    if (!ret) {
+        // If gep fails, fallback to pointer arithmetic
+        auto ci = ConstantInt::get(wordType(), registerOffset);
+        auto add = BinaryOperator::Create(Instruction::Add, m_cpuStateInt, ci, "", m_noop);
+        ret = CastInst::CreateBitOrPointerCast(add, intPtrType(sizeInBytes * 8), "", m_noop);
+        m_registers[regsz] = ret;
     }
 
     return ret;
@@ -574,15 +577,8 @@ void TCGLLVMContext::generateQemuCpuLoad(const TCGArg *args, unsigned memBits, u
     Value *gep = generateCpuStatePtr(args[2], memBits / 8);
     Value *v;
 
-    if (gep) {
-        v = m_builder.CreateLoad(gep);
-        v = m_builder.CreateTrunc(v, intType(memBits));
-    } else {
-        v = m_builder.CreateAdd(getValue(args[1]),
-                    ConstantInt::get(wordType(), args[2]));
-        v = m_builder.CreateIntToPtr(v, intPtrType(memBits));
-        v = m_builder.CreateLoad(v);
-    }
+    v = m_builder.CreateLoad(gep);
+    v = m_builder.CreateTrunc(v, intType(memBits));
 
     if (signExtend) {
         setValue(args[0], m_builder.CreateSExt(v, intType(regBits)));
@@ -593,7 +589,7 @@ void TCGLLVMContext::generateQemuCpuLoad(const TCGArg *args, unsigned memBits, u
 
 void TCGLLVMContext::generateQemuCpuStore(const TCGArg *args, unsigned memBits, Value *valueToStore)
 {
-    TCGArg env = args[1];
+    // TODO: args[1] contains a ptr to cpu state, we don't use it.
     tcg_target_ulong offset = args[2];
 
     if (memBits == TARGET_LONG_BITS && offset == m_tcgContext->env_offset_eip) {
@@ -602,13 +598,8 @@ void TCGLLVMContext::generateQemuCpuStore(const TCGArg *args, unsigned memBits, 
 
     Value *gep = generateCpuStatePtr(offset, memBits / 8);
     Value *v = NULL;
-    if (gep) {
-        v = m_builder.CreatePointerCast(gep, intType(memBits)->getPointerTo());
-    } else {
-        v = m_builder.CreateAdd(getValue(env),
-                    ConstantInt::get(wordType(), offset));
-        v = m_builder.CreateIntToPtr(v, intPtrType(memBits));
-    }
+
+    v = m_builder.CreatePointerCast(gep, intType(memBits)->getPointerTo());
 
 #ifdef STATIC_TRANSLATOR
     StoreInst *s = m_builder.CreateStore(m_builder.CreateTrunc(
@@ -752,7 +743,6 @@ int TCGLLVMContext::generateOperation(const TCGOp *op)
                     } else {
                         assert(false && "Not supported cast");
                     }
-                    //llvm::outs() << "Type differs:" << *FTy->getParamType(i) << " and " << *argTypes[i] << "\n";
                 }
             }
 
@@ -1104,14 +1094,8 @@ int TCGLLVMContext::generateOperation(const TCGOp *op)
         break;
 
     case INDEX_op_deposit_i32: {
-        //llvm::errs() << *m_tbFunction << "\n";
         Value *arg1 = getValue(op->args[1]);
-        //llvm::errs() << "arg1=" << *arg1 << "\n";
-        //arg1 = m_builder.CreateTrunc(arg1, intType(32));
-
-
         Value *arg2 = getValue(op->args[2]);
-        //llvm::errs() << "arg2=" << *arg2 << "\n";
         arg2 = m_builder.CreateTrunc(arg2, intType(32));
 
         uint32_t ofs = op->args[3];
@@ -1304,7 +1288,6 @@ Function *TCGLLVMContext::generateCode(TCGContext *s, TranslationBlock *tb)
 
             default: generateOperation(op);
         }
-        // llvm::outs() << *m_tbFunction << "\n";
     }
 
     /* Finalize function */
@@ -1333,7 +1316,9 @@ Function *TCGLLVMContext::generateCode(TCGContext *s, TranslationBlock *tb)
         removeInterruptExit();
     }
 
-    if (verifyFunction(*m_tbFunction)) {
+    std::string errstr;
+    llvm::raw_string_ostream erros(errstr);
+    if (verifyFunction(*m_tbFunction, &erros)) {
         std::error_code error;
         std::stringstream ss;
         ss << "llvm-"  << getpid() << ".log";
@@ -1341,6 +1326,7 @@ Function *TCGLLVMContext::generateCode(TCGContext *s, TranslationBlock *tb)
         os << "Dumping function:\n";
         os.flush();
         os << *m_tbFunction << "\n";
+        os << errstr << "\n";
         os.close();
         abort();
     }
