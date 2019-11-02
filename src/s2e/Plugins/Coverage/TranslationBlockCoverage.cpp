@@ -76,8 +76,16 @@ void TranslationBlockCoverage::initialize() {
 void TranslationBlockCoverage::onModuleTranslateBlockComplete(S2EExecutionState *state, const ModuleDescriptor &module,
                                                               TranslationBlock *tb, uint64_t last_pc) {
     TB ntb;
-    ntb.startPc = module.ToNativeBase(tb->pc);
-    ntb.lastPc = module.ToNativeBase(last_pc);
+    bool ok = true;
+    ok &= module.ToNativeBase(tb->pc, ntb.startPc);
+    ok &= module.ToNativeBase(last_pc, ntb.lastPc);
+
+    if (!ok) {
+        getWarningsStream(state) << "Could not get native base for " << hexval(tb->pc) << " or " << hexval(last_pc)
+                                 << "\n";
+        return;
+    }
+
     ntb.startOffset = ntb.startPc - module.NativeBase;
     ntb.size = tb->size;
 
