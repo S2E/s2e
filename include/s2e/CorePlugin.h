@@ -338,7 +338,7 @@ public:
     ///
     /// Note that this signal may be emitted when executing program instructions that are \b not necessarily branch
     /// instructions. For example, when dereferencing symbolic memory a number of helper functions are called (see
-    /// \c TCGLLVMContextPrivate::initialzeHelpers) which may also cause fork branches. Depending on: the program
+    /// \c TCGLLVMTranslator::initialzeHelpers) which may also cause fork branches. Depending on: the program
     /// instruction; memory accessed; and helper functions called, this may cause \c onStateForkDecide to be emitted
     /// multiple times for the same execution of a program instruction.
     ///

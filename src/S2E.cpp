@@ -68,10 +68,10 @@ S2E::S2E(const std::string &bitcodeLibraryDir) {
     m_bitcodeLibraryDir = bitcodeLibraryDir;
 }
 
-bool S2E::initialize(int argc, char **argv, TCGLLVMContext *tcgLLVMContext, const std::string &configFileName,
+bool S2E::initialize(int argc, char **argv, TCGLLVMTranslator *translator, const std::string &configFileName,
                      const std::string &outputDirectory, bool setupUnbufferedStream, int verbose,
                      unsigned s2e_max_processes) {
-    m_tcgLLVMContext = tcgLLVMContext;
+    m_TCGLLVMTranslator = translator;
 
     if (s2e_max_processes < 1) {
         std::cerr << "You must at least allow one process for S2E." << '\n';
@@ -194,32 +194,13 @@ bool S2E::backupConfigFiles(const std::string &configFileName) {
     return true;
 }
 
-std::string S2E::getBitcodeLibrary() {
-#ifdef CONFIG_SYMBEX_MP
-    std::string name = "op_helper.bc." TARGET_ARCH;
-#else
-    std::string name = "op_helper_sp.bc." TARGET_ARCH;
-#endif
-
-    std::stringstream ss;
-    ss << m_bitcodeLibraryDir << "/" << name;
-    auto ret = ss.str();
-    if (access(ret.c_str(), R_OK)) {
-        getWarningsStream() << "Could not find " << ret << ".\n"
-                            << "Make sure that the environment variable S2E_SHARED_DIR is set properly.\n";
-        exit(-1);
-    }
-
-    return ret;
-}
-
 void S2E::writeBitCodeToFile() {
     std::string fileName = getOutputFilename("module.bc");
 
     std::error_code error;
     llvm::raw_fd_ostream o(fileName, error, llvm::sys::fs::F_None);
 
-    llvm::Module *module = m_tcgLLVMContext->getModule();
+    llvm::Module *module = m_TCGLLVMTranslator->getModule();
 
     // Output the bitcode file to stdout
     llvm::WriteBitcodeToFile(module, o);
@@ -485,7 +466,7 @@ void S2E::initPlugins() {
 }
 
 void S2E::initExecutor() {
-    m_s2eExecutor = new S2EExecutor(this, m_tcgLLVMContext, this);
+    m_s2eExecutor = new S2EExecutor(this, m_TCGLLVMTranslator, this);
 }
 
 llvm::raw_ostream &S2E::getStream(llvm::raw_ostream &stream, const S2EExecutionState *state) const {
@@ -638,10 +619,9 @@ void *get_s2e(void) {
     return g_s2e;
 }
 
-void s2e_initialize(int argc, char **argv, void *tcgLLVMContext, const char *s2e_config_file,
-                    const char *s2e_output_dir, int setup_unbuffered_stream, int verbose, unsigned s2e_max_processes,
-                    const char *bitcode_lib_dir) {
-    auto ctx = reinterpret_cast<TCGLLVMContext *>(tcgLLVMContext);
+void s2e_initialize(int argc, char **argv, void *translator, const char *s2e_config_file, const char *s2e_output_dir,
+                    int setup_unbuffered_stream, int verbose, unsigned s2e_max_processes, const char *bitcode_lib_dir) {
+    auto ctx = reinterpret_cast<TCGLLVMTranslator *>(translator);
     g_s2e = new s2e::S2E(bitcode_lib_dir);
     if (!g_s2e->initialize(argc, argv, ctx, s2e_config_file ? s2e_config_file : "",
                            s2e_output_dir ? s2e_output_dir : "", setup_unbuffered_stream, verbose, s2e_max_processes)) {
@@ -651,8 +631,8 @@ void s2e_initialize(int argc, char **argv, void *tcgLLVMContext, const char *s2e
 
 void s2e_close(void) {
     delete g_s2e;
-    tcg_llvm_close(tcg_llvm_ctx);
-    tcg_llvm_ctx = nullptr;
+    tcg_llvm_close(tcg_llvm_translator);
+    tcg_llvm_translator = nullptr;
     g_s2e = nullptr;
 }
 

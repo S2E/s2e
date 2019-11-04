@@ -964,7 +964,7 @@ bool S2EExecutionState::getStaticTarget(uint64_t *target) {
 
     const llvm::Instruction *instr = pc->inst;
     const llvm::BasicBlock *BB = instr->getParent();
-    if (!TCGLLVMContext::GetStaticBranchTarget(BB, target)) {
+    if (!TCGLLVMTranslator::GetStaticBranchTarget(BB, target)) {
         return false;
     }
 
@@ -1013,7 +1013,7 @@ bool S2EExecutionState::getStaticBranchTargets(uint64_t *truePc, uint64_t *false
 
     for (unsigned i = 0; i < 2; ++i) {
         BB = succs[i];
-        if (!TCGLLVMContext::GetStaticBranchTarget(BB, &results[i])) {
+        if (!TCGLLVMTranslator::GetStaticBranchTarget(BB, &results[i])) {
             return false;
         }
         ++resCount;

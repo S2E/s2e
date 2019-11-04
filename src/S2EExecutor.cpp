@@ -235,13 +235,13 @@ namespace s2e {
 /* Global array to hold tb function arguments */
 volatile void *tb_function_args[3];
 
-S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMContext *tcgLLVMContext, InterpreterHandler *ie)
-    : Executor(ie, tcgLLVMContext->getLLVMContext()), m_s2e(s2e), m_tcgLLVMContext(tcgLLVMContext),
-      m_executeAlwaysKlee(false), m_forkProcTerminateCurrentState(false), m_inLoadBalancing(false) {
+S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMTranslator *translator, InterpreterHandler *ie)
+    : Executor(ie, translator->getContext()), m_s2e(s2e), m_llvmTranslator(translator), m_executeAlwaysKlee(false),
+      m_forkProcTerminateCurrentState(false), m_inLoadBalancing(false) {
     delete externalDispatcher;
-    externalDispatcher = new S2EExternalDispatcher(tcgLLVMContext->getLLVMContext());
+    externalDispatcher = new S2EExternalDispatcher(m_llvmTranslator->getContext());
 
-    LLVMContext &ctx = m_tcgLLVMContext->getLLVMContext();
+    LLVMContext &ctx = m_llvmTranslator->getContext();
 
 /* Define globally accessible functions */
 #define __DEFINE_EXT_FUNCTION(name) llvm::sys::DynamicLibrary::AddSymbol(#name, (void *) name);
@@ -363,27 +363,23 @@ S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMContext *tcgLLVMContext, InterpreterHa
     __DEFINE_EXT_FUNCTION(stq_phys)
 
     ModuleOptions MOpts = ModuleOptions(vector<string>(),
-                                        /* Optimize= */ true,
-                                        /* CheckDivZero= */ false);
-    /* Set module for the executor */
-    auto chosenModule = g_s2e->getBitcodeLibrary();
-    s2e->getInfoStream() << "Using module " << chosenModule << "\n";
-
-    MOpts = ModuleOptions(vector<string>(1, chosenModule.c_str()),
-                          /* Optimize= */ true, /* CheckDivZero= */ false, m_tcgLLVMContext->getFunctionPassManager());
+                                        /* Optimize= */ false,
+                                        /* CheckDivZero= */ false, m_llvmTranslator->getFunctionPassManager());
     MOpts.Snapshot = false;
 
     /* This catches obvious LLVM misconfigurations */
-    Module *M = m_tcgLLVMContext->getModule();
+    Module *M = m_llvmTranslator->getModule();
+    s2e->getDebugStream() << "Current data layout: " << M->getDataLayoutStr() << '\n';
+    s2e->getDebugStream() << "Current target triple: " << M->getTargetTriple() << '\n';
 
-    DataLayout TD(M);
-    assert(M->getDataLayout().getPointerSizeInBits() == 64 &&
-           "Something is broken in your LLVM build: LLVM thinks pointers are 32-bits!");
+    auto &td = M->getDataLayout();
 
-    s2e->getDebugStream() << "Current data layout: " << m_tcgLLVMContext->getModule()->getDataLayoutStr() << '\n';
-    s2e->getDebugStream() << "Current target triple: " << m_tcgLLVMContext->getModule()->getTargetTriple() << '\n';
+    if (td.getPointerSizeInBits() != 64) {
+        s2e->getWarningsStream() << "Something is broken in your LLVM build: LLVM thinks pointers are 32-bits!\n";
+        exit(-1);
+    }
 
-    setModule(m_tcgLLVMContext->getModule(), MOpts, false);
+    setModule(m_llvmTranslator->getModule(), MOpts, false);
 
     if (UseFastHelpers) {
         disableConcreteLLVMHelpers();
@@ -396,18 +392,18 @@ S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMContext *tcgLLVMContext, InterpreterHa
                           ArrayRef<Type *>(vector<Type *>(1, PointerType::get(IntegerType::get(ctx, 64), 0))), false);
 
     Function *tbFunction =
-        Function::Create(tbFunctionTy, Function::PrivateLinkage, "s2e_dummyTbFunction", m_tcgLLVMContext->getModule());
+        Function::Create(tbFunctionTy, Function::PrivateLinkage, "s2e_dummyTbFunction", m_llvmTranslator->getModule());
 
     /* Create dummy main function containing just two instructions:
        a call to TB function and ret */
     Function *dummyMain = Function::Create(FunctionType::get(Type::getVoidTy(ctx), false), Function::ExternalLinkage,
-                                           "s2e_dummyMainFunction", m_tcgLLVMContext->getModule());
+                                           "s2e_dummyMainFunction", m_llvmTranslator->getModule());
 
     BasicBlock *dummyMainBB = BasicBlock::Create(ctx, "entry", dummyMain);
 
     vector<Value *> tbFunctionArgs(1, ConstantPointerNull::get(tbFunctionArgTy));
     CallInst::Create(tbFunction, ArrayRef<Value *>(tbFunctionArgs), "tbFunctionCall", dummyMainBB);
-    ReturnInst::Create(m_tcgLLVMContext->getLLVMContext(), dummyMainBB);
+    ReturnInst::Create(m_llvmTranslator->getContext(), dummyMainBB);
 
     kmodule->updateModuleWithFunction(dummyMain);
     m_dummyMain = kmodule->functionMap[dummyMain];
@@ -418,11 +414,7 @@ S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMContext *tcgLLVMContext, InterpreterHa
     if (UseFastHelpers) {
         replaceExternalFunctionsWithSpecialHandlers();
     }
-
-    m_tcgLLVMContext->initializeHelpers();
-
 #endif
-    m_tcgLLVMContext->initializeNativeCpuState();
 
     initializeStatistics();
 

@@ -107,7 +107,7 @@ protected:
 
     bool m_setupUnbufferedStream;
 
-    TCGLLVMContext *m_tcgLLVMContext;
+    TCGLLVMTranslator *m_TCGLLVMTranslator;
 
     uint64_t m_startTimeSeconds;
 
@@ -140,7 +140,7 @@ public:
     ~S2E();
 
     /** Construct S2E */
-    bool initialize(int argc, char **argv, TCGLLVMContext *tcgLLVMContext, const std::string &configFileName,
+    bool initialize(int argc, char **argv, TCGLLVMTranslator *TCGLLVMTranslator, const std::string &configFileName,
                     const std::string &outputDirectory, bool setupUnbufferedStream, int verbose,
                     unsigned s2e_max_processes);
 
@@ -233,7 +233,6 @@ public:
         m_pluginManager.refreshPlugins();
     }
 
-    std::string getBitcodeLibrary();
     void writeBitCodeToFile();
 
     int fork();

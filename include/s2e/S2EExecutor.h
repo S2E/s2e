@@ -20,7 +20,7 @@
 
 struct TranslationBlock;
 struct CPUX86State;
-class TCGLLVMContext;
+class TCGLLVMTranslator;
 
 namespace klee {
 struct Query;
@@ -39,7 +39,7 @@ typedef void (*StateManagerCb)(S2EExecutionState *s, bool killingState);
 class S2EExecutor : public klee::Executor {
 protected:
     S2E *m_s2e;
-    TCGLLVMContext *m_tcgLLVMContext;
+    TCGLLVMTranslator *m_llvmTranslator;
 
     klee::KFunction *m_dummyMain;
 
@@ -64,7 +64,7 @@ protected:
     std::unordered_set<S2ETranslationBlockPtr, S2ETranslationBlockHash, S2ETranslationBlockEqual> m_s2eTbs;
 
 public:
-    S2EExecutor(S2E *s2e, TCGLLVMContext *tcgLVMContext, klee::InterpreterHandler *ie);
+    S2EExecutor(S2E *s2e, TCGLLVMTranslator *translator, klee::InterpreterHandler *ie);
     virtual ~S2EExecutor();
 
     /** Called on fork, used to trace forks */

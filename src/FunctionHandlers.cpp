@@ -309,8 +309,6 @@ static Handler s_handlers[] = {{"tcg_llvm_write_mem_io_vaddr", handlerWriteMemIo
                                {"tcg_llvm_trace_mmio_access", handlerTraceMmioAccess, nullptr},
                                {"tcg_llvm_fork_and_concretize", handleForkAndConcretize, nullptr},
                                {"tcg_llvm_get_value", handleGetValue, nullptr},
-                               {"tcg_llvm_trace_instruction", handleGetValue,
-                                [](Module &M) { return FunctionType::get(Type::getVoidTy(M.getContext()), false); }},
                                {"", nullptr, nullptr}};
 
 void S2EExecutor::registerFunctionHandlers(llvm::Module &module) {
