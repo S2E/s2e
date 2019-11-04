@@ -5,6 +5,7 @@
 /// Licensed under the Cyberhaven Research License Agreement.
 ///
 
+#include <sstream>
 #include <string.h>
 
 #include <cpu/cpus.h>
@@ -170,6 +171,28 @@ void S2EKVM::cleanup(void) {
 #endif
 }
 
+#ifdef CONFIG_SYMBEX
+std::string S2EKVM::getBitcodeLibrary(const std::string &dir) {
+#ifdef CONFIG_SYMBEX_MP
+    std::string name = "op_helper.bc." TARGET_ARCH;
+#else
+    std::string name = "op_helper_sp.bc." TARGET_ARCH;
+#endif
+
+    std::stringstream ss;
+    ss << dir << "/" << name;
+    auto ret = ss.str();
+    if (access(ret.c_str(), R_OK)) {
+        fprintf(stderr, "Could not find %s.\n"
+                        "Make sure that the environment variable S2E_SHARED_DIR is set properly.\n",
+                ret.c_str());
+        exit(-1);
+    }
+
+    return ret;
+}
+#endif
+
 void S2EKVM::init(void) {
     x86_cpudef_setup();
     printf("Initializing %s cpu\n", s_cpuModel);
@@ -198,7 +221,9 @@ void S2EKVM::init(void) {
 
     auto output_dir = getenv("S2E_OUTPUT_DIR");
 
-    tcg_llvm_ctx = tcg_llvm_initialize();
+    auto bc = getBitcodeLibrary(shared_dir);
+    fprintf(stdout, "Using module %s\n", bc.c_str());
+    tcg_llvm_translator = TCGLLVMTranslator::create(bc);
 
     if (monitor_init() < 0) {
         exit(-1);
@@ -221,7 +246,8 @@ void S2EKVM::init(void) {
     int argc = 0;
     char **argv = {NULL};
 
-    s2e_initialize(argc, argv, tcg_llvm_ctx, config_file, output_dir, unbuffered_stream, 0, max_processes, shared_dir);
+    s2e_initialize(argc, argv, tcg_llvm_translator, config_file, output_dir, unbuffered_stream, 0, max_processes,
+                   shared_dir);
 
     // Call it twice, because event pointers are only known
     // after s2e is inited.
