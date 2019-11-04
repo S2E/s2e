@@ -34,11 +34,10 @@ extern "C" {
 #endif
 
 // Functions for QEMU C code
-extern void *tcg_llvm_ctx;
+extern void *tcg_llvm_translator;
 
-void *tcg_llvm_initialize(void);
 void tcg_llvm_close(void *l);
-void *tcg_llvm_gen_code(void *llvmCtx, struct TCGContext *s, struct TranslationBlock *tb);
+void *tcg_llvm_gen_code(void *llvmTranslator, struct TCGContext *s, struct TranslationBlock *tb);
 
 #ifdef __cplusplus
 }
@@ -85,23 +84,19 @@ struct TCGLLVMTBInfo {
 };
 #endif
 
-class TCGLLVMContext {
+class TCGLLVMTranslator {
 private:
-    llvm::LLVMContext &m_context;
-    llvm::IRBuilder<> m_builder;
+    const std::string m_bitcodeLibraryPath;
+    std::unique_ptr<llvm::Module> m_module;
 
-    /* Current m_module */
-    llvm::Module *m_module;
+    llvm::IRBuilder<> m_builder;
 
     /* Function pass manager (used for optimizing the code) */
     llvm::legacy::FunctionPassManager *m_functionPassManager;
 
 #ifdef CONFIG_SYMBEX
     /* Declaration of a wrapper function for helpers */
-    llvm::Function *m_helperTraceMemoryAccess;
-    llvm::Function *m_helperTraceInstruction;
     llvm::Function *m_helperForkAndConcretize;
-    llvm::Function *m_helperGetValue;
     llvm::Function *m_qemu_ld_helpers[5];
     llvm::Function *m_qemu_st_helpers[5];
 #endif
@@ -154,19 +149,28 @@ private:
 
     std::string generateName();
 
-    TCGLLVMContext(llvm::LLVMContext &);
+    TCGLLVMTranslator(const std::string &bitcodeLibraryPath, std::unique_ptr<llvm::Module> module);
+
+#ifdef CONFIG_SYMBEX
+    void initializeNativeCpuState();
+    void initializeHelpers();
+#endif
 
 public:
-    ~TCGLLVMContext();
+    ~TCGLLVMTranslator();
 
-    static TCGLLVMContext *create();
+    static TCGLLVMTranslator *create(const std::string &bitcodeLibraryPath);
 
-    llvm::LLVMContext &getLLVMContext() const {
-        return m_context;
+    llvm::LLVMContext &getContext() const {
+        return m_module->getContext();
     }
 
     llvm::Module *getModule() const {
-        return m_module;
+        return m_module.get();
+    }
+
+    const std::string &getBitcodeLibraryPath() const {
+        return m_bitcodeLibraryPath;
     }
 
     llvm::legacy::FunctionPassManager *getFunctionPassManager() const {
@@ -177,7 +181,7 @@ public:
 
     /* Shortcuts */
     llvm::Type *intType(int w) {
-        return llvm::IntegerType::get(m_context, w);
+        return llvm::IntegerType::get(getContext(), w);
     }
     llvm::Type *intPtrType(int w) {
         return llvm::PointerType::get(intType(w), 0);
@@ -249,11 +253,6 @@ public:
 
     uint64_t toInteger(llvm::Value *v) const;
 
-#ifdef CONFIG_SYMBEX
-    void initializeHelpers();
-    void initializeNativeCpuState();
-#endif
-
     llvm::BasicBlock *getLabel(TCGArg i);
     void startNewBasicBlock(llvm::BasicBlock *bb = NULL);
 
@@ -269,34 +268,6 @@ public:
     bool getCpuFieldGepIndexes(unsigned offset, unsigned sizeInBytes, llvm::SmallVector<llvm::Value *, 3> &gepIndexes);
     static bool GetStaticBranchTarget(const llvm::BasicBlock *bb, uint64_t *target);
 };
-
-#if 0
-struct TCGLLVMContext {
-private:
-    TCGLLVMContextPrivate *m_private;
-
-public:
-    TCGLLVMContext(llvm::LLVMContext &);
-    ~TCGLLVMContext();
-
-    llvm::LLVMContext &getLLVMContext();
-
-    llvm::Module *getModule();
-
-    llvm::legacy::FunctionPassManager *getFunctionPassManager() const;
-
-#ifdef CONFIG_SYMBEX
-    /** Called after linking all helper libraries */
-    void initializeHelpers();
-    void initializeNativeCpuState();
-    bool isInstrumented(llvm::Function *tb);
-#endif
-
-    static bool GetStaticBranchTarget(const llvm::BasicBlock *bb, uint64_t *target);
-
-    llvm::Function *generateCode(struct TCGContext *s, struct TranslationBlock *tb);
-};
-#endif
 
 #endif
 
