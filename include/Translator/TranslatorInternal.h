@@ -6,6 +6,7 @@
 /// Licensed under the Cyberhaven Research License Agreement.
 ///
 
+#include <llvm-c/Core.h>
 #include <llvm/Bitcode/ReaderWriter.h>
 #include <llvm/IR/Instructions.h>
 #include <llvm/IR/Verifier.h>
@@ -142,29 +143,8 @@ Translator::Translator(const std::string &bitcodeLibrary, const std::shared_ptr<
 
     tcg_exec_init(0);
     optimize_flags_init();
-    m_ctx = TCGLLVMContext::create();
 
-    // Read the helper bitcode file
-    auto ErrorOrMemBuff = MemoryBuffer::getFile(bitcodeLibrary);
-    if (std::error_code EC = ErrorOrMemBuff.getError()) {
-        LOGERROR("Reading " << bitcodeLibrary << " failed!\n");
-        return;
-    }
-
-    auto ErrorOrMod = parseBitcodeFile(ErrorOrMemBuff.get()->getMemBufferRef(), m_ctx->getLLVMContext());
-
-    // Link in the helper bitcode file
-    Linker linker(*m_ctx->getModule());
-
-    if (linker.linkInModule(std::move(ErrorOrMod.get()))) {
-        LOGERROR("Linking in library " << bitcodeLibrary << " failed!\n");
-        return;
-    }
-
-    LOGINFO("Linked in library " << bitcodeLibrary << '\n');
-
-    m_ctx->initializeHelpers();
-    m_ctx->initializeNativeCpuState();
+    m_ctx = TCGLLVMTranslator::create(bitcodeLibrary);
 
     s_translatorInited = true;
 }
