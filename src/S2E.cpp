@@ -112,14 +112,14 @@ bool S2E::initialize(int argc, char **argv, TCGLLVMTranslator *translator, const
        other init* functions can use it. */
     initOutputDirectory(outputDirectory, verbose, false);
 
-    mSolverFactory = std::shared_ptr<klee::SolverFactory>(new klee::DefaultSolverFactory(this));
-    klee::SolverManager::get().initialize(mSolverFactory);
-
     /* Parse configuration file */
     m_configFile = new s2e::ConfigFile(configFileName);
 
     /* Initialize KLEE command line options */
     initKleeOptions();
+
+    mSolverFactory = std::shared_ptr<klee::SolverFactory>(new klee::DefaultSolverFactory(this));
+    klee::SolverManager::get().initialize(mSolverFactory);
 
     /* Initialize S2EExecutor */
     initExecutor();
