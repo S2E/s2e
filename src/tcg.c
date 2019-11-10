@@ -3888,19 +3888,22 @@ void tcg_expand_vec_op(TCGOpcode o, TCGType t, unsigned e, TCGArg a0, ...) {
 #endif
 
 #ifdef CONFIG_SYMBEX
+// Computes the register mask of the last instruction in the current context
 void tcg_calc_regmask(TCGContext *s, uint64_t *rmask, uint64_t *wmask, uint64_t *accesses_mem) {
     const TCGOp *op;
     const TCGOpDef *def;
     int c, i, nb_oargs, nb_iargs, nb_cargs;
 
-    uint64_t temps[TCG_MAX_TEMPS];
-    memset(temps, 0, sizeof(temps[0]) * (s->nb_globals + s->nb_temps));
-
     *rmask = *wmask = *accesses_mem = 0;
 
-    QTAILQ_FOREACH (op, &s->ops, link) {
+    // We must go in reverse as we need only the last instruction
+    QTAILQ_FOREACH_REVERSE(op, &s->ops, link) {
         c = op->opc;
         def = &tcg_op_defs[c];
+
+        if (c == INDEX_op_insn_start) {
+            break;
+        }
 
         if (c == INDEX_op_call) {
             /* variable number of arguments */
@@ -3925,9 +3928,7 @@ void tcg_calc_regmask(TCGContext *s, uint64_t *rmask, uint64_t *wmask, uint64_t 
             size_t idx = temp_idx(tmp);
 
             if (idx < s->nb_globals) {
-                if ((*wmask & (1 << idx)) == 0) {
-                    *rmask |= (1 << idx);
-                }
+                *rmask |= (1 << idx);
             }
         }
 
