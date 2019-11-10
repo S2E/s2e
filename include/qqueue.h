@@ -40,6 +40,10 @@
 #ifndef QEMU_SYS_QUEUE_H
 #define QEMU_SYS_QUEUE_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * This file defines four types of data structures: singly-linked lists,
  * lists, simple queues, and tail queues.
@@ -198,7 +202,7 @@
 
 #define QSLIST_INSERT_HEAD_ATOMIC(head, elm, field)                                          \
     do {                                                                                     \
-        typeof(elm) save_sle_next;                                                           \
+        __typeof__(elm) save_sle_next;                                                       \
         do {                                                                                 \
             save_sle_next = (elm)->field.sle_next = (head)->slh_first;                       \
         } while (atomic_cmpxchg(&(head)->slh_first, save_sle_next, (elm)) != save_sle_next); \
@@ -444,8 +448,8 @@ typedef struct QTailQLink {
 #define QTAILQ_IN_USE(elm, field) ((elm)->field.tqe_circ.tql_prev != NULL)
 
 #define QTAILQ_LINK_PREV(link) ((link).tql_prev->tql_prev->tql_next)
-#define QTAILQ_LAST(head) ((typeof((head)->tqh_first)) QTAILQ_LINK_PREV((head)->tqh_circ))
-#define QTAILQ_PREV(elm, field) ((typeof((elm)->field.tqe_next)) QTAILQ_LINK_PREV((elm)->field.tqe_circ))
+#define QTAILQ_LAST(head) ((__typeof__((head)->tqh_first)) QTAILQ_LINK_PREV((head)->tqh_circ))
+#define QTAILQ_PREV(elm, field) ((__typeof__((elm)->field.tqe_next)) QTAILQ_LINK_PREV((elm)->field.tqe_circ))
 
 #define field_at_offset(base, offset, type) ((type *) (((char *) (base)) + (offset)))
 
@@ -476,5 +480,9 @@ typedef struct QTailQLink {
         QTAILQ_RAW_TQH_CIRC(head)->tql_prev->tql_next = (elm);                           \
         QTAILQ_RAW_TQH_CIRC(head)->tql_prev = QTAILQ_RAW_TQE_CIRC(elm, entry);           \
     } while (/*CONSTCOND*/ 0)
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_SYS_QUEUE_H */
