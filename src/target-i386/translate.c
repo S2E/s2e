@@ -152,9 +152,9 @@ static inline void instr_translate_compute_reg_mask_end(DisasContext *dc) {
 
     tcg_calc_regmask(tcg_ctx, &rmask, &wmask, &accesses_mem);
 
-    // First five bits contain flag registers
-    rmask >>= 5;
-    wmask >>= 5;
+    // First six bits denote access to flags registers + env ptr
+    rmask >>= 6;
+    wmask >>= 6;
 
     g_sqi.events.on_translate_register_access(dc->tb, dc->insPc, rmask, wmask, (int) accesses_mem);
 
@@ -353,9 +353,6 @@ static inline void gen_instr_end(DisasContext *s) {
 
 static inline void gen_eob_event(DisasContext *s, int static_target, target_ulong target_pc) {
     gen_instr_end(s);
-
-    if (unlikely(*g_sqi.events.on_translate_register_access_signals_count && s->instrument))
-        instr_translate_compute_reg_mask_end(s);
 
     if (unlikely(*g_sqi.events.on_translate_block_end_signals_count && s->instrument))
         g_sqi.events.on_translate_block_end(s->tb, s->insPc, static_target, target_pc);
