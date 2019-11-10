@@ -129,10 +129,6 @@ struct TranslationBlock {
 #endif
 
 #ifdef CONFIG_SYMBEX
-    uint64_t reg_rmask;           /* Registers that TB reads (before overwritting) */
-    uint64_t reg_wmask;           /* Registers that TB writes */
-    uint64_t helper_accesses_mem; /* True if contains helpers that access mem */
-
     enum ETranslationBlockType se_tb_type;
     uint64_t se_tb_call_eip;
     void *se_tb;
