@@ -253,13 +253,9 @@ void StackMonitor::onTranslateBlockComplete(S2EExecutionState *state, Translatio
 void StackMonitor::onTranslateRegisterAccess(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb,
                                              uint64_t pc, uint64_t rmask, uint64_t wmask, bool accessesMemory) {
     if ((wmask & (1 << R_ESP))) {
-        if (tb->se_tb_type == TB_SYSENTER) { // Ignore sysenter (last instruction in this TB)
-            s2e_assert(state, tb->precise_entries != 0, "TB " << hexval(tb->pc) << " precise entries info is empty");
-            const tb_precise_pc_t &last = tb->precise_pcs[tb->precise_entries - 1];
-            target_ulong last_pc = tb->pc + last.guest_pc_increment - tb->cs_base;
-            if (pc == last_pc) {
-                return;
-            }
+        if (tb->se_tb_type == TB_SYSENTER) {
+            // Ignore sysenter (last instruction in this TB)
+            return;
         }
 
         bool isCall = false;
