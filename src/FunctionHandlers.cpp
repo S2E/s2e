@@ -173,7 +173,9 @@ static void handlerBeforeMemoryAccess(klee::Executor *executor, klee::ExecutionS
 
 void handlerAfterMemoryAccess(Executor *executor, ExecutionState *state, klee::KInstruction *target,
                               std::vector<klee::ref<klee::Expr>> &args) {
-    if (g_s2e->getCorePlugin()->onAfterSymbolicDataMemoryAccess.empty()) {
+    auto corePlugin = g_s2e->getCorePlugin();
+
+    if (corePlugin->onAfterSymbolicDataMemoryAccess.empty() && corePlugin->onConcreteDataMemoryAccess.empty()) {
         return;
     }
 

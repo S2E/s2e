@@ -943,7 +943,8 @@ uint64_t S2EExecutionState::readMemIoVaddr(bool masked) {
     }
 
     if (masked) {
-        result = AndExpr::create(m_memIoVaddr, klee::ConstantExpr::create(TARGET_PAGE_MASK, m_memIoVaddr->getWidth()));
+        result = AndExpr::create(m_memIoVaddr,
+                                 klee::ConstantExpr::create((target_ulong) TARGET_PAGE_MASK, m_memIoVaddr->getWidth()));
         // This assumes that the page is already fully constrained by the MMU
         result = concolics->evaluate(result);
         assert(dyn_cast<ConstantExpr>(result) && "Expression must be constant here");
