@@ -239,7 +239,7 @@ S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMTranslator *translator, InterpreterHan
     : Executor(ie, translator->getContext()), m_s2e(s2e), m_llvmTranslator(translator), m_executeAlwaysKlee(false),
       m_forkProcTerminateCurrentState(false), m_inLoadBalancing(false) {
     delete externalDispatcher;
-    externalDispatcher = new S2EExternalDispatcher(m_llvmTranslator->getContext());
+    externalDispatcher = new S2EExternalDispatcher();
 
     LLVMContext &ctx = m_llvmTranslator->getContext();
 

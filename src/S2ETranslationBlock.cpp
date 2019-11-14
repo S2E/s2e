@@ -16,8 +16,6 @@ namespace s2e {
 S2ETranslationBlock::~S2ETranslationBlock() {
     if (translationBlock) {
         auto executor = g_s2e->getExecutor();
-        auto dispatcher = static_cast<S2EExternalDispatcher *>(executor->getDispatcher());
-        dispatcher->removeFunction(translationBlock);
 
         auto kmodule = executor->getModule();
 

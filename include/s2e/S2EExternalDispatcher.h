@@ -23,21 +23,15 @@ class S2EExternalDispatcher : public klee::ExternalDispatcher {
 private:
     // FIXME: This is not reentrant.
     static jmp_buf s2e_cpuExitJmpBuf;
-    static jmp_buf s2e_escapeCallJmpBuf;
-
-protected:
-    virtual bool runProtectedCall(llvm::Function *f, uint64_t *args);
-
-    static void s2e_ext_sigsegv_handler(int signal, siginfo_t *info, void *context);
 
 public:
-    S2EExternalDispatcher(llvm::LLVMContext &context) : ExternalDispatcher(context) {
-    }
-
-    void removeFunction(llvm::Function *f);
+    S2EExternalDispatcher();
+    virtual ~S2EExternalDispatcher();
 
     static void saveJmpBuf();
     static void restoreJmpBuf();
+
+    virtual bool call(external_fcn_t targetFunction, const Arguments &args, uint64_t *result, std::stringstream &err);
 };
 }
 
