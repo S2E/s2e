@@ -560,8 +560,12 @@ void VCPU::requestProcessExit(int code) {
         g_original_exit(code);
     }
 
-    coroutine_yield();
-    abort();
+    if (pthread_self() == m_cpuThread) {
+        coroutine_yield();
+        abort();
+    }
+
+    g_original_exit(code);
 }
 
 int VCPU::sys_ioctl(int fd, int request, uint64_t arg1) {

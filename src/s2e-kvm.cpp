@@ -461,6 +461,7 @@ void *S2EKVM::timerCb(void *param) {
 int S2EKVM::initTimerThread(void) {
     int ret;
     pthread_attr_t attr;
+    sigset_t signals;
 
     ret = pthread_attr_init(&attr);
     if (ret < 0) {
@@ -477,6 +478,12 @@ int S2EKVM::initTimerThread(void) {
     ret = pthread_create(&m_timerThread, &attr, timerCb, this);
     if (ret < 0) {
         fprintf(stderr, "could not create timer thread\n");
+        goto err1;
+    }
+
+    sigfillset(&signals);
+    if (pthread_sigmask(SIG_BLOCK, &signals, NULL) < 0) {
+        fprintf(stderr, "could not block signals on the timer thread\n");
         goto err1;
     }
 
