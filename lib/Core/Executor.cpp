@@ -106,8 +106,8 @@ RNG theRNG;
 }
 
 Executor::Executor(InterpreterHandler *ih, LLVMContext &context)
-    : kmodule(0), interpreterHandler(ih), searcher(0), externalDispatcher(new ExternalDispatcher(context)),
-      statsTracker(0), specialFunctionHandler(0) {
+    : kmodule(0), interpreterHandler(ih), searcher(0), externalDispatcher(new ExternalDispatcher()), statsTracker(0),
+      specialFunctionHandler(0) {
 
     memory = new MemoryManager();
 }
@@ -1707,6 +1707,10 @@ static const char *okExternalsList[] = {"printf", "fprintf", "puts", "getpid"};
 static std::set<std::string> okExternals(okExternalsList,
                                          okExternalsList + (sizeof(okExternalsList) / sizeof(okExternalsList[0])));
 
+extern "C" {
+typedef uint64_t (*external_fcn_t)(...);
+}
+
 void Executor::callExternalFunction(ExecutionState &state, KInstruction *target, Function *function,
                                     std::vector<ref<Expr>> &arguments) {
     // check if specialFunctionHandler wants it
@@ -1719,16 +1723,14 @@ void Executor::callExternalFunction(ExecutionState &state, KInstruction *target,
         return;
     }
 
-    // normal external function handling path
-    uint64_t *args = (uint64_t *) alloca(sizeof(*args) * (arguments.size() + 1));
-    memset(args, 0, sizeof(*args) * (arguments.size() + 1));
+    ExternalDispatcher::Arguments cas;
 
     unsigned i = 1;
     for (std::vector<ref<Expr>>::iterator ai = arguments.begin(), ae = arguments.end(); ai != ae; ++ai, ++i) {
         ref<Expr> arg = state.toUnique(*ai);
         if (ConstantExpr *CE = dyn_cast<ConstantExpr>(arg)) {
             // XXX kick toMemory functions from here
-            CE->toMemory((void *) &args[i]);
+            cas.push_back(CE->getZExtValue());
         } else {
             // Fork all possible concrete solutions
             klee::ref<klee::ConstantExpr> concreteArg;
@@ -1754,7 +1756,7 @@ void Executor::callExternalFunction(ExecutionState &state, KInstruction *target,
 
             sp.first->pc = savedPc;
 
-            concreteArg->toMemory((void *) &args[i]);
+            cas.push_back(concreteArg->getZExtValue());
         }
     }
 
@@ -1771,18 +1773,47 @@ void Executor::callExternalFunction(ExecutionState &state, KInstruction *target,
         klee_warning_external(function, "%s", os.str().c_str());
     }
 
-    bool success = externalDispatcher->executeCall(function, target->inst, args);
-    if (!success) {
+    uint64_t result;
+    external_fcn_t targetFunction = (external_fcn_t) externalDispatcher->resolveSymbol(function->getName());
+    if (!targetFunction) {
         std::stringstream ss;
-        ss << "failed external call: " << function->getName().str();
+        ss << "Could not find address of external function " << function->getName().str();
+        terminateState(state, ss.str());
+        return;
+    }
+
+    std::stringstream ss;
+    if (!externalDispatcher->call(targetFunction, cas, &result, ss)) {
+        ss << ": " << function->getName().str();
         terminateState(state, ss.str());
         return;
     }
 
     Type *resultType = target->inst->getType();
+
     if (resultType != Type::getVoidTy(function->getContext())) {
-        ref<Expr> e = ConstantExpr::fromMemory((void *) args, getWidthForLLVMType(resultType));
-        state.bindLocal(target, e);
+        ref<Expr> resultExpr;
+        auto resultWidth = getWidthForLLVMType(resultType);
+        switch (resultWidth) {
+            case Expr::Bool:
+                resultExpr = ConstantExpr::create(result & 1, resultWidth);
+            case Expr::Int8:
+                resultExpr = ConstantExpr::create((uint8_t) result, resultWidth);
+                break;
+            case Expr::Int16:
+                resultExpr = ConstantExpr::create((uint16_t) result, resultWidth);
+                break;
+            case Expr::Int32:
+                resultExpr = ConstantExpr::create((uint32_t) result, resultWidth);
+                break;
+            case Expr::Int64:
+                resultExpr = ConstantExpr::create((uint64_t) result, resultWidth);
+                break;
+            default:
+                abort();
+        }
+
+        state.bindLocal(target, resultExpr);
     }
 }
 
