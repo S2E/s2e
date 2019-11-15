@@ -268,7 +268,7 @@ public:
                  const std::string & /* orignal name */,
                  const std::vector<klee::ref<klee::Expr>>&, /* expr */
                  const klee::MemoryObject*,
-                 const klee::Array*>
+                 const klee::ArrayPtr&>
         onSymbolicVariableCreation;
 
     ///

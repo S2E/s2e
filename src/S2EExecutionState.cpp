@@ -271,7 +271,7 @@ ref<Expr> S2EExecutionState::createSymbolicValue(const std::string &name, Expr::
     assert((bufferSize == bytes || bufferSize == 0) &&
            "Concrete buffer must either have the same size as the expression or be empty");
 
-    const Array *array = new Array(sname, bytes, nullptr, nullptr, name);
+    auto array = Array::create(sname, bytes, nullptr, nullptr, name);
 
     MemoryObject *mo = new MemoryObject(0, bytes, false, false, false);
     mo->setName(sname);
@@ -323,9 +323,9 @@ std::vector<ref<Expr>> S2EExecutionState::createSymbolicArray(const std::string 
         *varName = sname;
     }
 
-    const Array *array = new Array(sname, size, nullptr, nullptr, name);
+    auto array = Array::create(sname, size, nullptr, nullptr, name);
 
-    UpdateList ul(array, 0);
+    auto ul = UpdateList::create(array, 0);
 
     std::vector<ref<Expr>> result;
     result.reserve(size);
@@ -830,7 +830,7 @@ void S2EExecutionState::enumPossibleRanges(ref<Expr> e, ref<Expr> start, ref<Exp
 
     Solver *solver = klee::SolverManager::solver()->solver;
 
-    std::vector<const Array *> symbObjects;
+    ArrayVec symbObjects;
     foreach2 (it, symbolics.begin(), symbolics.end()) { symbObjects.push_back(it->second); }
 
     solver->getRanges(constraints, symbObjects, e, start, end, ranges);
@@ -858,7 +858,7 @@ bool S2EExecutionState::testConstraints(const std::vector<ref<Expr>> &c, Constra
         tmpConstraints.addConstraint(*it);
     }
 
-    std::vector<const Array *> symbObjects;
+    ArrayVec symbObjects;
     foreach2 (it, symbolics.begin(), symbolics.end()) { symbObjects.push_back(it->second); }
 
     Solver *solver = SolverManager::solver()->solver;
