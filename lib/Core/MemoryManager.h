@@ -33,8 +33,8 @@ public:
     }
     ~MemoryManager();
 
-    MemoryObject *allocate(uint64_t size, bool isLocal, bool isGlobal, const llvm::Value *allocSite);
-    MemoryObject *allocateFixed(uint64_t address, uint64_t size, const llvm::Value *allocSite);
+    MemoryObject *allocate(uint64_t size, bool isLocal, bool isGlobal);
+    MemoryObject *allocateFixed(uint64_t address, uint64_t size);
     void deallocate(const MemoryObject *mo);
     void markFreed(MemoryObject *mo);
 

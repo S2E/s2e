@@ -57,7 +57,7 @@ MemoryManager::~MemoryManager() {
     }
 }
 
-MemoryObject *MemoryManager::allocate(uint64_t size, bool isLocal, bool isGlobal, const llvm::Value *allocSite) {
+MemoryObject *MemoryManager::allocate(uint64_t size, bool isLocal, bool isGlobal) {
     if (size > 10 * 1024 * 1024) {
         klee_warning_once(0, "failing large alloc: %u bytes", (unsigned) size);
         return 0;
@@ -67,14 +67,14 @@ MemoryObject *MemoryManager::allocate(uint64_t size, bool isLocal, bool isGlobal
         return 0;
 
     ++stats::allocations;
-    MemoryObject *res = new MemoryObject(address, size, isLocal, isGlobal, false, allocSite);
+    MemoryObject *res = new MemoryObject(address, size, isLocal, isGlobal, false);
     objects.push_back(res);
     return res;
 }
 
-MemoryObject *MemoryManager::allocateFixed(uint64_t address, uint64_t size, const llvm::Value *allocSite) {
+MemoryObject *MemoryManager::allocateFixed(uint64_t address, uint64_t size) {
     ++stats::allocations;
-    MemoryObject *res = new MemoryObject(address, size, false, true, true, allocSite);
+    MemoryObject *res = new MemoryObject(address, size, false, true, true);
     objects.push_back(res);
     return res;
 }

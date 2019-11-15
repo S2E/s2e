@@ -168,17 +168,6 @@ public:
     /// when the entire group of objects gets the property.
     bool doNotifyOnConcretenessChange;
 
-    /// "Location" for which this memory object was allocated. This
-    /// should be either the allocating instruction or the global object
-    /// it was allocated for (or whatever else makes sense).
-    const llvm::Value *allocSite;
-
-    /// A list of boolean expressions the user has requested be true of
-    /// a counterexample. Mutable since we play a little fast and loose
-    /// with allowing it to be added to during execution (although
-    /// should sensibly be only at creation time).
-    mutable std::vector<ref<Expr>> cexPreferences;
-
     // DO NOT IMPLEMENT
     MemoryObject(const MemoryObject &b);
     MemoryObject &operator=(const MemoryObject &b);
@@ -187,20 +176,16 @@ public:
     // XXX this is just a temp hack, should be removed
     explicit MemoryObject(uint64_t _address)
         : id(counter++), address(_address), size(0), isFixed(true), isSplittable(false),
-          doNotifyOnConcretenessChange(false), allocSite(0) {
+          doNotifyOnConcretenessChange(false) {
     }
 
-    MemoryObject(uint64_t _address, unsigned _size, bool _isLocal, bool _isGlobal, bool _isFixed,
-                 const llvm::Value *_allocSite)
+    MemoryObject(uint64_t _address, unsigned _size, bool _isLocal, bool _isGlobal, bool _isFixed)
         : id(counter++), address(_address), size(_size), name("unnamed"), isLocal(_isLocal), isGlobal(_isGlobal),
           isFixed(_isFixed), fake_object(false), isUserSpecified(false), isSharedConcrete(false), isSplittable(false),
-          isMemoryPage(false), doNotifyOnConcretenessChange(false), allocSite(_allocSite) {
+          isMemoryPage(false), doNotifyOnConcretenessChange(false) {
     }
 
     ~MemoryObject();
-
-    /// Get an identifying string for this allocation.
-    void getAllocInfo(std::string &result) const;
 
     void setName(const std::string &name) {
         this->name = name;

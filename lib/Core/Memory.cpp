@@ -74,33 +74,9 @@ int MemoryObject::counter = 0;
 MemoryObject::~MemoryObject() {
 }
 
-void MemoryObject::getAllocInfo(std::string &result) const {
-    llvm::raw_string_ostream info(result);
-
-    info << "MO" << id << "[" << size << "]";
-
-    if (allocSite) {
-        info << " allocated at ";
-        if (const Instruction *i = dyn_cast<Instruction>(allocSite)) {
-            info << i->getParent()->getParent()->getName().str() << "():";
-            info << *i;
-        } else if (const GlobalValue *gv = dyn_cast<GlobalValue>(allocSite)) {
-            info << "global:" << gv->getName().str();
-        } else {
-            info << "value:" << *allocSite;
-        }
-    } else {
-        info << " (no allocation info)";
-    }
-
-    info.flush();
-}
-
 void MemoryObject::split(std::vector<MemoryObject *> &objects, const std::vector<unsigned> &offsets) const {
     assert(isSplittable);
 
-    // XXX: what do we do with these?
-    assert(cexPreferences.size() == 0);
     unsigned count = offsets.size();
 
     for (unsigned i = 0; i < count; ++i) {
@@ -113,7 +89,7 @@ void MemoryObject::split(std::vector<MemoryObject *> &objects, const std::vector
             nsize = size - offset;
         }
 
-        MemoryObject *obj = new MemoryObject(address, nsize, isLocal, isGlobal, isFixed, allocSite);
+        MemoryObject *obj = new MemoryObject(address, nsize, isLocal, isGlobal, isFixed);
         obj->address = address + offset;
         obj->size = nsize;
         obj->isSplittable = false;
@@ -474,9 +450,7 @@ ref<Expr> ObjectState::read8(ref<Expr> offset) const {
     flushRangeForRead(base, size);
 
     if (size > 4096) {
-        std::string allocInfo;
-        object->getAllocInfo(allocInfo);
-        klee_warning_once(0, "flushing %d bytes on read, may be slow and/or crash: %s", size, allocInfo.c_str());
+        klee_warning_once(0, "flushing %d bytes on read, may be slow and/or crash", size);
     }
 
     return ReadExpr::create(getUpdates(), ZExtExpr::create(offset, Expr::Int32));
@@ -516,9 +490,7 @@ void ObjectState::write8(ref<Expr> offset, ref<Expr> value) {
     flushRangeForWrite(base, size);
 
     if (size > 4096) {
-        std::string allocInfo;
-        object->getAllocInfo(allocInfo);
-        klee_warning_once(0, "flushing %d bytes on read, may be slow and/or crash: %s", size, allocInfo.c_str());
+        klee_warning_once(0, "flushing %d bytes on read, may be slow and/or crash", size);
     }
 
     updates.extend(ZExtExpr::create(offset, Expr::Int32), value);
