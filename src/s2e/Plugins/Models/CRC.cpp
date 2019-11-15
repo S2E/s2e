@@ -84,9 +84,9 @@ void BaseFunctionModels::initCRCModels() {
         crc16.push_back(E_CONST(crc16_8[index], Expr::Int8));
     }
 
-    auto crc32_array = new Array("crc32", sizeof(s_crc32), &crc32[0], &crc32[crc32.size()], "crc32");
+    auto crc32_array = Array::create("crc32", sizeof(s_crc32), &crc32[0], &crc32[crc32.size()], "crc32");
 
-    auto crc16_array = new Array("crc16", sizeof(s_crc16), &crc16[0], &crc16[crc16.size()], "crc16");
+    auto crc16_array = Array::create("crc16", sizeof(s_crc16), &crc16[0], &crc16[crc16.size()], "crc16");
 
     m_crc32_ul = new UpdateList(crc32_array, 0);
     m_crc16_ul = new UpdateList(crc16_array, 0);
