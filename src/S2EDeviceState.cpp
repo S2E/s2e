@@ -140,7 +140,7 @@ int S2EDeviceState::writeSector(struct S2EBlockDevice *bs, int64_t sector, const
         uintptr_t address = (uintptr_t) bstart + sector * SECTOR_SIZE;
         ObjectPair op = m_deviceState.findObject(address);
         if (op.first == nullptr) {
-            MemoryObject *mo = new MemoryObject(address, SECTOR_SIZE, false, false, false, nullptr);
+            MemoryObject *mo = new MemoryObject(address, SECTOR_SIZE, false, false, false);
             ObjectState *os = new ObjectState(mo);
             m_deviceState.bindObject(mo, os);
             op.first = mo;

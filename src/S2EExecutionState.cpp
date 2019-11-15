@@ -273,7 +273,7 @@ ref<Expr> S2EExecutionState::createSymbolicValue(const std::string &name, Expr::
 
     const Array *array = new Array(sname, bytes, nullptr, nullptr, name);
 
-    MemoryObject *mo = new MemoryObject(0, bytes, false, false, false, nullptr);
+    MemoryObject *mo = new MemoryObject(0, bytes, false, false, false);
     mo->setName(sname);
 
     symbolics.push_back(std::make_pair(mo, array));
@@ -337,7 +337,7 @@ std::vector<ref<Expr>> S2EExecutionState::createSymbolicArray(const std::string 
     // Add it to the set of symbolic expressions, to be able to generate
     // test cases later.
     // Dummy memory object
-    MemoryObject *mo = new MemoryObject(0, size, false, false, false, nullptr);
+    MemoryObject *mo = new MemoryObject(0, size, false, false, false);
     mo->setName(sname);
 
     symbolics.push_back(std::make_pair(mo, array));
