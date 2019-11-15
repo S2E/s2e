@@ -53,9 +53,9 @@ public:
 
     bool getValue(const ExecutionState &, ref<Expr> expr, ref<ConstantExpr> &result);
 
-    bool getInitialValues(const ConstraintManager &constraints, const std::vector<const Array *> &objects,
+    bool getInitialValues(const ConstraintManager &constraints, const ArrayVec &objects,
                           std::vector<std::vector<unsigned char>> &result, double &queryCost);
-    bool getInitialValues(const ExecutionState &, const std::vector<const Array *> &objects,
+    bool getInitialValues(const ExecutionState &, const ArrayVec &objects,
                           std::vector<std::vector<unsigned char>> &result);
 
     std::pair<ref<Expr>, ref<Expr>> getRange(const ExecutionState &, ref<Expr> query);

@@ -375,8 +375,8 @@ public:
 
 class CexRangeEvaluator : public ExprRangeEvaluator<ValueRange> {
 public:
-    std::map<const Array *, CexObjectData *> &objects;
-    CexRangeEvaluator(std::map<const Array *, CexObjectData *> &_objects) : objects(_objects) {
+    std::map<ArrayPtr, CexObjectData *, ArrayLt> &objects;
+    CexRangeEvaluator(std::map<ArrayPtr, CexObjectData *, ArrayLt> &_objects) : objects(_objects) {
     }
 
     ValueRange getInitialReadRange(const Array &array, ValueRange index) {
@@ -390,50 +390,50 @@ public:
 
 class CexPossibleEvaluator : public ExprEvaluator {
 protected:
-    ref<Expr> getInitialValue(const Array &array, unsigned index) {
+    ref<Expr> getInitialValue(const ArrayPtr &array, unsigned index) {
         // If the index is out of range, we cannot assign it a value, since that
         // value cannot be part of the assignment.
-        if (index >= array.getSize())
-            return ReadExpr::create(UpdateList(&array, 0), ConstantExpr::alloc(index, Expr::Int32));
+        if (index >= array->getSize())
+            return ReadExpr::create(UpdateList(array, 0), ConstantExpr::alloc(index, Expr::Int32));
 
-        std::map<const Array *, CexObjectData *>::iterator it = objects.find(&array);
+        auto it = objects.find(array);
         return ConstantExpr::alloc((it == objects.end() ? 127 : it->second->getPossibleValue(index)), Expr::Int8);
     }
 
 public:
-    std::map<const Array *, CexObjectData *> &objects;
-    CexPossibleEvaluator(std::map<const Array *, CexObjectData *> &_objects) : objects(_objects) {
+    std::map<ArrayPtr, CexObjectData *, ArrayLt> &objects;
+    CexPossibleEvaluator(std::map<ArrayPtr, CexObjectData *, ArrayLt> &_objects) : objects(_objects) {
     }
 };
 
 class CexExactEvaluator : public ExprEvaluator {
 protected:
-    ref<Expr> getInitialValue(const Array &array, unsigned index) {
+    ref<Expr> getInitialValue(const ArrayPtr &array, unsigned index) {
         // If the index is out of range, we cannot assign it a value, since that
         // value cannot be part of the assignment.
-        if (index >= array.getSize())
-            return ReadExpr::create(UpdateList(&array, 0), ConstantExpr::alloc(index, Expr::Int32));
+        if (index >= array->getSize())
+            return ReadExpr::create(UpdateList(array, 0), ConstantExpr::alloc(index, Expr::Int32));
 
-        std::map<const Array *, CexObjectData *>::iterator it = objects.find(&array);
+        auto it = objects.find(array);
         if (it == objects.end())
-            return ReadExpr::create(UpdateList(&array, 0), ConstantExpr::alloc(index, Expr::Int32));
+            return ReadExpr::create(UpdateList(array, 0), ConstantExpr::alloc(index, Expr::Int32));
 
         CexValueData cvd = it->second->getExactValues(index);
         if (!cvd.isFixed())
-            return ReadExpr::create(UpdateList(&array, 0), ConstantExpr::alloc(index, Expr::Int32));
+            return ReadExpr::create(UpdateList(array, 0), ConstantExpr::alloc(index, Expr::Int32));
 
         return ConstantExpr::alloc(cvd.min(), Expr::Int8);
     }
 
 public:
-    std::map<const Array *, CexObjectData *> &objects;
-    CexExactEvaluator(std::map<const Array *, CexObjectData *> &_objects) : objects(_objects) {
+    std::map<ArrayPtr, CexObjectData *, ArrayLt> &objects;
+    CexExactEvaluator(std::map<ArrayPtr, CexObjectData *, ArrayLt> &_objects) : objects(_objects) {
     }
 };
 
 class CexData {
 public:
-    std::map<const Array *, CexObjectData *> objects;
+    std::map<ArrayPtr, CexObjectData *, ArrayLt> objects;
 
     CexData(const CexData &);        // DO NOT IMPLEMENT
     void operator=(const CexData &); // DO NOT IMPLEMENT
@@ -442,12 +442,12 @@ public:
     CexData() {
     }
     ~CexData() {
-        for (std::map<const Array *, CexObjectData *>::iterator it = objects.begin(), ie = objects.end(); it != ie;
-             ++it)
-            delete it->second;
+        for (auto it : objects) {
+            delete it.second;
+        }
     }
 
-    CexObjectData &getObjectData(const Array *A) {
+    CexObjectData &getObjectData(const ArrayPtr &A) {
         CexObjectData *&Entry = objects[A];
 
         if (!Entry)
@@ -482,7 +482,7 @@ public:
 
             case Expr::Read: {
                 ReadExpr *re = cast<ReadExpr>(e);
-                const Array *array = re->getUpdates().getRoot();
+                auto &array = re->getUpdates().getRoot();
                 CexObjectData &cod = getObjectData(array);
 
                 // FIXME: This is imprecise, we need to look through the existing writes
@@ -816,7 +816,7 @@ public:
 
             case Expr::Read: {
                 ReadExpr *re = cast<ReadExpr>(e);
-                const Array *array = re->getUpdates().getRoot();
+                auto &array = re->getUpdates().getRoot();
                 CexObjectData &cod = getObjectData(array);
                 CexValueData index = evalRangeForExpr(re->getIndex());
 
@@ -959,9 +959,8 @@ public:
 
     void dump() {
         llvm::errs() << "-- propogated values --\n";
-        for (std::map<const Array *, CexObjectData *>::iterator it = objects.begin(), ie = objects.end(); it != ie;
-             ++it) {
-            const Array *A = it->first;
+        for (auto it = objects.begin(), ie = objects.end(); it != ie; ++it) {
+            auto &A = it->first;
             CexObjectData *COD = it->second;
 
             llvm::errs() << A->getName() << "\n";
@@ -992,8 +991,8 @@ public:
 
     IncompleteSolver::PartialValidity computeTruth(const Query &);
     bool computeValue(const Query &, ref<Expr> &result);
-    bool computeInitialValues(const Query &, const std::vector<const Array *> &objects,
-                              std::vector<std::vector<unsigned char>> &values, bool &hasSolution);
+    bool computeInitialValues(const Query &, const ArrayVec &objects, std::vector<std::vector<unsigned char>> &values,
+                              bool &hasSolution);
 };
 
 FastCexSolver::FastCexSolver() {
@@ -1103,7 +1102,7 @@ bool FastCexSolver::computeValue(const Query &query, ref<Expr> &result) {
     }
 }
 
-bool FastCexSolver::computeInitialValues(const Query &query, const std::vector<const Array *> &objects,
+bool FastCexSolver::computeInitialValues(const Query &query, const ArrayVec &objects,
                                          std::vector<std::vector<unsigned char>> &values, bool &hasSolution) {
     CexData cd;
 
@@ -1120,7 +1119,7 @@ bool FastCexSolver::computeInitialValues(const Query &query, const std::vector<c
 
     // Propogation found a satisfying assignment, compute the initial values.
     for (unsigned i = 0; i != objects.size(); ++i) {
-        const Array *array = objects[i];
+        auto &array = objects[i];
         std::vector<unsigned char> data;
         data.reserve(array->getSize());
 

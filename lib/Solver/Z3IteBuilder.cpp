@@ -44,7 +44,7 @@ Z3IteBuilder::Z3IteBuilder(z3::context &context, Z3IteBuilderCache *cache) : Z3B
 Z3IteBuilder::~Z3IteBuilder() {
 }
 
-z3::expr Z3IteBuilder::getInitialRead(const Array *root, unsigned index) {
+z3::expr Z3IteBuilder::getInitialRead(const ArrayPtr &root, unsigned index) {
     shared_ptr<ExprVector> elem_vector = getArrayValues(root);
     return (*elem_vector)[index];
 }
@@ -53,7 +53,7 @@ z3::expr Z3IteBuilder::makeReadExpr(ref<ReadExpr> re) {
     return getReadForArray(getOrMakeExpr(re->getIndex()), re->getUpdates().getRoot(), re->getUpdates().getHead());
 }
 
-z3::expr Z3IteBuilder::getReadForArray(z3::expr index, const Array *root, const UpdateNode *un) {
+z3::expr Z3IteBuilder::getReadForArray(z3::expr index, const ArrayPtr &root, const UpdateNode *un) {
     Z3IteBuilderCache::ReadUpdatePair rup = std::make_pair(index, std::make_pair(root, un));
     z3::expr result(context_);
     if (cache_->findRead(rup, result)) {
@@ -71,7 +71,7 @@ z3::expr Z3IteBuilder::getReadForArray(z3::expr index, const Array *root, const 
     return result;
 }
 
-z3::expr Z3IteBuilder::getReadForInitialArray(z3::expr index, const Array *root) {
+z3::expr Z3IteBuilder::getReadForInitialArray(z3::expr index, const ArrayPtr &root) {
     shared_ptr<ExprVector> elem_vector = getArrayValues(root);
 
     // TODO: balance this tree
@@ -83,7 +83,7 @@ z3::expr Z3IteBuilder::getReadForInitialArray(z3::expr index, const Array *root)
     return ite_tree;
 }
 
-shared_ptr<Z3IteBuilder::ExprVector> Z3IteBuilder::getArrayValues(const Array *root) {
+shared_ptr<Z3IteBuilder::ExprVector> Z3IteBuilder::getArrayValues(const ArrayPtr &root) {
     shared_ptr<Z3IteBuilder::ExprVector> elem_vector;
     if (cache_->findArray(root, elem_vector)) {
         return elem_vector;
@@ -98,7 +98,7 @@ shared_ptr<Z3IteBuilder::ExprVector> Z3IteBuilder::getArrayValues(const Array *r
     } else {
         char buf[256];
         for (unsigned i = 0, e = root->getSize(); i != e; ++i) {
-            snprintf(buf, sizeof(buf), "%s_%p_%u", root->getName().c_str(), (void *) root, i);
+            snprintf(buf, sizeof(buf), "%s_%p_%u", root->getName().c_str(), (void *) root.get(), i);
             elem_vector->push_back(context_.bv_const(buf, 8));
         }
     }

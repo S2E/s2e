@@ -519,11 +519,11 @@ exit:
 
     // FIXME: Array should take domain and range.
     const Identifier *Label = GetOrCreateIdentifier(Name);
-    Array *Root;
+    ArrayPtr Root;
     if (!Values.empty())
-        Root = new Array(Label->Name, Size.get(), &Values[0], &Values[0] + Values.size());
+        Root = Array::create(Label->Name, Size.get(), &Values[0], &Values[0] + Values.size());
     else
-        Root = new Array(Label->Name, Size.get());
+        Root = Array::create(Label->Name, Size.get());
     ArrayDecl *AD = new ArrayDecl(Label, Size.get(), DomainType.get(), RangeType.get(), Root);
 
     ArraySymTab.insert(std::make_pair(Label, AD));
@@ -565,7 +565,7 @@ DeclResult ParserImpl::ParseCommandDecl() {
 DeclResult ParserImpl::ParseQueryCommand() {
     std::vector<ExprHandle> Constraints;
     std::vector<ExprHandle> Values;
-    std::vector<const Array *> Objects;
+    ArrayVec Objects;
     ExprResult Res;
 
     // FIXME: We need a command for this. Or something.
@@ -1305,7 +1305,7 @@ VersionResult ParserImpl::ParseVersionSpecifier() {
     VersionResult Res = ParseVersion();
     // Define update list to avoid use-of-undef errors.
     if (!Res.isValid()) {
-        Res = VersionResult(true, UpdateList(new Array("", 0), NULL));
+        Res = VersionResult(true, UpdateList(Array::create("", 0), NULL));
     }
 
     if (Label)
@@ -1572,18 +1572,8 @@ void ArrayDecl::dump() {
 }
 
 void QueryCommand::dump() {
-    const ExprHandle *ValuesBegin = 0, *ValuesEnd = 0;
-    const Array *const *ObjectsBegin = 0, *const *ObjectsEnd = 0;
-    if (!Values.empty()) {
-        ValuesBegin = &Values[0];
-        ValuesEnd = ValuesBegin + Values.size();
-    }
-    if (!Objects.empty()) {
-        ObjectsBegin = &Objects[0];
-        ObjectsEnd = ObjectsBegin + Objects.size();
-    }
-    ExprPPrinter::printQuery(llvm::outs(), ConstraintManager(Constraints), Query, ValuesBegin, ValuesEnd, ObjectsBegin,
-                             ObjectsEnd, false);
+    ExprPPrinter::printQuery(llvm::outs(), ConstraintManager(Constraints), Query, Values.begin(), Values.end(),
+                             Objects.begin(), Objects.end(), false);
 }
 
 // Public parser API

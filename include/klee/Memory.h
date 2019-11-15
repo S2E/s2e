@@ -293,7 +293,7 @@ public:
 
     /// Create a new object state for the given memory object with symbolic
     /// contents.
-    ObjectState(const MemoryObject *mo, const Array *array);
+    ObjectState(const MemoryObject *mo, const ArrayPtr &array);
 
     ObjectState(const ObjectState &os);
     ~ObjectState();

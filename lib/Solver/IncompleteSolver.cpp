@@ -120,7 +120,7 @@ bool StagedSolverImpl::computeValue(const Query &query, ref<Expr> &result) {
     return secondary->impl->computeValue(query, result);
 }
 
-bool StagedSolverImpl::computeInitialValues(const Query &query, const std::vector<const Array *> &objects,
+bool StagedSolverImpl::computeInitialValues(const Query &query, const ArrayVec &objects,
                                             std::vector<std::vector<unsigned char>> &values, bool &hasSolution) {
     if (primary->computeInitialValues(query, objects, values, hasSolution))
         return true;

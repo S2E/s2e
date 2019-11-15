@@ -36,8 +36,8 @@ namespace klee {
 
 class Z3ArrayBuilderCache : public Z3BuilderCache {
 public:
-    virtual bool findArray(const Array *root, z3::expr &expr) = 0;
-    virtual void insertArray(const Array *root, const z3::expr &expr) = 0;
+    virtual bool findArray(const ArrayPtr &root, z3::expr &expr) = 0;
+    virtual void insertArray(const ArrayPtr &root, const z3::expr &expr) = 0;
 
     virtual bool findUpdate(const UpdateNode *un, z3::expr &expr) = 0;
     virtual void insertUpdate(const UpdateNode *un, const z3::expr &expr) = 0;
@@ -58,7 +58,7 @@ public:
         cons_expr_.insert(std::make_pair(e, expr));
     }
 
-    virtual bool findArray(const Array *root, z3::expr &expr) {
+    virtual bool findArray(const ArrayPtr &root, z3::expr &expr) {
         ArrayMap::iterator it = cons_arrays_.find(root);
         if (it != cons_arrays_.end()) {
             expr = it->second;
@@ -67,7 +67,7 @@ public:
         return false;
     }
 
-    virtual void insertArray(const Array *root, const z3::expr &expr) {
+    virtual void insertArray(const ArrayPtr &root, const z3::expr &expr) {
         cons_arrays_.insert(std::make_pair(root, expr));
     }
 
@@ -99,7 +99,7 @@ protected:
 
 private:
     typedef ExprHashMap<z3::expr> ExprMap;
-    typedef llvm::DenseMap<const Array *, z3::expr> ArrayMap;
+    typedef std::unordered_map<ArrayPtr, z3::expr, ArrayHash> ArrayMap;
     typedef llvm::DenseMap<const UpdateNode *, z3::expr> UpdateListMap;
 
     ExprMap cons_expr_;
@@ -131,7 +131,7 @@ public:
         cons_expr = expr_map_factory_.add(cons_expr, e, expr);
     }
 
-    virtual bool findArray(const Array *root, z3::expr &expr) {
+    virtual bool findArray(const ArrayPtr &root, z3::expr &expr) {
         assert(stack_.size() > 0);
         ArrayMap &cons_arrays = stack_.back().cons_arrays_;
 
@@ -142,7 +142,7 @@ public:
         return true;
     }
 
-    virtual void insertArray(const Array *root, const z3::expr &expr) {
+    virtual void insertArray(const ArrayPtr &root, const z3::expr &expr) {
         assert(stack_.size() > 0);
         ArrayMap &cons_arrays = stack_.back().cons_arrays_;
         cons_arrays = array_map_factory_.add(cons_arrays, root, expr);
@@ -185,7 +185,7 @@ protected:
 
 private:
     typedef llvm::ImmutableMap<ref<Expr>, z3::expr> ExprMap;
-    typedef llvm::ImmutableMap<const Array *, z3::expr> ArrayMap;
+    typedef llvm::ImmutableMap<ArrayPtr, z3::expr> ArrayMap;
     typedef llvm::ImmutableMap<const UpdateNode *, z3::expr> UpdateListMap;
 
     struct Frame {
@@ -209,15 +209,15 @@ public:
     Z3ArrayBuilder(z3::context &context, Z3ArrayBuilderCache *cache);
     virtual ~Z3ArrayBuilder();
 
-    virtual z3::expr getInitialRead(const Array *root, unsigned index);
+    virtual z3::expr getInitialRead(const ArrayPtr &root, unsigned index);
 
 protected:
     virtual z3::expr makeReadExpr(ref<ReadExpr> re);
-    virtual z3::expr initializeArray(const Array *root, z3::expr array_ast) = 0;
+    virtual z3::expr initializeArray(const ArrayPtr &root, z3::expr array_ast) = 0;
 
 private:
-    z3::expr getArrayForUpdate(const Array *root, const UpdateNode *un);
-    z3::expr getInitialArray(const Array *root);
+    z3::expr getArrayForUpdate(const ArrayPtr &root, const UpdateNode *un);
+    z3::expr getInitialArray(const ArrayPtr &root);
 
     Z3ArrayBuilderCache *cache_;
 };
@@ -228,7 +228,7 @@ public:
     virtual ~Z3StoreArrayBuilder();
 
 protected:
-    virtual z3::expr initializeArray(const Array *root, z3::expr array_ast);
+    virtual z3::expr initializeArray(const ArrayPtr &root, z3::expr array_ast);
 };
 
 class Z3AssertArrayBuilder : public Z3ArrayBuilder {
@@ -237,10 +237,10 @@ public:
     virtual ~Z3AssertArrayBuilder();
 
 protected:
-    virtual z3::expr initializeArray(const Array *root, z3::expr array_ast);
+    virtual z3::expr initializeArray(const ArrayPtr &root, z3::expr array_ast);
 
 private:
-    z3::expr getArrayAssertion(const Array *root, z3::expr array_ast);
+    z3::expr getArrayAssertion(const ArrayPtr &root, z3::expr array_ast);
 
     z3::solver solver_;
 };

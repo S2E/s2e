@@ -408,7 +408,7 @@ Executor::StatePair Executor::fork(ExecutionState &current, const ref<Expr> &con
     }
 
     // Extract symbolic objects
-    std::vector<const Array *> symbObjects;
+    ArrayVec symbObjects;
     for (unsigned i = 0; i < current.symbolics.size(); ++i) {
         symbObjects.push_back(current.symbolics[i].second);
     }

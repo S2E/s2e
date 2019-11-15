@@ -79,7 +79,7 @@ public:
 
     bool computeTruth(const Query &, bool &isValid);
     bool computeValue(const Query &, ref<Expr> &result);
-    bool computeInitialValues(const Query &query, const std::vector<const Array *> &objects,
+    bool computeInitialValues(const Query &query, const ArrayVec &objects,
                               std::vector<std::vector<unsigned char>> &values, bool &hasSolution);
 
     void initializeSolver();
@@ -90,7 +90,7 @@ protected:
     virtual z3::check_result check(const Query &) = 0;
     virtual void postCheck(const Query &) = 0;
 
-    void extractModel(const std::vector<const Array *> &objects, std::vector<std::vector<unsigned char>> &values);
+    void extractModel(const ArrayVec &objects, std::vector<std::vector<unsigned char>> &values);
 
     void push() {
         solver_.push();
@@ -198,13 +198,11 @@ Z3BaseSolverImpl::Z3BaseSolverImpl() : solver_(context_, "QF_ABV") {
 Z3BaseSolverImpl::~Z3BaseSolverImpl() {
 }
 
-void Z3BaseSolverImpl::extractModel(const std::vector<const Array *> &objects,
-                                    std::vector<std::vector<unsigned char>> &values) {
+void Z3BaseSolverImpl::extractModel(const ArrayVec &objects, std::vector<std::vector<unsigned char>> &values) {
     z3::model model = solver_.get_model();
 
     values.reserve(objects.size());
-    for (std::vector<const Array *>::const_iterator it = objects.begin(), ie = objects.end(); it != ie; ++it) {
-        const Array *array = *it;
+    for (auto &array : objects) {
         std::vector<unsigned char> data;
 
         data.reserve(array->getSize());
@@ -223,7 +221,7 @@ void Z3BaseSolverImpl::extractModel(const std::vector<const Array *> &objects,
 }
 
 bool Z3BaseSolverImpl::computeTruth(const Query &query, bool &isValid) {
-    std::vector<const Array *> objects;
+    ArrayVec objects;
     std::vector<std::vector<unsigned char>> values;
     bool hasSolution;
 
@@ -236,7 +234,7 @@ bool Z3BaseSolverImpl::computeTruth(const Query &query, bool &isValid) {
 
 // TODO: Use model evaluation in Z3
 bool Z3BaseSolverImpl::computeValue(const Query &query, ref<Expr> &result) {
-    std::vector<const Array *> objects;
+    ArrayVec objects;
     std::vector<std::vector<unsigned char>> values;
     bool hasSolution;
 
@@ -251,7 +249,7 @@ bool Z3BaseSolverImpl::computeValue(const Query &query, ref<Expr> &result) {
     return true;
 }
 
-bool Z3BaseSolverImpl::computeInitialValues(const Query &query, const std::vector<const Array *> &objects,
+bool Z3BaseSolverImpl::computeInitialValues(const Query &query, const ArrayVec &objects,
                                             std::vector<std::vector<unsigned char>> &values, bool &hasSolution) {
     ++stats::queries;
     ++stats::queryCounterexamples;

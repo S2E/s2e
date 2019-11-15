@@ -44,7 +44,7 @@ unsigned UpdateNode::computeHash() {
 
 ///
 
-UpdateList::UpdateList(const Array *_root, const UpdateNode *_head) : root(_root), head(_head) {
+UpdateList::UpdateList(ArrayPtr _root, const UpdateNode *_head) : root(_root), head(_head) {
     if (head)
         ++head->refCount;
 }

@@ -326,7 +326,7 @@ void ExecutionState::printStack(KInstruction *target, std::stringstream &msg) co
 bool ExecutionState::getSymbolicSolution(std::vector<std::pair<std::string, std::vector<unsigned char>>> &res) {
     for (unsigned i = 0; i != symbolics.size(); ++i) {
         const MemoryObject *mo = symbolics[i].first;
-        const Array *arr = symbolics[i].second;
+        auto &arr = symbolics[i].second;
         std::vector<unsigned char> data;
         for (unsigned s = 0; s < arr->getSize(); ++s) {
             ref<Expr> e = concolics->evaluate(arr, s);
@@ -452,7 +452,7 @@ ref<Expr> ExecutionState::toUnique(ref<Expr> &e) {
 }
 
 bool ExecutionState::solve(const ConstraintManager &mgr, Assignment &assignment) {
-    std::vector<const Array *> symbObjects;
+    ArrayVec symbObjects;
     for (unsigned i = 0; i < symbolics.size(); ++i) {
         symbObjects.push_back(symbolics[i].second);
     }
@@ -510,7 +510,7 @@ bool ExecutionState::addConstraint(const ref<Expr> &constraint, bool recomputeCo
 ///
 /// \param os output stream
 void ExecutionState::dumpQuery(llvm::raw_ostream &os) const {
-    std::vector<const Array *> symbObjects;
+    ArrayVec symbObjects;
     for (unsigned i = 0; i < symbolics.size(); ++i) {
         symbObjects.push_back(symbolics[i].second);
     }
@@ -518,7 +518,10 @@ void ExecutionState::dumpQuery(llvm::raw_ostream &os) const {
     auto printer = std::unique_ptr<ExprPPrinter>(ExprPPrinter::create(os));
 
     Query query(constraints, ConstantExpr::alloc(0, Expr::Bool));
-    printer->printQuery(os, query.constraints, query.expr, 0, 0, &symbObjects[0], &symbObjects[0] + symbObjects.size());
+
+    std::vector<ref<Expr>> exprs;
+    printer->printQuery(os, query.constraints, query.expr, exprs.begin(), exprs.end(), symbObjects.begin(),
+                        symbObjects.end(), true);
     os.flush();
 }
 
@@ -554,7 +557,7 @@ void ExecutionState::stepInstruction() {
     ++pc;
 }
 
-ObjectState *ExecutionState::bindObject(const MemoryObject *mo, bool isLocal, const Array *array) {
+ObjectState *ExecutionState::bindObject(const MemoryObject *mo, bool isLocal, const ArrayPtr &array) {
     ObjectState *os = array ? new ObjectState(mo, array) : new ObjectState(mo);
     addressSpace.bindObject(mo, os);
 

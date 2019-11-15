@@ -34,7 +34,7 @@ llvm::cl::opt<bool> PCAllConstWidths("pc-all-const-widths", llvm::cl::init(false
 
 class PPrinter : public ExprPPrinter {
 public:
-    std::set<const Array *> usedArrays;
+    std::unordered_set<ArrayPtr, ArrayHash> usedArrays;
 
 private:
     std::map<ref<Expr>, unsigned> bindings;
@@ -421,41 +421,46 @@ void ExprPPrinter::printSingleExpr(llvm::raw_ostream &os, const ref<Expr> &e) {
 }
 
 void ExprPPrinter::printConstraints(llvm::raw_ostream &os, const ConstraintManager &constraints) {
-    printQuery(os, constraints, ConstantExpr::alloc(false, Expr::Bool));
+    std::vector<ref<Expr>> ev;
+    ArrayVec av;
+    printQuery(os, constraints, ConstantExpr::alloc(false, Expr::Bool), ev.begin(), ev.end(), av.begin(), av.end(),
+               true);
 }
 
 namespace {
 
 struct ArrayPtrsByName {
-    bool operator()(const Array *a1, const Array *a2) const {
+    bool operator()(const ArrayPtr &a1, const ArrayPtr &a2) const {
         return a1->getName() < a2->getName();
     }
 };
 }
 
 void ExprPPrinter::printQuery(llvm::raw_ostream &os, const ConstraintManager &constraints, const ref<Expr> &q,
-                              const ref<Expr> *evalExprsBegin, const ref<Expr> *evalExprsEnd,
-                              const Array *const *evalArraysBegin, const Array *const *evalArraysEnd,
-                              bool printArrayDecls) {
+                              ExprIt evalExprsBegin, ExprIt evalExprsEnd, ArrayIt evalArraysBegin,
+                              ArrayIt evalArraysEnd, bool printArrayDecls) {
     PPrinter p(os);
 
-    for (ConstraintManager::const_iterator it = constraints.begin(), ie = constraints.end(); it != ie; ++it)
+    for (ConstraintManager::const_iterator it = constraints.begin(), ie = constraints.end(); it != ie; ++it) {
         p.scan(*it);
+    }
+
     p.scan(q);
 
-    for (const ref<Expr> *it = evalExprsBegin; it != evalExprsEnd; ++it)
+    for (auto it = evalExprsBegin; it != evalExprsEnd; ++it) {
         p.scan(*it);
+    }
 
     PrintContext PC(os);
 
     // Print array declarations.
     if (printArrayDecls) {
-        for (const Array *const *it = evalArraysBegin; it != evalArraysEnd; ++it)
+        for (auto it = evalArraysBegin; it != evalArraysEnd; ++it)
             p.usedArrays.insert(*it);
-        std::vector<const Array *> sortedArray(p.usedArrays.begin(), p.usedArrays.end());
+        ArrayVec sortedArray(p.usedArrays.begin(), p.usedArrays.end());
         std::sort(sortedArray.begin(), sortedArray.end(), ArrayPtrsByName());
-        for (std::vector<const Array *>::iterator it = sortedArray.begin(), ie = sortedArray.end(); it != ie; ++it) {
-            const Array *A = *it;
+        for (auto it : sortedArray) {
+            auto A = it;
             PC << "array " << A->getName() << "[" << A->getSize() << "]"
                << " : w" << A->getDomain() << " -> w" << A->getRange() << " = ";
             if (A->isSymbolicArray()) {
@@ -492,7 +497,7 @@ void ExprPPrinter::printQuery(llvm::raw_ostream &os, const ConstraintManager &co
     if (evalExprsBegin != evalExprsEnd) {
         p.printSeparator(PC, q->isFalse(), indent - 1);
         PC << '[';
-        for (const ref<Expr> *it = evalExprsBegin; it != evalExprsEnd; ++it) {
+        for (auto it = evalExprsBegin; it != evalExprsEnd; ++it) {
             p.print(*it, PC, /*printConstWidth*/ true);
             if (it + 1 != evalExprsEnd)
                 PC.breakLine(indent);
@@ -507,7 +512,7 @@ void ExprPPrinter::printQuery(llvm::raw_ostream &os, const ConstraintManager &co
 
         PC.breakLine(indent - 1);
         PC << '[';
-        for (const Array *const *it = evalArraysBegin; it != evalArraysEnd; ++it) {
+        for (auto it = evalArraysBegin; it != evalArraysEnd; ++it) {
             PC << (*it)->getName();
             if (it + 1 != evalArraysEnd)
                 PC.breakLine(indent);

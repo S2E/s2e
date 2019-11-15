@@ -62,6 +62,15 @@ template <typename T> struct ImutProfileInfo<klee::ref<T>> {
         ID.AddPointer(X.get());
     }
 };
+
+template <> struct ImutProfileInfo<klee::ArrayPtr> {
+    typedef const klee::ArrayPtr value_type;
+    typedef const klee::ArrayPtr &value_type_ref;
+
+    static inline void Profile(FoldingSetNodeID &ID, value_type_ref X) {
+        ID.AddPointer(X.get());
+    }
+};
 }
 
 namespace klee {
@@ -95,7 +104,7 @@ public:
         return getOrMakeExpr(e);
     }
 
-    virtual z3::expr getInitialRead(const Array *root, unsigned index) = 0;
+    virtual z3::expr getInitialRead(const ArrayPtr &root, unsigned index) = 0;
 
     void push() {
         cache_->push();

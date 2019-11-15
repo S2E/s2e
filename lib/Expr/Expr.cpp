@@ -206,7 +206,7 @@ static ref<Expr> SimplifyExtractAndZext(const ref<Expr> &e) {
     return e;
 }
 
-ref<Expr> Expr::createTempRead(const Array *array, Expr::Width w) {
+ref<Expr> Expr::createTempRead(const ArrayPtr &array, Expr::Width w) {
     UpdateList ul(array, 0);
 
     switch (w) {

@@ -120,7 +120,7 @@ bool Solver::getValue(const Query &query, ref<ConstantExpr> &result) {
     return true;
 }
 
-bool Solver::getInitialValues(const Query &query, const std::vector<const Array *> &objects,
+bool Solver::getInitialValues(const Query &query, const ArrayVec &objects,
                               std::vector<std::vector<unsigned char>> &values) {
     bool hasSolution;
     bool success = impl->computeInitialValues(query, objects, values, hasSolution);
@@ -131,8 +131,8 @@ bool Solver::getInitialValues(const Query &query, const std::vector<const Array 
     return success;
 }
 
-void Solver::getRanges(const ConstraintManager &constraints, const std::vector<const Array *> &symbObjects, ref<Expr> e,
-                       ref<Expr> start, ref<Expr> end, std::vector<Range> &ranges) {
+void Solver::getRanges(const ConstraintManager &constraints, const ArrayVec &symbObjects, ref<Expr> e, ref<Expr> start,
+                       ref<Expr> end, std::vector<Range> &ranges) {
     ConstraintManager tmpConstraints = constraints;
     tmpConstraints.addConstraint(E_AND(E_GE(e, start), E_LT(e, end)));
 
@@ -294,8 +294,8 @@ public:
     bool computeValidity(const Query &, Solver::Validity &result);
     bool computeTruth(const Query &, bool &isValid);
     bool computeValue(const Query &, ref<Expr> &result);
-    bool computeInitialValues(const Query &, const std::vector<const Array *> &objects,
-                              std::vector<std::vector<unsigned char>> &values, bool &hasSolution);
+    bool computeInitialValues(const Query &, const ArrayVec &objects, std::vector<std::vector<unsigned char>> &values,
+                              bool &hasSolution);
 };
 
 bool ValidatingSolver::computeTruth(const Query &query, bool &isValid) {
@@ -422,7 +422,7 @@ bool ValidatingSolver::computeValue(const Query &query, ref<Expr> &result) {
     return true;
 }
 
-bool ValidatingSolver::computeInitialValues(const Query &query, const std::vector<const Array *> &objects,
+bool ValidatingSolver::computeInitialValues(const Query &query, const ArrayVec &objects,
                                             std::vector<std::vector<unsigned char>> &values, bool &hasSolution) {
     bool answer;
 
@@ -434,7 +434,7 @@ bool ValidatingSolver::computeInitialValues(const Query &query, const std::vecto
         // conjunction of the actual constraints is satisfiable.
         std::vector<ref<Expr>> bindings;
         for (unsigned i = 0; i != values.size(); ++i) {
-            const Array *array = objects[i];
+            auto &array = objects[i];
             for (unsigned j = 0; j < array->getSize(); j++) {
                 unsigned char value = values[i][j];
                 bindings.push_back(
@@ -488,8 +488,8 @@ public:
         ++stats::queryCounterexamples;
         return false;
     }
-    bool computeInitialValues(const Query &, const std::vector<const Array *> &objects,
-                              std::vector<std::vector<unsigned char>> &values, bool &hasSolution) {
+    bool computeInitialValues(const Query &, const ArrayVec &objects, std::vector<std::vector<unsigned char>> &values,
+                              bool &hasSolution) {
         ++stats::queries;
         ++stats::queryCounterexamples;
         return false;

@@ -73,8 +73,8 @@ public:
     bool computeTruth(const Query &, bool &isValid);
     bool computeValidity(const Query &, Solver::Validity &result);
     bool computeValue(const Query &, ref<Expr> &result);
-    bool computeInitialValues(const Query &, const std::vector<const Array *> &objects,
-                              std::vector<std::vector<unsigned char>> &values, bool &hasSolution);
+    bool computeInitialValues(const Query &, const ArrayVec &objects, std::vector<std::vector<unsigned char>> &values,
+                              bool &hasSolution);
 };
 
 ///
@@ -193,7 +193,7 @@ bool CexCachingSolver::getAssignment(const Query &query, Assignment *&result) {
     if (lookupAssignment(query, key, result))
         return true;
 
-    std::vector<const Array *> objects;
+    ArrayVec objects;
     findSymbolicObjects(key.begin(), key.end(), objects);
 
     std::vector<std::vector<unsigned char>> values;
@@ -295,7 +295,7 @@ bool CexCachingSolver::computeValue(const Query &query, ref<Expr> &result) {
     return true;
 }
 
-bool CexCachingSolver::computeInitialValues(const Query &query, const std::vector<const Array *> &objects,
+bool CexCachingSolver::computeInitialValues(const Query &query, const ArrayVec &objects,
                                             std::vector<std::vector<unsigned char>> &values, bool &hasSolution) {
     TimerStatIncrementer t(stats::cexCacheTime);
     Assignment *a;
@@ -310,7 +310,7 @@ bool CexCachingSolver::computeInitialValues(const Query &query, const std::vecto
     // need redundant copy.
     values = std::vector<std::vector<unsigned char>>(objects.size());
     for (unsigned i = 0; i < objects.size(); ++i) {
-        const Array *os = objects[i];
+        auto &os = objects[i];
         Assignment::bindings_ty::iterator it = a->bindings.find(os);
 
         if (it == a->bindings.end()) {

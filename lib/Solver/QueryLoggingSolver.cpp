@@ -68,7 +68,7 @@ void QueryLoggingSolver::flushBufferConditionally(bool writeToFile) {
 }
 
 void QueryLoggingSolver::startQuery(const Query &query, const char *typeName, const Query *falseQuery,
-                                    const std::vector<const Array *> *objects) {
+                                    const ArrayVec &objects) {
     Statistic *S = theStatisticManager->getStatisticByName("Instructions");
     uint64_t instructions = S ? S->getValue() : 0;
 
@@ -159,9 +159,9 @@ bool QueryLoggingSolver::computeValue(const Query &query, ref<Expr> &result) {
     return success;
 }
 
-bool QueryLoggingSolver::computeInitialValues(const Query &query, const std::vector<const Array *> &objects,
+bool QueryLoggingSolver::computeInitialValues(const Query &query, const ArrayVec &objects,
                                               std::vector<std::vector<unsigned char>> &values, bool &hasSolution) {
-    startQuery(query, "InitialValues", 0, &objects);
+    startQuery(query, "InitialValues", 0, objects);
 
     bool success = solver->impl->computeInitialValues(query, objects, values, hasSolution);
 
@@ -172,9 +172,8 @@ bool QueryLoggingSolver::computeInitialValues(const Query &query, const std::vec
         if (hasSolution) {
             std::vector<std::vector<unsigned char>>::iterator values_it = values.begin();
 
-            for (std::vector<const Array *>::const_iterator i = objects.begin(), e = objects.end(); i != e;
-                 ++i, ++values_it) {
-                const Array *array = *i;
+            for (auto i = objects.begin(), e = objects.end(); i != e; ++i, ++values_it) {
+                auto &array = *i;
                 std::vector<unsigned char> &data = *values_it;
                 logBuffer << queryCommentSign << "     " << array->getName() << " = [";
 

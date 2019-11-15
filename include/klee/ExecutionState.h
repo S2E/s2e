@@ -86,7 +86,7 @@ public:
     /// ordered list of symbolics: used to generate test cases.
     //
     // FIXME: Move to a shared list structure (not critical).
-    std::vector<std::pair<const MemoryObject *, const Array *>> symbolics;
+    std::vector<std::pair<const MemoryObject *, ArrayPtr>> symbolics;
 
     // Maps a KLEE variable name to the real variable name.
     // The KLEE name is stripped from any special characters to make
@@ -133,7 +133,7 @@ public:
     void pushFrame(KInstIterator caller, KFunction *kf);
     void popFrame();
 
-    void addSymbolic(const MemoryObject *mo, const Array *array) {
+    void addSymbolic(const MemoryObject *mo, ArrayPtr array) {
         symbolics.push_back(std::make_pair(mo, array));
     }
 
@@ -191,7 +191,7 @@ public:
     void bindArgument(KFunction *kf, unsigned index, ref<Expr> value);
     void stepInstruction();
 
-    ObjectState *bindObject(const MemoryObject *mo, bool isLocal, const Array *array = nullptr);
+    ObjectState *bindObject(const MemoryObject *mo, bool isLocal, const ArrayPtr &array = ArrayPtr());
 };
 }
 

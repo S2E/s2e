@@ -63,9 +63,8 @@ public:
     static void printConstraints(llvm::raw_ostream &os, const ConstraintManager &constraints);
 
     static void printQuery(llvm::raw_ostream &os, const ConstraintManager &constraints, const ref<Expr> &q,
-                           const ref<Expr> *evalExprsBegin = 0, const ref<Expr> *evalExprsEnd = 0,
-                           const Array *const *evalArraysBegin = 0, const Array *const *evalArraysEnd = 0,
-                           bool printArrayDecls = true);
+                           ExprIt evalExprsBegin, ExprIt evalExprsEnd, ArrayIt evalArraysBegin, ArrayIt evalArraysEnd,
+                           bool printArrayDecls);
 };
 }
 

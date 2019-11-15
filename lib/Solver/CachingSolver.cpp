@@ -72,7 +72,7 @@ public:
     bool computeValue(const Query &query, ref<Expr> &result) {
         return solver->impl->computeValue(query, result);
     }
-    bool computeInitialValues(const Query &query, const std::vector<const Array *> &objects,
+    bool computeInitialValues(const Query &query, const ArrayVec &objects,
                               std::vector<std::vector<unsigned char>> &values, bool &hasSolution) {
         return solver->impl->computeInitialValues(query, objects, values, hasSolution);
     }

@@ -116,14 +116,14 @@ ObjectState::ObjectState(const MemoryObject *mo)
     if (!UseConstantArrays) {
         // FIXME: Leaked.
         static unsigned id = 0;
-        const Array *array = new Array("tmp_arr" + llvm::utostr(++id), size);
+        auto array = Array::create("tmp_arr" + llvm::utostr(++id), size);
         updates = UpdateList(array, 0);
     }
     ++count;
     ssize += mo->size;
 }
 
-ObjectState::ObjectState(const MemoryObject *mo, const Array *array)
+ObjectState::ObjectState(const MemoryObject *mo, const ArrayPtr &array)
     : concreteMask(0), copyOnWriteOwner(0), refCount(0), object(mo), concreteStore(new ConcreteBuffer(mo->size)),
       storeOffset(0), flushMask(0), knownSymbolics(0), updates(array, 0), size(mo->size), readOnly(false) {
     makeSymbolic();
@@ -271,8 +271,8 @@ const UpdateList &ObjectState::getUpdates() const {
         // Start a new update list.
         // FIXME: Leaked.
         static unsigned id = 0;
-        const Array *array =
-            new Array("const_arr" + llvm::utostr(++id), size, &Contents[0], &Contents[0] + Contents.size());
+        auto array =
+            Array::create("const_arr" + llvm::utostr(++id), size, &Contents[0], &Contents[0] + Contents.size());
         updates = UpdateList(array, 0);
 
         // Apply the remaining (non-constant) writes.

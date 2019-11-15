@@ -262,7 +262,7 @@ void ExprSMTLIBPrinter::printReadExpr(const ref<ReadExpr> &e) {
     printSeperator();
 
     // print array with updates recursively
-    printUpdatesAndArray(e->getUpdates().getHead(), e->getUpdates().getRoot());
+    printUpdatesAndArray(e->getUpdates().getHead(), e->getUpdates().getRoot().get());
 
     // print index
     printSeperator();
@@ -535,7 +535,7 @@ void ExprSMTLIBPrinter::printSetLogic() {
 namespace {
 
 struct ArrayPtrsByName {
-    bool operator()(const Array *a1, const Array *a2) const {
+    bool operator()(const ArrayPtr &a1, const ArrayPtr &a2) const {
         return a1->getName() < a2->getName();
     }
 };
@@ -547,14 +547,14 @@ void ExprSMTLIBPrinter::printArrayDeclarations() {
         *o << "; Array declarations\n";
 
     // Declare arrays in a deterministic order.
-    std::vector<const Array *> sortedArrays(usedArrays.begin(), usedArrays.end());
+    ArrayVec sortedArrays(usedArrays.begin(), usedArrays.end());
     std::sort(sortedArrays.begin(), sortedArrays.end(), ArrayPtrsByName());
-    for (std::vector<const Array *>::iterator it = sortedArrays.begin(); it != sortedArrays.end(); it++) {
-        *o << "(declare-fun " << (*it)->getName() << " () "
-                                                     "(Array (_ BitVec "
-           << (*it)->getDomain() << ") "
-                                    "(_ BitVec "
-           << (*it)->getRange() << ") ) )"
+    for (auto it : sortedArrays) {
+        *o << "(declare-fun " << it->getName() << " () "
+                                                  "(Array (_ BitVec "
+           << it->getDomain() << ") "
+                                 "(_ BitVec "
+           << it->getRange() << ") ) )"
            << "\n";
     }
 
@@ -563,11 +563,11 @@ void ExprSMTLIBPrinter::printArrayDeclarations() {
         if (humanReadable)
             *o << "; Constant Array Definitions\n";
 
-        const Array *array;
+        ArrayPtr array;
 
         // loop over found arrays
-        for (std::vector<const Array *>::iterator it = sortedArrays.begin(); it != sortedArrays.end(); it++) {
-            array = *it;
+        for (auto it : sortedArrays) {
+            array = it;
             int byteIndex = 0;
             if (array->isConstantArray()) {
                 /*loop over elements in the array and generate an assert statement
@@ -650,15 +650,14 @@ void ExprSMTLIBPrinter::printAction() {
      */
     if (arraysToCallGetValueOn != NULL && !arraysToCallGetValueOn->empty()) {
 
-        const Array *theArray = 0;
+        ArrayPtr theArray;
 
         // loop over the array names
-        for (std::vector<const Array *>::const_iterator it = arraysToCallGetValueOn->begin();
-             it != arraysToCallGetValueOn->end(); it++) {
-            theArray = *it;
+        for (auto it : *arraysToCallGetValueOn) {
+            theArray = it;
             // Loop over the array indices
             for (unsigned int index = 0; index < theArray->getSize(); ++index) {
-                *o << "(get-value ( (select " << (*it)->getName() << " (_ bv" << index << " " << theArray->getDomain()
+                *o << "(get-value ( (select " << it->getName() << " (_ bv" << index << " " << theArray->getDomain()
                    << ") ) ) )\n";
             }
         }
@@ -1098,7 +1097,7 @@ bool ExprSMTLIBPrinter::setSMTLIBboolOption(SMTLIBboolOptions option, SMTLIBbool
     }
 }
 
-void ExprSMTLIBPrinter::setArrayValuesToGet(const std::vector<const Array *> &a) {
+void ExprSMTLIBPrinter::setArrayValuesToGet(const ArrayVec &a) {
     arraysToCallGetValueOn = &a;
 
     // This option must be set in order to use the SMTLIBv2 command (get-value ()
@@ -1111,8 +1110,8 @@ void ExprSMTLIBPrinter::setArrayValuesToGet(const std::vector<const Array *> &a)
      * that the solver knows what to do when we ask for the values of arrays
      * that don't feature in our query!
      */
-    for (std::vector<const Array *>::const_iterator i = a.begin(); i != a.end(); ++i) {
-        usedArrays.insert(*i);
+    for (auto it : a) {
+        usedArrays.insert(it);
     }
 }
 

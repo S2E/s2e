@@ -10,6 +10,8 @@
 #ifndef KLEE_EXPR_H
 #define KLEE_EXPR_H
 
+#include <boost/intrusive_ptr.hpp>
+
 #include "klee/util/Bits.h"
 #include "klee/util/Ref.h"
 
@@ -18,6 +20,7 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/raw_os_ostream.h"
 
+#include <atomic>
 #include <inttypes.h>
 #include <iosfwd> // FIXME: Remove this!!!
 #include <set>
@@ -34,6 +37,8 @@ namespace klee {
 class Array;
 class ConstantExpr;
 class ObjectState;
+
+typedef boost::intrusive_ptr<Array> ArrayPtr;
 
 template <class T> class ref;
 
@@ -269,7 +274,7 @@ public:
 
     /// Create a little endian read of the given type at offset 0 of the
     /// given object.
-    static ref<Expr> createTempRead(const Array *array, Expr::Width w);
+    static ref<Expr> createTempRead(const ArrayPtr &array, Expr::Width w);
 
     static ref<ConstantExpr> createPointer(uint64_t v);
 
@@ -838,6 +843,7 @@ private:
     unsigned computeHash();
 };
 
+// This is immutable
 class Array {
 private:
     // The user name, before it was stripped and made unique
@@ -847,18 +853,15 @@ private:
     const std::string name;
 
     // FIXME: Not 64-bit clean.
-    unsigned size;
+    const unsigned size;
 
     /// constantValues - The constant initial values for this array, or empty for
     /// a symbolic array. If non-empty, this size of this array is equivalent to
     /// the array size.
     const std::vector<ref<ConstantExpr>> constantValues;
 
-public:
-    // FIXME: This does not belong here.
-    static uint64_t aggregatedSize;
+    std::atomic<unsigned> m_refCount;
 
-public:
     /// Array - Construct a new array object.
     ///
     /// \param _name - The name for this array. Names should generally be unique
@@ -868,7 +871,8 @@ public:
     /// distinguished once printed.
     Array(const std::string &_name, uint64_t _size, const ref<ConstantExpr> *constantValuesBegin = 0,
           const ref<ConstantExpr> *constantValuesEnd = 0, const std::string _rawName = "")
-        : rawName(_rawName), name(_name), size(_size), constantValues(constantValuesBegin, constantValuesEnd) {
+        : rawName(_rawName), name(_name), size(_size), constantValues(constantValuesBegin, constantValuesEnd),
+          m_refCount(0) {
         aggregatedSize += _size;
         assert((isSymbolicArray() || constantValues.size() == size) && "Invalid size for constant array!");
 #ifdef NDEBUG
@@ -876,7 +880,17 @@ public:
             assert(it->getWidth() == getRange() && "Invalid initial constant value!");
 #endif
     }
+
+public:
+    // FIXME: This does not belong here.
+    static uint64_t aggregatedSize;
+
     ~Array();
+
+    static ArrayPtr create(const std::string &_name, uint64_t _size, const ref<ConstantExpr> *constantValuesBegin = 0,
+                           const ref<ConstantExpr> *constantValuesEnd = 0, const std::string _rawName = "") {
+        return ArrayPtr(new Array(_name, _size, constantValuesBegin, constantValuesEnd, _rawName));
+    }
 
     bool isSymbolicArray() const {
         return constantValues.empty();
@@ -907,7 +921,35 @@ public:
     const std::vector<ref<ConstantExpr>> &getConstantValues() const {
         return constantValues;
     }
+
+    friend void intrusive_ptr_add_ref(Array *ptr);
+    friend void intrusive_ptr_release(Array *ptr);
 };
+
+inline void intrusive_ptr_add_ref(Array *ptr) {
+    ++ptr->m_refCount;
+}
+
+inline void intrusive_ptr_release(Array *ptr) {
+    if (--ptr->m_refCount == 0) {
+        delete ptr;
+    }
+}
+
+struct ArrayHash {
+    size_t operator()(const ArrayPtr &x) const {
+        return (size_t) x.get();
+    }
+};
+
+struct ArrayLt {
+    bool operator()(const ArrayPtr &x, const ArrayPtr &y) const {
+        return x.get() < y.get();
+    }
+};
+
+typedef std::vector<ArrayPtr> ArrayVec;
+typedef std::vector<ArrayPtr>::const_iterator ArrayIt;
 
 /// Class representing a complete list of updates into an array.
 class UpdateList {
@@ -915,13 +957,13 @@ class UpdateList {
     static uint64_t count;
 
 private:
-    const Array *root;
+    ArrayPtr root;
 
     /// pointer to the most recent update node
     const UpdateNode *head;
 
 public:
-    UpdateList(const Array *_root, const UpdateNode *_head);
+    UpdateList(ArrayPtr _root, const UpdateNode *_head);
     UpdateList(const UpdateList &b);
     ~UpdateList();
 
@@ -937,7 +979,7 @@ public:
     int compare(const UpdateList &b) const;
     unsigned hash() const;
 
-    const Array *getRoot() const {
+    const ArrayPtr &getRoot() const {
         return root;
     }
 
@@ -1592,6 +1634,8 @@ inline bool Expr::isFalse() const {
         return CE->isFalse();
     return false;
 }
+
+typedef std::vector<ref<Expr>>::const_iterator ExprIt;
 
 } // End klee namespace
 

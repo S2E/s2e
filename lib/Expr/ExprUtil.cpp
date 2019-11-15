@@ -83,38 +83,40 @@ protected:
             visit(un->getValue());
         }
 
-        if (ul.getRoot()->isSymbolicArray())
-            if (results.insert(ul.getRoot()).second)
+        if (ul.getRoot()->isSymbolicArray()) {
+            if (results.insert(ul.getRoot()).second) {
                 objects.push_back(ul.getRoot());
+            }
+        }
 
         return Action::doChildren();
     }
 
 public:
-    std::set<const Array *> results;
-    std::vector<const Array *> &objects;
+    std::unordered_set<ArrayPtr, ArrayHash> results;
+    ArrayVec &objects;
 
-    SymbolicObjectFinder(std::vector<const Array *> &_objects) : objects(_objects) {
+    SymbolicObjectFinder(ArrayVec &_objects) : objects(_objects) {
     }
 };
 }
 
 template <typename InputIterator>
-void klee::findSymbolicObjects(InputIterator begin, InputIterator end, std::vector<const Array *> &results) {
+void klee::findSymbolicObjects(InputIterator begin, InputIterator end, ArrayVec &results) {
     SymbolicObjectFinder of(results);
     for (; begin != end; ++begin)
         of.visit(*begin);
 }
 
-void klee::findSymbolicObjects(ref<Expr> e, std::vector<const Array *> &results) {
+void klee::findSymbolicObjects(ref<Expr> e, ArrayVec &results) {
     findSymbolicObjects(&e, &e + 1, results);
 }
 
 typedef std::vector<ref<Expr>>::iterator A;
-template void klee::findSymbolicObjects<A>(A, A, std::vector<const Array *> &);
+template void klee::findSymbolicObjects<A>(A, A, ArrayVec &);
 
 typedef std::set<ref<Expr>>::iterator B;
-template void klee::findSymbolicObjects<B>(B, B, std::vector<const Array *> &);
+template void klee::findSymbolicObjects<B>(B, B, ArrayVec &);
 
 ///
 

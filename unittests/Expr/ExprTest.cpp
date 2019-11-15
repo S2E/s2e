@@ -39,7 +39,7 @@ static std::vector<ref<Expr>> GenerateLoads(const std::vector<std::string> &varN
     std::vector<ref<Expr>> ret;
 
     for (const auto &name : varNames) {
-        Array *array = new Array(name, width / 8);
+        auto array = Array::create(name, width / 8);
         auto rd = Expr::createTempRead(array, width);
         ret.push_back(rd);
     }
@@ -173,9 +173,9 @@ TEST(ExprTest, TestExtractLShr) {
 }
 
 TEST(ExprTest, ConcatExtract) {
-    Array *array = new Array("arr0", 256);
+    auto array = Array::create("arr0", 256);
     ref<Expr> read8 = Expr::createTempRead(array, 8);
-    Array *array2 = new Array("arr1", 256);
+    auto array2 = Array::create("arr1", 256);
     ref<Expr> read8_2 = Expr::createTempRead(array2, 8);
     ref<Expr> c100 = getConstant(100, 8);
 
@@ -225,10 +225,10 @@ TEST(ExprTest, ConcatExtract) {
 }
 
 TEST(ExprTest, ExtractConcat) {
-    Array *array = new Array("arr2", 256);
+    auto array = Array::create("arr2", 256);
     ref<Expr> read64 = Expr::createTempRead(array, 64);
 
-    Array *array2 = new Array("arr3", 256);
+    auto array2 = Array::create("arr3", 256);
     ref<Expr> read8_2 = Expr::createTempRead(array2, 8);
 
     ref<Expr> extract1 = ExtractExpr::create(read64, 36, 4);
