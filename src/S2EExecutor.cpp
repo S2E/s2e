@@ -1929,3 +1929,7 @@ uint64_t s2e_read_mem_io_vaddr(int masked) {
 void s2e_kill_state(const char *message) {
     g_s2e->getExecutor()->terminateState(*g_s2e_state, message);
 }
+
+void s2e_print_instructions(bool val) {
+    PrintLLVMInstructions = val;
+}
