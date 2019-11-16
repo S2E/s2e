@@ -207,7 +207,7 @@ static ref<Expr> SimplifyExtractAndZext(const ref<Expr> &e) {
 }
 
 ref<Expr> Expr::createTempRead(const ArrayPtr &array, Expr::Width w) {
-    UpdateList ul(array, 0);
+    auto ul = UpdateList::create(array, 0);
 
     switch (w) {
         default:
@@ -342,7 +342,7 @@ unsigned ExtractExpr::computeHash() {
 
 unsigned ReadExpr::computeHash() {
     unsigned res = index->hash() * Expr::MAGIC_HASH_CONSTANT;
-    res ^= updates.hash();
+    res ^= updates->hash();
     hashValue = res;
     return hashValue;
 }
@@ -688,7 +688,7 @@ Array::~Array() {
 
 /***/
 
-ref<Expr> ReadExpr::create(const UpdateList &ul, ref<Expr> index) {
+ref<Expr> ReadExpr::create(const UpdateListPtr &ul, ref<Expr> index) {
     if (const SelectExpr *se = dyn_cast<SelectExpr>(index))
         if (se->hasConstantCases())
             return SelectExpr::create(se->getCondition(), ReadExpr::create(ul, se->getTrue()),
@@ -702,7 +702,7 @@ ref<Expr> ReadExpr::create(const UpdateList &ul, ref<Expr> index) {
     // initial creation, where we expect the ObjectState to have constructed
     // a smart UpdateList so it is not worth rescanning.
 
-    const UpdateNode *un = ul.head;
+    auto un = ul->head;
     for (; un; un = un->getNext()) {
         ref<Expr> cond = EqExpr::create(index, un->getIndex());
 
@@ -718,7 +718,7 @@ ref<Expr> ReadExpr::create(const UpdateList &ul, ref<Expr> index) {
 }
 
 int ReadExpr::compareContents(const Expr &b) const {
-    return updates.compare(static_cast<const ReadExpr &>(b).updates);
+    return updates->compare(static_cast<const ReadExpr &>(b).updates);
 }
 
 ref<Expr> SelectExpr::create(const ref<Expr> &c, const ref<Expr> &t, const ref<Expr> &f) {
@@ -1370,7 +1370,7 @@ static ref<Expr> EqExpr_create(const ref<Expr> &l, const ref<Expr> &r) {
 /// returns a disjunction of equalities on the index.  Otherwise,
 /// returns the initial equality expression.
 static ref<Expr> TryConstArrayOpt(const ref<ConstantExpr> &cl, ReadExpr *rd) {
-    if (rd->getUpdates().getRoot()->isSymbolicArray() || rd->getUpdates().getSize())
+    if (rd->getUpdates()->getRoot()->isSymbolicArray() || rd->getUpdates()->getSize())
         return EqExpr_create(cl, rd);
 
     // Number of positions in the array that contain value ct.
@@ -1379,8 +1379,8 @@ static ref<Expr> TryConstArrayOpt(const ref<ConstantExpr> &cl, ReadExpr *rd) {
     // for now, just assume standard "flushing" of a concrete array,
     // where the concrete array has one update for each index, in order
     ref<Expr> res = ConstantExpr::alloc(0, Expr::Bool);
-    for (unsigned i = 0, e = rd->getUpdates().getRoot()->getSize(); i != e; ++i) {
-        if (cl == rd->getUpdates().getRoot()->getConstantValues()[i]) {
+    for (unsigned i = 0, e = rd->getUpdates()->getRoot()->getSize(); i != e; ++i) {
+        if (cl == rd->getUpdates()->getRoot()->getConstantValues()[i]) {
             // Arbitrary maximum on the size of disjunction.
             if (++numMatches > 100)
                 return EqExpr_create(cl, rd);

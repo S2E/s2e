@@ -270,7 +270,7 @@ private:
     ref<Expr> *knownSymbolics;
 
     // mutable because we may need flush during read of const
-    mutable UpdateList updates;
+    mutable UpdateListPtr updates;
 
 public:
     unsigned size;
@@ -383,7 +383,7 @@ public:
     }
 
 private:
-    const UpdateList &getUpdates() const;
+    const UpdateListPtr &getUpdates() const;
 
     void makeConcrete();
 

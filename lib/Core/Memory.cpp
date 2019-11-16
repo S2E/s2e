@@ -107,17 +107,18 @@ uint64_t ObjectState::ssize = 0;
 
 ObjectState::ObjectState()
     : concreteMask(0), copyOnWriteOwner(0), refCount(0), object(NULL), concreteStore(NULL), storeOffset(0),
-      flushMask(0), knownSymbolics(0), updates(0, 0), size(0), readOnly(false) {
+      flushMask(0), knownSymbolics(0), updates(UpdateList::create(nullptr, 0)), size(0), readOnly(false) {
 }
 
 ObjectState::ObjectState(const MemoryObject *mo)
     : concreteMask(0), copyOnWriteOwner(0), refCount(0), object(mo), concreteStore(new ConcreteBuffer(mo->size)),
-      storeOffset(0), flushMask(0), knownSymbolics(0), updates(0, 0), size(mo->size), readOnly(false) {
+      storeOffset(0), flushMask(0), knownSymbolics(0), updates(UpdateList::create(nullptr, 0)), size(mo->size),
+      readOnly(false) {
     if (!UseConstantArrays) {
         // FIXME: Leaked.
         static unsigned id = 0;
         auto array = Array::create("tmp_arr" + llvm::utostr(++id), size);
-        updates = UpdateList(array, 0);
+        updates = UpdateList::create(array, 0);
     }
     ++count;
     ssize += mo->size;
@@ -125,7 +126,8 @@ ObjectState::ObjectState(const MemoryObject *mo)
 
 ObjectState::ObjectState(const MemoryObject *mo, const ArrayPtr &array)
     : concreteMask(0), copyOnWriteOwner(0), refCount(0), object(mo), concreteStore(new ConcreteBuffer(mo->size)),
-      storeOffset(0), flushMask(0), knownSymbolics(0), updates(array, 0), size(mo->size), readOnly(false) {
+      storeOffset(0), flushMask(0), knownSymbolics(0), updates(UpdateList::create(array, 0)), size(mo->size),
+      readOnly(false) {
     makeSymbolic();
     ++count;
     ssize += mo->size;
@@ -169,7 +171,7 @@ ObjectState *ObjectState::split(MemoryObject *newObject, unsigned offset) const 
     assert(newObject->size <= this->object->size);
     assert(offset + newObject->size <= this->object->size);
     assert(flushMask == NULL);
-    assert(updates.getSize() == 0);
+    assert(updates->getSize() == 0);
     assert(readOnly == false);
 
     ObjectState *ret = new ObjectState();
@@ -228,17 +230,17 @@ ObjectState *ObjectState::getCopy(BitArray *_concreteMask, ConcreteBuffer *_conc
 
 /***/
 
-const UpdateList &ObjectState::getUpdates() const {
+const UpdateListPtr &ObjectState::getUpdates() const {
     // Constant arrays are created lazily.
-    if (!updates.getRoot()) {
+    if (!updates->getRoot()) {
         // Collect the list of writes, with the oldest writes first.
 
         // FIXME: We should be able to do this more efficiently, we just need to be
         // careful to get the interaction with the cache right. In particular we
         // should avoid creating UpdateNode instances we never use.
-        unsigned NumWrites = updates.getHead() ? updates.getHead()->getSize() : 0;
+        unsigned NumWrites = updates->getHead() ? updates->getHead()->getSize() : 0;
         std::vector<std::pair<ref<Expr>, ref<Expr>>> Writes(NumWrites);
-        const UpdateNode *un = updates.getHead();
+        auto un = updates->getHead();
         for (unsigned i = NumWrites; i != 0; un = un->getNext()) {
             --i;
             Writes[i] = std::make_pair(un->getIndex(), un->getValue());
@@ -273,11 +275,11 @@ const UpdateList &ObjectState::getUpdates() const {
         static unsigned id = 0;
         auto array =
             Array::create("const_arr" + llvm::utostr(++id), size, &Contents[0], &Contents[0] + Contents.size());
-        updates = UpdateList(array, 0);
+        updates = UpdateList::create(array, 0);
 
         // Apply the remaining (non-constant) writes.
         for (; Begin != End; ++Begin)
-            updates.extend(Writes[Begin].first, Writes[Begin].second);
+            updates->extend(Writes[Begin].first, Writes[Begin].second);
     }
 
     return updates;
@@ -296,7 +298,7 @@ void ObjectState::makeConcrete() {
 }
 
 void ObjectState::makeSymbolic() {
-    assert(!updates.getHead() && "XXX makeSymbolic of objects with symbolic values is unsupported");
+    assert(!updates->getHead() && "XXX makeSymbolic of objects with symbolic values is unsupported");
 
     // XXX simplify this, can just delete various arrays I guess
     for (unsigned i = 0; i < size; i++) {
@@ -340,11 +342,11 @@ void ObjectState::flushRangeForRead(unsigned rangeBase, unsigned rangeSize) cons
     for (unsigned offset = rangeBase; offset < rangeBase + rangeSize; offset++) {
         if (!isByteFlushed(offset)) {
             if (isByteConcrete(offset)) {
-                updates.extend(ConstantExpr::create(offset, Expr::Int32),
-                               ConstantExpr::create(concreteStore->get()[offset + storeOffset], Expr::Int8));
+                updates->extend(ConstantExpr::create(offset, Expr::Int32),
+                                ConstantExpr::create(concreteStore->get()[offset + storeOffset], Expr::Int8));
             } else {
                 assert(isByteKnownSymbolic(offset) && "invalid bit set in flushMask");
-                updates.extend(ConstantExpr::create(offset, Expr::Int32), knownSymbolics[offset]);
+                updates->extend(ConstantExpr::create(offset, Expr::Int32), knownSymbolics[offset]);
             }
 
             flushMask->unset(offset);
@@ -359,12 +361,12 @@ void ObjectState::flushRangeForWrite(unsigned rangeBase, unsigned rangeSize) {
     for (unsigned offset = rangeBase; offset < rangeBase + rangeSize; offset++) {
         if (!isByteFlushed(offset)) {
             if (isByteConcrete(offset)) {
-                updates.extend(ConstantExpr::create(offset, Expr::Int32),
-                               ConstantExpr::create(concreteStore->get()[offset + storeOffset], Expr::Int8));
+                updates->extend(ConstantExpr::create(offset, Expr::Int32),
+                                ConstantExpr::create(concreteStore->get()[offset + storeOffset], Expr::Int8));
                 markByteSymbolic(offset);
             } else {
                 assert(isByteKnownSymbolic(offset) && "invalid bit set in flushMask");
-                updates.extend(ConstantExpr::create(offset, Expr::Int32), knownSymbolics[offset]);
+                updates->extend(ConstantExpr::create(offset, Expr::Int32), knownSymbolics[offset]);
                 setKnownSymbolic(offset, 0);
             }
 
@@ -493,7 +495,7 @@ void ObjectState::write8(ref<Expr> offset, ref<Expr> value) {
         klee_warning_once(0, "flushing %d bytes on read, may be slow and/or crash", size);
     }
 
-    updates.extend(ZExtExpr::create(offset, Expr::Int32), value);
+    updates->extend(ZExtExpr::create(offset, Expr::Int32), value);
 }
 
 /***/
@@ -637,7 +639,7 @@ void ObjectState::write64(unsigned offset, uint64_t value) {
 void ObjectState::print() {
     std::cerr << "-- ObjectState --\n";
     std::cerr << "\tMemoryObject ID: " << object->id << "\n";
-    std::cerr << "\tRoot Object: " << updates.getRoot() << "\n";
+    std::cerr << "\tRoot Object: " << updates->getRoot() << "\n";
     std::cerr << "\tSize: " << size << "\n";
 
     std::cerr << "\tBytes:\n";
@@ -650,7 +652,7 @@ void ObjectState::print() {
     }
 
     std::cerr << "\tUpdates:\n";
-    for (const UpdateNode *un = updates.getHead(); un; un = un->getNext()) {
+    for (auto un = updates->getHead(); un; un = un->getNext()) {
         std::cerr << "\t\t[" << un->getIndex() << "] = " << un->getValue() << "\n";
     }
 }

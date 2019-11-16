@@ -25,7 +25,7 @@ class ExprBuilder;
 namespace expr {
 // These are the language types we manipulate.
 typedef ref<Expr> ExprHandle;
-typedef UpdateList VersionHandle;
+typedef UpdateListPtr VersionHandle;
 
 /// Identifier - Wrapper for a uniqued string.
 struct Identifier {

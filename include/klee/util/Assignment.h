@@ -23,7 +23,7 @@ class Assignment {
 public:
     typedef std::map<ArrayPtr, std::vector<unsigned char>, ArrayLt> bindings_ty;
     typedef ExprHashMap<ref<Expr>> ExpressionCache;
-    typedef std::unordered_map<ArrayPtr, UpdateList, ArrayHash> UpdateListCache;
+    typedef std::unordered_map<ArrayPtr, UpdateListPtr, ArrayHash> UpdateListCache;
 
     bool allowFreeValues;
     bindings_ty bindings;
@@ -72,7 +72,7 @@ class CachedAssignmentEvaluator {
     ref<Expr> evaluateSelect(const ref<SelectExpr> &expr);
     ref<Expr> evaluateAnd(const ref<AndExpr> &expr);
     ref<Expr> evaluateUSDivRem(const ref<Expr> &expr);
-    UpdateList rewriteUpdatesUncached(const UpdateList &ul);
+    UpdateListPtr rewriteUpdatesUncached(const UpdateListPtr &ul);
 
 public:
     CachedAssignmentEvaluator(const Assignment &a) : m_assignment(a) {
@@ -104,7 +104,7 @@ inline ref<Expr> Assignment::evaluate(const ArrayPtr &array, unsigned index) con
         return ConstantExpr::alloc(it->second[index], Expr::Int8);
     } else {
         if (allowFreeValues) {
-            return ReadExpr::create(UpdateList(array, 0), ConstantExpr::alloc(index, Expr::Int32));
+            return ReadExpr::create(UpdateList::create(array, 0), ConstantExpr::alloc(index, Expr::Int32));
         } else {
             return ConstantExpr::alloc(0, Expr::Int8);
         }

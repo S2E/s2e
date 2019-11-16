@@ -45,7 +45,7 @@ z3::expr Z3ArrayBuilder::getInitialRead(const ArrayPtr &root, unsigned index) {
 }
 
 z3::expr Z3ArrayBuilder::makeReadExpr(ref<ReadExpr> re) {
-    return z3::select(getArrayForUpdate(re->getUpdates().getRoot(), re->getUpdates().getHead()),
+    return z3::select(getArrayForUpdate(re->getUpdates()->getRoot(), re->getUpdates()->getHead().get()),
                       getOrMakeExpr(re->getIndex()));
 }
 
@@ -60,8 +60,8 @@ z3::expr Z3ArrayBuilder::getArrayForUpdate(const ArrayPtr &root, const UpdateNod
     }
 
     // TODO: Make non-recursive
-    result =
-        z3::store(getArrayForUpdate(root, un->getNext()), getOrMakeExpr(un->getIndex()), getOrMakeExpr(un->getValue()));
+    result = z3::store(getArrayForUpdate(root, un->getNext().get()), getOrMakeExpr(un->getIndex()),
+                       getOrMakeExpr(un->getValue()));
     cache_->insertUpdate(un, result);
     return result;
 }

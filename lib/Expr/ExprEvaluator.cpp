@@ -11,8 +11,8 @@
 
 using namespace klee;
 
-ExprVisitor::Action ExprEvaluator::evalRead(const UpdateList &ul, unsigned index) {
-    for (const UpdateNode *un = ul.getHead(); un; un = un->getNext()) {
+ExprVisitor::Action ExprEvaluator::evalRead(const UpdateListPtr &ul, unsigned index) {
+    for (auto un = ul->getHead(); un; un = un->getNext()) {
         ref<Expr> ui = visit(un->getIndex());
 
         if (ConstantExpr *CE = dyn_cast<ConstantExpr>(ui)) {
@@ -23,15 +23,15 @@ ExprVisitor::Action ExprEvaluator::evalRead(const UpdateList &ul, unsigned index
             // cannot guarantee value. we can rewrite to read at this
             // version though (mostly for debugging).
 
-            return Action::changeTo(
-                ReadExpr::create(UpdateList(ul.getRoot(), un), ConstantExpr::alloc(index, ul.getRoot()->getDomain())));
+            return Action::changeTo(ReadExpr::create(UpdateList::create(ul->getRoot(), un),
+                                                     ConstantExpr::alloc(index, ul->getRoot()->getDomain())));
         }
     }
 
-    if (ul.getRoot()->isConstantArray() && index < ul.getRoot()->getSize())
-        return Action::changeTo(ul.getRoot()->getConstantValues()[index]);
+    if (ul->getRoot()->isConstantArray() && index < ul->getRoot()->getSize())
+        return Action::changeTo(ul->getRoot()->getConstantValues()[index]);
 
-    return Action::changeTo(getInitialValue(ul.getRoot(), index));
+    return Action::changeTo(getInitialValue(ul->getRoot(), index));
 }
 
 ExprVisitor::Action ExprEvaluator::visitExpr(const Expr &e) {

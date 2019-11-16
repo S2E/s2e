@@ -262,7 +262,7 @@ void ExprSMTLIBPrinter::printReadExpr(const ref<ReadExpr> &e) {
     printSeperator();
 
     // print array with updates recursively
-    printUpdatesAndArray(e->getUpdates().getHead(), e->getUpdates().getRoot().get());
+    printUpdatesAndArray(e->getUpdates()->getHead().get(), e->getUpdates()->getRoot().get());
 
     // print index
     printSeperator();
@@ -464,7 +464,7 @@ void ExprSMTLIBPrinter::printUpdatesAndArray(const UpdateNode *un, const Array *
         printSeperator();
 
         // recurse to get the array or update that this store operations applies to
-        printUpdatesAndArray(un->getNext(), root);
+        printUpdatesAndArray(un->getNext().get(), root);
 
         printSeperator();
 
@@ -675,15 +675,15 @@ void ExprSMTLIBPrinter::scan(const ref<Expr> &e) {
 
         if (const ReadExpr *re = dyn_cast<ReadExpr>(e)) {
 
-            if (usedArrays.insert(re->getUpdates().getRoot()).second) {
+            if (usedArrays.insert(re->getUpdates()->getRoot()).second) {
                 // Array was not recorded before
 
                 // check if the array is constant
-                if (re->getUpdates().getRoot()->isConstantArray())
+                if (re->getUpdates()->getRoot()->isConstantArray())
                     haveConstantArray = true;
 
                 // scan the update list
-                scanUpdates(re->getUpdates().getHead());
+                scanUpdates(re->getUpdates()->getHead().get());
             }
         }
 
@@ -792,7 +792,7 @@ void ExprSMTLIBPrinter::scanUpdates(const UpdateNode *un) {
     while (un != NULL) {
         scan(un->getIndex());
         scan(un->getValue());
-        un = un->getNext();
+        un = un->getNext().get();
     }
 }
 

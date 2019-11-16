@@ -16,7 +16,7 @@
 namespace klee {
 class ExprEvaluator : public ExprVisitor {
 protected:
-    Action evalRead(const UpdateList &ul, unsigned index);
+    Action evalRead(const UpdateListPtr &ul, unsigned index);
     Action visitRead(const ReadExpr &re);
     Action visitExpr(const Expr &e);
 

@@ -438,7 +438,7 @@ bool ValidatingSolver::computeInitialValues(const Query &query, const ArrayVec &
             for (unsigned j = 0; j < array->getSize(); j++) {
                 unsigned char value = values[i][j];
                 bindings.push_back(
-                    EqExpr::create(ReadExpr::create(UpdateList(array, 0), ConstantExpr::alloc(j, Expr::Int32)),
+                    EqExpr::create(ReadExpr::create(UpdateList::create(array, 0), ConstantExpr::alloc(j, Expr::Int32)),
                                    ConstantExpr::alloc(value, Expr::Int8)));
             }
         }

@@ -35,10 +35,14 @@ class Type;
 namespace klee {
 
 class Array;
+class UpdateNode;
+class UpdateList;
 class ConstantExpr;
 class ObjectState;
 
 typedef boost::intrusive_ptr<Array> ArrayPtr;
+typedef boost::intrusive_ptr<UpdateNode> UpdateNodePtr;
+typedef boost::intrusive_ptr<UpdateList> UpdateListPtr;
 
 template <class T> class ref;
 
@@ -798,27 +802,27 @@ public:
 
 /// Class representing a byte update of an array.
 class UpdateNode {
-    friend class UpdateList;
-
-    mutable unsigned refCount;
+    std::atomic<unsigned> m_refCount;
     // cache instead of recalc
     unsigned hashValue;
 
 private:
-    const UpdateNode *next;
+    UpdateNodePtr next;
     ref<Expr> index, value;
 
     /// size of this update sequence, including this update
     unsigned size;
 
 public:
-    UpdateNode(const UpdateNode *_next, const ref<Expr> &_index, const ref<Expr> &_value);
+    static UpdateNodePtr create(const UpdateNodePtr &_next, const ref<Expr> &_index, const ref<Expr> &_value) {
+        return UpdateNodePtr(new UpdateNode(_next, _index, _value));
+    }
 
     unsigned getSize() const {
         return size;
     }
 
-    int compare(const UpdateNode &b) const;
+    int compare(const UpdateNodePtr &b) const;
     unsigned hash() const {
         return hashValue;
     }
@@ -831,17 +835,32 @@ public:
         return value;
     }
 
-    const UpdateNode *getNext() const {
+    UpdateNodePtr getNext() const {
         return next;
     }
 
 private:
-    UpdateNode() : refCount(0) {
+    UpdateNode(const UpdateNodePtr &_next, const ref<Expr> &_index, const ref<Expr> &_value);
+
+    UpdateNode() : m_refCount(0) {
     }
     ~UpdateNode();
 
     unsigned computeHash();
+
+    friend void intrusive_ptr_add_ref(UpdateNode *ptr);
+    friend void intrusive_ptr_release(UpdateNode *ptr);
 };
+
+inline void intrusive_ptr_add_ref(UpdateNode *ptr) {
+    ++ptr->m_refCount;
+}
+
+inline void intrusive_ptr_release(UpdateNode *ptr) {
+    if (--ptr->m_refCount == 0) {
+        delete ptr;
+    }
+}
 
 // This is immutable
 class Array {
@@ -960,14 +979,16 @@ private:
     ArrayPtr root;
 
     /// pointer to the most recent update node
-    const UpdateNode *head;
+    UpdateNodePtr head;
+
+    std::atomic<unsigned> m_refCount;
+
+    UpdateList(ArrayPtr _root, UpdateNodePtr _head);
 
 public:
-    UpdateList(ArrayPtr _root, const UpdateNode *_head);
-    UpdateList(const UpdateList &b);
-    ~UpdateList();
-
-    UpdateList &operator=(const UpdateList &b);
+    static UpdateListPtr create(ArrayPtr _root, UpdateNodePtr _head) {
+        return UpdateListPtr(new UpdateList(_root, _head));
+    }
 
     /// size of this update list
     unsigned getSize() const {
@@ -976,17 +997,30 @@ public:
 
     void extend(const ref<Expr> &index, const ref<Expr> &value);
 
-    int compare(const UpdateList &b) const;
+    int compare(const UpdateListPtr &b) const;
     unsigned hash() const;
 
     const ArrayPtr &getRoot() const {
         return root;
     }
 
-    const UpdateNode *getHead() const {
+    const UpdateNodePtr &getHead() const {
         return head;
     }
+
+    friend void intrusive_ptr_add_ref(UpdateList *ptr);
+    friend void intrusive_ptr_release(UpdateList *ptr);
 };
+
+inline void intrusive_ptr_add_ref(UpdateList *ptr) {
+    ++ptr->m_refCount;
+}
+
+inline void intrusive_ptr_release(UpdateList *ptr) {
+    if (--ptr->m_refCount == 0) {
+        delete ptr;
+    }
+}
 
 /// Class representing a one byte read from an array.
 class ReadExpr : public NonConstantExpr {
@@ -1001,7 +1035,7 @@ private:
     typedef std::unordered_set<ReadExpr *, hash_ptr_t<ReadExpr>, equal_ptr_t<ReadExpr>> ExprCache;
     static ExprCache s_cache;
 
-    UpdateList updates;
+    UpdateListPtr updates;
     ref<Expr> index;
 
 public:
@@ -1009,12 +1043,12 @@ public:
         exprCacheClean<ReadExpr, ExprCache>(this, s_cache);
     }
 
-    static ref<Expr> alloc(const UpdateList &updates, const ref<Expr> &index) {
+    static ref<Expr> alloc(const UpdateListPtr &updates, const ref<Expr> &index) {
         ReadExpr temp(updates, index);
         return exprCachedAlloc<ReadExpr, ExprCache>(temp, s_cache);
     }
 
-    static ref<Expr> create(const UpdateList &updates, ref<Expr> i);
+    static ref<Expr> create(const UpdateListPtr &updates, ref<Expr> i);
 
     Width getWidth() const {
         return Expr::Int8;
@@ -1036,7 +1070,7 @@ public:
         return index;
     }
 
-    const UpdateList &getUpdates() const {
+    const UpdateListPtr &getUpdates() const {
         return updates;
     }
 
@@ -1047,7 +1081,7 @@ public:
     virtual unsigned computeHash();
 
 private:
-    ReadExpr(const UpdateList &_updates, const ref<Expr> &_index) : updates(_updates), index(_index) {
+    ReadExpr(const UpdateListPtr &_updates, const ref<Expr> &_index) : updates(_updates), index(_index) {
     }
 
 public:

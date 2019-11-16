@@ -379,10 +379,10 @@ public:
     CexRangeEvaluator(std::map<ArrayPtr, CexObjectData *, ArrayLt> &_objects) : objects(_objects) {
     }
 
-    ValueRange getInitialReadRange(const Array &array, ValueRange index) {
+    ValueRange getInitialReadRange(const ArrayPtr &array, ValueRange index) {
         // Check for a concrete read of a constant array.
-        if (array.isConstantArray() && index.isFixed() && index.min() < array.getSize())
-            return ValueRange(array.getConstantValues()[index.min()]->getZExtValue(8));
+        if (array->isConstantArray() && index.isFixed() && index.min() < array->getSize())
+            return ValueRange(array->getConstantValues()[index.min()]->getZExtValue(8));
 
         return ValueRange(0, 255);
     }
@@ -394,7 +394,7 @@ protected:
         // If the index is out of range, we cannot assign it a value, since that
         // value cannot be part of the assignment.
         if (index >= array->getSize())
-            return ReadExpr::create(UpdateList(array, 0), ConstantExpr::alloc(index, Expr::Int32));
+            return ReadExpr::create(UpdateList::create(array, 0), ConstantExpr::alloc(index, Expr::Int32));
 
         auto it = objects.find(array);
         return ConstantExpr::alloc((it == objects.end() ? 127 : it->second->getPossibleValue(index)), Expr::Int8);
@@ -412,15 +412,15 @@ protected:
         // If the index is out of range, we cannot assign it a value, since that
         // value cannot be part of the assignment.
         if (index >= array->getSize())
-            return ReadExpr::create(UpdateList(array, 0), ConstantExpr::alloc(index, Expr::Int32));
+            return ReadExpr::create(UpdateList::create(array, 0), ConstantExpr::alloc(index, Expr::Int32));
 
         auto it = objects.find(array);
         if (it == objects.end())
-            return ReadExpr::create(UpdateList(array, 0), ConstantExpr::alloc(index, Expr::Int32));
+            return ReadExpr::create(UpdateList::create(array, 0), ConstantExpr::alloc(index, Expr::Int32));
 
         CexValueData cvd = it->second->getExactValues(index);
         if (!cvd.isFixed())
-            return ReadExpr::create(UpdateList(array, 0), ConstantExpr::alloc(index, Expr::Int32));
+            return ReadExpr::create(UpdateList::create(array, 0), ConstantExpr::alloc(index, Expr::Int32));
 
         return ConstantExpr::alloc(cvd.min(), Expr::Int8);
     }
@@ -482,7 +482,7 @@ public:
 
             case Expr::Read: {
                 ReadExpr *re = cast<ReadExpr>(e);
-                auto &array = re->getUpdates().getRoot();
+                auto &array = re->getUpdates()->getRoot();
                 CexObjectData &cod = getObjectData(array);
 
                 // FIXME: This is imprecise, we need to look through the existing writes
@@ -816,11 +816,11 @@ public:
 
             case Expr::Read: {
                 ReadExpr *re = cast<ReadExpr>(e);
-                auto &array = re->getUpdates().getRoot();
+                auto &array = re->getUpdates()->getRoot();
                 CexObjectData &cod = getObjectData(array);
                 CexValueData index = evalRangeForExpr(re->getIndex());
 
-                for (const UpdateNode *un = re->getUpdates().getHead(); un; un = un->getNext()) {
+                for (auto un = re->getUpdates()->getHead(); un; un = un->getNext()) {
                     CexValueData ui = evalRangeForExpr(un->getIndex());
 
                     // If these indices can't alias, continue propogation
@@ -1124,7 +1124,7 @@ bool FastCexSolver::computeInitialValues(const Query &query, const ArrayVec &obj
         data.reserve(array->getSize());
 
         for (unsigned i = 0; i < array->getSize(); i++) {
-            ref<Expr> read = ReadExpr::create(UpdateList(array, 0), ConstantExpr::create(i, Expr::Int32));
+            ref<Expr> read = ReadExpr::create(UpdateList::create(array, 0), ConstantExpr::create(i, Expr::Int32));
             ref<Expr> value = cd.evaluatePossible(read);
 
             if (ConstantExpr *CE = dyn_cast<ConstantExpr>(value)) {

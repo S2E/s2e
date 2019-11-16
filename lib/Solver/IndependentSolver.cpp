@@ -91,10 +91,10 @@ public:
         findReads(e, /* visitUpdates= */ true, reads);
         for (unsigned i = 0; i != reads.size(); ++i) {
             ReadExpr *re = reads[i].get();
-            auto &array = re->getUpdates().getRoot();
+            auto &array = re->getUpdates()->getRoot();
 
             // Reads of a constant array don't alias.
-            if (re->getUpdates().getRoot()->isConstantArray() && !re->getUpdates().getHead())
+            if (re->getUpdates()->getRoot()->isConstantArray() && !re->getUpdates()->getHead())
                 continue;
 
             if (!wholeObjects.count(array)) {

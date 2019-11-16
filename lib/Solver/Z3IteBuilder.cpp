@@ -50,7 +50,8 @@ z3::expr Z3IteBuilder::getInitialRead(const ArrayPtr &root, unsigned index) {
 }
 
 z3::expr Z3IteBuilder::makeReadExpr(ref<ReadExpr> re) {
-    return getReadForArray(getOrMakeExpr(re->getIndex()), re->getUpdates().getRoot(), re->getUpdates().getHead());
+    return getReadForArray(getOrMakeExpr(re->getIndex()), re->getUpdates()->getRoot(),
+                           re->getUpdates()->getHead().get());
 }
 
 z3::expr Z3IteBuilder::getReadForArray(z3::expr index, const ArrayPtr &root, const UpdateNode *un) {
@@ -65,7 +66,7 @@ z3::expr Z3IteBuilder::getReadForArray(z3::expr index, const ArrayPtr &root, con
     } else {
         result = z3::to_expr(context_,
                              Z3_mk_ite(context_, index == getOrMakeExpr(un->getIndex()), getOrMakeExpr(un->getValue()),
-                                       getReadForArray(index, root, un->getNext())));
+                                       getReadForArray(index, root, un->getNext().get())));
     }
     cache_->insertRead(rup, result);
     return result;
