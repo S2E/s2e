@@ -238,7 +238,14 @@ static void handlerTraceMmioAccess(Executor *executor, ExecutionState *state, kl
                                    std::vector<klee::ref<klee::Expr>> &args) {
     assert(args.size() == 4);
 
-    uint64_t physAddress = state->toConstant(args[0], "MMIO address")->getZExtValue();
+    auto symbolicPhysAddress = args[0];
+    if (!g_symbolicMemoryHook.hasHook()) {
+        // Avoid forced concretizations if symbolic hardware is not enabled
+        state->bindLocal(target, symbolicPhysAddress);
+        return;
+    }
+
+    uint64_t physAddress = state->toConstant(symbolicPhysAddress, "MMIO address")->getZExtValue();
     klee::ref<Expr> value = args[1];
     unsigned size = cast<klee::ConstantExpr>(args[2])->getZExtValue();
 
