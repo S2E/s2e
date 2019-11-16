@@ -361,3 +361,31 @@ ref<Expr> BitfieldSimplifier::simplify(const ref<Expr> &e, uint64_t *knownZeroBi
 
     return ret.first;
 }
+
+bool BitfieldSimplifier::getBaseOffset(const ref<Expr> &e, uint64_t &base, ref<Expr> &offset, unsigned &offsetSize) {
+    auto add = dyn_cast<AddExpr>(e);
+    if (!add) {
+        return false;
+    }
+
+    auto baseExpr = dyn_cast<ConstantExpr>(add->getLeft());
+    if (!baseExpr) {
+        return false;
+    }
+
+    auto offsetExpr = add->getRight();
+    uint64_t knownZeroBits;
+    simplify(offsetExpr, &knownZeroBits);
+
+    // Only handle 8-bits sized objects for now.
+    // TODO: make it work for arbitrary consecutive numbers of 1s.
+    if ((knownZeroBits & ~(uint64_t) 0xff) == ~(uint64_t) 0xff) {
+        offsetSize = 1 << 8;
+    } else {
+        return false;
+    }
+
+    base = baseExpr->getZExtValue();
+    offset = offsetExpr;
+    return true;
+}
