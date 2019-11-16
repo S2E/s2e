@@ -105,11 +105,9 @@ void S2EExecutionStateTlb::updateTlb(const klee::MemoryObject *mo, const klee::O
             entry->objectState = newState;
 
             if (!mo->isSharedConcrete) {
-                if (!g_klee_address_space_preserve_concrete_buffer_address) {
-                    // The addend does not change.
-                    entry->se_addend = entry->se_addend - (uintptr_t) oldState->getConcreteStore(true) +
-                                       (uintptr_t) newState->getConcreteStore(true);
-                }
+                // The addend does not change.
+                entry->se_addend = entry->se_addend - (uintptr_t) oldState->getConcreteStore(true) +
+                                   (uintptr_t) newState->getConcreteStore(true);
 
                 if (m_asCache->isOwnedByUs(newState)) {
                     entry->addr_write &= ~TLB_NOT_OURS;

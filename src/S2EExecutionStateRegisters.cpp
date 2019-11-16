@@ -70,10 +70,10 @@ void S2EExecutionStateRegisters::copySymbRegs(bool toNative) {
 
     if (toNative) {
         assert(!*m_runningConcrete);
-        memcpy((void *) s_symbolicRegs->address, m_symbolicRegs->getConcreteStore(true), m_symbolicRegs->size);
+        memcpy((void *) s_symbolicRegs->address, m_symbolicRegs->getConcreteStore(true), m_symbolicRegs->getSize());
     } else {
         assert(*m_runningConcrete);
-        memcpy(m_symbolicRegs->getConcreteStore(true), (void *) s_symbolicRegs->address, m_symbolicRegs->size);
+        memcpy(m_symbolicRegs->getConcreteStore(true), (void *) s_symbolicRegs->address, m_symbolicRegs->getSize());
     }
 }
 

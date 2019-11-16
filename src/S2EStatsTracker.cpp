@@ -247,8 +247,6 @@ void S2EStatsTracker::writeStatsHeader() {
         "Bugs",
         "NumQueries",
         "NumQueryConstructs",
-        "NumObjects",
-        "ObjectsSize",
         "TranslationBlocks",
         "TranslationBlocksConcrete",
         "TranslationBlocksKlee",
@@ -307,8 +305,6 @@ void S2EStatsTracker::writeStatsLine() {
              << "," << stats::bugs
              << "," << stats::queries
              << "," << stats::queryConstructs
-             << "," << ObjectState::count
-             << "," << ObjectState::ssize
              << "," << stats::translationBlocks
              << "," << stats::translationBlocksConcrete
              << "," << stats::translationBlocksKlee
