@@ -63,7 +63,7 @@ bool MemUtils::read(S2EExecutionState *state, std::vector<ref<Expr>> &output, ui
     return true;
 }
 
-void MemUtils::findSequencesOfSymbolicData(const BitArray *concreteMask, uint64_t baseAddr, AddrSize *prevItem,
+void MemUtils::findSequencesOfSymbolicData(const BitArrayPtr &concreteMask, uint64_t baseAddr, AddrSize *prevItem,
                                            std::vector<AddrSize> &sequences) {
     unsigned maskSize = concreteMask->getBitCount();
 
@@ -110,7 +110,7 @@ void MemUtils::findSequencesOfSymbolicData(S2EExecutionState *state, const std::
             continue;
         }
 
-        const BitArray *concreteMask = op.second->getConcreteMask();
+        auto concreteMask = op.second->getConcreteMask();
         if (!concreteMask) { // all bytes are concrete
             continue;
         }
