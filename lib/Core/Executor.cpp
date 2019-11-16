@@ -1862,9 +1862,7 @@ ref<Expr> Executor::executeMemoryOperationOverlapped(ExecutionState &state, bool
 
     for (unsigned i = 0; i < bytes; ++i) {
         bool fastInBounds = false;
-        ref<ConstantExpr> eaddress = ConstantExpr::create(concreteAddress, Expr::Int64);
-        bool success =
-            state.addressSpace.resolveOneFast(ExecutionState::getSimplifier(), eaddress, Expr::Int8, op, &fastInBounds);
+        bool success = state.addressSpace.findObject(concreteAddress, 1, op, fastInBounds);
         assert(success && fastInBounds && "Could not resolve concrete memory address");
 
         uint64_t offset = op.first->getOffset(concreteAddress);
@@ -1874,9 +1872,9 @@ ref<Expr> Executor::executeMemoryOperationOverlapped(ExecutionState &state, bool
             unsigned idx = littleEndian ? i : (bytes - i - 1);
             ref<Expr> Byte = ExtractExpr::create(value, 8 * idx, Expr::Int8);
 
-            executeMemoryOperation(state, op, true, eoffset, Byte, Expr::Int8, 1);
+            executeMemoryOperation(state, op, true, eoffset, Byte, Expr::Int8);
         } else {
-            ref<Expr> Byte = executeMemoryOperation(state, op, false, eoffset, NULL, Expr::Int8, 1);
+            ref<Expr> Byte = executeMemoryOperation(state, op, false, eoffset, NULL, Expr::Int8);
             if (i == 0) {
                 readResult = Byte;
             } else {
@@ -1895,7 +1893,7 @@ ref<Expr> Executor::executeMemoryOperationOverlapped(ExecutionState &state, bool
 }
 
 ref<Expr> Executor::executeMemoryOperation(ExecutionState &state, const ObjectPair &op, bool isWrite, ref<Expr> offset,
-                                           ref<Expr> value /* undef if read */, Expr::Width type, unsigned bytes) {
+                                           ref<Expr> value /* undef if read */, Expr::Width type) {
     const MemoryObject *mo = op.first;
     const ObjectState *os = op.second;
 
@@ -1958,20 +1956,40 @@ void Executor::executeMemoryOperation(ExecutionState &state, bool isWrite, ref<E
 
     // fast path: single in-bounds resolution
     ObjectPair op;
-    bool success;
+    bool success = false;
     bool fastInBounds = false;
 
     /////////////////////////////////////////////////////////////
     // Fast pattern-matching of addresses
     // Avoids calling the constraint solver for simple cases
-    success = state.addressSpace.resolveOneFast(ExecutionState::getSimplifier(), address, type, op, &fastInBounds);
+    if (isa<ConstantExpr>(address)) {
+        auto ce = dyn_cast<ConstantExpr>(address)->getZExtValue();
+        success = state.addressSpace.findObject(ce, bytes, op, fastInBounds);
+        if (!success) {
+            // Trying to access a concrete address that is not mapped in KLEE
+            abort();
+        }
+    } else {
+        uint64_t base;
+        ref<Expr> offset;
+        unsigned offsetSize;
+        if (state.getSimplifier().getBaseOffset(address, base, offset, offsetSize)) {
+            bool tmp;
+            if (state.addressSpace.findObject(base, 1, op, tmp)) {
+                if (offsetSize <= op.first->size) {
+                    fastInBounds = true;
+                    success = true;
+                }
+            }
+        }
+    }
 
     if (success) {
         ref<Expr> result;
         if (fastInBounds) {
             // Either a concrete address or some special types of symbolic addresses
             ref<Expr> offset = op.first->getOffsetExpr(address);
-            result = executeMemoryOperation(state, op, isWrite, offset, value, type, bytes);
+            result = executeMemoryOperation(state, op, isWrite, offset, value, type);
         } else {
             // Can only be a concrete address that spans multiple pages.
             // This can happen only if the page was split before.
@@ -1987,9 +2005,6 @@ void Executor::executeMemoryOperation(ExecutionState &state, bool isWrite, ref<E
 
     /////////////////////////////////////////////////////////////
     // At this point, we can only have a symbolic address
-    if (isa<ConstantExpr>(address)) {
-        assert(false && "Trying to access a concrete address that is not mapped in KLEE");
-    }
 
     // Pick a concrete address
     klee::ref<klee::ConstantExpr> concreteAddress;
@@ -2000,8 +2015,7 @@ void Executor::executeMemoryOperation(ExecutionState &state, bool isWrite, ref<E
     /////////////////////////////////////////////////////////////
     // Use the concrete address to determine which page
     // we handle in the current state.
-    success =
-        state.addressSpace.resolveOneFast(ExecutionState::getSimplifier(), concreteAddress, type, op, &fastInBounds);
+    success = state.addressSpace.findObject(concreteAddress->getZExtValue(), type, op, fastInBounds);
     assert(success);
 
     // Does it really matter if it's not a memory page?
@@ -2014,8 +2028,7 @@ void Executor::executeMemoryOperation(ExecutionState &state, bool isWrite, ref<E
         assert(success && "Could not split memory object");
 
         // Resolve again, we'll get the subpage this time
-        success = state.addressSpace.resolveOneFast(ExecutionState::getSimplifier(), concreteAddress, type, op,
-                                                    &fastInBounds);
+        success = state.addressSpace.findObject(concreteAddress->getZExtValue(), type, op, fastInBounds);
         assert(success && "Could not resolve concrete memory address");
     }
 
@@ -2071,7 +2084,7 @@ void Executor::executeMemoryOperation(ExecutionState &state, bool isWrite, ref<E
     // The current concrete address does not overlap.
     if (fastInBounds) {
         ref<Expr> offset = op.first->getOffsetExpr(address);
-        ref<Expr> result = executeMemoryOperation(state, op, isWrite, offset, value, type, bytes);
+        ref<Expr> result = executeMemoryOperation(state, op, isWrite, offset, value, type);
 
         if (!isWrite) {
             state.bindLocal(target, result);

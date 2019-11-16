@@ -60,6 +60,10 @@ public:
 
     ref<Expr> simplify(const ref<Expr> &e, uint64_t *knownZeroBits = NULL);
 
+    // If e = base + offset, where base is concrete and offset is
+    // symbolic of size 1 byte, return true.
+    bool getBaseOffset(const ref<Expr> &e, uint64_t &base, ref<Expr> &offset, unsigned &offsetSize);
+
     BitfieldSimplifier() {
         m_cacheHits = 0;
         m_cacheMisses = 0;

@@ -178,7 +178,7 @@ protected:
     // This is the actual read/write function, called after the target
     // object was determined.
     ref<Expr> executeMemoryOperation(ExecutionState &state, const ObjectPair &op, bool isWrite, ref<Expr> offset,
-                                     ref<Expr> value /* undef if read */, Expr::Width type, unsigned bytes);
+                                     ref<Expr> value /* undef if read */, Expr::Width type);
 
     // do address resolution / object binding / out of bounds checking
     // and perform the operation
