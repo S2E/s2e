@@ -41,12 +41,13 @@ void handleForkAndConcretize(Executor *executor, ExecutionState *state, klee::KI
     klee::ref<klee::Expr> address = args[0];
     klee::ref<klee::Expr> isTargetPc = args[3];
 
-    klee::ref<klee::ConstantExpr> concreteAddress = s2eState->toConstantSilent(address);
-
-    if (isa<klee::ConstantExpr>(address)) {
+    // If address is already concrete, nothing to fork
+    if (dyn_cast<klee::ConstantExpr>(address)) {
         state->bindLocal(target, address);
         return;
     }
+
+    auto concreteAddress = state->toConstantSilent(address);
 
     bool doConcretize = false;
 
