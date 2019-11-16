@@ -6,3 +6,6 @@ test:
         - windows32-basic2-maze.exe
         - linux32-basic2-maze
         - linux64-basic2-maze
+
+    build-options:
+        post-project-generation-script: fix-config.sh
