@@ -332,15 +332,14 @@ void Executor::initializeGlobals(ExecutionState &state) {
                 }
             }
 
-            if (!mo)
+            if (!mo) {
                 mo = memory->allocate(size, false, true);
+            }
+
             assert(mo && "out of memory");
-            ObjectState *os = state.bindObject(mo, false);
+            state.bindObject(mo, false);
             globalObjects.insert(std::make_pair(&*i, mo));
             globalAddresses.insert(std::make_pair(&*i, mo->getBaseExpr()));
-
-            if (!i->hasInitializer())
-                os->initializeToRandom();
         }
     }
 
@@ -1828,15 +1827,10 @@ void Executor::executeAlloc(ExecutionState &state, ref<Expr> size, bool isLocal,
             state.bindLocal(target, ConstantExpr::alloc(0, Context::get().getPointerWidth()));
         } else {
             ObjectState *os = state.bindObject(mo, isLocal);
-            if (zeroMemory) {
-                os->initializeToZero();
-            } else {
-                os->initializeToRandom();
-            }
             state.bindLocal(target, mo->getBaseExpr());
 
             if (reallocFrom) {
-                unsigned count = std::min(reallocFrom->size, os->size);
+                unsigned count = std::min(reallocFrom->getSize(), os->getSize());
                 for (unsigned i = 0; i < count; i++)
                     os->write(i, reallocFrom->read8(i));
                 state.addressSpace.unbindObject(reallocFrom->getObject());
@@ -1906,7 +1900,7 @@ ref<Expr> Executor::executeMemoryOperation(ExecutionState &state, const ObjectPa
     const ObjectState *os = op.second;
 
     if (isWrite) {
-        if (os->readOnly) {
+        if (os->isReadOnly()) {
             terminateState(state, "memory error: object read only");
         } else {
             ObjectState *wos = state.addressSpace.getWriteable(mo, os);

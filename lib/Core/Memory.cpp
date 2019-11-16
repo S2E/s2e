@@ -31,10 +31,6 @@
 using namespace llvm;
 using namespace klee;
 
-namespace {
-cl::opt<bool> UseConstantArrays("use-constant-arrays", cl::init(true));
-}
-
 InitialStateAllocator *InitialStateAllocator::s_allocator = NULL;
 
 bool InitialStateAllocator::initialize(uint64_t pageCount) {
@@ -102,66 +98,49 @@ void MemoryObject::split(std::vector<MemoryObject *> &objects, const std::vector
 
 /***/
 
-uint64_t ObjectState::count = 0;
-uint64_t ObjectState::ssize = 0;
-
 ObjectState::ObjectState()
-    : concreteMask(0), copyOnWriteOwner(0), refCount(0), object(NULL), concreteStore(NULL), storeOffset(0),
-      flushMask(0), knownSymbolics(0), updates(UpdateList::create(nullptr, 0)), size(0), readOnly(false) {
+    : copyOnWriteOwner(0), refCount(0), object(nullptr), size(0), readOnly(false), storeOffset(0),
+      updates(UpdateList::create(nullptr, 0)) {
 }
 
 ObjectState::ObjectState(const MemoryObject *mo)
-    : concreteMask(0), copyOnWriteOwner(0), refCount(0), object(mo), concreteStore(new ConcreteBuffer(mo->size)),
-      storeOffset(0), flushMask(0), knownSymbolics(0), updates(UpdateList::create(nullptr, 0)), size(mo->size),
-      readOnly(false) {
-    if (!UseConstantArrays) {
-        // FIXME: Leaked.
-        static unsigned id = 0;
-        auto array = Array::create("tmp_arr" + llvm::utostr(++id), size);
-        updates = UpdateList::create(array, 0);
-    }
-    ++count;
-    ssize += mo->size;
+    : copyOnWriteOwner(0), refCount(0), object(nullptr), size(0), readOnly(false), storeOffset(0),
+      updates(UpdateList::create(nullptr, 0)) {
+
+    this->object = mo;
+    this->size = mo->size;
+    this->concreteStore = ConcreteBuffer::create(mo->size);
 }
 
 ObjectState::ObjectState(const MemoryObject *mo, const ArrayPtr &array)
-    : concreteMask(0), copyOnWriteOwner(0), refCount(0), object(mo), concreteStore(new ConcreteBuffer(mo->size)),
-      storeOffset(0), flushMask(0), knownSymbolics(0), updates(UpdateList::create(array, 0)), size(mo->size),
-      readOnly(false) {
-    makeSymbolic();
-    ++count;
-    ssize += mo->size;
+    : copyOnWriteOwner(0), refCount(0), object(nullptr), size(0), readOnly(false), storeOffset(0),
+      updates(UpdateList::create(array, 0)) {
+
+    this->object = mo;
+    this->size = mo->size;
+    this->concreteStore = ConcreteBuffer::create(mo->size);
 }
 
 ObjectState::ObjectState(const ObjectState &os)
-    : concreteMask(os.concreteMask ? new BitArray(*os.concreteMask, os.size) : 0), copyOnWriteOwner(0), refCount(0),
-      object(os.object), concreteStore(new ConcreteBuffer(os.size)), storeOffset(0),
-      flushMask(os.flushMask ? new BitArray(*os.flushMask, os.size) : 0), knownSymbolics(0), updates(os.updates),
-      size(os.size), readOnly(false) {
+    : copyOnWriteOwner(0), refCount(0), object(nullptr), size(0), readOnly(false), storeOffset(0),
+      updates(UpdateList::create(nullptr, 0)) {
     assert(!os.readOnly && "no need to copy read only object?");
-
     assert(!os.concreteMask || (os.size == os.concreteMask->getBitCount()));
 
-    if (os.knownSymbolics) {
-        knownSymbolics = new ref<Expr>[ size ];
-        for (unsigned i = 0; i < size; i++)
-            knownSymbolics[i] = os.knownSymbolics[i];
-    }
-    ++count;
-    ssize += os.size;
-    memcpy(concreteStore->get(), os.concreteStore->get(), size * sizeof(*concreteStore->get()));
+    this->concreteMask = os.concreteMask ? BitArray::create(os.concreteMask) : nullptr;
+    this->copyOnWriteOwner = os.copyOnWriteOwner;
+    this->refCount = 0;
+    this->object = os.object;
+    this->size = os.size;
+    this->readOnly = os.readOnly;
+    this->concreteStore = ConcreteBuffer::create(os.concreteStore);
+    this->storeOffset = os.storeOffset;
+    this->flushMask = os.flushMask ? BitArray::create(os.flushMask) : nullptr;
+    this->knownSymbolics = os.knownSymbolics;
+    this->updates = UpdateList::create(os.updates->getRoot(), os.updates->getHead());
 }
 
 ObjectState::~ObjectState() {
-    if (concreteMask)
-        concreteMask->decref();
-    if (flushMask)
-        flushMask->decref();
-    if (knownSymbolics)
-        delete[] knownSymbolics;
-    concreteStore->decref();
-    --count;
-    ssize -= size;
 }
 
 /***/
@@ -176,21 +155,21 @@ ObjectState *ObjectState::split(MemoryObject *newObject, unsigned offset) const 
 
     ObjectState *ret = new ObjectState();
     ret->object = newObject;
-
     ret->concreteMask = concreteMask;
-    ret->concreteMask->incref();
     ret->concreteStore = concreteStore;
-    ret->concreteStore->incref();
     ret->storeOffset = offset;
 
     ret->size = newObject->size;
     ret->readOnly = readOnly;
-    ret->updates = updates;
 
-    if (knownSymbolics) {
-        ret->knownSymbolics = new ref<Expr>[ newObject->size ];
-        for (unsigned i = 0; i < newObject->size; i++)
+    // XXX: is this really correct? Don't we need to take a subset?
+    ret->updates = UpdateList::create(updates->getRoot(), updates->getHead());
+
+    if (knownSymbolics.size() > 0) {
+        ret->knownSymbolics.resize(newObject->size);
+        for (unsigned i = 0; i < newObject->size; i++) {
             ret->knownSymbolics[i] = knownSymbolics[i + offset];
+        }
     }
 
     return ret;
@@ -198,32 +177,26 @@ ObjectState *ObjectState::split(MemoryObject *newObject, unsigned offset) const 
 
 void ObjectState::initializeConcreteMask() {
     if (!concreteMask) {
-        concreteMask = new BitArray(size, true);
+        concreteMask = BitArray::create(size, true);
     }
 }
 
-ObjectState *ObjectState::getCopy(BitArray *_concreteMask, ConcreteBuffer *_concreteStore) const {
+ObjectState *ObjectState::getCopy(const BitArrayPtr &_concreteMask, const ConcreteBufferPtr &_concreteStore) const {
     ObjectState *ret = new ObjectState();
     ret->object = object;
     ret->concreteMask = _concreteMask;
-    ret->concreteMask->incref();
     ret->concreteStore = _concreteStore;
-    ret->concreteStore->incref();
     ret->storeOffset = storeOffset;
     ret->size = size;
     ret->readOnly = readOnly;
 
-    ret->updates = updates;
+    ret->updates = UpdateList::create(updates->getRoot(), updates->getHead());
 
     if (flushMask) {
-        ret->flushMask = new BitArray(*flushMask, size);
+        ret->flushMask = BitArray::create(flushMask);
     }
 
-    if (knownSymbolics) {
-        ret->knownSymbolics = new ref<Expr>[ size ];
-        for (unsigned i = 0; i < size; i++)
-            ret->knownSymbolics[i] = knownSymbolics[i];
-    }
+    ret->knownSymbolics = knownSymbolics;
 
     return ret;
 }
@@ -285,43 +258,6 @@ const UpdateListPtr &ObjectState::getUpdates() const {
     return updates;
 }
 
-void ObjectState::makeConcrete() {
-    if (concreteMask)
-        concreteMask->decref();
-    if (flushMask)
-        flushMask->decref();
-    if (knownSymbolics)
-        delete[] knownSymbolics;
-    concreteMask = 0;
-    flushMask = 0;
-    knownSymbolics = 0;
-}
-
-void ObjectState::makeSymbolic() {
-    assert(!updates->getHead() && "XXX makeSymbolic of objects with symbolic values is unsupported");
-
-    // XXX simplify this, can just delete various arrays I guess
-    for (unsigned i = 0; i < size; i++) {
-        markByteSymbolic(i);
-        setKnownSymbolic(i, 0);
-        markByteFlushed(i);
-    }
-}
-
-void ObjectState::initializeToZero() {
-    makeConcrete();
-    memset(concreteStore->get() + storeOffset, 0, size);
-}
-
-void ObjectState::initializeToRandom() {
-    makeConcrete();
-    uint8_t *store = concreteStore->get() + storeOffset;
-    for (unsigned i = 0; i < size; i++) {
-        // randomly selected by 256 sided die
-        store[i] = 0xAB;
-    }
-}
-
 /*
 Cache Invariants
 --
@@ -336,8 +272,9 @@ void ObjectState::fastRangeCheckOffset(ref<Expr> offset, unsigned *base_r, unsig
 }
 
 void ObjectState::flushRangeForRead(unsigned rangeBase, unsigned rangeSize) const {
-    if (!flushMask)
-        flushMask = new BitArray(size, true);
+    if (!flushMask) {
+        flushMask = BitArray::create(size, true);
+    }
 
     for (unsigned offset = rangeBase; offset < rangeBase + rangeSize; offset++) {
         if (!isByteFlushed(offset)) {
@@ -355,8 +292,9 @@ void ObjectState::flushRangeForRead(unsigned rangeBase, unsigned rangeSize) cons
 }
 
 void ObjectState::flushRangeForWrite(unsigned rangeBase, unsigned rangeSize) {
-    if (!flushMask)
-        flushMask = new BitArray(size, true);
+    if (!flushMask) {
+        flushMask = BitArray::create(size, true);
+    }
 
     for (unsigned offset = rangeBase; offset < rangeBase + rangeSize; offset++) {
         if (!isByteFlushed(offset)) {
@@ -402,25 +340,26 @@ uint8_t *ObjectState::getConcreteStore(bool allowSymbolic) {
 }
 
 void ObjectState::markByteSymbolic(unsigned offset) {
-    if (!concreteMask)
-        concreteMask = new BitArray(size, true);
+    if (!concreteMask) {
+        concreteMask = BitArray::create(size, true);
+    }
     concreteMask->unset(storeOffset + offset);
 }
 
 void ObjectState::markByteFlushed(unsigned offset) {
     if (!flushMask) {
-        flushMask = new BitArray(size, false);
+        flushMask = BitArray::create(size, false);
     } else {
         flushMask->unset(offset);
     }
 }
 
-inline void ObjectState::setKnownSymbolic(unsigned offset, Expr *value /* can be null */) {
-    if (knownSymbolics) {
+inline void ObjectState::setKnownSymbolic(unsigned offset, const ref<Expr> &value) {
+    if (knownSymbolics.size() > 0) {
         knownSymbolics[offset] = value;
     } else {
-        if (value) {
-            knownSymbolics = new ref<Expr>[ size ];
+        if (!value.isNull()) {
+            knownSymbolics.resize(size);
             knownSymbolics[offset] = value;
         }
     }

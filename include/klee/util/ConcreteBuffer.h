@@ -37,8 +37,14 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include <atomic>
+#include <boost/intrusive_ptr.hpp>
+#include <string.h>
+
 namespace klee {
-class ObjectState;
+
+class ConcreteBuffer;
+typedef boost::intrusive_ptr<ConcreteBuffer> ConcreteBufferPtr;
 
 /**
  * Stores a reference-counted concrete buffer.
@@ -48,8 +54,8 @@ class ObjectState;
  */
 class ConcreteBuffer {
     uint8_t *m_buffer;
-    unsigned m_refcount;
     unsigned m_size;
+    std::atomic<unsigned> m_refCount;
 
     static const unsigned PAGE_SIZE = 0x1000;
 
@@ -86,34 +92,44 @@ class ConcreteBuffer {
         }
     }
 
-public:
-    ConcreteBuffer(size_t size) : m_buffer(allocateBuffer(size)), m_refcount(1), m_size(size) {
+    ConcreteBuffer(size_t size) : m_buffer(allocateBuffer(size)), m_size(size), m_refCount(0) {
         memset(m_buffer, 0, size);
     }
 
-    ConcreteBuffer(const ConcreteBuffer &b) : m_buffer(allocateBuffer(b.m_size)), m_refcount(1), m_size(b.m_size) {
-        memcpy(m_buffer, b.m_buffer, b.m_size);
+    ConcreteBuffer(const ConcreteBufferPtr &b) : m_buffer(allocateBuffer(b->m_size)), m_size(b->m_size), m_refCount(0) {
+        memcpy(m_buffer, b->m_buffer, b->m_size);
     }
 
-    inline void incref() {
-        ++m_refcount;
+public:
+    static ConcreteBufferPtr create(size_t size) {
+        return ConcreteBufferPtr(new ConcreteBuffer(size));
     }
 
-    inline void decref() {
-        --m_refcount;
-        if (m_refcount == 0) {
-            delete this;
-        }
+    static ConcreteBufferPtr create(const ConcreteBufferPtr &b) {
+        return ConcreteBufferPtr(new ConcreteBuffer(b));
     }
 
     inline uint8_t *get() const {
         return m_buffer;
     }
 
-    unsigned getSize() const {
+    unsigned size() const {
         return m_size;
     }
+
+    friend void intrusive_ptr_add_ref(ConcreteBuffer *ptr);
+    friend void intrusive_ptr_release(ConcreteBuffer *ptr);
 };
+
+inline void intrusive_ptr_add_ref(ConcreteBuffer *ptr) {
+    ++ptr->m_refCount;
+}
+
+inline void intrusive_ptr_release(ConcreteBuffer *ptr) {
+    if (--ptr->m_refCount == 0) {
+        delete ptr;
+    }
+}
 }
 
 #endif

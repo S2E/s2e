@@ -274,7 +274,7 @@ bool ExecutionState::merge(const ExecutionState &b) {
         const MemoryObject *mo = *it;
         const ObjectState *os = addressSpace.findObject(mo);
         const ObjectState *otherOS = b.addressSpace.findObject(mo);
-        assert(os && !os->readOnly && "objects mutated but not writable in merging state");
+        assert(os && !os->isReadOnly() && "objects mutated but not writable in merging state");
         assert(otherOS);
 
         ObjectState *wos = addressSpace.getWriteable(mo, os);

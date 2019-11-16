@@ -20,7 +20,6 @@
 #include "klee/Memory.h"
 
 namespace klee {
-extern bool g_klee_address_space_preserve_concrete_buffer_address;
 
 class ExecutionState;
 class MemoryObject;
@@ -60,17 +59,6 @@ protected:
     ObjectState *getWriteableInternal(const MemoryObject *mo, const ObjectState *os) {
         ObjectState *n = new ObjectState(*os);
         n->copyOnWriteOwner = cowKey;
-
-        if (g_klee_address_space_preserve_concrete_buffer_address) {
-            MemoryMap::iterator it = objects.find(mo);
-            assert(it != objects.end());
-
-            const ObjectHolder &h = (*it).second;
-            ObjectState *tmpState = h;
-            ConcreteBuffer *tmp = tmpState->getConcreteBufferAs();
-            (*h).replaceConcreteBuffer(n->getConcreteBufferAs());
-            n->replaceConcreteBuffer(tmp);
-        }
 
         // Clients must take into account the change
         // of location of the concrete buffer.

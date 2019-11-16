@@ -18,14 +18,6 @@
 
 using namespace klee;
 
-/**
- * Clients can set this to true if the want the address of the
- * the cloned object to be the same as the RO one.
- */
-namespace klee {
-bool g_klee_address_space_preserve_concrete_buffer_address = false;
-}
-
 ///
 
 template <typename LT>
@@ -59,9 +51,6 @@ ObjectState *AddressSpace::getWriteable(const MemoryObject *mo, const ObjectStat
         return getWriteableInternal(mo, os);
     }
 
-    assert(!g_klee_address_space_preserve_concrete_buffer_address &&
-           "Implement in place concrete buffer swap (see getWritableInternal)");
-
     // Split objects are just like other objects, we may
     // need to get a private copy of them later on.
     assert(bits > mo->size);
@@ -83,8 +72,9 @@ ObjectState *AddressSpace::getWriteable(const MemoryObject *mo, const ObjectStat
         bits -= mo->size;
     } while (bits > 0);
 
-    ConcreteBuffer *concreteBuffer = new ConcreteBuffer(*os->getConcreteBuffer());
-    BitArray *concreteMask = new BitArray(*os->getConcreteMask(), concreteBuffer->getSize());
+    auto concreteBuffer = ConcreteBuffer::create(os->getConcreteBuffer());
+    auto concreteMask = BitArray::create(os->getConcreteMask());
+    assert(concreteMask->getBitCount() == concreteBuffer->size());
 
     for (unsigned i = 0; i < readOnlyObjects.size(); ++i) {
         const ObjectState *ros = readOnlyObjects[i];
@@ -96,9 +86,6 @@ ObjectState *AddressSpace::getWriteable(const MemoryObject *mo, const ObjectStat
 
         updateWritable(ros->getObject(), ros, wos);
     }
-
-    concreteBuffer->decref();
-    concreteMask->decref();
 
     assert(ret);
     return ret;

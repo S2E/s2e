@@ -971,6 +971,7 @@ typedef std::vector<ArrayPtr> ArrayVec;
 typedef std::vector<ArrayPtr>::const_iterator ArrayIt;
 
 /// Class representing a complete list of updates into an array.
+// TODO: make this class immutable
 class UpdateList {
     friend class ReadExpr; // for default constructor
     static uint64_t count;

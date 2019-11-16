@@ -238,14 +238,10 @@ public:
 };
 
 class ObjectState {
-public:
-    static uint64_t count;
-    static uint64_t ssize;
-
 private:
     // XXX(s2e) for now we keep this first to access from C code
     // (yes, we do need to access if really fast)
-    BitArray *concreteMask;
+    BitArrayPtr concreteMask;
 
     friend class AddressSpace;
     template <typename U> friend class AddressSpaceBase;
@@ -256,8 +252,12 @@ private:
 
     const MemoryObject *object;
 
+    unsigned size;
+
+    bool readOnly;
+
     // XXX: made it public for fast access
-    ConcreteBuffer *concreteStore;
+    ConcreteBufferPtr concreteStore;
 
     // If the store is shared between object states,
     // indicate the offset of our region
@@ -265,23 +265,18 @@ private:
 
     // XXX cleanup name of flushMask (its backwards or something)
     // mutable because may need flushed during read of const
-    mutable BitArray *flushMask;
+    mutable BitArrayPtr flushMask;
 
-    ref<Expr> *knownSymbolics;
+    std::vector<ref<Expr>> knownSymbolics;
 
     // mutable because we may need flush during read of const
     mutable UpdateListPtr updates;
-
-public:
-    unsigned size;
-
-    bool readOnly;
 
 private:
     ObjectState();
 
     // For AddressSpace
-    ConcreteBuffer *getConcreteBufferAs() {
+    ConcreteBufferPtr getConcreteBufferAs() {
         return concreteStore;
     }
 
@@ -306,10 +301,13 @@ public:
         readOnly = ro;
     }
 
-    // make contents all concrete and zero
-    void initializeToZero();
-    // make contents all concrete and random
-    void initializeToRandom();
+    bool isReadOnly() const {
+        return readOnly;
+    }
+
+    unsigned getSize() const {
+        return size;
+    }
 
     ref<Expr> read(ref<Expr> offset, Expr::Width width) const;
     ref<Expr> read(unsigned offset, Expr::Width width) const;
@@ -340,13 +338,15 @@ public:
     bool isAllConcrete() const;
 
     inline bool isConcrete(unsigned offset, Expr::Width width) const {
-        if (!concreteMask)
+        if (!concreteMask) {
             return true;
+        }
 
         unsigned size = Expr::getMinBytesForWidth(width);
         for (unsigned i = 0; i < size; ++i) {
-            if (!isByteConcrete(offset + i))
+            if (!isByteConcrete(offset + i)) {
                 return false;
+            }
         }
         return true;
     }
@@ -354,11 +354,11 @@ public:
     const uint8_t *getConcreteStore(bool allowSymbolic = false) const;
     uint8_t *getConcreteStore(bool allowSymolic = false);
 
-    const ConcreteBuffer *getConcreteBuffer() const {
+    const ConcreteBufferPtr &getConcreteBuffer() const {
         return concreteStore;
     }
 
-    const BitArray *getConcreteMask() const {
+    const BitArrayPtr &getConcreteMask() const {
         return concreteMask;
     }
 
@@ -378,16 +378,8 @@ public:
 
     void initializeConcreteMask();
 
-    void replaceConcreteBuffer(ConcreteBuffer *buffer) {
-        concreteStore = buffer;
-    }
-
 private:
     const UpdateListPtr &getUpdates() const;
-
-    void makeConcrete();
-
-    void makeSymbolic();
 
     ref<Expr> read8(ref<Expr> offset) const;
     void write8(unsigned offset, ref<Expr> value);
@@ -406,12 +398,13 @@ private:
     }
 
     inline bool isByteKnownSymbolic(unsigned offset) const {
-        return knownSymbolics && knownSymbolics[offset].get();
+        return knownSymbolics.size() > 0 && knownSymbolics[offset].get();
     }
 
     inline void markByteConcrete(unsigned offset) {
-        if (concreteMask)
+        if (concreteMask) {
             concreteMask->set(storeOffset + offset);
+        }
     }
 
     void markByteSymbolic(unsigned offset);
@@ -419,15 +412,16 @@ private:
     void markByteFlushed(unsigned offset);
 
     void markByteUnflushed(unsigned offset) {
-        if (flushMask)
+        if (flushMask) {
             flushMask->set(offset);
+        }
     }
 
-    void setKnownSymbolic(unsigned offset, Expr *value);
+    void setKnownSymbolic(unsigned offset, const ref<Expr> &value);
 
     void print();
 
-    ObjectState *getCopy(BitArray *_concreteMask, ConcreteBuffer *_concreteStore) const;
+    ObjectState *getCopy(const BitArrayPtr &_concreteMask, const ConcreteBufferPtr &_concreteStore) const;
 
 public:
     void *operator new(size_t size) {
