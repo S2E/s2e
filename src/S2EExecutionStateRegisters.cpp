@@ -49,8 +49,6 @@ void S2EExecutionStateRegisters::update(klee::AddressSpace &addressSpace, const 
                                         klee::IConcretizer *concretizer) {
     const ObjectState *concreteState = addressSpace.findObject(s_concreteRegs);
     const ObjectState *symbolicState = addressSpace.findObject(s_symbolicRegs);
-    addressSpace.addCachedObject(s_concreteRegs, concreteState);
-    addressSpace.addCachedObject(s_symbolicRegs, symbolicState);
 
     m_symbolicRegs = addressSpace.getWriteable(s_symbolicRegs, symbolicState);
     m_concreteRegs = addressSpace.getWriteable(s_concreteRegs, concreteState);

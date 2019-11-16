@@ -391,8 +391,12 @@ void S2EExecutionState::kleeReadMemory(ref<Expr> kleeAddressExpr, uint64_t sizeI
     ref<klee::ConstantExpr> address = cast<klee::ConstantExpr>(kleeAddressExpr);
 
 #ifdef CONFIG_SYMBEX_MP
-    if (!addressSpace.resolveOne(address, op))
+    bool inBounds;
+    if (!addressSpace.findObject(address->getZExtValue(), sizeInBytes, op, inBounds)) {
         assert(0 && "kleeReadMemory: out of bounds / multiple resolution unhandled");
+    }
+
+    assert(inBounds);
 
     const MemoryObject *mo = op.first;
     const ObjectState *os = op.second;
@@ -457,8 +461,12 @@ void S2EExecutionState::kleeWriteMemory(ref<Expr> kleeAddressExpr, /* Address */
     kleeAddressExpr = toUnique(kleeAddressExpr);
     ref<klee::ConstantExpr> address = cast<klee::ConstantExpr>(kleeAddressExpr);
 #ifdef CONFIG_SYMBEX_MP
-    if (!addressSpace.resolveOne(address, op))
-        assert(0 && "kleeReadMemory: out of bounds / multiple resolution unhandled");
+    bool inBounds;
+    if (!addressSpace.findObject(address->getZExtValue(), bytes.size(), op, inBounds)) {
+        assert(0 && "kleeWriteMemory: out of bounds / multiple resolution unhandled");
+    }
+
+    assert(inBounds);
 
     const MemoryObject *mo = op.first;
     const ObjectState *os = op.second;
