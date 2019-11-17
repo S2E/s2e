@@ -84,9 +84,7 @@ public:
     bool forkDisabled;
 
     /// ordered list of symbolics: used to generate test cases.
-    //
-    // FIXME: Move to a shared list structure (not critical).
-    std::vector<std::pair<const MemoryObject *, ArrayPtr>> symbolics;
+    std::vector<ArrayPtr> symbolics;
 
     // Maps a KLEE variable name to the real variable name.
     // The KLEE name is stripped from any special characters to make
@@ -133,8 +131,8 @@ public:
     void pushFrame(KInstIterator caller, KFunction *kf);
     void popFrame();
 
-    void addSymbolic(const MemoryObject *mo, ArrayPtr array) {
-        symbolics.push_back(std::make_pair(mo, array));
+    void addSymbolic(ArrayPtr array) {
+        symbolics.push_back(array);
     }
 
     ///

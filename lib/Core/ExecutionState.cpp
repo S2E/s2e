@@ -325,8 +325,7 @@ void ExecutionState::printStack(KInstruction *target, std::stringstream &msg) co
 
 bool ExecutionState::getSymbolicSolution(std::vector<std::pair<std::string, std::vector<unsigned char>>> &res) {
     for (unsigned i = 0; i != symbolics.size(); ++i) {
-        const MemoryObject *mo = symbolics[i].first;
-        auto &arr = symbolics[i].second;
+        auto &arr = symbolics[i];
         std::vector<unsigned char> data;
         for (unsigned s = 0; s < arr->getSize(); ++s) {
             ref<Expr> e = concolics->evaluate(arr, s);
@@ -334,12 +333,12 @@ bool ExecutionState::getSymbolicSolution(std::vector<std::pair<std::string, std:
                 (*klee_warning_stream) << "Failed to evaluate concrete value for " << arr->getName() << "[" << s
                                        << "]: " << e << "\n";
                 (*klee_warning_stream) << "  Symbolics (" << symbolics.size() << "):\n";
-                for (auto it = symbolics.begin(); it != symbolics.end(); it++) {
-                    (*klee_warning_stream) << "    " << it->second->getName() << "\n";
+                for (auto it : symbolics) {
+                    (*klee_warning_stream) << "    " << it->getName() << "\n";
                 }
                 (*klee_warning_stream) << "  Assignments (" << concolics->bindings.size() << "):\n";
-                for (auto it = concolics->bindings.begin(); it != concolics->bindings.end(); it++) {
-                    (*klee_warning_stream) << "    " << it->first->getName() << "\n";
+                for (auto it : concolics->bindings) {
+                    (*klee_warning_stream) << "    " << it.first->getName() << "\n";
                 }
                 klee_warning_stream->flush();
                 assert(false && "Failed to evaluate concrete value");
@@ -349,7 +348,7 @@ bool ExecutionState::getSymbolicSolution(std::vector<std::pair<std::string, std:
             data.push_back(val);
         }
 
-        res.push_back(std::make_pair(mo->name, data));
+        res.push_back(std::make_pair(arr->getName(), data));
     }
 
     return true;
@@ -454,7 +453,7 @@ ref<Expr> ExecutionState::toUnique(ref<Expr> &e) {
 bool ExecutionState::solve(const ConstraintManager &mgr, Assignment &assignment) {
     ArrayVec symbObjects;
     for (unsigned i = 0; i < symbolics.size(); ++i) {
-        symbObjects.push_back(symbolics[i].second);
+        symbObjects.push_back(symbolics[i]);
     }
 
     std::vector<std::vector<unsigned char>> concreteObjects;
@@ -512,7 +511,7 @@ bool ExecutionState::addConstraint(const ref<Expr> &constraint, bool recomputeCo
 void ExecutionState::dumpQuery(llvm::raw_ostream &os) const {
     ArrayVec symbObjects;
     for (unsigned i = 0; i < symbolics.size(); ++i) {
-        symbObjects.push_back(symbolics[i].second);
+        symbObjects.push_back(symbolics[i]);
     }
 
     auto printer = std::unique_ptr<ExprPPrinter>(ExprPPrinter::create(os));
