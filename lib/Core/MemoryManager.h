@@ -29,7 +29,7 @@ public:
     }
     ~MemoryManager();
 
-    MemoryObject *allocate(uint64_t address, uint64_t size, bool isLocal, bool isFixed);
+    MemoryObject *allocate(uint64_t address, uint64_t size, bool isFixed);
 };
 
 } // End klee namespace

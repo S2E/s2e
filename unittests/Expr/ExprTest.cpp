@@ -86,7 +86,7 @@ TEST(ExprTest, UnalignedLoadSimplification1) {
 
     // Initialize a dummy memory object
     Context::initialize(true, Expr::Int64);
-    MemoryObject *mo = new MemoryObject(0, 64, false, false);
+    MemoryObject *mo = new MemoryObject(0, 64, false);
     ObjectState *os = new ObjectState(mo);
 
     // Create symbolic variable names

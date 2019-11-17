@@ -31,7 +31,6 @@ public:
     unsigned size;
     std::string name;
 
-    bool isLocal;
     bool isFixed;
 
     /// True if this object should always be accessed directly
@@ -64,9 +63,9 @@ public:
         : address(_address), size(0), isFixed(true), isSplittable(false), doNotifyOnConcretenessChange(false) {
     }
 
-    MemoryObject(uint64_t _address, unsigned _size, bool _isLocal, bool _isFixed)
-        : address(_address), size(_size), name("unnamed"), isLocal(_isLocal), isFixed(_isFixed),
-          isSharedConcrete(false), isSplittable(false), isMemoryPage(false), doNotifyOnConcretenessChange(false) {
+    MemoryObject(uint64_t _address, unsigned _size, bool _isFixed)
+        : address(_address), size(_size), isFixed(_isFixed), isSharedConcrete(false), isSplittable(false),
+          isMemoryPage(false), doNotifyOnConcretenessChange(false) {
     }
 
     ~MemoryObject();
