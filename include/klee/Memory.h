@@ -18,6 +18,7 @@
 #include "llvm/ADT/StringExtras.h"
 
 #include <inttypes.h>
+#include <stdlib.h>
 #include <string>
 #include <vector>
 
@@ -69,6 +70,26 @@ public:
     }
 
     ~MemoryObject();
+
+    static MemoryObject *allocate(uint64_t address, uint64_t size, bool isFixed) {
+        if (size > 10 * 1024 * 1024) {
+            klee_warning_once(0, "failing large alloc: %u bytes", (unsigned) size);
+            return 0;
+        }
+
+        if (!isFixed) {
+            if (address) {
+                return nullptr;
+            }
+
+            address = (uintptr_t) malloc((unsigned) size);
+            if (!address) {
+                return nullptr;
+            }
+        }
+
+        return new MemoryObject(address, size, isFixed);
+    }
 
     void setName(const std::string &name) {
         this->name = name;

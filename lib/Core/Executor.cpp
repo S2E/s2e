@@ -24,7 +24,6 @@
 #include "klee/StatsTracker.h"
 #include "klee/TimingSolver.h"
 #include "klee/UserSearcher.h"
-#include "MemoryManager.h"
 #include "SpecialFunctionHandler.h"
 
 #include "klee/Config/config.h"
@@ -106,8 +105,6 @@ RNG theRNG;
 Executor::Executor(InterpreterHandler *ih, LLVMContext &context)
     : kmodule(0), interpreterHandler(ih), searcher(0), externalDispatcher(new ExternalDispatcher()), statsTracker(0),
       specialFunctionHandler(0) {
-
-    memory = new MemoryManager();
 }
 
 const Module *Executor::setModule(llvm::Module *module, const ModuleOptions &opts, bool createStatsTracker) {
@@ -141,7 +138,6 @@ const Module *Executor::setModule(llvm::Module *module, const ModuleOptions &opt
 }
 
 Executor::~Executor() {
-    delete memory;
     delete externalDispatcher;
     if (specialFunctionHandler)
         delete specialFunctionHandler;
@@ -189,7 +185,7 @@ void Executor::initializeGlobalObject(ExecutionState &state, ObjectState *os, Co
 
 MemoryObject *Executor::addExternalObject(ExecutionState &state, void *addr, unsigned size, bool isReadOnly,
                                           bool isSharedConcrete) {
-    MemoryObject *mo = memory->allocate((uint64_t) addr, size, true);
+    MemoryObject *mo = MemoryObject::allocate((uint64_t) addr, size, true);
     mo->isSharedConcrete = isSharedConcrete;
     ObjectState *os = state.bindObject(mo, false);
     if (!isSharedConcrete) {
@@ -290,7 +286,7 @@ void Executor::initializeGlobals(ExecutionState &state) {
                              << " (use will result in out of bounds access)\n";
             }
 
-            MemoryObject *mo = memory->allocate(0, size, false);
+            MemoryObject *mo = MemoryObject::allocate(0, size, false);
             ObjectState *os = state.bindObject(mo, false);
             globalObjects.insert(std::make_pair(&*i, mo));
             globalAddresses.insert(std::make_pair(&*i, mo->getBaseExpr()));
@@ -310,7 +306,7 @@ void Executor::initializeGlobals(ExecutionState &state) {
         } else {
             Type *ty = i->getType()->getElementType();
             uint64_t size = kmodule->dataLayout->getTypeStoreSize(ty);
-            auto mo = memory->allocate(0, size, false);
+            auto mo = MemoryObject::allocate(0, size, false);
 
             assert(mo && "out of memory");
             state.bindObject(mo, false);
@@ -660,7 +656,7 @@ void Executor::executeCall(ExecutionState &state, KInstruction *ki, Function *f,
                 }
             }
 
-            MemoryObject *mo = sf.varargs = memory->allocate(0, size, false);
+            MemoryObject *mo = sf.varargs = MemoryObject::allocate(0, size, false);
             if (!mo) {
                 terminateState(state, "out of memory (varargs)");
                 return;
@@ -1795,7 +1791,7 @@ void Executor::executeAlloc(ExecutionState &state, ref<Expr> size, bool isLocal,
                             const ObjectState *reallocFrom) {
     size = state.toUnique(size);
     if (ConstantExpr *CE = dyn_cast<ConstantExpr>(size)) {
-        MemoryObject *mo = memory->allocate(0, CE->getZExtValue(), false);
+        MemoryObject *mo = MemoryObject::allocate(0, CE->getZExtValue(), false);
         if (!mo) {
             state.bindLocal(target, ConstantExpr::alloc(0, Context::get().getPointerWidth()));
         } else {

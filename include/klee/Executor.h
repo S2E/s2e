@@ -56,7 +56,6 @@ struct KFunction;
 struct KInstruction;
 class KInstIterator;
 class KModule;
-class MemoryManager;
 class MemoryObject;
 class ObjectState;
 class PTree;
@@ -102,7 +101,6 @@ protected:
     Searcher *searcher;
 
     ExternalDispatcher *externalDispatcher;
-    MemoryManager *memory;
     StateSet states;
     StatsTracker *statsTracker;
     SpecialFunctionHandler *specialFunctionHandler;

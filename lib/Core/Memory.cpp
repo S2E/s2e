@@ -58,6 +58,9 @@ ObjectHolder &ObjectHolder::operator=(const ObjectHolder &b) {
 /***/
 
 MemoryObject::~MemoryObject() {
+    if (!isFixed) {
+        free((void *)address);
+    }
 }
 
 void MemoryObject::split(std::vector<MemoryObject *> &objects, const std::vector<unsigned> &offsets) const {
