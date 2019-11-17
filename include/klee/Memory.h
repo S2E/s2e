@@ -31,96 +31,6 @@ class BitArray;
 class MemoryManager;
 class Solver;
 
-class InitialStateAllocator {
-private:
-    uintptr_t m_bufferBase;
-    uintptr_t m_bufferTop;
-    uintptr_t m_bufferSize;
-    uintptr_t m_pointer;
-
-    bool m_enabled;
-
-    static InitialStateAllocator *s_allocator;
-
-    InitialStateAllocator(uint64_t size) {
-        m_bufferSize = size;
-        m_bufferBase = (uintptr_t) malloc(size);
-        if (!m_bufferSize) {
-            throw std::bad_alloc();
-        }
-        m_bufferTop = m_bufferBase + size;
-        m_pointer = m_bufferBase;
-        m_enabled = true;
-    }
-
-    static bool initializeInternal(uint64_t totalSize) {
-        if (s_allocator) {
-            return false;
-        }
-
-        s_allocator = new InitialStateAllocator(totalSize);
-        return true;
-    }
-
-public:
-    static bool initialize(uint64_t pageCount);
-
-    void activate(bool status) {
-        m_enabled = status;
-    }
-
-    inline bool enabled() {
-        return m_enabled;
-    }
-
-    static inline InitialStateAllocator *get() {
-        return s_allocator;
-    }
-
-    inline void *allocate(size_t size) {
-        assert(s_allocator);
-        uintptr_t ret = 0;
-        if (m_pointer + size < m_bufferTop) {
-            ret = m_pointer;
-            m_pointer += size;
-        }
-        return (void *) ret;
-    }
-
-    inline bool ours(void *ptr) {
-        assert(s_allocator);
-        uintptr_t ptr2 = (uintptr_t) ptr;
-        return ptr2 >= m_bufferBase && ptr2 < m_bufferTop;
-    }
-
-    static inline void *alloc_new(size_t size) {
-        InitialStateAllocator *alloc = get();
-        void *ret = NULL;
-
-        if (alloc && alloc->enabled()) {
-            ret = alloc->allocate(size);
-        }
-
-        if (!ret) {
-            ret = malloc(size);
-            if (!ret) {
-                throw std::bad_alloc();
-            }
-        }
-
-        return ret;
-    }
-
-    static inline void alloc_delete(void *ptr) {
-        InitialStateAllocator *alloc = get();
-        if (alloc && alloc->ours(ptr)) {
-            return;
-        } else {
-            free(ptr);
-        }
-    }
-};
-
 class MemoryObject {
 public:
     uint64_t address;
@@ -206,14 +116,6 @@ public:
         } else {
             return ConstantExpr::alloc(0, Expr::Bool);
         }
-    }
-
-    void *operator new(size_t size) {
-        return InitialStateAllocator::alloc_new(size);
-    }
-
-    void operator delete(void *ptr) {
-        return InitialStateAllocator::alloc_delete(ptr);
     }
 
     // Split the current object at specified offsets
@@ -403,15 +305,6 @@ private:
     void setKnownSymbolic(unsigned offset, const ref<Expr> &value);
 
     ObjectState *getCopy(const BitArrayPtr &_concreteMask, const ConcreteBufferPtr &_concreteStore) const;
-
-public:
-    void *operator new(size_t size) {
-        return InitialStateAllocator::alloc_new(size);
-    }
-
-    void operator delete(void *ptr) {
-        return InitialStateAllocator::alloc_delete(ptr);
-    }
 };
 
 } // End klee namespace

@@ -31,14 +31,6 @@
 using namespace llvm;
 using namespace klee;
 
-InitialStateAllocator *InitialStateAllocator::s_allocator = NULL;
-
-bool InitialStateAllocator::initialize(uint64_t pageCount) {
-    return initializeInternal(pageCount * (sizeof(MemoryObject) + sizeof(ObjectState)));
-}
-
-/***/
-
 ObjectHolder::ObjectHolder(const ObjectHolder &b) : os(b.os) {
     if (os)
         ++os->refCount;
