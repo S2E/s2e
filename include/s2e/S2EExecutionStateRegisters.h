@@ -87,8 +87,8 @@ public:
         : m_active(active), m_runningConcrete(running_concrete), m_notification(notification),
           m_concretizer(concretizer){};
 
-    void initialize(klee::AddressSpace &addressSpace, klee::MemoryObject *symbolicRegs,
-                    klee::MemoryObject *concreteRegs);
+    void initialize(klee::AddressSpace &addressSpace, klee::MutableObjectPair symbolicRegs,
+                    klee::MutableObjectPair concreteRegs);
 
     void update(klee::AddressSpace &addressSpace, const bool *active, const bool *running_concrete,
                 klee::IAddressSpaceNotification *notification, klee::IConcretizer *concretizer);

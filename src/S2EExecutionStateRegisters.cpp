@@ -29,17 +29,17 @@ using namespace klee;
 MemoryObject *S2EExecutionStateRegisters::s_concreteRegs = nullptr;
 MemoryObject *S2EExecutionStateRegisters::s_symbolicRegs = nullptr;
 
-void S2EExecutionStateRegisters::initialize(klee::AddressSpace &addressSpace, klee::MemoryObject *symbolicRegs,
-                                            klee::MemoryObject *concreteRegs) {
+void S2EExecutionStateRegisters::initialize(klee::AddressSpace &addressSpace, klee::MutableObjectPair symbolicRegs,
+                                            klee::MutableObjectPair concreteRegs) {
     assert(!s_concreteRegs && !s_symbolicRegs);
-    s_concreteRegs = concreteRegs;
-    s_symbolicRegs = symbolicRegs;
+    s_concreteRegs = concreteRegs.first;
+    s_symbolicRegs = symbolicRegs.first;
 
     s_concreteRegs->setName("ConcreteCpuRegisters");
     s_symbolicRegs->setName("SymbolicCpuRegisters");
 
     /* The fast path in the cpu loop relies on this */
-    s_symbolicRegs->doNotifyOnConcretenessChange = true;
+    symbolicRegs.second->setNotifyOnConcretenessChange(true);
 
     update(addressSpace, nullptr, nullptr, nullptr, nullptr);
 }
@@ -169,7 +169,7 @@ bool S2EExecutionStateRegisters::readSymbolicRegion(unsigned offset, void *_buf,
         }
 
         bool newAllConcrete = wos->isAllConcrete();
-        if ((oldAllConcrete != newAllConcrete) && (wos->getObject()->doNotifyOnConcretenessChange)) {
+        if ((oldAllConcrete != newAllConcrete) && (wos->notifyOnConcretenessChange())) {
             m_notification->addressSpaceSymbolicStatusChange(wos, newAllConcrete);
         }
 
@@ -205,7 +205,7 @@ void S2EExecutionStateRegisters::writeSymbolicRegion(unsigned offset, const void
             wos->write8(offset + i, buf[i]);
 
         bool newAllConcrete = wos->isAllConcrete();
-        if ((oldAllConcrete != newAllConcrete) && (wos->getObject()->doNotifyOnConcretenessChange)) {
+        if ((oldAllConcrete != newAllConcrete) && (wos->notifyOnConcretenessChange())) {
             m_notification->addressSpaceSymbolicStatusChange(wos, newAllConcrete);
         }
     }
@@ -245,7 +245,7 @@ void S2EExecutionStateRegisters::writeSymbolicRegion(unsigned offset, klee::ref<
         m_symbolicRegs->write(offset, value);
 
         bool newAllConcrete = m_symbolicRegs->isAllConcrete();
-        if ((oldAllConcrete != newAllConcrete) && (m_symbolicRegs->getObject()->doNotifyOnConcretenessChange)) {
+        if ((oldAllConcrete != newAllConcrete) && (m_symbolicRegs->notifyOnConcretenessChange())) {
             m_notification->addressSpaceSymbolicStatusChange(m_symbolicRegs, newAllConcrete);
         }
 
@@ -273,7 +273,7 @@ void S2EExecutionStateRegisters::writeSymbolicRegionUnsafe(unsigned offset, klee
     m_symbolicRegs->write(offset, value);
 
     bool newAllConcrete = m_symbolicRegs->isAllConcrete();
-    if ((oldAllConcrete != newAllConcrete) && (m_symbolicRegs->getObject()->doNotifyOnConcretenessChange)) {
+    if ((oldAllConcrete != newAllConcrete) && (m_symbolicRegs->notifyOnConcretenessChange())) {
         m_notification->addressSpaceSymbolicStatusChange(m_symbolicRegs, newAllConcrete);
     }
 }

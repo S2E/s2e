@@ -291,7 +291,7 @@ void S2EExecutionStateMemory::transferRamInternal(ObjectPair op, uint64_t object
         }
 
         bool newAllConcrete = wos->isAllConcrete();
-        if ((oldAllConcrete != newAllConcrete) && (wos->getObject()->doNotifyOnConcretenessChange)) {
+        if ((oldAllConcrete != newAllConcrete) && (wos->notifyOnConcretenessChange())) {
             m_notification->addressSpaceSymbolicStatusChange(wos, newAllConcrete);
         }
 
@@ -329,7 +329,7 @@ void S2EExecutionStateMemory::transferRamInternalSymbolic(ObjectPair op, uint64_
         }
 
         bool newAllConcrete = wos->isAllConcrete();
-        if ((oldAllConcrete != newAllConcrete) && (wos->getObject()->doNotifyOnConcretenessChange)) {
+        if ((oldAllConcrete != newAllConcrete) && (wos->notifyOnConcretenessChange())) {
             m_notification->addressSpaceSymbolicStatusChange(wos, newAllConcrete);
         }
 

@@ -470,13 +470,19 @@ S2EExecutionState *S2EExecutor::createInitialState() {
     addedStates.insert(state);
     updateStates(state);
 
-#define __DEFINE_EXT_OBJECT_RO(name)                                 \
-    predefinedSymbols.insert(std::make_pair(#name, (void *) &name)); \
-    addExternalObject(*state, (void *) &name, sizeof(name), true, true)->setName(#name);
+#define __DEFINE_EXT_OBJECT_RO(name)                                                   \
+    {                                                                                  \
+        predefinedSymbols.insert(std::make_pair(#name, (void *) &name));               \
+        auto op = addExternalObject(*state, (void *) &name, sizeof(name), true, true); \
+        op.first->setName(#name);                                                      \
+    }
 
-#define __DEFINE_EXT_OBJECT_RO_SYMB(name)                            \
-    predefinedSymbols.insert(std::make_pair(#name, (void *) &name)); \
-    addExternalObject(*state, (void *) &name, sizeof(name), true, false)->setName(#name);
+#define __DEFINE_EXT_OBJECT_RO_SYMB(name)                                               \
+    {                                                                                   \
+        predefinedSymbols.insert(std::make_pair(#name, (void *) &name));                \
+        auto op = addExternalObject(*state, (void *) &name, sizeof(name), true, false); \
+        op.first->setName(#name);                                                       \
+    }
 
     if (g_sqi.size != sizeof(g_sqi)) {
         abort();
@@ -522,15 +528,15 @@ void S2EExecutor::registerCpu(S2EExecutionState *initialState, CPUX86State *cpuE
     }
 
     /* Add registers and eflags area as a true symbolic area */
-    MemoryObject *symbolicRegs = addExternalObject(*initialState, cpuEnv, offsetof(CPUX86State, eip),
-                                                   /* isReadOnly = */ false,
-                                                   /* isSharedConcrete = */ false);
+    auto symbolicRegs = addExternalObject(*initialState, cpuEnv, offsetof(CPUX86State, eip),
+                                          /* isReadOnly = */ false,
+                                          /* isSharedConcrete = */ false);
 
     /* Add the rest of the structure as concrete-only area */
-    MemoryObject *concreteRegs = addExternalObject(*initialState, ((uint8_t *) cpuEnv) + offsetof(CPUX86State, eip),
-                                                   sizeof(CPUX86State) - offsetof(CPUX86State, eip),
-                                                   /* isReadOnly = */ false,
-                                                   /* isSharedConcrete = */ true);
+    auto concreteRegs = addExternalObject(*initialState, ((uint8_t *) cpuEnv) + offsetof(CPUX86State, eip),
+                                          sizeof(CPUX86State) - offsetof(CPUX86State, eip),
+                                          /* isReadOnly = */ false,
+                                          /* isSharedConcrete = */ true);
 
     initialState->m_registers.initialize(initialState->addressSpace, symbolicRegs, concreteRegs);
 }
@@ -554,13 +560,15 @@ void S2EExecutor::registerRam(S2EExecutionState *initialState, MemoryDesc *regio
 
     for (uint64_t addr = hostAddress; addr < hostAddress + size; addr += SE_RAM_OBJECT_SIZE) {
 
-        MemoryObject *mo = addExternalObject(*initialState, (void *) addr, SE_RAM_OBJECT_SIZE, false, isSharedConcrete);
+        auto op = addExternalObject(*initialState, (void *) addr, SE_RAM_OBJECT_SIZE, false, isSharedConcrete);
+        auto mo = op.first;
+        auto os = op.second;
 
         mo->isMemoryPage = true;
 
         if (!isSharedConcrete) {
             mo->isSplittable = true;
-            mo->doNotifyOnConcretenessChange = true;
+            os->setNotifyOnConcretenessChange(true);
         }
 
 #ifdef S2E_DEBUG_MEMOBJECT_NAME
@@ -600,9 +608,10 @@ void S2EExecutor::registerRam(S2EExecutionState *initialState, MemoryDesc *regio
 
 void S2EExecutor::registerDirtyMask(S2EExecutionState *state, uint64_t hostAddress, uint64_t size) {
     // Assume that dirty mask is small enough, so no need to split it in small pages
-    MemoryObject *dirtyMask = g_s2e->getExecutor()->addExternalObject(*state, (void *) hostAddress, size, false, true);
+    auto dirtyMask = g_s2e->getExecutor()->addExternalObject(*state, (void *) hostAddress, size, false, true);
 
-    state->m_memory.initialize(&state->addressSpace, &state->m_asCache, &state->m_active, state, state, dirtyMask);
+    state->m_memory.initialize(&state->addressSpace, &state->m_asCache, &state->m_active, state, state,
+                               dirtyMask.first);
 
     g_se_dirty_mask_addend = state->mem()->getDirtyMaskStoreAddend();
 }
