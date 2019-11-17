@@ -23,10 +23,9 @@ namespace klee {
 
 /***/
 MemoryManager::~MemoryManager() {
-
 }
 
-MemoryObject *MemoryManager::allocate(uint64_t address, uint64_t size, bool isLocal, bool isGlobal, bool isFixed) {
+MemoryObject *MemoryManager::allocate(uint64_t address, uint64_t size, bool isLocal, bool isFixed) {
     if (size > 10 * 1024 * 1024) {
         klee_warning_once(0, "failing large alloc: %u bytes", (unsigned) size);
         return 0;
@@ -44,7 +43,6 @@ MemoryObject *MemoryManager::allocate(uint64_t address, uint64_t size, bool isLo
     }
 
     ++stats::allocations;
-    return new MemoryObject(address, size, isLocal, isGlobal, isFixed);
+    return new MemoryObject(address, size, isLocal, isFixed);
 }
-
 }

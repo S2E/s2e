@@ -75,7 +75,7 @@ void MemoryObject::split(std::vector<MemoryObject *> &objects, const std::vector
             nsize = size - offset;
         }
 
-        MemoryObject *obj = new MemoryObject(address, nsize, isLocal, isGlobal, isFixed);
+        MemoryObject *obj = new MemoryObject(address, nsize, isLocal, isFixed);
         obj->address = address + offset;
         obj->size = nsize;
         obj->isSplittable = false;
