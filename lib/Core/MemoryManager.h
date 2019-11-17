@@ -25,9 +25,6 @@ private:
     typedef std::vector<MemoryObject *> objects_ty;
     objects_ty objects;
 
-    char *deterministicSpace;
-    char *nextFreeSlot;
-
 public:
     MemoryManager() {
     }
@@ -37,11 +34,6 @@ public:
     MemoryObject *allocateFixed(uint64_t address, uint64_t size);
     void deallocate(const MemoryObject *mo);
     void markFreed(MemoryObject *mo);
-
-    /*
-     * Returns the size used by deterministic allocation in bytes
-     */
-    size_t getUsedDeterministicSize();
 };
 
 } // End klee namespace
