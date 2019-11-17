@@ -1982,9 +1982,6 @@ void Executor::executeMemoryOperation(ExecutionState &state, bool isWrite, ref<E
     success = state.addressSpace.findObject(concreteAddress->getZExtValue(), type, op, fastInBounds);
     assert(success);
 
-    // Does it really matter if it's not a memory page?
-    // assert(op.first->isMemoryPage);
-
     // Split the object if necessary
     if (op.first->isSplittable) {
         ResolutionList rl;

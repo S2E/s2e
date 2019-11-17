@@ -45,9 +45,6 @@ public:
     /// True if can be split into smaller objects
     bool isSplittable;
 
-    /// True if this is an S2E physical memory page (or subpage)
-    bool isMemoryPage;
-
     // DO NOT IMPLEMENT
     MemoryObject(const MemoryObject &b);
     MemoryObject &operator=(const MemoryObject &b);
@@ -58,8 +55,7 @@ public:
     }
 
     MemoryObject(uint64_t _address, unsigned _size, bool _isFixed)
-        : address(_address), size(_size), isFixed(_isFixed), isSharedConcrete(false), isSplittable(false),
-          isMemoryPage(false) {
+        : address(_address), size(_size), isFixed(_isFixed), isSharedConcrete(false), isSplittable(false) {
     }
 
     ~MemoryObject();
@@ -151,6 +147,9 @@ private:
     /// when the entire group of objects gets the property.
     bool m_notifyOnConcretenessChange;
 
+    /// True if this is an S2E physical memory page (or subpage)
+    bool m_isMemoryPage;
+
     // XXX: made it public for fast access
     ConcreteBufferPtr concreteStore;
 
@@ -206,6 +205,14 @@ public:
 
     inline void setNotifyOnConcretenessChange(bool v) {
         m_notifyOnConcretenessChange = v;
+    }
+
+    inline bool isMemoryPage() const {
+        return m_isMemoryPage;
+    }
+
+    inline void setMemoryPage(bool b) {
+        m_isMemoryPage = b;
     }
 
     unsigned getSize() const {

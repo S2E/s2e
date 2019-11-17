@@ -82,7 +82,6 @@ void MemoryObject::split(std::vector<MemoryObject *> &objects, const std::vector
         obj->address = address + offset;
         obj->size = nsize;
         obj->isSplittable = false;
-        obj->isMemoryPage = isMemoryPage;
         objects.push_back(obj);
     }
 }
@@ -91,12 +90,12 @@ void MemoryObject::split(std::vector<MemoryObject *> &objects, const std::vector
 
 ObjectState::ObjectState()
     : copyOnWriteOwner(0), refCount(0), object(nullptr), size(0), readOnly(false), m_notifyOnConcretenessChange(false),
-      storeOffset(0), updates(UpdateList::create(nullptr, 0)) {
+      m_isMemoryPage(false), storeOffset(0), updates(UpdateList::create(nullptr, 0)) {
 }
 
 ObjectState::ObjectState(const MemoryObject *mo)
     : copyOnWriteOwner(0), refCount(0), object(nullptr), size(0), readOnly(false), m_notifyOnConcretenessChange(false),
-      storeOffset(0), updates(UpdateList::create(nullptr, 0)) {
+      m_isMemoryPage(false), storeOffset(0), updates(UpdateList::create(nullptr, 0)) {
 
     this->object = mo;
     this->size = mo->size;
@@ -105,7 +104,7 @@ ObjectState::ObjectState(const MemoryObject *mo)
 
 ObjectState::ObjectState(const MemoryObject *mo, const ArrayPtr &array)
     : copyOnWriteOwner(0), refCount(0), object(nullptr), size(0), readOnly(false), m_notifyOnConcretenessChange(false),
-      storeOffset(0), updates(UpdateList::create(array, 0)) {
+      m_isMemoryPage(false), storeOffset(0), updates(UpdateList::create(array, 0)) {
 
     this->object = mo;
     this->size = mo->size;
@@ -118,13 +117,14 @@ ObjectState::ObjectState(const ObjectState &os)
     assert(!os.readOnly && "no need to copy read only object?");
     assert(!os.concreteMask || (os.size == os.concreteMask->getBitCount()));
 
-    this->m_notifyOnConcretenessChange = os.m_notifyOnConcretenessChange;
     this->concreteMask = os.concreteMask ? BitArray::create(os.concreteMask) : nullptr;
     this->copyOnWriteOwner = os.copyOnWriteOwner;
     this->refCount = 0;
     this->object = os.object;
     this->size = os.size;
     this->readOnly = os.readOnly;
+    this->m_notifyOnConcretenessChange = os.m_notifyOnConcretenessChange;
+    this->m_isMemoryPage = os.m_isMemoryPage;
     this->concreteStore = ConcreteBuffer::create(os.concreteStore);
     this->storeOffset = os.storeOffset;
     this->flushMask = os.flushMask ? BitArray::create(os.flushMask) : nullptr;
@@ -154,6 +154,7 @@ ObjectState *ObjectState::split(MemoryObject *newObject, unsigned offset) const 
     ret->size = newObject->size;
     ret->readOnly = readOnly;
     ret->m_notifyOnConcretenessChange = m_notifyOnConcretenessChange;
+    ret->m_isMemoryPage = m_isMemoryPage;
 
     // XXX: is this really correct? Don't we need to take a subset?
     ret->updates = UpdateList::create(updates->getRoot(), updates->getHead());
@@ -183,6 +184,7 @@ ObjectState *ObjectState::getCopy(const BitArrayPtr &_concreteMask, const Concre
     ret->size = size;
     ret->readOnly = readOnly;
     ret->m_notifyOnConcretenessChange = m_notifyOnConcretenessChange;
+    ret->m_isMemoryPage = m_isMemoryPage;
 
     ret->updates = UpdateList::create(updates->getRoot(), updates->getHead());
 
