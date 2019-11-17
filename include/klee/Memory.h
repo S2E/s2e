@@ -153,9 +153,6 @@ public:
     /// ObjectState will still be allocated for this purpose).
     bool isSharedConcrete;
 
-    /// True if the object value can be ignored in local consistency
-    bool isValueIgnored;
-
     /// True if can be split into smaller objects
     bool isSplittable;
 

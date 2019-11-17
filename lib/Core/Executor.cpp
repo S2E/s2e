@@ -190,18 +190,13 @@ void Executor::initializeGlobalObject(ExecutionState &state, ObjectState *os, Co
 }
 
 MemoryObject *Executor::addExternalObject(ExecutionState &state, void *addr, unsigned size, bool isReadOnly,
-                                          bool isUserSpecified, bool isSharedConcrete, bool isValueIgnored) {
+                                          bool isUserSpecified, bool isSharedConcrete) {
     MemoryObject *mo = memory->allocateFixed((uint64_t) addr, size);
     mo->isUserSpecified = isUserSpecified;
     mo->isSharedConcrete = isSharedConcrete;
-    mo->isValueIgnored = isValueIgnored;
     ObjectState *os = state.bindObject(mo, false);
     if (!isSharedConcrete) {
         memcpy(os->getConcreteStore(), addr, size);
-        /*
-        for(unsigned i = 0; i < size; i++)
-          os->write8(i, ((uint8_t*)addr)[i]);
-        */
     }
     if (isReadOnly)
         os->setReadOnly(true);
@@ -1904,17 +1899,12 @@ ref<Expr> Executor::executeMemoryOperation(ExecutionState &state, const ObjectPa
             ObjectState *wos = state.addressSpace.getWriteable(mo, os);
             if (mo->isSharedConcrete) {
                 if (!dyn_cast<ConstantExpr>(offset) || !dyn_cast<ConstantExpr>(value)) {
-                    if (mo->isValueIgnored) {
-                        offset = state.toConstantSilent(offset);
-                        value = state.toConstantSilent(value);
-                    } else {
-                        std::stringstream ss;
-                        ss << "write to always concrete memory name:" << mo->name << " offset=" << offset
-                           << " value=" << value;
+                    std::stringstream ss;
+                    ss << "write to always concrete memory name:" << mo->name << " offset=" << offset
+                       << " value=" << value;
 
-                        offset = state.toConstant(offset, ss.str().c_str());
-                        value = state.toConstant(value, ss.str().c_str());
-                    }
+                    offset = state.toConstant(offset, ss.str().c_str());
+                    value = state.toConstant(value, ss.str().c_str());
                 }
             }
 
@@ -1925,14 +1915,10 @@ ref<Expr> Executor::executeMemoryOperation(ExecutionState &state, const ObjectPa
     } else {
         if (mo->isSharedConcrete) {
             if (!dyn_cast<ConstantExpr>(offset)) {
-                if (mo->isValueIgnored) {
-                    offset = state.toConstantSilent(offset);
-                } else {
-                    std::stringstream ss;
-                    ss << "Read from always concrete memory name:" << mo->name << " offset=" << offset;
+                std::stringstream ss;
+                ss << "Read from always concrete memory name:" << mo->name << " offset=" << offset;
 
-                    offset = state.toConstant(offset, ss.str().c_str());
-                }
+                offset = state.toConstant(offset, ss.str().c_str());
             }
         }
         ref<Expr> result = os->read(offset, type);
