@@ -87,8 +87,6 @@ using namespace klee;
 namespace {
 cl::opt<bool> NoPreferCex("no-prefer-cex", cl::init(false));
 
-cl::opt<bool> UseAsmAddresses("use-asm-addresses", cl::init(false));
-
 cl::opt<bool> RandomizeFork("randomize-fork", cl::init(false));
 
 cl::opt<bool> SimplifySymIndices("simplify-sym-indices", cl::init(true));
@@ -312,22 +310,7 @@ void Executor::initializeGlobals(ExecutionState &state) {
         } else {
             Type *ty = i->getType()->getElementType();
             uint64_t size = kmodule->dataLayout->getTypeStoreSize(ty);
-            MemoryObject *mo = 0;
-
-            if (UseAsmAddresses && i->getName()[0] == '\01') {
-                char *end;
-                uint64_t address = ::strtoll(i->getName().str().c_str() + 1, &end, 0);
-
-                if (end && *end == '\0') {
-                    klee_message("NOTE: allocated global at asm specified address: %#08" PRIx64 " (%" PRIu64 " bytes)",
-                                 address, size);
-                    mo = memory->allocateFixed(address, size);
-                }
-            }
-
-            if (!mo) {
-                mo = memory->allocate(size, false, true);
-            }
+            auto mo = memory->allocate(size, false, true);
 
             assert(mo && "out of memory");
             state.bindObject(mo, false);
