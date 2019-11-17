@@ -190,9 +190,8 @@ void Executor::initializeGlobalObject(ExecutionState &state, ObjectState *os, Co
 }
 
 MemoryObject *Executor::addExternalObject(ExecutionState &state, void *addr, unsigned size, bool isReadOnly,
-                                          bool isUserSpecified, bool isSharedConcrete) {
+                                          bool isSharedConcrete) {
     MemoryObject *mo = memory->allocateFixed((uint64_t) addr, size);
-    mo->isUserSpecified = isUserSpecified;
     mo->isSharedConcrete = isSharedConcrete;
     ObjectState *os = state.bindObject(mo, false);
     if (!isSharedConcrete) {
@@ -323,7 +322,6 @@ void Executor::initializeGlobals(ExecutionState &state) {
                     klee_message("NOTE: allocated global at asm specified address: %#08" PRIx64 " (%" PRIu64 " bytes)",
                                  address, size);
                     mo = memory->allocateFixed(address, size);
-                    mo->isUserSpecified = true; // XXX hack;
                 }
             }
 

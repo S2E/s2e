@@ -133,11 +133,6 @@ public:
     bool isGlobal;
     bool isFixed;
 
-    /// User-specified object will not be concretized/restored
-    /// when switching to/from concrete execution. That is,
-    /// copy(In|Out)Concretes ignores this object.
-    bool isUserSpecified;
-
     /// True if this object should always be accessed directly
     /// by its address (i.e., baypassing all ObjectStates).
     /// This means that the object will always contain concrete
@@ -170,8 +165,7 @@ public:
 
     MemoryObject(uint64_t _address, unsigned _size, bool _isLocal, bool _isGlobal, bool _isFixed)
         : address(_address), size(_size), name("unnamed"), isLocal(_isLocal), isGlobal(_isGlobal), isFixed(_isFixed),
-          isUserSpecified(false), isSharedConcrete(false), isSplittable(false), isMemoryPage(false),
-          doNotifyOnConcretenessChange(false) {
+          isSharedConcrete(false), isSplittable(false), isMemoryPage(false), doNotifyOnConcretenessChange(false) {
     }
 
     ~MemoryObject();

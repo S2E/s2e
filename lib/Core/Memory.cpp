@@ -88,7 +88,6 @@ void MemoryObject::split(std::vector<MemoryObject *> &objects, const std::vector
         obj->size = nsize;
         obj->isSplittable = false;
         obj->isMemoryPage = isMemoryPage;
-        obj->isUserSpecified = isUserSpecified;
         obj->doNotifyOnConcretenessChange = doNotifyOnConcretenessChange;
         objects.push_back(obj);
     }
