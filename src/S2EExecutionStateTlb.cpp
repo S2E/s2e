@@ -35,7 +35,7 @@ using namespace klee;
 
 void S2EExecutionStateTlb::addressSpaceChangeUpdateTlb(const klee::MemoryObject *mo, const klee::ObjectState *oldState,
                                                        klee::ObjectState *newState) {
-    if (!(oldState && mo->isMemoryPage)) {
+    if (!(oldState && oldState->isMemoryPage())) {
         return;
     }
 

@@ -899,7 +899,8 @@ uint64_t S2EExecutionState::concretize(klee::ref<klee::Expr> expression, const s
 
 void S2EExecutionState::addressSpaceChange(const klee::MemoryObject *mo, const klee::ObjectState *oldState,
                                            klee::ObjectState *newState) {
-    if (oldState && mo->isMemoryPage) {
+    if (oldState && oldState->isMemoryPage()) {
+        assert(newState->isMemoryPage());
         if ((mo->address & ~SE_RAM_OBJECT_MASK) == 0) {
             m_asCache.invalidate(mo->address & SE_RAM_OBJECT_MASK);
             m_tlb.addressSpaceChangeUpdateTlb(mo, oldState, newState);

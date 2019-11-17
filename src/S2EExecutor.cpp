@@ -564,7 +564,7 @@ void S2EExecutor::registerRam(S2EExecutionState *initialState, MemoryDesc *regio
         auto mo = op.first;
         auto os = op.second;
 
-        mo->isMemoryPage = true;
+        os->setMemoryPage(true);
 
         if (!isSharedConcrete) {
             mo->isSplittable = true;
