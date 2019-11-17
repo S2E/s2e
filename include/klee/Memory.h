@@ -21,15 +21,7 @@
 #include <string>
 #include <vector>
 
-namespace llvm {
-class Value;
-}
-
 namespace klee {
-
-class BitArray;
-class MemoryManager;
-class Solver;
 
 class MemoryObject {
 public:
@@ -44,7 +36,7 @@ public:
     bool isFixed;
 
     /// True if this object should always be accessed directly
-    /// by its address (i.e., baypassing all ObjectStates).
+    /// by its address (i.e., bypassing all ObjectStates).
     /// This means that the object will always contain concrete
     /// values and its conctent will be shared across all states
     /// (unless explicitly saved/restored on state switches -

@@ -23,46 +23,28 @@ namespace klee {
 
 /***/
 MemoryManager::~MemoryManager() {
-    while (!objects.empty()) {
-        MemoryObject *mo = objects.back();
-        objects.pop_back();
-        delete mo;
-    }
+
 }
 
-MemoryObject *MemoryManager::allocate(uint64_t size, bool isLocal, bool isGlobal) {
+MemoryObject *MemoryManager::allocate(uint64_t address, uint64_t size, bool isLocal, bool isGlobal, bool isFixed) {
     if (size > 10 * 1024 * 1024) {
         klee_warning_once(0, "failing large alloc: %u bytes", (unsigned) size);
         return 0;
     }
-    uintptr_t address = (uintptr_t) malloc((unsigned) size);
-    if (!address)
-        return 0;
 
-    ++stats::allocations;
-    MemoryObject *res = new MemoryObject(address, size, isLocal, isGlobal, false);
-    objects.push_back(res);
-    return res;
-}
-
-MemoryObject *MemoryManager::allocateFixed(uint64_t address, uint64_t size) {
-    ++stats::allocations;
-    MemoryObject *res = new MemoryObject(address, size, false, true, true);
-    objects.push_back(res);
-    return res;
-}
-
-void MemoryManager::deallocate(const MemoryObject *mo) {
-    assert(0);
-}
-
-void MemoryManager::markFreed(MemoryObject *mo) {
-    objects_ty::iterator mo_it = std::find(objects.begin(), objects.end(), mo);
-    if (mo_it != objects.end()) {
-        if (!mo->isFixed) {
-            free((void *) mo->address);
+    if (!isFixed) {
+        if (address) {
+            return nullptr;
         }
-        objects.erase(mo_it);
+
+        address = (uintptr_t) malloc((unsigned) size);
+        if (!address) {
+            return nullptr;
+        }
     }
+
+    ++stats::allocations;
+    return new MemoryObject(address, size, isLocal, isGlobal, isFixed);
 }
+
 }

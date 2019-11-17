@@ -23,17 +23,13 @@ class MemoryObject;
 class MemoryManager {
 private:
     typedef std::vector<MemoryObject *> objects_ty;
-    objects_ty objects;
 
 public:
     MemoryManager() {
     }
     ~MemoryManager();
 
-    MemoryObject *allocate(uint64_t size, bool isLocal, bool isGlobal);
-    MemoryObject *allocateFixed(uint64_t address, uint64_t size);
-    void deallocate(const MemoryObject *mo);
-    void markFreed(MemoryObject *mo);
+    MemoryObject *allocate(uint64_t address, uint64_t size, bool isLocal, bool isGlobal, bool isFixed);
 };
 
 } // End klee namespace
