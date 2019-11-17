@@ -273,7 +273,7 @@ ref<Expr> S2EExecutionState::createSymbolicValue(const std::string &name, Expr::
 
     auto array = Array::create(sname, bytes, nullptr, nullptr, name);
 
-    MemoryObject *mo = new MemoryObject(0, bytes, false, false, false);
+    MemoryObject *mo = new MemoryObject(0, bytes, false);
     mo->setName(sname);
 
     symbolics.push_back(std::make_pair(mo, array));
@@ -337,7 +337,7 @@ std::vector<ref<Expr>> S2EExecutionState::createSymbolicArray(const std::string 
     // Add it to the set of symbolic expressions, to be able to generate
     // test cases later.
     // Dummy memory object
-    MemoryObject *mo = new MemoryObject(0, size, false, false, false);
+    MemoryObject *mo = new MemoryObject(0, size, false);
     mo->setName(sname);
 
     symbolics.push_back(std::make_pair(mo, array));
@@ -703,22 +703,21 @@ bool S2EExecutionState::merge(const ExecutionState &_b) {
         if (ai->first != bi->first) {
             if (DebugLogStateMerge) {
                 if (ai->first < bi->first) {
-                    s << "\t\tB misses binding for: " << ai->first->id << "\n";
+                    s << "\t\tB misses binding for: " << hexval(ai->first->address) << "\n";
                 } else {
-                    s << "\t\tA misses binding for: " << bi->first->id << "\n";
+                    s << "\t\tA misses binding for: " << hexval(bi->first->address) << "\n";
                 }
             }
             if (DebugLogStateMerge)
                 s << "merge failed: different callstacks" << '\n';
             return false;
         }
-        if (ai->second != bi->second && !ai->first->isValueIgnored &&
-            ai->first != S2EExecutionStateRegisters::getConcreteRegs() &&
+        if (ai->second != bi->second && ai->first != S2EExecutionStateRegisters::getConcreteRegs() &&
             ai->first != S2EExecutionStateMemory::getDirtyMask()) {
 
             const MemoryObject *mo = ai->first;
             if (DebugLogStateMerge)
-                s << "\t\tmutated: " << mo->id << " (" << mo->name << ")\n";
+                s << "\t\tmutated: " << hexval(mo->address) << " (" << mo->name << ")\n";
             if (mo->isSharedConcrete) {
                 if (DebugLogStateMerge)
                     s << "merge failed: different shared-concrete objects " << '\n';
