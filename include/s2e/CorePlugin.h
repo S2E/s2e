@@ -267,7 +267,6 @@ public:
                  S2EExecutionState*,
                  const std::string & /* orignal name */,
                  const std::vector<klee::ref<klee::Expr>>&, /* expr */
-                 const klee::MemoryObject*,
                  const klee::ArrayPtr&>
         onSymbolicVariableCreation;
 

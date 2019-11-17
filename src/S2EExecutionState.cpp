@@ -273,10 +273,7 @@ ref<Expr> S2EExecutionState::createSymbolicValue(const std::string &name, Expr::
 
     auto array = Array::create(sname, bytes, nullptr, nullptr, name);
 
-    MemoryObject *mo = new MemoryObject(0, bytes, false);
-    mo->setName(sname);
-
-    symbolics.push_back(std::make_pair(mo, array));
+    symbolics.push_back(array);
 
     if (bufferSize == bytes) {
         concolics->add(array, buffer);
@@ -286,7 +283,7 @@ ref<Expr> S2EExecutionState::createSymbolicValue(const std::string &name, Expr::
 
     ref<Expr> ret = Expr::createTempRead(array, width);
 
-    g_s2e->getCorePlugin()->onSymbolicVariableCreation.emit(this, name, {ret}, mo, array);
+    g_s2e->getCorePlugin()->onSymbolicVariableCreation.emit(this, name, {ret}, array);
 
     return ret;
 #else
@@ -337,16 +334,13 @@ std::vector<ref<Expr>> S2EExecutionState::createSymbolicArray(const std::string 
     // Add it to the set of symbolic expressions, to be able to generate
     // test cases later.
     // Dummy memory object
-    MemoryObject *mo = new MemoryObject(0, size, false);
-    mo->setName(sname);
-
-    symbolics.push_back(std::make_pair(mo, array));
+    symbolics.push_back(array);
 
     if (concreteBuffer.size() == size) {
         concolics->add(array, concreteBuffer);
     }
 
-    g_s2e->getCorePlugin()->onSymbolicVariableCreation.emit(this, name, result, mo, array);
+    g_s2e->getCorePlugin()->onSymbolicVariableCreation.emit(this, name, result, array);
     variableNameMapping = variableNameMapping.insert(std::make_pair(sname, originalVarName));
 #else
     g_s2e->getWarningsStream(this) << "Cannot create symbolic data in single-path (s2e_sp) build\n";
@@ -617,9 +611,9 @@ bool S2EExecutionState::merge(const ExecutionState &_b) {
         if (DebugLogStateMerge) {
             s << "merge failed: different symbolics" << '\n';
 
-            foreach2 (it, symbolics.begin(), symbolics.end()) { s << (*it).first->name << "\n"; }
+            foreach2 (it, symbolics.begin(), symbolics.end()) { s << (*it)->getName() << "\n"; }
             s << "\n";
-            foreach2 (it, b.symbolics.begin(), b.symbolics.end()) { s << (*it).first->name << "\n"; }
+            foreach2 (it, b.symbolics.begin(), b.symbolics.end()) { s << (*it)->getName() << "\n"; }
         }
         return false;
     }
@@ -837,8 +831,7 @@ void S2EExecutionState::enumPossibleRanges(ref<Expr> e, ref<Expr> start, ref<Exp
 
     Solver *solver = klee::SolverManager::solver()->solver;
 
-    ArrayVec symbObjects;
-    foreach2 (it, symbolics.begin(), symbolics.end()) { symbObjects.push_back(it->second); }
+    ArrayVec symbObjects = symbolics;
 
     solver->getRanges(constraints, symbObjects, e, start, end, ranges);
 }
@@ -865,8 +858,7 @@ bool S2EExecutionState::testConstraints(const std::vector<ref<Expr>> &c, Constra
         tmpConstraints.addConstraint(*it);
     }
 
-    ArrayVec symbObjects;
-    foreach2 (it, symbolics.begin(), symbolics.end()) { symbObjects.push_back(it->second); }
+    ArrayVec symbObjects = symbolics;
 
     Solver *solver = SolverManager::solver()->solver;
     std::vector<std::vector<unsigned char>> concreteObjects;
