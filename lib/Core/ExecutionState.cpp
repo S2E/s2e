@@ -140,9 +140,9 @@ llvm::raw_ostream &operator<<(llvm::raw_ostream &os, const MemoryMap &mm) {
     MemoryMap::iterator it = mm.begin();
     MemoryMap::iterator ie = mm.end();
     if (it != ie) {
-        os << "MO" << it->first->id << ":" << it->second;
+        os << "MO" << it->first->address << ":" << it->second;
         for (++it; it != ie; ++it)
-            os << ", MO" << it->first->id << ":" << it->second;
+            os << ", MO" << it->first->address << ":" << it->second;
     }
     os << "}";
     return os;
@@ -221,16 +221,16 @@ bool ExecutionState::merge(const ExecutionState &b) {
         if (ai->first != bi->first) {
             if (DebugLogStateMerge) {
                 if (ai->first < bi->first) {
-                    llvm::errs() << "\t\tB misses binding for: " << ai->first->id << "\n";
+                    llvm::errs() << "\t\tB misses binding for: " << ai->first->address << "\n";
                 } else {
-                    llvm::errs() << "\t\tA misses binding for: " << bi->first->id << "\n";
+                    llvm::errs() << "\t\tA misses binding for: " << bi->first->address << "\n";
                 }
             }
             return false;
         }
         if (ai->second != bi->second) {
             if (DebugLogStateMerge)
-                llvm::errs() << "\t\tmutated: " << ai->first->id << "\n";
+                llvm::errs() << "\t\tmutated: " << ai->first->address << "\n";
             mutated.insert(ai->first);
         }
     }

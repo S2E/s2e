@@ -122,11 +122,7 @@ public:
 };
 
 class MemoryObject {
-private:
-    static int counter;
-
 public:
-    unsigned id;
     uint64_t address;
 
     /// size in bytes
@@ -136,9 +132,6 @@ public:
     bool isLocal;
     bool isGlobal;
     bool isFixed;
-
-    /// true if created by us.
-    bool fake_object;
 
     /// User-specified object will not be concretized/restored
     /// when switching to/from concrete execution. That is,
@@ -172,14 +165,13 @@ public:
 public:
     // XXX this is just a temp hack, should be removed
     explicit MemoryObject(uint64_t _address)
-        : id(counter++), address(_address), size(0), isFixed(true), isSplittable(false),
-          doNotifyOnConcretenessChange(false) {
+        : address(_address), size(0), isFixed(true), isSplittable(false), doNotifyOnConcretenessChange(false) {
     }
 
     MemoryObject(uint64_t _address, unsigned _size, bool _isLocal, bool _isGlobal, bool _isFixed)
-        : id(counter++), address(_address), size(_size), name("unnamed"), isLocal(_isLocal), isGlobal(_isGlobal),
-          isFixed(_isFixed), fake_object(false), isUserSpecified(false), isSharedConcrete(false), isSplittable(false),
-          isMemoryPage(false), doNotifyOnConcretenessChange(false) {
+        : address(_address), size(_size), name("unnamed"), isLocal(_isLocal), isGlobal(_isGlobal), isFixed(_isFixed),
+          isUserSpecified(false), isSharedConcrete(false), isSplittable(false), isMemoryPage(false),
+          doNotifyOnConcretenessChange(false) {
     }
 
     ~MemoryObject();
@@ -415,8 +407,6 @@ private:
     }
 
     void setKnownSymbolic(unsigned offset, const ref<Expr> &value);
-
-    void print();
 
     ObjectState *getCopy(const BitArrayPtr &_concreteMask, const ConcreteBufferPtr &_concreteStore) const;
 

@@ -65,8 +65,6 @@ ObjectHolder &ObjectHolder::operator=(const ObjectHolder &b) {
 
 /***/
 
-int MemoryObject::counter = 0;
-
 MemoryObject::~MemoryObject() {
 }
 
@@ -572,26 +570,5 @@ void ObjectState::write64(unsigned offset, uint64_t value) {
     for (unsigned i = 0; i != NumBytes; ++i) {
         unsigned idx = Context::get().isLittleEndian() ? i : (NumBytes - i - 1);
         write8(offset + idx, (uint8_t)(value >> (8 * i)));
-    }
-}
-
-void ObjectState::print() {
-    std::cerr << "-- ObjectState --\n";
-    std::cerr << "\tMemoryObject ID: " << object->id << "\n";
-    std::cerr << "\tRoot Object: " << updates->getRoot() << "\n";
-    std::cerr << "\tSize: " << size << "\n";
-
-    std::cerr << "\tBytes:\n";
-    for (unsigned i = 0; i < size; i++) {
-        std::cerr << "\t\t[" << i << "]"
-                  << " concrete? " << isByteConcrete(i) << " known-sym? " << isByteKnownSymbolic(i) << " flushed? "
-                  << isByteFlushed(i) << " = ";
-        ref<Expr> e = read8(i);
-        std::cerr << e << "\n";
-    }
-
-    std::cerr << "\tUpdates:\n";
-    for (auto un = updates->getHead(); un; un = un->getNext()) {
-        std::cerr << "\t\t[" << un->getIndex() << "] = " << un->getValue() << "\n";
     }
 }
