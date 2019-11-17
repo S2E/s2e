@@ -48,25 +48,18 @@ public:
     /// True if this is an S2E physical memory page (or subpage)
     bool isMemoryPage;
 
-    /// True to get notifications when the object becomes fully concrete
-    /// or at least one byte becomes symbolic.
-    /// If the object is split into multiple ones, the event is triggered
-    /// when the entire group of objects gets the property.
-    bool doNotifyOnConcretenessChange;
-
     // DO NOT IMPLEMENT
     MemoryObject(const MemoryObject &b);
     MemoryObject &operator=(const MemoryObject &b);
 
 public:
     // XXX this is just a temp hack, should be removed
-    explicit MemoryObject(uint64_t _address)
-        : address(_address), size(0), isFixed(true), isSplittable(false), doNotifyOnConcretenessChange(false) {
+    explicit MemoryObject(uint64_t _address) : address(_address), size(0), isFixed(true), isSplittable(false) {
     }
 
     MemoryObject(uint64_t _address, unsigned _size, bool _isFixed)
         : address(_address), size(_size), isFixed(_isFixed), isSharedConcrete(false), isSplittable(false),
-          isMemoryPage(false), doNotifyOnConcretenessChange(false) {
+          isMemoryPage(false) {
     }
 
     ~MemoryObject();
@@ -152,6 +145,12 @@ private:
 
     bool readOnly;
 
+    /// True to get notifications when the object becomes fully concrete
+    /// or at least one byte becomes symbolic.
+    /// If the object is split into multiple ones, the event is triggered
+    /// when the entire group of objects gets the property.
+    bool m_notifyOnConcretenessChange;
+
     // XXX: made it public for fast access
     ConcreteBufferPtr concreteStore;
 
@@ -199,6 +198,14 @@ public:
 
     bool isReadOnly() const {
         return readOnly;
+    }
+
+    inline bool notifyOnConcretenessChange() const {
+        return m_notifyOnConcretenessChange;
+    }
+
+    inline void setNotifyOnConcretenessChange(bool v) {
+        m_notifyOnConcretenessChange = v;
     }
 
     unsigned getSize() const {

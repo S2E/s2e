@@ -21,6 +21,7 @@ class MemoryObject;
 class ObjectState;
 
 typedef std::pair<const MemoryObject *, const ObjectState *> ObjectPair;
+typedef std::pair<MemoryObject *, ObjectState *> MutableObjectPair;
 typedef std::vector<ObjectPair> ResolutionList;
 
 /// Function object ordering MemoryObject's by address and size.

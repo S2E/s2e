@@ -183,17 +183,21 @@ void Executor::initializeGlobalObject(ExecutionState &state, ObjectState *os, Co
     }
 }
 
-MemoryObject *Executor::addExternalObject(ExecutionState &state, void *addr, unsigned size, bool isReadOnly,
-                                          bool isSharedConcrete) {
+MutableObjectPair Executor::addExternalObject(ExecutionState &state, void *addr, unsigned size, bool isReadOnly,
+                                              bool isSharedConcrete) {
+    MutableObjectPair op;
     MemoryObject *mo = MemoryObject::allocate((uint64_t) addr, size, true);
     mo->isSharedConcrete = isSharedConcrete;
     ObjectState *os = state.bindObject(mo, false);
     if (!isSharedConcrete) {
         memcpy(os->getConcreteStore(), addr, size);
     }
-    if (isReadOnly)
-        os->setReadOnly(true);
-    return mo;
+
+    os->setReadOnly(isReadOnly);
+
+    op.first = mo;
+    op.second = os;
+    return op;
 }
 
 void Executor::initializeGlobals(ExecutionState &state) {
@@ -1818,7 +1822,7 @@ void Executor::writeAndNotify(ExecutionState &state, ObjectState *wos, ref<Expr>
 
     bool newAllConcrete = wos->isAllConcrete();
 
-    if ((oldAllConcrete != newAllConcrete) && (wos->getObject()->doNotifyOnConcretenessChange)) {
+    if ((oldAllConcrete != newAllConcrete) && (wos->notifyOnConcretenessChange())) {
         state.addressSpaceSymbolicStatusChange(wos, newAllConcrete);
     }
 }
