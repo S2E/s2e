@@ -125,11 +125,11 @@ void MemoryTracer::traceConcreteDataMemoryAccess(S2EExecutionState *state, uint6
         traceFlags |= s2e_trace::PbTraceMemoryAccess::EXECTRACE_MEM_HASHOSTADDR;
         traceFlags |= s2e_trace::PbTraceMemoryAccess::EXECTRACE_MEM_OBJECTSTATE;
 
-        klee::ObjectPair op = state->addressSpace.findObject(item.host_address() & SE_RAM_OBJECT_MASK);
-        if (op.first && op.second) {
-            item.set_concrete_buffer((uint64_t) op.second->getConcreteStore());
+        auto os = state->addressSpace.findObject(item.host_address() & SE_RAM_OBJECT_MASK);
+        if (os) {
+            item.set_concrete_buffer((uint64_t) os->getConcreteStore());
             if ((flags & MEM_TRACE_FLAG_WRITE) && m_debugObjectStates) {
-                assert(state->addressSpace.isOwnedByUs(op.second));
+                assert(state->addressSpace.isOwnedByUs(os));
             }
         }
     }
@@ -183,11 +183,11 @@ void MemoryTracer::traceSymbolicDataMemoryAccess(S2EExecutionState *state, klee:
         traceFlags |= s2e_trace::PbTraceMemoryAccess::EXECTRACE_MEM_HASHOSTADDR;
         traceFlags |= s2e_trace::PbTraceMemoryAccess::EXECTRACE_MEM_OBJECTSTATE;
 
-        klee::ObjectPair op = state->addressSpace.findObject(item.host_address() & SE_RAM_OBJECT_MASK);
-        if (op.first && op.second) {
-            item.set_concrete_buffer((uint64_t) op.second->getConcreteStore());
+        auto os = state->addressSpace.findObject(item.host_address() & SE_RAM_OBJECT_MASK);
+        if (os) {
+            item.set_concrete_buffer((uint64_t) os->getConcreteStore());
             if ((flags & MEM_TRACE_FLAG_WRITE) && m_debugObjectStates) {
-                assert(state->addressSpace.isOwnedByUs(op.second));
+                assert(state->addressSpace.isOwnedByUs(os));
             }
         }
     }

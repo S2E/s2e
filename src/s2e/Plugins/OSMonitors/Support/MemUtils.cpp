@@ -105,12 +105,12 @@ void MemUtils::findSequencesOfSymbolicData(const BitArrayPtr &concreteMask, uint
 void MemUtils::findSequencesOfSymbolicData(S2EExecutionState *state, const std::set<uint64_t> &sortedPages,
                                            std::vector<AddrSize> &symbolicSequences) {
     foreach2 (it, sortedPages.begin(), sortedPages.end()) {
-        ObjectPair op = state->mem()->getMemoryObject(*it);
-        if (!op.first) { // page was not used/mapped
+        auto os = state->mem()->getMemoryObject(*it);
+        if (!os) { // page was not used/mapped
             continue;
         }
 
-        auto concreteMask = op.second->getConcreteMask();
+        auto concreteMask = os->getConcreteMask();
         if (!concreteMask) { // all bytes are concrete
             continue;
         }
