@@ -89,14 +89,15 @@ ExecutionState *ExecutionState::clone() {
     return state;
 }
 
-void ExecutionState::addressSpaceChange(const MemoryObject *, const ObjectState *, ObjectState *) {
+void ExecutionState::addressSpaceChange(const ObjectKey &key, const ObjectStateConstPtr &oldState,
+                                        const ObjectStatePtr &newState) {
 }
 
-void ExecutionState::addressSpaceObjectSplit(const ObjectState *oldObject,
-                                             const std::vector<ObjectState *> &newObjects) {
+void ExecutionState::addressSpaceObjectSplit(const ObjectStateConstPtr &oldObject,
+                                             const std::vector<ObjectStatePtr> &newObjects) {
 }
 
-void ExecutionState::addressSpaceSymbolicStatusChange(ObjectState *object, bool becameConcrete) {
+void ExecutionState::addressSpaceSymbolicStatusChange(const ObjectStatePtr &object, bool becameConcrete) {
 }
 
 ExecutionState *ExecutionState::branch() {
@@ -110,8 +111,9 @@ void ExecutionState::pushFrame(KInstIterator caller, KFunction *kf) {
 
 void ExecutionState::popFrame() {
     StackFrame &sf = stack.back();
-    for (std::vector<const MemoryObject *>::iterator it = sf.allocas.begin(), ie = sf.allocas.end(); it != ie; ++it)
-        addressSpace.unbindObject(*it);
+    for (auto it : sf.allocas) {
+        addressSpace.unbindObject(it);
+    }
     stack.pop_back();
 }
 
@@ -140,9 +142,9 @@ llvm::raw_ostream &operator<<(llvm::raw_ostream &os, const MemoryMap &mm) {
     MemoryMap::iterator it = mm.begin();
     MemoryMap::iterator ie = mm.end();
     if (it != ie) {
-        os << "MO" << it->first->address << ":" << it->second;
+        os << "MO" << it->first.address << ":" << it->second.get();
         for (++it; it != ie; ++it)
-            os << ", MO" << it->first->address << ":" << it->second;
+            os << ", MO" << it->first.address << ":" << it->second.get();
     }
     os << "}";
     return os;
@@ -212,7 +214,7 @@ bool ExecutionState::merge(const ExecutionState &b) {
         llvm::errs() << "B: " << b.addressSpace.objects << "\n";
     }
 
-    std::set<const MemoryObject *> mutated;
+    std::set<ObjectKey> mutated;
     MemoryMap::iterator ai = addressSpace.objects.begin();
     MemoryMap::iterator bi = b.addressSpace.objects.begin();
     MemoryMap::iterator ae = addressSpace.objects.end();
@@ -221,16 +223,16 @@ bool ExecutionState::merge(const ExecutionState &b) {
         if (ai->first != bi->first) {
             if (DebugLogStateMerge) {
                 if (ai->first < bi->first) {
-                    llvm::errs() << "\t\tB misses binding for: " << ai->first->address << "\n";
+                    llvm::errs() << "\t\tB misses binding for: " << ai->first.address << "\n";
                 } else {
-                    llvm::errs() << "\t\tA misses binding for: " << bi->first->address << "\n";
+                    llvm::errs() << "\t\tA misses binding for: " << bi->first.address << "\n";
                 }
             }
             return false;
         }
         if (ai->second != bi->second) {
             if (DebugLogStateMerge)
-                llvm::errs() << "\t\tmutated: " << ai->first->address << "\n";
+                llvm::errs() << "\t\tmutated: " << ai->first.address << "\n";
             mutated.insert(ai->first);
         }
     }
@@ -270,15 +272,14 @@ bool ExecutionState::merge(const ExecutionState &b) {
         }
     }
 
-    for (std::set<const MemoryObject *>::iterator it = mutated.begin(), ie = mutated.end(); it != ie; ++it) {
-        const MemoryObject *mo = *it;
-        const ObjectState *os = addressSpace.findObject(mo);
-        const ObjectState *otherOS = b.addressSpace.findObject(mo);
+    for (auto mo : mutated) {
+        auto os = addressSpace.findObject(mo.address);
+        auto otherOS = b.addressSpace.findObject(mo.address);
         assert(os && !os->isReadOnly() && "objects mutated but not writable in merging state");
         assert(otherOS);
 
-        ObjectState *wos = addressSpace.getWriteable(mo, os);
-        for (unsigned i = 0; i < mo->size; i++) {
+        auto wos = addressSpace.getWriteable(os);
+        for (unsigned i = 0; i < mo.size; i++) {
             ref<Expr> av = wos->read8(i);
             ref<Expr> bv = otherOS->read8(i);
             wos->write(i, SelectExpr::create(inA, av, bv));
@@ -556,18 +557,15 @@ void ExecutionState::stepInstruction() {
     ++pc;
 }
 
-ObjectState *ExecutionState::bindObject(const MemoryObject *mo, bool isLocal, const ArrayPtr &array) {
-    ObjectState *os = array ? new ObjectState(mo, array) : new ObjectState(mo);
-    addressSpace.bindObject(mo, os);
+void ExecutionState::bindObject(const ObjectStatePtr &os, bool isLocal) {
+    addressSpace.bindObject(os);
 
     // Its possible that multiple bindings of the same mo in the state
     // will put multiple copies on this list, but it doesn't really
     // matter because all we use this list for is to unbind the object
     // on function return.
     if (isLocal) {
-        stack.back().allocas.push_back(mo);
+        stack.back().allocas.push_back(os);
     }
-
-    return os;
 }
 }

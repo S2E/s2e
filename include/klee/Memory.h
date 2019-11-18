@@ -22,105 +22,44 @@
 #include <string>
 #include <vector>
 
+#include <boost/intrusive_ptr.hpp>
+
 namespace klee {
 
-class MemoryObject {
-public:
+struct ObjectKey {
     uint64_t address;
-
-    /// size in bytes
     unsigned size;
-    std::string name;
 
-    bool isFixed;
-
-    /// True if this object should always be accessed directly
-    /// by its address (i.e., bypassing all ObjectStates).
-    /// This means that the object will always contain concrete
-    /// values and its conctent will be shared across all states
-    /// (unless explicitly saved/restored on state switches -
-    /// ObjectState will still be allocated for this purpose).
-    bool isSharedConcrete;
-
-    /// True if can be split into smaller objects
-    bool isSplittable;
-
-    // DO NOT IMPLEMENT
-    MemoryObject(const MemoryObject &b);
-    MemoryObject &operator=(const MemoryObject &b);
-
-public:
-    // XXX this is just a temp hack, should be removed
-    explicit MemoryObject(uint64_t _address) : address(_address), size(0), isFixed(true), isSplittable(false) {
-    }
-
-    MemoryObject(uint64_t _address, unsigned _size, bool _isFixed)
-        : address(_address), size(_size), isFixed(_isFixed), isSharedConcrete(false), isSplittable(false) {
-    }
-
-    ~MemoryObject();
-
-    static MemoryObject *allocate(uint64_t address, uint64_t size, bool isFixed) {
-        if (size > 10 * 1024 * 1024) {
-            klee_warning_once(0, "failing large alloc: %u bytes", (unsigned) size);
-            return 0;
-        }
-
-        if (!isFixed) {
-            if (address) {
-                return nullptr;
-            }
-
-            address = (uintptr_t) malloc((unsigned) size);
-            if (!address) {
-                return nullptr;
-            }
-        }
-
-        return new MemoryObject(address, size, isFixed);
-    }
-
-    void setName(const std::string &name) {
-        this->name = name;
+    ObjectKey() : address(0), size(0) {
     }
 
     ref<ConstantExpr> getBaseExpr() const {
         return ConstantExpr::create(address, Context::get().getPointerWidth());
     }
-    ref<ConstantExpr> getSizeExpr() const {
-        return ConstantExpr::create(size, Context::get().getPointerWidth());
-    }
-    ref<Expr> getOffsetExpr(ref<Expr> pointer) const {
-        return SubExpr::create(pointer, getBaseExpr());
-    }
-    uint64_t getOffset(uint64_t pointer) const {
-        return pointer - address;
-    }
-    ref<Expr> getBoundsCheckPointer(ref<Expr> pointer) const {
-        return getBoundsCheckOffset(getOffsetExpr(pointer));
-    }
-    ref<Expr> getBoundsCheckPointer(ref<Expr> pointer, unsigned bytes) const {
-        return getBoundsCheckOffset(getOffsetExpr(pointer), bytes);
+
+    bool operator==(const ObjectKey &a) const {
+        return a.address == address && a.size == size;
     }
 
-    ref<Expr> getBoundsCheckOffset(ref<Expr> offset) const {
-        if (size == 0) {
-            return EqExpr::create(offset, ConstantExpr::alloc(0, Context::get().getPointerWidth()));
-        } else {
-            return UltExpr::create(offset, getSizeExpr());
-        }
-    }
-    ref<Expr> getBoundsCheckOffset(ref<Expr> offset, unsigned bytes) const {
-        if (bytes <= size) {
-            return UltExpr::create(offset, ConstantExpr::alloc(size - bytes + 1, Context::get().getPointerWidth()));
-        } else {
-            return ConstantExpr::alloc(0, Expr::Bool);
-        }
+    bool operator!=(const ObjectKey &a) const {
+        return !(*this == a);
     }
 
-    // Split the current object at specified offsets
-    void split(std::vector<MemoryObject *> &objects, const std::vector<unsigned> &offsets) const;
+    bool operator<(const ObjectKey &a) const {
+        return address + size <= a.address;
+    }
 };
+
+/// Function object ordering ObjectKey's by address and size.
+struct ObjectKeyLTS {
+    bool operator()(const ObjectKey &a, const ObjectKey &b) const {
+        return a.address + a.size <= b.address;
+    }
+};
+
+class ObjectState;
+typedef boost::intrusive_ptr<ObjectState> ObjectStatePtr;
+typedef boost::intrusive_ptr<const ObjectState> ObjectStateConstPtr;
 
 class ObjectState {
 private:
@@ -128,16 +67,25 @@ private:
     // (yes, we do need to access if really fast)
     BitArrayPtr concreteMask;
 
-    friend class AddressSpace;
     template <typename U> friend class AddressSpaceBase;
     unsigned copyOnWriteOwner; // exclusively for AddressSpace
 
-    friend class ObjectHolder;
-    unsigned refCount;
+    mutable std::atomic<unsigned> m_refCount;
 
-    const MemoryObject *object;
+    uint64_t m_address;
+    unsigned m_size;
 
-    unsigned size;
+    // TODO: make it copy-on-write
+    std::string m_name;
+
+    bool m_fixed;
+
+    /// The pointer is equal to m_address and is shared between all copies
+    /// of this object.
+    std::shared_ptr<uint8_t> m_fixedBuffer;
+
+    /// True if can be split into smaller objects
+    bool m_splittable;
 
     bool readOnly;
 
@@ -149,6 +97,14 @@ private:
 
     /// True if this is an S2E physical memory page (or subpage)
     bool m_isMemoryPage;
+
+    /// True if this object should always be accessed directly
+    /// by its address (i.e., bypassing all ObjectStates).
+    /// This means that the object will always contain concrete
+    /// values and its conctent will be shared across all states
+    /// (unless explicitly saved/restored on state switches -
+    /// ObjectState will still be allocated for this purpose).
+    bool m_isSharedConcrete;
 
     // XXX: made it public for fast access
     ConcreteBufferPtr concreteStore;
@@ -167,28 +123,43 @@ private:
     mutable UpdateListPtr updates;
 
 private:
-    ObjectState();
-
     // For AddressSpace
     ConcreteBufferPtr getConcreteBufferAs() {
         return concreteStore;
     }
 
-public:
+    ObjectState();
+
     /// Create a new object state for the given memory object with concrete
     /// contents. The initial contents are undefined, it is the callers
     /// responsibility to initialize the object contents appropriately.
-    ObjectState(const MemoryObject *mo);
-
-    /// Create a new object state for the given memory object with symbolic
-    /// contents.
-    ObjectState(const MemoryObject *mo, const ArrayPtr &array);
+    ObjectState(uint64_t address, uint64_t size, bool fixed);
 
     ObjectState(const ObjectState &os);
+
+public:
     ~ObjectState();
 
-    inline const MemoryObject *getObject() const {
-        return object;
+    static ObjectStatePtr allocate(uint64_t address, uint64_t size, bool isFixed);
+    ObjectStatePtr copy() const {
+        return new ObjectState(*this);
+    }
+
+    ObjectStatePtr copy(const BitArrayPtr &_concreteMask, const ConcreteBufferPtr &_concreteStore) const;
+
+    const std::string &getName() const {
+        return m_name;
+    }
+
+    void setName(const std::string &name) {
+        m_name = name;
+    }
+
+    ObjectKey getKey() const {
+        ObjectKey key;
+        key.address = m_address;
+        key.size = m_size;
+        return key;
     }
 
     void setReadOnly(bool ro) {
@@ -197,6 +168,14 @@ public:
 
     bool isReadOnly() const {
         return readOnly;
+    }
+
+    bool isSplittable() const {
+        return m_splittable;
+    }
+
+    void setSplittable(bool b) {
+        m_splittable = b;
     }
 
     inline bool notifyOnConcretenessChange() const {
@@ -215,8 +194,28 @@ public:
         m_isMemoryPage = b;
     }
 
+    inline bool isSharedConcrete() const {
+        return m_isSharedConcrete;
+    }
+
+    inline void setSharedConcrete(bool b) {
+        m_isSharedConcrete = b;
+    }
+
     unsigned getSize() const {
-        return size;
+        return m_size;
+    }
+
+    uint64_t getAddress() const {
+        return m_address;
+    }
+
+    unsigned getOwnerId() const {
+        return copyOnWriteOwner;
+    }
+
+    void setOwnerId(unsigned id) {
+        copyOnWriteOwner = id;
     }
 
     ref<Expr> read(ref<Expr> offset, Expr::Width width) const;
@@ -225,8 +224,8 @@ public:
 
     // fast-path to get concrete values
     bool readConcrete8(unsigned offset, uint8_t *v) const {
-        if (object->isSharedConcrete) {
-            *v = ((uint8_t *) object->address)[offset];
+        if (m_isSharedConcrete) {
+            *v = ((uint8_t *) m_address)[offset];
             return true;
         } else if (isByteConcrete(offset)) {
             *v = concreteStore->get()[offset + storeOffset];
@@ -273,7 +272,7 @@ public:
     }
 
     // Split the current object at specified offset
-    ObjectState *split(MemoryObject *object, unsigned offset) const;
+    ObjectStatePtr split(unsigned offset, unsigned newSize) const;
 
     unsigned getStoreOffset() const {
         return storeOffset;
@@ -281,12 +280,16 @@ public:
 
     unsigned getBitArraySize() const {
         if (!concreteMask) {
-            return size;
+            return m_size;
         }
         return concreteMask->getBitCount();
     }
 
     void initializeConcreteMask();
+
+    uint64_t getOffset(uint64_t pointer) const {
+        return pointer - m_address;
+    }
 
 private:
     const UpdateListPtr &getUpdates() const;
@@ -329,7 +332,72 @@ private:
 
     void setKnownSymbolic(unsigned offset, const ref<Expr> &value);
 
-    ObjectState *getCopy(const BitArrayPtr &_concreteMask, const ConcreteBufferPtr &_concreteStore) const;
+public:
+    ref<ConstantExpr> getBaseExpr() const {
+        return ConstantExpr::create(m_address, Context::get().getPointerWidth());
+    }
+    ref<ConstantExpr> getSizeExpr() const {
+        return ConstantExpr::create(m_size, Context::get().getPointerWidth());
+    }
+    ref<Expr> getOffsetExpr(ref<Expr> pointer) const {
+        return SubExpr::create(pointer, getBaseExpr());
+    }
+
+    ref<Expr> getBoundsCheckPointer(ref<Expr> pointer) const {
+        return getBoundsCheckOffset(getOffsetExpr(pointer));
+    }
+    ref<Expr> getBoundsCheckPointer(ref<Expr> pointer, unsigned bytes) const {
+        return getBoundsCheckOffset(getOffsetExpr(pointer), bytes);
+    }
+
+    ref<Expr> getBoundsCheckOffset(ref<Expr> offset) const {
+        if (m_size == 0) {
+            return EqExpr::create(offset, ConstantExpr::alloc(0, Context::get().getPointerWidth()));
+        } else {
+            return UltExpr::create(offset, getSizeExpr());
+        }
+    }
+    ref<Expr> getBoundsCheckOffset(ref<Expr> offset, unsigned bytes) const {
+        if (bytes <= m_size) {
+            return UltExpr::create(offset, ConstantExpr::alloc(m_size - bytes + 1, Context::get().getPointerWidth()));
+        } else {
+            return ConstantExpr::alloc(0, Expr::Bool);
+        }
+    }
+
+    friend void intrusive_ptr_add_ref(ObjectState *ptr);
+    friend void intrusive_ptr_release(ObjectState *ptr);
+    friend void intrusive_ptr_add_ref(const ObjectState *ptr);
+    friend void intrusive_ptr_release(const ObjectState *ptr);
+};
+
+inline void intrusive_ptr_add_ref(ObjectState *ptr) {
+    ++ptr->m_refCount;
+}
+
+inline void intrusive_ptr_release(ObjectState *ptr) {
+    if (--ptr->m_refCount == 0) {
+        delete ptr;
+    }
+}
+
+inline void intrusive_ptr_add_ref(const ObjectState *ptr) {
+    ++ptr->m_refCount;
+}
+
+inline void intrusive_ptr_release(const ObjectState *ptr) {
+    if (--ptr->m_refCount == 0) {
+        delete ptr;
+    }
+}
+
+struct ObjectStatePtrHash {
+    size_t operator()(const ObjectStatePtr &x) const {
+        return (size_t) x.get();
+    }
+    size_t operator()(const ObjectStateConstPtr &x) const {
+        return (size_t) x.get();
+    }
 };
 
 } // End klee namespace

@@ -16,8 +16,6 @@
 #include "klee/Solver.h"
 #include "klee/util/BitArray.h"
 
-#include "klee/ObjectHolder.h"
-
 #include <llvm/IR/Function.h>
 #include <llvm/IR/Instruction.h>
 #include <llvm/IR/Value.h>
@@ -29,102 +27,46 @@
 #include <sstream>
 
 using namespace llvm;
-using namespace klee;
 
-ObjectHolder::ObjectHolder(const ObjectHolder &b) : os(b.os) {
-    if (os)
-        ++os->refCount;
+namespace klee {
+
+ObjectState::ObjectState() {
 }
 
-ObjectHolder::ObjectHolder(ObjectState *_os) : os(_os) {
-    if (os)
-        ++os->refCount;
-}
+ObjectState::ObjectState(uint64_t address, uint64_t size, bool fixed)
+    : copyOnWriteOwner(0), m_refCount(0), m_address(address), m_size(size), m_fixed(fixed), m_splittable(false),
+      readOnly(false), m_notifyOnConcretenessChange(false), m_isMemoryPage(false), m_isSharedConcrete(false),
+      storeOffset(0), updates(UpdateList::create(nullptr, 0)) {
 
-ObjectHolder::~ObjectHolder() {
-    if (os && --os->refCount == 0)
-        delete os;
-}
-
-ObjectHolder &ObjectHolder::operator=(const ObjectHolder &b) {
-    if (b.os)
-        ++b.os->refCount;
-    if (os && --os->refCount == 0)
-        delete os;
-    os = b.os;
-    return *this;
-}
-
-/***/
-
-MemoryObject::~MemoryObject() {
-    if (!isFixed) {
-        free((void *) address);
-    }
-}
-
-void MemoryObject::split(std::vector<MemoryObject *> &objects, const std::vector<unsigned> &offsets) const {
-    assert(isSplittable);
-
-    unsigned count = offsets.size();
-
-    for (unsigned i = 0; i < count; ++i) {
-        unsigned offset = offsets[i];
-        unsigned nsize;
-
-        if (i < count - 1) {
-            nsize = offsets[i + 1] - offset;
-        } else {
-            nsize = size - offset;
+    if (!m_fixed) {
+        if (m_address) {
+            abort();
         }
 
-        MemoryObject *obj = new MemoryObject(address, nsize, isFixed);
-        obj->address = address + offset;
-        obj->size = nsize;
-        obj->isSplittable = false;
-        objects.push_back(obj);
+        m_fixedBuffer = std::shared_ptr<uint8_t>(new uint8_t[size], std::default_delete<uint8_t[]>());
+        m_address = (uint64_t) m_fixedBuffer.get();
     }
+
+    this->concreteStore = ConcreteBuffer::create(size);
 }
 
-/***/
-
-ObjectState::ObjectState()
-    : copyOnWriteOwner(0), refCount(0), object(nullptr), size(0), readOnly(false), m_notifyOnConcretenessChange(false),
-      m_isMemoryPage(false), storeOffset(0), updates(UpdateList::create(nullptr, 0)) {
-}
-
-ObjectState::ObjectState(const MemoryObject *mo)
-    : copyOnWriteOwner(0), refCount(0), object(nullptr), size(0), readOnly(false), m_notifyOnConcretenessChange(false),
-      m_isMemoryPage(false), storeOffset(0), updates(UpdateList::create(nullptr, 0)) {
-
-    this->object = mo;
-    this->size = mo->size;
-    this->concreteStore = ConcreteBuffer::create(mo->size);
-}
-
-ObjectState::ObjectState(const MemoryObject *mo, const ArrayPtr &array)
-    : copyOnWriteOwner(0), refCount(0), object(nullptr), size(0), readOnly(false), m_notifyOnConcretenessChange(false),
-      m_isMemoryPage(false), storeOffset(0), updates(UpdateList::create(array, 0)) {
-
-    this->object = mo;
-    this->size = mo->size;
-    this->concreteStore = ConcreteBuffer::create(mo->size);
-}
-
-ObjectState::ObjectState(const ObjectState &os)
-    : copyOnWriteOwner(0), refCount(0), object(nullptr), size(0), readOnly(false), storeOffset(0),
-      updates(UpdateList::create(nullptr, 0)) {
+ObjectState::ObjectState(const ObjectState &os) {
     assert(!os.readOnly && "no need to copy read only object?");
-    assert(!os.concreteMask || (os.size == os.concreteMask->getBitCount()));
+    assert(!os.concreteMask || (os.m_size == os.concreteMask->getBitCount()));
 
     this->concreteMask = os.concreteMask ? BitArray::create(os.concreteMask) : nullptr;
     this->copyOnWriteOwner = os.copyOnWriteOwner;
-    this->refCount = 0;
-    this->object = os.object;
-    this->size = os.size;
+    this->m_refCount = 0;
+    this->m_address = os.m_address;
+    this->m_size = os.m_size;
+    this->m_name = os.m_name;
+    this->m_fixed = os.m_fixed;
+    this->m_fixedBuffer = os.m_fixedBuffer;
+    this->m_splittable = os.m_splittable;
     this->readOnly = os.readOnly;
     this->m_notifyOnConcretenessChange = os.m_notifyOnConcretenessChange;
     this->m_isMemoryPage = os.m_isMemoryPage;
+    this->m_isSharedConcrete = os.m_isSharedConcrete;
     this->concreteStore = ConcreteBuffer::create(os.concreteStore);
     this->storeOffset = os.storeOffset;
     this->flushMask = os.flushMask ? BitArray::create(os.flushMask) : nullptr;
@@ -135,66 +77,70 @@ ObjectState::ObjectState(const ObjectState &os)
 ObjectState::~ObjectState() {
 }
 
+ObjectStatePtr ObjectState::allocate(uint64_t address, uint64_t size, bool isFixed) {
+
+    if (size > 10 * 1024 * 1024) {
+        klee_warning_once(0, "failing large alloc: %u bytes", (unsigned) size);
+        return nullptr;
+    }
+
+    return ObjectStatePtr(new ObjectState(address, size, isFixed));
+}
+
 /***/
 
-ObjectState *ObjectState::split(MemoryObject *newObject, unsigned offset) const {
-    assert(this->object->isSplittable);
-    assert(newObject->size <= this->object->size);
-    assert(offset + newObject->size <= this->object->size);
-    assert(flushMask == NULL);
+ObjectStatePtr ObjectState::split(unsigned offset, unsigned newSize) const {
+    assert(m_splittable);
+    assert(newSize <= m_size);
+    assert(offset + newSize <= m_size);
+    assert(flushMask == nullptr);
     assert(updates->getSize() == 0);
     assert(readOnly == false);
 
-    ObjectState *ret = new ObjectState();
-    ret->object = newObject;
-    ret->concreteMask = concreteMask;
-    ret->concreteStore = concreteStore;
-    ret->storeOffset = offset;
+    auto ret = new ObjectState();
 
-    ret->size = newObject->size;
+    ret->concreteMask = concreteMask;
+    ret->copyOnWriteOwner = copyOnWriteOwner;
+    ret->m_refCount = 0;
+    ret->m_address = m_address + offset;
+    ret->m_size = newSize;
+    ret->m_name = m_name;
+    ret->m_fixed = m_fixed;
+    ret->m_fixedBuffer = m_fixedBuffer;
+    ret->m_splittable = false;
     ret->readOnly = readOnly;
     ret->m_notifyOnConcretenessChange = m_notifyOnConcretenessChange;
     ret->m_isMemoryPage = m_isMemoryPage;
-
-    // XXX: is this really correct? Don't we need to take a subset?
-    ret->updates = UpdateList::create(updates->getRoot(), updates->getHead());
+    ret->m_isSharedConcrete = m_isSharedConcrete;
+    ret->concreteStore = concreteStore;
+    ret->storeOffset = offset;
+    ret->flushMask = flushMask;
 
     if (knownSymbolics.size() > 0) {
-        ret->knownSymbolics.resize(newObject->size);
-        for (unsigned i = 0; i < newObject->size; i++) {
+        ret->knownSymbolics.resize(newSize);
+        for (unsigned i = 0; i < newSize; i++) {
             ret->knownSymbolics[i] = knownSymbolics[i + offset];
         }
     }
 
-    return ret;
+    ret->updates = UpdateList::create(updates->getRoot(), updates->getHead());
+
+    return ObjectStatePtr(ret);
 }
 
 void ObjectState::initializeConcreteMask() {
     if (!concreteMask) {
-        concreteMask = BitArray::create(size, true);
+        concreteMask = BitArray::create(m_size, true);
     }
 }
 
-ObjectState *ObjectState::getCopy(const BitArrayPtr &_concreteMask, const ConcreteBufferPtr &_concreteStore) const {
-    ObjectState *ret = new ObjectState();
-    ret->object = object;
+ObjectStatePtr ObjectState::copy(const BitArrayPtr &_concreteMask, const ConcreteBufferPtr &_concreteStore) const {
+    ObjectState *ret = new ObjectState(*this);
+
     ret->concreteMask = _concreteMask;
     ret->concreteStore = _concreteStore;
-    ret->storeOffset = storeOffset;
-    ret->size = size;
-    ret->readOnly = readOnly;
-    ret->m_notifyOnConcretenessChange = m_notifyOnConcretenessChange;
-    ret->m_isMemoryPage = m_isMemoryPage;
 
-    ret->updates = UpdateList::create(updates->getRoot(), updates->getHead());
-
-    if (flushMask) {
-        ret->flushMask = BitArray::create(flushMask);
-    }
-
-    ret->knownSymbolics = knownSymbolics;
-
-    return ret;
+    return ObjectStatePtr(ret);
 }
 
 /***/
@@ -215,11 +161,12 @@ const UpdateListPtr &ObjectState::getUpdates() const {
             Writes[i] = std::make_pair(un->getIndex(), un->getValue());
         }
 
-        std::vector<ref<ConstantExpr>> Contents(size);
+        std::vector<ref<ConstantExpr>> Contents(m_size);
 
         // Initialize to zeros.
-        for (unsigned i = 0, e = size; i != e; ++i)
+        for (unsigned i = 0, e = m_size; i != e; ++i) {
             Contents[i] = ConstantExpr::create(0, Expr::Int8);
+        }
 
         // Pull off as many concrete writes as we can.
         unsigned Begin = 0, End = Writes.size();
@@ -243,7 +190,7 @@ const UpdateListPtr &ObjectState::getUpdates() const {
         // FIXME: Leaked.
         static unsigned id = 0;
         auto array =
-            Array::create("const_arr" + llvm::utostr(++id), size, &Contents[0], &Contents[0] + Contents.size());
+            Array::create("const_arr" + llvm::utostr(++id), m_size, &Contents[0], &Contents[0] + Contents.size());
         updates = UpdateList::create(array, 0);
 
         // Apply the remaining (non-constant) writes.
@@ -264,12 +211,12 @@ isByteConcrete(i) => !isByteKnownSymbolic(i)
 
 void ObjectState::fastRangeCheckOffset(ref<Expr> offset, unsigned *base_r, unsigned *size_r) const {
     *base_r = 0;
-    *size_r = size;
+    *size_r = m_size;
 }
 
 void ObjectState::flushRangeForRead(unsigned rangeBase, unsigned rangeSize) const {
     if (!flushMask) {
-        flushMask = BitArray::create(size, true);
+        flushMask = BitArray::create(m_size, true);
     }
 
     for (unsigned offset = rangeBase; offset < rangeBase + rangeSize; offset++) {
@@ -289,7 +236,7 @@ void ObjectState::flushRangeForRead(unsigned rangeBase, unsigned rangeSize) cons
 
 void ObjectState::flushRangeForWrite(unsigned rangeBase, unsigned rangeSize) {
     if (!flushMask) {
-        flushMask = BitArray::create(size, true);
+        flushMask = BitArray::create(m_size, true);
     }
 
     for (unsigned offset = rangeBase; offset < rangeBase + rangeSize; offset++) {
@@ -318,7 +265,7 @@ void ObjectState::flushRangeForWrite(unsigned rangeBase, unsigned rangeSize) {
 }
 
 bool ObjectState::isAllConcrete() const {
-    return !concreteMask || concreteMask->isAllOnes(size);
+    return !concreteMask || concreteMask->isAllOnes(m_size);
 }
 
 const uint8_t *ObjectState::getConcreteStore(bool allowSymbolic) const {
@@ -337,14 +284,14 @@ uint8_t *ObjectState::getConcreteStore(bool allowSymbolic) {
 
 void ObjectState::markByteSymbolic(unsigned offset) {
     if (!concreteMask) {
-        concreteMask = BitArray::create(size, true);
+        concreteMask = BitArray::create(m_size, true);
     }
     concreteMask->unset(storeOffset + offset);
 }
 
 void ObjectState::markByteFlushed(unsigned offset) {
     if (!flushMask) {
-        flushMask = BitArray::create(size, false);
+        flushMask = BitArray::create(m_size, false);
     } else {
         flushMask->unset(offset);
     }
@@ -355,7 +302,7 @@ inline void ObjectState::setKnownSymbolic(unsigned offset, const ref<Expr> &valu
         knownSymbolics[offset] = value;
     } else {
         if (!value.isNull()) {
-            knownSymbolics.resize(size);
+            knownSymbolics.resize(m_size);
             knownSymbolics[offset] = value;
         }
     }
@@ -364,24 +311,24 @@ inline void ObjectState::setKnownSymbolic(unsigned offset, const ref<Expr> &valu
 /***/
 
 ref<Expr> ObjectState::read8(unsigned offset) const {
-    if (!object->isSharedConcrete) {
+    if (!isSharedConcrete()) {
         if (isByteConcrete(offset)) {
             return ConstantExpr::create(concreteStore->get()[offset + storeOffset], Expr::Int8);
         } else if (isByteKnownSymbolic(offset)) {
             return knownSymbolics[offset];
         } else {
             assert(isByteFlushed(offset) && "unflushed byte without cache value");
-            assert(offset < size);
+            assert(offset < m_size);
             return ReadExpr::create(getUpdates(), ConstantExpr::create(offset, Expr::Int32));
         }
     } else {
-        return ConstantExpr::create(((uint8_t *) object->address)[offset], Expr::Int8);
+        return ConstantExpr::create(((uint8_t *) m_address)[offset], Expr::Int8);
     }
 }
 
 ref<Expr> ObjectState::read8(ref<Expr> offset) const {
     assert(!isa<ConstantExpr>(offset) && "constant offset passed to symbolic read8");
-    assert(!object->isSharedConcrete && "read at non-constant offset for shared concrete object");
+    assert(!isSharedConcrete() && "read at non-constant offset for shared concrete object");
     unsigned base, size;
     fastRangeCheckOffset(offset, &base, &size);
     flushRangeForRead(base, size);
@@ -395,14 +342,14 @@ ref<Expr> ObjectState::read8(ref<Expr> offset) const {
 
 void ObjectState::write8(unsigned offset, uint8_t value) {
     // assert(read_only == false && "writing to read-only object!");
-    if (!object->isSharedConcrete) {
+    if (!isSharedConcrete()) {
         concreteStore->get()[offset + storeOffset] = value;
         setKnownSymbolic(offset, 0);
 
         markByteConcrete(offset);
         markByteUnflushed(offset);
     } else {
-        ((uint8_t *) object->address)[offset] = value;
+        ((uint8_t *) m_address)[offset] = value;
     }
 }
 
@@ -411,7 +358,7 @@ void ObjectState::write8(unsigned offset, ref<Expr> value) {
     if (ConstantExpr *CE = dyn_cast<ConstantExpr>(value)) {
         write8(offset, (uint8_t) CE->getZExtValue(8));
     } else {
-        assert(!object->isSharedConcrete && "write of non-constant value to shared concrete object");
+        assert(!isSharedConcrete() && "write of non-constant value to shared concrete object");
         setKnownSymbolic(offset, value.get());
 
         markByteSymbolic(offset);
@@ -421,7 +368,7 @@ void ObjectState::write8(unsigned offset, ref<Expr> value) {
 
 void ObjectState::write8(ref<Expr> offset, ref<Expr> value) {
     assert(!isa<ConstantExpr>(offset) && "constant offset passed to symbolic write8");
-    assert(!object->isSharedConcrete && "write at non-constant offset for shared concrete object");
+    assert(!isSharedConcrete() && "write at non-constant offset for shared concrete object");
     unsigned base, size;
     fastRangeCheckOffset(offset, &base, &size);
     flushRangeForWrite(base, size);
@@ -569,4 +516,5 @@ void ObjectState::write64(unsigned offset, uint64_t value) {
         unsigned idx = Context::get().isLittleEndian() ? i : (NumBytes - i - 1);
         write8(offset + idx, (uint8_t)(value >> (8 * i)));
     }
+}
 }

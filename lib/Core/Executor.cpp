@@ -148,7 +148,7 @@ Executor::~Executor() {
 
 /***/
 
-void Executor::initializeGlobalObject(ExecutionState &state, ObjectState *os, Constant *c, unsigned offset) {
+void Executor::initializeGlobalObject(ExecutionState &state, const ObjectStatePtr &os, Constant *c, unsigned offset) {
     DataLayout *dataLayout = kmodule->dataLayout;
     if (ConstantVector *cp = dyn_cast<ConstantVector>(c)) {
         unsigned elementSize = dataLayout->getTypeStoreSize(cp->getType()->getElementType());
@@ -183,21 +183,18 @@ void Executor::initializeGlobalObject(ExecutionState &state, ObjectState *os, Co
     }
 }
 
-MutableObjectPair Executor::addExternalObject(ExecutionState &state, void *addr, unsigned size, bool isReadOnly,
-                                              bool isSharedConcrete) {
-    MutableObjectPair op;
-    MemoryObject *mo = MemoryObject::allocate((uint64_t) addr, size, true);
-    mo->isSharedConcrete = isSharedConcrete;
-    ObjectState *os = state.bindObject(mo, false);
+ObjectStatePtr Executor::addExternalObject(ExecutionState &state, void *addr, unsigned size, bool isReadOnly,
+                                           bool isSharedConcrete) {
+    auto ret = ObjectState::allocate((uint64_t) addr, size, true);
+    state.bindObject(ret, false);
+    ret->setSharedConcrete(isSharedConcrete);
     if (!isSharedConcrete) {
-        memcpy(os->getConcreteStore(), addr, size);
+        memcpy(ret->getConcreteStore(), addr, size);
     }
 
-    os->setReadOnly(isReadOnly);
+    ret->setReadOnly(isReadOnly);
 
-    op.first = mo;
-    op.second = os;
-    return op;
+    return ret;
 }
 
 void Executor::initializeGlobals(ExecutionState &state) {
@@ -290,9 +287,9 @@ void Executor::initializeGlobals(ExecutionState &state) {
                              << " (use will result in out of bounds access)\n";
             }
 
-            MemoryObject *mo = MemoryObject::allocate(0, size, false);
-            ObjectState *os = state.bindObject(mo, false);
-            globalObjects.insert(std::make_pair(&*i, mo));
+            auto mo = ObjectState::allocate(0, size, false);
+            state.bindObject(mo, false);
+            globalObjects.insert(std::make_pair(&*i, mo->getKey()));
             globalAddresses.insert(std::make_pair(&*i, mo->getBaseExpr()));
 
             // Program already running = object already initialized.  Read
@@ -304,17 +301,18 @@ void Executor::initializeGlobals(ExecutionState &state) {
                 if (!addr)
                     klee_error("unable to load symbol(%s) while initializing globals.", i->getName().data());
 
-                for (unsigned offset = 0; offset < mo->size; offset++)
-                    os->write8(offset, ((unsigned char *) addr)[offset]);
+                for (unsigned offset = 0; offset < mo->getSize(); offset++) {
+                    mo->write8(offset, ((unsigned char *) addr)[offset]);
+                }
             }
         } else {
             Type *ty = i->getType()->getElementType();
             uint64_t size = kmodule->dataLayout->getTypeStoreSize(ty);
-            auto mo = MemoryObject::allocate(0, size, false);
+            auto mo = ObjectState::allocate(0, size, false);
 
             assert(mo && "out of memory");
             state.bindObject(mo, false);
-            globalObjects.insert(std::make_pair(&*i, mo));
+            globalObjects.insert(std::make_pair(&*i, mo->getKey()));
             globalAddresses.insert(std::make_pair(&*i, mo->getBaseExpr()));
         }
     }
@@ -334,10 +332,10 @@ void Executor::initializeGlobals(ExecutionState &state) {
 
         if (i->hasInitializer()) {
             assert(globalObjects.find(&*i) != globalObjects.end());
-            const MemoryObject *mo = globalObjects.find(&*i)->second;
-            const ObjectState *os = state.addressSpace.findObject(mo);
+            auto mo = globalObjects.find(&*i)->second;
+            auto os = state.addressSpace.findObject(mo.address);
             assert(os);
-            ObjectState *wos = state.addressSpace.getWriteable(mo, os);
+            auto wos = state.addressSpace.getWriteable(os);
             initializeGlobalObject(state, wos, i->getInitializer(), 0);
             // if(i->isConstant()) os->setReadOnly(true);
         }
@@ -579,13 +577,13 @@ void Executor::executeCall(ExecutionState &state, KInstruction *ki, Function *f,
             // ExecutionState::varargs
             case Intrinsic::vastart: {
                 StackFrame &sf = state.stack.back();
-                assert(sf.varargs && "vastart called in function with no vararg object");
+                assert(sf.varargs.size() && "vastart called in function with no vararg object");
 
                 // FIXME: This is really specific to the architecture, not the pointer
                 // size. This happens to work fir x86-32 and x86-64, however.
                 Expr::Width WordSize = Context::get().getPointerWidth();
                 if (WordSize == Expr::Int32) {
-                    executeMemoryOperation(state, true, arguments[0], sf.varargs->getBaseExpr(), 0);
+                    executeMemoryOperation(state, true, arguments[0], sf.varargs[0].getBaseExpr(), 0);
                 } else {
                     assert(WordSize == Expr::Int64 && "Unknown word size!");
 
@@ -596,7 +594,7 @@ void Executor::executeCall(ExecutionState &state, KInstruction *ki, Function *f,
                     executeMemoryOperation(state, true, AddExpr::create(arguments[0], ConstantExpr::create(4, 64)),
                                            ConstantExpr::create(304, 32), 0); // fp_offset
                     executeMemoryOperation(state, true, AddExpr::create(arguments[0], ConstantExpr::create(8, 64)),
-                                           sf.varargs->getBaseExpr(), 0); // overflow_arg_area
+                                           sf.varargs[0].getBaseExpr(), 0); // overflow_arg_area
                     executeMemoryOperation(state, true, AddExpr::create(arguments[0], ConstantExpr::create(16, 64)),
                                            ConstantExpr::create(0, 64), 0); // reg_save_area
                 }
@@ -660,23 +658,26 @@ void Executor::executeCall(ExecutionState &state, KInstruction *ki, Function *f,
                 }
             }
 
-            MemoryObject *mo = sf.varargs = MemoryObject::allocate(0, size, false);
+            auto mo = ObjectState::allocate(0, size, false);
             if (!mo) {
                 terminateState(state, "out of memory (varargs)");
                 return;
             }
-            ObjectState *os = state.bindObject(mo, true);
+
+            sf.varargs.push_back(mo->getKey());
+
+            state.bindObject(mo, true);
             unsigned offset = 0;
             for (unsigned i = funcArgs; i < callingArgs; i++) {
                 // FIXME: This is really specific to the architecture, not the pointer
                 // size. This happens to work fir x86-32 and x86-64, however.
                 Expr::Width WordSize = Context::get().getPointerWidth();
                 if (WordSize == Expr::Int32) {
-                    os->write(offset, arguments[i]);
+                    mo->write(offset, arguments[i]);
                     offset += Expr::getMinBytesForWidth(arguments[i]->getWidth());
                 } else {
                     assert(WordSize == Expr::Int64 && "Unknown word size!");
-                    os->write(offset, arguments[i]);
+                    mo->write(offset, arguments[i]);
                     offset += llvm::alignTo(arguments[i]->getWidth(), WordSize) / 8;
                 }
             }
@@ -1795,18 +1796,19 @@ void Executor::executeAlloc(ExecutionState &state, ref<Expr> size, bool isLocal,
                             const ObjectState *reallocFrom) {
     size = state.toUnique(size);
     if (ConstantExpr *CE = dyn_cast<ConstantExpr>(size)) {
-        MemoryObject *mo = MemoryObject::allocate(0, CE->getZExtValue(), false);
+        auto mo = ObjectState::allocate(0, CE->getZExtValue(), false);
         if (!mo) {
             state.bindLocal(target, ConstantExpr::alloc(0, Context::get().getPointerWidth()));
         } else {
-            ObjectState *os = state.bindObject(mo, isLocal);
+            state.bindObject(mo, isLocal);
             state.bindLocal(target, mo->getBaseExpr());
 
             if (reallocFrom) {
-                unsigned count = std::min(reallocFrom->getSize(), os->getSize());
-                for (unsigned i = 0; i < count; i++)
-                    os->write(i, reallocFrom->read8(i));
-                state.addressSpace.unbindObject(reallocFrom->getObject());
+                unsigned count = std::min(reallocFrom->getSize(), mo->getSize());
+                for (unsigned i = 0; i < count; i++) {
+                    mo->write(i, reallocFrom->read8(i));
+                }
+                state.addressSpace.unbindObject(reallocFrom);
             }
         }
     } else {
@@ -1815,7 +1817,7 @@ void Executor::executeAlloc(ExecutionState &state, ref<Expr> size, bool isLocal,
     }
 }
 
-void Executor::writeAndNotify(ExecutionState &state, ObjectState *wos, ref<Expr> &address, ref<Expr> &value) {
+void Executor::writeAndNotify(ExecutionState &state, const ObjectStatePtr &wos, ref<Expr> &address, ref<Expr> &value) {
     bool oldAllConcrete = wos->isAllConcrete();
 
     wos->write(address, value);
@@ -1829,25 +1831,25 @@ void Executor::writeAndNotify(ExecutionState &state, ObjectState *wos, ref<Expr>
 
 ref<Expr> Executor::executeMemoryOperationOverlapped(ExecutionState &state, bool isWrite, uint64_t concreteAddress,
                                                      ref<Expr> value /* undef if read */, unsigned bytes) {
-    ObjectPair op;
+    ObjectStateConstPtr os;
     ref<Expr> readResult;
     const bool littleEndian = Context::get().isLittleEndian();
 
     for (unsigned i = 0; i < bytes; ++i) {
         bool fastInBounds = false;
-        bool success = state.addressSpace.findObject(concreteAddress, 1, op, fastInBounds);
+        bool success = state.addressSpace.findObject(concreteAddress, 1, os, fastInBounds);
         assert(success && fastInBounds && "Could not resolve concrete memory address");
 
-        uint64_t offset = op.first->getOffset(concreteAddress);
+        uint64_t offset = os->getOffset(concreteAddress);
         ref<ConstantExpr> eoffset = ConstantExpr::create(offset, Expr::Int64);
 
         if (isWrite) {
             unsigned idx = littleEndian ? i : (bytes - i - 1);
             ref<Expr> Byte = ExtractExpr::create(value, 8 * idx, Expr::Int8);
 
-            executeMemoryOperation(state, op, true, eoffset, Byte, Expr::Int8);
+            executeMemoryOperation(state, os, true, eoffset, Byte, Expr::Int8);
         } else {
-            ref<Expr> Byte = executeMemoryOperation(state, op, false, eoffset, NULL, Expr::Int8);
+            ref<Expr> Byte = executeMemoryOperation(state, os, false, eoffset, NULL, Expr::Int8);
             if (i == 0) {
                 readResult = Byte;
             } else {
@@ -1865,20 +1867,17 @@ ref<Expr> Executor::executeMemoryOperationOverlapped(ExecutionState &state, bool
     }
 }
 
-ref<Expr> Executor::executeMemoryOperation(ExecutionState &state, const ObjectPair &op, bool isWrite, ref<Expr> offset,
-                                           ref<Expr> value /* undef if read */, Expr::Width type) {
-    const MemoryObject *mo = op.first;
-    const ObjectState *os = op.second;
-
+ref<Expr> Executor::executeMemoryOperation(ExecutionState &state, const ObjectStateConstPtr &os, bool isWrite,
+                                           ref<Expr> offset, ref<Expr> value /* undef if read */, Expr::Width type) {
     if (isWrite) {
         if (os->isReadOnly()) {
             terminateState(state, "memory error: object read only");
         } else {
-            ObjectState *wos = state.addressSpace.getWriteable(mo, os);
-            if (mo->isSharedConcrete) {
+            auto wos = state.addressSpace.getWriteable(os);
+            if (wos->isSharedConcrete()) {
                 if (!dyn_cast<ConstantExpr>(offset) || !dyn_cast<ConstantExpr>(value)) {
                     std::stringstream ss;
-                    ss << "write to always concrete memory name:" << mo->name << " offset=" << offset
+                    ss << "write to always concrete memory name:" << os->getName() << " offset=" << offset
                        << " value=" << value;
 
                     offset = state.toConstant(offset, ss.str().c_str());
@@ -1891,10 +1890,10 @@ ref<Expr> Executor::executeMemoryOperation(ExecutionState &state, const ObjectPa
             writeAndNotify(state, wos, offset, value);
         }
     } else {
-        if (mo->isSharedConcrete) {
+        if (os->isSharedConcrete()) {
             if (!dyn_cast<ConstantExpr>(offset)) {
                 std::stringstream ss;
-                ss << "Read from always concrete memory name:" << mo->name << " offset=" << offset;
+                ss << "Read from always concrete memory name:" << os->getName() << " offset=" << offset;
 
                 offset = state.toConstant(offset, ss.str().c_str());
             }
@@ -1919,7 +1918,7 @@ void Executor::executeMemoryOperation(ExecutionState &state, bool isWrite, ref<E
     }
 
     // fast path: single in-bounds resolution
-    ObjectPair op;
+    ObjectStateConstPtr os;
     bool success = false;
     bool fastInBounds = false;
 
@@ -1928,7 +1927,7 @@ void Executor::executeMemoryOperation(ExecutionState &state, bool isWrite, ref<E
     // Avoids calling the constraint solver for simple cases
     if (isa<ConstantExpr>(address)) {
         auto ce = dyn_cast<ConstantExpr>(address)->getZExtValue();
-        success = state.addressSpace.findObject(ce, bytes, op, fastInBounds);
+        success = state.addressSpace.findObject(ce, bytes, os, fastInBounds);
         if (!success) {
             // Trying to access a concrete address that is not mapped in KLEE
             abort();
@@ -1939,8 +1938,8 @@ void Executor::executeMemoryOperation(ExecutionState &state, bool isWrite, ref<E
         unsigned offsetSize;
         if (state.getSimplifier().getBaseOffset(address, base, offset, offsetSize)) {
             bool tmp;
-            if (state.addressSpace.findObject(base, 1, op, tmp)) {
-                if (offsetSize <= op.first->size) {
+            if (state.addressSpace.findObject(base, 1, os, tmp)) {
+                if (offsetSize <= os->getSize()) {
                     fastInBounds = true;
                     success = true;
                 }
@@ -1952,8 +1951,8 @@ void Executor::executeMemoryOperation(ExecutionState &state, bool isWrite, ref<E
         ref<Expr> result;
         if (fastInBounds) {
             // Either a concrete address or some special types of symbolic addresses
-            ref<Expr> offset = op.first->getOffsetExpr(address);
-            result = executeMemoryOperation(state, op, isWrite, offset, value, type);
+            ref<Expr> offset = os->getOffsetExpr(address);
+            result = executeMemoryOperation(state, os, isWrite, offset, value, type);
         } else {
             // Can only be a concrete address that spans multiple pages.
             // This can happen only if the page was split before.
@@ -1979,17 +1978,17 @@ void Executor::executeMemoryOperation(ExecutionState &state, bool isWrite, ref<E
     /////////////////////////////////////////////////////////////
     // Use the concrete address to determine which page
     // we handle in the current state.
-    success = state.addressSpace.findObject(concreteAddress->getZExtValue(), type, op, fastInBounds);
+    success = state.addressSpace.findObject(concreteAddress->getZExtValue(), type, os, fastInBounds);
     assert(success);
 
     // Split the object if necessary
-    if (op.first->isSplittable) {
+    if (os->isSplittable()) {
         ResolutionList rl;
-        success = state.addressSpace.splitMemoryObject(state, const_cast<MemoryObject *>(op.first), rl);
+        success = state.addressSpace.splitMemoryObject(state, os, rl);
         assert(success && "Could not split memory object");
 
         // Resolve again, we'll get the subpage this time
-        success = state.addressSpace.findObject(concreteAddress->getZExtValue(), type, op, fastInBounds);
+        success = state.addressSpace.findObject(concreteAddress->getZExtValue(), type, os, fastInBounds);
         assert(success && "Could not resolve concrete memory address");
     }
 
@@ -2001,8 +2000,8 @@ void Executor::executeMemoryOperation(ExecutionState &state, bool isWrite, ref<E
     // This concerns the base address, which may overlap the next page,
     // depending on the size of the access.
     klee::ref<klee::Expr> condition =
-        AndExpr::create(UgeExpr::create(address, op.first->getBaseExpr()),
-                        UltExpr::create(address, AddExpr::create(op.first->getBaseExpr(), op.first->getSizeExpr())));
+        AndExpr::create(UgeExpr::create(address, os->getBaseExpr()),
+                        UltExpr::create(address, AddExpr::create(os->getBaseExpr(), os->getSizeExpr())));
 
     assert(state.concolics->evaluate(condition)->isTrue());
 
@@ -2023,7 +2022,7 @@ void Executor::executeMemoryOperation(ExecutionState &state, bool isWrite, ref<E
     // avoid missing states.
     unsigned overlappedBytes = bytes - 1;
     if (overlappedBytes > 0) {
-        uintptr_t limit = op.first->address + op.first->size - overlappedBytes;
+        uintptr_t limit = os->getAddress() + os->getSize() - overlappedBytes;
         klee::ref<klee::Expr> overlappedCondition;
 
         overlappedCondition = UltExpr::create(address, klee::ConstantExpr::create(limit, address->getWidth()));
@@ -2044,8 +2043,8 @@ void Executor::executeMemoryOperation(ExecutionState &state, bool isWrite, ref<E
     /////////////////////////////////////////////////////////////
     // The current concrete address does not overlap.
     if (fastInBounds) {
-        ref<Expr> offset = op.first->getOffsetExpr(address);
-        ref<Expr> result = executeMemoryOperation(state, op, isWrite, offset, value, type);
+        ref<Expr> offset = os->getOffsetExpr(address);
+        ref<Expr> result = executeMemoryOperation(state, os, isWrite, offset, value, type);
 
         if (!isWrite) {
             state.bindLocal(target, result);

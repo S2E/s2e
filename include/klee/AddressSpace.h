@@ -12,24 +12,15 @@
 
 #include "klee/Internal/ADT/ImmutableMap.h"
 #include "klee/Memory.h"
-#include "ObjectHolder.h"
 
 namespace klee {
 
 class ExecutionState;
-class MemoryObject;
 class ObjectState;
 
-typedef std::pair<const MemoryObject *, const ObjectState *> ObjectPair;
-typedef std::pair<MemoryObject *, ObjectState *> MutableObjectPair;
-typedef std::vector<ObjectPair> ResolutionList;
+typedef std::vector<ObjectStatePtr> ResolutionList;
 
-/// Function object ordering MemoryObject's by address and size.
-struct MemoryObjectLTS {
-    bool operator()(const MemoryObject *a, const MemoryObject *b) const;
-};
-
-typedef ImmutableMap<const MemoryObject *, ObjectHolder, MemoryObjectLTS> MemoryMap;
+typedef ImmutableMap<ObjectKey, ObjectStatePtr> MemoryMap;
 
 class AddressSpace {
 
@@ -41,21 +32,27 @@ protected:
     /// Unsupported, use copy constructor
     AddressSpace &operator=(const AddressSpace &);
 
-    ObjectState *getWriteableInternal(const MemoryObject *mo, const ObjectState *os) {
-        ObjectState *n = new ObjectState(*os);
-        n->copyOnWriteOwner = cowKey;
+    ObjectStatePtr getWriteableInternal(const ObjectStateConstPtr &os) {
+        auto n = os->copy();
+        n->setOwnerId(cowKey);
 
         // Clients must take into account the change
         // of location of the concrete buffer.
-        addressSpaceChange(mo, os, n);
+        assert(n->getKey() == os->getKey());
+        addressSpaceChange(n->getKey(), os, n);
 
-        objects = objects.replace(std::make_pair(mo, n));
+        ObjectKey key;
+        key.address = os->getAddress();
+        key.size = os->getSize();
+
+        objects = objects.replace(std::make_pair(key, n));
         return n;
     }
 
-    void updateWritable(const MemoryObject *mo, const ObjectState *os, ObjectState *wos);
+    void updateWritable(const ObjectStateConstPtr &os, const ObjectStatePtr &wos);
 
-    void addressSpaceChange(const MemoryObject *mo, const ObjectState *oldState, ObjectState *newState);
+    void addressSpaceChange(const klee::ObjectKey &key, const ObjectStateConstPtr &oldState,
+                            const ObjectStatePtr &newState);
 
 public:
     /// The MemoryObject -> ObjectState map that constitutes the
@@ -81,37 +78,31 @@ public:
     }
 
     /// Add a binding to the address space.
-    void bindObject(const MemoryObject *mo, ObjectState *os);
+    void bindObject(const ObjectStatePtr &os);
 
     /// Remove a binding from the address space.
-    void unbindObject(const MemoryObject *mo);
+    void unbindObject(const ObjectStateConstPtr &os);
 
-    /// Lookup a binding from a MemoryObject.
-    const ObjectState *findObject(const MemoryObject *mo) const {
-        auto res = objects.lookup(mo);
+    const ObjectStateConstPtr findObject(uint64_t address) const {
+        ObjectKey key;
+        key.address = address;
+        key.size = 1;
+        auto res = objects.lookup(key);
         return res ? res->second : 0;
-    }
-
-    /// Lookup a binding from a MemoryObject address.
-    ObjectPair findObject(uint64_t address) const {
-        MemoryObject hack(address);
-        hack.size = 1;
-        auto res = objects.lookup(&hack);
-        return res ? ObjectPair(*res) : ObjectPair(NULL, NULL);
     }
 
     /// Resolve address to an ObjectPair in result.
     /// \return true iff an object was found.
-    bool findObject(uint64_t address, unsigned size, ObjectPair &result, bool &inBounds);
+    bool findObject(uint64_t address, unsigned size, ObjectStateConstPtr &result, bool &inBounds);
 
-    bool isOwnedByUs(const ObjectState *os) const {
-        return cowKey == os->copyOnWriteOwner;
+    bool isOwnedByUs(const ObjectStateConstPtr &os) const {
+        return cowKey == os->getOwnerId();
     }
 
     /// When a symbolic memory address references an object
     /// that is too big, split it to simplify the task of
     /// the constraint solver.
-    bool splitMemoryObject(ExecutionState &state, const MemoryObject *originalObject, ResolutionList &rl);
+    bool splitMemoryObject(ExecutionState &state, const ObjectStateConstPtr &object, ResolutionList &rl);
 
     /// \brief Obtain an ObjectState suitable for writing.
     ///
@@ -123,7 +114,7 @@ public:
     /// \param mo The MemoryObject to get a writeable ObjectState for.
     /// \param os The current binding of the MemoryObject.
     /// \return A writeable ObjectState (\a os or a copy).
-    ObjectState *getWriteable(const MemoryObject *mo, const ObjectState *os);
+    ObjectStatePtr getWriteable(const ObjectStateConstPtr &os);
 };
 
 } // End klee namespace

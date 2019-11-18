@@ -32,7 +32,6 @@ class CallPathNode;
 struct Cell;
 struct KFunction;
 struct KInstruction;
-class MemoryObject;
 struct InstructionInfo;
 
 llvm::raw_ostream &operator<<(llvm::raw_ostream &os, const MemoryMap &mm);
@@ -42,7 +41,7 @@ struct StackFrame {
     KFunction *kf;
     CallPathNode *callPathNode;
 
-    std::vector<const MemoryObject *> allocas;
+    std::vector<ObjectStateConstPtr> allocas;
     Cell *locals;
 
     // For vararg functions: arguments not passed via parameter are
@@ -50,7 +49,7 @@ struct StackFrame {
     // is setup to match the way the front-end generates vaarg code (it
     // does not pass vaarg through as expected). VACopy is lowered inside
     // of intrinsic lowering.
-    MemoryObject *varargs;
+    std::vector<ObjectKey> varargs;
 
     StackFrame(KInstIterator caller, KFunction *kf);
     StackFrame(const StackFrame &s);
@@ -108,14 +107,16 @@ private:
 
 protected:
     virtual ExecutionState *clone();
-    virtual void addressSpaceChange(const MemoryObject *mo, const ObjectState *oldState, ObjectState *newState);
+    virtual void addressSpaceChange(const klee::ObjectKey &key, const ObjectStateConstPtr &oldState,
+                                    const ObjectStatePtr &newState);
 
-    virtual void addressSpaceObjectSplit(const ObjectState *oldObject, const std::vector<ObjectState *> &newObjects);
+    virtual void addressSpaceObjectSplit(const ObjectStateConstPtr &oldObject,
+                                         const std::vector<ObjectStatePtr> &newObjects);
 
 public:
     // Fired whenever an object becomes all concrete or gets at least one symbolic byte.
     // Only fired in the context of a memory operation (load/store)
-    virtual void addressSpaceSymbolicStatusChange(ObjectState *object, bool becameConcrete);
+    virtual void addressSpaceSymbolicStatusChange(const ObjectStatePtr &object, bool becameConcrete);
 
 public:
     ExecutionState(KFunction *kf);
@@ -189,7 +190,7 @@ public:
     void bindArgument(KFunction *kf, unsigned index, ref<Expr> value);
     void stepInstruction();
 
-    ObjectState *bindObject(const MemoryObject *mo, bool isLocal, const ArrayPtr &array = ArrayPtr());
+    void bindObject(const ObjectStatePtr &os, bool isLocal);
 };
 }
 

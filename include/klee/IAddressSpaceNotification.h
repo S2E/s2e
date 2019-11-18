@@ -38,17 +38,18 @@ namespace klee {
 
 class IAddressSpaceNotification {
 protected:
-    virtual void addressSpaceChange(const MemoryObject *mo, const ObjectState *oldState, ObjectState *newState) = 0;
+    virtual void addressSpaceChange(const ObjectKey &key, const ObjectStateConstPtr &oldState,
+                                    const ObjectStatePtr &newState) = 0;
 
-    virtual void addressSpaceObjectSplit(const ObjectState *oldObject,
-                                         const std::vector<ObjectState *> &newObjects) = 0;
+    virtual void addressSpaceObjectSplit(const ObjectStateConstPtr &oldObject,
+                                         const std::vector<ObjectStatePtr> &newObjects) = 0;
 
 public:
     virtual ~IAddressSpaceNotification() {
     }
     // Fired whenever an object becomes all concrete or gets at least one symbolic byte.
     // Only fired in the context of a memory operation (load/store)
-    virtual void addressSpaceSymbolicStatusChange(ObjectState *object, bool becameConcrete) = 0;
+    virtual void addressSpaceSymbolicStatusChange(const ObjectStatePtr &object, bool becameConcrete) = 0;
 };
 }
 

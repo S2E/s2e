@@ -13,97 +13,104 @@
 
 namespace klee {
 
-void AddressSpace::bindObject(const MemoryObject *mo, ObjectState *os) {
-    assert(mo->address && mo->size);
-    const ObjectState *oldOS = findObject(mo);
+void AddressSpace::bindObject(const ObjectStatePtr &os) {
+    assert(os->getAddress() && os->getSize());
+
+    auto oldOS = findObject(os->getAddress());
 
     if (oldOS) {
-        addressSpaceChange(mo, oldOS, nullptr);
+        addressSpaceChange(oldOS->getKey(), oldOS, nullptr);
     }
 
-    addressSpaceChange(mo, nullptr, os);
+    addressSpaceChange(os->getKey(), nullptr, os);
 
-    assert(os->copyOnWriteOwner == 0 && "object already has owner");
+    assert(os->getOwnerId() == 0 && "object already has owner");
 
-    os->copyOnWriteOwner = cowKey;
-    objects = objects.replace(std::make_pair(mo, os));
+    ObjectKey key;
+    key.address = os->getAddress();
+    key.size = os->getSize();
+    os->setOwnerId(cowKey);
+    objects = objects.replace(std::make_pair(key, os));
 }
 
-void AddressSpace::unbindObject(const MemoryObject *mo) {
-    assert(mo->address && mo->size);
-    const ObjectState *os = findObject(mo);
+void AddressSpace::unbindObject(const ObjectStateConstPtr &os) {
+    assert(os->getAddress() && os->getSize());
+    auto oldOs = findObject(os->getAddress());
+    assert(oldOs.get() == os.get());
 
     if (os) {
-        addressSpaceChange(mo, os, nullptr);
+        addressSpaceChange(os->getKey(), os, nullptr);
     }
 
-    objects = objects.remove(mo);
+    ObjectKey key;
+    key.address = os->getAddress();
+    key.size = os->getSize();
+    objects = objects.remove(key);
 }
 
-bool AddressSpace::findObject(uint64_t address, unsigned size, ObjectPair &result, bool &inBounds) {
-    MemoryObject hack(address);
-    hack.size = 1;
-
-    auto res = objects.lookup(&hack);
+bool AddressSpace::findObject(uint64_t address, unsigned size, ObjectStateConstPtr &result, bool &inBounds) {
+    auto res = findObject(address);
     if (!res) {
         return false;
     }
 
-    assert(res->first->address <= address && res->first->size);
+    assert(res->getAddress() <= address && res->getSize());
 
-    result = *res;
+    result = res;
 
-    auto mo = res->first;
-    inBounds = address + size <= mo->address + mo->size;
+    inBounds = address + size <= res->getAddress() + res->getSize();
     return true;
 }
 
-void AddressSpace::updateWritable(const MemoryObject *mo, const ObjectState *os, ObjectState *wos) {
-    wos->copyOnWriteOwner = cowKey;
+void AddressSpace::updateWritable(const ObjectStateConstPtr &os, const ObjectStatePtr &wos) {
+    wos->setOwnerId(cowKey);
 
-    addressSpaceChange(mo, os, wos);
+    // XXX: should this come at the end?
+    addressSpaceChange(os->getKey(), os, wos);
 
-    objects = objects.replace(std::make_pair(mo, wos));
+    ObjectKey key;
+    key.address = os->getAddress();
+    key.size = os->getSize();
+    objects = objects.replace(std::make_pair(key, wos));
 }
 
-void AddressSpace::addressSpaceChange(const MemoryObject *mo, const ObjectState *oldState, ObjectState *newState) {
+void AddressSpace::addressSpaceChange(const klee::ObjectKey &key, const ObjectStateConstPtr &oldState,
+                                      const ObjectStatePtr &newState) {
     assert(state);
-    state->addressSpaceChange(mo, oldState, newState);
+    state->addressSpaceChange(key, oldState, newState);
 }
 
-ObjectState *AddressSpace::getWriteable(const MemoryObject *mo, const ObjectState *os) {
-    assert(!os->readOnly);
+ObjectStatePtr AddressSpace::getWriteable(const ObjectStateConstPtr &os) {
+    assert(!os->isReadOnly());
 
     if (isOwnedByUs(os)) {
-        return const_cast<ObjectState *>(os);
+        return ObjectStatePtr(const_cast<ObjectState *>(os.get()));
     }
 
     // Check whether we have a split object
     unsigned bits = os->getBitArraySize();
-    if (bits == mo->size) {
+    if (bits == os->getSize()) {
         assert(os->getStoreOffset() == 0);
-        return getWriteableInternal(mo, os);
+        return getWriteableInternal(os);
     }
 
     // Split objects are just like other objects, we may
     // need to get a private copy of them later on.
-    assert(bits > mo->size);
+    assert(bits > os->getSize());
 
     // Find all the pieces and make them writable
-    uint64_t address = mo->address - os->getStoreOffset();
-    ObjectState *ret = nullptr;
+    uint64_t address = os->getAddress() - os->getStoreOffset();
+    ObjectStatePtr ret = nullptr;
 
-    std::vector<const ObjectState *> readOnlyObjects;
+    std::vector<ObjectStateConstPtr> readOnlyObjects;
 
     do {
-        ObjectPair pair = findObject(address);
-        assert(pair.first && pair.second);
+        auto mo = findObject(address);
+        assert(!isOwnedByUs(mo));
 
-        assert(!isOwnedByUs(pair.second));
-
-        readOnlyObjects.push_back(pair.second);
-        address += mo->size;
-        bits -= mo->size;
+        readOnlyObjects.push_back(mo);
+        address += mo->getSize();
+        bits -= mo->getSize();
     } while (bits > 0);
 
     auto concreteBuffer = ConcreteBuffer::create(os->getConcreteBuffer());
@@ -111,45 +118,38 @@ ObjectState *AddressSpace::getWriteable(const MemoryObject *mo, const ObjectStat
     assert(concreteMask->getBitCount() == concreteBuffer->size());
 
     for (unsigned i = 0; i < readOnlyObjects.size(); ++i) {
-        const ObjectState *ros = readOnlyObjects[i];
-        ObjectState *wos = ros->getCopy(concreteMask, concreteBuffer);
+        auto &ros = readOnlyObjects[i];
+        auto wos = ros->copy(concreteMask, concreteBuffer);
 
         if (ros == os) {
             ret = wos;
         }
 
-        updateWritable(ros->getObject(), ros, wos);
+        updateWritable(ros, wos);
     }
 
     assert(ret);
     return ret;
 }
 
-bool AddressSpace::splitMemoryObject(ExecutionState &state, const MemoryObject *originalObject, ResolutionList &rl) {
+bool AddressSpace::splitMemoryObject(ExecutionState &state, const ObjectStateConstPtr &originalObject,
+                                     ResolutionList &rl) {
     static const unsigned PAGE_SIZE = 0x1000;
     // Only split memory objects
-    if (originalObject->size != PAGE_SIZE || !originalObject->isSplittable) {
-        return false;
-    }
-
-    const ObjectState *originalRoState = findObject(originalObject);
-    if (!originalRoState) {
+    if (originalObject->getSize() != PAGE_SIZE || !originalObject->isSplittable()) {
         return false;
     }
 
     // The split must not affect any other state, therefore,
     // we need to get a private copy of the object
-    ObjectState *originalState = getWriteable(originalObject, originalRoState);
+    auto originalWritableObject = getWriteable(originalObject);
 
     // When the entire object is concrete, it does not have
     // a concrete mask. For simplicity, we create one in case
     // of splitting.
-    originalState->initializeConcreteMask();
+    originalWritableObject->initializeConcreteMask();
 
-    ObjectHolder holder(originalState);
-
-    std::vector<MemoryObject *> memoryObjects;
-    std::vector<ObjectState *> objectStates;
+    std::vector<ObjectStatePtr> objectStates;
     std::vector<unsigned> offsets;
 
     // XXX: for now, split into fixed-size objects
@@ -157,38 +157,26 @@ bool AddressSpace::splitMemoryObject(ExecutionState &state, const MemoryObject *
         offsets.push_back(i * 128);
     }
 
-    originalObject->split(memoryObjects, offsets);
-
-    unsigned offset = 0;
-    for (unsigned i = 0; i < memoryObjects.size(); ++i) {
-        MemoryObject *memoryObject = memoryObjects[i];
-        ObjectState *newObject = originalState->split(memoryObject, offset);
+    for (unsigned i = 0; i < offsets.size(); ++i) {
+        auto offset = offsets[i];
+        auto size = 128u;
+        auto newObject = originalWritableObject->split(offset, size);
         objectStates.push_back(newObject);
-        rl.push_back(std::make_pair(memoryObject, newObject));
-        offset += memoryObject->size;
+        rl.push_back(newObject);
+        offset += newObject->getSize();
+        assert(size == newObject->getSize());
     }
 
     // Notify the system that the objects were split
-    state.addressSpaceObjectSplit(originalState, objectStates);
+    state.addressSpaceObjectSplit(originalObject, objectStates);
 
     // Once this is done, activate the new objects and delete the old one
     unbindObject(originalObject);
 
-    for (unsigned i = 0; i < memoryObjects.size(); ++i) {
-        MemoryObject *memoryObject = memoryObjects[i];
-        ObjectState *newObject = objectStates[i];
-        bindObject(memoryObject, newObject);
+    for (auto it : objectStates) {
+        bindObject(it);
     }
 
-    // XXX: leaking objects. Should delete them from the memory manager
-    // delete originalObject;
-
     return true;
-}
-
-/***/
-
-bool MemoryObjectLTS::operator()(const MemoryObject *a, const MemoryObject *b) const {
-    return a->address + a->size <= b->address;
 }
 }

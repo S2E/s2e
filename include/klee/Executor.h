@@ -56,7 +56,6 @@ struct KFunction;
 struct KInstruction;
 class KInstIterator;
 class KModule;
-class MemoryObject;
 class ObjectState;
 class PTree;
 class Searcher;
@@ -121,7 +120,7 @@ protected:
     std::map<std::string, void *> predefinedSymbols;
 
     /// Map of globals to their representative memory object.
-    std::map<const llvm::GlobalValue *, MemoryObject *> globalObjects;
+    std::map<const llvm::GlobalValue *, ObjectKey> globalObjects;
 
     /// Map of globals to their bound address. This also includes
     /// globals that have no representative object (i.e. functions).
@@ -139,7 +138,7 @@ protected:
 
     void executeInstruction(ExecutionState &state, KInstruction *ki);
 
-    void initializeGlobalObject(ExecutionState &state, ObjectState *os, llvm::Constant *c, unsigned offset);
+    void initializeGlobalObject(ExecutionState &state, const ObjectStatePtr &os, llvm::Constant *c, unsigned offset);
     void initializeGlobals(ExecutionState &state);
 
     virtual void updateStates(ExecutionState *current);
@@ -168,15 +167,15 @@ protected:
 
     void executeCall(ExecutionState &state, KInstruction *ki, llvm::Function *f, std::vector<ref<Expr>> &arguments);
 
-    void writeAndNotify(ExecutionState &state, ObjectState *wos, ref<Expr> &address, ref<Expr> &value);
+    void writeAndNotify(ExecutionState &state, const ObjectStatePtr &wos, ref<Expr> &address, ref<Expr> &value);
 
     ref<Expr> executeMemoryOperationOverlapped(ExecutionState &state, bool isWrite, uint64_t concreteAddress,
                                                ref<Expr> value /* undef if read */, unsigned bytes);
 
     // This is the actual read/write function, called after the target
     // object was determined.
-    ref<Expr> executeMemoryOperation(ExecutionState &state, const ObjectPair &op, bool isWrite, ref<Expr> offset,
-                                     ref<Expr> value /* undef if read */, Expr::Width type);
+    ref<Expr> executeMemoryOperation(ExecutionState &state, const ObjectStateConstPtr &os, bool isWrite,
+                                     ref<Expr> offset, ref<Expr> value /* undef if read */, Expr::Width type);
 
     // do address resolution / object binding / out of bounds checking
     // and perform the operation
@@ -254,8 +253,8 @@ public:
 
     // Given a concrete object in our [klee's] address space, add it to
     // objects checked code can reference.
-    MutableObjectPair addExternalObject(ExecutionState &state, void *addr, unsigned size, bool isReadOnly,
-                                        bool isSharedConcrete = false);
+    ObjectStatePtr addExternalObject(ExecutionState &state, void *addr, unsigned size, bool isReadOnly,
+                                     bool isSharedConcrete = false);
 
     /*** State accessor methods ***/
     size_t getStatesCount() const {
