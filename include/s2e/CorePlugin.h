@@ -452,9 +452,9 @@ public:
     ///
     sigc::signal<void,
                  S2EExecutionState*,
-                 const klee::MemoryObject*,
-                 const klee::ObjectState* /* old state */,
-                 klee::ObjectState* /* new state */>
+                 const klee::ObjectKey &,
+                 const klee::ObjectStateConstPtr & /* old state */,
+                 const klee::ObjectStatePtr &/* new state */>
         onAddressSpaceChange;
 
     ///

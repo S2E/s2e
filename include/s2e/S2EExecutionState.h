@@ -138,19 +138,19 @@ protected:
     bool m_runningExceptionEmulationCode;
 
     ExecutionState *clone();
-    virtual void addressSpaceChange(const klee::MemoryObject *mo, const klee::ObjectState *oldState,
-                                    klee::ObjectState *newState);
+    virtual void addressSpaceChange(const klee::ObjectKey &key, const klee::ObjectStateConstPtr &oldState,
+                                    const klee::ObjectStatePtr &newState);
 
-    virtual void addressSpaceObjectSplit(const klee::ObjectState *oldObject,
-                                         const std::vector<klee::ObjectState *> &newObjects);
+    virtual void addressSpaceObjectSplit(const klee::ObjectStateConstPtr &oldObject,
+                                         const std::vector<klee::ObjectStatePtr> &newObjects);
 
-    void addressSpaceChangeUpdateRegisters(const klee::MemoryObject *mo, const klee::ObjectState *oldState,
-                                           klee::ObjectState *newState);
+    void addressSpaceChangeUpdateRegisters(const klee::ObjectStateConstPtr &oldState,
+                                           const klee::ObjectStatePtr &newState);
 
     std::string getUniqueVarName(const std::string &name, std::string &rawVar);
 
 public:
-    virtual void addressSpaceSymbolicStatusChange(klee::ObjectState *object, bool becameConcrete);
+    virtual void addressSpaceSymbolicStatusChange(const klee::ObjectStatePtr &object, bool becameConcrete);
 
 public:
     S2EExecutionState(klee::KFunction *kf);

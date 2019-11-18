@@ -474,14 +474,14 @@ S2EExecutionState *S2EExecutor::createInitialState() {
     {                                                                                  \
         predefinedSymbols.insert(std::make_pair(#name, (void *) &name));               \
         auto op = addExternalObject(*state, (void *) &name, sizeof(name), true, true); \
-        op.first->setName(#name);                                                      \
+        op->setName(#name);                                                            \
     }
 
 #define __DEFINE_EXT_OBJECT_RO_SYMB(name)                                               \
     {                                                                                   \
         predefinedSymbols.insert(std::make_pair(#name, (void *) &name));                \
         auto op = addExternalObject(*state, (void *) &name, sizeof(name), true, false); \
-        op.first->setName(#name);                                                       \
+        op->setName(#name);                                                             \
     }
 
     if (g_sqi.size != sizeof(g_sqi)) {
@@ -560,14 +560,12 @@ void S2EExecutor::registerRam(S2EExecutionState *initialState, MemoryDesc *regio
 
     for (uint64_t addr = hostAddress; addr < hostAddress + size; addr += SE_RAM_OBJECT_SIZE) {
 
-        auto op = addExternalObject(*initialState, (void *) addr, SE_RAM_OBJECT_SIZE, false, isSharedConcrete);
-        auto mo = op.first;
-        auto os = op.second;
+        auto os = addExternalObject(*initialState, (void *) addr, SE_RAM_OBJECT_SIZE, false, isSharedConcrete);
 
         os->setMemoryPage(true);
 
         if (!isSharedConcrete) {
-            mo->isSplittable = true;
+            os->setSplittable(true);
             os->setNotifyOnConcretenessChange(true);
         }
 
@@ -578,7 +576,7 @@ void S2EExecutor::registerRam(S2EExecutionState *initialState, MemoryDesc *regio
 #endif
 
         if (isSharedConcrete && (saveOnContextSwitch || !StateSharedMemory)) {
-            m_saveOnContextSwitch.push_back(mo);
+            m_saveOnContextSwitch.push_back(os->getKey());
         }
     }
 
@@ -610,8 +608,7 @@ void S2EExecutor::registerDirtyMask(S2EExecutionState *state, uint64_t hostAddre
     // Assume that dirty mask is small enough, so no need to split it in small pages
     auto dirtyMask = g_s2e->getExecutor()->addExternalObject(*state, (void *) hostAddress, size, false, true);
 
-    state->m_memory.initialize(&state->addressSpace, &state->m_asCache, &state->m_active, state, state,
-                               dirtyMask.first);
+    state->m_memory.initialize(&state->addressSpace, &state->m_asCache, &state->m_active, state, state, dirtyMask);
 
     g_se_dirty_mask_addend = state->mem()->getDirtyMaskStoreAddend();
 }
@@ -804,14 +801,12 @@ void S2EExecutor::doStateSwitch(S2EExecutionState *oldState, S2EExecutionState *
             oldState->switchToSymbolic();
         }
 
-        foreach2 (it, m_saveOnContextSwitch.begin(), m_saveOnContextSwitch.end()) {
-            MemoryObject *mo = *it;
-
-            const ObjectState *oldOS = oldState->addressSpace.findObject(mo);
-            ObjectState *oldWOS = oldState->addressSpace.getWriteable(mo, oldOS);
+        for (auto &mo : m_saveOnContextSwitch) {
+            auto oldOS = oldState->addressSpace.findObject(mo.address);
+            auto oldWOS = oldState->addressSpace.getWriteable(oldOS);
             uint8_t *oldStore = oldWOS->getConcreteStore();
             assert(oldStore);
-            memcpy(oldStore, (uint8_t *) mo->address, mo->size);
+            memcpy(oldStore, (uint8_t *) mo.address, mo.size);
         }
 
         // XXX: specify which state should be used
@@ -851,13 +846,12 @@ void S2EExecutor::doStateSwitch(S2EExecutionState *oldState, S2EExecutionState *
         // XXX: specify which state should be used
         s2e_kvm_restore_device_state();
 
-        foreach2 (it, m_saveOnContextSwitch.begin(), m_saveOnContextSwitch.end()) {
-            MemoryObject *mo = *it;
-            const ObjectState *newOS = newState->addressSpace.findObject(mo);
+        for (auto &mo : m_saveOnContextSwitch) {
+            auto newOS = newState->addressSpace.findObject(mo.address);
             const uint8_t *newStore = newOS->getConcreteStore();
             assert(newStore);
-            memcpy((uint8_t *) mo->address, newStore, mo->size);
-            totalCopied += mo->size;
+            memcpy((uint8_t *) mo.address, newStore, mo.size);
+            totalCopied += mo.size;
             objectsCopied++;
         }
     }
@@ -1567,13 +1561,12 @@ void S2EExecutor::notifyBranch(ExecutionState &state) {
      * These objects must be saved before the cpu state, because
      * getWritable() may modify the TLB.
      */
-    foreach2 (it, m_saveOnContextSwitch.begin(), m_saveOnContextSwitch.end()) {
-        MemoryObject *mo = *it;
-        const ObjectState *os = s2eState->addressSpace.findObject(mo);
-        ObjectState *wos = s2eState->addressSpace.getWriteable(mo, os);
+    for (auto &mo : m_saveOnContextSwitch) {
+        auto os = s2eState->addressSpace.findObject(mo.address);
+        auto wos = s2eState->addressSpace.getWriteable(os);
         uint8_t *store = wos->getConcreteStore();
         assert(store);
-        memcpy(store, (uint8_t *) mo->address, mo->size);
+        memcpy(store, (uint8_t *) mo.address, mo.size);
     }
 
 #if defined(SE_ENABLE_PHYSRAM_TLB)

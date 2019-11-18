@@ -48,7 +48,7 @@ protected:
        direct memory accesses from libcpu code. */
     std::vector<std::pair<uint64_t, uint64_t>> m_unusedMemoryDescs;
 
-    std::vector<klee::MemoryObject *> m_saveOnContextSwitch;
+    std::vector<klee::ObjectKey> m_saveOnContextSwitch;
 
     std::vector<S2EExecutionState *> m_deletedStates;
 

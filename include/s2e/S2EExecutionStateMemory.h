@@ -21,19 +21,19 @@ enum AddressType { VirtualAddress, PhysicalAddress, HostAddress };
 class S2EExecutionStateMemory {
 
 protected:
-    static klee::MemoryObject *s_dirtyMask;
-    klee::ObjectState *m_dirtyMask;
+    static klee::ObjectKey s_dirtyMask;
+    klee::ObjectStatePtr m_dirtyMask;
     const bool *m_active;
     AddressSpaceCache *m_asCache;
     klee::AddressSpace *m_addressSpace;
     klee::IAddressSpaceNotification *m_notification;
     klee::IConcretizer *m_concretizer;
 
-    void transferRamInternalSymbolic(klee::ObjectPair op, uint64_t object_offset, klee::ref<klee::Expr> *buf,
-                                     uint64_t size, bool write);
+    void transferRamInternalSymbolic(const klee::ObjectStateConstPtr &os, uint64_t object_offset,
+                                     klee::ref<klee::Expr> *buf, uint64_t size, bool write);
 
-    void transferRamInternal(klee::ObjectPair op, uint64_t object_offset, uint8_t *buf, uint64_t size, bool write,
-                             bool exitOnSymbolicRead);
+    void transferRamInternal(const klee::ObjectStateConstPtr &os, uint64_t object_offset, uint8_t *buf, uint64_t size,
+                             bool write, bool exitOnSymbolicRead);
 
     bool writeMemory8(uint64_t address, const klee::ref<klee::Expr> &value, AddressType addressType = VirtualAddress);
 
@@ -44,7 +44,7 @@ public:
 
     void initialize(klee::AddressSpace *addressSpace, AddressSpaceCache *asCache, const bool *active,
                     klee::IAddressSpaceNotification *notification, klee::IConcretizer *concretizer,
-                    klee::MemoryObject *dirtyMask);
+                    const klee::ObjectStatePtr &dirtyMask);
 
     void update(klee::AddressSpace *addressSpace, AddressSpaceCache *asCache, const bool *active,
                 klee::IAddressSpaceNotification *notification, klee::IConcretizer *concretizer);
@@ -58,12 +58,12 @@ public:
     void writeDirtyMask(uint64_t host_address, uint8_t val);
     void registerDirtyMask(uint64_t host_address, uint64_t size);
 
-    static const klee::MemoryObject *getDirtyMask() {
+    static const klee::ObjectKey &getDirtyMask() {
         return s_dirtyMask;
     }
 
     uintptr_t getDirtyMaskStoreAddend() const {
-        return (uintptr_t) m_dirtyMask->getConcreteStore(false) - s_dirtyMask->address;
+        return (uintptr_t) m_dirtyMask->getConcreteStore(false) - s_dirtyMask.address;
     }
 
     /// Read/write from physical memory, concretizing if necessary on reads.
@@ -71,7 +71,7 @@ public:
     void transferRam(struct CPUTLBRAMEntry *te, uint64_t hostAddress, void *buf, uint64_t size, bool isWrite,
                      bool exitOnSymbolicRead, bool isSymbolic);
 
-    klee::ObjectPair getMemoryObject(uint64_t address, AddressType addressType = VirtualAddress) const;
+    klee::ObjectStateConstPtr getMemoryObject(uint64_t address, AddressType addressType = VirtualAddress) const;
 
     ///
     /// \brief Return the per-state host address where concrete data is actually stored.

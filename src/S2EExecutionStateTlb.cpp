@@ -33,8 +33,8 @@ namespace s2e {
 
 using namespace klee;
 
-void S2EExecutionStateTlb::addressSpaceChangeUpdateTlb(const klee::MemoryObject *mo, const klee::ObjectState *oldState,
-                                                       klee::ObjectState *newState) {
+void S2EExecutionStateTlb::addressSpaceChangeUpdateTlb(const klee::ObjectStateConstPtr &oldState,
+                                                       const klee::ObjectStatePtr &newState) {
     if (!(oldState && oldState->isMemoryPage())) {
         return;
     }
@@ -47,22 +47,27 @@ void S2EExecutionStateTlb::addressSpaceChangeUpdateTlb(const klee::MemoryObject 
 
     assert(oldState->getStoreOffset() == 0);
 
-    updateTlb(mo, oldState, newState);
+    updateTlb(oldState, newState);
 }
 
 #if defined(SE_ENABLE_PHYSRAM_TLB)
-void S2EExecutionStateTlb::updateRamTlb(const klee::MemoryObject *mo, const klee::ObjectState *oldState,
-                                        klee::ObjectState *newState) {
+void S2EExecutionStateTlb::updateRamTlb(const klee::ObjectStateConstPtr &oldState,
+                                        const klee::ObjectStatePtr &newState) {
     CPUX86State *cpu = m_registers->getCpuState();
-    uintptr_t tlb_index = (mo->address >> 12) & (CPU_TLB_SIZE - 1);
+    uintptr_t tlb_index = (oldState->getAddress() >> 12) & (CPU_TLB_SIZE - 1);
     CPUTLBRAMEntry *re = &cpu->se_ram_tlb[tlb_index];
 
-    if (!mo->isSharedConcrete && re->object_state == oldState) {
-        assert((re->host_page & ~TLB_NOT_OURS) == mo->address);
+    assert(oldState->isSharedConcrete() == newState->isSharedConcrete());
+
+    auto address = oldState->getAddress();
+
+    if (!oldState->isSharedConcrete() && re->object_state == oldState) {
+        assert((re->host_page & ~TLB_NOT_OURS) == address);
         if (newState->isAllConcrete()) {
-            re->object_state = newState;
-            re->host_page = mo->address;
-            re->addend = (uintptr_t) newState->getConcreteBuffer()->get() - mo->address;
+            // XXX: use proper ref counting
+            re->object_state = newState.get();
+            re->host_page = address;
+            re->addend = (uintptr_t) newState->getConcreteBuffer()->get() - address;
         }
         if (m_asCache->isOwnedByUs(newState)) {
             re->host_page &= ~TLB_NOT_OURS;
@@ -71,8 +76,7 @@ void S2EExecutionStateTlb::updateRamTlb(const klee::MemoryObject *mo, const klee
 }
 #endif
 
-void S2EExecutionStateTlb::updateTlb(const klee::MemoryObject *mo, const klee::ObjectState *oldState,
-                                     klee::ObjectState *newState) {
+void S2EExecutionStateTlb::updateTlb(const klee::ObjectStateConstPtr &oldState, const klee::ObjectStatePtr &newState) {
 
     CPUX86State *cpu = m_registers->getCpuState();
 
@@ -87,7 +91,9 @@ void S2EExecutionStateTlb::updateTlb(const klee::MemoryObject *mo, const klee::O
     g_s2e->getDebugStream(g_s2e_state) << "addressSpaceChangeUpdateTlb: tlb map size=" << m_tlbMap.size() << '\n';
 #endif
 
-    TlbMap::iterator it = m_tlbMap.find(const_cast<ObjectState *>(oldState));
+    assert(oldState->isSharedConcrete() == newState->isSharedConcrete());
+
+    auto it = m_tlbMap.find(oldState);
     bool found = false;
     if (it != m_tlbMap.end()) {
         found = true;
@@ -100,11 +106,13 @@ void S2EExecutionStateTlb::updateTlb(const klee::MemoryObject *mo, const klee::O
             g_s2e->getDebugStream() << "    mmu_idx=" << coords.first << " index=" << coords.second << "\n";
 #endif
             CPUTLBEntry *entry = &cpu->tlb_table[coords.first][coords.second];
-            assert(entry->objectState == (void *) oldState);
+            assert(entry->objectState == (void *) oldState.get());
             assert(newState);
-            entry->objectState = newState;
 
-            if (!mo->isSharedConcrete) {
+            // XXX: use proper refcounting
+            entry->objectState = newState.get();
+
+            if (!newState->isSharedConcrete()) {
                 // The addend does not change.
                 entry->se_addend = entry->se_addend - (uintptr_t) oldState->getConcreteStore(true) +
                                    (uintptr_t) newState->getConcreteStore(true);
@@ -119,7 +127,7 @@ void S2EExecutionStateTlb::updateTlb(const klee::MemoryObject *mo, const klee::O
 
         m_tlbMap[newState] = vec;
         if (newState != oldState) {
-            m_tlbMap.erase(const_cast<ObjectState *>(oldState));
+            m_tlbMap.erase(oldState);
         }
     }
 
@@ -137,7 +145,7 @@ void S2EExecutionStateTlb::flushTlbCache() {
     m_tlbMap.clear();
 }
 
-void S2EExecutionStateTlb::flushTlbCachePage(klee::ObjectState *objectState, int mmu_idx, int index) {
+void S2EExecutionStateTlb::flushTlbCachePage(const klee::ObjectStatePtr &objectState, int mmu_idx, int index) {
     if (!objectState) {
         return;
     }
@@ -181,8 +189,8 @@ void S2EExecutionStateTlb::flushTlbCachePage(klee::ObjectState *objectState, int
  * If a page contains at least one byte of symbolic data, it will go through
  * the slow path. Otherwise, softmmu will directly access the concrete array.
  */
-void S2EExecutionStateTlb::updateTlbEntryConcreteStatus(CPUX86State *env, unsigned mmu_idx, unsigned index,
-                                                        const klee::ObjectState *state) {
+void S2EExecutionStateTlb::updateTlbEntryConcreteStatus(struct CPUX86State *env, unsigned mmu_idx, unsigned index,
+                                                        const klee::ObjectStateConstPtr &state) {
     CPUTLBEntry *te = &env->tlb_table[mmu_idx][index];
 
     if (!state->isAllConcrete()) {
@@ -196,7 +204,7 @@ void S2EExecutionStateTlb::updateTlbEntryConcreteStatus(CPUX86State *env, unsign
     }
 
 #ifdef SE_ENABLE_PHYSRAM_TLB
-    uintptr_t ram_tlb_index = (state->getObject()->address >> 12) & (CPU_TLB_SIZE - 1);
+    uintptr_t ram_tlb_index = (state->getAddress() >> 12) & (CPU_TLB_SIZE - 1);
     CPUTLBRAMEntry *re = &env->se_ram_tlb[ram_tlb_index];
     re->host_page = 0;
     re->addend = 0;
@@ -233,10 +241,8 @@ void S2EExecutionStateTlb::updateTlbEntry(CPUX86State *env, int mmu_idx, uint64_
     ObjectState *oldObjectState = static_cast<ObjectState *>(entry->objectState);
 
     /* Retrieve the object state using the host address */
-    ObjectPair op = m_asCache->get(hostAddr);
-
-    const MemoryObject *mo = op.first;
-    const ObjectState *newObjectState = op.second;
+    auto newObjectState = m_asCache->get(hostAddr);
+    assert(newObjectState);
 
 /* Store the new mapping in the cache */
 #ifdef S2E_DEBUG_TLBCACHE
@@ -247,7 +253,7 @@ void S2EExecutionStateTlb::updateTlbEntry(CPUX86State *env, int mmu_idx, uint64_
     if (oldObjectState != newObjectState) {
         flushTlbCachePage(oldObjectState, mmu_idx, index);
         if (!g_s2e_single_path_mode) {
-            m_tlbMap[const_cast<ObjectState *>(newObjectState)].push_back(TlbCoordinates(mmu_idx, index));
+            m_tlbMap[newObjectState].push_back(TlbCoordinates(mmu_idx, index));
         }
     }
 
@@ -260,9 +266,9 @@ void S2EExecutionStateTlb::updateTlbEntry(CPUX86State *env, int mmu_idx, uint64_
 #endif
 
     /* Update the TLB entry */
-    entry->objectState = const_cast<klee::ObjectState *>(newObjectState);
+    entry->objectState = const_cast<ObjectState *>(newObjectState.get());
 
-    if (mo->isSharedConcrete) {
+    if (newObjectState->isSharedConcrete()) {
         entry->se_addend = (hostAddr - virtAddr);
     } else {
         entry->se_addend = ((uintptr_t) newObjectState->getConcreteStore(true) - virtAddr);
@@ -288,9 +294,9 @@ bool S2EExecutionStateTlb::audit() {
      */
     CPUX86State *env = m_registers->getCpuState();
 
-    foreach2 (tlbIt, m_tlbMap.begin(), m_tlbMap.end()) {
-        const ObjectState *os = (*tlbIt).first;
-        const ObjectStateTlbReferences &vec = (*tlbIt).second;
+    for (auto tlbIt : m_tlbMap) {
+        auto os = tlbIt.first;
+        const ObjectStateTlbReferences &vec = tlbIt.second;
         foreach2 (vit, vec.begin(), vec.end()) {
             unsigned mmu_idx = (*vit).first;
             unsigned index = (*vit).second;
