@@ -50,12 +50,19 @@ void FunctionMonitor2::onFunctionCall(S2EExecutionState *state, uint64_t callerP
     auto callerMod = m_map->getModule(state, callerPc);
     auto calleeMod = m_map->getModule(state, calleePc);
 
+    bool ok = true;
+
     if (callerMod) {
-        callerPc = callerMod->ToNativeBase(callerPc);
+        ok &= callerMod->ToNativeBase(callerPc, callerPc);
     }
 
     if (calleeMod) {
-        calleePc = calleeMod->ToNativeBase(calleePc);
+        ok &= calleePc = calleeMod->ToNativeBase(calleePc, calleePc);
+    }
+
+    if (!ok) {
+        getWarningsStream(state) << "Could not get relative caller/callee address\n";
+        return;
     }
 
     onCall.emit(state, callerMod, calleeMod, callerPc, calleePc);

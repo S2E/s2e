@@ -113,17 +113,6 @@ struct ModuleDescriptor {
         return true;
     }
 
-    // This function is a workaround until we convert all the call sites to
-    // the one that returns a bool.
-    uint64_t ToNativeBase(uint64_t RunTimeAddress) const {
-        uint64_t ret = 0;
-        if (!ToNativeBase(RunTimeAddress, ret)) {
-            assert(false && "Could not compute native base");
-            abort();
-        }
-        return ret;
-    }
-
     bool ToRuntime(uint64_t NativeAddress, uint64_t &RunTimeAddress) const {
         if (NativeBase && LoadBase) {
             RunTimeAddress = NativeAddress - NativeBase + LoadBase;

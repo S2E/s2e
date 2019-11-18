@@ -47,8 +47,17 @@ void EdgeCoverage::onEdge(S2EExecutionState *state, uint64_t source, EdgeType ty
         return;
     }
 
-    uint64_t s = sm->ToNativeBase(source);
-    uint64_t d = sm->ToNativeBase(state->regs()->getPc());
+    bool ok = true;
+    uint64_t s, d;
+
+    ok &= sm->ToNativeBase(source, s);
+    ok &= sm->ToNativeBase(state->regs()->getPc(), d);
+
+    if (!ok) {
+        getWarningsStream(state) << "Could not get source/destination address for edge\n";
+        return;
+    }
+
     Edge e = std::make_pair(s, d);
 
     StateLocations::iterator cit = m_nonCoveredEdges.find(sm->Name);

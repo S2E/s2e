@@ -205,7 +205,11 @@ S2EExecutionState *BasicBlockCoverage::getNonCoveredState(llvm::DenseSet<S2EExec
 
 void BasicBlockCoverage::onModuleTranslateBlockComplete(S2EExecutionState *state, const ModuleDescriptor &module,
                                                         TranslationBlock *tb, uint64_t last_pc) {
-    uint64_t start_pc = module.ToNativeBase(tb->pc);
+    uint64_t start_pc;
+    if (!module.ToNativeBase(tb->pc, start_pc)) {
+        return;
+    }
+
     uint64_t end_pc = start_pc + tb->size - 1;
 
     std::vector<const ControlFlowGraph::BasicBlock *> blocks;

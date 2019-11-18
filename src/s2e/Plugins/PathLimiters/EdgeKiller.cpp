@@ -40,7 +40,16 @@ void EdgeKiller::onEdge(S2EExecutionState *state, uint64_t sourcePc, EdgeType ty
         return;
     }
 
-    if (!m_edges.findEdge(md->Name, md->ToNativeBase(sourcePc), md->ToNativeBase(state->regs()->getPc()), &type)) {
+    uint64_t relSourcePc, relPc;
+    bool ok = true;
+    ok &= md->ToNativeBase(sourcePc, relSourcePc);
+    ok &= md->ToNativeBase(state->regs()->getPc(), relPc);
+    if (!ok) {
+        getWarningsStream(state) << "Could not get relative source/dest address\n";
+        return;
+    }
+
+    if (!m_edges.findEdge(md->Name, relSourcePc, relPc, &type)) {
         return;
     }
 

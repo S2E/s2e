@@ -126,7 +126,11 @@ void LuaInstructionAnnotation::onTranslateBlockStart(ExecutionSignal *signal, S2
         return;
     }
 
-    uint64_t addend = module->ToNativeBase(pc);
+    uint64_t addend;
+    if (!module->ToNativeBase(pc, addend)) {
+        getWarningsStream(state) << "Could not convert pc to native base\n";
+        return;
+    }
 
     m_instructionStart = plg->onTranslateInstructionStart.connect(
         sigc::bind(sigc::mem_fun(*this, &LuaInstructionAnnotation::onTranslateInstructionStart), it->second, addend));
