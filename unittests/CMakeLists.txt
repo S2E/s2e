@@ -83,6 +83,7 @@ endfunction()
 
 # Unit Tests
 add_subdirectory(Expr)
+add_subdirectory(ADT)
 
 # Set up lit configuration
 set (UNIT_TEST_EXE_SUFFIX "Test")
