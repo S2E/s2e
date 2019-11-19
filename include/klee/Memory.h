@@ -65,10 +65,9 @@ class ObjectState {
 private:
     // XXX(s2e) for now we keep this first to access from C code
     // (yes, we do need to access if really fast)
-    BitArrayPtr concreteMask;
+    BitArrayPtr m_concreteMask;
 
-    template <typename U> friend class AddressSpaceBase;
-    unsigned copyOnWriteOwner; // exclusively for AddressSpace
+    unsigned m_copyOnWriteOwner;
 
     mutable std::atomic<unsigned> m_refCount;
 
@@ -87,7 +86,7 @@ private:
     /// True if can be split into smaller objects
     bool m_splittable;
 
-    bool readOnly;
+    bool m_readOnly;
 
     /// True to get notifications when the object becomes fully concrete
     /// or at least one byte becomes symbolic.
@@ -107,25 +106,25 @@ private:
     bool m_isSharedConcrete;
 
     // XXX: made it public for fast access
-    ConcreteBufferPtr concreteStore;
+    ConcreteBufferPtr m_concreteStore;
 
     // If the store is shared between object states,
     // indicate the offset of our region
-    unsigned storeOffset;
+    unsigned m_storeOffset;
 
     // XXX cleanup name of flushMask (its backwards or something)
     // mutable because may need flushed during read of const
-    mutable BitArrayPtr flushMask;
+    mutable BitArrayPtr m_flushMask;
 
-    std::vector<ref<Expr>> knownSymbolics;
+    std::vector<ref<Expr>> m_knownSymbolics;
 
     // mutable because we may need flush during read of const
-    mutable UpdateListPtr updates;
+    mutable UpdateListPtr m_updates;
 
 private:
     // For AddressSpace
     ConcreteBufferPtr getConcreteBufferAs() {
-        return concreteStore;
+        return m_concreteStore;
     }
 
     ObjectState();
@@ -163,11 +162,11 @@ public:
     }
 
     void setReadOnly(bool ro) {
-        readOnly = ro;
+        m_readOnly = ro;
     }
 
     bool isReadOnly() const {
-        return readOnly;
+        return m_readOnly;
     }
 
     bool isSplittable() const {
@@ -211,11 +210,11 @@ public:
     }
 
     unsigned getOwnerId() const {
-        return copyOnWriteOwner;
+        return m_copyOnWriteOwner;
     }
 
     void setOwnerId(unsigned id) {
-        copyOnWriteOwner = id;
+        m_copyOnWriteOwner = id;
     }
 
     ref<Expr> read(ref<Expr> offset, Expr::Width width) const;
@@ -228,7 +227,7 @@ public:
             *v = ((uint8_t *) m_address)[offset];
             return true;
         } else if (isByteConcrete(offset)) {
-            *v = concreteStore->get()[offset + storeOffset];
+            *v = m_concreteStore->get()[offset + m_storeOffset];
             return true;
         } else {
             return false;
@@ -247,7 +246,7 @@ public:
     bool isAllConcrete() const;
 
     inline bool isConcrete(unsigned offset, Expr::Width width) const {
-        if (!concreteMask) {
+        if (!m_concreteMask) {
             return true;
         }
 
@@ -264,25 +263,25 @@ public:
     uint8_t *getConcreteStore(bool allowSymolic = false);
 
     const ConcreteBufferPtr &getConcreteBuffer() const {
-        return concreteStore;
+        return m_concreteStore;
     }
 
     const BitArrayPtr &getConcreteMask() const {
-        return concreteMask;
+        return m_concreteMask;
     }
 
     // Split the current object at specified offset
     ObjectStatePtr split(unsigned offset, unsigned newSize) const;
 
     unsigned getStoreOffset() const {
-        return storeOffset;
+        return m_storeOffset;
     }
 
     unsigned getBitArraySize() const {
-        if (!concreteMask) {
+        if (!m_concreteMask) {
             return m_size;
         }
-        return concreteMask->getBitCount();
+        return m_concreteMask->getBitCount();
     }
 
     void initializeConcreteMask();
@@ -303,20 +302,20 @@ private:
     void flushRangeForWrite(unsigned rangeBase, unsigned rangeSize);
 
     inline bool isByteConcrete(unsigned offset) const {
-        return !concreteMask || concreteMask->get(storeOffset + offset);
+        return !m_concreteMask || m_concreteMask->get(m_storeOffset + offset);
     }
 
     inline bool isByteFlushed(unsigned offset) const {
-        return flushMask && !flushMask->get(offset);
+        return m_flushMask && !m_flushMask->get(offset);
     }
 
     inline bool isByteKnownSymbolic(unsigned offset) const {
-        return knownSymbolics.size() > 0 && knownSymbolics[offset].get();
+        return m_knownSymbolics.size() > 0 && m_knownSymbolics[offset].get();
     }
 
     inline void markByteConcrete(unsigned offset) {
-        if (concreteMask) {
-            concreteMask->set(storeOffset + offset);
+        if (m_concreteMask) {
+            m_concreteMask->set(m_storeOffset + offset);
         }
     }
 
@@ -325,8 +324,8 @@ private:
     void markByteFlushed(unsigned offset);
 
     void markByteUnflushed(unsigned offset) {
-        if (flushMask) {
-            flushMask->set(offset);
+        if (m_flushMask) {
+            m_flushMask->set(offset);
         }
     }
 
