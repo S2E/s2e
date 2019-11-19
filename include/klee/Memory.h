@@ -105,15 +105,14 @@ private:
     /// ObjectState will still be allocated for this purpose).
     bool m_isSharedConcrete;
 
-    // XXX: made it public for fast access
-    ConcreteBufferPtr m_concreteStore;
+    ConcreteBufferPtr m_concreteBuffer;
 
     // If the store is shared between object states,
     // indicate the offset of our region
-    unsigned m_storeOffset;
+    unsigned m_bufferOffset;
 
     // XXX cleanup name of flushMask (its backwards or something)
-    // mutable because may need flushed during read of const
+    // mutable because may need flushed during read of const§
     mutable BitArrayPtr m_flushMask;
 
     std::vector<ref<Expr>> m_knownSymbolics;
@@ -122,11 +121,6 @@ private:
     mutable UpdateListPtr m_updates;
 
 private:
-    // For AddressSpace
-    ConcreteBufferPtr getConcreteBufferAs() {
-        return m_concreteStore;
-    }
-
     ObjectState();
 
     /// Create a new object state for the given memory object with concrete
@@ -227,7 +221,7 @@ public:
             *v = ((uint8_t *) m_address)[offset];
             return true;
         } else if (isByteConcrete(offset)) {
-            *v = m_concreteStore->get()[offset + m_storeOffset];
+            *v = m_concreteBuffer->get()[offset + m_bufferOffset];
             return true;
         } else {
             return false;
@@ -259,11 +253,11 @@ public:
         return true;
     }
 
-    const uint8_t *getConcreteStore(bool allowSymbolic = false) const;
-    uint8_t *getConcreteStore(bool allowSymolic = false);
+    const uint8_t *getConcreteBuffer(bool allowSymbolic = false) const;
+    uint8_t *getConcreteBuffer(bool allowSymolic = false);
 
-    const ConcreteBufferPtr &getConcreteBuffer() const {
-        return m_concreteStore;
+    const ConcreteBufferPtr &getConcreteBufferPtr() const {
+        return m_concreteBuffer;
     }
 
     const BitArrayPtr &getConcreteMask() const {
@@ -274,7 +268,7 @@ public:
     ObjectStatePtr split(unsigned offset, unsigned newSize) const;
 
     unsigned getStoreOffset() const {
-        return m_storeOffset;
+        return m_bufferOffset;
     }
 
     unsigned getBitArraySize() const {
@@ -302,7 +296,7 @@ private:
     void flushRangeForWrite(unsigned rangeBase, unsigned rangeSize);
 
     inline bool isByteConcrete(unsigned offset) const {
-        return !m_concreteMask || m_concreteMask->get(m_storeOffset + offset);
+        return !m_concreteMask || m_concreteMask->get(m_bufferOffset + offset);
     }
 
     inline bool isByteFlushed(unsigned offset) const {
@@ -315,7 +309,7 @@ private:
 
     inline void markByteConcrete(unsigned offset) {
         if (m_concreteMask) {
-            m_concreteMask->set(m_storeOffset + offset);
+            m_concreteMask->set(m_bufferOffset + offset);
         }
     }
 

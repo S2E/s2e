@@ -36,7 +36,7 @@ ObjectState::ObjectState() {
 ObjectState::ObjectState(uint64_t address, uint64_t size, bool fixed)
     : m_copyOnWriteOwner(0), m_refCount(0), m_address(address), m_size(size), m_fixed(fixed), m_splittable(false),
       m_readOnly(false), m_notifyOnConcretenessChange(false), m_isMemoryPage(false), m_isSharedConcrete(false),
-      m_storeOffset(0), m_updates(nullptr) {
+      m_bufferOffset(0), m_updates(nullptr) {
 
     if (!m_fixed) {
         if (m_address) {
@@ -47,7 +47,7 @@ ObjectState::ObjectState(uint64_t address, uint64_t size, bool fixed)
         m_address = (uint64_t) m_fixedBuffer.get();
     }
 
-    this->m_concreteStore = ConcreteBuffer::create(size);
+    this->m_concreteBuffer = ConcreteBuffer::create(size);
 }
 
 ObjectState::ObjectState(const ObjectState &os) {
@@ -67,8 +67,8 @@ ObjectState::ObjectState(const ObjectState &os) {
     this->m_notifyOnConcretenessChange = os.m_notifyOnConcretenessChange;
     this->m_isMemoryPage = os.m_isMemoryPage;
     this->m_isSharedConcrete = os.m_isSharedConcrete;
-    this->m_concreteStore = ConcreteBuffer::create(os.m_concreteStore);
-    this->m_storeOffset = os.m_storeOffset;
+    this->m_concreteBuffer = ConcreteBuffer::create(os.m_concreteBuffer);
+    this->m_bufferOffset = os.m_bufferOffset;
     this->m_flushMask = os.m_flushMask ? BitArray::create(os.m_flushMask) : nullptr;
     this->m_knownSymbolics = os.m_knownSymbolics;
     this->m_updates = os.m_updates ? UpdateList::create(os.m_updates->getRoot(), os.m_updates->getHead()) : nullptr;
@@ -112,8 +112,8 @@ ObjectStatePtr ObjectState::split(unsigned offset, unsigned newSize) const {
     ret->m_notifyOnConcretenessChange = m_notifyOnConcretenessChange;
     ret->m_isMemoryPage = m_isMemoryPage;
     ret->m_isSharedConcrete = m_isSharedConcrete;
-    ret->m_concreteStore = m_concreteStore;
-    ret->m_storeOffset = offset;
+    ret->m_concreteBuffer = m_concreteBuffer;
+    ret->m_bufferOffset = offset;
     ret->m_flushMask = m_flushMask;
 
     if (m_knownSymbolics.size() > 0) {
@@ -138,7 +138,7 @@ ObjectStatePtr ObjectState::copy(const BitArrayPtr &_concreteMask, const Concret
     ObjectState *ret = new ObjectState(*this);
 
     ret->m_concreteMask = _concreteMask;
-    ret->m_concreteStore = _concreteStore;
+    ret->m_concreteBuffer = _concreteStore;
 
     return ObjectStatePtr(ret);
 }
@@ -229,8 +229,9 @@ void ObjectState::flushRangeForRead(unsigned rangeBase, unsigned rangeSize) cons
     for (unsigned offset = rangeBase; offset < rangeBase + rangeSize; offset++) {
         if (!isByteFlushed(offset)) {
             if (isByteConcrete(offset)) {
-                getUpdates()->extend(ConstantExpr::create(offset, Expr::Int32),
-                                     ConstantExpr::create(m_concreteStore->get()[offset + m_storeOffset], Expr::Int8));
+                getUpdates()->extend(
+                    ConstantExpr::create(offset, Expr::Int32),
+                    ConstantExpr::create(m_concreteBuffer->get()[offset + m_bufferOffset], Expr::Int8));
             } else {
                 assert(isByteKnownSymbolic(offset) && "invalid bit set in flushMask");
                 getUpdates()->extend(ConstantExpr::create(offset, Expr::Int32), m_knownSymbolics[offset]);
@@ -249,8 +250,9 @@ void ObjectState::flushRangeForWrite(unsigned rangeBase, unsigned rangeSize) {
     for (unsigned offset = rangeBase; offset < rangeBase + rangeSize; offset++) {
         if (!isByteFlushed(offset)) {
             if (isByteConcrete(offset)) {
-                getUpdates()->extend(ConstantExpr::create(offset, Expr::Int32),
-                                     ConstantExpr::create(m_concreteStore->get()[offset + m_storeOffset], Expr::Int8));
+                getUpdates()->extend(
+                    ConstantExpr::create(offset, Expr::Int32),
+                    ConstantExpr::create(m_concreteBuffer->get()[offset + m_bufferOffset], Expr::Int8));
                 markByteSymbolic(offset);
             } else {
                 assert(isByteKnownSymbolic(offset) && "invalid bit set in flushMask");
@@ -275,25 +277,25 @@ bool ObjectState::isAllConcrete() const {
     return !m_concreteMask || m_concreteMask->isAllOnes(m_size);
 }
 
-const uint8_t *ObjectState::getConcreteStore(bool allowSymbolic) const {
+const uint8_t *ObjectState::getConcreteBuffer(bool allowSymbolic) const {
     if (!allowSymbolic && !isAllConcrete()) {
         return NULL;
     }
-    return m_concreteStore->get() + m_storeOffset;
+    return m_concreteBuffer->get() + m_bufferOffset;
 }
 
-uint8_t *ObjectState::getConcreteStore(bool allowSymbolic) {
+uint8_t *ObjectState::getConcreteBuffer(bool allowSymbolic) {
     if (!allowSymbolic && !isAllConcrete()) {
         return NULL;
     }
-    return m_concreteStore->get() + m_storeOffset;
+    return m_concreteBuffer->get() + m_bufferOffset;
 }
 
 void ObjectState::markByteSymbolic(unsigned offset) {
     if (!m_concreteMask) {
         m_concreteMask = BitArray::create(m_size, true);
     }
-    m_concreteMask->unset(m_storeOffset + offset);
+    m_concreteMask->unset(m_bufferOffset + offset);
 }
 
 void ObjectState::markByteFlushed(unsigned offset) {
@@ -320,7 +322,7 @@ inline void ObjectState::setKnownSymbolic(unsigned offset, const ref<Expr> &valu
 ref<Expr> ObjectState::read8(unsigned offset) const {
     if (!isSharedConcrete()) {
         if (isByteConcrete(offset)) {
-            return ConstantExpr::create(m_concreteStore->get()[offset + m_storeOffset], Expr::Int8);
+            return ConstantExpr::create(m_concreteBuffer->get()[offset + m_bufferOffset], Expr::Int8);
         } else if (isByteKnownSymbolic(offset)) {
             return m_knownSymbolics[offset];
         } else {
@@ -350,7 +352,7 @@ ref<Expr> ObjectState::read8(ref<Expr> offset) const {
 void ObjectState::write8(unsigned offset, uint8_t value) {
     // assert(read_only == false && "writing to read-only object!");
     if (!isSharedConcrete()) {
-        m_concreteStore->get()[offset + m_storeOffset] = value;
+        m_concreteBuffer->get()[offset + m_bufferOffset] = value;
         setKnownSymbolic(offset, 0);
 
         markByteConcrete(offset);

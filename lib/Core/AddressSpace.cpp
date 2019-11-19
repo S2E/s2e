@@ -113,7 +113,7 @@ ObjectStatePtr AddressSpace::getWriteable(const ObjectStateConstPtr &os) {
         bits -= mo->getSize();
     } while (bits > 0);
 
-    auto concreteBuffer = ConcreteBuffer::create(os->getConcreteBuffer());
+    auto concreteBuffer = ConcreteBuffer::create(os->getConcreteBufferPtr());
     auto concreteMask = BitArray::create(os->getConcreteMask());
     assert(concreteMask->getBitCount() == concreteBuffer->size());
 

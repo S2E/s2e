@@ -189,7 +189,7 @@ ObjectStatePtr Executor::addExternalObject(ExecutionState &state, void *addr, un
     state.bindObject(ret, false);
     ret->setSharedConcrete(isSharedConcrete);
     if (!isSharedConcrete) {
-        memcpy(ret->getConcreteStore(), addr, size);
+        memcpy(ret->getConcreteBuffer(), addr, size);
     }
 
     ret->setReadOnly(isReadOnly);
