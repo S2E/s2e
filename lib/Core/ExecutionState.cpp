@@ -162,8 +162,8 @@ bool ExecutionState::merge(const ExecutionState &b) {
         return false;
 
     {
-        std::vector<StackFrame>::const_iterator itA = stack.begin();
-        std::vector<StackFrame>::const_iterator itB = b.stack.begin();
+        auto itA = stack.begin();
+        auto itB = b.stack.begin();
         while (itA != stack.end() && itB != b.stack.end()) {
             // XXX vaargs?
             if (itA->caller != itB->caller || itA->kf != itB->kf)
@@ -255,8 +255,8 @@ bool ExecutionState::merge(const ExecutionState &b) {
     // it seems like it can make a difference, even though logically
     // they must contradict each other and so inA => !inB
 
-    std::vector<StackFrame>::iterator itA = stack.begin();
-    std::vector<StackFrame>::const_iterator itB = b.stack.begin();
+    auto itA = stack.begin();
+    auto itB = b.stack.begin();
     for (; itA != stack.end(); ++itA, ++itB) {
         StackFrame &af = *itA;
         const StackFrame &bf = *itB;

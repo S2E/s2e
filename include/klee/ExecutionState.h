@@ -41,7 +41,7 @@ struct StackFrame {
     KFunction *kf;
     CallPathNode *callPathNode;
 
-    std::vector<ObjectStateConstPtr> allocas;
+    llvm::SmallVector<ObjectStateConstPtr, 16> allocas;
     Cell *locals;
 
     // For vararg functions: arguments not passed via parameter are
@@ -60,7 +60,7 @@ class ExecutionState : public IAddressSpaceNotification {
     friend class AddressSpace;
 
 public:
-    typedef std::vector<StackFrame> stack_ty;
+    typedef llvm::SmallVector<StackFrame, 16> stack_ty;
 
 private:
     // unsupported, use copy constructor
