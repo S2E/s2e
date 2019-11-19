@@ -342,6 +342,10 @@ public:
         return SubExpr::create(pointer, getBaseExpr());
     }
 
+    uint64_t getOffsetExpr(uint64_t pointer) const {
+        return pointer - m_address;
+    }
+
     ref<Expr> getBoundsCheckPointer(ref<Expr> pointer) const {
         return getBoundsCheckOffset(getOffsetExpr(pointer));
     }

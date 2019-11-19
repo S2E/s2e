@@ -167,13 +167,17 @@ protected:
 
     void executeCall(ExecutionState &state, KInstruction *ki, llvm::Function *f, std::vector<ref<Expr>> &arguments);
 
-    void writeAndNotify(ExecutionState &state, const ObjectStatePtr &wos, ref<Expr> &address, ref<Expr> &value);
+    template <typename T>
+    void writeAndNotify(ExecutionState &state, const ObjectStatePtr &wos, T address, ref<Expr> &value);
 
     ref<Expr> executeMemoryOperationOverlapped(ExecutionState &state, bool isWrite, uint64_t concreteAddress,
                                                ref<Expr> value /* undef if read */, unsigned bytes);
 
     // This is the actual read/write function, called after the target
     // object was determined.
+    ref<Expr> executeMemoryOperation(ExecutionState &state, const ObjectStateConstPtr &os, bool isWrite,
+                                     uint64_t offset, ref<Expr> value /* undef if read */, Expr::Width type);
+
     ref<Expr> executeMemoryOperation(ExecutionState &state, const ObjectStateConstPtr &os, bool isWrite,
                                      ref<Expr> offset, ref<Expr> value /* undef if read */, Expr::Width type);
 

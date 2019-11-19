@@ -1817,7 +1817,8 @@ void Executor::executeAlloc(ExecutionState &state, ref<Expr> size, bool isLocal,
     }
 }
 
-void Executor::writeAndNotify(ExecutionState &state, const ObjectStatePtr &wos, ref<Expr> &address, ref<Expr> &value) {
+template <typename T>
+void Executor::writeAndNotify(ExecutionState &state, const ObjectStatePtr &wos, T address, ref<Expr> &value) {
     bool oldAllConcrete = wos->isAllConcrete();
 
     wos->write(address, value);
@@ -1865,6 +1866,34 @@ ref<Expr> Executor::executeMemoryOperationOverlapped(ExecutionState &state, bool
     } else {
         return NULL;
     }
+}
+
+ref<Expr> Executor::executeMemoryOperation(ExecutionState &state, const ObjectStateConstPtr &os, bool isWrite,
+                                           uint64_t offset, ref<Expr> value /* undef if read */, Expr::Width type) {
+    if (isWrite) {
+        if (os->isReadOnly()) {
+            terminateState(state, "memory error: object read only");
+        } else {
+            auto wos = state.addressSpace.getWriteable(os);
+            if (wos->isSharedConcrete()) {
+                if (!dyn_cast<ConstantExpr>(value)) {
+                    std::stringstream ss;
+                    ss << "write to always concrete memory name:" << os->getName() << " offset=" << offset
+                       << " value=" << value;
+                    value = state.toConstant(value, ss.str().c_str());
+                }
+            }
+
+            // Write the value and send a notification if the object changed
+            // its concrete/symbolic status.
+            writeAndNotify(state, wos, offset, value);
+        }
+    } else {
+        ref<Expr> result = os->read(offset, type);
+        return result;
+    }
+
+    return nullptr;
 }
 
 ref<Expr> Executor::executeMemoryOperation(ExecutionState &state, const ObjectStateConstPtr &os, bool isWrite,
@@ -1951,8 +1980,13 @@ void Executor::executeMemoryOperation(ExecutionState &state, bool isWrite, ref<E
         ref<Expr> result;
         if (fastInBounds) {
             // Either a concrete address or some special types of symbolic addresses
-            ref<Expr> offset = os->getOffsetExpr(address);
-            result = executeMemoryOperation(state, os, isWrite, offset, value, type);
+            if (auto CE = dyn_cast<ConstantExpr>(address)) {
+                uint64_t offset = os->getOffsetExpr(CE->getZExtValue());
+                result = executeMemoryOperation(state, os, isWrite, offset, value, type);
+            } else {
+                ref<Expr> offset = os->getOffsetExpr(address);
+                result = executeMemoryOperation(state, os, isWrite, offset, value, type);
+            }
         } else {
             // Can only be a concrete address that spans multiple pages.
             // This can happen only if the page was split before.
