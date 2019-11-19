@@ -127,7 +127,7 @@ void MemoryTracer::traceConcreteDataMemoryAccess(S2EExecutionState *state, uint6
 
         auto os = state->addressSpace.findObject(item.host_address() & SE_RAM_OBJECT_MASK);
         if (os) {
-            item.set_concrete_buffer((uint64_t) os->getConcreteStore());
+            item.set_concrete_buffer((uint64_t) os->getConcreteBuffer());
             if ((flags & MEM_TRACE_FLAG_WRITE) && m_debugObjectStates) {
                 assert(state->addressSpace.isOwnedByUs(os));
             }
@@ -185,7 +185,7 @@ void MemoryTracer::traceSymbolicDataMemoryAccess(S2EExecutionState *state, klee:
 
         auto os = state->addressSpace.findObject(item.host_address() & SE_RAM_OBJECT_MASK);
         if (os) {
-            item.set_concrete_buffer((uint64_t) os->getConcreteStore());
+            item.set_concrete_buffer((uint64_t) os->getConcreteBuffer());
             if ((flags & MEM_TRACE_FLAG_WRITE) && m_debugObjectStates) {
                 assert(state->addressSpace.isOwnedByUs(os));
             }
