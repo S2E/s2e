@@ -229,9 +229,8 @@ void ObjectState::flushRangeForRead(unsigned rangeBase, unsigned rangeSize) cons
     for (unsigned offset = rangeBase; offset < rangeBase + rangeSize; offset++) {
         if (!isByteFlushed(offset)) {
             if (isByteConcrete(offset)) {
-                getUpdates()->extend(
-                    ConstantExpr::create(offset, Expr::Int32),
-                    ConstantExpr::create(m_concreteBuffer->get()[offset + m_bufferOffset], Expr::Int8));
+                auto byte = getConcreteBuffer(true)[offset];
+                getUpdates()->extend(ConstantExpr::create(offset, Expr::Int32), ConstantExpr::create(byte, Expr::Int8));
             } else {
                 assert(isByteKnownSymbolic(offset) && "invalid bit set in flushMask");
                 getUpdates()->extend(ConstantExpr::create(offset, Expr::Int32), m_knownSymbolics[offset]);
@@ -250,9 +249,8 @@ void ObjectState::flushRangeForWrite(unsigned rangeBase, unsigned rangeSize) {
     for (unsigned offset = rangeBase; offset < rangeBase + rangeSize; offset++) {
         if (!isByteFlushed(offset)) {
             if (isByteConcrete(offset)) {
-                getUpdates()->extend(
-                    ConstantExpr::create(offset, Expr::Int32),
-                    ConstantExpr::create(m_concreteBuffer->get()[offset + m_bufferOffset], Expr::Int8));
+                auto byte = getConcreteBuffer(true)[offset];
+                getUpdates()->extend(ConstantExpr::create(offset, Expr::Int32), ConstantExpr::create(byte, Expr::Int8));
                 markByteSymbolic(offset);
             } else {
                 assert(isByteKnownSymbolic(offset) && "invalid bit set in flushMask");
@@ -322,7 +320,8 @@ inline void ObjectState::setKnownSymbolic(unsigned offset, const ref<Expr> &valu
 ref<Expr> ObjectState::read8(unsigned offset) const {
     if (!isSharedConcrete()) {
         if (isByteConcrete(offset)) {
-            return ConstantExpr::create(m_concreteBuffer->get()[offset + m_bufferOffset], Expr::Int8);
+            auto byte = getConcreteBuffer(true)[offset];
+            return ConstantExpr::create(byte, Expr::Int8);
         } else if (isByteKnownSymbolic(offset)) {
             return m_knownSymbolics[offset];
         } else {
@@ -352,7 +351,8 @@ ref<Expr> ObjectState::read8(ref<Expr> offset) const {
 void ObjectState::write8(unsigned offset, uint8_t value) {
     // assert(read_only == false && "writing to read-only object!");
     if (!isSharedConcrete()) {
-        m_concreteBuffer->get()[offset + m_bufferOffset] = value;
+        auto byte = &getConcreteBuffer(true)[offset];
+        *byte = value;
         setKnownSymbolic(offset, 0);
 
         markByteConcrete(offset);
