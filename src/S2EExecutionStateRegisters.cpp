@@ -68,10 +68,10 @@ void S2EExecutionStateRegisters::copySymbRegs(bool toNative) {
 
     if (toNative) {
         assert(!*m_runningConcrete);
-        memcpy((void *) s_symbolicRegs.address, m_symbolicRegs->getConcreteStore(true), m_symbolicRegs->getSize());
+        memcpy((void *) s_symbolicRegs.address, m_symbolicRegs->getConcreteBuffer(true), m_symbolicRegs->getSize());
     } else {
         assert(*m_runningConcrete);
-        memcpy(m_symbolicRegs->getConcreteStore(true), (void *) s_symbolicRegs.address, m_symbolicRegs->getSize());
+        memcpy(m_symbolicRegs->getConcreteBuffer(true), (void *) s_symbolicRegs.address, m_symbolicRegs->getSize());
     }
 }
 
@@ -80,7 +80,7 @@ void S2EExecutionStateRegisters::copySymbRegs(bool toNative) {
 CPUX86State *S2EExecutionStateRegisters::getCpuState() const {
     CPUX86State *cpu = *m_active
                            ? (CPUX86State *) (s_concreteRegs.address - offsetof(CPUX86State, eip))
-                           : (CPUX86State *) (m_concreteRegs->getConcreteStore(true) - offsetof(CPUX86State, eip));
+                           : (CPUX86State *) (m_concreteRegs->getConcreteBuffer(true) - offsetof(CPUX86State, eip));
 
     return cpu;
 }
@@ -291,7 +291,7 @@ void S2EExecutionStateRegisters::readConcreteRegion(unsigned offset, void *buffe
     if (*m_active) {
         address = (uint8_t *) s_concreteRegs.address - CPU_OFFSET(eip);
     } else {
-        address = m_concreteRegs->getConcreteStore();
+        address = m_concreteRegs->getConcreteBuffer();
         assert(address);
         address -= CPU_OFFSET(eip);
     }
@@ -309,7 +309,7 @@ void S2EExecutionStateRegisters::writeConcreteRegion(unsigned offset, const void
     if (*m_active) {
         address = (uint8_t *) s_concreteRegs.address - CPU_OFFSET(eip);
     } else {
-        address = m_concreteRegs->getConcreteStore();
+        address = m_concreteRegs->getConcreteBuffer();
         assert(address);
         address -= CPU_OFFSET(eip);
     }

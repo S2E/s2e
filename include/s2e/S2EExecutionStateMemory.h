@@ -63,7 +63,7 @@ public:
     }
 
     uintptr_t getDirtyMaskStoreAddend() const {
-        return (uintptr_t) m_dirtyMask->getConcreteStore(false) - s_dirtyMask.address;
+        return (uintptr_t) m_dirtyMask->getConcreteBuffer(false) - s_dirtyMask.address;
     }
 
     /// Read/write from physical memory, concretizing if necessary on reads.
@@ -79,7 +79,7 @@ public:
     /// \param addressType the type of address specified
     /// \return The address or null if the address could not be determineds
     ///
-    const void *getConcreteStore(uint64_t address, AddressType addressType) const;
+    const void *getConcreteBuffer(uint64_t address, AddressType addressType) const;
 
     ////////////////////////////////////////////////////////////
     // The APIs below may be used by plugins

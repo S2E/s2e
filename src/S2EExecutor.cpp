@@ -804,7 +804,7 @@ void S2EExecutor::doStateSwitch(S2EExecutionState *oldState, S2EExecutionState *
         for (auto &mo : m_saveOnContextSwitch) {
             auto oldOS = oldState->addressSpace.findObject(mo.address);
             auto oldWOS = oldState->addressSpace.getWriteable(oldOS);
-            uint8_t *oldStore = oldWOS->getConcreteStore();
+            uint8_t *oldStore = oldWOS->getConcreteBuffer();
             assert(oldStore);
             memcpy(oldStore, (uint8_t *) mo.address, mo.size);
         }
@@ -848,7 +848,7 @@ void S2EExecutor::doStateSwitch(S2EExecutionState *oldState, S2EExecutionState *
 
         for (auto &mo : m_saveOnContextSwitch) {
             auto newOS = newState->addressSpace.findObject(mo.address);
-            const uint8_t *newStore = newOS->getConcreteStore();
+            const uint8_t *newStore = newOS->getConcreteBuffer();
             assert(newStore);
             memcpy((uint8_t *) mo.address, newStore, mo.size);
             totalCopied += mo.size;
@@ -1564,7 +1564,7 @@ void S2EExecutor::notifyBranch(ExecutionState &state) {
     for (auto &mo : m_saveOnContextSwitch) {
         auto os = s2eState->addressSpace.findObject(mo.address);
         auto wos = s2eState->addressSpace.getWriteable(os);
-        uint8_t *store = wos->getConcreteStore();
+        uint8_t *store = wos->getConcreteBuffer();
         assert(store);
         memcpy(store, (uint8_t *) mo.address, mo.size);
     }

@@ -98,11 +98,11 @@ public:
     int compareArchitecturalConcreteState(const S2EExecutionStateRegisters &other);
 
     inline void saveConcreteState() {
-        memcpy((void *) m_concreteRegs->getConcreteStore(), (void *) s_concreteRegs.address, s_concreteRegs.size);
+        memcpy((void *) m_concreteRegs->getConcreteBuffer(), (void *) s_concreteRegs.address, s_concreteRegs.size);
     }
 
     inline void restoreConcreteState() {
-        memcpy((void *) s_concreteRegs.address, (void *) m_concreteRegs->getConcreteStore(), s_concreteRegs.size);
+        memcpy((void *) s_concreteRegs.address, (void *) m_concreteRegs->getConcreteBuffer(), s_concreteRegs.size);
     }
 
     void addressSpaceChange(const klee::ObjectKey &key, const klee::ObjectStateConstPtr &oldState,

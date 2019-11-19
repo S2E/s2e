@@ -146,7 +146,7 @@ int S2EDeviceState::writeSector(struct S2EBlockDevice *bs, int64_t sector, const
         }
 
         auto osw = m_deviceState.getWriteable(os);
-        memcpy(osw->getConcreteStore(false), buf, SECTOR_SIZE);
+        memcpy(osw->getConcreteBuffer(false), buf, SECTOR_SIZE);
         buf += SECTOR_SIZE;
         --nb_sectors;
         ++sector;
@@ -168,7 +168,7 @@ int S2EDeviceState::readSector(struct S2EBlockDevice *bs, int64_t sector, uint8_
             return readCount;
         }
 
-        memcpy(buf, os->getConcreteStore(false), SECTOR_SIZE);
+        memcpy(buf, os->getConcreteBuffer(false), SECTOR_SIZE);
         buf += SECTOR_SIZE;
         ++readCount;
         --nb_sectors;

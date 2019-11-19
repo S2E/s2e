@@ -67,7 +67,7 @@ void S2EExecutionStateTlb::updateRamTlb(const klee::ObjectStateConstPtr &oldStat
             // XXX: use proper ref counting
             re->object_state = newState.get();
             re->host_page = address;
-            re->addend = (uintptr_t) newState->getConcreteBuffer()->get() - address;
+            re->addend = (uintptr_t) newState->getConcreteBufferPtr()->get() - address;
         }
         if (m_asCache->isOwnedByUs(newState)) {
             re->host_page &= ~TLB_NOT_OURS;
@@ -114,8 +114,8 @@ void S2EExecutionStateTlb::updateTlb(const klee::ObjectStateConstPtr &oldState, 
 
             if (!newState->isSharedConcrete()) {
                 // The addend does not change.
-                entry->se_addend = entry->se_addend - (uintptr_t) oldState->getConcreteStore(true) +
-                                   (uintptr_t) newState->getConcreteStore(true);
+                entry->se_addend = entry->se_addend - (uintptr_t) oldState->getConcreteBuffer(true) +
+                                   (uintptr_t) newState->getConcreteBuffer(true);
 
                 if (m_asCache->isOwnedByUs(newState)) {
                     entry->addr_write &= ~TLB_NOT_OURS;
@@ -271,7 +271,7 @@ void S2EExecutionStateTlb::updateTlbEntry(CPUX86State *env, int mmu_idx, uint64_
     if (newObjectState->isSharedConcrete()) {
         entry->se_addend = (hostAddr - virtAddr);
     } else {
-        entry->se_addend = ((uintptr_t) newObjectState->getConcreteStore(true) - virtAddr);
+        entry->se_addend = ((uintptr_t) newObjectState->getConcreteBuffer(true) - virtAddr);
 
         if (m_asCache->isOwnedByUs(newObjectState)) {
             entry->addr_write &= ~TLB_NOT_OURS;

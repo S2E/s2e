@@ -216,13 +216,13 @@ klee::ObjectStateConstPtr S2EExecutionStateMemory::getMemoryObject(uint64_t addr
     return m_addressSpace->findObject(pageAddr);
 }
 
-const void *S2EExecutionStateMemory::getConcreteStore(uint64_t address, AddressType addressType) const {
+const void *S2EExecutionStateMemory::getConcreteBuffer(uint64_t address, AddressType addressType) const {
     auto obj = getMemoryObject(address, addressType);
     if (!obj) {
         return nullptr;
     }
 
-    auto store = obj->getConcreteStore();
+    auto store = obj->getConcreteBuffer();
     if (!store) {
         return nullptr;
     }
@@ -380,7 +380,7 @@ void S2EExecutionStateMemory::transferRam(struct CPUTLBRAMEntry *te, uint64_t ho
                 // XXX: do proper reference counting
                 te->object_state = (void *) os.get();
                 te->host_page = os->getAddress();
-                te->addend = (uintptr_t) os->getConcreteBuffer()->get() - os->getAddress();
+                te->addend = (uintptr_t) os->getConcreteBufferPtr()->get() - os->getAddress();
                 if (!m_asCache->isOwnedByUs(os)) {
                     te->host_page |= TLB_NOT_OURS;
                 }

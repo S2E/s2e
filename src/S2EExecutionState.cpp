@@ -810,8 +810,8 @@ bool S2EExecutionState::merge(const ExecutionState &_b) {
         auto &dirtyMask = S2EExecutionStateMemory::getDirtyMask();
         auto os = addressSpace.findObject(dirtyMask.address);
         auto wos = addressSpace.getWriteable(os);
-        uint8_t *dirtyMaskA = wos->getConcreteStore();
-        const uint8_t *dirtyMaskB = b.addressSpace.findObject(dirtyMask.address)->getConcreteStore();
+        uint8_t *dirtyMaskA = wos->getConcreteBuffer();
+        const uint8_t *dirtyMaskB = b.addressSpace.findObject(dirtyMask.address)->getConcreteBuffer();
 
         for (unsigned i = 0; i < dirtyMask.size; ++i) {
             if (dirtyMaskA[i] != dirtyMaskB[i])
@@ -1206,7 +1206,7 @@ void s2e_write_ram_concrete(uint64_t host_address, const uint8_t *buf, uint64_t 
 
 // To be used by GDB scripts to convert addresses
 uint64_t s2e_host_to_state_address(uint64_t hostaddr) {
-    return (uint64_t) g_s2e_state->mem()->getConcreteStore(hostaddr, s2e::HostAddress);
+    return (uint64_t) g_s2e_state->mem()->getConcreteBuffer(hostaddr, s2e::HostAddress);
 }
 
 } // extern "C"
