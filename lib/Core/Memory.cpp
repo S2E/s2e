@@ -36,7 +36,7 @@ ObjectState::ObjectState() {
 ObjectState::ObjectState(uint64_t address, uint64_t size, bool fixed)
     : m_copyOnWriteOwner(0), m_refCount(0), m_address(address), m_size(size), m_fixed(fixed), m_splittable(false),
       m_readOnly(false), m_notifyOnConcretenessChange(false), m_isMemoryPage(false), m_isSharedConcrete(false),
-      m_storeOffset(0), m_updates(UpdateList::create(nullptr, 0)) {
+      m_storeOffset(0), m_updates(nullptr) {
 
     if (!m_fixed) {
         if (m_address) {
@@ -71,7 +71,7 @@ ObjectState::ObjectState(const ObjectState &os) {
     this->m_storeOffset = os.m_storeOffset;
     this->m_flushMask = os.m_flushMask ? BitArray::create(os.m_flushMask) : nullptr;
     this->m_knownSymbolics = os.m_knownSymbolics;
-    this->m_updates = UpdateList::create(os.m_updates->getRoot(), os.m_updates->getHead());
+    this->m_updates = os.m_updates ? UpdateList::create(os.m_updates->getRoot(), os.m_updates->getHead()) : nullptr;
 }
 
 ObjectState::~ObjectState() {
@@ -94,7 +94,7 @@ ObjectStatePtr ObjectState::split(unsigned offset, unsigned newSize) const {
     assert(newSize <= m_size);
     assert(offset + newSize <= m_size);
     assert(m_flushMask == nullptr);
-    assert(m_updates->getSize() == 0);
+    assert(!m_updates || m_updates->getSize() == 0);
     assert(m_readOnly == false);
 
     auto ret = new ObjectState();
@@ -123,7 +123,7 @@ ObjectStatePtr ObjectState::split(unsigned offset, unsigned newSize) const {
         }
     }
 
-    ret->m_updates = UpdateList::create(m_updates->getRoot(), m_updates->getHead());
+    ret->m_updates = nullptr;
 
     return ObjectStatePtr(ret);
 }
@@ -146,57 +146,63 @@ ObjectStatePtr ObjectState::copy(const BitArrayPtr &_concreteMask, const Concret
 /***/
 
 const UpdateListPtr &ObjectState::getUpdates() const {
+    if (!m_updates) {
+        m_updates = UpdateList::create(nullptr, nullptr);
+    }
+
+    if (m_updates->getRoot()) {
+        return m_updates;
+    }
+
     // Constant arrays are created lazily.
-    if (!m_updates->getRoot()) {
-        // Collect the list of writes, with the oldest writes first.
 
-        // FIXME: We should be able to do this more efficiently, we just need to be
-        // careful to get the interaction with the cache right. In particular we
-        // should avoid creating UpdateNode instances we never use.
-        unsigned NumWrites = m_updates->getHead() ? m_updates->getHead()->getSize() : 0;
-        std::vector<std::pair<ref<Expr>, ref<Expr>>> Writes(NumWrites);
-        auto un = m_updates->getHead();
-        for (unsigned i = NumWrites; i != 0; un = un->getNext()) {
-            --i;
-            Writes[i] = std::make_pair(un->getIndex(), un->getValue());
-        }
+    // Collect the list of writes, with the oldest writes first.
 
-        std::vector<ref<ConstantExpr>> Contents(m_size);
+    // FIXME: We should be able to do this more efficiently, we just need to be
+    // careful to get the interaction with the cache right. In particular we
+    // should avoid creating UpdateNode instances we never use.
+    unsigned NumWrites = m_updates->getHead() ? m_updates->getHead()->getSize() : 0;
+    std::vector<std::pair<ref<Expr>, ref<Expr>>> Writes(NumWrites);
+    auto un = m_updates->getHead();
+    for (unsigned i = NumWrites; i != 0; un = un->getNext()) {
+        --i;
+        Writes[i] = std::make_pair(un->getIndex(), un->getValue());
+    }
 
-        // Initialize to zeros.
-        for (unsigned i = 0, e = m_size; i != e; ++i) {
-            Contents[i] = ConstantExpr::create(0, Expr::Int8);
-        }
+    std::vector<ref<ConstantExpr>> Contents(m_size);
 
-        // Pull off as many concrete writes as we can.
-        unsigned Begin = 0, End = Writes.size();
-        for (; Begin != End; ++Begin) {
-            // Push concrete writes into the constant array.
-            ConstantExpr *Index = dyn_cast<ConstantExpr>(Writes[Begin].first);
-            if (!Index)
-                break;
+    // Initialize to zeros.
+    for (unsigned i = 0, e = m_size; i != e; ++i) {
+        Contents[i] = ConstantExpr::create(0, Expr::Int8);
+    }
 
-            ConstantExpr *Value = dyn_cast<ConstantExpr>(Writes[Begin].second);
-            if (!Value)
-                break;
+    // Pull off as many concrete writes as we can.
+    unsigned Begin = 0, End = Writes.size();
+    for (; Begin != End; ++Begin) {
+        // Push concrete writes into the constant array.
+        ConstantExpr *Index = dyn_cast<ConstantExpr>(Writes[Begin].first);
+        if (!Index)
+            break;
 
-            Contents[Index->getZExtValue()] = Value;
-        }
+        ConstantExpr *Value = dyn_cast<ConstantExpr>(Writes[Begin].second);
+        if (!Value)
+            break;
 
-        // FIXME: We should unique these, there is no good reason to create multiple
-        // ones.
+        Contents[Index->getZExtValue()] = Value;
+    }
 
-        // Start a new update list.
-        // FIXME: Leaked.
-        static unsigned id = 0;
-        auto array =
-            Array::create("const_arr" + llvm::utostr(++id), m_size, &Contents[0], &Contents[0] + Contents.size());
-        m_updates = UpdateList::create(array, 0);
+    // FIXME: We should unique these, there is no good reason to create multiple
+    // ones.
 
-        // Apply the remaining (non-constant) writes.
-        for (; Begin != End; ++Begin) {
-            m_updates->extend(Writes[Begin].first, Writes[Begin].second);
-        }
+    // Start a new update list.
+    // FIXME: Leaked.
+    static unsigned id = 0;
+    auto array = Array::create("const_arr" + llvm::utostr(++id), m_size, &Contents[0], &Contents[0] + Contents.size());
+    m_updates = UpdateList::create(array, 0);
+
+    // Apply the remaining (non-constant) writes.
+    for (; Begin != End; ++Begin) {
+        m_updates->extend(Writes[Begin].first, Writes[Begin].second);
     }
 
     return m_updates;
@@ -223,11 +229,11 @@ void ObjectState::flushRangeForRead(unsigned rangeBase, unsigned rangeSize) cons
     for (unsigned offset = rangeBase; offset < rangeBase + rangeSize; offset++) {
         if (!isByteFlushed(offset)) {
             if (isByteConcrete(offset)) {
-                m_updates->extend(ConstantExpr::create(offset, Expr::Int32),
-                                  ConstantExpr::create(m_concreteStore->get()[offset + m_storeOffset], Expr::Int8));
+                getUpdates()->extend(ConstantExpr::create(offset, Expr::Int32),
+                                     ConstantExpr::create(m_concreteStore->get()[offset + m_storeOffset], Expr::Int8));
             } else {
                 assert(isByteKnownSymbolic(offset) && "invalid bit set in flushMask");
-                m_updates->extend(ConstantExpr::create(offset, Expr::Int32), m_knownSymbolics[offset]);
+                getUpdates()->extend(ConstantExpr::create(offset, Expr::Int32), m_knownSymbolics[offset]);
             }
 
             m_flushMask->unset(offset);
@@ -243,12 +249,12 @@ void ObjectState::flushRangeForWrite(unsigned rangeBase, unsigned rangeSize) {
     for (unsigned offset = rangeBase; offset < rangeBase + rangeSize; offset++) {
         if (!isByteFlushed(offset)) {
             if (isByteConcrete(offset)) {
-                m_updates->extend(ConstantExpr::create(offset, Expr::Int32),
-                                  ConstantExpr::create(m_concreteStore->get()[offset + m_storeOffset], Expr::Int8));
+                getUpdates()->extend(ConstantExpr::create(offset, Expr::Int32),
+                                     ConstantExpr::create(m_concreteStore->get()[offset + m_storeOffset], Expr::Int8));
                 markByteSymbolic(offset);
             } else {
                 assert(isByteKnownSymbolic(offset) && "invalid bit set in flushMask");
-                m_updates->extend(ConstantExpr::create(offset, Expr::Int32), m_knownSymbolics[offset]);
+                getUpdates()->extend(ConstantExpr::create(offset, Expr::Int32), m_knownSymbolics[offset]);
                 setKnownSymbolic(offset, 0);
             }
 
@@ -378,7 +384,7 @@ void ObjectState::write8(ref<Expr> offset, ref<Expr> value) {
         klee_warning_once(0, "flushing %d bytes on read, may be slow and/or crash", size);
     }
 
-    m_updates->extend(ZExtExpr::create(offset, Expr::Int32), value);
+    getUpdates()->extend(ZExtExpr::create(offset, Expr::Int32), value);
 }
 
 /***/
