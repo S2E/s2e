@@ -67,6 +67,8 @@ private:
     // (yes, we do need to access if really fast)
     BitArrayPtr m_concreteMask;
 
+    static const unsigned FAST_CONCRETE_BUFFER_SIZE = sizeof(uint64_t);
+
     unsigned m_copyOnWriteOwner;
 
     mutable std::atomic<unsigned> m_refCount;
@@ -106,6 +108,8 @@ private:
     bool m_isSharedConcrete;
 
     ConcreteBufferPtr m_concreteBuffer;
+
+    uint8_t m_fastConcreteBuffer[FAST_CONCRETE_BUFFER_SIZE];
 
     // If the store is shared between object states,
     // indicate the offset of our region
@@ -257,6 +261,7 @@ public:
     uint8_t *getConcreteBuffer(bool allowSymolic = false);
 
     const ConcreteBufferPtr &getConcreteBufferPtr() const {
+        assert(m_concreteBuffer);
         return m_concreteBuffer;
     }
 

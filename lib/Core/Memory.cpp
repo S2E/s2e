@@ -47,7 +47,10 @@ ObjectState::ObjectState(uint64_t address, uint64_t size, bool fixed)
         m_address = (uint64_t) m_fixedBuffer.get();
     }
 
-    this->m_concreteBuffer = ConcreteBuffer::create(size);
+    memset(m_fastConcreteBuffer, 0, sizeof(m_fastConcreteBuffer));
+    if (m_size > FAST_CONCRETE_BUFFER_SIZE) {
+        this->m_concreteBuffer = ConcreteBuffer::create(size);
+    }
 }
 
 ObjectState::ObjectState(const ObjectState &os) {
@@ -67,7 +70,12 @@ ObjectState::ObjectState(const ObjectState &os) {
     this->m_notifyOnConcretenessChange = os.m_notifyOnConcretenessChange;
     this->m_isMemoryPage = os.m_isMemoryPage;
     this->m_isSharedConcrete = os.m_isSharedConcrete;
-    this->m_concreteBuffer = ConcreteBuffer::create(os.m_concreteBuffer);
+
+    this->m_concreteBuffer = nullptr;
+    if (os.m_concreteBuffer) {
+        this->m_concreteBuffer = ConcreteBuffer::create(os.m_concreteBuffer);
+    }
+    memcpy(this->m_fastConcreteBuffer, os.m_fastConcreteBuffer, sizeof(m_fastConcreteBuffer));
     this->m_bufferOffset = os.m_bufferOffset;
     this->m_flushMask = os.m_flushMask ? BitArray::create(os.m_flushMask) : nullptr;
     this->m_knownSymbolics = os.m_knownSymbolics;
@@ -113,6 +121,7 @@ ObjectStatePtr ObjectState::split(unsigned offset, unsigned newSize) const {
     ret->m_isMemoryPage = m_isMemoryPage;
     ret->m_isSharedConcrete = m_isSharedConcrete;
     ret->m_concreteBuffer = m_concreteBuffer;
+    memcpy(ret->m_fastConcreteBuffer, m_fastConcreteBuffer, sizeof(m_fastConcreteBuffer));
     ret->m_bufferOffset = offset;
     ret->m_flushMask = m_flushMask;
 
@@ -279,14 +288,26 @@ const uint8_t *ObjectState::getConcreteBuffer(bool allowSymbolic) const {
     if (!allowSymbolic && !isAllConcrete()) {
         return NULL;
     }
-    return m_concreteBuffer->get() + m_bufferOffset;
+
+    if (m_size <= FAST_CONCRETE_BUFFER_SIZE) {
+        assert(m_bufferOffset == 0);
+        return &m_fastConcreteBuffer[0];
+    } else {
+        return m_concreteBuffer->get() + m_bufferOffset;
+    }
 }
 
 uint8_t *ObjectState::getConcreteBuffer(bool allowSymbolic) {
     if (!allowSymbolic && !isAllConcrete()) {
         return NULL;
     }
-    return m_concreteBuffer->get() + m_bufferOffset;
+
+    if (m_size <= FAST_CONCRETE_BUFFER_SIZE) {
+        assert(m_bufferOffset == 0);
+        return &m_fastConcreteBuffer[0];
+    } else {
+        return m_concreteBuffer->get() + m_bufferOffset;
+    }
 }
 
 void ObjectState::markByteSymbolic(unsigned offset) {
