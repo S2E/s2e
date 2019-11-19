@@ -10,9 +10,12 @@
 
 #include <klee/Executor.h>
 #include <klee/Expr.h>
+#include <llvm/ADT/SmallVector.h>
 #include <llvm/IR/Module.h>
 
 namespace s2e {
+
+typedef llvm::SmallVector<klee::ref<klee::Expr>, 5> HandlerArgs;
 
 void handleForkAndConcretize(klee::Executor *executor, klee::ExecutionState *state, klee::KInstruction *target,
                              std::vector<klee::ref<klee::Expr>> &args);

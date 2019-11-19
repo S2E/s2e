@@ -182,9 +182,9 @@ static ref<ConstantExpr> handleForkAndConcretizeNative(Executor *executor, Execu
     return constantAddress;
 }
 
-static ref<Expr> handle_ldst_mmu(Executor *executor, ExecutionState *state, klee::KInstruction *target,
-                                 const std::vector<ref<Expr>> &args, bool isWrite, unsigned data_size, bool signExtend,
-                                 bool zeroExtend) {
+template <typename V>
+static ref<Expr> handle_ldst_mmu(Executor *executor, ExecutionState *state, klee::KInstruction *target, const V &args,
+                                 bool isWrite, unsigned data_size, bool signExtend, bool zeroExtend) {
     S2EExecutionState *s2estate = static_cast<S2EExecutionState *>(state);
 
     ref<ConstantExpr> envExpr = dyn_cast<ConstantExpr>(args[0]);
@@ -239,15 +239,19 @@ redo:
                 value = io_read_chk(s2estate, tlbEntry, ioaddr, addr, retaddr, width);
             }
 
-            // Trace the access
-            std::vector<ref<Expr>> traceArgs;
-            traceArgs.push_back(symbAddress);
-            traceArgs.push_back(value);
-            traceArgs.push_back(ConstantExpr::create(width / 8, Expr::Int32));
-            unsigned flags = isWrite ? MEM_TRACE_FLAG_WRITE : 0;
-            traceArgs.push_back(ConstantExpr::create(flags | MEM_TRACE_FLAG_IO, Expr::Int64));
-            traceArgs.push_back(ConstantExpr::create(0, Expr::Int64));
-            handlerAfterMemoryAccess(executor, state, target, traceArgs);
+            auto corePlugin = g_s2e->getCorePlugin();
+            if (!corePlugin->onAfterSymbolicDataMemoryAccess.empty() ||
+                !corePlugin->onConcreteDataMemoryAccess.empty()) {
+                // Trace the access
+                std::vector<ref<Expr>> traceArgs;
+                traceArgs.push_back(symbAddress);
+                traceArgs.push_back(value);
+                traceArgs.push_back(ConstantExpr::create(width / 8, Expr::Int32));
+                unsigned flags = isWrite ? MEM_TRACE_FLAG_WRITE : 0;
+                traceArgs.push_back(ConstantExpr::create(flags | MEM_TRACE_FLAG_IO, Expr::Int64));
+                traceArgs.push_back(ConstantExpr::create(0, Expr::Int64));
+                handlerAfterMemoryAccess(executor, state, target, traceArgs);
+            }
 
             if (isWrite) {
                 io_write_chk(s2estate, env, ioaddr, value, addr, retaddr, width);
@@ -259,7 +263,7 @@ redo:
 
             if (isWrite) {
                 for (int i = data_size - 1; i >= 0; i--) {
-                    std::vector<ref<Expr>> unalignedAccessArgs;
+                    HandlerArgs unalignedAccessArgs;
 #ifdef TARGET_WORDS_BIGENDIAN
                     ref<Expr> shiftCount = ConstantExpr::create((((data_size - 1) * 8) - (i * 8)), width);
 #else
@@ -279,7 +283,7 @@ redo:
                 addr1 = addr & ~((target_ulong) data_size - 1);
                 addr2 = addr1 + (target_ulong) data_size;
 
-                std::vector<ref<Expr>> unalignedAccessArgs;
+                HandlerArgs unalignedAccessArgs;
                 unalignedAccessArgs.push_back(args[0]);
                 unalignedAccessArgs.push_back(ConstantExpr::create(addr1, addressWidth));
                 unalignedAccessArgs.push_back(mmuIdxExpr);
@@ -300,15 +304,19 @@ redo:
                 value = OrExpr::create(LShrExpr::create(value1, shift), ShlExpr::create(value2, shift2));
 #endif
 
-                // Trace the access
-                std::vector<ref<Expr>> traceArgs;
-                traceArgs.push_back(symbAddress);
-                traceArgs.push_back(value);
-                traceArgs.push_back(ConstantExpr::create(width / 8, Expr::Int32));
-                unsigned flags = isWrite ? MEM_TRACE_FLAG_WRITE : 0;
-                traceArgs.push_back(ConstantExpr::create(flags, Expr::Int64));
-                traceArgs.push_back(ConstantExpr::create(0, Expr::Int64));
-                handlerAfterMemoryAccess(executor, state, target, traceArgs);
+                auto corePlugin = g_s2e->getCorePlugin();
+                if (!corePlugin->onAfterSymbolicDataMemoryAccess.empty() ||
+                    !corePlugin->onConcreteDataMemoryAccess.empty()) {
+                    // Trace the access
+                    std::vector<ref<Expr>> traceArgs;
+                    traceArgs.push_back(symbAddress);
+                    traceArgs.push_back(value);
+                    traceArgs.push_back(ConstantExpr::create(width / 8, Expr::Int32));
+                    unsigned flags = isWrite ? MEM_TRACE_FLAG_WRITE : 0;
+                    traceArgs.push_back(ConstantExpr::create(flags, Expr::Int64));
+                    traceArgs.push_back(ConstantExpr::create(0, Expr::Int64));
+                    handlerAfterMemoryAccess(executor, state, target, traceArgs);
+                }
             }
         } else {
 /* unaligned/aligned access in the same page */
@@ -325,15 +333,19 @@ redo:
                 value = s2estate->mem()->read(addr + addend, width, HostAddress);
             }
 
-            // Trace the access
-            std::vector<ref<Expr>> traceArgs;
-            traceArgs.push_back(symbAddress);
-            traceArgs.push_back(value);
-            traceArgs.push_back(ConstantExpr::create(width / 8, Expr::Int32));
-            unsigned flags = isWrite ? MEM_TRACE_FLAG_WRITE : 0;
-            traceArgs.push_back(ConstantExpr::create(flags, Expr::Int64));
-            traceArgs.push_back(ConstantExpr::create(0, Expr::Int64));
-            handlerAfterMemoryAccess(executor, state, target, traceArgs);
+            auto corePlugin = g_s2e->getCorePlugin();
+            if (!corePlugin->onAfterSymbolicDataMemoryAccess.empty() ||
+                !corePlugin->onConcreteDataMemoryAccess.empty()) {
+                // Trace the access
+                std::vector<ref<Expr>> traceArgs;
+                traceArgs.push_back(symbAddress);
+                traceArgs.push_back(value);
+                traceArgs.push_back(ConstantExpr::create(width / 8, Expr::Int32));
+                unsigned flags = isWrite ? MEM_TRACE_FLAG_WRITE : 0;
+                traceArgs.push_back(ConstantExpr::create(flags, Expr::Int64));
+                traceArgs.push_back(ConstantExpr::create(0, Expr::Int64));
+                handlerAfterMemoryAccess(executor, state, target, traceArgs);
+            }
         }
     } else {
         /* the page is not in the TLB : fill it */
@@ -446,7 +458,7 @@ static void handle_ldst_kernel(Executor *executor, ExecutionState *state, klee::
 
     if (unlikely(tlb_addr != (addr & (TARGET_PAGE_MASK | (dataSize - 1))))) {
 
-        std::vector<ref<Expr>> slowArgs;
+        HandlerArgs slowArgs;
 
         if (isWrite) {
             slowArgs.push_back(envExpr);
@@ -478,14 +490,17 @@ static void handle_ldst_kernel(Executor *executor, ExecutionState *state, klee::
 
         // Trace the access
         // TODO: don't do this if there is no instrumentation
-        std::vector<ref<Expr>> traceArgs;
-        traceArgs.push_back(constantAddress);
-        traceArgs.push_back(value);
-        traceArgs.push_back(ConstantExpr::create(width / 8, Expr::Int32));
-        unsigned flags = isWrite ? MEM_TRACE_FLAG_WRITE : 0;
-        traceArgs.push_back(ConstantExpr::create(flags, Expr::Int64));
-        traceArgs.push_back(ConstantExpr::create(0, Expr::Int64));
-        handlerAfterMemoryAccess(executor, state, target, traceArgs);
+        auto corePlugin = g_s2e->getCorePlugin();
+        if (!corePlugin->onAfterSymbolicDataMemoryAccess.empty() || !corePlugin->onConcreteDataMemoryAccess.empty()) {
+            std::vector<ref<Expr>> traceArgs;
+            traceArgs.push_back(constantAddress);
+            traceArgs.push_back(value);
+            traceArgs.push_back(ConstantExpr::create(width / 8, Expr::Int32));
+            unsigned flags = isWrite ? MEM_TRACE_FLAG_WRITE : 0;
+            traceArgs.push_back(ConstantExpr::create(flags, Expr::Int64));
+            traceArgs.push_back(ConstantExpr::create(0, Expr::Int64));
+            handlerAfterMemoryAccess(executor, state, target, traceArgs);
+        }
 
         if (!isWrite) {
             if (zeroExtend) {
