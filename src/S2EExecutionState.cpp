@@ -614,8 +614,8 @@ bool S2EExecutionState::merge(const ExecutionState &_b) {
     }
 
     {
-        std::vector<StackFrame>::const_iterator itA = stack.begin();
-        std::vector<StackFrame>::const_iterator itB = b.stack.begin();
+        auto itA = stack.begin();
+        auto itB = b.stack.begin();
         while (itA != stack.end() && itB != b.stack.end()) {
             // XXX vaargs?
             if (itA->caller != itB->caller || itA->kf != itB->kf) {
@@ -742,8 +742,8 @@ bool S2EExecutionState::merge(const ExecutionState &_b) {
 
     int selectCountStack = 0, selectCountMem = 0;
 
-    std::vector<StackFrame>::iterator itA = stack.begin();
-    std::vector<StackFrame>::const_iterator itB = b.stack.begin();
+    auto itA = stack.begin();
+    auto itB = b.stack.begin();
     for (; itA != stack.end(); ++itA, ++itB) {
         StackFrame &af = *itA;
         const StackFrame &bf = *itB;
