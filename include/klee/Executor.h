@@ -159,7 +159,7 @@ protected:
     /// minimum of the size of the old and new objects, with remaining
     /// bytes initialized as specified by zeroMemory.
     void executeAlloc(ExecutionState &state, ref<Expr> size, bool isLocal, KInstruction *target,
-                      bool zeroMemory = false, const ObjectState *reallocFrom = 0);
+                      bool zeroMemory = false, const ObjectStatePtr &reallocFrom = nullptr);
 
     void executeCall(ExecutionState &state, KInstruction *ki, llvm::Function *f, std::vector<ref<Expr>> &arguments);
 

@@ -1792,7 +1792,7 @@ void Executor::callExternalFunction(ExecutionState &state, KInstruction *target,
 /***/
 
 void Executor::executeAlloc(ExecutionState &state, ref<Expr> size, bool isLocal, KInstruction *target, bool zeroMemory,
-                            const ObjectState *reallocFrom) {
+                            const ObjectStatePtr &reallocFrom) {
     size = state.toUnique(size);
     if (ConstantExpr *CE = dyn_cast<ConstantExpr>(size)) {
         auto mo = ObjectState::allocate(0, CE->getZExtValue(), false);
@@ -1807,7 +1807,7 @@ void Executor::executeAlloc(ExecutionState &state, ref<Expr> size, bool isLocal,
                 for (unsigned i = 0; i < count; i++) {
                     mo->write(i, reallocFrom->read8(i));
                 }
-                state.addressSpace.unbindObject(reallocFrom);
+                state.addressSpace.unbindObject(reallocFrom->getKey());
             }
         }
     } else {
