@@ -31,6 +31,7 @@ void AddressSpace::bindObject(const ObjectStatePtr &os) {
     key.size = os->getSize();
     os->setOwnerId(cowKey);
     objects = objects.replace(std::make_pair(key, os));
+    m_cache.add(os);
 }
 
 void AddressSpace::unbindObject(const ObjectStateConstPtr &os) {
@@ -46,6 +47,24 @@ void AddressSpace::unbindObject(const ObjectStateConstPtr &os) {
     key.address = os->getAddress();
     key.size = os->getSize();
     objects = objects.remove(key);
+    m_cache.invalidate(os->getAddress());
+}
+
+const ObjectStateConstPtr AddressSpace::findObject(uint64_t address) const {
+    auto ret = m_cache.get(address);
+    if (ret) {
+        return ret;
+    }
+
+    ObjectKey key;
+    key.address = address;
+    key.size = 1;
+    auto res = objects.lookup(key);
+    ret = res ? res->second : 0;
+    if (ret) {
+        m_cache.add(ret);
+    }
+    return ret;
 }
 
 bool AddressSpace::findObject(uint64_t address, unsigned size, ObjectStateConstPtr &result, bool &inBounds) {
@@ -62,6 +81,24 @@ bool AddressSpace::findObject(uint64_t address, unsigned size, ObjectStateConstP
     return true;
 }
 
+ObjectStatePtr AddressSpace::getWriteableInternal(const ObjectStateConstPtr &os) {
+    auto n = os->copy();
+    n->setOwnerId(cowKey);
+
+    // Clients must take into account the change
+    // of location of the concrete buffer.
+    assert(n->getKey() == os->getKey());
+    addressSpaceChange(n->getKey(), os, n);
+
+    ObjectKey key;
+    key.address = os->getAddress();
+    key.size = os->getSize();
+
+    objects = objects.replace(std::make_pair(key, n));
+    m_cache.add(n);
+    return n;
+}
+
 void AddressSpace::updateWritable(const ObjectStateConstPtr &os, const ObjectStatePtr &wos) {
     wos->setOwnerId(cowKey);
 
@@ -72,6 +109,7 @@ void AddressSpace::updateWritable(const ObjectStateConstPtr &os, const ObjectSta
     key.address = os->getAddress();
     key.size = os->getSize();
     objects = objects.replace(std::make_pair(key, wos));
+    m_cache.add(wos);
 }
 
 void AddressSpace::addressSpaceChange(const klee::ObjectKey &key, const ObjectStateConstPtr &oldState,

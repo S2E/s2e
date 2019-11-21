@@ -24,30 +24,57 @@ typedef ImmutableMap<ObjectKey, ObjectStatePtr> MemoryMap;
 
 class AddressSpace {
 
+    class Cache {
+        static const unsigned CACHE_SIZE = 256;
+        std::vector<ObjectStatePtr> m_cache;
+
+        static inline uint8_t hash(uint64_t address) {
+            uint8_t result = 0;
+            int q = 33149;
+            for (unsigned i = 0; i < 8; ++i) {
+                result ^= (uint8_t)((address & 0xFF) * q);
+                address >>= 8;
+            }
+            return address;
+        }
+
+    public:
+        Cache() {
+            m_cache.resize(CACHE_SIZE);
+        }
+
+        Cache(const Cache &b) {
+            m_cache.clear();
+        }
+
+        inline ObjectStatePtr get(uint64_t address) const {
+            auto ret = m_cache[hash(address)];
+            if (ret && ret->getAddress() == address) {
+                return ret;
+            }
+            return nullptr;
+        }
+
+        inline void add(const ObjectStatePtr &os) {
+            m_cache[hash(os->getAddress())] = os;
+        }
+
+        inline void invalidate(uint64_t address) {
+            m_cache[hash(address)] = nullptr;
+        }
+    };
+
 private:
     /// Epoch counter used to control ownership of objects.
     mutable unsigned cowKey;
+
+    mutable Cache m_cache;
 
 protected:
     /// Unsupported, use copy constructor
     AddressSpace &operator=(const AddressSpace &);
 
-    ObjectStatePtr getWriteableInternal(const ObjectStateConstPtr &os) {
-        auto n = os->copy();
-        n->setOwnerId(cowKey);
-
-        // Clients must take into account the change
-        // of location of the concrete buffer.
-        assert(n->getKey() == os->getKey());
-        addressSpaceChange(n->getKey(), os, n);
-
-        ObjectKey key;
-        key.address = os->getAddress();
-        key.size = os->getSize();
-
-        objects = objects.replace(std::make_pair(key, n));
-        return n;
-    }
+    ObjectStatePtr getWriteableInternal(const ObjectStateConstPtr &os);
 
     void updateWritable(const ObjectStateConstPtr &os, const ObjectStatePtr &wos);
 
@@ -83,13 +110,7 @@ public:
     /// Remove a binding from the address space.
     void unbindObject(const ObjectStateConstPtr &os);
 
-    const ObjectStateConstPtr findObject(uint64_t address) const {
-        ObjectKey key;
-        key.address = address;
-        key.size = 1;
-        auto res = objects.lookup(key);
-        return res ? res->second : 0;
-    }
+    const ObjectStateConstPtr findObject(uint64_t address) const;
 
     /// Resolve address to an ObjectPair in result.
     /// \return true iff an object was found.
