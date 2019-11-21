@@ -40,7 +40,7 @@ static std::vector<ref<Expr>> GenerateLoads(const std::vector<std::string> &varN
 
     for (const auto &name : varNames) {
         auto array = Array::create(name, width / 8);
-        auto rd = Expr::createTempRead(array, width);
+        auto rd = ReadExpr::createTempRead(array, width);
         ret.push_back(rd);
     }
 
@@ -170,9 +170,9 @@ TEST(ExprTest, TestExtractLShr) {
 
 TEST(ExprTest, ConcatExtract) {
     auto array = Array::create("arr0", 256);
-    ref<Expr> read8 = Expr::createTempRead(array, 8);
+    ref<Expr> read8 = ReadExpr::createTempRead(array, 8);
     auto array2 = Array::create("arr1", 256);
-    ref<Expr> read8_2 = Expr::createTempRead(array2, 8);
+    ref<Expr> read8_2 = ReadExpr::createTempRead(array2, 8);
     ref<Expr> c100 = getConstant(100, 8);
 
     ref<Expr> concat1 = ConcatExpr::create4(read8, read8, c100, read8_2);
@@ -222,10 +222,10 @@ TEST(ExprTest, ConcatExtract) {
 
 TEST(ExprTest, ExtractConcat) {
     auto array = Array::create("arr2", 256);
-    ref<Expr> read64 = Expr::createTempRead(array, 64);
+    ref<Expr> read64 = ReadExpr::createTempRead(array, 64);
 
     auto array2 = Array::create("arr3", 256);
-    ref<Expr> read8_2 = Expr::createTempRead(array2, 8);
+    ref<Expr> read8_2 = ReadExpr::createTempRead(array2, 8);
 
     ref<Expr> extract1 = ExtractExpr::create(read64, 36, 4);
     ref<Expr> extract2 = ExtractExpr::create(read64, 32, 4);

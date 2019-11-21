@@ -277,10 +277,6 @@ public:
     static ref<Expr> createImplies(const ref<Expr> &hyp, const ref<Expr> &conc);
     static ref<Expr> createIsZero(const ref<Expr> &e);
 
-    /// Create a little endian read of the given type at offset 0 of the
-    /// given object.
-    static ref<Expr> createTempRead(const ArrayPtr &array, Expr::Width w);
-
     static ref<ConstantExpr> createPointer(uint64_t v);
 
     struct CreateArg;
@@ -957,15 +953,22 @@ private:
     UpdateListPtr updates;
     ref<Expr> index;
 
+    ReadExpr(const UpdateListPtr &_updates, const ref<Expr> &_index) : updates(_updates), index(_index) {
+    }
+
 public:
     virtual ~ReadExpr() {
     }
 
-    static ref<Expr> alloc(const UpdateListPtr &updates, const ref<Expr> &index) {
-        return ref<Expr>(new ReadExpr(updates, index));
+    static ref<ReadExpr> alloc(const UpdateListPtr &updates, const ref<Expr> &index) {
+        return ref<ReadExpr>(new ReadExpr(updates, index));
     }
 
     static ref<Expr> create(const UpdateListPtr &updates, ref<Expr> i);
+
+    /// Create a little endian read of the given type at offset 0 of the
+    /// given object.
+    static ref<Expr> createTempRead(const ArrayPtr &array, Expr::Width w);
 
     Width getWidth() const {
         return Expr::Int8;
@@ -997,11 +1000,6 @@ public:
 
     virtual unsigned computeHash();
 
-private:
-    ReadExpr(const UpdateListPtr &_updates, const ref<Expr> &_index) : updates(_updates), index(_index) {
-    }
-
-public:
     static bool classof(const Expr *E) {
         return E->getKind() == Expr::Read;
     }
