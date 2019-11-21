@@ -126,10 +126,6 @@ protected:
     /// globals that have no representative object (i.e. functions).
     std::unordered_map<const llvm::GlobalValue *, ref<ConstantExpr>> globalAddresses;
 
-    /// The set of legal function addresses, used to validate function
-    /// pointers. We use the actual Function* address as the function address.
-    std::unordered_set<uint64_t> legalFunctions;
-
     /// The set of functions that must be handled via custom function handlers
     /// instead of being called directly.
     std::set<llvm::Function *> overridenInternalFunctions;

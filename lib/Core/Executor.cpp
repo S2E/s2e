@@ -218,7 +218,6 @@ void Executor::initializeGlobals(ExecutionState &state) {
             addr = Expr::createPointer(0);
         } else {
             addr = Expr::createPointer((uintptr_t)(void *) f);
-            legalFunctions.insert((uint64_t)(uintptr_t)(void *) f);
         }
 
         globalAddresses.insert(std::make_pair(f, addr));
