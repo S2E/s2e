@@ -108,7 +108,7 @@ public:
     void bindObject(const ObjectStatePtr &os);
 
     /// Remove a binding from the address space.
-    void unbindObject(const ObjectStateConstPtr &os);
+    void unbindObject(const ObjectKey &key);
 
     const ObjectStateConstPtr findObject(uint64_t address) const;
 

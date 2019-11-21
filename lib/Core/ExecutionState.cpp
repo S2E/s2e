@@ -565,7 +565,7 @@ void ExecutionState::bindObject(const ObjectStatePtr &os, bool isLocal) {
     // matter because all we use this list for is to unbind the object
     // on function return.
     if (isLocal) {
-        stack.back().allocas.push_back(os);
+        stack.back().allocas.push_back(os->getKey());
     }
 }
 }

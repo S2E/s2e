@@ -34,18 +34,15 @@ void AddressSpace::bindObject(const ObjectStatePtr &os) {
     m_cache.add(os);
 }
 
-void AddressSpace::unbindObject(const ObjectStateConstPtr &os) {
-    assert(os->getAddress() && os->getSize());
-    auto oldOs = findObject(os->getAddress());
-    assert(oldOs.get() == os.get());
+void AddressSpace::unbindObject(const ObjectKey &key) {
+    assert(key.address && key.size);
+    auto os = findObject(key.address);
+    assert(os.get()->getSize() == key.size);
 
     if (os) {
         addressSpaceChange(os->getKey(), os, nullptr);
     }
 
-    ObjectKey key;
-    key.address = os->getAddress();
-    key.size = os->getSize();
     objects = objects.remove(key);
     m_cache.invalidate(os->getAddress());
 }
@@ -208,8 +205,8 @@ bool AddressSpace::splitMemoryObject(ExecutionState &state, const ObjectStateCon
     // Notify the system that the objects were split
     state.addressSpaceObjectSplit(originalObject, objectStates);
 
-    // Once this is done, activate the new objects and delete the old one
-    unbindObject(originalObject);
+    // Once this is done, delete the old object and activate the new ones
+    unbindObject(originalObject->getKey());
 
     for (auto it : objectStates) {
         bindObject(it);

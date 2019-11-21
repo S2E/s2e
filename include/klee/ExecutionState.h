@@ -41,7 +41,7 @@ struct StackFrame {
     KFunction *kf;
     CallPathNode *callPathNode;
 
-    llvm::SmallVector<ObjectStateConstPtr, 16> allocas;
+    llvm::SmallVector<ObjectKey, 16> allocas;
     Cell *locals;
 
     // For vararg functions: arguments not passed via parameter are
