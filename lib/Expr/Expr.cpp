@@ -1525,47 +1525,5 @@ CMPCREATE(UleExpr, Ule)
 CMPCREATE(SltExpr, Slt)
 CMPCREATE(SleExpr, Sle)
 
-#define DEF_CACHE_CLASS(c)               \
-    c##Expr::ExprCache c##Expr::s_cache; \
-    uint64_t c##Expr::cacheHits = 0;     \
-    uint64_t c##Expr::cacheMisses = 0;   \
-    uint64_t c##Expr::count = 0;
-
-DEF_CACHE_CLASS(Add)
-DEF_CACHE_CLASS(Sub)
-DEF_CACHE_CLASS(Mul)
-DEF_CACHE_CLASS(UDiv)
-DEF_CACHE_CLASS(SDiv)
-DEF_CACHE_CLASS(URem)
-DEF_CACHE_CLASS(SRem)
-DEF_CACHE_CLASS(And)
-DEF_CACHE_CLASS(Or)
-DEF_CACHE_CLASS(Xor)
-DEF_CACHE_CLASS(Shl)
-DEF_CACHE_CLASS(LShr)
-DEF_CACHE_CLASS(AShr)
-
-DEF_CACHE_CLASS(Constant)
-DEF_CACHE_CLASS(NotOptimized)
-DEF_CACHE_CLASS(Concat)
-DEF_CACHE_CLASS(Extract)
-DEF_CACHE_CLASS(Not)
-DEF_CACHE_CLASS(SExt)
-DEF_CACHE_CLASS(ZExt)
-
-DEF_CACHE_CLASS(Eq)
-DEF_CACHE_CLASS(Ne)
-DEF_CACHE_CLASS(Ult)
-DEF_CACHE_CLASS(Ule)
-DEF_CACHE_CLASS(Ugt)
-DEF_CACHE_CLASS(Uge)
-DEF_CACHE_CLASS(Slt)
-DEF_CACHE_CLASS(Sle)
-DEF_CACHE_CLASS(Sgt)
-DEF_CACHE_CLASS(Sge)
-
-DEF_CACHE_CLASS(Read)
-DEF_CACHE_CLASS(Select)
-
 uint64_t UpdateList::count = 0;
 uint64_t Array::aggregatedSize = 0;
