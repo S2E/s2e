@@ -11,9 +11,9 @@
 #define S2E_TB_H
 
 #include <boost/intrusive_ptr.hpp>
+#include <llvm/ADT/SmallVector.h>
 #include <llvm/IR/Function.h>
 #include <s2e/CorePlugin.h>
-#include <vector>
 
 namespace s2e {
 
@@ -28,7 +28,7 @@ struct S2ETranslationBlock {
     // A list of all instruction execution signals associated with
     // this translation block. The LLVM function has hard-coded pointers
     // to this vector.
-    std::vector<ExecutionSignal *> executionSignals;
+    llvm::SmallVector<ExecutionSignal *, 16> executionSignals;
 
     S2ETranslationBlock() {
         translationBlock = nullptr;
