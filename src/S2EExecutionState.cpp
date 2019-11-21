@@ -281,7 +281,7 @@ ref<Expr> S2EExecutionState::createSymbolicValue(const std::string &name, Expr::
 
     variableNameMapping = variableNameMapping.insert(std::make_pair(sname, originalVarName));
 
-    ref<Expr> ret = Expr::createTempRead(array, width);
+    ref<Expr> ret = ReadExpr::createTempRead(array, width);
 
     g_s2e->getCorePlugin()->onSymbolicVariableCreation.emit(this, name, {ret}, array);
 

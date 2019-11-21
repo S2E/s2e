@@ -45,7 +45,6 @@ public:
     }
 
     static uint64_t getProcessMemoryUsage();
-    static void writeCacheStats(llvm::raw_ostream &os);
 
 protected:
     void writeStatsHeader();
