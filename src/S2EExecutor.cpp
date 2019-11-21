@@ -957,7 +957,7 @@ S2EExecutionState *S2EExecutor::selectNextState(S2EExecutionState *state) {
 void S2EExecutor::prepareFunctionExecution(S2EExecutionState *state, llvm::Function *function,
                                            const std::vector<klee::ref<klee::Expr>> &args) {
     KFunction *kf;
-    typeof(kmodule->functionMap.begin()) it = kmodule->functionMap.find(function);
+    auto it = kmodule->functionMap.find(function);
     if (it != kmodule->functionMap.end()) {
         kf = it->second;
     } else {
@@ -965,13 +965,19 @@ void S2EExecutor::prepareFunctionExecution(S2EExecutionState *state, llvm::Funct
         unsigned cIndex = kmodule->constants.size();
         kf = kmodule->updateModuleWithFunction(function);
 
-        for (unsigned i = 0; i < kf->numInstructions; ++i)
+        for (unsigned i = 0; i < kf->numInstructions; ++i) {
             bindInstructionConstants(kf->instructions[i]);
+        }
 
         /* Update global functions (new functions can be added
            while creating added function) */
+        // TODO: optimize this, we shouldn't have to go over all functions again and again
         for (Module::iterator i = kmodule->module->begin(), ie = kmodule->module->end(); i != ie; ++i) {
             Function *f = &*i;
+            if (globalAddresses.find(f) != globalAddresses.end()) {
+                continue;
+            }
+
             klee::ref<klee::ConstantExpr> addr(0);
 
             // If the symbol has external weak linkage then it is implicitly
@@ -981,7 +987,6 @@ void S2EExecutor::prepareFunctionExecution(S2EExecutionState *state, llvm::Funct
                 addr = Expr::createPointer(0);
             } else {
                 addr = Expr::createPointer((uintptr_t)(void *) f);
-                legalFunctions.insert((uint64_t)(uintptr_t)(void *) f);
             }
 
             globalAddresses.insert(std::make_pair(f, addr));
