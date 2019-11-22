@@ -144,7 +144,7 @@ static ref<Expr> SimplifyExtractLShr(const ref<Expr> &e) {
     }
 
     const ConstantExpr *shift = dyn_cast<const ConstantExpr>(lshr->getRight());
-    if (!shift) {
+    if (!shift || shift->getWidth() > Expr::Int64) {
         return e;
     }
 
