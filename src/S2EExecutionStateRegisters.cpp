@@ -35,8 +35,8 @@ void S2EExecutionStateRegisters::initialize(klee::AddressSpace &addressSpace, co
     s_concreteRegs = concreteRegs->getKey();
     s_symbolicRegs = symbolicRegs->getKey();
 
-    symbolicRegs->setName("ConcreteCpuRegisters");
-    concreteRegs->setName("SymbolicCpuRegisters");
+    symbolicRegs->setName("SymbolicCpuRegisters");
+    concreteRegs->setName("ConcreteCpuRegisters");
 
     /* The fast path in the cpu loop relies on this */
     symbolicRegs->setNotifyOnConcretenessChange(true);
