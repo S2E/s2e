@@ -35,6 +35,7 @@ void s2e_gen_flags_update(void *context);
 #include <s2e/s2e_config.h>
 
 #include <s2e/CorePlugin.h>
+#include <klee/Common.h>
 
 using namespace s2e;
 
@@ -440,7 +441,7 @@ void s2e_on_privilege_change(unsigned previous, unsigned current) {
     try {
         g_s2e->getCorePlugin()->onPrivilegeChange.emit(g_s2e_state, previous, current);
     } catch (s2e::CpuExitException &) {
-        assert(false && "Cannot throw exceptions here. VM state may be inconsistent at this point.");
+        pabort("Cannot throw exceptions here. VM state may be inconsistent at this point.");
     }
 }
 
@@ -450,7 +451,7 @@ void s2e_on_page_directory_change(uint64_t previous, uint64_t current) {
     try {
         g_s2e->getCorePlugin()->onPageDirectoryChange.emit(g_s2e_state, previous, current);
     } catch (s2e::CpuExitException &) {
-        assert(false && "Cannot throw exceptions here. VM state may be inconsistent at this point.");
+        pabort("Cannot throw exceptions here. VM state may be inconsistent at this point.");
     }
 }
 
@@ -458,7 +459,7 @@ void s2e_on_initialization_complete(void) {
     try {
         g_s2e->getCorePlugin()->onInitializationComplete.emit(g_s2e_state);
     } catch (s2e::CpuExitException &) {
-        assert(false && "Cannot throw exceptions here. VM state may be inconsistent at this point.");
+        pabort("Cannot throw exceptions here. VM state may be inconsistent at this point.");
     }
 }
 
@@ -467,7 +468,7 @@ int s2e_on_call_return_translate(uint64_t pc, int isCall) {
     try {
         g_s2e->getCorePlugin()->onCallReturnTranslate.emit(g_s2e_state, pc, isCall, &instrument);
     } catch (s2e::CpuExitException &) {
-        assert(false && "Cannot throw exceptions here.");
+        pabort("Cannot throw exceptions here.");
     }
     return instrument;
 }

@@ -303,7 +303,7 @@ void S2EExecutionStateMemory::transferRamInternal(const klee::ObjectStateConstPt
                 if (exitOnSymbolicRead) {
                     // m_startSymbexAtPC = getPc();
                     // XXX: what about regs_to_env ?
-                    assert(false && "Check cpu_restore_state");
+                    pabort("Check cpu_restore_state");
                     // fast_longjmp(env->jmp_env, 1);
                 }
 

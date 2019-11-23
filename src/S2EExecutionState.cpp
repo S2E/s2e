@@ -387,7 +387,7 @@ void S2EExecutionState::kleeReadMemory(ref<Expr> kleeAddressExpr, uint64_t sizeI
 #ifdef CONFIG_SYMBEX_MP
     bool inBounds;
     if (!addressSpace.findObject(address->getZExtValue(), sizeInBytes, os, inBounds)) {
-        assert(0 && "kleeReadMemory: out of bounds / multiple resolution unhandled");
+        pabort("kleeReadMemory: out of bounds / multiple resolution unhandled");
     }
 
     assert(inBounds);
@@ -415,7 +415,7 @@ void S2EExecutionState::kleeReadMemory(ref<Expr> kleeAddressExpr, uint64_t sizeI
                 // Otherwise just get an example
                 cur = this->toConstantSilent(cur);
             } else {
-                assert(false && "Expected reasonable parameters in kleeReadMemory");
+                pabort("Expected reasonable parameters in kleeReadMemory");
             }
 
             if (result) {
@@ -454,7 +454,7 @@ void S2EExecutionState::kleeWriteMemory(ref<Expr> kleeAddressExpr, /* Address */
 #ifdef CONFIG_SYMBEX_MP
     bool inBounds;
     if (!addressSpace.findObject(address->getZExtValue(), bytes.size(), os, inBounds)) {
-        assert(0 && "kleeWriteMemory: out of bounds / multiple resolution unhandled");
+        pabort("kleeWriteMemory: out of bounds / multiple resolution unhandled");
     }
 
     assert(inBounds);
@@ -1064,7 +1064,7 @@ void S2EExecutionState::disassemble(llvm::raw_ostream &os, uint64_t pc, unsigned
                 flags = 2;
                 break;
             default:
-                assert(false && "Not supported code");
+                pabort("Not supported code");
         }
     }
 
