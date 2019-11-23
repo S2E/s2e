@@ -139,8 +139,8 @@ void *mmap(void *addr, size_t len, int prot, int flags, int fd, off_t offset) {
     }
 }
 
-mmap_t g_original_mmap64;
-void *mmap64(void *addr, size_t len, int prot, int flags, int fd, off_t offset) {
+mmap64_t g_original_mmap64;
+void *mmap64(void *addr, size_t len, int prot, int flags, int fd, off64_t offset) {
     auto ifp = g_fdm->get(fd);
     if (ifp) {
         return ifp->sys_mmap(addr, len, prot, flags, fd, offset);
@@ -251,7 +251,7 @@ int __libc_start_main(int *(main)(int, char **, char **), int argc, char **ubp_a
     s_original_poll = (poll_t) dlsym(RTLD_NEXT, "poll");
     g_original_exit = (exit_t) dlsym(RTLD_NEXT, "exit");
     g_original_mmap = (mmap_t) dlsym(RTLD_NEXT, "mmap");
-    g_original_mmap64 = (mmap_t) dlsym(RTLD_NEXT, "mmap64");
+    g_original_mmap64 = (mmap64_t) dlsym(RTLD_NEXT, "mmap64");
     s_original_madvise = (madvise_t) dlsym(RTLD_NEXT, "madvise");
     s_original_dup = (dup_t) dlsym(RTLD_NEXT, "dup");
 
