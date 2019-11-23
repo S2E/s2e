@@ -490,7 +490,7 @@ void ObjectState::write(unsigned offset, ref<Expr> value) {
             uint64_t val = CE->getZExtValue();
             switch (w) {
                 default:
-                    assert(0 && "Invalid write size!");
+                    pabort("Invalid write size!");
                 case Expr::Bool:
                 case Expr::Int8:
                     write8(offset, val);

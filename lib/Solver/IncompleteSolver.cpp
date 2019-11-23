@@ -8,6 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "klee/IncompleteSolver.h"
+#include <klee/Common.h>
 
 #include "klee/Constraints.h"
 
@@ -19,7 +20,7 @@ using namespace llvm;
 IncompleteSolver::PartialValidity IncompleteSolver::negatePartialValidity(PartialValidity pv) {
     switch (pv) {
         default:
-            assert(0 && "invalid partial validity");
+            pabort("invalid partial validity");
         case MustBeTrue:
             return MustBeFalse;
         case MustBeFalse:

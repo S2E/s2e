@@ -7,6 +7,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <klee/Common.h>
 #include "klee/Solver.h"
 
 #include "klee/Constraints.h"
@@ -795,7 +796,7 @@ public:
             case Expr::Uge:
             case Expr::Sgt:
             case Expr::Sge:
-                assert(0 && "invalid expressions (uncanonicalized");
+                pabort("invalid expressions (uncanonicalized");
 
             default:
                 break;
@@ -935,7 +936,7 @@ public:
             case Expr::Uge:
             case Expr::Sgt:
             case Expr::Sge:
-                assert(0 && "invalid expressions (uncanonicalized");
+                pabort("invalid expressions (uncanonicalized");
 
             default:
                 break;

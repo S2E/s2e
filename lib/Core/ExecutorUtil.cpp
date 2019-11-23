@@ -126,7 +126,7 @@ ref<ConstantExpr> Executor::evalConstantExpr(llvm::ConstantExpr *ce) {
         case Instruction::ICmp: {
             switch (ce->getPredicate()) {
                 default:
-                    assert(0 && "unhandled ICmp predicate");
+                    pabort("unhandled ICmp predicate");
                 case ICmpInst::ICMP_EQ:
                     return op1->Eq(op2);
                 case ICmpInst::ICMP_NE:
@@ -165,7 +165,7 @@ ref<ConstantExpr> Executor::evalConstantExpr(llvm::ConstantExpr *ce) {
         case Instruction::FPToUI:
         case Instruction::FPToSI:
         case Instruction::FCmp:
-            assert(0 && "floating point ConstantExprs unsupported");
+            pabort("floating point ConstantExprs unsupported");
     }
 }
 }

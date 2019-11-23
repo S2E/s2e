@@ -28,6 +28,7 @@
  */
 
 #include "Z3Builder.h"
+#include <klee/Common.h>
 
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Support/CommandLine.h"
@@ -310,7 +311,7 @@ z3::expr Z3Builder::makeExpr(ref<Expr> e) {
 #endif
 
         default:
-            assert(0 && "unhandled Expr type");
+            pabort("unhandled Expr type");
     }
 }
 

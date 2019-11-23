@@ -8,6 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "expr/Parser.h"
+#include <klee/Common.h>
 
 #include "expr/Lexer.h"
 
@@ -983,7 +984,7 @@ ExprResult ParserImpl::ParseParenExpr(TypeResult FIXME_UNUSED) {
             if (ExprKind == Expr::Select)
                 return ParseSelectParenExpr(Name, ResTy);
         default:
-            assert(0 && "Invalid argument kind (number of args).");
+            pabort("Invalid argument kind (number of args).");
             return ExprResult();
     }
 }
@@ -1246,7 +1247,7 @@ ExprResult ParserImpl::ParseAnyReadParenExpr(const Token &Name, unsigned Kind, E
 
     switch (Kind) {
         default:
-            assert(0 && "Invalid kind.");
+            pabort("Invalid kind.");
             return Builder->Constant(0, ResTy);
         case eMacroKind_ReadLSB:
         case eMacroKind_ReadMSB: {

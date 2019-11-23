@@ -12,6 +12,7 @@
 #ifndef KLEE_UTIL_FLOATS_H
 #define KLEE_UTIL_FLOATS_H
 
+#include <klee/Common.h>
 #include "klee/util/Bits.h" //bits64::truncateToNBits
 #include "IntEvaluation.h"  //ints::sext
 
@@ -82,7 +83,7 @@ inline uint64_t add(uint64_t l, uint64_t r, unsigned inWidth) {
         case DBL_BITS:
             return bits64::truncateToNBits(DoubleAsUInt64(UInt64AsDouble(l) + UInt64AsDouble(r)), DBL_BITS);
         default:
-            assert(0 && "invalid floating point width");
+            pabort("invalid floating point width");
     }
 }
 
@@ -94,7 +95,7 @@ inline uint64_t sub(uint64_t l, uint64_t r, unsigned inWidth) {
         case DBL_BITS:
             return bits64::truncateToNBits(DoubleAsUInt64(UInt64AsDouble(l) - UInt64AsDouble(r)), DBL_BITS);
         default:
-            assert(0 && "invalid floating point width");
+            pabort("invalid floating point width");
     }
 }
 
@@ -106,7 +107,7 @@ inline uint64_t mul(uint64_t l, uint64_t r, unsigned inWidth) {
         case DBL_BITS:
             return bits64::truncateToNBits(DoubleAsUInt64(UInt64AsDouble(l) * UInt64AsDouble(r)), DBL_BITS);
         default:
-            assert(0 && "invalid floating point width");
+            pabort("invalid floating point width");
     }
 }
 
@@ -118,7 +119,7 @@ inline uint64_t div(uint64_t l, uint64_t r, unsigned inWidth) {
         case DBL_BITS:
             return bits64::truncateToNBits(DoubleAsUInt64(UInt64AsDouble(l) / UInt64AsDouble(r)), DBL_BITS);
         default:
-            assert(0 && "invalid floating point width");
+            pabort("invalid floating point width");
     }
 }
 
@@ -130,7 +131,7 @@ inline uint64_t mod(uint64_t l, uint64_t r, unsigned inWidth) {
         case DBL_BITS:
             return bits64::truncateToNBits(DoubleAsUInt64(fmod(UInt64AsDouble(l), UInt64AsDouble(r))), DBL_BITS);
         default:
-            assert(0 && "invalid floating point width");
+            pabort("invalid floating point width");
     }
 }
 
@@ -146,7 +147,7 @@ inline bool isNaN(uint64_t l, unsigned inWidth) {
         case DBL_BITS:
             return std::isnan(UInt64AsDouble(l));
         default:
-            assert(0 && "invalid floating point width");
+            pabort("invalid floating point width");
     }
 }
 
@@ -157,7 +158,7 @@ inline uint64_t eq(uint64_t l, uint64_t r, unsigned inWidth) {
         case DBL_BITS:
             return UInt64AsDouble(l) == UInt64AsDouble(r);
         default:
-            assert(0 && "invalid floating point width");
+            pabort("invalid floating point width");
     }
 }
 
@@ -168,7 +169,7 @@ inline uint64_t ne(uint64_t l, uint64_t r, unsigned inWidth) {
         case DBL_BITS:
             return UInt64AsDouble(l) != UInt64AsDouble(r);
         default:
-            assert(0 && "invalid floating point width");
+            pabort("invalid floating point width");
     }
 }
 
@@ -179,7 +180,7 @@ inline uint64_t lt(uint64_t l, uint64_t r, unsigned inWidth) {
         case DBL_BITS:
             return UInt64AsDouble(l) < UInt64AsDouble(r);
         default:
-            assert(0 && "invalid floating point width");
+            pabort("invalid floating point width");
     }
 }
 
@@ -190,7 +191,7 @@ inline uint64_t le(uint64_t l, uint64_t r, unsigned inWidth) {
         case DBL_BITS:
             return UInt64AsDouble(l) <= UInt64AsDouble(r);
         default:
-            assert(0 && "invalid floating point width");
+            pabort("invalid floating point width");
     }
 }
 
@@ -201,7 +202,7 @@ inline uint64_t gt(uint64_t l, uint64_t r, unsigned inWidth) {
         case DBL_BITS:
             return UInt64AsDouble(l) > UInt64AsDouble(r);
         default:
-            assert(0 && "invalid floating point width");
+            pabort("invalid floating point width");
     }
 }
 
@@ -212,7 +213,7 @@ inline uint64_t ge(uint64_t l, uint64_t r, unsigned inWidth) {
         case DBL_BITS:
             return UInt64AsDouble(l) >= UInt64AsDouble(r);
         default:
-            assert(0 && "invalid floating point width");
+            pabort("invalid floating point width");
     }
 }
 
@@ -256,7 +257,7 @@ inline uint64_t toUnsignedInt(uint64_t l, unsigned outWidth, unsigned inWidth) {
         case DBL_BITS:
             return bits64::truncateToNBits((uint64_t) UInt64AsDouble(l), outWidth);
         default:
-            assert(0 && "invalid floating point width");
+            pabort("invalid floating point width");
     }
 }
 
@@ -268,7 +269,7 @@ inline uint64_t toSignedInt(uint64_t l, unsigned outWidth, unsigned inWidth) {
         case DBL_BITS:
             return bits64::truncateToNBits((int64_t) UInt64AsDouble(l), outWidth);
         default:
-            assert(0 && "invalid floating point width");
+            pabort("invalid floating point width");
     }
 }
 
@@ -280,7 +281,7 @@ inline uint64_t UnsignedIntToFP(uint64_t l, unsigned outWidth) {
         case DBL_BITS:
             return bits64::truncateToNBits(DoubleAsUInt64((double) l), outWidth);
         default:
-            assert(0 && "invalid floating point width");
+            pabort("invalid floating point width");
     }
 }
 
@@ -292,7 +293,7 @@ inline uint64_t SignedIntToFP(uint64_t l, unsigned outWidth, unsigned inWidth) {
         case DBL_BITS:
             return bits64::truncateToNBits(DoubleAsUInt64((double) (int64_t) ints::sext(l, 64, inWidth)), outWidth);
         default:
-            assert(0 && "invalid floating point width");
+            pabort("invalid floating point width");
     }
 }
 

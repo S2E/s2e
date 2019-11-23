@@ -343,7 +343,7 @@ void Executor::initializeGlobals(ExecutionState &state) {
 
 void Executor::notifyBranch(ExecutionState &state) {
     // Should not get here
-    assert(false && "Must go through S2E");
+    pabort("Must go through S2E");
 }
 
 Executor::StatePair Executor::fork(ExecutionState &current, const ref<Expr> &condition_,
@@ -362,7 +362,7 @@ Executor::StatePair Executor::fork(ExecutionState &current, const ref<Expr> &con
     // Evaluate the expression using the current variable assignment
     ref<Expr> evalResult = current.concolics->evaluate(condition);
     ConstantExpr *ce = dyn_cast<ConstantExpr>(evalResult);
-    assert(ce && "Could not evaluate the expression to a constant.");
+    check(ce, "Could not evaluate the expression to a constant.");
     bool conditionIsTrue = ce->isTrue();
 
     if (current.forkDisabled) {
@@ -467,7 +467,7 @@ Executor::StatePair Executor::fork(ExecutionState &current, const ref<Expr> &con
 
 void Executor::notifyFork(ExecutionState &originalState, ref<Expr> &condition, Executor::StatePair &targets) {
     // Should not get here
-    assert(false && "Must go through S2E");
+    pabort("Must go through S2E");
 }
 
 ref<klee::ConstantExpr> Executor::evalConstant(Constant *c) {
@@ -535,7 +535,7 @@ ref<klee::ConstantExpr> Executor::evalConstant(Constant *c) {
         } else {
             // Constant{Vector}
             *klee_warning_stream << *c << "\n";
-            assert(0 && "invalid argument to evalConstant()");
+            pabort("invalid argument to evalConstant()");
         }
     }
 }
@@ -845,7 +845,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
                 SwitchInst::CaseIt cit = si->findCaseValue(ci);
                 transferToBasicBlock(cit.getCaseSuccessor(), si->getParent(), state);
             } else {
-                assert(false && "Cannot get here in concolic mode");
+                pabort("Cannot get here in concolic mode");
                 abort();
             }
             break;
@@ -892,7 +892,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
                         dyn_cast<FunctionType>(cast<PointerType>(f->getType())->getElementType());
                     const FunctionType *ceType =
                         dyn_cast<FunctionType>(cast<PointerType>(ce->getType())->getElementType());
-                    assert(fType && ceType && "unable to get function type");
+                    check(fType && ceType, "unable to get function type");
 
                     // XXX check result coercion
 
@@ -963,7 +963,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
         // Special instructions
         case Instruction::Select: {
             SelectInst *SI = cast<SelectInst>(ki->inst);
-            assert(SI->getCondition() == SI->getOperand(0) && "Wrong operand index!");
+            check(SI->getCondition() == SI->getOperand(0), "Wrong operand index!");
             ref<Expr> cond = eval(ki, 0, state).value;
             ref<Expr> tExpr = eval(ki, 1, state).value;
             ref<Expr> fExpr = eval(ki, 2, state).value;
@@ -1454,7 +1454,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
                     break;
 
                 default:
-                    assert(0 && "Invalid FCMP predicate!");
+                    pabort("Invalid FCMP predicate!");
                 case FCmpInst::FCMP_FALSE:
                     Result = false;
                     break;
@@ -1811,7 +1811,7 @@ void Executor::executeAlloc(ExecutionState &state, ref<Expr> size, bool isLocal,
             }
         }
     } else {
-        assert(false && "S2E should not cause allocs with symbolic size");
+        pabort("S2E should not cause allocs with symbolic size");
         abort();
     }
 }
@@ -1838,7 +1838,7 @@ ref<Expr> Executor::executeMemoryOperationOverlapped(ExecutionState &state, bool
     for (unsigned i = 0; i < bytes; ++i) {
         bool fastInBounds = false;
         bool success = state.addressSpace.findObject(concreteAddress, 1, os, fastInBounds);
-        assert(success && fastInBounds && "Could not resolve concrete memory address");
+        check(success && fastInBounds, "Could not resolve concrete memory address");
 
         uint64_t offset = os->getOffset(concreteAddress);
         ref<ConstantExpr> eoffset = ConstantExpr::create(offset, Expr::Int64);

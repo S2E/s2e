@@ -8,6 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "klee/Expr.h"
+#include <klee/Common.h>
 
 #include "llvm/Support/CommandLine.h"
 // FIXME: We shouldn't need this once fast constant support moves into
@@ -269,7 +270,7 @@ void Expr::printKind(llvm::raw_ostream &os, Kind k) {
         X(Sge);
 #undef X
         default:
-            assert(0 && "invalid kind");
+            pabort("invalid kind");
     }
 }
 
@@ -331,7 +332,7 @@ ref<Expr> Expr::createFromKind(Kind k, std::vector<CreateArg> args) {
         case Extract:
         case Read:
         default:
-            assert(0 && "invalid kind");
+            pabort("invalid kind");
 
         case NotOptimized:
             assert(numArgs == 1 && args[0].isExpr() && "invalid args array for given opcode");
@@ -444,7 +445,7 @@ void Expr::dump() const {
 ref<Expr> ConstantExpr::fromMemory(void *address, Width width) {
     switch (width) {
         default:
-            assert(0 && "invalid type");
+            pabort("invalid type");
         case Expr::Bool:
             return ConstantExpr::create(*((uint8_t *) address), width);
         case Expr::Int8:
@@ -464,7 +465,7 @@ ref<Expr> ConstantExpr::fromMemory(void *address, Width width) {
 void ConstantExpr::toMemory(void *address) {
     switch (getWidth()) {
         default:
-            assert(0 && "invalid type");
+            pabort("invalid type");
         case Expr::Bool:
             *((uint8_t *) address) = getZExtValue(1);
             break;
@@ -692,7 +693,7 @@ ref<Expr> ReadExpr::createTempRead(const ArrayPtr &array, Expr::Width w) {
 
     switch (w) {
         default:
-            assert(0 && "invalid width");
+            pabort("invalid width");
         case Expr::Bool:
             return ZExtExpr::create(ReadExpr::create(ul, ConstantExpr::alloc(0, Expr::Int32)), Expr::Bool);
         case Expr::Int8:

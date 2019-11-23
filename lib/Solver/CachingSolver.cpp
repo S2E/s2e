@@ -7,6 +7,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <klee/Common.h>
 #include "klee/Solver.h"
 
 #include "klee/Constraints.h"
@@ -167,7 +168,7 @@ bool CachingSolver::computeValidity(const Query &query, Solver::Validity &result
                 }
             }
             default:
-                assert(0 && "unreachable");
+                pabort("unreachable");
         }
     }
 

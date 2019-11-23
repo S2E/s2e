@@ -211,7 +211,7 @@ void Z3BaseSolverImpl::extractModel(const ArrayVec &objects, std::vector<std::ve
             unsigned value_num;
 
             Z3_bool conv_result = Z3_get_numeral_uint(context_, value_ast, &value_num);
-            assert(conv_result == Z3_TRUE && "Could not convert value");
+            ::check(conv_result == Z3_TRUE, "Could not convert value");
             assert(value_num < (1 << 8 * sizeof(unsigned char)) && "Invalid model value");
 
             data.push_back((unsigned char) value_num);

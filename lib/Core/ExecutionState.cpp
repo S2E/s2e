@@ -287,7 +287,7 @@ bool ExecutionState::merge(const ExecutionState &b) {
     }
 
     // XXX: check incremental mode here
-    assert(false && "Check incremental mode");
+    pabort("Check incremental mode");
     constraints = ConstraintManager();
     for (std::set<ref<Expr>>::iterator it = commonConstraints.begin(), ie = commonConstraints.end(); it != ie; ++it)
         constraints.addConstraint(*it);
@@ -342,7 +342,7 @@ bool ExecutionState::getSymbolicSolution(std::vector<std::pair<std::string, std:
                     (*klee_warning_stream) << "    " << it.first->getName() << "\n";
                 }
                 klee_warning_stream->flush();
-                assert(false && "Failed to evaluate concrete value");
+                pabort("Failed to evaluate concrete value");
             }
 
             uint8_t val = dyn_cast<ConstantExpr>(e)->getZExtValue();

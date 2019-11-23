@@ -9,6 +9,7 @@
 
 #include "Passes.h"
 
+#include <klee/Common.h>
 #include <llvm/Support/raw_ostream.h>
 #include "klee/Config/config.h"
 #include "llvm/IR/CallSite.h"
@@ -132,7 +133,7 @@ static void ReplaceFPIntrinsicWithCall(CallInst *CI, const char *Fname, const ch
 
     switch (CI->getArgOperand(0)->getType()->getTypeID()) {
         default:
-            assert(false && "Invalid type in intrinsic");
+            pabort("Invalid type in intrinsic");
         case Type::FloatTyID:
             ReplaceCallWith(Fname, CI, CS.arg_begin(), CS.arg_end(), Type::getFloatTy(CI->getContext()));
             break;
@@ -156,7 +157,7 @@ void IntrinsicCleanerPass::replaceIntrinsicAdd(Module &M, CallInst *CI) {
     IntegerType *itype = static_cast<IntegerType *>(arg0->getType());
     assert(itype);
 
-    Function *f;
+    Function *f = nullptr;
     switch (itype->getBitWidth()) {
         case 16:
             f = M.getFunction("uadds");
@@ -168,10 +169,10 @@ void IntrinsicCleanerPass::replaceIntrinsicAdd(Module &M, CallInst *CI) {
             f = M.getFunction("uaddl");
             break;
         default:
-            assert(false && "Invalid intrinsic type");
+            pabort("Invalid intrinsic type");
     }
 
-    assert(f && "Could not find intrinsic replacements for add with overflow");
+    check(f, "Could not find intrinsic replacements for add with overflow");
 
     StructType *aggregate = static_cast<StructType *>(CI->getCalledFunction()->getReturnType());
 

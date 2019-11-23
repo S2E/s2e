@@ -8,6 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "klee/util/ExprVisitor.h"
+#include <klee/Common.h>
 #include "klee/Expr.h"
 
 #include "llvm/Support/CommandLine.h"
@@ -148,12 +149,12 @@ ref<Expr> ExprVisitor::visitActual(const ref<Expr> &e) {
                 break;
             case Expr::Constant:
             default:
-                assert(0 && "invalid expression kind");
+                pabort("invalid expression kind");
         }
 
         switch (res.kind) {
             default:
-                assert(0 && "invalid kind");
+                pabort("invalid kind");
             case Action::DoChildren: {
                 bool rebuild = false;
                 ref<Expr> e(&ep), kids[8];

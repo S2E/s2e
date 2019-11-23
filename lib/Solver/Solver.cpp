@@ -8,6 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "klee/Solver.h"
+#include <klee/Common.h>
 #include "klee/SolverImpl.h"
 
 #include "klee/SolverStats.h"
@@ -185,7 +186,7 @@ std::pair<ref<Expr>, ref<Expr>> Solver::getRange(const Query &query) {
     if (width == 1) {
         Solver::Validity result;
         if (!evaluate(query, result))
-            assert(0 && "computeValidity failed");
+            pabort("computeValidity failed");
         switch (result) {
             case Solver::True:
                 min = max = 1;
@@ -339,7 +340,7 @@ bool ValidatingSolver::computeTruth(const Query &query, bool &isValid) {
         return false;
 
     if (isValid != answer)
-        assert(0 && "invalid solver result (computeTruth)");
+        pabort("invalid solver result (computeTruth)");
 
     return true;
 #endif
@@ -373,7 +374,7 @@ bool ValidatingSolver::computeValidity(const Query &query, Solver::Validity &res
                 ++unknownCount;
                 break;
             default:
-                assert(false);
+                abort();
         }
     }
     if (trueCount > falseCount && falseCount >= unknownCount)
@@ -389,7 +390,7 @@ bool ValidatingSolver::computeValidity(const Query &query, Solver::Validity &res
     else if (unknownCount > trueCount && trueCount >= falseCount)
         result = Solver::Unknown;
     else
-        assert(false);
+        abort();
     return true;
 #else
     Solver::Validity answer;
@@ -400,7 +401,7 @@ bool ValidatingSolver::computeValidity(const Query &query, Solver::Validity &res
         return false;
 
     if (result != answer)
-        assert(0 && "invalid solver result (computeValidity)");
+        pabort("invalid solver result (computeValidity)");
 
     return true;
 #endif
@@ -417,7 +418,7 @@ bool ValidatingSolver::computeValue(const Query &query, ref<Expr> &result) {
         return false;
 
     if (answer)
-        assert(0 && "invalid solver result (computeValue)");
+        pabort("invalid solver result (computeValue)");
 
     return true;
 }
@@ -451,12 +452,12 @@ bool ValidatingSolver::computeInitialValues(const Query &query, const ArrayVec &
         if (!oracle->impl->computeTruth(Query(tmp, constraints), answer))
             return false;
         if (!answer)
-            assert(0 && "invalid solver result (computeInitialValues)");
+            pabort("invalid solver result (computeInitialValues)");
     } else {
         if (!oracle->impl->computeTruth(query, answer))
             return false;
         if (!answer)
-            assert(0 && "invalid solver result (computeInitialValues)");
+            pabort("invalid solver result (computeInitialValues)");
     }
 
     return true;
