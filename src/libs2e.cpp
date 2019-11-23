@@ -228,21 +228,13 @@ static bool check_kvm_switch(int argc, char **argv) {
     return false;
 }
 
-// ****************************
-// Overriding __llibc_start_main
-// ****************************
+void libs2e_init_syscalls(void) {
+    static bool inited = false;
 
-// The type of __libc_start_main
-typedef int (*T_libc_start_main)(int *(main)(int, char **, char **), int argc, char **ubp_av, void (*init)(void),
-                                 void (*fini)(void), void (*rtld_fini)(void), void(*stack_end));
+    if (inited) {
+        return;
+    }
 
-int __libc_start_main(int *(main)(int, char **, char **), int argc, char **ubp_av, void (*init)(void),
-                      void (*fini)(void), void (*rtld_fini)(void), void *stack_end) __attribute__((noreturn));
-
-int __libc_start_main(int *(main)(int, char **, char **), int argc, char **ubp_av, void (*init)(void),
-                      void (*fini)(void), void (*rtld_fini)(void), void *stack_end) {
-
-    T_libc_start_main orig_libc_start_main = (T_libc_start_main) dlsym(RTLD_NEXT, "__libc_start_main");
     g_original_open = (open_t) dlsym(RTLD_NEXT, "open64");
     s_original_close = (close_t) dlsym(RTLD_NEXT, "close64");
     g_original_ioctl = (ioctl_t) dlsym(RTLD_NEXT, "ioctl");
@@ -259,6 +251,27 @@ int __libc_start_main(int *(main)(int, char **, char **), int argc, char **ubp_a
     s_original_printf = (printf_t) dlsym(RTLD_NEXT, "printf");
     s_original_fprintf = (fprintf_t) dlsym(RTLD_NEXT, "fprintf");
 #endif
+
+    inited = true;
+}
+
+// ****************************
+// Overriding __llibc_start_main
+// ****************************
+
+// The type of __libc_start_main
+typedef int (*T_libc_start_main)(int *(main)(int, char **, char **), int argc, char **ubp_av, void (*init)(void),
+                                 void (*fini)(void), void (*rtld_fini)(void), void(*stack_end));
+
+int __libc_start_main(int *(main)(int, char **, char **), int argc, char **ubp_av, void (*init)(void),
+                      void (*fini)(void), void (*rtld_fini)(void), void *stack_end) __attribute__((noreturn));
+
+int __libc_start_main(int *(main)(int, char **, char **), int argc, char **ubp_av, void (*init)(void),
+                      void (*fini)(void), void (*rtld_fini)(void), void *stack_end) {
+
+    T_libc_start_main orig_libc_start_main = (T_libc_start_main) dlsym(RTLD_NEXT, "__libc_start_main");
+
+    libs2e_init_syscalls();
 
     // Hack when we are called from gdb or through a shell command
     if (strstr(ubp_av[0], "bash")) {
