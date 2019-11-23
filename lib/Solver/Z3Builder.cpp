@@ -150,7 +150,7 @@ z3::expr Z3Builder::makeExpr(ref<Expr> e) {
 
             z3::expr src = getOrMakeExpr(ce->getSrc());
             if (src.is_bool()) {
-                return z3::to_expr(context_, Z3_mk_ite(context_, src, context_.bv_val(1, ce->getWidth()),
+                return z3::to_expr(context_, Z3_mk_ite(context_, src, context_.bv_val(-1, ce->getWidth()),
                                                        context_.bv_val(0, ce->getWidth())));
             } else {
                 return z3::to_expr(context_, Z3_mk_sign_ext(context_, ce->getWidth() - src.get_sort().bv_size(), src));
