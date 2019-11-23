@@ -11,6 +11,7 @@
 #include <s2e/Utils.h>
 
 #include <boost/asio.hpp>
+#include <klee/Common.h>
 
 #include "KeyValueStore.h"
 
@@ -181,7 +182,7 @@ bool KeyValueStore::put(const std::string &key, const std::string &value) {
         m_global_storage[key] = value;
         return true;
     } else {
-        assert(false && "Can't happen");
+        pabort("Can't happen");
     }
 }
 
@@ -231,7 +232,7 @@ bool KeyValueStore::get(const std::string &key, std::string &val) {
         val = (*it).second;
         return true;
     } else {
-        assert(false && "Can't happen");
+        pabort("Can't happen");
     }
 }
 

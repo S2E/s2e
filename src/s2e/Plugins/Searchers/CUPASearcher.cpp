@@ -152,7 +152,7 @@ klee::Searcher *CUPASearcher::createSearcher(unsigned level) {
                 searcher = new CUPASearcherGroupClass(this, level);
                 break;
             default:
-                assert(false);
+                abort();
         }
     } else {
         searcher = klee::constructUserSearcher(*g_s2e->getExecutor());

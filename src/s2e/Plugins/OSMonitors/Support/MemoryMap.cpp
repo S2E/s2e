@@ -49,7 +49,7 @@ static MemoryMapRegionType WindowsProtectionToInternal(uint64_t protection) {
             type |= MM_READ | MM_WRITE;
             break;
         default:
-            assert(false && "Unknown protection flag");
+            pabort("Unknown protection flag");
     }
 
     return (MemoryMapRegionType) type;

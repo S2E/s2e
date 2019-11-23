@@ -272,7 +272,7 @@ bool ControlFlowGraph::getFinalSuccessor(const std::string &module, uint64_t sta
 
     } while (true);
 
-    assert(false && "Can't get here");
+    pabort("Can't get here");
     return false;
 }
 

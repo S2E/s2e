@@ -187,7 +187,7 @@ void LoopExitSearcher::increasePriority(S2EExecutionState *state, int64_t priori
         return;
     }
 
-    assert(false && "Can't get here");
+    pabort("Can't get here");
 }
 
 klee::ExecutionState &LoopExitSearcher::selectState() {

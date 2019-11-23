@@ -485,7 +485,7 @@ void DecreeMonitor::handleSymbolicSize(S2EExecutionState *state, uint64_t pid, u
     if (state->isRunningConcrete()) {
         getDebugStream(state) << "Switching to symbolic mode\n";
         state->jumpToSymbolicCpp();
-        assert(false && "Unreachable code");
+        pabort("Unreachable code");
     }
 
     // Override symbolic size variable with its maximum possible concrete value.
