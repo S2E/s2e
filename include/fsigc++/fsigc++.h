@@ -25,6 +25,7 @@
 
 #include <atomic>
 #include <boost/intrusive_ptr.hpp>
+#include <boost/container/small_vector.hpp>
 #include <cassert>
 #include <stdlib.h>
 #include <vector>
@@ -208,7 +209,7 @@ private:
     // in the list according to its priority.
     // Higher priorities go first in the list.
     typedef std::pair<func_t, int> func_priority_t;
-    std::vector<func_priority_t> m_funcs;
+    boost::container::small_vector<func_priority_t, 16> m_funcs;
 
     void disconnectAll() {
         for (auto &it : m_funcs) {
