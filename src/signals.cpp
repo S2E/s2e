@@ -23,7 +23,7 @@
 
 namespace fsigc {
 
-connection::connection(signal_base *sig, void *func) {
+connection::connection(signal_base *sig, const functor_refcnt_ptr &func) {
     m_functor = func;
     m_sig = sig;
     m_connected = true;
@@ -31,7 +31,7 @@ connection::connection(signal_base *sig, void *func) {
 
 void connection::disconnect() {
     if (m_connected) {
-        m_sig->disconnect(m_functor);
+        m_sig->disconnect(m_functor.get());
         m_functor = NULL;
         m_connected = false;
     }

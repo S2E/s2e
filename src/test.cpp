@@ -56,7 +56,7 @@ public:
         plg->sig2.connect(fsigc::bind(fsigc::ptr_fun(&MyPlugin1::mySEvent3), 123));
         plg->sig2.connect(fsigc::bind(fsigc::ptr_fun(&MyPlugin1::mySEvent4), 123, false));
 
-        // plg->nat_sig0.connect(sigc::bind(sigc::mem_fun(*this, &MyPlugin1::myEvent1), 0xdeadbeef));
+        plg->sig0.connect(fsigc::bind(fsigc::mem_fun(*this, &MyPlugin1::myEvent1), 0xdeadbeef));
     }
 
 private:
