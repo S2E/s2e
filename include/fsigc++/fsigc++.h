@@ -24,8 +24,8 @@
 #define _S2E_SIGNALS_
 
 #include <atomic>
-#include <boost/intrusive_ptr.hpp>
 #include <boost/container/small_vector.hpp>
+#include <boost/intrusive_ptr.hpp>
 #include <cassert>
 #include <stdlib.h>
 #include <vector>
@@ -203,6 +203,7 @@ public:
     typedef boost::intrusive_ptr<functor_base<RET, PARAM_TYPES...>> func_t;
 
     unsigned m_activeSignals;
+    unsigned m_deletedSignals;
 
 private:
     // Each signal has a priority. Any new signal will be inserted
@@ -211,18 +212,22 @@ private:
     typedef std::pair<func_t, int> func_priority_t;
     boost::container::small_vector<func_priority_t, 16> m_funcs;
 
-    void disconnectAll() {
-        for (auto &it : m_funcs) {
-            if (it.first) {
-                it.first = nullptr;
+    void cleanup() {
+        while (m_deletedSignals > 0) {
+            for (auto it = m_funcs.begin(); it != m_funcs.end(); ++it) {
+                if (!(*it).first) {
+                    m_funcs.erase(it);
+                    m_deletedSignals--;
+                    break;
+                }
             }
         }
-        m_funcs.clear();
     }
 
 public:
     signal() {
         m_activeSignals = 0;
+        m_deletedSignals = 0;
     }
 
     signal(const signal &one) {
@@ -231,17 +236,20 @@ public:
     }
 
     virtual ~signal() {
-        disconnectAll();
     }
 
     virtual void disconnect(void *functor) {
         assert(m_activeSignals > 0);
 
         for (auto it = m_funcs.begin(); it != m_funcs.end(); ++it) {
-            auto fcn = (*it).first;
+            auto &fcn = (*it).first;
             if (fcn == functor) {
                 --m_activeSignals;
-                m_funcs.erase(it);
+                ++m_deletedSignals;
+                // Don't erase the entry to avoid invalidating
+                // the iterator in emit(). This may happen if the called
+                // signal handler tries to disconnect itself.
+                fcn = nullptr;
                 break;
             }
         }
@@ -268,8 +276,12 @@ public:
 
     void emit(PARAM_TYPES... params) {
         for (auto &it : m_funcs) {
-            it.first->operator()(params...);
+            if (it.first) {
+                it.first->operator()(params...);
+            }
         }
+
+        cleanup();
     }
 
     // This is intended for optimization purposes only.
