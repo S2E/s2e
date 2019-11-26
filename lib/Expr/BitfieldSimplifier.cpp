@@ -29,6 +29,8 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <inttypes.h>
+
 #include "klee/BitfieldSimplifier.h"
 
 #include <klee/Common.h>
@@ -38,11 +40,12 @@ using namespace klee;
 using namespace llvm;
 
 namespace {
-inline uint64_t zeroMask(uint64_t w) {
-    if (w < 64)
-        return (((uint64_t)(int64_t) -1) << w);
-    else
+inline __uint128_t zeroMask(unsigned w) {
+    if (w < 128) {
+        return (((__uint128_t)(__int128_t) -1) << w);
+    } else {
         return 0;
+    }
 }
 
 cl::opt<bool> DebugSimplifier("debug-expr-simplifier", cl::init(false));
@@ -50,15 +53,17 @@ cl::opt<bool> DebugSimplifier("debug-expr-simplifier", cl::init(false));
 cl::opt<bool> PrintSimplifier("print-expr-simplifier", cl::init(false));
 }
 
-ref<Expr> BitfieldSimplifier::replaceWithConstant(const ref<Expr> &e, uint64_t value) {
+ref<Expr> BitfieldSimplifier::replaceWithConstant(const ref<Expr> &e, __uint128_t value) {
     ConstantExpr *ce = dyn_cast<ConstantExpr>(e);
-    if (ce && ce->getZExtValue() == value)
+    if (ce && ce->getZExtValue(128) == value) {
         return e;
+    }
 
     // Remove kids from cache
     unsigned numKids = e->getNumKids();
-    for (unsigned i = 0; i < numKids; ++i)
+    for (unsigned i = 0; i < numKids; ++i) {
         m_bitsInfoCache.erase(e->getKid(i));
+    }
 
     // Remove e from cache
     m_bitsInfoCache.erase(e);
@@ -66,7 +71,7 @@ ref<Expr> BitfieldSimplifier::replaceWithConstant(const ref<Expr> &e, uint64_t v
     return ConstantExpr::create(value & ~zeroMask(e->getWidth()), e->getWidth());
 }
 
-BitfieldSimplifier::ExprBitsInfo BitfieldSimplifier::doSimplifyBits(const ref<Expr> &e, uint64_t ignoredBits) {
+BitfieldSimplifier::ExprBitsInfo BitfieldSimplifier::doSimplifyBits(const ref<Expr> &e, __uint128_t ignoredBits) {
     ExprHashMap<BitsInfo>::iterator it = m_bitsInfoCache.find(e);
     if (it != m_bitsInfoCache.end()) {
         return *it;
@@ -74,7 +79,7 @@ BitfieldSimplifier::ExprBitsInfo BitfieldSimplifier::doSimplifyBits(const ref<Ex
 
     ref<Expr> kids[8];
     BitsInfo bits[8];
-    uint64_t oldIgnoredBits[8];
+    __uint128_t oldIgnoredBits[8];
 
     BitsInfo rbits;
     rbits.ignoredBits = ignoredBits;
@@ -113,7 +118,7 @@ BitfieldSimplifier::ExprBitsInfo BitfieldSimplifier::doSimplifyBits(const ref<Ex
             for (unsigned i = 0; i < 2; ++i) {
                 if (~(bits[i].knownOneBits | bits[i].ignoredBits) == 0) {
                     /* All bits of this kid is either one or ignored */
-                    bits[i].knownOneBits = (uint64_t) -1;
+                    bits[i].knownOneBits = (__uint128_t)(__int128_t) -1;
                     bits[i].knownZeroBits = 0;
                 }
             }
@@ -132,7 +137,7 @@ BitfieldSimplifier::ExprBitsInfo BitfieldSimplifier::doSimplifyBits(const ref<Ex
                 if (~(bits[i].knownZeroBits | bits[i].ignoredBits) == 0) {
                     /* All bits of this kid is either zero or ignored */
                     bits[i].knownOneBits = 0;
-                    bits[i].knownZeroBits = (uint64_t) -1;
+                    bits[i].knownZeroBits = (__uint128_t)(__int128_t) -1;
                 }
             }
 
@@ -160,8 +165,8 @@ BitfieldSimplifier::ExprBitsInfo BitfieldSimplifier::doSimplifyBits(const ref<Ex
         case Expr::Shl:
             if (ConstantExpr *c1 = dyn_cast<ConstantExpr>(kids[1])) {
                 // We can simplify only if the shift is known
-                uint64_t shift = c1->getZExtValue();
-                uint64_t width = e->getWidth();
+                auto shift = c1->getZExtValue128();
+                auto width = e->getWidth();
                 assert(width == kids[0]->getWidth());
 
                 if (shift < width) {
@@ -171,8 +176,8 @@ BitfieldSimplifier::ExprBitsInfo BitfieldSimplifier::doSimplifyBits(const ref<Ex
                     bits[0].ignoredBits = ((ignoredBits & ~zeroMask(width)) >> shift) | zeroMask(e->getWidth() - shift);
                 } else {
                     rbits.knownOneBits = 0;
-                    rbits.knownZeroBits = (uint64_t) -1;
-                    bits[0].ignoredBits = (uint64_t) -1;
+                    rbits.knownZeroBits = (__uint128_t)(__int128_t) -1;
+                    bits[0].ignoredBits = (__uint128_t)(__int128_t) -1;
                 }
             } else {
                 // This is the most general assumption
@@ -184,8 +189,8 @@ BitfieldSimplifier::ExprBitsInfo BitfieldSimplifier::doSimplifyBits(const ref<Ex
         case Expr::LShr:
             if (ConstantExpr *c1 = dyn_cast<ConstantExpr>(kids[1])) {
                 // We can simplify only if the shift is known
-                uint64_t shift = c1->getZExtValue();
-                uint64_t width = e->getWidth();
+                auto shift = c1->getZExtValue128();
+                auto width = e->getWidth();
                 assert(width == kids[0]->getWidth());
 
                 if (shift < width) {
@@ -195,8 +200,8 @@ BitfieldSimplifier::ExprBitsInfo BitfieldSimplifier::doSimplifyBits(const ref<Ex
                     bits[0].ignoredBits = (ignoredBits << shift) | ~zeroMask(shift) | zeroMask(width);
                 } else {
                     rbits.knownOneBits = 0;
-                    rbits.knownZeroBits = (uint64_t) -1;
-                    bits[0].ignoredBits = (uint64_t) -1;
+                    rbits.knownZeroBits = (__uint128_t)(__int128_t) -1;
+                    bits[0].ignoredBits = (__uint128_t)(__int128_t) -1;
                 }
             } else {
                 // This is the most general assumption
@@ -209,7 +214,7 @@ BitfieldSimplifier::ExprBitsInfo BitfieldSimplifier::doSimplifyBits(const ref<Ex
             ExtractExpr *ee = cast<ExtractExpr>(e);
 
             // Calculate mask - bits that are kept by Extract
-            uint64_t mask = zeroMask(ee->getWidth());
+            auto mask = zeroMask(ee->getWidth());
             rbits.knownOneBits = (bits[0].knownOneBits >> ee->getOffset()) & ~mask;
             rbits.knownZeroBits = (bits[0].knownZeroBits >> ee->getOffset()) | mask;
 
@@ -217,7 +222,7 @@ BitfieldSimplifier::ExprBitsInfo BitfieldSimplifier::doSimplifyBits(const ref<Ex
         } break;
 
         case Expr::Concat: {
-            uint64_t shift = kids[1]->getWidth();
+            auto shift = kids[1]->getWidth();
             rbits.knownOneBits = (bits[0].knownOneBits << shift) | bits[1].knownOneBits;
             rbits.knownZeroBits =
                 (bits[0].knownZeroBits << shift) | (bits[1].knownZeroBits & ~zeroMask(kids[1]->getWidth()));
@@ -245,7 +250,7 @@ BitfieldSimplifier::ExprBitsInfo BitfieldSimplifier::doSimplifyBits(const ref<Ex
 
         case Expr::SExt: {
             // Mask of bits determined by the sign
-            uint64_t mask = zeroMask(kids[0]->getWidth()) & ~zeroMask(e->getWidth());
+            auto mask = zeroMask(kids[0]->getWidth()) & ~zeroMask(e->getWidth());
 
             rbits.knownOneBits = bits[0].knownOneBits;
             rbits.knownZeroBits = bits[0].knownZeroBits & ~mask;
@@ -266,7 +271,7 @@ BitfieldSimplifier::ExprBitsInfo BitfieldSimplifier::doSimplifyBits(const ref<Ex
         } break;
 
         case Expr::Constant:
-            rbits.knownOneBits = cast<ConstantExpr>(e)->getZExtValue();
+            rbits.knownOneBits = cast<ConstantExpr>(e)->getZExtValue128();
             rbits.knownZeroBits = ~rbits.knownOneBits;
             break;
 
@@ -341,7 +346,9 @@ ref<Expr> BitfieldSimplifier::simplify(const ref<Expr> &e, uint64_t *knownZeroBi
     if (it != m_simplifiedExpressions.end()) {
         ++m_cacheHits;
         if (knownZeroBits) {
-            *knownZeroBits = (*it).second.second.knownZeroBits;
+            auto nzb = (*it).second.second.knownZeroBits;
+            assert((nzb >> 64) == 0xffffffffffffffff);
+            *knownZeroBits = nzb;
         }
         return (*it).second.first;
     }
