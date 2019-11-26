@@ -48,6 +48,38 @@ inline __uint128_t zeroMask(unsigned w) {
     }
 }
 
+bool maskToBits(uint64_t mask, unsigned &bits) {
+    switch (mask) {
+        case 0x1:
+            bits = 1;
+            break;
+        case 0x3:
+            bits = 4;
+            break;
+        case 0x7:
+            bits = 8;
+            break;
+        case 0xf:
+            bits = 16;
+            break;
+        case 0x1f:
+            bits = 32;
+            break;
+        case 0x3f:
+            bits = 64;
+            break;
+        case 0x7f:
+            bits = 128;
+            break;
+        case 0xff:
+            bits = 256;
+            break;
+        default:
+            return false;
+    }
+    return true;
+}
+
 cl::opt<bool> DebugSimplifier("debug-expr-simplifier", cl::init(false));
 
 cl::opt<bool> PrintSimplifier("print-expr-simplifier", cl::init(false));
@@ -389,6 +421,40 @@ bool BitfieldSimplifier::getBaseOffset(const ref<Expr> &e, uint64_t &base, ref<E
     if ((knownZeroBits & ~(uint64_t) 0xff) == ~(uint64_t) 0xff) {
         offsetSize = 1 << 8;
     } else {
+        return false;
+    }
+
+    base = baseExpr->getZExtValue();
+    offset = offsetExpr;
+    return true;
+}
+
+bool BitfieldSimplifier::getBaseOffsetFast(const ref<Expr> &e, uint64_t &base, ref<Expr> &offset,
+                                           unsigned &offsetSize) {
+    auto add = dyn_cast<AddExpr>(e);
+    if (!add || add->getWidth() > Expr::Int64) {
+        return false;
+    }
+
+    auto baseExpr = dyn_cast<ConstantExpr>(add->getLeft());
+    if (!baseExpr) {
+        return false;
+    }
+
+    auto offsetExpr = add->getRight();
+
+    auto andExpr = dyn_cast<AndExpr>(offsetExpr);
+    if (!andExpr) {
+        return false;
+    }
+
+    auto maskExpr = dyn_cast<ConstantExpr>(andExpr->getRight());
+    if (!maskExpr) {
+        return false;
+    }
+
+    auto mask = maskExpr->getZExtValue();
+    if (!maskToBits(mask, offsetSize)) {
         return false;
     }
 

@@ -100,6 +100,7 @@ cl::opt<bool> NoExternals("no-externals", cl::desc("Do not allow external functi
 
 namespace klee {
 RNG theRNG;
+extern cl::opt<bool> UseExprSimplifier;
 }
 
 Executor::Executor(InterpreterHandler *ih, LLVMContext &context)
@@ -1966,7 +1967,14 @@ void Executor::executeMemoryOperation(ExecutionState &state, bool isWrite, ref<E
         uint64_t base;
         ref<Expr> offset;
         unsigned offsetSize;
-        if (state.getSimplifier().getBaseOffset(address, base, offset, offsetSize)) {
+        bool ok;
+        if (UseExprSimplifier) {
+            ok = state.getSimplifier().getBaseOffset(address, base, offset, offsetSize);
+        } else {
+            ok = state.getSimplifier().getBaseOffsetFast(address, base, offset, offsetSize);
+        }
+
+        if (ok) {
             bool tmp;
             if (state.addressSpace.findObject(base, 1, os, tmp)) {
                 if (offsetSize <= os->getSize()) {

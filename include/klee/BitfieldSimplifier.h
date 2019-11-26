@@ -65,6 +65,9 @@ public:
     // symbolic of size 1 byte, return true.
     bool getBaseOffset(const ref<Expr> &e, uint64_t &base, ref<Expr> &offset, unsigned &offsetSize);
 
+    // This is a faster version that uses pattern matching. It may have false negatives.
+    bool getBaseOffsetFast(const ref<Expr> &e, uint64_t &base, ref<Expr> &offset, unsigned &offsetSize);
+
     BitfieldSimplifier() {
         m_cacheHits = 0;
         m_cacheMisses = 0;
