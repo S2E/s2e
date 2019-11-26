@@ -46,6 +46,10 @@ cl::opt<bool> UseExprSimplifier("use-expr-simplifier", cl::desc("Apply expressio
 cl::opt<bool> DebugPrintInstructions("debug-print-instructions", cl::desc("Print instructions during execution."),
                                      cl::init(false));
 
+// This is set to false in order to avoid the overhead of printing large expressions
+cl::opt<bool> PrintConcretizedExpression("print-concretized-expression", cl::desc("Print concretized expression."),
+                                         cl::init(false));
+
 /***/
 
 StackFrame::StackFrame(KInstIterator _caller, KFunction *_kf) : caller(_caller), kf(_kf), callPathNode(0), varargs(0) {
@@ -390,8 +394,9 @@ ref<Expr> ExecutionState::simplifyExpr(const ref<Expr> &e) const {
 ref<ConstantExpr> ExecutionState::toConstant(ref<Expr> e, const std::string &reason) {
     e = simplifyExpr(e);
     e = constraints.simplifyExpr(e);
-    if (ConstantExpr *CE = dyn_cast<ConstantExpr>(e))
+    if (ConstantExpr *CE = dyn_cast<ConstantExpr>(e)) {
         return CE;
+    }
 
     ref<ConstantExpr> value;
 
@@ -409,7 +414,13 @@ ref<ConstantExpr> ExecutionState::toConstant(ref<Expr> e, const std::string &rea
         os << "(instruction: " << ki->inst->getParent()->getParent()->getName().str() << ": " << *ki->inst << ") ";
     }
 
-    os << "(reason: " << reason << ") expression " << e << " to value " << value;
+    os << "(reason: " << reason << ") ";
+
+    if (PrintConcretizedExpression) {
+        os << " expression " << e;
+    }
+
+    os << " to value " << value;
 
     klee_warning_external(reason.c_str(), "%s", os.str().c_str());
 

@@ -1877,9 +1877,9 @@ ref<Expr> Executor::executeMemoryOperation(ExecutionState &state, const ObjectSt
             if (wos->isSharedConcrete()) {
                 if (!dyn_cast<ConstantExpr>(value)) {
                     std::stringstream ss;
-                    ss << "write to always concrete memory name:" << os->getName() << " offset=" << offset
-                       << " value=" << value;
-                    value = state.toConstant(value, ss.str().c_str());
+                    ss << "write to always concrete memory name:" << os->getName() << " offset=" << offset;
+                    auto s = ss.str();
+                    value = state.toConstant(value, s.c_str());
                 }
             }
 
@@ -1904,12 +1904,14 @@ ref<Expr> Executor::executeMemoryOperation(ExecutionState &state, const ObjectSt
             auto wos = state.addressSpace.getWriteable(os);
             if (wos->isSharedConcrete()) {
                 if (!dyn_cast<ConstantExpr>(offset) || !dyn_cast<ConstantExpr>(value)) {
-                    std::stringstream ss;
-                    ss << "write to always concrete memory name:" << os->getName() << " offset=" << offset
-                       << " value=" << value;
+                    std::stringstream ss1, ss2;
+                    ss1 << "write to always concrete memory name:" << os->getName() << " offset:";
+                    ss2 << "write to always concrete memory name:" << os->getName() << " value:";
 
-                    offset = state.toConstant(offset, ss.str().c_str());
-                    value = state.toConstant(value, ss.str().c_str());
+                    auto s1 = ss1.str();
+                    auto s2 = ss2.str();
+                    offset = state.toConstant(offset, s1.c_str());
+                    value = state.toConstant(value, s2.c_str());
                 }
             }
 
