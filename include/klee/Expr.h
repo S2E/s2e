@@ -189,15 +189,11 @@ public:
     };
 
     unsigned refCount;
-    bool temporary;
-    bool permanent;
-    static uint64_t permanentCount;
 
 protected:
     unsigned hashValue;
 
     Expr() : refCount(0) {
-        permanent = false;
     }
 
 public:

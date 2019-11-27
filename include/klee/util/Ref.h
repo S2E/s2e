@@ -41,7 +41,7 @@ private:
     }
 
     void dec() const {
-        if (ptr && --ptr->refCount == 0 && !ptr->permanent)
+        if (ptr && --ptr->refCount == 0)
             delete ptr;
     }
 
@@ -112,14 +112,10 @@ public:
         return compare(rhs) < 0;
     }
     bool operator==(const ref &rhs) const {
-        // return compare(rhs)==0;
-        if (rhs.ptr->temporary || ptr->temporary)
-            return compare(rhs) == 0;
         return compare(rhs) == 0;
     }
     bool operator!=(const ref &rhs) const {
         return !operator==(rhs);
-        // return compare(rhs)!=0;
     }
 };
 

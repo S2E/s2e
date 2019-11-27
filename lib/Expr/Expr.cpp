@@ -32,8 +32,6 @@ cl::opt<bool> ConstArrayOpt("const-array-opt", cl::init(true),
 
 /***/
 
-uint64_t Expr::permanentCount = 0;
-
 ///
 /// \brief Simplify the pattern that results from an unaligned read to memory.
 ///
