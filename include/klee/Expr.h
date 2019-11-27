@@ -275,9 +275,6 @@ public:
 
     static ref<ConstantExpr> createPointer(uint64_t v);
 
-    struct CreateArg;
-    static ref<Expr> createFromKind(Kind k, std::vector<CreateArg> args);
-
     static bool isValidKidWidth(unsigned kid, Width w) {
         return true;
     }
@@ -287,23 +284,6 @@ public:
 
     static bool classof(const Expr *) {
         return true;
-    }
-};
-
-struct Expr::CreateArg {
-    ref<Expr> expr;
-    Width width;
-
-    CreateArg(Width w = Bool) : expr(0), width(w) {
-    }
-    CreateArg(const ref<Expr> &e) : expr(e), width(Expr::InvalidWidth) {
-    }
-
-    bool isExpr() {
-        return !isWidth();
-    }
-    bool isWidth() {
-        return width != Expr::InvalidWidth;
     }
 };
 
