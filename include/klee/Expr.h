@@ -193,7 +193,7 @@ public:
 protected:
     unsigned hashValue;
 
-    Expr() : refCount(0) {
+    Expr() : refCount(0), hashValue(0) {
     }
 
 public:
@@ -215,10 +215,6 @@ public:
     virtual unsigned hash() const {
         return hashValue;
     }
-
-    /// (Re)computes the hash of the current expression.
-    /// Returns the hash value.
-    virtual unsigned computeHash();
 
     /// Compares `b` to `this` Expr for structural equivalence.
     ///
@@ -374,7 +370,6 @@ private:
 
                 for (uint64_t j = 0; j < max; ++j) {
                     ref<ConstantExpr> r(new ConstantExpr(llvm::APInt(i, j)));
-                    r->computeHash();
                     _const_table[i][j] = r;
                 }
             }
@@ -391,7 +386,6 @@ private:
             }
 
             ref<ConstantExpr> r(new ConstantExpr(v));
-            r->computeHash();
             return r;
         }
 
@@ -400,6 +394,11 @@ private:
     };
 
     ConstantExpr(const llvm::APInt &v) : Expr(), value(v) {
+        if (v.getBitWidth() <= 64) {
+            hashValue = v.getZExtValue();
+        } else {
+            hashValue = *v.getRawData();
+        }
     }
 
 public:
@@ -610,6 +609,7 @@ public:
 
 protected:
     BinaryExpr(const ref<Expr> &l, const ref<Expr> &r) : left(l), right(r) {
+        hashValue = (left->hash() ^ right->hash()) * MAGIC_HASH_CONSTANT;
     }
 
 protected:
@@ -749,11 +749,12 @@ public:
 private:
     UpdateNode(const UpdateNodePtr &_next, const ref<Expr> &_index, const ref<Expr> &_value);
 
-    UpdateNode() : m_refCount(0) {
+    UpdateNode() : m_refCount(0), hashValue(0) {
     }
+
     ~UpdateNode();
 
-    unsigned computeHash();
+    void computeHash();
 
     friend void intrusive_ptr_add_ref(UpdateNode *ptr);
     friend void intrusive_ptr_release(UpdateNode *ptr);
@@ -891,7 +892,11 @@ private:
 
     std::atomic<unsigned> m_refCount;
 
+    unsigned m_hashValue;
+
     UpdateList(ArrayPtr _root, UpdateNodePtr _head);
+
+    void computeHash();
 
 public:
     static UpdateListPtr create(ArrayPtr _root, UpdateNodePtr _head) {
@@ -906,7 +911,9 @@ public:
     void extend(const ref<Expr> &index, const ref<Expr> &value);
 
     int compare(const UpdateListPtr &b) const;
-    unsigned hash() const;
+    unsigned hash() const {
+        return m_hashValue;
+    }
 
     const ArrayPtr &getRoot() const {
         return root;
@@ -941,7 +948,10 @@ private:
     ref<Expr> index;
 
     ReadExpr(const UpdateListPtr &_updates, const ref<Expr> &_index) : updates(_updates), index(_index) {
+        computeHash();
     }
+
+    void computeHash();
 
 public:
     virtual ~ReadExpr() {
@@ -984,8 +994,6 @@ public:
     virtual ref<Expr> rebuild(ref<Expr> kids[]) const {
         return create(updates, kids[0]);
     }
-
-    virtual unsigned computeHash();
 
     static bool classof(const Expr *E) {
         return E->getKind() == Expr::Read;
@@ -1087,6 +1095,7 @@ public:
 
 private:
     SelectExpr(const ref<Expr> &c, const ref<Expr> &t, const ref<Expr> &f) : cond(c), trueExpr(t), falseExpr(f) {
+        hashValue = c->hash() ^ t->hash() ^ f->hash() ^ getKind();
     }
 
 public:
@@ -1160,6 +1169,7 @@ public:
 private:
     ConcatExpr(const ref<Expr> &l, const ref<Expr> &r) : left(l), right(r) {
         width = l->getWidth() + r->getWidth();
+        hashValue = l->hash() ^ r->hash() ^ getKind();
     }
 
 public:
@@ -1231,11 +1241,12 @@ public:
         return create(kids[0], offset, width);
     }
 
-    virtual unsigned computeHash();
-
 private:
     ExtractExpr(const ref<Expr> &e, unsigned b, Width w) : expr(e), offset(b), width(w) {
+        computeHash();
     }
+
+    void computeHash();
 
 public:
     static bool classof(const Expr *E) {
@@ -1296,8 +1307,6 @@ public:
         return create(kids[0]);
     }
 
-    virtual unsigned computeHash();
-
 public:
     static bool classof(const Expr *E) {
         return E->getKind() == Expr::Not;
@@ -1308,7 +1317,10 @@ public:
 
 private:
     NotExpr(const ref<Expr> &e) : expr(e) {
+        computeHash();
     }
+
+    void computeHash();
 };
 
 // Casting
@@ -1318,10 +1330,14 @@ private:
     ref<Expr> src;
     Width width;
 
-public:
+    void computeHash();
+
+protected:
     CastExpr(const ref<Expr> &e, Width w) : src(e), width(w) {
+        computeHash();
     }
 
+public:
     Width getWidth() const {
         return width;
     }
@@ -1348,8 +1364,6 @@ public:
         return 0;
     }
 
-    virtual unsigned computeHash();
-
     static bool classof(const Expr *E) {
         Expr::Kind k = E->getKind();
         return Expr::CastKindFirst <= k && k <= Expr::CastKindLast;
@@ -1365,10 +1379,13 @@ public:
         static const Kind kind = _class_kind;                             \
         static const unsigned numKids = 1;                                \
                                                                           \
+    protected:                                                            \
+        _class_kind##Expr(const ref<Expr> &e, Width w) : CastExpr(e, w) { \
+            hashValue ^= getKind();                                       \
+        }                                                                 \
+                                                                          \
     public:                                                               \
         virtual ~_class_kind##Expr() {                                    \
-        }                                                                 \
-        _class_kind##Expr(const ref<Expr> &e, Width w) : CastExpr(e, w) { \
         }                                                                 \
         static ref<Expr> alloc(const ref<Expr> &e, Width w) {             \
             return ref<Expr>(new _class_kind##Expr(e, w));                \
@@ -1400,11 +1417,15 @@ CAST_EXPR_CLASS(ZExt)
         static const Kind kind = _class_kind;                                          \
         static const unsigned numKids = 2;                                             \
                                                                                        \
+    protected:                                                                         \
+        _class_kind##Expr(const ref<Expr> &l, const ref<Expr> &r) : BinaryExpr(l, r) { \
+            hashValue ^= getKind();                                                    \
+        }                                                                              \
+                                                                                       \
     public:                                                                            \
         virtual ~_class_kind##Expr() {                                                 \
         }                                                                              \
-        _class_kind##Expr(const ref<Expr> &l, const ref<Expr> &r) : BinaryExpr(l, r) { \
-        }                                                                              \
+                                                                                       \
         static ref<Expr> alloc(const ref<Expr> &l, const ref<Expr> &r) {               \
             return ref<Expr>(new _class_kind##Expr(l, r));                             \
         }                                                                              \
@@ -1450,10 +1471,13 @@ ARITHMETIC_EXPR_CLASS(AShr)
         static const Kind kind = _class_kind;                                       \
         static const unsigned numKids = 2;                                          \
                                                                                     \
+    protected:                                                                      \
+        _class_kind##Expr(const ref<Expr> &l, const ref<Expr> &r) : CmpExpr(l, r) { \
+            hashValue ^= getKind();                                                 \
+        }                                                                           \
+                                                                                    \
     public:                                                                         \
         virtual ~_class_kind##Expr() {                                              \
-        }                                                                           \
-        _class_kind##Expr(const ref<Expr> &l, const ref<Expr> &r) : CmpExpr(l, r) { \
         }                                                                           \
         static ref<Expr> alloc(const ref<Expr> &l, const ref<Expr> &r) {            \
             return ref<Expr>(new _class_kind##Expr(l, r));                          \

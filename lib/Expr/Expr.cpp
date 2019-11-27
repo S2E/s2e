@@ -278,47 +278,33 @@ void Expr::printKind(llvm::raw_ostream &os, Kind k) {
 //
 ///////
 
-unsigned Expr::computeHash() {
-    unsigned res = getKind() * Expr::MAGIC_HASH_CONSTANT;
-
-    int n = getNumKids();
-    for (int i = 0; i < n; i++) {
-        res <<= 1;
-        res ^= getKid(i)->hash() * Expr::MAGIC_HASH_CONSTANT;
-    }
-
-    hashValue = res;
-    return hashValue;
-}
-
 unsigned ConstantExpr::computeHash() {
     hashValue = hash_value(value) ^ (getWidth() * MAGIC_HASH_CONSTANT);
     return hashValue;
 }
 
-unsigned CastExpr::computeHash() {
+void CastExpr::computeHash() {
     unsigned res = getWidth() * Expr::MAGIC_HASH_CONSTANT;
     hashValue = res ^ src->hash() * Expr::MAGIC_HASH_CONSTANT;
-    return hashValue;
 }
 
-unsigned ExtractExpr::computeHash() {
+void ExtractExpr::computeHash() {
     unsigned res = offset * Expr::MAGIC_HASH_CONSTANT;
     res ^= getWidth() * Expr::MAGIC_HASH_CONSTANT;
+    res ^= getKind();
     hashValue = res ^ expr->hash() * Expr::MAGIC_HASH_CONSTANT;
-    return hashValue;
 }
 
-unsigned ReadExpr::computeHash() {
+void ReadExpr::computeHash() {
     unsigned res = index->hash() * Expr::MAGIC_HASH_CONSTANT;
     res ^= updates->hash();
+    res ^= getKind();
     hashValue = res;
-    return hashValue;
 }
 
-unsigned NotExpr::computeHash() {
+void NotExpr::computeHash() {
     hashValue = expr->hash() * Expr::MAGIC_HASH_CONSTANT * Expr::Not;
-    return hashValue;
+    hashValue ^= getKind();
 }
 
 void Expr::printWidth(llvm::raw_ostream &os, Width width) {

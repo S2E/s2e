@@ -36,17 +36,18 @@ int UpdateNode::compare(const UpdateNodePtr &b) const {
     return value.compare(b->value);
 }
 
-unsigned UpdateNode::computeHash() {
+void UpdateNode::computeHash() {
     hashValue = index->hash() ^ value->hash();
     if (next) {
         hashValue ^= next->hash();
     }
-    return hashValue;
 }
 
 ///
 
-UpdateList::UpdateList(ArrayPtr _root, const UpdateNodePtr _head) : root(_root), head(_head), m_refCount(0) {
+UpdateList::UpdateList(ArrayPtr _root, const UpdateNodePtr _head)
+    : root(_root), head(_head), m_refCount(0), m_hashValue(0) {
+    computeHash();
 }
 
 void UpdateList::extend(const ref<Expr> &index, const ref<Expr> &value) {
@@ -85,15 +86,17 @@ int UpdateList::compare(const UpdateListPtr &b) const {
     return 0;
 }
 
-unsigned UpdateList::hash() const {
+void UpdateList::computeHash() {
     unsigned res = 0;
-    for (unsigned i = 0, e = root->getName().size(); i != e; ++i) {
-        res = (res * Expr::MAGIC_HASH_CONSTANT) + root->getName()[i];
+    if (root) {
+        for (unsigned i = 0, e = root->getName().size(); i != e; ++i) {
+            res = (res * Expr::MAGIC_HASH_CONSTANT) + root->getName()[i];
+        }
     }
 
     if (head) {
         res ^= head->hash();
     }
 
-    return res;
+    m_hashValue = res;
 }
