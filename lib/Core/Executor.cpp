@@ -2037,7 +2037,7 @@ void Executor::executeMemoryOperation(ExecutionState &state, bool isWrite, ref<E
 
     /////////////////////////////////////////////////////////////
     // We need to keep the address symbolic to avoid blowup.
-    // For that, add a constraint that will ensure that next time, we get a different memory object
+    // For that, add a constraint that will ensure that next time, we get a different memory object.
     // Constrain the symbolic address so that it falls
     // into the memory page determined by the concrete assignment.
     // This concerns the base address, which may overlap the next page,
@@ -2075,9 +2075,10 @@ void Executor::executeMemoryOperation(ExecutionState &state, bool isWrite, ref<E
         }
 
         StatePair branches = fork(state, overlappedCondition);
-        if (branches.second) {
+        auto forkedState = branches.first == &state ? branches.second : branches.first;
+        if (forkedState) {
             // The forked state will have to re-execute the memory op
-            branches.second->pc = branches.second->prevPC;
+            forkedState->pc = forkedState->prevPC;
         }
 
         notifyFork(state, overlappedCondition, branches);
@@ -2106,8 +2107,6 @@ void Executor::executeMemoryOperation(ExecutionState &state, bool isWrite, ref<E
     assert(branches.first == &state);
     if (branches.second) {
         // The forked state will have to re-execute the memory op
-        // XXX: there will be some fork wasteage because the forked state may
-        // end up here again (though the speculative state won't be feasible, so no inifinite loop).
         branches.second->pc = branches.second->prevPC;
     }
 
