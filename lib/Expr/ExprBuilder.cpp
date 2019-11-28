@@ -23,10 +23,6 @@ class DefaultExprBuilder : public ExprBuilder {
         return ConstantExpr::alloc(Value);
     }
 
-    virtual ref<Expr> NotOptimized(const ref<Expr> &Index) {
-        return NotOptimizedExpr::alloc(Index);
-    }
-
     virtual ref<Expr> Read(const UpdateListPtr &Updates, const ref<Expr> &Index) {
         return ReadExpr::alloc(Updates, Index);
     }
@@ -171,10 +167,6 @@ public:
         return Base->Constant(Value);
     }
 
-    ref<Expr> NotOptimized(const ref<Expr> &Index) {
-        return Base->NotOptimized(Index);
-    }
-
     ref<Expr> Read(const UpdateListPtr &Updates, const ref<Expr> &Index) {
         return Base->Read(Updates, Index);
     }
@@ -314,10 +306,6 @@ public:
 
     virtual ref<Expr> Constant(const llvm::APInt &Value) {
         return Builder.Constant(Value);
-    }
-
-    virtual ref<Expr> NotOptimized(const ref<Expr> &Index) {
-        return Builder.NotOptimized(Index);
     }
 
     virtual ref<Expr> Read(const UpdateListPtr &Updates, const ref<Expr> &Index) {

@@ -24,7 +24,6 @@ public:
     // Expressions
 
     virtual ref<Expr> Constant(const llvm::APInt &Value) = 0;
-    virtual ref<Expr> NotOptimized(const ref<Expr> &Index) = 0;
     virtual ref<Expr> Read(const UpdateListPtr &Updates, const ref<Expr> &Index) = 0;
     virtual ref<Expr> Select(const ref<Expr> &Cond, const ref<Expr> &LHS, const ref<Expr> &RHS) = 0;
     virtual ref<Expr> Concat(const ref<Expr> &LHS, const ref<Expr> &RHS) = 0;

@@ -476,11 +476,6 @@ public:
                 // we use this?
                 break;
 
-            // Special
-
-            case Expr::NotOptimized:
-                break;
-
             case Expr::Read: {
                 ReadExpr *re = cast<ReadExpr>(e);
                 auto &array = re->getUpdates()->getRoot();
@@ -809,11 +804,6 @@ public:
                 // FIXME: Assert that range contains this constant.
                 break;
             }
-
-            // Special
-
-            case Expr::NotOptimized:
-                break;
 
             case Expr::Read: {
                 ReadExpr *re = cast<ReadExpr>(e);

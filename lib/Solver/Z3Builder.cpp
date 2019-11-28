@@ -90,11 +90,6 @@ z3::expr Z3Builder::makeExpr(ref<Expr> e) {
             return context_.bv_val(const_repr.c_str(), width);
         }
 
-        case Expr::NotOptimized: {
-            NotOptimizedExpr *noe = cast<NotOptimizedExpr>(e);
-            return getOrMakeExpr(noe->getSrc());
-        }
-
         case Expr::Read: {
             return makeReadExpr(cast<ReadExpr>(e));
         }

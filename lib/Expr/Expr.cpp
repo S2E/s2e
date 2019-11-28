@@ -235,7 +235,6 @@ void Expr::printKind(llvm::raw_ostream &os, Kind k) {
         os << #C; \
         break
         X(Constant);
-        X(NotOptimized);
         X(Read);
         X(Select);
         X(Concat);
@@ -530,12 +529,6 @@ ref<ConstantExpr> ConstantExpr::Sgt(const ref<ConstantExpr> &RHS) {
 
 ref<ConstantExpr> ConstantExpr::Sge(const ref<ConstantExpr> &RHS) {
     return ConstantExpr::alloc(value.sge(RHS->value), Expr::Bool);
-}
-
-/***/
-
-ref<Expr> NotOptimizedExpr::create(const ref<Expr> &src) {
-    return NotOptimizedExpr::alloc(src);
 }
 
 /***/

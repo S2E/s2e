@@ -128,15 +128,8 @@ public:
 
         Constant = 0,
 
-        // Special
-
-        /// Prevents optimization below the given expression.  Used for
-        /// testing: make equality constraints that KLEE will not use to
-        /// optimize to concretes.
-        NotOptimized,
-
         //// Skip old varexpr, just for deserialization, purge at some point
-        Read = NotOptimized + 2,
+        Read,
         Select,
         Concat,
         Extract,
@@ -649,60 +642,6 @@ public:
         return Expr::CmpKindFirst <= k && k <= Expr::CmpKindLast;
     }
     static bool classof(const CmpExpr *) {
-        return true;
-    }
-};
-
-// Special
-
-class NotOptimizedExpr : public NonConstantExpr {
-private:
-    ref<Expr> src;
-
-public:
-    static const Kind kind = NotOptimized;
-    static const unsigned numKids = 1;
-
-    virtual ~NotOptimizedExpr() {
-    }
-
-    static ref<Expr> alloc(const ref<Expr> &src) {
-        return ref<Expr>(new NotOptimizedExpr(src));
-    }
-
-    static ref<Expr> create(const ref<Expr> &src);
-
-    ref<Expr> getSrc() const {
-        return src;
-    }
-
-    Width getWidth() const {
-        return src->getWidth();
-    }
-    Kind getKind() const {
-        return NotOptimized;
-    }
-
-    unsigned getNumKids() const {
-        return 1;
-    }
-    ref<Expr> getKid(unsigned i) const {
-        return src;
-    }
-
-    virtual ref<Expr> rebuild(ref<Expr> kids[]) const {
-        return create(kids[0]);
-    }
-
-private:
-    NotOptimizedExpr(const ref<Expr> &_src) : src(_src) {
-    }
-
-public:
-    static bool classof(const Expr *E) {
-        return E->getKind() == Expr::NotOptimized;
-    }
-    static bool classof(const NotOptimizedExpr *) {
         return true;
     }
 };

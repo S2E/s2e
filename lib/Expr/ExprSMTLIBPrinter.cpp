@@ -197,11 +197,6 @@ void ExprSMTLIBPrinter::printFullExpression(const ref<Expr> &e, ExprSMTLIBPrinte
             printConstant(cast<ConstantExpr>(e));
             return; // base case
 
-        case Expr::NotOptimized:
-            // skip to child
-            printExpression(e->getKid(0), expectedSort);
-            return;
-
         case Expr::Read:
             printReadExpr(cast<ReadExpr>(e));
             return;
@@ -903,9 +898,6 @@ void ExprSMTLIBPrinter::printAssert(const ref<Expr> &e) {
 
 ExprSMTLIBPrinter::SMTLIB_SORT ExprSMTLIBPrinter::getSort(const ref<Expr> &e) {
     switch (e->getKind()) {
-        case Expr::NotOptimized:
-            return getSort(e->getKid(0));
-
         // The relational operators are bools.
         case Expr::Eq:
         case Expr::Ne:
