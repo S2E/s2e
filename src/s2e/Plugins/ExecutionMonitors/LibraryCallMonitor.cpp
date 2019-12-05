@@ -139,9 +139,9 @@ void LibraryCallMonitor::logLibraryCall(S2EExecutionState *state, const ModuleDe
     }
 
     getInfoStream(state) << sourceMod.Name << ":" << hexval(relSourcePc) << " (" << hexval(sourcePcAbsolute) << ") "
-                         << sourceTypeDesc << destMod.Name << ":" << hexval(relDestPc) << " (" << hexval(destPcAbsolute)
-                         << ") "
-                         << "!" << function << " (pid=" << hexval(sourceMod.Pid) << ")\n";
+                         << sourceTypeDesc << destMod.Name << "!" << function << ":" << hexval(relDestPc) << " ("
+                         << hexval(destPcAbsolute) << ")"
+                         << " (pid=" << hexval(sourceMod.Pid) << ")\n";
 }
 
 void LibraryCallMonitor::onTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb,
