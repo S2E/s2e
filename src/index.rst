@@ -66,7 +66,7 @@ vulnerabilities in them. S2E is pronounced *S two E*.
 
    DesignAndImplementation/KvmInterface
    Contribute
-   ProfilingS2E
+   Profiling/ProfilingS2E
    DebuggingS2E
    Testsuite
    WindowsEnvSetup
