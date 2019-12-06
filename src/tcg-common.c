@@ -1,7 +1,7 @@
 /*
  * Tiny Code Generator for QEMU
  *
- * Copyright (c) 2017, Cyberhaven
+ * Copyright (c) 2008 Fabrice Bellard
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,20 +22,16 @@
  * THE SOFTWARE.
  */
 
-#ifndef __TCG_CPU_H__
+#include <tcg/tcg.h>
+#include <tcg/utils/osdep.h>
 
-#define __TCG_CPU_H__
-
-#include <inttypes.h>
-
-#ifdef CONFIG_SYMBEX
-typedef struct tb_precise_pc_t_ {
-    uint16_t host_pc_increment;  // Increment from the start host pc of the tb
-    uint16_t guest_pc_increment; // Increment from the start pc of the tb
-    uint16_t opc;
-    uint8_t cc_op;
-    uint8_t guest_inst_size;
-} tb_precise_pc_t;
+#if defined(CONFIG_TCG_INTERPRETER)
+uintptr_t tci_tb_ptr;
 #endif
 
-#endif
+TCGOpDef tcg_op_defs[] = {
+#define DEF(s, oargs, iargs, cargs, flags) {#s, oargs, iargs, cargs, iargs + oargs + cargs, flags},
+#include <tcg/tcg-opc.h>
+#undef DEF
+};
+const size_t tcg_op_defs_max = ARRAY_SIZE(tcg_op_defs);

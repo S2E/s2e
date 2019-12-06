@@ -21,9 +21,9 @@
 cmake_minimum_required(VERSION 3.4.3)
 
 project(LIBTCG)
-set(LIBTCG_VERSION_MAJOR 1)
+set(LIBTCG_VERSION_MAJOR 4)
 set(LIBTCG_VERSION_MINOR 0)
-set(LIBTCG_VERSION_PATCH 50)
+set(LIBTCG_VERSION_PATCH 0)
 set(LIBTCG_PACKAGE_VERSION
     "${LIBTCG_VERSION_MAJOR}.${LIBTCG_VERSION_MINOR}.${LIBTCG_VERSION_PATCH}")
 
@@ -40,6 +40,9 @@ configure_file(LIBTCGConfig.cmake.in ${CMAKE_CONFIG_FILE} @ONLY)
 
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GLIB_PKG glib-2.0)
+
+find_package(LIBQ REQUIRED)
+message(STATUS "Found libq ${LIBQ_PACKAGE_VERSION}")
 
 ##### LLVM #####
 find_package(LLVM REQUIRED)
@@ -71,8 +74,11 @@ message(STATUS "WITH_GUEST: ${WITH_GUEST}")
 
 if(WITH_GUEST MATCHES "i386")
     set(TARGET_LONG_BITS "32")
+    set(TARGET_INSN_START_EXTRA_WORDS "1")
 elseif(WITH_GUEST MATCHES "x86_64")
     set(TARGET_LONG_BITS "64")
+    set(TARGET_INSN_START_EXTRA_WORDS "1")
+    set(TARGET_X86_64 "1")
 else()
     message(FATAL_ERROR "Incorrect target ${WITH_GUEST}")
 endif()
@@ -84,5 +90,5 @@ if(WITH_GUEST MATCHES "s2e")
     endif()
 endif()
 
-include_directories(${GLIB_PKG_INCLUDE_DIRS} ${LIBTCG_INCLUDE_DIR})
+include_directories(${GLIB_PKG_INCLUDE_DIRS} ${LIBTCG_INCLUDE_DIR} ${LIBQ_INCLUDE_DIR})
 add_subdirectory(src)
