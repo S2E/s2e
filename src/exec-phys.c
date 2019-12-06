@@ -19,8 +19,9 @@
 #include <cpu/config.h>
 #include <cpu/memory.h>
 #include <inttypes.h>
+
+#include <tcg/utils/osdep.h>
 #include "exec.h"
-#include "osdep.h"
 #include "qemu-common.h"
 
 const uint16_t phys_section_unassigned = 0;

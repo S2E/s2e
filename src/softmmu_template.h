@@ -51,17 +51,9 @@
 #define ADDR_READ addr_read
 #endif
 
-#ifndef CONFIG_TCG_PASS_AREG0
-#define ENV_PARAM
-#define ENV_VAR
-#define CPU_PREFIX
-#define HELPER_PREFIX __
-#else
-#define ENV_PARAM CPUArchState *env,
 #define ENV_VAR env,
 #define CPU_PREFIX cpu_
 #define HELPER_PREFIX helper_
-#endif
 
 #define ADDR_MAX ((target_ulong) -1)
 
@@ -121,19 +113,20 @@
 
 #endif // CONFIG_SYMBEX
 
-static DATA_TYPE glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(target_ulong addr, int mmu_idx, void *retaddr);
+static DATA_TYPE glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_ulong addr, int mmu_idx,
+                                                        void *retaddr);
 
-DATA_TYPE glue(glue(io_read, SUFFIX), MMUSUFFIX)(ENV_PARAM target_phys_addr_t physaddr, target_ulong addr,
+DATA_TYPE glue(glue(io_read, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_phys_addr_t physaddr, target_ulong addr,
                                                  void *retaddr);
 
 #if defined(STATIC_TRANSLATOR)
-inline DATA_TYPE glue(glue(io_read_chk, SUFFIX), MMUSUFFIX)(ENV_PARAM target_phys_addr_t physaddr, target_ulong addr,
-                                                            void *retaddr) {
+DATA_TYPE glue(glue(io_read_chk, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_phys_addr_t physaddr, target_ulong addr,
+                                                     void *retaddr) {
     assert(false && "Cannot run statically");
 }
 
 #elif !defined(SYMBEX_LLVM_LIB)
-DATA_TYPE glue(glue(io_read, SUFFIX), MMUSUFFIX)(ENV_PARAM target_phys_addr_t physaddr, target_ulong addr,
+DATA_TYPE glue(glue(io_read, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_phys_addr_t physaddr, target_ulong addr,
                                                  void *retaddr) {
     DATA_TYPE res;
     const struct MemoryDescOps *ops = phys_get_ops(physaddr);
@@ -142,7 +135,7 @@ DATA_TYPE glue(glue(io_read, SUFFIX), MMUSUFFIX)(ENV_PARAM target_phys_addr_t ph
 
 #if defined(CONFIG_SYMBEX) && defined(CONFIG_SYMBEX_MP)
     // Can't handle symbolic mmio from helpers
-    if (unlikely(_se_check_dyngen(retaddr) && g_sqi.mem.is_mmio_symbolic(addr, DATA_SIZE))) {
+    if (unlikely(tcg_is_dyngen_addr(retaddr) && g_sqi.mem.is_mmio_symbolic(addr, DATA_SIZE))) {
         g_sqi.exec.switch_to_symbolic(retaddr);
     }
 
@@ -150,7 +143,7 @@ DATA_TYPE glue(glue(io_read, SUFFIX), MMUSUFFIX)(ENV_PARAM target_phys_addr_t ph
         CPUTLBEntry *e = env->se_tlb_current;
         if (likely(_se_check_concrete(e->objectState, addr & ~SE_RAM_OBJECT_MASK, DATA_SIZE))) {
             return glue(glue(ld, USUFFIX), _p)((uint8_t *) (addr + (e->se_addend)));
-        } else if (!_se_check_dyngen(retaddr)) {
+        } else if (!tcg_is_dyngen_addr(retaddr)) {
             /**
              * Concretize any symbolic data touched by helpers.
              * It is not possible to switch to symbolic mode in the middle
@@ -182,15 +175,15 @@ DATA_TYPE glue(glue(io_read, SUFFIX), MMUSUFFIX)(ENV_PARAM target_phys_addr_t ph
     return res;
 }
 
-inline DATA_TYPE glue(glue(io_read_chk, SUFFIX), MMUSUFFIX)(ENV_PARAM target_phys_addr_t physaddr, target_ulong addr,
-                                                            void *retaddr) {
+DATA_TYPE glue(glue(io_read_chk, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_phys_addr_t physaddr, target_ulong addr,
+                                                     void *retaddr) {
     return glue(glue(io_read, SUFFIX), MMUSUFFIX)(ENV_VAR physaddr, addr, retaddr);
 }
 
 #elif defined(SYMBEX_LLVM_LIB) // SYMBEX_LLVM_LIB
 
-inline DATA_TYPE glue(glue(io_read_chk, SUFFIX), MMUSUFFIX)(ENV_PARAM target_phys_addr_t physaddr, target_ulong addr,
-                                                            void *retaddr) {
+DATA_TYPE glue(glue(io_read_chk, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_phys_addr_t physaddr, target_ulong addr,
+                                                     void *retaddr) {
     // Putting together two 32-bit values involves an or and a shift,
     // which produces hard-to-simplify symbolic expressions.
     // Instead, we use a union to force casting, which will generate
@@ -212,24 +205,27 @@ inline DATA_TYPE glue(glue(io_read_chk, SUFFIX), MMUSUFFIX)(ENV_PARAM target_phy
     SE_SET_MEM_IO_VADDR(env, addr, 0);
 #if SHIFT <= 2
     if (se_ismemfunc(ops, 0)) {
-        uintptr_t pa = se_notdirty_mem_read(naddr & TARGET_PAGE_MASK) | (naddr & (TARGET_PAGE_SIZE - 1));
+        uintptr_t pa = se_notdirty_mem_read(naddr);
         res.res = glue(glue(ld, USUFFIX), _raw)((uint8_t *) (intptr_t)(pa));
-
         goto end;
     }
 #else
 #ifdef TARGET_WORDS_BIGENDIAN
     if (se_ismemfunc(ops, 0)) {
-        uintptr_t pa = se_notdirty_mem_read(naddr & TARGET_PAGE_MASK) | (naddr & (TARGET_PAGE_SIZE - 1));
+        uintptr_t pa = se_notdirty_mem_read(naddr);
         *(uint32_t *) &res.raw[sizeof(uint32_t)] = glue(glue(ld, USUFFIX), _raw)((uint8_t *) (intptr_t)(pa));
-        *(uint32_t *) &res.raw[0] = glue(glue(ld, USUFFIX), _raw)((uint8_t *) (intptr_t)(pa + 4));
+
+        pa = se_notdirty_mem_read(naddr + 4);
+        *(uint32_t *) &res.raw[0] = glue(glue(ld, USUFFIX), _raw)((uint8_t *) (intptr_t)(pa));
         goto end;
     }
 #else
     if (se_ismemfunc(ops, 0)) {
-        uintptr_t pa = se_notdirty_mem_read(naddr & TARGET_PAGE_MASK) | (naddr & (TARGET_PAGE_SIZE - 1));
+        uintptr_t pa = se_notdirty_mem_read(naddr);
         *(uint32_t *) &res.raw[0] = glue(glue(ld, USUFFIX), _raw)((uint8_t *) (intptr_t)(pa));
-        *(uint32_t *) &res.raw[sizeof(uint32_t)] = glue(glue(ld, USUFFIX), _raw)((uint8_t *) (intptr_t)(pa + 4));
+
+        pa = se_notdirty_mem_read(naddr + 4);
+        *(uint32_t *) &res.raw[sizeof(uint32_t)] = glue(glue(ld, USUFFIX), _raw)((uint8_t *) (intptr_t)(pa));
         goto end;
     }
 #endif
@@ -250,13 +246,15 @@ end:
 #ifndef STATIC_TRANSLATOR
 /* handle all cases except unaligned access which span two pages */
 DATA_TYPE
-glue(glue(glue(HELPER_PREFIX, ld), SUFFIX), MMUSUFFIX)(ENV_PARAM target_ulong addr, int mmu_idx) {
+glue(glue(glue(HELPER_PREFIX, ld), SUFFIX), MMUSUFFIX)(CPUArchState *env, target_ulong addr, int mmu_idx,
+                                                       void *retaddr) {
     DATA_TYPE res;
     target_ulong object_index, index;
     target_ulong tlb_addr;
     target_phys_addr_t ioaddr;
-    void *retaddr = NULL;
     CPUTLBEntry *tlb_entry;
+
+    mmu_idx = mmu_idx & 0xf;
 
 /* test if there is match for unaligned or IO access */
 /* XXX: could done more in memory macro in a non portable way */
@@ -272,15 +270,12 @@ glue(glue(glue(HELPER_PREFIX, ld), SUFFIX), MMUSUFFIX)(ENV_PARAM target_ulong ad
 
 redo:
     tlb_entry = &env->tlb_table[mmu_idx][index];
-    tlb_addr = tlb_entry->ADDR_READ;
+    tlb_addr = tlb_entry->ADDR_READ & ~TLB_MEM_TRACE;
     if (likely((addr & TARGET_PAGE_MASK) == (tlb_addr & (TARGET_PAGE_MASK | TLB_INVALID_MASK)))) {
         if (unlikely(tlb_addr & ~TARGET_PAGE_MASK)) {
             /* IO access */
             if ((addr & (DATA_SIZE - 1)) != 0)
                 goto do_unaligned_access;
-#ifndef SYMBEX_LLVM_LIB
-            retaddr = GETPC();
-#endif
             ioaddr = env->iotlb[mmu_idx][index];
 #ifdef CONFIG_SYMBEX
             env->se_tlb_current = tlb_entry;
@@ -292,9 +287,6 @@ redo:
         } else if (unlikely(((addr & ~SE_RAM_OBJECT_MASK) + DATA_SIZE - 1) >= SE_RAM_OBJECT_SIZE)) {
         /* slow unaligned access (it spans two pages or IO) */
         do_unaligned_access:
-#ifndef SYMBEX_LLVM_LIB
-            retaddr = GETPC();
-#endif
 #ifdef ALIGNED_ONLY
             do_unaligned_access(ENV_VAR addr, READ_ACCESS_TYPE, mmu_idx, retaddr);
 #endif
@@ -303,9 +295,6 @@ redo:
 /* unaligned/aligned access in the same page */
 #ifdef ALIGNED_ONLY
             if ((addr & (DATA_SIZE - 1)) != 0) {
-#ifndef SYMBEX_LLVM_LIB
-                retaddr = GETPC();
-#endif
                 do_unaligned_access(ENV_VAR addr, READ_ACCESS_TYPE, mmu_idx, retaddr);
             }
 #endif
@@ -319,9 +308,6 @@ redo:
         }
     } else {
 /* the page is not in the TLB : fill it */
-#ifndef SYMBEX_LLVM_LIB
-        retaddr = GETPC();
-#endif
 #ifdef ALIGNED_ONLY
         if ((addr & (DATA_SIZE - 1)) != 0)
             do_unaligned_access(ENV_VAR addr, READ_ACCESS_TYPE, mmu_idx, retaddr);
@@ -335,7 +321,8 @@ redo:
 #endif /* STATIC_TRANSLATOR */
 
 /* handle all unaligned cases */
-static DATA_TYPE glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(ENV_PARAM target_ulong addr, int mmu_idx, void *retaddr) {
+static DATA_TYPE glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_ulong addr, int mmu_idx,
+                                                        void *retaddr) {
     DATA_TYPE res, res1, res2;
     target_ulong object_index, index, shift;
     target_phys_addr_t ioaddr;
@@ -348,7 +335,8 @@ static DATA_TYPE glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(ENV_PARAM target_ulong a
     index = (object_index >> SE_RAM_OBJECT_DIFF) & (CPU_TLB_SIZE - 1);
 redo:
     tlb_entry = &env->tlb_table[mmu_idx][index];
-    tlb_addr = tlb_entry->ADDR_READ;
+    tlb_addr = tlb_entry->ADDR_READ & ~TLB_MEM_TRACE;
+
     if ((addr & TARGET_PAGE_MASK) == (tlb_addr & (TARGET_PAGE_MASK | TLB_INVALID_MASK))) {
         if (tlb_addr & ~TARGET_PAGE_MASK) {
             /* IO access */
@@ -398,28 +386,28 @@ redo:
 
 #ifndef SOFTMMU_CODE_ACCESS
 
-static void glue(glue(slow_st, SUFFIX), MMUSUFFIX)(ENV_PARAM target_ulong addr, DATA_TYPE val, int mmu_idx,
+static void glue(glue(slow_st, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_ulong addr, DATA_TYPE val, int mmu_idx,
                                                    void *retaddr);
 
-void glue(glue(io_write, SUFFIX), MMUSUFFIX)(ENV_PARAM target_phys_addr_t physaddr, DATA_TYPE val, target_ulong addr,
-                                             void *retaddr);
+void glue(glue(io_write, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_phys_addr_t physaddr, DATA_TYPE val,
+                                             target_ulong addr, void *retaddr);
 #if defined(STATIC_TRANSLATOR)
-inline void glue(glue(io_write_chk, SUFFIX), MMUSUFFIX)(ENV_PARAM target_phys_addr_t physaddr, DATA_TYPE val,
-                                                        target_ulong addr, void *retaddr) {
+void glue(glue(io_write_chk, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_phys_addr_t physaddr, DATA_TYPE val,
+                                                 target_ulong addr, void *retaddr) {
     assert(false && "Cannot run statically");
 }
 
 #elif !defined(SYMBEX_LLVM_LIB)
 
-void glue(glue(io_write, SUFFIX), MMUSUFFIX)(ENV_PARAM target_phys_addr_t physaddr, DATA_TYPE val, target_ulong addr,
-                                             void *retaddr) {
+void glue(glue(io_write, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_phys_addr_t physaddr, DATA_TYPE val,
+                                             target_ulong addr, void *retaddr) {
     const struct MemoryDescOps *ops = phys_get_ops(physaddr);
 
     physaddr = (physaddr & TARGET_PAGE_MASK) + addr;
 
 #if defined(CONFIG_SYMBEX) && defined(CONFIG_SYMBEX_MP)
     // XXX: avoid switch to symbolic mode here, not needed for writes
-    if (unlikely(_se_check_dyngen(retaddr) && g_sqi.mem.is_mmio_symbolic(addr, DATA_SIZE))) {
+    if (unlikely(tcg_is_dyngen_addr(retaddr) && g_sqi.mem.is_mmio_symbolic(addr, DATA_SIZE))) {
         g_sqi.exec.switch_to_symbolic(retaddr);
     }
 
@@ -451,14 +439,13 @@ void glue(glue(io_write, SUFFIX), MMUSUFFIX)(ENV_PARAM target_phys_addr_t physad
 #endif /* SHIFT > 2 */
 }
 
-inline void glue(glue(io_write_chk, SUFFIX), MMUSUFFIX)(ENV_PARAM target_phys_addr_t physaddr, DATA_TYPE val,
-                                                        target_ulong addr, void *retaddr) {
+void glue(glue(io_write_chk, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_phys_addr_t physaddr, DATA_TYPE val,
+                                                 target_ulong addr, void *retaddr) {
     // XXX: check symbolic memory mapped devices and write log here.
     glue(glue(io_write, SUFFIX), MMUSUFFIX)(ENV_VAR physaddr, val, addr, retaddr);
 }
 
 #else
-
 /**
   * Only if compiling for LLVM.
   * This function checks whether a write goes to a clean memory page.
@@ -467,8 +454,8 @@ inline void glue(glue(io_write_chk, SUFFIX), MMUSUFFIX)(ENV_PARAM target_phys_ad
   *
   * It also deals with writes to memory-mapped devices that are symbolic
   */
-inline void glue(glue(io_write_chk, SUFFIX), MMUSUFFIX)(ENV_PARAM target_phys_addr_t physaddr, DATA_TYPE val,
-                                                        target_ulong addr, void *retaddr) {
+void glue(glue(io_write_chk, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_phys_addr_t physaddr, DATA_TYPE val,
+                                                 target_ulong addr, void *retaddr) {
     target_phys_addr_t origaddr = physaddr;
     const struct MemoryDescOps *ops = phys_get_ops(physaddr);
 
@@ -478,7 +465,7 @@ inline void glue(glue(io_write_chk, SUFFIX), MMUSUFFIX)(ENV_PARAM target_phys_ad
     env->mem_io_pc = (uintptr_t) retaddr;
 #if SHIFT <= 2
     if (se_ismemfunc(ops, 1)) {
-        uintptr_t pa = se_notdirty_mem_write(physaddr & TARGET_PAGE_MASK) | (physaddr & (TARGET_PAGE_SIZE - 1));
+        uintptr_t pa = se_notdirty_mem_write(physaddr, 1 << SHIFT);
         glue(glue(st, SUFFIX), _raw)((uint8_t *) (intptr_t)(pa), val);
         goto end;
     }
@@ -487,9 +474,10 @@ inline void glue(glue(io_write_chk, SUFFIX), MMUSUFFIX)(ENV_PARAM target_phys_ad
 #error Big endian not supported
 #else
     if (se_ismemfunc(ops, 1)) {
-        uintptr_t pa = se_notdirty_mem_write(physaddr & TARGET_PAGE_MASK) | (physaddr & (TARGET_PAGE_SIZE - 1));
+        uintptr_t pa = se_notdirty_mem_write(physaddr, 1 << SHIFT);
         stl_raw((uint8_t *) (intptr_t)(pa), val);
-        stl_raw((uint8_t *) (intptr_t)(pa + 4), val >> 32);
+        pa = se_notdirty_mem_write(physaddr + 4, 1 << SHIFT);
+        stl_raw((uint8_t *) (intptr_t)(pa), val >> 32);
         goto end;
     }
 #endif
@@ -506,12 +494,14 @@ end:
 #endif
 
 #ifndef STATIC_TRANSLATOR
-void glue(glue(glue(HELPER_PREFIX, st), SUFFIX), MMUSUFFIX)(ENV_PARAM target_ulong addr, DATA_TYPE val, int mmu_idx) {
+void glue(glue(glue(HELPER_PREFIX, st), SUFFIX), MMUSUFFIX)(CPUArchState *env, target_ulong addr, DATA_TYPE val,
+                                                            int mmu_idx, void *retaddr) {
     target_phys_addr_t ioaddr;
     target_ulong tlb_addr;
-    void *retaddr = NULL;
     target_ulong object_index, index;
     CPUTLBEntry *tlb_entry;
+
+    mmu_idx = mmu_idx & 0xf;
 
 #ifdef CONFIG_SYMBEX_MP
     INSTR_BEFORE_MEMORY_ACCESS(addr, val, 1);
@@ -525,15 +515,14 @@ void glue(glue(glue(HELPER_PREFIX, st), SUFFIX), MMUSUFFIX)(ENV_PARAM target_ulo
 
 redo:
     tlb_entry = &env->tlb_table[mmu_idx][index];
-    tlb_addr = tlb_entry->addr_write;
+    tlb_addr = tlb_entry->addr_write & ~TLB_MEM_TRACE;
+    ;
     if (likely((addr & TARGET_PAGE_MASK) == (tlb_addr & (TARGET_PAGE_MASK | TLB_INVALID_MASK)))) {
         if (unlikely(tlb_addr & ~TARGET_PAGE_MASK)) {
             /* IO access */
             if ((addr & (DATA_SIZE - 1)) != 0)
                 goto do_unaligned_access;
-#ifndef SYMBEX_LLVM_LIB
-            retaddr = GETPC();
-#endif
+
             ioaddr = env->iotlb[mmu_idx][index];
 
 #ifdef CONFIG_SYMBEX
@@ -546,9 +535,7 @@ redo:
         } else if (unlikely(((addr & ~SE_RAM_OBJECT_MASK) + DATA_SIZE - 1) >= SE_RAM_OBJECT_SIZE)) {
 
         do_unaligned_access:
-#ifndef SYMBEX_LLVM_LIB
-            retaddr = GETPC();
-#endif
+
 #ifdef ALIGNED_ONLY
             do_unaligned_access(ENV_VAR addr, 1, mmu_idx, retaddr);
 #endif
@@ -557,9 +544,6 @@ redo:
 /* aligned/unaligned access in the same page */
 #ifdef ALIGNED_ONLY
             if ((addr & (DATA_SIZE - 1)) != 0) {
-#ifndef SYMBEX_LLVM_LIB
-                retaddr = GETPC();
-#endif
                 do_unaligned_access(ENV_VAR addr, 1, mmu_idx, retaddr);
             }
 #endif
@@ -573,9 +557,6 @@ redo:
         }
     } else {
 /* the page is not in the TLB : fill it */
-#ifndef SYMBEX_LLVM_LIB
-        retaddr = GETPC();
-#endif
 #ifdef ALIGNED_ONLY
         if ((addr & (DATA_SIZE - 1)) != 0)
             do_unaligned_access(ENV_VAR addr, 1, mmu_idx, retaddr);
@@ -587,7 +568,7 @@ redo:
 #endif /* STATIC_TRANSLATOR */
 
 /* handles all unaligned cases */
-static void glue(glue(slow_st, SUFFIX), MMUSUFFIX)(ENV_PARAM target_ulong addr, DATA_TYPE val, int mmu_idx,
+static void glue(glue(slow_st, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_ulong addr, DATA_TYPE val, int mmu_idx,
                                                    void *retaddr) {
     target_phys_addr_t ioaddr;
     target_ulong tlb_addr;
@@ -601,7 +582,8 @@ static void glue(glue(slow_st, SUFFIX), MMUSUFFIX)(ENV_PARAM target_ulong addr, 
     index = (object_index >> SE_RAM_OBJECT_DIFF) & (CPU_TLB_SIZE - 1);
 redo:
     tlb_entry = &env->tlb_table[mmu_idx][index];
-    tlb_addr = tlb_entry->addr_write;
+    tlb_addr = tlb_entry->addr_write & ~TLB_MEM_TRACE;
+    ;
     if ((addr & TARGET_PAGE_MASK) == (tlb_addr & (TARGET_PAGE_MASK | TLB_INVALID_MASK))) {
         if (tlb_addr & ~TARGET_PAGE_MASK) {
             /* IO access */
@@ -663,7 +645,6 @@ redo:
 #undef USUFFIX
 #undef DATA_SIZE
 #undef ADDR_READ
-#undef ENV_PARAM
 #undef ENV_VAR
 #undef CPU_PREFIX
 #undef HELPER_PREFIX

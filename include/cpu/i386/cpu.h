@@ -30,6 +30,8 @@
 #include "cpuid.h"
 #include "defs.h"
 
+#include <tcg/regs.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -40,23 +42,6 @@ typedef struct SegmentCache {
     uint32_t limit;
     uint32_t flags;
 } SegmentCache;
-
-typedef union {
-    uint8_t _b[16];
-    uint16_t _w[8];
-    uint32_t _l[4];
-    uint64_t _q[2];
-    float32 _s[4];
-    float64 _d[2];
-} XMMReg;
-
-typedef union {
-    uint8_t _b[8];
-    uint16_t _w[4];
-    uint32_t _l[2];
-    float32 _s[2];
-    uint64_t q;
-} MMXReg;
 
 typedef union {
     floatx80 d __attribute__((aligned(16)));

@@ -26,6 +26,7 @@
 #include <cpu/config-host.h>
 #include <cpu/i386/cpuid.h>
 #include <libcpu-log.h>
+#include <tcg/utils/osdep.h>
 
 /* feature flags taken from "Intel Processor Identification and the CPUID
  * Instruction" and AMD's "CPUID Specification".  In cases of disagreement

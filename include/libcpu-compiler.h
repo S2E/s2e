@@ -27,9 +27,6 @@ extern "C" {
 #define LIBCPU_PACKED __attribute__((packed))
 #endif
 
-#define cat(x, y) x##y
-#define cat2(x, y) cat(x, y)
-
 #if defined __GNUC__
 #if !LIBCPU_GNUC_PREREQ(4, 4)
 /* gcc versions before 4.4.x don't support gnu_printf, so use printf. */
@@ -51,12 +48,6 @@ extern "C" {
 #define __builtin_expect(x, n) (x)
 #endif
 
-#define likely(x) __builtin_expect(!!(x), 1)
-#define unlikely(x) __builtin_expect(!!(x), 0)
-#endif
-
-#ifndef ARRAY_SIZE
-#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 #endif
 
 #ifdef __cplusplus

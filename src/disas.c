@@ -33,7 +33,7 @@
 /// \param size  the size of the chunk to disassemble
 /// \param flags i386: 2 => 64-bit, 1 => 16-bit, 0 => 32-bit
 ///
-void target_disas_ex(void *env, FILE *out, fprintf_function_t func, target_ulong pc, target_ulong size, int flags) {
+void target_disas_ex(void *env, FILE *out, fprintf_function_t func, uintptr_t pc, size_t size, int flags) {
     csh handle;
     cs_insn *insn;
     size_t count;
@@ -60,7 +60,16 @@ void target_disas_ex(void *env, FILE *out, fprintf_function_t func, target_ulong
     }
 
     uint8_t buffer[size];
-    cpu_memory_rw_debug(env, pc, buffer, size, 0);
+    if (env) {
+        cpu_memory_rw_debug(env, (target_ulong) pc, buffer, size, 0);
+    } else {
+        memcpy(buffer, (void *) pc, size);
+    }
+
+    for (unsigned i = 0; i < size; ++i) {
+        func(out, "%#02x ", buffer[i]);
+    }
+    func(out, "\n");
 
     count = cs_disasm(handle, buffer, size, pc, 0, &insn);
 
@@ -80,4 +89,8 @@ void target_disas_ex(void *env, FILE *out, fprintf_function_t func, target_ulong
 
 void target_disas(void *env, FILE *out, target_ulong pc, target_ulong size, int flags) {
     target_disas_ex(env, out, fprintf, pc, size, flags);
+}
+
+void host_disas(FILE *out, void *pc, size_t size) {
+    target_disas_ex(NULL, out, fprintf, (uintptr_t) pc, size, 2);
 }

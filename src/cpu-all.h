@@ -164,20 +164,6 @@ static inline int _se_check_concrete(void *objectState, target_ulong offset, int
 #endif
 }
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-extern uint8_t *code_gen_buffer;
-extern unsigned long code_gen_buffer_size;
-#ifdef __cplusplus
-}
-#endif
-
-static inline int _se_check_dyngen(void *addr) {
-    uint8_t *a = (uint8_t *) addr;
-    return a >= code_gen_buffer && a < code_gen_buffer + code_gen_buffer_size;
-}
-
 static inline void *_se_check_translate_ram_access(const void *p, unsigned size) {
 #if defined(SE_ENABLE_PHYSRAM_TLB)
     extern CPUArchState *env;
@@ -305,13 +291,6 @@ _symbex_define_st_raw_le(float64,  fq, 8)
 // clang-format on
 #endif
 
-/* ??? These should be the larger of unsigned long and target_ulong.  */
-extern unsigned long qemu_real_host_page_size;
-extern unsigned long qemu_host_page_size;
-extern unsigned long qemu_host_page_mask;
-
-#define HOST_PAGE_ALIGN(addr) (((addr) + qemu_host_page_size - 1) & qemu_host_page_mask)
-
 /* same as PROT_xxx */
 #define PAGE_READ 0x0001
 #define PAGE_WRITE 0x0002
@@ -373,9 +352,5 @@ void run_on_cpu(CPUArchState *env, void (*func)(void *data), void *data);
 /* Get a list of mapped pages. */
 void list_mapped_pages(CPUX86State *env, unsigned rw_only, unsigned user_only, target_ulong **pages_addr,
                        size_t *pages_count);
-
-void cpu_tlb_update_dirty(CPUArchState *env);
-
-void dump_exec_info(FILE *f, fprintf_function cpu_fprintf);
 
 #endif /* CPU_ALL_H */

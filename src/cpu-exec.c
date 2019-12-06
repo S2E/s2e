@@ -17,8 +17,10 @@
 /// License along with this library; if not, see <http://www.gnu.org/licenses/>.
 
 #include <cpu/config.h>
+#include <cpu/types.h>
 #include <tcg/tcg.h>
 #include "cpu.h"
+#include "exec-tb.h"
 
 #ifdef CONFIG_SYMBEX
 #include <cpu/se_libcpu.h>
@@ -27,14 +29,15 @@
 #define barrier() asm volatile("" ::: "memory")
 
 // #define DEBUG_EXEC
+// #define TRACE_EXEC
 
 #ifdef DEBUG_EXEC
-#define DPRINTF(...) printf(__VA_ARGS__)
+#define DPRINTF(...) fprintf(logfile, __VA_ARGS__)
 #else
 #define DPRINTF(...)
 #endif
 
-#if defined(CONFIG_SYMBEX)
+#if defined(CONFIG_SYMBEX_MP)
 #include "tcg/tcg-llvm.h"
 #endif
 
@@ -55,6 +58,14 @@ void se_tb_safe_flush(void) {
 void cpu_loop_exit(CPUArchState *env) {
     env->current_tb = NULL;
     longjmp(env->jmp_env, 1);
+}
+
+void cpu_loop_exit_restore(CPUArchState *env, uintptr_t ra) {
+    if (ra) {
+        cpu_restore_state(env, ra);
+    }
+
+    cpu_loop_exit(env);
 }
 
 /* exit the current TB from a signal handler. The host registers are
@@ -84,17 +95,28 @@ static TranslationBlock *tb_find_slow(CPUArchState *env, target_ulong pc, target
     ptb1 = &tb_phys_hash[h];
     for (;;) {
         tb = *ptb1;
-        if (!tb)
+        if (!tb) {
             goto not_found;
-        if (tb->pc == pc && tb->page_addr[0] == phys_page1 && tb->cs_base == cs_base && tb->flags == flags) {
+        }
+
+        int llvm_nok = 0;
+#if defined(CONFIG_SYMBEX_MP)
+        if (env->generate_llvm && !tb->llvm_function) {
+            llvm_nok = 1;
+        }
+#endif
+
+        if (tb->pc == pc && tb->page_addr[0] == phys_page1 && tb->cs_base == cs_base && tb->flags == flags &&
+            !llvm_nok) {
             /* check next page if needed */
             if (tb->page_addr[1] != -1) {
                 tb_page_addr_t phys_page2;
 
                 virt_page2 = (pc & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
                 phys_page2 = get_page_addr_code(env, virt_page2);
-                if (tb->page_addr[1] == phys_page2)
+                if (tb->page_addr[1] == phys_page2) {
                     ++g_cpu_stats.tb_misses;
+                }
                 goto found;
             } else {
                 ++g_cpu_stats.tb_misses;
@@ -142,7 +164,14 @@ static inline TranslationBlock *tb_find_fast(CPUArchState *env) {
        is executed. */
     cpu_get_tb_cpu_state(env, &pc, &cs_base, &flags);
     tb = env->tb_jmp_cache[tb_jmp_cache_hash_func(pc)];
-    if (unlikely(!tb || tb->pc != pc || tb->cs_base != cs_base || tb->flags != flags)) {
+
+#ifdef CONFIG_SYMBEX
+    int llvm_nok = env->generate_llvm && (!tb || !tb->llvm_function);
+#else
+    int llvm_nok = 0;
+#endif
+
+    if (unlikely(!tb || tb->pc != pc || tb->cs_base != cs_base || tb->flags != flags || llvm_nok)) {
         tb = tb_find_slow(env, pc, cs_base, flags);
     } else {
         ++g_cpu_stats.tb_hits;
@@ -176,22 +205,45 @@ static void cpu_handle_debug_exception(CPUArchState *env) {
 
 volatile sig_atomic_t exit_request;
 
-static uintptr_t fetch_and_run_tb(uintptr_t prev_tb, CPUArchState *env) {
-    uint8_t *tc_ptr;
-    uintptr_t next_tb;
+#ifdef TRACE_EXEC
+static void dump_regs(CPUState *env, int isStart) {
+#if defined(CONFIG_SYMBEX)
+    target_ulong eax, ebx, ecx, edx, esi, edi, ebp, esp;
+    g_sqi.regs.read_concrete(offsetof(CPUState, regs[R_EAX]), (uint8_t *) &eax, sizeof(eax));
+    g_sqi.regs.read_concrete(offsetof(CPUState, regs[R_EBX]), (uint8_t *) &ebx, sizeof(ebx));
+    g_sqi.regs.read_concrete(offsetof(CPUState, regs[R_ECX]), (uint8_t *) &ecx, sizeof(ecx));
+    g_sqi.regs.read_concrete(offsetof(CPUState, regs[R_EDX]), (uint8_t *) &edx, sizeof(edx));
+    g_sqi.regs.read_concrete(offsetof(CPUState, regs[R_ESI]), (uint8_t *) &esi, sizeof(esi));
+    g_sqi.regs.read_concrete(offsetof(CPUState, regs[R_EDI]), (uint8_t *) &edi, sizeof(edi));
+    g_sqi.regs.read_concrete(offsetof(CPUState, regs[R_EBP]), (uint8_t *) &ebp, sizeof(ebp));
+    g_sqi.regs.read_concrete(offsetof(CPUState, regs[R_ESP]), (uint8_t *) &esp, sizeof(esp));
 
-    DPRINTF("fetch_and_run_tb %lx fl=%lx riw=%d\n", (uint64_t) env->eip, (uint64_t) env->mflags,
-            env->kvm_request_interrupt_window);
+    fprintf(logfile, "%c cs:eip=%lx:%lx eax=%lx ebx=%lx ecx=%lx edx=%lx esi=%lx edi=%lx ebp=%lx ss:esp=%lx:%lx\n",
+            isStart ? 's' : 'e', (uint64_t) env->segs[R_CS].selector, (uint64_t) env->eip, (uint64_t) eax,
+            (uint64_t) ebx, (uint64_t) ecx, (uint64_t) edx, (uint64_t) esi, (uint64_t) edi, (uint64_t) ebp,
+            (uint64_t) env->segs[R_SS].selector, (uint64_t) esp);
+#else
+    fprintf(logfile, "%c cs:eip=%lx:%lx eax=%lx ebx=%lx ecx=%lx edx=%lx esi=%lx edi=%lx ebp=%lx ss:esp=%lx:%lx\n",
+            isStart ? 's' : 'e', (uint64_t) env->segs[R_CS].selector, (uint64_t) env->eip, (uint64_t) env->regs[R_EAX],
+            (uint64_t) env->regs[R_EBX], (uint64_t) env->regs[R_ECX], (uint64_t) env->regs[R_EDX],
+            (uint64_t) env->regs[R_ESI], (uint64_t) env->regs[R_EDI], (uint64_t) env->regs[R_EBP],
+            (uint64_t) env->segs[R_SS].selector, (uint64_t) env->regs[R_ESP]);
+#endif
+}
+#endif
+
+static uintptr_t fetch_and_run_tb(TranslationBlock *prev_tb, int tb_exit_code, CPUArchState *env) {
+    uint8_t *tc_ptr;
+    uintptr_t last_tb;
 
     TranslationBlock *tb = tb_find_fast(env);
 
-    /* Note: we do it here to avoid a gcc bug on Mac OS X when
-       doing it in tb_find_slow */
+    DPRINTF("fetch_and_run_tb cs:eip=%#lx:%#lx e=%#lx fl=%lx riw=%d\n", (uint64_t) env->segs[R_CS].selector,
+            (uint64_t) env->eip, (uint64_t) env->eip + tb->size, (uint64_t) env->mflags,
+            env->kvm_request_interrupt_window);
+
     if (tb_invalidated_flag) {
-        /* as some TB could have been invalidated because
-           of memory exceptions while generating the code, we
-           must recompute the hash index here */
-        prev_tb = 0;
+        prev_tb = NULL;
         tb_invalidated_flag = 0;
     }
 
@@ -203,8 +255,8 @@ static uintptr_t fetch_and_run_tb(uintptr_t prev_tb, CPUArchState *env) {
      * see if we can patch the calling TB. When the TB
      * spans two pages, we cannot safely do a direct jump.
      */
-    if (prev_tb != 0 && tb->page_addr[1] == -1) {
-        tb_add_jump((TranslationBlock *) (prev_tb & ~3), prev_tb & 3, tb);
+    if (prev_tb && tb->page_addr[1] == -1) {
+        tb_add_jump(prev_tb, tb_exit_code, tb);
     }
 
     /* cpu_interrupt might be called while translating the
@@ -222,39 +274,39 @@ static uintptr_t fetch_and_run_tb(uintptr_t prev_tb, CPUArchState *env) {
         return 0;
     }
 
-    tc_ptr = tb->tc_ptr;
+    tc_ptr = tb->tc.ptr;
 #ifdef ENABLE_PRECISE_EXCEPTION_DEBUGGING
     assert(env->eip == env->precise_eip);
 #endif
 
 /* execute the generated code */
 
+#ifdef TRACE_EXEC
+    dump_regs(env, 1);
+#endif
+
 #if defined(CONFIG_SYMBEX)
     env->se_current_tb = tb;
     if (likely(*g_sqi.mode.fast_concrete_invocation && **g_sqi.mode.running_concrete)) {
         **g_sqi.mode.running_exception_emulation_code = 0;
-        next_tb = tcg_libcpu_tb_exec(env, tc_ptr);
+        last_tb = tcg_libcpu_tb_exec(env, tc_ptr);
     } else {
-        next_tb = g_sqi.exec.tb_exec(env, tb);
+        last_tb = g_sqi.exec.tb_exec(env, tb);
     }
     env->se_current_tb = NULL;
 #else
 
-#ifdef TRACE_EXEC
-    printf("eip=%lx eax=%lx ebx=%lx ecx=%lx edx=%lx esi=%lx edi=%lx ebp=%lx esp=%lx\n", (uint64_t) env->eip,
-           (uint64_t) env->regs[R_EAX], (uint64_t) env->regs[R_EBX], (uint64_t) env->regs[R_ECX],
-           (uint64_t) env->regs[R_EDX], (uint64_t) env->regs[R_ESI], (uint64_t) env->regs[R_EDI],
-           (uint64_t) env->regs[R_EBP], (uint64_t) env->regs[R_ESP]);
-    * /
-// printf("eip: %lx\n", (uint64_t) env->eip);
+    last_tb = tcg_libcpu_tb_exec(env, tc_ptr);
+
 #endif
 
-        next_tb = tcg_libcpu_tb_exec(env, tc_ptr);
+#ifdef TRACE_EXEC
+    dump_regs(env, 0);
 #endif
 
     env->current_tb = NULL;
 
-    return next_tb;
+    return last_tb;
 }
 
 static bool process_interrupt_request(CPUArchState *env) {
@@ -354,7 +406,6 @@ static int process_exceptions(CPUArchState *env) {
     }
 
     /* if an exception is pending, we execute it here */
-    DPRINTF("  process_exception exidx=%x\n", env->exception_index);
     if (env->exception_index >= EXCP_INTERRUPT) {
         /* exit request from the cpu execution loop */
         ret = env->exception_index;
@@ -362,6 +413,7 @@ static int process_exceptions(CPUArchState *env) {
             cpu_handle_debug_exception(env);
         }
     } else {
+        DPRINTF("  do_interrupt exidx=%x\n", env->exception_index);
         do_interrupt(env);
         env->exception_index = -1;
     }
@@ -370,7 +422,9 @@ static int process_exceptions(CPUArchState *env) {
 }
 
 static bool execution_loop(CPUArchState *env) {
-    uintptr_t next_tb = 0;
+    uintptr_t last_tb = 0;
+    int last_tb_exit_code = 0;
+    TranslationBlock *ltb = NULL;
 
     for (;;) {
         bool has_interrupt = false;
@@ -379,7 +433,7 @@ static bool execution_loop(CPUArchState *env) {
              * ensure that no TB jump will be modified as
              * the program flow was changed
              */
-            next_tb = 0;
+            last_tb = 0;
             has_interrupt = true;
         }
 
@@ -404,7 +458,21 @@ static bool execution_loop(CPUArchState *env) {
         }
 #endif /* DEBUG_DISAS || CONFIG_DEBUG_EXEC */
 
-        next_tb = fetch_and_run_tb(next_tb, env);
+        last_tb = fetch_and_run_tb(ltb, last_tb_exit_code, env);
+
+        last_tb_exit_code = last_tb & TB_EXIT_MASK;
+        ltb = (TranslationBlock *) (last_tb & ~TB_EXIT_MASK);
+
+        if (ltb) {
+            DPRINTF("ltb s=%#lx e=%#lx fl=%lx exit_code=%x riw=%d\n", (uint64_t) ltb->pc,
+                    (uint64_t) ltb->pc + ltb->size, (uint64_t) env->mflags, last_tb_exit_code,
+                    env->kvm_request_interrupt_window);
+        }
+
+        if (last_tb_exit_code > TB_EXIT_IDXMAX) {
+            env->eip = ltb->pc - ltb->cs_base;
+            ltb = NULL;
+        }
 
         if (env->kvm_request_interrupt_window && (env->mflags & IF_MASK)) {
             env->kvm_request_interrupt_window = 0;

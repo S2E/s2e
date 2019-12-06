@@ -20,8 +20,9 @@
 
 #include <cpu/config.h>
 #include <cpu/memory.h>
+#include <tcg/tcg.h>
+#include <tcg/utils/osdep.h>
 #include "exec.h"
-#include "osdep.h"
 #include "qemu-common.h"
 
 #if defined(TARGET_HAS_ICE)
@@ -212,13 +213,13 @@ static void check_watchpoint(int offset, int len_mask, int flags) {
             wp->flags |= BP_WATCHPOINT_HIT;
             if (!env->watchpoint_hit) {
                 env->watchpoint_hit = wp;
-                tb = tb_find_pc(env->mem_io_pc);
+                tb = tcg_tb_lookup(env->mem_io_pc);
                 if (!tb) {
                     cpu_abort(env, "check_watchpoint: could not find TB for "
                                    "pc=%p",
                               (void *) env->mem_io_pc);
                 }
-                cpu_restore_state(tb, env, env->mem_io_pc);
+                cpu_restore_state(env, env->mem_io_pc);
                 tb_phys_invalidate(tb, -1);
                 if (wp->flags & BP_STOP_BEFORE_ACCESS) {
                     env->exception_index = EXCP_DEBUG;

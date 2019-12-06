@@ -84,6 +84,7 @@ typedef int (*fprintf_function)(FILE *f, const char *fmt, ...) GCC_FMT_ATTR(2, 3
     } while (0)
 
 #define log_target_disas(env, start, len, flags) target_disas(env, logfile, (start), (len), (flags))
+#define log_host_disas(start, len) host_disas(logfile, (start), (len))
 
 /* page_dump() output to the log file: */
 #define log_page_dump() page_dump(logfile)

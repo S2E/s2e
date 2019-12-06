@@ -2,9 +2,9 @@
 # This work is licensed under the terms of the GNU LGPL, version 2.1 or later.
 
 add_library(
-    cpu cpu-exec.c cpus.c exec.c exec-bp.c exec-log.c exec-memdbg.c exec-phys.c exec-phystb.c exec-ram.c exec-tb.c exec-tlb.c host-utils.c ioport.c memory.c timer.c translate-all.c
-    fpu/softfloat.c
-    target-i386/cpuid.c target-i386/helper.c target-i386/op_helper.c target-i386/translate.c disas.c cutils.c
+    cpu cpu-exec.c cpus.c exec.c exec-bp.c exec-log.c exec-memdbg.c exec-phys.c exec-phystb.c exec-ram.c exec-tb.c exec-tlb.c ioport.c memory.c timer.c translate-all.c
+    fpu/softfloat.c precise-pc.c
+    target-i386/cpuid.c target-i386/helper.c target-i386/op_helper.c target-i386/translate.c disas.c
 )
 
 
@@ -50,5 +50,7 @@ add_custom_target(
 endif (WITH_SYMBEX)
 
 MESSAGE( STATUS "CMAKE_C_FLAGS: " ${CMAKE_C_FLAGS} )
+MESSAGE( STATUS "CMAKE_C_FLAGS_RELEASE: " ${CMAKE_C_FLAGS_RELEASE} )
+MESSAGE( STATUS "CMAKE_C_FLAGS_RELWITHDEBINFO: " ${CMAKE_C_FLAGS_RELWITHDEBINFO} )
 MESSAGE( STATUS "WITH_SYMBEX: " ${WITH_SYMBEX} )
 MESSAGE( STATUS "DIRS:" ${HOST_INCLUDE_DIR} ${TARGET_INCLUDE_DIR})

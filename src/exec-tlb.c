@@ -19,7 +19,7 @@
 #include <cpu/config.h>
 #include <cpu/memory.h>
 #include <inttypes.h>
-#include "osdep.h"
+#include <tcg/utils/osdep.h>
 #include "qemu-common.h"
 
 #include "exec-phys.h"
@@ -87,9 +87,11 @@ void tlb_flush(CPUArchState *env, int flush_global) {
 
     int mmu_idx;
     for (mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
+        env->tlb_table[mmu_idx] = &env->_tlb_table[mmu_idx][0];
         for (i = 0; i < CPU_TLB_SIZE; i++) {
             env->tlb_table[mmu_idx][i] = s_cputlb_empty_entry;
         }
+        env->tlb_mask[mmu_idx] = (CPU_TLB_SIZE - 1) << CPU_TLB_ENTRY_BITS;
     }
 
 #if defined(CONFIG_SYMBEX) && defined(SE_ENABLE_TLB)
@@ -153,29 +155,6 @@ void tlb_protect_code(ram_addr_t ram_addr) {
    tested for self modifying code */
 void tlb_unprotect_code_phys(CPUArchState *env, ram_addr_t ram_addr, target_ulong vaddr) {
     cpu_physical_memory_set_dirty_flags(ram_addr, CODE_DIRTY_FLAG);
-}
-
-static inline void tlb_update_dirty(CPUTLBEntry *tlb_entry) {
-    ram_addr_t ram_addr;
-    void *p;
-
-    if (tlb_is_dirty_ram(tlb_entry)) {
-        p = (void *) (unsigned long) ((tlb_entry->addr_write & TARGET_PAGE_MASK) + tlb_entry->addend);
-        ram_addr = qemu_ram_addr_from_host_nofail(p);
-        if (!cpu_physical_memory_is_dirty(ram_addr)) {
-            tlb_entry->addr_write |= TLB_NOTDIRTY;
-        }
-    }
-}
-
-/* update the TLB according to the current state of the dirty bits */
-void cpu_tlb_update_dirty(CPUArchState *env) {
-    int i;
-    int mmu_idx;
-    for (mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
-        for (i = 0; i < CPU_TLB_SIZE; i++)
-            tlb_update_dirty(&env->tlb_table[mmu_idx][i]);
-    }
 }
 
 #ifdef CONFIG_SYMBEX
@@ -275,12 +254,6 @@ void tlb_set_page(CPUArchState *env, target_ulong vaddr, target_phys_addr_t padd
     index = (vaddr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
     env->iotlb[mmu_idx][index] = iotlb - vaddr;
 
-#if defined(CONFIG_SYMBEX) && defined(CONFIG_SYMBEX_MP)
-// XXX: This might not be needed, as we don't have
-// device memory sections anymore.
-// env->iotlb_ramaddr[mmu_idx][index] = section->offset_within_address_space;
-#endif
-
     te = &env->tlb_table[mmu_idx][index];
     te->addend = addend - vaddr;
     if (prot & PAGE_READ) {
@@ -312,7 +285,7 @@ void tlb_set_page(CPUArchState *env, target_ulong vaddr, target_phys_addr_t padd
         te->addr_write = -1;
     }
 
-#if defined(CONFIG_SYMBEX) && defined(CONFIG_SYMBEX_MP)
+#if defined(CONFIG_SYMBEX_MP)
     if (g_sqi.mem.is_mmio_symbolic(paddr, 1LL << TARGET_PAGE_BITS)) {
         // We hijack qemu's dirty page management to redirect
         // all accesses to MMIO memory through our handlers.
@@ -323,6 +296,13 @@ void tlb_set_page(CPUArchState *env, target_ulong vaddr, target_phys_addr_t padd
         // We also need to track writes to DMA memory,
         // symbolic hardware might be interested in that.
         te->addr_write |= TLB_MMIO;
+    }
+#endif
+#if defined(CONFIG_SYMBEX)
+
+    if (*g_sqi.events.before_memory_access_signals_count || *g_sqi.events.after_memory_access_signals_count) {
+        te->addr_read |= TLB_MEM_TRACE;
+        te->addr_write |= TLB_MEM_TRACE;
     }
 #endif
 

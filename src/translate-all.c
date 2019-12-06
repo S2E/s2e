@@ -22,14 +22,21 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <sys/mman.h>
+
 #include <cpu/config.h>
+#include <cpu/disas.h>
+#include <cpu/precise-pc.h>
+#include <cpu/tlb.h>
+#include <cpu/types.h>
 
 #define NO_CPU_IO_DEFS
 #include <tcg/tcg.h>
 #include "cpu.h"
+#include "qemu-lock.h"
 #include "timer.h"
 
-#ifdef CONFIG_SYMBEX
+#if defined(CONFIG_SYMBEX_MP) || defined(STATIC_TRANSLATOR)
 #include <tcg/tcg-llvm.h>
 #endif
 
@@ -37,451 +44,252 @@
 #include <cpu/se_libcpu.h>
 #endif
 
+#include "exec-tb.h"
+#include "exec.h"
+
 /* code generation context */
-TCGContext tcg_ctx;
+__thread TCGContext *tcg_ctx;
 
-#if defined(CONFIG_SYMBEX) && defined(TCG_KEEP_OPC)
+/* Minimum size of the code gen buffer.  This number is randomly chosen,
+   but not so small that we can't have a fair number of TB's live.  */
+#define MIN_CODE_GEN_BUFFER_SIZE (128 * 1024 * 1024)
 
-unsigned g_gen_opc_buf_count;
-unsigned g_gen_opparam_buf_count;
-
-uint16_t *g_gen_opc_buf;
-TCGArg *g_gen_opparam_buf;
-
-uint16_t *g_gen_opc_buf_max;
-TCGArg *g_gen_opparam_buf_max;
-
-/* Preserve variable assignments to generate LLVM code when needed */
-unsigned g_gen_temps_count;
-TCGTemp *g_gen_temps_buf;
-TCGTemp *g_gen_temps_buf_max;
-TCGTemp *gen_temps_buf;
-
-uint16_t *gen_opc_buf;
-TCGArg *gen_opparam_buf;
-
+/* Maximum size of the code gen buffer we'd like to use.  Unless otherwise
+   indicated, this is constrained by the range of direct branches on the
+   host cpu, as used by the TCG implementation of goto_tb.  */
+#if defined(__x86_64__)
+#define MAX_CODE_GEN_BUFFER_SIZE (2ul * 1024 * 1024 * 1024)
 #else
-uint16_t gen_opc_buf[OPC_BUF_SIZE];
-TCGArg gen_opparam_buf[OPPARAM_BUF_SIZE];
+#define MAX_CODE_GEN_BUFFER_SIZE ((size_t) -1)
 #endif
 
-target_ulong gen_opc_pc[OPC_BUF_SIZE];
-uint16_t gen_opc_icount[OPC_BUF_SIZE];
-uint8_t gen_opc_instr_start[OPC_BUF_SIZE];
-uint8_t gen_opc_instr_size[OPC_BUF_SIZE];
+#define DEFAULT_CODE_GEN_BUFFER_SIZE_1 (32u * 1024 * 1024)
 
-#ifdef CONFIG_SYMBEX
-int cpu_gen_flush_needed(void) {
-#ifdef TCG_KEEP_OPC
-    return ((g_gen_opc_buf_max - gen_opc_buf < OPC_BUF_SIZE) ||
-            (g_gen_opparam_buf_max - gen_opparam_buf < OPPARAM_BUF_SIZE) ||
-            (g_gen_temps_buf_max - gen_temps_buf) < TCG_MAX_TEMPS);
-#else
-    return 0;
-#endif
+#define DEFAULT_CODE_GEN_BUFFER_SIZE                                                            \
+    (DEFAULT_CODE_GEN_BUFFER_SIZE_1 < MAX_CODE_GEN_BUFFER_SIZE ? DEFAULT_CODE_GEN_BUFFER_SIZE_1 \
+                                                               : MAX_CODE_GEN_BUFFER_SIZE)
+
+static inline size_t size_code_gen_buffer(size_t tb_size) {
+    /* Size the buffer.  */
+    if (tb_size == 0) {
+        tb_size = DEFAULT_CODE_GEN_BUFFER_SIZE;
+    }
+
+    if (tb_size < MIN_CODE_GEN_BUFFER_SIZE) {
+        tb_size = MIN_CODE_GEN_BUFFER_SIZE;
+    }
+    if (tb_size > MAX_CODE_GEN_BUFFER_SIZE) {
+        tb_size = MAX_CODE_GEN_BUFFER_SIZE;
+    }
+    return tb_size;
 }
 
-void cpu_gen_flush(void) {
-#ifdef TCG_KEEP_OPC
-    gen_opc_buf = g_gen_opc_buf;
-    gen_opparam_buf = g_gen_opparam_buf;
-    gen_temps_buf = g_gen_temps_buf;
-#endif
+// XXX: deduplicate this
+#define CODE_GEN_ALIGN 16
+
+static inline void *alloc_code_gen_buffer(TCGContext *ctx) {
+    size_t length = ctx->code_gen_buffer_size;
+    void *buf = mmap(NULL, length, PROT_WRITE | PROT_READ | PROT_EXEC, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    void *end = buf + length;
+    size_t size;
+
+    /* page-align the beginning and end of the buffer */
+    buf = ALIGN_PTR_UP(buf, 0x1000);
+    end = ALIGN_PTR_DOWN(end, 0x1000);
+
+    size = end - buf;
+
+    /* Honor a command-line option limiting the size of the buffer.  */
+    if (size > ctx->code_gen_buffer_size) {
+        size = ALIGN_DOWN(ctx->code_gen_buffer_size, 0x1000);
+    }
+    ctx->code_gen_buffer_size = size;
+
+    if (mprotect(buf, size, PROT_READ | PROT_WRITE | PROT_EXEC)) {
+        abort();
+    }
+
+    madvise(buf, size, MADV_HUGEPAGE);
+
+    return buf;
 }
 
-void cpu_gen_init_opc(void) {
-#ifdef TCG_KEEP_OPC
-    // XXX: these constants have to be fine-tuned.
-    extern int code_gen_max_blocks;
-    g_gen_opc_buf_count = 32 * code_gen_max_blocks;
-    g_gen_opc_buf = g_malloc0(g_gen_opc_buf_count * sizeof(uint16_t));
-    g_gen_opc_buf_max = g_gen_opc_buf + g_gen_opc_buf_count;
-
-    g_gen_opparam_buf_count = 4 * 32 * code_gen_max_blocks;
-    g_gen_opparam_buf = g_malloc0(g_gen_opc_buf_count * sizeof(TCGArg));
-    g_gen_opparam_buf_max = g_gen_opparam_buf + g_gen_opparam_buf_count;
-
-    g_gen_temps_count = 8 * code_gen_max_blocks;
-    g_gen_temps_buf = g_malloc0(g_gen_temps_count * sizeof(TCGTemp));
-    g_gen_temps_buf_max = g_gen_temps_buf + g_gen_temps_count;
-
-    gen_opc_buf = g_gen_opc_buf;
-    gen_opparam_buf = g_gen_opparam_buf;
-    gen_temps_buf = g_gen_temps_buf;
-#endif
+static inline void code_gen_alloc(TCGContext *tcg, size_t tb_size) {
+    tcg->code_gen_buffer_size = size_code_gen_buffer(tb_size);
+    tcg->code_gen_buffer = alloc_code_gen_buffer(tcg);
+    if (tcg->code_gen_buffer == NULL) {
+        fprintf(stderr, "Could not allocate dynamic translator buffer\n");
+        exit(1);
+    }
 }
 
-#endif
-
-#ifdef CONFIG_SYMBEX
+#if defined(CONFIG_SYMBEX_MP) || defined(STATIC_TRANSLATOR)
 static void *qemu_ld_helpers[4] = {
-    __ldb_mmu_symb, __ldw_mmu_symb, __ldl_mmu_symb, __ldq_mmu_symb,
+    helper_ldb_mmu_symb, helper_ldw_mmu_symb, helper_ldl_mmu_symb, helper_ldq_mmu_symb,
 };
 
 static void *qemu_st_helpers[4] = {
-    __stb_mmu_symb, __stw_mmu_symb, __stl_mmu_symb, __stq_mmu_symb,
+    helper_stb_mmu_symb, helper_stw_mmu_symb, helper_stl_mmu_symb, helper_stq_mmu_symb,
 };
 #else
 static void *qemu_ld_helpers[4] = {
-    __ldb_mmu, __ldw_mmu, __ldl_mmu, __ldq_mmu,
+    helper_ldb_mmu, helper_ldw_mmu, helper_ldl_mmu, helper_ldq_mmu,
 };
 
 /* legacy helper signature: __st_mmu(target_ulong addr, uintxx_t val,
    int mmu_idx) */
 static void *qemu_st_helpers[4] = {
-    __stb_mmu, __stw_mmu, __stl_mmu, __stq_mmu,
+    helper_stb_mmu, helper_stw_mmu, helper_stl_mmu, helper_stq_mmu,
 };
 #endif
 
-void cpu_gen_init(void) {
-    memcpy(tcg_ctx.qemu_ld_helpers, qemu_ld_helpers, sizeof(tcg_ctx.qemu_ld_helpers));
-    memcpy(tcg_ctx.qemu_st_helpers, qemu_st_helpers, sizeof(tcg_ctx.qemu_st_helpers));
+static void cpu_gen_init(TCGContext *ctx, tcg_settings_t *settings) {
+
+    settings->tlb_flags_mask = TLB_FLAGS_MASK;
+    settings->tlb_mask_offset = offsetof(CPUX86State, tlb_mask);
+    settings->tlb_entry_addend_offset = offsetof(CPUTLBEntry, addend);
+    settings->tlb_entry_addr_read_offset = offsetof(CPUTLBEntry, addr_read);
+    settings->tlb_entry_addr_write_offset = offsetof(CPUTLBEntry, addr_write);
+
+    code_gen_alloc(ctx, 0);
+
+    memcpy(ctx->qemu_ld_helpers, qemu_ld_helpers, sizeof(tcg_ctx->qemu_ld_helpers));
+    memcpy(ctx->qemu_st_helpers, qemu_st_helpers, sizeof(tcg_ctx->qemu_st_helpers));
 
 #if defined(CONFIG_SYMBEX) && defined(TCG_ENABLE_MEM_TRACING)
-    tcg_ctx.qemu_ld_trace_helpers[0] = g_sqi.mem.__ldb_mmu_trace;
-    tcg_ctx.qemu_ld_trace_helpers[1] = g_sqi.mem.__ldw_mmu_trace;
-    tcg_ctx.qemu_ld_trace_helpers[2] = g_sqi.mem.__ldl_mmu_trace;
-    tcg_ctx.qemu_ld_trace_helpers[3] = g_sqi.mem.__ldq_mmu_trace;
+    ctx->qemu_ld_trace_helpers[0] = g_sqi.mem.__ldb_mmu_trace;
+    ctx->qemu_ld_trace_helpers[1] = g_sqi.mem.__ldw_mmu_trace;
+    ctx->qemu_ld_trace_helpers[2] = g_sqi.mem.__ldl_mmu_trace;
+    ctx->qemu_ld_trace_helpers[3] = g_sqi.mem.__ldq_mmu_trace;
 
-    tcg_ctx.qemu_st_trace_helpers[0] = g_sqi.mem.__stb_mmu_trace;
-    tcg_ctx.qemu_st_trace_helpers[1] = g_sqi.mem.__stw_mmu_trace;
-    tcg_ctx.qemu_st_trace_helpers[2] = g_sqi.mem.__stl_mmu_trace;
-    tcg_ctx.qemu_st_trace_helpers[3] = g_sqi.mem.__stq_mmu_trace;
+    ctx->qemu_st_trace_helpers[0] = g_sqi.mem.__stb_mmu_trace;
+    ctx->qemu_st_trace_helpers[1] = g_sqi.mem.__stw_mmu_trace;
+    ctx->qemu_st_trace_helpers[2] = g_sqi.mem.__stl_mmu_trace;
+    ctx->qemu_st_trace_helpers[3] = g_sqi.mem.__stq_mmu_trace;
 #endif
 
     extern CPUArchState *env;
-    tcg_ctx.tcg_struct_size = sizeof(tcg_ctx);
-    tcg_ctx.env_ptr = (uintptr_t) &env;
-    tcg_ctx.env_offset_eip = offsetof(CPUArchState, eip);
-    tcg_ctx.env_sizeof_eip = sizeof(env->eip);
-    tcg_ctx.env_offset_ccop = offsetof(CPUArchState, cc_op);
-    tcg_ctx.env_sizeof_ccop = sizeof(env->cc_op);
-    tcg_ctx.env_offset_df = offsetof(CPUArchState, df);
-    tcg_ctx.env_offset_tlb[0] = offsetof(CPUArchState, tlb_table[0][0]);
-    tcg_ctx.env_offset_tlb[1] = offsetof(CPUArchState, tlb_table[1][0]);
-    tcg_ctx.env_offset_tlb[2] = offsetof(CPUArchState, tlb_table[2][0]);
+    ctx->tcg_struct_size = sizeof(*tcg_ctx);
+    ctx->env_ptr = (uintptr_t) &env;
+    ctx->env_offset_eip = offsetof(CPUArchState, eip);
+    ctx->env_sizeof_eip = sizeof(env->eip);
+    ctx->env_offset_ccop = offsetof(CPUArchState, cc_op);
+    ctx->env_sizeof_ccop = sizeof(env->cc_op);
+    ctx->env_offset_df = offsetof(CPUArchState, df);
 
-    tcg_ctx.tlbe_size = sizeof(CPUTLBEntry);
-    tcg_ctx.tlbe_offset_addend = offsetof(CPUTLBEntry, addend);
-    tcg_ctx.tlbe_offset_addr_read = offsetof(CPUTLBEntry, addr_read);
-    tcg_ctx.tlbe_offset_addr_write = offsetof(CPUTLBEntry, addr_write);
+    ctx->env_offset_tlb[0] = offsetof(CPUArchState, tlb_table[0]);
+    ctx->env_offset_tlb[1] = offsetof(CPUArchState, tlb_table[1]);
+    ctx->env_offset_tlb[2] = offsetof(CPUArchState, tlb_table[2]);
 
-#ifdef CONFIG_SYMBEX
-    tcg_ctx.tlbe_offset_symbex_addend = offsetof(CPUTLBEntry, se_addend);
-    tcg_ctx.after_memory_access_signals_count = (uintptr_t) g_sqi.events.after_memory_access_signals_count;
-#endif
-
-    tcg_ctx.target_page_bits = TARGET_PAGE_BITS;
-    tcg_ctx.cpu_tlb_entry_bits = CPU_TLB_ENTRY_BITS;
-    tcg_ctx.cpu_tlb_size = CPU_TLB_SIZE;
-
-    tcg_context_init(&tcg_ctx);
-}
+    ctx->tlbe_size = sizeof(CPUTLBEntry);
+    ctx->tlbe_offset_addend = offsetof(CPUTLBEntry, addend);
+    ctx->tlbe_offset_addr_read = offsetof(CPUTLBEntry, addr_read);
+    ctx->tlbe_offset_addr_write = offsetof(CPUTLBEntry, addr_write);
 
 #ifdef CONFIG_SYMBEX
-static void cpu_gen_code_init_ctx(TCGContext *s, TranslationBlock *tb) {
-    s->tb_pc = tb->pc;
-    s->tb_cs_base = tb->cs_base;
-    s->tb_flags = tb->flags;
-    s->tb_size = tb->size;
-    s->tb_tc_size = tb->tc_size;
-    s->tb_instrumented = tb->instrumented;
-    s->precise_pcs = tb->precise_pcs;
-    s->precise_entries = tb->precise_entries;
-
-    tcg_ctx.after_memory_access_signals_count = (uintptr_t) g_sqi.events.after_memory_access_signals_count;
-}
-
+    ctx->tlbe_offset_symbex_addend = offsetof(CPUTLBEntry, se_addend);
 #endif
 
-/* return non zero if the very first instruction is invalid so that
-   the virtual CPU can trigger an exception.
+    ctx->target_page_bits = TARGET_PAGE_BITS;
+    ctx->cpu_tlb_entry_bits = CPU_TLB_ENTRY_BITS;
+    ctx->cpu_tlb_size = CPU_TLB_SIZE;
 
-   '*gen_code_size_ptr' contains the size of the generated code (host
-   code).
-*/
+    tcg_context_init(ctx);
+}
 
-int cpu_gen_code(CPUArchState *env, TranslationBlock *tb, int *gen_code_size_ptr) {
-    TCGContext *s = &tcg_ctx;
+/* Must be called before using the QEMU cpus. 'tb_size' is the size
+   (in bytes) allocated to the translation buffer. Zero means default
+   size. */
+void tcg_exec_init(unsigned long tb_size) {
+    cpu_gen_init(&tcg_init_ctx, &g_tcg_settings);
+    code_gen_alloc(&tcg_init_ctx, tb_size);
+
+    // tcg_register_jit(code_gen_buffer, code_gen_buffer_size);
+
+    /* There's no guest base to take into account, so go ahead and
+       initialize the prologue now.  */
+    tcg_prologue_init(tcg_ctx);
+
+    tcg_region_init();
+}
+
+int cpu_gen_code(CPUArchState *env, TranslationBlock *tb) {
+    TCGContext *s = tcg_ctx;
     uint8_t *gen_code_buf;
     int gen_code_size;
-#ifdef CONFIG_PROFILER
-    int64_t ti;
-#endif
 
-#ifdef CONFIG_PROFILER
-    s->tb_count1++; /* includes aborted translations because of
-                       exceptions */
-    ti = profile_getclock();
-#endif
+    tb->tc.ptr = tcg_ctx->code_gen_ptr;
+
     tcg_func_start(s);
-
-#if defined(CONFIG_SYMBEX) && defined(TCG_KEEP_OPC)
-    tb->gen_opc_buf = gen_opc_buf;
-    tb->gen_opparam_buf = gen_opparam_buf;
-#endif
 
     gen_intermediate_code(env, tb);
 
     /* generate machine code */
-    gen_code_buf = tb->tc_ptr;
-    tb->tb_next_offset[0] = 0xffff;
-    tb->tb_next_offset[1] = 0xffff;
-    s->tb_next_offset = tb->tb_next_offset;
-#ifdef USE_DIRECT_JUMP
-    s->tb_jmp_offset = tb->tb_jmp_offset;
-    s->tb_next = NULL;
-#else
-    s->tb_jmp_offset = NULL;
-    s->tb_next = tb->tb_next;
+    gen_code_buf = tb->tc.ptr;
+
+    tb->jmp_reset_offset[0] = TB_JMP_RESET_OFFSET_INVALID;
+    tb->jmp_reset_offset[1] = TB_JMP_RESET_OFFSET_INVALID;
+    tcg_ctx->tb_jmp_reset_offset = tb->jmp_reset_offset;
+    if (TCG_TARGET_HAS_direct_jump) {
+        tcg_ctx->tb_jmp_insn_offset = tb->jmp_target_arg;
+        tcg_ctx->tb_jmp_target_addr = NULL;
+    } else {
+        tcg_ctx->tb_jmp_insn_offset = NULL;
+        tcg_ctx->tb_jmp_target_addr = tb->jmp_target_arg;
+    }
+
+    gen_code_size = tcg_gen_code(s, tb);
+    if (unlikely(gen_code_size < 0)) {
+        return -1;
+    }
+
+    if (libcpu_loglevel_mask(CPU_LOG_TB_OUT_ASM)) {
+        libcpu_log("----------------\n");
+        libcpu_log("OUT %#" PRIx64 " - cs:eip=%#" PRIx64 ":%#" PRIx64 "\n", (uint64_t) tb->pc, (uint64_t) tb->cs_base,
+                   (uint64_t) env->eip);
+
+        log_host_disas(tb->tc.ptr, gen_code_size);
+        libcpu_log("\n");
+    }
+
+    int search_size = encode_search(s, tb, (void *) gen_code_buf + gen_code_size);
+    if (unlikely(search_size < 0)) {
+        abort();
+    }
+
+    atomic_set(&tcg_ctx->code_gen_ptr,
+               (void *) ROUND_UP((uintptr_t) gen_code_buf + gen_code_size + search_size, CODE_GEN_ALIGN));
+
+    tb->tc.size = gen_code_size;
+
+#if defined(CONFIG_SYMBEX_MP) || defined(STATIC_TRANSLATOR)
+    if (env->generate_llvm) {
+        assert(tb->llvm_function == NULL);
+        tb->llvm_function = tcg_llvm_gen_code(tcg_llvm_translator, s, tb);
+        g_sqi.tb.set_tb_function(tb->se_tb, tb->llvm_function);
+    }
 #endif
 
-#ifdef CONFIG_PROFILER
-    s->tb_count++;
-    s->interm_time += profile_getclock() - ti;
-    s->code_time -= profile_getclock();
-#endif
+    /* init jump list */
+    tb->jmp_lock = SPIN_LOCK_UNLOCKED;
+    tb->jmp_list_head = (uintptr_t) NULL;
+    tb->jmp_list_next[0] = (uintptr_t) NULL;
+    tb->jmp_list_next[1] = (uintptr_t) NULL;
+    tb->jmp_dest[0] = (uintptr_t) NULL;
+    tb->jmp_dest[1] = (uintptr_t) NULL;
+
+    /* init original jump addresses which have been set during tcg_gen_code() */
+    if (tb->jmp_reset_offset[0] != TB_JMP_RESET_OFFSET_INVALID) {
+        tb_reset_jump(tb, 0);
+    }
+    if (tb->jmp_reset_offset[1] != TB_JMP_RESET_OFFSET_INVALID) {
+        tb_reset_jump(tb, 1);
+    }
 
 #ifdef CONFIG_SYMBEX
-    cpu_gen_code_init_ctx(s, tb);
-#endif
-
-    gen_code_size = tcg_gen_code(s, gen_code_buf);
-    *gen_code_size_ptr = gen_code_size;
-
-#ifdef CONFIG_SYMBEX
-    tb->tc_size = gen_code_size;
-    tcg_calc_regmask(s, &tb->reg_rmask, &tb->reg_wmask, &tb->helper_accesses_mem);
-
-    tb->instrumented = g_sqi.tb.is_tb_instrumented(tb);
+    tb->instrumented = g_sqi.tb.is_tb_instrumented(tb->se_tb);
     g_sqi.tb.increment_tb_stats(tb);
-
-#ifdef TCG_KEEP_OPC
-    gen_opc_buf = gen_opc_ptr;
-    gen_opparam_buf = gen_opparam_ptr;
-    tb->gen_opc_count = (unsigned) (gen_opc_buf - tb->gen_opc_buf);
-
-    /* Save variables */
-    tb->tcg_temps = gen_temps_buf;
-    tb->tcg_nb_globals = tcg_ctx.nb_globals;
-    tb->tcg_nb_temps = tcg_ctx.nb_temps;
-    unsigned vars = tb->tcg_nb_globals + tb->tcg_nb_temps;
-    memcpy(tb->tcg_temps, tcg_ctx.temps, vars * sizeof(TCGTemp));
-    gen_temps_buf += vars;
-#endif
-#endif
-
-#ifdef CONFIG_PROFILER
-    s->code_time += profile_getclock();
-    s->code_in_len += tb->size;
-    s->code_out_len += gen_code_size;
 #endif
 
     return 0;
 }
-
-#ifdef CONFIG_SYMBEX
-
-#ifdef ENABLE_PRECISE_EXCEPTION_DEBUGGING_COMPARE
-void restore_state_to_opc_compare(CPUX86State *env, TranslationBlock *tb, int pc_pos);
-/* The cpu state corresponding to 'searched_pc' is restored.
- */
-static int cpu_restore_state_original(TranslationBlock *tb, CPUArchState *env, uintptr_t searched_pc) {
-    TCGContext *s = &tcg_ctx;
-    int j;
-    uintptr_t tc_ptr;
-#ifdef CONFIG_PROFILER
-    int64_t ti;
-#endif
-
-#ifdef CONFIG_PROFILER
-    ti = profile_getclock();
-#endif
-    tcg_func_start(s);
-
-    gen_intermediate_code_pc(env, tb);
-
-    /* find opc index corresponding to search_pc */
-    tc_ptr = (uintptr_t) tb->tc_ptr;
-    if (searched_pc < tc_ptr)
-        return -1;
-
-    s->tb_next_offset = tb->tb_next_offset;
-#ifdef USE_DIRECT_JUMP
-    s->tb_jmp_offset = tb->tb_jmp_offset;
-    s->tb_next = NULL;
-#else
-    s->tb_jmp_offset = NULL;
-    s->tb_next = tb->tb_next;
-#endif
-    j = tcg_gen_code_search_pc(s, (uint8_t *) tc_ptr, searched_pc - tc_ptr);
-    if (j < 0)
-        return -1;
-    /* now find start of instruction before */
-    while (gen_opc_instr_start[j] == 0)
-        j--;
-
-    env->icount_decr.u16.low -= gen_opc_icount[j];
-
-    restore_state_to_opc_compare(env, tb, j);
-
-    return 0;
-}
-#endif
-
-int cpu_restore_state_retranslate(TranslationBlock *tb, CPUArchState *env, uintptr_t searched_pc);
-
-int cpu_restore_state(TranslationBlock *tb, CPUArchState *env, uintptr_t searched_pc) {
-#if 0
-    libcpu_log("RESTORE: searched_pc=%#"PRIx64" tc_ptr=%#"PRIx64" tc_ptr_max=%#"PRIx64" icount=%d cur_pc=%#x\n",
-             searched_pc, (uintptr_t)tb->tc_ptr, (uintptr_t)tb->tc_ptr + tb->tc_size, tb->icount, env->eip);
-#endif
-    if (!g_sqi.exec.is_running_concrete()) {
-#ifdef ENABLE_PRECISE_EXCEPTION_DEBUGGING
-        assert(env->eip == env->precise_eip);
-#endif
-#ifdef ENABLE_PRECISE_EXCEPTION_DEBUGGING_COMPARE
-        cpu_restore_state_original(tb, env, searched_pc);
-#endif
-        // XXX: Need to set the instruction size here
-        env->restored_instruction_size = 0;
-        assert(tb->llvm_function);
-        return 0;
-    }
-
-#ifdef SE_ENABLE_RETRANSLATION
-    if (!tb->instrumented) {
-        assert(tb->precise_entries == -1);
-        // Restore PC using retranslation
-        return cpu_restore_state_retranslate(tb, env, searched_pc);
-    }
-#endif
-
-    tb_precise_pc_t *p = tb->precise_pcs + tb->precise_entries - 1;
-    assert(tb->precise_entries > 0);
-    target_ulong next_pc = tb->pc + p->guest_pc_increment;
-    while (p >= tb->precise_pcs) {
-#if 0
-        libcpu_log("   current_host_pc=%#"PRIx64" current_guest_pc=%#x cc_op=%d tc_idx=%d\n",
-                 p->host_pc, p->guest_pc, p->cc_op, p->opc);
-#endif
-        // assert(p->host_pc);
-
-        if (((uintptr_t) tb->tc_ptr + p->host_pc_increment) <= searched_pc) {
-            /* Found the guest program counter at the time of exception */
-            se_restore_state_to_opc(env, tb, tb->pc + p->guest_pc_increment, p->cc_op, next_pc);
-            env->restored_instruction_size = p->guest_inst_size;
-
-#ifdef ENABLE_PRECISE_EXCEPTION_DEBUGGING_COMPARE
-            cpu_restore_state_original(tb, env, searched_pc);
-#endif
-            return 0;
-        }
-        next_pc = tb->pc + p->guest_pc_increment;
-        --p;
-    }
-
-    assert(false && "Could not find pc");
-}
-
-#endif
-
-#ifdef CONFIG_SYMBEX
-int cpu_restore_state_retranslate(TranslationBlock *tb, CPUArchState *env, uintptr_t searched_pc)
-#else
-
-/* The cpu state corresponding to 'searched_pc' is restored.
- */
-int cpu_restore_state(TranslationBlock *tb, CPUArchState *env, uintptr_t searched_pc)
-#endif
-{
-    TCGContext *s = &tcg_ctx;
-    int j;
-    uintptr_t tc_ptr;
-#ifdef CONFIG_PROFILER
-    int64_t ti;
-#endif
-
-#ifdef CONFIG_PROFILER
-    ti = profile_getclock();
-#endif
-    tcg_func_start(s);
-
-    /* The following does not actually retranslate code when in symbolic execution mode,
-     * but looks at the precise_pc array to find the right instruction. */
-    gen_intermediate_code_pc(env, tb);
-
-    /* find opc index corresponding to search_pc */
-    tc_ptr = (uintptr_t) tb->tc_ptr;
-    if (searched_pc < tc_ptr)
-        return -1;
-
-#ifdef CONFIG_SYMBEX
-    cpu_gen_code_init_ctx(s, tb);
-#endif
-
-    s->tb_next_offset = tb->tb_next_offset;
-#ifdef USE_DIRECT_JUMP
-    s->tb_jmp_offset = tb->tb_jmp_offset;
-    s->tb_next = NULL;
-#else
-    s->tb_jmp_offset = NULL;
-    s->tb_next = tb->tb_next;
-#endif
-    j = tcg_gen_code_search_pc(s, (uint8_t *) tc_ptr, searched_pc - tc_ptr);
-    if (j < 0)
-        return -1;
-    /* now find start of instruction before */
-    while (gen_opc_instr_start[j] == 0)
-        j--;
-
-    restore_state_to_opc(env, tb, j);
-
-#ifdef CONFIG_PROFILER
-    s->restore_time += profile_getclock() - ti;
-    s->restore_count++;
-#endif
-
-    return 0;
-}
-
-#ifdef CONFIG_SYMBEX
-
-/**
- * Generates LLVM code for already translated TB.
- * We need to retranslate to micro-ops and to machine code because:
- *   - QEMU throws away micro-ops and storing them is too expensive (TCG_KEEP_OPC)
- *   - x86 and LLVM code must be semantically equivalent (same instrumentation in both, etc.)
- */
-int cpu_gen_llvm(CPUArchState *env, TranslationBlock *tb) {
-    TCGContext *s = &tcg_ctx;
-    assert(tb->llvm_function == NULL);
-
-    /* Need to retranslate the code here because QEMU throws
-       away intermediate representation once machine code is generated. */
-
-    cpu_gen_code_init_ctx(s, tb);
-
-#ifdef TCG_KEEP_OPC
-    /* Restore variables */
-    unsigned vars = tb->tcg_nb_globals + tb->tcg_nb_temps;
-    memcpy(tcg_ctx.temps, tb->tcg_temps, vars * sizeof(TCGTemp));
-
-    uint16_t *gen_opc_buf_prev = gen_opc_buf;
-    TCGArg *gen_opparam_buf_pref = gen_opparam_buf;
-
-    gen_opc_buf = tb->gen_opc_buf;
-    gen_opparam_buf = tb->gen_opparam_buf;
-#endif
-
-    tb->llvm_function = tcg_llvm_gen_code(tcg_llvm_ctx, s);
-    g_sqi.tb.set_tb_function(tb);
-
-#ifdef TCG_KEEP_OPC
-    gen_opc_buf = gen_opc_buf_prev;
-    gen_opparam_buf = gen_opparam_buf_pref;
-#endif
-    return 0;
-}
-
-#endif

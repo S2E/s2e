@@ -23,8 +23,8 @@
 #include <cpu/ioport.h>
 #include <cpu/memory.h>
 #include <tcg/tcg.h>
+#include <tcg/utils/osdep.h>
 #include "cpu.h"
-#include "osdep.h"
 #include "qemu-common.h"
 
 #ifdef CONFIG_SYMBEX
@@ -65,8 +65,8 @@ void cpu_exec_init_all(void) {
     io_mem_init();
 
 #ifdef CONFIG_SYMBEX
-    g_sqi.libcpu.ldub_code = ldub_code;
-    g_sqi.libcpu.ldl_code = ldl_code;
+    g_sqi.libcpu.ldub_code = cpu_ldub_code;
+    g_sqi.libcpu.ldl_code = cpu_ldl_code;
 #endif
 }
 
@@ -94,8 +94,6 @@ static void tcg_handle_interrupt(CPUArchState *env, int mask) {
 
     old_mask = env->interrupt_request;
     env->interrupt_request |= mask;
-
-    cpu_unlink_tb(env);
 }
 
 CPUInterruptHandler cpu_interrupt_handler = tcg_handle_interrupt;
@@ -106,7 +104,6 @@ void cpu_reset_interrupt(CPUArchState *env, int mask) {
 
 void cpu_exit(CPUArchState *env) {
     env->exit_request = 1;
-    cpu_unlink_tb(env);
 }
 
 void cpu_abort(CPUArchState *env, const char *fmt, ...) {
@@ -242,7 +239,7 @@ static void notdirty_mem_write(target_phys_addr_t ram_addr, uint64_t val, unsign
 }
 
 #ifdef CONFIG_SYMBEX
-uintptr_t se_notdirty_mem_write(target_phys_addr_t ram_addr) {
+uintptr_t se_notdirty_mem_write(target_phys_addr_t ram_addr, int size) {
     int dirty_flags;
 
     target_ulong iovaddr = g_sqi.mem.read_mem_io_vaddr(1);
@@ -254,7 +251,7 @@ uintptr_t se_notdirty_mem_write(target_phys_addr_t ram_addr) {
     dirty_flags = cpu_physical_memory_get_dirty_flags(ram_addr);
 
     if (!(dirty_flags & CODE_DIRTY_FLAG)) {
-        tb_invalidate_phys_page_fast(ram_addr, 4);
+        tb_invalidate_phys_page_fast(ram_addr, size);
         dirty_flags = cpu_physical_memory_get_dirty_flags(ram_addr);
     }
 
@@ -538,11 +535,7 @@ tb_page_addr_t get_page_addr_code(CPUArchState *env1, target_ulong addr) {
     page_index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
     mmu_idx = cpu_mmu_index(env1);
     if (unlikely(env1->tlb_table[mmu_idx][page_index].addr_code != (addr & TARGET_PAGE_MASK))) {
-#ifdef CONFIG_TCG_PASS_AREG0
         cpu_ldub_code(env1, addr);
-#else
-        ldub_code(addr);
-#endif
     }
     pd = env1->iotlb[mmu_idx][page_index] & ~TARGET_PAGE_MASK;
     if (!mem_desc_find(pd)) {
