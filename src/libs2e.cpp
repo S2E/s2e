@@ -139,8 +139,8 @@ void *mmap(void *addr, size_t len, int prot, int flags, int fd, off_t offset) {
     }
 }
 
-mmap_t g_original_mmap64;
-void *mmap64(void *addr, size_t len, int prot, int flags, int fd, off_t offset) {
+mmap64_t g_original_mmap64;
+void *mmap64(void *addr, size_t len, int prot, int flags, int fd, off64_t offset) {
     auto ifp = g_fdm->get(fd);
     if (ifp) {
         return ifp->sys_mmap(addr, len, prot, flags, fd, offset);
@@ -228,6 +228,33 @@ static bool check_kvm_switch(int argc, char **argv) {
     return false;
 }
 
+void libs2e_init_syscalls(void) {
+    static bool inited = false;
+
+    if (inited) {
+        return;
+    }
+
+    g_original_open = (open_t) dlsym(RTLD_NEXT, "open64");
+    s_original_close = (close_t) dlsym(RTLD_NEXT, "close64");
+    g_original_ioctl = (ioctl_t) dlsym(RTLD_NEXT, "ioctl");
+    s_original_write = (write_t) dlsym(RTLD_NEXT, "write");
+    s_original_select = (select_t) dlsym(RTLD_NEXT, "select");
+    s_original_poll = (poll_t) dlsym(RTLD_NEXT, "poll");
+    g_original_exit = (exit_t) dlsym(RTLD_NEXT, "exit");
+    g_original_mmap = (mmap_t) dlsym(RTLD_NEXT, "mmap");
+    g_original_mmap64 = (mmap64_t) dlsym(RTLD_NEXT, "mmap64");
+    s_original_madvise = (madvise_t) dlsym(RTLD_NEXT, "madvise");
+    s_original_dup = (dup_t) dlsym(RTLD_NEXT, "dup");
+
+#ifdef CONFIG_SYMBEX
+    s_original_printf = (printf_t) dlsym(RTLD_NEXT, "printf");
+    s_original_fprintf = (fprintf_t) dlsym(RTLD_NEXT, "fprintf");
+#endif
+
+    inited = true;
+}
+
 // ****************************
 // Overriding __llibc_start_main
 // ****************************
@@ -243,22 +270,8 @@ int __libc_start_main(int *(main)(int, char **, char **), int argc, char **ubp_a
                       void (*fini)(void), void (*rtld_fini)(void), void *stack_end) {
 
     T_libc_start_main orig_libc_start_main = (T_libc_start_main) dlsym(RTLD_NEXT, "__libc_start_main");
-    g_original_open = (open_t) dlsym(RTLD_NEXT, "open64");
-    s_original_close = (close_t) dlsym(RTLD_NEXT, "close64");
-    g_original_ioctl = (ioctl_t) dlsym(RTLD_NEXT, "ioctl");
-    s_original_write = (write_t) dlsym(RTLD_NEXT, "write");
-    s_original_select = (select_t) dlsym(RTLD_NEXT, "select");
-    s_original_poll = (poll_t) dlsym(RTLD_NEXT, "poll");
-    g_original_exit = (exit_t) dlsym(RTLD_NEXT, "exit");
-    g_original_mmap = (mmap_t) dlsym(RTLD_NEXT, "mmap");
-    g_original_mmap64 = (mmap_t) dlsym(RTLD_NEXT, "mmap64");
-    s_original_madvise = (madvise_t) dlsym(RTLD_NEXT, "madvise");
-    s_original_dup = (dup_t) dlsym(RTLD_NEXT, "dup");
 
-#ifdef CONFIG_SYMBEX
-    s_original_printf = (printf_t) dlsym(RTLD_NEXT, "printf");
-    s_original_fprintf = (fprintf_t) dlsym(RTLD_NEXT, "fprintf");
-#endif
+    libs2e_init_syscalls();
 
     // Hack when we are called from gdb or through a shell command
     if (strstr(ubp_av[0], "bash")) {

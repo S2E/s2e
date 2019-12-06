@@ -45,6 +45,10 @@ private:
 
     std::shared_ptr<VM> m_vm;
 
+#ifdef CONFIG_SYMBEX
+    static std::string getBitcodeLibrary(const std::string &dir);
+#endif
+
     static void *timerCb(void *param);
     void init(void);
     void initLogLevel(void);

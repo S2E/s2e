@@ -241,6 +241,7 @@ LLVM_DIR="$LLVM_ROOT/lib/cmake/llvm"
 cmake -DCMAKE_C_COMPILER="$CC" -DCMAKE_CXX_COMPILER="$CXX"      \
     -DCMAKE_C_FLAGS="$CFLAGS" -DCMAKE_CXX_FLAGS="$CXXFLAGS"     \
     -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DWITH_GUEST="$target"       \
+    -DLIBQ_DIR=$LIBQ_DIR                                        \
     -DLLVM_DIR="$LLVM_DIR" "$LIBTCG_SRC"
 if [ $? -ne 0 ]; then
   exit 1

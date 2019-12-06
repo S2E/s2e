@@ -25,6 +25,7 @@ typedef int (*select_t)(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exc
 typedef void (*exit_t)(int ret) __attribute__((__noreturn__));
 
 typedef void *(*mmap_t)(void *addr, size_t len, int prot, int flags, int fd, off_t offset);
+typedef void *(*mmap64_t)(void *addr, size_t len, int prot, int flags, int fd, off64_t offset);
 typedef int (*madvise_t)(void *addr, size_t len, int advice);
 
 typedef int (*printf_t)(const char *fmt, ...);
