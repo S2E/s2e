@@ -84,12 +84,12 @@ void BaseFunctionModels::initCRCModels() {
         crc16.push_back(E_CONST(crc16_8[index], Expr::Int8));
     }
 
-    auto crc32_array = new Array("crc32", sizeof(s_crc32), &crc32[0], &crc32[crc32.size()], "crc32");
+    auto crc32_array = Array::create("crc32", sizeof(s_crc32), &crc32[0], &crc32[crc32.size()], "crc32");
 
-    auto crc16_array = new Array("crc16", sizeof(s_crc16), &crc16[0], &crc16[crc16.size()], "crc16");
+    auto crc16_array = Array::create("crc16", sizeof(s_crc16), &crc16[0], &crc16[crc16.size()], "crc16");
 
-    m_crc32_ul = new UpdateList(crc32_array, 0);
-    m_crc16_ul = new UpdateList(crc16_array, 0);
+    m_crc32_ul = UpdateList::create(crc32_array, 0);
+    m_crc16_ul = UpdateList::create(crc16_array, 0);
 }
 
 ref<Expr> BaseFunctionModels::crc32(const ref<Expr> &initialCrc, const std::vector<ref<Expr>> &input, bool xorResult) {
@@ -111,11 +111,11 @@ ref<Expr> BaseFunctionModels::crc32(const ref<Expr> &initialCrc, const std::vect
             ref<ConstantExpr> ci = dyn_cast<ConstantExpr>(index);
             lookup = E_CONST(s_crc32[ci->getZExtValue() >> 2], Expr::Int32);
         } else {
-            lookup = ConcatExpr::create(ReadExpr::create(*m_crc32_ul, AddExpr::create(index, E_CONST(3, Expr::Int32))),
-                                        ReadExpr::create(*m_crc32_ul, AddExpr::create(index, E_CONST(2, Expr::Int32))));
+            lookup = ConcatExpr::create(ReadExpr::create(m_crc32_ul, AddExpr::create(index, E_CONST(3, Expr::Int32))),
+                                        ReadExpr::create(m_crc32_ul, AddExpr::create(index, E_CONST(2, Expr::Int32))));
             lookup = ConcatExpr::create(lookup,
-                                        ReadExpr::create(*m_crc32_ul, AddExpr::create(index, E_CONST(1, Expr::Int32))));
-            lookup = ConcatExpr::create(lookup, ReadExpr::create(*m_crc32_ul, index));
+                                        ReadExpr::create(m_crc32_ul, AddExpr::create(index, E_CONST(1, Expr::Int32))));
+            lookup = ConcatExpr::create(lookup, ReadExpr::create(m_crc32_ul, index));
         }
 
         ref<Expr> crc32_shr8 = LShrExpr::create(result, E_CONST(8, Expr::Int32));
@@ -149,8 +149,8 @@ ref<Expr> BaseFunctionModels::crc16(const ref<Expr> &initialCrc, const std::vect
             ref<ConstantExpr> ci = dyn_cast<ConstantExpr>(index);
             lookup = E_CONST(s_crc16[ci->getZExtValue() >> 1], Expr::Int16);
         } else {
-            lookup = ConcatExpr::create(ReadExpr::create(*m_crc16_ul, AddExpr::create(index, E_CONST(1, Expr::Int32))),
-                                        ReadExpr::create(*m_crc16_ul, index));
+            lookup = ConcatExpr::create(ReadExpr::create(m_crc16_ul, AddExpr::create(index, E_CONST(1, Expr::Int32))),
+                                        ReadExpr::create(m_crc16_ul, index));
         }
 
         result = XorExpr::create(lookup, crc32_hi8);

@@ -42,8 +42,8 @@ private:
 protected:
     MemUtils *m_memutils;
 
-    klee::UpdateList *m_crc16_ul;
-    klee::UpdateList *m_crc32_ul;
+    klee::UpdateListPtr m_crc16_ul;
+    klee::UpdateListPtr m_crc32_ul;
 
     ref<Expr> crc32(const ref<Expr> &initialCrc, const std::vector<ref<Expr>> &input, bool xorResult);
     ref<Expr> crc16(const ref<Expr> &initialCrc, const std::vector<ref<Expr>> &input);

@@ -338,7 +338,7 @@ bool Vmi::writeX86Register(void *opaque, unsigned reg, const void *buffer, unsig
         regs->write(offsetof(CPUX86State, dr[regIndex - X86_DR0]), buffer, size);
         return true;
     } else if (regIndex == X86_EFLAGS) {
-        assert(false && "Not implemented");
+        pabort("Not implemented");
     } else if (regIndex == X86_EIP) {
         regs->write(offsetof(CPUX86State, eip), buffer, size);
     } else {

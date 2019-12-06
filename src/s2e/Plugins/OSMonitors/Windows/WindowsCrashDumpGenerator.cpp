@@ -28,6 +28,17 @@
 #include "WindowsCrashDumpGenerator.h"
 #include "WindowsCrashDumpGenerator.h"
 
+static s2e::plugins::WindowsCrashDumpGenerator *s_bsod;
+
+extern "C" {
+void s2e_win_crash_dump(void) {
+    std::string path = s_bsod->getPathForDump(g_s2e_state);
+
+    vmi::windows::BugCheckDescription desc;
+    s_bsod->generateManualDump(g_s2e_state, path, &desc);
+}
+}
+
 namespace s2e {
 namespace plugins {
 
@@ -41,6 +52,7 @@ void WindowsCrashDumpGenerator::initialize() {
     Lunar<WindowsCrashDumpInvoker>::Register(s2e()->getConfig()->getState());
 
     m_monitor = s2e()->getPlugin<WindowsMonitor>();
+    s_bsod = this;
 }
 
 bool WindowsCrashDumpGenerator::generateManualDump(S2EExecutionState *state, const std::string &filename,

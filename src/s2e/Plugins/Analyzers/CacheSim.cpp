@@ -331,7 +331,7 @@ CacheSim::~CacheSim() {
 }
 
 void CacheSim::initialize() {
-    assert(false && "Need to implement onConcreteDataMemoryAccess");
+    pabort("Need to implement onConcreteDataMemoryAccess");
 
     ConfigFile *conf = s2e()->getConfig();
 

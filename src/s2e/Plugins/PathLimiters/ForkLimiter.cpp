@@ -49,7 +49,11 @@ void ForkLimiter::onStateForkDecide(S2EExecutionState *state, bool *doFork) {
         return;
     }
 
-    uint64_t curPc = module->ToNativeBase(state->regs()->getPc());
+    uint64_t curPc;
+    if (!module->ToNativeBase(state->regs()->getPc(), curPc)) {
+        getWarningsStream(state) << "Could not get relative pc for module " << module->Name << "\n";
+        return;
+    }
 
     if (m_forkCount[module->Name][curPc] > m_limit) {
         *doFork = false;
@@ -63,7 +67,11 @@ void ForkLimiter::onFork(S2EExecutionState *state, const std::vector<S2EExecutio
         return;
     }
 
-    uint64_t curPc = module->ToNativeBase(state->regs()->getPc());
+    uint64_t curPc;
+    if (!module->ToNativeBase(state->regs()->getPc(), curPc)) {
+        getWarningsStream(state) << "Could not get relative pc for module " << module->Name << "\n";
+        return;
+    }
     ++m_forkCount[module->Name][curPc];
 }
 

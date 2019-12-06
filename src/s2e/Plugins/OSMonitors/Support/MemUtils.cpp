@@ -63,7 +63,7 @@ bool MemUtils::read(S2EExecutionState *state, std::vector<ref<Expr>> &output, ui
     return true;
 }
 
-void MemUtils::findSequencesOfSymbolicData(const BitArray *concreteMask, uint64_t baseAddr, AddrSize *prevItem,
+void MemUtils::findSequencesOfSymbolicData(const BitArrayPtr &concreteMask, uint64_t baseAddr, AddrSize *prevItem,
                                            std::vector<AddrSize> &sequences) {
     unsigned maskSize = concreteMask->getBitCount();
 
@@ -105,12 +105,12 @@ void MemUtils::findSequencesOfSymbolicData(const BitArray *concreteMask, uint64_
 void MemUtils::findSequencesOfSymbolicData(S2EExecutionState *state, const std::set<uint64_t> &sortedPages,
                                            std::vector<AddrSize> &symbolicSequences) {
     foreach2 (it, sortedPages.begin(), sortedPages.end()) {
-        ObjectPair op = state->mem()->getMemoryObject(*it);
-        if (!op.first) { // page was not used/mapped
+        auto os = state->mem()->getMemoryObject(*it);
+        if (!os) { // page was not used/mapped
             continue;
         }
 
-        const BitArray *concreteMask = op.second->getConcreteMask();
+        auto concreteMask = os->getConcreteMask();
         if (!concreteMask) { // all bytes are concrete
             continue;
         }

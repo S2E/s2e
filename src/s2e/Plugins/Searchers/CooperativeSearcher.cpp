@@ -63,7 +63,7 @@ klee::ExecutionState &CooperativeSearcher::selectState() {
         return *(*m_states.begin()).second;
     }
 
-    assert(false && "There are no states to select!");
+    pabort("There are no states to select!");
 }
 
 void CooperativeSearcher::update(klee::ExecutionState *current, const klee::StateSet &addedStates,

@@ -102,6 +102,9 @@ enum PbTraceTbType {
     TB_CALL_IND = 6;
     TB_REP = 7;
     TB_RET = 8;
+    TB_IRET = 9;
+    TB_EXCP = 10;
+    TB_SYSENTER = 11;
 }
 
 // TRACE_TB_START, TRACE_TB_END
@@ -167,7 +170,7 @@ message PbTraceMemoryAccess {
         EXECTRACE_MEM_OBJECTSTATE = 64;
     }
 
-    required Flags flags = 5;
+    required uint32 flags = 5;
 
     // Valid only if EXECTRACE_MEM_HASHOST is set
     required uint64 host_address = 6;

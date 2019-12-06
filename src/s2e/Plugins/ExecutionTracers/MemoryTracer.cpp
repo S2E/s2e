@@ -106,6 +106,7 @@ void MemoryTracer::traceConcreteDataMemoryAccess(S2EExecutionState *state, uint6
     item.set_value(value);
     item.set_size(size);
     item.set_host_address(0);
+    item.set_concrete_buffer(0);
 
     uint32_t traceFlags = 0;
 
@@ -115,6 +116,22 @@ void MemoryTracer::traceConcreteDataMemoryAccess(S2EExecutionState *state, uint6
 
     if (flags & MEM_TRACE_FLAG_IO) {
         traceFlags |= s2e_trace::PbTraceMemoryAccess::EXECTRACE_MEM_IO;
+    }
+
+    if (m_traceHostAddresses) {
+        item.set_host_address(state->mem()->getHostAddress(address));
+        item.set_concrete_buffer(0);
+
+        traceFlags |= s2e_trace::PbTraceMemoryAccess::EXECTRACE_MEM_HASHOSTADDR;
+        traceFlags |= s2e_trace::PbTraceMemoryAccess::EXECTRACE_MEM_OBJECTSTATE;
+
+        auto os = state->addressSpace.findObject(item.host_address() & SE_RAM_OBJECT_MASK);
+        if (os) {
+            item.set_concrete_buffer((uint64_t) os->getConcreteBuffer());
+            if ((flags & MEM_TRACE_FLAG_WRITE) && m_debugObjectStates) {
+                assert(state->addressSpace.isOwnedByUs(os));
+            }
+        }
     }
 
     item.set_flags(s2e_trace::PbTraceMemoryAccess::Flags(traceFlags));
@@ -160,16 +177,17 @@ void MemoryTracer::traceSymbolicDataMemoryAccess(S2EExecutionState *state, klee:
     }
 
     item.set_host_address(isHostAddrCste ? cast<klee::ConstantExpr>(hostAddress)->getZExtValue(64) : 0xDEADBEEF);
+    item.set_concrete_buffer(0);
 
     if (m_traceHostAddresses) {
         traceFlags |= s2e_trace::PbTraceMemoryAccess::EXECTRACE_MEM_HASHOSTADDR;
         traceFlags |= s2e_trace::PbTraceMemoryAccess::EXECTRACE_MEM_OBJECTSTATE;
 
-        klee::ObjectPair op = state->addressSpace.findObject(item.host_address() & SE_RAM_OBJECT_MASK);
-        if (op.first && op.second) {
-            item.set_concrete_buffer((uint64_t) op.second->getConcreteStore());
+        auto os = state->addressSpace.findObject(item.host_address() & SE_RAM_OBJECT_MASK);
+        if (os) {
+            item.set_concrete_buffer((uint64_t) os->getConcreteBuffer());
             if ((flags & MEM_TRACE_FLAG_WRITE) && m_debugObjectStates) {
-                assert(state->addressSpace.isOwnedByUs(op.second));
+                assert(state->addressSpace.isOwnedByUs(os));
             }
         }
     }

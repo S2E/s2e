@@ -431,7 +431,7 @@ void TestCaseGenerator::assembleTestCaseToFiles(const klee::Assignment &assignme
                                                 const ConcreteFileTemplates &templates, TestCaseData &data) {
     ConcreteInputs inputs;
     for (const auto &it : assignment.bindings) {
-        const Array *array = it.first;
+        auto &array = it.first;
         const std::vector<unsigned char> &varData = it.second;
         inputs.push_back(std::make_pair(array->getName(), varData));
     }

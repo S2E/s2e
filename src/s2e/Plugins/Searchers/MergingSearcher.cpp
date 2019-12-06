@@ -193,7 +193,7 @@ bool MergingSearcher::mergeEnd(S2EExecutionState *state, bool skipOpcode, bool c
         mergePool.firstState = state;
         suspend(state);
         state->yield();
-        assert(false && "Can't get here");
+        pabort("Can't get here");
         return false;
     }
 

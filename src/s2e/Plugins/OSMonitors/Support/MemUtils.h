@@ -80,7 +80,7 @@ public:
     /// \param prevItem Used to automatically merge sequence spanning 2 memory pages.
     /// If the function is called with bitmask 111000 and then 0111, it will update previously
     /// found sequence to have size 4.
-    void findSequencesOfSymbolicData(const BitArray *concreteMask, uint64_t baseAddr, AddrSize *prevItem,
+    void findSequencesOfSymbolicData(const BitArrayPtr &concreteMask, uint64_t baseAddr, AddrSize *prevItem,
                                      std::vector<AddrSize> &sequences);
 
     /// \brief Find contiguous chunks of symbolic data in selected memory pages

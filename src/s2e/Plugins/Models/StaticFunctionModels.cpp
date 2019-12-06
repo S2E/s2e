@@ -94,7 +94,12 @@ void StaticFunctionModels::onModuleTranslateBlockEnd(ExecutionSignal *signal, S2
     }
 
     // Check if we call a known string function
-    uint64_t pc = module.ToNativeBase(targetPc);
+    uint64_t pc;
+    if (!module.ToNativeBase(targetPc, pc)) {
+        getWarningsStream(state) << "Could not convert " << hexval(targetPc) << " to relative address for module "
+                                 << module.Name << "\n";
+        return;
+    }
 
     std::stringstream ss;
     ss << getConfigKey() << ".modules[\"" << module.Name << "\"]"

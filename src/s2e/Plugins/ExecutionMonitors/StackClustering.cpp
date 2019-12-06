@@ -11,6 +11,8 @@
 #include <s2e/S2E.h>
 #include <s2e/Utils.h>
 
+#include <klee/Common.h>
+
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Support/raw_ostream.h>
 
@@ -40,7 +42,7 @@ void StackClustering::initialize() {
 
 void StackClustering::computeCallStack(S2EExecutionState *originalState, calltree::CallStack &cs,
                                        calltree::Location &loc) {
-    assert(false && "Upgrade to new apis");
+    pabort("Upgrade to new apis");
 
 #if 0 // This does not compile anymore
 

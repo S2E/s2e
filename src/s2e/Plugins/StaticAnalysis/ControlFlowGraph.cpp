@@ -272,7 +272,7 @@ bool ControlFlowGraph::getFinalSuccessor(const std::string &module, uint64_t sta
 
     } while (true);
 
-    assert(false && "Can't get here");
+    pabort("Can't get here");
     return false;
 }
 
@@ -321,7 +321,12 @@ void ControlFlowGraph::handleOpcodeInvocation(S2EExecutionState *state, uint64_t
                 break;
             }
 
-            uint64_t RelFunctionPc = desc->ToNativeBase(command.Function.RunTimeFunctionAddress);
+            uint64_t RelFunctionPc;
+            if (!desc->ToNativeBase(command.Function.RunTimeFunctionAddress, RelFunctionPc)) {
+                getWarningsStream(state) << "Could not translate " << hexval(command.Function.RunTimeFunctionAddress)
+                                         << "\n";
+                return;
+            }
             m_entryPoints[desc->Name][RelFunctionPc] = FunctionName;
 
             getInfoStream(state) << "Registered function " << desc->Name << ":" << hexval(RelFunctionPc) << "("

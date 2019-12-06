@@ -20,6 +20,8 @@
 #include <s2e/Plugins/Core/Vmi.h>
 #include <s2e/Plugins/OSMonitors/OSMonitor.h>
 
+#include <klee/Common.h>
+
 #include <vector>
 
 namespace s2e {
@@ -91,12 +93,11 @@ public:
     }
 
     virtual uint64_t getTid(S2EExecutionState *state) {
-        assert(false && "Not implemented!");
+        pabort("Not implemented!");
         return false;
     }
 
     virtual bool getProcessName(S2EExecutionState *state, uint64_t pid, std::string &name) {
-        assert(false && "Not implemented!");
         return false;
     }
 };

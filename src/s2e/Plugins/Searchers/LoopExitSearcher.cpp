@@ -63,7 +63,10 @@ void LoopExitSearcher::onFork(S2EExecutionState *state, const std::vector<S2EExe
     uint64_t currentForkCount = 0;
 
     if (module) {
-        curPc = module->ToNativeBase(state->regs()->getPc());
+        if (!module->ToNativeBase(state->regs()->getPc(), curPc)) {
+            getWarningsStream(state) << "Could not get module pc for " << module->Name << "\n";
+            return;
+        }
         currentForkCount = ++m_forkCount[module->Name][curPc];
     } else {
         curPc = state->regs()->getPc();
@@ -123,7 +126,10 @@ void LoopExitSearcher::onFork(S2EExecutionState *state, const std::vector<S2EExe
 
     // The exit blocks get a higher priority
     for (unsigned i = 0; i < 2; ++i) {
-        targets[i] = module->ToNativeBase(staticTargets[i]);
+        if (!module->ToNativeBase(staticTargets[i], targets[i])) {
+            getWarningsStream(state) << "Could not get native address for target\n";
+            return;
+        }
         m_bbcov->addNonCoveredBlock(newStates[i], module->Name, targets[i]);
         m_ecov->addNonCoveredEdge(newStates[i], module->Name, bb->end_pc, targets[i]);
 
@@ -181,7 +187,7 @@ void LoopExitSearcher::increasePriority(S2EExecutionState *state, int64_t priori
         return;
     }
 
-    assert(false && "Can't get here");
+    pabort("Can't get here");
 }
 
 klee::ExecutionState &LoopExitSearcher::selectState() {

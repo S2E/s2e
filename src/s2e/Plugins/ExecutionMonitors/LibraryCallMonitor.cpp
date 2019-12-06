@@ -125,13 +125,23 @@ void LibraryCallMonitor::logLibraryCall(S2EExecutionState *state, const ModuleDe
                                         const std::string &function) const {
     std::string sourceTypeDesc = (sourceType == TB_CALL_IND) ? " called " : " jumped to ";
 
-    uint64_t relSourcePc = sourceMod.ToNativeBase(sourcePcAbsolute);
-    uint64_t relDestPc = destMod.ToNativeBase(destPcAbsolute);
+    uint64_t relSourcePc;
+    uint64_t relDestPc;
+
+    bool ok = true;
+    ok &= sourceMod.ToNativeBase(sourcePcAbsolute, relSourcePc);
+    ok &= destMod.ToNativeBase(destPcAbsolute, relDestPc);
+
+    if (!ok) {
+        getWarningsStream(state) << "could not get source/dest addresses for library call for modules "
+                                 << sourceMod.Name << " -> " << destMod.Name << "\n";
+        return;
+    }
 
     getInfoStream(state) << sourceMod.Name << ":" << hexval(relSourcePc) << " (" << hexval(sourcePcAbsolute) << ") "
-                         << sourceTypeDesc << destMod.Name << ":" << hexval(relDestPc) << " (" << hexval(destPcAbsolute)
-                         << ") "
-                         << "!" << function << " (pid=" << hexval(sourceMod.Pid) << ")\n";
+                         << sourceTypeDesc << destMod.Name << "!" << function << ":" << hexval(relDestPc) << " ("
+                         << hexval(destPcAbsolute) << ")"
+                         << " (pid=" << hexval(sourceMod.Pid) << ")\n";
 }
 
 void LibraryCallMonitor::onTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb,
