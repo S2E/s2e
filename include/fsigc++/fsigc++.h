@@ -23,6 +23,9 @@
 
 #define _S2E_SIGNALS_
 
+#include <atomic>
+#include <boost/container/small_vector.hpp>
+#include <boost/intrusive_ptr.hpp>
 #include <cassert>
 #include <stdlib.h>
 #include <vector>
@@ -48,9 +51,12 @@ public:
     virtual void disconnect(void *functor) = 0;
 };
 
+class functor_refcnt;
+typedef boost::intrusive_ptr<functor_refcnt> functor_refcnt_ptr;
+
 class connection {
 private:
-    void *m_functor;
+    functor_refcnt_ptr m_functor;
     signal_base *m_sig;
     bool m_connected;
 
@@ -61,7 +67,7 @@ public:
         m_connected = false;
     }
 
-    connection(signal_base *sig, void *func);
+    connection(signal_base *sig, const functor_refcnt_ptr &func);
     inline bool connected() const {
         return m_connected;
     }
@@ -72,25 +78,51 @@ public:
 //*************************************************
 //*************************************************
 
-template <typename RET, typename... PARAM_TYPES> class functor_base {
+class functor_refcnt {
+private:
+    std::atomic<unsigned> m_refCount;
+
 protected:
-    unsigned m_refcount;
+    functor_refcnt() : m_refCount(0) {
+    }
 
 public:
-    functor_base() : m_refcount(0) {
+    virtual ~functor_refcnt() {
+        assert(m_refCount == 0);
     }
-    void incref() {
-        ++m_refcount;
+
+    template <typename T> friend void intrusive_ptr_add_ref(T *ptr);
+
+    template <typename T> friend void intrusive_ptr_release(T *ptr);
+};
+
+template <typename T> inline void intrusive_ptr_add_ref(T *ptr) {
+    ++ptr->m_refCount;
+}
+
+template <typename T> inline void intrusive_ptr_release(T *ptr) {
+    if (--ptr->m_refCount == 0) {
+        delete ptr;
     }
-    unsigned decref() {
-        assert(this->m_refcount > 0);
-        return --m_refcount;
+}
+
+template <typename RET, typename... PARAM_TYPES> class functor_base : public functor_refcnt {
+protected:
+    functor_base() {
     }
+
+public:
+    typedef boost::intrusive_ptr<functor_base<RET, PARAM_TYPES...>> functor_base_ptr;
+
+    static functor_base_ptr create() {
+        return new functor_base();
+    }
+
     virtual ~functor_base() {
-        assert(m_refcount == 0);
     }
+
     virtual RET operator()(PARAM_TYPES... params) {
-        assert(false);
+        abort();
     }
 };
 
@@ -100,27 +132,31 @@ public:
 template <typename RET, typename... PARAM_TYPES> class ptrfunn : public functor_base<RET, PARAM_TYPES...> {
 public:
     typedef RET (*func_t)(PARAM_TYPES...);
+    typedef boost::intrusive_ptr<ptrfunn> ptrfunn_ptr;
 
 protected:
     func_t m_func;
 
-public:
     ptrfunn(func_t f) {
         m_func = f;
     }
 
+public:
     virtual ~ptrfunn() {
     }
 
+    static ptrfunn_ptr create(func_t f) {
+        return new ptrfunn(f);
+    }
+
     virtual RET operator()(PARAM_TYPES... types) {
-        FASSERT(this->m_refcount > 0);
         return (*m_func)(types...);
     }
 };
 
 template <typename RET, typename... PARAM_TYPES>
-inline functor_base<RET, PARAM_TYPES...> *ptr_fun(RET (*f)(PARAM_TYPES...)) {
-    return new ptrfunn<RET, PARAM_TYPES...>(f);
+inline boost::intrusive_ptr<functor_base<RET, PARAM_TYPES...>> ptr_fun(RET (*f)(PARAM_TYPES...)) {
+    return ptrfunn<RET, PARAM_TYPES...>::create(f);
 }
 
 //*************************************************
@@ -138,13 +174,17 @@ protected:
     func_t m_func;
     T *m_obj;
 
-public:
     functorn(T *obj, func_t f) {
         m_obj = obj;
         m_func = f;
     }
 
+public:
     virtual ~functorn() {
+    }
+
+    static boost::intrusive_ptr<functorn> create(T *obj, func_t f) {
+        return new functorn(obj, f);
     }
 
     virtual RET operator()(PARAM_TYPES... types) {
@@ -154,71 +194,68 @@ public:
 };
 
 template <class T, typename RET, typename... PARAM_TYPES>
-inline functor_base<RET, PARAM_TYPES...> *mem_fun(T &obj, RET (T::*f)(PARAM_TYPES...)) {
-    return new functorn<T, RET, PARAM_TYPES...>(&obj, f);
+inline boost::intrusive_ptr<functor_base<RET, PARAM_TYPES...>> mem_fun(T &obj, RET (T::*f)(PARAM_TYPES...)) {
+    return functorn<T, RET, PARAM_TYPES...>::create(&obj, f);
 }
 
 template <typename RET, typename... PARAM_TYPES> class signal : public signal_base {
 public:
-    typedef functor_base<RET, PARAM_TYPES...> *func_t;
+    typedef boost::intrusive_ptr<functor_base<RET, PARAM_TYPES...>> func_t;
 
     unsigned m_activeSignals;
+    unsigned m_deletedSignals;
 
 private:
     // Each signal has a priority. Any new signal will be inserted
     // in the list according to its priority.
     // Higher priorities go first in the list.
     typedef std::pair<func_t, int> func_priority_t;
-    std::vector<func_priority_t> m_funcs;
+    boost::container::small_vector<func_priority_t, 16> m_funcs;
 
-    void disconnectAll() {
-        for (auto &it : m_funcs) {
-            if (it.first && !it.first->decref()) {
-                delete it.first;
-                it.first = nullptr;
+    void cleanup() {
+        while (m_deletedSignals > 0) {
+            for (auto it = m_funcs.begin(); it != m_funcs.end(); ++it) {
+                if (!(*it).first) {
+                    m_funcs.erase(it);
+                    m_deletedSignals--;
+                    break;
+                }
             }
         }
-        m_funcs.clear();
     }
 
 public:
     signal() {
         m_activeSignals = 0;
+        m_deletedSignals = 0;
     }
 
     signal(const signal &one) {
         m_activeSignals = one.m_activeSignals;
         m_funcs = one.m_funcs;
-
-        for (auto &it : m_funcs) {
-            if (it.first) {
-                it.first->incref();
-            }
-        }
     }
 
     virtual ~signal() {
-        disconnectAll();
     }
 
     virtual void disconnect(void *functor) {
         assert(m_activeSignals > 0);
 
         for (auto it = m_funcs.begin(); it != m_funcs.end(); ++it) {
-            auto fcn = (*it).first;
+            auto &fcn = (*it).first;
             if (fcn == functor) {
-                if (!fcn->decref()) {
-                    delete fcn;
-                }
                 --m_activeSignals;
-                m_funcs.erase(it);
+                ++m_deletedSignals;
+                // Don't erase the entry to avoid invalidating
+                // the iterator in emit(). This may happen if the called
+                // signal handler tries to disconnect itself.
+                fcn = nullptr;
                 break;
             }
         }
     }
 
-    connection connect(func_t fcn, int priority = MEDIUM_PRIORITY) {
-        fcn->incref();
+    connection connect(const func_t &fcn, int priority = MEDIUM_PRIORITY) {
         ++m_activeSignals;
         auto p = func_priority_t(fcn, priority);
 
@@ -239,8 +276,12 @@ public:
 
     void emit(PARAM_TYPES... params) {
         for (auto &it : m_funcs) {
-            it.first->operator()(params...);
+            if (it.first) {
+                it.first->operator()(params...);
+            }
         }
+
+        cleanup();
     }
 
     // This is intended for optimization purposes only.
@@ -259,24 +300,24 @@ public:
 template <typename RET, typename A1, typename... PARAM_TYPES>
 class functorn_1 : public functor_base<RET, PARAM_TYPES...> {
 public:
-    typedef functor_base<RET, PARAM_TYPES..., A1> functor_t;
+    typedef boost::intrusive_ptr<functor_base<RET, PARAM_TYPES..., A1>> functor_t;
 
 private:
-    functor_t *m_fb;
+    functor_t m_fb;
     A1 a1;
 
-public:
-    functorn_1(functor_t *fb, A1 _a1) : m_fb(fb), a1(_a1) {
-        fb->incref();
+    functorn_1(const functor_t &fb, A1 _a1) : m_fb(fb), a1(_a1) {
     }
+
+public:
     virtual ~functorn_1() {
-        if (!m_fb->decref()) {
-            delete m_fb;
-        }
+    }
+
+    static boost::intrusive_ptr<functorn_1> create(const functor_t &fb, A1 _a1) {
+        return new functorn_1(fb, _a1);
     }
 
     virtual RET operator()(PARAM_TYPES... params) {
-        FASSERT(this->m_refcount > 0);
         return m_fb->operator()(params..., a1);
     }
 };
@@ -284,25 +325,25 @@ public:
 template <typename RET, typename A1, typename A2, typename... PARAM_TYPES>
 class functorn_2 : public functor_base<RET, PARAM_TYPES...> {
 public:
-    typedef functor_base<RET, PARAM_TYPES..., A1, A2> functor_t;
+    typedef boost::intrusive_ptr<functor_base<RET, PARAM_TYPES..., A1, A2>> functor_t;
 
 private:
-    functor_t *m_fb;
+    functor_t m_fb;
     A1 a1;
     A2 a2;
 
-public:
-    functorn_2(functor_t *fb, A1 _a1, A2 _a2) : m_fb(fb), a1(_a1), a2(_a2) {
-        fb->incref();
+    functorn_2(const functor_t &fb, A1 _a1, A2 _a2) : m_fb(fb), a1(_a1), a2(_a2) {
     }
+
+public:
     virtual ~functorn_2() {
-        if (!m_fb->decref()) {
-            delete m_fb;
-        }
+    }
+
+    static boost::intrusive_ptr<functorn_2> create(const functor_t &fb, A1 _a1, A2 _a2) {
+        return new functorn_2(fb, _a1, _a2);
     }
 
     virtual RET operator()(PARAM_TYPES... params) {
-        FASSERT(this->m_refcount > 0);
         return m_fb->operator()(params..., a1, a2);
     }
 };
@@ -310,23 +351,23 @@ public:
 template <typename RET, typename A1, typename A2, typename A3, typename... PARAM_TYPES>
 class functorn_3 : public functor_base<RET, PARAM_TYPES...> {
 public:
-    typedef functor_base<RET, PARAM_TYPES..., A1, A2, A3> functor_t;
+    typedef boost::intrusive_ptr<functor_base<RET, PARAM_TYPES..., A1, A2, A3>> functor_t;
 
 private:
-    functor_t *m_fb;
+    functor_t m_fb;
     A1 a1;
     A2 a2;
     A3 a3;
 
-public:
-    functorn_3(functor_t *fb, A1 _a1, A2 _a2, A3 _a3) : m_fb(fb), a1(_a1), a2(_a2), a3(_a3) {
-        fb->incref();
+    functorn_3(const functor_t &fb, A1 _a1, A2 _a2, A3 _a3) : m_fb(fb), a1(_a1), a2(_a2), a3(_a3) {
     }
 
+public:
     virtual ~functorn_3() {
-        if (!m_fb->decref()) {
-            delete m_fb;
-        }
+    }
+
+    static boost::intrusive_ptr<functorn_3> create(const functor_t &fb, A1 _a1, A2 _a2, A3 _a3) {
+        return new functorn_3(fb, _a1, _a2, _a3);
     }
 
     virtual RET operator()(PARAM_TYPES... params) {
@@ -336,97 +377,111 @@ public:
 };
 
 // 0 arguments base event - 1 extra argument
-template <typename RET, typename A1, typename B1> inline functor_base<RET> *bind(functor_base<RET, A1> *f, B1 a1) {
-    return new functorn_1<RET, A1>(f, a1);
+template <typename RET, typename A1, typename B1>
+inline boost::intrusive_ptr<functor_base<RET>> bind(const boost::intrusive_ptr<functor_base<RET, A1>> &f, B1 a1) {
+    return functorn_1<RET, A1>::create(f, a1);
 }
 
 // 0 arguments base event - 2 extra arguments
 template <typename RET, typename A1, typename B1, typename A2, typename B2>
-inline functor_base<RET> *bind(functor_base<RET, A1, A2> *f, B1 a1, B2 a2) {
-    return new functorn_2<RET, A1, A2>(f, a1, a2);
+inline boost::intrusive_ptr<functor_base<RET>> bind(const boost::intrusive_ptr<functor_base<RET, A1, A2>> &f, B1 a1,
+                                                    B2 a2) {
+    return functorn_2<RET, A1, A2>::create(f, a1, a2);
 }
 
 // 0 arguments base event - 3 extra arguments
 template <typename RET, typename A1, typename B1, typename A2, typename B2, typename A3, typename B3>
-inline functor_base<RET> *bind(functor_base<RET, A1, A2, A3> *f, B1 a1, B2 a2, B3 a3) {
-    return new functorn_3<RET, A1, A2, A3>(f, a1, a2, a3);
+inline boost::intrusive_ptr<functor_base<RET>> bind(const boost::intrusive_ptr<functor_base<RET, A1, A2, A3>> &f, B1 a1,
+                                                    B2 a2, B3 a3) {
+    return functorn_3<RET, A1, A2, A3>::create(f, a1, a2, a3);
 }
 
 // 1 arguments base event - 1 extra argument
 template <typename RET, typename BE1, typename A1, typename B1>
-inline functor_base<RET, BE1> *bind(functor_base<RET, BE1, A1> *f, B1 a1) {
-    return new functorn_1<RET, A1, BE1>(f, a1);
+inline boost::intrusive_ptr<functor_base<RET, BE1>> bind(const boost::intrusive_ptr<functor_base<RET, BE1, A1>> &f,
+                                                         B1 a1) {
+    return functorn_1<RET, A1, BE1>::create(f, a1);
 }
 
 // 1 arguments base event - 2 extra argument
 template <typename RET, typename BE1, typename A1, typename B1, typename A2, typename B2>
-inline functor_base<RET, BE1> *bind(functor_base<RET, BE1, A1, A2> *f, B1 a1, B2 a2) {
-    return new functorn_2<RET, A1, A2, BE1>(f, a1, a2);
+inline boost::intrusive_ptr<functor_base<RET, BE1>> bind(const boost::intrusive_ptr<functor_base<RET, BE1, A1, A2>> &f,
+                                                         B1 a1, B2 a2) {
+    return functorn_2<RET, A1, A2, BE1>::create(f, a1, a2);
 }
 
 // 1 arguments base event - 3 extra argument
 template <typename RET, typename BE1, typename A1, typename B1, typename A2, typename B2, typename A3, typename B3>
-inline functor_base<RET, BE1> *bind(functor_base<RET, BE1, A1, A2, A3> *f, B1 a1, B2 a2, B3 a3) {
-    return new functorn_3<RET, A1, A2, A3, BE1>(f, a1, a2, a3);
+inline boost::intrusive_ptr<functor_base<RET, BE1>>
+bind(const boost::intrusive_ptr<functor_base<RET, BE1, A1, A2, A3>> &f, B1 a1, B2 a2, B3 a3) {
+    return functorn_3<RET, A1, A2, A3, BE1>::create(f, a1, a2, a3);
 }
 
 // 2 arguments base event - 1 extra argument
 template <typename RET, typename BE1, typename BE2, typename A1, typename B1>
-inline functor_base<RET, BE1, BE2> *bind(functor_base<RET, BE1, BE2, A1> *f, B1 a1) {
-    return new functorn_1<RET, A1, BE1, BE2>(f, a1);
+inline boost::intrusive_ptr<functor_base<RET, BE1, BE2>>
+bind(const boost::intrusive_ptr<functor_base<RET, BE1, BE2, A1>> &f, B1 a1) {
+    return functorn_1<RET, A1, BE1, BE2>::create(f, a1);
 }
 
 // 2 arguments base event - 2 extra argument
 template <typename RET, typename BE1, typename BE2, typename A1, typename B1, typename A2, typename B2>
-inline functor_base<RET, BE1, BE2> *bind(functor_base<RET, BE1, BE2, A1, A2> *f, B1 a1, B2 a2) {
-    return new functorn_2<RET, A1, A2, BE1, BE2>(f, a1, a2);
+inline boost::intrusive_ptr<functor_base<RET, BE1, BE2>>
+bind(const boost::intrusive_ptr<functor_base<RET, BE1, BE2, A1, A2>> &f, B1 a1, B2 a2) {
+    return functorn_2<RET, A1, A2, BE1, BE2>::create(f, a1, a2);
 }
 
 // 2 arguments base event - 3 extra argument
 template <typename RET, typename BE1, typename BE2, typename A1, typename B1, typename A2, typename B2, typename A3,
           typename B3>
-inline functor_base<RET, BE1, BE2> *bind(functor_base<RET, BE1, BE2, A1, A2, A3> *f, B1 a1, B2 a2, B3 a3) {
-    return new functorn_3<RET, A1, A2, A3, BE1, BE2>(f, a1, a2, a3);
+inline boost::intrusive_ptr<functor_base<RET, BE1, BE2>>
+bind(const boost::intrusive_ptr<functor_base<RET, BE1, BE2, A1, A2, A3>> &f, B1 a1, B2 a2, B3 a3) {
+    return functorn_3<RET, A1, A2, A3, BE1, BE2>::create(f, a1, a2, a3);
 }
 
 // 3 arguments base event - 1 extra argument
 template <typename RET, typename BE1, typename BE2, typename BE3, typename A1, typename B1>
-inline functor_base<RET, BE1, BE2, BE3> *bind(functor_base<RET, BE1, BE2, BE3, A1> *f, B1 a1) {
-    return new functorn_1<RET, A1, BE1, BE2, BE3>(f, a1);
+inline boost::intrusive_ptr<functor_base<RET, BE1, BE2, BE3>>
+bind(const boost::intrusive_ptr<functor_base<RET, BE1, BE2, BE3, A1>> &f, B1 a1) {
+    return functorn_1<RET, A1, BE1, BE2, BE3>::create(f, a1);
 }
 
 // 3 arguments base event - 2 extra argument
 template <typename RET, typename BE1, typename BE2, typename BE3, typename A1, typename B1, typename A2, typename B2>
-inline functor_base<RET, BE1, BE2, BE3> *bind(functor_base<RET, BE1, BE2, BE3, A1, A2> *f, B1 a1, B2 a2) {
-    return new functorn_2<RET, A1, A2, BE1, BE2, BE3>(f, a1, a2);
+inline boost::intrusive_ptr<functor_base<RET, BE1, BE2, BE3>>
+bind(const boost::intrusive_ptr<functor_base<RET, BE1, BE2, BE3, A1, A2>> &f, B1 a1, B2 a2) {
+    return functorn_2<RET, A1, A2, BE1, BE2, BE3>::create(f, a1, a2);
 }
 
 // 3 arguments base event - 3 extra argument
 template <typename RET, typename BE1, typename BE2, typename BE3, typename A1, typename B1, typename A2, typename B2,
           typename A3, typename B3>
-inline functor_base<RET, BE1, BE2, BE3> *bind(functor_base<RET, BE1, BE2, BE3, A1, A2, A3> *f, B1 a1, B2 a2, B3 a3) {
-    return new functorn_3<RET, A1, A2, A3, BE1, BE2, BE3>(f, a1, a2, a3);
+inline boost::intrusive_ptr<functor_base<RET, BE1, BE2, BE3>>
+bind(const boost::intrusive_ptr<functor_base<RET, BE1, BE2, BE3, A1, A2, A3>> &f, B1 a1, B2 a2, B3 a3) {
+    return functorn_3<RET, A1, A2, A3, BE1, BE2, BE3>::create(f, a1, a2, a3);
 }
 
 // 4 arguments base event - 1 extra argument
 template <typename RET, typename BE1, typename BE2, typename BE3, typename BE4, typename A1, typename B1>
-inline functor_base<RET, BE1, BE2, BE3, BE4> *bind(functor_base<RET, BE1, BE2, BE3, BE4, A1> *f, B1 a1) {
-    return new functorn_1<RET, A1, BE1, BE2, BE3, BE4>(f, a1);
+inline boost::intrusive_ptr<functor_base<RET, BE1, BE2, BE3, BE4>>
+bind(const boost::intrusive_ptr<functor_base<RET, BE1, BE2, BE3, BE4, A1>> &f, B1 a1) {
+    return functorn_1<RET, A1, BE1, BE2, BE3, BE4>::create(f, a1);
 }
 
 // 4 arguments base event - 2 extra argument
 template <typename RET, typename BE1, typename BE2, typename BE3, typename BE4, typename A1, typename B1, typename A2,
           typename B2>
-inline functor_base<RET, BE1, BE2, BE3, BE4> *bind(functor_base<RET, BE1, BE2, BE3, BE4, A1, A2> *f, B1 a1, B2 a2) {
-    return new functorn_2<RET, A1, A2, BE1, BE2, BE3, BE4>(f, a1, a2);
+inline boost::intrusive_ptr<functor_base<RET, BE1, BE2, BE3, BE4>>
+bind(const boost::intrusive_ptr<functor_base<RET, BE1, BE2, BE3, BE4, A1, A2>> &f, B1 a1, B2 a2) {
+    return functorn_2<RET, A1, A2, BE1, BE2, BE3, BE4>::create(f, a1, a2);
 }
 
 // 4 arguments base event - 3 extra argument
 template <typename RET, typename BE1, typename BE2, typename BE3, typename BE4, typename A1, typename B1, typename A2,
           typename B2, typename A3, typename B3>
-inline functor_base<RET, BE1, BE2, BE3, BE4> *bind(functor_base<RET, BE1, BE2, BE3, BE4, A1, A2, A3> *f, B1 a1, B2 a2,
-                                                   B3 a3) {
-    return new functorn_3<RET, A1, A2, A3, BE1, BE2, BE3, BE4>(f, a1, a2, a3);
+inline boost::intrusive_ptr<functor_base<RET, BE1, BE2, BE3, BE4>>
+bind(const boost::intrusive_ptr<functor_base<RET, BE1, BE2, BE3, BE4, A1, A2, A3>> &f, B1 a1, B2 a2, B3 a3) {
+    return functorn_3<RET, A1, A2, A3, BE1, BE2, BE3, BE4>::create(f, a1, a2, a3);
 }
 }
 #endif
