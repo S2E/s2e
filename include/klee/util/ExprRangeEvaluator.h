@@ -56,9 +56,9 @@ template <class T> class ExprRangeEvaluator {
 protected:
     /// getInitialReadRange - Return a range for the initial value of the given
     /// array (which may be constant), for the given range of indices.
-    virtual T getInitialReadRange(const Array &os, T index) = 0;
+    virtual T getInitialReadRange(const ArrayPtr &os, T index) = 0;
 
-    T evalRead(const UpdateList &ul, T index);
+    T evalRead(const UpdateListPtr &ul, T index);
 
 public:
     ExprRangeEvaluator() {
@@ -69,10 +69,10 @@ public:
     T evaluate(const ref<Expr> &e);
 };
 
-template <class T> T ExprRangeEvaluator<T>::evalRead(const UpdateList &ul, T index) {
+template <class T> T ExprRangeEvaluator<T>::evalRead(const UpdateListPtr &ul, T index) {
     T res;
 
-    for (const UpdateNode *un = ul.getHead(); un; un = un->getNext()) {
+    for (auto un = ul->getHead(); un; un = un->getNext()) {
         T ui = evaluate(un->getIndex());
 
         if (ui.mustEqual(index)) {
@@ -85,16 +85,13 @@ template <class T> T ExprRangeEvaluator<T>::evalRead(const UpdateList &ul, T ind
         }
     }
 
-    return res.set_union(getInitialReadRange(*ul.getRoot(), index));
+    return res.set_union(getInitialReadRange(ul->getRoot(), index));
 }
 
 template <class T> T ExprRangeEvaluator<T>::evaluate(const ref<Expr> &e) {
     switch (e->getKind()) {
         case Expr::Constant:
             return T(cast<ConstantExpr>(e));
-
-        case Expr::NotOptimized:
-            break;
 
         case Expr::Read: {
             const ReadExpr *re = cast<ReadExpr>(e);

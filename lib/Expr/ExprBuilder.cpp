@@ -23,11 +23,7 @@ class DefaultExprBuilder : public ExprBuilder {
         return ConstantExpr::alloc(Value);
     }
 
-    virtual ref<Expr> NotOptimized(const ref<Expr> &Index) {
-        return NotOptimizedExpr::alloc(Index);
-    }
-
-    virtual ref<Expr> Read(const UpdateList &Updates, const ref<Expr> &Index) {
+    virtual ref<Expr> Read(const UpdateListPtr &Updates, const ref<Expr> &Index) {
         return ReadExpr::alloc(Updates, Index);
     }
 
@@ -171,11 +167,7 @@ public:
         return Base->Constant(Value);
     }
 
-    ref<Expr> NotOptimized(const ref<Expr> &Index) {
-        return Base->NotOptimized(Index);
-    }
-
-    ref<Expr> Read(const UpdateList &Updates, const ref<Expr> &Index) {
+    ref<Expr> Read(const UpdateListPtr &Updates, const ref<Expr> &Index) {
         return Base->Read(Updates, Index);
     }
 
@@ -316,20 +308,16 @@ public:
         return Builder.Constant(Value);
     }
 
-    virtual ref<Expr> NotOptimized(const ref<Expr> &Index) {
-        return Builder.NotOptimized(Index);
-    }
-
-    virtual ref<Expr> Read(const UpdateList &Updates, const ref<Expr> &Index) {
+    virtual ref<Expr> Read(const UpdateListPtr &Updates, const ref<Expr> &Index) {
         // Roll back through writes when possible.
-        const UpdateNode *UN = Updates.getHead();
+        auto UN = Updates->getHead();
         while (UN && Eq(Index, UN->getIndex())->isFalse())
             UN = UN->getNext();
 
         if (ConstantExpr *CE = dyn_cast<ConstantExpr>(Index))
-            return Builder.Read(UpdateList(Updates.getRoot(), UN), CE);
+            return Builder.Read(UpdateList::create(Updates->getRoot(), UN), CE);
 
-        return Builder.Read(UpdateList(Updates.getRoot(), UN), Index);
+        return Builder.Read(UpdateList::create(Updates->getRoot(), UN), Index);
     }
 
     virtual ref<Expr> Select(const ref<Expr> &Cond, const ref<Expr> &LHS, const ref<Expr> &RHS) {

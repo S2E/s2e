@@ -137,51 +137,51 @@ ref<Expr> CachedAssignmentEvaluator::evaluateRead(const ref<ReadExpr> &expr) {
 
     // UpdateList ul = UseRewriteSnapshots ?
     //            RewriteUpdates(expr->getUpdates()) : rewriteUpdatesUncached(expr->getUpdates());
-    UpdateList ul = rewriteUpdatesUncached(expr->getUpdates());
+    auto ul = rewriteUpdatesUncached(expr->getUpdates());
 
-    for (const UpdateNode *un = ul.getHead(); un; un = un->getNext()) {
+    for (auto un = ul->getHead(); un; un = un->getNext()) {
         ConstantExpr *update_index = dyn_cast<ConstantExpr>(un->getIndex());
         if (update_index) {
             if (const_index->getZExtValue() == update_index->getZExtValue())
                 return un->getValue();
         } else {
-            return ReadExpr::create(UpdateList(ul.getRoot(), un), index);
+            return ReadExpr::create(UpdateList::create(ul->getRoot(), un), index);
         }
     }
 
-    if (ul.getRoot()->isConstantArray() && const_index->getZExtValue() < ul.getRoot()->getSize()) {
-        return ul.getRoot()->getConstantValues()[const_index->getZExtValue()];
+    if (ul->getRoot()->isConstantArray() && const_index->getZExtValue() < ul->getRoot()->getSize()) {
+        return ul->getRoot()->getConstantValues()[const_index->getZExtValue()];
     }
 
-    return m_assignment.evaluate(ul.getRoot(), const_index->getZExtValue());
+    return m_assignment.evaluate(ul->getRoot(), const_index->getZExtValue());
 
     // return ReadExpr::create(UpdateList(ul.getRoot(), 0), index);
 }
 
-UpdateList CachedAssignmentEvaluator::rewriteUpdatesUncached(const UpdateList &ul) {
-    UpdateList rewritten(ul.getRoot(), 0);
+UpdateListPtr CachedAssignmentEvaluator::rewriteUpdatesUncached(const UpdateListPtr &ul) {
+    auto rewritten = UpdateList::create(ul->getRoot(), 0);
 
-    Assignment::UpdateListCache::const_iterator map_it = m_assignment.updateListCache.find(ul.getRoot());
+    auto map_it = m_assignment.updateListCache.find(ul->getRoot());
 
     if (map_it != m_assignment.updateListCache.end()) {
         rewritten = map_it->second;
     }
 
-    std::stack<const UpdateNode *> update_nodes;
+    std::stack<UpdateNodePtr> update_nodes;
 
-    for (const UpdateNode *un = ul.getHead(); un; un = un->getNext()) {
+    for (auto un = ul->getHead(); un; un = un->getNext()) {
         update_nodes.push(un);
     }
 
     // Now apply back all updates
     while (!update_nodes.empty()) {
-        const UpdateNode *un = update_nodes.top();
+        auto un = update_nodes.top();
         update_nodes.pop();
 
         ref<Expr> index = visit(un->getIndex());
         ref<Expr> value = visit(un->getValue());
 
-        rewritten.extend(index, value);
+        rewritten->extend(index, value);
     }
 
     return rewritten;

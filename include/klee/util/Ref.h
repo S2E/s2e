@@ -21,9 +21,6 @@ using llvm::dyn_cast_or_null;
 #include <iosfwd> // FIXME: Remove this!!!
 #include <llvm/Support/raw_ostream.h>
 
-// XXX: make sure it works with static constant table
-//#define ENABLE_EXPRESSION_CACHING
-
 namespace klee {
 
 template <class T> class ref {
@@ -44,7 +41,7 @@ private:
     }
 
     void dec() const {
-        if (ptr && --ptr->refCount == 0 && !ptr->permanent)
+        if (ptr && --ptr->refCount == 0)
             delete ptr;
     }
 
@@ -115,21 +112,10 @@ public:
         return compare(rhs) < 0;
     }
     bool operator==(const ref &rhs) const {
-        // return compare(rhs)==0;
-        if (rhs.ptr->temporary || ptr->temporary)
-            return compare(rhs) == 0;
-#ifdef ENABLE_EXPRESSION_CACHING
-        bool fast = rhs.ptr == ptr;
-        bool slow = compare(rhs) == 0;
-        assert(fast == slow);
-        return fast;
-#else
         return compare(rhs) == 0;
-#endif
     }
     bool operator!=(const ref &rhs) const {
         return !operator==(rhs);
-        // return compare(rhs)!=0;
     }
 };
 

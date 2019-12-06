@@ -18,16 +18,15 @@ class SMTLIBLoggingSolver : public QueryLoggingSolver {
 private:
     ExprSMTLIBPrinter printer;
 
-    virtual void printQuery(const Query &query, const Query *falseQuery = 0,
-                            const std::vector<const Array *> *objects = 0) {
-        if (0 == falseQuery) {
+    virtual void printQuery(const Query &query, const Query *falseQuery = 0, const ArrayVec &objects = ArrayVec()) {
+        if (falseQuery == nullptr) {
             printer.setQuery(query);
         } else {
             printer.setQuery(*falseQuery);
         }
 
-        if (0 != objects) {
-            printer.setArrayValuesToGet(*objects);
+        if (!objects.empty()) {
+            printer.setArrayValuesToGet(objects);
         }
 
         printer.generateOutput();

@@ -118,7 +118,7 @@ static Function *getStubFunctionForCtorList(Module *m, GlobalVariable *gv, std::
                 if (Function *f = dyn_cast<Function>(fp)) {
                     CallInst::Create(f, "", bb);
                 } else {
-                    assert(0 && "unable to get function pointer from ctor initializer list");
+                    pabort("unable to get function pointer from ctor initializer list");
                 }
             }
         }

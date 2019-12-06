@@ -28,7 +28,6 @@ class FunctionPassManager;
 }
 
 namespace klee {
-class MemoryObject;
 class Array;
 class Assignment;
 class ConstraintManager;

@@ -207,14 +207,14 @@ public:
     /// requested
     /// via (get-value ()) SMTLIBv2 command in the output stream in the same order
     /// as vector.
-    void setArrayValuesToGet(const std::vector<const Array *> &a);
+    void setArrayValuesToGet(const ArrayVec &a);
 
     /// \return True if human readable mode is switched on
     bool isHumanReadable();
 
 protected:
     /// Contains the arrays found during scans
-    std::set<const Array *> usedArrays;
+    std::unordered_set<ArrayPtr, ArrayHash> usedArrays;
 
     /// Set of expressions seen during scan.
     std::set<ref<Expr>> seenExprs;
@@ -375,7 +375,7 @@ private:
 
     // Pointer to a vector of Arrays. These will be used for the (get-value () )
     // call.
-    const std::vector<const Array *> *arraysToCallGetValueOn;
+    const ArrayVec *arraysToCallGetValueOn;
 
     ConstantDisplayMode cdm;
     AbbreviationMode abbrMode;

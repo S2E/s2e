@@ -8,6 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "klee/Solver.h"
+#include <klee/Common.h>
 #include "klee/SolverImpl.h"
 
 #include "klee/SolverStats.h"
@@ -120,7 +121,7 @@ bool Solver::getValue(const Query &query, ref<ConstantExpr> &result) {
     return true;
 }
 
-bool Solver::getInitialValues(const Query &query, const std::vector<const Array *> &objects,
+bool Solver::getInitialValues(const Query &query, const ArrayVec &objects,
                               std::vector<std::vector<unsigned char>> &values) {
     bool hasSolution;
     bool success = impl->computeInitialValues(query, objects, values, hasSolution);
@@ -131,8 +132,8 @@ bool Solver::getInitialValues(const Query &query, const std::vector<const Array 
     return success;
 }
 
-void Solver::getRanges(const ConstraintManager &constraints, const std::vector<const Array *> &symbObjects, ref<Expr> e,
-                       ref<Expr> start, ref<Expr> end, std::vector<Range> &ranges) {
+void Solver::getRanges(const ConstraintManager &constraints, const ArrayVec &symbObjects, ref<Expr> e, ref<Expr> start,
+                       ref<Expr> end, std::vector<Range> &ranges) {
     ConstraintManager tmpConstraints = constraints;
     tmpConstraints.addConstraint(E_AND(E_GE(e, start), E_LT(e, end)));
 
@@ -185,7 +186,7 @@ std::pair<ref<Expr>, ref<Expr>> Solver::getRange(const Query &query) {
     if (width == 1) {
         Solver::Validity result;
         if (!evaluate(query, result))
-            assert(0 && "computeValidity failed");
+            pabort("computeValidity failed");
         switch (result) {
             case Solver::True:
                 min = max = 1;
@@ -294,8 +295,8 @@ public:
     bool computeValidity(const Query &, Solver::Validity &result);
     bool computeTruth(const Query &, bool &isValid);
     bool computeValue(const Query &, ref<Expr> &result);
-    bool computeInitialValues(const Query &, const std::vector<const Array *> &objects,
-                              std::vector<std::vector<unsigned char>> &values, bool &hasSolution);
+    bool computeInitialValues(const Query &, const ArrayVec &objects, std::vector<std::vector<unsigned char>> &values,
+                              bool &hasSolution);
 };
 
 bool ValidatingSolver::computeTruth(const Query &query, bool &isValid) {
@@ -339,7 +340,7 @@ bool ValidatingSolver::computeTruth(const Query &query, bool &isValid) {
         return false;
 
     if (isValid != answer)
-        assert(0 && "invalid solver result (computeTruth)");
+        pabort("invalid solver result (computeTruth)");
 
     return true;
 #endif
@@ -373,7 +374,7 @@ bool ValidatingSolver::computeValidity(const Query &query, Solver::Validity &res
                 ++unknownCount;
                 break;
             default:
-                assert(false);
+                abort();
         }
     }
     if (trueCount > falseCount && falseCount >= unknownCount)
@@ -389,7 +390,7 @@ bool ValidatingSolver::computeValidity(const Query &query, Solver::Validity &res
     else if (unknownCount > trueCount && trueCount >= falseCount)
         result = Solver::Unknown;
     else
-        assert(false);
+        abort();
     return true;
 #else
     Solver::Validity answer;
@@ -400,7 +401,7 @@ bool ValidatingSolver::computeValidity(const Query &query, Solver::Validity &res
         return false;
 
     if (result != answer)
-        assert(0 && "invalid solver result (computeValidity)");
+        pabort("invalid solver result (computeValidity)");
 
     return true;
 #endif
@@ -417,12 +418,12 @@ bool ValidatingSolver::computeValue(const Query &query, ref<Expr> &result) {
         return false;
 
     if (answer)
-        assert(0 && "invalid solver result (computeValue)");
+        pabort("invalid solver result (computeValue)");
 
     return true;
 }
 
-bool ValidatingSolver::computeInitialValues(const Query &query, const std::vector<const Array *> &objects,
+bool ValidatingSolver::computeInitialValues(const Query &query, const ArrayVec &objects,
                                             std::vector<std::vector<unsigned char>> &values, bool &hasSolution) {
     bool answer;
 
@@ -434,11 +435,11 @@ bool ValidatingSolver::computeInitialValues(const Query &query, const std::vecto
         // conjunction of the actual constraints is satisfiable.
         std::vector<ref<Expr>> bindings;
         for (unsigned i = 0; i != values.size(); ++i) {
-            const Array *array = objects[i];
+            auto &array = objects[i];
             for (unsigned j = 0; j < array->getSize(); j++) {
                 unsigned char value = values[i][j];
                 bindings.push_back(
-                    EqExpr::create(ReadExpr::create(UpdateList(array, 0), ConstantExpr::alloc(j, Expr::Int32)),
+                    EqExpr::create(ReadExpr::create(UpdateList::create(array, 0), ConstantExpr::alloc(j, Expr::Int32)),
                                    ConstantExpr::alloc(value, Expr::Int8)));
             }
         }
@@ -451,12 +452,12 @@ bool ValidatingSolver::computeInitialValues(const Query &query, const std::vecto
         if (!oracle->impl->computeTruth(Query(tmp, constraints), answer))
             return false;
         if (!answer)
-            assert(0 && "invalid solver result (computeInitialValues)");
+            pabort("invalid solver result (computeInitialValues)");
     } else {
         if (!oracle->impl->computeTruth(query, answer))
             return false;
         if (!answer)
-            assert(0 && "invalid solver result (computeInitialValues)");
+            pabort("invalid solver result (computeInitialValues)");
     }
 
     return true;
@@ -488,8 +489,8 @@ public:
         ++stats::queryCounterexamples;
         return false;
     }
-    bool computeInitialValues(const Query &, const std::vector<const Array *> &objects,
-                              std::vector<std::vector<unsigned char>> &values, bool &hasSolution) {
+    bool computeInitialValues(const Query &, const ArrayVec &objects, std::vector<std::vector<unsigned char>> &values,
+                              bool &hasSolution) {
         ++stats::queries;
         ++stats::queryCounterexamples;
         return false;

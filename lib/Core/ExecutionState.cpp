@@ -46,6 +46,10 @@ cl::opt<bool> UseExprSimplifier("use-expr-simplifier", cl::desc("Apply expressio
 cl::opt<bool> DebugPrintInstructions("debug-print-instructions", cl::desc("Print instructions during execution."),
                                      cl::init(false));
 
+// This is set to false in order to avoid the overhead of printing large expressions
+cl::opt<bool> PrintConcretizedExpression("print-concretized-expression", cl::desc("Print concretized expression."),
+                                         cl::init(false));
+
 /***/
 
 StackFrame::StackFrame(KInstIterator _caller, KFunction *_kf) : caller(_caller), kf(_kf), callPathNode(0), varargs(0) {
@@ -68,7 +72,7 @@ StackFrame::~StackFrame() {
 BitfieldSimplifier ExecutionState::s_simplifier;
 
 ExecutionState::ExecutionState(KFunction *kf)
-    : fakeState(false), pc(kf->instructions), prevPC(pc), addressSpace(this), queryCost(0.), forkDisabled(false),
+    : fakeState(false), pc(kf->instructions), prevPC(nullptr), addressSpace(this), queryCost(0.), forkDisabled(false),
       concolics(new Assignment(true)) {
     pushFrame(0, kf);
 }
@@ -89,14 +93,15 @@ ExecutionState *ExecutionState::clone() {
     return state;
 }
 
-void ExecutionState::addressSpaceChange(const MemoryObject *, const ObjectState *, ObjectState *) {
+void ExecutionState::addressSpaceChange(const ObjectKey &key, const ObjectStateConstPtr &oldState,
+                                        const ObjectStatePtr &newState) {
 }
 
-void ExecutionState::addressSpaceObjectSplit(const ObjectState *oldObject,
-                                             const std::vector<ObjectState *> &newObjects) {
+void ExecutionState::addressSpaceObjectSplit(const ObjectStateConstPtr &oldObject,
+                                             const std::vector<ObjectStatePtr> &newObjects) {
 }
 
-void ExecutionState::addressSpaceSymbolicStatusChange(ObjectState *object, bool becameConcrete) {
+void ExecutionState::addressSpaceSymbolicStatusChange(const ObjectStatePtr &object, bool becameConcrete) {
 }
 
 ExecutionState *ExecutionState::branch() {
@@ -110,8 +115,9 @@ void ExecutionState::pushFrame(KInstIterator caller, KFunction *kf) {
 
 void ExecutionState::popFrame() {
     StackFrame &sf = stack.back();
-    for (std::vector<const MemoryObject *>::iterator it = sf.allocas.begin(), ie = sf.allocas.end(); it != ie; ++it)
-        addressSpace.unbindObject(*it);
+    for (auto it : sf.allocas) {
+        addressSpace.unbindObject(it);
+    }
     stack.pop_back();
 }
 
@@ -140,9 +146,9 @@ llvm::raw_ostream &operator<<(llvm::raw_ostream &os, const MemoryMap &mm) {
     MemoryMap::iterator it = mm.begin();
     MemoryMap::iterator ie = mm.end();
     if (it != ie) {
-        os << "MO" << it->first->id << ":" << it->second;
+        os << "MO" << it->first.address << ":" << it->second.get();
         for (++it; it != ie; ++it)
-            os << ", MO" << it->first->id << ":" << it->second;
+            os << ", MO" << it->first.address << ":" << it->second.get();
     }
     os << "}";
     return os;
@@ -160,8 +166,8 @@ bool ExecutionState::merge(const ExecutionState &b) {
         return false;
 
     {
-        std::vector<StackFrame>::const_iterator itA = stack.begin();
-        std::vector<StackFrame>::const_iterator itB = b.stack.begin();
+        auto itA = stack.begin();
+        auto itB = b.stack.begin();
         while (itA != stack.end() && itB != b.stack.end()) {
             // XXX vaargs?
             if (itA->caller != itB->caller || itA->kf != itB->kf)
@@ -212,7 +218,7 @@ bool ExecutionState::merge(const ExecutionState &b) {
         llvm::errs() << "B: " << b.addressSpace.objects << "\n";
     }
 
-    std::set<const MemoryObject *> mutated;
+    std::set<ObjectKey> mutated;
     MemoryMap::iterator ai = addressSpace.objects.begin();
     MemoryMap::iterator bi = b.addressSpace.objects.begin();
     MemoryMap::iterator ae = addressSpace.objects.end();
@@ -221,16 +227,16 @@ bool ExecutionState::merge(const ExecutionState &b) {
         if (ai->first != bi->first) {
             if (DebugLogStateMerge) {
                 if (ai->first < bi->first) {
-                    llvm::errs() << "\t\tB misses binding for: " << ai->first->id << "\n";
+                    llvm::errs() << "\t\tB misses binding for: " << ai->first.address << "\n";
                 } else {
-                    llvm::errs() << "\t\tA misses binding for: " << bi->first->id << "\n";
+                    llvm::errs() << "\t\tA misses binding for: " << bi->first.address << "\n";
                 }
             }
             return false;
         }
         if (ai->second != bi->second) {
             if (DebugLogStateMerge)
-                llvm::errs() << "\t\tmutated: " << ai->first->id << "\n";
+                llvm::errs() << "\t\tmutated: " << ai->first.address << "\n";
             mutated.insert(ai->first);
         }
     }
@@ -253,8 +259,8 @@ bool ExecutionState::merge(const ExecutionState &b) {
     // it seems like it can make a difference, even though logically
     // they must contradict each other and so inA => !inB
 
-    std::vector<StackFrame>::iterator itA = stack.begin();
-    std::vector<StackFrame>::const_iterator itB = b.stack.begin();
+    auto itA = stack.begin();
+    auto itB = b.stack.begin();
     for (; itA != stack.end(); ++itA, ++itB) {
         StackFrame &af = *itA;
         const StackFrame &bf = *itB;
@@ -270,15 +276,14 @@ bool ExecutionState::merge(const ExecutionState &b) {
         }
     }
 
-    for (std::set<const MemoryObject *>::iterator it = mutated.begin(), ie = mutated.end(); it != ie; ++it) {
-        const MemoryObject *mo = *it;
-        const ObjectState *os = addressSpace.findObject(mo);
-        const ObjectState *otherOS = b.addressSpace.findObject(mo);
-        assert(os && !os->readOnly && "objects mutated but not writable in merging state");
+    for (auto mo : mutated) {
+        auto os = addressSpace.findObject(mo.address);
+        auto otherOS = b.addressSpace.findObject(mo.address);
+        assert(os && !os->isReadOnly() && "objects mutated but not writable in merging state");
         assert(otherOS);
 
-        ObjectState *wos = addressSpace.getWriteable(mo, os);
-        for (unsigned i = 0; i < mo->size; i++) {
+        auto wos = addressSpace.getWriteable(os);
+        for (unsigned i = 0; i < mo.size; i++) {
             ref<Expr> av = wos->read8(i);
             ref<Expr> bv = otherOS->read8(i);
             wos->write(i, SelectExpr::create(inA, av, bv));
@@ -286,7 +291,7 @@ bool ExecutionState::merge(const ExecutionState &b) {
     }
 
     // XXX: check incremental mode here
-    assert(false && "Check incremental mode");
+    pabort("Check incremental mode");
     constraints = ConstraintManager();
     for (std::set<ref<Expr>>::iterator it = commonConstraints.begin(), ie = commonConstraints.end(); it != ie; ++it)
         constraints.addConstraint(*it);
@@ -325,8 +330,7 @@ void ExecutionState::printStack(KInstruction *target, std::stringstream &msg) co
 
 bool ExecutionState::getSymbolicSolution(std::vector<std::pair<std::string, std::vector<unsigned char>>> &res) {
     for (unsigned i = 0; i != symbolics.size(); ++i) {
-        const MemoryObject *mo = symbolics[i].first;
-        const Array *arr = symbolics[i].second;
+        auto &arr = symbolics[i];
         std::vector<unsigned char> data;
         for (unsigned s = 0; s < arr->getSize(); ++s) {
             ref<Expr> e = concolics->evaluate(arr, s);
@@ -334,22 +338,22 @@ bool ExecutionState::getSymbolicSolution(std::vector<std::pair<std::string, std:
                 (*klee_warning_stream) << "Failed to evaluate concrete value for " << arr->getName() << "[" << s
                                        << "]: " << e << "\n";
                 (*klee_warning_stream) << "  Symbolics (" << symbolics.size() << "):\n";
-                for (auto it = symbolics.begin(); it != symbolics.end(); it++) {
-                    (*klee_warning_stream) << "    " << it->second->getName() << "\n";
+                for (auto it : symbolics) {
+                    (*klee_warning_stream) << "    " << it->getName() << "\n";
                 }
                 (*klee_warning_stream) << "  Assignments (" << concolics->bindings.size() << "):\n";
-                for (auto it = concolics->bindings.begin(); it != concolics->bindings.end(); it++) {
-                    (*klee_warning_stream) << "    " << it->first->getName() << "\n";
+                for (auto it : concolics->bindings) {
+                    (*klee_warning_stream) << "    " << it.first->getName() << "\n";
                 }
                 klee_warning_stream->flush();
-                assert(false && "Failed to evaluate concrete value");
+                pabort("Failed to evaluate concrete value");
             }
 
             uint8_t val = dyn_cast<ConstantExpr>(e)->getZExtValue();
             data.push_back(val);
         }
 
-        res.push_back(std::make_pair(mo->name, data));
+        res.push_back(std::make_pair(arr->getName(), data));
     }
 
     return true;
@@ -390,8 +394,9 @@ ref<Expr> ExecutionState::simplifyExpr(const ref<Expr> &e) const {
 ref<ConstantExpr> ExecutionState::toConstant(ref<Expr> e, const std::string &reason) {
     e = simplifyExpr(e);
     e = constraints.simplifyExpr(e);
-    if (ConstantExpr *CE = dyn_cast<ConstantExpr>(e))
+    if (ConstantExpr *CE = dyn_cast<ConstantExpr>(e)) {
         return CE;
+    }
 
     ref<ConstantExpr> value;
 
@@ -409,7 +414,13 @@ ref<ConstantExpr> ExecutionState::toConstant(ref<Expr> e, const std::string &rea
         os << "(instruction: " << ki->inst->getParent()->getParent()->getName().str() << ": " << *ki->inst << ") ";
     }
 
-    os << "(reason: " << reason << ") expression " << e << " to value " << value;
+    os << "(reason: " << reason << ") ";
+
+    if (PrintConcretizedExpression) {
+        os << " expression " << e;
+    }
+
+    os << " to value " << value;
 
     klee_warning_external(reason.c_str(), "%s", os.str().c_str());
 
@@ -452,9 +463,9 @@ ref<Expr> ExecutionState::toUnique(ref<Expr> &e) {
 }
 
 bool ExecutionState::solve(const ConstraintManager &mgr, Assignment &assignment) {
-    std::vector<const Array *> symbObjects;
+    ArrayVec symbObjects;
     for (unsigned i = 0; i < symbolics.size(); ++i) {
-        symbObjects.push_back(symbolics[i].second);
+        symbObjects.push_back(symbolics[i]);
     }
 
     std::vector<std::vector<unsigned char>> concreteObjects;
@@ -510,15 +521,18 @@ bool ExecutionState::addConstraint(const ref<Expr> &constraint, bool recomputeCo
 ///
 /// \param os output stream
 void ExecutionState::dumpQuery(llvm::raw_ostream &os) const {
-    std::vector<const Array *> symbObjects;
+    ArrayVec symbObjects;
     for (unsigned i = 0; i < symbolics.size(); ++i) {
-        symbObjects.push_back(symbolics[i].second);
+        symbObjects.push_back(symbolics[i]);
     }
 
     auto printer = std::unique_ptr<ExprPPrinter>(ExprPPrinter::create(os));
 
     Query query(constraints, ConstantExpr::alloc(0, Expr::Bool));
-    printer->printQuery(os, query.constraints, query.expr, 0, 0, &symbObjects[0], &symbObjects[0] + symbObjects.size());
+
+    std::vector<ref<Expr>> exprs;
+    printer->printQuery(os, query.constraints, query.expr, exprs.begin(), exprs.end(), symbObjects.begin(),
+                        symbObjects.end(), true);
     os.flush();
 }
 
@@ -554,18 +568,15 @@ void ExecutionState::stepInstruction() {
     ++pc;
 }
 
-ObjectState *ExecutionState::bindObject(const MemoryObject *mo, bool isLocal, const Array *array) {
-    ObjectState *os = array ? new ObjectState(mo, array) : new ObjectState(mo);
-    addressSpace.bindObject(mo, os);
+void ExecutionState::bindObject(const ObjectStatePtr &os, bool isLocal) {
+    addressSpace.bindObject(os);
 
     // Its possible that multiple bindings of the same mo in the state
     // will put multiple copies on this list, but it doesn't really
     // matter because all we use this list for is to unbind the object
     // on function return.
     if (isLocal) {
-        stack.back().allocas.push_back(mo);
+        stack.back().allocas.push_back(os->getKey());
     }
-
-    return os;
 }
 }

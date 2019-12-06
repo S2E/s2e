@@ -43,7 +43,7 @@ protected:
                                         // in given a query format
 
     virtual void startQuery(const Query &query, const char *typeName, const Query *falseQuery = 0,
-                            const std::vector<const Array *> *objects = 0);
+                            const ArrayVec &objects = ArrayVec());
 
     virtual void finishQuery(bool success);
 
@@ -52,8 +52,7 @@ protected:
     /// file.
     void flushBuffer(void);
 
-    virtual void printQuery(const Query &query, const Query *falseQuery = 0,
-                            const std::vector<const Array *> *objects = 0) = 0;
+    virtual void printQuery(const Query &query, const Query *falseQuery = 0, const ArrayVec &objects = ArrayVec()) = 0;
     void flushBufferConditionally(bool writeToFile);
 
 public:
@@ -65,7 +64,7 @@ public:
     bool computeTruth(const Query &query, bool &isValid);
     bool computeValidity(const Query &query, Solver::Validity &result);
     bool computeValue(const Query &query, ref<Expr> &result);
-    bool computeInitialValues(const Query &query, const std::vector<const Array *> &objects,
+    bool computeInitialValues(const Query &query, const ArrayVec &objects,
                               std::vector<std::vector<unsigned char>> &values, bool &hasSolution);
 };
 

@@ -8,6 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "expr/Parser.h"
+#include <klee/Common.h>
 
 #include "expr/Lexer.h"
 
@@ -519,17 +520,17 @@ exit:
 
     // FIXME: Array should take domain and range.
     const Identifier *Label = GetOrCreateIdentifier(Name);
-    Array *Root;
+    ArrayPtr Root;
     if (!Values.empty())
-        Root = new Array(Label->Name, Size.get(), &Values[0], &Values[0] + Values.size());
+        Root = Array::create(Label->Name, Size.get(), &Values[0], &Values[0] + Values.size());
     else
-        Root = new Array(Label->Name, Size.get());
+        Root = Array::create(Label->Name, Size.get());
     ArrayDecl *AD = new ArrayDecl(Label, Size.get(), DomainType.get(), RangeType.get(), Root);
 
     ArraySymTab.insert(std::make_pair(Label, AD));
 
     // Create the initial version reference.
-    VersionSymTab.insert(std::make_pair(Label, UpdateList(Root, NULL)));
+    VersionSymTab.insert(std::make_pair(Label, UpdateList::create(Root, NULL)));
 
     return AD;
 }
@@ -565,7 +566,7 @@ DeclResult ParserImpl::ParseCommandDecl() {
 DeclResult ParserImpl::ParseQueryCommand() {
     std::vector<ExprHandle> Constraints;
     std::vector<ExprHandle> Values;
-    std::vector<const Array *> Objects;
+    ArrayVec Objects;
     ExprResult Res;
 
     // FIXME: We need a command for this. Or something.
@@ -576,7 +577,7 @@ DeclResult ParserImpl::ParseQueryCommand() {
     // FIXME: Remove this!
     for (std::map<const Identifier *, const ArrayDecl *>::iterator it = ArraySymTab.begin(), ie = ArraySymTab.end();
          it != ie; ++it) {
-        VersionSymTab.insert(std::make_pair(it->second->Name, UpdateList(it->second->Root, NULL)));
+        VersionSymTab.insert(std::make_pair(it->second->Name, UpdateList::create(it->second->Root, NULL)));
     }
 
     ConsumeExpectedToken(Token::KWQuery);
@@ -983,7 +984,7 @@ ExprResult ParserImpl::ParseParenExpr(TypeResult FIXME_UNUSED) {
             if (ExprKind == Expr::Select)
                 return ParseSelectParenExpr(Name, ResTy);
         default:
-            assert(0 && "Invalid argument kind (number of args).");
+            pabort("Invalid argument kind (number of args).");
             return ExprResult();
     }
 }
@@ -1246,7 +1247,7 @@ ExprResult ParserImpl::ParseAnyReadParenExpr(const Token &Name, unsigned Kind, E
 
     switch (Kind) {
         default:
-            assert(0 && "Invalid kind.");
+            pabort("Invalid kind.");
             return Builder->Constant(0, ResTy);
         case eMacroKind_ReadLSB:
         case eMacroKind_ReadMSB: {
@@ -1289,7 +1290,7 @@ VersionResult ParserImpl::ParseVersionSpecifier() {
 
             if (it == VersionSymTab.end()) {
                 Error("invalid version reference.", LTok);
-                return VersionResult(false, UpdateList(0, NULL));
+                return VersionResult(false, UpdateList::create(0, NULL));
             }
 
             return it->second;
@@ -1305,7 +1306,7 @@ VersionResult ParserImpl::ParseVersionSpecifier() {
     VersionResult Res = ParseVersion();
     // Define update list to avoid use-of-undef errors.
     if (!Res.isValid()) {
-        Res = VersionResult(true, UpdateList(new Array("", 0), NULL));
+        Res = VersionResult(true, UpdateList::create(Array::create("", 0), NULL));
     }
 
     if (Label)
@@ -1333,7 +1334,7 @@ struct WriteInfo {
 /// update-list - lhs '=' rhs [',' update-list]
 VersionResult ParserImpl::ParseVersion() {
     if (Tok.kind != Token::LSquare)
-        return VersionResult(false, UpdateList(0, NULL));
+        return VersionResult(false, UpdateList::create(0, NULL));
 
     std::vector<WriteInfo> Writes;
     ConsumeLSquare();
@@ -1359,11 +1360,11 @@ VersionResult ParserImpl::ParseVersion() {
     }
     ExpectRSquare("expected close of update list");
 
-    VersionHandle Base(0, NULL);
+    auto Base = UpdateList::create(0, NULL);
 
     if (Tok.kind != Token::At) {
         Error("expected '@'.", Tok);
-        return VersionResult(false, UpdateList(0, NULL));
+        return VersionResult(false, UpdateList::create(0, NULL));
     }
 
     ConsumeExpectedToken(Token::At);
@@ -1403,7 +1404,7 @@ VersionResult ParserImpl::ParseVersion() {
         }
 
         if (LHS.isValid() && RHS.isValid())
-            Base.extend(LHS.get(), RHS.get());
+            Base->extend(LHS.get(), RHS.get());
     }
 
     return Base;
@@ -1572,18 +1573,8 @@ void ArrayDecl::dump() {
 }
 
 void QueryCommand::dump() {
-    const ExprHandle *ValuesBegin = 0, *ValuesEnd = 0;
-    const Array *const *ObjectsBegin = 0, *const *ObjectsEnd = 0;
-    if (!Values.empty()) {
-        ValuesBegin = &Values[0];
-        ValuesEnd = ValuesBegin + Values.size();
-    }
-    if (!Objects.empty()) {
-        ObjectsBegin = &Objects[0];
-        ObjectsEnd = ObjectsBegin + Objects.size();
-    }
-    ExprPPrinter::printQuery(llvm::outs(), ConstraintManager(Constraints), Query, ValuesBegin, ValuesEnd, ObjectsBegin,
-                             ObjectsEnd, false);
+    ExprPPrinter::printQuery(llvm::outs(), ConstraintManager(Constraints), Query, Values.begin(), Values.end(),
+                             Objects.begin(), Objects.end(), false);
 }
 
 // Public parser API

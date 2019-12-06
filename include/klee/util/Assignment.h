@@ -21,9 +21,9 @@ class Array;
 
 class Assignment {
 public:
-    typedef std::map<const Array *, std::vector<unsigned char>> bindings_ty;
+    typedef std::map<ArrayPtr, std::vector<unsigned char>, ArrayLt> bindings_ty;
     typedef ExprHashMap<ref<Expr>> ExpressionCache;
-    typedef std::unordered_map<const Array *, UpdateList> UpdateListCache;
+    typedef std::unordered_map<ArrayPtr, UpdateListPtr, ArrayHash> UpdateListCache;
 
     bool allowFreeValues;
     bindings_ty bindings;
@@ -34,22 +34,21 @@ public:
 public:
     Assignment(bool _allowFreeValues = false) : allowFreeValues(_allowFreeValues), cacheHits(0), cacheMisses(0) {
     }
-    Assignment(std::vector<const Array *> &objects, std::vector<std::vector<unsigned char>> &values,
-               bool _allowFreeValues = false)
+    Assignment(ArrayVec &objects, std::vector<std::vector<unsigned char>> &values, bool _allowFreeValues = false)
         : allowFreeValues(_allowFreeValues) {
-        std::vector<std::vector<unsigned char>>::iterator valIt = values.begin();
-        for (std::vector<const Array *>::iterator it = objects.begin(), ie = objects.end(); it != ie; ++it) {
-            const Array *os = *it;
+        auto valIt = values.begin();
+        for (const auto it : objects) {
+            auto os = it;
             std::vector<unsigned char> &arr = *valIt;
             bindings.insert(std::make_pair(os, arr));
             ++valIt;
         }
     }
 
-    ref<Expr> evaluate(const Array *mo, unsigned index) const;
+    ref<Expr> evaluate(const ArrayPtr &mo, unsigned index) const;
     ref<Expr> evaluate(ref<Expr> e) const;
 
-    void add(const Array *object, const std::vector<unsigned char> &value) {
+    void add(const ArrayPtr &object, const std::vector<unsigned char> &value) {
         bindings.insert(std::make_pair(object, value));
     }
 
@@ -73,7 +72,7 @@ class CachedAssignmentEvaluator {
     ref<Expr> evaluateSelect(const ref<SelectExpr> &expr);
     ref<Expr> evaluateAnd(const ref<AndExpr> &expr);
     ref<Expr> evaluateUSDivRem(const ref<Expr> &expr);
-    UpdateList rewriteUpdatesUncached(const UpdateList &ul);
+    UpdateListPtr rewriteUpdatesUncached(const UpdateListPtr &ul);
 
 public:
     CachedAssignmentEvaluator(const Assignment &a) : m_assignment(a) {
@@ -87,8 +86,8 @@ class AssignmentEvaluator : public ExprEvaluator {
     const Assignment &a;
 
 protected:
-    ref<Expr> getInitialValue(const Array &mo, unsigned index) {
-        return a.evaluate(&mo, index);
+    ref<Expr> getInitialValue(const ArrayPtr &mo, unsigned index) {
+        return a.evaluate(mo, index);
     }
 
 public:
@@ -98,14 +97,14 @@ public:
 
 /***/
 
-inline ref<Expr> Assignment::evaluate(const Array *array, unsigned index) const {
+inline ref<Expr> Assignment::evaluate(const ArrayPtr &array, unsigned index) const {
     // assert(index < array->size);
     bindings_ty::const_iterator it = bindings.find(array);
     if (it != bindings.end() && index < it->second.size()) {
         return ConstantExpr::alloc(it->second[index], Expr::Int8);
     } else {
         if (allowFreeValues) {
-            return ReadExpr::create(UpdateList(array, 0), ConstantExpr::alloc(index, Expr::Int32));
+            return ReadExpr::create(UpdateList::create(array, 0), ConstantExpr::alloc(index, Expr::Int32));
         } else {
             return ConstantExpr::alloc(0, Expr::Int8);
         }

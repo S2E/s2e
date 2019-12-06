@@ -28,6 +28,7 @@
  */
 
 #include "Z3Builder.h"
+#include <klee/Common.h>
 
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Support/CommandLine.h"
@@ -89,11 +90,6 @@ z3::expr Z3Builder::makeExpr(ref<Expr> e) {
             return context_.bv_val(const_repr.c_str(), width);
         }
 
-        case Expr::NotOptimized: {
-            NotOptimizedExpr *noe = cast<NotOptimizedExpr>(e);
-            return getOrMakeExpr(noe->getSrc());
-        }
-
         case Expr::Read: {
             return makeReadExpr(cast<ReadExpr>(e));
         }
@@ -149,7 +145,7 @@ z3::expr Z3Builder::makeExpr(ref<Expr> e) {
 
             z3::expr src = getOrMakeExpr(ce->getSrc());
             if (src.is_bool()) {
-                return z3::to_expr(context_, Z3_mk_ite(context_, src, context_.bv_val(1, ce->getWidth()),
+                return z3::to_expr(context_, Z3_mk_ite(context_, src, context_.bv_val(-1, ce->getWidth()),
                                                        context_.bv_val(0, ce->getWidth())));
             } else {
                 return z3::to_expr(context_, Z3_mk_sign_ext(context_, ce->getWidth() - src.get_sort().bv_size(), src));
@@ -310,7 +306,7 @@ z3::expr Z3Builder::makeExpr(ref<Expr> e) {
 #endif
 
         default:
-            assert(0 && "unhandled Expr type");
+            pabort("unhandled Expr type");
     }
 }
 

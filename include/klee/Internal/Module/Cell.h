@@ -13,8 +13,6 @@
 #include <klee/Expr.h>
 
 namespace klee {
-class MemoryObject;
-
 struct Cell {
     ref<Expr> value;
 };

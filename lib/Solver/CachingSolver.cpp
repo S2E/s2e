@@ -7,6 +7,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <klee/Common.h>
 #include "klee/Solver.h"
 
 #include "klee/Constraints.h"
@@ -72,7 +73,7 @@ public:
     bool computeValue(const Query &query, ref<Expr> &result) {
         return solver->impl->computeValue(query, result);
     }
-    bool computeInitialValues(const Query &query, const std::vector<const Array *> &objects,
+    bool computeInitialValues(const Query &query, const ArrayVec &objects,
                               std::vector<std::vector<unsigned char>> &values, bool &hasSolution) {
         return solver->impl->computeInitialValues(query, objects, values, hasSolution);
     }
@@ -167,7 +168,7 @@ bool CachingSolver::computeValidity(const Query &query, Solver::Validity &result
                 }
             }
             default:
-                assert(0 && "unreachable");
+                pabort("unreachable");
         }
     }
 

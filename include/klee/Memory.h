@@ -18,313 +18,202 @@
 #include "llvm/ADT/StringExtras.h"
 
 #include <inttypes.h>
+#include <stdlib.h>
 #include <string>
 #include <vector>
 
-namespace llvm {
-class Value;
-}
+#include <boost/intrusive_ptr.hpp>
 
 namespace klee {
 
-class BitArray;
-class MemoryManager;
-class Solver;
-
-class InitialStateAllocator {
-private:
-    uintptr_t m_bufferBase;
-    uintptr_t m_bufferTop;
-    uintptr_t m_bufferSize;
-    uintptr_t m_pointer;
-
-    bool m_enabled;
-
-    static InitialStateAllocator *s_allocator;
-
-    InitialStateAllocator(uint64_t size) {
-        m_bufferSize = size;
-        m_bufferBase = (uintptr_t) malloc(size);
-        if (!m_bufferSize) {
-            throw std::bad_alloc();
-        }
-        m_bufferTop = m_bufferBase + size;
-        m_pointer = m_bufferBase;
-        m_enabled = true;
-    }
-
-    static bool initializeInternal(uint64_t totalSize) {
-        if (s_allocator) {
-            return false;
-        }
-
-        s_allocator = new InitialStateAllocator(totalSize);
-        return true;
-    }
-
-public:
-    static bool initialize(uint64_t pageCount);
-
-    void activate(bool status) {
-        m_enabled = status;
-    }
-
-    inline bool enabled() {
-        return m_enabled;
-    }
-
-    static inline InitialStateAllocator *get() {
-        return s_allocator;
-    }
-
-    inline void *allocate(size_t size) {
-        assert(s_allocator);
-        uintptr_t ret = 0;
-        if (m_pointer + size < m_bufferTop) {
-            ret = m_pointer;
-            m_pointer += size;
-        }
-        return (void *) ret;
-    }
-
-    inline bool ours(void *ptr) {
-        assert(s_allocator);
-        uintptr_t ptr2 = (uintptr_t) ptr;
-        return ptr2 >= m_bufferBase && ptr2 < m_bufferTop;
-    }
-
-    static inline void *alloc_new(size_t size) {
-        InitialStateAllocator *alloc = get();
-        void *ret = NULL;
-
-        if (alloc && alloc->enabled()) {
-            ret = alloc->allocate(size);
-        }
-
-        if (!ret) {
-            ret = malloc(size);
-            if (!ret) {
-                throw std::bad_alloc();
-            }
-        }
-
-        return ret;
-    }
-
-    static inline void alloc_delete(void *ptr) {
-        InitialStateAllocator *alloc = get();
-        if (alloc && alloc->ours(ptr)) {
-            return;
-        } else {
-            free(ptr);
-        }
-    }
-};
-
-class MemoryObject {
-private:
-    static int counter;
-
-public:
-    unsigned id;
+struct ObjectKey {
     uint64_t address;
-
-    /// size in bytes
     unsigned size;
-    std::string name;
 
-    bool isLocal;
-    bool isGlobal;
-    bool isFixed;
-
-    /// true if created by us.
-    bool fake_object;
-
-    /// User-specified object will not be concretized/restored
-    /// when switching to/from concrete execution. That is,
-    /// copy(In|Out)Concretes ignores this object.
-    bool isUserSpecified;
-
-    /// True if this object should always be accessed directly
-    /// by its address (i.e., baypassing all ObjectStates).
-    /// This means that the object will always contain concrete
-    /// values and its conctent will be shared across all states
-    /// (unless explicitly saved/restored on state switches -
-    /// ObjectState will still be allocated for this purpose).
-    bool isSharedConcrete;
-
-    /// True if the object value can be ignored in local consistency
-    bool isValueIgnored;
-
-    /// True if can be split into smaller objects
-    bool isSplittable;
-
-    /// True if this is an S2E physical memory page (or subpage)
-    bool isMemoryPage;
-
-    /// True to get notifications when the object becomes fully concrete
-    /// or at least one byte becomes symbolic.
-    /// If the object is split into multiple ones, the event is triggered
-    /// when the entire group of objects gets the property.
-    bool doNotifyOnConcretenessChange;
-
-    /// "Location" for which this memory object was allocated. This
-    /// should be either the allocating instruction or the global object
-    /// it was allocated for (or whatever else makes sense).
-    const llvm::Value *allocSite;
-
-    /// A list of boolean expressions the user has requested be true of
-    /// a counterexample. Mutable since we play a little fast and loose
-    /// with allowing it to be added to during execution (although
-    /// should sensibly be only at creation time).
-    mutable std::vector<ref<Expr>> cexPreferences;
-
-    // DO NOT IMPLEMENT
-    MemoryObject(const MemoryObject &b);
-    MemoryObject &operator=(const MemoryObject &b);
-
-public:
-    // XXX this is just a temp hack, should be removed
-    explicit MemoryObject(uint64_t _address)
-        : id(counter++), address(_address), size(0), isFixed(true), isSplittable(false),
-          doNotifyOnConcretenessChange(false), allocSite(0) {
-    }
-
-    MemoryObject(uint64_t _address, unsigned _size, bool _isLocal, bool _isGlobal, bool _isFixed,
-                 const llvm::Value *_allocSite)
-        : id(counter++), address(_address), size(_size), name("unnamed"), isLocal(_isLocal), isGlobal(_isGlobal),
-          isFixed(_isFixed), fake_object(false), isUserSpecified(false), isSharedConcrete(false), isSplittable(false),
-          isMemoryPage(false), doNotifyOnConcretenessChange(false), allocSite(_allocSite) {
-    }
-
-    ~MemoryObject();
-
-    /// Get an identifying string for this allocation.
-    void getAllocInfo(std::string &result) const;
-
-    void setName(const std::string &name) {
-        this->name = name;
+    ObjectKey() : address(0), size(0) {
     }
 
     ref<ConstantExpr> getBaseExpr() const {
         return ConstantExpr::create(address, Context::get().getPointerWidth());
     }
-    ref<ConstantExpr> getSizeExpr() const {
-        return ConstantExpr::create(size, Context::get().getPointerWidth());
-    }
-    ref<Expr> getOffsetExpr(ref<Expr> pointer) const {
-        return SubExpr::create(pointer, getBaseExpr());
-    }
-    uint64_t getOffset(uint64_t pointer) const {
-        return pointer - address;
-    }
-    ref<Expr> getBoundsCheckPointer(ref<Expr> pointer) const {
-        return getBoundsCheckOffset(getOffsetExpr(pointer));
-    }
-    ref<Expr> getBoundsCheckPointer(ref<Expr> pointer, unsigned bytes) const {
-        return getBoundsCheckOffset(getOffsetExpr(pointer), bytes);
+
+    bool operator==(const ObjectKey &a) const {
+        return a.address == address && a.size == size;
     }
 
-    ref<Expr> getBoundsCheckOffset(ref<Expr> offset) const {
-        if (size == 0) {
-            return EqExpr::create(offset, ConstantExpr::alloc(0, Context::get().getPointerWidth()));
-        } else {
-            return UltExpr::create(offset, getSizeExpr());
-        }
-    }
-    ref<Expr> getBoundsCheckOffset(ref<Expr> offset, unsigned bytes) const {
-        if (bytes <= size) {
-            return UltExpr::create(offset, ConstantExpr::alloc(size - bytes + 1, Context::get().getPointerWidth()));
-        } else {
-            return ConstantExpr::alloc(0, Expr::Bool);
-        }
+    bool operator!=(const ObjectKey &a) const {
+        return !(*this == a);
     }
 
-    void *operator new(size_t size) {
-        return InitialStateAllocator::alloc_new(size);
+    bool operator<(const ObjectKey &a) const {
+        return address + size <= a.address;
     }
-
-    void operator delete(void *ptr) {
-        return InitialStateAllocator::alloc_delete(ptr);
-    }
-
-    // Split the current object at specified offsets
-    void split(std::vector<MemoryObject *> &objects, const std::vector<unsigned> &offsets) const;
 };
 
-class ObjectState {
-public:
-    static uint64_t count;
-    static uint64_t ssize;
+/// Function object ordering ObjectKey's by address and size.
+struct ObjectKeyLTS {
+    bool operator()(const ObjectKey &a, const ObjectKey &b) const {
+        return a.address + a.size <= b.address;
+    }
+};
 
+class ObjectState;
+typedef boost::intrusive_ptr<ObjectState> ObjectStatePtr;
+typedef boost::intrusive_ptr<const ObjectState> ObjectStateConstPtr;
+
+class ObjectState {
 private:
     // XXX(s2e) for now we keep this first to access from C code
     // (yes, we do need to access if really fast)
-    BitArray *concreteMask;
+    BitArrayPtr m_concreteMask;
 
-    friend class AddressSpace;
-    template <typename U> friend class AddressSpaceBase;
-    unsigned copyOnWriteOwner; // exclusively for AddressSpace
+    static const unsigned FAST_CONCRETE_BUFFER_SIZE = sizeof(uint64_t);
 
-    friend class ObjectHolder;
-    unsigned refCount;
+    unsigned m_copyOnWriteOwner;
 
-    const MemoryObject *object;
+    mutable std::atomic<unsigned> m_refCount;
 
-    // XXX: made it public for fast access
-    ConcreteBuffer *concreteStore;
+    uint64_t m_address;
+    unsigned m_size;
+
+    // TODO: make it copy-on-write
+    std::string m_name;
+
+    bool m_fixed;
+
+    /// The pointer is equal to m_address and is shared between all copies
+    /// of this object.
+    std::shared_ptr<uint8_t> m_fixedBuffer;
+
+    /// True if can be split into smaller objects
+    bool m_splittable;
+
+    bool m_readOnly;
+
+    /// True to get notifications when the object becomes fully concrete
+    /// or at least one byte becomes symbolic.
+    /// If the object is split into multiple ones, the event is triggered
+    /// when the entire group of objects gets the property.
+    bool m_notifyOnConcretenessChange;
+
+    /// True if this is an S2E physical memory page (or subpage)
+    bool m_isMemoryPage;
+
+    /// True if this object should always be accessed directly
+    /// by its address (i.e., bypassing all ObjectStates).
+    /// This means that the object will always contain concrete
+    /// values and its conctent will be shared across all states
+    /// (unless explicitly saved/restored on state switches -
+    /// ObjectState will still be allocated for this purpose).
+    bool m_isSharedConcrete;
+
+    ConcreteBufferPtr m_concreteBuffer;
+
+    uint8_t m_fastConcreteBuffer[FAST_CONCRETE_BUFFER_SIZE];
 
     // If the store is shared between object states,
     // indicate the offset of our region
-    unsigned storeOffset;
+    unsigned m_bufferOffset;
 
     // XXX cleanup name of flushMask (its backwards or something)
-    // mutable because may need flushed during read of const
-    mutable BitArray *flushMask;
+    // mutable because may need flushed during read of const§
+    mutable BitArrayPtr m_flushMask;
 
-    ref<Expr> *knownSymbolics;
+    std::vector<ref<Expr>> m_knownSymbolics;
 
     // mutable because we may need flush during read of const
-    mutable UpdateList updates;
-
-public:
-    unsigned size;
-
-    bool readOnly;
+    mutable UpdateListPtr m_updates;
 
 private:
     ObjectState();
 
-    // For AddressSpace
-    ConcreteBuffer *getConcreteBufferAs() {
-        return concreteStore;
-    }
-
-public:
     /// Create a new object state for the given memory object with concrete
     /// contents. The initial contents are undefined, it is the callers
     /// responsibility to initialize the object contents appropriately.
-    ObjectState(const MemoryObject *mo);
-
-    /// Create a new object state for the given memory object with symbolic
-    /// contents.
-    ObjectState(const MemoryObject *mo, const Array *array);
+    ObjectState(uint64_t address, uint64_t size, bool fixed);
 
     ObjectState(const ObjectState &os);
+
+public:
     ~ObjectState();
 
-    inline const MemoryObject *getObject() const {
-        return object;
+    static ObjectStatePtr allocate(uint64_t address, uint64_t size, bool isFixed);
+    ObjectStatePtr copy() const {
+        return new ObjectState(*this);
+    }
+
+    ObjectStatePtr copy(const BitArrayPtr &_concreteMask, const ConcreteBufferPtr &_concreteStore) const;
+
+    const std::string &getName() const {
+        return m_name;
+    }
+
+    void setName(const std::string &name) {
+        m_name = name;
+    }
+
+    ObjectKey getKey() const {
+        ObjectKey key;
+        key.address = m_address;
+        key.size = m_size;
+        return key;
     }
 
     void setReadOnly(bool ro) {
-        readOnly = ro;
+        m_readOnly = ro;
     }
 
-    // make contents all concrete and zero
-    void initializeToZero();
-    // make contents all concrete and random
-    void initializeToRandom();
+    bool isReadOnly() const {
+        return m_readOnly;
+    }
+
+    bool isSplittable() const {
+        return m_splittable;
+    }
+
+    void setSplittable(bool b) {
+        m_splittable = b;
+    }
+
+    inline bool notifyOnConcretenessChange() const {
+        return m_notifyOnConcretenessChange;
+    }
+
+    inline void setNotifyOnConcretenessChange(bool v) {
+        m_notifyOnConcretenessChange = v;
+    }
+
+    inline bool isMemoryPage() const {
+        return m_isMemoryPage;
+    }
+
+    inline void setMemoryPage(bool b) {
+        m_isMemoryPage = b;
+    }
+
+    inline bool isSharedConcrete() const {
+        return m_isSharedConcrete;
+    }
+
+    inline void setSharedConcrete(bool b) {
+        m_isSharedConcrete = b;
+    }
+
+    unsigned getSize() const {
+        return m_size;
+    }
+
+    uint64_t getAddress() const {
+        return m_address;
+    }
+
+    unsigned getOwnerId() const {
+        return m_copyOnWriteOwner;
+    }
+
+    void setOwnerId(unsigned id) {
+        m_copyOnWriteOwner = id;
+    }
 
     ref<Expr> read(ref<Expr> offset, Expr::Width width) const;
     ref<Expr> read(unsigned offset, Expr::Width width) const;
@@ -332,11 +221,11 @@ public:
 
     // fast-path to get concrete values
     bool readConcrete8(unsigned offset, uint8_t *v) const {
-        if (object->isSharedConcrete) {
-            *v = ((uint8_t *) object->address)[offset];
+        if (m_isSharedConcrete) {
+            *v = ((uint8_t *) m_address)[offset];
             return true;
         } else if (isByteConcrete(offset)) {
-            *v = concreteStore->get()[offset + storeOffset];
+            *v = m_concreteBuffer->get()[offset + m_bufferOffset];
             return true;
         } else {
             return false;
@@ -355,54 +244,53 @@ public:
     bool isAllConcrete() const;
 
     inline bool isConcrete(unsigned offset, Expr::Width width) const {
-        if (!concreteMask)
+        if (!m_concreteMask) {
             return true;
+        }
 
         unsigned size = Expr::getMinBytesForWidth(width);
         for (unsigned i = 0; i < size; ++i) {
-            if (!isByteConcrete(offset + i))
+            if (!isByteConcrete(offset + i)) {
                 return false;
+            }
         }
         return true;
     }
 
-    const uint8_t *getConcreteStore(bool allowSymbolic = false) const;
-    uint8_t *getConcreteStore(bool allowSymolic = false);
+    const uint8_t *getConcreteBuffer(bool allowSymbolic = false) const;
+    uint8_t *getConcreteBuffer(bool allowSymolic = false);
 
-    const ConcreteBuffer *getConcreteBuffer() const {
-        return concreteStore;
+    const ConcreteBufferPtr &getConcreteBufferPtr() const {
+        assert(m_concreteBuffer);
+        return m_concreteBuffer;
     }
 
-    const BitArray *getConcreteMask() const {
-        return concreteMask;
+    const BitArrayPtr &getConcreteMask() const {
+        return m_concreteMask;
     }
 
     // Split the current object at specified offset
-    ObjectState *split(MemoryObject *object, unsigned offset) const;
+    ObjectStatePtr split(unsigned offset, unsigned newSize) const;
 
     unsigned getStoreOffset() const {
-        return storeOffset;
+        return m_bufferOffset;
     }
 
     unsigned getBitArraySize() const {
-        if (!concreteMask) {
-            return size;
+        if (!m_concreteMask) {
+            return m_size;
         }
-        return concreteMask->getBitCount();
+        return m_concreteMask->getBitCount();
     }
 
     void initializeConcreteMask();
 
-    void replaceConcreteBuffer(ConcreteBuffer *buffer) {
-        concreteStore = buffer;
+    uint64_t getOffset(uint64_t pointer) const {
+        return pointer - m_address;
     }
 
 private:
-    const UpdateList &getUpdates() const;
-
-    void makeConcrete();
-
-    void makeSymbolic();
+    const UpdateListPtr &getUpdates() const;
 
     ref<Expr> read8(ref<Expr> offset) const;
     void write8(unsigned offset, ref<Expr> value);
@@ -413,20 +301,21 @@ private:
     void flushRangeForWrite(unsigned rangeBase, unsigned rangeSize);
 
     inline bool isByteConcrete(unsigned offset) const {
-        return !concreteMask || concreteMask->get(storeOffset + offset);
+        return !m_concreteMask || m_concreteMask->get(m_bufferOffset + offset);
     }
 
     inline bool isByteFlushed(unsigned offset) const {
-        return flushMask && !flushMask->get(offset);
+        return m_flushMask && !m_flushMask->get(offset);
     }
 
     inline bool isByteKnownSymbolic(unsigned offset) const {
-        return knownSymbolics && knownSymbolics[offset].get();
+        return m_knownSymbolics.size() > 0 && m_knownSymbolics[offset].get();
     }
 
     inline void markByteConcrete(unsigned offset) {
-        if (concreteMask)
-            concreteMask->set(storeOffset + offset);
+        if (m_concreteMask) {
+            m_concreteMask->set(m_bufferOffset + offset);
+        }
     }
 
     void markByteSymbolic(unsigned offset);
@@ -434,23 +323,82 @@ private:
     void markByteFlushed(unsigned offset);
 
     void markByteUnflushed(unsigned offset) {
-        if (flushMask)
-            flushMask->set(offset);
+        if (m_flushMask) {
+            m_flushMask->set(offset);
+        }
     }
 
-    void setKnownSymbolic(unsigned offset, Expr *value);
-
-    void print();
-
-    ObjectState *getCopy(BitArray *_concreteMask, ConcreteBuffer *_concreteStore) const;
+    void setKnownSymbolic(unsigned offset, const ref<Expr> &value);
 
 public:
-    void *operator new(size_t size) {
-        return InitialStateAllocator::alloc_new(size);
+    ref<ConstantExpr> getBaseExpr() const {
+        return ConstantExpr::create(m_address, Context::get().getPointerWidth());
+    }
+    ref<ConstantExpr> getSizeExpr() const {
+        return ConstantExpr::create(m_size, Context::get().getPointerWidth());
+    }
+    ref<Expr> getOffsetExpr(ref<Expr> pointer) const {
+        return SubExpr::create(pointer, getBaseExpr());
     }
 
-    void operator delete(void *ptr) {
-        return InitialStateAllocator::alloc_delete(ptr);
+    uint64_t getOffsetExpr(uint64_t pointer) const {
+        return pointer - m_address;
+    }
+
+    ref<Expr> getBoundsCheckPointer(ref<Expr> pointer) const {
+        return getBoundsCheckOffset(getOffsetExpr(pointer));
+    }
+    ref<Expr> getBoundsCheckPointer(ref<Expr> pointer, unsigned bytes) const {
+        return getBoundsCheckOffset(getOffsetExpr(pointer), bytes);
+    }
+
+    ref<Expr> getBoundsCheckOffset(ref<Expr> offset) const {
+        if (m_size == 0) {
+            return EqExpr::create(offset, ConstantExpr::alloc(0, Context::get().getPointerWidth()));
+        } else {
+            return UltExpr::create(offset, getSizeExpr());
+        }
+    }
+    ref<Expr> getBoundsCheckOffset(ref<Expr> offset, unsigned bytes) const {
+        if (bytes <= m_size) {
+            return UltExpr::create(offset, ConstantExpr::alloc(m_size - bytes + 1, Context::get().getPointerWidth()));
+        } else {
+            return ConstantExpr::alloc(0, Expr::Bool);
+        }
+    }
+
+    friend void intrusive_ptr_add_ref(ObjectState *ptr);
+    friend void intrusive_ptr_release(ObjectState *ptr);
+    friend void intrusive_ptr_add_ref(const ObjectState *ptr);
+    friend void intrusive_ptr_release(const ObjectState *ptr);
+};
+
+inline void intrusive_ptr_add_ref(ObjectState *ptr) {
+    ++ptr->m_refCount;
+}
+
+inline void intrusive_ptr_release(ObjectState *ptr) {
+    if (--ptr->m_refCount == 0) {
+        delete ptr;
+    }
+}
+
+inline void intrusive_ptr_add_ref(const ObjectState *ptr) {
+    ++ptr->m_refCount;
+}
+
+inline void intrusive_ptr_release(const ObjectState *ptr) {
+    if (--ptr->m_refCount == 0) {
+        delete ptr;
+    }
+}
+
+struct ObjectStatePtrHash {
+    size_t operator()(const ObjectStatePtr &x) const {
+        return (size_t) x.get();
+    }
+    size_t operator()(const ObjectStateConstPtr &x) const {
+        return (size_t) x.get();
     }
 };
 

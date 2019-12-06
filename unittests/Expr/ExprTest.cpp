@@ -39,8 +39,8 @@ static std::vector<ref<Expr>> GenerateLoads(const std::vector<std::string> &varN
     std::vector<ref<Expr>> ret;
 
     for (const auto &name : varNames) {
-        Array *array = new Array(name, width / 8);
-        auto rd = Expr::createTempRead(array, width);
+        auto array = Array::create(name, width / 8);
+        auto rd = ReadExpr::createTempRead(array, width);
         ret.push_back(rd);
     }
 
@@ -55,7 +55,7 @@ static std::vector<ref<Expr>> GenerateLoads(const std::vector<std::string> &varN
 /// (v7 v6 v5 v4) << 0x18 || (v3 v2 v1 v0) >> 0x8)
 ///
 /// The expression above represents a read of size 4 starting from address 1.s
-static ref<Expr> ReadUnalignedWord(ObjectState *os, unsigned addr, unsigned dataSize) {
+static ref<Expr> ReadUnalignedWord(const ObjectStatePtr &os, unsigned addr, unsigned dataSize) {
     unsigned addr1 = addr & ~(dataSize - 1);
     unsigned addr2 = addr1 + dataSize;
     unsigned shift = (addr & (dataSize - 1)) * 8;
@@ -86,8 +86,7 @@ TEST(ExprTest, UnalignedLoadSimplification1) {
 
     // Initialize a dummy memory object
     Context::initialize(true, Expr::Int64);
-    MemoryObject *mo = new MemoryObject(0, 64, false, false, false, nullptr);
-    ObjectState *os = new ObjectState(mo);
+    auto os = ObjectState::allocate(0, 64, false);
 
     // Create symbolic variable names
     std::vector<std::string> vars;
@@ -112,9 +111,6 @@ TEST(ExprTest, UnalignedLoadSimplification1) {
             EXPECT_EQ(native, ret);
         }
     }
-
-    delete os;
-    delete mo;
 }
 
 static ref<Expr> GetExtractAndZExtExpr(ref<Expr> load, Expr::Width width, Expr::Width ptrWidth, uint64_t mask) {
@@ -173,10 +169,10 @@ TEST(ExprTest, TestExtractLShr) {
 }
 
 TEST(ExprTest, ConcatExtract) {
-    Array *array = new Array("arr0", 256);
-    ref<Expr> read8 = Expr::createTempRead(array, 8);
-    Array *array2 = new Array("arr1", 256);
-    ref<Expr> read8_2 = Expr::createTempRead(array2, 8);
+    auto array = Array::create("arr0", 256);
+    ref<Expr> read8 = ReadExpr::createTempRead(array, 8);
+    auto array2 = Array::create("arr1", 256);
+    ref<Expr> read8_2 = ReadExpr::createTempRead(array2, 8);
     ref<Expr> c100 = getConstant(100, 8);
 
     ref<Expr> concat1 = ConcatExpr::create4(read8, read8, c100, read8_2);
@@ -225,11 +221,11 @@ TEST(ExprTest, ConcatExtract) {
 }
 
 TEST(ExprTest, ExtractConcat) {
-    Array *array = new Array("arr2", 256);
-    ref<Expr> read64 = Expr::createTempRead(array, 64);
+    auto array = Array::create("arr2", 256);
+    ref<Expr> read64 = ReadExpr::createTempRead(array, 64);
 
-    Array *array2 = new Array("arr3", 256);
-    ref<Expr> read8_2 = Expr::createTempRead(array2, 8);
+    auto array2 = Array::create("arr3", 256);
+    ref<Expr> read8_2 = ReadExpr::createTempRead(array2, 8);
 
     ref<Expr> extract1 = ExtractExpr::create(read64, 36, 4);
     ref<Expr> extract2 = ExtractExpr::create(read64, 32, 4);

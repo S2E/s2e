@@ -48,8 +48,8 @@ void klee::findReads(ref<Expr> e, bool visitUpdates, std::vector<ref<ReadExpr>> 
                 // especially since we memoize all the expr results anyway. So
                 // we take a simple approach of memoizing the results for the
                 // head, which often will be shared among multiple nodes.
-                if (updates.insert(re->getUpdates().getHead()).second) {
-                    for (const UpdateNode *un = re->getUpdates().getHead(); un; un = un->getNext()) {
+                if (updates.insert(re->getUpdates()->getHead().get()).second) {
+                    for (auto un = re->getUpdates()->getHead(); un; un = un->getNext()) {
                         if (!isa<ConstantExpr>(un->getIndex()) && visited.insert(un->getIndex()).second)
                             stack.push_back(un->getIndex());
                         if (!isa<ConstantExpr>(un->getValue()) && visited.insert(un->getValue()).second)
@@ -75,46 +75,48 @@ namespace klee {
 class SymbolicObjectFinder : public ExprVisitor {
 protected:
     Action visitRead(const ReadExpr &re) {
-        const UpdateList &ul = re.getUpdates();
+        auto ul = re.getUpdates();
 
         // XXX should we memo better than what ExprVisitor is doing for us?
-        for (const UpdateNode *un = ul.getHead(); un; un = un->getNext()) {
+        for (auto un = ul->getHead(); un; un = un->getNext()) {
             visit(un->getIndex());
             visit(un->getValue());
         }
 
-        if (ul.getRoot()->isSymbolicArray())
-            if (results.insert(ul.getRoot()).second)
-                objects.push_back(ul.getRoot());
+        if (ul->getRoot()->isSymbolicArray()) {
+            if (results.insert(ul->getRoot()).second) {
+                objects.push_back(ul->getRoot());
+            }
+        }
 
         return Action::doChildren();
     }
 
 public:
-    std::set<const Array *> results;
-    std::vector<const Array *> &objects;
+    std::unordered_set<ArrayPtr, ArrayHash> results;
+    ArrayVec &objects;
 
-    SymbolicObjectFinder(std::vector<const Array *> &_objects) : objects(_objects) {
+    SymbolicObjectFinder(ArrayVec &_objects) : objects(_objects) {
     }
 };
 }
 
 template <typename InputIterator>
-void klee::findSymbolicObjects(InputIterator begin, InputIterator end, std::vector<const Array *> &results) {
+void klee::findSymbolicObjects(InputIterator begin, InputIterator end, ArrayVec &results) {
     SymbolicObjectFinder of(results);
     for (; begin != end; ++begin)
         of.visit(*begin);
 }
 
-void klee::findSymbolicObjects(ref<Expr> e, std::vector<const Array *> &results) {
+void klee::findSymbolicObjects(ref<Expr> e, ArrayVec &results) {
     findSymbolicObjects(&e, &e + 1, results);
 }
 
 typedef std::vector<ref<Expr>>::iterator A;
-template void klee::findSymbolicObjects<A>(A, A, std::vector<const Array *> &);
+template void klee::findSymbolicObjects<A>(A, A, ArrayVec &);
 
 typedef std::set<ref<Expr>>::iterator B;
-template void klee::findSymbolicObjects<B>(B, B, std::vector<const Array *> &);
+template void klee::findSymbolicObjects<B>(B, B, ArrayVec &);
 
 ///
 

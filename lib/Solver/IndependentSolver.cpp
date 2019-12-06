@@ -79,9 +79,9 @@ template <class T> inline llvm::raw_ostream &operator<<(llvm::raw_ostream &os, c
 }
 
 class IndependentElementSet {
-    typedef std::map<const Array *, DenseSet<unsigned>> elements_ty;
+    typedef std::map<ArrayPtr, DenseSet<unsigned>, ArrayLt> elements_ty;
     elements_ty elements;
-    std::set<const Array *> wholeObjects;
+    std::unordered_set<ArrayPtr, ArrayHash> wholeObjects;
 
 public:
     IndependentElementSet() {
@@ -91,10 +91,10 @@ public:
         findReads(e, /* visitUpdates= */ true, reads);
         for (unsigned i = 0; i != reads.size(); ++i) {
             ReadExpr *re = reads[i].get();
-            const Array *array = re->getUpdates().getRoot();
+            auto &array = re->getUpdates()->getRoot();
 
             // Reads of a constant array don't alias.
-            if (re->getUpdates().getRoot()->isConstantArray() && !re->getUpdates().getHead())
+            if (re->getUpdates()->getRoot()->isConstantArray() && !re->getUpdates()->getHead())
                 continue;
 
             if (!wholeObjects.count(array)) {
@@ -122,8 +122,7 @@ public:
     void print(llvm::raw_ostream &os) const {
         os << "{";
         bool first = true;
-        for (std::set<const Array *>::iterator it = wholeObjects.begin(), ie = wholeObjects.end(); it != ie; ++it) {
-            const Array *array = *it;
+        for (auto array : wholeObjects) {
 
             if (first) {
                 first = false;
@@ -133,9 +132,9 @@ public:
 
             os << "MO" << array->getName();
         }
-        for (elements_ty::const_iterator it = elements.begin(), ie = elements.end(); it != ie; ++it) {
-            const Array *array = it->first;
-            const DenseSet<unsigned> &dis = it->second;
+        for (auto it : elements) {
+            auto array = it.first;
+            const DenseSet<unsigned> &dis = it.second;
 
             if (first) {
                 first = false;
@@ -150,18 +149,18 @@ public:
 
     // more efficient when this is the smaller set
     bool intersects(const IndependentElementSet &b) {
-        for (std::set<const Array *>::iterator it = wholeObjects.begin(), ie = wholeObjects.end(); it != ie; ++it) {
-            const Array *array = *it;
+        for (auto array : wholeObjects) {
             if (b.wholeObjects.count(array) || b.elements.find(array) != b.elements.end())
                 return true;
         }
-        for (elements_ty::iterator it = elements.begin(), ie = elements.end(); it != ie; ++it) {
-            const Array *array = it->first;
+        for (auto it : elements) {
+            auto &array = it.first;
             if (b.wholeObjects.count(array))
                 return true;
-            elements_ty::const_iterator it2 = b.elements.find(array);
+
+            auto it2 = b.elements.find(array);
             if (it2 != b.elements.end()) {
-                if (it->second.intersects(it2->second))
+                if (it.second.intersects(it2->second))
                     return true;
             }
         }
@@ -171,9 +170,7 @@ public:
     // returns true iff set is changed by addition
     bool add(const IndependentElementSet &b) {
         bool modified = false;
-        for (std::set<const Array *>::const_iterator it = b.wholeObjects.begin(), ie = b.wholeObjects.end(); it != ie;
-             ++it) {
-            const Array *array = *it;
+        for (auto array : b.wholeObjects) {
             elements_ty::iterator it2 = elements.find(array);
             if (it2 != elements.end()) {
                 modified = true;
@@ -186,15 +183,15 @@ public:
                 }
             }
         }
-        for (elements_ty::const_iterator it = b.elements.begin(), ie = b.elements.end(); it != ie; ++it) {
-            const Array *array = it->first;
+        for (auto it : elements) {
+            auto &array = it.first;
             if (!wholeObjects.count(array)) {
-                elements_ty::iterator it2 = elements.find(array);
+                auto it2 = elements.find(array);
                 if (it2 == elements.end()) {
                     modified = true;
-                    elements.insert(*it);
+                    elements.insert(it);
                 } else {
-                    if (it2->second.add(it->second))
+                    if (it2->second.add(it.second))
                         modified = true;
                 }
             }
@@ -270,7 +267,7 @@ public:
     bool computeTruth(const Query &, bool &isValid);
     bool computeValidity(const Query &, Solver::Validity &result);
     bool computeValue(const Query &, ref<Expr> &result);
-    bool computeInitialValues(const Query &query, const std::vector<const Array *> &objects,
+    bool computeInitialValues(const Query &query, const ArrayVec &objects,
                               std::vector<std::vector<unsigned char>> &values, bool &hasSolution) {
         return solver->impl->computeInitialValues(query, objects, values, hasSolution);
     }

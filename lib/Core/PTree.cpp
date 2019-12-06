@@ -68,7 +68,7 @@ void PTree::deactivate(Node *n) {
         } else if (!n->left || !n->right) {
             n->active = false;
         } else {
-            assert(false);
+            abort();
         }
         n = n->parent;
     }

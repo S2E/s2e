@@ -8,6 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "klee/util/ExprVisitor.h"
+#include <klee/Common.h>
 #include "klee/Expr.h"
 
 #include "llvm/Support/CommandLine.h"
@@ -53,9 +54,6 @@ ref<Expr> ExprVisitor::visitActual(const ref<Expr> &e) {
         }
 
         switch (ep.getKind()) {
-            case Expr::NotOptimized:
-                res = visitNotOptimized(static_cast<NotOptimizedExpr &>(ep));
-                break;
             case Expr::Read:
                 res = visitRead(static_cast<ReadExpr &>(ep));
                 break;
@@ -148,12 +146,12 @@ ref<Expr> ExprVisitor::visitActual(const ref<Expr> &e) {
                 break;
             case Expr::Constant:
             default:
-                assert(0 && "invalid expression kind");
+                pabort("invalid expression kind");
         }
 
         switch (res.kind) {
             default:
-                assert(0 && "invalid kind");
+                pabort("invalid kind");
             case Action::DoChildren: {
                 bool rebuild = false;
                 ref<Expr> e(&ep), kids[8];
@@ -190,10 +188,6 @@ ExprVisitor::Action ExprVisitor::visitExpr(const Expr &) {
 
 ExprVisitor::Action ExprVisitor::visitExprPost(const Expr &) {
     return Action::skipChildren();
-}
-
-ExprVisitor::Action ExprVisitor::visitNotOptimized(const NotOptimizedExpr &) {
-    return Action::doChildren();
 }
 
 ExprVisitor::Action ExprVisitor::visitRead(const ReadExpr &) {

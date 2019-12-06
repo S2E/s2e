@@ -21,6 +21,20 @@
 #include <stdio.h>
 #include <unordered_set>
 
+// Use this instead of assert() to avoid warnings about unused variables
+static inline void check(bool x, const char *msg) {
+    if (!x) {
+        fprintf(stderr, "%s", msg);
+        abort();
+    }
+}
+
+// This replaces the assert(false && "msg") construct
+[[noreturn]] static inline void pabort(const char *msg) {
+    fprintf(stderr, "%s", msg);
+    abort();
+}
+
 // XXX ugh
 namespace klee {
 class Solver;

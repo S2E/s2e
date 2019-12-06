@@ -16,8 +16,6 @@
 #include "klee/Solver.h"
 #include "klee/util/BitArray.h"
 
-#include "klee/ObjectHolder.h"
-
 #include <llvm/IR/Function.h>
 #include <llvm/IR/Instruction.h>
 #include <llvm/IR/Value.h>
@@ -29,319 +27,194 @@
 #include <sstream>
 
 using namespace llvm;
-using namespace klee;
 
-namespace {
-cl::opt<bool> UseConstantArrays("use-constant-arrays", cl::init(true));
+namespace klee {
+
+ObjectState::ObjectState() {
 }
 
-InitialStateAllocator *InitialStateAllocator::s_allocator = NULL;
+ObjectState::ObjectState(uint64_t address, uint64_t size, bool fixed)
+    : m_copyOnWriteOwner(0), m_refCount(0), m_address(address), m_size(size), m_fixed(fixed), m_splittable(false),
+      m_readOnly(false), m_notifyOnConcretenessChange(false), m_isMemoryPage(false), m_isSharedConcrete(false),
+      m_bufferOffset(0), m_updates(nullptr) {
 
-bool InitialStateAllocator::initialize(uint64_t pageCount) {
-    return initializeInternal(pageCount * (sizeof(MemoryObject) + sizeof(ObjectState)));
-}
-
-/***/
-
-ObjectHolder::ObjectHolder(const ObjectHolder &b) : os(b.os) {
-    if (os)
-        ++os->refCount;
-}
-
-ObjectHolder::ObjectHolder(ObjectState *_os) : os(_os) {
-    if (os)
-        ++os->refCount;
-}
-
-ObjectHolder::~ObjectHolder() {
-    if (os && --os->refCount == 0)
-        delete os;
-}
-
-ObjectHolder &ObjectHolder::operator=(const ObjectHolder &b) {
-    if (b.os)
-        ++b.os->refCount;
-    if (os && --os->refCount == 0)
-        delete os;
-    os = b.os;
-    return *this;
-}
-
-/***/
-
-int MemoryObject::counter = 0;
-
-MemoryObject::~MemoryObject() {
-}
-
-void MemoryObject::getAllocInfo(std::string &result) const {
-    llvm::raw_string_ostream info(result);
-
-    info << "MO" << id << "[" << size << "]";
-
-    if (allocSite) {
-        info << " allocated at ";
-        if (const Instruction *i = dyn_cast<Instruction>(allocSite)) {
-            info << i->getParent()->getParent()->getName().str() << "():";
-            info << *i;
-        } else if (const GlobalValue *gv = dyn_cast<GlobalValue>(allocSite)) {
-            info << "global:" << gv->getName().str();
-        } else {
-            info << "value:" << *allocSite;
-        }
-    } else {
-        info << " (no allocation info)";
-    }
-
-    info.flush();
-}
-
-void MemoryObject::split(std::vector<MemoryObject *> &objects, const std::vector<unsigned> &offsets) const {
-    assert(isSplittable);
-
-    // XXX: what do we do with these?
-    assert(cexPreferences.size() == 0);
-    unsigned count = offsets.size();
-
-    for (unsigned i = 0; i < count; ++i) {
-        unsigned offset = offsets[i];
-        unsigned nsize;
-
-        if (i < count - 1) {
-            nsize = offsets[i + 1] - offset;
-        } else {
-            nsize = size - offset;
+    if (!m_fixed) {
+        if (m_address) {
+            abort();
         }
 
-        MemoryObject *obj = new MemoryObject(address, nsize, isLocal, isGlobal, isFixed, allocSite);
-        obj->address = address + offset;
-        obj->size = nsize;
-        obj->isSplittable = false;
-        obj->isMemoryPage = isMemoryPage;
-        obj->isUserSpecified = isUserSpecified;
-        obj->doNotifyOnConcretenessChange = doNotifyOnConcretenessChange;
-        objects.push_back(obj);
+        m_fixedBuffer = std::shared_ptr<uint8_t>(new uint8_t[size], std::default_delete<uint8_t[]>());
+        m_address = (uint64_t) m_fixedBuffer.get();
+    }
+
+    memset(m_fastConcreteBuffer, 0, sizeof(m_fastConcreteBuffer));
+    if (m_size > FAST_CONCRETE_BUFFER_SIZE) {
+        this->m_concreteBuffer = ConcreteBuffer::create(size);
     }
 }
 
-/***/
+ObjectState::ObjectState(const ObjectState &os) {
+    assert(!os.m_readOnly && "no need to copy read only object?");
+    assert(!os.m_concreteMask || (os.m_size == os.m_concreteMask->getBitCount()));
 
-uint64_t ObjectState::count = 0;
-uint64_t ObjectState::ssize = 0;
+    this->m_concreteMask = os.m_concreteMask ? BitArray::create(os.m_concreteMask) : nullptr;
+    this->m_copyOnWriteOwner = os.m_copyOnWriteOwner;
+    this->m_refCount = 0;
+    this->m_address = os.m_address;
+    this->m_size = os.m_size;
+    this->m_name = os.m_name;
+    this->m_fixed = os.m_fixed;
+    this->m_fixedBuffer = os.m_fixedBuffer;
+    this->m_splittable = os.m_splittable;
+    this->m_readOnly = os.m_readOnly;
+    this->m_notifyOnConcretenessChange = os.m_notifyOnConcretenessChange;
+    this->m_isMemoryPage = os.m_isMemoryPage;
+    this->m_isSharedConcrete = os.m_isSharedConcrete;
 
-ObjectState::ObjectState()
-    : concreteMask(0), copyOnWriteOwner(0), refCount(0), object(NULL), concreteStore(NULL), storeOffset(0),
-      flushMask(0), knownSymbolics(0), updates(0, 0), size(0), readOnly(false) {
-}
-
-ObjectState::ObjectState(const MemoryObject *mo)
-    : concreteMask(0), copyOnWriteOwner(0), refCount(0), object(mo), concreteStore(new ConcreteBuffer(mo->size)),
-      storeOffset(0), flushMask(0), knownSymbolics(0), updates(0, 0), size(mo->size), readOnly(false) {
-    if (!UseConstantArrays) {
-        // FIXME: Leaked.
-        static unsigned id = 0;
-        const Array *array = new Array("tmp_arr" + llvm::utostr(++id), size);
-        updates = UpdateList(array, 0);
+    this->m_concreteBuffer = nullptr;
+    if (os.m_concreteBuffer) {
+        this->m_concreteBuffer = ConcreteBuffer::create(os.m_concreteBuffer);
     }
-    ++count;
-    ssize += mo->size;
-}
-
-ObjectState::ObjectState(const MemoryObject *mo, const Array *array)
-    : concreteMask(0), copyOnWriteOwner(0), refCount(0), object(mo), concreteStore(new ConcreteBuffer(mo->size)),
-      storeOffset(0), flushMask(0), knownSymbolics(0), updates(array, 0), size(mo->size), readOnly(false) {
-    makeSymbolic();
-    ++count;
-    ssize += mo->size;
-}
-
-ObjectState::ObjectState(const ObjectState &os)
-    : concreteMask(os.concreteMask ? new BitArray(*os.concreteMask, os.size) : 0), copyOnWriteOwner(0), refCount(0),
-      object(os.object), concreteStore(new ConcreteBuffer(os.size)), storeOffset(0),
-      flushMask(os.flushMask ? new BitArray(*os.flushMask, os.size) : 0), knownSymbolics(0), updates(os.updates),
-      size(os.size), readOnly(false) {
-    assert(!os.readOnly && "no need to copy read only object?");
-
-    assert(!os.concreteMask || (os.size == os.concreteMask->getBitCount()));
-
-    if (os.knownSymbolics) {
-        knownSymbolics = new ref<Expr>[ size ];
-        for (unsigned i = 0; i < size; i++)
-            knownSymbolics[i] = os.knownSymbolics[i];
-    }
-    ++count;
-    ssize += os.size;
-    memcpy(concreteStore->get(), os.concreteStore->get(), size * sizeof(*concreteStore->get()));
+    memcpy(this->m_fastConcreteBuffer, os.m_fastConcreteBuffer, sizeof(m_fastConcreteBuffer));
+    this->m_bufferOffset = os.m_bufferOffset;
+    this->m_flushMask = os.m_flushMask ? BitArray::create(os.m_flushMask) : nullptr;
+    this->m_knownSymbolics = os.m_knownSymbolics;
+    this->m_updates = os.m_updates ? UpdateList::create(os.m_updates->getRoot(), os.m_updates->getHead()) : nullptr;
 }
 
 ObjectState::~ObjectState() {
-    if (concreteMask)
-        concreteMask->decref();
-    if (flushMask)
-        flushMask->decref();
-    if (knownSymbolics)
-        delete[] knownSymbolics;
-    concreteStore->decref();
-    --count;
-    ssize -= size;
+}
+
+ObjectStatePtr ObjectState::allocate(uint64_t address, uint64_t size, bool isFixed) {
+
+    if (size > 10 * 1024 * 1024) {
+        klee_warning_once(0, "failing large alloc: %u bytes", (unsigned) size);
+        return nullptr;
+    }
+
+    return ObjectStatePtr(new ObjectState(address, size, isFixed));
 }
 
 /***/
 
-ObjectState *ObjectState::split(MemoryObject *newObject, unsigned offset) const {
-    assert(this->object->isSplittable);
-    assert(newObject->size <= this->object->size);
-    assert(offset + newObject->size <= this->object->size);
-    assert(flushMask == NULL);
-    assert(updates.getSize() == 0);
-    assert(readOnly == false);
+ObjectStatePtr ObjectState::split(unsigned offset, unsigned newSize) const {
+    assert(m_splittable);
+    assert(newSize <= m_size);
+    assert(offset + newSize <= m_size);
+    assert(m_flushMask == nullptr);
+    assert(!m_updates || m_updates->getSize() == 0);
+    assert(m_readOnly == false);
 
-    ObjectState *ret = new ObjectState();
-    ret->object = newObject;
+    auto ret = new ObjectState();
 
-    ret->concreteMask = concreteMask;
-    ret->concreteMask->incref();
-    ret->concreteStore = concreteStore;
-    ret->concreteStore->incref();
-    ret->storeOffset = offset;
+    ret->m_concreteMask = m_concreteMask;
+    ret->m_copyOnWriteOwner = m_copyOnWriteOwner;
+    ret->m_refCount = 0;
+    ret->m_address = m_address + offset;
+    ret->m_size = newSize;
+    ret->m_name = m_name;
+    ret->m_fixed = m_fixed;
+    ret->m_fixedBuffer = m_fixedBuffer;
+    ret->m_splittable = false;
+    ret->m_readOnly = m_readOnly;
+    ret->m_notifyOnConcretenessChange = m_notifyOnConcretenessChange;
+    ret->m_isMemoryPage = m_isMemoryPage;
+    ret->m_isSharedConcrete = m_isSharedConcrete;
+    ret->m_concreteBuffer = m_concreteBuffer;
+    memcpy(ret->m_fastConcreteBuffer, m_fastConcreteBuffer, sizeof(m_fastConcreteBuffer));
+    ret->m_bufferOffset = offset;
+    ret->m_flushMask = m_flushMask;
 
-    ret->size = newObject->size;
-    ret->readOnly = readOnly;
-    ret->updates = updates;
-
-    if (knownSymbolics) {
-        ret->knownSymbolics = new ref<Expr>[ newObject->size ];
-        for (unsigned i = 0; i < newObject->size; i++)
-            ret->knownSymbolics[i] = knownSymbolics[i + offset];
+    if (m_knownSymbolics.size() > 0) {
+        ret->m_knownSymbolics.resize(newSize);
+        for (unsigned i = 0; i < newSize; i++) {
+            ret->m_knownSymbolics[i] = m_knownSymbolics[i + offset];
+        }
     }
 
-    return ret;
+    ret->m_updates = nullptr;
+
+    return ObjectStatePtr(ret);
 }
 
 void ObjectState::initializeConcreteMask() {
-    if (!concreteMask) {
-        concreteMask = new BitArray(size, true);
+    if (!m_concreteMask) {
+        m_concreteMask = BitArray::create(m_size, true);
     }
 }
 
-ObjectState *ObjectState::getCopy(BitArray *_concreteMask, ConcreteBuffer *_concreteStore) const {
-    ObjectState *ret = new ObjectState();
-    ret->object = object;
-    ret->concreteMask = _concreteMask;
-    ret->concreteMask->incref();
-    ret->concreteStore = _concreteStore;
-    ret->concreteStore->incref();
-    ret->storeOffset = storeOffset;
-    ret->size = size;
-    ret->readOnly = readOnly;
+ObjectStatePtr ObjectState::copy(const BitArrayPtr &_concreteMask, const ConcreteBufferPtr &_concreteStore) const {
+    ObjectState *ret = new ObjectState(*this);
 
-    ret->updates = updates;
+    ret->m_concreteMask = _concreteMask;
+    ret->m_concreteBuffer = _concreteStore;
 
-    if (flushMask) {
-        ret->flushMask = new BitArray(*flushMask, size);
-    }
-
-    if (knownSymbolics) {
-        ret->knownSymbolics = new ref<Expr>[ size ];
-        for (unsigned i = 0; i < size; i++)
-            ret->knownSymbolics[i] = knownSymbolics[i];
-    }
-
-    return ret;
+    return ObjectStatePtr(ret);
 }
 
 /***/
 
-const UpdateList &ObjectState::getUpdates() const {
+const UpdateListPtr &ObjectState::getUpdates() const {
+    if (!m_updates) {
+        m_updates = UpdateList::create(nullptr, nullptr);
+    }
+
+    if (m_updates->getRoot()) {
+        return m_updates;
+    }
+
     // Constant arrays are created lazily.
-    if (!updates.getRoot()) {
-        // Collect the list of writes, with the oldest writes first.
 
-        // FIXME: We should be able to do this more efficiently, we just need to be
-        // careful to get the interaction with the cache right. In particular we
-        // should avoid creating UpdateNode instances we never use.
-        unsigned NumWrites = updates.getHead() ? updates.getHead()->getSize() : 0;
-        std::vector<std::pair<ref<Expr>, ref<Expr>>> Writes(NumWrites);
-        const UpdateNode *un = updates.getHead();
-        for (unsigned i = NumWrites; i != 0; un = un->getNext()) {
-            --i;
-            Writes[i] = std::make_pair(un->getIndex(), un->getValue());
-        }
+    // Collect the list of writes, with the oldest writes first.
 
-        std::vector<ref<ConstantExpr>> Contents(size);
-
-        // Initialize to zeros.
-        for (unsigned i = 0, e = size; i != e; ++i)
-            Contents[i] = ConstantExpr::create(0, Expr::Int8);
-
-        // Pull off as many concrete writes as we can.
-        unsigned Begin = 0, End = Writes.size();
-        for (; Begin != End; ++Begin) {
-            // Push concrete writes into the constant array.
-            ConstantExpr *Index = dyn_cast<ConstantExpr>(Writes[Begin].first);
-            if (!Index)
-                break;
-
-            ConstantExpr *Value = dyn_cast<ConstantExpr>(Writes[Begin].second);
-            if (!Value)
-                break;
-
-            Contents[Index->getZExtValue()] = Value;
-        }
-
-        // FIXME: We should unique these, there is no good reason to create multiple
-        // ones.
-
-        // Start a new update list.
-        // FIXME: Leaked.
-        static unsigned id = 0;
-        const Array *array =
-            new Array("const_arr" + llvm::utostr(++id), size, &Contents[0], &Contents[0] + Contents.size());
-        updates = UpdateList(array, 0);
-
-        // Apply the remaining (non-constant) writes.
-        for (; Begin != End; ++Begin)
-            updates.extend(Writes[Begin].first, Writes[Begin].second);
+    // FIXME: We should be able to do this more efficiently, we just need to be
+    // careful to get the interaction with the cache right. In particular we
+    // should avoid creating UpdateNode instances we never use.
+    unsigned NumWrites = m_updates->getHead() ? m_updates->getHead()->getSize() : 0;
+    std::vector<std::pair<ref<Expr>, ref<Expr>>> Writes(NumWrites);
+    auto un = m_updates->getHead();
+    for (unsigned i = NumWrites; i != 0; un = un->getNext()) {
+        --i;
+        Writes[i] = std::make_pair(un->getIndex(), un->getValue());
     }
 
-    return updates;
-}
+    std::vector<ref<ConstantExpr>> Contents(m_size);
 
-void ObjectState::makeConcrete() {
-    if (concreteMask)
-        concreteMask->decref();
-    if (flushMask)
-        flushMask->decref();
-    if (knownSymbolics)
-        delete[] knownSymbolics;
-    concreteMask = 0;
-    flushMask = 0;
-    knownSymbolics = 0;
-}
-
-void ObjectState::makeSymbolic() {
-    assert(!updates.getHead() && "XXX makeSymbolic of objects with symbolic values is unsupported");
-
-    // XXX simplify this, can just delete various arrays I guess
-    for (unsigned i = 0; i < size; i++) {
-        markByteSymbolic(i);
-        setKnownSymbolic(i, 0);
-        markByteFlushed(i);
+    // Initialize to zeros.
+    for (unsigned i = 0, e = m_size; i != e; ++i) {
+        Contents[i] = ConstantExpr::create(0, Expr::Int8);
     }
-}
 
-void ObjectState::initializeToZero() {
-    makeConcrete();
-    memset(concreteStore->get() + storeOffset, 0, size);
-}
+    // Pull off as many concrete writes as we can.
+    unsigned Begin = 0, End = Writes.size();
+    for (; Begin != End; ++Begin) {
+        // Push concrete writes into the constant array.
+        ConstantExpr *Index = dyn_cast<ConstantExpr>(Writes[Begin].first);
+        if (!Index)
+            break;
 
-void ObjectState::initializeToRandom() {
-    makeConcrete();
-    uint8_t *store = concreteStore->get() + storeOffset;
-    for (unsigned i = 0; i < size; i++) {
-        // randomly selected by 256 sided die
-        store[i] = 0xAB;
+        ConstantExpr *Value = dyn_cast<ConstantExpr>(Writes[Begin].second);
+        if (!Value)
+            break;
+
+        Contents[Index->getZExtValue()] = Value;
     }
+
+    // FIXME: We should unique these, there is no good reason to create multiple
+    // ones.
+
+    // Start a new update list.
+    // FIXME: Leaked.
+    static unsigned id = 0;
+    auto array = Array::create("const_arr" + llvm::utostr(++id), m_size, &Contents[0], &Contents[0] + Contents.size());
+    m_updates = UpdateList::create(array, 0);
+
+    // Apply the remaining (non-constant) writes.
+    for (; Begin != End; ++Begin) {
+        m_updates->extend(Writes[Begin].first, Writes[Begin].second);
+    }
+
+    return m_updates;
 }
 
 /*
@@ -354,45 +227,47 @@ isByteConcrete(i) => !isByteKnownSymbolic(i)
 
 void ObjectState::fastRangeCheckOffset(ref<Expr> offset, unsigned *base_r, unsigned *size_r) const {
     *base_r = 0;
-    *size_r = size;
+    *size_r = m_size;
 }
 
 void ObjectState::flushRangeForRead(unsigned rangeBase, unsigned rangeSize) const {
-    if (!flushMask)
-        flushMask = new BitArray(size, true);
+    if (!m_flushMask) {
+        m_flushMask = BitArray::create(m_size, true);
+    }
 
     for (unsigned offset = rangeBase; offset < rangeBase + rangeSize; offset++) {
         if (!isByteFlushed(offset)) {
             if (isByteConcrete(offset)) {
-                updates.extend(ConstantExpr::create(offset, Expr::Int32),
-                               ConstantExpr::create(concreteStore->get()[offset + storeOffset], Expr::Int8));
+                auto byte = getConcreteBuffer(true)[offset];
+                getUpdates()->extend(ConstantExpr::create(offset, Expr::Int32), ConstantExpr::create(byte, Expr::Int8));
             } else {
                 assert(isByteKnownSymbolic(offset) && "invalid bit set in flushMask");
-                updates.extend(ConstantExpr::create(offset, Expr::Int32), knownSymbolics[offset]);
+                getUpdates()->extend(ConstantExpr::create(offset, Expr::Int32), m_knownSymbolics[offset]);
             }
 
-            flushMask->unset(offset);
+            m_flushMask->unset(offset);
         }
     }
 }
 
 void ObjectState::flushRangeForWrite(unsigned rangeBase, unsigned rangeSize) {
-    if (!flushMask)
-        flushMask = new BitArray(size, true);
+    if (!m_flushMask) {
+        m_flushMask = BitArray::create(m_size, true);
+    }
 
     for (unsigned offset = rangeBase; offset < rangeBase + rangeSize; offset++) {
         if (!isByteFlushed(offset)) {
             if (isByteConcrete(offset)) {
-                updates.extend(ConstantExpr::create(offset, Expr::Int32),
-                               ConstantExpr::create(concreteStore->get()[offset + storeOffset], Expr::Int8));
+                auto byte = getConcreteBuffer(true)[offset];
+                getUpdates()->extend(ConstantExpr::create(offset, Expr::Int32), ConstantExpr::create(byte, Expr::Int8));
                 markByteSymbolic(offset);
             } else {
                 assert(isByteKnownSymbolic(offset) && "invalid bit set in flushMask");
-                updates.extend(ConstantExpr::create(offset, Expr::Int32), knownSymbolics[offset]);
+                getUpdates()->extend(ConstantExpr::create(offset, Expr::Int32), m_knownSymbolics[offset]);
                 setKnownSymbolic(offset, 0);
             }
 
-            flushMask->unset(offset);
+            m_flushMask->unset(offset);
         } else {
             // flushed bytes that are written over still need
             // to be marked out
@@ -406,44 +281,57 @@ void ObjectState::flushRangeForWrite(unsigned rangeBase, unsigned rangeSize) {
 }
 
 bool ObjectState::isAllConcrete() const {
-    return !concreteMask || concreteMask->isAllOnes(size);
+    return !m_concreteMask || m_concreteMask->isAllOnes(m_size);
 }
 
-const uint8_t *ObjectState::getConcreteStore(bool allowSymbolic) const {
+const uint8_t *ObjectState::getConcreteBuffer(bool allowSymbolic) const {
     if (!allowSymbolic && !isAllConcrete()) {
         return NULL;
     }
-    return concreteStore->get() + storeOffset;
+
+    if (m_size <= FAST_CONCRETE_BUFFER_SIZE) {
+        assert(m_bufferOffset == 0);
+        return &m_fastConcreteBuffer[0];
+    } else {
+        return m_concreteBuffer->get() + m_bufferOffset;
+    }
 }
 
-uint8_t *ObjectState::getConcreteStore(bool allowSymbolic) {
+uint8_t *ObjectState::getConcreteBuffer(bool allowSymbolic) {
     if (!allowSymbolic && !isAllConcrete()) {
         return NULL;
     }
-    return concreteStore->get() + storeOffset;
+
+    if (m_size <= FAST_CONCRETE_BUFFER_SIZE) {
+        assert(m_bufferOffset == 0);
+        return &m_fastConcreteBuffer[0];
+    } else {
+        return m_concreteBuffer->get() + m_bufferOffset;
+    }
 }
 
 void ObjectState::markByteSymbolic(unsigned offset) {
-    if (!concreteMask)
-        concreteMask = new BitArray(size, true);
-    concreteMask->unset(storeOffset + offset);
+    if (!m_concreteMask) {
+        m_concreteMask = BitArray::create(m_size, true);
+    }
+    m_concreteMask->unset(m_bufferOffset + offset);
 }
 
 void ObjectState::markByteFlushed(unsigned offset) {
-    if (!flushMask) {
-        flushMask = new BitArray(size, false);
+    if (!m_flushMask) {
+        m_flushMask = BitArray::create(m_size, false);
     } else {
-        flushMask->unset(offset);
+        m_flushMask->unset(offset);
     }
 }
 
-inline void ObjectState::setKnownSymbolic(unsigned offset, Expr *value /* can be null */) {
-    if (knownSymbolics) {
-        knownSymbolics[offset] = value;
+inline void ObjectState::setKnownSymbolic(unsigned offset, const ref<Expr> &value) {
+    if (m_knownSymbolics.size() > 0) {
+        m_knownSymbolics[offset] = value;
     } else {
-        if (value) {
-            knownSymbolics = new ref<Expr>[ size ];
-            knownSymbolics[offset] = value;
+        if (!value.isNull()) {
+            m_knownSymbolics.resize(m_size);
+            m_knownSymbolics[offset] = value;
         }
     }
 }
@@ -451,32 +339,31 @@ inline void ObjectState::setKnownSymbolic(unsigned offset, Expr *value /* can be
 /***/
 
 ref<Expr> ObjectState::read8(unsigned offset) const {
-    if (!object->isSharedConcrete) {
+    if (!isSharedConcrete()) {
         if (isByteConcrete(offset)) {
-            return ConstantExpr::create(concreteStore->get()[offset + storeOffset], Expr::Int8);
+            auto byte = getConcreteBuffer(true)[offset];
+            return ConstantExpr::create(byte, Expr::Int8);
         } else if (isByteKnownSymbolic(offset)) {
-            return knownSymbolics[offset];
+            return m_knownSymbolics[offset];
         } else {
             assert(isByteFlushed(offset) && "unflushed byte without cache value");
-            assert(offset < size);
+            assert(offset < m_size);
             return ReadExpr::create(getUpdates(), ConstantExpr::create(offset, Expr::Int32));
         }
     } else {
-        return ConstantExpr::create(((uint8_t *) object->address)[offset], Expr::Int8);
+        return ConstantExpr::create(((uint8_t *) m_address)[offset], Expr::Int8);
     }
 }
 
 ref<Expr> ObjectState::read8(ref<Expr> offset) const {
     assert(!isa<ConstantExpr>(offset) && "constant offset passed to symbolic read8");
-    assert(!object->isSharedConcrete && "read at non-constant offset for shared concrete object");
+    assert(!isSharedConcrete() && "read at non-constant offset for shared concrete object");
     unsigned base, size;
     fastRangeCheckOffset(offset, &base, &size);
     flushRangeForRead(base, size);
 
     if (size > 4096) {
-        std::string allocInfo;
-        object->getAllocInfo(allocInfo);
-        klee_warning_once(0, "flushing %d bytes on read, may be slow and/or crash: %s", size, allocInfo.c_str());
+        klee_warning_once(0, "flushing %d bytes on read, may be slow and/or crash", size);
     }
 
     return ReadExpr::create(getUpdates(), ZExtExpr::create(offset, Expr::Int32));
@@ -484,14 +371,15 @@ ref<Expr> ObjectState::read8(ref<Expr> offset) const {
 
 void ObjectState::write8(unsigned offset, uint8_t value) {
     // assert(read_only == false && "writing to read-only object!");
-    if (!object->isSharedConcrete) {
-        concreteStore->get()[offset + storeOffset] = value;
+    if (!isSharedConcrete()) {
+        auto byte = &getConcreteBuffer(true)[offset];
+        *byte = value;
         setKnownSymbolic(offset, 0);
 
         markByteConcrete(offset);
         markByteUnflushed(offset);
     } else {
-        ((uint8_t *) object->address)[offset] = value;
+        ((uint8_t *) m_address)[offset] = value;
     }
 }
 
@@ -500,7 +388,7 @@ void ObjectState::write8(unsigned offset, ref<Expr> value) {
     if (ConstantExpr *CE = dyn_cast<ConstantExpr>(value)) {
         write8(offset, (uint8_t) CE->getZExtValue(8));
     } else {
-        assert(!object->isSharedConcrete && "write of non-constant value to shared concrete object");
+        assert(!isSharedConcrete() && "write of non-constant value to shared concrete object");
         setKnownSymbolic(offset, value.get());
 
         markByteSymbolic(offset);
@@ -510,18 +398,16 @@ void ObjectState::write8(unsigned offset, ref<Expr> value) {
 
 void ObjectState::write8(ref<Expr> offset, ref<Expr> value) {
     assert(!isa<ConstantExpr>(offset) && "constant offset passed to symbolic write8");
-    assert(!object->isSharedConcrete && "write at non-constant offset for shared concrete object");
+    assert(!isSharedConcrete() && "write at non-constant offset for shared concrete object");
     unsigned base, size;
     fastRangeCheckOffset(offset, &base, &size);
     flushRangeForWrite(base, size);
 
     if (size > 4096) {
-        std::string allocInfo;
-        object->getAllocInfo(allocInfo);
-        klee_warning_once(0, "flushing %d bytes on read, may be slow and/or crash: %s", size, allocInfo.c_str());
+        klee_warning_once(0, "flushing %d bytes on read, may be slow and/or crash", size);
     }
 
-    updates.extend(ZExtExpr::create(offset, Expr::Int32), value);
+    getUpdates()->extend(ZExtExpr::create(offset, Expr::Int32), value);
 }
 
 /***/
@@ -604,7 +490,7 @@ void ObjectState::write(unsigned offset, ref<Expr> value) {
             uint64_t val = CE->getZExtValue();
             switch (w) {
                 default:
-                    assert(0 && "Invalid write size!");
+                    pabort("Invalid write size!");
                 case Expr::Bool:
                 case Expr::Int8:
                     write8(offset, val);
@@ -661,24 +547,4 @@ void ObjectState::write64(unsigned offset, uint64_t value) {
         write8(offset + idx, (uint8_t)(value >> (8 * i)));
     }
 }
-
-void ObjectState::print() {
-    std::cerr << "-- ObjectState --\n";
-    std::cerr << "\tMemoryObject ID: " << object->id << "\n";
-    std::cerr << "\tRoot Object: " << updates.getRoot() << "\n";
-    std::cerr << "\tSize: " << size << "\n";
-
-    std::cerr << "\tBytes:\n";
-    for (unsigned i = 0; i < size; i++) {
-        std::cerr << "\t\t[" << i << "]"
-                  << " concrete? " << isByteConcrete(i) << " known-sym? " << isByteKnownSymbolic(i) << " flushed? "
-                  << isByteFlushed(i) << " = ";
-        ref<Expr> e = read8(i);
-        std::cerr << e << "\n";
-    }
-
-    std::cerr << "\tUpdates:\n";
-    for (const UpdateNode *un = updates.getHead(); un; un = un->getNext()) {
-        std::cerr << "\t\t[" << un->getIndex() << "] = " << un->getValue() << "\n";
-    }
 }

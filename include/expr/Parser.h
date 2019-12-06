@@ -25,7 +25,7 @@ class ExprBuilder;
 namespace expr {
 // These are the language types we manipulate.
 typedef ref<Expr> ExprHandle;
-typedef UpdateList VersionHandle;
+typedef UpdateListPtr VersionHandle;
 
 /// Identifier - Wrapper for a uniqued string.
 struct Identifier {
@@ -92,10 +92,10 @@ public:
     const unsigned Range;
 
     /// Root - The root array object defined by this decl.
-    const Array *Root;
+    const ArrayPtr Root;
 
 public:
-    ArrayDecl(const Identifier *_Name, uint64_t _Size, unsigned _Domain, unsigned _Range, const Array *_Root)
+    ArrayDecl(const Identifier *_Name, uint64_t _Size, unsigned _Domain, unsigned _Range, const ArrayPtr _Root)
         : Decl(ArrayDeclKind), Name(_Name), Domain(_Domain), Range(_Range), Root(_Root) {
     }
 
@@ -191,11 +191,11 @@ public:
 
     /// Objects - Symbolic arrays whose initial contents should be
     /// given if the query is invalid.
-    const std::vector<const Array *> Objects;
+    const ArrayVec Objects;
 
 public:
     QueryCommand(const std::vector<ExprHandle> &_Constraints, ExprHandle _Query, const std::vector<ExprHandle> &_Values,
-                 const std::vector<const Array *> &_Objects)
+                 const ArrayVec &_Objects)
         : CommandDecl(QueryCommandDeclKind), Constraints(_Constraints), Query(_Query), Values(_Values),
           Objects(_Objects) {
     }

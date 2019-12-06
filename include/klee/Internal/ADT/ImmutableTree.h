@@ -14,7 +14,10 @@
 #include <malloc.h>
 #include <vector>
 
+#include <boost/intrusive_ptr.hpp>
+
 namespace klee {
+
 template <class K, class V, class KOV, class CMP, unsigned int NODE_CACHE_SIZE = 1024> class ImmutableTree {
 public:
     static size_t allocated;
@@ -63,9 +66,10 @@ public:
 
 private:
     class Node;
+    typedef boost::intrusive_ptr<Node> NodePtr;
+    NodePtr node;
 
-    Node *node;
-    ImmutableTree(Node *_node);
+    ImmutableTree(const NodePtr &_node);
 };
 
 /***/
@@ -77,29 +81,41 @@ public:
     static void *cache[NODE_CACHE_SIZE];
     static unsigned cache_top;
 
-    Node *left, *right;
+    NodePtr left, right;
     value_type value;
     unsigned height, references;
 
 protected:
     Node(); // solely for creating the terminator node
-    static Node *balance(Node *left, const value_type &value, Node *right);
+    static NodePtr balance(const NodePtr &left, const value_type &value, const NodePtr &right);
+
+    Node(const NodePtr &_left, const NodePtr &_right, const value_type &_value);
 
 public:
-    Node(Node *_left, Node *_right, const value_type &_value);
+    static NodePtr create(const NodePtr &left, const NodePtr &right, const value_type &value) {
+        return NodePtr(new Node(left, right, value));
+    }
+
     ~Node();
 
-    void decref();
-    Node *incref();
+    friend void intrusive_ptr_add_ref(Node *ptr) {
+        ++ptr->references;
+    }
+
+    friend void intrusive_ptr_release(Node *ptr) {
+        if (--ptr->references == 0) {
+            delete ptr;
+        }
+    }
 
     bool isTerminator();
 
     size_t size();
-    Node *popMin(value_type &valueOut);
-    Node *popMax(value_type &valueOut);
-    Node *insert(const value_type &v);
-    Node *replace(const value_type &v);
-    Node *remove(const key_type &k);
+    NodePtr popMin(value_type &valueOut);
+    NodePtr popMax(value_type &valueOut);
+    NodePtr insert(const value_type &v);
+    NodePtr replace(const value_type &v);
+    NodePtr remove(const key_type &k);
 
     void *operator new(size_t size) {
         void *ret;
@@ -171,37 +187,35 @@ class ImmutableTree<K, V, KOV, CMP, NODE_CACHE_SIZE>::iterator {
     friend class ImmutableTree<K, V, KOV, CMP, NODE_CACHE_SIZE>;
 
 private:
-    Node *root; // so can back up from end
-    FixedStack<Node *> stack;
+    NodePtr root; // so can back up from end
+    FixedStack<NodePtr> stack;
 
 public:
-    iterator(Node *_root, bool atBeginning) : root(_root->incref()), stack(root->height) {
+    iterator(NodePtr _root, bool atBeginning) : root(_root), stack(root->height) {
         if (atBeginning) {
-            for (Node *n = root; !n->isTerminator(); n = n->left)
+            for (auto n = root; !n->isTerminator(); n = n->left)
                 stack.push_back(n);
         }
     }
-    iterator(const iterator &i) : root(i.root->incref()), stack(i.stack) {
+    iterator(const iterator &i) : root(i.root), stack(i.stack) {
     }
     ~iterator() {
-        root->decref();
     }
 
     iterator &operator=(const iterator &b) {
-        b.root->incref();
-        root->decref();
+        b.root;
         root = b.root;
         stack = b.stack;
         return *this;
     }
 
     const value_type &operator*() {
-        Node *n = stack.back();
+        auto n = stack.back();
         return n->value;
     }
 
     const value_type *operator->() {
-        Node *n = stack.back();
+        auto n = stack.back();
         return &n->value;
     }
 
@@ -214,13 +228,13 @@ public:
 
     iterator &operator--() {
         if (stack.empty()) {
-            for (Node *n = root; !n->isTerminator(); n = n->right)
+            for (NodePtr n = root; !n->isTerminator(); n = n->right)
                 stack.push_back(n);
         } else {
-            Node *n = stack.back();
+            NodePtr n = stack.back();
             if (n->left->isTerminator()) {
                 for (;;) {
-                    Node *prev = n;
+                    NodePtr prev = n;
                     stack.pop_back();
                     if (stack.empty()) {
                         break;
@@ -241,10 +255,10 @@ public:
 
     iterator &operator++() {
         assert(!stack.empty());
-        Node *n = stack.back();
+        NodePtr n = stack.back();
         if (n->right->isTerminator()) {
             for (;;) {
-                Node *prev = n;
+                NodePtr prev = n;
                 stack.pop_back();
                 if (stack.empty()) {
                     break;
@@ -285,30 +299,15 @@ ImmutableTree<K, V, KOV, CMP, NODE_CACHE_SIZE>::Node::Node()
 }
 
 template <class K, class V, class KOV, class CMP, unsigned int NODE_CACHE_SIZE>
-ImmutableTree<K, V, KOV, CMP, NODE_CACHE_SIZE>::Node::Node(Node *_left, Node *_right, const value_type &_value)
-    : left(_left), right(_right), value(_value), height(std::max(left->height, right->height) + 1), references(1) {
+ImmutableTree<K, V, KOV, CMP, NODE_CACHE_SIZE>::Node::Node(const NodePtr &_left, const NodePtr &_right,
+                                                           const value_type &_value)
+    : left(_left), right(_right), value(_value), height(std::max(left->height, right->height) + 1), references(0) {
     ++allocated;
 }
 
 template <class K, class V, class KOV, class CMP, unsigned int NODE_CACHE_SIZE>
 ImmutableTree<K, V, KOV, CMP, NODE_CACHE_SIZE>::Node::~Node() {
-    left->decref();
-    right->decref();
     --allocated;
-}
-
-template <class K, class V, class KOV, class CMP, unsigned int NODE_CACHE_SIZE>
-inline void ImmutableTree<K, V, KOV, CMP, NODE_CACHE_SIZE>::Node::decref() {
-    --references;
-    if (references == 0)
-        delete this;
-}
-
-template <class K, class V, class KOV, class CMP, unsigned int NODE_CACHE_SIZE>
-inline typename ImmutableTree<K, V, KOV, CMP, NODE_CACHE_SIZE>::Node *
-ImmutableTree<K, V, KOV, CMP, NODE_CACHE_SIZE>::Node::incref() {
-    ++references;
-    return this;
 }
 
 template <class K, class V, class KOV, class CMP, unsigned int NODE_CACHE_SIZE>
@@ -319,44 +318,41 @@ inline bool ImmutableTree<K, V, KOV, CMP, NODE_CACHE_SIZE>::Node::isTerminator()
 /***/
 
 template <class K, class V, class KOV, class CMP, unsigned int NODE_CACHE_SIZE>
-typename ImmutableTree<K, V, KOV, CMP, NODE_CACHE_SIZE>::Node *
-ImmutableTree<K, V, KOV, CMP, NODE_CACHE_SIZE>::Node::balance(Node *left, const value_type &value, Node *right) {
+typename ImmutableTree<K, V, KOV, CMP, NODE_CACHE_SIZE>::NodePtr
+ImmutableTree<K, V, KOV, CMP, NODE_CACHE_SIZE>::Node::balance(const NodePtr &left, const value_type &value,
+                                                              const NodePtr &right) {
     if (left->height > right->height + 2) {
-        Node *ll = left->left;
-        Node *lr = left->right;
+        auto ll = left->left;
+        auto lr = left->right;
         if (ll->height >= lr->height) {
-            Node *nlr = new Node(lr->incref(), right, value);
-            Node *res = new Node(ll->incref(), nlr, left->value);
-            left->decref();
+            auto nlr = Node::create(lr, right, value);
+            auto res = Node::create(ll, nlr, left->value);
             return res;
         } else {
-            Node *lrl = lr->left;
-            Node *lrr = lr->right;
-            Node *nll = new Node(ll->incref(), lrl->incref(), left->value);
-            Node *nlr = new Node(lrr->incref(), right, value);
-            Node *res = new Node(nll, nlr, lr->value);
-            left->decref();
+            auto lrl = lr->left;
+            auto lrr = lr->right;
+            auto nll = Node::create(ll, lrl, left->value);
+            auto nlr = Node::create(lrr, right, value);
+            auto res = Node::create(nll, nlr, lr->value);
             return res;
         }
     } else if (right->height > left->height + 2) {
-        Node *rl = right->left;
-        Node *rr = right->right;
+        auto rl = right->left;
+        auto rr = right->right;
         if (rr->height >= rl->height) {
-            Node *nrl = new Node(left, rl->incref(), value);
-            Node *res = new Node(nrl, rr->incref(), right->value);
-            right->decref();
+            auto nrl = Node::create(left, rl, value);
+            auto res = Node::create(nrl, rr, right->value);
             return res;
         } else {
-            Node *rll = rl->left;
-            Node *rlr = rl->right;
-            Node *nrl = new Node(left, rll->incref(), value);
-            Node *nrr = new Node(rlr->incref(), rr->incref(), right->value);
-            Node *res = new Node(nrl, nrr, rl->value);
-            right->decref();
+            auto rll = rl->left;
+            auto rlr = rl->right;
+            auto nrl = Node::create(left, rll, value);
+            auto nrr = Node::create(rlr, rr, right->value);
+            auto res = Node::create(nrl, nrr, rl->value);
             return res;
         }
     } else {
-        return new Node(left, right, value);
+        return Node::create(left, right, value);
     }
 }
 
@@ -370,78 +366,78 @@ size_t ImmutableTree<K, V, KOV, CMP, NODE_CACHE_SIZE>::Node::size() {
 }
 
 template <class K, class V, class KOV, class CMP, unsigned int NODE_CACHE_SIZE>
-typename ImmutableTree<K, V, KOV, CMP, NODE_CACHE_SIZE>::Node *
+typename ImmutableTree<K, V, KOV, CMP, NODE_CACHE_SIZE>::NodePtr
 ImmutableTree<K, V, KOV, CMP, NODE_CACHE_SIZE>::Node::popMin(value_type &valueOut) {
     if (left->isTerminator()) {
         valueOut = value;
-        return right->incref();
+        return right;
     } else {
-        return balance(left->popMin(valueOut), value, right->incref());
+        return balance(left->popMin(valueOut), value, right);
     }
 }
 
 template <class K, class V, class KOV, class CMP, unsigned int NODE_CACHE_SIZE>
-typename ImmutableTree<K, V, KOV, CMP, NODE_CACHE_SIZE>::Node *
+typename ImmutableTree<K, V, KOV, CMP, NODE_CACHE_SIZE>::NodePtr
 ImmutableTree<K, V, KOV, CMP, NODE_CACHE_SIZE>::Node::popMax(value_type &valueOut) {
     if (right->isTerminator()) {
         valueOut = value;
-        return left->incref();
+        return left;
     } else {
-        return balance(left->incref(), value, right->popMax(valueOut));
+        return balance(left, value, right->popMax(valueOut));
     }
 }
 
 template <class K, class V, class KOV, class CMP, unsigned int NODE_CACHE_SIZE>
-typename ImmutableTree<K, V, KOV, CMP, NODE_CACHE_SIZE>::Node *
+typename ImmutableTree<K, V, KOV, CMP, NODE_CACHE_SIZE>::NodePtr
 ImmutableTree<K, V, KOV, CMP, NODE_CACHE_SIZE>::Node::insert(const value_type &v) {
     if (isTerminator()) {
-        return new Node(terminator.incref(), terminator.incref(), v);
+        return Node::create(&terminator, &terminator, v);
     } else {
         if (key_compare()(key_of_value()(v), key_of_value()(value))) {
-            return balance(left->insert(v), value, right->incref());
+            return balance(left->insert(v), value, right);
         } else if (key_compare()(key_of_value()(value), key_of_value()(v))) {
-            return balance(left->incref(), value, right->insert(v));
+            return balance(left, value, right->insert(v));
         } else {
-            return incref();
+            return this;
         }
     }
 }
 
 template <class K, class V, class KOV, class CMP, unsigned int NODE_CACHE_SIZE>
-typename ImmutableTree<K, V, KOV, CMP, NODE_CACHE_SIZE>::Node *
+typename ImmutableTree<K, V, KOV, CMP, NODE_CACHE_SIZE>::NodePtr
 ImmutableTree<K, V, KOV, CMP, NODE_CACHE_SIZE>::Node::replace(const value_type &v) {
     if (isTerminator()) {
-        return new Node(terminator.incref(), terminator.incref(), v);
+        return Node::create(&terminator, &terminator, v);
     } else {
         if (key_compare()(key_of_value()(v), key_of_value()(value))) {
-            return balance(left->replace(v), value, right->incref());
+            return balance(left->replace(v), value, right);
         } else if (key_compare()(key_of_value()(value), key_of_value()(v))) {
-            return balance(left->incref(), value, right->replace(v));
+            return balance(left, value, right->replace(v));
         } else {
-            return new Node(left->incref(), right->incref(), v);
+            return Node::create(left, right, v);
         }
     }
 }
 
 template <class K, class V, class KOV, class CMP, unsigned int NODE_CACHE_SIZE>
-typename ImmutableTree<K, V, KOV, CMP, NODE_CACHE_SIZE>::Node *
+typename ImmutableTree<K, V, KOV, CMP, NODE_CACHE_SIZE>::NodePtr
 ImmutableTree<K, V, KOV, CMP, NODE_CACHE_SIZE>::Node::remove(const key_type &k) {
     if (isTerminator()) {
-        return incref();
+        return this;
     } else {
         if (key_compare()(k, key_of_value()(value))) {
-            return balance(left->remove(k), value, right->incref());
+            return balance(left->remove(k), value, right);
         } else if (key_compare()(key_of_value()(value), k)) {
-            return balance(left->incref(), value, right->remove(k));
+            return balance(left, value, right->remove(k));
         } else {
             if (left->isTerminator()) {
-                return right->incref();
+                return right;
             } else if (right->isTerminator()) {
-                return left->incref();
+                return left;
             } else {
                 value_type min;
-                Node *nr = right->popMin(min);
-                return balance(left->incref(), min, nr);
+                auto nr = right->popMin(min);
+                return balance(left, min, nr);
             }
         }
     }
@@ -450,27 +446,25 @@ ImmutableTree<K, V, KOV, CMP, NODE_CACHE_SIZE>::Node::remove(const key_type &k) 
 /***/
 
 template <class K, class V, class KOV, class CMP, unsigned int NODE_CACHE_SIZE>
-ImmutableTree<K, V, KOV, CMP, NODE_CACHE_SIZE>::ImmutableTree() : node(Node::terminator.incref()) {
+ImmutableTree<K, V, KOV, CMP, NODE_CACHE_SIZE>::ImmutableTree() : node(&Node::terminator) {
 }
 
 template <class K, class V, class KOV, class CMP, unsigned int NODE_CACHE_SIZE>
-ImmutableTree<K, V, KOV, CMP, NODE_CACHE_SIZE>::ImmutableTree(Node *_node) : node(_node) {
+ImmutableTree<K, V, KOV, CMP, NODE_CACHE_SIZE>::ImmutableTree(const NodePtr &_node) : node(_node) {
 }
 
 template <class K, class V, class KOV, class CMP, unsigned int NODE_CACHE_SIZE>
-ImmutableTree<K, V, KOV, CMP, NODE_CACHE_SIZE>::ImmutableTree(const ImmutableTree &s) : node(s.node->incref()) {
+ImmutableTree<K, V, KOV, CMP, NODE_CACHE_SIZE>::ImmutableTree(const ImmutableTree &s) : node(s.node) {
 }
 
 template <class K, class V, class KOV, class CMP, unsigned int NODE_CACHE_SIZE>
 ImmutableTree<K, V, KOV, CMP, NODE_CACHE_SIZE>::~ImmutableTree() {
-    node->decref();
 }
 
 template <class K, class V, class KOV, class CMP, unsigned int NODE_CACHE_SIZE>
 ImmutableTree<K, V, KOV, CMP, NODE_CACHE_SIZE> &ImmutableTree<K, V, KOV, CMP, NODE_CACHE_SIZE>::
 operator=(const ImmutableTree &s) {
-    Node *n = s.node->incref();
-    node->decref();
+    auto n = s.node;
     node = n;
     return *this;
 }
@@ -482,7 +476,7 @@ bool ImmutableTree<K, V, KOV, CMP, NODE_CACHE_SIZE>::empty() const {
 
 template <class K, class V, class KOV, class CMP, unsigned int NODE_CACHE_SIZE>
 size_t ImmutableTree<K, V, KOV, CMP, NODE_CACHE_SIZE>::count(const key_type &k) const {
-    Node *n = node;
+    auto n = node;
     while (!n->isTerminator()) {
         key_type key = key_of_value()(n->value);
         if (key_compare()(k, key)) {
@@ -499,7 +493,7 @@ size_t ImmutableTree<K, V, KOV, CMP, NODE_CACHE_SIZE>::count(const key_type &k) 
 template <class K, class V, class KOV, class CMP, unsigned int NODE_CACHE_SIZE>
 const typename ImmutableTree<K, V, KOV, CMP, NODE_CACHE_SIZE>::value_type *
 ImmutableTree<K, V, KOV, CMP, NODE_CACHE_SIZE>::lookup(const key_type &k) const {
-    Node *n = node;
+    auto n = node;
     while (!n->isTerminator()) {
         key_type key = key_of_value()(n->value);
         if (key_compare()(k, key)) {
@@ -516,8 +510,8 @@ ImmutableTree<K, V, KOV, CMP, NODE_CACHE_SIZE>::lookup(const key_type &k) const 
 template <class K, class V, class KOV, class CMP, unsigned int NODE_CACHE_SIZE>
 const typename ImmutableTree<K, V, KOV, CMP, NODE_CACHE_SIZE>::value_type *
 ImmutableTree<K, V, KOV, CMP, NODE_CACHE_SIZE>::lookup_previous(const key_type &k) const {
-    Node *n = node;
-    Node *result = 0;
+    auto n = node;
+    NodePtr result = nullptr;
     while (!n->isTerminator()) {
         key_type key = key_of_value()(n->value);
         if (key_compare()(k, key)) {
@@ -535,7 +529,7 @@ ImmutableTree<K, V, KOV, CMP, NODE_CACHE_SIZE>::lookup_previous(const key_type &
 template <class K, class V, class KOV, class CMP, unsigned int NODE_CACHE_SIZE>
 const typename ImmutableTree<K, V, KOV, CMP, NODE_CACHE_SIZE>::value_type &
 ImmutableTree<K, V, KOV, CMP, NODE_CACHE_SIZE>::min() const {
-    Node *n = node;
+    auto n = node;
     assert(!n->isTerminator());
     while (!n->left->isTerminator())
         n = n->left;
@@ -545,7 +539,7 @@ ImmutableTree<K, V, KOV, CMP, NODE_CACHE_SIZE>::min() const {
 template <class K, class V, class KOV, class CMP, unsigned int NODE_CACHE_SIZE>
 const typename ImmutableTree<K, V, KOV, CMP, NODE_CACHE_SIZE>::value_type &
 ImmutableTree<K, V, KOV, CMP, NODE_CACHE_SIZE>::max() const {
-    Node *n = node;
+    auto n = node;
     assert(!n->isTerminator());
     while (!n->right->isTerminator())
         n = n->right;
@@ -615,7 +609,7 @@ inline typename ImmutableTree<K, V, KOV, CMP, NODE_CACHE_SIZE>::iterator
 ImmutableTree<K, V, KOV, CMP, NODE_CACHE_SIZE>::lower_bound(const key_type &k) const {
     // XXX ugh this doesn't have to be so ugly does it?
     iterator it(node, false);
-    for (Node *root = node; !root->isTerminator();) {
+    for (auto root = node; !root->isTerminator();) {
         it.stack.push_back(root);
         if (key_compare()(k, key_of_value()(root->value))) {
             root = root->left;
@@ -627,7 +621,7 @@ ImmutableTree<K, V, KOV, CMP, NODE_CACHE_SIZE>::lower_bound(const key_type &k) c
     }
     // it is now beginning or first element < k
     if (!it.stack.empty()) {
-        Node *last = it.stack.back();
+        auto last = it.stack.back();
         if (key_compare()(key_of_value()(last->value), k))
             ++it;
     }

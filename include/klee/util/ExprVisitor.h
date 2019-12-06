@@ -53,7 +53,6 @@ protected:
     virtual Action visitExpr(const Expr &);
     virtual Action visitExprPost(const Expr &);
 
-    virtual Action visitNotOptimized(const NotOptimizedExpr &);
     virtual Action visitRead(const ReadExpr &);
     virtual Action visitSelect(const SelectExpr &);
     virtual Action visitConcat(const ConcatExpr &);

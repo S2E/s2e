@@ -40,16 +40,16 @@ Z3ArrayBuilder::Z3ArrayBuilder(z3::context &context, Z3ArrayBuilderCache *cache)
 Z3ArrayBuilder::~Z3ArrayBuilder() {
 }
 
-z3::expr Z3ArrayBuilder::getInitialRead(const Array *root, unsigned index) {
+z3::expr Z3ArrayBuilder::getInitialRead(const ArrayPtr &root, unsigned index) {
     return z3::select(getInitialArray(root), context_.bv_val(index, 32));
 }
 
 z3::expr Z3ArrayBuilder::makeReadExpr(ref<ReadExpr> re) {
-    return z3::select(getArrayForUpdate(re->getUpdates().getRoot(), re->getUpdates().getHead()),
+    return z3::select(getArrayForUpdate(re->getUpdates()->getRoot(), re->getUpdates()->getHead().get()),
                       getOrMakeExpr(re->getIndex()));
 }
 
-z3::expr Z3ArrayBuilder::getArrayForUpdate(const Array *root, const UpdateNode *un) {
+z3::expr Z3ArrayBuilder::getArrayForUpdate(const ArrayPtr &root, const UpdateNode *un) {
     if (!un) {
         return getInitialArray(root);
     }
@@ -60,19 +60,19 @@ z3::expr Z3ArrayBuilder::getArrayForUpdate(const Array *root, const UpdateNode *
     }
 
     // TODO: Make non-recursive
-    result =
-        z3::store(getArrayForUpdate(root, un->getNext()), getOrMakeExpr(un->getIndex()), getOrMakeExpr(un->getValue()));
+    result = z3::store(getArrayForUpdate(root, un->getNext().get()), getOrMakeExpr(un->getIndex()),
+                       getOrMakeExpr(un->getValue()));
     cache_->insertUpdate(un, result);
     return result;
 }
 
-z3::expr Z3ArrayBuilder::getInitialArray(const Array *root) {
+z3::expr Z3ArrayBuilder::getInitialArray(const ArrayPtr &root) {
     z3::expr result(context_);
     if (cache_->findArray(root, result))
         return result;
 
     char buf[256];
-    snprintf(buf, sizeof(buf), "%s_%p", root->getName().c_str(), (void *) root);
+    snprintf(buf, sizeof(buf), "%s_%p", root->getName().c_str(), (void *) root.get());
 
     result = context_.constant(buf, context_.array_sort(context_.bv_sort(32), context_.bv_sort(8)));
     if (root->isConstantArray()) {
@@ -91,7 +91,7 @@ Z3StoreArrayBuilder::Z3StoreArrayBuilder(z3::context &context, Z3ArrayBuilderCac
 Z3StoreArrayBuilder::~Z3StoreArrayBuilder() {
 }
 
-z3::expr Z3StoreArrayBuilder::initializeArray(const Array *root, z3::expr array_ast) {
+z3::expr Z3StoreArrayBuilder::initializeArray(const ArrayPtr &root, z3::expr array_ast) {
     z3::expr result = array_ast;
     for (unsigned i = 0, e = root->getSize(); i != e; ++i) {
         z3::expr index = context_.bv_val(i, 32);
@@ -110,12 +110,12 @@ Z3AssertArrayBuilder::Z3AssertArrayBuilder(z3::solver &solver, Z3ArrayBuilderCac
 Z3AssertArrayBuilder::~Z3AssertArrayBuilder() {
 }
 
-z3::expr Z3AssertArrayBuilder::initializeArray(const Array *root, z3::expr array_ast) {
+z3::expr Z3AssertArrayBuilder::initializeArray(const ArrayPtr &root, z3::expr array_ast) {
     solver_.add(getArrayAssertion(root, array_ast));
     return array_ast;
 }
 
-z3::expr Z3AssertArrayBuilder::getArrayAssertion(const Array *root, z3::expr array_ast) {
+z3::expr Z3AssertArrayBuilder::getArrayAssertion(const ArrayPtr &root, z3::expr array_ast) {
     z3::expr result = context_.bool_val(true);
     for (unsigned i = 0, e = root->getSize(); i != e; ++i) {
         z3::expr array_read = z3::select(array_ast, context_.bv_val(i, 32));

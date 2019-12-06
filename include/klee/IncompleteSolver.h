@@ -74,7 +74,7 @@ public:
     /// computeInitialValues - Attempt to compute the constant values
     /// for the initial state of each given object. If a correct result
     /// is not found, then the values array must be unmodified.
-    virtual bool computeInitialValues(const Query &, const std::vector<const Array *> &objects,
+    virtual bool computeInitialValues(const Query &, const ArrayVec &objects,
                                       std::vector<std::vector<unsigned char>> &values, bool &hasSolution) = 0;
 };
 
@@ -93,8 +93,8 @@ public:
     bool computeTruth(const Query &, bool &isValid);
     bool computeValidity(const Query &, Solver::Validity &result);
     bool computeValue(const Query &, ref<Expr> &result);
-    bool computeInitialValues(const Query &, const std::vector<const Array *> &objects,
-                              std::vector<std::vector<unsigned char>> &values, bool &hasSolution);
+    bool computeInitialValues(const Query &, const ArrayVec &objects, std::vector<std::vector<unsigned char>> &values,
+                              bool &hasSolution);
 };
 }
 

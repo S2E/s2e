@@ -111,7 +111,7 @@ Solver *DefaultSolverFactory::createEndSolver() {
                 return Z3Solver::createAssumptionSolver();
         }
 #else
-        assert(false && "Z3 support not compiled");
+        pabort("Z3 support not compiled");
 #endif
     }
     return NULL;

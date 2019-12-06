@@ -30,6 +30,7 @@
 #ifndef KLEE_BITFIELDSIMPLIFIER_H
 #define KLEE_BITFIELDSIMPLIFIER_H
 
+#include <inttypes.h>
 #include "klee/Expr.h"
 #include "klee/util/ExprHashMap.h"
 
@@ -38,11 +39,11 @@ namespace klee {
 class BitfieldSimplifier {
 protected:
     struct BitsInfo {
-        uint64_t ignoredBits;   ///< Bits that can be ignored because they
-                                ///< are not used by higher-level expressions
-                                ///< (passed top-down)
-        uint64_t knownOneBits;  ///< Bits known to be one (passed bottom-up)
-        uint64_t knownZeroBits; ///< Bits known to be zero (passed bottom-up)
+        __uint128_t ignoredBits;   ///< Bits that can be ignored because they
+                                   ///< are not used by higher-level expressions
+                                   ///< (passed top-down)
+        __uint128_t knownOneBits;  ///< Bits known to be one (passed bottom-up)
+        __uint128_t knownZeroBits; ///< Bits known to be zero (passed bottom-up)
     };
     typedef std::pair<ref<Expr>, BitsInfo> ExprBitsInfo;
 
@@ -51,14 +52,21 @@ protected:
 
     ExprHashMap<ExprBitsInfo> m_simplifiedExpressions;
 
-    ref<Expr> replaceWithConstant(const ref<Expr> &e, uint64_t value);
+    ref<Expr> replaceWithConstant(const ref<Expr> &e, __uint128_t value);
 
-    ExprBitsInfo doSimplifyBits(const ref<Expr> &e, uint64_t ignoredBits);
+    ExprBitsInfo doSimplifyBits(const ref<Expr> &e, __uint128_t ignoredBits);
 
 public:
     uint64_t m_cacheHits, m_cacheMisses;
 
     ref<Expr> simplify(const ref<Expr> &e, uint64_t *knownZeroBits = NULL);
+
+    // If e = base + offset, where base is concrete and offset is
+    // symbolic of size 1 byte, return true.
+    bool getBaseOffset(const ref<Expr> &e, uint64_t &base, ref<Expr> &offset, unsigned &offsetSize);
+
+    // This is a faster version that uses pattern matching. It may have false negatives.
+    bool getBaseOffsetFast(const ref<Expr> &e, uint64_t &base, ref<Expr> &offset, unsigned &offsetSize);
 
     BitfieldSimplifier() {
         m_cacheHits = 0;

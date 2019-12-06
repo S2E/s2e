@@ -10,6 +10,7 @@
 #ifndef KLEE_SOLVERIMPL_H
 #define KLEE_SOLVERIMPL_H
 
+#include <klee/Expr.h>
 #include <vector>
 
 namespace klee {
@@ -51,7 +52,7 @@ public:
     /// The query expression is guaranteed to be non-constant.
     virtual bool computeValue(const Query &query, ref<Expr> &result) = 0;
 
-    virtual bool computeInitialValues(const Query &query, const std::vector<const Array *> &objects,
+    virtual bool computeInitialValues(const Query &query, const ArrayVec &objects,
                                       std::vector<std::vector<unsigned char>> &values, bool &hasSolution) = 0;
 };
 }

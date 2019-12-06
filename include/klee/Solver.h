@@ -136,8 +136,7 @@ public:
     // FIXME: This API is lame. We should probably just provide an API which
     // returns an Assignment object, then clients can get out whatever values
     // they want. This also allows us to optimize the representation.
-    bool getInitialValues(const Query &, const std::vector<const Array *> &objects,
-                          std::vector<std::vector<unsigned char>> &result);
+    bool getInitialValues(const Query &, const ArrayVec &objects, std::vector<std::vector<unsigned char>> &result);
 
     /// getRanges - Enumerate the ranges of possible values for an expression,
     /// in a limited range.
@@ -152,8 +151,8 @@ public:
     /// which enumerated values must fall.
     /// \param [out] ranges - On success, a list of couples [begin:end]
     /// describing each range.
-    void getRanges(const ConstraintManager &constraints, const std::vector<const Array *> &symbObjects, ref<Expr> e,
-                   ref<Expr> start, ref<Expr> end, std::vector<Range> &ranges);
+    void getRanges(const ConstraintManager &constraints, const ArrayVec &symbObjects, ref<Expr> e, ref<Expr> start,
+                   ref<Expr> end, std::vector<Range> &ranges);
 
     /// getRange - Compute a tight range of possible values for a given
     /// expression.

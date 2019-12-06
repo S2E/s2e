@@ -39,11 +39,11 @@ namespace klee {
 class Z3IteBuilderCache : public Z3BuilderCache {
 public:
     typedef std::vector<z3::expr> ExprVector;
-    typedef std::pair<const Array *, const UpdateNode *> Update;
+    typedef std::pair<const ArrayPtr &, const UpdateNode *> Update;
     typedef std::pair<Z3_ast, Update> ReadUpdatePair;
 
-    virtual bool findArray(const Array *root, boost::shared_ptr<ExprVector> &ev) = 0;
-    virtual void insertArray(const Array *root, boost::shared_ptr<ExprVector> ev) = 0;
+    virtual bool findArray(const ArrayPtr &root, boost::shared_ptr<ExprVector> &ev) = 0;
+    virtual void insertArray(const ArrayPtr &root, boost::shared_ptr<ExprVector> ev) = 0;
 
     virtual bool findRead(const ReadUpdatePair &rup, z3::expr &expr) = 0;
     virtual void insertRead(const ReadUpdatePair &rup, const z3::expr &expr) = 0;
@@ -64,7 +64,7 @@ public:
         cons_expr_.insert(std::make_pair(e, expr));
     }
 
-    virtual bool findArray(const Array *root, boost::shared_ptr<ExprVector> &ev) {
+    virtual bool findArray(const ArrayPtr &root, boost::shared_ptr<ExprVector> &ev) {
         ArrayVariableMap::iterator it = array_variables_.find(root);
         if (it != array_variables_.end()) {
             ev = it->second;
@@ -73,7 +73,7 @@ public:
         return false;
     }
 
-    virtual void insertArray(const Array *root, boost::shared_ptr<ExprVector> ev) {
+    virtual void insertArray(const ArrayPtr &root, boost::shared_ptr<ExprVector> ev) {
         array_variables_.insert(std::make_pair(root, ev));
     }
 
@@ -106,7 +106,7 @@ protected:
 private:
     typedef ExprHashMap<z3::expr> ExprMap;
 
-    typedef llvm::DenseMap<const Array *, boost::shared_ptr<ExprVector>> ArrayVariableMap;
+    typedef std::unordered_map<ArrayPtr, boost::shared_ptr<ExprVector>, ArrayHash> ArrayVariableMap;
     typedef std::map<ReadUpdatePair, z3::expr> ReadMap;
 
     ExprMap cons_expr_;
@@ -119,7 +119,7 @@ public:
     Z3IteBuilder(z3::context &context, Z3IteBuilderCache *cache);
     virtual ~Z3IteBuilder();
 
-    virtual z3::expr getInitialRead(const Array *root, unsigned index);
+    virtual z3::expr getInitialRead(const ArrayPtr &root, unsigned index);
 
 protected:
     virtual z3::expr makeReadExpr(ref<ReadExpr> re);
@@ -127,10 +127,10 @@ protected:
 private:
     typedef std::vector<z3::expr> ExprVector;
 
-    z3::expr getReadForArray(z3::expr index, const Array *root, const UpdateNode *un);
-    z3::expr getReadForInitialArray(z3::expr index, const Array *root);
+    z3::expr getReadForArray(z3::expr index, const ArrayPtr &root, const UpdateNode *un);
+    z3::expr getReadForInitialArray(z3::expr index, const ArrayPtr &root);
 
-    boost::shared_ptr<ExprVector> getArrayValues(const Array *root);
+    boost::shared_ptr<ExprVector> getArrayValues(const ArrayPtr &root);
 
     Z3IteBuilderCache *cache_;
 };

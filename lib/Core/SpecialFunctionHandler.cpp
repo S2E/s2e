@@ -19,7 +19,6 @@
 #include "klee/Internal/Module/KModule.h"
 
 #include "klee/Executor.h"
-#include "MemoryManager.h"
 
 #include "llvm/ADT/Twine.h"
 #include "llvm/IR/Module.h"

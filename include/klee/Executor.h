@@ -56,8 +56,6 @@ struct KFunction;
 struct KInstruction;
 class KInstIterator;
 class KModule;
-class MemoryManager;
-class MemoryObject;
 class ObjectState;
 class PTree;
 class Searcher;
@@ -102,7 +100,6 @@ protected:
     Searcher *searcher;
 
     ExternalDispatcher *externalDispatcher;
-    MemoryManager *memory;
     StateSet states;
     StatsTracker *statsTracker;
     SpecialFunctionHandler *specialFunctionHandler;
@@ -123,15 +120,11 @@ protected:
     std::map<std::string, void *> predefinedSymbols;
 
     /// Map of globals to their representative memory object.
-    std::map<const llvm::GlobalValue *, MemoryObject *> globalObjects;
+    std::map<const llvm::GlobalValue *, ObjectKey> globalObjects;
 
     /// Map of globals to their bound address. This also includes
     /// globals that have no representative object (i.e. functions).
     std::unordered_map<const llvm::GlobalValue *, ref<ConstantExpr>> globalAddresses;
-
-    /// The set of legal function addresses, used to validate function
-    /// pointers. We use the actual Function* address as the function address.
-    std::unordered_set<uint64_t> legalFunctions;
 
     /// The set of functions that must be handled via custom function handlers
     /// instead of being called directly.
@@ -141,7 +134,7 @@ protected:
 
     void executeInstruction(ExecutionState &state, KInstruction *ki);
 
-    void initializeGlobalObject(ExecutionState &state, ObjectState *os, llvm::Constant *c, unsigned offset);
+    void initializeGlobalObject(ExecutionState &state, const ObjectStatePtr &os, llvm::Constant *c, unsigned offset);
     void initializeGlobals(ExecutionState &state);
 
     virtual void updateStates(ExecutionState *current);
@@ -166,19 +159,23 @@ protected:
     /// minimum of the size of the old and new objects, with remaining
     /// bytes initialized as specified by zeroMemory.
     void executeAlloc(ExecutionState &state, ref<Expr> size, bool isLocal, KInstruction *target,
-                      bool zeroMemory = false, const ObjectState *reallocFrom = 0);
+                      bool zeroMemory = false, const ObjectStatePtr &reallocFrom = nullptr);
 
     void executeCall(ExecutionState &state, KInstruction *ki, llvm::Function *f, std::vector<ref<Expr>> &arguments);
 
-    void writeAndNotify(ExecutionState &state, ObjectState *wos, ref<Expr> &address, ref<Expr> &value);
+    template <typename T>
+    void writeAndNotify(ExecutionState &state, const ObjectStatePtr &wos, T address, ref<Expr> &value);
 
     ref<Expr> executeMemoryOperationOverlapped(ExecutionState &state, bool isWrite, uint64_t concreteAddress,
                                                ref<Expr> value /* undef if read */, unsigned bytes);
 
     // This is the actual read/write function, called after the target
     // object was determined.
-    ref<Expr> executeMemoryOperation(ExecutionState &state, const ObjectPair &op, bool isWrite, ref<Expr> offset,
-                                     ref<Expr> value /* undef if read */, Expr::Width type, unsigned bytes);
+    ref<Expr> executeMemoryOperation(ExecutionState &state, const ObjectStateConstPtr &os, bool isWrite,
+                                     uint64_t offset, ref<Expr> value /* undef if read */, Expr::Width type);
+
+    ref<Expr> executeMemoryOperation(ExecutionState &state, const ObjectStateConstPtr &os, bool isWrite,
+                                     ref<Expr> offset, ref<Expr> value /* undef if read */, Expr::Width type);
 
     // do address resolution / object binding / out of bounds checking
     // and perform the operation
@@ -256,9 +253,8 @@ public:
 
     // Given a concrete object in our [klee's] address space, add it to
     // objects checked code can reference.
-    MemoryObject *addExternalObject(ExecutionState &state, void *addr, unsigned size, bool isReadOnly,
-                                    bool isUserSpecified = false, bool isSharedConcrete = false,
-                                    bool isValueIgnored = false);
+    ObjectStatePtr addExternalObject(ExecutionState &state, void *addr, unsigned size, bool isReadOnly,
+                                     bool isSharedConcrete = false);
 
     /*** State accessor methods ***/
     size_t getStatesCount() const {
@@ -277,6 +273,14 @@ public:
     }
 
     Expr::Width getWidthForLLVMType(llvm::Type *type) const;
+
+    ExternalDispatcher *getDispatcher() const {
+        return externalDispatcher;
+    }
+
+    KModule *getModule() const {
+        return kmodule;
+    }
 };
 
 } // End klee namespace

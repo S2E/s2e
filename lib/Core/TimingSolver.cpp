@@ -138,7 +138,7 @@ bool TimingSolver::getValue(const ExecutionState &state, ref<Expr> expr, ref<Con
     return success;
 }
 
-bool TimingSolver::getInitialValues(const ConstraintManager &constraints, const std::vector<const Array *> &objects,
+bool TimingSolver::getInitialValues(const ConstraintManager &constraints, const ArrayVec &objects,
                                     std::vector<std::vector<unsigned char>> &result, double &queryCost) {
     if (objects.empty())
         return true;
@@ -162,7 +162,7 @@ bool TimingSolver::getInitialValues(const ConstraintManager &constraints, const 
     return success;
 }
 
-bool TimingSolver::getInitialValues(const ExecutionState &state, const std::vector<const Array *> &objects,
+bool TimingSolver::getInitialValues(const ExecutionState &state, const ArrayVec &objects,
                                     std::vector<std::vector<unsigned char>> &result) {
     return getInitialValues(state.constraints, objects, result, state.queryCost);
 }

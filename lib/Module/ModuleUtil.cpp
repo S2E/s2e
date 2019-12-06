@@ -8,6 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "klee/Internal/Support/ModuleUtil.h"
+#include <klee/Common.h>
 
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/Bitcode/ReaderWriter.h"
@@ -35,7 +36,7 @@ using namespace klee;
 Module *klee::linkWithLibrary(Module *module, const std::string &libraryName) {
     auto ErrorOrMemBuff = MemoryBuffer::getFile(libraryName);
     if (std::error_code EC = ErrorOrMemBuff.getError()) {
-        assert(0 && "Reading library failed!");
+        pabort("Reading library failed!");
     }
 
     auto ErrorOrMod = parseBitcodeFile(ErrorOrMemBuff.get()->getMemBufferRef(), module->getContext());
@@ -43,7 +44,7 @@ Module *klee::linkWithLibrary(Module *module, const std::string &libraryName) {
     Linker linker(*module);
 
     if (linker.linkInModule(std::move(ErrorOrMod.get()))) {
-        assert(0 && "linking in library failed!");
+        pabort("linking in library failed!");
     }
 
     return module;
@@ -62,7 +63,7 @@ Function *klee::getDirectCallTarget(const Instruction *i) {
 
         // NOTE: This assert may fire, it isn't necessarily a problem and
         // can be disabled, I just wanted to know when and if it happened.
-        assert(0 && "FIXME: Unresolved direct target for a constant expression.");
+        pabort("FIXME: Unresolved direct target for a constant expression.");
     }
 
     return 0;

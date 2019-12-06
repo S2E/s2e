@@ -22,29 +22,18 @@ class KQueryLoggingSolver : public QueryLoggingSolver {
 private:
     ExprPPrinter *printer;
 
-    virtual void printQuery(const Query &query, const Query *falseQuery = 0,
-                            const std::vector<const Array *> *objects = 0) {
+    virtual void printQuery(const Query &query, const Query *falseQuery = 0, const ArrayVec &objects = ArrayVec()) {
 
-        const ref<Expr> *evalExprsBegin = 0;
-        const ref<Expr> *evalExprsEnd = 0;
+        std::vector<ref<Expr>> evalExprs;
 
-        if (0 != falseQuery) {
-            evalExprsBegin = &query.expr;
-            evalExprsEnd = &query.expr + 1;
-        }
-
-        const Array *const *evalArraysBegin = 0;
-        const Array *const *evalArraysEnd = 0;
-
-        if ((0 != objects) && (false == objects->empty())) {
-            evalArraysBegin = &((*objects)[0]);
-            evalArraysEnd = &((*objects)[0]) + objects->size();
+        if (falseQuery) {
+            evalExprs.push_back(query.expr);
         }
 
         const Query *q = (0 == falseQuery) ? &query : falseQuery;
 
-        printer->printQuery(logBuffer, q->constraints, q->expr, evalExprsBegin, evalExprsEnd, evalArraysBegin,
-                            evalArraysEnd);
+        printer->printQuery(logBuffer, q->constraints, q->expr, evalExprs.begin(), evalExprs.end(), objects.begin(),
+                            objects.end(), true);
     }
 
 public:

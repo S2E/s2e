@@ -8,6 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "klee/IncompleteSolver.h"
+#include <klee/Common.h>
 
 #include "klee/Constraints.h"
 
@@ -19,7 +20,7 @@ using namespace llvm;
 IncompleteSolver::PartialValidity IncompleteSolver::negatePartialValidity(PartialValidity pv) {
     switch (pv) {
         default:
-            assert(0 && "invalid partial validity");
+            pabort("invalid partial validity");
         case MustBeTrue:
             return MustBeFalse;
         case MustBeFalse:
@@ -120,7 +121,7 @@ bool StagedSolverImpl::computeValue(const Query &query, ref<Expr> &result) {
     return secondary->impl->computeValue(query, result);
 }
 
-bool StagedSolverImpl::computeInitialValues(const Query &query, const std::vector<const Array *> &objects,
+bool StagedSolverImpl::computeInitialValues(const Query &query, const ArrayVec &objects,
                                             std::vector<std::vector<unsigned char>> &values, bool &hasSolution) {
     if (primary->computeInitialValues(query, objects, values, hasSolution))
         return true;
