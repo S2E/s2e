@@ -41,12 +41,13 @@ void handleForkAndConcretize(Executor *executor, ExecutionState *state, klee::KI
     klee::ref<klee::Expr> address = args[0];
     klee::ref<klee::Expr> isTargetPc = args[3];
 
-    klee::ref<klee::ConstantExpr> concreteAddress = s2eState->toConstantSilent(address);
-
-    if (isa<klee::ConstantExpr>(address)) {
+    // If address is already concrete, nothing to fork
+    if (dyn_cast<klee::ConstantExpr>(address)) {
         state->bindLocal(target, address);
         return;
     }
+
+    auto concreteAddress = state->toConstantSilent(address);
 
     bool doConcretize = false;
 
@@ -173,7 +174,9 @@ static void handlerBeforeMemoryAccess(klee::Executor *executor, klee::ExecutionS
 
 void handlerAfterMemoryAccess(Executor *executor, ExecutionState *state, klee::KInstruction *target,
                               std::vector<klee::ref<klee::Expr>> &args) {
-    if (g_s2e->getCorePlugin()->onAfterSymbolicDataMemoryAccess.empty()) {
+    auto corePlugin = g_s2e->getCorePlugin();
+
+    if (corePlugin->onAfterSymbolicDataMemoryAccess.empty() && corePlugin->onConcreteDataMemoryAccess.empty()) {
         return;
     }
 
@@ -236,7 +239,14 @@ static void handlerTraceMmioAccess(Executor *executor, ExecutionState *state, kl
                                    std::vector<klee::ref<klee::Expr>> &args) {
     assert(args.size() == 4);
 
-    uint64_t physAddress = state->toConstant(args[0], "MMIO address")->getZExtValue();
+    auto symbolicPhysAddress = args[0];
+    if (!g_symbolicMemoryHook.hasHook()) {
+        // Avoid forced concretizations if symbolic hardware is not enabled
+        state->bindLocal(target, symbolicPhysAddress);
+        return;
+    }
+
+    uint64_t physAddress = state->toConstant(symbolicPhysAddress, "MMIO address")->getZExtValue();
     klee::ref<Expr> value = args[1];
     unsigned size = cast<klee::ConstantExpr>(args[2])->getZExtValue();
 
@@ -309,8 +319,6 @@ static Handler s_handlers[] = {{"tcg_llvm_write_mem_io_vaddr", handlerWriteMemIo
                                {"tcg_llvm_trace_mmio_access", handlerTraceMmioAccess, nullptr},
                                {"tcg_llvm_fork_and_concretize", handleForkAndConcretize, nullptr},
                                {"tcg_llvm_get_value", handleGetValue, nullptr},
-                               {"tcg_llvm_trace_instruction", handleGetValue,
-                                [](Module &M) { return FunctionType::get(Type::getVoidTy(M.getContext()), false); }},
                                {"", nullptr, nullptr}};
 
 void S2EExecutor::registerFunctionHandlers(llvm::Module &module) {

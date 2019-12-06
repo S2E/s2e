@@ -26,7 +26,6 @@ struct S2ETranslationBlock;
 #endif
 
 struct TranslationBlock;
-struct TCGLLVMContext;
 struct MemoryDesc;
 
 // XXX
@@ -42,9 +41,8 @@ struct PCIBus;
 /* Functions from S2E.cpp */
 
 /** Initialize S2E instance. Called by main() */
-void s2e_initialize(int argc, char **argv, struct TCGLLVMContext *tcgLLVMContext, const char *s2e_config_file,
-                    const char *s2e_output_dir, int setup_unbuffered_stream, int verbose, unsigned max_processes,
-                    const char *shared_dir);
+void s2e_initialize(int argc, char **argv, void *translator, const char *s2e_config_file, const char *s2e_output_dir,
+                    int setup_unbuffered_stream, int verbose, unsigned max_processes, const char *shared_dir);
 
 /** Relese S2E instance and all S2E-related objects. Called by main() */
 void s2e_close(void);
@@ -116,21 +114,19 @@ void s2e_write_register_concrete(unsigned offset, uint8_t *buf, unsigned size);
 void s2e_set_cc_op_eflags(struct CPUX86State *state);
 
 /** Allocate S2E parts of the tanslation block. Called from tb_alloc() */
-void se_tb_alloc(struct TranslationBlock *tb);
+void *se_tb_alloc(void);
 
-/** Free S2E parts of the translation block. Called from tb_flush() and tb_free() */
-void se_tb_free(struct TranslationBlock *tb);
+/** Flushes S2E parts of the translation blocks */
+void se_tb_flush(void);
 
 /** Called after LLVM code generation
     in order to update tb->se_tb->llvm_function */
-void s2e_set_tb_function(struct TranslationBlock *tb);
+void s2e_set_tb_function(void *se_tb, void *llvmFunction);
 
-int s2e_is_tb_instrumented(struct TranslationBlock *tb);
-
-void se_tb_gen_llvm(struct CPUX86State *env, struct TranslationBlock *tb);
+int s2e_is_tb_instrumented(void *se_tb);
 
 void s2e_flush_tb_cache();
-void s2e_increment_tb_stats(struct TranslationBlock *tb);
+void s2e_increment_tb_stats(void *se_tb);
 void s2e_flush_tlb_cache(void);
 void se_flush_tlb_cache_page(void *objectState, int mmu_idx, int index);
 
@@ -186,7 +182,6 @@ void s2e_on_initialization_complete(void);
 int s2e_is_load_balancing();
 int s2e_is_forking();
 
-void se_setup_precise_pc(struct TranslationBlock *tb);
 void s2e_fix_code_gen_ptr(struct TranslationBlock *tb, int code_gen_size);
 
 void se_tb_safe_flush(void);

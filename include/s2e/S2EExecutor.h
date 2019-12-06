@@ -16,10 +16,11 @@
 #include <s2e/s2e_libcpu.h>
 #include <timer.h>
 
-struct TCGLLVMContext;
+#include "S2ETranslationBlock.h"
 
 struct TranslationBlock;
 struct CPUX86State;
+class TCGLLVMTranslator;
 
 namespace klee {
 struct Query;
@@ -38,7 +39,7 @@ typedef void (*StateManagerCb)(S2EExecutionState *s, bool killingState);
 class S2EExecutor : public klee::Executor {
 protected:
     S2E *m_s2e;
-    TCGLLVMContext *m_tcgLLVMContext;
+    TCGLLVMTranslator *m_llvmTranslator;
 
     klee::KFunction *m_dummyMain;
 
@@ -47,7 +48,7 @@ protected:
        direct memory accesses from libcpu code. */
     std::vector<std::pair<uint64_t, uint64_t>> m_unusedMemoryDescs;
 
-    std::vector<klee::MemoryObject *> m_saveOnContextSwitch;
+    std::vector<klee::ObjectKey> m_saveOnContextSwitch;
 
     std::vector<S2EExecutionState *> m_deletedStates;
 
@@ -59,12 +60,11 @@ protected:
 
     struct CPUTimer *m_stateSwitchTimer;
 
-    /** Counts how many translation blocks reference a given LLVM function */
-    typedef llvm::DenseMap<const llvm::Function *, unsigned> LLVMTbReferences;
-    LLVMTbReferences m_llvmBlockReferences;
+    // This is a set of TBs that are currently stored in libcpu's TB cache
+    std::unordered_set<S2ETranslationBlockPtr, S2ETranslationBlockHash, S2ETranslationBlockEqual> m_s2eTbs;
 
 public:
-    S2EExecutor(S2E *s2e, TCGLLVMContext *tcgLVMContext, klee::InterpreterHandler *ie);
+    S2EExecutor(S2E *s2e, TCGLLVMTranslator *translator, klee::InterpreterHandler *ie);
     virtual ~S2EExecutor();
 
     /** Called on fork, used to trace forks */
@@ -141,11 +141,8 @@ public:
 
     bool merge(klee::ExecutionState &base, klee::ExecutionState &other);
 
-    void refLLVMTb(llvm::Function *tb);
-    void unrefLLVMTb(llvm::Function *tb);
-
-    void refS2ETb(S2ETranslationBlock *se_tb);
-    void unrefS2ETb(S2ETranslationBlock *se_tb);
+    S2ETranslationBlock *allocateS2ETb();
+    void flushS2ETBs();
 
     void initializeStatistics();
 
@@ -205,23 +202,6 @@ protected:
 
     void replaceExternalFunctionsWithSpecialHandlers();
     void disableConcreteLLVMHelpers();
-};
-
-struct S2ETranslationBlock {
-    /** Reference counter. S2ETranslationBlock should not be freed
-        until all LLVM functions are completely executed. This reference
-        counter controls it. */
-    unsigned refCount;
-
-    /** A copy of TranslationBlock::llvm_function that can be used
-        even after TranslationBlock is destroyed */
-    llvm::Function *llvm_function;
-
-    /** A list of all instruction execution signals associated with
-        this basic block. All signals in the list will be deleted
-        when this translation block will be flushed.
-        XXX: how could we avoid using void* here ? */
-    std::vector<void *> executionSignals;
 };
 
 } // namespace s2e

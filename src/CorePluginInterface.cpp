@@ -9,8 +9,9 @@
 extern "C" {
 // clang-format off
 #include <cpu/i386/cpu.h>
-#include <cpu/exec.h>
 #include <tcg/tcg-op.h>
+
+#include <cpu/exec.h>
 
 #include <timer.h>
 #include <qdict.h>
@@ -34,6 +35,7 @@ void s2e_gen_flags_update(void *context);
 #include <s2e/s2e_config.h>
 
 #include <s2e/CorePlugin.h>
+#include <klee/Common.h>
 
 using namespace s2e;
 
@@ -67,12 +69,10 @@ void s2e_tcg_custom_instruction_handler(uint64_t arg) {
 }
 
 void s2e_tcg_emit_custom_instruction(uint64_t arg) {
-    TCGv_i64 t0 = tcg_temp_new_i64();
-    tcg_gen_movi_i64(t0, arg);
+    TCGv_i64 t0 = tcg_const_i64(arg);
 
-    TCGArg args[1];
-    args[0] = GET_TCGV_I64(t0);
-    tcg_gen_helperN((void *) s2e_tcg_custom_instruction_handler, 0, 2, TCG_CALL_DUMMY_ARG, 1, args);
+    TCGTemp *args[1] = {tcgv_i64_temp(t0)};
+    tcg_gen_callN((void *) s2e_tcg_custom_instruction_handler, nullptr, 1, args);
 
     tcg_temp_free_i64(t0);
 }
@@ -82,41 +82,23 @@ void s2e_tcg_emit_custom_instruction(uint64_t arg) {
    before calling the annotation. This is useful when instrumenting instructions
    that do not explicitely update the program counter by themselves. */
 static void s2e_tcg_instrument_code(ExecutionSignal *signal, uint64_t pc, uint64_t nextpc = -1) {
-    TCGv_ptr t0 = tcg_temp_new_ptr();
-    TCGv_i64 t1 = tcg_temp_new_i64();
-
     if (nextpc != (uint64_t) -1) {
 #if TCG_TARGET_REG_BITS == 64 && defined(TARGET_X86_64)
-        TCGv_i64 tpc = tcg_temp_new_i64();
-        TCGv_ptr cpu_env = MAKE_TCGV_PTR(0);
-        tcg_gen_movi_i64(tpc, (tcg_target_ulong) nextpc);
+        TCGv_i64 tpc = tcg_const_i64((tcg_target_ulong) nextpc);
         tcg_gen_st_i64(tpc, cpu_env, offsetof(CPUX86State, eip));
         tcg_temp_free_i64(tpc);
 #else
-        TCGv_i32 tpc = tcg_temp_new_i32();
-        TCGv_ptr cpu_env = MAKE_TCGV_PTR(0);
-        tcg_gen_movi_i32(tpc, (tcg_target_ulong) nextpc);
+        TCGv_i32 tpc = tcg_const_i32((tcg_target_ulong) nextpc);
         tcg_gen_st_i32(tpc, cpu_env, offsetof(CPUX86State, eip));
         tcg_temp_free_i32(tpc);
 #endif
     }
 
-    // XXX: here we rely on CPUState being the first tcg global temp
-    TCGArg args[2];
-    args[0] = GET_TCGV_PTR(t0);
-    args[1] = GET_TCGV_I64(t1);
+    TCGv_ptr t0 = tcg_const_local_ptr(signal);
+    TCGv_i64 t1 = tcg_const_i64(pc);
+    TCGTemp *args[2] = {tcgv_ptr_temp(t0), tcgv_i64_temp(t1)};
 
-#if TCG_TARGET_REG_BITS == 64
-    const int sizemask = 4 | 2;
-    tcg_gen_movi_i64(TCGV_PTR_TO_NAT(t0), (tcg_target_ulong) signal);
-#else
-    const int sizemask = 4;
-    tcg_gen_movi_i32(TCGV_PTR_TO_NAT(t0), (tcg_target_ulong) signal);
-#endif
-
-    tcg_gen_movi_i64(t1, pc);
-
-    tcg_gen_helperN((void *) s2e_tcg_execution_handler, 0, sizemask, TCG_CALL_DUMMY_ARG, 2, args);
+    tcg_gen_callN((void *) s2e_tcg_execution_handler, nullptr, 2, args);
 
     tcg_temp_free_i64(t1);
     tcg_temp_free_ptr(t0);
@@ -365,7 +347,7 @@ void s2e_init_timers() {
 //(retaddr will be set to null there)
 void s2e_after_memory_access(uint64_t vaddr, uint64_t value, unsigned size, unsigned flags, uintptr_t retaddr) {
     if (retaddr && env->se_current_tb) {
-        cpu_restore_state(env->se_current_tb, env, (uintptr_t) retaddr);
+        cpu_restore_state(env, (uintptr_t) retaddr);
         flags |= MEM_TRACE_FLAG_PRECISE;
     }
 
@@ -414,7 +396,7 @@ void __stq_mmu_trace(uint64_t *host_addr, target_ulong vaddr) {
 
 void s2e_on_page_fault(uint64_t addr, int is_write, void *retaddr) {
     if (retaddr && env->se_current_tb) {
-        cpu_restore_state(env->se_current_tb, env, (uintptr_t) retaddr);
+        cpu_restore_state(env, (uintptr_t) retaddr);
     }
 
     try {
@@ -426,7 +408,7 @@ void s2e_on_page_fault(uint64_t addr, int is_write, void *retaddr) {
 
 void s2e_on_tlb_miss(uint64_t addr, int is_write, void *retaddr) {
     if (retaddr && env->se_current_tb) {
-        cpu_restore_state(env->se_current_tb, env, (uintptr_t) retaddr);
+        cpu_restore_state(env, (uintptr_t) retaddr);
     }
 
     try {
@@ -442,7 +424,7 @@ void s2e_trace_port_access(uint64_t port, uint64_t value, unsigned size, int isW
     }
 
     if (retaddr) {
-        cpu_restore_state(env->se_current_tb, env, (uintptr_t) retaddr);
+        cpu_restore_state(env, (uintptr_t) retaddr);
     }
 
     try {
@@ -459,7 +441,7 @@ void s2e_on_privilege_change(unsigned previous, unsigned current) {
     try {
         g_s2e->getCorePlugin()->onPrivilegeChange.emit(g_s2e_state, previous, current);
     } catch (s2e::CpuExitException &) {
-        assert(false && "Cannot throw exceptions here. VM state may be inconsistent at this point.");
+        pabort("Cannot throw exceptions here. VM state may be inconsistent at this point.");
     }
 }
 
@@ -469,7 +451,7 @@ void s2e_on_page_directory_change(uint64_t previous, uint64_t current) {
     try {
         g_s2e->getCorePlugin()->onPageDirectoryChange.emit(g_s2e_state, previous, current);
     } catch (s2e::CpuExitException &) {
-        assert(false && "Cannot throw exceptions here. VM state may be inconsistent at this point.");
+        pabort("Cannot throw exceptions here. VM state may be inconsistent at this point.");
     }
 }
 
@@ -477,7 +459,7 @@ void s2e_on_initialization_complete(void) {
     try {
         g_s2e->getCorePlugin()->onInitializationComplete.emit(g_s2e_state);
     } catch (s2e::CpuExitException &) {
-        assert(false && "Cannot throw exceptions here. VM state may be inconsistent at this point.");
+        pabort("Cannot throw exceptions here. VM state may be inconsistent at this point.");
     }
 }
 
@@ -486,7 +468,7 @@ int s2e_on_call_return_translate(uint64_t pc, int isCall) {
     try {
         g_s2e->getCorePlugin()->onCallReturnTranslate.emit(g_s2e_state, pc, isCall, &instrument);
     } catch (s2e::CpuExitException &) {
-        assert(false && "Cannot throw exceptions here.");
+        pabort("Cannot throw exceptions here.");
     }
     return instrument;
 }

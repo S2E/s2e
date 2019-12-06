@@ -20,6 +20,7 @@
 #include "S2EExecutionStateTlb.h"
 
 #include "S2EStatsTracker.h"
+#include "S2ETranslationBlock.h"
 #include "s2e_config.h"
 
 extern "C" {
@@ -40,7 +41,6 @@ class Plugin;
 class PluginState;
 class S2EDeviceState;
 class S2EExecutionState;
-struct S2ETranslationBlock;
 
 typedef std::map<const Plugin *, PluginState *> PluginStateMap;
 typedef PluginState *(*PluginStateFactory)(Plugin *p, S2EExecutionState *s);
@@ -119,7 +119,7 @@ protected:
        variables while the state is inactive */
     TimersState *m_timersState;
 
-    S2ETranslationBlock *m_lastS2ETb;
+    S2ETranslationBlockPtr m_lastS2ETb;
 
     bool m_needFinalizeTBExec;
 
@@ -138,19 +138,19 @@ protected:
     bool m_runningExceptionEmulationCode;
 
     ExecutionState *clone();
-    virtual void addressSpaceChange(const klee::MemoryObject *mo, const klee::ObjectState *oldState,
-                                    klee::ObjectState *newState);
+    virtual void addressSpaceChange(const klee::ObjectKey &key, const klee::ObjectStateConstPtr &oldState,
+                                    const klee::ObjectStatePtr &newState);
 
-    virtual void addressSpaceObjectSplit(const klee::ObjectState *oldObject,
-                                         const std::vector<klee::ObjectState *> &newObjects);
+    virtual void addressSpaceObjectSplit(const klee::ObjectStateConstPtr &oldObject,
+                                         const std::vector<klee::ObjectStatePtr> &newObjects);
 
-    void addressSpaceChangeUpdateRegisters(const klee::MemoryObject *mo, const klee::ObjectState *oldState,
-                                           klee::ObjectState *newState);
+    void addressSpaceChangeUpdateRegisters(const klee::ObjectStateConstPtr &oldState,
+                                           const klee::ObjectStatePtr &newState);
 
     std::string getUniqueVarName(const std::string &name, std::string &rawVar);
 
 public:
-    virtual void addressSpaceSymbolicStatusChange(klee::ObjectState *object, bool becameConcrete);
+    virtual void addressSpaceSymbolicStatusChange(const klee::ObjectStatePtr &object, bool becameConcrete);
 
 public:
     S2EExecutionState(klee::KFunction *kf);

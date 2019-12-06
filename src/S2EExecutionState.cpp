@@ -28,6 +28,8 @@
 #include <llvm/Support/CommandLine.h>
 #include <s2e/CorePlugin.h>
 
+#include <tcg/tcg-llvm.h>
+
 #include <iomanip>
 #include <sstream>
 
@@ -63,8 +65,6 @@ S2EExecutionState::S2EExecutionState(klee::KFunction *kf)
 }
 
 S2EExecutionState::~S2EExecutionState() {
-    assert(m_lastS2ETb == nullptr);
-
     PluginStateMap::iterator it;
 
     if (VerboseStateDeletion) {
@@ -105,10 +105,7 @@ ExecutionState *S2EExecutionState::clone() {
     ret->addressSpace.state = ret;
     ret->m_deviceState.setExecutionState(ret);
     ret->concolics = new Assignment(true);
-
-    if (m_lastS2ETb) {
-        g_s2e->getExecutor()->refS2ETb(m_lastS2ETb);
-    }
+    ret->m_lastS2ETb = m_lastS2ETb;
 
     ret->m_stateID = g_s2e->fetchAndIncrementStateId();
     ret->m_guid = ret->m_stateID;
@@ -274,12 +271,9 @@ ref<Expr> S2EExecutionState::createSymbolicValue(const std::string &name, Expr::
     assert((bufferSize == bytes || bufferSize == 0) &&
            "Concrete buffer must either have the same size as the expression or be empty");
 
-    const Array *array = new Array(sname, bytes, nullptr, nullptr, name);
+    auto array = Array::create(sname, bytes, nullptr, nullptr, name);
 
-    MemoryObject *mo = new MemoryObject(0, bytes, false, false, false, nullptr);
-    mo->setName(sname);
-
-    symbolics.push_back(std::make_pair(mo, array));
+    symbolics.push_back(array);
 
     if (bufferSize == bytes) {
         concolics->add(array, buffer);
@@ -287,9 +281,9 @@ ref<Expr> S2EExecutionState::createSymbolicValue(const std::string &name, Expr::
 
     variableNameMapping = variableNameMapping.insert(std::make_pair(sname, originalVarName));
 
-    ref<Expr> ret = Expr::createTempRead(array, width);
+    ref<Expr> ret = ReadExpr::createTempRead(array, width);
 
-    g_s2e->getCorePlugin()->onSymbolicVariableCreation.emit(this, name, {ret}, mo, array);
+    g_s2e->getCorePlugin()->onSymbolicVariableCreation.emit(this, name, {ret}, array);
 
     return ret;
 #else
@@ -326,9 +320,9 @@ std::vector<ref<Expr>> S2EExecutionState::createSymbolicArray(const std::string 
         *varName = sname;
     }
 
-    const Array *array = new Array(sname, size, nullptr, nullptr, name);
+    auto array = Array::create(sname, size, nullptr, nullptr, name);
 
-    UpdateList ul(array, 0);
+    auto ul = UpdateList::create(array, 0);
 
     std::vector<ref<Expr>> result;
     result.reserve(size);
@@ -340,16 +334,13 @@ std::vector<ref<Expr>> S2EExecutionState::createSymbolicArray(const std::string 
     // Add it to the set of symbolic expressions, to be able to generate
     // test cases later.
     // Dummy memory object
-    MemoryObject *mo = new MemoryObject(0, size, false, false, false, nullptr);
-    mo->setName(sname);
-
-    symbolics.push_back(std::make_pair(mo, array));
+    symbolics.push_back(array);
 
     if (concreteBuffer.size() == size) {
         concolics->add(array, concreteBuffer);
     }
 
-    g_s2e->getCorePlugin()->onSymbolicVariableCreation.emit(this, name, result, mo, array);
+    g_s2e->getCorePlugin()->onSymbolicVariableCreation.emit(this, name, result, array);
     variableNameMapping = variableNameMapping.insert(std::make_pair(sname, originalVarName));
 #else
     g_s2e->getWarningsStream(this) << "Cannot create symbolic data in single-path (s2e_sp) build\n";
@@ -389,23 +380,24 @@ std::vector<ref<Expr>> S2EExecutionState::createSymbolicArray(const std::string 
  */
 void S2EExecutionState::kleeReadMemory(ref<Expr> kleeAddressExpr, uint64_t sizeInBytes, std::vector<ref<Expr>> *result,
                                        bool requireConcrete, bool concretize, bool addConstraint) {
-    ObjectPair op;
+    ObjectStateConstPtr os;
     kleeAddressExpr = toUnique(kleeAddressExpr);
     ref<klee::ConstantExpr> address = cast<klee::ConstantExpr>(kleeAddressExpr);
 
 #ifdef CONFIG_SYMBEX_MP
-    if (!addressSpace.resolveOne(address, op))
-        assert(0 && "kleeReadMemory: out of bounds / multiple resolution unhandled");
+    bool inBounds;
+    if (!addressSpace.findObject(address->getZExtValue(), sizeInBytes, os, inBounds)) {
+        pabort("kleeReadMemory: out of bounds / multiple resolution unhandled");
+    }
 
-    const MemoryObject *mo = op.first;
-    const ObjectState *os = op.second;
+    assert(inBounds);
 
     assert(requireConcrete || (!requireConcrete && concretize && addConstraint) ||
            (!requireConcrete && concretize && !addConstraint) || (!requireConcrete && !concretize));
 
     // Read an array of bytes
     unsigned i;
-    sizeInBytes = sizeInBytes >= mo->size ? mo->size : sizeInBytes;
+    sizeInBytes = sizeInBytes >= os->getSize() ? os->getSize() : sizeInBytes;
     for (i = 0; i < sizeInBytes; i++) {
         ref<Expr> cur = os->read8(i);
         if (requireConcrete) {
@@ -423,7 +415,7 @@ void S2EExecutionState::kleeReadMemory(ref<Expr> kleeAddressExpr, uint64_t sizeI
                 // Otherwise just get an example
                 cur = this->toConstantSilent(cur);
             } else {
-                assert(false && "Expected reasonable parameters in kleeReadMemory");
+                pabort("Expected reasonable parameters in kleeReadMemory");
             }
 
             if (result) {
@@ -456,17 +448,19 @@ void S2EExecutionState::kleeReadMemory(ref<Expr> kleeAddressExpr, uint64_t sizeI
  */
 void S2EExecutionState::kleeWriteMemory(ref<Expr> kleeAddressExpr, /* Address */
                                         std::vector<ref<Expr>> &bytes) {
-    ObjectPair op;
+    ObjectStateConstPtr os;
     kleeAddressExpr = toUnique(kleeAddressExpr);
     ref<klee::ConstantExpr> address = cast<klee::ConstantExpr>(kleeAddressExpr);
 #ifdef CONFIG_SYMBEX_MP
-    if (!addressSpace.resolveOne(address, op))
-        assert(0 && "kleeReadMemory: out of bounds / multiple resolution unhandled");
+    bool inBounds;
+    if (!addressSpace.findObject(address->getZExtValue(), bytes.size(), os, inBounds)) {
+        pabort("kleeWriteMemory: out of bounds / multiple resolution unhandled");
+    }
 
-    const MemoryObject *mo = op.first;
-    const ObjectState *os = op.second;
-    ObjectState *wos = addressSpace.getWriteable(mo, os);
-    assert(bytes.size() <= os->size && "Too many bytes supplied to kleeWriteMemory");
+    assert(inBounds);
+
+    auto wos = addressSpace.getWriteable(os);
+    assert(bytes.size() <= os->getSize() && "Too many bytes supplied to kleeWriteMemory");
 
     // Write an array of possibly-symbolic bytes
     unsigned i;
@@ -612,16 +606,16 @@ bool S2EExecutionState::merge(const ExecutionState &_b) {
         if (DebugLogStateMerge) {
             s << "merge failed: different symbolics" << '\n';
 
-            foreach2 (it, symbolics.begin(), symbolics.end()) { s << (*it).first->name << "\n"; }
+            foreach2 (it, symbolics.begin(), symbolics.end()) { s << (*it)->getName() << "\n"; }
             s << "\n";
-            foreach2 (it, b.symbolics.begin(), b.symbolics.end()) { s << (*it).first->name << "\n"; }
+            foreach2 (it, b.symbolics.begin(), b.symbolics.end()) { s << (*it)->getName() << "\n"; }
         }
         return false;
     }
 
     {
-        std::vector<StackFrame>::const_iterator itA = stack.begin();
-        std::vector<StackFrame>::const_iterator itB = b.stack.begin();
+        auto itA = stack.begin();
+        auto itB = b.stack.begin();
         while (itA != stack.end() && itB != b.stack.end()) {
             // XXX vaargs?
             if (itA->caller != itB->caller || itA->kf != itB->kf) {
@@ -689,7 +683,7 @@ bool S2EExecutionState::merge(const ExecutionState &_b) {
     //    s << "B: " << b.addressSpace.objects << "\n";
     //}
 
-    std::set<const MemoryObject *> mutated;
+    std::set<ObjectKey> mutated;
     MemoryMap::iterator ai = addressSpace.objects.begin();
     MemoryMap::iterator bi = b.addressSpace.objects.begin();
     MemoryMap::iterator ae = addressSpace.objects.end();
@@ -698,23 +692,23 @@ bool S2EExecutionState::merge(const ExecutionState &_b) {
         if (ai->first != bi->first) {
             if (DebugLogStateMerge) {
                 if (ai->first < bi->first) {
-                    s << "\t\tB misses binding for: " << ai->first->id << "\n";
+                    s << "\t\tB misses binding for: " << hexval(ai->first.address) << "\n";
                 } else {
-                    s << "\t\tA misses binding for: " << bi->first->id << "\n";
+                    s << "\t\tA misses binding for: " << hexval(bi->first.address) << "\n";
                 }
             }
             if (DebugLogStateMerge)
                 s << "merge failed: different callstacks" << '\n';
             return false;
         }
-        if (ai->second != bi->second && !ai->first->isValueIgnored &&
-            ai->first != S2EExecutionStateRegisters::getConcreteRegs() &&
+        if (ai->second != bi->second && ai->first != S2EExecutionStateRegisters::getConcreteRegs() &&
             ai->first != S2EExecutionStateMemory::getDirtyMask()) {
 
-            const MemoryObject *mo = ai->first;
+            auto &mo = ai->first;
+            auto os = ai->second;
             if (DebugLogStateMerge)
-                s << "\t\tmutated: " << mo->id << " (" << mo->name << ")\n";
-            if (mo->isSharedConcrete) {
+                s << "\t\tmutated: " << hexval(mo.address) << " (" << os->getName() << ")\n";
+            if (os->isSharedConcrete()) {
                 if (DebugLogStateMerge)
                     s << "merge failed: different shared-concrete objects " << '\n';
                 return false;
@@ -748,8 +742,8 @@ bool S2EExecutionState::merge(const ExecutionState &_b) {
 
     int selectCountStack = 0, selectCountMem = 0;
 
-    std::vector<StackFrame>::iterator itA = stack.begin();
-    std::vector<StackFrame>::const_iterator itB = b.stack.begin();
+    auto itA = stack.begin();
+    auto itB = b.stack.begin();
     for (; itA != stack.end(); ++itA, ++itB) {
         StackFrame &af = *itA;
         const StackFrame &bf = *itB;
@@ -772,19 +766,18 @@ bool S2EExecutionState::merge(const ExecutionState &_b) {
         s << "\t\tcreated " << selectCountStack << " select expressions on the stack\n";
     }
 
-    for (std::set<const MemoryObject *>::iterator it = mutated.begin(), ie = mutated.end(); it != ie; ++it) {
-        const MemoryObject *mo = *it;
-        const ObjectState *os = addressSpace.findObject(mo);
-        const ObjectState *otherOS = b.addressSpace.findObject(mo);
-        assert(os && !os->readOnly && "objects mutated but not writable in merging state");
+    for (auto mo : mutated) {
+        auto os = addressSpace.findObject(mo.address);
+        auto otherOS = b.addressSpace.findObject(mo.address);
+        assert(os && !os->isReadOnly() && "objects mutated but not writable in merging state");
         assert(otherOS);
 
         if (DebugLogStateMerge) {
-            s << "Merging object " << mo->name << "\n";
+            s << "Merging object " << os->getName() << "\n";
         }
 
-        ObjectState *wos = addressSpace.getWriteable(mo, os);
-        for (unsigned i = 0; i < mo->size; i++) {
+        auto wos = addressSpace.getWriteable(os);
+        for (unsigned i = 0; i < mo.size; i++) {
             ref<Expr> av = wos->read8(i);
             ref<Expr> bv = otherOS->read8(i);
             if (av != bv) {
@@ -814,13 +807,13 @@ bool S2EExecutionState::merge(const ExecutionState &_b) {
     // dirty mask can only affect performance but not correcntess.
     // NOTE: this requires flushing TLB
     {
-        const MemoryObject *dirtyMask = S2EExecutionStateMemory::getDirtyMask();
-        const ObjectState *os = addressSpace.findObject(dirtyMask);
-        ObjectState *wos = addressSpace.getWriteable(dirtyMask, os);
-        uint8_t *dirtyMaskA = wos->getConcreteStore();
-        const uint8_t *dirtyMaskB = b.addressSpace.findObject(dirtyMask)->getConcreteStore();
+        auto &dirtyMask = S2EExecutionStateMemory::getDirtyMask();
+        auto os = addressSpace.findObject(dirtyMask.address);
+        auto wos = addressSpace.getWriteable(os);
+        uint8_t *dirtyMaskA = wos->getConcreteBuffer();
+        const uint8_t *dirtyMaskB = b.addressSpace.findObject(dirtyMask.address)->getConcreteBuffer();
 
-        for (unsigned i = 0; i < dirtyMask->size; ++i) {
+        for (unsigned i = 0; i < dirtyMask.size; ++i) {
             if (dirtyMaskA[i] != dirtyMaskB[i])
                 dirtyMaskA[i] = 0;
         }
@@ -833,8 +826,7 @@ void S2EExecutionState::enumPossibleRanges(ref<Expr> e, ref<Expr> start, ref<Exp
 
     Solver *solver = klee::SolverManager::solver()->solver;
 
-    std::vector<const Array *> symbObjects;
-    foreach2 (it, symbolics.begin(), symbolics.end()) { symbObjects.push_back(it->second); }
+    ArrayVec symbObjects = symbolics;
 
     solver->getRanges(constraints, symbObjects, e, start, end, ranges);
 }
@@ -861,8 +853,7 @@ bool S2EExecutionState::testConstraints(const std::vector<ref<Expr>> &c, Constra
         tmpConstraints.addConstraint(*it);
     }
 
-    std::vector<const Array *> symbObjects;
-    foreach2 (it, symbolics.begin(), symbolics.end()) { symbObjects.push_back(it->second); }
+    ArrayVec symbObjects = symbolics;
 
     Solver *solver = SolverManager::solver()->solver;
     std::vector<std::vector<unsigned char>> concreteObjects;
@@ -901,24 +892,26 @@ uint64_t S2EExecutionState::concretize(klee::ref<klee::Expr> expression, const s
 #endif
 }
 
-void S2EExecutionState::addressSpaceChange(const klee::MemoryObject *mo, const klee::ObjectState *oldState,
-                                           klee::ObjectState *newState) {
-    if (oldState && mo->isMemoryPage) {
-        if ((mo->address & ~SE_RAM_OBJECT_MASK) == 0) {
-            m_asCache.invalidate(mo->address & SE_RAM_OBJECT_MASK);
-            m_tlb.addressSpaceChangeUpdateTlb(mo, oldState, newState);
+void S2EExecutionState::addressSpaceChange(const klee::ObjectKey &key, const klee::ObjectStateConstPtr &oldState,
+                                           const klee::ObjectStatePtr &newState) {
+    if (oldState && oldState->isMemoryPage()) {
+        const auto &mo = oldState->getKey();
+        assert(newState->isMemoryPage());
+        if ((mo.address & ~SE_RAM_OBJECT_MASK) == 0) {
+            m_asCache.invalidate(mo.address & SE_RAM_OBJECT_MASK);
+            m_tlb.addressSpaceChangeUpdateTlb(oldState, newState);
 #ifdef SE_ENABLE_PHYSRAM_TLB
-            m_tlb.updateRamTlb(mo, oldState, newState);
+            m_tlb.updateRamTlb(oldState, newState);
 #endif
         }
     } else {
-        m_registers.addressSpaceChange(mo, oldState, newState);
+        m_registers.addressSpaceChange(key, oldState, newState);
     }
 
-    g_s2e->getCorePlugin()->onAddressSpaceChange.emit(this, mo, oldState, newState);
+    g_s2e->getCorePlugin()->onAddressSpaceChange.emit(this, key, oldState, newState);
 }
 
-void S2EExecutionState::addressSpaceSymbolicStatusChange(ObjectState *object, bool becameConcrete) {
+void S2EExecutionState::addressSpaceSymbolicStatusChange(const ObjectStatePtr &object, bool becameConcrete) {
     // Deal with CPU registers
     g_s2e->getExecutor()->updateConcreteFastPath(this);
 
@@ -927,15 +920,15 @@ void S2EExecutionState::addressSpaceSymbolicStatusChange(ObjectState *object, bo
         return;
     }
 
-    object = m_asCache.getBaseObject(object);
-    m_tlb.updateTlb(object->getObject(), object, object);
+    auto obj = m_asCache.getBaseObject(object);
+    m_tlb.updateTlb(obj, obj);
 }
 
-void S2EExecutionState::addressSpaceObjectSplit(const ObjectState *oldObject,
-                                                const std::vector<ObjectState *> &newObjects) {
+void S2EExecutionState::addressSpaceObjectSplit(const ObjectStateConstPtr &oldObject,
+                                                const std::vector<ObjectStatePtr> &newObjects) {
     // Splitting can only happen to RAM
-    ObjectState *baseObject = m_asCache.notifySplit(oldObject, newObjects);
-    m_tlb.updateTlb(oldObject->getObject(), oldObject, baseObject);
+    auto baseObject = m_asCache.notifySplit(oldObject, newObjects);
+    m_tlb.updateTlb(oldObject, baseObject);
 }
 
 uint64_t S2EExecutionState::readMemIoVaddr(bool masked) {
@@ -946,7 +939,8 @@ uint64_t S2EExecutionState::readMemIoVaddr(bool masked) {
     }
 
     if (masked) {
-        result = AndExpr::create(m_memIoVaddr, klee::ConstantExpr::create(TARGET_PAGE_MASK, m_memIoVaddr->getWidth()));
+        result = AndExpr::create(m_memIoVaddr,
+                                 klee::ConstantExpr::create((target_ulong) TARGET_PAGE_MASK, m_memIoVaddr->getWidth()));
         // This assumes that the page is already fully constrained by the MMU
         result = concolics->evaluate(result);
         assert(dyn_cast<ConstantExpr>(result) && "Expression must be constant here");
@@ -967,7 +961,7 @@ bool S2EExecutionState::getStaticTarget(uint64_t *target) {
 
     const llvm::Instruction *instr = pc->inst;
     const llvm::BasicBlock *BB = instr->getParent();
-    if (!TCGLLVMContext::GetStaticBranchTarget(BB, target)) {
+    if (!TCGLLVMTranslator::GetStaticBranchTarget(BB, target)) {
         return false;
     }
 
@@ -1016,7 +1010,7 @@ bool S2EExecutionState::getStaticBranchTargets(uint64_t *truePc, uint64_t *false
 
     for (unsigned i = 0; i < 2; ++i) {
         BB = succs[i];
-        if (!TCGLLVMContext::GetStaticBranchTarget(BB, &results[i])) {
+        if (!TCGLLVMTranslator::GetStaticBranchTarget(BB, &results[i])) {
             return false;
         }
         ++resCount;
@@ -1070,7 +1064,7 @@ void S2EExecutionState::disassemble(llvm::raw_ostream &os, uint64_t pc, unsigned
                 flags = 2;
                 break;
             default:
-                assert(false && "Not supported code");
+                pabort("Not supported code");
         }
     }
 
@@ -1146,8 +1140,8 @@ static inline void s2e_dma_rw(uint64_t hostAddress, uint8_t *buf, unsigned size,
 
         if (te->host_page == hostPage) {
             if (is_write) {
-                klee::ObjectState *os = static_cast<klee::ObjectState *>(te->object_state);
-                os = g_s2e_state->addressSpace.getWriteable(os->getObject(), os);
+                klee::ObjectStateConstPtr os = static_cast<const klee::ObjectState *>(te->object_state);
+                os = g_s2e_state->addressSpace.getWriteable(os);
                 assert(!(te->host_page & TLB_NOT_OURS));
             }
 
@@ -1208,6 +1202,11 @@ void s2e_write_ram_concrete(uint64_t host_address, const uint8_t *buf, uint64_t 
 #else
     memcpy((void *) host_address, buf, size);
 #endif
+}
+
+// To be used by GDB scripts to convert addresses
+uint64_t s2e_host_to_state_address(uint64_t hostaddr) {
+    return (uint64_t) g_s2e_state->mem()->getConcreteBuffer(hostaddr, s2e::HostAddress);
 }
 
 } // extern "C"

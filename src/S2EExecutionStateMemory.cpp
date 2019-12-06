@@ -19,7 +19,7 @@ using namespace klee;
 
 namespace s2e {
 
-MemoryObject *S2EExecutionStateMemory::s_dirtyMask = nullptr;
+ObjectKey S2EExecutionStateMemory::s_dirtyMask;
 
 S2EExecutionStateMemory::S2EExecutionStateMemory()
     : m_dirtyMask(nullptr), m_active(nullptr), m_asCache(nullptr), m_addressSpace(nullptr), m_notification(nullptr),
@@ -28,18 +28,18 @@ S2EExecutionStateMemory::S2EExecutionStateMemory()
 
 void S2EExecutionStateMemory::initialize(klee::AddressSpace *addressSpace, AddressSpaceCache *asCache,
                                          const bool *active, klee::IAddressSpaceNotification *notification,
-                                         klee::IConcretizer *concretizer, klee::MemoryObject *dirtyMask) {
-    assert(!s_dirtyMask);
-    s_dirtyMask = dirtyMask;
-    s_dirtyMask->setName("DirtyMask");
+                                         klee::IConcretizer *concretizer, const klee::ObjectStatePtr &dirtyMask) {
+    assert(!s_dirtyMask.address);
+    s_dirtyMask = dirtyMask->getKey();
+    dirtyMask->setName("DirtyMask");
 
     update(addressSpace, asCache, active, notification, concretizer);
 }
 
 void S2EExecutionStateMemory::update(klee::AddressSpace *addressSpace, AddressSpaceCache *asCache, const bool *active,
                                      klee::IAddressSpaceNotification *notification, klee::IConcretizer *concretizer) {
-    const ObjectState *dirtyMaskObject = addressSpace->findObject(s_dirtyMask);
-    m_dirtyMask = addressSpace->getWriteable(s_dirtyMask, dirtyMaskObject);
+    auto dirtyMaskObject = addressSpace->findObject(s_dirtyMask.address);
+    m_dirtyMask = addressSpace->getWriteable(dirtyMaskObject);
 
     m_addressSpace = addressSpace;
     m_asCache = asCache;
@@ -210,10 +210,24 @@ bool S2EExecutionStateMemory::write(uint64_t address, const void *buf, uint64_t 
     return true;
 }
 
-ObjectPair S2EExecutionStateMemory::getMemoryObject(uint64_t address, AddressType addressType) const {
+klee::ObjectStateConstPtr S2EExecutionStateMemory::getMemoryObject(uint64_t address, AddressType addressType) const {
     uint64_t hostAddr = getHostAddress(address, addressType);
     uint64_t pageAddr = hostAddr & SE_RAM_OBJECT_MASK;
     return m_addressSpace->findObject(pageAddr);
+}
+
+const void *S2EExecutionStateMemory::getConcreteBuffer(uint64_t address, AddressType addressType) const {
+    auto obj = getMemoryObject(address, addressType);
+    if (!obj) {
+        return nullptr;
+    }
+
+    auto store = obj->getConcreteBuffer();
+    if (!store) {
+        return nullptr;
+    }
+
+    return store + (address & ~SE_RAM_OBJECT_MASK);
 }
 
 bool S2EExecutionStateMemory::symbolic(uint64_t address, uint64_t size, AddressType addressType) {
@@ -225,19 +239,19 @@ bool S2EExecutionStateMemory::symbolic(uint64_t address, uint64_t size, AddressT
         }
 
         uint64_t pageAddr = hostAddress & SE_RAM_OBJECT_MASK;
-        ObjectPair op = m_asCache->get(pageAddr);
-        assert(op.first && op.second);
+        auto os = m_asCache->get(pageAddr);
+        assert(os);
 
-        uint64_t pageOffset = address % op.first->size;
-        uint64_t pageLength = op.first->size - pageOffset;
+        uint64_t pageOffset = address % os->getSize();
+        uint64_t pageLength = os->getSize() - pageOffset;
 
         if (pageLength > size) {
             pageLength = size;
         }
 
-        if (!op.second->isAllConcrete()) {
+        if (!os->isAllConcrete()) {
             for (unsigned i = 0; i < pageLength; ++i) {
-                if (!op.second->isConcrete(pageOffset + i, klee::Expr::Int8)) {
+                if (!os->isConcrete(pageOffset + i, klee::Expr::Int8)) {
                     return true;
                 }
             }
@@ -252,13 +266,15 @@ bool S2EExecutionStateMemory::symbolic(uint64_t address, uint64_t size, AddressT
 
 /***/
 
-void S2EExecutionStateMemory::transferRamInternal(ObjectPair op, uint64_t object_offset, uint8_t *buf, uint64_t size,
-                                                  bool write, bool exitOnSymbolicRead) {
-    if (op.first->isSharedConcrete) {
+void S2EExecutionStateMemory::transferRamInternal(const klee::ObjectStateConstPtr &os_, uint64_t object_offset,
+                                                  uint8_t *buf, uint64_t size, bool write, bool exitOnSymbolicRead) {
+    klee::ObjectStateConstPtr os = os_;
+
+    if (os->isSharedConcrete()) {
         assert(!exitOnSymbolicRead);
 
         /* This can happen in case of access to device memory */
-        uint8_t *concreteStore = (uint8_t *) op.first->address;
+        uint8_t *concreteStore = (uint8_t *) os->getAddress();
         if (write) {
             memcpy(concreteStore + object_offset, buf, size);
         } else {
@@ -268,7 +284,7 @@ void S2EExecutionStateMemory::transferRamInternal(ObjectPair op, uint64_t object
     }
 
     if (write) {
-        ObjectState *wos = m_addressSpace->getWriteable(op.first, op.second);
+        auto wos = m_addressSpace->getWriteable(os);
         bool oldAllConcrete = wos->isAllConcrete();
 
         for (uint64_t i = 0; i < size; ++i) {
@@ -276,23 +292,23 @@ void S2EExecutionStateMemory::transferRamInternal(ObjectPair op, uint64_t object
         }
 
         bool newAllConcrete = wos->isAllConcrete();
-        if ((oldAllConcrete != newAllConcrete) && (wos->getObject()->doNotifyOnConcretenessChange)) {
+        if ((oldAllConcrete != newAllConcrete) && (wos->notifyOnConcretenessChange())) {
             m_notification->addressSpaceSymbolicStatusChange(wos, newAllConcrete);
         }
 
     } else {
-        ObjectState *wos = nullptr;
+        ObjectStatePtr wos = nullptr;
         for (uint64_t i = 0; i < size; ++i) {
-            if (!op.second->readConcrete8(object_offset + i, buf + i)) {
+            if (!os->readConcrete8(object_offset + i, buf + i)) {
                 if (exitOnSymbolicRead) {
                     // m_startSymbexAtPC = getPc();
                     // XXX: what about regs_to_env ?
-                    assert(false && "Check cpu_restore_state");
+                    pabort("Check cpu_restore_state");
                     // fast_longjmp(env->jmp_env, 1);
                 }
 
                 if (!wos) {
-                    op.second = wos = m_addressSpace->getWriteable(op.first, op.second);
+                    os = wos = m_addressSpace->getWriteable(os);
                 }
 
                 buf[i] = m_concretizer->concretize(wos->read8(object_offset + i), "memory access from concrete code");
@@ -302,10 +318,10 @@ void S2EExecutionStateMemory::transferRamInternal(ObjectPair op, uint64_t object
     }
 }
 
-void S2EExecutionStateMemory::transferRamInternalSymbolic(ObjectPair op, uint64_t object_offset, ref<Expr> *buf,
-                                                          uint64_t size, bool write) {
+void S2EExecutionStateMemory::transferRamInternalSymbolic(const klee::ObjectStateConstPtr &os, uint64_t object_offset,
+                                                          klee::ref<klee::Expr> *buf, uint64_t size, bool write) {
     if (write) {
-        ObjectState *wos = m_addressSpace->getWriteable(op.first, op.second);
+        auto wos = m_addressSpace->getWriteable(os);
         bool oldAllConcrete = wos->isAllConcrete();
 
         for (uint64_t i = 0; i < size; ++i) {
@@ -314,13 +330,13 @@ void S2EExecutionStateMemory::transferRamInternalSymbolic(ObjectPair op, uint64_
         }
 
         bool newAllConcrete = wos->isAllConcrete();
-        if ((oldAllConcrete != newAllConcrete) && (wos->getObject()->doNotifyOnConcretenessChange)) {
+        if ((oldAllConcrete != newAllConcrete) && (wos->notifyOnConcretenessChange())) {
             m_notification->addressSpaceSymbolicStatusChange(wos, newAllConcrete);
         }
 
     } else {
         for (uint64_t i = 0; i < size; ++i) {
-            buf[i] = op.second->read8(object_offset + i);
+            buf[i] = os->read8(object_offset + i);
         }
     }
 }
@@ -350,54 +366,56 @@ void S2EExecutionStateMemory::transferRam(struct CPUTLBRAMEntry *te, uint64_t ho
     /* Single-object access */
     uint64_t page_addr = hostAddress & SE_RAM_OBJECT_MASK;
 
-    ObjectPair op = m_asCache->get(page_addr);
+    auto os = m_asCache->get(page_addr);
+    assert(os);
 
-    unsigned osSize = op.second->getBitArraySize();
+    unsigned osSize = os->getBitArraySize();
 
     /* Common case, the page is not split */
-    if (osSize == op.first->size) {
+    if (osSize == os->getSize()) {
         assert(osSize == SE_RAM_OBJECT_SIZE);
         if (te) {
-            if (!op.first->isSharedConcrete && op.second->isAllConcrete()) {
+            if (!os->isSharedConcrete() && os->isAllConcrete()) {
                 /* The object state pointer will be automatically updated if it becomes writable */
-                te->object_state = (void *) op.second;
-                te->host_page = op.first->address;
-                te->addend = (uintptr_t) op.second->getConcreteBuffer()->get() - op.first->address;
-                if (!m_asCache->isOwnedByUs(op.second)) {
+                // XXX: do proper reference counting
+                te->object_state = (void *) os.get();
+                te->host_page = os->getAddress();
+                te->addend = (uintptr_t) os->getConcreteBufferPtr()->get() - os->getAddress();
+                if (!m_asCache->isOwnedByUs(os)) {
                     te->host_page |= TLB_NOT_OURS;
                 }
             }
         }
 
         if (isSymbolic) {
-            transferRamInternalSymbolic(op, page_offset, static_cast<ref<Expr> *>(buf), size, isWrite);
+            transferRamInternalSymbolic(os, page_offset, static_cast<ref<Expr> *>(buf), size, isWrite);
         } else {
-            transferRamInternal(op, page_offset, static_cast<uint8_t *>(buf), size, isWrite, exitOnSymbolicRead);
+            transferRamInternal(os, page_offset, static_cast<uint8_t *>(buf), size, isWrite, exitOnSymbolicRead);
         }
 
         return;
     }
 
-    assert(!op.first->isSharedConcrete);
+    assert(!os->isSharedConcrete());
 
     /* Slower path, fetch every individual object and do the transfer */
     while (size > 0) {
-        op = m_addressSpace->findObject(page_addr);
-        assert(op.first && op.second);
+        os = m_addressSpace->findObject(page_addr);
+        assert(os);
 
         /* Check that we indeed fall into this page */
-        if (page_offset && op.first->size <= page_offset) {
-            page_offset -= op.first->size;
-            page_addr += op.first->size;
+        if (page_offset && os->getSize() <= page_offset) {
+            page_offset -= os->getSize();
+            page_addr += os->getSize();
             continue;
         }
 
-        uint64_t transferSize = op.first->size < size ? op.first->size : size;
+        uint64_t transferSize = os->getSize() < size ? os->getSize() : size;
 
         if (isSymbolic) {
-            transferRamInternalSymbolic(op, page_offset, static_cast<ref<Expr> *>(buf), transferSize, isWrite);
+            transferRamInternalSymbolic(os, page_offset, static_cast<ref<Expr> *>(buf), transferSize, isWrite);
         } else {
-            transferRamInternal(op, page_offset, static_cast<uint8_t *>(buf), transferSize, isWrite,
+            transferRamInternal(os, page_offset, static_cast<uint8_t *>(buf), transferSize, isWrite,
                                 exitOnSymbolicRead);
         }
 
@@ -411,13 +429,13 @@ void S2EExecutionStateMemory::transferRam(struct CPUTLBRAMEntry *te, uint64_t ho
 
 uint8_t S2EExecutionStateMemory::readDirtyMask(uint64_t host_address) {
     uint8_t val = 0;
-    host_address -= s_dirtyMask->address;
+    host_address -= s_dirtyMask.address;
     m_dirtyMask->readConcrete8(host_address, &val);
     return val;
 }
 
 void S2EExecutionStateMemory::writeDirtyMask(uint64_t host_address, uint8_t val) {
-    host_address -= s_dirtyMask->address;
+    host_address -= s_dirtyMask.address;
     m_dirtyMask->write8(host_address, val);
 }
 

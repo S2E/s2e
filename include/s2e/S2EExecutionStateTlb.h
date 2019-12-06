@@ -30,7 +30,7 @@ public:
      */
     typedef std::pair<unsigned int, unsigned int> TlbCoordinates;
     typedef llvm::SmallVector<TlbCoordinates, 8> ObjectStateTlbReferences;
-    typedef std::unordered_map<klee::ObjectState *, ObjectStateTlbReferences> TlbMap;
+    typedef std::unordered_map<klee::ObjectStateConstPtr, ObjectStateTlbReferences, klee::ObjectStatePtrHash> TlbMap;
 
 private:
     TlbMap m_tlbMap;
@@ -48,20 +48,19 @@ public:
     }
 
     /* Change all entries that refer to oldState to newState */
-    void updateTlb(const klee::MemoryObject *mo, const klee::ObjectState *oldState, klee::ObjectState *newState);
+    void updateTlb(const klee::ObjectStateConstPtr &oldState, const klee::ObjectStatePtr &newState);
 
-    void addressSpaceChangeUpdateTlb(const klee::MemoryObject *mo, const klee::ObjectState *oldState,
-                                     klee::ObjectState *newState);
+    void addressSpaceChangeUpdateTlb(const klee::ObjectStateConstPtr &oldState, const klee::ObjectStatePtr &newState);
 
     void flushTlbCache();
 
-    void flushTlbCachePage(klee::ObjectState *objectState, int mmu_idx, int index);
+    void flushTlbCachePage(const klee::ObjectStatePtr &objectState, int mmu_idx, int index);
 
     void updateTlbEntryConcreteStatus(struct CPUX86State *env, unsigned mmu_idx, unsigned index,
-                                      const klee::ObjectState *state);
+                                      const klee::ObjectStateConstPtr &state);
 
 #if defined(SE_ENABLE_PHYSRAM_TLB)
-    void updateRamTlb(const klee::MemoryObject *mo, const klee::ObjectState *oldState, klee::ObjectState *newState);
+    void updateRamTlb(const klee::ObjectStateConstPtr &oldState, const klee::ObjectStatePtr &newState);
     void clearRamTlb();
 #endif
 

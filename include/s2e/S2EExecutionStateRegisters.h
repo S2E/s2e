@@ -44,11 +44,11 @@ namespace s2e {
 class S2EExecutionStateRegisters {
 protected:
     // Static because they do not change
-    static klee::MemoryObject *s_symbolicRegs;
-    static klee::MemoryObject *s_concreteRegs;
+    static klee::ObjectKey s_symbolicRegs;
+    static klee::ObjectKey s_concreteRegs;
 
-    klee::ObjectState *m_symbolicRegs;
-    klee::ObjectState *m_concreteRegs;
+    klee::ObjectStatePtr m_symbolicRegs;
+    klee::ObjectStatePtr m_concreteRegs;
 
     const bool *m_active;
     const bool *m_runningConcrete;
@@ -87,8 +87,8 @@ public:
         : m_active(active), m_runningConcrete(running_concrete), m_notification(notification),
           m_concretizer(concretizer){};
 
-    void initialize(klee::AddressSpace &addressSpace, klee::MemoryObject *symbolicRegs,
-                    klee::MemoryObject *concreteRegs);
+    void initialize(klee::AddressSpace &addressSpace, const klee::ObjectStatePtr &symbolicRegs,
+                    const klee::ObjectStatePtr &concreteRegs);
 
     void update(klee::AddressSpace &addressSpace, const bool *active, const bool *running_concrete,
                 klee::IAddressSpaceNotification *notification, klee::IConcretizer *concretizer);
@@ -98,17 +98,17 @@ public:
     int compareArchitecturalConcreteState(const S2EExecutionStateRegisters &other);
 
     inline void saveConcreteState() {
-        memcpy((void *) m_concreteRegs->getConcreteStore(), (void *) s_concreteRegs->address, s_concreteRegs->size);
+        memcpy((void *) m_concreteRegs->getConcreteBuffer(), (void *) s_concreteRegs.address, s_concreteRegs.size);
     }
 
     inline void restoreConcreteState() {
-        memcpy((void *) s_concreteRegs->address, (void *) m_concreteRegs->getConcreteStore(), s_concreteRegs->size);
+        memcpy((void *) s_concreteRegs.address, (void *) m_concreteRegs->getConcreteBuffer(), s_concreteRegs.size);
     }
 
-    void addressSpaceChange(const klee::MemoryObject *mo, const klee::ObjectState *oldState,
-                            klee::ObjectState *newState);
+    void addressSpaceChange(const klee::ObjectKey &key, const klee::ObjectStateConstPtr &oldState,
+                            const klee::ObjectStatePtr &newState);
 
-    static const klee::MemoryObject *getConcreteRegs() {
+    static const klee::ObjectKey &getConcreteRegs() {
         return s_concreteRegs;
     }
 
@@ -127,7 +127,7 @@ public:
     bool flagsRegistersAreSymbolic() const;
 
     static bool initialized() {
-        return s_concreteRegs != nullptr && s_symbolicRegs != nullptr;
+        return s_concreteRegs.address != 0 && s_symbolicRegs.address != 0;
     }
 
     ///  Same as writeSymbolicRegion but also allows writing symbolic values

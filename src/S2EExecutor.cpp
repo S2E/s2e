@@ -52,6 +52,8 @@
 
 #include <llvm/Support/TimeValue.h>
 
+#include <tcg/tcg-llvm.h>
+
 #include <glib.h>
 #include <sstream>
 #include <vector>
@@ -88,11 +90,6 @@ namespace {
             cl::desc("Flush translation blocks when switching states -"
                      " disabling leads to faster but possibly incorrect execution"),
             cl::init(true));
-
-    cl::opt<bool>
-    KeepLLVMFunctions("keep-llvm-functions",
-            cl::desc("Never delete generated LLVM functions"),
-            cl::init(false));
 
     //The default is true for two reasons:
     //1. Symbolic addresses are very expensive to handle
@@ -238,13 +235,13 @@ namespace s2e {
 /* Global array to hold tb function arguments */
 volatile void *tb_function_args[3];
 
-S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMContext *tcgLLVMContext, InterpreterHandler *ie)
-    : Executor(ie, tcgLLVMContext->getLLVMContext()), m_s2e(s2e), m_tcgLLVMContext(tcgLLVMContext),
-      m_executeAlwaysKlee(false), m_forkProcTerminateCurrentState(false), m_inLoadBalancing(false) {
+S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMTranslator *translator, InterpreterHandler *ie)
+    : Executor(ie, translator->getContext()), m_s2e(s2e), m_llvmTranslator(translator), m_executeAlwaysKlee(false),
+      m_forkProcTerminateCurrentState(false), m_inLoadBalancing(false) {
     delete externalDispatcher;
-    externalDispatcher = new S2EExternalDispatcher(tcgLLVMContext->getLLVMContext());
+    externalDispatcher = new S2EExternalDispatcher();
 
-    LLVMContext &ctx = m_tcgLLVMContext->getLLVMContext();
+    LLVMContext &ctx = m_llvmTranslator->getContext();
 
 /* Define globally accessible functions */
 #define __DEFINE_EXT_FUNCTION(name) llvm::sys::DynamicLibrary::AddSymbol(#name, (void *) name);
@@ -310,8 +307,8 @@ S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMContext *tcgLLVMContext, InterpreterHa
     __DEFINE_EXT_FUNCTION(cpu_restore_state)
     __DEFINE_EXT_FUNCTION(cpu_abort)
     __DEFINE_EXT_FUNCTION(cpu_loop_exit)
+    __DEFINE_EXT_FUNCTION(cpu_loop_exit_restore)
     __DEFINE_EXT_FUNCTION(cpu_get_tsc)
-    __DEFINE_EXT_FUNCTION(tb_find_pc)
     __DEFINE_EXT_FUNCTION(cpu_exit)
 
     __DEFINE_EXT_FUNCTION(hw_breakpoint_insert)
@@ -366,27 +363,23 @@ S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMContext *tcgLLVMContext, InterpreterHa
     __DEFINE_EXT_FUNCTION(stq_phys)
 
     ModuleOptions MOpts = ModuleOptions(vector<string>(),
-                                        /* Optimize= */ true,
-                                        /* CheckDivZero= */ false);
-    /* Set module for the executor */
-    auto chosenModule = g_s2e->getBitcodeLibrary();
-    s2e->getInfoStream() << "Using module " << chosenModule << "\n";
-
-    MOpts = ModuleOptions(vector<string>(1, chosenModule.c_str()),
-                          /* Optimize= */ true, /* CheckDivZero= */ false, m_tcgLLVMContext->getFunctionPassManager());
+                                        /* Optimize= */ false,
+                                        /* CheckDivZero= */ false, m_llvmTranslator->getFunctionPassManager());
     MOpts.Snapshot = false;
 
     /* This catches obvious LLVM misconfigurations */
-    Module *M = m_tcgLLVMContext->getModule();
+    Module *M = m_llvmTranslator->getModule();
+    s2e->getDebugStream() << "Current data layout: " << M->getDataLayoutStr() << '\n';
+    s2e->getDebugStream() << "Current target triple: " << M->getTargetTriple() << '\n';
 
-    DataLayout TD(M);
-    assert(M->getDataLayout().getPointerSizeInBits() == 64 &&
-           "Something is broken in your LLVM build: LLVM thinks pointers are 32-bits!");
+    auto &td = M->getDataLayout();
 
-    s2e->getDebugStream() << "Current data layout: " << m_tcgLLVMContext->getModule()->getDataLayoutStr() << '\n';
-    s2e->getDebugStream() << "Current target triple: " << m_tcgLLVMContext->getModule()->getTargetTriple() << '\n';
+    if (td.getPointerSizeInBits() != 64) {
+        s2e->getWarningsStream() << "Something is broken in your LLVM build: LLVM thinks pointers are 32-bits!\n";
+        exit(-1);
+    }
 
-    setModule(m_tcgLLVMContext->getModule(), MOpts, false);
+    setModule(m_llvmTranslator->getModule(), MOpts, false);
 
     if (UseFastHelpers) {
         disableConcreteLLVMHelpers();
@@ -399,18 +392,18 @@ S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMContext *tcgLLVMContext, InterpreterHa
                           ArrayRef<Type *>(vector<Type *>(1, PointerType::get(IntegerType::get(ctx, 64), 0))), false);
 
     Function *tbFunction =
-        Function::Create(tbFunctionTy, Function::PrivateLinkage, "s2e_dummyTbFunction", m_tcgLLVMContext->getModule());
+        Function::Create(tbFunctionTy, Function::PrivateLinkage, "s2e_dummyTbFunction", m_llvmTranslator->getModule());
 
     /* Create dummy main function containing just two instructions:
        a call to TB function and ret */
     Function *dummyMain = Function::Create(FunctionType::get(Type::getVoidTy(ctx), false), Function::ExternalLinkage,
-                                           "s2e_dummyMainFunction", m_tcgLLVMContext->getModule());
+                                           "s2e_dummyMainFunction", m_llvmTranslator->getModule());
 
     BasicBlock *dummyMainBB = BasicBlock::Create(ctx, "entry", dummyMain);
 
     vector<Value *> tbFunctionArgs(1, ConstantPointerNull::get(tbFunctionArgTy));
     CallInst::Create(tbFunction, ArrayRef<Value *>(tbFunctionArgs), "tbFunctionCall", dummyMainBB);
-    ReturnInst::Create(m_tcgLLVMContext->getLLVMContext(), dummyMainBB);
+    ReturnInst::Create(m_llvmTranslator->getContext(), dummyMainBB);
 
     kmodule->updateModuleWithFunction(dummyMain);
     m_dummyMain = kmodule->functionMap[dummyMain];
@@ -421,11 +414,7 @@ S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMContext *tcgLLVMContext, InterpreterHa
     if (UseFastHelpers) {
         replaceExternalFunctionsWithSpecialHandlers();
     }
-
-    m_tcgLLVMContext->initializeHelpers();
-
 #endif
-    m_tcgLLVMContext->initializeNativeCpuState();
 
     initializeStatistics();
 
@@ -481,25 +470,19 @@ S2EExecutionState *S2EExecutor::createInitialState() {
     addedStates.insert(state);
     updateStates(state);
 
-    /* Externally accessible global vars */
-    /* XXX move away */
-    addExternalObject(*state, &tcg_llvm_runtime, sizeof(tcg_llvm_runtime), false,
-                      /* isUserSpecified = */ true,
-                      /* isSharedConcrete = */ true,
-                      /* isValueIgnored = */ true);
+#define __DEFINE_EXT_OBJECT_RO(name)                                                   \
+    {                                                                                  \
+        predefinedSymbols.insert(std::make_pair(#name, (void *) &name));               \
+        auto op = addExternalObject(*state, (void *) &name, sizeof(name), true, true); \
+        op->setName(#name);                                                            \
+    }
 
-    addExternalObject(*state, (void *) tb_function_args, sizeof(tb_function_args), false,
-                      /* isUserSpecified = */ true,
-                      /* isSharedConcrete = */ true,
-                      /* isValueIgnored = */ true);
-
-#define __DEFINE_EXT_OBJECT_RO(name)                                 \
-    predefinedSymbols.insert(std::make_pair(#name, (void *) &name)); \
-    addExternalObject(*state, (void *) &name, sizeof(name), true, true, true)->setName(#name);
-
-#define __DEFINE_EXT_OBJECT_RO_SYMB(name)                            \
-    predefinedSymbols.insert(std::make_pair(#name, (void *) &name)); \
-    addExternalObject(*state, (void *) &name, sizeof(name), true, true, false)->setName(#name);
+#define __DEFINE_EXT_OBJECT_RO_SYMB(name)                                               \
+    {                                                                                   \
+        predefinedSymbols.insert(std::make_pair(#name, (void *) &name));                \
+        auto op = addExternalObject(*state, (void *) &name, sizeof(name), true, false); \
+        op->setName(#name);                                                             \
+    }
 
     if (g_sqi.size != sizeof(g_sqi)) {
         abort();
@@ -545,24 +528,21 @@ void S2EExecutor::registerCpu(S2EExecutionState *initialState, CPUX86State *cpuE
     }
 
     /* Add registers and eflags area as a true symbolic area */
-    MemoryObject *symbolicRegs = addExternalObject(*initialState, cpuEnv, offsetof(CPUX86State, eip),
-                                                   /* isReadOnly = */ false,
-                                                   /* isUserSpecified = */ false,
-                                                   /* isSharedConcrete = */ false);
+    auto symbolicRegs = addExternalObject(*initialState, cpuEnv, offsetof(CPUX86State, eip),
+                                          /* isReadOnly = */ false,
+                                          /* isSharedConcrete = */ false);
 
     /* Add the rest of the structure as concrete-only area */
-    MemoryObject *concreteRegs = addExternalObject(*initialState, ((uint8_t *) cpuEnv) + offsetof(CPUX86State, eip),
-                                                   sizeof(CPUX86State) - offsetof(CPUX86State, eip),
-                                                   /* isReadOnly = */ false,
-                                                   /* isUserSpecified = */ true,
-                                                   /* isSharedConcrete = */ true);
+    auto concreteRegs = addExternalObject(*initialState, ((uint8_t *) cpuEnv) + offsetof(CPUX86State, eip),
+                                          sizeof(CPUX86State) - offsetof(CPUX86State, eip),
+                                          /* isReadOnly = */ false,
+                                          /* isSharedConcrete = */ true);
 
     initialState->m_registers.initialize(initialState->addressSpace, symbolicRegs, concreteRegs);
 }
 
 void S2EExecutor::registerSharedExternalObject(S2EExecutionState *state, void *address, unsigned size) {
-    addExternalObject(*state, address, size, false,
-                      /* isUserSpecified = */ true, true, true);
+    addExternalObject(*state, address, size, false, true);
 }
 
 void S2EExecutor::registerRam(S2EExecutionState *initialState, MemoryDesc *region, uint64_t startAddress, uint64_t size,
@@ -580,15 +560,13 @@ void S2EExecutor::registerRam(S2EExecutionState *initialState, MemoryDesc *regio
 
     for (uint64_t addr = hostAddress; addr < hostAddress + size; addr += SE_RAM_OBJECT_SIZE) {
 
-        MemoryObject *mo = addExternalObject(*initialState, (void *) addr, SE_RAM_OBJECT_SIZE, false,
-                                             /* isUserSpecified = */ true, isSharedConcrete,
-                                             isSharedConcrete && !saveOnContextSwitch && StateSharedMemory);
+        auto os = addExternalObject(*initialState, (void *) addr, SE_RAM_OBJECT_SIZE, false, isSharedConcrete);
 
-        mo->isMemoryPage = true;
+        os->setMemoryPage(true);
 
         if (!isSharedConcrete) {
-            mo->isSplittable = true;
-            mo->doNotifyOnConcretenessChange = true;
+            os->setSplittable(true);
+            os->setNotifyOnConcretenessChange(true);
         }
 
 #ifdef S2E_DEBUG_MEMOBJECT_NAME
@@ -598,7 +576,7 @@ void S2EExecutor::registerRam(S2EExecutionState *initialState, MemoryDesc *regio
 #endif
 
         if (isSharedConcrete && (saveOnContextSwitch || !StateSharedMemory)) {
-            m_saveOnContextSwitch.push_back(mo);
+            m_saveOnContextSwitch.push_back(os->getKey());
         }
     }
 
@@ -628,8 +606,7 @@ void S2EExecutor::registerRam(S2EExecutionState *initialState, MemoryDesc *regio
 
 void S2EExecutor::registerDirtyMask(S2EExecutionState *state, uint64_t hostAddress, uint64_t size) {
     // Assume that dirty mask is small enough, so no need to split it in small pages
-    MemoryObject *dirtyMask = g_s2e->getExecutor()->addExternalObject(*state, (void *) hostAddress, size, false,
-                                                                      /* isUserSpecified = */ true, true, false);
+    auto dirtyMask = g_s2e->getExecutor()->addExternalObject(*state, (void *) hostAddress, size, false, true);
 
     state->m_memory.initialize(&state->addressSpace, &state->m_asCache, &state->m_active, state, state, dirtyMask);
 
@@ -824,14 +801,12 @@ void S2EExecutor::doStateSwitch(S2EExecutionState *oldState, S2EExecutionState *
             oldState->switchToSymbolic();
         }
 
-        foreach2 (it, m_saveOnContextSwitch.begin(), m_saveOnContextSwitch.end()) {
-            MemoryObject *mo = *it;
-
-            const ObjectState *oldOS = oldState->addressSpace.findObject(mo);
-            ObjectState *oldWOS = oldState->addressSpace.getWriteable(mo, oldOS);
-            uint8_t *oldStore = oldWOS->getConcreteStore();
+        for (auto &mo : m_saveOnContextSwitch) {
+            auto oldOS = oldState->addressSpace.findObject(mo.address);
+            auto oldWOS = oldState->addressSpace.getWriteable(oldOS);
+            uint8_t *oldStore = oldWOS->getConcreteBuffer();
             assert(oldStore);
-            memcpy(oldStore, (uint8_t *) mo->address, mo->size);
+            memcpy(oldStore, (uint8_t *) mo.address, mo.size);
         }
 
         // XXX: specify which state should be used
@@ -871,13 +846,12 @@ void S2EExecutor::doStateSwitch(S2EExecutionState *oldState, S2EExecutionState *
         // XXX: specify which state should be used
         s2e_kvm_restore_device_state();
 
-        foreach2 (it, m_saveOnContextSwitch.begin(), m_saveOnContextSwitch.end()) {
-            MemoryObject *mo = *it;
-            const ObjectState *newOS = newState->addressSpace.findObject(mo);
-            const uint8_t *newStore = newOS->getConcreteStore();
+        for (auto &mo : m_saveOnContextSwitch) {
+            auto newOS = newState->addressSpace.findObject(mo.address);
+            const uint8_t *newStore = newOS->getConcreteBuffer();
             assert(newStore);
-            memcpy((uint8_t *) mo->address, newStore, mo->size);
-            totalCopied += mo->size;
+            memcpy((uint8_t *) mo.address, newStore, mo.size);
+            totalCopied += mo.size;
             objectsCopied++;
         }
     }
@@ -912,8 +886,6 @@ ExecutionState *S2EExecutor::selectSearcherState(S2EExecutionState *state) {
             S2EExecutionState *s = *it;
             // Leave the current state in a zombie form to let the process exit gracefully.
             if (s != g_s2e_state) {
-                unrefS2ETb(s->m_lastS2ETb);
-                s->m_lastS2ETb = nullptr;
                 delete s;
             }
         }
@@ -972,8 +944,6 @@ S2EExecutionState *S2EExecutor::selectNextState(S2EExecutionState *state) {
     foreach2 (it, m_deletedStates.begin(), m_deletedStates.end()) {
         S2EExecutionState *s = *it;
         assert(s != newState);
-        unrefS2ETb(s->m_lastS2ETb);
-        s->m_lastS2ETb = nullptr;
         delete s;
     }
     m_deletedStates.clear();
@@ -987,7 +957,7 @@ S2EExecutionState *S2EExecutor::selectNextState(S2EExecutionState *state) {
 void S2EExecutor::prepareFunctionExecution(S2EExecutionState *state, llvm::Function *function,
                                            const std::vector<klee::ref<klee::Expr>> &args) {
     KFunction *kf;
-    typeof(kmodule->functionMap.begin()) it = kmodule->functionMap.find(function);
+    auto it = kmodule->functionMap.find(function);
     if (it != kmodule->functionMap.end()) {
         kf = it->second;
     } else {
@@ -995,13 +965,19 @@ void S2EExecutor::prepareFunctionExecution(S2EExecutionState *state, llvm::Funct
         unsigned cIndex = kmodule->constants.size();
         kf = kmodule->updateModuleWithFunction(function);
 
-        for (unsigned i = 0; i < kf->numInstructions; ++i)
+        for (unsigned i = 0; i < kf->numInstructions; ++i) {
             bindInstructionConstants(kf->instructions[i]);
+        }
 
         /* Update global functions (new functions can be added
            while creating added function) */
+        // TODO: optimize this, we shouldn't have to go over all functions again and again
         for (Module::iterator i = kmodule->module->begin(), ie = kmodule->module->end(); i != ie; ++i) {
             Function *f = &*i;
+            if (globalAddresses.find(f) != globalAddresses.end()) {
+                continue;
+            }
+
             klee::ref<klee::ConstantExpr> addr(0);
 
             // If the symbol has external weak linkage then it is implicitly
@@ -1011,7 +987,6 @@ void S2EExecutor::prepareFunctionExecution(S2EExecutionState *state, llvm::Funct
                 addr = Expr::createPointer(0);
             } else {
                 addr = Expr::createPointer((uintptr_t)(void *) f);
-                legalFunctions.insert((uint64_t)(uintptr_t)(void *) f);
             }
 
             globalAddresses.insert(std::make_pair(f, addr));
@@ -1153,39 +1128,37 @@ void S2EExecutor::updateConcreteFastPath(S2EExecutionState *state) {
     g_s2e_running_concrete = (char *) &state->m_runningConcrete;
     g_s2e_running_exception_emulation_code = (char *) &state->m_runningExceptionEmulationCode;
 
+    if (g_s2e_fast_concrete_invocation) {
+        env->generate_llvm = 0;
+    }
+
     updateClockScaling();
 }
 
 uintptr_t S2EExecutor::executeTranslationBlockKlee(S2EExecutionState *state, TranslationBlock *tb) {
-    tb_function_args[0] = env;
-    tb_function_args[1] = 0;
-    tb_function_args[2] = 0;
-
     assert(state->m_active && !state->isRunningConcrete());
     assert(state->stack.size() == 1);
     assert(state->pc == m_dummyMain->instructions);
 
     ++state->m_stats.m_statTranslationBlockSymbolic;
 
-    /* Generate LLVM code if necessary */
     if (!tb->llvm_function) {
-        se_tb_gen_llvm(env, tb);
-        assert(tb->llvm_function);
+        abort();
     }
 
-    if (tb->se_tb != state->m_lastS2ETb) {
-        unrefS2ETb(state->m_lastS2ETb);
-        state->m_lastS2ETb = static_cast<S2ETranslationBlock *>(tb->se_tb);
-        refS2ETb(state->m_lastS2ETb);
-    }
+    state->m_lastS2ETb = S2ETranslationBlockPtr(static_cast<S2ETranslationBlock *>(tb->se_tb));
 
     /* Prepare function execution */
-    prepareFunctionExecution(state, static_cast<Function *>(tb->llvm_function),
-                             std::vector<klee::ref<Expr>>(1, Expr::createPointer((uint64_t) tb_function_args)));
+    std::vector<klee::ref<Expr>> args;
+    args.push_back(klee::ConstantExpr::create((uint64_t) env, Expr::Int64));
+
+    prepareFunctionExecution(state, static_cast<Function *>(tb->llvm_function), args);
 
     if (executeInstructions(state)) {
         throw CpuExitException();
     }
+
+    state->m_lastS2ETb = nullptr;
 
     // XXX: TBs may be reused, persisted, etc.
     // The returned value stored has no meaning (could refer to
@@ -1204,7 +1177,7 @@ uintptr_t S2EExecutor::executeTranslationBlockConcrete(S2EExecutionState *state,
         S2EExternalDispatcher::restoreJmpBuf();
         throw CpuExitException();
     } else {
-        ret = tcg_libcpu_tb_exec(env, tb->tc_ptr);
+        ret = tcg_libcpu_tb_exec(env, tb->tc.ptr);
     }
 
     S2EExternalDispatcher::restoreJmpBuf();
@@ -1232,7 +1205,7 @@ uintptr_t S2EExecutor::executeTranslationBlockFast(struct CPUX86State *env1, str
             assert(g_s2e_fast_concrete_invocation);
             g_s2e_state->switchToConcrete();
         }
-        return tcg_libcpu_tb_exec(env, tb->tc_ptr);
+        return tcg_libcpu_tb_exec(env, tb->tc.ptr);
     } else {
         return executeTranslationBlockSlow(env, tb);
     }
@@ -1249,16 +1222,26 @@ uintptr_t S2EExecutor::executeTranslationBlock(S2EExecutionState *state, Transla
 
     if (state->m_startSymbexAtPC != (uint64_t) -1) {
         executeKlee |= (state->regs()->getPc() == state->m_startSymbexAtPC);
+
+        if (executeKlee && !tb->llvm_function) {
+            env->generate_llvm = 1;
+            return 0;
+        }
+
         state->m_startSymbexAtPC = (uint64_t) -1;
     }
 
     // XXX: hack to run code symbolically that may be delayed because of interrupts.
     // Size check is important to avoid expensive calls to getPc/getPid in the common case
-    if (state->m_toRunSymbolically.size() > 0 &&
-        state->m_toRunSymbolically.find(std::make_pair(state->regs()->getPc(), state->regs()->getPageDir())) !=
-            state->m_toRunSymbolically.end()) {
-        executeKlee = true;
-        state->m_toRunSymbolically.erase(std::make_pair(state->regs()->getPc(), state->regs()->getPageDir()));
+    if (state->m_toRunSymbolically.size() > 0) {
+        auto pair = std::make_pair(state->regs()->getPc(), state->regs()->getPageDir());
+        if (state->m_toRunSymbolically.find(pair) != state->m_toRunSymbolically.end()) {
+            if (!tb->llvm_function) {
+                env->generate_llvm = 1;
+                return 0;
+            }
+            state->m_toRunSymbolically.erase(pair);
+        }
     }
 
     // If the CPU state has symbolic registers, run in KLEE.
@@ -1269,6 +1252,11 @@ uintptr_t S2EExecutor::executeTranslationBlock(S2EExecutionState *state, Transla
     auto allConcrete = state->regs()->allConcrete();
     if (!allConcrete) {
         executeKlee = true;
+    }
+
+    if (executeKlee && !tb->llvm_function) {
+        env->generate_llvm = 1;
+        return 0;
     }
 
     if (executeKlee) {
@@ -1286,6 +1274,8 @@ uintptr_t S2EExecutor::executeTranslationBlock(S2EExecutionState *state, Transla
 
         return executeTranslationBlockKlee(state, tb);
     } else {
+        env->generate_llvm = 0;
+
         if (!state->isRunningConcrete())
             state->switchToConcrete();
 
@@ -1306,8 +1296,9 @@ void S2EExecutor::cleanupTranslationBlock(S2EExecutionState *state) {
         return;
     }
 
-    while (state->stack.size() != 1)
+    while (state->stack.size() != 1) {
         state->popFrame();
+    }
 
     state->prevPC = 0;
     state->pc = m_dummyMain->instructions;
@@ -1338,8 +1329,9 @@ klee::ref<klee::Expr> S2EExecutor::executeFunction(S2EExecutionState *state, llv
     }
 
     klee::ref<Expr> resExpr(0);
-    if (function->getReturnType()->getTypeID() != Type::VoidTyID)
+    if (function->getReturnType()->getTypeID() != Type::VoidTyID) {
         resExpr = state->getDestCell(state->pc).value;
+    }
 
     return resExpr;
 }
@@ -1574,13 +1566,12 @@ void S2EExecutor::notifyBranch(ExecutionState &state) {
      * These objects must be saved before the cpu state, because
      * getWritable() may modify the TLB.
      */
-    foreach2 (it, m_saveOnContextSwitch.begin(), m_saveOnContextSwitch.end()) {
-        MemoryObject *mo = *it;
-        const ObjectState *os = s2eState->addressSpace.findObject(mo);
-        ObjectState *wos = s2eState->addressSpace.getWriteable(mo, os);
-        uint8_t *store = wos->getConcreteStore();
+    for (auto &mo : m_saveOnContextSwitch) {
+        auto os = s2eState->addressSpace.findObject(mo.address);
+        auto wos = s2eState->addressSpace.getWriteable(os);
+        uint8_t *store = wos->getConcreteBuffer();
         assert(store);
-        memcpy(store, (uint8_t *) mo->address, mo->size);
+        memcpy(store, (uint8_t *) mo.address, mo.size);
     }
 
 #if defined(SE_ENABLE_PHYSRAM_TLB)
@@ -1790,63 +1781,14 @@ bool S2EExecutor::resumeState(S2EExecutionState *state) {
     return false;
 }
 
-void S2EExecutor::refLLVMTb(llvm::Function *tb) {
-    assert(tb);
-    m_llvmBlockReferences[tb]++;
+S2ETranslationBlock *S2EExecutor::allocateS2ETb() {
+    S2ETranslationBlockPtr se_tb(new S2ETranslationBlock);
+    m_s2eTbs.insert(se_tb);
+    return se_tb.get();
 }
 
-void S2EExecutor::unrefLLVMTb(llvm::Function *tb) {
-    assert(tb);
-    LLVMTbReferences::iterator it = m_llvmBlockReferences.find(tb);
-    assert(it != m_llvmBlockReferences.end());
-    assert((*it).second > 0);
-
-    if (--(*it).second) {
-        return;
-    }
-
-    m_llvmBlockReferences.erase(it);
-
-    S2EExternalDispatcher *s2eDispatcher = static_cast<S2EExternalDispatcher *>(externalDispatcher);
-    s2eDispatcher->removeFunction(tb);
-
-    if (KeepLLVMFunctions) {
-        return;
-    }
-
-    // We may have generated LLVM code that was never executed
-    if (kmodule->functionMap.find(tb) != kmodule->functionMap.end()) {
-        kmodule->removeFunction(tb);
-    } else {
-        tb->eraseFromParent();
-    }
-}
-
-void S2EExecutor::refS2ETb(S2ETranslationBlock *se_tb) {
-    se_tb->refCount++;
-    if (se_tb->llvm_function) {
-        refLLVMTb(se_tb->llvm_function);
-    }
-}
-
-void S2EExecutor::unrefS2ETb(S2ETranslationBlock *se_tb) {
-    if (!se_tb) {
-        return;
-    }
-
-    if (--se_tb->refCount) {
-        return;
-    }
-
-    if (se_tb->llvm_function) {
-        unrefLLVMTb(se_tb->llvm_function);
-    }
-
-    foreach2 (it, se_tb->executionSignals.begin(), se_tb->executionSignals.end()) {
-        delete static_cast<ExecutionSignal *>(*it);
-    }
-
-    delete se_tb;
+void S2EExecutor::flushS2ETBs() {
+    m_s2eTbs.clear();
 }
 
 void S2EExecutor::updateStats(S2EExecutionState *state) {
@@ -1872,8 +1814,10 @@ void s2e_create_initial_state() {
 void s2e_initialize_execution(int execute_always_klee) {
     g_s2e->getExecutor()->initializeExecution(g_s2e_state, execute_always_klee);
     // XXX: move it to better place (signal handler for this?)
-    tcg_register_helper((void *) &s2e_tcg_execution_handler, "s2e_tcg_execution_handler");
-    tcg_register_helper((void *) &s2e_tcg_custom_instruction_handler, "s2e_tcg_custom_instruction_handler");
+    tcg_register_helper((void *) &s2e_tcg_execution_handler, "s2e_tcg_execution_handler", 2, sizeof(void *),
+                        sizeof(uint64_t));
+    tcg_register_helper((void *) &s2e_tcg_custom_instruction_handler, "s2e_tcg_custom_instruction_handler", 1,
+                        sizeof(uint64_t));
 }
 
 void s2e_register_cpu(CPUX86State *cpu_env) {
@@ -1909,10 +1853,7 @@ void s2e_set_cc_op_eflags(struct CPUX86State *env1) {
 }
 
 void s2e_switch_to_symbolic(void *retaddr) {
-    TranslationBlock *tb = tb_find_pc((uintptr_t) retaddr);
-    assert(tb);
-    cpu_restore_state(tb, env, (uintptr_t) retaddr);
-
+    cpu_restore_state(env, (uintptr_t) retaddr);
     g_s2e_state->jumpToSymbolic();
 }
 
@@ -1924,37 +1865,19 @@ int se_is_vmem_symbolic(uint64_t vmem, unsigned size) {
     return g_s2e_state->mem()->symbolic(vmem, size);
 }
 
-void se_tb_alloc(TranslationBlock *tb) {
-    S2ETranslationBlock *se_tb = new S2ETranslationBlock;
-
-    se_tb->llvm_function = nullptr;
-    se_tb->refCount = 1;
-
-    /* Push one copy of a signal to use it as a cache */
-    se_tb->executionSignals.push_back(new s2e::ExecutionSignal);
-
-    tb->se_tb_next[0] = 0;
-    tb->se_tb_next[1] = 0;
-
-    tb->se_tb = se_tb;
+void *se_tb_alloc(void) {
+    return g_s2e->getExecutor()->allocateS2ETb();
 }
 
-int s2e_is_tb_instrumented(TranslationBlock *tb) {
-    S2ETranslationBlock *se_tb = static_cast<S2ETranslationBlock *>(tb->se_tb);
-    unsigned size = se_tb->executionSignals.size();
-    return size > 1;
+int s2e_is_tb_instrumented(void *se_tb) {
+    auto tb = static_cast<S2ETranslationBlock *>(se_tb);
+    return tb->executionSignals.size() > 1;
 }
 
-void s2e_set_tb_function(TranslationBlock *tb) {
-    S2ETranslationBlock *se_tb = static_cast<S2ETranslationBlock *>(tb->se_tb);
-    se_tb->llvm_function = static_cast<Function *>(tb->llvm_function);
-    g_s2e->getExecutor()->refLLVMTb(se_tb->llvm_function);
-}
-
-void se_tb_free(TranslationBlock *tb) {
-    S2ETranslationBlock *se_tb = static_cast<S2ETranslationBlock *>(tb->se_tb);
-    g_s2e->getExecutor()->unrefS2ETb(se_tb);
-    tb->se_tb = nullptr;
+// XXX: this assumes that libcpu never deletes generated LLVM functions
+void s2e_set_tb_function(void *se_tb, void *llvmFunction) {
+    auto tb = static_cast<S2ETranslationBlock *>(se_tb);
+    tb->translationBlock = static_cast<llvm::Function *>(llvmFunction);
 }
 
 void s2e_flush_tb_cache() {
@@ -1965,12 +1888,14 @@ void s2e_flush_tb_cache() {
         if (!FlushTBsOnStateSwitch) {
             g_s2e->getWarningsStream() << "Flushing TB cache with more than 1 state. Dangerous. Expect crashes.\n";
         }
+
+        g_s2e->getExecutor()->flushS2ETBs();
     }
 }
 
-void s2e_increment_tb_stats(TranslationBlock *tb) {
+void s2e_increment_tb_stats(void *se_tb) {
     ++klee::stats::availableTranslationBlocks;
-    if (tb->instrumented) {
+    if (s2e_is_tb_instrumented(se_tb)) {
         ++klee::stats::availableTranslationBlocksInstrumented;
     }
 }
@@ -2004,4 +1929,8 @@ uint64_t s2e_read_mem_io_vaddr(int masked) {
 
 void s2e_kill_state(const char *message) {
     g_s2e->getExecutor()->terminateState(*g_s2e_state, message);
+}
+
+void s2e_print_instructions(bool val) {
+    PrintLLVMInstructions = val;
 }

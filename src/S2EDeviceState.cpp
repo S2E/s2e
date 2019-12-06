@@ -138,17 +138,15 @@ int S2EDeviceState::writeSector(struct S2EBlockDevice *bs, int64_t sector, const
 
     while (nb_sectors > 0) {
         uintptr_t address = (uintptr_t) bstart + sector * SECTOR_SIZE;
-        ObjectPair op = m_deviceState.findObject(address);
-        if (op.first == nullptr) {
-            MemoryObject *mo = new MemoryObject(address, SECTOR_SIZE, false, false, false, nullptr);
-            ObjectState *os = new ObjectState(mo);
-            m_deviceState.bindObject(mo, os);
-            op.first = mo;
-            op.second = os;
+        auto os = m_deviceState.findObject(address);
+        if (!os) {
+            auto mo = ObjectState::allocate(address, SECTOR_SIZE, true);
+            m_deviceState.bindObject(mo);
+            os = mo;
         }
 
-        ObjectState *os = m_deviceState.getWriteable(op.first, op.second);
-        memcpy(os->getConcreteStore(false), buf, SECTOR_SIZE);
+        auto osw = m_deviceState.getWriteable(os);
+        memcpy(osw->getConcreteBuffer(false), buf, SECTOR_SIZE);
         buf += SECTOR_SIZE;
         --nb_sectors;
         ++sector;
@@ -165,12 +163,12 @@ int S2EDeviceState::readSector(struct S2EBlockDevice *bs, int64_t sector, uint8_
 
     while (nb_sectors > 0) {
         uintptr_t address = (uintptr_t) bstart + sector * SECTOR_SIZE;
-        ObjectPair op = m_deviceState.findObject(address);
-        if (!op.first) {
+        auto os = m_deviceState.findObject(address);
+        if (!os) {
             return readCount;
         }
 
-        memcpy(buf, op.second->getConcreteStore(false), SECTOR_SIZE);
+        memcpy(buf, os->getConcreteBuffer(false), SECTOR_SIZE);
         buf += SECTOR_SIZE;
         ++readCount;
         --nb_sectors;

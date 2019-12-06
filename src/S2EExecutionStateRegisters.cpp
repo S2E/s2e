@@ -26,20 +26,20 @@ namespace s2e {
 
 using namespace klee;
 
-MemoryObject *S2EExecutionStateRegisters::s_concreteRegs = nullptr;
-MemoryObject *S2EExecutionStateRegisters::s_symbolicRegs = nullptr;
+ObjectKey S2EExecutionStateRegisters::s_concreteRegs;
+ObjectKey S2EExecutionStateRegisters::s_symbolicRegs;
 
-void S2EExecutionStateRegisters::initialize(klee::AddressSpace &addressSpace, klee::MemoryObject *symbolicRegs,
-                                            klee::MemoryObject *concreteRegs) {
-    assert(!s_concreteRegs && !s_symbolicRegs);
-    s_concreteRegs = concreteRegs;
-    s_symbolicRegs = symbolicRegs;
+void S2EExecutionStateRegisters::initialize(klee::AddressSpace &addressSpace, const klee::ObjectStatePtr &symbolicRegs,
+                                            const klee::ObjectStatePtr &concreteRegs) {
+    assert(!s_concreteRegs.address && !s_symbolicRegs.address);
+    s_concreteRegs = concreteRegs->getKey();
+    s_symbolicRegs = symbolicRegs->getKey();
 
-    s_concreteRegs->setName("ConcreteCpuRegisters");
-    s_symbolicRegs->setName("SymbolicCpuRegisters");
+    symbolicRegs->setName("SymbolicCpuRegisters");
+    concreteRegs->setName("ConcreteCpuRegisters");
 
     /* The fast path in the cpu loop relies on this */
-    s_symbolicRegs->doNotifyOnConcretenessChange = true;
+    symbolicRegs->setNotifyOnConcretenessChange(true);
 
     update(addressSpace, nullptr, nullptr, nullptr, nullptr);
 }
@@ -47,13 +47,11 @@ void S2EExecutionStateRegisters::initialize(klee::AddressSpace &addressSpace, kl
 void S2EExecutionStateRegisters::update(klee::AddressSpace &addressSpace, const bool *active,
                                         const bool *running_concrete, klee::IAddressSpaceNotification *notification,
                                         klee::IConcretizer *concretizer) {
-    const ObjectState *concreteState = addressSpace.findObject(s_concreteRegs);
-    const ObjectState *symbolicState = addressSpace.findObject(s_symbolicRegs);
-    addressSpace.addCachedObject(s_concreteRegs, concreteState);
-    addressSpace.addCachedObject(s_symbolicRegs, symbolicState);
+    auto concreteState = addressSpace.findObject(s_concreteRegs.address);
+    auto symbolicState = addressSpace.findObject(s_symbolicRegs.address);
 
-    m_symbolicRegs = addressSpace.getWriteable(s_symbolicRegs, symbolicState);
-    m_concreteRegs = addressSpace.getWriteable(s_concreteRegs, concreteState);
+    m_symbolicRegs = addressSpace.getWriteable(symbolicState);
+    m_concreteRegs = addressSpace.getWriteable(concreteState);
 
     if (active && running_concrete) {
         m_runningConcrete = running_concrete;
@@ -70,10 +68,10 @@ void S2EExecutionStateRegisters::copySymbRegs(bool toNative) {
 
     if (toNative) {
         assert(!*m_runningConcrete);
-        memcpy((void *) s_symbolicRegs->address, m_symbolicRegs->getConcreteStore(true), m_symbolicRegs->size);
+        memcpy((void *) s_symbolicRegs.address, m_symbolicRegs->getConcreteBuffer(true), m_symbolicRegs->getSize());
     } else {
         assert(*m_runningConcrete);
-        memcpy(m_symbolicRegs->getConcreteStore(true), (void *) s_symbolicRegs->address, m_symbolicRegs->size);
+        memcpy(m_symbolicRegs->getConcreteBuffer(true), (void *) s_symbolicRegs.address, m_symbolicRegs->getSize());
     }
 }
 
@@ -81,21 +79,22 @@ void S2EExecutionStateRegisters::copySymbRegs(bool toNative) {
 // It's gonna crash the system. We should really fix that.
 CPUX86State *S2EExecutionStateRegisters::getCpuState() const {
     CPUX86State *cpu = *m_active
-                           ? (CPUX86State *) (s_concreteRegs->address - offsetof(CPUX86State, eip))
-                           : (CPUX86State *) (m_concreteRegs->getConcreteStore(true) - offsetof(CPUX86State, eip));
+                           ? (CPUX86State *) (s_concreteRegs.address - offsetof(CPUX86State, eip))
+                           : (CPUX86State *) (m_concreteRegs->getConcreteBuffer(true) - offsetof(CPUX86State, eip));
 
     return cpu;
 }
 
-void S2EExecutionStateRegisters::addressSpaceChange(const klee::MemoryObject *mo, const klee::ObjectState *oldState,
-                                                    klee::ObjectState *newState) {
-    if (mo == s_concreteRegs) {
+void S2EExecutionStateRegisters::addressSpaceChange(const klee::ObjectKey &key,
+                                                    const klee::ObjectStateConstPtr &oldState,
+                                                    const klee::ObjectStatePtr &newState) {
+    if (key == s_concreteRegs) {
         // It may happen that an execution state is copied in other places
         // than fork, in which case clone() is not called and the state
         // is left with stale references to memory objects. We patch these
         // objects here.
         m_concreteRegs = newState;
-    } else if (mo == s_symbolicRegs) {
+    } else if (key == s_symbolicRegs) {
         m_symbolicRegs = newState;
     }
 }
@@ -139,7 +138,7 @@ bool S2EExecutionStateRegisters::readSymbolicRegion(unsigned offset, void *_buf,
     }
 
     /* Deal with the symbolic case */
-    ObjectState *wos = m_symbolicRegs;
+    auto wos = m_symbolicRegs;
     bool oldAllConcrete = wos->isAllConcrete();
 
     // XXX: deal with alignment and overlaps?
@@ -171,7 +170,7 @@ bool S2EExecutionStateRegisters::readSymbolicRegion(unsigned offset, void *_buf,
         }
 
         bool newAllConcrete = wos->isAllConcrete();
-        if ((oldAllConcrete != newAllConcrete) && (wos->getObject()->doNotifyOnConcretenessChange)) {
+        if ((oldAllConcrete != newAllConcrete) && (wos->notifyOnConcretenessChange())) {
             m_notification->addressSpaceSymbolicStatusChange(wos, newAllConcrete);
         }
 
@@ -190,7 +189,7 @@ bool S2EExecutionStateRegisters::readSymbolicRegion(unsigned offset, void *_buf,
 
 void S2EExecutionStateRegisters::writeSymbolicRegion(unsigned offset, const void *_buf, unsigned size) {
     assert(*m_active);
-    assert(((uint64_t) env) == s_symbolicRegs->address);
+    assert(((uint64_t) env) == s_symbolicRegs.address);
     assert(offset + size <= CPU_OFFSET(eip));
 
     const uint8_t *buf = (const uint8_t *) _buf;
@@ -200,14 +199,14 @@ void S2EExecutionStateRegisters::writeSymbolicRegion(unsigned offset, const void
         small_memcpy(((uint8_t *) env) + offset, buf, size);
     } else {
 
-        ObjectState *wos = m_symbolicRegs;
+        auto wos = m_symbolicRegs;
         bool oldAllConcrete = wos->isAllConcrete();
 
         for (unsigned i = 0; i < size; ++i)
             wos->write8(offset + i, buf[i]);
 
         bool newAllConcrete = wos->isAllConcrete();
-        if ((oldAllConcrete != newAllConcrete) && (wos->getObject()->doNotifyOnConcretenessChange)) {
+        if ((oldAllConcrete != newAllConcrete) && (wos->notifyOnConcretenessChange())) {
             m_notification->addressSpaceSymbolicStatusChange(wos, newAllConcrete);
         }
     }
@@ -231,7 +230,7 @@ ref<Expr> S2EExecutionStateRegisters::readSymbolicRegion(unsigned offset, Expr::
     } else {
         /* XXX: should we check getSymbolicRegisterMask ? */
         uint64_t ret = 0;
-        small_memcpy((void *) &ret, (void *) (s_symbolicRegs->address + offset), Expr::getMinBytesForWidth(width));
+        small_memcpy((void *) &ret, (void *) (s_symbolicRegs.address + offset), Expr::getMinBytesForWidth(width));
         return ConstantExpr::create(ret, width);
     }
 }
@@ -247,7 +246,7 @@ void S2EExecutionStateRegisters::writeSymbolicRegion(unsigned offset, klee::ref<
         m_symbolicRegs->write(offset, value);
 
         bool newAllConcrete = m_symbolicRegs->isAllConcrete();
-        if ((oldAllConcrete != newAllConcrete) && (m_symbolicRegs->getObject()->doNotifyOnConcretenessChange)) {
+        if ((oldAllConcrete != newAllConcrete) && (m_symbolicRegs->notifyOnConcretenessChange())) {
             m_notification->addressSpaceSymbolicStatusChange(m_symbolicRegs, newAllConcrete);
         }
 
@@ -258,7 +257,7 @@ void S2EExecutionStateRegisters::writeSymbolicRegion(unsigned offset, klee::ref<
                                            " in concrete mode. TODO: fix it by fast_longjmping to main loop");
         ConstantExpr *ce = cast<ConstantExpr>(value);
         uint64_t v = ce->getZExtValue(64);
-        small_memcpy((void *) (s_symbolicRegs->address + offset), (void *) &v,
+        small_memcpy((void *) (s_symbolicRegs.address + offset), (void *) &v,
                      Expr::getMinBytesForWidth(ce->getWidth()));
     }
 }
@@ -275,7 +274,7 @@ void S2EExecutionStateRegisters::writeSymbolicRegionUnsafe(unsigned offset, klee
     m_symbolicRegs->write(offset, value);
 
     bool newAllConcrete = m_symbolicRegs->isAllConcrete();
-    if ((oldAllConcrete != newAllConcrete) && (m_symbolicRegs->getObject()->doNotifyOnConcretenessChange)) {
+    if ((oldAllConcrete != newAllConcrete) && (m_symbolicRegs->notifyOnConcretenessChange())) {
         m_notification->addressSpaceSymbolicStatusChange(m_symbolicRegs, newAllConcrete);
     }
 }
@@ -290,9 +289,9 @@ void S2EExecutionStateRegisters::readConcreteRegion(unsigned offset, void *buffe
 
     const uint8_t *address;
     if (*m_active) {
-        address = (uint8_t *) s_concreteRegs->address - CPU_OFFSET(eip);
+        address = (uint8_t *) s_concreteRegs.address - CPU_OFFSET(eip);
     } else {
-        address = m_concreteRegs->getConcreteStore();
+        address = m_concreteRegs->getConcreteBuffer();
         assert(address);
         address -= CPU_OFFSET(eip);
     }
@@ -308,9 +307,9 @@ void S2EExecutionStateRegisters::writeConcreteRegion(unsigned offset, const void
 
     uint8_t *address;
     if (*m_active) {
-        address = (uint8_t *) s_concreteRegs->address - CPU_OFFSET(eip);
+        address = (uint8_t *) s_concreteRegs.address - CPU_OFFSET(eip);
     } else {
-        address = m_concreteRegs->getConcreteStore();
+        address = m_concreteRegs->getConcreteBuffer();
         assert(address);
         address -= CPU_OFFSET(eip);
     }

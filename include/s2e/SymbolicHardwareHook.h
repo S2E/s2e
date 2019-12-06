@@ -49,6 +49,10 @@ public:
         m_writeCb = nullptr;
     }
 
+    bool hasHook() const {
+        return m_isSymbolic != nullptr;
+    }
+
     inline bool symbolic(uint16_t port) const {
         if (m_isSymbolic) {
             return m_isSymbolic(port, m_opaque);
@@ -96,6 +100,10 @@ public:
         m_isSymbolic = nullptr;
         m_readCb = nullptr;
         m_writeCb = nullptr;
+    }
+
+    bool hasHook() const {
+        return m_isSymbolic != nullptr;
     }
 
     inline bool symbolic(struct MemoryDesc *mr, uint64_t physAddress, uint64_t size) const {
