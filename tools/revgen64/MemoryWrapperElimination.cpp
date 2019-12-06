@@ -50,11 +50,11 @@ static bool GetLeafGpRegisterLoads(Instruction *I, SmallVector<LoadInst *, 1> &l
 
 void MemoryWrapperElimination::eliminateWrappers(const CallSites &cs) {
     for (auto const &ci : cs) {
-        Value *ptr = ci->getOperand(0);
+        Value *ptr = ci->getOperand(1);
 
         MDNode *metadata = ci->getMetadata("s2e.pc");
 
-        bool isLoad = ci->getNumOperands() == 3;
+        bool isLoad = ci->getNumOperands() == 4;
 
         if (isLoad) {
             Type *memTy = ci->getCalledFunction()->getReturnType()->getPointerTo();
@@ -66,7 +66,7 @@ void MemoryWrapperElimination::eliminateWrappers(const CallSites &cs) {
                 load->setMetadata("s2e.pc", metadata);
             }
         } else {
-            Value *val = ci->getOperand(1);
+            Value *val = ci->getOperand(2);
             Type *memTy = val->getType()->getPointerTo();
             LOGDEBUG(*ci << " - " << *ptr << " - " << *memTy << "\n");
             ptr = new IntToPtrInst(ptr, memTy, "", ci);

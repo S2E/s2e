@@ -128,15 +128,10 @@ void RegisterPromotion::createAllocas(Function &F, GEPs &geps, Calls &calls, Ret
             bool doRestore = true;
 
             Function *f = ci->getCalledFunction();
-            const Translator::RegisterMask *mask = Translator::getRegisterMaskForHelper(f);
-            if (mask) {
-                doSave = mask->rmask & bitmask;
-                doRestore = mask->wmask & bitmask;
-            } else {
-                // XXX: must figure out the calling convention
-                // Only save esp
-                // doSave = Translator::isGpRegister(gep, X86Translator::REG_ESP);
-            }
+            auto mask = Translator::getRegisterMaskForHelper(f);
+
+            doSave = mask.rmask & bitmask;
+            doRestore = mask.wmask & bitmask;
 
             if (doSave) {
                 Instruction *li = new LoadInst(alloca, "", ci);

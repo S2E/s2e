@@ -187,17 +187,18 @@ void RevGen::injectSections() {
     for (auto const &desc : sections) {
         LOGDEBUG(" Section " << desc.name << " va=" << hexval(desc.start) << " size=" << hexval(desc.size) << "\n");
 
-        uint8_t *buf = new uint8_t[desc.size];
+        uint8_t *buf = new uint8_t[desc.virtualSize];
+        memset(buf, 0, desc.virtualSize);
 
         ssize_t ret = m_binary->read(buf, desc.size, desc.start);
         if (ret != (ssize_t) desc.size) {
             LOGERROR("Could not read data from section " << desc.name << " (" << ret << ")\n");
         } else {
-            Constant *s = injectDataSection(desc.name, desc.start, buf, desc.size);
+            Constant *s = injectDataSection(desc.name, desc.start, buf, desc.virtualSize);
             sectionsInits.push_back(s);
 
             sectionAddresses.push_back(ConstantInt::get(ctx, APInt(64, desc.start)));
-            sectionSizes.push_back(ConstantInt::get(ctx, APInt(64, desc.size)));
+            sectionSizes.push_back(ConstantInt::get(ctx, APInt(64, desc.virtualSize)));
             ++count;
         }
 
@@ -239,10 +240,22 @@ void RevGen::injectFunctionPointers() {
     InjectArray(m, "revgen_function_addresses", "__revgen_function_addresses", functionAddresses);
 }
 
+llvm::Function *RevGen::createLLVMPrototype(BinaryFunction *bf) {
+    SmallVector<Type *, 0> args;
+    Module *m = m_translator->getModule();
+
+    auto f = Function::Create(m_translator->getTbType(), Function::ExternalLinkage, bf->getName(), m);
+
+    // Avoid naming collisions with libc
+    std::stringstream ss;
+    ss << "__revgen_" << f->getName().str() << "_" << std::hex << bf->getEntryBlock()->getStartPc();
+    f->setName(ss.str());
+    return f;
+}
+
 void RevGen::createFunctionPrototypes() {
     LOGDEBUG("Creating function prototypes\n");
 
-    Module *m = m_translator->getModule();
     uint64_t entryPoint = m_binary->getEntryPoint();
     bool foundEntryPoint = false;
 
@@ -262,18 +275,7 @@ void RevGen::createFunctionPrototypes() {
             }
             foundEntryPoint = true;
         } else {
-            SmallVector<Type *, 0> args;
-
-            Type *RetTy = IntegerType::get(m->getContext(), 64);
-            FunctionType *FTy = FunctionType::get(RetTy, false);
-            f = Function::Create(FTy, Function::ExternalLinkage, bf->getName(), m);
-
-            /**
-             * Avoid naming collisions with libc
-             */
-            std::stringstream ss;
-            ss << "__revgen_" << f->getName().str() << "_" << std::hex << bf->getEntryBlock()->getStartPc();
-            f->setName(ss.str());
+            f = createLLVMPrototype(bf);
         }
 
         m_llvmFunctions[bf->getEntryBlock()->getStartPc()] = f;
@@ -381,7 +383,10 @@ void RevGen::generateFunctionCall(TranslatedBlock *tb) {
 
         Function *targetTb = m_llvmFunctions[target];
 
-        CallInst::Create(targetTb, "", ri);
+        llvm::SmallVector<Value *, 1> argValues;
+        argValues.push_back(&*tbf->arg_begin());
+
+        CallInst::Create(targetTb, ArrayRef<Value *>(argValues), "", ri);
     } else {
         Function *cm = getCallMarker();
         assert(ret.size() == 1);
@@ -475,7 +480,10 @@ void RevGen::translate(const llvm::BinaryFunctions &functions, const llvm::Binar
     m_functions = functions;
     m_bbs = bbs;
 
-    createFunctionPrototypes();
+    std::unordered_map<uint64_t, BinaryFunction *> fcnMap;
+    for (auto fcn : functions) {
+        fcnMap[fcn->getEntryBlock()->getStartPc()] = fcn;
+    }
 
     for (auto const &bb : m_bbs) {
         TranslatedBlock *tb = translate(bb->getStartPc(), bb->getEndPc());
@@ -483,6 +491,44 @@ void RevGen::translate(const llvm::BinaryFunctions &functions, const llvm::Binar
             m_tbs[tb->getAddress()] = tb;
         }
     }
+
+    // Create dummy functions if there are calls to functions that are
+    // not in the input CFG.
+    for (const auto p : m_tbs) {
+        auto tb = p.second;
+
+        if (tb->getType() != BB_CALL) {
+            continue;
+        }
+
+        uint64_t target = tb->getSuccessor(0);
+        if (fcnMap.find(target) != fcnMap.end()) {
+            continue;
+        }
+
+        const auto tit = m_tbs.find(target);
+        if (tit == m_tbs.end()) {
+            LOGWARNING("Could not find entry point " << hexval(target) << " for unknown function");
+            continue;
+        }
+
+        auto ttb = tit->second;
+
+        std::stringstream ss;
+        ss << "__unk_fcn_" << hexval(target);
+        BinaryFunction *newFcn = new BinaryFunction(ss.str());
+
+        auto start = ttb->getAddress();
+        auto end = ttb->getLastAddress();
+        auto size = ttb->getSize();
+        BinaryBasicBlock *newBb = new BinaryBasicBlock(start, end, size);
+        newFcn->add(newBb);
+        newFcn->setEntryBlock(newBb);
+        m_functions.insert(newFcn);
+        fcnMap[target] = newFcn;
+    }
+
+    createFunctionPrototypes();
 
     /* We need all tbs to be generated before patching them */
     for (auto const &_tb : m_tbs) {
@@ -563,6 +609,10 @@ Function *RevGen::reconstructFunction(BinaryFunction *bf) {
     uint64_t address = bf->getEntryBlock()->getStartPc();
     Function *f = m_llvmFunctions[address];
     assert(f);
+
+    if (!f->empty()) {
+        LOGERROR(*f);
+    }
     assert(f->empty());
 
     /* Create initial BB */
@@ -575,14 +625,7 @@ Function *RevGen::reconstructFunction(BinaryFunction *bf) {
     IRBuilder<> builder(ctx);
     builder.SetInsertPoint(entryBlock);
 
-    /* Load the pointer to the global cpu state */
-    GlobalVariable *v = m->getGlobalVariable("myenv");
-    if (!v) {
-        LOGERROR("myenv global var is not present in the bitcode library\n");
-        exit(-1);
-    }
-
-    Value *arg = builder.Insert(GetElementPtrInst::Create(nullptr, v, ConstantInt::get(ctx, APInt(64, 0))));
+    Value *arg = &*f->arg_begin();
 
     SmallVector<Value *, 1> args;
     args.push_back(arg);
@@ -665,8 +708,8 @@ Function *RevGen::reconstructFunction(BinaryFunction *bf) {
                     Value *cond = builder.CreateICmpEQ(callResult, ci);
                     builder.CreateCondBr(cond, trueBB, falseBB);
                 } else {
-                    LOGWARNING("Basic block with conditional branch" << hexval(tb->getAddress())
-                                                                     << " is missing one or more successors\n");
+                    LOGWARNING("Basic block with conditional branch " << hexval(tb->getAddress())
+                                                                      << " is missing one or more successors\n");
                     /* TODO: try to handle case where one target is valid */
                     generateIncompleteMarker(builder, tb->getAddress() + tb->getSize());
                     builder.CreateRet(callResult);
@@ -693,6 +736,11 @@ void RevGen::writeBitcodeFile(const std::string &bitcodeFile) {
 
     // Output the bitcode file to stdout
     llvm::WriteBitcodeToFile(module, o);
+}
+
+// This function can be called from GDB for debugging
+void PrintValue(llvm::Value *v) {
+    llvm::outs() << *v << "\n";
 }
 
 int main(int argc, char **argv) {

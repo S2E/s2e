@@ -6,6 +6,7 @@
 /// Licensed under the Cyberhaven Research License Agreement.
 ///
 
+#include <llvm-c/Core.h>
 #include <llvm/Bitcode/ReaderWriter.h>
 #include <llvm/IR/Instructions.h>
 #include <llvm/IR/Verifier.h>
@@ -40,8 +41,6 @@ LogKey TranslatedBlock::TAG = LogKey("TranslatedBlock");
 LogKey Translator::TAG = LogKey("Translator");
 LogKey X86Translator::TAG = LogKey("X86Translator");
 
-Translator::HelperMasks Translator::s_helperMasks;
-
 /*****************************************************************************
  * The following functions are invoked by the QEMU translator to read code.
  * This library redirects them to the binary file
@@ -56,60 +55,59 @@ template <typename T> static T read_binary(off64_t offset) {
 
 extern "C" {
 
-int ldsb_code(target_ulong ptr) {
+int cpu_ldsb_code(CPUX86State *env, target_ulong ptr) {
     return (int) read_binary<int8_t>(ptr);
 }
 
-uint32_t ldub_code(target_ulong ptr) {
+uint32_t cpu_ldub_code(CPUX86State *env, target_ulong ptr) {
     return read_binary<uint8_t>(ptr);
 }
 
-uint32_t lduw_code(target_ulong ptr) {
+uint32_t cpu_lduw_code(CPUX86State *env, target_ulong ptr) {
     return read_binary<uint16_t>(ptr);
 }
 
-int ldsw_code(target_ulong ptr) {
+int cpu_ldsw_code(CPUX86State *env, target_ulong ptr) {
     return (int) (int16_t) read_binary<uint16_t>(ptr);
-    ;
 }
 
-uint32_t ldl_code(target_ulong ptr) {
+uint32_t cpu_ldl_code(CPUX86State *env, target_ulong ptr) {
     return read_binary<uint32_t>(ptr);
 }
 
-uint64_t ldq_code(target_ulong ptr) {
+uint64_t cpu_ldq_code(CPUX86State *env, target_ulong ptr) {
     return read_binary<uint64_t>(ptr);
 }
 
-uint8_t __ldb_mmu_symb(target_ulong addr, int mmu_idx) {
+uint8_t helper_ldb_mmu_symb(CPUX86State *env, target_ulong addr, int mmu_idx, void *retaddr) {
     abort();
 }
 
-void __stb_mmu_symb(target_ulong addr, uint8_t val, int mmu_idx) {
+void helper_stb_mmu_symb(CPUX86State *env, target_ulong addr, uint8_t val, int mmu_idx, void *retaddr) {
     abort();
 }
 
-uint16_t __ldw_mmu_symb(target_ulong addr, int mmu_idx) {
+uint16_t helper_ldw_mmu_symb(CPUX86State *env, target_ulong addr, int mmu_idx, void *retaddr) {
     abort();
 }
 
-void __stw_mmu_symb(target_ulong addr, uint16_t val, int mmu_idx) {
+void helper_stw_mmu_symb(CPUX86State *env, target_ulong addr, uint16_t val, int mmu_idx, void *retaddr) {
     abort();
 }
 
-uint32_t __ldl_mmu_symb(target_ulong addr, int mmu_idx) {
+uint32_t helper_ldl_mmu_symb(CPUX86State *env, target_ulong addr, int mmu_idx, void *retaddr) {
     abort();
 }
 
-void __stl_mmu_symb(target_ulong addr, uint32_t val, int mmu_idx) {
+void helper_stl_mmu_symb(CPUX86State *env, target_ulong addr, uint32_t val, int mmu_idx, void *retaddr) {
     abort();
 }
 
-uint64_t __ldq_mmu_symb(target_ulong addr, int mmu_idx) {
+uint64_t helper_ldq_mmu_symb(CPUX86State *env, target_ulong addr, int mmu_idx, void *retaddr) {
     abort();
 }
 
-void __stq_mmu_symb(target_ulong addr, uint64_t val, int mmu_idx) {
+void helper_stq_mmu_symb(CPUX86State *env, target_ulong addr, uint64_t val, int mmu_idx, void *retaddr) {
     abort();
 }
 }
@@ -130,6 +128,10 @@ void TranslatedBlock::print(llvm::raw_ostream &os) const {
 
 using namespace llvm;
 
+extern "C" {
+void optimize_flags_init(void);
+}
+
 Translator::Translator(const std::string &bitcodeLibrary, const std::shared_ptr<vmi::ExecutableFile> binary) {
     m_binary = binary;
     s_currentBinary = binary;
@@ -139,82 +141,31 @@ Translator::Translator(const std::string &bitcodeLibrary, const std::shared_ptr<
         return;
     }
 
-    cpu_gen_init();
-    tcg_llvm_ctx = tcg_llvm_initialize();
-    tcg_prologue_init(&tcg_ctx);
-
-    // Read the helper bitcode file
-    auto ErrorOrMemBuff = MemoryBuffer::getFile(bitcodeLibrary);
-    if (std::error_code EC = ErrorOrMemBuff.getError()) {
-        LOGERROR("Reading " << bitcodeLibrary << " failed!\n");
-        return;
-    }
-
-    auto ErrorOrMod = parseBitcodeFile(ErrorOrMemBuff.get()->getMemBufferRef(), tcg_llvm_ctx->getLLVMContext());
-
-    // Link in the helper bitcode file
-    Linker linker(*tcg_llvm_ctx->getModule());
-
-    if (linker.linkInModule(std::move(ErrorOrMod.get()))) {
-        LOGERROR("Linking in library " << bitcodeLibrary << " failed!\n");
-        return;
-    }
-
-    LOGINFO("Linked in library " << bitcodeLibrary << '\n');
-
+    tcg_exec_init(0);
     optimize_flags_init();
-    tcg_llvm_ctx->initializeHelpers();
-    tcg_llvm_ctx->initializeNativeCpuState();
 
-    initializeHelperMask();
+    m_ctx = TCGLLVMTranslator::create(bitcodeLibrary);
 
     s_translatorInited = true;
 }
 
 Translator::~Translator() {
     if (s_translatorInited) {
-        tcg_llvm_close(tcg_llvm_ctx);
+        delete m_ctx;
         s_translatorInited = false;
     }
 }
 
-void Translator::initializeHelperMask() {
-    Module *mod = tcg_llvm_ctx->getModule();
-
-    for (int i = 0; i < tcg_ctx.nb_helpers; ++i) {
-        const TCGHelperInfo &h = tcg_ctx.helpers[i];
-
-        RegisterMask m;
-        m.accesses_mem = h.accesses_mem;
-        m.rmask = h.reg_rmask;
-        m.wmask = h.reg_wmask;
-
-        LOGDEBUG("Adding helper " << h.name << " rmask=" << hexval(m.rmask) << " wmask=" << hexval(m.wmask)
-                                  << " mem=" << hexval(m.accesses_mem) << "\n");
-
-        std::stringstream ss;
-        ss << "helper_" << h.name;
-
-        Function *f = mod->getFunction(ss.str());
-        if (!f) {
-            LOGDEBUG("Could not find helper " << ss.str() << "\n");
-            continue;
-        }
-
-        s_helperMasks[f] = m;
-    }
-}
-
 llvm::Module *Translator::getModule() const {
-    return tcg_llvm_ctx->getModule();
+    return m_ctx->getModule();
 }
 
 llvm::Function *Translator::createTbFunction(const std::string &name) const {
-    return tcg_llvm_ctx->createTbFunction(name);
+    return m_ctx->createTbFunction(name);
 }
 
 llvm::FunctionType *Translator::getTbType() const {
-    return tcg_llvm_ctx->getTbType();
+    return m_ctx->tbType();
 }
 
 void Translator::getRetInstructions(llvm::Function *f, llvm::SmallVector<llvm::ReturnInst *, 2> &ret) {
@@ -302,12 +253,12 @@ void Translator::getWrappers(llvm::Module &M, MemoryWrappers &wrappers, const ch
 }
 
 void Translator::getStoreWrappers(llvm::Module &M, MemoryWrappers &wrappers) {
-    const char *names[] = {"__stb_mmu", "__stw_mmu", "__stl_mmu", "__stq_mmu"};
+    const char *names[] = {"helper_stb_mmu", "helper_stw_mmu", "helper_stl_mmu", "helper_stq_mmu"};
     getWrappers(M, wrappers, names);
 }
 
 void Translator::getLoadWrappers(llvm::Module &M, MemoryWrappers &wrappers) {
-    const char *names[] = {"__ldb_mmu", "__ldw_mmu", "__ldl_mmu", "__ldq_mmu"};
+    const char *names[] = {"helper_ldb_mmu", "helper_ldw_mmu", "helper_ldl_mmu", "helper_ldq_mmu"};
     getWrappers(M, wrappers, names);
 }
 
@@ -323,12 +274,12 @@ Value *Translator::getPcPtr(IRBuilder<> &builder) {
     return builder.CreateGEP(arg, ArrayRef<Value *>(gepElements.begin(), gepElements.end()));
 }
 
-const Translator::RegisterMask *Translator::getRegisterMaskForHelper(llvm::Function *helper) {
-    if (!s_helperMasks.count(helper)) {
-        return NULL;
-    }
-
-    return &s_helperMasks[helper];
+Translator::RegisterMask Translator::getRegisterMaskForHelper(llvm::Function *helper) {
+    Translator::RegisterMask mask;
+    mask.rmask = -1;
+    mask.wmask = -1;
+    mask.accesses_mem = 1;
+    return mask;
 }
 
 uint64_t Translator::getRegisterBitMask(llvm::Value *gepv) {
@@ -369,12 +320,12 @@ const char *X86Translator::s_regNames[8] = {"eax", "ecx", "edx", "ebx", "esp", "
 
 X86Translator::X86Translator(const std::string &bitcodeLibrary, const std::shared_ptr<vmi::ExecutableFile> binary)
     : Translator(bitcodeLibrary, binary) {
-    m_functionPasses = new legacy::FunctionPassManager(tcg_llvm_ctx->getModule());
+    m_functionPasses = new legacy::FunctionPassManager(m_ctx->getModule());
     m_functionPasses->add(createCFGSimplificationPass());
 
     // We need this passes to simplify the translation of the instruction.
     // The code is quite bulky, the fewer instructions, the better.
-    m_functionOptPasses = new legacy::FunctionPassManager(tcg_llvm_ctx->getModule());
+    m_functionOptPasses = new legacy::FunctionPassManager(m_ctx->getModule());
     // m_functionOptPasses->add(createVerifierPass());
     m_functionOptPasses->add(createDeadCodeEliminationPass());
     m_functionOptPasses->add(createGVNPass());
@@ -426,16 +377,21 @@ static const uint64_t TCG_EXT3_FEATURES =
 
 TranslatedBlock *X86Translator::translate(uint64_t address, uint64_t lastAddress) {
     static uint8_t s_dummyBuffer[10 * 1024 * 1024];
-    static tb_precise_pc_t s_precisePcs[10000];
     CPUArchState env;
-    TranslationBlock tb;
+    TranslationBlock *tb;
 
     if (!isInitialized()) {
         throw TranslatorNotInitializedException();
     }
 
     memset(&env, 0, sizeof(env));
-    memset(&tb, 0, sizeof(tb));
+
+    tb = tcg_tb_alloc(tcg_ctx);
+    if (unlikely(tb == NULL)) {
+        abort();
+    }
+
+    memset(tb, 0, sizeof(*tb));
 
     QTAILQ_INIT(&env.breakpoints);
     QTAILQ_INIT(&env.watchpoints);
@@ -455,48 +411,47 @@ TranslatedBlock *X86Translator::translate(uint64_t address, uint64_t lastAddress
 
     env.cpuid.cpuid_ext3_features = CPUID_EXT3_LAHF_LM | CPUID_EXT3_SVM | CPUID_EXT3_ABM | CPUID_EXT3_SSE4A;
 
-    env.eip = address;
-    tb.pc = env.eip;
-    tb.last_pc = lastAddress;
-    tb.cs_base = 0;
-    tb.tc_ptr = s_dummyBuffer;
-    tb.precise_pcs = s_precisePcs;
-    tb.precise_entries = 0;
+    env.generate_llvm = 1;
 
-    tb.tb_next_offset[0] = 0xffff;
-    tb.tb_next_offset[1] = 0xffff;
+    env.eip = address;
+    tb->pc = env.eip;
+    tb->last_pc = lastAddress;
+    tb->cs_base = 0;
+    tb->tc.ptr = s_dummyBuffer;
+
+    /* init jump list */
+    tb->jmp_lock = SPIN_LOCK_UNLOCKED;
+    tb->jmp_list_head = (uintptr_t) NULL;
+    tb->jmp_list_next[0] = (uintptr_t) NULL;
+    tb->jmp_list_next[1] = (uintptr_t) NULL;
+    tb->jmp_dest[0] = (uintptr_t) NULL;
+    tb->jmp_dest[1] = (uintptr_t) NULL;
 
     switch (getBinaryFile()->getPointerSize()) {
         case 4:
-            tb.flags = (1 << HF_PE_SHIFT) | (1 << HF_CS32_SHIFT) | (1 << HF_SS32_SHIFT);
+            tb->flags = (1 << HF_PE_SHIFT) | (1 << HF_CS32_SHIFT) | (1 << HF_SS32_SHIFT);
             break;
 
         case 8:
-            tb.flags = (1 << HF_PE_SHIFT) | (1 << HF_CS32_SHIFT) | (1 << HF_SS32_SHIFT) | (1 << HF_CS64_SHIFT) |
-                       (1 << HF_LMA_SHIFT);
+            tb->flags = (1 << HF_PE_SHIFT) | (1 << HF_CS32_SHIFT) | (1 << HF_SS32_SHIFT) | (1 << HF_CS64_SHIFT) |
+                        (1 << HF_LMA_SHIFT);
             break;
         default:
             assert(false && "not implemented");
             break;
     }
 
-    tb.flags |= 3 | HF_SOFTMMU_MASK | HF_OSFXSR_MASK; // CPL=3
+    tb->flags |= 3 | HF_SOFTMMU_MASK | HF_OSFXSR_MASK; // CPL=3
 
-    // Must retranslate twice to get a correct size of tb.
     // May throw InvalidAddressException
-    cpu_gen_code(&env, &tb, &codeSize);
+    cpu_gen_code(&env, tb);
 
-    // We need precise pc to attach metadata to llvm instructions
-    // tb.precise_entries = 0;
-    cpu_gen_llvm(&env, &tb);
+    LOGDEBUG(*(Function *) tb->llvm_function);
 
-    LOGDEBUG(*(Function *) tb.llvm_function);
-
-    verifyFunction(*(Function *) tb.llvm_function);
-    LOGDEBUG("tb type: " << hexval(tb.se_tb_type) << "\n");
+    LOGDEBUG("tb type: " << hexval(tb->se_tb_type) << "\n");
 
     ETranslatedBlockType bbType;
-    switch (tb.se_tb_type) {
+    switch (tb->se_tb_type) {
         case TB_DEFAULT:
             bbType = BB_DEFAULT;
             break;
@@ -527,17 +482,20 @@ TranslatedBlock *X86Translator::translate(uint64_t address, uint64_t lastAddress
         case TB_EXCP:
             bbType = BB_EXCP;
             break;
+        case TB_INTERRUPT:
+            bbType = BB_DEFAULT;
+            break;
         default:
             assert(false && "Unsupported translation block type");
     }
 
-    TCGLLVMTBInfo info = tcg_llvm_ctx->getTbInfo();
+    TCGLLVMTBInfo info = m_ctx->getTbInfo();
 
     /// Check if TB type matches number of static targets.
     /// Sometimes, we have things like mov eax, constant; jmp eax,
     /// which is reported as indirect jump, but really is a direct
     /// one. Need to handle this case.
-    switch (tb.se_tb_type) {
+    switch (tb->se_tb_type) {
         case TB_DEFAULT:
         case TB_JMP:
         case TB_CALL:
@@ -569,31 +527,36 @@ TranslatedBlock *X86Translator::translate(uint64_t address, uint64_t lastAddress
             }
             break;
 
+        case TB_INTERRUPT:
+            info.staticBranchTargets.clear();
+            info.staticBranchTargets.push_back(tb->pc + tb->size);
+            break;
+
         default:
             abort();
     }
 
     /* Make sure that we don't ask to translate a block that is actually shorter */
-    if (tb.pcOfLastInstr != lastAddress) {
+    if (tb->pcOfLastInstr != lastAddress) {
         /* XXX: sometimes TBs may be to big, QEMU stops translating when
            it runs out of buffer space. Could split the BB in multiple chunks. */
-        LOGERROR("Translation didn't finish at bb end (" << hexval(tb.pcOfLastInstr) << " instead of "
+        LOGERROR("Translation didn't finish at bb end (" << hexval(tb->pcOfLastInstr) << " instead of "
                                                          << hexval(lastAddress) << ")\n");
 
         return NULL;
     }
-    assert(tb.pcOfLastInstr == lastAddress);
+    assert(tb->pcOfLastInstr == lastAddress);
 
     /* Handle call $+5 instructions, used to push the address of the next instruction */
-    if (tb.se_tb_type == TB_CALL) {
+    if (tb->se_tb_type == TB_CALL) {
         uint64_t target = info.staticBranchTargets[0];
-        if (target == address + tb.size) {
+        if (target == address + tb->size) {
             bbType = BB_DEFAULT;
             info.staticBranchTargets.clear();
         }
     }
 
-    TranslatedBlock *ret = new TranslatedBlock(address, tb.size, (Function *) tb.llvm_function, bbType,
+    TranslatedBlock *ret = new TranslatedBlock(address, lastAddress, tb->size, (Function *) tb->llvm_function, bbType,
                                                info.staticBranchTargets, info.pcAssignments);
 
     m_functionPasses->run(*ret->getFunction());

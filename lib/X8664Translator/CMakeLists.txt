@@ -22,17 +22,24 @@
 add_definitions(-D__STDC_FORMAT_MACROS -D_GNU_SOURCE -DNEED_CPU_H
                 -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -DSTATIC_TRANSLATOR
                 -DTARGET_PHYS_ADDR_BITS=64 -DCONFIG_SYMBEX -DCONFIG_SOFTMMU -DCPU_TEMP_BUF_NLONGS=128
-                -DTARGET_LONG_BITS=64)
+                -DTARGET_LONG_BITS=64 -DTARGET_INSN_START_EXTRA_WORDS=1)
 
 add_library(X8664Translator STATIC ${LIBCPU_SRC_DIR}/src/target-${LIBCPU_TARGET}/translate.c
                                    ${LIBCPU_SRC_DIR}/src/target-${LIBCPU_TARGET}/helper.c
                                    ${LIBCPU_SRC_DIR}/src/target-${LIBCPU_TARGET}/op_helper.c
                                    ${LIBCPU_SRC_DIR}/src/fpu/softfloat.c
                                    ${LIBTCG_SRC_DIR}/src/tcg.c
+                                   ${LIBTCG_SRC_DIR}/src/tcg-op.c
+                                   ${LIBTCG_SRC_DIR}/src/tcg-common.c
                                    ${LIBTCG_SRC_DIR}/src/optimize.c
                                    ${LIBTCG_SRC_DIR}/src/tcg-llvm.cpp
+                                   ${LIBTCG_SRC_DIR}/src/tcg-op-gvec.c
+                                   ${LIBTCG_SRC_DIR}/src/tcg-op-vec.c
+                                   ${LIBTCG_SRC_DIR}/src/tcg-runtime-gvec.c
+                                   ${LIBTCG_SRC_DIR}/src/tcg-runtime.c
+                                   ${LIBTCG_SRC_DIR}/src/cutils.c
                                    ${LIBCPU_SRC_DIR}/src/translate-all.c
-                                   ${LIBCPU_SRC_DIR}/src/cutils.c
+                                   ${LIBCPU_SRC_DIR}/src/precise-pc.c
                                    Translator.cpp
                                    TranslatorWrapper.cpp)
 

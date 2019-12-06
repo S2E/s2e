@@ -46,6 +46,7 @@ private:
     llvm::DenseMap<uint64_t, llvm::Function *> m_llvmFunctions;
 
     void injectDataSections();
+    llvm::Function *createLLVMPrototype(llvm::BinaryFunction *bf);
     void createFunctionPrototypes();
     void injectFunctionPointers();
 

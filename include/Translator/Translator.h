@@ -19,8 +19,9 @@
 #include <llvm/Support/Path.h>
 
 #include <vmi/ExecutableFile.h>
-
 #include "lib/Utils/Log.h"
+
+class TCGLLVMTranslator;
 
 namespace s2etools {
 
@@ -80,6 +81,9 @@ private:
     /* Linear address of the instruction */
     uint64_t m_address;
 
+    /* Address of the last instruction */
+    uint64_t m_lastAddress;
+
     /* Raw LLVM representation of the instruction */
     llvm::Function *m_function;
 
@@ -98,14 +102,16 @@ private:
 public:
     TranslatedBlock() {
         m_address = 0;
+        m_lastAddress = 0;
         m_size = 0;
         m_function = NULL;
         m_type = BB_DEFAULT;
     }
 
-    TranslatedBlock(uint64_t address, unsigned size, llvm::Function *f, ETranslatedBlockType type,
+    TranslatedBlock(uint64_t address, uint64_t lastAddress, unsigned size, llvm::Function *f, ETranslatedBlockType type,
                     const Successors &succs, const Stores &pcstores) {
         m_address = address;
+        m_lastAddress = lastAddress;
         m_size = size;
         m_function = f;
         m_type = type;
@@ -127,6 +133,10 @@ public:
 
     uint64_t getAddress() const {
         return m_address;
+    }
+
+    uint64_t getLastAddress() const {
+        return m_lastAddress;
     }
 
     unsigned getSize() const {
@@ -172,7 +182,6 @@ public:
         uint64_t rmask, wmask, accesses_mem;
     };
 
-    typedef llvm::DenseMap<llvm::Function *, RegisterMask> HelperMasks;
     typedef llvm::SmallVector<llvm::Function *, 4> MemoryWrappers;
 
 private:
@@ -180,10 +189,10 @@ private:
     std::shared_ptr<const vmi::ExecutableFile> m_binary;
     static bool s_translatorInited;
     bool m_singlestep;
+    std::unique_ptr<llvm::Module> m_module;
 
-    static HelperMasks s_helperMasks;
-
-    static void initializeHelperMask();
+protected:
+    TCGLLVMTranslator *m_ctx;
 
 public:
     Translator(const std::string &bitcodeLibrary, const std::shared_ptr<vmi::ExecutableFile> binary);
@@ -226,7 +235,7 @@ public:
 
     static llvm::Value *getPcPtr(llvm::IRBuilder<> &builder);
 
-    static const RegisterMask *getRegisterMaskForHelper(llvm::Function *helper);
+    static RegisterMask getRegisterMaskForHelper(llvm::Function *helper);
     static uint64_t getRegisterBitMask(llvm::Value *gep);
 };
 
