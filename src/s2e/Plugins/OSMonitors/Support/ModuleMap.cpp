@@ -232,6 +232,10 @@ void ModuleMap::onProcessUnload(S2EExecutionState *state, uint64_t addressSpace,
 
 ModuleDescriptorConstPtr ModuleMap::getModule(S2EExecutionState *state) {
     DECLARE_PLUGINSTATE(ModuleMapState, state);
+    if (!m_monitor->initialized()) {
+        return nullptr;
+    }
+
     auto pid = m_monitor->getPid(state);
     auto pc = state->regs()->getPc();
     pid = m_monitor->translatePid(pid, pc);
@@ -240,6 +244,10 @@ ModuleDescriptorConstPtr ModuleMap::getModule(S2EExecutionState *state) {
 
 ModuleDescriptorConstPtr ModuleMap::getModule(S2EExecutionState *state, uint64_t pc) {
     DECLARE_PLUGINSTATE(ModuleMapState, state);
+    if (!m_monitor->initialized()) {
+        return nullptr;
+    }
+
     auto pid = m_monitor->getPid(state);
     pid = m_monitor->translatePid(pid, pc);
     return plgState->getModule(pid, pc);
@@ -247,6 +255,10 @@ ModuleDescriptorConstPtr ModuleMap::getModule(S2EExecutionState *state, uint64_t
 
 ModuleDescriptorConstPtr ModuleMap::getModule(S2EExecutionState *state, uint64_t pid, uint64_t pc) {
     DECLARE_PLUGINSTATE(ModuleMapState, state);
+    if (!m_monitor->initialized()) {
+        return nullptr;
+    }
+
     pid = m_monitor->translatePid(pid, pc);
     return plgState->getModule(pid, pc);
 }
