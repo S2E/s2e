@@ -83,7 +83,7 @@ public:
     }
 
 private:
-    enum Classes { SEED, BATCH, PC, PAGEDIR, FORKCOUNT, PRIORITY, READCOUNT, RANDOM, VULNERABILITY, GROUP };
+    enum Classes { SEED, BATCH, PC, PAGEDIR, FORKCOUNT, PRIORITY, READCOUNT, RANDOM, GROUP };
 
     MultiSearcher *m_searchers;
     klee::Searcher *m_top;
@@ -212,120 +212,6 @@ private:
 
 protected:
     virtual uint64_t getClass(S2EExecutionState *state);
-};
-
-typedef uint64_t distance_t;
-#define DISTANCE_MAX UINT64_MAX
-
-class CUPAVulnerabilitySearcherState : public PluginState {
-private:
-    std::vector<distance_t> m_distances;
-    std::vector<uint64_t /* retPc */> m_retStack;
-
-public:
-    CUPAVulnerabilitySearcherState();
-    virtual ~CUPAVulnerabilitySearcherState();
-
-    virtual CUPAVulnerabilitySearcherState *clone() const;
-    static PluginState *factory(Plugin *p, S2EExecutionState *s);
-
-    void setDistances(const std::vector<distance_t> &distances);
-    const std::vector<distance_t> &getDistances() const;
-
-    void pushRet(uint64_t retPc);
-    void popRet();
-    const std::vector<uint64_t> &getRetStack() const;
-};
-
-class CUPAVulnerabilitySearcherClass : public CUPASearcherClass {
-
-private:
-    typedef std::set<S2EExecutionState *> StateSet;
-
-    typedef std::map<uint64_t /* startPc */, const ControlFlowGraph::BasicBlock *> BasicBlocksMap;
-    typedef struct {
-        BasicBlocksMap bbMap;
-        std::vector<uint64_t> vulnPcs;
-
-        // These fields keep cached analysis results
-        std::map<uint64_t /* pc */, distance_t> retDist;
-        std::map<std::pair<uint64_t /* pc */, uint64_t /* vulnPc */>, bool> canReachVuln;
-        std::map<std::pair<uint64_t /* pc */, uint64_t /* vulnPc */>, distance_t> vulnDist;
-    } Module;
-
-    ControlFlowGraph *m_cfg;
-    ModuleExecutionDetector *m_detector;
-    FunctionMonitor *m_functionMonitor;
-
-    int m_useParentSearcherProbability;
-
-    StateSet m_states;
-
-    std::map<std::string /* moduleName */, Module> m_modules;
-
-    // These are recursive functions that traverse all BBs
-    distance_t getRetDistance(Module &module, uint64_t pc, std::set<uint64_t> &visitedPcs); //
-    bool canReachVulnerability(Module &module, uint64_t pc, uint64_t vulnPc, std::set<uint64_t> &visitedPcs);
-    distance_t getVulnerabilityDistance(Module &module, uint64_t pc, uint64_t vulnPc, std::set<uint64_t> &visitedPcs);
-
-    // These wrap recursive functions and cache their result
-    distance_t getRetDistance(Module &module, uint64_t pc); //
-    bool canReachVulnerability(Module &module, uint64_t pc, uint64_t vulnPc);
-    distance_t getVulnerabilityDistance(Module &module, uint64_t pc, uint64_t vulnPc);
-
-    // This takes call stack into account
-    distance_t getVulnerabilityDistance(Module &module, uint64_t pc, uint64_t vulnPc,
-                                        const std::vector<uint64_t> &retStack);
-
-    void onTranslateInstruction(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb, uint64_t pc);
-    void onInstructionExecution(S2EExecutionState *state, uint64_t pc);
-
-    void onModuleLoad(S2EExecutionState *state, const ModuleDescriptor &module);
-    void onFunctionCall(S2EExecutionState *state, FunctionMonitorState *fns);
-
-    void onTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb, uint64_t pc, //
-                             bool hasStaticTarget, uint64_t staticPc);
-    void onReturnExecutionComplete(S2EExecutionState *state, uint64_t pc);
-
-    void onFork(S2EExecutionState *state, const std::vector<S2EExecutionState *> &newStates,
-                const std::vector<klee::ref<klee::Expr>> &newConditions);
-
-    sigc::connection translate_ins_conn;
-    sigc::connection mod_load_conn;
-    sigc::connection tb_end_conn;
-    sigc::connection fork_conn;
-    sigc::connection func_call_conn;
-
-public:
-    CUPAVulnerabilitySearcherClass(CUPASearcher *plugin, unsigned level);
-    virtual ~CUPAVulnerabilitySearcherClass() {
-        tb_end_conn.disconnect();
-        translate_ins_conn.disconnect();
-        mod_load_conn.disconnect();
-        fork_conn.disconnect();
-    }
-
-    void initialize();
-
-    virtual klee::ExecutionState &selectState();
-    virtual void update(klee::ExecutionState *current, const klee::StateSet &addedStates,
-                        const klee::StateSet &removedStates);
-    virtual bool empty();
-
-protected:
-    virtual uint64_t getClass(S2EExecutionState *state) {
-        if (!g_s2e_state)
-            return 0;
-
-        DECLARE_PLUGINSTATE_P(m_plg, CUPAVulnerabilitySearcherState, state);
-        distance_t sum = 0;
-        std::vector<distance_t> dist = plgState->getDistances();
-        for (unsigned i = 0; i < dist.size(); i++) {
-            sum += dist[i];
-        }
-
-        return sum;
-    }
 };
 
 ///
