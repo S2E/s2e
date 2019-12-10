@@ -688,7 +688,7 @@ LIBS2E_RELEASE_FLAGS = --with-llvm=$(LLVM_BUILD)/llvm-release                   
                        --with-cxxflags="$(CXXFLAGS_RELEASE)"
 
 stamps/libs2e-debug-configure: $(call FIND_CONFIG_SOURCE,$(S2E_SRC)/libs2e)
-stamps/libs2e-debug-configure: stamps/lua-make stamps/libvmi-debug-make         \
+stamps/libs2e-debug-configure: stamps/lua-make stamps/libvmi-debug-install      \
     stamps/klee-debug-make stamps/soci-make stamps/libfsigc++-debug-make        \
     stamps/libq-debug-make stamps/libcoroutine-debug-make stamps/capstone-make  \
     stamps/protobuf-make
@@ -697,7 +697,7 @@ stamps/libs2e-debug-configure: CONFIGURE_COMMAND = $(S2E_SRC)/libs2e/configure  
                                                    $(LIBS2E_DEBUG_FLAGS)
 
 stamps/libs2e-release-configure: $(call FIND_CONFIG_SOURCE,$(S2E_SRC)/libs2e)
-stamps/libs2e-release-configure: stamps/lua-make stamps/libvmi-release-make     \
+stamps/libs2e-release-configure: stamps/lua-make stamps/libvmi-release-install  \
     stamps/klee-release-make stamps/soci-make stamps/libfsigc++-release-make    \
     stamps/libq-release-make stamps/libcoroutine-release-make  stamps/capstone-make \
     stamps/protobuf-make
