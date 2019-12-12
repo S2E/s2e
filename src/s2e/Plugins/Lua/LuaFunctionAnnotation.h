@@ -9,6 +9,8 @@
 #define S2E_PLUGINS_LuaFunctionAnnotation_H
 
 #include <s2e/Plugin.h>
+#include <s2e/Plugins/ExecutionMonitors/FunctionMonitor2.h>
+#include <s2e/Plugins/OSMonitors/ModuleDescriptor.h>
 
 namespace s2e {
 
@@ -16,11 +18,13 @@ class S2EExecutionState;
 
 namespace plugins {
 
-class FunctionMonitor;
+class FunctionMonitor2;
 class FunctionMonitorState;
 class KeyValueStore;
 class ModuleExecutionDetector;
 class OSMonitor;
+class ModuleMap;
+class ProcessExecutionDetector;
 
 class LuaFunctionAnnotation : public Plugin {
     S2E_PLUGIN
@@ -35,41 +39,41 @@ private:
     struct Annotation {
         enum CallingConvention { STDCALL, CDECL, MAX_CONV };
 
-        const std::string moduleId;
+        const std::string moduleName;
         const uint64_t pc;
         const unsigned paramCount;
         const std::string annotationName;
         const CallingConvention convention;
         const bool fork;
 
-        Annotation(std::string id, uint64_t pc_, unsigned pCount, std::string name, CallingConvention cc, bool fork_)
-            : moduleId(id), pc(pc_), paramCount(pCount), annotationName(name), convention(cc), fork(fork_) {
+        Annotation(const std::string &moduleName, uint64_t pc_, unsigned pCount, const std::string &name,
+                   CallingConvention cc, bool fork_)
+            : moduleName(moduleName), pc(pc_), paramCount(pCount), annotationName(name), convention(cc), fork(fork_) {
         }
 
         bool operator==(const Annotation &a1) const {
-            return moduleId == a1.moduleId && pc == a1.pc && paramCount == a1.paramCount &&
+            return moduleName == a1.moduleName && pc == a1.pc && paramCount == a1.paramCount &&
                    annotationName == a1.annotationName && convention == a1.convention;
         }
     };
 
-    typedef std::vector<Annotation> Annotations;
+    using AnnotationPtr = std::shared_ptr<Annotation>;
+
+    typedef std::vector<AnnotationPtr> Annotations;
     Annotations m_annotations;
 
-    OSMonitor *m_monitor;
-    ModuleExecutionDetector *m_detector;
-    FunctionMonitor *m_functionMonitor;
+    FunctionMonitor2 *m_functionMonitor;
     KeyValueStore *m_kvs;
 
     bool registerAnnotation(const Annotation &annotation);
-    void hookAnnotation(S2EExecutionState *state, const ModuleDescriptor &module, const Annotation &annotation);
     void invokeAnnotation(S2EExecutionState *state, const Annotation &entry, bool isCall);
     void forkAnnotation(S2EExecutionState *state, const Annotation &entry);
 
-    void onModuleLoad(S2EExecutionState *state, const ModuleDescriptor &module);
-    void onModuleUnload(S2EExecutionState *state, const ModuleDescriptor &module);
+    void onCall(S2EExecutionState *state, const ModuleDescriptorConstPtr &source, const ModuleDescriptorConstPtr &dest,
+                uint64_t callerPc, uint64_t calleePc, const FunctionMonitor2::ReturnSignalPtr &returnSignal);
 
-    void onFunctionCall(S2EExecutionState *state, FunctionMonitorState *fns, Annotation entry);
-    void onFunctionRet(S2EExecutionState *state, Annotation entry);
+    void onRet(S2EExecutionState *state, const ModuleDescriptorConstPtr &source, const ModuleDescriptorConstPtr &dest,
+               uint64_t returnSite, AnnotationPtr annotation);
 };
 
 } // namespace plugins

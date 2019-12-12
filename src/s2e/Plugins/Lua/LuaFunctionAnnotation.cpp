@@ -1,6 +1,6 @@
 ///
 /// Copyright (C) 2015, Dependable Systems Laboratory, EPFL
-/// Copyright (C) 2014-2016, Cyberhaven
+/// Copyright (C) 2014-2019, Cyberhaven
 /// All rights reserved.
 ///
 /// Licensed under the Cyberhaven Research License Agreement.
@@ -11,7 +11,7 @@
 #include <s2e/S2EExecutor.h>
 #include <s2e/Utils.h>
 
-#include <s2e/Plugins/ExecutionMonitors/FunctionMonitor.h>
+#include <s2e/Plugins/ExecutionMonitors/FunctionMonitor2.h>
 #include <s2e/Plugins/OSMonitors/OSMonitor.h>
 #include <s2e/Plugins/OSMonitors/Support/ModuleExecutionDetector.h>
 #include <s2e/Plugins/Support/KeyValueStore.h>
@@ -24,7 +24,7 @@ namespace s2e {
 namespace plugins {
 
 S2E_DEFINE_PLUGIN(LuaFunctionAnnotation, "Execute Lua code on a function call", "LuaFunctionAnnotation",
-                  "ModuleExecutionDetector", "FunctionMonitor", "OSMonitor", "LuaBindings");
+                  "FunctionMonitor2", "OSMonitor", "LuaBindings", "ModuleMap", "ProcessExecutionDetector");
 
 class LuaFunctionAnnotationPluginState : public PluginState {
 private:
@@ -92,9 +92,7 @@ static bool readBoolOrFail(S2E *s2e, const std::string &key) {
 }
 
 void LuaFunctionAnnotation::initialize() {
-    m_monitor = dynamic_cast<OSMonitor *>(s2e()->getPlugin("OSMonitor"));
-    m_detector = s2e()->getPlugin<ModuleExecutionDetector>();
-    m_functionMonitor = s2e()->getPlugin<FunctionMonitor>();
+    m_functionMonitor = s2e()->getPlugin<FunctionMonitor2>();
     m_kvs = s2e()->getPlugin<KeyValueStore>();
 
     bool ok;
@@ -109,7 +107,7 @@ void LuaFunctionAnnotation::initialize() {
         std::stringstream ss;
         ss << getConfigKey() << ".annotations." << key;
 
-        std::string moduleId = readStringOrFail(s2e(), ss.str() + ".module_id");
+        std::string moduleName = readStringOrFail(s2e(), ss.str() + ".module_name");
         std::string annotationName = readStringOrFail(s2e(), ss.str() + ".name");
         uint64_t pc = readIntOrFail(s2e(), ss.str() + ".pc");
         unsigned paramCount = readIntOrFail(s2e(), ss.str() + ".param_count");
@@ -126,69 +124,50 @@ void LuaFunctionAnnotation::initialize() {
             exit(-1);
         }
 
-        if (!registerAnnotation(Annotation(moduleId, pc, paramCount, annotationName, convention, fork))) {
+        if (!registerAnnotation(Annotation(moduleName, pc, paramCount, annotationName, convention, fork))) {
             exit(-1);
         }
     }
 
-    m_monitor->onModuleLoad.connect(sigc::mem_fun(*this, &LuaFunctionAnnotation::onModuleLoad));
-    m_monitor->onModuleUnload.connect(sigc::mem_fun(*this, &LuaFunctionAnnotation::onModuleUnload));
+    m_functionMonitor->onCall.connect(sigc::mem_fun(*this, &LuaFunctionAnnotation::onCall));
+}
+
+void LuaFunctionAnnotation::onCall(S2EExecutionState *state, const ModuleDescriptorConstPtr &source,
+                                   const ModuleDescriptorConstPtr &dest, uint64_t callerPc, uint64_t calleePc,
+                                   const FunctionMonitor2::ReturnSignalPtr &returnSignal) {
+    if (!dest) {
+        return;
+    }
+
+    // TODO: need faster annotation lookup
+    for (auto const &annotation : m_annotations) {
+        if (annotation->pc == calleePc && annotation->moduleName == dest->Name) {
+            invokeAnnotation(state, *annotation, true);
+            returnSignal->connect(sigc::bind(sigc::mem_fun(*this, &LuaFunctionAnnotation::onRet), annotation));
+        }
+    }
+}
+
+void LuaFunctionAnnotation::onRet(S2EExecutionState *state, const ModuleDescriptorConstPtr &source,
+                                  const ModuleDescriptorConstPtr &dest, uint64_t returnSite, AnnotationPtr annotation) {
+    invokeAnnotation(state, *annotation, false);
 }
 
 bool LuaFunctionAnnotation::registerAnnotation(const Annotation &annotation) {
-    if (!m_detector->isModuleConfigured(annotation.moduleId)) {
-        getWarningsStream() << "unknown module id " << annotation.moduleId << "\n";
-
-        return false;
-    }
-
     for (auto const &annot : m_annotations) {
-        if (annot == annotation) {
+        if (*annot == annotation) {
             getWarningsStream() << "attempting to register existing annotation\n";
 
             return false;
         }
     }
 
-    m_annotations.push_back(annotation);
+    m_annotations.push_back(std::make_shared<Annotation>(annotation));
 
-    getDebugStream() << "loaded " << annotation.moduleId << " " << annotation.annotationName << " "
+    getDebugStream() << "loaded " << annotation.annotationName << " " << annotation.moduleName << "!"
                      << hexval(annotation.pc) << " convention: " << annotation.convention << "\n";
 
     return true;
-}
-
-void LuaFunctionAnnotation::hookAnnotation(S2EExecutionState *state, const ModuleDescriptor &module,
-                                           const Annotation &annotation) {
-    uint64_t funcPc = 0;
-    if (!module.ToRuntime(annotation.pc, funcPc)) {
-        getWarningsStream(state) << "Could not insert hook for annotation " << annotation.annotationName << "\n";
-        return;
-    }
-
-    FunctionMonitor::CallSignal *cs = m_functionMonitor->getCallSignal(state, funcPc, state->regs()->getPageDir());
-    cs->connect(sigc::bind(sigc::mem_fun(*this, &LuaFunctionAnnotation::onFunctionCall), annotation));
-}
-
-void LuaFunctionAnnotation::onModuleLoad(S2EExecutionState *state, const ModuleDescriptor &module) {
-    // Register all function hooks
-    const std::string *mid = m_detector->getModuleId(module);
-    if (!mid) {
-        return;
-    }
-
-    for (auto const &annotation : m_annotations) {
-        if (annotation.moduleId != *mid) {
-            continue;
-        }
-
-        hookAnnotation(state, module, annotation);
-    }
-}
-
-void LuaFunctionAnnotation::onModuleUnload(S2EExecutionState *state, const ModuleDescriptor &module) {
-    // Remove all function hooks
-    m_functionMonitor->disconnect(state, module);
 }
 
 void LuaFunctionAnnotation::forkAnnotation(S2EExecutionState *state, const Annotation &entry) {
@@ -260,9 +239,7 @@ void LuaFunctionAnnotation::invokeAnnotation(S2EExecutionState *state, const Ann
         throw CpuExitException();
     }
 
-    if (luaAnnotation.doSkip()) {
-        m_functionMonitor->eraseSp(state, state->regs()->getSp());
-
+    if (isCall && luaAnnotation.doSkip()) {
         if (entry.convention == Annotation::STDCALL) {
             state->bypassFunction(entry.paramCount);
         } else {
@@ -271,23 +248,6 @@ void LuaFunctionAnnotation::invokeAnnotation(S2EExecutionState *state, const Ann
 
         throw CpuExitException();
     }
-}
-
-void LuaFunctionAnnotation::onFunctionCall(S2EExecutionState *state, FunctionMonitorState *fns, Annotation entry) {
-    state->undoCallAndJumpToSymbolic();
-    getDebugStream() << "Invoking call annotation " << entry.annotationName << '\n';
-
-    FunctionMonitor::ReturnSignal returnSignal;
-    returnSignal.connect(sigc::bind(sigc::mem_fun(*this, &LuaFunctionAnnotation::onFunctionRet), entry));
-    fns->registerReturnSignal(state, returnSignal);
-
-    invokeAnnotation(state, entry, true);
-}
-
-void LuaFunctionAnnotation::onFunctionRet(S2EExecutionState *state, Annotation entry) {
-    state->jumpToSymbolicCpp();
-    getDebugStream() << "Invoking return annotation " << entry.annotationName << '\n';
-    invokeAnnotation(state, entry, false);
 }
 
 } // namespace plugins
