@@ -9,6 +9,8 @@
 
 #define _THREAD_DESCRIPTOR_H_
 
+#include <inttypes.h>
+
 namespace s2e {
 
 struct ThreadDescriptor {
