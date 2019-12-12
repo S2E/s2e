@@ -8,8 +8,8 @@ to run them manually.
 
 .. note::
 
-    S2E builds and runs on Ubuntu 16.04 LTS and 18.04 LTS (64-bit).
-    Ubuntu 14.04 LTS may still work, but we do not support it anymore.
+    S2E builds and runs on Ubuntu 18.04 LTS (64-bit).
+    Earlier versions may still work, but we do not support them anymore.
 
 
 Building using Docker
@@ -54,9 +54,6 @@ Building S2E manually
 =====================
 
 In addition to using the ``s2e-env`` tool, you can also build S2E manually.
-
-**NOTE**: If you are using Ubuntu 14.04 you must install CMake manually - S2E requires version 3.4.3 or newer, which is
-not available in the Ubuntu 14.04 repositories.
 
 Required packages
 -----------------
