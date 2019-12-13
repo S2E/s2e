@@ -103,7 +103,6 @@ add_library(
 
     # Execution monitors
     s2e/Plugins/ExecutionMonitors/CallSiteMonitor.cpp
-    s2e/Plugins/ExecutionMonitors/FunctionMonitor.cpp
     s2e/Plugins/ExecutionMonitors/FunctionMonitor2.cpp
     s2e/Plugins/ExecutionMonitors/StackMonitor.cpp
     s2e/Plugins/ExecutionMonitors/StackClustering.cpp
