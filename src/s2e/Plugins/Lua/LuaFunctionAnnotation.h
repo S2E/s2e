@@ -9,7 +9,7 @@
 #define S2E_PLUGINS_LuaFunctionAnnotation_H
 
 #include <s2e/Plugin.h>
-#include <s2e/Plugins/ExecutionMonitors/FunctionMonitor2.h>
+#include <s2e/Plugins/ExecutionMonitors/FunctionMonitor.h>
 #include <s2e/Plugins/OSMonitors/ModuleDescriptor.h>
 
 namespace s2e {
@@ -18,7 +18,7 @@ class S2EExecutionState;
 
 namespace plugins {
 
-class FunctionMonitor2;
+class FunctionMonitor;
 class FunctionMonitorState;
 class KeyValueStore;
 class ModuleExecutionDetector;
@@ -62,7 +62,7 @@ private:
     typedef std::vector<AnnotationPtr> Annotations;
     Annotations m_annotations;
 
-    FunctionMonitor2 *m_functionMonitor;
+    FunctionMonitor *m_functionMonitor;
     KeyValueStore *m_kvs;
 
     bool registerAnnotation(const Annotation &annotation);
@@ -70,7 +70,7 @@ private:
     void forkAnnotation(S2EExecutionState *state, const Annotation &entry);
 
     void onCall(S2EExecutionState *state, const ModuleDescriptorConstPtr &source, const ModuleDescriptorConstPtr &dest,
-                uint64_t callerPc, uint64_t calleePc, const FunctionMonitor2::ReturnSignalPtr &returnSignal);
+                uint64_t callerPc, uint64_t calleePc, const FunctionMonitor::ReturnSignalPtr &returnSignal);
 
     void onRet(S2EExecutionState *state, const ModuleDescriptorConstPtr &source, const ModuleDescriptorConstPtr &dest,
                uint64_t returnSite, AnnotationPtr annotation);

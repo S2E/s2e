@@ -11,7 +11,7 @@
 #include <s2e/S2EExecutor.h>
 #include <s2e/Utils.h>
 
-#include <s2e/Plugins/ExecutionMonitors/FunctionMonitor2.h>
+#include <s2e/Plugins/ExecutionMonitors/FunctionMonitor.h>
 #include <s2e/Plugins/OSMonitors/OSMonitor.h>
 #include <s2e/Plugins/OSMonitors/Support/ModuleExecutionDetector.h>
 #include <s2e/Plugins/Support/KeyValueStore.h>
@@ -24,7 +24,7 @@ namespace s2e {
 namespace plugins {
 
 S2E_DEFINE_PLUGIN(LuaFunctionAnnotation, "Execute Lua code on a function call", "LuaFunctionAnnotation",
-                  "FunctionMonitor2", "OSMonitor", "LuaBindings", "ModuleMap", "ProcessExecutionDetector");
+                  "FunctionMonitor", "OSMonitor", "LuaBindings", "ModuleMap", "ProcessExecutionDetector");
 
 class LuaFunctionAnnotationPluginState : public PluginState {
 private:
@@ -92,7 +92,7 @@ static bool readBoolOrFail(S2E *s2e, const std::string &key) {
 }
 
 void LuaFunctionAnnotation::initialize() {
-    m_functionMonitor = s2e()->getPlugin<FunctionMonitor2>();
+    m_functionMonitor = s2e()->getPlugin<FunctionMonitor>();
     m_kvs = s2e()->getPlugin<KeyValueStore>();
 
     bool ok;
@@ -134,7 +134,7 @@ void LuaFunctionAnnotation::initialize() {
 
 void LuaFunctionAnnotation::onCall(S2EExecutionState *state, const ModuleDescriptorConstPtr &source,
                                    const ModuleDescriptorConstPtr &dest, uint64_t callerPc, uint64_t calleePc,
-                                   const FunctionMonitor2::ReturnSignalPtr &returnSignal) {
+                                   const FunctionMonitor::ReturnSignalPtr &returnSignal) {
     if (!dest) {
         return;
     }

@@ -5,8 +5,8 @@
 /// Licensed under the Cyberhaven Research License Agreement.
 ///
 
-#ifndef S2E_PLUGINS_FunctionMonitor2_H
-#define S2E_PLUGINS_FunctionMonitor2_H
+#ifndef S2E_PLUGINS_FunctionMonitor_H
+#define S2E_PLUGINS_FunctionMonitor_H
 
 #include <s2e/CorePlugin.h>
 #include <s2e/Plugin.h>
@@ -23,11 +23,11 @@ class ModuleMap;
 class OSMonitor;
 class ProcessExecutionDetector;
 
-class FunctionMonitor2 : public Plugin {
+class FunctionMonitor : public Plugin {
     S2E_PLUGIN
 
 public:
-    FunctionMonitor2(S2E *s2e) : Plugin(s2e) {
+    FunctionMonitor(S2E *s2e) : Plugin(s2e) {
     }
 
     void initialize();
@@ -63,4 +63,4 @@ private:
 } // namespace plugins
 } // namespace s2e
 
-#endif // S2E_PLUGINS_FunctionMonitor2_H
+#endif // S2E_PLUGINS_FunctionMonitor_H

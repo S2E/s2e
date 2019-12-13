@@ -15,39 +15,39 @@
 
 #include <llvm/ADT/DenseSet.h>
 
-#include "FunctionMonitor2.h"
+#include "FunctionMonitor.h"
 
 namespace s2e {
 namespace plugins {
 
-S2E_DEFINE_PLUGIN(FunctionMonitor2, "Function monitoring plugin", "", "ExecutionTracer", "ProcessExecutionDetector",
+S2E_DEFINE_PLUGIN(FunctionMonitor, "Function monitoring plugin", "", "ExecutionTracer", "ProcessExecutionDetector",
                   "OSMonitor", "ModuleMap");
 
 namespace {
-class FunctionMonitor2State : public PluginState {
+class FunctionMonitorState : public PluginState {
     // Maps a stack pointer containing a return address to the return signal
-    using ReturnSignals = std::unordered_map<uint64_t, FunctionMonitor2::ReturnSignalPtr>;
+    using ReturnSignals = std::unordered_map<uint64_t, FunctionMonitor::ReturnSignalPtr>;
     using PidRetSignals = std::unordered_map<uint64_t /* pid */, ReturnSignals>;
 
     PidRetSignals m_signals;
 
 public:
-    FunctionMonitor2State() {
+    FunctionMonitorState() {
     }
-    virtual ~FunctionMonitor2State() {
+    virtual ~FunctionMonitorState() {
     }
-    virtual FunctionMonitor2State *clone() const {
-        return new FunctionMonitor2State(*this);
+    virtual FunctionMonitorState *clone() const {
+        return new FunctionMonitorState(*this);
     }
     static PluginState *factory(Plugin *p, S2EExecutionState *s) {
-        return new FunctionMonitor2State();
+        return new FunctionMonitorState();
     }
 
-    void setReturnSignal(uint64_t pid, uint64_t sp, FunctionMonitor2::ReturnSignalPtr &signal) {
+    void setReturnSignal(uint64_t pid, uint64_t sp, FunctionMonitor::ReturnSignalPtr &signal) {
         m_signals[pid][sp] = signal;
     }
 
-    FunctionMonitor2::ReturnSignalPtr getReturnSignal(uint64_t pid, uint64_t sp) const {
+    FunctionMonitor::ReturnSignalPtr getReturnSignal(uint64_t pid, uint64_t sp) const {
         auto pit = m_signals.find(pid);
         if (pit == m_signals.end()) {
             return nullptr;
@@ -94,43 +94,43 @@ public:
 };
 }
 
-void FunctionMonitor2::initialize() {
+void FunctionMonitor::initialize() {
     m_monitor = static_cast<OSMonitor *>(s2e()->getPlugin("OSMonitor"));
-    m_monitor->onProcessUnload.connect(sigc::mem_fun(*this, &FunctionMonitor2::onProcessUnload));
-    m_monitor->onThreadExit.connect(sigc::mem_fun(*this, &FunctionMonitor2::onThreadExit));
+    m_monitor->onProcessUnload.connect(sigc::mem_fun(*this, &FunctionMonitor::onProcessUnload));
+    m_monitor->onThreadExit.connect(sigc::mem_fun(*this, &FunctionMonitor::onThreadExit));
 
     m_map = s2e()->getPlugin<ModuleMap>();
     m_processDetector = s2e()->getPlugin<ProcessExecutionDetector>();
 
-    s2e()->getCorePlugin()->onTranslateBlockEnd.connect(sigc::mem_fun(*this, &FunctionMonitor2::onTranslateBlockEnd));
+    s2e()->getCorePlugin()->onTranslateBlockEnd.connect(sigc::mem_fun(*this, &FunctionMonitor::onTranslateBlockEnd));
 }
 
-void FunctionMonitor2::onProcessUnload(S2EExecutionState *state, uint64_t addressSpace, uint64_t pid,
-                                       uint64_t returnCode) {
-    DECLARE_PLUGINSTATE(FunctionMonitor2State, state);
+void FunctionMonitor::onProcessUnload(S2EExecutionState *state, uint64_t addressSpace, uint64_t pid,
+                                      uint64_t returnCode) {
+    DECLARE_PLUGINSTATE(FunctionMonitorState, state);
     plgState->erasePid(pid);
 }
 
-void FunctionMonitor2::onThreadExit(S2EExecutionState *state, const ThreadDescriptor &thread) {
-    DECLARE_PLUGINSTATE(FunctionMonitor2State, state);
+void FunctionMonitor::onThreadExit(S2EExecutionState *state, const ThreadDescriptor &thread) {
+    DECLARE_PLUGINSTATE(FunctionMonitorState, state);
     // TODO: the monitor doesn't give info about user stack, only kernel one, so erase that one.
     plgState->eraseReturnSignals(thread.Pid, thread.KernelStackBottom, thread.KernelStackSize);
 }
 
-void FunctionMonitor2::onTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb,
-                                           uint64_t pc, bool isStatic, uint64_t staticTarget) {
+void FunctionMonitor::onTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb,
+                                          uint64_t pc, bool isStatic, uint64_t staticTarget) {
     if (m_monitor->isKernelAddress(pc)) {
         return;
     }
 
     if (tb->se_tb_type == TB_CALL || tb->se_tb_type == TB_CALL_IND) {
-        signal->connect(sigc::mem_fun(*this, &FunctionMonitor2::onFunctionCall));
+        signal->connect(sigc::mem_fun(*this, &FunctionMonitor::onFunctionCall));
     } else if (tb->se_tb_type == TB_RET) {
-        signal->connect(sigc::mem_fun(*this, &FunctionMonitor2::onFunctionReturn));
+        signal->connect(sigc::mem_fun(*this, &FunctionMonitor::onFunctionReturn));
     }
 }
 
-void FunctionMonitor2::onFunctionCall(S2EExecutionState *state, uint64_t callerPc) {
+void FunctionMonitor::onFunctionCall(S2EExecutionState *state, uint64_t callerPc) {
     if (!m_processDetector->isTracked(state)) {
         return;
     }
@@ -155,22 +155,22 @@ void FunctionMonitor2::onFunctionCall(S2EExecutionState *state, uint64_t callerP
         return;
     }
 
-    auto onRetSig = new FunctionMonitor2::ReturnSignal();
-    auto onRetSigPtr = std::shared_ptr<FunctionMonitor2::ReturnSignal>(onRetSig);
+    auto onRetSig = new FunctionMonitor::ReturnSignal();
+    auto onRetSigPtr = std::shared_ptr<FunctionMonitor::ReturnSignal>(onRetSig);
     onCall.emit(state, callerMod, calleeMod, callerPc, calleePc, onRetSigPtr);
     if (!onRetSigPtr->empty()) {
-        DECLARE_PLUGINSTATE(FunctionMonitor2State, state);
+        DECLARE_PLUGINSTATE(FunctionMonitorState, state);
         auto pid = m_monitor->getPid(state);
         plgState->setReturnSignal(pid, state->regs()->getSp(), onRetSigPtr);
     }
 }
 
-void FunctionMonitor2::onFunctionReturn(S2EExecutionState *state, uint64_t returnPc) {
+void FunctionMonitor::onFunctionReturn(S2EExecutionState *state, uint64_t returnPc) {
     if (!m_processDetector->isTracked(state)) {
         return;
     }
 
-    DECLARE_PLUGINSTATE(FunctionMonitor2State, state);
+    DECLARE_PLUGINSTATE(FunctionMonitorState, state);
     auto sp = state->regs()->getSp() - state->getPointerSize();
     auto pid = m_monitor->getPid(state);
     auto signal = plgState->getReturnSignal(pid, sp);
