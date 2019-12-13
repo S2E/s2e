@@ -202,10 +202,10 @@ template <typename RET, typename... PARAM_TYPES> class signal : public signal_ba
 public:
     typedef boost::intrusive_ptr<functor_base<RET, PARAM_TYPES...>> func_t;
 
+private:
     unsigned m_activeSignals;
     unsigned m_deletedSignals;
 
-private:
     // Each signal has a priority. Any new signal will be inserted
     // in the list according to its priority.
     // Higher priorities go first in the list.
