@@ -49,6 +49,7 @@ vulnerabilities in them. S2E is pronounced *S two E*.
    Using execution tracers <Howtos/ExecutionTracers>
    ImageInstallation
    Writing S2E plugins <Howtos/WritingPlugins>
+   Howtos/LuaInstrumentation
 
 
 .. toctree::
@@ -87,7 +88,6 @@ vulnerabilities in them. S2E is pronounced *S two E*.
    Plugins/Tracers/TranslationBlockTracer
    Plugins/Tracers/InstructionCounter
 
-   Plugins/Annotations
    Plugins/FunctionMonitor
    Plugins/Linux/FunctionModels
    Plugins/EdgeKiller
