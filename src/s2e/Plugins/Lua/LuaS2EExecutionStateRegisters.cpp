@@ -17,6 +17,7 @@ const char LuaS2EExecutionStateRegisters::className[] = "LuaS2EExecutionStateReg
 
 Lunar<LuaS2EExecutionStateRegisters>::RegType LuaS2EExecutionStateRegisters::methods[] = {
     LUNAR_DECLARE_METHOD(LuaS2EExecutionStateRegisters, getPc),
+    LUNAR_DECLARE_METHOD(LuaS2EExecutionStateRegisters, getSp),
     LUNAR_DECLARE_METHOD(LuaS2EExecutionStateRegisters, write),
     LUNAR_DECLARE_METHOD(LuaS2EExecutionStateRegisters, read),
     {0, 0}};
@@ -26,29 +27,55 @@ int LuaS2EExecutionStateRegisters::getPc(lua_State *L) {
     return 1;
 }
 
+int LuaS2EExecutionStateRegisters::getSp(lua_State *L) {
+    lua_pushinteger(L, m_state->regs()->getSp());
+    return 1;
+}
+
 int LuaS2EExecutionStateRegisters::read(lua_State *L) {
-    long pointer = (long) luaL_checkinteger(L, 1);
+    long offset = (long) luaL_checkinteger(L, 1);
     long size = (long) luaL_checkinteger(L, 2);
+    RegReadFlags flags = CONCRETE;
+
+    if (lua_gettop(L) == 3) {
+        flags = (RegReadFlags) luaL_checkinteger(L, 3);
+    }
+
     uint64_t value = 0;
 
-    switch (size) {
-        case 1:
-            value = m_state->regs()->read<uint8_t>(pointer);
+    switch (flags) {
+        case CONCRETE:
+            switch (size) {
+                case 1:
+                    value = m_state->regs()->read<uint8_t>(offset);
+                    break;
+                case 2:
+                    value = m_state->regs()->read<uint16_t>(offset);
+                    break;
+                case 4:
+                    value = m_state->regs()->read<uint32_t>(offset);
+                    break;
+                case 8:
+                    value = m_state->regs()->read<uint64_t>(offset);
+                    break;
+                default: {
+                    std::stringstream ss;
+                    ss << "LuaS2EExecutionStateRegisters::read: Incorrect size " << size << "\n";
+                    g_s2e->getExecutor()->terminateState(*m_state, ss.str());
+                    break;
+                }
+            }
             break;
-        case 2:
-            value = m_state->regs()->read<uint16_t>(pointer);
-            break;
-        case 4:
-            value = m_state->regs()->read<uint32_t>(pointer);
-            break;
-        case 8:
-            value = m_state->regs()->read<uint64_t>(pointer);
-            break;
+
+        case CONCRETE_EXAMPLE: {
+            auto expr = m_state->regs()->read(offset, size * 8);
+            value = m_state->concretize(expr, "", true);
+        } break;
+
         default: {
             std::stringstream ss;
-            ss << "LuaS2EExecutionStateRegisters::read: Incorrect size " << size << "\n";
+            ss << "LuaS2EExecutionStateRegisters::read: Incorrect flags " << flags << "\n";
             g_s2e->getExecutor()->terminateState(*m_state, ss.str());
-            break;
         }
     }
 

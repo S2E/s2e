@@ -26,6 +26,7 @@ Lunar<LuaS2EExecutionState>::RegType LuaS2EExecutionState::methods[] = {
     LUNAR_DECLARE_METHOD(LuaS2EExecutionState, setPluginProperty),
     LUNAR_DECLARE_METHOD(LuaS2EExecutionState, getPluginProperty),
     LUNAR_DECLARE_METHOD(LuaS2EExecutionState, debug),
+    LUNAR_DECLARE_METHOD(LuaS2EExecutionState, getPointerSize),
     {0, 0}};
 
 int LuaS2EExecutionState::mem(lua_State *L) {
@@ -35,6 +36,11 @@ int LuaS2EExecutionState::mem(lua_State *L) {
 
 int LuaS2EExecutionState::regs(lua_State *L) {
     Lunar<LuaS2EExecutionStateRegisters>::push(L, &m_registers);
+    return 1;
+}
+
+int LuaS2EExecutionState::getPointerSize(lua_State *L) {
+    lua_pushinteger(L, m_state->getPointerSize());
     return 1;
 }
 

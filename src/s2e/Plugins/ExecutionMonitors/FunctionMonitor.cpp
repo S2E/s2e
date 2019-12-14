@@ -20,8 +20,8 @@
 namespace s2e {
 namespace plugins {
 
-S2E_DEFINE_PLUGIN(FunctionMonitor, "Function monitoring plugin", "", "ExecutionTracer", "ProcessExecutionDetector",
-                  "OSMonitor", "ModuleMap");
+S2E_DEFINE_PLUGIN(FunctionMonitor, "Function monitoring plugin", "", "ProcessExecutionDetector", "OSMonitor",
+                  "ModuleMap");
 
 namespace {
 class FunctionMonitorState : public PluginState {

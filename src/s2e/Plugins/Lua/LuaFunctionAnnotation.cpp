@@ -12,8 +12,6 @@
 #include <s2e/Utils.h>
 
 #include <s2e/Plugins/ExecutionMonitors/FunctionMonitor.h>
-#include <s2e/Plugins/OSMonitors/OSMonitor.h>
-#include <s2e/Plugins/OSMonitors/Support/ModuleExecutionDetector.h>
 #include <s2e/Plugins/Support/KeyValueStore.h>
 
 #include "LuaFunctionAnnotation.h"
@@ -24,7 +22,7 @@ namespace s2e {
 namespace plugins {
 
 S2E_DEFINE_PLUGIN(LuaFunctionAnnotation, "Execute Lua code on a function call", "LuaFunctionAnnotation",
-                  "FunctionMonitor", "OSMonitor", "LuaBindings", "ModuleMap", "ProcessExecutionDetector");
+                  "FunctionMonitor", "LuaBindings");
 
 class LuaFunctionAnnotationPluginState : public PluginState {
 private:
