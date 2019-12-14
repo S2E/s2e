@@ -1,0 +1,11 @@
+test:
+    description: "Checks that function monitor works properly"
+
+    targets:
+        - linux32-basic6-funcmon
+        - linux64-basic6-funcmon
+        - windows32-basic6-funcmon.exe
+        - windows64-basic6-funcmon.exe
+
+    build-options:
+        post-project-generation-script: fix-config.sh
