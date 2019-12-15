@@ -11,8 +11,8 @@
 #include <s2e/S2EExecutor.h>
 #include <s2e/Utils.h>
 
-#include "LuaAnnotationState.h"
 #include "LuaCoreEvents.h"
+#include "LuaInstrumentationState.h"
 #include "LuaS2EExecutionState.h"
 
 namespace s2e {
@@ -21,7 +21,7 @@ namespace plugins {
 S2E_DEFINE_PLUGIN(LuaCoreEvents, "Exposes core events to lua scripts", "", "LuaBindings");
 
 void LuaCoreEvents::initialize() {
-    getInfoStream() << "Registering annotations for core signals\n";
+    getInfoStream() << "Registering instrumentation for core signals\n";
     registerCoreSignals(getConfigKey());
 }
 
@@ -61,47 +61,47 @@ void LuaCoreEvents::registerCoreSignals(const std::string &cfgname) {
 void LuaCoreEvents::onStateForkDecide(S2EExecutionState *state, bool *allowForking) {
     lua_State *L = s2e()->getConfig()->getState();
     LuaS2EExecutionState luaS2EState(state);
-    LuaAnnotationState luaAnnotation;
+    LuaInstrumentationState luaInstrumentation;
 
     lua_getglobal(L, m_onStateForkDecide.c_str());
     Lunar<LuaS2EExecutionState>::push(L, &luaS2EState);
-    Lunar<LuaAnnotationState>::push(L, &luaAnnotation);
+    Lunar<LuaInstrumentationState>::push(L, &luaInstrumentation);
 
     lua_call(L, 2, 1);
     *allowForking = lua_toboolean(L, -1) != 0;
     lua_pop(L, 1);
 
     if (!*allowForking) {
-        s2e()->getInfoStream() << "annotation prevented forking at pc=" << hexval(state->regs()->getPc()) << "\n";
+        s2e()->getInfoStream() << "instrumentation prevented forking at pc=" << hexval(state->regs()->getPc()) << "\n";
     }
 }
 
 void LuaCoreEvents::onStateKill(S2EExecutionState *state) {
     lua_State *L = s2e()->getConfig()->getState();
     LuaS2EExecutionState luaS2EState(state);
-    LuaAnnotationState luaAnnotation;
+    LuaInstrumentationState luaInstrumentation;
 
     lua_getglobal(L, m_onStateKill.c_str());
     Lunar<LuaS2EExecutionState>::push(L, &luaS2EState);
-    Lunar<LuaAnnotationState>::push(L, &luaAnnotation);
+    Lunar<LuaInstrumentationState>::push(L, &luaInstrumentation);
 
     lua_call(L, 2, 0);
 
-    if (luaAnnotation.exitCpuLoop()) {
+    if (luaInstrumentation.exitCpuLoop()) {
         throw CpuExitException();
     }
 }
 
 void LuaCoreEvents::onTimer() {
     lua_State *L = s2e()->getConfig()->getState();
-    LuaAnnotationState luaAnnotation;
+    LuaInstrumentationState luaInstrumentation;
 
     lua_getglobal(L, m_onTimer.c_str());
-    Lunar<LuaAnnotationState>::push(L, &luaAnnotation);
+    Lunar<LuaInstrumentationState>::push(L, &luaInstrumentation);
 
     lua_call(L, 1, 0);
 
-    if (luaAnnotation.exitCpuLoop()) {
+    if (luaInstrumentation.exitCpuLoop()) {
         throw CpuExitException();
     }
 }

@@ -8,17 +8,17 @@
 #include <s2e/S2E.h>
 #include <s2e/s2e_libcpu.h>
 
-#include "LuaAnnotationState.h"
+#include "LuaInstrumentationState.h"
 
 namespace s2e {
 namespace plugins {
 
-const char LuaAnnotationState::className[] = "LuaAnnotationState";
+const char LuaInstrumentationState::className[] = "LuaInstrumentationState";
 
-Lunar<LuaAnnotationState>::RegType LuaAnnotationState::methods[] = {
-    LUNAR_DECLARE_METHOD(LuaAnnotationState, setExitCpuLoop), {0, 0}};
+Lunar<LuaInstrumentationState>::RegType LuaInstrumentationState::methods[] = {
+    LUNAR_DECLARE_METHOD(LuaInstrumentationState, setExitCpuLoop), {0, 0}};
 
-int LuaAnnotationState::setExitCpuLoop(lua_State *L) {
+int LuaInstrumentationState::setExitCpuLoop(lua_State *L) {
     g_s2e->getDebugStream() << "requested to exit cpu loop\n";
     m_exitCpuLoop = true;
     return 0;

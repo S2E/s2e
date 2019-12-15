@@ -14,18 +14,18 @@
 namespace s2e {
 namespace plugins {
 
-class LuaAnnotationState {
+class LuaInstrumentationState {
 private:
     bool m_exitCpuLoop;
 
 public:
     static const char className[];
-    static Lunar<LuaAnnotationState>::RegType methods[];
+    static Lunar<LuaInstrumentationState>::RegType methods[];
 
-    LuaAnnotationState(lua_State *L) : LuaAnnotationState() {
+    LuaInstrumentationState(lua_State *L) : LuaInstrumentationState() {
     }
 
-    LuaAnnotationState() : m_exitCpuLoop(false) {
+    LuaInstrumentationState() : m_exitCpuLoop(false) {
     }
 
     bool exitCpuLoop() const {
