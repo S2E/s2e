@@ -1,5 +1,5 @@
 ///
-/// Copyright (C) 2015, Cyberhaven
+/// Copyright (C) 2015-2019, Cyberhaven
 /// All rights reserved.
 ///
 /// Licensed under the Cyberhaven Research License Agreement.
@@ -23,6 +23,17 @@ class ModuleMap;
 class OSMonitor;
 class ProcessExecutionDetector;
 
+///
+/// \brief The FunctionMonitor class tracks call/return instruction pairs.
+///
+/// Clients use the onCall signal to be notified of call instructions and
+/// optionally of return instructions in case they choose to register the corresponding
+/// return signal. Call/return signals are paired and work for recursive functions too.
+/// Note that compilers may introduce various optimizations (e.g., tail calls), which
+/// may interfere with return signals.
+///
+/// This plugin only tracks modules in processes registered with ProcessExecutionDetector.
+///
 class FunctionMonitor : public Plugin {
     S2E_PLUGIN
 
@@ -42,6 +53,9 @@ public:
 
     typedef std::shared_ptr<ReturnSignal> ReturnSignalPtr;
 
+    ///
+    /// \brief onCall
+    ///
     sigc::signal<void, S2EExecutionState *, const ModuleDescriptorConstPtr & /* caller module */,
                  const ModuleDescriptorConstPtr & /* callee module */, uint64_t /* caller PC */,
                  uint64_t /* callee PC */, const ReturnSignalPtr &>
