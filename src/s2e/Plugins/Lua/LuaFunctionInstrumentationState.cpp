@@ -17,7 +17,6 @@ const char LuaFunctionInstrumentationState::className[] = "LuaFunctionInstrument
 Lunar<LuaFunctionInstrumentationState>::RegType LuaFunctionInstrumentationState::methods[] = {
     LUNAR_DECLARE_METHOD(LuaFunctionInstrumentationState, skipFunction),
     LUNAR_DECLARE_METHOD(LuaFunctionInstrumentationState, isChild),
-    LUNAR_DECLARE_METHOD(LuaFunctionInstrumentationState, setExitCpuLoop),
     {0, 0}};
 
 int LuaFunctionInstrumentationState::isChild(lua_State *L) {
