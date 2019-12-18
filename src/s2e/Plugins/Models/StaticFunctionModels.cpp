@@ -16,7 +16,6 @@
 #include <s2e/Utils.h>
 
 #include <algorithm>
-#include <s2e/Plugins/ExecutionMonitors/FunctionMonitor.h>
 
 #include "StaticFunctionModels.h"
 

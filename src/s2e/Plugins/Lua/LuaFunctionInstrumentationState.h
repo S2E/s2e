@@ -10,23 +10,23 @@
 #define _LUA_S2E_FUNCTION_ANNOTATION_STATE_
 
 #include "Lua.h"
-#include "LuaAnnotationState.h"
+#include "LuaInstrumentationState.h"
 
 namespace s2e {
 namespace plugins {
 
-class LuaFunctionAnnotationState : public LuaAnnotationState {
+class LuaFunctionInstrumentationState : public LuaInstrumentationState {
 private:
     bool m_child;
     bool m_skip;
 
 public:
     static const char className[];
-    static Lunar<LuaFunctionAnnotationState>::RegType methods[];
-    LuaFunctionAnnotationState(lua_State *L) : LuaAnnotationState(L) {
+    static Lunar<LuaFunctionInstrumentationState>::RegType methods[];
+    LuaFunctionInstrumentationState(lua_State *L) : LuaInstrumentationState(L) {
     }
 
-    LuaFunctionAnnotationState() : LuaAnnotationState(), m_child(false), m_skip(false) {
+    LuaFunctionInstrumentationState() : LuaInstrumentationState(), m_child(false), m_skip(false) {
     }
 
     void setChild(bool c) {

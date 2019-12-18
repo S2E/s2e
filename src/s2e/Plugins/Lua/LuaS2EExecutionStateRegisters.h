@@ -19,6 +19,8 @@ class LuaS2EExecutionStateRegisters {
 private:
     S2EExecutionState *m_state;
 
+    enum RegReadFlags { CONCRETE = 0, CONCRETE_EXAMPLE = 1 };
+
 public:
     static const char className[];
     static Lunar<LuaS2EExecutionStateRegisters>::RegType methods[];
@@ -32,6 +34,7 @@ public:
     int read(lua_State *L);
     int write(lua_State *L);
     int getPc(lua_State *L);
+    int getSp(lua_State *L);
 };
 }
 }

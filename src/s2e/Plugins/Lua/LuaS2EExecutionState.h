@@ -40,6 +40,7 @@ public:
 
     int mem(lua_State *L);
     int regs(lua_State *L);
+    int getPointerSize(lua_State *L);
     int createSymbolicValue(lua_State *L);
     int kill(lua_State *L);
     int setPluginProperty(lua_State *L);

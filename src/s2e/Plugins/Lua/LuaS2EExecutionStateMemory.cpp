@@ -32,11 +32,17 @@ int LuaS2EExecutionStateMemory::readPointer(lua_State *L) {
     uint64_t pointerSize = m_state->getPointerSize();
     if (pointerSize == 4) {
         uint32_t data = 0;
-        m_state->mem()->read(address, &data, sizeof(data));
+        if (!m_state->mem()->read(address, &data, sizeof(data))) {
+            g_s2e->getWarningsStream(m_state) << "Could not read address " << hexval(address) << "\n";
+            return 0;
+        }
         lua_pushinteger(L, data);
     } else {
         uint64_t data = 0;
-        m_state->mem()->read(address, &data, sizeof(data));
+        if (!m_state->mem()->read(address, &data, sizeof(data))) {
+            g_s2e->getWarningsStream(m_state) << "Could not read address " << hexval(address) << "\n";
+            return 0;
+        }
         lua_pushinteger(L, data);
     }
 
@@ -102,17 +108,20 @@ int LuaS2EExecutionStateMemory::makeSymbolic(lua_State *L) {
 
     std::vector<uint8_t> concreteData(size);
     if (!m_state->mem()->read(address, concreteData.data(), size * sizeof(uint8_t))) {
-        return 0;
+        lua_pushinteger(L, 0);
+        return 1;
     }
 
     std::vector<klee::ref<klee::Expr>> symb = m_state->createSymbolicArray(name, size, concreteData);
 
     for (unsigned i = 0; i < size; ++i) {
         if (!m_state->mem()->write(address + i, symb[i])) {
-            return 0;
+            lua_pushinteger(L, 0);
+            return 1;
         }
     }
 
+    lua_pushinteger(L, 1);
     return 1;
 }
 

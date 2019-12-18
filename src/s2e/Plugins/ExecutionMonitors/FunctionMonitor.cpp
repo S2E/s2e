@@ -1,284 +1,190 @@
 ///
-/// Copyright (C) 2010-2015, Dependable Systems Laboratory, EPFL
-/// Copyright (C) 2016, Cyberhaven
+/// Copyright (C) 2015-2019, Cyberhaven
 /// All rights reserved.
 ///
 /// Licensed under the Cyberhaven Research License Agreement.
 ///
 
+#include <s2e/ConfigFile.h>
+#include <s2e/S2E.h>
 #include <s2e/cpu.h>
 
-#include <s2e/ConfigFile.h>
 #include <s2e/Plugins/OSMonitors/OSMonitor.h>
-#include <s2e/S2E.h>
-#include <s2e/Utils.h>
+#include <s2e/Plugins/OSMonitors/Support/ModuleMap.h>
+#include <s2e/Plugins/OSMonitors/Support/ProcessExecutionDetector.h>
 
-#include <iostream>
+#include <llvm/ADT/DenseSet.h>
 
 #include "FunctionMonitor.h"
 
 namespace s2e {
 namespace plugins {
 
-S2E_DEFINE_PLUGIN(FunctionMonitor, "Function calls/returns monitoring plugin", "", );
+S2E_DEFINE_PLUGIN(FunctionMonitor, "Function monitoring plugin", "", "ProcessExecutionDetector", "OSMonitor",
+                  "ModuleMap");
+
+namespace {
+class FunctionMonitorState : public PluginState {
+    // Maps a stack pointer containing a return address to the return signal
+    using ReturnSignals = std::unordered_map<uint64_t, FunctionMonitor::ReturnSignalPtr>;
+    using PidRetSignals = std::unordered_map<uint64_t /* pid */, ReturnSignals>;
+
+    PidRetSignals m_signals;
+
+public:
+    FunctionMonitorState() {
+    }
+    virtual ~FunctionMonitorState() {
+    }
+    virtual FunctionMonitorState *clone() const {
+        return new FunctionMonitorState(*this);
+    }
+    static PluginState *factory(Plugin *p, S2EExecutionState *s) {
+        return new FunctionMonitorState();
+    }
+
+    void setReturnSignal(uint64_t pid, uint64_t sp, FunctionMonitor::ReturnSignalPtr &signal) {
+        m_signals[pid][sp] = signal;
+    }
+
+    FunctionMonitor::ReturnSignalPtr getReturnSignal(uint64_t pid, uint64_t sp) const {
+        auto pit = m_signals.find(pid);
+        if (pit == m_signals.end()) {
+            return nullptr;
+        }
+
+        auto sit = pit->second.find(sp);
+        if (sit == pit->second.end()) {
+            return nullptr;
+        }
+
+        return sit->second;
+    }
+
+    void eraseReturnSignal(uint64_t pid, uint64_t sp) {
+        auto it = m_signals.find(pid);
+        if (it == m_signals.end()) {
+            return;
+        }
+        it->second.erase(sp);
+    }
+
+    void eraseReturnSignals(uint64_t pid, uint64_t stackBottom, uint64_t stackSize) {
+        auto sit = m_signals.find(pid);
+        if (sit == m_signals.end()) {
+            return;
+        }
+
+        llvm::DenseSet<uint64_t> toErase;
+        auto end = stackBottom + stackSize;
+        for (const auto &it : m_signals) {
+            if (it.first >= stackBottom && it.first < end) {
+                toErase.insert(it.first);
+            }
+        }
+
+        for (auto sp : toErase) {
+            sit->second.erase(sp);
+        }
+    }
+
+    void erasePid(uint64_t pid) {
+        m_signals.erase(pid);
+    }
+};
+}
 
 void FunctionMonitor::initialize() {
     m_monitor = static_cast<OSMonitor *>(s2e()->getPlugin("OSMonitor"));
-    m_detector = s2e()->getPlugin<ModuleExecutionDetector>();
+    m_monitor->onProcessUnload.connect(sigc::mem_fun(*this, &FunctionMonitor::onProcessUnload));
+    m_monitor->onThreadExit.connect(sigc::mem_fun(*this, &FunctionMonitor::onThreadExit));
 
-    m_localCalls = s2e()->getConfig()->getBool(getConfigKey() + ".monitorLocalFunctions");
+    m_map = s2e()->getPlugin<ModuleMap>();
+    m_processDetector = s2e()->getPlugin<ProcessExecutionDetector>();
 
-    if (m_localCalls) {
-        if (!m_detector) {
-            getWarningsStream() << "FunctionMonitor: requires ModuleExecutionDetector when"
-                                << " monitorLocalFunctions is true\n";
-            exit(-1);
-        }
-        m_detector->onModuleTranslateBlockEnd.connect(
-            sigc::mem_fun(*this, &FunctionMonitor::slotModuleTranslateBlockEnd));
-
-        s2e()->getCorePlugin()->onTranslateJumpStart.connect(
-            sigc::mem_fun(*this, &FunctionMonitor::slotTranslateJumpStart));
-
-    } else {
-        s2e()->getCorePlugin()->onTranslateBlockEnd.connect(
-            sigc::mem_fun(*this, &FunctionMonitor::slotTranslateBlockEnd));
-
-        s2e()->getCorePlugin()->onTranslateJumpStart.connect(
-            sigc::mem_fun(*this, &FunctionMonitor::slotTranslateJumpStart));
-    }
+    s2e()->getCorePlugin()->onTranslateBlockEnd.connect(sigc::mem_fun(*this, &FunctionMonitor::onTranslateBlockEnd));
 }
 
-// XXX: Implement onmoduleunload to automatically clear all call signals
-FunctionMonitor::CallSignal *FunctionMonitor::getCallSignal(S2EExecutionState *state, uint64_t eip, uint64_t cr3) {
+void FunctionMonitor::onProcessUnload(S2EExecutionState *state, uint64_t addressSpace, uint64_t pid,
+                                      uint64_t returnCode) {
     DECLARE_PLUGINSTATE(FunctionMonitorState, state);
-
-    return plgState->getCallSignal(eip, cr3);
+    plgState->erasePid(pid);
 }
 
-void FunctionMonitor::slotModuleTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionState *state,
-                                                  const ModuleDescriptor &module, TranslationBlock *tb, uint64_t pc,
-                                                  bool isStatic, uint64_t staticTarget) {
-    slotTranslateBlockEnd(signal, state, tb, pc, isStatic, staticTarget);
+void FunctionMonitor::onThreadExit(S2EExecutionState *state, const ThreadDescriptor &thread) {
+    DECLARE_PLUGINSTATE(FunctionMonitorState, state);
+    // TODO: the monitor doesn't give info about user stack, only kernel one, so erase that one.
+    plgState->eraseReturnSignals(thread.Pid, thread.KernelStackBottom, thread.KernelStackSize);
 }
 
-void FunctionMonitor::slotTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb,
-                                            uint64_t pc, bool isStatic, uint64_t staticTarget) {
-    /* We intercept all call and ret translation blocks */
+void FunctionMonitor::onTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb,
+                                          uint64_t pc, bool isStatic, uint64_t staticTarget) {
+    if (m_monitor->isKernelAddress(pc)) {
+        return;
+    }
+
     if (tb->se_tb_type == TB_CALL || tb->se_tb_type == TB_CALL_IND) {
-        signal->connect(sigc::mem_fun(*this, &FunctionMonitor::slotCall));
+        signal->connect(sigc::mem_fun(*this, &FunctionMonitor::onFunctionCall));
+    } else if (tb->se_tb_type == TB_RET) {
+        signal->connect(sigc::mem_fun(*this, &FunctionMonitor::onFunctionReturn));
     }
 }
 
-void FunctionMonitor::slotTranslateJumpStart(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *,
-                                             uint64_t, int jump_type) {
-    if (jump_type == JT_RET || jump_type == JT_LRET) {
-        if (!m_localCalls || m_detector->getCurrentDescriptor(state)) {
-            signal->connect(sigc::mem_fun(*this, &FunctionMonitor::slotRet));
-        }
-    }
-}
-
-void FunctionMonitor::slotCall(S2EExecutionState *state, uint64_t pc) {
-    DECLARE_PLUGINSTATE(FunctionMonitorState, state);
-
-    return plgState->slotCall(state, pc);
-}
-
-void FunctionMonitor::disconnect(S2EExecutionState *state, const ModuleDescriptor &desc) {
-    DECLARE_PLUGINSTATE(FunctionMonitorState, state);
-
-    return plgState->disconnect(desc);
-}
-
-// See notes for slotRet to see how to use this function.
-void FunctionMonitor::eraseSp(S2EExecutionState *state, uint64_t pc) {
-    DECLARE_PLUGINSTATE(FunctionMonitorState, state);
-
-    return plgState->slotRet(state, pc, false);
-}
-
-void FunctionMonitor::registerReturnSignal(S2EExecutionState *state, FunctionMonitor::ReturnSignal &sig) {
-    DECLARE_PLUGINSTATE(FunctionMonitorState, state);
-    plgState->registerReturnSignal(state, sig);
-}
-
-void FunctionMonitor::slotRet(S2EExecutionState *state, uint64_t pc) {
-    DECLARE_PLUGINSTATE(FunctionMonitorState, state);
-
-    return plgState->slotRet(state, pc, true);
-}
-
-FunctionMonitorState::FunctionMonitorState() {
-}
-
-FunctionMonitorState::~FunctionMonitorState() {
-}
-
-FunctionMonitorState *FunctionMonitorState::clone() const {
-    FunctionMonitorState *ret = new FunctionMonitorState(*this);
-    assert(ret->m_returnDescriptors.size() == m_returnDescriptors.size());
-    return ret;
-}
-
-PluginState *FunctionMonitorState::factory(Plugin *p, S2EExecutionState *s) {
-    FunctionMonitorState *ret = new FunctionMonitorState();
-    ret->m_plugin = static_cast<FunctionMonitor *>(p);
-    return ret;
-}
-
-FunctionMonitor::CallSignal *FunctionMonitorState::getCallSignal(uint64_t eip, uint64_t cr3) {
-    std::pair<CallDescriptorsMap::iterator, CallDescriptorsMap::iterator> range = m_callDescriptors.equal_range(eip);
-
-    for (CallDescriptorsMap::iterator it = range.first; it != range.second; ++it) {
-        if (it->second.cr3 == cr3)
-            return &it->second.signal;
-    }
-
-    CallDescriptor descriptor = {cr3, FunctionMonitor::CallSignal()};
-    CallDescriptorsMap::iterator it = m_newCallDescriptors.insert(std::make_pair(eip, descriptor));
-
-    return &it->second.signal;
-}
-
-void FunctionMonitorState::slotCall(S2EExecutionState *state, uint64_t pc) {
-    target_ulong cr3 = state->regs()->getPageDir();
-    target_ulong eip = state->regs()->getPc();
-
-    if (!m_newCallDescriptors.empty()) {
-        m_callDescriptors.insert(m_newCallDescriptors.begin(), m_newCallDescriptors.end());
-        m_newCallDescriptors.clear();
-    }
-
-    /* Issue signals attached to all calls (eip==-1 means catch-all) */
-    if (!m_callDescriptors.empty()) {
-        std::pair<CallDescriptorsMap::iterator, CallDescriptorsMap::iterator> range =
-            m_callDescriptors.equal_range((uint64_t) -1);
-        for (CallDescriptorsMap::iterator it = range.first; it != range.second; ++it) {
-            CallDescriptor cd = (*it).second;
-            if (it->second.cr3 == (uint64_t) -1 || it->second.cr3 == cr3) {
-                cd.signal.emit(state, this);
-            }
-        }
-        if (!m_newCallDescriptors.empty()) {
-            m_callDescriptors.insert(m_newCallDescriptors.begin(), m_newCallDescriptors.end());
-            m_newCallDescriptors.clear();
-        }
-    }
-
-    /* Issue signals attached to specific calls */
-    if (!m_callDescriptors.empty()) {
-        std::pair<CallDescriptorsMap::iterator, CallDescriptorsMap::iterator> range;
-
-        range = m_callDescriptors.equal_range(eip);
-        for (CallDescriptorsMap::iterator it = range.first; it != range.second; ++it) {
-            CallDescriptor cd = (*it).second;
-            if (it->second.cr3 == (uint64_t) -1 || it->second.cr3 == cr3) {
-                cd.signal.emit(state, this);
-            }
-        }
-        if (!m_newCallDescriptors.empty()) {
-            m_callDescriptors.insert(m_newCallDescriptors.begin(), m_newCallDescriptors.end());
-            m_newCallDescriptors.clear();
-        }
-    }
-}
-
-/**
- *  A call handler can invoke this function to register a return handler.
- *  XXX: We assume that the passed execution state corresponds to the state in which
- *  this instance of FunctionMonitorState is used.
- */
-void FunctionMonitorState::registerReturnSignal(S2EExecutionState *state, FunctionMonitor::ReturnSignal &sig) {
-    if (sig.empty()) {
+void FunctionMonitor::onFunctionCall(S2EExecutionState *state, uint64_t callerPc) {
+    if (!m_processDetector->isTracked(state)) {
         return;
     }
 
-    target_ulong esp;
+    uint64_t calleePc = state->regs()->getPc();
 
-    bool ok = state->regs()->read(CPU_OFFSET(regs[R_ESP]), &esp, sizeof esp, false);
+    auto callerMod = m_map->getModule(state, callerPc);
+    auto calleeMod = m_map->getModule(state, calleePc);
+
+    bool ok = true;
+
+    if (callerMod) {
+        ok &= callerMod->ToNativeBase(callerPc, callerPc);
+    }
+
+    if (calleeMod) {
+        ok &= calleeMod->ToNativeBase(calleePc, calleePc);
+    }
+
     if (!ok) {
-        m_plugin->getWarningsStream(state) << "Function call with symbolic ESP!\n"
-                                           << "  EIP=" << hexval(state->regs()->getPc())
-                                           << " CR3=" << hexval(state->regs()->getPageDir()) << '\n';
+        getWarningsStream(state) << "Could not get relative caller/callee address\n";
         return;
     }
 
-    uint64_t cr3 = state->regs()->getPageDir();
-    ReturnDescriptor descriptor = {cr3, sig};
-    m_returnDescriptors.insert(std::make_pair(esp, descriptor));
+    auto onRetSig = new FunctionMonitor::ReturnSignal();
+    auto onRetSigPtr = std::shared_ptr<FunctionMonitor::ReturnSignal>(onRetSig);
+    onCall.emit(state, callerMod, calleeMod, callerPc, calleePc, onRetSigPtr);
+    if (!onRetSigPtr->empty()) {
+        DECLARE_PLUGINSTATE(FunctionMonitorState, state);
+        auto pid = m_monitor->getPid(state);
+        plgState->setReturnSignal(pid, state->regs()->getSp(), onRetSigPtr);
+    }
 }
 
-/**
- *  When emitSignal is false, this function simply removes all the return descriptors
- * for the current stack pointer. This can be used when a return handler manually changes the
- * program counter and/or wants to exit to the cpu loop and avoid being called again.
- *
- *  Note: all the return handlers will be erased if emitSignal is false, not just the one
- * that issued the call. Also note that it not possible to return from the handler normally
- * whenever this function is called from within a return handler.
- */
-void FunctionMonitorState::slotRet(S2EExecutionState *state, uint64_t pc, bool emitSignal) {
-    target_ulong cr3 = state->regs()->getPageDir();
-
-    target_ulong esp;
-    bool ok = state->regs()->read(CPU_OFFSET(regs[R_ESP]), &esp, sizeof(target_ulong), false);
-    if (!ok) {
-        target_ulong eip = state->regs()->read<target_ulong>(CPU_OFFSET(eip));
-
-        m_plugin->getWarningsStream(state) << "Function return with symbolic ESP!" << '\n'
-                                           << "  EIP=" << hexval(eip) << " CR3=" << hexval(cr3) << '\n';
+void FunctionMonitor::onFunctionReturn(S2EExecutionState *state, uint64_t returnPc) {
+    if (!m_processDetector->isTracked(state)) {
         return;
     }
 
-    if (m_returnDescriptors.empty()) {
+    DECLARE_PLUGINSTATE(FunctionMonitorState, state);
+    auto sp = state->regs()->getSp() - state->getPointerSize();
+    auto pid = m_monitor->getPid(state);
+    auto signal = plgState->getReturnSignal(pid, sp);
+    if (!signal) {
         return;
     }
 
-    // m_plugin->getDebugStream() << "ESP AT RETURN 0x" << std::hex << esp <<
-    //        " plgstate=0x" << this << " EmitSignal=" << emitSignal <<  std::endl;
+    uint64_t returnDestPc = state->regs()->getPc();
 
-    bool finished = true;
-    do {
-        finished = true;
-        std::pair<ReturnDescriptorsMap::iterator, ReturnDescriptorsMap::iterator> range =
-            m_returnDescriptors.equal_range(esp);
-        for (ReturnDescriptorsMap::iterator it = range.first; it != range.second; ++it) {
-            if (it->second.cr3 == cr3) {
-                if (emitSignal) {
-                    it->second.signal.emit(state);
-                }
-                m_returnDescriptors.erase(it);
-                finished = false;
-                break;
-            }
-        }
-    } while (!finished);
-}
+    auto sourceMod = m_map->getModule(state, returnPc);
+    auto destMod = m_map->getModule(state, returnDestPc);
 
-void FunctionMonitorState::disconnect(const ModuleDescriptor &desc, CallDescriptorsMap &descMap) {
-    CallDescriptorsMap::iterator it = descMap.begin();
-    while (it != descMap.end()) {
-        uint64_t addr = (*it).first;
-        const CallDescriptor &call = (*it).second;
-        if (desc.Contains(addr) && desc.AddressSpace == call.cr3) {
-            CallDescriptorsMap::iterator it2 = it;
-            ++it;
-            descMap.erase(it2);
-        } else {
-            ++it;
-        }
-    }
-}
-
-// Disconnect all address that belong to desc.
-// This is useful to unregister all handlers when a module is unloaded
-void FunctionMonitorState::disconnect(const ModuleDescriptor &desc) {
-
-    disconnect(desc, m_callDescriptors);
-    disconnect(desc, m_newCallDescriptors);
-
-    // XXX: we assume there are no more return descriptors active when the module is unloaded
+    signal->emit(state, sourceMod, destMod, returnPc);
+    plgState->eraseReturnSignal(pid, sp);
 }
 
 } // namespace plugins

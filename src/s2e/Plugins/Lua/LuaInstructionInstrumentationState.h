@@ -10,22 +10,22 @@
 #define _LUA_S2E_INSTRUCTION_ANNOTATION_STATE_
 
 #include "Lua.h"
-#include "LuaAnnotationState.h"
+#include "LuaInstrumentationState.h"
 
 namespace s2e {
 namespace plugins {
 
-class LuaInstructionAnnotationState : public LuaAnnotationState {
+class LuaInstructionInstrumentationState : public LuaInstrumentationState {
 private:
     bool m_skip;
 
 public:
     static const char className[];
-    static Lunar<LuaInstructionAnnotationState>::RegType methods[];
-    LuaInstructionAnnotationState(lua_State *L) : LuaAnnotationState(L) {
+    static Lunar<LuaInstructionInstrumentationState>::RegType methods[];
+    LuaInstructionInstrumentationState(lua_State *L) : LuaInstrumentationState(L) {
     }
 
-    LuaInstructionAnnotationState() : LuaAnnotationState(), m_skip(false) {
+    LuaInstructionInstrumentationState() : LuaInstrumentationState(), m_skip(false) {
     }
 
     bool doSkip() const {

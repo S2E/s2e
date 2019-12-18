@@ -8,11 +8,11 @@
 #include <s2e/ConfigFile.h>
 #include <s2e/S2E.h>
 
-#include "LuaAnnotationState.h"
 #include "LuaBindings.h"
 #include "LuaExpression.h"
-#include "LuaFunctionAnnotationState.h"
-#include "LuaInstructionAnnotationState.h"
+#include "LuaFunctionInstrumentationState.h"
+#include "LuaInstructionInstrumentationState.h"
+#include "LuaInstrumentationState.h"
 #include "LuaModuleDescriptor.h"
 #include "LuaS2E.h"
 #include "LuaS2EExecutionState.h"
@@ -22,7 +22,7 @@
 namespace s2e {
 namespace plugins {
 
-S2E_DEFINE_PLUGIN(LuaBindings, "S2E interface for Lua annotations", "LuaBindings", );
+S2E_DEFINE_PLUGIN(LuaBindings, "S2E interface for Lua instrumentation", "LuaBindings", );
 
 void LuaBindings::initialize() {
     lua_State *L = s2e()->getConfig()->getState();
@@ -33,9 +33,9 @@ void LuaBindings::initialize() {
     Lunar<LuaS2E>::push(L, m_luaS2E);
     lua_setglobal(L, "g_s2e");
 
-    Lunar<LuaAnnotationState>::Register(L);
-    Lunar<LuaFunctionAnnotationState>::Register(L);
-    Lunar<LuaInstructionAnnotationState>::Register(L);
+    Lunar<LuaInstrumentationState>::Register(L);
+    Lunar<LuaFunctionInstrumentationState>::Register(L);
+    Lunar<LuaInstructionInstrumentationState>::Register(L);
     Lunar<LuaS2EExecutionState>::Register(L);
     Lunar<LuaS2EExecutionStateMemory>::Register(L);
     Lunar<LuaS2EExecutionStateRegisters>::Register(L);

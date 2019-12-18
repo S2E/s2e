@@ -14,7 +14,6 @@
 #include <s2e/CorePlugin.h>
 #include <s2e/Plugin.h>
 #include <s2e/Plugins/Core/BaseInstructions.h>
-#include <s2e/Plugins/ExecutionMonitors/FunctionMonitor.h>
 #include <s2e/Plugins/OSMonitors/Support/ModuleExecutionDetector.h>
 #include <s2e/Plugins/Searchers/MultiSearcher.h>
 #include <s2e/Plugins/StaticAnalysis/ControlFlowGraph.h>
