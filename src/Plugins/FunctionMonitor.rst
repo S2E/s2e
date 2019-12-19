@@ -2,23 +2,21 @@
 FunctionMonitor
 ===============
 
-The ``FunctionMonitor`` plugin catches the call/return machine instructions and invokes the corresponding handlers.
+The ``FunctionMonitor`` plugin notifies other plugins of function calls and returns.
 
-Suppose that you want to monitor the call to a function that starts at address ``0xC00F0120`` in kernel space. You also
-wish to monitor all the returns from that function.
+Suppose that you are writing a plugin that needs to monitor calls to a function that starts at address ``0x400120`` in a
+process called ``my.exe``. Your plugin also wants to monitor all returns from that function.
 
 Proceed as follows:
 
-1. Write a plugin starting from the ``Example`` plugin in the S2E package.
-2. Obtain the instance of the ``FunctionMonitor`` plugin in the ``initialize()``  method of your plugin
-3. Connect a handler H to any meaningful signal that exports an ``S2EExecutionState``  as a parameter. Any signal from
-   ``CorePlugin`` will do. You may also want to connect to the ``onModuleLoad`` signal of an ``Interceptor`` plugin.
-   This is the ideal place if you want to hook some  functions exported by a module.
-4. In your handler H, obtain the addresses of the functions you want to monitor. E.g., you can parse the symbols of the
-   module, or read the addresses from the configuration file.
-5. Once you have the addresses, register the call handler. Make sure you register it only once, unless you want the
-   handler to be called multiple times consecutively on the same call instruction.
-6. In your call handler, register the return handler, if necessary.
+1. Create a new plugin. You can use the ``Example`` plugin as a template.
+2. Obtain the instance of the ``FunctionMonitor`` plugin in the ``initialize()``  method of the plugin.
+3. Register a handler for the ``onCall`` signal provided by ``FunctionMonitor``.
+4. In the call handler, check the current program counter to determine if this is a function that you want to
+   process further or not. You can also use information about callers and callees provided by the signal to make
+   this decision.
+5. In the call handler, register a return handler, if necessary.
+6. Do not forget to add ``my.exe`` to the configuration of ``ProcessExecutionDetector`` in ``s2e-config.lua``.
 
 The following part shows the code that implements the steps explained above.
 
@@ -27,95 +25,45 @@ The following part shows the code that implements the steps explained above.
     // 1. Write a new analysis plugin (e.g., based on the Example plugin)
     void Example::initialize() {
         // 2. Get an instance of the FunctionMonitor plugin
-        FunctionMonitor *m_monitor = s2e()->getPlugin<FunctionMonitor>();
+        FunctionMonitor *monitor = s2e()->getPlugin<FunctionMonitor>();
 
-        // 3. Monitor the translation of each translation block
-        s2e()->getCorePlugin()->onTranslateBlockStart.connect(
-                sigc::mem_fun(*this, &Example::slotTranslateBlockStart));
-
+        // 3. Get a notification when a function is called
+        monitor->onCall.connect(sigc::mem_fun(*this, &Example::onCall));
     }
 
-For example, to monitor the kernel-mode function located at ``0xC00F012``, specify, issue a call as follows:
+To monitor the function located at ``0x400120``, write the following handlers:
 
 .. code-block:: cpp
 
-    void Example::slotTranslateBlockStart(ExecutionSignal *signal,
-                                          S2EExecutionState *state,
-                                          TranslationBlock *tb,
-                                          uint64_t pc) {
-        // 4. Obtain the address of the function to be monitored
-        // The hard-coded value can be specified in the configuration file your plugin
-        uint64_t functionAddress = 0xC00F0120;
-
-        // 5. Register a function call monitor at program counter 0xC00F0120.
-        // This is done in two steps:
-        //  a. Register a call signal for the specified address
-        //  b. Connect as many signal handlers as needed
-
-        if (m_registered) {
-            //You must make sure that you do not register the same handler more than
-            //once, unless you want it to be called multiple times.
+    void Example::onCall(S2EExecutionState *state, const ModuleDescriptorConstPtr &source,
+                         const ModuleDescriptorConstPtr &dest, uint64_t callerPc, uint64_t calleePc,
+                         const FunctionMonitor::ReturnSignalPtr &returnSignal) {
+        // Filter out functions we don't care about
+        if (state->regs()->getPc() != 0x400120) {
             return;
         }
 
-        // a. Register a call signal for address 0xC00F0120
-        FunctionMonitor::callSignal *callSignal = m_monitor->getCallSignal(state, functionAddress, -1);
-
-        // b. Register one signal handler for the function call.
-        // Whenever a call instruction whose target is 0xC00F0120 is detected, FunctionMonitor
-        // will invoke myFunctionCallMonitor
-        callSignal->connect(sigc::mem_fun(*this, &Example::myFunctionCallMonitor));
+        // If you do not want to track returns, do not connect a return signal.
+        // Here, we pass the program counter to the return handler to identify the function
+        // from which execution returns.
+        returnSignal->connect(
+            sigc::bind(sigc::mem_fun(*this, &Example::onRet), 0x400120));
     }
 
-The ``FunctionMonitor`` plugin has one important methods that returns a call descriptor tied to the specified program
-counter/process id:
-
-.. code-block:: cpp
-
-    FunctionMonitor::CallSignal*
-        FunctionMonitor::getCallSignal(
-            S2EExecutionState *state,
-            uint64_t eip,
-            uint64_t cr3);
-
-* ``state``: the execution state in which to register the function handler
-* ``eip``: the virtual address of the function to monitor (-1 to monitor all function calls)
-* ``cr3``: the process id (page directory pointer) to which ``eip`` belongs (-1 to monitor all address spaces).
-
-The call handler looks as follows:
-
-.. code-block:: cpp
-
-    // This handler is called after the call instruction is executed, and before the first instruction
-    // of the called function is run.
-    void Example::myFunctionCallMonitor(S2EExecutionState* state, FunctionMonitorState *fns) {
-        getDebugStream(state) << "My function handler is called\n";
-
-        // ...
-        // Perform here any analysis or state manipulation you wish
-        // ...
-
-        // 6. Register the return handler
-        // The FunctionMonitor plugin invokes this method whenever the return instruction corresponding
-        // to this call is executed.
-        FUNCMON_REGISTER_RETURN(state, fns, Example::myFunctionRetMonitor)
+    void Example::onRet(S2EExecutionState *state, const ModuleDescriptorConstPtr &source,
+                        const ModuleDescriptorConstPtr &dest, uint64_t returnSite,
+                        uint64_t functionPc) {
+        getDebugStream(state) << "Execution returned from function " << hexval(functionPc) << "\n";
     }
 
-Finally, the return handler looks as follows:
 
-.. code-block:: cpp
+Call/return handlers are paired: whenever the return instruction is executed
+and the stack pointer corresponds to the one at the call instruction, the return handler tied to that call is executed.
 
-    // FunctionMonitor invokes this handler right after the return instruction is executed, and
-    // before the next instruction is run.
-    void Example::myFunctionRetMonitor(S2EExecutionState *state) {
-        // ...
-        // Perform here any analysis or state manipulation you wish
-        // ...
-    }
+You can pass as many parameters as you want to your call or return handlers. For this, you can use the ``fsigc++``
+``bind`` feature.
 
-Call/return handlers are paired: ``FunctionMonitor`` tracks stack pointers. Whenever the return instruction is executed
-and the  stack pointer corresponds to the one at the call instruction, the return handler tied to that call is
-executed.
+.. note::
 
-You can pass as many parameters as you wish to your call handlers. You are not limited to the default
-``S2EExecutionState`` and ``FunctionMonitorState``. For this, you can use the ``fsigc++``  ``bind`` feature.
+    You can also instrument functions from Lua code using the ``LuaFunctionInstrumentation``
+    `plugin <../Howtos/LuaInstrumentation.rst>`__.
