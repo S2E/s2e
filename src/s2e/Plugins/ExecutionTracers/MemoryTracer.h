@@ -42,13 +42,6 @@ private:
     bool m_traceHostAddresses;
     bool m_debugObjectStates;
 
-    uint64_t m_catchAbove;
-    uint64_t m_catchBelow;
-
-    uint64_t m_timeTrigger;
-    uint64_t m_elapsedTics;
-    sigc::connection m_timerConnection;
-
     sigc::connection m_concreteMemoryMonitor;
     sigc::connection m_symbolicMemoryMonitor;
 
@@ -60,8 +53,6 @@ private:
 
     void onTlbMiss(S2EExecutionState *state, uint64_t addr, bool is_write);
     void onPageFault(S2EExecutionState *state, uint64_t addr, bool is_write);
-
-    void onTimer();
 
     void enableTracing();
     void disableTracing();
@@ -83,8 +74,6 @@ private:
     void onExecuteBlockStart(S2EExecutionState *state, uint64_t pc);
 
     bool forceDisconnect(S2EExecutionState *state);
-
-    bool decideTracing(S2EExecutionState *state);
 
 public:
     bool getProperty(S2EExecutionState *state, const std::string &name, std::string &value);

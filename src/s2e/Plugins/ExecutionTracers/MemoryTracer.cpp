@@ -45,10 +45,6 @@ void MemoryTracer::initialize() {
     // Catch all accesses to the stack
     m_monitorStack = s2e()->getConfig()->getBool(getConfigKey() + ".monitorStack");
 
-    // Catch accesses that are above the specified address
-    m_catchAbove = s2e()->getConfig()->getInt(getConfigKey() + ".catchAccessesAbove");
-    m_catchBelow = s2e()->getConfig()->getInt(getConfigKey() + ".catchAccessesBelow");
-
     // Whether or not to include host addresses in the trace.
     // This is useful for debugging, bug yields larger traces
     m_traceHostAddresses = s2e()->getConfig()->getBool(getConfigKey() + ".traceHostAddresses");
@@ -56,11 +52,6 @@ void MemoryTracer::initialize() {
     // Check that the current state is actually allowed to write to
     // the object state. Can be useful to debug the engine.
     m_debugObjectStates = s2e()->getConfig()->getBool(getConfigKey() + ".debugObjectStates");
-
-    // Start monitoring after the specified number of seconds
-    bool hasTimeTrigger = false;
-    m_timeTrigger = s2e()->getConfig()->getInt(getConfigKey() + ".timeTrigger", 0, &hasTimeTrigger);
-    m_elapsedTics = 0;
 
     bool manualMode = s2e()->getConfig()->getBool(getConfigKey() + ".manualTrigger");
 
@@ -71,34 +62,15 @@ void MemoryTracer::initialize() {
     getDebugStream() << "MonitorMemory: " << m_monitorMemory << " PageFaults: " << m_monitorPageFaults
                      << " TlbMisses: " << m_monitorTlbMisses << '\n';
 
-    if (hasTimeTrigger) {
-        m_timerConnection = s2e()->getCorePlugin()->onTimer.connect(sigc::mem_fun(*this, &MemoryTracer::onTimer));
-    } else if (manualMode) {
+    if (manualMode) {
         s2e()->getCorePlugin()->onCustomInstruction.connect(sigc::mem_fun(*this, &MemoryTracer::onCustomInstruction));
     } else {
         enableTracing();
     }
 }
 
-bool MemoryTracer::decideTracing(S2EExecutionState *state) {
-    if (m_catchAbove || m_catchBelow) {
-        if (m_catchAbove && (m_catchAbove >= state->regs()->getPc())) {
-            return false;
-        }
-        if (m_catchBelow && (m_catchBelow < state->regs()->getPc())) {
-            return false;
-        }
-    }
-
-    return true;
-}
-
 void MemoryTracer::traceConcreteDataMemoryAccess(S2EExecutionState *state, uint64_t address, uint64_t value,
                                                  uint8_t size, unsigned flags) {
-    if (!decideTracing(state)) {
-        return;
-    }
-
     s2e_trace::PbTraceMemoryAccess item;
     item.set_pc(state->regs()->getPc());
 
@@ -142,10 +114,6 @@ void MemoryTracer::traceConcreteDataMemoryAccess(S2EExecutionState *state, uint6
 void MemoryTracer::traceSymbolicDataMemoryAccess(S2EExecutionState *state, klee::ref<klee::Expr> &address,
                                                  klee::ref<klee::Expr> &hostAddress, klee::ref<klee::Expr> &value,
                                                  unsigned flags) {
-    if (!decideTracing(state)) {
-        return;
-    }
-
     bool isAddrCste = isa<klee::ConstantExpr>(address);
     bool isValCste = isa<klee::ConstantExpr>(value);
     bool isHostAddrCste = isa<klee::ConstantExpr>(hostAddress);
@@ -333,16 +301,6 @@ void MemoryTracer::disableTracing() {
 
 bool MemoryTracer::tracingEnabled() {
     return m_symbolicMemoryMonitor.connected() || m_concreteMemoryMonitor.connected();
-}
-
-void MemoryTracer::onTimer() {
-    if (m_elapsedTics++ < m_timeTrigger) {
-        return;
-    }
-
-    enableTracing();
-
-    m_timerConnection.disconnect();
 }
 
 void MemoryTracer::onCustomInstruction(S2EExecutionState *state, uint64_t opcode) {
