@@ -51,7 +51,6 @@
 #define ADDR_READ addr_read
 #endif
 
-#define ENV_VAR env,
 #define CPU_PREFIX cpu_
 #define HELPER_PREFIX helper_
 
@@ -177,7 +176,7 @@ DATA_TYPE glue(glue(io_read, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_phys_
 
 DATA_TYPE glue(glue(io_read_chk, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_phys_addr_t physaddr, target_ulong addr,
                                                      void *retaddr) {
-    return glue(glue(io_read, SUFFIX), MMUSUFFIX)(ENV_VAR physaddr, addr, retaddr);
+    return glue(glue(io_read, SUFFIX), MMUSUFFIX)(env, physaddr, addr, retaddr);
 }
 
 #elif defined(SYMBEX_LLVM_LIB) // SYMBEX_LLVM_LIB
@@ -232,7 +231,7 @@ DATA_TYPE glue(glue(io_read_chk, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_p
 #endif /* SHIFT > 2 */
 
     // By default, call the original io_read function, which is external
-    res.res = glue(glue(io_read, SUFFIX), MMUSUFFIX)(ENV_VAR origaddr, addr, retaddr);
+    res.res = glue(glue(io_read, SUFFIX), MMUSUFFIX)(env, origaddr, addr, retaddr);
 
 end:
     tcg_llvm_trace_mmio_access(addr, res.res, DATA_SIZE, 0);
@@ -280,7 +279,7 @@ redo:
 #ifdef CONFIG_SYMBEX
             env->se_tlb_current = tlb_entry;
 #endif
-            res = glue(glue(io_read_chk, SUFFIX), MMUSUFFIX)(ENV_VAR ioaddr, addr, retaddr);
+            res = glue(glue(io_read_chk, SUFFIX), MMUSUFFIX)(env, ioaddr, addr, retaddr);
 
             INSTR_AFTER_MEMORY_ACCESS(addr, res, MEM_TRACE_FLAG_IO, retaddr);
 
@@ -288,14 +287,14 @@ redo:
         /* slow unaligned access (it spans two pages or IO) */
         do_unaligned_access:
 #ifdef ALIGNED_ONLY
-            do_unaligned_access(ENV_VAR addr, READ_ACCESS_TYPE, mmu_idx, retaddr);
+            do_unaligned_access(env, addr, READ_ACCESS_TYPE, mmu_idx, retaddr);
 #endif
-            res = glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(ENV_VAR addr, mmu_idx, retaddr);
+            res = glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(env, addr, mmu_idx, retaddr);
         } else {
 /* unaligned/aligned access in the same page */
 #ifdef ALIGNED_ONLY
             if ((addr & (DATA_SIZE - 1)) != 0) {
-                do_unaligned_access(ENV_VAR addr, READ_ACCESS_TYPE, mmu_idx, retaddr);
+                do_unaligned_access(env, addr, READ_ACCESS_TYPE, mmu_idx, retaddr);
             }
 #endif
 
@@ -310,7 +309,7 @@ redo:
 /* the page is not in the TLB : fill it */
 #ifdef ALIGNED_ONLY
         if ((addr & (DATA_SIZE - 1)) != 0)
-            do_unaligned_access(ENV_VAR addr, READ_ACCESS_TYPE, mmu_idx, retaddr);
+            do_unaligned_access(env, addr, READ_ACCESS_TYPE, mmu_idx, retaddr);
 #endif
         tlb_fill(env, addr, object_index << SE_RAM_OBJECT_BITS, READ_ACCESS_TYPE, mmu_idx, retaddr);
         goto redo;
@@ -347,7 +346,7 @@ redo:
 #ifdef CONFIG_SYMBEX
             env->se_tlb_current = tlb_entry;
 #endif
-            res = glue(glue(io_read_chk, SUFFIX), MMUSUFFIX)(ENV_VAR ioaddr, addr, retaddr);
+            res = glue(glue(io_read_chk, SUFFIX), MMUSUFFIX)(env, ioaddr, addr, retaddr);
 
             INSTR_AFTER_MEMORY_ACCESS(addr, res, MEM_TRACE_FLAG_IO, retaddr);
         } else if (((addr & ~SE_RAM_OBJECT_MASK) + DATA_SIZE - 1) >= SE_RAM_OBJECT_SIZE) {
@@ -356,8 +355,8 @@ redo:
             /* slow unaligned access (it spans two pages) */
             addr1 = addr & ~(DATA_SIZE - 1);
             addr2 = addr1 + DATA_SIZE;
-            res1 = glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(ENV_VAR addr1, mmu_idx, retaddr);
-            res2 = glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(ENV_VAR addr2, mmu_idx, retaddr);
+            res1 = glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(env, addr1, mmu_idx, retaddr);
+            res2 = glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(env, addr2, mmu_idx, retaddr);
             shift = (addr & (DATA_SIZE - 1)) * 8;
 #ifdef TARGET_WORDS_BIGENDIAN
             res = (res1 << shift) | (res2 >> ((DATA_SIZE * 8) - shift));
@@ -442,7 +441,7 @@ void glue(glue(io_write, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_phys_addr
 void glue(glue(io_write_chk, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_phys_addr_t physaddr, DATA_TYPE val,
                                                  target_ulong addr, void *retaddr) {
     // XXX: check symbolic memory mapped devices and write log here.
-    glue(glue(io_write, SUFFIX), MMUSUFFIX)(ENV_VAR physaddr, val, addr, retaddr);
+    glue(glue(io_write, SUFFIX), MMUSUFFIX)(env, physaddr, val, addr, retaddr);
 }
 
 #else
@@ -484,7 +483,7 @@ void glue(glue(io_write_chk, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_phys_
 #endif /* SHIFT > 2 */
 
     // By default, call the original io_write function, which is external
-    glue(glue(io_write, SUFFIX), MMUSUFFIX)(ENV_VAR origaddr, val, addr, retaddr);
+    glue(glue(io_write, SUFFIX), MMUSUFFIX)(env, origaddr, val, addr, retaddr);
 
 end:
     tcg_llvm_trace_mmio_access(addr, val, DATA_SIZE, 1);
@@ -529,7 +528,7 @@ redo:
             env->se_tlb_current = tlb_entry;
 #endif
 
-            glue(glue(io_write_chk, SUFFIX), MMUSUFFIX)(ENV_VAR ioaddr, val, addr, retaddr);
+            glue(glue(io_write_chk, SUFFIX), MMUSUFFIX)(env, ioaddr, val, addr, retaddr);
 
             INSTR_AFTER_MEMORY_ACCESS(addr, val, MEM_TRACE_FLAG_IO | MEM_TRACE_FLAG_WRITE, retaddr);
         } else if (unlikely(((addr & ~SE_RAM_OBJECT_MASK) + DATA_SIZE - 1) >= SE_RAM_OBJECT_SIZE)) {
@@ -537,14 +536,14 @@ redo:
         do_unaligned_access:
 
 #ifdef ALIGNED_ONLY
-            do_unaligned_access(ENV_VAR addr, 1, mmu_idx, retaddr);
+            do_unaligned_access(env, addr, 1, mmu_idx, retaddr);
 #endif
-            glue(glue(slow_st, SUFFIX), MMUSUFFIX)(ENV_VAR addr, val, mmu_idx, retaddr);
+            glue(glue(slow_st, SUFFIX), MMUSUFFIX)(env, addr, val, mmu_idx, retaddr);
         } else {
 /* aligned/unaligned access in the same page */
 #ifdef ALIGNED_ONLY
             if ((addr & (DATA_SIZE - 1)) != 0) {
-                do_unaligned_access(ENV_VAR addr, 1, mmu_idx, retaddr);
+                do_unaligned_access(env, addr, 1, mmu_idx, retaddr);
             }
 #endif
 
@@ -559,7 +558,7 @@ redo:
 /* the page is not in the TLB : fill it */
 #ifdef ALIGNED_ONLY
         if ((addr & (DATA_SIZE - 1)) != 0)
-            do_unaligned_access(ENV_VAR addr, 1, mmu_idx, retaddr);
+            do_unaligned_access(env, addr, 1, mmu_idx, retaddr);
 #endif
         tlb_fill(env, addr, object_index << SE_RAM_OBJECT_BITS, 1, mmu_idx, retaddr);
         goto redo;
@@ -593,7 +592,7 @@ redo:
 #ifdef CONFIG_SYMBEX
             env->se_tlb_current = tlb_entry;
 #endif
-            glue(glue(io_write_chk, SUFFIX), MMUSUFFIX)(ENV_VAR ioaddr, val, addr, retaddr);
+            glue(glue(io_write_chk, SUFFIX), MMUSUFFIX)(env, ioaddr, val, addr, retaddr);
 
             INSTR_AFTER_MEMORY_ACCESS(addr, val, MEM_TRACE_FLAG_IO | MEM_TRACE_FLAG_WRITE, retaddr);
         } else if (((addr & ~SE_RAM_OBJECT_MASK) + DATA_SIZE - 1) >= SE_RAM_OBJECT_SIZE) {
@@ -604,9 +603,9 @@ redo:
              * previous page from the TLB cache.  */
             for (i = DATA_SIZE - 1; i >= 0; i--) {
 #ifdef TARGET_WORDS_BIGENDIAN
-                glue(slow_stb, MMUSUFFIX)(ENV_VAR addr + i, val >> (((DATA_SIZE - 1) * 8) - (i * 8)), mmu_idx, retaddr);
+                glue(slow_stb, MMUSUFFIX)(env, addr + i, val >> (((DATA_SIZE - 1) * 8) - (i * 8)), mmu_idx, retaddr);
 #else
-                glue(slow_stb, MMUSUFFIX)(ENV_VAR addr + i, val >> (i * 8), mmu_idx, retaddr);
+                glue(slow_stb, MMUSUFFIX)(env, addr + i, val >> (i * 8), mmu_idx, retaddr);
 #endif
             }
         } else {
@@ -645,6 +644,5 @@ redo:
 #undef USUFFIX
 #undef DATA_SIZE
 #undef ADDR_READ
-#undef ENV_VAR
 #undef CPU_PREFIX
 #undef HELPER_PREFIX
