@@ -42,9 +42,6 @@ void MemoryTracer::initialize() {
         exit(-1);
     }
 
-    // Catch all accesses to the stack
-    m_monitorStack = s2e()->getConfig()->getBool(getConfigKey() + ".monitorStack");
-
     // Whether or not to include host addresses in the trace.
     // This is useful for debugging, bug yields larger traces
     m_traceHostAddresses = s2e()->getConfig()->getBool(getConfigKey() + ".traceHostAddresses");
@@ -53,20 +50,12 @@ void MemoryTracer::initialize() {
     // the object state. Can be useful to debug the engine.
     m_debugObjectStates = s2e()->getConfig()->getBool(getConfigKey() + ".debugObjectStates");
 
-    bool manualMode = s2e()->getConfig()->getBool(getConfigKey() + ".manualTrigger");
-
     m_monitorMemory = s2e()->getConfig()->getBool(getConfigKey() + ".monitorMemory");
     m_monitorPageFaults = s2e()->getConfig()->getBool(getConfigKey() + ".monitorPageFaults");
     m_monitorTlbMisses = s2e()->getConfig()->getBool(getConfigKey() + ".monitorTlbMisses");
 
     getDebugStream() << "MonitorMemory: " << m_monitorMemory << " PageFaults: " << m_monitorPageFaults
                      << " TlbMisses: " << m_monitorTlbMisses << '\n';
-
-    if (manualMode) {
-        s2e()->getCorePlugin()->onCustomInstruction.connect(sigc::mem_fun(*this, &MemoryTracer::onCustomInstruction));
-    } else {
-        enableTracing();
-    }
 }
 
 void MemoryTracer::traceConcreteDataMemoryAccess(S2EExecutionState *state, uint64_t address, uint64_t value,
@@ -301,33 +290,6 @@ void MemoryTracer::disableTracing() {
 
 bool MemoryTracer::tracingEnabled() {
     return m_symbolicMemoryMonitor.connected() || m_concreteMemoryMonitor.connected();
-}
-
-void MemoryTracer::onCustomInstruction(S2EExecutionState *state, uint64_t opcode) {
-    if (!OPCODE_CHECK(opcode, MEMORY_TRACER_OPCODE)) {
-        return;
-    }
-
-    // XXX: remove this mess. Should have a function for extracting
-    // info from opcodes.
-    opcode >>= 16;
-    uint8_t op = opcode & 0xFF;
-    opcode >>= 8;
-
-    MemoryTracerOpcodes opc = (MemoryTracerOpcodes) op;
-    switch (opc) {
-        case Enable:
-            enableTracing();
-            break;
-
-        case Disable:
-            disableTracing();
-            break;
-
-        default:
-            getWarningsStream() << "MemoryTracer: unsupported opcode " << hexval(opc) << '\n';
-            break;
-    }
 }
 
 bool MemoryTracer::getProperty(S2EExecutionState *state, const std::string &name, std::string &value) {
