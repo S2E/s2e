@@ -42,7 +42,7 @@ class PluginState;
 class S2EDeviceState;
 class S2EExecutionState;
 
-typedef std::map<const Plugin *, PluginState *> PluginStateMap;
+typedef std::unordered_map<const Plugin *, PluginState *> PluginStateMap;
 typedef PluginState *(*PluginStateFactory)(Plugin *p, S2EExecutionState *s);
 
 class S2EExecutionState : public klee::ExecutionState, public klee::IConcretizer {
