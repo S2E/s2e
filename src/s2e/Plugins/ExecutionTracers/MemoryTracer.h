@@ -10,7 +10,8 @@
 #define S2E_PLUGINS_MEMTRACER_H
 
 #include <s2e/Plugin.h>
-#include <s2e/Plugins/OSMonitors/Support/ModuleExecutionDetector.h>
+#include <s2e/Plugins/OSMonitors/Support/ModuleMap.h>
+#include <s2e/Plugins/OSMonitors/Support/ProcessExecutionDetector.h>
 
 #include <string>
 
@@ -31,30 +32,24 @@ public:
 
     enum MemoryTracerOpcodes { Enable = 0, Disable = 1 };
 
-private:
-    bool m_monitorPageFaults;
-    bool m_monitorTlbMisses;
-    bool m_monitorMemory;
+    enum TraceType { MEMORY = 0, TLB_MISSES = 1, PAGE_FAULT = 2, MAX_ITEMS = 3 };
 
-    bool m_monitorModules;
+private:
+    bool m_tracePageFaults;
+    bool m_traceTlbMisses;
+    bool m_traceMemory;
 
     bool m_traceHostAddresses;
     bool m_debugObjectStates;
 
-    sigc::connection m_concreteMemoryMonitor;
-    sigc::connection m_symbolicMemoryMonitor;
-
-    sigc::connection m_pageFaultsMonitor;
-    sigc::connection m_tlbMissesMonitor;
-
     ExecutionTracer *m_tracer;
-    ModuleExecutionDetector *m_execDetector;
+    ProcessExecutionDetector *m_detector;
+    ModuleMap *m_modules;
+
+    std::unordered_set<std::string> m_enabledModules;
 
     void onTlbMiss(S2EExecutionState *state, uint64_t addr, bool is_write);
     void onPageFault(S2EExecutionState *state, uint64_t addr, bool is_write);
-
-    void enableTracing();
-    void disableTracing();
 
     void onAfterSymbolicDataMemoryAccess(S2EExecutionState *state, klee::ref<klee::Expr> address,
                                          klee::ref<klee::Expr> hostAddress, klee::ref<klee::Expr> value,
@@ -63,15 +58,12 @@ private:
     void onConcreteDataMemoryAccess(S2EExecutionState *state, uint64_t vaddr, uint64_t value, uint8_t size,
                                     unsigned flags);
 
-    void onModuleTransition(S2EExecutionState *state, ModuleDescriptorConstPtr prevModule,
-                            ModuleDescriptorConstPtr nextModule);
-
-    void onModuleTranslateBlockStart(ExecutionSignal *signal, S2EExecutionState *state, const ModuleDescriptor &module,
-                                     TranslationBlock *tb, uint64_t pc);
-
     void onExecuteBlockStart(S2EExecutionState *state, uint64_t pc);
 
-    bool forceDisconnect(S2EExecutionState *state);
+    void onTranslateBlockStart(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb, uint64_t pc);
+
+    void onBlockStart(S2EExecutionState *state, uint64_t pc, bool traced_module);
+    void onInitializationComplete(S2EExecutionState *state);
 
 public:
     bool getProperty(S2EExecutionState *state, const std::string &name, std::string &value);
@@ -85,9 +77,7 @@ public:
     void traceConcreteDataMemoryAccess(S2EExecutionState *state, uint64_t address, uint64_t value, uint8_t size,
                                        unsigned flags);
 
-    void connectMemoryTracing();
-    void disconnectMemoryTracing();
-    bool tracingEnabled();
+    void enable(S2EExecutionState *state, TraceType type, bool v);
 };
 }
 }

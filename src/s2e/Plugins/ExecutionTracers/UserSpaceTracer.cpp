@@ -93,7 +93,7 @@ void UserSpaceTracer::onAccessFault(S2EExecutionState *state, const S2E_WINMON2_
                               << " PageDir: " << hexval(state->regs()->getPageDir()) << "\n";
 
         if (m_memoryTracer) {
-            m_memoryTracer->disconnectMemoryTracing();
+            m_memoryTracer->enable(state, MemoryTracer::MEMORY, false);
         }
         m_privConnection.disconnect();
         m_tbConnection.disconnect();
@@ -143,11 +143,11 @@ void UserSpaceTracer::onExecuteBlockStart(S2EExecutionState *state, uint64_t pc)
 void UserSpaceTracer::onPrivilegeChange(S2EExecutionState *state, unsigned previous, unsigned current) {
     if (current != 3 || !isTraced(getCurrentPid(state))) {
         if (m_memoryTracer) {
-            m_memoryTracer->disconnectMemoryTracing();
+            m_memoryTracer->enable(state, MemoryTracer::MEMORY, false);
         }
     } else {
         if (m_memoryTracer) {
-            m_memoryTracer->connectMemoryTracing();
+            m_memoryTracer->enable(state, MemoryTracer::MEMORY, true);
         }
     }
 }
@@ -172,7 +172,7 @@ void UserSpaceTracer::startTracing(S2EExecutionState *state, uint64_t pid) {
 
     if (m_memoryTracer) {
         getDebugStream() << "UserSpaceTracer: starting memory trace\n";
-        m_memoryTracer->connectMemoryTracing();
+        m_memoryTracer->enable(state, MemoryTracer::MEMORY, true);
         m_privConnection = s2e()->getCorePlugin()->onPrivilegeChange.connect(
             sigc::mem_fun(*this, &UserSpaceTracer::onPrivilegeChange));
         m_tracing = true;
