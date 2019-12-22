@@ -1888,9 +1888,9 @@ void s2e_flush_tb_cache() {
         if (!FlushTBsOnStateSwitch) {
             g_s2e->getWarningsStream() << "Flushing TB cache with more than 1 state. Dangerous. Expect crashes.\n";
         }
-
-        g_s2e->getExecutor()->flushS2ETBs();
     }
+
+    g_s2e->getExecutor()->flushS2ETBs();
 }
 
 void s2e_increment_tb_stats(void *se_tb) {
