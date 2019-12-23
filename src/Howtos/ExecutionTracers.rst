@@ -1,11 +1,10 @@
-=============================
-How to Use Execution Tracers?
-=============================
-
-.. contents::
+=======================
+Using execution tracers
+=======================
 
 Execution tracers are S2E analysis plugins that record various information along the execution of each path. Here is a
-list of currently available plugins:
+partial list of available plugins. You can find all the tracers in the
+`libs2eplugins <https://github.com/S2E/libs2eplugins/tree/master/src/s2e/Plugins/ExecutionTracers>`__ repository.
 
 * **ExecutionTracer**: Base plugin upon which all tracers depend. This plugin records fork points so that offline
   analysis tools can reconstruct the execution tree. This plugin is useful by itself to obtain a fork profile of the
@@ -22,78 +21,217 @@ list of currently available plugins:
   of each executed block and the content of registers before and after execution. This plugin is useful to obtain basic
   block coverage.
 
-* **InstructionCounter**: Counts the number of instructions executed on each path in the modules of interest.
+* **MemoryTracer**: Records all memory accesses performed by a given process. This plugin also allows filtering
+  accesses by module in order to reduce the size of the trace.
+
+* **InstructionCounter**: Counts the number of executed instructions in a path for a given process or module.
 
 Most of the tracers record information only for the configured modules (except ``ExecutionTracer``, which records forks
 anywhere in the system). For this, tracers need to know when execution enters and leaves the modules of interest.
-Tracers rely on the ``ModuleExecutionDetector`` plugin to obtain this information. ``ModuleExecutionDetector`` relies
-itself on OS monitor plugins to be notified whenever the OS loads or unloads the modules.
+Tracers rely on the ``ProcessExecutionDetector`` and ``ModuleMap`` plugins to obtain this information.
+These two plugins rely on OS monitor plugins to be notified whenever the OS loads or unloads processes or modules.
 
-Here is an end-to-end example of how to generate an execution trace for the ``echo`` utility using the `s2e.so
-<../Tutorials/BasicLinuxSymbex/s2e.so.rst>`__ library. The trace will contain all memory accesses done by ``echo``, as
-well as the list of executed translation blocks and test cases.
 
-1. Minimal Configuration File
-=============================
+1. Recording basic traces
+=========================
+
+By default, an S2E project has all the required plugins configured in order to record forks, guest OS events
+(e.g., process and module load/unload), and test cases.
+
+Consider the following program that reads an integer from a file and checks its value:
+
+.. code-block:: c
+
+    #include <stdio.h>
+
+    int main(int argc, char **argv) {
+        FILE *fp = NULL;
+        int value = 0xdeadbeef;
+
+        if (argc != 2) {
+            return -1;
+        }
+
+        fp = fopen(argv[1], "r");
+        if (!fp) {
+            printf("Could not open %s\n", argv[1]);
+            goto err;
+        }
+
+        if (fread(&value, sizeof(value), 1, fp) != 1) {
+           goto err;
+        }
+
+        if (value == 0) {
+           printf("0");
+        }
+
+    err:
+        if (fp) {
+            fclose(fp);
+        }
+
+        return 0;
+    }
+
+
+Compile the program above, create a new S2E project, then run it:
+
+.. code-block:: bash
+
+    $ gcc -Wall -g -o test test.c
+    $ s2e new_project ./test @@
+    $ s2e run test
+
+
+If everything went well, you should have a non-empty ``ExecutionTracer.dat`` file in the project's directory:
+
+.. code-block:: bash
+
+    $ ls -la projects/test/s2e-last/
+    ...
+    -rw-rw-r-- 1 ubuntu ubuntu    4846 Dec 20 20:34 ExecutionTracer.dat
+    ...
+
+
+2. Analyzing traces
+===================
+
+S2E comes with a few built-in tools that rely on execution traces in order to work. One of these tools is the
+fork profiler:
+
+.. code-block:: bash
+
+    $ s2e forkprofile test
+
+    ...
+    # The fork profile shows all the program counters where execution forked:
+    # process_pid module_path:address fork_count source_file:line_number (function_name)
+    01251 test:0x00000885    1 /home/vitaly/s2e/env/test.c:21 (main)
+
+The fork profiler looks for fork entries in ``ExecutionTracer.dat`` in order to aggregate them. It also extracts
+module name information in order to provide symbol data (e.g., line numbers and source files).
+
+If you would like to look at the raw trace, you can use the ``execution_trace`` command in order to dump the trace
+in JSON format:
+
+.. code-block:: bash
+
+    s2e execution_trace -pp test
+    ...
+    SUCCESS: [execution_trace] Execution trace saved to /home/ubuntu/s2e/env/projects/test/s2e-last/execution_trace.json
+
+
+This trace encodes an execution tree:
+
+.. code-block:: bash
+
+    # The first entry belongs to path 0
+    {...},
+    {...},
+    {
+        "children": {
+            "1": [          # This is the start of path 1
+                {...},
+                {...},
+                ...
+            ]
+        }
+        ...
+        "type": "TRACE_FORK"
+    },
+    {...},                  # Path 0 continues after forking
+    {...},
+    ...
+
+At the leaves of the execution tree, there are test case entries, which the ``TestCaseGenerator`` plugin creates
+when a path terminates:
+
+
+.. code-block:: bash
+
+    # Path 1:
+    {
+        "address_space": 225800192,
+        "items": [
+            {
+                "key": "v0___symfile____tmp_input___0_1_symfile___0",
+                "value": "AQEBAQEBAQEBAQEBAQE...."
+            }
+        ],
+        "pc": 134518939,
+        "pid": 1295,
+        "state_id": 1,
+        "timestamp": 630185690261719,
+        "type": "TRACE_TESTCASE"
+    }
+
+    # Path 0
+    {
+        "address_space": 225800192,
+        "items": [
+            {
+                "key": "v0___symfile____tmp_input___0_1_symfile___0",
+                "value": "AAAAAAAAA....."
+            }
+        ],
+        "pc": 134518939,
+        "pid": 1295,
+        "state_id": 0,
+        "timestamp": 630185689994274,
+        "type": "TRACE_TESTCASE"
+    }
+
+You will find similar items for module/process loads/unloads.
+
+
+3. Recording memory traces
+==========================
+
+In this section, we will record all memory accesses done by the program above. For this, append the following snippet
+to ``s2e-config.lua``:
 
 .. code-block:: lua
 
-    s2e = {
-        kleeArgs = {}
-    }
-
-    plugins = {
-        "BaseInstructions",
-        "ExecutionTracer",
-        "ModuleTracer",
-
-        "RawMonitor",
-        "ModuleExecutionDetector",
-
-        -- The following plugins can be enabled as needed
-        "MemoryTracer",
-        "TestCaseGenerator",
-        "TranslationBlockTracer",
-    }
-
-    pluginsConfig = {}
+    add_plugin("MemoryTracer")
 
     pluginsConfig.MemoryTracer = {
-        monitorMemory = true,
-        monitorModules = true,
+        traceMemory = true,
+        tracePageFaults = true,
+        traceTlbMisses = true,
+
+        -- Restrict tracing to the "test" binary. Note that the modules specified here
+        -- must run in the context of the process(es) defined in ProcessExecutionDetector.
+        moduleNames = { "test" }
     }
 
-2. Guest Configuration
-======================
 
-The `s2e.so <../Tutorials/BasicLinuxSymbex/s2e.so.rst>`__ library will instruct S2E to trace the program as specified in
-the configuration file.
+After re-running S2E and calling `s2e execution_trace -pp test` on the new run, you should be able to find the
+following snippet in `execution_trace.json`:
 
-.. code-block:: console
 
-    LD_PRELOAD=/home/s2e/s2e.so /bin/echo abc ab > /dev/null
+.. code-block:: json
 
-3. Viewing the Traces
-=====================
+    {
+        "address": 140720832808700, // 0x7FFC1F4086FC
+        "address_space": 255279104,
+        "concrete_buffer": 0,
+        "flags": 1,
+        "host_address": 0,
+        "pc": 94739530127322, // 0x562A440A17DA
+        "pid": 1251,
+        "size": 4,
+        "state_id": 0,
+        "timestamp": 630430187009925,
+        "type": "TRACE_MEMORY",
+        "value": 3735928559  // 0xdeadbeef
+    }
 
-S2E comes with several tools that parse and display the execution traces. They are located in the `tools`  folder of
-the source distribution. You can find the documentation for them on the `main page <../../index.rst>`__.
+This corresponds to writing ``0xdeadbeef`` to the local variable ``value`` to the address ``0x7FFC1F4086FC``.
 
-Here is an example that prints the list of executed translation blocks and all memory accesses performed in paths 0 and
-34.
 
-.. code-block:: console
+4. Trace format reference
+=========================
 
-    $S2EDIR/build-s2e/tools-release/tools/tbtrace/tbtrace -trace=s2e-last/ExecutionTracer.dat \
-        -outputdir=s2e-last/traces -pathId=0 -pathId=34 -printMemory
-
-You can also use `s2e-env <../s2e-env.rst>`__ to parse the execution trace.
-
-Mini-FAQ
-========
-
-* You followed all steps and no debug information is displayed by the offline tools.
-
-  * Some programs might be relocated by the OS and their load base will differ from their native base. Try to disable
-    ASLR.
-  * Check that your binutils library understands the debug information in the binaries.
+S2E uses ``protobuf`` to record traces. You can find more details about the format `here
+<../Plugins/Tracers/ExecutionTracer.rst>`__.
