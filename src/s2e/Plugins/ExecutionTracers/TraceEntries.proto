@@ -107,18 +107,28 @@ enum PbTraceTbType {
     TB_SYSENTER = 11;
 }
 
-// TRACE_TB_START, TRACE_TB_END
-message PbTraceTranslationBlockFull {
-    required uint64 pc = 1;
-    required uint32 size = 2;
-    required uint64 target_pc = 3;
+message PbTraceRegisterData {
+    required uint32 symb_mask = 1;
+    repeated uint64 values = 2;
+}
 
-    required PbTraceTbType tb_type = 4;
-    required bool running_concrete = 5;
-    required bool running_exception_emulation_code = 6;
+message PbTraceTbData {
+    required PbTraceTbType tb_type = 1;
+    required uint64 first_pc = 2;
+    required uint64 last_pc = 3;
+    required uint32 size = 4;
+}
 
-    required uint32 symb_mask = 7;
-    repeated uint64 registers = 8;
+// TRACE_TB_START
+message PbTraceTranslationBlockStart {
+    required PbTraceTbData data = 1;
+    required PbTraceRegisterData regs = 2;
+}
+
+// TRACE_TB_END
+message PbTraceTranslationBlockEnd {
+    required PbTraceTbData data = 1;
+    required PbTraceRegisterData regs = 2;
 }
 
 // TRACE_BLOCK
