@@ -40,7 +40,6 @@ extern "C" {
 
 // Central opcode repository for plugins that implement micro-operations
 #define RAW_MONITOR_OPCODE                  0xAA
-#define MEMORY_TRACER_OPCODE                0xAC
 #define STATE_MANAGER_OPCODE                0xAD
 
 #define HOST_FILES_OPCODE                   0xEE

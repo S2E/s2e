@@ -661,24 +661,6 @@ static inline int s2e_write(int fd, char *buf, int count) {
 }
 
 ///
-/// \brief Enable memory tracing
-///
-static inline void s2e_memtracer_enable(void) {
-    __asm__ __volatile__(
-        S2E_INSTRUCTION_SIMPLE(MEMORY_TRACER_OPCODE)
-    );
-}
-
-///
-/// \brief Disable memory tracing
-///
-static inline void s2e_memtracer_disable(void) {
-    __asm__ __volatile__(
-        S2E_INSTRUCTION_COMPLEX(MEMORY_TRACER_OPCODE, 0x01)
-    );
-}
-
-///
 /// \brief Terminate the currently-executing state if \c b is zero
 ///
 /// \param[in] b boolean value to determine whether to terminate the current state
