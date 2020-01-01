@@ -55,6 +55,7 @@ for fname in files:
 s2e_includes.write('\n'.join([
     '../build/llvm-3.9.1.src/include',
     '../build/llvm-release/include',
+    '../build/lua-5.3.4/src',
     '/usr/include/glib-2.0',
 
     # This is for protobuf headers, pick one build folder
