@@ -61,14 +61,11 @@ public:
 
 void TranslationBlockTracer::initialize() {
     m_tracer = s2e()->getPlugin<ExecutionTracer>();
-    m_modules = s2e()->getPlugin<ModuleMap>();
     m_detector = s2e()->getPlugin<ProcessExecutionDetector>();
+    m_modules.initialize(s2e(), getConfigKey());
 
     m_traceTbStart = s2e()->getConfig()->getBool(getConfigKey() + ".traceTbStart");
     m_traceTbEnd = s2e()->getConfig()->getBool(getConfigKey() + ".traceTbEnd");
-
-    auto modules = s2e()->getConfig()->getStringList(getConfigKey() + ".moduleNames");
-    m_enabledModules.insert(modules.begin(), modules.end());
 
     s2e()->getCorePlugin()->onInitializationComplete.connect(
         sigc::mem_fun(*this, &TranslationBlockTracer::onInitializationComplete));
@@ -84,24 +81,9 @@ void TranslationBlockTracer::onInitializationComplete(S2EExecutionState *state) 
     plgState->enable(TranslationBlockTracer::TB_END, m_traceTbEnd);
 }
 
-bool TranslationBlockTracer::isModuleTraced(S2EExecutionState *state, uint64_t pc) {
-    // If no modules are specified, trace the entire process
-    bool tracedModule = true;
-    if (m_enabledModules.size()) {
-        auto mod = m_modules->getModule(state, pc);
-        if (mod) {
-            tracedModule = m_enabledModules.find(mod->Name) != m_enabledModules.end();
-        } else {
-            tracedModule = false;
-        }
-    }
-
-    return tracedModule;
-}
-
 void TranslationBlockTracer::onTranslateBlockStart(ExecutionSignal *signal, S2EExecutionState *state,
                                                    TranslationBlock *tb, uint64_t pc) {
-    auto tracedModule = isModuleTraced(state, pc);
+    auto tracedModule = m_modules.isModuleTraced(state, pc);
     if (tracedModule) {
         signal->connect(sigc::mem_fun(*this, &TranslationBlockTracer::onBlockStart));
     }
@@ -110,7 +92,7 @@ void TranslationBlockTracer::onTranslateBlockStart(ExecutionSignal *signal, S2EE
 void TranslationBlockTracer::onTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionState *state,
                                                  TranslationBlock *tb, uint64_t pc, bool staticTarget,
                                                  uint64_t staticTargetPc) {
-    auto tracedModule = isModuleTraced(state, pc);
+    auto tracedModule = m_modules.isModuleTraced(state, pc);
     if (tracedModule) {
         signal->connect(sigc::mem_fun(*this, &TranslationBlockTracer::onBlockEnd));
     }

@@ -16,6 +16,7 @@
 #include <string>
 
 #include "ExecutionTracer.h"
+#include "ModuleTracing.h"
 
 namespace s2e {
 namespace plugins {
@@ -44,9 +45,8 @@ private:
 
     ExecutionTracer *m_tracer;
     ProcessExecutionDetector *m_detector;
-    ModuleMap *m_modules;
 
-    std::unordered_set<std::string> m_enabledModules;
+    ModuleTracing m_modules;
 
     void onTlbMiss(S2EExecutionState *state, uint64_t addr, bool is_write);
     void onPageFault(S2EExecutionState *state, uint64_t addr, bool is_write);

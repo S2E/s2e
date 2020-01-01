@@ -16,6 +16,7 @@
 #include <s2e/Plugins/OSMonitors/Support/ModuleMap.h>
 #include <s2e/Plugins/OSMonitors/Support/ProcessExecutionDetector.h>
 #include "ExecutionTracer.h"
+#include "ModuleTracing.h"
 
 namespace s2e {
 namespace plugins {
@@ -36,12 +37,11 @@ public:
 private:
     ExecutionTracer *m_tracer;
     ProcessExecutionDetector *m_detector;
-    ModuleMap *m_modules;
 
     bool m_traceTbStart;
     bool m_traceTbEnd;
 
-    std::unordered_set<std::string> m_enabledModules;
+    ModuleTracing m_modules;
 
     bool isModuleTraced(S2EExecutionState *state, uint64_t pc);
 

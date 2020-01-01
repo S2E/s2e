@@ -79,7 +79,6 @@ MemoryTracer::MemoryTracer(S2E *s2e) : Plugin(s2e) {
 
 void MemoryTracer::initialize() {
     m_tracer = s2e()->getPlugin<ExecutionTracer>();
-    m_modules = s2e()->getPlugin<ModuleMap>();
     m_detector = s2e()->getPlugin<ProcessExecutionDetector>();
 
     // Whether or not to include host addresses in the trace.
@@ -97,8 +96,7 @@ void MemoryTracer::initialize() {
     getDebugStream() << "MonitorMemory: " << m_traceMemory << " PageFaults: " << m_tracePageFaults
                      << " TlbMisses: " << m_traceTlbMisses << '\n';
 
-    auto modules = s2e()->getConfig()->getStringList(getConfigKey() + ".moduleNames");
-    m_enabledModules.insert(modules.begin(), modules.end());
+    m_modules.initialize(s2e(), getConfigKey());
 
     s2e()->getCorePlugin()->onTranslateBlockStart.connect(sigc::mem_fun(*this, &MemoryTracer::onTranslateBlockStart));
 
@@ -125,16 +123,7 @@ void MemoryTracer::onInitializationComplete(S2EExecutionState *state) {
 
 void MemoryTracer::onTranslateBlockStart(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb,
                                          uint64_t pc) {
-    // If no modules are specified, trace the entire process
-    bool tracedModule = true;
-    if (m_enabledModules.size()) {
-        auto mod = m_modules->getModule(state, pc);
-        if (mod) {
-            tracedModule = m_enabledModules.find(mod->Name) != m_enabledModules.end();
-        } else {
-            tracedModule = false;
-        }
-    }
+    bool tracedModule = m_modules.isModuleTraced(state, pc);
     signal->connect(sigc::bind(sigc::mem_fun(*this, &MemoryTracer::onBlockStart), tracedModule));
 }
 
