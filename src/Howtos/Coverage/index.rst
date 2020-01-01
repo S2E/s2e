@@ -350,7 +350,7 @@ important, as raw virtual addresses may be different from run to run (relocation
 Generating basic block coverage requires an off-line conversion step from translation blocks to basic blocks.
 A translation block (TB) is a sequence of instructions that ends with a control flow change (e.g., call, jump).
 A basic block (BB) is a translation block with the additional constraint that it may have only one entry. As a result,
-a TB may span one or more BBs. A TB may also start in the middle of a translation block due to how the code
+a TB may span one or more BBs. A TB may also start in the middle of a basic block due to how the code
 translator works (a TB may be interrupted at any time by an exception, and when execution returns, the translator
 starts a fresh TB from the current program counter). The conversion will therefore take one TB and output all the BBs
 it overlaps. This set of covered BBs will then be compared to the total set of BBs of the module in order to compute
