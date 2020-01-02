@@ -13,59 +13,52 @@
 #include <s2e/Plugin.h>
 #include <s2e/S2EExecutionState.h>
 
-#include <s2e/Plugins/OSMonitors/Support/ModuleExecutionDetector.h>
+#include <s2e/Plugins/OSMonitors/Support/ModuleMap.h>
+#include <s2e/Plugins/OSMonitors/Support/ProcessExecutionDetector.h>
 #include "ExecutionTracer.h"
+#include "ModuleTracing.h"
 
 namespace s2e {
 namespace plugins {
 
-#define TB_TRACER_OPCODE 0xAD
-
 class TranslationBlockTracer : public Plugin {
     S2E_PLUGIN
 public:
+    enum TraceType { TB_START = 0, TB_END = 1, MAX_ITEMS = 2 };
+
     TranslationBlockTracer(S2E *s2e) : Plugin(s2e) {
     }
 
     void initialize(void);
-
-    enum TbTracerOpcodes { Enable = 0, Disable = 1 };
 
     bool getProperty(S2EExecutionState *state, const std::string &name, std::string &value);
     bool setProperty(S2EExecutionState *state, const std::string &name, const std::string &value);
 
 private:
     ExecutionTracer *m_tracer;
-    ModuleExecutionDetector *m_detector;
-    bool m_monitorModules;
+    ProcessExecutionDetector *m_detector;
 
-    sigc::connection m_tbStartConnection;
-    sigc::connection m_tbEndConnection;
+    bool m_traceTbStart;
+    bool m_traceTbEnd;
 
-    bool m_flushTbOnChange;
+    ModuleTracing m_modules;
 
-    void onModuleTranslateBlockStart(ExecutionSignal *signal, S2EExecutionState *state, const ModuleDescriptor &module,
-                                     TranslationBlock *tb, uint64_t pc);
+    bool isModuleTraced(S2EExecutionState *state, uint64_t pc);
 
-    void onModuleTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionState *state, const ModuleDescriptor &module,
-                                   TranslationBlock *tb, uint64_t endPc, bool staticTarget, uint64_t targetPc);
+    void onInitializationComplete(S2EExecutionState *state);
 
     void onTranslateBlockStart(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb, uint64_t pc);
+    void onTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb, uint64_t pc,
+                             bool staticTarget, uint64_t staticTargetPc);
 
-    void onTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb, uint64_t endPc,
-                             bool staticTarget, uint64_t targetPc);
-
-    template <typename T> bool getConcolicValue(S2EExecutionState *state, unsigned offset, T *value);
-
-    void onExecuteBlockStart(S2EExecutionState *state, uint64_t pc);
-    void onExecuteBlockEnd(S2EExecutionState *state, uint64_t pc);
-
-    void onCustomInstruction(S2EExecutionState *state, uint64_t opcode);
+    void onBlockStartEnd(S2EExecutionState *state, uint64_t pc, bool isStart);
+    void onBlockStart(S2EExecutionState *state, uint64_t pc);
+    void onBlockEnd(S2EExecutionState *state, uint64_t pc);
 
 public:
-    void enableTracing();
-    void disableTracing();
-    bool tracingEnabled();
+    void enableTracing(S2EExecutionState *state, TranslationBlockTracer::TraceType type);
+    void disableTracing(S2EExecutionState *state, TranslationBlockTracer::TraceType type);
+    bool tracingEnabled(S2EExecutionState *state, TranslationBlockTracer::TraceType type);
 
     void trace(S2EExecutionState *state, uint64_t pc, uint32_t type /* s2e_trace::PbTraceItemHeaderType */);
 };

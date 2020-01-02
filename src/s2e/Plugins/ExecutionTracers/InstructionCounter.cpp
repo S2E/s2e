@@ -6,19 +6,13 @@
 /// Licensed under the Cyberhaven Research License Agreement.
 ///
 
-/// XXX: Do not use, deprecated
-
-#include <s2e/cpu.h>
-
 #include <s2e/ConfigFile.h>
 #include <s2e/S2E.h>
-#include <s2e/Utils.h>
+
+#include <s2e/Plugins/OSMonitors/Support/ModuleMap.h>
+#include <s2e/Plugins/OSMonitors/Support/ProcessExecutionDetector.h>
+
 #include "InstructionCounter.h"
-
-#include <llvm/Support/TimeValue.h>
-
-#include <iostream>
-#include <sstream>
 
 #include <TraceEntries.pb.h>
 
@@ -26,116 +20,121 @@ namespace s2e {
 namespace plugins {
 
 S2E_DEFINE_PLUGIN(InstructionCounter, "Instruction counter plugin", "InstructionCounter", "ExecutionTracer",
-                  "ModuleExecutionDetector");
+                  "ProcessExecutionDetector", "ModuleMap");
+
+namespace {
+class InstructionCounterState : public PluginState {
+private:
+    uint64_t m_count;
+    bool m_enabled;
+    void *m_cachedTb;
+
+public:
+    InstructionCounterState() {
+        m_count = 0;
+        m_enabled = false;
+    }
+
+    InstructionCounterState(S2EExecutionState *s, Plugin *p){};
+    virtual ~InstructionCounterState(){};
+    virtual PluginState *clone() const {
+        return new InstructionCounterState(*this);
+    }
+    static PluginState *factory(Plugin *p, S2EExecutionState *s) {
+        return new InstructionCounterState(s, p);
+    }
+
+    inline void inc() {
+        m_count++;
+    }
+
+    inline uint64_t get() const {
+        return m_count;
+    }
+
+    inline void enable(bool v) {
+        m_enabled = v;
+    }
+
+    inline bool enabled() const {
+        return m_enabled;
+    }
+
+    inline void *getCachedTb() const {
+        return m_cachedTb;
+    }
+
+    inline void setCachedTb(void *tb) {
+        m_cachedTb = tb;
+    }
+};
+}
 
 void InstructionCounter::initialize() {
-    m_tb = nullptr;
+    m_tracer = s2e()->getPlugin<ExecutionTracer>();
+    m_detector = s2e()->getPlugin<ProcessExecutionDetector>();
 
-    m_executionTracer = s2e()->getPlugin<ExecutionTracer>();
-    assert(m_executionTracer);
+    m_modules.initialize(s2e(), getConfigKey());
 
-    m_executionDetector = s2e()->getPlugin<ModuleExecutionDetector>();
-    assert(m_executionDetector);
-
-    // TODO: whole-system counting
-    startCounter();
-}
-
-/////////////////////////////////////////////////////////////////////////////////////
-void InstructionCounter::startCounter() {
-    m_executionDetector->onModuleTranslateBlockStart.connect(
+    s2e()->getCorePlugin()->onInitializationComplete.connect(
+        sigc::mem_fun(*this, &InstructionCounter::onInitializationComplete));
+    s2e()->getCorePlugin()->onTranslateBlockStart.connect(
         sigc::mem_fun(*this, &InstructionCounter::onTranslateBlockStart));
+    s2e()->getCorePlugin()->onStateKill.connect(sigc::mem_fun(*this, &InstructionCounter::onStateKill));
 }
 
-/////////////////////////////////////////////////////////////////////////////////////
+void InstructionCounter::onInitializationComplete(S2EExecutionState *state) {
+    DECLARE_PLUGINSTATE(InstructionCounterState, state);
+    plgState->enable(true);
+}
 
-/**
- *  Instrument only the blocks where we want to count the instructions.
- */
-void InstructionCounter::onTranslateBlockStart(ExecutionSignal *signal, S2EExecutionState *state,
-                                               const ModuleDescriptor &module, TranslationBlock *tb, uint64_t pc) {
-    if (m_tb) {
+void InstructionCounter::onTranslateBlockStart(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb,
+                                               uint64_t pc) {
+    if (!m_modules.isModuleTraced(state, pc)) {
         m_tbConnection.disconnect();
+        return;
     }
-    m_tb = tb;
 
-    CorePlugin *plg = s2e()->getCorePlugin();
-    m_tbConnection = plg->onTranslateInstructionStart.connect(
-        sigc::mem_fun(*this, &InstructionCounter::onTranslateInstructionStart));
-
-    // This function will flush the number of executed instructions
-    signal->connect(sigc::mem_fun(*this, &InstructionCounter::onTraceTb));
+    if (!m_tbConnection.connected()) {
+        CorePlugin *plg = s2e()->getCorePlugin();
+        m_tbConnection = plg->onTranslateInstructionStart.connect(
+            sigc::mem_fun(*this, &InstructionCounter::onTranslateInstructionStart));
+    }
 }
 
 void InstructionCounter::onTranslateInstructionStart(ExecutionSignal *signal, S2EExecutionState *state,
                                                      TranslationBlock *tb, uint64_t pc) {
-    if (tb != m_tb) {
-        // We've been suddenly interrupted by some other module
-        m_tb = nullptr;
-        m_tbConnection.disconnect();
-        return;
-    }
-
-    // Connect a function that will increment the number of executed
-    // instructions.
-    signal->connect(sigc::mem_fun(*this, &InstructionCounter::onTraceInstruction));
+    // Connect a function that will increment the number of executed instructions.
+    signal->connect(sigc::mem_fun(*this, &InstructionCounter::onInstruction));
 }
 
-void InstructionCounter::onModuleTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionState *state,
-                                                   const ModuleDescriptor &module, TranslationBlock *tb, uint64_t endPc,
-                                                   bool staticTarget, uint64_t targetPc) {
-    // TRACE("%"PRIx64" StaticTarget=%d TargetPc=%"PRIx64"\n", endPc, staticTarget, targetPc);
-
-    // Done translating the blocks, no need to instrument anymore.
-    m_tb = nullptr;
-    m_tbConnection.disconnect();
-}
-
-/////////////////////////////////////////////////////////////////////////////////////
-
-void InstructionCounter::onTraceTb(S2EExecutionState *state, uint64_t pc) {
+void InstructionCounter::onInstruction(S2EExecutionState *state, uint64_t pc) {
     // Get the plugin state for the current path
     DECLARE_PLUGINSTATE(InstructionCounterState, state);
-
-    if (plgState->m_lastTbPc == pc) {
-        // Avoid repeateadly tracing tight loops.
+    if (!plgState->enabled()) {
         return;
     }
+
+    // This is an optimization to avoid expensive module lookups
+    if (plgState->getCachedTb() == state->getTb()) {
+        plgState->inc();
+        return;
+    }
+
+    if (m_modules.isModuleTraced(state, pc)) {
+        plgState->inc();
+        plgState->setCachedTb(state->getTb());
+    }
+}
+
+void InstructionCounter::onStateKill(S2EExecutionState *state) {
+    // Get the plugin state for the current path
+    DECLARE_PLUGINSTATE(InstructionCounterState, state);
 
     // Flush the counter
     s2e_trace::PbTraceInstructionCount item;
-    item.set_count(plgState->m_iCount);
-    m_executionTracer->writeData(state, item, s2e_trace::TRACE_ICOUNT);
-}
-
-void InstructionCounter::onTraceInstruction(S2EExecutionState *state, uint64_t pc) {
-    // Get the plugin state for the current path
-    DECLARE_PLUGINSTATE(InstructionCounterState, state);
-
-    // Increment the instruction count
-    plgState->m_iCount++;
-}
-
-/////////////////////////////////////////////////////////////////////////////////////
-InstructionCounterState::InstructionCounterState() {
-    m_iCount = 0;
-    m_lastTbPc = 0;
-}
-
-InstructionCounterState::InstructionCounterState(S2EExecutionState *s, Plugin *p) {
-    m_iCount = 0;
-    m_lastTbPc = 0;
-}
-
-InstructionCounterState::~InstructionCounterState() {
-}
-
-PluginState *InstructionCounterState::clone() const {
-    return new InstructionCounterState(*this);
-}
-
-PluginState *InstructionCounterState::factory(Plugin *p, S2EExecutionState *s) {
-    return new InstructionCounterState(s, p);
+    item.set_count(plgState->get());
+    m_tracer->writeData(state, item, s2e_trace::TRACE_ICOUNT);
 }
 
 } // namespace plugins
