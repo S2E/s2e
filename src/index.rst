@@ -82,11 +82,7 @@ vulnerabilities in them. S2E is pronounced *S two E*.
    Plugins/RawMonitor
    Plugins/ModuleExecutionDetector
 
-   Plugins/Tracers/ExecutionTracer
-   Plugins/Tracers/ModuleTracer
-   Plugins/Tracers/TestCaseGenerator
-   Plugins/Tracers/TranslationBlockTracer
-   Plugins/Tracers/InstructionCounter
+   ExecutionTracer <Plugins/Tracers/ExecutionTracer>
 
    Plugins/FunctionMonitor
    Plugins/Linux/FunctionModels
