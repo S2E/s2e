@@ -62,6 +62,10 @@ class ExecutionState : public IAddressSpaceNotification {
 public:
     typedef llvm::SmallVector<StackFrame, 16> stack_ty;
 
+    /// Set of objects that should not be merged by the base merge function.
+    /// Overloaded functions will take care of it.
+    static std::set<ObjectKey, ObjectKeyLTS> s_ignoredMergeObjects;
+
 private:
     // unsupported, use copy constructor
     ExecutionState &operator=(const ExecutionState &);
@@ -73,7 +77,6 @@ public:
     // pc - pointer to current instruction stream
     KInstIterator pc, prevPC;
     stack_ty stack;
-    ConstraintManager constraints;
     AddressSpace addressSpace;
 
     // XXX: get this out of here
@@ -101,6 +104,8 @@ public:
 private:
     /// Simplifier user to simplify expressions when adding them
     static BitfieldSimplifier s_simplifier;
+
+    ConstraintManager m_constraints;
 
     ExecutionState() : fakeState(false), addressSpace(this) {
     }
@@ -134,6 +139,10 @@ public:
 
     void addSymbolic(ArrayPtr array) {
         symbolics.push_back(array);
+    }
+
+    const ConstraintManager &constraints() const {
+        return m_constraints;
     }
 
     ///

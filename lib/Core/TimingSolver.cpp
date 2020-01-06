@@ -38,7 +38,7 @@ bool TimingSolver::evaluate(const ExecutionState &state, ref<Expr> expr, Solver:
     }
 
     if (simplifyExprs)
-        expr = state.constraints.simplifyExpr(expr);
+        expr = state.constraints().simplifyExpr(expr);
 
     bool success;
 
@@ -46,14 +46,14 @@ bool TimingSolver::evaluate(const ExecutionState &state, ref<Expr> expr, Solver:
         sys::TimeValue now(0, 0), user(0, 0), delta(0, 0), sys(0, 0);
         sys::Process::GetTimeUsage(now, user, sys);
 
-        success = solver->evaluate(Query(state.constraints, expr), result);
+        success = solver->evaluate(Query(state.constraints(), expr), result);
 
         sys::Process::GetTimeUsage(delta, user, sys);
         delta -= now;
         stats::solverTime += delta.usec();
         state.queryCost += delta.usec() / 1000000.;
     } else {
-        success = solver->evaluate(Query(state.constraints, expr), result);
+        success = solver->evaluate(Query(state.constraints(), expr), result);
     }
 
     return success;
@@ -67,7 +67,7 @@ bool TimingSolver::mustBeTrue(const ExecutionState &state, ref<Expr> expr, bool 
     }
 
     if (simplifyExprs)
-        expr = state.constraints.simplifyExpr(expr);
+        expr = state.constraints().simplifyExpr(expr);
 
     bool success;
 
@@ -75,14 +75,14 @@ bool TimingSolver::mustBeTrue(const ExecutionState &state, ref<Expr> expr, bool 
         sys::TimeValue now(0, 0), user(0, 0), delta(0, 0), sys(0, 0);
         sys::Process::GetTimeUsage(now, user, sys);
 
-        success = solver->mustBeTrue(Query(state.constraints, expr), result);
+        success = solver->mustBeTrue(Query(state.constraints(), expr), result);
 
         sys::Process::GetTimeUsage(delta, user, sys);
         delta -= now;
         stats::solverTime += delta.usec();
         state.queryCost += delta.usec() / 1000000.;
     } else {
-        success = solver->mustBeTrue(Query(state.constraints, expr), result);
+        success = solver->mustBeTrue(Query(state.constraints(), expr), result);
     }
 
     return success;
@@ -117,7 +117,7 @@ bool TimingSolver::getValue(const ExecutionState &state, ref<Expr> expr, ref<Con
     }
 
     if (simplifyExprs)
-        expr = state.constraints.simplifyExpr(expr);
+        expr = state.constraints().simplifyExpr(expr);
 
     bool success;
 
@@ -125,14 +125,14 @@ bool TimingSolver::getValue(const ExecutionState &state, ref<Expr> expr, ref<Con
         sys::TimeValue now(0, 0), user(0, 0), delta(0, 0), sys(0, 0);
         sys::Process::GetTimeUsage(now, user, sys);
 
-        success = solver->getValue(Query(state.constraints, expr), result);
+        success = solver->getValue(Query(state.constraints(), expr), result);
 
         sys::Process::GetTimeUsage(delta, user, sys);
         delta -= now;
         stats::solverTime += delta.usec();
         state.queryCost += delta.usec() / 1000000.;
     } else {
-        success = solver->getValue(Query(state.constraints, expr), result);
+        success = solver->getValue(Query(state.constraints(), expr), result);
     }
 
     return success;
@@ -164,9 +164,9 @@ bool TimingSolver::getInitialValues(const ConstraintManager &constraints, const 
 
 bool TimingSolver::getInitialValues(const ExecutionState &state, const ArrayVec &objects,
                                     std::vector<std::vector<unsigned char>> &result) {
-    return getInitialValues(state.constraints, objects, result, state.queryCost);
+    return getInitialValues(state.constraints(), objects, result, state.queryCost);
 }
 
 std::pair<ref<Expr>, ref<Expr>> TimingSolver::getRange(const ExecutionState &state, ref<Expr> expr) {
-    return solver->getRange(Query(state.constraints, expr));
+    return solver->getRange(Query(state.constraints(), expr));
 }
