@@ -473,7 +473,7 @@ target_ulong DecreeMonitor::getTaskStructPtr(S2EExecutionState *state) {
 
 uint64_t DecreeMonitor::getMaxValue(S2EExecutionState *state, ref<Expr> value) {
     std::pair<ref<Expr>, ref<Expr>> range;
-    Query query(state->constraints, value);
+    Query query(state->constraints(), value);
 
     range = state->solver()->solver->getRange(query);
 

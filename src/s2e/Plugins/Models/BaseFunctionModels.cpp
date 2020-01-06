@@ -62,7 +62,7 @@ bool BaseFunctionModels::findNullChar(S2EExecutionState *state, uint64_t stringA
         }
 
         ref<Expr> isNullByteExpr = E_EQ(charExpr, nullByteExpr);
-        Query query(state->constraints, isNullByteExpr);
+        Query query(state->constraints(), isNullByteExpr);
 
         bool truth;
         bool res = solver->mustBeTrue(query, truth);

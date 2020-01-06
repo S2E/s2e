@@ -87,7 +87,7 @@ QDict *WebServiceInterface::getGlobalStats() {
 
     // Approximate current maximum path depth
     if (g_s2e_state) {
-        uint32_t tmp = std::max(m_maxCompletedPathDepth, (uint32_t) g_s2e_state->constraints.size());
+        uint32_t tmp = std::max(m_maxCompletedPathDepth, (uint32_t) g_s2e_state->constraints().size());
         m_maxPathDepth = std::max(m_maxPathDepth, tmp);
     }
 
@@ -184,7 +184,7 @@ void WebServiceInterface::onProcessForkComplete(bool isChild) {
 
 void WebServiceInterface::onStateKill(S2EExecutionState *state) {
     ++m_completedPaths;
-    m_maxCompletedPathDepth = std::max(m_maxCompletedPathDepth, (unsigned) state->constraints.size());
+    m_maxCompletedPathDepth = std::max(m_maxCompletedPathDepth, (unsigned) state->constraints().size());
 }
 
 void WebServiceInterface::onSeed(const seeds::Seed &seed, seeds::SeedEvent event) {
