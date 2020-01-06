@@ -539,6 +539,7 @@ void S2EExecutor::registerCpu(S2EExecutionState *initialState, CPUX86State *cpuE
                                           /* isSharedConcrete = */ true);
 
     initialState->m_registers.initialize(initialState->addressSpace, symbolicRegs, concreteRegs);
+    klee::ExecutionState::s_ignoredMergeObjects.insert(initialState->m_registers.getConcreteRegs());
 }
 
 void S2EExecutor::registerSharedExternalObject(S2EExecutionState *state, void *address, unsigned size) {
@@ -609,6 +610,8 @@ void S2EExecutor::registerDirtyMask(S2EExecutionState *state, uint64_t hostAddre
     auto dirtyMask = g_s2e->getExecutor()->addExternalObject(*state, (void *) hostAddress, size, false, true);
 
     state->m_memory.initialize(&state->addressSpace, &state->m_asCache, &state->m_active, state, state, dirtyMask);
+
+    klee::ExecutionState::s_ignoredMergeObjects.insert(state->m_memory.getDirtyMask());
 
     g_se_dirty_mask_addend = state->mem()->getDirtyMaskStoreAddend();
 }
