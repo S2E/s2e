@@ -674,7 +674,7 @@ void BaseInstructions::getRange(S2EExecutionState *state) {
 
     Solver *solver = state->solver()->solver;
 
-    Query query(state->constraints, value);
+    Query query(state->constraints(), value);
     range = solver->getRange(query);
 
     getDebugStream(state) << "BaseInstructions: range " << range.first << " to " << range.second << "\n";
@@ -689,7 +689,7 @@ void BaseInstructions::getConstraintsCountForExpression(S2EExecutionState *state
     unsigned size = state->getPointerSize();
     value = state->regs()->read(CPU_OFFSET(regs[R_EAX]), size * 8);
 
-    Query query(state->constraints, value);
+    Query query(state->constraints(), value);
     std::vector<klee::ref<klee::Expr>> requiredConstraints;
     klee::getIndependentConstraintsForQuery(query, requiredConstraints);
 

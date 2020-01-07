@@ -200,7 +200,7 @@ void SeedScheduler::onSeed(const seeds::Seed &seed, seeds::SeedEvent event) {
     }
 
     getDebugStream() << "Guest fetched seed " << seed.filename << "\n";
-    getDebugStream() << "Constraints size: " << g_s2e_state->constraints.size() << "\n";
+    getDebugStream() << "Constraints size: " << g_s2e_state->constraints().size() << "\n";
 
     assert(m_explorationState == WAIT_SEED_SCHEDULING);
 
