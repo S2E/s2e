@@ -1,0 +1,154 @@
+///
+/// Copyright (C) 2014-2018, Cyberhaven
+/// All rights reserved.
+///
+/// Licensed under the Cyberhaven Research License Agreement.
+///
+
+#include <s2e/Plugins/OSMonitors/Support/MemoryMap.h>
+
+#include "BaseLinuxMonitor.h"
+
+namespace s2e {
+namespace plugins {
+
+/// Verify that the custom  at the given ptr address is valid
+bool BaseLinuxMonitor::verifyLinuxCommand(S2EExecutionState *state, uint64_t guestDataPtr, uint64_t guestDataSize,
+                                          uint8_t *cmd) {
+    // Validate the size of the instruction
+    s2e_assert(state, guestDataSize == m_commandSize, "Invalid command size "
+                                                          << guestDataSize << " != " << m_commandSize
+                                                          << " from pagedir=" << hexval(state->regs()->getPageDir())
+                                                          << " pc=" << hexval(state->regs()->getPc()));
+
+    // Read any symbolic bytes
+    std::ostringstream symbolicBytes;
+    for (unsigned i = 0; i < guestDataSize; ++i) {
+        ref<Expr> t = state->mem()->read(guestDataPtr + i);
+        if (!t.isNull() && !isa<ConstantExpr>(t)) {
+            symbolicBytes << "  " << hexval(i, 2) << "\n";
+        }
+    }
+
+    if (symbolicBytes.str().length()) {
+        getWarningsStream(state) << "Command has symbolic bytes at " << symbolicBytes.str() << "\n";
+    }
+
+    // Read the instruction
+    bool ok = state->mem()->read(guestDataPtr, cmd, guestDataSize);
+    s2e_assert(state, ok, "Failed to read instruction memory");
+
+    // Validate the instruction's version
+
+    // The version field comes always first in all commands
+    uint64_t version = *(uint64_t *) cmd;
+
+    if (version != m_commandVersion) {
+        std::ostringstream os;
+
+        for (unsigned i = 0; i < guestDataSize; ++i) {
+            os << hexval(cmd[i]) << " ";
+        }
+
+        getWarningsStream(state) << "Command bytes: " << os.str() << "\n";
+
+        s2e_assert(state, false, "Invalid command version " << hexval(version) << " != " << hexval(m_commandVersion)
+                                                            << " from pagedir=" << hexval(state->regs()->getPageDir())
+                                                            << " pc=" << hexval(state->regs()->getPc()));
+    }
+
+    return true;
+}
+
+bool BaseLinuxMonitor::getCurrentStack(S2EExecutionState *state, uint64_t *base, uint64_t *size) {
+    auto pid = getPid(state);
+
+    uint64_t start, end;
+    MemoryMapRegionType type;
+
+    if (!m_map->lookupRegion(state, pid, state->regs()->getSp(), start, end, type)) {
+        return false;
+    }
+
+    *base = start;
+    *size = end - start;
+
+    return true;
+}
+
+void BaseLinuxMonitor::handleProcessLoad(S2EExecutionState *state, uint64_t pid,
+                                         const S2E_LINUXMON_COMMAND_PROCESS_LOAD &procLoad) {
+    completeInitialization(state);
+
+    std::string processPath;
+    if (!state->mem()->readString(procLoad.process_path, processPath)) {
+        getWarningsStream(state) << "could not read process path of pid " << hexval(pid) << "\n";
+    }
+
+    getDebugStream(state) << "Process " << processPath << " loaded"
+                          << " pid=" << hexval(pid) << "\n";
+
+    llvm::StringRef file(processPath);
+
+    onProcessLoad.emit(state, state->regs()->getPageDir(), pid, llvm::sys::path::filename(file));
+}
+
+void BaseLinuxMonitor::handleModuleLoad(S2EExecutionState *state, uint64_t pid,
+                                        const S2E_LINUXMON_COMMAND_MODULE_LOAD &modLoad) {
+    std::string modulePath;
+
+    if (!state->mem()->readString(modLoad.module_path, modulePath)) {
+        getWarningsStream(state) << "could not read module path\n";
+        return;
+    }
+
+    auto moduleName = llvm::sys::path::filename(modulePath);
+
+    std::vector<SectionDescriptor> sections;
+    if (!loadSections<S2E_LINUXMON_PHDR_DESC>(state, modLoad.phdr, modLoad.phdr_size, sections)) {
+        return;
+    }
+
+    auto module =
+        ModuleDescriptor::get(modulePath, moduleName, pid, state->regs()->getPageDir(), modLoad.entry_point, sections);
+
+    getDebugStream(state) << module << '\n';
+
+    onModuleLoad.emit(state, module);
+}
+
+void BaseLinuxMonitor::loadKernelImage(S2EExecutionState *state, uint64_t kernelStart) {
+    ModuleDescriptor vmlinux;
+    std::string kernelName = "vmlinux";
+
+    getDebugStream(state) << "Kernel is at address " << hexval(kernelStart) << "\n";
+
+    auto exe = m_vmi->getFromDisk("", kernelName, false);
+    if (!exe) {
+        getWarningsStream(state) << "Could not load vmlinux from disk\n";
+        return;
+    }
+
+    std::vector<SectionDescriptor> sections;
+    for (const auto &s : exe->getSections()) {
+        if (!s.loadable) {
+            continue;
+        }
+
+        // XXX: assume native load base == runtime load base?
+        SectionDescriptor sd;
+        sd.readable = s.readable;
+        sd.writable = s.writable;
+        sd.executable = s.executable;
+        sd.size = s.size;
+        sd.nativeLoadBase = s.start;
+        sd.runtimeLoadBase = s.start;
+        sections.push_back(sd);
+    }
+
+    vmlinux = ModuleDescriptor::get(kernelName, kernelName, 0, 0, 0, sections);
+
+    onModuleLoad.emit(state, vmlinux);
+}
+}
+}

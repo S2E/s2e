@@ -1,0 +1,229 @@
+/// S2E Selective Symbolic Execution Platform
+///
+/// Copyright (c) 2019 Cyberhaven
+///
+/// Permission is hereby granted, free of charge, to any person obtaining a copy
+/// of this software and associated documentation files (the "Software"), to deal
+/// in the Software without restriction, including without limitation the rights
+/// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+/// copies of the Software, and to permit persons to whom the Software is
+/// furnished to do so, subject to the following conditions:
+///
+/// The above copyright notice and this permission notice shall be included in all
+/// copies or substantial portions of the Software.
+///
+/// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+/// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+/// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+/// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+/// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+/// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+/// SOFTWARE.
+
+syntax = "proto2";
+
+package s2e_trace;
+
+enum PbTraceItemHeaderType {
+    TRACE_FORK = 0;
+
+    TRACE_MOD_LOAD = 1;
+    TRACE_MOD_UNLOAD = 2;
+    TRACE_PROC_UNLOAD = 3;
+
+    TRACE_TB_START = 4;
+    TRACE_TB_END = 5;
+
+    TRACE_OSINFO = 8;
+
+    TRACE_EXCEPTION = 9;
+
+    TRACE_TESTCASE = 10;
+
+    TRACE_MEMORY = 11;
+    TRACE_PAGEFAULT = 12;
+    TRACE_TLBMISS = 13;
+
+    TRACE_ICOUNT = 14;
+    TRACE_STATE_SWITCH = 15;
+    TRACE_BLOCK = 16;
+
+    TRACE_CACHE_SIM_PARAMS = 17;
+    TRACE_CACHE_SIM_ENTRY = 18;
+}
+
+message PbTraceItemHeader {
+    required uint32 state_id = 1;
+    required uint64 timestamp = 2;
+    required uint64 address_space = 3;
+    required uint64 pid = 4;
+    required uint64 pc = 5;
+    required PbTraceItemHeaderType type = 6;
+}
+
+// TRACE_FORK
+message PbTraceItemFork {
+    repeated uint32 children = 1;
+}
+
+// TRACE_MOD_LOAD, TRACE_MOD_UNLOAD
+message PbTraceModuleLoadUnload {
+    required string name = 1;
+    required string path = 2;
+    required uint64 pid = 3;
+    required uint64 address_space = 4;
+
+    message Section {
+        required string name = 1;
+        required uint64 runtime_load_base = 2;
+        required uint64 native_load_base = 3;
+        required uint32 size = 4;
+        required bool readable = 5;
+        required bool writable = 6;
+        required bool executable = 7;
+    }
+
+    repeated Section sections = 5;
+}
+
+// TRACE_PROC_UNLOAD
+message PbTraceProcessUnload {
+    required uint64 return_code = 1;
+}
+
+// This must match ETranslationBlockType
+enum PbTraceTbType {
+    TB_DEFAULT = 0;
+    TB_JMP = 1;
+    TB_JMP_IND = 2;
+    TB_COND_JMP = 3;
+    TB_COND_JMP_IND = 4;
+    TB_CALL = 5;
+    TB_CALL_IND = 6;
+    TB_REP = 7;
+    TB_RET = 8;
+    TB_IRET = 9;
+    TB_EXCP = 10;
+    TB_SYSENTER = 11;
+}
+
+message PbTraceRegisterData {
+    required uint32 symb_mask = 1;
+    repeated uint64 values = 2;
+}
+
+message PbTraceTbData {
+    required PbTraceTbType tb_type = 1;
+    required uint64 first_pc = 2;
+    required uint64 last_pc = 3;
+    required uint32 size = 4;
+}
+
+// TRACE_TB_START
+message PbTraceTranslationBlockStart {
+    required PbTraceTbData data = 1;
+    required PbTraceRegisterData regs = 2;
+}
+
+// TRACE_TB_END
+message PbTraceTranslationBlockEnd {
+    required PbTraceTbData data = 1;
+    required PbTraceRegisterData regs = 2;
+}
+
+// TRACE_BLOCK
+message PbTraceTranslationBlock {
+    required uint64 pc = 1;
+    required uint64 last_pc = 2;
+    required uint32 size = 3;
+    required PbTraceTbType tb_type = 4;
+}
+
+message PbTraceOsInfo {
+    // The address above which lies the kernel space.
+    // Trace processors consider that any address above this is mapped
+    // into every address space.
+    required uint64 kernel_start = 1;
+}
+
+// TRACE_EXCEPTION
+message PbTraceException {
+    required uint64 pc = 1;
+    required uint32 vector = 2;
+}
+
+// TRACE_TESTCASE
+message PbTraceTestCase {
+    message KeyValue {
+        required string key = 1;
+        required bytes value = 2;
+    }
+
+    repeated KeyValue items = 1;
+}
+
+// TRACE_MEMORY
+message PbTraceMemoryAccess {
+    required uint64 pc = 1;
+    required uint64 address = 2;
+    required uint64 value = 3;
+    required uint32 size = 4;
+
+    enum Flags {
+        EXECTRACE_MEM_INVALID = 0;
+        EXECTRACE_MEM_WRITE = 1;
+        EXECTRACE_MEM_IO = 2;
+        EXECTRACE_MEM_SYMBVAL = 4;
+        EXECTRACE_MEM_SYMBADDR = 8;
+        EXECTRACE_MEM_HASHOSTADDR = 16;
+        EXECTRACE_MEM_SYMBHOSTADDR = 32;
+        EXECTRACE_MEM_OBJECTSTATE = 64;
+    }
+
+    required uint32 flags = 5;
+
+    // Valid only if EXECTRACE_MEM_HASHOST is set
+    required uint64 host_address = 6;
+
+    // Valid only if EXECTRACE_MEM_OBJECTSTATE is set
+    required uint64 concrete_buffer = 7;
+}
+
+// TRACE_PAGEFAULT and TRACE_TLBMISS
+message PbTraceSimpleMemoryAccess {
+    required uint64 pc = 1;
+    required uint64 address = 2;
+    required bool is_write = 3;
+}
+
+// TRACE_ICOUNT
+message PbTraceInstructionCount {
+    // How many instructions where executed so far.
+    required uint64 count = 1;
+}
+
+// TRACE_STATE_SWITCH
+message PbTraceStateSwitch {
+    required uint32 new_state = 1;
+}
+
+// TRACE_CACHE_SIM_PARAMS
+message PbTraceCacheSimParams {
+    required uint32 cache_id = 1;
+    required uint32 size = 2;
+    required uint32 line_size = 3;
+    required uint32 associativity = 4;
+    required uint32 upper_cache_id = 5;
+    required string name = 6;
+}
+
+// TRACE_CACHE_SIM_ENTRY
+message PbTraceCacheSimEntry {
+    required uint32 cache_id = 1;
+    required uint64 pc = 2;
+    required uint64 address = 3;
+    required uint32 size = 4;
+    required uint32 miss_count = 5;
+    required bool is_write = 6;
+    required bool is_code = 7;
+}
