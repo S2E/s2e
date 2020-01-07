@@ -1,0 +1,71 @@
+;;
+;; Copyright (C) 2014-2016, Dependable Systems Laboratory, EPFL
+;; Copyright (C) 2014-2017, Cyberhaven
+;; All rights reserved.
+;;
+;; Licensed under the Cyberhaven Research License Agreement.
+;;
+
+[Version]
+Signature   = "$Windows NT$"
+Class       = "S2EGuestDriver"
+ClassGuid   = {b86dff51-a31e-4bac-b3cf-e8cfe75c9fc2}
+Provider    = %Cyberhaven%
+DriverVer   = 11/01/2018,2.0.0.0
+CatalogFile = s2e.cat
+
+
+[DestinationDirs]
+DefaultDestDir      = 12
+s2e.DriverFiles     = 12            ;%windir%\system32\drivers
+
+[DefaultInstall]
+OptionDesc          = %ServiceDescription%
+CopyFiles           = s2e.DriverFiles
+
+[DefaultInstall.Services]
+AddService          = %ServiceName%,,s2e.Service
+
+[DefaultUninstall]
+DelFiles            =
+
+[DefaultUninstall.Services]
+DelService = s2e,0x200      ;Ensure service is stopped before deleting
+
+[s2e.Service]
+DisplayName      = %ServiceName%
+Description      = %ServiceDescription%
+ServiceBinary    = %12%\%DriverName%.sys        ;%windir%\system32\drivers\
+Dependencies     = "FltMgr"
+ServiceType      = 2                            ;SERVICE_FILE_SYSTEM_DRIVER
+StartType        = 3                            ;SERVICE_DEMAND_START
+ErrorControl     = 1                            ;SERVICE_ERROR_NORMAL
+LoadOrderGroup   = "FSFilter Content Screener"
+AddReg           = s2e.AddRegistry
+
+[s2e.AddRegistry]
+HKR,"Instances","DefaultInstance",0x00000000,%DefaultInstance%
+HKR,"Instances\"%Instance1.Name%,"Altitude",0x00000000,%Instance1.Altitude%
+HKR,"Instances\"%Instance1.Name%,"Flags",0x00010001,%Instance1.Flags%
+
+[s2e.DriverFiles]
+%DriverName%.sys
+
+[SourceDisksFiles]
+s2e.sys = 1,,
+
+[SourceDisksNames]
+1 = %DiskId1%,,,
+
+[Strings]
+Cyberhaven              = "Cyberhaven, Inc"
+ServiceDescription      = "s2e"
+ServiceName             = "s2e"
+DriverName              = "s2e"
+DiskId1                 = "S2E Device Installation Disk"
+
+;Instances specific information.
+DefaultInstance         = "S2E Instance"
+Instance1.Name          = "S2E Instance"
+Instance1.Altitude      = "360123"
+Instance1.Flags         = 0x0          ; Allow all attachments

@@ -1,0 +1,194 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{609E68F3-1B94-4D68-8E99-78A665752E90}</ProjectGuid>
+    <TemplateGuid>{dd38f7fc-d7bd-488b-9242-7d8754cde80d}</TemplateGuid>
+    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+    <MinimumVisualStudioVersion>12.0</MinimumVisualStudioVersion>
+    <Configuration>Debug</Configuration>
+    <Platform Condition="'$(Platform)' == ''">Win32</Platform>
+    <RootNamespace>driver</RootNamespace>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <TargetVersion>Windows7</TargetVersion>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>WindowsKernelModeDriver10.0</PlatformToolset>
+    <ConfigurationType>Driver</ConfigurationType>
+    <DriverType>WDM</DriverType>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <TargetVersion>Windows7</TargetVersion>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>WindowsKernelModeDriver10.0</PlatformToolset>
+    <ConfigurationType>Driver</ConfigurationType>
+    <DriverType>WDM</DriverType>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <TargetVersion>Windows7</TargetVersion>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>WindowsKernelModeDriver10.0</PlatformToolset>
+    <ConfigurationType>Driver</ConfigurationType>
+    <DriverType>WDM</DriverType>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <TargetVersion>Windows7</TargetVersion>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>WindowsKernelModeDriver10.0</PlatformToolset>
+    <ConfigurationType>Driver</ConfigurationType>
+    <DriverType>WDM</DriverType>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <DebuggerFlavor>DbgengKernelDebugger</DebuggerFlavor>
+    <IncludePath>$(SolutionDir)libcommon\include;$(IncludePath);$(ProjectDir)include</IncludePath>
+    <TargetName>s2e</TargetName>
+    <Inf2CatUseLocalTime>true</Inf2CatUseLocalTime>
+    <CodeAnalysisRuleSet>..\AllRules.ruleset</CodeAnalysisRuleSet>
+    <RunCodeAnalysis>true</RunCodeAnalysis>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <DebuggerFlavor>DbgengKernelDebugger</DebuggerFlavor>
+    <IncludePath>$(SolutionDir)libcommon\include;$(IncludePath);$(ProjectDir)include</IncludePath>
+    <TargetName>s2e</TargetName>
+    <Inf2CatUseLocalTime>true</Inf2CatUseLocalTime>
+    <CodeAnalysisRuleSet>..\AllRules.ruleset</CodeAnalysisRuleSet>
+    <RunCodeAnalysis>true</RunCodeAnalysis>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <DebuggerFlavor>DbgengKernelDebugger</DebuggerFlavor>
+    <IncludePath>$(SolutionDir)libcommon\include;$(IncludePath);$(ProjectDir)include</IncludePath>
+    <TargetName>s2e</TargetName>
+    <Inf2CatUseLocalTime>true</Inf2CatUseLocalTime>
+    <CodeAnalysisRuleSet>..\AllRules.ruleset</CodeAnalysisRuleSet>
+    <RunCodeAnalysis>true</RunCodeAnalysis>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <DebuggerFlavor>DbgengKernelDebugger</DebuggerFlavor>
+    <IncludePath>$(SolutionDir)libcommon\include;$(IncludePath);$(ProjectDir)include</IncludePath>
+    <TargetName>s2e</TargetName>
+    <Inf2CatUseLocalTime>true</Inf2CatUseLocalTime>
+    <CodeAnalysisRuleSet>..\AllRules.ruleset</CodeAnalysisRuleSet>
+    <RunCodeAnalysis>true</RunCodeAnalysis>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Link>
+      <AdditionalDependencies>$(DDK_LIB_PATH)wdmsec.lib;$(DDK_LIB_PATH)Aux_klib.lib;$(IFSKIT_LIB_PATH)fltMgr.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
+    </Link>
+    <ClCompile>
+      <ForcedIncludeFiles>$(KIT_SHARED_IncludePath)\warning.h;$(SolutionDir)\formatting.h</ForcedIncludeFiles>
+      <SupportJustMyCode>false</SupportJustMyCode>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Link>
+      <AdditionalDependencies>$(DDK_LIB_PATH)wdmsec.lib;$(DDK_LIB_PATH)Aux_klib.lib;$(IFSKIT_LIB_PATH)fltMgr.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
+    </Link>
+    <ClCompile>
+      <ForcedIncludeFiles>$(KIT_SHARED_IncludePath)\warning.h;$(SolutionDir)\formatting.h</ForcedIncludeFiles>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Link>
+      <AdditionalDependencies>$(DDK_LIB_PATH)wdmsec.lib;$(DDK_LIB_PATH)Aux_klib.lib;$(IFSKIT_LIB_PATH)fltMgr.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
+    </Link>
+    <ClCompile>
+      <ForcedIncludeFiles>$(KIT_SHARED_IncludePath)\warning.h;$(SolutionDir)\formatting.h</ForcedIncludeFiles>
+      <SupportJustMyCode>false</SupportJustMyCode>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Link>
+      <AdditionalDependencies>$(DDK_LIB_PATH)wdmsec.lib;$(DDK_LIB_PATH)Aux_klib.lib;$(IFSKIT_LIB_PATH)fltMgr.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
+    </Link>
+    <ClCompile>
+      <ForcedIncludeFiles>$(KIT_SHARED_IncludePath)\warning.h;$(SolutionDir)\formatting.h</ForcedIncludeFiles>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <FilesToPackage Include="$(TargetPath)" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src\adt\strings.c" />
+    <ClCompile Include="src\config\config.c" />
+    <ClCompile Include="src\crash.c" />
+    <ClCompile Include="src\enumeration.c" />
+    <ClCompile Include="src\faultinj\ex.cpp" />
+    <ClCompile Include="src\faultinj\faultinj.c" />
+    <ClCompile Include="src\faultinj\flt.cpp" />
+    <ClCompile Include="src\faultinj\fs.cpp" />
+    <ClCompile Include="src\faultinj\io.cpp" />
+    <ClCompile Include="src\faultinj\mm.cpp" />
+    <ClCompile Include="src\faultinj\ob.cpp" />
+    <ClCompile Include="src\faultinj\ps.cpp" />
+    <ClCompile Include="src\faultinj\reg.cpp" />
+    <ClCompile Include="src\filter.c" />
+    <ClCompile Include="src\kernel_functions.c" />
+    <ClCompile Include="src\kernel_hooks.c" />
+    <ClCompile Include="src\main.c" />
+    <ClCompile Include="src\monitoring.c" />
+    <ClCompile Include="src\utils.c" />
+    <ClCompile Include="src\utils\process.c" />
+    <ClCompile Include="src\winmonitor_common.c" />
+    <ClCompile Include="src\winmonitor_gen.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="include\s2ectl.h" />
+    <ClInclude Include="src\adt\strings.h" />
+    <ClInclude Include="src\config\config.h" />
+    <ClInclude Include="src\crash.h" />
+    <ClInclude Include="src\enumeration.h" />
+    <ClInclude Include="src\faultinj\apis.h" />
+    <ClInclude Include="src\faultinj\faultinj.h" />
+    <ClInclude Include="src\faultinj\faultinj.hpp" />
+    <ClInclude Include="src\filter.h" />
+    <ClInclude Include="src\kernel_functions.h" />
+    <ClInclude Include="src\kernel_hooks.h" />
+    <ClInclude Include="src\kernel_structs.h" />
+    <ClInclude Include="src\log.h" />
+    <ClInclude Include="src\monitoring.h" />
+    <ClInclude Include="src\utils.h" />
+    <ClInclude Include="src\utils\process.h" />
+    <ClInclude Include="src\winmonitor.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Inf Include="s2e.inf" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\libcommon_driver\libcommon_driver.vcxproj">
+      <Project>{6ddb52fe-ae21-44f2-a50b-d7ca76d2beab}</Project>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

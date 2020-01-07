@@ -1,0 +1,159 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="Driver Files">
+      <UniqueIdentifier>{8E41214B-6785-4CFE-B992-037D68949A14}</UniqueIdentifier>
+      <Extensions>inf;inv;inx;mof;mc;</Extensions>
+    </Filter>
+    <Filter Include="Source Files\adt">
+      <UniqueIdentifier>{960bf71b-b23f-48ba-85e0-db2275c39a23}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\faultinj">
+      <UniqueIdentifier>{e3d1628b-00a7-4254-9548-41833b419fd9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\config">
+      <UniqueIdentifier>{132d0b9d-ca70-42e9-afd5-d6f7ee6ad738}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\utils">
+      <UniqueIdentifier>{e79076b7-1d0f-43bd-b49c-ad498e8bb6df}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src\crash.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\filter.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\main.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\monitoring.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\enumeration.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\kernel_functions.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\kernel_hooks.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\winmonitor_common.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\winmonitor_gen.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\adt\strings.c">
+      <Filter>Source Files\adt</Filter>
+    </ClCompile>
+    <ClCompile Include="src\faultinj\faultinj.c">
+      <Filter>Source Files\faultinj</Filter>
+    </ClCompile>
+    <ClCompile Include="src\faultinj\ex.cpp">
+      <Filter>Source Files\faultinj</Filter>
+    </ClCompile>
+    <ClCompile Include="src\faultinj\mm.cpp">
+      <Filter>Source Files\faultinj</Filter>
+    </ClCompile>
+    <ClCompile Include="src\faultinj\ps.cpp">
+      <Filter>Source Files\faultinj</Filter>
+    </ClCompile>
+    <ClCompile Include="src\faultinj\ob.cpp">
+      <Filter>Source Files\faultinj</Filter>
+    </ClCompile>
+    <ClCompile Include="src\faultinj\reg.cpp">
+      <Filter>Source Files\faultinj</Filter>
+    </ClCompile>
+    <ClCompile Include="src\config\config.c">
+      <Filter>Source Files\config</Filter>
+    </ClCompile>
+    <ClCompile Include="src\utils.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\faultinj\flt.cpp">
+      <Filter>Source Files\faultinj</Filter>
+    </ClCompile>
+    <ClCompile Include="src\utils\process.c">
+      <Filter>Source Files\utils</Filter>
+    </ClCompile>
+    <ClCompile Include="src\faultinj\fs.cpp">
+      <Filter>Source Files\faultinj</Filter>
+    </ClCompile>
+    <ClCompile Include="src\faultinj\io.cpp">
+      <Filter>Source Files\faultinj</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\crash.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\kernel_structs.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\enumeration.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\monitoring.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\kernel_functions.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\s2ectl.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\kernel_hooks.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\winmonitor.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\log.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\filter.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\adt\strings.h">
+      <Filter>Source Files\adt</Filter>
+    </ClInclude>
+    <ClInclude Include="src\faultinj\apis.h">
+      <Filter>Source Files\faultinj</Filter>
+    </ClInclude>
+    <ClInclude Include="src\faultinj\faultinj.h">
+      <Filter>Source Files\faultinj</Filter>
+    </ClInclude>
+    <ClInclude Include="src\faultinj\faultinj.hpp">
+      <Filter>Source Files\faultinj</Filter>
+    </ClInclude>
+    <ClInclude Include="src\config\config.h">
+      <Filter>Source Files\config</Filter>
+    </ClInclude>
+    <ClInclude Include="src\utils.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\utils\process.h">
+      <Filter>Source Files\utils</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Inf Include="s2e.inf">
+      <Filter>Driver Files</Filter>
+    </Inf>
+  </ItemGroup>
+</Project>
