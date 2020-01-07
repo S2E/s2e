@@ -1,0 +1,5 @@
+FROM cyberhaven/s2e
+
+RUN mkdir /demo
+COPY run.sh /demo/
+COPY CADET_00001 /demo/
