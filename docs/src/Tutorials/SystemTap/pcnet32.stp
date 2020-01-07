@@ -1,0 +1,74 @@
+# We use the embedded C support of SystemTap to access the S2E
+# custom instructions. A comprehensive set of such instructions can
+# be found in s2e.h. You can adapt them to SystemTap, in case
+# you need them.
+
+# Terminate current state.
+# This is a SystemTap function that can be called from SystemTap code.
+function s2e_kill_state(status:long, message: string) %{
+ __asm__ __volatile__(
+   ".byte 0x0f, 0x3f\n"
+   ".byte 0x00, 0x06, 0x00, 0x00\n"
+   ".byte 0x00, 0x00, 0x00, 0x00\n"
+   : : "a" ((uint32_t)THIS->status), "b" (THIS->message)
+ );
+%}
+
+# Print message to the S2E log.
+# This is a SystemTap function that can be called from SystemTap code.
+function s2e_message(message:string) %{
+ __asm__ __volatile__(
+   ".byte 0x0f, 0x3f\n"
+   ".byte 0x00, 0x10, 0x00, 0x00\n"
+   ".byte 0x00, 0x00, 0x00, 0x00\n"
+   : : "a" (THIS->message)
+ );
+%}
+
+# SystemTap also allows to paste arbitrary C code.
+# This is useful when calling other C functions.
+
+%{
+// Make the specified buffer symbolic and assign a name to it.
+static inline void s2e_make_symbolic(void *buf, int size, const char *name)
+{
+ __asm__ __volatile__(
+   ".byte 0x0f, 0x3f\n"
+   ".byte 0x00, 0x03, 0x00, 0x00\n"
+   ".byte 0x00, 0x00, 0x00, 0x00\n"
+   : : "a" (buf), "b" (size), "c" (name)
+ );
+}
+%}
+
+#### Now comes the real stuff ####
+
+# Take a pointer to the IP header, and make the options length field symbolic.
+function s2e_inject_symbolic_ip_optionlength(ipheader: long) %{
+ uint8_t *data = (uint8_t*)((uintptr_t)(THIS->ipheader + 0));
+
+ uint8_t len;
+ s2e_make_symbolic(&len, 1, "ip_headerlength");
+ *data = *data & 0xF0;
+ *data = *data | ((len) & 0xF);
+%}
+
+# Instruct SystemTap to intercept the netif_receive_skb kernel function.
+# NIC drivers call this function when they are ready to give the received packet
+# to the kernel.
+probe kernel.function("netif_receive_skb") {
+ msg = sprintf("%s: len=%d datalen=%d\n", probefunc(), $skb->len, $skb->data_len)
+ s2e_message(msg)
+ s2e_inject_symbolic_ip_optionlength($skb->data)
+}
+
+
+# Instruct SystemTap to intercept the pcnet32_start_xmit in the pcnet32 driver.
+# We also tell S2E to kill the current state.
+# Intercepting this function can be useful to analyze the reaction of the kernel
+# to the reception of a (symbolic) packet.
+probe module("pcnet32").function("pcnet32_start_xmit") {
+ msg = sprintf("%s: len=%d datalen=%d\n", probefunc(), $skb->len, $skb->data_len)
+ s2e_message(msg)
+ s2e_kill_state(0, "pcnet32_start_xmit")
+}
