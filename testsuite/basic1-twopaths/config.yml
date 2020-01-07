@@ -1,0 +1,14 @@
+test:
+    description: "Checks that basic symbolic execution works by forking two paths"
+
+    target_arguments:
+        - "@@"
+
+    targets:
+        - windows64-basic1-twopaths.exe
+        - windows32-basic1-twopaths.exe
+        - linux32-basic1-twopaths
+        - linux64-basic1-twopaths
+
+    build-options:
+        post-project-generation-script: fix-config.sh

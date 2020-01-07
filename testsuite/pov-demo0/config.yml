@@ -1,0 +1,19 @@
+test:
+    description: "Checks that Linux and Windows PoV generation works"
+    options:
+        enable_pov_generation: true
+
+    target_arguments:
+        - "@@"
+
+    targets:
+        - windows64-pov-demo0.exe
+        - windows32-pov-demo0.exe
+        - linux32-pov-demo0
+        # Skip 64-bit Linux, it has forced concretizations
+        # - linux64-pov-demo0
+
+    # Avoid forced concretizations on these images
+    blacklisted-images:
+        - windows-8.1ent-x86_64
+        - windows-10ent1703-x86_64

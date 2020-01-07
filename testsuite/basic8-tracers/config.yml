@@ -1,0 +1,11 @@
+test:
+    description: "Check that execution tracers work properly"
+
+    targets:
+        - linux32-basic8-tracers
+        - linux64-basic8-tracers
+        - windows32-basic8-tracers.exe
+        - windows64-basic8-tracers.exe
+
+    build-options:
+        post-project-generation-script: fix-config.sh

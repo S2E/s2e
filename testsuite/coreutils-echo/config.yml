@@ -1,0 +1,14 @@
+test:
+    description: "Checks that echo forks properly"
+
+    target_arguments:
+        - abc
+
+    targets:
+        - {{ s2e_images }}/debian-9.2.1-i386/guestfs/bin/echo
+
+    build-options:
+        post-project-generation-script: fix-config.sh
+
+    target-images:
+        - debian-9.2.1-i386

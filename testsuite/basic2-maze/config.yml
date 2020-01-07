@@ -1,0 +1,11 @@
+test:
+    description: "Maze demo that demonstrates more complex symbex with many states"
+
+    targets:
+        - windows64-basic2-maze.exe
+        - windows32-basic2-maze.exe
+        - linux32-basic2-maze
+        - linux64-basic2-maze
+
+    build-options:
+        post-project-generation-script: fix-config.sh

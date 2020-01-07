@@ -1,0 +1,11 @@
+test:
+    description: "Checks that instruction instrumentation works properly"
+
+    targets:
+        - linux32-basic7-instmon
+        - linux64-basic7-instmon
+        - windows32-basic7-instmon.exe
+        - windows64-basic7-instmon.exe
+
+    build-options:
+        post-project-generation-script: fix-config.sh

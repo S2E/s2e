@@ -1,0 +1,7 @@
+test:
+    description: "This is a smoke test that checks that guest images can load and run programs"
+    targets:
+        - windows32-basic0-singlepath.exe
+        - windows64-basic0-singlepath.exe
+        - linux32-basic0-singlepath
+        - linux64-basic0-singlepath
