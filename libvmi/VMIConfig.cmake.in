@@ -1,0 +1,12 @@
+# Copyright (C) 2017, Cyberhaven
+# All rights reserved.
+#
+# Licensed under the Cyberhaven Research License Agreement.
+
+set(VMI_VERSION_MAJOR @VMI_VERSION_MAJOR@)
+set(VMI_VERSION_MINOR @VMI_VERSION_MINOR@)
+set(VMI_VERSION_PATCH @VMI_VERSION_PATCH@)
+set(VMI_PACKAGE_VERSION @VMI_PACKAGE_VERSION@)
+
+set(VMI_INCLUDE_DIR "@VMI_INCLUDE_DIR@")
+set(VMI_LIBRARY_DIR "@VMI_LIBRARY_DIR@")
