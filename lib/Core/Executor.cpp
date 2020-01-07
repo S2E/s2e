@@ -387,7 +387,7 @@ Executor::StatePair Executor::fork(ExecutionState &current, const ref<Expr> &con
         // Recompute concrete values to keep condition true in current state
 
         // Build constraints where condition must be true
-        ConstraintManager tmpConstraints = current.constraints;
+        ConstraintManager tmpConstraints = current.constraints();
         tmpConstraints.addConstraint(condition);
 
         std::vector<std::vector<unsigned char>> concreteObjects;
@@ -407,7 +407,7 @@ Executor::StatePair Executor::fork(ExecutionState &current, const ref<Expr> &con
     }
 
     // Build constraints for branched state
-    ConstraintManager tmpConstraints = current.constraints;
+    ConstraintManager tmpConstraints = current.constraints();
     if (conditionIsTrue) {
         tmpConstraints.addConstraint(Expr::createIsZero(condition));
     } else {
@@ -1943,9 +1943,9 @@ void Executor::executeMemoryOperation(ExecutionState &state, bool isWrite, ref<E
 
     if (SimplifySymIndices) {
         if (!isa<ConstantExpr>(address))
-            address = state.constraints.simplifyExpr(address);
+            address = state.constraints().simplifyExpr(address);
         if (isWrite && !isa<ConstantExpr>(value))
-            value = state.constraints.simplifyExpr(value);
+            value = state.constraints().simplifyExpr(value);
     }
 
     // fast path: single in-bounds resolution

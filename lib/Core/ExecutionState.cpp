@@ -70,6 +70,7 @@ StackFrame::~StackFrame() {
 /***/
 
 BitfieldSimplifier ExecutionState::s_simplifier;
+std::set<ObjectKey, ObjectKeyLTS> ExecutionState::s_ignoredMergeObjects;
 
 ExecutionState::ExecutionState(KFunction *kf)
     : fakeState(false), pc(kf->instructions), prevPC(nullptr), addressSpace(this), queryCost(0.), forkDisabled(false),
@@ -78,7 +79,7 @@ ExecutionState::ExecutionState(KFunction *kf)
 }
 
 ExecutionState::ExecutionState(const std::vector<ref<Expr>> &assumptions)
-    : fakeState(true), constraints(assumptions), addressSpace(this), queryCost(0.), concolics(new Assignment(true)) {
+    : fakeState(true), addressSpace(this), queryCost(0.), concolics(new Assignment(true)) {
 }
 
 ExecutionState::~ExecutionState() {
@@ -155,52 +156,86 @@ llvm::raw_ostream &operator<<(llvm::raw_ostream &os, const MemoryMap &mm) {
 }
 
 bool ExecutionState::merge(const ExecutionState &b) {
-    if (DebugLogStateMerge)
-        llvm::errs() << "-- attempting merge of A:" << this << " with B:" << &b << "--\n";
-    if (pc != b.pc)
+    auto &m = *klee_message_stream;
+    if (DebugLogStateMerge) {
+        m << "-- attempting merge of A:" << this << " with B:" << &b << "--\n";
+    }
+
+    if (pc != b.pc) {
+        if (DebugLogStateMerge) {
+            m << "merge failed: different KLEE pc\n" << *(*pc).inst << "\n" << *(*b.pc).inst << "\n";
+
+            std::stringstream ss;
+            this->printStack(nullptr, ss);
+            b.printStack(nullptr, ss);
+            m << ss.str() << "\n";
+        }
         return false;
+    }
 
     // XXX is it even possible for these to differ? does it matter? probably
     // implies difference in object states?
-    if (symbolics != b.symbolics)
+    if (symbolics != b.symbolics) {
+        if (DebugLogStateMerge) {
+            m << "merge failed: different symbolics" << '\n';
+
+            for (auto it : symbolics) {
+                m << it->getName() << "\n";
+            }
+            m << "\n";
+            for (auto it : b.symbolics) {
+                m << it->getName() << "\n";
+            }
+        }
         return false;
+    }
 
     {
         auto itA = stack.begin();
         auto itB = b.stack.begin();
         while (itA != stack.end() && itB != b.stack.end()) {
             // XXX vaargs?
-            if (itA->caller != itB->caller || itA->kf != itB->kf)
-                return false;
+            if (itA->caller != itB->caller || itA->kf != itB->kf) {
+                if (DebugLogStateMerge) {
+                    m << "merge failed: different callstacks" << '\n';
+                }
+            }
             ++itA;
             ++itB;
         }
-        if (itA != stack.end() || itB != b.stack.end())
+        if (itA != stack.end() || itB != b.stack.end()) {
+            if (DebugLogStateMerge) {
+                m << "merge failed: different callstacks" << '\n';
+            }
             return false;
+        }
     }
 
-    std::set<ref<Expr>> aConstraints = constraints.getConstraintSet();
-    std::set<ref<Expr>> bConstraints = b.constraints.getConstraintSet();
+    std::set<ref<Expr>> aConstraints = constraints().getConstraintSet();
+    std::set<ref<Expr>> bConstraints = b.constraints().getConstraintSet();
     std::set<ref<Expr>> commonConstraints, aSuffix, bSuffix;
+
     std::set_intersection(aConstraints.begin(), aConstraints.end(), bConstraints.begin(), bConstraints.end(),
                           std::inserter(commonConstraints, commonConstraints.begin()));
+
     std::set_difference(aConstraints.begin(), aConstraints.end(), commonConstraints.begin(), commonConstraints.end(),
                         std::inserter(aSuffix, aSuffix.end()));
+
     std::set_difference(bConstraints.begin(), bConstraints.end(), commonConstraints.begin(), commonConstraints.end(),
                         std::inserter(bSuffix, bSuffix.end()));
     if (DebugLogStateMerge) {
-        llvm::errs() << "\tconstraint prefix: [";
+        m << "\tconstraint prefix: [";
         for (std::set<ref<Expr>>::iterator it = commonConstraints.begin(), ie = commonConstraints.end(); it != ie; ++it)
-            llvm::errs() << *it << ", ";
-        llvm::errs() << "]\n";
-        llvm::errs() << "\tA suffix: [";
+            m << *it << ", ";
+        m << "]\n";
+        m << "\tA suffix: [";
         for (std::set<ref<Expr>>::iterator it = aSuffix.begin(), ie = aSuffix.end(); it != ie; ++it)
-            llvm::errs() << *it << ", ";
-        llvm::errs() << "]\n";
-        llvm::errs() << "\tB suffix: [";
+            m << *it << ", ";
+        m << "]\n";
+        m << "\tB suffix: [";
         for (std::set<ref<Expr>>::iterator it = bSuffix.begin(), ie = bSuffix.end(); it != ie; ++it)
-            llvm::errs() << *it << ", ";
-        llvm::errs() << "]\n";
+            m << *it << ", ";
+        m << "]" << '\n';
     }
 
     // We cannot merge if addresses would resolve differently in the
@@ -212,12 +247,6 @@ bool ExecutionState::merge(const ExecutionState &b) {
     // 2. We cannot have free'd any pre-existing object in one state
     // and not the other
 
-    if (DebugLogStateMerge) {
-        llvm::errs() << "\tchecking object states\n";
-        llvm::errs() << "A: " << addressSpace.objects << "\n";
-        llvm::errs() << "B: " << b.addressSpace.objects << "\n";
-    }
-
     std::set<ObjectKey> mutated;
     MemoryMap::iterator ai = addressSpace.objects.begin();
     MemoryMap::iterator bi = b.addressSpace.objects.begin();
@@ -227,9 +256,9 @@ bool ExecutionState::merge(const ExecutionState &b) {
         if (ai->first != bi->first) {
             if (DebugLogStateMerge) {
                 if (ai->first < bi->first) {
-                    llvm::errs() << "\t\tB misses binding for: " << ai->first.address << "\n";
+                    m << "\t\tB misses binding for: " << ai->first.address << "\n";
                 } else {
-                    llvm::errs() << "\t\tA misses binding for: " << bi->first.address << "\n";
+                    m << "\t\tA misses binding for: " << bi->first.address << "\n";
                 }
             }
             return false;
@@ -241,23 +270,60 @@ bool ExecutionState::merge(const ExecutionState &b) {
         }
     }
     if (ai != ae || bi != be) {
-        if (DebugLogStateMerge)
-            llvm::errs() << "\t\tmappings differ\n";
+        if (DebugLogStateMerge) {
+            m << "\t\tmappings differ\n";
+        }
         return false;
+    }
+
+    for (; ai != ae && bi != be; ++ai, ++bi) {
+        if (ai->first != bi->first) {
+            if (DebugLogStateMerge) {
+                if (ai->first < bi->first) {
+                    m << "\t\tB misses binding for: " << hexval(ai->first.address) << "\n";
+                } else {
+                    m << "\t\tA misses binding for: " << hexval(bi->first.address) << "\n";
+                }
+            }
+            if (DebugLogStateMerge) {
+                m << "merge failed: different callstacks" << '\n';
+            }
+            return false;
+        }
+        if (ai->second != bi->second && !s_ignoredMergeObjects.count(ai->first)) {
+
+            auto &mo = ai->first;
+            auto os = ai->second;
+            if (DebugLogStateMerge)
+                m << "\t\tmutated: " << hexval(mo.address) << " (" << os->getName() << ")\n";
+            if (os->isSharedConcrete()) {
+                if (DebugLogStateMerge) {
+                    m << "merge failed: different shared-concrete objects " << '\n';
+                }
+                return false;
+            }
+            mutated.insert(mo);
+        }
     }
 
     // merge stack
 
     ref<Expr> inA = ConstantExpr::alloc(1, Expr::Bool);
     ref<Expr> inB = ConstantExpr::alloc(1, Expr::Bool);
-    for (std::set<ref<Expr>>::iterator it = aSuffix.begin(), ie = aSuffix.end(); it != ie; ++it)
+
+    for (std::set<ref<Expr>>::iterator it = aSuffix.begin(), ie = aSuffix.end(); it != ie; ++it) {
         inA = AndExpr::create(inA, *it);
-    for (std::set<ref<Expr>>::iterator it = bSuffix.begin(), ie = bSuffix.end(); it != ie; ++it)
+    }
+
+    for (std::set<ref<Expr>>::iterator it = bSuffix.begin(), ie = bSuffix.end(); it != ie; ++it) {
         inB = AndExpr::create(inB, *it);
+    }
 
     // XXX should we have a preference as to which predicate to use?
     // it seems like it can make a difference, even though logically
     // they must contradict each other and so inA => !inB
+
+    int selectCountStack = 0, selectCountMem = 0;
 
     auto itA = stack.begin();
     auto itB = b.stack.begin();
@@ -272,8 +338,13 @@ bool ExecutionState::merge(const ExecutionState &b) {
                 // we cannot reuse this local, so just ignore
             } else {
                 av = SelectExpr::create(inA, av, bv);
+                selectCountStack += 1;
             }
         }
+    }
+
+    if (DebugLogStateMerge) {
+        m << "\t\tcreated " << selectCountStack << " select expressions on the stack\n";
     }
 
     for (auto mo : mutated) {
@@ -282,20 +353,36 @@ bool ExecutionState::merge(const ExecutionState &b) {
         assert(os && !os->isReadOnly() && "objects mutated but not writable in merging state");
         assert(otherOS);
 
+        if (DebugLogStateMerge) {
+            m << "Merging object " << os->getName() << "\n";
+        }
+
         auto wos = addressSpace.getWriteable(os);
         for (unsigned i = 0; i < mo.size; i++) {
             ref<Expr> av = wos->read8(i);
             ref<Expr> bv = otherOS->read8(i);
-            wos->write(i, SelectExpr::create(inA, av, bv));
+            if (av != bv) {
+                ref<Expr> e = SelectExpr::create(inA, av, bv);
+                wos->write(i, e);
+                selectCountMem += 1;
+            }
         }
     }
 
-    // XXX: check incremental mode here
-    pabort("Check incremental mode");
-    constraints = ConstraintManager();
+    if (DebugLogStateMerge) {
+        m << "\t\tcreated " << selectCountMem << " select expressions in memory\n";
+    }
+
+    // XXX: Need to roll back the state of the incremental solver to the last
+    // common constraint.
+
+    auto constraints = ConstraintManager();
     for (std::set<ref<Expr>>::iterator it = commonConstraints.begin(), ie = commonConstraints.end(); it != ie; ++it)
         constraints.addConstraint(*it);
     constraints.addConstraint(OrExpr::create(inA, inB));
+    m_constraints = constraints;
+
+    // XXX: do we need to recompute concolic values?
 
     return true;
 }
@@ -393,7 +480,7 @@ ref<Expr> ExecutionState::simplifyExpr(const ref<Expr> &e) const {
 ///
 ref<ConstantExpr> ExecutionState::toConstant(ref<Expr> e, const std::string &reason) {
     e = simplifyExpr(e);
-    e = constraints.simplifyExpr(e);
+    e = m_constraints.simplifyExpr(e);
     if (ConstantExpr *CE = dyn_cast<ConstantExpr>(e)) {
         return CE;
     }
@@ -498,7 +585,7 @@ bool ExecutionState::addConstraint(const ref<Expr> &constraint, bool recomputeCo
 
     if (!ce->isTrue()) {
         if (recomputeConcolics) {
-            ConstraintManager newConstraints = constraints;
+            ConstraintManager newConstraints = m_constraints;
             newConstraints.addConstraint(simplified);
             if (!solve(newConstraints, *concolics)) {
                 *klee_warning_stream << "Could not compute concolic values for the new constraint\n";
@@ -511,7 +598,7 @@ bool ExecutionState::addConstraint(const ref<Expr> &constraint, bool recomputeCo
     }
 
     // Constraint is good, add it to the actual set
-    constraints.addConstraint(simplified);
+    m_constraints.addConstraint(simplified);
 
     return true;
 }
@@ -528,7 +615,7 @@ void ExecutionState::dumpQuery(llvm::raw_ostream &os) const {
 
     auto printer = std::unique_ptr<ExprPPrinter>(ExprPPrinter::create(os));
 
-    Query query(constraints, ConstantExpr::alloc(0, Expr::Bool));
+    Query query(m_constraints, ConstantExpr::alloc(0, Expr::Bool));
 
     std::vector<ref<Expr>> exprs;
     printer->printQuery(os, query.constraints, query.expr, exprs.begin(), exprs.end(), symbObjects.begin(),
