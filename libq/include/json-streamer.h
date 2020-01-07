@@ -1,0 +1,39 @@
+/*
+ * JSON streaming support
+ *
+ * Copyright IBM, Corp. 2009
+ * Copyright 2016 - Cyberhaven
+ *
+ * Authors:
+ *  Anthony Liguori   <aliguori@us.ibm.com>
+ *  Vitaly Chipounov  <vitaly@cyberhaven.io>
+ *
+ * This work is licensed under the terms of the GNU LGPL, version 2.1 or later.
+ * See the COPYING.LIB file in the top-level directory.
+ *
+ */
+
+#ifndef QOM_JSON_STREAMER_H
+#define QOM_JSON_STREAMER_H
+
+#include "json-lexer.h"
+#include "qlist.h"
+
+typedef struct JSONMessageParser {
+    void (*emit)(struct JSONMessageParser *parser, QList *tokens);
+    JSONLexer lexer;
+    int brace_count;
+    int bracket_count;
+    QList *tokens;
+    uint64_t token_size;
+} JSONMessageParser;
+
+void json_message_parser_init(JSONMessageParser *parser, void (*func)(JSONMessageParser *, QList *));
+
+int json_message_parser_feed(JSONMessageParser *parser, const char *buffer, size_t size);
+
+int json_message_parser_flush(JSONMessageParser *parser);
+
+void json_message_parser_destroy(JSONMessageParser *parser);
+
+#endif
