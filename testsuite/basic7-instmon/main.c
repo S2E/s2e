@@ -18,11 +18,11 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include <ctype.h>
+#include <inttypes.h>
 #include <s2e/s2e.h>
 #include <stdio.h>
-#include <inttypes.h>
 #include <string.h>
-#include <ctype.h>
 
 // This is a reverse-engineering CTF challenge.
 // When the player passes the correct flag on stdin, the challenge prints "you found it".

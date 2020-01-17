@@ -1,12 +1,12 @@
-#include <libcgc.h>
 #include "libc.h"
+#include <libcgc.h>
 
 int transmit_all(int fd, const char *buf, const size_t size) {
     size_t sent = 0;
     size_t sent_now = 0;
     int ret;
 
-    if (!buf) 
+    if (!buf)
         return 1;
 
     if (!size)
@@ -15,8 +15,8 @@ int transmit_all(int fd, const char *buf, const size_t size) {
     while (sent < size) {
         ret = transmit(fd, buf + sent, size - sent, &sent_now);
         if (sent_now == 0) {
-            //should never return until at least something was transmitted
-            //so consider this an error too
+            // should never return until at least something was transmitted
+            // so consider this an error too
             return 3;
         }
         if (ret != 0) {
@@ -33,7 +33,7 @@ int receive_delim(int fd, char *buf, const size_t size, char delim) {
     size_t rx_now = 0;
     int ret;
 
-    if (!buf) 
+    if (!buf)
         return 1;
 
     if (!size)
@@ -42,15 +42,15 @@ int receive_delim(int fd, char *buf, const size_t size, char delim) {
     while (rx < size) {
         ret = receive(fd, buf + rx, 1, &rx_now);
         if (rx_now == 0) {
-            //should never return until at least something was received
-            //so consider this an error too
+            // should never return until at least something was received
+            // so consider this an error too
             return 3;
         }
         if (ret != 0) {
             return 3;
         }
         if (buf[rx] == delim) {
-           break;
+            break;
         }
         rx += rx_now;
     }

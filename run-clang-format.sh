@@ -45,5 +45,6 @@ for EXT in ${FILE_EXTS}; do
         -not -path "./guest/windows/*"              \
         -not -path "./lua/*"                        \
         -not -path "./scripts/*"                    \
+        -not -path "./testsuite/faultinj-scannersys/*"  \
         -exec ${CLANG_FORMAT} -i -style=file {} +
 done
