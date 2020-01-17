@@ -21,7 +21,7 @@ Quickstart on Windows and Linux
 
 S2E comes with a ``vulnerabilities`` demo which demonstrates several types of vulnerabilities that S2E can detect.
 You can find the corresponding source file in
-`vulnerabilities.c <https://github.com/S2E/guest-tools/blob/master/common/demos/vulnerabilities.c>`__.
+`vulnerabilities.c <https://github.com/S2E/s2e/blob/master/guest/common/demos/vulnerabilities.c>`__.
 
 1. Build the guest tools. We will use the 32-bit Linux version here.
    You may also use the 64-bit version and/or the Windows version (in ``guest-tools{32|64}-win``).
@@ -306,7 +306,7 @@ the relationship between plugins.
 .. image:: arch.svg
 
 S2E has an event-based plugin architecture. The execution engine exports a core set of low level events (declared in
-`CorePlugin.h <https://github.com/S2E/libs2ecore/blob/master/include/s2e/CorePlugin.h>`__) to which plugins must
+`CorePlugin.h <https://github.com/S2E/s2e/blob/master/libs2ecore/include/s2e/CorePlugin.h>`__) to which plugins must
 subscribe if they want to do anything useful. The most important core events are related to guest instruction
 translation. Plugins must use them if they want to instrument guest code (e.g., to be notified when some instructions
 of interest are executed).  Plugins may also define and export their own high-level events that other plugins can

@@ -189,7 +189,7 @@ likewise for the ``failure`` instrumentation).
 
     For a concrete demonstration of ``LuaInstructionInstrumentation`` and ``LuaFunctionInstrumentation``, refer to
     the S2E `testsuite <../Testsuite.rst>`__, which contains an
-    `example <https://github.com/S2E/testsuite/tree/master/basic7-instmon>`__ of how to instrument a sample CTF
+    `example <https://github.com/S2E/s2e/tree/master/testsuite/basic7-instmon>`__ of how to instrument a sample CTF
     challenge.
 
 

@@ -287,7 +287,7 @@ with the KVM emulation engine. Each command is described as follows:
 .. note::
 
    Here is a pointer to S2E's source code where you can find the implementation of all these extensions.
-   `libs2e.c <https://github.com/S2E/libs2e/blob/master/src/libs2e.c>`__ is the main entry point of the
+   `libs2e.c <https://github.com/S2E/s2e/blob/master/libs2e/src/libs2e.c>`__ is the main entry point of the
    ``libs2e.so`` shared library. This module intercepts IOCTLs to ``/dev/kvm`` and forwards them to the appropriate
    handlers. If you are lost in the 90 KLOC that comprise ``libs2e.so``, just start from this file and work your
    way up to the other components. This should help you get started hacking!

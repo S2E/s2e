@@ -62,7 +62,7 @@ You must install a few packages in order to build S2E manually. Instead of givin
 very quickly, we will give you some pointers that should be always up-to-date:
 
 - The packages for the build toolchain and S2E dependencies can be found in the S2E docker
-  `file <https://github.com/S2E/build-scripts/blob/master/Dockerfile>`__.
+  `file <https://github.com/S2E/s2e/blob/master/Dockerfile>`__.
 
 - The packages required to build the guest images can be found
   `here <https://github.com/S2E/guest-images/blob/master/README.md>`__.
@@ -121,7 +121,7 @@ documentation can be built as follows:
 
     $ sudo apt-get install linkchecker
     $ pip install sphinx_rtd_theme
-    $ cd $S2EDIR/docs/sphinx
+    $ cd $S2EDIR/s2e/docs/sphinx
     $ ./build.sh
 
-The documentation will be located in ``$S2EDIR/docs/sphinx/build/html/index.html``.
+The documentation will be located in ``$S2EDIR/s2e/docs/sphinx/build/html/index.html``.

@@ -21,7 +21,7 @@ The magic number identifies the start of a trace entry. It is followed by the si
 item size, then finally the actual item.
 
 The header is defined by the ``PbTraceItemHeader`` protobuf type. For more details, see the
-`TraceEntries.proto <https://github.com/S2E/libs2eplugins/blob/master/src/s2e/Plugins/ExecutionTracers/TraceEntries.proto>`__
+`TraceEntries.proto <https://github.com/S2E/s2e/blob/master/libs2eplugins/src/s2e/Plugins/ExecutionTracers/TraceEntries.proto>`__
 file.
 
 .. code-block:: c

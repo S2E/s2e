@@ -4,7 +4,7 @@ Using execution tracers
 
 Execution tracers are S2E analysis plugins that record various information along the execution of each path. Here is a
 partial list of available plugins. You can find all the tracers in the
-`libs2eplugins <https://github.com/S2E/libs2eplugins/tree/master/src/s2e/Plugins/ExecutionTracers>`__ repository.
+`libs2eplugins <https://github.com/S2E/s2e/tree/master/libs2eplugins/src/s2e/Plugins/ExecutionTracers>`__ repository.
 
 * **ExecutionTracer**: Base plugin upon which all tracers depend. This plugin records fork points so that offline
   analysis tools can reconstruct the execution tree. This plugin is useful by itself to obtain a fork profile of the

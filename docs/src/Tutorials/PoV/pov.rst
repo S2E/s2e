@@ -395,7 +395,7 @@ the function produces the expected output, identification succeeded.
 
 
 
-    S2E uses `RevGen <https://github.com/S2E/tools/tree/master/tools/revgen32>`__, an x86-to-LLVM translator,
+    S2E uses `RevGen <https://github.com/S2E/s2e/tree/master/tools/tools/revgen32>`__, an x86-to-LLVM translator,
     in order to extract function types from the binary before analyzing it.
 
 

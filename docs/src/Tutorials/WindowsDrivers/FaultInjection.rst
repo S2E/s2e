@@ -92,14 +92,15 @@ You will also need MSYS2 in order to run LCOV for code coverage:
     pacman -Syy gcc python2-setuptools
     easy_install-2.7 pip virtualenv
 
-    # Check out the guest tools
-    # They contain the s2e.sys guest driver that you will need to use later
-    git clone https://github.com/S2E/guest-tools.git
+    # Check out the S2E repository. Guest tools are in the guest directory.
+    # They contain the s2e.sys guest driver that you will need to use later.
+    git clone https://github.com/S2E/s2e.git
 
     # LCOV will be used to display code coverage
     git clone https://github.com/linux-test-project/lcov
 
-Please refer to the ``guest-tools`` `readme <https://github.com/S2E/guest-tools/blob/master/windows/README.md>`__ for more details.
+Please refer to the ``guest-tools`` `readme <https://github.com/S2E/s2e/blob/master/guest/windows/README.md>`__
+for more details.
 
 Building the Sample Driver
 ==========================
@@ -284,7 +285,7 @@ when source code is available.
 - Build the ``guest-tools/windows/s2e.ln`` solution in Visual Studio in release mode and x64 architecture.
   This solution is located in the ``guest-tools`` repository that you cloned earlier in this tutorial.
   It contains a number of tools to test Windows binaries. If you would like to learn more about it, please refer to
-  its `readme <https://github.com/S2E/guest-tools/blob/master/windows/README.md>`__.
+  its `readme <https://github.com/S2E/s2e/blob/master/guest/windows/README.md>`__.
 
 - Extract line information from the driver's PDB file using `pdbparser.exe` as follows:
 
@@ -572,7 +573,7 @@ the bug. They have five components:
       ntoskrnl.sys: 1400668e6
 
    You may pretty-print the addresses using ``pdbparser.exe`` from the ``guest-tools`` repository. Please refer
-   to the ``guest-tools`` `readme <https://github.com/S2E/guest-tools/blob/master/windows/README.md>`__ for more details
+   to the ``guest-tools`` `readme <https://github.com/S2E/s2e/blob/master/guest/windows/README.md>`__ for more details
    about how to use ``pdbparser.exe``.
 
 
@@ -609,7 +610,7 @@ Debugging Tips
   be fetched by the S2E build system. This file may sometimes be outdated. In case of doubt, rebuild the ``s2e.sln``
   solution, then run ``makedist.bat``, and copy the driver files in ``guest-tools/windows/dist`` to the ``guest-tools``
   directory of your project.
-  Refer to this `readme <https://github.com/S2E/guest-tools/blob/master/windows/README.md>`__ for more information about
+  Refer to this `readme <https://github.com/S2E/s2e/blob/master/guest/windows/README.md>`__ for more information about
   how to build ``s2e.sys``.
 
 * If you do not see any output at all and execution terminates in a few seconds, check that ``s2e.sys`` got loaded
