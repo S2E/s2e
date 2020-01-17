@@ -25,7 +25,7 @@ from subprocess import Popen, PIPE
 import sys
 import os
 
-blacklist = ['.git', '.repo', 'qemu', 'docs', 'doxygen']
+blacklist = ['.git', '.repo', 'docs', 'doxygen']
 
 files = []
 for root, directories, filenames in os.walk('.'):
@@ -53,9 +53,9 @@ for fname in files:
                     dirs.add(fdir)
 
 s2e_includes.write('\n'.join([
-    '../build/llvm-3.9.1.src/include',
-    '../build/llvm-release/include',
-    '../build/lua-5.3.4/src',
+    '../../build/llvm-3.9.1.src/include',
+    '../../build/llvm-release/include',
+    '../../build/lua-5.3.4/src',
     '/usr/include/glib-2.0',
 
     # This is for protobuf headers, pick one build folder
