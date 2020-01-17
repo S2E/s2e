@@ -2,7 +2,7 @@
 S2E Testsuite
 =============
 
-This repository contains the S2E testsuite. It has a collection of programs that help test various aspects of the S2E
+This folder contains the S2E testsuite. It has a collection of programs that help test various aspects of the S2E
 engine. They also serve as a reference for various S2E tutorials.
 
 A test is comprised of a program binary and a script that sets up an S2E analysis project, runs it, and then checks that
