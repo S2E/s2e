@@ -12,7 +12,7 @@ Starting with an Empty Plugin
 
 The first thing to do is to name the plugin and create boilerplate code. Let us name the plugin ``InstructionTracker``.
 You can copy/paste the ``Example`` plugin that ships with S2E (in the `libs2eplugins
-<https://github.com/S2E/libs2eplugins>`__ repository).
+<https://github.com/S2E/s2e/tree/master/libs2eplugins>`__ directory).
 
 Create a file named ``InstructionTracker.h`` in ``$S2EDIR/libs2eplugins/src/s2e/Plugins`` with the following content:
 
@@ -126,7 +126,7 @@ Instrumenting Instructions
 
 To instrument an instruction, an S2E plugin registers to the ``onTranslateInstructionStart`` core event. There are
 many other core events to which a plugin can register. These events are defined in ``CorePlugin.h`` in the
-`libs2ecore <https://github.com/S2E/libs2ecore>`__ repository.
+`libs2ecore <https://github.com/S2E/s2e/tree/master/libs2ecore>`__ directory.
 
 Extend your code as follows. Do not forget to add all new member functions to the (private) section of the class
 declaration.

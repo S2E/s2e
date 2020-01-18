@@ -108,7 +108,7 @@ This will force the rebuild of the libs2e and QEMU components.
 Updating the source code
 ------------------------
 
-To update the source code under ``source/s2e``, run:
+To update the source code under ``source``, run:
 
 .. code-block:: console
 
@@ -198,7 +198,7 @@ files and directories:
 bootstrap.sh
     S2E downloads this file from the host into the guest, then executes it. This file contains instructions on how
     to start the program, where to inject symbolic arguments, etc. When ``s2e-env`` creates a VM image, it configures
-    the image to run `launch.sh <https://github.com/S2E/guest-tools/blob/master/linux/scripts/launch.sh>`__ automatically
+    the image to run `launch.sh <https://github.com/S2E/s2e/blob/master/guest/linux/scripts/launch.sh>`__ automatically
     when the s2e user logs in. This script fetches ``bootstrap.sh`` from the host and executes it.
     This script varies depending on your target program, so you should always check this file and modify it as required
     **before** running your analysis.
@@ -208,9 +208,9 @@ guestfs
     is used by S2E's ``VMI`` plugin for virtual machine introspection. Note that not all images provide a guestfs.
 
 guest-tools
-    A symlink to the S2E `guest tools <https://github.com/S2E/guest-tools>`__. These will be downloaded to the guest by
-    the bootstrap script every time you launch a new analysis. This way, you do not have to rebuild the VM image every
-    time you modify these tools.
+    A symlink to the S2E `guest tools <https://github.com/S2E/s2e/blob/master/guest>`__.
+    These will be downloaded to the guest by the bootstrap script every time you launch a new analysis.
+    This way, you do not have to rebuild the VM image every time you modify these tools.
 
 launch-s2e.sh
     This is the script that you will run most frequently. It starts S2E and runs the analysis as configured in the
@@ -226,7 +226,7 @@ models.lua:
 s2e-config.lua
    The main S2E configuration file. Analysis plugins are enabled and configured here (in the ``pluginsConfig`` table).
    S2E (and KLEE) arguments are also specified here (under ``kleeArgs`` in the ``s2e`` table). The available S2E
-   arguments are defined in `S2EExecutor.cpp <https://github.com/S2E/libs2ecore/blob/master/src/S2EExecutor.cpp>`__.
+   arguments are defined in `S2EExecutor.cpp <https://github.com/S2E/s2e/blob/master/libs2ecore/src/S2EExecutor.cpp>`__.
 
 Target program arguments
 ------------------------

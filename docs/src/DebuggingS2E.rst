@@ -85,7 +85,7 @@ S2E debug functions
 -------------------
 
 In order to simplify debugging a number of functions for gdb are `available
-<https://github.com/S2E/libs2ecore/blob/master/src/S2E.cpp>`__:
+<https://github.com/S2E/s2e/blob/master/libs2ecore/src/S2E.cpp>`__:
 
 s2e_debug_print_hex(void \*addr, int len)
     Print memory (in hex) at address ``addr`` of length ``len``

@@ -28,7 +28,7 @@
 DRIVER32=./scanner/filter/Debug/scanner.sys
 DRIVER64=./scanner/filter/x64/Debug/scanner.sys
 
-REMOTE_BUILD=$(S2ESRC)/build-scripts/windows/remote-msbuild.sh
+REMOTE_BUILD=$(S2ESRC)/scripts/windows/remote-msbuild.sh
 
 ifneq ($(MAKECMDGOALS),clean)
 ifneq ($(shell ls $(REMOTE_BUILD) 2>&1),$(REMOTE_BUILD))
@@ -51,7 +51,7 @@ $(DRIVER32):
 
 # Serialize the build, parallel won't work
 $(DRIVER64): $(DRIVER32)
-	REMOTE_HOST=$(WINDOWS_BUILD_HOST) REMOTE_USER=$(WINDOWS_BUILD_USER) REMOTE_FOLDER=faultinj-scannersys VS_PLATFORM=x64 VS_CONFIG=Debug $(S2ESRC)/build-scripts/windows/remote-msbuild.sh scanner
+	REMOTE_HOST=$(WINDOWS_BUILD_HOST) REMOTE_USER=$(WINDOWS_BUILD_USER) REMOTE_FOLDER=faultinj-scannersys VS_PLATFORM=x64 VS_CONFIG=Debug $(S2ESRC)/scripts/windows/remote-msbuild.sh scanner
 	cp ./scanner/scanner.inf ./scanner/filter/x64/Debug
 	cp ./scanner/user/x64/Debug/*.exe* ./scanner/filter/x64/Debug
 

@@ -38,5 +38,5 @@ code pass arbitrary data to specific plugins. Each plugin can define its own dat
 
 
 
-See the `source code <https://github.com/S2E/guest-tools/blob/master/common/include/s2e/s2e.h>`__ for more information
+See the `source code <https://github.com/S2E/s2e/blob/master/guest/common/include/s2e/s2e.h>`__ for more information
 about custom instructions.

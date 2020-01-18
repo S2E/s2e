@@ -50,7 +50,7 @@ that:
 
     * The ``IDA_ROOT`` variable is set to the IDA Pro path, e.g., ``export IDA_ROOT=/opt/ida-6.8``.
 
-Revgen uses `McSema <https://github.com/S2E/tools/blob/master/tools/scripts/ida/mcsema_get_cfg.py>`__ to recover
+Revgen uses `McSema <https://github.com/S2E/s2e/blob/master/tools/tools/scripts/ida/mcsema_get_cfg.py>`__ to recover
 the CFG of the binary, and that requires IDA Pro. Note that this is an older version of McSema scripts
 (from 2016). `McSema2 <https://github.com/trailofbits/mcsema>`__ has been released in the meantime, which should have
 much better CFG recovery. We plan to port Revgen to the latest version.
@@ -65,7 +65,7 @@ contains ~280 binaries:
 
 .. code-block:: bash
 
-    ls -1 $S2E_ENV/source/s2e/decree/samples
+    ls -1 $S2E_ENV/source/decree/samples
     CADET_00001
     CADET_00003
     CROMU_00001
@@ -87,23 +87,23 @@ then run ``revgen.sh``. This tutorial assumes that your S2E environment is in ``
 
     export IDA_ROOT=/opt/ida-6.8
     export S2E_PREFIX=$S2E_ENV/install
-    $S2E_PREFIX/bin/revgen.sh $S2E_ENV/source/s2e/decree/samples/CADET_00001
+    $S2E_PREFIX/bin/revgen.sh $S2E_ENV/source/decree/samples/CADET_00001
 
 You should get the following console output:
 
 .. code-block:: console
 
-    stat: cannot stat '$S2E_ENV/source/s2e/decree/samples/CADET_00001.pbcfg': No such file or directory
-    [IDA    ] Writing CFG to $S2E_ENV/source/s2e/decree/samples/CADET_00001.pbcfg...
+    stat: cannot stat '$S2E_ENV/source/decree/samples/CADET_00001.pbcfg': No such file or directory
+    [IDA    ] Writing CFG to $S2E_ENV/source/decree/samples/CADET_00001.pbcfg...
 
-    [REVGEN ] Translating $S2E_ENV/source/s2e/decree/samples/CADET_00001 to $S2E_ENV/source/s2e/decree/samples/CADET_00001.bc...
+    [REVGEN ] Translating $S2E_ENV/source/decree/samples/CADET_00001 to $S2E_ENV/source/decree/samples/CADET_00001.bc...
     warning: Linking two modules of different data layouts: '$S2E_ENV/install/lib/X86BitcodeLibrary.bc' is 'e-m:e-p:32:32-f64:32:64-f80:32-n8:16:32-S128' whereas 'tcg-llvm' is 'e-m:e-i64:64-f80:128-n8:16:32:64-S128'
 
     [4] RevGen:generateFunctionCall -   >Function 0x804860c does not exist
-    [LLVMDIS] Generating LLVM disassembly to $S2E_ENV/source/s2e/decree/samples/CADET_00001.ll...
-    [CLANG  ] Compiling LLVM bitcode of CGC binary to native binary $S2E_ENV/source/s2e/decree/samples/CADET_00001.rev...
+    [LLVMDIS] Generating LLVM disassembly to $S2E_ENV/source/decree/samples/CADET_00001.ll...
+    [CLANG  ] Compiling LLVM bitcode of CGC binary to native binary $S2E_ENV/source/decree/samples/CADET_00001.rev...
 
-You will find the following output files in the ``$S2E_ENV/source/s2e/decree/samples`` folder.
+You will find the following output files in the ``$S2E_ENV/source/decree/samples`` folder.
 The meaning of each file is explained in the ``revgen.sh`` script, but here is an explanation of the most important
 ones:
 
@@ -121,7 +121,7 @@ you to run the translated Decree binaries on your Linux host. For example, runni
 
 .. code-block:: console
 
-    user@ubuntu:~$ $S2E_ENV/source/s2e/decree/samples/CADET_00001.rev
+    user@ubuntu:~$ $S2E_ENV/source/decree/samples/CADET_00001.rev
 
     Welcome to Palindrome Finder
 
@@ -149,11 +149,12 @@ pieces of LLVM bitcode, then stitches these pieces of bitcode together in order 
 
 At a high level, the translator takes a block of machine code (e.g., x86) and turns it into a QEMU-specific intermediate
 representation (IR). The translator then transforms this IR to the desired target instruction set (in Revgen's case,
-LLVM). The translator is composed of the `CPU emulation library (libcpu) <https://github.com/s2e/libcpu>`__, which
-generates the IR, and of the `Tiny Code Generator library (libtcg) <https://github.com/s2e/libtcg>`__, which handles the
-IR to LLVM conversion. We extracted ``libcpu`` and ``libtcg`` from QEMU and made both available as standalone libraries.
-We added LLVM translation capabilities to ``libtcg``, which you can find `here
-<https://github.com/S2E/libtcg/blob/master/src/tcg-llvm.cpp>`__.
+LLVM). The translator is composed of the `CPU emulation library (libcpu)
+<https://github.com/S2E/s2e/tree/master/libcpu>`__, which generates the IR, and of the `Tiny Code Generator library
+(libtcg) <https://github.com/S2E/s2e/tree/master/libtcg>`__, which handles the IR to LLVM conversion. We extracted
+``libcpu`` and ``libtcg`` from QEMU and made both available as standalone libraries. We added LLVM translation
+capabilities to ``libtcg``, which you can find `here
+<https://github.com/S2E/s2e/tree/master/libtcg/src/tcg-llvm.cpp>`__.
 
 In the rest of this section, we will explain in more details how the translator works and how Revgen uses it to build an
 LLVM version of an entire binary. We will also see what it takes to run such binaries and discuss the assumptions that
@@ -187,7 +188,7 @@ For this, the translator uses *emulation helpers*. An emulation helper is a piec
 machine instructions that do not have equivalent micro-operations. Revgen compiles emulation helpers to LLVM and adds
 them to the code dictionary, transparently enabling the support of machine instructions that manipulate system state.
 Helpers are implemented in ``libcpu`` and you can find them `here
-<https://github.com/S2E/libcpu/tree/master/src/target-i386>`__.
+<https://github.com/S2E/s2e/tree/master/libcpu/src/target-i386>`__.
 
 Third, the translator packages the sequence of LLVM instructions into an LLVM function that is *equivalent* to the
 original basic block taken from the binary.  More precisely, given the same register and memory input, the translated
@@ -345,7 +346,8 @@ sensitive to the aspect of the translated binary (dual stack, different program 
 Second, an x86 binary runs in a 32/64-bit protected mode environment with a flat memory model and in user space. This is
 important, as the translator may disassemble instructions differently depending on the execution mode. For example,
 attempting to translate the x86 ``sysret`` instruction outside protected mode will cause the translator to emit a
-general protection fault `exception <https://github.com/S2E/libcpu/blob/master/src/target-i386/translate.c#L6934>`__,
+general protection fault `exception
+<https://github.com/S2E/s2e/tree/master/libcpu/src/target-i386/translate.c#L6934>`__,
 aborting the translation process. This behavior is inherited from QEMU's dynamic binary translator. In general, binaries
 should come with some sort of section headers describing which execution model they assume so that Revgen can configure
 the translator properly.
@@ -383,8 +385,8 @@ For a program to be useful, it has to generally interact with its environment, w
 Depending on the system call flavor (interrupt, syscall, sysenter...), the translator generates a call to a specific
 helper function. The runtime needs to implement that helper function so that it can translate the system call of the
 original platform to that of the target platform (e.g., `Decree/CGC to vanilla Linux
-<https://github.com/S2E/tools/blob/master/lib/X86RuntimeLibrary/Runtime.cpp#L534>`__). This is very similar to what user
-emulation mode in QEMU does.
+<https://github.com/S2E/s2e/blob/master/tools/lib/X86RuntimeLibrary/Runtime.cpp#L534>`__). This is very similar to what
+user emulation mode in QEMU does.
 
 
 Evaluation
@@ -414,8 +416,8 @@ In its current state, the code generated by Revgen cannot be optimized by the co
 
 
 In the remainder of this section, you will find results for CGC binaries. You can generate the evaluation data using the
-`revgen-gen-stats.sh <https://github.com/S2E/tools/tree/master/tools/scripts/revgen/revgen-gen-stats.sh>`__ script. It
-computes the size of various output files as well as the time it takes to generate them. This data is useful to
+`revgen-gen-stats.sh <https://github.com/S2E/s2e/tree/master/tools/tools/scripts/revgen/revgen-gen-stats.sh>`__ script.
+It computes the size of various output files as well as the time it takes to generate them. This data is useful to
 benchmark Revgen. Here is a sample output of the script:
 
 .. code-block:: console
@@ -428,9 +430,9 @@ benchmark Revgen. Here is a sample output of the script:
     ...
 
 You can find the complete data in the ``cgc-binaries.stats`` in the `documentation
-<https://github.com/S2E/docs/tree/master/src/Tutorials/Revgen>`__ repository. The bar chart below shows the size overhead
-of binaries produced by Revgen by comparing the original and translated binary size. You can generate the chart using
-this `script <https://github.com/S2E/tools/blob/master/tools/scripts/revgen/revgen-plot-stats.r>`__ (written in `R
-<https://www.r-project.org/>`__).
+<https://github.com/S2E/s2e/tree/master/docs/src/Tutorials/Revgen>`__ repository. The bar chart below shows the size
+overhead of binaries produced by Revgen by comparing the original and translated binary size. You can generate the chart
+using this `script <https://github.com/S2E/s2e/blob/master/tools/tools/scripts/revgen/revgen-plot-stats.r>`__ (written
+in `R <https://www.r-project.org/>`__).
 
 .. image:: cgc-binaries.svg

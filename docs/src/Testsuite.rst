@@ -93,7 +93,7 @@ There are two ways to run the testsuite: using ``s2e testsuite run`` or invoking
 Adding your own tests
 =====================
 
-The testsuite is located in the `testsuite <https://github.com/S2E/testsuite>`__ repository.
+The testsuite is located in the `testsuite <https://github.com/S2E/s2e/tree/master/testsuite>`__ repository.
 In order to add a test, follow these steps:
 
 1. Create a subdirectory named after the test.

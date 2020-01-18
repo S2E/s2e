@@ -58,7 +58,7 @@ Ensure your code is formatted correctly
         $ cd $S2EDIR/s2e-env
         $ . venv/bin/activate
         $ pip install pylint
-        $ pylint -rn -j8 --rcfile=~/s2e/s2e/build-scripts/pylint_rc s2e_env
+        $ pylint -rn -j8 --rcfile=./pylint_rc s2e_env
 
     There must be no warnings.
 

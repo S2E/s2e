@@ -77,7 +77,7 @@ Building Windows images
 
 This works exactly like for Linux images, except that there is no need to re-compile the Windows kernel.
 S2E ships with a custom Windows driver that exposes the kernel events to S2E plugins. This driver is available in
-the `guest-tools <https://github.com/S2E/guest-tools/tree/master/windows>`__ repository.
+the `guest tools <https://github.com/S2E/s2e/tree/master/guest/windows>`__ repository.
 
 
 When should I install my software?

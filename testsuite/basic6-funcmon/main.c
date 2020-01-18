@@ -18,9 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include <inttypes.h>
 #include <s2e/s2e.h>
 #include <stdio.h>
-#include <inttypes.h>
 #include <string.h>
 
 // #define s2e_message s2e_printf

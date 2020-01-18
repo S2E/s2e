@@ -4,7 +4,7 @@ Setting up a Windows development environment
 
 This tutorial explains how to quickly set up a Windows development environment
 in which you can build Windows applications and device drivers. This is useful
-when you want to develop the S2E `guest tools <https://github.com/S2E/guest-tools/tree/master/windows>`__
+when you want to develop the S2E `guest tools <https://github.com/S2E/s2e/tree/master/guest/windows>`__
 for Windows (e.g, the ``s2e.sys`` guest driver) or simply want to build and run various Windows applications in S2E.
 
 
@@ -16,7 +16,7 @@ for Windows (e.g, the ``s2e.sys`` guest driver) or simply want to build and run 
 
 
 Throughout this tutorial, you will use various scripts located in the
-``~/s2e/env/source/s2e/build-scripts/windows`` `directory <https://github.com/S2E/build-scripts/tree/master/windows>`__.
+``~/s2e/env/source/s2e/scripts/windows`` `directory <https://github.com/S2E/s2e/tree/master/scripts/windows>`__.
 This folder contains scripts that simplify the setup of Windows development VMs.
 Most scripts assume you have a Linux host and want to setup a clean Windows VM
 for development (e.g., building Windows-specific components of S2E, such as the
@@ -90,7 +90,7 @@ VM password several times, which is not convenient.
 
 .. code-block:: bash
 
-    $ cd ~/s2e/env/source/s2e/build-scripts/windows
+    $ cd ~/s2e/env/source/s2e/scripts/windows
 
     # This script resembles the normal ssh-copy-id but is designed to work for Windows remote machines.
     # Adapt the user name and address accordingly.
@@ -107,7 +107,7 @@ c. Choose some project to build remotely, e.g., ``filesys/miniFilter/scanner``:
 
 .. code-block:: bash
 
-    $ REMOTE_HOST=192.126.122.12 REMOTE_FOLDER=myfolder ~/s2e/env/source/s2e/build-scripts/windows/remote-msbuild.sh \
+    $ REMOTE_HOST=192.126.122.12 REMOTE_FOLDER=myfolder ~/s2e/env/source/s2e/scripts/windows/remote-msbuild.sh \
        Windows-driver-samples/filesys/miniFilter/scanner
 
 This command copies the contents of ``Windows-driver-samples/filesys/miniFilter/scanner`` to ``c:\users\s2e\myfolder``

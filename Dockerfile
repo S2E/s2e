@@ -31,8 +31,8 @@ RUN apt-get -y install git
 # Build LLVM first (to avoid rebuilding it for every change)
 RUN mkdir s2e
 RUN mkdir s2e-build
-COPY build-scripts/Makefile s2e/
-COPY build-scripts/determine_clang_binary_suffix.py s2e/
+COPY Makefile s2e/
+COPY scripts/determine_clang_binary_suffix.py s2e/scripts/
 RUN cd s2e-build &&                                                         \
     make -f ../s2e/Makefile S2E_PREFIX=/opt/s2e stamps/clang-binary
 
@@ -58,14 +58,7 @@ RUN cd s2e-build &&                                                         \
 # Make the S2E codebase available in the container
 COPY . s2e/
 
+
 # Build and install everything else
 RUN cd s2e-build &&                                                         \
     make -f ../s2e/Makefile S2E_PREFIX=/opt/s2e install
-
-# Install s2e-env
-RUN apt-get -y install python-pip && \
-    cd s2e/s2e-env && \
-    pip install --process-dependency-links .
-
-# Don't keep sources and build files
-RUN rm -rf s2e-build s2e

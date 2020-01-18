@@ -23,7 +23,7 @@ endif
 #############
 
 # S2E variables
-BUILD_SCRIPTS_SRC?=$(dir $(realpath $(lastword $(MAKEFILE_LIST))))
+BUILD_SCRIPTS_SRC?=$(dir $(realpath $(lastword $(MAKEFILE_LIST))))/scripts
 S2E_SRC?=$(realpath $(BUILD_SCRIPTS_SRC)/../)
 S2E_PREFIX?=$(CURDIR)/opt
 S2E_BUILD:=$(CURDIR)
@@ -32,8 +32,14 @@ S2E_BUILD:=$(CURDIR)
 RELEASE_BUILD_TYPE=RelWithDebInfo
 
 # corei7 avoids instructions not supported by VirtualBox. Use "native" instead
-# to optimize for your current CPU.
-BUILD_ARCH?=x86-64
+# to optimize for your current CPU. Use x86-64 for minimum x64 support.
+BUILD_ARCH?=native
+
+CFLAGS_ARCH:=-march=$(BUILD_ARCH)
+CXXFLAGS_ARCH:=-march=$(BUILD_ARCH)
+
+CXXFLAGS_DEBUG:=$(CXXFLAGS_ARCH)
+CXXFLAGS_RELEASE:=$(CXXFLAGS_ARCH)
 
 # Set the number of parallel build jobs
 OS:=$(shell uname)
@@ -50,16 +56,9 @@ MAKE:=make -j$(JOBS)
 FIND_SOURCE=$(shell find $(1) -name '*.cpp' -o -name '*.h' -o -name '*.c')
 FIND_CONFIG_SOURCE=$(shell find $(1) -name 'configure' -o -name 'CMakeLists.txt' -o -name '*.in')
 
-CFLAGS_ARCH:=-march=$(BUILD_ARCH) -mno-sse4.1
-CXXFLAGS_ARCH:=-march=$(BUILD_ARCH) -mno-sse4.1
-
-CXXFLAGS_DEBUG:=$(CXXFLAGS_ARCH)
-CXXFLAGS_RELEASE:=$(CXXFLAGS_ARCH)
-
-
 # TODO: figure out how to automatically get the latest version without
 # having to update this URL.
-GUEST_TOOLS_BINARIES_URL=https://github.com/S2E/guest-tools/releases/download/v2.0.0/
+GUEST_TOOLS_BINARIES_URL=https://github.com/S2E/s2e/releases/download/v2.0.0/
 
 # LLVM variables
 LLVM_BUILD?=$(S2E_BUILD)
@@ -80,7 +79,7 @@ ifneq ($(words $(CLANG_BINARY_SUFFIX)), 1)
 $(error "Failed to determine Clang binary to download: $(CLANG_BINARY_SUFFIX)")
 endif
 
-KLEE_QEMU_DIRS=$(foreach suffix,-debug -release,$(addsuffix $(suffix),klee qemu))
+KLEE_DIRS=$(foreach suffix,-debug -release,$(addsuffix $(suffix),klee))
 
 CLANG_BINARY_DIR=clang+llvm-$(LLVM_VERSION)-$(CLANG_BINARY_SUFFIX)
 CLANG_BINARY=$(CLANG_BINARY_DIR).tar.xz
@@ -151,8 +150,8 @@ PROTOBUF_BUILD_DIR=protobuf
 
 all: all-release guest-tools
 
-all-release: stamps/qemu-release-make stamps/libs2e-release-make stamps/tools-release-make stamps/decree-make
-all-debug: stamps/qemu-debug-make stamps/libs2e-debug-make stamps/tools-debug-make stamps/decree-make
+all-release: stamps/libs2e-release-make stamps/tools-release-make
+all-debug: stamps/libs2e-debug-make stamps/tools-debug-make
 
 guest-tools: stamps/guest-tools32-make stamps/guest-tools64-make
 guest-tools-win: stamps/guest-tools32-win-make stamps/guest-tools64-win-make
@@ -161,10 +160,10 @@ guest-tools-install: stamps/guest-tools32-install stamps/guest-tools64-install
 guest-tools-win-install: stamps/guest-tools32-win-install stamps/guest-tools64-win-install
 
 install: all-release stamps/libs2e-release-install stamps/tools-release-install \
-    stamps/libvmi-release-install stamps/decree-install guest-tools-install     \
+    stamps/libvmi-release-install guest-tools-install     \
     guest-tools-win-install stamps/llvm-release-install
 install-debug: all-debug stamps/libs2e-debug-install stamps/tools-debug-install \
-    stamps/libvmi-debug-install stamps/decree-install guest-tools-install       \
+    stamps/libvmi-debug-install guest-tools-install       \
     guest-tools-win-install stamps/llvm-release-install
 
 # From https://stackoverflow.com/questions/4219255/how-do-you-get-the-list-of-targets-in-a-makefile
@@ -179,12 +178,12 @@ list:
 
 ALWAYS:
 
-$(KLEE_QEMU_DIRS) $(LLVM_DIRS) libq-debug libq-release              \
+$(KLEE_DIRS) $(LLVM_DIRS) libq-debug libq-release                   \
 libfsigc++-debug libfsigc++-release libvmi-debug libvmi-release     \
 libcoroutine-release libcoroutine-debug libs2e-debug libs2e-release \
 tools-debug tools-release                                           \
 guest-tools32 guest-tools64 guest-tools32-win guest-tools64-win     \
-decree stamps:
+stamps:
 	mkdir -p $@
 
 stamps/%-configure: | % stamps
@@ -609,46 +608,6 @@ stamps/libcoroutine-debug-make: stamps/libcoroutine-debug-configure $(call FIND_
 
 stamps/libcoroutine-release-make: stamps/libcoroutine-release-configure $(call FIND_SOURCE,$(S2E_SRC)/libcoroutine)
 
-########
-# QEMU #
-########
-
-QEMU_TARGETS=i386-softmmu,x86_64-softmmu
-
-QEMU_CONFIGURE_FLAGS = --prefix=$(S2E_PREFIX)        \
-                       --target-list=$(QEMU_TARGETS) \
-                       --disable-smartcard           \
-                       --disable-virtfs              \
-                       --disable-xen                 \
-                       --disable-bluez               \
-                       --disable-vde                 \
-                       --disable-libiscsi            \
-                       --disable-docs                \
-                       --disable-spice               \
-                       $(EXTRA_QEMU_FLAGS)
-
-QEMU_DEBUG_FLAGS = --enable-debug
-
-QEMU_RELEASE_FLAGS =
-
-stamps/qemu-debug-configure: export CFLAGS:=$(CFLAGS_ARCH) -fno-omit-frame-pointer
-stamps/qemu-debug-configure: export CXXFLAGS:=$(CXXFLAGS_RELEASE) -fno-omit-frame-pointer
-stamps/qemu-debug-configure: CONFIGURE_COMMAND = $(S2E_SRC)/qemu/configure  \
-                                                 $(QEMU_CONFIGURE_FLAGS)    \
-                                                 $(QEMU_DEBUG_FLAGS)
-
-stamps/qemu-release-configure: CONFIGURE_COMMAND = $(S2E_SRC)/qemu/configure    \
-                                                   $(QEMU_CONFIGURE_FLAGS)      \
-                                                   $(QEMU_RELEASE_FLAGS)
-
-stamps/qemu-debug-make: stamps/qemu-debug-configure
-	$(MAKE) -C qemu-debug $(BUILD_OPTS) install
-	touch $@
-
-stamps/qemu-release-make: stamps/qemu-release-configure
-	$(MAKE) -C qemu-release $(BUILD_OPTS) install
-	touch $@
-
 
 ##########
 # libs2e #
@@ -668,7 +627,6 @@ LIBS2E_CONFIGURE_FLAGS = --with-cc=$(CLANG_CC)                                  
                          --with-libs2ecore-src=$(S2E_SRC)/libs2ecore                \
                          --with-libs2eplugins-src=$(S2E_SRC)/libs2eplugins          \
                          --prefix=$(S2E_PREFIX)                                     \
-                         $(EXTRA_QEMU_FLAGS)
 
 LIBS2E_DEBUG_FLAGS = --with-llvm=$(LLVM_BUILD)/llvm-debug                           \
                      --with-klee=$(S2E_BUILD)/klee-debug                            \
@@ -738,7 +696,7 @@ stamps/libs2e-release-install: stamps/libs2e-release-make
 	install $(S2E_BUILD)/libs2e-release/i386-s2e_sp-softmmu/libs2e.so $(S2E_PREFIX)/share/libs2e/libs2e-i386-s2e_sp.so
 
 	install $(S2E_SRC)/libs2eplugins/src/s2e/Plugins/Support/KeyValueStore.py $(S2E_PREFIX)/bin/
-	cd $(S2E_SRC) && if [ -d ".git" ]; then git rev-parse HEAD > $(S2E_PREFIX)/share/libs2e/git-sha1; fi
+	cd $(S2E_SRC) && if [ -f ".git/config" ]; then git rev-parse HEAD > $(S2E_PREFIX)/share/libs2e/git-sha1; fi
 
 	touch $@
 
@@ -762,7 +720,7 @@ stamps/libs2e-debug-install: stamps/libs2e-debug-make
 	install $(S2E_BUILD)/libs2e-debug/i386-s2e_sp-softmmu/libs2e.so $(S2E_PREFIX)/share/libs2e/libs2e-i386-s2e_sp.so
 
 	install $(S2E_SRC)/libs2eplugins/src/s2e/Plugins/Support/KeyValueStore.py $(S2E_PREFIX)/bin/
-	cd $(S2E_SRC) && if [ -d ".git" ]; then git rev-parse HEAD > $(S2E_PREFIX)/share/libs2e/git-sha1; fi
+	cd $(S2E_SRC) && if [ -f ".git/config" ]; then git rev-parse HEAD > $(S2E_PREFIX)/share/libs2e/git-sha1; fi
 
 	touch $@
 
@@ -864,17 +822,3 @@ stamps/guest-tools%-win-install: stamps/guest-tools%-win-make guest-tools32-wind
 
 stamps/guest-tools%-install: stamps/guest-tools%-make guest-tools32-windrv guest-tools64-windrv
 	$(MAKE) -C guest-tools$* install
-
-##########
-# DECREE #
-##########
-
-stamps/decree-configure: CONFIGURE_COMMAND = cmake                                  \
-                                             -DCMAKE_INSTALL_PREFIX=$(S2E_PREFIX)   \
-                                             $(S2E_SRC)/decree
-
-stamps/decree-make: stamps/decree-configure
-
-stamps/decree-install: stamps/decree-make
-	$(MAKE) -C decree install
-	touch $@
