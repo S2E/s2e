@@ -32,11 +32,11 @@ S2E_BUILD:=$(CURDIR)
 RELEASE_BUILD_TYPE=RelWithDebInfo
 
 # corei7 avoids instructions not supported by VirtualBox. Use "native" instead
-# to optimize for your current CPU.
-BUILD_ARCH?=x86-64
+# to optimize for your current CPU. Use x86-64 for minimum x64 support.
+BUILD_ARCH?=native
 
-CFLAGS_ARCH:=-march=$(BUILD_ARCH) -mno-sse4.1
-CXXFLAGS_ARCH:=-march=$(BUILD_ARCH) -mno-sse4.1
+CFLAGS_ARCH:=-march=$(BUILD_ARCH)
+CXXFLAGS_ARCH:=-march=$(BUILD_ARCH)
 
 CXXFLAGS_DEBUG:=$(CXXFLAGS_ARCH)
 CXXFLAGS_RELEASE:=$(CXXFLAGS_ARCH)
