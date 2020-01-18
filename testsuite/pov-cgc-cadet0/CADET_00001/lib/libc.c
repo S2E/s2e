@@ -1,5 +1,7 @@
-#include "libc.h"
+// clang-format off
 #include <libcgc.h>
+#include "libc.h"
+// clang-format on
 
 int transmit_all(int fd, const char *buf, const size_t size) {
     size_t sent = 0;
