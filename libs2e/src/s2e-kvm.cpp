@@ -34,7 +34,7 @@
 
 extern void *g_s2e;
 
-extern CPUX86State *env;
+      extern CPUX86State *env;
 
 namespace s2e {
 namespace kvm {
