@@ -20,8 +20,7 @@ llvm::cl::opt<klee::ExprSMTLIBPrinter::ConstantDisplayMode> argConstantDisplayMo
                                                "SMT-LIBv2 files (default=dec)"),
     llvm::cl::values(clEnumValN(klee::ExprSMTLIBPrinter::BINARY, "bin", "Use binary form (e.g. #b00101101)"),
                      clEnumValN(klee::ExprSMTLIBPrinter::HEX, "hex", "Use Hexadecimal form (e.g. #x2D)"),
-                     clEnumValN(klee::ExprSMTLIBPrinter::DECIMAL, "dec", "Use decimal form (e.g. (_ bv45 8) )"),
-                     clEnumValEnd),
+                     clEnumValN(klee::ExprSMTLIBPrinter::DECIMAL, "dec", "Use decimal form (e.g. (_ bv45 8) )")),
     llvm::cl::init(klee::ExprSMTLIBPrinter::DECIMAL));
 
 llvm::cl::opt<bool>
@@ -33,8 +32,7 @@ llvm::cl::opt<klee::ExprSMTLIBPrinter::AbbreviationMode> abbreviationMode(
     "smtlib-abbreviation-mode", llvm::cl::desc("Choose abbreviation mode to use in SMT-LIBv2 files (default=let)"),
     llvm::cl::values(clEnumValN(klee::ExprSMTLIBPrinter::ABBR_NONE, "none", "Do not abbreviate"),
                      clEnumValN(klee::ExprSMTLIBPrinter::ABBR_LET, "let", "Abbreviate with let"),
-                     clEnumValN(klee::ExprSMTLIBPrinter::ABBR_NAMED, "named", "Abbreviate with :named annotations"),
-                     clEnumValEnd),
+                     clEnumValN(klee::ExprSMTLIBPrinter::ABBR_NAMED, "named", "Abbreviate with :named annotations")),
     llvm::cl::init(klee::ExprSMTLIBPrinter::ABBR_LET));
 }
 

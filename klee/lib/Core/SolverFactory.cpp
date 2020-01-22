@@ -42,8 +42,7 @@ namespace {
 enum EndSolverType { SOLVER_Z3 };
 
 cl::opt<EndSolverType> EndSolver("end-solver", cl::desc("End solver to use"),
-                                 cl::values(clEnumValN(SOLVER_Z3, "z3", "The Z3 solver"), clEnumValEnd),
-                                 cl::init(SOLVER_Z3));
+                                 cl::values(clEnumValN(SOLVER_Z3, "z3", "The Z3 solver")), cl::init(SOLVER_Z3));
 
 enum SolverIncrementalityType { INCREMENTAL_NONE, INCREMENTAL_STACK, INCREMENTAL_ASSUMPTIONS };
 
@@ -51,7 +50,7 @@ cl::opt<SolverIncrementalityType> SolverIncrementality(
     "end-solver-increm", cl::desc("Solver incrementality type (when available)"),
     cl::values(clEnumValN(INCREMENTAL_NONE, "none", "No incrementality"),
                clEnumValN(INCREMENTAL_STACK, "stack", "Context stack incrementality"),
-               clEnumValN(INCREMENTAL_ASSUMPTIONS, "assumptions", "Assumption-based incrementality"), clEnumValEnd),
+               clEnumValN(INCREMENTAL_ASSUMPTIONS, "assumptions", "Assumption-based incrementality")),
     cl::init(INCREMENTAL_NONE));
 
 // The counter example cache may have bad interactions with
@@ -79,8 +78,7 @@ cl::bits<QueryLoggingSolverType> queryLoggingOptions(
                clEnumValN(SOLVER_KQUERY, "solver:kquery", "All queries reaching the solver in .kqery "
                                                           "(KQuery) format"),
                clEnumValN(SOLVER_SMTLIB, "solver:smt2", "All queries reaching the solver in .smt2 "
-                                                        "(SMT-LIBv2) format"),
-               clEnumValEnd),
+                                                        "(SMT-LIBv2) format")),
     cl::CommaSeparated);
 
 cl::opt<bool> UseEndQueryPCLog("use-end-query-pc-log", cl::init(false));

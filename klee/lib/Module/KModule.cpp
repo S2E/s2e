@@ -57,8 +57,7 @@ cl::opt<bool> OutputModule("output-module", cl::desc("Write the bitcode for the 
 cl::opt<SwitchImplType> SwitchType("switch-type", cl::desc("Select the implementation of switch"),
                                    cl::values(clEnumValN(eSwitchTypeSimple, "simple", "lower to ordered branches"),
                                               clEnumValN(eSwitchTypeLLVM, "llvm", "lower using LLVM"),
-                                              clEnumValN(eSwitchTypeInternal, "internal", "execute switch internally"),
-                                              clEnumValEnd),
+                                              clEnumValN(eSwitchTypeInternal, "internal", "execute switch internally")),
                                    cl::init(eSwitchTypeInternal));
 
 cl::opt<bool> DebugPrintEscapingFunctions("debug-print-escaping-functions",
