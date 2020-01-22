@@ -35,7 +35,7 @@ public:
     }
 
     virtual bool runOnFunction(llvm::Function &F);
-    virtual const char *getPassName() const {
+    virtual llvm::StringRef getPassName() const {
         return "RegisterPromotion";
     }
 
