@@ -5,6 +5,7 @@
 /// Licensed under the Cyberhaven Research License Agreement.
 ///
 
+#include <chrono>
 #include <memory>
 #include <string.h>
 
@@ -23,8 +24,6 @@ extern struct CPUX86State *env;
 uintptr_t s2e_get_host_address(target_phys_addr_t paddr);
 void generate_crashdump(void);
 }
-
-#include <llvm/Support/TimeValue.h>
 
 #include <sstream>
 #include <vmi/FileProvider.h>
@@ -180,8 +179,10 @@ void generate_crashdump(void) {
     auto pp = GuestMemoryFileProvider::get(env, readGuestPhysical, NULL, "phys");
     X86RegisterProvider rp(env, readX86Register, NULL);
 
+    auto tp = std::chrono::steady_clock::now();
+    auto sec = std::chrono::duration_cast<std::chrono::seconds>(tp.time_since_epoch());
     std::stringstream ss;
-    ss << "crash-" << llvm::sys::TimeValue::now().seconds() << ".dmp";
+    ss << "crash-" << sec.count() << ".dmp";
 
     auto fp = FileSystemFileProvider::get(ss.str(), true);
     if (!fp) {
