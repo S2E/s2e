@@ -295,7 +295,7 @@ Function *RevGen::getCallMarker() {
     params.push_back(Type::getIntNTy(c, Translator::getTargetPtrSizeInBytes() * 8));
     FunctionType *ty = FunctionType::get(Type::getVoidTy(c), params, false);
 
-    return dynamic_cast<Function *>(m->getOrInsertFunction("call_marker", ty));
+    return dyn_cast<Function>(m->getOrInsertFunction("call_marker", ty));
 }
 
 Function *RevGen::getIncompleteMarker() {
@@ -306,7 +306,7 @@ Function *RevGen::getIncompleteMarker() {
     params.push_back(Type::getIntNTy(c, Translator::getTargetPtrSizeInBytes() * 8));
     FunctionType *ty = FunctionType::get(Type::getVoidTy(c), params, false);
 
-    return dynamic_cast<Function *>(m->getOrInsertFunction("incomplete_marker", ty));
+    return dyn_cast<Function>(m->getOrInsertFunction("incomplete_marker", ty));
 }
 
 Function *RevGen::getTraceFunction() {
@@ -317,7 +317,7 @@ Function *RevGen::getTraceFunction() {
     params.push_back(Type::getIntNTy(c, Translator::getTargetPtrSizeInBytes() * 8));
     FunctionType *ty = FunctionType::get(Type::getVoidTy(c), params, false);
 
-    return dynamic_cast<Function *>(m->getOrInsertFunction("revgen_trace", ty));
+    return dyn_cast<Function>(m->getOrInsertFunction("revgen_trace", ty));
 }
 
 void RevGen::generateTrace(llvm::IRBuilder<> &builder, uint64_t pc) {

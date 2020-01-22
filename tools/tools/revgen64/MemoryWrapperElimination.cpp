@@ -20,7 +20,7 @@ LogKey MemoryWrapperElimination::TAG = LogKey("MemoryWrapperElimination");
 char MemoryWrapperElimination::PID;
 
 static bool GetLeafGpRegisterLoads(Instruction *I, SmallVector<LoadInst *, 1> &leafs) {
-    LoadInst *load = dynamic_cast<LoadInst *>(I);
+    LoadInst *load = dyn_cast<LoadInst>(I);
     if (load) {
         if (!Translator::isGpRegister(load->getPointerOperand())) {
             return false;
@@ -35,12 +35,12 @@ static bool GetLeafGpRegisterLoads(Instruction *I, SmallVector<LoadInst *, 1> &l
     }
 
     /* Check for instructions of the form %tmp2_v = add i32 %esp_v, -4 */
-    ConstantInt *offset = dynamic_cast<ConstantInt *>(I->getOperand(1));
+    ConstantInt *offset = dyn_cast<ConstantInt>(I->getOperand(1));
     if (!offset) {
         return false;
     }
 
-    I = dynamic_cast<Instruction *>(I->getOperand(0));
+    I = dyn_cast<Instruction>(I->getOperand(0));
     if (!I) {
         return false;
     }
@@ -82,14 +82,14 @@ void MemoryWrapperElimination::eliminateWrappers(const CallSites &cs) {
 void MemoryWrapperElimination::findCallSites(Translator::MemoryWrappers &wrappers, CallSites &cs) {
     for (auto const &wrapper : wrappers) {
         for (auto uit = wrapper->use_begin(); uit != wrapper->use_end(); ++uit) {
-            CallInst *ci = dynamic_cast<CallInst *>(uit->get());
+            CallInst *ci = dyn_cast<CallInst>(uit->get());
             if (!ci) {
                 continue;
             }
 
             ++m_wrappersCount;
 
-            Instruction *ptr = dynamic_cast<Instruction *>(ci->getOperand(0));
+            Instruction *ptr = dyn_cast<Instruction>(ci->getOperand(0));
             if (!ptr) {
                 continue;
             }
