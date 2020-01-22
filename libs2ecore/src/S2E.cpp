@@ -91,7 +91,8 @@ bool S2E::initialize(int argc, char **argv, TCGLLVMTranslator *translator, const
     }
 #endif
 
-    m_startTimeSeconds = llvm::sys::TimeValue::now().seconds();
+    auto tp = std::chrono::steady_clock::now();
+    m_startTime = std::chrono::duration_cast<std::chrono::seconds>(tp.time_since_epoch());
 
     // We are the master process of our group
     setpgid(0, 0);
@@ -476,8 +477,10 @@ llvm::raw_ostream &S2E::getStream(llvm::raw_ostream &stream, const S2EExecutionS
     stream.flush();
 
     if (state) {
-        llvm::sys::TimeValue curTime = llvm::sys::TimeValue::now();
-        stream << (curTime.seconds() - m_startTimeSeconds) << ' ';
+        using namespace std::chrono;
+        auto elapsed = steady_clock::now() - m_startTime;
+        auto elapsedSeconds = duration_cast<seconds>(elapsed.time_since_epoch()).count();
+        stream << elapsedSeconds << ' ';
 
         if (m_maxInstances > 1) {
             stream << "[Node " << m_currentInstanceId << "/" << m_currentInstanceIndex << " - State " << state->getID()

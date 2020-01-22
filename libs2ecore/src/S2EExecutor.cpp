@@ -50,8 +50,6 @@
 #include <klee/UserSearcher.h>
 #include <klee/util/ExprTemplates.h>
 
-#include <llvm/Support/TimeValue.h>
-
 #include <tcg/tcg-llvm.h>
 
 #include <glib.h>

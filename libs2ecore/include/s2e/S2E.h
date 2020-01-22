@@ -11,6 +11,7 @@
 
 #undef NDEBUG
 
+#include <chrono>
 #include <fstream>
 #include <klee/SolverFactory.h>
 #include <llvm/Support/raw_ostream.h>
@@ -109,7 +110,7 @@ protected:
 
     TCGLLVMTranslator *m_TCGLLVMTranslator;
 
-    uint64_t m_startTimeSeconds;
+    std::chrono::seconds m_startTime;
 
     std::shared_ptr<klee::SolverFactory> mSolverFactory;
 
@@ -257,7 +258,7 @@ public:
     unsigned getInstanceIndexWithLowestId();
 
     inline uint64_t getStartTime() const {
-        return m_startTimeSeconds;
+        return m_startTime.count();
     }
 };
 
