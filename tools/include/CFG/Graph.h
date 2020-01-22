@@ -27,7 +27,7 @@ namespace llvm {
 ///
 class BinaryFunctionGT {
 public:
-    typedef std::vector<BinaryBasicBlock> BinaryBasicBlocks;
+    typedef std::vector<BinaryBasicBlock *> BinaryBasicBlocks;
 
     // Binary function iterators
     typedef BinaryBasicBlocks::iterator iterator;
@@ -44,7 +44,7 @@ private:
         BBs.clear();
 
         for (auto it = F->begin(); it != F->end(); ++it) {
-            BBs.push_back(**it);
+            BBs.push_back(*it);
         }
     }
 

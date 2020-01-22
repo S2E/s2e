@@ -1,6 +1,6 @@
 ///
 /// Copyright (C) 2013-2016, Dependable Systems Laboratory, EPFL
-/// Copyright (C) 2014-2017, Cyberhaven
+/// Copyright (C) 2014-2020, Cyberhaven
 /// All rights reserved.
 ///
 /// Licensed under the Cyberhaven Research License Agreement.
@@ -297,17 +297,18 @@ void LuaGenerateCfg(const BinaryFunctions &functions) {
     os.close();
 }
 
-typedef DominatorTreeBase<BinaryBasicBlock> BinaryDomTree;
+template <bool IsPostDom> using BinaryDomTree = DominatorTreeBase<BinaryBasicBlock, IsPostDom>;
+
 typedef llvm::DenseSet<const BinaryBasicBlock *> BinaryBasicBlocksSet;
 
-static void GetChildren(BinaryDomTree &dom, BinaryBasicBlock *bb, BinaryBasicBlock *bb_end,
+template <bool IsPostDom>
+static void GetChildren(BinaryDomTree<IsPostDom> &dom, BinaryBasicBlock *bb, BinaryBasicBlock *bb_end,
                         BinaryBasicBlocksSet &blocks) {
-    DomTreeNodeBase<BinaryBasicBlock> *node = dom.getNode(bb);
-    DomTreeNodeBase<BinaryBasicBlock>::iterator it;
+    auto node = dom.getNode(bb);
 
     blocks.insert(bb);
 
-    for (it = node->begin(); it != node->end(); ++it) {
+    for (auto it = node->begin(); it != node->end(); ++it) {
         if ((*it)->getBlock() != bb_end) {
             GetChildren(dom, (*it)->getBlock(), bb_end, blocks);
         }
@@ -336,8 +337,8 @@ static void LuaGenerateMergePoints(const MergePoints &mergePoints) {
     os << "}\n";
 }
 
-static void ComputeMergePoints(BinaryFunction *f, BinaryDomTree &dom, BinaryDomTree &postdom, BinaryLoopInfo &loopInfo,
-                               MergePoints &mergePoints) {
+static void ComputeMergePoints(BinaryFunction *f, BinaryDomTree<false> &dom, BinaryDomTree<true> &postdom,
+                               BinaryLoopInfo &loopInfo, MergePoints &mergePoints) {
     BinaryFunction::iterator it;
     BinaryBasicBlocksSet mergedBlocks;
 
@@ -407,7 +408,7 @@ static void ComputeMergePoints(BinaryFunction *f, BinaryDomTree &dom, BinaryDomT
             continue;
         }
 
-        BinaryBasicBlock *ipdom = postdom.getNode(bb)->getIDom()->getBlock();
+        auto ipdom = postdom.getNode(bb)->getIDom()->getBlock();
         // llvm::errs() << "postdom for " << hexval(bb->getStartPc()) << ": " << hexval(ipdom->getStartPc()) << "\n";
         if (!ipdom) {
             continue;
@@ -417,7 +418,7 @@ static void ComputeMergePoints(BinaryFunction *f, BinaryDomTree &dom, BinaryDomT
             continue;
         }
 
-        BinaryBasicBlock *idom = dom.getNode(ipdom)->getIDom()->getBlock();
+        auto idom = dom.getNode(ipdom)->getIDom()->getBlock();
         if (!idom) {
             continue;
         }
@@ -580,10 +581,10 @@ int main(int argc, char **argv) {
 
             BinaryFunctionGT wrappedF(f);
 
-            BinaryDomTree dom(false);
+            BinaryDomTree<false> dom;
             dom.recalculate(wrappedF);
 
-            BinaryDomTree postdom(true);
+            BinaryDomTree<true> postdom;
             postdom.recalculate(wrappedF);
 
             BinaryLoopInfo loopInfo;
