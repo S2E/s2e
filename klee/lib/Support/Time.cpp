@@ -8,25 +8,24 @@
 //===----------------------------------------------------------------------===//
 
 #include "klee/Internal/System/Time.h"
+#include <chrono>
+#include <sys/resource.h>
 
-#include "klee/Config/config.h"
-#if (LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 7)
-#include "llvm/System/Process.h"
-#else
-#include "llvm/Support/Process.h"
-#endif
-
-using namespace llvm;
-using namespace klee;
+namespace klee {
 
 double util::getUserTime() {
-    sys::TimeValue now(0, 0), user(0, 0), sys(0, 0);
-    sys::Process::GetTimeUsage(now, user, sys);
-    return (user.seconds() + (double) user.nanoseconds() * 1e-9);
+    rusage usage{};
+    auto ret = ::getrusage(RUSAGE_SELF, &usage);
+
+    if (ret) {
+        return 0.0;
+    } else {
+        return (double) usage.ru_utime.tv_sec + usage.ru_utime.tv_usec * 1e-6;
+    }
 }
 
 double util::getWallTime() {
-    sys::TimeValue now(0, 0), user(0, 0), sys(0, 0);
-    sys::Process::GetTimeUsage(now, user, sys);
-    return (now.seconds() + (double) now.nanoseconds() * 1e-9);
+    auto tp = std::chrono::steady_clock::now();
+    return std::chrono::duration_cast<std::chrono::duration<double>>(tp.time_since_epoch()).count();
+}
 }

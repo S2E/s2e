@@ -7,6 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <chrono>
+
 #include "klee/TimingSolver.h"
 
 #include "klee/Common.h"
@@ -22,12 +24,25 @@
 using namespace klee;
 using namespace llvm;
 
+using namespace std::chrono;
+
 namespace {
 llvm::cl::opt<bool> EnableTimingLog("enable-timeingsolver-timing", llvm::cl::desc("TimeingSolver: measure query time"),
                                     llvm::cl::init(false));
 }
 
 /***/
+
+template <typename Func> static bool measureTime(double &queryCost, Func f) {
+    auto t1 = steady_clock::now();
+
+    auto ret = f();
+
+    auto diff = steady_clock::now() - t1;
+    stats::solverTime += duration_cast<microseconds>(diff).count();
+    queryCost += duration_cast<duration<double>>(diff).count();
+    return ret;
+}
 
 bool TimingSolver::evaluate(const ExecutionState &state, ref<Expr> expr, Solver::Validity &result) {
 
@@ -43,15 +58,8 @@ bool TimingSolver::evaluate(const ExecutionState &state, ref<Expr> expr, Solver:
     bool success;
 
     if (EnableTimingLog) {
-        sys::TimeValue now(0, 0), user(0, 0), delta(0, 0), sys(0, 0);
-        sys::Process::GetTimeUsage(now, user, sys);
-
-        success = solver->evaluate(Query(state.constraints(), expr), result);
-
-        sys::Process::GetTimeUsage(delta, user, sys);
-        delta -= now;
-        stats::solverTime += delta.usec();
-        state.queryCost += delta.usec() / 1000000.;
+        success = measureTime(state.queryCost,
+                              [&]() -> bool { return solver->evaluate(Query(state.constraints(), expr), result); });
     } else {
         success = solver->evaluate(Query(state.constraints(), expr), result);
     }
@@ -72,15 +80,8 @@ bool TimingSolver::mustBeTrue(const ExecutionState &state, ref<Expr> expr, bool 
     bool success;
 
     if (EnableTimingLog) {
-        sys::TimeValue now(0, 0), user(0, 0), delta(0, 0), sys(0, 0);
-        sys::Process::GetTimeUsage(now, user, sys);
-
-        success = solver->mustBeTrue(Query(state.constraints(), expr), result);
-
-        sys::Process::GetTimeUsage(delta, user, sys);
-        delta -= now;
-        stats::solverTime += delta.usec();
-        state.queryCost += delta.usec() / 1000000.;
+        success = measureTime(state.queryCost,
+                              [&]() -> bool { return solver->mustBeTrue(Query(state.constraints(), expr), result); });
     } else {
         success = solver->mustBeTrue(Query(state.constraints(), expr), result);
     }
@@ -122,15 +123,8 @@ bool TimingSolver::getValue(const ExecutionState &state, ref<Expr> expr, ref<Con
     bool success;
 
     if (EnableTimingLog) {
-        sys::TimeValue now(0, 0), user(0, 0), delta(0, 0), sys(0, 0);
-        sys::Process::GetTimeUsage(now, user, sys);
-
-        success = solver->getValue(Query(state.constraints(), expr), result);
-
-        sys::Process::GetTimeUsage(delta, user, sys);
-        delta -= now;
-        stats::solverTime += delta.usec();
-        state.queryCost += delta.usec() / 1000000.;
+        success = measureTime(state.queryCost,
+                              [&]() -> bool { return solver->getValue(Query(state.constraints(), expr), result); });
     } else {
         success = solver->getValue(Query(state.constraints(), expr), result);
     }
@@ -146,15 +140,9 @@ bool TimingSolver::getInitialValues(const ConstraintManager &constraints, const 
     bool success;
 
     if (EnableTimingLog) {
-        sys::TimeValue now(0, 0), user(0, 0), delta(0, 0), sys(0, 0);
-        sys::Process::GetTimeUsage(now, user, sys);
-
-        success = solver->getInitialValues(Query(constraints, ConstantExpr::alloc(0, Expr::Bool)), objects, result);
-
-        sys::Process::GetTimeUsage(delta, user, sys);
-        delta -= now;
-        stats::solverTime += delta.usec();
-        queryCost += delta.usec() / 1000000.;
+        success = measureTime(queryCost, [&]() -> bool {
+            return solver->getInitialValues(Query(constraints, ConstantExpr::alloc(0, Expr::Bool)), objects, result);
+        });
     } else {
         success = solver->getInitialValues(Query(constraints, ConstantExpr::alloc(0, Expr::Bool)), objects, result);
     }

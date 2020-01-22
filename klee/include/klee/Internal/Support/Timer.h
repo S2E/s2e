@@ -10,11 +10,12 @@
 #ifndef KLEE_TIMER_H
 #define KLEE_TIMER_H
 
+#include <chrono>
 #include <stdint.h>
 
 namespace klee {
 class WallTimer {
-    uint64_t startMicroseconds;
+    std::chrono::steady_clock::time_point m_start;
 
 public:
     WallTimer();
