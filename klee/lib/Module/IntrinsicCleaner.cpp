@@ -178,14 +178,15 @@ void IntrinsicCleanerPass::replaceIntrinsicAdd(Module &M, CallInst *CI) {
 
     std::vector<Value *> args;
 
-    Value *alloca = new AllocaInst(itype, NULL, "", CI);
+    auto as = M.getDataLayout().getAllocaAddrSpace();
+    Value *alloca = new AllocaInst(itype, as, NULL, "", CI);
     args.push_back(alloca);
     args.push_back(arg0);
     args.push_back(arg1);
     Value *overflow = CallInst::Create(f, args, "", CI);
 
     // Store the values in the aggregated type
-    Value *aggrValPtr = new AllocaInst(aggregate, NULL, "", CI);
+    Value *aggrValPtr = new AllocaInst(aggregate, as, NULL, "", CI);
     Value *aggrVal = new LoadInst(aggrValPtr, "", CI);
     Value *addResult = new LoadInst(alloca, "", CI);
     InsertValueInst *insRes = InsertValueInst::Create(aggrVal, addResult, 0, "", CI);
@@ -228,7 +229,7 @@ void IntrinsicCleanerPass::injectIntrinsicAddImplementation(Module &M, const std
     argTypes.push_back(Type::getIntNTy(ctx, bits));    // b
 
     FunctionType *type = FunctionType::get(Type::getInt1Ty(ctx), ArrayRef<Type *>(argTypes), false);
-    f = dynamic_cast<Function *>(M.getOrInsertFunction(name, type));
+    f = dyn_cast<Function>(M.getOrInsertFunction(name, type));
     assert(f);
 
     BasicBlock *bb = BasicBlock::Create(ctx, "", f);
@@ -344,6 +345,16 @@ bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b) {
 
                 case Intrinsic::uadd_with_overflow:
                     replaceIntrinsicAdd(*b.getParent()->getParent(), ii);
+                    dirty = true;
+                    break;
+
+                case Intrinsic::rint:
+                    ReplaceFPIntrinsicWithCall(ii, "rintf", "rint", "rintl");
+                    dirty = true;
+                    break;
+
+                case Intrinsic::fabs:
+                    ReplaceFPIntrinsicWithCall(ii, "fabsf", "fabs", "fabsl");
                     dirty = true;
                     break;
 

@@ -17,18 +17,15 @@
 
 #include "klee/Internal/Module/KModule.h"
 
-#include "llvm/IR/Constants.h"
-#include "llvm/IR/Function.h"
-#include "llvm/IR/Instructions.h"
-#include "llvm/IR/Module.h"
-#if (LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 7)
-#include "llvm/ModuleProvider.h"
-#endif
 #include <cassert>
 #include <iostream>
 #include "llvm/IR/CallSite.h"
+#include "llvm/IR/Constants.h"
 #include "llvm/IR/DataLayout.h"
+#include "llvm/IR/Function.h"
 #include "llvm/IR/GetElementPtrTypeIterator.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/Module.h"
 
 using namespace klee;
 using namespace llvm;
@@ -102,14 +99,15 @@ ref<ConstantExpr> Executor::evalConstantExpr(llvm::ConstantExpr *ce) {
             for (gep_type_iterator ii = gep_type_begin(ce), ie = gep_type_end(ce); ii != ie; ++ii) {
                 ref<ConstantExpr> addend = ConstantExpr::alloc(0, Context::get().getPointerWidth());
 
-                if (StructType *st1 = dyn_cast<StructType>(*ii)) {
+                if (StructType *st1 = ii.getStructTypeOrNull()) {
                     const StructLayout *sl = kmodule->dataLayout->getStructLayout(st1);
                     const ConstantInt *ci = cast<ConstantInt>(ii.getOperand());
 
                     addend = ConstantExpr::alloc(sl->getElementOffset((unsigned) ci->getZExtValue()),
                                                  Context::get().getPointerWidth());
                 } else {
-                    SequentialType *st = cast<SequentialType>(*ii);
+                    SequentialType *st = dyn_cast<SequentialType>(ii.getIndexedType());
+                    assert(st);
                     ref<ConstantExpr> index = evalConstant(cast<Constant>(ii.getOperand()));
                     unsigned elementSize = kmodule->dataLayout->getTypeStoreSize(st->getElementType());
 

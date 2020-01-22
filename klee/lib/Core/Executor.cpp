@@ -735,9 +735,9 @@ Function *Executor::getCalledFunction(CallSite &cs, ExecutionState &state) {
 static inline const llvm::fltSemantics *fpWidthToSemantics(unsigned width) {
     switch (width) {
         case Expr::Int32:
-            return &llvm::APFloat::IEEEsingle;
+            return &llvm::APFloat::IEEEsingle();
         case Expr::Int64:
-            return &llvm::APFloat::IEEEdouble;
+            return &llvm::APFloat::IEEEdouble();
         default:
             return 0;
     }
@@ -844,7 +844,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
                 llvm::IntegerType *Ty = cast<IntegerType>(si->getCondition()->getType());
                 ConstantInt *ci = ConstantInt::get(Ty, CE->getZExtValue());
                 SwitchInst::CaseIt cit = si->findCaseValue(ci);
-                transferToBasicBlock(cit.getCaseSuccessor(), si->getParent(), state);
+                transferToBasicBlock(cit->getCaseSuccessor(), si->getParent(), state);
             } else {
                 pabort("Cannot get here in concolic mode");
                 abort();
@@ -1612,13 +1612,14 @@ void Executor::bindInstructionConstants(KInstruction *KI) {
     ref<ConstantExpr> constantOffset = ConstantExpr::alloc(0, Context::get().getPointerWidth());
     uint64_t index = 1;
     for (gep_type_iterator ii = gep_type_begin(gepi), ie = gep_type_end(gepi); ii != ie; ++ii) {
-        if (StructType *st1 = dyn_cast<StructType>(*ii)) {
+        if (StructType *st1 = ii.getStructTypeOrNull()) {
             const StructLayout *sl = kmodule->dataLayout->getStructLayout(st1);
             ConstantInt *ci = cast<ConstantInt>(ii.getOperand());
             uint64_t addend = sl->getElementOffset((unsigned) ci->getZExtValue());
             constantOffset = constantOffset->Add(ConstantExpr::alloc(addend, Context::get().getPointerWidth()));
         } else {
-            const SequentialType *st = cast<SequentialType>(*ii);
+            const SequentialType *st = dyn_cast<SequentialType>(ii.getIndexedType());
+            assert(st);
             uint64_t elementSize = kmodule->dataLayout->getTypeStoreSize(st->getElementType());
             Value *operand = ii.getOperand();
             if (Constant *c = dyn_cast<Constant>(operand)) {
