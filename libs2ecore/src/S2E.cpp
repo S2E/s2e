@@ -27,7 +27,8 @@
 #include <llvm/Support/raw_ostream.h>
 #include <s2e/s2e_libcpu.h>
 
-#include <llvm/Bitcode/ReaderWriter.h>
+#include <llvm/Bitcode/BitcodeReader.h>
+#include <llvm/Bitcode/BitcodeWriter.h>
 #include <llvm/ExecutionEngine/ExecutionEngine.h>
 #include <llvm/IR/Module.h>
 
