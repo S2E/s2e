@@ -123,6 +123,9 @@ TCGLLVMTranslator *TCGLLVMTranslator::create(const std::string &bitcodeLibraryPa
     }
 
     auto ErrorOrMod = parseBitcodeFile(ErrorOrMemBuff.get()->getMemBufferRef(), *ctx);
+    if (!ErrorOrMod) {
+        return nullptr;
+    }
 
     auto ret = new TCGLLVMTranslator(bitcodeLibraryPath, std::move(ErrorOrMod.get()));
 
