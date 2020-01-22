@@ -327,7 +327,7 @@ void SeedSearcher::fetchNewSeeds() {
         seed.filename = fileName;
         seed.index = atoi(indexStr.c_str());
         seed.priority = atoi(priorityStr.c_str());
-        seed.queuedTimestamp = llvm::sys::TimeValue::now().seconds();
+        seed.queuedTimestamp = std::chrono::steady_clock::now();
 
         // Number of seeds can be huge, don't want to clutter the logs
         if (count < 5) {

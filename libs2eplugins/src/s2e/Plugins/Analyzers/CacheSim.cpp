@@ -15,8 +15,6 @@
 #include <s2e/S2EExecutionState.h>
 #include <s2e/Utils.h>
 
-#include <llvm/Support/TimeValue.h>
-
 #include <TraceEntries.pb.h>
 
 #include <iostream>

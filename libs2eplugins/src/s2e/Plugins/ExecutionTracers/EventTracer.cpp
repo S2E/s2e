@@ -11,8 +11,6 @@
 #include <s2e/S2E.h>
 #include <s2e/Utils.h>
 
-#include <llvm/Support/TimeValue.h>
-
 #include <iostream>
 #include <sstream>
 

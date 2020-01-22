@@ -26,6 +26,7 @@
 
 #include <llvm/ADT/DenseSet.h>
 
+#include <chrono>
 #include <memory>
 #include <queue>
 #include <random>
@@ -47,12 +48,11 @@ struct Seed {
     std::string filename;
     unsigned priority;
     unsigned index;
-    uint64_t queuedTimestamp;
+    std::chrono::steady_clock::time_point queuedTimestamp;
 
     Seed() {
         priority = 0;
         index = 0;
-        queuedTimestamp = 0;
     }
 };
 

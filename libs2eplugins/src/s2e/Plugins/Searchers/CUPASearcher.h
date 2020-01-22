@@ -10,7 +10,6 @@
 #define S2E_PLUGINS_CUPASEARCHER_H
 
 #include <klee/Searcher.h>
-#include <llvm/Support/TimeValue.h>
 #include <s2e/CorePlugin.h>
 #include <s2e/Plugin.h>
 #include <s2e/Plugins/OSMonitors/Support/ModuleExecutionDetector.h>
@@ -24,6 +23,7 @@
 
 #include "Common.h"
 
+#include <chrono>
 #include <memory>
 #include <random>
 #include <unordered_map>
@@ -289,21 +289,19 @@ class CUPASearcherBatchClass : public CUPASearcherClass {
 public:
     CUPASearcherBatchClass(CUPASearcher *plugin, unsigned level) : CUPASearcherClass(plugin, level) {
         m_state = nullptr;
-        m_lastSelectedTime = 0;
-        m_batchTime = plugin->getBatchTime();
+        m_batchTime = std::chrono::seconds(plugin->getBatchTime());
     }
 
 private:
     klee::ExecutionState *m_state;
-    uint64_t m_lastSelectedTime;
-    uint64_t m_batchTime;
+    std::chrono::steady_clock::time_point m_lastSelectedTime;
+    std::chrono::seconds m_batchTime;
 
 protected:
     virtual void update(klee::ExecutionState *current, const klee::StateSet &addedStates,
                         const klee::StateSet &removedStates) {
         if (removedStates.count(m_state)) {
             m_state = nullptr;
-            m_lastSelectedTime = 0;
         }
 
         CUPASearcherClass::update(current, addedStates, removedStates);
@@ -314,9 +312,12 @@ protected:
     }
 
     virtual klee::ExecutionState &selectState() {
-        uint64_t curTime = llvm::sys::TimeValue::now().seconds();
+        using namespace std::chrono;
+        auto t1 = steady_clock::now();
+        auto d1 = seconds(m_batchTime);
+
         if (m_state) {
-            if (curTime - m_lastSelectedTime < m_batchTime) {
+            if (t1 - m_lastSelectedTime < d1) {
                 return *m_state;
             }
         }
@@ -325,7 +326,7 @@ protected:
         assert(size > 0);
         (void) size;
         m_state = &m_searchers.rbegin()->second->selectState();
-        m_lastSelectedTime = curTime;
+        m_lastSelectedTime = t1;
         return *m_state;
     }
 };

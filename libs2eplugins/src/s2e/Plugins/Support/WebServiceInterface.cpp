@@ -24,8 +24,8 @@ S2E_DEFINE_PLUGIN(WebServiceInterface, "WebServiceInterface S2E plugin", "", );
 
 void WebServiceInterface::initialize() {
     ConfigFile *cfg = s2e()->getConfig();
-    m_statsUpdateInterval = cfg->getInt(getConfigKey() + ".statsUpdateInterval", 10);
-    m_statsLastSent = 0;
+    m_statsUpdateInterval = std::chrono::seconds(cfg->getInt(getConfigKey() + ".statsUpdateInterval", 10));
+    m_statsLastSent = time_point();
     m_maxCompletedPathDepth = 0;
     m_maxPathDepth = 0;
     m_completedPaths = 0;
@@ -138,7 +138,7 @@ void WebServiceInterface::onTimer() {
     // time by blocking operations (e.g., constraint solver)
 
     // TODO: this should really be a parameter of the onTimer signal
-    uint64_t curTime = llvm::sys::TimeValue::now().seconds();
+    auto curTime = std::chrono::steady_clock::now();
 
     if (curTime - m_statsLastSent < m_statsUpdateInterval) {
         return;

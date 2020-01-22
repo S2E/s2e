@@ -22,7 +22,7 @@ S2E_DEFINE_PLUGIN(SeedScheduler, "Coordinates seed scheduling", "", "SeedSearche
                   "TranslationBlockCoverage");
 
 void SeedScheduler::initialize() {
-    uint64_t now = llvm::sys::TimeValue::now().seconds();
+    auto now = std::chrono::steady_clock::now();
     m_timeOfLastCoveredBlock = now;
     m_timeOfLastCrash = now;
     m_timeOfLastHighPrioritySeed = now;
@@ -69,7 +69,7 @@ void SeedScheduler::initialize() {
     // Using seeds is currently expensive. For simple CBs, seeds
     // slow down vulnerability finding by a lot. Use them only when
     // S2E is stuck.
-    m_stateMachineTimeout = cfg->getInt(getConfigKey() + ".stateMachineTimeout", 60);
+    m_stateMachineTimeout = std::chrono::seconds(cfg->getInt(getConfigKey() + ".stateMachineTimeout", 60));
 
     // Seeds with priority equal to or lower than the threshold are considered low priority
     // For CFE, high priorities range from 10 to 7 (various types of POVs and crashes),
@@ -116,7 +116,7 @@ void SeedScheduler::initialize() {
 ///
 void SeedScheduler::onProcessForkDecide(bool *proceed) {
     static unsigned previousAvailableSeedCount = 0;
-    static uint64_t lastSeedFetchTime = 0;
+    static time_point lastSeedFetchTime;
 
     if (s2e()->getExecutor()->getStatesCount() >= 3) {
         // We have plenty of states to load balance, so no need
@@ -153,7 +153,7 @@ void SeedScheduler::onProcessForkDecide(bool *proceed) {
     }
 
     // There are seeds left
-    uint64_t curTime = llvm::sys::TimeValue::now().seconds();
+    auto curTime = std::chrono::steady_clock::now();
     unsigned currentAvailableSeedCount = m_seeds->getSeedCount();
     if (previousAvailableSeedCount > currentAvailableSeedCount) {
         // The number of available seeds has decreased, which means
@@ -162,7 +162,7 @@ void SeedScheduler::onProcessForkDecide(bool *proceed) {
     }
     previousAvailableSeedCount = currentAvailableSeedCount;
 
-    uint64_t lastSeedFetchElapsed = curTime - lastSeedFetchTime;
+    auto lastSeedFetchElapsed = curTime - lastSeedFetchTime;
 
     // The 10 seconds delay allows to workaround busy workers.
     // Ideally, workers should be fast enough to process seeds as they come,
@@ -172,7 +172,8 @@ void SeedScheduler::onProcessForkDecide(bool *proceed) {
     // TODO: figure out an algorithm that knows exactly which instances
     // won't fetch a seed for a long time, so that there is no need for
     // magic timeout.
-    if (lastSeedFetchElapsed < 10 && (s2e()->getCurrentInstanceCount() > currentAvailableSeedCount)) {
+    if (lastSeedFetchElapsed < std::chrono::seconds(10) &&
+        (s2e()->getCurrentInstanceCount() > currentAvailableSeedCount)) {
         s2e()->getDebugStream() << "Preventing instance fork because there are enough workers\n"
                                 << "instanceCnt=" << s2e()->getCurrentInstanceCount()
                                 << " availSeeds=" << currentAvailableSeedCount << "\n";
@@ -207,7 +208,7 @@ void SeedScheduler::onSeed(const seeds::Seed &seed, seeds::SeedEvent event) {
     m_explorationState = WAIT_SEED_EXECUTION;
     m_seeds->enableSeeds(false);
 
-    uint64_t now = llvm::sys::TimeValue::now().seconds();
+    auto now = std::chrono::steady_clock::now();
 
     m_timeOfLastFetchedSeed = now;
 
@@ -217,19 +218,19 @@ void SeedScheduler::onSeed(const seeds::Seed &seed, seeds::SeedEvent event) {
 }
 
 void SeedScheduler::onSegFault(S2EExecutionState *state, uint64_t pid, uint64_t address) {
-    m_timeOfLastCrash = llvm::sys::TimeValue::now().seconds();
+    m_timeOfLastCrash = std::chrono::steady_clock::now();
 }
 
 void SeedScheduler::onWindowsUserCrash(S2EExecutionState *state, const WindowsUserModeCrash &desc) {
-    m_timeOfLastCrash = llvm::sys::TimeValue::now().seconds();
+    m_timeOfLastCrash = std::chrono::steady_clock::now();
 }
 
 void SeedScheduler::onWindowsKernelCrash(S2EExecutionState *state, const vmi::windows::BugCheckDescription &desc) {
-    m_timeOfLastCrash = llvm::sys::TimeValue::now().seconds();
+    m_timeOfLastCrash = std::chrono::steady_clock::now();
 }
 
 void SeedScheduler::onNewBlockCovered(S2EExecutionState *state) {
-    m_timeOfLastCoveredBlock = llvm::sys::TimeValue::now().seconds();
+    m_timeOfLastCoveredBlock = std::chrono::steady_clock::now();
 }
 
 void SeedScheduler::terminateIdleInstance() {
@@ -271,28 +272,29 @@ void SeedScheduler::terminateIdleInstance() {
     exit(0);
 }
 
-void SeedScheduler::processSeedStateMachine(uint64_t currentTime) {
+void SeedScheduler::processSeedStateMachine(time_point currentTime) {
     /* Only works for instances that have state 0 */
     if (!m_seeds->isAvailable()) {
         return;
     }
 
     /* Compute time delta since last major events */
-    unsigned foundBlocksD = currentTime - m_timeOfLastCoveredBlock;
-    unsigned foundCrashesD = currentTime - m_timeOfLastCrash;
-    unsigned recentHighPrioritySeedD = currentTime - m_timeOfLastHighPrioritySeed;
-    unsigned timeOfLastFetchedSeedD = currentTime - m_timeOfLastFetchedSeed;
+    auto foundBlocksD = currentTime - m_timeOfLastCoveredBlock;
+    auto foundCrashesD = currentTime - m_timeOfLastCrash;
+    auto recentHighPrioritySeedD = currentTime - m_timeOfLastHighPrioritySeed;
+    auto timeOfLastFetchedSeedD = currentTime - m_timeOfLastFetchedSeed;
 
     bool foundBlocks = foundBlocksD < m_stateMachineTimeout;
     bool foundCrashes = foundCrashesD < m_stateMachineTimeout;
     bool recentHighPrioritySeed = recentHighPrioritySeedD < m_stateMachineTimeout;
     bool recentSeedFetch = timeOfLastFetchedSeedD < m_stateMachineTimeout;
 
+    using namespace std::chrono;
     getInfoStream() << "explorationState: " << m_explorationState << " "
-                    << "timeOfLastFetchedSeed: " << timeOfLastFetchedSeedD << " "
-                    << "foundBlocks: " << foundBlocksD << "s "
-                    << "foundCrashes: " << foundCrashesD << "s "
-                    << "hpSeed: " << recentHighPrioritySeedD << "s\n";
+                    << "timeOfLastFetchedSeed: " << duration_cast<seconds>(timeOfLastFetchedSeedD).count() << " "
+                    << "foundBlocks: " << duration_cast<seconds>(foundBlocksD).count() << "s "
+                    << "foundCrashes: " << duration_cast<seconds>(foundCrashesD).count() << "s "
+                    << "hpSeed: " << duration_cast<seconds>(recentHighPrioritySeedD).count() << "s\n";
 
     if (m_explorationState == WARM_UP) {
         // The warm up phase allows S2E to quickly find crashes and POVS
@@ -344,7 +346,7 @@ void SeedScheduler::processSeedStateMachine(uint64_t currentTime) {
 
 void SeedScheduler::onTimer() {
     // TODO: this should really be a parameter of the onTimer signal
-    uint64_t curTime = llvm::sys::TimeValue::now().seconds();
+    auto curTime = std::chrono::steady_clock::now();
 
     // Update the state machine ~ every second
     processSeedStateMachine(curTime);

@@ -7,7 +7,6 @@
 ///
 
 #include <iostream>
-#include <llvm/Support/TimeValue.h>
 
 #include <s2e/ConfigFile.h>
 #include <s2e/Plugins/OSMonitors/OSMonitor.h>
