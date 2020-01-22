@@ -11,7 +11,7 @@
 #include <klee/Common.h>
 
 #include "llvm/Analysis/ValueTracking.h"
-#include "llvm/Bitcode/ReaderWriter.h"
+#include "llvm/Bitcode/BitcodeReader.h"
 #include "llvm/IR/AssemblyAnnotationWriter.h"
 #include "llvm/IR/CFG.h"
 #include "llvm/IR/Function.h"
