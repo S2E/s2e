@@ -328,7 +328,7 @@ void S2EExecutor::registerFunctionHandlers(llvm::Module &module) {
         if (!function) {
             if (hdlr.getOrInsertFunction) {
                 auto ty = hdlr.getOrInsertFunction(module);
-                function = dynamic_cast<Function *>(module.getOrInsertFunction(hdlr.name, ty));
+                function = dyn_cast<Function>(module.getOrInsertFunction(hdlr.name, ty));
                 if (!function) {
                     abort();
                 }
