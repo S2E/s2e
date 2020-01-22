@@ -19,6 +19,7 @@
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/Transforms/IPO.h>
+#include <llvm/Transforms/IPO/AlwaysInliner.h>
 #include <llvm/Transforms/IPO/PassManagerBuilder.h>
 #include <llvm/Transforms/Scalar.h>
 
@@ -572,7 +573,7 @@ void RevGen::translate(const llvm::BinaryFunctions &functions, const llvm::Binar
         legacy::PassManager PM;
 
         PM.add(new MemoryWrapperElimination());
-        PM.add(createAlwaysInlinerPass());
+        PM.add(llvm::createAlwaysInlinerLegacyPass());
 
         /**
          * This pass is broken, doesn't save registers
