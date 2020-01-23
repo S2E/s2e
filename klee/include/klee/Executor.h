@@ -195,13 +195,15 @@ protected:
 
     const Cell &eval(KInstruction *ki, unsigned index, ExecutionState &state) const;
 
-    ref<klee::ConstantExpr> evalConstantExpr(llvm::ConstantExpr *ce);
+    ref<klee::ConstantExpr> evalConstantExpr(const llvm::ConstantExpr *ce, const KInstruction *ki = nullptr);
 
     // delete the state (called internally by terminateState and updateStates)
     virtual void deleteState(ExecutionState *state);
 
     /// bindModuleConstants - Initialize the module constant table.
     void bindModuleConstants();
+
+    template <typename TypeIt> void computeOffsets(KGEPInstruction *kgepi, TypeIt ib, TypeIt ie);
 
     /// bindInstructionConstants - Initialize any necessary per instruction
     /// constant values.
@@ -246,7 +248,7 @@ public:
     virtual void terminateState(ExecutionState &state, const std::string &reason);
 
     // XXX should just be moved out to utility module
-    ref<klee::ConstantExpr> evalConstant(llvm::Constant *c);
+    ref<klee::ConstantExpr> evalConstant(const llvm::Constant *c, const KInstruction *ki = nullptr);
 
     virtual const llvm::Module *setModule(llvm::Module *module, const ModuleOptions &opts,
                                           bool createStatsTracker = true);

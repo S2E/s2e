@@ -459,8 +459,8 @@ void KModule::removeFunction(llvm::Function *f, bool keepDeclaration) {
     }
 }
 
-KConstant *KModule::getKConstant(Constant *c) {
-    std::map<llvm::Constant *, KConstant *>::iterator it = constantMap.find(c);
+KConstant *KModule::getKConstant(const Constant *c) {
+    auto it = constantMap.find(c);
     if (it != constantMap.end())
         return it->second;
     return NULL;
