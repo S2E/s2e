@@ -292,15 +292,14 @@ void SeedSearcher::fetchNewSeeds() {
     // Better to monitor directory for changes.
     for (llvm::sys::fs::directory_iterator i(m_seedDirectory, error), e; i != e; i.increment(error)) {
         std::string entry = i->path();
-        llvm::sys::fs::file_status status;
-        error = i->status(status);
+        auto status = i->status();
 
-        if (error) {
-            getWarningsStream() << "Error when querying " << entry << " - " << error.message() << '\n';
+        if (!status) {
+            getWarningsStream() << "Error when querying " << entry << " - " << status.getError().message() << '\n';
             continue;
         }
 
-        if (status.type() == llvm::sys::fs::file_type::directory_file) {
+        if (status->type() == llvm::sys::fs::file_type::directory_file) {
             continue;
         }
 

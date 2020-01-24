@@ -165,15 +165,13 @@ bool S2E::backupConfigFiles(const std::string &configFileName) {
 
     for (llvm::sys::fs::directory_iterator i(configFileDir, error), e; i != e; i.increment(error)) {
         std::string entry = i->path();
-        llvm::sys::fs::file_status status;
-        error = i->status(status);
-
-        if (error) {
-            getWarningsStream() << "Error when querying " << entry << " - " << error.message() << '\n';
+        auto status = i->status();
+        if (!status) {
+            getWarningsStream() << "Error when querying " << entry << " - " << status.getError().message() << '\n';
             continue;
         }
 
-        if (status.type() != llvm::sys::fs::file_type::regular_file) {
+        if (status->type() != llvm::sys::fs::file_type::regular_file) {
             continue;
         }
 
