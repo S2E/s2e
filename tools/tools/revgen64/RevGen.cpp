@@ -23,6 +23,7 @@
 #include <llvm/Transforms/IPO/AlwaysInliner.h>
 #include <llvm/Transforms/IPO/PassManagerBuilder.h>
 #include <llvm/Transforms/Scalar.h>
+#include <llvm/Transforms/Utils.h>
 
 #include <fstream>
 #include <lib/Utils/BinaryCFGReader.h>
@@ -737,7 +738,7 @@ void RevGen::writeBitcodeFile(const std::string &bitcodeFile) {
     llvm::Module *module = m_translator->getModule();
 
     // Output the bitcode file to stdout
-    llvm::WriteBitcodeToFile(module, o);
+    llvm::WriteBitcodeToFile(*module, o);
 }
 
 // This function can be called from GDB for debugging

@@ -203,7 +203,7 @@ void S2E::writeBitCodeToFile() {
     llvm::Module *module = m_TCGLLVMTranslator->getModule();
 
     // Output the bitcode file to stdout
-    llvm::WriteBitcodeToFile(module, o);
+    llvm::WriteBitcodeToFile(*module, o);
 }
 
 S2E::~S2E() {

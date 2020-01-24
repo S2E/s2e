@@ -45,8 +45,10 @@ extern "C" {
 #include <llvm/IR/Verifier.h>
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/Support/Threading.h>
+#include <llvm/Transforms/InstCombine/InstCombine.h>
 #include <llvm/Transforms/Scalar.h>
 #include <llvm/Transforms/Scalar/GVN.h>
+#include <llvm/Transforms/Utils.h>
 #include <llvm/Bitcode/BitcodeReader.h>
 
 #include <llvm/Support/DynamicLibrary.h>

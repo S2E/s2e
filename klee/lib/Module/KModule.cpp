@@ -34,6 +34,7 @@
 #include "llvm/Support/raw_os_ostream.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Scalar.h"
+#include "llvm/Transforms/Utils.h"
 
 #include <sstream>
 
@@ -374,7 +375,7 @@ void KModule::prepare(const Interpreter::ModuleOptions &opts, InterpreterHandler
 
     if (OutputModule) {
         llvm::raw_ostream *f = ih->openOutputFile("final.bc");
-        WriteBitcodeToFile(module, *f);
+        WriteBitcodeToFile(*module, *f);
         delete f;
     }
 

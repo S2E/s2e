@@ -53,7 +53,7 @@ for fname in files:
                     dirs.add(fdir)
 
 s2e_includes.write('\n'.join([
-    '../../build/llvm-6.0.1.src/include',
+    '../../build/llvm-7.0.1.src/include',
     '../../build/llvm-release/include',
     '../../build/lua-5.3.4/src',
     '/usr/include/glib-2.0',
