@@ -73,8 +73,8 @@ def _get_ubuntu_version(version_string):
         return 'x86_64-linux-gnu-ubuntu-14.04',
     elif major_version == 16 and minor_version >= 4:
         return 'x86_64-linux-gnu-ubuntu-16.04',
-    elif major_version > 16:
-        return 'x86_64-linux-gnu-ubuntu-16.04',
+    elif major_version == 18:
+        return 'x86_64-linux-gnu-ubuntu-18.04',
     else:
         return None
 

@@ -872,7 +872,8 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
                 Module *m = i->getParent()->getParent()->getParent();
                 std::stringstream ss;
                 ss << "ext_" << std::hex << addr;
-                f = dyn_cast<Function>(m->getOrInsertFunction(ss.str(), ci->getFunctionType()));
+                auto fcn = m->getOrInsertFunction(ss.str(), ci->getFunctionType());
+                f = dyn_cast<Function>(fcn.getCallee());
                 assert(f);
 
                 // XXX: this is a hack caused by how klee handles external functions.

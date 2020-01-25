@@ -115,7 +115,7 @@ static CallInst *ReplaceCallWith(const char *NewFn, CallInst *CI, ArgIt ArgBegin
 
     llvm::ArrayRef<Type *> ParamTysA(&ParamTys[0], ParamTys.size());
 
-    Constant *FCache = M->getOrInsertFunction(NewFn, FunctionType::get(RetTy, ParamTysA, false));
+    auto FCache = M->getOrInsertFunction(NewFn, FunctionType::get(RetTy, ParamTysA, false));
 
     IRBuilder<> Builder(CI);
     SmallVector<Value *, 8> Args(ArgBegin, ArgEnd);
@@ -229,7 +229,7 @@ void IntrinsicCleanerPass::injectIntrinsicAddImplementation(Module &M, const std
     argTypes.push_back(Type::getIntNTy(ctx, bits));    // b
 
     FunctionType *type = FunctionType::get(Type::getInt1Ty(ctx), ArrayRef<Type *>(argTypes), false);
-    f = dyn_cast<Function>(M.getOrInsertFunction(name, type));
+    f = dyn_cast<Function>(M.getOrInsertFunction(name, type).getCallee());
     assert(f);
 
     BasicBlock *bb = BasicBlock::Create(ctx, "", f);

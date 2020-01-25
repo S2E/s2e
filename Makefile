@@ -66,10 +66,10 @@ ifeq ($(LLVM_BUILD),$(S2E_BUILD))
 LLVM_DIRS=llvm-release llvm-debug
 endif
 
-LLVM_VERSION=8.0.1
+LLVM_VERSION=9.0.0
 LLVM_SRC=llvm-$(LLVM_VERSION).src.tar.xz
 LLVM_SRC_DIR=llvm-$(LLVM_VERSION).src
-LLVM_SRC_URL = https://github.com/llvm/llvm-project/releases/download/llvmorg-$(LLVM_VERSION)/
+LLVM_SRC_URL=http://releases.llvm.org/$(LLVM_VERSION)/
 
 # The Python script should only return a single word - the suffix of the Clang
 # binary to download. If an error message is printed to stderr, the Makefile
@@ -81,7 +81,7 @@ endif
 
 KLEE_DIRS=$(foreach suffix,-debug -release,$(addsuffix $(suffix),klee))
 
-CLANG_BINARY_DIR=clang+llvm-7.0.1-$(CLANG_BINARY_SUFFIX)
+CLANG_BINARY_DIR=clang+llvm-$(LLVM_VERSION)-$(CLANG_BINARY_SUFFIX)
 CLANG_BINARY=$(CLANG_BINARY_DIR).tar.xz
 
 CLANG_SRC=cfe-$(LLVM_VERSION).src.tar.xz
@@ -200,11 +200,9 @@ stamps/%-make:
 
 ifeq ($(LLVM_BUILD),$(S2E_BUILD))
 # Download LLVM
-$(LLVM_SRC) $(CLANG_SRC) $(COMPILER_RT_SRC):
+$(LLVM_SRC) $(CLANG_SRC) $(COMPILER_RT_SRC) $(CLANG_BINARY):
 	wget $(LLVM_SRC_URL)/$@
 
-$(CLANG_BINARY):
-	wget http://llvm.org/releases/7.0.1/$@
 
 .INTERMEDIATE: $(CLANG_SRC_DIR) $(COMPILER_RT_SRC_DIR) $(CLANG_BINARY_DIR)
 
