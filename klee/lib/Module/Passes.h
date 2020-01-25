@@ -107,15 +107,6 @@ public:
     virtual bool runOnFunction(llvm::Function &f);
 };
 
-class DivCheckPass : public llvm::ModulePass {
-    static char ID;
-
-public:
-    DivCheckPass() : ModulePass(ID) {
-    }
-    virtual bool runOnModule(llvm::Module &M);
-};
-
 /// LowerSwitchPass - Replace all SwitchInst instructions with chained branch
 /// instructions.  Note that this cannot be a BasicBlock pass because it
 /// modifies the CFG!
