@@ -43,7 +43,7 @@ namespace {
 llvm::cl::opt<bool> UseConstructHash("z3-use-hash-consing",
                                      llvm::cl::desc("Use hash consing during Z3 query construction."),
                                      llvm::cl::init(true));
-}
+} // namespace
 
 using boost::make_shared;
 using boost::shared_ptr;

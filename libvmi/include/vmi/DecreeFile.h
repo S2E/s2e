@@ -76,6 +76,6 @@ public:
         return 0;
     }
 };
-}
+} // namespace vmi
 
 #endif

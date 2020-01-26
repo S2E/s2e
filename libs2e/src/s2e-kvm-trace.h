@@ -61,7 +61,7 @@ public:
     virtual int sys_ioctl(int fd, int request, uint64_t arg1);
     virtual void *sys_mmap(void *addr, size_t len, int prot, int flags, int fd, off_t offset);
 };
-}
-}
+} // namespace kvm
+} // namespace s2e
 
 #endif

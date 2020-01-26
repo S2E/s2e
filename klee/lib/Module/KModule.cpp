@@ -64,7 +64,7 @@ cl::opt<SwitchImplType> SwitchType("switch-type", cl::desc("Select the implement
 
 cl::opt<bool> DebugPrintEscapingFunctions("debug-print-escaping-functions",
                                           cl::desc("Print functions whose address is taken."));
-}
+} // namespace
 
 KModule::KModule(Module *_module)
     : module(_module), dataLayout(new DataLayout(module)), dbgStopPointFn(0), kleeMergeFn(0) {

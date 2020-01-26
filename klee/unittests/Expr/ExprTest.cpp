@@ -247,4 +247,4 @@ TEST(ExprTest, ExtractConcat) {
     EXPECT_EQ(Expr::Extract, concat2->getKid(0)->getKind());
     EXPECT_EQ(Expr::Extract, concat2->getKid(1)->getKind());
 }
-}
+} // namespace

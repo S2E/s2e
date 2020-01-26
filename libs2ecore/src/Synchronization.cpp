@@ -118,4 +118,4 @@ void S2ESynchronizedObjectInternal::release() {
     assert(__atomic_load_n(&hdr->lock, __ATOMIC_SEQ_CST) == SYNCHEADER_LOCKED && "Lock was not acquired");
     __atomic_store_n(&hdr->lock, SYNCHEADER_FREE, __ATOMIC_SEQ_CST);
 }
-}
+} // namespace s2e

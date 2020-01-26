@@ -88,7 +88,7 @@ public:
         return m_cpuid;
     }
 };
-}
-}
+} // namespace kvm
+} // namespace s2e
 
 #endif

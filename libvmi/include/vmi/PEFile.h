@@ -202,6 +202,6 @@ protected:
         return m_ntHeader64.OptionalHeader.CheckSum;
     }
 };
-}
+} // namespace vmi
 
 #endif

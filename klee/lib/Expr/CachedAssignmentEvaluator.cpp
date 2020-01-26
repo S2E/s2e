@@ -186,4 +186,4 @@ UpdateListPtr CachedAssignmentEvaluator::rewriteUpdatesUncached(const UpdateList
 
     return rewritten;
 }
-}
+} // namespace klee

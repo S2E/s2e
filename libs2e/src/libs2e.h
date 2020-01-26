@@ -20,6 +20,6 @@ namespace s2e {
 namespace kvm {
 extern struct cpu_io_funcs_t g_io;
 }
-}
+} // namespace s2e
 
 #endif

@@ -36,4 +36,4 @@ void connection::disconnect() {
         m_connected = false;
     }
 }
-}
+} // namespace fsigc

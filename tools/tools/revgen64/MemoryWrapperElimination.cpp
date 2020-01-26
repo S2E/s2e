@@ -130,4 +130,4 @@ bool MemoryWrapperElimination::runOnModule(llvm::Module &M) {
 
     return true;
 }
-}
+} // namespace s2etools

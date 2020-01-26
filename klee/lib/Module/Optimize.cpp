@@ -233,4 +233,4 @@ void Optimize(Module *M) {
     // Run our queue of passes all at once now, efficiently.
     Passes.run(*M);
 }
-}
+} // namespace llvm

@@ -147,6 +147,6 @@ inline uint64_t StatisticManager::getIndexedValue(const Statistic &s, unsigned i
 inline void StatisticManager::setIndexedValue(const Statistic &s, unsigned index, uint64_t value) {
     indexedStats[index * stats.size() + s.id] = value;
 }
-}
+} // namespace klee
 
 #endif

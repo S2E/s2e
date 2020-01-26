@@ -297,7 +297,7 @@ inline uint64_t SignedIntToFP(uint64_t l, unsigned outWidth, unsigned inWidth) {
     }
 }
 
-} // end namespace ints
+} // namespace floats
 } // end namespace klee
 
 #endif // KLEE_UTIL_FLOATS_H

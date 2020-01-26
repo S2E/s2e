@@ -29,6 +29,6 @@ struct ThreadDescriptor {
         KernelMode = false;
     }
 };
-}
+} // namespace s2e
 
 #endif

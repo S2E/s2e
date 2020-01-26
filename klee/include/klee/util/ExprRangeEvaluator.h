@@ -274,6 +274,6 @@ template <class T> T ExprRangeEvaluator<T>::evaluate(const ref<Expr> &e) {
 
     return T(0, bits64::maxValueOfNBits(e->getWidth()));
 }
-}
+} // namespace klee
 
 #endif

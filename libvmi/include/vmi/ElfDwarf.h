@@ -76,6 +76,6 @@ public:
 
     const VmiType *getType(const std::string &name);
 };
-}
+} // namespace vmi
 
 #endif

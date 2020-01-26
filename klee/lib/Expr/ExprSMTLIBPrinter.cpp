@@ -35,7 +35,7 @@ llvm::cl::opt<klee::ExprSMTLIBPrinter::AbbreviationMode> abbreviationMode(
                      clEnumValN(klee::ExprSMTLIBPrinter::ABBR_LET, "let", "Abbreviate with let"),
                      clEnumValN(klee::ExprSMTLIBPrinter::ABBR_NAMED, "named", "Abbreviate with :named annotations")),
     llvm::cl::init(klee::ExprSMTLIBPrinter::ABBR_LET));
-}
+} // namespace ExprSMTLIBOptions
 
 namespace klee {
 
@@ -533,7 +533,7 @@ struct ArrayPtrsByName {
         return a1->getName() < a2->getName();
     }
 };
-}
+} // namespace
 
 void ExprSMTLIBPrinter::printArrayDeclarations() {
     // Assume scan() has been called
@@ -1120,4 +1120,4 @@ const char *ExprSMTLIBPrinter::getSMTLIBOptionString(ExprSMTLIBPrinter::SMTLIBbo
             return "unknown-option";
     }
 }
-}
+} // namespace klee

@@ -277,4 +277,4 @@ ref<ConstantExpr> Executor::evalConstantExpr(const llvm::ConstantExpr *ce, const
     llvm_unreachable("Unsupported expression in evalConstantExpr");
     return op1;
 }
-}
+} // namespace klee

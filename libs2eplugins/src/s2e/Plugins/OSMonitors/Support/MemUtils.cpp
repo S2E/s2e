@@ -172,5 +172,5 @@ void MemUtils::findMemoryPages(S2EExecutionState *state, uint64_t pid, bool must
 
     m_memmap->iterateRegions(state, pid, lambda);
 }
-}
-}
+} // namespace plugins
+} // namespace s2e

@@ -28,4 +28,4 @@ double util::getWallTime() {
     auto tp = std::chrono::steady_clock::now();
     return std::chrono::duration_cast<std::chrono::duration<double>>(tp.time_since_epoch()).count();
 }
-}
+} // namespace klee

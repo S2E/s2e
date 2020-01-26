@@ -181,4 +181,4 @@ bool RegisterPromotion::runOnFunction(Function &F) {
 
     return true;
 }
-}
+} // namespace s2etools

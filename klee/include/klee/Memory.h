@@ -402,6 +402,6 @@ struct ObjectStatePtrHash {
     }
 };
 
-} // End klee namespace
+} // namespace klee
 
 #endif

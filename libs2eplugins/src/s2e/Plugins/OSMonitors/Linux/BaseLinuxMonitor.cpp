@@ -151,5 +151,5 @@ void BaseLinuxMonitor::loadKernelImage(S2EExecutionState *state, uint64_t kernel
 
     onModuleLoad.emit(state, vmlinux);
 }
-}
-}
+} // namespace plugins
+} // namespace s2e

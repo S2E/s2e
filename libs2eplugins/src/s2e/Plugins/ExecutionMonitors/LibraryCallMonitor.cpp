@@ -90,7 +90,7 @@ public:
         }
     }
 };
-}
+} // namespace
 
 void LibraryCallMonitor::initialize() {
     m_map = s2e()->getPlugin<ModuleMap>();

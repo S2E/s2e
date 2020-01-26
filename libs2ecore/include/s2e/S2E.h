@@ -32,7 +32,7 @@
 namespace klee {
 class Interpreter;
 class InterpreterHandler;
-}
+} // namespace klee
 
 namespace s2e {
 

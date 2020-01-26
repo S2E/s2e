@@ -116,5 +116,5 @@ int LuaS2EExecutionStateRegisters::write(lua_State *L) {
     }
     return 0;
 }
-}
-}
+} // namespace plugins
+} // namespace s2e

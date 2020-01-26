@@ -42,7 +42,7 @@ struct BasicBlockCoverageState : public PluginState {
         return new BasicBlockCoverageState(*this);
     }
 };
-}
+} // namespace
 
 void BasicBlockCoverage::initialize() {
     m_detector = s2e()->getPlugin<ModuleExecutionDetector>();

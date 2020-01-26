@@ -128,4 +128,4 @@ void LowerSwitchPass::processSwitchInst(SwitchInst *SI) {
     // We are now done with the switch instruction, so delete it
     origBlock->getInstList().erase(SI);
 }
-}
+} // namespace klee

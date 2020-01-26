@@ -287,7 +287,7 @@ public:
         m_manager.dump(os, pid);
     }
 };
-}
+} // namespace
 
 void MemoryMap::initialize() {
     m_proc = s2e()->getPlugin<ProcessExecutionDetector>();

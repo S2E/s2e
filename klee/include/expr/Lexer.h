@@ -115,7 +115,7 @@ public:
     /// used as the result, for convenience.
     Token &Lex(Token &Result);
 };
-}
-}
+} // namespace expr
+} // namespace klee
 
 #endif

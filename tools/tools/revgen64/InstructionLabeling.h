@@ -40,6 +40,6 @@ public:
 
 private:
 };
-}
+} // namespace s2etools
 
 #endif

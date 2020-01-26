@@ -139,6 +139,6 @@ public:
     virtual int stat(struct stat *buf);
     virtual const char *getName() const;
 };
-}
+} // namespace vmi
 
 #endif

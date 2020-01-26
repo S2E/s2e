@@ -83,6 +83,6 @@ int DoLog(int level, const LogKey &k);
 #define LOGERROR(a)            \
     if (DoLog(LOG_ERROR, TAG)) \
     __LOG_SUFFIX(LOG_ERROR) << a
-}
+} // namespace s2etools
 
 #endif

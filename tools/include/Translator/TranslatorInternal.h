@@ -568,4 +568,4 @@ TranslatedBlock *X86Translator::translate(uint64_t address, uint64_t lastAddress
 
     return ret;
 }
-}
+} // namespace s2etools

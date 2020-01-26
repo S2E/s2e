@@ -289,5 +289,5 @@ bool WindowsCrashDumpGenerator::generate(const BugCheckDescription &bugDesc, voi
         return writeMemoryData(DumpHeader);
     }
 }
-}
-}
+} // namespace windows
+} // namespace vmi

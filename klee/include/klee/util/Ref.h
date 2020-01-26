@@ -141,6 +141,6 @@ template <typename T> struct simplify_type<const ::klee::ref<T>> {
 };
 
 template <typename T> struct simplify_type<::klee::ref<T>> : public simplify_type<const ::klee::ref<T>> {};
-}
+} // namespace llvm
 
 #endif /* KLEE_REF_H */

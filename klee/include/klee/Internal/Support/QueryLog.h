@@ -51,6 +51,6 @@ public:
         }
     }
 };
-}
+} // namespace klee
 
 #endif

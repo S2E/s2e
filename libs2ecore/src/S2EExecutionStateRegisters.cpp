@@ -498,4 +498,4 @@ void S2EExecutionStateRegisters::dump(std::ostream &ss) const {
 
     ss << "Registers\n" << concreteBytes.str() << symbolicBytes.str();
 }
-}
+} // namespace s2e

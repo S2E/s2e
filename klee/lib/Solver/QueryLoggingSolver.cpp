@@ -28,7 +28,7 @@ llvm::cl::opt<bool> DumpPartialQueryiesEarly("log-partial-queries-early", llvm::
 llvm::cl::opt<bool> CreateCompressedQueryLog("compress-query-log", llvm::cl::init(false),
                                              llvm::cl::desc("Compress query log files (default=off)"));
 #endif
-}
+} // namespace
 
 QueryLoggingSolver::QueryLoggingSolver(Solver *_solver, std::string path, const std::string &commentSign,
                                        int queryTimeToLog)

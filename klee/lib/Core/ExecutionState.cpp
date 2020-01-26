@@ -666,4 +666,4 @@ void ExecutionState::bindObject(const ObjectStatePtr &os, bool isLocal) {
         stack.back().allocas.push_back(os->getKey());
     }
 }
-}
+} // namespace klee

@@ -20,7 +20,7 @@ template <> struct hash<s2e::plugins::os::HookLocation> {
         return k.pc ^ k.pid;
     }
 };
-}
+} // namespace std
 
 namespace s2e {
 namespace plugins {
@@ -53,7 +53,7 @@ public:
         return new GuestCodeHookingState();
     }
 };
-}
+} // namespace
 
 void GuestCodeHooking::initialize() {
     m_map = s2e()->getPlugin<ModuleMap>();

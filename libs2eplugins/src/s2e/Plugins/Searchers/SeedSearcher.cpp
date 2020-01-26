@@ -51,7 +51,7 @@ public:
     virtual ~SeedSearcherState() {
     }
 };
-}
+} // namespace
 
 void SeedSearcher::initialize() {
 

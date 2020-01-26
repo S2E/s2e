@@ -75,5 +75,5 @@ int WinKernDumpFile::stat(struct stat *buf) {
 const char *WinKernDumpFile::getName() const {
     return m_file->getName();
 }
-}
-}
+} // namespace windows
+} // namespace vmi

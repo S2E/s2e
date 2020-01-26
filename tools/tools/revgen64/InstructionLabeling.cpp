@@ -43,4 +43,4 @@ bool InstructionLabeling::runOnFunction(llvm::Function &F) {
 
     return false;
 }
-}
+} // namespace s2etools

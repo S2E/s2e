@@ -99,7 +99,7 @@ public:
     SymbolicObjectFinder(ArrayVec &_objects) : objects(_objects) {
     }
 };
-}
+} // namespace klee
 
 template <typename InputIterator>
 void klee::findSymbolicObjects(InputIterator begin, InputIterator end, ArrayVec &results) {
@@ -212,4 +212,4 @@ bool getConcatExprPairs(const ref<Expr> &e, ConcatExprPairs &concatExprs) {
 
     return false;
 }
-}
+} // namespace klee

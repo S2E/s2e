@@ -361,7 +361,7 @@ struct ExceptionTypeHandler {
     uint32_t Entry;
     uint32_t Mode;
 } __attribute__((packed));
-}
-}
+} // namespace windows
+} // namespace vmi
 
 #endif

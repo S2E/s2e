@@ -24,7 +24,7 @@ cl::opt<std::string> File("file", cl::desc("File to dump"), cl::Positional);
 cl::opt<std::string> Address("address", cl::desc("Address where to dump"), cl::Required);
 
 cl::opt<std::string> Count("count", cl::desc("How many bytes to dump"), cl::Required);
-}
+} // namespace
 
 using namespace vmi;
 

@@ -36,7 +36,7 @@ public:
     int getPc(lua_State *L);
     int getSp(lua_State *L);
 };
-}
-}
+} // namespace plugins
+} // namespace s2e
 
 #endif

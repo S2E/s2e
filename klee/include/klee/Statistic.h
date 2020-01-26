@@ -69,6 +69,6 @@ public:
     /// operator+= - Increment the statistic by \arg addend.
     Statistic &operator+=(const uint64_t addend);
 };
-}
+} // namespace klee
 
 #endif

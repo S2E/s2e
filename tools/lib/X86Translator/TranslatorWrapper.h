@@ -13,7 +13,7 @@ namespace s2e {
 class S2E {};
 
 class S2EExecutionState {};
-}
+} // namespace s2e
 
 #ifdef __cplusplus
 extern "C" {

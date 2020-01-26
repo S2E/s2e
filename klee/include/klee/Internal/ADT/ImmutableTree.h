@@ -636,6 +636,6 @@ ImmutableTree<K, V, KOV, CMP, NODE_CACHE_SIZE>::upper_bound(const key_type &key)
         ++it;
     return it;
 }
-}
+} // namespace klee
 
 #endif

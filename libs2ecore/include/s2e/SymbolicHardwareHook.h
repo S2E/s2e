@@ -139,6 +139,6 @@ void SymbolicHardwareHookEnableMmioCallbacks(bool enable);
 
 extern SymbolicPortHook g_symbolicPortHook;
 extern SymbolicMemoryHook g_symbolicMemoryHook;
-}
+} // namespace s2e
 
 #endif

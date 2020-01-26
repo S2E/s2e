@@ -370,7 +370,7 @@ public:
     /* For newer OSes */
     bool generate(const BugCheckDescription &bugDesc, void *context, unsigned contextSize);
 };
-}
-}
+} // namespace windows
+} // namespace vmi
 
 #endif

@@ -61,7 +61,7 @@ cl::opt<bool> EraseTbFunctions("erase-tb-functions",
 
 cl::opt<std::string> FunctionsToRevgen("functions-to-revgen", cl::desc("Only translate the given functions"),
                                        cl::Optional);
-}
+} // namespace
 
 RevGen::~RevGen() {
     if (m_translator) {

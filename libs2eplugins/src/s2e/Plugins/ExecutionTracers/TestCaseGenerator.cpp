@@ -69,7 +69,7 @@ public:
         return m_concreteFiles;
     }
 };
-}
+} // namespace
 
 // TODO: this must be in sync with s2ecmd
 static const boost::regex SymbolicFileRegEx(".*?__symfile___(.+?)___(\\d+)_(\\d+)_symfile__.*", boost::regex::perl);
@@ -479,6 +479,6 @@ void TestCaseGenerator::handleOpcodeInvocation(S2EExecutionState *state, uint64_
         } break;
     }
 }
-}
-}
-}
+} // namespace testcases
+} // namespace plugins
+} // namespace s2e

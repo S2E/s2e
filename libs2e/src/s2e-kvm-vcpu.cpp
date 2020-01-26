@@ -692,8 +692,8 @@ void *VCPU::sys_mmap(void *addr, size_t len, int prot, int flags, int fd, off_t 
 void VCPU::flushTlb() {
     tlb_flush(m_env, 1);
 }
-}
-}
+} // namespace kvm
+} // namespace s2e
 
 extern "C" {
 

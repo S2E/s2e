@@ -25,7 +25,7 @@ class raw_ostream;
 namespace legacy {
 class FunctionPassManager;
 }
-}
+} // namespace llvm
 
 namespace klee {
 class Array;
@@ -78,6 +78,6 @@ public:
                                           bool createStatsTracker = true) = 0;
 };
 
-} // End klee namespace
+} // namespace klee
 
 #endif

@@ -71,7 +71,7 @@ template <> struct ImutProfileInfo<klee::ArrayPtr> {
         ID.AddPointer(X.get());
     }
 };
-}
+} // namespace llvm
 
 namespace klee {
 

@@ -54,4 +54,4 @@ bool BasicBlockListParser::parseListing(std::string &listingFile, BasicBlocks &b
 
     return !hasErrors;
 }
-}
+} // namespace s2etools

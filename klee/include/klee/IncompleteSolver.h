@@ -96,6 +96,6 @@ public:
     bool computeInitialValues(const Query &, const ArrayVec &objects, std::vector<std::vector<unsigned char>> &values,
                               bool &hasSolution);
 };
-}
+} // namespace klee
 
 #endif

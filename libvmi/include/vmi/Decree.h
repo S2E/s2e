@@ -74,7 +74,7 @@ static const unsigned PT_DECREEPOV2 = 0x6ccccccc; /* CFE Type 2 PoV flag sect */
 static const unsigned CPF_X = (1 << 0); /* Mapped executable */
 static const unsigned CPF_W = (1 << 1); /* Mapped writeable */
 static const unsigned CPF_R = (1 << 2); /* Mapped readable */
-}
-}
+} // namespace decree
+} // namespace vmi
 
 #endif

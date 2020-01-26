@@ -25,7 +25,7 @@ cl::list<std::string> LogItems("log", llvm::cl::value_desc("log-item"), llvm::cl
 
 cl::list<std::string> NoLogItems("nolog", llvm::cl::value_desc("nolog-item"), llvm::cl::Prefix,
                                  llvm::cl::desc("Disable log for this item"));
-}
+} // namespace
 
 namespace s2etools {
 
@@ -136,4 +136,4 @@ llvm::raw_ostream &Log(int logLevel, const LogKey &k) {
 
     return *s_logfile;
 }
-}
+} // namespace s2etools

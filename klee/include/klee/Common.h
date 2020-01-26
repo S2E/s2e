@@ -101,6 +101,6 @@ inline std::ostream &operator<<(std::ostream &out, const hexval &h) {
     out << std::hex << "0x" << (h.value);
     return out;
 }
-}
+} // namespace klee
 
 #endif /* __KLEE_COMMON_H__ */

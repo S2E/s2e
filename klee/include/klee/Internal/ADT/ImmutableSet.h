@@ -106,6 +106,6 @@ public:
         return Tree::allocated;
     }
 };
-}
+} // namespace klee
 
 #endif

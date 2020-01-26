@@ -210,6 +210,6 @@ private:
     ConditionNodeRef head_;
     ConditionNodeRef root_;
 };
-}
+} // namespace klee
 
 #endif /* KLEE_CONSTRAINTS_H */

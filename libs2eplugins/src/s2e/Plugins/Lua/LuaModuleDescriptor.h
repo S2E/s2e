@@ -37,7 +37,7 @@ public:
     int getSize(lua_State *L);
     int getEntryPoint(lua_State *L);
 };
-}
-}
+} // namespace plugins
+} // namespace s2e
 
 #endif

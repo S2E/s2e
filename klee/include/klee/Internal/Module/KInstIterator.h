@@ -54,6 +54,6 @@ public:
         return *it;
     }
 };
-} // End klee namespace
+} // namespace klee
 
 #endif

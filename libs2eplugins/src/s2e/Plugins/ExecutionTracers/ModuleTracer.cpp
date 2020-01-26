@@ -87,5 +87,5 @@ void ModuleTracer::processUnloadListener(S2EExecutionState *state, uint64_t page
     item.set_return_code(returnCode);
     m_tracer->writeData(state, item, s2e_trace::TRACE_PROC_UNLOAD);
 }
-}
-}
+} // namespace plugins
+} // namespace s2e

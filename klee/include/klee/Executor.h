@@ -44,7 +44,7 @@ class Instruction;
 class TargetData;
 class Twine;
 class Value;
-}
+} // namespace llvm
 
 namespace klee {
 class Array;
@@ -285,6 +285,6 @@ public:
     }
 };
 
-} // End klee namespace
+} // namespace klee
 
 #endif

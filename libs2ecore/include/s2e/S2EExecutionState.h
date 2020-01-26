@@ -395,7 +395,7 @@ public:
     void enumPossibleRanges(klee::ref<klee::Expr> e, klee::ref<klee::Expr> start, klee::ref<klee::Expr> end,
                             std::vector<klee::Range> &ranges);
 };
-}
+} // namespace s2e
 
 extern "C" {
 extern s2e::S2EExecutionState *g_s2e_state;

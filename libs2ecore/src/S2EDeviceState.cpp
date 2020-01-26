@@ -26,7 +26,7 @@ llvm::cl::opt<bool> PersistentDiskWrites("s2e-persistent-disk-writes", llvm::cl:
 llvm::cl::opt<std::string> SharedDevices("s2e-shared-devices",
                                          llvm::cl::desc("Comma-separated list of devices to be shared between states."),
                                          llvm::cl::init(""));
-}
+} // namespace
 
 using namespace s2e;
 using namespace std;

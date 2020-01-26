@@ -52,6 +52,6 @@ public:
 private:
     InterpreterHandler *ih_;
 };
-}
+} // namespace klee
 
 #endif /* SOLVERFACTORY_H_ */

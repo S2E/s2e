@@ -88,6 +88,6 @@ public:
         return m_binary;
     }
 };
-}
+} // namespace s2etools
 
 #endif

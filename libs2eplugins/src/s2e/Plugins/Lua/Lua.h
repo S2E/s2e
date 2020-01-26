@@ -278,7 +278,7 @@ private:
 
 #define LUNAR_DECLARE_METHOD(Class, Name) \
     { #Name, &Class::Name }
-}
-}
+} // namespace plugins
+} // namespace s2e
 
 #endif

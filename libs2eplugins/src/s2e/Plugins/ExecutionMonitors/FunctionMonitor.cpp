@@ -92,7 +92,7 @@ public:
         m_signals.erase(pid);
     }
 };
-}
+} // namespace
 
 void FunctionMonitor::initialize() {
     m_monitor = static_cast<OSMonitor *>(s2e()->getPlugin("OSMonitor"));

@@ -619,4 +619,4 @@ void S2EExecutor::disableConcreteLLVMHelpers() {
         kmodule->removeFunction(f, true);
     }
 }
-}
+} // namespace s2e

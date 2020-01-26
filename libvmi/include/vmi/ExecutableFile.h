@@ -121,6 +121,6 @@ public:
         return m_file;
     }
 };
-}
+} // namespace vmi
 
 #endif

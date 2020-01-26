@@ -239,7 +239,7 @@ public:
     /// expressions.
     static Parser *Create(const std::string Name, const llvm::MemoryBuffer *MB, ExprBuilder *Builder);
 };
-}
-}
+} // namespace expr
+} // namespace klee
 
 #endif

@@ -68,7 +68,7 @@ cl::opt<unsigned> AssumptionResetThreshold("z3-assum-reset-thrs",
 
 cl::opt<bool> DebugSolverStack("z3-debug-solver-stack", cl::desc("Print debug messages when solver stack is modified"),
                                cl::init(false));
-}
+} // namespace
 
 namespace klee {
 
@@ -500,4 +500,4 @@ void Z3AssumptionSolverImpl::createBuilderCache() {
             break;
     }
 }
-}
+} // namespace klee

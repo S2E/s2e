@@ -83,7 +83,7 @@ bool maskToBits(uint64_t mask, unsigned &bits) {
 cl::opt<bool> DebugSimplifier("debug-expr-simplifier", cl::init(false));
 
 cl::opt<bool> PrintSimplifier("print-expr-simplifier", cl::init(false));
-}
+} // namespace
 
 ref<Expr> BitfieldSimplifier::replaceWithConstant(const ref<Expr> &e, __uint128_t value) {
     ConstantExpr *ce = dyn_cast<ConstantExpr>(e);

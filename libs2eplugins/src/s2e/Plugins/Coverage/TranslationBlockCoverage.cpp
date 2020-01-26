@@ -39,7 +39,7 @@ struct TBCoverageState : public PluginState {
         return new TBCoverageState(*this);
     }
 };
-}
+} // namespace
 
 void TranslationBlockCoverage::initialize() {
     m_detector = s2e()->getPlugin<ModuleExecutionDetector>();

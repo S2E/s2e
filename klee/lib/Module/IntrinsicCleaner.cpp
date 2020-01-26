@@ -464,4 +464,4 @@ bool IntrinsicFunctionCleanerPass::runOnBasicBlock(llvm::BasicBlock &b) {
 
     return dirty;
 }
-}
+} // namespace klee

@@ -547,4 +547,4 @@ void ObjectState::write64(unsigned offset, uint64_t value) {
         write8(offset + idx, (uint8_t)(value >> (8 * i)));
     }
 }
-}
+} // namespace klee

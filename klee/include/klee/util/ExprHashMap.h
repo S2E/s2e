@@ -28,7 +28,7 @@ struct ExprCmp {
         return a == b;
     }
 };
-}
+} // namespace util
 
 template <class T>
 class ExprHashMap :
@@ -36,6 +36,6 @@ class ExprHashMap :
     public std::unordered_map<ref<Expr>, T, klee::util::ExprHash, klee::util::ExprCmp> {};
 
 typedef std::unordered_set<ref<Expr>, klee::util::ExprHash, klee::util::ExprCmp> ExprHashSet;
-}
+} // namespace klee
 
 #endif

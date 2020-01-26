@@ -140,4 +140,4 @@ void ComputeSDivConstants32(int32_t d, int32_t &mprime, int32_t &dsign, int32_t 
     dsign = XSIGN(d);
     shpost = l - 1;
 }
-}
+} // namespace klee

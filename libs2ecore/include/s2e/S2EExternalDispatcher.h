@@ -33,6 +33,6 @@ public:
 
     virtual bool call(external_fcn_t targetFunction, const Arguments &args, uint64_t *result, std::stringstream &err);
 };
-}
+} // namespace s2e
 
 #endif

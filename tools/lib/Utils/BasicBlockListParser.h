@@ -51,6 +51,6 @@ public:
 
     static bool parseListing(std::string &listing, BasicBlocks &blocks);
 };
-}
+} // namespace s2etools
 
 #endif

@@ -111,5 +111,5 @@ bool EventTracer::registerConfigEntry(TracerConfigEntry *cfgEntry) {
     m_Modules[cfgEntry->moduleId] = cfgEntry;
     return true;
 }
-}
-}
+} // namespace plugins
+} // namespace s2e

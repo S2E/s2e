@@ -41,6 +41,6 @@ protected:
 
     void processUnloadListener(S2EExecutionState *state, uint64_t pageDir, uint64_t pid, uint64_t returnCode);
 };
-}
-}
+} // namespace plugins
+} // namespace s2e
 #endif

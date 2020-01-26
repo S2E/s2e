@@ -43,6 +43,6 @@ public:
         return "MemoryWrapperElimination";
     }
 };
-}
+} // namespace s2etools
 
 #endif

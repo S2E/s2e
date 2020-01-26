@@ -986,7 +986,7 @@ public:
 };
 
 typedef ConstantSpecializedExprBuilder<SimplifyingBuilder> SimplifyingExprBuilder;
-}
+} // namespace
 
 ExprBuilder *klee::createDefaultExprBuilder() {
     return new DefaultExprBuilder();

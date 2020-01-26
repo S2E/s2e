@@ -130,5 +130,5 @@ int LuaS2EExecutionState::debug(lua_State *L) {
 
     return 0;
 }
-}
-}
+} // namespace plugins
+} // namespace s2e

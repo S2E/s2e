@@ -30,6 +30,6 @@ public:
     virtual void *resolveSymbol(const std::string &name);
     virtual bool call(external_fcn_t targetFunction, const Arguments &args, uint64_t *result, std::stringstream &err);
 };
-}
+} // namespace klee
 
 #endif

@@ -70,6 +70,6 @@ public:
 
     bool audit();
 };
-}
+} // namespace s2e
 
 #endif

@@ -45,4 +45,4 @@ std::shared_ptr<ExecutableFile> ExecutableFile::get(std::shared_ptr<FileProvider
 
     return nullptr;
 }
-}
+} // namespace vmi

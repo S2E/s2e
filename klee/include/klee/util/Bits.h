@@ -68,7 +68,7 @@ inline unsigned indexOfSingleBit(unsigned x) {
 inline unsigned indexOfRightmostBit(unsigned x) {
     return indexOfSingleBit(isolateRightmostBit(x));
 }
-}
+} // namespace bits32
 
 namespace bits64 {
 // @pre(0 <= N <= 32)
@@ -110,7 +110,7 @@ inline unsigned indexOfSingleBit(uint64_t x) {
 inline uint64_t indexOfRightmostBit(uint64_t x) {
     return indexOfSingleBit(isolateRightmostBit(x));
 }
-}
-} // End klee namespace
+} // namespace bits64
+} // namespace klee
 
 #endif

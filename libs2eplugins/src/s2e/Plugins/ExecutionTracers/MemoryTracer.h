@@ -79,7 +79,7 @@ public:
 
     void enable(S2EExecutionState *state, TraceType type, bool v);
 };
-}
-}
+} // namespace plugins
+} // namespace s2e
 
 #endif

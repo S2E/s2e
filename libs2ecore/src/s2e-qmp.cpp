@@ -88,7 +88,7 @@ void S2EQMPClient::emitJson(QObject *obj) {
 bool S2EQMPClient::ready() const {
     return m_socket.is_open();
 }
-}
+} // namespace s2e
 
 static s2e::S2EQMPClient *s_client = nullptr;
 

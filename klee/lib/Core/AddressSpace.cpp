@@ -214,4 +214,4 @@ bool AddressSpace::splitMemoryObject(ExecutionState &state, const ObjectStateCon
 
     return true;
 }
-}
+} // namespace klee

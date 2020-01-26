@@ -51,6 +51,6 @@ private:
     PTreeNode(PTreeNode *_parent, ExecutionState *_data);
     ~PTreeNode();
 };
-}
+} // namespace klee
 
 #endif

@@ -95,12 +95,12 @@ cl::opt<bool> EmitAllErrors("emit-all-errors", cl::init(false),
                                      "(default=one per (error,instruction) pair)"));
 
 cl::opt<bool> NoExternals("no-externals", cl::desc("Do not allow external functin calls"));
-}
+} // namespace
 
 namespace klee {
 RNG theRNG;
 extern cl::opt<bool> UseExprSimplifier;
-}
+} // namespace klee
 
 Executor::Executor(InterpreterHandler *ih, LLVMContext &context)
     : kmodule(0), interpreterHandler(ih), searcher(0), externalDispatcher(new ExternalDispatcher()), statsTracker(0),

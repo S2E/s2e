@@ -483,5 +483,5 @@ inline boost::intrusive_ptr<functor_base<RET, BE1, BE2, BE3, BE4>>
 bind(const boost::intrusive_ptr<functor_base<RET, BE1, BE2, BE3, BE4, A1, A2, A3>> &f, B1 a1, B2 a2, B3 a3) {
     return functorn_3<RET, A1, A2, A3, BE1, BE2, BE3, BE4>::create(f, a1, a2, a3);
 }
-}
+} // namespace fsigc
 #endif

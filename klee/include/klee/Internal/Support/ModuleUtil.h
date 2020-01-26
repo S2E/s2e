@@ -16,7 +16,7 @@ namespace llvm {
 class Function;
 class Instruction;
 class Module;
-}
+} // namespace llvm
 
 namespace klee {
 
@@ -33,6 +33,6 @@ llvm::Function *getDirectCallTarget(const llvm::Instruction *);
 /// other than a direct call (or a constant expression that
 /// terminates in a direct call).
 bool functionEscapes(const llvm::Function *f);
-}
+} // namespace klee
 
 #endif

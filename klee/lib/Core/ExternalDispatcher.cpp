@@ -89,4 +89,4 @@ bool ExternalDispatcher::call(external_fcn_t targetFunction, const Arguments &ar
 
     return true;
 }
-}
+} // namespace klee

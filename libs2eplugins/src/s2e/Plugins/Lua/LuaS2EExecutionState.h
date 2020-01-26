@@ -47,7 +47,7 @@ public:
     int getPluginProperty(lua_State *L);
     int debug(lua_State *L);
 };
-}
-}
+} // namespace plugins
+} // namespace s2e
 
 #endif

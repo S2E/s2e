@@ -62,7 +62,7 @@ cl::opt<double> IStatsWriteInterval("istats-write-interval",
 // XXX I really would like to have dynamic rate control for something like this.
 cl::opt<bool> UseCallPaths("use-call-paths", cl::desc("Enable calltree tracking for instruction level statistics"),
                            cl::init(true));
-}
+} // namespace
 
 ///
 
@@ -98,7 +98,7 @@ public:
         statsTracker->writeStatsLine();
     }
 };
-}
+} // namespace klee
 
 StatsTracker::StatsTracker(Executor &_executor, std::string _objectFilename)
     : executor(_executor), objectFilename(_objectFilename), statsFile(0), istatsFile(0),

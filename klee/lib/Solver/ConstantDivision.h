@@ -42,6 +42,6 @@ void ComputeUDivConstants32(uint32_t d, uint32_t &mprime, uint32_t &sh1, uint32_
 /// @param [out] dsign
 /// @param [out] shpost
 void ComputeSDivConstants32(int32_t d, int32_t &mprime, int32_t &dsign, int32_t &shpost);
-}
+} // namespace klee
 
 #endif

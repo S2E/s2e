@@ -16,6 +16,6 @@ namespace klee {
 struct Cell {
     ref<Expr> value;
 };
-}
+} // namespace klee
 
 #endif

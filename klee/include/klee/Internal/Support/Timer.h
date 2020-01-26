@@ -23,6 +23,6 @@ public:
     /// check - Return the delta since the timer was created, in microseconds.
     uint64_t check();
 };
-}
+} // namespace klee
 
 #endif

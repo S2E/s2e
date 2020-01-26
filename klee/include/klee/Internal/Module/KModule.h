@@ -24,7 +24,7 @@ class Function;
 class Instruction;
 class Module;
 class DataLayout;
-}
+} // namespace llvm
 
 namespace klee {
 struct Cell;
@@ -123,6 +123,6 @@ public:
     /// Remove function from KModule and call removeFromParend on it
     void removeFunction(llvm::Function *f, bool keepDeclaration = false);
 };
-} // End klee namespace
+} // namespace klee
 
 #endif

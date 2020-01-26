@@ -31,4 +31,4 @@ struct Handler {
     FunctionHandler handler;
     std::function<llvm::FunctionType *(llvm::Module &)> getOrInsertFunction;
 };
-}
+} // namespace s2e

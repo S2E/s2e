@@ -152,5 +152,5 @@ void BlueScreenInterceptor::handleOpcodeInvocation(S2EExecutionState *state, uin
 
     s2e()->getExecutor()->terminateState(*state, ss.str());
 }
-}
-}
+} // namespace plugins
+} // namespace s2e

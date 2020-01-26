@@ -141,6 +141,6 @@ inline void intrusive_ptr_release(BitArray *ptr) {
     }
 }
 
-} // End klee namespace
+} // namespace klee
 
 #endif

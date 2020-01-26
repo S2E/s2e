@@ -93,7 +93,7 @@ cl::opt<bool> UseCache("use-cache", cl::init(true), cl::desc("Use validity cachi
 cl::opt<bool> UseIndependentSolver("use-independent-solver", cl::init(true), cl::desc("Use constraint independence"));
 
 cl::opt<bool> DebugValidateSolver("debug-validate-solver", cl::init(false));
-}
+} // namespace
 
 namespace klee {
 
@@ -165,4 +165,4 @@ Solver *DefaultSolverFactory::decorateSolver(Solver *end_solver) {
 
     return solver;
 }
-}
+} // namespace klee

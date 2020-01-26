@@ -53,7 +53,7 @@ cl::opt<std::string> DebugFunction("debug-function", cl::desc("Write a dot file 
 
 cl::opt<std::string> DebugOutputDir("debug-output", cl::desc("Path where to put debug files"), cl::init("/tmp"),
                                     cl::Optional);
-}
+} // namespace
 
 namespace llvm {
 

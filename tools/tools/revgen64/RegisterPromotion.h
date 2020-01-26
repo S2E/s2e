@@ -47,6 +47,6 @@ private:
     void findInstructions(llvm::Function &F, GEPs &geps, Calls &calls, Returns &rets);
     void createAllocas(llvm::Function &F, GEPs &geps, Calls &calls, Returns &rets);
 };
-}
+} // namespace s2etools
 
 #endif

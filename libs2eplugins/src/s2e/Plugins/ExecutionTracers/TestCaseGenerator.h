@@ -253,8 +253,8 @@ private:
     void handleAddConcreteFileChunk(S2EExecutionState *state, const S2E_TCGEN_CONCRETE_FILE_CHUNK &chunk);
     virtual void handleOpcodeInvocation(S2EExecutionState *state, uint64_t guestDataPtr, uint64_t guestDataSize);
 };
-}
-}
-}
+} // namespace testcases
+} // namespace plugins
+} // namespace s2e
 
 #endif

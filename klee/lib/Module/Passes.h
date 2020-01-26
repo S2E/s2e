@@ -22,7 +22,7 @@ class Instruction;
 class Module;
 class DataLayout;
 class Type;
-}
+} // namespace llvm
 
 namespace klee {
 
@@ -155,6 +155,6 @@ public:
         return instructionOperandsConform;
     }
 };
-}
+} // namespace klee
 
 #endif

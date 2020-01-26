@@ -15,6 +15,6 @@ class Executor;
 class Searcher;
 
 Searcher *constructUserSearcher(Executor &executor);
-}
+} // namespace klee
 
 #endif

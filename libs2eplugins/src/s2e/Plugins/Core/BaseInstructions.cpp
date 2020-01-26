@@ -80,7 +80,7 @@ public:
         return new BaseInstructionsState(*this);
     }
 };
-}
+} // namespace
 
 void BaseInstructions::initialize() {
     ConfigFile *cfg = s2e()->getConfig();
@@ -975,5 +975,5 @@ void BaseInstructions::handleOpcodeInvocation(S2EExecutionState *state, uint64_t
         } break;
     }
 }
-}
-}
+} // namespace plugins
+} // namespace s2e
