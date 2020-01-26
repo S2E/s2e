@@ -20,7 +20,6 @@
 # SOFTWARE.
 
 # add_subdirectory(analysis)
-add_subdirectory(hardening)
 add_subdirectory(revgen32)
 add_subdirectory(revgen64)
 add_subdirectory(scripts)
