@@ -1040,7 +1040,7 @@ void tcg_prologue_init(TCGContext *s) {
     total_size -= prologue_size;
     s->code_gen_buffer_size = total_size;
 
-// tcg_register_jit(s->code_gen_buffer, total_size);
+    // tcg_register_jit(s->code_gen_buffer, total_size);
 
 #ifdef DEBUG_DISAS
     if (qemu_loglevel_mask(CPU_LOG_TB_OUT_ASM)) {
@@ -1823,28 +1823,25 @@ static inline const char *tcg_find_helper(TCGContext *s, uintptr_t val) {
     return ret;
 }
 
-static const char *const cond_name[] = {[TCG_COND_NEVER] = "never", [TCG_COND_ALWAYS] = "always",
-                                        [TCG_COND_EQ] = "eq",       [TCG_COND_NE] = "ne",
-                                        [TCG_COND_LT] = "lt",       [TCG_COND_GE] = "ge",
-                                        [TCG_COND_LE] = "le",       [TCG_COND_GT] = "gt",
-                                        [TCG_COND_LTU] = "ltu",     [TCG_COND_GEU] = "geu",
-                                        [TCG_COND_LEU] = "leu",     [TCG_COND_GTU] = "gtu"};
+static const char *const cond_name[] = {
+    [TCG_COND_NEVER] = "never", [TCG_COND_ALWAYS] = "always", [TCG_COND_EQ] = "eq",   [TCG_COND_NE] = "ne",
+    [TCG_COND_LT] = "lt",       [TCG_COND_GE] = "ge",         [TCG_COND_LE] = "le",   [TCG_COND_GT] = "gt",
+    [TCG_COND_LTU] = "ltu",     [TCG_COND_GEU] = "geu",       [TCG_COND_LEU] = "leu", [TCG_COND_GTU] = "gtu"};
 
 static const char *const ldst_name[] = {
-        [MO_UB] = "ub",     [MO_SB] = "sb",     [MO_LEUW] = "leuw", [MO_LESW] = "lesw",
-        [MO_LEUL] = "leul", [MO_LESL] = "lesl", [MO_LEQ] = "leq",   [MO_BEUW] = "beuw",
-        [MO_BESW] = "besw", [MO_BEUL] = "beul", [MO_BESL] = "besl", [MO_BEQ] = "beq",
+    [MO_UB] = "ub",     [MO_SB] = "sb",     [MO_LEUW] = "leuw", [MO_LESW] = "lesw",
+    [MO_LEUL] = "leul", [MO_LESL] = "lesl", [MO_LEQ] = "leq",   [MO_BEUW] = "beuw",
+    [MO_BESW] = "besw", [MO_BEUL] = "beul", [MO_BESL] = "besl", [MO_BEQ] = "beq",
 };
 
 static const char *const alignment_name[(MO_AMASK >> MO_ASHIFT) + 1] = {
 #ifdef ALIGNED_ONLY
-        [MO_UNALN >> MO_ASHIFT] = "un+",      [MO_ALIGN >> MO_ASHIFT] = "",
+    [MO_UNALN >> MO_ASHIFT] = "un+",      [MO_ALIGN >> MO_ASHIFT] = "",
 #else
-        [MO_UNALN >> MO_ASHIFT] = "",         [MO_ALIGN >> MO_ASHIFT] = "al+",
+    [MO_UNALN >> MO_ASHIFT] = "",         [MO_ALIGN >> MO_ASHIFT] = "al+",
 #endif
-        [MO_ALIGN_2 >> MO_ASHIFT] = "al2+",   [MO_ALIGN_4 >> MO_ASHIFT] = "al4+",
-        [MO_ALIGN_8 >> MO_ASHIFT] = "al8+",   [MO_ALIGN_16 >> MO_ASHIFT] = "al16+",
-        [MO_ALIGN_32 >> MO_ASHIFT] = "al32+", [MO_ALIGN_64 >> MO_ASHIFT] = "al64+",
+    [MO_ALIGN_2 >> MO_ASHIFT] = "al2+",   [MO_ALIGN_4 >> MO_ASHIFT] = "al4+",   [MO_ALIGN_8 >> MO_ASHIFT] = "al8+",
+    [MO_ALIGN_16 >> MO_ASHIFT] = "al16+", [MO_ALIGN_32 >> MO_ASHIFT] = "al32+", [MO_ALIGN_64 >> MO_ASHIFT] = "al64+",
 };
 
 static inline bool tcg_regset_single(TCGRegSet d) {
@@ -2959,7 +2956,7 @@ static void temp_sync(TCGContext *s, TCGTemp *ts, TCGRegSet allocated_regs, TCGR
                     break;
                 }
                 temp_load(s, ts, tcg_target_available_regs[ts->type], allocated_regs, preferred_regs);
-            /* fallthrough */
+                /* fallthrough */
 
             case TEMP_VAL_REG:
                 tcg_out_st(s, ts->type, ts->reg, ts->mem_base->reg, ts->mem_offset);

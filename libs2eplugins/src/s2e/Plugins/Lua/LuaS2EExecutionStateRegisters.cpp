@@ -109,8 +109,8 @@ int LuaS2EExecutionStateRegisters::write(lua_State *L) {
                 m_state->regs()->write<uint64_t>(pointer, value);
                 break;
             default:
-                g_s2e->getDebugStream(m_state) << "LuaS2EExecutionStateRegisters::write: Incorrect size " << size
-                                               << "\n";
+                g_s2e->getDebugStream(m_state)
+                    << "LuaS2EExecutionStateRegisters::write: Incorrect size " << size << "\n";
                 break;
         }
     }

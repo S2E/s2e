@@ -121,7 +121,7 @@ void cpu_state_reset(CPUX86State *env) {
 
     env->old_exception = -1;
 
-/* init to reset state */
+    /* init to reset state */
 
 #ifdef CONFIG_SOFTMMU
     env->hflags |= HF_SOFTMMU_MASK;
@@ -287,11 +287,12 @@ void cpu_dump_state(CPUX86State *env, FILE *f, fprintf_function cpu_fprintf, int
     if (flags & X86_DUMP_GPREGS) {
 #ifdef TARGET_X86_64
         if (env->hflags & HF_CS64_MASK) {
-            cpu_fprintf(f, "RAX=%016" PRIx64 " RBX=%016" PRIx64 " RCX=%016" PRIx64 " RDX=%016" PRIx64 "\n"
-                           "RSI=%016" PRIx64 " RDI=%016" PRIx64 " RBP=%016" PRIx64 " RSP=%016" PRIx64 "\n"
-                           "R8 =%016" PRIx64 " R9 =%016" PRIx64 " R10=%016" PRIx64 " R11=%016" PRIx64 "\n"
-                           "R12=%016" PRIx64 " R13=%016" PRIx64 " R14=%016" PRIx64 " R15=%016" PRIx64 "\n"
-                           "RIP=%016" PRIx64 " RFL=%08x [%c%c%c%c%c%c%c] CPL=%d II=%d A20=%d SMM=%d HLT=%d\n",
+            cpu_fprintf(f,
+                        "RAX=%016" PRIx64 " RBX=%016" PRIx64 " RCX=%016" PRIx64 " RDX=%016" PRIx64 "\n"
+                        "RSI=%016" PRIx64 " RDI=%016" PRIx64 " RBP=%016" PRIx64 " RSP=%016" PRIx64 "\n"
+                        "R8 =%016" PRIx64 " R9 =%016" PRIx64 " R10=%016" PRIx64 " R11=%016" PRIx64 "\n"
+                        "R12=%016" PRIx64 " R13=%016" PRIx64 " R14=%016" PRIx64 " R15=%016" PRIx64 "\n"
+                        "RIP=%016" PRIx64 " RFL=%08x [%c%c%c%c%c%c%c] CPL=%d II=%d A20=%d SMM=%d HLT=%d\n",
                         RR_cpu(env, regs[R_EAX]), RR_cpu(env, regs[R_EBX]), RR_cpu(env, regs[R_ECX]),
                         RR_cpu(env, regs[R_EDX]), RR_cpu(env, regs[R_ESI]), RR_cpu(env, regs[R_EDI]),
                         RR_cpu(env, regs[R_EBP]), RR_cpu(env, regs[R_ESP]), RR_cpu(env, regs[8]), RR_cpu(env, regs[9]),
@@ -304,9 +305,10 @@ void cpu_dump_state(CPUX86State *env, FILE *f, fprintf_function cpu_fprintf, int
         } else
 #endif
         {
-            cpu_fprintf(f, "EAX=%08x EBX=%08x ECX=%08x EDX=%08x\n"
-                           "ESI=%08x EDI=%08x EBP=%08x ESP=%08x\n"
-                           "EIP=%08x EFL=%08x [%c%c%c%c%c%c%c] CPL=%d II=%d A20=%d SMM=%d HLT=%d\n",
+            cpu_fprintf(f,
+                        "EAX=%08x EBX=%08x ECX=%08x EDX=%08x\n"
+                        "ESI=%08x EDI=%08x EBP=%08x ESP=%08x\n"
+                        "EIP=%08x EFL=%08x [%c%c%c%c%c%c%c] CPL=%d II=%d A20=%d SMM=%d HLT=%d\n",
                         (uint32_t) RR_cpu(env, regs[R_EAX]), (uint32_t) RR_cpu(env, regs[R_EBX]),
                         (uint32_t) RR_cpu(env, regs[R_ECX]), (uint32_t) RR_cpu(env, regs[R_EDX]),
                         (uint32_t) RR_cpu(env, regs[R_ESI]), (uint32_t) RR_cpu(env, regs[R_EDI]),

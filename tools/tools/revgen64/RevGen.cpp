@@ -724,7 +724,9 @@ Function *RevGen::reconstructFunction(BinaryFunction *bf) {
             } break;
 
             case BB_COND_JMP_IND:
-            default: { assert(false && "Unsupported block type"); }
+            default: {
+                assert(false && "Unsupported block type");
+            }
         }
     }
 

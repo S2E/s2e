@@ -71,8 +71,8 @@ extern "C" {
 #define SE_ENABLE_RETRANSLATION
 
 /** When enabled, the program counter is explicitely updated
-  * between each guest instruction and compared to the
-  * program counter recovered by cpu_restore_state. */
+ * between each guest instruction and compared to the
+ * program counter recovered by cpu_restore_state. */
 //#define ENABLE_PRECISE_EXCEPTION_DEBUGGING
 //#define ENABLE_PRECISE_EXCEPTION_DEBUGGING_COMPARE
 

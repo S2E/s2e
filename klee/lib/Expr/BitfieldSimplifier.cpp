@@ -137,7 +137,7 @@ BitfieldSimplifier::ExprBitsInfo BitfieldSimplifier::doSimplifyBits(const ref<Ex
     /* Apply kind-specific knowledge to obtain knownBits for e and
        ignoredBits for kids of e, then to optimize e */
     switch (e->getKind()) {
-        // TODO: Concat, Read, AShr
+            // TODO: Concat, Read, AShr
 
         case Expr::And:
             rbits.knownOneBits = bits[0].knownOneBits & bits[1].knownOneBits;

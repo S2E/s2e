@@ -1023,8 +1023,8 @@ inline bool S2EExecutor::executeInstructions(S2EExecutionState *state, unsigned 
             KInstruction *ki = state->pc;
 
             if (PrintLLVMInstructions) {
-                m_s2e->getDebugStream(state) << "executing " << ki->inst->getParent()->getParent()->getName().str()
-                                             << ": " << *ki->inst << '\n';
+                m_s2e->getDebugStream(state)
+                    << "executing " << ki->inst->getParent()->getParent()->getName().str() << ": " << *ki->inst << '\n';
             }
 
             state->stepInstruction();

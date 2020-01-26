@@ -348,7 +348,9 @@ void KeyValueStore::handleOpcodeInvocation(S2EExecutionState *state, uint64_t gu
             command.Success = 1;
         } break;
 
-        default: { getWarningsStream(state) << "KeyValueStore: unknown command " << command.Command << "\n"; } break;
+        default: {
+            getWarningsStream(state) << "KeyValueStore: unknown command " << command.Command << "\n";
+        } break;
     }
 
     if (!state->mem()->write(guestDataPtr, &command, guestDataSize)) {

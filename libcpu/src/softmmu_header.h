@@ -172,8 +172,8 @@ static SMHINLINE RES_TYPE glue(glue(glue(CPU_PREFIX, ld), USUFFIX), MEMSUFFIX)(C
     if (unlikely(tlb_addr != (addr & (TARGET_PAGE_MASK | (DATA_SIZE - 1))))) {
         res = glue(glue(glue(HELPER_PREFIX, ld), SUFFIX), MMUSUFFIX)(env, addr, mmu_idx, NULL);
     } else {
-// When we get here, the address is aligned with the size of the access,
-// which by definition means that it will fall inside the small page, without overflowing.
+        // When we get here, the address is aligned with the size of the access,
+        // which by definition means that it will fall inside the small page, without overflowing.
 
 #if defined(CONFIG_SYMBEX) && !defined(SYMBEX_LLVM_LIB) && defined(CONFIG_SYMBEX_MP)
         physaddr = addr + tlb_entry->se_addend;

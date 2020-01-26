@@ -90,8 +90,9 @@ cl::opt<bool> SimplifySymIndices("simplify-sym-indices", cl::init(true));
 
 cl::opt<bool> SuppressExternalWarnings("suppress-external-warnings", cl::init(true));
 
-cl::opt<bool> EmitAllErrors("emit-all-errors", cl::init(false), cl::desc("Generate tests cases for all errors "
-                                                                         "(default=one per (error,instruction) pair)"));
+cl::opt<bool> EmitAllErrors("emit-all-errors", cl::init(false),
+                            cl::desc("Generate tests cases for all errors "
+                                     "(default=one per (error,instruction) pair)"));
 
 cl::opt<bool> NoExternals("no-externals", cl::desc("Do not allow external functin calls"));
 }
@@ -906,7 +907,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
             terminateState(state, "unexpected VAArg instruction");
             break;
 
-        // Arithmetic / logical
+            // Arithmetic / logical
 
         case Instruction::Add: {
             ref<Expr> left = eval(ki, 0, state).value;
@@ -1009,7 +1010,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
             break;
         }
 
-        // Compare
+            // Compare
 
         case Instruction::ICmp: {
             CmpInst *ci = cast<CmpInst>(i);
@@ -1194,7 +1195,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
             break;
         }
 
-        // Floating point instructions
+            // Floating point instructions
 
         case Instruction::FAdd: {
             ref<ConstantExpr> left = state.toConstant(eval(ki, 0, state).value, "floating point");

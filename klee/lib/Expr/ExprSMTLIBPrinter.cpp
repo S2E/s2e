@@ -16,8 +16,9 @@
 namespace ExprSMTLIBOptions {
 // Command line options
 llvm::cl::opt<klee::ExprSMTLIBPrinter::ConstantDisplayMode> argConstantDisplayMode(
-    "smtlib-display-constants", llvm::cl::desc("Sets how bitvector constants are written in generated "
-                                               "SMT-LIBv2 files (default=dec)"),
+    "smtlib-display-constants",
+    llvm::cl::desc("Sets how bitvector constants are written in generated "
+                   "SMT-LIBv2 files (default=dec)"),
     llvm::cl::values(clEnumValN(klee::ExprSMTLIBPrinter::BINARY, "bin", "Use binary form (e.g. #b00101101)"),
                      clEnumValN(klee::ExprSMTLIBPrinter::HEX, "hex", "Use Hexadecimal form (e.g. #x2D)"),
                      clEnumValN(klee::ExprSMTLIBPrinter::DECIMAL, "dec", "Use decimal form (e.g. (_ bv45 8) )")),
@@ -412,15 +413,15 @@ const char *ExprSMTLIBPrinter::getSMTLIBKeyword(const ref<Expr> &e) {
         case Expr::SRem:
             return "bvsrem";
 
-        /* And, Xor, Not and Or are not handled here because there different versions
-         * for different sorts. See printLogicalOrBitVectorExpr()
-         */
+            /* And, Xor, Not and Or are not handled here because there different versions
+             * for different sorts. See printLogicalOrBitVectorExpr()
+             */
 
         case Expr::Shl:
             return "bvshl";
         case Expr::LShr:
             return "bvlshr";
-        // AShr is not supported here. See printAShrExpr()
+            // AShr is not supported here. See printAShrExpr()
 
         case Expr::Eq:
             return "=";
@@ -543,10 +544,12 @@ void ExprSMTLIBPrinter::printArrayDeclarations() {
     ArrayVec sortedArrays(usedArrays.begin(), usedArrays.end());
     std::sort(sortedArrays.begin(), sortedArrays.end(), ArrayPtrsByName());
     for (auto it : sortedArrays) {
-        *o << "(declare-fun " << it->getName() << " () "
-                                                  "(Array (_ BitVec "
-           << it->getDomain() << ") "
-                                 "(_ BitVec "
+        *o << "(declare-fun " << it->getName()
+           << " () "
+              "(Array (_ BitVec "
+           << it->getDomain()
+           << ") "
+              "(_ BitVec "
            << it->getRange() << ") ) )"
            << "\n";
     }

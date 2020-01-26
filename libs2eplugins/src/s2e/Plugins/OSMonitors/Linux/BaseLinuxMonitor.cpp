@@ -16,10 +16,10 @@ namespace plugins {
 bool BaseLinuxMonitor::verifyLinuxCommand(S2EExecutionState *state, uint64_t guestDataPtr, uint64_t guestDataSize,
                                           uint8_t *cmd) {
     // Validate the size of the instruction
-    s2e_assert(state, guestDataSize == m_commandSize, "Invalid command size "
-                                                          << guestDataSize << " != " << m_commandSize
-                                                          << " from pagedir=" << hexval(state->regs()->getPageDir())
-                                                          << " pc=" << hexval(state->regs()->getPc()));
+    s2e_assert(state, guestDataSize == m_commandSize,
+               "Invalid command size " << guestDataSize << " != " << m_commandSize
+                                       << " from pagedir=" << hexval(state->regs()->getPageDir())
+                                       << " pc=" << hexval(state->regs()->getPc()));
 
     // Read any symbolic bytes
     std::ostringstream symbolicBytes;
@@ -52,9 +52,10 @@ bool BaseLinuxMonitor::verifyLinuxCommand(S2EExecutionState *state, uint64_t gue
 
         getWarningsStream(state) << "Command bytes: " << os.str() << "\n";
 
-        s2e_assert(state, false, "Invalid command version " << hexval(version) << " != " << hexval(m_commandVersion)
-                                                            << " from pagedir=" << hexval(state->regs()->getPageDir())
-                                                            << " pc=" << hexval(state->regs()->getPc()));
+        s2e_assert(state, false,
+                   "Invalid command version " << hexval(version) << " != " << hexval(m_commandVersion)
+                                              << " from pagedir=" << hexval(state->regs()->getPageDir())
+                                              << " pc=" << hexval(state->regs()->getPc()));
     }
 
     return true;

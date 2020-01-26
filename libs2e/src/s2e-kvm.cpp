@@ -183,8 +183,9 @@ std::string S2EKVM::getBitcodeLibrary(const std::string &dir) {
     ss << dir << "/" << name;
     auto ret = ss.str();
     if (access(ret.c_str(), R_OK)) {
-        fprintf(stderr, "Could not find %s.\n"
-                        "Make sure that the environment variable S2E_SHARED_DIR is set properly.\n",
+        fprintf(stderr,
+                "Could not find %s.\n"
+                "Make sure that the environment variable S2E_SHARED_DIR is set properly.\n",
                 ret.c_str());
         exit(-1);
     }
@@ -206,8 +207,9 @@ void S2EKVM::init(void) {
 #ifdef CONFIG_SYMBEX
     const char *shared_dir = getenv("S2E_SHARED_DIR");
     if (!shared_dir) {
-        fprintf(stderr, "Warning: S2E_SHARED_DIR environment variable was not specified, "
-                        "using %s\n",
+        fprintf(stderr,
+                "Warning: S2E_SHARED_DIR environment variable was not specified, "
+                "using %s\n",
                 CONFIG_LIBCPU_DATADIR);
         shared_dir = CONFIG_LIBCPU_DATADIR;
     }

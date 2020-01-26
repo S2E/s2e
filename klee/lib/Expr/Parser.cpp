@@ -508,7 +508,7 @@ DeclResult ParserImpl::ParseArrayDecl() {
         Values.clear();
     }
 
-// FIXME: Validate that this array is undeclared.
+    // FIXME: Validate that this array is undeclared.
 
 exit:
     if (!Size.isValid())

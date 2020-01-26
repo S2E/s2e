@@ -279,7 +279,7 @@ static uintptr_t fetch_and_run_tb(TranslationBlock *prev_tb, int tb_exit_code, C
     assert(env->eip == env->precise_eip);
 #endif
 
-/* execute the generated code */
+    /* execute the generated code */
 
 #ifdef TRACE_EXEC
     dump_regs(env, 1);

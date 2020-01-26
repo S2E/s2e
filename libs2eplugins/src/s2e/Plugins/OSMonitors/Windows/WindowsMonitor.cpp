@@ -1001,7 +1001,9 @@ void WindowsMonitor::handleOpcodeInvocation(S2EExecutionState *state, uint64_t g
 
         } break;
 
-        default: { getWarningsStream(state) << "unknown command\n"; } break;
+        default: {
+            getWarningsStream(state) << "unknown command\n";
+        } break;
     }
 }
 

@@ -446,13 +446,13 @@ void glue(glue(io_write_chk, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_phys_
 
 #else
 /**
-  * Only if compiling for LLVM.
-  * This function checks whether a write goes to a clean memory page.
-  * If yes, does the write directly.
-  * This avoids symbolic values flowing outside the LLVM code and killing the states.
-  *
-  * It also deals with writes to memory-mapped devices that are symbolic
-  */
+ * Only if compiling for LLVM.
+ * This function checks whether a write goes to a clean memory page.
+ * If yes, does the write directly.
+ * This avoids symbolic values flowing outside the LLVM code and killing the states.
+ *
+ * It also deals with writes to memory-mapped devices that are symbolic
+ */
 void glue(glue(io_write_chk, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_phys_addr_t physaddr, DATA_TYPE val,
                                                  target_ulong addr, void *retaddr) {
     target_phys_addr_t origaddr = physaddr;
@@ -609,7 +609,7 @@ redo:
 #endif
             }
         } else {
-/* aligned/unaligned access in the same page */
+            /* aligned/unaligned access in the same page */
 
 #if defined(CONFIG_SYMBEX) && !defined(SYMBEX_LLVM_LIB) && defined(CONFIG_SYMBEX_MP)
             glue(glue(st, SUFFIX), _p)((uint8_t *) (addr + tlb_entry->se_addend), val);

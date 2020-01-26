@@ -312,7 +312,9 @@ void ModuleMap::handleOpcodeInvocation(S2EExecutionState *state, uint64_t guestD
             }
         } break;
 
-        default: { getWarningsStream(state) << "unknown command\n"; } break;
+        default: {
+            getWarningsStream(state) << "unknown command\n";
+        } break;
     }
 }
 

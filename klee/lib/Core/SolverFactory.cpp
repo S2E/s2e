@@ -70,16 +70,19 @@ enum QueryLoggingSolverType {
     SOLVER_SMTLIB, ///< Log queries passed to solver (optimised) in .smt2 (SMT-LIBv2) format
 };
 
-cl::bits<QueryLoggingSolverType> queryLoggingOptions(
-    "use-query-log", cl::desc("Log queries to a file. Multiple options can be "
-                              "separated by a comma. By default nothing is logged."),
-    cl::values(clEnumValN(ALL_KQUERY, "all:kquery", "All queries in .kquery (KQuery) format"),
-               clEnumValN(ALL_SMTLIB, "all:smt2", "All queries in .smt2 (SMT-LIBv2) format"),
-               clEnumValN(SOLVER_KQUERY, "solver:kquery", "All queries reaching the solver in .kqery "
-                                                          "(KQuery) format"),
-               clEnumValN(SOLVER_SMTLIB, "solver:smt2", "All queries reaching the solver in .smt2 "
-                                                        "(SMT-LIBv2) format")),
-    cl::CommaSeparated);
+cl::bits<QueryLoggingSolverType>
+    queryLoggingOptions("use-query-log",
+                        cl::desc("Log queries to a file. Multiple options can be "
+                                 "separated by a comma. By default nothing is logged."),
+                        cl::values(clEnumValN(ALL_KQUERY, "all:kquery", "All queries in .kquery (KQuery) format"),
+                                   clEnumValN(ALL_SMTLIB, "all:smt2", "All queries in .smt2 (SMT-LIBv2) format"),
+                                   clEnumValN(SOLVER_KQUERY, "solver:kquery",
+                                              "All queries reaching the solver in .kqery "
+                                              "(KQuery) format"),
+                                   clEnumValN(SOLVER_SMTLIB, "solver:smt2",
+                                              "All queries reaching the solver in .smt2 "
+                                              "(SMT-LIBv2) format")),
+                        cl::CommaSeparated);
 
 cl::opt<bool> UseEndQueryPCLog("use-end-query-pc-log", cl::init(false));
 

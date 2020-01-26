@@ -20,8 +20,9 @@
 namespace s2e {
 namespace plugins {
 
-S2E_DEFINE_PLUGIN(ModuleTracer, "Module load/unload tracer plugin", "ModuleTracer"
-                                                                    "ExecutionTracer",
+S2E_DEFINE_PLUGIN(ModuleTracer, "Module load/unload tracer plugin",
+                  "ModuleTracer"
+                  "ExecutionTracer",
                   "OSMonitor");
 
 ModuleTracer::ModuleTracer(S2E *s2e) : EventTracer(s2e) {

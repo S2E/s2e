@@ -462,8 +462,8 @@ ImmutableTree<K, V, KOV, CMP, NODE_CACHE_SIZE>::~ImmutableTree() {
 }
 
 template <class K, class V, class KOV, class CMP, unsigned int NODE_CACHE_SIZE>
-ImmutableTree<K, V, KOV, CMP, NODE_CACHE_SIZE> &ImmutableTree<K, V, KOV, CMP, NODE_CACHE_SIZE>::
-operator=(const ImmutableTree &s) {
+ImmutableTree<K, V, KOV, CMP, NODE_CACHE_SIZE> &
+ImmutableTree<K, V, KOV, CMP, NODE_CACHE_SIZE>::operator=(const ImmutableTree &s) {
     auto n = s.node;
     node = n;
     return *this;

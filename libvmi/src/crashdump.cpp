@@ -102,7 +102,8 @@ template <typename T> static void dumpHeader(const T &Header) {
               << "DumpType:           0x" << std::hex << Header.DumpType << "\n"
               << "RequiredDumpSpace:  0x" << std::hex << Header.RequiredDumpSpace << "\n"
               << "SystemTime:         0x" << std::hex << Header.SystemTime << "\n"
-              << "SystemUpTime:       0x" << std::hex << Header.SystemUpTime << "\n"
+              << "SystemUpTime:       0x" << std::hex << Header.SystemUpTime
+              << "\n"
               //<< "MiniDumpFields:          0x" << std::hex <<
               // Header.MiniDumpFields << "\n"
               << "SecondaryDataState: 0x" << std::hex << Header.SecondaryDataState << "\n"

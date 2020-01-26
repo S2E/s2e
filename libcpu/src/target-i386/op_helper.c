@@ -1330,9 +1330,9 @@ void helper_syscall(int next_eip_addend) {
         code64 = env->hflags & HF_CS64_MASK;
 
         cpu_x86_set_cpl(env, 0);
-        cpu_x86_load_seg_cache(env, R_CS, selector & 0xfffc, 0, 0xffffffff, DESC_G_MASK | DESC_P_MASK | DESC_S_MASK |
-                                                                                DESC_CS_MASK | DESC_R_MASK |
-                                                                                DESC_A_MASK | DESC_L_MASK);
+        cpu_x86_load_seg_cache(env, R_CS, selector & 0xfffc, 0, 0xffffffff,
+                               DESC_G_MASK | DESC_P_MASK | DESC_S_MASK | DESC_CS_MASK | DESC_R_MASK | DESC_A_MASK |
+                                   DESC_L_MASK);
         cpu_x86_load_seg_cache(env, R_SS, (selector + 8) & 0xfffc, 0, 0xffffffff,
                                DESC_G_MASK | DESC_B_MASK | DESC_P_MASK | DESC_S_MASK | DESC_W_MASK | DESC_A_MASK);
         CC_SRC_W(helper_cc_compute_all(CC_OP) & ~env->fmask);
@@ -1351,9 +1351,9 @@ void helper_syscall(int next_eip_addend) {
         ECX_W((uint32_t)(env->eip + next_eip_addend));
 
         cpu_x86_set_cpl(env, 0);
-        cpu_x86_load_seg_cache(env, R_CS, selector & 0xfffc, 0, 0xffffffff, DESC_G_MASK | DESC_B_MASK | DESC_P_MASK |
-                                                                                DESC_S_MASK | DESC_CS_MASK |
-                                                                                DESC_R_MASK | DESC_A_MASK);
+        cpu_x86_load_seg_cache(env, R_CS, selector & 0xfffc, 0, 0xffffffff,
+                               DESC_G_MASK | DESC_B_MASK | DESC_P_MASK | DESC_S_MASK | DESC_CS_MASK | DESC_R_MASK |
+                                   DESC_A_MASK);
         cpu_x86_load_seg_cache(env, R_SS, (selector + 8) & 0xfffc, 0, 0xffffffff,
                                DESC_G_MASK | DESC_B_MASK | DESC_P_MASK | DESC_S_MASK | DESC_W_MASK | DESC_A_MASK);
         env->mflags &= ~(IF_MASK | RF_MASK | VM_MASK);
@@ -1399,21 +1399,21 @@ void helper_sysret(int dflag) {
             WR_se_eip(env, (uint32_t) ECX);
             env->eip = (uint32_t) ECX;
         }
-        cpu_x86_load_seg_cache(env, R_SS, selector + 8, 0, 0xffffffff, DESC_G_MASK | DESC_B_MASK | DESC_P_MASK |
-                                                                           DESC_S_MASK | (3 << DESC_DPL_SHIFT) |
-                                                                           DESC_W_MASK | DESC_A_MASK);
+        cpu_x86_load_seg_cache(env, R_SS, selector + 8, 0, 0xffffffff,
+                               DESC_G_MASK | DESC_B_MASK | DESC_P_MASK | DESC_S_MASK | (3 << DESC_DPL_SHIFT) |
+                                   DESC_W_MASK | DESC_A_MASK);
         load_eflags((uint32_t)(RR_cpu(env, regs[11])),
                     TF_MASK | AC_MASK | ID_MASK | IF_MASK | IOPL_MASK | VM_MASK | RF_MASK | NT_MASK);
         cpu_x86_set_cpl(env, 3);
     } else {
-        cpu_x86_load_seg_cache(env, R_CS, selector | 3, 0, 0xffffffff, DESC_G_MASK | DESC_B_MASK | DESC_P_MASK |
-                                                                           DESC_S_MASK | (3 << DESC_DPL_SHIFT) |
-                                                                           DESC_CS_MASK | DESC_R_MASK | DESC_A_MASK);
+        cpu_x86_load_seg_cache(env, R_CS, selector | 3, 0, 0xffffffff,
+                               DESC_G_MASK | DESC_B_MASK | DESC_P_MASK | DESC_S_MASK | (3 << DESC_DPL_SHIFT) |
+                                   DESC_CS_MASK | DESC_R_MASK | DESC_A_MASK);
         WR_se_eip(env, (uint32_t) ECX);
         env->eip = (uint32_t) ECX;
-        cpu_x86_load_seg_cache(env, R_SS, selector + 8, 0, 0xffffffff, DESC_G_MASK | DESC_B_MASK | DESC_P_MASK |
-                                                                           DESC_S_MASK | (3 << DESC_DPL_SHIFT) |
-                                                                           DESC_W_MASK | DESC_A_MASK);
+        cpu_x86_load_seg_cache(env, R_SS, selector + 8, 0, 0xffffffff,
+                               DESC_G_MASK | DESC_B_MASK | DESC_P_MASK | DESC_S_MASK | (3 << DESC_DPL_SHIFT) |
+                                   DESC_W_MASK | DESC_A_MASK);
         env->mflags |= IF_MASK;
         cpu_x86_set_cpl(env, 3);
     }
@@ -1771,7 +1771,7 @@ void do_smm_enter(CPUX86State *env1) {
     stl_phys(sm_state + 0x7efc, SMM_REVISION_ID);
     stl_phys(sm_state + 0x7ef8, env->smbase);
 #endif
-/* init SMM cpu state */
+    /* init SMM cpu state */
 
 #ifdef TARGET_X86_64
     cpu_load_efer(env, 0);
@@ -2386,7 +2386,7 @@ void helper_load_seg(int seg_reg, int selector) {
 #ifdef TARGET_X86_64
             && (!(env->hflags & HF_CS64_MASK) || cpl == 3)
 #endif
-                )
+        )
             raise_exception_err_ra(env, EXCP0D_GPF, 0, GETPC());
         cpu_x86_load_seg_cache(env, seg_reg, selector, 0, 0, 0);
     } else {
@@ -2925,9 +2925,9 @@ static inline void helper_ret_protected(CPUX86State *env, int shift, int is_iret
             /* NULL ss is allowed in long mode if cpl != 3*/
             /* XXX: test CS64 ? */
             if ((env->hflags & HF_LMA_MASK) && rpl != 3) {
-                cpu_x86_load_seg_cache(env, R_SS, new_ss, 0, 0xffffffff, DESC_G_MASK | DESC_B_MASK | DESC_P_MASK |
-                                                                             DESC_S_MASK | (rpl << DESC_DPL_SHIFT) |
-                                                                             DESC_W_MASK | DESC_A_MASK);
+                cpu_x86_load_seg_cache(env, R_SS, new_ss, 0, 0xffffffff,
+                                       DESC_G_MASK | DESC_B_MASK | DESC_P_MASK | DESC_S_MASK | (rpl << DESC_DPL_SHIFT) |
+                                           DESC_W_MASK | DESC_A_MASK);
                 ss_e2 = DESC_B_MASK; /* XXX: should not be needed ? */
             } else
 #endif

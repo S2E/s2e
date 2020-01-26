@@ -45,8 +45,8 @@ llvm::cl::opt<bool> UseConstructHash("z3-use-hash-consing",
                                      llvm::cl::init(true));
 }
 
-using boost::shared_ptr;
 using boost::make_shared;
+using boost::shared_ptr;
 
 namespace klee {
 
@@ -125,7 +125,7 @@ z3::expr Z3Builder::makeExpr(ref<Expr> e) {
             }
         }
 
-        // Casting
+            // Casting
 
         case Expr::ZExt: {
             CastExpr *ce = cast<CastExpr>(e);
@@ -152,7 +152,7 @@ z3::expr Z3Builder::makeExpr(ref<Expr> e) {
             }
         }
 
-        // Arithmetic
+            // Arithmetic
 
         case Expr::Add: {
             AddExpr *ae = cast<AddExpr>(e);
@@ -199,7 +199,7 @@ z3::expr Z3Builder::makeExpr(ref<Expr> e) {
                                Z3_mk_bvsrem(context_, getOrMakeExpr(de->getLeft()), getOrMakeExpr(de->getRight())));
         }
 
-        // Bitwise
+            // Bitwise
 
         case Expr::Not: {
             NotExpr *ne = cast<NotExpr>(e);
@@ -269,7 +269,7 @@ z3::expr Z3Builder::makeExpr(ref<Expr> e) {
                                Z3_mk_bvashr(context_, getOrMakeExpr(ase->getLeft()), getOrMakeExpr(ase->getRight())));
         }
 
-        // Comparison
+            // Comparison
 
         case Expr::Eq: {
             EqExpr *ee = cast<EqExpr>(e);

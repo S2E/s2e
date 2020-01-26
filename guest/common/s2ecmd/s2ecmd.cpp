@@ -282,8 +282,9 @@ static cmd_t s_commands[] = {
     COMMAND(yield, 0, "Yield the current state"),
     COMMAND(symbwrite, 1, "Write n symbolic bytes to stdout"),
     COMMAND(symbwrite_dec, 1, "Write n symbolic decimal digits to stdout"),
-    COMMAND2(symbfile, 1, 2, "Makes the specified file symbolic. The file should be stored in a ramdisk. File name may "
-                             "be preceded by block size."),
+    COMMAND2(symbfile, 1, 2,
+             "Makes the specified file symbolic. The file should be stored in a ramdisk. File name may "
+             "be preceded by block size."),
     COMMAND(exemplify, 0, "Read from stdin and write an example to stdout"),
     COMMAND(launch, 2,
             "Launch the specified program or script, then kill the state with the specified message when done."),

@@ -101,7 +101,9 @@ enum { float_relation_less = -1, float_relation_equal = 0, float_relation_greate
    x86/gcc 3.x seems to struggle a bit, so leave them disabled by default.  */
 //#define USE_SOFTFLOAT_STRUCT_TYPES
 #ifdef USE_SOFTFLOAT_STRUCT_TYPES
-typedef struct { uint16_t v; } float16;
+typedef struct {
+    uint16_t v;
+} float16;
 #define float16_val(x) (((float16)(x)).v)
 #define make_float16(x)        \
     __extension__({            \
@@ -110,7 +112,9 @@ typedef struct { uint16_t v; } float16;
     })
 #define const_float16(x) \
     { x }
-typedef struct { uint32_t v; } float32;
+typedef struct {
+    uint32_t v;
+} float32;
 /* The cast ensures an error if the wrong type is passed.  */
 #define float32_val(x) (((float32)(x)).v)
 #define make_float32(x)        \
@@ -120,7 +124,9 @@ typedef struct { uint32_t v; } float32;
     })
 #define const_float32(x) \
     { x }
-typedef struct { uint64_t v; } float64;
+typedef struct {
+    uint64_t v;
+} float64;
 #define float64_val(x) (((float64)(x)).v)
 #define make_float64(x)        \
     __extension__({            \

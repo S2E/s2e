@@ -48,9 +48,9 @@
 
 namespace klee {
 
+using boost::enable_shared_from_this;
 using boost::shared_ptr;
 using boost::weak_ptr;
-using boost::enable_shared_from_this;
 
 class ConditionNode;
 typedef shared_ptr<ConditionNode> ConditionNodeRef;

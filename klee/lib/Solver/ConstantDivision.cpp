@@ -127,8 +127,8 @@ void ComputeSDivConstants32(int32_t d, int32_t &mprime, int32_t &dsign, int32_t 
     uint64_t abs_d = ABS((int64_t) d); /* use 64-bits in case d is INT32_MIN */
 
     /* LOG2_CEIL works on 32-bits, so we cast abs_d.  The only possible value
-   * outside the 32-bit rep. is 2^31.  This is special cased to save computer
-   * time since 64-bit routines would be overkill. */
+     * outside the 32-bit rep. is 2^31.  This is special cased to save computer
+     * time since 64-bit routines would be overkill. */
     int32_t l = std::max(1U, LOG2_CEIL((uint32_t) abs_d));
     if (abs_d == TWO_TO_THE_31_S64)
         l = 31;

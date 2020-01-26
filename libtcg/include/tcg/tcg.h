@@ -684,7 +684,9 @@ typedef struct TCGTemp {
 
 typedef struct TCGContext TCGContext;
 
-typedef struct TCGTempSet { unsigned long l[BITS_TO_LONGS(TCG_MAX_TEMPS)]; } TCGTempSet;
+typedef struct TCGTempSet {
+    unsigned long l[BITS_TO_LONGS(TCG_MAX_TEMPS)];
+} TCGTempSet;
 
 /* While we limit helpers to 6 arguments, for 32-bit hosts, with padding,
    this imples a max of 6*2 (64-bit in) + 2 (64-bit out) = 14 operands.
