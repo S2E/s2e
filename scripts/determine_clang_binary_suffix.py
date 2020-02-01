@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # Copyright (C) 2018 Adrian Herrera
 #
@@ -28,8 +28,6 @@ printed to stdout. Otherwise an error message is printed to stderr.
 Note: This script is only really meant to be used by the S2E Makefile. It has
 no real use outside of this.
 """
-
-from __future__ import print_function
 
 import platform
 import sys
@@ -63,7 +61,7 @@ def _get_ubuntu_version(version_string):
     Determine the Clang binary to downoad from the version string returned by
     ``platform.linux_distribution``.
     """
-    major_version, minor_version = map(int, version_string.split('.'))
+    major_version, minor_version = list(map(int, version_string.split('.')))
 
     # Currently S2E only supports LLVM 3.9.1, and the only Clang binary
     # packages that exist for this version are for Ubuntu 14.04 and 16.04

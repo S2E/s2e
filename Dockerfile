@@ -15,7 +15,7 @@ RUN sed -i '1ideb mirror://mirrors.ubuntu.com/mirrors.txt xenial main restricted
 # Install build dependencies
 RUN dpkg --add-architecture i386 && apt-get update &&                       \
     apt-get -y install build-essential cmake wget texinfo flex bison        \
-    python-dev mingw-w64 lsb-release
+    python-dev python3-dev python3-venv mingw-w64 lsb-release
 
 # Install S2E dependencies
 RUN apt-get update && apt-get -y install libdwarf-dev libelf-dev libelf-dev:i386 \
@@ -23,7 +23,7 @@ RUN apt-get update && apt-get -y install libdwarf-dev libelf-dev libelf-dev:i386
     libmemcached-dev libpq-dev libc6-dev-i386 binutils-dev                  \
     libboost-system-dev libboost-serialization-dev libboost-regex-dev       \
     libbsd-dev libpixman-1-dev                                              \
-    libglib2.0-dev libglib2.0-dev:i386 python-docutils libpng12-dev gcc-multilib g++-multilib
+    libglib2.0-dev libglib2.0-dev:i386 python3-docutils libpng12-dev gcc-multilib g++-multilib
 
 # Install S2E git
 RUN apt-get -y install git

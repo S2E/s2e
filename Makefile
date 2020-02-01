@@ -74,7 +74,7 @@ LLVM_SRC_URL=http://releases.llvm.org/$(LLVM_VERSION)/
 # The Python script should only return a single word - the suffix of the Clang
 # binary to download. If an error message is printed to stderr, the Makefile
 # error will be triggered.
-CLANG_BINARY_SUFFIX=$(shell python $(BUILD_SCRIPTS_SRC)/determine_clang_binary_suffix.py 2>&1)
+CLANG_BINARY_SUFFIX=$(shell $(BUILD_SCRIPTS_SRC)/determine_clang_binary_suffix.py 2>&1)
 ifneq ($(words $(CLANG_BINARY_SUFFIX)), 1)
 $(error "Failed to determine Clang binary to download: $(CLANG_BINARY_SUFFIX)")
 endif
@@ -362,7 +362,7 @@ Z3_CONFIGURE_FLAGS = -DCMAKE_INSTALL_PREFIX=$(S2E_PREFIX)               \
 
 stamps/z3-configure: stamps/clang-binary $(Z3_BUILD_DIR)
 	cd $(Z3_SRC_DIR) &&                                         \
-	python contrib/cmake/bootstrap.py create
+	python3 contrib/cmake/bootstrap.py create
 	cd $(Z3_BUILD_DIR) &&                                       \
 	cmake $(Z3_CONFIGURE_FLAGS) $(S2E_BUILD)/$(Z3_SRC_DIR)
 	touch $@
