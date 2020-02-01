@@ -8,7 +8,7 @@ The kernel mode driver communicates to WindowsMonitor information about
 loaded modules, threads, processes, and other kernel events that can
 be used by other S2E plugins.
 
-Building Guest Tools
+Building guest tools
 ====================
 
 - Download and install Visual Studio 2015
@@ -23,7 +23,7 @@ Building Guest Tools
   OS is 32-bit, and x64 if it is 64-bit. Note that 64-bit guests can also
   run 32-bit tools, but cannot load the 32-bit driver.
 
-Using Guest Tools
+Using guest tools
 =================
 
 The S2E guest driver currently supports a dozen of different types of Windows
@@ -76,25 +76,25 @@ In this case, the `s2ectl.h` header provides a simple, self-contained way of usi
 instructions through the S2E driver.
 
 
-Adding Support for new Kernels
+Adding support for new kernels
 ==============================
 
 Adding support for new kernels is straightforward. Please follow the following steps:
 
-- Download the MSYS-GIT SDK from [here](https://github.com/git-for-windows/build-extra/releases)
+- Download the 64-bit MSYS2 environment from [here](https://www.msys2.org/)
 
-- Launch `C:\git-sdk-32\msys2.exe` and type the following commands.
+- Launch `C:\msys64\msys2.exe` and type the following commands.
 
 Note: you must use Windows as these steps require parsing PDB files, which can only be done with Microsoft tools.
 
 ```bash
 # Install the environment
-pacman -Syy gcc python2-setuptools
-easy_install-2.7 pip virtualenv
+pacman -Syy gcc python3-setuptools p7zip msys/libcrypt-devel
+easy_install-3.7 pip
 
 # Install guest tools requirements
 cd $S2E_DIR/guest/windows
-virtualenv venv
+python3 -m venv venv
 . venv/bin/activate
 pip install -r requirements.txt
 
@@ -110,7 +110,7 @@ Finally, rebuild the driver. Note that new OS versions may considerably change t
 the generation scripts.
 
 
-Code Coverage for Windows Binaries
+Code coverage for Windows binaries
 ==================================
 
 Binaries produced by Microsoft tools contain line information in PDB files. These files have a proprietary
@@ -151,7 +151,7 @@ The following instructions explain how to get LCOV coverage reports for Windows 
 Options for pdbparser.exe
 =========================
 
-Getting Pretty-Printed Callstacks
+Getting pretty-printed callstacks
 ---------------------------------
 
 `s2e.sys` outputs testcases containing underscore-separated address lists for each module.
@@ -169,7 +169,7 @@ pdbparser.exe -a "140035c76_1400355ed_140035a66_14003887e_1400090ca_14000afda_14
 [7] 140001109, d:\5359\minkernel\wdf\framework\kmdf\src\dynamic\stub\stub.cpp:287
 ```
 
-Code Style
+Code style
 ==========
 
 The preferred code formatter is ReSharper. The solution contains `s2e.sln.DotSettings`,

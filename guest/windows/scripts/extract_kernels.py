@@ -32,10 +32,6 @@ Requires 7-Zip version 9.30 or newer (http://www.7-zip.org/) and that the
 This script will work with both Python 2.7 and 3.x.
 """
 
-
-from __future__ import print_function
-
-
 import argparse
 import glob
 import hashlib
@@ -45,7 +41,6 @@ import shutil
 import subprocess
 import sys
 import tempfile
-
 
 SEVEN_ZIP_VERSION_REGEX = re.compile(r'7-Zip .*?(?P<major>\d+)\.(?P<minor>\d+)')
 
@@ -117,7 +112,7 @@ def seven_zip_version():
     if proc.returncode:
         return None
 
-    m = SEVEN_ZIP_VERSION_REGEX.search(stdout)
+    m = SEVEN_ZIP_VERSION_REGEX.search(stdout.decode())
     if not m:
         return None
 
@@ -147,14 +142,14 @@ def seven_zip_extract(source, wildcard_includes, wildcard_excludes=None,
 
     args.append(source)
 
-    print(u'    [\u00b7] %s - %s' % (' '.join(args), dest_dir))
+    print('    [\u00b7] %s - %s' % (' '.join(args), dest_dir))
 
     # Run 7-Zip
     proc = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=dest_dir)
     _, stderr = proc.communicate()
 
     if proc.returncode:
-        raise Exception(u'[\u2717] Failed to extract file %s from %s: "%s"' % (wildcard_includes, source, stderr))
+        raise Exception('[\u2717] Failed to extract file %s from %s: "%s"' % (wildcard_includes, source, stderr))
 
 # We can't use 7z to extract files from CABs because some files inside may use delta encoding.
 # Such a cab file would contain XML files describing the various chunks of a file.
@@ -162,13 +157,13 @@ def seven_zip_extract(source, wildcard_includes, wildcard_excludes=None,
 def cab_extract(source, dest_dir, pattern='*'):
     args = [EXPAND_PATH, source, '-F:%s' % (pattern), dest_dir]
 
-    print(u'    [\u00b7] %s - %s' % (' '.join(args), dest_dir))
+    print('    [\u00b7] %s - %s' % (' '.join(args), dest_dir))
 
     proc = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=dest_dir)
     stdout, stderr = proc.communicate()
 
     if proc.returncode:
-        raise Exception(u'[\u2717] Failed to extract files from %s: "%s %s"' % (source, stdout, stderr))
+        raise Exception('[\u2717] Failed to extract files from %s: "%s %s"' % (source, stdout, stderr))
 
 def seven_zip_list(source):
     # A filename line has 6 elements on it
@@ -183,7 +178,7 @@ def seven_zip_list(source):
 
     files = []
 
-    for line in stdout.splitlines():
+    for line in stdout.decode().splitlines():
         els = line.split()
         if len(els) == ELEM_COUNT:
             files.append(els[FILE_PATH_INDEX])
@@ -192,25 +187,25 @@ def seven_zip_list(source):
 
 def calc_hash(path):
     """Calculate the hash of the file at the given location."""
-    with open(path, 'r') as f:
+    with open(path, 'rb') as f:
         return hashlib.md5(f.read()).hexdigest()
 
 def check_7z_version():
     seven_zip_ver = seven_zip_version()
     if not seven_zip_ver:
-        print(u'[\u2717] Unable to determine 7-Zip version. Some kernels may '
-              u'not be extracted')
+        print('[\u2717] Unable to determine 7-Zip version. Some kernels may '
+              'not be extracted')
     elif (seven_zip_ver[0] < 9 or (seven_zip_ver[0] == 9 and seven_zip_ver[1] < 30)):
-        print(u'[\u2717] This version of 7-Zip (%d.%d) is unable to extract '
-              u'WIM images from Windows 8 or newer - no kernels will be '
-              u'extracted from those ISOs.\n    7-Zip 9.30 or newer is '
-              u'required to extract files from Windows 8 WIM '
-              u'images' % (seven_zip_ver[0], seven_zip_ver[1]))
+        print('[\u2717] This version of 7-Zip (%d.%d) is unable to extract '
+              'WIM images from Windows 8 or newer - no kernels will be '
+              'extracted from those ISOs.\n    7-Zip 9.30 or newer is '
+              'required to extract files from Windows 8 WIM '
+              'images' % (seven_zip_ver[0], seven_zip_ver[1]))
 
 def check_expand():
     if not os.path.exists(EXPAND_PATH):
-        print(u'[\u2717] Could not find %s. It is required in order to '
-              u'extract kernels from *.msu files.' % EXPAND_PATH)
+        print('[\u2717] Could not find %s. It is required in order to '
+              'extract kernels from *.msu files.' % EXPAND_PATH)
         return False
 
     return True
@@ -276,7 +271,7 @@ def expand_file(output_dir, filepath):
 def is_valid_kernel(path):
     with open(path, 'rb') as fp:
         b = fp.read(2)
-        return b == 'MZ'
+        return b == b'MZ'
 
 def get_files_in_dir(directory):
     ret = []
@@ -303,14 +298,14 @@ def extract_kernels_from_container(output_dir, container, files):
             final_path = os.path.join(output_dir, new_name)
 
         if not is_valid_kernel(dest_path):
-            print(u'    [\u2717] %s is not a valid kernel' % dest_path)
+            print('    [\u2717] %s is not a valid kernel' % dest_path)
             os.remove(dest_path)
         elif kernel_already_extracted(output_dir, dest_path):
-            print(u'    [\u2717] %s has already been extracted' % final_path)
+            print('    [\u2717] %s has already been extracted' % final_path)
             os.remove(dest_path)
         else:
             os.rename(dest_path, final_path)
-            print(u'    [\u2713] Extracted %s' % final_path)
+            print('    [\u2713] Extracted %s' % final_path)
 
 def extract_kernels_wim(output_dir, iso_file):
     iso_basename, _ = os.path.splitext(os.path.basename(iso_file))
@@ -337,7 +332,7 @@ def extract_kernels_from_iso(output_dir, iso_file):
     elif 'WIN51' in files:
         extract_kernels_from_container(output_dir, iso_file, files)
     else:
-        print(u'    [\u2717] Invalid install iso')
+        print('    [\u2717] Invalid install iso')
 
 def extract_kernels_from_msu(output_dir, msu_file):
     if not check_expand():
@@ -369,7 +364,7 @@ def extract_kernels(output_dir, filepath):
         files = seven_zip_list(filepath)
         extract_kernels_from_container(output_dir, filepath, files)
     else:
-        print(u'    [\u2717] Unknown file type: %s' % ext)
+        print('    [\u2717] Unknown file type: %s' % ext)
 
 def main():
     """The main function."""

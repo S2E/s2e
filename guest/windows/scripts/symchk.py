@@ -28,19 +28,19 @@ You can see an explanation of the URL format at:
 http://jimmers.info/pdb.html
 """
 
-from __future__ import print_function
+
 
 import argparse
 import os
 import shutil
 import sys
 import tempfile
-import urllib2
+import urllib.request, urllib.error, urllib.parse
 
 import requests
 
 from pyunpack import Archive
-from urllib import FancyURLopener
+from urllib.request import FancyURLopener
 from pdbparse.peinfo import *
 
 
@@ -54,7 +54,7 @@ class PDBOpener(FancyURLopener):
 
     def http_error_default(self, url, fp, errcode, errmsg, headers):
         if errcode == 404:
-            raise urllib2.HTTPError(url, errcode, errmsg, headers, fp)
+            raise urllib.error.HTTPError(url, errcode, errmsg, headers, fp)
         else:
             FancyURLopener.http_error_default(url, fp, errcode, errmsg, headers)
 
@@ -114,7 +114,7 @@ def download_file(guid, fname, path='', quiet=False):
                 if not quiet:
                     print('Saved symbols to %s' % outfile)
                 return outfile
-            except urllib2.HTTPError as e:
+            except urllib.error.HTTPError as e:
                 if not quiet:
                     print('HTTP error %u' % e.code)
             except IOError as e:
@@ -127,9 +127,9 @@ def handle_pe(pe_file, quiet=True):
     dbgdata, tp = get_pe_debug_data(pe_file)
     if tp == 'IMAGE_DEBUG_TYPE_CODEVIEW':
         # XP+
-        if dbgdata[:4] == 'RSDS':
+        if dbgdata[:4] == b'RSDS':
             guid, filename = get_rsds(dbgdata)
-        elif dbgdata[:4] == 'NB10':
+        elif dbgdata[:4] == b'NB10':
             guid, filename = get_nb10(dbgdata)
         else:
             print('ERR: CodeView section not NB10 or RSDS')
@@ -153,10 +153,10 @@ def handle_pe(pe_file, quiet=True):
         from pdbparse.dbgold import DbgFile
         dbgfile = DbgFile.parse_stream(open(saved_file))
         cv_entry = [d for d in dbgfile.IMAGE_DEBUG_DIRECTORY
-                    if d.Type == 'IMAGE_DEBUG_TYPE_CODEVIEW'][0]
-        if cv_entry.Data[:4] == 'NB09':
+                    if d.Type == b'IMAGE_DEBUG_TYPE_CODEVIEW'][0]
+        if cv_entry.Data[:4] == b'NB09':
             return
-        elif cv_entry.Data[:4] == 'NB10':
+        elif cv_entry.Data[:4] == b'NB10':
             guid, filename = get_nb10(cv_entry.Data)
 
             guid = guid.upper()
