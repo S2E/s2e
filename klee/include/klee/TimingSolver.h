@@ -60,6 +60,6 @@ public:
 
     std::pair<ref<Expr>, ref<Expr>> getRange(const ExecutionState &, ref<Expr> query);
 };
-}
+} // namespace klee
 
 #endif

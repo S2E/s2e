@@ -41,8 +41,8 @@ get_filename_component(LLVM_BIN_DIR ${CMAKE_C_COMPILER} DIRECTORY)
 
 add_custom_target(
     op_helper_bc ALL
-    ${CMAKE_C_COMPILER} ${CMAKE_CURRENT_SOURCE_DIR}/target-i386/op_helper.c -c ${CARGS_LIST} -Wno-unused-function -O3 -DSYMBEX_LLVM_LIB -emit-llvm -o ${CMAKE_CURRENT_BINARY_DIR}/op_helper-org.bc ${BC_INC_DIRS}
-    COMMAND ${CMAKE_C_COMPILER} ${CMAKE_CURRENT_SOURCE_DIR}/fpu/softfloat.c -c ${CARGS_LIST} -Wno-unused-function -O3 -DSYMBEX_LLVM_LIB -emit-llvm -o ${CMAKE_CURRENT_BINARY_DIR}/softfloat.bc ${BC_INC_DIRS}
+    ${CMAKE_C_COMPILER} ${CMAKE_CURRENT_SOURCE_DIR}/target-i386/op_helper.c -c ${CARGS_LIST} -Wno-unused-function -O3 -DSYMBEX_LLVM_LIB -march=x86-64 -emit-llvm -o ${CMAKE_CURRENT_BINARY_DIR}/op_helper-org.bc ${BC_INC_DIRS}
+    COMMAND ${CMAKE_C_COMPILER} ${CMAKE_CURRENT_SOURCE_DIR}/fpu/softfloat.c -c ${CARGS_LIST} -Wno-unused-function -O3 -DSYMBEX_LLVM_LIB -march=x86-64 -emit-llvm -o ${CMAKE_CURRENT_BINARY_DIR}/softfloat.bc ${BC_INC_DIRS}
     COMMAND ${LLVM_BIN_DIR}/llvm-link ${CMAKE_CURRENT_BINARY_DIR}/op_helper-org.bc ${CMAKE_CURRENT_BINARY_DIR}/softfloat.bc -o ${CMAKE_CURRENT_BINARY_DIR}/op_helper.bc
     DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/target-i386/op_helper.c ${CMAKE_CURRENT_SOURCE_DIR}/fpu/softfloat.c
 )

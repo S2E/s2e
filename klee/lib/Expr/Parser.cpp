@@ -350,7 +350,7 @@ public:
         return NumErrors;
     }
 };
-}
+} // namespace
 
 const Identifier *ParserImpl::GetOrCreateIdentifier(const Token &Tok) {
     // FIXME: Make not horribly inefficient please.
@@ -508,7 +508,7 @@ DeclResult ParserImpl::ParseArrayDecl() {
         Values.clear();
     }
 
-// FIXME: Validate that this array is undeclared.
+    // FIXME: Validate that this array is undeclared.
 
 exit:
     if (!Size.isValid())
@@ -1327,7 +1327,7 @@ struct WriteInfo {
         : LHS(_LHS), RHS(_RHS), LHSTok(_LHSTok), RHSTok(_RHSTok) {
     }
 };
-}
+} // namespace
 
 /// version - '[' update-list? ']' '@' version-specifier
 /// update-list - empty

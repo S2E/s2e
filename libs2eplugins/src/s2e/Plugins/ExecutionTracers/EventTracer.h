@@ -69,7 +69,7 @@ protected:
 
     virtual bool initSection(TracerConfigEntry *cfgEntry, const std::string &cfgKey, const std::string &entryId) = 0;
 };
-}
-}
+} // namespace plugins
+} // namespace s2e
 
 #endif

@@ -329,8 +329,8 @@ void DecreeMonitor::handleWriteData(S2EExecutionState *state, uint64_t pid, cons
     std::vector<klee::ref<klee::Expr>> vec;
     for (unsigned i = 0; i < actualCount; ++i) {
         klee::ref<klee::Expr> e = m_memutils->read(state, d.buffer + i);
-        s2e_assert(state, !e.isNull(), "Failed to read memory byte of pid " << hexval(pid) << " at "
-                                                                            << hexval(d.buffer + i));
+        s2e_assert(state, !e.isNull(),
+                   "Failed to read memory byte of pid " << hexval(pid) << " at " << hexval(d.buffer + i));
 
         vec.push_back(e);
 

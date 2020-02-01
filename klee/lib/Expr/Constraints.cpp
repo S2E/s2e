@@ -32,4 +32,4 @@ void ConstraintManager::addConstraint(const ref<Expr> e) {
             head_ = head_->getOrCreate(e);
     }
 }
-}
+} // namespace klee

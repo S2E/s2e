@@ -25,7 +25,7 @@
 namespace {
 using namespace llvm;
 cl::opt<bool> PerStateSolver("per-state-solver", cl::desc("Create solver instance for each state"), cl::init(false));
-}
+} // namespace
 
 namespace klee {
 
@@ -84,4 +84,4 @@ void SolverManager::removeState(const ExecutionState *state) {
 std::shared_ptr<TimingSolver> SolverManager::solver(const ExecutionState &state) {
     return get()._solver(state);
 }
-}
+} // namespace klee

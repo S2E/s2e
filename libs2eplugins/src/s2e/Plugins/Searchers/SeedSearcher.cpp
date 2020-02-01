@@ -51,7 +51,7 @@ public:
     virtual ~SeedSearcherState() {
     }
 };
-}
+} // namespace
 
 void SeedSearcher::initialize() {
 
@@ -292,15 +292,14 @@ void SeedSearcher::fetchNewSeeds() {
     // Better to monitor directory for changes.
     for (llvm::sys::fs::directory_iterator i(m_seedDirectory, error), e; i != e; i.increment(error)) {
         std::string entry = i->path();
-        llvm::sys::fs::file_status status;
-        error = i->status(status);
+        auto status = i->status();
 
-        if (error) {
-            getWarningsStream() << "Error when querying " << entry << " - " << error.message() << '\n';
+        if (!status) {
+            getWarningsStream() << "Error when querying " << entry << " - " << status.getError().message() << '\n';
             continue;
         }
 
-        if (status.type() == llvm::sys::fs::file_type::directory_file) {
+        if (status->type() == llvm::sys::fs::file_type::directory_file) {
             continue;
         }
 
@@ -327,7 +326,7 @@ void SeedSearcher::fetchNewSeeds() {
         seed.filename = fileName;
         seed.index = atoi(indexStr.c_str());
         seed.priority = atoi(priorityStr.c_str());
-        seed.queuedTimestamp = llvm::sys::TimeValue::now().seconds();
+        seed.queuedTimestamp = std::chrono::steady_clock::now();
 
         // Number of seeds can be huge, don't want to clutter the logs
         if (count < 5) {

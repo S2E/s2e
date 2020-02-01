@@ -79,8 +79,9 @@ static int handler_set_seed_id(const char **args) {
 #define COMMAND(c, args, desc) \
     { #c, handler_##c, args, desc }
 
-static cmd_t s_commands[] = {COMMAND(concolic, 1, "Turns on/off concolic execution on the current path "
-                                                  "(cb-test specific)"),
+static cmd_t s_commands[] = {COMMAND(concolic, 1,
+                                     "Turns on/off concolic execution on the current path "
+                                     "(cb-test specific)"),
                              COMMAND(set_seed_id, 1, "Sets the seed id for the current path"),
                              {NULL, NULL, 0, NULL}};
 

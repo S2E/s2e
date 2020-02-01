@@ -54,7 +54,7 @@ cl::opt<bool> IncludeCoveredFilesOnly(
         "The coverage report includes all files by default. Use this option to exclude ones that have no coverage."),
     cl::Optional);
 cl::opt<bool> JsonPretty("pretty", cl::desc("Prettify Json output"), cl::Optional);
-}
+} // namespace
 
 ///////////////////////////////////////////////////////////////////
 using StringPtr = std::shared_ptr<const std::string>;

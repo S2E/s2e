@@ -43,6 +43,6 @@ public:
     }
     virtual uint64_t concretize(ref<Expr> expression, const std::string &reason, bool silent = false) = 0;
 };
-}
+} // namespace klee
 
 #endif

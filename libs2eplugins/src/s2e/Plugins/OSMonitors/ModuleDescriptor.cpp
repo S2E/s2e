@@ -63,4 +63,4 @@ ModuleDescriptor ModuleDescriptor::get(const std::string &path, const std::strin
 
     return ret;
 }
-}
+} // namespace s2e

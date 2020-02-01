@@ -19,8 +19,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-add_subdirectory(analysis)
-add_subdirectory(hardening)
+# add_subdirectory(analysis)
 add_subdirectory(revgen32)
 add_subdirectory(revgen64)
 add_subdirectory(scripts)

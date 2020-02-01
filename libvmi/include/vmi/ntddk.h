@@ -1883,7 +1883,7 @@ struct KTRAP_FRAME64 {
 
     LONG CodePatchCycle;
 };
-}
-}
+} // namespace windows
+} // namespace vmi
 
 #endif

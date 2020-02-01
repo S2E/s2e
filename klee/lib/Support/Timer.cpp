@@ -20,13 +20,11 @@ using namespace klee;
 using namespace llvm;
 
 WallTimer::WallTimer() {
-    sys::TimeValue now(0, 0), user(0, 0), sys(0, 0);
-    sys::Process::GetTimeUsage(now, user, sys);
-    startMicroseconds = now.usec();
+    m_start = std::chrono::steady_clock::now();
 }
 
 uint64_t WallTimer::check() {
-    sys::TimeValue now(0, 0), user(0, 0), sys(0, 0);
-    sys::Process::GetTimeUsage(now, user, sys);
-    return now.usec() - startMicroseconds;
+    auto now = std::chrono::steady_clock::now();
+    auto diff = now - m_start;
+    return std::chrono::duration_cast<std::chrono::microseconds>(diff).count();
 }

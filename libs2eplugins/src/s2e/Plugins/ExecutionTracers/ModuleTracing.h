@@ -48,7 +48,7 @@ public:
         return tracedModule;
     }
 };
-}
-}
+} // namespace plugins
+} // namespace s2e
 
 #endif

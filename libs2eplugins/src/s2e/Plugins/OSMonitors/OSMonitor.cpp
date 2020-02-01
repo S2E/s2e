@@ -79,5 +79,5 @@ void OSMonitor::dumpUserspaceMemory(S2EExecutionState *state, std::ostream &ss) 
         ss << "Contents of page " << hexval(virtAddr) << "\n" << concreteBytes.str() << symbolicBytes.str();
     }
 }
-}
-}
+} // namespace plugins
+} // namespace s2e

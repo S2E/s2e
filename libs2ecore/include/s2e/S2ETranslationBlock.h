@@ -62,6 +62,6 @@ struct S2ETranslationBlockEqual {
         return x == y;
     }
 };
-}
+} // namespace s2e
 
 #endif

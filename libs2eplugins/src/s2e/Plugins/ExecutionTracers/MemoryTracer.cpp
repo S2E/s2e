@@ -72,7 +72,7 @@ public:
         m_traceOverride[type] = v;
     }
 };
-}
+} // namespace
 
 MemoryTracer::MemoryTracer(S2E *s2e) : Plugin(s2e) {
 }
@@ -327,5 +327,5 @@ void MemoryTracer::enable(S2EExecutionState *state, TraceType type, bool v) {
     DECLARE_PLUGINSTATE(MemoryTracerState, state);
     plgState->override(type, v);
 }
-}
-}
+} // namespace plugins
+} // namespace s2e

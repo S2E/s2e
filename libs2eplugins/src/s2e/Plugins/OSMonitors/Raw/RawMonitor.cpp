@@ -185,7 +185,9 @@ void RawMonitor::handleOpcodeInvocation(S2EExecutionState *state, uint64_t guest
             m_stack = command.Stack;
         } break;
 
-        default: { getWarningsStream(state) << "RawMonitor: unknown command " << command.Command << "\n"; } break;
+        default: {
+            getWarningsStream(state) << "RawMonitor: unknown command " << command.Command << "\n";
+        } break;
     }
 }
 

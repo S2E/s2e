@@ -63,6 +63,6 @@ public:
     int writeSector(struct S2EBlockDevice *bs, int64_t sector, const uint8_t *buf, int nb_sectors);
     int readSector(struct S2EBlockDevice *bs, int64_t sector, uint8_t *buf, int nb_sectors);
 };
-}
+} // namespace s2e
 
 #endif

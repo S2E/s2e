@@ -25,6 +25,18 @@ configure_file(LIBS2EPLUGINSConfig.cmake.in ${CMAKE_CONFIG_FILE} @ONLY)
 
 find_package(PkgConfig REQUIRED)
 
+include_directories("include")
+
+##### LLVM #####
+find_package(LLVM REQUIRED)
+message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
+
+add_definitions(${LLVM_DEFINITIONS})
+
+include_directories(${LLVM_INCLUDE_DIRS})
+
+
+##### glib #####
 pkg_check_modules(GLIB_PKG glib-2.0)
 include_directories(${GLIB_PKG_INCLUDE_DIRS})
 
@@ -37,14 +49,6 @@ find_path(LIBDWARF_INCLUDE_DIRS
                 /usr/local/include/libdwarf)
 
 include_directories(${LIBDWARF_INCLUDE_DIRS})
-
-##### LLVM #####
-find_package(LLVM REQUIRED)
-message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
-
-add_definitions(${LLVM_DEFINITIONS})
-
-include_directories("include" ${LLVM_INCLUDE_DIRS})
 
 llvm_map_components_to_libnames(LLVM_LIBS core)
 

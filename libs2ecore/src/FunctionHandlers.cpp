@@ -26,7 +26,7 @@ using namespace llvm;
 
 cl::opt<bool> VerboseOnSymbolicAddress("verbose-on-symbolic-address", cl::desc("Print onSymbolicAddress details"),
                                        cl::init(false));
-}
+} // namespace
 
 namespace s2e {
 
@@ -328,7 +328,8 @@ void S2EExecutor::registerFunctionHandlers(llvm::Module &module) {
         if (!function) {
             if (hdlr.getOrInsertFunction) {
                 auto ty = hdlr.getOrInsertFunction(module);
-                function = dynamic_cast<Function *>(module.getOrInsertFunction(hdlr.name, ty));
+                auto fc = module.getOrInsertFunction(hdlr.name, ty);
+                function = dyn_cast<Function>(fc.getCallee());
                 if (!function) {
                     abort();
                 }
@@ -340,4 +341,4 @@ void S2EExecutor::registerFunctionHandlers(llvm::Module &module) {
         addSpecialFunctionHandler(function, hdlr.handler);
     }
 }
-}
+} // namespace s2e

@@ -50,5 +50,5 @@ int LuaModuleDescriptor::getEntryPoint(lua_State *L) {
     lua_pushinteger(L, m_desc->EntryPoint);
     return 1;
 }
-}
-}
+} // namespace plugins
+} // namespace s2e

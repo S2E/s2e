@@ -191,7 +191,8 @@ static void unassigned_mem_write(target_phys_addr_t addr, uint64_t val, unsigned
 
 /** All writes to unassigned memory cause a vm exit */
 static const struct MemoryDescOps unassigned_mem_ops = {
-    .read = cpu_mmio_read, .write = cpu_mmio_write,
+    .read = cpu_mmio_read,
+    .write = cpu_mmio_write,
 };
 
 static uint64_t error_mem_read(target_phys_addr_t addr, unsigned size) {
@@ -199,7 +200,8 @@ static uint64_t error_mem_read(target_phys_addr_t addr, unsigned size) {
 }
 
 static const struct MemoryDescOps rom_mem_ops = {
-    .read = error_mem_read, .write = unassigned_mem_write,
+    .read = error_mem_read,
+    .write = unassigned_mem_write,
 };
 
 static void notdirty_mem_write(target_phys_addr_t ram_addr, uint64_t val, unsigned size) {
@@ -319,7 +321,8 @@ static void se_dma_mem_write(target_phys_addr_t ram_addr, uint64_t val, unsigned
 
 #ifdef CONFIG_SYMBEX
 static const struct MemoryDescOps se_dma_mem_ops = {
-    .read = se_dma_mem_read, .write = se_dma_mem_write,
+    .read = se_dma_mem_read,
+    .write = se_dma_mem_write,
 };
 
 bool se_ismemfunc(const struct MemoryDescOps *ops, int isWrite) {
@@ -332,7 +335,8 @@ bool se_ismemfunc(const struct MemoryDescOps *ops, int isWrite) {
 
 #else
 static const struct MemoryDescOps notdirty_mem_ops = {
-    .read = error_mem_read, .write = notdirty_mem_write,
+    .read = error_mem_read,
+    .write = notdirty_mem_write,
 };
 #endif
 

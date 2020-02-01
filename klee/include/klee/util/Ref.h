@@ -11,11 +11,11 @@
 #define KLEE_REF_H
 
 #include "llvm/Support/Casting.h"
-using llvm::isa;
 using llvm::cast;
 using llvm::cast_or_null;
 using llvm::dyn_cast;
 using llvm::dyn_cast_or_null;
+using llvm::isa;
 
 #include <assert.h>
 #include <iosfwd> // FIXME: Remove this!!!
@@ -141,6 +141,6 @@ template <typename T> struct simplify_type<const ::klee::ref<T>> {
 };
 
 template <typename T> struct simplify_type<::klee::ref<T>> : public simplify_type<const ::klee::ref<T>> {};
-}
+} // namespace llvm
 
 #endif /* KLEE_REF_H */

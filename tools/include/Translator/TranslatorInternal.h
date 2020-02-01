@@ -7,7 +7,8 @@
 ///
 
 #include <llvm-c/Core.h>
-#include <llvm/Bitcode/ReaderWriter.h>
+#include <llvm/Bitcode/BitcodeReader.h>
+#include <llvm/Bitcode/BitcodeWriter.h>
 #include <llvm/IR/Instructions.h>
 #include <llvm/IR/Verifier.h>
 #include <llvm/Linker/Linker.h>
@@ -171,7 +172,7 @@ llvm::FunctionType *Translator::getTbType() const {
 void Translator::getRetInstructions(llvm::Function *f, llvm::SmallVector<llvm::ReturnInst *, 2> &ret) {
     foreach2 (it, f->begin(), f->end()) {
         BasicBlock &bb = *it;
-        ReturnInst *ti = dynamic_cast<ReturnInst *>(bb.getTerminator());
+        ReturnInst *ti = dyn_cast<ReturnInst>(bb.getTerminator());
         if (ti) {
             ret.push_back(ti);
         }
@@ -183,22 +184,22 @@ unsigned Translator::getTargetPtrSizeInBytes() {
 }
 
 bool Translator::isGpRegister(llvm::Value *gepv, unsigned *regIndex) {
-    if (!dynamic_cast<GetElementPtrInst *>(gepv)) {
-        ConstantExpr *ce = dynamic_cast<ConstantExpr *>(gepv);
+    if (!dyn_cast<GetElementPtrInst>(gepv)) {
+        ConstantExpr *ce = dyn_cast<ConstantExpr>(gepv);
         if (!ce || (ce->getOpcode() != Instruction::GetElementPtr)) {
             return false;
         }
     }
 
-    User *gep = dynamic_cast<User *>(gepv);
+    User *gep = dyn_cast<User>(gepv);
 
     if (gep->getNumOperands() != 4) {
         return false;
     }
 
-    ConstantInt *c1 = dynamic_cast<ConstantInt *>(gep->getOperand(1));
-    ConstantInt *c2 = dynamic_cast<ConstantInt *>(gep->getOperand(2));
-    ConstantInt *c3 = dynamic_cast<ConstantInt *>(gep->getOperand(3));
+    ConstantInt *c1 = dyn_cast<ConstantInt>(gep->getOperand(1));
+    ConstantInt *c2 = dyn_cast<ConstantInt>(gep->getOperand(2));
+    ConstantInt *c3 = dyn_cast<ConstantInt>(gep->getOperand(3));
     if (!c1 || !c2 || !c3) {
         return false;
     }
@@ -222,21 +223,21 @@ bool Translator::isGpRegister(Value *gep, unsigned reg) {
 }
 
 bool Translator::isPcRegister(Value *gepv) {
-    if (!dynamic_cast<GetElementPtrInst *>(gepv)) {
-        ConstantExpr *ce = dynamic_cast<ConstantExpr *>(gepv);
+    if (!dyn_cast<GetElementPtrInst>(gepv)) {
+        ConstantExpr *ce = dyn_cast<ConstantExpr>(gepv);
         if (!ce || (ce->getOpcode() != Instruction::GetElementPtr)) {
             return false;
         }
     }
 
-    User *gep = dynamic_cast<User *>(gepv);
+    User *gep = dyn_cast<User>(gepv);
 
     if (gep->getNumOperands() != 3) {
         return false;
     }
 
-    ConstantInt *c1 = dynamic_cast<ConstantInt *>(gep->getOperand(1));
-    ConstantInt *c2 = dynamic_cast<ConstantInt *>(gep->getOperand(2));
+    ConstantInt *c1 = dyn_cast<ConstantInt>(gep->getOperand(1));
+    ConstantInt *c2 = dyn_cast<ConstantInt>(gep->getOperand(2));
     if (!c1 || !c2) {
         return false;
     }
@@ -287,18 +288,18 @@ uint64_t Translator::getRegisterBitMask(llvm::Value *gepv) {
         return -1;
     }
 
-    User *gep = dynamic_cast<User *>(gepv);
+    User *gep = dyn_cast<User>(gepv);
 
     ConstantInt *c1, *c2, *c3;
     c1 = c2 = c3 = NULL;
 
-    c1 = dynamic_cast<ConstantInt *>(gep->getOperand(1));
+    c1 = dyn_cast<ConstantInt>(gep->getOperand(1));
     assert(c1 && c1->getZExtValue() == 0);
 
-    c2 = dynamic_cast<ConstantInt *>(gep->getOperand(2));
+    c2 = dyn_cast<ConstantInt>(gep->getOperand(2));
     assert(c2);
 
-    c3 = dynamic_cast<ConstantInt *>(gep->getOperand(3));
+    c3 = dyn_cast<ConstantInt>(gep->getOperand(3));
 
     if (c2->getZExtValue() == 0 && c3) {
         /* General purpose register */
@@ -567,4 +568,4 @@ TranslatedBlock *X86Translator::translate(uint64_t address, uint64_t lastAddress
 
     return ret;
 }
-}
+} // namespace s2etools

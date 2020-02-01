@@ -28,7 +28,8 @@
 static void qdict_destroy_obj(QObject *obj);
 
 static const QType qdict_type = {
-    .code = QTYPE_QDICT, .destroy = qdict_destroy_obj,
+    .code = QTYPE_QDICT,
+    .destroy = qdict_destroy_obj,
 };
 
 /**

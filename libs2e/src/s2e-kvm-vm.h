@@ -85,7 +85,7 @@ public:
     void sendCpuExitSignal();
     virtual int sys_ioctl(int fd, int request, uint64_t arg1);
 };
-}
-}
+} // namespace kvm
+} // namespace s2e
 
 #endif

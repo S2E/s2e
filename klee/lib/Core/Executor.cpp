@@ -42,20 +42,18 @@
 #include "klee/util/Assignment.h"
 #include "klee/util/ExprPPrinter.h"
 #include "klee/util/ExprUtil.h"
+#include "klee/util/GetElementPtrTypeIterator.h"
 
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/IR/Attributes.h"
 #include "llvm/IR/BasicBlock.h"
+#include "llvm/IR/CallSite.h"
 #include "llvm/IR/Constants.h"
+#include "llvm/IR/DataLayout.h"
 #include "llvm/IR/Function.h"
+#include "llvm/IR/GetElementPtrTypeIterator.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
-#if !(LLVM_VERSION_MAJOR == 2 && LLVM_VERSION_MINOR < 7)
-#include "llvm/IR/LLVMContext.h"
-#endif
-#include "llvm/ADT/StringExtras.h"
-#include "llvm/IR/CallSite.h"
-#include "llvm/IR/DataLayout.h"
-#include "llvm/IR/GetElementPtrTypeIterator.h"
 #include "llvm/IR/Module.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/DynamicLibrary.h"
@@ -92,16 +90,17 @@ cl::opt<bool> SimplifySymIndices("simplify-sym-indices", cl::init(true));
 
 cl::opt<bool> SuppressExternalWarnings("suppress-external-warnings", cl::init(true));
 
-cl::opt<bool> EmitAllErrors("emit-all-errors", cl::init(false), cl::desc("Generate tests cases for all errors "
-                                                                         "(default=one per (error,instruction) pair)"));
+cl::opt<bool> EmitAllErrors("emit-all-errors", cl::init(false),
+                            cl::desc("Generate tests cases for all errors "
+                                     "(default=one per (error,instruction) pair)"));
 
 cl::opt<bool> NoExternals("no-externals", cl::desc("Do not allow external functin calls"));
-}
+} // namespace
 
 namespace klee {
 RNG theRNG;
 extern cl::opt<bool> UseExprSimplifier;
-}
+} // namespace klee
 
 Executor::Executor(InterpreterHandler *ih, LLVMContext &context)
     : kmodule(0), interpreterHandler(ih), searcher(0), externalDispatcher(new ExternalDispatcher()), statsTracker(0),
@@ -471,76 +470,6 @@ void Executor::notifyFork(ExecutionState &originalState, ref<Expr> &condition, E
     pabort("Must go through S2E");
 }
 
-ref<klee::ConstantExpr> Executor::evalConstant(Constant *c) {
-    if (llvm::ConstantExpr *ce = dyn_cast<llvm::ConstantExpr>(c)) {
-        return evalConstantExpr(ce);
-    } else {
-        if (const ConstantInt *ci = dyn_cast<ConstantInt>(c)) {
-            return ConstantExpr::alloc(ci->getValue());
-        } else if (const ConstantFP *cf = dyn_cast<ConstantFP>(c)) {
-            return ConstantExpr::alloc(cf->getValueAPF().bitcastToAPInt());
-        } else if (const GlobalValue *gv = dyn_cast<GlobalValue>(c)) {
-            std::unordered_map<const llvm::GlobalValue *, ref<ConstantExpr>>::iterator it = globalAddresses.find(gv);
-            assert(it != globalAddresses.end());
-            return it->second;
-        } else if (isa<ConstantPointerNull>(c)) {
-            return Expr::createPointer(0);
-        } else if (isa<UndefValue>(c) || isa<ConstantAggregateZero>(c)) {
-            return ConstantExpr::create(0, getWidthForLLVMType(c->getType()));
-        } else if (const ConstantDataSequential *cds = dyn_cast<ConstantDataSequential>(c)) {
-            std::vector<ref<Expr>> kids;
-            for (unsigned i = 0, e = cds->getNumElements(); i != e; ++i) {
-                ref<Expr> kid = evalConstant(cds->getElementAsConstant(i));
-                kids.push_back(kid);
-            }
-            ref<Expr> res = ConcatExpr::createN(kids.size(), kids.data());
-            return cast<ConstantExpr>(res);
-        } else if (const ConstantArray *ca = dyn_cast<ConstantArray>(c)) {
-            std::vector<ref<Expr>> kids;
-            for (unsigned i = 0, e = ca->getNumOperands(); i != e; ++i) {
-                ref<Expr> kid = evalConstant(ca->getOperand(i));
-                kids.push_back(kid);
-            }
-            ref<Expr> res = ConcatExpr::createN(kids.size(), kids.data());
-            return cast<ConstantExpr>(res);
-        } else if (const ConstantStruct *cs = dyn_cast<ConstantStruct>(c)) {
-            const StructLayout *sl = kmodule->dataLayout->getStructLayout(cs->getType());
-            llvm::SmallVector<ref<Expr>, 4> kids;
-            for (unsigned i = cs->getNumOperands(); i != 0; --i) {
-                unsigned op = i - 1;
-                ref<Expr> kid = evalConstant(cs->getOperand(op));
-
-                uint64_t thisOffset = sl->getElementOffsetInBits(op),
-                         nextOffset = (op == cs->getNumOperands() - 1) ? sl->getSizeInBits()
-                                                                       : sl->getElementOffsetInBits(op + 1);
-                if (nextOffset - thisOffset > kid->getWidth()) {
-                    uint64_t paddingWidth = nextOffset - thisOffset - kid->getWidth();
-                    kids.push_back(ConstantExpr::create(0, paddingWidth));
-                }
-
-                kids.push_back(kid);
-            }
-            ref<Expr> res = ConcatExpr::createN(kids.size(), kids.data());
-            return cast<ConstantExpr>(res);
-        } else if (const ConstantVector *cv = dyn_cast<ConstantVector>(c)) {
-            llvm::SmallVector<ref<Expr>, 8> kids;
-            const size_t numOperands = cv->getNumOperands();
-            kids.reserve(numOperands);
-            for (unsigned i = numOperands; i != 0; --i) {
-                kids.push_back(evalConstant(cv->getOperand(i - 1)));
-            }
-            assert(Context::get().isLittleEndian() && "FIXME:Broken for big endian");
-            ref<Expr> res = ConcatExpr::createN(numOperands, kids.data());
-            assert(isa<ConstantExpr>(res) && "result of constant vector built is not a constant");
-            return cast<ConstantExpr>(res);
-        } else {
-            // Constant{Vector}
-            *klee_warning_stream << *c << "\n";
-            pabort("invalid argument to evalConstant()");
-        }
-    }
-}
-
 const Cell &Executor::eval(KInstruction *ki, unsigned index, ExecutionState &state) const {
     assert(index < ki->inst->getNumOperands());
     int vnumber = ki->operands[index];
@@ -735,9 +664,9 @@ Function *Executor::getCalledFunction(CallSite &cs, ExecutionState &state) {
 static inline const llvm::fltSemantics *fpWidthToSemantics(unsigned width) {
     switch (width) {
         case Expr::Int32:
-            return &llvm::APFloat::IEEEsingle;
+            return &llvm::APFloat::IEEEsingle();
         case Expr::Int64:
-            return &llvm::APFloat::IEEEdouble;
+            return &llvm::APFloat::IEEEdouble();
         default:
             return 0;
     }
@@ -844,7 +773,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
                 llvm::IntegerType *Ty = cast<IntegerType>(si->getCondition()->getType());
                 ConstantInt *ci = ConstantInt::get(Ty, CE->getZExtValue());
                 SwitchInst::CaseIt cit = si->findCaseValue(ci);
-                transferToBasicBlock(cit.getCaseSuccessor(), si->getParent(), state);
+                transferToBasicBlock(cit->getCaseSuccessor(), si->getParent(), state);
             } else {
                 pabort("Cannot get here in concolic mode");
                 abort();
@@ -944,7 +873,8 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
                 Module *m = i->getParent()->getParent()->getParent();
                 std::stringstream ss;
                 ss << "ext_" << std::hex << addr;
-                f = dyn_cast<Function>(m->getOrInsertFunction(ss.str(), ci->getFunctionType()));
+                auto fcn = m->getOrInsertFunction(ss.str(), ci->getFunctionType());
+                f = dyn_cast<Function>(fcn.getCallee());
                 assert(f);
 
                 // XXX: this is a hack caused by how klee handles external functions.
@@ -977,7 +907,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
             terminateState(state, "unexpected VAArg instruction");
             break;
 
-        // Arithmetic / logical
+            // Arithmetic / logical
 
         case Instruction::Add: {
             ref<Expr> left = eval(ki, 0, state).value;
@@ -1080,7 +1010,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
             break;
         }
 
-        // Compare
+            // Compare
 
         case Instruction::ICmp: {
             CmpInst *ci = cast<CmpInst>(i);
@@ -1265,7 +1195,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
             break;
         }
 
-        // Floating point instructions
+            // Floating point instructions
 
         case Instruction::FAdd: {
             ref<ConstantExpr> left = state.toConstant(eval(ki, 0, state).value, "floating point");
@@ -1603,36 +1533,57 @@ void Executor::updateStates(ExecutionState *current) {
     removedStates.clear();
 }
 
-void Executor::bindInstructionConstants(KInstruction *KI) {
-    GetElementPtrInst *gepi = dyn_cast<GetElementPtrInst>(KI->inst);
-    if (!gepi)
-        return;
+template <typename TypeIt> void Executor::computeOffsets(KGEPInstruction *kgepi, TypeIt ib, TypeIt ie) {
+    auto &dataLayout = kmodule->module->getDataLayout();
 
-    KGEPInstruction *kgepi = static_cast<KGEPInstruction *>(KI);
     ref<ConstantExpr> constantOffset = ConstantExpr::alloc(0, Context::get().getPointerWidth());
     uint64_t index = 1;
-    for (gep_type_iterator ii = gep_type_begin(gepi), ie = gep_type_end(gepi); ii != ie; ++ii) {
-        if (StructType *st1 = dyn_cast<StructType>(*ii)) {
-            const StructLayout *sl = kmodule->dataLayout->getStructLayout(st1);
-            ConstantInt *ci = cast<ConstantInt>(ii.getOperand());
+    for (TypeIt ii = ib; ii != ie; ++ii) {
+        if (StructType *st = dyn_cast<StructType>(*ii)) {
+            const StructLayout *sl = dataLayout.getStructLayout(st);
+            const ConstantInt *ci = cast<ConstantInt>(ii.getOperand());
             uint64_t addend = sl->getElementOffset((unsigned) ci->getZExtValue());
             constantOffset = constantOffset->Add(ConstantExpr::alloc(addend, Context::get().getPointerWidth()));
-        } else {
-            const SequentialType *st = cast<SequentialType>(*ii);
-            uint64_t elementSize = kmodule->dataLayout->getTypeStoreSize(st->getElementType());
+        } else if (const auto set = dyn_cast<SequentialType>(*ii)) {
+            uint64_t elementSize = dataLayout.getTypeStoreSize(set->getElementType());
             Value *operand = ii.getOperand();
             if (Constant *c = dyn_cast<Constant>(operand)) {
-                ref<ConstantExpr> index = evalConstant(c)->ZExt(Context::get().getPointerWidth());
+                ref<ConstantExpr> index = evalConstant(c)->SExt(Context::get().getPointerWidth());
                 ref<ConstantExpr> addend =
                     index->Mul(ConstantExpr::alloc(elementSize, Context::get().getPointerWidth()));
                 constantOffset = constantOffset->Add(addend);
             } else {
                 kgepi->indices.push_back(std::make_pair(index, elementSize));
             }
-        }
+        } else if (const auto ptr = dyn_cast<PointerType>(*ii)) {
+            auto elementSize = dataLayout.getTypeStoreSize(ptr->getElementType());
+            auto operand = ii.getOperand();
+            if (auto c = dyn_cast<Constant>(operand)) {
+                auto index = evalConstant(c)->SExt(Context::get().getPointerWidth());
+                auto addend = index->Mul(ConstantExpr::alloc(elementSize, Context::get().getPointerWidth()));
+                constantOffset = constantOffset->Add(addend);
+            } else {
+                kgepi->indices.push_back(std::make_pair(index, elementSize));
+            }
+        } else
+            assert("invalid type" && 0);
         index++;
     }
     kgepi->offset = constantOffset->getZExtValue();
+}
+
+void Executor::bindInstructionConstants(KInstruction *KI) {
+    KGEPInstruction *kgepi = static_cast<KGEPInstruction *>(KI);
+
+    if (GetElementPtrInst *gepi = dyn_cast<GetElementPtrInst>(KI->inst)) {
+        computeOffsets(kgepi, klee::gep_type_begin(gepi), klee::gep_type_end(gepi));
+    } else if (InsertValueInst *ivi = dyn_cast<InsertValueInst>(KI->inst)) {
+        computeOffsets(kgepi, iv_type_begin(ivi), iv_type_end(ivi));
+        assert(kgepi->indices.empty() && "InsertValue constant offset expected");
+    } else if (ExtractValueInst *evi = dyn_cast<ExtractValueInst>(KI->inst)) {
+        computeOffsets(kgepi, ev_type_begin(evi), ev_type_end(evi));
+        assert(kgepi->indices.empty() && "ExtractValue constant offset expected");
+    }
 }
 
 void Executor::bindModuleConstants() {

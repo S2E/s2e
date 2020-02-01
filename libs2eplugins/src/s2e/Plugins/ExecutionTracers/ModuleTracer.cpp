@@ -7,7 +7,6 @@
 ///
 
 #include <iostream>
-#include <llvm/Support/TimeValue.h>
 
 #include <s2e/ConfigFile.h>
 #include <s2e/Plugins/OSMonitors/OSMonitor.h>
@@ -21,8 +20,9 @@
 namespace s2e {
 namespace plugins {
 
-S2E_DEFINE_PLUGIN(ModuleTracer, "Module load/unload tracer plugin", "ModuleTracer"
-                                                                    "ExecutionTracer",
+S2E_DEFINE_PLUGIN(ModuleTracer, "Module load/unload tracer plugin",
+                  "ModuleTracer"
+                  "ExecutionTracer",
                   "OSMonitor");
 
 ModuleTracer::ModuleTracer(S2E *s2e) : EventTracer(s2e) {
@@ -87,5 +87,5 @@ void ModuleTracer::processUnloadListener(S2EExecutionState *state, uint64_t page
     item.set_return_code(returnCode);
     m_tracer->writeData(state, item, s2e_trace::TRACE_PROC_UNLOAD);
 }
-}
-}
+} // namespace plugins
+} // namespace s2e

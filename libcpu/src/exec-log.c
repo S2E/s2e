@@ -52,11 +52,12 @@ const CPULogItem cpu_log_items[] = {
     {CPU_LOG_TB_OUT_ASM, "out_asm", "show generated host assembly code for each compiled TB"},
     {CPU_LOG_TB_IN_ASM, "in_asm", "show target assembly code for each compiled TB"},
     {CPU_LOG_TB_OP, "op", "show micro ops for each compiled TB"},
-    {CPU_LOG_TB_OP_OPT, "op_opt", "show micro ops "
+    {CPU_LOG_TB_OP_OPT, "op_opt",
+     "show micro ops "
 #ifdef TARGET_I386
-                                  "before eflags optimization and "
+     "before eflags optimization and "
 #endif
-                                  "after liveness analysis"},
+     "after liveness analysis"},
     {CPU_LOG_INT, "int", "show interrupts/exceptions in short format"},
     {CPU_LOG_EXEC, "exec", "show trace before each executed TB (lots of logs)"},
     {CPU_LOG_TB_CPU, "cpu", "show CPU state before block translation"},

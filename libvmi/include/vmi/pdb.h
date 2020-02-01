@@ -58,8 +58,8 @@ struct PDB_IMPEXP_HDR {
     uint16_t Unknown4;
     uint8_t Name[]; // Pointed to by NameOffset
 };
-}
-}
+} // namespace windows
+} // namespace vmi
 
 #include "FileProvider.h"
 
@@ -94,6 +94,6 @@ public:
     bool initialize();
     bool dumpImpExp();
 };
-}
+} // namespace vmi
 
 #endif

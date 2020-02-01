@@ -57,6 +57,6 @@ public:
         return m_addressSpace->isOwnedByUs(os);
     }
 };
-}
+} // namespace s2e
 
 #endif

@@ -45,7 +45,7 @@ struct StartSizePair {
         return start + size <= p.start;
     }
 };
-}
+} // namespace s2etools
 
 struct hexval {
     const uint64_t value;

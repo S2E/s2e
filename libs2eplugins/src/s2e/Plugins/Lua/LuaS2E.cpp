@@ -72,5 +72,5 @@ int LuaS2E::exit(lua_State *L) {
     ::exit(returnCode);
     return 0;
 }
-}
-}
+} // namespace plugins
+} // namespace s2e

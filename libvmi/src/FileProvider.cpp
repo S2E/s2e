@@ -185,7 +185,7 @@ public:
         return 0;
     }
 };
-}
+} // namespace
 
 /************************************************************/
 
@@ -260,4 +260,4 @@ int GuestMemoryFileProvider::stat(struct stat *buf) {
 const char *GuestMemoryFileProvider::getName() const {
     return m_name.c_str();
 }
-}
+} // namespace vmi

@@ -481,7 +481,13 @@ static x86_def_t builtin_x86_defs[] = {
         .model_id = "Genuine Intel(R) CPU           T2600  @ 2.16GHz",
     },
     {
-        .name = "486", .level = 1, .family = 4, .model = 0, .stepping = 0, .features = I486_FEATURES, .xlevel = 0,
+        .name = "486",
+        .level = 1,
+        .family = 4,
+        .model = 0,
+        .stepping = 0,
+        .features = I486_FEATURES,
+        .xlevel = 0,
     },
     {
         .name = "pentium",
@@ -695,8 +701,9 @@ void x86_cpu_list(FILE *f, fprintf_function cpu_fprintf, const char *optarg) {
             memcpy(buf + 4, &def->vendor2, sizeof(def->vendor2));
             memcpy(buf + 8, &def->vendor3, sizeof(def->vendor3));
             buf[12] = '\0';
-            (*cpu_fprintf)(f, "  family %d model %d stepping %d level %d xlevel 0x%x"
-                              " vendor \"%s\"\n",
+            (*cpu_fprintf)(f,
+                           "  family %d model %d stepping %d level %d xlevel 0x%x"
+                           " vendor \"%s\"\n",
                            def->family, def->model, def->stepping, def->level, def->xlevel, buf);
             listflags(buf, sizeof(buf), def->features, feature_name, 0);
             (*cpu_fprintf)(f, "  feature_edx %08x (%s)\n", def->features, buf);

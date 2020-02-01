@@ -82,6 +82,6 @@ public:
         return (T *) sync.get();
     }
 };
-}
+} // namespace s2e
 
 #endif

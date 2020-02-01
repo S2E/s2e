@@ -132,7 +132,7 @@ target_include_directories (s2eplugins PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${CMAK
 
 set(WERROR_FLAGS "-Werror -Wno-zero-length-array -Wno-c99-extensions          \
                   -Wno-gnu-anonymous-struct -Wno-nested-anon-types            \
-                  -Wno-extended-offsetof -Wno-gnu-statement-expression        \
+                  -Wno-gnu-statement-expression                               \
                   -Wno-gnu-zero-variadic-macro-arguments -Wno-vla-extension   \
                   -Wno-covered-switch-default -Wno-shift-negative-value       \
                   -Wno-deprecated-register -Wno-sign-compare                  \

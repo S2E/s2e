@@ -248,6 +248,6 @@ public:
         return T();
     }
 };
-}
+} // namespace s2e
 
 #endif

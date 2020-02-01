@@ -68,7 +68,7 @@ public:
         m_cachedTb = tb;
     }
 };
-}
+} // namespace
 
 void InstructionCounter::initialize() {
     m_tracer = s2e()->getPlugin<ExecutionTracer>();

@@ -14,7 +14,7 @@ namespace klee {
 namespace util {
 double getUserTime();
 double getWallTime();
-}
-}
+} // namespace util
+} // namespace klee
 
 #endif

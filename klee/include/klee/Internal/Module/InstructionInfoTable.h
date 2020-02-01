@@ -18,7 +18,7 @@ namespace llvm {
 class Function;
 class Instruction;
 class Module;
-}
+} // namespace llvm
 
 namespace klee {
 
@@ -59,6 +59,6 @@ public:
     const InstructionInfo &getInfo(const llvm::Instruction *) const;
     const InstructionInfo &getFunctionInfo(const llvm::Function *) const;
 };
-}
+} // namespace klee
 
 #endif

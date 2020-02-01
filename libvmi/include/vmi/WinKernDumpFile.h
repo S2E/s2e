@@ -56,7 +56,7 @@ public:
         return true;
     }
 };
-}
-}
+} // namespace windows
+} // namespace vmi
 
 #endif

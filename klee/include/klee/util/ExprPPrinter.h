@@ -66,6 +66,6 @@ public:
                            ExprIt evalExprsBegin, ExprIt evalExprsEnd, ArrayIt evalArraysBegin, ArrayIt evalArraysEnd,
                            bool printArrayDecls);
 };
-}
+} // namespace klee
 
 #endif

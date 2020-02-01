@@ -245,7 +245,7 @@ static TCGArg do_constant_folding_2(TCGOpcode op, TCGArg x, TCGArg y) {
 
         CASE_OP_32_64(or) : return x | y;
 
-        CASE_OP_32_64 (xor) : return x ^ y;
+        CASE_OP_32_64(xor) : return x ^ y;
 
         case INDEX_op_shl_i32:
             return (uint32_t) x << (y & 31);
@@ -605,7 +605,7 @@ void tcg_optimize(TCGContext *s) {
                 : CASE_OP_32_64_VEC(mul)
                 : CASE_OP_32_64_VEC(and)
                 : CASE_OP_32_64_VEC(or)
-                : CASE_OP_32_64_VEC (xor)
+                : CASE_OP_32_64_VEC(xor)
                 : CASE_OP_32_64(eqv)
                 : CASE_OP_32_64(nand)
                 : CASE_OP_32_64(nor)
@@ -690,7 +690,7 @@ void tcg_optimize(TCGContext *s) {
                 }
             }
             break;
-            CASE_OP_32_64_VEC (xor)
+            CASE_OP_32_64_VEC(xor)
                 : CASE_OP_32_64(nand)
                 : if (!arg_is_const(op->args[1]) && arg_is_const(op->args[2]) && arg_info(op->args[2])->val == -1) {
                 i = 1;
@@ -747,7 +747,7 @@ void tcg_optimize(TCGContext *s) {
             CASE_OP_32_64_VEC(add)
                 : CASE_OP_32_64_VEC(sub)
                 : CASE_OP_32_64_VEC(or)
-                : CASE_OP_32_64_VEC (xor)
+                : CASE_OP_32_64_VEC(xor)
                 : CASE_OP_32_64_VEC(andc)
                 : CASE_OP_32_64(shl)
                 : CASE_OP_32_64(shr)
@@ -883,7 +883,7 @@ void tcg_optimize(TCGContext *s) {
                 break;
 
                 CASE_OP_32_64(or)
-                    : CASE_OP_32_64 (xor) : mask = arg_info(op->args[1])->mask | arg_info(op->args[2])->mask;
+                    : CASE_OP_32_64(xor) : mask = arg_info(op->args[1])->mask | arg_info(op->args[2])->mask;
                 break;
 
             case INDEX_op_clz_i32:
@@ -979,7 +979,7 @@ void tcg_optimize(TCGContext *s) {
         /* Simplify expression for "op r, a, a => movi r, 0" cases */
         switch (opc) {
             CASE_OP_32_64_VEC(andc)
-                : CASE_OP_32_64_VEC(sub) : CASE_OP_32_64_VEC (xor) : if (args_are_copies(op->args[1], op->args[2])) {
+                : CASE_OP_32_64_VEC(sub) : CASE_OP_32_64_VEC(xor) : if (args_are_copies(op->args[1], op->args[2])) {
                 tcg_opt_gen_movi(s, op, op->args[0], 0);
                 continue;
             }
@@ -1016,11 +1016,8 @@ void tcg_optimize(TCGContext *s) {
                     : CASE_OP_32_64(bswap16)
                     : CASE_OP_32_64(bswap32)
                     : case INDEX_op_bswap64_i64 : case INDEX_op_ext32s_i64 : case INDEX_op_ext32u_i64
-                                                                             : case INDEX_op_ext_i32_i64
-                                                                               : case INDEX_op_extu_i32_i64
-                                                                                 : case INDEX_op_extrl_i64_i32
-                                                                                   : case INDEX_op_extrh_i64_i32
-                                                                                     : if (arg_is_const(op->args[1])) {
+                    : case INDEX_op_ext_i32_i64 : case INDEX_op_extu_i32_i64 : case INDEX_op_extrl_i64_i32
+                    : case INDEX_op_extrh_i64_i32 : if (arg_is_const(op->args[1])) {
                     tmp = do_constant_folding(opc, arg_info(op->args[1])->val, 0);
                     tcg_opt_gen_movi(s, op, op->args[0], tmp);
                     break;
@@ -1032,7 +1029,7 @@ void tcg_optimize(TCGContext *s) {
                     : CASE_OP_32_64(mul)
                     : CASE_OP_32_64(or)
                     : CASE_OP_32_64(and)
-                    : CASE_OP_32_64 (xor)
+                    : CASE_OP_32_64(xor)
                     : CASE_OP_32_64(shl)
                     : CASE_OP_32_64(shr)
                     : CASE_OP_32_64(sar)

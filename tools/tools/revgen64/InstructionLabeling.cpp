@@ -28,7 +28,7 @@ bool InstructionLabeling::runOnFunction(llvm::Function &F) {
             Instruction *instr = &*iit;
             instr->setName("");
 
-            LoadInst *li = dynamic_cast<LoadInst *>(instr);
+            LoadInst *li = dyn_cast<LoadInst>(instr);
             unsigned regIndex;
             if (li) {
                 Value *ptr = li->getPointerOperand();
@@ -43,4 +43,4 @@ bool InstructionLabeling::runOnFunction(llvm::Function &F) {
 
     return false;
 }
-}
+} // namespace s2etools

@@ -62,6 +62,6 @@ struct KCallInstruction : KInstruction {
         return true;
     }
 };
-}
+} // namespace klee
 
 #endif

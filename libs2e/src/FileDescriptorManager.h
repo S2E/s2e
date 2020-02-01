@@ -93,7 +93,7 @@ public:
 };
 
 typedef std::shared_ptr<FileDescriptorManager> FileDescriptorManagerPtr;
-}
-}
+} // namespace kvm
+} // namespace s2e
 
 #endif

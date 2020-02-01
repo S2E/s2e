@@ -11,8 +11,6 @@
 #include <s2e/S2E.h>
 #include <s2e/Utils.h>
 
-#include <llvm/Support/TimeValue.h>
-
 #include <iostream>
 #include <sstream>
 
@@ -113,5 +111,5 @@ bool EventTracer::registerConfigEntry(TracerConfigEntry *cfgEntry) {
     m_Modules[cfgEntry->moduleId] = cfgEntry;
     return true;
 }
-}
-}
+} // namespace plugins
+} // namespace s2e

@@ -21,7 +21,7 @@ namespace plugins {
 namespace {
 // XXX: should go in the config file
 llvm::cl::opt<bool> DebugEdgeDetector("s2e-debug-edge-detector", llvm::cl::init(false));
-}
+} // namespace
 
 S2E_DEFINE_PLUGIN(EdgeDetector, "Fires an event when a specified sequence of instructions has been executed",
                   "EdgeDetector", "ModuleExecutionDetector");
@@ -180,5 +180,5 @@ void EdgeDetector::onModuleTranslateBlockComplete(S2EExecutionState *state, cons
     m_ins_connection.disconnect();
     m_mod_connection.disconnect();
 }
-}
-}
+} // namespace plugins
+} // namespace s2e

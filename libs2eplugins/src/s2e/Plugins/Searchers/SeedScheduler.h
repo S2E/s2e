@@ -45,17 +45,19 @@ public:
     void initialize();
 
 private:
+    using time_point = std::chrono::steady_clock::time_point;
+
     SeedSearcher *m_seeds;
 
-    uint64_t m_stateMachineTimeout;
+    std::chrono::seconds m_stateMachineTimeout;
     unsigned m_lowPrioritySeedThreshold;
     bool m_stateKilled;
 
     ExplorationState m_explorationState;
-    uint64_t m_timeOfLastCoveredBlock;
-    uint64_t m_timeOfLastCrash;
-    uint64_t m_timeOfLastHighPrioritySeed;
-    uint64_t m_timeOfLastFetchedSeed;
+    time_point m_timeOfLastCoveredBlock;
+    time_point m_timeOfLastCrash;
+    time_point m_timeOfLastHighPrioritySeed;
+    time_point m_timeOfLastFetchedSeed;
 
     void onSeed(const Seed &seed, SeedEvent event);
     void onNewBlockCovered(S2EExecutionState *state);
@@ -67,7 +69,7 @@ private:
     void onTimer();
     void onStateKill(S2EExecutionState *state);
 
-    void processSeedStateMachine(uint64_t currentTime);
+    void processSeedStateMachine(time_point currentTime);
 
     ///
     /// \brief Terminates an idle S2E instance

@@ -52,4 +52,4 @@ TEST(ImmutableMapTest, Simple1) {
 
     ASSERT_EQ(MAX_COUNT / 100, map.size());
 }
-}
+} // namespace

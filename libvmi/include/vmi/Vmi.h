@@ -440,6 +440,6 @@ public:
     bool getString(const std::string &topLevelType, const std::string &path, uint64_t address, std::string &result,
                    void *opaque);
 };
-}
+} // namespace vmi
 
 #endif

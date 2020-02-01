@@ -345,5 +345,5 @@ int VCPU::getMPState(kvm_mp_state *mp) {
     mp->mp_state = KVM_MP_STATE_RUNNABLE;
     return 0;
 }
-}
-}
+} // namespace kvm
+} // namespace s2e

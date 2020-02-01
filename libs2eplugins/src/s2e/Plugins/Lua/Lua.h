@@ -26,7 +26,9 @@ namespace plugins {
 #define unboxptr(L, i) (*(void **) (lua_touserdata(L, i)))
 
 template <typename T> class Lunar {
-    typedef struct { T *pT; } userdataType;
+    typedef struct {
+        T *pT;
+    } userdataType;
 
 public:
     typedef int (T::*mfp)(lua_State *L);
@@ -276,7 +278,7 @@ private:
 
 #define LUNAR_DECLARE_METHOD(Class, Name) \
     { #Name, &Class::Name }
-}
-}
+} // namespace plugins
+} // namespace s2e
 
 #endif

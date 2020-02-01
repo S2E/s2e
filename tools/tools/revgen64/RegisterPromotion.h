@@ -35,7 +35,7 @@ public:
     }
 
     virtual bool runOnFunction(llvm::Function &F);
-    virtual const char *getPassName() const {
+    virtual llvm::StringRef getPassName() const {
         return "RegisterPromotion";
     }
 
@@ -47,6 +47,6 @@ private:
     void findInstructions(llvm::Function &F, GEPs &geps, Calls &calls, Returns &rets);
     void createAllocas(llvm::Function &F, GEPs &geps, Calls &calls, Returns &rets);
 };
-}
+} // namespace s2etools
 
 #endif

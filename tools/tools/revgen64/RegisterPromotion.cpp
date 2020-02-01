@@ -41,7 +41,7 @@ void RegisterPromotion::findInstructions(Function &F, GEPs &geps, Calls &calls, 
         BasicBlock &bb = *bbit;
         foreach2 (iit, bb.begin(), bb.end()) {
             Instruction *i = &*iit;
-            GetElementPtrInst *gep = dynamic_cast<GetElementPtrInst *>(i);
+            GetElementPtrInst *gep = dyn_cast<GetElementPtrInst>(i);
             if (gep) {
                 if (Translator::isGpRegister(gep) || Translator::isPcRegister(gep)) {
                     geps.push_back(gep);
@@ -49,7 +49,7 @@ void RegisterPromotion::findInstructions(Function &F, GEPs &geps, Calls &calls, 
                 continue;
             }
 
-            CallInst *ci = dynamic_cast<CallInst *>(i);
+            CallInst *ci = dyn_cast<CallInst>(i);
             if (ci) {
                 Function *f = ci->getCalledFunction();
                 // For now, also spill regs for normal function calls
@@ -60,7 +60,7 @@ void RegisterPromotion::findInstructions(Function &F, GEPs &geps, Calls &calls, 
                 continue;
             }
 
-            ReturnInst *ri = dynamic_cast<ReturnInst *>(i);
+            ReturnInst *ri = dyn_cast<ReturnInst>(i);
             if (ri) {
                 rets.push_back(ri);
             }
@@ -73,7 +73,7 @@ static uint64_t GetGepIndex(GetElementPtrInst *gep) {
     // In particualar, that there are no more than 32 registers
     unsigned ret = 1;
     for (unsigned i = 0; i < gep->getNumIndices(); ++i) {
-        ConstantInt *ci = dynamic_cast<ConstantInt *>(gep->getOperand(i + 1));
+        ConstantInt *ci = dyn_cast<ConstantInt>(gep->getOperand(i + 1));
         ret = ret * 32 + ci->getZExtValue();
     }
     return ret;
@@ -86,7 +86,7 @@ void RegisterPromotion::createAllocas(Function &F, GEPs &geps, Calls &calls, Ret
 
     // Need to increment bb because first instruction is a gep
     BasicBlock::iterator bbit = bb->begin();
-    while (bbit != bb->end() && !dynamic_cast<GetElementPtrInst *>(&*bbit)) {
+    while (bbit != bb->end() && !dyn_cast<GetElementPtrInst>(&*bbit)) {
         ++bbit;
     }
     assert(bbit != bb->end());
@@ -110,7 +110,7 @@ void RegisterPromotion::createAllocas(Function &F, GEPs &geps, Calls &calls, Ret
         LOGDEBUG("GEP " << hexval(uniqueGep.first) << " cnt: " << dups.size() << "\n");
 
         GetElementPtrInst *gep = dups[0];
-        AllocaInst *alloca = builder.CreateAlloca(gep->getType()->getElementType());
+        AllocaInst *alloca = builder.CreateAlloca(gep->getType());
         Value *newgep = builder.Insert(gep->clone());
         Value *ld = builder.CreateLoad(newgep);
         builder.CreateStore(ld, alloca);
@@ -181,4 +181,4 @@ bool RegisterPromotion::runOnFunction(Function &F) {
 
     return true;
 }
-}
+} // namespace s2etools

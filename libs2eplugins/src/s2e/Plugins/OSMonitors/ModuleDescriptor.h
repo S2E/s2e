@@ -154,6 +154,6 @@ inline llvm::raw_ostream &operator<<(llvm::raw_ostream &out, const ModuleDescrip
 
 using ModuleDescriptorConstPtr = std::shared_ptr<const ModuleDescriptor>;
 using ModuleDescriptorList = std::vector<ModuleDescriptorConstPtr>;
-}
+} // namespace s2e
 
 #endif

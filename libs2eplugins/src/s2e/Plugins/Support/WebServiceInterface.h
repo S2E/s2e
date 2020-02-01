@@ -17,6 +17,8 @@
 #include <s2e/Plugins/VulnerabilityAnalysis/Recipe/Recipe.h>
 #include <s2e/S2EExecutionState.h>
 
+#include <chrono>
+
 namespace s2e {
 namespace plugins {
 
@@ -29,8 +31,9 @@ public:
     void initialize();
 
 private:
-    uint64_t m_statsLastSent;
-    uint64_t m_statsUpdateInterval;
+    using time_point = std::chrono::steady_clock::time_point;
+    time_point m_statsLastSent;
+    std::chrono::seconds m_statsUpdateInterval;
 
     uint32_t m_maxCompletedPathDepth;
     uint32_t m_maxPathDepth;

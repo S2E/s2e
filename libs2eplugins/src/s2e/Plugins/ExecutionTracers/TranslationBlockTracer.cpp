@@ -57,7 +57,7 @@ public:
         return m_enabledTrace[type];
     }
 };
-}
+} // namespace
 
 void TranslationBlockTracer::initialize() {
     m_tracer = s2e()->getPlugin<ExecutionTracer>();

@@ -472,8 +472,8 @@ public:
         }
     }
 };
-}
-}
-}
+} // namespace calltree
+} // namespace plugins
+} // namespace s2e
 
 #endif

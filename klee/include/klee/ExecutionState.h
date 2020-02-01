@@ -201,6 +201,6 @@ public:
 
     void bindObject(const ObjectStatePtr &os, bool isLocal);
 };
-}
+} // namespace klee
 
 #endif

@@ -26,7 +26,6 @@
 
 #include "BlueScreenInterceptor.h"
 #include "WindowsCrashDumpGenerator.h"
-#include "WindowsCrashDumpGenerator.h"
 
 static s2e::plugins::WindowsCrashDumpGenerator *s_bsod;
 

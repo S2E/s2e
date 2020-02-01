@@ -37,6 +37,6 @@ public:
     /// ReadExpr at the initial version of this array.
     virtual ref<Expr> getInitialValue(const ArrayPtr &os, unsigned index) = 0;
 };
-}
+} // namespace klee
 
 #endif

@@ -140,4 +140,4 @@ bool ReadLines(const std::string &file, std::vector<std::string> &lines, bool do
     fs.close();
     return true;
 }
-}
+} // namespace s2e

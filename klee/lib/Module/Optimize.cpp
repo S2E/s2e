@@ -19,7 +19,6 @@
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Module.h"
-#include "llvm/IR/Module.h"
 #include "llvm/IR/Verifier.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/DynamicLibrary.h"
@@ -27,8 +26,10 @@
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Transforms/IPO.h"
 #include "llvm/Transforms/IPO/FunctionAttrs.h"
+#include "llvm/Transforms/InstCombine/InstCombine.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Scalar/GVN.h"
+#include "llvm/Transforms/Utils.h"
 
 using namespace llvm;
 
@@ -232,4 +233,4 @@ void Optimize(Module *M) {
     // Run our queue of passes all at once now, efficiently.
     Passes.run(*M);
 }
-}
+} // namespace llvm

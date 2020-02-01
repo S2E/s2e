@@ -31,8 +31,8 @@
 
 #include <boost/make_shared.hpp>
 
-using boost::shared_ptr;
 using boost::make_shared;
+using boost::shared_ptr;
 
 namespace klee {
 

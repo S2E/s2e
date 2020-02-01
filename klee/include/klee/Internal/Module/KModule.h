@@ -24,7 +24,7 @@ class Function;
 class Instruction;
 class Module;
 class DataLayout;
-}
+} // namespace llvm
 
 namespace klee {
 struct Cell;
@@ -95,9 +95,9 @@ public:
     // XXX change to KFunction
     std::set<llvm::Function *> escapingFunctions;
 
-    std::vector<llvm::Constant *> constants;
-    std::map<llvm::Constant *, KConstant *> constantMap;
-    KConstant *getKConstant(llvm::Constant *c);
+    std::vector<const llvm::Constant *> constants;
+    std::map<const llvm::Constant *, KConstant *> constantMap;
+    KConstant *getKConstant(const llvm::Constant *c);
 
     std::vector<Cell> constantTable;
 
@@ -123,6 +123,6 @@ public:
     /// Remove function from KModule and call removeFromParend on it
     void removeFunction(llvm::Function *f, bool keepDeclaration = false);
 };
-} // End klee namespace
+} // namespace klee
 
 #endif

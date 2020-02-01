@@ -60,7 +60,7 @@ cl::opt<Z3ArrayConsMode>
     ArrayConsMode("z3-array-cons-mode", cl::desc("Array construction mode in Z3"),
                   cl::values(clEnumValN(Z3_ARRAY_ITE, "ite", "If-then-else expressions over BV variables"),
                              clEnumValN(Z3_ARRAY_STORES, "stores", "Nested store expressions"),
-                             clEnumValN(Z3_ARRAY_ASSERTS, "asserts", "Assertions over array values"), clEnumValEnd),
+                             clEnumValN(Z3_ARRAY_ASSERTS, "asserts", "Assertions over array values")),
                   cl::init(Z3_ARRAY_ASSERTS));
 
 cl::opt<unsigned> AssumptionResetThreshold("z3-assum-reset-thrs",
@@ -68,7 +68,7 @@ cl::opt<unsigned> AssumptionResetThreshold("z3-assum-reset-thrs",
 
 cl::opt<bool> DebugSolverStack("z3-debug-solver-stack", cl::desc("Print debug messages when solver stack is modified"),
                                cl::init(false));
-}
+} // namespace
 
 namespace klee {
 
@@ -500,4 +500,4 @@ void Z3AssumptionSolverImpl::createBuilderCache() {
             break;
     }
 }
-}
+} // namespace klee

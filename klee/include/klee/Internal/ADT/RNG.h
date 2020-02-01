@@ -45,6 +45,6 @@ public:
     /* generators a random flop */
     bool getBool();
 };
-}
+} // namespace klee
 
 #endif

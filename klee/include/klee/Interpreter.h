@@ -25,7 +25,7 @@ class raw_ostream;
 namespace legacy {
 class FunctionPassManager;
 }
-}
+} // namespace llvm
 
 namespace klee {
 class Array;
@@ -53,14 +53,12 @@ public:
     struct ModuleOptions {
         std::vector<std::string> ExtraLibraries;
         bool Optimize;
-        bool CheckDivZero;
         bool Snapshot;
         llvm::legacy::FunctionPassManager *CustomPasses;
 
         ModuleOptions(const std::vector<std::string> &_ExtraLibraries, bool _Optimize, bool _CheckDivZero,
                       llvm::legacy::FunctionPassManager *_CustomPasses = NULL)
-            : ExtraLibraries(_ExtraLibraries), Optimize(_Optimize), CheckDivZero(_CheckDivZero), Snapshot(false),
-              CustomPasses(_CustomPasses) {
+            : ExtraLibraries(_ExtraLibraries), Optimize(_Optimize), Snapshot(false), CustomPasses(_CustomPasses) {
         }
     };
 
@@ -80,6 +78,6 @@ public:
                                           bool createStatsTracker = true) = 0;
 };
 
-} // End klee namespace
+} // namespace klee
 
 #endif

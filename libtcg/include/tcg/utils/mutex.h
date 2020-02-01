@@ -24,7 +24,9 @@
 
 #include <pthread.h>
 
-typedef struct _mutex_t { pthread_mutex_t mutex; } mutex_t;
+typedef struct _mutex_t {
+    pthread_mutex_t mutex;
+} mutex_t;
 
 static inline void mutex_init(mutex_t *m) {
     int ret = pthread_mutex_init(&m->mutex, NULL);

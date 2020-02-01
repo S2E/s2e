@@ -39,6 +39,6 @@ typedef std::vector<std::pair<const ref<ConcatExpr>, const ref<ConcatExpr>>> Con
 bool getBinaryConcatExprPairs(const ref<Expr> &e, ConcatExprPairs &concatExprs);
 bool getOrXorConcatExprPairs(const ref<Expr> &e, ConcatExprPairs &concatExprs);
 bool getConcatExprPairs(const ref<Expr> &e, ConcatExprPairs &concatExprs);
-}
+} // namespace klee
 
 #endif

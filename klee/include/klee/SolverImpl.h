@@ -55,6 +55,6 @@ public:
     virtual bool computeInitialValues(const Query &query, const ArrayVec &objects,
                                       std::vector<std::vector<unsigned char>> &values, bool &hasSolution) = 0;
 };
-}
+} // namespace klee
 
 #endif

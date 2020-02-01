@@ -20,6 +20,7 @@
 #include <s2e/S2EExecutor.h>
 #include <s2e/Utils.h>
 
+#include <chrono>
 #include <iostream>
 #include <sstream>
 
@@ -27,7 +28,6 @@
 #include <klee/Solver.h>
 #include <klee/SolverManager.h>
 #include <llvm/ADT/DenseSet.h>
-#include <llvm/Support/TimeValue.h>
 
 #include <llvm/Support/CommandLine.h>
 
@@ -80,7 +80,7 @@ public:
         return new BaseInstructionsState(*this);
     }
 };
-}
+} // namespace
 
 void BaseInstructions::initialize() {
     ConfigFile *cfg = s2e()->getConfig();
@@ -431,9 +431,12 @@ void BaseInstructions::sleep(S2EExecutionState *state) {
     state->regs()->read(CPU_OFFSET(regs[R_EAX]), &duration, sizeof(duration), false);
     getDebugStream() << "Sleeping " << duration << " seconds\n";
 
-    llvm::sys::TimeValue startTime = llvm::sys::TimeValue::now();
+    using namespace std::chrono;
 
-    while (llvm::sys::TimeValue::now().seconds() - startTime.seconds() < duration) {
+    auto t1 = steady_clock::now();
+    auto d1 = seconds(duration);
+
+    while (steady_clock::now() - t1 < d1) {
 #ifdef _WIN32
         Sleep(1000);
 #else
@@ -966,11 +969,11 @@ void BaseInstructions::handleOpcodeInvocation(S2EExecutionState *state, uint64_t
         } break;
 
         case GET_HOST_CLOCK_MS: {
-            llvm::sys::TimeValue t = llvm::sys::TimeValue::now();
-            command.Milliseconds = t.seconds() * 1000 + t.milliseconds();
+            auto t = std::chrono::steady_clock::now();
+            command.Milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(t.time_since_epoch()).count();
             state->mem()->write(guestDataPtr, &command, guestDataSize);
         } break;
     }
 }
-}
-}
+} // namespace plugins
+} // namespace s2e

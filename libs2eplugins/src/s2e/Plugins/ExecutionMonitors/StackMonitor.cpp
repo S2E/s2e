@@ -70,9 +70,9 @@ public:
                       unsigned initialFrameSize) {
             if (m_frames.size() > 0) {
                 const StackFrame &last = m_frames.back();
-                s2e_assert(state, stackPointer < last.top + last.size, "New frame " << hexval(stackPointer)
-                                                                                    << "is not below the last one "
-                                                                                    << hexval(last.top + last.size));
+                s2e_assert(state, stackPointer < last.top + last.size,
+                           "New frame " << hexval(stackPointer) << "is not below the last one "
+                                        << hexval(last.top + last.size));
             }
 
             StackFrame frame;
@@ -90,9 +90,9 @@ public:
             if (stackPointer >= m_stackBound) {
                 // This may happen if SP becomes symbolic, let the binary crash itself
                 // Current stack will be unwinded and deleted
-                plgState->m_stackMonitor->getWarningsStream(state) << "Stack pointer " << hexval(stackPointer)
-                                                                   << " goes above stack bound " << hexval(m_stackBound)
-                                                                   << "\n";
+                plgState->m_stackMonitor->getWarningsStream(state)
+                    << "Stack pointer " << hexval(stackPointer) << " goes above stack bound " << hexval(m_stackBound)
+                    << "\n";
                 m_stackBound = stackPointer;
             }
 
@@ -380,10 +380,10 @@ void StackMonitorState::update(S2EExecutionState *state, uint64_t sp, uint64_t p
 
     if (m_debugLevel >= StackMonitor::DEBUGLEVEL_PRINT_MESSAGES) {
         // TODO: convert pc to native base
-        m_stackMonitor->getDebugStream(state) << "update"
-                                              << " pid=" << hexval(pid) << " tid=" << hexval(tid)
-                                              << " pc=" << hexval(pc) << " sp=" << hexval(sp)
-                                              << " newFrame=" << createNewFrame << "\n";
+        m_stackMonitor->getDebugStream(state)
+            << "update"
+            << " pid=" << hexval(pid) << " tid=" << hexval(tid) << " pc=" << hexval(pc) << " sp=" << hexval(sp)
+            << " newFrame=" << createNewFrame << "\n";
     }
 
     PidTid p = std::make_pair(pid, tid);
@@ -440,8 +440,8 @@ void StackMonitorState::onProcessUnload(S2EExecutionState *state, uint64_t pid) 
 
     foreach2 (it, m_stacks.begin(), m_stacks.end()) {
         const PidTid &p = it->first;
-        s2e_assert(state, p.first != pid, "Stack was not deleted for pid " << hexval(p.first) << " tid "
-                                                                           << hexval(p.second));
+        s2e_assert(state, p.first != pid,
+                   "Stack was not deleted for pid " << hexval(p.first) << " tid " << hexval(p.second));
     }
 }
 

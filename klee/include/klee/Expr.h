@@ -1472,6 +1472,6 @@ inline bool Expr::isFalse() const {
 
 typedef std::vector<ref<Expr>>::const_iterator ExprIt;
 
-} // End klee namespace
+} // namespace klee
 
 #endif

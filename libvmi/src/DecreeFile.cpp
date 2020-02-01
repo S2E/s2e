@@ -118,4 +118,4 @@ ssize_t DecreeFile::read(void *buffer, size_t nbyte, off64_t va) const {
         return m_file->read(buffer, maxSize, offset);
     }
 }
-}
+} // namespace vmi

@@ -20,7 +20,7 @@
 #include "klee/Internal/Support/ModuleUtil.h"
 #include "klee/Interpreter.h"
 
-#include "llvm/Bitcode/ReaderWriter.h"
+#include "llvm/Bitcode/BitcodeWriter.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/LLVMContext.h"
@@ -34,6 +34,8 @@
 #include "llvm/Support/raw_os_ostream.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Scalar.h"
+#include "llvm/Transforms/Scalar/Scalarizer.h"
+#include "llvm/Transforms/Utils.h"
 
 #include <sstream>
 
@@ -57,13 +59,12 @@ cl::opt<bool> OutputModule("output-module", cl::desc("Write the bitcode for the 
 cl::opt<SwitchImplType> SwitchType("switch-type", cl::desc("Select the implementation of switch"),
                                    cl::values(clEnumValN(eSwitchTypeSimple, "simple", "lower to ordered branches"),
                                               clEnumValN(eSwitchTypeLLVM, "llvm", "lower using LLVM"),
-                                              clEnumValN(eSwitchTypeInternal, "internal", "execute switch internally"),
-                                              clEnumValEnd),
+                                              clEnumValN(eSwitchTypeInternal, "internal", "execute switch internally")),
                                    cl::init(eSwitchTypeInternal));
 
 cl::opt<bool> DebugPrintEscapingFunctions("debug-print-escaping-functions",
                                           cl::desc("Print functions whose address is taken."));
-}
+} // namespace
 
 KModule::KModule(Module *_module)
     : module(_module), dataLayout(new DataLayout(module)), dbgStopPointFn(0), kleeMergeFn(0) {
@@ -243,8 +244,6 @@ void KModule::prepare(const Interpreter::ModuleOptions &opts, InterpreterHandler
     // don't know how to handle vector instructions.
     pm.add(createScalarizerPass());
 
-    if (opts.CheckDivZero)
-        pm.add(new DivCheckPass());
     // FIXME: This false here is to work around a bug in
     // IntrinsicLowering which caches values which may eventually be
     // deleted (via RAUW). This can be removed once LLVM fixes this
@@ -375,7 +374,7 @@ void KModule::prepare(const Interpreter::ModuleOptions &opts, InterpreterHandler
 
     if (OutputModule) {
         llvm::raw_ostream *f = ih->openOutputFile("final.bc");
-        WriteBitcodeToFile(module, *f);
+        WriteBitcodeToFile(*module, *f);
         delete f;
     }
 
@@ -460,8 +459,8 @@ void KModule::removeFunction(llvm::Function *f, bool keepDeclaration) {
     }
 }
 
-KConstant *KModule::getKConstant(Constant *c) {
-    std::map<llvm::Constant *, KConstant *>::iterator it = constantMap.find(c);
+KConstant *KModule::getKConstant(const Constant *c) {
+    auto it = constantMap.find(c);
     if (it != constantMap.end())
         return it->second;
     return NULL;

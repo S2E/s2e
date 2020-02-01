@@ -42,8 +42,7 @@ namespace {
 enum EndSolverType { SOLVER_Z3 };
 
 cl::opt<EndSolverType> EndSolver("end-solver", cl::desc("End solver to use"),
-                                 cl::values(clEnumValN(SOLVER_Z3, "z3", "The Z3 solver"), clEnumValEnd),
-                                 cl::init(SOLVER_Z3));
+                                 cl::values(clEnumValN(SOLVER_Z3, "z3", "The Z3 solver")), cl::init(SOLVER_Z3));
 
 enum SolverIncrementalityType { INCREMENTAL_NONE, INCREMENTAL_STACK, INCREMENTAL_ASSUMPTIONS };
 
@@ -51,7 +50,7 @@ cl::opt<SolverIncrementalityType> SolverIncrementality(
     "end-solver-increm", cl::desc("Solver incrementality type (when available)"),
     cl::values(clEnumValN(INCREMENTAL_NONE, "none", "No incrementality"),
                clEnumValN(INCREMENTAL_STACK, "stack", "Context stack incrementality"),
-               clEnumValN(INCREMENTAL_ASSUMPTIONS, "assumptions", "Assumption-based incrementality"), clEnumValEnd),
+               clEnumValN(INCREMENTAL_ASSUMPTIONS, "assumptions", "Assumption-based incrementality")),
     cl::init(INCREMENTAL_NONE));
 
 // The counter example cache may have bad interactions with
@@ -71,17 +70,19 @@ enum QueryLoggingSolverType {
     SOLVER_SMTLIB, ///< Log queries passed to solver (optimised) in .smt2 (SMT-LIBv2) format
 };
 
-cl::bits<QueryLoggingSolverType> queryLoggingOptions(
-    "use-query-log", cl::desc("Log queries to a file. Multiple options can be "
-                              "separated by a comma. By default nothing is logged."),
-    cl::values(clEnumValN(ALL_KQUERY, "all:kquery", "All queries in .kquery (KQuery) format"),
-               clEnumValN(ALL_SMTLIB, "all:smt2", "All queries in .smt2 (SMT-LIBv2) format"),
-               clEnumValN(SOLVER_KQUERY, "solver:kquery", "All queries reaching the solver in .kqery "
-                                                          "(KQuery) format"),
-               clEnumValN(SOLVER_SMTLIB, "solver:smt2", "All queries reaching the solver in .smt2 "
-                                                        "(SMT-LIBv2) format"),
-               clEnumValEnd),
-    cl::CommaSeparated);
+cl::bits<QueryLoggingSolverType>
+    queryLoggingOptions("use-query-log",
+                        cl::desc("Log queries to a file. Multiple options can be "
+                                 "separated by a comma. By default nothing is logged."),
+                        cl::values(clEnumValN(ALL_KQUERY, "all:kquery", "All queries in .kquery (KQuery) format"),
+                                   clEnumValN(ALL_SMTLIB, "all:smt2", "All queries in .smt2 (SMT-LIBv2) format"),
+                                   clEnumValN(SOLVER_KQUERY, "solver:kquery",
+                                              "All queries reaching the solver in .kqery "
+                                              "(KQuery) format"),
+                                   clEnumValN(SOLVER_SMTLIB, "solver:smt2",
+                                              "All queries reaching the solver in .smt2 "
+                                              "(SMT-LIBv2) format")),
+                        cl::CommaSeparated);
 
 cl::opt<bool> UseEndQueryPCLog("use-end-query-pc-log", cl::init(false));
 
@@ -92,7 +93,7 @@ cl::opt<bool> UseCache("use-cache", cl::init(true), cl::desc("Use validity cachi
 cl::opt<bool> UseIndependentSolver("use-independent-solver", cl::init(true), cl::desc("Use constraint independence"));
 
 cl::opt<bool> DebugValidateSolver("debug-validate-solver", cl::init(false));
-}
+} // namespace
 
 namespace klee {
 
@@ -164,4 +165,4 @@ Solver *DefaultSolverFactory::decorateSolver(Solver *end_solver) {
 
     return solver;
 }
-}
+} // namespace klee

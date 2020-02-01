@@ -206,6 +206,6 @@ public:
 
     virtual TranslatedBlock *translate(uint64_t address);
 };
-}
+} // namespace s2etools
 
 #endif

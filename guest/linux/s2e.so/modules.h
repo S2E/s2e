@@ -76,7 +76,9 @@ typedef struct _procmap_module_t {
     list_entry_t entry;
 } procmap_module_t;
 
-typedef struct _procmap_modules_t { list_entry_t head; } procmap_modules_t;
+typedef struct _procmap_modules_t {
+    list_entry_t head;
+} procmap_modules_t;
 
 procmap_elf_t *elf_get_data(const char *path);
 

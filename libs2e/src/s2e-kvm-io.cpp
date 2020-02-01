@@ -259,5 +259,5 @@ struct cpu_io_funcs_t g_io = {
     .mmio_read = s2e_kvm_mmio_read,
     .mmio_write = s2e_kvm_mmio_write,
 };
-}
-}
+} // namespace kvm
+} // namespace s2e

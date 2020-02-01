@@ -30,6 +30,6 @@ public:
         return timer.check();
     }
 };
-}
+} // namespace klee
 
 #endif

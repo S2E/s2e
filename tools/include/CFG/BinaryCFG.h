@@ -118,6 +118,14 @@ public:
     const_pred_iterator pred_begin() const;
 
     const_pred_iterator pred_end() const;
+
+    void print(llvm::raw_ostream &os) const {
+        printAsOperand(os, true);
+    }
+
+    void *getParent() const {
+        return nullptr;
+    }
 };
 
 ///

@@ -687,4 +687,4 @@ const VmiType *ElfDwarf::getType(const std::string &name) {
 
     return result;
 }
-}
+} // namespace vmi

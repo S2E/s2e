@@ -24,7 +24,7 @@ SymbolicMemoryHook g_symbolicMemoryHook;
 void SymbolicHardwareHookEnableMmioCallbacks(bool enable) {
     g_s2e_enable_mmio_checks = enable;
 }
-}
+} // namespace s2e
 
 int s2e_is_port_symbolic(uint64_t port) {
     return s2e::g_symbolicPortHook.symbolic(port);

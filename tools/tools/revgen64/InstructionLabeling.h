@@ -34,12 +34,12 @@ public:
     }
 
     virtual bool runOnFunction(llvm::Function &F);
-    virtual const char *getPassName() const {
+    virtual llvm::StringRef getPassName() const {
         return "InstructionLabeling";
     }
 
 private:
 };
-}
+} // namespace s2etools
 
 #endif

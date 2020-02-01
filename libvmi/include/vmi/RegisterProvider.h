@@ -90,6 +90,6 @@ public:
         return m_write(m_opaque, reg, value, sizeof(*value));
     }
 };
-}
+} // namespace vmi
 
 #endif

@@ -25,7 +25,7 @@ extern Statistic queryConstructTime;
 extern Statistic queryConstructs;
 extern Statistic queryCounterexamples;
 extern Statistic queryTime;
-}
-}
+} // namespace stats
+} // namespace klee
 
 #endif

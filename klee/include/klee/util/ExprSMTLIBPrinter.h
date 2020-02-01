@@ -380,6 +380,6 @@ private:
     ConstantDisplayMode cdm;
     AbbreviationMode abbrMode;
 };
-}
+} // namespace klee
 
 #endif

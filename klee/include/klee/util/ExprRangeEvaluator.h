@@ -124,7 +124,7 @@ template <class T> T ExprRangeEvaluator<T>::evaluate(const ref<Expr> &e) {
             return res;
         }
 
-        // Arithmetic
+            // Arithmetic
 
         case Expr::Add: {
             const BinaryExpr *be = cast<BinaryExpr>(e);
@@ -162,7 +162,7 @@ template <class T> T ExprRangeEvaluator<T>::evaluate(const ref<Expr> &e) {
             return evaluate(be->getLeft()).srem(evaluate(be->getRight()), width);
         }
 
-        // Binary
+            // Binary
 
         case Expr::And: {
             const BinaryExpr *be = cast<BinaryExpr>(e);
@@ -195,7 +195,7 @@ template <class T> T ExprRangeEvaluator<T>::evaluate(const ref<Expr> &e) {
             break;
         }
 
-        // Comparison
+            // Comparison
 
         case Expr::Eq: {
             const BinaryExpr *be = cast<BinaryExpr>(e);
@@ -274,6 +274,6 @@ template <class T> T ExprRangeEvaluator<T>::evaluate(const ref<Expr> &e) {
 
     return T(0, bits64::maxValueOfNBits(e->getWidth()));
 }
-}
+} // namespace klee
 
 #endif

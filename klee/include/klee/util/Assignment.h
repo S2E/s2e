@@ -123,6 +123,6 @@ template <typename InputIterator> inline bool Assignment::satisfies(InputIterato
             return false;
     return true;
 }
-}
+} // namespace klee
 
 #endif

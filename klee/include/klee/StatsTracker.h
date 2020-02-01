@@ -54,6 +54,6 @@ public:
     /// Return time in seconds since execution start.
     double elapsed();
 };
-}
+} // namespace klee
 
 #endif

@@ -44,7 +44,7 @@ S2E_DEFINE_PLUGIN(StaticFunctionModels, "Plugin that implements models for stati
  * }
  *
  * pluginsConfig.StaticFunctionModels.modules = g_function_models
-*/
+ */
 void StaticFunctionModels::initialize() {
     m_detector = s2e()->getPlugin<ModuleExecutionDetector>();
     m_memutils = s2e()->getPlugin<MemUtils>();

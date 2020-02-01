@@ -139,4 +139,4 @@ Plugin *PluginManager::getPlugin(const std::string &name) const {
 void PluginManager::refreshPlugins() {
     foreach2 (it, m_activePluginsList.begin(), m_activePluginsList.end()) { (*it)->refresh(); }
 }
-}
+} // namespace s2e

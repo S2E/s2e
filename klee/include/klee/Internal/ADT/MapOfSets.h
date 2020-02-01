@@ -339,6 +339,6 @@ template <class K, class V> void MapOfSets<K, V>::clear() {
     root.value = V();
     root.children.clear();
 }
-}
+} // namespace klee
 
 #endif

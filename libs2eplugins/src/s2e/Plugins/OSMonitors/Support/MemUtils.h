@@ -103,7 +103,7 @@ public:
     void findMemoryPages(S2EExecutionState *state, uint64_t pid, bool mustBeWritable, bool mustBeExecutable,
                          std::unordered_set<uint64_t> &pages);
 };
-}
-}
+} // namespace plugins
+} // namespace s2e
 
 #endif

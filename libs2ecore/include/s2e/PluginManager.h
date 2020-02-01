@@ -55,6 +55,6 @@ public:
 template <class PluginClass> PluginClass *PluginManager::getPlugin() const {
     return static_cast<PluginClass *>(getPlugin(PluginClass::getPluginInfoStatic()->name));
 }
-}
+} // namespace s2e
 
 #endif

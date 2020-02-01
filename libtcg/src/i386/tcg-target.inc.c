@@ -41,18 +41,43 @@ static const char *const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
 
 static const int tcg_target_reg_alloc_order[] = {
 #if TCG_TARGET_REG_BITS == 64
-    TCG_REG_RBP, TCG_REG_RBX, TCG_REG_R12, TCG_REG_R13, TCG_REG_R14, TCG_REG_R15, TCG_REG_R10, TCG_REG_R11, TCG_REG_R9,
-    TCG_REG_R8, TCG_REG_RCX, TCG_REG_RDX, TCG_REG_RSI, TCG_REG_RDI, TCG_REG_RAX,
+    TCG_REG_RBP,
+    TCG_REG_RBX,
+    TCG_REG_R12,
+    TCG_REG_R13,
+    TCG_REG_R14,
+    TCG_REG_R15,
+    TCG_REG_R10,
+    TCG_REG_R11,
+    TCG_REG_R9,
+    TCG_REG_R8,
+    TCG_REG_RCX,
+    TCG_REG_RDX,
+    TCG_REG_RSI,
+    TCG_REG_RDI,
+    TCG_REG_RAX,
 #else
     TCG_REG_EBX,  TCG_REG_ESI,  TCG_REG_EDI,  TCG_REG_EBP,  TCG_REG_ECX,  TCG_REG_EDX,  TCG_REG_EAX,
 #endif
-    TCG_REG_XMM0, TCG_REG_XMM1, TCG_REG_XMM2, TCG_REG_XMM3, TCG_REG_XMM4, TCG_REG_XMM5,
+    TCG_REG_XMM0,
+    TCG_REG_XMM1,
+    TCG_REG_XMM2,
+    TCG_REG_XMM3,
+    TCG_REG_XMM4,
+    TCG_REG_XMM5,
 #ifndef _WIN64
     /* The Win64 ABI has xmm6-xmm15 as caller-saves, and we do not save
        any of them.  Therefore only allow xmm0-xmm5 to be allocated.  */
-    TCG_REG_XMM6, TCG_REG_XMM7,
+    TCG_REG_XMM6,
+    TCG_REG_XMM7,
 #if TCG_TARGET_REG_BITS == 64
-    TCG_REG_XMM8, TCG_REG_XMM9, TCG_REG_XMM10, TCG_REG_XMM11, TCG_REG_XMM12, TCG_REG_XMM13, TCG_REG_XMM14,
+    TCG_REG_XMM8,
+    TCG_REG_XMM9,
+    TCG_REG_XMM10,
+    TCG_REG_XMM11,
+    TCG_REG_XMM12,
+    TCG_REG_XMM13,
+    TCG_REG_XMM14,
     TCG_REG_XMM15,
 #endif
 #endif
@@ -61,11 +86,13 @@ static const int tcg_target_reg_alloc_order[] = {
 static const int tcg_target_call_iarg_regs[] = {
 #if TCG_TARGET_REG_BITS == 64
 #if defined(_WIN64)
-    TCG_REG_RCX, TCG_REG_RDX,
+    TCG_REG_RCX,
+    TCG_REG_RDX,
 #else
     TCG_REG_RDI, TCG_REG_RSI, TCG_REG_RDX, TCG_REG_RCX,
 #endif
-    TCG_REG_R8, TCG_REG_R9,
+    TCG_REG_R8,
+    TCG_REG_R9,
 #else
 /* 32 bit mode uses stack based calling convention (GCC default). */
 #endif
@@ -478,9 +505,9 @@ static inline int tcg_target_const_match(tcg_target_long val, TCGType type, cons
 #define JCC_JG 0xf
 
 static const uint8_t tcg_cond_to_jcc[] = {
-        [TCG_COND_EQ] = JCC_JE,   [TCG_COND_NE] = JCC_JNE, [TCG_COND_LT] = JCC_JL,  [TCG_COND_GE] = JCC_JGE,
-        [TCG_COND_LE] = JCC_JLE,  [TCG_COND_GT] = JCC_JG,  [TCG_COND_LTU] = JCC_JB, [TCG_COND_GEU] = JCC_JAE,
-        [TCG_COND_LEU] = JCC_JBE, [TCG_COND_GTU] = JCC_JA,
+    [TCG_COND_EQ] = JCC_JE,   [TCG_COND_NE] = JCC_JNE, [TCG_COND_LT] = JCC_JL,  [TCG_COND_GE] = JCC_JGE,
+    [TCG_COND_LE] = JCC_JLE,  [TCG_COND_GT] = JCC_JG,  [TCG_COND_LTU] = JCC_JB, [TCG_COND_GEU] = JCC_JAE,
+    [TCG_COND_LEU] = JCC_JBE, [TCG_COND_GTU] = JCC_JA,
 };
 
 #if TCG_TARGET_REG_BITS == 64
@@ -784,7 +811,10 @@ static void tcg_out_mov(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg) {
 static void tcg_out_dup_vec(TCGContext *s, TCGType type, unsigned vece, TCGReg r, TCGReg a) {
     if (have_avx2) {
         static const int dup_insn[4] = {
-            OPC_VPBROADCASTB, OPC_VPBROADCASTW, OPC_VPBROADCASTD, OPC_VPBROADCASTQ,
+            OPC_VPBROADCASTB,
+            OPC_VPBROADCASTW,
+            OPC_VPBROADCASTD,
+            OPC_VPBROADCASTQ,
         };
         int vex_l = (type == TCG_TYPE_V256 ? P_VEXL : 0);
         tcg_out_vex_modrm(s, dup_insn[vece] + vex_l, r, 0, a);
@@ -1504,9 +1534,9 @@ static inline void tcg_out_tlb_load(TCGContext *s, TCGReg addrlo, TCGReg addrhi,
         s->code_ptr += 4;
     }
 
-/* TLB Hit.  */
+    /* TLB Hit.  */
 
-/* add addend(r0), r1 */
+    /* add addend(r0), r1 */
 
 #if defined(CONFIG_SYMBEX) && defined(CONFIG_SYMBEX_MP)
     tcg_out_modrm_offset(s, OPC_ADD_GvEv + hrexw, r1, r0, s->tlbe_offset_symbex_addend);
@@ -2074,7 +2104,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args, 
             goto gen_arith;
             OP_32_64(or) : c = ARITH_OR;
             goto gen_arith;
-            OP_32_64 (xor) : c = ARITH_XOR;
+            OP_32_64(xor) : c = ARITH_XOR;
             goto gen_arith;
         gen_arith:
             if (const_a2) {
@@ -2710,14 +2740,16 @@ static const TCGTargetOpDef *tcg_target_op_def(TCGOpcode op) {
         case INDEX_op_ctz_i32:
         case INDEX_op_ctz_i64: {
             static const TCGTargetOpDef ctz[2] = {
-                {.args_ct_str = {"&r", "r", "r"}}, {.args_ct_str = {"&r", "r", "rW"}},
+                {.args_ct_str = {"&r", "r", "r"}},
+                {.args_ct_str = {"&r", "r", "rW"}},
             };
             return &ctz[have_bmi1];
         }
         case INDEX_op_clz_i32:
         case INDEX_op_clz_i64: {
             static const TCGTargetOpDef clz[2] = {
-                {.args_ct_str = {"&r", "r", "r"}}, {.args_ct_str = {"&r", "r", "rW"}},
+                {.args_ct_str = {"&r", "r", "r"}},
+                {.args_ct_str = {"&r", "r", "rW"}},
             };
             return &clz[have_lzcnt];
         }
@@ -2985,17 +3017,17 @@ static void expand_vec_mul(TCGType type, unsigned vece, TCGv_vec v0, TCGv_vec v1
 static void expand_vec_cmp(TCGType type, unsigned vece, TCGv_vec v0, TCGv_vec v1, TCGv_vec v2, TCGCond cond) {
     enum { NEED_SWAP = 1, NEED_INV = 2, NEED_BIAS = 4 };
     static const uint8_t fixups[16] = {
-            [0 ... 15] = -1,
-            [TCG_COND_EQ] = 0,
-            [TCG_COND_NE] = NEED_INV,
-            [TCG_COND_GT] = 0,
-            [TCG_COND_LT] = NEED_SWAP,
-            [TCG_COND_LE] = NEED_INV,
-            [TCG_COND_GE] = NEED_SWAP | NEED_INV,
-            [TCG_COND_GTU] = NEED_BIAS,
-            [TCG_COND_LTU] = NEED_BIAS | NEED_SWAP,
-            [TCG_COND_LEU] = NEED_BIAS | NEED_INV,
-            [TCG_COND_GEU] = NEED_BIAS | NEED_SWAP | NEED_INV,
+        [0 ... 15] = -1,
+        [TCG_COND_EQ] = 0,
+        [TCG_COND_NE] = NEED_INV,
+        [TCG_COND_GT] = 0,
+        [TCG_COND_LT] = NEED_SWAP,
+        [TCG_COND_LE] = NEED_INV,
+        [TCG_COND_GE] = NEED_SWAP | NEED_INV,
+        [TCG_COND_GTU] = NEED_BIAS,
+        [TCG_COND_LTU] = NEED_BIAS | NEED_SWAP,
+        [TCG_COND_LEU] = NEED_BIAS | NEED_INV,
+        [TCG_COND_GEU] = NEED_BIAS | NEED_SWAP | NEED_INV,
     };
     TCGv_vec t1, t2;
     uint8_t fixup;
@@ -3118,7 +3150,9 @@ static const int tcg_target_callee_save_regs[] = {
     TCG_REG_R15,
 #else
     TCG_REG_EBP, /* Currently used for the global env. */
-    TCG_REG_EBX, TCG_REG_ESI, TCG_REG_EDI,
+    TCG_REG_EBX,
+    TCG_REG_ESI,
+    TCG_REG_EDI,
 #endif
 };
 

@@ -270,6 +270,6 @@ public:
         return s_regNames[reg];
     }
 };
-}
+} // namespace s2etools
 
 #endif

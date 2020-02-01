@@ -31,4 +31,4 @@ S2ETranslationBlock::~S2ETranslationBlock() {
         delete it;
     }
 }
-}
+} // namespace s2e

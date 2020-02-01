@@ -986,7 +986,7 @@ void tcg_gen_gvec_2s(uint32_t dofs, uint32_t aofs, uint32_t oprsz, uint32_t maxs
                 aofs += some;
                 oprsz -= some;
                 maxsz -= some;
-            /* fallthru */
+                /* fallthru */
 
             case TCG_TYPE_V128:
                 expand_2s_vec(g->vece, dofs, aofs, oprsz, 16, TCG_TYPE_V128, t_vec, g->scalar_first, g->fniv);
@@ -1149,7 +1149,10 @@ static void vec_mov2(unsigned vece, TCGv_vec a, TCGv_vec b) {
 
 void tcg_gen_gvec_mov(unsigned vece, uint32_t dofs, uint32_t aofs, uint32_t oprsz, uint32_t maxsz) {
     static const GVecGen2 g = {
-        .fni8 = tcg_gen_mov_i64, .fniv = vec_mov2, .fno = gen_helper_gvec_mov, .prefer_i64 = TCG_TARGET_REG_BITS == 64,
+        .fni8 = tcg_gen_mov_i64,
+        .fniv = vec_mov2,
+        .fno = gen_helper_gvec_mov,
+        .prefer_i64 = TCG_TARGET_REG_BITS == 64,
     };
     if (dofs != aofs) {
         tcg_gen_gvec_2(dofs, aofs, oprsz, maxsz, &g);
@@ -2143,8 +2146,8 @@ void tcg_gen_gvec_cmp(TCGCond cond, unsigned vece, uint32_t dofs, uint32_t aofs,
     static gen_helper_gvec_3 *const leu_fn[4] = {gen_helper_gvec_leu8, gen_helper_gvec_leu16, gen_helper_gvec_leu32,
                                                  gen_helper_gvec_leu64};
     static gen_helper_gvec_3 *const *const fns[16] = {
-            [TCG_COND_EQ] = eq_fn, [TCG_COND_NE] = ne_fn,   [TCG_COND_LT] = lt_fn,
-            [TCG_COND_LE] = le_fn, [TCG_COND_LTU] = ltu_fn, [TCG_COND_LEU] = leu_fn,
+        [TCG_COND_EQ] = eq_fn, [TCG_COND_NE] = ne_fn,   [TCG_COND_LT] = lt_fn,
+        [TCG_COND_LE] = le_fn, [TCG_COND_LTU] = ltu_fn, [TCG_COND_LEU] = leu_fn,
     };
     TCGType type;
     uint32_t some;

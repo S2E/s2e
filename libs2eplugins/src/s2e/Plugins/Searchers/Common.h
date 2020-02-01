@@ -50,8 +50,8 @@ typedef boost::multi_index_container<
 
 typedef MultiStates::index<state_t>::type StatesByPointer;
 typedef MultiStates::index<priority_t>::type StatesByPriority;
-}
-}
-}
+} // namespace searchers
+} // namespace plugins
+} // namespace s2e
 
 #endif

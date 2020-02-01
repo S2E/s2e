@@ -30,7 +30,7 @@ cl::opt<bool> UseBatchingSearch("use-batching-search",
 
 cl::opt<double> BatchTime("batch-time", cl::desc("Amount of time to batch when using --use-batching-search"),
                           cl::init(1.0));
-}
+} // namespace
 
 Searcher *klee::constructUserSearcher(Executor &executor) {
     Searcher *searcher = 0;

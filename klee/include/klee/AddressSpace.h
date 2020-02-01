@@ -138,6 +138,6 @@ public:
     ObjectStatePtr getWriteable(const ObjectStateConstPtr &os);
 };
 
-} // End klee namespace
+} // namespace klee
 
 #endif

@@ -62,6 +62,6 @@ public:
 
     void initialize(const std::shared_ptr<SolverFactory> &factory);
 };
-}
+} // namespace klee
 
 #endif

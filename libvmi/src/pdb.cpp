@@ -177,7 +177,7 @@ bool PDBReader::initialize() {
 
     return true;
 }
-}
+} // namespace vmi
 
 using namespace vmi;
 

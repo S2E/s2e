@@ -215,8 +215,9 @@ static void check_watchpoint(int offset, int len_mask, int flags) {
                 env->watchpoint_hit = wp;
                 tb = tcg_tb_lookup(env->mem_io_pc);
                 if (!tb) {
-                    cpu_abort(env, "check_watchpoint: could not find TB for "
-                                   "pc=%p",
+                    cpu_abort(env,
+                              "check_watchpoint: could not find TB for "
+                              "pc=%p",
                               (void *) env->mem_io_pc);
                 }
                 cpu_restore_state(env, env->mem_io_pc);
@@ -271,5 +272,6 @@ static void watch_mem_write(target_phys_addr_t addr, uint64_t val, unsigned size
 }
 
 const struct MemoryDescOps watch_mem_ops = {
-    .read = watch_mem_read, .write = watch_mem_write,
+    .read = watch_mem_read,
+    .write = watch_mem_write,
 };

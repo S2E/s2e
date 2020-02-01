@@ -16,12 +16,12 @@
 namespace ExprSMTLIBOptions {
 // Command line options
 llvm::cl::opt<klee::ExprSMTLIBPrinter::ConstantDisplayMode> argConstantDisplayMode(
-    "smtlib-display-constants", llvm::cl::desc("Sets how bitvector constants are written in generated "
-                                               "SMT-LIBv2 files (default=dec)"),
+    "smtlib-display-constants",
+    llvm::cl::desc("Sets how bitvector constants are written in generated "
+                   "SMT-LIBv2 files (default=dec)"),
     llvm::cl::values(clEnumValN(klee::ExprSMTLIBPrinter::BINARY, "bin", "Use binary form (e.g. #b00101101)"),
                      clEnumValN(klee::ExprSMTLIBPrinter::HEX, "hex", "Use Hexadecimal form (e.g. #x2D)"),
-                     clEnumValN(klee::ExprSMTLIBPrinter::DECIMAL, "dec", "Use decimal form (e.g. (_ bv45 8) )"),
-                     clEnumValEnd),
+                     clEnumValN(klee::ExprSMTLIBPrinter::DECIMAL, "dec", "Use decimal form (e.g. (_ bv45 8) )")),
     llvm::cl::init(klee::ExprSMTLIBPrinter::DECIMAL));
 
 llvm::cl::opt<bool>
@@ -33,10 +33,9 @@ llvm::cl::opt<klee::ExprSMTLIBPrinter::AbbreviationMode> abbreviationMode(
     "smtlib-abbreviation-mode", llvm::cl::desc("Choose abbreviation mode to use in SMT-LIBv2 files (default=let)"),
     llvm::cl::values(clEnumValN(klee::ExprSMTLIBPrinter::ABBR_NONE, "none", "Do not abbreviate"),
                      clEnumValN(klee::ExprSMTLIBPrinter::ABBR_LET, "let", "Abbreviate with let"),
-                     clEnumValN(klee::ExprSMTLIBPrinter::ABBR_NAMED, "named", "Abbreviate with :named annotations"),
-                     clEnumValEnd),
+                     clEnumValN(klee::ExprSMTLIBPrinter::ABBR_NAMED, "named", "Abbreviate with :named annotations")),
     llvm::cl::init(klee::ExprSMTLIBPrinter::ABBR_LET));
-}
+} // namespace ExprSMTLIBOptions
 
 namespace klee {
 
@@ -414,15 +413,15 @@ const char *ExprSMTLIBPrinter::getSMTLIBKeyword(const ref<Expr> &e) {
         case Expr::SRem:
             return "bvsrem";
 
-        /* And, Xor, Not and Or are not handled here because there different versions
-         * for different sorts. See printLogicalOrBitVectorExpr()
-         */
+            /* And, Xor, Not and Or are not handled here because there different versions
+             * for different sorts. See printLogicalOrBitVectorExpr()
+             */
 
         case Expr::Shl:
             return "bvshl";
         case Expr::LShr:
             return "bvlshr";
-        // AShr is not supported here. See printAShrExpr()
+            // AShr is not supported here. See printAShrExpr()
 
         case Expr::Eq:
             return "=";
@@ -534,7 +533,7 @@ struct ArrayPtrsByName {
         return a1->getName() < a2->getName();
     }
 };
-}
+} // namespace
 
 void ExprSMTLIBPrinter::printArrayDeclarations() {
     // Assume scan() has been called
@@ -545,10 +544,12 @@ void ExprSMTLIBPrinter::printArrayDeclarations() {
     ArrayVec sortedArrays(usedArrays.begin(), usedArrays.end());
     std::sort(sortedArrays.begin(), sortedArrays.end(), ArrayPtrsByName());
     for (auto it : sortedArrays) {
-        *o << "(declare-fun " << it->getName() << " () "
-                                                  "(Array (_ BitVec "
-           << it->getDomain() << ") "
-                                 "(_ BitVec "
+        *o << "(declare-fun " << it->getName()
+           << " () "
+              "(Array (_ BitVec "
+           << it->getDomain()
+           << ") "
+              "(_ BitVec "
            << it->getRange() << ") ) )"
            << "\n";
     }
@@ -1119,4 +1120,4 @@ const char *ExprSMTLIBPrinter::getSMTLIBOptionString(ExprSMTLIBPrinter::SMTLIBbo
             return "unknown-option";
     }
 }
-}
+} // namespace klee

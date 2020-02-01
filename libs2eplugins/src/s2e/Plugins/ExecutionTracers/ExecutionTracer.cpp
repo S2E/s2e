@@ -11,8 +11,6 @@
 #include <s2e/S2E.h>
 #include <s2e/Utils.h>
 
-#include <llvm/Support/TimeValue.h>
-
 #include <TraceEntries.pb.h>
 
 #include "ExecutionTracer.h"
@@ -133,7 +131,9 @@ uint32_t ExecutionTracer::writeData(S2EExecutionState *state, const void *data, 
     // We must take the guid instead of the id, because duplicate ids
     // across multiple traces will confuse the execution trace reader.
     header.set_state_id(state->getGuid());
-    header.set_timestamp(llvm::sys::TimeValue::now().usec());
+    auto now = std::chrono::steady_clock::now();
+    auto us = std::chrono::duration_cast<std::chrono::microseconds>(now.time_since_epoch()).count();
+    header.set_timestamp(us);
     header.set_type(s2e_trace::PbTraceItemHeaderType(type));
 
     if (!appendToTraceFile(header, data, size)) {

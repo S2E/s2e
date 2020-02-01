@@ -24,7 +24,8 @@
 static void qstring_destroy_obj(QObject *obj);
 
 static const QType qstring_type = {
-    .code = QTYPE_QSTRING, .destroy = qstring_destroy_obj,
+    .code = QTYPE_QSTRING,
+    .destroy = qstring_destroy_obj,
 };
 
 /**

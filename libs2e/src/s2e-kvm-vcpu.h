@@ -163,7 +163,7 @@ public:
 
     void flushTlb();
 };
-}
-}
+} // namespace kvm
+} // namespace s2e
 
 #endif

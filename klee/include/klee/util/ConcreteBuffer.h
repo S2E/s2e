@@ -130,6 +130,6 @@ inline void intrusive_ptr_release(ConcreteBuffer *ptr) {
         delete ptr;
     }
 }
-}
+} // namespace klee
 
 #endif

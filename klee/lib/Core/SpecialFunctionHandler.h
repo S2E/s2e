@@ -63,6 +63,6 @@ public:
 
     bool handle(ExecutionState &state, llvm::Function *f, KInstruction *target, std::vector<ref<Expr>> &arguments);
 };
-} // End klee namespace
+} // namespace klee
 
 #endif

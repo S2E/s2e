@@ -33,10 +33,10 @@ RELEASE_BUILD_TYPE=RelWithDebInfo
 
 # corei7 avoids instructions not supported by VirtualBox. Use "native" instead
 # to optimize for your current CPU.
-BUILD_ARCH?=x86-64
+BUILD_ARCH?=native
 
-CFLAGS_ARCH:=-march=$(BUILD_ARCH) -mno-sse4.1
-CXXFLAGS_ARCH:=-march=$(BUILD_ARCH) -mno-sse4.1
+CFLAGS_ARCH:=-march=$(BUILD_ARCH)
+CXXFLAGS_ARCH:=-march=$(BUILD_ARCH)
 
 CXXFLAGS_DEBUG:=$(CXXFLAGS_ARCH)
 CXXFLAGS_RELEASE:=$(CXXFLAGS_ARCH)
@@ -66,10 +66,10 @@ ifeq ($(LLVM_BUILD),$(S2E_BUILD))
 LLVM_DIRS=llvm-release llvm-debug
 endif
 
-LLVM_VERSION=3.9.1
+LLVM_VERSION=9.0.0
 LLVM_SRC=llvm-$(LLVM_VERSION).src.tar.xz
 LLVM_SRC_DIR=llvm-$(LLVM_VERSION).src
-LLVM_SRC_URL = http://llvm.org/releases/$(LLVM_VERSION)
+LLVM_SRC_URL=http://releases.llvm.org/$(LLVM_VERSION)/
 
 # The Python script should only return a single word - the suffix of the Clang
 # binary to download. If an error message is printed to stderr, the Makefile
@@ -202,6 +202,7 @@ ifeq ($(LLVM_BUILD),$(S2E_BUILD))
 # Download LLVM
 $(LLVM_SRC) $(CLANG_SRC) $(COMPILER_RT_SRC) $(CLANG_BINARY):
 	wget $(LLVM_SRC_URL)/$@
+
 
 .INTERMEDIATE: $(CLANG_SRC_DIR) $(COMPILER_RT_SRC_DIR) $(CLANG_BINARY_DIR)
 

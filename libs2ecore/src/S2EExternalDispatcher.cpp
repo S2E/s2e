@@ -52,4 +52,4 @@ void S2EExternalDispatcher::saveJmpBuf() {
 void S2EExternalDispatcher::restoreJmpBuf() {
     memcpy(env->jmp_env, s2e_cpuExitJmpBuf, sizeof(env->jmp_env));
 }
-}
+} // namespace s2e

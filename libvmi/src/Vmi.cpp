@@ -31,7 +31,7 @@ void indent(llvm::raw_ostream &os, unsigned count) {
         os << ' ';
     }
 }
-}
+} // namespace
 
 namespace vmi {
 
@@ -492,4 +492,4 @@ bool Vmi::dump(llvm::raw_ostream &os, const std::string &strucName, uint64_t add
 
     return true;
 }
-}
+} // namespace vmi

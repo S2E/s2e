@@ -8,7 +8,8 @@
 
 #include <lib/Utils/Utils.h>
 #include <llvm/ADT/DenseSet.h>
-#include <llvm/Bitcode/ReaderWriter.h>
+#include <llvm/Bitcode/BitcodeReader.h>
+#include <llvm/Bitcode/BitcodeWriter.h>
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/Instructions.h>
@@ -19,8 +20,10 @@
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/Transforms/IPO.h>
+#include <llvm/Transforms/IPO/AlwaysInliner.h>
 #include <llvm/Transforms/IPO/PassManagerBuilder.h>
 #include <llvm/Transforms/Scalar.h>
+#include <llvm/Transforms/Utils.h>
 
 #include <fstream>
 #include <lib/Utils/BinaryCFGReader.h>
@@ -58,7 +61,7 @@ cl::opt<bool> EraseTbFunctions("erase-tb-functions",
 
 cl::opt<std::string> FunctionsToRevgen("functions-to-revgen", cl::desc("Only translate the given functions"),
                                        cl::Optional);
-}
+} // namespace
 
 RevGen::~RevGen() {
     if (m_translator) {
@@ -295,7 +298,7 @@ Function *RevGen::getCallMarker() {
     params.push_back(Type::getIntNTy(c, Translator::getTargetPtrSizeInBytes() * 8));
     FunctionType *ty = FunctionType::get(Type::getVoidTy(c), params, false);
 
-    return dynamic_cast<Function *>(m->getOrInsertFunction("call_marker", ty));
+    return dyn_cast<Function>(m->getOrInsertFunction("call_marker", ty).getCallee());
 }
 
 Function *RevGen::getIncompleteMarker() {
@@ -306,7 +309,7 @@ Function *RevGen::getIncompleteMarker() {
     params.push_back(Type::getIntNTy(c, Translator::getTargetPtrSizeInBytes() * 8));
     FunctionType *ty = FunctionType::get(Type::getVoidTy(c), params, false);
 
-    return dynamic_cast<Function *>(m->getOrInsertFunction("incomplete_marker", ty));
+    return dyn_cast<Function>(m->getOrInsertFunction("incomplete_marker", ty).getCallee());
 }
 
 Function *RevGen::getTraceFunction() {
@@ -317,7 +320,7 @@ Function *RevGen::getTraceFunction() {
     params.push_back(Type::getIntNTy(c, Translator::getTargetPtrSizeInBytes() * 8));
     FunctionType *ty = FunctionType::get(Type::getVoidTy(c), params, false);
 
-    return dynamic_cast<Function *>(m->getOrInsertFunction("revgen_trace", ty));
+    return dyn_cast<Function>(m->getOrInsertFunction("revgen_trace", ty).getCallee());
 }
 
 void RevGen::generateTrace(llvm::IRBuilder<> &builder, uint64_t pc) {
@@ -572,7 +575,7 @@ void RevGen::translate(const llvm::BinaryFunctions &functions, const llvm::Binar
         legacy::PassManager PM;
 
         PM.add(new MemoryWrapperElimination());
-        PM.add(createAlwaysInlinerPass());
+        PM.add(llvm::createAlwaysInlinerLegacyPass());
 
         /**
          * This pass is broken, doesn't save registers
@@ -721,7 +724,9 @@ Function *RevGen::reconstructFunction(BinaryFunction *bf) {
             } break;
 
             case BB_COND_JMP_IND:
-            default: { assert(false && "Unsupported block type"); }
+            default: {
+                assert(false && "Unsupported block type");
+            }
         }
     }
 
@@ -735,7 +740,7 @@ void RevGen::writeBitcodeFile(const std::string &bitcodeFile) {
     llvm::Module *module = m_translator->getModule();
 
     // Output the bitcode file to stdout
-    llvm::WriteBitcodeToFile(module, o);
+    llvm::WriteBitcodeToFile(*module, o);
 }
 
 // This function can be called from GDB for debugging

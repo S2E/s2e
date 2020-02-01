@@ -30,7 +30,7 @@ llvm::cl::opt<bool> PCPrefixWidth("pc-prefix-width", llvm::cl::init(true));
 llvm::cl::opt<bool> PCMultibyteReads("pc-multibyte-reads", llvm::cl::init(true));
 
 llvm::cl::opt<bool> PCAllConstWidths("pc-all-const-widths", llvm::cl::init(false));
-}
+} // namespace
 
 class PPrinter : public ExprPPrinter {
 public:
@@ -434,7 +434,7 @@ struct ArrayPtrsByName {
         return a1->getName() < a2->getName();
     }
 };
-}
+} // namespace
 
 void ExprPPrinter::printQuery(llvm::raw_ostream &os, const ConstraintManager &constraints, const ref<Expr> &q,
                               ExprIt evalExprsBegin, ExprIt evalExprsEnd, ArrayIt evalArraysBegin,

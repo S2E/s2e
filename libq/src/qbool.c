@@ -22,7 +22,8 @@
 static void qbool_destroy_obj(QObject *obj);
 
 static const QType qbool_type = {
-    .code = QTYPE_QBOOL, .destroy = qbool_destroy_obj,
+    .code = QTYPE_QBOOL,
+    .destroy = qbool_destroy_obj,
 };
 
 /**

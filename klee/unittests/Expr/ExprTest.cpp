@@ -15,11 +15,11 @@
 #include <llvm/Support/Casting.h>
 
 using namespace klee;
-using llvm::isa;
 using llvm::cast;
 using llvm::cast_or_null;
 using llvm::dyn_cast;
 using llvm::dyn_cast_or_null;
+using llvm::isa;
 
 namespace {
 
@@ -247,4 +247,4 @@ TEST(ExprTest, ExtractConcat) {
     EXPECT_EQ(Expr::Extract, concat2->getKid(0)->getKind());
     EXPECT_EQ(Expr::Extract, concat2->getKid(1)->getKind());
 }
-}
+} // namespace

@@ -606,7 +606,7 @@ static const uint32_t NDIS_PROTOCOL_CHARACTERISTICS_SIZE = 0x6c;
 static const uint32_t NDIS_MINIPORT_BLOCK_SIZE = 0x494;
 static const uint32_t NDIS_M_SEND_COMPLETE_HANDLER_OFFSET = 0xec;
 static const uint32_t NDIS_M_STATUS_HANDLER_OFFSET = 0x17c;
-}
-}
+} // namespace windows
+} // namespace s2e
 
 #endif

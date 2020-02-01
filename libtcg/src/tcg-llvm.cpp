@@ -45,9 +45,11 @@ extern "C" {
 #include <llvm/IR/Verifier.h>
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/Support/Threading.h>
+#include <llvm/Transforms/InstCombine/InstCombine.h>
 #include <llvm/Transforms/Scalar.h>
 #include <llvm/Transforms/Scalar/GVN.h>
-#include <llvm/Bitcode/ReaderWriter.h>
+#include <llvm/Transforms/Utils.h>
+#include <llvm/Bitcode/BitcodeReader.h>
 
 #include <llvm/Support/DynamicLibrary.h>
 #include <llvm/Support/FileSystem.h>
@@ -123,6 +125,9 @@ TCGLLVMTranslator *TCGLLVMTranslator::create(const std::string &bitcodeLibraryPa
     }
 
     auto ErrorOrMod = parseBitcodeFile(ErrorOrMemBuff.get()->getMemBufferRef(), *ctx);
+    if (!ErrorOrMod) {
+        return nullptr;
+    }
 
     auto ret = new TCGLLVMTranslator(bitcodeLibraryPath, std::move(ErrorOrMod.get()));
 
@@ -235,7 +240,7 @@ void TCGLLVMTranslator::attachPcMetadata(Instruction *instr, uint64_t pc) {
 }
 
 Value *TCGLLVMTranslator::attachCurrentPc(Value *v) {
-    Instruction *instr = dynamic_cast<Instruction *>(v);
+    Instruction *instr = dyn_cast<Instruction>(v);
     if (instr) {
         attachPcMetadata(instr, m_currentPc);
     }
@@ -1263,7 +1268,7 @@ void TCGLLVMTranslator::computeStaticBranchTargets() {
     // Simple case, only one assignment
     if (sz == 1) {
         StoreInst *si = m_info.pcAssignments.back();
-        ConstantInt *ci = dynamic_cast<ConstantInt *>(si->getValueOperand());
+        ConstantInt *ci = dyn_cast<ConstantInt>(si->getValueOperand());
         if (ci) {
             m_info.staticBranchTargets.push_back(ci->getZExtValue());
         }
@@ -1273,10 +1278,10 @@ void TCGLLVMTranslator::computeStaticBranchTargets() {
         // Figure out which is the true branch, which is the false one.
         // Pick the last 2 pc assignments
         StoreInst *s1 = m_info.pcAssignments[asz - 2];
-        ConstantInt *c1 = dynamic_cast<ConstantInt *>(s1->getValueOperand());
+        ConstantInt *c1 = dyn_cast<ConstantInt>(s1->getValueOperand());
 
         StoreInst *s2 = m_info.pcAssignments[asz - 1];
-        ConstantInt *c2 = dynamic_cast<ConstantInt *>(s2->getValueOperand());
+        ConstantInt *c2 = dyn_cast<ConstantInt>(s2->getValueOperand());
 
         if (!(c1 && c2)) {
             return;
@@ -1303,7 +1308,7 @@ void TCGLLVMTranslator::computeStaticBranchTargets() {
         }
 
         if (p1 && p1 == p2) {
-            llvm::BranchInst *Bi = dynamic_cast<llvm::BranchInst *>(p1->getTerminator());
+            llvm::BranchInst *Bi = dyn_cast<llvm::BranchInst>(p1->getTerminator());
             if (Bi) {
                 m_info.staticBranchTargets.resize(2);
                 m_info.staticBranchTargets[0] = Bi->getSuccessor(0) == bb1 ? c1->getZExtValue() : c2->getZExtValue();

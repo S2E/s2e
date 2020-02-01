@@ -173,9 +173,9 @@ template <typename T> static inline bool s2e_fast_read_mem(uint64_t addr, T *res
     if (unlikely(env->tlb_table[mmu_idx][page_index].addr_read != (addr & (TARGET_PAGE_MASK | (sizeof(*res) - 1))))) {
         return false;
     } else {
-// When we get here, the address is aligned with the size of the access,
-// which by definition means that it will fall inside the small page, without overflowing.
-// physaddr = addr + env->tlb_table[mmu_idx][page_index].addend;
+        // When we get here, the address is aligned with the size of the access,
+        // which by definition means that it will fall inside the small page, without overflowing.
+        // physaddr = addr + env->tlb_table[mmu_idx][page_index].addend;
 
 #ifdef CONFIG_SYMBEX_MP
         uint64_t addend = tlb_entry->se_addend;

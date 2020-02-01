@@ -33,7 +33,7 @@ cl::opt<bool> CexCacheTryAll("cex-cache-try-all",
                              cl::init(false));
 
 cl::opt<bool> CexCacheExperimental("cex-cache-exp", cl::init(false));
-}
+} // namespace
 
 ///
 

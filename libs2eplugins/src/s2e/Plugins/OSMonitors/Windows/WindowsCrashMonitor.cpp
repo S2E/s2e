@@ -142,7 +142,9 @@ void WindowsCrashMonitor::handleOpcodeInvocation(S2EExecutionState *state, uint6
             opUserModeCrash(state, guestDataPtr, command);
         } break;
 
-        default: { getWarningsStream(state) << "Unknown command\n"; } break;
+        default: {
+            getWarningsStream(state) << "Unknown command\n";
+        } break;
     }
 }
 

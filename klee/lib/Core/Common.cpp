@@ -26,7 +26,7 @@ namespace {
 llvm::cl::opt<bool> ShowRepeatedWarnings("show-repeated-warnings");
 
 llvm::cl::opt<bool> AllExternalWarnings("all-external-warnings");
-}
+} // namespace
 
 /*
 FILE* klee::klee_warning_file = NULL;

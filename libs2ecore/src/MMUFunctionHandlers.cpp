@@ -568,16 +568,26 @@ static void handle_stq_kernel(Executor *executor, ExecutionState *state, klee::K
 static Handler s_handlerInfo[] = {
 #define add(name, handler) \
     { name, &handler, nullptr }
-    add("helper_ldb_mmu", handle_ldb_mmu), add("helper_ldw_mmu", handle_ldw_mmu), add("helper_ldl_mmu", handle_ldl_mmu),
-    add("helper_ldq_mmu", handle_ldq_mmu), add("helper_stb_mmu", handle_stb_mmu), add("helper_stw_mmu", handle_stw_mmu),
-    add("helper_stl_mmu", handle_stl_mmu), add("helper_stq_mmu", handle_stq_mmu),
-    add("cpu_stb_kernel", handle_stb_kernel), add("cpu_stw_kernel", handle_stw_kernel),
-    add("cpu_stl_kernel", handle_stl_kernel), add("cpu_ldub_kernel", handle_ldub_kernel),
-    add("cpu_lduw_kernel", handle_lduw_kernel), add("cpu_ldl_kernel", handle_ldl_kernel),
+    add("helper_ldb_mmu", handle_ldb_mmu),
+    add("helper_ldw_mmu", handle_ldw_mmu),
+    add("helper_ldl_mmu", handle_ldl_mmu),
+    add("helper_ldq_mmu", handle_ldq_mmu),
+    add("helper_stb_mmu", handle_stb_mmu),
+    add("helper_stw_mmu", handle_stw_mmu),
+    add("helper_stl_mmu", handle_stl_mmu),
+    add("helper_stq_mmu", handle_stq_mmu),
+    add("cpu_stb_kernel", handle_stb_kernel),
+    add("cpu_stw_kernel", handle_stw_kernel),
+    add("cpu_stl_kernel", handle_stl_kernel),
+    add("cpu_ldub_kernel", handle_ldub_kernel),
+    add("cpu_lduw_kernel", handle_lduw_kernel),
+    add("cpu_ldl_kernel", handle_ldl_kernel),
 
 #ifdef TARGET_X86_64
-    add("helper_ldq_mmu", handle_ldq_mmu), add("helper_stq_mmu", handle_stq_mmu),
-    add("cpu_ldq_kernel", handle_ldq_kernel), add("cpu_stq_kernel", handle_stq_kernel)
+    add("helper_ldq_mmu", handle_ldq_mmu),
+    add("helper_stq_mmu", handle_stq_mmu),
+    add("cpu_ldq_kernel", handle_ldq_kernel),
+    add("cpu_stq_kernel", handle_stq_kernel)
 #endif /* TARGET_X86_64 */
 
 #undef add
@@ -596,7 +606,8 @@ void S2EExecutor::replaceExternalFunctionsWithSpecialHandlers() {
 }
 
 static const char *s_disabledHelpers[] = {
-    "helper_load_seg", "helper_iret_protected",
+    "helper_load_seg",
+    "helper_iret_protected",
 };
 
 void S2EExecutor::disableConcreteLLVMHelpers() {
@@ -608,4 +619,4 @@ void S2EExecutor::disableConcreteLLVMHelpers() {
         kmodule->removeFunction(f, true);
     }
 }
-}
+} // namespace s2e

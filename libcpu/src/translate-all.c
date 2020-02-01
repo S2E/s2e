@@ -125,21 +125,33 @@ static inline void code_gen_alloc(TCGContext *tcg, size_t tb_size) {
 
 #if defined(CONFIG_SYMBEX_MP) || defined(STATIC_TRANSLATOR)
 static void *qemu_ld_helpers[4] = {
-    helper_ldb_mmu_symb, helper_ldw_mmu_symb, helper_ldl_mmu_symb, helper_ldq_mmu_symb,
+    helper_ldb_mmu_symb,
+    helper_ldw_mmu_symb,
+    helper_ldl_mmu_symb,
+    helper_ldq_mmu_symb,
 };
 
 static void *qemu_st_helpers[4] = {
-    helper_stb_mmu_symb, helper_stw_mmu_symb, helper_stl_mmu_symb, helper_stq_mmu_symb,
+    helper_stb_mmu_symb,
+    helper_stw_mmu_symb,
+    helper_stl_mmu_symb,
+    helper_stq_mmu_symb,
 };
 #else
 static void *qemu_ld_helpers[4] = {
-    helper_ldb_mmu, helper_ldw_mmu, helper_ldl_mmu, helper_ldq_mmu,
+    helper_ldb_mmu,
+    helper_ldw_mmu,
+    helper_ldl_mmu,
+    helper_ldq_mmu,
 };
 
 /* legacy helper signature: __st_mmu(target_ulong addr, uintxx_t val,
    int mmu_idx) */
 static void *qemu_st_helpers[4] = {
-    helper_stb_mmu, helper_stw_mmu, helper_stl_mmu, helper_stq_mmu,
+    helper_stb_mmu,
+    helper_stw_mmu,
+    helper_stl_mmu,
+    helper_stq_mmu,
 };
 #endif
 

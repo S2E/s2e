@@ -965,4 +965,4 @@ bool PEFile64::initialize() {
 
     return true;
 }
-}
+} // namespace vmi

@@ -39,10 +39,10 @@ public:
         m_framePointerCount = 0;
     }
     virtual bool runOnModule(llvm::Module &M);
-    virtual const char *getPassName() const {
+    virtual llvm::StringRef getPassName() const {
         return "MemoryWrapperElimination";
     }
 };
-}
+} // namespace s2etools
 
 #endif

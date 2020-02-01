@@ -45,7 +45,7 @@ public:
         return new ModuleTransitionState();
     }
 };
-}
+} // namespace
 
 void ModuleExecutionDetector::initialize() {
     m_monitor = (OSMonitor *) s2e()->getPlugin("OSMonitor");
