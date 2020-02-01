@@ -23,13 +23,13 @@ Installing s2e-env
 
 .. code-block:: console
 
-    sudo apt-get install git gcc python python-dev virtualenv
+    sudo apt-get install git gcc python3 python3-dev python3-venv
 
     git clone https://github.com/s2e/s2e-env.git
     cd s2e-env
 
     # Optional: install s2e-env in a virtual env
-    virtualenv venv
+    python3 -m venv venv
     . venv/bin/activate
     pip install --upgrade pip
 
