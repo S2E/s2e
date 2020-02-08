@@ -23,13 +23,12 @@ Installing s2e-env
 
 .. code-block:: console
 
-    sudo apt-get install git gcc python python-dev virtualenv
+    sudo apt-get install git gcc python3 python3-dev python3-venv
 
     git clone https://github.com/s2e/s2e-env.git
     cd s2e-env
 
-    # Optional: install s2e-env in a virtual env
-    virtualenv venv
+    python3 -m venv venv
     . venv/bin/activate
     pip install --upgrade pip
 
@@ -66,9 +65,7 @@ To create a new S2E environment in ``/home/user/s2e``, run:
 
 This will fetch the required source code, install S2E's dependencies (via apt) and create the directory structure
 described `here <https://github.com/s2e/s2e-env/blob/master/README.md>`__. If you want to skip the dependency
-installation step (e.g. if you have already installed the dependencies) use the ``--skip-dependencies`` flag. Note that
-if you are using Ubuntu 14.04, you must install CMake manually - S2E requires version 3.4.3 or newer, which is not
-available in the Ubuntu 14.04 repositories.
+installation step (e.g. if you have already installed the dependencies) use the ``--skip-dependencies`` flag.
 
 ``s2e_activate``
 ~~~~~~~~~~~~~~~~
