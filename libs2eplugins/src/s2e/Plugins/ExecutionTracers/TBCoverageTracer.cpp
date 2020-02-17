@@ -1,14 +1,8 @@
-///
-/// Copyright (C) 2016-2019, Cyberhaven
-/// All rights reserved.
-///
-/// Licensed under the Cyberhaven Research License Agreement.
-///
-
 /*
  * S2E Selective Symbolic Execution Platform
  *
  * Copyright (c) 2014, Cisco Systems
+ * Copyright (C) 2016-2019, Cyberhaven
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
