@@ -47,4 +47,4 @@ sc.exe start ssh-agent
 
 # This will be used to convert PDBs into JSON files suitable for s2e-env
 cd $env:USERPROFILE
-wget.exe --no-check-certificate https://github.com/S2E/guest-tools/releases/download/v2.0.0/pdbparser.exe
+wget.exe --no-check-certificate https://github.com/S2E/s2e/releases/download/v2.0.0/pdbparser.exe
