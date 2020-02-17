@@ -20,7 +20,8 @@ SOFTWARE.
 
 ===========
 
-libs2e uses 3rd-party libraries that have their own licenses:
+S2E uses various libraries that may have their own licenses.
+Please refer to the LICENSE file in each directory or to the header of each source file.
 
 libq:         LGPL v2.1
 libcpu:       LGPL v2.1

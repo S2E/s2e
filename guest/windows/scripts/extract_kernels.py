@@ -2,7 +2,6 @@
 
 # Copyright (C) 2017, Adrian Herrera
 # Copyright (C) 2018, Cyberhaven
-# All rights reserved.
 #
 # Licensed under the MIT License.
 
