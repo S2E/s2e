@@ -92,8 +92,6 @@ private:
 
     /// True to get notifications when the object becomes fully concrete
     /// or at least one byte becomes symbolic.
-    /// If the object is split into multiple ones, the event is triggered
-    /// when the entire group of objects gets the property.
     bool m_notifyOnConcretenessChange;
 
     /// True if this is an S2E physical memory page (or subpage)

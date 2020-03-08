@@ -39,10 +39,8 @@ namespace s2e {
 
 class S2EExecutionStateTlb {
 public:
-    /**
-     * The following tracks the location of every ObjectState
-     * in the TLB in order to optimize TLB updates.
-     */
+    // The following tracks the location of every ObjectState
+    // in the TLB in order to optimize TLB updates.
     typedef std::pair<unsigned int, unsigned int> TlbCoordinates;
     typedef llvm::SmallVector<TlbCoordinates, 8> ObjectStateTlbReferences;
     typedef std::unordered_map<klee::ObjectStateConstPtr, ObjectStateTlbReferences, klee::ObjectStatePtrHash> TlbMap;
@@ -51,6 +49,10 @@ private:
     TlbMap m_tlbMap;
     AddressSpaceCache *m_asCache;
     S2EExecutionStateRegisters *m_registers;
+
+#if defined(SE_ENABLE_PHYSRAM_TLB)
+    void updateRamTlb(const klee::ObjectStateConstPtr &oldState, const klee::ObjectStatePtr &newState);
+#endif
 
 public:
     S2EExecutionStateTlb(AddressSpaceCache *ascache, S2EExecutionStateRegisters *regs)
@@ -65,7 +67,7 @@ public:
     /* Change all entries that refer to oldState to newState */
     void updateTlb(const klee::ObjectStateConstPtr &oldState, const klee::ObjectStatePtr &newState);
 
-    void addressSpaceChangeUpdateTlb(const klee::ObjectStateConstPtr &oldState, const klee::ObjectStatePtr &newState);
+    bool addressSpaceChangeUpdateTlb(const klee::ObjectStateConstPtr &oldState, const klee::ObjectStatePtr &newState);
 
     void flushTlbCache();
 
@@ -75,7 +77,6 @@ public:
                                       const klee::ObjectStateConstPtr &state);
 
 #if defined(SE_ENABLE_PHYSRAM_TLB)
-    void updateRamTlb(const klee::ObjectStateConstPtr &oldState, const klee::ObjectStatePtr &newState);
     void clearRamTlb();
 #endif
 

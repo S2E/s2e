@@ -100,7 +100,7 @@ CPUX86State *S2EExecutionStateRegisters::getCpuState() const {
     return cpu;
 }
 
-void S2EExecutionStateRegisters::addressSpaceChange(const klee::ObjectKey &key,
+bool S2EExecutionStateRegisters::addressSpaceChange(const klee::ObjectKey &key,
                                                     const klee::ObjectStateConstPtr &oldState,
                                                     const klee::ObjectStatePtr &newState) {
     if (key == s_concreteRegs) {
@@ -109,8 +109,14 @@ void S2EExecutionStateRegisters::addressSpaceChange(const klee::ObjectKey &key,
         // is left with stale references to memory objects. We patch these
         // objects here.
         m_concreteRegs = newState;
+        assert(newState);
+        return true;
     } else if (key == s_symbolicRegs) {
         m_symbolicRegs = newState;
+        assert(newState);
+        return true;
+    } else {
+        return false;
     }
 }
 

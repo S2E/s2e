@@ -120,7 +120,7 @@ public:
         memcpy((void *) s_concreteRegs.address, (void *) m_concreteRegs->getConcreteBuffer(), s_concreteRegs.size);
     }
 
-    void addressSpaceChange(const klee::ObjectKey &key, const klee::ObjectStateConstPtr &oldState,
+    bool addressSpaceChange(const klee::ObjectKey &key, const klee::ObjectStateConstPtr &oldState,
                             const klee::ObjectStatePtr &newState);
 
     static const klee::ObjectKey &getConcreteRegs() {
