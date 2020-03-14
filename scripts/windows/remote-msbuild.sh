@@ -21,7 +21,7 @@
 
 # This script performs a remote build of a local Visual Studio Project.
 # Use this script if you develop on a Linux box. The remote server must
-# have Visual Studio Community 2017 installed. If you have any other version,
+# have Visual Studio Community 2019 installed. If you have any other version,
 # please modify this script accordingly
 
 # Override these variables
@@ -35,7 +35,7 @@ VS_CONFIG="${VS_CONFIG:-Debug}"
 VS_PLATFORM="${VS_PLATFORM:-x64}"
 
 VS_BUILD_OPTS="/property:Configuration=$VS_CONFIG /property:Platform=$VS_PLATFORM"
-VS_ENV="C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Community\\Common7\\Tools\\VsDevCmd.bat"
+VS_ENV="C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\Common7\\Tools\\VsDevCmd.bat"
 PDBPARSER="C:\\users\\$REMOTE_USER\\pdbparser.exe"
 REMOTE_BUILD_PATH="c:\\users\\$REMOTE_USER\\$REMOTE_FOLDER"
 
