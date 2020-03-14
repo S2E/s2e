@@ -50,7 +50,6 @@ void init_s2e_libcpu_interface(struct se_libcpu_interface_t *sqi) {
 
     sqi->mode.fast_concrete_invocation = &g_s2e_fast_concrete_invocation;
     sqi->mode.fork_on_symbolic_address = &g_s2e_fork_on_symbolic_address;
-    sqi->mode.running_concrete = &g_s2e_running_concrete;
     sqi->mode.running_exception_emulation_code = &g_s2e_running_exception_emulation_code;
     sqi->mode.single_path_mode = &g_s2e_single_path_mode;
     sqi->mode.allow_custom_instructions = &g_s2e_allow_custom_instructions;

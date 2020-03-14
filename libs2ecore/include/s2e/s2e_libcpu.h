@@ -87,8 +87,6 @@ extern int g_se_disable_tlb_flush;
 /** Fast check for cpu-exec.c */
 extern int g_s2e_fast_concrete_invocation;
 
-extern char *g_s2e_running_concrete;
-
 extern char *g_s2e_running_exception_emulation_code;
 
 extern uintptr_t g_se_dirty_mask_addend;

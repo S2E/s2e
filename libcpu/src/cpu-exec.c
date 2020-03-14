@@ -287,7 +287,7 @@ static uintptr_t fetch_and_run_tb(TranslationBlock *prev_tb, int tb_exit_code, C
 
 #if defined(CONFIG_SYMBEX)
     env->se_current_tb = tb;
-    if (likely(*g_sqi.mode.fast_concrete_invocation && **g_sqi.mode.running_concrete)) {
+    if (likely(*g_sqi.mode.fast_concrete_invocation)) {
         **g_sqi.mode.running_exception_emulation_code = 0;
         last_tb = tcg_libcpu_tb_exec(env, tc_ptr);
     } else {
