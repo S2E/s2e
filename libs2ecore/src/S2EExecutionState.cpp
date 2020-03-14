@@ -710,20 +710,16 @@ uint64_t S2EExecutionState::concretize(klee::ref<klee::Expr> expression, const s
 
 void S2EExecutionState::addressSpaceChange(const klee::ObjectKey &key, const klee::ObjectStateConstPtr &oldState,
                                            const klee::ObjectStatePtr &newState) {
-    if (oldState && oldState->isMemoryPage()) {
-        const auto &mo = oldState->getKey();
-        assert(newState->isMemoryPage());
-        if ((mo.address & ~SE_RAM_OBJECT_MASK) == 0) {
-            m_asCache.invalidate(mo.address & SE_RAM_OBJECT_MASK);
-            m_tlb.addressSpaceChangeUpdateTlb(oldState, newState);
-#ifdef SE_ENABLE_PHYSRAM_TLB
-            m_tlb.updateRamTlb(oldState, newState);
-#endif
-        }
-    } else {
-        m_registers.addressSpaceChange(key, oldState, newState);
+
+    if (m_registers.addressSpaceChange(key, oldState, newState)) {
+        goto end;
     }
 
+    if (m_tlb.addressSpaceChangeUpdateTlb(oldState, newState)) {
+        goto end;
+    }
+
+end:
     g_s2e->getCorePlugin()->onAddressSpaceChange.emit(this, key, oldState, newState);
 }
 

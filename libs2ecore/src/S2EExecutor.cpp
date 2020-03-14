@@ -225,8 +225,6 @@ extern "C" {
     // Avoids going through a wrapper.
     se_libcpu_tb_exec_t se_libcpu_tb_exec = &s2e::S2EExecutor::executeTranslationBlockFast;
 
-    char *g_s2e_running_concrete = nullptr;
-
     char *g_s2e_running_exception_emulation_code = nullptr;
 
     se_do_interrupt_all_t g_s2e_do_interrupt_all = &s2e::S2EExecutor::doInterruptAll;
@@ -515,7 +513,6 @@ S2EExecutionState *S2EExecutor::createInitialState() {
 
     m_s2e->getInfoStream(state) << "Created initial state" << '\n';
 
-    g_s2e_running_concrete = (char *) (&state->m_runningConcrete);
     g_s2e_running_exception_emulation_code = (char *) &state->m_runningExceptionEmulationCode;
 
     return state;
@@ -1031,7 +1028,7 @@ void S2EExecutor::prepareFunctionExecution(S2EExecutionState *state, llvm::Funct
 inline bool S2EExecutor::executeInstructions(S2EExecutionState *state, unsigned callerStackSize) {
     try {
         while (state->stack.size() != callerStackSize) {
-            assert(!g_s2e_fast_concrete_invocation && !*g_s2e_running_concrete);
+            assert(!g_s2e_fast_concrete_invocation);
 
             ++state->m_stats.m_statInstructionCountSymbolic;
 
@@ -1141,7 +1138,6 @@ void S2EExecutor::updateConcreteFastPath(S2EExecutionState *state) {
 
                                      (m_executeAlwaysKlee == false);
 
-    g_s2e_running_concrete = (char *) &state->m_runningConcrete;
     g_s2e_running_exception_emulation_code = (char *) &state->m_runningExceptionEmulationCode;
 
     if (g_s2e_fast_concrete_invocation) {

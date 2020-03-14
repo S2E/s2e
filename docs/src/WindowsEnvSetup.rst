@@ -26,7 +26,7 @@ Prerequisites:
 
     1. You have a working S2E environment on a Linux host machine
     2. You have a working hypervisor (VMware, Virtual Box, etc.)
-    3. You have access to a 64-bit Windows 10 1803 ISO (e.g. through MSDN)
+    3. You have access to a 64-bit Windows 10 1909 ISO (e.g. through MSDN)
     4. You have an Internet connection (the installation will download several GBs)
     5. You have enough disk space and free memory (you will need at least 60 GB of disk and 4 GB of RAM for the VM).
 
@@ -35,12 +35,12 @@ Prerequisites:
 1. Provisioning a Windows development VM
 ========================================
 
-First, you need to build a Windows VM. At the end of this section, you will have a Windows 10 VM with Visual Studio 2017
+First, you need to build a Windows VM. At the end of this section, you will have a Windows 10 VM with Visual Studio 2019
 Community Edition, the Windows Driver Kit, and an SSH server. Visual Studio will be installed with all C/C++ development
 options (support for XP, 7, 8.1, 10). You will be able to SSH into this VM, rsync files, and do remote builds.
 
 a. **Install a Windows 10 VM.** Use 60GB of disk and 4GB of RAM for the guest. Any 64-bit Windows 10 version should
-   work, but it is recommended you use the latest one (the scripts were tested with version 1803).
+   work, but it is recommended you use the latest one (the scripts were tested with version 1909).
 
    Preferably use ``s2e`` as login for the admin user. Most scripts assume ``s2e`` as default
    user name, so you will not have to override this user name later. Other than that, a vanilla installation will do.

@@ -63,13 +63,6 @@ extern "C" {
 
 //#define SE_ENABLE_FAST_DIRTYMASK
 
-/**
- * Use retranslation when recomputing the precise pc for
- * blocks that are not instrumented. Reduces the use of
- * expensive metadata.
- */
-#define SE_ENABLE_RETRANSLATION
-
 /** When enabled, the program counter is explicitely updated
  * between each guest instruction and compared to the
  * program counter recovered by cpu_restore_state. */

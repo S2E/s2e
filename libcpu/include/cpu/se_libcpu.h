@@ -51,7 +51,6 @@ struct se_libcpu_interface_t {
     struct mode {
         const int *fast_concrete_invocation;
         const int *fork_on_symbolic_address;
-        char **running_concrete;
         char **running_exception_emulation_code;
         const int *single_path_mode;
         const int *allow_custom_instructions;

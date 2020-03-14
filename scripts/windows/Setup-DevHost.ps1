@@ -9,17 +9,19 @@ choco install -y wget
 choco install -y git
 choco install -y rsync
 
-# Install VS2017
-choco install -y visualstudio2017community
-choco install -y visualstudio2017-workload-nativedesktop  --package-parameters "--includeOptional"
+# Install VS2019
+choco install -y visualstudio2019community
+choco install -y visualstudio2019-workload-nativedesktop  --package-parameters "--includeOptional --includeRecommended"
 
-# Download and install WDK 1803
+"C:\Program Files (x86)\Microsoft Visual Studio\Installer\vs_installer.exe" -- modify --installPath 'C:\Program Files (x86)\Microsoft Visual Studio\2019\community' --add Microsoft.VisualStudio.Component.VC.v141.x86.x64.Spectre --add Microsoft.VisualStudio.Component.VC.Runtimes.x86.x64.Spectre --quiet
+
+# Download and install WDK 1903
 cd $env:USERPROFILE
-wget.exe -O wdk_setup.exe https://go.microsoft.com/fwlink/?linkid=873060
+wget.exe -O wdk_setup.exe https://go.microsoft.com/fwlink/?linkid=2085767
 & .\wdk_setup.exe /features + /l wdk.log /norestart /quiet | Out-Null
 
 # The WDK installer does not install the VS extension in unattended mode. Do it manually.
-& "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\Common7\IDE\vsixinstaller.exe" /q "C:\Program Files (x86)\Windows Kits\10\Vsix\WDK.vsix" | Out-Null
+& "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\Common7\IDE\vsixinstaller.exe" /q "C:\Program Files (x86)\Windows Kits\10\Vsix\VS2019\WDK.vsix" | Out-Null
 
 # Install the OpenSSH Client and Server
 dism /Online /Add-Capability /CapabilityName:OpenSSH.Client~~~~0.0.1.0

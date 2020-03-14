@@ -123,15 +123,15 @@ ObjectStatePtr AddressSpace::getWriteable(const ObjectStateConstPtr &os) {
     }
 
     // Check whether we have a split object
-    unsigned bits = os->getBitArraySize();
-    if (bits == os->getSize()) {
+    unsigned size = os->getBitArraySize();
+    if (size == os->getSize()) {
         assert(os->getStoreOffset() == 0);
         return getWriteableInternal(os);
     }
 
     // Split objects are just like other objects, we may
     // need to get a private copy of them later on.
-    assert(bits > os->getSize());
+    assert(size > os->getSize());
 
     // Find all the pieces and make them writable
     uint64_t address = os->getAddress() - os->getStoreOffset();
@@ -145,8 +145,8 @@ ObjectStatePtr AddressSpace::getWriteable(const ObjectStateConstPtr &os) {
 
         readOnlyObjects.push_back(mo);
         address += mo->getSize();
-        bits -= mo->getSize();
-    } while (bits > 0);
+        size -= mo->getSize();
+    } while (size > 0);
 
     auto concreteBuffer = ConcreteBuffer::create(os->getConcreteBufferPtr());
     auto concreteMask = BitArray::create(os->getConcreteMask());
@@ -188,13 +188,13 @@ bool AddressSpace::splitMemoryObject(ExecutionState &state, const ObjectStateCon
     std::vector<unsigned> offsets;
 
     // XXX: for now, split into fixed-size objects
-    for (unsigned i = 0; i < PAGE_SIZE / 128; ++i) {
+    const auto size = 128u;
+    for (unsigned i = 0; i < PAGE_SIZE / size; ++i) {
         offsets.push_back(i * 128);
     }
 
     for (unsigned i = 0; i < offsets.size(); ++i) {
         auto offset = offsets[i];
-        auto size = 128u;
         auto newObject = originalWritableObject->split(offset, size);
         objectStates.push_back(newObject);
         rl.push_back(newObject);

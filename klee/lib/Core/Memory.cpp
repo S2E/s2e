@@ -55,7 +55,6 @@ ObjectState::ObjectState(uint64_t address, uint64_t size, bool fixed)
 
 ObjectState::ObjectState(const ObjectState &os) {
     assert(!os.m_readOnly && "no need to copy read only object?");
-    assert(!os.m_concreteMask || (os.m_size == os.m_concreteMask->getBitCount()));
 
     this->m_concreteMask = os.m_concreteMask ? BitArray::create(os.m_concreteMask) : nullptr;
     this->m_copyOnWriteOwner = os.m_copyOnWriteOwner;
@@ -104,11 +103,12 @@ ObjectStatePtr ObjectState::split(unsigned offset, unsigned newSize) const {
     assert(m_flushMask == nullptr);
     assert(!m_updates || m_updates->getSize() == 0);
     assert(m_readOnly == false);
+    assert(m_size > FAST_CONCRETE_BUFFER_SIZE);
 
     auto ret = new ObjectState();
 
     ret->m_concreteMask = m_concreteMask;
-    ret->m_copyOnWriteOwner = m_copyOnWriteOwner;
+    ret->m_copyOnWriteOwner = 0;
     ret->m_refCount = 0;
     ret->m_address = m_address + offset;
     ret->m_size = newSize;

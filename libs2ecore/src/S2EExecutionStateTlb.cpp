@@ -48,21 +48,40 @@ namespace s2e {
 
 using namespace klee;
 
-void S2EExecutionStateTlb::addressSpaceChangeUpdateTlb(const klee::ObjectStateConstPtr &oldState,
+bool S2EExecutionStateTlb::addressSpaceChangeUpdateTlb(const klee::ObjectStateConstPtr &oldState,
                                                        const klee::ObjectStatePtr &newState) {
     if (!(oldState && oldState->isMemoryPage())) {
-        return;
+        return false;
     }
 
-    /* This can happen when KLEE unbinds the object after it was
-     * split into multiple ones. */
+    // This can happen when KLEE unbinds the object after it was
+    // split into multiple ones.
     if (!newState) {
-        return;
+        return false;
     }
 
-    assert(oldState->getStoreOffset() == 0);
+    if (oldState->getStoreOffset()) {
+        // This happens when a split object is COWed.
+        // Since all split objects share the same concrete buffer,
+        // we only need to process the first object of the page.
+        // This assumes that KLEE will call getWritable on every
+        // sub-object of the memory page.
+        return false;
+    }
 
+    const auto &mo = oldState->getKey();
+    assert(newState->isMemoryPage());
+
+    if ((mo.address & ~SE_RAM_OBJECT_MASK)) {
+        return false;
+    }
+
+    m_asCache->invalidate(mo.address & SE_RAM_OBJECT_MASK);
     updateTlb(oldState, newState);
+#ifdef SE_ENABLE_PHYSRAM_TLB
+    updateRamTlb(oldState, newState);
+#endif
+    return true;
 }
 
 #if defined(SE_ENABLE_PHYSRAM_TLB)
@@ -101,9 +120,9 @@ void S2EExecutionStateTlb::updateTlb(const klee::ObjectStateConstPtr &oldState, 
     }
 
 #ifdef S2E_DEBUG_TLBCACHE
-    g_s2e->getDebugStream(g_s2e_state) << "addressSpaceChangeUpdateTlb: Replacing " << hexval(oldState) << " by "
-                                       << hexval(newState) << "\n";
-    g_s2e->getDebugStream(g_s2e_state) << "addressSpaceChangeUpdateTlb: tlb map size=" << m_tlbMap.size() << '\n';
+    g_s2e->getDebugStream(g_s2e_state) << "updateTlb: Replacing " << hexval(oldState) << " by " << hexval(newState)
+                                       << "\n";
+    g_s2e->getDebugStream(g_s2e_state) << "updateTlb: tlb map size=" << m_tlbMap.size() << '\n';
 #endif
 
     assert(oldState->isSharedConcrete() == newState->isSharedConcrete());

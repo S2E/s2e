@@ -1,0 +1,14 @@
+test:
+    description: "Check that symbolic addresses work properly"
+
+    target_arguments:
+        - "@@"
+
+    targets:
+        - windows64-basic9-symaddr.exe
+        - windows32-basic9-symaddr.exe
+        - linux32-basic9-symaddr
+        - linux64-basic9-symaddr
+
+    build-options:
+        post-project-generation-script: fix-config.sh
