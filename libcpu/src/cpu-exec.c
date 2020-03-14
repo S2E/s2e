@@ -429,11 +429,9 @@ static bool execution_loop(CPUArchState *env) {
     for (;;) {
         bool has_interrupt = false;
         if (process_interrupt_request(env)) {
-            /*
-             * ensure that no TB jump will be modified as
-             * the program flow was changed
-             */
-            last_tb = 0;
+            // Ensure that no TB jump will be modified as
+            // the program flow was changed
+            ltb = NULL;
             has_interrupt = true;
         }
 
