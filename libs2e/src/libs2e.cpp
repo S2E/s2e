@@ -90,47 +90,68 @@ int open64(const char *pathname, int flags, ...) {
 
         return fd;
     } else {
+        if (!g_original_open) {
+            g_original_open = (open_t) dlsym(RTLD_NEXT, "open");
+        }
         return g_original_open(pathname, flags, mode);
     }
 }
 
 static close_t s_original_close;
 int close64(int fd) {
-    if (g_fdm->close(fd)) {
+    if (g_fdm && g_fdm->close(fd)) {
         return 0;
     } else {
+        if (!s_original_close) {
+            s_original_close = (close_t) dlsym(RTLD_NEXT, "close");
+        }
         return s_original_close(fd);
     }
 }
 
 static write_t s_original_write;
 ssize_t write(int fd, const void *buf, size_t count) {
-    auto ifp = g_fdm->get(fd);
-    if (ifp) {
-        return ifp->sys_write(fd, buf, count);
-    } else {
-        return s_original_write(fd, buf, count);
+    if (g_fdm) {
+        auto ifp = g_fdm->get(fd);
+        if (ifp) {
+            return ifp->sys_write(fd, buf, count);
+        }
     }
+    if (!s_original_write) {
+        s_original_write = (write_t) dlsym(RTLD_NEXT, "write");
+    }
+    return s_original_write(fd, buf, count);
 }
 
 ioctl_t g_original_ioctl;
 int ioctl(int fd, int request, uint64_t arg1) {
-    auto ifp = g_fdm->get(fd);
-    if (ifp) {
-        return ifp->sys_ioctl(fd, request, arg1);
-    } else {
-        return g_original_ioctl(fd, request, arg1);
+    if (g_fdm) {
+        auto ifp = g_fdm->get(fd);
+        if (ifp) {
+            return ifp->sys_ioctl(fd, request, arg1);
+        }
     }
+    if (!g_original_ioctl) {
+        g_original_ioctl = (ioctl_t) dlsym(RTLD_NEXT, "ioctl");
+    }
+    return g_original_ioctl(fd, request, arg1);
 }
 
 static poll_t s_original_poll;
 int poll(struct pollfd *fds, nfds_t nfds, int timeout) {
+    if (!s_original_poll) {
+        s_original_poll = (poll_t) dlsym(RTLD_NEXT, "poll");
+    }
     // TODO: do we actually have to request exit from here?
     return s_original_poll(fds, nfds, timeout);
 }
 
 static select_t s_original_select;
 int select(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, struct timeval *timeout) {
+    if (!s_original_select) {
+        s_original_select = (select_t) dlsym(RTLD_NEXT, "select");
+    }
+
     int ret = s_original_select(nfds, readfds, writefds, exceptfds, timeout);
     s2e::g_syscalls.onSelect.emit();
     return ret;
@@ -139,6 +160,9 @@ int select(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, struc
 exit_t g_original_exit;
 void exit(int code) {
     s2e::g_syscalls.onExit.emit(code);
+    if (!g_original_exit) {
+        g_original_exit = (exit_t) dlsym(RTLD_NEXT, "exit");
+    }
     g_original_exit(code);
 }
 
@@ -146,32 +170,44 @@ void exit(int code) {
 
 mmap_t g_original_mmap;
 void *mmap(void *addr, size_t len, int prot, int flags, int fd, off_t offset) {
-    auto ifp = g_fdm->get(fd);
-    if (ifp) {
-        return ifp->sys_mmap(addr, len, prot, flags, fd, offset);
-    } else {
-        return g_original_mmap(addr, len, prot, flags, fd, offset);
+    if (g_fdm) {
+        auto ifp = g_fdm->get(fd);
+        if (ifp) {
+            return ifp->sys_mmap(addr, len, prot, flags, fd, offset);
+        }
     }
+    if (!g_original_mmap) {
+        g_original_mmap = (mmap_t) dlsym(RTLD_NEXT, "mmap");
+    }
+    return g_original_mmap(addr, len, prot, flags, fd, offset);
 }
 
 mmap64_t g_original_mmap64;
 void *mmap64(void *addr, size_t len, int prot, int flags, int fd, off64_t offset) {
-    auto ifp = g_fdm->get(fd);
-    if (ifp) {
-        return ifp->sys_mmap(addr, len, prot, flags, fd, offset);
-    } else {
-        return g_original_mmap64(addr, len, prot, flags, fd, offset);
+    if (g_fdm) {
+        auto ifp = g_fdm->get(fd);
+        if (ifp) {
+            return ifp->sys_mmap(addr, len, prot, flags, fd, offset);
+        }
     }
+    if (!g_original_mmap64) {
+        g_original_mmap64 = (mmap_t) dlsym(RTLD_NEXT, "mmap64");
+    }
+    return g_original_mmap64(addr, len, prot, flags, fd, offset);
 }
 
 static dup_t s_original_dup;
 int dup(int fd) {
-    auto ifp = g_fdm->get(fd);
-    if (ifp) {
-        return g_fdm->registerInterface(ifp);
-    } else {
-        return s_original_dup(fd);
+    if (g_fdm) {
+        auto ifp = g_fdm->get(fd);
+        if (ifp) {
+            return g_fdm->registerInterface(ifp);
+        }
     }
+    if (!s_original_dup) {
+        s_original_dup = (dup_t) dlsym(RTLD_NEXT, "dup");
+    }
+    return s_original_dup(fd);
 }
 
 static madvise_t s_original_madvise;
@@ -183,6 +219,10 @@ int madvise(void *addr, size_t len, int advice) {
 
     if (!advice) {
         return 0;
+    }
+
+    if (!s_original_madvise) {
+        s_original_madvise = (madvise_t) dlsym(RTLD_NEXT, "madvise");
     }
 
     return s_original_madvise(addr, len, advice);
@@ -250,17 +290,49 @@ void libs2e_init_syscalls(void) {
         return;
     }
 
-    g_original_open = (open_t) dlsym(RTLD_NEXT, "open64");
-    s_original_close = (close_t) dlsym(RTLD_NEXT, "close64");
-    g_original_ioctl = (ioctl_t) dlsym(RTLD_NEXT, "ioctl");
-    s_original_write = (write_t) dlsym(RTLD_NEXT, "write");
-    s_original_select = (select_t) dlsym(RTLD_NEXT, "select");
-    s_original_poll = (poll_t) dlsym(RTLD_NEXT, "poll");
-    g_original_exit = (exit_t) dlsym(RTLD_NEXT, "exit");
-    g_original_mmap = (mmap_t) dlsym(RTLD_NEXT, "mmap");
-    g_original_mmap64 = (mmap64_t) dlsym(RTLD_NEXT, "mmap64");
-    s_original_madvise = (madvise_t) dlsym(RTLD_NEXT, "madvise");
-    s_original_dup = (dup_t) dlsym(RTLD_NEXT, "dup");
+    if (!g_original_open) {
+        g_original_open = (open_t) dlsym(RTLD_NEXT, "open64");
+    }
+
+    if (!s_original_close) {
+        s_original_close = (close_t) dlsym(RTLD_NEXT, "close64");
+    }
+
+    if (!g_original_ioctl) {
+        g_original_ioctl = (ioctl_t) dlsym(RTLD_NEXT, "ioctl");
+    }
+
+    if (!s_original_write) {
+        s_original_write = (write_t) dlsym(RTLD_NEXT, "write");
+    }
+
+    if (!s_original_select) {
+        s_original_select = (select_t) dlsym(RTLD_NEXT, "select");
+    }
+
+    if (!s_original_poll) {
+        s_original_poll = (poll_t) dlsym(RTLD_NEXT, "poll");
+    }
+
+    if (!g_original_exit) {
+        g_original_exit = (exit_t) dlsym(RTLD_NEXT, "exit");
+    }
+
+    if (!g_original_mmap) {
+        g_original_mmap = (mmap_t) dlsym(RTLD_NEXT, "mmap");
+    }
+
+    if (!g_original_mmap64) {
+        g_original_mmap64 = (mmap64_t) dlsym(RTLD_NEXT, "mmap64");
+    }
+
+    if (!s_original_madvise) {
+        s_original_madvise = (madvise_t) dlsym(RTLD_NEXT, "madvise");
+    }
+
+    if (!s_original_dup) {
+        s_original_dup = (dup_t) dlsym(RTLD_NEXT, "dup");
+    }
 
 #ifdef CONFIG_SYMBEX
     s_original_printf = (printf_t) dlsym(RTLD_NEXT, "printf");
