@@ -38,7 +38,7 @@ RUN apt-get update && apt-get -y install libdwarf-dev libelf-dev libelf-dev:i386
     libmemcached-dev libpq-dev libc6-dev-i386 binutils-dev                  \
     libboost-system-dev libboost-serialization-dev libboost-regex-dev       \
     libbsd-dev libpixman-1-dev                                              \
-    libglib2.0-dev libglib2.0-dev:i386 python3-docutils libpng12-dev gcc-multilib g++-multilib
+    libglib2.0-dev libglib2.0-dev:i386 python3-docutils libpng-dev gcc-multilib g++-multilib
 
 # Install S2E git
 RUN apt-get -y install git
