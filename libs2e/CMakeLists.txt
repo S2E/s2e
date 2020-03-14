@@ -93,7 +93,7 @@ find_package(LIBCOROUTINE REQUIRED)
 message(STATUS "Found libcoroutine ${LIBCOROUTINE_PACKAGE_VERSION}")
 
 if(WITH_TARGET MATCHES "s2e")
-    # TODO: look at libcpu compile options to figure this out§
+    # TODO: look at libcpu compile options to figure this out
     find_package(LIBS2ECORE REQUIRED)
     message(STATUS "Found s2e core ${LIBS2ECORE_PACKAGE_VERSION}")
 
