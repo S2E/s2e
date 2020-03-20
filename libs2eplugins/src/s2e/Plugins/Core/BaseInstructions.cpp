@@ -951,6 +951,11 @@ void BaseInstructions::handleBuiltInOps(S2EExecutionState *state, uint64_t opcod
             se_tb_safe_flush();
         } break;
 
+        case BASE_S2E_SET_LIBCPU_LOG_LEVEL: {
+            loglevel = (int) state->regs()->read<uint64_t>(CPU_OFFSET(regs[R_EAX]));
+            getInfoStream(state) << "Set libcpu loglevel to " << hexval(loglevel) << "\n";
+        } break;
+
         default:
             getWarningsStream(state) << "BaseInstructions: Invalid built-in opcode " << hexval(opcode) << '\n';
             break;
