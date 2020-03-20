@@ -49,6 +49,10 @@ void BlueScreenInterceptor::initialize() {
         exit(-1);
     }
 
+    m_monitor->onMonitorLoad.connect(sigc::mem_fun(*this, &BlueScreenInterceptor::onMonitorLoad));
+}
+
+void BlueScreenInterceptor::onMonitorLoad(S2EExecutionState *state) {
     s2e()->getCorePlugin()->onTranslateBlockStart.connect(
         sigc::mem_fun(*this, &BlueScreenInterceptor::onTranslateBlockStart));
 }

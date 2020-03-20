@@ -58,6 +58,8 @@ public:
 private:
     WindowsMonitor *m_monitor;
 
+    void onMonitorLoad(S2EExecutionState *state);
+
     bool invokeCrashRoutine(S2EExecutionState *state, uint64_t pc);
 
     void onTranslateBlockStart(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb, uint64_t pc);
