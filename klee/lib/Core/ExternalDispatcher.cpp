@@ -81,6 +81,33 @@ bool ExternalDispatcher::call(external_fcn_t targetFunction, const Arguments &ar
         case 8:
             *result = targetFunction(args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7]);
             break;
+        case 9:
+            *result = targetFunction(args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7], args[8]);
+            break;
+        case 10:
+            *result = targetFunction(args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7], args[8],
+                                     args[9]);
+            break;
+        case 11:
+            *result = targetFunction(args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7], args[8],
+                                     args[9], args[10]);
+            break;
+        case 12:
+            *result = targetFunction(args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7], args[8],
+                                     args[9], args[10], args[11]);
+            break;
+        case 13:
+            *result = targetFunction(args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7], args[8],
+                                     args[9], args[10], args[11], args[12]);
+            break;
+        case 14:
+            *result = targetFunction(args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7], args[8],
+                                     args[9], args[10], args[11], args[12], args[13]);
+            break;
+        case 15:
+            *result = targetFunction(args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7], args[8],
+                                     args[9], args[10], args[11], args[12], args[13], args[14]);
+            break;
         default: {
             err << "External function has too many parameters";
             return false;
