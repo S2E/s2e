@@ -50,3 +50,8 @@ static inline BOOLEAN IsWindows10OrAbove(_In_ const RTL_OSVERSIONINFOEXW *Versio
 {
     return Version->dwMajorVersion >= 10;
 }
+
+static inline BOOLEAN IsWindows10_1909_OrAbove(_In_ const RTL_OSVERSIONINFOEXW *Version)
+{
+    return Version->dwMajorVersion >= 10 && Version->dwBuildNumber >= 18363;
+}

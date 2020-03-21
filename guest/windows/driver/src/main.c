@@ -317,7 +317,7 @@ static NTSTATUS S2EIoCtlUserModeCrash(_In_ PVOID Buffer, _In_ ULONG InputBufferL
         goto err;
     }
 
-    Command = *(S2E_WINDOWS_CRASH_COMMAND *)Buffer;
+    Command = *(S2E_WINDOWS_CRASH_COMMAND*)Buffer;
 
     //S2E_WINDOWS_USERMODE_CRASH::ProgramName is the offset
     //of the string. Convert to absolute pointer.
