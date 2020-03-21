@@ -201,6 +201,36 @@ UINT_PTR GetS2ECrashHookAddress()
     return (UINT_PTR)S2EBSODHook;
 }
 
+_Function_class_(KBUGCHECK_CALLBACK_ROUTINE)
+_IRQL_requires_same_
+static VOID BugCheckCallback(PVOID Buffer, ULONG Length)
+{
+    UNREFERENCED_PARAMETER(Buffer);
+    UNREFERENCED_PARAMETER(Length);
+    S2EKillState(0, "Blue screen callback");
+}
+
+static const PCHAR s_s2e = "S2E";
+
+BOOLEAN InitializeCrashCallback(VOID)
+{
+    KeInitializeCallbackRecord(&g_kernelStructs.BugCheckCbRecord);
+    g_kernelStructs.BugCheckMagic[0] = 'S';
+    g_kernelStructs.BugCheckMagic[1] = '2';
+    g_kernelStructs.BugCheckMagic[2] = 'E';
+    g_kernelStructs.BugCheckMagic[3] = 0;
+    return KeRegisterBugCheckCallback(&g_kernelStructs.BugCheckCbRecord, BugCheckCallback, NULL, 0,
+                                      g_kernelStructs.BugCheckMagic);
+}
+
+VOID DeinitializeCrashCallback(VOID)
+{
+    if (!KeDeregisterBugCheckCallback(&g_kernelStructs.BugCheckCbRecord)) {
+        LOG("Could not deregister crash dump callback");
+    }
+}
+
+
 /*
 Info about registering dump devices:
 http://www.osronline.com/showThread.cfm?link=82275

@@ -31,8 +31,7 @@
 #if _WIN32_WINNT >= _WIN32_WINNT_WS03
 
 NTKERNELAPI
-NTSTATUS
-KeInitializeCrashDumpHeader(
+NTSTATUS KeInitializeCrashDumpHeader(
     _In_ ULONG DumpType,
     _In_ ULONG Flags,
     _Out_writes_bytes_(BufferSize) PVOID Buffer,
@@ -51,5 +50,8 @@ NTSTATUS InitializeManualCrash(PVOID *Header, UINT64 *HeaderSize);
 
 /* PKPROCESSOR_STATE State */
 VOID __cdecl KeSaveStateForHibernate(PVOID State);
+
+BOOLEAN InitializeCrashCallback(VOID);
+VOID DeinitializeCrashCallback(VOID);
 
 #endif
