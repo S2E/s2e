@@ -33,6 +33,7 @@ def get_info(pdb):
         'version': pdb.product_version,
         'checksum': pdb.checksum,
         'bits': pdb.bits,
+        'native_base': pdb.native_base,
         'IopDeleteDriver': pdb.get_function_address('IopDeleteDriver'),
         'KeBugCheck2': pdb.get_function_address('KeBugCheck2'),
         'KdDebuggerDataBlock': pdb.get_function_address('KdDebuggerDataBlock'),

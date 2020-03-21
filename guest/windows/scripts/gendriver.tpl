@@ -46,7 +46,7 @@ REGISTER_KERNEL_STRUCTS_HANDLERS g_KernelStructHandlers [] = {
     {% else %}
     #if defined(_X86_)
     {% endif %}
-    { {{d.checksum | hex}}, &Handler{{d.checksum | hex}} }, /* {{d.version}} - {{d.bits}}*/
+    { {{d.checksum | hex}}, {{d.native_base | hex}}, &Handler{{d.checksum | hex}} }, /* {{d.version}} - {{d.bits}}*/
     #endif
 {% endfor %}
 };

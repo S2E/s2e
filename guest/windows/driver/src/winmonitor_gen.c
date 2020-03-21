@@ -52,46 +52,46 @@ static REGISTER_KERNEL_STRUCTS Handler0x97cabe; /* (10, 0, 18362, 418) - 64 - Wi
 
 REGISTER_KERNEL_STRUCTS_HANDLERS g_KernelStructHandlers [] = {
         #if defined(_X86_)
-        { 0x2247c2, &Handler0x2247c2 }, /* (5, 1, 2600, 5512) - 32*/
+        { 0x2247c2, 0x400000, &Handler0x2247c2 }, /* (5, 1, 2600, 5512) - 32*/
     #endif
         #if defined(_X86_)
-        { 0x21a293, &Handler0x21a293 }, /* (5, 1, 2600, 5512) - 32*/
+        { 0x21a293, 0x400000, &Handler0x21a293 }, /* (5, 1, 2600, 5512) - 32*/
     #endif
         #if defined(_X86_)
-        { 0x3c88ac, &Handler0x3c88ac }, /* (6, 1, 7601, 17514) - 32*/
+        { 0x3c88ac, 0x400000, &Handler0x3c88ac }, /* (6, 1, 7601, 17514) - 32*/
     #endif
         #if defined(_X86_)
-        { 0x3c05d5, &Handler0x3c05d5 }, /* (6, 1, 7601, 17514) - 32*/
+        { 0x3c05d5, 0x400000, &Handler0x3c05d5 }, /* (6, 1, 7601, 17514) - 32*/
     #endif
         #if defined(_AMD64_)
-        { 0x55ce0c, &Handler0x55ce0c }, /* (6, 1, 7601, 17514) - 64*/
+        { 0x55ce0c, 0x140000000, &Handler0x55ce0c }, /* (6, 1, 7601, 17514) - 64*/
     #endif
         #if defined(_X86_)
-        { 0x3cbb94, &Handler0x3cbb94 }, /* (6, 1, 7601, 18741) - 32*/
+        { 0x3cbb94, 0x400000, &Handler0x3cbb94 }, /* (6, 1, 7601, 18741) - 32*/
     #endif
         #if defined(_X86_)
-        { 0x3cdec5, &Handler0x3cdec5 }, /* (6, 1, 7601, 18741) - 32*/
+        { 0x3cdec5, 0x400000, &Handler0x3cdec5 }, /* (6, 1, 7601, 18741) - 32*/
     #endif
         #if defined(_AMD64_)
-        { 0x556afe, &Handler0x556afe }, /* (6, 1, 7601, 18741) - 64*/
+        { 0x556afe, 0x140000000, &Handler0x556afe }, /* (6, 1, 7601, 18741) - 64*/
     #endif
         #if defined(_X86_)
-        { 0x3cca4b, &Handler0x3cca4b }, /* (6, 1, 7601, 22948) - 32*/
+        { 0x3cca4b, 0x400000, &Handler0x3cca4b }, /* (6, 1, 7601, 22948) - 32*/
     #endif
         #if defined(_X86_)
-        { 0x3cb498, &Handler0x3cb498 }, /* (6, 1, 7601, 22948) - 32*/
+        { 0x3cb498, 0x400000, &Handler0x3cb498 }, /* (6, 1, 7601, 22948) - 32*/
     #endif
         #if defined(_AMD64_)
-        { 0x5546f7, &Handler0x5546f7 }, /* (6, 1, 7601, 22948) - 64*/
+        { 0x5546f7, 0x140000000, &Handler0x5546f7 }, /* (6, 1, 7601, 22948) - 64*/
     #endif
         #if defined(_AMD64_)
-        { 0x71a4f4, &Handler0x71a4f4 }, /* (6, 3, 9600, 16404) - 64*/
+        { 0x71a4f4, 0x140000000, &Handler0x71a4f4 }, /* (6, 3, 9600, 16404) - 64*/
     #endif
         #if defined(_AMD64_)
-        { 0x7f010a, &Handler0x7f010a }, /* (10, 0, 15063, 0) - 64*/
+        { 0x7f010a, 0x140000000, &Handler0x7f010a }, /* (10, 0, 15063, 0) - 64*/
     #endif
         #if defined(_AMD64_)
-        { 0x97cabe, &Handler0x97cabe }, /* (10, 0, 18362, 418) - 64*/
+        { 0x97cabe, 0x140000000, &Handler0x97cabe }, /* (10, 0, 18362, 418) - 64*/
     #endif
 };
 
