@@ -32,7 +32,7 @@
 #include <s2e/WindowsMonitor.h>
 #include <s2e/BlueScreenInterceptor.h>
 
-// MmGetSystemRoutineAddress returns PVOID when it shoudl return FARPROC
+// MmGetSystemRoutineAddress returns PVOID when it should return FARPROC
 #pragma warning(disable:4152)
 
 static BOOLEAN BugCheckCallbackRegistered = FALSE;
@@ -69,6 +69,7 @@ VOID DecryptKdDataBlock()
     IsEncoded = (PCHAR)(UINT_PTR)ToRuntimeAddress(g_kernelStructs.KdpDataBlockEncoded);
 
     if (*IsEncoded) {
+        LOG("Block is encoded, decoding...\n");
         Routine = (KdCopyDataBlock*)ToRuntimeAddress(g_kernelStructs.KdCopyDataBlock);
         Routine((PVOID)ToRuntimeAddress(g_WinmonKernelStructs.KdDebuggerDataBlock));
         *IsEncoded = 0;
@@ -91,15 +92,31 @@ static NTSTATUS LfiKeInitializeCrashDumpHeader(
     typedef NTSTATUS (*KeInitializeCrashDumpHeader_t)(ULONG DumpType, ULONG Flags, PVOID Buffer,
         ULONG BufferSize, PULONG BufferNeeded);
 
-    static KeInitializeCrashDumpHeader_t _KeInitializeCrashDumpHeader = NULL;
+    typedef NTSTATUS (*KeInitializeCrashDumpHeader2_t)(ULONG DumpType, ULONG Flags, PVOID Buffer,
+        ULONG BufferSize);
+
+    union
+    {
+        KeInitializeCrashDumpHeader_t _KeInitializeCrashDumpHeader;
+        KeInitializeCrashDumpHeader2_t _KeInitializeCrashDumpHeader2;
+    } u;
 
     RtlInitUnicodeString(&Str, L"KeInitializeCrashDumpHeader");
-    _KeInitializeCrashDumpHeader = MmGetSystemRoutineAddress(&Str);
-    if (!_KeInitializeCrashDumpHeader) {
+    u._KeInitializeCrashDumpHeader = MmGetSystemRoutineAddress(&Str);
+    if (!u._KeInitializeCrashDumpHeader) {
         return STATUS_NOT_SUPPORTED;
     }
 
-    return _KeInitializeCrashDumpHeader(DumpType, Flags, Buffer, BufferSize, BufferNeeded);
+    if (IsWindows10_1909_OrAbove(&g_kernelStructs.Version)) {
+        if (!BufferSize) {
+            *BufferNeeded = CRASH_DUMP_HEADER_SIZE;
+            return STATUS_SUCCESS;
+        }
+
+        return u._KeInitializeCrashDumpHeader2(DumpType, Flags, Buffer, BufferSize);
+    } else {
+        return u._KeInitializeCrashDumpHeader(DumpType, Flags, Buffer, BufferSize, BufferNeeded);
+    }
 }
 
 /**
@@ -116,6 +133,10 @@ NTSTATUS InitializeCrashDumpHeader(ULONG *BufferSize)
     Status = LfiKeInitializeCrashDumpHeader(
         1 /* DUMP_TYPE_FULL */, 0,
         s_BugCheckHeaderBuffer, 0, &BufferNeeded);
+
+    if (!NT_SUCCESS(Status)) {
+        return Status;
+    }
 
     if (BufferNeeded > 0) {
         LOG("S2EBSODHook: crash dump header of size %#x\n", BufferNeeded);
@@ -140,21 +161,34 @@ NTSTATUS InitializeCrashDumpHeader(ULONG *BufferSize)
 
 NTSTATUS InitializeManualCrash(PVOID *Header, UINT64 *HeaderSize)
 {
+    NTSTATUS Status;
     ULONG BufferNeeded = 0;
     if (!Header || !HeaderSize) {
         return STATUS_INVALID_PARAMETER;
     }
 
-    InitializeCrashDumpHeader(&BufferNeeded);
+    Status = InitializeCrashDumpHeader(&BufferNeeded);
+    if (!NT_SUCCESS(Status)) {
+        LOG("InitializeCrashDumpHeader failed: %#x\n", Status);
+        return Status;
+    }
+
+    LOG("Initialized crash dump header: %#x\n", BufferNeeded);
 
     if (IsWindows8OrAbove(&g_kernelStructs.Version)) {
+        LOG("Decrypting kd data block...");
         DecryptKdDataBlock();
     }
 
+    LOG("Calling KeSaveStateForHibernate...\n");
     KeSaveStateForHibernate(g_kernelStructs.PRCBProcessorStateOffset);
+    LOG("KeSaveStateForHibernate done.\n");
 
     *Header = s_BugCheckHeaderBuffer;
     *HeaderSize = BufferNeeded;
+
+    LOG("Header: %p Size=%#x\n", Header, *HeaderSize);
+
     return STATUS_SUCCESS;
 }
 
@@ -200,6 +234,36 @@ UINT_PTR GetS2ECrashHookAddress()
     LOG("S2EBSODHook is at %p\n", S2EBSODHook);
     return (UINT_PTR)S2EBSODHook;
 }
+
+_Function_class_(KBUGCHECK_CALLBACK_ROUTINE)
+_IRQL_requires_same_
+static VOID BugCheckCallback(PVOID Buffer, ULONG Length)
+{
+    UNREFERENCED_PARAMETER(Buffer);
+    UNREFERENCED_PARAMETER(Length);
+    S2EKillState(0, "Blue screen callback");
+}
+
+static const PCHAR s_s2e = "S2E";
+
+BOOLEAN InitializeCrashCallback(VOID)
+{
+    KeInitializeCallbackRecord(&g_kernelStructs.BugCheckCbRecord);
+    g_kernelStructs.BugCheckMagic[0] = 'S';
+    g_kernelStructs.BugCheckMagic[1] = '2';
+    g_kernelStructs.BugCheckMagic[2] = 'E';
+    g_kernelStructs.BugCheckMagic[3] = 0;
+    return KeRegisterBugCheckCallback(&g_kernelStructs.BugCheckCbRecord, BugCheckCallback, NULL, 0,
+                                      g_kernelStructs.BugCheckMagic);
+}
+
+VOID DeinitializeCrashCallback(VOID)
+{
+    if (!KeDeregisterBugCheckCallback(&g_kernelStructs.BugCheckCbRecord)) {
+        LOG("Could not deregister crash dump callback");
+    }
+}
+
 
 /*
 Info about registering dump devices:

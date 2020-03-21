@@ -58,6 +58,9 @@ typedef struct KERNEL_STRUCTS
     UINT64 NtUnmapViewOfSectionEx;
     UINT64 NtUnmapViewOfSection;
     UINT64 MiUnmapViewOfSection;
+
+    KBUGCHECK_CALLBACK_RECORD BugCheckCbRecord;
+    UCHAR BugCheckMagic[4];
 } KERNEL_STRUCTS;
 
 extern KERNEL_STRUCTS g_kernelStructs;

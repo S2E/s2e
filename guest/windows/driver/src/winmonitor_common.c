@@ -143,15 +143,14 @@ static NTSTATUS RegisterKernelStructures(PVOID KernelBase)
 
     for (i = 0; g_KernelStructHandlers[i].CheckSum != 0; ++i) {
         if (NtHeaders->OptionalHeader.CheckSum == g_KernelStructHandlers[i].CheckSum) {
-            g_KernelStructHandlers[i].Handler((UINT_PTR)KernelBase, NtHeaders->OptionalHeader.ImageBase);
+            g_KernelStructHandlers[i].Handler((UINT_PTR)KernelBase, (UINT_PTR)g_KernelStructHandlers[i].NativeBase);
             return STATUS_SUCCESS;
         }
     }
 
     LOG("This version of s2e.sys does not support kernel with checksum %#x. "
         "Check the readme for instructions on how to add support for new kernels.\n",
-        NtHeaders->OptionalHeader.CheckSum)
-    ;
+        NtHeaders->OptionalHeader.CheckSum);
 
     return STATUS_NOT_FOUND;
 }

@@ -1136,7 +1136,7 @@ void S2EExecutor::updateConcreteFastPath(S2EExecutionState *state) {
                                      //(CPU register access from concrete code depend on g_s2e_fast_concrete_invocation)
                                      (state->stack.size() == 1) &&
 
-                                     (m_executeAlwaysKlee == false);
+                                     (m_executeAlwaysKlee == false) && (state->isRunningConcrete());
 
     g_s2e_running_exception_emulation_code = (char *) &state->m_runningExceptionEmulationCode;
 

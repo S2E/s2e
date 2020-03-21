@@ -203,6 +203,11 @@ NTSTATUS DriverEntry(
         FaultInjectionInit();
     }
 
+    if (!InitializeCrashCallback()) {
+        LOG("Could not initialize crash callback");
+        goto err;
+    }
+
     DriverObject->DriverUnload = DriverUnload;
     DriverObject->MajorFunction[IRP_MJ_CREATE] = S2EOpen;
     DriverObject->MajorFunction[IRP_MJ_CLOSE] = S2EClose;
@@ -312,7 +317,7 @@ static NTSTATUS S2EIoCtlUserModeCrash(_In_ PVOID Buffer, _In_ ULONG InputBufferL
         goto err;
     }
 
-    Command = *(S2E_WINDOWS_CRASH_COMMAND *)Buffer;
+    Command = *(S2E_WINDOWS_CRASH_COMMAND*)Buffer;
 
     //S2E_WINDOWS_USERMODE_CRASH::ProgramName is the offset
     //of the string. Convert to absolute pointer.
@@ -531,6 +536,8 @@ static VOID DriverUnload(PDRIVER_OBJECT DriverObject)
 
     UNREFERENCED_PARAMETER(DriverObject);
     LOG("Unloading s2e.sys\n");
+
+    DeinitializeCrashCallback();
 
     RtlInitUnicodeString(&Win32DeviceName, DOS_DEVICE_NAME);
     IoDeleteSymbolicLink(&Win32DeviceName);

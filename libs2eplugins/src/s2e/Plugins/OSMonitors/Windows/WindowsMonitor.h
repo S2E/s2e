@@ -379,6 +379,7 @@ public:
     bool initCurrentProcessThreadId(S2EExecutionState *state);
 
     virtual bool isKernelAddress(uint64_t pc) const {
+        assert(m_initialized);
         if (!m_kernelStart) {
             return false;
         }
@@ -388,33 +389,40 @@ public:
     virtual bool getCurrentStack(S2EExecutionState *s, uint64_t *bottom, uint64_t *size);
 
     bool CheckPanic(uint64_t eip) const {
+        assert(m_initialized);
         eip = eip - m_kernel.KernelLoadBase + m_kernel.KernelNativeBase;
         return m_kernel.KeBugCheckEx && m_kernel.KeBugCheckEx == eip;
     }
 
     uint64_t getKdDebuggerDataBlock() const {
+        assert(m_initialized);
         return m_kernel.KdDebuggerDataBlock - m_kernel.KernelNativeBase + m_kernel.KernelLoadBase;
     }
 
     uint64_t getKprcbAddress() const {
+        assert(m_initialized);
         return m_kernel.KPRCB;
     }
 
     bool isCheckedBuild() const {
+        assert(m_initialized);
         return m_versionBlock.MajorVersion == 0xC;
     }
 
     const vmi::windows::DBGKD_GET_VERSION64 &getVersionBlock() const {
+        assert(m_initialized);
         return m_versionBlock;
     }
 
     /// Address of the function in the guest kernel that will handle the crash for us.
     /// Useful to perform complex OS-specific stuff (e.g, generating crash dumps).
     uint64_t getCrashRedirectionRoutine() const {
+        assert(m_initialized);
         return m_kernel.BugCheckHook;
     }
 
     const S2E_WINMON2_KERNEL_STRUCTS &getKernelStruct() const {
+        assert(m_initialized);
         return m_kernel;
     }
 
@@ -450,6 +458,7 @@ public:
     }
 
     uint64_t getKernelStart() const {
+        assert(m_initialized);
         return m_kernelStart;
     }
 

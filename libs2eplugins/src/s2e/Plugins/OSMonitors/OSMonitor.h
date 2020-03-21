@@ -89,8 +89,8 @@ protected:
 
     void completeInitialization(S2EExecutionState *state) {
         if (!m_initialized) {
-            m_cachedKernelStart = getKernelStart();
             m_initialized = true;
+            m_cachedKernelStart = getKernelStart();
             onMonitorLoad.emit(state);
         }
     }
@@ -155,6 +155,7 @@ public:
     /// \return 0 if pc is in kernel space, pid otherwise
     ///
     uint64_t translatePid(uint64_t pid, uint64_t pc) const {
+        assert(m_initialized);
         if (pc >= m_cachedKernelStart) {
             return 0;
         } else {

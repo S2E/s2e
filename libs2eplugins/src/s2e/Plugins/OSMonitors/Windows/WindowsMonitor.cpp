@@ -730,24 +730,6 @@ void WindowsMonitor::opcodeInitKernelStructs(S2EExecutionState *state, uint64_t 
         exit(-1);
     }
 
-    auto guestImage = vmi::GuestMemoryFileProvider::get(state, &Vmi::readGuestVirtual, nullptr, "ntoskrnl.exe");
-
-    if (!guestImage) {
-        getWarningsStream(state) << "error creating GuestMemoryFileProvider\n";
-        exit(-1);
-    }
-
-    auto pe = vmi::PEFile::get(guestImage, true, m_kernel.KernelLoadBase);
-    if (!pe) {
-        getWarningsStream(state) << "could not load memory image for the kernel\n";
-        exit(-1);
-    }
-
-    if (pe->getImageBase() != m_kernel.KernelNativeBase) {
-        getWarningsStream(state) << "mismatched native base for kernel image\n";
-        exit(-1);
-    }
-
     if (m_kernel.PointerSizeInBytes == 8) {
         m_kernelStart = 0x8000000000000000;
     } else {
@@ -1041,8 +1023,8 @@ static inline bool _ReadCurrentProcessThreadId(Plugin *plg, S2EExecutionState *s
                                                uint64_t *_pkthread = nullptr, uint64_t *_pkprocess = nullptr) {
     T pkthread;
     if (!state->mem()->read(k.KPRCB + k.EThreadSegmentOffset, &pkthread, sizeof(pkthread))) {
-        plg->getDebugStream() << "_ReadCurrentProcessThreadId: Could not read KPCR "
-                              << hexval(k.KPCR + k.EThreadSegmentOffset) << "\n";
+        plg->getDebugStream() << "_ReadCurrentProcessThreadId: Could not read KPRCB "
+                              << hexval(k.KPRCB + k.EThreadSegmentOffset) << "\n";
         return false;
     }
 

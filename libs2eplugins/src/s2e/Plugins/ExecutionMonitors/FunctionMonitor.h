@@ -81,6 +81,7 @@ private:
     ProcessExecutionDetector *m_processDetector;
     ModuleMap *m_map;
 
+    void onMonitorLoad(S2EExecutionState *state);
     void onProcessUnload(S2EExecutionState *state, uint64_t addressSpace, uint64_t pid, uint64_t returnCode);
     void onThreadExit(S2EExecutionState *state, const ThreadDescriptor &thread);
     void onFunctionCall(S2EExecutionState *state, uint64_t pc);

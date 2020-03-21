@@ -117,6 +117,10 @@ void FunctionMonitor::initialize() {
     m_map = s2e()->getPlugin<ModuleMap>();
     m_processDetector = s2e()->getPlugin<ProcessExecutionDetector>();
 
+    m_monitor->onMonitorLoad.connect(sigc::mem_fun(*this, &FunctionMonitor::onMonitorLoad));
+}
+
+void FunctionMonitor::onMonitorLoad(S2EExecutionState *state) {
     s2e()->getCorePlugin()->onTranslateBlockEnd.connect(sigc::mem_fun(*this, &FunctionMonitor::onTranslateBlockEnd));
 }
 

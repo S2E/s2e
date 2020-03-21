@@ -106,6 +106,8 @@ UINT32 NTAPI S2EWriteMemory(PVOID Destination, PVOID Source, DWORD Count);
 VOID NTAPI S2EDisableAllApicInterrupts(VOID);
 VOID NTAPI S2EEnableAllApicInterrupts(VOID);
 
+VOID NTAPI S2ESetCpuLogLevel(UINT32 LogLevel);
+
 static inline VOID NTAPI S2EMakeSymbolic(PVOID Buffer, UINT32 Size, PCSTR Name)
 {
     __s2e_touch_string(Name);
