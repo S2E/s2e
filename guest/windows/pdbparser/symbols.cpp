@@ -38,7 +38,7 @@ static BOOL CALLBACK EnumInitSymbolsCallback(
     ULONG SymbolSize,
     PVOID UserContext)
 {
-    auto Symbols = *reinterpret_cast<SymbolInfo*>(UserContext);
+    auto &Symbols = *reinterpret_cast<SymbolInfo*>(UserContext);
     Symbols.ByAddress[pSymInfo->Address] = pSymInfo->Name;
     Symbols.ByName[pSymInfo->Name] = pSymInfo->Address;
     return TRUE;

@@ -32,7 +32,7 @@
 static VOID Usage(VOID)
 {
     printf("Usage:\n");
-    printf("   pdbparser [-a addresses | -i | -s | -l | -d] file.exe file.pdb\n");
+    printf("   pdbparser [-a addresses | -i | -l | -d] file.exe file.pdb\n");
 }
 
 static void PrintJson(const rapidjson::Document &Doc, rapidjson::StringBuffer &Buffer)
@@ -48,7 +48,6 @@ enum ACTION
     DUMP_LINE_INFO,
     ADDR_TO_LINE,
     DUMP_PE_INFO,
-    DUMP_SYSCALLS
 };
 
 struct ARGUMENTS
@@ -91,9 +90,6 @@ static bool ParseArguments(ARGUMENTS &Args, int argc, char **argv)
             break;
         case 'i':
             Args.Action = DUMP_PE_INFO;
-            break;
-        case 's':
-            Args.Action = DUMP_SYSCALLS;
             break;
         default:
             goto err;
@@ -182,6 +178,12 @@ int main(int argc, char **argv)
             DumpSymbolMapAsJson(Symbols, Doc);
             DumpTypesAsJson(Doc, Process, ModuleBase);
 
+            Syscalls Sc;
+            DumpSyscalls(Sc, Symbols, Process, Args.ExeFileName, ModuleBase, NativeLoadBase, Is64);
+            if (Sc.size()) {
+                DumpSyscallsAsJson(Doc, Sc);
+            }
+
             rapidjson::StringBuffer Buffer;
             PrintJson(Doc, Buffer);
             std::cout << Buffer.GetString() << "\n";
@@ -195,9 +197,6 @@ int main(int argc, char **argv)
             break;
         case DUMP_PE_INFO:
             printf("%#x %d %#llx\n", CheckSum, Is64 ? 64 : 32, ModuleBase);
-            break;
-        case DUMP_SYSCALLS:
-            DumpSyscalls(Symbols, Process, Args.ExeFileName, ModuleBase, NativeLoadBase, Is64);
             break;
         default:
             fprintf(stderr, "Unknown action %d\n", Args.Action);

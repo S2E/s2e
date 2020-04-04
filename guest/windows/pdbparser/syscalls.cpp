@@ -24,6 +24,7 @@
 
 // Print the syscall table
 void DumpSyscalls(
+    Syscalls &Out,
     const SymbolInfo &Symbols, HANDLE Process,
     const std::string &ImagePath, ULONG64 ModuleBase,
     UINT64 NativeLoadBase, bool Is64
@@ -60,35 +61,54 @@ void DumpSyscalls(
     }
 
     // 3. Read the array of syscall pointers
-    // TODO: use safe pointer
-    UINT64 *SyscallPtrs = new UINT64[SyscallCount];
     for (UINT i = 0; i < SyscallCount; ++i) {
         bool Result;
+        SyscallInfo Info;
 
         if (Is64) {
-            UINT32 Ret;
-            Result = ReadPe(Img, NativeLoadBase, KiServiceTable + i * sizeof(UINT32), &Ret);
-            SyscallPtrs[i] = NativeLoadBase + Ret;
+            UINT64 Ret;
+            Result = ReadPe(Img, NativeLoadBase, KiServiceTable + i * sizeof(Ret), &Ret);
+            Info.Address = Ret;
         } else {
             UINT32 Ret;
-            Result = ReadPe(Img, NativeLoadBase, KiServiceTable + i * sizeof(UINT32), &Ret);
-            SyscallPtrs[i] = Ret;
-        }
-
-        auto it = Symbols.ByAddress.find(SyscallPtrs[i]);
-        if (it != Symbols.ByAddress.end()) {
-            auto symbolName = (*it).second;
-            printf("%d %#llx %s\n", i, SyscallPtrs[i], symbolName.c_str());
+            Result = ReadPe(Img, NativeLoadBase, KiServiceTable + i * sizeof(Ret), &Ret);
+            Info.Address = Ret;
         }
 
         if (!Result) {
-            printf("Syscall extraction failed\n");
-            goto err;
+            fprintf(stderr, "Could not read syscall index %d\n", i);
+            continue;
         }
+
+        Info.Index = i;
+        auto it = Symbols.ByAddress.find(Info.Address);
+        if (it != Symbols.ByAddress.end()) {
+            Info.Name = (*it).second;
+        }
+
+        Out.push_back(Info);
     }
 
 err:
     if (Img) {
         ImageUnload(Img);
     }
+}
+
+void DumpSyscallsAsJson(rapidjson::Document &Doc, const Syscalls &Sc)
+{
+    auto &Allocator = Doc.GetAllocator();
+    rapidjson::Value JsonSyscalls(rapidjson::kObjectType);
+
+    for (auto &it : Sc) {
+        rapidjson::Value JsonSyscallInfo(rapidjson::kObjectType);
+        JsonSyscallInfo.AddMember("index", it.Index, Allocator);
+        JsonSyscallInfo.AddMember("address", it.Address, Allocator);
+
+        rapidjson::Value JsonName(rapidjson::kStringType);
+        JsonName.SetString(it.Name.c_str(), Allocator);
+        JsonSyscalls.AddMember(JsonName, JsonSyscallInfo, Allocator);
+    }
+
+    Doc.AddMember("syscalls", JsonSyscalls, Allocator);
 }

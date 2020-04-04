@@ -114,8 +114,20 @@ bool ReadPe(PLOADED_IMAGE Image, UINT64 NativeLoadBase, UINT64 NativeAddress, T 
     return false;
 }
 
+struct SyscallInfo
+{
+    UINT Index;
+    UINT64 Address;
+    std::string Name;
+};
+
+using Syscalls = std::vector<SyscallInfo>;
+
 void DumpSyscalls(
+    Syscalls &Out,
     const SymbolInfo &Symbols, HANDLE Process,
     const std::string &ImagePath, ULONG64 ModuleBase,
     UINT64 NativeLoadBase, bool Is64
 );
+
+void DumpSyscallsAsJson(rapidjson::Document &Doc, const Syscalls &Sc);
