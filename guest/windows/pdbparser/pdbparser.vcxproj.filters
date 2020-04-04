@@ -21,9 +21,6 @@
     <ClCompile Include="lines.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="json.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="syscalls.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>

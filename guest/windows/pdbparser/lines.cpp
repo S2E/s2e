@@ -23,13 +23,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include <windows.h>
-#pragma warning(push)
-#pragma warning(disable:4189)
-#pragma warning(disable:4091)
-#include <imagehlp.h>
-#pragma warning(pop)
-
 #include <map>
 #include <sstream>
 #include <unordered_map>
@@ -62,74 +55,42 @@ static BOOL CALLBACK EnumLinesCb(
     return TRUE;
 }
 
-template <typename T>
-static VOID PrintArray(const T &Array)
+static VOID PrintJson(rapidjson::Document &Doc, const LINE_INFO &LineInfo)
 {
-    unsigned Index = 0;
-
-    printf("[");
-
-    for (auto it : Array) {
-        printf("%llu", it);
-
-        if (Index < Array.size() - 1) {
-            printf(", ");
-        }
-
-        ++Index;
-    }
-
-    printf("]");
-}
-
-static VOID PrintJson(const LINE_INFO &LineInfo)
-{
-    unsigned FileIndex = 0;
-
-    printf("{\n");
+    auto &Allocator = Doc.GetAllocator();
 
     for (auto it : LineInfo.Files) {
-        auto Path = JsonEscapeString(it.first);
+        auto Path = it.first;
         auto &File = it.second;
 
-        printf("  \"%s\":[\n", Path.c_str());
-
-        unsigned LineIndex = 0;
+        rapidjson::Value JsonLineInfo(rapidjson::kArrayType);
 
         for (auto lit : File) {
             auto Line = lit.first;
             auto Addresses = lit.second;
 
-            printf("    [%d, ", Line);
-            PrintArray(Addresses);
-            printf("]");
-
-            if (LineIndex == File.size() - 1) {
-                printf("\n");
-            } else {
-                printf(",\n");
+            rapidjson::Value JsonAddresses(rapidjson::kArrayType);
+            for (auto Address : Addresses) {
+                JsonAddresses.PushBack(Address, Allocator);
             }
 
-            ++LineIndex;
+            rapidjson::Value JsonLineAddressesPair(rapidjson::kArrayType);
+            JsonLineAddressesPair.PushBack((UINT64)Line, Allocator);
+            JsonLineAddressesPair.PushBack(JsonAddresses, Allocator);
+            JsonLineInfo.PushBack(JsonLineAddressesPair, Allocator);
         }
 
-        if (FileIndex == LineInfo.Files.size() - 1) {
-            printf("  ]\n");
-        } else {
-            printf("  ],\n");
-        }
-
-        ++FileIndex;
+        rapidjson::Value JsonPath(rapidjson::kStringType);
+        JsonPath.SetString(Path.c_str(), Allocator);
+        Doc.AddMember(JsonPath, JsonLineInfo, Allocator);
     }
-
-    printf("}\n");
 }
 
-VOID DumpLineInfo(HANDLE hProcess, ULONG64 Base)
+VOID DumpLineInfoAsJson(rapidjson::Document &Doc, HANDLE hProcess, ULONG64 Base)
 {
     LINE_INFO LineInfo;
     SymEnumSourceLines(hProcess, Base, nullptr, nullptr, 0, 0, EnumLinesCb, &LineInfo);
-    PrintJson(LineInfo);
+    PrintJson(Doc, LineInfo);
 }
 
 static VOID AddrToLine(HANDLE Process, const std::vector<UINT64> &Addresses)

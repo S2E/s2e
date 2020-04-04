@@ -136,7 +136,6 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="json.cpp" />
     <ClCompile Include="lines.cpp" />
     <ClCompile Include="pdbparser.cpp" />
     <ClCompile Include="symbols.cpp" />

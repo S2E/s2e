@@ -45,8 +45,7 @@
 #include <unordered_map>
 
 
-VOID DumpLineInfo(HANDLE hProcess, ULONG64 Base);
-std::string JsonEscapeString(const std::string String);
+VOID DumpLineInfoAsJson(rapidjson::Document &Doc, HANDLE hProcess, ULONG64 Base);
 VOID AddrToLine(HANDLE Process, const std::string &AddressesStr);
 
 using SymbolAddressToName = std::unordered_map<UINT64, std::string>;

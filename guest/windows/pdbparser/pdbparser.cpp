@@ -116,14 +116,14 @@ err:
 
 void DumpPeInfoAsJson(rapidjson::Document &Doc, UINT32 Checksum, UINT32 Bits, UINT64 NativeBase)
 {
-	auto &Allocator = Doc.GetAllocator();
-	rapidjson::Value JsonInfo(rapidjson::kObjectType);
+    auto &Allocator = Doc.GetAllocator();
+    rapidjson::Value JsonInfo(rapidjson::kObjectType);
 
-	JsonInfo.AddMember("checksum", Checksum, Allocator);
-	JsonInfo.AddMember("bits", Bits, Allocator);
-	JsonInfo.AddMember("native_base", NativeBase, Allocator);
+    JsonInfo.AddMember("checksum", Checksum, Allocator);
+    JsonInfo.AddMember("bits", Bits, Allocator);
+    JsonInfo.AddMember("native_base", NativeBase, Allocator);
 
-	Doc.AddMember("info", JsonInfo, Allocator);
+    Doc.AddMember("info", JsonInfo, Allocator);
 }
 
 int main(int argc, char **argv)
@@ -192,18 +192,26 @@ int main(int argc, char **argv)
                 DumpSyscallsAsJson(Doc, Sc);
             }
 
-			DumpPeInfoAsJson(Doc, CheckSum, Is64 ? 64 : 32, ModuleBase);
+            DumpPeInfoAsJson(Doc, CheckSum, Is64 ? 64 : 32, ModuleBase);
 
-            // Dump PE info
             rapidjson::StringBuffer Buffer;
             PrintJson(Doc, Buffer);
             std::cout << Buffer.GetString() << "\n";
         }
         break;
-        case DUMP_LINE_INFO:
-            DumpLineInfo(Process, ModuleBase);
-            break;
+        case DUMP_LINE_INFO: {
+            rapidjson::Document Doc;
+            Doc.SetObject();
+
+            DumpLineInfoAsJson(Doc, Process, ModuleBase);
+
+            rapidjson::StringBuffer Buffer;
+            PrintJson(Doc, Buffer);
+            std::cout << Buffer.GetString() << "\n";
+        }
+        break;
         case ADDR_TO_LINE:
+            // TODO: integrate this with the json dump
             AddrToLine(Process, Args.Addresses);
             break;
         default:
