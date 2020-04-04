@@ -23,6 +23,8 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <iostream>
+#include <codecvt>
 
 #include <windows.h>
 
@@ -33,8 +35,17 @@
 #pragma warning(pop)
 
 #include <map>
+#include <unordered_map>
+#include <unordered_set>
 #include <vector>
 #include <xstring>
+
+#include <rapidjson/rapidjson.h>
+#include <rapidjson/document.h>
+#include <rapidjson/writer.h>
+#include <rapidjson/stringbuffer.h>
+#include <rapidjson/prettywriter.h>
+#include <rapidjson/stringbuffer.h>
 
 #include "pdbparser.h"
 
@@ -44,11 +55,11 @@ struct symbol_t
     ULONG64 length;
     unsigned child_id;
     unsigned type_id;
-    std::wstring name;
+    std::string name;
 };
 
 typedef std::vector<symbol_t> TypeMembers;
-typedef std::vector<std::wstring> TypePath;
+typedef std::vector<std::string> TypePath;
 
 BOOL GetTypeMembers(HANDLE Process, ULONG64 ModuleBase,
     const std::string &SymbolName,
@@ -97,13 +108,21 @@ BOOL GetTypeMembers(HANDLE Process, ULONG64 ModuleBase,
 
         WCHAR *Name;
         DWORD Offset = 0;
+        ULONG64 Length = 0;
+        DWORD TypeId = 0;
 
         SymGetTypeInfo(Process, ModuleBase, Children->ChildId[i], TI_GET_SYMNAME, &Name);
         SymGetTypeInfo(Process, ModuleBase, Children->ChildId[i], TI_GET_OFFSET, &Offset);
+        SymGetTypeInfo(Process, ModuleBase, Children->ChildId[i], TI_GET_TYPEID, &TypeId);
+        SymGetTypeInfo(Process, ModuleBase, TypeId, TI_GET_LENGTH, &Length);
 
         Symbol.child_id = Children->ChildId[i];
         Symbol.offset = Offset;
-        Symbol.name = Name;
+        Symbol.length = Length;
+
+        std::wstring WName = Name;
+        std::wstring_convert<std::codecvt_utf8<wchar_t>> Converter;
+        Symbol.name = Converter.to_bytes(WName);
         Members.push_back(Symbol);
 
         LocalFree(Name);
@@ -117,7 +136,7 @@ err1:
 }
 
 BOOL ComputeOffset(HANDLE Process, ULONG64 ModuleBase,
-    const std::string &TypeName, const std::wstring &TypeMember,
+    const std::string &TypeName, const std::string &TypeMember,
     ULONG *Offset)
 {
     TypeMembers Members;
@@ -181,7 +200,7 @@ static BOOL CALLBACK EnumTypesCallback(
     ULONG SymbolSize,
     PVOID UserContext)
 {
-    const char *SearchedName = (const char *)UserContext;
+    const char *SearchedName = (const char*)UserContext;
 
     if (strcmp(pSymInfo->Name, SearchedName)) {
         return TRUE;
@@ -199,11 +218,12 @@ static VOID Usage(VOID)
 }
 
 _Success_(return)
+
 static BOOL GetImageInfo(
-    _In_    const char *FileName,
-    _Out_    ULONG64 *LoadBase,
-    _Out_    DWORD *CheckSum,
-    _Out_    bool *Is64
+    _In_ const char *FileName,
+    _Out_ ULONG64 *LoadBase,
+    _Out_ DWORD *CheckSum,
+    _Out_ bool *Is64
 )
 {
     FILE *fp = nullptr;
@@ -247,13 +267,13 @@ static BOOL GetImageInfo(
             *CheckSum = Headers.Headers32.OptionalHeader.CheckSum;
             *Is64 = false;
         }
-            break;
+        break;
         case IMAGE_FILE_MACHINE_AMD64: {
             *LoadBase = Headers.Headers64.OptionalHeader.ImageBase;
             *CheckSum = Headers.Headers64.OptionalHeader.CheckSum;
             *Is64 = true;
         }
-            break;
+        break;
 
         default: {
             fprintf(stderr, "Unsupported architecture %x for %s\n", Headers.Headers32.FileHeader.Machine, FileName);
@@ -285,7 +305,8 @@ bool GetSymbolAddress(HANDLE Process, ULONG64 ModuleBase, const char *SymbolName
     return true;
 }
 
-static std::map<UINT64, std::string> g_symbolMap;
+using SymbolMap = std::map<UINT64, std::string>;
+static SymbolMap g_symbolMap;
 
 static BOOL CALLBACK EnumInitSymbolsCallback(
     PSYMBOL_INFO pSymInfo,
@@ -299,6 +320,91 @@ static BOOL CALLBACK EnumInitSymbolsCallback(
 void InitializeSymbolMap(HANDLE Process, ULONG64 ModuleBase)
 {
     SymEnumSymbols(Process, ModuleBase, "*!*", EnumInitSymbolsCallback, NULL);
+}
+
+
+using TypeNames = std::unordered_set<std::string>;
+
+static BOOL EnumerateTypesCb(
+    PSYMBOL_INFO pSymInfo,
+    ULONG SymbolSize,
+    PVOID UserContext
+)
+{
+    TypeNames &Types = *reinterpret_cast<TypeNames*>(UserContext);
+    if (!pSymInfo->NameLen || !pSymInfo->MaxNameLen) {
+        return TRUE;
+    }
+
+    std::string TypeName(pSymInfo->Name, pSymInfo->NameLen);
+    Types.insert(TypeName);
+    return TRUE;
+}
+
+VOID EnumerateTypes(HANDLE Process, ULONG64 ModuleBase, TypeNames &Types)
+{
+    SymEnumTypes(Process, ModuleBase, EnumerateTypesCb, &Types);
+}
+
+void DumpSymbolMapAsJson(const SymbolMap &symbols, rapidjson::Document &Doc)
+{
+    std::unordered_map<std::string, uint64_t> NameToAddr;
+    auto &Allocator = Doc.GetAllocator();
+
+    rapidjson::Value CUValue(rapidjson::kObjectType);
+
+    // Ensure we have unique names
+    for (const auto &it : symbols) {
+        NameToAddr[it.second] = it.first;
+    }
+
+    for (const auto &it : NameToAddr) {
+        rapidjson::Value Name(rapidjson::kStringType), Address;
+        Name.SetString(it.first.c_str(), Allocator);
+        Address.SetUint64(it.second);
+        CUValue.AddMember(Name, Address, Allocator);
+    }
+
+    Doc.AddMember("symbols", CUValue, Allocator);
+}
+
+void DumpTypesAsJson(rapidjson::Document &Doc, HANDLE Process, UINT64 ModuleBase)
+{
+    TypeNames Types;
+    EnumerateTypes(Process, ModuleBase, Types);
+    auto &Allocator = Doc.GetAllocator();
+
+    rapidjson::Value CUValue(rapidjson::kObjectType);
+
+    for (const auto &TypeName : Types) {
+        rapidjson::Value Name(rapidjson::kStringType);
+        Name.SetString(TypeName.c_str(), Allocator);
+
+        TypeMembers Members;
+        rapidjson::Value TypeInfo(rapidjson::kObjectType);
+        if (GetTypeMembers(Process, ModuleBase, TypeName, Members)) {
+            for (const auto &Member : Members) {
+                rapidjson::Value MemberInfo(rapidjson::kObjectType);
+                MemberInfo.AddMember("offset", Member.offset, Allocator);
+                MemberInfo.AddMember("size", Member.length, Allocator);
+
+                rapidjson::Value JsonMemberName(rapidjson::kStringType);
+                JsonMemberName.SetString(Member.name.c_str(), Allocator);
+                TypeInfo.AddMember(JsonMemberName, MemberInfo, Allocator);
+            }
+        }
+
+        CUValue.AddMember(Name, TypeInfo, Allocator);
+    }
+
+    Doc.AddMember("types", CUValue, Allocator);
+}
+
+void PrintJson(const rapidjson::Document &Doc, rapidjson::StringBuffer &Buffer)
+{
+    rapidjson::PrettyWriter<rapidjson::StringBuffer, rapidjson::Document::EncodingType, rapidjson::UTF8<>>
+        Writer(Buffer);
+    Doc.Accept(Writer);
 }
 
 template <typename T>
@@ -325,8 +431,8 @@ static void DumpTypeOffset(HANDLE Process, ULONG64 ModuleBase, const std::string
 
     std::string::size_type pos = SymbolName.find(':');
     if (pos != std::string::npos) {
-        std::string TypeName = std::string(SymbolName.begin(), SymbolName.begin() + pos);
-        std::wstring MemberName = std::wstring(SymbolName.begin() + pos + 1, SymbolName.end());
+        auto TypeName = std::string(SymbolName.begin(), SymbolName.begin() + pos);
+        auto MemberName = std::string(SymbolName.begin() + pos + 1, SymbolName.end());
 
         //printf("Looking for %s:%S\n", TypeName.c_str(), MemberName.c_str());
         if (ComputeOffset(Process, ModuleBase, TypeName, MemberName, &Offset)) {
@@ -408,6 +514,7 @@ err:
 
 enum ACTION
 {
+    DUMP_INFO,
     ENUM_SYMBOLS,
     DUMP_LINE_INFO,
     ADDR_TO_LINE,
@@ -444,6 +551,9 @@ static bool ParseArguments(ARGUMENTS &Args, int argc, char **argv)
     std::string *destArg = nullptr;
 
     switch (Action[1]) {
+        case 'd':
+            Args.Action = DUMP_INFO;
+            break;
         case 'f':
             Args.Action = ENUM_SYMBOLS;
             destArg = &Args.SymbolName;
@@ -539,6 +649,18 @@ int main(int argc, char **argv)
     ModuleLoaded = true;
 
     switch (Args.Action) {
+        case DUMP_INFO: {
+            InitializeSymbolMap(Process, ModuleBase);
+            rapidjson::Document Doc;
+            Doc.SetObject();
+            DumpSymbolMapAsJson(g_symbolMap, Doc);
+            DumpTypesAsJson(Doc, Process, ModuleBase);
+
+            rapidjson::StringBuffer Buffer;
+            PrintJson(Doc, Buffer);
+            std::cout << Buffer.GetString() << "\n";
+        }
+        break;
         case ENUM_SYMBOLS:
             SymEnumSymbols(Process, ModuleBase, Args.SymbolName.c_str(), EnumSymbolsCallback, NULL);
             break;
