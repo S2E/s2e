@@ -32,7 +32,7 @@
 static VOID Usage(VOID)
 {
     printf("Usage:\n");
-    printf("   pdbparser [-a addresses | -i | -l | -d] file.exe file.pdb\n");
+    printf("   pdbparser [-a addresses | -l | -d] file.exe file.pdb\n");
 }
 
 static void PrintJson(const rapidjson::Document &Doc, rapidjson::StringBuffer &Buffer)
@@ -47,7 +47,6 @@ enum ACTION
     DUMP_INFO,
     DUMP_LINE_INFO,
     ADDR_TO_LINE,
-    DUMP_PE_INFO,
 };
 
 struct ARGUMENTS
@@ -88,9 +87,6 @@ static bool ParseArguments(ARGUMENTS &Args, int argc, char **argv)
         case 'l':
             Args.Action = DUMP_LINE_INFO;
             break;
-        case 'i':
-            Args.Action = DUMP_PE_INFO;
-            break;
         default:
             goto err;
     }
@@ -116,6 +112,18 @@ static bool ParseArguments(ARGUMENTS &Args, int argc, char **argv)
 
 err:
     return Result;
+}
+
+void DumpPeInfoAsJson(rapidjson::Document &Doc, UINT32 Checksum, UINT32 Bits, UINT64 NativeBase)
+{
+	auto &Allocator = Doc.GetAllocator();
+	rapidjson::Value JsonInfo(rapidjson::kObjectType);
+
+	JsonInfo.AddMember("checksum", Checksum, Allocator);
+	JsonInfo.AddMember("bits", Bits, Allocator);
+	JsonInfo.AddMember("native_base", NativeBase, Allocator);
+
+	Doc.AddMember("info", JsonInfo, Allocator);
 }
 
 int main(int argc, char **argv)
@@ -184,6 +192,9 @@ int main(int argc, char **argv)
                 DumpSyscallsAsJson(Doc, Sc);
             }
 
+			DumpPeInfoAsJson(Doc, CheckSum, Is64 ? 64 : 32, ModuleBase);
+
+            // Dump PE info
             rapidjson::StringBuffer Buffer;
             PrintJson(Doc, Buffer);
             std::cout << Buffer.GetString() << "\n";
@@ -194,9 +205,6 @@ int main(int argc, char **argv)
             break;
         case ADDR_TO_LINE:
             AddrToLine(Process, Args.Addresses);
-            break;
-        case DUMP_PE_INFO:
-            printf("%#x %d %#llx\n", CheckSum, Is64 ? 64 : 32, ModuleBase);
             break;
         default:
             fprintf(stderr, "Unknown action %d\n", Args.Action);
