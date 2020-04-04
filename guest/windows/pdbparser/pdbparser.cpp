@@ -135,29 +135,6 @@ err1:
     return Ret;
 }
 
-BOOL ComputeOffset(HANDLE Process, ULONG64 ModuleBase,
-    const std::string &TypeName, const std::string &TypeMember,
-    ULONG *Offset)
-{
-    TypeMembers Members;
-    if (!GetTypeMembers(Process, ModuleBase, TypeName, Members)) {
-        return FALSE;
-    }
-
-    for (TypeMembers::const_iterator it = Members.begin(); it != Members.end(); ++it) {
-        const symbol_t &Symbol = (*it);
-        if (Symbol.name.compare(TypeMember) != 0) {
-            continue;
-        }
-
-        *Offset = Symbol.offset;
-
-        return TRUE;
-    }
-
-    return FALSE;
-}
-
 BOOL OurGetFileSize(const char *pFileName, DWORD *pFileSize)
 {
     BOOLEAN Ret = FALSE;
@@ -214,7 +191,7 @@ static BOOL CALLBACK EnumTypesCallback(
 static VOID Usage(VOID)
 {
     printf("Usage:\n");
-    printf("   pdbparser [-f function | -t type | -a addresses | -i | -s | -l] file.exe file.pdb\n");
+    printf("   pdbparser [-a addresses | -i | -s | -l | -d] file.exe file.pdb\n");
 }
 
 _Success_(return)
@@ -424,28 +401,6 @@ bool ReadPe(PLOADED_IMAGE Image, UINT64 NativeLoadBase, UINT64 NativeAddress, T 
     return false;
 }
 
-static void DumpTypeOffset(HANDLE Process, ULONG64 ModuleBase, const std::string &SymbolName)
-{
-    ULONG Offset = 0;
-    TypePath Path;
-
-    std::string::size_type pos = SymbolName.find(':');
-    if (pos != std::string::npos) {
-        auto TypeName = std::string(SymbolName.begin(), SymbolName.begin() + pos);
-        auto MemberName = std::string(SymbolName.begin() + pos + 1, SymbolName.end());
-
-        //printf("Looking for %s:%S\n", TypeName.c_str(), MemberName.c_str());
-        if (ComputeOffset(Process, ModuleBase, TypeName, MemberName, &Offset)) {
-            printf("%s offset %#x\n", SymbolName.c_str(), Offset);
-        } else {
-            fprintf(stderr, "Could not find %s\n", SymbolName.c_str());
-        }
-    }
-
-    //TypeMembers Members;
-    //GetTypeMembers(Process, ModuleBase, SymbolName, Members);
-}
-
 // Print the syscall table
 static void DumpSyscalls(HANDLE Process, const std::string &ImagePath, ULONG64 ModuleBase, UINT64 NativeLoadBase,
     bool Is64)
@@ -515,10 +470,8 @@ err:
 enum ACTION
 {
     DUMP_INFO,
-    ENUM_SYMBOLS,
     DUMP_LINE_INFO,
     ADDR_TO_LINE,
-    DUMP_TYPE,
     DUMP_PE_INFO,
     DUMP_SYSCALLS
 };
@@ -553,14 +506,6 @@ static bool ParseArguments(ARGUMENTS &Args, int argc, char **argv)
     switch (Action[1]) {
         case 'd':
             Args.Action = DUMP_INFO;
-            break;
-        case 'f':
-            Args.Action = ENUM_SYMBOLS;
-            destArg = &Args.SymbolName;
-            break;
-        case 't':
-            Args.Action = DUMP_TYPE;
-            destArg = &Args.SymbolName;
             break;
         case 'a':
             Args.Action = ADDR_TO_LINE;
@@ -661,17 +606,11 @@ int main(int argc, char **argv)
             std::cout << Buffer.GetString() << "\n";
         }
         break;
-        case ENUM_SYMBOLS:
-            SymEnumSymbols(Process, ModuleBase, Args.SymbolName.c_str(), EnumSymbolsCallback, NULL);
-            break;
         case DUMP_LINE_INFO:
             DumpLineInfo(Process, ModuleBase);
             break;
         case ADDR_TO_LINE:
             AddrToLine(Process, Args.Addresses);
-            break;
-        case DUMP_TYPE:
-            DumpTypeOffset(Process, ModuleBase, Args.SymbolName);
             break;
         case DUMP_PE_INFO:
             printf("%#x %d %#llx\n", CheckSum, Is64 ? 64 : 32, ModuleBase);
