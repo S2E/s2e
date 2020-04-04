@@ -24,169 +24,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <iostream>
-#include <codecvt>
-
 #include <windows.h>
-
-#pragma warning(push)
-#pragma warning(disable:4189)
-#pragma warning(disable:4091)
-#include <imagehlp.h>
-#pragma warning(pop)
-
-#include <map>
-#include <unordered_map>
-#include <unordered_set>
-#include <vector>
 #include <xstring>
 
-#include <rapidjson/rapidjson.h>
-#include <rapidjson/document.h>
-#include <rapidjson/writer.h>
-#include <rapidjson/stringbuffer.h>
-#include <rapidjson/prettywriter.h>
-#include <rapidjson/stringbuffer.h>
-
 #include "pdbparser.h"
-
-struct symbol_t
-{
-    unsigned offset;
-    ULONG64 length;
-    unsigned child_id;
-    unsigned type_id;
-    std::string name;
-};
-
-typedef std::vector<symbol_t> TypeMembers;
-typedef std::vector<std::string> TypePath;
-
-BOOL GetTypeMembers(HANDLE Process, ULONG64 ModuleBase,
-    const std::string &SymbolName,
-    TypeMembers &Members)
-{
-    SYMBOL_INFO SymbolInfo;
-    DWORD ChildrenCount, ChildrenSize;
-    TI_FINDCHILDREN_PARAMS *Children;
-    DWORD i;
-    BOOL Ret = FALSE;
-
-    memset(&SymbolInfo, 0, sizeof(SymbolInfo));
-    SymbolInfo.SizeOfStruct = sizeof(SymbolInfo);
-
-    if (!SymGetTypeFromName(Process, ModuleBase, SymbolName.c_str(), &SymbolInfo)) {
-        fprintf(stderr, "Could not get symbol info for %s (%d)\n", SymbolName.c_str(), GetLastError());
-        goto err1;
-    }
-
-    if (!SymGetTypeInfo(Process, ModuleBase, SymbolInfo.TypeIndex, TI_GET_CHILDRENCOUNT, &ChildrenCount)) {
-        fprintf(stderr, "Could not get children count for %s (%d)\n", SymbolName.c_str(), GetLastError());
-        goto err1;
-    }
-
-    //printf("Type %s has %d children\n", SymbolName.c_str(), ChildrenCount);
-
-    ChildrenSize = sizeof(*Children) + ChildrenCount * sizeof(ULONG);
-    Children = (TI_FINDCHILDREN_PARAMS*)malloc(ChildrenSize);
-    if (!Children) {
-        fprintf(stderr, "Could not allocate memory for children of %s (%d)\n", SymbolName.c_str(), GetLastError());
-        goto err1;
-    }
-
-    memset(Children, 0, ChildrenSize);
-    Children->Start = 0;
-    Children->Count = ChildrenCount;
-
-    if (!SymGetTypeInfo(Process, ModuleBase, SymbolInfo.TypeIndex, TI_FINDCHILDREN, Children)) {
-        free(Children);
-        fprintf(stderr, "Could not read children for %s (%d)\n", SymbolName.c_str(), GetLastError());
-        goto err1;
-    }
-
-    for (i = 0; i < ChildrenCount; ++i) {
-        symbol_t Symbol;
-
-        WCHAR *Name;
-        DWORD Offset = 0;
-        ULONG64 Length = 0;
-        DWORD TypeId = 0;
-
-        SymGetTypeInfo(Process, ModuleBase, Children->ChildId[i], TI_GET_SYMNAME, &Name);
-        SymGetTypeInfo(Process, ModuleBase, Children->ChildId[i], TI_GET_OFFSET, &Offset);
-        SymGetTypeInfo(Process, ModuleBase, Children->ChildId[i], TI_GET_TYPEID, &TypeId);
-        SymGetTypeInfo(Process, ModuleBase, TypeId, TI_GET_LENGTH, &Length);
-
-        Symbol.child_id = Children->ChildId[i];
-        Symbol.offset = Offset;
-        Symbol.length = Length;
-
-        std::wstring WName = Name;
-        std::wstring_convert<std::codecvt_utf8<wchar_t>> Converter;
-        Symbol.name = Converter.to_bytes(WName);
-        Members.push_back(Symbol);
-
-        LocalFree(Name);
-    }
-
-    free(Children);
-
-    Ret = TRUE;
-err1:
-    return Ret;
-}
-
-BOOL OurGetFileSize(const char *pFileName, DWORD *pFileSize)
-{
-    BOOLEAN Ret = FALSE;
-    HANDLE hFile = CreateFile(pFileName, GENERIC_READ, FILE_SHARE_READ,
-                              NULL, OPEN_EXISTING, 0, NULL);
-
-    if (hFile == INVALID_HANDLE_VALUE) {
-        goto err0;
-    }
-
-    *pFileSize = GetFileSize(hFile, NULL);
-    if (*pFileSize == INVALID_FILE_SIZE) {
-        goto err1;
-    }
-
-    Ret = TRUE;
-
-err1: CloseHandle(hFile);
-err0: return Ret;
-}
-
-bool g_printSymbolAddress = true;
-UINT64 g_symbolAddress = -1;
-
-static BOOL CALLBACK EnumSymbolsCallback(
-    PSYMBOL_INFO pSymInfo,
-    ULONG SymbolSize,
-    PVOID UserContext)
-{
-    if (g_printSymbolAddress) {
-        printf("Sym %s %#llx\n", pSymInfo->Name, pSymInfo->Address);
-    }
-
-    g_symbolAddress = pSymInfo->Address;
-    return TRUE;
-}
-
-static BOOL CALLBACK EnumTypesCallback(
-    PSYMBOL_INFO pSymInfo,
-    ULONG SymbolSize,
-    PVOID UserContext)
-{
-    const char *SearchedName = (const char*)UserContext;
-
-    if (strcmp(pSymInfo->Name, SearchedName)) {
-        return TRUE;
-    }
-
-    printf("Type %s %#llx\n", pSymInfo->Name, pSymInfo->Address);
-
-    return FALSE;
-}
 
 static VOID Usage(VOID)
 {
@@ -194,277 +35,11 @@ static VOID Usage(VOID)
     printf("   pdbparser [-a addresses | -i | -s | -l | -d] file.exe file.pdb\n");
 }
 
-_Success_(return)
-
-static BOOL GetImageInfo(
-    _In_ const char *FileName,
-    _Out_ ULONG64 *LoadBase,
-    _Out_ DWORD *CheckSum,
-    _Out_ bool *Is64
-)
-{
-    FILE *fp = nullptr;
-    BOOL Ret = FALSE;
-    IMAGE_DOS_HEADER Header;
-
-    union
-    {
-        IMAGE_NT_HEADERS32 Headers32;
-        IMAGE_NT_HEADERS64 Headers64;
-    } Headers;
-
-    if (fopen_s(&fp, FileName, "rb") || !fp) {
-        fprintf(stderr, "Could not open %s\n", FileName);
-        goto err;
-    }
-
-    if (fread(&Header, sizeof(Header), 1, fp) != 1) {
-        fprintf(stderr, "Could not read DOS header for %s\n", FileName);
-        goto err;
-    }
-
-    if (Header.e_magic != IMAGE_DOS_SIGNATURE) {
-        fprintf(stderr, "Incorrect magic for %s\n", FileName);
-        goto err;
-    }
-
-    if (fseek(fp, Header.e_lfanew, SEEK_SET) < 0) {
-        fprintf(stderr, "Could not seek to NT header %s\n", FileName);
-        goto err;
-    }
-
-    if (fread(&Headers.Headers64, sizeof(Headers.Headers64), 1, fp) != 1) {
-        fprintf(stderr, "Could not read NT headers for %s\n", FileName);
-        goto err;
-    }
-
-    switch (Headers.Headers32.FileHeader.Machine) {
-        case IMAGE_FILE_MACHINE_I386: {
-            *LoadBase = Headers.Headers32.OptionalHeader.ImageBase;
-            *CheckSum = Headers.Headers32.OptionalHeader.CheckSum;
-            *Is64 = false;
-        }
-        break;
-        case IMAGE_FILE_MACHINE_AMD64: {
-            *LoadBase = Headers.Headers64.OptionalHeader.ImageBase;
-            *CheckSum = Headers.Headers64.OptionalHeader.CheckSum;
-            *Is64 = true;
-        }
-        break;
-
-        default: {
-            fprintf(stderr, "Unsupported architecture %x for %s\n", Headers.Headers32.FileHeader.Machine, FileName);
-            goto err;
-        }
-    }
-
-    Ret = TRUE;
-
-err:
-    if (fp) {
-        fclose(fp);
-    }
-
-    return Ret;
-}
-
-bool GetSymbolAddress(HANDLE Process, ULONG64 ModuleBase, const char *SymbolName, UINT64 *address)
-{
-    g_printSymbolAddress = FALSE;
-    g_symbolAddress = -1;
-    SymEnumSymbols(Process, ModuleBase, SymbolName, EnumSymbolsCallback, NULL);
-    if (g_symbolAddress == -1) {
-        fprintf(stderr, "Could not find %s\n", SymbolName);
-        return false;
-    }
-
-    *address = g_symbolAddress;
-    return true;
-}
-
-using SymbolMap = std::map<UINT64, std::string>;
-static SymbolMap g_symbolMap;
-
-static BOOL CALLBACK EnumInitSymbolsCallback(
-    PSYMBOL_INFO pSymInfo,
-    ULONG SymbolSize,
-    PVOID UserContext)
-{
-    g_symbolMap[pSymInfo->Address] = pSymInfo->Name;
-    return TRUE;
-}
-
-void InitializeSymbolMap(HANDLE Process, ULONG64 ModuleBase)
-{
-    SymEnumSymbols(Process, ModuleBase, "*!*", EnumInitSymbolsCallback, NULL);
-}
-
-
-using TypeNames = std::unordered_set<std::string>;
-
-static BOOL EnumerateTypesCb(
-    PSYMBOL_INFO pSymInfo,
-    ULONG SymbolSize,
-    PVOID UserContext
-)
-{
-    TypeNames &Types = *reinterpret_cast<TypeNames*>(UserContext);
-    if (!pSymInfo->NameLen || !pSymInfo->MaxNameLen) {
-        return TRUE;
-    }
-
-    std::string TypeName(pSymInfo->Name, pSymInfo->NameLen);
-    Types.insert(TypeName);
-    return TRUE;
-}
-
-VOID EnumerateTypes(HANDLE Process, ULONG64 ModuleBase, TypeNames &Types)
-{
-    SymEnumTypes(Process, ModuleBase, EnumerateTypesCb, &Types);
-}
-
-void DumpSymbolMapAsJson(const SymbolMap &symbols, rapidjson::Document &Doc)
-{
-    std::unordered_map<std::string, uint64_t> NameToAddr;
-    auto &Allocator = Doc.GetAllocator();
-
-    rapidjson::Value CUValue(rapidjson::kObjectType);
-
-    // Ensure we have unique names
-    for (const auto &it : symbols) {
-        NameToAddr[it.second] = it.first;
-    }
-
-    for (const auto &it : NameToAddr) {
-        rapidjson::Value Name(rapidjson::kStringType), Address;
-        Name.SetString(it.first.c_str(), Allocator);
-        Address.SetUint64(it.second);
-        CUValue.AddMember(Name, Address, Allocator);
-    }
-
-    Doc.AddMember("symbols", CUValue, Allocator);
-}
-
-void DumpTypesAsJson(rapidjson::Document &Doc, HANDLE Process, UINT64 ModuleBase)
-{
-    TypeNames Types;
-    EnumerateTypes(Process, ModuleBase, Types);
-    auto &Allocator = Doc.GetAllocator();
-
-    rapidjson::Value CUValue(rapidjson::kObjectType);
-
-    for (const auto &TypeName : Types) {
-        rapidjson::Value Name(rapidjson::kStringType);
-        Name.SetString(TypeName.c_str(), Allocator);
-
-        TypeMembers Members;
-        rapidjson::Value TypeInfo(rapidjson::kObjectType);
-        if (GetTypeMembers(Process, ModuleBase, TypeName, Members)) {
-            for (const auto &Member : Members) {
-                rapidjson::Value MemberInfo(rapidjson::kObjectType);
-                MemberInfo.AddMember("offset", Member.offset, Allocator);
-                MemberInfo.AddMember("size", Member.length, Allocator);
-
-                rapidjson::Value JsonMemberName(rapidjson::kStringType);
-                JsonMemberName.SetString(Member.name.c_str(), Allocator);
-                TypeInfo.AddMember(JsonMemberName, MemberInfo, Allocator);
-            }
-        }
-
-        CUValue.AddMember(Name, TypeInfo, Allocator);
-    }
-
-    Doc.AddMember("types", CUValue, Allocator);
-}
-
-void PrintJson(const rapidjson::Document &Doc, rapidjson::StringBuffer &Buffer)
+static void PrintJson(const rapidjson::Document &Doc, rapidjson::StringBuffer &Buffer)
 {
     rapidjson::PrettyWriter<rapidjson::StringBuffer, rapidjson::Document::EncodingType, rapidjson::UTF8<>>
         Writer(Buffer);
     Doc.Accept(Writer);
-}
-
-template <typename T>
-bool ReadPe(PLOADED_IMAGE Image, UINT64 NativeLoadBase, UINT64 NativeAddress, T *ret)
-{
-    for (unsigned i = 0; i < Image->NumberOfSections; ++i) {
-        DWORD SVA = Image->Sections[i].VirtualAddress;
-        DWORD SSize = Image->Sections[i].SizeOfRawData;
-        if (NativeAddress >= SVA + NativeLoadBase && NativeAddress + sizeof(T) <= SVA + NativeLoadBase + SSize) {
-            DWORD Offset = (DWORD)((NativeAddress - NativeLoadBase) - Image->Sections[i].VirtualAddress);
-            Offset += Image->Sections[i].PointerToRawData;
-            *ret = *(T*)(Image->MappedAddress + Offset);
-            return true;
-        }
-    }
-
-    return false;
-}
-
-// Print the syscall table
-static void DumpSyscalls(HANDLE Process, const std::string &ImagePath, ULONG64 ModuleBase, UINT64 NativeLoadBase,
-    bool Is64)
-{
-    PLOADED_IMAGE Img = nullptr;
-
-    // 1. look for the syscall table boundary
-    UINT64 KiServiceTable, KiServiceLimit;
-
-    if (!GetSymbolAddress(Process, ModuleBase, "KiServiceTable", &KiServiceTable)) {
-        fprintf(stderr, "Could not find KiServiceTable\n");
-        goto err;
-    }
-
-    if (!GetSymbolAddress(Process, ModuleBase, "KiServiceLimit", &KiServiceLimit)) {
-        fprintf(stderr, "Could not find KiServiceLimit\n");
-        goto err;
-    }
-
-    InitializeSymbolMap(Process, ModuleBase);
-
-    UINT64 PtrSize = Is64 ? 8 : 4;
-
-    // 2. Load the image
-    Img = ImageLoad((PSTR)ImagePath.c_str(), NULL);
-    if (!Img) {
-        fprintf(stderr, "Could not load image\n");
-        goto err;
-    }
-
-    UINT32 SyscallCount;
-    if (!ReadPe(Img, NativeLoadBase, KiServiceLimit, &SyscallCount)) {
-        fprintf(stderr, "Could not ready syscall count\n");
-        goto err;
-    }
-
-    // 3. Read the array of syscall pointers
-    UINT64 *SyscallPtrs = new UINT64[SyscallCount];
-    for (UINT i = 0; i < SyscallCount; ++i) {
-        bool Result;
-
-        if (Is64) {
-            UINT32 Ret;
-            Result = ReadPe(Img, NativeLoadBase, KiServiceTable + i * sizeof(UINT32), &Ret);
-            SyscallPtrs[i] = NativeLoadBase + Ret;
-        } else {
-            UINT32 Ret;
-            Result = ReadPe(Img, NativeLoadBase, KiServiceTable + i * sizeof(UINT32), &Ret);
-            SyscallPtrs[i] = Ret;
-        }
-
-        const std::string &symbolName = g_symbolMap[SyscallPtrs[i]];
-        printf("%d %#llx %s\n", i, SyscallPtrs[i], symbolName.c_str());
-
-        if (!Result) {
-            printf("Syscall extraction failed\n");
-            goto err;
-        }
-    }
-
-err:
-    if (Img) {
-        ImageUnload(Img);
-    }
 }
 
 enum ACTION
@@ -561,6 +136,8 @@ int main(int argc, char **argv)
     ULONG64 ModuleBase;
     ULONG64 NativeLoadBase;
 
+    SymbolInfo Symbols;
+
     if (!ParseArguments(Args, argc, argv)) {
         Usage();
         goto err;
@@ -593,12 +170,16 @@ int main(int argc, char **argv)
     }
     ModuleLoaded = true;
 
+    if (!GetSymbolMap(Symbols, Process, ModuleBase)) {
+        fprintf(stderr, "Could not load symbols\n");
+        goto err;
+    }
+
     switch (Args.Action) {
         case DUMP_INFO: {
-            InitializeSymbolMap(Process, ModuleBase);
             rapidjson::Document Doc;
             Doc.SetObject();
-            DumpSymbolMapAsJson(g_symbolMap, Doc);
+            DumpSymbolMapAsJson(Symbols, Doc);
             DumpTypesAsJson(Doc, Process, ModuleBase);
 
             rapidjson::StringBuffer Buffer;
@@ -616,7 +197,7 @@ int main(int argc, char **argv)
             printf("%#x %d %#llx\n", CheckSum, Is64 ? 64 : 32, ModuleBase);
             break;
         case DUMP_SYSCALLS:
-            DumpSyscalls(Process, Args.ExeFileName, ModuleBase, NativeLoadBase, Is64);
+            DumpSyscalls(Symbols, Process, Args.ExeFileName, ModuleBase, NativeLoadBase, Is64);
             break;
         default:
             fprintf(stderr, "Unknown action %d\n", Args.Action);

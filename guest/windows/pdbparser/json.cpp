@@ -3,6 +3,7 @@
 
 // Check whether the given character has to be escaped in a JSON string
 _Success_(return)
+
 static BOOL IsSpecialChar(_In_ CHAR Char, _Out_ CHAR *EscapeChar)
 {
     switch (Char) {
@@ -43,7 +44,7 @@ std::string JsonEscapeString(const std::string String)
 {
     std::string Ret;
 
-    for (auto it:String) {
+    for (auto it : String) {
         CHAR EscapeChar;
         if (IsSpecialChar(it, &EscapeChar)) {
             Ret = Ret + "\\";
