@@ -56,8 +56,6 @@ def get_info(pdb):
         'MiUnmapViewOfSection': pdb.get_function_address('MiUnmapViewOfSection'),
         #'NtUnmapViewOfSectionEx': pdb.get_function_address('NtUnmapViewOfSectionEx'),
 
-        'KiInitialPCR': pdb.get_function_address('KiInitialPCR', True),
-
         '_KPRCB_ProcessorState': pdb.get_field_offset('_KPRCB', 'ProcessorState'),
 
         '_EPROCESS_ActiveProcessLinks': pdb.get_field_offset('_EPROCESS', 'ActiveProcessLinks'),
