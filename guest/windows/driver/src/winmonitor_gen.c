@@ -38,6 +38,10 @@
 
 static REGISTER_KERNEL_STRUCTS Handler0x2247c2; /* (5, 1, 2600, 5512) - 32 - en_windows_xp_professional_with_service_pack_3_x86_cd_x14-80428_0c89243c7c3ee199b96fcc16990e0679_ntoskrnl.pdb */
 static REGISTER_KERNEL_STRUCTS Handler0x21a293; /* (5, 1, 2600, 5512) - 32 - en_windows_xp_professional_with_service_pack_3_x86_cd_x14-80428_40f8880122a030a7e9e1fedea833b33d_ntkrnlmp.pdb */
+static REGISTER_KERNEL_STRUCTS Handler0x1f77ce; /* (5, 1, 2600, 6748) - 32 - winxp-updates-x86-enu_2fdaa0aef7890bfa90bffefacbebe5b2_ntkrpamp.pdb */
+static REGISTER_KERNEL_STRUCTS Handler0x21b173; /* (5, 1, 2600, 6748) - 32 - winxp-updates-x86-enu_5c814a2794f27c25606c00740c40bfda_ntoskrnl.pdb */
+static REGISTER_KERNEL_STRUCTS Handler0x20df8e; /* (5, 1, 2600, 6748) - 32 - winxp-updates-x86-enu_6b5fbfe6e6f8804aa5f017d8f9548d80_ntkrnlmp.pdb */
+static REGISTER_KERNEL_STRUCTS Handler0x2055a8; /* (5, 1, 2600, 6748) - 32 - winxp-updates-x86-enu_feffd5228da5bbc12fb5f8f8b784179b_ntkrnlpa.pdb */
 static REGISTER_KERNEL_STRUCTS Handler0x3bdf03; /* (6, 1, 7600, 16988) - 32 - Windows6.1-KB2676562-x64_678ad0f9db55f9127851cd631456f483_ntoskrnl.pdb */
 static REGISTER_KERNEL_STRUCTS Handler0x54df57; /* (6, 1, 7600, 16988) - 64 - Windows6.1-KB2676562-x64_9579f84c40b3be205c9fd4ccdd99b6b7_ntoskrnl.pdb */
 static REGISTER_KERNEL_STRUCTS Handler0x3d1875; /* (6, 1, 7600, 16988) - 32 - Windows6.1-KB2676562-x64_9d19079820928d72a5708a668b5b62ae_ntkrnlpa.pdb */
@@ -87,6 +91,18 @@ REGISTER_KERNEL_STRUCTS_HANDLERS g_KernelStructHandlers [] = {
     #endif
         #if defined(_X86_)
         { 0x21a293, 0x400000, &Handler0x21a293 }, /* (5, 1, 2600, 5512) - 32*/
+    #endif
+        #if defined(_X86_)
+        { 0x1f77ce, 0x400000, &Handler0x1f77ce }, /* (5, 1, 2600, 6748) - 32*/
+    #endif
+        #if defined(_X86_)
+        { 0x21b173, 0x400000, &Handler0x21b173 }, /* (5, 1, 2600, 6748) - 32*/
+    #endif
+        #if defined(_X86_)
+        { 0x20df8e, 0x400000, &Handler0x20df8e }, /* (5, 1, 2600, 6748) - 32*/
+    #endif
+        #if defined(_X86_)
+        { 0x2055a8, 0x400000, &Handler0x2055a8 }, /* (5, 1, 2600, 6748) - 32*/
     #endif
         #if defined(_X86_)
         { 0x3bdf03, 0x400000, &Handler0x3bdf03 }, /* (6, 1, 7600, 16988) - 32*/
@@ -355,6 +371,306 @@ static VOID Handler0x21a293(UINT_PTR KernelLoadBase, UINT_PTR KernelNativeBase)
     Command.Structs.KeBugCheckEx = 0x45faea; //KeBugCheck2
     Command.Structs.KdVersionBlock = *(UINT_PTR*)(UINT_PTR)(Command.Structs.KPCR + 0x34);
     Command.Structs.KdDebuggerDataBlock = 0x47c2e0;
+    g_kernelStructs.KdCopyDataBlock = 0x0;
+    g_kernelStructs.KdpDataBlockEncoded = 0x0;
+
+    g_kernelStructs.PRCBProcessorStateOffset = (PVOID)(UINT_PTR)(Command.Structs.KPRCB + 0x1c);
+
+    g_WinmonKernelStructs = Command.Structs;
+
+    S2EInvokePlugin("WindowsMonitor", &Command, sizeof(Command));
+}
+#endif
+
+
+#if defined(_X86_)
+
+/* Version (5, 1, 2600, 6748), 32-bits */
+static VOID Handler0x1f77ce(UINT_PTR KernelLoadBase, UINT_PTR KernelNativeBase)
+{
+    KPCR *pKpcr = NULL;
+    S2E_WINMON2_COMMAND Command;
+
+    S2EMessage("Registering data structures for version (5, 1, 2600, 6748) (32-bits)\n");
+
+    MonitorInitCommon(&Command);
+    Command.Structs.KernelChecksum = 0x1f77ce;
+    Command.Structs.KernelLoadBase = KernelLoadBase;
+    Command.Structs.KernelNativeBase = KernelNativeBase;
+
+    //Not supported by automatic generation
+    //Command.Structs.LoadDriverPc = 000;
+    Command.Structs.UnloadDriverPc = 0x4ac666; //IopDeleteDriver;
+    Command.Structs.PerfLogImageUnload = 0;
+    pKpcr = (KPCR*) 0xffdff000;
+    Command.Structs.KPCR = (UINT_PTR) pKpcr;
+    Command.Structs.KPRCB = (UINT_PTR) pKpcr->Prcb;
+
+    Command.Structs.EThreadSegment = R_FS;
+    Command.Structs.EThreadSegmentOffset = 0x4;
+    Command.Structs.EThreadStackBaseOffset = 0x168;
+    Command.Structs.EThreadStackLimitOffset = 0x1c;
+    Command.Structs.EThreadProcessOffset = 0x220;
+    Command.Structs.EThreadCidOffset = 0x1ec;
+
+    Command.Structs.EProcessUniqueIdOffset = 0x84;
+    Command.Structs.EProcessCommitChargeOffset = 0xa8;
+    Command.Structs.EProcessVirtualSizeOffset = 0xb0;
+    Command.Structs.EProcessPeakVirtualSizeOffset = 0xac;
+    Command.Structs.EProcessCommitChargePeakOffset = 0x1ec;
+    Command.Structs.EProcessExitStatusOffset = 0x24c;
+
+    Command.Structs.EProcessVadRootOffset = 0x11c;
+
+    Command.Structs.DPCStackBasePtr = Command.Structs.KPRCB + 0x868;
+    Command.Structs.DPCStackSize = 0x3000;
+
+    Command.Structs.PsLoadedModuleList = (UINT_PTR)(0x486720 - KernelNativeBase + KernelLoadBase);
+    g_kernelStructs.PsActiveProcessHead = (PLIST_ENTRY)(0x48c8b8 - KernelNativeBase + KernelLoadBase);
+    g_kernelStructs.EProcessActiveProcessLinkOffset = 0x88;
+    g_kernelStructs.EProcessThreadListHeadOffset = 0x190;
+    g_kernelStructs.EThreadThreadListEntry = 0x22c;
+
+    g_kernelStructs.ObpCreateHandle = 0x4e6528 - KernelNativeBase + KernelLoadBase;
+    g_kernelStructs.MmAccessFault = 0x448ad8 - KernelNativeBase + KernelLoadBase;
+
+    g_kernelStructs.NtAllocateVirtualMemory = 0x4d1aee - KernelNativeBase + KernelLoadBase;
+    g_kernelStructs.NtFreeVirtualMemory = 0x4dbfe6 - KernelNativeBase + KernelLoadBase;
+    g_kernelStructs.NtProtectVirtualMemory = 0x4e1452 - KernelNativeBase + KernelLoadBase;
+    g_kernelStructs.NtMapViewOfSection = 0x4db06e - KernelNativeBase + KernelLoadBase;
+    g_kernelStructs.NtUnmapViewOfSection = 0x4dbe7c - KernelNativeBase + KernelLoadBase;
+    g_kernelStructs.MiUnmapViewOfSection = 0x4dbcb6 - KernelNativeBase + KernelLoadBase;
+    //g_kernelStructs.NtUnmapViewOfSectionEx =  - KernelNativeBase + KernelLoadBase;
+
+    /* Crash dump functionality */
+    Command.Structs.KeBugCheckEx = 0x4224e0; //KeBugCheck2
+    Command.Structs.KdVersionBlock = *(UINT_PTR*)(UINT_PTR)(Command.Structs.KPCR + 0x34);
+    Command.Structs.KdDebuggerDataBlock = 0x4762e0;
+    g_kernelStructs.KdCopyDataBlock = 0x0;
+    g_kernelStructs.KdpDataBlockEncoded = 0x0;
+
+    g_kernelStructs.PRCBProcessorStateOffset = (PVOID)(UINT_PTR)(Command.Structs.KPRCB + 0x1c);
+
+    g_WinmonKernelStructs = Command.Structs;
+
+    S2EInvokePlugin("WindowsMonitor", &Command, sizeof(Command));
+}
+#endif
+
+
+#if defined(_X86_)
+
+/* Version (5, 1, 2600, 6748), 32-bits */
+static VOID Handler0x21b173(UINT_PTR KernelLoadBase, UINT_PTR KernelNativeBase)
+{
+    KPCR *pKpcr = NULL;
+    S2E_WINMON2_COMMAND Command;
+
+    S2EMessage("Registering data structures for version (5, 1, 2600, 6748) (32-bits)\n");
+
+    MonitorInitCommon(&Command);
+    Command.Structs.KernelChecksum = 0x21b173;
+    Command.Structs.KernelLoadBase = KernelLoadBase;
+    Command.Structs.KernelNativeBase = KernelNativeBase;
+
+    //Not supported by automatic generation
+    //Command.Structs.LoadDriverPc = 000;
+    Command.Structs.UnloadDriverPc = 0x4f2217; //IopDeleteDriver;
+    Command.Structs.PerfLogImageUnload = 0;
+    pKpcr = (KPCR*) 0xffdff000;
+    Command.Structs.KPCR = (UINT_PTR) pKpcr;
+    Command.Structs.KPRCB = (UINT_PTR) pKpcr->Prcb;
+
+    Command.Structs.EThreadSegment = R_FS;
+    Command.Structs.EThreadSegmentOffset = 0x4;
+    Command.Structs.EThreadStackBaseOffset = 0x168;
+    Command.Structs.EThreadStackLimitOffset = 0x1c;
+    Command.Structs.EThreadProcessOffset = 0x220;
+    Command.Structs.EThreadCidOffset = 0x1ec;
+
+    Command.Structs.EProcessUniqueIdOffset = 0x84;
+    Command.Structs.EProcessCommitChargeOffset = 0xa8;
+    Command.Structs.EProcessVirtualSizeOffset = 0xb0;
+    Command.Structs.EProcessPeakVirtualSizeOffset = 0xac;
+    Command.Structs.EProcessCommitChargePeakOffset = 0x1ec;
+    Command.Structs.EProcessExitStatusOffset = 0x24c;
+
+    Command.Structs.EProcessVadRootOffset = 0x11c;
+
+    Command.Structs.DPCStackBasePtr = Command.Structs.KPRCB + 0x868;
+    Command.Structs.DPCStackSize = 0x3000;
+
+    Command.Structs.PsLoadedModuleList = (UINT_PTR)(0x484340 - KernelNativeBase + KernelLoadBase);
+    g_kernelStructs.PsActiveProcessHead = (PLIST_ENTRY)(0x48a4d8 - KernelNativeBase + KernelLoadBase);
+    g_kernelStructs.EProcessActiveProcessLinkOffset = 0x88;
+    g_kernelStructs.EProcessThreadListHeadOffset = 0x190;
+    g_kernelStructs.EThreadThreadListEntry = 0x22c;
+
+    g_kernelStructs.ObpCreateHandle = 0x48e056 - KernelNativeBase + KernelLoadBase;
+    g_kernelStructs.MmAccessFault = 0x411dc0 - KernelNativeBase + KernelLoadBase;
+
+    g_kernelStructs.NtAllocateVirtualMemory = 0x492302 - KernelNativeBase + KernelLoadBase;
+    g_kernelStructs.NtFreeVirtualMemory = 0x492c2d - KernelNativeBase + KernelLoadBase;
+    g_kernelStructs.NtProtectVirtualMemory = 0x49df70 - KernelNativeBase + KernelLoadBase;
+    g_kernelStructs.NtMapViewOfSection = 0x4a5b31 - KernelNativeBase + KernelLoadBase;
+    g_kernelStructs.NtUnmapViewOfSection = 0x4a56b6 - KernelNativeBase + KernelLoadBase;
+    g_kernelStructs.MiUnmapViewOfSection = 0x4a557d - KernelNativeBase + KernelLoadBase;
+    //g_kernelStructs.NtUnmapViewOfSectionEx =  - KernelNativeBase + KernelLoadBase;
+
+    /* Crash dump functionality */
+    Command.Structs.KeBugCheckEx = 0x45bcfa; //KeBugCheck2
+    Command.Structs.KdVersionBlock = *(UINT_PTR*)(UINT_PTR)(Command.Structs.KPCR + 0x34);
+    Command.Structs.KdDebuggerDataBlock = 0x475f60;
+    g_kernelStructs.KdCopyDataBlock = 0x0;
+    g_kernelStructs.KdpDataBlockEncoded = 0x0;
+
+    g_kernelStructs.PRCBProcessorStateOffset = (PVOID)(UINT_PTR)(Command.Structs.KPRCB + 0x1c);
+
+    g_WinmonKernelStructs = Command.Structs;
+
+    S2EInvokePlugin("WindowsMonitor", &Command, sizeof(Command));
+}
+#endif
+
+
+#if defined(_X86_)
+
+/* Version (5, 1, 2600, 6748), 32-bits */
+static VOID Handler0x20df8e(UINT_PTR KernelLoadBase, UINT_PTR KernelNativeBase)
+{
+    KPCR *pKpcr = NULL;
+    S2E_WINMON2_COMMAND Command;
+
+    S2EMessage("Registering data structures for version (5, 1, 2600, 6748) (32-bits)\n");
+
+    MonitorInitCommon(&Command);
+    Command.Structs.KernelChecksum = 0x20df8e;
+    Command.Structs.KernelLoadBase = KernelLoadBase;
+    Command.Structs.KernelNativeBase = KernelNativeBase;
+
+    //Not supported by automatic generation
+    //Command.Structs.LoadDriverPc = 000;
+    Command.Structs.UnloadDriverPc = 0x4d6fb6; //IopDeleteDriver;
+    Command.Structs.PerfLogImageUnload = 0;
+    pKpcr = (KPCR*) 0xffdff000;
+    Command.Structs.KPCR = (UINT_PTR) pKpcr;
+    Command.Structs.KPRCB = (UINT_PTR) pKpcr->Prcb;
+
+    Command.Structs.EThreadSegment = R_FS;
+    Command.Structs.EThreadSegmentOffset = 0x4;
+    Command.Structs.EThreadStackBaseOffset = 0x168;
+    Command.Structs.EThreadStackLimitOffset = 0x1c;
+    Command.Structs.EThreadProcessOffset = 0x220;
+    Command.Structs.EThreadCidOffset = 0x1ec;
+
+    Command.Structs.EProcessUniqueIdOffset = 0x84;
+    Command.Structs.EProcessCommitChargeOffset = 0xa8;
+    Command.Structs.EProcessVirtualSizeOffset = 0xb0;
+    Command.Structs.EProcessPeakVirtualSizeOffset = 0xac;
+    Command.Structs.EProcessCommitChargePeakOffset = 0x1ec;
+    Command.Structs.EProcessExitStatusOffset = 0x24c;
+
+    Command.Structs.EProcessVadRootOffset = 0x11c;
+
+    Command.Structs.DPCStackBasePtr = Command.Structs.KPRCB + 0x868;
+    Command.Structs.DPCStackSize = 0x3000;
+
+    Command.Structs.PsLoadedModuleList = (UINT_PTR)(0x48c4c0 - KernelNativeBase + KernelLoadBase);
+    g_kernelStructs.PsActiveProcessHead = (PLIST_ENTRY)(0x492658 - KernelNativeBase + KernelLoadBase);
+    g_kernelStructs.EProcessActiveProcessLinkOffset = 0x88;
+    g_kernelStructs.EProcessThreadListHeadOffset = 0x190;
+    g_kernelStructs.EThreadThreadListEntry = 0x22c;
+
+    g_kernelStructs.ObpCreateHandle = 0x496238 - KernelNativeBase + KernelLoadBase;
+    g_kernelStructs.MmAccessFault = 0x411c99 - KernelNativeBase + KernelLoadBase;
+
+    g_kernelStructs.NtAllocateVirtualMemory = 0x499da7 - KernelNativeBase + KernelLoadBase;
+    g_kernelStructs.NtFreeVirtualMemory = 0x49a2a1 - KernelNativeBase + KernelLoadBase;
+    g_kernelStructs.NtProtectVirtualMemory = 0x4a8587 - KernelNativeBase + KernelLoadBase;
+    g_kernelStructs.NtMapViewOfSection = 0x4a3c39 - KernelNativeBase + KernelLoadBase;
+    g_kernelStructs.NtUnmapViewOfSection = 0x4a37c1 - KernelNativeBase + KernelLoadBase;
+    g_kernelStructs.MiUnmapViewOfSection = 0x4a3688 - KernelNativeBase + KernelLoadBase;
+    //g_kernelStructs.NtUnmapViewOfSectionEx =  - KernelNativeBase + KernelLoadBase;
+
+    /* Crash dump functionality */
+    Command.Structs.KeBugCheckEx = 0x45faea; //KeBugCheck2
+    Command.Structs.KdVersionBlock = *(UINT_PTR*)(UINT_PTR)(Command.Structs.KPCR + 0x34);
+    Command.Structs.KdDebuggerDataBlock = 0x47c2e0;
+    g_kernelStructs.KdCopyDataBlock = 0x0;
+    g_kernelStructs.KdpDataBlockEncoded = 0x0;
+
+    g_kernelStructs.PRCBProcessorStateOffset = (PVOID)(UINT_PTR)(Command.Structs.KPRCB + 0x1c);
+
+    g_WinmonKernelStructs = Command.Structs;
+
+    S2EInvokePlugin("WindowsMonitor", &Command, sizeof(Command));
+}
+#endif
+
+
+#if defined(_X86_)
+
+/* Version (5, 1, 2600, 6748), 32-bits */
+static VOID Handler0x2055a8(UINT_PTR KernelLoadBase, UINT_PTR KernelNativeBase)
+{
+    KPCR *pKpcr = NULL;
+    S2E_WINMON2_COMMAND Command;
+
+    S2EMessage("Registering data structures for version (5, 1, 2600, 6748) (32-bits)\n");
+
+    MonitorInitCommon(&Command);
+    Command.Structs.KernelChecksum = 0x2055a8;
+    Command.Structs.KernelLoadBase = KernelLoadBase;
+    Command.Structs.KernelNativeBase = KernelNativeBase;
+
+    //Not supported by automatic generation
+    //Command.Structs.LoadDriverPc = 000;
+    Command.Structs.UnloadDriverPc = 0x4a1c5c; //IopDeleteDriver;
+    Command.Structs.PerfLogImageUnload = 0;
+    pKpcr = (KPCR*) 0xffdff000;
+    Command.Structs.KPCR = (UINT_PTR) pKpcr;
+    Command.Structs.KPRCB = (UINT_PTR) pKpcr->Prcb;
+
+    Command.Structs.EThreadSegment = R_FS;
+    Command.Structs.EThreadSegmentOffset = 0x4;
+    Command.Structs.EThreadStackBaseOffset = 0x168;
+    Command.Structs.EThreadStackLimitOffset = 0x1c;
+    Command.Structs.EThreadProcessOffset = 0x220;
+    Command.Structs.EThreadCidOffset = 0x1ec;
+
+    Command.Structs.EProcessUniqueIdOffset = 0x84;
+    Command.Structs.EProcessCommitChargeOffset = 0xa8;
+    Command.Structs.EProcessVirtualSizeOffset = 0xb0;
+    Command.Structs.EProcessPeakVirtualSizeOffset = 0xac;
+    Command.Structs.EProcessCommitChargePeakOffset = 0x1ec;
+    Command.Structs.EProcessExitStatusOffset = 0x24c;
+
+    Command.Structs.EProcessVadRootOffset = 0x11c;
+
+    Command.Structs.DPCStackBasePtr = Command.Structs.KPRCB + 0x868;
+    Command.Structs.DPCStackSize = 0x3000;
+
+    Command.Structs.PsLoadedModuleList = (UINT_PTR)(0x47d1c0 - KernelNativeBase + KernelLoadBase);
+    g_kernelStructs.PsActiveProcessHead = (PLIST_ENTRY)(0x483358 - KernelNativeBase + KernelLoadBase);
+    g_kernelStructs.EProcessActiveProcessLinkOffset = 0x88;
+    g_kernelStructs.EProcessThreadListHeadOffset = 0x190;
+    g_kernelStructs.EThreadThreadListEntry = 0x22c;
+
+    g_kernelStructs.ObpCreateHandle = 0x4dbf3c - KernelNativeBase + KernelLoadBase;
+    g_kernelStructs.MmAccessFault = 0x44545c - KernelNativeBase + KernelLoadBase;
+
+    g_kernelStructs.NtAllocateVirtualMemory = 0x4c7006 - KernelNativeBase + KernelLoadBase;
+    g_kernelStructs.NtFreeVirtualMemory = 0x4d1660 - KernelNativeBase + KernelLoadBase;
+    g_kernelStructs.NtProtectVirtualMemory = 0x4d6c78 - KernelNativeBase + KernelLoadBase;
+    g_kernelStructs.NtMapViewOfSection = 0x4d06e0 - KernelNativeBase + KernelLoadBase;
+    g_kernelStructs.NtUnmapViewOfSection = 0x4d14f6 - KernelNativeBase + KernelLoadBase;
+    g_kernelStructs.MiUnmapViewOfSection = 0x4d1330 - KernelNativeBase + KernelLoadBase;
+    //g_kernelStructs.NtUnmapViewOfSectionEx =  - KernelNativeBase + KernelLoadBase;
+
+    /* Crash dump functionality */
+    Command.Structs.KeBugCheckEx = 0x42123c; //KeBugCheck2
+    Command.Structs.KdVersionBlock = *(UINT_PTR*)(UINT_PTR)(Command.Structs.KPCR + 0x34);
+    Command.Structs.KdDebuggerDataBlock = 0x46ece0;
     g_kernelStructs.KdCopyDataBlock = 0x0;
     g_kernelStructs.KdpDataBlockEncoded = 0x0;
 

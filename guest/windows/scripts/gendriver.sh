@@ -88,6 +88,8 @@ download_patches()
     download_patch http://download.windowsupdate.com/d/msdownload/update/software/updt/2016/09/windows6.1-kb3172605-x86_ae03ccbd299e434ea2239f1ad86f164e5f4deeda.msu
     download_patch http://download.windowsupdate.com/c/msdownload/update/software/secu/2019/09/windows6.1-kb4474419-v3-x86_0f687d50402790f340087c576886501b3223bec6.msu
     download_patch http://download.windowsupdate.com/c/msdownload/update/software/secu/2020/01/windows6.1-kb4534310-x86_887a5caab59437e8f23aa5a4608950455bb37537.msu
+
+    download_patch https://github.com/S2E/guest-images/releases/download/v2.0.0/winxp-updates-x86-enu.exe
 }
 
 extract_kernels()
