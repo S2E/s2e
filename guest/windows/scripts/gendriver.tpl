@@ -27,6 +27,7 @@
 #include <ntddk.h>
 #include <ntimage.h>
 #include <Aux_klib.h>
+#include <intrin.h>
 #include <s2e/s2e.h>
 #include "winmonitor.h"
 #include "kernel_structs.h"
@@ -62,7 +63,7 @@ REGISTER_KERNEL_STRUCTS_HANDLERS g_KernelStructHandlers [] = {
 /* Version {{d.version}}, {{d.bits}}-bits */
 static VOID Handler{{d.checksum | hex}}(UINT_PTR KernelLoadBase, UINT_PTR KernelNativeBase)
 {
-    KPCR *pKpcr;
+    KPCR *pKpcr = NULL;
     S2E_WINMON2_COMMAND Command;
 
     S2EMessage("Registering data structures for version {{d.version}} ({{d.bits}}-bits)\n");
@@ -85,12 +86,8 @@ static VOID Handler{{d.checksum | hex}}(UINT_PTR KernelLoadBase, UINT_PTR Kernel
 
     pKpcr = (KPCR*) 0xffdff000;
     {%- else %}
-    {% if d.KiInitialPCR == 0 %}
 
-    #error KiInitialPCR cannot be null
-
-    {% endif %}
-    pKpcr = (KPCR*) ({{d.KiInitialPCR | hex}} - KernelNativeBase + KernelLoadBase);
+    pKpcr = (KPCR*) __readfsdword(offsetof(KPCR, SelfPcr));
     {%- endif %}
     {%- endif %}
 

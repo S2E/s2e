@@ -43,7 +43,7 @@ import tempfile
 
 SEVEN_ZIP_VERSION_REGEX = re.compile(r'7-Zip .*?(?P<major>\d+)\.(?P<minor>\d+)')
 
-NT_PATTERN = re.compile(r'(ntoskrnl|ntkrnlmp|ntkrnlpa)$')
+NT_PATTERN = re.compile(r'(ntoskrnl|ntkrnlmp|ntkrnlpa|ntkrpamp)$')
 
 # This will work only on msys
 EXPAND_PATH = '/c/Windows/System32/expand.exe'
@@ -181,6 +181,8 @@ def seven_zip_list(source):
         els = line.split()
         if len(els) == ELEM_COUNT:
             files.append(els[FILE_PATH_INDEX])
+        elif len(els) == ELEM_COUNT - 1:
+            files.append(els[FILE_PATH_INDEX - 1])
 
     return files
 
@@ -360,6 +362,9 @@ def extract_kernels(output_dir, filepath):
     elif ext == '.msu':
         extract_kernels_from_msu(output_dir, filepath)
     elif ext == '.wim':
+        files = seven_zip_list(filepath)
+        extract_kernels_from_container(output_dir, filepath, files)
+    elif ext == '.exe':
         files = seven_zip_list(filepath)
         extract_kernels_from_container(output_dir, filepath, files)
     else:

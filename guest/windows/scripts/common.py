@@ -26,6 +26,7 @@ import os
 import subprocess
 
 import jinja2
+import json
 import pefile
 
 
@@ -50,28 +51,38 @@ class PdbParser(object):
         self._exe = exe_file
         self._pdb = pdb_file
         self._pe = pefile.PE(exe_file)
+        self._pdb_data = {}
+        self._load_pdb_data()
+
+    def _load_pdb_data(self):
+        print(f'Loading pdb data for {self._pdb}')
+        cmd = [self._pdb_parser, '-d', self._exe, self._pdb]
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+        data = json.loads(proc.stdout.read())
+        self._pdb_data = data
+        print('  done')
 
     def get_function_address(self, function, allow_null=False):
-        cmd = [self._pdb_parser, '-f', function, self._exe, self._pdb]
-        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE)
-        ret = proc.stdout.readline().rstrip().split()
-        if len(ret) != 3:
+        symbols = self._pdb_data['symbols']
+        if function not in symbols:
             if allow_null:
                 return 0
-            else:
-                raise RuntimeError('Function %s does not exist in %s' %
+            raise RuntimeError('Function %s does not exist in %s' %
                                    (function, self._pdb))
 
-        return int(ret[2], 16)
+        return symbols[function]
 
-    def get_field_offset(self, type_name):
-        cmd = [self._pdb_parser, '-t', type_name, self._exe, self._pdb]
-        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE)
-        ret = proc.stdout.readline().rstrip().split()
-        if len(ret) == 3:
-            return int(ret[2], 16)
+    def get_field_offset(self, type_name, field):
+        types = self._pdb_data['types']
+        if type_name not in types:
+            return None
 
-        return None
+        members = types[type_name]
+        if field not in members:
+            return None
+
+        field_info = members[field]
+        return field_info['offset']
 
     @property
     def product_version(self):
@@ -99,14 +110,7 @@ class PdbParser(object):
 
     @property
     def syscalls(self):
-        cmd = [self._pdb_parser, '-s', self._exe, self._pdb]
-        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE)
-        ret = proc.stdout.readlines()
-        syscalls = []
-        for l in ret:
-            _, addr, name = l.split()
-            syscalls.append((addr, name))
-        return syscalls
+        return self._pdb_data['syscalls']
 
 
 def extract_info(pdbparser, directory, cb):
