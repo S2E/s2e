@@ -41,14 +41,19 @@ CXXFLAGS_ARCH:=-march=$(BUILD_ARCH)
 CXXFLAGS_DEBUG:=$(CXXFLAGS_ARCH)
 CXXFLAGS_RELEASE:=$(CXXFLAGS_ARCH)
 
+SED:=sed
+
 # Set the number of parallel build jobs
 OS:=$(shell uname)
 ifeq ($(PARALLEL), no)
 JOBS:=1
 else ifeq ($(OS),Darwin)
 JOBS:=$(patsubst hw.ncpu:%,%,$(shell sysctl hw.ncpu))
+SED:=gsed
+PLATFORM:=darwin
 else ifeq ($(OS),Linux)
 JOBS:=$(shell grep -c ^processor /proc/cpuinfo)
+PLATFORM:=linux
 endif
 
 MAKE:=make -j$(JOBS)
@@ -445,8 +450,12 @@ stamps/protobuf-make: stamps/protobuf-configure
 #######
 
 stamps/lua-make: $(LUA_DIR)
-	sed -i 's/-lreadline//g' $(LUA_DIR)/src/Makefile
-	$(MAKE) -C $^ linux CFLAGS="-DLUA_USE_LINUX -O2 -g -fPIC"
+	if [ "$(PLATFORM)" = "linux" ]; then \
+        $(GSED) -i 's/-lreadline//g' $(LUA_DIR)/src/Makefile \
+        $(MAKE) -C $^ linux CFLAGS="-DLUA_USE_LINUX -O2 -g -fPIC"; \
+    elif [ "$(PLATFORM)" = "darwin" ]; then \
+        $(MAKE) -C $^ macosx CFLAGS="-DLUA_USE_LINUX -O2 -g -fPIC"; \
+    fi
 	touch $@
 
 ########
