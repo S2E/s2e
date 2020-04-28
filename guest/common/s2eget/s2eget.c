@@ -51,14 +51,11 @@ static char *get_dest_file(const char *dest_file, const char *host_file) {
 
     if (dest_file) {
         // Make a copy of the destination file path so that we don't mess around with argv
-        unsigned max_len = strlen(dest_file) + 1;
-        path = calloc(max_len, sizeof(char));
+        path = strdup(dest_file);
         if (!path) {
             fprintf(stderr, "Could not allocate memory for the file path\n");
             goto end;
         }
-
-        strncpy(path, dest_file, max_len);
     } else {
         // If no destination file path was given, construct a destination path based on the host file's name and the
         // guest's current working directory. Otherwise use the given destination file path
