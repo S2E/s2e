@@ -169,6 +169,7 @@ set(KLEE_COMPONENT_EXTRA_LIBRARIES "")
 # Find LLVM
 ################################################################################
 include(${CMAKE_SOURCE_DIR}/cmake/find_llvm.cmake)
+find_package(LLVM REQUIRED)
 set(NEEDED_LLVM_VARS
   LLVM_PACKAGE_VERSION
   LLVM_VERSION_MAJOR
@@ -223,23 +224,12 @@ endif()
 ################################################################################
 # C++ version
 ################################################################################
-option(USE_CXX11 "Use C++11" OFF)
-if ("${LLVM_PACKAGE_VERSION}" VERSION_GREATER "3.5.0")
-  message(STATUS "Using LLVM >= 3.5.0. Forcing using C++11")
-  set(USE_CXX11 ON CACHE BOOL "Use C++11" FORCE)
-endif()
 
-if (USE_CXX11)
-  message(STATUS "Enabling C++11")
-  # FIXME: Use CMake's own mechanism for managing C++ version.
-  # Set globally because it is unlikely we would want to compile
-  # using mixed C++ versions.
-  add_global_cxx_flag("-std=c++11" REQUIRED)
-else()
-  # This is needed because with GCC 6 the default changed from gnu++98 to
-  # gnu++14.
-  add_global_cxx_flag("-std=gnu++98" REQUIRED)
-endif()
+message(STATUS "Enabling C++14")
+# FIXME: Use CMake's own mechanism for managing C++ version.
+# Set globally because it is unlikely we would want to compile
+# using mixed C++ versions.
+add_global_cxx_flag("-std=c++14" REQUIRED)
 
 ################################################################################
 # Warnings
