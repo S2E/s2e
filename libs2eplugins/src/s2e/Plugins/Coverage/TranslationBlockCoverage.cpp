@@ -140,7 +140,7 @@ void TranslationBlockCoverage::onModuleTranslateBlockComplete(S2EExecutionState 
 
 void TranslationBlockCoverage::onUpdateStates(S2EExecutionState *currentState, const klee::StateSet &addedStates,
                                               const klee::StateSet &removedStates) {
-    for (auto it : removedStates) {
+    for (auto &it : removedStates) {
         m_newBlockStates.erase(it);
     }
 }
@@ -224,7 +224,7 @@ void TranslationBlockCoverage::generateJsonCoverage(S2EExecutionState *state, st
 bool mergeCoverage(ModuleTBs &dest, const ModuleTBs &source) {
     bool ret = false;
 
-    for (const auto it : source) {
+    for (const auto &it : source) {
         const std::string &mod = it.first;
         const auto tbs = it.second;
         if (dest.count(mod) == 0) {

@@ -37,7 +37,7 @@ public:
     Assignment(ArrayVec &objects, std::vector<std::vector<unsigned char>> &values, bool _allowFreeValues = false)
         : allowFreeValues(_allowFreeValues) {
         auto valIt = values.begin();
-        for (const auto it : objects) {
+        for (const auto &it : objects) {
             auto os = it;
             std::vector<unsigned char> &arr = *valIt;
             bindings.insert(std::make_pair(os, arr));

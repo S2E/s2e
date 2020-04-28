@@ -24,6 +24,7 @@
 
 #define S2E_KVM_FDMGR_H
 
+#include <errno.h>
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/types.h>

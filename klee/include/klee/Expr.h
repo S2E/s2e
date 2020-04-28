@@ -10,6 +10,13 @@
 #ifndef KLEE_EXPR_H
 #define KLEE_EXPR_H
 
+#include <atomic>
+#include <inttypes.h>
+#include <set>
+#include <sstream>
+#include <unordered_set>
+#include <vector>
+
 #include <boost/intrusive_ptr.hpp>
 
 #include "klee/util/Bits.h"
@@ -19,14 +26,6 @@
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/raw_os_ostream.h"
-
-#include <atomic>
-#include <inttypes.h>
-#include <iosfwd> // FIXME: Remove this!!!
-#include <set>
-#include <sstream>
-#include <unordered_set>
-#include <vector>
 
 namespace llvm {
 class Type;

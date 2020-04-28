@@ -86,7 +86,7 @@ int64_t strtosz_suffix_unit(const char *nptr, char **end, const char default_suf
     if (mul == 1 && mul_required) {
         goto fail;
     }
-    if ((val * mul >= INT64_MAX) || val < 0) {
+    if (((long) (val * mul) >= INT64_MAX) || val < 0) {
         goto fail;
     }
     retval = val * mul;

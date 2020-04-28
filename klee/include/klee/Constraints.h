@@ -47,6 +47,15 @@
 #include <boost/weak_ptr.hpp>
 
 namespace klee {
+class ConditionIterator;
+class ConditionNode;
+} // namespace klee
+
+namespace std {
+template <> struct iterator_traits<klee::ConditionIterator> { using value_type = klee::ConditionNode; };
+} // namespace std
+
+namespace klee {
 
 using boost::enable_shared_from_this;
 using boost::shared_ptr;
