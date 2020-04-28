@@ -71,10 +71,10 @@ ifeq ($(LLVM_BUILD),$(S2E_BUILD))
 LLVM_DIRS=llvm-release llvm-debug
 endif
 
-LLVM_VERSION=9.0.0
+LLVM_VERSION=10.0.0
 LLVM_SRC=llvm-$(LLVM_VERSION).src.tar.xz
 LLVM_SRC_DIR=llvm-$(LLVM_VERSION).src
-LLVM_SRC_URL=http://releases.llvm.org/$(LLVM_VERSION)/
+LLVM_SRC_URL=https://github.com/llvm/llvm-project/releases/download/llvmorg-$(LLVM_VERSION)/
 
 # The Python script should only return a single word - the suffix of the Clang
 # binary to download. If an error message is printed to stderr, the Makefile
@@ -89,8 +89,8 @@ KLEE_DIRS=$(foreach suffix,-debug -release,$(addsuffix $(suffix),klee))
 CLANG_BINARY_DIR=clang+llvm-$(LLVM_VERSION)-$(CLANG_BINARY_SUFFIX)
 CLANG_BINARY=$(CLANG_BINARY_DIR).tar.xz
 
-CLANG_SRC=cfe-$(LLVM_VERSION).src.tar.xz
-CLANG_SRC_DIR=cfe-$(LLVM_VERSION).src
+CLANG_SRC=clang-$(LLVM_VERSION).src.tar.xz
+CLANG_SRC_DIR=clang-$(LLVM_VERSION).src
 CLANG_DEST_DIR=$(LLVM_SRC_DIR)/tools/clang
 
 COMPILER_RT_SRC=compiler-rt-$(LLVM_VERSION).src.tar.xz
@@ -294,7 +294,7 @@ LLVM_CONFIGURE_FLAGS = -DLLVM_TARGETS_TO_BUILD="X86"        \
                        -DLLVM_TARGET_ARCH="X86_64"          \
                        -DLLVM_INCLUDE_EXAMPLES=Off          \
                        -DLLVM_INCLUDE_DOCS=Off              \
-                       -DLLVM_INCLUDE_TESTS=Off             \
+                       -DLLVM_INCLUDE_TESTS=On              \
                        -DLLVM_ENABLE_RTTI=On                \
                        -DLLVM_ENABLE_EH=On                  \
                        -DLLVM_BINUTILS_INCDIR=/usr/include  \
