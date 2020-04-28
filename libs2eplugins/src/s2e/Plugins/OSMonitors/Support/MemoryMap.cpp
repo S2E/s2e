@@ -155,7 +155,7 @@ public:
         }
 
         const MemoryMapRegion *map = &(*it).second;
-        auto rit = map->find(start);
+        auto rit = map->find(addr);
         if (rit == map->end()) {
             return false;
         }
