@@ -60,14 +60,8 @@ add_definitions(${LLVM_DEFINITIONS})
 
 include_directories("include" ${LLVM_INCLUDE_DIRS})
 
-llvm_map_components_to_libnames(LLVM_LIBS all)
-
-set(LLVM_CONFIG "${LLVM_TOOLS_BINARY_DIR}/llvm-config"
-    CACHE PATH "Path to llvm-config")
-execute_process(COMMAND ${LLVM_CONFIG} "--cxxflags"
-                RESULT_VARIABLE LLVM_CONFIG_RESULT
-                OUTPUT_VARIABLE LLVM_CXXFLAGS
-                OUTPUT_STRIP_TRAILING_WHITESPACE)
+# llvm_map_components_to_libnames(LLVM_LIBS all) produces empty output for some reason
+set(LLVM_LIBS ${LLVM_AVAILABLE_LIBS})
 
 ##################
 
