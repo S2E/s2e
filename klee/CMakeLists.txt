@@ -170,20 +170,7 @@ set(KLEE_COMPONENT_EXTRA_LIBRARIES "")
 ################################################################################
 include(${CMAKE_SOURCE_DIR}/cmake/find_llvm.cmake)
 find_package(LLVM REQUIRED)
-set(NEEDED_LLVM_VARS
-  LLVM_PACKAGE_VERSION
-  LLVM_VERSION_MAJOR
-  LLVM_VERSION_MINOR
-  LLVM_VERSION_PATCH
-  LLVM_DEFINITIONS
-  LLVM_ENABLE_ASSERTIONS
-  LLVM_ENABLE_EH
-  LLVM_ENABLE_RTTI
-  LLVM_INCLUDE_DIRS
-  LLVM_LIBRARY_DIRS
-  LLVM_TOOLS_BINARY_DIR
-  TARGET_TRIPLE
-)
+
 
 foreach (vname ${NEEDED_LLVM_VARS})
   message(STATUS "${vname}: \"${${vname}}\"")

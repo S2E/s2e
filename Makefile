@@ -123,8 +123,9 @@ SOCI_GIT_REV=f0c0d25a9160a237c9ef8eddf9f28651621192f3
 SOCI_GIT_URL=https://github.com/SOCI/soci.git
 
 # Google Test
-GTEST_VERSION=1.8.0
-GTEST_SRC_DIR=$(S2E_BUILD)/googletest-release-$(GTEST_VERSION)
+GTEST_VERSION=1.10.0
+GTEST_SRC_DIR=$(S2E_BUILD)/gtest-src
+GTEST_BUILD_DIR=$(S2E_BUILD)/gtest-release
 GTEST_URL=https://github.com/google/googletest/archive/release-$(GTEST_VERSION).tar.gz
 
 # libdwarf
@@ -247,9 +248,11 @@ $(SOCI_BUILD_DIR):
 	mkdir -p $(S2E_BUILD)/$(SOCI_BUILD_DIR)
 
 # Download GTest
-$(GTEST_SRC_DIR):
+$(GTEST_BUILD_DIR):
+	mkdir -p "$(GTEST_SRC_DIR)"
 	cd $(S2E_BUILD) && wget -O $(GTEST_SRC_DIR).tar.gz $(GTEST_URL)
-	cd $(S2E_BUILD) && tar xzvf $(GTEST_SRC_DIR).tar.gz
+	cd $(S2E_BUILD) && tar xzvf $(GTEST_SRC_DIR).tar.gz -C $(GTEST_SRC_DIR) --strip-components=1
+	mkdir -p "$@"
 
 # Download Capstone
 $(CAPSTONE_BUILD_DIR):
@@ -458,6 +461,21 @@ stamps/lua-make: $(LUA_DIR)
 	fi
 	touch $@
 
+#########
+# GTest #
+#########
+
+stamps/gtest-release-configure: stamps/clang-binary $(GTEST_BUILD_DIR)
+	cd $(GTEST_BUILD_DIR) && cmake -DCMAKE_C_COMPILER=$(CLANG_CC) \
+	-DCMAKE_CXX_COMPILER=$(CLANG_CXX)  \
+	$(GTEST_SRC_DIR)
+	touch $@
+
+stamps/gtest-release-make: stamps/gtest-release-configure
+	$(MAKE) -C $(GTEST_BUILD_DIR)
+	touch $@
+
+
 ########
 # KLEE #
 ########
@@ -466,22 +484,22 @@ KLEE_CONFIGURE_FLAGS = -DCMAKE_INSTALL_PREFIX=$(S2E_PREFIX)                     
                        -DCMAKE_C_FLAGS="$(CFLAGS_ARCH) -fno-omit-frame-pointer -fPIC"       \
                        -DCMAKE_C_COMPILER=$(CLANG_CC)                                       \
                        -DCMAKE_CXX_COMPILER=$(CLANG_CXX)                                    \
-                       -DUSE_CMAKE_FIND_PACKAGE_LLVM=On                                     \
                        -DENABLE_UNIT_TESTS=On                                               \
-                       -DGTEST_SRC_DIR=$(S2E_BUILD)/googletest-release-1.8.0                \
+                       -DGTEST_SRC=$(GTEST_SRC_DIR)                                         \
+                       -DGTEST_ROOT=$(GTEST_BUILD_DIR)                                      \
                        -DENABLE_DOCS=Off                                                    \
                        -DENABLE_SOLVER_Z3=On                                                \
                        -DZ3_INCLUDE_DIRS=$(S2E_PREFIX)/include                              \
                        -DZ3_LIBRARIES=$(S2E_PREFIX)/lib/libz3.a
 
-stamps/klee-debug-configure: stamps/llvm-debug-make stamps/z3-make $(call FIND_CONFIG_SOURCE,$(S2E_SRC)/klee) | $(GTEST_SRC_DIR)
+stamps/klee-debug-configure: stamps/llvm-debug-make stamps/z3-make stamps/gtest-release-make $(call FIND_CONFIG_SOURCE,$(S2E_SRC)/klee)
 stamps/klee-debug-configure: CONFIGURE_COMMAND = cmake $(KLEE_CONFIGURE_FLAGS)                      \
                                                  -DCMAKE_BUILD_TYPE=Debug                           \
                                                  -DLLVM_DIR=$(LLVM_BUILD)/llvm-debug/lib/cmake/llvm \
                                                  -DCMAKE_CXX_FLAGS="$(CXXFLAGS_DEBUG) -fno-omit-frame-pointer -fPIC" \
                                                  $(S2E_SRC)/klee
 
-stamps/klee-release-configure: stamps/llvm-release-make stamps/z3-make $(call FIND_CONFIG_SOURCE,$(S2E_SRC)/klee) | $(GTEST_SRC_DIR)
+stamps/klee-release-configure: stamps/llvm-release-make stamps/z3-make stamps/gtest-release-make $(call FIND_CONFIG_SOURCE,$(S2E_SRC)/klee)
 stamps/klee-release-configure: CONFIGURE_COMMAND = cmake $(KLEE_CONFIGURE_FLAGS)                        \
                                                    -DCMAKE_BUILD_TYPE=$(RELEASE_BUILD_TYPE)             \
                                                    -DLLVM_DIR=$(LLVM_BUILD)/llvm-release/lib/cmake/llvm \
