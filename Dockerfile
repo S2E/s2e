@@ -30,7 +30,7 @@ RUN sed -i '1ideb mirror://mirrors.ubuntu.com/mirrors.txt xenial main restricted
 # Install build dependencies
 RUN dpkg --add-architecture i386 && apt-get update &&                       \
     apt-get -y install build-essential cmake wget texinfo flex bison        \
-    python-dev python3-dev python3-venv mingw-w64 lsb-release
+    python-dev python3-dev python3-venv python3-distro mingw-w64 lsb-release
 
 # Install S2E dependencies
 RUN apt-get update && apt-get -y install libdwarf-dev libelf-dev libelf-dev:i386 \
