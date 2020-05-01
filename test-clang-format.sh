@@ -30,7 +30,7 @@ OUTPUT="$(git status --porcelain --untracked-files=no)"
 if [ "x$OUTPUT" = "x" ]; then
     echo "Code style ok"
 else
-    git diff
-    echo "Please run clang-format to fix code style"
+    git --no-pager diff
+    echo "Please execute run-clang-format.sh to fix code style"
     exit 1
 fi
