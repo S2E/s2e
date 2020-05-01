@@ -41,14 +41,19 @@ CXXFLAGS_ARCH:=-march=$(BUILD_ARCH)
 CXXFLAGS_DEBUG:=$(CXXFLAGS_ARCH)
 CXXFLAGS_RELEASE:=$(CXXFLAGS_ARCH)
 
+SED:=sed
+
 # Set the number of parallel build jobs
 OS:=$(shell uname)
 ifeq ($(PARALLEL), no)
 JOBS:=1
 else ifeq ($(OS),Darwin)
 JOBS:=$(patsubst hw.ncpu:%,%,$(shell sysctl hw.ncpu))
+SED:=gsed
+PLATFORM:=darwin
 else ifeq ($(OS),Linux)
 JOBS:=$(shell grep -c ^processor /proc/cpuinfo)
+PLATFORM:=linux
 endif
 
 MAKE:=make -j$(JOBS)
@@ -66,10 +71,10 @@ ifeq ($(LLVM_BUILD),$(S2E_BUILD))
 LLVM_DIRS=llvm-release llvm-debug
 endif
 
-LLVM_VERSION=9.0.0
+LLVM_VERSION=10.0.0
 LLVM_SRC=llvm-$(LLVM_VERSION).src.tar.xz
 LLVM_SRC_DIR=llvm-$(LLVM_VERSION).src
-LLVM_SRC_URL=http://releases.llvm.org/$(LLVM_VERSION)/
+LLVM_SRC_URL=https://github.com/llvm/llvm-project/releases/download/llvmorg-$(LLVM_VERSION)/
 
 # The Python script should only return a single word - the suffix of the Clang
 # binary to download. If an error message is printed to stderr, the Makefile
@@ -84,8 +89,8 @@ KLEE_DIRS=$(foreach suffix,-debug -release,$(addsuffix $(suffix),klee))
 CLANG_BINARY_DIR=clang+llvm-$(LLVM_VERSION)-$(CLANG_BINARY_SUFFIX)
 CLANG_BINARY=$(CLANG_BINARY_DIR).tar.xz
 
-CLANG_SRC=cfe-$(LLVM_VERSION).src.tar.xz
-CLANG_SRC_DIR=cfe-$(LLVM_VERSION).src
+CLANG_SRC=clang-$(LLVM_VERSION).src.tar.xz
+CLANG_SRC_DIR=clang-$(LLVM_VERSION).src
 CLANG_DEST_DIR=$(LLVM_SRC_DIR)/tools/clang
 
 COMPILER_RT_SRC=compiler-rt-$(LLVM_VERSION).src.tar.xz
@@ -118,8 +123,9 @@ SOCI_GIT_REV=f0c0d25a9160a237c9ef8eddf9f28651621192f3
 SOCI_GIT_URL=https://github.com/SOCI/soci.git
 
 # Google Test
-GTEST_VERSION=1.8.0
-GTEST_SRC_DIR=$(S2E_BUILD)/googletest-release-$(GTEST_VERSION)
+GTEST_VERSION=1.10.0
+GTEST_SRC_DIR=$(S2E_BUILD)/gtest-src
+GTEST_BUILD_DIR=$(S2E_BUILD)/gtest-release
 GTEST_URL=https://github.com/google/googletest/archive/release-$(GTEST_VERSION).tar.gz
 
 # libdwarf
@@ -242,9 +248,11 @@ $(SOCI_BUILD_DIR):
 	mkdir -p $(S2E_BUILD)/$(SOCI_BUILD_DIR)
 
 # Download GTest
-$(GTEST_SRC_DIR):
+$(GTEST_BUILD_DIR):
+	mkdir -p "$(GTEST_SRC_DIR)"
 	cd $(S2E_BUILD) && wget -O $(GTEST_SRC_DIR).tar.gz $(GTEST_URL)
-	cd $(S2E_BUILD) && tar xzvf $(GTEST_SRC_DIR).tar.gz
+	cd $(S2E_BUILD) && tar xzvf $(GTEST_SRC_DIR).tar.gz -C $(GTEST_SRC_DIR) --strip-components=1
+	mkdir -p "$@"
 
 # Download Capstone
 $(CAPSTONE_BUILD_DIR):
@@ -289,7 +297,7 @@ LLVM_CONFIGURE_FLAGS = -DLLVM_TARGETS_TO_BUILD="X86"        \
                        -DLLVM_TARGET_ARCH="X86_64"          \
                        -DLLVM_INCLUDE_EXAMPLES=Off          \
                        -DLLVM_INCLUDE_DOCS=Off              \
-                       -DLLVM_INCLUDE_TESTS=Off             \
+                       -DLLVM_INCLUDE_TESTS=On              \
                        -DLLVM_ENABLE_RTTI=On                \
                        -DLLVM_ENABLE_EH=On                  \
                        -DLLVM_BINUTILS_INCDIR=/usr/include  \
@@ -445,9 +453,28 @@ stamps/protobuf-make: stamps/protobuf-configure
 #######
 
 stamps/lua-make: $(LUA_DIR)
-	sed -i 's/-lreadline//g' $(LUA_DIR)/src/Makefile
-	$(MAKE) -C $^ linux CFLAGS="-DLUA_USE_LINUX -O2 -g -fPIC"
+	if [ "$(PLATFORM)" = "linux" ]; then \
+		$(SED) -i 's/-lreadline//g' $(LUA_DIR)/src/Makefile; \
+		$(MAKE) -C $^ linux CFLAGS="-DLUA_USE_LINUX -O2 -g -fPIC"; \
+	elif [ "$(PLATFORM)" = "darwin" ]; then \
+		$(MAKE) -C $^ macosx CFLAGS="-DLUA_USE_LINUX -O2 -g -fPIC"; \
+	fi
 	touch $@
+
+#########
+# GTest #
+#########
+
+stamps/gtest-release-configure: stamps/clang-binary $(GTEST_BUILD_DIR)
+	cd $(GTEST_BUILD_DIR) && cmake -DCMAKE_C_COMPILER=$(CLANG_CC) \
+	-DCMAKE_CXX_COMPILER=$(CLANG_CXX)  \
+	$(GTEST_SRC_DIR)
+	touch $@
+
+stamps/gtest-release-make: stamps/gtest-release-configure
+	$(MAKE) -C $(GTEST_BUILD_DIR)
+	touch $@
+
 
 ########
 # KLEE #
@@ -457,22 +484,22 @@ KLEE_CONFIGURE_FLAGS = -DCMAKE_INSTALL_PREFIX=$(S2E_PREFIX)                     
                        -DCMAKE_C_FLAGS="$(CFLAGS_ARCH) -fno-omit-frame-pointer -fPIC"       \
                        -DCMAKE_C_COMPILER=$(CLANG_CC)                                       \
                        -DCMAKE_CXX_COMPILER=$(CLANG_CXX)                                    \
-                       -DUSE_CMAKE_FIND_PACKAGE_LLVM=On                                     \
                        -DENABLE_UNIT_TESTS=On                                               \
-                       -DGTEST_SRC_DIR=$(S2E_BUILD)/googletest-release-1.8.0                \
+                       -DGTEST_SRC=$(GTEST_SRC_DIR)                                         \
+                       -DGTEST_ROOT=$(GTEST_BUILD_DIR)                                      \
                        -DENABLE_DOCS=Off                                                    \
                        -DENABLE_SOLVER_Z3=On                                                \
                        -DZ3_INCLUDE_DIRS=$(S2E_PREFIX)/include                              \
                        -DZ3_LIBRARIES=$(S2E_PREFIX)/lib/libz3.a
 
-stamps/klee-debug-configure: stamps/llvm-debug-make stamps/z3-make $(call FIND_CONFIG_SOURCE,$(S2E_SRC)/klee) | $(GTEST_SRC_DIR)
+stamps/klee-debug-configure: stamps/llvm-debug-make stamps/z3-make stamps/gtest-release-make $(call FIND_CONFIG_SOURCE,$(S2E_SRC)/klee)
 stamps/klee-debug-configure: CONFIGURE_COMMAND = cmake $(KLEE_CONFIGURE_FLAGS)                      \
                                                  -DCMAKE_BUILD_TYPE=Debug                           \
                                                  -DLLVM_DIR=$(LLVM_BUILD)/llvm-debug/lib/cmake/llvm \
                                                  -DCMAKE_CXX_FLAGS="$(CXXFLAGS_DEBUG) -fno-omit-frame-pointer -fPIC" \
                                                  $(S2E_SRC)/klee
 
-stamps/klee-release-configure: stamps/llvm-release-make stamps/z3-make $(call FIND_CONFIG_SOURCE,$(S2E_SRC)/klee) | $(GTEST_SRC_DIR)
+stamps/klee-release-configure: stamps/llvm-release-make stamps/z3-make stamps/gtest-release-make $(call FIND_CONFIG_SOURCE,$(S2E_SRC)/klee)
 stamps/klee-release-configure: CONFIGURE_COMMAND = cmake $(KLEE_CONFIGURE_FLAGS)                        \
                                                    -DCMAKE_BUILD_TYPE=$(RELEASE_BUILD_TYPE)             \
                                                    -DLLVM_DIR=$(LLVM_BUILD)/llvm-release/lib/cmake/llvm \

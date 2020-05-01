@@ -19,7 +19,7 @@
 # SOFTWARE.
 
 set(CMAKE_C_FLAGS "-Wall -Werror -fPIC")
-set(CMAKE_CXX_FLAGS "-Wall -Werror -fPIC -std=c++11")
+set(CMAKE_CXX_FLAGS "-Wall -Werror -fPIC -std=c++14")
 
 add_library (fsigc++ signals.cpp)
 

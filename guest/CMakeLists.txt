@@ -38,7 +38,7 @@ write_basic_package_version_file(${CMAKE_VERSION_FILE}
 include_directories("common/include")
 
 # Determine the architecture to build for. By default build for 64-bit
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -std=c99 -Werror -g")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -std=gnu99 -Werror -g")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=c++11 -Werror -g")
 if(NOT BITS)
   set(BITS 64)
@@ -53,11 +53,9 @@ else()
   message(FATAL_ERROR "Invalid number of bits: ${BITS}. Guest must be either 32 or 64 bits")
 endif()
 
-if(${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
-  # C++ requires special run time libraries in the guest, which we don't have.
-  # Compile C++ binaries statically to make it simpler.
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static")
-endif()
+# Need static linking for C++ binaries because the guest may have different
+# version of stdlibc++.
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static")
 
 # Build for all systems
 add_subdirectory(common)

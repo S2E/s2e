@@ -277,7 +277,7 @@ static TCGArg do_constant_folding_2(TCGOpcode op, TCGArg x, TCGArg y) {
         case INDEX_op_rotl_i64:
             return rol64(x, y & 63);
 
-            CASE_OP_32_64(not) : return ~x;
+            CASE_OP_32_64(not ) : return ~x;
 
             CASE_OP_32_64(neg) : return -x;
 
@@ -1006,7 +1006,7 @@ void tcg_optimize(TCGContext *s) {
                 }
                 goto do_default;
 
-                CASE_OP_32_64(not)
+                CASE_OP_32_64(not )
                     : CASE_OP_32_64(neg)
                     : CASE_OP_32_64(ext8s)
                     : CASE_OP_32_64(ext8u)

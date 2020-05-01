@@ -512,7 +512,7 @@ void RevGen::translate(const llvm::BinaryFunctions &functions, const llvm::Binar
 
     // Create dummy functions if there are calls to functions that are
     // not in the input CFG.
-    for (const auto p : m_tbs) {
+    for (const auto &p : m_tbs) {
         auto tb = p.second;
 
         if (tb->getType() != BB_CALL) {

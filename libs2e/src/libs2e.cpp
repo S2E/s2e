@@ -55,6 +55,7 @@ SyscallEvents g_syscalls;
 
 // TODO: make this an env variable
 int g_trace = 0;
+static bool s_exited = false;
 
 s2e::kvm::FileDescriptorManagerPtr g_fdm = std::make_shared<s2e::kvm::FileDescriptorManager>();
 
@@ -99,7 +100,7 @@ int open64(const char *pathname, int flags, ...) {
 
 static close_t s_original_close;
 int close64(int fd) {
-    if (g_fdm && g_fdm->close(fd)) {
+    if (!s_exited && g_fdm && g_fdm->close(fd)) {
         return 0;
     } else {
         if (!s_original_close) {
@@ -111,7 +112,7 @@ int close64(int fd) {
 
 static write_t s_original_write;
 ssize_t write(int fd, const void *buf, size_t count) {
-    if (g_fdm) {
+    if (!s_exited && g_fdm) {
         auto ifp = g_fdm->get(fd);
         if (ifp) {
             return ifp->sys_write(fd, buf, count);
@@ -125,7 +126,7 @@ ssize_t write(int fd, const void *buf, size_t count) {
 
 ioctl_t g_original_ioctl;
 int ioctl(int fd, int request, uint64_t arg1) {
-    if (g_fdm) {
+    if (!s_exited && g_fdm) {
         auto ifp = g_fdm->get(fd);
         if (ifp) {
             return ifp->sys_ioctl(fd, request, arg1);
@@ -342,6 +343,10 @@ void libs2e_init_syscalls(void) {
     inited = true;
 }
 
+void libs2e_exit(void) {
+    s_exited = true;
+}
+
 // ****************************
 // Overriding __llibc_start_main
 // ****************************
@@ -365,6 +370,8 @@ int __libc_start_main(int *(main)(int, char **, char **), int argc, char **ubp_a
         (*orig_libc_start_main)(main, argc, ubp_av, init, fini, rtld_fini, stack_end);
         exit(-1);
     }
+
+    std::atexit(libs2e_exit);
 
     printf("Starting libs2e...\n");
 

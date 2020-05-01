@@ -118,7 +118,7 @@ void RegisterPromotion::createAllocas(Function &F, GEPs &geps, Calls &calls, Ret
 
     DenseSet<Instruction *> toErase;
 
-    for (auto const uniqueGep : uniqueGeps) {
+    for (auto const &uniqueGep : uniqueGeps) {
         const GEPs &dups = uniqueGep.second;
         assert(dups.size() >= 1);
 

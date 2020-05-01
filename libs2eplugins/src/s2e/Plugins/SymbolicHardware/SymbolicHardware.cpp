@@ -25,6 +25,8 @@
 #include <s2e/SymbolicHardwareHook.h>
 #include <s2e/Utils.h>
 
+#include <llvm/Support/CommandLine.h>
+
 #include "SymbolicHardware.h"
 
 namespace {

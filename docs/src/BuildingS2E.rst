@@ -8,7 +8,7 @@ to run them manually.
 
 .. note::
 
-    S2E builds and runs on Ubuntu 18.04 LTS (64-bit).
+    S2E builds and runs on Ubuntu 18.04 or 20.04 LTS (64-bit).
     Earlier versions may still work, but we do not support them anymore.
 
 

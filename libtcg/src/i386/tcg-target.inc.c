@@ -2210,7 +2210,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args, 
 
             OP_32_64(neg) : tcg_out_modrm(s, OPC_GRP3_Ev + rexw, EXT3_NEG, a0);
             break;
-            OP_32_64(not) : tcg_out_modrm(s, OPC_GRP3_Ev + rexw, EXT3_NOT, a0);
+            OP_32_64(not ) : tcg_out_modrm(s, OPC_GRP3_Ev + rexw, EXT3_NOT, a0);
             break;
 
             OP_32_64(ext8s) : tcg_out_ext8s(s, a0, a1, rexw);

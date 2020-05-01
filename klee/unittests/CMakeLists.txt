@@ -7,18 +7,9 @@
 #
 #===------------------------------------------------------------------------===#
 
-# Build GTest. We don't use a pre-built version due to
-# https://github.com/google/googletest/blob/master/googletest/docs/FAQ.md#why-is-it-not-recommended-to-install-a-pre-compiled-copy-of-google-test-for-example-into-usrlocal
-set(GTEST_SRC_DIR
-  "/usr/src/gtest"
-  CACHE
-  PATH
-  "Path to GTest source directory"
-)
-
-if (NOT EXISTS "${GTEST_SRC_DIR}")
-  message(FATAL_ERROR "GTest source directory \"${GTEST_SRC_DIR}\" cannot be found.\n"
-    "Try passing -DGTEST_SRC_DIR=<path_to_gtest_source> to cmake where "
+if (NOT EXISTS "${GTEST_ROOT}")
+  message(FATAL_ERROR "GTest source directory \"${GTEST_ROOT}\" cannot be found.\n"
+    "Try passing -DGTEST_DIR=<path_to_gtest_source> to cmake where "
     "<path_to_gtest_source> is the path to the GoogleTest source tree.\n"
     "Alternatively you can disable unit tests by passing "
     "-DENABLE_UNIT_TESTS=OFF to cmake.")
@@ -36,12 +27,8 @@ endforeach()
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
-# Build GTest as part of our project
-# FIXME: Prevent GTest from adding to our install target.
-# This is a problem for GTest >= 1.8. I've filled a PR to fix the issue
-# ( https://github.com/google/googletest/pull/921 ). If it gets accepted
-# we can do `set(gtest_enable_install FALSE)` to fix this.
-add_subdirectory(${GTEST_SRC_DIR} "${CMAKE_CURRENT_BINARY_DIR}/gtest_build")
+set(GTEST_INCLUDE_DIR "${GTEST_SRC}/googletest/include")
+find_package(GTest REQUIRED)
 
 set(CMAKE_CXX_FLAGS "${_OLD_CMAKE_CXX_FLAGS}") # Restore the flags
 
@@ -54,17 +41,11 @@ define_property(GLOBAL
   FULL_DOCS "KLEE unit tests"
 )
 
-set(GTEST_INCLUDE_DIR
-  "${GTEST_SRC_DIR}/googletest/include"
-  CACHE
-  PATH
-  "Path to GTest include directory"
-)
-
 if (NOT IS_DIRECTORY "${GTEST_INCLUDE_DIR}")
   message(FATAL_ERROR
     "Cannot find GTest include directory \"${GTEST_INCLUDE_DIR}\"")
 endif()
+
 
 function(add_klee_unit_test target_name)
   add_executable(${target_name} ${ARGN})

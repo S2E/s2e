@@ -29,7 +29,7 @@ Note: This script is only really meant to be used by the S2E Makefile. It has
 no real use outside of this.
 """
 
-import platform
+import distro
 import sys
 
 
@@ -46,7 +46,7 @@ def eprint(*args, **kwargs):
 def _get_debian_version(version_string):
     """
     Determine the Clang binary to download from the version string returned by
-    ``platform.linux_distribution``.
+    ``distro.linux_distribution``.
     """
     version = int(version_string)
 
@@ -59,7 +59,7 @@ def _get_debian_version(version_string):
 def _get_ubuntu_version(version_string):
     """
     Determine the Clang binary to downoad from the version string returned by
-    ``platform.linux_distribution``.
+    ``distro.linux_distribution``.
     """
     major_version, minor_version = list(map(int, version_string.split('.')))
 
@@ -73,21 +73,26 @@ def _get_ubuntu_version(version_string):
         return 'x86_64-linux-gnu-ubuntu-16.04',
     elif major_version == 18:
         return 'x86_64-linux-gnu-ubuntu-18.04',
+    elif major_version == 20:
+        return 'x86_64-linux-gnu-ubuntu-18.04',
     else:
         return None
 
 
 def main():
     """The main function."""
-    distro, version, _ = platform.linux_distribution()
+    name, version, _ = distro.linux_distribution()
 
     clang_ver_to_download = None
-    if distro.lower() == 'debian':
+
+    if name.lower() == 'darwin':
+        clang_ver_to_download = 'x86_64-darwin-apple'
+    elif name.lower() == 'debian':
         clang_ver_to_download = _get_debian_version(version)
-    elif distro.lower() == 'ubuntu':
+    elif name.lower() == 'ubuntu':
         clang_ver_to_download = _get_ubuntu_version(version)
     else:
-        eprint('Linux distro %s is not supported' % distro)
+        eprint('Linux distro %s is not supported' % name)
 
     if clang_ver_to_download:
         print('%s' % clang_ver_to_download)
