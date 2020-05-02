@@ -56,6 +56,7 @@ s2e_includes.write('\n'.join([
     '../../build/llvm-10.0.0.src/include',
     '../../build/llvm-release/include',
     '../../build/lua-5.3.4/src',
+    '../../build/gtest-src/googletest/include',
     '/usr/include/glib-2.0',
 
     # This is for protobuf headers, pick one build folder
