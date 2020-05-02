@@ -82,7 +82,7 @@ void MemUtils::findSequencesOfSymbolicData(const BitArrayPtr &concreteMask, uint
                                            std::vector<AddrSize> &sequences) {
     unsigned maskSize = concreteMask->getBitCount();
 
-    if (!concreteMask || concreteMask->isAllOnes(maskSize)) {
+    if (!concreteMask || concreteMask->isAllOnes()) {
         return;
     }
 

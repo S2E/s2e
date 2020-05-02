@@ -14,26 +14,29 @@
 #include <boost/intrusive_ptr.hpp>
 #include <string.h>
 
+#include <klee/util/PtrUtils.h>
+
 namespace klee {
 
 class BitArray;
 typedef boost::intrusive_ptr<BitArray> BitArrayPtr;
 
-// XXX would be nice not to have
-// two allocations here for allocated
-// BitArrays
 class BitArray {
 private:
     // XXX(s2e) for now we keep this first to access from C code
     // (yes, we do need to access if really fast)
+    // TODO: make this uint64_t
     uint32_t *m_bits;
     std::atomic<unsigned> m_refCount;
     unsigned m_bitcount;
     unsigned m_setbitcount;
 
+    static const auto BITS = sizeof(*m_bits) * 8;
+    static const auto BITSM1 = BITS - 1;
+
 protected:
     static uint32_t length(unsigned _size) {
-        return (_size + 31) / 32;
+        return (_size + BITSM1) / BITS;
     }
 
     unsigned popcount_4(uint32_t x) const {
@@ -45,12 +48,12 @@ protected:
 
     unsigned computePopCount() const {
         unsigned acc = 0;
-        unsigned len = m_bitcount / 32;
+        unsigned len = m_bitcount / BITS;
         for (unsigned i = 0; i < len; ++i) {
             acc += popcount_4(m_bits[i]);
         }
-        if (m_bitcount % 32) {
-            uint32_t mask = (1 << (m_bitcount & 0x1F)) - 1;
+        if (m_bitcount % BITS) {
+            uint32_t mask = (1 << (m_bitcount & (BITS - 1))) - 1;
             acc += popcount_4(m_bits[len] & mask);
         }
         return acc;
@@ -86,21 +89,21 @@ public:
     }
 
     inline bool get(unsigned idx) const {
-        return (bool) ((m_bits[idx / 32] >> (idx & 0x1F)) & 1);
+        return (bool) ((m_bits[idx / BITS] >> (idx & BITSM1)) & 1);
     }
 
     inline void set(unsigned idx) {
-        if (!(m_bits[idx / 32] & 1 << (idx & 0x1F))) {
+        if (!get(idx)) {
             ++m_setbitcount;
         }
-        m_bits[idx / 32] |= 1 << (idx & 0x1F);
+        m_bits[idx / BITS] |= 1 << (idx & BITSM1);
     }
 
     inline void unset(unsigned idx) {
-        if ((m_bits[idx / 32] & 1 << (idx & 0x1F))) {
+        if (get(idx)) {
             --m_setbitcount;
         }
-        m_bits[idx / 32] &= ~(1 << (idx & 0x1F));
+        m_bits[idx / BITS] &= ~(1 << (idx & BITSM1));
     }
 
     inline void set(unsigned idx, bool value) {
@@ -119,27 +122,39 @@ public:
         return m_setbitcount;
     }
 
-    bool isAllZeros(unsigned size) const {
+    bool isAllZeros() const {
         return m_setbitcount == 0;
     }
 
-    bool isAllOnes(unsigned size) const {
+    bool isAllOnes() const {
         return m_setbitcount == m_bitcount;
     }
 
-    friend void intrusive_ptr_add_ref(BitArray *ptr);
-    friend void intrusive_ptr_release(BitArray *ptr);
+    unsigned getSetBitCount() const {
+        return m_setbitcount;
+    }
+
+    bool findFirstSet(unsigned &index) const {
+        auto words = length(m_bitcount);
+        for (auto i = 0u; i < words; ++i) {
+            if (!m_bits[i]) {
+                continue;
+            } else {
+                auto firstBitSet = ffs(m_bits[i]);
+                assert(firstBitSet);
+                index = i * BITS + firstBitSet - 1;
+                assert(get(index));
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    INTRUSIVE_PTR_FRIENDS(BitArray)
 };
 
-inline void intrusive_ptr_add_ref(BitArray *ptr) {
-    ++ptr->m_refCount;
-}
-
-inline void intrusive_ptr_release(BitArray *ptr) {
-    if (--ptr->m_refCount == 0) {
-        delete ptr;
-    }
-}
+INTRUSIVE_PTR_ADD_REL(BitArray)
 
 } // namespace klee
 
