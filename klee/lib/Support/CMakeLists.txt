@@ -10,6 +10,7 @@ klee_add_component(kleeSupport
 	RNG.cpp
 	Time.cpp
 	Timer.cpp
+	PagePool.cpp
 )
 
 target_link_libraries(kleeSupport PRIVATE ${ZLIB_LIBRARIES})
