@@ -41,6 +41,10 @@
 #include <boost/intrusive_ptr.hpp>
 #include <string.h>
 
+#include <klee/util/PtrUtils.h>
+
+#include <klee/util/PagePool.h>
+
 namespace klee {
 
 class ConcreteBuffer;
@@ -53,28 +57,28 @@ typedef boost::intrusive_ptr<ConcreteBuffer> ConcreteBufferPtr;
  * smaller ones).
  */
 class ConcreteBuffer {
+    std::atomic<uint32_t> m_refCount;
     uint8_t *m_buffer;
     unsigned m_size;
-    std::atomic<unsigned> m_refCount;
 
-    static const unsigned PAGE_SIZE = 0x1000;
-
-    uint8_t *osAlloc() const {
-        void *ret = (uint8_t *) mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    uint8_t *osAlloc(unsigned size) const {
+        void *ret = (uint8_t *) mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
         if (ret == MAP_FAILED) {
             *klee_warning_stream << "Memory allocation failed: " << errno << "\n";
-            return NULL;
+            return nullptr;
         }
         return (uint8_t *) ret;
     }
 
-    void osFree(void *region) const {
-        munmap(region, PAGE_SIZE);
+    void osFree(void *region, unsigned size) const {
+        munmap(region, size);
     }
 
-    uint8_t *allocateBuffer(unsigned size) const {
+    uint8_t *allocateBuffer(unsigned size) {
         if (size == PAGE_SIZE) {
-            uint8_t *ret = osAlloc();
+            return PagePool::get()->alloc();
+        } else if ((size % PAGE_SIZE) == 0) {
+            uint8_t *ret = osAlloc(size);
             if (!ret) {
                 exit(-1);
             }
@@ -84,23 +88,27 @@ class ConcreteBuffer {
         }
     }
 
+    ConcreteBuffer(size_t size) : m_refCount(0), m_buffer(allocateBuffer(size)), m_size(size) {
+        memset(m_buffer, 0, size);
+    }
+
+    ConcreteBuffer(const ConcreteBufferPtr &b) : m_buffer(allocateBuffer(b->m_size)), m_size(b->m_size) {
+        memcpy(m_buffer, b->m_buffer, b->m_size);
+    }
+
     ~ConcreteBuffer() {
         if (m_size == PAGE_SIZE) {
-            osFree(m_buffer);
+            PagePool::get()->free(m_buffer);
+        } else if ((m_size % PAGE_SIZE) == 0) {
+            osFree(m_buffer, m_size);
         } else {
             delete[] m_buffer;
         }
     }
 
-    ConcreteBuffer(size_t size) : m_buffer(allocateBuffer(size)), m_size(size), m_refCount(0) {
-        memset(m_buffer, 0, size);
-    }
-
-    ConcreteBuffer(const ConcreteBufferPtr &b) : m_buffer(allocateBuffer(b->m_size)), m_size(b->m_size), m_refCount(0) {
-        memcpy(m_buffer, b->m_buffer, b->m_size);
-    }
-
 public:
+    static const unsigned PAGE_SIZE = 0x1000;
+
     static ConcreteBufferPtr create(size_t size) {
         return ConcreteBufferPtr(new ConcreteBuffer(size));
     }
@@ -117,19 +125,11 @@ public:
         return m_size;
     }
 
-    friend void intrusive_ptr_add_ref(ConcreteBuffer *ptr);
-    friend void intrusive_ptr_release(ConcreteBuffer *ptr);
+    INTRUSIVE_PTR_FRIENDS(ConcreteBuffer)
 };
 
-inline void intrusive_ptr_add_ref(ConcreteBuffer *ptr) {
-    ++ptr->m_refCount;
-}
+INTRUSIVE_PTR_ADD_REL(ConcreteBuffer)
 
-inline void intrusive_ptr_release(ConcreteBuffer *ptr) {
-    if (--ptr->m_refCount == 0) {
-        delete ptr;
-    }
-}
 } // namespace klee
 
 #endif
