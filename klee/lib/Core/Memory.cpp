@@ -281,7 +281,7 @@ void ObjectState::flushRangeForWrite(unsigned rangeBase, unsigned rangeSize) {
 }
 
 bool ObjectState::isAllConcrete() const {
-    return !m_concreteMask || m_concreteMask->isAllOnes(m_size);
+    return !m_concreteMask || m_concreteMask->isAllOnes();
 }
 
 const uint8_t *ObjectState::getConcreteBuffer(bool allowSymbolic) const {
