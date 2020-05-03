@@ -39,11 +39,11 @@ namespace klee {
 class BitfieldSimplifier {
 protected:
     struct BitsInfo {
-        __uint128_t ignoredBits;   ///< Bits that can be ignored because they
+        llvm::APInt ignoredBits;   ///< Bits that can be ignored because they
                                    ///< are not used by higher-level expressions
                                    ///< (passed top-down)
-        __uint128_t knownOneBits;  ///< Bits known to be one (passed bottom-up)
-        __uint128_t knownZeroBits; ///< Bits known to be zero (passed bottom-up)
+        llvm::APInt knownOneBits;  ///< Bits known to be one (passed bottom-up)
+        llvm::APInt knownZeroBits; ///< Bits known to be zero (passed bottom-up)
     };
     typedef std::pair<ref<Expr>, BitsInfo> ExprBitsInfo;
 
@@ -52,14 +52,14 @@ protected:
 
     ExprHashMap<ExprBitsInfo> m_simplifiedExpressions;
 
-    ref<Expr> replaceWithConstant(const ref<Expr> &e, __uint128_t value);
+    ref<Expr> replaceWithConstant(const ref<Expr> &e, const llvm::APInt &value);
 
-    ExprBitsInfo doSimplifyBits(const ref<Expr> &e, __uint128_t ignoredBits);
+    ExprBitsInfo doSimplifyBits(const ref<Expr> &e, const llvm::APInt &ignoredBits);
 
 public:
     uint64_t m_cacheHits, m_cacheMisses;
 
-    ref<Expr> simplify(const ref<Expr> &e, uint64_t *knownZeroBits = NULL);
+    ref<Expr> simplify(const ref<Expr> &e, llvm::APInt *knownZeroBits = nullptr);
 
     // If e = base + offset, where base is concrete and offset is
     // symbolic of size 1 byte, return true.

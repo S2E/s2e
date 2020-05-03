@@ -435,17 +435,6 @@ public:
         return value.getZExtValue();
     }
 
-    __uint128_t getZExtValue128(unsigned bits = 128) const {
-        assert(getWidth() <= bits && "Value may be out of range!");
-        if (getWidth() <= 64) {
-            return getZExtValue(bits);
-        } else if (getWidth() == Int128) {
-            return *(__uint128_t *) value.getRawData();
-        } else {
-            abort();
-        }
-    }
-
     /// getLimitedValue - If this value is smaller than the specified limit,
     /// return it, otherwise return the limit value.
     uint64_t getLimitedValue(uint64_t Limit = ~0ULL) const {
