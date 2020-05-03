@@ -25,7 +25,7 @@ GCC_LINUX=gcc
 GCC_WINDOWS64=x86_64-w64-mingw32-gcc
 GCC_WINDOWS32=i686-w64-mingw32-gcc
 
-CFLAGS:=$(CFLAGS) -O3 -g -Wall -std=c99 -msse2
+CFLAGS:=$(CFLAGS) -O0 -g -Wall -std=c99 -msse2
 
 linux64-$(TARGET): $(SOURCE)
 	$(GCC_LINUX) -m64 $(CFLAGS) -o "$@" "$^"

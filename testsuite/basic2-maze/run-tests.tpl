@@ -13,7 +13,8 @@ if [ $COUNT -ne 401 ]; then
     exit 1
 fi
 
-check_coverage {{project_name}} 70
+# Don't check coverage, it's unreliable with -O3, and we need O3.
+# check_coverage {{project_name}} 70
 
 s2e forkprofile {{ project_name }} > $S2E_LAST/forkprofile.txt
 grep -q -i maze.c $S2E_LAST/forkprofile.txt
