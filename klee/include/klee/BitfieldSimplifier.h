@@ -36,6 +36,48 @@
 
 namespace klee {
 
+///
+/// \brief The BitfieldSimplifier class implements bitfield-based expression simplification.
+///
+/// Conversion from x86 to LLVM gives rise to complex symbolic expressions. S2E "sees" a lower
+/// level representation of the programs than what would be obtained by compiling source code
+/// to LLVM (as done in KLEE): it actually sees the code that simulates the execution of the
+/// original program on the target CPU architecture. Such code typically contains many bitfield
+/// operations (such as and/or, shift) that manipulate bits in the eflags register.
+///
+/// To optimize these expressions, we built a bitfield expression simplifier that, if parts of a
+/// symbolic variable are masked away by bit operations, removes those bits from the corresponding
+/// expressions. First, the simplifier starts from the bottom of the expression’s tree
+/// representation and propagates information about individual bits whose value is known.
+/// If all bits in an expression are known, S2E replaces the expression with the corresponding
+/// constant. Second, the simplifier propagates top-down information about bits that are ignored by
+/// the upper parts of the expression—when an operator only modifies bits that upper parts ignore,
+/// the simplifier removes that entire operation.
+///
+/// We say a bit in an expression is known to be one (respectively zero), when that bit is not
+/// symbolic and has the value one (respectively zero). For example, if x is a 4-bit symbolic value,
+/// the expression x | 1000 has its most significant bit (MSb) known to be one, because the result of
+/// an or of a concrete bit set to one and of a symbolic bit is always one. Moreover, this expression
+/// has no bits known to be zero, because the MSb is always one and symbolic bits or-ed with a zero
+/// remain symbolic. Finally, the ignore mask specifies which bits are ignored by the upper part of an
+/// expression. For example, in 1000 & (x | 1010), the ignore mask at the top-level expression is 0111
+/// because the and operator cancels the three lower bits of the entire expression.
+///
+/// To illustrate, consider the 4-bit wide expression 0001 & (x | 0010). The simplifier starts from
+/// the bottom (i.e., x | 0010) and propagates up the expression tree the value k11 = 0010 for the
+/// known-one bits as well as k10 = 0000 for the known-zero bits. This means that the simplifier
+/// knows that bit 1 is set but none of the bits are zero for sure (because x is symbolic). At the top
+/// level, the and operation produces k21 = 0000 for the known-one bits (k11 & 0001) and k20 = 1110
+/// for the known-zero bits (k10 | 1110). The simplifier now knows that only the least significant bit
+/// matters and propagates the ignore mask m = 1110 top down. There, the simplifier notices that
+/// 0010 is redundant and removes it, because 1101 | m yields 1111, meaning that all bits are ignored.
+/// The final result is thus 1 & x.
+///
+/// We implemented this simplification in the early stage of expression creation rather than in the
+/// constraint solver. This way, we do not have to re-simplify the same expressions again when they
+/// are sent to the constraint solver several times (for example, as part of path constraints). This is
+/// an example of applying domain-specific logic to reduce constraint solving time; we expect our
+/// simplifier to be directly useful for KLEE as well, when testing programs that use bitfields heavily.
 class BitfieldSimplifier {
 protected:
     struct BitsInfo {

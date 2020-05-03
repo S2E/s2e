@@ -119,17 +119,17 @@ BitfieldSimplifier::ExprBitsInfo BitfieldSimplifier::doSimplifyBits(const ref<Ex
     BitsInfo rbits;
     rbits.ignoredBits = ignoredBits;
 
-    /* Call doSimplifyBits recursively to obtain knownBits for each kid */
+    // Call doSimplifyBits recursively to obtain knownBits for each kid
     unsigned numKids = e->getNumKids();
     for (unsigned i = 0; i < numKids; ++i) {
-        /* By setting ignoredBits to zero we disable any ignoredBits-related
-           optimization. Only optimizations based on knownBits will be done */
+        // By setting ignoredBits to zero we disable any ignoredBits-related
+        // optimization. Only optimizations based on knownBits will be done.
         ExprBitsInfo r = doSimplifyBits(e->getKid(i), APInt::getNullValue(e->getKid(i)->getWidth()));
         kids[i] = r.first;
         bits[i] = r.second;
 
-        /* Save current value of ignoredBits. If we find more bits that are
-           ignored we rerun doSimplifyBits for this kid */
+        // Save current value of ignoredBits. If we find more bits that are
+        // ignored we rerun doSimplifyBits for this kid.
         oldIgnoredBits[i] = bits[i].ignoredBits;
     }
 
@@ -137,8 +137,8 @@ BitfieldSimplifier::ExprBitsInfo BitfieldSimplifier::doSimplifyBits(const ref<Ex
         *klee_message_stream << "Considering " << e << '\n';
     }
 
-    /* Apply kind-specific knowledge to obtain knownBits for e and
-       ignoredBits for kids of e, then to optimize e */
+    // Apply kind-specific knowledge to obtain knownBits for e and
+    // ignoredBits for kids of e, then to optimize e.
     switch (e->getKind()) {
             // TODO: Concat, Read, AShr
 
@@ -149,10 +149,10 @@ BitfieldSimplifier::ExprBitsInfo BitfieldSimplifier::doSimplifyBits(const ref<Ex
             bits[0].ignoredBits = ignoredBits | bits[1].knownZeroBits;
             bits[1].ignoredBits = ignoredBits | (bits[0].knownZeroBits & ~bits[1].knownZeroBits);
 
-            /* Check if we can replace some kids by 1 */
+            // Check if we can replace some kids by 1
             for (unsigned i = 0; i < 2; ++i) {
                 if (~(bits[i].knownOneBits | bits[i].ignoredBits) == 0) {
-                    /* All bits of this kid is either one or ignored */
+                    // All bits of this kid is either one or ignored
                     bits[i].knownOneBits = APInt::getAllOnesValue(e->getWidth());
                     bits[i].knownZeroBits = APInt::getNullValue(e->getWidth());
                 }
@@ -167,10 +167,10 @@ BitfieldSimplifier::ExprBitsInfo BitfieldSimplifier::doSimplifyBits(const ref<Ex
             bits[0].ignoredBits = ignoredBits | bits[1].knownOneBits;
             bits[1].ignoredBits = ignoredBits | (bits[0].knownOneBits & ~bits[1].knownOneBits);
 
-            /* Check if we can replace some kids by 0 */
+            // Check if we can replace some kids by 0
             for (unsigned i = 0; i < 2; ++i) {
                 if (~(bits[i].knownZeroBits | bits[i].ignoredBits) == 0) {
-                    /* All bits of this kid is either zero or ignored */
+                    // All bits of this kid is either zero or ignored
                     bits[i].knownOneBits = APInt::getNullValue(e->getWidth());
                     bits[i].knownZeroBits = APInt::getAllOnesValue(e->getWidth());
                 }
