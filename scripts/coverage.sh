@@ -1,4 +1,6 @@
-# Copyright (c) 2019, Cyberhaven
+#!/bin/bash
+
+# Copyright (c) 2020 Vitaly Chipounov
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -18,29 +20,19 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-TARGET=basic0-singlepath
-SOURCE=main.c
+set -e
 
-GCC_LINUX=gcc
-GCC_WINDOWS64=x86_64-w64-mingw32-gcc
-GCC_WINDOWS32=i686-w64-mingw32-gcc
+if [ -z "${LLVM_BIN}" ]; then
+    echo "Usage: LLVM_BIN=/path/to/llvm/bin ${0}"
+    echo ""
+    echo "    LLVM_BIN - Path to the LLVM's binaries"
+    exit 1
+fi
 
-CFLAGS:=$(CFLAGS) -O0 -g -Wall -std=c99
+# Compile your binary with -fprofile-instr-generate -fcoverage-mapping
 
-linux64-$(TARGET): $(SOURCE)
-	$(GCC_LINUX) -m64 $(CFLAGS) -o "$@" "$^"
+LLVM_PROFILE_FILE="profile.profraw" $*
+$LLVM_BIN/llvm-profdata merge -sparse profile.profraw -o profile.profdata
+$LLVM_BIN/llvm-cov export --format=lcov $1 -instr-profile=profile.profdata > $1.coverage.lcov
+genhtml -o $1.coverage $1.coverage.lcov
 
-linux32-$(TARGET): $(SOURCE)
-	$(GCC_LINUX) -m32 $(CFLAGS) -o "$@" "$^"
-
-windows64-$(TARGET).exe: $(SOURCE)
-	$(GCC_WINDOWS64) -m64 $(CFLAGS) -o "$@" "$^"
-
-windows32-$(TARGET).exe: $(SOURCE)
-	$(GCC_WINDOWS32) -m32 $(CFLAGS) -o "$@" "$^"
-
-TARGETS=linux64-$(TARGET) linux32-$(TARGET) windows64-$(TARGET).exe windows32-$(TARGET).exe
-
-all: $(TARGETS)
-clean:
-	rm -f $(TARGETS)

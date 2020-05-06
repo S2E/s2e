@@ -24,6 +24,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/types.h>
 #include <unistd.h>
 
@@ -45,6 +46,8 @@ static void s2e_load_module(procmap_module_t *module, const char *current_proces
         s2e_printf("Could not allocate memory for command\n");
         return;
     }
+
+    memset(phdr, 0, phdr_size);
 
     load.entry_point = module_get_runtime_entry_point(module);
     load.module_path = (uintptr_t) module->path;

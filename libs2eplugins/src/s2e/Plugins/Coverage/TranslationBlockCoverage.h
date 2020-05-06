@@ -45,9 +45,8 @@ struct TB {
     uint32_t startOffset;
 
     bool operator<(const TB &a) const {
-        // Don't allow overlapping TBs because this
-        // causes many redundant blocks in the set.
-        return startPc + size <= a.lastPc;
+        // Allow overlapping TBs to avoid missing code
+        return startPc < a.startPc;
     }
 };
 

@@ -147,7 +147,7 @@ static ref<Expr> SimplifyExtractLShr(const ref<Expr> &e) {
         return e;
     }
 
-    auto offset = shift->getZExtValue();
+    auto offset = shift->getLimitedValue();
     if (offset % 8) {
         return e;
     }
@@ -626,6 +626,14 @@ ref<Expr> ReadExpr::createTempRead(const ArrayPtr &array, Expr::Width w) {
                                        ReadExpr::create(ul, ConstantExpr::alloc(2, Expr::Int32)),
                                        ReadExpr::create(ul, ConstantExpr::alloc(1, Expr::Int32)),
                                        ReadExpr::create(ul, ConstantExpr::alloc(0, Expr::Int32)));
+        case Expr::Int128: {
+            std::vector<ref<Expr>> en;
+            for (auto i = 15; i >= 0; --i) {
+                auto e = ReadExpr::create(ul, ConstantExpr::alloc(i, Expr::Int32));
+                en.push_back(e);
+            }
+            return ConcatExpr::createN(en.size(), &en[0]);
+        }
     }
 }
 
@@ -989,7 +997,7 @@ static ref<Expr> AndExpr_createPartial(Expr *l, const ref<ConstantExpr> &cr) {
         const ref<ConstantExpr> &c = cr;
         const ref<Expr> a = ol->getKid(0);
         const ref<ConstantExpr> b = dyn_cast<ConstantExpr>(ol->getKid(1));
-        if (!b.isNull() && !(c->getZExtValue() & b->getZExtValue())) {
+        if (!b.isNull() && !(c->getAPValue() & b->getAPValue())) {
             return AndExpr::create(a, c);
         }
     } else if (AndExpr *al = dyn_cast<AndExpr>(l)) {
@@ -1141,7 +1149,7 @@ static ref<Expr> ShlExpr_create(const ref<Expr> &l, const ref<Expr> &r) {
     } else {
         // Shifting by 0 is a no-op
         ConstantExpr *ce = dyn_cast<ConstantExpr>(r);
-        if (ce && ce->getZExtValue() == 0) {
+        if (ce && ce->getAPValue() == 0) {
             return l;
         }
         return ShlExpr::alloc(l, r);

@@ -218,6 +218,9 @@ message(STATUS "Enabling C++14")
 # using mixed C++ versions.
 add_global_cxx_flag("-std=c++14" REQUIRED)
 
+# Uncomment this to enable code coverage recording
+# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fprofile-instr-generate -fcoverage-mapping")
+
 ################################################################################
 # Warnings
 ################################################################################

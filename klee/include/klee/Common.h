@@ -17,6 +17,7 @@
 #endif
 
 #include <iostream>
+#include <llvm/ADT/APInt.h>
 #include <llvm/Support/raw_ostream.h>
 #include <stdio.h>
 #include <unordered_set>
@@ -88,6 +89,8 @@ struct hexval {
     hexval(uint64_t _value, int _width = 0) : value(_value), width(_width) {
     }
     hexval(void *_value, int _width = 0) : value((uint64_t) _value), width(_width) {
+    }
+    hexval(const llvm::APInt &_value) : value(_value.getLimitedValue()), width(_value.getBitWidth()) {
     }
 };
 
