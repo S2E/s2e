@@ -17,6 +17,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libs2e", "libs2e\libs2e.vcxproj", "{E93355EF-22EB-44B5-A68A-567634C8A2EF}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "tickler", "tickler\tickler.vcxproj", "{DA5E8B8E-BD6C-409F-8684-FD7CA641A203}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -81,6 +83,14 @@ Global
 		{E93355EF-22EB-44B5-A68A-567634C8A2EF}.Release|Win32.Build.0 = Release|Win32
 		{E93355EF-22EB-44B5-A68A-567634C8A2EF}.Release|x64.ActiveCfg = Release|x64
 		{E93355EF-22EB-44B5-A68A-567634C8A2EF}.Release|x64.Build.0 = Release|x64
+		{DA5E8B8E-BD6C-409F-8684-FD7CA641A203}.Debug|Win32.ActiveCfg = Debug|Win32
+		{DA5E8B8E-BD6C-409F-8684-FD7CA641A203}.Debug|Win32.Build.0 = Debug|Win32
+		{DA5E8B8E-BD6C-409F-8684-FD7CA641A203}.Debug|x64.ActiveCfg = Debug|x64
+		{DA5E8B8E-BD6C-409F-8684-FD7CA641A203}.Debug|x64.Build.0 = Debug|x64
+		{DA5E8B8E-BD6C-409F-8684-FD7CA641A203}.Release|Win32.ActiveCfg = Release|Win32
+		{DA5E8B8E-BD6C-409F-8684-FD7CA641A203}.Release|Win32.Build.0 = Release|Win32
+		{DA5E8B8E-BD6C-409F-8684-FD7CA641A203}.Release|x64.ActiveCfg = Release|x64
+		{DA5E8B8E-BD6C-409F-8684-FD7CA641A203}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
