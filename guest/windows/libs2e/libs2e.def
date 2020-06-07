@@ -1,0 +1,35 @@
+EXPORTS
+    S2EGetVersion
+    S2EGetPathId
+    S2EGetPathCount
+    S2EGetConstraintCount
+    S2EGetRange
+    S2EGetExample
+    S2EConcretize
+    S2EIsSymbolic
+    S2EMakeSymbolicRaw
+    S2EMessageRaw
+    S2EInvokePluginRaw
+    S2EInvokePluginConcreteModeRaw
+    S2EHexDump
+    S2EAssume
+    S2EAssumeDisjunction
+    S2EPrintExpression
+    S2EKillState
+    S2EWriteMemory
+    S2ESetCpuLogLevel
+    S2EMakeSymbolic
+    S2ESymbolicInt
+    S2ESymbolicChar
+    S2ESymbolicStatus
+    S2EMessage
+    S2EInvokePlugin
+    S2EInvokePluginConcrete
+    S2EMessageFmt
+    S2EWriteMemorySafe
+
+
+
+
+
+
