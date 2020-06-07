@@ -9,9 +9,10 @@ copy x64\Release\s2e.sys dist\s2e.sys
 copy x64\Release\s2e.pdb dist\s2e.pdb
 copy Release\drvctl.exe dist\drvctl32.exe
 copy Release\pdbparser.exe dist\pdbparser32.exe
+copy Release\libs2e32.dll dist
 copy x64\Release\drvctl.exe dist\drvctl.exe
 copy x64\Release\pdbparser.exe dist\pdbparser.exe
-
+copy x64\Release\libs2e64.dll dist
 
 dist\pdbparser.exe -l dist\s2e.sys dist\s2e.pdb > dist\s2e.sys.lines
 dist\pdbparser.exe -l dist\s2e32.sys dist\s2e32.pdb > dist\s2e32.sys.lines
