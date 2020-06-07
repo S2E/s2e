@@ -25,6 +25,12 @@
 
 #define _S2E_WINDOWS_H_
 
+#ifdef LIBS2E_EXPORTS
+#define LIBS2E_API __declspec(dllexport)
+#else
+#define LIBS2E_API
+#endif
+
 #if defined(USER_APP)
 #include <windows.h>
 #include <stdio.h>
@@ -35,6 +41,10 @@
 #else
 #include <ntddk.h>
 #include <Ntstrsafe.h>
+#endif
+
+#ifdef __cplusplus
+extern "C" {
 #endif
 
 #pragma warning(push)
@@ -49,30 +59,8 @@
 
 #define CCASSERT(predicate) _x_CCASSERT_LINE_CAT(predicate, __LINE__)
 
-static VOID __s2e_touch_buffer(const void* Buffer, SIZE_T Size)
-{
-    if (!Size) {
-        return;
-    }
-
-    UINT_PTR StartPage = (UINT_PTR)Buffer & ~(UINT_PTR)0xFFF;
-    const UINT_PTR EndPage = (((UINT_PTR)Buffer) + Size - 1) & ~(UINT_PTR)0xFFF;
-
-    while (StartPage <= EndPage) {
-        const volatile char *b = (volatile char *)StartPage;
-        *b;
-        StartPage += 0x1000;
-    }
-}
-
-/** Forces the read of every byte of the specified string.
-  * This makes sure the memory pages occupied by the string are paged in
-  * before passing them to S2E, which can't page in memory by itself. */
-static VOID __s2e_touch_string(PCSTR string)
-{
-    const size_t len = strlen(string);
-    __s2e_touch_buffer(string, len + 1);
-}
+VOID __s2e_touch_buffer(const void* Buffer, SIZE_T Size);
+VOID __s2e_touch_string(PCSTR string);
 
 /** Get S2E version or 0 when running without S2E. */
 INT NTAPI S2EGetVersion(VOID);
@@ -108,90 +96,20 @@ VOID NTAPI S2EEnableAllApicInterrupts(VOID);
 
 VOID NTAPI S2ESetCpuLogLevel(UINT32 LogLevel);
 
-static inline VOID NTAPI S2EMakeSymbolic(PVOID Buffer, UINT32 Size, PCSTR Name)
-{
-    __s2e_touch_string(Name);
-    __s2e_touch_buffer(Buffer, Size);
-    S2EMakeSymbolicRaw(Buffer, Size, Name);
-}
-
-static inline INT NTAPI S2ESymbolicInt(PCSTR Name, INT InitialValue)
-{
-    S2EMakeSymbolic(&InitialValue, sizeof(InitialValue), Name);
-    return InitialValue;
-}
-
-static inline UINT8 NTAPI S2ESymbolicChar(PCSTR Name, UINT8 InitialValue)
-{
-    S2EMakeSymbolic(&InitialValue, sizeof(InitialValue), Name);
-    return InitialValue;
-}
-
-static inline NTSTATUS NTAPI S2ESymbolicStatus(PCSTR Name, NTSTATUS InitialValue)
-{
-    S2EMakeSymbolic(&InitialValue, sizeof(InitialValue), Name);
-    return InitialValue;
-}
-
-static inline VOID NTAPI S2EMessage(PCSTR Message)
-{
-    __try {
-        __s2e_touch_string(Message);
-        S2EMessageRaw(Message);
-    } __except (EXCEPTION_EXECUTE_HANDLER) {
-        DbgPrint("%s", Message);
-    }
-}
-
-static inline INT NTAPI S2EInvokePlugin(PCSTR PluginName, PVOID Data, UINT32 DataSize)
-{
-    const INT Ret = 0;
-    __try {
-        __s2e_touch_string(PluginName);
-        __s2e_touch_buffer(Data, DataSize);
-        return S2EInvokePluginRaw(PluginName, Data, DataSize);
-    } __except (EXCEPTION_EXECUTE_HANDLER) {
-        //DbgPrint("Invoked plugin %s\n", PluginName);
-    }
-    return Ret;
-}
-
-static inline INT NTAPI S2EInvokePluginConcrete(PCSTR PluginName, PVOID Data, UINT32 DataSize)
-{
-    const INT Ret = 0;
-    __try {
-        return S2EInvokePluginConcreteModeRaw(PluginName, Data, DataSize);
-    } __except (EXCEPTION_EXECUTE_HANDLER) {
-        //DbgPrint("Invoked plugin %s\n", PluginName);
-    }
-    return Ret;
-}
-
-static inline VOID S2EMessageFmt(PCHAR DebugMessage, ...)
-{
-    va_list ap;
-    CHAR String[512] = {0};
-    va_start(ap, DebugMessage);
-#if defined(USER_APP)
-    vsprintf_s(String, sizeof(String) - 1, DebugMessage, ap);
-#else
-    RtlStringCbVPrintfA(String, sizeof(String) - 1, DebugMessage, ap);
-#endif
-    S2EMessage(String);
-    va_end(ap);
-}
-
-static inline UINT32 S2EWriteMemorySafe(PVOID Destination, PVOID Source, DWORD Count)
-{
-    const INT Ret = 0;
-    __try {
-        return S2EWriteMemory(Destination, Source, Count);
-    } __except (EXCEPTION_EXECUTE_HANDLER) {
-        DbgPrint("Cannot invoke S2EWriteMemory, not in S2E mode\n");
-    }
-    return Ret;
-}
+VOID NTAPI S2EMakeSymbolic(PVOID Buffer, UINT32 Size, PCSTR Name);
+INT NTAPI S2ESymbolicInt(PCSTR Name, INT InitialValue);
+UINT8 NTAPI S2ESymbolicChar(PCSTR Name, UINT8 InitialValue);
+NTSTATUS NTAPI S2ESymbolicStatus(PCSTR Name, NTSTATUS InitialValue);
+VOID NTAPI S2EMessage(PCSTR Message);
+INT NTAPI S2EInvokePlugin(PCSTR PluginName, PVOID Data, UINT32 DataSize);
+INT NTAPI S2EInvokePluginConcrete(PCSTR PluginName, PVOID Data, UINT32 DataSize);
+VOID S2EMessageFmt(PCHAR DebugMessage, ...);
+UINT32 S2EWriteMemorySafe(PVOID Destination, PVOID Source, DWORD Count);
 
 #pragma warning(pop)
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
