@@ -27,7 +27,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\libcommon\libcommon.vcxproj">
-      <Project>{f999b414-1b8e-4e51-9bf0-442560663847}</Project>
+      <Project>{f999b414-1b8e-4d40-9bf0-442560663847}</Project>
     </ProjectReference>
   </ItemGroup>
   <PropertyGroup Label="Globals">
