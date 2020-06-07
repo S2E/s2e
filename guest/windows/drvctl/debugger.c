@@ -21,8 +21,6 @@
 /// SOFTWARE.
 ///
 
-#define USER_APP
-
 #pragma warning(disable:4706)
 #pragma warning(disable:4201)
 

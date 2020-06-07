@@ -21,7 +21,6 @@
 /// SOFTWARE.
 ///
 
-#define USER_APP
 #pragma warning(disable:4201)
 
 #include <windows.h>
