@@ -200,11 +200,12 @@ bootstrap.sh
     This script varies depending on your target program, so you should always check this file and modify it as required
     **before** running your analysis.
 
-guestfs
-    A symlink to the images guestfs. This is essentially a copy of the guest filesystem extracted from the VM image and
+guestfs0 [guestfs1]
+    One or more symlinks to the images' guestfs. This is essentially a copy of the guest filesystem extracted from the VM image and
     is used by S2E's ``VMI`` plugin for virtual machine introspection. Note that not all images provide a guestfs.
+    There may be several guestfs folders in case the project image is derived from another base image.
 
-guest-tools
+guest-tools32 guest-tools64
     A symlink to the S2E `guest tools <https://github.com/S2E/s2e/blob/master/guest>`__.
     These will be downloaded to the guest by the bootstrap script every time you launch a new analysis.
     This way, you do not have to rebuild the VM image every time you modify these tools.
@@ -217,13 +218,17 @@ launch-s2e.sh
 library.lua
     Contains convenience functions for the s2e-config.lua file.
 
-models.lua:
+models.lua
     For specifying `function models <Plugins/Linux/FunctionModels.rst>`__.
 
 s2e-config.lua
    The main S2E configuration file. Analysis plugins are enabled and configured here (in the ``pluginsConfig`` table).
    S2E (and KLEE) arguments are also specified here (under ``kleeArgs`` in the ``s2e`` table). The available S2E
    arguments are defined in `S2EExecutor.cpp <https://github.com/S2E/s2e/blob/master/libs2ecore/src/S2EExecutor.cpp>`__.
+
+\*.symranges
+   If you specified symbolic files on the command line, either with @@ or by using a path to a host file,
+   the symranges files allow you to specify which parts of the files to make symbolic.
 
 Target program arguments
 ------------------------
@@ -255,9 +260,21 @@ program accepts (e.g. PNG files, documents, etc.). They can be obtained from a f
 seed files can then be used by S2E to concolically guide execution in the target program.
 
 To enable seed files in your project, use the ``new_project`` subcommand's ``--use-seeds`` flag. This will create a
-``seeds`` directory in your project where seed files can be placed.
+``seeds`` directory in your project where seed files can be placed. This mode is suitable in case you have many seeds
+that are not all known in advance (e.g., generated on the fly by a fuzzer) and that you want to keep S2E running to let
+it fetch seeds as they come. For further discussion on seed files please see the `CGC tutorial
+<Tutorials/PoV/index.rst>`__.
 
-For further discussion on seed files please see the `CGC tutorial <Tutorials/PoV/index.rst>`__.
+An alternative to ``--use-seeds`` is to specify a path to a host file as a program argument, like this:
+
+.. code-block:: console
+
+    s2e new_project --image <image_name> /bin/cat /path/to/host/file.txt
+
+This will create a symbolic link to ``file.txt`` in the project directory as well as a file called
+``file.txt.symranges``, in which you can specify which parts of the file to make symbolic. By default, the symranges
+file is empty and therefore the file is fully concrete. This mode is useful if you have only one seed file known in advance.
+
 
 Running your analysis
 ---------------------
