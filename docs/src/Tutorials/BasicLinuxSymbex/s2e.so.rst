@@ -11,7 +11,7 @@ Getting started
 
 We will symbolically execute the ``echo`` utility. For this, create a new analysis project as follows:
 
-.. code-block:: bash
+.. code-block:: console
 
     # $S2EENV is the root of your S2E environment created with s2e init
     s2e new_project -i debian-9.2.1-i386 $S2EENV/images/debian-9.2.1-i386/guestfs/bin/echo abc
@@ -34,13 +34,13 @@ Using ``s2e.so``
 In this section, we show how to make command line arguments symbolic. Open the ``bootstrap.sh`` file and locate the
 following line:
 
-.. code-block:: bash
+.. code-block:: console
 
     S2E_SYM_ARGS="" LD_PRELOAD=./s2e.so ./${TARGET} abc > /dev/null 2> /dev/null
 
 Modify this line as follows:
 
-.. code-block:: bash
+.. code-block:: console
 
     S2E_SYM_ARGS="1" LD_PRELOAD=./s2e.so ./${TARGET} abc > /dev/null 2> /dev/null
 
@@ -52,7 +52,7 @@ This makes argument 1 (``abc``) symbolic. The process works like this:
 4. If not, ``s2e.so`` overwrites the specified arguments with symbolic values. It is possible to make only some
    arguments symbolic and leave others concrete by specifying the corresponding argument IDs.
 
-    .. code-block:: bash
+    .. code-block:: console
 
         S2E_SYM_ARGS="<ID_0> <ID_1> .. <ID_N>" # Mark argument <ID_N> as symbolic
 
@@ -70,7 +70,7 @@ in order to minimize unwanted forks:
     You **must** specify default concrete arguments, so that ``s2e.so`` can overwrite them with symbolic data.
     The following command will not work because there is no argument to make symbolic (``abc`` is missing).
 
-    .. code-block:: bash
+    .. code-block:: console
 
         S2E_SYM_ARGS="1" LD_PRELOAD=./s2e.so ./${TARGET} > /dev/null 2> /dev/null
 
@@ -79,7 +79,7 @@ in order to minimize unwanted forks:
     You cannot make the content of a file symbolic by just marking the file name symbolic. In other words, the
     following will not have the intended consequence:
 
-    .. code-block:: bash
+    .. code-block:: console
 
         S2E_SYM_ARGS="1" LD_PRELOAD=./s2e.so /bin/cat /path/to/myfile
 
@@ -95,28 +95,27 @@ in order to minimize unwanted forks:
 What about other symbolic input?
 --------------------------------
 
-You can also feed symbolic data to your program through ``stdin`` or symbolic files.
+**Piping symbolic data.** You can also feed symbolic data to your program through ``stdin``. The idea is to pipe the
+symbolic output of one program to the input of another. Symbolic output can be generated using the ``s2ecmd`` utility.
+The command below passes four symbolic bytes to ``cat``:
 
-For the ``stdin`` method, the idea is to pipe the symbolic output of one program to the input of another. Symbolic
-output can be generated using the ``s2ecmd`` utility. The command below passes four symbolic bytes to ``cat``:
-
-.. code-block:: bash
+.. code-block:: console
 
     ./s2ecmd symbwrite 4 | cat
 
 If your binary is statically linked, you could pass it symbolic arguments as follows:
 
-.. code-block:: bash
+.. code-block:: console
 
     /bin/echo $(./s2ecmd symbwrite 4)
 
 Note that this may be much slower than using ``s2e.so`` as symbolic data has to go through several layers of OS and
 libraries before reaching the target binary.
 
-If your binary takes a file name as a parameter and you want the content of that file to be symbolic, the simplest is to
-create your analysis project as follows:
+**Using symbolic files.** If your binary takes a file name as a parameter and you want the content of that file to be
+symbolic, the simplest is to create your analysis project as follows:
 
-.. code-block:: bash
+.. code-block:: console
 
     # The @@ is a placeholder for a concrete file name that contains symbolic data
     s2e new_project -i debian-9.2.1-i386 $S2EENV/images/debian-9.2.1-i386/guestfs/bin/cat @@
@@ -130,6 +129,18 @@ some symbolic data to that file, and passes the path to that file to ``cat``. Th
     In case of ``cat``, you may not see any forks with the command above, as the standard output is redirected
     to ``/dev/null`` and the symbolic data is therefore never branched upon. You must tweak the command line
     according to the aspects of the binary you want to test.
+
+**Using seed files.** This is the preferred way of using S2E. Unconstrained files created by ``@@`` may be less
+efficient at guiding the program towards an interesting path. Instead, you can use the concrete data of a file to
+`guide <../../Howtos/Concolic.rst>`__ path exploration:
+
+.. code-block:: console
+
+    s2e new_project -i debian-9.2.1-i386 $S2EENV/images/debian-9.2.1-i386/guestfs/bin/cat /path/to/file/on/host
+
+This commands scans the command line for arguments that look like paths (e.g., ``/path/to/file/on/host``) and
+configures ``bootstrap.sh`` to download such paths into the guest. In addition to that, it creates a ``.symranges``
+file in the project directory that specifies which byte ranges of the file to make symbolic.
 
 
 Configuring S2E for use with ``s2e.so``
