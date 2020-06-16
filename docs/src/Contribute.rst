@@ -56,11 +56,9 @@ Ensure your code is formatted correctly
     .. code-block:: console
 
         $ cd $S2EDIR/s2e-env
-        $ . venv/bin/activate
-        $ pip install pylint
-        $ pylint -rn -j8 --rcfile=./pylint_rc s2e_env
+        $ ./test.sh
 
-    There must be no warnings.
+    There must be no warnings / errors.
 
 Your code must be documented
     If you write a plugin, please write Doxygen-style documentation in the source code as well as an ``.rst`` file that
@@ -95,3 +93,24 @@ License
         /// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
         /// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
         /// SOFTWARE.
+
+Release check list
+    Pull requests for ``s2e`` and ``s2e-env`` are automatically checked for code style. ``s2e-env`` also has unit
+    tests. There are no automated integration tests. Until we have CI do this automatically, please run the following
+    checks before merging any significant changes:
+
+    1. Check that the S2E `testsuite <Testsuite.rst>`__ passes.
+    2. Check code style and unittests in ``s2e`` and ``s2e-env``.
+    3. Build a `docker image <BuildingS2E.rst>`__.
+    4. Run the docker demo from a fresh folder. This should automatically download the CGC image and run CADET_00001.
+       PoVs should be found.
+    5. Build S2E from scratch on a fresh Ubuntu 18/20 LTS install.
+       You can use this `script <https://github.com/S2E/ci/blob/master/tests-s2e-env/install.sh>`__.
+       Make sure to check out the correct branches.
+    6. Build guest images with ``s2e image_build``.
+    7. Run the testsuite again on the freshly built images.
+    8. Merge pull requests.
+    9. Update guest tools binaries on the S2E `releases <https://github.com/S2E/s2e/releases>`__ page.
+    10. Push the docker image to dockerhub, possibly after rebuild it to take into account updated guest tools.
+    11. Update the release notes + build documentation for the S2E web site.
+    12. Send release annoucement to ``s2e-dev``.

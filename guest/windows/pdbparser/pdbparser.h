@@ -32,6 +32,8 @@
 
 #pragma warning(push)
 #pragma warning(disable:4003)
+#pragma warning(suppress:26451) // arithmetic overflow
+#pragma warning(suppress:26495) // uninited var
 #include <rapidjson/rapidjson.h>
 #include <rapidjson/document.h>
 #include <rapidjson/writer.h>
@@ -72,10 +74,10 @@ void DumpSymbolMapAsJson(const SymbolInfo &Symbols, rapidjson::Document &Doc);
 
 struct symbol_t
 {
-    unsigned offset;
-    ULONG64 length;
-    unsigned child_id;
-    unsigned type_id;
+    unsigned offset = 0;
+    ULONG64 length = 0;
+    unsigned child_id = 0;
+    unsigned type_id = 0;
     std::string name;
 };
 
@@ -115,8 +117,8 @@ bool ReadPe(PLOADED_IMAGE Image, UINT64 NativeLoadBase, UINT64 NativeAddress, T 
 
 struct SyscallInfo
 {
-    UINT Index;
-    UINT64 Address;
+    UINT Index = 0;
+    UINT64 Address = 0;
     std::string Name;
 };
 

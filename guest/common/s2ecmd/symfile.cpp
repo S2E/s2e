@@ -377,8 +377,12 @@ static int make_whole_file_symbolic(int fd, unsigned file_size, unsigned block_s
 /// parts of the file must be made symbolic. If this variable is missing, the
 /// whole file is made symbolic.
 ///
+/// A range is a x-y tuple, where x is the starting offset and y is the number of bytes.
+/// Numbers can be in hexadecimal format (prefixed with 0x).
+///
 /// S2E_SYMFILE_RANGES may also contain a file name, in which case the ranges
-/// are read from the file.
+/// are read from the file. Each range must be on its own line and lines may
+/// have comments (starting with #).
 ///
 /// The concrete file is split into chunks, each chunk gets a symbolic variable.
 /// The chunk_size parameter specifies the maximum size of each symbolic variable.

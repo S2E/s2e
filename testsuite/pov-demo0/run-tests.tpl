@@ -4,7 +4,7 @@
 
 s2e run -n {{ project_name }}
 
-TARGET="$(jq  -r '.target_files[0]' $DIR_NAME/project.json)"
+TARGET="$(jq  -r '.target.files[0]' $DIR_NAME/project.json)"
 
 CUR_DIR="$(pwd)"
 
@@ -111,7 +111,7 @@ check_expected_povs() {
     done
 }
 
-RECIPES=$S2E_LAST/*input-recipe-type1_*
+RECIPES=$S2E_LAST/*input_0-recipe-type1_*
 
 check_expected_povs "$RECIPES"
 
@@ -120,7 +120,7 @@ for RECIPE in $RECIPES; do
     RECIPE_NAME="$(basename $RECIPE)"
 
     # Extract the desired register name from the test case file name
-    EXPECTED_REG_NAME="$(echo $RECIPE_NAME | cut -d '_' -f 7 | cut -d '.' -f 1)"
+    EXPECTED_REG_NAME="$(echo $RECIPE_NAME | cut -d '_' -f 8 | cut -d '.' -f 1)"
 
     check_pov $TARGET $RECIPE $EXPECTED_PC $EXPECTED_GP $EXPECTED_REG_NAME
 done

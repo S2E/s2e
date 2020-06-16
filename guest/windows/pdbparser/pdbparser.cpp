@@ -51,7 +51,7 @@ enum ACTION
 
 struct ARGUMENTS
 {
-    ACTION Action;
+    ACTION Action = DUMP_INFO;
     std::string SymbolName;
     std::string Addresses;
 
