@@ -245,6 +245,7 @@ public:
     const ConcreteFileTemplates &getTemplates(S2EExecutionState *state) const;
 
 private:
+    sigc::connection m_stateForkConnection;
     sigc::connection m_stateKillConnection;
     sigc::connection m_linuxSegFaultConnection;
     sigc::connection m_windowsUserCrashConnection;
@@ -252,6 +253,8 @@ private:
 
     ExecutionTracer *m_tracer;
 
+    void onStateFork(S2EExecutionState *state, const std::vector<S2EExecutionState *> &newStates,
+                     const std::vector<klee::ref<klee::Expr>> &newConditions);
     void onStateKill(S2EExecutionState *state);
     void onSegFault(S2EExecutionState *state, uint64_t pid, uint64_t pc);
     void onWindowsUserCrash(S2EExecutionState *state, const WindowsUserModeCrash &desc);

@@ -110,8 +110,15 @@ void TestCaseGenerator::initialize() {
 void TestCaseGenerator::enable() {
     ConfigFile *cfg = s2e()->getConfig();
 
+    bool tcOnFork = cfg->getBool(getConfigKey() + ".generateOnStateFork", false);
     bool tcOnKill = cfg->getBool(getConfigKey() + ".generateOnStateKill", true);
     bool tcOnSegfault = cfg->getBool(getConfigKey() + ".generateOnSegfault", true);
+
+    if (tcOnFork) {
+        m_stateForkConnection.disconnect();
+        m_stateForkConnection =
+            s2e()->getCorePlugin()->onStateFork.connect(sigc::mem_fun(*this, &TestCaseGenerator::onStateFork));
+    }
 
     if (tcOnKill) {
         m_stateKillConnection.disconnect();
@@ -142,6 +149,7 @@ void TestCaseGenerator::enable() {
 }
 
 void TestCaseGenerator::disable() {
+    m_stateForkConnection.disconnect();
     m_stateKillConnection.disconnect();
     m_linuxSegFaultConnection.disconnect();
     m_windowsKernelCrashConnection.disconnect();
@@ -160,6 +168,14 @@ void TestCaseGenerator::onSegFault(S2EExecutionState *state, uint64_t pid, uint6
     std::stringstream ss;
     ss << "crash:" << hexval(pid) << ":" << hexval(pc);
     generateTestCases(state, ss.str(), TC_FILE);
+}
+
+void TestCaseGenerator::onStateFork(S2EExecutionState *state, const std::vector<S2EExecutionState *> &newStates,
+                                    const std::vector<klee::ref<klee::Expr>> &newConditions) {
+    for (auto *newState : newStates) {
+        if (newState != state)
+            generateTestCases(newState, "fork", TC_FILE);
+    }
 }
 
 void TestCaseGenerator::onStateKill(S2EExecutionState *state) {
