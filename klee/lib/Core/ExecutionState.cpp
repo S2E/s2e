@@ -256,37 +256,10 @@ bool ExecutionState::merge(const ExecutionState &b) {
         if (ai->first != bi->first) {
             if (DebugLogStateMerge) {
                 if (ai->first < bi->first) {
-                    m << "\t\tB misses binding for: " << ai->first.address << "\n";
-                } else {
-                    m << "\t\tA misses binding for: " << bi->first.address << "\n";
-                }
-            }
-            return false;
-        }
-        if (ai->second != bi->second) {
-            if (DebugLogStateMerge)
-                llvm::errs() << "\t\tmutated: " << ai->first.address << "\n";
-            mutated.insert(ai->first);
-        }
-    }
-    if (ai != ae || bi != be) {
-        if (DebugLogStateMerge) {
-            m << "\t\tmappings differ\n";
-        }
-        return false;
-    }
-
-    for (; ai != ae && bi != be; ++ai, ++bi) {
-        if (ai->first != bi->first) {
-            if (DebugLogStateMerge) {
-                if (ai->first < bi->first) {
                     m << "\t\tB misses binding for: " << hexval(ai->first.address) << "\n";
                 } else {
                     m << "\t\tA misses binding for: " << hexval(bi->first.address) << "\n";
                 }
-            }
-            if (DebugLogStateMerge) {
-                m << "merge failed: different callstacks" << '\n';
             }
             return false;
         }
@@ -304,6 +277,12 @@ bool ExecutionState::merge(const ExecutionState &b) {
             }
             mutated.insert(mo);
         }
+    }
+    if (ai != ae || bi != be) {
+        if (DebugLogStateMerge) {
+            m << "\t\tmappings differ\n";
+        }
+        return false;
     }
 
     // merge stack
