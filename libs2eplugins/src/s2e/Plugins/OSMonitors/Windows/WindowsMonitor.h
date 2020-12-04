@@ -311,7 +311,8 @@ private:
     uint64_t m_cachedEprocess;
 
     void onTranslateSpecialInstructionEnd(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb,
-                                          uint64_t pc, enum special_instruction_t type);
+                                          uint64_t pc, enum special_instruction_t type,
+                                          const special_instruction_data_t *data);
 
     void onTranslateSoftInterruptStart(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb,
                                        uint64_t pc, unsigned vector);

@@ -60,7 +60,8 @@ void s2e_on_translate_instruction_start(void *context, struct TranslationBlock *
 
 /** Called by cpu_gen_code() after translation of certain special types of instructions */
 void s2e_on_translate_special_instruction_end(void *context, struct TranslationBlock *tb, uint64_t pc,
-                                              enum special_instruction_t type, int update_pc);
+                                              enum special_instruction_t type, const special_instruction_data_t *data,
+                                              int update_pc);
 
 /** Called by cpu_gen_code() after translation of each instruction */
 void s2e_on_translate_instruction_end(void *context, struct TranslationBlock *tb, uint64_t pc, uint64_t nextpc);

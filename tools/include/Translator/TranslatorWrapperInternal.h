@@ -137,7 +137,8 @@ static void on_translate_instruction_start(void *context, struct TranslationBloc
 }
 
 static void on_translate_special_instruction_end(void *context, struct TranslationBlock *tb, uint64_t pc,
-                                                 enum special_instruction_t type, int update_pc) {
+                                                 enum special_instruction_t type,
+                                                 const special_instruction_data_t *data, int update_pc) {
     return;
 }
 
@@ -351,7 +352,8 @@ void s2e_on_translate_lea_rip_relative(void *context, struct TranslationBlock *t
 }
 
 void s2e_on_translate_special_instruction_end(void *context, struct TranslationBlock *tb, uint64_t pc,
-                                              enum special_instruction_t type, int update_pc) {
+                                              enum special_instruction_t type, const special_instruction_data_t *data,
+                                              int update_pc) {
 }
 
 void s2e_on_translate_register_access(struct TranslationBlock *tb, uint64_t pc, uint64_t readMask, uint64_t writeMask,

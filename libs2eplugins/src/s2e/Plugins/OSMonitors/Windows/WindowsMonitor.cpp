@@ -586,7 +586,8 @@ void WindowsMonitor::enableInstrumentation(S2EExecutionState *state) {
 
 void WindowsMonitor::onTranslateSpecialInstructionEnd(ExecutionSignal *signal, S2EExecutionState *state,
                                                       TranslationBlock *tb, uint64_t pc,
-                                                      enum special_instruction_t type) {
+                                                      enum special_instruction_t type,
+                                                      const special_instruction_data_t *data) {
     if (type != SYSENTER && type != SYSCALL) {
         return;
     }
