@@ -82,6 +82,9 @@ typedef struct DisasContext {
     int override; /* -1 if no override */
     int prefix;
     int aflag, dflag;
+#ifdef CONFIG_SYMBEX
+    int retim_value;
+#endif
     target_ulong pc; /* pc = eip + cs_base */
     int is_jmp;      /* 1 = means jump (stop translation), 2 means CPU
                         static state change (stop translation) */
@@ -340,7 +343,7 @@ static inline void instr_gen_call_ret(DisasContext *s, int isCall) {
     if (isCall) {
         gen_helper_se_call(cpu_T[1]);
     } else {
-        gen_helper_se_ret(cpu_T[1]);
+        gen_helper_se_ret(cpu_T[1], tcg_const_i32(s->retim_value));
     }
 
     gen_set_label(clabel);
@@ -6187,6 +6190,10 @@ reswitch:
             gen_pop_T0(s);
             if (CODE64(s) && s->dflag)
                 s->dflag = 2;
+
+#ifdef CONFIG_SYMBEX
+            s->retim_value = val;
+#endif
             gen_stack_update(s, val + (2 << s->dflag));
             if (s->dflag == 0)
                 gen_op_andl_T0_ffff();

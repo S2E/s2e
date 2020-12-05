@@ -5920,7 +5920,7 @@ void helper_register_symbols() {
 __attribute__((weak)) void helper_se_call(target_ulong pc) {
 }
 
-__attribute__((weak)) void helper_se_ret(target_ulong pc) {
+__attribute__((weak)) void helper_se_ret(target_ulong pc, int retim_value) {
 }
 #endif
 
