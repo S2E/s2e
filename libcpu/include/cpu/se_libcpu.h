@@ -235,6 +235,10 @@ struct se_libcpu_interface_t {
     struct {
         void (*debug)(const char *fmt, ...);
     } log;
+
+    struct {
+        int (*screendump)(const char *filename);
+    } upcalls;
 };
 
 extern struct se_libcpu_interface_t g_sqi;
