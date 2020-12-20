@@ -119,6 +119,7 @@ add_library(
     # Analysis plugins
     s2e/Plugins/Analyzers/CacheSim.cpp
     s2e/Plugins/Analyzers/AddressTracker.cpp
+    s2e/Plugins/Analyzers/CFIChecker.cpp
 
     # Execution monitors
     s2e/Plugins/ExecutionMonitors/CallSiteMonitor.cpp
