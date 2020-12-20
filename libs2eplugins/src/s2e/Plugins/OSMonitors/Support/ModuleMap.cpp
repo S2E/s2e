@@ -46,18 +46,6 @@ S2E_DEFINE_PLUGIN(ModuleMap, "Tracks loaded modules", "", "OSMonitor");
 
 namespace {
 
-struct AddressRange {
-    uint64_t start;
-    uint64_t size;
-
-    AddressRange(uint64_t start_, uint64_t size_) : start(start_), size(size_) {
-    }
-
-    bool operator<(const AddressRange &s2) const {
-        return start + size <= s2.start;
-    }
-};
-
 ///
 /// Keeps track of loaded modules across states.
 ///

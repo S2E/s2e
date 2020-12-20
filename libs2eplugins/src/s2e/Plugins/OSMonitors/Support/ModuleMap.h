@@ -69,6 +69,18 @@ typedef struct S2E_MODULE_MAP_COMMAND {
 class OSMonitor;
 struct S2E_WINMON2_UNMAP_SECTION;
 
+struct AddressRange {
+    uint64_t start;
+    uint64_t size;
+
+    AddressRange(uint64_t start_, uint64_t size_) : start(start_), size(size_) {
+    }
+
+    bool operator<(const AddressRange &s2) const {
+        return start + size <= s2.start;
+    }
+};
+
 class ModuleMap : public Plugin, public IPluginInvoker, public ILuaPlugin {
     S2E_PLUGIN
 
