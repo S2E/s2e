@@ -20,11 +20,6 @@
 /// SOFTWARE.
 ///
 
-/**
- * Copyright 2015 - CodeTickler
- * Proprietary and confidential
- */
-
 #ifndef __S2E_PLUGIN_MANAGER_H__
 
 #define __S2E_PLUGIN_MANAGER_H__
