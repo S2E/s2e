@@ -26,16 +26,12 @@
 #include <s2e/Utils.h>
 #include <s2e/cpu.h>
 
-#include <llvm/ADT/DenseSet.h>
-
 #include <s2e/Plugins/OSMonitors/Support/ProcessExecutionDetector.h>
 
 namespace s2e {
 namespace plugins {
 
 S2E_DEFINE_PLUGIN(ProcessExecutionDetector, "ProcessExecutionDetector S2E plugin", "", "OSMonitor");
-
-typedef llvm::DenseSet<uint64_t> TrackedPids;
 
 class ProcessExecutionDetectorState : public PluginState {
 public:
@@ -162,6 +158,11 @@ void ProcessExecutionDetector::trackPid(S2EExecutionState *state, uint64_t pid) 
 
 void ProcessExecutionDetector::onMonitorLoadCb(S2EExecutionState *state) {
     onMonitorLoad.emit(state);
+}
+
+const TrackedPids &ProcessExecutionDetector::getTrackedPids(S2EExecutionState *state) const {
+    DECLARE_PLUGINSTATE(ProcessExecutionDetectorState, state);
+    return plgState->m_trackedPids;
 }
 
 } // namespace plugins
