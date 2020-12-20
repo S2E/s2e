@@ -48,6 +48,7 @@ public:
     void trackPid(S2EExecutionState *state, uint64_t pid);
 
     sigc::signal<void, S2EExecutionState *> onMonitorLoad;
+    sigc::signal<void, S2EExecutionState *> onAllProcessesTerminated;
 
 private:
     typedef std::unordered_set<std::string> StringSet;

@@ -39,12 +39,18 @@ typedef llvm::DenseSet<uint64_t> TrackedPids;
 
 class ProcessExecutionDetectorState : public PluginState {
 public:
+    TrackedPids m_trackedPids;
+
+    // Records whether the plugin has ever seen a configured process
+    bool m_hadTrackedProcesses;
+
     virtual ProcessExecutionDetectorState *clone() const {
         ProcessExecutionDetectorState *ret = new ProcessExecutionDetectorState(*this);
         return ret;
     }
 
     ProcessExecutionDetectorState() {
+        m_hadTrackedProcesses = false;
     }
 
     static PluginState *factory(Plugin *p, S2EExecutionState *s) {
@@ -53,8 +59,6 @@ public:
 
     virtual ~ProcessExecutionDetectorState() {
     }
-
-    TrackedPids m_trackedPids;
 };
 
 void ProcessExecutionDetector::initialize() {
@@ -88,6 +92,7 @@ void ProcessExecutionDetector::onProcessLoad(S2EExecutionState *state, uint64_t 
                               << " as: " << hexval(pageDir) << ")\n";
 
         plgState->m_trackedPids.insert(pid);
+        plgState->m_hadTrackedProcesses = true;
     }
 }
 
@@ -96,6 +101,9 @@ void ProcessExecutionDetector::onProcessUnload(S2EExecutionState *state, uint64_
     DECLARE_PLUGINSTATE(ProcessExecutionDetectorState, state);
     if (plgState->m_trackedPids.erase(pid)) {
         getDebugStream(state) << "Unloading process " << hexval(pid) << "\n";
+        if (plgState->m_hadTrackedProcesses && plgState->m_trackedPids.size() == 0) {
+            onAllProcessesTerminated.emit(state);
+        }
     }
 }
 
