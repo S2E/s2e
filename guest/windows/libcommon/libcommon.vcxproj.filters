@@ -48,6 +48,12 @@
     <ClInclude Include="include\s2e\GuestCodeHooking.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\s2e\Tickler.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\s2e\Screenshot.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <MASM Include="src\amd64\s2e.asm">
