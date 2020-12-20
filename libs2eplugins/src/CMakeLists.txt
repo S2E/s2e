@@ -31,6 +31,7 @@ add_library(
     # Support plugins
     s2e/Plugins/Support/KeyValueStore.cpp
     s2e/Plugins/Support/WebServiceInterface.cpp
+    s2e/Plugins/Support/Screenshot.cpp
 
     # OS support
     s2e/Plugins/OSMonitors/ModuleDescriptor.cpp
