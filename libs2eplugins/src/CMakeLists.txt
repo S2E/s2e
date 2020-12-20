@@ -115,7 +115,10 @@ add_library(
 
     # Misc plugins
     s2e/Plugins/Example.cpp
+
+    # Analysis plugins
     s2e/Plugins/Analyzers/CacheSim.cpp
+    s2e/Plugins/Analyzers/AddressTracker.cpp
 
     # Execution monitors
     s2e/Plugins/ExecutionMonitors/CallSiteMonitor.cpp
