@@ -7,112 +7,41 @@ infrastructure. We take the example of a plugin that counts how many times a spe
 Users of that plugin can specify the instruction to watch in the S2E configuration file. We will also show how to build
 the plugin so that it can communicate with other plugins and expose reusable functionality.
 
-Starting with an Empty Plugin
+Starting with an empty plugin
 =============================
 
-The first thing to do is to name the plugin and create boilerplate code. Let us name the plugin ``InstructionTracker``.
-You can copy/paste the ``Example`` plugin that ships with S2E (in the `libs2eplugins
-<https://github.com/S2E/s2e/tree/master/libs2eplugins>`__ directory).
+In this tutorial, we will create a plugin that counts executed instructions.
+After setting up your S2E environment, run the following command:
 
-Create a file named ``InstructionTracker.h`` in ``$S2EDIR/libs2eplugins/src/s2e/Plugins`` with the following content:
+.. code-block:: bash
 
-.. code-block:: cpp
+    $ s2e new_plugin InstructionTracker
 
-    #ifndef S2E_PLUGINS_INSTRTRACKER_H
-    #define S2E_PLUGINS_INSTRTRACKER_H
+This creates the required boilerplate for an S2E plugin:
 
-    // These header files are located in libs2ecore
-    #include <s2e/Plugin.h>
-    #include <s2e/CorePlugin.h>
-    #include <s2e/S2EExecutionState.h>
+    * The plugin source: ``$S2EENV/source/s2e/libs2eplugins/src/s2e/Plugins/InstructionTracker.cpp``
+    * The plugin header: ``$S2EENV/source/s2e/libs2eplugins/src/s2e/Plugins/InstructionTracker.h``
+    * An entry in the makefile to build the plugin: ``$S2EENV/source/s2e/libs2eplugins/src/CMakeLists.txt``
 
-    namespace s2e {
-    namespace plugins {
 
-    class InstructionTracker : public Plugin {
-        S2E_PLUGIN
-
-    public:
-        InstructionTracker(S2E *s2e) : Plugin(s2e) {}
-
-        void initialize();
-    };
-
-    } // namespace plugins
-    } // namespace s2e
-
-    #endif
-
-Then, create the corresponding ``InstructionTracker.cpp`` file in the same directory:
-
-.. code-block:: cpp
-
-    #include <s2e/S2E.h>
-
-    #include "InstructionTracker.h"
-
-    namespace s2e {
-    namespace plugins {
-
-    // Define a plugin whose class is InstructionTracker and called "InstructionTracker"
-    S2E_DEFINE_PLUGIN(InstructionTracker,                   // Plugin class
-                      "Tutorial - Tracking instructions",   // Description
-                      "InstructionTracker",                 // Plugin function name
-                      // Plugin dependencies would normally go here. However this plugin does not have any dependencies
-                      );
-
-    void InstructionTracker::initialize() {
-    }
-
-    } // namespace plugins
-    } // namespace s2e
-
-Finally, we need to compile the plugin with the rest of S2E. For this, add the following line to
-``$S2EDIR/libs2eplugins/src/CMakeLists.txt``, near the other plugin declarations::
-
-    s2e/Plugins/InstructionTracker.cpp
-
-Reading Configuration Parameters
+Reading configuration parameters
 ================================
 
-We would like to let the user specify which instruction to monitor. For this, we create a configuration variable that
-stores the address of that instruction. Every plugin can have an entry in the S2E configuration file. The entry for our
-plugin would look like this:
+To let users specify which instruction to monitor, the plugin needs a configuration variable that
+stores the address of that instruction. To create one, add the following to your ``s2e-config.lua`` file:
 
 .. code-block:: lua
 
+    add_plugin("InstructionTracker")
     pluginsConfig.InstructionTracker = {
         -- The address we want to track
         addressToTrack = 0x12345,
     }
 
-We also need to add our plugin to the ``Plugins`` table. This can be done one of two ways:
-
-* If using ``s2e-env``, add a call to ``add_plugin`` to ``s2e-config.lua``.
-
-.. code-block:: lua
-
-    add_plugin("InstructionTracker")
-
-* If not using ``s2e-env``, you will have to create the ``Plugins`` table yourself:
-
-.. code-block:: lua
-
-    Plugins = {
-        -- List other plugins here
-        "InstructionTracker",
-    }
-
-If we run the plugin as it is now, nothing will happen. S2E ignores any unknown configuration value. We need a
-mechanism to explicitly retrieve the configuration value. In S2E, plugins can retrieve the configuration at any time.
-In our case, we do it during the initialization phase.
+For now, this will do nothing. We need to instruct the plugin to read this configuration, e.g., during
+initialization. Open the plugin's source file and add the following code to the ``initialize`` method:
 
 .. code-block:: cpp
-
-    // From libs2ecore. We need this to read configuration files
-    #include <s2e/ConfigFile.h>
-
-    // ...
 
     void InstructionTracker::initialize() {
         m_address = (uint64_t) s2e()->getConfig()->getInt(getConfigKey() + ".addressToTrack");
@@ -121,7 +50,8 @@ In our case, we do it during the initialization phase.
 Do not forget to add ``uint64_t m_address;`` as a private members of class ``InstructionTracker`` in
 ``InstructionTracker.h``.
 
-Instrumenting Instructions
+
+Instrumenting instructions
 ==========================
 
 To instrument an instruction, an S2E plugin registers to the ``onTranslateInstructionStart`` core event. There are
@@ -149,7 +79,7 @@ declaration.
                                                     S2EExecutionState *state,
                                                     TranslationBlock *tb,
                                                     uint64_t pc) {
-        if(m_address == pc) {
+        if (m_address == pc) {
             // When we find an interesting address, ask S2E to invoke our callback when the address is actually
             // executed
             signal->connect(sigc::mem_fun(*this, &InstructionTracker::onInstructionExecution));
@@ -164,7 +94,17 @@ declaration.
         // Plugins can also call the s2e() method to use the S2E API
     }
 
-Counting Instructions
+
+.. warning::
+
+    Do not confuse ``onTranslate`` events and ``onInstructionExecution`` handlers. The former is called during
+    instruction translation, the latter when the instruction is executed, and only if the handler has been registered
+    during translation. The translation vs. execution difference is due to how dynamic binary translators work.
+    If you increment during translation, you will get incorrect results. For example, a loop body
+    would typically be translated once and executed several times, so your counter will not be incremented as expected.
+
+
+Counting instructions
 =====================
 
 We would like to count how many times that particular instruction is executed. There are two options:
@@ -172,15 +112,17 @@ We would like to count how many times that particular instruction is executed. T
 1. Count how many times it was executed across all paths
 2. Count how many times it was executed in each path
 
-The first option is trivial to implement. Simply add an additional member to the class and increment it every time the
+The first option is easy to implement. Simply add an additional member to the class and increment it every time the
 ``onInstructionExecution`` callback is invoked.
 
-The second option requires to keep per-state plugin information. S2E plugins manage per-state information in a class
+The second option requires keeping per-state plugin information. S2E plugins manage per-state information in a class
 that derives from ``PluginState``. This class must implement a ``factory`` method that returns a new instance of the
 class when S2E starts symbolic execution. The ``clone`` method is used to fork the plugin state. Both ``factory`` and
 ``clone`` **must** be implemented.
 
-Here is how ``InstructionTracker`` could implement the plugin state.
+Here is how ``InstructionTracker`` could implement the plugin state. Note that the plugin boilerplate already contains
+all the required declarations. All you need to do is to fill them in. You can also delete them if your plugin does
+not need to store per-state information.
 
 .. code-block:: cpp
 
@@ -227,11 +169,12 @@ Plugin code can refer to this state using the ``DECLARE_PLUGINSTATE`` macro:
         plgState->increment();
     }
 
-Exporting Events
+
+Exporting events
 ================
 
 All S2E plugins can define custom events. Other plugins can in turn connect to them and also export their own events.
-This scheme is heavily used by stock S2E plugins. For example, the `LinuxMonitor <../Plugins/Linux/LinuxMonitor.rst>`__
+This scheme is at the center of the S2E plugin infrastructure. For example, the `LinuxMonitor <../Plugins/Linux/LinuxMonitor.rst>`__
 plugin exports a number of events (e.g. segmentation fault, module load, etc.) that can be intercepted by your own
 plugins.
 
@@ -300,3 +243,83 @@ emit an error message instead.
 It is not always necessary to specify the dependencies. For example, a plugin may want to work with reduced
 functionality if a dependent plugin is missing. Attempting to call ``s2e()->getPlugin()`` returns ``nullptr`` if
 the requested plugin is missing.
+
+
+Guest-plugin communication
+==========================
+
+Guest code can send commands to plugins. S2E uses this extensively. For example, the Windows and Linux monitoring
+plugins notify other plugins about loaded modules, processes, and threads by receiving this information from a guest
+driver. The driver extract this information using the guest OS APIs, then sends it to the appropriate plugins.
+
+In this part of the tutorial, we will modify the ``InstructionTracker`` plugin so that guest code can configure
+which address to monitor. This can be useful, e.g., in case the address to track is not known before S2E starts
+(ASLR, dynamically loaded modules, etc.).
+
+Guest code uses the ``s2e_invoke_plugin`` function to call a plugin. This call takes a pointer to a plugin-specific
+data structure that contains the command to run and execute. The following example shows how to send a command
+to the ``InstructionTracker`` plugin:
+
+.. code-block:: cpp
+
+    #include <s2e/s2e.h>
+
+    enum S2E_INSTRUCTIONTRACKER_COMMANDS {
+        SET_ADDRESS
+    };
+
+    struct S2E_INSTRUCTIONTRACKER_COMMAND {
+        S2E_TESTPLUGIN_COMMANDS Command;
+
+        union {
+            // Command parameters go here
+            uint64_t address;
+        };
+    };
+
+    int main(int argc, char **argv) {
+        struct S2E_INSTRUCTIONTRACKER_COMMAND cmd;
+        cmd.Command = SET_ADDRESS;
+        cmd.address = 0x12345;
+
+        s2e_invoke_plugin("InstructionTracker", &cmd, sizeof(cmd));
+        return 0;
+    }
+
+
+This code invokes the ``handleOpcodeInvocation`` method in the ``InstructionTracker`` plugin. You will need to modify
+it so that it accepts the command:
+
+.. code-block:: cpp
+
+    void InstructionTracker::handleOpcodeInvocation(S2EExecutionState *state, uint64_t guestDataPtr, uint64_t guestDataSize)
+    {
+        S2E_INSTRUCTIONTRACKER_COMMAND command;
+
+        if (guestDataSize != sizeof(command)) {
+            getWarningsStream(state) << "mismatched S2E_INSTRUCTIONTRACKER_COMMAND size\n";
+            return;
+        }
+
+        if (!state->mem()->read(guestDataPtr, &command, guestDataSize)) {
+            getWarningsStream(state) << "could not read transmitted data\n";
+            return;
+        }
+
+        switch (command.Command) {
+            case SET_ADDRESS:
+                m_address = command.address;
+                break;
+            default:
+                getWarningsStream(state) << "Unknown command " << command.Command << "\n";
+                break;
+        }
+    }
+
+You will also need to update the ``InstructionTracker.h`` header with the proper structure definitions.
+
+.. note::
+
+    S2E does not enforce the data format between the guest code and the associated plugins. The template shown above
+    is merely a suggestion. You can simplify it if needed. For example, if you know that your plugin has only
+    one command, you could just call ``s2e_invoke_plugin`` with null arguments.
