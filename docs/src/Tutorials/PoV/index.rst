@@ -36,14 +36,14 @@ You can find the corresponding source file in
 .. code-block:: console
 
     $ cd ~/s2e/env
-    $ s2e new_project -i debian-9.2.1-i386 -n vuln-lin32-32 --enable-pov-generation \
+    $ s2e new_project -i debian-9.2.1-i386 -n vuln-lin32-32 --tools=pov \
       build/s2e/guest-tools32/common/demos/vulnerabilities @@
 
 Here is a breakdown of the ``s2e new_project`` command above:
 
 * It creates a new project called ``vuln-lin32-32`` that will run on the ``debian-9.2.1-i386`` image.
 
-* The ``--enable-pov-generation`` is important in order to generate PoVs. If you omit it, you will just get random test
+* The ``--tools=pov`` option is important in order to generate PoVs. If you omit it, you will just get random test
   cases, which will at best crash the binary depending on what the constraint solver generates. Vulnerability generation
   involves a number of additional plugins that may add overhead to the analysis, so they are disabled by default unless
   you actually need them.
