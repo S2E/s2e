@@ -839,6 +839,7 @@ guest-tools32-windrv:
 	cd $(S2E_PREFIX)/bin/guest-tools32 && wget -O s2e.inf $(GUEST_TOOLS_BINARIES_URL)/s2e.inf
 	cd $(S2E_PREFIX)/bin/guest-tools32 && wget -O drvctl.exe $(GUEST_TOOLS_BINARIES_URL)/drvctl32.exe
 	cd $(S2E_PREFIX)/bin/guest-tools32 && wget -O drvctl.exe $(GUEST_TOOLS_BINARIES_URL)/libs2e32.dll
+	cd $(S2E_PREFIX)/bin/guest-tools32 && wget -O tickler.exe $(GUEST_TOOLS_BINARIES_URL)/tickler32.exe
 
 guest-tools64-windrv:
 	mkdir -p $(S2E_PREFIX)/bin/guest-tools64
@@ -847,6 +848,7 @@ guest-tools64-windrv:
 	cd $(S2E_PREFIX)/bin/guest-tools64 && wget -O drvctl.exe $(GUEST_TOOLS_BINARIES_URL)/drvctl.exe
 	cd $(S2E_PREFIX)/bin/guest-tools64 && wget -O drvctl.exe $(GUEST_TOOLS_BINARIES_URL)/libs2e32.dll
 	cd $(S2E_PREFIX)/bin/guest-tools64 && wget -O drvctl.exe $(GUEST_TOOLS_BINARIES_URL)/libs2e64.dll
+	cd $(S2E_PREFIX)/bin/guest-tools64 && wget -O tickler.exe $(GUEST_TOOLS_BINARIES_URL)/tickler64.exe
 
 stamps/guest-tools%-win-install: stamps/guest-tools%-win-make guest-tools32-windrv guest-tools64-windrv
 	$(MAKE) -C guest-tools$*-win install
