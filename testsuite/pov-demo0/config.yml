@@ -1,10 +1,11 @@
 test:
     description: "Checks that Linux and Windows PoV generation works"
     options:
-        enable_pov_generation: true
+        tools:
+            - "pov"
 
     target_arguments:
-        - "@@"
+        - ["@@"]
 
     targets:
         - windows64-pov-demo0.exe

@@ -2,7 +2,7 @@ test:
     description: "Checks that echo forks properly"
 
     target_arguments:
-        - abc
+        - [abc]
 
     targets:
         - {{ s2e_images }}/debian-9.2.1-i386/guestfs/bin/echo

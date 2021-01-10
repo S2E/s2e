@@ -1,5 +1,5 @@
 test:
-    description: "This is a smoke test that checks that guest images can load and run programs"
+    description: "This is a smoke test that checks that office images run properly"
 
     targets:
         - "$(GUEST_FS)/program files/microsoft office/office14/winword.exe"
@@ -10,7 +10,7 @@ test:
         - "$(GUEST_FS)/program files (x86)/microsoft office/root/office16/winword.exe"
 
     target_arguments:
-        - $(TEST_ROOT)/test.docm
+        - [$(TEST_ROOT)/test.docm]
 
     target-images:
         - office
