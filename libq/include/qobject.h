@@ -37,6 +37,10 @@
 #include <assert.h>
 #include <stddef.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef enum {
     QTYPE_NONE,
     QTYPE_QINT,
@@ -104,5 +108,9 @@ static inline qtype_code qobject_type(const QObject *obj) {
     assert(obj->type != NULL);
     return obj->type->code;
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QOBJECT_H */

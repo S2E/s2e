@@ -20,6 +20,10 @@
 #include "qobject.h"
 #include "qqueue.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define QDICT_BUCKET_MAX 512
 
 typedef struct QDictEntry {
@@ -61,5 +65,9 @@ const char *qdict_get_str(const QDict *qdict, const char *key);
 int64_t qdict_get_try_int(const QDict *qdict, const char *key, int64_t def_value);
 int qdict_get_try_bool(const QDict *qdict, const char *key, int def_value);
 const char *qdict_get_try_str(const QDict *qdict, const char *key);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QDICT_H */

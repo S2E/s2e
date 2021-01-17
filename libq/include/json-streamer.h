@@ -19,6 +19,10 @@
 #include "json-lexer.h"
 #include "qlist.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct JSONMessageParser {
     void (*emit)(struct JSONMessageParser *parser, QList *tokens);
     JSONLexer lexer;
@@ -35,5 +39,9 @@ int json_message_parser_feed(JSONMessageParser *parser, const char *buffer, size
 int json_message_parser_flush(JSONMessageParser *parser);
 
 void json_message_parser_destroy(JSONMessageParser *parser);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

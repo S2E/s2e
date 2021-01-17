@@ -19,6 +19,10 @@
 #include <stdint.h>
 #include "qobject.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct QBool {
     QObject_HEAD;
     int value;
@@ -27,5 +31,9 @@ typedef struct QBool {
 QBool *qbool_from_int(int value);
 int qbool_get_int(const QBool *qb);
 QBool *qobject_to_qbool(const QObject *obj);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QBOOL_H */
