@@ -109,6 +109,9 @@ protected:
     bool m_loaded;
     uint64_t m_loadAddress;
 
+    mutable FunctionAddresses m_functions;
+    mutable bool m_functionsInited;
+
     ExecutableFile(std::shared_ptr<FileProvider> file, bool loaded, uint64_t loadAddress);
 
 public:
@@ -135,6 +138,8 @@ public:
     std::shared_ptr<FileProvider> get() {
         return m_file;
     }
+
+    const FunctionAddresses &guessFunctionAddresses() const;
 };
 } // namespace vmi
 
