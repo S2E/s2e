@@ -119,7 +119,7 @@ LUA_DIR=lua-$(LUA_VERSION)
 # SOCI variables
 SOCI_SRC_DIR=soci-src
 SOCI_BUILD_DIR=soci
-SOCI_GIT_REV=f0c0d25a9160a237c9ef8eddf9f28651621192f3
+SOCI_GIT_REV=334cc55
 SOCI_GIT_URL=https://github.com/SOCI/soci.git
 
 # Google Test
@@ -348,7 +348,7 @@ SOCI_CONFIGURE_FLAGS = -DCMAKE_INSTALL_PREFIX=$(S2E_PREFIX) \
 
 stamps/soci-configure: stamps/clang-binary $(SOCI_BUILD_DIR)
 stamps/soci-configure: CONFIGURE_COMMAND = cmake $(SOCI_CONFIGURE_FLAGS)    \
-                                           $(S2E_BUILD)/$(SOCI_SRC_DIR)/src
+                                           $(S2E_BUILD)/$(SOCI_SRC_DIR)
 
 stamps/soci-make: stamps/soci-configure
 	$(MAKE) -C $(SOCI_BUILD_DIR)
