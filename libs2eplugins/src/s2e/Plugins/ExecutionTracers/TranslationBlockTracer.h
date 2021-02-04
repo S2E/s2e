@@ -75,7 +75,9 @@ public:
     void disableTracing(S2EExecutionState *state, TranslationBlockTracer::TraceType type);
     bool tracingEnabled(S2EExecutionState *state, TranslationBlockTracer::TraceType type);
 
-    void trace(S2EExecutionState *state, uint64_t pc, uint32_t type /* s2e_trace::PbTraceItemHeaderType */);
+    void trace(S2EExecutionState *state, TranslationBlock *tb, uint32_t type /* s2e_trace::PbTraceItemHeaderType */);
+    static void trace(S2EExecutionState *state, ExecutionTracer *tracer, TranslationBlock *tb,
+                      uint32_t type /* s2e_trace::PbTraceItemHeaderType */);
 };
 
 } // namespace plugins
