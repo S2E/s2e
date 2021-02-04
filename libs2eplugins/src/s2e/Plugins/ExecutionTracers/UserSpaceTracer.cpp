@@ -26,77 +26,259 @@
 #include <s2e/Utils.h>
 #include <s2e/cpu.h>
 
+#include <s2e/Plugins/ExecutionTracers/ExecutionTracer.h>
+#include <s2e/Plugins/ExecutionTracers/MemoryTracer.h>
+#include <s2e/Plugins/ExecutionTracers/TranslationBlockTracer.h>
+#include <s2e/Plugins/OSMonitors/Windows/WindowsMonitor.h>
+
 #include <TraceEntries.pb.h>
 #include "UserSpaceTracer.h"
+
+namespace std {
+template <typename T1, typename T2> struct hash<std::pair<T1, T2>> {
+    std::size_t operator()(std::pair<T1, T2> const &p) const {
+        return p.first ^ p.second;
+    }
+};
+} // namespace std
 
 namespace s2e {
 namespace plugins {
 
-S2E_DEFINE_PLUGIN(UserSpaceTracer, "Traces user-space processes", "", "ExecutionTracer", "OSMonitor");
+// TODO: add support for Linux
+S2E_DEFINE_PLUGIN(UserSpaceTracer, "Trace execution of user-space Windows processes", "", "ExecutionTracer",
+                  "WindowsMonitor");
 
-void UserSpaceTracer::initialize() {
-    m_monitor = static_cast<OSMonitor *>(s2e()->getPlugin("OSMonitor"));
-    m_winmonitor = s2e()->getPlugin<WindowsMonitor>();
+class UserSpaceTracerState : public PluginState {
+public:
+    struct TraceInfo {
+        // How many blocks are left to trace for the thread.
+        uint64_t itemsCountLeft;
+    };
 
-    if (m_winmonitor) {
-        m_winmonitor->onAccessFault.connect(sigc::mem_fun(*this, &UserSpaceTracer::onAccessFault));
+    using TraceInfoPtr = std::shared_ptr<TraceInfo>;
+
+    using Pid = uint64_t;
+    using PidTid = std::pair<uint64_t, uint64_t>;
+    using PidTids = std::unordered_map<PidTid, TraceInfoPtr>;
+    using Pids = llvm::DenseSet<Pid>;
+
+private:
+    PidTid m_current;
+    TraceInfoPtr m_currentInfo;
+    Pids m_pids;
+    PidTids m_tids;
+
+    bool m_trace = false;
+
+    void updateTracing() {
+        bool trace = false;
+        m_currentInfo = nullptr;
+
+        trace |= m_pids.find(m_current.first) != m_pids.end();
+        auto it = m_tids.find(m_current);
+        if (it != m_tids.end()) {
+            m_currentInfo = (*it).second;
+            if (m_currentInfo->itemsCountLeft > 0) {
+                --m_currentInfo->itemsCountLeft;
+                trace = true;
+            }
+        }
+        m_trace = trace;
     }
 
-    m_memoryTracer = s2e()->getPlugin<MemoryTracer>();
-    m_tbTracer = s2e()->getPlugin<TranslationBlockTracer>();
-    m_tracer = s2e()->getPlugin<ExecutionTracer>();
+public:
+    inline PidTid getPidTid() const {
+        return m_current;
+    }
 
-    m_tracing = false;
+    void setPidTid(uint64_t pid, uint64_t tid) {
+        m_current = PidTid(pid, tid);
+        updateTracing();
+    }
+
+    void tracePid(uint64_t pid, bool trace) {
+        if (trace) {
+            m_pids.insert(pid);
+        } else {
+            m_pids.erase(pid);
+        }
+        updateTracing();
+    }
+
+    void traceTid(uint64_t pid, uint64_t tid, bool trace, uint64_t maxTraceItems = -1) {
+        auto p = PidTid(pid, tid);
+        if (trace) {
+            if (maxTraceItems > 0) {
+                auto info = std::make_shared<TraceInfo>();
+                info->itemsCountLeft = maxTraceItems;
+                m_tids[p] = info;
+            }
+        } else {
+            m_tids.erase(p);
+        }
+        updateTracing();
+    }
+
+    inline bool traced(bool decrement = false) {
+        if (!m_trace) {
+            return false;
+        }
+
+        if (decrement && m_currentInfo) {
+            if (m_currentInfo->itemsCountLeft > 0) {
+                --m_currentInfo->itemsCountLeft;
+                return true;
+            } else {
+                traceTid(m_current.first, m_current.second, false);
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    inline bool hasTracedProcesses() const {
+        return !m_tids.empty() || !m_pids.empty();
+    }
+
+    void unloadProcess(uint64_t pid) {
+        m_pids.erase(pid);
+        PidTids toErase;
+        for (auto pt : m_tids) {
+            if (pt.first.first == pid) {
+                toErase.insert(pt);
+            }
+        }
+        for (auto pt : toErase) {
+            m_tids.erase(pt.first);
+        }
+
+        updateTracing();
+    }
+
+    void unloadThread(uint64_t pid, uint64_t tid) {
+        m_tids.erase(PidTid(pid, tid));
+        updateTracing();
+    }
+
+    static PluginState *factory(Plugin *p, S2EExecutionState *s) {
+        return new UserSpaceTracerState();
+    }
+
+    virtual ~UserSpaceTracerState() {
+        // Destroy any object if needed
+    }
+
+    virtual UserSpaceTracerState *clone() const {
+        return new UserSpaceTracerState(*this);
+    }
+};
+
+void UserSpaceTracer::initialize() {
+    m_tracer = s2e()->getPlugin<ExecutionTracer>();
+    m_memoryTracer = s2e()->getPlugin<MemoryTracer>();
+    m_monitor = s2e()->getPlugin<WindowsMonitor>();
 
     ConfigFile *cfg = s2e()->getConfig();
-    m_traceExecution = cfg->getBool(getConfigKey() + ".traceExecution", true);
-    m_traceTranslation = cfg->getBool(getConfigKey() + ".traceTranslation", true);
+    auto procs = cfg->getStringList(getConfigKey() + ".processNames");
+    m_processNames.insert(procs.begin(), procs.end());
+    if (m_processNames.empty()) {
+        getWarningsStream() << "No process names specified. Tracing will not work unless other plugins enable it.\n";
+    }
+
+    m_traceExecution = cfg->getBool(getConfigKey() + ".traceExecution", false);
+    m_traceTranslation = cfg->getBool(getConfigKey() + ".traceTranslation", false);
+    m_traceMemory = cfg->getBool(getConfigKey() + ".traceMemory", false);
+
+    if (m_traceMemory && !m_memoryTracer) {
+        getWarningsStream() << "Tracing memory requires enabling the MemoryTracer plugin\n";
+        exit(-1);
+    }
+
+    if (!m_traceExecution && !m_traceTranslation && !m_traceMemory) {
+        getWarningsStream() << "All tracing options disabled\n";
+    }
 
     m_monitor->onMonitorLoad.connect(sigc::mem_fun(*this, &UserSpaceTracer::onMonitorLoad));
 }
 
 void UserSpaceTracer::onMonitorLoad(S2EExecutionState *state) {
-    if (m_traceTranslation) {
-        if (m_monitor) {
-            m_monitor->onModuleLoad.connect(sigc::mem_fun(*this, &UserSpaceTracer::onModuleLoad));
+    m_monitor->onProcessOrThreadSwitch.connect(sigc::mem_fun(*this, &UserSpaceTracer::onProcessOrThreadSwitch));
+    m_monitor->onAccessFault.connect(sigc::mem_fun(*this, &UserSpaceTracer::onAccessFault));
+
+    m_monitor->onProcessLoad.connect(sigc::mem_fun(*this, &UserSpaceTracer::onProcessLoad));
+    m_monitor->onThreadExit.connect(sigc::mem_fun(*this, &UserSpaceTracer::onThreadExit));
+    s2e()->getCorePlugin()->onStateSwitch.connect(sigc::mem_fun(*this, &UserSpaceTracer::onStateSwitch));
+}
+
+// To minimize overhead, insert instrumentation only when there is at least one process
+// that needs to be traced.
+void UserSpaceTracer::updateInstrumentation(S2EExecutionState *state) {
+    DECLARE_PLUGINSTATE(UserSpaceTracerState, state);
+
+    if (plgState->hasTracedProcesses()) {
+        if (m_traceTranslation) {
+            m_tbComplete = s2e()->getCorePlugin()->onTranslateBlockComplete.connect(
+                sigc::mem_fun(*this, &UserSpaceTracer::onTranslateBlockComplete));
         }
 
-        s2e()->getCorePlugin()->onTranslateBlockComplete.connect(
-            sigc::mem_fun(*this, &UserSpaceTracer::onTranslateBlockComplete));
+        if (m_traceExecution) {
+            m_tbStart = s2e()->getCorePlugin()->onTranslateBlockStart.connect(
+                sigc::mem_fun(*this, &UserSpaceTracer::onTranslateBlockStart));
+
+            // This ensures that next translation blocks will be instrumented
+            se_tb_safe_flush();
+        }
+    } else {
+        m_tbComplete.disconnect();
+        m_tbStart.disconnect();
+        se_tb_safe_flush();
     }
 }
 
-bool UserSpaceTracer::isTraced(uint64_t as) {
-    foreach2 (it, p_pidsToTrace.begin(), p_pidsToTrace.end()) {
-        if (*it == as) {
-            return true;
-        }
+void UserSpaceTracer::onStateSwitch(S2EExecutionState *current, S2EExecutionState *next) {
+    if (!next) {
+        return;
     }
-    return false;
+
+    updateInstrumentation(next);
 }
 
-void UserSpaceTracer::onModuleLoad(S2EExecutionState *state, const ModuleDescriptor &module) {
-    // XXX: quick hack for Linux stuff.
-    startTracing(state, module.AddressSpace);
+void UserSpaceTracer::onProcessOrThreadSwitch(S2EExecutionState *state) {
+    DECLARE_PLUGINSTATE(UserSpaceTracerState, state);
+
+    auto pid = m_monitor->getCurrentProcessId(state);
+    auto tid = m_monitor->getCurrentThreadId(state);
+    plgState->setPidTid(pid, tid);
+}
+
+void UserSpaceTracer::onProcessLoad(S2EExecutionState *state, uint64_t pageDir, uint64_t pid,
+                                    const std::string &imageName) {
+    DECLARE_PLUGINSTATE(UserSpaceTracerState, state);
+    if (m_processNames.find(imageName) != m_processNames.end()) {
+        plgState->tracePid(pid, true);
+    }
 }
 
 void UserSpaceTracer::onProcessUnload(S2EExecutionState *state, uint64_t pageDir, uint64_t pid, uint64_t returnCode) {
-    foreach2 (it, p_pidsToTrace.begin(), p_pidsToTrace.end()) {
-        if (*it == pid) {
-            getDebugStream(state) << "Not tracing " << hexval(pid) << " anymore\n";
-            p_pidsToTrace.erase(it);
-            return;
-        }
-    }
+    DECLARE_PLUGINSTATE(UserSpaceTracerState, state);
+    plgState->unloadProcess(pid);
 }
 
+void UserSpaceTracer::onThreadExit(S2EExecutionState *state, const ThreadDescriptor &thread) {
+    DECLARE_PLUGINSTATE(UserSpaceTracerState, state);
+    plgState->unloadThread(thread.Pid, thread.Tid);
+}
+
+// TODO: make this optional
 void UserSpaceTracer::onAccessFault(S2EExecutionState *state, const S2E_WINMON2_ACCESS_FAULT &AccessFault) {
-    /**
-     * Disconnect as soon as the kernel catches an invalid memory access.
-     * This avoids cluttering the execution trace, which would only contain
-     * items up to the faulty instruction.
-     */
-    if (isTraced(m_winmonitor->getCurrentProcessId(state))) {
+    DECLARE_PLUGINSTATE(UserSpaceTracerState, state);
+
+    // Disconnect as soon as the kernel catches an invalid memory access.
+    // This avoids cluttering the execution trace, which would only contain
+    // items up to the faulty instruction.
+    if (plgState->traced()) {
         if ((uint32_t) AccessFault.StatusCode != 0xc0000005) {
             return;
         }
@@ -107,27 +289,9 @@ void UserSpaceTracer::onAccessFault(S2EExecutionState *state, const S2E_WINMON2_
                               << " StatusCode: " << hexval(AccessFault.StatusCode)
                               << " PageDir: " << hexval(state->regs()->getPageDir()) << "\n";
 
-        if (m_memoryTracer) {
-            m_memoryTracer->enable(state, MemoryTracer::MEMORY, false);
-        }
-        m_privConnection.disconnect();
-        m_tbConnection.disconnect();
-        se_tb_safe_flush();
+        auto p = plgState->getPidTid();
+        plgState->traceTid(p.first, p.second, false);
     }
-}
-
-void UserSpaceTracer::trace(S2EExecutionState *state, uint64_t startPc, uint64_t endPc, uint32_t type,
-                            TranslationBlock *tb) {
-    s2e_trace::PbTraceTranslationBlock item;
-
-    assert(type == s2e_trace::TRACE_BLOCK);
-
-    item.set_pc(startPc);
-    item.set_last_pc(endPc);
-    item.set_size(tb->size);
-    item.set_tb_type(s2e_trace::PbTraceTbType(tb->se_tb_type));
-
-    m_tracer->writeData(state, item, type);
 }
 
 void UserSpaceTracer::onTranslateBlockComplete(S2EExecutionState *state, TranslationBlock *tb, uint64_t endPc) {
@@ -135,8 +299,9 @@ void UserSpaceTracer::onTranslateBlockComplete(S2EExecutionState *state, Transla
         return;
     }
 
-    if (isTraced(getCurrentPid(state))) {
-        trace(state, tb->pc, endPc, s2e_trace::TRACE_BLOCK, tb);
+    DECLARE_PLUGINSTATE(UserSpaceTracerState, state);
+    if (plgState->traced()) {
+        TranslationBlockTracer::trace(state, m_tracer, state->getTb(), s2e_trace::TRACE_BLOCK);
     }
 }
 
@@ -150,58 +315,42 @@ void UserSpaceTracer::onTranslateBlockStart(ExecutionSignal *signal, S2EExecutio
 }
 
 void UserSpaceTracer::onExecuteBlockStart(S2EExecutionState *state, uint64_t pc) {
-    if (isTraced(getCurrentPid(state))) {
-        m_tbTracer->trace(state, pc, s2e_trace::TRACE_TB_START);
+    DECLARE_PLUGINSTATE(UserSpaceTracerState, state);
+    if (plgState->traced(true)) {
+        TranslationBlockTracer::trace(state, m_tracer, state->getTb(), s2e_trace::TRACE_TB_START);
     }
 }
 
 void UserSpaceTracer::onPrivilegeChange(S2EExecutionState *state, unsigned previous, unsigned current) {
-    if (current != 3 || !isTraced(getCurrentPid(state))) {
-        if (m_memoryTracer) {
-            m_memoryTracer->enable(state, MemoryTracer::MEMORY, false);
-        }
-    } else {
-        if (m_memoryTracer) {
-            m_memoryTracer->enable(state, MemoryTracer::MEMORY, true);
-        }
+    DECLARE_PLUGINSTATE(UserSpaceTracerState, state);
+    bool trace = current == 3 && plgState->traced();
+    if (m_traceMemory) {
+        m_memoryTracer->enable(state, MemoryTracer::MEMORY, trace);
     }
 }
 
 void UserSpaceTracer::startTracing(S2EExecutionState *state, uint64_t pid) {
+    DECLARE_PLUGINSTATE(UserSpaceTracerState, state);
+    plgState->tracePid(pid, true);
+    updateInstrumentation(state);
+}
 
-    if ((int) pid == -1) {
-        pid = getCurrentPid(state);
-    }
+void UserSpaceTracer::startTracing(S2EExecutionState *state, uint64_t pid, uint64_t tid, uint64_t maxTraceItems) {
+    DECLARE_PLUGINSTATE(UserSpaceTracerState, state);
+    plgState->traceTid(pid, tid, true, maxTraceItems);
+    updateInstrumentation(state);
+}
 
-    getDebugStream(state) << "Tracing pid " << hexval(pid) << "\n";
-    if (isTraced(pid)) {
-        getDebugStream(state) << "pid already traced\n";
-        return;
-    }
+void UserSpaceTracer::stopTracing(S2EExecutionState *state, uint64_t pid) {
+    DECLARE_PLUGINSTATE(UserSpaceTracerState, state);
+    plgState->tracePid(pid, false);
+    updateInstrumentation(state);
+}
 
-    p_pidsToTrace.push_back(pid);
-
-    if (m_tracing || !m_traceExecution) {
-        return;
-    }
-
-    if (m_memoryTracer) {
-        getDebugStream() << "UserSpaceTracer: starting memory trace\n";
-        m_memoryTracer->enable(state, MemoryTracer::MEMORY, true);
-        m_privConnection = s2e()->getCorePlugin()->onPrivilegeChange.connect(
-            sigc::mem_fun(*this, &UserSpaceTracer::onPrivilegeChange));
-        m_tracing = true;
-    }
-
-    if (m_tbTracer) {
-        getDebugStream() << "UserSpaceTracer: starting translation block trace\n";
-        m_tbConnection = s2e()->getCorePlugin()->onTranslateBlockStart.connect(
-            sigc::mem_fun(*this, &UserSpaceTracer::onTranslateBlockStart));
-
-        /* This ensures that next translation blocks will be instrumented */
-        se_tb_safe_flush();
-        m_tracing = true;
-    }
+void UserSpaceTracer::stopTracing(S2EExecutionState *state, uint64_t pid, uint64_t tid) {
+    DECLARE_PLUGINSTATE(UserSpaceTracerState, state);
+    plgState->traceTid(pid, tid, false);
+    updateInstrumentation(state);
 }
 
 } // namespace plugins
