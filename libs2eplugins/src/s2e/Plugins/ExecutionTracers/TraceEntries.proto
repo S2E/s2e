@@ -56,9 +56,10 @@ message PbTraceItemHeader {
     required uint32 state_id = 1;
     required uint64 timestamp = 2;
     required uint64 address_space = 3;
-    required uint64 pid = 4;
-    required uint64 pc = 5;
-    required PbTraceItemHeaderType type = 6;
+    required uint32 pid = 4;
+    required uint32 tid = 5;
+    required uint64 pc = 6;
+    required PbTraceItemHeaderType type = 7;
 }
 
 // TRACE_FORK

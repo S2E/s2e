@@ -139,8 +139,10 @@ uint32_t ExecutionTracer::writeData(S2EExecutionState *state, const void *data, 
 
     if (m_monitor && m_monitor->initialized()) {
         header.set_pid(m_monitor->getPid(state));
+        header.set_tid(m_monitor->getTid(state));
     } else {
         header.set_pid(0);
+        header.set_tid(0);
     }
 
     // We must take the guid instead of the id, because duplicate ids
