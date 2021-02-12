@@ -58,6 +58,8 @@ void ExecutionTracer::initialize() {
 
     s2e()->getCorePlugin()->onEngineShutdown.connect(sigc::mem_fun(*this, &ExecutionTracer::onEngineShutdown));
 
+    s2e()->getCorePlugin()->onStateKill.connect(sigc::mem_fun(*this, &ExecutionTracer::onStateKill));
+
     m_monitor = static_cast<OSMonitor *>(s2e()->getPlugin("OSMonitor"));
     if (m_monitor) {
         m_monitor->onMonitorLoad.connect(sigc::mem_fun(*this, &ExecutionTracer::onMonitorLoad));
@@ -66,6 +68,10 @@ void ExecutionTracer::initialize() {
 
 ExecutionTracer::~ExecutionTracer() {
     onEngineShutdown();
+}
+
+void ExecutionTracer::onStateKill(S2EExecutionState *state) {
+    flush();
 }
 
 void ExecutionTracer::onEngineShutdown() {

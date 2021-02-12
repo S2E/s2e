@@ -56,6 +56,8 @@ private:
 
     bool appendToTraceFile(const s2e_trace::PbTraceItemHeader &header, const void *data, unsigned size);
 
+    void onStateKill(S2EExecutionState *state);
+
     void onStateGuidAssignment(S2EExecutionState *state, uint64_t newGuid);
 
     void onFork(S2EExecutionState *state, const std::vector<S2EExecutionState *> &newStates,
