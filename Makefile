@@ -833,20 +833,48 @@ stamps/guest-tools32-win-make: stamps/guest-tools32-win-configure
 stamps/guest-tools64-win-make: stamps/guest-tools64-win-configure
 
 # Install precompiled windows drivers
-guest-tools32-windrv:
-	mkdir -p $(S2E_PREFIX)/bin/guest-tools32
-	cd $(S2E_PREFIX)/bin/guest-tools32 && wget -O s2e.sys $(GUEST_TOOLS_BINARIES_URL)/s2e32.sys
-	cd $(S2E_PREFIX)/bin/guest-tools32 && wget -O s2e.inf $(GUEST_TOOLS_BINARIES_URL)/s2e.inf
-	cd $(S2E_PREFIX)/bin/guest-tools32 && wget -O drvctl.exe $(GUEST_TOOLS_BINARIES_URL)/drvctl32.exe
-	cd $(S2E_PREFIX)/bin/guest-tools32 && wget -O drvctl.exe $(GUEST_TOOLS_BINARIES_URL)/libs2e32.dll
+$(S2E_PREFIX)/bin/guest-tools32 $(S2E_PREFIX)/bin/guest-tools64:
+	mkdir -p "$@"
 
-guest-tools64-windrv:
-	mkdir -p $(S2E_PREFIX)/bin/guest-tools64
-	cd $(S2E_PREFIX)/bin/guest-tools64 && wget -O s2e.sys $(GUEST_TOOLS_BINARIES_URL)/s2e.sys
-	cd $(S2E_PREFIX)/bin/guest-tools64 && wget -O s2e.inf $(GUEST_TOOLS_BINARIES_URL)/s2e.inf
-	cd $(S2E_PREFIX)/bin/guest-tools64 && wget -O drvctl.exe $(GUEST_TOOLS_BINARIES_URL)/drvctl.exe
-	cd $(S2E_PREFIX)/bin/guest-tools64 && wget -O drvctl.exe $(GUEST_TOOLS_BINARIES_URL)/libs2e32.dll
-	cd $(S2E_PREFIX)/bin/guest-tools64 && wget -O drvctl.exe $(GUEST_TOOLS_BINARIES_URL)/libs2e64.dll
+$(S2E_PREFIX)/bin/guest-tools32/s2e.sys: | $(S2E_PREFIX)/bin/guest-tools32
+	wget -O "$@" $(GUEST_TOOLS_BINARIES_URL)/s2e32.sys
+
+$(S2E_PREFIX)/bin/guest-tools32/s2e.inf: | $(S2E_PREFIX)/bin/guest-tools32
+	wget -O "$@" $(GUEST_TOOLS_BINARIES_URL)/s2e.inf
+
+$(S2E_PREFIX)/bin/guest-tools32/drvctl.exe: | $(S2E_PREFIX)/bin/guest-tools32
+	wget -O "$@" $(GUEST_TOOLS_BINARIES_URL)/drvctl32.exe
+
+$(S2E_PREFIX)/bin/guest-tools32/libs2e32.dll: | $(S2E_PREFIX)/bin/guest-tools32
+	wget -O "$@" $(GUEST_TOOLS_BINARIES_URL)/libs2e32.dll
+
+$(S2E_PREFIX)/bin/guest-tools32/tickler.exe: | $(S2E_PREFIX)/bin/guest-tools32
+	wget -O "$@" $(GUEST_TOOLS_BINARIES_URL)/tickler32.exe
+
+
+$(S2E_PREFIX)/bin/guest-tools64/s2e.sys: | $(S2E_PREFIX)/bin/guest-tools64
+	wget -O "$@" $(GUEST_TOOLS_BINARIES_URL)/s2e.sys
+
+$(S2E_PREFIX)/bin/guest-tools64/s2e.inf: | $(S2E_PREFIX)/bin/guest-tools64
+	wget -O "$@" $(GUEST_TOOLS_BINARIES_URL)/s2e.inf
+
+$(S2E_PREFIX)/bin/guest-tools64/drvctl.exe: | $(S2E_PREFIX)/bin/guest-tools64
+	wget -O "$@" $(GUEST_TOOLS_BINARIES_URL)/drvctl.exe
+
+$(S2E_PREFIX)/bin/guest-tools64/libs2e32.dll: | $(S2E_PREFIX)/bin/guest-tools64
+	wget -O "$@" $(GUEST_TOOLS_BINARIES_URL)/libs2e32.dll
+
+$(S2E_PREFIX)/bin/guest-tools64/libs2e64.dll: | $(S2E_PREFIX)/bin/guest-tools64
+	wget -O "$@" $(GUEST_TOOLS_BINARIES_URL)/libs2e64.dll
+
+$(S2E_PREFIX)/bin/guest-tools64/tickler.exe: | $(S2E_PREFIX)/bin/guest-tools64
+	wget -O "$@" $(GUEST_TOOLS_BINARIES_URL)/tickler64.exe
+
+guest-tools32-windrv: $(addprefix $(S2E_PREFIX)/bin/guest-tools32/,s2e.sys s2e.inf drvctl.exe libs2e32.dll tickler.exe)
+	echo $^
+
+guest-tools64-windrv: $(addprefix $(S2E_PREFIX)/bin/guest-tools64/,s2e.sys s2e.inf drvctl.exe libs2e32.dll libs2e64.dll tickler.exe)
+	echo $^
 
 stamps/guest-tools%-win-install: stamps/guest-tools%-win-make guest-tools32-windrv guest-tools64-windrv
 	$(MAKE) -C guest-tools$*-win install

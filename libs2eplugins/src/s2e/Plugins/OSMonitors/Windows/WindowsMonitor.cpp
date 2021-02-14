@@ -586,7 +586,8 @@ void WindowsMonitor::enableInstrumentation(S2EExecutionState *state) {
 
 void WindowsMonitor::onTranslateSpecialInstructionEnd(ExecutionSignal *signal, S2EExecutionState *state,
                                                       TranslationBlock *tb, uint64_t pc,
-                                                      enum special_instruction_t type) {
+                                                      enum special_instruction_t type,
+                                                      const special_instruction_data_t *data) {
     if (type != SYSENTER && type != SYSCALL) {
         return;
     }
@@ -1171,7 +1172,7 @@ bool WindowsMonitor::getMemoryStatisticsForCurrentProcess(S2EExecutionState *sta
 
 bool WindowsMonitor::getVirtualMemoryInfo(S2EExecutionState *state, uint64_t Process, uint64_t Address,
                                           uint64_t *StartAddress, uint64_t *EndAddress, uint64_t *Protection) {
-    if (m_kernel.KernelMajorVersion != 5 && m_kernel.KernelMinorVersion != 1) {
+    if (!(m_kernel.KernelMajorVersion == 5 && m_kernel.KernelMinorVersion == 1)) {
         // TODO: make it work on other versions of Windows
         return false;
     }

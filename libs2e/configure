@@ -165,7 +165,7 @@ if ! echo "$CXX" | grep -q clang++; then
 fi
 
 if [ ! -e "$Z3_INCDIR/z3.h" ]; then
-  echo "Cannot find Z3 header files in $Z3_INCIDR"
+  echo "Cannot find Z3 header files in $Z3_INCDIR"
   print_usage
   exit 1
 fi

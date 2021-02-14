@@ -33,7 +33,7 @@
 /// \param size  the size of the chunk to disassemble
 /// \param flags i386: 2 => 64-bit, 1 => 16-bit, 0 => 32-bit
 ///
-void target_disas_ex(void *env, FILE *out, fprintf_function_t func, uintptr_t pc, size_t size, int flags) {
+int target_disas_ex(void *env, FILE *out, fprintf_function_t func, uintptr_t pc, size_t size, int flags) {
     csh handle;
     cs_insn *insn;
     size_t count;
@@ -51,17 +51,21 @@ void target_disas_ex(void *env, FILE *out, fprintf_function_t func, uintptr_t pc
             break;
         default:
             func(out, "Invalid mode %d\n", flags);
-            return;
+            return -1;
     }
 
     if (cs_open(CS_ARCH_X86, mode, &handle) != CS_ERR_OK) {
         func(out, "Could not open disassembler\n");
-        return;
+        return -2;
     }
 
     uint8_t buffer[size];
+    memset(buffer, 0, size);
+
     if (env) {
-        cpu_memory_rw_debug(env, (target_ulong) pc, buffer, size, 0);
+        if (cpu_memory_rw_debug(env, (target_ulong) pc, buffer, size, 0) < 0) {
+            return -1;
+        }
     } else {
         memcpy(buffer, (void *) pc, size);
     }
@@ -85,6 +89,7 @@ void target_disas_ex(void *env, FILE *out, fprintf_function_t func, uintptr_t pc
     }
 
     cs_close(&handle);
+    return 0;
 }
 
 void target_disas(void *env, FILE *out, target_ulong pc, target_ulong size, int flags) {

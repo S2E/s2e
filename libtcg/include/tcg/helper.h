@@ -225,7 +225,7 @@ DEF_HELPER_1(se_opcode, void, i64)
 
 #if defined(CONFIG_SYMBEX)
 DEF_HELPER_1(se_call, void, tl)
-DEF_HELPER_1(se_ret, void, tl)
+DEF_HELPER_2(se_ret, void, tl, int)
 #endif
 
 DEF_HELPER_FLAGS_3(gvec_mov, TCG_CALL_NO_RWG, void, ptr, ptr, i32)

@@ -2,7 +2,7 @@ test:
     description: "Checks that basic symbolic execution works by forking two paths"
 
     target_arguments:
-        - "@@"
+        - ["@@"]
 
     targets:
         - windows64-basic1-twopaths.exe

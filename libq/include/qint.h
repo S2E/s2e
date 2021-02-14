@@ -18,6 +18,10 @@
 #include <stdint.h>
 #include "qobject.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct QInt {
     QObject_HEAD;
     int64_t value;
@@ -26,5 +30,9 @@ typedef struct QInt {
 QInt *qint_from_int(int64_t value);
 int64_t qint_get_int(const QInt *qi);
 QInt *qobject_to_qint(const QObject *obj);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QINT_H */

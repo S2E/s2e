@@ -129,7 +129,8 @@ public:
                  S2EExecutionState*,
                  TranslationBlock*,
                  uint64_t /* instruction PC */,
-                enum special_instruction_t  /* instruction type */>
+                 enum special_instruction_t  /* instruction type */,
+                 const special_instruction_data_t * /* instruction data */>
         onTranslateSpecialInstructionEnd;
 
     ///

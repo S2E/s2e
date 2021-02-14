@@ -26,6 +26,8 @@
     <ClInclude Include="include/s2e/StaticStateMerger.h" />
     <ClInclude Include="include\s2e\BlueScreenInterceptor.h" />
     <ClInclude Include="include\s2e\ModuleMap.h" />
+    <ClInclude Include="include\s2e\Screenshot.h" />
+    <ClInclude Include="include\s2e\Tickler.h" />
     <ClInclude Include="include\s2e\WindowsCrashMonitor.h" />
     <ClInclude Include="include\s2e\WindowsMonitor.h" />
   </ItemGroup>

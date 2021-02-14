@@ -28,14 +28,17 @@
 #include <s2e/Plugin.h>
 #include <s2e/S2EExecutionState.h>
 
-#include <s2e/Plugins/ExecutionTracers/MemoryTracer.h>
-#include <s2e/Plugins/ExecutionTracers/TranslationBlockTracer.h>
-#include <s2e/Plugins/OSMonitors/Windows/WindowsMonitor.h>
-
-#include <llvm/ADT/SmallVector.h>
-
 namespace s2e {
+
+struct ThreadDescriptor;
+
 namespace plugins {
+
+class OSMonitor;
+class WindowsMonitor;
+class ExecutionTracer;
+class MemoryTracer;
+struct S2E_WINMON2_ACCESS_FAULT;
 
 class UserSpaceTracer : public Plugin {
     S2E_PLUGIN
@@ -45,42 +48,35 @@ public:
 
     void initialize();
 
-    void startTracing(S2EExecutionState *state, uint64_t pid = -1);
+    void startTracing(S2EExecutionState *state, uint64_t pid);
+    void startTracing(S2EExecutionState *state, uint64_t pid, uint64_t tid, uint64_t maxTraceItems = -1);
+    void stopTracing(S2EExecutionState *state, uint64_t pid);
+    void stopTracing(S2EExecutionState *state, uint64_t pid, uint64_t tid);
 
 private:
-    OSMonitor *m_monitor;
-    WindowsMonitor *m_winmonitor;
+    WindowsMonitor *m_monitor;
     MemoryTracer *m_memoryTracer;
-    TranslationBlockTracer *m_tbTracer;
     ExecutionTracer *m_tracer;
 
-    // XXX: must be per-state eventually
-    llvm::SmallVector<uint64_t, 4> p_pidsToTrace;
-    bool m_tracing;
-
-    sigc::connection m_privConnection;
-    sigc::connection m_tbConnection;
+    sigc::connection m_tbComplete;
+    sigc::connection m_tbStart;
 
     bool m_traceExecution;
     bool m_traceTranslation;
+    bool m_traceMemory;
+
+    std::unordered_set<std::string> m_processNames;
 
     void onMonitorLoad(S2EExecutionState *state);
-    void onModuleLoad(S2EExecutionState *state, const ModuleDescriptor &module);
+
+    void onProcessLoad(S2EExecutionState *state, uint64_t pageDir, uint64_t pid, const std::string &imageName);
     void onProcessUnload(S2EExecutionState *state, uint64_t pageDir, uint64_t pid, uint64_t returnCode);
+    void onThreadExit(S2EExecutionState *state, const ThreadDescriptor &thread);
+    void onProcessOrThreadSwitch(S2EExecutionState *state);
+    void onStateSwitch(S2EExecutionState *current, S2EExecutionState *next);
+    void updateInstrumentation(S2EExecutionState *state);
 
     void onTranslateBlockStart(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb, uint64_t pc);
-
-    inline uint64_t getCurrentPid(S2EExecutionState *state) {
-        if (m_winmonitor) {
-            return m_winmonitor->getCurrentProcessId(state);
-        }
-        return state->regs()->getPageDir();
-    }
-
-    bool isTraced(uint64_t as);
-
-    void trace(S2EExecutionState *state, uint64_t startPc, uint64_t endPc,
-               uint32_t type /* s2e_trace::PbTraceItemHeaderType */, TranslationBlock *tb);
 
     void onTranslateBlockComplete(S2EExecutionState *state, TranslationBlock *tb, uint64_t endPc);
 

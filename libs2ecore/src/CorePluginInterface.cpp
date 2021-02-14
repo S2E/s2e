@@ -206,7 +206,8 @@ void s2e_on_translate_instruction_start(void *context, TranslationBlock *tb, uin
 }
 
 void s2e_on_translate_special_instruction_end(void *context, TranslationBlock *tb, uint64_t pc,
-                                              enum special_instruction_t type, int update_pc) {
+                                              enum special_instruction_t type, const special_instruction_data_t *data,
+                                              int update_pc) {
     assert(g_s2e_state->isActive());
 
     S2ETranslationBlock *se_tb = static_cast<S2ETranslationBlock *>(tb->se_tb);
@@ -214,7 +215,7 @@ void s2e_on_translate_special_instruction_end(void *context, TranslationBlock *t
     assert(signal->empty());
 
     try {
-        g_s2e->getCorePlugin()->onTranslateSpecialInstructionEnd.emit(signal, g_s2e_state, tb, pc, type);
+        g_s2e->getCorePlugin()->onTranslateSpecialInstructionEnd.emit(signal, g_s2e_state, tb, pc, type, data);
         if (!signal->empty()) {
 
             if (update_pc) {

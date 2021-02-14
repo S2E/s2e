@@ -346,6 +346,11 @@ int S2EKVM::checkExtension(int capability) {
         case KVM_CAP_ADJUST_CLOCK:
             return KVM_CLOCK_TSC_STABLE;
 
+#ifdef CONFIG_SYMBEX
+        case KVM_CAP_UPCALLS:
+            return 1;
+#endif
+
         default:
 #ifdef SE_KVM_DEBUG_INTERFACE
             printf("Unsupported cap %x\n", capability);
@@ -543,6 +548,14 @@ int S2EKVM::sys_ioctl(int fd, int request, uint64_t arg1) {
         case KVM_GET_SUPPORTED_CPUID: {
             ret = getSupportedCPUID((kvm_cpuid2 *) arg1);
         } break;
+
+#ifdef CONFIG_SYMBEX
+        case KVM_REGISTER_UPCALLS: {
+            auto upcalls = (kvm_dev_upcalls *) arg1;
+            g_sqi.upcalls.screendump = upcalls->screendump;
+            ret = 0;
+        } break;
+#endif
 
         default: {
             fprintf(stderr, "libs2e: unknown KVM IOCTL %x\n", request);

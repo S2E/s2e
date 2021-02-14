@@ -2,7 +2,7 @@
 
 {% include 'common-run.sh.tpl' %}
 
-s2e run -n {{ project_name }}
+timeout --foreground --kill-after=30m 25m s2e run -n {{ project_name }}
 
 grep -q "silently concretizing" $S2E_LAST/debug.txt && exit 1
 

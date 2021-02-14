@@ -19,6 +19,10 @@
 #include <stdint.h>
 #include "qobject.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct QFloat {
     QObject_HEAD;
     double value;
@@ -27,5 +31,9 @@ typedef struct QFloat {
 QFloat *qfloat_from_double(double value);
 double qfloat_get_double(const QFloat *qi);
 QFloat *qobject_to_qfloat(const QObject *obj);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QFLOAT_H */

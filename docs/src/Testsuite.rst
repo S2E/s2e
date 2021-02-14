@@ -140,8 +140,7 @@ This section describes the contents of the ``config.yml`` file.
   input files.
 
 - **options**: a list of parameters to be passed to ``s2e new_project``. In general, these are usual parameters with
-  leading dashes stripped and others converted to underscores, e.g., ``--enable-pov-generation``
-  becomes ``enable_pov_generation: true``.
+  leading dashes stripped and others converted to underscores.
 
 - **build-options**: a list of options that control test project generation.
 

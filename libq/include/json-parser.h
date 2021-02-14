@@ -19,6 +19,14 @@
 #include <stdarg.h>
 #include "qlist.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 QObject *json_parser_parse(QList *tokens, va_list *ap);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

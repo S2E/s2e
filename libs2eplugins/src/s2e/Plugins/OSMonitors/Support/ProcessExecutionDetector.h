@@ -27,10 +27,14 @@
 #include <s2e/Plugin.h>
 #include <s2e/S2EExecutionState.h>
 
+#include <llvm/ADT/DenseSet.h>
+
 namespace s2e {
 namespace plugins {
 
 class OSMonitor;
+
+typedef llvm::DenseSet<uint64_t> TrackedPids;
 
 class ProcessExecutionDetector : public Plugin {
     S2E_PLUGIN
@@ -48,6 +52,9 @@ public:
     void trackPid(S2EExecutionState *state, uint64_t pid);
 
     sigc::signal<void, S2EExecutionState *> onMonitorLoad;
+    sigc::signal<void, S2EExecutionState *> onAllProcessesTerminated;
+
+    const TrackedPids &getTrackedPids(S2EExecutionState *state) const;
 
 private:
     typedef std::unordered_set<std::string> StringSet;

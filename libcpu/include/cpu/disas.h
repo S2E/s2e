@@ -29,7 +29,7 @@ void host_disas(FILE *out, void *pc, size_t size);
 void target_disas(void *env, FILE *out, target_ulong code, target_ulong size, int flags);
 
 typedef int (*fprintf_function_t)(FILE *f, const char *fmt, ...);
-void target_disas_ex(void *env, FILE *out, fprintf_function_t func, uintptr_t code, size_t size, int flags);
+int target_disas_ex(void *env, FILE *out, fprintf_function_t func, uintptr_t code, size_t size, int flags);
 
 #ifdef __cplusplus
 }

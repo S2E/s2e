@@ -402,7 +402,8 @@ public:
         return getPointerSize() * CHAR_BIT;
     }
 
-    void disassemble(llvm::raw_ostream &os, uint64_t pc, unsigned size);
+    bool disassemble(llvm::raw_ostream &os, uint64_t pc, unsigned size);
+    bool disassemble(llvm::raw_ostream &os, uint64_t pc, unsigned size, unsigned pointerSize);
 
     bool getStaticBranchTargets(uint64_t *truePc, uint64_t *falsePc);
     bool getStaticTarget(uint64_t *target);

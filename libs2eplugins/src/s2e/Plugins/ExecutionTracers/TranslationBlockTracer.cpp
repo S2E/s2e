@@ -134,9 +134,9 @@ void TranslationBlockTracer::onBlockStartEnd(S2EExecutionState *state, uint64_t 
     }
 
     if (isStart) {
-        trace(state, pc, s2e_trace::PbTraceItemHeaderType::TRACE_TB_START);
+        trace(state, state->getTb(), s2e_trace::PbTraceItemHeaderType::TRACE_TB_START);
     } else {
-        trace(state, pc, s2e_trace::PbTraceItemHeaderType::TRACE_TB_END);
+        trace(state, state->getTb(), s2e_trace::PbTraceItemHeaderType::TRACE_TB_END);
     }
 }
 
@@ -205,32 +205,43 @@ static s2e_trace::PbTraceTbData getTbData(TranslationBlock *tb) {
     return data;
 }
 
-void TranslationBlockTracer::trace(S2EExecutionState *state, uint64_t pc, uint32_t type) {
-    auto regs = getRegs(state);
-    auto data = getTbData(state->getTb());
-
+void TranslationBlockTracer::trace(S2EExecutionState *state, ExecutionTracer *tracer, TranslationBlock *tb,
+                                   uint32_t type /* s2e_trace::PbTraceItemHeaderType */) {
+    assert(tb);
     if (type == s2e_trace::PbTraceItemHeaderType::TRACE_TB_START) {
-        if (state->getPointerSize() != 2) {
-            if (pc != state->getTb()->pc) {
-                getWarningsStream() << "BUG! pc=" << hexval(pc) << " tbpc=" << hexval(state->getTb()->pc) << '\n';
-                exit(-1);
-            }
-        }
+        auto regs = getRegs(state);
+        auto data = getTbData(tb);
 
-        s2e_trace::PbTraceTranslationBlockStart tb;
-        tb.set_allocated_data(&data);
-        tb.set_allocated_regs(&regs);
-        m_tracer->writeData(state, tb, type);
-        tb.release_data();
-        tb.release_regs();
+        s2e_trace::PbTraceTranslationBlockStart item;
+        item.set_allocated_data(&data);
+        item.set_allocated_regs(&regs);
+        tracer->writeData(state, item, type);
+        item.release_data();
+        item.release_regs();
     } else if (type == s2e_trace::PbTraceItemHeaderType::TRACE_TB_END) {
-        s2e_trace::PbTraceTranslationBlockEnd tb;
-        tb.set_allocated_data(&data);
-        tb.set_allocated_regs(&regs);
-        m_tracer->writeData(state, tb, type);
-        tb.release_data();
-        tb.release_regs();
+        auto regs = getRegs(state);
+        auto data = getTbData(tb);
+
+        s2e_trace::PbTraceTranslationBlockEnd item;
+        item.set_allocated_data(&data);
+        item.set_allocated_regs(&regs);
+        tracer->writeData(state, item, type);
+        item.release_data();
+        item.release_regs();
+    } else if (type == s2e_trace::PbTraceItemHeaderType::TRACE_BLOCK) {
+        s2e_trace::PbTraceTranslationBlock item;
+        item.set_pc(tb->pc);
+        item.set_last_pc(tb->pcOfLastInstr);
+        item.set_size(tb->size);
+        item.set_tb_type(s2e_trace::PbTraceTbType(tb->se_tb_type));
+        tracer->writeData(state, item, type);
+    } else {
+        pabort("Invalid trace item type");
     }
+}
+
+void TranslationBlockTracer::trace(S2EExecutionState *state, TranslationBlock *tb, uint32_t type) {
+    trace(state, m_tracer, tb, type);
 }
 
 bool TranslationBlockTracer::getProperty(S2EExecutionState *state, const std::string &name, std::string &value) {

@@ -36,6 +36,7 @@ vulnerabilities in them. S2E is pronounced *S two E*.
    Tutorials/WindowsDLL/index.rst
    Tutorials/WindowsDrivers/FaultInjection.rst
    Tutorials/MSOffice/index.rst
+   Tutorials/CFI/index.rst
    Tutorials/Revgen/Revgen.rst
    EquivalenceTesting
 

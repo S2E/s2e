@@ -20,11 +20,19 @@
 #include "qobject.h"
 #include "qstring.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 QObject *qobject_from_json(const char *string);
 QObject *qobject_from_jsonf(const char *string, ...);
 QObject *qobject_from_jsonv(const char *string, va_list *ap);
 
 QString *qobject_to_json(const QObject *obj);
 QString *qobject_to_json_pretty(const QObject *obj);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QJSON_H */

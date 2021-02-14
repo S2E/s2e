@@ -26,8 +26,6 @@
 #include <s2e/Utils.h>
 #include <s2e/cpu.h>
 
-#include <llvm/ADT/DenseSet.h>
-
 #include <s2e/Plugins/OSMonitors/Support/ProcessExecutionDetector.h>
 
 namespace s2e {
@@ -35,16 +33,20 @@ namespace plugins {
 
 S2E_DEFINE_PLUGIN(ProcessExecutionDetector, "ProcessExecutionDetector S2E plugin", "", "OSMonitor");
 
-typedef llvm::DenseSet<uint64_t> TrackedPids;
-
 class ProcessExecutionDetectorState : public PluginState {
 public:
+    TrackedPids m_trackedPids;
+
+    // Records whether the plugin has ever seen a configured process
+    bool m_hadTrackedProcesses;
+
     virtual ProcessExecutionDetectorState *clone() const {
         ProcessExecutionDetectorState *ret = new ProcessExecutionDetectorState(*this);
         return ret;
     }
 
     ProcessExecutionDetectorState() {
+        m_hadTrackedProcesses = false;
     }
 
     static PluginState *factory(Plugin *p, S2EExecutionState *s) {
@@ -53,8 +55,6 @@ public:
 
     virtual ~ProcessExecutionDetectorState() {
     }
-
-    TrackedPids m_trackedPids;
 };
 
 void ProcessExecutionDetector::initialize() {
@@ -88,6 +88,7 @@ void ProcessExecutionDetector::onProcessLoad(S2EExecutionState *state, uint64_t 
                               << " as: " << hexval(pageDir) << ")\n";
 
         plgState->m_trackedPids.insert(pid);
+        plgState->m_hadTrackedProcesses = true;
     }
 }
 
@@ -96,6 +97,9 @@ void ProcessExecutionDetector::onProcessUnload(S2EExecutionState *state, uint64_
     DECLARE_PLUGINSTATE(ProcessExecutionDetectorState, state);
     if (plgState->m_trackedPids.erase(pid)) {
         getDebugStream(state) << "Unloading process " << hexval(pid) << "\n";
+        if (plgState->m_hadTrackedProcesses && plgState->m_trackedPids.size() == 0) {
+            onAllProcessesTerminated.emit(state);
+        }
     }
 }
 
@@ -154,6 +158,11 @@ void ProcessExecutionDetector::trackPid(S2EExecutionState *state, uint64_t pid) 
 
 void ProcessExecutionDetector::onMonitorLoadCb(S2EExecutionState *state) {
     onMonitorLoad.emit(state);
+}
+
+const TrackedPids &ProcessExecutionDetector::getTrackedPids(S2EExecutionState *state) const {
+    DECLARE_PLUGINSTATE(ProcessExecutionDetectorState, state);
+    return plgState->m_trackedPids;
 }
 
 } // namespace plugins

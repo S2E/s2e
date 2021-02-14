@@ -167,6 +167,18 @@ static void dumpExceptions(const PEFile &peFile, std::ostream &ss, bool compact)
     }
 }
 
+static void dumpFunctions(const ExecutableFile &file, std::ostream &ss, bool compact) {
+    if (!compact) {
+        ss << '\n'
+           << "Functions\n"
+           << "=========\n";
+    }
+
+    for (auto f : file.guessFunctionAddresses()) {
+        ss << "0x" << std::hex << f << "\n";
+    }
+}
+
 static void printUsage(const char *progName) {
     fprintf(stderr, "Usage: %s [options] pe|elf|decree\n", progName);
     fprintf(stderr, "Options:\n\n"
@@ -175,13 +187,14 @@ static void printUsage(const char *progName) {
                     "  -e:  print exports\n"
                     "  -i:  print imports\n"
                     "  -r:  print relocations\n"
+                    "  -f:  print functions\n"
                     "  -x:  print exceptions\n\n"
                     "  -c:  compact printing\n\n");
     fprintf(stderr, "Example: %s -s driver.sys\n", progName);
 }
 
 static void dumpPeFile(const PEFile &peFile, bool printHeader, bool printExports, bool printImports, bool printSections,
-                       bool printRelocations, bool printExceptions, bool compact) {
+                       bool printRelocations, bool printExceptions, bool printFunctions, bool compact) {
     std::stringstream ss;
     if (printHeader) {
         ss << "Dumping contents of " << peFile.getModuleName() << '\n';
@@ -211,10 +224,15 @@ static void dumpPeFile(const PEFile &peFile, bool printHeader, bool printExports
         dumpExceptions(peFile, ss, compact);
     }
 
+    if (printFunctions) {
+        dumpFunctions(peFile, ss, compact);
+    }
+
     llvm::outs() << ss.str();
 }
 
-static void dumpDefault(const ExecutableFile &file, bool printHeader, bool printSections, bool compact) {
+static void dumpDefault(const ExecutableFile &file, bool printHeader, bool printSections, bool printFunctions,
+                        bool compact) {
     std::stringstream ss;
 
     if (printHeader) {
@@ -226,6 +244,10 @@ static void dumpDefault(const ExecutableFile &file, bool printHeader, bool print
 
     if (printSections) {
         dumpSections(file, ss, compact);
+    }
+
+    if (printFunctions) {
+        dumpFunctions(file, ss, compact);
     }
 
     llvm::outs() << ss.str();
@@ -243,12 +265,17 @@ int main(int argc, char **argv) {
     bool printSections = false;
     bool printRelocations = false;
     bool printExceptions = false;
+    bool printFunctions = false;
     bool compact = false;
     int nbSelected = 0;
 
     int c;
-    while ((c = getopt(argc, argv, "cheirxs")) != -1) {
+    while ((c = getopt(argc, argv, "cfheirxs")) != -1) {
         switch (c) {
+            case 'f':
+                printFunctions = true;
+                ++nbSelected;
+                break;
             case 'h':
                 printHeader = true;
                 ++nbSelected;
@@ -300,9 +327,9 @@ int main(int argc, char **argv) {
     auto peFile = std::dynamic_pointer_cast<PEFile>(file);
     if (peFile) {
         dumpPeFile(*peFile.get(), printHeader, printExports, printImports, printSections, printRelocations,
-                   printExceptions, compact);
+                   printExceptions, printFunctions, compact);
     } else {
-        dumpDefault(*file.get(), printHeader, printSections, compact);
+        dumpDefault(*file.get(), printHeader, printSections, printFunctions, compact);
     }
 
     return 0;

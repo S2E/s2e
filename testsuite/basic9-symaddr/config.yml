@@ -2,7 +2,7 @@ test:
     description: "Check that symbolic addresses work properly"
 
     target_arguments:
-        - "@@"
+        - ["@@"]
 
     targets:
         - windows64-basic9-symaddr.exe

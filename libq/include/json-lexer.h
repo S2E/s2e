@@ -19,6 +19,10 @@
 #include "qlist.h"
 #include "qstring.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef enum json_token_type {
     JSON_OPERATOR = 100,
     JSON_INTEGER,
@@ -48,5 +52,9 @@ int json_lexer_feed(JSONLexer *lexer, const char *buffer, size_t size);
 int json_lexer_flush(JSONLexer *lexer);
 
 void json_lexer_destroy(JSONLexer *lexer);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

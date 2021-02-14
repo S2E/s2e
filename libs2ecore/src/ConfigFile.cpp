@@ -68,7 +68,7 @@ namespace s2e {
 using namespace std;
 
 ConfigFile::ConfigFile(const std::string &configFileName) {
-    m_silent = false;
+    m_silent = true;
     m_luaState = luaL_newstate();
     luaL_openlibs(m_luaState);
     luaopen_table(m_luaState);

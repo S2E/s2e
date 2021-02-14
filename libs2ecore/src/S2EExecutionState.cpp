@@ -863,25 +863,30 @@ static int __disas_print(FILE *fp, const char *fmt, ...) {
     return ret;
 }
 
-void S2EExecutionState::disassemble(llvm::raw_ostream &os, uint64_t pc, unsigned size) {
-    TranslationBlock *tb = getTb();
-    int flags = 0; // 32-bit code by default
+bool S2EExecutionState::disassemble(llvm::raw_ostream &os, uint64_t pc, unsigned size) {
+    if (!getTb()) {
+        return false;
+    }
 
-    if (tb) {
-        switch (getPointerSize()) {
-            case 4:
-                flags = 0;
-                break;
-            case 8:
-                flags = 2;
-                break;
-            default:
-                pabort("Not supported code");
-        }
+    return disassemble(os, pc, size, getPointerSize());
+}
+
+bool S2EExecutionState::disassemble(llvm::raw_ostream &os, uint64_t pc, unsigned size, unsigned pointerSize) {
+    int flags = 0; // 32-bit code by default
+    switch (getPointerSize()) {
+        case 4:
+            flags = 0;
+            break;
+        case 8:
+            flags = 2;
+            break;
+        default:
+            return false;
     }
 
     FILE *fp = reinterpret_cast<FILE *>(&os);
-    target_disas_ex(regs()->getCpuState(), fp, __disas_print, pc, size, flags);
+    auto ret = target_disas_ex(regs()->getCpuState(), fp, __disas_print, pc, size, flags);
+    return !ret;
 }
 
 } // namespace s2e

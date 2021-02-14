@@ -18,6 +18,10 @@
 #include "qobject.h"
 #include "qqueue.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct QListEntry {
     QObject *value;
     QTAILQ_ENTRY(QListEntry) next;
@@ -52,5 +56,9 @@ static inline const QListEntry *qlist_first(const QList *qlist) {
 static inline const QListEntry *qlist_next(const QListEntry *entry) {
     return QTAILQ_NEXT(entry, next);
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QLIST_H */

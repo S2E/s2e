@@ -44,6 +44,12 @@ void se_do_interrupt_all(int intno, int is_int, int error_code, target_ulong nex
 
 enum special_instruction_t { RDTSC, SYSENTER, SYSCALL, PUSHIM };
 
+struct special_instruction_data_t {
+    union {
+        uint64_t immediate_value;
+    };
+};
+
 struct se_libcpu_interface_t {
     unsigned size;
 
@@ -206,7 +212,8 @@ struct se_libcpu_interface_t {
 
         /** Called by cpu_gen_code() after translation of certain special types of instructions */
         void (*on_translate_special_instruction_end)(void *context, struct TranslationBlock *tb, uint64_t pc,
-                                                     enum special_instruction_t type, int update_pc);
+                                                     enum special_instruction_t type,
+                                                     const struct special_instruction_data_t *data, int update_pc);
 
         /** Called by cpu_gen_code() after translation of each instruction */
         void (*on_translate_instruction_end)(void *context, struct TranslationBlock *tb, uint64_t pc, uint64_t nextpc);
@@ -228,6 +235,10 @@ struct se_libcpu_interface_t {
     struct {
         void (*debug)(const char *fmt, ...);
     } log;
+
+    struct {
+        int (*screendump)(const char *filename);
+    } upcalls;
 };
 
 extern struct se_libcpu_interface_t g_sqi;

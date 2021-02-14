@@ -82,6 +82,9 @@ typedef struct DisasContext {
     int override; /* -1 if no override */
     int prefix;
     int aflag, dflag;
+#ifdef CONFIG_SYMBEX
+    int retim_value;
+#endif
     target_ulong pc; /* pc = eip + cs_base */
     int is_jmp;      /* 1 = means jump (stop translation), 2 means CPU
                         static state change (stop translation) */
@@ -340,7 +343,7 @@ static inline void instr_gen_call_ret(DisasContext *s, int isCall) {
     if (isCall) {
         gen_helper_se_call(cpu_T[1]);
     } else {
-        gen_helper_se_ret(cpu_T[1]);
+        gen_helper_se_ret(cpu_T[1], tcg_const_i32(s->retim_value));
     }
 
     gen_set_label(clabel);
@@ -4990,8 +4993,10 @@ reswitch:
             gen_push_T0(s);
 
 #ifdef CONFIG_SYMBEX
+            struct special_instruction_data_t data;
+            data.immediate_value = val;
             if (unlikely(*g_sqi.events.on_translate_special_instruction_end_signals_count)) {
-                g_sqi.events.on_translate_special_instruction_end(s, s->tb, pc_start, PUSHIM, 0);
+                g_sqi.events.on_translate_special_instruction_end(s, s->tb, pc_start, PUSHIM, &data, 0);
             }
 #endif
 
@@ -6185,6 +6190,10 @@ reswitch:
             gen_pop_T0(s);
             if (CODE64(s) && s->dflag)
                 s->dflag = 2;
+
+#ifdef CONFIG_SYMBEX
+            s->retim_value = val;
+#endif
             gen_stack_update(s, val + (2 << s->dflag));
             if (s->dflag == 0)
                 gen_op_andl_T0_ffff();
@@ -6921,7 +6930,7 @@ reswitch:
             gen_helper_rdtsc();
 #ifdef CONFIG_SYMBEX
             if (unlikely(*g_sqi.events.on_translate_special_instruction_end_signals_count)) {
-                g_sqi.events.on_translate_special_instruction_end(s, s->tb, pc_start, RDTSC, 0);
+                g_sqi.events.on_translate_special_instruction_end(s, s->tb, pc_start, RDTSC, NULL, 0);
             }
 #endif
             break;
@@ -6944,7 +6953,7 @@ reswitch:
                 gen_helper_sysenter();
 #ifdef CONFIG_SYMBEX
                 if (unlikely(*g_sqi.events.on_translate_special_instruction_end_signals_count)) {
-                    g_sqi.events.on_translate_special_instruction_end(s, s->tb, pc_start, SYSENTER, 0);
+                    g_sqi.events.on_translate_special_instruction_end(s, s->tb, pc_start, SYSENTER, NULL, 0);
                 }
 #endif
                 gen_eob(s);
@@ -6971,7 +6980,7 @@ reswitch:
             gen_helper_syscall(tcg_const_i32(s->pc - pc_start));
 #ifdef CONFIG_SYMBEX
             if (unlikely(*g_sqi.events.on_translate_special_instruction_end_signals_count)) {
-                g_sqi.events.on_translate_special_instruction_end(s, s->tb, pc_start, SYSCALL, 0);
+                g_sqi.events.on_translate_special_instruction_end(s, s->tb, pc_start, SYSCALL, NULL, 0);
             }
 #endif
             gen_eob(s);

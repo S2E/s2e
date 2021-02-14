@@ -1,0 +1,19 @@
+test:
+    description: "Test that cfi checker detects cfi violations"
+
+    options:
+        tools:
+            - "cfi"
+            - "tickler"
+        single_path: true
+        custom_lua_string: >
+            pluginsConfig.Tickler.maxCfiViolations = 10
+
+    targets:
+        - "$(GUEST_FS)/program files/microsoft office/office15/winword.exe"
+
+    target_arguments:
+        - [$(TEST_ROOT)/CVE-2015-1770-poc-calc.rtf]
+
+    target-images:
+        - windows-7sp1pro-i386/office2013

@@ -109,13 +109,17 @@ void BaseInstructions::initialize() {
         }
 
         getWarningsStream() << "Restriction enabled\n";
-        s2e()->getCorePlugin()->onTranslateBlockStart.connect(
-            sigc::mem_fun(*this, &BaseInstructions::onTranslateBlockStart));
+        m_monitor->onMonitorLoad.connect(sigc::mem_fun(*this, &BaseInstructions::onMonitorLoad));
     }
 
     s2e()->getCorePlugin()->onCustomInstruction.connect(sigc::mem_fun(*this, &BaseInstructions::onCustomInstruction));
 
     g_s2e_allow_custom_instructions = 1;
+}
+
+void BaseInstructions::onMonitorLoad(S2EExecutionState *state) {
+    s2e()->getCorePlugin()->onTranslateBlockStart.connect(
+        sigc::mem_fun(*this, &BaseInstructions::onTranslateBlockStart));
 }
 
 void BaseInstructions::onTranslateBlockStart(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb,

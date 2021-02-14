@@ -50,15 +50,19 @@ enum PbTraceItemHeaderType {
 
     TRACE_CACHE_SIM_PARAMS = 17;
     TRACE_CACHE_SIM_ENTRY = 18;
+
+    TRACE_CFI_STATS = 19;
+    TRACE_CFI_VIOLATION = 20;
 }
 
 message PbTraceItemHeader {
     required uint32 state_id = 1;
     required uint64 timestamp = 2;
     required uint64 address_space = 3;
-    required uint64 pid = 4;
-    required uint64 pc = 5;
-    required PbTraceItemHeaderType type = 6;
+    required uint32 pid = 4;
+    required uint32 tid = 5;
+    required uint64 pc = 6;
+    required PbTraceItemHeaderType type = 7;
 }
 
 // TRACE_FORK
@@ -226,4 +230,41 @@ message PbTraceCacheSimEntry {
     required uint32 miss_count = 5;
     required bool is_write = 6;
     required bool is_code = 7;
+}
+
+message PbTraceCfiStats {
+    required uint64 direct_call_count = 1;
+    required uint64 indirect_call_count = 2;
+    required uint64 ret_count = 3;
+    required uint64 call_violation_count = 4;
+    required uint64 ret_violation_count = 6;
+    required uint64 ret_from_unknown_exec_region_count = 9;
+    required uint64 ret_to_unknown_exec_region_count = 10;
+    required uint64 missing_return_address_count = 11;
+    required uint64 call_and_return_match_count = 12;
+    required uint64 whitelisted_return_count = 13;
+    required uint64 pending_violations_count = 14;
+    required uint64 whitelisted_call_pattern_count = 15;
+    required uint64 ret_to_parent_with_displacement_count = 16;
+    required uint64 call_to_unknown_exec_region_count = 17;
+    required uint64 ret_to_call_site = 18;
+}
+
+enum PbTraceCfiViolationType {
+    CALL_VIOLATION = 0;
+    RETURN_VIOLATION = 1;
+}
+
+message PbTraceViolationPcInfo {
+    required uint64 pc = 1;
+    optional string module_path = 2;
+    optional uint64 module_pc = 3;
+    optional string disassembly = 4;
+}
+
+message PbTraceCfiViolation {
+    required PbTraceCfiViolationType type = 1;
+    required PbTraceViolationPcInfo source = 2;
+    required PbTraceViolationPcInfo destination = 3;
+    optional PbTraceViolationPcInfo expected_destination = 4;
 }

@@ -18,6 +18,10 @@
 #include <stdint.h>
 #include "qobject.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct QString {
     QObject_HEAD;
     char *string;
@@ -33,5 +37,9 @@ void qstring_append_int(QString *qstring, int64_t value);
 void qstring_append(QString *qstring, const char *str);
 void qstring_append_chr(QString *qstring, int c);
 QString *qobject_to_qstring(const QObject *obj);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QSTRING_H */
