@@ -72,11 +72,6 @@ template <class T> class ref;
 /// removedStates, and haltExecution, among others.
 
 class Executor : public Interpreter {
-    friend class BumpMergingSearcher;
-    friend class MergingSearcher;
-    friend class RandomPathSearcher;
-    friend class OwningSearcher;
-    friend class WeightedRandomSearcher;
     friend class SpecialFunctionHandler;
     friend class StatsTracker;
 
