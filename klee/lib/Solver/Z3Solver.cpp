@@ -239,12 +239,14 @@ bool Z3BaseSolverImpl::computeValue(const Query &query, ref<Expr> &result) {
     bool hasSolution;
 
     findSymbolicObjects(query.expr, objects);
-    if (!computeInitialValues(query.withFalse(), objects, values, hasSolution))
+    if (!computeInitialValues(query.withFalse(), objects, values, hasSolution)) {
         return false;
+    }
+
     assert(hasSolution && "state has invalid constraint set");
 
-    Assignment a(objects, values);
-    result = a.evaluate(query.expr);
+    AssignmentPtr a = Assignment::create(objects, values);
+    result = a->evaluate(query.expr);
 
     return true;
 }

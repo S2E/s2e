@@ -74,12 +74,12 @@ std::set<ObjectKey, ObjectKeyLTS> ExecutionState::s_ignoredMergeObjects;
 
 ExecutionState::ExecutionState(KFunction *kf)
     : fakeState(false), pc(kf->instructions), prevPC(nullptr), addressSpace(this), queryCost(0.), forkDisabled(false),
-      concolics(new Assignment(true)) {
+      concolics(Assignment::create(true)) {
     pushFrame(0, kf);
 }
 
 ExecutionState::ExecutionState(const std::vector<ref<Expr>> &assumptions)
-    : fakeState(true), addressSpace(this), queryCost(0.), concolics(new Assignment(true)) {
+    : fakeState(true), addressSpace(this), queryCost(0.), concolics(Assignment::create(true)) {
 }
 
 ExecutionState::~ExecutionState() {
@@ -90,7 +90,7 @@ ExecutionState::~ExecutionState() {
 ExecutionState *ExecutionState::clone() {
     ExecutionState *state = new ExecutionState(*this);
     state->addressSpace.state = state;
-    state->concolics = new Assignment(true);
+    state->concolics = Assignment::create(true);
     return state;
 }
 

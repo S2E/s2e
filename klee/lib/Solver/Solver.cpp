@@ -147,12 +147,12 @@ void Solver::getRanges(const ConstraintManager &constraints, const ArrayVec &sym
             break;
         }
 
-        Assignment newConcolics;
+        AssignmentPtr newConcolics = Assignment::create();
         for (unsigned i = 0; i < symbObjects.size(); ++i) {
-            newConcolics.add(symbObjects[i], concreteObjects[i]);
+            newConcolics->add(symbObjects[i], concreteObjects[i]);
         }
 
-        ref<Expr> value = newConcolics.evaluate(e);
+        ref<Expr> value = newConcolics->evaluate(e);
         if (value.isNull()) {
             break;
         }

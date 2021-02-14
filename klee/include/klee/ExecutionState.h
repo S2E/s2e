@@ -93,7 +93,7 @@ public:
     // it suitable to send to the constraint solver.
     klee::ImmutableMap<std::string, std::string> variableNameMapping;
 
-    Assignment *concolics;
+    AssignmentPtr concolics;
 
     unsigned incomingBBIndex;
 
