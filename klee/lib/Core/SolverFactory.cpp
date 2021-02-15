@@ -100,7 +100,7 @@ namespace klee {
 DefaultSolverFactory::DefaultSolverFactory(InterpreterHandler *ih) : ih_(ih) {
 }
 
-Solver *DefaultSolverFactory::createEndSolver() {
+SolverPtr DefaultSolverFactory::createEndSolver() {
     if (EndSolver == SOLVER_Z3) {
 #ifdef ENABLE_Z3
         switch (SolverIncrementality) {
@@ -118,8 +118,8 @@ Solver *DefaultSolverFactory::createEndSolver() {
     return NULL;
 }
 
-Solver *DefaultSolverFactory::decorateSolver(Solver *end_solver) {
-    Solver *solver = end_solver;
+SolverPtr DefaultSolverFactory::decorateSolver(SolverPtr &end_solver) {
+    SolverPtr solver = end_solver;
 
     if (queryLoggingOptions.isSet(SOLVER_KQUERY)) {
         solver = createKQueryLoggingSolver(solver, ih_->getOutputFilename(SOLVER_QUERIES_KQUERY_FILE_NAME),

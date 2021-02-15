@@ -30,7 +30,7 @@ llvm::cl::opt<bool> CreateCompressedQueryLog("compress-query-log", llvm::cl::ini
 #endif
 } // namespace
 
-QueryLoggingSolver::QueryLoggingSolver(Solver *_solver, std::string path, const std::string &commentSign,
+QueryLoggingSolver::QueryLoggingSolver(SolverPtr &_solver, const std::string &path, const std::string &commentSign,
                                        int queryTimeToLog)
     : solver(_solver), os(0), BufferString(""), logBuffer(BufferString), queryCount(0),
       minQueryTimeToLog(queryTimeToLog), startTime(0.0f), lastQueryTime(0.0f), queryCommentSign(commentSign) {
@@ -53,7 +53,6 @@ QueryLoggingSolver::QueryLoggingSolver(Solver *_solver, std::string path, const 
 }
 
 QueryLoggingSolver::~QueryLoggingSolver() {
-    delete solver;
     delete os;
 }
 
@@ -124,7 +123,7 @@ bool QueryLoggingSolver::computeTruth(const Query &query, bool &isValid) {
     return success;
 }
 
-bool QueryLoggingSolver::computeValidity(const Query &query, Solver::Validity &result) {
+bool QueryLoggingSolver::computeValidity(const Query &query, Validity &result) {
     startQuery(query, "Validity");
 
     bool success = solver->impl->computeValidity(query, result);

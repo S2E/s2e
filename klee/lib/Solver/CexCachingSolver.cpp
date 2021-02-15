@@ -48,7 +48,7 @@ struct AssignmentLessThan {
 class CexCachingSolver : public SolverImpl {
     typedef std::set<AssignmentPtr, AssignmentLessThan> assignmentsTable_ty;
 
-    Solver *solver;
+    SolverPtr solver;
 
     MapOfSets<ref<Expr>, AssignmentPtr> cache;
     // memo table
@@ -65,16 +65,21 @@ class CexCachingSolver : public SolverImpl {
 
     bool getAssignment(const Query &query, AssignmentPtr &result);
 
-public:
-    CexCachingSolver(Solver *_solver) : solver(_solver) {
+    CexCachingSolver(SolverPtr &_solver) : solver(_solver) {
     }
+
+public:
     ~CexCachingSolver();
 
     bool computeTruth(const Query &, bool &isValid);
-    bool computeValidity(const Query &, Solver::Validity &result);
+    bool computeValidity(const Query &, Validity &result);
     bool computeValue(const Query &, ref<Expr> &result);
     bool computeInitialValues(const Query &, const ArrayVec &objects, std::vector<std::vector<unsigned char>> &values,
                               bool &hasSolution);
+
+    static SolverImplPtr create(SolverPtr &solver) {
+        return SolverImplPtr(new CexCachingSolver(solver));
+    }
 };
 
 ///
@@ -233,10 +238,9 @@ bool CexCachingSolver::getAssignment(const Query &query, AssignmentPtr &result) 
 
 CexCachingSolver::~CexCachingSolver() {
     cache.clear();
-    delete solver;
 }
 
-bool CexCachingSolver::computeValidity(const Query &query, Solver::Validity &result) {
+bool CexCachingSolver::computeValidity(const Query &query, Validity &result) {
     TimerStatIncrementer t(stats::cexCacheTime);
     AssignmentPtr a;
     if (!getAssignment(query.withFalse(), a)) {
@@ -249,11 +253,11 @@ bool CexCachingSolver::computeValidity(const Query &query, Solver::Validity &res
     if (cast<ConstantExpr>(q)->isTrue()) {
         if (!getAssignment(query, a))
             return false;
-        result = !a ? Solver::True : Solver::Unknown;
+        result = !a ? Validity::True : Validity::Unknown;
     } else {
         if (!getAssignment(query.negateExpr(), a))
             return false;
-        result = !a ? Solver::False : Solver::Unknown;
+        result = !a ? Validity::False : Validity::Unknown;
     }
 
     return true;
@@ -333,6 +337,6 @@ bool CexCachingSolver::computeInitialValues(const Query &query, const ArrayVec &
 
 ///
 
-Solver *klee::createCexCachingSolver(Solver *_solver) {
-    return new Solver(new CexCachingSolver(_solver));
+SolverPtr klee::createCexCachingSolver(SolverPtr &_solver) {
+    return Solver::create(CexCachingSolver::create(_solver));
 }

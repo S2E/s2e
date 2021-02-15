@@ -13,35 +13,37 @@
 #include "klee/Expr.h"
 #include "klee/Solver.h"
 
+#include <memory>
 #include <vector>
 
 namespace klee {
 class ExecutionState;
 class Solver;
 
+class TimingSolver;
+using TimingSolverPtr = std::shared_ptr<TimingSolver>;
+
 /// TimingSolver - A simple class which wraps a solver and handles
 /// tracking the statistics that we care about.
 class TimingSolver {
 public:
-    Solver *solver;
+    SolverPtr solver;
     bool simplifyExprs;
 
-public:
+private:
     /// TimingSolver - Construct a new timing solver.
     ///
     /// \param _simplifyExprs - Whether expressions should be
     /// simplified (via the constraint manager interface) prior to
     /// querying.
-    TimingSolver(Solver *_solver, bool _simplifyExprs = true) : solver(_solver), simplifyExprs(_simplifyExprs) {
-    }
-    ~TimingSolver() {
-        delete solver;
+    TimingSolver(SolverPtr &_solver, bool _simplifyExprs = true) : solver(_solver), simplifyExprs(_simplifyExprs) {
     }
 
+public:
     void setTimeout(double t) {
     }
 
-    bool evaluate(const ExecutionState &, ref<Expr>, Solver::Validity &result);
+    bool evaluate(const ExecutionState &, ref<Expr>, Validity &result);
 
     bool mustBeTrue(const ExecutionState &, ref<Expr>, bool &result);
 
@@ -59,6 +61,10 @@ public:
                           std::vector<std::vector<unsigned char>> &result);
 
     std::pair<ref<Expr>, ref<Expr>> getRange(const ExecutionState &, ref<Expr> query);
+
+    static TimingSolverPtr create(SolverPtr &_solver, bool _simplifyExprs = true) {
+        return TimingSolverPtr(new TimingSolver(_solver, _simplifyExprs));
+    }
 };
 } // namespace klee
 

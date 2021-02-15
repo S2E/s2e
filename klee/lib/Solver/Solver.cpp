@@ -41,7 +41,6 @@ const char *Solver::validity_to_str(Validity v) {
 }
 
 Solver::~Solver() {
-    delete impl;
 }
 
 SolverImpl::~SolverImpl() {
@@ -59,16 +58,16 @@ bool Solver::evaluate(const Query &query, Validity &result) {
     return impl->computeValidity(query, result);
 }
 
-bool SolverImpl::computeValidity(const Query &query, Solver::Validity &result) {
+bool SolverImpl::computeValidity(const Query &query, Validity &result) {
     bool isTrue, isFalse;
     if (!computeTruth(query, isTrue))
         return false;
     if (isTrue) {
-        result = Solver::True;
+        result = Validity::True;
     } else {
         if (!computeTruth(query.negateExpr(), isFalse))
             return false;
-        result = isFalse ? Solver::False : Solver::Unknown;
+        result = isFalse ? Validity::False : Validity::Unknown;
     }
     return true;
 }
@@ -184,14 +183,14 @@ std::pair<ref<Expr>, ref<Expr>> Solver::getRange(const Query &query) {
     uint64_t min, max;
 
     if (width == 1) {
-        Solver::Validity result;
+        Validity result;
         if (!evaluate(query, result))
             pabort("computeValidity failed");
         switch (result) {
-            case Solver::True:
+            case Validity::True:
                 min = max = 1;
                 break;
-            case Solver::False:
+            case Validity::False:
                 min = max = 0;
                 break;
             default:
@@ -283,20 +282,24 @@ std::pair<ref<Expr>, ref<Expr>> Solver::getRange(const Query &query) {
 
 class ValidatingSolver : public SolverImpl {
 private:
-    Solver *solver, *oracle;
+    SolverPtr solver, oracle;
+
+    ValidatingSolver(SolverPtr _solver, SolverPtr _oracle) : solver(_solver), oracle(_oracle) {
+    }
 
 public:
-    ValidatingSolver(Solver *_solver, Solver *_oracle) : solver(_solver), oracle(_oracle) {
-    }
     ~ValidatingSolver() {
-        delete solver;
     }
 
-    bool computeValidity(const Query &, Solver::Validity &result);
+    bool computeValidity(const Query &, Validity &result);
     bool computeTruth(const Query &, bool &isValid);
     bool computeValue(const Query &, ref<Expr> &result);
     bool computeInitialValues(const Query &, const ArrayVec &objects, std::vector<std::vector<unsigned char>> &values,
                               bool &hasSolution);
+
+    static SolverImplPtr create(SolverPtr &_solver, SolverPtr &_oracle) {
+        return SolverImplPtr(new ValidatingSolver(_solver, _oracle));
+    }
 };
 
 bool ValidatingSolver::computeTruth(const Query &query, bool &isValid) {
@@ -346,12 +349,12 @@ bool ValidatingSolver::computeTruth(const Query &query, bool &isValid) {
 #endif
 }
 
-bool ValidatingSolver::computeValidity(const Query &query, Solver::Validity &result) {
+bool ValidatingSolver::computeValidity(const Query &query, Validity &result) {
 #if defined(VOTING_SOLVER)
-    Solver::Validity results[VOTE_COUNT];
+    Validity results[VOTE_COUNT];
     unsigned trueCount = 0, falseCount = 0, unknownCount = 0;
     for (unsigned i = 0; i < VOTE_COUNT; ++i) {
-        Solver::Validity res1, res2;
+        Validity res1, res2;
         if (!solver->impl->computeValidity(query, res1))
             return false;
 
@@ -364,13 +367,13 @@ bool ValidatingSolver::computeValidity(const Query &query, Solver::Validity &res
             results[i] = res1;
 
         switch (results[i]) {
-            case Solver::True:
+            case Validity::True:
                 ++trueCount;
                 break;
-            case Solver::False:
+            case Validity::False:
                 ++falseCount;
                 break;
-            case Solver::Unknown:
+            case Validity::Unknown:
                 ++unknownCount;
                 break;
             default:
@@ -378,22 +381,22 @@ bool ValidatingSolver::computeValidity(const Query &query, Solver::Validity &res
         }
     }
     if (trueCount > falseCount && falseCount >= unknownCount)
-        result = Solver::True;
+        result = Validity::True;
     else if (trueCount > unknownCount && unknownCount >= falseCount)
-        result = Solver::True;
+        result = Validity::True;
     else if (falseCount > trueCount && trueCount >= unknownCount)
-        result = Solver::False;
+        result = Validity::False;
     else if (falseCount > unknownCount && unknownCount >= trueCount)
-        result = Solver::False;
+        result = Validity::False;
     else if (unknownCount > falseCount && falseCount >= trueCount)
-        result = Solver::Unknown;
+        result = Validity::Unknown;
     else if (unknownCount > trueCount && trueCount >= falseCount)
-        result = Solver::Unknown;
+        result = Validity::Unknown;
     else
         abort();
     return true;
 #else
-    Solver::Validity answer;
+    Validity answer;
 
     if (!solver->impl->computeValidity(query, result))
         return false;
@@ -427,8 +430,9 @@ bool ValidatingSolver::computeInitialValues(const Query &query, const ArrayVec &
                                             std::vector<std::vector<unsigned char>> &values, bool &hasSolution) {
     bool answer;
 
-    if (!solver->impl->computeInitialValues(query, objects, values, hasSolution))
+    if (!solver->impl->computeInitialValues(query, objects, values, hasSolution)) {
         return false;
+    }
 
     if (hasSolution) {
         // Assert the bindings as constraints, and verify that the
@@ -463,18 +467,19 @@ bool ValidatingSolver::computeInitialValues(const Query &query, const ArrayVec &
     return true;
 }
 
-Solver *klee::createValidatingSolver(Solver *s, Solver *oracle) {
-    return new Solver(new ValidatingSolver(s, oracle));
+SolverPtr klee::createValidatingSolver(SolverPtr &s, SolverPtr &oracle) {
+    return Solver::create(ValidatingSolver::create(s, oracle));
 }
 
 /***/
 
 class DummySolverImpl : public SolverImpl {
-public:
+private:
     DummySolverImpl() {
     }
 
-    bool computeValidity(const Query &, Solver::Validity &result) {
+public:
+    bool computeValidity(const Query &, Validity &result) {
         ++stats::queries;
         // FIXME: We should have stats::queriesFail;
         return false;
@@ -495,8 +500,12 @@ public:
         ++stats::queryCounterexamples;
         return false;
     }
+
+    static SolverImplPtr create() {
+        return SolverImplPtr(new DummySolverImpl());
+    }
 };
 
-Solver *klee::createDummySolver() {
-    return new Solver(new DummySolverImpl());
+SolverPtr klee::createDummySolver() {
+    return Solver::create(DummySolverImpl::create());
 }

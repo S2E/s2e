@@ -974,16 +974,24 @@ public:
 };
 
 /* *** */
+class FastCexSolver;
+using FastCexSolverPtr = std::shared_ptr<FastCexSolver>;
 
 class FastCexSolver : public IncompleteSolver {
-public:
+private:
     FastCexSolver();
+
+public:
     ~FastCexSolver();
 
     IncompleteSolver::PartialValidity computeTruth(const Query &);
     bool computeValue(const Query &, ref<Expr> &result);
     bool computeInitialValues(const Query &, const ArrayVec &objects, std::vector<std::vector<unsigned char>> &values,
                               bool &hasSolution);
+
+    static FastCexSolverPtr create() {
+        return FastCexSolverPtr(new FastCexSolver());
+    }
 };
 
 FastCexSolver::FastCexSolver() {
@@ -1132,6 +1140,6 @@ bool FastCexSolver::computeInitialValues(const Query &query, const ArrayVec &obj
     return true;
 }
 
-Solver *klee::createFastCexSolver(Solver *s) {
-    return new Solver(new StagedSolverImpl(new FastCexSolver(), s));
+SolverPtr klee::createFastCexSolver(SolverPtr &s) {
+    return Solver::create(StagedSolverImpl::create(FastCexSolver::create(), s));
 }

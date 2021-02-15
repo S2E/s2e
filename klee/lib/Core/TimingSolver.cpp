@@ -44,11 +44,11 @@ template <typename Func> static bool measureTime(double &queryCost, Func f) {
     return ret;
 }
 
-bool TimingSolver::evaluate(const ExecutionState &state, ref<Expr> expr, Solver::Validity &result) {
+bool TimingSolver::evaluate(const ExecutionState &state, ref<Expr> expr, Validity &result) {
 
     // Fast path, to avoid timer and OS overhead.
     if (ConstantExpr *CE = dyn_cast<ConstantExpr>(expr)) {
-        result = CE->isTrue() ? Solver::True : Solver::False;
+        result = CE->isTrue() ? Validity::True : Validity::False;
         return true;
     }
 

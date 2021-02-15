@@ -30,6 +30,8 @@
 #ifndef SOLVERFACTORY_H_
 #define SOLVERFACTORY_H_
 
+#include "Solver.h"
+
 namespace klee {
 
 class Solver;
@@ -39,15 +41,15 @@ class SolverFactory {
 public:
     virtual ~SolverFactory() {
     }
-    virtual Solver *createEndSolver() = 0;
-    virtual Solver *decorateSolver(Solver *end_solver) = 0;
+    virtual SolverPtr createEndSolver() = 0;
+    virtual SolverPtr decorateSolver(SolverPtr &end_solver) = 0;
 };
 
 class DefaultSolverFactory : public SolverFactory {
 public:
     DefaultSolverFactory(InterpreterHandler *ih);
-    virtual Solver *createEndSolver();
-    virtual Solver *decorateSolver(Solver *end_solver);
+    virtual SolverPtr createEndSolver();
+    virtual SolverPtr decorateSolver(SolverPtr &end_solver);
 
 private:
     InterpreterHandler *ih_;

@@ -255,25 +255,29 @@ static IndependentElementSet getIndependentConstraints(const Query &query, std::
 
 class IndependentSolver : public SolverImpl {
 private:
-    Solver *solver;
+    SolverPtr solver;
+
+    IndependentSolver(SolverPtr _solver) : solver(_solver) {
+    }
 
 public:
-    IndependentSolver(Solver *_solver) : solver(_solver) {
-    }
     ~IndependentSolver() {
-        delete solver;
     }
 
     bool computeTruth(const Query &, bool &isValid);
-    bool computeValidity(const Query &, Solver::Validity &result);
+    bool computeValidity(const Query &, Validity &result);
     bool computeValue(const Query &, ref<Expr> &result);
     bool computeInitialValues(const Query &query, const ArrayVec &objects,
                               std::vector<std::vector<unsigned char>> &values, bool &hasSolution) {
         return solver->impl->computeInitialValues(query, objects, values, hasSolution);
     }
+
+    static SolverImplPtr create(SolverPtr &s) {
+        return SolverImplPtr(new IndependentSolver(s));
+    }
 };
 
-bool IndependentSolver::computeValidity(const Query &query, Solver::Validity &result) {
+bool IndependentSolver::computeValidity(const Query &query, Validity &result) {
     std::vector<ref<Expr>> required;
     IndependentElementSet eltsClosure = getIndependentConstraints(query, required);
     ConstraintManager tmp(required);
@@ -294,8 +298,8 @@ bool IndependentSolver::computeValue(const Query &query, ref<Expr> &result) {
     return solver->impl->computeValue(Query(tmp, query.expr), result);
 }
 
-Solver *klee::createIndependentSolver(Solver *s) {
-    return new Solver(new IndependentSolver(s));
+SolverPtr klee::createIndependentSolver(SolverPtr &s) {
+    return Solver::create(IndependentSolver::create(s));
 }
 
 void klee::getIndependentConstraintsForQuery(const Query &query, std::vector<ref<Expr>> &required) {

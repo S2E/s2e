@@ -74,7 +74,6 @@ namespace klee {
 
 class Z3BaseSolverImpl : public SolverImpl {
 public:
-    Z3BaseSolverImpl();
     virtual ~Z3BaseSolverImpl();
 
     bool computeTruth(const Query &, bool &isValid);
@@ -85,6 +84,8 @@ public:
     void initializeSolver();
 
 protected:
+    Z3BaseSolverImpl();
+
     virtual void createBuilderCache() = 0;
 
     virtual z3::check_result check(const Query &) = 0;
@@ -118,12 +119,15 @@ private:
     void createBuilder();
 };
 
+class Z3StackSolverImpl;
+using Z3StackSolverImplPtr = std::shared_ptr<Z3StackSolverImpl>;
 class Z3StackSolverImpl : public Z3BaseSolverImpl {
 public:
-    Z3StackSolverImpl();
     virtual ~Z3StackSolverImpl();
 
 protected:
+    Z3StackSolverImpl();
+
     typedef std::list<ConditionNodeRef> ConditionNodeList;
 
     virtual void createBuilderCache();
@@ -132,25 +136,39 @@ protected:
     virtual void postCheck(const Query &);
 
     scoped_ptr<ConditionNodeList> last_constraints_;
+
+public:
+    static Z3StackSolverImplPtr create() {
+        return Z3StackSolverImplPtr(new Z3StackSolverImpl());
+    }
 };
 
+class Z3ResetSolverImpl;
+using Z3ResetSolverImplPtr = std::shared_ptr<Z3ResetSolverImpl>;
 class Z3ResetSolverImpl : public Z3BaseSolverImpl {
 public:
-    Z3ResetSolverImpl();
     virtual ~Z3ResetSolverImpl();
 
 protected:
+    Z3ResetSolverImpl();
     virtual void createBuilderCache();
     virtual z3::check_result check(const Query &);
     virtual void postCheck(const Query &);
+
+public:
+    static Z3ResetSolverImplPtr create() {
+        return Z3ResetSolverImplPtr(new Z3ResetSolverImpl());
+    }
 };
 
+class Z3AssumptionSolverImpl;
+using Z3AssumptionSolverImplPtr = std::shared_ptr<Z3AssumptionSolverImpl>;
 class Z3AssumptionSolverImpl : public Z3BaseSolverImpl {
 public:
-    Z3AssumptionSolverImpl();
     virtual ~Z3AssumptionSolverImpl();
 
 protected:
+    Z3AssumptionSolverImpl();
     virtual void createBuilderCache();
     virtual z3::check_result check(const Query &);
     virtual void postCheck(const Query &);
@@ -162,32 +180,37 @@ private:
 
     GuardMap guards_;
     uint64_t guard_counter_;
+
+public:
+    static Z3AssumptionSolverImplPtr create() {
+        return Z3AssumptionSolverImplPtr(new Z3AssumptionSolverImpl());
+    }
 };
 
 // Z3Solver ////////////////////////////////////////////////////////////////////
 
-Z3Solver *Z3Solver::createResetSolver() {
-    Z3BaseSolverImpl *impl = new Z3ResetSolverImpl();
+Z3SolverPtr Z3Solver::createResetSolver() {
+    auto impl = Z3ResetSolverImpl::create();
     impl->initializeSolver();
 
-    return new Z3Solver(impl);
+    return Z3Solver::create(std::dynamic_pointer_cast<SolverImpl>(impl));
 }
 
-Z3Solver *Z3Solver::createStackSolver() {
-    Z3BaseSolverImpl *impl = new Z3StackSolverImpl();
+Z3SolverPtr Z3Solver::createStackSolver() {
+    auto impl = Z3StackSolverImpl::create();
     impl->initializeSolver();
 
-    return new Z3Solver(impl);
+    return Z3Solver::create(impl);
 }
 
-Z3Solver *Z3Solver::createAssumptionSolver() {
-    Z3BaseSolverImpl *impl = new Z3AssumptionSolverImpl();
+Z3SolverPtr Z3Solver::createAssumptionSolver() {
+    auto impl = Z3AssumptionSolverImpl::create();
     impl->initializeSolver();
 
-    return new Z3Solver(impl);
+    return Z3Solver::create(impl);
 }
 
-Z3Solver::Z3Solver(SolverImpl *impl) : Solver(impl) {
+Z3Solver::Z3Solver(SolverImplPtr &impl) : Solver(impl) {
 }
 
 // Z3BaseSolverImpl ////////////////////////////////////////////////////////////

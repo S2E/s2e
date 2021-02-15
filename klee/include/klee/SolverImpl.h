@@ -11,6 +11,7 @@
 #define KLEE_SOLVERIMPL_H
 
 #include <klee/Expr.h>
+#include <memory>
 #include <vector>
 
 namespace klee {
@@ -18,6 +19,8 @@ class Array;
 class ExecutionState;
 class Expr;
 struct Query;
+
+enum Validity { True = 1, False = -1, Unknown = 0 };
 
 /// SolverImpl - Abstract base clase for solver implementations.
 class SolverImpl {
@@ -39,7 +42,7 @@ public:
     /// SolverImpl provides a default implementation which uses
     /// computeTruth. Clients should override this if a more efficient
     /// implementation is available.
-    virtual bool computeValidity(const Query &query, Solver::Validity &result);
+    virtual bool computeValidity(const Query &query, Validity &result);
 
     /// computeTruth - Determine whether the given query is provable.
     ///
@@ -55,6 +58,9 @@ public:
     virtual bool computeInitialValues(const Query &query, const ArrayVec &objects,
                                       std::vector<std::vector<unsigned char>> &values, bool &hasSolution) = 0;
 };
+
+using SolverImplPtr = std::shared_ptr<SolverImpl>;
+
 } // namespace klee
 
 #endif

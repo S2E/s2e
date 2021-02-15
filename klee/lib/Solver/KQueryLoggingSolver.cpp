@@ -36,18 +36,22 @@ private:
                             objects.end(), true);
     }
 
-public:
-    KQueryLoggingSolver(Solver *_solver, std::string path, int queryTimeToLog)
+    KQueryLoggingSolver(SolverPtr _solver, std::string path, int queryTimeToLog)
         : QueryLoggingSolver(_solver, path, "#", queryTimeToLog), printer(ExprPPrinter::create(logBuffer)) {
     }
 
+public:
     virtual ~KQueryLoggingSolver() {
         delete printer;
+    }
+
+    static SolverImplPtr create(SolverPtr _solver, std::string path, int queryTimeToLog) {
+        return SolverImplPtr(new KQueryLoggingSolver(_solver, path, queryTimeToLog));
     }
 };
 
 ///
 
-Solver *klee::createKQueryLoggingSolver(Solver *_solver, std::string path, int minQueryTimeToLog) {
-    return new Solver(new KQueryLoggingSolver(_solver, path, minQueryTimeToLog));
+SolverPtr klee::createKQueryLoggingSolver(SolverPtr &_solver, std::string path, int minQueryTimeToLog) {
+    return Solver::create(KQueryLoggingSolver::create(_solver, path, minQueryTimeToLog));
 }

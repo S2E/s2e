@@ -24,7 +24,7 @@ using namespace klee;
 class QueryLoggingSolver : public SolverImpl {
 
 protected:
-    Solver *solver;
+    SolverPtr solver;
     std::string ErrorInfo;
     llvm::raw_ostream *os;
     // @brief Buffer used by logBuffer
@@ -55,14 +55,15 @@ protected:
     virtual void printQuery(const Query &query, const Query *falseQuery = 0, const ArrayVec &objects = ArrayVec()) = 0;
     void flushBufferConditionally(bool writeToFile);
 
-public:
-    QueryLoggingSolver(Solver *_solver, std::string path, const std::string &commentSign, int queryTimeToLog);
+protected:
+    QueryLoggingSolver(SolverPtr &_solver, const std::string &path, const std::string &commentSign, int queryTimeToLog);
 
+public:
     virtual ~QueryLoggingSolver();
 
     /// implementation of the SolverImpl interface
     bool computeTruth(const Query &query, bool &isValid);
-    bool computeValidity(const Query &query, Solver::Validity &result);
+    bool computeValidity(const Query &query, Validity &result);
     bool computeValue(const Query &query, ref<Expr> &result);
     bool computeInitialValues(const Query &query, const ArrayVec &objects,
                               std::vector<std::vector<unsigned char>> &values, bool &hasSolution);

@@ -46,9 +46,9 @@ void SolverManager::initialize(const std::shared_ptr<SolverFactory> &factory) {
 
 std::shared_ptr<TimingSolver> SolverManager::createTimingSolver() {
     assert(mFactory);
-    Solver *endSolver = mFactory->createEndSolver();
-    Solver *solver = mFactory->decorateSolver(endSolver);
-    return std::shared_ptr<TimingSolver>(new TimingSolver(solver));
+    SolverPtr endSolver = mFactory->createEndSolver();
+    SolverPtr solver = mFactory->decorateSolver(endSolver);
+    return std::shared_ptr<TimingSolver>(TimingSolver::create(solver));
 }
 
 void SolverManager::createStateSolver(const ExecutionState &state) {
