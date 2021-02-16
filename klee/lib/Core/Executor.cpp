@@ -427,7 +427,7 @@ Executor::StatePair Executor::fork(ExecutionState &current, const ref<Expr> &con
     // Branch
     ExecutionState *branchedState;
     notifyBranch(current);
-    branchedState = current.branch();
+    branchedState = current.clone();
     addedStates.insert(branchedState);
 
     // Update concrete values for the branched state

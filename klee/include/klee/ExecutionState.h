@@ -109,7 +109,6 @@ private:
     }
 
 protected:
-    virtual ExecutionState *clone();
     virtual void addressSpaceChange(const klee::ObjectKey &key, const ObjectStateConstPtr &oldState,
                                     const ObjectStatePtr &newState);
 
@@ -121,7 +120,6 @@ public:
     // Only fired in the context of a memory operation (load/store)
     virtual void addressSpaceSymbolicStatusChange(const ObjectStatePtr &object, bool becameConcrete);
 
-public:
     ExecutionState(KFunction *kf);
 
     // XXX total hack, just used to make a state so solver can
@@ -130,7 +128,7 @@ public:
 
     virtual ~ExecutionState();
 
-    ExecutionState *branch();
+    virtual ExecutionState *clone();
 
     void pushFrame(KInstIterator caller, KFunction *kf);
     void popFrame();

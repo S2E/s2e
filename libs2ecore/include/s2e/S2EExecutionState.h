@@ -152,7 +152,6 @@ protected:
     /** Set when execution enters doInterrupt, reset when it exits. */
     bool m_runningExceptionEmulationCode;
 
-    ExecutionState *clone();
     virtual void addressSpaceChange(const klee::ObjectKey &key, const klee::ObjectStateConstPtr &oldState,
                                     const klee::ObjectStatePtr &newState);
 
@@ -170,6 +169,8 @@ public:
 public:
     S2EExecutionState(klee::KFunction *kf);
     ~S2EExecutionState();
+
+    virtual ExecutionState *clone();
 
     int getID() const {
         return m_stateID;

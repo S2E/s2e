@@ -106,11 +106,6 @@ void ExecutionState::addressSpaceObjectSplit(const ObjectStateConstPtr &oldObjec
 void ExecutionState::addressSpaceSymbolicStatusChange(const ObjectStatePtr &object, bool becameConcrete) {
 }
 
-ExecutionState *ExecutionState::branch() {
-    ExecutionState *falseState = clone();
-    return falseState;
-}
-
 void ExecutionState::pushFrame(KInstIterator caller, KFunction *kf) {
     stack.push_back(StackFrame(caller, kf));
 }
