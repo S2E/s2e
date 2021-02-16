@@ -40,7 +40,7 @@ cl::opt<bool> CexCacheExperimental("cex-cache-exp", cl::init(false));
 typedef std::set<ref<Expr>> KeyType;
 
 struct AssignmentLessThan {
-    bool operator()(const AssignmentPtr &a, const AssignmentPtr &b) {
+    bool operator()(const AssignmentPtr &a, const AssignmentPtr &b) const {
         return a->bindings < b->bindings;
     }
 };
@@ -215,7 +215,7 @@ bool CexCachingSolver::getAssignment(const Query &query, AssignmentPtr &result) 
         binding = Assignment::create(objects, values);
 
         // Memoize the result.
-        std::pair<assignmentsTable_ty::iterator, bool> res = assignmentsTable.insert(binding);
+        auto res = assignmentsTable.insert(binding);
         if (!res.second) {
             binding = *res.first;
         }

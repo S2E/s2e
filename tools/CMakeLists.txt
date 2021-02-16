@@ -104,7 +104,7 @@ llvm_map_components_to_libnames(LLVM_LIBS core
                                           x86info)
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Werror")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -Wall -Werror")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -Wall -Werror")
 
 add_subdirectory(lib)
 add_subdirectory(tools)
