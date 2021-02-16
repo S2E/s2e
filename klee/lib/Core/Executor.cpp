@@ -19,7 +19,6 @@
 #include "klee/PTree.h"
 #include "klee/Searcher.h"
 #include "klee/SolverFactory.h"
-#include "klee/SolverManager.h"
 #include "klee/SolverStats.h"
 #include "klee/StatsTracker.h"
 #include "klee/TimingSolver.h"
@@ -390,7 +389,7 @@ Executor::StatePair Executor::fork(ExecutionState &current, const ref<Expr> &con
         tmpConstraints.addConstraint(condition);
 
         std::vector<std::vector<unsigned char>> concreteObjects;
-        auto solver = SolverManager::solver(current);
+        auto solver = current.solver();
         Query q(tmpConstraints, ConstantExpr::alloc(0, Expr::Bool));
         if (!solver->getInitialValues(q, symbObjects, concreteObjects)) {
             // Condition is always false in the current state
@@ -416,7 +415,7 @@ Executor::StatePair Executor::fork(ExecutionState &current, const ref<Expr> &con
 
     std::vector<std::vector<unsigned char>> concreteObjects;
     Query q(tmpConstraints, ConstantExpr::alloc(0, Expr::Bool));
-    auto solver = SolverManager::solver(current);
+    auto solver = current.solver();
     if (!solver->getInitialValues(q, symbObjects, concreteObjects)) {
         if (conditionIsTrue) {
             return StatePair(&current, 0);
@@ -1604,8 +1603,6 @@ void Executor::bindModuleConstants() {
 }
 
 void Executor::deleteState(ExecutionState *state) {
-    SolverManager::get().removeState(state);
-
     delete state;
 }
 

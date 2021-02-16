@@ -34,7 +34,6 @@
 #include <klee/Context.h>
 #include <klee/Memory.h>
 #include <klee/Solver.h>
-#include <klee/SolverManager.h>
 #include <s2e/S2E.h>
 #include <s2e/Utils.h>
 #include <s2e/s2e_libcpu.h>
@@ -639,12 +638,8 @@ bool S2EExecutionState::merge(const ExecutionState &_b) {
 }
 
 void S2EExecutionState::enumPossibleRanges(ref<Expr> e, ref<Expr> start, ref<Expr> end, std::vector<Range> &ranges) {
-
-    SolverPtr solver = klee::SolverManager::solver();
-
     ArrayVec symbObjects = symbolics;
-
-    solver->getRanges(constraints(), symbObjects, e, start, end, ranges);
+    solver()->getRanges(constraints(), symbObjects, e, start, end, ranges);
 }
 
 /***/
@@ -671,10 +666,9 @@ bool S2EExecutionState::testConstraints(const std::vector<ref<Expr>> &c, Constra
 
     ArrayVec symbObjects = symbolics;
 
-    SolverPtr solver = SolverManager::solver();
     std::vector<std::vector<unsigned char>> concreteObjects;
-    if (!solver->getInitialValues(Query(tmpConstraints, ConstantExpr::create(0, Expr::Bool)), symbObjects,
-                                  concreteObjects)) {
+    if (!solver()->getInitialValues(Query(tmpConstraints, ConstantExpr::create(0, Expr::Bool)), symbObjects,
+                                    concreteObjects)) {
         return false;
     }
 

@@ -605,7 +605,7 @@ void ExecutionState::dumpQuery(llvm::raw_ostream &os) const {
 }
 
 SolverPtr ExecutionState::solver() const {
-    return SolverManager::solver(*this);
+    return m_solver;
 }
 
 Cell &ExecutionState::getArgumentCell(KFunction *kf, unsigned index) {

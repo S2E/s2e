@@ -18,7 +18,6 @@
 
 #include "klee/BitfieldSimplifier.h"
 #include "klee/Solver.h"
-#include "klee/SolverManager.h"
 #include "klee/util/Assignment.h"
 #include "IAddressSpaceNotification.h"
 
@@ -199,6 +198,10 @@ public:
     void stepInstruction();
 
     void bindObject(const ObjectStatePtr &os, bool isLocal);
+
+    void setSolver(SolverPtr &solver) {
+        m_solver = solver;
+    }
 };
 } // namespace klee
 

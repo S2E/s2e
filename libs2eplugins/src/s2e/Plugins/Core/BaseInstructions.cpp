@@ -41,7 +41,6 @@
 
 #include <klee/Searcher.h>
 #include <klee/Solver.h>
-#include <klee/SolverManager.h>
 #include <llvm/ADT/DenseSet.h>
 
 #include <llvm/Support/CommandLine.h>

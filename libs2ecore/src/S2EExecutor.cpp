@@ -60,7 +60,6 @@
 #include <klee/Searcher.h>
 #include <klee/Solver.h>
 #include <klee/SolverFactory.h>
-#include <klee/SolverManager.h>
 #include <klee/TimerStatIncrementer.h>
 #include <klee/UserSearcher.h>
 #include <klee/util/ExprTemplates.h>
@@ -472,12 +471,16 @@ S2EExecutionState *S2EExecutor::createInitialState() {
     /* Create initial execution state */
     S2EExecutionState *state = new S2EExecutionState(m_dummyMain);
 
+    auto factory = klee::DefaultSolverFactory::create(g_s2e->getOutputDirectory());
+    auto endSolver = factory->createEndSolver();
+    auto solver = factory->decorateSolver(endSolver);
+    state->setSolver(solver);
+
     state->m_runningConcrete = true;
     state->m_active = true;
     state->setForking(EnableForking);
 
     states.insert(state);
-    klee::SolverManager::get().createStateSolver(*state);
     addedStates.insert(state);
     updateStates(state);
 
@@ -761,8 +764,6 @@ void S2EExecutor::stateSwitchTimerCallback(void *opaque) {
         c->doLoadBalancing();
         S2EExecutionState *nextState = c->selectNextState(g_s2e_state);
         if (nextState) {
-            // Create per state solver only when we're going to execute that state
-            klee::SolverManager::get().createStateSolver(*nextState);
             g_s2e_state = nextState;
         } else {
             // Do not reschedule the timer anymore

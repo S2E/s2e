@@ -127,8 +127,6 @@ protected:
 
     std::chrono::seconds m_startTime;
 
-    std::shared_ptr<klee::SolverFactory> mSolverFactory;
-
     /* How many processes can S2E fork */
     unsigned m_maxInstances;
     unsigned m_currentInstanceIndex;

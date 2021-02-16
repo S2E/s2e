@@ -23,7 +23,6 @@ klee_add_component(kleeCore
 	SpecialFunctionHandler.cpp
 	StatsTracker.cpp
 	TimingSolver.cpp
-	SolverManager.cpp
 	UserSearcher.cpp
 )
 
