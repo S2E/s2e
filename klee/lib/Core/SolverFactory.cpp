@@ -97,7 +97,14 @@ cl::opt<bool> DebugValidateSolver("debug-validate-solver", cl::init(false));
 
 namespace klee {
 
-DefaultSolverFactory::DefaultSolverFactory(InterpreterHandler *ih) : ih_(ih) {
+DefaultSolverFactory::DefaultSolverFactory(const std::filesystem::path &outputDir) : m_outputDir(outputDir) {
+}
+
+std::filesystem::path DefaultSolverFactory::getOutputFileName(const std::string &fileName) const {
+    std::filesystem::path ret;
+    ret += m_outputDir;
+    ret += fileName;
+    return ret;
 }
 
 SolverPtr DefaultSolverFactory::createEndSolver() {
@@ -122,13 +129,12 @@ SolverPtr DefaultSolverFactory::decorateSolver(SolverPtr &end_solver) {
     SolverPtr solver = end_solver;
 
     if (queryLoggingOptions.isSet(SOLVER_KQUERY)) {
-        solver = createKQueryLoggingSolver(solver, ih_->getOutputFilename(SOLVER_QUERIES_KQUERY_FILE_NAME),
-                                           MinQueryTimeToLog);
+        solver =
+            createKQueryLoggingSolver(solver, getOutputFileName(SOLVER_QUERIES_KQUERY_FILE_NAME), MinQueryTimeToLog);
     }
 
     if (queryLoggingOptions.isSet(SOLVER_SMTLIB)) {
-        solver =
-            createSMTLIBLoggingSolver(solver, ih_->getOutputFilename(SOLVER_QUERIES_SMT2_FILE_NAME), MinQueryTimeToLog);
+        solver = createSMTLIBLoggingSolver(solver, getOutputFileName(SOLVER_QUERIES_SMT2_FILE_NAME), MinQueryTimeToLog);
     }
 
     if (UseFastCexSolver) {
@@ -154,13 +160,11 @@ SolverPtr DefaultSolverFactory::decorateSolver(SolverPtr &end_solver) {
     }
 
     if (queryLoggingOptions.isSet(ALL_KQUERY)) {
-        solver =
-            createKQueryLoggingSolver(solver, ih_->getOutputFilename(ALL_QUERIES_KQUERY_FILE_NAME), MinQueryTimeToLog);
+        solver = createKQueryLoggingSolver(solver, getOutputFileName(ALL_QUERIES_KQUERY_FILE_NAME), MinQueryTimeToLog);
     }
 
     if (queryLoggingOptions.isSet(ALL_SMTLIB)) {
-        solver =
-            createSMTLIBLoggingSolver(solver, ih_->getOutputFilename(ALL_QUERIES_SMT2_FILE_NAME), MinQueryTimeToLog);
+        solver = createSMTLIBLoggingSolver(solver, getOutputFileName(ALL_QUERIES_SMT2_FILE_NAME), MinQueryTimeToLog);
     }
 
     return solver;

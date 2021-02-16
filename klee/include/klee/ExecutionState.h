@@ -71,6 +71,8 @@ private:
     ExecutionState &operator=(const ExecutionState &);
     std::map<std::string, std::string> fnAliases;
 
+    TimingSolverPtr m_solver;
+
 public:
     bool fakeState;
 
@@ -190,7 +192,7 @@ public:
 
     void dumpQuery(llvm::raw_ostream &os) const;
 
-    std::shared_ptr<TimingSolver> solver() const;
+    TimingSolverPtr solver() const;
 
     Cell &getArgumentCell(KFunction *kf, unsigned index);
     Cell &getDestCell(KInstruction *target);

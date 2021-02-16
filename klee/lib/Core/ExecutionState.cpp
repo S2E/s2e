@@ -83,8 +83,9 @@ ExecutionState::ExecutionState(const std::vector<ref<Expr>> &assumptions)
 }
 
 ExecutionState::~ExecutionState() {
-    while (!stack.empty())
+    while (!stack.empty()) {
         popFrame();
+    }
 }
 
 ExecutionState *ExecutionState::clone() {
@@ -602,7 +603,7 @@ void ExecutionState::dumpQuery(llvm::raw_ostream &os) const {
     os.flush();
 }
 
-std::shared_ptr<TimingSolver> ExecutionState::solver() const {
+TimingSolverPtr ExecutionState::solver() const {
     return SolverManager::solver(*this);
 }
 

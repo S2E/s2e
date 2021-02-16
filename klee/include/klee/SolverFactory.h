@@ -30,6 +30,8 @@
 #ifndef SOLVERFACTORY_H_
 #define SOLVERFACTORY_H_
 
+#include <filesystem>
+#include <string>
 #include "Solver.h"
 
 namespace klee {
@@ -38,6 +40,10 @@ class Solver;
 class InterpreterHandler;
 
 class SolverFactory {
+protected:
+    SolverFactory() {
+    }
+
 public:
     virtual ~SolverFactory() {
     }
@@ -45,14 +51,22 @@ public:
     virtual SolverPtr decorateSolver(SolverPtr &end_solver) = 0;
 };
 
+using SolverFactoryPtr = std::shared_ptr<SolverFactory>;
+
 class DefaultSolverFactory : public SolverFactory {
+private:
+    std::filesystem::path m_outputDir;
+    DefaultSolverFactory(const std::filesystem::path &outputDir);
+
+    std::filesystem::path getOutputFileName(const std::string &fileName) const;
+
 public:
-    DefaultSolverFactory(InterpreterHandler *ih);
     virtual SolverPtr createEndSolver();
     virtual SolverPtr decorateSolver(SolverPtr &end_solver);
 
-private:
-    InterpreterHandler *ih_;
+    static SolverFactoryPtr create(const std::filesystem::path &outputDir) {
+        return SolverFactoryPtr(new DefaultSolverFactory(outputDir));
+    }
 };
 } // namespace klee
 
