@@ -71,7 +71,7 @@ private:
     ExecutionState &operator=(const ExecutionState &);
     std::map<std::string, std::string> fnAliases;
 
-    TimingSolverPtr m_solver;
+    SolverPtr m_solver;
 
 public:
     bool fakeState;
@@ -80,9 +80,6 @@ public:
     KInstIterator pc, prevPC;
     stack_ty stack;
     AddressSpace addressSpace;
-
-    // XXX: get this out of here
-    mutable double queryCost;
 
     /// Disables forking, set by user code.
     bool forkDisabled;
@@ -192,7 +189,7 @@ public:
 
     void dumpQuery(llvm::raw_ostream &os) const;
 
-    TimingSolverPtr solver() const;
+    SolverPtr solver() const;
 
     Cell &getArgumentCell(KFunction *kf, unsigned index);
     Cell &getDestCell(KInstruction *target);

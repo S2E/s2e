@@ -391,7 +391,8 @@ Executor::StatePair Executor::fork(ExecutionState &current, const ref<Expr> &con
 
         std::vector<std::vector<unsigned char>> concreteObjects;
         auto solver = SolverManager::solver(current);
-        if (!solver->getInitialValues(tmpConstraints, symbObjects, concreteObjects, current.queryCost)) {
+        Query q(tmpConstraints, ConstantExpr::alloc(0, Expr::Bool));
+        if (!solver->getInitialValues(q, symbObjects, concreteObjects)) {
             // Condition is always false in the current state
             return StatePair(0, &current);
         }
@@ -414,8 +415,9 @@ Executor::StatePair Executor::fork(ExecutionState &current, const ref<Expr> &con
     }
 
     std::vector<std::vector<unsigned char>> concreteObjects;
+    Query q(tmpConstraints, ConstantExpr::alloc(0, Expr::Bool));
     auto solver = SolverManager::solver(current);
-    if (!solver->getInitialValues(tmpConstraints, symbObjects, concreteObjects, current.queryCost)) {
+    if (!solver->getInitialValues(q, symbObjects, concreteObjects)) {
         if (conditionIsTrue) {
             return StatePair(&current, 0);
         } else {

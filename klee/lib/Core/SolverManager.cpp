@@ -38,17 +38,16 @@ SolverManager &SolverManager::get() {
     return mgr;
 }
 
-void SolverManager::initialize(const std::shared_ptr<SolverFactory> &factory) {
+void SolverManager::initialize(const SolverFactoryPtr &factory) {
     removeStateSolvers();
     mFactory = factory;
-    mSolver = createTimingSolver();
+    mSolver = createSolver();
 }
 
-std::shared_ptr<TimingSolver> SolverManager::createTimingSolver() {
+SolverPtr SolverManager::createSolver() {
     assert(mFactory);
     SolverPtr endSolver = mFactory->createEndSolver();
-    SolverPtr solver = mFactory->decorateSolver(endSolver);
-    return std::shared_ptr<TimingSolver>(TimingSolver::create(solver));
+    return mFactory->decorateSolver(endSolver);
 }
 
 void SolverManager::createStateSolver(const ExecutionState &state) {
@@ -57,7 +56,7 @@ void SolverManager::createStateSolver(const ExecutionState &state) {
     }
 
     if (mPerStateSolvers.find(&state) == mPerStateSolvers.end()) {
-        mPerStateSolvers[&state] = createTimingSolver();
+        mPerStateSolvers[&state] = createSolver();
     }
 }
 
@@ -65,7 +64,7 @@ void SolverManager::removeStateSolvers() {
     mPerStateSolvers.clear();
 }
 
-std::shared_ptr<TimingSolver> SolverManager::_solver(const ExecutionState &state) const {
+SolverPtr SolverManager::_solver(const ExecutionState &state) const {
     if (!mUsePerStateSolvers) {
         return mSolver;
     } else {
@@ -81,7 +80,7 @@ void SolverManager::removeState(const ExecutionState *state) {
     }
 }
 
-std::shared_ptr<TimingSolver> SolverManager::solver(const ExecutionState &state) {
+SolverPtr SolverManager::solver(const ExecutionState &state) {
     return get()._solver(state);
 }
 } // namespace klee

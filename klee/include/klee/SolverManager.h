@@ -23,7 +23,6 @@
 
 #include <klee/Solver.h>
 #include <klee/SolverFactory.h>
-#include <klee/TimingSolver.h>
 
 #ifndef KLEE_SOLVER_MANAGER_H
 #define KLEE_SOLVER_MANAGER_H
@@ -34,33 +33,33 @@ class ExecutionState;
 
 class SolverManager {
 private:
-    std::shared_ptr<SolverFactory> mFactory = nullptr;
+    SolverFactoryPtr mFactory = nullptr;
     bool mUsePerStateSolvers = false;
-    std::shared_ptr<TimingSolver> mSolver;
+    SolverPtr mSolver;
 
-    std::unordered_map<const ExecutionState *, std::shared_ptr<TimingSolver>> mPerStateSolvers;
+    std::unordered_map<const ExecutionState *, SolverPtr> mPerStateSolvers;
 
     SolverManager(SolverManager &) = delete;
 
     SolverManager(bool usePerStateSolvers);
 
-    std::shared_ptr<TimingSolver> createTimingSolver();
+    SolverPtr createSolver();
 
     void removeStateSolvers();
-    std::shared_ptr<TimingSolver> _solver(const ExecutionState &state) const;
+    SolverPtr _solver(const ExecutionState &state) const;
 
 public:
     static SolverManager &get();
 
-    static std::shared_ptr<TimingSolver> solver(const ExecutionState &state);
-    static std::shared_ptr<TimingSolver> solver(void) {
+    static SolverPtr solver(const ExecutionState &state);
+    static SolverPtr solver(void) {
         return get().mSolver;
     }
 
     void createStateSolver(const ExecutionState &state);
     void removeState(const ExecutionState *state);
 
-    void initialize(const std::shared_ptr<SolverFactory> &factory);
+    void initialize(const SolverFactoryPtr &factory);
 };
 } // namespace klee
 

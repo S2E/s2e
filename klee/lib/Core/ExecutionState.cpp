@@ -73,13 +73,13 @@ BitfieldSimplifier ExecutionState::s_simplifier;
 std::set<ObjectKey, ObjectKeyLTS> ExecutionState::s_ignoredMergeObjects;
 
 ExecutionState::ExecutionState(KFunction *kf)
-    : fakeState(false), pc(kf->instructions), prevPC(nullptr), addressSpace(this), queryCost(0.), forkDisabled(false),
+    : fakeState(false), pc(kf->instructions), prevPC(nullptr), addressSpace(this), forkDisabled(false),
       concolics(Assignment::create(true)) {
     pushFrame(0, kf);
 }
 
 ExecutionState::ExecutionState(const std::vector<ref<Expr>> &assumptions)
-    : fakeState(true), addressSpace(this), queryCost(0.), concolics(Assignment::create(true)) {
+    : fakeState(true), addressSpace(this), concolics(Assignment::create(true)) {
 }
 
 ExecutionState::~ExecutionState() {
@@ -520,7 +520,8 @@ ref<Expr> ExecutionState::toUnique(ref<Expr> &e) {
     value = dyn_cast<ConstantExpr>(evalResult);
 
     bool isTrue = false;
-    bool success = solver()->mustBeTrue(*this, simplifyExpr(EqExpr::create(e, value)), isTrue);
+    Query q(constraints(), simplifyExpr(EqExpr::create(e, value)));
+    bool success = solver()->mustBeTrue(q, isTrue);
 
     if (success && isTrue) {
         result = value;
@@ -536,7 +537,7 @@ bool ExecutionState::solve(const ConstraintManager &mgr, Assignment &assignment)
     }
 
     std::vector<std::vector<unsigned char>> concreteObjects;
-    if (!solver()->getInitialValues(mgr, symbObjects, concreteObjects, queryCost)) {
+    if (!solver()->getInitialValues(Query(mgr, ConstantExpr::alloc(0, Expr::Bool)), symbObjects, concreteObjects)) {
         return false;
     }
 
@@ -603,7 +604,7 @@ void ExecutionState::dumpQuery(llvm::raw_ostream &os) const {
     os.flush();
 }
 
-TimingSolverPtr ExecutionState::solver() const {
+SolverPtr ExecutionState::solver() const {
     return SolverManager::solver(*this);
 }
 

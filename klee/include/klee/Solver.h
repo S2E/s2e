@@ -241,6 +241,8 @@ SolverPtr createKQueryLoggingSolver(SolverPtr &s, std::string path, int minQuery
 /// after writing them to the given path in .smt2 format
 SolverPtr createSMTLIBLoggingSolver(SolverPtr &s, const std::string &path, int minQueryTimeToLog);
 
+SolverPtr createTimingSolver(SolverPtr &s);
+
 /// createDummySolver - Create a dummy solver implementation which always
 /// fails.
 SolverPtr createDummySolver();

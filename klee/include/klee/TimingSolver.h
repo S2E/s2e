@@ -23,49 +23,34 @@ class Solver;
 class TimingSolver;
 using TimingSolverPtr = std::shared_ptr<TimingSolver>;
 
-/// TimingSolver - A simple class which wraps a solver and handles
-/// tracking the statistics that we care about.
-class TimingSolver {
-public:
-    SolverPtr solver;
-    bool simplifyExprs;
-
+class TimingSolver : public SolverImpl {
 private:
-    /// TimingSolver - Construct a new timing solver.
-    ///
-    /// \param _simplifyExprs - Whether expressions should be
-    /// simplified (via the constraint manager interface) prior to
-    /// querying.
-    TimingSolver(SolverPtr &_solver, bool _simplifyExprs = true) : solver(_solver), simplifyExprs(_simplifyExprs) {
+    SolverPtr m_solver;
+
+    TimingSolver(SolverPtr _solver) : m_solver(_solver) {
     }
+
+    double m_queryCost = 0.0;
 
 public:
-    void setTimeout(double t) {
+    ~TimingSolver() {
     }
 
-    bool evaluate(const ExecutionState &, ref<Expr>, Validity &result);
+    bool computeTruth(const Query &, bool &isValid);
+    bool computeValidity(const Query &, Validity &result);
+    bool computeValue(const Query &, ref<Expr> &result);
+    bool computeInitialValues(const Query &query, const ArrayVec &objects,
+                              std::vector<std::vector<unsigned char>> &values, bool &hasSolution);
 
-    bool mustBeTrue(const ExecutionState &, ref<Expr>, bool &result);
+    static SolverImplPtr create(SolverPtr &s) {
+        return SolverImplPtr(new TimingSolver(s));
+    }
 
-    bool mustBeFalse(const ExecutionState &, ref<Expr>, bool &result);
-
-    bool mayBeTrue(const ExecutionState &, ref<Expr>, bool &result);
-
-    bool mayBeFalse(const ExecutionState &, ref<Expr>, bool &result);
-
-    bool getValue(const ExecutionState &, ref<Expr> expr, ref<ConstantExpr> &result);
-
-    bool getInitialValues(const ConstraintManager &constraints, const ArrayVec &objects,
-                          std::vector<std::vector<unsigned char>> &result, double &queryCost);
-    bool getInitialValues(const ExecutionState &, const ArrayVec &objects,
-                          std::vector<std::vector<unsigned char>> &result);
-
-    std::pair<ref<Expr>, ref<Expr>> getRange(const ExecutionState &, ref<Expr> query);
-
-    static TimingSolverPtr create(SolverPtr &_solver, bool _simplifyExprs = true) {
-        return TimingSolverPtr(new TimingSolver(_solver, _simplifyExprs));
+    double getTotalQueryCost() const {
+        return m_queryCost;
     }
 };
+
 } // namespace klee
 
 #endif

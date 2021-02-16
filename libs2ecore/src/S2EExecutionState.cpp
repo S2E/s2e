@@ -640,7 +640,7 @@ bool S2EExecutionState::merge(const ExecutionState &_b) {
 
 void S2EExecutionState::enumPossibleRanges(ref<Expr> e, ref<Expr> start, ref<Expr> end, std::vector<Range> &ranges) {
 
-    SolverPtr solver = klee::SolverManager::solver()->solver;
+    SolverPtr solver = klee::SolverManager::solver();
 
     ArrayVec symbObjects = symbolics;
 
@@ -671,7 +671,7 @@ bool S2EExecutionState::testConstraints(const std::vector<ref<Expr>> &c, Constra
 
     ArrayVec symbObjects = symbolics;
 
-    SolverPtr solver = SolverManager::solver()->solver;
+    SolverPtr solver = SolverManager::solver();
     std::vector<std::vector<unsigned char>> concreteObjects;
     if (!solver->getInitialValues(Query(tmpConstraints, ConstantExpr::create(0, Expr::Bool)), symbObjects,
                                   concreteObjects)) {

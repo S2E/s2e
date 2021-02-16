@@ -694,7 +694,7 @@ void BaseInstructions::getRange(S2EExecutionState *state) {
         return;
     }
 
-    auto solver = state->solver()->solver;
+    auto solver = state->solver();
 
     Query query(state->constraints(), value);
     range = solver->getRange(query);

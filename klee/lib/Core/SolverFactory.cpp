@@ -62,6 +62,9 @@ cl::opt<int> MinQueryTimeToLog("min-query-time-to-log", cl::init(0), cl::value_d
                                         "than threshold will be logged. default=0). Set this param to a negative "
                                         "value to log timeouts only."));
 
+llvm::cl::opt<bool> EnableTimingSolver("enable-timeingsolver", llvm::cl::desc("TimeingSolver: measure query time"),
+                                       llvm::cl::init(true));
+
 /// The different query logging solver that can be switched on/off
 enum QueryLoggingSolverType {
     ALL_KQUERY,    ///< Log all queries (un-optimised) in .kquery (KQuery) format
@@ -167,6 +170,11 @@ SolverPtr DefaultSolverFactory::decorateSolver(SolverPtr &end_solver) {
         solver = createSMTLIBLoggingSolver(solver, getOutputFileName(ALL_QUERIES_SMT2_FILE_NAME), MinQueryTimeToLog);
     }
 
+    if (EnableTimingSolver) {
+        solver = createTimingSolver(solver);
+    }
+
     return solver;
 }
+
 } // namespace klee
