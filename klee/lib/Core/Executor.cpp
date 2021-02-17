@@ -158,7 +158,7 @@ void Executor::initializeGlobalObject(ExecutionState &state, const ObjectStatePt
             initializeGlobalObject(state, os, cs->getOperand(i), offset + sl->getElementOffset(i));
     } else {
         unsigned StoreBits = dataLayout->getTypeStoreSizeInBits(c->getType());
-        ref<ConstantExpr> C = evalConstant(c);
+        ref<ConstantExpr> C = kmodule->evalConstant(globalAddresses, c);
 
         // Extend the constant if necessary;
         assert(StoreBits >= C->getWidth() && "Invalid store size!");
@@ -306,7 +306,7 @@ void Executor::initializeGlobals(ExecutionState &state) {
     for (Module::alias_iterator i = m->alias_begin(), ie = m->alias_end(); i != ie; ++i) {
         // Map the alias to its aliasee's address. This works because we have
         // addresses for everything, even undefined functions.
-        globalAddresses.insert(std::make_pair(&*i, evalConstant(i->getAliasee())));
+        globalAddresses.insert(std::make_pair(&*i, kmodule->evalConstant(globalAddresses, i->getAliasee())));
     }
 
     // once all objects are allocated, do the actual initialization
@@ -678,7 +678,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
                     if (t != Type::getVoidTy(caller->getContext())) {
                         // may need to do coercion due to bitcasts
                         Expr::Width from = result->getWidth();
-                        Expr::Width to = getWidthForLLVMType(t);
+                        Expr::Width to = kmodule->getWidthForLLVMType(t);
 
                         if (from != to) {
                             CallSite cs = (isa<InvokeInst>(caller) ? CallSite(cast<InvokeInst>(caller))
@@ -806,7 +806,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
                         Expr::Width to, from = (*ai)->getWidth();
 
                         if (i < fType->getNumParams()) {
-                            to = getWidthForLLVMType(fType->getParamType(i));
+                            to = kmodule->getWidthForLLVMType(fType->getParamType(i));
 
                             if (from != to) {
                                 // XXX need to check other param attrs ?
@@ -1130,33 +1130,34 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
         // Conversion
         case Instruction::Trunc: {
             CastInst *ci = cast<CastInst>(i);
-            ref<Expr> result = ExtractExpr::create(eval(ki, 0, state).value, 0, getWidthForLLVMType(ci->getType()));
+            ref<Expr> result =
+                ExtractExpr::create(eval(ki, 0, state).value, 0, kmodule->getWidthForLLVMType(ci->getType()));
             state.bindLocal(ki, result);
             break;
         }
         case Instruction::ZExt: {
             CastInst *ci = cast<CastInst>(i);
-            ref<Expr> result = ZExtExpr::create(eval(ki, 0, state).value, getWidthForLLVMType(ci->getType()));
+            ref<Expr> result = ZExtExpr::create(eval(ki, 0, state).value, kmodule->getWidthForLLVMType(ci->getType()));
             state.bindLocal(ki, result);
             break;
         }
         case Instruction::SExt: {
             CastInst *ci = cast<CastInst>(i);
-            ref<Expr> result = SExtExpr::create(eval(ki, 0, state).value, getWidthForLLVMType(ci->getType()));
+            ref<Expr> result = SExtExpr::create(eval(ki, 0, state).value, kmodule->getWidthForLLVMType(ci->getType()));
             state.bindLocal(ki, result);
             break;
         }
 
         case Instruction::IntToPtr: {
             CastInst *ci = cast<CastInst>(i);
-            Expr::Width pType = getWidthForLLVMType(ci->getType());
+            Expr::Width pType = kmodule->getWidthForLLVMType(ci->getType());
             ref<Expr> arg = eval(ki, 0, state).value;
             state.bindLocal(ki, ZExtExpr::create(arg, pType));
             break;
         }
         case Instruction::PtrToInt: {
             CastInst *ci = cast<CastInst>(i);
-            Expr::Width iType = getWidthForLLVMType(ci->getType());
+            Expr::Width iType = kmodule->getWidthForLLVMType(ci->getType());
             ref<Expr> arg = eval(ki, 0, state).value;
             state.bindLocal(ki, ZExtExpr::create(arg, iType));
             break;
@@ -1220,7 +1221,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
 
         case Instruction::FPTrunc: {
             FPTruncInst *fi = cast<FPTruncInst>(i);
-            Expr::Width resultType = getWidthForLLVMType(fi->getType());
+            Expr::Width resultType = kmodule->getWidthForLLVMType(fi->getType());
             ref<ConstantExpr> arg = state.toConstant(eval(ki, 0, state).value, "floating point");
             if (arg->getWidth() > 64)
                 return terminateState(state, "Unsupported FPTrunc operation");
@@ -1231,7 +1232,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
 
         case Instruction::FPExt: {
             FPExtInst *fi = cast<FPExtInst>(i);
-            Expr::Width resultType = getWidthForLLVMType(fi->getType());
+            Expr::Width resultType = kmodule->getWidthForLLVMType(fi->getType());
             ref<ConstantExpr> arg = state.toConstant(eval(ki, 0, state).value, "floating point");
             if (arg->getWidth() > 64)
                 return terminateState(state, "Unsupported FPExt operation");
@@ -1242,7 +1243,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
 
         case Instruction::FPToUI: {
             FPToUIInst *fi = cast<FPToUIInst>(i);
-            Expr::Width resultType = getWidthForLLVMType(fi->getType());
+            Expr::Width resultType = kmodule->getWidthForLLVMType(fi->getType());
             ref<ConstantExpr> arg = state.toConstant(eval(ki, 0, state).value, "floating point");
             if (arg->getWidth() > 64)
                 return terminateState(state, "Unsupported FPToUI operation");
@@ -1253,7 +1254,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
 
         case Instruction::FPToSI: {
             FPToSIInst *fi = cast<FPToSIInst>(i);
-            Expr::Width resultType = getWidthForLLVMType(fi->getType());
+            Expr::Width resultType = kmodule->getWidthForLLVMType(fi->getType());
             ref<ConstantExpr> arg = state.toConstant(eval(ki, 0, state).value, "floating point");
             if (arg->getWidth() > 64)
                 return terminateState(state, "Unsupported FPToSI operation");
@@ -1264,7 +1265,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
 
         case Instruction::UIToFP: {
             UIToFPInst *fi = cast<UIToFPInst>(i);
-            Expr::Width resultType = getWidthForLLVMType(fi->getType());
+            Expr::Width resultType = kmodule->getWidthForLLVMType(fi->getType());
             ref<ConstantExpr> arg = state.toConstant(eval(ki, 0, state).value, "floating point");
             if (arg->getWidth() > 64)
                 return terminateState(state, "Unsupported UIToFP operation");
@@ -1275,7 +1276,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
 
         case Instruction::SIToFP: {
             SIToFPInst *fi = cast<SIToFPInst>(i);
-            Expr::Width resultType = getWidthForLLVMType(fi->getType());
+            Expr::Width resultType = kmodule->getWidthForLLVMType(fi->getType());
             ref<ConstantExpr> arg = state.toConstant(eval(ki, 0, state).value, "floating point");
             if (arg->getWidth() > 64)
                 return terminateState(state, "Unsupported SIToFP operation");
@@ -1403,7 +1404,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
 
             ref<Expr> agg = eval(ki, 0, state).value;
 
-            ref<Expr> result = ExtractExpr::create(agg, kgepi->offset * 8, getWidthForLLVMType(i->getType()));
+            ref<Expr> result = ExtractExpr::create(agg, kgepi->offset * 8, kmodule->getWidthForLLVMType(i->getType()));
 
             state.bindLocal(ki, result);
             break;
@@ -1422,7 +1423,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
             }
             uint64_t iIdx = cIdx->getZExtValue();
             const llvm::VectorType *vt = iei->getType();
-            unsigned EltBits = getWidthForLLVMType(vt->getElementType());
+            unsigned EltBits = kmodule->getWidthForLLVMType(vt->getElementType());
 
             if (iIdx >= vt->getNumElements()) {
                 // Out of bounds write
@@ -1456,7 +1457,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
             }
             uint64_t iIdx = cIdx->getZExtValue();
             const llvm::VectorType *vt = eei->getVectorOperandType();
-            unsigned EltBits = getWidthForLLVMType(vt->getElementType());
+            unsigned EltBits = kmodule->getWidthForLLVMType(vt->getElementType());
 
             if (iIdx >= vt->getNumElements()) {
                 // Out of bounds read
@@ -1521,7 +1522,8 @@ template <typename TypeIt> void Executor::computeOffsets(KGEPInstruction *kgepi,
             uint64_t elementSize = dataLayout.getTypeStoreSize(set->getElementType());
             Value *operand = ii.getOperand();
             if (Constant *c = dyn_cast<Constant>(operand)) {
-                ref<ConstantExpr> index = evalConstant(c)->SExt(Context::get().getPointerWidth());
+                ref<ConstantExpr> index =
+                    kmodule->evalConstant(globalAddresses, c)->SExt(Context::get().getPointerWidth());
                 ref<ConstantExpr> addend =
                     index->Mul(ConstantExpr::alloc(elementSize, Context::get().getPointerWidth()));
                 constantOffset = constantOffset->Add(addend);
@@ -1532,7 +1534,7 @@ template <typename TypeIt> void Executor::computeOffsets(KGEPInstruction *kgepi,
             auto elementSize = dataLayout.getTypeStoreSize(ptr->getElementType());
             auto operand = ii.getOperand();
             if (auto c = dyn_cast<Constant>(operand)) {
-                auto index = evalConstant(c)->SExt(Context::get().getPointerWidth());
+                auto index = kmodule->evalConstant(globalAddresses, c)->SExt(Context::get().getPointerWidth());
                 auto addend = index->Mul(ConstantExpr::alloc(elementSize, Context::get().getPointerWidth()));
                 constantOffset = constantOffset->Add(addend);
             } else {
@@ -1570,7 +1572,7 @@ void Executor::bindModuleConstants() {
     kmodule->constantTable.resize(kmodule->constants.size());
     for (unsigned i = 0; i < kmodule->constants.size(); ++i) {
         Cell &c = kmodule->constantTable[i];
-        c.value = evalConstant(kmodule->constants[i]);
+        c.value = kmodule->evalConstant(globalAddresses, kmodule->constants[i]);
     }
 }
 
@@ -1688,7 +1690,7 @@ void Executor::callExternalFunction(ExecutionState &state, KInstruction *target,
 
     if (resultType != Type::getVoidTy(function->getContext())) {
         ref<Expr> resultExpr;
-        auto resultWidth = getWidthForLLVMType(resultType);
+        auto resultWidth = kmodule->getWidthForLLVMType(resultType);
         switch (resultWidth) {
             case Expr::Bool:
                 resultExpr = ConstantExpr::create(result & 1, resultWidth);
@@ -1860,7 +1862,7 @@ ref<Expr> Executor::executeMemoryOperation(ExecutionState &state, const ObjectSt
 
 void Executor::executeMemoryOperation(ExecutionState &state, bool isWrite, ref<Expr> address,
                                       ref<Expr> value /* undef if read */, KInstruction *target /* undef if write */) {
-    Expr::Width type = (isWrite ? value->getWidth() : getWidthForLLVMType(target->inst->getType()));
+    Expr::Width type = (isWrite ? value->getWidth() : kmodule->getWidthForLLVMType(target->inst->getType()));
     unsigned bytes = Expr::getMinBytesForWidth(type);
 
     if (SimplifySymIndices) {
@@ -2045,8 +2047,4 @@ void Executor::executeMemoryOperation(ExecutionState &state, bool isWrite, ref<E
 
 void Executor::addSpecialFunctionHandler(Function *function, FunctionHandler handler) {
     specialFunctionHandler->addUHandler(function, handler);
-}
-
-Expr::Width Executor::getWidthForLLVMType(llvm::Type *type) const {
-    return kmodule->dataLayout->getTypeSizeInBits(type);
 }

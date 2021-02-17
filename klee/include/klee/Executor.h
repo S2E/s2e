@@ -118,7 +118,7 @@ protected:
 
     /// Map of globals to their bound address. This also includes
     /// globals that have no representative object (i.e. functions).
-    std::unordered_map<const llvm::GlobalValue *, ref<ConstantExpr>> globalAddresses;
+    GlobalAddresses globalAddresses;
 
     /// The set of functions that must be handled via custom function handlers
     /// instead of being called directly.
@@ -189,8 +189,6 @@ protected:
 
     const Cell &eval(KInstruction *ki, unsigned index, ExecutionState &state) const;
 
-    ref<klee::ConstantExpr> evalConstantExpr(const llvm::ConstantExpr *ce, const KInstruction *ki = nullptr);
-
     // delete the state (called internally by terminateState and updateStates)
     virtual void deleteState(ExecutionState *state);
 
@@ -241,9 +239,6 @@ public:
 
     virtual void terminateState(ExecutionState &state, const std::string &reason);
 
-    // XXX should just be moved out to utility module
-    ref<klee::ConstantExpr> evalConstant(const llvm::Constant *c, const KInstruction *ki = nullptr);
-
     virtual const llvm::Module *setModule(llvm::Module *module, const ModuleOptions &opts,
                                           bool createStatsTracker = true);
 
@@ -267,8 +262,6 @@ public:
     const StateSet &getRemovedStates() {
         return removedStates;
     }
-
-    Expr::Width getWidthForLLVMType(llvm::Type *type) const;
 
     ExternalDispatcher *getDispatcher() const {
         return externalDispatcher;

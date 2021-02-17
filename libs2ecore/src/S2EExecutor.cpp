@@ -1008,7 +1008,7 @@ void S2EExecutor::prepareFunctionExecution(S2EExecutionState *state, llvm::Funct
 
         for (unsigned i = cIndex; i < kmodule->constants.size(); ++i) {
             Cell &c = kmodule->constantTable[i];
-            c.value = evalConstant(kmodule->constants[i]);
+            c.value = kmodule->evalConstant(globalAddresses, kmodule->constants[i]);
         }
     }
 

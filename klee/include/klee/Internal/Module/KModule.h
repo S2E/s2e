@@ -10,20 +10,24 @@
 #ifndef KLEE_KMODULE_H
 #define KLEE_KMODULE_H
 
+#include <klee/Expr.h>
 #include "klee/Interpreter.h"
 
 #include <llvm/ADT/DenseMap.h>
 #include <map>
 #include <set>
+#include <unordered_map>
 #include <vector>
 
 namespace llvm {
 class BasicBlock;
 class Constant;
+class ConstantExpr;
 class Function;
 class Instruction;
 class Module;
 class DataLayout;
+class GlobalValue;
 } // namespace llvm
 
 namespace klee {
@@ -79,6 +83,8 @@ public:
     KConstant(llvm::Constant *, unsigned, KInstruction *);
 };
 
+using GlobalAddresses = std::unordered_map<const llvm::GlobalValue *, ref<ConstantExpr>>;
+
 class KModule {
 public:
     llvm::Module *module;
@@ -122,6 +128,14 @@ public:
 
     /// Remove function from KModule and call removeFromParend on it
     void removeFunction(llvm::Function *f, bool keepDeclaration = false);
+
+    Expr::Width getWidthForLLVMType(llvm::Type *type) const;
+
+    ref<klee::ConstantExpr> evalConstant(const GlobalAddresses &globalAddresses, const llvm::Constant *c,
+                                         const KInstruction *ki = nullptr);
+
+    ref<klee::ConstantExpr> evalConstantExpr(const GlobalAddresses &globalAddresses, const llvm::ConstantExpr *ce,
+                                             const KInstruction *ki = nullptr);
 };
 } // namespace klee
 
