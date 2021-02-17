@@ -67,9 +67,6 @@ cl::opt<SwitchImplType> SwitchType("switch-type", cl::desc("Select the implement
                                               clEnumValN(eSwitchTypeLLVM, "llvm", "lower using LLVM"),
                                               clEnumValN(eSwitchTypeInternal, "internal", "execute switch internally")),
                                    cl::init(eSwitchTypeInternal));
-
-cl::opt<bool> DebugPrintEscapingFunctions("debug-print-escaping-functions",
-                                          cl::desc("Print functions whose address is taken."));
 } // namespace
 
 KModule::KModule(Module *_module) : module(_module), dataLayout(new DataLayout(module)) {
@@ -411,23 +408,6 @@ void KModule::buildShadowStructures() {
         functions.push_back(kf);
         functionMap.insert(std::make_pair(&*it, kf));
     }
-
-    /* Compute various interesting properties */
-
-    for (std::vector<KFunction *>::iterator it = functions.begin(), ie = functions.end(); it != ie; ++it) {
-        KFunction *kf = *it;
-        if (functionEscapes(kf->function))
-            escapingFunctions.insert(kf->function);
-    }
-
-    if (DebugPrintEscapingFunctions && !escapingFunctions.empty()) {
-        llvm::errs() << "KLEE: escaping functions: [";
-        for (std::set<Function *>::iterator it = escapingFunctions.begin(), ie = escapingFunctions.end(); it != ie;
-             ++it) {
-            llvm::errs() << (*it)->getName() << ", ";
-        }
-        llvm::errs() << "]\n";
-    }
 }
 
 KFunction *KModule::updateModuleWithFunction(llvm::Function *f) {
@@ -438,9 +418,6 @@ KFunction *KModule::updateModuleWithFunction(llvm::Function *f) {
     functions.push_back(kf);
     functionMap.insert(std::make_pair(f, kf));
 
-    if (functionEscapes(kf->function))
-        escapingFunctions.insert(kf->function);
-
     return kf;
 }
 
@@ -450,7 +427,6 @@ void KModule::removeFunction(llvm::Function *f, bool keepDeclaration) {
 
     KFunction *kf = it->second;
     functions.erase(std::find(functions.begin(), functions.end(), kf));
-    escapingFunctions.erase(f);
     functionMap.erase(f);
     delete kf;
 

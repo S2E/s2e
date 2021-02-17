@@ -97,10 +97,6 @@ public:
     std::vector<KFunction *> functions;
     std::map<llvm::Function *, KFunction *> functionMap;
 
-    // Functions which escape (may be called indirectly)
-    // XXX change to KFunction
-    std::set<llvm::Function *> escapingFunctions;
-
     std::vector<const llvm::Constant *> constants;
     std::map<const llvm::Constant *, KConstant *> constantMap;
     KConstant *getKConstant(const llvm::Constant *c);
