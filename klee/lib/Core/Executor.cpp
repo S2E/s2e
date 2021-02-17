@@ -96,7 +96,7 @@ Executor::Executor(InterpreterHandler *ih, LLVMContext &context)
 const Module *Executor::setModule(llvm::Module *module, const ModuleOptions &opts, bool createStatsTracker) {
     assert(!kmodule && module && "can only register one module"); // XXX gross
 
-    kmodule = new KModule(module);
+    kmodule = KModule::create(module);
 
     // Initialize the context.
     DataLayout *TD = kmodule->dataLayout;
@@ -129,7 +129,6 @@ Executor::~Executor() {
         delete specialFunctionHandler;
     if (statsTracker)
         delete statsTracker;
-    delete kmodule;
 }
 
 /***/

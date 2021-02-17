@@ -89,7 +89,7 @@ public:
 protected:
     class TimerInfo;
 
-    KModule *kmodule;
+    KModulePtr kmodule;
     InterpreterHandler *interpreterHandler;
     Searcher *searcher;
 
@@ -267,7 +267,7 @@ public:
         return externalDispatcher;
     }
 
-    KModule *getModule() const {
+    KModulePtr getModule() const {
         return kmodule;
     }
 };

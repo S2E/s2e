@@ -15,6 +15,7 @@
 
 #include <llvm/ADT/DenseMap.h>
 #include <map>
+#include <memory>
 #include <set>
 #include <unordered_map>
 #include <vector>
@@ -85,6 +86,8 @@ public:
 
 using GlobalAddresses = std::unordered_map<const llvm::GlobalValue *, ref<ConstantExpr>>;
 
+using KModulePtr = std::shared_ptr<KModule>;
+
 class KModule {
 public:
     llvm::Module *module;
@@ -107,8 +110,12 @@ public:
 
     std::vector<Cell> constantTable;
 
-public:
+private:
     KModule(llvm::Module *_module);
+    KModule() {
+    }
+
+public:
     ~KModule();
 
     /// Initialize local data structures.
@@ -136,6 +143,10 @@ public:
 
     ref<klee::ConstantExpr> evalConstantExpr(const GlobalAddresses &globalAddresses, const llvm::ConstantExpr *ce,
                                              const KInstruction *ki = nullptr);
+
+    static KModulePtr create(llvm::Module *module) {
+        return KModulePtr(new KModule(module));
+    }
 };
 } // namespace klee
 
