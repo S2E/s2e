@@ -128,7 +128,8 @@ protected:
 
     void executeInstruction(ExecutionState &state, KInstruction *ki);
 
-    void initializeGlobalObject(ExecutionState &state, const ObjectStatePtr &os, llvm::Constant *c, unsigned offset);
+    void initializeGlobalObject(ExecutionState &state, const ObjectStatePtr &os, const llvm::Constant *c,
+                                unsigned offset);
     void initializeGlobals(ExecutionState &state);
 
     virtual void updateStates(ExecutionState *current);
@@ -191,15 +192,6 @@ protected:
 
     // delete the state (called internally by terminateState and updateStates)
     virtual void deleteState(ExecutionState *state);
-
-    /// bindModuleConstants - Initialize the module constant table.
-    void bindModuleConstants();
-
-    template <typename TypeIt> void computeOffsets(KGEPInstruction *kgepi, TypeIt ib, TypeIt ie);
-
-    /// bindInstructionConstants - Initialize any necessary per instruction
-    /// constant values.
-    void bindInstructionConstants(KInstruction *KI);
 
     void handlePointsToObj(ExecutionState &state, KInstruction *target, const std::vector<ref<Expr>> &arguments);
 

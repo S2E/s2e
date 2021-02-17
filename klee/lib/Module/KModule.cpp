@@ -43,6 +43,8 @@
 #include "llvm/Transforms/Scalar/Scalarizer.h"
 #include "llvm/Transforms/Utils.h"
 
+#include "klee/util/GetElementPtrTypeIterator.h"
+
 #include <sstream>
 
 using namespace llvm;
@@ -437,11 +439,12 @@ void KModule::removeFunction(llvm::Function *f, bool keepDeclaration) {
     }
 }
 
-KConstant *KModule::getKConstant(const Constant *c) {
+KConstant *KModule::getKConstant(const Constant *c) const {
     auto it = constantMap.find(c);
-    if (it != constantMap.end())
+    if (it != constantMap.end()) {
         return it->second;
-    return NULL;
+    }
+    return nullptr;
 }
 
 unsigned KModule::getConstantID(Constant *c, KInstruction *ki) {
@@ -460,6 +463,119 @@ Expr::Width KModule::getWidthForLLVMType(llvm::Type *type) const {
     return dataLayout->getTypeSizeInBits(type);
 }
 
+template <typename TypeIt>
+void KModule::computeOffsets(const GlobalAddresses &globalAddresses, KGEPInstruction *kgepi, TypeIt ib, TypeIt ie) {
+    auto &dataLayout = module->getDataLayout();
+
+    ref<ConstantExpr> constantOffset = ConstantExpr::alloc(0, Context::get().getPointerWidth());
+    uint64_t index = 1;
+    for (TypeIt ii = ib; ii != ie; ++ii) {
+        if (StructType *st = dyn_cast<StructType>(*ii)) {
+            const StructLayout *sl = dataLayout.getStructLayout(st);
+            const ConstantInt *ci = cast<ConstantInt>(ii.getOperand());
+            uint64_t addend = sl->getElementOffset((unsigned) ci->getZExtValue());
+            constantOffset = constantOffset->Add(ConstantExpr::alloc(addend, Context::get().getPointerWidth()));
+        } else if (const auto set = dyn_cast<SequentialType>(*ii)) {
+            uint64_t elementSize = dataLayout.getTypeStoreSize(set->getElementType());
+            Value *operand = ii.getOperand();
+            if (Constant *c = dyn_cast<Constant>(operand)) {
+                ref<ConstantExpr> index = evalConstant(globalAddresses, c)->SExt(Context::get().getPointerWidth());
+                ref<ConstantExpr> addend =
+                    index->Mul(ConstantExpr::alloc(elementSize, Context::get().getPointerWidth()));
+                constantOffset = constantOffset->Add(addend);
+            } else {
+                kgepi->indices.push_back(std::make_pair(index, elementSize));
+            }
+        } else if (const auto ptr = dyn_cast<PointerType>(*ii)) {
+            auto elementSize = dataLayout.getTypeStoreSize(ptr->getElementType());
+            auto operand = ii.getOperand();
+            if (auto c = dyn_cast<Constant>(operand)) {
+                auto index = evalConstant(globalAddresses, c)->SExt(Context::get().getPointerWidth());
+                auto addend = index->Mul(ConstantExpr::alloc(elementSize, Context::get().getPointerWidth()));
+                constantOffset = constantOffset->Add(addend);
+            } else {
+                kgepi->indices.push_back(std::make_pair(index, elementSize));
+            }
+        } else
+            assert("invalid type" && 0);
+        index++;
+    }
+    kgepi->offset = constantOffset->getZExtValue();
+}
+
+void KModule::bindInstructionConstants(const GlobalAddresses &globalAddresses, KInstruction *KI) {
+    KGEPInstruction *kgepi = static_cast<KGEPInstruction *>(KI);
+
+    if (GetElementPtrInst *gepi = dyn_cast<GetElementPtrInst>(KI->inst)) {
+        computeOffsets(globalAddresses, kgepi, klee::gep_type_begin(gepi), klee::gep_type_end(gepi));
+    } else if (InsertValueInst *ivi = dyn_cast<InsertValueInst>(KI->inst)) {
+        computeOffsets(globalAddresses, kgepi, iv_type_begin(ivi), iv_type_end(ivi));
+        assert(kgepi->indices.empty() && "InsertValue constant offset expected");
+    } else if (ExtractValueInst *evi = dyn_cast<ExtractValueInst>(KI->inst)) {
+        computeOffsets(globalAddresses, kgepi, ev_type_begin(evi), ev_type_end(evi));
+        assert(kgepi->indices.empty() && "ExtractValue constant offset expected");
+    }
+}
+
+void KModule::bindModuleConstants(const GlobalAddresses &globalAddresses) {
+    for (auto kf : functions) {
+        for (unsigned i = 0; i < kf->numInstructions; ++i) {
+            bindInstructionConstants(globalAddresses, kf->instructions[i]);
+        }
+    }
+
+    constantTable.resize(constants.size());
+    for (unsigned i = 0; i < constants.size(); ++i) {
+        Cell &c = constantTable[i];
+        c.value = evalConstant(globalAddresses, constants[i]);
+    }
+}
+
+KFunction *KModule::bindFunctionConstants(GlobalAddresses &globalAddresses, llvm::Function *function) {
+    auto kf = getKFunction(function);
+    if (kf) {
+        return kf;
+    }
+
+    unsigned cIndex = constants.size();
+    kf = updateModuleWithFunction(function);
+
+    for (unsigned i = 0; i < kf->numInstructions; ++i) {
+        bindInstructionConstants(globalAddresses, kf->instructions[i]);
+    }
+
+    // Update global functions (new functions can be added while creating added function)
+    // TODO: optimize this, we shouldn't have to go over all functions again and again
+    for (auto &it : *module) {
+        auto f = &it;
+        if (globalAddresses.find(f) != globalAddresses.end()) {
+            continue;
+        }
+
+        klee::ref<klee::ConstantExpr> addr(0);
+
+        // If the symbol has external weak linkage then it is implicitly
+        // not defined in this module; if it isn't resolvable then it
+        // should be null.
+        if (f->hasExternalWeakLinkage()) {
+            addr = Expr::createPointer(0);
+        } else {
+            addr = Expr::createPointer((uintptr_t)(void *) f);
+        }
+
+        globalAddresses.insert(std::make_pair(f, addr));
+    }
+
+    constantTable.resize(constants.size());
+
+    for (unsigned i = cIndex; i < constants.size(); ++i) {
+        Cell &c = constantTable[i];
+        c.value = evalConstant(globalAddresses, constants[i]);
+    }
+
+    return kf;
+}
+
 ref<klee::ConstantExpr> KModule::evalConstant(const GlobalAddresses &globalAddresses, const Constant *c,
                                               const KInstruction *ki) {
     if (!ki) {
@@ -476,7 +592,9 @@ ref<klee::ConstantExpr> KModule::evalConstant(const GlobalAddresses &globalAddre
         } else if (const ConstantFP *cf = dyn_cast<ConstantFP>(c)) {
             return ConstantExpr::alloc(cf->getValueAPF().bitcastToAPInt());
         } else if (const GlobalValue *gv = dyn_cast<GlobalValue>(c)) {
-            return globalAddresses.find(gv)->second;
+            auto it = globalAddresses.find(gv);
+            assert(it != globalAddresses.end());
+            return it->second;
         } else if (isa<ConstantPointerNull>(c)) {
             return Expr::createPointer(0);
         } else if (isa<UndefValue>(c) || isa<ConstantAggregateZero>(c)) {
@@ -638,7 +756,7 @@ klee::ref<klee::ConstantExpr> KModule::evalConstantExpr(const GlobalAddresses &g
 
         case Instruction::GetElementPtr: {
             ref<ConstantExpr> base = op1->ZExt(Context::get().getPointerWidth());
-            for (gep_type_iterator ii = gep_type_begin(ce), ie = gep_type_end(ce); ii != ie; ++ii) {
+            for (auto ii = llvm::gep_type_begin(ce), ie = llvm::gep_type_end(ce); ii != ie; ++ii) {
                 ref<ConstantExpr> indexOp = evalConstant(globalAddresses, cast<Constant>(ii.getOperand()), ki);
                 if (indexOp->isZero())
                     continue;

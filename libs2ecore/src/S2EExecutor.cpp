@@ -414,10 +414,10 @@ S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMTranslator *translator, InterpreterHan
     ReturnInst::Create(m_llvmTranslator->getContext(), dummyMainBB);
 
     kmodule->updateModuleWithFunction(dummyMain);
-    m_dummyMain = kmodule->functionMap[dummyMain];
+    m_dummyMain = kmodule->getKFunction(dummyMain);
 
 #ifdef CONFIG_SYMBEX_MP
-    registerFunctionHandlers(*kmodule->module);
+    registerFunctionHandlers(*kmodule->getModule());
 
     if (UseFastHelpers) {
         replaceExternalFunctionsWithSpecialHandlers();
@@ -523,7 +523,7 @@ void S2EExecutor::initializeExecution(S2EExecutionState *state, bool executeAlwa
     m_executeAlwaysKlee = executeAlwaysKlee;
 
     initializeGlobals(*state);
-    bindModuleConstants();
+    kmodule->bindModuleConstants(globalAddresses);
 
     initTimers();
     initializeStateSwitchTimer();
@@ -968,49 +968,7 @@ S2EExecutionState *S2EExecutor::selectNextState(S2EExecutionState *state) {
 /** Simulate start of function execution, creating KLEE structs of required */
 void S2EExecutor::prepareFunctionExecution(S2EExecutionState *state, llvm::Function *function,
                                            const std::vector<klee::ref<klee::Expr>> &args) {
-    KFunction *kf;
-    auto it = kmodule->functionMap.find(function);
-    if (it != kmodule->functionMap.end()) {
-        kf = it->second;
-    } else {
-
-        unsigned cIndex = kmodule->constants.size();
-        kf = kmodule->updateModuleWithFunction(function);
-
-        for (unsigned i = 0; i < kf->numInstructions; ++i) {
-            bindInstructionConstants(kf->instructions[i]);
-        }
-
-        /* Update global functions (new functions can be added
-           while creating added function) */
-        // TODO: optimize this, we shouldn't have to go over all functions again and again
-        for (Module::iterator i = kmodule->module->begin(), ie = kmodule->module->end(); i != ie; ++i) {
-            Function *f = &*i;
-            if (globalAddresses.find(f) != globalAddresses.end()) {
-                continue;
-            }
-
-            klee::ref<klee::ConstantExpr> addr(0);
-
-            // If the symbol has external weak linkage then it is implicitly
-            // not defined in this module; if it isn't resolvable then it
-            // should be null.
-            if (f->hasExternalWeakLinkage() && !externalDispatcher->resolveSymbol(f->getName().str())) {
-                addr = Expr::createPointer(0);
-            } else {
-                addr = Expr::createPointer((uintptr_t)(void *) f);
-            }
-
-            globalAddresses.insert(std::make_pair(f, addr));
-        }
-
-        kmodule->constantTable.resize(kmodule->constants.size());
-
-        for (unsigned i = cIndex; i < kmodule->constants.size(); ++i) {
-            Cell &c = kmodule->constantTable[i];
-            c.value = kmodule->evalConstant(globalAddresses, kmodule->constants[i]);
-        }
-    }
+    auto kf = kmodule->bindFunctionConstants(globalAddresses, function);
 
     /* Emulate call to a TB function */
     state->prevPC = state->pc;
@@ -1349,7 +1307,7 @@ klee::ref<klee::Expr> S2EExecutor::executeFunction(S2EExecutionState *state, llv
 
 klee::ref<klee::Expr> S2EExecutor::executeFunction(S2EExecutionState *state, const std::string &functionName,
                                                    const std::vector<klee::ref<klee::Expr>> &args) {
-    llvm::Function *function = kmodule->module->getFunction(functionName);
+    auto function = kmodule->getModule()->getFunction(functionName);
     assert(function && "function with given name do not exists in LLVM module");
     return executeFunction(state, function, args);
 }

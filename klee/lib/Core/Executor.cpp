@@ -99,7 +99,7 @@ const Module *Executor::setModule(llvm::Module *module, const ModuleOptions &opt
     kmodule = KModule::create(module);
 
     // Initialize the context.
-    DataLayout *TD = kmodule->dataLayout;
+    auto TD = kmodule->getDataLayout();
     Context::initialize(TD->isLittleEndian(), (Expr::Width) TD->getPointerSizeInBits());
 
     specialFunctionHandler = new SpecialFunctionHandler(*this);
@@ -133,9 +133,10 @@ Executor::~Executor() {
 
 /***/
 
-void Executor::initializeGlobalObject(ExecutionState &state, const ObjectStatePtr &os, Constant *c, unsigned offset) {
-    DataLayout *dataLayout = kmodule->dataLayout;
-    if (ConstantVector *cp = dyn_cast<ConstantVector>(c)) {
+void Executor::initializeGlobalObject(ExecutionState &state, const ObjectStatePtr &os, const Constant *c,
+                                      unsigned offset) {
+    auto dataLayout = kmodule->getDataLayout();
+    if (auto *cp = dyn_cast<ConstantVector>(c)) {
         unsigned elementSize = dataLayout->getTypeStoreSize(cp->getType()->getElementType());
         for (unsigned i = 0, e = cp->getNumOperands(); i != e; ++i)
             initializeGlobalObject(state, os, cp->getOperand(i), offset + i * elementSize);
@@ -143,15 +144,15 @@ void Executor::initializeGlobalObject(ExecutionState &state, const ObjectStatePt
         unsigned i, size = dataLayout->getTypeStoreSize(c->getType());
         for (i = 0; i < size; i++)
             os->write8(offset + i, (uint8_t) 0);
-    } else if (ConstantArray *ca = dyn_cast<ConstantArray>(c)) {
+    } else if (auto *ca = dyn_cast<ConstantArray>(c)) {
         unsigned elementSize = dataLayout->getTypeStoreSize(ca->getType()->getElementType());
         for (unsigned i = 0, e = ca->getNumOperands(); i != e; ++i)
             initializeGlobalObject(state, os, ca->getOperand(i), offset + i * elementSize);
-    } else if (ConstantDataArray *da = dyn_cast<ConstantDataArray>(c)) {
+    } else if (auto *da = dyn_cast<ConstantDataArray>(c)) {
         unsigned elementSize = dataLayout->getTypeStoreSize(da->getType()->getElementType());
         for (unsigned i = 0, e = da->getNumElements(); i != e; ++i)
             initializeGlobalObject(state, os, da->getElementAsConstant(i), offset + i * elementSize);
-    } else if (ConstantStruct *cs = dyn_cast<ConstantStruct>(c)) {
+    } else if (auto *cs = dyn_cast<ConstantStruct>(c)) {
         const StructLayout *sl = dataLayout->getStructLayout(cast<StructType>(cs->getType()));
         for (unsigned i = 0, e = cs->getNumOperands(); i != e; ++i)
             initializeGlobalObject(state, os, cs->getOperand(i), offset + sl->getElementOffset(i));
@@ -183,7 +184,7 @@ ObjectStatePtr Executor::addExternalObject(ExecutionState &state, void *addr, un
 }
 
 void Executor::initializeGlobals(ExecutionState &state) {
-    Module *m = kmodule->module;
+    auto m = kmodule->getModule();
 
     if (m->getModuleInlineAsm() != "")
         klee_warning("executable has module level assembly (ignoring)");
@@ -192,8 +193,8 @@ void Executor::initializeGlobals(ExecutionState &state) {
     // object. given that we use malloc to allocate memory in states this also
     // ensures that we won't conflict. we don't need to allocate a memory object
     // since reading/writing via a function pointer is unsupported anyway.
-    for (Module::iterator i = m->begin(), ie = m->end(); i != ie; ++i) {
-        Function *f = &*i;
+    for (auto i = m->begin(), ie = m->end(); i != ie; ++i) {
+        auto f = &*i;
         ref<ConstantExpr> addr(0);
 
         // If the symbol has external weak linkage then it is implicitly
@@ -253,7 +254,7 @@ void Executor::initializeGlobals(ExecutionState &state) {
             // hack where we check the object file information.
 
             Type *ty = i->getType()->getElementType();
-            uint64_t size = kmodule->dataLayout->getTypeStoreSize(ty);
+            uint64_t size = kmodule->getDataLayout()->getTypeStoreSize(ty);
 
 // XXX - DWD - hardcode some things until we decide how to fix.
 #ifndef WINDOWS
@@ -291,7 +292,7 @@ void Executor::initializeGlobals(ExecutionState &state) {
             }
         } else {
             Type *ty = i->getType()->getElementType();
-            uint64_t size = kmodule->dataLayout->getTypeStoreSize(ty);
+            uint64_t size = kmodule->getDataLayout()->getTypeStoreSize(ty);
             auto mo = ObjectState::allocate(0, size, false);
 
             assert(mo && "out of memory");
@@ -302,14 +303,14 @@ void Executor::initializeGlobals(ExecutionState &state) {
     }
 
     // link aliases to their definitions (if bound)
-    for (Module::alias_iterator i = m->alias_begin(), ie = m->alias_end(); i != ie; ++i) {
+    for (auto i = m->alias_begin(), ie = m->alias_end(); i != ie; ++i) {
         // Map the alias to its aliasee's address. This works because we have
         // addresses for everything, even undefined functions.
         globalAddresses.insert(std::make_pair(&*i, kmodule->evalConstant(globalAddresses, i->getAliasee())));
     }
 
     // once all objects are allocated, do the actual initialization
-    for (Module::global_iterator i = m->global_begin(), e = m->global_end(); i != e; ++i) {
+    for (auto i = m->global_begin(), e = m->global_end(); i != e; ++i) {
         if (predefinedSymbols.find(i->getName()) != predefinedSymbols.end()) {
             continue;
         }
@@ -466,7 +467,7 @@ const Cell &Executor::eval(KInstruction *ki, unsigned index, ExecutionState &sta
     // Determine if this is a constant or not.
     if (vnumber < 0) {
         unsigned index = -vnumber - 2;
-        return kmodule->constantTable[index];
+        return kmodule->getConstant(index);
     } else {
         unsigned index = vnumber;
         StackFrame &sf = state.stack.back();
@@ -539,7 +540,7 @@ void Executor::executeCall(ExecutionState &state, KInstruction *ki, Function *f,
         // guess. This just done to avoid having to pass KInstIterator everywhere
         // instead of the actual instruction, since we can't make a KInstIterator
         // from just an instruction (unlike LLVM).
-        KFunction *kf = kmodule->functionMap[f];
+        auto kf = kmodule->getKFunction(f);
         state.pushFrame(state.prevPC, kf);
         state.pc = kf->instructions;
 
@@ -1084,7 +1085,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
         case Instruction::Alloca: {
             AllocaInst *ai = cast<AllocaInst>(i);
 #endif
-            unsigned elementSize = kmodule->dataLayout->getTypeStoreSize(ai->getAllocatedType());
+            unsigned elementSize = kmodule->getDataLayout()->getTypeStoreSize(ai->getAllocatedType());
             ref<Expr> size = Expr::createPointer(elementSize);
             if (ai->isArrayAllocation()) {
                 ref<Expr> count = eval(ki, 0, state).value;
@@ -1504,75 +1505,6 @@ void Executor::updateStates(ExecutionState *current) {
         deleteState(es);
     }
     removedStates.clear();
-}
-
-template <typename TypeIt> void Executor::computeOffsets(KGEPInstruction *kgepi, TypeIt ib, TypeIt ie) {
-    auto &dataLayout = kmodule->module->getDataLayout();
-
-    ref<ConstantExpr> constantOffset = ConstantExpr::alloc(0, Context::get().getPointerWidth());
-    uint64_t index = 1;
-    for (TypeIt ii = ib; ii != ie; ++ii) {
-        if (StructType *st = dyn_cast<StructType>(*ii)) {
-            const StructLayout *sl = dataLayout.getStructLayout(st);
-            const ConstantInt *ci = cast<ConstantInt>(ii.getOperand());
-            uint64_t addend = sl->getElementOffset((unsigned) ci->getZExtValue());
-            constantOffset = constantOffset->Add(ConstantExpr::alloc(addend, Context::get().getPointerWidth()));
-        } else if (const auto set = dyn_cast<SequentialType>(*ii)) {
-            uint64_t elementSize = dataLayout.getTypeStoreSize(set->getElementType());
-            Value *operand = ii.getOperand();
-            if (Constant *c = dyn_cast<Constant>(operand)) {
-                ref<ConstantExpr> index =
-                    kmodule->evalConstant(globalAddresses, c)->SExt(Context::get().getPointerWidth());
-                ref<ConstantExpr> addend =
-                    index->Mul(ConstantExpr::alloc(elementSize, Context::get().getPointerWidth()));
-                constantOffset = constantOffset->Add(addend);
-            } else {
-                kgepi->indices.push_back(std::make_pair(index, elementSize));
-            }
-        } else if (const auto ptr = dyn_cast<PointerType>(*ii)) {
-            auto elementSize = dataLayout.getTypeStoreSize(ptr->getElementType());
-            auto operand = ii.getOperand();
-            if (auto c = dyn_cast<Constant>(operand)) {
-                auto index = kmodule->evalConstant(globalAddresses, c)->SExt(Context::get().getPointerWidth());
-                auto addend = index->Mul(ConstantExpr::alloc(elementSize, Context::get().getPointerWidth()));
-                constantOffset = constantOffset->Add(addend);
-            } else {
-                kgepi->indices.push_back(std::make_pair(index, elementSize));
-            }
-        } else
-            assert("invalid type" && 0);
-        index++;
-    }
-    kgepi->offset = constantOffset->getZExtValue();
-}
-
-void Executor::bindInstructionConstants(KInstruction *KI) {
-    KGEPInstruction *kgepi = static_cast<KGEPInstruction *>(KI);
-
-    if (GetElementPtrInst *gepi = dyn_cast<GetElementPtrInst>(KI->inst)) {
-        computeOffsets(kgepi, klee::gep_type_begin(gepi), klee::gep_type_end(gepi));
-    } else if (InsertValueInst *ivi = dyn_cast<InsertValueInst>(KI->inst)) {
-        computeOffsets(kgepi, iv_type_begin(ivi), iv_type_end(ivi));
-        assert(kgepi->indices.empty() && "InsertValue constant offset expected");
-    } else if (ExtractValueInst *evi = dyn_cast<ExtractValueInst>(KI->inst)) {
-        computeOffsets(kgepi, ev_type_begin(evi), ev_type_end(evi));
-        assert(kgepi->indices.empty() && "ExtractValue constant offset expected");
-    }
-}
-
-void Executor::bindModuleConstants() {
-    for (std::vector<KFunction *>::iterator it = kmodule->functions.begin(), ie = kmodule->functions.end(); it != ie;
-         ++it) {
-        KFunction *kf = *it;
-        for (unsigned i = 0; i < kf->numInstructions; ++i)
-            bindInstructionConstants(kf->instructions[i]);
-    }
-
-    kmodule->constantTable.resize(kmodule->constants.size());
-    for (unsigned i = 0; i < kmodule->constants.size(); ++i) {
-        Cell &c = kmodule->constantTable[i];
-        c.value = kmodule->evalConstant(globalAddresses, kmodule->constants[i]);
-    }
 }
 
 void Executor::deleteState(ExecutionState *state) {

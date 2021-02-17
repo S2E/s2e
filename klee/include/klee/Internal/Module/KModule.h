@@ -20,6 +20,8 @@
 #include <unordered_map>
 #include <vector>
 
+#include "Cell.h"
+
 namespace llvm {
 class BasicBlock;
 class Constant;
@@ -38,6 +40,7 @@ class Expr;
 class InterpreterHandler;
 class InstructionInfoTable;
 struct KInstruction;
+struct KGEPInstruction;
 class KModule;
 template <class T> class ref;
 
@@ -89,7 +92,7 @@ using GlobalAddresses = std::unordered_map<const llvm::GlobalValue *, ref<Consta
 using KModulePtr = std::shared_ptr<KModule>;
 
 class KModule {
-public:
+private:
     llvm::Module *module;
     llvm::DataLayout *dataLayout;
 
@@ -99,17 +102,44 @@ public:
 
     std::vector<const llvm::Constant *> constants;
     std::map<const llvm::Constant *, KConstant *> constantMap;
-    KConstant *getKConstant(const llvm::Constant *c);
-
     std::vector<Cell> constantTable;
 
-private:
     KModule(llvm::Module *_module);
     KModule() {
     }
 
+    template <typename TypeIt>
+    void computeOffsets(const GlobalAddresses &globalAddresses, KGEPInstruction *kgepi, TypeIt ib, TypeIt ie);
+
+    /// bindInstructionConstants - Initialize any necessary per instruction
+    /// constant values.
+    void bindInstructionConstants(const GlobalAddresses &globalAddresses, KInstruction *KI);
+
+    KConstant *getKConstant(const llvm::Constant *c) const;
+
 public:
     ~KModule();
+
+    llvm::Module *getModule() const {
+        return module;
+    }
+
+    const llvm::DataLayout *getDataLayout() const {
+        return dataLayout;
+    }
+
+    KFunction *getKFunction(llvm::Function *f) const {
+        auto it = functionMap.find(f);
+        if (it != functionMap.end()) {
+            return (*it).second;
+        }
+        return nullptr;
+    }
+
+    const Cell &getConstant(unsigned idx) const {
+        assert(idx < constantTable.size());
+        return constantTable[idx];
+    }
 
     /// Initialize local data structures.
     //
@@ -136,6 +166,11 @@ public:
 
     ref<klee::ConstantExpr> evalConstantExpr(const GlobalAddresses &globalAddresses, const llvm::ConstantExpr *ce,
                                              const KInstruction *ki = nullptr);
+
+    /// bindModuleConstants - Initialize the module constant table.
+    void bindModuleConstants(const GlobalAddresses &globalAddresses);
+
+    KFunction *bindFunctionConstants(GlobalAddresses &globalAddresses, llvm::Function *f);
 
     static KModulePtr create(llvm::Module *module) {
         return KModulePtr(new KModule(module));
