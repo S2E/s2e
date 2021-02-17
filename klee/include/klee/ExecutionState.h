@@ -72,8 +72,6 @@ private:
     SolverPtr m_solver;
 
 public:
-    bool fakeState;
-
     // pc - pointer to current instruction stream
     KInstIterator pc, prevPC;
     stack_ty stack;
@@ -95,7 +93,7 @@ private:
 
     ConstraintManager m_constraints;
 
-    ExecutionState() : fakeState(false), addressSpace(this) {
+    ExecutionState() : addressSpace(this) {
     }
 
 protected:

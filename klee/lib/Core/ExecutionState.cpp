@@ -73,13 +73,9 @@ BitfieldSimplifier ExecutionState::s_simplifier;
 std::set<ObjectKey, ObjectKeyLTS> ExecutionState::s_ignoredMergeObjects;
 
 ExecutionState::ExecutionState(KFunction *kf)
-    : fakeState(false), pc(kf->instructions), prevPC(nullptr), addressSpace(this), forkDisabled(false),
+    : pc(kf->instructions), prevPC(nullptr), addressSpace(this), forkDisabled(false),
       concolics(Assignment::create(true)) {
     pushFrame(0, kf);
-}
-
-ExecutionState::ExecutionState(const std::vector<ref<Expr>> &assumptions)
-    : fakeState(true), addressSpace(this), concolics(Assignment::create(true)) {
 }
 
 ExecutionState::~ExecutionState() {
