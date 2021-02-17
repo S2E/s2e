@@ -85,11 +85,6 @@ public:
     /// ordered list of symbolics: used to generate test cases.
     std::vector<ArrayPtr> symbolics;
 
-    // Maps a KLEE variable name to the real variable name.
-    // The KLEE name is stripped from any special characters to make
-    // it suitable to send to the constraint solver.
-    klee::ImmutableMap<std::string, std::string> variableNameMapping;
-
     AssignmentPtr concolics;
 
     unsigned incomingBBIndex;

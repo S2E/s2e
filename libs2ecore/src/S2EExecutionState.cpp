@@ -293,8 +293,6 @@ ref<Expr> S2EExecutionState::createSymbolicValue(const std::string &name, Expr::
         concolics->add(array, buffer);
     }
 
-    variableNameMapping = variableNameMapping.insert(std::make_pair(sname, originalVarName));
-
     ref<Expr> ret = ReadExpr::createTempRead(array, width);
 
     g_s2e->getCorePlugin()->onSymbolicVariableCreation.emit(this, name, {ret}, array);
@@ -355,7 +353,6 @@ std::vector<ref<Expr>> S2EExecutionState::createSymbolicArray(const std::string 
     }
 
     g_s2e->getCorePlugin()->onSymbolicVariableCreation.emit(this, name, result, array);
-    variableNameMapping = variableNameMapping.insert(std::make_pair(sname, originalVarName));
 #else
     g_s2e->getWarningsStream(this) << "Cannot create symbolic data in single-path (s2e_sp) build\n";
 
