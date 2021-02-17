@@ -14,7 +14,9 @@
 #include "klee/Expr.h"
 
 #include "klee/AddressSpace.h"
+#include "klee/Internal/Module/Cell.h"
 #include "klee/Internal/Module/KInstIterator.h"
+#include "klee/Internal/Module/KModule.h"
 
 #include "klee/BitfieldSimplifier.h"
 #include "klee/Solver.h"
@@ -27,7 +29,6 @@
 
 namespace klee {
 class Array;
-class CallPathNode;
 struct Cell;
 struct KFunction;
 struct KInstruction;
@@ -38,10 +39,9 @@ llvm::raw_ostream &operator<<(llvm::raw_ostream &os, const MemoryMap &mm);
 struct StackFrame {
     KInstIterator caller;
     KFunction *kf;
-    CallPathNode *callPathNode;
 
     llvm::SmallVector<ObjectKey, 16> allocas;
-    Cell *locals;
+    llvm::SmallVector<Cell, 16> locals;
 
     // For vararg functions: arguments not passed via parameter are
     // stored (packed tightly) in a local (alloca) memory object. This
@@ -50,9 +50,9 @@ struct StackFrame {
     // of intrinsic lowering.
     std::vector<ObjectKey> varargs;
 
-    StackFrame(KInstIterator caller, KFunction *kf);
-    StackFrame(const StackFrame &s);
-    ~StackFrame();
+    StackFrame(KInstIterator _caller, KFunction *_kf) : caller(_caller), kf(_kf), varargs(0) {
+        locals.resize(kf->numRegisters);
+    }
 };
 
 class ExecutionState : public IAddressSpaceNotification {
