@@ -118,26 +118,6 @@ void ExecutionState::popFrame() {
     stack.pop_back();
 }
 
-///
-
-std::string ExecutionState::getFnAlias(std::string fn) {
-    std::map<std::string, std::string>::iterator it = fnAliases.find(fn);
-    if (it != fnAliases.end())
-        return it->second;
-    else
-        return "";
-}
-
-void ExecutionState::addFnAlias(std::string old_fn, std::string new_fn) {
-    fnAliases[old_fn] = new_fn;
-}
-
-void ExecutionState::removeFnAlias(std::string fn) {
-    fnAliases.erase(fn);
-}
-
-/**/
-
 llvm::raw_ostream &operator<<(llvm::raw_ostream &os, const MemoryMap &mm) {
     os << "{";
     MemoryMap::iterator it = mm.begin();

@@ -68,7 +68,6 @@ public:
 private:
     // unsupported, use copy constructor
     ExecutionState &operator=(const ExecutionState &);
-    std::map<std::string, std::string> fnAliases;
 
     SolverPtr m_solver;
 
@@ -94,10 +93,6 @@ public:
     AssignmentPtr concolics;
 
     unsigned incomingBBIndex;
-
-    std::string getFnAlias(std::string fn);
-    void addFnAlias(std::string old_fn, std::string new_fn);
-    void removeFnAlias(std::string fn);
 
 private:
     /// Simplifier user to simplify expressions when adding them
