@@ -119,22 +119,23 @@ void handleForkAndConcretize(Executor *executor, ExecutionState *state, klee::KI
 
 static void handleGetValue(klee::Executor *executor, klee::ExecutionState *state, klee::KInstruction *target,
                            std::vector<klee::ref<klee::Expr>> &args) {
-    S2EExecutionState *s2eState = static_cast<S2EExecutionState *>(state);
-    assert(args.size() == 3 && "Expected three args to tcg_llvm_get_value: addr, size, add_constraint");
+    assert(args.size() == 2 && "Expected three args to tcg_llvm_get_value: value, add_constraint");
 
     // KLEE address of variable
-    klee::ref<klee::ConstantExpr> kleeAddress = cast<klee::ConstantExpr>(args[0]);
-
-    // Size in bytes
-    uint64_t sizeInBytes = cast<klee::ConstantExpr>(args[1])->getZExtValue();
+    auto value = args[0];
 
     // Add a constraint permanently?
-    bool add_constraint = cast<klee::ConstantExpr>(args[2])->getZExtValue();
+    bool addConstraint = cast<klee::ConstantExpr>(args[1])->getZExtValue();
 
-    // Read the value and concretize it.
-    // The value will be stored at kleeAddress
-    std::vector<klee::ref<Expr>> result;
-    s2eState->kleeReadMemory(kleeAddress, sizeInBytes, nullptr, false, true, add_constraint);
+    klee::ref<Expr> result;
+
+    if (addConstraint) {
+        result = state->toConstant(value, "called tcg_llvm_get_value");
+    } else {
+        result = state->toConstantSilent(value);
+    }
+
+    state->bindLocal(target, result);
 }
 
 static void handlerWriteMemIoVaddr(klee::Executor *executor, klee::ExecutionState *state, klee::KInstruction *target,
