@@ -11,7 +11,6 @@
 
 #include "klee/CoreStats.h"
 #include "klee/Executor.h"
-#include "klee/PTree.h"
 #include "klee/StatsTracker.h"
 
 #include "klee/ExecutionState.h"

@@ -56,7 +56,6 @@
 #include <klee/CoreStats.h>
 #include <klee/ExternalDispatcher.h>
 #include <klee/Memory.h>
-#include <klee/PTree.h>
 #include <klee/Searcher.h>
 #include <klee/Solver.h>
 #include <klee/SolverFactory.h>

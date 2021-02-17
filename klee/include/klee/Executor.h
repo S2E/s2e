@@ -57,7 +57,6 @@ struct KInstruction;
 class KInstIterator;
 class KModule;
 class ObjectState;
-class PTree;
 class Searcher;
 class SpecialFunctionHandler;
 struct StackFrame;

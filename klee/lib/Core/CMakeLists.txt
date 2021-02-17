@@ -17,7 +17,6 @@ klee_add_component(kleeCore
 	ExecutorUtil.cpp
 	ExternalDispatcher.cpp
 	Memory.cpp
-	PTree.cpp
 	Searcher.cpp
 	SolverFactory.cpp
 	SpecialFunctionHandler.cpp
