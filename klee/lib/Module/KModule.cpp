@@ -72,8 +72,7 @@ cl::opt<bool> DebugPrintEscapingFunctions("debug-print-escaping-functions",
                                           cl::desc("Print functions whose address is taken."));
 } // namespace
 
-KModule::KModule(Module *_module)
-    : module(_module), dataLayout(new DataLayout(module)), dbgStopPointFn(0), kleeMergeFn(0) {
+KModule::KModule(Module *_module) : module(_module), dataLayout(new DataLayout(module)) {
 }
 
 KModule::~KModule() {
@@ -383,9 +382,6 @@ void KModule::prepare(const Interpreter::ModuleOptions &opts, InterpreterHandler
         WriteBitcodeToFile(*module, *f);
         delete f;
     }
-
-    dbgStopPointFn = module->getFunction("llvm.dbg.stoppoint");
-    kleeMergeFn = module->getFunction("klee_merge");
 
     buildShadowStructures();
 }

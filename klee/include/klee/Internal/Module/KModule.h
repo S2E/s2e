@@ -93,9 +93,6 @@ public:
     llvm::Module *module;
     llvm::DataLayout *dataLayout;
 
-    // Some useful functions to know the address of
-    llvm::Function *dbgStopPointFn, *kleeMergeFn;
-
     // Our shadow versions of LLVM structures.
     std::vector<KFunction *> functions;
     std::map<llvm::Function *, KFunction *> functionMap;
