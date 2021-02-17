@@ -18,10 +18,8 @@ klee_add_component(kleeCore
 	ExternalDispatcher.cpp
 	Memory.cpp
 	Searcher.cpp
-	SolverFactory.cpp
 	SpecialFunctionHandler.cpp
 	StatsTracker.cpp
-	TimingSolver.cpp
 )
 
 set(LLVM_COMPONENTS
