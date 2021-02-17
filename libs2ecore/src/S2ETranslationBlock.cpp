@@ -35,7 +35,7 @@ S2ETranslationBlock::~S2ETranslationBlock() {
         auto kmodule = executor->getModule();
 
         // We may have generated LLVM code that was never executed
-        if (kmodule->functionMap.find(translationBlock) != kmodule->functionMap.end()) {
+        if (kmodule->getKFunction(translationBlock)) {
             kmodule->removeFunction(translationBlock);
         } else {
             translationBlock->eraseFromParent();
