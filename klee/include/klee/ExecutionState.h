@@ -121,10 +121,6 @@ public:
     void pushFrame(KInstIterator caller, KFunction *kf);
     void popFrame();
 
-    void addSymbolic(ArrayPtr array) {
-        symbolics.push_back(array);
-    }
-
     const ConstraintManager &constraints() const {
         return m_constraints;
     }
