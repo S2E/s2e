@@ -22,7 +22,6 @@
 #include "klee/SolverStats.h"
 #include "klee/StatsTracker.h"
 #include "klee/TimingSolver.h"
-#include "klee/UserSearcher.h"
 #include "SpecialFunctionHandler.h"
 
 #include "klee/Config/config.h"
@@ -69,9 +68,7 @@
 #include <string>
 #include <vector>
 
-#ifndef __MINGW32__
 #include <sys/mman.h>
-#endif
 
 #include <cxxabi.h>
 #include <errno.h>
@@ -81,23 +78,14 @@ using namespace llvm;
 using namespace klee;
 
 namespace {
-cl::opt<bool> NoPreferCex("no-prefer-cex", cl::init(false));
-
-cl::opt<bool> RandomizeFork("randomize-fork", cl::init(false));
-
 cl::opt<bool> SimplifySymIndices("simplify-sym-indices", cl::init(true));
 
 cl::opt<bool> SuppressExternalWarnings("suppress-external-warnings", cl::init(true));
-
-cl::opt<bool> EmitAllErrors("emit-all-errors", cl::init(false),
-                            cl::desc("Generate tests cases for all errors "
-                                     "(default=one per (error,instruction) pair)"));
 
 cl::opt<bool> NoExternals("no-externals", cl::desc("Do not allow external functin calls"));
 } // namespace
 
 namespace klee {
-RNG theRNG;
 extern cl::opt<bool> UseExprSimplifier;
 } // namespace klee
 

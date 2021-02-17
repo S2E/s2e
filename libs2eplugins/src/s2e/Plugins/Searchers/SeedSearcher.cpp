@@ -21,7 +21,6 @@
 /// SOFTWARE.
 ///
 
-#include <klee/UserSearcher.h>
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Support/Path.h>
 #include <s2e/ConfigFile.h>

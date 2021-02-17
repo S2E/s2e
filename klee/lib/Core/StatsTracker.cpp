@@ -22,7 +22,6 @@
 #include "klee/CoreStats.h"
 #include "klee/Executor.h"
 #include "klee/SolverStats.h"
-#include "klee/UserSearcher.h"
 
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/CFG.h"

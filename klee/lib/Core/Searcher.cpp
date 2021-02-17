@@ -36,17 +36,19 @@
 #include <climits>
 #include <fstream>
 
-using namespace klee;
 using namespace llvm;
 
+namespace {
+cl::opt<bool> UseDfsSearch("use-dfs-search");
+cl::opt<bool> UseRandomSearch("use-random-search");
+} // namespace
+
 namespace klee {
-extern RNG theRNG;
-}
+
+static RNG theRNG;
 
 Searcher::~Searcher() {
 }
-
-///
 
 ExecutionState &DFSSearcher::selectState() {
     ExecutionState *ret = states.back();
@@ -113,36 +115,18 @@ void RandomSearcher::update(ExecutionState *current, const StateSet &addedStates
     }
 }
 
-///
+Searcher *constructUserSearcher() {
+    Searcher *searcher = 0;
 
-BatchingSearcher::BatchingSearcher(Searcher *_baseSearcher, uint64_t _timeBudget, unsigned _instructionBudget)
-    : baseSearcher(_baseSearcher), timeBudget(_timeBudget), instructionBudget(_instructionBudget), lastState(0) {
-}
-
-BatchingSearcher::~BatchingSearcher() {
-    delete baseSearcher;
-}
-
-extern volatile uint64_t g_timer_ticks;
-
-ExecutionState &BatchingSearcher::selectState() {
-
-    if (!lastState || ((timeBudget > 0) && ((g_timer_ticks - lastStartTime) > timeBudget))) {
-
-        ExecutionState *newState = &baseSearcher->selectState();
-        if (newState != lastState) {
-            lastState = newState;
-            lastStartTime = g_timer_ticks;
-            lastStartInstructions = stats::instructions;
-        }
-        return *newState;
+    if (UseRandomSearch) {
+        searcher = new RandomSearcher();
+    } else if (UseDfsSearch) {
+        searcher = new DFSSearcher();
     } else {
-        return *lastState;
+        searcher = new DFSSearcher();
     }
+
+    return searcher;
 }
 
-void BatchingSearcher::update(ExecutionState *current, const StateSet &addedStates, const StateSet &removedStates) {
-    if (removedStates.count(lastState))
-        lastState = 0;
-    baseSearcher->update(current, addedStates, removedStates);
-}
+} // namespace klee

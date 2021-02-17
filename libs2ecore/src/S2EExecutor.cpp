@@ -61,7 +61,6 @@
 #include <klee/Solver.h>
 #include <klee/SolverFactory.h>
 #include <klee/TimerStatIncrementer.h>
-#include <klee/UserSearcher.h>
 #include <klee/util/ExprTemplates.h>
 
 #include <tcg/tcg-llvm.h>
@@ -428,7 +427,7 @@ S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMTranslator *translator, InterpreterHan
 
     initializeStatistics();
 
-    searcher = constructUserSearcher(*this);
+    searcher = constructUserSearcher();
 
     g_s2e_fork_on_symbolic_address = ForkOnSymbolicAddress;
     g_s2e_concretize_io_addresses = ConcretizeIoAddress;
