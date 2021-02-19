@@ -867,7 +867,7 @@ static int getOperandNum(Value *v, std::map<Instruction *, unsigned> &registerMa
 }
 
 KFunction::KFunction(llvm::Function *_function, KModule *km)
-    : function(_function), numArgs(function->arg_size()), numInstructions(0), trackCoverage(true) {
+    : function(_function), numArgs(function->arg_size()), numInstructions(0) {
 
     legacy::FunctionPassManager pm(_function->getParent());
     pm.add(new IntrinsicFunctionCleanerPass());

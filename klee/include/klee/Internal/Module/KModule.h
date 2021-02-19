@@ -55,10 +55,6 @@ struct KFunction {
     std::map<llvm::BasicBlock *, unsigned> basicBlockEntry;
     llvm::DenseMap<const llvm::Instruction *, KInstruction *> instrMap;
 
-    /// Whether instructions in this function should count as
-    /// "coverable" for statistics and search heuristics.
-    bool trackCoverage;
-
 private:
     KFunction(const KFunction &);
     KFunction &operator=(const KFunction &);
