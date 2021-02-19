@@ -879,7 +879,7 @@ KFunction::KFunction(llvm::Function *_function, KModule *km)
         numInstructions += bb->size();
     }
 
-    instructions = new KInstruction *[numInstructions];
+    instructions.resize(numInstructions);
 
     std::map<Instruction *, unsigned> registerMap;
 
@@ -953,9 +953,9 @@ KFunction::KFunction(llvm::Function *_function, KModule *km)
 }
 
 KFunction::~KFunction() {
-    for (unsigned i = 0; i < numInstructions; ++i)
+    for (unsigned i = 0; i < numInstructions; ++i) {
         delete instructions[i];
-    delete[] instructions;
+    }
 }
 
 } // namespace klee

@@ -44,13 +44,16 @@ struct KGEPInstruction;
 class KModule;
 template <class T> class ref;
 
+using KInstructions = std::vector<KInstruction *>;
+
 struct KFunction {
     llvm::Function *function;
 
     unsigned numArgs, numRegisters;
 
     unsigned numInstructions;
-    KInstruction **instructions;
+
+    KInstructions instructions;
 
     std::map<llvm::BasicBlock *, unsigned> basicBlockEntry;
     llvm::DenseMap<const llvm::Instruction *, KInstruction *> instrMap;
