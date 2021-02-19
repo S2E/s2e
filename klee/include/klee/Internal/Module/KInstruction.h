@@ -21,7 +21,7 @@ namespace klee {
 class Executor;
 struct InstructionInfo;
 class KModule;
-struct KFunction;
+class KFunction;
 
 /// KInstruction - Intermediate instruction representation used
 /// during execution.

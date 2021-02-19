@@ -974,7 +974,7 @@ void S2EExecutor::prepareFunctionExecution(S2EExecutionState *state, llvm::Funct
     state->prevPC = state->pc;
 
     state->pushFrame(state->pc, kf);
-    state->pc = kf->instructions;
+    state->pc = kf->getInstructions();
 
     /* Pass argument */
     for (unsigned i = 0; i < args.size(); ++i) {
@@ -1018,7 +1018,7 @@ inline bool S2EExecutor::executeInstructions(S2EExecutionState *state, unsigned 
     // The TB finished executing normally
     if (callerStackSize == 1) {
         state->prevPC = 0;
-        state->pc = m_dummyMain->instructions;
+        state->pc = m_dummyMain->getInstructions();
     }
 
     return false;
@@ -1037,9 +1037,8 @@ bool S2EExecutor::finalizeTranslationBlockExec(S2EExecutionState *state) {
 
     if (VerboseTbFinalize) {
         m_s2e->getDebugStream(state) << "Finalizing TB execution\n";
-        foreach2 (it, state->stack.begin(), state->stack.end()) {
-            const StackFrame &fr = *it;
-            m_s2e->getDebugStream() << fr.kf->function->getName().str() << '\n';
+        for (const auto &fr : state->stack) {
+            m_s2e->getDebugStream() << fr.kf->getFunction()->getName().str() << '\n';
         }
     }
 
@@ -1107,7 +1106,7 @@ void S2EExecutor::updateConcreteFastPath(S2EExecutionState *state) {
 uintptr_t S2EExecutor::executeTranslationBlockKlee(S2EExecutionState *state, TranslationBlock *tb) {
     assert(state->m_active && !state->isRunningConcrete());
     assert(state->stack.size() == 1);
-    assert(state->pc == m_dummyMain->instructions);
+    assert(state->pc == m_dummyMain->getInstructions());
 
     ++state->m_stats.m_statTranslationBlockSymbolic;
 
@@ -1270,7 +1269,7 @@ void S2EExecutor::cleanupTranslationBlock(S2EExecutionState *state) {
     }
 
     state->prevPC = 0;
-    state->pc = m_dummyMain->instructions;
+    state->pc = m_dummyMain->getInstructions();
 }
 
 klee::ref<klee::Expr> S2EExecutor::executeFunction(S2EExecutionState *state, llvm::Function *function,
@@ -1291,7 +1290,7 @@ klee::ref<klee::Expr> S2EExecutor::executeFunction(S2EExecutionState *state, llv
         throw CpuExitException();
     }
 
-    if (callerPC == m_dummyMain->instructions) {
+    if (callerPC == m_dummyMain->getInstructions()) {
         assert(state->stack.size() == 1);
         state->prevPC = 0;
         state->pc = callerPC;

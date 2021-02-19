@@ -539,8 +539,8 @@ void KModule::bindInstructionConstants(const GlobalAddresses &globalAddresses, K
 
 void KModule::bindModuleConstants(const GlobalAddresses &globalAddresses) {
     for (auto kf : functions) {
-        for (unsigned i = 0; i < kf->numInstructions; ++i) {
-            bindInstructionConstants(globalAddresses, kf->instructions[i]);
+        for (auto i : kf->getInstructions()) {
+            bindInstructionConstants(globalAddresses, i);
         }
     }
 
@@ -560,8 +560,8 @@ KFunction *KModule::bindFunctionConstants(GlobalAddresses &globalAddresses, llvm
     unsigned cIndex = constants.size();
     kf = updateModuleWithFunction(function);
 
-    for (unsigned i = 0; i < kf->numInstructions; ++i) {
-        bindInstructionConstants(globalAddresses, kf->instructions[i]);
+    for (auto i : kf->getInstructions()) {
+        bindInstructionConstants(globalAddresses, i);
     }
 
     // Update global functions (new functions can be added while creating added function)
@@ -866,13 +866,13 @@ static int getOperandNum(Value *v, std::map<Instruction *, unsigned> &registerMa
     }
 }
 
-KFunction::KFunction(llvm::Function *_function, KModule *km)
-    : function(_function), numArgs(function->arg_size()), numInstructions(0) {
+KFunction::KFunction(llvm::Function *_function, KModule *km) : function(_function), numArgs(function->arg_size()) {
 
     legacy::FunctionPassManager pm(_function->getParent());
     pm.add(new IntrinsicFunctionCleanerPass());
     pm.run(*_function);
 
+    unsigned numInstructions = 0;
     for (llvm::Function::iterator bbit = function->begin(), bbie = function->end(); bbit != bbie; ++bbit) {
         BasicBlock *bb = &*bbit;
         basicBlockEntry[bb] = numInstructions;
@@ -952,9 +952,17 @@ KFunction::KFunction(llvm::Function *_function, KModule *km)
     }
 }
 
+KInstruction *KFunction::getInstruction(const llvm::Instruction *instr) const {
+    auto it = instrMap.find(instr);
+    if (it == instrMap.end()) {
+        return nullptr;
+    }
+    return (*it).second;
+}
+
 KFunction::~KFunction() {
-    for (unsigned i = 0; i < numInstructions; ++i) {
-        delete instructions[i];
+    for (auto it : instructions) {
+        delete it;
     }
 }
 

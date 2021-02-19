@@ -56,7 +56,7 @@ BitfieldSimplifier ExecutionState::s_simplifier;
 std::set<ObjectKey, ObjectKeyLTS> ExecutionState::s_ignoredMergeObjects;
 
 ExecutionState::ExecutionState(KFunction *kf)
-    : pc(kf->instructions), prevPC(nullptr), addressSpace(this), forkDisabled(false),
+    : pc(kf->getInstructions()), prevPC(nullptr), addressSpace(this), forkDisabled(false),
       concolics(Assignment::create(true)) {
     pushFrame(0, kf);
 }
@@ -264,7 +264,7 @@ bool ExecutionState::merge(const ExecutionState &b) {
     for (; itA != stack.end(); ++itA, ++itB) {
         StackFrame &af = *itA;
         const StackFrame &bf = *itB;
-        for (unsigned i = 0; i < af.kf->numRegisters; i++) {
+        for (unsigned i = 0; i < af.kf->getNumRegisters(); i++) {
             ref<Expr> &av = af.locals[i].value;
             const ref<Expr> &bv = bf.locals[i].value;
             if (av.isNull() || bv.isNull()) {
@@ -326,7 +326,7 @@ void ExecutionState::printStack(KInstruction *target, std::stringstream &msg) co
     unsigned idx = 0;
     for (ExecutionState::stack_ty::const_reverse_iterator it = stack.rbegin(), ie = stack.rend(); it != ie; ++it) {
         const StackFrame &sf = *it;
-        Function *f = sf.kf->function;
+        Function *f = sf.kf->getFunction();
 
         msg << "\t#" << idx++ << " " << std::setw(8) << std::setfill('0') << " in " << f->getName().str() << " (";
 

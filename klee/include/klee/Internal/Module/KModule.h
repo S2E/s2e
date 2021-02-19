@@ -45,20 +45,19 @@ class KModule;
 template <class T> class ref;
 
 using KInstructions = std::vector<KInstruction *>;
+using KBasicBlockEntries = std::map<llvm::BasicBlock *, unsigned>;
 
-struct KFunction {
+class KFunction {
+private:
     llvm::Function *function;
 
     unsigned numArgs, numRegisters;
 
-    unsigned numInstructions;
-
     KInstructions instructions;
 
-    std::map<llvm::BasicBlock *, unsigned> basicBlockEntry;
+    KBasicBlockEntries basicBlockEntry;
     llvm::DenseMap<const llvm::Instruction *, KInstruction *> instrMap;
 
-private:
     KFunction(const KFunction &);
     KFunction &operator=(const KFunction &);
 
@@ -68,6 +67,35 @@ public:
 
     unsigned getArgRegister(unsigned index) {
         return index;
+    }
+
+    unsigned getNumArgs() const {
+        return numArgs;
+    }
+
+    unsigned getNumRegisters() const {
+        return numRegisters;
+    }
+
+    KInstructions &getInstructions() {
+        return instructions;
+    }
+
+    KInstruction **getInstructionPtr(unsigned num) {
+        assert(num < instructions.size());
+        return &instructions[num];
+    }
+
+    llvm::Function *getFunction() const {
+        return function;
+    }
+
+    KInstruction *getInstruction(const llvm::Instruction *instr) const;
+
+    unsigned getBbEntry(llvm::BasicBlock *bb) const {
+        auto it = basicBlockEntry.find(bb);
+        assert(it != basicBlockEntry.end());
+        return (*it).second;
     }
 };
 

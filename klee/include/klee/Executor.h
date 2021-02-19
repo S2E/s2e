@@ -52,7 +52,6 @@ struct Cell;
 class ExecutionState;
 class ExternalDispatcher;
 class Expr;
-struct KFunction;
 struct KInstruction;
 class KInstIterator;
 class KModule;

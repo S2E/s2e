@@ -542,7 +542,7 @@ void Executor::executeCall(ExecutionState &state, KInstruction *ki, Function *f,
         // from just an instruction (unlike LLVM).
         auto kf = kmodule->getKFunction(f);
         state.pushFrame(state.prevPC, kf);
-        state.pc = kf->instructions;
+        state.pc = kf->getInstructions();
 
         // TODO: support "byval" parameter attribute
         // TODO: support zeroext, signext, sret attributes
@@ -622,8 +622,8 @@ void Executor::transferToBasicBlock(BasicBlock *dst, BasicBlock *src, ExecutionS
 
     // XXX this lookup has to go ?
     KFunction *kf = state.stack.back().kf;
-    unsigned entry = kf->basicBlockEntry[dst];
-    state.pc = &kf->instructions[entry];
+    unsigned entry = kf->getBbEntry(dst);
+    state.pc = kf->getInstructionPtr(entry);
     if (state.pc->inst->getOpcode() == Instruction::PHI) {
         PHINode *first = static_cast<PHINode *>(state.pc->inst);
         state.incomingBBIndex = first->getBasicBlockIndex(src);

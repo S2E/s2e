@@ -181,14 +181,14 @@ static ref<ConstantExpr> handleForkAndConcretizeNative(Executor *executor, Execu
     if (constantAddress.isNull()) {
         // Find the LLVM instruction that computes the address
         const llvm::Instruction *addrInst = dyn_cast<llvm::Instruction>(target->inst->getOperand(0));
-        assert(target->owner->instrMap.count(addrInst));
+        auto kinst = target->owner->getInstruction(addrInst);
+        assert(kinst);
 
         std::vector<ref<Expr>> forkArgs;
         forkArgs.push_back(symbAddress);
         forkArgs.push_back(ref<Expr>(nullptr));
         forkArgs.push_back(ref<Expr>(nullptr));
         forkArgs.push_back(0);
-        KInstruction *kinst = (*target->owner->instrMap.find(addrInst)).second;
         handleForkAndConcretize(executor, state, kinst, forkArgs);
 
         constantAddress = dyn_cast<ConstantExpr>(state->getDestCell(kinst).value);

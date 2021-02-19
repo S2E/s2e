@@ -30,7 +30,6 @@
 namespace klee {
 class Array;
 struct Cell;
-struct KFunction;
 struct KInstruction;
 struct InstructionInfo;
 
@@ -51,7 +50,7 @@ struct StackFrame {
     std::vector<ObjectKey> varargs;
 
     StackFrame(KInstIterator _caller, KFunction *_kf) : caller(_caller), kf(_kf), varargs(0) {
-        locals.resize(kf->numRegisters);
+        locals.resize(kf->getNumRegisters());
     }
 };
 
