@@ -30,8 +30,6 @@
 
 #include "klee/Common.h"
 
-struct KTest;
-
 namespace llvm {
 class BasicBlock;
 class BranchInst;
