@@ -48,7 +48,6 @@
 #include <sstream>
 
 using namespace llvm;
-using namespace klee;
 
 namespace {
 enum SwitchImplType { eSwitchTypeSimple, eSwitchTypeLLVM, eSwitchTypeInternal };
@@ -71,25 +70,40 @@ cl::opt<SwitchImplType> SwitchType("switch-type", cl::desc("Select the implement
                                    cl::init(eSwitchTypeInternal));
 } // namespace
 
-KModule::KModule(Module *_module) : module(_module), dataLayout(new DataLayout(module)) {
-}
-
-KModule::~KModule() {
-
-    for (std::vector<KFunction *>::iterator it = functions.begin(), ie = functions.end(); it != ie; ++it)
-        delete *it;
-
-    delete dataLayout;
-
-    // XXX: S2E: we use the module outside, so do not delete it here.
-    // delete module;
-}
-
-/***/
-
 namespace llvm {
 extern void Optimize(Module *);
 }
+
+namespace klee {
+
+//////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////
+
+class KConstant {
+public:
+    /// Actual LLVM constant this represents.
+    llvm::Constant *ct;
+
+    /// The constant ID.
+    unsigned id;
+
+    /// First instruction where this constant was encountered, or NULL
+    /// if not applicable/unavailable.
+    KInstruction *ki;
+
+    KConstant(llvm::Constant *, unsigned, KInstruction *);
+};
+
+KConstant::KConstant(llvm::Constant *_ct, unsigned _id, KInstruction *_ki) {
+    ct = _ct;
+    id = _id;
+    ki = _ki;
+}
+
+//////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////
 
 // what a hack
 static Function *getStubFunctionForCtorList(Module *m, GlobalVariable *gv, std::string name) {
@@ -178,17 +192,23 @@ static void forceImport(Module *m, const char *name, Type *retType, ...) {
     }
 }
 
-#ifdef __MINGW32__
-static const char *index(const char *str, char c) {
-    while (*str) {
-        if (*str == c) {
-            return str;
-        }
-        ++str;
-    }
-    return NULL;
+//////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////
+
+KModule::KModule(Module *_module) : module(_module), dataLayout(new DataLayout(module)) {
 }
-#endif
+
+KModule::~KModule() {
+
+    for (std::vector<KFunction *>::iterator it = functions.begin(), ie = functions.end(); it != ie; ++it)
+        delete *it;
+
+    delete dataLayout;
+
+    // XXX: S2E: we use the module outside, so do not delete it here.
+    // delete module;
+}
 
 void KModule::prepare(const Interpreter::ModuleOptions &opts, InterpreterHandler *ih) {
     LLVMContext &context = module->getContext();
@@ -828,15 +848,9 @@ klee::ref<klee::ConstantExpr> KModule::evalConstantExpr(const GlobalAddresses &g
     return op1;
 }
 
-/***/
-
-KConstant::KConstant(llvm::Constant *_ct, unsigned _id, KInstruction *_ki) {
-    ct = _ct;
-    id = _id;
-    ki = _ki;
-}
-
-/***/
+//////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////
 
 static int getOperandNum(Value *v, std::map<Instruction *, unsigned> &registerMap, KModule *km, KInstruction *ki) {
     if (Instruction *inst = dyn_cast<Instruction>(v)) {
@@ -943,3 +957,5 @@ KFunction::~KFunction() {
         delete instructions[i];
     delete[] instructions;
 }
+
+} // namespace klee

@@ -72,24 +72,11 @@ public:
     }
 };
 
-class KConstant {
-public:
-    /// Actual LLVM constant this represents.
-    llvm::Constant *ct;
-
-    /// The constant ID.
-    unsigned id;
-
-    /// First instruction where this constant was encountered, or NULL
-    /// if not applicable/unavailable.
-    KInstruction *ki;
-
-    KConstant(llvm::Constant *, unsigned, KInstruction *);
-};
-
 using GlobalAddresses = std::unordered_map<const llvm::GlobalValue *, ref<ConstantExpr>>;
 
 using KModulePtr = std::shared_ptr<KModule>;
+
+class KConstant;
 
 class KModule {
 private:
