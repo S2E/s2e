@@ -40,6 +40,11 @@ RUN apt-get update && apt-get -y install libdwarf-dev libelf-dev libelf-dev:i386
     libbsd-dev libpixman-1-dev                                              \
     libglib2.0-dev libglib2.0-dev:i386 python3-docutils libpng-dev gcc-multilib g++-multilib
 
+# Required for C++17
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y software-properties-common
+RUN add-apt-repository ppa:ubuntu-toolchain-r/test && apt update
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y gcc-9 g++-9
+
 # Install S2E git
 RUN apt-get -y install git
 
