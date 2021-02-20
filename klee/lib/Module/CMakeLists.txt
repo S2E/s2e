@@ -7,7 +7,6 @@
 #
 #===------------------------------------------------------------------------===#
 klee_add_component(kleeModule
-	InstructionInfoTable.cpp
 	InstructionOperandTypeCheckPass.cpp
 	IntrinsicCleaner.cpp
 	KInstruction.cpp

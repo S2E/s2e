@@ -38,7 +38,6 @@ struct Cell;
 class Executor;
 class Expr;
 class InterpreterHandler;
-class InstructionInfoTable;
 struct KInstruction;
 struct KGEPInstruction;
 class KModule;

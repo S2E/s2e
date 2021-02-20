@@ -31,7 +31,6 @@ namespace klee {
 class Array;
 struct Cell;
 struct KInstruction;
-struct InstructionInfo;
 
 llvm::raw_ostream &operator<<(llvm::raw_ostream &os, const MemoryMap &mm);
 

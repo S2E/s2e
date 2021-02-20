@@ -19,7 +19,6 @@ class Instruction;
 
 namespace klee {
 class Executor;
-struct InstructionInfo;
 class KModule;
 class KFunction;
 
