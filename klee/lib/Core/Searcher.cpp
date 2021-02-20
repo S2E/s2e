@@ -16,7 +16,6 @@
 #include "klee/StatsTracker.h"
 
 #include "klee/ExecutionState.h"
-#include "klee/Internal/ADT/RNG.h"
 #include "klee/Internal/Module/KInstruction.h"
 #include "klee/Internal/Module/KModule.h"
 #include "klee/Internal/Support/ModuleUtil.h"
@@ -33,17 +32,21 @@
 #include <cassert>
 #include <climits>
 #include <fstream>
+#include <random>
 
 using namespace llvm;
 
 namespace {
 cl::opt<bool> UseDfsSearch("use-dfs-search");
 cl::opt<bool> UseRandomSearch("use-random-search");
+
+std::random_device rd;
+std::mt19937 rng(rd());
+std::uniform_int_distribution<uint32_t> uni(0, UINT32_MAX);
+
 } // namespace
 
 namespace klee {
-
-static RNG theRNG;
 
 Searcher::~Searcher() {
 }
@@ -92,7 +95,8 @@ void DFSSearcher::update(ExecutionState *current, const StateSet &addedStates, c
 ///
 
 ExecutionState &RandomSearcher::selectState() {
-    return *states[theRNG.getInt32() % states.size()];
+    auto val = uni(rng) % states.size();
+    return *states[val];
 }
 
 void RandomSearcher::update(ExecutionState *current, const StateSet &addedStates, const StateSet &removedStates) {

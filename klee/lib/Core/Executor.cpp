@@ -26,7 +26,6 @@
 #include "klee/Config/config.h"
 #include "klee/ExecutionState.h"
 #include "klee/Expr.h"
-#include "klee/Internal/ADT/RNG.h"
 #include "klee/Internal/Module/Cell.h"
 #include "klee/Internal/Module/KInstruction.h"
 #include "klee/Internal/Module/KModule.h"
