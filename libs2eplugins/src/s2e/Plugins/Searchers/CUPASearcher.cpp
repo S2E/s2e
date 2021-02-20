@@ -30,8 +30,6 @@
 #include <s2e/S2E.h>
 #include <s2e/S2EExecutor.h>
 
-#include <klee/UserSearcher.h>
-
 #include <algorithm>
 #include <random>
 
@@ -165,7 +163,7 @@ klee::Searcher *CUPASearcher::createSearcher(unsigned level) {
                 abort();
         }
     } else {
-        searcher = klee::constructUserSearcher(*g_s2e->getExecutor());
+        searcher = klee::constructUserSearcher();
     }
 
     return searcher;

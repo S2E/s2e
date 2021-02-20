@@ -62,6 +62,9 @@ cl::opt<int> MinQueryTimeToLog("min-query-time-to-log", cl::init(0), cl::value_d
                                         "than threshold will be logged. default=0). Set this param to a negative "
                                         "value to log timeouts only."));
 
+llvm::cl::opt<bool> EnableTimingSolver("enable-timeingsolver", llvm::cl::desc("TimeingSolver: measure query time"),
+                                       llvm::cl::init(true));
+
 /// The different query logging solver that can be switched on/off
 enum QueryLoggingSolverType {
     ALL_KQUERY,    ///< Log all queries (un-optimised) in .kquery (KQuery) format
@@ -97,10 +100,17 @@ cl::opt<bool> DebugValidateSolver("debug-validate-solver", cl::init(false));
 
 namespace klee {
 
-DefaultSolverFactory::DefaultSolverFactory(InterpreterHandler *ih) : ih_(ih) {
+DefaultSolverFactory::DefaultSolverFactory(const std::filesystem::path &outputDir) : m_outputDir(outputDir) {
 }
 
-Solver *DefaultSolverFactory::createEndSolver() {
+std::filesystem::path DefaultSolverFactory::getOutputFileName(const std::string &fileName) const {
+    std::filesystem::path ret;
+    ret += m_outputDir;
+    ret += fileName;
+    return ret;
+}
+
+SolverPtr DefaultSolverFactory::createEndSolver() {
     if (EndSolver == SOLVER_Z3) {
 #ifdef ENABLE_Z3
         switch (SolverIncrementality) {
@@ -118,17 +128,16 @@ Solver *DefaultSolverFactory::createEndSolver() {
     return NULL;
 }
 
-Solver *DefaultSolverFactory::decorateSolver(Solver *end_solver) {
-    Solver *solver = end_solver;
+SolverPtr DefaultSolverFactory::decorateSolver(SolverPtr &end_solver) {
+    SolverPtr solver = end_solver;
 
     if (queryLoggingOptions.isSet(SOLVER_KQUERY)) {
-        solver = createKQueryLoggingSolver(solver, ih_->getOutputFilename(SOLVER_QUERIES_KQUERY_FILE_NAME),
-                                           MinQueryTimeToLog);
+        solver =
+            createKQueryLoggingSolver(solver, getOutputFileName(SOLVER_QUERIES_KQUERY_FILE_NAME), MinQueryTimeToLog);
     }
 
     if (queryLoggingOptions.isSet(SOLVER_SMTLIB)) {
-        solver =
-            createSMTLIBLoggingSolver(solver, ih_->getOutputFilename(SOLVER_QUERIES_SMT2_FILE_NAME), MinQueryTimeToLog);
+        solver = createSMTLIBLoggingSolver(solver, getOutputFileName(SOLVER_QUERIES_SMT2_FILE_NAME), MinQueryTimeToLog);
     }
 
     if (UseFastCexSolver) {
@@ -154,15 +163,18 @@ Solver *DefaultSolverFactory::decorateSolver(Solver *end_solver) {
     }
 
     if (queryLoggingOptions.isSet(ALL_KQUERY)) {
-        solver =
-            createKQueryLoggingSolver(solver, ih_->getOutputFilename(ALL_QUERIES_KQUERY_FILE_NAME), MinQueryTimeToLog);
+        solver = createKQueryLoggingSolver(solver, getOutputFileName(ALL_QUERIES_KQUERY_FILE_NAME), MinQueryTimeToLog);
     }
 
     if (queryLoggingOptions.isSet(ALL_SMTLIB)) {
-        solver =
-            createSMTLIBLoggingSolver(solver, ih_->getOutputFilename(ALL_QUERIES_SMT2_FILE_NAME), MinQueryTimeToLog);
+        solver = createSMTLIBLoggingSolver(solver, getOutputFileName(ALL_QUERIES_SMT2_FILE_NAME), MinQueryTimeToLog);
+    }
+
+    if (EnableTimingSolver) {
+        solver = createTimingSolver(solver);
     }
 
     return solver;
 }
+
 } // namespace klee

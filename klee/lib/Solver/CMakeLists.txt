@@ -17,6 +17,8 @@ set(KLEE_SOLVER_SRCS CachingSolver.cpp
                      SMTLIBLoggingSolver.cpp
                      Solver.cpp
                      SolverStats.cpp
+                     TimingSolver.cpp
+                     SolverFactory.cpp
 )
 
 if(ENABLE_SOLVER_Z3)

@@ -30,8 +30,6 @@
 
 #include "klee/Common.h"
 
-struct KTest;
-
 namespace llvm {
 class BasicBlock;
 class BranchInst;
@@ -52,12 +50,10 @@ struct Cell;
 class ExecutionState;
 class ExternalDispatcher;
 class Expr;
-struct KFunction;
 struct KInstruction;
 class KInstIterator;
 class KModule;
 class ObjectState;
-class PTree;
 class Searcher;
 class SpecialFunctionHandler;
 struct StackFrame;
@@ -72,11 +68,6 @@ template <class T> class ref;
 /// removedStates, and haltExecution, among others.
 
 class Executor : public Interpreter {
-    friend class BumpMergingSearcher;
-    friend class MergingSearcher;
-    friend class RandomPathSearcher;
-    friend class OwningSearcher;
-    friend class WeightedRandomSearcher;
     friend class SpecialFunctionHandler;
     friend class StatsTracker;
 
@@ -95,7 +86,7 @@ public:
 protected:
     class TimerInfo;
 
-    KModule *kmodule;
+    KModulePtr kmodule;
     InterpreterHandler *interpreterHandler;
     Searcher *searcher;
 
@@ -124,7 +115,7 @@ protected:
 
     /// Map of globals to their bound address. This also includes
     /// globals that have no representative object (i.e. functions).
-    std::unordered_map<const llvm::GlobalValue *, ref<ConstantExpr>> globalAddresses;
+    GlobalAddresses globalAddresses;
 
     /// The set of functions that must be handled via custom function handlers
     /// instead of being called directly.
@@ -134,7 +125,8 @@ protected:
 
     void executeInstruction(ExecutionState &state, KInstruction *ki);
 
-    void initializeGlobalObject(ExecutionState &state, const ObjectStatePtr &os, llvm::Constant *c, unsigned offset);
+    void initializeGlobalObject(ExecutionState &state, const ObjectStatePtr &os, const llvm::Constant *c,
+                                unsigned offset);
     void initializeGlobals(ExecutionState &state);
 
     virtual void updateStates(ExecutionState *current);
@@ -195,19 +187,8 @@ protected:
 
     const Cell &eval(KInstruction *ki, unsigned index, ExecutionState &state) const;
 
-    ref<klee::ConstantExpr> evalConstantExpr(const llvm::ConstantExpr *ce, const KInstruction *ki = nullptr);
-
     // delete the state (called internally by terminateState and updateStates)
     virtual void deleteState(ExecutionState *state);
-
-    /// bindModuleConstants - Initialize the module constant table.
-    void bindModuleConstants();
-
-    template <typename TypeIt> void computeOffsets(KGEPInstruction *kgepi, TypeIt ib, TypeIt ie);
-
-    /// bindInstructionConstants - Initialize any necessary per instruction
-    /// constant values.
-    void bindInstructionConstants(KInstruction *KI);
 
     void handlePointsToObj(ExecutionState &state, KInstruction *target, const std::vector<ref<Expr>> &arguments);
 
@@ -247,9 +228,6 @@ public:
 
     virtual void terminateState(ExecutionState &state, const std::string &reason);
 
-    // XXX should just be moved out to utility module
-    ref<klee::ConstantExpr> evalConstant(const llvm::Constant *c, const KInstruction *ki = nullptr);
-
     virtual const llvm::Module *setModule(llvm::Module *module, const ModuleOptions &opts,
                                           bool createStatsTracker = true);
 
@@ -274,13 +252,11 @@ public:
         return removedStates;
     }
 
-    Expr::Width getWidthForLLVMType(llvm::Type *type) const;
-
     ExternalDispatcher *getDispatcher() const {
         return externalDispatcher;
     }
 
-    KModule *getModule() const {
+    KModulePtr getModule() const {
         return kmodule;
     }
 };

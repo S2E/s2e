@@ -10,20 +10,27 @@
 #ifndef KLEE_KMODULE_H
 #define KLEE_KMODULE_H
 
+#include <klee/Expr.h>
 #include "klee/Interpreter.h"
 
 #include <llvm/ADT/DenseMap.h>
 #include <map>
+#include <memory>
 #include <set>
+#include <unordered_map>
 #include <vector>
+
+#include "Cell.h"
 
 namespace llvm {
 class BasicBlock;
 class Constant;
+class ConstantExpr;
 class Function;
 class Instruction;
 class Module;
 class DataLayout;
+class GlobalValue;
 } // namespace llvm
 
 namespace klee {
@@ -31,27 +38,25 @@ struct Cell;
 class Executor;
 class Expr;
 class InterpreterHandler;
-class InstructionInfoTable;
 struct KInstruction;
+struct KGEPInstruction;
 class KModule;
 template <class T> class ref;
 
-struct KFunction {
+using KInstructions = std::vector<KInstruction *>;
+using KBasicBlockEntries = std::map<llvm::BasicBlock *, unsigned>;
+
+class KFunction {
+private:
     llvm::Function *function;
 
     unsigned numArgs, numRegisters;
 
-    unsigned numInstructions;
-    KInstruction **instructions;
+    KInstructions instructions;
 
-    std::map<llvm::BasicBlock *, unsigned> basicBlockEntry;
+    KBasicBlockEntries basicBlockEntry;
     llvm::DenseMap<const llvm::Instruction *, KInstruction *> instrMap;
 
-    /// Whether instructions in this function should count as
-    /// "coverable" for statistics and search heuristics.
-    bool trackCoverage;
-
-private:
     KFunction(const KFunction &);
     KFunction &operator=(const KFunction &);
 
@@ -62,48 +67,92 @@ public:
     unsigned getArgRegister(unsigned index) {
         return index;
     }
+
+    unsigned getNumArgs() const {
+        return numArgs;
+    }
+
+    unsigned getNumRegisters() const {
+        return numRegisters;
+    }
+
+    KInstructions &getInstructions() {
+        return instructions;
+    }
+
+    KInstruction **getInstructionPtr(unsigned num) {
+        assert(num < instructions.size());
+        return &instructions[num];
+    }
+
+    llvm::Function *getFunction() const {
+        return function;
+    }
+
+    KInstruction *getInstruction(const llvm::Instruction *instr) const;
+
+    unsigned getBbEntry(llvm::BasicBlock *bb) const {
+        auto it = basicBlockEntry.find(bb);
+        assert(it != basicBlockEntry.end());
+        return (*it).second;
+    }
 };
 
-class KConstant {
-public:
-    /// Actual LLVM constant this represents.
-    llvm::Constant *ct;
+using GlobalAddresses = std::unordered_map<const llvm::GlobalValue *, ref<ConstantExpr>>;
 
-    /// The constant ID.
-    unsigned id;
+using KModulePtr = std::shared_ptr<KModule>;
 
-    /// First instruction where this constant was encountered, or NULL
-    /// if not applicable/unavailable.
-    KInstruction *ki;
-
-    KConstant(llvm::Constant *, unsigned, KInstruction *);
-};
+class KConstant;
 
 class KModule {
-public:
+private:
     llvm::Module *module;
     llvm::DataLayout *dataLayout;
-
-    // Some useful functions to know the address of
-    llvm::Function *dbgStopPointFn, *kleeMergeFn;
 
     // Our shadow versions of LLVM structures.
     std::vector<KFunction *> functions;
     std::map<llvm::Function *, KFunction *> functionMap;
 
-    // Functions which escape (may be called indirectly)
-    // XXX change to KFunction
-    std::set<llvm::Function *> escapingFunctions;
-
     std::vector<const llvm::Constant *> constants;
     std::map<const llvm::Constant *, KConstant *> constantMap;
-    KConstant *getKConstant(const llvm::Constant *c);
-
     std::vector<Cell> constantTable;
 
-public:
     KModule(llvm::Module *_module);
+    KModule() {
+    }
+
+    template <typename TypeIt>
+    void computeOffsets(const GlobalAddresses &globalAddresses, KGEPInstruction *kgepi, TypeIt ib, TypeIt ie);
+
+    /// bindInstructionConstants - Initialize any necessary per instruction
+    /// constant values.
+    void bindInstructionConstants(const GlobalAddresses &globalAddresses, KInstruction *KI);
+
+    KConstant *getKConstant(const llvm::Constant *c) const;
+
+public:
     ~KModule();
+
+    llvm::Module *getModule() const {
+        return module;
+    }
+
+    const llvm::DataLayout *getDataLayout() const {
+        return dataLayout;
+    }
+
+    KFunction *getKFunction(llvm::Function *f) const {
+        auto it = functionMap.find(f);
+        if (it != functionMap.end()) {
+            return (*it).second;
+        }
+        return nullptr;
+    }
+
+    const Cell &getConstant(unsigned idx) const {
+        assert(idx < constantTable.size());
+        return constantTable[idx];
+    }
 
     /// Initialize local data structures.
     //
@@ -122,6 +171,23 @@ public:
 
     /// Remove function from KModule and call removeFromParend on it
     void removeFunction(llvm::Function *f, bool keepDeclaration = false);
+
+    Expr::Width getWidthForLLVMType(llvm::Type *type) const;
+
+    ref<klee::ConstantExpr> evalConstant(const GlobalAddresses &globalAddresses, const llvm::Constant *c,
+                                         const KInstruction *ki = nullptr);
+
+    ref<klee::ConstantExpr> evalConstantExpr(const GlobalAddresses &globalAddresses, const llvm::ConstantExpr *ce,
+                                             const KInstruction *ki = nullptr);
+
+    /// bindModuleConstants - Initialize the module constant table.
+    void bindModuleConstants(const GlobalAddresses &globalAddresses);
+
+    KFunction *bindFunctionConstants(GlobalAddresses &globalAddresses, llvm::Function *f);
+
+    static KModulePtr create(llvm::Module *module) {
+        return KModulePtr(new KModule(module));
+    }
 };
 } // namespace klee
 

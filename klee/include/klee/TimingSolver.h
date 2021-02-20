@@ -13,53 +13,44 @@
 #include "klee/Expr.h"
 #include "klee/Solver.h"
 
+#include <memory>
 #include <vector>
 
 namespace klee {
 class ExecutionState;
 class Solver;
 
-/// TimingSolver - A simple class which wraps a solver and handles
-/// tracking the statistics that we care about.
-class TimingSolver {
-public:
-    Solver *solver;
-    bool simplifyExprs;
+class TimingSolver;
+using TimingSolverPtr = std::shared_ptr<TimingSolver>;
+
+class TimingSolver : public SolverImpl {
+private:
+    SolverPtr m_solver;
+
+    TimingSolver(SolverPtr _solver) : m_solver(_solver) {
+    }
+
+    double m_queryCost = 0.0;
 
 public:
-    /// TimingSolver - Construct a new timing solver.
-    ///
-    /// \param _simplifyExprs - Whether expressions should be
-    /// simplified (via the constraint manager interface) prior to
-    /// querying.
-    TimingSolver(Solver *_solver, bool _simplifyExprs = true) : solver(_solver), simplifyExprs(_simplifyExprs) {
-    }
     ~TimingSolver() {
-        delete solver;
     }
 
-    void setTimeout(double t) {
+    bool computeTruth(const Query &, bool &isValid);
+    bool computeValidity(const Query &, Validity &result);
+    bool computeValue(const Query &, ref<Expr> &result);
+    bool computeInitialValues(const Query &query, const ArrayVec &objects,
+                              std::vector<std::vector<unsigned char>> &values, bool &hasSolution);
+
+    static SolverImplPtr create(SolverPtr &s) {
+        return SolverImplPtr(new TimingSolver(s));
     }
 
-    bool evaluate(const ExecutionState &, ref<Expr>, Solver::Validity &result);
-
-    bool mustBeTrue(const ExecutionState &, ref<Expr>, bool &result);
-
-    bool mustBeFalse(const ExecutionState &, ref<Expr>, bool &result);
-
-    bool mayBeTrue(const ExecutionState &, ref<Expr>, bool &result);
-
-    bool mayBeFalse(const ExecutionState &, ref<Expr>, bool &result);
-
-    bool getValue(const ExecutionState &, ref<Expr> expr, ref<ConstantExpr> &result);
-
-    bool getInitialValues(const ConstraintManager &constraints, const ArrayVec &objects,
-                          std::vector<std::vector<unsigned char>> &result, double &queryCost);
-    bool getInitialValues(const ExecutionState &, const ArrayVec &objects,
-                          std::vector<std::vector<unsigned char>> &result);
-
-    std::pair<ref<Expr>, ref<Expr>> getRange(const ExecutionState &, ref<Expr> query);
+    double getTotalQueryCost() const {
+        return m_queryCost;
+    }
 };
+
 } // namespace klee
 
 #endif

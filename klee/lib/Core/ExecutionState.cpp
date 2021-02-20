@@ -11,7 +11,6 @@
 #include "klee/CoreStats.h"
 
 #include "klee/Internal/Module/Cell.h"
-#include "klee/Internal/Module/InstructionInfoTable.h"
 #include "klee/Internal/Module/KInstruction.h"
 #include "klee/Internal/Module/KModule.h"
 
@@ -52,45 +51,25 @@ cl::opt<bool> PrintConcretizedExpression("print-concretized-expression", cl::des
 
 /***/
 
-StackFrame::StackFrame(KInstIterator _caller, KFunction *_kf) : caller(_caller), kf(_kf), callPathNode(0), varargs(0) {
-    locals = new Cell[kf->numRegisters];
-}
-
-StackFrame::StackFrame(const StackFrame &s)
-    : caller(s.caller), kf(s.kf), callPathNode(s.callPathNode), allocas(s.allocas), varargs(s.varargs) {
-    locals = new Cell[s.kf->numRegisters];
-    for (unsigned i = 0; i < s.kf->numRegisters; i++)
-        locals[i] = s.locals[i];
-}
-
-StackFrame::~StackFrame() {
-    delete[] locals;
-}
-
-/***/
-
 BitfieldSimplifier ExecutionState::s_simplifier;
 std::set<ObjectKey, ObjectKeyLTS> ExecutionState::s_ignoredMergeObjects;
 
 ExecutionState::ExecutionState(KFunction *kf)
-    : fakeState(false), pc(kf->instructions), prevPC(nullptr), addressSpace(this), queryCost(0.), forkDisabled(false),
-      concolics(new Assignment(true)) {
+    : pc(kf->getInstructions()), prevPC(nullptr), addressSpace(this), forkDisabled(false),
+      concolics(Assignment::create(true)) {
     pushFrame(0, kf);
 }
 
-ExecutionState::ExecutionState(const std::vector<ref<Expr>> &assumptions)
-    : fakeState(true), addressSpace(this), queryCost(0.), concolics(new Assignment(true)) {
-}
-
 ExecutionState::~ExecutionState() {
-    while (!stack.empty())
+    while (!stack.empty()) {
         popFrame();
+    }
 }
 
 ExecutionState *ExecutionState::clone() {
     ExecutionState *state = new ExecutionState(*this);
     state->addressSpace.state = state;
-    state->concolics = new Assignment(true);
+    state->concolics = Assignment::create(true);
     return state;
 }
 
@@ -105,11 +84,6 @@ void ExecutionState::addressSpaceObjectSplit(const ObjectStateConstPtr &oldObjec
 void ExecutionState::addressSpaceSymbolicStatusChange(const ObjectStatePtr &object, bool becameConcrete) {
 }
 
-ExecutionState *ExecutionState::branch() {
-    ExecutionState *falseState = clone();
-    return falseState;
-}
-
 void ExecutionState::pushFrame(KInstIterator caller, KFunction *kf) {
     stack.push_back(StackFrame(caller, kf));
 }
@@ -121,26 +95,6 @@ void ExecutionState::popFrame() {
     }
     stack.pop_back();
 }
-
-///
-
-std::string ExecutionState::getFnAlias(std::string fn) {
-    std::map<std::string, std::string>::iterator it = fnAliases.find(fn);
-    if (it != fnAliases.end())
-        return it->second;
-    else
-        return "";
-}
-
-void ExecutionState::addFnAlias(std::string old_fn, std::string new_fn) {
-    fnAliases[old_fn] = new_fn;
-}
-
-void ExecutionState::removeFnAlias(std::string fn) {
-    fnAliases.erase(fn);
-}
-
-/**/
 
 llvm::raw_ostream &operator<<(llvm::raw_ostream &os, const MemoryMap &mm) {
     os << "{";
@@ -309,7 +263,7 @@ bool ExecutionState::merge(const ExecutionState &b) {
     for (; itA != stack.end(); ++itA, ++itB) {
         StackFrame &af = *itA;
         const StackFrame &bf = *itB;
-        for (unsigned i = 0; i < af.kf->numRegisters; i++) {
+        for (unsigned i = 0; i < af.kf->getNumRegisters(); i++) {
             ref<Expr> &av = af.locals[i].value;
             const ref<Expr> &bv = bf.locals[i].value;
             if (av.isNull() || bv.isNull()) {
@@ -371,7 +325,7 @@ void ExecutionState::printStack(KInstruction *target, std::stringstream &msg) co
     unsigned idx = 0;
     for (ExecutionState::stack_ty::const_reverse_iterator it = stack.rbegin(), ie = stack.rend(); it != ie; ++it) {
         const StackFrame &sf = *it;
-        Function *f = sf.kf->function;
+        Function *f = sf.kf->getFunction();
 
         msg << "\t#" << idx++ << " " << std::setw(8) << std::setfill('0') << " in " << f->getName().str() << " (";
 
@@ -519,7 +473,8 @@ ref<Expr> ExecutionState::toUnique(ref<Expr> &e) {
     value = dyn_cast<ConstantExpr>(evalResult);
 
     bool isTrue = false;
-    bool success = solver()->mustBeTrue(*this, simplifyExpr(EqExpr::create(e, value)), isTrue);
+    Query q(constraints(), simplifyExpr(EqExpr::create(e, value)));
+    bool success = solver()->mustBeTrue(q, isTrue);
 
     if (success && isTrue) {
         result = value;
@@ -535,7 +490,7 @@ bool ExecutionState::solve(const ConstraintManager &mgr, Assignment &assignment)
     }
 
     std::vector<std::vector<unsigned char>> concreteObjects;
-    if (!solver()->getInitialValues(mgr, symbObjects, concreteObjects, queryCost)) {
+    if (!solver()->getInitialValues(Query(mgr, ConstantExpr::alloc(0, Expr::Bool)), symbObjects, concreteObjects)) {
         return false;
     }
 
@@ -602,8 +557,8 @@ void ExecutionState::dumpQuery(llvm::raw_ostream &os) const {
     os.flush();
 }
 
-std::shared_ptr<TimingSolver> ExecutionState::solver() const {
-    return SolverManager::solver(*this);
+SolverPtr ExecutionState::solver() const {
+    return m_solver;
 }
 
 Cell &ExecutionState::getArgumentCell(KFunction *kf, unsigned index) {

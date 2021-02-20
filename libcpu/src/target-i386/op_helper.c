@@ -730,13 +730,13 @@ target_ulong helper_inl(uint32_t port) {
 
 void helper_outb(uint32_t port, uint32_t data) {
     if (*g_sqi.mode.concretize_io_addresses) {
-        tcg_llvm_get_value(&port, sizeof(port), false);
+        port = tcg_llvm_get_value(port, false);
     }
 
     if (tcg_llvm_trace_port_access(port, data, 8, 1)) {
         if (*g_sqi.mode.concretize_io_writes) {
             data &= 0xFF;
-            tcg_llvm_get_value(&data, sizeof(data), false);
+            port = tcg_llvm_get_value(data, false);
         }
         cpu_outb(port, data & 0xff);
     }
@@ -744,7 +744,7 @@ void helper_outb(uint32_t port, uint32_t data) {
 
 target_ulong helper_inb(uint32_t port) {
     if (*g_sqi.mode.concretize_io_addresses) {
-        tcg_llvm_get_value(&port, sizeof(port), false);
+        port = tcg_llvm_get_value(port, false);
     }
 
     target_ulong res = cpu_inb(port);
@@ -753,13 +753,13 @@ target_ulong helper_inb(uint32_t port) {
 
 void helper_outw(uint32_t port, uint32_t data) {
     if (*g_sqi.mode.concretize_io_addresses) {
-        tcg_llvm_get_value(&port, sizeof(port), false);
+        port = tcg_llvm_get_value(port, false);
     }
 
     if (tcg_llvm_trace_port_access(port, data, 16, 1)) {
         if (*g_sqi.mode.concretize_io_writes) {
             data &= 0xFFFF;
-            tcg_llvm_get_value(&data, sizeof(data), false);
+            data = tcg_llvm_get_value(data, false);
         }
         cpu_outw(port, data & 0xffff);
     }
@@ -767,7 +767,7 @@ void helper_outw(uint32_t port, uint32_t data) {
 
 target_ulong helper_inw(uint32_t port) {
     if (*g_sqi.mode.concretize_io_addresses) {
-        tcg_llvm_get_value(&port, sizeof(port), false);
+        port = tcg_llvm_get_value(port, false);
     }
 
     target_ulong res = cpu_inw(port);
@@ -776,12 +776,12 @@ target_ulong helper_inw(uint32_t port) {
 
 void helper_outl(uint32_t port, uint32_t data) {
     if (*g_sqi.mode.concretize_io_addresses) {
-        tcg_llvm_get_value(&port, sizeof(port), false);
+        port = tcg_llvm_get_value(port, false);
     }
 
     if (tcg_llvm_trace_port_access(port, data, 32, 1)) {
         if (*g_sqi.mode.concretize_io_writes) {
-            tcg_llvm_get_value(&data, sizeof(data), false);
+            port = tcg_llvm_get_value(data, false);
         }
         cpu_outl(port, data);
     }
@@ -789,7 +789,7 @@ void helper_outl(uint32_t port, uint32_t data) {
 
 target_ulong helper_inl(uint32_t port) {
     if (*g_sqi.mode.concretize_io_addresses) {
-        tcg_llvm_get_value(&port, sizeof(port), false);
+        port = tcg_llvm_get_value(port, false);
     }
 
     target_ulong res = cpu_inl(port);

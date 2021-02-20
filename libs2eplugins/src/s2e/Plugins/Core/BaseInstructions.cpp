@@ -41,7 +41,6 @@
 
 #include <klee/Searcher.h>
 #include <klee/Solver.h>
-#include <klee/SolverManager.h>
 #include <llvm/ADT/DenseSet.h>
 
 #include <llvm/Support/CommandLine.h>
@@ -694,7 +693,7 @@ void BaseInstructions::getRange(S2EExecutionState *state) {
         return;
     }
 
-    Solver *solver = state->solver()->solver;
+    auto solver = state->solver();
 
     Query query(state->constraints(), value);
     range = solver->getRange(query);

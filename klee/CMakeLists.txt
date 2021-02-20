@@ -212,11 +212,11 @@ endif()
 # C++ version
 ################################################################################
 
-message(STATUS "Enabling C++14")
+message(STATUS "Enabling C++17")
 # FIXME: Use CMake's own mechanism for managing C++ version.
 # Set globally because it is unlikely we would want to compile
 # using mixed C++ versions.
-add_global_cxx_flag("-std=c++14" REQUIRED)
+add_global_cxx_flag("-std=c++17" REQUIRED)
 
 # Uncomment this to enable code coverage recording
 # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fprofile-instr-generate -fcoverage-mapping")

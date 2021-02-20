@@ -16,23 +16,17 @@
 #include "klee/CoreStats.h"
 #include "klee/ExternalDispatcher.h"
 #include "klee/Memory.h"
-#include "klee/PTree.h"
 #include "klee/Searcher.h"
 #include "klee/SolverFactory.h"
-#include "klee/SolverManager.h"
 #include "klee/SolverStats.h"
 #include "klee/StatsTracker.h"
 #include "klee/TimingSolver.h"
-#include "klee/UserSearcher.h"
 #include "SpecialFunctionHandler.h"
 
 #include "klee/Config/config.h"
 #include "klee/ExecutionState.h"
 #include "klee/Expr.h"
-#include "klee/Internal/ADT/KTest.h"
-#include "klee/Internal/ADT/RNG.h"
 #include "klee/Internal/Module/Cell.h"
-#include "klee/Internal/Module/InstructionInfoTable.h"
 #include "klee/Internal/Module/KInstruction.h"
 #include "klee/Internal/Module/KModule.h"
 #include "klee/Internal/Support/FloatEvaluation.h"
@@ -70,9 +64,7 @@
 #include <string>
 #include <vector>
 
-#ifndef __MINGW32__
 #include <sys/mman.h>
-#endif
 
 #include <cxxabi.h>
 #include <errno.h>
@@ -82,23 +74,14 @@ using namespace llvm;
 using namespace klee;
 
 namespace {
-cl::opt<bool> NoPreferCex("no-prefer-cex", cl::init(false));
-
-cl::opt<bool> RandomizeFork("randomize-fork", cl::init(false));
-
 cl::opt<bool> SimplifySymIndices("simplify-sym-indices", cl::init(true));
 
 cl::opt<bool> SuppressExternalWarnings("suppress-external-warnings", cl::init(true));
-
-cl::opt<bool> EmitAllErrors("emit-all-errors", cl::init(false),
-                            cl::desc("Generate tests cases for all errors "
-                                     "(default=one per (error,instruction) pair)"));
 
 cl::opt<bool> NoExternals("no-externals", cl::desc("Do not allow external functin calls"));
 } // namespace
 
 namespace klee {
-RNG theRNG;
 extern cl::opt<bool> UseExprSimplifier;
 } // namespace klee
 
@@ -110,10 +93,10 @@ Executor::Executor(InterpreterHandler *ih, LLVMContext &context)
 const Module *Executor::setModule(llvm::Module *module, const ModuleOptions &opts, bool createStatsTracker) {
     assert(!kmodule && module && "can only register one module"); // XXX gross
 
-    kmodule = new KModule(module);
+    kmodule = KModule::create(module);
 
     // Initialize the context.
-    DataLayout *TD = kmodule->dataLayout;
+    auto TD = kmodule->getDataLayout();
     Context::initialize(TD->isLittleEndian(), (Expr::Width) TD->getPointerSizeInBits());
 
     specialFunctionHandler = new SpecialFunctionHandler(*this);
@@ -143,14 +126,14 @@ Executor::~Executor() {
         delete specialFunctionHandler;
     if (statsTracker)
         delete statsTracker;
-    delete kmodule;
 }
 
 /***/
 
-void Executor::initializeGlobalObject(ExecutionState &state, const ObjectStatePtr &os, Constant *c, unsigned offset) {
-    DataLayout *dataLayout = kmodule->dataLayout;
-    if (ConstantVector *cp = dyn_cast<ConstantVector>(c)) {
+void Executor::initializeGlobalObject(ExecutionState &state, const ObjectStatePtr &os, const Constant *c,
+                                      unsigned offset) {
+    auto dataLayout = kmodule->getDataLayout();
+    if (auto *cp = dyn_cast<ConstantVector>(c)) {
         unsigned elementSize = dataLayout->getTypeStoreSize(cp->getType()->getElementType());
         for (unsigned i = 0, e = cp->getNumOperands(); i != e; ++i)
             initializeGlobalObject(state, os, cp->getOperand(i), offset + i * elementSize);
@@ -158,21 +141,21 @@ void Executor::initializeGlobalObject(ExecutionState &state, const ObjectStatePt
         unsigned i, size = dataLayout->getTypeStoreSize(c->getType());
         for (i = 0; i < size; i++)
             os->write8(offset + i, (uint8_t) 0);
-    } else if (ConstantArray *ca = dyn_cast<ConstantArray>(c)) {
+    } else if (auto *ca = dyn_cast<ConstantArray>(c)) {
         unsigned elementSize = dataLayout->getTypeStoreSize(ca->getType()->getElementType());
         for (unsigned i = 0, e = ca->getNumOperands(); i != e; ++i)
             initializeGlobalObject(state, os, ca->getOperand(i), offset + i * elementSize);
-    } else if (ConstantDataArray *da = dyn_cast<ConstantDataArray>(c)) {
+    } else if (auto *da = dyn_cast<ConstantDataArray>(c)) {
         unsigned elementSize = dataLayout->getTypeStoreSize(da->getType()->getElementType());
         for (unsigned i = 0, e = da->getNumElements(); i != e; ++i)
             initializeGlobalObject(state, os, da->getElementAsConstant(i), offset + i * elementSize);
-    } else if (ConstantStruct *cs = dyn_cast<ConstantStruct>(c)) {
+    } else if (auto *cs = dyn_cast<ConstantStruct>(c)) {
         const StructLayout *sl = dataLayout->getStructLayout(cast<StructType>(cs->getType()));
         for (unsigned i = 0, e = cs->getNumOperands(); i != e; ++i)
             initializeGlobalObject(state, os, cs->getOperand(i), offset + sl->getElementOffset(i));
     } else {
         unsigned StoreBits = dataLayout->getTypeStoreSizeInBits(c->getType());
-        ref<ConstantExpr> C = evalConstant(c);
+        ref<ConstantExpr> C = kmodule->evalConstant(globalAddresses, c);
 
         // Extend the constant if necessary;
         assert(StoreBits >= C->getWidth() && "Invalid store size!");
@@ -198,7 +181,7 @@ ObjectStatePtr Executor::addExternalObject(ExecutionState &state, void *addr, un
 }
 
 void Executor::initializeGlobals(ExecutionState &state) {
-    Module *m = kmodule->module;
+    auto m = kmodule->getModule();
 
     if (m->getModuleInlineAsm() != "")
         klee_warning("executable has module level assembly (ignoring)");
@@ -207,8 +190,8 @@ void Executor::initializeGlobals(ExecutionState &state) {
     // object. given that we use malloc to allocate memory in states this also
     // ensures that we won't conflict. we don't need to allocate a memory object
     // since reading/writing via a function pointer is unsupported anyway.
-    for (Module::iterator i = m->begin(), ie = m->end(); i != ie; ++i) {
-        Function *f = &*i;
+    for (auto i = m->begin(), ie = m->end(); i != ie; ++i) {
+        auto f = &*i;
         ref<ConstantExpr> addr(0);
 
         // If the symbol has external weak linkage then it is implicitly
@@ -268,7 +251,7 @@ void Executor::initializeGlobals(ExecutionState &state) {
             // hack where we check the object file information.
 
             Type *ty = i->getType()->getElementType();
-            uint64_t size = kmodule->dataLayout->getTypeStoreSize(ty);
+            uint64_t size = kmodule->getDataLayout()->getTypeStoreSize(ty);
 
 // XXX - DWD - hardcode some things until we decide how to fix.
 #ifndef WINDOWS
@@ -306,7 +289,7 @@ void Executor::initializeGlobals(ExecutionState &state) {
             }
         } else {
             Type *ty = i->getType()->getElementType();
-            uint64_t size = kmodule->dataLayout->getTypeStoreSize(ty);
+            uint64_t size = kmodule->getDataLayout()->getTypeStoreSize(ty);
             auto mo = ObjectState::allocate(0, size, false);
 
             assert(mo && "out of memory");
@@ -317,14 +300,14 @@ void Executor::initializeGlobals(ExecutionState &state) {
     }
 
     // link aliases to their definitions (if bound)
-    for (Module::alias_iterator i = m->alias_begin(), ie = m->alias_end(); i != ie; ++i) {
+    for (auto i = m->alias_begin(), ie = m->alias_end(); i != ie; ++i) {
         // Map the alias to its aliasee's address. This works because we have
         // addresses for everything, even undefined functions.
-        globalAddresses.insert(std::make_pair(&*i, evalConstant(i->getAliasee())));
+        globalAddresses.insert(std::make_pair(&*i, kmodule->evalConstant(globalAddresses, i->getAliasee())));
     }
 
     // once all objects are allocated, do the actual initialization
-    for (Module::global_iterator i = m->global_begin(), e = m->global_end(); i != e; ++i) {
+    for (auto i = m->global_begin(), e = m->global_end(); i != e; ++i) {
         if (predefinedSymbols.find(i->getName()) != predefinedSymbols.end()) {
             continue;
         }
@@ -390,8 +373,9 @@ Executor::StatePair Executor::fork(ExecutionState &current, const ref<Expr> &con
         tmpConstraints.addConstraint(condition);
 
         std::vector<std::vector<unsigned char>> concreteObjects;
-        auto solver = SolverManager::solver(current);
-        if (!solver->getInitialValues(tmpConstraints, symbObjects, concreteObjects, current.queryCost)) {
+        auto solver = current.solver();
+        Query q(tmpConstraints, ConstantExpr::alloc(0, Expr::Bool));
+        if (!solver->getInitialValues(q, symbObjects, concreteObjects)) {
             // Condition is always false in the current state
             return StatePair(0, &current);
         }
@@ -414,8 +398,9 @@ Executor::StatePair Executor::fork(ExecutionState &current, const ref<Expr> &con
     }
 
     std::vector<std::vector<unsigned char>> concreteObjects;
-    auto solver = SolverManager::solver(current);
-    if (!solver->getInitialValues(tmpConstraints, symbObjects, concreteObjects, current.queryCost)) {
+    Query q(tmpConstraints, ConstantExpr::alloc(0, Expr::Bool));
+    auto solver = current.solver();
+    if (!solver->getInitialValues(q, symbObjects, concreteObjects)) {
         if (conditionIsTrue) {
             return StatePair(&current, 0);
         } else {
@@ -426,7 +411,7 @@ Executor::StatePair Executor::fork(ExecutionState &current, const ref<Expr> &con
     // Branch
     ExecutionState *branchedState;
     notifyBranch(current);
-    branchedState = current.branch();
+    branchedState = current.clone();
     addedStates.insert(branchedState);
 
     // Update concrete values for the branched state
@@ -479,7 +464,7 @@ const Cell &Executor::eval(KInstruction *ki, unsigned index, ExecutionState &sta
     // Determine if this is a constant or not.
     if (vnumber < 0) {
         unsigned index = -vnumber - 2;
-        return kmodule->constantTable[index];
+        return kmodule->getConstant(index);
     } else {
         unsigned index = vnumber;
         StackFrame &sf = state.stack.back();
@@ -552,9 +537,9 @@ void Executor::executeCall(ExecutionState &state, KInstruction *ki, Function *f,
         // guess. This just done to avoid having to pass KInstIterator everywhere
         // instead of the actual instruction, since we can't make a KInstIterator
         // from just an instruction (unlike LLVM).
-        KFunction *kf = kmodule->functionMap[f];
+        auto kf = kmodule->getKFunction(f);
         state.pushFrame(state.prevPC, kf);
-        state.pc = kf->instructions;
+        state.pc = kf->getInstructions();
 
         // TODO: support "byval" parameter attribute
         // TODO: support zeroext, signext, sret attributes
@@ -634,8 +619,8 @@ void Executor::transferToBasicBlock(BasicBlock *dst, BasicBlock *src, ExecutionS
 
     // XXX this lookup has to go ?
     KFunction *kf = state.stack.back().kf;
-    unsigned entry = kf->basicBlockEntry[dst];
-    state.pc = &kf->instructions[entry];
+    unsigned entry = kf->getBbEntry(dst);
+    state.pc = kf->getInstructionPtr(entry);
     if (state.pc->inst->getOpcode() == Instruction::PHI) {
         PHINode *first = static_cast<PHINode *>(state.pc->inst);
         state.incomingBBIndex = first->getBasicBlockIndex(src);
@@ -643,22 +628,7 @@ void Executor::transferToBasicBlock(BasicBlock *dst, BasicBlock *src, ExecutionS
 }
 
 Function *Executor::getCalledFunction(CallSite &cs, ExecutionState &state) {
-    Function *f = cs.getCalledFunction();
-
-    if (f) {
-        std::string alias = state.getFnAlias(f->getName());
-        if (alias != "") {
-            llvm::Module *currModule = kmodule->module;
-            Function *old_f = f;
-            f = currModule->getFunction(alias);
-            if (!f) {
-                llvm::errs() << "Function " << alias << "(), alias for " << old_f->getName() << " not found!\n";
-                assert(f && "function alias not found");
-            }
-        }
-    }
-
-    return f;
+    return cs.getCalledFunction();
 }
 
 static inline const llvm::fltSemantics *fpWidthToSemantics(unsigned width) {
@@ -705,7 +675,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
                     if (t != Type::getVoidTy(caller->getContext())) {
                         // may need to do coercion due to bitcasts
                         Expr::Width from = result->getWidth();
-                        Expr::Width to = getWidthForLLVMType(t);
+                        Expr::Width to = kmodule->getWidthForLLVMType(t);
 
                         if (from != to) {
                             CallSite cs = (isa<InvokeInst>(caller) ? CallSite(cast<InvokeInst>(caller))
@@ -833,7 +803,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
                         Expr::Width to, from = (*ai)->getWidth();
 
                         if (i < fType->getNumParams()) {
-                            to = getWidthForLLVMType(fType->getParamType(i));
+                            to = kmodule->getWidthForLLVMType(fType->getParamType(i));
 
                             if (from != to) {
                                 // XXX need to check other param attrs ?
@@ -1112,7 +1082,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
         case Instruction::Alloca: {
             AllocaInst *ai = cast<AllocaInst>(i);
 #endif
-            unsigned elementSize = kmodule->dataLayout->getTypeStoreSize(ai->getAllocatedType());
+            unsigned elementSize = kmodule->getDataLayout()->getTypeStoreSize(ai->getAllocatedType());
             ref<Expr> size = Expr::createPointer(elementSize);
             if (ai->isArrayAllocation()) {
                 ref<Expr> count = eval(ki, 0, state).value;
@@ -1157,33 +1127,34 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
         // Conversion
         case Instruction::Trunc: {
             CastInst *ci = cast<CastInst>(i);
-            ref<Expr> result = ExtractExpr::create(eval(ki, 0, state).value, 0, getWidthForLLVMType(ci->getType()));
+            ref<Expr> result =
+                ExtractExpr::create(eval(ki, 0, state).value, 0, kmodule->getWidthForLLVMType(ci->getType()));
             state.bindLocal(ki, result);
             break;
         }
         case Instruction::ZExt: {
             CastInst *ci = cast<CastInst>(i);
-            ref<Expr> result = ZExtExpr::create(eval(ki, 0, state).value, getWidthForLLVMType(ci->getType()));
+            ref<Expr> result = ZExtExpr::create(eval(ki, 0, state).value, kmodule->getWidthForLLVMType(ci->getType()));
             state.bindLocal(ki, result);
             break;
         }
         case Instruction::SExt: {
             CastInst *ci = cast<CastInst>(i);
-            ref<Expr> result = SExtExpr::create(eval(ki, 0, state).value, getWidthForLLVMType(ci->getType()));
+            ref<Expr> result = SExtExpr::create(eval(ki, 0, state).value, kmodule->getWidthForLLVMType(ci->getType()));
             state.bindLocal(ki, result);
             break;
         }
 
         case Instruction::IntToPtr: {
             CastInst *ci = cast<CastInst>(i);
-            Expr::Width pType = getWidthForLLVMType(ci->getType());
+            Expr::Width pType = kmodule->getWidthForLLVMType(ci->getType());
             ref<Expr> arg = eval(ki, 0, state).value;
             state.bindLocal(ki, ZExtExpr::create(arg, pType));
             break;
         }
         case Instruction::PtrToInt: {
             CastInst *ci = cast<CastInst>(i);
-            Expr::Width iType = getWidthForLLVMType(ci->getType());
+            Expr::Width iType = kmodule->getWidthForLLVMType(ci->getType());
             ref<Expr> arg = eval(ki, 0, state).value;
             state.bindLocal(ki, ZExtExpr::create(arg, iType));
             break;
@@ -1247,7 +1218,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
 
         case Instruction::FPTrunc: {
             FPTruncInst *fi = cast<FPTruncInst>(i);
-            Expr::Width resultType = getWidthForLLVMType(fi->getType());
+            Expr::Width resultType = kmodule->getWidthForLLVMType(fi->getType());
             ref<ConstantExpr> arg = state.toConstant(eval(ki, 0, state).value, "floating point");
             if (arg->getWidth() > 64)
                 return terminateState(state, "Unsupported FPTrunc operation");
@@ -1258,7 +1229,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
 
         case Instruction::FPExt: {
             FPExtInst *fi = cast<FPExtInst>(i);
-            Expr::Width resultType = getWidthForLLVMType(fi->getType());
+            Expr::Width resultType = kmodule->getWidthForLLVMType(fi->getType());
             ref<ConstantExpr> arg = state.toConstant(eval(ki, 0, state).value, "floating point");
             if (arg->getWidth() > 64)
                 return terminateState(state, "Unsupported FPExt operation");
@@ -1269,7 +1240,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
 
         case Instruction::FPToUI: {
             FPToUIInst *fi = cast<FPToUIInst>(i);
-            Expr::Width resultType = getWidthForLLVMType(fi->getType());
+            Expr::Width resultType = kmodule->getWidthForLLVMType(fi->getType());
             ref<ConstantExpr> arg = state.toConstant(eval(ki, 0, state).value, "floating point");
             if (arg->getWidth() > 64)
                 return terminateState(state, "Unsupported FPToUI operation");
@@ -1280,7 +1251,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
 
         case Instruction::FPToSI: {
             FPToSIInst *fi = cast<FPToSIInst>(i);
-            Expr::Width resultType = getWidthForLLVMType(fi->getType());
+            Expr::Width resultType = kmodule->getWidthForLLVMType(fi->getType());
             ref<ConstantExpr> arg = state.toConstant(eval(ki, 0, state).value, "floating point");
             if (arg->getWidth() > 64)
                 return terminateState(state, "Unsupported FPToSI operation");
@@ -1291,7 +1262,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
 
         case Instruction::UIToFP: {
             UIToFPInst *fi = cast<UIToFPInst>(i);
-            Expr::Width resultType = getWidthForLLVMType(fi->getType());
+            Expr::Width resultType = kmodule->getWidthForLLVMType(fi->getType());
             ref<ConstantExpr> arg = state.toConstant(eval(ki, 0, state).value, "floating point");
             if (arg->getWidth() > 64)
                 return terminateState(state, "Unsupported UIToFP operation");
@@ -1302,7 +1273,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
 
         case Instruction::SIToFP: {
             SIToFPInst *fi = cast<SIToFPInst>(i);
-            Expr::Width resultType = getWidthForLLVMType(fi->getType());
+            Expr::Width resultType = kmodule->getWidthForLLVMType(fi->getType());
             ref<ConstantExpr> arg = state.toConstant(eval(ki, 0, state).value, "floating point");
             if (arg->getWidth() > 64)
                 return terminateState(state, "Unsupported SIToFP operation");
@@ -1430,7 +1401,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
 
             ref<Expr> agg = eval(ki, 0, state).value;
 
-            ref<Expr> result = ExtractExpr::create(agg, kgepi->offset * 8, getWidthForLLVMType(i->getType()));
+            ref<Expr> result = ExtractExpr::create(agg, kgepi->offset * 8, kmodule->getWidthForLLVMType(i->getType()));
 
             state.bindLocal(ki, result);
             break;
@@ -1449,7 +1420,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
             }
             uint64_t iIdx = cIdx->getZExtValue();
             const llvm::VectorType *vt = iei->getType();
-            unsigned EltBits = getWidthForLLVMType(vt->getElementType());
+            unsigned EltBits = kmodule->getWidthForLLVMType(vt->getElementType());
 
             if (iIdx >= vt->getNumElements()) {
                 // Out of bounds write
@@ -1483,7 +1454,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
             }
             uint64_t iIdx = cIdx->getZExtValue();
             const llvm::VectorType *vt = eei->getVectorOperandType();
-            unsigned EltBits = getWidthForLLVMType(vt->getElementType());
+            unsigned EltBits = kmodule->getWidthForLLVMType(vt->getElementType());
 
             if (iIdx >= vt->getNumElements()) {
                 // Out of bounds read
@@ -1533,77 +1504,7 @@ void Executor::updateStates(ExecutionState *current) {
     removedStates.clear();
 }
 
-template <typename TypeIt> void Executor::computeOffsets(KGEPInstruction *kgepi, TypeIt ib, TypeIt ie) {
-    auto &dataLayout = kmodule->module->getDataLayout();
-
-    ref<ConstantExpr> constantOffset = ConstantExpr::alloc(0, Context::get().getPointerWidth());
-    uint64_t index = 1;
-    for (TypeIt ii = ib; ii != ie; ++ii) {
-        if (StructType *st = dyn_cast<StructType>(*ii)) {
-            const StructLayout *sl = dataLayout.getStructLayout(st);
-            const ConstantInt *ci = cast<ConstantInt>(ii.getOperand());
-            uint64_t addend = sl->getElementOffset((unsigned) ci->getZExtValue());
-            constantOffset = constantOffset->Add(ConstantExpr::alloc(addend, Context::get().getPointerWidth()));
-        } else if (const auto set = dyn_cast<SequentialType>(*ii)) {
-            uint64_t elementSize = dataLayout.getTypeStoreSize(set->getElementType());
-            Value *operand = ii.getOperand();
-            if (Constant *c = dyn_cast<Constant>(operand)) {
-                ref<ConstantExpr> index = evalConstant(c)->SExt(Context::get().getPointerWidth());
-                ref<ConstantExpr> addend =
-                    index->Mul(ConstantExpr::alloc(elementSize, Context::get().getPointerWidth()));
-                constantOffset = constantOffset->Add(addend);
-            } else {
-                kgepi->indices.push_back(std::make_pair(index, elementSize));
-            }
-        } else if (const auto ptr = dyn_cast<PointerType>(*ii)) {
-            auto elementSize = dataLayout.getTypeStoreSize(ptr->getElementType());
-            auto operand = ii.getOperand();
-            if (auto c = dyn_cast<Constant>(operand)) {
-                auto index = evalConstant(c)->SExt(Context::get().getPointerWidth());
-                auto addend = index->Mul(ConstantExpr::alloc(elementSize, Context::get().getPointerWidth()));
-                constantOffset = constantOffset->Add(addend);
-            } else {
-                kgepi->indices.push_back(std::make_pair(index, elementSize));
-            }
-        } else
-            assert("invalid type" && 0);
-        index++;
-    }
-    kgepi->offset = constantOffset->getZExtValue();
-}
-
-void Executor::bindInstructionConstants(KInstruction *KI) {
-    KGEPInstruction *kgepi = static_cast<KGEPInstruction *>(KI);
-
-    if (GetElementPtrInst *gepi = dyn_cast<GetElementPtrInst>(KI->inst)) {
-        computeOffsets(kgepi, klee::gep_type_begin(gepi), klee::gep_type_end(gepi));
-    } else if (InsertValueInst *ivi = dyn_cast<InsertValueInst>(KI->inst)) {
-        computeOffsets(kgepi, iv_type_begin(ivi), iv_type_end(ivi));
-        assert(kgepi->indices.empty() && "InsertValue constant offset expected");
-    } else if (ExtractValueInst *evi = dyn_cast<ExtractValueInst>(KI->inst)) {
-        computeOffsets(kgepi, ev_type_begin(evi), ev_type_end(evi));
-        assert(kgepi->indices.empty() && "ExtractValue constant offset expected");
-    }
-}
-
-void Executor::bindModuleConstants() {
-    for (std::vector<KFunction *>::iterator it = kmodule->functions.begin(), ie = kmodule->functions.end(); it != ie;
-         ++it) {
-        KFunction *kf = *it;
-        for (unsigned i = 0; i < kf->numInstructions; ++i)
-            bindInstructionConstants(kf->instructions[i]);
-    }
-
-    kmodule->constantTable.resize(kmodule->constants.size());
-    for (unsigned i = 0; i < kmodule->constants.size(); ++i) {
-        Cell &c = kmodule->constantTable[i];
-        c.value = evalConstant(kmodule->constants[i]);
-    }
-}
-
 void Executor::deleteState(ExecutionState *state) {
-    SolverManager::get().removeState(state);
-
     delete state;
 }
 
@@ -1717,7 +1618,7 @@ void Executor::callExternalFunction(ExecutionState &state, KInstruction *target,
 
     if (resultType != Type::getVoidTy(function->getContext())) {
         ref<Expr> resultExpr;
-        auto resultWidth = getWidthForLLVMType(resultType);
+        auto resultWidth = kmodule->getWidthForLLVMType(resultType);
         switch (resultWidth) {
             case Expr::Bool:
                 resultExpr = ConstantExpr::create(result & 1, resultWidth);
@@ -1889,7 +1790,7 @@ ref<Expr> Executor::executeMemoryOperation(ExecutionState &state, const ObjectSt
 
 void Executor::executeMemoryOperation(ExecutionState &state, bool isWrite, ref<Expr> address,
                                       ref<Expr> value /* undef if read */, KInstruction *target /* undef if write */) {
-    Expr::Width type = (isWrite ? value->getWidth() : getWidthForLLVMType(target->inst->getType()));
+    Expr::Width type = (isWrite ? value->getWidth() : kmodule->getWidthForLLVMType(target->inst->getType()));
     unsigned bytes = Expr::getMinBytesForWidth(type);
 
     if (SimplifySymIndices) {
@@ -2074,8 +1975,4 @@ void Executor::executeMemoryOperation(ExecutionState &state, bool isWrite, ref<E
 
 void Executor::addSpecialFunctionHandler(Function *function, FunctionHandler handler) {
     specialFunctionHandler->addUHandler(function, handler);
-}
-
-Expr::Width Executor::getWidthForLLVMType(llvm::Type *type) const {
-    return kmodule->dataLayout->getTypeSizeInBits(type);
 }

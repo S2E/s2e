@@ -12,7 +12,6 @@
 #include "klee/StatsTracker.h"
 
 #include "klee/ExecutionState.h"
-#include "klee/Internal/Module/InstructionInfoTable.h"
 #include "klee/Internal/Module/KInstruction.h"
 #include "klee/Internal/Module/KModule.h"
 #include "klee/Internal/Support/ModuleUtil.h"
@@ -22,7 +21,6 @@
 #include "klee/CoreStats.h"
 #include "klee/Executor.h"
 #include "klee/SolverStats.h"
-#include "klee/UserSearcher.h"
 
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/CFG.h"

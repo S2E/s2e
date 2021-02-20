@@ -14,8 +14,6 @@
 #include <string>
 #include <vector>
 
-struct KTest;
-
 namespace llvm {
 class Function;
 class Module;

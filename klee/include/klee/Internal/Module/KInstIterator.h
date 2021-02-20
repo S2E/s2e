@@ -10,6 +10,8 @@
 #ifndef KLEE_KINSTITERATOR_H
 #define KLEE_KINSTITERATOR_H
 
+#include <vector>
+
 namespace klee {
 struct KInstruction;
 
@@ -22,6 +24,8 @@ public:
     KInstIterator(KInstruction **_it) : it(_it) {
     }
     KInstIterator(const KInstIterator &b) : it(b.it) {
+    }
+    KInstIterator(std::vector<KInstruction *> &b) : it(&b[0]) {
     }
     ~KInstIterator() {
     }

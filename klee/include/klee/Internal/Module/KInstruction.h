@@ -19,9 +19,8 @@ class Instruction;
 
 namespace klee {
 class Executor;
-struct InstructionInfo;
 class KModule;
-struct KFunction;
+class KFunction;
 
 /// KInstruction - Intermediate instruction representation used
 /// during execution.
@@ -56,8 +55,6 @@ struct KGEPInstruction : KInstruction {
 };
 
 struct KCallInstruction : KInstruction {
-    bool vulnerable; // Whether the result of this call is unchecked, and
-                     // thus may lead to further errors
     static bool classof(const KInstruction *) {
         return true;
     }

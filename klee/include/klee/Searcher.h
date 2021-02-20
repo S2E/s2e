@@ -21,15 +21,8 @@
 
 #include <inttypes.h>
 
-namespace llvm {
-class BasicBlock;
-class Function;
-class Instruction;
-} // namespace llvm
-
 namespace klee {
 class ExecutionState;
-class Executor;
 
 class Searcher {
 public:
@@ -107,31 +100,8 @@ public:
     }
 };
 
-class BatchingSearcher : public Searcher {
-    Searcher *baseSearcher;
-    uint64_t timeBudget;
-    unsigned instructionBudget;
+Searcher *constructUserSearcher();
 
-    ExecutionState *lastState;
-    uint64_t lastStartTime;
-    unsigned lastStartInstructions;
-
-public:
-    BatchingSearcher(Searcher *baseSearcher, uint64_t _timeBudget, unsigned _instructionBudget);
-    ~BatchingSearcher();
-
-    ExecutionState &selectState();
-    void update(ExecutionState *current, const StateSet &addedStates, const StateSet &removedStates);
-    bool empty() {
-        return baseSearcher->empty();
-    }
-    void printName(llvm::raw_ostream &os) {
-        os << "<BatchingSearcher> timeBudget: " << timeBudget << ", instructionBudget: " << instructionBudget
-           << ", baseSearcher:\n";
-        baseSearcher->printName(os);
-        os << "</BatchingSearcher>\n";
-    }
-};
 } // namespace klee
 
 #endif

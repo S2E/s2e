@@ -7,7 +7,6 @@
 #
 #===------------------------------------------------------------------------===#
 klee_add_component(kleeSupport
-	RNG.cpp
 	Time.cpp
 	Timer.cpp
 	PagePool.cpp

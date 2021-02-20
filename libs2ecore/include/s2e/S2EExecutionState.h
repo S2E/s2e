@@ -152,7 +152,6 @@ protected:
     /** Set when execution enters doInterrupt, reset when it exits. */
     bool m_runningExceptionEmulationCode;
 
-    ExecutionState *clone();
     virtual void addressSpaceChange(const klee::ObjectKey &key, const klee::ObjectStateConstPtr &oldState,
                                     const klee::ObjectStatePtr &newState);
 
@@ -170,6 +169,8 @@ public:
 public:
     S2EExecutionState(klee::KFunction *kf);
     ~S2EExecutionState();
+
+    virtual ExecutionState *clone();
 
     int getID() const {
         return m_stateID;
@@ -268,12 +269,8 @@ public:
         m_memIoVaddr = value;
     }
 
-    /** Handler for tcg_llvm_make_symbolic, tcg_llvm_get_value. */
+    /** Handler for tcg_llvm_get_value. */
     void makeSymbolic(std::vector<klee::ref<klee::Expr>> &args);
-    void kleeReadMemory(klee::ref<klee::Expr> kleeAddressExpr, uint64_t sizeInBytes,
-                        std::vector<klee::ref<klee::Expr>> *result, bool concreteOnly = false, bool concretize = false,
-                        bool addConstraint = false);
-    void kleeWriteMemory(klee::ref<klee::Expr> kleeAddressExpr, std::vector<klee::ref<klee::Expr>> &bytes);
 
     bool getReturnAddress(uint64_t *retAddr);
     bool bypassFunction(unsigned paramCount);

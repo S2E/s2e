@@ -49,7 +49,6 @@
 
 #include <klee/Common.h>
 #include <klee/Interpreter.h>
-#include <klee/SolverManager.h>
 
 #include <assert.h>
 #include <deque>
@@ -134,9 +133,6 @@ bool S2E::initialize(int argc, char **argv, TCGLLVMTranslator *translator, const
 
     /* Initialize KLEE command line options */
     initKleeOptions();
-
-    mSolverFactory = std::shared_ptr<klee::SolverFactory>(new klee::DefaultSolverFactory(this));
-    klee::SolverManager::get().initialize(mSolverFactory);
 
     /* Initialize S2EExecutor */
     initExecutor();
@@ -577,9 +573,6 @@ int S2E::fork() {
 
         // Also recreate new statistics files
         m_s2eExecutor->initializeStatistics();
-
-        // And the solver output
-        klee::SolverManager::get().initialize(mSolverFactory);
 
         s2e_kvm_clone_process();
     }

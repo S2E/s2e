@@ -11,7 +11,9 @@
 #define KLEE_SOLVER_H
 
 #include "klee/Expr.h"
+#include "SolverImpl.h"
 
+#include <memory>
 #include <vector>
 
 namespace klee {
@@ -51,23 +53,25 @@ public:
     }
 };
 
+class Solver;
+using SolverPtr = std::shared_ptr<Solver>;
+
 class Solver {
     // DO NOT IMPLEMENT.
     Solver(const Solver &);
     void operator=(const Solver &);
 
 public:
-    enum Validity { True = 1, False = -1, Unknown = 0 };
-
-public:
     /// validity_to_str - Return the name of given Validity enum value.
     static const char *validity_to_str(Validity v);
 
 public:
-    SolverImpl *impl;
+    SolverImplPtr impl;
+
+protected:
+    Solver(SolverImplPtr _impl) : impl(_impl){};
 
 public:
-    Solver(SolverImpl *_impl) : impl(_impl){};
     virtual ~Solver();
 
     /// evaluate - Determine the full validity of an expression in particular
@@ -165,16 +169,28 @@ public:
     //
     // FIXME: This should go into a helper class, and should handle failure.
     virtual std::pair<ref<Expr>, ref<Expr>> getRange(const Query &);
+
+    static SolverPtr create(SolverImplPtr _impl) {
+        return SolverPtr(new Solver(_impl));
+    }
 };
+
+class Z3Solver;
+using Z3SolverPtr = std::shared_ptr<Z3Solver>;
 
 class Z3Solver : public Solver {
 public:
-    static Z3Solver *createResetSolver();
-    static Z3Solver *createStackSolver();
-    static Z3Solver *createAssumptionSolver();
+    static Z3SolverPtr createResetSolver();
+    static Z3SolverPtr createStackSolver();
+    static Z3SolverPtr createAssumptionSolver();
 
 private:
-    Z3Solver(SolverImpl *impl);
+    Z3Solver(SolverImplPtr &impl);
+
+public:
+    static Z3SolverPtr create(SolverImplPtr impl) {
+        return Z3SolverPtr(new Z3Solver(impl));
+    }
 };
 
 /* *** */
@@ -186,13 +202,13 @@ private:
 ///
 /// \param s - The primary underlying solver to use.
 /// \param oracle - The solver to check query results against.
-Solver *createValidatingSolver(Solver *s, Solver *oracle);
+SolverPtr createValidatingSolver(SolverPtr &s, SolverPtr &oracle);
 
 /// createCachingSolver - Create a solver which will cache the queries in
 /// memory (without eviction).
 ///
 /// \param s - The underlying solver to use.
-Solver *createCachingSolver(Solver *s);
+SolverPtr createCachingSolver(SolverPtr &s);
 
 /// createCexCachingSolver - Create a counterexample caching solver. This is a
 /// more sophisticated cache which records counterexamples for a constraint
@@ -200,34 +216,36 @@ Solver *createCachingSolver(Solver *s);
 /// quickly find satisfying assignments.
 ///
 /// \param s - The underlying solver to use.
-Solver *createCexCachingSolver(Solver *s);
+SolverPtr createCexCachingSolver(SolverPtr &s);
 
 /// createFastCexSolver - Create a "fast counterexample solver", which tries
 /// to quickly compute a satisfying assignment for a constraint set using
 /// value propogation and range analysis.
 ///
 /// \param s - The underlying solver to use.
-Solver *createFastCexSolver(Solver *s);
+SolverPtr createFastCexSolver(SolverPtr &s);
 
 /// createIndependentSolver - Create a solver which will eliminate any
 /// unnecessary constraints before propogating the query to the underlying
 /// solver.
 ///
 /// \param s - The underlying solver to use.
-Solver *createIndependentSolver(Solver *s);
+SolverPtr createIndependentSolver(SolverPtr &s);
 void getIndependentConstraintsForQuery(const Query &query, std::vector<ref<Expr>> &required);
 
 /// createKQueryLoggingSolver - Create a solver which will forward all queries
 /// after writing them to the given path in .kquery format.
-Solver *createKQueryLoggingSolver(Solver *s, std::string path, int minQueryTimeToLog);
+SolverPtr createKQueryLoggingSolver(SolverPtr &s, std::string path, int minQueryTimeToLog);
 
 /// createSMTLIBLoggingSolver - Create a solver which will forward all queries
 /// after writing them to the given path in .smt2 format
-Solver *createSMTLIBLoggingSolver(Solver *s, std::string path, int minQueryTimeToLog);
+SolverPtr createSMTLIBLoggingSolver(SolverPtr &s, const std::string &path, int minQueryTimeToLog);
+
+SolverPtr createTimingSolver(SolverPtr &s);
 
 /// createDummySolver - Create a dummy solver implementation which always
 /// fails.
-Solver *createDummySolver();
+SolverPtr createDummySolver();
 } // namespace klee
 
 #endif

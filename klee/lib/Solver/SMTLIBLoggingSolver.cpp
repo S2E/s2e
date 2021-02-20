@@ -32,14 +32,18 @@ private:
         printer.generateOutput();
     }
 
-public:
-    SMTLIBLoggingSolver(Solver *_solver, std::string path, int queryTimeToLog)
+    SMTLIBLoggingSolver(SolverPtr &_solver, const std::string &path, int queryTimeToLog)
         : QueryLoggingSolver(_solver, path, ";", queryTimeToLog) {
         // Setup the printer
         printer.setOutput(logBuffer);
     }
+
+public:
+    static SolverImplPtr create(SolverPtr &_solver, const std::string &path, int queryTimeToLog) {
+        return SolverImplPtr(new SMTLIBLoggingSolver(_solver, path, queryTimeToLog));
+    }
 };
 
-Solver *klee::createSMTLIBLoggingSolver(Solver *_solver, std::string path, int minQueryTimeToLog) {
-    return new Solver(new SMTLIBLoggingSolver(_solver, path, minQueryTimeToLog));
+SolverPtr klee::createSMTLIBLoggingSolver(SolverPtr &_solver, const std::string &path, int minQueryTimeToLog) {
+    return Solver::create(SMTLIBLoggingSolver::create(_solver, path, minQueryTimeToLog));
 }

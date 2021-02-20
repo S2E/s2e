@@ -14,10 +14,12 @@
 
 #include "klee/util/ExprEvaluator.h"
 
-// FIXME: Rename?
-
 namespace klee {
 class Array;
+
+class Assignment;
+using AssignmentPtr = std::shared_ptr<Assignment>;
+using AssignmentConstPtr = std::shared_ptr<const Assignment>;
 
 class Assignment {
 public:
@@ -31,9 +33,10 @@ public:
     mutable UpdateListCache updateListCache;
     mutable uint64_t cacheHits, cacheMisses;
 
-public:
+private:
     Assignment(bool _allowFreeValues = false) : allowFreeValues(_allowFreeValues), cacheHits(0), cacheMisses(0) {
     }
+
     Assignment(ArrayVec &objects, std::vector<std::vector<unsigned char>> &values, bool _allowFreeValues = false)
         : allowFreeValues(_allowFreeValues) {
         auto valIt = values.begin();
@@ -45,6 +48,7 @@ public:
         }
     }
 
+public:
     ref<Expr> evaluate(const ArrayPtr &mo, unsigned index) const;
     ref<Expr> evaluate(ref<Expr> e) const;
 
@@ -61,6 +65,15 @@ public:
     }
 
     template <typename InputIterator> bool satisfies(InputIterator begin, InputIterator end);
+
+    static AssignmentPtr create(bool _allowFreeValues = false) {
+        return AssignmentPtr(new Assignment(_allowFreeValues));
+    }
+
+    static AssignmentPtr create(ArrayVec &objects, std::vector<std::vector<unsigned char>> &values,
+                                bool _allowFreeValues = false) {
+        return AssignmentPtr(new Assignment(objects, values, _allowFreeValues));
+    }
 };
 
 /***/

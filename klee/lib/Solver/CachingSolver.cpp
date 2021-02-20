@@ -57,18 +57,19 @@ private:
 
     typedef std::unordered_map<CacheEntry, IncompleteSolver::PartialValidity, CacheEntryHash> cache_map;
 
-    Solver *solver;
+    SolverPtr solver;
     cache_map cache;
 
-public:
-    CachingSolver(Solver *s) : solver(s) {
-    }
-    ~CachingSolver() {
-        cache.clear();
-        delete solver;
+private:
+    CachingSolver(SolverPtr &s) : solver(s) {
     }
 
-    bool computeValidity(const Query &, Solver::Validity &result);
+public:
+    ~CachingSolver() {
+        cache.clear();
+    }
+
+    bool computeValidity(const Query &, Validity &result);
     bool computeTruth(const Query &, bool &isValid);
     bool computeValue(const Query &query, ref<Expr> &result) {
         return solver->impl->computeValue(query, result);
@@ -76,6 +77,10 @@ public:
     bool computeInitialValues(const Query &query, const ArrayVec &objects,
                               std::vector<std::vector<unsigned char>> &values, bool &hasSolution) {
         return solver->impl->computeInitialValues(query, objects, values, hasSolution);
+    }
+
+    static SolverImplPtr create(SolverPtr &s) {
+        return SolverImplPtr(new CachingSolver(s));
     }
 };
 
@@ -124,7 +129,7 @@ void CachingSolver::cacheInsert(const Query &query, IncompleteSolver::PartialVal
     cache.insert(std::make_pair(ce, cachedResult));
 }
 
-bool CachingSolver::computeValidity(const Query &query, Solver::Validity &result) {
+bool CachingSolver::computeValidity(const Query &query, Validity &result) {
     IncompleteSolver::PartialValidity cachedResult;
     bool tmp, cacheHit = cacheLookup(query, cachedResult);
 
@@ -133,24 +138,24 @@ bool CachingSolver::computeValidity(const Query &query, Solver::Validity &result
 
         switch (cachedResult) {
             case IncompleteSolver::MustBeTrue:
-                result = Solver::True;
+                result = Validity::True;
                 return true;
             case IncompleteSolver::MustBeFalse:
-                result = Solver::False;
+                result = Validity::False;
                 return true;
             case IncompleteSolver::TrueOrFalse:
-                result = Solver::Unknown;
+                result = Validity::Unknown;
                 return true;
             case IncompleteSolver::MayBeTrue: {
                 if (!solver->impl->computeTruth(query, tmp))
                     return false;
                 if (tmp) {
                     cacheInsert(query, IncompleteSolver::MustBeTrue);
-                    result = Solver::True;
+                    result = Validity::True;
                     return true;
                 } else {
                     cacheInsert(query, IncompleteSolver::TrueOrFalse);
-                    result = Solver::Unknown;
+                    result = Validity::Unknown;
                     return true;
                 }
             }
@@ -159,11 +164,11 @@ bool CachingSolver::computeValidity(const Query &query, Solver::Validity &result
                     return false;
                 if (tmp) {
                     cacheInsert(query, IncompleteSolver::MustBeFalse);
-                    result = Solver::False;
+                    result = Validity::False;
                     return true;
                 } else {
                     cacheInsert(query, IncompleteSolver::TrueOrFalse);
-                    result = Solver::Unknown;
+                    result = Validity::Unknown;
                     return true;
                 }
             }
@@ -178,10 +183,10 @@ bool CachingSolver::computeValidity(const Query &query, Solver::Validity &result
         return false;
 
     switch (result) {
-        case Solver::True:
+        case Validity::True:
             cachedResult = IncompleteSolver::MustBeTrue;
             break;
-        case Solver::False:
+        case Validity::False:
             cachedResult = IncompleteSolver::MustBeFalse;
             break;
         default:
@@ -228,6 +233,6 @@ bool CachingSolver::computeTruth(const Query &query, bool &isValid) {
 
 ///
 
-Solver *klee::createCachingSolver(Solver *_solver) {
-    return new Solver(new CachingSolver(_solver));
+SolverPtr klee::createCachingSolver(SolverPtr &_solver) {
+    return Solver::create(CachingSolver::create(_solver));
 }

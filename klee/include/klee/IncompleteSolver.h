@@ -78,23 +78,30 @@ public:
                                       std::vector<std::vector<unsigned char>> &values, bool &hasSolution) = 0;
 };
 
+using IncompleteSolverPtr = std::shared_ptr<IncompleteSolver>;
+
 /// StagedSolver - Adapter class for staging an incomplete solver with
 /// a complete secondary solver, to form an (optimized) complete
 /// solver.
 class StagedSolverImpl : public SolverImpl {
 private:
-    IncompleteSolver *primary;
-    Solver *secondary;
+    IncompleteSolverPtr primary;
+    SolverPtr secondary;
+
+    StagedSolverImpl(IncompleteSolverPtr _primary, SolverPtr _secondary);
 
 public:
-    StagedSolverImpl(IncompleteSolver *_primary, Solver *_secondary);
     ~StagedSolverImpl();
 
     bool computeTruth(const Query &, bool &isValid);
-    bool computeValidity(const Query &, Solver::Validity &result);
+    bool computeValidity(const Query &, Validity &result);
     bool computeValue(const Query &, ref<Expr> &result);
     bool computeInitialValues(const Query &, const ArrayVec &objects, std::vector<std::vector<unsigned char>> &values,
                               bool &hasSolution);
+
+    static SolverImplPtr create(IncompleteSolverPtr _primary, SolverPtr _secondary) {
+        return SolverImplPtr(new StagedSolverImpl(_primary, _secondary));
+    }
 };
 } // namespace klee
 
