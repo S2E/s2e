@@ -1563,23 +1563,25 @@ void Executor::callExternalFunction(ExecutionState &state, KInstruction *target,
             assert(dyn_cast<klee::ConstantExpr>(ca) && "Could not evaluate address");
             concreteArg = dyn_cast<klee::ConstantExpr>(ca);
 
-            klee::ref<klee::Expr> condition = EqExpr::create(concreteArg, arg);
+            if (strstr(function->getName().str().c_str(), "io_write") == NULL) {
+                klee::ref<klee::Expr> condition = EqExpr::create(concreteArg, arg);
 
-            StatePair sp = fork(state, condition);
+                StatePair sp = fork(state, condition);
 
-            assert(sp.first == &state);
+                assert(sp.first == &state);
 
-            if (sp.second) {
-                sp.second->pc = sp.second->prevPC;
+                if (sp.second) {
+                    sp.second->pc = sp.second->prevPC;
+                }
+
+                KInstIterator savedPc = sp.first->pc;
+                sp.first->pc = sp.first->prevPC;
+
+                // This might throw an exception
+                notifyFork(state, condition, sp);
+
+                sp.first->pc = savedPc;
             }
-
-            KInstIterator savedPc = sp.first->pc;
-            sp.first->pc = sp.first->prevPC;
-
-            // This might throw an exception
-            notifyFork(state, condition, sp);
-
-            sp.first->pc = savedPc;
 
             cas.push_back(concreteArg->getZExtValue());
         }
