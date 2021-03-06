@@ -23,7 +23,18 @@
 
 #include <s2e/cpu.h>
 #include <s2e/opcodes.h>
-
+#if defined(TARGET_ARM)
+#undef R_EAX
+#undef R_EBX
+#undef R_ECX
+#undef R_EDX
+#undef R_ESP
+#define R_EAX 0
+#define R_EBX 1
+#define R_ECX 2
+#define R_EDX 3
+#define R_ESP 13
+#endif
 //#define DEBUG_DPC
 
 #include <s2e/ConfigFile.h>
@@ -710,11 +721,12 @@ void WindowsMonitor::opcodeInitKernelStructs(S2EExecutionState *state, uint64_t 
     if (!m_kernel.PerfLogImageUnload) {
         getDebugStream(state) << "PerfLogImageUnload is null, module unloads partially supported.\n";
     }
-
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
     if (m_kernel.EThreadSegment != R_FS && m_kernel.EThreadSegment != R_GS) {
         getDebugStream(state) << "Invalid ETHREAD segment register " << m_kernel.EThreadSegment << "\n";
         exit(-1);
     }
+#endif
 
     if (!m_kernel.EThreadProcessOffset) {
         getDebugStream(state) << "Invalid EThreadProcessOffset";
@@ -1006,8 +1018,14 @@ void WindowsMonitor::handleOpcodeInvocation(S2EExecutionState *state, uint64_t g
 }
 
 uint64_t WindowsMonitor::getTidReg(S2EExecutionState *state) {
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
     int reg = state->getPointerSize() == 4 ? R_FS : R_GS;
     return s2e_read_register_concrete_fast<target_ulong>(CPU_OFFSET(segs[reg].base));
+#elif defined(TARGET_ARM)
+    return 0;
+#else
+#error Unsupported target architecture
+#endif
 }
 
 void WindowsMonitor::clearCache() {

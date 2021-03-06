@@ -295,9 +295,11 @@ void UserSpaceTracer::onAccessFault(S2EExecutionState *state, const S2E_WINMON2_
 }
 
 void UserSpaceTracer::onTranslateBlockComplete(S2EExecutionState *state, TranslationBlock *tb, uint64_t endPc) {
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
     if ((tb->flags & HF_CPL_MASK) != 3) {
         return;
     }
+#endif
 
     DECLARE_PLUGINSTATE(UserSpaceTracerState, state);
     if (plgState->traced()) {
@@ -307,9 +309,11 @@ void UserSpaceTracer::onTranslateBlockComplete(S2EExecutionState *state, Transla
 
 void UserSpaceTracer::onTranslateBlockStart(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb,
                                             uint64_t pc) {
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
     if ((tb->flags & HF_CPL_MASK) != 3) {
         return;
     }
+#endif
 
     signal->connect(sigc::mem_fun(*this, &UserSpaceTracer::onExecuteBlockStart));
 }

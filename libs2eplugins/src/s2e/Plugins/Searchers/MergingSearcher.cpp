@@ -184,7 +184,13 @@ bool MergingSearcher::mergeEnd(S2EExecutionState *state, bool skipOpcode, bool c
 
     // Skip the opcode
     if (skipOpcode) {
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
         state->regs()->write<target_ulong>(CPU_OFFSET(eip), state->regs()->getPc() + 10);
+#elif defined(TARGET_ARM)
+        state->regs()->write<target_ulong>(CPU_OFFSET(regs[15]), state->regs()->getPc() + 10);
+#else
+#error Unsupported target architecture
+#endif
     }
 
     // Clear temp flags.
@@ -192,10 +198,12 @@ bool MergingSearcher::mergeEnd(S2EExecutionState *state, bool skipOpcode, bool c
     // implying that the flags can be clobbered.
     // XXX: is it possible that these can be symbolic?
     if (clearTmpFlags) {
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
         state->regs()->write(CPU_OFFSET(cc_op), 0);
         state->regs()->write(CPU_OFFSET(cc_src), 0);
         state->regs()->write(CPU_OFFSET(cc_dst), 0);
         state->regs()->write(CPU_OFFSET(cc_tmp), 0);
+#endif
     }
 
     // The TLB state must be identical when we merge

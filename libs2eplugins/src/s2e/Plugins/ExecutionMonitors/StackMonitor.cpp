@@ -267,6 +267,7 @@ void StackMonitor::onTranslateBlockComplete(S2EExecutionState *state, Translatio
 
 void StackMonitor::onTranslateRegisterAccess(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb,
                                              uint64_t pc, uint64_t rmask, uint64_t wmask, bool accessesMemory) {
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
     if ((wmask & (1 << R_ESP))) {
         if (tb->se_tb_type == TB_SYSENTER) {
             // Ignore sysenter (last instruction in this TB)
@@ -282,6 +283,7 @@ void StackMonitor::onTranslateRegisterAccess(ExecutionSignal *signal, S2EExecuti
 
         signal->connect(sigc::bind(sigc::mem_fun(*this, &StackMonitor::onStackPointerModification), isCall, callEip));
     }
+#endif
 }
 
 void StackMonitor::onStackPointerModification(S2EExecutionState *state, uint64_t pc, bool isCall, uint64_t callEip) {

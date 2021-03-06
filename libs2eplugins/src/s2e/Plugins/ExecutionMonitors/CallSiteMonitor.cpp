@@ -71,9 +71,11 @@ void CallSiteMonitor::onTimer() {
 
 void CallSiteMonitor::onTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb,
                                           uint64_t pc, bool isStatic, uint64_t staticTarget) {
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
     if ((tb->flags & HF_CPL_MASK) != 3) {
         return;
     }
+#endif
 
     if (!m_procDetector->isTracked(state)) {
         return;

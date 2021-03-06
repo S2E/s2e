@@ -25,7 +25,9 @@
 
 #include <s2e/CorePlugin.h>
 #include <s2e/Plugin.h>
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
 #include <s2e/Plugins/OSMonitors/Windows/WindowsCrashMonitor.h>
+#endif
 #include <s2e/S2EExecutionState.h>
 
 #include "SeedSearcher.h"
@@ -77,8 +79,10 @@ private:
     void onSeed(const Seed &seed, SeedEvent event);
     void onNewBlockCovered(S2EExecutionState *state);
     void onSegFault(S2EExecutionState *state, uint64_t pid, uint64_t address);
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
     void onWindowsUserCrash(S2EExecutionState *state, const WindowsUserModeCrash &desc);
     void onWindowsKernelCrash(S2EExecutionState *state, const vmi::windows::BugCheckDescription &desc);
+#endif
 
     void onProcessForkDecide(bool *proceed);
     void onTimer();

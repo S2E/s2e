@@ -22,7 +22,16 @@
 ///
 
 #include <s2e/cpu.h>
-
+#if defined(TARGET_ARM)
+#undef R_EAX
+#undef R_EBX
+#undef R_ECX
+#undef R_EDX
+#define R_EAX 0
+#define R_EBX 1
+#define R_ECX 2
+#define R_EDX 3
+#endif
 #include <klee/util/ExprTemplates.h>
 #include <llvm/Support/CommandLine.h>
 #include <s2e/ConfigFile.h>
@@ -164,7 +173,7 @@ bool StaticFunctionModels::handleStrlen(S2EExecutionState *state, uint64_t pc) {
     size_t len;
     ref<Expr> retExpr;
     if (strlenHelper(state, stringAddr, len, retExpr)) {
-        state->regs()->write(offsetof(CPUX86State, regs[R_EAX]), retExpr);
+        state->regs()->write(offsetof(CPUArchState, regs[R_EAX]), retExpr);
 
         return true;
     } else {
@@ -191,7 +200,7 @@ bool StaticFunctionModels::handleStrcmp(S2EExecutionState *state, uint64_t pc) {
             retExpr = E_SUB(E_CONST(0, state->getPointerSize() * CHAR_BIT), retExpr);
         }
 
-        state->regs()->write(offsetof(CPUX86State, regs[R_EAX]), retExpr);
+        state->regs()->write(offsetof(CPUArchState, regs[R_EAX]), retExpr);
 
         return true;
     } else {
@@ -224,7 +233,7 @@ bool StaticFunctionModels::handleStrncmp(S2EExecutionState *state, uint64_t pc) 
             retExpr = E_SUB(E_CONST(0, state->getPointerSize() * CHAR_BIT), retExpr);
         }
 
-        state->regs()->write(offsetof(CPUX86State, regs[R_EAX]), retExpr);
+        state->regs()->write(offsetof(CPUArchState, regs[R_EAX]), retExpr);
 
         return true;
     } else {
@@ -320,7 +329,7 @@ bool StaticFunctionModels::handleMemcmp(S2EExecutionState *state, uint64_t pc) {
     // Assemble the memory compare expression
     ref<Expr> retExpr;
     if (memcmpHelper(state, memAddrs, memSize, retExpr)) {
-        state->regs()->write(offsetof(CPUX86State, regs[R_EAX]), retExpr);
+        state->regs()->write(offsetof(CPUArchState, regs[R_EAX]), retExpr);
 
         return true;
     } else {
@@ -400,7 +409,7 @@ bool StaticFunctionModels::handleCrc16(S2EExecutionState *state, uint64_t pc) {
     getDebugStream(state) << "Handling crc16(" << initialCrc << ", " << hexval(dataAddr) << ", " << len << ")\n";
 
     ref<Expr> crc = crc16(E_CONST(initialCrc, Expr::Int16), data);
-    state->regs()->write(offsetof(CPUX86State, regs[R_EAX]), crc);
+    state->regs()->write(offsetof(CPUArchState, regs[R_EAX]), crc);
 
     return true;
 }
@@ -433,7 +442,7 @@ bool StaticFunctionModels::handleCrc32(S2EExecutionState *state, uint64_t pc) {
     getDebugStream(state) << "Handling crc32(" << initialCrc << ", " << hexval(dataAddr) << ", " << len << ")\n";
 
     ref<Expr> crc = crc32(E_CONST(initialCrc, Expr::Int32), data, getBool(state, "xor_result"));
-    state->regs()->write(offsetof(CPUX86State, regs[R_EAX]), crc);
+    state->regs()->write(offsetof(CPUArchState, regs[R_EAX]), crc);
 
     return true;
 }

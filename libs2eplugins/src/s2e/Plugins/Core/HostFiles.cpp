@@ -22,6 +22,17 @@
 ///
 
 #include <s2e/cpu.h>
+#if defined(TARGET_ARM)
+#undef R_EAX
+#undef R_EBX
+#undef R_ECX
+#undef R_EDX
+#define R_EAX 0
+#define R_EBX 1
+#define R_ECX 2
+#define R_EDX 3
+#endif
+
 #include <s2e/opcodes.h>
 
 #include <s2e/ConfigFile.h>

@@ -131,7 +131,7 @@ bool ProcessExecutionDetector::isTrackedPc(S2EExecutionState *state, uint64_t pc
     if (m_monitor->isKernelAddress(pc)) {
         return false;
     }
-
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
     // Ignore 16-bit mode
     if ((env->hflags >> HF_VM_SHIFT) & 1) {
         return false;
@@ -143,6 +143,7 @@ bool ProcessExecutionDetector::isTrackedPc(S2EExecutionState *state, uint64_t pc
             return false;
         }
     }
+#endif
 
     uint64_t pid = m_monitor->getPid(state);
 

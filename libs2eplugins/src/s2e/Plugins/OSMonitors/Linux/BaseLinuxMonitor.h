@@ -37,7 +37,13 @@
 #include <sstream>
 
 extern "C" {
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
 extern CPUX86State *env;
+#elif defined(TARGET_ARM)
+extern CPUARMState *env;
+#else
+#error Unsupported target architecture
+#endif
 }
 
 using namespace klee;

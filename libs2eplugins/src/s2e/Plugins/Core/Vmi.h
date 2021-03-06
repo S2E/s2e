@@ -61,10 +61,15 @@ public:
 
     static bool readGuestPhysical(void *opaque, uint64_t address, void *dest, unsigned size);
     static bool writeGuestPhysical(void *opaque, uint64_t address, const void *source, unsigned size);
-
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
     static bool readX86Register(void *opaque, unsigned reg, void *value, unsigned size);
     static bool writeX86Register(void *opaque, unsigned reg, const void *value, unsigned size);
-
+#elif defined(TARGET_ARM)
+    static bool readARMRegister(void *opaque, unsigned reg, void *value, unsigned size);
+    static bool writeARMRegister(void *opaque, unsigned reg, const void *value, unsigned size);
+#else
+#error Unsupported target architecture
+#endif
     static std::string stripWindowsModulePath(const std::string &path);
 
     std::shared_ptr<vmi::ExecutableFile> getFromDisk(const std::string &modulePath, const std::string &moduleName,

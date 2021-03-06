@@ -102,8 +102,13 @@ bool WindowsCrashDumpGenerator::generateCrashDump(S2EExecutionState *state, cons
     auto physicalMemory = vmi::GuestMemoryFileProvider::get(state, &Vmi::readGuestPhysical, nullptr, filename);
     auto virtualMemory =
         vmi::GuestMemoryFileProvider::get(state, &Vmi::readGuestVirtual, &Vmi::writeGuestVirtual, filename);
-
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
     vmi::X86RegisterProvider registers(state, &Vmi::readX86Register, nullptr);
+#elif defined(TARGET_ARM)
+    vmi::ARMRegisterProvider registers(state, &Vmi::readARMRegister, nullptr);
+#else
+#error Unsupported target architecture
+#endif
 
     auto crashGen = vmi::windows::WindowsCrashDumpGenerator::get(virtualMemory, physicalMemory, &registers, fp);
 
@@ -212,9 +217,10 @@ std::string WindowsCrashDumpGenerator::getPathForDump(S2EExecutionState *state, 
 
 template <typename T> void WindowsCrashDumpGenerator::getContext(S2EExecutionState *state, T &Context) {
     memset(&Context, 0x0, sizeof(Context));
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
     S2EExecutionStateRegisters *regs = state->regs();
-
     Context.ContextFlags = CONTEXT_FULL;
+
     Context.Dr0 = regs->read<target_ulong>(offsetof(CPUX86State, dr[0]));
     Context.Dr1 = regs->read<target_ulong>(offsetof(CPUX86State, dr[1]));
     Context.Dr2 = regs->read<target_ulong>(offsetof(CPUX86State, dr[2]));
@@ -229,6 +235,10 @@ template <typename T> void WindowsCrashDumpGenerator::getContext(S2EExecutionSta
 
     Context.SegCs = regs->read<target_ulong>(offsetof(CPUX86State, segs[R_CS]));
     Context.SegSs = regs->read<target_ulong>(offsetof(CPUX86State, segs[R_SS]));
+#elif defined(TARGET_ARM)
+#else
+#error Unsupported target architecture
+#endif
 
     Context.EFlags = state->regs()->getFlags();
 }
@@ -236,6 +246,7 @@ template <typename T> void WindowsCrashDumpGenerator::getContext(S2EExecutionSta
 void WindowsCrashDumpGenerator::getContext32(S2EExecutionState *state, vmi::windows::CONTEXT32 &Context) {
     getContext(state, Context);
 
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
     S2EExecutionStateRegisters *regs = state->regs();
 
     Context.ContextFlags = CONTEXT_FULL;
@@ -248,6 +259,10 @@ void WindowsCrashDumpGenerator::getContext32(S2EExecutionState *state, vmi::wind
     Context.Edi = regs->read<target_ulong>(offsetof(CPUX86State, regs[R_EDI]));
     Context.Esp = regs->read<target_ulong>(offsetof(CPUX86State, regs[R_ESP]));
     Context.Ebp = regs->read<target_ulong>(offsetof(CPUX86State, regs[R_EBP]));
+#elif defined(TARGET_ARM)
+#else
+#error Unsupported target architecture
+#endif
 
     Context.Eip = (uint32_t) state->regs()->getPc();
 }
@@ -255,6 +270,7 @@ void WindowsCrashDumpGenerator::getContext32(S2EExecutionState *state, vmi::wind
 void WindowsCrashDumpGenerator::getContext64(S2EExecutionState *state, vmi::windows::CONTEXT64 &Context) {
     getContext(state, Context);
 
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
     S2EExecutionStateRegisters *regs = state->regs();
 
     Context.ContextFlags = CONTEXT_FULL;
@@ -267,6 +283,10 @@ void WindowsCrashDumpGenerator::getContext64(S2EExecutionState *state, vmi::wind
     Context.Rdi = regs->read<target_ulong>(offsetof(CPUX86State, regs[R_EDI]));
     Context.Rsp = regs->read<target_ulong>(offsetof(CPUX86State, regs[R_ESP]));
     Context.Rbp = regs->read<target_ulong>(offsetof(CPUX86State, regs[R_EBP]));
+#elif defined(TARGET_ARM)
+#else
+#error Unsupported target architecture
+#endif
 
     Context.Rip = state->regs()->getPc();
 }

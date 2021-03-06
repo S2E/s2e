@@ -57,11 +57,12 @@ static const unsigned THREAD_SIZE_ORDER = 1;
 // From arch/x86/include/asm/page_32_types.h
 static const unsigned THREAD_SIZE = PAGE_SIZE << THREAD_SIZE_ORDER;
 
-///
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
 /// Pointer to the address of ESP0 in the Task State Segment (TSS).
 /// ESP0 is the stack pointer to load when in kernel mode
 ///
 static const unsigned TSS_ESP0_OFFSET = 4;
+#endif
 
 /// \brief We assume allocation of this amount of memory will never fail
 static const unsigned SAFE_ALLOCATE_SIZE = 16 * 1024 * 1024;
@@ -468,15 +469,27 @@ void DecreeMonitor::handleGetCfgBool(S2EExecutionState *state, uint64_t pid, S2E
 /// is only appicable for Linux kernel < 4.x. The Linux kernel used for the CGC is version 3.x
 ///
 target_ulong DecreeMonitor::getTaskStructPtr(S2EExecutionState *state) {
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
     target_ulong esp0;
     target_ulong esp0Addr = env->tr.base + decree::TSS_ESP0_OFFSET;
 
     if (!state->mem()->read(esp0Addr, &esp0, sizeof(esp0))) {
         return -1;
     }
-
     // Based on the "current_stack" function in arch/x86/kernel/irq_32.c
     target_ulong currentThreadInfo = esp0 & ~(decree::THREAD_SIZE - 1);
+#elif defined(TARGET_ARM)
+    target_ulong sp;
+    target_ulong spAddr = env->regs[13];
+
+    if (!state->mem()->read(spAddr, &sp, sizeof(sp))) {
+        return -1;
+    }
+    // Based on the "current_stack" function in arch/x86/kernel/irq_32.c
+    target_ulong currentThreadInfo = sp & ~(decree::THREAD_SIZE - 1);
+#else
+#error Unsupported target architecture
+#endif
     target_ulong taskStructPtr;
 
     if (!state->mem()->read(currentThreadInfo, &taskStructPtr, sizeof(taskStructPtr))) {

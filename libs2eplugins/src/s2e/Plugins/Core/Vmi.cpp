@@ -225,7 +225,7 @@ bool Vmi::writeGuestPhysical(void *opaque, uint64_t address, const void *source,
     S2EExecutionState *state = static_cast<S2EExecutionState *>(opaque);
     return state->mem()->write(address, source, size, PhysicalAddress);
 }
-
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
 bool Vmi::readX86Register(void *opaque, unsigned reg, void *buffer, unsigned size) {
     S2EExecutionState *state = static_cast<S2EExecutionState *>(opaque);
     vmi::X86Registers regIndex = (vmi::X86Registers) reg;
@@ -378,7 +378,153 @@ bool Vmi::writeX86Register(void *opaque, unsigned reg, const void *buffer, unsig
 
     return true;
 }
+#elif defined(TARGET_ARM)
+bool Vmi::readARMRegister(void *opaque, unsigned reg, void *buffer, unsigned size) {
+    S2EExecutionState *state = static_cast<S2EExecutionState *>(opaque);
+    vmi::ARMRegisters regIndex = (vmi::ARMRegisters) reg;
 
+    if (size >= sizeof(uint64_t)) {
+        return false;
+    }
+
+    S2EExecutionStateRegisters *regs = state->regs();
+
+    if (regIndex <= ARM_R15) {
+        switch (regIndex) {
+            case ARM_R0:
+                regs->read(offsetof(CPUARMState, regs[0]), buffer, size);
+                break;
+            case ARM_R1:
+                regs->read(offsetof(CPUARMState, regs[1]), buffer, size);
+                break;
+            case ARM_R2:
+                regs->read(offsetof(CPUARMState, regs[2]), buffer, size);
+                break;
+            case ARM_R3:
+                regs->read(offsetof(CPUARMState, regs[3]), buffer, size);
+                break;
+            case ARM_R4:
+                regs->read(offsetof(CPUARMState, regs[4]), buffer, size);
+                break;
+            case ARM_R5:
+                regs->read(offsetof(CPUARMState, regs[5]), buffer, size);
+                break;
+            case ARM_R6:
+                regs->read(offsetof(CPUARMState, regs[6]), buffer, size);
+                break;
+            case ARM_R7:
+                regs->read(offsetof(CPUARMState, regs[7]), buffer, size);
+                break;
+
+            case ARM_R8:
+                regs->read(offsetof(CPUARMState, regs[8]), buffer, size);
+                break;
+            case ARM_R9:
+                regs->read(offsetof(CPUARMState, regs[9]), buffer, size);
+                break;
+            case ARM_R10:
+                regs->read(offsetof(CPUARMState, regs[10]), buffer, size);
+                break;
+            case ARM_R11:
+                regs->read(offsetof(CPUARMState, regs[11]), buffer, size);
+                break;
+            case ARM_R12:
+                regs->read(offsetof(CPUARMState, regs[12]), buffer, size);
+                break;
+            case ARM_R13:
+                regs->read(offsetof(CPUARMState, regs[13]), buffer, size);
+                break;
+            case ARM_R14:
+                regs->read(offsetof(CPUARMState, regs[14]), buffer, size);
+                break;
+            case ARM_R15:
+                regs->read(offsetof(CPUARMState, regs[15]), buffer, size);
+                break;
+            default:
+                assert(false);
+        }
+        return true;
+    } else {
+        return false;
+    }
+
+    return true;
+}
+
+bool Vmi::writeARMRegister(void *opaque, unsigned reg, const void *buffer, unsigned size) {
+    S2EExecutionState *state = static_cast<S2EExecutionState *>(opaque);
+    vmi::ARMRegisters regIndex = (vmi::ARMRegisters) reg;
+
+    if (size >= sizeof(uint64_t)) {
+        return false;
+    }
+
+    S2EExecutionStateRegisters *regs = state->regs();
+
+    if (regIndex <= ARM_R15) {
+        switch (regIndex) {
+            case ARM_R0:
+                regs->write(offsetof(CPUARMState, regs[0]), buffer, size);
+                break;
+            case ARM_R1:
+                regs->write(offsetof(CPUARMState, regs[1]), buffer, size);
+                break;
+            case ARM_R2:
+                regs->write(offsetof(CPUARMState, regs[2]), buffer, size);
+                break;
+            case ARM_R3:
+                regs->write(offsetof(CPUARMState, regs[3]), buffer, size);
+                break;
+            case ARM_R4:
+                regs->write(offsetof(CPUARMState, regs[4]), buffer, size);
+                break;
+            case ARM_R5:
+                regs->write(offsetof(CPUARMState, regs[5]), buffer, size);
+                break;
+            case ARM_R6:
+                regs->write(offsetof(CPUARMState, regs[6]), buffer, size);
+                break;
+            case ARM_R7:
+                regs->write(offsetof(CPUARMState, regs[7]), buffer, size);
+                break;
+
+            case ARM_R8:
+                regs->write(offsetof(CPUARMState, regs[8]), buffer, size);
+                break;
+            case ARM_R9:
+                regs->write(offsetof(CPUARMState, regs[9]), buffer, size);
+                break;
+            case ARM_R10:
+                regs->write(offsetof(CPUARMState, regs[10]), buffer, size);
+                break;
+            case ARM_R11:
+                regs->write(offsetof(CPUARMState, regs[11]), buffer, size);
+                break;
+            case ARM_R12:
+                regs->write(offsetof(CPUARMState, regs[12]), buffer, size);
+                break;
+            case ARM_R13:
+                regs->write(offsetof(CPUARMState, regs[13]), buffer, size);
+                break;
+            case ARM_R14:
+                regs->write(offsetof(CPUARMState, regs[14]), buffer, size);
+                break;
+            case ARM_R15:
+                regs->write(offsetof(CPUARMState, regs[15]), buffer, size);
+                break;
+            default:
+                assert(false);
+        }
+        return true;
+    } else {
+        return false;
+    }
+
+    return true;
+}
+#else
+#error Unsupported target architecture
+#endif
 bool Vmi::readModuleData(const ModuleDescriptor &module, uint64_t addr, uint8_t &val) {
     auto file = getFromDisk(module.Path, module.Name, false);
     if (!file) {
