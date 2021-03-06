@@ -77,11 +77,19 @@ typedef int64_t int64;
 #define STATUS_VAR , status
 
 #if defined(CONFIG_SYMBEX) && !defined(SYMBEX_LLVM_LIB)
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
 uint8_t RR_cpu_float_status(void *p, unsigned size);
 void WR_cpu_float_status(void *p, unsigned size, int v);
 
 #define STATUS(field) RR_cpu_float_status(&status->field, sizeof(status->field))
 #define STATUS_W(field, v) WR_cpu_float_status(&status->field, sizeof(status->field), v)
+#elif defined(TARGET_ARM)
+#define STATUS(field) status->field
+#define STATUS_W(field, v) status->field = v
+#else
+#error Unsupported target architecture
+#endif
+
 #else
 #define STATUS(field) status->field
 #define STATUS_W(field, v) status->field = v

@@ -40,14 +40,14 @@ these four paragraphs for those parts of this code that are retained.
  */
 #include <cpu/config.h>
 
-#include "softfloat.h"
+#include <fpu/softfloat.h>
 
 /*----------------------------------------------------------------------------
 | Primitive arithmetic functions, including multi-word arithmetic, and
 | division and square root approximations.  (Can be specialized to target if
 | desired.)
 *----------------------------------------------------------------------------*/
-#include "softfloat-macros.h"
+#include <fpu/softfloat-macros.h>
 
 /*----------------------------------------------------------------------------
 | Functions and definitions to determine:  (1) whether tininess for underflow
@@ -57,7 +57,7 @@ these four paragraphs for those parts of this code that are retained.
 | are propagated from function inputs to output.  These details are target-
 | specific.
 *----------------------------------------------------------------------------*/
-#include "softfloat-specialize.h"
+#include <fpu/softfloat-specialize.h>
 
 void set_float_rounding_mode(int val STATUS_PARAM) {
     STATUS_W(float_rounding_mode, val);

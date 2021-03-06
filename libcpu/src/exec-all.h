@@ -42,6 +42,13 @@ extern struct cpu_stats_t g_cpu_stats;
 #define DISAS_JUMP 1    /* only pc was modified dynamically */
 #define DISAS_UPDATE 2  /* cpu state was modified dynamically */
 #define DISAS_TB_JUMP 3 /* only pc was modified statically */
+#define DISAS_BX_EXCRET 8
+/* For instructions which want an immediate exit to the main loop,
+ * as opposed to attempting to use lookup_and_goto_ptr. Unlike
+ * DISAS_UPDATE this doesn't write the PC on exiting the translation
+ * loop so you need to ensure something (gen_a64_set_pc_im or runtime
+ * helper) has done so before we reach return from cpu_tb_exec.
+ */
 
 #ifdef STATIC_TRANSLATOR
 /* Accomodate large TBs */
@@ -68,12 +75,12 @@ void gen_intermediate_code_pc(CPUArchState *env, struct TranslationBlock *tb);
 #ifdef CONFIG_SYMBEX
 void cpu_gen_flush(void);
 void cpu_gen_init_opc(void);
-void se_restore_state_to_opc(CPUX86State *env, TranslationBlock *tb, target_ulong pc, int cc_op, target_ulong next_pc);
+void se_restore_state_to_opc(CPUArchState *env, TranslationBlock *tb, target_ulong pc, int cc_op, target_ulong next_pc);
 #endif
 
 void restore_state_to_opc(CPUArchState *env, struct TranslationBlock *tb, target_ulong *data);
 
-int restore_state_to_next_pc(CPUX86State *env, TranslationBlock *tb);
+int restore_state_to_next_pc(CPUArchState *env, TranslationBlock *tb);
 
 int cpu_gen_code(CPUArchState *env, TranslationBlock *tb);
 
@@ -150,12 +157,33 @@ extern int tb_invalidated_flag;
 #undef ACCESS_TYPE
 #undef MEMSUFFIX
 #undef env
+#if defined(TARGET_ARM)
+static inline uint32_t arm_ldl_code(CPUArchState *env, uint32_t addr, bool do_swap) {
+    uint32_t insn = cpu_ldl_code(env, addr);
+    if (do_swap) {
+        return bswap32(insn);
+    }
+    return insn;
+}
+
+/* Ditto, for a halfword (Thumb) instruction */
+static inline uint16_t arm_lduw_code(CPUArchState *env, uint32_t addr, bool do_swap) {
+    uint16_t insn = cpu_lduw_code(env, addr);
+    if (do_swap) {
+        return bswap16(insn);
+    }
+    return insn;
+}
+#endif
 
 tb_page_addr_t get_page_addr_code(CPUArchState *env1, target_ulong addr);
 
 typedef void(CPUDebugExcpHandler)(CPUArchState *env);
 
 CPUDebugExcpHandler *cpu_set_debug_excp_handler(CPUDebugExcpHandler *handler);
+
+/* vl.c */
+extern int singlestep;
 
 /* cpu-exec.c */
 extern volatile sig_atomic_t exit_request;

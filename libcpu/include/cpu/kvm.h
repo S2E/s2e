@@ -13,7 +13,15 @@
 #define BIT(n) (1 << (n))
 #endif
 
+#include <cpu/config.h>
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
 #include <asm/kvm.h>
+#elif defined(TARGET_ARM)
+#include <cpu/arm/kvm_arm.h>
+#else
+#error unsupported target CPU
+#endif
+
 #include <linux/ioctl.h>
 
 #define KVM_API_VERSION 12
@@ -180,6 +188,8 @@ struct kvm_pit_config {
 #define KVM_EXIT_RESTORE_DEV_STATE 102
 #define KVM_EXIT_CLONE_PROCESS 103
 
+#define KVM_EXIT_SYNC_SREGS 110
+
 /* For KVM_EXIT_INTERNAL_ERROR */
 /* Emulate instruction failed. */
 #define KVM_INTERNAL_ERROR_EMULATION 1
@@ -314,6 +324,7 @@ struct kvm_run {
         struct {
 #define KVM_SYSTEM_EVENT_SHUTDOWN 1
 #define KVM_SYSTEM_EVENT_RESET 2
+#define KVM_SYSTEM_EVENT_CRASH 3
             __u32 type;
             __u64 flags;
         } system_event;
@@ -786,9 +797,13 @@ struct kvm_ppc_smmu_info {
 /* Indicates that the KVM provided uses DBT instead of actual KVM */
 #define KVM_CAP_DBT 259
 
+
 /* Indicates presence of upcalls mechanisms where the KVM engine
    can invoke hypervisor's entry points */
 #define KVM_CAP_UPCALLS 260
+
+/* This capability allows user to customize memory regions */
+#define KVM_CAP_USER_CUSTOM_MEM_REGION 301
 
 /****************************************/
 
@@ -936,6 +951,8 @@ struct kvm_dirty_tlb {
 #define KVM_REG_SIZE_U256 0x0050000000000000ULL
 #define KVM_REG_SIZE_U512 0x0060000000000000ULL
 #define KVM_REG_SIZE_U1024 0x0070000000000000ULL
+
+#define KVM_REG_SIZE(id) (1U << (((id) &KVM_REG_SIZE_MASK) >> KVM_REG_SIZE_SHIFT))
 
 struct kvm_reg_list {
     __u64 n; /* number of regs */
@@ -1092,10 +1109,18 @@ struct kvm_s390_ucas_mapping {
  * ioctls for vcpu fds
  */
 #define KVM_RUN _IO(KVMIO, 0x80)
+
 #define KVM_GET_REGS _IOR(KVMIO, 0x81, struct kvm_regs)
 #define KVM_SET_REGS _IOW(KVMIO, 0x82, struct kvm_regs)
 #define KVM_GET_SREGS _IOR(KVMIO, 0x83, struct kvm_sregs)
 #define KVM_SET_SREGS _IOW(KVMIO, 0x84, struct kvm_sregs)
+
+#define KVM_GET_M_REGS _IOR(KVMIO, 0xc0, struct kvm_m_regs)
+#define KVM_SET_M_REGS _IOW(KVMIO, 0xc1, struct kvm_m_regs)
+#define KVM_GET_M_SREGS _IOR(KVMIO, 0xc2, struct kvm_m_sregs)
+#define KVM_SET_M_SREGS _IOW(KVMIO, 0xc3, struct kvm_m_sregs)
+#define KVM_CUSTOM_M_INIT _IOR(KVMIO, 0xc4, struct kvm_m_vcpu_init)
+
 #define KVM_TRANSLATE _IOWR(KVMIO, 0x85, struct kvm_translation)
 #define KVM_INTERRUPT _IOW(KVMIO, 0x86, struct kvm_interrupt)
 /* KVM_DEBUG_GUEST is no longer supported, use KVM_SET_GUEST_DEBUG instead */
@@ -1222,6 +1247,17 @@ struct kvm_dev_upcalls {
 
 /* Available with KVM_CAP_UPCALLS */
 #define KVM_REGISTER_UPCALLS _IOWR(KVMIO, 0xf9, unsigned *)
+
+/* Available with KVM_CAP_USER_CUSTOM_MEM_REGION */
+struct kvm_mem_init {
+    __u32 baseaddr;
+    __u32 size;
+    __u8 num;
+    /* If is_rom == 0, indicates expected memoy region is ram */
+    __u8 is_rom;
+};
+
+#define KVM_MEM_REGION_INIT _IOWR(KVMIO, 0xf9, struct kvm_mem_init)
 
 #define KVM_DEV_ASSIGN_ENABLE_IOMMU (1 << 0)
 #define KVM_DEV_ASSIGN_PCI_2_3 (1 << 1)

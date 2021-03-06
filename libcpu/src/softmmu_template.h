@@ -129,7 +129,6 @@ DATA_TYPE glue(glue(io_read, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_phys_
                                                  void *retaddr) {
     DATA_TYPE res;
     const struct MemoryDescOps *ops = phys_get_ops(physaddr);
-
     physaddr = (physaddr & TARGET_PAGE_MASK) + addr;
 
 #if defined(CONFIG_SYMBEX) && defined(CONFIG_SYMBEX_MP)
@@ -160,6 +159,7 @@ DATA_TYPE glue(glue(io_read, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_phys_
     env->mem_io_pc = (uintptr_t) retaddr;
 
     SE_SET_MEM_IO_VADDR(env, addr, 0);
+
 #if SHIFT <= 2
     res = ops->read(physaddr, 1 << SHIFT);
 #else
@@ -234,7 +234,7 @@ DATA_TYPE glue(glue(io_read_chk, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_p
     res.res = glue(glue(io_read, SUFFIX), MMUSUFFIX)(env, origaddr, addr, retaddr);
 
 end:
-    tcg_llvm_trace_mmio_access(addr, res.res, DATA_SIZE, 0);
+    res.res = tcg_llvm_trace_mmio_access(addr, res.res, DATA_SIZE, 0);
 
     SE_SET_MEM_IO_VADDR(env, 0, 1);
     return res.res;
@@ -425,17 +425,24 @@ void glue(glue(io_write, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_phys_addr
 
     SE_SET_MEM_IO_VADDR(env, addr, 0);
     env->mem_io_pc = (uintptr_t) retaddr;
+
+#ifdef CONFIG_SYMBEX
+    if (likely(!g_sqi.mem.is_mmio_symbolic(addr, DATA_SIZE))) {
+#endif
 #if SHIFT <= 2
-    ops->write(physaddr, val, 1 << SHIFT);
+        ops->write(physaddr, val, 1 << SHIFT);
 #else
 #ifdef TARGET_WORDS_BIGENDIAN
-    ops->write(physaddr, (val >> 32), 4);
-    ops->write(physaddr + 4, (uint32_t) val, 4);
+        ops->write(physaddr, (val >> 32), 4);
+        ops->write(physaddr + 4, (uint32_t) val, 4);
 #else
-    ops->write(physaddr, (uint32_t) val, 4);
-    ops->write(physaddr + 4, val >> 32, 4);
+        ops->write(physaddr, (uint32_t) val, 4);
+        ops->write(physaddr + 4, val >> 32, 4);
 #endif
 #endif /* SHIFT > 2 */
+#ifdef CONFIG_SYMBEX
+    }
+#endif
 }
 
 void glue(glue(io_write_chk, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_phys_addr_t physaddr, DATA_TYPE val,
@@ -462,6 +469,7 @@ void glue(glue(io_write_chk, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_phys_
 
     SE_SET_MEM_IO_VADDR(env, addr, 0);
     env->mem_io_pc = (uintptr_t) retaddr;
+
 #if SHIFT <= 2
     if (se_ismemfunc(ops, 1)) {
         uintptr_t pa = se_notdirty_mem_write(physaddr, 1 << SHIFT);
@@ -482,8 +490,10 @@ void glue(glue(io_write_chk, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_phys_
 #endif
 #endif /* SHIFT > 2 */
 
-    // By default, call the original io_write function, which is external
-    glue(glue(io_write, SUFFIX), MMUSUFFIX)(env, origaddr, val, addr, retaddr);
+    if (likely(!g_sqi.mem.is_mmio_symbolic(addr, DATA_SIZE))) {
+        // By default, call the original io_write function, which is external
+        glue(glue(io_write, SUFFIX), MMUSUFFIX)(env, origaddr, val, addr, retaddr);
+    }
 
 end:
     tcg_llvm_trace_mmio_access(addr, val, DATA_SIZE, 1);

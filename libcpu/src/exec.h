@@ -22,7 +22,8 @@
 
 #include <cpu/exec.h>
 #include <cpu/memory.h>
-#include "target-i386/cpu.h"
+
+#include "cpu.h"
 
 /* In system mode we want L1_MAP to be based on ram offsets,
    while in user mode we want it to be based on virtual addresses.  */

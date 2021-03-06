@@ -203,8 +203,10 @@ static void qemu_tcg_init_vcpu(void *_env) {
 void qemu_init_vcpu(void *_env) {
     CPUArchState *env = _env;
 
+#if defined(TARGET_I386)
     env->cpuid.nr_cores = 1;
     env->cpuid.nr_threads = 1;
+#endif
 
     if (tcg_enabled()) {
         qemu_tcg_init_vcpu(env);

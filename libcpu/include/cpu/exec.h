@@ -17,11 +17,18 @@
 /// License along with this library; if not, see <http://www.gnu.org/licenses/>.
 
 #ifndef __LIBCPU_EXEC_H__
-
 #define __LIBCPU_EXEC_H__
 
 #include <cpu/config.h>
+
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
 #include <cpu/i386/cpu.h>
+#elif defined(TARGET_ARM)
+#include <cpu/arm/cpu.h>
+#else
+#error unsupported target CPU
+#endif
+
 #include <cpu/interrupt.h>
 #include <cpu/softmmu_defs.h>
 #include <cpu/tb.h>

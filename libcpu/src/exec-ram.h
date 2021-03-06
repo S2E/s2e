@@ -17,14 +17,25 @@
 /// License along with this library; if not, see <http://www.gnu.org/licenses/>.
 
 #ifndef __EXEC_RAM_H__
-
 #define __EXEC_RAM_H__
 
-#include <cpu/exec.h>
-#include <cpu/i386/cpu.h>
-#include <cpu/se_libcpu.h>
-#include <cpu/types.h>
 #include <inttypes.h>
+
+#include <cpu/exec.h>
+#include <cpu/types.h>
+
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
+#include <cpu/i386/cpu.h>
+#elif defined(TARGET_ARM)
+#include <cpu/arm/cpu.h>
+#else
+#error undefined target CPU
+#endif
+
+#ifdef CONFIG_SYMBEX
+#include <cpu/se_libcpu.h>
+#endif
+
 #include "qqueue.h"
 
 #define RAM_ADDR_MAX UINTPTR_MAX

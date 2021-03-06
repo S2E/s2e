@@ -1,6 +1,6 @@
 /// Copyright (C) 2003  Fabrice Bellard
 /// Copyright (C) 2010  Dependable Systems Laboratory, EPFL
-/// Copyright (C) 2016  Cyberhaven
+/// Copyright (C) 2017  Adrian Herrera
 /// Copyrights of all contributions belong to their respective owners.
 ///
 /// This library is free software; you can redistribute it and/or
@@ -16,30 +16,23 @@
 /// You should have received a copy of the GNU Library General Public
 /// License along with this library; if not, see <http://www.gnu.org/licenses/>.
 
-#ifndef APIC_H
-#define APIC_H
-
-#include <cpu/config.h>
-
-#if defined(TARGET_I386) || defined(TARGET_X86_64)
-#include <cpu/i386/cpu.h>
-#elif defined(TARGET_ARM)
-#include <cpu/arm/cpu.h>
-#else
-#error unsupported target CPU
-#endif
-#include <cpu/types.h>
-#include <inttypes.h>
+#ifndef __CPU_ARM_DEFS__
+#define __CPU_ARM_DEFS__
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+// clang-format off
 
-struct DeviceState;
-typedef struct DeviceState DeviceState;
+/*******************************************/
 
-/* pc.c */
-int cpu_is_bsp(CPUX86State *env);
+#define NB_MMU_MODES 2
+/* The ARM MMU allows 1k pages. */
+/* ??? Linux doesn't actually use these, and they're deprecated in recent
+   architecture revisions. Maybe a configure option to disable them. */
+#define TARGET_PAGE_BITS 10
+
+#define TARGET_HAS_ICE 1
 
 #ifdef __cplusplus
 }

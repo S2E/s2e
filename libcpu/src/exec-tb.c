@@ -402,7 +402,6 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end, int
                 current_tb_modified = 1;
                 cpu_restore_state(env, env->mem_io_pc);
                 cpu_get_tb_cpu_state(env, &current_pc, &current_cs_base, &current_flags);
-
                 // When an instruction modifies itself, advance pc to the next instruction
                 // and abort the tb asap.
                 int instr_size = tb_get_instruction_size(current_tb, current_tb->cs_base + env->eip);

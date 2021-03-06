@@ -30,12 +30,43 @@ extern "C" {
 #endif
 
 struct TranslationBlock;
+
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
 struct CPUX86State;
+#define CPUArchState struct CPUX86State
+#elif defined(TARGET_ARM)
+struct CPUARMState;
+#define CPUArchState struct CPUARMState
+#else
+#error Unsupported target architecture
+#endif
 
-typedef uintptr_t (*se_libcpu_tb_exec_t)(struct CPUX86State *env1, struct TranslationBlock *tb);
+typedef uintptr_t (*se_libcpu_tb_exec_t)(CPUArchState *env1, struct TranslationBlock *tb);
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
 typedef void (*se_do_interrupt_all_t)(int intno, int is_int, int error_code, uintptr_t next_eip, int is_hw);
+#elif defined(TARGET_ARM)
+typedef void (*se_do_interrupt_arm_t)(void);
+#else
+#error Unsupported target architecture
+#endif
 
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
 void se_do_interrupt_all(int intno, int is_int, int error_code, target_ulong next_eip, int is_hw);
+#elif defined(TARGET_ARM)
+void se_do_interrupt_arm(void);
+void se_set_armv7m_external_irq(int irq_num);
+void se_enable_all_armv7m_external_irq(int serial);
+void se_enable_systick_irq(int mode);
+uint32_t se_get_active_armv7m_external_irq(int serial);
+
+void se_helper_do_interrupt_arm(CPUArchState *env);
+void se_helper_set_armv7m_external_irq(CPUArchState *env, int irq_num);
+void se_helper_enable_all_armv7m_external_irq(CPUArchState *env, int serial);
+void se_helper_enable_systick_irq(CPUArchState *env, int mode);
+uint32_t se_helper_get_active_armv7m_external_irq(CPUArchState *env, int serial);
+#else
+#error Unsupported target architecture
+#endif
 
 #define MEM_TRACE_FLAG_IO 1
 #define MEM_TRACE_FLAG_WRITE 2
@@ -62,6 +93,7 @@ struct se_libcpu_interface_t {
         const int *allow_custom_instructions;
         const int *concretize_io_writes;
         const int *concretize_io_addresses;
+        const int *allow_interrupt;
     } mode;
 
     struct exec {
@@ -79,8 +111,13 @@ struct se_libcpu_interface_t {
         void (*switch_to_symbolic)(void *retaddr) __attribute__((noreturn));
 
         se_libcpu_tb_exec_t tb_exec;
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
         se_do_interrupt_all_t do_interrupt_all;
-
+#elif defined(TARGET_ARM)
+        se_do_interrupt_arm_t do_interrupt_arm;
+#else
+#error Unsupported target architecture
+#endif
         unsigned *clock_scaling_factor;
     } exec;
 
@@ -97,14 +134,14 @@ struct se_libcpu_interface_t {
     struct tlb {
         void (*flush_tlb_cache)(void);
         void (*flush_tlb_cache_page)(void *objectState, int mmu_idx, int index);
-        void (*update_tlb_entry)(struct CPUX86State *env, int mmu_idx, uint64_t virtAddr, uint64_t hostAddr);
+        void (*update_tlb_entry)(CPUArchState *env, int mmu_idx, uint64_t virtAddr, uint64_t hostAddr);
     } tlb;
 
     /* Register access */
     struct regs {
         void (*read_concrete)(unsigned offset, uint8_t *buf, unsigned size);
         void (*write_concrete)(unsigned offset, uint8_t *buf, unsigned size);
-        void (*set_cc_op_eflags)(struct CPUX86State *state);
+        void (*set_cc_op_eflags)(CPUArchState *state);
     } regs;
 
     /* Memory accessors */
@@ -153,8 +190,15 @@ struct se_libcpu_interface_t {
 
     /* Internal functions in libcpu. */
     struct libcpu {
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
         uint32_t (*ldub_code)(struct CPUX86State *env, target_ulong virtual_address);
         uint32_t (*ldl_code)(struct CPUX86State *env, target_ulong virtual_address);
+#elif defined(TARGET_ARM)
+        uint32_t (*ldub_code)(struct CPUARMState *env, target_ulong virtual_address);
+        uint32_t (*ldl_code)(struct CPUARMState *env, target_ulong virtual_address);
+#else
+#error Unsupported target architecture
+#endif
     } libcpu;
 
     /* Core plugin interface */
@@ -172,12 +216,14 @@ struct se_libcpu_interface_t {
         unsigned *on_translate_instruction_end_signals_count;
         unsigned *on_translate_register_access_signals_count;
         unsigned *on_exception_signals_count;
+        unsigned *on_exception_exit_signals_count;
         unsigned *on_page_fault_signals_count;
         unsigned *on_tlb_miss_signals_count;
         unsigned *on_port_access_signals_count;
         unsigned *on_privilege_change_signals_count;
         unsigned *on_page_directory_change_signals_count;
         unsigned *on_call_return_signals_count;
+        unsigned *on_invalid_pc_access_signals_count;
 
         void (*on_privilege_change)(unsigned previous, unsigned current);
         void (*on_page_directory_change)(uint64_t previous, uint64_t current);
@@ -230,6 +276,10 @@ struct se_libcpu_interface_t {
                                              uint64_t writeMask, int isMemoryAccess);
 
         int (*on_call_return_translate)(uint64_t pc, int isCall);
+
+        void (*on_invalid_pc_access)(uint64_t addr);
+
+        void (*on_armv7m_interrupt_exit)(uint64_t irqNo);
     } events;
 
     struct {
@@ -256,13 +306,16 @@ void tcg_llvm_before_memory_access(target_ulong vaddr, uint64_t value, unsigned 
 
 void tcg_llvm_after_memory_access(target_ulong vaddr, uint64_t value, unsigned size, unsigned flags, uintptr_t retaddr);
 
-// XXX: change bits to bytes
-uint64_t tcg_llvm_trace_port_access(uint64_t port, uint64_t value, unsigned bits, int isWrite);
-
 uint64_t tcg_llvm_trace_mmio_access(uint64_t physaddr, uint64_t value, unsigned bytes, int isWrite);
 
 void tcg_llvm_write_mem_io_vaddr(uint64_t value, int reset);
+
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
+// XXX: change bits to bytes
+uint64_t tcg_llvm_trace_port_access(uint64_t port, uint64_t value, unsigned bits, int isWrite);
 uint64_t tcg_llvm_get_value(uint64_t value, bool addConstraint);
+#endif
+
 #endif
 
 #ifdef __cplusplus

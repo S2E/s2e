@@ -53,14 +53,11 @@ file(WRITE ${CONFIG_TARGET_H}
 #define TARGET_SHORT_ALIGNMENT 2
 #define TARGET_INT_ALIGNMENT 4
 #define TARGET_LLONG_ALIGNMENT 8
-#define TARGET_I386 1
-#define TARGET_PHYS_ADDR_BITS 64
 #define CONFIG_SOFTMMU 1
-#define CONFIG_I386_DIS 1
 "
 )
 
-if (S2EGUEST_INCLUDE_DIR)
+if(S2EGUEST_INCLUDE_DIR)
     file(APPEND ${CONFIG_TARGET_H} "#define CONFIG_SYMBEX_OPCODES 1\n")
 endif()
 
@@ -72,13 +69,25 @@ message(STATUS "WITH_TARGET: ${WITH_TARGET}")
 
 if(WITH_TARGET MATCHES "i386")
     file(APPEND ${CONFIG_TARGET_H} "#define TARGET_ARCH \"i386\"\n")
+    file(APPEND ${CONFIG_TARGET_H} "#define TARGET_I386 1\n")
     file(APPEND ${CONFIG_TARGET_H} "#define TARGET_LONG_ALIGNMENT 4\n")
     file(APPEND ${CONFIG_TARGET_H} "#define TARGET_INSN_START_EXTRA_WORDS 1\n")
+
+    set(TARGET_DIR "target-i386")
 elseif(WITH_TARGET MATCHES "x86_64")
     file(APPEND ${CONFIG_TARGET_H} "#define TARGET_ARCH \"x86_64\"\n")
     file(APPEND ${CONFIG_TARGET_H} "#define TARGET_X86_64 1\n")
     file(APPEND ${CONFIG_TARGET_H} "#define TARGET_LONG_ALIGNMENT 8\n")
     file(APPEND ${CONFIG_TARGET_H} "#define TARGET_INSN_START_EXTRA_WORDS 1\n")
+
+    set(TARGET_DIR "target-i386")
+elseif(WITH_TARGET MATCHES "arm")
+    file(APPEND ${CONFIG_TARGET_H} "#define TARGET_ARCH \"arm\"\n")
+    file(APPEND ${CONFIG_TARGET_H} "#define TARGET_ARM 1\n")
+    file(APPEND ${CONFIG_TARGET_H} "#define TARGET_LONG_ALIGNMENT 4\n")
+    file(APPEND ${CONFIG_TARGET_H} "#define TARGET_INSN_START_EXTRA_WORDS 2\n")
+
+    set(TARGET_DIR "target-arm")
 else()
     message(FATAL_ERROR "Incorrect target ${WITH_TARGET}")
 endif()
@@ -93,15 +102,13 @@ if(WITH_TARGET MATCHES "s2e")
 endif()
 
 # We want to keep NDEBUG in all builds
-foreach (flags_var_to_scrub
-    CMAKE_CXX_FLAGS_RELEASE
-    CMAKE_CXX_FLAGS_RELWITHDEBINFO
-    CMAKE_CXX_FLAGS_MINSIZEREL
-    CMAKE_C_FLAGS_RELEASE
-    CMAKE_C_FLAGS_RELWITHDEBINFO
-    CMAKE_C_FLAGS_MINSIZEREL)
-string (REGEX REPLACE "(^| )[/-]D *NDEBUG($| )" " "
-    "${flags_var_to_scrub}" "${${flags_var_to_scrub}}")
+foreach(flags_var_to_scrub CMAKE_CXX_FLAGS_RELEASE
+                           CMAKE_CXX_FLAGS_RELWITHDEBINFO
+                           CMAKE_CXX_FLAGS_MINSIZEREL
+                           CMAKE_C_FLAGS_RELEASE
+                           CMAKE_C_FLAGS_RELWITHDEBINFO
+                           CMAKE_C_FLAGS_MINSIZEREL)
+    string(REGEX REPLACE "(^| )[/-]D *NDEBUG($| )" " " "${flags_var_to_scrub}" "${${flags_var_to_scrub}}")
 endforeach()
 
 include_directories(${GLIB_PKG_INCLUDE_DIRS}

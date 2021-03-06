@@ -47,6 +47,14 @@
 #include "exec-tb.h"
 #include "exec.h"
 
+#define DEBUG_TS
+
+#ifdef DEBUG_TS
+#define TPRINTF(...) fprintf(logfile, __VA_ARGS__)
+#else
+#define TPRINTF(...)
+#endif
+
 /* code generation context */
 __thread TCGContext *tcg_ctx;
 
@@ -158,7 +166,7 @@ static void *qemu_st_helpers[4] = {
 static void cpu_gen_init(TCGContext *ctx, tcg_settings_t *settings) {
 
     settings->tlb_flags_mask = TLB_FLAGS_MASK;
-    settings->tlb_mask_offset = offsetof(CPUX86State, tlb_mask);
+    settings->tlb_mask_offset = offsetof(CPUArchState, tlb_mask);
     settings->tlb_entry_addend_offset = offsetof(CPUTLBEntry, addend);
     settings->tlb_entry_addr_read_offset = offsetof(CPUTLBEntry, addr_read);
     settings->tlb_entry_addr_write_offset = offsetof(CPUTLBEntry, addr_write);
@@ -183,11 +191,18 @@ static void cpu_gen_init(TCGContext *ctx, tcg_settings_t *settings) {
     extern CPUArchState *env;
     ctx->tcg_struct_size = sizeof(*tcg_ctx);
     ctx->env_ptr = (uintptr_t) &env;
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
     ctx->env_offset_eip = offsetof(CPUArchState, eip);
     ctx->env_sizeof_eip = sizeof(env->eip);
     ctx->env_offset_ccop = offsetof(CPUArchState, cc_op);
     ctx->env_sizeof_ccop = sizeof(env->cc_op);
     ctx->env_offset_df = offsetof(CPUArchState, df);
+#elif defined(TARGET_ARM)
+    ctx->env_offset_eip = offsetof(CPUArchState, regs[15]);
+    ctx->env_sizeof_eip = sizeof(env->regs[15]);
+#else
+#error Unsupported target architecture
+#endif
 
     ctx->env_offset_tlb[0] = offsetof(CPUArchState, tlb_table[0]);
     ctx->env_offset_tlb[1] = offsetof(CPUArchState, tlb_table[1]);
@@ -257,9 +272,15 @@ int cpu_gen_code(CPUArchState *env, TranslationBlock *tb) {
 
     if (libcpu_loglevel_mask(CPU_LOG_TB_OUT_ASM)) {
         libcpu_log("----------------\n");
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
         libcpu_log("OUT %#" PRIx64 " - cs:eip=%#" PRIx64 ":%#" PRIx64 "\n", (uint64_t) tb->pc, (uint64_t) tb->cs_base,
                    (uint64_t) env->eip);
-
+#elif defined(TARGET_ARM)
+        libcpu_log("OUT %#" PRIx64 " - sp=%#" PRIx32 " pc=%#" PRIx32 "\n", (uint64_t) tb->pc, (uint32_t) env->regs[13],
+                   (uint32_t) env->regs[15]);
+#else
+#error Unsupported target architecture
+#endif
         log_host_disas(tb->tc.ptr, gen_code_size);
         libcpu_log("\n");
     }
