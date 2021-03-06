@@ -30,10 +30,8 @@
 #include <vector>
 #include "AddressSpaceCache.h"
 #include "S2EExecutionStateRegisters.h"
-
-extern "C" {
-struct CPUX86State;
-}
+// use CPUArchState for cpu compatibility
+#include <cpu/se_libcpu.h>
 
 namespace s2e {
 
@@ -73,7 +71,7 @@ public:
 
     void flushTlbCachePage(const klee::ObjectStatePtr &objectState, int mmu_idx, int index);
 
-    void updateTlbEntryConcreteStatus(struct CPUX86State *env, unsigned mmu_idx, unsigned index,
+    void updateTlbEntryConcreteStatus(CPUArchState *env, unsigned mmu_idx, unsigned index,
                                       const klee::ObjectStateConstPtr &state);
 
 #if defined(SE_ENABLE_PHYSRAM_TLB)
@@ -82,7 +80,7 @@ public:
 
     void clearTlbOwnership();
 
-    void updateTlbEntry(struct CPUX86State *env, int mmu_idx, uint64_t virtAddr, uint64_t hostAddr);
+    void updateTlbEntry(CPUArchState *env, int mmu_idx, uint64_t virtAddr, uint64_t hostAddr);
 
     bool audit();
 };

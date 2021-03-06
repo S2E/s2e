@@ -36,7 +36,13 @@ namespace s2e {
 class AddressSpaceCache {
 public:
     typedef MemoryCachePool<klee::ObjectStateConstPtr, SE_RAM_OBJECT_BITS,
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
                             12, // XXX: FIX THIS HARD-CODED STUFF!
+#elif defined(TARGET_ARM)
+                            10, // XXX: FIX THIS HARD-CODED STUFF!
+#else
+#error Unsupported target architecture
+#endif
                             S2E_MEMCACHE_SUPERPAGE_BITS>
         S2EMemoryCache;
 

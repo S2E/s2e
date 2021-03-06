@@ -87,8 +87,8 @@ bool S2EExecutionStateTlb::addressSpaceChangeUpdateTlb(const klee::ObjectStateCo
 #if defined(SE_ENABLE_PHYSRAM_TLB)
 void S2EExecutionStateTlb::updateRamTlb(const klee::ObjectStateConstPtr &oldState,
                                         const klee::ObjectStatePtr &newState) {
-    CPUX86State *cpu = m_registers->getCpuState();
-    uintptr_t tlb_index = (oldState->getAddress() >> 12) & (CPU_TLB_SIZE - 1);
+    CPUArchState *cpu = m_registers->getCpuState();
+    uintptr_t tlb_index = (oldState->getAddress() >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
     CPUTLBRAMEntry *re = &cpu->se_ram_tlb[tlb_index];
 
     assert(oldState->isSharedConcrete() == newState->isSharedConcrete());
@@ -112,7 +112,7 @@ void S2EExecutionStateTlb::updateRamTlb(const klee::ObjectStateConstPtr &oldStat
 
 void S2EExecutionStateTlb::updateTlb(const klee::ObjectStateConstPtr &oldState, const klee::ObjectStatePtr &newState) {
 
-    CPUX86State *cpu = m_registers->getCpuState();
+    CPUArchState *cpu = m_registers->getCpuState();
 
     if (g_s2e_single_path_mode) {
         llvm::errs() << "Multi-path mode disabled.\n";
@@ -223,7 +223,7 @@ void S2EExecutionStateTlb::flushTlbCachePage(const klee::ObjectStatePtr &objectS
  * If a page contains at least one byte of symbolic data, it will go through
  * the slow path. Otherwise, softmmu will directly access the concrete array.
  */
-void S2EExecutionStateTlb::updateTlbEntryConcreteStatus(struct CPUX86State *env, unsigned mmu_idx, unsigned index,
+void S2EExecutionStateTlb::updateTlbEntryConcreteStatus(CPUArchState *env, unsigned mmu_idx, unsigned index,
                                                         const klee::ObjectStateConstPtr &state) {
     CPUTLBEntry *te = &env->tlb_table[mmu_idx][index];
 
@@ -238,7 +238,7 @@ void S2EExecutionStateTlb::updateTlbEntryConcreteStatus(struct CPUX86State *env,
     }
 
 #ifdef SE_ENABLE_PHYSRAM_TLB
-    uintptr_t ram_tlb_index = (state->getAddress() >> 12) & (CPU_TLB_SIZE - 1);
+    uintptr_t ram_tlb_index = (state->getAddress() >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
     CPUTLBRAMEntry *re = &env->se_ram_tlb[ram_tlb_index];
     re->host_page = 0;
     re->addend = 0;
@@ -256,7 +256,7 @@ void S2EExecutionStateTlb::clearRamTlb() {
 #endif
 
 void S2EExecutionStateTlb::clearTlbOwnership() {
-    CPUX86State *env = m_registers->getCpuState();
+    CPUArchState *env = m_registers->getCpuState();
 
     for (unsigned i = 0; i < CPU_TLB_SIZE; i++) {
         for (unsigned mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
@@ -265,7 +265,7 @@ void S2EExecutionStateTlb::clearTlbOwnership() {
     }
 }
 
-void S2EExecutionStateTlb::updateTlbEntry(CPUX86State *env, int mmu_idx, uint64_t virtAddr, uint64_t hostAddr) {
+void S2EExecutionStateTlb::updateTlbEntry(CPUArchState *env, int mmu_idx, uint64_t virtAddr, uint64_t hostAddr) {
     assert((hostAddr & ~TARGET_PAGE_MASK) == 0);
     assert((virtAddr & ~TARGET_PAGE_MASK) == 0);
 
@@ -326,7 +326,7 @@ bool S2EExecutionStateTlb::audit() {
      * Go through the TLB and make sure that all object states are
      * properly referenced.
      */
-    CPUX86State *env = m_registers->getCpuState();
+    CPUArchState *env = m_registers->getCpuState();
 
     for (auto tlbIt : m_tlbMap) {
         auto os = tlbIt.first;

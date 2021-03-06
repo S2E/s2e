@@ -639,6 +639,97 @@ void s2e_initialize(int argc, char **argv, void *translator, const char *s2e_con
     }
 }
 
+int s2e_init_mem(uint32_t *baseaddr, uint32_t *size, uint8_t *num, uint8_t *is_rom) {
+    bool ok;
+    int rom_num = g_s2e->getConfig()->getListSize("mem.rom");
+    int ram_num = g_s2e->getConfig()->getListSize("mem.ram");
+
+    if (rom_num == 0 && ram_num == 0) {
+        std::cout << "Use default memory regions one rom from 0x0 - 0x40000 and one ram from 0x20000000 - 0x20040000\n";
+        return -1;
+    }
+
+    if (rom_num == 0 || ram_num == 0) {
+        std::cout << "Invalid memery region number, at least one ram and one rom need to be configured!\n";
+        return -1;
+    }
+
+    if (rom_num > 2 || ram_num > 2) {
+        std::cout << "Invalid memory region number, at most two rams and two roms can be used\n";
+        return -1;
+    }
+
+    s2e::ConfigFile *cfg = g_s2e->getConfig();
+
+    if (*is_rom) {
+        if ((*num + 1)> rom_num) {
+            std::cout << "Only " << rom_num << " rom has been configured" << "\n";
+            return -1;
+        }
+        std::stringstream ss;
+        ss << "mem.rom" << "[" << (*num + 1) << "]";
+        *baseaddr = cfg->getInt(ss.str() + "[1]", 0, &ok);
+        if (!ok) {
+            std::cout << "Could not parse " << ss.str() + "baseaddr" << "\n";
+            return -1;
+        }
+        *size = cfg->getInt(ss.str() + "[2]", 0, &ok);
+        if (!ok) {
+            std::cout << "Could not parse " << ss.str() + "size" << "\n";
+            return -1;
+        }
+        std::cout << "Adding rom " << s2e::hexval(*num) << " baseaddr:" << s2e::hexval(*baseaddr) <<" size:" << s2e::hexval(*size) << "\n";
+    } else {
+        if ((*num + 1)> ram_num) {
+            std::cout << "Only " << ram_num << " ram has been configured" << "\n";
+            return -1;
+        }
+        std::stringstream ss;
+        ss <<"mem.ram" << "[" << (*num + 1) << "]";
+        *baseaddr = cfg->getInt(ss.str() + "[1]", 0, &ok);
+        if (!ok) {
+            std::cout << "Could not parse " << ss.str() + "baseaddr" << "\n";
+            return -1;
+        }
+        *size = cfg->getInt(ss.str() + "[2]", 0, &ok);
+        if (!ok) {
+            std::cout << "Could not parse " << ss.str() + "size" << "\n";
+            return -1;
+        }
+        std::cout << "Adding ram " << s2e::hexval(*num) << " baseaddr:" << s2e::hexval(*baseaddr) <<" size:" << s2e::hexval(*size) << "\n";
+    }
+
+    return 0;
+}
+
+int s2e_init_firmware(uint32_t *entry, uint32_t *msp_init, uint32_t *vtor) {
+    bool ok;
+    s2e::ConfigFile *cfg = g_s2e->getConfig();
+
+    *entry = cfg->getInt("init.entry", 0, &ok);
+    if (!ok) {
+        std::cout << "No init.entry given\n";
+    }
+
+    *msp_init = cfg->getInt("init.msp_init", 0, &ok);
+    if (!ok) {
+        std::cout << "No init.msp given\n";
+    }
+
+    *vtor = cfg->getInt("init.vtor", 0, &ok);
+    if (!ok) {
+        std::cout << "If not specific vtor given, we use the base address of rom by default\n";
+        *vtor = cfg->getInt("mem.rom[1][1]", 0, &ok);
+        if (!ok) {
+            std::cout << "Could not parse init.vtor\n";
+            return -1;
+        }
+    }
+
+    std::cout << "init firmware pc entry = " << *entry << " msp_init = " << *msp_init <<" vtor = " << *vtor << "\n";
+    return 0;
+}
+
 void s2e_close(void) {
     delete g_s2e;
     tcg_llvm_close(tcg_llvm_translator);

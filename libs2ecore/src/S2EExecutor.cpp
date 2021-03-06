@@ -207,6 +207,8 @@ extern "C" {
     int g_s2e_fork_on_symbolic_address = 0;
     int g_s2e_concretize_io_addresses = 1;
     int g_s2e_concretize_io_writes = 1;
+    int g_s2e_allow_interrupt = 1;
+    bool g_s2e_cache_mode = false;
 
     // XXX: the following should be thread-local when
     // we implement support for multi-cores in the guest
@@ -223,8 +225,13 @@ extern "C" {
     se_libcpu_tb_exec_t se_libcpu_tb_exec = &s2e::S2EExecutor::executeTranslationBlockFast;
 
     char *g_s2e_running_exception_emulation_code = nullptr;
-
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
     se_do_interrupt_all_t g_s2e_do_interrupt_all = &s2e::S2EExecutor::doInterruptAll;
+#elif defined(TARGET_ARM)
+    se_do_interrupt_arm_t g_s2e_do_interrupt_arm = &s2e::S2EExecutor::doInterruptARM;
+#else
+#error Unsupported target architecture
+#endif
 
     //Shortcut to speed up access to the dirty mask (it is always concrete)
     uintptr_t g_se_dirty_mask_addend = 0;
@@ -258,9 +265,13 @@ S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMTranslator *translator, InterpreterHan
 
     //__DEFINE_EXT_FUNCTION(raise_exception)
     //__DEFINE_EXT_FUNCTION(raise_exception_err)
-
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
     helper_register_symbols();
+#endif
 
+#if defined(TARGET_ARM)
+    __DEFINE_EXT_VARIABLE(g_s2e_allow_interrupt)
+#endif
     __DEFINE_EXT_VARIABLE(g_s2e_concretize_io_addresses)
     __DEFINE_EXT_VARIABLE(g_s2e_concretize_io_writes)
     __DEFINE_EXT_VARIABLE(g_s2e_fork_on_symbolic_address)
@@ -275,11 +286,13 @@ S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMTranslator *translator, InterpreterHan
     __DEFINE_EXT_VARIABLE(g_s2e_on_translate_instruction_end_signals_count)
     __DEFINE_EXT_VARIABLE(g_s2e_on_translate_register_access_signals_count)
     __DEFINE_EXT_VARIABLE(g_s2e_on_exception_signals_count)
+    __DEFINE_EXT_VARIABLE(g_s2e_on_exception_exit_signals_count)
     __DEFINE_EXT_VARIABLE(g_s2e_on_page_fault_signals_count)
     __DEFINE_EXT_VARIABLE(g_s2e_on_tlb_miss_signals_count)
     __DEFINE_EXT_VARIABLE(g_s2e_on_port_access_signals_count)
     __DEFINE_EXT_VARIABLE(g_s2e_on_privilege_change_signals_count)
     __DEFINE_EXT_VARIABLE(g_s2e_on_page_directory_change_signals_count)
+    __DEFINE_EXT_VARIABLE(g_s2e_on_invalid_pc_access_signals_count)
 
     __DEFINE_EXT_VARIABLE(g_s2e_enable_mmio_checks)
 
@@ -301,11 +314,27 @@ S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMTranslator *translator, InterpreterHan
     __DEFINE_EXT_FUNCTION(floatx80_compare_quiet)
     __DEFINE_EXT_FUNCTION(set_float_rounding_mode)
 
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
     __DEFINE_EXT_FUNCTION(cpu_x86_handle_mmu_fault)
     __DEFINE_EXT_FUNCTION(cpu_x86_update_cr0)
     __DEFINE_EXT_FUNCTION(cpu_x86_update_cr3)
     __DEFINE_EXT_FUNCTION(cpu_x86_update_cr4)
     __DEFINE_EXT_FUNCTION(cpu_x86_cpuid)
+
+    __DEFINE_EXT_FUNCTION(hw_breakpoint_insert)
+    __DEFINE_EXT_FUNCTION(hw_breakpoint_remove)
+    __DEFINE_EXT_FUNCTION(check_hw_breakpoints)
+#elif defined(TARGET_ARM)
+    __DEFINE_EXT_FUNCTION(cpu_arm_handle_mmu_fault)
+    __DEFINE_EXT_FUNCTION(se_helper_do_interrupt_arm)
+    __DEFINE_EXT_FUNCTION(se_helper_set_armv7m_external_irq)
+    __DEFINE_EXT_FUNCTION(se_helper_enable_all_armv7m_external_irq)
+    __DEFINE_EXT_FUNCTION(se_helper_get_active_armv7m_external_irq)
+    __DEFINE_EXT_FUNCTION(se_helper_enable_systick_irq)
+#else
+#error Unsupported target architecture
+#endif
+
     __DEFINE_EXT_FUNCTION(cpu_outb)
     __DEFINE_EXT_FUNCTION(cpu_outw)
     __DEFINE_EXT_FUNCTION(cpu_outl)
@@ -318,10 +347,6 @@ S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMTranslator *translator, InterpreterHan
     __DEFINE_EXT_FUNCTION(cpu_loop_exit_restore)
     __DEFINE_EXT_FUNCTION(cpu_get_tsc)
     __DEFINE_EXT_FUNCTION(cpu_exit)
-
-    __DEFINE_EXT_FUNCTION(hw_breakpoint_insert)
-    __DEFINE_EXT_FUNCTION(hw_breakpoint_remove)
-    __DEFINE_EXT_FUNCTION(check_hw_breakpoints)
 
     __DEFINE_EXT_FUNCTION(tlb_flush_page)
     __DEFINE_EXT_FUNCTION(tlb_flush)
@@ -350,6 +375,8 @@ S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMTranslator *translator, InterpreterHan
 
     __DEFINE_EXT_FUNCTION(s2e_on_privilege_change);
     __DEFINE_EXT_FUNCTION(s2e_on_page_fault);
+    __DEFINE_EXT_FUNCTION(s2e_on_invalid_pc_access);
+    __DEFINE_EXT_FUNCTION(s2e_on_exception_exit);
 
     __DEFINE_EXT_FUNCTION(se_notdirty_mem_write)
     __DEFINE_EXT_FUNCTION(se_notdirty_mem_read)
@@ -508,9 +535,12 @@ S2EExecutionState *S2EExecutor::createInitialState() {
     __DEFINE_EXT_OBJECT_RO(cpu_single_env)
     __DEFINE_EXT_OBJECT_RO(loglevel)
     __DEFINE_EXT_OBJECT_RO(logfile)
+
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
     __DEFINE_EXT_OBJECT_RO_SYMB(parity_table)
     __DEFINE_EXT_OBJECT_RO_SYMB(rclw_table)
     __DEFINE_EXT_OBJECT_RO_SYMB(rclb_table)
+#endif
 
     m_s2e->getInfoStream(state) << "Created initial state" << '\n';
 
@@ -529,7 +559,7 @@ void S2EExecutor::initializeExecution(S2EExecutionState *state, bool executeAlwa
     initializeStateSwitchTimer();
 }
 
-void S2EExecutor::registerCpu(S2EExecutionState *initialState, CPUX86State *cpuEnv) {
+void S2EExecutor::registerCpu(S2EExecutionState *initialState, CPUArchState *cpuEnv) {
     std::cout << std::hex << "Adding CPU (addr = " << std::hex << cpuEnv << ", size = 0x" << sizeof(*cpuEnv) << ")"
               << std::dec << '\n';
 
@@ -537,18 +567,31 @@ void S2EExecutor::registerCpu(S2EExecutionState *initialState, CPUX86State *cpuE
         std::cerr << "Invalid cpu size structure\n";
         abort();
     }
-
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
     /* Add registers and eflags area as a true symbolic area */
-    auto symbolicRegs = addExternalObject(*initialState, cpuEnv, offsetof(CPUX86State, eip),
+    auto symbolicRegs = addExternalObject(*initialState, cpuEnv, offsetof(CPUArchState, eip),
                                           /* isReadOnly = */ false,
                                           /* isSharedConcrete = */ false);
 
     /* Add the rest of the structure as concrete-only area */
-    auto concreteRegs = addExternalObject(*initialState, ((uint8_t *) cpuEnv) + offsetof(CPUX86State, eip),
-                                          sizeof(CPUX86State) - offsetof(CPUX86State, eip),
+    auto concreteRegs = addExternalObject(*initialState, ((uint8_t *) cpuEnv) + offsetof(CPUArchState, eip),
+                                          sizeof(CPUArchState) - offsetof(CPUArchState, eip),
                                           /* isReadOnly = */ false,
                                           /* isSharedConcrete = */ true);
+#elif defined(TARGET_ARM)
+    /* Add registers and eflags area as a true symbolic area */
+    auto symbolicRegs = addExternalObject(*initialState, cpuEnv, offsetof(CPUArchState, regs[15]),
+                                          /* isReadOnly = */ false,
+                                          /* isSharedConcrete = */ false);
 
+    /* Add the rest of the structure as concrete-only area */
+    auto concreteRegs = addExternalObject(*initialState, ((uint8_t *) cpuEnv) + offsetof(CPUArchState, regs[15]),
+                                          sizeof(CPUArchState) - offsetof(CPUArchState, regs[15]),
+                                          /* isReadOnly = */ false,
+                                          /* isSharedConcrete = */ true);
+#else
+#error Unsupported target architecture
+#endif
     initialState->m_registers.initialize(initialState->addressSpace, symbolicRegs, concreteRegs);
     klee::ExecutionState::s_ignoredMergeObjects.insert(initialState->m_registers.getConcreteRegs());
 }
@@ -846,6 +889,9 @@ void S2EExecutor::doStateSwitch(S2EExecutionState *oldState, S2EExecutionState *
         newState->m_registers.restoreConcreteState();
 
         memcpy(&env->jmp_env, &jmp_env, sizeof(jmp_buf));
+        // since the cpu state struct is different between kvm env and cpu env
+        // we need to sync some sregs after sregs restore.
+        s2e_kvm_sync_sregs();
 
         newState->m_active = true;
 
@@ -1067,10 +1113,7 @@ void S2EExecutor::updateClockScaling() {
 
     if (g_s2e_fast_concrete_invocation) {
         // Concrete execution
-        scaling = timers_state.cpu_clock_scale_factor / 2;
-        if (scaling == 0) {
-            scaling = ClockSlowDownConcrete;
-        }
+        scaling = ClockSlowDownConcrete;
     } else {
         // Symbolic execution
         scaling = UseFastHelpers ? ClockSlowDownFastHelpers : ClockSlowDown;
@@ -1152,7 +1195,7 @@ uintptr_t S2EExecutor::executeTranslationBlockConcrete(S2EExecutionState *state,
     return ret;
 }
 
-uintptr_t S2EExecutor::executeTranslationBlockSlow(struct CPUX86State *env1, struct TranslationBlock *tb) {
+uintptr_t S2EExecutor::executeTranslationBlockSlow(CPUArchState *env1, struct TranslationBlock *tb) {
     try {
         uintptr_t ret = g_s2e->getExecutor()->executeTranslationBlock(g_s2e_state, tb);
         return ret;
@@ -1162,7 +1205,7 @@ uintptr_t S2EExecutor::executeTranslationBlockSlow(struct CPUX86State *env1, str
     }
 }
 
-uintptr_t S2EExecutor::executeTranslationBlockFast(struct CPUX86State *env1, struct TranslationBlock *tb) {
+uintptr_t S2EExecutor::executeTranslationBlockFast(CPUArchState *env1, struct TranslationBlock *tb) {
     env = env1;
     g_s2e_state->setRunningExceptionEmulationCode(false);
 
@@ -1378,12 +1421,19 @@ S2EExecutor::StatePair S2EExecutor::fork(ExecutionState &current, const klee::re
 
     // If the condition is constant, there is no need to do anything as the fork will not branch
     bool forkOk = true;
+    bool conditionInCurrentState = false;
     if (!dyn_cast<klee::ConstantExpr>(condition)) {
         if (currentState->forkDisabled) {
             g_s2e->getDebugStream(currentState) << "fork disabled at " << hexval(currentState->regs()->getPc()) << "\n";
         }
 
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
         g_s2e->getCorePlugin()->onStateForkDecide.emit(currentState, &forkOk);
+#elif defined(TARGET_ARM)
+        g_s2e->getCorePlugin()->onStateForkDecide.emit(currentState, &forkOk, condition, &conditionInCurrentState);
+#else
+#error Unsupported target architecture
+#endif
         if (!forkOk) {
             g_s2e->getDebugStream(currentState) << "fork prevented by request from plugin\n";
         }
@@ -1394,7 +1444,7 @@ S2EExecutor::StatePair S2EExecutor::fork(ExecutionState &current, const klee::re
         currentState->forkDisabled = true;
     }
 
-    res = Executor::fork(current, condition, keepConditionTrueInCurrentState);
+    res = Executor::fork(current, condition, conditionInCurrentState);
 
     currentState->forkDisabled = oldForkStatus;
 
@@ -1412,7 +1462,7 @@ S2EExecutor::StatePair S2EExecutor::fork(ExecutionState &current, const klee::re
 
     llvm::raw_ostream &out = m_s2e->getInfoStream(currentState);
     out << "Forking state " << currentState->getID() << " at pc = " << hexval(currentState->regs()->getPc())
-        << " at pagedir = " << hexval(currentState->regs()->getPageDir()) << '\n';
+        << " at pagedir = " << hexval(currentState->regs()->getPageDir()) << " condition = " << conditionInCurrentState <<'\n';
 
     for (unsigned i = 0; i < 2; ++i) {
         if (VerboseFork) {
@@ -1631,6 +1681,7 @@ void S2EExecutor::terminateState(ExecutionState &s) {
 }
 
 inline void S2EExecutor::setCCOpEflags(S2EExecutionState *state) {
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
     uint32_t cc_op = 0;
 
     // Check wether any of cc_op, cc_src, cc_dst or cc_tmp are symbolic
@@ -1662,8 +1713,15 @@ inline void S2EExecutor::setCCOpEflags(S2EExecutionState *state) {
             helper_set_cc_op_eflags();
         }
     }
+#elif defined(TARGET_ARM)
+    //not needed for ARM
+#endif
 }
-
+/* Note that each QEMU target have different handlers naming and signature:
+ * on ARM - do_interrupt()/s2e_do_interrupt() - 0 args
+ * on X86 - do_interrupt_all()/s2e_do_interrupt_all() - 5 args
+ */
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
 inline void S2EExecutor::doInterrupt(S2EExecutionState *state, int intno, int is_int, int error_code, uint64_t next_eip,
                                      int is_hw) {
     if (state->m_registers.allConcrete() && !m_executeAlwaysKlee) {
@@ -1721,6 +1779,75 @@ void S2EExecutor::doInterruptAll(int intno, int is_int, int error_code, uintptr_
 
     g_s2e_state->setRunningExceptionEmulationCode(false);
 }
+#elif defined(TARGET_ARM)
+inline void S2EExecutor::doInterrupt(S2EExecutionState *state) {
+    if (state->m_registers.allConcrete() && !m_executeAlwaysKlee) {
+        if (!state->isRunningConcrete()) {
+            state->switchToConcrete();
+        }
+        // TimerStatIncrementer t(stats::concreteModeTime);
+        se_do_interrupt_arm();
+    } else {
+        g_s2e->getWarningsStream() << "Symbolic Execution Interrupt\n";
+        if (state->isRunningConcrete()) {
+            state->switchToSymbolic();
+        }
+        std::vector<klee::ref<klee::Expr>> args(0);
+        try {
+            if (EnableTimingLog) {
+                TimerStatIncrementer t(stats::symbolicModeTime);
+            }
+            executeFunction(state, "se_do_interrupt_arm", args);
+        } catch (s2e::CpuExitException &) {
+            updateStates(state);
+            longjmp(env->jmp_env, 1);
+        }
+    }
+}
+
+void S2EExecutor::doInterruptARM(void){
+    g_s2e_state->setRunningExceptionEmulationCode(true);
+
+    if (unlikely(*g_s2e_on_exception_signals_count))
+        s2e_on_exception(env->v7m.vecbase + env->v7m.exception*4);
+
+    if (likely(g_s2e_fast_concrete_invocation)) {
+        if (unlikely(!g_s2e_state->isRunningConcrete())) {
+            s2e::S2EExecutor *executor = g_s2e->getExecutor();
+            executor->updateConcreteFastPath(g_s2e_state);
+            assert(g_s2e_fast_concrete_invocation);
+            g_s2e_state->switchToConcrete();
+        }
+        se_do_interrupt_arm();
+    } else {
+       g_s2e->getExecutor()->doInterrupt(g_s2e_state);
+    }
+
+    g_s2e_state->setRunningExceptionEmulationCode(false);
+}
+
+void S2EExecutor::setExternalInterrupt(int irq_num) {
+    se_set_armv7m_external_irq(irq_num);
+}
+
+void S2EExecutor::enableExternalInterruptAll(int serial) {
+    se_enable_all_armv7m_external_irq(serial);
+}
+
+void S2EExecutor::disableSystickInterrupt(int mode) {
+    se_enable_systick_irq(mode);
+}
+
+uint32_t S2EExecutor::getActiveExternalInterrupt(int serial) {
+    return se_get_active_armv7m_external_irq(serial);
+}
+
+void S2EExecutor::setCpuExitRequest() {
+    s2e_kvm_cpu_exit_request();
+}
+#else
+#error Unsupported target architecture
+#endif
 
 void S2EExecutor::setupTimersHandler() {
     m_s2e->getCorePlugin()->onTimer.connect(sigc::bind(sigc::ptr_fun(&onAlarm), 0));
@@ -1788,7 +1915,7 @@ void s2e_initialize_execution(int execute_always_klee) {
                         sizeof(uint64_t));
 }
 
-void s2e_register_cpu(CPUX86State *cpu_env) {
+void s2e_register_cpu(CPUArchState *cpu_env) {
     g_s2e->getExecutor()->registerCpu(g_s2e_state, cpu_env);
 }
 
@@ -1815,10 +1942,12 @@ void s2e_libcpu_cleanup_tb_exec() {
     return g_s2e->getExecutor()->cleanupTranslationBlock(g_s2e_state);
 }
 
-void s2e_set_cc_op_eflags(struct CPUX86State *env1) {
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
+void s2e_set_cc_op_eflags(CPUArchState *env1) {
     env = env1;
     g_s2e->getExecutor()->setCCOpEflags(g_s2e_state);
 }
+#endif
 
 void s2e_switch_to_symbolic(void *retaddr) {
     cpu_restore_state(env, (uintptr_t) retaddr);
@@ -1877,7 +2006,7 @@ void se_flush_tlb_cache_page(void *objectState, int mmu_idx, int index) {
 }
 
 /** Tlb cache helpers */
-void s2e_update_tlb_entry(CPUX86State *env, int mmu_idx, uint64_t virtAddr, uint64_t hostAddr) {
+void s2e_update_tlb_entry(CPUArchState *env, int mmu_idx, uint64_t virtAddr, uint64_t hostAddr) {
 #if defined(SE_ENABLE_TLB) && defined(CONFIG_SYMBEX_MP)
     g_s2e_state->getTlb()->updateTlbEntry(env, mmu_idx, virtAddr, hostAddr);
 #endif

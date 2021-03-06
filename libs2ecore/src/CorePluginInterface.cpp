@@ -23,7 +23,14 @@
 
 extern "C" {
 // clang-format off
+#include <s2e/s2e_config.h>
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
 #include <cpu/i386/cpu.h>
+#elif defined(TARGET_ARM)
+#include <cpu/arm/cpu.h>
+#else
+#error Unsupported target architecture
+#endif
 #include <tcg/tcg-op.h>
 
 #include <cpu/exec.h>
@@ -35,8 +42,14 @@ extern "C" {
 #define s2e_gen_flags_update instr_gen_flags_update
 
 // clang-format on
-extern struct CPUX86State *env;
+extern CPUArchState *env;
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
 void s2e_gen_pc_update(void *context, target_ulong pc, target_ulong cs_base);
+#elif defined(TARGET_ARM)
+void s2e_gen_pc_update(void *context, target_ulong pc);
+#else
+#error Unsupported target architecture
+#endif
 void s2e_gen_flags_update(void *context);
 }
 
@@ -100,12 +113,18 @@ static void s2e_tcg_instrument_code(ExecutionSignal *signal, uint64_t pc, uint64
     if (nextpc != (uint64_t) -1) {
 #if TCG_TARGET_REG_BITS == 64 && defined(TARGET_X86_64)
         TCGv_i64 tpc = tcg_const_i64((tcg_target_ulong) nextpc);
-        tcg_gen_st_i64(tpc, cpu_env, offsetof(CPUX86State, eip));
+        tcg_gen_st_i64(tpc, cpu_env, offsetof(CPUArchState, eip));
         tcg_temp_free_i64(tpc);
-#else
+#elif  defined(TARGET_I386)
         TCGv_i32 tpc = tcg_const_i32((tcg_target_ulong) nextpc);
-        tcg_gen_st_i32(tpc, cpu_env, offsetof(CPUX86State, eip));
+        tcg_gen_st_i32(tpc, cpu_env, offsetof(CPUArchState, eip));
         tcg_temp_free_i32(tpc);
+#elif  defined(TARGET_ARM)
+        TCGv_i32 tpc = tcg_const_i32((tcg_target_ulong) nextpc);
+        tcg_gen_st_i32(tpc, cpu_env, offsetof(CPUArchState, regs[15]));
+        tcg_temp_free_i32(tpc);
+#else
+#error Unsupported target architecture
 #endif
     }
 
@@ -129,8 +148,15 @@ void s2e_on_translate_soft_interrupt_start(void *context, TranslationBlock *tb, 
     try {
         g_s2e->getCorePlugin()->onTranslateSoftInterruptStart.emit(signal, g_s2e_state, tb, pc, vector);
         if (!signal->empty()) {
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
             s2e_gen_pc_update(context, pc, tb->cs_base);
             s2e_tcg_instrument_code(signal, pc - tb->cs_base);
+#elif defined(TARGET_ARM)
+            s2e_gen_pc_update(context, pc);
+            s2e_tcg_instrument_code(signal, pc);
+#else
+#error Unsupported target architecture
+#endif
             se_tb->executionSignals.push_back(new ExecutionSignal);
         }
     } catch (s2e::CpuExitException &) {
@@ -148,8 +174,15 @@ void s2e_on_translate_block_start(void *context, TranslationBlock *tb, uint64_t 
     try {
         g_s2e->getCorePlugin()->onTranslateBlockStart.emit(signal, g_s2e_state, tb, pc);
         if (!signal->empty()) {
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
             s2e_gen_pc_update(context, pc, tb->cs_base);
             s2e_tcg_instrument_code(signal, pc - tb->cs_base);
+#elif defined(TARGET_ARM)
+            s2e_gen_pc_update(context, pc);
+            s2e_tcg_instrument_code(signal, pc);
+#else
+#error Unsupported target architecture
+#endif
             se_tb->executionSignals.push_back(new ExecutionSignal);
         }
     } catch (s2e::CpuExitException &) {
@@ -196,8 +229,15 @@ void s2e_on_translate_instruction_start(void *context, TranslationBlock *tb, uin
     try {
         g_s2e->getCorePlugin()->onTranslateInstructionStart.emit(signal, g_s2e_state, tb, pc);
         if (!signal->empty()) {
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
             s2e_gen_pc_update(context, pc, tb->cs_base);
             s2e_tcg_instrument_code(signal, pc - tb->cs_base);
+#elif defined(TARGET_ARM)
+            s2e_gen_pc_update(context, pc);
+            s2e_tcg_instrument_code(signal, pc);
+#else
+#error Unsupported target architecture
+#endif
             se_tb->executionSignals.push_back(new ExecutionSignal);
         }
     } catch (s2e::CpuExitException &) {
@@ -217,12 +257,21 @@ void s2e_on_translate_special_instruction_end(void *context, TranslationBlock *t
     try {
         g_s2e->getCorePlugin()->onTranslateSpecialInstructionEnd.emit(signal, g_s2e_state, tb, pc, type, data);
         if (!signal->empty()) {
-
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
             if (update_pc) {
                 s2e_gen_pc_update(context, pc, tb->cs_base);
             }
 
             s2e_tcg_instrument_code(signal, pc - tb->cs_base);
+#elif defined(TARGET_ARM)
+            if (update_pc) {
+                s2e_gen_pc_update(context, pc);
+            }
+
+            s2e_tcg_instrument_code(signal, pc);
+#else
+#error Unsupported target architecture
+#endif
             se_tb->executionSignals.push_back(new ExecutionSignal);
         }
     } catch (s2e::CpuExitException &) {
@@ -240,8 +289,15 @@ void s2e_on_translate_jump_start(void *context, TranslationBlock *tb, uint64_t p
     try {
         g_s2e->getCorePlugin()->onTranslateJumpStart.emit(signal, g_s2e_state, tb, pc, jump_type);
         if (!signal->empty()) {
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
             s2e_gen_pc_update(context, pc, tb->cs_base);
             s2e_tcg_instrument_code(signal, pc - tb->cs_base);
+#elif defined(TARGET_ARM)
+            s2e_gen_pc_update(context, pc);
+            s2e_tcg_instrument_code(signal, pc);
+#else
+#error Unsupported target architecture
+#endif
             se_tb->executionSignals.push_back(new ExecutionSignal);
         }
     } catch (s2e::CpuExitException &) {
@@ -259,8 +315,15 @@ void s2e_on_translate_indirect_cti_start(void *context, TranslationBlock *tb, ui
     try {
         g_s2e->getCorePlugin()->onTranslateICTIStart.emit(signal, g_s2e_state, tb, pc, rm, op, offset);
         if (!signal->empty()) {
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
             s2e_gen_pc_update(context, pc, tb->cs_base);
             s2e_tcg_instrument_code(signal, pc - tb->cs_base);
+#elif defined(TARGET_ARM)
+            s2e_gen_pc_update(context, pc);
+            s2e_tcg_instrument_code(signal, pc);
+#else
+#error Unsupported target architecture
+#endif
             se_tb->executionSignals.push_back(new ExecutionSignal);
         }
     } catch (s2e::CpuExitException &) {
@@ -279,8 +342,15 @@ void s2e_on_translate_lea_rip_relative(void *context, TranslationBlock *tb, uint
         g_s2e->getCorePlugin()->onTranslateLeaRipRelative.emit(signal, g_s2e_state, tb, pc, addr);
 
         if (!signal->empty()) {
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
             s2e_gen_pc_update(context, pc, tb->cs_base);
             s2e_tcg_instrument_code(signal, pc - tb->cs_base);
+#elif defined(TARGET_ARM)
+            s2e_gen_pc_update(context, pc);
+            s2e_tcg_instrument_code(signal, pc);
+#else
+#error Unsupported target architecture
+#endif
             se_tb->executionSignals.push_back(new ExecutionSignal);
         }
     } catch (s2e::CpuExitException &) {
@@ -335,6 +405,16 @@ void s2e_on_exception(unsigned intNb) {
 
     try {
         g_s2e->getCorePlugin()->onException.emit(g_s2e_state, intNb, g_s2e_state->regs()->getPc());
+    } catch (s2e::CpuExitException &) {
+        longjmp(env->jmp_env, 1);
+    }
+}
+
+void s2e_on_exception_exit(uint64_t intNum) {
+    assert(g_s2e_state->isActive());
+
+    try {
+        g_s2e->getCorePlugin()->onExceptionExit.emit(g_s2e_state, intNum);
     } catch (s2e::CpuExitException &) {
         longjmp(env->jmp_env, 1);
     }
@@ -429,6 +509,14 @@ void s2e_on_tlb_miss(uint64_t addr, int is_write, void *retaddr) {
 
     try {
         g_s2e->getCorePlugin()->onTlbMiss.emit(g_s2e_state, addr, (bool) is_write);
+    } catch (s2e::CpuExitException &) {
+        longjmp(env->jmp_env, 1);
+    }
+}
+
+void s2e_on_invalid_pc_access(uint64_t addr) {
+    try {
+        g_s2e->getCorePlugin()->onInvalidPCAccess.emit(g_s2e_state, addr);
     } catch (s2e::CpuExitException &) {
         longjmp(env->jmp_env, 1);
     }

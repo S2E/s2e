@@ -26,6 +26,8 @@
 
 #include <unordered_map>
 
+// Undefine cat from "compiler.h"
+#undef cat
 #include <klee/Executor.h>
 #include <llvm/Support/raw_ostream.h>
 #include <s2e/s2e_libcpu.h>
@@ -34,7 +36,7 @@
 #include "S2ETranslationBlock.h"
 
 struct TranslationBlock;
-struct CPUX86State;
+CPUArchState;
 class TCGLLVMTranslator;
 
 namespace klee {
@@ -93,7 +95,14 @@ public:
 
     void initializeExecution(S2EExecutionState *initialState, bool executeAlwaysKlee);
 
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
     void registerCpu(S2EExecutionState *initialState, CPUX86State *cpuEnv);
+#elif defined(TARGET_ARM)
+    void registerCpu(S2EExecutionState *initialState, CPUARMState *cpuEnv);
+#else
+#error Unsupported target architecture
+#endif
+
     void registerRam(S2EExecutionState *initialState, struct MemoryDesc *region, uint64_t startAddress, uint64_t size,
                      uint64_t hostAddress, bool isSharedConcrete, bool saveOnContextSwitch = true,
                      const char *name = "");
@@ -115,8 +124,8 @@ public:
 
     uintptr_t executeTranslationBlock(S2EExecutionState *state, TranslationBlock *tb);
 
-    static uintptr_t executeTranslationBlockSlow(struct CPUX86State *env1, struct TranslationBlock *tb);
-    static uintptr_t executeTranslationBlockFast(struct CPUX86State *env1, struct TranslationBlock *tb);
+    static uintptr_t executeTranslationBlockSlow(CPUArchState *env1, struct TranslationBlock *tb);
+    static uintptr_t executeTranslationBlockFast(CPUArchState *env1, struct TranslationBlock *tb);
 
     /* Returns true if the CPU loop must be exited */
     bool finalizeTranslationBlockExec(S2EExecutionState *state);
@@ -129,9 +138,20 @@ public:
     void updateStates(klee::ExecutionState *current);
 
     void setCCOpEflags(S2EExecutionState *state);
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
     void doInterrupt(S2EExecutionState *state, int intno, int is_int, int error_code, uint64_t next_eip, int is_hw);
-
     static void doInterruptAll(int intno, int is_int, int error_code, uintptr_t next_eip, int is_hw);
+#elif defined(TARGET_ARM)
+    void doInterrupt(S2EExecutionState *state);
+    static void doInterruptARM(void);
+    void setExternalInterrupt(int irq_num);
+    void enableExternalInterruptAll(int serial);
+    void disableSystickInterrupt(int mode);
+    uint32_t getActiveExternalInterrupt(int serial);
+    void setCpuExitRequest(void);
+#else
+#error Unsupported target architecture
+#endif
 
     /** Suspend the given state (does not kill it) */
     bool suspendState(S2EExecutionState *state);

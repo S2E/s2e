@@ -26,6 +26,7 @@
 
 #include <inttypes.h>
 #include <stdarg.h>
+#include <vector>
 
 #include "s2e_log.h"
 
@@ -44,7 +45,7 @@ struct TranslationBlock;
 struct MemoryDesc;
 
 // XXX
-struct CPUX86State;
+//CPUArchState;
 
 #ifdef __cplusplus
 extern "C" {
@@ -58,7 +59,10 @@ struct PCIBus;
 /** Initialize S2E instance. Called by main() */
 void s2e_initialize(int argc, char **argv, void *translator, const char *s2e_config_file, const char *s2e_output_dir,
                     int setup_unbuffered_stream, int verbose, unsigned max_processes, const char *shared_dir);
-
+/** allow user to custom cortex-m memory regions **/
+int s2e_init_mem(uint32_t *baseaddr, uint32_t *size, uint8_t *num, uint8_t *is_rom);
+/** allow user to custom entry, msp, vtor of firmware **/
+int s2e_init_firmware(uint32_t *entry, uint32_t *msp_init, uint32_t *vtor);
 /** Relese S2E instance and all S2E-related objects. Called by main() */
 void s2e_close(void);
 void s2e_close_arg(void);
@@ -81,6 +85,13 @@ extern int g_s2e_concretize_io_addresses;
     symbolic I/O writes concrete */
 extern int g_s2e_concretize_io_writes;
 
+/** Global variable that determines whether to invoke
+    interrupts in symoblic mode  */
+extern int g_s2e_allow_interrupt;
+
+/** Global variable that determines whether in learning mode or cache mode */
+extern bool g_s2e_cache_mode;
+
 /** Prevent anything from flushing the TLB cache */
 extern int g_se_disable_tlb_flush;
 
@@ -100,7 +111,7 @@ void s2e_create_initial_state(void);
     libcpu pc is completely constructed */
 void s2e_initialize_execution(int execute_always_klee);
 
-void s2e_register_cpu(struct CPUX86State *cpu_env);
+void s2e_register_cpu(CPUArchState *cpu_env);
 
 void s2e_register_ram(struct MemoryDesc *region, uint64_t start_address, uint64_t size, uint64_t host_address,
                       int is_shared_concrete, int save_on_context_switch, const char *name);
@@ -123,8 +134,10 @@ void s2e_read_register_concrete(unsigned offset, uint8_t *buf, unsigned size);
 
 void s2e_write_register_concrete(unsigned offset, uint8_t *buf, unsigned size);
 
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
 /* helpers that should be run as LLVM functions */
-void s2e_set_cc_op_eflags(struct CPUX86State *state);
+void s2e_set_cc_op_eflags(CPUArchState *state);
+#endif
 
 /** Allocate S2E parts of the tanslation block. Called from tb_alloc() */
 void *se_tb_alloc(void);
@@ -178,7 +191,7 @@ int se_is_mmio_symbolic_w(struct MemoryDesc *mr, uint64_t address);
 int se_is_mmio_symbolic_l(struct MemoryDesc *mr, uint64_t address);
 int se_is_mmio_symbolic_q(struct MemoryDesc *mr, uint64_t address);
 
-void s2e_update_tlb_entry(struct CPUX86State *env, int mmu_idx, uint64_t virtAddr, uint64_t hostAddr);
+void s2e_update_tlb_entry(CPUArchState *env, int mmu_idx, uint64_t virtAddr, uint64_t hostAddr);
 
 void s2e_register_dirty_mask(uint64_t host_address, uint64_t size);
 uint8_t se_read_dirty_mask(uint64_t host_address);
@@ -212,12 +225,15 @@ void tcg_llvm_before_memory_access(target_ulong vaddr, uint64_t value, unsigned 
 
 void tcg_llvm_after_memory_access(target_ulong vaddr, uint64_t value, unsigned size, unsigned flags, uintptr_t retaddr);
 
-uint64_t tcg_llvm_trace_port_access(uint64_t port, uint64_t value, unsigned bits, int isWrite);
-
 uint64_t tcg_llvm_trace_mmio_access(uint64_t physaddr, uint64_t value, unsigned bytes, int isWrite);
 
 void tcg_llvm_write_mem_io_vaddr(uint64_t value, int reset);
+
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
+uint64_t tcg_llvm_trace_port_access(uint64_t port, uint64_t value, unsigned bits, int isWrite);
 void tcg_llvm_get_value(void *addr, unsigned nbytes, bool addConstraint);
+#endif
+
 #endif
 
 uint64_t s2e_read_mem_io_vaddr(int masked);
