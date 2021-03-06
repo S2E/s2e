@@ -28,7 +28,13 @@
 #include <inttypes.h>
 
 #include <coroutine.h>
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
 #include <cpu/i386/cpu.h>
+#elif defined(TARGET_ARM)
+#include <cpu/arm/cpu.h>
+#else
+#error Unsupported target architecture
+#endif
 #include <fsigc++/fsigc++.h>
 
 #include "s2e-kvm-vm.h"
@@ -49,8 +55,13 @@ private:
     std::shared_ptr<VM> m_vm;
 
     int m_fd = -1;
-
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
     CPUX86State *m_env = nullptr;
+#elif defined(TARGET_ARM)
+    CPUARMState *m_env = nullptr;
+#else
+#error Unsupported target architecture
+#endif
 
     unsigned m_sigmask_size = 0;
 
@@ -87,10 +98,13 @@ private:
 
     static void cpuExitSignal(int signum);
     void initializeCpuExitSignal();
-
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
     static void setCpuSegment(SegmentCache *libcpu_seg, const kvm_segment *kvm_seg);
     static void getCpuSegment(kvm_segment *kvm_seg, const SegmentCache *libcpu_seg);
     static void get8086Segment(kvm_segment *kvm_seg, const SegmentCache *libcpu_seg);
+    int setCPUID2(kvm_cpuid2 *cpuid);
+#endif
+
     static void coroutineFcn(void *opaque);
 
     int initCpuLock(void);
@@ -98,7 +112,6 @@ private:
     VCPU(std::shared_ptr<S2EKVM> &kvm, std::shared_ptr<VM> &vm, kvm_run *buffer);
 
     int getClock(kvm_clock_data *clock);
-    int setCPUID2(kvm_cpuid2 *cpuid);
 
     // Defines which signals are blocked during execution of kvm.
     int setSignalMask(kvm_signal_mask *mask);
@@ -133,6 +146,7 @@ private:
     /// In principle, fixing this issue would require calling cpu_restore_state at every
     /// exit point.
     ///
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
     int setRegisters(kvm_regs *regs);
 
     int setFPU(kvm_fpu *fpu);
@@ -146,9 +160,35 @@ private:
     int getMSRs(kvm_msrs *msrs);
     int getMPState(kvm_mp_state *mp);
 
-    int run(int vcpu_fd);
     int interrupt(kvm_interrupt *interrupt);
     int nmi();
+#elif defined(TARGET_ARM)
+    int setRegs(kvm_m_regs *regs);
+    int setSRegs(kvm_m_sregs *sregs);
+    int setOneReg(kvm_one_reg *reg);
+    int setMPState(kvm_mp_state *mp);
+
+    int getRegs(kvm_m_regs *regs);
+    int getSRegs(kvm_m_sregs *sregs);
+    int getOneReg(kvm_one_reg *reg);
+    int getMPState(kvm_mp_state *mp);
+    int customMInit(kvm_m_vcpu_init *firmware_init);
+
+    inline long copy_from_user(void *to, const void *from, unsigned long n);
+    inline long copy_to_user(void *to, const void *from, unsigned long n);
+    uint64 core_reg_offset_from_id(uint64 id);
+    int set_core_reg(kvm_one_reg *reg);
+    int get_core_reg(kvm_one_reg *reg);
+    int reg_from_user(void *val, const void *uaddr, uint64 id);
+    int reg_to_user(void *uaddr, const void *val, uint64 id);
+    int vfp_set_reg(uint64 id, const void *uaddr);
+    int vfp_get_reg(uint64 id, void *uaddr);
+    int init(kvm_vcpu_init *init);
+#else
+#error Unsupported target architecture
+#endif
+
+    int run(int vcpu_fd);
 
     void requestProcessExit(int code);
 
@@ -170,7 +210,12 @@ public:
     void flushDisk(void);
     void saveDeviceState(void);
     void restoreDeviceState(void);
+    void syncSRegs(void);
     void cloneProcess(void);
+
+#if defined(TARGET_ARM)
+    int setIrqLine(kvm_irq_level *irq_level);
+#endif
 
     inline bool inKvmRun() const {
         return m_inKvmRun;

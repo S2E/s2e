@@ -56,6 +56,7 @@ SyscallEvents g_syscalls;
 // TODO: make this an env variable
 int g_trace = 0;
 static bool s_exited = false;
+int singlestep = 0;
 
 s2e::kvm::FileDescriptorManagerPtr g_fdm = std::make_shared<s2e::kvm::FileDescriptorManager>();
 

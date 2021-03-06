@@ -40,7 +40,13 @@ void __stw_mmu_trace(uint16_t *host_addr, target_ulong vaddr);
 void __stl_mmu_trace(uint32_t *host_addr, target_ulong vaddr);
 void __stq_mmu_trace(uint64_t *host_addr, target_ulong vaddr);
 
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
 extern se_do_interrupt_all_t g_s2e_do_interrupt_all;
+#elif defined(TARGET_ARM)
+extern se_do_interrupt_arm_t g_s2e_do_interrupt_arm;
+#else
+#error Unsupported target architecture
+#endif
 }
 #endif
 
@@ -55,6 +61,9 @@ void init_s2e_libcpu_interface(struct se_libcpu_interface_t *sqi) {
     sqi->mode.allow_custom_instructions = &g_s2e_allow_custom_instructions;
     sqi->mode.concretize_io_writes = &g_s2e_concretize_io_writes;
     sqi->mode.concretize_io_addresses = &g_s2e_concretize_io_addresses;
+#if defined(TARGET_ARM)
+    sqi->mode.allow_interrupt = &g_s2e_allow_interrupt;
+#endif
 
     sqi->exec.helper_register_symbol = helper_register_symbol;
     sqi->exec.cleanup_tb_exec = s2e_libcpu_cleanup_tb_exec;
@@ -65,7 +74,13 @@ void init_s2e_libcpu_interface(struct se_libcpu_interface_t *sqi) {
     sqi->exec.reset_state_switch_timer = s2e_reset_state_switch_timer;
     sqi->exec.switch_to_symbolic = s2e_switch_to_symbolic;
     sqi->exec.tb_exec = se_libcpu_tb_exec;
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
     sqi->exec.do_interrupt_all = g_s2e_do_interrupt_all;
+#elif defined(TARGET_ARM)
+    sqi->exec.do_interrupt_arm = g_s2e_do_interrupt_arm;
+#else
+#error Unsupported target architecture
+#endif
 
     sqi->tb.tb_alloc = se_tb_alloc;
     sqi->tb.flush_tb_cache = s2e_flush_tb_cache;
@@ -79,7 +94,9 @@ void init_s2e_libcpu_interface(struct se_libcpu_interface_t *sqi) {
 
     sqi->regs.read_concrete = s2e_read_register_concrete;
     sqi->regs.write_concrete = s2e_write_register_concrete;
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
     sqi->regs.set_cc_op_eflags = s2e_set_cc_op_eflags;
+#endif
 
     sqi->mem.read_dirty_mask = se_read_dirty_mask;
     sqi->mem.write_dirty_mask = se_write_dirty_mask;
@@ -128,12 +145,14 @@ void init_s2e_libcpu_interface(struct se_libcpu_interface_t *sqi) {
     sqi->events.on_translate_instruction_end_signals_count = g_s2e_on_translate_instruction_end_signals_count;
     sqi->events.on_translate_register_access_signals_count = g_s2e_on_translate_register_access_signals_count;
     sqi->events.on_exception_signals_count = g_s2e_on_exception_signals_count;
+    sqi->events.on_exception_exit_signals_count = g_s2e_on_exception_exit_signals_count;
     sqi->events.on_page_fault_signals_count = g_s2e_on_page_fault_signals_count;
     sqi->events.on_tlb_miss_signals_count = g_s2e_on_tlb_miss_signals_count;
     sqi->events.on_port_access_signals_count = g_s2e_on_port_access_signals_count;
     sqi->events.on_privilege_change_signals_count = g_s2e_on_privilege_change_signals_count;
     sqi->events.on_page_directory_change_signals_count = g_s2e_on_page_directory_change_signals_count;
     sqi->events.on_call_return_signals_count = g_s2e_on_call_return_signals_count;
+    sqi->events.on_invalid_pc_access_signals_count = g_s2e_on_invalid_pc_access_signals_count;
 
     sqi->events.on_privilege_change = s2e_on_privilege_change;
     sqi->events.on_page_directory_change = s2e_on_page_directory_change;
@@ -145,6 +164,8 @@ void init_s2e_libcpu_interface(struct se_libcpu_interface_t *sqi) {
     sqi->events.tcg_custom_instruction_handler = s2e_tcg_custom_instruction_handler;
     sqi->events.tcg_emit_custom_instruction = s2e_tcg_emit_custom_instruction;
 
+    sqi->events.on_armv7m_interrupt_exit = s2e_on_exception_exit;
+    sqi->events.on_invalid_pc_access = s2e_on_invalid_pc_access;
     sqi->events.on_translate_soft_interrupt_start = s2e_on_translate_soft_interrupt_start;
     sqi->events.on_translate_block_start = s2e_on_translate_block_start;
     sqi->events.on_translate_block_end = s2e_on_translate_block_end;

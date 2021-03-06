@@ -18,6 +18,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+if(WITH_TARGET MATCHES "i386" OR WITH_TARGET MATCHES "x86_64")
 add_library(
     s2e SHARED
     libs2e.cpp
@@ -30,6 +31,21 @@ add_library(
     s2e-libcpu-interface.cpp
     crashdump.cpp
 )
+elseif(WITH_TARGET MATCHES "arm")
+add_library(
+    s2e SHARED
+    libs2e.cpp
+    s2e-kvm-io.cpp
+    s2e-kvm-state-arm.cpp
+    s2e-kvm-trace.cpp
+    s2e-kvm.cpp
+    s2e-kvm-vm.cpp
+    s2e-kvm-vcpu.cpp
+    s2e-libcpu-interface.cpp
+)
+else()
+    message(FATAL_ERROR "Incorrect target ${WITH_TARGET}")
+endif()
 
 add_executable(
     tests2e
@@ -64,11 +80,12 @@ if(WITH_TARGET MATCHES "s2e")
                      boost_regex)
 endif()
 
+
 set(LIBS ${LIBS} ${LIBCOROUTINE_LIBRARY_DIR}/libcoroutine.a ${FSIGCXX_LIBRARY_DIR}/libfsigc++.a ${CAPSTONE_LIB_DIR}/libcapstone.a pthread glib-2.0 bsd)
+
 
 target_link_libraries(tests2e PUBLIC ${LIBCOROUTINE_LIBRARY_DIR}/libcoroutine.a pthread glib-2.0)
 target_link_libraries(s2e ${LIBS})
-
 
 set(WERROR_FLAGS "-Werror -Wno-zero-length-array -Wno-c99-extensions          \
                   -Wno-gnu-anonymous-struct -Wno-nested-anon-types            \
@@ -81,7 +98,7 @@ set(WERROR_FLAGS "-Werror -Wno-zero-length-array -Wno-c99-extensions          \
                   -Wno-zero-length-array")
 
 set(COMMON_FLAGS "-D__STDC_FORMAT_MACROS -D_GNU_SOURCE -DNEED_CPU_H  -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -DTARGET_PHYS_ADDR_BITS=64")
-set(COMMON_FLAGS "${COMMON_FLAGS} -Wall -fPIC -fno-strict-aliasing -fexceptions")
+set(COMMON_FLAGS "${COMMON_FLAGS} -Wall -O0 -fPIC -fno-strict-aliasing -fexceptions")
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${WERROR_FLAGS} ${COMMON_FLAGS} -std=c++14")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${WERROR_FLAGS} ${COMMON_FLAGS}")

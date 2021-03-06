@@ -133,7 +133,7 @@ int KVMTrace::sys_ioctl(int fd, int request, uint64_t arg1) {
                    request, arg1, ret);
             s_kvm_vcpu_size = ret;
         } break;
-
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
         case KVM_GET_MSR_INDEX_LIST: {
             ret = g_original_ioctl(m_kvm_fd, request, arg1);
             printf("KVMTrace::%s %s req=%#x arg=%#" PRIx64 " ret=%#x\n", __FUNCTION__, "KVM_GET_MSR_INDEX_LIST",
@@ -145,7 +145,7 @@ int KVMTrace::sys_ioctl(int fd, int request, uint64_t arg1) {
             printf("KVMTrace::%s %s req=%#x arg=%#" PRIx64 " ret=%#x\n", __FUNCTION__, "KVM_GET_SUPPORTED_CPUID",
                    request, arg1, ret);
         } break;
-
+#endif
         default: {
             printf("KVMTrace::%s Unsupported request %x\n", __FUNCTION__, request);
             // return s_original_ioctl(fd, request, arg1);
@@ -242,6 +242,7 @@ void *KVMTraceVCPU::sys_mmap(void *addr, size_t len, int prot, int flags, int fd
     return g_original_mmap64(addr, len, prot, flags, m_kvm_vcpu_fd, offset);
 }
 
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
 int KVMTraceVCPU::sys_ioctl(int fd, int request, uint64_t arg1) {
     int ret = -1;
     switch ((uint32_t) request) {
@@ -354,5 +355,35 @@ int KVMTraceVCPU::sys_ioctl(int fd, int request, uint64_t arg1) {
 
     return ret;
 }
+#elif defined(TARGET_ARM)
+int KVMTraceVCPU::sys_ioctl(int fd, int request, uint64_t arg1) {
+    int ret = -1;
+    switch ((uint32_t) request) {
+        /***********************************************/
+        case KVM_RUN: {
+            if (!s_kvm_run) {
+                s_kvm_run = (kvm_run *) g_original_mmap(NULL, s_kvm_vcpu_size, PROT_READ | PROT_WRITE, MAP_SHARED,
+                                                        m_kvm_vcpu_fd, 0);
+                if (s_kvm_run == MAP_FAILED) {
+                    printf("Could not map the cpu struct errno=%s\n", strerror(errno));
+                    exit(-1);
+                }
+            }
+
+            ret = g_original_ioctl(m_kvm_vcpu_fd, request, arg1);
+            trace_s2e_kvm_run(s_kvm_run, ret);
+        } break;
+
+        default: {
+            printf("KVMTraceVCPU::ioctl vcpu %d request=%#x arg=%#" PRIx64 " ret=%#x\n", fd, request, arg1, ret);
+            exit(-1);
+        }
+    }
+
+    return ret;
+}
+#else
+#error Unsupported target architecture
+#endif
 } // namespace kvm
 } // namespace s2e

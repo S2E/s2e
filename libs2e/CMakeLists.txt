@@ -109,8 +109,6 @@ string (REGEX REPLACE "(^| )[/-]D *NDEBUG($| )" " "
     "${flags_var_to_scrub}" "${${flags_var_to_scrub}}")
 endforeach()
 
-
-
 include_directories(${GLIB_PKG_INCLUDE_DIRS}
                     ${LIBTCG_INCLUDE_DIR}
                     ${LIBCPU_INCLUDE_DIR}
@@ -131,5 +129,6 @@ link_directories(${GLIB_PKG_LIBRARY_DIRS}
                     ${LIBS2ECORE_LIBRARY_DIR}
                     ${LIBS2EPLUGINS_LIBRARY_DIR}
                     ${VMI_LIBRARY_DIR})
+
 
 add_subdirectory(src)

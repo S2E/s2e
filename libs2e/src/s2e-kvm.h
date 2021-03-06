@@ -24,7 +24,9 @@
 
 #define S2E_KVM_H
 
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
 #include <cpu/i386/cpuid.h>
+#endif
 #include <cpu/kvm.h>
 #include <inttypes.h>
 
@@ -53,10 +55,12 @@ private:
     static const char *s_cpuModel;
     static const bool s_is64;
 
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
+    cpuid_t m_cpuid;
+#endif
     pthread_t m_timerThread;
     bool m_exiting = false;
     volatile bool m_timerExited = false;
-    cpuid_t m_cpuid;
 
     std::shared_ptr<VM> m_vm;
 
@@ -76,8 +80,11 @@ private:
 
     int getApiVersion(void);
     int createVM();
+
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
     int getMSRIndexList(kvm_msr_list *list);
     int getSupportedCPUID(kvm_cpuid2 *cpuid);
+#endif
 
 public:
     virtual ~S2EKVM() {
@@ -99,9 +106,11 @@ public:
         m_exiting = true;
     }
 
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
     const cpuid_t &getCpuid() const {
         return m_cpuid;
     }
+#endif
 };
 } // namespace kvm
 } // namespace s2e

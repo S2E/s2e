@@ -28,12 +28,19 @@
 #include <inttypes.h>
 
 #include <cpu/exec.h>
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
 #include <cpu/i386/cpu.h>
-#include <libcpu-log.h>
+#elif defined(TARGET_ARM)
+#include <cpu/arm/cpu.h>
+#else
+#error Unsupported target architecture
+#endif
 #include "s2e-kvm-vcpu.h"
+#include <libcpu-log.h>
 #include "s2e-kvm.h"
 
-extern CPUX86State *env;
+extern CPUArchState *env;
+#define SE_KVM_DEBUG_MMIO
 
 namespace s2e {
 namespace kvm {
@@ -44,6 +51,7 @@ namespace kvm {
 // This function aborts the execution of the current translation block.
 // It is useful when the KVM client modifies the program counter during
 // an I/O operation (e.g., VAPIC emulation).
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
 static void abort_and_retranslate_if_needed() {
 #ifdef ENABLE_RETRANSLATE
     if (env->se_current_tb->icount == 1) {
@@ -62,11 +70,14 @@ static void abort_and_retranslate_if_needed() {
     cpu_loop_exit(env);
 #endif
 }
+#endif
 
 uint64_t s2e_kvm_mmio_read(target_phys_addr_t addr, unsigned size) {
-    int is_apic_tpr_access = 0;
 
     ++g_stats.mmio_reads;
+
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
+    int is_apic_tpr_access = 0;
 
     if ((addr >> TARGET_PAGE_BITS) == (env->v_apic_base >> TARGET_PAGE_BITS)) {
         if ((addr & 0xfff) == 0x80) {
@@ -77,6 +88,7 @@ uint64_t s2e_kvm_mmio_read(target_phys_addr_t addr, unsigned size) {
     if (is_apic_tpr_access) {
         abort_and_retranslate_if_needed();
     }
+#endif
 
     g_kvm_vcpu_buffer->exit_reason = KVM_EXIT_MMIO;
     g_kvm_vcpu_buffer->mmio.is_write = 0;
@@ -102,6 +114,7 @@ uint64_t s2e_kvm_mmio_read(target_phys_addr_t addr, unsigned size) {
             assert(false && "Can't get here");
     }
 
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
     // This is a fix for 32-bits guests that access apic directly
     // and don't use cr8. Writing to cr8 clears the low four bits
     // of the TPR, which may confuse the guest.
@@ -113,15 +126,19 @@ uint64_t s2e_kvm_mmio_read(target_phys_addr_t addr, unsigned size) {
             ret |= env->v_apic_tpr & 0x3;
         }
     }
+#endif
 
 #ifdef SE_KVM_DEBUG_MMIO
     unsigned print_addr = 0;
+#if defined(TARGET_ARM)
+    print_addr = 0;
+#endif
 #ifdef SE_KVM_DEBUG_APIC
     if (addr >= 0xf0000000)
         print_addr = 1;
 #endif
     if (print_addr) {
-        printf("mmior%d[%" PRIx64 "]=%" PRIx64 "\n", size, (uint64_t) addr, ret);
+        printf("mmior %d[%" PRIx64 "]=%" PRIx64 "\n", size, (uint64_t) addr, ret);
         // printf("env->mflags=%x hflags=%x hflags2=%x\n",
         //       env->mflags, env->hflags, env->hflags2);
     }
@@ -141,13 +158,16 @@ void s2e_kvm_mmio_write(target_phys_addr_t addr, uint64_t data, unsigned size) {
 
 #ifdef SE_KVM_DEBUG_MMIO
     unsigned print_addr = 0;
+#if defined(TARGET_ARM)
+    print_addr = 0;
+#endif
 #ifdef SE_KVM_DEBUG_APIC
     if (addr >= 0xf0000000)
         print_addr = 1;
 #endif
 
     if (print_addr) {
-        printf("mmiow%d[%" PRIx64 "]=%" PRIx64 "\n", size, (uint64_t) addr, data);
+        printf("mmiow %d[%" PRIx64 "]=%" PRIx64 "\n", size, (uint64_t) addr, data);
         // printf("env->mflags=%x hflags=%x hflags2=%x\n",
         //       env->mflags, env->hflags, env->hflags2);
     }
@@ -167,6 +187,13 @@ void s2e_kvm_mmio_write(target_phys_addr_t addr, uint64_t data, unsigned size) {
             assert(false && "Can't get here");
     }
 
+#if defined(TARGET_ARM)
+    if (addr == 0xe000ed08) {
+        env->v7m.vecbase = (uint32_t) data;
+    }
+#endif
+
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
     bool is_apic_tpr_access = false;
     if ((addr >> TARGET_PAGE_BITS) == (env->v_apic_base >> TARGET_PAGE_BITS)) {
         if ((addr & 0xfff) == 0x80) {
@@ -176,17 +203,19 @@ void s2e_kvm_mmio_write(target_phys_addr_t addr, uint64_t data, unsigned size) {
             is_apic_tpr_access = true;
         }
     }
-
+#endif
     coroutine_yield();
 
-    // A write to the task priority register may umask hardware interrupts.
-    // A real KVM implementation would handle them ASAP on the next instruction.
-    // We try to do it as best as we can here by requesting an exit from the CPU loop.
-    // Some buggy guests may crash if we exit too late (e.g., winxp).
-    // This mechanism is complementary to s2e_kvm_request_exit().
+// A write to the task priority register may umask hardware interrupts.
+// A real KVM implementation would handle them ASAP on the next instruction.
+// We try to do it as best as we can here by requesting an exit from the CPU loop.
+// Some buggy guests may crash if we exit too late (e.g., winxp).
+// This mechanism is complementary to s2e_kvm_request_exit().
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
     if (is_apic_tpr_access) {
         cpu_exit(env);
     }
+#endif
 }
 
 uint64_t s2e_kvm_ioport_read(pio_addr_t addr, unsigned size) {
