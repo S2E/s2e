@@ -140,8 +140,9 @@ private:
     // in order to simplify instruction insertion.
     llvm::Instruction *m_noop;
     llvm::Value *m_eip;
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
     llvm::Value *m_ccop;
-
+#endif
     static unsigned m_eip_last_gep_index;
 
     typedef llvm::DenseMap<std::pair<unsigned, unsigned>, llvm::Instruction *> GepMap;

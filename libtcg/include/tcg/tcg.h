@@ -44,7 +44,15 @@ extern "C" {
 
 #define QEMU_BUILD_BUG_ON(x)
 
+#if defined(TARGET_ARM)
+/* The ARM MMU allows 1k pages. */
+/* ??? Linux doesn't actually use these, and they're deprecated in recent
+   architecture revisions. Maybe a configure option to disable them. */
+#define TARGET_PAGE_BITS 10
+#else
 #define TARGET_PAGE_BITS 12
+#endif
+
 #define TARGET_PAGE_SIZE (1 << TARGET_PAGE_BITS)
 #define TARGET_PAGE_MASK ~(TARGET_PAGE_SIZE - 1)
 
@@ -120,11 +128,17 @@ typedef struct TranslationBlock TranslationBlock;
 /* typedef struct ZMMReg ZMMReg;
 
 typedef union XMMReg XMMReg;*/
-
+#if defined(TARGET_ARM)
+#define CPUArchState struct CPUARMState
+#define CPUState struct CPUARMState
+struct CPUARMState;
+typedef struct CPUARMState CPUARMState;
+#else
 #define CPUArchState struct CPUX86State
 #define CPUState struct CPUX86State
 struct CPUX86State;
 typedef struct CPUX86State CPUX86State;
+#endif
 
 extern FILE *logfile;
 
@@ -851,9 +865,12 @@ struct TCGContext {
     uintptr_t env_ptr;
     unsigned env_offset_eip;
     unsigned env_sizeof_eip;
+#ifndef TARGET_ARM
     unsigned env_offset_ccop;
     unsigned env_sizeof_ccop;
     unsigned env_offset_df;
+#endif
+
     unsigned env_offset_tlb[3]; // Max 3 mem index
 
     unsigned tlbe_size;

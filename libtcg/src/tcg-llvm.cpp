@@ -70,8 +70,10 @@ typedef uint32_t target_ulong;
 typedef uint64_t target_ulong;
 #endif
 
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
 // XXX: hack
 #define CC_OP_DYNAMIC 0
+#endif
 
 extern "C" {
 // TODO: get rid of this global var
@@ -103,8 +105,9 @@ TCGLLVMTranslator::TCGLLVMTranslator(const std::string &bitcodeLibraryPath, std:
     m_cpuType = NULL;
     m_cpuState = NULL;
     m_eip = NULL;
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
     m_ccop = NULL;
-
+#endif
     initializeNativeCpuState();
     initializeHelpers();
 }
@@ -193,8 +196,13 @@ uint64_t TCGLLVMTranslator::toInteger(llvm::Value *v) const {
 #ifdef CONFIG_SYMBEX
 
 void TCGLLVMTranslator::initializeNativeCpuState() {
+#ifdef TARGET_ARM
+    m_cpuType = m_module->getTypeByName("struct.CPUARMState");
+    assert(m_cpuType && "Could not find CPUARMState in LLVM bitcode");
+#else
     m_cpuType = m_module->getTypeByName("struct.CPUX86State");
     assert(m_cpuType && "Could not find CPUX86State in LLVM bitcode");
+#endif
 }
 
 void TCGLLVMTranslator::initializeHelpers() {
@@ -431,8 +439,9 @@ void TCGLLVMTranslator::loadNativeCpuState(Function *f) {
     m_noop = m_builder.Insert(add);
 
     m_eip = generateCpuStatePtr(m_tcgContext->env_offset_eip, m_tcgContext->env_sizeof_eip);
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
     m_ccop = generateCpuStatePtr(m_tcgContext->env_offset_ccop, m_tcgContext->env_sizeof_ccop);
-
+#endif
     if (m_eip_last_gep_index == 0) {
         SmallVector<Value *, 3> gepElements;
         bool ok = getCpuFieldGepIndexes(m_tcgContext->env_offset_eip, sizeof(target_ulong), gepElements);
@@ -1172,8 +1181,9 @@ Function *TCGLLVMTranslator::generateCode(TCGContext *s, TranslationBlock *tb) {
             case INDEX_op_insn_start: {
                 assert(TARGET_INSN_START_WORDS == 2);
                 uint64_t curpc = op->args[0] - tb->cs_base;
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
                 uint64_t cc_op = op->args[1];
-
+#endif
                 Value *valueToStore = handleSymbolicPcAssignment(ConstantInt::get(wordType(), curpc));
 
                 TCGArg args[3];
@@ -1181,7 +1191,7 @@ Function *TCGLLVMTranslator::generateCode(TCGContext *s, TranslationBlock *tb) {
                 args[1] = temp_arg(&m_tcgContext->temps[0]);
                 args[2] = m_tcgContext->env_offset_eip;
                 generateQemuCpuStore(args, m_tcgContext->env_sizeof_eip * 8, valueToStore);
-
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
                 if (cc_op != CC_OP_DYNAMIC) {
                     args[0] = 0; // Unused
                     args[1] = temp_arg(&m_tcgContext->temps[0]);
@@ -1189,6 +1199,7 @@ Function *TCGLLVMTranslator::generateCode(TCGContext *s, TranslationBlock *tb) {
                     valueToStore = ConstantInt::get(wordType(m_tcgContext->env_sizeof_ccop * 8), cc_op);
                     generateQemuCpuStore(args, m_tcgContext->env_sizeof_ccop * 8, valueToStore);
                 }
+#endif
             } break;
 #endif
 

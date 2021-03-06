@@ -68,6 +68,7 @@ struct TranslationBlock {
                              size <= TARGET_PAGE_SIZE) */
 
 #define CF_COUNT_MASK 0x00007fff
+#define CF_LAST_IO 0x00008000            /* Last insn may be an IO access.  */
 #define CF_NOCACHE 0x00010000            /* To be freed after execution */
 #define CF_HAS_INTERRUPT_EXIT 0x00020000 /* The TB has a prologue to handle quick CPU loop exit */
 #define CF_INVALID 0x00040000            /* TB is stale. Set with @jmp_lock held */

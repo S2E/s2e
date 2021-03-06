@@ -20,6 +20,9 @@
 
 #define HELPER(name) glue(helper_, name)
 
+// XXX: this is in softfloat.
+typedef uint32_t float32;
+typedef uint64_t float64;
 /* Some types that make sense in C, but not for TCG.  */
 #define dh_alias_i32 i32
 #define dh_alias_s32 i32
