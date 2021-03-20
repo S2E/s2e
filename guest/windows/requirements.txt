@@ -4,4 +4,4 @@ construct==2.9.52
 requests==2.21.0
 patool==1.12
 pyunpack==0.1.2
-jinja2==2.10.1
+jinja2==2.11.3
