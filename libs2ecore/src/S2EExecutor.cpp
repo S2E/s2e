@@ -670,11 +670,16 @@ void S2EExecutor::doLoadBalancing() {
     }
 
     std::vector<S2EExecutionState *> allStates;
+    std::vector<S2EExecutionState *> pinnedStates;
 
     foreach2 (it, states.begin(), states.end()) {
         S2EExecutionState *s2estate = static_cast<S2EExecutionState *>(*it);
-        if (!s2estate->isZombie() && !s2estate->isPinned()) {
-            allStates.push_back(s2estate);
+        if (s2estate->isPinned()) {
+            pinnedStates.push_back(s2estate);
+        } else {
+            if (!s2estate->isZombie()) {
+                allStates.push_back(s2estate);
+            }
         }
     }
 
@@ -727,6 +732,16 @@ void S2EExecutor::doLoadBalancing() {
     for (auto state : allStates) {
         S2EExecutionState *s2estate = static_cast<S2EExecutionState *>(state);
         if (!currentSet.count(s2estate)) {
+            Executor::terminateState(*s2estate);
+
+            // This is important if we kill the current state
+            s2estate->zombify();
+        }
+    }
+
+    // remove pinned states from the child instance
+    if (child) {
+        for (auto s2estate : pinnedStates) {
             Executor::terminateState(*s2estate);
 
             // This is important if we kill the current state
