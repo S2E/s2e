@@ -377,13 +377,7 @@ cd ..
 echo "============== Configuring $target done ============== "
 }
 
-TARGETS="i386-softmmu
-         i386-s2e-softmmu
-         i386-s2e_sp-softmmu
-         x86_64-softmmu
-         x86_64-s2e-softmmu
-         x86_64-s2e_sp-softmmu
-         arm-softmmu
+TARGETS="arm-softmmu
          arm-s2e-softmmu
          arm-s2e_sp-softmmu"
 
