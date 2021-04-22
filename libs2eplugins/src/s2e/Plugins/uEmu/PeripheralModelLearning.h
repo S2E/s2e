@@ -22,17 +22,19 @@
 
 namespace s2e {
 namespace plugins {
-enum PeripheralRegisterType { TIRQS, TIRQC, T0, T1, PT1, T2, T3 }; // IRQ Type only used in KB
+enum PeripheralRegisterType { TIRQS, TIRQC, T0, T1, PT1, T2, T3, DR }; // IRQ Type only used in KB
 enum KBUpdateReason { Valid, Invlid };
 namespace hw {
 typedef std::vector<uint8_t> ConcreteArray;
 typedef std::pair<uint64_t, uint64_t> SymbolicMmioRange;
 typedef llvm::SmallVector<SymbolicMmioRange, 4> SymbolicMmioRanges;
-typedef std::map<uint32_t /* peripheraladdress */, uint32_t /* kind of type */> TypeFlagPeripheralMap;
-typedef std::map<uint32_t /* peripheraladdress */, uint32_t /* last write value */> WritePeripheralMap;
 typedef std::pair<uint32_t /* peripheraladdress */, uint32_t /* pc */> UniquePeripheral;
+typedef std::map<uint32_t /* peripheraladdress */, uint32_t /* kind of type */> TypeFlagPeripheralMap;
+typedef std::map<uint32_t /* peripheraladdress */, uint32_t /* size */> UniquePeripheralSizeMap;
+typedef std::map<uint32_t /* peripheraladdress */, uint32_t /* last write value */> WritePeripheralMap;
 typedef std::map<uint64_t /* caller pc&function regs hash value*/, uint32_t /* value */> CWMap;
 typedef std::pair<uint64_t /* unique no */, uint32_t /* value */> NumPair;
+
 typedef std::map<uint32_t /* peripheraladdress */,
                  std::map<uint32_t /* pc */, std::pair<uint64_t /* caller pc&function regs hash value */, NumPair>>>
     T0PeripheralMap;
@@ -59,7 +61,6 @@ typedef std::map<uint64_t /* caller pc&function regs hash value */, NumPair> CWN
 typedef std::map<UniquePeripheral, CWNOMap> AllKnowledgeBaseMap;
 typedef std::map<uint32_t /* phaddr */, NumMap> AllKnowledgeBaseNoMap;
 
-typedef std::pair<uint32_t /* peripheraladdress */, uint32_t /* size */> UniquePeripheralSize;
 typedef std::map<uint32_t /* peripheraladdress */, std::pair<uint32_t /* size */, uint32_t /* count */>>
     ReadPeripheralMap;
 typedef std::pair<uint32_t /* peripheraladdress */, std::pair<uint32_t /* size */, uint32_t /* count */>> ReadTUPLE;
@@ -93,7 +94,7 @@ private:
     TIRQPeripheralMapFlag cache_type_irqc_flag;
     TIRQSPeripheralMapFlag cache_type_irqs_flag;
     TypeFlagPeripheralMap cache_type_flag_phs;
-
+    UniquePeripheralSizeMap cache_dr_type_size;
     //  knowledge extraction mode
     TypeFlagPeripheralMap
         irq_data_phs; // 2: donates data reg in interrupt which should not meet conditions in irq handle
@@ -147,6 +148,8 @@ private:
                                uint32_t *value, uint64_t *cw_value);
     bool getIRQEntryfromKB(std::string variablePeripheralName, uint32_t *irq_no, uint32_t *type, uint32_t *phaddr,
                            uint32_t *cr_phaddr, uint32_t *value, uint32_t *cr_value);
+    bool getDREntryfromKB(std::string variablePeripheralName, uint32_t *type,
+                           uint32_t *phaddr, uint32_t *size);
     void saveKBtoFile(S2EExecutionState *state, uint64_t tb_num);
     void writeTIRQPeripheralstoKB(S2EExecutionState *state, std::ofstream &fPHKB);
     void identifyDataPeripheralRegs(S2EExecutionState *state, std::ofstream &fPHKB);

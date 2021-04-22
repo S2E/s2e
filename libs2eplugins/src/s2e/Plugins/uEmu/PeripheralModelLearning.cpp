@@ -39,8 +39,9 @@ static klee::ref<klee::Expr> symbhw_symbread(struct MemoryDesc *mr, uint64_t phy
 static void symbhw_symbwrite(struct MemoryDesc *mr, uint64_t physaddress, const klee::ref<klee::Expr> &value,
                              SymbolicHardwareAccessType type, void *opaque);
 
-static const boost::regex KBPeripheralRegEx("(.+)_(.+)_(.+)_(.+)_(.+)", boost::regex::perl);
+static const boost::regex KBGeneralPeripheralRegEx("(.+)_(.+)_(.+)_(.+)_(.+)", boost::regex::perl);
 static const boost::regex KBIRQPeripheralRegEx("(.+)_(.+)_(.+)_(.+)_(.+)_(.+)", boost::regex::perl);
+static const boost::regex KBDRPeripheralRegEx("(.+)_(.+)_(.+)_(.+)", boost::regex::perl);
 static const boost::regex PeripheralModelLearningRegEx("v\\d+_iommuread_(.+)_(.+)_(.+)", boost::regex::perl);
 
 S2E_DEFINE_PLUGIN(PeripheralModelLearning, "PeripheralModelLearning S2E plugin", "PeripheralModelLearning",
@@ -335,6 +336,10 @@ public:
 
     uint64_t get_readphs_count(uint32_t phaddr) {
         return read_phs[phaddr].second;
+    }
+
+    uint32_t get_readphs_size(uint32_t phaddr) {
+        return read_phs[phaddr].first;
     }
 
     void update_writeph(uint32_t phaddr, uint32_t value) {
@@ -651,13 +656,79 @@ static void SymbHwGetConcolicVector(uint64_t in, unsigned size, ConcreteArray &o
     }
 }
 
+bool PeripheralModelLearning::getDREntryfromKB(std::string variablePeripheralName, uint32_t *type,
+                                                    uint32_t *phaddr, uint32_t *size) {
+    boost::smatch what;
+    if (!boost::regex_match(variablePeripheralName, what, KBDRPeripheralRegEx)) {
+        getWarningsStream() << "match false\n";
+        return false;
+    }
+
+    if (what.size() != 5) {
+        getWarningsStream() << "wrong size = " << what.size() << "\n";
+        return false;
+    }
+
+    std::string modeStr = what[1];
+    if (modeStr == "fuzz") {
+        *type = DR;
+    } else {
+        getWarningsStream() << "Unrecognized DR Regs Format!\n";
+        return false;
+    }
+
+    std::string peripheralAddressStr = what[2];
+    std::string sizeStr = what[3];
+
+    *phaddr = std::stoull(peripheralAddressStr.c_str(), NULL, 16);
+    *size = std::stoull(sizeStr.c_str(), NULL, 16);
+
+    return true;
+}
+
+bool PeripheralModelLearning::getIRQEntryfromKB(std::string variablePeripheralName, uint32_t *irq_no, uint32_t *type,
+                                                uint32_t *phaddr, uint32_t *cr_phaddr, uint32_t *value,
+                                                uint32_t *cr_value) {
+    boost::smatch what;
+    if (!boost::regex_match(variablePeripheralName, what, KBIRQPeripheralRegEx)) {
+        getWarningsStream() << "match false\n";
+        return false;
+    }
+
+    if (what.size() != 7) {
+        getWarningsStream() << "wrong size = " << what.size() << "\n";
+        return false;
+    }
+
+    std::string modeStr = what[1];
+    if (modeStr == "tirqc") {
+        *type = TIRQC;
+    } else {
+        getWarningsStream() << "Unrecognized Peripheral Regs!\n";
+        return false;
+    }
+
+    std::string irqnoStr = what[2];
+    std::string peripheralAddressStr = what[3];
+    std::string crStr = what[4];
+    std::string crvalueStr = what[5];
+    std::string valueStr = what[6];
+
+    *irq_no = std::stoull(irqnoStr.c_str(), NULL, 16);
+    *cr_value = std::stoull(crvalueStr.c_str(), NULL, 16);
+    *phaddr = std::stoull(peripheralAddressStr.c_str(), NULL, 16);
+    *cr_phaddr = std::stoull(crStr.c_str(), NULL, 16);
+    *value = std::stoull(valueStr.c_str(), NULL, 16);
+
+    return true;
+}
+
 bool PeripheralModelLearning::getGeneralEntryfromKB(std::string variablePeripheralName, uint32_t *type,
                                                     uint32_t *phaddr, uint32_t *pc, uint32_t *value,
                                                     uint64_t *ch_value) {
     boost::smatch what;
-    if (!boost::regex_match(variablePeripheralName, what, KBPeripheralRegEx)) {
-        getWarningsStream() << "match false"
-                            << "\n";
+    if (!boost::regex_match(variablePeripheralName, what, KBGeneralPeripheralRegEx)) {
+        getWarningsStream() << "match false\n";
         return false;
     }
 
@@ -692,44 +763,6 @@ bool PeripheralModelLearning::getGeneralEntryfromKB(std::string variablePeripher
     *ch_value = std::stoull(cwStr.c_str(), NULL, 16);
     *phaddr = std::stoull(peripheralAddressStr.c_str(), NULL, 16);
     *pc = std::stoull(pcStr.c_str(), NULL, 16);
-    *value = std::stoull(valueStr.c_str(), NULL, 16);
-
-    return true;
-}
-
-bool PeripheralModelLearning::getIRQEntryfromKB(std::string variablePeripheralName, uint32_t *irq_no, uint32_t *type,
-                                                uint32_t *phaddr, uint32_t *cr_phaddr, uint32_t *value,
-                                                uint32_t *cr_value) {
-    boost::smatch what;
-    if (!boost::regex_match(variablePeripheralName, what, KBIRQPeripheralRegEx)) {
-        getWarningsStream() << "match false"
-                            << "\n";
-        return false;
-    }
-
-    if (what.size() != 7) {
-        getWarningsStream() << "wrong size = " << what.size() << "\n";
-        return false;
-    }
-
-    std::string modeStr = what[1];
-    if (modeStr == "tirqc") {
-        *type = TIRQC;
-    } else {
-        getWarningsStream() << "Unrecognized Peripheral Regs!\n";
-        return false;
-    }
-
-    std::string irqnoStr = what[2];
-    std::string peripheralAddressStr = what[3];
-    std::string crStr = what[4];
-    std::string crvalueStr = what[5];
-    std::string valueStr = what[6];
-
-    *irq_no = std::stoull(irqnoStr.c_str(), NULL, 16);
-    *cr_value = std::stoull(crvalueStr.c_str(), NULL, 16);
-    *phaddr = std::stoull(peripheralAddressStr.c_str(), NULL, 16);
-    *cr_phaddr = std::stoull(crStr.c_str(), NULL, 16);
     *value = std::stoull(valueStr.c_str(), NULL, 16);
 
     return true;
@@ -777,6 +810,7 @@ bool PeripheralModelLearning::readKBfromFile(std::string fileName) {
                 cache_all_cache_phs[phaddr][cwirq_value] = value;
                 cache_t3_type_phs_backup[phaddr].push_back(value);
                 cache_t3_type_phs[phaddr].push_back(value);
+                cache_dr_type_size[phaddr] = pc; // pc_pos is size for t3
             } else if (type == TIRQS) {
                 cache_type_flag_phs[phaddr] = T1;
                 cache_type_irqs_flag[std::make_tuple(cwirq_value, phaddr, pc)] = 1;
@@ -801,7 +835,7 @@ bool PeripheralModelLearning::readKBfromFile(std::string fileName) {
         uint32_t cr_value;
         uint32_t irq_no;
 
-        if (peripheral_irqcr_cache == "Fuzzing") {
+        if (peripheral_irqcr_cache == "DefaultDataRegs") {
             break;
         }
 
@@ -812,6 +846,30 @@ bool PeripheralModelLearning::readKBfromFile(std::string fileName) {
                 cache_tirqc_type_phs[std::make_pair(irq_no, phaddr)][cr_phaddr][cr_value].push_back(value);
             } else {
                 getWarningsStream() << "unrecognized perpherial\n";
+            }
+        } else {
+            return false;
+        }
+    }
+
+    std::string peripheral_dr_cache;
+    while (getline(fPHKB, peripheral_dr_cache)) {
+        uint32_t type;
+        uint32_t phaddr;
+        uint32_t size;
+
+        if (peripheral_dr_cache == "CandidateDataRegs") {
+            break;
+        }
+
+        if (getDREntryfromKB(peripheral_dr_cache, &type, &phaddr, &size)) {
+            if (cache_type_flag_phs[phaddr] != T3) {
+                cache_type_flag_phs[phaddr] = DR;
+                cache_dr_type_size[phaddr] = size;
+            } else {
+                if (cache_t3_type_phs[phaddr].size() == 1) { //only one item no need for replay leave for fuzzing
+                    cache_type_flag_phs[phaddr] = DR;
+                }
             }
         } else {
             return false;
@@ -930,13 +988,15 @@ void PeripheralModelLearning::identifyDataPeripheralRegs(S2EExecutionState *stat
     for (auto &it : read_cache_data_phs) {
         fuzz_data_phs.push_back(std::make_pair(it.first, it.second));
     }
+
+    fPHKB << "DefaultDataRegs" << std::endl;
     std::sort(fuzz_data_phs.begin(), fuzz_data_phs.end(), CmpByCount());
     for (auto itd : fuzz_data_phs) {
         fPHKB << "fuzz_" << hexval(itd.first) << "_" << hexval(itd.second.first) << "_" << hexval(itd.second.second)
               << std::endl;
     }
 
-    fPHKB << "Recommand Candidate Fuzzing(Data) Regs:" << std::endl;
+    fPHKB << "CandidateDataRegs" << std::endl;
     for (auto &it : read_cache_phs) {
         fuzz_candidate_phs.push_back(std::make_pair(it.first, it.second));
     }
@@ -1303,18 +1363,24 @@ klee::ref<klee::Expr> PeripheralModelLearning::onFuzzingMode(S2EExecutionState *
         uint32_t fuzz_size;
 
         if (itf->second == T3) {
+            fuzzOk = true;
+            fuzz_size = cache_dr_type_size[phaddr];
             onFuzzingInput.emit(state, (PeripheralRegisterType) itf->second, phaddr,
                                 cache_t3_type_phs[itf->first].size(), &fuzz_size, &fuzz_value, &fuzzOk);
             if (cache_t3_type_phs[itf->first].size() == 0) {
-                if (fuzzOk) {
-                    getDebugStream() << " data from fuzzing input addr = " << hexval(phaddr) << " pc = " << hexval(pc)
-                                     << " value = " << hexval(fuzz_value) << " size = " << size << "\n";
-                    uint64_t fuzz_LSB = ((uint64_t) 1 << (fuzz_size * 8));
-                    fuzz_value = fuzz_value & (fuzz_LSB - 1);
-                    return klee::ConstantExpr::create(fuzz_value, size * 8);
-                }
+                getDebugStream() << " data from fuzzing input addr = " << hexval(phaddr) << " pc = " << hexval(pc)
+                                 << " value = " << hexval(fuzz_value) << " size = " << size << "\n";
+                uint64_t fuzz_LSB = ((uint64_t) 1 << (fuzz_size * 8));
+                fuzz_value = fuzz_value & (fuzz_LSB - 1);
+                return klee::ConstantExpr::create(fuzz_value, size * 8);
             }
         } else {
+            if (itf->second == DR) {
+                fuzzOk = true;
+                fuzz_size = cache_dr_type_size[phaddr];
+                getDebugStream() << " data from fuzzing DR input addr = " << hexval(phaddr)
+                                 << " size = " << fuzz_size << "\n";
+            }
             onFuzzingInput.emit(state, (PeripheralRegisterType) itf->second, phaddr, 0, &fuzz_size, &fuzz_value,
                                 &fuzzOk);
             if (fuzzOk) {
@@ -1739,7 +1805,7 @@ void PeripheralModelLearning::saveKBtoFile(S2EExecutionState *state, uint64_t tb
             std::vector<uint32_t> unique_T3_values;
             for (auto ituncache_vec : ituncaches_vec) {
                 unique_T3_values.push_back(ituncache_vec.second);
-                getWarningsStream() << "t3_" << hexval(ituncaches.first) << "_" << hexval(ituncache_vec.second) << "\n";
+                getDebugStream() << "ut3_" << hexval(ituncaches.first) << "_" << hexval(ituncache_vec.second) << "\n";
             }
             std::sort(unique_T3_values.begin(), unique_T3_values.end());
             unique_T3_values.erase(std::unique(unique_T3_values.begin(), unique_T3_values.end()),
@@ -1748,16 +1814,16 @@ void PeripheralModelLearning::saveKBtoFile(S2EExecutionState *state, uint64_t tb
                 int j = 1;
                 for (uint32_t T3_value : unique_T3_values) {
                     if (j <= max_t3_size) {
-                        fPHKB << "t3_" << hexval(ituncaches.first) << "_0x0_" << j++ << "_" << hexval(T3_value)
-                              << std::endl;
+                        fPHKB << "t3_" << hexval(ituncaches.first) << "_" << hexval(plgState->get_readphs_size(ituncaches.first))
+                              << "_" << j++ << "_" << hexval(T3_value) << std::endl;
                     }
                 }
             } else {
                 int j = 1;
                 for (auto ituncache_vec : ituncaches_vec) {
                     if (j <= max_t3_size) {
-                        fPHKB << "t3_" << hexval(ituncaches.first) << "_0x0_" << j++ << "_"
-                              << hexval(ituncache_vec.second) << std::endl;
+                        fPHKB << "t3_" << hexval(ituncaches.first) << "_" << hexval(plgState->get_readphs_size(ituncaches.first))
+                              << "_" << j++ << "_" << hexval(ituncache_vec.second) << std::endl;
                     }
                 }
             }
@@ -1765,10 +1831,6 @@ void PeripheralModelLearning::saveKBtoFile(S2EExecutionState *state, uint64_t tb
     }
 
     writeTIRQPeripheralstoKB(state, fPHKB);
-
-    fPHKB << "Fuzzing" << std::endl;
-    fPHKB << "Recommand Defalut Fuzzing(Data) Regs:" << std::endl;
-    // fPHKB << "e.g., fuzz_peripheraladdress_size_readingcount" << std::endl;
 
     identifyDataPeripheralRegs(state, fPHKB);
 
