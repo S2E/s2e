@@ -671,7 +671,7 @@ bool PeripheralModelLearning::getDREntryfromKB(std::string variablePeripheralNam
 
     std::string modeStr = what[1];
     if (modeStr == "fuzz") {
-        *type = DR;
+        *type = T3;
     } else {
         getWarningsStream() << "Unrecognized DR Regs Format!\n";
         return false;
@@ -864,11 +864,11 @@ bool PeripheralModelLearning::readKBfromFile(std::string fileName) {
 
         if (getDREntryfromKB(peripheral_dr_cache, &type, &phaddr, &size)) {
             if (cache_type_flag_phs[phaddr] != T3) {
-                cache_type_flag_phs[phaddr] = DR;
+                cache_type_flag_phs[phaddr] = T3;
                 cache_dr_type_size[phaddr] = size;
             } else {
                 if (cache_t3_type_phs[phaddr].size() == 1) { //only one item no need for replay leave for fuzzing
-                    cache_type_flag_phs[phaddr] = DR;
+                    cache_t3_type_phs[phaddr].pop_front();
                 }
             }
         } else {
@@ -1098,7 +1098,13 @@ klee::ref<klee::Expr> PeripheralModelLearning::onLearningMode(S2EExecutionState 
         uint32_t fuzz_value;
         uint32_t fuzz_size;
 
+        if (plgState->get_type_flag_ph_it(phaddr) == T3) {
+            fuzzOk = true;
+            fuzz_size = cache_dr_type_size[phaddr];
+        }
+
         onFuzzingInput.emit(state, (PeripheralRegisterType) itf->second, phaddr, 0, &fuzz_size, &fuzz_value, &fuzzOk);
+
         if (fuzzOk) {
             getDebugStream() << " In learning mode, reading data from fuzzing input addr = " << hexval(phaddr)
                              << " pc = " << hexval(pc) << " return value set as zero"
@@ -1375,12 +1381,6 @@ klee::ref<klee::Expr> PeripheralModelLearning::onFuzzingMode(S2EExecutionState *
                 return klee::ConstantExpr::create(fuzz_value, size * 8);
             }
         } else {
-            if (itf->second == DR) {
-                fuzzOk = true;
-                fuzz_size = cache_dr_type_size[phaddr];
-                getDebugStream() << " data from fuzzing DR input addr = " << hexval(phaddr)
-                                 << " size = " << fuzz_size << "\n";
-            }
             onFuzzingInput.emit(state, (PeripheralRegisterType) itf->second, phaddr, 0, &fuzz_size, &fuzz_value,
                                 &fuzzOk);
             if (fuzzOk) {
@@ -3044,6 +3044,9 @@ klee::ref<klee::Expr> PeripheralModelLearning::switchModefromFtoL(S2EExecutionSt
         plgState->insert_all_rw_phs(phaddr, 1);
         plgState->insert_type_flag_phs(ittp.first, ittp.second);
         plgState->insert_t0_type_flag_phs(ittp.first, 1);
+        if (ittp.second == T3) {
+            plgState->inc_readphs(ittp.first, cache_dr_type_size[ittp.second]);
+        }
     }
 
     for (auto itt1 : cache_t1_type_phs) {
@@ -3068,7 +3071,6 @@ klee::ref<klee::Expr> PeripheralModelLearning::switchModefromFtoL(S2EExecutionSt
     }
 
     for (auto itul : cache_t3_type_phs_backup) {
-        plgState->inc_readphs(itul.first, 0x4);
         for (auto itulit : itul.second) {
             plgState->insert_t3_type_ph_back(itul.first, itulit);
         }

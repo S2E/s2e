@@ -22,7 +22,7 @@
 
 namespace s2e {
 namespace plugins {
-enum PeripheralRegisterType { TIRQS, TIRQC, T0, T1, PT1, T2, T3, DR }; // IRQ Type only used in KB
+enum PeripheralRegisterType { TIRQS, TIRQC, T0, T1, PT1, T2, T3 }; // IRQ Type only used in KB
 enum KBUpdateReason { Valid, Invlid };
 namespace hw {
 typedef std::vector<uint8_t> ConcreteArray;
