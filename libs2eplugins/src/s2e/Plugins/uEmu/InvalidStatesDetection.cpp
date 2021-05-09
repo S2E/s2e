@@ -218,10 +218,6 @@ public:
     void insert_current_irq_num(uint32_t irq_num) {
         current_irq_num = irq_num;
     }
-
-    uint32_t get_current_irq_num() {
-        return current_irq_num;
-    }
 };
 }
 
@@ -337,7 +333,6 @@ void InvalidStatesDetection::onCacheModeMonitor(S2EExecutionState *state, uint64
     // in case too frequent interrupts
     if (state->regs()->getInterruptFlag()) {
         disable_interrupt_count = cache_tb_num;
-        plgState->insert_current_irq_num(state->regs()->getExceptionIndex());
     } else {
         if (disable_interrupt_count > 0) {
             disable_interrupt_count--;
@@ -460,7 +455,6 @@ void InvalidStatesDetection::onInvalidLoopDetection(S2EExecutionState *state, ui
     // in case too frequent interrupts
     if (state->regs()->getInterruptFlag()) {
         disable_interrupt_count = cache_tb_num;
-        plgState->insert_current_irq_num(state->regs()->getExceptionIndex());
     } else {
         if (disable_interrupt_count > 0) {
             disable_interrupt_count--;
