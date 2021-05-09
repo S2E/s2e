@@ -258,6 +258,7 @@ void InvalidStatesDetection::initialize() {
     }
 
     if (cache_mode) {
+        unique_tb_num = 0;
         getWarningsStream() << "Invalid States Detection is unabled in cache mode\n";
         return;
     }
@@ -324,9 +325,11 @@ void InvalidStatesDetection::onCacheModeMonitor(S2EExecutionState *state, uint64
     getDebugStream() << "InvalidStatesDetection in cache mode " << plgState->getnewtbnum() << " pc = " << hexval(pc)
                      << " disable_interrupt_count = " << disable_interrupt_count
                      << " interrupt flag = " << state->regs()->getInterruptFlag() << "\n";
-    if (plgState->inctbnum(pc)) {
-        getWarningsStream() << "InvalidStatesDetection in cache mode new tb num = " << plgState->getnewtbnum()
-                            << " pc = " << hexval(pc) << "\n";
+    if (all_tb_map[pc] < 1) {
+        ++unique_tb_num;
+        ++all_tb_map[pc];
+        getWarningsStream() << "The unqiue number of the executed basic blocks during cache mode is "
+                            << unique_tb_num << " pc = " << hexval(pc) << "\n";
     }
 
     // we should make sure new tb in normal mode will be executed after interrupt
