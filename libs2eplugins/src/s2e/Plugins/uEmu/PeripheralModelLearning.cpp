@@ -866,8 +866,13 @@ bool PeripheralModelLearning::readKBfromFile(std::string fileName) {
             if (cache_type_flag_phs[phaddr] != T3) {
                 cache_type_flag_phs[phaddr] = T3;
                 cache_dr_type_size[phaddr] = size;
+                cache_t3_type_phs[phaddr].push_back(0x0);
+                cache_t3_type_phs[phaddr].pop_front();
             } else {
                 if (cache_t3_type_phs[phaddr].size() == 1) { //only one item no need for replay leave for fuzzing
+                    cache_t3_type_phs[phaddr].pop_front();
+                } else if (cache_t3_type_phs[phaddr].size() == 2) {
+                    cache_t3_type_phs[phaddr].pop_front();
                     cache_t3_type_phs[phaddr].pop_front();
                 }
             }
