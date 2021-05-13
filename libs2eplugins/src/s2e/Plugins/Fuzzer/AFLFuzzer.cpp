@@ -17,7 +17,7 @@
 namespace s2e {
 namespace plugins {
 
-S2E_DEFINE_PLUGIN(AFLFuzzer, "trigger and record external interrupts", "AFLFuzzer");
+S2E_DEFINE_PLUGIN(AFLFuzzer, "trigger and record external interrupts", "AFLFuzzer", "PeripheralModelLearning");
 
 class AFLFuzzerState : public PluginState {
 private:
@@ -181,8 +181,8 @@ void AFLFuzzer::initialize() {
                          << " size:" << hexval(rams[i].size) << "\n";
     }
 
-    blockStartConnection = s2e()->getCorePlugin()->onTranslateBlockStart.connect(
-        sigc::mem_fun(*this, &AFLFuzzer::onTranslateBlockStart));
+    blockEndConnection = s2e()->getCorePlugin()->onTranslateBlockEnd.connect(
+        sigc::mem_fun(*this, &AFLFuzzer::onTranslateBlockEnd));
     concreteDataMemoryAccessConnection = s2e()->getCorePlugin()->onConcreteDataMemoryAccess.connect(
         sigc::mem_fun(*this, &AFLFuzzer::onConcreteDataMemoryAccess));
 
@@ -214,6 +214,7 @@ void AFLFuzzer::initialize() {
     afl_start_code = 0;
     afl_end_code = 0xffffffff;
     cur_read = 0;
+    unique_tb_num = 0;
 }
 
 static void SymbHwGetConcolicVector(uint64_t in, unsigned size, hw::ConcreteArray &out) {
@@ -253,7 +254,7 @@ static void PrintRegs(S2EExecutionState *state) {
         target_ulong concreteData;
 
         getConcolicValue(state, offset, &concreteData);
-        g_s2e->getWarningsStream() << "Regs " << i << " = " << hexval(concreteData) << "\n";
+        g_s2e->getInfoStream() << "Regs " << i << " = " << hexval(concreteData) << "\n";
     }
 }
 
@@ -282,17 +283,17 @@ void AFLFuzzer::onModeSwitch(S2EExecutionState *state, bool fuzzing_to_learning)
         memcpy(afl_area_ptr, bitmap, MAP_SIZE);
         afl_con->AFL_input = 0;
         // afl_con->AFL_return = FAULT_ERROR;
-        blockStartConnection.disconnect();
+        blockEndConnection.disconnect();
         concreteDataMemoryAccessConnection.disconnect();
         invalidPCAccessConnection.disconnect();
         timerConnection.disconnect();
         plgState->clear_hit_count();
         timer_ticks = 0;
     } else {
-        getWarningsStream() << " AFL open !!\n";
+        getInfoStream() << " AFL Reconnection !!\n";
         timer_ticks = 0;
-        blockStartConnection = s2e()->getCorePlugin()->onTranslateBlockStart.connect(
-            sigc::mem_fun(*this, &AFLFuzzer::onTranslateBlockStart));
+        blockEndConnection = s2e()->getCorePlugin()->onTranslateBlockEnd.connect(
+            sigc::mem_fun(*this, &AFLFuzzer::onTranslateBlockEnd));
         concreteDataMemoryAccessConnection = s2e()->getCorePlugin()->onConcreteDataMemoryAccess.connect(
             sigc::mem_fun(*this, &AFLFuzzer::onConcreteDataMemoryAccess));
         invalidPCAccessConnection =
@@ -335,9 +336,8 @@ void AFLFuzzer::onFuzzingInput(S2EExecutionState *state, PeripheralRegisterType 
             invaild_pc = 0;
             cur_read = 0;
             Ethernet.pos = 0;
-            getWarningsStream() << "fork at checking point phaddr  = " << hexval(phaddr)
+            getDebugStream() << "fork at checking point phaddr  = " << hexval(phaddr)
                                 << " pc = " << hexval(state->regs()->getPc()) << "\n";
-            PrintRegs(state);
             hw::ConcreteArray concolicValue;
             SymbHwGetConcolicVector(0x0, *size, concolicValue);
             klee::ref<klee::Expr> original_value =
@@ -417,7 +417,7 @@ void AFLFuzzer::onConcreteDataMemoryAccess(S2EExecutionState *state, uint64_t ad
     if (!is_write) {
         // only allow read from rom regions
         for (auto rom : roms) {
-            if (address > rom.baseaddr && address < (rom.baseaddr + rom.size)) {
+            if (address >= rom.baseaddr && address < (rom.baseaddr + rom.size)) {
                 return;
             }
         }
@@ -431,17 +431,26 @@ void AFLFuzzer::onConcreteDataMemoryAccess(S2EExecutionState *state, uint64_t ad
     onCrashHang(state, 1);
 }
 
-void AFLFuzzer::onTranslateBlockStart(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb,
-                                      uint64_t pc) {
-    signal->connect(sigc::mem_fun(*this, &AFLFuzzer::onBlockStart));
+void AFLFuzzer::onTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionState *state,
+                                                 TranslationBlock *tb, uint64_t pc, bool staticTarget,
+                                                 uint64_t staticTargetPc) {
+    signal->connect(
+        sigc::bind(sigc::mem_fun(*this, &AFLFuzzer::onBlockEnd), (unsigned) tb->se_tb_type));
 }
 
-void AFLFuzzer::onBlockStart(S2EExecutionState *state, uint64_t cur_loc) {
+void AFLFuzzer::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, unsigned source_type) {
     static __thread uint64_t prev_loc;
+
+    // record total bb number
+    if (all_tb_map[cur_loc] < 1) {
+        ++unique_tb_num;
+        ++all_tb_map[cur_loc];
+    }
 
     // uEmu ends up with fuzzer
     if (unlikely(afl_con->AFL_return == END_uEmu)) {
-        getWarningsStream() << "=== Testing aborted by user via Fuzzer====\n";
+        getWarningsStream() << "The total number of unqiue executed bb is " << unique_tb_num << "\n";
+        getWarningsStream() << "==== Testing aborted by user via Fuzzer ====\n";
         g_s2e->getCorePlugin()->onEngineShutdown.emit();
         // Flush here just in case ~S2E() is not called (e.g., if atexit()
         // shutdown handler was not called properly).
@@ -450,11 +459,7 @@ void AFLFuzzer::onBlockStart(S2EExecutionState *state, uint64_t cur_loc) {
     }
 
     if (timer_ticks > (hang_timeout - 1)) {
-        if (state->regs()->getInterruptFlag()) {
-            getWarningsStream() << " what happen in interrupt during hang " << state->regs()->getExceptionIndex()
-                                << " we are hang?? " << hexval(cur_loc) << "\n";
-        }
-        getWarningsStream() << g_s2e_allow_interrupt << " what happen when we are hang?? " << hexval(cur_loc) << "\n";
+        getWarningsStream() << g_s2e_allow_interrupt << " what happen when we are hang at pc = " << hexval(cur_loc) << "\n";
     }
 
     // user-defined crash points
