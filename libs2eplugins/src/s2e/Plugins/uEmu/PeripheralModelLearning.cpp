@@ -922,6 +922,17 @@ void PeripheralModelLearning::writeTIRQPeripheralstoKB(S2EExecutionState *state,
                        tirqc_type_phs[std::make_pair(std::get<0>(itpossirqs.first), std::get<1>(itpossirqs.first))]
                                .size() == 0) {
                 empty_tirqc_flag[std::make_pair(std::get<0>(itpossirqs.first), std::get<1>(itpossirqs.first))] = 1;
+            } else if (plgState->get_irq_flag_ph_it(std::get<1>(itpossirqs.first)) == 2
+                && tirqc_type_phs[std::make_pair(std::get<0>(itpossirqs.first), std::get<1>(itpossirqs.first))].size() > 1) {
+                plgState->insert_irq_flag_phs(std::get<1>(itpossirqs.first), 1);
+                getWarningsStream() << "tirqs_" << hexval(std::get<1>(itpossirqs.first)) << "_"
+                      << hexval(std::get<2>(itpossirqs.first)) << "_" << hexval(std::get<0>(itpossirqs.first)) << " size = "
+                      << tirqc_type_phs[std::make_pair(std::get<0>(itpossirqs.first), std::get<1>(itpossirqs.first))].size() << "\n";
+                for (auto irqs_value : itpossirqs.second) {
+                    fPHKB << "tirqs_" << hexval(std::get<1>(itpossirqs.first)) << "_"
+                          << hexval(std::get<2>(itpossirqs.first)) << "_" << hexval(std::get<0>(itpossirqs.first))
+                          << "_" << hexval(irqs_value) << std::endl;
+                }
             }
         }
     }
@@ -3001,7 +3012,7 @@ void PeripheralModelLearning::onExceptionExit(S2EExecutionState *state, uint32_t
                     plgState->insert_irq_flag_phs(irq_sr, 1);
                 }
             }
-        } else if (irq_crs[irq_no].size() == 1) {
+        } else {
             updateIRQKB(state, irq_no, 0);
         }
         plgState->clear_current_irq_values();
