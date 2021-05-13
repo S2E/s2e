@@ -330,7 +330,7 @@ void InvalidStatesDetection::onCacheModeMonitor(S2EExecutionState *state, uint64
                      << " interrupt flag = " << state->regs()->getInterruptFlag() << "\n";
 
     if (plgState->inctbnum(pc)) {
-        getWarningsStream() << "The unqiue number of the executed basic blocks in currecnt state is "
+        getInfoStream() << "The unqiue number of the executed basic blocks in currecnt state is "
                             << plgState->getnewtbnum() << " pc = " << hexval(pc) << "\n";
     }
 
@@ -381,7 +381,7 @@ bool InvalidStatesDetection::onModeSwitchandTermination(S2EExecutionState *state
 
         invalidPCAccessConnection = s2e()->getCorePlugin()->onInvalidPCAccess.connect(
             sigc::mem_fun(*this, &InvalidStatesDetection::onInvalidPCAccess));
-        getWarningsStream() << "mode switch!! path killer is enable\n";
+        getInfoStream() << "mode switch!! path killer is enable\n";
         plgState->reset_allcache();
         cache_mode = false;
         return false;
@@ -489,7 +489,7 @@ void InvalidStatesDetection::onInvalidLoopDetection(S2EExecutionState *state, ui
     plgState->setcachenum(cache_tb_num);
     std::vector<uint32_t> conregs = getRegs(state, pc);
 
-    getWarningsStream(state) << state->regs()->getInterruptFlag() << " current pc = " << hexval(pc) << " re tb num "
+    getInfoStream(state) << state->regs()->getInterruptFlag() << " current pc = " << hexval(pc) << " re tb num "
                              << plgState->getretbnum() << " concrete mode: " << conregs[1] << "\n";
 
     // kill points defined by users

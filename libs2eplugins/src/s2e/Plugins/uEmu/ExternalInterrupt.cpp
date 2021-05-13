@@ -147,7 +147,7 @@ void ExternalInterrupt::initialize() {
             getWarningsStream() << " systick begin point should be set!\n";
             return;
         } else {
-            getDebugStream() << "systick begin point = " << hexval(systick_begin_point) << "\n";
+            getInfoStream() << "systick begin point = " << hexval(systick_begin_point) << "\n";
         }
     }
 }
@@ -215,13 +215,13 @@ void ExternalInterrupt::onBlockStart(S2EExecutionState *state, uint64_t pc) {
         }
 
         if (plgState->get_tb_num() % tb_scale == 0) {
-            getWarningsStream() << "current pc at = " << hexval(pc) << " execution time of each " << tb_scale
+            getInfoStream() << "current pc at = " << hexval(pc) << " execution time of each " << tb_scale
                                 << " blocks is " << hexval(timer_ticks) << "\n";
         }
     }
 
     if (plgState->get_tb_num() % 10000000 == 0) {
-        getWarningsStream() << "current pc at = " << hexval(pc) << " execution time of each 10,000,000 basic blocks is "
+        getInfoStream() << "current pc at = " << hexval(pc) << " execution time of each 10,000,000 basic blocks is "
                             << timer_ticks << "s\n";
     }
 
@@ -238,10 +238,10 @@ void ExternalInterrupt::onBlockStart(S2EExecutionState *state, uint64_t pc) {
         last_irqs_bitmap = plgState->get_lastirqs_bitmap();
         for (int k = 0; k < irqs_bitmap.size(); k++) {
             if (last_irqs_bitmap[k] != irqs_bitmap[k]) {
-                getWarningsStream() << "active irq has changed\n";
-                getWarningsStream() << "external bit map = " << hexval(irqs_bitmap[0]) << "\n";
-                getWarningsStream() << "external bit map = " << hexval(irqs_bitmap[1]) << "\n";
-                getWarningsStream() << "external bit map = " << hexval(irqs_bitmap[2]) << "\n";
+                getInfoStream() << "active irq has changed\n";
+                getInfoStream() << "external irq bit map = " << hexval(irqs_bitmap[0]) << "\n";
+                getInfoStream() << "external irq bit map = " << hexval(irqs_bitmap[1]) << "\n";
+                getInfoStream() << "external irq bit map = " << hexval(irqs_bitmap[2]) << "\n";
                 plgState->insert_lastirqs_bitmap(irqs_bitmap);
                 plgState->update_activeirqs(setActiveIrqs(irqs_bitmap));
                 break;
@@ -259,7 +259,7 @@ void ExternalInterrupt::onBlockStart(S2EExecutionState *state, uint64_t pc) {
                 }
                 if (!g_s2e_cache_mode) {
                     // plgState->cachepirq(it.first);
-                    getWarningsStream() << i << " trigger external irq " << it.first << " total irq number is "
+                    getInfoStream() << i << " trigger external irq " << it.first << " total irq number is "
                                         << plgState->get_activeirqs().size()
                                         << "total tb num = " << plgState->get_tb_num() << "\n";
                     if (std::find(disable_irqs.begin(), disable_irqs.end(), it.first) == disable_irqs.end()) {

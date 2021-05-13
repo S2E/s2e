@@ -449,8 +449,8 @@ void AFLFuzzer::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, unsigned 
 
     // uEmu ends up with fuzzer
     if (unlikely(afl_con->AFL_return == END_uEmu)) {
-        getWarningsStream() << "The total number of unqiue executed bb is " << unique_tb_num << "\n";
-        getWarningsStream() << "==== Testing aborted by user via Fuzzer ====\n";
+        getInfoStream() << "The total number of unqiue executed bb is " << unique_tb_num << "\n";
+        getInfoStream() << "==== Testing aborted by user via Fuzzer ====\n";
         g_s2e->getCorePlugin()->onEngineShutdown.emit();
         // Flush here just in case ~S2E() is not called (e.g., if atexit()
         // shutdown handler was not called properly).
@@ -459,7 +459,8 @@ void AFLFuzzer::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, unsigned 
     }
 
     if (timer_ticks > (hang_timeout - 1)) {
-        getWarningsStream() << g_s2e_allow_interrupt << " what happen when we are hang at pc = " << hexval(cur_loc) << "\n";
+        getWarningsStream() << g_s2e_allow_interrupt << " what happen when we are hang at pc = "
+                            << hexval(cur_loc) << ", maybe add it as a crash point\n";
     }
 
     // user-defined crash points
