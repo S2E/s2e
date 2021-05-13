@@ -1157,31 +1157,22 @@ klee::ref<klee::Expr> PeripheralModelLearning::onLearningMode(S2EExecutionState 
                 if (possible_irq_values[uniqueirqsphs].size() > 0) {
                     possible_irq_srs[std::make_pair(phaddr, pc)] = state->regs()->getExceptionIndex();
                     uint32_t rand_no = 0;
-                    if (possible_irq_values[uniqueirqsphs].size() > 1) {
+                    rand_no = rand() % possible_irq_values[uniqueirqsphs].size();
+                    IRQS_value = possible_irq_values[uniqueirqsphs][rand_no] & (LSB - 1);
+                    if (IRQS_value == 0) {
                         rand_no = rand() % possible_irq_values[uniqueirqsphs].size();
                         IRQS_value = possible_irq_values[uniqueirqsphs][rand_no] & (LSB - 1);
-                        if (IRQS_value == 0) {
-                            rand_no = rand() % possible_irq_values[uniqueirqsphs].size();
-                            IRQS_value = possible_irq_values[uniqueirqsphs][rand_no] & (LSB - 1);
-                        }
-                        // before termination, we need to go though all possible irq values
-                        while (find(already_used_irq_values[uniqueirqsphs].begin(),
-                                    already_used_irq_values[uniqueirqsphs].end(),
-                                    IRQS_value) != already_used_irq_values[uniqueirqsphs].end()) {
-                            rand_no = rand() % possible_irq_values[uniqueirqsphs].size();
-                            IRQS_value = possible_irq_values[uniqueirqsphs][rand_no] & (LSB - 1);
-                            if (already_used_irq_values[uniqueirqsphs].size() ==
-                                possible_irq_values[uniqueirqsphs].size()) {
-                                break;
-                            }
-                        }
-                    } else {
-                        IRQS_value = possible_irq_values[uniqueirqsphs][rand_no] & (LSB - 1);
                     }
-                    if (find(already_used_irq_values[uniqueirqsphs].begin(),
-                             already_used_irq_values[uniqueirqsphs].end(),
-                             IRQS_value) == already_used_irq_values[uniqueirqsphs].end()) {
-                        already_used_irq_values[uniqueirqsphs].push_back(IRQS_value);
+                    // before termination, we need to go though all possible irq values
+                    while (find(already_used_irq_values[uniqueirqsphs].begin(),
+                                already_used_irq_values[uniqueirqsphs].end(),
+                                IRQS_value) != already_used_irq_values[uniqueirqsphs].end()) {
+                        rand_no = rand() % possible_irq_values[uniqueirqsphs].size();
+                        IRQS_value = possible_irq_values[uniqueirqsphs][rand_no] & (LSB - 1);
+                        if (already_used_irq_values[uniqueirqsphs].size() ==
+                            possible_irq_values[uniqueirqsphs].size()) {
+                            break;
+                        }
                     }
                     std::deque<uint32_t>::iterator itirq_rand =
                         std::find(possible_irq_values[uniqueirqsphs].begin(), possible_irq_values[uniqueirqsphs].end(),
@@ -1192,7 +1183,7 @@ klee::ref<klee::Expr> PeripheralModelLearning::onLearningMode(S2EExecutionState 
                     possible_irq_srs[std::make_pair(phaddr, pc)] = state->regs()->getExceptionIndex();
                 }
                 plgState->insert_current_irq_values(phaddr, IRQS_value);
-                getDebugStream() << " IRQ T1(SR) type ph addr = " << hexval(phaddr) << " pc = " << hexval(pc)
+                getWarningsStream() << " IRQ T1(SR) type ph addr = " << hexval(phaddr) << " pc = " << hexval(pc)
                                  << " value = " << hexval(IRQS_value)
                                  << " possible size = " << possible_irq_values[uniqueirqsphs].size()
                                  << " already size = " << already_used_irq_values[uniqueirqsphs].size() << "\n";
@@ -1202,6 +1193,11 @@ klee::ref<klee::Expr> PeripheralModelLearning::onLearningMode(S2EExecutionState 
                 } else if (plgState->get_symbolicpc_ph_it(UniquePeripheral(phaddr, pc)) == 1) {
                     return klee::ConstantExpr::create(IRQS_value, size * 8);
                 } else {
+                    if (find(already_used_irq_values[uniqueirqsphs].begin(),
+                             already_used_irq_values[uniqueirqsphs].end(),
+                             IRQS_value) == already_used_irq_values[uniqueirqsphs].end()) {
+                        already_used_irq_values[uniqueirqsphs].push_back(IRQS_value);
+                    }
                     SymbHwGetConcolicVector(IRQS_value, size, concolicValue);
                     return state->createSymbolicValue(ss.str(), size * 8, concolicValue);
                 }
@@ -1416,9 +1412,6 @@ klee::ref<klee::Expr> PeripheralModelLearning::onFuzzingMode(S2EExecutionState *
                 irq_crs[state->regs()->getExceptionIndex()][phaddr] = plgState->get_writeph(phaddr);
             }
             value = plgState->get_writeph(phaddr);
-            if (state->regs()->getInterruptFlag() && state->regs()->getExceptionIndex() > 15) {
-                irq_crs[state->regs()->getExceptionIndex()][phaddr] = plgState->get_writeph(phaddr);
-            }
             value = value & (LSB - 1);
             getDebugStream() << " T0 type ph addr = " << hexval(phaddr) << " pc = " << hexval(pc)
                              << " value = " << hexval(value) << " size =" << hexval(size) << "\n";
@@ -1447,10 +1440,6 @@ klee::ref<klee::Expr> PeripheralModelLearning::onFuzzingMode(S2EExecutionState *
                     cache_tirqs_type_phs[uniqueirqsphs].push_back(value); // refill to t3 cache for next fuzzing
                     getDebugStream() << " TIRQS type ph addr = " << hexval(phaddr) << " pc = " << hexval(pc)
                                      << " value = " << hexval(value) << " size =" << hexval(size) << "\n";
-                    if (phaddr == 0x50000020) {
-                        getWarningsStream() << " TIRQS type ph addr = " << hexval(phaddr) << " pc = " << hexval(pc)
-                                            << " value = " << hexval(value) << " size =" << hexval(size) << "\n";
-                    }
                     return klee::ConstantExpr::create(value, size * 8);
                 } else if (cache_type_irqc_flag[std::make_pair(state->regs()->getExceptionIndex(), itf->first)] == 2) {
                     for (auto cache_tirqc_phs :
@@ -1460,12 +1449,11 @@ klee::ref<klee::Expr> PeripheralModelLearning::onFuzzingMode(S2EExecutionState *
                                 rand() % cache_tirqc_phs.second[plgState->get_writeph(cache_tirqc_phs.first)].size();
                             value = cache_tirqc_phs.second[plgState->get_writeph(cache_tirqc_phs.first)][rand_no] &
                                     (LSB - 1);
-                            std::deque<uint32_t>::iterator itirq_rand = std::find(
-                                cache_tirqc_phs.second[plgState->get_writeph(cache_tirqc_phs.first)].begin(),
-                                cache_tirqc_phs.second[plgState->get_writeph(cache_tirqc_phs.first)].end(), value);
-                            cache_tirqc_phs.second[plgState->get_writeph(cache_tirqc_phs.first)].erase(itirq_rand);
-                            cache_tirqc_phs.second[plgState->get_writeph(cache_tirqc_phs.first)].push_back(
-                                value); // refill to t3 cache for next fuzzing
+                            if (value == 0) {
+                                rand_no = rand() % cache_tirqc_phs.second[plgState->get_writeph(cache_tirqc_phs.first)].size();
+                                value = cache_tirqc_phs.second[plgState->get_writeph(cache_tirqc_phs.first)][rand_no] &
+                                        (LSB - 1);
+                            }
                             getDebugStream()
                                 << " TIRQC type ph addr = " << hexval(phaddr) << " pc = " << hexval(pc)
                                 << " value = " << hexval(value) << " cr phaddr = " << hexval(cache_tirqc_phs.first)
@@ -1481,14 +1469,14 @@ klee::ref<klee::Expr> PeripheralModelLearning::onFuzzingMode(S2EExecutionState *
                         } else {
                             for (auto cr_values : cache_tirqc_phs.second) {
                                 for (auto sr_value : cr_values.second) {
-                                    if (sr_value & plgState->get_writeph(cache_tirqc_phs.first)) {
+                                    if ((sr_value & 0xff) & plgState->get_writeph(cache_tirqc_phs.first)) {
                                         plgState->insert_current_irq_values(phaddr, sr_value);
                                         getWarningsStream()
                                             << " Change mode due to TIRQC type ph addr = " << hexval(phaddr)
                                             << " pc = " << hexval(pc) << " sr value = " << hexval(sr_value)
                                             << " cr phaddr = " << hexval(cache_tirqc_phs.first)
                                             << " cr value = " << hexval(plgState->get_writeph(cache_tirqc_phs.first))
-                                            << "\n";
+                                            << " irq no = " << state->regs()->getExceptionIndex() << "\n";
                                         concreteValue = sr_value & (LSB - 1);
                                         return switchModefromFtoL(state, ss.str(), phaddr, size, concreteValue);
                                     }
@@ -1498,7 +1486,9 @@ klee::ref<klee::Expr> PeripheralModelLearning::onFuzzingMode(S2EExecutionState *
                                 << " Change mode due to TIRQC type ph addr = " << hexval(phaddr)
                                 << " pc = " << hexval(pc) << " sr value = " << 0x0
                                 << " cr phaddr = " << hexval(cache_tirqc_phs.first)
-                                << " cr value = " << hexval(plgState->get_writeph(cache_tirqc_phs.first)) << "\n";
+                                << " cr value = " << hexval(plgState->get_writeph(cache_tirqc_phs.first))
+                                << " irq no = " << state->regs()->getExceptionIndex() << "\n";
+                                concreteValue = 0x0 & (LSB - 1);
                             return switchModefromFtoL(state, ss.str(), phaddr, size, concreteValue);
                         }
                     }
@@ -1630,12 +1620,12 @@ void PeripheralModelLearning::onWritePeripheral(S2EExecutionState *state, uint64
         if (itf != type_flag_phs.end()) {
             if (plgState->get_type_flag_ph_it(phaddr) == T1 && plgState->get_lock_t1_type_flag(phaddr) != 1) {
                 if (!state->regs()->getInterruptFlag()) {
-                    getDebugStream() << " mmio " << hexval(phaddr) << " change to T0"
+                    getWarningsStream() << " mmio " << hexval(phaddr) << " change to T0"
                                      << "\n";
                     plgState->insert_type_flag_phs(phaddr, T0);
                 } else {
                     if (plgState->get_readphs_count(phaddr) == 1) {
-                        getDebugStream() << "IRQ mmio " << hexval(phaddr) << " change to T0"
+                        getWarningsStream() << "IRQ mmio " << hexval(phaddr) << " change to T0"
                                          << "\n";
                         plgState->insert_type_flag_phs(phaddr, T0);
                     } else {
@@ -1815,7 +1805,7 @@ void PeripheralModelLearning::saveKBtoFile(S2EExecutionState *state, uint64_t tb
             std::sort(unique_T3_values.begin(), unique_T3_values.end());
             unique_T3_values.erase(std::unique(unique_T3_values.begin(), unique_T3_values.end()),
                                    unique_T3_values.end());
-            if (unique_T3_values.size() < 3) {
+            if (unique_T3_values.size() < 4) {
                 int j = 1;
                 for (uint32_t T3_value : unique_T3_values) {
                     if (j <= max_t3_size) {
@@ -2774,7 +2764,7 @@ void PeripheralModelLearning::updateGeneralKB(S2EExecutionState *state, uint32_t
                                                  << " value = " << hexval(itch.second.second) << "\n";
                             }
                         } else {
-                            if (itt2s.size() > t2_max_context) {
+                            if (itt2s.size() + 1 >= t2_max_context) {
                                 std::deque<uint32_t> loop_type_ph_vector;
                                 for (auto itt2e : itt2s) {
                                     loop_type_ph_vector.push_back(itt2e.second);
@@ -2799,7 +2789,7 @@ void PeripheralModelLearning::updateGeneralKB(S2EExecutionState *state, uint32_t
                                 getDebugStream()
                                     << "Add pt2 phs = " << hexval(it.first.first) << " pc = " << hexval(it.first.second)
                                     << " hash = " << hexval(itch.first) << " value = " << hexval(itch.second.second)
-                                    << "\n";
+                                    << " total size = " << itt2s.size() << "\n";
                             }
                         }
                     }
@@ -2869,7 +2859,7 @@ void PeripheralModelLearning::updateGeneralKB(S2EExecutionState *state, uint32_t
                                                  << " value = " << hexval(itch.second.second) << "\n";
                             }
                         } else {
-                            if (itt2s.size() > t2_max_context) {
+                            if (itt2s.size() + 1 >= t2_max_context) {
                                 std::deque<uint32_t> loop_type_ph_vector;
                                 for (auto itt2e : itt2s) {
                                     loop_type_ph_vector.push_back(itt2e.second);
@@ -2895,7 +2885,8 @@ void PeripheralModelLearning::updateGeneralKB(S2EExecutionState *state, uint32_t
                                 getDebugStream() << "Add lock t2 phs = " << hexval(it.first.first)
                                                  << " pc = " << hexval(it.first.second)
                                                  << " hash = " << hexval(itch.first)
-                                                 << " value = " << hexval(itch.second.second) << "\n";
+                                                 << " value = " << hexval(itch.second.second)
+                                                 << " total size = " << itt2s.size() << "\n";
                             }
                         }
                     } else {
@@ -3176,19 +3167,17 @@ void PeripheralModelLearning::switchModefromLtoF(S2EExecutionState *state) {
     }
     onModeSwitch.emit(state, false);
     false_type_phs_fork_states.clear();
-    for (auto learnings : learning_mode_states) {
-        if (learnings != state) {
-            getWarningsStream() << "Kill Fork State in learning mode:" << learnings->getID() << "\n";
-            false_type_phs_fork_states.push_back(learnings);
+    for (auto learning_state : learning_mode_states) {
+        if (learning_state != state) {
+            std::string s;
+            llvm::raw_string_ostream ss(s);
+            ss << "Kill Unused Fork State "<< learning_state->getID() << " in learning mode before switch to fuzzing mode!\n";
+            ss.flush();
+            s2e()->getExecutor()->terminateState(*learning_state, s);
         }
     }
-    fs = -1;
     learning_mode_states.clear();
-    std::string s;
-    llvm::raw_string_ostream ss(s);
-    ss << "Kill All Fork States in Learning mode before switch to fuzzing mode!" << state->getID() << "\n";
-    ss.flush();
-    s2e()->getExecutor()->terminateState(*state, s);
+
 }
 
 // only used for no invalid state test version
