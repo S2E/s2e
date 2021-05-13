@@ -1654,11 +1654,11 @@ void PeripheralModelLearning::onWritePeripheral(S2EExecutionState *state, uint64
         if (itf != type_flag_phs.end()) {
             if (plgState->get_type_flag_ph_it(phaddr) == T1 && plgState->get_lock_t1_type_flag(phaddr) != 1) {
                 if (!state->regs()->getInterruptFlag()) {
-                    getInfoStream() << " mmio " << hexval(phaddr) << " change to T0\n"
+                    getInfoStream() << " mmio " << hexval(phaddr) << " change to T0\n";
                     plgState->insert_type_flag_phs(phaddr, T0);
                 } else {
                     if (plgState->get_readphs_count(phaddr) == 1) {
-                        getInfoStream() << "IRQ mmio " << hexval(phaddr) << " change to T0\n"
+                        getInfoStream() << "IRQ mmio " << hexval(phaddr) << " change to T0\n";
                         plgState->insert_type_flag_phs(phaddr, T0);
                     } else {
                         for (auto back_sr : possible_irq_srs) { // backup dt1 in interrupt
