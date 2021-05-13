@@ -197,7 +197,7 @@ void ExternalInterrupt::onBlockStart(S2EExecutionState *state, uint64_t pc) {
 
     if (!g_s2e_cache_mode) { // learning mode only
         // in case no external irqs
-        if (tb_interval < 0.034 * tb_scale) {
+        if (tb_interval < 0.0334 * tb_scale) {
             tb_interval = tb_interval * 2;
         }
 
@@ -205,7 +205,7 @@ void ExternalInterrupt::onBlockStart(S2EExecutionState *state, uint64_t pc) {
         // TODO: change to the scale of tb_termination
         if ((plgState->get_rettb_num() > 0.5 * tb_scale) && !plgState->get_enableinterrupt_flag() &&
             plgState->get_newtb_num() > 0.01 * tb_scale) {
-            getDebugStream() << "Now enable external irq re tb number = " << plgState->get_rettb_num() << "\n";
+            getDebugStream() << "Now enable external irq re tb number = " << plgState->get_tb_num() << "\n";
             plgState->set_enableinterrupt_flag(true);
             return;
         }
@@ -221,9 +221,10 @@ void ExternalInterrupt::onBlockStart(S2EExecutionState *state, uint64_t pc) {
     }
 
     if (plgState->get_tb_num() % 10000000 == 0) {
-        getWarningsStream() << "current pc at = " << hexval(pc) << " execution time of each 10,000,000 block is "
+        getWarningsStream() << "current pc at = " << hexval(pc) << " execution time of each 10,000,000 basic blocks is "
                             << timer_ticks << "s\n";
     }
+
     std::vector<uint32_t> irqs_bitmap;
     std::vector<uint32_t> last_irqs_bitmap;
     if (plgState->get_tb_num() % tb_interval == 0) {
@@ -260,7 +261,7 @@ void ExternalInterrupt::onBlockStart(S2EExecutionState *state, uint64_t pc) {
                     // plgState->cachepirq(it.first);
                     getWarningsStream() << i << " trigger external irq " << it.first << " total irq number is "
                                         << plgState->get_activeirqs().size()
-                                        << "re tb num = " << plgState->get_rettb_num() << "\n";
+                                        << "total tb num = " << plgState->get_tb_num() << "\n";
                     if (std::find(disable_irqs.begin(), disable_irqs.end(), it.first) == disable_irqs.end()) {
                         ++i;
                         s2e()->getExecutor()->setExternalInterrupt(it.first);
@@ -271,7 +272,7 @@ void ExternalInterrupt::onBlockStart(S2EExecutionState *state, uint64_t pc) {
                 } else {
                     if (std::find(disable_irqs.begin(), disable_irqs.end(), it.first) == disable_irqs.end()) {
                         getDebugStream() << " trigger external irq " << it.first
-                                         << "re tb num = " << plgState->get_rettb_num() << "\n";
+                                         << "total tb num = " << plgState->get_tb_num() << "\n";
                         ++i;
                         s2e()->getExecutor()->setExternalInterrupt(it.first);
                     } else {
