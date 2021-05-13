@@ -97,7 +97,7 @@ private:
     UniquePeripheralSizeMap cache_dr_type_size;
     //  knowledge extraction mode
     TypeFlagPeripheralMap
-        irq_data_phs; // 2: donates data reg in interrupt which should not meet conditions in irq handle
+        irq_data_phs; // 2: donates data reg in interrupt which should not meet conditions in irq handle. 1 and 3 cannot be data reg.
     AllKnowledgeBaseNoMap cache_all_cache_phs;
     IRQSRMap possible_irq_srs;
     TIRQSPeripheralMap possible_irq_values;
