@@ -58,6 +58,7 @@ private:
     WritePeripheralMap write_phs;
     ReadPeripheralMap read_phs;          // map pair with count rather that value
     TypeFlagPeripheralMap type_flag_phs; // use to indicate control phs map but don't store the value
+    TypeFlagPeripheralMap dt1_type_flag_phs; // use to indicate third kind of data registers
     TypeFlagPeripheralMap all_rw_phs;    // use to indicate control phs map but don't store the value
     TypeFlagPeripheralMap condition_phs; // record all phs which meet conditions
     TypeFlagPeripheralMap lock_t1_type_flag;
@@ -206,6 +207,13 @@ public:
         return pt1_type_flag_phs;
     }
 
+    void insert_dt1_type_flag_phs(uint32_t phaddr, uint32_t flag) {
+        dt1_type_flag_phs[phaddr] = flag;
+    }
+
+    uint32_t get_dt1_type_flag_ph_it(uint32_t phaddr) {
+        return dt1_type_flag_phs[phaddr];
+    }
     // t2
     void insert_t2_type_phs(UniquePeripheral phc, uint64_t caller_fp_hash, uint32_t value) {
         t2_type_phs[phc][caller_fp_hash] = value;
@@ -974,10 +982,18 @@ void PeripheralModelLearning::identifyDataPeripheralRegs(S2EExecutionState *stat
             } else if (irq_data_phs[it->first] == 1) { // status and control regs in irq
                 read_cache_phs.erase(it++);
                 continue;
-            }
-            if (plgState->get_lock_t1_type_flag(it->first) == 1) {
+            } else if (plgState->get_lock_t1_type_flag(it->first) == 1) {
                 read_cache_phs.erase(it++); // remove t1 type
                 continue;
+            } else {
+                getWarningsStream() << "The third kind of data register phaddr = "
+                                 << hexval(it->first) << " count = " << it->second.second << "\n";
+                if (plgState->get_dt1_type_flag_ph_it(it->first) == 1
+                    && it->second.second > 0x10 && it->second.second < 0x100 && !enable_fuzzing) {
+                    read_cache_data_phs[it->first] = it->second;
+                    read_cache_phs.erase(it++);
+                    continue;
+                }
             }
         } else {
             read_cache_phs.erase(it++);
@@ -1087,8 +1103,14 @@ klee::ref<klee::Expr> PeripheralModelLearning::onLearningMode(S2EExecutionState 
                      phaddr) == irq_srs[state->regs()->getExceptionIndex()].end()) {
                 irq_srs[state->regs()->getExceptionIndex()].push_back(phaddr);
             }
-            irq_data_phs[phaddr] = 2;
+            if (irq_data_phs[phaddr] != 3) { // if first time read by normal mode then read in IRQ cannot be data reg.
+                irq_data_phs[phaddr] = 2;
+            }
             possible_irq_srs[std::make_pair(phaddr, pc)] = state->regs()->getExceptionIndex();
+        } else {
+            if (irq_data_phs[phaddr] != 2) {
+                irq_data_phs[phaddr] = 3;
+            }
         }
         getDebugStream() << " First time read ph addr = " << hexval(phaddr) << " as T1 type\n";
         plgState->insert_pt1_type_flag_phs(UniquePeripheral(phaddr, pc), 1);
@@ -1142,12 +1164,13 @@ klee::ref<klee::Expr> PeripheralModelLearning::onLearningMode(S2EExecutionState 
         }
         case T1: {
             if (state->regs()->getInterruptFlag() && state->regs()->getExceptionIndex() > 15) { // irq mode
-                if (irq_data_phs[phaddr] != 1) { // mark data reg in external irq
+                if (irq_data_phs[phaddr] != 1 && irq_data_phs[phaddr] != 3) { // mark data reg in external irq
                     irq_data_phs[phaddr] = 2;
                 }
                 uint32_t IRQS_value = 0;
                 ConcreteArray concolicValue;
-                plgState->insert_pt1_type_flag_phs(UniquePeripheral(phaddr, pc), 2);
+                if (plgState->get_pt1_type_flag_ph_it(UniquePeripheral(phaddr, pc)) != 2)
+                    plgState->insert_pt1_type_flag_phs(UniquePeripheral(phaddr, pc), 1);
                 if (find(irq_srs[state->regs()->getExceptionIndex()].begin(),
                          irq_srs[state->regs()->getExceptionIndex()].end(),
                          phaddr) == irq_srs[state->regs()->getExceptionIndex()].end()) {
@@ -1631,10 +1654,11 @@ void PeripheralModelLearning::onWritePeripheral(S2EExecutionState *state, uint64
                     } else {
                         for (auto back_sr : possible_irq_srs) { // backup dt1 in interrupt
                             if (back_sr.first.first == phaddr && back_sr.second == state->regs()->getExceptionIndex()) {
-                                getDebugStream() << " backup all T0 T1 phaddr " << hexval(phaddr)
+                                getWarningsStream() << " backup all T0 T1 phaddr " << hexval(phaddr)
                                                  << " pc = " << hexval(back_sr.first.second)
                                                  << " value = " << hexval(writeConcreteValue) << "\n";
                                 plgState->insert_pdata_type_phs(back_sr.first, writeConcreteValue);
+                                plgState->insert_dt1_type_flag_phs(phaddr, 2); // regs which receive other regs values can not be data registers.
                             }
                         }
                     }
@@ -1745,6 +1769,9 @@ void PeripheralModelLearning::saveKBtoFile(S2EExecutionState *state, uint64_t tb
         if (plgState->get_type_flag_ph_it(itpt1.first.first) == T1) {
             All_rphs[itpt1.first.first] = 1;
             if (plgState->get_pt1_type_flag_ph_it(itpt1.first) == 2) {
+                if (plgState->get_dt1_type_flag_ph_it(itpt1.first.first) != 2 && itpt1.second.second.second == 0) {
+                    plgState->insert_dt1_type_flag_phs(itpt1.first.first, 1);
+                }
                 fPHKB << "pt1_" << hexval(itpt1.first.first) << "_" << hexval(itpt1.first.second) << "_"
                       << hexval(itpt1.second.first) << "_" << hexval(itpt1.second.second.second) << std::endl;
             }
@@ -1754,6 +1781,9 @@ void PeripheralModelLearning::saveKBtoFile(S2EExecutionState *state, uint64_t tb
     for (auto itd : pt1_type_flag_all_phs) {
         if (plgState->get_type_flag_ph_it(itd.first.first) == T1) {
             if (plgState->get_pt1_type_flag_ph_it(itd.first) == 1) {
+                if (plgState->get_dt1_type_flag_ph_it(itd.first.first) != 2) {
+                    plgState->insert_dt1_type_flag_phs(itd.first.first, 1);
+                }
                 if (pdata_type_phs.count(itd.first) == 0) {
                     fPHKB << "dt1_" << hexval(itd.first.first) << "_" << hexval(itd.first.second) << "_"
                           << "0x0"
