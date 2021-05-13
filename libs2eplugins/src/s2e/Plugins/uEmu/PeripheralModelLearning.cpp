@@ -1949,34 +1949,38 @@ void PeripheralModelLearning::onLearningTerminationDetection(S2EExecutionState *
                                                              uint64_t tb_num) {
     DECLARE_PLUGINSTATE(PeripheralModelLearningState, state);
 
-    getDebugStream() << "live state phs save last fork state!! \n";
     getWarningsStream() << "Terminate live state:" << state->getID() << " tb num " << tb_num << "\n";
-    if (auto_mode_switch) {
+
+    for (auto itairq : already_used_irq_values) {
+        // already wait for so many bbs
+        if (*actual_end == true) {
+            break;
+        }
+        // data regs do not count
+        if (plgState->get_type_flag_ph_it(std::get<1>(itairq.first)) != T1 ||
+            irq_data_phs[std::get<1>(itairq.first)] == 2) {
+            continue;
+        }
+
+        if (itairq.second.size() != possible_irq_values[itairq.first].size() && possible_irq_values[itairq.first].size() > 1) {
+            getWarningsStream() << "ph addr = " << hexval(std::get<1>(itairq.first))
+                             << " pc = " << hexval(std::get<2>(itairq.first))
+                             << " irq no = " << std::get<0>(itairq.first)
+                             << " already trigger number of irq values = " << itairq.second.size()
+                             << " total number of irq values = " << possible_irq_values[itairq.first].size()
+                             << "\n";
+            *actual_end = false;
+            return;
+        }
+    }
+
+    if (enable_fuzzing && auto_mode_switch) {
         updateGeneralKB(state, 0, Valid);
         saveKBtoFile(state, tb_num);
         getWarningsStream() << " Mode auto switch from KB phase to dynamic phase!!\n";
         switchModefromLtoF(state);
+        *actual_end = true;
     } else {
-        for (auto itairq : already_used_irq_values) {
-            // this feature only used for unit test, so we only enable termination tb num greater than 500
-            if (tb_num > 500) {
-                break;
-            }
-            if (plgState->get_type_flag_ph_it(std::get<1>(itairq.first)) != T1 ||
-                irq_data_phs[std::get<1>(itairq.first)] == 2) {
-                continue;
-            }
-            if (itairq.second.size() != possible_irq_values[itairq.first].size() && possible_irq_values[itairq.first].size() > 2) {
-                getDebugStream() << "ph addr = " << hexval(std::get<1>(itairq.first))
-                                 << " pc = " << hexval(std::get<2>(itairq.first))
-                                 << " irq no = " << std::get<0>(itairq.first)
-                                 << " already trigger number of irq values = " << itairq.second.size()
-                                 << " total number of irq values = " << possible_irq_values[itairq.first].size()
-                                 << "\n";
-                *actual_end = false;
-                return;
-            }
-        }
         updateGeneralKB(state, 0, Valid);
         saveKBtoFile(state, tb_num);
         g_s2e->getCorePlugin()->onEngineShutdown.emit();
