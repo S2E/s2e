@@ -74,7 +74,7 @@ endif
 LLVM_VERSION=10.0.0
 LLVM_SRC=llvm-$(LLVM_VERSION).src.tar.xz
 LLVM_SRC_DIR=llvm-$(LLVM_VERSION).src
-LLVM_SRC_URL=https://github.com/llvm/llvm-project/releases/download/llvmorg-$(LLVM_VERSION)/
+LLVM_SRC_URL=https://github.com/llvm/llvm-project/releases/download/llvmorg-$(LLVM_VERSION)
 
 # The Python script should only return a single word - the suffix of the Clang
 # binary to download. If an error message is printed to stderr, the Makefile
