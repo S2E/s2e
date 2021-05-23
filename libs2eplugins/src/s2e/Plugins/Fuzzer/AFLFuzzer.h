@@ -57,6 +57,7 @@ enum {
     /* 05 */ FAULT_NOBITS,
     /* 06 */ END_uEmu
 };
+
 class AFLFuzzer : public Plugin {
     S2E_PLUGIN
 public:
@@ -88,6 +89,7 @@ private:
     sigc::connection invalidPCAccessConnection;
     sigc::connection blockEndConnection;
     sigc::connection timerConnection;
+
     TBCounts all_tb_map;
     uint64_t unique_tb_num; // new tb number
     bool enable_fuzzing;
@@ -96,7 +98,6 @@ private:
     std::map<uint32_t /* phaddr */, uint32_t /* size */> input_peripherals;
     std::map<uint32_t /* phaddr */, uint32_t /* size */> additional_writeable_ranges;
     Fuzz_Buffer Ethernet;
-    // std::map<uint32_t /* phaddr */, PHTS /* testcase */> phstestcases;
     uint32_t cur_read;
     std::vector<uint32_t> crash_points;
     uint32_t invaild_pc;
@@ -106,8 +107,7 @@ private:
     uint64_t afl_end_code;   /* .text end pointer        */
     uint64_t hang_timeout;
     uint64_t timer_ticks;
-    std::map<uint32_t /* phaddr */, uint32_t /* testcase_loc */> ph_tc_loc;
-    std::map<uint32_t /* phaddr */, uint32_t /* last value */> ph_last_value;
+
     void onConcreteDataMemoryAccess(S2EExecutionState *state, uint64_t vaddr, uint64_t value, uint8_t size,
                                     unsigned flags);
     void onInvalidPHs(S2EExecutionState *state, uint64_t addr);

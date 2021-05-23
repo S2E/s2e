@@ -449,7 +449,7 @@ void AFLFuzzer::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, unsigned 
 
     // uEmu ends up with fuzzer
     if (unlikely(afl_con->AFL_return == END_uEmu)) {
-        getInfoStream() << "The total number of unqiue executed bb is " << unique_tb_num << "\n";
+        getInfoStream() << "The total number of unique executed tb is " << unique_tb_num << "\n";
         getInfoStream() << "==== Testing aborted by user via Fuzzer ====\n";
         g_s2e->getCorePlugin()->onEngineShutdown.emit();
         // Flush here just in case ~S2E() is not called (e.g., if atexit()

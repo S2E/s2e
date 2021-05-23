@@ -15,14 +15,12 @@
 
 namespace s2e {
 namespace plugins {
-
 class ExternalInterrupt : public Plugin {
     S2E_PLUGIN
 public:
     ExternalInterrupt(S2E *s2e) : Plugin(s2e) {
     }
     void initialize();
-    sigc::signal<void, S2EExecutionState *, unsigned /* size */, bool /* one round */> onExternalInterruptEvent;
 
 private:
     uint32_t tb_interval;
@@ -31,7 +29,7 @@ private:
     std::vector<uint32_t> disable_irqs;
     uint64_t timer_ticks;
     uint64_t systick_begin_point;
-    uint32_t KMeans(std::vector<uint32_t> peripheraladdrs);
+
     void onTimer();
     void onTranslateBlockStart(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb, uint64_t pc);
     void onBlockStart(S2EExecutionState *state, uint64_t pc);

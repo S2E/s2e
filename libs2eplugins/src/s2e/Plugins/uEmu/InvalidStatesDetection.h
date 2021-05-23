@@ -74,8 +74,6 @@ private:
     void onInvalidStatesKill(S2EExecutionState *state, uint64_t pc, InvalidStatesType type, std::string reason_str);
 
     bool onModeSwitchandTermination(S2EExecutionState *state, uint64_t pc);
-
-    void recordTBMap(S2EExecutionState *state);
 };
 
 } // namespace plugins
