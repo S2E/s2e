@@ -1181,12 +1181,12 @@ klee::ref<klee::Expr> PeripheralModelLearning::onLearningMode(S2EExecutionState 
                     while (find(already_used_irq_values[uniqueirqsphs].begin(),
                                 already_used_irq_values[uniqueirqsphs].end(),
                                 IRQS_value) != already_used_irq_values[uniqueirqsphs].end()) {
-                        rand_no = rand() % possible_irq_values[uniqueirqsphs].size();
-                        IRQS_value = possible_irq_values[uniqueirqsphs][rand_no] & (LSB - 1);
-                        if (already_used_irq_values[uniqueirqsphs].size() ==
+                        if (already_used_irq_values[uniqueirqsphs].size() >=
                             possible_irq_values[uniqueirqsphs].size()) {
                             break;
                         }
+                        rand_no = rand() % possible_irq_values[uniqueirqsphs].size();
+                        IRQS_value = possible_irq_values[uniqueirqsphs][rand_no] & (LSB - 1);
                     }
                     std::deque<uint32_t>::iterator itirq_rand =
                         std::find(possible_irq_values[uniqueirqsphs].begin(), possible_irq_values[uniqueirqsphs].end(),
@@ -1207,7 +1207,7 @@ klee::ref<klee::Expr> PeripheralModelLearning::onLearningMode(S2EExecutionState 
                 } else if (plgState->get_symbolicpc_ph_it(UniquePeripheral(phaddr, pc)) == 1) {
                     return klee::ConstantExpr::create(IRQS_value, size * 8);
                 } else {
-                    if (find(already_used_irq_values[uniqueirqsphs].begin(),
+                    if (possible_irq_values[uniqueirqsphs].size() > 0 && find(already_used_irq_values[uniqueirqsphs].begin(),
                              already_used_irq_values[uniqueirqsphs].end(),
                              IRQS_value) == already_used_irq_values[uniqueirqsphs].end()) {
                         already_used_irq_values[uniqueirqsphs].push_back(IRQS_value);
@@ -1365,6 +1365,7 @@ klee::ref<klee::Expr> PeripheralModelLearning::onFuzzingMode(S2EExecutionState *
     // record all read phs
     DECLARE_PLUGINSTATE(PeripheralModelLearningState, state);
     plgState->inc_readphs(phaddr, size);
+    all_peripheral_no++;
 
     TypeFlagPeripheralMap::iterator itf = cache_type_flag_phs.find(phaddr);
     if (itf == cache_type_flag_phs.end()) {
