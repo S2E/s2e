@@ -431,6 +431,20 @@ void AFLFuzzer::onConcreteDataMemoryAccess(S2EExecutionState *state, uint64_t ad
     onCrashHang(state, 1);
 }
 
+void AFLFuzzer::recordTBMap() {
+    std::string fileName;
+    fileName = s2e()->getOutputDirectory() + "/fuzz_tb_map.txt";
+    std::ofstream fTBmap;
+    fTBmap.open(fileName, std::ios::out | std::ios::trunc);
+
+    for (auto ittb : all_tb_map) {
+        if (ittb.second > 0)
+            fTBmap << hexval(ittb.first) << std::endl;;
+    }
+
+    fTBmap.close();
+}
+
 void AFLFuzzer::onTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionState *state,
                                                  TranslationBlock *tb, uint64_t pc, bool staticTarget,
                                                  uint64_t staticTargetPc) {
@@ -449,6 +463,7 @@ void AFLFuzzer::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, unsigned 
 
     // uEmu ends up with fuzzer
     if (unlikely(afl_con->AFL_return == END_uEmu)) {
+        recordTBMap();
         getInfoStream() << "The total number of unique executed tb is " << unique_tb_num << "\n";
         getInfoStream() << "==== Testing aborted by user via Fuzzer ====\n";
         g_s2e->getCorePlugin()->onEngineShutdown.emit();

@@ -120,6 +120,7 @@ private:
     void onBlockEnd(S2EExecutionState *state, uint64_t pc, unsigned source_type);
     void onCrashHang(S2EExecutionState *state, uint32_t flag);
     void onTimer();
+    void recordTBMap();
 };
 
 } // namespace plugins
