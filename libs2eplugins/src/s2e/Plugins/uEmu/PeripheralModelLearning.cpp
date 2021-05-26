@@ -1000,7 +1000,7 @@ void PeripheralModelLearning::identifyDataPeripheralRegs(S2EExecutionState *stat
                 getInfoStream() << "The third kind of data register phaddr = "
                                  << hexval(it->first) << " count = " << it->second.second << "\n";
                 if (plgState->get_dt1_type_flag_ph_it(it->first) == 1
-                    && it->second.second > 0x10 && it->second.second < 0x100 && !enable_fuzzing) {
+                    && it->second.second > 0x10 && it->second.second < 0xc0 && !enable_fuzzing) {
                     read_cache_data_phs[it->first] = it->second;
                     read_cache_phs.erase(it++);
                     continue;
