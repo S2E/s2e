@@ -1131,6 +1131,26 @@ klee::ref<klee::Expr> PeripheralModelLearning::onLearningMode(S2EExecutionState 
         return state->createSymbolicValue(ss.str(), size * 8, concolicValue);
     }
 
+    if (enable_fuzzing) {
+        bool fuzzOk = false;
+        uint32_t fuzz_value;
+        uint32_t fuzz_size;
+
+        if (plgState->get_type_flag_ph_it(phaddr) == T3) {
+            fuzzOk = true;
+            fuzz_size = cache_dr_type_size[phaddr];
+        }
+
+        onFuzzingInput.emit(state, (PeripheralRegisterType) itf->second, phaddr, 0, &fuzz_size, &fuzz_value, &fuzzOk);
+
+        if (fuzzOk) {
+            getDebugStream() << " In learning mode, reading data from fuzzing input addr = " << hexval(phaddr)
+                             << " pc = " << hexval(pc) << " return value set as zero"
+                             << " size = " << size << "\n";
+            return klee::ConstantExpr::create(0x0, size * 8);
+        }
+    }
+
     switch (plgState->get_type_flag_ph_it(phaddr)) {
         case T0: {
             getInfoStream() << " T0 type ph addr = " << hexval(phaddr) << " pc = " << hexval(pc)
