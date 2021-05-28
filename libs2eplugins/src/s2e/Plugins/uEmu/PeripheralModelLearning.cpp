@@ -2596,7 +2596,7 @@ void PeripheralModelLearning::updateIRQKB(S2EExecutionState *state, uint32_t irq
                         << " irq regs count = " << hexval(current_irq_phs.size()) << "\n";
     // in case no cr value in condtion
     if (!crflag) {
-        if (irq_crs.count(irq_no) > 0 && irq_cr_phs.size() == 0 && irq_sr_phs.size() > 0) {
+        if (irq_crs.count(irq_no) > 0 && irq_cr_phs.size() <= 1 && irq_sr_phs.size() > 0) {
             uint32_t sr_phaddr;
             uint32_t value;
             for (auto &irq_sr_ph : irq_sr_phs) {
