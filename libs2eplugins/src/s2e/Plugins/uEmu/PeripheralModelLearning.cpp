@@ -1780,7 +1780,8 @@ void PeripheralModelLearning::saveKBtoFile(S2EExecutionState *state, uint64_t tb
             All_rphs[itpt1.first.first] = 1;
             if (plgState->get_pt1_type_flag_ph_it(itpt1.first) == 2) {
                 if (plgState->get_dt1_type_flag_ph_it(itpt1.first.first) != 2 && itpt1.second.second.second == 0) {
-                    plgState->insert_dt1_type_flag_phs(itpt1.first.first, 1);
+                    if (plgState->get_dt1_type_flag_ph_it(itpt1.first.first) != 1)
+                        plgState->insert_dt1_type_flag_phs(itpt1.first.first, 1);
                 }
                 fPHKB << "pt1_" << hexval(itpt1.first.first) << "_" << hexval(itpt1.first.second) << "_"
                       << hexval(itpt1.second.first) << "_" << hexval(itpt1.second.second.second) << std::endl;
