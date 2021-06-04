@@ -3184,8 +3184,10 @@ klee::ref<klee::Expr> PeripheralModelLearning::switchModefromFtoL(S2EExecutionSt
                      phaddr) == irq_srs[state->regs()->getExceptionIndex()].end()) {
                 irq_srs[state->regs()->getExceptionIndex()].push_back(phaddr);
             }
+            SymbHwGetConcolicVector(concreteValue, size, concolicValue);
+        } else {
+            SymbHwGetConcolicVector(0x0, size, concolicValue);
         }
-        SymbHwGetConcolicVector(concreteValue, size, concolicValue);
         return state->createSymbolicValue(ss, size * 8, concolicValue);
     }
 }
