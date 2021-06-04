@@ -1222,6 +1222,7 @@ klee::ref<klee::Expr> PeripheralModelLearning::onLearningMode(S2EExecutionState 
                                  << " possible size = " << possible_irq_values[uniqueirqsphs].size()
                                  << " already size = " << already_used_irq_values[uniqueirqsphs].size() << "\n";
                 if (already_used_irq_values[uniqueirqsphs].size() == possible_irq_values[uniqueirqsphs].size() &&
+                    possible_irq_values[uniqueirqsphs].size() != 0 &&
                     (possible_irq_values[uniqueirqsphs].size() > 2 || plgState->get_readphs_count(phaddr) > 1000)) {
                     return klee::ConstantExpr::create(IRQS_value, size * 8);
                 } else if (plgState->get_symbolicpc_ph_it(UniquePeripheral(phaddr, pc)) == 1) {
