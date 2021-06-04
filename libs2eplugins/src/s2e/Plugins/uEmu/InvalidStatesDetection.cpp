@@ -522,7 +522,7 @@ void InvalidStatesDetection::onInvalidLoopDetection(S2EExecutionState *state, ui
         std::vector<uint32_t> loopregs = plgState->getcurloopregs();
         int k;
         for (k = 0; k < conregs.size(); ++k) {
-            if (loopregs[k] == conregs[k]) {
+            if (loopregs[k] == conregs[k] || k == 1) {
                 continue;
             } else {
                 break;
