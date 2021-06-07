@@ -96,6 +96,7 @@ private:
     TypeFlagPeripheralMap cache_type_flag_phs;
     UniquePeripheralSizeMap cache_dr_type_size;
     //  knowledge extraction mode
+    std::map<uint32_t /* pc */, uint32_t /* count */> alive_points_count;
     TypeFlagPeripheralMap
         irq_data_phs; // 2: donates data reg in interrupt which should not meet conditions in irq handle. 1 and 3 cannot be data reg.
     AllKnowledgeBaseNoMap cache_all_cache_phs;
