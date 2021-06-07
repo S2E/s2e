@@ -1536,6 +1536,7 @@ klee::ref<klee::Expr> PeripheralModelLearning::onFuzzingMode(S2EExecutionState *
                 } else {
                     getInfoStream() << " change mode ph addr = " << hexval(phaddr) << " pc = " << hexval(pc)
                                         << " size =" << hexval(size) << "\n";
+                    concreteValue = 0x0 & (LSB - 1);
                     return switchModefromFtoL(state, ss.str(), phaddr, size, concreteValue);
                 }
             } else { // normal mode
