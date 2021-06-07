@@ -3042,6 +3042,13 @@ void PeripheralModelLearning::onStateSwitch(S2EExecutionState *currentState, S2E
                      << " flag irq_no_new_branch_flag = " << irq_no_new_branch_flag
                      << nextState->regs()->getInterruptFlag() << " flag no_new_branch_flag = " << no_new_branch_flag
                      << "\n";
+
+    if (find(learning_mode_states.begin(), learning_mode_states.end(), nextState) ==
+            learning_mode_states.end()) {
+        getWarningsStream() << "Learning state can not be switch to fuzzing state\n";
+        exit(-1);
+    }
+
     if (!nextState->regs()->getInterruptFlag() && !currentState->regs()->getInterruptFlag()) {
         updateGeneralKB(nextState, 0, Invlid);
         // update flag
