@@ -609,6 +609,8 @@ void InvalidStatesDetection::onInvalidLoopDetection(S2EExecutionState *state, ui
                 plgState->inserttbregs(conregs); // insert current tb before assign loop tb
                 plgState->assignloopregs(i);     // assign loop tb
                 plgState->setloopflag(true);     // next round compare loop tb first
+                getDebugStream(state) << " Same as the " << i << " current pc = " << hexval(pc)
+                                      << " cachereg pc = " << hexval(cacheregs[0]) << " \n";
                 return;
             }
         } else {
