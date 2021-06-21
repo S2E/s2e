@@ -2022,7 +2022,8 @@ void PeripheralModelLearning::onInvalidStatesDetection(S2EExecutionState *state,
 
     // record every termination points for alive point identification
     alive_points_count[pc]++;
-    if (alive_points_count[pc] > 8) {
+    getDebugStream() << "kill pc = " << hexval(pc) << " alive point count " << alive_points_count[pc] << "\n";
+    if (alive_points_count[pc] > t2_max_context + 1) {
         getWarningsStream() << "====KB extraction phase failed! Please add the alive point: "
                             << hexval(pc) <<" and re-run the learning parse====\n";
         exit(-1);
