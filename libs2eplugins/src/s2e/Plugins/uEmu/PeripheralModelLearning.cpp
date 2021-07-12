@@ -987,7 +987,7 @@ void PeripheralModelLearning::identifyDataPeripheralRegs(S2EExecutionState *stat
                 getInfoStream() << "The third kind of data register phaddr = "
                                  << hexval(it->first) << " count = " << it->second.second << "\n";
                 if (plgState->get_dt1_type_flag_ph_it(it->first) == 1
-                    && it->second.second > 0x10 && it->second.second < 0xc0 && !enable_fuzzing) {
+                    && it->second.second > 0x10 && it->second.second < 200 && !enable_fuzzing) {
                     read_cache_data_phs[it->first] = it->second;
                     read_cache_phs.erase(it++);
                     continue;
@@ -1768,7 +1768,8 @@ void PeripheralModelLearning::saveKBtoFile(S2EExecutionState *state, uint64_t tb
         if (plgState->get_type_flag_ph_it(itpt1.first.first) == T1) {
             All_rphs[itpt1.first.first] = 1;
             if (plgState->get_pt1_type_flag_ph_it(itpt1.first) == 2) {
-                if (plgState->get_dt1_type_flag_ph_it(itpt1.first.first) != 2 && itpt1.second.second.second == 0) {
+                if (plgState->get_dt1_type_flag_ph_it(itpt1.first.first) != 2 &&
+                    (itpt1.second.second.second == 0 || itpt1.second.second.second == 0xd0d0d0d)) {
                     if (plgState->get_dt1_type_flag_ph_it(itpt1.first.first) != 1) {
                         plgState->insert_dt1_type_flag_phs(itpt1.first.first, 1);
                     } else {
