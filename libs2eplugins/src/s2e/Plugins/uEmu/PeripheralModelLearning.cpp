@@ -1334,6 +1334,38 @@ klee::ref<klee::Expr> PeripheralModelLearning::onLearningMode(S2EExecutionState 
                                  << " pc = " << hexval(pc) << " value = " << hexval(value) << "\n";
                 return klee::ConstantExpr::create(value, size * 8);
             } else {
+                if (plgState->get_readphs_count(phaddr) >= 10) {
+                    std::map<uint32_t, uint32_t> value_count_map;
+                    for (auto &itun : plgState->get_cache_phs(phaddr)) {
+                        value_count_map[itun.second]++;
+                        if (itun.second == plgState->get_t3_type_ph_it_back(phaddr)
+                            && value_count_map[itun.second] > 16) {
+                            std::vector<std::pair<uint64_t, uint32_t>> ituncaches;
+                            ituncaches.clear();
+                            for (auto &itun : plgState->get_cache_phs(phaddr)) {
+                                ituncaches.push_back(std::make_pair(itun.first, itun.second));
+                            }
+                            std::sort(ituncaches.begin(), ituncaches.end(), CmpByNo());
+                            plgState->clear_t3_type_phs(phaddr);
+                            for (auto ituncache : ituncaches) {
+                                plgState->push_t3_type_ph_back(phaddr, ituncache.second);
+                                getDebugStream() << "2 T3 loop1 to loop2 type phaddr = " << hexval(phaddr)
+                                                 << " value = " << hexval(ituncache.second) << " no = " << hexval(ituncache.first)
+                                                 << "\n";
+                            }
+                            plgState->insert_concrete_t3_flag(phaddr, 1);
+                            plgState->insert_t3_size_ph_it(phaddr, plgState->get_readphs_count(phaddr));
+                            value = plgState->get_t3_type_ph_it_front(phaddr);
+                            plgState->pop_t3_type_ph_it(phaddr);
+                            plgState->push_t3_type_ph_back(phaddr, value);
+                            all_peripheral_no--;
+                            getDebugStream() << " value come from T3 loop1 type phaddr = " << hexval(phaddr)
+                                             << " pc = " << hexval(pc) << " value = " << hexval(value) << "\n";
+                            return klee::ConstantExpr::create(value, size * 8);
+                        }
+                    }
+                }
+                getDebugStream() << "T3 size = " << plgState->get_t3_type_ph_size(phaddr) << "\n";
                 plgState->insert_cachephs(phaddr, all_peripheral_no - 1, 0);
                 plgState->insert_t3_size_ph_it(phaddr, plgState->get_readphs_count(phaddr));
                 getDebugStream() << " value come from T3 loop0 type phaddr = " << hexval(phaddr)
