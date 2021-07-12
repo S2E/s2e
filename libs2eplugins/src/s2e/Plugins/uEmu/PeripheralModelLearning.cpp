@@ -63,6 +63,7 @@ private:
     TypeFlagPeripheralMap lock_t1_type_flag;
     TypeFlagPeripheralMap t0_type_flag_phs; // use to indicate which t0 phs have been read
     TypeFlagPeripheralMap t3_size_map;      // use to indicate t3 ph size
+    std::map<uint32_t, std::map<uint32_t, uint32_t>> t3_value_count; // use to indicate t3 value count
     T1PeripheralMap symbolicpc_phs;         // 1 means this phs have been read as pc
     T1PeripheralMap symbolicpc_phs_fork_count;
     T0PeripheralMap t0_type_phs;
@@ -264,8 +265,17 @@ public:
     }
 
     void insert_t3_type_ph_back(uint32_t phaddr, uint32_t value) {
-        if (find(t3_type_phs[phaddr].begin(), t3_type_phs[phaddr].end(), value) == t3_type_phs[phaddr].end())
+        if (find(t3_type_phs[phaddr].begin(), t3_type_phs[phaddr].end(), value)
+                == t3_type_phs[phaddr].end()) {
             t3_type_phs[phaddr].push_back(value);
+            t3_value_count[phaddr][value] = 1;
+        } else {
+            t3_value_count[phaddr][value]++;
+        }
+    }
+
+    uint32_t get_t3_type_ph_value_count(uint32_t phaddr, uint32_t value) {
+        return t3_value_count[phaddr][value];
     }
 
     void push_t3_type_ph_back(uint32_t phaddr, uint32_t value) {
