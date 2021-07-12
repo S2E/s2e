@@ -383,6 +383,7 @@ void AFLFuzzer::onInvalidPCAccess(S2EExecutionState *state, uint64_t addr) {
 
 void AFLFuzzer::onConcreteDataMemoryAccess(S2EExecutionState *state, uint64_t address, uint64_t value, uint8_t size,
                                            unsigned flags) {
+    DECLARE_PLUGINSTATE(AFLFuzzerState, state);
 
     bool is_write = false;
     if (flags & MEM_TRACE_FLAG_WRITE) {
@@ -407,6 +408,10 @@ void AFLFuzzer::onConcreteDataMemoryAccess(S2EExecutionState *state, uint64_t ad
         return;
     }
 
+    if (plgState->get_hit_count() == 0) {
+        return;
+    }
+
     // additional user-defined available rw regions
     for (auto writeable_range : additional_writeable_ranges) {
         if (address >= writeable_range.first && address < writeable_range.first + writeable_range.second) {
@@ -424,8 +429,12 @@ void AFLFuzzer::onConcreteDataMemoryAccess(S2EExecutionState *state, uint64_t ad
         getWarningsStream() << "Kill Fuzz State due to out of bound read, access address = " << hexval(address)
                             << " pc = " << hexval(pc) << "\n";
     } else {
-        getWarningsStream() << "Kill Fuzz State due to out of bound write, access address = " << hexval(address)
-                            << " pc = " << hexval(pc) << "\n";
+        if (address > 0x20200000) {
+            getWarningsStream() << "Kill Fuzz State due to out of bound write, access address = " << hexval(address)
+                                << " pc = " << hexval(pc) << "\n";
+        } else {
+            return;
+        }
     }
 
     onCrashHang(state, 1);
