@@ -2766,7 +2766,8 @@ void PeripheralModelLearning::updateGeneralKB(S2EExecutionState *state, uint32_t
                         T1BNPeripheralMap t1_type_phs = plgState->get_t1_type_phs();
                         T1BNPeripheralMap::iterator itt1 = t1_type_phs.find(it.first);
                         if (itt1 != t1_type_phs.end()) { // deal with t1
-                            if (itt1->second.second.second != itch.second.second) {
+                            if (itt1->second.second.second != itch.second.second
+                                && itt1->second.second.first != itch.second.first) {
                                 if (itt1->second.first == itch.first) {
                                     plgState->insert_type_flag_phs(it.first.first, T3);
                                     getInfoStream(state)
@@ -2795,6 +2796,12 @@ void PeripheralModelLearning::updateGeneralKB(S2EExecutionState *state, uint32_t
                                                      << " value = " << hexval(itch.second.second) << "\n";
                                     continue;
                                 }
+                            } else {
+                                plgState->insert_t1_type_phs(it.first, itch.first, itch.second);
+                                getInfoStream() << "VUpdate t1 phs = " << hexval(it.first.first)
+                                                 << " pc = " << hexval(it.first.second)
+                                                 << " hash = " << hexval(itch.first)
+                                                 << " value = " << hexval(itch.second.second) << "\n";
                             }
                         } else { // deal with possible t1
                             T1BNPeripheralMap pt1_type_phs = plgState->get_pt1_type_phs();
