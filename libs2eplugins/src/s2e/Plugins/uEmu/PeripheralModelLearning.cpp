@@ -3162,7 +3162,9 @@ klee::ref<klee::Expr> PeripheralModelLearning::switchModefromFtoL(S2EExecutionSt
         plgState->insert_type_flag_phs(ittp.first, ittp.second);
         plgState->insert_t0_type_flag_phs(ittp.first, 1);
         if (ittp.second == T3) {
-            plgState->inc_readphs(ittp.first, cache_dr_type_size[ittp.second]);
+            getInfoStream() << "change mode T3 phaddr = " << hexval(ittp.first)
+                        << " size = " << cache_dr_type_size[ittp.first] << "\n";
+            plgState->inc_readphs(ittp.first, cache_dr_type_size[ittp.first]);
         }
     }
 
