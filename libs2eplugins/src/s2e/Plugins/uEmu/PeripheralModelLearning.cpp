@@ -1903,7 +1903,7 @@ void PeripheralModelLearning::saveKBtoFile(S2EExecutionState *state, uint64_t tb
             std::sort(unique_T3_values.begin(), unique_T3_values.end());
             unique_T3_values.erase(std::unique(unique_T3_values.begin(), unique_T3_values.end()),
                                    unique_T3_values.end());
-            if (unique_T3_values.size() < 5) {
+            if (unique_T3_values.size() <= 5) {
                 int j = 1;
                 for (uint32_t T3_value : unique_T3_values) {
                     if (j <= max_t3_size) {
