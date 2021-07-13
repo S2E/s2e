@@ -867,6 +867,12 @@ bool PeripheralModelLearning::readKBfromFile(std::string fileName) {
                 if (cache_t3_type_phs[phaddr].size() == 1) { //only one item no need for replay leave for fuzzing
                     cache_t3_type_phs[phaddr].pop_front();
                 } else if (cache_t3_type_phs[phaddr].size() == 2) {
+                    if ((find(cache_t3_type_phs[phaddr].begin(), cache_t3_type_phs[phaddr].end(), 0x1)
+                            != cache_t3_type_phs[phaddr].end()) && (find(cache_t3_type_phs[phaddr].begin(), cache_t3_type_phs[phaddr].end(), 0x0)
+                            != cache_t3_type_phs[phaddr].end())) {
+                        cache_t3_io_type_phs[phaddr] = 1;
+                        continue;
+                    }
                     cache_t3_type_phs[phaddr].pop_front();
                     cache_t3_type_phs[phaddr].pop_front();
                 }
@@ -974,6 +980,8 @@ void PeripheralModelLearning::identifyDataPeripheralRegs(S2EExecutionState *stat
             continue;
         } else if (type_flag_phs[it->first] == T1) {
             if (irq_data_phs[it->first] == 2) { // data regs in irq
+                getInfoStream() << "The first kind of data register phaddr = "
+                                 << hexval(it->first) << " count = " << it->second.second << "\n";
                 read_cache_data_phs[it->first] = it->second;
                 read_cache_phs.erase(it++);
                 continue;
@@ -981,6 +989,12 @@ void PeripheralModelLearning::identifyDataPeripheralRegs(S2EExecutionState *stat
                 read_cache_phs.erase(it++);
                 continue;
             } else if (plgState->get_lock_t1_type_flag(it->first) == 1) {
+                if (PT1_phs[it->first] == 1 && mulit_value_dr[it->first] == 1
+                    && it->second.second > 0x30 && !enable_fuzzing) { // mulit values in pt1 is also dr
+                    getInfoStream() << "The second kind of data register phaddr = "
+                                     << hexval(it->first) << " count = " << it->second.second << "\n";
+                    read_cache_data_phs[it->first] = it->second;
+                }
                 read_cache_phs.erase(it++); // remove t1 type
                 continue;
             } else {
@@ -1426,7 +1440,9 @@ klee::ref<klee::Expr> PeripheralModelLearning::onFuzzingMode(S2EExecutionState *
         uint32_t fuzz_size;
 
         if (itf->second == T3) {
-            fuzzOk = true;
+            if (cache_t3_io_type_phs[phaddr] != 1) {
+                fuzzOk = true;
+            }
             fuzz_size = cache_dr_type_size[phaddr];
             onFuzzingInput.emit(state, (PeripheralRegisterType) itf->second, phaddr,
                                 cache_t3_type_phs[itf->first].size(), &fuzz_size, &fuzz_value, &fuzzOk);
@@ -1596,7 +1612,16 @@ klee::ref<klee::Expr> PeripheralModelLearning::onFuzzingMode(S2EExecutionState *
                 value = cache_t3_type_phs[itf->first].front() & (LSB - 1);
                 cache_t3_type_phs[itf->first].pop_front();
                 if (!fuzzOk) {
-                    cache_t3_type_phs[itf->first].push_back(value);
+                    if (cache_t3_io_type_phs[phaddr] == 1) {
+                        uint32_t rand_no = rand() % 2;
+                        if (rand_no == 0) {
+                            cache_t3_type_phs[itf->first].push_front(value);
+                        } else {
+                            cache_t3_type_phs[itf->first].push_back(value);
+                        }
+                    } else {
+                        cache_t3_type_phs[itf->first].push_back(value);
+                    }
                 }
                 getDebugStream() << " t3 type ph addr = " << hexval(phaddr) << " pc = " << hexval(pc)
                                  << " value = " << hexval(value) << " size = " << hexval(size) << "\n";
@@ -1761,6 +1786,7 @@ void PeripheralModelLearning::saveKBtoFile(S2EExecutionState *state, uint64_t tb
     T1PeripheralMap pt1_type_flag_all_phs = plgState->get_pt1_type_flag_all_phs();
     TypeFlagPeripheralMap All_rphs;
     TypeFlagPeripheralMap T0_phs;
+    PT1_phs.clear();
     TypeFlagPeripheralMap T2_phs;
     TypeFlagPeripheralMap T3_phs;
 
@@ -1801,14 +1827,19 @@ void PeripheralModelLearning::saveKBtoFile(S2EExecutionState *state, uint64_t tb
         if (plgState->get_type_flag_ph_it(itpt1.first.first) == T1) {
             All_rphs[itpt1.first.first] = 1;
             if (plgState->get_pt1_type_flag_ph_it(itpt1.first) == 2) {
-                if (plgState->get_dt1_type_flag_ph_it(itpt1.first.first) != 2 &&
-                    (itpt1.second.second.second == 0 || itpt1.second.second.second == 0xd0d0d0d)) {
-                    if (plgState->get_dt1_type_flag_ph_it(itpt1.first.first) != 1) {
+                if (plgState->get_dt1_type_flag_ph_it(itpt1.first.first) != 2
+                    && plgState->get_dt1_type_flag_ph_it(itpt1.first.first) != 1) {
+                    if (itpt1.second.second.second == 0xd0d0d0d) {
+                        getInfoStream() << "unlock possible dr = " << hexval(itpt1.first.first) << "\n";
+                        plgState->insert_lock_t1_type_flag(itpt1.first.first, 0);
+                        plgState->insert_dt1_type_flag_phs(itpt1.first.first, 1);
+                    } else if (itpt1.second.second.second == 0) {
                         plgState->insert_dt1_type_flag_phs(itpt1.first.first, 1);
                     } else {
                         plgState->insert_dt1_type_flag_phs(itpt1.first.first, 0);
                     }
                 }
+                PT1_phs[itpt1.first.first] = 1;
                 fPHKB << "pt1_" << hexval(itpt1.first.first) << "_" << hexval(itpt1.first.second) << "_"
                       << hexval(itpt1.second.first) << "_" << hexval(itpt1.second.second.second) << std::endl;
             }
@@ -2396,6 +2427,16 @@ void PeripheralModelLearning::onFork(S2EExecutionState *state, const std::vector
 
             // update cachefork after T3 check
             cachefork_phs[k][uniquePeripheral][ch_value] = std::make_pair(no, value);
+            T2Tuple uniquehashPeripheral = std::make_tuple(phaddr, pc, ch_value);
+            if (find(all_fork_states_value_map[uniquehashPeripheral].begin(), all_fork_states_value_map[uniquehashPeripheral].end(), value)
+                    == all_fork_states_value_map[uniquehashPeripheral].end()) {
+                all_fork_states_value_map[uniquehashPeripheral].push_back(value);
+                if (all_fork_states_value_map[uniquehashPeripheral].size() > 2) {
+                    getInfoStream() << " Find mulit value phaddr = " << hexval(phaddr)
+                        << " size = " << all_fork_states_value_map[uniquehashPeripheral].size() << "\n";
+                    mulit_value_dr[phaddr] = 1;
+                }
+            }
             plgState->insert_cachephs(phaddr, no, value);
             plgState->insert_condition_ph_it(phaddr);
             getInfoStream(newStates[k]) << " all cache phaddr = " << hexval(phaddr) << " pc = " << hexval(pc)

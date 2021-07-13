@@ -64,7 +64,7 @@ typedef std::map<uint32_t /* phaddr */, NumMap> AllKnowledgeBaseNoMap;
 typedef std::map<uint32_t /* peripheraladdress */, std::pair<uint32_t /* size */, uint32_t /* count */>>
     ReadPeripheralMap;
 typedef std::pair<uint32_t /* peripheraladdress */, std::pair<uint32_t /* size */, uint32_t /* count */>> ReadTUPLE;
-typedef std::tuple<uint32_t /* phaddr */, uint32_t /* pc */, uint32_t /* caller pc&function regs hash value */> T2Tuple;
+typedef std::tuple<uint32_t /* phaddr */, uint32_t /* pc */, uint64_t /* caller pc&function regs hash value */> T2Tuple;
 typedef std::vector<std::vector<S2EExecutionState *>> ForkStateStack;
 
 class PeripheralModelLearning : public Plugin {
@@ -89,6 +89,7 @@ private:
     T2PeripheralMap cache_t2_type_phs;
     T3PeripheralMap cache_t3_type_phs_backup;
     T3PeripheralMap cache_t3_type_phs;
+    TypeFlagPeripheralMap cache_t3_io_type_phs;
     TIRQCPeripheralMap cache_tirqc_type_phs;
     TIRQSPeripheralMap cache_tirqs_type_phs;
     TIRQPeripheralMapFlag cache_type_irqc_flag;
@@ -107,6 +108,9 @@ private:
     uint64_t all_peripheral_no;
     std::map<uint64_t /* path num */, uint32_t /* flag */> all_path_map;
     std::map<uint64_t /* path num */, uint32_t /* flag */> all_searched_path_map;
+    std::map<T2Tuple, std::vector<uint32_t> /* unique value */> all_fork_states_value_map;
+    TypeFlagPeripheralMap PT1_phs;
+    TypeFlagPeripheralMap mulit_value_dr;
 
     std::map<uint32_t /*irq no*/, PeripheralMap> irq_crs;
     std::map<uint32_t /*irq no*/, std::deque<uint32_t>> irq_srs;
