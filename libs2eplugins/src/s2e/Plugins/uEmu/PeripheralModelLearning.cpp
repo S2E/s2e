@@ -1336,10 +1336,10 @@ klee::ref<klee::Expr> PeripheralModelLearning::onLearningMode(S2EExecutionState 
             } else {
                 if (plgState->get_readphs_count(phaddr) >= 10) {
                     std::map<uint32_t, uint32_t> value_count_map;
-                    for (auto &itun : plgState->get_cache_phs(phaddr)) {
-                        value_count_map[itun.second]++;
-                        if (itun.second == plgState->get_t3_type_ph_it_back(phaddr)
-                            && value_count_map[itun.second] > 16) {
+                    for (auto &itun0 : plgState->get_cache_phs(phaddr)) {
+                        value_count_map[itun0.second]++;
+                        if (itun0.second == plgState->get_t3_type_ph_it_back(phaddr)
+                            && value_count_map[itun0.second] > 16) {
                             std::vector<std::pair<uint64_t, uint32_t>> ituncaches;
                             ituncaches.clear();
                             for (auto &itun : plgState->get_cache_phs(phaddr)) {
@@ -1369,7 +1369,8 @@ klee::ref<klee::Expr> PeripheralModelLearning::onLearningMode(S2EExecutionState 
                 plgState->insert_cachephs(phaddr, all_peripheral_no - 1, 0);
                 plgState->insert_t3_size_ph_it(phaddr, plgState->get_readphs_count(phaddr));
                 getDebugStream() << " value come from T3 loop0 type phaddr = " << hexval(phaddr)
-                                 << " pc = " << hexval(pc) << " no = " << all_peripheral_no - 1 << "\n";
+                                 << " pc = " << hexval(pc) << " value = " << hexval(plgState->get_t3_type_ph_it_back(phaddr))
+                                 << " no = " << all_peripheral_no - 1 << "\n";
                 ConcreteArray concolicValue;
                 SymbHwGetConcolicVector(plgState->get_t3_type_ph_it_back(phaddr), size, concolicValue);
                 return state->createSymbolicValue(ss.str(), size * 8, concolicValue);
@@ -1871,7 +1872,7 @@ void PeripheralModelLearning::saveKBtoFile(S2EExecutionState *state, uint64_t tb
             std::sort(unique_T3_values.begin(), unique_T3_values.end());
             unique_T3_values.erase(std::unique(unique_T3_values.begin(), unique_T3_values.end()),
                                    unique_T3_values.end());
-            if (unique_T3_values.size() < 4) {
+            if (unique_T3_values.size() < 5) {
                 int j = 1;
                 for (uint32_t T3_value : unique_T3_values) {
                     if (j <= max_t3_size) {
