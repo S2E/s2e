@@ -808,6 +808,7 @@ bool PeripheralModelLearning::readKBfromFile(std::string fileName) {
                 cache_dr_type_size[phaddr] = pc; // pc_pos is size for t3
             } else if (type == TIRQS) {
                 cache_type_flag_phs[phaddr] = T1;
+                fixed_type_irq_flag[phaddr] = 1;
                 cache_type_irqs_flag[std::make_tuple(cwirq_value, phaddr, pc)] = 1;
                 cache_tirqs_type_phs[std::make_tuple(cwirq_value, phaddr, pc)].push_back(value);
             } else {
@@ -2705,13 +2706,18 @@ void PeripheralModelLearning::updateIRQKB(S2EExecutionState *state, uint32_t irq
         if (irq_sr_phs.size() > 0 && irq_cr_phs.size() > 0) {
             for (auto &irq_sr_ph : irq_sr_phs) {
                 // TODO: deal with previous values
-                plgState->insert_irq_flag_phs(irq_sr_ph.first, 2);
-                plgState->insert_tirqc_type_phs(irq_no, irq_sr_ph.first, last_cr_phaddr, irq_cr_phs[last_cr_phaddr],
-                                                irq_sr_ph.second);
-                getInfoStream() << " Add TIRQC type ph addr = " << hexval(irq_sr_ph.first)
-                                    << " value = " << hexval(irq_sr_ph.second)
-                                    << " cr phaddr = " << hexval(last_cr_phaddr)
-                                    << " cr value =" << hexval(irq_cr_phs[last_cr_phaddr]) << "\n";
+                if (enable_fuzzing && fixed_type_irq_flag[irq_sr_ph.first] == 1) {
+                    getWarningsStream() << "Do not change first IRQ type during fuzzing, keep phaddr "
+                                    << hexval(irq_sr_ph.first) << ".\n";
+                } else {
+                    plgState->insert_irq_flag_phs(irq_sr_ph.first, 2);
+                    plgState->insert_tirqc_type_phs(irq_no, irq_sr_ph.first, last_cr_phaddr, irq_cr_phs[last_cr_phaddr],
+                                                    irq_sr_ph.second);
+                    getInfoStream() << " Add TIRQC type ph addr = " << hexval(irq_sr_ph.first)
+                                        << " value = " << hexval(irq_sr_ph.second)
+                                        << " cr phaddr = " << hexval(last_cr_phaddr)
+                                        << " cr value =" << hexval(irq_cr_phs[last_cr_phaddr]) << "\n";
+                }
             }
         } else {
             getInfoStream() << " CR size = " << irq_cr_phs.size() << "\n";

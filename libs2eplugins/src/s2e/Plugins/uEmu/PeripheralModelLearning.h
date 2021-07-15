@@ -111,6 +111,7 @@ private:
     std::map<T2Tuple, std::vector<uint32_t> /* unique value */> all_fork_states_value_map;
     TypeFlagPeripheralMap PT1_phs;
     TypeFlagPeripheralMap mulit_value_dr;
+    TypeFlagPeripheralMap fixed_type_irq_flag;
 
     std::map<uint32_t /*irq no*/, PeripheralMap> irq_crs;
     std::map<uint32_t /*irq no*/, std::deque<uint32_t>> irq_srs;
