@@ -266,6 +266,7 @@ void ExternalInterrupt::onBlockStart(S2EExecutionState *state, uint64_t pc) {
                         ++i;
                         s2e()->getExecutor()->setExternalInterrupt(it.first);
                     } else {
+                        getWarningsStream() << " cannot trigger external irq " << it.first << " which has been disable\n";
                         ++i;
                         continue;
                     }
