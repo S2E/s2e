@@ -2058,7 +2058,7 @@ void PeripheralModelLearning::onInvalidStatesDetection(S2EExecutionState *state,
     getDebugStream() << "kill pc = " << hexval(state->regs()->getPc()) << " lr = " << hexval(state->regs()->getLr())
         << " alive point count " << alive_points_count[state->regs()->getPc()] << "\n";
     if ((alive_points_count[state->regs()->getPc()] > t2_max_context
-         || alive_points_count[state->regs()->getPc()] > state->getID() / 3)
+         || (alive_points_count[state->regs()->getPc()] > state->getID() / 3 && state->getID() > 10))
         && (type == DL1 || type == LL1)) {
         getWarningsStream() << "====KB extraction phase failed! Please add the alive point: "
                             << hexval(pc) <<" and re-run the learning parse====\n";
