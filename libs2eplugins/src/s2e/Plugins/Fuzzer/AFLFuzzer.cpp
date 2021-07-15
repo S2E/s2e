@@ -283,7 +283,6 @@ void AFLFuzzer::onModeSwitch(S2EExecutionState *state, bool fuzzing_to_learning)
         memcpy(afl_area_ptr, bitmap, MAP_SIZE);
         afl_con->AFL_input = 0;
         // afl_con->AFL_return = FAULT_ERROR;
-        blockEndConnection.disconnect();
         concreteDataMemoryAccessConnection.disconnect();
         invalidPCAccessConnection.disconnect();
         timerConnection.disconnect();
@@ -292,8 +291,6 @@ void AFLFuzzer::onModeSwitch(S2EExecutionState *state, bool fuzzing_to_learning)
     } else {
         getInfoStream() << " AFL Reconnection !!\n";
         timer_ticks = 0;
-        blockEndConnection = s2e()->getCorePlugin()->onTranslateBlockEnd.connect(
-            sigc::mem_fun(*this, &AFLFuzzer::onTranslateBlockEnd));
         concreteDataMemoryAccessConnection = s2e()->getCorePlugin()->onConcreteDataMemoryAccess.connect(
             sigc::mem_fun(*this, &AFLFuzzer::onConcreteDataMemoryAccess));
         invalidPCAccessConnection =
@@ -470,6 +467,9 @@ void AFLFuzzer::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, unsigned 
         ++all_tb_map[cur_loc];
     }
 
+    if (!g_s2e_cache_mode) {
+        return;
+    }
     // uEmu ends up with fuzzer
     if (unlikely(afl_con->AFL_return == END_uEmu)) {
         recordTBMap();
