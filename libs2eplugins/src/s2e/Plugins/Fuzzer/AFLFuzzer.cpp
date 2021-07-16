@@ -445,7 +445,7 @@ void AFLFuzzer::recordTBMap() {
 
     for (auto ittb : all_tb_map) {
         if (ittb.second > 0)
-            fTBmap << hexval(ittb.first) << std::endl;;
+            fTBmap << hexval(ittb.first)  << " " << ittb.second << std::endl;;
     }
 
     fTBmap.close();
