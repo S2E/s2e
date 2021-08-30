@@ -105,8 +105,8 @@ DefaultSolverFactory::DefaultSolverFactory(const std::filesystem::path &outputDi
 
 std::filesystem::path DefaultSolverFactory::getOutputFileName(const std::string &fileName) const {
     std::filesystem::path ret;
-    ret += m_outputDir;
-    ret += fileName;
+    ret /= m_outputDir;
+    ret /= fileName;
     return ret;
 }
 
