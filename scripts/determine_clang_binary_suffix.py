@@ -81,7 +81,8 @@ def _get_ubuntu_version(version_string):
 
 def main():
     """The main function."""
-    name, version, _ = distro.linux_distribution()
+    name = distro.name()
+    version = distro.version()
 
     clang_ver_to_download = None
 
