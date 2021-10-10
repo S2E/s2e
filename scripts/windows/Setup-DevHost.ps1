@@ -13,7 +13,9 @@ choco install -y rsync
 choco install -y visualstudio2019community
 choco install -y visualstudio2019-workload-nativedesktop  --package-parameters "--includeOptional --includeRecommended"
 
-"C:\Program Files (x86)\Microsoft Visual Studio\Installer\vs_installer.exe" -- modify --installPath 'C:\Program Files (x86)\Microsoft Visual Studio\2019\community' --add Microsoft.VisualStudio.Component.VC.v141.x86.x64.Spectre --add Microsoft.VisualStudio.Component.VC.Runtimes.x86.x64.Spectre --quiet
+"C:\Program Files (x86)\Microsoft Visual Studio\Installer\vs_installer.exe" modify --installPath "C:\Program Files (x86)\Microsoft Visual Studio\2019\community" --add Microsoft.VisualStudio.Component.VC.v141.x86.x64.Spectre --add Microsoft.VisualStudio.Component.VC.Runtimes.x86.x64.Spectre --add Microsoft.VisualStudio.Component.WinXP --quiet
+
+choco install -y windows-sdk-8.1
 
 # Download and install WDK 1903
 cd $env:USERPROFILE
