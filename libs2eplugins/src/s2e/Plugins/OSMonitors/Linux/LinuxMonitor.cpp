@@ -172,6 +172,12 @@ void LinuxMonitor::handleMemMap(S2EExecutionState *state, const S2E_LINUXMON_COM
                           << " size=" << hexval(cmd.MemMap.size) << " prot=" << hexval(cmd.MemMap.prot)
                           << " flag=" << hexval(cmd.MemMap.flag) << " pgoff=" << hexval(cmd.MemMap.pgoff) << "\n";
 
+    // A negative address for mmap indicates failure
+    if (int64_t(cmd.MemMap.address) < 0) {
+        getWarningsStream(state) << "mmap failed: " << hexval(cmd.MemMap.address) << "\n";
+        return;
+    }
+
     onMemoryMap.emit(state, cmd.currentPid, cmd.MemMap.address, cmd.MemMap.size, cmd.MemMap.prot);
 }
 
