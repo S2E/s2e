@@ -336,9 +336,9 @@ Executor::StatePair Executor::fork(ExecutionState &current, const ref<Expr> &con
     // If we are passed a constant, no need to do anything
     if (auto ce = dyn_cast<ConstantExpr>(condition)) {
         if (ce->isTrue()) {
-            return StatePair(&current, 0);
+            return StatePair(&current, nullptr);
         } else {
-            return StatePair(0, &current);
+            return StatePair(nullptr, &current);
         }
     }
 
@@ -353,12 +353,12 @@ Executor::StatePair Executor::fork(ExecutionState &current, const ref<Expr> &con
             if (!current.addConstraint(condition)) {
                 abort();
             }
-            return StatePair(&current, 0);
+            return StatePair(&current, nullptr);
         } else {
             if (!current.addConstraint(Expr::createIsZero(condition))) {
                 abort();
             }
-            return StatePair(0, &current);
+            return StatePair(nullptr, &current);
         }
     }
 
@@ -402,9 +402,9 @@ Executor::StatePair Executor::fork(ExecutionState &current, const ref<Expr> &con
     auto solver = current.solver();
     if (!solver->getInitialValues(q, symbObjects, concreteObjects)) {
         if (conditionIsTrue) {
-            return StatePair(&current, 0);
+            return StatePair(&current, nullptr);
         } else {
-            return StatePair(0, &current);
+            return StatePair(nullptr, &current);
         }
     }
 
@@ -649,7 +649,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
         case Instruction::Ret: {
             ReturnInst *ri = cast<ReturnInst>(i);
             KInstIterator kcaller = state.stack.back().caller;
-            Instruction *caller = kcaller ? kcaller->inst : 0;
+            Instruction *caller = kcaller ? kcaller->inst : nullptr;
             bool isVoidReturn = (ri->getNumOperands() == 0);
             ref<Expr> result = ConstantExpr::alloc(0, Expr::Bool);
 
