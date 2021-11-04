@@ -86,6 +86,22 @@ public:
     StatePair fork(klee::ExecutionState &current, const klee::ref<klee::Expr> &condition,
                    bool keepConditionTrueInCurrentState = false);
 
+    // A special version of fork() which does not take any symbolic condition,
+    // so internally it will just work like the regular fork method
+    // except that no path constraints will be added.
+    //
+    // This method is useful when the user wants to explicitly clone a state
+    // in their plugin code and switch back to the cloned state later.
+    // Note that `current` state must be running in symbolic mode before it is
+    // passed to this method. To make sure your state is running in symbolic mode,
+    // do this before calling Executor::fork().
+    // ```
+    // if (state->needToJumpToSymbolic()) {
+    //     state->jumpToSymbolic();
+    // }
+    // ```
+    StatePair fork(klee::ExecutionState &current);
+
     void flushTb();
 
     /** Create initial execution state */
@@ -217,6 +233,11 @@ protected:
 
     void replaceExternalFunctionsWithSpecialHandlers();
     void disableConcreteLLVMHelpers();
+
+private:
+    // If `condition` is a nullptr, then no path constraints will be added.
+    StatePair doFork(klee::ExecutionState &current, const klee::ref<klee::Expr> *condition,
+                     bool keepConditionTrueInCurrentState);
 };
 
 } // namespace s2e

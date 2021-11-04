@@ -450,6 +450,22 @@ Executor::StatePair Executor::fork(ExecutionState &current, const ref<Expr> &con
     return StatePair(trueState, falseState);
 }
 
+Executor::StatePair Executor::fork(ExecutionState &current) {
+    if (current.forkDisabled) {
+        return StatePair(&current, nullptr);
+    }
+
+    ExecutionState *clonedState;
+    notifyBranch(current);
+    clonedState = current.clone();
+    addedStates.insert(clonedState);
+
+    // Deep copy concolics.
+    clonedState->concolics = Assignment::create(current.concolics);
+
+    return StatePair(&current, clonedState);
+}
+
 void Executor::notifyFork(ExecutionState &originalState, ref<Expr> &condition, Executor::StatePair &targets) {
     // Should not get here
     pabort("Must go through S2E");
