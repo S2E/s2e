@@ -1,0 +1,8 @@
+test:
+    description: "Check that fork `count` times works properly"
+
+    targets:
+        - windows64-basic10-fork-no-constraint.exe
+        - windows32-basic10-fork-no-constraint.exe
+        - linux32-basic10-fork-no-constraint
+        - linux64-basic10-fork-no-constraint
