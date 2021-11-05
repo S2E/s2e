@@ -723,41 +723,18 @@ void BaseInstructions::getConstraintsCountForExpression(S2EExecutionState *state
  */
 void BaseInstructions::forkCount(S2EExecutionState *state) {
     target_ulong count;
-    target_ulong nameptr;
 
     state->jumpToSymbolicCpp();
 
     state->regs()->read(CPU_OFFSET(regs[R_EAX]), &count, sizeof count);
-    state->regs()->read(CPU_OFFSET(regs[R_ECX]), &nameptr, sizeof nameptr);
-
-    std::string name;
-
-    if (!state->mem()->readString(nameptr, name)) {
-        getWarningsStream(state) << "Could not read string at address " << hexval(nameptr) << "\n";
-
-        state->regs()->write<target_ulong>(CPU_OFFSET(regs[R_EAX]), -1);
-        return;
-    }
-
-    klee::ref<klee::Expr> var = state->createSymbolicValue<uint32_t>(name, 0);
-
-    state->regs()->write(CPU_OFFSET(regs[R_EAX]), var);
     state->regs()->write<target_ulong>(CPU_OFFSET(eip), state->regs()->getPc() + 10);
 
-    getDebugStream(state) << "s2e_fork: will fork " << count << " times with variable " << var << "\n";
+    getDebugStream(state) << "s2e_fork: will fork " << count << " time(s)\n";
 
-    for (unsigned i = 1; i < count; ++i) {
-        klee::ref<klee::Expr> val = klee::ConstantExpr::create(i, var->getWidth());
-        klee::ref<klee::Expr> cond = klee::NeExpr::create(var, val);
-
-        klee::Executor::StatePair sp = s2e()->getExecutor()->forkCondition(state, cond, true);
+    for (unsigned i = 0; i < count; ++i) {
+        S2EExecutor::StatePair sp = s2e()->getExecutor()->fork(*state);
         assert(sp.first == state);
         assert(sp.second && sp.second != sp.first);
-    }
-
-    klee::ref<klee::Expr> cond = klee::EqExpr::create(var, klee::ConstantExpr::create(0, var->getWidth()));
-    if (!state->addConstraint(cond)) {
-        s2e()->getExecutor()->terminateState(*state, "Could not add condition");
     }
 }
 
