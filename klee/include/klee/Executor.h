@@ -223,6 +223,9 @@ public:
     virtual StatePair fork(ExecutionState &current, const ref<Expr> &condition,
                            bool keepConditionTrueInCurrentState = false);
 
+    // Unconditional fork
+    virtual StatePair fork(ExecutionState &current);
+
     // remove state from queue and delete
     virtual void terminateState(ExecutionState &state);
 

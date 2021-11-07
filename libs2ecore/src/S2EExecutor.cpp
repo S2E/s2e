@@ -1370,15 +1370,28 @@ Executor::StatePair S2EExecutor::forkAndConcretize(S2EExecutionState *state, kle
 
 S2EExecutor::StatePair S2EExecutor::fork(ExecutionState &current, const klee::ref<Expr> &condition,
                                          bool keepConditionTrueInCurrentState) {
+    return doFork(current, &condition, keepConditionTrueInCurrentState);
+}
+
+S2EExecutor::StatePair S2EExecutor::fork(ExecutionState &current) {
+    return doFork(current, nullptr, false);
+}
+
+S2EExecutor::StatePair S2EExecutor::doFork(ExecutionState &current, const klee::ref<Expr> *condition,
+                                           bool keepConditionTrueInCurrentState) {
     S2EExecutionState *currentState = dynamic_cast<S2EExecutionState *>(&current);
     assert(currentState);
     assert(!currentState->isRunningConcrete());
 
     StatePair res;
 
-    // If the condition is constant, there is no need to do anything as the fork will not branch
+    // Check if we should fork the current state.
+    // 1. If no conditions are passed to us, then the user wants to explicitly
+    //    fork the current state, and thus we should perform the check.
+    // 2. If the condition is constant, there is no need to do anything
+    //    as the fork will not branch.
     bool forkOk = true;
-    if (!dyn_cast<klee::ConstantExpr>(condition)) {
+    if (!condition || !dyn_cast<klee::ConstantExpr>(*condition)) {
         if (currentState->forkDisabled) {
             g_s2e->getDebugStream(currentState) << "fork disabled at " << hexval(currentState->regs()->getPc()) << "\n";
         }
@@ -1394,7 +1407,11 @@ S2EExecutor::StatePair S2EExecutor::fork(ExecutionState &current, const klee::re
         currentState->forkDisabled = true;
     }
 
-    res = Executor::fork(current, condition, keepConditionTrueInCurrentState);
+    if (condition) {
+        res = Executor::fork(current, *condition, keepConditionTrueInCurrentState);
+    } else {
+        res = Executor::fork(current);
+    }
 
     currentState->forkDisabled = oldForkStatus;
 
@@ -1402,24 +1419,28 @@ S2EExecutor::StatePair S2EExecutor::fork(ExecutionState &current, const klee::re
         return res;
     }
 
-    S2EExecutionState *newStates[2];
+    llvm::SmallVector<S2EExecutionState *, 2> newStates;
+    llvm::SmallVector<klee::ref<Expr>, 2> newConditions;
+
     newStates[0] = static_cast<S2EExecutionState *>(res.first);
     newStates[1] = static_cast<S2EExecutionState *>(res.second);
 
-    klee::ref<Expr> newConditions[2];
-    newConditions[0] = condition;
-    newConditions[1] = klee::NotExpr::create(condition);
+    if (condition) {
+        newConditions[0] = *condition;
+        newConditions[1] = klee::NotExpr::create(*condition);
+    }
 
     llvm::raw_ostream &out = m_s2e->getInfoStream(currentState);
     out << "Forking state " << currentState->getID() << " at pc = " << hexval(currentState->regs()->getPc())
         << " at pagedir = " << hexval(currentState->regs()->getPageDir()) << '\n';
 
     for (unsigned i = 0; i < 2; ++i) {
-        if (VerboseFork) {
+        if (newStates[i]) {
             out << "    state " << newStates[i]->getID();
-            out << " with condition " << newConditions[i] << '\n';
-        } else {
-            out << "    state " << newStates[i]->getID() << "\n";
+            if (VerboseFork && condition) {
+                out << " with condition " << newConditions[i];
+            }
+            out << '\n';
         }
 
         // Handled in ::branch

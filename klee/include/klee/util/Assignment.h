@@ -74,6 +74,10 @@ public:
                                 bool _allowFreeValues = false) {
         return AssignmentPtr(new Assignment(objects, values, _allowFreeValues));
     }
+
+    static AssignmentPtr create(const AssignmentPtr &a) {
+        return AssignmentPtr(new Assignment(*a));
+    }
 };
 
 /***/

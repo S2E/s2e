@@ -336,20 +336,12 @@ static inline void s2e_disable_forking(void)
 /// \brief Forks the given number of times without adding constraints
 ///
 /// \param[in] count The number of times to fork
-/// \param[in] name Label
-/// \return ???
 ///
-static inline int s2e_fork(int count, const char *name) {
-    unsigned result = 0;
-    __s2e_touch_string(name);
+static inline void s2e_fork(int count) {
     __asm__ __volatile__(
         S2E_INSTRUCTION_SIMPLE(BASE_S2E_FORK_COUNT)
-        : "=a" (result) : "a" (count), "c" (name)
+        : : "a" (count)
     );
-
-    s2e_concretize(&result, sizeof(result));
-
-    return result;
 }
 
 ///
