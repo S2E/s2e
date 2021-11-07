@@ -1,0 +1,12 @@
+name: Check code style
+on: [push]
+jobs:
+  clang-format:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v2
+      - name: Run clang-format
+        run: |
+           CLANG_FORMAT=/usr/lib/llvm-10/bin/clang-format ./test-clang-format.sh
+      - run: echo "🍏 This job's status is ${{ job.status }}."
