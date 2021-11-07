@@ -1419,8 +1419,8 @@ S2EExecutor::StatePair S2EExecutor::doFork(ExecutionState &current, const klee::
         return res;
     }
 
-    std::vector<S2EExecutionState *> newStates(2);
-    std::vector<klee::ref<Expr>> newConditions(2);
+    llvm::SmallVector<S2EExecutionState *, 2> newStates;
+    llvm::SmallVector<klee::ref<Expr>, 2> newConditions;
 
     newStates[0] = static_cast<S2EExecutionState *>(res.first);
     newStates[1] = static_cast<S2EExecutionState *>(res.second);
