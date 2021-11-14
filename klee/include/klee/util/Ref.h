@@ -95,7 +95,11 @@ public:
     }
 
     bool isNull() const {
-        return ptr == 0;
+        return ptr == nullptr;
+    }
+
+    explicit operator bool() const noexcept {
+        return !isNull();
     }
 
     // assumes non-null arguments
