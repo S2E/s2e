@@ -108,7 +108,7 @@ ref<Expr> S2EExecutionStateMemory::read(uint64_t address, Expr::Width width, Add
     for (unsigned i = 0; i != size; ++i) {
         unsigned idx = klee::Context::get().isLittleEndian() ? i : (size - i - 1);
         ref<Expr> byte = readMemory8(address + idx, addressType);
-        if (byte.isNull())
+        if (!byte)
             return ref<Expr>(0);
         res = idx ? ConcatExpr::create(byte, res) : byte;
     }

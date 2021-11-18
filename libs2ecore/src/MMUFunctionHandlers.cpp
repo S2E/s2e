@@ -178,7 +178,7 @@ end:
 static ref<ConstantExpr> handleForkAndConcretizeNative(Executor *executor, ExecutionState *state,
                                                        klee::KInstruction *target, const ref<Expr> &symbAddress) {
     ref<ConstantExpr> constantAddress = dyn_cast<ConstantExpr>(symbAddress);
-    if (constantAddress.isNull()) {
+    if (!constantAddress) {
         // Find the LLVM instruction that computes the address
         const llvm::Instruction *addrInst = dyn_cast<llvm::Instruction>(target->inst->getOperand(0));
         auto kinst = target->owner->getInstruction(addrInst);
@@ -192,7 +192,7 @@ static ref<ConstantExpr> handleForkAndConcretizeNative(Executor *executor, Execu
         handleForkAndConcretize(executor, state, kinst, forkArgs);
 
         constantAddress = dyn_cast<ConstantExpr>(state->getDestCell(kinst).value);
-        assert(!constantAddress.isNull());
+        assert(constantAddress);
     }
     return constantAddress;
 }
@@ -203,7 +203,7 @@ static ref<Expr> handle_ldst_mmu(Executor *executor, ExecutionState *state, klee
     S2EExecutionState *s2estate = static_cast<S2EExecutionState *>(state);
 
     ref<ConstantExpr> envExpr = dyn_cast<ConstantExpr>(args[0]);
-    assert(!envExpr.isNull());
+    assert(envExpr);
     CPUArchState *env = (CPUArchState *) envExpr->getZExtValue();
 
     const auto &symbAddress = args[1];
@@ -442,7 +442,7 @@ static void handle_ldst_kernel(Executor *executor, ExecutionState *state, klee::
     unsigned mmu_idx = CPU_MMU_INDEX;
 
     ref<ConstantExpr> envExpr = dyn_cast<ConstantExpr>(args[0]);
-    assert(!envExpr.isNull());
+    assert(envExpr);
     CPUArchState *env = (CPUArchState *) envExpr->getZExtValue();
 
     const auto &symbAddress = args[1];
