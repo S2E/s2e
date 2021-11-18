@@ -844,7 +844,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
             } else {
                 ref<Expr> v = eval(ki, 0, state).value;
                 ref<ConstantExpr> constantTarget = dyn_cast<ConstantExpr>(v);
-                if (constantTarget.isNull()) {
+                if (!constantTarget) {
                     terminateState(state, "the engine encountered a symbolic function pointer");
                     abort();
                 }
@@ -1400,11 +1400,11 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
                 r = ExtractExpr::create(agg, rOffset, agg->getWidth() - rOffset);
 
             ref<Expr> result;
-            if (!l.isNull() && !r.isNull())
+            if (l && r)
                 result = ConcatExpr::create(r, ConcatExpr::create(val, l));
-            else if (!l.isNull())
+            else if (l)
                 result = ConcatExpr::create(val, l);
-            else if (!r.isNull())
+            else if (r)
                 result = ConcatExpr::create(r, val);
             else
                 result = val;
@@ -1868,7 +1868,7 @@ void Executor::executeMemoryOperation(ExecutionState &state, bool isWrite, ref<E
             // Can only be a concrete address that spans multiple pages.
             // This can happen only if the page was split before.
             ref<ConstantExpr> concreteAddress = dyn_cast<ConstantExpr>(address);
-            assert(!concreteAddress.isNull());
+            assert(concreteAddress);
             result = executeMemoryOperationOverlapped(state, isWrite, concreteAddress->getZExtValue(), value, bytes);
         }
         if (!isWrite) {
@@ -1884,7 +1884,7 @@ void Executor::executeMemoryOperation(ExecutionState &state, bool isWrite, ref<E
     klee::ref<klee::ConstantExpr> concreteAddress;
 
     concreteAddress = dyn_cast<ConstantExpr>(state.concolics->evaluate(address));
-    assert(!concreteAddress.isNull() && "Could not evaluate address");
+    assert(concreteAddress && "Could not evaluate address");
 
     /////////////////////////////////////////////////////////////
     // Use the concrete address to determine which page

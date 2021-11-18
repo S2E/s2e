@@ -266,7 +266,7 @@ bool ExecutionState::merge(const ExecutionState &b) {
         for (unsigned i = 0; i < af.kf->getNumRegisters(); i++) {
             ref<Expr> &av = af.locals[i].value;
             const ref<Expr> &bv = bf.locals[i].value;
-            if (av.isNull() || bv.isNull()) {
+            if (!av || !bv) {
                 // if one is null then by implication (we are at same pc)
                 // we cannot reuse this local, so just ignore
             } else {

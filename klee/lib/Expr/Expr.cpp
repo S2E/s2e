@@ -997,7 +997,7 @@ static ref<Expr> AndExpr_createPartial(Expr *l, const ref<ConstantExpr> &cr) {
         const ref<ConstantExpr> &c = cr;
         const ref<Expr> a = ol->getKid(0);
         const ref<ConstantExpr> b = dyn_cast<ConstantExpr>(ol->getKid(1));
-        if (!b.isNull() && !(c->getAPValue() & b->getAPValue())) {
+        if (b && !(c->getAPValue() & b->getAPValue())) {
             return AndExpr::create(a, c);
         }
     } else if (AndExpr *al = dyn_cast<AndExpr>(l)) {
@@ -1005,7 +1005,7 @@ static ref<Expr> AndExpr_createPartial(Expr *l, const ref<ConstantExpr> &cr) {
         const ref<Expr> a = al->getKid(0);
         const ref<ConstantExpr> c1 = cr;
         const ref<ConstantExpr> c2 = dyn_cast<ConstantExpr>(al->getKid(1));
-        if (!c2.isNull()) {
+        if (c2) {
             return AndExpr::create(a, AndExpr::create(c1, c2));
         }
     }
@@ -1045,7 +1045,7 @@ static ref<Expr> OrExpr_createPartial(Expr *l, const ref<ConstantExpr> &cr) {
     } else if (const OrExpr *ol = dyn_cast<OrExpr>(l)) {
         // Compact or(or(a, const1), const2) => or(a, const1 | const2)
         ref<ConstantExpr> const2 = dyn_cast<ConstantExpr>(ol->getKid(1));
-        if (!const2.isNull()) {
+        if (const2) {
             return OrExpr::create(ol->getKid(0), OrExpr::create(cr, const2));
         }
         return OrExpr::alloc(l, cr);
