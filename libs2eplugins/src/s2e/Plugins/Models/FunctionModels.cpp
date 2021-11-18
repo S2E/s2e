@@ -199,7 +199,7 @@ void FunctionModels::handleCrc(S2EExecutionState *state, S2E_LIBCWRAPPER_COMMAND
             initialCrc = state->mem()->read(cmd.Crc.initial_value_ptr, Expr::Int16);
             getDebugStream(state) << "Handling crc16(" << initialCrc << ", " << hexval(cmd.Crc.buffer) << ", "
                                   << cmd.Crc.size << ")\n";
-            if (initialCrc.isNull()) {
+            if (!initialCrc) {
                 return;
             }
 
@@ -210,7 +210,7 @@ void FunctionModels::handleCrc(S2EExecutionState *state, S2E_LIBCWRAPPER_COMMAND
             initialCrc = state->mem()->read(cmd.Crc.initial_value_ptr, Expr::Int32);
             getDebugStream(state) << "Handling crc32(" << initialCrc << ", " << hexval(cmd.Crc.buffer) << ", "
                                   << cmd.Crc.size << ")\n";
-            if (initialCrc.isNull()) {
+            if (!initialCrc) {
                 return;
             }
 

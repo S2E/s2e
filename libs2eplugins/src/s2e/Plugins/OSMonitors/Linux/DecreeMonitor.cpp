@@ -280,7 +280,7 @@ void DecreeMonitor::handleReadData(S2EExecutionState *state, uint64_t pid, const
     ref<Expr> countExpr;
     if (m_handleSymbolicBufferSize && !isSeedState) {
         countExpr = state->mem()->read(d.size_expr_addr, state->getPointerWidth());
-        s2e_assert(state, !countExpr.isNull(), "Failed to read memory");
+        s2e_assert(state, countExpr, "Failed to read memory");
     } else {
         countExpr = E_CONST(d.buffer_size, Expr::Int32);
     }
@@ -336,7 +336,7 @@ void DecreeMonitor::handleWriteData(S2EExecutionState *state, uint64_t pid, cons
     s2e_assert(state, ok, "Failed to read memory");
 
     ref<Expr> countExpr = state->mem()->read(d.size_expr_addr, state->getPointerWidth());
-    s2e_assert(state, !countExpr.isNull(), "Failed to read memory");
+    s2e_assert(state, countExpr, "Failed to read memory");
     countExpr = E_MIN(countExpr, E_CONST(actualCount, state->getPointerWidth()));
 
     std::stringstream ss;
@@ -344,8 +344,7 @@ void DecreeMonitor::handleWriteData(S2EExecutionState *state, uint64_t pid, cons
     std::vector<klee::ref<klee::Expr>> vec;
     for (unsigned i = 0; i < actualCount; ++i) {
         klee::ref<klee::Expr> e = m_memutils->read(state, d.buffer + i);
-        s2e_assert(state, !e.isNull(),
-                   "Failed to read memory byte of pid " << hexval(pid) << " at " << hexval(d.buffer + i));
+        s2e_assert(state, e, "Failed to read memory byte of pid " << hexval(pid) << " at " << hexval(d.buffer + i));
 
         vec.push_back(e);
 
@@ -540,7 +539,7 @@ void DecreeMonitor::handleSymbolicSize(S2EExecutionState *state, uint64_t pid, u
 void DecreeMonitor::handleSymbolicAllocateSize(S2EExecutionState *state, uint64_t pid,
                                                const S2E_DECREEMON_COMMAND_HANDLE_SYMBOLIC_SIZE &d) {
     ref<Expr> size = state->mem()->read(d.size_addr, state->getPointerWidth());
-    s2e_assert(state, !size.isNull(), "Failed to read memory");
+    s2e_assert(state, size, "Failed to read memory");
 
     if (isa<ConstantExpr>(size)) {
         return;
@@ -563,10 +562,10 @@ void DecreeMonitor::handleSymbolicAllocateSize(S2EExecutionState *state, uint64_
 void DecreeMonitor::handleSymbolicBuffer(S2EExecutionState *state, uint64_t pid, SymbolicBufferType type,
                                          uint64_t ptrAddr, uint64_t sizeAddr) {
     ref<Expr> ptr = state->mem()->read(ptrAddr, state->getPointerWidth());
-    s2e_assert(state, !ptr.isNull(), "Failed to read memory");
+    s2e_assert(state, ptr, "Failed to read memory");
 
     ref<Expr> size = state->mem()->read(sizeAddr, state->getPointerWidth());
-    s2e_assert(state, !size.isNull(), "Failed to read memory");
+    s2e_assert(state, size, "Failed to read memory");
 
     bool isSymPtr = !isa<ConstantExpr>(ptr);
     bool isSymSize = !isa<ConstantExpr>(size);
@@ -640,7 +639,7 @@ void DecreeMonitor::handleCopyToUser(S2EExecutionState *state, uint64_t pid,
 
     for (unsigned i = 0; i < d.count; ++i) {
         ref<Expr> value = state->mem()->read(d.user_addr + i, Expr::Int8);
-        if (value.isNull()) {
+        if (!value) {
             getDebugStream(state) << "could not read address " << hexval(d.user_addr + i) << "\n";
             continue;
         }
