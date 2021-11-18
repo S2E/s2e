@@ -73,7 +73,7 @@ void OSMonitor::dumpUserspaceMemory(S2EExecutionState *state, std::ostream &ss) 
 
                     ref<Expr> e = state->mem()->read(hostAddr + byteOffset, Expr::Int8, HostAddress);
 
-                    if (!e.isNull() && isa<ConstantExpr>(e)) {
+                    if (e && isa<ConstantExpr>(e)) {
                         uint8_t v = dyn_cast<ConstantExpr>(e)->getZExtValue();
                         hex << " " << hexval(v, 2, false);
                         ascii << (isprint(v) ? (char) v : '.');

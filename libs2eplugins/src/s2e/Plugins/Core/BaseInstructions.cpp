@@ -240,7 +240,7 @@ void BaseInstructions::isSymbolic(S2EExecutionState *state) {
     result = 0;
     for (unsigned i = 0; i < size; ++i) {
         klee::ref<klee::Expr> ret = state->mem()->read(address + i);
-        if (ret.isNull()) {
+        if (!ret) {
             getWarningsStream() << "Could not read address " << hexval(address + i) << "\n";
             continue;
         }
@@ -343,7 +343,7 @@ void BaseInstructions::printMemory(S2EExecutionState *state) {
     for (uint32_t i = 0; i < size; ++i) {
         getInfoStream() << hexval(address + i) << ": ";
         klee::ref<Expr> res = state->mem()->read(address + i);
-        if (res.isNull()) {
+        if (!res) {
             getInfoStream() << "Invalid pointer\n";
         } else {
             getInfoStream() << res << '\n';
@@ -592,7 +592,7 @@ void BaseInstructions::assumeDisjunction(S2EExecutionState *state) {
     target_ulong currentParam = sp + STACK_ELEMENT_SIZE * 2;
 
     klee::ref<klee::Expr> variable = state->mem()->read(currentParam, STACK_ELEMENT_SIZE * 8);
-    if (variable.isNull()) {
+    if (!variable) {
         getWarningsStream(state) << "BaseInstructions: assumeDisjunction could not read the variable\n";
         return;
     }

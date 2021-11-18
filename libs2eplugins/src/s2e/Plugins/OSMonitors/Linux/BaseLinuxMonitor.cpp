@@ -40,7 +40,7 @@ bool BaseLinuxMonitor::verifyLinuxCommand(S2EExecutionState *state, uint64_t gue
     std::ostringstream symbolicBytes;
     for (unsigned i = 0; i < guestDataSize; ++i) {
         ref<Expr> t = state->mem()->read(guestDataPtr + i);
-        if (!t.isNull() && !isa<ConstantExpr>(t)) {
+        if (t && !isa<ConstantExpr>(t)) {
             symbolicBytes << "  " << hexval(i, 2) << "\n";
         }
     }

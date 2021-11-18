@@ -38,7 +38,7 @@ void MemUtils::initialize() {
 
 ref<Expr> MemUtils::read(S2EExecutionState *state, uint64_t addr, klee::Expr::Width width) {
     ref<Expr> expr = state->mem()->read(addr, width);
-    if (!expr.isNull()) {
+    if (expr) {
         return expr;
     }
 
@@ -69,7 +69,7 @@ klee::ref<klee::Expr> MemUtils::read(S2EExecutionState *state, uint64_t addr) {
 bool MemUtils::read(S2EExecutionState *state, std::vector<ref<Expr>> &output, uint64_t address, unsigned length) {
     for (unsigned i = 0; i < length; ++i) {
         ref<Expr> e = read(state, address + i);
-        if (e.isNull()) {
+        if (!e) {
             getWarningsStream(state) << "Could not read byte at " << hexval(address + i) << "\n";
             return false;
         }
