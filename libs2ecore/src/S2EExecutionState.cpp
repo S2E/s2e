@@ -587,7 +587,7 @@ void S2EExecutionState::addressSpaceObjectSplit(const ObjectStateConstPtr &oldOb
 uint64_t S2EExecutionState::readMemIoVaddr(bool masked) {
     klee::ref<klee::Expr> result;
 
-    if (m_memIoVaddr.isNull()) {
+    if (!m_memIoVaddr) {
         return env->mem_io_vaddr;
     }
 

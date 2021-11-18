@@ -161,7 +161,7 @@ public:
 #ifdef CONFIG_SYMBEX_MP
 
         klee::ref<klee::Expr> expr = read(address, sizeof(T) * 8, addressType);
-        if (expr.isNull()) {
+        if (!expr) {
             return false;
         }
 

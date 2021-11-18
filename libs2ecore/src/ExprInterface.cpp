@@ -231,7 +231,7 @@ template <typename T> static void *s2e_expr_read_mem(void *_mgr, uint64_t virtua
     // XXX: What do we do if the result is nullptr?
     // For now we call this function from iret-type of handlers where
     // some checks must have been done before accessing the memory
-    assert(!retbox->expr.isNull() && "Failed memory access");
+    assert(retbox->expr && "Failed memory access");
 
     ConstantExpr *constant = dyn_cast<ConstantExpr>(retbox->expr);
     if (constant) {
