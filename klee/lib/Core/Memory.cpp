@@ -329,7 +329,7 @@ inline void ObjectState::setKnownSymbolic(unsigned offset, const ref<Expr> &valu
     if (m_knownSymbolics.size() > 0) {
         m_knownSymbolics[offset] = value;
     } else {
-        if (!value.isNull()) {
+        if (value) {
             m_knownSymbolics.resize(m_size);
             m_knownSymbolics[offset] = value;
         }

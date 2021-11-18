@@ -661,7 +661,7 @@ void ExprSMTLIBPrinter::printAction() {
 }
 
 void ExprSMTLIBPrinter::scan(const ref<Expr> &e) {
-    assert(!(e.isNull()) && "found NULL expression");
+    assert(e && "found NULL expression");
 
     if (isa<ConstantExpr>(e))
         return; // we don't need to scan simple constants

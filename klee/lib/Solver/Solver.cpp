@@ -152,7 +152,7 @@ void Solver::getRanges(const ConstraintManager &constraints, const ArrayVec &sym
         }
 
         ref<Expr> value = newConcolics->evaluate(e);
-        if (value.isNull()) {
+        if (!value) {
             break;
         }
         values.push_back(dyn_cast<ConstantExpr>(value)->getZExtValue());

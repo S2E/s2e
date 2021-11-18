@@ -372,7 +372,7 @@ private:
             if (width && width < CET_MAX_BITS && !v.isNegative()) {
                 const uint64_t value = v.getZExtValue();
                 if (value < CET_MAX_VALUE) {
-                    assert(!_const_table[width][value].isNull());
+                    assert(_const_table[width][value]);
                     return _const_table[width][value];
                 }
             }
