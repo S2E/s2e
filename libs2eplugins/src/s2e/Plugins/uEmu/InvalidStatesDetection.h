@@ -52,6 +52,7 @@ private:
     uint32_t disable_interrupt_count;
     uint32_t tb_interval;
     std::vector<uint32_t> kill_points;
+    std::map<uint32_t, uint32_t> single_dead_loop;
     std::vector<uint32_t> alive_points;
     bool cache_mode;
     bool init_cache_mode;

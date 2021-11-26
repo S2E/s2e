@@ -592,6 +592,10 @@ void InvalidStatesDetection::onInvalidLoopDetection(S2EExecutionState *state, ui
                 if (conregs[1] == 0) {
                     // only one tb in loop, kill directly if it is in symbolic mode
                     std::string reason_str = "Kill State due to Dead Loop (single tb): ";
+                    single_dead_loop[pc]++;
+                    if (single_dead_loop[pc] > 1) {
+                        kill_points.push_back(pc);
+                    }
                     onInvalidStatesKill(state, pc, DL1, reason_str);
                 } else {
                     getWarningsStream() << " cannot kill dead single loop in concrete mode" << plgState->getnewtbnum()
