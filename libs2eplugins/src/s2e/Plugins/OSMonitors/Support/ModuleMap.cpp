@@ -34,6 +34,7 @@
 #include <unordered_map>
 
 #include "ModuleMap.h"
+#include "RegionMap.h"
 
 namespace s2e {
 namespace plugins {
@@ -46,15 +47,38 @@ S2E_DEFINE_PLUGIN(ModuleMap, "Tracks loaded modules", "", "OSMonitor");
 
 namespace {
 
+class ModuleMapManager : public ProcessRegionMapManager<ModuleDescriptorConstPtr> {
+    void dump(llvm::raw_ostream &os, uint64_t pid) const {
+        RegionMapIteratorCb<ModuleDescriptorConstPtr> lambda = [&](uint64_t start, uint64_t end,
+                                                                   ModuleDescriptorConstPtr value) -> bool {
+            os << "pid=" << hexval(pid);
+            os << " [" << hexval(start) << ", " << hexval(end) << "] ";
+            os << value.get();
+            os << "\n";
+
+            return true;
+        };
+
+        iterate(pid, lambda);
+    }
+
+public:
+    void dump(llvm::raw_ostream &os) const {
+        os << "==========================================\n";
+        os << "Dumping loaded sections\n";
+        for (auto &pid : m_regions) {
+            dump(os, pid.first);
+        }
+        os << "==========================================\n";
+    }
+};
+
 ///
 /// Keeps track of loaded modules across states.
 ///
 class ModuleMapState : public PluginState {
 private:
-    using SectionMap = std::map<AddressRange, ModuleDescriptorConstPtr>;
-    using PidSectionMap = std::unordered_map<uint64_t, SectionMap>;
-
-    PidSectionMap m_sections;
+    ModuleMapManager m_mgr;
 
 public:
     ModuleMapState() {
@@ -72,55 +96,32 @@ public:
     }
 
     ModuleDescriptorConstPtr getModule(uint64_t pid, uint64_t pc) const {
-        auto pidit = m_sections.find(pid);
-        if (pidit == m_sections.end()) {
-            return nullptr;
-        }
-
-        auto range = AddressRange(pc, 1);
-        auto section = pidit->second.find(range);
-        if (section == pidit->second.end()) {
-            return nullptr;
-        }
-
-        return section->second;
+        return m_mgr.lookup(pid, pc);
     }
 
     void onModuleLoad(const ModuleDescriptor &module) {
         auto ptr = std::make_shared<const ModuleDescriptor>(module);
 
-        auto &sections = m_sections[module.Pid];
-
+        // TODO: warn if overlapping regions
         for (auto &section : module.Sections) {
             auto range = AddressRange(section.runtimeLoadBase, section.size);
-            sections[range] = ptr;
+            m_mgr.add(module.Pid, range.start, range.start + range.size, ptr);
         }
     }
 
     void onModuleUnload(const ModuleDescriptor &module) {
-        auto &sections = m_sections[module.Pid];
-
         for (auto &section : module.Sections) {
             auto range = AddressRange(section.runtimeLoadBase, section.size);
-            sections.erase(range);
+            m_mgr.remove(module.Pid, range.start, range.start + range.size);
         }
     }
 
     void onProcessUnload(uint64_t addressSpace, uint64_t pid, uint64_t returnCode) {
-        m_sections.erase(pid);
+        m_mgr.remove(pid);
     }
 
     void dump(llvm::raw_ostream &os) const {
-        os << "==========================================\n";
-        os << "Dumping loaded sections\n";
-        for (auto &pid : m_sections) {
-            for (auto &section : pid.second) {
-                os << "pid: " << hexval(pid.first) << " start: " << hexval(section.first.start)
-                   << " size: " << hexval(section.first.size) << " " << *section.second.get() << "\n";
-            }
-        }
-
-        os << "==========================================\n";
+        m_mgr.dump(os);
     }
 };
 
