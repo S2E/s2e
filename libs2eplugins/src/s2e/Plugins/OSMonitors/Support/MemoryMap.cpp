@@ -35,7 +35,9 @@
 #include <s2e/Plugins/OSMonitors/Linux/LinuxMonitor.h>
 #include <s2e/Plugins/OSMonitors/Windows/WindowsMonitor.h>
 
+#include "IntervalMapWrapper.h"
 #include "MemoryMap.h"
+#include "RegionMap.h"
 
 namespace s2e {
 namespace plugins {
@@ -72,141 +74,22 @@ static MemoryMapRegionType WindowsProtectionToInternal(uint64_t protection) {
 
 namespace {
 
-///
-/// \brief Maps a region to a set of flags
-///
-/// It is not possible to just use a typedef of `llvm::IntervalMap` because
-/// the interval map requires a non-default constructor and the required
-/// allocator cannot be copy-constructed on state forks.
-///
-class MemoryMapRegion : public llvm::IntervalMap<uint64_t, MemoryMapRegionType> {
-private:
-    // This cannot be a non-static variable because it's used by the
-    // parent class but would be destroyed first, causing corruptions.
-    static Allocator s_alloc;
-
+class MemoryMapRegionManager : public ProcessRegionMapManager<MemoryMapRegionType> {
 public:
-    MemoryMapRegion() : IntervalMap(s_alloc) {
-    }
-
-    MemoryMapRegion(const MemoryMapRegion &other) : IntervalMap(s_alloc) {
-        for (auto it = other.begin(); it != other.end(); ++it) {
-            insert(it.start(), it.stop(), *it);
-        }
-    }
-};
-
-MemoryMapRegion::Allocator MemoryMapRegion::s_alloc;
-
-///
-/// \brief Maintains a region map for each process id
-///
-typedef std::unordered_map<uint64_t, MemoryMapRegion> MemoryMapRegionProcess;
-
-class MemoryMapRegionManager {
-private:
-    MemoryMapRegionProcess m_regions;
-
-public:
-    void addRegion(uint64_t pid, uint64_t addr, uint64_t end, MemoryMapRegionType type) {
-        assert(end > addr);
-        removeRegion(pid, addr, end); // FIXME: make it faster
-
-        auto &map = m_regions[pid];
-        map.insert(addr, end - 1, type);
-    }
-
-    void removeRegion(uint64_t target_pid, uint64_t addr, uint64_t end) {
-        assert(end > addr);
-
-        MemoryMapRegion &map = m_regions[target_pid];
-
-        MemoryMapRegion::iterator ie = map.end();
-        MemoryMapRegion::iterator it;
-
-        while (((it = map.find(addr)) != ie) && (it.start() < end)) {
-            uint64_t it_addr = it.start();
-            uint64_t it_end = it.stop();
-            MemoryMapRegionType type = (*it);
-            it.erase();
-
-            if (it_addr < addr) {
-                map.insert(it_addr, addr - 1, type);
-            }
-            if (it_end > end - 1) {
-                map.insert(end, it_end, type);
-            }
-        }
-    }
-
-    MemoryMapRegionType lookupRegion(uint64_t pid, uint64_t addr) const {
-        MemoryMapRegionProcess::const_iterator it = m_regions.find(pid);
-        if (it == m_regions.end()) {
-            return MM_NONE;
-        }
-
-        return (*it).second.lookup(addr, MM_NONE);
-    }
-
-    bool lookupRegion(uint64_t pid, uint64_t addr, uint64_t &start, uint64_t &end, MemoryMapRegionType &type) const {
-        MemoryMapRegionProcess::const_iterator it = m_regions.find(pid);
-        if (it == m_regions.end()) {
-            return false;
-        }
-
-        const MemoryMapRegion *map = &(*it).second;
-        auto rit = map->find(addr);
-        if (rit == map->end()) {
-            return false;
-        }
-
-        start = rit.start();
-        end = rit.stop();
-        type = *rit;
-        return true;
-    }
-
-    void iterateRegions(uint64_t pid, MemoryMapCb &callback) const {
-        MemoryMapRegionProcess::const_iterator it = m_regions.find(pid);
-        if (it == m_regions.end()) {
-            return;
-        }
-
-        // XXX: somehow c++11 for (auto it:map) doesn't work
-        const MemoryMapRegion &map = (*it).second;
-        for (auto rit = map.begin(); rit != map.end(); ++rit) {
-            if (!callback(rit.start(), rit.stop(), *rit)) {
-                break;
-            }
-        }
-    }
-
-    void removePid(uint64_t pid) {
-        MemoryMapRegionProcess::iterator it = m_regions.find(pid);
-        if (it != m_regions.end()) {
-            m_regions.erase(it);
-        }
-    }
-
     void dump(llvm::raw_ostream &os, uint64_t pid) const {
-        const auto it = m_regions.find(pid);
-        if (it == m_regions.end()) {
-            return;
-        }
-
-        const MemoryMapRegion *p = &(*it).second;
-
-        for (auto iit = p->begin(); iit != p->end(); ++iit) {
-            uint64_t it_addr = iit.start();
-            uint64_t it_end = iit.stop();
-            MemoryMapRegionType type = (*iit);
+        RegionMapIteratorCb<MemoryMapRegionType> lambda = [&](uint64_t start, uint64_t end,
+                                                              MemoryMapRegionType type) -> bool {
             os << "pid=" << hexval(pid);
-            os << " [" << hexval(it_addr) << ", " << hexval(it_end) << "] ";
+            os << " [" << hexval(start) << ", " << hexval(end) << "] ";
             os << (type & MM_READ ? 'R' : '-');
             os << (type & MM_WRITE ? 'W' : '-');
             os << (type & MM_EXEC ? 'X' : '-');
             os << "\n";
-        }
+
+            return true;
+        };
+
+        iterate(pid, lambda);
     }
 
     void dump(llvm::raw_ostream &os) const {
@@ -230,32 +113,32 @@ public:
 
     MemoryMapRegionManager m_manager;
 
-    void addRegion(uint64_t pid, uint64_t addr, uint64_t end, MemoryMapRegionType type) {
-        m_manager.addRegion(pid, addr, end, type);
+    void addRegion(uint64_t pid, uint64_t start, uint64_t end, MemoryMapRegionType type) {
+        m_manager.add(pid, start, end, type);
         m_plugin->getDebugStream() << "adding region:"
-                                   << " pid=" << hexval(pid) << " [" << hexval(addr) << ", " << hexval(end) << "]\n";
+                                   << " pid=" << hexval(pid) << " [" << hexval(start) << ", " << hexval(end) << "]\n";
     }
 
-    void removeRegion(uint64_t pid, uint64_t addr, uint64_t end) {
+    void removeRegion(uint64_t pid, uint64_t start, uint64_t end) {
         m_plugin->getDebugStream() << "removing region: "
-                                   << " pid=" << hexval(pid) << "[" << hexval(addr) << ", " << hexval(end) << "]\n";
-        m_manager.removeRegion(pid, addr, end);
+                                   << " pid=" << hexval(pid) << "[" << hexval(start) << ", " << hexval(end) << "]\n";
+        m_manager.remove(pid, start, end);
     }
 
     MemoryMapRegionType lookupRegion(uint64_t pid, uint64_t addr) const {
-        return m_manager.lookupRegion(pid, addr);
+        return m_manager.lookup(pid, addr);
     }
 
     bool lookupRegion(uint64_t pid, uint64_t addr, uint64_t &start, uint64_t &end, MemoryMapRegionType &type) const {
-        return m_manager.lookupRegion(pid, addr, start, end, type);
+        return m_manager.lookup(pid, addr, start, end, type);
     }
 
     void iterateRegions(uint64_t pid, MemoryMapCb &callback) const {
-        return m_manager.iterateRegions(pid, callback);
+        return m_manager.iterate(pid, callback);
     }
 
     void removePid(uint64_t pid) {
-        m_manager.removePid(pid);
+        m_manager.remove(pid);
 
         MemoryInfoMap::iterator mit = m_memoryInfo.find(pid);
         if (mit != m_memoryInfo.end()) {
