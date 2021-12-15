@@ -714,7 +714,7 @@ bool S2EExecutionState::disassemble(llvm::raw_ostream &os, uint64_t pc, unsigned
 
 bool S2EExecutionState::disassemble(llvm::raw_ostream &os, uint64_t pc, unsigned size, unsigned pointerSize) {
     int flags = 0; // 32-bit code by default
-    switch (getPointerSize()) {
+    switch (pointerSize) {
         case 4:
             flags = 0;
             break;
