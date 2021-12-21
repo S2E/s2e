@@ -207,7 +207,7 @@ stamps/%-make:
 ifeq ($(LLVM_BUILD),$(S2E_BUILD))
 # Download LLVM
 $(LLVM_SRC) $(CLANG_SRC) $(COMPILER_RT_SRC) $(CLANG_BINARY):
-	wget $(LLVM_SRC_URL)/$@
+	wget -O "$@" $(LLVM_SRC_URL)/$@
 
 
 .INTERMEDIATE: $(CLANG_SRC_DIR) $(COMPILER_RT_SRC_DIR) $(CLANG_BINARY_DIR)
@@ -229,7 +229,7 @@ endif
 
 # Download Lua
 $(LUA_SRC):
-	wget http://www.lua.org/ftp/$(LUA_SRC)
+	wget -O "$@" http://www.lua.org/ftp/$(LUA_SRC)
 
 $(LUA_DIR): | $(LUA_SRC)
 	tar -zxf $(LUA_SRC)
@@ -237,7 +237,7 @@ $(LUA_DIR): | $(LUA_SRC)
 
 # Download Z3
 $(Z3_BUILD_DIR):
-	wget $(Z3_URL)/archive/$(Z3_SRC)
+	wget -O "$(Z3_SRC)" $(Z3_URL)/archive/$(Z3_SRC)
 	tar -zxf $(Z3_SRC)
 	mkdir -p $(S2E_BUILD)/$(Z3_BUILD_DIR)
 
