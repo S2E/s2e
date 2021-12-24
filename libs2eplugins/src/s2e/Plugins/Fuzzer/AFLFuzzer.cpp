@@ -217,19 +217,19 @@ void AFLFuzzer::initialize() {
     unique_tb_num = 0;
 }
 
-static void SymbHwGetConcolicVector(uint64_t in, unsigned size, hw::ConcreteArray &out) {
-    union {
-        // XXX: assumes little endianness!
-        uint64_t value;
-        uint8_t array[8];
-    };
+/*static void SymbHwGetConcolicVector(uint64_t in, unsigned size, hw::ConcreteArray &out) {*/
+    //union {
+        //// XXX: assumes little endianness!
+        //uint64_t value;
+        //uint8_t array[8];
+    //};
 
-    value = in;
-    out.resize(size);
-    for (unsigned i = 0; i < size; ++i) {
-        out[i] = array[i];
-    }
-}
+    //value = in;
+    //out.resize(size);
+    //for (unsigned i = 0; i < size; ++i) {
+        //out[i] = array[i];
+    //}
+/*}*/
 
 template <typename T> static bool getConcolicValue(S2EExecutionState *state, unsigned offset, T *value) {
     auto size = sizeof(T);
@@ -335,11 +335,12 @@ void AFLFuzzer::onFuzzingInput(S2EExecutionState *state, PeripheralRegisterType 
             Ethernet.pos = 0;
             getDebugStream() << "fork at checking point phaddr  = " << hexval(phaddr)
                                 << " pc = " << hexval(state->regs()->getPc()) << "\n";
-            hw::ConcreteArray concolicValue;
-            SymbHwGetConcolicVector(0x0, *size, concolicValue);
-            klee::ref<klee::Expr> original_value =
-                state->createSymbolicValue("checking_point", *size * 8, concolicValue);
-            s2e()->getExecutor()->forkAndConcretize(state, original_value);
+            forkPoint(state);
+            /*hw::ConcreteArray concolicValue;*/
+            //SymbHwGetConcolicVector(0x0, *size, concolicValue);
+            //klee::ref<klee::Expr> original_value =
+                //state->createSymbolicValue("checking_point", *size * 8, concolicValue);
+            /*s2e()->getExecutor()->forkAndConcretize(state, original_value);*/
         }
 
         plgState->inc_hit_count();
@@ -370,6 +371,37 @@ void AFLFuzzer::onFuzzingInput(S2EExecutionState *state, PeripheralRegisterType 
             cur_read = 0;
         }
     }
+}
+
+void AFLFuzzer::forkPoint(S2EExecutionState *state) {
+    //target_ulong count;
+    //target_ulong nameptr;
+
+    state->jumpToSymbolicCpp();
+
+
+    std::string name = "fork_point";
+
+   // add a meaningless symbol for a cond to fork
+    klee::ref<klee::Expr> var = state->createSymbolicValue<uint32_t>(name, 0);
+
+    for (unsigned i = 1; i < 2; ++i) {
+        klee::ref<klee::Expr> val = klee::ConstantExpr::create(i, var->getWidth());
+        klee::ref<klee::Expr> cond = klee::NeExpr::create(var, val);
+
+        klee::Executor::StatePair sp = s2e()->getExecutor()->forkCondition(state, cond, true);
+        assert(sp.first == state);
+        assert(sp.second && sp.second != sp.first);
+        if (sp.second) {
+            // Re-execute the plugin invocation in the other state
+            sp.second->pc = sp.second->prevPC;
+        }
+    }
+
+    /*klee::ref<klee::Expr> cond = klee::EqExpr::create(var, klee::ConstantExpr::create(0, var->getWidth()));*/
+    //if (!state->addConstraint(cond)) {
+        //s2e()->getExecutor()->terminateState(*state, "Could not add condition");
+    /*}*/
 }
 
 void AFLFuzzer::onInvalidPCAccess(S2EExecutionState *state, uint64_t addr) {

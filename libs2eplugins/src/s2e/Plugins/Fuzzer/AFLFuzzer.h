@@ -121,6 +121,7 @@ private:
     void onCrashHang(S2EExecutionState *state, uint32_t flag);
     void onTimer();
     void recordTBMap();
+    void forkPoint(S2EExecutionState *state);
 };
 
 } // namespace plugins
