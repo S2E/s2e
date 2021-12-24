@@ -462,9 +462,9 @@ void AFLFuzzer::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, unsigned 
     static __thread uint64_t prev_loc;
 
     // record total bb number
+    ++all_tb_map[cur_loc];
     if (all_tb_map[cur_loc] < 1) {
         ++unique_tb_num;
-        ++all_tb_map[cur_loc];
     }
 
     if (!g_s2e_cache_mode) {
