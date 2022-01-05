@@ -423,6 +423,7 @@ RAPIDJSON_CONFIGURE_FLAGS = -DCMAKE_INSTALL_PREFIX=$(S2E_PREFIX)                
                             -DCMAKE_C_FLAGS="$(CFLAGS_ARCH) -fno-omit-frame-pointer -fPIC"       \
                             -DCMAKE_C_COMPILER=$(CLANG_CC)                                       \
                             -DCMAKE_CXX_COMPILER=$(CLANG_CXX)                                    \
+                            -DRAPIDJSON_BUILD_TESTS=OFF
 
 
 stamps/rapidjson-configure: stamps/clang-binary $(RAPIDJSON_BUILD_DIR)
