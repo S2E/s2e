@@ -1,5 +1,5 @@
 name: Check code style
-on: [push]
+on: [pull_request]
 jobs:
   clang-format:
     runs-on: ubuntu-latest
