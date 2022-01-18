@@ -55,7 +55,8 @@ private:
     void onTimer();
     void onProcessForkDecide(bool *proceed);
 
-    void onStateForkDecide(S2EExecutionState *state, bool *doFork);
+    void onStateForkDecide(S2EExecutionState *state, const klee::ref<klee::Expr> &condition, bool &allowForking);
+
     void onFork(S2EExecutionState *state, const std::vector<S2EExecutionState *> &newStates,
                 const std::vector<klee::ref<klee::Expr>> &newConditions);
 };

@@ -52,7 +52,7 @@ private:
 
     void onTimer();
     void onStateKill(S2EExecutionState *state);
-    void onStateForkDecide(S2EExecutionState *state, bool *allowForking);
+    void onStateForkDecide(S2EExecutionState *state, const klee::ref<klee::Expr> &condition, bool &allowForking);
 };
 
 } // namespace plugins

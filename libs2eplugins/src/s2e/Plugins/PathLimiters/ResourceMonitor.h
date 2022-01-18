@@ -49,7 +49,7 @@ private:
     std::string m_memStatFileName;
     S2ESynchronizedObject<bool> m_notifiedQMP;
 
-    void onStateForkDecide(S2EExecutionState *state, bool *doFork);
+    void onStateForkDecide(S2EExecutionState *state, const klee::ref<klee::Expr> &condition, bool &allowForking);
     void onTimer(void);
     void updateMemoryUsage();
     bool memoryLimitExceeded();

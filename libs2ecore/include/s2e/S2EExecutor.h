@@ -236,7 +236,7 @@ protected:
 
 private:
     // If `condition` is a nullptr, then no path constraints will be added.
-    StatePair doFork(klee::ExecutionState &current, const klee::ref<klee::Expr> *condition,
+    StatePair doFork(klee::ExecutionState &current, const klee::ref<klee::Expr> &condition,
                      bool keepConditionTrueInCurrentState);
 };
 

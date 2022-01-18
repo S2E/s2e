@@ -73,7 +73,8 @@ void LuaCoreEvents::registerCoreSignals(const std::string &cfgname) {
     }
 }
 
-void LuaCoreEvents::onStateForkDecide(S2EExecutionState *state, bool *allowForking) {
+void LuaCoreEvents::onStateForkDecide(S2EExecutionState *state, const klee::ref<klee::Expr> &condition,
+                                      bool &allowForking) {
     lua_State *L = s2e()->getConfig()->getState();
     LuaS2EExecutionState luaS2EState(state);
     LuaInstrumentationState luaInstrumentation;
@@ -83,10 +84,10 @@ void LuaCoreEvents::onStateForkDecide(S2EExecutionState *state, bool *allowForki
     Lunar<LuaInstrumentationState>::push(L, &luaInstrumentation);
 
     lua_call(L, 2, 1);
-    *allowForking = lua_toboolean(L, -1) != 0;
+    allowForking = lua_toboolean(L, -1) != 0;
     lua_pop(L, 1);
 
-    if (!*allowForking) {
+    if (!allowForking) {
         s2e()->getInfoStream() << "instrumentation prevented forking at pc=" << hexval(state->regs()->getPc()) << "\n";
     }
 }
