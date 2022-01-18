@@ -373,7 +373,8 @@ public:
     ///
     sigc::signal<void,
                  S2EExecutionState*,
-                 bool* /* allow forking */>
+                 const klee::ref<klee::Expr>& /*condition*/,
+                 bool& /* allow forking */>
         onStateForkDecide;
 
 

@@ -1370,14 +1370,14 @@ Executor::StatePair S2EExecutor::forkAndConcretize(S2EExecutionState *state, kle
 
 S2EExecutor::StatePair S2EExecutor::fork(ExecutionState &current, const klee::ref<Expr> &condition,
                                          bool keepConditionTrueInCurrentState) {
-    return doFork(current, &condition, keepConditionTrueInCurrentState);
+    return doFork(current, condition, keepConditionTrueInCurrentState);
 }
 
 S2EExecutor::StatePair S2EExecutor::fork(ExecutionState &current) {
     return doFork(current, nullptr, false);
 }
 
-S2EExecutor::StatePair S2EExecutor::doFork(ExecutionState &current, const klee::ref<Expr> *condition,
+S2EExecutor::StatePair S2EExecutor::doFork(ExecutionState &current, const klee::ref<Expr> &condition,
                                            bool keepConditionTrueInCurrentState) {
     S2EExecutionState *currentState = dynamic_cast<S2EExecutionState *>(&current);
     assert(currentState);
@@ -1391,12 +1391,12 @@ S2EExecutor::StatePair S2EExecutor::doFork(ExecutionState &current, const klee::
     // 2. If the condition is constant, there is no need to do anything
     //    as the fork will not branch.
     bool forkOk = true;
-    if (!condition || !dyn_cast<klee::ConstantExpr>(*condition)) {
+    if (!condition || !dyn_cast<klee::ConstantExpr>(condition)) {
         if (currentState->forkDisabled) {
             g_s2e->getDebugStream(currentState) << "fork disabled at " << hexval(currentState->regs()->getPc()) << "\n";
         }
 
-        g_s2e->getCorePlugin()->onStateForkDecide.emit(currentState, &forkOk);
+        g_s2e->getCorePlugin()->onStateForkDecide.emit(currentState, condition, forkOk);
         if (!forkOk) {
             g_s2e->getDebugStream(currentState) << "fork prevented by request from plugin\n";
         }
@@ -1408,7 +1408,7 @@ S2EExecutor::StatePair S2EExecutor::doFork(ExecutionState &current, const klee::
     }
 
     if (condition) {
-        res = Executor::fork(current, *condition, keepConditionTrueInCurrentState);
+        res = Executor::fork(current, condition, keepConditionTrueInCurrentState);
     } else {
         res = Executor::fork(current);
     }
@@ -1426,8 +1426,8 @@ S2EExecutor::StatePair S2EExecutor::doFork(ExecutionState &current, const klee::
     newStates[1] = static_cast<S2EExecutionState *>(res.second);
 
     if (condition) {
-        newConditions[0] = *condition;
-        newConditions[1] = klee::NotExpr::create(*condition);
+        newConditions[0] = condition;
+        newConditions[1] = klee::NotExpr::create(condition);
     }
 
     llvm::raw_ostream &out = m_s2e->getInfoStream(currentState);

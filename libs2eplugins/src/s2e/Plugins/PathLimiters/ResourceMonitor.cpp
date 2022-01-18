@@ -201,12 +201,13 @@ bool ResourceMonitor::memoryLimitExceeded() {
     }
 }
 
-void ResourceMonitor::onStateForkDecide(S2EExecutionState *state, bool *doFork) {
+void ResourceMonitor::onStateForkDecide(S2EExecutionState *state, const klee::ref<klee::Expr> &condition,
+                                        bool &allowForking) {
     // Do not set the value to true, it is true by default.
     // Plugins can set it to false if they want to change the behavior without
     // interfering with each other.
     if (memoryLimitExceeded()) {
-        *doFork = false;
+        allowForking = false;
     }
 }
 
