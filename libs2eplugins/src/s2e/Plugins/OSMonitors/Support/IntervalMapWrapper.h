@@ -48,10 +48,7 @@ public:
     using iterator = typename IM::iterator;
 
 private:
-    // This cannot be a non-static variable because it's used by the
-    // parent class but would be destroyed first, causing corruptions.
     typename IM::Allocator m_alloc;
-
     IM m_map;
 
 public:
