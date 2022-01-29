@@ -2264,12 +2264,19 @@ void PeripheralModelLearning::onStateForkDecide(S2EExecutionState *state, bool *
         }
 
         // let go circle of condition in symbolic pc forking
-        if (plgState->get_symbolicpc_ph_it(UniquePeripheral(phaddr, pc)) == 1 && plgState->get_type_flag_ph_it(phaddr) != T1) {
-            getWarningsStream(state) << "condition random in symbolic address " << hexval(phaddr)
-                                     << " pc = " << hexval(pc) << "\n";
-            plgState->inc_symbolicpc_ph_count(UniquePeripheral(phaddr, pc));
-            *conditionFork = plgState->get_symbolicpc_ph_count(UniquePeripheral(phaddr, pc)) % 2;
-            return;
+        if (plgState->get_symbolicpc_ph_it(UniquePeripheral(phaddr, pc)) == 1) {
+            if (plgState->get_type_flag_ph_it(phaddr) != T1) {
+                getWarningsStream(state) << "condition random in symbolic address " << hexval(phaddr)
+                                         << " pc = " << hexval(pc) << "\n";
+                plgState->inc_symbolicpc_ph_count(UniquePeripheral(phaddr, pc));
+                *conditionFork = plgState->get_symbolicpc_ph_count(UniquePeripheral(phaddr, pc)) % 2;
+                return;
+            } else {
+                getWarningsStream(state) << "disable fork on symbolic phaddr = " << hexval(phaddr) << " pc = " << hexval(pc) << "\n";
+                *doFork = false;
+                *conditionFork = false;
+                return;
+            }
         }
 
         if (state->regs()->getInterruptFlag() && state->regs()->getExceptionIndex() > 15) {
