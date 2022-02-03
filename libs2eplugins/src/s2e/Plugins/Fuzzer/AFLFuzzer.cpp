@@ -217,8 +217,8 @@ void AFLFuzzer::initialize() {
 
     // crash or hang analysis
     tc_length = 0;
-    std::string testcaseName = s2e()->getConfig()->getString(getConfigKey() + ".testcaseName", "NULL");
-    if (testcaseName != "NULL") {
+    std::string testcaseName = s2e()->getConfig()->getString(getConfigKey() + ".testcaseName", "NULL", &ok);
+    if (ok) {
         std::ifstream fT;
         fT.open(testcaseName, std::ios::in | std::ios::binary);
         if (!fT) {
