@@ -76,6 +76,7 @@ private:
     T2PeripheralMap pt2_type_flag_phs; // 1 means this reg has never been read as t2; 2 means already been read
     T2PeripheralMap t2_type_phs;
     TIRQCPeripheralMap tirqc_type_phs; // store the control ph values corresponding to the regs has
+    TIRQCPeripheralMap etirqc_type_phs;
     TypeFlagPeripheralMap type_irq_flag;
     PeripheralForkCount ph_forks_count;
     std::map<uint32_t /* irq no */, std::deque<uint64_t>> hash_stack;
@@ -343,6 +344,16 @@ public:
 
     TIRQCPeripheralMap get_tirqc_type_all_phs() {
         return tirqc_type_phs;
+    }
+
+    // IRQC Empty
+    void insert_etirqc_type_phs(uint32_t irq_no, uint32_t phaddr, uint32_t crphaddr, uint32_t crvalue, uint32_t value) {
+        if (etirqc_type_phs[std::make_pair(irq_no, phaddr)][crphaddr][crvalue].size() == 0 && value == 0)
+            etirqc_type_phs[std::make_pair(irq_no, phaddr)][crphaddr][crvalue].push_back(value);
+    }
+
+    TIRQCPeripheralMap get_etirqc_type_all_phs() {
+        return etirqc_type_phs;
     }
 
     // read and write phs
@@ -912,6 +923,7 @@ void PeripheralModelLearning::writeTIRQPeripheralstoKB(S2EExecutionState *state,
     DECLARE_PLUGINSTATE(PeripheralModelLearningState, state);
 
     TIRQCPeripheralMap tirqc_type_phs = plgState->get_tirqc_type_all_phs();
+    TIRQCPeripheralMap etirqc_type_phs = plgState->get_etirqc_type_all_phs();
     // tirq cache
     TIRQPeripheralMapFlag empty_tirqc_flag;
     for (auto itpossirqs : possible_irq_values) {
@@ -952,6 +964,10 @@ void PeripheralModelLearning::writeTIRQPeripheralstoKB(S2EExecutionState *state,
                             fPHKB << "tirqc_" << hexval(ittirqc.first.first) << "_" << hexval(ittirqc.first.second)
                                   << "_" << hexval(itcrs.first) << "_" << hexval(itcr.first) << "_" << hexval(itv)
                                   << std::endl;
+                            if (itv != 0)
+                            fPHKB << "tirqc_" << hexval(ittirqc.first.first) << "_" << hexval(ittirqc.first.second)
+                                  << "_" << hexval(itcrs.first) << "_" << hexval(itcr.first) << "_" << hexval(itv)
+                                  << std::endl;
                         }
                     }
                 }
@@ -959,15 +975,16 @@ void PeripheralModelLearning::writeTIRQPeripheralstoKB(S2EExecutionState *state,
         }
     }
 
-    for (auto irq_no : empty_tirqc_flag) {
-        if (irq_no.second == 1) {
-            for (auto irq_sr : irq_srs[irq_no.first.first]) {
-                if (tirqc_type_phs[irq_no.first].size() == 0) {
-                    for (auto irq_cr : irq_crs[irq_no.first.second]) {
-                        fPHKB << "ptirqc_" << hexval(irq_no.first.first) << "_" << hexval(irq_sr) << "_"
-                              << hexval(irq_cr.first) << "_" << hexval(irq_cr.second) << "_"
-                              << "0x0" << std::endl;
-                        break;
+    for (auto itetirqc : etirqc_type_phs) {
+        if (plgState->get_type_flag_ph_it(itetirqc.first.second) == T1) {
+            if (plgState->get_irq_flag_ph_it(itetirqc.first.second) == 2) {
+                for (auto itcrs : itetirqc.second) {
+                    for (auto itcr : itcrs.second) {
+                        for (auto itv : itcr.second) {
+                            fPHKB << "tirqc_" << hexval(itetirqc.first.first) << "_" << hexval(itetirqc.first.second)
+                                  << "_" << hexval(itcrs.first) << "_" << hexval(itcr.first) << "_" << hexval(itv)
+                                  << std::endl;
+                        }
                     }
                 }
             }
@@ -2699,7 +2716,7 @@ void PeripheralModelLearning::updateIRQKB(S2EExecutionState *state, uint32_t irq
                         cr_phaddr = itcr.first;
                         break;
                     }
-                    plgState->insert_tirqc_type_phs(irq_no, sr_phaddr, cr_phaddr, plgState->get_writeph(cr_phaddr),
+                    plgState->insert_etirqc_type_phs(irq_no, sr_phaddr, cr_phaddr, plgState->get_writeph(cr_phaddr),
                                                     value);
                     getInfoStream() << " Add Empty TIRQC type ph addr = " << hexval(sr_phaddr)
                                         << " value = " << hexval(value) << " cr phaddr = " << hexval(cr_phaddr)
