@@ -209,12 +209,34 @@ void AFLFuzzer::initialize() {
     PeripheralConnection->onInvalidPHs.connect(sigc::mem_fun(*this, &AFLFuzzer::onInvalidPHs));
 
     afl_setup();
-
     bitmap = (uint8_t *) malloc(MAP_SIZE);
     afl_start_code = 0;
     afl_end_code = 0xffffffff;
     cur_read = 0;
     unique_tb_num = 0;
+
+    // crash or hang analysis
+    tc_length = 0;
+    std::string testcaseName = s2e()->getConfig()->getString(getConfigKey() + ".testcaseName", "NULL");
+    if (testcaseName != "NULL") {
+        std::ifstream fT;
+        fT.open(testcaseName, std::ios::in | std::ios::binary);
+        if (!fT) {
+            getWarningsStream() << "No Testcase file Provided\n";
+        }
+
+        char tcB;
+        while (fT.read(&tcB, sizeof(tcB))) {
+            memcpy(testcase + tc_length, &tcB, 1);
+            getInfoStream() << "input testcase " << hexval(tcB) << "\n";
+            tc_length += fT.gcount();
+        }
+        fT.close();
+        if (tc_length < 4 || tc_length > 1024) {
+            getWarningsStream() << " The length of testcase must greater than 4B but less than 1KB\n";
+            exit(-1);
+        }
+    }
 }
 
 /*static void SymbHwGetConcolicVector(uint64_t in, unsigned size, hw::ConcreteArray &out) {*/
@@ -346,29 +368,43 @@ void AFLFuzzer::onFuzzingInput(S2EExecutionState *state, PeripheralRegisterType 
         plgState->inc_hit_count();
         timer_ticks = 0;
 
-        if (cur_read >= afl_con->AFL_size) {
-            cur_read = 0;
-            memcpy(afl_area_ptr, bitmap, MAP_SIZE);
-            afl_con->AFL_input = 0;
-            fork_count++;
-            if (fork_count > max_fork_count) {
-                fork_count = 0;
-                std::string s;
-                llvm::raw_string_ostream ss(s);
-                ss << "Fork point each " << max_fork_count << " testcases\n";
-                ss.flush();
-                s2e()->getExecutor()->terminateState(*state, s);
+        if (tc_length == 0) { // Fuzzing
+            if (cur_read >= afl_con->AFL_size) { // fork point
+                cur_read = 0;
+                memcpy(afl_area_ptr, bitmap, MAP_SIZE);
+                afl_con->AFL_input = 0;
+                fork_count++;
+                if (fork_count > max_fork_count) {
+                    fork_count = 0;
+                    std::string s;
+                    llvm::raw_string_ostream ss(s);
+                    ss << "Fork point each " << max_fork_count << " testcases\n";
+                    ss.flush();
+                    s2e()->getExecutor()->terminateState(*state, s);
+                }
             }
-        }
 
-        if (afl_con->AFL_input) {
-            getDebugStream() << "AFL_input = " << afl_con->AFL_input << " AFL_size = " << afl_con->AFL_size
-                             << " cur_read = " << cur_read << "\n";
+            if (afl_con->AFL_input) {
+                getDebugStream() << "AFL_input = " << afl_con->AFL_input << " AFL_size = " << afl_con->AFL_size
+                                 << " cur_read = " << cur_read << "\n";
+                memcpy(value, testcase + cur_read, *size);
+                cur_read += *size;
+            } else {
+                memset(value, 0, 4 * sizeof(char));
+                cur_read = 0;
+            }
+        } else {
+            if (cur_read >= tc_length) {
+                getInfoStream() << "The whole testcase has been read by firmware, specific testcase analysis finish\n";
+                g_s2e->getCorePlugin()->onEngineShutdown.emit();
+                // Flush here just in case ~S2E() is not called (e.g., if atexit()
+                // shutdown handler was not called properly).
+                g_s2e->flushOutputStreams();
+                exit(0);
+            }
             memcpy(value, testcase + cur_read, *size);
             cur_read += *size;
-        } else {
-            memset(value, 0, 4 * sizeof(char));
-            cur_read = 0;
+            getInfoStream() << " read the " << cur_read << " Bytes from whole testcase :" << hexval(*value) << "\n";
         }
     }
 }
@@ -517,6 +553,15 @@ void AFLFuzzer::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, unsigned 
     if (timer_ticks > (hang_timeout - 1)) {
         getWarningsStream() << g_s2e_allow_interrupt << " what happen when we are hang at pc = "
                             << hexval(cur_loc) << ", maybe add it as a crash point\n";
+    }
+
+    if (timer_ticks > 1 && tc_length > 0 && cur_read >= tc_length) {
+        getInfoStream() << "The whole testcase has been read by firmware, specific testcase analysis finish\n";
+        g_s2e->getCorePlugin()->onEngineShutdown.emit();
+        // Flush here just in case ~S2E() is not called (e.g., if atexit()
+        // shutdown handler was not called properly).
+        g_s2e->flushOutputStreams();
+        exit(0);
     }
 
     // user-defined crash points
