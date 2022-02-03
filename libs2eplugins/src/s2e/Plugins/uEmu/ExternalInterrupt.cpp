@@ -117,10 +117,12 @@ public:
 void ExternalInterrupt::initialize() {
     s2e()->getCorePlugin()->onTranslateBlockStart.connect(
         sigc::mem_fun(*this, &ExternalInterrupt::onTranslateBlockStart));
+    s2e()->getCorePlugin()->onEngineShutdown.connect(sigc::mem_fun(*this, &ExternalInterrupt::onuEmuShutdown));
 
     bool ok;
     tb_interval = s2e()->getConfig()->getInt(getConfigKey() + ".tbInterval", 2000, &ok);
     tb_scale = s2e()->getConfig()->getInt(getConfigKey() + ".BBScale", 30000, &ok);
+    unique_tb_num = 0;
 
     if (!ok) {
         getWarningsStream()
@@ -149,6 +151,28 @@ void ExternalInterrupt::initialize() {
         }
     }
 }
+
+void ExternalInterrupt::recordTBMap() {
+    std::string fileName;
+    fileName = s2e()->getOutputDirectory() + "/fuzz_tb_map.txt";
+    std::ofstream fTBmap;
+    fTBmap.open(fileName, std::ios::out | std::ios::trunc);
+
+    for (auto ittb : all_tb_map) {
+        if (ittb.second > 0)
+            fTBmap << hexval(ittb.first)  << " " << ittb.second << std::endl;;
+    }
+
+    fTBmap.close();
+}
+
+void ExternalInterrupt::onuEmuShutdown() {
+    if (g_s2e_cache_mode) {
+        recordTBMap();
+        getInfoStream() << "The total number of unique executed tb is " << unique_tb_num << "\n";
+    }
+}
+
 
 void ExternalInterrupt::onTranslateBlockStart(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb,
                                               uint64_t pc) {
@@ -182,6 +206,11 @@ void ExternalInterrupt::onBlockStart(S2EExecutionState *state, uint64_t pc) {
 
     plgState->inc_tb_num(pc);
 
+    // record total bb number
+    if (all_tb_map[pc] < 1) {
+        ++unique_tb_num;
+    }
+    ++all_tb_map[pc];
     if (g_s2e_cache_mode) {
         if (!g_s2e_fast_concrete_invocation) {
             // getWarningsStream() <<" should not happen sym pc = " << hexval(pc) << "\n";

@@ -21,8 +21,6 @@ S2E_DEFINE_PLUGIN(AFLFuzzer, "trigger and record external interrupts", "AFLFuzze
 
 class AFLFuzzerState : public PluginState {
 private:
-    typedef llvm::DenseMap<uint32_t, uint32_t> TBCounts;
-
     uint64_t hit_count;
 
 public:
@@ -213,7 +211,6 @@ void AFLFuzzer::initialize() {
     afl_start_code = 0;
     afl_end_code = 0xffffffff;
     cur_read = 0;
-    unique_tb_num = 0;
 
     // crash or hang analysis
     tc_length = 0;
@@ -505,20 +502,6 @@ void AFLFuzzer::onConcreteDataMemoryAccess(S2EExecutionState *state, uint64_t ad
     onCrashHang(state, 1);
 }
 
-void AFLFuzzer::recordTBMap() {
-    std::string fileName;
-    fileName = s2e()->getOutputDirectory() + "/fuzz_tb_map.txt";
-    std::ofstream fTBmap;
-    fTBmap.open(fileName, std::ios::out | std::ios::trunc);
-
-    for (auto ittb : all_tb_map) {
-        if (ittb.second > 0)
-            fTBmap << hexval(ittb.first)  << " " << ittb.second << std::endl;;
-    }
-
-    fTBmap.close();
-}
-
 void AFLFuzzer::onTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionState *state,
                                                  TranslationBlock *tb, uint64_t pc, bool staticTarget,
                                                  uint64_t staticTargetPc) {
@@ -529,19 +512,11 @@ void AFLFuzzer::onTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionState *
 void AFLFuzzer::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, unsigned source_type) {
     static __thread uint64_t prev_loc;
 
-    // record total bb number
-    ++all_tb_map[cur_loc];
-    if (all_tb_map[cur_loc] < 1) {
-        ++unique_tb_num;
-    }
-
     if (!g_s2e_cache_mode) {
         return;
     }
     // uEmu ends up with fuzzer
     if (unlikely(afl_con->AFL_return == END_uEmu)) {
-        recordTBMap();
-        getInfoStream() << "The total number of unique executed tb is " << unique_tb_num << "\n";
         getInfoStream() << "==== Testing aborted by user via Fuzzer ====\n";
         g_s2e->getCorePlugin()->onEngineShutdown.emit();
         // Flush here just in case ~S2E() is not called (e.g., if atexit()

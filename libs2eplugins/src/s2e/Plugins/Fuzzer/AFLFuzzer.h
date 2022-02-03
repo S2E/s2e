@@ -16,8 +16,6 @@
 
 namespace s2e {
 namespace plugins {
-typedef llvm::DenseMap<uint32_t, uint32_t> TBCounts;
-
 /* Map size for the traced binary (2^MAP_SIZE_POW2). Must be greater than
    2; you probably want to keep it under 18 or so for performance reasons
    (adjusting AFL_INST_RATIO when compiling is probably a better way to solve
@@ -90,8 +88,6 @@ private:
     sigc::connection blockEndConnection;
     sigc::connection timerConnection;
 
-    TBCounts all_tb_map;
-    uint64_t unique_tb_num; // new tb number
     bool enable_fuzzing;
     uint32_t max_fork_count;
     uint32_t fork_count;
@@ -121,7 +117,6 @@ private:
     void onBlockEnd(S2EExecutionState *state, uint64_t pc, unsigned source_type);
     void onCrashHang(S2EExecutionState *state, uint32_t flag);
     void onTimer();
-    void recordTBMap();
     void forkPoint(S2EExecutionState *state);
 };
 

@@ -15,6 +15,8 @@
 
 namespace s2e {
 namespace plugins {
+typedef llvm::DenseMap<uint32_t, uint32_t> TBCounts;
+
 class ExternalInterrupt : public Plugin {
     S2E_PLUGIN
 public:
@@ -28,7 +30,11 @@ private:
     bool systick_disable_flag; // used for state 0
     std::vector<uint32_t> disable_irqs;
     uint64_t systick_begin_point;
+    TBCounts all_tb_map;
+    uint64_t unique_tb_num; // new tb number
 
+    void onuEmuShutdown();
+    void recordTBMap();
     void onTranslateBlockStart(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb, uint64_t pc);
     void onBlockStart(S2EExecutionState *state, uint64_t pc);
 };
