@@ -137,8 +137,6 @@ void ExternalInterrupt::initialize() {
         getDebugStream() << "Add disable irqs = " << hexval(*it) << "\n";
         disable_irqs.push_back(*it);
     }
-    s2e()->getCorePlugin()->onTimer.connect(sigc::mem_fun(*this, &ExternalInterrupt::onTimer));
-    timer_ticks = 0;
 
     systick_disable_flag = s2e()->getConfig()->getBool(getConfigKey() + ".disableSystickInterrupt", false);
     if (systick_disable_flag) {
@@ -150,10 +148,6 @@ void ExternalInterrupt::initialize() {
             getInfoStream() << "systick begin point = " << hexval(systick_begin_point) << "\n";
         }
     }
-}
-
-void ExternalInterrupt::onTimer() {
-    ++timer_ticks;
 }
 
 void ExternalInterrupt::onTranslateBlockStart(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb,
@@ -213,16 +207,6 @@ void ExternalInterrupt::onBlockStart(S2EExecutionState *state, uint64_t pc) {
         if (!plgState->get_enableinterrupt_flag()) {
             return;
         }
-
-        if (plgState->get_tb_num() % tb_scale == 0) {
-            getInfoStream() << "current pc at = " << hexval(pc) << " execution time of each " << tb_scale
-                                << " blocks is " << hexval(timer_ticks) << "\n";
-        }
-    }
-
-    if (plgState->get_tb_num() % 10000000 == 0) {
-        getInfoStream() << "current pc at = " << hexval(pc) << " execution time of each 10,000,000 basic blocks is "
-                            << timer_ticks << "s\n";
     }
 
     std::vector<uint32_t> irqs_bitmap;

@@ -27,7 +27,6 @@ private:
     uint32_t tb_scale;
     bool systick_disable_flag; // used for state 0
     std::vector<uint32_t> disable_irqs;
-    uint64_t timer_ticks;
     uint64_t systick_begin_point;
 
     void onTimer();
