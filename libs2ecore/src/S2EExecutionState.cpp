@@ -311,12 +311,8 @@ ref<Expr> S2EExecutionState::createSymbolicValue(const std::string &name, Expr::
 }
 
 ref<Expr> S2EExecutionState::createSymbolicValue(const std::string &name, Expr::Width width) {
-    std::vector<unsigned char> concreteValues;
-
-    unsigned bytes = Expr::getMinBytesForWidth(width);
-    for (unsigned i = 0; i < bytes; ++i) {
-        concreteValues.push_back(0);
-    }
+    unsigned size = Expr::getMinBytesForWidth(width);
+    std::vector<unsigned char> concreteValues(size, 0);
 
     return createSymbolicValue(name, width, concreteValues);
 }
@@ -365,11 +361,7 @@ std::vector<ref<Expr>> S2EExecutionState::createSymbolicArray(const std::string 
 
 std::vector<ref<Expr>> S2EExecutionState::createSymbolicArray(const std::string &name, unsigned size,
                                                               std::string *varName) {
-    std::vector<unsigned char> concreteBuffer;
-
-    for (unsigned i = 0; i < size; ++i) {
-        concreteBuffer.push_back(0);
-    }
+    std::vector<unsigned char> concreteBuffer(size, 0);
 
     return createSymbolicArray(name, size, concreteBuffer, varName);
 }
