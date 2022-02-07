@@ -269,9 +269,6 @@ public:
         m_memIoVaddr = value;
     }
 
-    /** Handler for tcg_llvm_get_value. */
-    void makeSymbolic(std::vector<klee::ref<klee::Expr>> &args);
-
     bool getReturnAddress(uint64_t *retAddr);
     bool bypassFunction(unsigned paramCount);
 
