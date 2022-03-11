@@ -170,7 +170,7 @@ std::shared_ptr<ELF_T> ELFFile<EhdrT, PhdrT>::get(std::shared_ptr<FileProvider> 
     } else if (e_ident[EI_CLASS] > ELFCLASS64) {
         // The ELF may still be valid, it may just be of a different class. So only print the error message if the
         // ELF cannot possibly be valid
-        std::string moduleName = llvm::sys::path::filename(std::string(file->getName()));
+        auto moduleName = llvm::sys::path::filename(std::string(file->getName()));
         llvm::errs() << moduleName << " has unsupported architecture\n";
     }
 

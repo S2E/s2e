@@ -75,7 +75,7 @@ std::shared_ptr<PEFile> PEFile::get(std::shared_ptr<FileProvider> file, bool loa
         } break;
 
         default: {
-            std::string moduleName = llvm::sys::path::filename(std::string(file->getName()));
+            auto moduleName = llvm::sys::path::filename(std::string(file->getName()));
             llvm::errs() << moduleName << " has unsupported architecture\n";
             break;
         }
