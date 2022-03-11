@@ -51,8 +51,6 @@ using namespace llvm;
 namespace {
 enum SwitchImplType { eSwitchTypeSimple, eSwitchTypeLLVM, eSwitchTypeInternal };
 
-cl::list<std::string> MergeAtExit("merge-at-exit");
-
 cl::opt<bool> NoTruncateSourceLines("no-truncate-source-lines",
                                     cl::desc("Don't truncate long lines in the output source"));
 
@@ -211,46 +209,6 @@ KModule::~KModule() {
 
 void KModule::prepare(const Interpreter::ModuleOptions &opts, InterpreterHandler *ih) {
     LLVMContext &context = module->getContext();
-
-    if (!MergeAtExit.empty()) {
-        Function *mergeFn = module->getFunction("klee_merge");
-        if (!mergeFn) {
-            llvm::FunctionType *Ty =
-                FunctionType::get(Type::getVoidTy(context), ArrayRef<Type *>(std::vector<Type *>()), false);
-            mergeFn = Function::Create(Ty, GlobalVariable::ExternalLinkage, "klee_merge", module);
-        }
-
-        for (cl::list<std::string>::iterator it = MergeAtExit.begin(), ie = MergeAtExit.end(); it != ie; ++it) {
-            std::string &name = *it;
-            Function *f = module->getFunction(name);
-            if (!f) {
-                klee_error("cannot insert merge-at-exit for: %s (cannot find)", name.c_str());
-            } else if (f->isDeclaration()) {
-                klee_error("cannot insert merge-at-exit for: %s (external)", name.c_str());
-            }
-
-            BasicBlock *exit = BasicBlock::Create(context, "exit", f);
-            PHINode *result = 0;
-            if (f->getReturnType() != Type::getVoidTy(context))
-                result = PHINode::Create(f->getReturnType(), 0, "retval", exit);
-            CallInst::Create(mergeFn, "", exit);
-            ReturnInst::Create(context, result, exit);
-
-            llvm::errs() << "KLEE: adding klee_merge at exit of: " << name << "\n";
-            for (llvm::Function::iterator bbit = f->begin(), bbie = f->end(); bbit != bbie; ++bbit) {
-                if (&*bbit != exit) {
-                    Instruction *i = bbit->getTerminator();
-                    if (i->getOpcode() == Instruction::Ret) {
-                        if (result) {
-                            result->addIncoming(i->getOperand(0), &*bbit);
-                        }
-                        i->eraseFromParent();
-                        BranchInst::Create(exit, &*bbit);
-                    }
-                }
-            }
-        }
-    }
 
     // Inject checks prior to optimization... we also perform the
     // invariant transformations that we will end up doing later so that
