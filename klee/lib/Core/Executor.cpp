@@ -197,7 +197,7 @@ void Executor::initializeGlobals(ExecutionState &state) {
         // If the symbol has external weak linkage then it is implicitly
         // not defined in this module; if it isn't resolvable then it
         // should be null.
-        if (f->hasExternalWeakLinkage() && !externalDispatcher->resolveSymbol(f->getName())) {
+        if (f->hasExternalWeakLinkage() && !externalDispatcher->resolveSymbol(f->getName().str())) {
             addr = Expr::createPointer(0);
         } else {
             addr = Expr::createPointer((uintptr_t)(void *) f);
@@ -238,7 +238,7 @@ void Executor::initializeGlobals(ExecutionState &state) {
 
     // allocate memory objects for all globals
     for (Module::const_global_iterator i = m->global_begin(), e = m->global_end(); i != e; ++i) {
-        std::map<std::string, void *>::iterator po = predefinedSymbols.find(i->getName());
+        std::map<std::string, void *>::iterator po = predefinedSymbols.find(i->getName().str());
         if (po != predefinedSymbols.end()) {
             // This object was externally defined
             globalAddresses.insert(
@@ -278,7 +278,7 @@ void Executor::initializeGlobals(ExecutionState &state) {
             // concrete value and write it to our copy.
             if (size) {
                 void *addr;
-                addr = externalDispatcher->resolveSymbol(i->getName());
+                addr = externalDispatcher->resolveSymbol(i->getName().str());
 
                 if (!addr)
                     klee_error("unable to load symbol(%s) while initializing globals.", i->getName().data());
@@ -308,7 +308,7 @@ void Executor::initializeGlobals(ExecutionState &state) {
 
     // once all objects are allocated, do the actual initialization
     for (auto i = m->global_begin(), e = m->global_end(); i != e; ++i) {
-        if (predefinedSymbols.find(i->getName()) != predefinedSymbols.end()) {
+        if (predefinedSymbols.find(i->getName().str()) != predefinedSymbols.end()) {
             continue;
         }
 
@@ -1558,7 +1558,7 @@ void Executor::callExternalFunction(ExecutionState &state, KInstruction *target,
     if (specialFunctionHandler->handle(state, function, target, arguments))
         return;
 
-    if (NoExternals && !okExternals.count(function->getName())) {
+    if (NoExternals && !okExternals.count(function->getName().str())) {
         llvm::errs() << "KLEE:ERROR: Calling not-OK external function : " << function->getName() << "\n";
         terminateState(state, "externals disallowed");
         return;
@@ -1615,7 +1615,7 @@ void Executor::callExternalFunction(ExecutionState &state, KInstruction *target,
     }
 
     uint64_t result;
-    external_fcn_t targetFunction = (external_fcn_t) externalDispatcher->resolveSymbol(function->getName());
+    external_fcn_t targetFunction = (external_fcn_t) externalDispatcher->resolveSymbol(function->getName().str());
     if (!targetFunction) {
         std::stringstream ss;
         ss << "Could not find address of external function " << function->getName().str();
