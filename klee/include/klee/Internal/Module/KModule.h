@@ -121,6 +121,10 @@ private:
     KModule() {
     }
 
+    template <typename SqType, typename TypeIt>
+    void computeOffsetsSeqTy(const GlobalAddresses &globalAddresses, KGEPInstruction *kgepi,
+                             ref<ConstantExpr> &constantOffset, uint64_t index, const TypeIt it);
+
     template <typename TypeIt>
     void computeOffsets(const GlobalAddresses &globalAddresses, KGEPInstruction *kgepi, TypeIt ib, TypeIt ie);
 

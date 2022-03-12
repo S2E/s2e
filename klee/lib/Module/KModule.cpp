@@ -22,7 +22,6 @@
 #include <klee/Context.h>
 
 #include "llvm/Bitcode/BitcodeWriter.h"
-#include "llvm/IR/CallSite.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/Function.h"
@@ -68,7 +67,7 @@ cl::opt<SwitchImplType> SwitchType("switch-type", cl::desc("Select the implement
 } // namespace
 
 namespace llvm {
-extern void Optimize(Module *);
+void Optimize(Module *M);
 }
 
 namespace klee {
@@ -229,11 +228,12 @@ void KModule::prepare(const Interpreter::ModuleOptions &opts, InterpreterHandler
     // IntrinsicLowering which caches values which may eventually be
     // deleted (via RAUW). This can be removed once LLVM fixes this
     // issue.
-    pm.add(new IntrinsicCleanerPass(*dataLayout, false));
+    pm.add(new IntrinsicCleanerPass(*dataLayout));
     pm.run(*module);
 
-    if (opts.Optimize)
+    if (opts.Optimize) {
         Optimize(module);
+    }
 
     // Force importing functions required by intrinsic lowering. Kind of
     // unfortunate clutter when we don't need them but we won't know
@@ -268,9 +268,6 @@ void KModule::prepare(const Interpreter::ModuleOptions &opts, InterpreterHandler
     // directly I think?
     legacy::PassManager pm3;
 
-    // the additional linked in libraries may also have vector instructions
-    // so run ScalarizerPass once again to make sure of vector instr cleaned up
-    pm3.add(createScalarizerPass());
     pm3.add(createCFGSimplificationPass());
     switch (SwitchType) {
         case eSwitchTypeInternal:
@@ -286,6 +283,7 @@ void KModule::prepare(const Interpreter::ModuleOptions &opts, InterpreterHandler
     }
     InstructionOperandTypeCheckPass *operandTypeCheckPass = new InstructionOperandTypeCheckPass();
     pm3.add(new IntrinsicCleanerPass(*dataLayout));
+    pm3.add(createScalarizerPass());
     pm3.add(new PhiCleanerPass());
     pm3.add(operandTypeCheckPass);
     pm3.run(*module);
@@ -440,39 +438,39 @@ Expr::Width KModule::getWidthForLLVMType(llvm::Type *type) const {
     return dataLayout->getTypeSizeInBits(type);
 }
 
+template <typename SqType, typename TypeIt>
+void KModule::computeOffsetsSeqTy(const GlobalAddresses &globalAddresses, KGEPInstruction *kgepi,
+                                  ref<ConstantExpr> &constantOffset, uint64_t index, const TypeIt it) {
+    const auto *sq = cast<SqType>(*it);
+    auto &targetData = module->getDataLayout();
+    uint64_t elementSize = targetData.getTypeStoreSize(sq->getElementType());
+    const Value *operand = it.getOperand();
+    if (const Constant *c = dyn_cast<Constant>(operand)) {
+        ref<ConstantExpr> index = evalConstant(globalAddresses, c)->SExt(Context::get().getPointerWidth());
+        ref<ConstantExpr> addend = index->Mul(ConstantExpr::alloc(elementSize, Context::get().getPointerWidth()));
+        constantOffset = constantOffset->Add(addend);
+    } else {
+        kgepi->indices.emplace_back(index, elementSize);
+    }
+}
+
 template <typename TypeIt>
 void KModule::computeOffsets(const GlobalAddresses &globalAddresses, KGEPInstruction *kgepi, TypeIt ib, TypeIt ie) {
-    auto &dataLayout = module->getDataLayout();
-
     ref<ConstantExpr> constantOffset = ConstantExpr::alloc(0, Context::get().getPointerWidth());
     uint64_t index = 1;
     for (TypeIt ii = ib; ii != ie; ++ii) {
         if (StructType *st = dyn_cast<StructType>(*ii)) {
-            const StructLayout *sl = dataLayout.getStructLayout(st);
+            auto &targetData = module->getDataLayout();
+            const StructLayout *sl = targetData.getStructLayout(st);
             const ConstantInt *ci = cast<ConstantInt>(ii.getOperand());
             uint64_t addend = sl->getElementOffset((unsigned) ci->getZExtValue());
             constantOffset = constantOffset->Add(ConstantExpr::alloc(addend, Context::get().getPointerWidth()));
-        } else if (const auto set = dyn_cast<SequentialType>(*ii)) {
-            uint64_t elementSize = dataLayout.getTypeStoreSize(set->getElementType());
-            Value *operand = ii.getOperand();
-            if (Constant *c = dyn_cast<Constant>(operand)) {
-                ref<ConstantExpr> index = evalConstant(globalAddresses, c)->SExt(Context::get().getPointerWidth());
-                ref<ConstantExpr> addend =
-                    index->Mul(ConstantExpr::alloc(elementSize, Context::get().getPointerWidth()));
-                constantOffset = constantOffset->Add(addend);
-            } else {
-                kgepi->indices.push_back(std::make_pair(index, elementSize));
-            }
-        } else if (const auto ptr = dyn_cast<PointerType>(*ii)) {
-            auto elementSize = dataLayout.getTypeStoreSize(ptr->getElementType());
-            auto operand = ii.getOperand();
-            if (auto c = dyn_cast<Constant>(operand)) {
-                auto index = evalConstant(globalAddresses, c)->SExt(Context::get().getPointerWidth());
-                auto addend = index->Mul(ConstantExpr::alloc(elementSize, Context::get().getPointerWidth()));
-                constantOffset = constantOffset->Add(addend);
-            } else {
-                kgepi->indices.push_back(std::make_pair(index, elementSize));
-            }
+        } else if (isa<ArrayType>(*ii)) {
+            computeOffsetsSeqTy<ArrayType>(globalAddresses, kgepi, constantOffset, index, ii);
+        } else if (isa<VectorType>(*ii)) {
+            computeOffsetsSeqTy<VectorType>(globalAddresses, kgepi, constantOffset, index, ii);
+        } else if (isa<PointerType>(*ii)) {
+            computeOffsetsSeqTy<PointerType>(globalAddresses, kgepi, constantOffset, index, ii);
         } else
             assert("invalid type" && 0);
         index++;
@@ -874,12 +872,14 @@ KFunction::KFunction(llvm::Function *_function, KModule *km) : function(_functio
             ki->dest = registerMap[&*it];
 
             if (isa<CallInst>(it) || isa<InvokeInst>(it)) {
-                CallSite cs(&*it);
+                const CallBase &cs = cast<CallBase>(*it);
+                Value *val = cs.getCalledOperand();
+
                 unsigned numArgs = cs.arg_size();
                 ki->operands = new int[numArgs + 1];
-                ki->operands[0] = getOperandNum(cs.getCalledValue(), registerMap, km, ki);
+                ki->operands[0] = getOperandNum(val, registerMap, km, ki);
                 for (unsigned j = 0; j < numArgs; j++) {
-                    Value *v = cs.getArgument(j);
+                    Value *v = cs.getArgOperand(j);
                     ki->operands[j + 1] = getOperandNum(v, registerMap, km, ki);
                 }
             } else {

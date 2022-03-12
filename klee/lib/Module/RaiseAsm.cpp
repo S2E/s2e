@@ -27,7 +27,7 @@ Function *RaiseAsmPass::getIntrinsic(llvm::Module &M, unsigned IID, Type **Tys, 
 // X86TargetAsmInfo.cpp, then everyone will benefit.
 bool RaiseAsmPass::runOnInstruction(Module &M, Instruction *I) {
     if (CallInst *ci = dyn_cast<CallInst>(I)) {
-        if (InlineAsm *ia = dyn_cast<InlineAsm>(ci->getCalledValue())) {
+        if (InlineAsm *ia = dyn_cast<InlineAsm>(ci->getCalledOperand())) {
             const std::string &as = ia->getAsmString();
             const std::string &cs = ia->getConstraintString();
             const llvm::Type *T = ci->getType();

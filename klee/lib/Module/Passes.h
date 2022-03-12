@@ -52,16 +52,15 @@ class IntrinsicCleanerPass : public llvm::ModulePass {
     static char ID;
     const llvm::DataLayout &DataLayout;
     llvm::IntrinsicLowering *IL;
-    bool LowerIntrinsics;
 
-    bool runOnBasicBlock(llvm::BasicBlock &b);
+    bool runOnBasicBlock(llvm::BasicBlock &b, llvm::Module &M);
 
     void injectIntrinsicAddImplementation(llvm::Module &M, const std::string &name, unsigned bits);
     void replaceIntrinsicAdd(llvm::Module &M, llvm::CallInst *CI);
 
 public:
-    IntrinsicCleanerPass(const llvm::DataLayout &TD, bool LI = true)
-        : llvm::ModulePass(ID), DataLayout(TD), IL(new llvm::IntrinsicLowering(TD)), LowerIntrinsics(LI) {
+    IntrinsicCleanerPass(const llvm::DataLayout &TD)
+        : llvm::ModulePass(ID), DataLayout(TD), IL(new llvm::IntrinsicLowering(TD)) {
     }
 
     ~IntrinsicCleanerPass() {
@@ -69,7 +68,6 @@ public:
     }
 
     virtual bool runOnModule(llvm::Module &M);
-    virtual bool runOnFunction(llvm::Function &F);
 };
 
 // A function pass version of the above, but only for bswap

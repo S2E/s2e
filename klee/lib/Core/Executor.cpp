@@ -41,7 +41,6 @@
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/IR/Attributes.h"
 #include "llvm/IR/BasicBlock.h"
-#include "llvm/IR/CallSite.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/Function.h"
@@ -643,8 +642,34 @@ void Executor::transferToBasicBlock(BasicBlock *dst, BasicBlock *src, ExecutionS
     }
 }
 
-Function *Executor::getCalledFunction(CallSite &cs, ExecutionState &state) {
-    return cs.getCalledFunction();
+/// Compute the true target of a function call, resolving LLVM aliases
+/// and bitcasts.
+Function *Executor::getTargetFunction(Value *calledVal, ExecutionState &state) {
+    SmallPtrSet<const GlobalValue *, 3> Visited;
+
+    Constant *c = dyn_cast<Constant>(calledVal);
+    if (!c)
+        return 0;
+
+    while (true) {
+        if (GlobalValue *gv = dyn_cast<GlobalValue>(c)) {
+            if (!Visited.insert(gv).second)
+                return 0;
+
+            if (Function *f = dyn_cast<Function>(gv))
+                return f;
+            else if (GlobalAlias *ga = dyn_cast<GlobalAlias>(gv))
+                c = ga->getAliasee();
+            else
+                return 0;
+        } else if (llvm::ConstantExpr *ce = dyn_cast<llvm::ConstantExpr>(c)) {
+            if (ce->getOpcode() == Instruction::BitCast)
+                c = ce->getOperand(0);
+            else
+                return 0;
+        } else
+            return 0;
+    }
 }
 
 static inline const llvm::fltSemantics *fpWidthToSemantics(unsigned width) {
@@ -694,8 +719,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
                         Expr::Width to = kmodule->getWidthForLLVMType(t);
 
                         if (from != to) {
-                            CallSite cs = (isa<InvokeInst>(caller) ? CallSite(cast<InvokeInst>(caller))
-                                                                   : CallSite(cast<CallInst>(caller)));
+                            const CallBase &cs = cast<CallBase>(*caller);
 
                             // XXX need to check other param attrs ?
                             if (cs.paramHasAttr(0, llvm::Attribute::SExt)) {
@@ -776,29 +800,27 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
 
         case Instruction::Invoke:
         case Instruction::Call: {
-            CallSite cs;
-            unsigned argStart;
-            if (i->getOpcode() == Instruction::Call) {
-                cs = CallSite(cast<CallInst>(i));
-                argStart = 1;
-            } else {
-                cs = CallSite(cast<InvokeInst>(i));
-                argStart = 3;
+            // Ignore debug intrinsic calls
+            if (isa<DbgInfoIntrinsic>(i)) {
+                break;
             }
 
+            const CallBase &cs = cast<CallBase>(*i);
+            Value *fp = cs.getCalledOperand();
+
             unsigned numArgs = cs.arg_size();
-            Function *f = getCalledFunction(cs, state);
+            Function *f = getTargetFunction(fp, state);
 
             // evaluate arguments
             std::vector<ref<Expr>> arguments;
             arguments.reserve(numArgs);
 
-            for (unsigned j = 0; j < numArgs; ++j)
-                arguments.push_back(eval(ki, argStart + j, state).value);
+            for (unsigned j = 0; j < numArgs; ++j) {
+                arguments.push_back(eval(ki, j + 1, state).value);
+            }
 
             if (!f) {
                 // special case the call with a bitcast case
-                Value *fp = cs.getCalledValue();
                 llvm::ConstantExpr *ce = dyn_cast<llvm::ConstantExpr>(fp);
 
                 if (ce && ce->getOpcode() == Instruction::BitCast) {
