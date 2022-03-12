@@ -265,7 +265,7 @@ std::string S2E::getOutputFilename(const std::string &fileName) {
     llvm::SmallString<128> filePath(m_outputDirectory);
     llvm::sys::path::append(filePath, fileName);
 
-    return filePath.str();
+    return std::string(filePath.str());
 }
 
 llvm::raw_ostream *S2E::openOutputFile(const std::string &fileName) {

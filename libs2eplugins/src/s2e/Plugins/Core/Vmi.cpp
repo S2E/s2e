@@ -120,7 +120,7 @@ void Vmi::findModule(const std::string &module, std::vector<std::string> &paths)
         llvm::sys::path::append(tempPath, module);
 
         if (llvm::sys::fs::exists(tempPath)) {
-            paths.push_back(tempPath.str());
+            paths.push_back(std::string(tempPath.str()));
             continue;
         }
 
@@ -140,7 +140,7 @@ void Vmi::findModule(const std::string &module, std::vector<std::string> &paths)
         llvm::sys::path::append(tempPath, *it);
         llvm::sys::path::append(tempPath, sl);
         if (llvm::sys::fs::exists(tempPath)) {
-            paths.push_back(tempPath.str());
+            paths.push_back(std::string(tempPath.str()));
             continue;
         }
     }
