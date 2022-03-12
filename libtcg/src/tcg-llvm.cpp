@@ -1075,7 +1075,7 @@ int TCGLLVMTranslator::generateOperation(const TCGOp *op) {
 }
 
 bool TCGLLVMTranslator::isInstrumented(llvm::Function *tb) {
-    std::string name = tb->getName();
+    std::string name = tb->getName().str();
     return name.find("insttb") != std::string::npos;
 }
 
