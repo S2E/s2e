@@ -75,7 +75,7 @@ void MemoryWrapperElimination::eliminateWrappers(const CallSites &cs) {
             Type *memTy = ci->getCalledFunction()->getReturnType()->getPointerTo();
             LOGDEBUG(*ptr << " - " << *memTy << "\n");
             ptr = new IntToPtrInst(ptr, memTy, "", ci);
-            LoadInst *load = new LoadInst(ptr, "", ci);
+            LoadInst *load = new LoadInst(ptr->getType()->getPointerElementType(), ptr, "", ci);
             ci->replaceAllUsesWith(load);
             if (metadata) {
                 load->setMetadata("s2e.pc", metadata);

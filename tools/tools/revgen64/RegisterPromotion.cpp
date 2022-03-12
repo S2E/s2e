@@ -149,24 +149,28 @@ void RegisterPromotion::createAllocas(Function &F, GEPs &geps, Calls &calls, Ret
             doRestore = mask.wmask & bitmask;
 
             if (doSave) {
-                Instruction *li = new LoadInst(alloca, "", ci);
+                Instruction *li = new LoadInst(alloca->getType()->getPointerElementType(), alloca, "", ci);
                 new StoreInst(li, newgep, ci);
             }
 
             if (doRestore && (!UnsafeOptimizations || isReturnRegister(gep))) {
+                // TODO: port this to recent LLVM
+                abort();
+#if false
                 // XXX: we don't restore esp, figure out calling convention
-                Instruction *li = new LoadInst(newgep);
+                Instruction *li = new LoadInst(newgep->getType()->getPointerElementType(), newgep, "", nullptr);
                 li->insertAfter(ci);
 
-                Instruction *si = new StoreInst(li, alloca);
+                Instruction *si = new StoreInst(li->getType()->getPointerElementType(), li, alloca);
                 si->insertAfter(li);
+#endif
             }
         }
 
-        /* Sill all the regs before the function returns */
+        /* Spill all the regs before the function returns */
         for (auto const &ri : rets) {
             if (!UnsafeOptimizations || isReturnRegister(gep)) {
-                Instruction *li = new LoadInst(alloca, "", ri);
+                Instruction *li = new LoadInst(alloca->getType()->getPointerElementType(), alloca, "", ri);
                 new StoreInst(li, newgep, ri);
             }
         }
