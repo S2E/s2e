@@ -506,7 +506,7 @@ static inline void tcg_gen_sar_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2) {
 static inline void tcg_gen_mul_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2) {
     tcg_gen_op3_i64(INDEX_op_mul_i64, ret, arg1, arg2);
 }
-#else /* TCG_TARGET_REG_BITS == 32 */
+#else  /* TCG_TARGET_REG_BITS == 32 */
 static inline void tcg_gen_st8_i64(TCGv_i64 arg1, TCGv_ptr arg2, tcg_target_long offset) {
     tcg_gen_st8_i32(TCGV_LOW(arg1), arg2, offset);
 }
@@ -582,7 +582,7 @@ static inline void tcg_gen_insn_start(target_ulong pc) {
 }
 #else
 static inline void tcg_gen_insn_start(target_ulong pc) {
-    tcg_gen_op2(INDEX_op_insn_start, (uint32_t) pc, (uint32_t)(pc >> 32));
+    tcg_gen_op2(INDEX_op_insn_start, (uint32_t) pc, (uint32_t) (pc >> 32));
 }
 #endif
 #elif TARGET_INSN_START_WORDS == 2
@@ -592,7 +592,7 @@ static inline void tcg_gen_insn_start(target_ulong pc, target_ulong a1) {
 }
 #else
 static inline void tcg_gen_insn_start(target_ulong pc, target_ulong a1) {
-    tcg_gen_op4(INDEX_op_insn_start, (uint32_t) pc, (uint32_t)(pc >> 32), (uint32_t) a1, (uint32_t)(a1 >> 32));
+    tcg_gen_op4(INDEX_op_insn_start, (uint32_t) pc, (uint32_t) (pc >> 32), (uint32_t) a1, (uint32_t) (a1 >> 32));
 }
 #endif
 #elif TARGET_INSN_START_WORDS == 3
@@ -602,8 +602,8 @@ static inline void tcg_gen_insn_start(target_ulong pc, target_ulong a1, target_u
 }
 #else
 static inline void tcg_gen_insn_start(target_ulong pc, target_ulong a1, target_ulong a2) {
-    tcg_gen_op6(INDEX_op_insn_start, (uint32_t) pc, (uint32_t)(pc >> 32), (uint32_t) a1, (uint32_t)(a1 >> 32),
-                (uint32_t) a2, (uint32_t)(a2 >> 32));
+    tcg_gen_op6(INDEX_op_insn_start, (uint32_t) pc, (uint32_t) (pc >> 32), (uint32_t) a1, (uint32_t) (a1 >> 32),
+                (uint32_t) a2, (uint32_t) (a2 >> 32));
 }
 #endif
 #else

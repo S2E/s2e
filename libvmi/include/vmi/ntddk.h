@@ -78,14 +78,14 @@ struct LIST_ENTRY64 {
 };
 
 #define CONTAINING_RECORD32(address, type, field) \
-    ((uint32_t)((uint32_t)(address) - (uint32_t)(uint64_t)(&((type *) 0)->field)))
+    ((uint32_t) ((uint32_t) (address) - (uint32_t) (uint64_t) (&((type *) 0)->field)))
 
 typedef int32_t NTSTATUS; // MUST BE SIGNED
 
-#define NT_SUCCESS(Status)     ((NTSTATUS)(Status) >= 0)
-#define NT_INFORMATION(Status) ((ULONG)(Status) >> 30 == 1)
-#define NT_WARNING(Status)     ((ULONG)(Status) >> 30 == 2)
-#define NT_ERROR(Status)       ((ULONG)(Status) >> 30 == 3)
+#define NT_SUCCESS(Status)     ((NTSTATUS) (Status) >= 0)
+#define NT_INFORMATION(Status) ((ULONG) (Status) >> 30 == 1)
+#define NT_WARNING(Status)     ((ULONG) (Status) >> 30 == 2)
+#define NT_ERROR(Status)       ((ULONG) (Status) >> 30 == 3)
 
 typedef struct _MODULE_ENTRY32 {
     LIST_ENTRY32 LoadOrder;

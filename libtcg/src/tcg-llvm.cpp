@@ -33,6 +33,7 @@ extern "C" {
 
 #include <tcg/tcg-llvm.h>
 
+#include <llvm/Bitcode/BitcodeReader.h>
 #include <llvm/ExecutionEngine/ExecutionEngine.h>
 #include <llvm/ExecutionEngine/MCJIT.h>
 #include <llvm/IR/DataLayout.h>
@@ -49,14 +50,13 @@ extern "C" {
 #include <llvm/Transforms/Scalar.h>
 #include <llvm/Transforms/Scalar/GVN.h>
 #include <llvm/Transforms/Utils.h>
-#include <llvm/Bitcode/BitcodeReader.h>
 
 #include <llvm/Support/DynamicLibrary.h>
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Support/raw_ostream.h>
 
-#include <llvm/ADT/DenseMap.h>
 #include <llvm-c/Core.h>
+#include <llvm/ADT/DenseMap.h>
 
 #include <iostream>
 #include <sstream>
@@ -601,7 +601,7 @@ Value *TCGLLVMTranslator::generateQemuMemOp(bool ld, Value *value, Value *addr, 
         return NULL;
     }
 #endif
-#else // CONFIG_SOFTMMU
+#else  // CONFIG_SOFTMMU
     abort();
     addr = m_builder.CreateZExt(addr, wordType());
     addr = m_builder.CreateAdd(addr, ConstantInt::get(wordType(), GUEST_BASE));

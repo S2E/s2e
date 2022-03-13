@@ -904,7 +904,7 @@ static int exeption_has_error_code(int intno) {
         if ((sp_mask) == 0xffff)                      \
             ESP_W((ESP & ~0xffff) | ((val) &0xffff)); \
         else if ((sp_mask) == 0xffffffffLL)           \
-            ESP_W((uint32_t)(val));                   \
+            ESP_W((uint32_t) (val));                  \
         else                                          \
             ESP_W(val);                               \
     } while (0)
@@ -914,7 +914,7 @@ static int exeption_has_error_code(int intno) {
 
 /* in 64-bit machines, this can overflow. So this segment addition macro
  * can be used to trim the value to 32-bit whenever needed */
-#define SEG_ADDL(ssp, sp, sp_mask) ((uint32_t)((ssp) + (sp & (sp_mask))))
+#define SEG_ADDL(ssp, sp, sp_mask) ((uint32_t) ((ssp) + (sp & (sp_mask))))
 
 /* XXX: add a is_user flag to have proper security support */
 #define PUSHW(ssp, sp, sp_mask, val)                          \
@@ -923,10 +923,10 @@ static int exeption_has_error_code(int intno) {
         cpu_stw_kernel(env, (ssp) + (sp & (sp_mask)), (val)); \
     }
 
-#define PUSHL(ssp, sp, sp_mask, val)                                      \
-    {                                                                     \
-        sp -= 4;                                                          \
-        cpu_stl_kernel(env, SEG_ADDL(ssp, sp, sp_mask), (uint32_t)(val)); \
+#define PUSHL(ssp, sp, sp_mask, val)                                       \
+    {                                                                      \
+        sp -= 4;                                                           \
+        cpu_stl_kernel(env, SEG_ADDL(ssp, sp, sp_mask), (uint32_t) (val)); \
     }
 
 #define POPW(ssp, sp, sp_mask, val)                           \
@@ -1348,7 +1348,7 @@ void helper_syscall(int next_eip_addend) {
             WR_se_eip(env, env->cstar);
         }
     } else {
-        ECX_W((uint32_t)(env->eip + next_eip_addend));
+        ECX_W((uint32_t) (env->eip + next_eip_addend));
 
         cpu_x86_set_cpl(env, 0);
         cpu_x86_load_seg_cache(env, R_CS, selector & 0xfffc, 0, 0xffffffff,
@@ -1402,7 +1402,7 @@ void helper_sysret(int dflag) {
         cpu_x86_load_seg_cache(env, R_SS, selector + 8, 0, 0xffffffff,
                                DESC_G_MASK | DESC_B_MASK | DESC_P_MASK | DESC_S_MASK | (3 << DESC_DPL_SHIFT) |
                                    DESC_W_MASK | DESC_A_MASK);
-        load_eflags((uint32_t)(RR_cpu(env, regs[11])),
+        load_eflags((uint32_t) (RR_cpu(env, regs[11])),
                     TF_MASK | AC_MASK | ID_MASK | IF_MASK | IOPL_MASK | VM_MASK | RF_MASK | NT_MASK);
         cpu_x86_set_cpl(env, 3);
     } else {
@@ -1980,7 +1980,7 @@ void helper_divl_EAX(target_ulong t0) {
     unsigned int den, r;
     uint64_t num, q;
 
-    num = ((uint32_t) EAX) | ((uint64_t)((uint32_t) EDX) << 32);
+    num = ((uint32_t) EAX) | ((uint64_t) ((uint32_t) EDX) << 32);
     den = t0;
     if (den == 0) {
         raise_exception_ra(env, EXCP00_DIVZ, GETPC());
@@ -1997,7 +1997,7 @@ void helper_idivl_EAX(target_ulong t0) {
     int den, r;
     int64_t num, q;
 
-    num = ((uint32_t) EAX) | ((uint64_t)((uint32_t) EDX) << 32);
+    num = ((uint32_t) EAX) | ((uint64_t) ((uint32_t) EDX) << 32);
     den = t0;
     if (den == 0) {
         raise_exception_ra(env, EXCP00_DIVZ, GETPC());
@@ -2152,7 +2152,7 @@ void helper_cmpxchg8b(target_ulong a0) {
     } else {
         /* always do the store */
         stq(a0, d);
-        EDX_W((uint32_t)(d >> 32));
+        EDX_W((uint32_t) (d >> 32));
         EAX_W((uint32_t) d);
         eflags &= ~CC_Z;
     }
@@ -3227,13 +3227,13 @@ void helper_rdtsc(void) {
     helper_svm_check_intercept_param(SVM_EXIT_RDTSC, 0);
 
     val = cpu_get_tsc() + env->tsc_offset;
-    EAX_W((uint32_t)(val));
-    EDX_W((uint32_t)(val >> 32));
+    EAX_W((uint32_t) (val));
+    EDX_W((uint32_t) (val >> 32));
 }
 
 void helper_rdtscp(void) {
     helper_rdtsc();
-    ECX_W((uint32_t)(env->tsc_aux));
+    ECX_W((uint32_t) (env->tsc_aux));
 }
 
 void helper_rdpmc(void) {
@@ -3377,7 +3377,7 @@ void helper_wrmsr(void) {
 
     helper_svm_check_intercept_param(SVM_EXIT_MSR, 1);
 
-    val = ((uint32_t) EAX) | ((uint64_t)((uint32_t) EDX) << 32);
+    val = ((uint32_t) EAX) | ((uint64_t) ((uint32_t) EDX) << 32);
     helper_wrmsr_v(ECX, val);
 }
 
@@ -3520,8 +3520,8 @@ void helper_rdmsr(void) {
     helper_svm_check_intercept_param(SVM_EXIT_MSR, 0);
 
     val = helper_rdmsr_v((uint32_t) ECX);
-    EAX_W((uint32_t)(val));
-    EDX_W((uint32_t)(val >> 32));
+    EAX_W((uint32_t) (val));
+    EDX_W((uint32_t) (val >> 32));
 }
 
 target_ulong helper_lsl(target_ulong selector1) {

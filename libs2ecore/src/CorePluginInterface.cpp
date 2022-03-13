@@ -46,11 +46,11 @@ void s2e_gen_flags_update(void *context);
 #include <s2e/S2EExecutionState.h>
 #include <s2e/S2EExecutor.h>
 
-#include <s2e/s2e_libcpu.h>
 #include <s2e/s2e_config.h>
+#include <s2e/s2e_libcpu.h>
 
-#include <s2e/CorePlugin.h>
 #include <klee/Common.h>
+#include <s2e/CorePlugin.h>
 
 using namespace s2e;
 

@@ -383,7 +383,7 @@ SINLINE void mul64To128(uint64_t a, uint64_t b, uint64_t *z0Ptr, uint64_t *z1Ptr
     zMiddleB = ((uint64_t) aHigh) * bLow;
     z0 = ((uint64_t) aHigh) * bHigh;
     zMiddleA += zMiddleB;
-    z0 += (((uint64_t)(zMiddleA < zMiddleB)) << 32) + (zMiddleA >> 32);
+    z0 += (((uint64_t) (zMiddleA < zMiddleB)) << 32) + (zMiddleA >> 32);
     zMiddleA <<= 32;
     z1 += zMiddleA;
     z0 += (z1 < zMiddleA);
@@ -493,9 +493,9 @@ static uint32_t estimateSqrt32(int16 aExp, uint32_t a) {
         z = a / z + z;
         z = (0x20000 <= z) ? 0xFFFF8000 : (z << 15);
         if (z <= a)
-            return (uint32_t)(((int32_t) a) >> 1);
+            return (uint32_t) (((int32_t) a) >> 1);
     }
-    return ((uint32_t)((((uint64_t) a) << 31) / z)) + (z >> 1);
+    return ((uint32_t) ((((uint64_t) a) << 31) / z)) + (z >> 1);
 }
 
 /*----------------------------------------------------------------------------

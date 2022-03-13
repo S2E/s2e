@@ -607,22 +607,22 @@ typedef enum {
 
 /* Invert the sense of the comparison.  */
 static inline TCGCond tcg_invert_cond(TCGCond c) {
-    return (TCGCond)(c ^ 1);
+    return (TCGCond) (c ^ 1);
 }
 
 /* Swap the operands in a comparison.  */
 static inline TCGCond tcg_swap_cond(TCGCond c) {
-    return c & 6 ? (TCGCond)(c ^ 9) : c;
+    return c & 6 ? (TCGCond) (c ^ 9) : c;
 }
 
 /* Create an "unsigned" version of a "signed" comparison.  */
 static inline TCGCond tcg_unsigned_cond(TCGCond c) {
-    return c & 2 ? (TCGCond)(c ^ 6) : c;
+    return c & 2 ? (TCGCond) (c ^ 6) : c;
 }
 
 /* Create a "signed" version of an "unsigned" comparison.  */
 static inline TCGCond tcg_signed_cond(TCGCond c) {
-    return c & 4 ? (TCGCond)(c ^ 6) : c;
+    return c & 4 ? (TCGCond) (c ^ 6) : c;
 }
 
 /* Must a comparison be considered unsigned?  */
@@ -638,7 +638,7 @@ static inline TCGCond tcg_high_cond(TCGCond c) {
         case TCG_COND_LE:
         case TCG_COND_GEU:
         case TCG_COND_LEU:
-            return (TCGCond)(c ^ 8);
+            return (TCGCond) (c ^ 8);
         default:
             return c;
     }
@@ -936,7 +936,7 @@ static inline TCGArg tcgv_vec_arg(TCGv_vec v) {
 
 static inline TCGv_i32 temp_tcgv_i32(TCGTemp *t) {
     (void) temp_idx(t); /* trigger embedded assert */
-    return (TCGv_i32)((uintptr_t) t - (uintptr_t) tcg_ctx);
+    return (TCGv_i32) ((uintptr_t) t - (uintptr_t) tcg_ctx);
 }
 
 static inline TCGv_i64 temp_tcgv_i64(TCGTemp *t) {
@@ -1206,11 +1206,11 @@ TCGv_vec tcg_const_zeros_vec_matching(TCGv_vec);
 TCGv_vec tcg_const_ones_vec_matching(TCGv_vec);
 
 #if UINTPTR_MAX == UINT32_MAX
-#define tcg_const_ptr(x)       ((TCGv_ptr) tcg_const_i32((intptr_t)(x)))
-#define tcg_const_local_ptr(x) ((TCGv_ptr) tcg_const_local_i32((intptr_t)(x)))
+#define tcg_const_ptr(x)       ((TCGv_ptr) tcg_const_i32((intptr_t) (x)))
+#define tcg_const_local_ptr(x) ((TCGv_ptr) tcg_const_local_i32((intptr_t) (x)))
 #else
-#define tcg_const_ptr(x)       ((TCGv_ptr) tcg_const_i64((intptr_t)(x)))
-#define tcg_const_local_ptr(x) ((TCGv_ptr) tcg_const_local_i64((intptr_t)(x)))
+#define tcg_const_ptr(x)       ((TCGv_ptr) tcg_const_i64((intptr_t) (x)))
+#define tcg_const_local_ptr(x) ((TCGv_ptr) tcg_const_local_i64((intptr_t) (x)))
 #endif
 
 TCGLabel *gen_new_label(void);
@@ -1302,7 +1302,7 @@ static inline TCGMemOpIdx make_memop_idx(TCGMemOp op, unsigned idx) {
  * Extract the memory operation from the combined value.
  */
 static inline TCGMemOp get_memop(TCGMemOpIdx oi) {
-    return (TCGMemOp)(oi >> 4);
+    return (TCGMemOp) (oi >> 4);
 }
 
 /**
@@ -1391,11 +1391,11 @@ void tcg_expand_vec_op(TCGOpcode, TCGType, unsigned, TCGArg, ...);
 /* Replicate a constant C accoring to the log2 of the element size.  */
 uint64_t dup_const(unsigned vece, uint64_t c);
 
-#define dup_const(VECE, C)                                                                   \
-    (__builtin_constant_p(VECE) ? ((VECE) == MO_8    ? 0x0101010101010101ull * (uint8_t)(C)  \
-                                   : (VECE) == MO_16 ? 0x0001000100010001ull * (uint16_t)(C) \
-                                   : (VECE) == MO_32 ? 0x0000000100000001ull * (uint32_t)(C) \
-                                                     : dup_const(VECE, C))                   \
+#define dup_const(VECE, C)                                                                    \
+    (__builtin_constant_p(VECE) ? ((VECE) == MO_8    ? 0x0101010101010101ull * (uint8_t) (C)  \
+                                   : (VECE) == MO_16 ? 0x0001000100010001ull * (uint16_t) (C) \
+                                   : (VECE) == MO_32 ? 0x0000000100000001ull * (uint32_t) (C) \
+                                                     : dup_const(VECE, C))                    \
                                 : dup_const(VECE, C))
 
 /*

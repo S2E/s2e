@@ -101,7 +101,7 @@ static inline void mul64(uint64_t *plow, uint64_t *phigh, uint64_t a, uint64_t b
     c >>= 32;
     c = c + rm.l.high + rn.l.high + rh.l.low;
     rh.l.low = c;
-    rh.l.high += (uint32_t)(c >> 32);
+    rh.l.high += (uint32_t) (c >> 32);
 
     *plow = rl.ll;
     *phigh = rh.ll;

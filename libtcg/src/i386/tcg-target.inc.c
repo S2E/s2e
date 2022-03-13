@@ -326,7 +326,7 @@ static inline int tcg_target_const_match(tcg_target_long val, TCGType type, cons
 #define OPC_IMUL_GvEvIz  (0x69)
 #define OPC_INC_r32      (0x40)
 #define OPC_JCC_long     (0x80 | P_EXT) /* ... plus condition code */
-#define OPC_JCC_short    (0x70) /* ... plus condition code */
+#define OPC_JCC_short    (0x70)         /* ... plus condition code */
 #define OPC_JMP_long     (0xe9)
 #define OPC_JMP_short    (0xeb)
 #define OPC_LEA          (0x8d)
@@ -543,7 +543,7 @@ static void tcg_out_opc(TCGContext *s, int opc, int r, int rm, int x) {
     rex |= opc & (rm >= 4 ? P_REXB_RM : 0);
 
     if (rex) {
-        tcg_out8(s, (uint8_t)(rex | 0x40));
+        tcg_out8(s, (uint8_t) (rex | 0x40));
     }
 
     if (opc & (P_EXT | P_EXT38 | P_EXT3A)) {
@@ -2022,7 +2022,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args, 
                 tcg_out32(s, 0);
             } else {
                 /* indirect jump method */
-                tcg_out_modrm_offset(s, OPC_GRP5, EXT5_JMPN_Ev, -1, (intptr_t)(s->tb_jmp_target_addr + a0));
+                tcg_out_modrm_offset(s, OPC_GRP5, EXT5_JMPN_Ev, -1, (intptr_t) (s->tb_jmp_target_addr + a0));
             }
             set_jmp_reset_offset(s, a0);
             break;

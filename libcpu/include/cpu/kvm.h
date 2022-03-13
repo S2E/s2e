@@ -640,7 +640,7 @@ struct kvm_ppc_smmu_info {
 #define KVM_CAP_VAPIC                    6
 #define KVM_CAP_EXT_CPUID                7
 #define KVM_CAP_CLOCKSOURCE              8
-#define KVM_CAP_NR_VCPUS                 9 /* returns recommended max vcpus per vm */
+#define KVM_CAP_NR_VCPUS                 9  /* returns recommended max vcpus per vm */
 #define KVM_CAP_NR_MEMSLOTS              10 /* returns max memory slots per vm */
 #define KVM_CAP_PIT                      11
 #define KVM_CAP_NOP_IO_DELAY             12

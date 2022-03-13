@@ -174,7 +174,7 @@ void Tickler::stopIfJITCodeNotRunning(S2EExecutionState *state) {
     plgState->m_JITCallCountPrev = plgState->m_JITCallCount;
 
     plgState->m_JITCallCountAverage =
-        (uint64_t)((1 - MOVING_AVERAGE_ALPHA) * plgState->m_JITCallCountAverage + MOVING_AVERAGE_ALPHA * delta);
+        (uint64_t) ((1 - MOVING_AVERAGE_ALPHA) * plgState->m_JITCallCountAverage + MOVING_AVERAGE_ALPHA * delta);
 
     if (!m_stopRequested) {
         return;

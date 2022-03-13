@@ -53,7 +53,7 @@ static int64_t parse_ram_size(int argc, char **argv) {
             goto end;
         }
 
-        if (value != (uint64_t)(ram_addr_t) value) {
+        if (value != (uint64_t) (ram_addr_t) value) {
             fprintf(stderr, "libcpu: ram size too large\n");
             goto end;
         }

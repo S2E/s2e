@@ -984,7 +984,7 @@ TranslationBlock *tcg_tb_alloc(TCGContext *s) {
 
 retry:
     tb = (void *) ROUND_UP((uintptr_t) s->code_gen_ptr, align);
-    next = (void *) ROUND_UP((uintptr_t)(tb + 1), align);
+    next = (void *) ROUND_UP((uintptr_t) (tb + 1), align);
 
     if (unlikely(next > s->code_gen_highwater)) {
         if (tcg_region_alloc(s)) {

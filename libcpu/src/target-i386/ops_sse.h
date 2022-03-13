@@ -299,33 +299,33 @@ static inline int satsw(int x) {
 #define FADD(a, b)   ((a) + (b))
 #define FADDUB(a, b) satub((a) + (b))
 #define FADDUW(a, b) satuw((a) + (b))
-#define FADDSB(a, b) satsb((int8_t)(a) + (int8_t)(b))
-#define FADDSW(a, b) satsw((int16_t)(a) + (int16_t)(b))
+#define FADDSB(a, b) satsb((int8_t) (a) + (int8_t) (b))
+#define FADDSW(a, b) satsw((int16_t) (a) + (int16_t) (b))
 
 #define FSUB(a, b)   ((a) - (b))
 #define FSUBUB(a, b) satub((a) - (b))
 #define FSUBUW(a, b) satuw((a) - (b))
-#define FSUBSB(a, b) satsb((int8_t)(a) - (int8_t)(b))
-#define FSUBSW(a, b) satsw((int16_t)(a) - (int16_t)(b))
+#define FSUBSB(a, b) satsb((int8_t) (a) - (int8_t) (b))
+#define FSUBSW(a, b) satsw((int16_t) (a) - (int16_t) (b))
 #define FMINUB(a, b) ((a) < (b)) ? (a) : (b)
-#define FMINSW(a, b) ((int16_t)(a) < (int16_t)(b)) ? (a) : (b)
+#define FMINSW(a, b) ((int16_t) (a) < (int16_t) (b)) ? (a) : (b)
 #define FMAXUB(a, b) ((a) > (b)) ? (a) : (b)
-#define FMAXSW(a, b) ((int16_t)(a) > (int16_t)(b)) ? (a) : (b)
+#define FMAXSW(a, b) ((int16_t) (a) > (int16_t) (b)) ? (a) : (b)
 
 #define FAND(a, b)  (a) & (b)
 #define FANDN(a, b) ((~(a)) & (b))
 #define FOR(a, b)   (a) | (b)
 #define FXOR(a, b)  (a) ^ (b)
 
-#define FCMPGTB(a, b) (int8_t)(a) > (int8_t)(b) ? -1 : 0
-#define FCMPGTW(a, b) (int16_t)(a) > (int16_t)(b) ? -1 : 0
-#define FCMPGTL(a, b) (int32_t)(a) > (int32_t)(b) ? -1 : 0
+#define FCMPGTB(a, b) (int8_t)(a) > (int8_t) (b) ? -1 : 0
+#define FCMPGTW(a, b) (int16_t)(a) > (int16_t) (b) ? -1 : 0
+#define FCMPGTL(a, b) (int32_t)(a) > (int32_t) (b) ? -1 : 0
 #define FCMPEQ(a, b)  (a) == (b) ? -1 : 0
 
 #define FMULLW(a, b)  (a) * (b)
-#define FMULHRW(a, b) ((int16_t)(a) * (int16_t)(b) + 0x8000) >> 16
+#define FMULHRW(a, b) ((int16_t) (a) * (int16_t) (b) + 0x8000) >> 16
 #define FMULHUW(a, b) (a) * (b) >> 16
-#define FMULHW(a, b)  (int16_t)(a) * (int16_t)(b) >> 16
+#define FMULHW(a, b)  (int16_t)(a) * (int16_t) (b) >> 16
 
 #define FAVG(a, b) ((a) + (b) + 1) >> 1
 #endif
@@ -1406,8 +1406,8 @@ SSE_HELPER_F(helper_pmovzxwq, Q, 2, , s->W)
 SSE_HELPER_F(helper_pmovzxdq, Q, 2, , s->L)
 
 void glue(helper_pmuldq, SUFFIX)(Reg *d, Reg *s) {
-    W_D(d, Q(0), (int64_t)(int32_t) R_D(d, L(0)) * (int32_t) R_S(s, L(0)));
-    W_D(d, Q(1), (int64_t)(int32_t) R_D(d, L(2)) * (int32_t) R_S(s, L(2)));
+    W_D(d, Q(0), (int64_t) (int32_t) R_D(d, L(0)) * (int32_t) R_S(s, L(0)));
+    W_D(d, Q(1), (int64_t) (int32_t) R_D(d, L(2)) * (int32_t) R_S(s, L(2)));
 }
 
 #define FCMPEQQ(d, s) d == s ? -1 : 0

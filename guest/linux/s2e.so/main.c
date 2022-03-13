@@ -121,13 +121,13 @@ static void initialize_cmdline(int argc, char **argv) {
 //
 
 // The type of __libc_start_main
-typedef int (*T_libc_start_main)(int *(main)(int, char **, char **), int argc, char **ubp_av, void (*init)(void),
+typedef int (*T_libc_start_main)(int *(main) (int, char **, char **), int argc, char **ubp_av, void (*init)(void),
                                  void (*fini)(void), void (*rtld_fini)(void), void(*stack_end));
 
-int __libc_start_main(int *(main)(int, char **, char **), int argc, char **ubp_av, void (*init)(void),
+int __libc_start_main(int *(main) (int, char **, char **), int argc, char **ubp_av, void (*init)(void),
                       void (*fini)(void), void (*rtld_fini)(void), void *stack_end) __attribute__((noreturn));
 
-int __libc_start_main(int *(main)(int, char **, char **), int argc, char **ubp_av, void (*init)(void),
+int __libc_start_main(int *(main) (int, char **, char **), int argc, char **ubp_av, void (*init)(void),
                       void (*fini)(void), void (*rtld_fini)(void), void *stack_end) {
     initialize_models();
     s2e_load_modules_from_procmap();

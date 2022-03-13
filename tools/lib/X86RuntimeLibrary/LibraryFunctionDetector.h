@@ -36,7 +36,7 @@ extern size_t g_syscall_transmit_size;
 extern int g_syscall_transmit_fd;
 
 static inline void reset(uint8_t *stack) {
-    myenv.regs[R_ESP] = (target_ulong)(stack + STACK_SIZE - 0x200000);
+    myenv.regs[R_ESP] = (target_ulong) (stack + STACK_SIZE - 0x200000);
 }
 
 static inline void push(uintptr_t val) {

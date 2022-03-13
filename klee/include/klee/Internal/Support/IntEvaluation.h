@@ -49,7 +49,7 @@ inline uint64_t zext(uint64_t l, unsigned outWidth, unsigned inWidth) {
 // sign-extension of l from inWidth to outWidth bits
 inline uint64_t sext(uint64_t l, unsigned outWidth, unsigned inWidth) {
     uint32_t numInvalidBits = MAX_BITS - inWidth;
-    return bits64::truncateToNBits(((int64_t)(l << numInvalidBits)) >> numInvalidBits, outWidth);
+    return bits64::truncateToNBits(((int64_t) (l << numInvalidBits)) >> numInvalidBits, outWidth);
 }
 
 // unsigned divide of l by r

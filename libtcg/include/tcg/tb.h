@@ -98,7 +98,7 @@ struct TranslationBlock {
      */
     uint16_t jmp_reset_offset[2];          /* offset of original jump target */
 #define TB_JMP_RESET_OFFSET_INVALID 0xffff /* indicates no jump generated */
-    uintptr_t jmp_target_arg[2]; /* target address or offset */
+    uintptr_t jmp_target_arg[2];           /* target address or offset */
 
     /*
      * Each TB has a NULL-terminated list (jmp_list_head) of incoming jumps.

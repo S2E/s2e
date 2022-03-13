@@ -104,7 +104,7 @@ enum { float_relation_less = -1, float_relation_equal = 0, float_relation_greate
 typedef struct {
     uint16_t v;
 } float16;
-#define float16_val(x) (((float16)(x)).v)
+#define float16_val(x) (((float16) (x)).v)
 #define make_float16(x)        \
     __extension__({            \
         float16 f16_val = {x}; \
@@ -116,7 +116,7 @@ typedef struct {
     uint32_t v;
 } float32;
 /* The cast ensures an error if the wrong type is passed.  */
-#define float32_val(x) (((float32)(x)).v)
+#define float32_val(x) (((float32) (x)).v)
 #define make_float32(x)        \
     __extension__({            \
         float32 f32_val = {x}; \
@@ -127,7 +127,7 @@ typedef struct {
 typedef struct {
     uint64_t v;
 } float64;
-#define float64_val(x) (((float64)(x)).v)
+#define float64_val(x) (((float64) (x)).v)
 #define make_float64(x)        \
     __extension__({            \
         float64 f64_val = {x}; \

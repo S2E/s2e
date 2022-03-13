@@ -76,12 +76,12 @@ namespace bits64 {
 inline uint64_t maxValueOfNBits(unsigned N) {
     if (N == 0)
         return 0;
-    return ((uint64_t)(int64_t) -1) >> (64 - N);
+    return ((uint64_t) (int64_t) -1) >> (64 - N);
 }
 
 // @pre(0 < N <= 64)
 inline uint64_t truncateToNBits(uint64_t x, unsigned N) {
-    return x & (((uint64_t)(int64_t) -1) >> (64 - N));
+    return x & (((uint64_t) (int64_t) -1) >> (64 - N));
 }
 
 inline uint64_t withoutRightmostBit(uint64_t x) {

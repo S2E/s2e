@@ -519,7 +519,7 @@ KFunction *KModule::bindFunctionConstants(GlobalAddresses &globalAddresses, llvm
         if (f->hasExternalWeakLinkage()) {
             addr = Expr::createPointer(0);
         } else {
-            addr = Expr::createPointer((uintptr_t)(void *) f);
+            addr = Expr::createPointer((uintptr_t) (void *) f);
         }
 
         globalAddresses.insert(std::make_pair(f, addr));

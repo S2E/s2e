@@ -164,8 +164,8 @@ typedef struct mips_elf_abiflags_v0 {
 
 #define EM_V850 87 /* NEC v850 */
 
-#define EM_H8_300H       47 /* Hitachi H8/300H */
-#define EM_H8S           48 /* Hitachi H8S     */
+#define EM_H8_300H       47  /* Hitachi H8/300H */
+#define EM_H8S           48  /* Hitachi H8S     */
 #define EM_LATTICEMICO32 138 /* LatticeMico32 */
 
 #define EM_OPENRISC 92 /* OpenCores OpenRISC */
@@ -301,16 +301,16 @@ typedef struct mips_elf_abiflags_v0 {
 
 /* Symbolic values for the entries in the auxiliary table
    put on the initial stack */
-#define AT_NULL           0 /* end of vector */
-#define AT_IGNORE         1 /* entry should be ignored */
-#define AT_EXECFD         2 /* file descriptor of program */
-#define AT_PHDR           3 /* program headers for program */
-#define AT_PHENT          4 /* size of program header entry */
-#define AT_PHNUM          5 /* number of program headers */
-#define AT_PAGESZ         6 /* system page size */
-#define AT_BASE           7 /* base address of interpreter */
-#define AT_FLAGS          8 /* flags */
-#define AT_ENTRY          9 /* entry point of program */
+#define AT_NULL           0  /* end of vector */
+#define AT_IGNORE         1  /* entry should be ignored */
+#define AT_EXECFD         2  /* file descriptor of program */
+#define AT_PHDR           3  /* program headers for program */
+#define AT_PHENT          4  /* size of program header entry */
+#define AT_PHNUM          5  /* number of program headers */
+#define AT_PAGESZ         6  /* system page size */
+#define AT_BASE           7  /* base address of interpreter */
+#define AT_FLAGS          8  /* flags */
+#define AT_ENTRY          9  /* entry point of program */
 #define AT_NOTELF         10 /* program is not ELF */
 #define AT_UID            11 /* real uid */
 #define AT_EUID           12 /* effective uid */
@@ -656,16 +656,16 @@ typedef struct {
 /*
  * Alpha ELF relocation types
  */
-#define R_ALPHA_NONE      0 /* No reloc */
-#define R_ALPHA_REFLONG   1 /* Direct 32 bit */
-#define R_ALPHA_REFQUAD   2 /* Direct 64 bit */
-#define R_ALPHA_GPREL32   3 /* GP relative 32 bit */
-#define R_ALPHA_LITERAL   4 /* GP relative 16 bit w/optimization */
-#define R_ALPHA_LITUSE    5 /* Optimization hint for LITERAL */
-#define R_ALPHA_GPDISP    6 /* Add displacement to GP */
-#define R_ALPHA_BRADDR    7 /* PC+4 relative 23 bit shifted */
-#define R_ALPHA_HINT      8 /* PC+4 relative 16 bit shifted */
-#define R_ALPHA_SREL16    9 /* PC relative 16 bit */
+#define R_ALPHA_NONE      0  /* No reloc */
+#define R_ALPHA_REFLONG   1  /* Direct 32 bit */
+#define R_ALPHA_REFQUAD   2  /* Direct 64 bit */
+#define R_ALPHA_GPREL32   3  /* GP relative 32 bit */
+#define R_ALPHA_LITERAL   4  /* GP relative 16 bit w/optimization */
+#define R_ALPHA_LITUSE    5  /* Optimization hint for LITERAL */
+#define R_ALPHA_GPDISP    6  /* Add displacement to GP */
+#define R_ALPHA_BRADDR    7  /* PC+4 relative 23 bit shifted */
+#define R_ALPHA_HINT      8  /* PC+4 relative 16 bit shifted */
+#define R_ALPHA_SREL16    9  /* PC relative 16 bit */
 #define R_ALPHA_SREL32    10 /* PC relative 32 bit */
 #define R_ALPHA_SREL64    11 /* PC relative 64 bit */
 #define R_ALPHA_GPRELHIGH 17 /* GP relative 32 bit, high 16 bits */
@@ -958,16 +958,16 @@ typedef struct {
 #define R_AARCH64_TLS_TPREL32  1033
 
 /* s390 relocations defined by the ABIs */
-#define R_390_NONE      0 /* No reloc.  */
-#define R_390_8         1 /* Direct 8 bit.  */
-#define R_390_12        2 /* Direct 12 bit.  */
-#define R_390_16        3 /* Direct 16 bit.  */
-#define R_390_32        4 /* Direct 32 bit.  */
-#define R_390_PC32      5 /* PC relative 32 bit.	*/
-#define R_390_GOT12     6 /* 12 bit GOT offset.  */
-#define R_390_GOT32     7 /* 32 bit GOT offset.  */
-#define R_390_PLT32     8 /* 32 bit PC relative PLT address.  */
-#define R_390_COPY      9 /* Copy symbol at runtime.  */
+#define R_390_NONE      0  /* No reloc.  */
+#define R_390_8         1  /* Direct 8 bit.  */
+#define R_390_12        2  /* Direct 12 bit.  */
+#define R_390_16        3  /* Direct 16 bit.  */
+#define R_390_32        4  /* Direct 32 bit.  */
+#define R_390_PC32      5  /* PC relative 32 bit.	*/
+#define R_390_GOT12     6  /* 12 bit GOT offset.  */
+#define R_390_GOT32     7  /* 32 bit GOT offset.  */
+#define R_390_PLT32     8  /* 32 bit PC relative PLT address.  */
+#define R_390_COPY      9  /* Copy symbol at runtime.  */
 #define R_390_GLOB_DAT  10 /* Create GOT entry.  */
 #define R_390_JMP_SLOT  11 /* Create PLT entry.  */
 #define R_390_RELATIVE  12 /* Adjust by program base.  */
@@ -1041,9 +1041,9 @@ typedef struct {
 #define R_390_TLS_LDO32                 \
     52 /* 32 bit offset relative to TLS \
           block.  */
-#define R_390_TLS_LDO64                 \
-    53 /* 64 bit offset relative to TLS \
-          block.  */
+#define R_390_TLS_LDO64                                      \
+    53                      /* 64 bit offset relative to TLS \
+                               block.  */
 #define R_390_TLS_DTPMOD 54 /* ID of module containing symbol.  */
 #define R_390_TLS_DTPOFF 55 /* Offset in TLS block.  */
 #define R_390_TLS_TPOFF               \
@@ -1063,9 +1063,9 @@ typedef struct {
 #define R_X86_64_GLOB_DAT  6 /* Create GOT entry */
 #define R_X86_64_JUMP_SLOT 7 /* Create PLT entry */
 #define R_X86_64_RELATIVE  8 /* Adjust by program base */
-#define R_X86_64_GOTPCREL          \
-    9 /* 32 bit signed pc relative \
-         offset to GOT */
+#define R_X86_64_GOTPCREL                             \
+    9                    /* 32 bit signed pc relative \
+                            offset to GOT */
 #define R_X86_64_32   10 /* Direct 32 bit zero extended */
 #define R_X86_64_32S  11 /* Direct 32 bit sign extended */
 #define R_X86_64_16   12 /* Direct 16 bit zero extended */
@@ -1087,9 +1087,9 @@ typedef struct {
 #define EF_PARISC_EXT     0x00020000 /* Program uses arch. extensions. */
 #define EF_PARISC_LSB     0x00040000 /* Program expects little endian. */
 #define EF_PARISC_WIDE    0x00080000 /* Program expects wide mode.  */
-#define EF_PARISC_NO_KABP                   \
-    0x00100000 /* No kernel assisted branch \
-                  prediction.  */
+#define EF_PARISC_NO_KABP                                          \
+    0x00100000                        /* No kernel assisted branch \
+                                         prediction.  */
 #define EF_PARISC_LAZYSWAP 0x00400000 /* Allow lazy swapping.  */
 #define EF_PARISC_ARCH     0x0000ffff /* Architecture version.  */
 
@@ -1101,9 +1101,9 @@ typedef struct {
 
 /* Additional section indeces.  */
 
-#define SHN_PARISC_ANSI_COMMON                \
-    0xff00 /* Section for tenatively declared \
-              symbols in ANSI C.  */
+#define SHN_PARISC_ANSI_COMMON                                           \
+    0xff00                            /* Section for tenatively declared \
+                                         symbols in ANSI C.  */
 #define SHN_PARISC_HUGE_COMMON 0xff01 /* Common blocks in huge model.  */
 
 /* Legal values for sh_type field of Elf32_Shdr.  */
@@ -1127,54 +1127,54 @@ typedef struct {
 
 /* HPPA relocs.  */
 
-#define R_PARISC_NONE           0 /* No reloc.  */
-#define R_PARISC_DIR32          1 /* Direct 32-bit reference.  */
-#define R_PARISC_DIR21L         2 /* Left 21 bits of eff. address.  */
-#define R_PARISC_DIR17R         3 /* Right 17 bits of eff. address.  */
-#define R_PARISC_DIR17F         4 /* 17 bits of eff. address.  */
-#define R_PARISC_DIR14R         6 /* Right 14 bits of eff. address.  */
-#define R_PARISC_PCREL32        9 /* 32-bit rel. address.  */
-#define R_PARISC_PCREL21L       10 /* Left 21 bits of rel. address.  */
-#define R_PARISC_PCREL17R       11 /* Right 17 bits of rel. address.  */
-#define R_PARISC_PCREL17F       12 /* 17 bits of rel. address.  */
-#define R_PARISC_PCREL14R       14 /* Right 14 bits of rel. address.  */
-#define R_PARISC_DPREL21L       18 /* Left 21 bits of rel. address.  */
-#define R_PARISC_DPREL14R       22 /* Right 14 bits of rel. address.  */
-#define R_PARISC_GPREL21L       26 /* GP-relative, left 21 bits.  */
-#define R_PARISC_GPREL14R       30 /* GP-relative, right 14 bits.  */
-#define R_PARISC_LTOFF21L       34 /* LT-relative, left 21 bits.  */
-#define R_PARISC_LTOFF14R       38 /* LT-relative, right 14 bits.  */
-#define R_PARISC_SECREL32       41 /* 32 bits section rel. address.  */
-#define R_PARISC_SEGBASE        48 /* No relocation, set segment base.  */
-#define R_PARISC_SEGREL32       49 /* 32 bits segment rel. address.  */
-#define R_PARISC_PLTOFF21L      50 /* PLT rel. address, left 21 bits.  */
-#define R_PARISC_PLTOFF14R      54 /* PLT rel. address, right 14 bits.  */
-#define R_PARISC_LTOFF_FPTR32   57 /* 32 bits LT-rel. function pointer. */
-#define R_PARISC_LTOFF_FPTR21L  58 /* LT-rel. fct ptr, left 21 bits. */
-#define R_PARISC_LTOFF_FPTR14R  62 /* LT-rel. fct ptr, right 14 bits. */
-#define R_PARISC_FPTR64         64 /* 64 bits function address.  */
-#define R_PARISC_PLABEL32       65 /* 32 bits function address.  */
-#define R_PARISC_PCREL64        72 /* 64 bits PC-rel. address.  */
-#define R_PARISC_PCREL22F       74 /* 22 bits PC-rel. address.  */
-#define R_PARISC_PCREL14WR      75 /* PC-rel. address, right 14 bits.  */
-#define R_PARISC_PCREL14DR      76 /* PC rel. address, right 14 bits.  */
-#define R_PARISC_PCREL16F       77 /* 16 bits PC-rel. address.  */
-#define R_PARISC_PCREL16WF      78 /* 16 bits PC-rel. address.  */
-#define R_PARISC_PCREL16DF      79 /* 16 bits PC-rel. address.  */
-#define R_PARISC_DIR64          80 /* 64 bits of eff. address.  */
-#define R_PARISC_DIR14WR        83 /* 14 bits of eff. address.  */
-#define R_PARISC_DIR14DR        84 /* 14 bits of eff. address.  */
-#define R_PARISC_DIR16F         85 /* 16 bits of eff. address.  */
-#define R_PARISC_DIR16WF        86 /* 16 bits of eff. address.  */
-#define R_PARISC_DIR16DF        87 /* 16 bits of eff. address.  */
-#define R_PARISC_GPREL64        88 /* 64 bits of GP-rel. address.  */
-#define R_PARISC_GPREL14WR      91 /* GP-rel. address, right 14 bits.  */
-#define R_PARISC_GPREL14DR      92 /* GP-rel. address, right 14 bits.  */
-#define R_PARISC_GPREL16F       93 /* 16 bits GP-rel. address.  */
-#define R_PARISC_GPREL16WF      94 /* 16 bits GP-rel. address.  */
-#define R_PARISC_GPREL16DF      95 /* 16 bits GP-rel. address.  */
-#define R_PARISC_LTOFF64        96 /* 64 bits LT-rel. address.  */
-#define R_PARISC_LTOFF14WR      99 /* LT-rel. address, right 14 bits.  */
+#define R_PARISC_NONE           0   /* No reloc.  */
+#define R_PARISC_DIR32          1   /* Direct 32-bit reference.  */
+#define R_PARISC_DIR21L         2   /* Left 21 bits of eff. address.  */
+#define R_PARISC_DIR17R         3   /* Right 17 bits of eff. address.  */
+#define R_PARISC_DIR17F         4   /* 17 bits of eff. address.  */
+#define R_PARISC_DIR14R         6   /* Right 14 bits of eff. address.  */
+#define R_PARISC_PCREL32        9   /* 32-bit rel. address.  */
+#define R_PARISC_PCREL21L       10  /* Left 21 bits of rel. address.  */
+#define R_PARISC_PCREL17R       11  /* Right 17 bits of rel. address.  */
+#define R_PARISC_PCREL17F       12  /* 17 bits of rel. address.  */
+#define R_PARISC_PCREL14R       14  /* Right 14 bits of rel. address.  */
+#define R_PARISC_DPREL21L       18  /* Left 21 bits of rel. address.  */
+#define R_PARISC_DPREL14R       22  /* Right 14 bits of rel. address.  */
+#define R_PARISC_GPREL21L       26  /* GP-relative, left 21 bits.  */
+#define R_PARISC_GPREL14R       30  /* GP-relative, right 14 bits.  */
+#define R_PARISC_LTOFF21L       34  /* LT-relative, left 21 bits.  */
+#define R_PARISC_LTOFF14R       38  /* LT-relative, right 14 bits.  */
+#define R_PARISC_SECREL32       41  /* 32 bits section rel. address.  */
+#define R_PARISC_SEGBASE        48  /* No relocation, set segment base.  */
+#define R_PARISC_SEGREL32       49  /* 32 bits segment rel. address.  */
+#define R_PARISC_PLTOFF21L      50  /* PLT rel. address, left 21 bits.  */
+#define R_PARISC_PLTOFF14R      54  /* PLT rel. address, right 14 bits.  */
+#define R_PARISC_LTOFF_FPTR32   57  /* 32 bits LT-rel. function pointer. */
+#define R_PARISC_LTOFF_FPTR21L  58  /* LT-rel. fct ptr, left 21 bits. */
+#define R_PARISC_LTOFF_FPTR14R  62  /* LT-rel. fct ptr, right 14 bits. */
+#define R_PARISC_FPTR64         64  /* 64 bits function address.  */
+#define R_PARISC_PLABEL32       65  /* 32 bits function address.  */
+#define R_PARISC_PCREL64        72  /* 64 bits PC-rel. address.  */
+#define R_PARISC_PCREL22F       74  /* 22 bits PC-rel. address.  */
+#define R_PARISC_PCREL14WR      75  /* PC-rel. address, right 14 bits.  */
+#define R_PARISC_PCREL14DR      76  /* PC rel. address, right 14 bits.  */
+#define R_PARISC_PCREL16F       77  /* 16 bits PC-rel. address.  */
+#define R_PARISC_PCREL16WF      78  /* 16 bits PC-rel. address.  */
+#define R_PARISC_PCREL16DF      79  /* 16 bits PC-rel. address.  */
+#define R_PARISC_DIR64          80  /* 64 bits of eff. address.  */
+#define R_PARISC_DIR14WR        83  /* 14 bits of eff. address.  */
+#define R_PARISC_DIR14DR        84  /* 14 bits of eff. address.  */
+#define R_PARISC_DIR16F         85  /* 16 bits of eff. address.  */
+#define R_PARISC_DIR16WF        86  /* 16 bits of eff. address.  */
+#define R_PARISC_DIR16DF        87  /* 16 bits of eff. address.  */
+#define R_PARISC_GPREL64        88  /* 64 bits of GP-rel. address.  */
+#define R_PARISC_GPREL14WR      91  /* GP-rel. address, right 14 bits.  */
+#define R_PARISC_GPREL14DR      92  /* GP-rel. address, right 14 bits.  */
+#define R_PARISC_GPREL16F       93  /* 16 bits GP-rel. address.  */
+#define R_PARISC_GPREL16WF      94  /* 16 bits GP-rel. address.  */
+#define R_PARISC_GPREL16DF      95  /* 16 bits GP-rel. address.  */
+#define R_PARISC_LTOFF64        96  /* 64 bits LT-rel. address.  */
+#define R_PARISC_LTOFF14WR      99  /* LT-rel. address, right 14 bits.  */
 #define R_PARISC_LTOFF14DR      100 /* LT-rel. address, right 14 bits.  */
 #define R_PARISC_LTOFF16F       101 /* 16 bits LT-rel. address.  */
 #define R_PARISC_LTOFF16WF      102 /* 16 bits LT-rel. address.  */
@@ -1608,20 +1608,20 @@ typedef struct elf64_shdr {
 #define EI_OSABI   7
 #define EI_PAD     8
 
-#define ELFOSABI_NONE       0 /* UNIX System V ABI */
-#define ELFOSABI_SYSV       0 /* Alias.  */
-#define ELFOSABI_HPUX       1 /* HP-UX */
-#define ELFOSABI_NETBSD     2 /* NetBSD.  */
-#define ELFOSABI_LINUX      3 /* Linux.  */
-#define ELFOSABI_SOLARIS    6 /* Sun Solaris.  */
-#define ELFOSABI_AIX        7 /* IBM AIX.  */
-#define ELFOSABI_IRIX       8 /* SGI Irix.  */
-#define ELFOSABI_FREEBSD    9 /* FreeBSD.  */
-#define ELFOSABI_TRU64      10 /* Compaq TRU64 UNIX.  */
-#define ELFOSABI_MODESTO    11 /* Novell Modesto.  */
-#define ELFOSABI_OPENBSD    12 /* OpenBSD.  */
-#define ELFOSABI_ARM_FDPIC  65 /* ARM FDPIC */
-#define ELFOSABI_ARM        97 /* ARM */
+#define ELFOSABI_NONE       0   /* UNIX System V ABI */
+#define ELFOSABI_SYSV       0   /* Alias.  */
+#define ELFOSABI_HPUX       1   /* HP-UX */
+#define ELFOSABI_NETBSD     2   /* NetBSD.  */
+#define ELFOSABI_LINUX      3   /* Linux.  */
+#define ELFOSABI_SOLARIS    6   /* Sun Solaris.  */
+#define ELFOSABI_AIX        7   /* IBM AIX.  */
+#define ELFOSABI_IRIX       8   /* SGI Irix.  */
+#define ELFOSABI_FREEBSD    9   /* FreeBSD.  */
+#define ELFOSABI_TRU64      10  /* Compaq TRU64 UNIX.  */
+#define ELFOSABI_MODESTO    11  /* Novell Modesto.  */
+#define ELFOSABI_OPENBSD    12  /* OpenBSD.  */
+#define ELFOSABI_ARM_FDPIC  65  /* ARM FDPIC */
+#define ELFOSABI_ARM        97  /* ARM */
 #define ELFOSABI_STANDALONE 255 /* Standalone (embedded) application */
 
 #define ELFMAG0 0x7f /* EI_MAG */
@@ -1652,22 +1652,22 @@ typedef struct elf64_shdr {
 #define NT_TASKSTRUCT      4
 #define NT_AUXV            6
 #define NT_PRXFPREG        0x46e62b7f /* copied from gdb5.1/include/elf/common.h */
-#define NT_S390_GS_CB      0x30b /* s390 guarded storage registers */
-#define NT_S390_VXRS_HIGH  0x30a /* s390 vector registers 16-31 */
-#define NT_S390_VXRS_LOW   0x309 /* s390 vector registers 0-15 (lower half) */
-#define NT_S390_PREFIX     0x305 /* s390 prefix register */
-#define NT_S390_CTRS       0x304 /* s390 control registers */
-#define NT_S390_TODPREG    0x303 /* s390 TOD programmable register */
-#define NT_S390_TODCMP     0x302 /* s390 TOD clock comparator register */
-#define NT_S390_TIMER      0x301 /* s390 timer register */
-#define NT_PPC_VMX         0x100 /* PowerPC Altivec/VMX registers */
-#define NT_PPC_SPE         0x101 /* PowerPC SPE/EVR registers */
-#define NT_PPC_VSX         0x102 /* PowerPC VSX registers */
-#define NT_ARM_VFP         0x400 /* ARM VFP/NEON registers */
-#define NT_ARM_TLS         0x401 /* ARM TLS register */
-#define NT_ARM_HW_BREAK    0x402 /* ARM hardware breakpoint registers */
-#define NT_ARM_HW_WATCH    0x403 /* ARM hardware watchpoint registers */
-#define NT_ARM_SYSTEM_CALL 0x404 /* ARM system call number */
+#define NT_S390_GS_CB      0x30b      /* s390 guarded storage registers */
+#define NT_S390_VXRS_HIGH  0x30a      /* s390 vector registers 16-31 */
+#define NT_S390_VXRS_LOW   0x309      /* s390 vector registers 0-15 (lower half) */
+#define NT_S390_PREFIX     0x305      /* s390 prefix register */
+#define NT_S390_CTRS       0x304      /* s390 control registers */
+#define NT_S390_TODPREG    0x303      /* s390 TOD programmable register */
+#define NT_S390_TODCMP     0x302      /* s390 TOD clock comparator register */
+#define NT_S390_TIMER      0x301      /* s390 timer register */
+#define NT_PPC_VMX         0x100      /* PowerPC Altivec/VMX registers */
+#define NT_PPC_SPE         0x101      /* PowerPC SPE/EVR registers */
+#define NT_PPC_VSX         0x102      /* PowerPC VSX registers */
+#define NT_ARM_VFP         0x400      /* ARM VFP/NEON registers */
+#define NT_ARM_TLS         0x401      /* ARM TLS register */
+#define NT_ARM_HW_BREAK    0x402      /* ARM hardware breakpoint registers */
+#define NT_ARM_HW_WATCH    0x403      /* ARM hardware watchpoint registers */
+#define NT_ARM_SYSTEM_CALL 0x404      /* ARM system call number */
 
 /*
  * Physical entry point into the kernel.

@@ -338,7 +338,7 @@ static inline int hw_breakpoint_len(unsigned long dr7, int index) {
 #define X86_DUMP_GPREGS   0x1
 #define X86_DUMP_SEGREGS  0x2
 #define X86_DUMP_SYSREGS  0x4
-#define X86_DUMP_FPU      0x8 /* dump FPU state too */
+#define X86_DUMP_FPU      0x8  /* dump FPU state too */
 #define X86_DUMP_CCOP     0x10 /* dump qemu flag cache */
 #define X86_DUMP_SYSENTER 0x20
 

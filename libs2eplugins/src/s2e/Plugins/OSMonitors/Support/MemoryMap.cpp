@@ -48,7 +48,7 @@ static MemoryMapRegionType WindowsProtectionToInternal(uint64_t protection) {
     uint64_t type = MM_NONE;
     protection = protection & 0xff;
     if (protection & 0xf0) {
-        type = (MemoryMapRegionType)(type | MM_EXEC);
+        type = (MemoryMapRegionType) (type | MM_EXEC);
         protection >>= 4;
     }
 

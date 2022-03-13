@@ -262,7 +262,7 @@ target_ulong glue(helper_rcl, SUFFIX)(target_ulong t0, target_ulong t1) {
         eflags = helper_cc_compute_all(CC_OP);
         t0 &= DATA_MASK;
         src = t0;
-        res = (t0 << count) | ((target_ulong)(eflags & CC_C) << (count - 1));
+        res = (t0 << count) | ((target_ulong) (eflags & CC_C) << (count - 1));
         if (count > 1)
             res |= t0 >> (DATA_BITS + 1 - count);
         t0 = res;
@@ -289,7 +289,7 @@ target_ulong glue(helper_rcr, SUFFIX)(target_ulong t0, target_ulong t1) {
         eflags = helper_cc_compute_all(CC_OP);
         t0 &= DATA_MASK;
         src = t0;
-        res = (t0 >> count) | ((target_ulong)(eflags & CC_C) << (DATA_BITS - count));
+        res = (t0 >> count) | ((target_ulong) (eflags & CC_C) << (DATA_BITS - count));
         if (count > 1)
             res |= t0 << (DATA_BITS + 1 - count);
         t0 = res;
