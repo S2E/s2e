@@ -483,6 +483,17 @@ const Cell &Executor::eval(KInstruction *ki, unsigned index, ExecutionState &sta
     }
 }
 
+static inline const llvm::fltSemantics *fpWidthToSemantics(unsigned width) {
+    switch (width) {
+        case Expr::Int32:
+            return &llvm::APFloat::IEEEsingle();
+        case Expr::Int64:
+            return &llvm::APFloat::IEEEdouble();
+        default:
+            return 0;
+    }
+}
+
 void Executor::executeCall(ExecutionState &state, KInstruction *ki, Function *f, std::vector<ref<Expr>> &arguments) {
     Instruction *i = ki->inst;
 
@@ -496,6 +507,104 @@ void Executor::executeCall(ExecutionState &state, KInstruction *ki, Function *f,
                 // state may be destroyed by this call, cannot touch
                 callExternalFunction(state, ki, f, arguments);
                 break;
+
+            case Intrinsic::fabs: {
+                ref<ConstantExpr> arg = state.toConstant(arguments[0], "floating point");
+                if (!fpWidthToSemantics(arg->getWidth()))
+                    return terminateState(state, "Unsupported intrinsic llvm.fabs call");
+
+                llvm::APFloat Res(*fpWidthToSemantics(arg->getWidth()), arg->getAPValue());
+                Res = llvm::abs(Res);
+
+                state.bindLocal(ki, ConstantExpr::alloc(Res.bitcastToAPInt()));
+                break;
+            }
+
+            case Intrinsic::abs: {
+                if (isa<VectorType>(i->getOperand(0)->getType()))
+                    return terminateState(state, "llvm.abs with vectors is not supported");
+
+                ref<Expr> op = eval(ki, 1, state).value;
+                ref<Expr> poison = eval(ki, 2, state).value;
+
+                assert(poison->getWidth() == 1 && "Second argument is not an i1");
+                unsigned bw = op->getWidth();
+
+                uint64_t moneVal = APInt(bw, -1, true).getZExtValue();
+                uint64_t sminVal = APInt::getSignedMinValue(bw).getZExtValue();
+
+                ref<ConstantExpr> zero = ConstantExpr::create(0, bw);
+                ref<ConstantExpr> mone = ConstantExpr::create(moneVal, bw);
+                ref<ConstantExpr> smin = ConstantExpr::create(sminVal, bw);
+
+                if (poison->isTrue()) {
+                    ref<Expr> issmin = EqExpr::create(op, smin);
+                    if (issmin->isTrue())
+                        return terminateState(state, "llvm.abs called with poison and INT_MIN");
+                }
+
+                // conditions to flip the sign: INT_MIN < op < 0
+                ref<Expr> negative = SltExpr::create(op, zero);
+                ref<Expr> notsmin = NeExpr::create(op, smin);
+                ref<Expr> cond = AndExpr::create(negative, notsmin);
+
+                // flip and select the result
+                ref<Expr> flip = MulExpr::create(op, mone);
+                ref<Expr> result = SelectExpr::create(cond, flip, op);
+
+                state.bindLocal(ki, result);
+                break;
+            }
+
+            case Intrinsic::smax:
+            case Intrinsic::smin:
+            case Intrinsic::umax:
+            case Intrinsic::umin: {
+                if (isa<VectorType>(i->getOperand(0)->getType()) || isa<VectorType>(i->getOperand(1)->getType()))
+                    return terminateState(state, "llvm.{s,u}{max,min} with vectors is not supported");
+
+                ref<Expr> op1 = eval(ki, 1, state).value;
+                ref<Expr> op2 = eval(ki, 2, state).value;
+
+                ref<Expr> cond = nullptr;
+                if (f->getIntrinsicID() == Intrinsic::smax)
+                    cond = SgtExpr::create(op1, op2);
+                else if (f->getIntrinsicID() == Intrinsic::smin)
+                    cond = SltExpr::create(op1, op2);
+                else if (f->getIntrinsicID() == Intrinsic::umax)
+                    cond = UgtExpr::create(op1, op2);
+                else // (f->getIntrinsicID() == Intrinsic::umin)
+                    cond = UltExpr::create(op1, op2);
+
+                ref<Expr> result = SelectExpr::create(cond, op1, op2);
+                state.bindLocal(ki, result);
+                break;
+            }
+
+            case Intrinsic::fshr:
+            case Intrinsic::fshl: {
+                ref<Expr> op1 = eval(ki, 1, state).value;
+                ref<Expr> op2 = eval(ki, 2, state).value;
+                ref<Expr> op3 = eval(ki, 3, state).value;
+                unsigned w = op1->getWidth();
+                assert(w == op2->getWidth() && "type mismatch");
+                assert(w == op3->getWidth() && "type mismatch");
+                ref<Expr> c = ConcatExpr::create(op1, op2);
+                // op3 = zeroExtend(op3 % w)
+                op3 = URemExpr::create(op3, ConstantExpr::create(w, w));
+                op3 = ZExtExpr::create(op3, w + w);
+                if (f->getIntrinsicID() == Intrinsic::fshl) {
+                    // shift left and take top half
+                    ref<Expr> s = ShlExpr::create(c, op3);
+                    state.bindLocal(ki, ExtractExpr::create(s, w, w));
+                } else {
+                    // shift right and take bottom half
+                    // note that LShr and AShr will have same behaviour
+                    ref<Expr> s = LShrExpr::create(c, op3);
+                    state.bindLocal(ki, ExtractExpr::create(s, 0, w));
+                }
+                break;
+            }
 
             // va_arg is handled by caller and intrinsic lowering, see comment for
             // ExecutionState::varargs
@@ -663,17 +772,6 @@ Function *Executor::getTargetFunction(Value *calledVal, ExecutionState &state) {
             else
                 return 0;
         } else
-            return 0;
-    }
-}
-
-static inline const llvm::fltSemantics *fpWidthToSemantics(unsigned width) {
-    switch (width) {
-        case Expr::Int32:
-            return &llvm::APFloat::IEEEsingle();
-        case Expr::Int64:
-            return &llvm::APFloat::IEEEdouble();
-        default:
             return 0;
     }
 }

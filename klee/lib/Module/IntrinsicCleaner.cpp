@@ -232,13 +232,11 @@ bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b, Module &M) {
                 case Intrinsic::fshr:
                 case Intrinsic::fshl:
 
-#if false // LLVM_VERSION_CODE >= LLVM_VERSION(12, 0)
-      case Intrinsic::abs:
-      case Intrinsic::smax:
-      case Intrinsic::smin:
-      case Intrinsic::umax:
-      case Intrinsic::umin:
-#endif
+                case Intrinsic::abs:
+                case Intrinsic::smax:
+                case Intrinsic::smin:
+                case Intrinsic::umax:
+                case Intrinsic::umin:
                     break;
 
                     // Lower vacopy so that object resolution etc is handled by
