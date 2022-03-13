@@ -88,7 +88,7 @@ void Logger::Initialize() {
 
     if (LogFile.size() > 0) {
         std::error_code EC;
-        s_logfile = new llvm::raw_fd_ostream(LogFile.c_str(), EC, llvm::sys::fs::F_None);
+        s_logfile = new llvm::raw_fd_ostream(LogFile.c_str(), EC, llvm::sys::fs::OF_None);
     }
     s_inited = true;
 }

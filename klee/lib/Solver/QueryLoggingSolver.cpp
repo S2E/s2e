@@ -38,7 +38,7 @@ QueryLoggingSolver::QueryLoggingSolver(SolverPtr &_solver, const std::string &pa
     if (!CreateCompressedQueryLog) {
 #endif
         std::error_code ec;
-        os = new llvm::raw_fd_ostream(path.c_str(), ec, llvm::sys::fs::OpenFlags::F_Text);
+        os = new llvm::raw_fd_ostream(path.c_str(), ec, llvm::sys::fs::OpenFlags::OF_Text);
         if (ec)
             ErrorInfo = ec.message();
 #ifdef HAVE_ZLIB_H

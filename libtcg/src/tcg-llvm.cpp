@@ -1218,7 +1218,7 @@ Function *TCGLLVMTranslator::generateCode(TCGContext *s, TranslationBlock *tb) {
         std::error_code error;
         std::stringstream ss;
         ss << "llvm-" << getpid() << ".log";
-        llvm::raw_fd_ostream os(ss.str(), error, llvm::sys::fs::F_None);
+        llvm::raw_fd_ostream os(ss.str(), error, llvm::sys::fs::OF_None);
         os << "Dumping function:\n";
         os.flush();
         os << *m_tbFunction << "\n";

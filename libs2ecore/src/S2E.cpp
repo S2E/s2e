@@ -209,7 +209,7 @@ void S2E::writeBitCodeToFile() {
     std::string fileName = getOutputFilename("module.bc");
 
     std::error_code error;
-    llvm::raw_fd_ostream o(fileName, error, llvm::sys::fs::F_None);
+    llvm::raw_fd_ostream o(fileName, error, llvm::sys::fs::OF_None);
 
     llvm::Module *module = m_TCGLLVMTranslator->getModule();
 
@@ -271,7 +271,7 @@ std::string S2E::getOutputFilename(const std::string &fileName) {
 llvm::raw_ostream *S2E::openOutputFile(const std::string &fileName) {
     std::string path = getOutputFilename(fileName);
     std::error_code error;
-    llvm::raw_fd_ostream *f = new llvm::raw_fd_ostream(path, error, llvm::sys::fs::F_None);
+    llvm::raw_fd_ostream *f = new llvm::raw_fd_ostream(path, error, llvm::sys::fs::OF_None);
 
     if (!f || error) {
         llvm::errs() << "Error opening " << path << ": " << error.message() << "\n";

@@ -750,7 +750,7 @@ Function *RevGen::reconstructFunction(BinaryFunction *bf) {
 
 void RevGen::writeBitcodeFile(const std::string &bitcodeFile) {
     std::error_code EC;
-    llvm::raw_fd_ostream o(bitcodeFile, EC, llvm::sys::fs::F_None);
+    llvm::raw_fd_ostream o(bitcodeFile, EC, llvm::sys::fs::OF_None);
 
     llvm::Module *module = m_translator->getModule();
 
