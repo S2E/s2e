@@ -83,10 +83,10 @@ const float64 float64_default_nan = const_float64(LIT64(0xFFF8000000000000));
 *----------------------------------------------------------------------------*/
 #if SNAN_BIT_IS_ONE
 #define floatx80_default_nan_high 0x7FFF
-#define floatx80_default_nan_low LIT64(0xBFFFFFFFFFFFFFFF)
+#define floatx80_default_nan_low  LIT64(0xBFFFFFFFFFFFFFFF)
 #else
 #define floatx80_default_nan_high 0xFFFF
-#define floatx80_default_nan_low LIT64(0xC000000000000000)
+#define floatx80_default_nan_low  LIT64(0xC000000000000000)
 #endif
 
 const floatx80 floatx80_default_nan = make_floatx80_init(floatx80_default_nan_high, floatx80_default_nan_low);
@@ -97,10 +97,10 @@ const floatx80 floatx80_default_nan = make_floatx80_init(floatx80_default_nan_hi
 *----------------------------------------------------------------------------*/
 #if SNAN_BIT_IS_ONE
 #define float128_default_nan_high LIT64(0x7FFF7FFFFFFFFFFF)
-#define float128_default_nan_low LIT64(0xFFFFFFFFFFFFFFFF)
+#define float128_default_nan_low  LIT64(0xFFFFFFFFFFFFFFFF)
 #else
 #define float128_default_nan_high LIT64(0xFFFF800000000000)
-#define float128_default_nan_low LIT64(0x0000000000000000)
+#define float128_default_nan_low  LIT64(0x0000000000000000)
 #endif
 
 const float128 float128_default_nan = make_float128_init(float128_default_nan_high, float128_default_nan_low);

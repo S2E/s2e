@@ -67,11 +67,11 @@ struct TranslationBlock {
     uint16_t size;        /* size of target code for this block (1 <=
                              size <= TARGET_PAGE_SIZE) */
 
-#define CF_COUNT_MASK 0x00007fff
-#define CF_NOCACHE 0x00010000            /* To be freed after execution */
+#define CF_COUNT_MASK         0x00007fff
+#define CF_NOCACHE            0x00010000 /* To be freed after execution */
 #define CF_HAS_INTERRUPT_EXIT 0x00020000 /* The TB has a prologue to handle quick CPU loop exit */
-#define CF_INVALID 0x00040000            /* TB is stale. Set with @jmp_lock held */
-#define CF_PARALLEL 0x00080000           /* Generate code for a parallel context */
+#define CF_INVALID            0x00040000 /* TB is stale. Set with @jmp_lock held */
+#define CF_PARALLEL           0x00080000 /* Generate code for a parallel context */
 
     uint32_t cflags; /* compile flags */
 
@@ -98,7 +98,7 @@ struct TranslationBlock {
      */
     uint16_t jmp_reset_offset[2];          /* offset of original jump target */
 #define TB_JMP_RESET_OFFSET_INVALID 0xffff /* indicates no jump generated */
-    uintptr_t jmp_target_arg[2];           /* target address or offset */
+    uintptr_t jmp_target_arg[2]; /* target address or offset */
 
     /*
      * Each TB has a NULL-terminated list (jmp_list_head) of incoming jumps.

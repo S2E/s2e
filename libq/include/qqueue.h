@@ -160,8 +160,8 @@ extern "C" {
 /*
  * List access methods.
  */
-#define QLIST_EMPTY(head) ((head)->lh_first == NULL)
-#define QLIST_FIRST(head) ((head)->lh_first)
+#define QLIST_EMPTY(head)      ((head)->lh_first == NULL)
+#define QLIST_FIRST(head)      ((head)->lh_first)
 #define QLIST_NEXT(elm, field) ((elm)->field.le_next)
 
 /*
@@ -231,8 +231,8 @@ extern "C" {
 /*
  * Singly-linked List access methods.
  */
-#define QSLIST_EMPTY(head) ((head)->slh_first == NULL)
-#define QSLIST_FIRST(head) ((head)->slh_first)
+#define QSLIST_EMPTY(head)      ((head)->slh_first == NULL)
+#define QSLIST_FIRST(head)      ((head)->slh_first)
 #define QSLIST_NEXT(elm, field) ((elm)->field.sle_next)
 
 /*
@@ -344,9 +344,9 @@ extern "C" {
  * Simple queue access methods.
  */
 #define QSIMPLEQ_EMPTY_ATOMIC(head) (atomic_read(&((head)->sqh_first)) == NULL)
-#define QSIMPLEQ_EMPTY(head) ((head)->sqh_first == NULL)
-#define QSIMPLEQ_FIRST(head) ((head)->sqh_first)
-#define QSIMPLEQ_NEXT(elm, field) ((elm)->field.sqe_next)
+#define QSIMPLEQ_EMPTY(head)        ((head)->sqh_first == NULL)
+#define QSIMPLEQ_FIRST(head)        ((head)->sqh_first)
+#define QSIMPLEQ_NEXT(elm, field)   ((elm)->field.sqe_next)
 
 typedef struct QTailQLink {
     void *tql_next;
@@ -442,13 +442,13 @@ typedef struct QTailQLink {
 /*
  * Tail queue access methods.
  */
-#define QTAILQ_EMPTY(head) ((head)->tqh_first == NULL)
-#define QTAILQ_FIRST(head) ((head)->tqh_first)
-#define QTAILQ_NEXT(elm, field) ((elm)->field.tqe_next)
+#define QTAILQ_EMPTY(head)        ((head)->tqh_first == NULL)
+#define QTAILQ_FIRST(head)        ((head)->tqh_first)
+#define QTAILQ_NEXT(elm, field)   ((elm)->field.tqe_next)
 #define QTAILQ_IN_USE(elm, field) ((elm)->field.tqe_circ.tql_prev != NULL)
 
-#define QTAILQ_LINK_PREV(link) ((link).tql_prev->tql_prev->tql_next)
-#define QTAILQ_LAST(head) ((__typeof__((head)->tqh_first)) QTAILQ_LINK_PREV((head)->tqh_circ))
+#define QTAILQ_LINK_PREV(link)  ((link).tql_prev->tql_prev->tql_next)
+#define QTAILQ_LAST(head)       ((__typeof__((head)->tqh_first)) QTAILQ_LINK_PREV((head)->tqh_circ))
 #define QTAILQ_PREV(elm, field) ((__typeof__((elm)->field.tqe_next)) QTAILQ_LINK_PREV((elm)->field.tqe_circ))
 
 #define field_at_offset(base, offset, type) ((type *) (((char *) (base)) + (offset)))
@@ -457,13 +457,13 @@ typedef struct QTailQLink {
  * Raw access of elements of a tail queue head.  Offsets are all zero
  * because it's a union.
  */
-#define QTAILQ_RAW_FIRST(head) field_at_offset(head, 0, void *)
+#define QTAILQ_RAW_FIRST(head)    field_at_offset(head, 0, void *)
 #define QTAILQ_RAW_TQH_CIRC(head) field_at_offset(head, 0, QTailQLink)
 
 /*
  * Raw access of elements of a tail entry
  */
-#define QTAILQ_RAW_NEXT(elm, entry) field_at_offset(elm, entry, void *)
+#define QTAILQ_RAW_NEXT(elm, entry)     field_at_offset(elm, entry, void *)
 #define QTAILQ_RAW_TQE_CIRC(elm, entry) field_at_offset(elm, entry, QTailQLink)
 /*
  * Tail queue traversal using pointer arithmetic.

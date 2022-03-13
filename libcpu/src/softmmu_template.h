@@ -24,20 +24,20 @@
 #define DATA_SIZE (1 << SHIFT)
 
 #if DATA_SIZE == 8
-#define SUFFIX q
-#define USUFFIX q
+#define SUFFIX    q
+#define USUFFIX   q
 #define DATA_TYPE uint64_t
 #elif DATA_SIZE == 4
-#define SUFFIX l
-#define USUFFIX l
+#define SUFFIX    l
+#define USUFFIX   l
 #define DATA_TYPE uint32_t
 #elif DATA_SIZE == 2
-#define SUFFIX w
-#define USUFFIX uw
+#define SUFFIX    w
+#define USUFFIX   uw
 #define DATA_TYPE uint16_t
 #elif DATA_SIZE == 1
-#define SUFFIX b
-#define USUFFIX ub
+#define SUFFIX    b
+#define USUFFIX   ub
 #define DATA_TYPE uint8_t
 #else
 #error unsupported data size
@@ -45,13 +45,13 @@
 
 #ifdef SOFTMMU_CODE_ACCESS
 #define READ_ACCESS_TYPE 2
-#define ADDR_READ addr_code
+#define ADDR_READ        addr_code
 #else
 #define READ_ACCESS_TYPE 0
-#define ADDR_READ addr_read
+#define ADDR_READ        addr_read
 #endif
 
-#define CPU_PREFIX cpu_
+#define CPU_PREFIX    cpu_
 #define HELPER_PREFIX helper_
 
 #define ADDR_MAX ((target_ulong) -1)
@@ -100,7 +100,7 @@
 
 #define INSTR_BEFORE_MEMORY_ACCESS(...)
 #define INSTR_AFTER_MEMORY_ACCESS(...)
-#define INSTR_FORK_AND_CONCRETIZE(val, max) (val)
+#define INSTR_FORK_AND_CONCRETIZE(val, max)      (val)
 #define INSTR_FORK_AND_CONCRETIZE_ADDR(val, max) (val)
 
 #define SE_RAM_OBJECT_BITS TARGET_PAGE_BITS

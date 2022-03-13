@@ -601,7 +601,7 @@ Value *TCGLLVMTranslator::generateQemuMemOp(bool ld, Value *value, Value *addr, 
         return NULL;
     }
 #endif
-#else  // CONFIG_SOFTMMU
+#else // CONFIG_SOFTMMU
     abort();
     addr = m_builder.CreateZExt(addr, wordType());
     addr = m_builder.CreateAdd(addr, ConstantInt::get(wordType(), GUEST_BASE));

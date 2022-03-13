@@ -67,9 +67,9 @@ typedef int32_t svec32;
 typedef int64_t svec64;
 
 #define DUP16(X) X
-#define DUP8(X) X
-#define DUP4(X) X
-#define DUP2(X) X
+#define DUP8(X)  X
+#define DUP4(X)  X
+#define DUP2(X)  X
 #endif /* CONFIG_VECTOR16 */
 
 static inline void clear_high(void *d, intptr_t oprsz, uint32_t desc) {

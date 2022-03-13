@@ -123,7 +123,7 @@ struct S2E_DECREEMON_COMMAND_UPDATE_MEMORY_MAP {
     uint64_t buffer;
 } __attribute__((packed));
 
-#define S2E_DECREEMON_MAX_SEED_SIZE 64
+#define S2E_DECREEMON_MAX_SEED_SIZE    64
 #define S2E_DECREEMON_DECREE_SEED_SIZE 48
 
 struct S2E_DECREEMON_COMMAND_SET_CB_PARAMS {
@@ -156,9 +156,9 @@ struct S2E_DECREEMON_COMMAND_SET_CB_PARAMS {
 
 } __attribute__((packed));
 
-#define S2E_DECREEMON_VM_READ (1u << 0)
+#define S2E_DECREEMON_VM_READ  (1u << 0)
 #define S2E_DECREEMON_VM_WRITE (1u << 1)
-#define S2E_DECREEMON_VM_EXEC (1u << 2)
+#define S2E_DECREEMON_VM_EXEC  (1u << 2)
 
 struct S2E_DECREEMON_VMA {
     uint64_t start;

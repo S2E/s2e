@@ -34,18 +34,18 @@
 #include <cpu/se_libcpu.h>
 #endif
 
-#define PREFIX_REPZ 0x01
+#define PREFIX_REPZ  0x01
 #define PREFIX_REPNZ 0x02
-#define PREFIX_LOCK 0x04
-#define PREFIX_DATA 0x08
-#define PREFIX_ADR 0x10
+#define PREFIX_LOCK  0x04
+#define PREFIX_DATA  0x08
+#define PREFIX_ADR   0x10
 
 #ifdef TARGET_X86_64
-#define X86_64_ONLY(x) x
+#define X86_64_ONLY(x)  x
 #define X86_64_DEF(...) __VA_ARGS__
-#define CODE64(s) ((s)->code64)
-#define REX_X(s) ((s)->rex_x)
-#define REX_B(s) ((s)->rex_b)
+#define CODE64(s)       ((s)->code64)
+#define REX_X(s)        ((s)->rex_x)
+#define REX_B(s)        ((s)->rex_b)
 /* XXX: gcc generates push/pop in some opcodes, so we cannot use them */
 #if 1
 #define BUGGY_64(x) NULL
@@ -54,8 +54,8 @@
 #define X86_64_ONLY(x) NULL
 #define X86_64_DEF(...)
 #define CODE64(s) 0
-#define REX_X(s) 0
-#define REX_B(s) 0
+#define REX_X(s)  0
+#define REX_B(s)  0
 #endif
 
 //#define MACRO_TEST   1
@@ -138,7 +138,7 @@ typedef struct DisasContext {
 } DisasContext;
 
 #ifdef CONFIG_SYMBEX
-#define SET_TB_TYPE(t) s->tb->se_tb_type = t;
+#define SET_TB_TYPE(t)       s->tb->se_tb_type = t;
 #define SET_TB_CALL_EIP(eip) s->tb->se_tb_call_eip = eip;
 #else
 #define SET_TB_TYPE(t)
@@ -290,16 +290,16 @@ static inline void gen_op_andl_A0_ffff(void) {
 #endif /* !TARGET_X86_64 */
 
 #if defined(HOST_WORDS_BIGENDIAN)
-#define REG_B_OFFSET (sizeof(target_ulong) - 1)
-#define REG_H_OFFSET (sizeof(target_ulong) - 2)
-#define REG_W_OFFSET (sizeof(target_ulong) - 2)
-#define REG_L_OFFSET (sizeof(target_ulong) - 4)
+#define REG_B_OFFSET  (sizeof(target_ulong) - 1)
+#define REG_H_OFFSET  (sizeof(target_ulong) - 2)
+#define REG_W_OFFSET  (sizeof(target_ulong) - 2)
+#define REG_L_OFFSET  (sizeof(target_ulong) - 4)
 #define REG_LH_OFFSET (sizeof(target_ulong) - 8)
 #else
-#define REG_B_OFFSET 0
-#define REG_H_OFFSET 1
-#define REG_W_OFFSET 0
-#define REG_L_OFFSET 0
+#define REG_B_OFFSET  0
+#define REG_H_OFFSET  1
+#define REG_W_OFFSET  0
+#define REG_L_OFFSET  0
 #define REG_LH_OFFSET 4
 #endif
 
@@ -2878,7 +2878,7 @@ static inline void gen_op_movq_env_0(int d_offset) {
 }
 
 #define SSE_SPECIAL ((void *) 1)
-#define SSE_DUMMY ((void *) 2)
+#define SSE_DUMMY   ((void *) 2)
 
 #define MMX_OP2(x) \
     { gen_helper_##x##_mmx, gen_helper_##x##_xmm }

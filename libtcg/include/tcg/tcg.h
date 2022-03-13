@@ -73,12 +73,12 @@ typedef uint32_t target_ulong __attribute__((aligned(TARGET_LONG_ALIGNMENT)));
 #define TARGET_LONG_ALIGNMENT 8
 typedef int64_t target_long __attribute__((aligned(TARGET_LONG_ALIGNMENT)));
 typedef uint64_t target_ulong __attribute__((aligned(TARGET_LONG_ALIGNMENT)));
-#define TARGET_FMT_lx "%016" PRIx64
-#define TARGET_FMT_ld "%" PRId64
-#define TARGET_FMT_lu "%" PRIu64
+#define TARGET_FMT_lx         "%016" PRIx64
+#define TARGET_FMT_ld         "%" PRId64
+#define TARGET_FMT_lu         "%" PRIu64
 
 // XXX: fix this
-#define CPU_TLB_DYN_MAX_BITS (32 - TARGET_PAGE_BITS)
+#define CPU_TLB_DYN_MAX_BITS  (32 - TARGET_PAGE_BITS)
 
 #else
 #error TARGET_LONG_SIZE undefined
@@ -122,7 +122,7 @@ typedef struct TranslationBlock TranslationBlock;
 typedef union XMMReg XMMReg;*/
 
 #define CPUArchState struct CPUX86State
-#define CPUState struct CPUX86State
+#define CPUState     struct CPUX86State
 struct CPUX86State;
 typedef struct CPUX86State CPUX86State;
 
@@ -142,7 +142,7 @@ static inline size_t get_cpu_arch_tlb_mask_offset(int mem_index) {
 #endif
 #define MAX_OPC_PARAM_IARGS 6
 #define MAX_OPC_PARAM_OARGS 1
-#define MAX_OPC_PARAM_ARGS (MAX_OPC_PARAM_IARGS + MAX_OPC_PARAM_OARGS)
+#define MAX_OPC_PARAM_ARGS  (MAX_OPC_PARAM_IARGS + MAX_OPC_PARAM_OARGS)
 
 /* A Call op needs up to 4 + 2N parameters on 32-bit archs,
  * and up to 4 + N parameters on 64-bit archs
@@ -191,39 +191,39 @@ typedef uint64_t TCGRegSet;
 /* Turn some undef macros into false macros.  */
 #define TCG_TARGET_HAS_extrl_i64_i32 0
 #define TCG_TARGET_HAS_extrh_i64_i32 0
-#define TCG_TARGET_HAS_div_i64 0
-#define TCG_TARGET_HAS_rem_i64 0
-#define TCG_TARGET_HAS_div2_i64 0
-#define TCG_TARGET_HAS_rot_i64 0
-#define TCG_TARGET_HAS_ext8s_i64 0
-#define TCG_TARGET_HAS_ext16s_i64 0
-#define TCG_TARGET_HAS_ext32s_i64 0
-#define TCG_TARGET_HAS_ext8u_i64 0
-#define TCG_TARGET_HAS_ext16u_i64 0
-#define TCG_TARGET_HAS_ext32u_i64 0
-#define TCG_TARGET_HAS_bswap16_i64 0
-#define TCG_TARGET_HAS_bswap32_i64 0
-#define TCG_TARGET_HAS_bswap64_i64 0
-#define TCG_TARGET_HAS_neg_i64 0
-#define TCG_TARGET_HAS_not_i64 0
-#define TCG_TARGET_HAS_andc_i64 0
-#define TCG_TARGET_HAS_orc_i64 0
-#define TCG_TARGET_HAS_eqv_i64 0
-#define TCG_TARGET_HAS_nand_i64 0
-#define TCG_TARGET_HAS_nor_i64 0
-#define TCG_TARGET_HAS_clz_i64 0
-#define TCG_TARGET_HAS_ctz_i64 0
-#define TCG_TARGET_HAS_ctpop_i64 0
-#define TCG_TARGET_HAS_deposit_i64 0
-#define TCG_TARGET_HAS_extract_i64 0
-#define TCG_TARGET_HAS_sextract_i64 0
-#define TCG_TARGET_HAS_movcond_i64 0
-#define TCG_TARGET_HAS_add2_i64 0
-#define TCG_TARGET_HAS_sub2_i64 0
-#define TCG_TARGET_HAS_mulu2_i64 0
-#define TCG_TARGET_HAS_muls2_i64 0
-#define TCG_TARGET_HAS_muluh_i64 0
-#define TCG_TARGET_HAS_mulsh_i64 0
+#define TCG_TARGET_HAS_div_i64       0
+#define TCG_TARGET_HAS_rem_i64       0
+#define TCG_TARGET_HAS_div2_i64      0
+#define TCG_TARGET_HAS_rot_i64       0
+#define TCG_TARGET_HAS_ext8s_i64     0
+#define TCG_TARGET_HAS_ext16s_i64    0
+#define TCG_TARGET_HAS_ext32s_i64    0
+#define TCG_TARGET_HAS_ext8u_i64     0
+#define TCG_TARGET_HAS_ext16u_i64    0
+#define TCG_TARGET_HAS_ext32u_i64    0
+#define TCG_TARGET_HAS_bswap16_i64   0
+#define TCG_TARGET_HAS_bswap32_i64   0
+#define TCG_TARGET_HAS_bswap64_i64   0
+#define TCG_TARGET_HAS_neg_i64       0
+#define TCG_TARGET_HAS_not_i64       0
+#define TCG_TARGET_HAS_andc_i64      0
+#define TCG_TARGET_HAS_orc_i64       0
+#define TCG_TARGET_HAS_eqv_i64       0
+#define TCG_TARGET_HAS_nand_i64      0
+#define TCG_TARGET_HAS_nor_i64       0
+#define TCG_TARGET_HAS_clz_i64       0
+#define TCG_TARGET_HAS_ctz_i64       0
+#define TCG_TARGET_HAS_ctpop_i64     0
+#define TCG_TARGET_HAS_deposit_i64   0
+#define TCG_TARGET_HAS_extract_i64   0
+#define TCG_TARGET_HAS_sextract_i64  0
+#define TCG_TARGET_HAS_movcond_i64   0
+#define TCG_TARGET_HAS_add2_i64      0
+#define TCG_TARGET_HAS_sub2_i64      0
+#define TCG_TARGET_HAS_mulu2_i64     0
+#define TCG_TARGET_HAS_muls2_i64     0
+#define TCG_TARGET_HAS_muluh_i64     0
+#define TCG_TARGET_HAS_mulsh_i64     0
 /* Turn some undef macros into true macros.  */
 #define TCG_TARGET_HAS_add2_i32 1
 #define TCG_TARGET_HAS_sub2_i32 1
@@ -262,16 +262,16 @@ typedef uint64_t TCGRegSet;
 #endif
 
 #if !defined(TCG_TARGET_HAS_v64) && !defined(TCG_TARGET_HAS_v128) && !defined(TCG_TARGET_HAS_v256)
-#define TCG_TARGET_MAYBE_vec 0
-#define TCG_TARGET_HAS_neg_vec 0
-#define TCG_TARGET_HAS_not_vec 0
-#define TCG_TARGET_HAS_andc_vec 0
-#define TCG_TARGET_HAS_orc_vec 0
-#define TCG_TARGET_HAS_shi_vec 0
-#define TCG_TARGET_HAS_shs_vec 0
-#define TCG_TARGET_HAS_shv_vec 0
-#define TCG_TARGET_HAS_mul_vec 0
-#define TCG_TARGET_HAS_sat_vec 0
+#define TCG_TARGET_MAYBE_vec      0
+#define TCG_TARGET_HAS_neg_vec    0
+#define TCG_TARGET_HAS_not_vec    0
+#define TCG_TARGET_HAS_andc_vec   0
+#define TCG_TARGET_HAS_orc_vec    0
+#define TCG_TARGET_HAS_shi_vec    0
+#define TCG_TARGET_HAS_shs_vec    0
+#define TCG_TARGET_HAS_shv_vec    0
+#define TCG_TARGET_HAS_mul_vec    0
+#define TCG_TARGET_HAS_sat_vec    0
 #define TCG_TARGET_HAS_minmax_vec 0
 #else
 #define TCG_TARGET_MAYBE_vec 1
@@ -299,9 +299,9 @@ typedef enum TCGOpcode {
     NB_OPS,
 } TCGOpcode;
 
-#define tcg_regset_set_reg(d, r) ((d) |= (TCGRegSet) 1 << (r))
+#define tcg_regset_set_reg(d, r)   ((d) |= (TCGRegSet) 1 << (r))
 #define tcg_regset_reset_reg(d, r) ((d) &= ~((TCGRegSet) 1 << (r)))
-#define tcg_regset_test_reg(d, r) (((d) >> (r)) & 1)
+#define tcg_regset_test_reg(d, r)  (((d) >> (r)) & 1)
 
 #ifndef TCG_TARGET_INSN_UNIT_SIZE
 #error "Missing TCG_TARGET_INSN_UNIT_SIZE"
@@ -572,11 +572,11 @@ typedef TCGv_ptr TCGv_env;
 #define TCG_CALL_NO_RETURN 0x0008
 
 /* convenience version of most used call flags */
-#define TCG_CALL_NO_RWG TCG_CALL_NO_READ_GLOBALS
-#define TCG_CALL_NO_WG TCG_CALL_NO_WRITE_GLOBALS
-#define TCG_CALL_NO_SE TCG_CALL_NO_SIDE_EFFECTS
+#define TCG_CALL_NO_RWG    TCG_CALL_NO_READ_GLOBALS
+#define TCG_CALL_NO_WG     TCG_CALL_NO_WRITE_GLOBALS
+#define TCG_CALL_NO_SE     TCG_CALL_NO_SIDE_EFFECTS
 #define TCG_CALL_NO_RWG_SE (TCG_CALL_NO_RWG | TCG_CALL_NO_SE)
-#define TCG_CALL_NO_WG_SE (TCG_CALL_NO_WG | TCG_CALL_NO_SE)
+#define TCG_CALL_NO_WG_SE  (TCG_CALL_NO_WG | TCG_CALL_NO_SE)
 
 /* Used to align parameters.  See the comment before tcgv_i32_temp.  */
 #define TCG_CALL_DUMMY_ARG ((TCGArg) 0)
@@ -1124,11 +1124,11 @@ int64_t tcg_cpu_exec_time(void);
 void tcg_dump_info(FILE *f, fprintf_function cpu_fprintf);
 void tcg_dump_op_count(FILE *f, fprintf_function cpu_fprintf);
 
-#define TCG_CT_ALIAS 0x80
+#define TCG_CT_ALIAS  0x80
 #define TCG_CT_IALIAS 0x40
 #define TCG_CT_NEWREG 0x20 /* output requires a new register */
-#define TCG_CT_REG 0x01
-#define TCG_CT_CONST 0x02 /* any constant of register size */
+#define TCG_CT_REG    0x01
+#define TCG_CT_CONST  0x02 /* any constant of register size */
 
 typedef struct TCGArgConstraint {
     uint16_t ct;
@@ -1206,10 +1206,10 @@ TCGv_vec tcg_const_zeros_vec_matching(TCGv_vec);
 TCGv_vec tcg_const_ones_vec_matching(TCGv_vec);
 
 #if UINTPTR_MAX == UINT32_MAX
-#define tcg_const_ptr(x) ((TCGv_ptr) tcg_const_i32((intptr_t)(x)))
+#define tcg_const_ptr(x)       ((TCGv_ptr) tcg_const_i32((intptr_t)(x)))
 #define tcg_const_local_ptr(x) ((TCGv_ptr) tcg_const_local_i32((intptr_t)(x)))
 #else
-#define tcg_const_ptr(x) ((TCGv_ptr) tcg_const_i64((intptr_t)(x)))
+#define tcg_const_ptr(x)       ((TCGv_ptr) tcg_const_i64((intptr_t)(x)))
 #define tcg_const_local_ptr(x) ((TCGv_ptr) tcg_const_local_i64((intptr_t)(x)))
 #endif
 
@@ -1360,10 +1360,10 @@ static inline unsigned get_mmuidx(TCGMemOpIdx oi) {
  * to this default (which just calls the prologue.code emitted by
  * tcg_target_qemu_prologue()).
  */
-#define TB_EXIT_MASK 3
-#define TB_EXIT_IDX0 0
-#define TB_EXIT_IDX1 1
-#define TB_EXIT_IDXMAX 1
+#define TB_EXIT_MASK      3
+#define TB_EXIT_IDX0      0
+#define TB_EXIT_IDX1      1
+#define TB_EXIT_IDXMAX    1
 #define TB_EXIT_REQUESTED 3
 
 #ifdef HAVE_tcg_libcpu_tb_exec
@@ -1391,13 +1391,12 @@ void tcg_expand_vec_op(TCGOpcode, TCGType, unsigned, TCGArg, ...);
 /* Replicate a constant C accoring to the log2 of the element size.  */
 uint64_t dup_const(unsigned vece, uint64_t c);
 
-#define dup_const(VECE, C)                                                                                        \
-    (__builtin_constant_p(VECE)                                                                                   \
-         ? ((VECE) == MO_8                                                                                        \
-                ? 0x0101010101010101ull * (uint8_t)(C)                                                            \
-                : (VECE) == MO_16 ? 0x0001000100010001ull * (uint16_t)(C)                                         \
-                                  : (VECE) == MO_32 ? 0x0000000100000001ull * (uint32_t)(C) : dup_const(VECE, C)) \
-         : dup_const(VECE, C))
+#define dup_const(VECE, C)                                                                   \
+    (__builtin_constant_p(VECE) ? ((VECE) == MO_8    ? 0x0101010101010101ull * (uint8_t)(C)  \
+                                   : (VECE) == MO_16 ? 0x0001000100010001ull * (uint16_t)(C) \
+                                   : (VECE) == MO_32 ? 0x0000000100000001ull * (uint32_t)(C) \
+                                                     : dup_const(VECE, C))                   \
+                                : dup_const(VECE, C))
 
 /*
  * Memory helpers that will be used by TCG generated code.
@@ -1441,11 +1440,11 @@ uint64_t helper_be_ldq_cmmu(CPUArchState *env, target_ulong addr, TCGMemOpIdx oi
 #define helper_ret_lduw_mmu helper_be_lduw_mmu
 #define helper_ret_ldsl_mmu helper_be_ldsl_mmu
 #define helper_ret_ldul_mmu helper_be_ldul_mmu
-#define helper_ret_ldl_mmu helper_be_ldul_mmu
-#define helper_ret_ldq_mmu helper_be_ldq_mmu
-#define helper_ret_stw_mmu helper_be_stw_mmu
-#define helper_ret_stl_mmu helper_be_stl_mmu
-#define helper_ret_stq_mmu helper_be_stq_mmu
+#define helper_ret_ldl_mmu  helper_be_ldul_mmu
+#define helper_ret_ldq_mmu  helper_be_ldq_mmu
+#define helper_ret_stw_mmu  helper_be_stw_mmu
+#define helper_ret_stl_mmu  helper_be_stl_mmu
+#define helper_ret_stq_mmu  helper_be_stq_mmu
 #define helper_ret_ldw_cmmu helper_be_ldw_cmmu
 #define helper_ret_ldl_cmmu helper_be_ldl_cmmu
 #define helper_ret_ldq_cmmu helper_be_ldq_cmmu
@@ -1454,11 +1453,11 @@ uint64_t helper_be_ldq_cmmu(CPUArchState *env, target_ulong addr, TCGMemOpIdx oi
 #define helper_ret_lduw_mmu helper_le_lduw_mmu
 #define helper_ret_ldsl_mmu helper_le_ldsl_mmu
 #define helper_ret_ldul_mmu helper_le_ldul_mmu
-#define helper_ret_ldl_mmu helper_le_ldul_mmu
-#define helper_ret_ldq_mmu helper_le_ldq_mmu
-#define helper_ret_stw_mmu helper_le_stw_mmu
-#define helper_ret_stl_mmu helper_le_stl_mmu
-#define helper_ret_stq_mmu helper_le_stq_mmu
+#define helper_ret_ldl_mmu  helper_le_ldul_mmu
+#define helper_ret_ldq_mmu  helper_le_ldq_mmu
+#define helper_ret_stw_mmu  helper_le_stw_mmu
+#define helper_ret_stl_mmu  helper_le_stl_mmu
+#define helper_ret_stq_mmu  helper_le_stq_mmu
 #define helper_ret_ldw_cmmu helper_le_ldw_cmmu
 #define helper_ret_ldl_cmmu helper_le_ldl_cmmu
 #define helper_ret_ldq_cmmu helper_le_ldq_cmmu

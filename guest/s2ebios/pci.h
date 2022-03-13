@@ -30,25 +30,25 @@
 
 #define PCI_VENDOR_ID 0x00 /* 16 bits */
 #define PCI_DEVICE_ID 0x02 /* 16 bits */
-#define PCI_COMMAND 0x04   /* 16 bits */
+#define PCI_COMMAND   0x04 /* 16 bits */
 
-#define PCI_REVISION_ID 0x08
-#define PCI_BASE_ADDRESS_0 0x10     /* 32 bits */
-#define PCI_BASE_ADDRESS_1 0x14     /* 32 bits [htype 0,1 only] */
-#define PCI_BASE_ADDRESS_2 0x18     /* 32 bits [htype 0 only] */
-#define PCI_BASE_ADDRESS_3 0x1c     /* 32 bits */
-#define PCI_BASE_ADDRESS_4 0x20     /* 32 bits */
-#define PCI_BASE_ADDRESS_5 0x24     /* 32 bits */
-#define PCI_BASE_ADDRESS_SPACE 0x01 /* 0 = memory, 1 = I/O */
-#define PCI_BASE_ADDRESS_SPACE_IO 0x01
-#define PCI_BASE_ADDRESS_SPACE_MEMORY 0x00
+#define PCI_REVISION_ID                0x08
+#define PCI_BASE_ADDRESS_0             0x10 /* 32 bits */
+#define PCI_BASE_ADDRESS_1             0x14 /* 32 bits [htype 0,1 only] */
+#define PCI_BASE_ADDRESS_2             0x18 /* 32 bits [htype 0 only] */
+#define PCI_BASE_ADDRESS_3             0x1c /* 32 bits */
+#define PCI_BASE_ADDRESS_4             0x20 /* 32 bits */
+#define PCI_BASE_ADDRESS_5             0x24 /* 32 bits */
+#define PCI_BASE_ADDRESS_SPACE         0x01 /* 0 = memory, 1 = I/O */
+#define PCI_BASE_ADDRESS_SPACE_IO      0x01
+#define PCI_BASE_ADDRESS_SPACE_MEMORY  0x00
 #define PCI_BASE_ADDRESS_MEM_TYPE_MASK 0x06
-#define PCI_BASE_ADDRESS_MEM_TYPE_32 0x00  /* 32 bit address */
-#define PCI_BASE_ADDRESS_MEM_TYPE_1M 0x02  /* Below 1M [obsolete] */
-#define PCI_BASE_ADDRESS_MEM_TYPE_64 0x04  /* 64 bit address */
-#define PCI_BASE_ADDRESS_MEM_PREFETCH 0x08 /* prefetchable? */
-#define PCI_BASE_ADDRESS_MEM_MASK (~0x0fUL)
-#define PCI_BASE_ADDRESS_IO_MASK (~0x03UL)
+#define PCI_BASE_ADDRESS_MEM_TYPE_32   0x00 /* 32 bit address */
+#define PCI_BASE_ADDRESS_MEM_TYPE_1M   0x02 /* Below 1M [obsolete] */
+#define PCI_BASE_ADDRESS_MEM_TYPE_64   0x04 /* 64 bit address */
+#define PCI_BASE_ADDRESS_MEM_PREFETCH  0x08 /* prefetchable? */
+#define PCI_BASE_ADDRESS_MEM_MASK      (~0x0fUL)
+#define PCI_BASE_ADDRESS_IO_MASK       (~0x03UL)
 
 #define PCI_CAPABILITY_LIST 0x34 /* Offset of first capability list entry */
 

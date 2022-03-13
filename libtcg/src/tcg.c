@@ -2296,9 +2296,9 @@ static void reachable_code_pass(TCGContext *s) {
 }
 
 #define TS_DEAD 1
-#define TS_MEM 2
+#define TS_MEM  2
 
-#define IS_DEAD_ARG(n) (arg_life & (DEAD_ARG << (n)))
+#define IS_DEAD_ARG(n)   (arg_life & (DEAD_ARG << (n)))
 #define NEED_SYNC_ARG(n) (arg_life & (SYNC_ARG << (n)))
 
 /* For liveness_pass_1, the register preferences for a given temp.  */

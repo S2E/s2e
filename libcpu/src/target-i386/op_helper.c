@@ -36,9 +36,9 @@ struct CPUX86State *env = 0;
 #include <cpu/softmmu_defs.h>
 
 #define ACCESS_TYPE 0
-#define MEMSUFFIX _kernel_symb
-#define _raw _raw_symb
-#define DATA_SIZE 1
+#define MEMSUFFIX   _kernel_symb
+#define _raw        _raw_symb
+#define DATA_SIZE   1
 #include "softmmu_header.h"
 
 #define DATA_SIZE 2
@@ -58,7 +58,7 @@ struct CPUX86State *env = 0;
 //#define DEBUG_PCALL
 
 #ifdef DEBUG_PCALL
-#define LOG_PCALL(...) libcpu_log_mask(CPU_LOG_PCALL, ##__VA_ARGS__)
+#define LOG_PCALL(...)       libcpu_log_mask(CPU_LOG_PCALL, ##__VA_ARGS__)
 #define LOG_PCALL_STATE(env) log_cpu_state_mask(CPU_LOG_PCALL, (env), X86_DUMP_CCOP)
 #else
 #define LOG_PCALL(...) \
@@ -81,17 +81,17 @@ static inline target_long lshift(target_long x, int n) {
 #define FPU_RC_MASK 0xc00
 #define FPU_RC_NEAR 0x000
 #define FPU_RC_DOWN 0x400
-#define FPU_RC_UP 0x800
+#define FPU_RC_UP   0x800
 #define FPU_RC_CHOP 0xc00
 
 #define MAXTAN 9223372036854775808.0
 
 /* the following deal with x86 long double-precision numbers */
-#define MAXEXPD 0x7fff
-#define EXPBIAS 16383
-#define EXPD(fp) (fp.l.upper & 0x7fff)
-#define SIGND(fp) ((fp.l.upper) & 0x8000)
-#define MANTD(fp) (fp.l.lower)
+#define MAXEXPD          0x7fff
+#define EXPBIAS          16383
+#define EXPD(fp)         (fp.l.upper & 0x7fff)
+#define SIGND(fp)        ((fp.l.upper) & 0x8000)
+#define MANTD(fp)        (fp.l.lower)
 #define BIASEXPONENT(fp) fp.l.upper = (fp.l.upper & ~(0x7fff)) | EXPBIAS
 
 static inline void fpush(void) {
@@ -128,7 +128,7 @@ static inline void helper_fstt(floatx80 f, target_ulong ptr) {
 #define FPUS_PE (1 << 5)
 #define FPUS_SF (1 << 6)
 #define FPUS_SE (1 << 7)
-#define FPUS_B (1 << 15)
+#define FPUS_B  (1 << 15)
 
 #define FPUC_EM 0x3f
 
@@ -399,7 +399,7 @@ static void tss_load_seg(CPUX86State *env, int seg_reg, int selector, uintptr_t 
     }
 }
 
-#define SWITCH_TSS_JMP 0
+#define SWITCH_TSS_JMP  0
 #define SWITCH_TSS_IRET 1
 #define SWITCH_TSS_CALL 2
 
@@ -4944,7 +4944,7 @@ void helper_boundl(target_ulong a0, int v) {
 #if defined(CONFIG_SYMBEX) && !defined(SYMBEX_LLVM_LIB)
 #undef MMUSUFFIX
 #define MMUSUFFIX _mmu_symb
-#define _raw _raw_symb
+#define _raw      _raw_symb
 
 #define SHIFT 0
 #include "softmmu_template.h"
@@ -5533,13 +5533,13 @@ void helper_vmexit(uint32_t exit_code, uint64_t exit_info_1) {
 /* MMX/SSE */
 /* XXX: optimize by storing fptt and fptags in the static cpu state */
 
-#define SSE_DAZ 0x0040
+#define SSE_DAZ     0x0040
 #define SSE_RC_MASK 0x6000
 #define SSE_RC_NEAR 0x0000
 #define SSE_RC_DOWN 0x2000
-#define SSE_RC_UP 0x4000
+#define SSE_RC_UP   0x4000
 #define SSE_RC_CHOP 0x6000
-#define SSE_FZ 0x8000
+#define SSE_FZ      0x8000
 
 static void update_sse_status(void) {
     int rnd_type;

@@ -30,10 +30,10 @@ extern "C" {
 #if defined __GNUC__
 #if !LIBCPU_GNUC_PREREQ(4, 4)
 /* gcc versions before 4.4.x don't support gnu_printf, so use printf. */
-#define GCC_ATTR __attribute__((__unused__, format(printf, 1, 2)))
+#define GCC_ATTR           __attribute__((__unused__, format(printf, 1, 2)))
 #define GCC_FMT_ATTR(n, m) __attribute__((format(printf, n, m)))
 #else
-#define GCC_ATTR __attribute__((__unused__, format(gnu_printf, 1, 2)))
+#define GCC_ATTR           __attribute__((__unused__, format(gnu_printf, 1, 2)))
 #define GCC_FMT_ATTR(n, m) __attribute__((format(gnu_printf, n, m)))
 #endif
 #else

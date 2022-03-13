@@ -43,7 +43,7 @@ struct SyncHeader {
     unsigned inited;
 };
 
-#define SYNCHEADER_FREE 1
+#define SYNCHEADER_FREE   1
 #define SYNCHEADER_LOCKED 0
 
 /// \brief Create synchronized object

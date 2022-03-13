@@ -78,8 +78,8 @@ void tb_flush(CPUArchState *env);
 
 /* page related stuff */
 
-#define TARGET_PAGE_SIZE (1 << TARGET_PAGE_BITS)
-#define TARGET_PAGE_MASK ~(TARGET_PAGE_SIZE - 1)
+#define TARGET_PAGE_SIZE        (1 << TARGET_PAGE_BITS)
+#define TARGET_PAGE_MASK        ~(TARGET_PAGE_SIZE - 1)
 #define TARGET_PAGE_ALIGN(addr) (((addr) + TARGET_PAGE_SIZE - 1) & TARGET_PAGE_MASK)
 
 bool init_ram_size(int argc, char **argv);
@@ -106,7 +106,7 @@ extern CPUInterruptHandler cpu_interrupt_handler;
 void LIBCPU_NORETURN cpu_loop_exit(CPUArchState *env1);
 void LIBCPU_NORETURN cpu_loop_exit_restore(CPUArchState *env1, uintptr_t ra);
 
-#define VGA_DIRTY_FLAG 0x01
+#define VGA_DIRTY_FLAG  0x01
 #define CODE_DIRTY_FLAG 0x02
 
 void cpu_physical_memory_get_dirty_bitmap(uint8_t *bitmap, ram_addr_t start, int length, int dirty_flags);

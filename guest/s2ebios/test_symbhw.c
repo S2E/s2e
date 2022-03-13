@@ -123,7 +123,7 @@ void test_symbhw_mmio() {
 
 /* XXX: global vars are read only (in ROM!) */
 #define TEST_START_PHYS_ADDR 0xe0000000
-#define TEST_START_PORT 0x1000
+#define TEST_START_PORT      0x1000
 
 static void test_map_registers(uint8_t bus, uint8_t device, uint8_t function, uint32_t *phys_start,
                                uint16_t *phys_port_start) {

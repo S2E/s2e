@@ -40,8 +40,8 @@
 /* timers */
 
 #define QEMU_CLOCK_REALTIME 0
-#define QEMU_CLOCK_VIRTUAL 1
-#define QEMU_CLOCK_HOST 2
+#define QEMU_CLOCK_VIRTUAL  1
+#define QEMU_CLOCK_HOST     2
 
 struct CPUClock {
     int type;

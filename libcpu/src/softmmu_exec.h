@@ -21,17 +21,17 @@
 /* XXX: find something cleaner.
  * Furthermore, this is false for 64 bits targets
  */
-#define ldul_user ldl_user
-#define ldul_kernel ldl_kernel
-#define ldul_hypv ldl_hypv
-#define ldul_executive ldl_executive
+#define ldul_user       ldl_user
+#define ldul_kernel     ldl_kernel
+#define ldul_hypv       ldl_hypv
+#define ldul_executive  ldl_executive
 #define ldul_supervisor ldl_supervisor
 
 #include <cpu/softmmu_defs.h>
 
 #define ACCESS_TYPE 0
-#define MEMSUFFIX MMU_MODE0_SUFFIX
-#define DATA_SIZE 1
+#define MEMSUFFIX   MMU_MODE0_SUFFIX
+#define DATA_SIZE   1
 #include "softmmu_header.h"
 
 #define DATA_SIZE 2
@@ -46,8 +46,8 @@
 #undef MEMSUFFIX
 
 #define ACCESS_TYPE 1
-#define MEMSUFFIX MMU_MODE1_SUFFIX
-#define DATA_SIZE 1
+#define MEMSUFFIX   MMU_MODE1_SUFFIX
+#define DATA_SIZE   1
 #include "softmmu_header.h"
 
 #define DATA_SIZE 2
@@ -64,8 +64,8 @@
 #if (NB_MMU_MODES >= 3)
 
 #define ACCESS_TYPE 2
-#define MEMSUFFIX MMU_MODE2_SUFFIX
-#define DATA_SIZE 1
+#define MEMSUFFIX   MMU_MODE2_SUFFIX
+#define DATA_SIZE   1
 #include "softmmu_header.h"
 
 #define DATA_SIZE 2
@@ -83,8 +83,8 @@
 #if (NB_MMU_MODES >= 4)
 
 #define ACCESS_TYPE 3
-#define MEMSUFFIX MMU_MODE3_SUFFIX
-#define DATA_SIZE 1
+#define MEMSUFFIX   MMU_MODE3_SUFFIX
+#define DATA_SIZE   1
 #include "softmmu_header.h"
 
 #define DATA_SIZE 2
@@ -102,8 +102,8 @@
 #if (NB_MMU_MODES >= 5)
 
 #define ACCESS_TYPE 4
-#define MEMSUFFIX MMU_MODE4_SUFFIX
-#define DATA_SIZE 1
+#define MEMSUFFIX   MMU_MODE4_SUFFIX
+#define DATA_SIZE   1
 #include "softmmu_header.h"
 
 #define DATA_SIZE 2
@@ -124,8 +124,8 @@
 
 /* these access are slower, they must be as rare as possible */
 #define ACCESS_TYPE (NB_MMU_MODES)
-#define MEMSUFFIX _data
-#define DATA_SIZE 1
+#define MEMSUFFIX   _data
+#define DATA_SIZE   1
 #include "softmmu_header.h"
 
 #define DATA_SIZE 2
@@ -143,8 +143,8 @@
 #define ldsb(p) cpu_ldsb_data(env, p)
 #define lduw(p) cpu_lduw_data(env, p)
 #define ldsw(p) cpu_ldsw_data(env, p)
-#define ldl(p) cpu_ldl_data(env, p)
-#define ldq(p) cpu_ldq_data(env, p)
+#define ldl(p)  cpu_ldl_data(env, p)
+#define ldq(p)  cpu_ldq_data(env, p)
 
 #define stb(p, v) cpu_stb_data(env, p, v)
 #define stw(p, v) cpu_stw_data(env, p, v)

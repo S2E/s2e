@@ -71,9 +71,9 @@ extern "C" {
      CPU_INTERRUPT_TGT_EXT_3 | CPU_INTERRUPT_TGT_EXT_4)
 
 #define EXCP_INTERRUPT 0x10000 /* async interruption */
-#define EXCP_HLT 0x10001       /* hlt instruction reached */
-#define EXCP_DEBUG 0x10002     /* cpu stopped after a breakpoint or singlestep */
-#define EXCP_HALTED 0x10003    /* cpu is halted (waiting for external event) */
+#define EXCP_HLT       0x10001 /* hlt instruction reached */
+#define EXCP_DEBUG     0x10002 /* cpu stopped after a breakpoint or singlestep */
+#define EXCP_HALTED    0x10003 /* cpu is halted (waiting for external event) */
 #ifdef CONFIG_SYMBEX
 #define EXCP_SE 0x10004 /* Symbex engine requested exiting cpu loop */
 #endif

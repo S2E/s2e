@@ -78,8 +78,8 @@ extern T_crc16 orig_crc16;
 void initialize_models();
 
 #define CONCAT__(x, y) x##_##y
-#define CONCAT_(x, y) CONCAT__(x, y)
-#define CONCAT(x, y) CONCAT_(x, y)
+#define CONCAT_(x, y)  CONCAT__(x, y)
+#define CONCAT(x, y)   CONCAT_(x, y)
 
 #define FUNC_MODEL_BODY(func, ...)                 \
     if (!g_enable_function_models) {               \

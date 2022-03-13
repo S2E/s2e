@@ -21,7 +21,7 @@
 #include "qlist.h"
 
 #define MAX_TOKEN_SIZE (64ULL << 20)
-#define MAX_NESTING (1ULL << 10)
+#define MAX_NESTING    (1ULL << 10)
 
 static void json_message_process_token(JSONLexer *lexer, QString *token, JSONTokenType type, int x, int y) {
     JSONMessageParser *parser = container_of(lexer, JSONMessageParser, lexer);

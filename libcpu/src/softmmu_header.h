@@ -17,22 +17,22 @@
 /// License along with this library; if not, see <http://www.gnu.org/licenses/>.
 
 #if DATA_SIZE == 8
-#define SUFFIX q
-#define USUFFIX q
+#define SUFFIX    q
+#define USUFFIX   q
 #define DATA_TYPE uint64_t
 #elif DATA_SIZE == 4
-#define SUFFIX l
-#define USUFFIX l
+#define SUFFIX    l
+#define USUFFIX   l
 #define DATA_TYPE uint32_t
 #elif DATA_SIZE == 2
-#define SUFFIX w
-#define USUFFIX uw
-#define DATA_TYPE uint16_t
+#define SUFFIX     w
+#define USUFFIX    uw
+#define DATA_TYPE  uint16_t
 #define DATA_STYPE int16_t
 #elif DATA_SIZE == 1
-#define SUFFIX b
-#define USUFFIX ub
-#define DATA_TYPE uint8_t
+#define SUFFIX     b
+#define USUFFIX    ub
+#define DATA_TYPE  uint8_t
 #define DATA_STYPE int8_t
 #else
 #error unsupported data size
@@ -41,17 +41,17 @@
 #if ACCESS_TYPE < (NB_MMU_MODES)
 
 #define CPU_MMU_INDEX ACCESS_TYPE
-#define MMUSUFFIX _mmu
+#define MMUSUFFIX     _mmu
 
 #elif ACCESS_TYPE == (NB_MMU_MODES)
 
 #define CPU_MMU_INDEX (cpu_mmu_index(env))
-#define MMUSUFFIX _mmu
+#define MMUSUFFIX     _mmu
 
 #elif ACCESS_TYPE == (NB_MMU_MODES + 1)
 
 #define CPU_MMU_INDEX (cpu_mmu_index(env))
-#define MMUSUFFIX _cmmu
+#define MMUSUFFIX     _cmmu
 
 #else
 #error invalid ACCESS_TYPE
@@ -112,7 +112,7 @@
 #define SMHINLINE inline
 #define INSTR_BEFORE_MEMORY_ACCESS(...)
 #define INSTR_AFTER_MEMORY_ACCESS(...)
-#define INSTR_FORK_AND_CONCRETIZE(val, max) (val)
+#define INSTR_FORK_AND_CONCRETIZE(val, max)      (val)
 #define INSTR_FORK_AND_CONCRETIZE_ADDR(val, max) (val)
 
 #define SE_RAM_OBJECT_BITS TARGET_PAGE_BITS
@@ -141,7 +141,7 @@ void glue(glue(st, SUFFIX), MEMSUFFIX)(CPUArchState *env, target_ulong ptr, RES_
 
 #else // STATIC_TRANSLATOR
 
-#define CPU_PREFIX cpu_
+#define CPU_PREFIX    cpu_
 #define HELPER_PREFIX helper_
 
 /* generic load/store macros */

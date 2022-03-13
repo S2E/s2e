@@ -3,10 +3,10 @@
 #include <libcgc.h>
 #include "libc.h"
 
-#define HI "\nWelcome to Palindrome Finder\n\n"
-#define ASK "\tPlease enter a possible palindrome: "
-#define YES "\t\tYes, that's a palindrome!\n\n"
-#define NO "\t\tNope, that's not a palindrome\n\n"
+#define HI        "\nWelcome to Palindrome Finder\n\n"
+#define ASK       "\tPlease enter a possible palindrome: "
+#define YES       "\t\tYes, that's a palindrome!\n\n"
+#define NO        "\t\tNope, that's not a palindrome\n\n"
 #define EASTEREGG "\n\nEASTER EGG!\n\n"
 
 int check();
