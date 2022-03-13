@@ -181,7 +181,8 @@ uint64_t TCGLLVMTranslator::toInteger(llvm::Value *v) const {
 #ifdef CONFIG_SYMBEX
 
 void TCGLLVMTranslator::initializeNativeCpuState() {
-    m_cpuType = m_module->getTypeByName("struct.CPUX86State");
+    auto &ctx = m_module->getContext();
+    m_cpuType = StructType::getTypeByName(ctx, "struct.CPUX86State");
     assert(m_cpuType && "Could not find CPUX86State in LLVM bitcode");
 }
 
