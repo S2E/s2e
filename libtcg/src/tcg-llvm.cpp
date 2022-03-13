@@ -89,17 +89,6 @@ TCGLLVMTranslator::TCGLLVMTranslator(const std::string &bitcodeLibraryPath, std:
     std::memset(m_memValuesPtr, 0, sizeof(m_memValuesPtr));
     std::memset(m_globalsIdx, 0, sizeof(m_globalsIdx));
 
-    m_functionPassManager = new legacy::FunctionPassManager(m_module.get());
-    m_functionPassManager->add(createReassociatePass());
-    m_functionPassManager->add(createConstantPropagationPass());
-    m_functionPassManager->add(createInstructionCombiningPass());
-    m_functionPassManager->add(createGVNPass());
-    m_functionPassManager->add(createDeadStoreEliminationPass());
-    m_functionPassManager->add(createCFGSimplificationPass());
-    m_functionPassManager->add(createPromoteMemoryToRegisterPass());
-
-    m_functionPassManager->doInitialization();
-
     m_cpuType = NULL;
     m_cpuState = NULL;
     m_eip = NULL;
@@ -136,7 +125,6 @@ TCGLLVMTranslator *TCGLLVMTranslator::create(const std::string &bitcodeLibraryPa
 }
 
 TCGLLVMTranslator::~TCGLLVMTranslator() {
-    delete m_functionPassManager;
 }
 
 llvm::FunctionType *TCGLLVMTranslator::tbType() {
