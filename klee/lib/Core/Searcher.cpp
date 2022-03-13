@@ -82,7 +82,9 @@ void DFSSearcher::update(ExecutionState *current, const StateSet &addedStates, c
                 }
             }
 
-            assert(ok && "invalid state removed");
+            if (!ok) {
+                pabort("invalid state removed");
+            }
         }
     }
 
@@ -112,7 +114,9 @@ void RandomSearcher::update(ExecutionState *current, const StateSet &addedStates
             }
         }
 
-        assert(ok && "invalid state removed");
+        if (!ok) {
+            pabort("invalid state removed");
+        }
     }
 }
 

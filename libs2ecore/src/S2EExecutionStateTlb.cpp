@@ -128,9 +128,7 @@ void S2EExecutionStateTlb::updateTlb(const klee::ObjectStateConstPtr &oldState, 
     assert(oldState->isSharedConcrete() == newState->isSharedConcrete());
 
     auto it = m_tlbMap.find(oldState);
-    bool found = false;
     if (it != m_tlbMap.end()) {
-        found = true;
         ObjectStateTlbReferences vec = (*it).second;
         unsigned size = vec.size();
         assert(size > 0);
@@ -209,7 +207,9 @@ void S2EExecutionStateTlb::flushTlbCachePage(const klee::ObjectStatePtr &objectS
         }
     }
 
-    assert(found && "Invalid cache!");
+    if (!found) {
+        pabort("Invalid cache!");
+    }
 
     if (vec.empty()) {
 #ifdef S2E_DEBUG_TLBCACHE
