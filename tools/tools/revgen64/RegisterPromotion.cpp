@@ -127,7 +127,7 @@ void RegisterPromotion::createAllocas(Function &F, GEPs &geps, Calls &calls, Ret
         GetElementPtrInst *gep = dups[0];
         AllocaInst *alloca = builder.CreateAlloca(gep->getType());
         Value *newgep = builder.Insert(gep->clone());
-        Value *ld = builder.CreateLoad(newgep);
+        Value *ld = builder.CreateLoad(newgep->getType()->getPointerElementType(), newgep);
         builder.CreateStore(ld, alloca);
 
         for (auto const &dgep : dups) {

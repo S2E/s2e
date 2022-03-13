@@ -437,7 +437,7 @@ void RevGen::generateIndirectJump(llvm::IRBuilder<> &builder, RevGen::LLVMBasicB
 
     /* Generate a program counter load */
     Value *gep = Translator::getPcPtr(builder);
-    Value *pc = builder.CreateLoad(gep);
+    Value *pc = builder.CreateLoad(gep->getType()->getPointerElementType(), gep);
 
     SwitchInst *sw = builder.CreateSwitch(pc, defaultCase, binBb->numSuccessors());
 

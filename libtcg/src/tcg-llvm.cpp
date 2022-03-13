@@ -301,10 +301,13 @@ Value *TCGLLVMTranslator::getValue(TCGArg arg) {
                 Value *v = &*m_tbFunction->arg_begin();
                 m_values[idx] = m_builder.CreatePtrToInt(v, tcgType(temp.type), StringRef(temp.name) + "_v");
             } else {
-                m_values[idx] = m_builder.CreateLoad(getPtrForValue(idx), StringRef(temp.name) + "_v");
+                auto ptr = getPtrForValue(idx);
+                m_values[idx] =
+                    m_builder.CreateLoad(ptr->getType()->getPointerElementType(), ptr, StringRef(temp.name) + "_v");
             }
         } else if (temp.temp_local) {
-            m_values[idx] = m_builder.CreateLoad(getPtrForValue(idx));
+            auto ptr = getPtrForValue(idx);
+            m_values[idx] = m_builder.CreateLoad(ptr->getType()->getPointerElementType(), ptr);
             std::ostringstream name;
             name << "loc" << (idx - m_tcgContext->nb_globals) << "_v";
             m_values[idx]->setName(name.str());
@@ -490,7 +493,7 @@ Value *TCGLLVMTranslator::generateCpuStatePtr(uint64_t registerOffset, unsigned 
         } else {
             bool ok = getCpuFieldGepIndexes(registerOffset, sizeInBytes, gepElements);
             if (ok) {
-                ret = GetElementPtrInst::Create(nullptr, m_cpuState,
+                ret = GetElementPtrInst::Create(m_cpuState->getType()->getPointerElementType(), m_cpuState,
                                                 ArrayRef<Value *>(gepElements.begin(), gepElements.end()));
                 instList.push_front(ret);
                 m_registers[regsz] = ret;
@@ -522,7 +525,7 @@ void TCGLLVMTranslator::generateQemuCpuLoad(const TCGArg *args, unsigned memBits
     Value *gep = generateCpuStatePtr(args[2], memBits / 8);
     Value *v;
 
-    v = m_builder.CreateLoad(gep);
+    v = m_builder.CreateLoad(gep->getType()->getPointerElementType(), gep);
     v = m_builder.CreateTrunc(v, intType(memBits));
 
     if (signExtend) {
