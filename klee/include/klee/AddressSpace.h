@@ -35,7 +35,7 @@ class AddressSpace {
                 result ^= (uint8_t) ((address & 0xFF) * q);
                 address >>= 8;
             }
-            return address;
+            return result;
         }
 
     public:
