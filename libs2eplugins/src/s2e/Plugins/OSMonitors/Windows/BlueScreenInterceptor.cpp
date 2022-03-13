@@ -104,6 +104,11 @@ void BlueScreenInterceptor::onBsod(S2EExecutionState *state, uint64_t pc) {
         ok &= OSMonitor::readConcreteParameter<uint32_t>(state, 2, &_param2);
         ok &= OSMonitor::readConcreteParameter<uint32_t>(state, 3, &_param3);
         ok &= OSMonitor::readConcreteParameter<uint32_t>(state, 4, &_param4);
+
+        if (!ok) {
+            getWarningsStream(state) << "could not read one of the blue screen parameters\n";
+        }
+
         code = _code;
         param1 = _param1;
         param2 = _param2;
