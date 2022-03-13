@@ -81,6 +81,8 @@ void initialize_models();
 #define CONCAT_(x, y)  CONCAT__(x, y)
 #define CONCAT(x, y)   CONCAT_(x, y)
 
+// clang-format off
+
 #define FUNC_MODEL_BODY(func, ...)                 \
     if (!g_enable_function_models) {               \
         if (!CONCAT(orig, func)) {                 \
@@ -91,6 +93,8 @@ void initialize_models();
     }                                              \
                                                    \
     return CONCAT(func, model)(__VA_ARGS__);
+
+// clang-format on
 
 //
 // Function model prototypes

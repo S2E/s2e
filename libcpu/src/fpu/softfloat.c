@@ -6098,6 +6098,7 @@ uint64_t float64_to_uint64_round_to_zero(float64 a STATUS_PARAM) {
     return v - INT64_MIN;
 }
 
+// clang-format off
 #define COMPARE(s, nan_exp)                                                                      \
     SINLINE int float##s##_compare_internal(float##s a, float##s b, int is_quiet STATUS_PARAM) { \
         flag aSign, bSign;                                                                       \
@@ -6139,6 +6140,7 @@ uint64_t float64_to_uint64_round_to_zero(float64 a STATUS_PARAM) {
     int float##s##_compare_quiet(float##s a, float##s b STATUS_PARAM) {                          \
         return float##s##_compare_internal(a, b, 1 STATUS_VAR);                                  \
     }
+// clang-format on
 
 COMPARE(32, 0xff)
 COMPARE(64, 0x7ff)
