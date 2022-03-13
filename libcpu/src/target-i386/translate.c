@@ -7762,7 +7762,6 @@ static inline void gen_intermediate_code_internal(CPUX86State *env, TranslationB
     DisasContext dc1, *dc = &dc1;
     target_ulong pc_ptr, new_pc_ptr;
     CPUBreakpoint *bp;
-    int lj, cflags;
     uint64_t flags;
     target_ulong pc_start;
     target_ulong cs_base;
@@ -7773,7 +7772,6 @@ static inline void gen_intermediate_code_internal(CPUX86State *env, TranslationB
     pc_start = tb->pc;
     cs_base = tb->cs_base;
     flags = tb->flags;
-    cflags = tb->cflags;
 
     memset(dc, 0, sizeof(*dc));
 
@@ -7831,7 +7829,6 @@ static inline void gen_intermediate_code_internal(CPUX86State *env, TranslationB
 
     dc->is_jmp = DISAS_NEXT;
     pc_ptr = pc_start;
-    lj = -1;
     num_insns = 0;
     max_insns = tb->cflags & CF_COUNT_MASK;
     if (max_insns == 0)

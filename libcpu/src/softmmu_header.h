@@ -147,7 +147,11 @@ void glue(glue(st, SUFFIX), MEMSUFFIX)(CPUArchState *env, target_ulong ptr, RES_
 /* generic load/store macros */
 
 static SMHINLINE RES_TYPE glue(glue(glue(CPU_PREFIX, ld), USUFFIX), MEMSUFFIX)(CPUArchState *env, target_ulong ptr) {
-    target_ulong object_index, page_index;
+#ifdef CONFIG_SYMBEX_MP
+    target_ulong object_index;
+#endif
+
+    target_ulong page_index;
     RES_TYPE res;
     target_ulong addr;
     target_ulong tlb_addr;
@@ -163,7 +167,6 @@ static SMHINLINE RES_TYPE glue(glue(glue(CPU_PREFIX, ld), USUFFIX), MEMSUFFIX)(C
 #else
     addr = ptr;
     page_index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
-    object_index = 0;
 #endif
 
     mmu_idx = CPU_MMU_INDEX;
@@ -190,8 +193,11 @@ static SMHINLINE RES_TYPE glue(glue(glue(CPU_PREFIX, ld), USUFFIX), MEMSUFFIX)(C
 
 #if DATA_SIZE <= 2
 static SMHINLINE int glue(glue(glue(CPU_PREFIX, lds), SUFFIX), MEMSUFFIX)(CPUArchState *env, target_ulong ptr) {
+#ifdef CONFIG_SYMBEX_MP
+    target_ulong object_index;
+#endif
     int res;
-    target_ulong object_index, page_index;
+    target_ulong page_index;
     target_ulong addr, tlb_addr;
     uintptr_t physaddr;
     int mmu_idx;
@@ -205,7 +211,6 @@ static SMHINLINE int glue(glue(glue(CPU_PREFIX, lds), SUFFIX), MEMSUFFIX)(CPUArc
 #else
     addr = ptr;
     page_index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
-    object_index = 0;
 #endif
 
     mmu_idx = CPU_MMU_INDEX;
@@ -234,7 +239,10 @@ static SMHINLINE int glue(glue(glue(CPU_PREFIX, lds), SUFFIX), MEMSUFFIX)(CPUArc
 
 static SMHINLINE void glue(glue(glue(CPU_PREFIX, st), SUFFIX), MEMSUFFIX)(CPUArchState *env, target_ulong ptr,
                                                                           RES_TYPE v) {
-    target_ulong object_index, page_index;
+#ifdef CONFIG_SYMBEX_MP
+    target_ulong object_index;
+#endif
+    target_ulong page_index;
     target_ulong addr, tlb_addr;
     uintptr_t physaddr;
     int mmu_idx;
@@ -248,7 +256,6 @@ static SMHINLINE void glue(glue(glue(CPU_PREFIX, st), SUFFIX), MEMSUFFIX)(CPUArc
 #else
     addr = ptr;
     page_index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
-    object_index = 0;
 #endif
 
     mmu_idx = CPU_MMU_INDEX;

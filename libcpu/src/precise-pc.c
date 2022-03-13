@@ -109,7 +109,6 @@ int encode_search(TCGContext *tcg_ctx, TranslationBlock *tb, uint8_t *block) {
 
 int tb_get_instruction_size(TranslationBlock *tb, uint64_t pc) {
     target_ulong data[TARGET_INSN_START_WORDS] = {tb->pc};
-    uintptr_t host_pc = (uintptr_t) tb->tc.ptr;
     uint8_t *p = tb->tc.ptr + tb->tc.size;
     int i, j, num_insns = tb->icount;
 
@@ -121,7 +120,7 @@ int tb_get_instruction_size(TranslationBlock *tb, uint64_t pc) {
         for (j = 0; j < TARGET_INSN_START_WORDS; ++j) {
             data[j] += decode_sleb128(&p);
         }
-        host_pc += decode_sleb128(&p);
+        decode_sleb128(&p);
         if (data[0] == pc) {
             if (i == num_insns - 1) {
                 return tb->size - (pc - tb->pc);

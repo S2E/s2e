@@ -357,7 +357,6 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end, int
 #ifdef TARGET_HAS_PRECISE_SMC
     int current_tb_not_found = is_cpu_write_access;
     TranslationBlock *current_tb = NULL;
-    int current_tb_modified = 0;
     target_ulong current_pc = 0;
     target_ulong current_cs_base = 0;
     int current_flags = 0;
@@ -399,7 +398,6 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end, int
                 }
             }
             if (current_tb == tb && (current_tb->cflags & CF_COUNT_MASK) != 1) {
-                current_tb_modified = 1;
                 cpu_restore_state(env, env->mem_io_pc);
                 cpu_get_tb_cpu_state(env, &current_pc, &current_cs_base, &current_flags);
 

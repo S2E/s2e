@@ -90,9 +90,6 @@ void cpu_exec_init(CPUArchState *env) {
 
 /* mask must never be zero, except for A20 change call */
 static void tcg_handle_interrupt(CPUArchState *env, int mask) {
-    int old_mask;
-
-    old_mask = env->interrupt_request;
     env->interrupt_request |= mask;
 }
 

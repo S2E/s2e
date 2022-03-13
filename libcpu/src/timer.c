@@ -171,7 +171,7 @@ void libcpu_run_timers(CPUClock *clock) {
 }
 
 int64_t libcpu_get_clock_ns(CPUClock *clock) {
-    int64_t now, last;
+    int64_t now;
 
     switch (clock->type) {
         case QEMU_CLOCK_REALTIME:
@@ -181,7 +181,6 @@ int64_t libcpu_get_clock_ns(CPUClock *clock) {
             return cpu_get_clock();
         case QEMU_CLOCK_HOST:
             now = get_clock_realtime();
-            last = clock->last;
             clock->last = now;
             return now;
     }
