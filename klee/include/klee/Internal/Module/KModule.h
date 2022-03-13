@@ -161,11 +161,9 @@ public:
     /// Initialize local data structures.
     //
     // FIXME: ihandler should not be here
-    void prepare(const Interpreter::ModuleOptions &opts, InterpreterHandler *ihandler);
+    void prepare(InterpreterHandler *ihandler);
 
     void buildShadowStructures();
-
-    void linkLibraries(const Interpreter::ModuleOptions &opts);
 
     /// Return an id for the given constant, creating a new one if necessary.
     unsigned getConstantID(llvm::Constant *c, KInstruction *ki);

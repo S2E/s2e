@@ -229,8 +229,7 @@ public:
 
     virtual void terminateState(ExecutionState &state, const std::string &reason);
 
-    virtual const llvm::Module *setModule(llvm::Module *module, const ModuleOptions &opts,
-                                          bool createStatsTracker = true);
+    virtual const llvm::Module *setModule(llvm::Module *module, bool createStatsTracker = true);
 
     // Given a concrete object in our [klee's] address space, add it to
     // objects checked code can reference.

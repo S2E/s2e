@@ -13,7 +13,6 @@ klee_add_component(kleeModule
 	KModule.cpp
 	LowerSwitch.cpp
 	ModuleUtil.cpp
-	Optimize.cpp
 	PhiCleaner.cpp
 	RaiseAsm.cpp
 )

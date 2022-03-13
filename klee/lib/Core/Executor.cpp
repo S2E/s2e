@@ -89,7 +89,7 @@ Executor::Executor(InterpreterHandler *ih, LLVMContext &context)
       specialFunctionHandler(0) {
 }
 
-const Module *Executor::setModule(llvm::Module *module, const ModuleOptions &opts, bool createStatsTracker) {
+const Module *Executor::setModule(llvm::Module *module, bool createStatsTracker) {
     assert(!kmodule && module && "can only register one module"); // XXX gross
 
     kmodule = KModule::create(module);
@@ -102,12 +102,7 @@ const Module *Executor::setModule(llvm::Module *module, const ModuleOptions &opt
 
     specialFunctionHandler->prepare();
 
-    if (opts.Snapshot) {
-        kmodule->linkLibraries(opts);
-        kmodule->buildShadowStructures();
-    } else {
-        kmodule->prepare(opts, interpreterHandler);
-    }
+    kmodule->prepare(interpreterHandler);
 
     specialFunctionHandler->bind();
 

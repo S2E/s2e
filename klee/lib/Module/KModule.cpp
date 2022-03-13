@@ -206,7 +206,7 @@ KModule::~KModule() {
     // delete module;
 }
 
-void KModule::prepare(const Interpreter::ModuleOptions &opts, InterpreterHandler *ih) {
+void KModule::prepare(InterpreterHandler *ih) {
     LLVMContext &context = module->getContext();
 
     // Inject checks prior to optimization... we also perform the
@@ -231,10 +231,6 @@ void KModule::prepare(const Interpreter::ModuleOptions &opts, InterpreterHandler
     pm.add(new IntrinsicCleanerPass(*dataLayout));
     pm.run(*module);
 
-    if (opts.Optimize) {
-        Optimize(module);
-    }
-
     // Force importing functions required by intrinsic lowering. Kind of
     // unfortunate clutter when we don't need them but we won't know
     // that until after all linking and intrinsic lowering is
@@ -251,11 +247,6 @@ void KModule::prepare(const Interpreter::ModuleOptions &opts, InterpreterHandler
                 dataLayout->getIntPtrType(context), (Type *) 0);
 
     // FIXME: Missing force import for various math functions.
-
-    // FIXME: Find a way that we can test programs without requiring
-    // this to be linked in, it makes low level debugging much more
-    // annoying.
-    linkLibraries(opts);
 
     // Needs to happen after linking (since ctors/dtors can be modified)
     // and optimization (since global optimization can rewrite lists).
@@ -358,13 +349,6 @@ void KModule::prepare(const Interpreter::ModuleOptions &opts, InterpreterHandler
     }
 
     buildShadowStructures();
-}
-
-void KModule::linkLibraries(const Interpreter::ModuleOptions &opts) {
-    for (std::vector<std::string>::const_iterator it = opts.ExtraLibraries.begin(), ie = opts.ExtraLibraries.end();
-         it != ie; ++it) {
-        module = linkWithLibrary(module, *it);
-    }
 }
 
 void KModule::buildShadowStructures() {
