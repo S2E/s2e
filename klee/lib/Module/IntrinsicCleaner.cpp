@@ -100,53 +100,6 @@ static Value *LowerBSWAP(LLVMContext &Context, Value *V, Instruction *IP) {
 
 char IntrinsicCleanerPass::ID;
 
-/// ReplaceCallWith - This function is used when we want to lower an intrinsic
-/// call to a call of an external function.  This handles hard cases such as
-/// when there was already a prototype for the external function, and if that
-/// prototype doesn't match the arguments we expect to pass in.
-template <class ArgIt>
-static CallInst *ReplaceCallWith(const char *NewFn, CallInst *CI, ArgIt ArgBegin, ArgIt ArgEnd, Type *RetTy) {
-    // If we haven't already looked up this function, check to see if the
-    // program already contains a function with this name.
-    Module *M = CI->getParent()->getParent()->getParent();
-    // Get or insert the definition now.
-    std::vector<Type *> ParamTys;
-    for (ArgIt I = ArgBegin; I != ArgEnd; ++I)
-        ParamTys.push_back((*I)->getType());
-
-    llvm::ArrayRef<Type *> ParamTysA(&ParamTys[0], ParamTys.size());
-
-    auto FCache = M->getOrInsertFunction(NewFn, FunctionType::get(RetTy, ParamTysA, false));
-
-    IRBuilder<> Builder(CI);
-    SmallVector<Value *, 8> Args(ArgBegin, ArgEnd);
-
-    CallInst *NewCI = Builder.CreateCall(FCache, llvm::ArrayRef<Value *>(Args));
-    NewCI->setName(CI->getName());
-    if (!CI->use_empty())
-        CI->replaceAllUsesWith(NewCI);
-    CI->eraseFromParent();
-    return NewCI;
-}
-
-static void ReplaceFPIntrinsicWithCall(CallInst *CI, const char *Fname, const char *Dname, const char *LDname) {
-    switch (CI->getArgOperand(0)->getType()->getTypeID()) {
-        default:
-            llvm_unreachable("Invalid type in intrinsic");
-        case Type::FloatTyID:
-            ReplaceCallWith(Fname, CI, CI->arg_begin(), CI->arg_end(), Type::getFloatTy(CI->getContext()));
-            break;
-        case Type::DoubleTyID:
-            ReplaceCallWith(Dname, CI, CI->arg_begin(), CI->arg_end(), Type::getDoubleTy(CI->getContext()));
-            break;
-        case Type::X86_FP80TyID:
-        case Type::FP128TyID:
-        case Type::PPC_FP128TyID:
-            ReplaceCallWith(LDname, CI, CI->arg_begin(), CI->arg_end(), CI->getArgOperand(0)->getType());
-            break;
-    }
-}
-
 void IntrinsicCleanerPass::replaceIntrinsicAdd(Module &M, CallInst *CI) {
     Value *arg0 = CI->getArgOperand(0);
     Value *arg1 = CI->getArgOperand(1);
