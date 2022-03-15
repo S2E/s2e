@@ -66,8 +66,7 @@ public:
     }
 
     llvm::Type *getIndexedType() const {
-        llvm::CompositeType *CT = cast<llvm::CompositeType>(CurTy);
-        return CT->getTypeAtIndex(getOperand());
+        return llvm::GetElementPtrInst::getTypeAtIndex(CurTy, getOperand());
     }
 
     // This is a non-standard operator->.  It allows you to call methods on the
@@ -81,8 +80,9 @@ public:
     }
 
     generic_gep_type_iterator &operator++() { // Preincrement
-        if (llvm::CompositeType *CT = dyn_cast<llvm::CompositeType>(CurTy)) {
-            CurTy = CT->getTypeAtIndex(getOperand());
+        if (isa<llvm::StructType>(CurTy) || isa<llvm::ArrayType>(CurTy) || isa<llvm::VectorType>(CurTy)) {
+            CurTy = llvm::GetElementPtrInst::getTypeAtIndex(CurTy, getOperand());
+
         } else if (auto ptr = dyn_cast<llvm::PointerType>(CurTy)) {
             CurTy = ptr->getElementType();
         } else {

@@ -199,7 +199,7 @@ void detect_strcmp(revgen_function_t func, uint64_t func_addr, uint8_t *stack, v
 }
 
 static long detect_strtol_invoke(uint8_t *stack, revgen_function_t func, const char *nptr, char **endptr, int base) {
-    myenv.regs[R_ESP] = (target_ulong)(stack + STACK_SIZE - 0x10);
+    myenv.regs[R_ESP] = (target_ulong) (stack + STACK_SIZE - 0x10);
     myenv.regs[R_ESP] -= 0x100;
 
     char *str1 = (char *) myenv.regs[R_ESP];

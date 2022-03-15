@@ -49,7 +49,7 @@ struct MSF_ROOT {
 };
 
 #define ALIGN_DOWN(x, align) ((x) & ~(align - 1))
-#define ALIGN_UP(x, align) (((x) & (align - 1)) ? ALIGN_DOWN(x, align) + align : (x))
+#define ALIGN_UP(x, align)   (((x) & (align - 1)) ? ALIGN_DOWN(x, align) + align : (x))
 
 #define PAGE(msf, x) (msf->MapB + msf->hdr->dwPageSize * (x))
 

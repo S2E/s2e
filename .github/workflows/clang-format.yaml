@@ -8,5 +8,5 @@ jobs:
         uses: actions/checkout@v2
       - name: Run clang-format
         run: |
-           CLANG_FORMAT=/usr/lib/llvm-10/bin/clang-format ./test-clang-format.sh
+           CLANG_FORMAT=/usr/lib/llvm-12/bin/clang-format ./test-clang-format.sh
       - run: echo "🍏 This job's status is ${{ job.status }}."

@@ -60,6 +60,6 @@ static inline int list_empty(list_entry_t *head) {
     return head->next == head;
 }
 
-#define CONTAINING_RECORD(address, type, field) ((type *) ((uintptr_t)(address) - (uintptr_t)(&((type *) 0)->field)))
+#define CONTAINING_RECORD(address, type, field) ((type *) ((uintptr_t) (address) - (uintptr_t) (&((type *) 0)->field)))
 
 #endif

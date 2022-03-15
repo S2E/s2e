@@ -131,8 +131,6 @@ public:
     }
     ValueRange(uint64_t _min, uint64_t _max) : m_min(_min), m_max(_max) {
     }
-    ValueRange(const ValueRange &b) : m_min(b.m_min), m_max(b.m_max) {
-    }
 
     void print(llvm::raw_ostream &os) const {
         if (isFixed()) {

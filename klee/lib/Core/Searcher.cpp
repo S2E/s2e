@@ -23,7 +23,6 @@
 #include "klee/Statistics.h"
 
 #include "llvm/IR/CFG.h"
-#include "llvm/IR/CallSite.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Module.h"
@@ -83,7 +82,9 @@ void DFSSearcher::update(ExecutionState *current, const StateSet &addedStates, c
                 }
             }
 
-            assert(ok && "invalid state removed");
+            if (!ok) {
+                pabort("invalid state removed");
+            }
         }
     }
 
@@ -113,7 +114,9 @@ void RandomSearcher::update(ExecutionState *current, const StateSet &addedStates
             }
         }
 
-        assert(ok && "invalid state removed");
+        if (!ok) {
+            pabort("invalid state removed");
+        }
     }
 }
 

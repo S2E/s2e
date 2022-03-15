@@ -66,21 +66,21 @@ public:
     }
 
     inline bool get(unsigned idx) const {
-        return (bool) ((m_bits[idx / BITS] >> (T)(idx & BITSM1)) & 1);
+        return (bool) ((m_bits[idx / BITS] >> (T) (idx & BITSM1)) & 1);
     }
 
     inline void set(unsigned idx) {
         if (!get(idx)) {
             ++m_setbitcount;
         }
-        m_bits[idx / BITS] |= (T) 1 << (T)(idx & BITSM1);
+        m_bits[idx / BITS] |= (T) 1 << (T) (idx & BITSM1);
     }
 
     inline void unset(unsigned idx) {
         if (get(idx)) {
             --m_setbitcount;
         }
-        m_bits[idx / BITS] &= ~((T) 1 << (T)(idx & BITSM1));
+        m_bits[idx / BITS] &= ~((T) 1 << (T) (idx & BITSM1));
     }
 
     inline void set(unsigned idx, bool value) {

@@ -16,9 +16,9 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
-#define DATA_BITS (1 << (3 + SHIFT))
+#define DATA_BITS  (1 << (3 + SHIFT))
 #define SHIFT_MASK (DATA_BITS - 1)
-#define SIGN_MASK (((target_ulong) 1) << (DATA_BITS - 1))
+#define SIGN_MASK  (((target_ulong) 1) << (DATA_BITS - 1))
 #if DATA_BITS <= 32
 #define SHIFT1_MASK 0x1f
 #else
@@ -26,25 +26,25 @@
 #endif
 
 #if DATA_BITS == 8
-#define SUFFIX b
-#define DATA_TYPE uint8_t
+#define SUFFIX     b
+#define DATA_TYPE  uint8_t
 #define DATA_STYPE int8_t
-#define DATA_MASK 0xff
+#define DATA_MASK  0xff
 #elif DATA_BITS == 16
-#define SUFFIX w
-#define DATA_TYPE uint16_t
+#define SUFFIX     w
+#define DATA_TYPE  uint16_t
 #define DATA_STYPE int16_t
-#define DATA_MASK 0xffff
+#define DATA_MASK  0xffff
 #elif DATA_BITS == 32
-#define SUFFIX l
-#define DATA_TYPE uint32_t
+#define SUFFIX     l
+#define DATA_TYPE  uint32_t
 #define DATA_STYPE int32_t
-#define DATA_MASK 0xffffffff
+#define DATA_MASK  0xffffffff
 #elif DATA_BITS == 64
-#define SUFFIX q
-#define DATA_TYPE uint64_t
+#define SUFFIX     q
+#define DATA_TYPE  uint64_t
 #define DATA_STYPE int64_t
-#define DATA_MASK 0xffffffffffffffffULL
+#define DATA_MASK  0xffffffffffffffffULL
 #else
 #error unhandled operand size
 #endif
@@ -262,7 +262,7 @@ target_ulong glue(helper_rcl, SUFFIX)(target_ulong t0, target_ulong t1) {
         eflags = helper_cc_compute_all(CC_OP);
         t0 &= DATA_MASK;
         src = t0;
-        res = (t0 << count) | ((target_ulong)(eflags & CC_C) << (count - 1));
+        res = (t0 << count) | ((target_ulong) (eflags & CC_C) << (count - 1));
         if (count > 1)
             res |= t0 >> (DATA_BITS + 1 - count);
         t0 = res;
@@ -289,7 +289,7 @@ target_ulong glue(helper_rcr, SUFFIX)(target_ulong t0, target_ulong t1) {
         eflags = helper_cc_compute_all(CC_OP);
         t0 &= DATA_MASK;
         src = t0;
-        res = (t0 >> count) | ((target_ulong)(eflags & CC_C) << (DATA_BITS - count));
+        res = (t0 >> count) | ((target_ulong) (eflags & CC_C) << (DATA_BITS - count));
         if (count > 1)
             res |= t0 << (DATA_BITS + 1 - count);
         t0 = res;

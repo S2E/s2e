@@ -101,7 +101,7 @@ static inline void mul64(uint64_t *plow, uint64_t *phigh, uint64_t a, uint64_t b
     c >>= 32;
     c = c + rm.l.high + rn.l.high + rh.l.low;
     rh.l.low = c;
-    rh.l.high += (uint32_t)(c >> 32);
+    rh.l.high += (uint32_t) (c >> 32);
 
     *plow = rl.ll;
     *phigh = rh.ll;
@@ -380,18 +380,18 @@ static inline uint8_t revbit8(uint8_t x) {
 /* Host type specific sizes of these routines.  */
 
 #if ULONG_MAX == UINT32_MAX
-#define clzl clz32
-#define ctzl ctz32
-#define clol clo32
-#define ctol cto32
-#define ctpopl ctpop32
+#define clzl    clz32
+#define ctzl    ctz32
+#define clol    clo32
+#define ctol    cto32
+#define ctpopl  ctpop32
 #define revbitl revbit32
 #elif ULONG_MAX == UINT64_MAX
-#define clzl clz64
-#define ctzl ctz64
-#define clol clo64
-#define ctol cto64
-#define ctpopl ctpop64
+#define clzl    clz64
+#define ctzl    ctz64
+#define clol    clo64
+#define ctol    cto64
+#define ctpopl  ctpop64
 #define revbitl revbit64
 #else
 #error Unknown sizeof long

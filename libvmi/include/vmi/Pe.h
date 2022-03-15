@@ -353,7 +353,7 @@ struct SCOPE_TABLE {
     } ScopeRecord[1];
 } __attribute__((packed));
 
-#define MAGIC_VC 0x19930520  // up to VC6
+#define MAGIC_VC  0x19930520 // up to VC6
 #define MAGIC_VC7 0x19930521 // VC7.x(2002-2003)
 #define MAGIC_VC8 0x19930522 // VC8 (2005)
 

@@ -41,7 +41,7 @@ extern "C" {
 #define STRTOSZ_DEFSUFFIX_GB 'G'
 #define STRTOSZ_DEFSUFFIX_MB 'M'
 #define STRTOSZ_DEFSUFFIX_KB 'K'
-#define STRTOSZ_DEFSUFFIX_B 'B'
+#define STRTOSZ_DEFSUFFIX_B  'B'
 
 int64_t strtosz_suffix_unit(const char *nptr, char **end, const char default_suffix, int64_t unit);
 

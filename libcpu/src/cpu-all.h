@@ -68,27 +68,27 @@
 
 /* target-endianness CPU memory access functions */
 #if defined(TARGET_WORDS_BIGENDIAN)
-#define lduw_p(p) lduw_be_p(p)
-#define ldsw_p(p) ldsw_be_p(p)
-#define ldl_p(p) ldl_be_p(p)
-#define ldq_p(p) ldq_be_p(p)
-#define ldfl_p(p) ldfl_be_p(p)
-#define ldfq_p(p) ldfq_be_p(p)
-#define stw_p(p, v) stw_be_p(p, v)
-#define stl_p(p, v) stl_be_p(p, v)
-#define stq_p(p, v) stq_be_p(p, v)
+#define lduw_p(p)    lduw_be_p(p)
+#define ldsw_p(p)    ldsw_be_p(p)
+#define ldl_p(p)     ldl_be_p(p)
+#define ldq_p(p)     ldq_be_p(p)
+#define ldfl_p(p)    ldfl_be_p(p)
+#define ldfq_p(p)    ldfq_be_p(p)
+#define stw_p(p, v)  stw_be_p(p, v)
+#define stl_p(p, v)  stl_be_p(p, v)
+#define stq_p(p, v)  stq_be_p(p, v)
 #define stfl_p(p, v) stfl_be_p(p, v)
 #define stfq_p(p, v) stfq_be_p(p, v)
 #else
-#define lduw_p(p) lduw_le_p(p)
-#define ldsw_p(p) ldsw_le_p(p)
-#define ldl_p(p) ldl_le_p(p)
-#define ldq_p(p) ldq_le_p(p)
-#define ldfl_p(p) ldfl_le_p(p)
-#define ldfq_p(p) ldfq_le_p(p)
-#define stw_p(p, v) stw_le_p(p, v)
-#define stl_p(p, v) stl_le_p(p, v)
-#define stq_p(p, v) stq_le_p(p, v)
+#define lduw_p(p)    lduw_le_p(p)
+#define ldsw_p(p)    ldsw_le_p(p)
+#define ldl_p(p)     ldl_le_p(p)
+#define ldq_p(p)     ldq_le_p(p)
+#define ldfl_p(p)    ldfl_le_p(p)
+#define ldfq_p(p)    ldfq_le_p(p)
+#define stw_p(p, v)  stw_le_p(p, v)
+#define stl_p(p, v)  stl_le_p(p, v)
+#define stq_p(p, v)  stq_le_p(p, v)
 #define stfl_p(p, v) stfl_le_p(p, v)
 #define stfq_p(p, v) stfq_le_p(p, v)
 #endif
@@ -102,44 +102,44 @@
 
 #if !defined(CONFIG_SYMBEX) || defined(SYMBEX_LLVM_LIB)
 
-#define ldub_raw(p) ldub_p(laddr((p)))
-#define ldsb_raw(p) ldsb_p(laddr((p)))
-#define lduw_raw(p) lduw_p(laddr((p)))
-#define ldsw_raw(p) ldsw_p(laddr((p)))
-#define ldl_raw(p) ldl_p(laddr((p)))
-#define ldq_raw(p) ldq_p(laddr((p)))
-#define ldfl_raw(p) ldfl_p(laddr((p)))
-#define ldfq_raw(p) ldfq_p(laddr((p)))
-#define stb_raw(p, v) stb_p(saddr((p)), v)
-#define stw_raw(p, v) stw_p(saddr((p)), v)
-#define stl_raw(p, v) stl_p(saddr((p)), v)
-#define stq_raw(p, v) stq_p(saddr((p)), v)
+#define ldub_raw(p)    ldub_p(laddr((p)))
+#define ldsb_raw(p)    ldsb_p(laddr((p)))
+#define lduw_raw(p)    lduw_p(laddr((p)))
+#define ldsw_raw(p)    ldsw_p(laddr((p)))
+#define ldl_raw(p)     ldl_p(laddr((p)))
+#define ldq_raw(p)     ldq_p(laddr((p)))
+#define ldfl_raw(p)    ldfl_p(laddr((p)))
+#define ldfq_raw(p)    ldfq_p(laddr((p)))
+#define stb_raw(p, v)  stb_p(saddr((p)), v)
+#define stw_raw(p, v)  stw_p(saddr((p)), v)
+#define stl_raw(p, v)  stl_p(saddr((p)), v)
+#define stq_raw(p, v)  stq_p(saddr((p)), v)
 #define stfl_raw(p, v) stfl_p(saddr((p)), v)
 #define stfq_raw(p, v) stfq_p(saddr((p)), v)
 
-#define lduw_le_raw(p) lduw_le_p(laddr((p)))
-#define ldsw_le_raw(p) ldsw_le_p(laddr((p)))
-#define ldl_le_raw(p) ldl_le_p(laddr((p)))
-#define ldq_le_raw(p) ldq_le_p(laddr((p)))
-#define ldfl_le_raw(p) ldfl_le_p(laddr((p)))
-#define ldfq_le_raw(p) ldfq_le_p(laddr((p)))
-#define stb_le_raw(p, v) stb_le_p(saddr((p)), v)
-#define stw_le_raw(p, v) stw_le_p(saddr((p)), v)
-#define stl_le_raw(p, v) stl_le_p(saddr((p)), v)
-#define stq_le_raw(p, v) stq_le_p(saddr((p)), v)
+#define lduw_le_raw(p)    lduw_le_p(laddr((p)))
+#define ldsw_le_raw(p)    ldsw_le_p(laddr((p)))
+#define ldl_le_raw(p)     ldl_le_p(laddr((p)))
+#define ldq_le_raw(p)     ldq_le_p(laddr((p)))
+#define ldfl_le_raw(p)    ldfl_le_p(laddr((p)))
+#define ldfq_le_raw(p)    ldfq_le_p(laddr((p)))
+#define stb_le_raw(p, v)  stb_le_p(saddr((p)), v)
+#define stw_le_raw(p, v)  stw_le_p(saddr((p)), v)
+#define stl_le_raw(p, v)  stl_le_p(saddr((p)), v)
+#define stq_le_raw(p, v)  stq_le_p(saddr((p)), v)
 #define stfl_le_raw(p, v) stfl_le_p(saddr((p)), v)
 #define stfq_le_raw(p, v) stfq_le_p(saddr((p)), v)
 
-#define lduw_be_raw(p) lduw_be_p(laddr((p)))
-#define ldsw_be_raw(p) ldsw_be_p(laddr((p)))
-#define ldl_be_raw(p) ldl_be_p(laddr((p)))
-#define ldq_be_raw(p) ldq_be_p(laddr((p)))
-#define ldfl_be_raw(p) ldfl_be_p(laddr((p)))
-#define ldfq_be_raw(p) ldfq_be_p(laddr((p)))
-#define stb_be_raw(p, v) stb_be_p(saddr((p)), v)
-#define stw_be_raw(p, v) stw_be_p(saddr((p)), v)
-#define stl_be_raw(p, v) stl_be_p(saddr((p)), v)
-#define stq_be_raw(p, v) stq_be_p(saddr((p)), v)
+#define lduw_be_raw(p)    lduw_be_p(laddr((p)))
+#define ldsw_be_raw(p)    ldsw_be_p(laddr((p)))
+#define ldl_be_raw(p)     ldl_be_p(laddr((p)))
+#define ldq_be_raw(p)     ldq_be_p(laddr((p)))
+#define ldfl_be_raw(p)    ldfl_be_p(laddr((p)))
+#define ldfq_be_raw(p)    ldfq_be_p(laddr((p)))
+#define stb_be_raw(p, v)  stb_be_p(saddr((p)), v)
+#define stw_be_raw(p, v)  stw_be_p(saddr((p)), v)
+#define stl_be_raw(p, v)  stl_be_p(saddr((p)), v)
+#define stq_be_raw(p, v)  stq_be_p(saddr((p)), v)
 #define stfl_be_raw(p, v) stfl_be_p(saddr((p)), v)
 #define stfq_be_raw(p, v) stfq_be_p(saddr((p)), v)
 
@@ -292,10 +292,10 @@ _symbex_define_st_raw_le(float64,  fq, 8)
 #endif
 
 /* same as PROT_xxx */
-#define PAGE_READ 0x0001
+#define PAGE_READ  0x0001
 #define PAGE_WRITE 0x0002
-#define PAGE_EXEC 0x0004
-#define PAGE_BITS (PAGE_READ | PAGE_WRITE | PAGE_EXEC)
+#define PAGE_EXEC  0x0004
+#define PAGE_BITS  (PAGE_READ | PAGE_WRITE | PAGE_EXEC)
 #define PAGE_VALID 0x0008
 /* original state of the write flag (used when tracking self-modifying
    code */
@@ -310,13 +310,13 @@ static inline void cpu_interrupt(CPUArchState *s, int mask) {
 void cpu_reset_interrupt(CPUArchState *env, int mask);
 
 /* Breakpoint/watchpoint flags */
-#define BP_MEM_READ 0x01
-#define BP_MEM_WRITE 0x02
-#define BP_MEM_ACCESS (BP_MEM_READ | BP_MEM_WRITE)
+#define BP_MEM_READ           0x01
+#define BP_MEM_WRITE          0x02
+#define BP_MEM_ACCESS         (BP_MEM_READ | BP_MEM_WRITE)
 #define BP_STOP_BEFORE_ACCESS 0x04
-#define BP_WATCHPOINT_HIT 0x08
-#define BP_GDB 0x10
-#define BP_CPU 0x20
+#define BP_WATCHPOINT_HIT     0x08
+#define BP_GDB                0x10
+#define BP_CPU                0x20
 
 int cpu_breakpoint_insert(CPUArchState *env, target_ulong pc, int flags, CPUBreakpoint **breakpoint);
 int cpu_breakpoint_remove(CPUArchState *env, target_ulong pc, int flags);
@@ -328,8 +328,8 @@ int cpu_watchpoint_remove(CPUArchState *env, target_ulong addr, target_ulong len
 void cpu_watchpoint_remove_by_ref(CPUArchState *env, CPUWatchpoint *watchpoint);
 void cpu_watchpoint_remove_all(CPUArchState *env, int mask);
 
-#define SSTEP_ENABLE 0x1  /* Enable simulated HW single stepping */
-#define SSTEP_NOIRQ 0x2   /* Do not use IRQ while single stepping */
+#define SSTEP_ENABLE  0x1 /* Enable simulated HW single stepping */
+#define SSTEP_NOIRQ   0x2 /* Do not use IRQ while single stepping */
 #define SSTEP_NOTIMER 0x4 /* Do not Timers while single stepping */
 
 void cpu_single_step(CPUArchState *env, int enabled);
@@ -337,17 +337,17 @@ void cpu_state_reset(CPUArchState *s);
 void run_on_cpu(CPUArchState *env, void (*func)(void *data), void *data);
 
 #define CPU_LOG_TB_OUT_ASM (1 << 0)
-#define CPU_LOG_TB_IN_ASM (1 << 1)
-#define CPU_LOG_TB_OP (1 << 2)
-#define CPU_LOG_TB_OP_OPT (1 << 3)
-#define CPU_LOG_INT (1 << 4)
-#define CPU_LOG_EXEC (1 << 5)
-#define CPU_LOG_PCALL (1 << 6)
-#define CPU_LOG_IOPORT (1 << 7)
-#define CPU_LOG_TB_CPU (1 << 8)
-#define CPU_LOG_RESET (1 << 9)
-#define CPU_LOG_LLVM_IR (1 << 10)
-#define CPU_LOG_LLVM_ASM (1 << 11)
+#define CPU_LOG_TB_IN_ASM  (1 << 1)
+#define CPU_LOG_TB_OP      (1 << 2)
+#define CPU_LOG_TB_OP_OPT  (1 << 3)
+#define CPU_LOG_INT        (1 << 4)
+#define CPU_LOG_EXEC       (1 << 5)
+#define CPU_LOG_PCALL      (1 << 6)
+#define CPU_LOG_IOPORT     (1 << 7)
+#define CPU_LOG_TB_CPU     (1 << 8)
+#define CPU_LOG_RESET      (1 << 9)
+#define CPU_LOG_LLVM_IR    (1 << 10)
+#define CPU_LOG_LLVM_ASM   (1 << 11)
 
 /* Get a list of mapped pages. */
 void list_mapped_pages(CPUX86State *env, unsigned rw_only, unsigned user_only, target_ulong **pages_addr,

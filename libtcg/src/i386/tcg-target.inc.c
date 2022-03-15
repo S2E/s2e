@@ -150,7 +150,7 @@ static bool have_bmi2;
 static bool have_lzcnt;
 #else
 #define have_movbe 0
-#define have_bmi2 0
+#define have_bmi2  0
 #define have_lzcnt 0
 #endif
 
@@ -183,10 +183,10 @@ static bool patch_reloc(tcg_insn_unit *code_ptr, int type, intptr_t value, intpt
 
 #if TCG_TARGET_REG_BITS == 64
 #define ALL_GENERAL_REGS 0x0000ffffu
-#define ALL_VECTOR_REGS 0xffff0000u
+#define ALL_VECTOR_REGS  0xffff0000u
 #else
 #define ALL_GENERAL_REGS 0x000000ffu
-#define ALL_VECTOR_REGS 0x00ff0000u
+#define ALL_VECTOR_REGS  0x00ff0000u
 #endif
 
 /* parse target specific constraints */
@@ -288,175 +288,175 @@ static inline int tcg_target_const_match(tcg_target_long val, TCGType type, cons
 
 #define LOWREGMASK(x) ((x) &7)
 
-#define P_EXT 0x100    /* 0x0f opcode prefix */
-#define P_EXT38 0x200  /* 0x0f 0x38 opcode prefix */
+#define P_EXT    0x100 /* 0x0f opcode prefix */
+#define P_EXT38  0x200 /* 0x0f 0x38 opcode prefix */
 #define P_DATA16 0x400 /* 0x66 opcode prefix */
 #if TCG_TARGET_REG_BITS == 64
-#define P_REXW 0x1000    /* Set REX.W = 1 */
-#define P_REXB_R 0x2000  /* REG field as byte register */
+#define P_REXW    0x1000 /* Set REX.W = 1 */
+#define P_REXB_R  0x2000 /* REG field as byte register */
 #define P_REXB_RM 0x4000 /* R/M field as byte register */
-#define P_GS 0x8000      /* gs segment override */
+#define P_GS      0x8000 /* gs segment override */
 #else
-#define P_REXW 0
-#define P_REXB_R 0
+#define P_REXW    0
+#define P_REXB_R  0
 #define P_REXB_RM 0
-#define P_GS 0
+#define P_GS      0
 #endif
-#define P_EXT3A 0x10000  /* 0x0f 0x3a opcode prefix */
+#define P_EXT3A  0x10000 /* 0x0f 0x3a opcode prefix */
 #define P_SIMDF3 0x20000 /* 0xf3 opcode prefix */
 #define P_SIMDF2 0x40000 /* 0xf2 opcode prefix */
-#define P_VEXL 0x80000   /* Set VEX.L = 1 */
+#define P_VEXL   0x80000 /* Set VEX.L = 1 */
 
-#define OPC_ARITH_EvIz (0x81)
-#define OPC_ARITH_EvIb (0x83)
-#define OPC_ARITH_GvEv (0x03) /* ... plus (ARITH_FOO << 3) */
-#define OPC_ANDN (0xf2 | P_EXT38)
-#define OPC_ADD_GvEv (OPC_ARITH_GvEv | (ARITH_ADD << 3))
-#define OPC_AND_GvEv (OPC_ARITH_GvEv | (ARITH_AND << 3))
-#define OPC_BLENDPS (0x0c | P_EXT3A | P_DATA16)
-#define OPC_BSF (0xbc | P_EXT)
-#define OPC_BSR (0xbd | P_EXT)
-#define OPC_BSWAP (0xc8 | P_EXT)
-#define OPC_CALL_Jz (0xe8)
-#define OPC_CMOVCC (0x40 | P_EXT) /* ... plus condition code */
-#define OPC_CMP_GvEv (OPC_ARITH_GvEv | (ARITH_CMP << 3))
-#define OPC_DEC_r32 (0x48)
-#define OPC_IMUL_GvEv (0xaf | P_EXT)
-#define OPC_IMUL_GvEvIb (0x6b)
-#define OPC_IMUL_GvEvIz (0x69)
-#define OPC_INC_r32 (0x40)
-#define OPC_JCC_long (0x80 | P_EXT) /* ... plus condition code */
-#define OPC_JCC_short (0x70)        /* ... plus condition code */
-#define OPC_JMP_long (0xe9)
-#define OPC_JMP_short (0xeb)
-#define OPC_LEA (0x8d)
-#define OPC_LZCNT (0xbd | P_EXT | P_SIMDF3)
-#define OPC_MOVB_EvGv (0x88) /* stores, more or less */
-#define OPC_MOVL_EvGv (0x89) /* stores, more or less */
-#define OPC_MOVL_GvEv (0x8b) /* loads, more or less */
-#define OPC_MOVB_EvIz (0xc6)
-#define OPC_MOVL_EvIz (0xc7)
-#define OPC_MOVL_Iv (0xb8)
-#define OPC_MOVBE_GyMy (0xf0 | P_EXT38)
-#define OPC_MOVBE_MyGy (0xf1 | P_EXT38)
-#define OPC_MOVD_VyEy (0x6e | P_EXT | P_DATA16)
-#define OPC_MOVD_EyVy (0x7e | P_EXT | P_DATA16)
-#define OPC_MOVDDUP (0x12 | P_EXT | P_SIMDF2)
-#define OPC_MOVDQA_VxWx (0x6f | P_EXT | P_DATA16)
-#define OPC_MOVDQA_WxVx (0x7f | P_EXT | P_DATA16)
-#define OPC_MOVDQU_VxWx (0x6f | P_EXT | P_SIMDF3)
-#define OPC_MOVDQU_WxVx (0x7f | P_EXT | P_SIMDF3)
-#define OPC_MOVQ_VqWq (0x7e | P_EXT | P_SIMDF3)
-#define OPC_MOVQ_WqVq (0xd6 | P_EXT | P_DATA16)
-#define OPC_MOVSBL (0xbe | P_EXT)
-#define OPC_MOVSWL (0xbf | P_EXT)
-#define OPC_MOVSLQ (0x63 | P_REXW)
-#define OPC_MOVZBL (0xb6 | P_EXT)
-#define OPC_MOVZWL (0xb7 | P_EXT)
-#define OPC_PACKSSDW (0x6b | P_EXT | P_DATA16)
-#define OPC_PACKSSWB (0x63 | P_EXT | P_DATA16)
-#define OPC_PACKUSDW (0x2b | P_EXT38 | P_DATA16)
-#define OPC_PACKUSWB (0x67 | P_EXT | P_DATA16)
-#define OPC_PADDB (0xfc | P_EXT | P_DATA16)
-#define OPC_PADDW (0xfd | P_EXT | P_DATA16)
-#define OPC_PADDD (0xfe | P_EXT | P_DATA16)
-#define OPC_PADDQ (0xd4 | P_EXT | P_DATA16)
-#define OPC_PADDSB (0xec | P_EXT | P_DATA16)
-#define OPC_PADDSW (0xed | P_EXT | P_DATA16)
-#define OPC_PADDUB (0xdc | P_EXT | P_DATA16)
-#define OPC_PADDUW (0xdd | P_EXT | P_DATA16)
-#define OPC_PAND (0xdb | P_EXT | P_DATA16)
-#define OPC_PANDN (0xdf | P_EXT | P_DATA16)
-#define OPC_PBLENDW (0x0e | P_EXT3A | P_DATA16)
-#define OPC_PCMPEQB (0x74 | P_EXT | P_DATA16)
-#define OPC_PCMPEQW (0x75 | P_EXT | P_DATA16)
-#define OPC_PCMPEQD (0x76 | P_EXT | P_DATA16)
-#define OPC_PCMPEQQ (0x29 | P_EXT38 | P_DATA16)
-#define OPC_PCMPGTB (0x64 | P_EXT | P_DATA16)
-#define OPC_PCMPGTW (0x65 | P_EXT | P_DATA16)
-#define OPC_PCMPGTD (0x66 | P_EXT | P_DATA16)
-#define OPC_PCMPGTQ (0x37 | P_EXT38 | P_DATA16)
-#define OPC_PMAXSB (0x3c | P_EXT38 | P_DATA16)
-#define OPC_PMAXSW (0xee | P_EXT | P_DATA16)
-#define OPC_PMAXSD (0x3d | P_EXT38 | P_DATA16)
-#define OPC_PMAXUB (0xde | P_EXT | P_DATA16)
-#define OPC_PMAXUW (0x3e | P_EXT38 | P_DATA16)
-#define OPC_PMAXUD (0x3f | P_EXT38 | P_DATA16)
-#define OPC_PMINSB (0x38 | P_EXT38 | P_DATA16)
-#define OPC_PMINSW (0xea | P_EXT | P_DATA16)
-#define OPC_PMINSD (0x39 | P_EXT38 | P_DATA16)
-#define OPC_PMINUB (0xda | P_EXT | P_DATA16)
-#define OPC_PMINUW (0x3a | P_EXT38 | P_DATA16)
-#define OPC_PMINUD (0x3b | P_EXT38 | P_DATA16)
-#define OPC_PMOVSXBW (0x20 | P_EXT38 | P_DATA16)
-#define OPC_PMOVSXWD (0x23 | P_EXT38 | P_DATA16)
-#define OPC_PMOVSXDQ (0x25 | P_EXT38 | P_DATA16)
-#define OPC_PMOVZXBW (0x30 | P_EXT38 | P_DATA16)
-#define OPC_PMOVZXWD (0x33 | P_EXT38 | P_DATA16)
-#define OPC_PMOVZXDQ (0x35 | P_EXT38 | P_DATA16)
-#define OPC_PMULLW (0xd5 | P_EXT | P_DATA16)
-#define OPC_PMULLD (0x40 | P_EXT38 | P_DATA16)
-#define OPC_POR (0xeb | P_EXT | P_DATA16)
-#define OPC_PSHUFB (0x00 | P_EXT38 | P_DATA16)
-#define OPC_PSHUFD (0x70 | P_EXT | P_DATA16)
-#define OPC_PSHUFLW (0x70 | P_EXT | P_SIMDF2)
-#define OPC_PSHUFHW (0x70 | P_EXT | P_SIMDF3)
-#define OPC_PSHIFTW_Ib (0x71 | P_EXT | P_DATA16) /* /2 /6 /4 */
-#define OPC_PSHIFTD_Ib (0x72 | P_EXT | P_DATA16) /* /2 /6 /4 */
-#define OPC_PSHIFTQ_Ib (0x73 | P_EXT | P_DATA16) /* /2 /6 /4 */
-#define OPC_PSUBB (0xf8 | P_EXT | P_DATA16)
-#define OPC_PSUBW (0xf9 | P_EXT | P_DATA16)
-#define OPC_PSUBD (0xfa | P_EXT | P_DATA16)
-#define OPC_PSUBQ (0xfb | P_EXT | P_DATA16)
-#define OPC_PSUBSB (0xe8 | P_EXT | P_DATA16)
-#define OPC_PSUBSW (0xe9 | P_EXT | P_DATA16)
-#define OPC_PSUBUB (0xd8 | P_EXT | P_DATA16)
-#define OPC_PSUBUW (0xd9 | P_EXT | P_DATA16)
-#define OPC_PUNPCKLBW (0x60 | P_EXT | P_DATA16)
-#define OPC_PUNPCKLWD (0x61 | P_EXT | P_DATA16)
-#define OPC_PUNPCKLDQ (0x62 | P_EXT | P_DATA16)
-#define OPC_PUNPCKLQDQ (0x6c | P_EXT | P_DATA16)
-#define OPC_PUNPCKHBW (0x68 | P_EXT | P_DATA16)
-#define OPC_PUNPCKHWD (0x69 | P_EXT | P_DATA16)
-#define OPC_PUNPCKHDQ (0x6a | P_EXT | P_DATA16)
-#define OPC_PUNPCKHQDQ (0x6d | P_EXT | P_DATA16)
-#define OPC_PXOR (0xef | P_EXT | P_DATA16)
-#define OPC_POP_r32 (0x58)
-#define OPC_POPCNT (0xb8 | P_EXT | P_SIMDF3)
-#define OPC_PUSH_r32 (0x50)
-#define OPC_PUSH_Iv (0x68)
-#define OPC_PUSH_Ib (0x6a)
-#define OPC_RET (0xc3)
-#define OPC_SETCC (0x90 | P_EXT | P_REXB_RM) /* ... plus cc */
-#define OPC_SHIFT_1 (0xd1)
-#define OPC_SHIFT_Ib (0xc1)
-#define OPC_SHIFT_cl (0xd3)
-#define OPC_SARX (0xf7 | P_EXT38 | P_SIMDF3)
-#define OPC_SHUFPS (0xc6 | P_EXT)
-#define OPC_SHLX (0xf7 | P_EXT38 | P_DATA16)
-#define OPC_SHRX (0xf7 | P_EXT38 | P_SIMDF2)
-#define OPC_TESTL (0x85)
-#define OPC_TZCNT (0xbc | P_EXT | P_SIMDF3)
-#define OPC_UD2 (0x0b | P_EXT)
-#define OPC_VPBLENDD (0x02 | P_EXT3A | P_DATA16)
-#define OPC_VPBLENDVB (0x4c | P_EXT3A | P_DATA16)
+#define OPC_ARITH_EvIz   (0x81)
+#define OPC_ARITH_EvIb   (0x83)
+#define OPC_ARITH_GvEv   (0x03) /* ... plus (ARITH_FOO << 3) */
+#define OPC_ANDN         (0xf2 | P_EXT38)
+#define OPC_ADD_GvEv     (OPC_ARITH_GvEv | (ARITH_ADD << 3))
+#define OPC_AND_GvEv     (OPC_ARITH_GvEv | (ARITH_AND << 3))
+#define OPC_BLENDPS      (0x0c | P_EXT3A | P_DATA16)
+#define OPC_BSF          (0xbc | P_EXT)
+#define OPC_BSR          (0xbd | P_EXT)
+#define OPC_BSWAP        (0xc8 | P_EXT)
+#define OPC_CALL_Jz      (0xe8)
+#define OPC_CMOVCC       (0x40 | P_EXT) /* ... plus condition code */
+#define OPC_CMP_GvEv     (OPC_ARITH_GvEv | (ARITH_CMP << 3))
+#define OPC_DEC_r32      (0x48)
+#define OPC_IMUL_GvEv    (0xaf | P_EXT)
+#define OPC_IMUL_GvEvIb  (0x6b)
+#define OPC_IMUL_GvEvIz  (0x69)
+#define OPC_INC_r32      (0x40)
+#define OPC_JCC_long     (0x80 | P_EXT) /* ... plus condition code */
+#define OPC_JCC_short    (0x70)         /* ... plus condition code */
+#define OPC_JMP_long     (0xe9)
+#define OPC_JMP_short    (0xeb)
+#define OPC_LEA          (0x8d)
+#define OPC_LZCNT        (0xbd | P_EXT | P_SIMDF3)
+#define OPC_MOVB_EvGv    (0x88) /* stores, more or less */
+#define OPC_MOVL_EvGv    (0x89) /* stores, more or less */
+#define OPC_MOVL_GvEv    (0x8b) /* loads, more or less */
+#define OPC_MOVB_EvIz    (0xc6)
+#define OPC_MOVL_EvIz    (0xc7)
+#define OPC_MOVL_Iv      (0xb8)
+#define OPC_MOVBE_GyMy   (0xf0 | P_EXT38)
+#define OPC_MOVBE_MyGy   (0xf1 | P_EXT38)
+#define OPC_MOVD_VyEy    (0x6e | P_EXT | P_DATA16)
+#define OPC_MOVD_EyVy    (0x7e | P_EXT | P_DATA16)
+#define OPC_MOVDDUP      (0x12 | P_EXT | P_SIMDF2)
+#define OPC_MOVDQA_VxWx  (0x6f | P_EXT | P_DATA16)
+#define OPC_MOVDQA_WxVx  (0x7f | P_EXT | P_DATA16)
+#define OPC_MOVDQU_VxWx  (0x6f | P_EXT | P_SIMDF3)
+#define OPC_MOVDQU_WxVx  (0x7f | P_EXT | P_SIMDF3)
+#define OPC_MOVQ_VqWq    (0x7e | P_EXT | P_SIMDF3)
+#define OPC_MOVQ_WqVq    (0xd6 | P_EXT | P_DATA16)
+#define OPC_MOVSBL       (0xbe | P_EXT)
+#define OPC_MOVSWL       (0xbf | P_EXT)
+#define OPC_MOVSLQ       (0x63 | P_REXW)
+#define OPC_MOVZBL       (0xb6 | P_EXT)
+#define OPC_MOVZWL       (0xb7 | P_EXT)
+#define OPC_PACKSSDW     (0x6b | P_EXT | P_DATA16)
+#define OPC_PACKSSWB     (0x63 | P_EXT | P_DATA16)
+#define OPC_PACKUSDW     (0x2b | P_EXT38 | P_DATA16)
+#define OPC_PACKUSWB     (0x67 | P_EXT | P_DATA16)
+#define OPC_PADDB        (0xfc | P_EXT | P_DATA16)
+#define OPC_PADDW        (0xfd | P_EXT | P_DATA16)
+#define OPC_PADDD        (0xfe | P_EXT | P_DATA16)
+#define OPC_PADDQ        (0xd4 | P_EXT | P_DATA16)
+#define OPC_PADDSB       (0xec | P_EXT | P_DATA16)
+#define OPC_PADDSW       (0xed | P_EXT | P_DATA16)
+#define OPC_PADDUB       (0xdc | P_EXT | P_DATA16)
+#define OPC_PADDUW       (0xdd | P_EXT | P_DATA16)
+#define OPC_PAND         (0xdb | P_EXT | P_DATA16)
+#define OPC_PANDN        (0xdf | P_EXT | P_DATA16)
+#define OPC_PBLENDW      (0x0e | P_EXT3A | P_DATA16)
+#define OPC_PCMPEQB      (0x74 | P_EXT | P_DATA16)
+#define OPC_PCMPEQW      (0x75 | P_EXT | P_DATA16)
+#define OPC_PCMPEQD      (0x76 | P_EXT | P_DATA16)
+#define OPC_PCMPEQQ      (0x29 | P_EXT38 | P_DATA16)
+#define OPC_PCMPGTB      (0x64 | P_EXT | P_DATA16)
+#define OPC_PCMPGTW      (0x65 | P_EXT | P_DATA16)
+#define OPC_PCMPGTD      (0x66 | P_EXT | P_DATA16)
+#define OPC_PCMPGTQ      (0x37 | P_EXT38 | P_DATA16)
+#define OPC_PMAXSB       (0x3c | P_EXT38 | P_DATA16)
+#define OPC_PMAXSW       (0xee | P_EXT | P_DATA16)
+#define OPC_PMAXSD       (0x3d | P_EXT38 | P_DATA16)
+#define OPC_PMAXUB       (0xde | P_EXT | P_DATA16)
+#define OPC_PMAXUW       (0x3e | P_EXT38 | P_DATA16)
+#define OPC_PMAXUD       (0x3f | P_EXT38 | P_DATA16)
+#define OPC_PMINSB       (0x38 | P_EXT38 | P_DATA16)
+#define OPC_PMINSW       (0xea | P_EXT | P_DATA16)
+#define OPC_PMINSD       (0x39 | P_EXT38 | P_DATA16)
+#define OPC_PMINUB       (0xda | P_EXT | P_DATA16)
+#define OPC_PMINUW       (0x3a | P_EXT38 | P_DATA16)
+#define OPC_PMINUD       (0x3b | P_EXT38 | P_DATA16)
+#define OPC_PMOVSXBW     (0x20 | P_EXT38 | P_DATA16)
+#define OPC_PMOVSXWD     (0x23 | P_EXT38 | P_DATA16)
+#define OPC_PMOVSXDQ     (0x25 | P_EXT38 | P_DATA16)
+#define OPC_PMOVZXBW     (0x30 | P_EXT38 | P_DATA16)
+#define OPC_PMOVZXWD     (0x33 | P_EXT38 | P_DATA16)
+#define OPC_PMOVZXDQ     (0x35 | P_EXT38 | P_DATA16)
+#define OPC_PMULLW       (0xd5 | P_EXT | P_DATA16)
+#define OPC_PMULLD       (0x40 | P_EXT38 | P_DATA16)
+#define OPC_POR          (0xeb | P_EXT | P_DATA16)
+#define OPC_PSHUFB       (0x00 | P_EXT38 | P_DATA16)
+#define OPC_PSHUFD       (0x70 | P_EXT | P_DATA16)
+#define OPC_PSHUFLW      (0x70 | P_EXT | P_SIMDF2)
+#define OPC_PSHUFHW      (0x70 | P_EXT | P_SIMDF3)
+#define OPC_PSHIFTW_Ib   (0x71 | P_EXT | P_DATA16) /* /2 /6 /4 */
+#define OPC_PSHIFTD_Ib   (0x72 | P_EXT | P_DATA16) /* /2 /6 /4 */
+#define OPC_PSHIFTQ_Ib   (0x73 | P_EXT | P_DATA16) /* /2 /6 /4 */
+#define OPC_PSUBB        (0xf8 | P_EXT | P_DATA16)
+#define OPC_PSUBW        (0xf9 | P_EXT | P_DATA16)
+#define OPC_PSUBD        (0xfa | P_EXT | P_DATA16)
+#define OPC_PSUBQ        (0xfb | P_EXT | P_DATA16)
+#define OPC_PSUBSB       (0xe8 | P_EXT | P_DATA16)
+#define OPC_PSUBSW       (0xe9 | P_EXT | P_DATA16)
+#define OPC_PSUBUB       (0xd8 | P_EXT | P_DATA16)
+#define OPC_PSUBUW       (0xd9 | P_EXT | P_DATA16)
+#define OPC_PUNPCKLBW    (0x60 | P_EXT | P_DATA16)
+#define OPC_PUNPCKLWD    (0x61 | P_EXT | P_DATA16)
+#define OPC_PUNPCKLDQ    (0x62 | P_EXT | P_DATA16)
+#define OPC_PUNPCKLQDQ   (0x6c | P_EXT | P_DATA16)
+#define OPC_PUNPCKHBW    (0x68 | P_EXT | P_DATA16)
+#define OPC_PUNPCKHWD    (0x69 | P_EXT | P_DATA16)
+#define OPC_PUNPCKHDQ    (0x6a | P_EXT | P_DATA16)
+#define OPC_PUNPCKHQDQ   (0x6d | P_EXT | P_DATA16)
+#define OPC_PXOR         (0xef | P_EXT | P_DATA16)
+#define OPC_POP_r32      (0x58)
+#define OPC_POPCNT       (0xb8 | P_EXT | P_SIMDF3)
+#define OPC_PUSH_r32     (0x50)
+#define OPC_PUSH_Iv      (0x68)
+#define OPC_PUSH_Ib      (0x6a)
+#define OPC_RET          (0xc3)
+#define OPC_SETCC        (0x90 | P_EXT | P_REXB_RM) /* ... plus cc */
+#define OPC_SHIFT_1      (0xd1)
+#define OPC_SHIFT_Ib     (0xc1)
+#define OPC_SHIFT_cl     (0xd3)
+#define OPC_SARX         (0xf7 | P_EXT38 | P_SIMDF3)
+#define OPC_SHUFPS       (0xc6 | P_EXT)
+#define OPC_SHLX         (0xf7 | P_EXT38 | P_DATA16)
+#define OPC_SHRX         (0xf7 | P_EXT38 | P_SIMDF2)
+#define OPC_TESTL        (0x85)
+#define OPC_TZCNT        (0xbc | P_EXT | P_SIMDF3)
+#define OPC_UD2          (0x0b | P_EXT)
+#define OPC_VPBLENDD     (0x02 | P_EXT3A | P_DATA16)
+#define OPC_VPBLENDVB    (0x4c | P_EXT3A | P_DATA16)
 #define OPC_VPBROADCASTB (0x78 | P_EXT38 | P_DATA16)
 #define OPC_VPBROADCASTW (0x79 | P_EXT38 | P_DATA16)
 #define OPC_VPBROADCASTD (0x58 | P_EXT38 | P_DATA16)
 #define OPC_VPBROADCASTQ (0x59 | P_EXT38 | P_DATA16)
-#define OPC_VPERMQ (0x00 | P_EXT3A | P_DATA16 | P_REXW)
-#define OPC_VPERM2I128 (0x46 | P_EXT3A | P_DATA16 | P_VEXL)
-#define OPC_VZEROUPPER (0x77 | P_EXT)
-#define OPC_XCHG_ax_r32 (0x90)
+#define OPC_VPERMQ       (0x00 | P_EXT3A | P_DATA16 | P_REXW)
+#define OPC_VPERM2I128   (0x46 | P_EXT3A | P_DATA16 | P_VEXL)
+#define OPC_VZEROUPPER   (0x77 | P_EXT)
+#define OPC_XCHG_ax_r32  (0x90)
 
 #define OPC_GRP3_Ev (0xf7)
-#define OPC_GRP5 (0xff)
-#define OPC_GRP14 (0x73 | P_EXT | P_DATA16)
+#define OPC_GRP5    (0xff)
+#define OPC_GRP14   (0x73 | P_EXT | P_DATA16)
 
 /* Group 1 opcode extensions for 0x80-0x83.
    These are also used as modifiers for OPC_ARITH.  */
 #define ARITH_ADD 0
-#define ARITH_OR 1
+#define ARITH_OR  1
 #define ARITH_ADC 2
 #define ARITH_SBB 3
 #define ARITH_AND 4
@@ -472,37 +472,37 @@ static inline int tcg_target_const_match(tcg_target_long val, TCGType type, cons
 #define SHIFT_SAR 7
 
 /* Group 3 opcode extensions for 0xf6, 0xf7.  To be used with OPC_GRP3.  */
-#define EXT3_NOT 2
-#define EXT3_NEG 3
-#define EXT3_MUL 4
+#define EXT3_NOT  2
+#define EXT3_NEG  3
+#define EXT3_MUL  4
 #define EXT3_IMUL 5
-#define EXT3_DIV 6
+#define EXT3_DIV  6
 #define EXT3_IDIV 7
 
 /* Group 5 opcode extensions for 0xff.  To be used with OPC_GRP5.  */
-#define EXT5_INC_Ev 0
-#define EXT5_DEC_Ev 1
+#define EXT5_INC_Ev   0
+#define EXT5_DEC_Ev   1
 #define EXT5_CALLN_Ev 2
-#define EXT5_JMPN_Ev 4
+#define EXT5_JMPN_Ev  4
 
 /* Condition codes to be added to OPC_JCC_{long,short}.  */
 #define JCC_JMP (-1)
-#define JCC_JO 0x0
+#define JCC_JO  0x0
 #define JCC_JNO 0x1
-#define JCC_JB 0x2
+#define JCC_JB  0x2
 #define JCC_JAE 0x3
-#define JCC_JE 0x4
+#define JCC_JE  0x4
 #define JCC_JNE 0x5
 #define JCC_JBE 0x6
-#define JCC_JA 0x7
-#define JCC_JS 0x8
+#define JCC_JA  0x7
+#define JCC_JS  0x8
 #define JCC_JNS 0x9
-#define JCC_JP 0xa
+#define JCC_JP  0xa
 #define JCC_JNP 0xb
-#define JCC_JL 0xc
+#define JCC_JL  0xc
 #define JCC_JGE 0xd
 #define JCC_JLE 0xe
-#define JCC_JG 0xf
+#define JCC_JG  0xf
 
 static const uint8_t tcg_cond_to_jcc[] = {
     [TCG_COND_EQ] = JCC_JE,   [TCG_COND_NE] = JCC_JNE, [TCG_COND_LT] = JCC_JL,  [TCG_COND_GE] = JCC_JGE,
@@ -543,7 +543,7 @@ static void tcg_out_opc(TCGContext *s, int opc, int r, int rm, int x) {
     rex |= opc & (rm >= 4 ? P_REXB_RM : 0);
 
     if (rex) {
-        tcg_out8(s, (uint8_t)(rex | 0x40));
+        tcg_out8(s, (uint8_t) (rex | 0x40));
     }
 
     if (opc & (P_EXT | P_EXT38 | P_EXT3A)) {
@@ -1717,8 +1717,8 @@ static void tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *l) {
     tcg_out_jmp(s, s->qemu_st_helpers[opc & (MO_BSWAP | MO_SIZE)]);
 }
 #elif TCG_TARGET_REG_BITS == 32
-#define x86_guest_base_seg 0
-#define x86_guest_base_index -1
+#define x86_guest_base_seg    0
+#define x86_guest_base_index  -1
 #define x86_guest_base_offset guest_base
 #else
 static int x86_guest_base_seg;
@@ -2022,7 +2022,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args, 
                 tcg_out32(s, 0);
             } else {
                 /* indirect jump method */
-                tcg_out_modrm_offset(s, OPC_GRP5, EXT5_JMPN_Ev, -1, (intptr_t)(s->tb_jmp_target_addr + a0));
+                tcg_out_modrm_offset(s, OPC_GRP5, EXT5_JMPN_Ev, -1, (intptr_t) (s->tb_jmp_target_addr + a0));
             }
             set_jmp_reset_offset(s, a0);
             break;

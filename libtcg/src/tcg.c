@@ -984,7 +984,7 @@ TranslationBlock *tcg_tb_alloc(TCGContext *s) {
 
 retry:
     tb = (void *) ROUND_UP((uintptr_t) s->code_gen_ptr, align);
-    next = (void *) ROUND_UP((uintptr_t)(tb + 1), align);
+    next = (void *) ROUND_UP((uintptr_t) (tb + 1), align);
 
     if (unlikely(next > s->code_gen_highwater)) {
         if (tcg_region_alloc(s)) {
@@ -2296,9 +2296,9 @@ static void reachable_code_pass(TCGContext *s) {
 }
 
 #define TS_DEAD 1
-#define TS_MEM 2
+#define TS_MEM  2
 
-#define IS_DEAD_ARG(n) (arg_life & (DEAD_ARG << (n)))
+#define IS_DEAD_ARG(n)   (arg_life & (DEAD_ARG << (n)))
 #define NEED_SYNC_ARG(n) (arg_life & (SYNC_ARG << (n)))
 
 /* For liveness_pass_1, the register preferences for a given temp.  */
@@ -3889,7 +3889,7 @@ void tcg_expand_vec_op(TCGOpcode o, TCGType t, unsigned e, TCGArg a0, ...) {
 void tcg_calc_regmask(TCGContext *s, uint64_t *rmask, uint64_t *wmask, uint64_t *accesses_mem) {
     const TCGOp *op;
     const TCGOpDef *def;
-    int c, i, nb_oargs, nb_iargs, nb_cargs;
+    int c, i, nb_oargs, nb_iargs;
 
     *rmask = *wmask = *accesses_mem = 0;
 
@@ -3906,7 +3906,6 @@ void tcg_calc_regmask(TCGContext *s, uint64_t *rmask, uint64_t *wmask, uint64_t 
             /* variable number of arguments */
             nb_oargs = TCGOP_CALLO(op);
             nb_iargs = TCGOP_CALLI(op);
-            nb_cargs = def->nb_cargs;
 
             /* We don't track register masks for helpers anymore, assume access everything */
             *rmask |= -1;
@@ -3917,7 +3916,6 @@ void tcg_calc_regmask(TCGContext *s, uint64_t *rmask, uint64_t *wmask, uint64_t 
 
         nb_oargs = def->nb_oargs;
         nb_iargs = def->nb_iargs;
-        nb_cargs = def->nb_cargs;
 
         for (i = 0; i < nb_iargs; i++) {
             TCGArg arg = op->args[nb_oargs + i];

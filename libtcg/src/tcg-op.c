@@ -32,7 +32,7 @@
 #if TCG_TARGET_REG_BITS == 64
 extern TCGv_i32 TCGV_LOW_link_error(TCGv_i64);
 extern TCGv_i32 TCGV_HIGH_link_error(TCGv_i64);
-#define TCGV_LOW TCGV_LOW_link_error
+#define TCGV_LOW  TCGV_LOW_link_error
 #define TCGV_HIGH TCGV_HIGH_link_error
 #endif
 

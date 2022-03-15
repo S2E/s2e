@@ -45,21 +45,6 @@ public:
 };
 
 class Interpreter {
-public:
-    /// ModuleOptions - Module level options which can be set when
-    /// registering a module with the interpreter.
-    struct ModuleOptions {
-        std::vector<std::string> ExtraLibraries;
-        bool Optimize;
-        bool Snapshot;
-        llvm::legacy::FunctionPassManager *CustomPasses;
-
-        ModuleOptions(const std::vector<std::string> &_ExtraLibraries, bool _Optimize, bool _CheckDivZero,
-                      llvm::legacy::FunctionPassManager *_CustomPasses = NULL)
-            : ExtraLibraries(_ExtraLibraries), Optimize(_Optimize), Snapshot(false), CustomPasses(_CustomPasses) {
-        }
-    };
-
 protected:
     Interpreter() {
     }
@@ -72,8 +57,7 @@ public:
     ///
     /// \return The final module after it has been optimized, checks
     /// inserted, and modified for interpretation.
-    virtual const llvm::Module *setModule(llvm::Module *module, const ModuleOptions &opts,
-                                          bool createStatsTracker = true) = 0;
+    virtual const llvm::Module *setModule(llvm::Module *module, bool createStatsTracker = true) = 0;
 };
 
 } // namespace klee

@@ -32,10 +32,10 @@ class AddressSpace {
             uint8_t result = 0;
             int q = 33149;
             for (unsigned i = 0; i < 8; ++i) {
-                result ^= (uint8_t)((address & 0xFF) * q);
+                result ^= (uint8_t) ((address & 0xFF) * q);
                 address >>= 8;
             }
-            return address;
+            return result;
         }
 
     public:

@@ -106,7 +106,7 @@ void BaseLinuxMonitor::handleProcessLoad(S2EExecutionState *state, uint64_t pid,
 
     llvm::StringRef file(processPath);
 
-    onProcessLoad.emit(state, state->regs()->getPageDir(), pid, llvm::sys::path::filename(file));
+    onProcessLoad.emit(state, state->regs()->getPageDir(), pid, std::string(llvm::sys::path::filename(file)));
 }
 
 void BaseLinuxMonitor::handleModuleLoad(S2EExecutionState *state, uint64_t pid,
@@ -118,7 +118,7 @@ void BaseLinuxMonitor::handleModuleLoad(S2EExecutionState *state, uint64_t pid,
         return;
     }
 
-    auto moduleName = llvm::sys::path::filename(modulePath);
+    auto moduleName = std::string(llvm::sys::path::filename(modulePath));
 
     std::vector<SectionDescriptor> sections;
     if (!loadSections<S2E_LINUXMON_PHDR_DESC>(state, modLoad.phdr, modLoad.phdr_size, sections)) {

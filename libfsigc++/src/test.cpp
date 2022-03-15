@@ -115,7 +115,7 @@ int main(int argc, char **argv) {
         for (unsigned i = 0; i < 100000000; ++i) {
             p0.sig0.emit();
             p0.sig1.emit(i);
-            p0.sig2.emit(i, (char *) (uintptr_t)(i + 1));
+            p0.sig2.emit(i, (char *) (uintptr_t) (i + 1));
         }
     }
 

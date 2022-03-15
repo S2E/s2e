@@ -37,10 +37,10 @@ typedef void (*se_do_interrupt_all_t)(int intno, int is_int, int error_code, uin
 
 void se_do_interrupt_all(int intno, int is_int, int error_code, target_ulong next_eip, int is_hw);
 
-#define MEM_TRACE_FLAG_IO 1
-#define MEM_TRACE_FLAG_WRITE 2
+#define MEM_TRACE_FLAG_IO      1
+#define MEM_TRACE_FLAG_WRITE   2
 #define MEM_TRACE_FLAG_PRECISE 4
-#define MEM_TRACE_FLAG_PLUGIN 8
+#define MEM_TRACE_FLAG_PLUGIN  8
 
 enum special_instruction_t { RDTSC, SYSENTER, SYSCALL, PUSHIM };
 

@@ -90,9 +90,6 @@ void cpu_exec_init(CPUArchState *env) {
 
 /* mask must never be zero, except for A20 change call */
 static void tcg_handle_interrupt(CPUArchState *env, int mask) {
-    int old_mask;
-
-    old_mask = env->interrupt_request;
     env->interrupt_request |= mask;
 }
 
@@ -556,7 +553,7 @@ tb_page_addr_t get_page_addr_code(CPUArchState *env1, target_ulong addr) {
 #define MMUSUFFIX _cmmu
 #undef GETPC
 #define GETPC() NULL
-#define env cpu_single_env
+#define env     cpu_single_env
 #define SOFTMMU_CODE_ACCESS
 
 #define SHIFT 0

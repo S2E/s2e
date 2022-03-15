@@ -27,7 +27,7 @@
 #if TCG_TARGET_REG_BITS == 64
 extern TCGv_i32 TCGV_LOW_link_error(TCGv_i64);
 extern TCGv_i32 TCGV_HIGH_link_error(TCGv_i64);
-#define TCGV_LOW TCGV_LOW_link_error
+#define TCGV_LOW  TCGV_LOW_link_error
 #define TCGV_HIGH TCGV_HIGH_link_error
 #endif
 
@@ -118,7 +118,7 @@ TCGv_vec tcg_const_ones_vec_matching(TCGv_vec m) {
 void tcg_gen_dup64i_vec(TCGv_vec r, uint64_t a) {
     if (TCG_TARGET_REG_BITS == 32 && a == deposit64(a, 32, 32, a)) {
         do_dupi_vec(r, MO_32, a);
-    } else if (TCG_TARGET_REG_BITS == 64 || a == (uint64_t)(int32_t) a) {
+    } else if (TCG_TARGET_REG_BITS == 64 || a == (uint64_t) (int32_t) a) {
         do_dupi_vec(r, MO_64, a);
     } else {
         TCGv_i64 c = tcg_const_i64(a);

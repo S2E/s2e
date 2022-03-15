@@ -180,7 +180,7 @@ void StackClustering::print() {
     std::string filename = s2e()->getOutputFilename(ss.str());
 
     std::error_code error;
-    llvm::raw_fd_ostream ofs(filename.c_str(), error, llvm::sys::fs::F_None);
+    llvm::raw_fd_ostream ofs(filename.c_str(), error, llvm::sys::fs::OF_None);
     if (error) {
         getWarningsStream() << "Could not open " << filename << " - " << error.message() << "\n";
         return;

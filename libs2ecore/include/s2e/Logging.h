@@ -25,7 +25,7 @@
 
 #include <llvm/Support/raw_ostream.h>
 
-#define DEFAULT_CONSOLE_OUTPUT "info"
+#define DEFAULT_CONSOLE_OUTPUT   "info"
 #define DEFAULT_PLUGIN_LOG_LEVEL "info"
 
 namespace s2e {

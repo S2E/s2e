@@ -75,11 +75,11 @@ typedef uint64_t target_ulong __attribute__((aligned(TARGET_LONG_ALIGNMENT)));
 #if TARGET_PHYS_ADDR_BITS == 32
 typedef uint32_t target_phys_addr_t;
 #define TARGET_PHYS_ADDR_MAX UINT32_MAX
-#define TARGET_FMT_plx "%08x"
+#define TARGET_FMT_plx       "%08x"
 #elif TARGET_PHYS_ADDR_BITS == 64
 typedef uint64_t target_phys_addr_t;
 #define TARGET_PHYS_ADDR_MAX UINT64_MAX
-#define TARGET_FMT_plx "%016" PRIx64
+#define TARGET_FMT_plx       "%016" PRIx64
 #endif
 #endif
 

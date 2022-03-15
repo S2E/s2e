@@ -71,7 +71,7 @@ ifeq ($(LLVM_BUILD),$(S2E_BUILD))
 LLVM_DIRS=llvm-release llvm-debug
 endif
 
-LLVM_VERSION=10.0.0
+LLVM_VERSION=13.0.1
 LLVM_SRC=llvm-$(LLVM_VERSION).src.tar.xz
 LLVM_SRC_DIR=llvm-$(LLVM_VERSION).src
 LLVM_SRC_URL=https://github.com/llvm/llvm-project/releases/download/llvmorg-$(LLVM_VERSION)/
@@ -119,11 +119,11 @@ LUA_DIR=lua-$(LUA_VERSION)
 # SOCI variables
 SOCI_SRC_DIR=soci-src
 SOCI_BUILD_DIR=soci
-SOCI_GIT_REV=334cc55
+SOCI_GIT_REV=438e354
 SOCI_GIT_URL=https://github.com/SOCI/soci.git
 
 # Google Test
-GTEST_VERSION=1.10.0
+GTEST_VERSION=1.11.0
 GTEST_SRC_DIR=$(S2E_BUILD)/gtest-src
 GTEST_BUILD_DIR=$(S2E_BUILD)/gtest-release
 GTEST_URL=https://github.com/google/googletest/archive/release-$(GTEST_VERSION).tar.gz

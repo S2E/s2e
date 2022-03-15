@@ -26,6 +26,7 @@
 #define VMI_PE_FILE_H
 
 #include <llvm/ADT/StringMap.h>
+#include <llvm/Support/Allocator.h>
 #include <map>
 #include <memory>
 #include <set>

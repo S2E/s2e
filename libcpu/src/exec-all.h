@@ -38,9 +38,9 @@ struct cpu_stats_t {
 extern struct cpu_stats_t g_cpu_stats;
 
 /* is_jmp field values */
-#define DISAS_NEXT 0    /* next instruction can be analyzed */
-#define DISAS_JUMP 1    /* only pc was modified dynamically */
-#define DISAS_UPDATE 2  /* cpu state was modified dynamically */
+#define DISAS_NEXT    0 /* next instruction can be analyzed */
+#define DISAS_JUMP    1 /* only pc was modified dynamically */
+#define DISAS_UPDATE  2 /* cpu state was modified dynamically */
 #define DISAS_TB_JUMP 3 /* only pc was modified statically */
 
 #ifdef STATIC_TRANSLATOR
@@ -133,7 +133,7 @@ extern int tb_invalidated_flag;
 #include <cpu/tlb.h>
 
 #define ACCESS_TYPE (NB_MMU_MODES + 1)
-#define MEMSUFFIX _code
+#define MEMSUFFIX   _code
 
 #define DATA_SIZE 1
 #include "softmmu_header.h"

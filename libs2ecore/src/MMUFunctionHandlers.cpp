@@ -42,10 +42,10 @@ namespace s2e {
 #define S2E_RAM_OBJECT_DIFF (TARGET_PAGE_BITS - SE_RAM_OBJECT_BITS)
 #ifdef SOFTMMU_CODE_ACCESS
 #define READ_ACCESS_TYPE 2
-#define ADDR_READ addr_code
+#define ADDR_READ        addr_code
 #else
 #define READ_ACCESS_TYPE 0
-#define ADDR_READ addr_read
+#define ADDR_READ        addr_read
 #endif
 
 // XXX: Fix this

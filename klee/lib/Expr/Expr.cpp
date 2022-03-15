@@ -16,6 +16,7 @@
 #include "klee/Internal/Support/IntEvaluation.h"
 
 #include <llvm/ADT/Hashing.h>
+#include <llvm/ADT/StringExtras.h>
 #include <llvm/Support/raw_os_ostream.h>
 #include "klee/util/ExprPPrinter.h"
 
@@ -405,8 +406,9 @@ void ConstantExpr::toMemory(void *address) {
     }
 }
 
-void ConstantExpr::toString(std::string &Res, int Base) const {
-    Res = value.toString(Base, false);
+void ConstantExpr::toString(std::string &Res, unsigned radix) const {
+
+    Res = llvm::toString(value, radix, false);
 }
 
 ref<ConstantExpr> ConstantExpr::Concat(const ref<ConstantExpr> &RHS) {

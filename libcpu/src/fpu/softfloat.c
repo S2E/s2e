@@ -179,7 +179,7 @@ static int64 roundAndPackInt64(flag zSign, uint64_t absZ0, uint64_t absZ1 STATUS
         ++absZ0;
         if (absZ0 == 0)
             goto overflow;
-        absZ0 &= ~(((uint64_t)(absZ1 << 1) == 0) & roundNearestEven);
+        absZ0 &= ~(((uint64_t) (absZ1 << 1) == 0) & roundNearestEven);
     }
     z = absZ0;
     if (zSign)
@@ -313,7 +313,7 @@ static float32 roundAndPackFloat32(flag zSign, int16 zExp, uint32_t zSig STATUS_
     }
     roundBits = zSig & 0x7F;
     if (0xFD <= (uint16_t) zExp) {
-        if ((0xFD < zExp) || ((zExp == 0xFD) && ((int32_t)(zSig + roundIncrement) < 0))) {
+        if ((0xFD < zExp) || ((zExp == 0xFD) && ((int32_t) (zSig + roundIncrement) < 0))) {
             float_raise(float_flag_overflow | float_flag_inexact STATUS_VAR);
             return packFloat32(zSign, 0xFF, -(roundIncrement == 0));
         }
@@ -475,7 +475,7 @@ static float64 roundAndPackFloat64(flag zSign, int16 zExp, uint64_t zSig STATUS_
     }
     roundBits = zSig & 0x3FF;
     if (0x7FD <= (uint16_t) zExp) {
-        if ((0x7FD < zExp) || ((zExp == 0x7FD) && ((int64_t)(zSig + roundIncrement) < 0))) {
+        if ((0x7FD < zExp) || ((zExp == 0x7FD) && ((int64_t) (zSig + roundIncrement) < 0))) {
             float_raise(float_flag_overflow | float_flag_inexact STATUS_VAR);
             return packFloat64(zSign, 0x7FF, -(roundIncrement == 0));
         }
@@ -635,7 +635,7 @@ static floatx80 roundAndPackFloatx80(int8 roundingPrecision, flag zSign, int32 z
         }
     }
     roundBits = zSig0 & roundMask;
-    if (0x7FFD <= (uint32_t)(zExp - 1)) {
+    if (0x7FFD <= (uint32_t) (zExp - 1)) {
         if ((0x7FFE < zExp) || ((zExp == 0x7FFE) && (zSig0 + roundIncrement < zSig0))) {
             goto overflow;
         }
@@ -692,7 +692,7 @@ precision80:
             }
         }
     }
-    if (0x7FFD <= (uint32_t)(zExp - 1)) {
+    if (0x7FFD <= (uint32_t) (zExp - 1)) {
         if ((0x7FFE < zExp) || ((zExp == 0x7FFE) && (zSig0 == LIT64(0xFFFFFFFFFFFFFFFF)) && increment)) {
             roundMask = 0;
         overflow:
@@ -723,7 +723,7 @@ precision80:
             }
             if (increment) {
                 ++zSig0;
-                zSig0 &= ~(((uint64_t)(zSig1 << 1) == 0) & roundNearestEven);
+                zSig0 &= ~(((uint64_t) (zSig1 << 1) == 0) & roundNearestEven);
                 if ((int64_t) zSig0 < 0)
                     zExp = 1;
             }
@@ -738,7 +738,7 @@ precision80:
             ++zExp;
             zSig0 = LIT64(0x8000000000000000);
         } else {
-            zSig0 &= ~(((uint64_t)(zSig1 << 1) == 0) & roundNearestEven);
+            zSig0 &= ~(((uint64_t) (zSig1 << 1) == 0) & roundNearestEven);
         }
     } else {
         if (zSig0 == 0)
@@ -1248,7 +1248,7 @@ int32 float32_to_int32_round_to_zero(float32 a STATUS_PARAM) {
     }
     aSig = (aSig | 0x00800000) << 8;
     z = aSig >> (-shiftCount);
-    if ((uint32_t)(aSig << (shiftCount & 31))) {
+    if ((uint32_t) (aSig << (shiftCount & 31))) {
         STATUS_W(float_exception_flags, (STATUS(float_exception_flags) | float_flag_inexact));
     }
     if (aSign)
@@ -1293,7 +1293,7 @@ int16 float32_to_int16_round_to_zero(float32 a STATUS_PARAM) {
     shiftCount -= 0x10;
     aSig = (aSig | 0x00800000) << 8;
     z = aSig >> (-shiftCount);
-    if ((uint32_t)(aSig << (shiftCount & 31))) {
+    if ((uint32_t) (aSig << (shiftCount & 31))) {
         STATUS_W(float_exception_flags, (STATUS(float_exception_flags) | float_flag_inexact));
     }
     if (aSign) {
@@ -1376,7 +1376,7 @@ int64 float32_to_int64_round_to_zero(float32 a STATUS_PARAM) {
     aSig64 = aSig | 0x00800000;
     aSig64 <<= 40;
     z = aSig64 >> (-shiftCount);
-    if ((uint64_t)(aSig64 << (shiftCount & 63))) {
+    if ((uint64_t) (aSig64 << (shiftCount & 63))) {
         STATUS_W(float_exception_flags, (STATUS(float_exception_flags) | float_flag_inexact));
     }
     if (aSign)
@@ -1497,7 +1497,7 @@ float32 float32_round_to_int(float32 a STATUS_PARAM) {
         return a;
     }
     if (aExp <= 0x7E) {
-        if ((uint32_t)(float32_val(a) << 1) == 0)
+        if ((uint32_t) (float32_val(a) << 1) == 0)
             return a;
         STATUS_W(float_exception_flags, (STATUS(float_exception_flags) | float_flag_inexact));
         aSign = extractFloat32Sign(a);
@@ -1785,7 +1785,7 @@ float32 float32_mul(float32 a, float32 b STATUS_PARAM) {
     bSig = (bSig | 0x00800000) << 8;
     shift64RightJamming(((uint64_t) aSig) * bSig, 32, &zSig64);
     zSig = zSig64;
-    if (0 <= (int32_t)(zSig << 1)) {
+    if (0 <= (int32_t) (zSig << 1)) {
         zSig <<= 1;
         --zExp;
     }
@@ -2081,7 +2081,7 @@ float32 float32_muladd(float32 a, float32 b, float32 c, int flags STATUS_PARAM) 
     aSig = (aSig | 0x00800000) << 7;
     bSig = (bSig | 0x00800000) << 8;
     pSig64 = (uint64_t) aSig * bSig;
-    if ((int64_t)(pSig64 << 1) >= 0) {
+    if ((int64_t) (pSig64 << 1) >= 0) {
         pSig64 <<= 1;
         pExp--;
     }
@@ -2368,7 +2368,7 @@ int float32_eq(float32 a, float32 b STATUS_PARAM) {
     }
     av = float32_val(a);
     bv = float32_val(b);
-    return (av == bv) || ((uint32_t)((av | bv) << 1) == 0);
+    return (av == bv) || ((uint32_t) ((av | bv) << 1) == 0);
 }
 
 /*----------------------------------------------------------------------------
@@ -2394,7 +2394,7 @@ int float32_le(float32 a, float32 b STATUS_PARAM) {
     av = float32_val(a);
     bv = float32_val(b);
     if (aSign != bSign)
-        return aSign || ((uint32_t)((av | bv) << 1) == 0);
+        return aSign || ((uint32_t) ((av | bv) << 1) == 0);
     return (av == bv) || (aSign ^ (av < bv));
 }
 
@@ -2421,7 +2421,7 @@ int float32_lt(float32 a, float32 b STATUS_PARAM) {
     av = float32_val(a);
     bv = float32_val(b);
     if (aSign != bSign)
-        return aSign && ((uint32_t)((av | bv) << 1) != 0);
+        return aSign && ((uint32_t) ((av | bv) << 1) != 0);
     return (av != bv) && (aSign ^ (av < bv));
 }
 
@@ -2462,7 +2462,7 @@ int float32_eq_quiet(float32 a, float32 b STATUS_PARAM) {
         }
         return 0;
     }
-    return (float32_val(a) == float32_val(b)) || ((uint32_t)((float32_val(a) | float32_val(b)) << 1) == 0);
+    return (float32_val(a) == float32_val(b)) || ((uint32_t) ((float32_val(a) | float32_val(b)) << 1) == 0);
 }
 
 /*----------------------------------------------------------------------------
@@ -2490,7 +2490,7 @@ int float32_le_quiet(float32 a, float32 b STATUS_PARAM) {
     av = float32_val(a);
     bv = float32_val(b);
     if (aSign != bSign)
-        return aSign || ((uint32_t)((av | bv) << 1) == 0);
+        return aSign || ((uint32_t) ((av | bv) << 1) == 0);
     return (av == bv) || (aSign ^ (av < bv));
 }
 
@@ -2519,7 +2519,7 @@ int float32_lt_quiet(float32 a, float32 b STATUS_PARAM) {
     av = float32_val(a);
     bv = float32_val(b);
     if (aSign != bSign)
-        return aSign && ((uint32_t)((av | bv) << 1) != 0);
+        return aSign && ((uint32_t) ((av | bv) << 1) != 0);
     return (av != bv) && (aSign ^ (av < bv));
 }
 
@@ -2748,7 +2748,7 @@ int64 float64_to_int64_round_to_zero(float64 a STATUS_PARAM) {
             return 0;
         }
         z = aSig >> (-shiftCount);
-        if ((uint64_t)(aSig << (shiftCount & 63))) {
+        if ((uint64_t) (aSig << (shiftCount & 63))) {
             STATUS_W(float_exception_flags, (STATUS(float_exception_flags) | float_flag_inexact));
         }
     }
@@ -3009,7 +3009,7 @@ float64 float64_round_to_int(float64 a STATUS_PARAM) {
         return a;
     }
     if (aExp < 0x3FF) {
-        if ((uint64_t)(float64_val(a) << 1) == 0)
+        if ((uint64_t) (float64_val(a) << 1) == 0)
             return a;
         STATUS_W(float_exception_flags, (STATUS(float_exception_flags) | float_flag_inexact));
         aSign = extractFloat64Sign(a);
@@ -3305,7 +3305,7 @@ float64 float64_mul(float64 a, float64 b STATUS_PARAM) {
     bSig = (bSig | LIT64(0x0010000000000000)) << 11;
     mul64To128(aSig, bSig, &zSig0, &zSig1);
     zSig0 |= (zSig1 != 0);
-    if (0 <= (int64_t)(zSig0 << 1)) {
+    if (0 <= (int64_t) (zSig0 << 1)) {
         zSig0 <<= 1;
         --zExp;
     }
@@ -3593,7 +3593,7 @@ float64 float64_muladd(float64 a, float64 b, float64 c, int flags STATUS_PARAM) 
     aSig = (aSig | LIT64(0x0010000000000000)) << 10;
     bSig = (bSig | LIT64(0x0010000000000000)) << 11;
     mul64To128(aSig, bSig, &pSig0, &pSig1);
-    if ((int64_t)(pSig0 << 1) >= 0) {
+    if ((int64_t) (pSig0 << 1) >= 0) {
         shortShift128Left(pSig0, pSig1, 1, &pSig0, &pSig1);
         pExp--;
     }
@@ -3811,7 +3811,7 @@ int float64_eq(float64 a, float64 b STATUS_PARAM) {
     }
     av = float64_val(a);
     bv = float64_val(b);
-    return (av == bv) || ((uint64_t)((av | bv) << 1) == 0);
+    return (av == bv) || ((uint64_t) ((av | bv) << 1) == 0);
 }
 
 /*----------------------------------------------------------------------------
@@ -3837,7 +3837,7 @@ int float64_le(float64 a, float64 b STATUS_PARAM) {
     av = float64_val(a);
     bv = float64_val(b);
     if (aSign != bSign)
-        return aSign || ((uint64_t)((av | bv) << 1) == 0);
+        return aSign || ((uint64_t) ((av | bv) << 1) == 0);
     return (av == bv) || (aSign ^ (av < bv));
 }
 
@@ -3864,7 +3864,7 @@ int float64_lt(float64 a, float64 b STATUS_PARAM) {
     av = float64_val(a);
     bv = float64_val(b);
     if (aSign != bSign)
-        return aSign && ((uint64_t)((av | bv) << 1) != 0);
+        return aSign && ((uint64_t) ((av | bv) << 1) != 0);
     return (av != bv) && (aSign ^ (av < bv));
 }
 
@@ -3908,7 +3908,7 @@ int float64_eq_quiet(float64 a, float64 b STATUS_PARAM) {
     }
     av = float64_val(a);
     bv = float64_val(b);
-    return (av == bv) || ((uint64_t)((av | bv) << 1) == 0);
+    return (av == bv) || ((uint64_t) ((av | bv) << 1) == 0);
 }
 
 /*----------------------------------------------------------------------------
@@ -3936,7 +3936,7 @@ int float64_le_quiet(float64 a, float64 b STATUS_PARAM) {
     av = float64_val(a);
     bv = float64_val(b);
     if (aSign != bSign)
-        return aSign || ((uint64_t)((av | bv) << 1) == 0);
+        return aSign || ((uint64_t) ((av | bv) << 1) == 0);
     return (av == bv) || (aSign ^ (av < bv));
 }
 
@@ -3965,7 +3965,7 @@ int float64_lt_quiet(float64 a, float64 b STATUS_PARAM) {
     av = float64_val(a);
     bv = float64_val(b);
     if (aSign != bSign)
-        return aSign && ((uint64_t)((av | bv) << 1) != 0);
+        return aSign && ((uint64_t) ((av | bv) << 1) != 0);
     return (av != bv) && (aSign ^ (av < bv));
 }
 
@@ -4008,7 +4008,7 @@ int32 floatx80_to_int32(floatx80 a STATUS_PARAM) {
     aSig = extractFloatx80Frac(a);
     aExp = extractFloatx80Exp(a);
     aSign = extractFloatx80Sign(a);
-    if ((aExp == 0x7FFF) && (uint64_t)(aSig << 1))
+    if ((aExp == 0x7FFF) && (uint64_t) (aSig << 1))
         aSign = 0;
     shiftCount = 0x4037 - aExp;
     if (shiftCount <= 0)
@@ -4037,7 +4037,7 @@ int32 floatx80_to_int32_round_to_zero(floatx80 a STATUS_PARAM) {
     aExp = extractFloatx80Exp(a);
     aSign = extractFloatx80Sign(a);
     if (0x401E < aExp) {
-        if ((aExp == 0x7FFF) && (uint64_t)(aSig << 1))
+        if ((aExp == 0x7FFF) && (uint64_t) (aSig << 1))
             aSign = 0;
         goto invalid;
     } else if (aExp < 0x3FFF) {
@@ -4131,7 +4131,7 @@ int64 floatx80_to_int64_round_to_zero(floatx80 a STATUS_PARAM) {
         return 0;
     }
     z = aSig >> (-shiftCount);
-    if ((uint64_t)(aSig << (shiftCount & 63))) {
+    if ((uint64_t) (aSig << (shiftCount & 63))) {
         STATUS_W(float_exception_flags, (STATUS(float_exception_flags) | float_flag_inexact));
     }
     if (aSign)
@@ -4155,7 +4155,7 @@ float32 floatx80_to_float32(floatx80 a STATUS_PARAM) {
     aExp = extractFloatx80Exp(a);
     aSign = extractFloatx80Sign(a);
     if (aExp == 0x7FFF) {
-        if ((uint64_t)(aSig << 1)) {
+        if ((uint64_t) (aSig << 1)) {
             return commonNaNToFloat32(floatx80ToCommonNaN(a STATUS_VAR) STATUS_VAR);
         }
         return packFloat32(aSign, 0xFF, 0);
@@ -4182,7 +4182,7 @@ float64 floatx80_to_float64(floatx80 a STATUS_PARAM) {
     aExp = extractFloatx80Exp(a);
     aSign = extractFloatx80Sign(a);
     if (aExp == 0x7FFF) {
-        if ((uint64_t)(aSig << 1)) {
+        if ((uint64_t) (aSig << 1)) {
             return commonNaNToFloat64(floatx80ToCommonNaN(a STATUS_VAR) STATUS_VAR);
         }
         return packFloat64(aSign, 0x7FF, 0);
@@ -4208,7 +4208,7 @@ float128 floatx80_to_float128(floatx80 a STATUS_PARAM) {
     aSig = extractFloatx80Frac(a);
     aExp = extractFloatx80Exp(a);
     aSign = extractFloatx80Sign(a);
-    if ((aExp == 0x7FFF) && (uint64_t)(aSig << 1)) {
+    if ((aExp == 0x7FFF) && (uint64_t) (aSig << 1)) {
         return commonNaNToFloat128(floatx80ToCommonNaN(a STATUS_VAR) STATUS_VAR);
     }
     shift128Right(aSig << 1, 0, 16, &zSig0, &zSig1);
@@ -4231,20 +4231,20 @@ floatx80 floatx80_round_to_int(floatx80 a STATUS_PARAM) {
 
     aExp = extractFloatx80Exp(a);
     if (0x403E <= aExp) {
-        if ((aExp == 0x7FFF) && (uint64_t)(extractFloatx80Frac(a) << 1)) {
+        if ((aExp == 0x7FFF) && (uint64_t) (extractFloatx80Frac(a) << 1)) {
             return propagateFloatx80NaN(a, a STATUS_VAR);
         }
         return a;
     }
     if (aExp < 0x3FFF) {
-        if ((aExp == 0) && ((uint64_t)(extractFloatx80Frac(a) << 1) == 0)) {
+        if ((aExp == 0) && ((uint64_t) (extractFloatx80Frac(a) << 1) == 0)) {
             return a;
         }
         STATUS_W(float_exception_flags, (STATUS(float_exception_flags) | float_flag_inexact));
         aSign = extractFloatx80Sign(a);
         switch (STATUS(float_rounding_mode)) {
             case float_round_nearest_even:
-                if ((aExp == 0x3FFE) && (uint64_t)(extractFloatx80Frac(a) << 1)) {
+                if ((aExp == 0x3FFE) && (uint64_t) (extractFloatx80Frac(a) << 1)) {
                     return packFloatx80(aSign, 0x3FFF, LIT64(0x8000000000000000));
                 }
                 break;
@@ -4299,7 +4299,7 @@ static floatx80 addFloatx80Sigs(floatx80 a, floatx80 b, flag zSign STATUS_PARAM)
     expDiff = aExp - bExp;
     if (0 < expDiff) {
         if (aExp == 0x7FFF) {
-            if ((uint64_t)(aSig << 1))
+            if ((uint64_t) (aSig << 1))
                 return propagateFloatx80NaN(a, b STATUS_VAR);
             return a;
         }
@@ -4309,7 +4309,7 @@ static floatx80 addFloatx80Sigs(floatx80 a, floatx80 b, flag zSign STATUS_PARAM)
         zExp = aExp;
     } else if (expDiff < 0) {
         if (bExp == 0x7FFF) {
-            if ((uint64_t)(bSig << 1))
+            if ((uint64_t) (bSig << 1))
                 return propagateFloatx80NaN(a, b STATUS_VAR);
             return packFloatx80(zSign, 0x7FFF, LIT64(0x8000000000000000));
         }
@@ -4319,7 +4319,7 @@ static floatx80 addFloatx80Sigs(floatx80 a, floatx80 b, flag zSign STATUS_PARAM)
         zExp = bExp;
     } else {
         if (aExp == 0x7FFF) {
-            if ((uint64_t)((aSig | bSig) << 1)) {
+            if ((uint64_t) ((aSig | bSig) << 1)) {
                 return propagateFloatx80NaN(a, b STATUS_VAR);
             }
             return a;
@@ -4368,7 +4368,7 @@ static floatx80 subFloatx80Sigs(floatx80 a, floatx80 b, flag zSign STATUS_PARAM)
     if (expDiff < 0)
         goto bExpBigger;
     if (aExp == 0x7FFF) {
-        if ((uint64_t)((aSig | bSig) << 1)) {
+        if ((uint64_t) ((aSig | bSig) << 1)) {
             return propagateFloatx80NaN(a, b STATUS_VAR);
         }
         float_raise(float_flag_invalid STATUS_VAR);
@@ -4388,7 +4388,7 @@ static floatx80 subFloatx80Sigs(floatx80 a, floatx80 b, flag zSign STATUS_PARAM)
     return packFloatx80(STATUS(float_rounding_mode) == float_round_down, 0, 0);
 bExpBigger:
     if (bExp == 0x7FFF) {
-        if ((uint64_t)(bSig << 1))
+        if ((uint64_t) (bSig << 1))
             return propagateFloatx80NaN(a, b STATUS_VAR);
         return packFloatx80(zSign ^ 1, 0x7FFF, LIT64(0x8000000000000000));
     }
@@ -4402,7 +4402,7 @@ bBigger:
     goto normalizeRoundAndPack;
 aExpBigger:
     if (aExp == 0x7FFF) {
-        if ((uint64_t)(aSig << 1))
+        if ((uint64_t) (aSig << 1))
             return propagateFloatx80NaN(a, b STATUS_VAR);
         return a;
     }
@@ -4472,7 +4472,7 @@ floatx80 floatx80_mul(floatx80 a, floatx80 b STATUS_PARAM) {
     bSign = extractFloatx80Sign(b);
     zSign = aSign ^ bSign;
     if (aExp == 0x7FFF) {
-        if ((uint64_t)(aSig << 1) || ((bExp == 0x7FFF) && (uint64_t)(bSig << 1))) {
+        if ((uint64_t) (aSig << 1) || ((bExp == 0x7FFF) && (uint64_t) (bSig << 1))) {
             return propagateFloatx80NaN(a, b STATUS_VAR);
         }
         if ((bExp | bSig) == 0)
@@ -4480,7 +4480,7 @@ floatx80 floatx80_mul(floatx80 a, floatx80 b STATUS_PARAM) {
         return packFloatx80(zSign, 0x7FFF, LIT64(0x8000000000000000));
     }
     if (bExp == 0x7FFF) {
-        if ((uint64_t)(bSig << 1))
+        if ((uint64_t) (bSig << 1))
             return propagateFloatx80NaN(a, b STATUS_VAR);
         if ((aExp | aSig) == 0) {
         invalid:
@@ -4531,17 +4531,17 @@ floatx80 floatx80_div(floatx80 a, floatx80 b STATUS_PARAM) {
     bSign = extractFloatx80Sign(b);
     zSign = aSign ^ bSign;
     if (aExp == 0x7FFF) {
-        if ((uint64_t)(aSig << 1))
+        if ((uint64_t) (aSig << 1))
             return propagateFloatx80NaN(a, b STATUS_VAR);
         if (bExp == 0x7FFF) {
-            if ((uint64_t)(bSig << 1))
+            if ((uint64_t) (bSig << 1))
                 return propagateFloatx80NaN(a, b STATUS_VAR);
             goto invalid;
         }
         return packFloatx80(zSign, 0x7FFF, LIT64(0x8000000000000000));
     }
     if (bExp == 0x7FFF) {
-        if ((uint64_t)(bSig << 1))
+        if ((uint64_t) (bSig << 1))
             return propagateFloatx80NaN(a, b STATUS_VAR);
         return packFloatx80(zSign, 0, 0);
     }
@@ -4578,7 +4578,7 @@ floatx80 floatx80_div(floatx80 a, floatx80 b STATUS_PARAM) {
         add128(rem0, rem1, 0, bSig, &rem0, &rem1);
     }
     zSig1 = estimateDiv128To64(rem1, 0, bSig);
-    if ((uint64_t)(zSig1 << 1) <= 8) {
+    if ((uint64_t) (zSig1 << 1) <= 8) {
         mul64To128(bSig, zSig1, &term1, &term2);
         sub128(rem1, 0, term1, term2, &rem1, &rem2);
         while ((int64_t) rem1 < 0) {
@@ -4609,13 +4609,13 @@ floatx80 floatx80_rem(floatx80 a, floatx80 b STATUS_PARAM) {
     bSig = extractFloatx80Frac(b);
     bExp = extractFloatx80Exp(b);
     if (aExp == 0x7FFF) {
-        if ((uint64_t)(aSig0 << 1) || ((bExp == 0x7FFF) && (uint64_t)(bSig << 1))) {
+        if ((uint64_t) (aSig0 << 1) || ((bExp == 0x7FFF) && (uint64_t) (bSig << 1))) {
             return propagateFloatx80NaN(a, b STATUS_VAR);
         }
         goto invalid;
     }
     if (bExp == 0x7FFF) {
-        if ((uint64_t)(bSig << 1))
+        if ((uint64_t) (bSig << 1))
             return propagateFloatx80NaN(a, b STATUS_VAR);
         return a;
     }
@@ -4630,7 +4630,7 @@ floatx80 floatx80_rem(floatx80 a, floatx80 b STATUS_PARAM) {
         normalizeFloatx80Subnormal(bSig, &bExp, &bSig);
     }
     if (aExp == 0) {
-        if ((uint64_t)(aSig0 << 1) == 0)
+        if ((uint64_t) (aSig0 << 1) == 0)
             return a;
         normalizeFloatx80Subnormal(aSig0, &aExp, &aSig0);
     }
@@ -4699,7 +4699,7 @@ floatx80 floatx80_sqrt(floatx80 a STATUS_PARAM) {
     aExp = extractFloatx80Exp(a);
     aSign = extractFloatx80Sign(a);
     if (aExp == 0x7FFF) {
-        if ((uint64_t)(aSig0 << 1))
+        if ((uint64_t) (aSig0 << 1))
             return propagateFloatx80NaN(a, a STATUS_VAR);
         if (!aSign)
             return a;
@@ -4762,12 +4762,12 @@ floatx80 floatx80_sqrt(floatx80 a STATUS_PARAM) {
 
 int floatx80_eq(floatx80 a, floatx80 b STATUS_PARAM) {
 
-    if (((extractFloatx80Exp(a) == 0x7FFF) && (uint64_t)(extractFloatx80Frac(a) << 1)) ||
-        ((extractFloatx80Exp(b) == 0x7FFF) && (uint64_t)(extractFloatx80Frac(b) << 1))) {
+    if (((extractFloatx80Exp(a) == 0x7FFF) && (uint64_t) (extractFloatx80Frac(a) << 1)) ||
+        ((extractFloatx80Exp(b) == 0x7FFF) && (uint64_t) (extractFloatx80Frac(b) << 1))) {
         float_raise(float_flag_invalid STATUS_VAR);
         return 0;
     }
-    return (a.low == b.low) && ((a.high == b.high) || ((a.low == 0) && ((uint16_t)((a.high | b.high) << 1) == 0)));
+    return (a.low == b.low) && ((a.high == b.high) || ((a.low == 0) && ((uint16_t) ((a.high | b.high) << 1) == 0)));
 }
 
 /*----------------------------------------------------------------------------
@@ -4781,15 +4781,15 @@ int floatx80_eq(floatx80 a, floatx80 b STATUS_PARAM) {
 int floatx80_le(floatx80 a, floatx80 b STATUS_PARAM) {
     flag aSign, bSign;
 
-    if (((extractFloatx80Exp(a) == 0x7FFF) && (uint64_t)(extractFloatx80Frac(a) << 1)) ||
-        ((extractFloatx80Exp(b) == 0x7FFF) && (uint64_t)(extractFloatx80Frac(b) << 1))) {
+    if (((extractFloatx80Exp(a) == 0x7FFF) && (uint64_t) (extractFloatx80Frac(a) << 1)) ||
+        ((extractFloatx80Exp(b) == 0x7FFF) && (uint64_t) (extractFloatx80Frac(b) << 1))) {
         float_raise(float_flag_invalid STATUS_VAR);
         return 0;
     }
     aSign = extractFloatx80Sign(a);
     bSign = extractFloatx80Sign(b);
     if (aSign != bSign) {
-        return aSign || ((((uint16_t)((a.high | b.high) << 1)) | a.low | b.low) == 0);
+        return aSign || ((((uint16_t) ((a.high | b.high) << 1)) | a.low | b.low) == 0);
     }
     return aSign ? le128(b.high, b.low, a.high, a.low) : le128(a.high, a.low, b.high, b.low);
 }
@@ -4804,15 +4804,15 @@ int floatx80_le(floatx80 a, floatx80 b STATUS_PARAM) {
 int floatx80_lt(floatx80 a, floatx80 b STATUS_PARAM) {
     flag aSign, bSign;
 
-    if (((extractFloatx80Exp(a) == 0x7FFF) && (uint64_t)(extractFloatx80Frac(a) << 1)) ||
-        ((extractFloatx80Exp(b) == 0x7FFF) && (uint64_t)(extractFloatx80Frac(b) << 1))) {
+    if (((extractFloatx80Exp(a) == 0x7FFF) && (uint64_t) (extractFloatx80Frac(a) << 1)) ||
+        ((extractFloatx80Exp(b) == 0x7FFF) && (uint64_t) (extractFloatx80Frac(b) << 1))) {
         float_raise(float_flag_invalid STATUS_VAR);
         return 0;
     }
     aSign = extractFloatx80Sign(a);
     bSign = extractFloatx80Sign(b);
     if (aSign != bSign) {
-        return aSign && ((((uint16_t)((a.high | b.high) << 1)) | a.low | b.low) != 0);
+        return aSign && ((((uint16_t) ((a.high | b.high) << 1)) | a.low | b.low) != 0);
     }
     return aSign ? lt128(b.high, b.low, a.high, a.low) : lt128(a.high, a.low, b.high, b.low);
 }
@@ -4824,8 +4824,8 @@ int floatx80_lt(floatx80 a, floatx80 b STATUS_PARAM) {
 | IEC/IEEE Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 int floatx80_unordered(floatx80 a, floatx80 b STATUS_PARAM) {
-    if (((extractFloatx80Exp(a) == 0x7FFF) && (uint64_t)(extractFloatx80Frac(a) << 1)) ||
-        ((extractFloatx80Exp(b) == 0x7FFF) && (uint64_t)(extractFloatx80Frac(b) << 1))) {
+    if (((extractFloatx80Exp(a) == 0x7FFF) && (uint64_t) (extractFloatx80Frac(a) << 1)) ||
+        ((extractFloatx80Exp(b) == 0x7FFF) && (uint64_t) (extractFloatx80Frac(b) << 1))) {
         float_raise(float_flag_invalid STATUS_VAR);
         return 1;
     }
@@ -4841,14 +4841,14 @@ int floatx80_unordered(floatx80 a, floatx80 b STATUS_PARAM) {
 
 int floatx80_eq_quiet(floatx80 a, floatx80 b STATUS_PARAM) {
 
-    if (((extractFloatx80Exp(a) == 0x7FFF) && (uint64_t)(extractFloatx80Frac(a) << 1)) ||
-        ((extractFloatx80Exp(b) == 0x7FFF) && (uint64_t)(extractFloatx80Frac(b) << 1))) {
+    if (((extractFloatx80Exp(a) == 0x7FFF) && (uint64_t) (extractFloatx80Frac(a) << 1)) ||
+        ((extractFloatx80Exp(b) == 0x7FFF) && (uint64_t) (extractFloatx80Frac(b) << 1))) {
         if (floatx80_is_signaling_nan(a) || floatx80_is_signaling_nan(b)) {
             float_raise(float_flag_invalid STATUS_VAR);
         }
         return 0;
     }
-    return (a.low == b.low) && ((a.high == b.high) || ((a.low == 0) && ((uint16_t)((a.high | b.high) << 1) == 0)));
+    return (a.low == b.low) && ((a.high == b.high) || ((a.low == 0) && ((uint16_t) ((a.high | b.high) << 1) == 0)));
 }
 
 /*----------------------------------------------------------------------------
@@ -4861,8 +4861,8 @@ int floatx80_eq_quiet(floatx80 a, floatx80 b STATUS_PARAM) {
 int floatx80_le_quiet(floatx80 a, floatx80 b STATUS_PARAM) {
     flag aSign, bSign;
 
-    if (((extractFloatx80Exp(a) == 0x7FFF) && (uint64_t)(extractFloatx80Frac(a) << 1)) ||
-        ((extractFloatx80Exp(b) == 0x7FFF) && (uint64_t)(extractFloatx80Frac(b) << 1))) {
+    if (((extractFloatx80Exp(a) == 0x7FFF) && (uint64_t) (extractFloatx80Frac(a) << 1)) ||
+        ((extractFloatx80Exp(b) == 0x7FFF) && (uint64_t) (extractFloatx80Frac(b) << 1))) {
         if (floatx80_is_signaling_nan(a) || floatx80_is_signaling_nan(b)) {
             float_raise(float_flag_invalid STATUS_VAR);
         }
@@ -4871,7 +4871,7 @@ int floatx80_le_quiet(floatx80 a, floatx80 b STATUS_PARAM) {
     aSign = extractFloatx80Sign(a);
     bSign = extractFloatx80Sign(b);
     if (aSign != bSign) {
-        return aSign || ((((uint16_t)((a.high | b.high) << 1)) | a.low | b.low) == 0);
+        return aSign || ((((uint16_t) ((a.high | b.high) << 1)) | a.low | b.low) == 0);
     }
     return aSign ? le128(b.high, b.low, a.high, a.low) : le128(a.high, a.low, b.high, b.low);
 }
@@ -4886,8 +4886,8 @@ int floatx80_le_quiet(floatx80 a, floatx80 b STATUS_PARAM) {
 int floatx80_lt_quiet(floatx80 a, floatx80 b STATUS_PARAM) {
     flag aSign, bSign;
 
-    if (((extractFloatx80Exp(a) == 0x7FFF) && (uint64_t)(extractFloatx80Frac(a) << 1)) ||
-        ((extractFloatx80Exp(b) == 0x7FFF) && (uint64_t)(extractFloatx80Frac(b) << 1))) {
+    if (((extractFloatx80Exp(a) == 0x7FFF) && (uint64_t) (extractFloatx80Frac(a) << 1)) ||
+        ((extractFloatx80Exp(b) == 0x7FFF) && (uint64_t) (extractFloatx80Frac(b) << 1))) {
         if (floatx80_is_signaling_nan(a) || floatx80_is_signaling_nan(b)) {
             float_raise(float_flag_invalid STATUS_VAR);
         }
@@ -4896,7 +4896,7 @@ int floatx80_lt_quiet(floatx80 a, floatx80 b STATUS_PARAM) {
     aSign = extractFloatx80Sign(a);
     bSign = extractFloatx80Sign(b);
     if (aSign != bSign) {
-        return aSign && ((((uint16_t)((a.high | b.high) << 1)) | a.low | b.low) != 0);
+        return aSign && ((((uint16_t) ((a.high | b.high) << 1)) | a.low | b.low) != 0);
     }
     return aSign ? lt128(b.high, b.low, a.high, a.low) : lt128(a.high, a.low, b.high, b.low);
 }
@@ -4908,8 +4908,8 @@ int floatx80_lt_quiet(floatx80 a, floatx80 b STATUS_PARAM) {
 | Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 int floatx80_unordered_quiet(floatx80 a, floatx80 b STATUS_PARAM) {
-    if (((extractFloatx80Exp(a) == 0x7FFF) && (uint64_t)(extractFloatx80Frac(a) << 1)) ||
-        ((extractFloatx80Exp(b) == 0x7FFF) && (uint64_t)(extractFloatx80Frac(b) << 1))) {
+    if (((extractFloatx80Exp(a) == 0x7FFF) && (uint64_t) (extractFloatx80Frac(a) << 1)) ||
+        ((extractFloatx80Exp(b) == 0x7FFF) && (uint64_t) (extractFloatx80Frac(b) << 1))) {
         if (floatx80_is_signaling_nan(a) || floatx80_is_signaling_nan(b)) {
             float_raise(float_flag_invalid STATUS_VAR);
         }
@@ -5071,7 +5071,7 @@ int64 float128_to_int64_round_to_zero(float128 a STATUS_PARAM) {
             return (int64_t) LIT64(0x8000000000000000);
         }
         z = (aSig0 << shiftCount) | (aSig1 >> ((-shiftCount) & 63));
-        if ((uint64_t)(aSig1 << shiftCount)) {
+        if ((uint64_t) (aSig1 << shiftCount)) {
             STATUS_W(float_exception_flags, (STATUS(float_exception_flags) | float_flag_inexact));
         }
     } else {
@@ -5082,7 +5082,7 @@ int64 float128_to_int64_round_to_zero(float128 a STATUS_PARAM) {
             return 0;
         }
         z = aSig0 >> (-shiftCount);
-        if (aSig1 || (shiftCount && (uint64_t)(aSig0 << (shiftCount & 63)))) {
+        if (aSig1 || (shiftCount && (uint64_t) (aSig0 << (shiftCount & 63)))) {
             STATUS_W(float_exception_flags, (STATUS(float_exception_flags) | float_flag_inexact));
         }
     }
@@ -5223,7 +5223,7 @@ float128 float128_round_to_int(float128 a STATUS_PARAM) {
             } else {
                 if ((int64_t) z.low < 0) {
                     ++z.high;
-                    if ((uint64_t)(z.low << 1) == 0)
+                    if ((uint64_t) (z.low << 1) == 0)
                         z.high &= ~1;
                 }
             }
@@ -5235,7 +5235,7 @@ float128 float128_round_to_int(float128 a STATUS_PARAM) {
         z.low &= ~roundBitsMask;
     } else {
         if (aExp < 0x3FFF) {
-            if ((((uint64_t)(a.high << 1)) | a.low) == 0)
+            if ((((uint64_t) (a.high << 1)) | a.low) == 0)
                 return a;
             STATUS_W(float_exception_flags, (STATUS(float_exception_flags) | float_flag_inexact));
             aSign = extractFloat128Sign(a);
@@ -5814,7 +5814,7 @@ int float128_eq(float128 a, float128 b STATUS_PARAM) {
         float_raise(float_flag_invalid STATUS_VAR);
         return 0;
     }
-    return (a.low == b.low) && ((a.high == b.high) || ((a.low == 0) && ((uint64_t)((a.high | b.high) << 1) == 0)));
+    return (a.low == b.low) && ((a.high == b.high) || ((a.low == 0) && ((uint64_t) ((a.high | b.high) << 1) == 0)));
 }
 
 /*----------------------------------------------------------------------------
@@ -5835,7 +5835,7 @@ int float128_le(float128 a, float128 b STATUS_PARAM) {
     aSign = extractFloat128Sign(a);
     bSign = extractFloat128Sign(b);
     if (aSign != bSign) {
-        return aSign || ((((uint64_t)((a.high | b.high) << 1)) | a.low | b.low) == 0);
+        return aSign || ((((uint64_t) ((a.high | b.high) << 1)) | a.low | b.low) == 0);
     }
     return aSign ? le128(b.high, b.low, a.high, a.low) : le128(a.high, a.low, b.high, b.low);
 }
@@ -5858,7 +5858,7 @@ int float128_lt(float128 a, float128 b STATUS_PARAM) {
     aSign = extractFloat128Sign(a);
     bSign = extractFloat128Sign(b);
     if (aSign != bSign) {
-        return aSign && ((((uint64_t)((a.high | b.high) << 1)) | a.low | b.low) != 0);
+        return aSign && ((((uint64_t) ((a.high | b.high) << 1)) | a.low | b.low) != 0);
     }
     return aSign ? lt128(b.high, b.low, a.high, a.low) : lt128(a.high, a.low, b.high, b.low);
 }
@@ -5895,7 +5895,7 @@ int float128_eq_quiet(float128 a, float128 b STATUS_PARAM) {
         }
         return 0;
     }
-    return (a.low == b.low) && ((a.high == b.high) || ((a.low == 0) && ((uint64_t)((a.high | b.high) << 1) == 0)));
+    return (a.low == b.low) && ((a.high == b.high) || ((a.low == 0) && ((uint64_t) ((a.high | b.high) << 1) == 0)));
 }
 
 /*----------------------------------------------------------------------------
@@ -5918,7 +5918,7 @@ int float128_le_quiet(float128 a, float128 b STATUS_PARAM) {
     aSign = extractFloat128Sign(a);
     bSign = extractFloat128Sign(b);
     if (aSign != bSign) {
-        return aSign || ((((uint64_t)((a.high | b.high) << 1)) | a.low | b.low) == 0);
+        return aSign || ((((uint64_t) ((a.high | b.high) << 1)) | a.low | b.low) == 0);
     }
     return aSign ? le128(b.high, b.low, a.high, a.low) : le128(a.high, a.low, b.high, b.low);
 }
@@ -5943,7 +5943,7 @@ int float128_lt_quiet(float128 a, float128 b STATUS_PARAM) {
     aSign = extractFloat128Sign(a);
     bSign = extractFloat128Sign(b);
     if (aSign != bSign) {
-        return aSign && ((((uint64_t)((a.high | b.high) << 1)) | a.low | b.low) != 0);
+        return aSign && ((((uint64_t) ((a.high | b.high) << 1)) | a.low | b.low) != 0);
     }
     return aSign ? lt128(b.high, b.low, a.high, a.low) : lt128(a.high, a.low, b.high, b.low);
 }
@@ -6098,6 +6098,7 @@ uint64_t float64_to_uint64_round_to_zero(float64 a STATUS_PARAM) {
     return v - INT64_MIN;
 }
 
+// clang-format off
 #define COMPARE(s, nan_exp)                                                                      \
     SINLINE int float##s##_compare_internal(float##s a, float##s b, int is_quiet STATUS_PARAM) { \
         flag aSign, bSign;                                                                       \
@@ -6139,6 +6140,7 @@ uint64_t float64_to_uint64_round_to_zero(float64 a STATUS_PARAM) {
     int float##s##_compare_quiet(float##s a, float##s b STATUS_PARAM) {                          \
         return float##s##_compare_internal(a, b, 1 STATUS_VAR);                                  \
     }
+// clang-format on
 
 COMPARE(32, 0xff)
 COMPARE(64, 0x7ff)
@@ -6157,7 +6159,7 @@ SINLINE int floatx80_compare_internal(floatx80 a, floatx80 b, int is_quiet STATU
     bSign = extractFloatx80Sign(b);
     if (aSign != bSign) {
 
-        if ((((uint16_t)((a.high | b.high) << 1)) == 0) && ((a.low | b.low) == 0)) {
+        if ((((uint16_t) ((a.high | b.high) << 1)) == 0) && ((a.low | b.low) == 0)) {
             /* zero case */
             return float_relation_equal;
         } else {

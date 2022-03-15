@@ -82,10 +82,10 @@ void s2e_on_exception(unsigned intNb);
 int s2e_on_call_return_translate(uint64_t pc, int isCall);
 
 /** Called on memory accesses from generated code */
-#define MEM_TRACE_FLAG_IO 1
-#define MEM_TRACE_FLAG_WRITE 2
+#define MEM_TRACE_FLAG_IO      1
+#define MEM_TRACE_FLAG_WRITE   2
 #define MEM_TRACE_FLAG_PRECISE 4
-#define MEM_TRACE_FLAG_PLUGIN 8
+#define MEM_TRACE_FLAG_PLUGIN  8
 
 void s2e_after_memory_access(uint64_t vaddr, uint64_t value, unsigned size, unsigned flags, uintptr_t retaddr);
 

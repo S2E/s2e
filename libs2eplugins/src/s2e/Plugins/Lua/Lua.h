@@ -37,7 +37,7 @@ namespace plugins {
 
 // Copied from lua-gd
 // Emulates lua_(un)boxpointer from Lua 5.0 (don't exists on Lua 5.1)
-#define boxptr(L, p) (*(void **) (lua_newuserdata(L, sizeof(void *))) = (p))
+#define boxptr(L, p)   (*(void **) (lua_newuserdata(L, sizeof(void *))) = (p))
 #define unboxptr(L, i) (*(void **) (lua_touserdata(L, i)))
 
 template <typename T> class Lunar {

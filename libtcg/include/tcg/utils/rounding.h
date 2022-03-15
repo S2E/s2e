@@ -33,10 +33,10 @@
 #define ALIGN_UP(base, size) ALIGN_DOWN((base) + (size) -1, (base))
 
 // Same as ALIGN_DOWN(), but automatically casts when base is a pointer
-#define ALIGN_PTR_DOWN(base, size) ((typeof(base)) ALIGN_DOWN((uintptr_t)(base), (size)))
+#define ALIGN_PTR_DOWN(base, size) ((typeof(base)) ALIGN_DOWN((uintptr_t) (base), (size)))
 
 // Same as ALIGN_UP(), but automatically casts when base is a pointer
-#define ALIGN_PTR_UP(base, size) ((typeof(base)) ALIGN_UP((uintptr_t)(base), (size)))
+#define ALIGN_PTR_UP(base, size) ((typeof(base)) ALIGN_UP((uintptr_t) (base), (size)))
 
 // Round number up to multiple.
 // Requires that size be a power of 2.

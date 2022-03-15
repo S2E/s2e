@@ -437,7 +437,7 @@ void RevGen::generateIndirectJump(llvm::IRBuilder<> &builder, RevGen::LLVMBasicB
 
     /* Generate a program counter load */
     Value *gep = Translator::getPcPtr(builder);
-    Value *pc = builder.CreateLoad(gep);
+    Value *pc = builder.CreateLoad(gep->getType()->getPointerElementType(), gep);
 
     SwitchInst *sw = builder.CreateSwitch(pc, defaultCase, binBb->numSuccessors());
 
@@ -750,7 +750,7 @@ Function *RevGen::reconstructFunction(BinaryFunction *bf) {
 
 void RevGen::writeBitcodeFile(const std::string &bitcodeFile) {
     std::error_code EC;
-    llvm::raw_fd_ostream o(bitcodeFile, EC, llvm::sys::fs::F_None);
+    llvm::raw_fd_ostream o(bitcodeFile, EC, llvm::sys::fs::OF_None);
 
     llvm::Module *module = m_translator->getModule();
 

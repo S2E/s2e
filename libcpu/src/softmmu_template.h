@@ -24,20 +24,20 @@
 #define DATA_SIZE (1 << SHIFT)
 
 #if DATA_SIZE == 8
-#define SUFFIX q
-#define USUFFIX q
+#define SUFFIX    q
+#define USUFFIX   q
 #define DATA_TYPE uint64_t
 #elif DATA_SIZE == 4
-#define SUFFIX l
-#define USUFFIX l
+#define SUFFIX    l
+#define USUFFIX   l
 #define DATA_TYPE uint32_t
 #elif DATA_SIZE == 2
-#define SUFFIX w
-#define USUFFIX uw
+#define SUFFIX    w
+#define USUFFIX   uw
 #define DATA_TYPE uint16_t
 #elif DATA_SIZE == 1
-#define SUFFIX b
-#define USUFFIX ub
+#define SUFFIX    b
+#define USUFFIX   ub
 #define DATA_TYPE uint8_t
 #else
 #error unsupported data size
@@ -45,13 +45,13 @@
 
 #ifdef SOFTMMU_CODE_ACCESS
 #define READ_ACCESS_TYPE 2
-#define ADDR_READ addr_code
+#define ADDR_READ        addr_code
 #else
 #define READ_ACCESS_TYPE 0
-#define ADDR_READ addr_read
+#define ADDR_READ        addr_read
 #endif
 
-#define CPU_PREFIX cpu_
+#define CPU_PREFIX    cpu_
 #define HELPER_PREFIX helper_
 
 #define ADDR_MAX ((target_ulong) -1)
@@ -100,7 +100,7 @@
 
 #define INSTR_BEFORE_MEMORY_ACCESS(...)
 #define INSTR_AFTER_MEMORY_ACCESS(...)
-#define INSTR_FORK_AND_CONCRETIZE(val, max) (val)
+#define INSTR_FORK_AND_CONCRETIZE(val, max)      (val)
 #define INSTR_FORK_AND_CONCRETIZE_ADDR(val, max) (val)
 
 #define SE_RAM_OBJECT_BITS TARGET_PAGE_BITS
@@ -205,26 +205,26 @@ DATA_TYPE glue(glue(io_read_chk, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_p
 #if SHIFT <= 2
     if (se_ismemfunc(ops, 0)) {
         uintptr_t pa = se_notdirty_mem_read(naddr);
-        res.res = glue(glue(ld, USUFFIX), _raw)((uint8_t *) (intptr_t)(pa));
+        res.res = glue(glue(ld, USUFFIX), _raw)((uint8_t *) (intptr_t) (pa));
         goto end;
     }
 #else
 #ifdef TARGET_WORDS_BIGENDIAN
     if (se_ismemfunc(ops, 0)) {
         uintptr_t pa = se_notdirty_mem_read(naddr);
-        *(uint32_t *) &res.raw[sizeof(uint32_t)] = glue(glue(ld, USUFFIX), _raw)((uint8_t *) (intptr_t)(pa));
+        *(uint32_t *) &res.raw[sizeof(uint32_t)] = glue(glue(ld, USUFFIX), _raw)((uint8_t *) (intptr_t) (pa));
 
         pa = se_notdirty_mem_read(naddr + 4);
-        *(uint32_t *) &res.raw[0] = glue(glue(ld, USUFFIX), _raw)((uint8_t *) (intptr_t)(pa));
+        *(uint32_t *) &res.raw[0] = glue(glue(ld, USUFFIX), _raw)((uint8_t *) (intptr_t) (pa));
         goto end;
     }
 #else
     if (se_ismemfunc(ops, 0)) {
         uintptr_t pa = se_notdirty_mem_read(naddr);
-        *(uint32_t *) &res.raw[0] = glue(glue(ld, USUFFIX), _raw)((uint8_t *) (intptr_t)(pa));
+        *(uint32_t *) &res.raw[0] = glue(glue(ld, USUFFIX), _raw)((uint8_t *) (intptr_t) (pa));
 
         pa = se_notdirty_mem_read(naddr + 4);
-        *(uint32_t *) &res.raw[sizeof(uint32_t)] = glue(glue(ld, USUFFIX), _raw)((uint8_t *) (intptr_t)(pa));
+        *(uint32_t *) &res.raw[sizeof(uint32_t)] = glue(glue(ld, USUFFIX), _raw)((uint8_t *) (intptr_t) (pa));
         goto end;
     }
 #endif
@@ -299,9 +299,9 @@ redo:
 #endif
 
 #if defined(CONFIG_SYMBEX) && !defined(SYMBEX_LLVM_LIB) && defined(CONFIG_SYMBEX_MP)
-            res = glue(glue(ld, USUFFIX), _p)((uint8_t *) (intptr_t)(addr + tlb_entry->se_addend));
+            res = glue(glue(ld, USUFFIX), _p)((uint8_t *) (intptr_t) (addr + tlb_entry->se_addend));
 #else
-            res = glue(glue(ld, USUFFIX), _p)((uint8_t *) (intptr_t)(addr + tlb_entry->addend));
+            res = glue(glue(ld, USUFFIX), _p)((uint8_t *) (intptr_t) (addr + tlb_entry->addend));
 #endif
             INSTR_AFTER_MEMORY_ACCESS(addr, res, 0, retaddr);
         }
@@ -367,9 +367,9 @@ redo:
         } else {
 /* unaligned/aligned access in the same page */
 #if defined(CONFIG_SYMBEX) && !defined(SYMBEX_LLVM_LIB) && defined(CONFIG_SYMBEX_MP)
-            res = glue(glue(ld, USUFFIX), _p)((uint8_t *) (intptr_t)(addr + tlb_entry->se_addend));
+            res = glue(glue(ld, USUFFIX), _p)((uint8_t *) (intptr_t) (addr + tlb_entry->se_addend));
 #else
-            res = glue(glue(ld, USUFFIX), _p)((uint8_t *) (intptr_t)(addr + tlb_entry->addend));
+            res = glue(glue(ld, USUFFIX), _p)((uint8_t *) (intptr_t) (addr + tlb_entry->addend));
 #endif
             INSTR_AFTER_MEMORY_ACCESS(addr, res, 0, retaddr);
         }
@@ -465,7 +465,7 @@ void glue(glue(io_write_chk, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_phys_
 #if SHIFT <= 2
     if (se_ismemfunc(ops, 1)) {
         uintptr_t pa = se_notdirty_mem_write(physaddr, 1 << SHIFT);
-        glue(glue(st, SUFFIX), _raw)((uint8_t *) (intptr_t)(pa), val);
+        glue(glue(st, SUFFIX), _raw)((uint8_t *) (intptr_t) (pa), val);
         goto end;
     }
 #else
@@ -474,9 +474,9 @@ void glue(glue(io_write_chk, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_phys_
 #else
     if (se_ismemfunc(ops, 1)) {
         uintptr_t pa = se_notdirty_mem_write(physaddr, 1 << SHIFT);
-        stl_raw((uint8_t *) (intptr_t)(pa), val);
+        stl_raw((uint8_t *) (intptr_t) (pa), val);
         pa = se_notdirty_mem_write(physaddr + 4, 1 << SHIFT);
-        stl_raw((uint8_t *) (intptr_t)(pa), val >> 32);
+        stl_raw((uint8_t *) (intptr_t) (pa), val >> 32);
         goto end;
     }
 #endif

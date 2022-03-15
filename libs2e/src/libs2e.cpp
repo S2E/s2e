@@ -352,13 +352,13 @@ void libs2e_exit(void) {
 // ****************************
 
 // The type of __libc_start_main
-typedef int (*T_libc_start_main)(int *(main)(int, char **, char **), int argc, char **ubp_av, void (*init)(void),
+typedef int (*T_libc_start_main)(int *(main) (int, char **, char **), int argc, char **ubp_av, void (*init)(void),
                                  void (*fini)(void), void (*rtld_fini)(void), void(*stack_end));
 
-int __libc_start_main(int *(main)(int, char **, char **), int argc, char **ubp_av, void (*init)(void),
+int __libc_start_main(int *(main) (int, char **, char **), int argc, char **ubp_av, void (*init)(void),
                       void (*fini)(void), void (*rtld_fini)(void), void *stack_end) __attribute__((noreturn));
 
-int __libc_start_main(int *(main)(int, char **, char **), int argc, char **ubp_av, void (*init)(void),
+int __libc_start_main(int *(main) (int, char **, char **), int argc, char **ubp_av, void (*init)(void),
                       void (*fini)(void), void (*rtld_fini)(void), void *stack_end) {
 
     T_libc_start_main orig_libc_start_main = (T_libc_start_main) dlsym(RTLD_NEXT, "__libc_start_main");

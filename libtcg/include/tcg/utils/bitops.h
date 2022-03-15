@@ -23,8 +23,8 @@
 #define BIT(nr) (1UL << (nr))
 #endif
 
-#define BIT_MASK(nr) (1UL << ((nr) % BITS_PER_LONG))
-#define BIT_WORD(nr) ((nr) / BITS_PER_LONG)
+#define BIT_MASK(nr)      (1UL << ((nr) % BITS_PER_LONG))
+#define BIT_WORD(nr)      ((nr) / BITS_PER_LONG)
 #define BITS_TO_LONGS(nr) DIV_ROUND_UP(nr, BITS_PER_BYTE * sizeof(long))
 
 #define MAKE_64BIT_MASK(shift, length) (((~0ULL) >> (64 - (length))) << (shift))
@@ -278,7 +278,7 @@ static inline int32_t sextract32(uint32_t value, int start, int length) {
     /* Note that this implementation relies on right shift of signed
      * integers being an arithmetic shift.
      */
-    return ((int32_t)(value << (32 - length - start))) >> (32 - length);
+    return ((int32_t) (value << (32 - length - start))) >> (32 - length);
 }
 
 /**
@@ -302,7 +302,7 @@ static inline int64_t sextract64(uint64_t value, int start, int length) {
     /* Note that this implementation relies on right shift of signed
      * integers being an arithmetic shift.
      */
-    return ((int64_t)(value << (64 - length - start))) >> (64 - length);
+    return ((int64_t) (value << (64 - length - start))) >> (64 - length);
 }
 
 /**

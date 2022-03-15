@@ -17,20 +17,20 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 #if SHIFT == 0
-#define Reg MMXReg
+#define Reg    MMXReg
 #define SUFFIX _mmx
 #else
-#define Reg XMMReg
+#define Reg    XMMReg
 #define SUFFIX _xmm
 #endif
 
-#define dh_alias_Reg ptr
-#define dh_alias_XMMReg ptr
-#define dh_alias_MMXReg ptr
-#define dh_ctype_Reg Reg *
-#define dh_ctype_XMMReg XMMReg *
-#define dh_ctype_MMXReg MMXReg *
-#define dh_is_signed_Reg dh_is_signed_ptr
+#define dh_alias_Reg        ptr
+#define dh_alias_XMMReg     ptr
+#define dh_alias_MMXReg     ptr
+#define dh_ctype_Reg        Reg *
+#define dh_ctype_XMMReg     XMMReg *
+#define dh_ctype_MMXReg     MMXReg *
+#define dh_is_signed_Reg    dh_is_signed_ptr
 #define dh_is_signed_XMMReg dh_is_signed_ptr
 #define dh_is_signed_MMXReg dh_is_signed_ptr
 

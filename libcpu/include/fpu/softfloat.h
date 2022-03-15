@@ -71,19 +71,19 @@ typedef uint64_t uint64;
 typedef int64_t int64;
 
 #define LIT64(a) a##LL
-#define SINLINE static inline
+#define SINLINE  static inline
 
 #define STATUS_PARAM , float_status *status
-#define STATUS_VAR , status
+#define STATUS_VAR   , status
 
 #if defined(CONFIG_SYMBEX) && !defined(SYMBEX_LLVM_LIB)
 uint8_t RR_cpu_float_status(void *p, unsigned size);
 void WR_cpu_float_status(void *p, unsigned size, int v);
 
-#define STATUS(field) RR_cpu_float_status(&status->field, sizeof(status->field))
+#define STATUS(field)      RR_cpu_float_status(&status->field, sizeof(status->field))
 #define STATUS_W(field, v) WR_cpu_float_status(&status->field, sizeof(status->field), v)
 #else
-#define STATUS(field) status->field
+#define STATUS(field)      status->field
 #define STATUS_W(field, v) status->field = v
 #endif
 
@@ -104,7 +104,7 @@ enum { float_relation_less = -1, float_relation_equal = 0, float_relation_greate
 typedef struct {
     uint16_t v;
 } float16;
-#define float16_val(x) (((float16)(x)).v)
+#define float16_val(x) (((float16) (x)).v)
 #define make_float16(x)        \
     __extension__({            \
         float16 f16_val = {x}; \
@@ -116,7 +116,7 @@ typedef struct {
     uint32_t v;
 } float32;
 /* The cast ensures an error if the wrong type is passed.  */
-#define float32_val(x) (((float32)(x)).v)
+#define float32_val(x) (((float32) (x)).v)
 #define make_float32(x)        \
     __extension__({            \
         float32 f32_val = {x}; \
@@ -127,7 +127,7 @@ typedef struct {
 typedef struct {
     uint64_t v;
 } float64;
-#define float64_val(x) (((float64)(x)).v)
+#define float64_val(x) (((float64) (x)).v)
 #define make_float64(x)        \
     __extension__({            \
         float64 f64_val = {x}; \
@@ -139,12 +139,12 @@ typedef struct {
 typedef uint16_t float16;
 typedef uint32_t float32;
 typedef uint64_t float64;
-#define float16_val(x) (x)
-#define float32_val(x) (x)
-#define float64_val(x) (x)
-#define make_float16(x) (x)
-#define make_float32(x) (x)
-#define make_float64(x) (x)
+#define float16_val(x)   (x)
+#define float32_val(x)   (x)
+#define float64_val(x)   (x)
+#define make_float16(x)  (x)
+#define make_float32(x)  (x)
+#define make_float64(x)  (x)
 #define const_float16(x) (x)
 #define const_float32(x) (x)
 #define const_float64(x) (x)
@@ -356,11 +356,11 @@ SINLINE float32 float32_set_sign(float32 a, int sign) {
     return make_float32((float32_val(a) & 0x7fffffff) | (sign << 31));
 }
 
-#define float32_zero make_float32(0)
-#define float32_one make_float32(0x3f800000)
-#define float32_ln2 make_float32(0x3f317218)
-#define float32_pi make_float32(0x40490fdb)
-#define float32_half make_float32(0x3f000000)
+#define float32_zero     make_float32(0)
+#define float32_one      make_float32(0x3f800000)
+#define float32_ln2      make_float32(0x3f317218)
+#define float32_pi       make_float32(0x40490fdb)
+#define float32_half     make_float32(0x3f000000)
 #define float32_infinity make_float32(0x7f800000)
 
 /*----------------------------------------------------------------------------
@@ -453,11 +453,11 @@ SINLINE float64 float64_set_sign(float64 a, int sign) {
     return make_float64((float64_val(a) & 0x7fffffffffffffffULL) | ((int64_t) sign << 63));
 }
 
-#define float64_zero make_float64(0)
-#define float64_one make_float64(0x3ff0000000000000LL)
-#define float64_ln2 make_float64(0x3fe62e42fefa39efLL)
-#define float64_pi make_float64(0x400921fb54442d18LL)
-#define float64_half make_float64(0x3fe0000000000000LL)
+#define float64_zero     make_float64(0)
+#define float64_one      make_float64(0x3ff0000000000000LL)
+#define float64_ln2      make_float64(0x3fe62e42fefa39efLL)
+#define float64_pi       make_float64(0x400921fb54442d18LL)
+#define float64_half     make_float64(0x3fe0000000000000LL)
 #define float64_infinity make_float64(0x7ff0000000000000LL)
 
 /*----------------------------------------------------------------------------
@@ -531,11 +531,11 @@ SINLINE int floatx80_is_any_nan(floatx80 a) {
     return ((a.high & 0x7fff) == 0x7fff) && (a.low << 1);
 }
 
-#define floatx80_zero make_floatx80(0x0000, 0x0000000000000000LL)
-#define floatx80_one make_floatx80(0x3fff, 0x8000000000000000LL)
-#define floatx80_ln2 make_floatx80(0x3ffe, 0xb17217f7d1cf79acLL)
-#define floatx80_pi make_floatx80(0x4000, 0xc90fdaa22168c235LL)
-#define floatx80_half make_floatx80(0x3ffe, 0x8000000000000000LL)
+#define floatx80_zero     make_floatx80(0x0000, 0x0000000000000000LL)
+#define floatx80_one      make_floatx80(0x3fff, 0x8000000000000000LL)
+#define floatx80_ln2      make_floatx80(0x3ffe, 0xb17217f7d1cf79acLL)
+#define floatx80_pi       make_floatx80(0x4000, 0xc90fdaa22168c235LL)
+#define floatx80_half     make_floatx80(0x3ffe, 0x8000000000000000LL)
 #define floatx80_infinity make_floatx80(0x7fff, 0x8000000000000000LL)
 
 /*----------------------------------------------------------------------------

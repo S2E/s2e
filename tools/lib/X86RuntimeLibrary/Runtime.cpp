@@ -591,7 +591,7 @@ static int default_main(int argc, char **argv) {
     myenv.df = (eflags & DF_MASK) ? -1 : 1;
     myenv.mflags = eflags & MFLAGS_MASK;
 
-    myenv.regs[R_ESP] = (target_ulong)(stack + STACK_SIZE - 0x10);
+    myenv.regs[R_ESP] = (target_ulong) (stack + STACK_SIZE - 0x10);
 
     revgen_entrypoint(&myenv);
 

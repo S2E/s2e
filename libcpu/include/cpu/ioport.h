@@ -30,7 +30,7 @@ extern "C" {
 
 typedef uint32_t pio_addr_t;
 
-#define MAX_IOPORTS (64 * 1024)
+#define MAX_IOPORTS  (64 * 1024)
 #define IOPORTS_MASK (MAX_IOPORTS - 1)
 
 void cpu_outb(pio_addr_t addr, uint8_t val);

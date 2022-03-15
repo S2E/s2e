@@ -183,10 +183,10 @@ static inline uint64_t __WR_env_dyn(void *p, unsigned size, uint64_t v) {
 
 #define WR_cpu(cpu, reg, value) __WR_env_raw(cpu, offsetof(CPUX86State, reg), (target_ulong) value, sizeof(cpu->reg))
 
-#define RR_cpu_fp80(cpu, reg) (__RR_env_floatx80(cpu, offsetof(CPUX86State, reg)))
+#define RR_cpu_fp80(cpu, reg)        (__RR_env_floatx80(cpu, offsetof(CPUX86State, reg)))
 #define WR_cpu_fp80(cpu, reg, value) __WR_env_floatx80(cpu, offsetof(CPUX86State, reg), value)
 
-#define RR_cpu_dyn(p, size) ((__typeof__(*p)) __RR_env_dyn(p, size))
+#define RR_cpu_dyn(p, size)    ((__typeof__(*p)) __RR_env_dyn(p, size))
 #define WR_cpu_dyn(p, size, v) __WR_env_dyn(p, size, v)
 
 #define WR_reg(r, v)                                                                                                \
@@ -198,13 +198,13 @@ static inline uint64_t __WR_env_dyn(void *p, unsigned size, uint64_t v) {
 
 #else
 
-#define RR_cpu(cpu, reg) cpu->reg
+#define RR_cpu(cpu, reg)        cpu->reg
 #define WR_cpu(cpu, reg, value) cpu->reg = value
 
-#define RR_cpu_fp80(cpu, reg) cpu->reg
+#define RR_cpu_fp80(cpu, reg)        cpu->reg
 #define WR_cpu_fp80(cpu, reg, value) cpu->reg = value
 
-#define RR_cpu_dyn(p, size) (*p)
+#define RR_cpu_dyn(p, size)    (*p)
 #define WR_cpu_dyn(p, size, v) *p = v
 
 #define WR_reg(r, v) *r = v
@@ -335,11 +335,11 @@ static inline int hw_breakpoint_len(unsigned long dr7, int index) {
 }
 
 /* used to debug */
-#define X86_DUMP_GPREGS 0x1
-#define X86_DUMP_SEGREGS 0x2
-#define X86_DUMP_SYSREGS 0x4
-#define X86_DUMP_FPU 0x8   /* dump FPU state too */
-#define X86_DUMP_CCOP 0x10 /* dump qemu flag cache */
+#define X86_DUMP_GPREGS   0x1
+#define X86_DUMP_SEGREGS  0x2
+#define X86_DUMP_SYSREGS  0x4
+#define X86_DUMP_FPU      0x8  /* dump FPU state too */
+#define X86_DUMP_CCOP     0x10 /* dump qemu flag cache */
 #define X86_DUMP_SYSENTER 0x20
 
 #define X86_DUMP_ALL 0xff
@@ -355,71 +355,71 @@ static inline int hw_breakpoint_len(unsigned long dr7, int index) {
 #define TARGET_VIRT_ADDR_SPACE_BITS 32
 #endif
 
-#define cpu_init cpu_x86_init
-#define cpu_exec cpu_x86_exec
-#define cpu_gen_code cpu_x86_gen_code
+#define cpu_init           cpu_x86_init
+#define cpu_exec           cpu_x86_exec
+#define cpu_gen_code       cpu_x86_gen_code
 #define cpu_signal_handler cpu_x86_signal_handler
-#define cpu_list_id x86_cpu_list
-#define cpudef_setup x86_cpudef_setup
+#define cpu_list_id        x86_cpu_list
+#define cpudef_setup       x86_cpudef_setup
 
 //#define CPU_SAVE_VERSION 12
 
 /* MMU modes definitions */
 #define MMU_MODE0_SUFFIX _kernel
 #define MMU_MODE1_SUFFIX _user
-#define MMU_USER_IDX 1
+#define MMU_USER_IDX     1
 
 #undef EAX
-#define EAX (RR_cpu(env, regs[R_EAX]))
+#define EAX      (RR_cpu(env, regs[R_EAX]))
 #define EAX_W(v) (WR_cpu(env, regs[R_EAX], v))
 #undef ECX
-#define ECX (RR_cpu(env, regs[R_ECX]))
+#define ECX      (RR_cpu(env, regs[R_ECX]))
 #define ECX_W(v) (WR_cpu(env, regs[R_ECX], v))
 #undef EDX
-#define EDX (RR_cpu(env, regs[R_EDX]))
+#define EDX      (RR_cpu(env, regs[R_EDX]))
 #define EDX_W(v) (WR_cpu(env, regs[R_EDX], v))
 #undef EBX
-#define EBX (RR_cpu(env, regs[R_EBX]))
+#define EBX      (RR_cpu(env, regs[R_EBX]))
 #define EBX_W(v) (WR_cpu(env, regs[R_EBX], v))
 #undef ESP
-#define ESP (RR_cpu(env, regs[R_ESP]))
+#define ESP      (RR_cpu(env, regs[R_ESP]))
 #define ESP_W(v) (WR_cpu(env, regs[R_ESP], v))
 #undef EBP
-#define EBP (RR_cpu(env, regs[R_EBP]))
+#define EBP      (RR_cpu(env, regs[R_EBP]))
 #define EBP_W(v) (WR_cpu(env, regs[R_EBP], v))
 #undef ESI
-#define ESI (RR_cpu(env, regs[R_ESI]))
+#define ESI      (RR_cpu(env, regs[R_ESI]))
 #define ESI_W(v) (WR_cpu(env, regs[R_ESI], v))
 #undef EDI
-#define EDI (RR_cpu(env, regs[R_EDI]))
+#define EDI      (RR_cpu(env, regs[R_EDI]))
 #define EDI_W(v) (WR_cpu(env, regs[R_EDI], v))
 
 #define CC_SRC (RR_cpu(env, cc_src))
 #define CC_DST (RR_cpu(env, cc_dst))
-#define CC_OP (RR_cpu(env, cc_op))
+#define CC_OP  (RR_cpu(env, cc_op))
 #define CC_TMP (RR_cpu(env, cc_tmp))
 
 #define CC_SRC_W(v) (WR_cpu(env, cc_src, v))
 #define CC_DST_W(v) (WR_cpu(env, cc_dst, v))
-#define CC_OP_W(v) (WR_cpu(env, cc_op, v))
+#define CC_OP_W(v)  (WR_cpu(env, cc_op, v))
 #define CC_TMP_W(v) (WR_cpu(env, cc_tmp, v))
 
-#define FPSTT (RR_cpu(env, fpstt))
+#define FPSTT      (RR_cpu(env, fpstt))
 #define FPSTT_W(v) (WR_cpu(env, fpstt, v))
 
-#define FPUS (RR_cpu(env, fpus))
+#define FPUS      (RR_cpu(env, fpus))
 #define FPUS_W(v) (WR_cpu(env, fpus, v))
 
-#define FPUC (RR_cpu(env, fpuc))
+#define FPUC      (RR_cpu(env, fpuc))
 #define FPUC_W(v) (WR_cpu(env, fpuc, v))
 
-#define MXCSR (RR_cpu(env, mxcsr))
+#define MXCSR      (RR_cpu(env, mxcsr))
 #define MXCSR_W(v) (WR_cpu(env, mxcsr, v))
 
-#define FPTAGS(i) (RR_cpu(env, fptags[i]))
+#define FPTAGS(i)      (RR_cpu(env, fptags[i]))
 #define FPTAGS_W(i, v) (WR_cpu(env, fptags[i], v))
 
-#define DF (env->df)
+#define DF      (env->df)
 #define DF_W(v) (env->df = (v))
 
 #undef EIP
@@ -427,20 +427,20 @@ static inline int hw_breakpoint_len(unsigned long dr7, int index) {
 
 /* float macros */
 #if 0
-#define FT0 (env->ft0)
-#define ST0 (env->fpregs[env->fpstt].d)
+#define FT0   (env->ft0)
+#define ST0   (env->fpregs[env->fpstt].d)
 #define ST(n) (env->fpregs[(env->fpstt + (n)) & 7].d)
 #endif
-#define FT0 (RR_cpu_fp80(env, ft0))
+#define FT0      (RR_cpu_fp80(env, ft0))
 #define FT0_W(v) (WR_cpu_fp80(env, ft0, v))
 
-#define ST0 (RR_cpu_fp80(env, fpregs[FPSTT].d))
+#define ST0      (RR_cpu_fp80(env, fpregs[FPSTT].d))
 #define ST0_W(v) (WR_cpu_fp80(env, fpregs[FPSTT].d, v))
 
-#define ST(n) (RR_cpu_fp80(env, fpregs[(FPSTT + (n)) & 7].d))
+#define ST(n)      (RR_cpu_fp80(env, fpregs[(FPSTT + (n)) & 7].d))
 #define ST_W(n, v) (WR_cpu_fp80(env, fpregs[(FPSTT + (n)) & 7].d, v))
 
-#define ST1 ST(1)
+#define ST1      ST(1)
 #define ST1_W(v) ST_W(1, v)
 
 /* translate.c */

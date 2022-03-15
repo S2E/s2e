@@ -242,7 +242,7 @@ static void LuaGenerateBackEdges(raw_ostream &os, const BinaryFunction *f, const
 
 void LuaGenerateCfg(const BinaryFunctions &functions) {
     std::error_code EC;
-    raw_fd_ostream os(LuaCfgFile.c_str(), EC, llvm::sys::fs::F_None);
+    raw_fd_ostream os(LuaCfgFile.c_str(), EC, llvm::sys::fs::OF_None);
 
     if (EC) {
         llvm::errs() << "Could not open " << LuaCfgFile << " - " << EC.message() << "\n";
@@ -335,7 +335,7 @@ typedef std::set<MergePair> MergePoints;
 
 static void LuaGenerateMergePoints(const MergePoints &mergePoints) {
     std::error_code EC;
-    raw_fd_ostream os(LuaMergePoints.c_str(), EC, llvm::sys::fs::F_None);
+    raw_fd_ostream os(LuaMergePoints.c_str(), EC, llvm::sys::fs::OF_None);
     if (EC) {
         llvm::errs() << "Could not open " << LuaMergePoints << " - " << EC.message() << "\n";
         exit(-1);
@@ -555,7 +555,7 @@ int main(int argc, char **argv) {
 
     if (LuaLoopsFile.size()) {
         std::error_code EC;
-        raw_fd_ostream ofs(LuaLoopsFile.c_str(), EC, llvm::sys::fs::F_None);
+        raw_fd_ostream ofs(LuaLoopsFile.c_str(), EC, llvm::sys::fs::OF_None);
         if (EC) {
             llvm::errs() << "Could not open " << LuaLoopsFile << " - " << EC.message() << "\n";
             exit(-1);
@@ -584,7 +584,7 @@ int main(int argc, char **argv) {
                 std::stringstream fss;
                 fss << DebugOutputDir << "/fcn" << std::hex << f->getEntryBlock()->getStartPc();
                 llvm::errs() << "Writing " << fss.str() << "...\n";
-                llvm::raw_fd_ostream dotf(fss.str(), EC, llvm::sys::fs::F_None);
+                llvm::raw_fd_ostream dotf(fss.str(), EC, llvm::sys::fs::OF_None);
                 BinaryFunctionGT wrappedF(f);
                 WriteGraph(dotf, &wrappedF);
 

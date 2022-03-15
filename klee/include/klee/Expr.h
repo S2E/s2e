@@ -442,7 +442,7 @@ public:
     }
 
     /// toString - Return the constant value as a decimal string.
-    void toString(std::string &Res, int Base = 10) const;
+    void toString(std::string &Res, unsigned radix = 10) const;
 
     int compareContents(const Expr &b) const {
         const ConstantExpr &cb = static_cast<const ConstantExpr &>(b);

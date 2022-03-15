@@ -20,25 +20,25 @@
 #if SHIFT == 0
 #define Reg MMXReg
 #define XMM_ONLY(...)
-#define B(n) MMX_B(n)
-#define W(n) MMX_W(n)
-#define L(n) MMX_L(n)
-#define Q(n) q
+#define B(n)   MMX_B(n)
+#define W(n)   MMX_W(n)
+#define L(n)   MMX_L(n)
+#define Q(n)   q
 #define SUFFIX _mmx
 #else
-#define Reg XMMReg
+#define Reg           XMMReg
 #define XMM_ONLY(...) __VA_ARGS__
-#define B(n) XMM_B(n)
-#define W(n) XMM_W(n)
-#define L(n) XMM_L(n)
-#define Q(n) XMM_Q(n)
-#define SUFFIX _xmm
+#define B(n)          XMM_B(n)
+#define W(n)          XMM_W(n)
+#define L(n)          XMM_L(n)
+#define Q(n)          XMM_Q(n)
+#define SUFFIX        _xmm
 #endif
 
-#define R_S(s, f) (RR_cpu_dyn(&s->f, sizeof(s->f)))
-#define R_D(d, f) (RR_cpu_dyn(&d->f, sizeof(d->f)))
+#define R_S(s, f)    (RR_cpu_dyn(&s->f, sizeof(s->f)))
+#define R_D(d, f)    (RR_cpu_dyn(&d->f, sizeof(d->f)))
 #define W_D(d, f, v) (WR_cpu_dyn(&d->f, sizeof(d->f), v))
-#define R_r(r, f) (RR_cpu_dyn(&r->f, sizeof(r->f)))
+#define R_r(r, f)    (RR_cpu_dyn(&r->f, sizeof(r->f)))
 
 void glue(helper_psrlw, SUFFIX)(Reg *d, Reg *s) {
     int shift;
@@ -296,36 +296,36 @@ static inline int satsw(int x) {
         return x;
 }
 
-#define FADD(a, b) ((a) + (b))
+#define FADD(a, b)   ((a) + (b))
 #define FADDUB(a, b) satub((a) + (b))
 #define FADDUW(a, b) satuw((a) + (b))
-#define FADDSB(a, b) satsb((int8_t)(a) + (int8_t)(b))
-#define FADDSW(a, b) satsw((int16_t)(a) + (int16_t)(b))
+#define FADDSB(a, b) satsb((int8_t) (a) + (int8_t) (b))
+#define FADDSW(a, b) satsw((int16_t) (a) + (int16_t) (b))
 
-#define FSUB(a, b) ((a) - (b))
+#define FSUB(a, b)   ((a) - (b))
 #define FSUBUB(a, b) satub((a) - (b))
 #define FSUBUW(a, b) satuw((a) - (b))
-#define FSUBSB(a, b) satsb((int8_t)(a) - (int8_t)(b))
-#define FSUBSW(a, b) satsw((int16_t)(a) - (int16_t)(b))
+#define FSUBSB(a, b) satsb((int8_t) (a) - (int8_t) (b))
+#define FSUBSW(a, b) satsw((int16_t) (a) - (int16_t) (b))
 #define FMINUB(a, b) ((a) < (b)) ? (a) : (b)
-#define FMINSW(a, b) ((int16_t)(a) < (int16_t)(b)) ? (a) : (b)
+#define FMINSW(a, b) ((int16_t) (a) < (int16_t) (b)) ? (a) : (b)
 #define FMAXUB(a, b) ((a) > (b)) ? (a) : (b)
-#define FMAXSW(a, b) ((int16_t)(a) > (int16_t)(b)) ? (a) : (b)
+#define FMAXSW(a, b) ((int16_t) (a) > (int16_t) (b)) ? (a) : (b)
 
-#define FAND(a, b) (a) & (b)
+#define FAND(a, b)  (a) & (b)
 #define FANDN(a, b) ((~(a)) & (b))
-#define FOR(a, b) (a) | (b)
-#define FXOR(a, b) (a) ^ (b)
+#define FOR(a, b)   (a) | (b)
+#define FXOR(a, b)  (a) ^ (b)
 
-#define FCMPGTB(a, b) (int8_t)(a) > (int8_t)(b) ? -1 : 0
-#define FCMPGTW(a, b) (int16_t)(a) > (int16_t)(b) ? -1 : 0
-#define FCMPGTL(a, b) (int32_t)(a) > (int32_t)(b) ? -1 : 0
-#define FCMPEQ(a, b) (a) == (b) ? -1 : 0
+#define FCMPGTB(a, b) (int8_t)(a) > (int8_t) (b) ? -1 : 0
+#define FCMPGTW(a, b) (int16_t)(a) > (int16_t) (b) ? -1 : 0
+#define FCMPGTL(a, b) (int32_t)(a) > (int32_t) (b) ? -1 : 0
+#define FCMPEQ(a, b)  (a) == (b) ? -1 : 0
 
-#define FMULLW(a, b) (a) * (b)
-#define FMULHRW(a, b) ((int16_t)(a) * (int16_t)(b) + 0x8000) >> 16
+#define FMULLW(a, b)  (a) * (b)
+#define FMULHRW(a, b) ((int16_t) (a) * (int16_t) (b) + 0x8000) >> 16
 #define FMULHUW(a, b) (a) * (b) >> 16
-#define FMULHW(a, b) (int16_t)(a) * (int16_t)(b) >> 16
+#define FMULHW(a, b)  (int16_t)(a) * (int16_t) (b) >> 16
 
 #define FAVG(a, b) ((a) + (b) + 1) >> 1
 #endif
@@ -540,10 +540,10 @@ void glue(helper_pshufhw, SUFFIX)(Reg *d, Reg *s, int order) {
         W_D(d, XMM_D(0), F(64, R_D(d, XMM_D(0)), R_S(s, XMM_D(0)))); \
     }
 
-#define FPU_ADD(size, a, b) float##size##_add(a, b, &env->sse_status)
-#define FPU_SUB(size, a, b) float##size##_sub(a, b, &env->sse_status)
-#define FPU_MUL(size, a, b) float##size##_mul(a, b, &env->sse_status)
-#define FPU_DIV(size, a, b) float##size##_div(a, b, &env->sse_status)
+#define FPU_ADD(size, a, b)  float##size##_add(a, b, &env->sse_status)
+#define FPU_SUB(size, a, b)  float##size##_sub(a, b, &env->sse_status)
+#define FPU_MUL(size, a, b)  float##size##_mul(a, b, &env->sse_status)
+#define FPU_DIV(size, a, b)  float##size##_div(a, b, &env->sse_status)
 #define FPU_SQRT(size, a, b) float##size##_sqrt(b, &env->sse_status)
 
 /* Note that the choice of comparison op here is important to get the
@@ -837,14 +837,14 @@ void helper_addsubpd(XMMReg *d, XMMReg *s) {
         W_D(d, XMM_Q(0), F(64, R_D(d, XMM_D(0)), R_S(s, XMM_D(0)))); \
     }
 
-#define FPU_CMPEQ(size, a, b) float##size##_eq_quiet(a, b, &env->sse_status) ? -1 : 0
-#define FPU_CMPLT(size, a, b) float##size##_lt(a, b, &env->sse_status) ? -1 : 0
-#define FPU_CMPLE(size, a, b) float##size##_le(a, b, &env->sse_status) ? -1 : 0
+#define FPU_CMPEQ(size, a, b)    float##size##_eq_quiet(a, b, &env->sse_status) ? -1 : 0
+#define FPU_CMPLT(size, a, b)    float##size##_lt(a, b, &env->sse_status) ? -1 : 0
+#define FPU_CMPLE(size, a, b)    float##size##_le(a, b, &env->sse_status) ? -1 : 0
 #define FPU_CMPUNORD(size, a, b) float##size##_unordered_quiet(a, b, &env->sse_status) ? -1 : 0
-#define FPU_CMPNEQ(size, a, b) float##size##_eq_quiet(a, b, &env->sse_status) ? 0 : -1
-#define FPU_CMPNLT(size, a, b) float##size##_lt(a, b, &env->sse_status) ? 0 : -1
-#define FPU_CMPNLE(size, a, b) float##size##_le(a, b, &env->sse_status) ? 0 : -1
-#define FPU_CMPORD(size, a, b) float##size##_unordered_quiet(a, b, &env->sse_status) ? 0 : -1
+#define FPU_CMPNEQ(size, a, b)   float##size##_eq_quiet(a, b, &env->sse_status) ? 0 : -1
+#define FPU_CMPNLT(size, a, b)   float##size##_lt(a, b, &env->sse_status) ? 0 : -1
+#define FPU_CMPNLE(size, a, b)   float##size##_le(a, b, &env->sse_status) ? 0 : -1
+#define FPU_CMPORD(size, a, b)   float##size##_unordered_quiet(a, b, &env->sse_status) ? 0 : -1
 
 SSE_HELPER_CMP(cmpeq, FPU_CMPEQ)
 SSE_HELPER_CMP(cmplt, FPU_CMPLT)
@@ -1361,7 +1361,7 @@ void glue(helper_palignr, SUFFIX)(Reg *d, Reg *s, int32_t shift) {
     }
 
 /* SSE4.1 op helpers */
-#define FBLENDVB(d, s, m) (m & 0x80) ? s : d
+#define FBLENDVB(d, s, m)  (m & 0x80) ? s : d
 #define FBLENDVPS(d, s, m) (m & 0x80000000) ? s : d
 #define FBLENDVPD(d, s, m) (m & 0x8000000000000000LL) ? s : d
 SSE_HELPER_V(helper_pblendvb, B, 16, FBLENDVB)
@@ -1406,8 +1406,8 @@ SSE_HELPER_F(helper_pmovzxwq, Q, 2, , s->W)
 SSE_HELPER_F(helper_pmovzxdq, Q, 2, , s->L)
 
 void glue(helper_pmuldq, SUFFIX)(Reg *d, Reg *s) {
-    W_D(d, Q(0), (int64_t)(int32_t) R_D(d, L(0)) * (int32_t) R_S(s, L(0)));
-    W_D(d, Q(1), (int64_t)(int32_t) R_D(d, L(2)) * (int32_t) R_S(s, L(2)));
+    W_D(d, Q(0), (int64_t) (int32_t) R_D(d, L(0)) * (int32_t) R_S(s, L(0)));
+    W_D(d, Q(1), (int64_t) (int32_t) R_D(d, L(2)) * (int32_t) R_S(s, L(2)));
 }
 
 #define FCMPEQQ(d, s) d == s ? -1 : 0
@@ -1846,7 +1846,7 @@ void glue(helper_pcmpistrm, SUFFIX)(Reg *d, Reg *s, uint32_t ctrl) {
     }
 }
 
-#define CRCPOLY 0x1edc6f41
+#define CRCPOLY        0x1edc6f41
 #define CRCPOLY_BITREV 0x82f63b78
 target_ulong helper_crc32(uint32_t crc1, target_ulong msg, uint32_t len) {
     target_ulong crc = (msg & ((target_ulong) -1 >> (TARGET_LONG_BITS - len))) ^ crc1;
@@ -1857,7 +1857,7 @@ target_ulong helper_crc32(uint32_t crc1, target_ulong msg, uint32_t len) {
     return crc;
 }
 
-#define POPMASK(i) ((target_ulong) -1 / ((1LL << (1 << i)) + 1))
+#define POPMASK(i)     ((target_ulong) -1 / ((1LL << (1 << i)) + 1))
 #define POPCOUNT(n, i) (n & POPMASK(i)) + ((n >> (1 << i)) & POPMASK(i))
 target_ulong helper_popcnt(target_ulong n, uint32_t type) {
     CC_SRC_W(n ? 0 : CC_Z);

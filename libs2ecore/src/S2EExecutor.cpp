@@ -291,6 +291,9 @@ S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMTranslator *translator, InterpreterHan
     __DEFINE_EXT_FUNCTION(sprintf)
     __DEFINE_EXT_FUNCTION(fputc)
     __DEFINE_EXT_FUNCTION(fwrite)
+    __DEFINE_EXT_FUNCTION(memset)
+    __DEFINE_EXT_FUNCTION(memcpy)
+    __DEFINE_EXT_FUNCTION(memmove)
 
     __DEFINE_EXT_FUNCTION(floatx80_to_float64)
     __DEFINE_EXT_FUNCTION(float64_to_floatx80)
@@ -370,11 +373,6 @@ S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMTranslator *translator, InterpreterHan
     __DEFINE_EXT_FUNCTION(ldq_phys)
     __DEFINE_EXT_FUNCTION(stq_phys)
 
-    ModuleOptions MOpts = ModuleOptions(vector<string>(),
-                                        /* Optimize= */ false,
-                                        /* CheckDivZero= */ false, m_llvmTranslator->getFunctionPassManager());
-    MOpts.Snapshot = false;
-
     /* This catches obvious LLVM misconfigurations */
     Module *M = m_llvmTranslator->getModule();
     s2e->getDebugStream() << "Current data layout: " << M->getDataLayoutStr() << '\n';
@@ -387,7 +385,7 @@ S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMTranslator *translator, InterpreterHan
         exit(-1);
     }
 
-    setModule(m_llvmTranslator->getModule(), MOpts, false);
+    setModule(m_llvmTranslator->getModule(), false);
 
     if (UseFastHelpers) {
         disableConcreteLLVMHelpers();

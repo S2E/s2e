@@ -12,7 +12,7 @@
 #include <klee/Common.h>
 #include <llvm/Support/raw_ostream.h>
 #include "klee/Config/config.h"
-#include "llvm/IR/CallSite.h"
+#include "llvm/Analysis/MemoryBuiltins.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/DerivedTypes.h"
@@ -22,6 +22,7 @@
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
+#include "llvm/IR/IntrinsicsX86.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"
@@ -99,57 +100,6 @@ static Value *LowerBSWAP(LLVMContext &Context, Value *V, Instruction *IP) {
 
 char IntrinsicCleanerPass::ID;
 
-/// ReplaceCallWith - This function is used when we want to lower an intrinsic
-/// call to a call of an external function.  This handles hard cases such as
-/// when there was already a prototype for the external function, and if that
-/// prototype doesn't match the arguments we expect to pass in.
-template <class ArgIt>
-static CallInst *ReplaceCallWith(const char *NewFn, CallInst *CI, ArgIt ArgBegin, ArgIt ArgEnd, Type *RetTy) {
-    // If we haven't already looked up this function, check to see if the
-    // program already contains a function with this name.
-    Module *M = CI->getParent()->getParent()->getParent();
-    // Get or insert the definition now.
-    std::vector<Type *> ParamTys;
-    for (ArgIt I = ArgBegin; I != ArgEnd; ++I)
-        ParamTys.push_back((*I)->getType());
-
-    llvm::ArrayRef<Type *> ParamTysA(&ParamTys[0], ParamTys.size());
-
-    auto FCache = M->getOrInsertFunction(NewFn, FunctionType::get(RetTy, ParamTysA, false));
-
-    IRBuilder<> Builder(CI);
-    SmallVector<Value *, 8> Args(ArgBegin, ArgEnd);
-
-    CallInst *NewCI = Builder.CreateCall(FCache, llvm::ArrayRef<Value *>(Args));
-    NewCI->setName(CI->getName());
-    if (!CI->use_empty())
-        CI->replaceAllUsesWith(NewCI);
-    CI->eraseFromParent();
-    return NewCI;
-}
-
-static void ReplaceFPIntrinsicWithCall(CallInst *CI, const char *Fname, const char *Dname, const char *LDname) {
-    CallSite CS(CI);
-
-    switch (CI->getArgOperand(0)->getType()->getTypeID()) {
-        default:
-            pabort("Invalid type in intrinsic");
-        case Type::FloatTyID:
-            ReplaceCallWith(Fname, CI, CS.arg_begin(), CS.arg_end(), Type::getFloatTy(CI->getContext()));
-            break;
-
-        case Type::DoubleTyID:
-            ReplaceCallWith(Dname, CI, CS.arg_begin(), CS.arg_end(), Type::getDoubleTy(CI->getContext()));
-            break;
-
-        case Type::X86_FP80TyID:
-        case Type::FP128TyID:
-        case Type::PPC_FP128TyID:
-            ReplaceCallWith(LDname, CI, CS.arg_begin(), CS.arg_end(), CI->getArgOperand(0)->getType());
-            break;
-    }
-}
-
 void IntrinsicCleanerPass::replaceIntrinsicAdd(Module &M, CallInst *CI) {
     Value *arg0 = CI->getArgOperand(0);
     Value *arg1 = CI->getArgOperand(1);
@@ -187,8 +137,8 @@ void IntrinsicCleanerPass::replaceIntrinsicAdd(Module &M, CallInst *CI) {
 
     // Store the values in the aggregated type
     Value *aggrValPtr = new AllocaInst(aggregate, as, NULL, "", CI);
-    Value *aggrVal = new LoadInst(aggrValPtr, "", CI);
-    Value *addResult = new LoadInst(alloca, "", CI);
+    Value *aggrVal = new LoadInst(aggrValPtr->getType()->getPointerElementType(), aggrValPtr, "", CI);
+    Value *addResult = new LoadInst(alloca->getType()->getPointerElementType(), alloca, "", CI);
     InsertValueInst *insRes = InsertValueInst::Create(aggrVal, addResult, 0, "", CI);
     InsertValueInst *insOverflow = InsertValueInst::Create(insRes, overflow, 1, "", CI);
     CI->replaceAllUsesWith(insOverflow);
@@ -258,105 +208,156 @@ bool IntrinsicCleanerPass::runOnModule(Module &M) {
 
     for (Module::iterator f = M.begin(), fe = M.end(); f != fe; ++f)
         for (Function::iterator b = f->begin(), be = f->end(); b != be;)
-            dirty |= runOnBasicBlock(*(b++));
+            dirty |= runOnBasicBlock(*(b++), M);
     return dirty;
 }
 
-bool IntrinsicCleanerPass::runOnFunction(Function &F) {
+bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b, Module &M) {
     bool dirty = false;
-    for (Function::iterator b = F.begin(), be = F.end(); b != be;)
-        dirty |= runOnBasicBlock(*(b++));
-    return dirty;
-}
-
-bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b) {
-    bool dirty = false;
-    LLVMContext &context = b.getContext();
+    LLVMContext &ctx = M.getContext();
 
     unsigned WordSize = DataLayout.getPointerSizeInBits() / 8;
     for (BasicBlock::iterator i = b.begin(), ie = b.end(); i != ie;) {
         IntrinsicInst *ii = dyn_cast<IntrinsicInst>(&*i);
-        // increment now since LowerIntrinsic deletion makes iterator invalid.
+        // increment now since deletion of instructions makes iterator invalid.
         ++i;
         if (ii) {
-            CallSite CS(ii);
+            if (isa<DbgInfoIntrinsic>(ii))
+                continue;
 
             switch (ii->getIntrinsicID()) {
                 case Intrinsic::vastart:
                 case Intrinsic::vaend:
+                case Intrinsic::fabs:
+                case Intrinsic::fshr:
+                case Intrinsic::fshl:
+
+                case Intrinsic::abs:
+                case Intrinsic::smax:
+                case Intrinsic::smin:
+                case Intrinsic::umax:
+                case Intrinsic::umin:
                     break;
 
-                // Lower vacopy so that object resolution etc is handled by
-                // normal instructions.
-                //
-                // FIXME: This is much more target dependent than just the word size,
-                // however this works for x86-32 and x86-64.
+                    // Lower vacopy so that object resolution etc is handled by
+                    // normal instructions.
+                    //
+                    // FIXME: This is much more target dependent than just the word size,
+                    // however this works for x86-32 and x86-64.
                 case Intrinsic::vacopy: { // (dst, src) -> *((i8**) dst) = *((i8**) src)
+                    llvm::IRBuilder<> Builder(ii);
                     Value *dst = ii->getArgOperand(0);
                     Value *src = ii->getArgOperand(1);
 
                     if (WordSize == 4) {
-                        Type *i8pp = PointerType::getUnqual(PointerType::getUnqual(Type::getInt8Ty(context)));
-                        Value *castedDst = CastInst::CreatePointerCast(dst, i8pp, "vacopy.cast.dst", ii);
-                        Value *castedSrc = CastInst::CreatePointerCast(src, i8pp, "vacopy.cast.src", ii);
-                        Value *load = new LoadInst(castedSrc, "vacopy.read", ii);
-                        new StoreInst(load, castedDst, false, ii);
+                        Type *i8pp = PointerType::getUnqual(PointerType::getUnqual(Type::getInt8Ty(ctx)));
+                        auto castedDst = Builder.CreatePointerCast(dst, i8pp, "vacopy.cast.dst");
+                        auto castedSrc = Builder.CreatePointerCast(src, i8pp, "vacopy.cast.src");
+                        auto load =
+                            Builder.CreateLoad(castedSrc->getType()->getPointerElementType(), castedSrc, "vacopy.read");
+                        Builder.CreateStore(load, castedDst, false /* isVolatile */);
                     } else {
                         assert(WordSize == 8 && "Invalid word size!");
-                        Type *i64p = PointerType::getUnqual(Type::getInt64Ty(context));
-                        Value *pDst = CastInst::CreatePointerCast(dst, i64p, "vacopy.cast.dst", ii);
-                        Value *pSrc = CastInst::CreatePointerCast(src, i64p, "vacopy.cast.src", ii);
-                        Value *val = new LoadInst(pSrc, std::string(), ii);
-                        new StoreInst(val, pDst, ii);
-                        Value *off = ConstantInt::get(Type::getInt64Ty(context), 1);
-                        pDst = GetElementPtrInst::Create(nullptr, pDst, off, std::string(), ii);
-                        pSrc = GetElementPtrInst::Create(nullptr, pSrc, off, std::string(), ii);
-                        val = new LoadInst(pSrc, std::string(), ii);
-                        new StoreInst(val, pDst, ii);
-                        pDst = GetElementPtrInst::Create(nullptr, pDst, off, std::string(), ii);
-                        pSrc = GetElementPtrInst::Create(nullptr, pSrc, off, std::string(), ii);
-                        val = new LoadInst(pSrc, std::string(), ii);
-                        new StoreInst(val, pDst, ii);
-                    }
-                    ii->removeFromParent();
-                    delete ii;
-                    break;
-                }
+                        Type *i64p = PointerType::getUnqual(Type::getInt64Ty(ctx));
+                        auto pDst = Builder.CreatePointerCast(dst, i64p, "vacopy.cast.dst");
+                        auto pSrc = Builder.CreatePointerCast(src, i64p, "vacopy.cast.src");
 
-                case Intrinsic::dbg_value:
-                case Intrinsic::dbg_declare:
-                    // Remove these regardless of lower intrinsics flag. This can
-                    // be removed once IntrinsicLowering is fixed to not have bad
-                    // caches.
+                        auto pSrcType = pSrc->getType()->getPointerElementType();
+                        auto pDstType = pDst->getType()->getPointerElementType();
+
+                        auto val = Builder.CreateLoad(pSrcType, pSrc);
+                        Builder.CreateStore(val, pDst, ii);
+
+                        auto off = ConstantInt::get(Type::getInt64Ty(ctx), 1);
+                        pDst = Builder.CreateGEP(pDstType, pDst, off);
+                        pSrc = Builder.CreateGEP(pSrcType, pSrc, off);
+                        val = Builder.CreateLoad(pSrcType, pSrc);
+                        Builder.CreateStore(val, pDst);
+                        pDst = Builder.CreateGEP(pDstType, pDst, off);
+                        pSrc = Builder.CreateGEP(pSrcType, pSrc, off);
+                        val = Builder.CreateLoad(pSrcType, pSrc);
+                        Builder.CreateStore(val, pDst);
+                    }
                     ii->eraseFromParent();
                     dirty = true;
                     break;
-                    // case Intrinsic::memory_barrier:
-                    // case Intrinsic::atomic_swap:
-                    // case Intrinsic::atomic_cmp_swap:
-                    // case Intrinsic::atomic_load_add:
-                    // case Intrinsic::atomic_load_sub:
-                    break;
+                }
 
-                case Intrinsic::powi:
-                    ReplaceFPIntrinsicWithCall(ii, "powif", "powi", "powil");
-                    dirty = true;
-                    break;
-
+                case Intrinsic::sadd_with_overflow:
+                case Intrinsic::ssub_with_overflow:
+                case Intrinsic::smul_with_overflow:
                 case Intrinsic::uadd_with_overflow:
-                    replaceIntrinsicAdd(*b.getParent()->getParent(), ii);
-                    dirty = true;
-                    break;
+                case Intrinsic::usub_with_overflow:
+                case Intrinsic::umul_with_overflow: {
+                    IRBuilder<> builder(ii->getParent(), ii->getIterator());
 
-                case Intrinsic::rint:
-                    ReplaceFPIntrinsicWithCall(ii, "rintf", "rint", "rintl");
-                    dirty = true;
-                    break;
+                    Value *op1 = ii->getArgOperand(0);
+                    Value *op2 = ii->getArgOperand(1);
 
-                case Intrinsic::fabs:
-                    ReplaceFPIntrinsicWithCall(ii, "fabsf", "fabs", "fabsl");
+                    Value *result = 0;
+                    Value *result_ext = 0;
+                    Value *overflow = 0;
+
+                    unsigned int bw = op1->getType()->getPrimitiveSizeInBits();
+                    unsigned int bw2 = op1->getType()->getPrimitiveSizeInBits() * 2;
+
+                    if ((ii->getIntrinsicID() == Intrinsic::uadd_with_overflow) ||
+                        (ii->getIntrinsicID() == Intrinsic::usub_with_overflow) ||
+                        (ii->getIntrinsicID() == Intrinsic::umul_with_overflow)) {
+
+                        Value *op1ext = builder.CreateZExt(op1, IntegerType::get(M.getContext(), bw2));
+                        Value *op2ext = builder.CreateZExt(op2, IntegerType::get(M.getContext(), bw2));
+                        Value *int_max_s = ConstantInt::get(op1->getType(), APInt::getMaxValue(bw));
+                        Value *int_max = builder.CreateZExt(int_max_s, IntegerType::get(M.getContext(), bw2));
+
+                        if (ii->getIntrinsicID() == Intrinsic::uadd_with_overflow) {
+                            result_ext = builder.CreateAdd(op1ext, op2ext);
+                        } else if (ii->getIntrinsicID() == Intrinsic::usub_with_overflow) {
+                            result_ext = builder.CreateSub(op1ext, op2ext);
+                        } else if (ii->getIntrinsicID() == Intrinsic::umul_with_overflow) {
+                            result_ext = builder.CreateMul(op1ext, op2ext);
+                        }
+                        overflow = builder.CreateICmpUGT(result_ext, int_max);
+
+                    } else if ((ii->getIntrinsicID() == Intrinsic::sadd_with_overflow) ||
+                               (ii->getIntrinsicID() == Intrinsic::ssub_with_overflow) ||
+                               (ii->getIntrinsicID() == Intrinsic::smul_with_overflow)) {
+
+                        Value *op1ext = builder.CreateSExt(op1, IntegerType::get(M.getContext(), bw2));
+                        Value *op2ext = builder.CreateSExt(op2, IntegerType::get(M.getContext(), bw2));
+                        Value *int_max_s = ConstantInt::get(op1->getType(), APInt::getSignedMaxValue(bw));
+                        Value *int_min_s = ConstantInt::get(op1->getType(), APInt::getSignedMinValue(bw));
+                        Value *int_max = builder.CreateSExt(int_max_s, IntegerType::get(M.getContext(), bw2));
+                        Value *int_min = builder.CreateSExt(int_min_s, IntegerType::get(M.getContext(), bw2));
+
+                        if (ii->getIntrinsicID() == Intrinsic::sadd_with_overflow) {
+                            result_ext = builder.CreateAdd(op1ext, op2ext);
+                        } else if (ii->getIntrinsicID() == Intrinsic::ssub_with_overflow) {
+                            result_ext = builder.CreateSub(op1ext, op2ext);
+                        } else if (ii->getIntrinsicID() == Intrinsic::smul_with_overflow) {
+                            result_ext = builder.CreateMul(op1ext, op2ext);
+                        }
+                        overflow = builder.CreateOr(builder.CreateICmpSGT(result_ext, int_max),
+                                                    builder.CreateICmpSLT(result_ext, int_min));
+                    }
+
+                    // This trunc cound be replaced by a more general trunc replacement
+                    // that allows to detect also undefined behavior in assignments or
+                    // overflow in operation with integers whose dimension is smaller than
+                    // int's dimension, e.g.
+                    //     uint8_t = uint8_t + uint8_t;
+                    // if one desires the wrapping should write
+                    //     uint8_t = (uint8_t + uint8_t) & 0xFF;
+                    // before this, must check if it has side effects on other operations
+                    result = builder.CreateTrunc(result_ext, op1->getType());
+                    Value *resultStruct = builder.CreateInsertValue(UndefValue::get(ii->getType()), result, 0);
+                    resultStruct = builder.CreateInsertValue(resultStruct, overflow, 1);
+
+                    ii->replaceAllUsesWith(resultStruct);
+                    ii->eraseFromParent();
                     dirty = true;
                     break;
+                }
 
                 case Intrinsic::sadd_sat:
                 case Intrinsic::ssub_sat:
@@ -377,12 +378,12 @@ bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b) {
                         case Intrinsic::usub_sat:
                             result = builder.CreateSub(op1, op2);
                             overflow = builder.CreateICmpULT(op1, op2); // a < b  =>  a - b < 0
-                            saturated = ConstantInt::get(context, APInt(bw, 0));
+                            saturated = ConstantInt::get(ctx, APInt(bw, 0));
                             break;
                         case Intrinsic::uadd_sat:
                             result = builder.CreateAdd(op1, op2);
                             overflow = builder.CreateICmpULT(result, op1); // a + b < a
-                            saturated = ConstantInt::get(context, APInt::getMaxValue(bw));
+                            saturated = ConstantInt::get(ctx, APInt::getMaxValue(bw));
                             break;
                         case Intrinsic::ssub_sat:
                         case Intrinsic::sadd_sat: {
@@ -391,9 +392,9 @@ bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b) {
                             } else {
                                 result = builder.CreateAdd(op1, op2);
                             }
-                            ConstantInt *zero = ConstantInt::get(context, APInt(bw, 0));
-                            ConstantInt *smin = ConstantInt::get(context, APInt::getSignedMinValue(bw));
-                            ConstantInt *smax = ConstantInt::get(context, APInt::getSignedMaxValue(bw));
+                            ConstantInt *zero = ConstantInt::get(ctx, APInt(bw, 0));
+                            ConstantInt *smin = ConstantInt::get(ctx, APInt::getSignedMinValue(bw));
+                            ConstantInt *smax = ConstantInt::get(ctx, APInt::getSignedMaxValue(bw));
 
                             Value *sign1 = builder.CreateICmpSLT(op1, zero);
                             Value *sign2 = builder.CreateICmpSLT(op2, zero);
@@ -427,73 +428,112 @@ bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b) {
                     break;
                 }
 
-                case Intrinsic::trap:
-                    // Link with abort
-                    ReplaceCallWith("abort", ii, CS.arg_end(), CS.arg_end(), Type::getVoidTy(context));
-                    dirty = true;
-                    break;
-
-                case Intrinsic::memset:
-                case Intrinsic::memcpy:
-                case Intrinsic::memmove: {
-                    LLVMContext &Ctx = ii->getContext();
-
-                    Value *dst = ii->getArgOperand(0);
-                    Value *src = ii->getArgOperand(1);
-                    Value *len = ii->getArgOperand(2);
-
-                    BasicBlock *BB = ii->getParent();
-                    Function *F = BB->getParent();
-
-                    BasicBlock *exitBB = BB->splitBasicBlock(ii);
-                    BasicBlock *headerBB = BasicBlock::Create(Ctx, Twine(), F, exitBB);
-                    BasicBlock *bodyBB = BasicBlock::Create(Ctx, Twine(), F, exitBB);
-
-                    // Enter the loop header
-                    BB->getTerminator()->eraseFromParent();
-                    BranchInst::Create(headerBB, BB);
-
-                    // Create loop index
-                    PHINode *idx = PHINode::Create(len->getType(), 0, Twine(), headerBB);
-                    idx->addIncoming(ConstantInt::get(len->getType(), 0), BB);
-
-                    // Check loop condition, then move to the loop body or exit the loop
-                    Value *loopCond =
-                        ICmpInst::Create(Instruction::ICmp, ICmpInst::ICMP_ULT, idx, len, Twine(), headerBB);
-                    BranchInst::Create(bodyBB, exitBB, loopCond, headerBB);
-
-                    // Get value to store
-                    Value *val;
-                    if (ii->getIntrinsicID() == Intrinsic::memset) {
-                        val = src;
-                    } else {
-                        Value *srcPtr = GetElementPtrInst::Create(nullptr, src, idx, Twine(), bodyBB);
-                        val = new LoadInst(srcPtr, Twine(), bodyBB);
+                case Intrinsic::trap: {
+                    // Intrinsic instruction "llvm.trap" found. Directly lower it to
+                    // a call of the abort() function.
+                    auto C = M.getOrInsertFunction("abort", Type::getVoidTy(ctx));
+                    if (auto *F = dyn_cast<Function>(C.getCallee())) {
+                        F->setDoesNotReturn();
+                        F->setDoesNotThrow();
                     }
 
-                    // Store the value
-                    Value *dstPtr = GetElementPtrInst::Create(nullptr, dst, idx, Twine(), bodyBB);
-                    new StoreInst(val, dstPtr, bodyBB);
+                    llvm::IRBuilder<> Builder(ii);
+                    Builder.CreateCall(C);
+                    Builder.CreateUnreachable();
 
-                    // Update index and branch back
-                    Value *newIdx = BinaryOperator::Create(Instruction::Add, idx, ConstantInt::get(len->getType(), 1),
-                                                           Twine(), bodyBB);
-                    BranchInst::Create(headerBB, bodyBB);
-                    idx->addIncoming(newIdx, bodyBB);
+                    i = ii->eraseFromParent();
 
+                    // check if the instruction after the one we just replaced is not the
+                    // end of the basic block and if it is not (i.e. it is a valid
+                    // instruction), delete it and all remaining because the cleaner just
+                    // introduced a terminating instruction (unreachable) otherwise llvm will
+                    // assert in Verifier::visitTerminatorInstr
+                    while (i != ie) { // i was already incremented above.
+                        i = i->eraseFromParent();
+                    }
+
+                    dirty = true;
+                    break;
+                }
+                case Intrinsic::objectsize: {
+                    // Lower the call to a concrete value
+                    auto replacement = llvm::lowerObjectSizeCall(ii, DataLayout, nullptr,
+                                                                 /*MustSucceed=*/true);
+                    ii->replaceAllUsesWith(replacement);
                     ii->eraseFromParent();
-
-                    // Update iterators to continue in the next BB
-                    i = exitBB->begin();
-                    ie = exitBB->end();
+                    dirty = true;
                     break;
                 }
 
-                default:
-                    if (LowerIntrinsics)
-                        IL->LowerIntrinsicCall(ii);
+                case Intrinsic::is_constant: {
+                    if (auto *constant = llvm::ConstantFoldInstruction(ii, ii->getModule()->getDataLayout()))
+                        ii->replaceAllUsesWith(constant);
+                    else
+                        ii->replaceAllUsesWith(ConstantInt::getFalse(ii->getType()));
+                    ii->eraseFromParent();
                     dirty = true;
                     break;
+                }
+
+                // The following intrinsics are currently handled by LowerIntrinsicCall
+                // (Invoking LowerIntrinsicCall with any intrinsics not on this
+                // list throws an exception.)
+                case Intrinsic::addressofreturnaddress:
+                case Intrinsic::annotation:
+                case Intrinsic::assume:
+                case Intrinsic::bswap:
+                case Intrinsic::ceil:
+                case Intrinsic::copysign:
+                case Intrinsic::cos:
+                case Intrinsic::ctlz:
+                case Intrinsic::ctpop:
+                case Intrinsic::cttz:
+                case Intrinsic::dbg_declare:
+                case Intrinsic::dbg_label:
+                case Intrinsic::eh_typeid_for:
+                case Intrinsic::exp2:
+                case Intrinsic::exp:
+                case Intrinsic::expect:
+                case Intrinsic::floor:
+                case Intrinsic::flt_rounds:
+                case Intrinsic::frameaddress:
+                case Intrinsic::get_dynamic_area_offset:
+                case Intrinsic::invariant_end:
+                case Intrinsic::invariant_start:
+                case Intrinsic::lifetime_end:
+                case Intrinsic::lifetime_start:
+                case Intrinsic::log10:
+                case Intrinsic::log2:
+                case Intrinsic::log:
+                case Intrinsic::memcpy:
+                case Intrinsic::memmove:
+                case Intrinsic::memset:
+                case Intrinsic::not_intrinsic:
+                case Intrinsic::pcmarker:
+                case Intrinsic::pow:
+                case Intrinsic::prefetch:
+                case Intrinsic::ptr_annotation:
+                case Intrinsic::readcyclecounter:
+                case Intrinsic::returnaddress:
+                case Intrinsic::round:
+                case Intrinsic::roundeven:
+                case Intrinsic::sin:
+                case Intrinsic::sqrt:
+                case Intrinsic::stackrestore:
+                case Intrinsic::stacksave:
+                case Intrinsic::trunc:
+                case Intrinsic::var_annotation:
+                    IL->LowerIntrinsicCall(ii);
+                    dirty = true;
+                    break;
+
+                    // Warn about any unrecognized intrinsics.
+                default: {
+                    const Function *Callee = ii->getCalledFunction();
+                    llvm::StringRef name = Callee->getName();
+                    klee_warning_once((void *) Callee, "unsupported intrinsic %.*s", (int) name.size(), name.data());
+                    break;
+                }
             }
         }
     }

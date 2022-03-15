@@ -67,11 +67,11 @@ struct TranslationBlock {
     uint16_t size;        /* size of target code for this block (1 <=
                              size <= TARGET_PAGE_SIZE) */
 
-#define CF_COUNT_MASK 0x00007fff
-#define CF_NOCACHE 0x00010000            /* To be freed after execution */
+#define CF_COUNT_MASK         0x00007fff
+#define CF_NOCACHE            0x00010000 /* To be freed after execution */
 #define CF_HAS_INTERRUPT_EXIT 0x00020000 /* The TB has a prologue to handle quick CPU loop exit */
-#define CF_INVALID 0x00040000            /* TB is stale. Set with @jmp_lock held */
-#define CF_PARALLEL 0x00080000           /* Generate code for a parallel context */
+#define CF_INVALID            0x00040000 /* TB is stale. Set with @jmp_lock held */
+#define CF_PARALLEL           0x00080000 /* Generate code for a parallel context */
 
     uint32_t cflags; /* compile flags */
 

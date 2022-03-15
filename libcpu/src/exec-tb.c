@@ -357,7 +357,6 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end, int
 #ifdef TARGET_HAS_PRECISE_SMC
     int current_tb_not_found = is_cpu_write_access;
     TranslationBlock *current_tb = NULL;
-    int current_tb_modified = 0;
     target_ulong current_pc = 0;
     target_ulong current_cs_base = 0;
     int current_flags = 0;
@@ -399,7 +398,6 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end, int
                 }
             }
             if (current_tb == tb && (current_tb->cflags & CF_COUNT_MASK) != 1) {
-                current_tb_modified = 1;
                 cpu_restore_state(env, env->mem_io_pc);
                 cpu_get_tb_cpu_state(env, &current_pc, &current_cs_base, &current_flags);
 
@@ -409,7 +407,7 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end, int
                 assert(instr_size);
                 if (current_tb->pc + current_tb->size > env->eip + instr_size) {
                     env->eip += instr_size;
-                    tcg_target_force_tb_exit(env->mem_io_pc, (uintptr_t)(current_tb->tc.ptr + current_tb->tc.size));
+                    tcg_target_force_tb_exit(env->mem_io_pc, (uintptr_t) (current_tb->tc.ptr + current_tb->tc.size));
                 }
             }
 #endif /* TARGET_HAS_PRECISE_SMC */
@@ -590,7 +588,7 @@ void tb_remove_from_jmp_list(TranslationBlock *orig, int n_orig) {
 /* reset the jump entry 'n' of a TB so that it is not chained to
    another TB */
 void tb_reset_jump(TranslationBlock *tb, int n) {
-    uintptr_t addr = (uintptr_t)(tb->tc.ptr + tb->jmp_reset_offset[n]);
+    uintptr_t addr = (uintptr_t) (tb->tc.ptr + tb->jmp_reset_offset[n]);
     tb_set_jmp_target(tb, n, addr);
 }
 

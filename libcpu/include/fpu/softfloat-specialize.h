@@ -83,10 +83,10 @@ const float64 float64_default_nan = const_float64(LIT64(0xFFF8000000000000));
 *----------------------------------------------------------------------------*/
 #if SNAN_BIT_IS_ONE
 #define floatx80_default_nan_high 0x7FFF
-#define floatx80_default_nan_low LIT64(0xBFFFFFFFFFFFFFFF)
+#define floatx80_default_nan_low  LIT64(0xBFFFFFFFFFFFFFFF)
 #else
 #define floatx80_default_nan_high 0xFFFF
-#define floatx80_default_nan_low LIT64(0xC000000000000000)
+#define floatx80_default_nan_low  LIT64(0xC000000000000000)
 #endif
 
 const floatx80 floatx80_default_nan = make_floatx80_init(floatx80_default_nan_high, floatx80_default_nan_low);
@@ -97,10 +97,10 @@ const floatx80 floatx80_default_nan = make_floatx80_init(floatx80_default_nan_hi
 *----------------------------------------------------------------------------*/
 #if SNAN_BIT_IS_ONE
 #define float128_default_nan_high LIT64(0x7FFF7FFFFFFFFFFF)
-#define float128_default_nan_low LIT64(0xFFFFFFFFFFFFFFFF)
+#define float128_default_nan_low  LIT64(0xFFFFFFFFFFFFFFFF)
 #else
 #define float128_default_nan_high LIT64(0xFFFF800000000000)
-#define float128_default_nan_low LIT64(0x0000000000000000)
+#define float128_default_nan_low  LIT64(0x0000000000000000)
 #endif
 
 const float128 float128_default_nan = make_float128_init(float128_default_nan_high, float128_default_nan_low);
@@ -219,7 +219,7 @@ int float32_is_quiet_nan(float32 a_) {
 #if SNAN_BIT_IS_ONE
     return (((a >> 22) & 0x1FF) == 0x1FE) && (a & 0x003FFFFF);
 #else
-    return (0xFF800000 <= (uint32_t)(a << 1));
+    return (0xFF800000 <= (uint32_t) (a << 1));
 #endif
 }
 
@@ -231,7 +231,7 @@ int float32_is_quiet_nan(float32 a_) {
 int float32_is_signaling_nan(float32 a_) {
     uint32_t a = float32_val(a_);
 #if SNAN_BIT_IS_ONE
-    return (0xFF800000 <= (uint32_t)(a << 1));
+    return (0xFF800000 <= (uint32_t) (a << 1));
 #else
     return (((a >> 22) & 0x1FF) == 0x1FE) && (a & 0x003FFFFF);
 #endif
@@ -494,9 +494,9 @@ static float32 propagateFloat32NaN(float32 a, float32 b STATUS_PARAM) {
     if (STATUS(default_nan_mode))
         return float32_default_nan;
 
-    if ((uint32_t)(av << 1) < (uint32_t)(bv << 1)) {
+    if ((uint32_t) (av << 1) < (uint32_t) (bv << 1)) {
         aIsLargerSignificand = 0;
-    } else if ((uint32_t)(bv << 1) < (uint32_t)(av << 1)) {
+    } else if ((uint32_t) (bv << 1) < (uint32_t) (av << 1)) {
         aIsLargerSignificand = 1;
     } else {
         aIsLargerSignificand = (av < bv) ? 1 : 0;
@@ -566,7 +566,7 @@ int float64_is_quiet_nan(float64 a_) {
 #if SNAN_BIT_IS_ONE
     return (((a >> 51) & 0xFFF) == 0xFFE) && (a & LIT64(0x0007FFFFFFFFFFFF));
 #else
-    return (LIT64(0xFFF0000000000000) <= (uint64_t)(a << 1));
+    return (LIT64(0xFFF0000000000000) <= (uint64_t) (a << 1));
 #endif
 }
 
@@ -578,7 +578,7 @@ int float64_is_quiet_nan(float64 a_) {
 int float64_is_signaling_nan(float64 a_) {
     uint64_t a = float64_val(a_);
 #if SNAN_BIT_IS_ONE
-    return (LIT64(0xFFF0000000000000) <= (uint64_t)(a << 1));
+    return (LIT64(0xFFF0000000000000) <= (uint64_t) (a << 1));
 #else
     return (((a >> 51) & 0xFFF) == 0xFFE) && (a & LIT64(0x0007FFFFFFFFFFFF));
 #endif
@@ -665,9 +665,9 @@ static float64 propagateFloat64NaN(float64 a, float64 b STATUS_PARAM) {
     if (STATUS(default_nan_mode))
         return float64_default_nan;
 
-    if ((uint64_t)(av << 1) < (uint64_t)(bv << 1)) {
+    if ((uint64_t) (av << 1) < (uint64_t) (bv << 1)) {
         aIsLargerSignificand = 0;
-    } else if ((uint64_t)(bv << 1) < (uint64_t)(av << 1)) {
+    } else if ((uint64_t) (bv << 1) < (uint64_t) (av << 1)) {
         aIsLargerSignificand = 1;
     } else {
         aIsLargerSignificand = (av < bv) ? 1 : 0;
@@ -738,9 +738,9 @@ int floatx80_is_quiet_nan(floatx80 a) {
     uint64_t aLow;
 
     aLow = a.low & ~LIT64(0x4000000000000000);
-    return ((a.high & 0x7FFF) == 0x7FFF) && (uint64_t)(aLow << 1) && (a.low == aLow);
+    return ((a.high & 0x7FFF) == 0x7FFF) && (uint64_t) (aLow << 1) && (a.low == aLow);
 #else
-    return ((a.high & 0x7FFF) == 0x7FFF) && (LIT64(0x8000000000000000) <= ((uint64_t)(a.low << 1)));
+    return ((a.high & 0x7FFF) == 0x7FFF) && (LIT64(0x8000000000000000) <= ((uint64_t) (a.low << 1)));
 #endif
 }
 
@@ -752,12 +752,12 @@ int floatx80_is_quiet_nan(floatx80 a) {
 
 int floatx80_is_signaling_nan(floatx80 a) {
 #if SNAN_BIT_IS_ONE
-    return ((a.high & 0x7FFF) == 0x7FFF) && (LIT64(0x8000000000000000) <= ((uint64_t)(a.low << 1)));
+    return ((a.high & 0x7FFF) == 0x7FFF) && (LIT64(0x8000000000000000) <= ((uint64_t) (a.low << 1)));
 #else
     uint64_t aLow;
 
     aLow = a.low & ~LIT64(0x4000000000000000);
-    return ((a.high & 0x7FFF) == 0x7FFF) && (uint64_t)(aLow << 1) && (a.low == aLow);
+    return ((a.high & 0x7FFF) == 0x7FFF) && (uint64_t) (aLow << 1) && (a.low == aLow);
 #endif
 }
 
@@ -879,7 +879,7 @@ int float128_is_quiet_nan(float128 a) {
 #if SNAN_BIT_IS_ONE
     return (((a.high >> 47) & 0xFFFF) == 0xFFFE) && (a.low || (a.high & LIT64(0x00007FFFFFFFFFFF)));
 #else
-    return (LIT64(0xFFFE000000000000) <= (uint64_t)(a.high << 1)) && (a.low || (a.high & LIT64(0x0000FFFFFFFFFFFF)));
+    return (LIT64(0xFFFE000000000000) <= (uint64_t) (a.high << 1)) && (a.low || (a.high & LIT64(0x0000FFFFFFFFFFFF)));
 #endif
 }
 
@@ -890,7 +890,7 @@ int float128_is_quiet_nan(float128 a) {
 
 int float128_is_signaling_nan(float128 a) {
 #if SNAN_BIT_IS_ONE
-    return (LIT64(0xFFFE000000000000) <= (uint64_t)(a.high << 1)) && (a.low || (a.high & LIT64(0x0000FFFFFFFFFFFF)));
+    return (LIT64(0xFFFE000000000000) <= (uint64_t) (a.high << 1)) && (a.low || (a.high & LIT64(0x0000FFFFFFFFFFFF)));
 #else
     return (((a.high >> 47) & 0xFFFF) == 0xFFFE) && (a.low || (a.high & LIT64(0x00007FFFFFFFFFFF)));
 #endif

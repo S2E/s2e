@@ -37,7 +37,7 @@
 #include <ucontext.h>
 #include "coroutine-int.h"
 
-#define container_of(addr, type, field) ((type *) ((uintptr_t)(addr) - (uintptr_t)(&((type *) 0)->field)))
+#define container_of(addr, type, field) ((type *) ((uintptr_t) (addr) - (uintptr_t) (&((type *) 0)->field)))
 
 #define DO_UPCAST(type, field, dev) container_of(dev, type, field)
 

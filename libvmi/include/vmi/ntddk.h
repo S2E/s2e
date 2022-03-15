@@ -78,14 +78,14 @@ struct LIST_ENTRY64 {
 };
 
 #define CONTAINING_RECORD32(address, type, field) \
-    ((uint32_t)((uint32_t)(address) - (uint32_t)(uint64_t)(&((type *) 0)->field)))
+    ((uint32_t) ((uint32_t) (address) - (uint32_t) (uint64_t) (&((type *) 0)->field)))
 
 typedef int32_t NTSTATUS; // MUST BE SIGNED
 
-#define NT_SUCCESS(Status) ((NTSTATUS)(Status) >= 0)
-#define NT_INFORMATION(Status) ((ULONG)(Status) >> 30 == 1)
-#define NT_WARNING(Status) ((ULONG)(Status) >> 30 == 2)
-#define NT_ERROR(Status) ((ULONG)(Status) >> 30 == 3)
+#define NT_SUCCESS(Status)     ((NTSTATUS) (Status) >= 0)
+#define NT_INFORMATION(Status) ((ULONG) (Status) >> 30 == 1)
+#define NT_WARNING(Status)     ((ULONG) (Status) >> 30 == 2)
+#define NT_ERROR(Status)       ((ULONG) (Status) >> 30 == 3)
 
 typedef struct _MODULE_ENTRY32 {
     LIST_ENTRY32 LoadOrder;
@@ -671,25 +671,25 @@ struct CONTEXT64 {
 #define CONTEXT_i386 0x00010000
 #define CONTEXT_i486 0x00010000
 
-#define CONTEXT_CONTROL (CONTEXT_i386 | 0x00000001L)
-#define CONTEXT_INTEGER (CONTEXT_i386 | 0x00000002L)
-#define CONTEXT_SEGMENTS (CONTEXT_i386 | 0x00000004L)
-#define CONTEXT_FLOATING_POINT (CONTEXT_i386 | 0x00000008L)
-#define CONTEXT_DEBUG_REGISTERS (CONTEXT_i386 | 0x00000010L)
+#define CONTEXT_CONTROL            (CONTEXT_i386 | 0x00000001L)
+#define CONTEXT_INTEGER            (CONTEXT_i386 | 0x00000002L)
+#define CONTEXT_SEGMENTS           (CONTEXT_i386 | 0x00000004L)
+#define CONTEXT_FLOATING_POINT     (CONTEXT_i386 | 0x00000008L)
+#define CONTEXT_DEBUG_REGISTERS    (CONTEXT_i386 | 0x00000010L)
 #define CONTEXT_EXTENDED_REGISTERS (CONTEXT_i386 | 0x00000020L)
 
 #define CONTEXT_FULL (CONTEXT_CONTROL | CONTEXT_INTEGER | CONTEXT_SEGMENTS)
 
 #define EXCEPTION_MAXIMUM_PARAMETERS 15
 
-#define EXCEPTION_NONCONTINUABLE 0x0001
-#define EXCEPTION_UNWINDING 0x0002
-#define EXCEPTION_EXIT_UNWIND 0x0004
-#define EXCEPTION_STACK_INVALID 0x0008
-#define EXCEPTION_NESTED_CALL 0x0010
-#define EXCEPTION_TARGET_UNWIND 0x0020
+#define EXCEPTION_NONCONTINUABLE  0x0001
+#define EXCEPTION_UNWINDING       0x0002
+#define EXCEPTION_EXIT_UNWIND     0x0004
+#define EXCEPTION_STACK_INVALID   0x0008
+#define EXCEPTION_NESTED_CALL     0x0010
+#define EXCEPTION_TARGET_UNWIND   0x0020
 #define EXCEPTION_COLLIDED_UNWIND 0x0040
-#define EXCEPTION_UNWIND 0x0066
+#define EXCEPTION_UNWIND          0x0066
 
 #define STATUS_BREAKPOINT 0x80000003
 
@@ -941,7 +941,7 @@ struct KDPC32 {
     uint32_t DpcData;         // PVOID
 };
 
-#define TIMER_EXPIRED_INDEX_BITS 6
+#define TIMER_EXPIRED_INDEX_BITS   6
 #define TIMER_PROCESSOR_INDEX_BITS 5
 
 struct DISPATCHER_HEADER32 {

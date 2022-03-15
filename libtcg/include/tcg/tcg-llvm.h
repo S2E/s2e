@@ -91,9 +91,6 @@ private:
 
     llvm::IRBuilder<> m_builder;
 
-    /* Function pass manager (used for optimizing the code) */
-    llvm::legacy::FunctionPassManager *m_functionPassManager;
-
 #ifdef CONFIG_SYMBEX
     /* Declaration of a wrapper function for helpers */
     llvm::Function *m_helperForkAndConcretize;
@@ -171,10 +168,6 @@ public:
 
     const std::string &getBitcodeLibraryPath() const {
         return m_bitcodeLibraryPath;
-    }
-
-    llvm::legacy::FunctionPassManager *getFunctionPassManager() const {
-        return m_functionPassManager;
     }
 
     bool isInstrumented(llvm::Function *tb);

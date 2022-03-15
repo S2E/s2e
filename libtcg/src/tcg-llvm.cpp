@@ -33,6 +33,7 @@ extern "C" {
 
 #include <tcg/tcg-llvm.h>
 
+#include <llvm/Bitcode/BitcodeReader.h>
 #include <llvm/ExecutionEngine/ExecutionEngine.h>
 #include <llvm/ExecutionEngine/MCJIT.h>
 #include <llvm/IR/DataLayout.h>
@@ -49,14 +50,13 @@ extern "C" {
 #include <llvm/Transforms/Scalar.h>
 #include <llvm/Transforms/Scalar/GVN.h>
 #include <llvm/Transforms/Utils.h>
-#include <llvm/Bitcode/BitcodeReader.h>
 
 #include <llvm/Support/DynamicLibrary.h>
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Support/raw_ostream.h>
 
-#include <llvm/ADT/DenseMap.h>
 #include <llvm-c/Core.h>
+#include <llvm/ADT/DenseMap.h>
 
 #include <iostream>
 #include <sstream>
@@ -88,17 +88,6 @@ TCGLLVMTranslator::TCGLLVMTranslator(const std::string &bitcodeLibraryPath, std:
     std::memset(m_values, 0, sizeof(m_values));
     std::memset(m_memValuesPtr, 0, sizeof(m_memValuesPtr));
     std::memset(m_globalsIdx, 0, sizeof(m_globalsIdx));
-
-    m_functionPassManager = new legacy::FunctionPassManager(m_module.get());
-    m_functionPassManager->add(createReassociatePass());
-    m_functionPassManager->add(createConstantPropagationPass());
-    m_functionPassManager->add(createInstructionCombiningPass());
-    m_functionPassManager->add(createGVNPass());
-    m_functionPassManager->add(createDeadStoreEliminationPass());
-    m_functionPassManager->add(createCFGSimplificationPass());
-    m_functionPassManager->add(createPromoteMemoryToRegisterPass());
-
-    m_functionPassManager->doInitialization();
 
     m_cpuType = NULL;
     m_cpuState = NULL;
@@ -136,7 +125,6 @@ TCGLLVMTranslator *TCGLLVMTranslator::create(const std::string &bitcodeLibraryPa
 }
 
 TCGLLVMTranslator::~TCGLLVMTranslator() {
-    delete m_functionPassManager;
 }
 
 llvm::FunctionType *TCGLLVMTranslator::tbType() {
@@ -193,7 +181,8 @@ uint64_t TCGLLVMTranslator::toInteger(llvm::Value *v) const {
 #ifdef CONFIG_SYMBEX
 
 void TCGLLVMTranslator::initializeNativeCpuState() {
-    m_cpuType = m_module->getTypeByName("struct.CPUX86State");
+    auto &ctx = m_module->getContext();
+    m_cpuType = StructType::getTypeByName(ctx, "struct.CPUX86State");
     assert(m_cpuType && "Could not find CPUX86State in LLVM bitcode");
 }
 
@@ -312,10 +301,13 @@ Value *TCGLLVMTranslator::getValue(TCGArg arg) {
                 Value *v = &*m_tbFunction->arg_begin();
                 m_values[idx] = m_builder.CreatePtrToInt(v, tcgType(temp.type), StringRef(temp.name) + "_v");
             } else {
-                m_values[idx] = m_builder.CreateLoad(getPtrForValue(idx), StringRef(temp.name) + "_v");
+                auto ptr = getPtrForValue(idx);
+                m_values[idx] =
+                    m_builder.CreateLoad(ptr->getType()->getPointerElementType(), ptr, StringRef(temp.name) + "_v");
             }
         } else if (temp.temp_local) {
-            m_values[idx] = m_builder.CreateLoad(getPtrForValue(idx));
+            auto ptr = getPtrForValue(idx);
+            m_values[idx] = m_builder.CreateLoad(ptr->getType()->getPointerElementType(), ptr);
             std::ostringstream name;
             name << "loc" << (idx - m_tcgContext->nb_globals) << "_v";
             m_values[idx]->setName(name.str());
@@ -501,7 +493,7 @@ Value *TCGLLVMTranslator::generateCpuStatePtr(uint64_t registerOffset, unsigned 
         } else {
             bool ok = getCpuFieldGepIndexes(registerOffset, sizeInBytes, gepElements);
             if (ok) {
-                ret = GetElementPtrInst::Create(nullptr, m_cpuState,
+                ret = GetElementPtrInst::Create(m_cpuState->getType()->getPointerElementType(), m_cpuState,
                                                 ArrayRef<Value *>(gepElements.begin(), gepElements.end()));
                 instList.push_front(ret);
                 m_registers[regsz] = ret;
@@ -533,7 +525,7 @@ void TCGLLVMTranslator::generateQemuCpuLoad(const TCGArg *args, unsigned memBits
     Value *gep = generateCpuStatePtr(args[2], memBits / 8);
     Value *v;
 
-    v = m_builder.CreateLoad(gep);
+    v = m_builder.CreateLoad(gep->getType()->getPointerElementType(), gep);
     v = m_builder.CreateTrunc(v, intType(memBits));
 
     if (signExtend) {
@@ -1075,7 +1067,7 @@ int TCGLLVMTranslator::generateOperation(const TCGOp *op) {
 }
 
 bool TCGLLVMTranslator::isInstrumented(llvm::Function *tb) {
-    std::string name = tb->getName();
+    std::string name = tb->getName().str();
     return name.find("insttb") != std::string::npos;
 }
 
@@ -1229,7 +1221,7 @@ Function *TCGLLVMTranslator::generateCode(TCGContext *s, TranslationBlock *tb) {
         std::error_code error;
         std::stringstream ss;
         ss << "llvm-" << getpid() << ".log";
-        llvm::raw_fd_ostream os(ss.str(), error, llvm::sys::fs::F_None);
+        llvm::raw_fd_ostream os(ss.str(), error, llvm::sys::fs::OF_None);
         os << "Dumping function:\n";
         os.flush();
         os << *m_tbFunction << "\n";

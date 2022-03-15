@@ -21,14 +21,12 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+#include "klee/Common.h"
 #include "klee/ExecutionState.h"
 #include "klee/Internal/Module/Cell.h"
 #include "klee/Internal/Module/KInstruction.h"
 #include "klee/Internal/Module/KModule.h"
 #include "klee/Interpreter.h"
-#include "llvm/IR/CallSite.h"
-
-#include "klee/Common.h"
 
 namespace llvm {
 class BasicBlock;
@@ -121,7 +119,7 @@ protected:
     /// instead of being called directly.
     std::set<llvm::Function *> overridenInternalFunctions;
 
-    llvm::Function *getCalledFunction(llvm::CallSite &cs, ExecutionState &state);
+    llvm::Function *getTargetFunction(llvm::Value *calledVal, ExecutionState &state);
 
     void executeInstruction(ExecutionState &state, KInstruction *ki);
 
@@ -231,8 +229,7 @@ public:
 
     virtual void terminateState(ExecutionState &state, const std::string &reason);
 
-    virtual const llvm::Module *setModule(llvm::Module *module, const ModuleOptions &opts,
-                                          bool createStatsTracker = true);
+    virtual const llvm::Module *setModule(llvm::Module *module, bool createStatsTracker = true);
 
     // Given a concrete object in our [klee's] address space, add it to
     // objects checked code can reference.

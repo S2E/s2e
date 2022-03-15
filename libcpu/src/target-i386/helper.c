@@ -273,7 +273,7 @@ done:
     cpu_fprintf(f, "\n");
 }
 
-#define DUMP_CODE_BYTES_TOTAL 50
+#define DUMP_CODE_BYTES_TOTAL    50
 #define DUMP_CODE_BYTES_BACKWARD 20
 
 void cpu_dump_state(CPUX86State *env, FILE *f, fprintf_function cpu_fprintf, int flags) {

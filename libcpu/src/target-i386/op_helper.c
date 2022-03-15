@@ -36,9 +36,9 @@ struct CPUX86State *env = 0;
 #include <cpu/softmmu_defs.h>
 
 #define ACCESS_TYPE 0
-#define MEMSUFFIX _kernel_symb
-#define _raw _raw_symb
-#define DATA_SIZE 1
+#define MEMSUFFIX   _kernel_symb
+#define _raw        _raw_symb
+#define DATA_SIZE   1
 #include "softmmu_header.h"
 
 #define DATA_SIZE 2
@@ -58,7 +58,7 @@ struct CPUX86State *env = 0;
 //#define DEBUG_PCALL
 
 #ifdef DEBUG_PCALL
-#define LOG_PCALL(...) libcpu_log_mask(CPU_LOG_PCALL, ##__VA_ARGS__)
+#define LOG_PCALL(...)       libcpu_log_mask(CPU_LOG_PCALL, ##__VA_ARGS__)
 #define LOG_PCALL_STATE(env) log_cpu_state_mask(CPU_LOG_PCALL, (env), X86_DUMP_CCOP)
 #else
 #define LOG_PCALL(...) \
@@ -81,17 +81,17 @@ static inline target_long lshift(target_long x, int n) {
 #define FPU_RC_MASK 0xc00
 #define FPU_RC_NEAR 0x000
 #define FPU_RC_DOWN 0x400
-#define FPU_RC_UP 0x800
+#define FPU_RC_UP   0x800
 #define FPU_RC_CHOP 0xc00
 
 #define MAXTAN 9223372036854775808.0
 
 /* the following deal with x86 long double-precision numbers */
-#define MAXEXPD 0x7fff
-#define EXPBIAS 16383
-#define EXPD(fp) (fp.l.upper & 0x7fff)
-#define SIGND(fp) ((fp.l.upper) & 0x8000)
-#define MANTD(fp) (fp.l.lower)
+#define MAXEXPD          0x7fff
+#define EXPBIAS          16383
+#define EXPD(fp)         (fp.l.upper & 0x7fff)
+#define SIGND(fp)        ((fp.l.upper) & 0x8000)
+#define MANTD(fp)        (fp.l.lower)
 #define BIASEXPONENT(fp) fp.l.upper = (fp.l.upper & ~(0x7fff)) | EXPBIAS
 
 static inline void fpush(void) {
@@ -128,7 +128,7 @@ static inline void helper_fstt(floatx80 f, target_ulong ptr) {
 #define FPUS_PE (1 << 5)
 #define FPUS_SF (1 << 6)
 #define FPUS_SE (1 << 7)
-#define FPUS_B (1 << 15)
+#define FPUS_B  (1 << 15)
 
 #define FPUC_EM 0x3f
 
@@ -399,7 +399,7 @@ static void tss_load_seg(CPUX86State *env, int seg_reg, int selector, uintptr_t 
     }
 }
 
-#define SWITCH_TSS_JMP 0
+#define SWITCH_TSS_JMP  0
 #define SWITCH_TSS_IRET 1
 #define SWITCH_TSS_CALL 2
 
@@ -904,7 +904,7 @@ static int exeption_has_error_code(int intno) {
         if ((sp_mask) == 0xffff)                      \
             ESP_W((ESP & ~0xffff) | ((val) &0xffff)); \
         else if ((sp_mask) == 0xffffffffLL)           \
-            ESP_W((uint32_t)(val));                   \
+            ESP_W((uint32_t) (val));                  \
         else                                          \
             ESP_W(val);                               \
     } while (0)
@@ -914,7 +914,7 @@ static int exeption_has_error_code(int intno) {
 
 /* in 64-bit machines, this can overflow. So this segment addition macro
  * can be used to trim the value to 32-bit whenever needed */
-#define SEG_ADDL(ssp, sp, sp_mask) ((uint32_t)((ssp) + (sp & (sp_mask))))
+#define SEG_ADDL(ssp, sp, sp_mask) ((uint32_t) ((ssp) + (sp & (sp_mask))))
 
 /* XXX: add a is_user flag to have proper security support */
 #define PUSHW(ssp, sp, sp_mask, val)                          \
@@ -923,10 +923,10 @@ static int exeption_has_error_code(int intno) {
         cpu_stw_kernel(env, (ssp) + (sp & (sp_mask)), (val)); \
     }
 
-#define PUSHL(ssp, sp, sp_mask, val)                                      \
-    {                                                                     \
-        sp -= 4;                                                          \
-        cpu_stl_kernel(env, SEG_ADDL(ssp, sp, sp_mask), (uint32_t)(val)); \
+#define PUSHL(ssp, sp, sp_mask, val)                                       \
+    {                                                                      \
+        sp -= 4;                                                           \
+        cpu_stl_kernel(env, SEG_ADDL(ssp, sp, sp_mask), (uint32_t) (val)); \
     }
 
 #define POPW(ssp, sp, sp_mask, val)                           \
@@ -1348,7 +1348,7 @@ void helper_syscall(int next_eip_addend) {
             WR_se_eip(env, env->cstar);
         }
     } else {
-        ECX_W((uint32_t)(env->eip + next_eip_addend));
+        ECX_W((uint32_t) (env->eip + next_eip_addend));
 
         cpu_x86_set_cpl(env, 0);
         cpu_x86_load_seg_cache(env, R_CS, selector & 0xfffc, 0, 0xffffffff,
@@ -1402,7 +1402,7 @@ void helper_sysret(int dflag) {
         cpu_x86_load_seg_cache(env, R_SS, selector + 8, 0, 0xffffffff,
                                DESC_G_MASK | DESC_B_MASK | DESC_P_MASK | DESC_S_MASK | (3 << DESC_DPL_SHIFT) |
                                    DESC_W_MASK | DESC_A_MASK);
-        load_eflags((uint32_t)(RR_cpu(env, regs[11])),
+        load_eflags((uint32_t) (RR_cpu(env, regs[11])),
                     TF_MASK | AC_MASK | ID_MASK | IF_MASK | IOPL_MASK | VM_MASK | RF_MASK | NT_MASK);
         cpu_x86_set_cpl(env, 3);
     } else {
@@ -1980,7 +1980,7 @@ void helper_divl_EAX(target_ulong t0) {
     unsigned int den, r;
     uint64_t num, q;
 
-    num = ((uint32_t) EAX) | ((uint64_t)((uint32_t) EDX) << 32);
+    num = ((uint32_t) EAX) | ((uint64_t) ((uint32_t) EDX) << 32);
     den = t0;
     if (den == 0) {
         raise_exception_ra(env, EXCP00_DIVZ, GETPC());
@@ -1997,7 +1997,7 @@ void helper_idivl_EAX(target_ulong t0) {
     int den, r;
     int64_t num, q;
 
-    num = ((uint32_t) EAX) | ((uint64_t)((uint32_t) EDX) << 32);
+    num = ((uint32_t) EAX) | ((uint64_t) ((uint32_t) EDX) << 32);
     den = t0;
     if (den == 0) {
         raise_exception_ra(env, EXCP00_DIVZ, GETPC());
@@ -2152,7 +2152,7 @@ void helper_cmpxchg8b(target_ulong a0) {
     } else {
         /* always do the store */
         stq(a0, d);
-        EDX_W((uint32_t)(d >> 32));
+        EDX_W((uint32_t) (d >> 32));
         EAX_W((uint32_t) d);
         eflags &= ~CC_Z;
     }
@@ -3227,13 +3227,13 @@ void helper_rdtsc(void) {
     helper_svm_check_intercept_param(SVM_EXIT_RDTSC, 0);
 
     val = cpu_get_tsc() + env->tsc_offset;
-    EAX_W((uint32_t)(val));
-    EDX_W((uint32_t)(val >> 32));
+    EAX_W((uint32_t) (val));
+    EDX_W((uint32_t) (val >> 32));
 }
 
 void helper_rdtscp(void) {
     helper_rdtsc();
-    ECX_W((uint32_t)(env->tsc_aux));
+    ECX_W((uint32_t) (env->tsc_aux));
 }
 
 void helper_rdpmc(void) {
@@ -3377,7 +3377,7 @@ void helper_wrmsr(void) {
 
     helper_svm_check_intercept_param(SVM_EXIT_MSR, 1);
 
-    val = ((uint32_t) EAX) | ((uint64_t)((uint32_t) EDX) << 32);
+    val = ((uint32_t) EAX) | ((uint64_t) ((uint32_t) EDX) << 32);
     helper_wrmsr_v(ECX, val);
 }
 
@@ -3520,8 +3520,8 @@ void helper_rdmsr(void) {
     helper_svm_check_intercept_param(SVM_EXIT_MSR, 0);
 
     val = helper_rdmsr_v((uint32_t) ECX);
-    EAX_W((uint32_t)(val));
-    EDX_W((uint32_t)(val >> 32));
+    EAX_W((uint32_t) (val));
+    EDX_W((uint32_t) (val >> 32));
 }
 
 target_ulong helper_lsl(target_ulong selector1) {
@@ -4944,7 +4944,7 @@ void helper_boundl(target_ulong a0, int v) {
 #if defined(CONFIG_SYMBEX) && !defined(SYMBEX_LLVM_LIB)
 #undef MMUSUFFIX
 #define MMUSUFFIX _mmu_symb
-#define _raw _raw_symb
+#define _raw      _raw_symb
 
 #define SHIFT 0
 #include "softmmu_template.h"
@@ -5533,13 +5533,13 @@ void helper_vmexit(uint32_t exit_code, uint64_t exit_info_1) {
 /* MMX/SSE */
 /* XXX: optimize by storing fptt and fptags in the static cpu state */
 
-#define SSE_DAZ 0x0040
+#define SSE_DAZ     0x0040
 #define SSE_RC_MASK 0x6000
 #define SSE_RC_NEAR 0x0000
 #define SSE_RC_DOWN 0x2000
-#define SSE_RC_UP 0x4000
+#define SSE_RC_UP   0x4000
 #define SSE_RC_CHOP 0x6000
-#define SSE_FZ 0x8000
+#define SSE_FZ      0x8000
 
 static void update_sse_status(void) {
     int rnd_type;

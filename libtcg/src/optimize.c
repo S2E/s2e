@@ -337,9 +337,9 @@ static TCGArg do_constant_folding_2(TCGOpcode op, TCGArg x, TCGArg y) {
             return (uint64_t) x >> 32;
 
         case INDEX_op_muluh_i32:
-            return ((uint64_t)(uint32_t) x * (uint32_t) y) >> 32;
+            return ((uint64_t) (uint32_t) x * (uint32_t) y) >> 32;
         case INDEX_op_mulsh_i32:
-            return ((int64_t)(int32_t) x * (int32_t) y) >> 32;
+            return ((int64_t) (int32_t) x * (int32_t) y) >> 32;
 
         case INDEX_op_muluh_i64:
             mulu64(&l64, &h64, x, y);
@@ -1147,7 +1147,7 @@ void tcg_optimize(TCGContext *s) {
                     rl = op->args[0];
                     rh = op->args[1];
                     tcg_opt_gen_movi(s, op, rl, (int32_t) a);
-                    tcg_opt_gen_movi(s, op2, rh, (int32_t)(a >> 32));
+                    tcg_opt_gen_movi(s, op2, rh, (int32_t) (a >> 32));
                     break;
                 }
                 goto do_default;
@@ -1163,7 +1163,7 @@ void tcg_optimize(TCGContext *s) {
                     rl = op->args[0];
                     rh = op->args[1];
                     tcg_opt_gen_movi(s, op, rl, (int32_t) r);
-                    tcg_opt_gen_movi(s, op2, rh, (int32_t)(r >> 32));
+                    tcg_opt_gen_movi(s, op2, rh, (int32_t) (r >> 32));
                     break;
                 }
                 goto do_default;

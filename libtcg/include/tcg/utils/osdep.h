@@ -28,10 +28,10 @@
 #include <sys/time.h>
 
 #ifndef glue
-#define xglue(x, y) x##y
-#define glue(x, y) xglue(x, y)
+#define xglue(x, y)  x##y
+#define glue(x, y)   xglue(x, y)
 #define stringify(s) tostring(s)
-#define tostring(s) #s
+#define tostring(s)  #s
 #endif
 
 #ifndef container_of
@@ -54,7 +54,7 @@
 #endif
 
 #define typeof_field(type, field) typeof(((type *) 0)->field)
-#define type_check(t1, t2) ((t1 *) 0 - (t2 *) 0)
+#define type_check(t1, t2)        ((t1 *) 0 - (t2 *) 0)
 
 #ifndef MIN
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
@@ -67,7 +67,7 @@
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 #endif
 
-#define likely(x) __builtin_expect(!!(x), 1)
+#define likely(x)   __builtin_expect(!!(x), 1)
 #define unlikely(x) __builtin_expect(!!(x), 0)
 
 #endif

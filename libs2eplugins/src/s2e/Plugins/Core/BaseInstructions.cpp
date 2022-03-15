@@ -652,20 +652,25 @@ void BaseInstructions::writeBuffer(S2EExecutionState *state) {
     ok &= state->regs()->read(CPU_OFFSET(regs[R_EDI]), &destination, sizeof(destination), false);
     ok &= state->regs()->read(CPU_OFFSET(regs[R_ECX]), &size, sizeof(size), false);
 
-    getDebugStream(state) << "BaseInstructions: copying " << size << " bytes from " << hexval(source) << " to "
-                          << hexval(destination) << "\n";
+    if (!ok) {
+        getWarningsStream(state) << "writeBuffer: could not read registers\n";
+        return;
+    }
+
+    getDebugStream(state) << "copying " << size << " bytes from " << hexval(source) << " to " << hexval(destination)
+                          << "\n";
 
     uint32_t remaining = (uint32_t) size;
 
     while (remaining > 0) {
         uint8_t byte;
         if (!state->mem()->read(source, &byte, sizeof(byte))) {
-            getDebugStream(state) << "BaseInstructions: could not read byte at " << hexval(source) << "\n";
+            getDebugStream(state) << "could not read byte at " << hexval(source) << "\n";
             break;
         }
 
         if (!state->mem()->write(destination, &byte, sizeof(byte))) {
-            getDebugStream(state) << "BaseInstructions: could not write byte to " << hexval(destination) << "\n";
+            getDebugStream(state) << "could not write byte to " << hexval(destination) << "\n";
             break;
         }
 
