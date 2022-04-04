@@ -229,8 +229,8 @@ void AFLFuzzer::initialize() {
             tc_length += fT.gcount();
         }
         fT.close();
-        if (tc_length < 4 || tc_length > 1024) {
-            getWarningsStream() << " The length of testcase must greater than 4B but less than 1KB\n";
+        if (tc_length <= 0) {
+            getWarningsStream() << " The length of testcase should greater than zero\n";
             exit(-1);
         }
     }
