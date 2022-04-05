@@ -154,7 +154,7 @@ not need to store per-state information.
         }
     };
 
-Plugin code can refer to this state using the ``DECLARE_PLUGINSTATE`` macro:
+Plugin code can refer to this state using the ``DECLARE_PLUGINSTATE`` macro which will create a new ``InstructionTrackerState`` object named ``plgsate`` for you to Perform operations on it:
 
 .. code-block:: cpp
 
