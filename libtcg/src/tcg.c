@@ -859,14 +859,14 @@ const char *tcg_helper_get_name(TCGContext *s, void *func) {
 
 void tcg_register_helper(void *func, const char *name, int param_count, ...) {
     if (!s_additional_helpers) {
-        s_additional_helpers = g_array_new(TRUE, TRUE, sizeof(TCGHelperInfo));
+        s_additional_helpers = g_array_new(TRUE, TRUE, sizeof(TCGHelperInfo *));
     }
 
-    TCGHelperInfo helper;
-    helper.func = func;
-    helper.name = name;
-    helper.flags = dh_callflag(void);
-    helper.sizemask = 0;
+    TCGHelperInfo *helper = (TCGHelperInfo *) malloc(sizeof(TCGHelperInfo));
+    helper->func = func;
+    helper->name = name;
+    helper->flags = dh_callflag(void);
+    helper->sizemask = 0;
 
     va_list vl;
     va_start(vl, param_count);
@@ -875,10 +875,10 @@ void tcg_register_helper(void *func, const char *name, int param_count, ...) {
         int size = va_arg(vl, int);
         switch (size) {
             case 4:
-                helper.sizemask |= dh_sizemask(i32, i + 1);
+                helper->sizemask |= dh_sizemask(i32, i + 1);
                 break;
             case 8:
-                helper.sizemask |= dh_sizemask(i64, i + 1);
+                helper->sizemask |= dh_sizemask(i64, i + 1);
                 break;
             default:
                 abort();
@@ -889,7 +889,7 @@ void tcg_register_helper(void *func, const char *name, int param_count, ...) {
 
     g_array_append_val(s_additional_helpers, helper);
 
-    TCGHelperInfo *h = &g_array_index(s_additional_helpers, TCGHelperInfo, s_additional_helpers->len - 1);
+    TCGHelperInfo *h = g_array_index(s_additional_helpers, TCGHelperInfo *, s_additional_helpers->len - 1);
     g_hash_table_insert(helper_table, (gpointer) func, (gpointer) h);
 }
 
