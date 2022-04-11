@@ -252,9 +252,9 @@ void ExternalInterrupt::onBlockStart(S2EExecutionState *state, uint64_t pc) {
         for (int k = 0; k < irqs_bitmap.size(); k++) {
             if (last_irqs_bitmap[k] != irqs_bitmap[k]) {
                 getInfoStream() << "active irq has changed\n";
-                getInfoStream() << "external irq bit map = " << hexval(irqs_bitmap[0]) << "\n";
-                getInfoStream() << "external irq bit map = " << hexval(irqs_bitmap[1]) << "\n";
-                getInfoStream() << "external irq bit map = " << hexval(irqs_bitmap[2]) << "\n";
+                getInfoStream() << "last external irq bit map = " << hexval(last_irqs_bitmap[0]) << "\n";
+                getInfoStream() << "last external irq bit map 2 = " << hexval(last_irqs_bitmap[1]) << "\n";
+                getInfoStream() << "last external irq bit map 3 = " << hexval(last_irqs_bitmap[2]) << "\n";
                 plgState->insert_lastirqs_bitmap(irqs_bitmap);
                 plgState->update_activeirqs(setActiveIrqs(irqs_bitmap));
                 break;
