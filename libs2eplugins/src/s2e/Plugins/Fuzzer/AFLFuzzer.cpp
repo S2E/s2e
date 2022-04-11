@@ -530,15 +530,6 @@ void AFLFuzzer::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, unsigned 
                             << hexval(cur_loc) << ", maybe add it as a crash point\n";
     }
 
-    if (timer_ticks > 1 && tc_length > 0 && cur_read >= tc_length) {
-        getInfoStream() << "The whole testcase has been read by firmware, specific testcase analysis finish\n";
-        g_s2e->getCorePlugin()->onEngineShutdown.emit();
-        // Flush here just in case ~S2E() is not called (e.g., if atexit()
-        // shutdown handler was not called properly).
-        g_s2e->flushOutputStreams();
-        exit(0);
-    }
-
     // user-defined crash points
     for (auto crash_point : crash_points) {
         if (crash_point == cur_loc) {
