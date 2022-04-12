@@ -134,10 +134,9 @@ void AFLFuzzer::initialize() {
 
     int rom_num = g_s2e->getConfig()->getListSize("mem.rom");
     int ram_num = g_s2e->getConfig()->getListSize("mem.ram");
-    std::stringstream ssrom;
-    std::stringstream ssram;
 
     for (int i = 0; i < rom_num; ++i) {
+        std::stringstream ssrom;
         ssrom << "mem.rom"
               << "[" << (i + 1) << "]";
         MEM rom;
@@ -145,13 +144,13 @@ void AFLFuzzer::initialize() {
         if (!ok) {
             getWarningsStream() << "Could not parse " << ssrom.str() + "baseaddr"
                                 << "\n";
-            return;
+            exit(-1);
         }
         rom.size = cfg->getInt(ssrom.str() + "[2]", 0, &ok);
         if (!ok) {
             getWarningsStream() << "Could not parse " << ssrom.str() + "size"
                                 << "\n";
-            return;
+            exit(-1);
         }
         roms.push_back(rom);
         getDebugStream() << "valid rom " << i + 1 << " baseaddr:" << hexval(roms[i].baseaddr)
@@ -159,6 +158,7 @@ void AFLFuzzer::initialize() {
     }
 
     for (int i = 0; i < ram_num; ++i) {
+        std::stringstream ssram;
         ssram << "mem.ram"
               << "[" << (i + 1) << "]";
         MEM ram;
@@ -166,13 +166,13 @@ void AFLFuzzer::initialize() {
         if (!ok) {
             getWarningsStream() << "Could not parse " << ssram.str() + "baseaddr"
                                 << "\n";
-            return;
+            exit(-1);
         }
         ram.size = cfg->getInt(ssram.str() + "[2]", 0, &ok);
         if (!ok) {
             getWarningsStream() << "Could not parse " << ssram.str() + "size"
                                 << "\n";
-            return;
+            exit(-1);
         }
         rams.push_back(ram);
         getDebugStream() << "valid ram " << i + 1 << " baseaddr:" << hexval(rams[i].baseaddr)
