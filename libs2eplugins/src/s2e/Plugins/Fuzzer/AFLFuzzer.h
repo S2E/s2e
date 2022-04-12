@@ -55,6 +55,17 @@ enum {
     /* 05 */ FAULT_NOBITS,
     /* 06 */ END_uEmu
 };
+/* crash/hang codes */
+enum {
+    /* 00 */ TMOUT,
+    /* 01 */ INVALIDPC,
+    /* 02 */ OBREAD,
+    /* 03 */ OBWRITE,
+    /* 04 */ HARDFAULT,
+    /* 05 */ UDPC,
+    /* 06 */ INVALIDPH
+};
+
 
 class AFLFuzzer : public Plugin {
     S2E_PLUGIN

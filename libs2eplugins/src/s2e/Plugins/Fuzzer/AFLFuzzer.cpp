@@ -268,7 +268,7 @@ template <typename T> static bool getConcolicValue(S2EExecutionState *state, uns
 }
 
 static void PrintRegs(S2EExecutionState *state) {
-    for (unsigned i = 0; i < 15; ++i) {
+    for (unsigned i = 0; i < 16; ++i) {
         unsigned offset = offsetof(CPUARMState, regs[i]);
         target_ulong concreteData;
 
@@ -321,7 +321,7 @@ void AFLFuzzer::onModeSwitch(S2EExecutionState *state, bool fuzzing_to_learning)
 void AFLFuzzer::onInvalidPHs(S2EExecutionState *state, uint64_t addr) {
     getWarningsStream() << "Kill path due to onInvalid PHs at pc = " << hexval(state->regs()->getPc())
                         << "ph addr = " << hexval(addr) << "\n";
-    onCrashHang(state, 1);
+    onCrashHang(state, INVALIDPH);
 }
 
 void AFLFuzzer::onFuzzingInput(S2EExecutionState *state, PeripheralRegisterType type, uint64_t phaddr,
@@ -440,7 +440,7 @@ void AFLFuzzer::forkPoint(S2EExecutionState *state) {
 void AFLFuzzer::onInvalidPCAccess(S2EExecutionState *state, uint64_t addr) {
     uint32_t pc = state->regs()->getPc();
     getWarningsStream() << "Kill path due to invaild pc  = " << hexval(pc) << " addr = " << hexval(addr) << "\n";
-    onCrashHang(state, 1);
+    onCrashHang(state, INVALIDPC);
 }
 
 void AFLFuzzer::onConcreteDataMemoryAccess(S2EExecutionState *state, uint64_t address, uint64_t value, uint8_t size,
@@ -490,16 +490,21 @@ void AFLFuzzer::onConcreteDataMemoryAccess(S2EExecutionState *state, uint64_t ad
         }
         getWarningsStream() << "Kill Fuzz State due to out of bound read, access address = " << hexval(address)
                             << " pc = " << hexval(pc) << "\n";
+        onCrashHang(state, OBREAD);
     } else {
-        if (address > 0x20200000) {
+        if (address > rams[0].baseaddr + rams[0].size) {
             getWarningsStream() << "Kill Fuzz State due to out of bound write, access address = " << hexval(address)
                                 << " pc = " << hexval(pc) << "\n";
+        onCrashHang(state, OBWRITE);
+        } else if (address > roms[0].baseaddr + 0x100 && address < (roms[0].baseaddr + roms[0].size)){
+            getWarningsStream() << "Kill Fuzz State due to writing read-only rom address = " << hexval(address)
+                                << " pc = " << hexval(pc) << "\n";
+        onCrashHang(state, OBWRITE);
         } else {
             return;
         }
     }
 
-    onCrashHang(state, 1);
 }
 
 void AFLFuzzer::onTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionState *state,
@@ -534,7 +539,7 @@ void AFLFuzzer::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, unsigned 
     for (auto crash_point : crash_points) {
         if (crash_point == cur_loc) {
             getWarningsStream() << "Kill Fuzz state due to user-defined crash points\n";
-            onCrashHang(state, 1);
+            onCrashHang(state, UDPC);
         }
     }
 
@@ -563,13 +568,13 @@ void AFLFuzzer::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, unsigned 
     if (timer_ticks > hang_timeout) {
         timer_ticks = 0;
         getWarningsStream() << "Kill Fuzz State due to Timeout\n";
-        onCrashHang(state, 0);
+        onCrashHang(state, TMOUT);
     }
 
     if (state->regs()->getInterruptFlag() && state->regs()->getExceptionIndex() < 10) {
         getWarningsStream() << "Kill Fuzz State due to Fault interrupt = " << state->regs()->getExceptionIndex()
                             << " pc = " << hexval(state->regs()->getPc()) << "\n";
-        onCrashHang(state, 1);
+        onCrashHang(state, HARDFAULT);
     }
 }
 
