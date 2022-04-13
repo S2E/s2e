@@ -1857,11 +1857,7 @@ void PeripheralModelLearning::saveKBtoFile(S2EExecutionState *state, uint64_t tb
             if (plgState->get_pt1_type_flag_ph_it(itpt1.first) == 2) {
                 if (plgState->get_dt1_type_flag_ph_it(itpt1.first.first) != 2
                     && plgState->get_dt1_type_flag_ph_it(itpt1.first.first) != 1) {
-                    if (itpt1.second.second.second == 0xd0d0d0d) {
-                        getInfoStream() << "unlock possible dr = " << hexval(itpt1.first.first) << "\n";
-                        plgState->insert_lock_t1_type_flag(itpt1.first.first, 0);
-                        plgState->insert_dt1_type_flag_phs(itpt1.first.first, 1);
-                    } else if (itpt1.second.second.second == 0) {
+                    if (itpt1.second.second.second == 0) {
                         plgState->insert_dt1_type_flag_phs(itpt1.first.first, 1);
                     } else {
                         plgState->insert_dt1_type_flag_phs(itpt1.first.first, 0);
