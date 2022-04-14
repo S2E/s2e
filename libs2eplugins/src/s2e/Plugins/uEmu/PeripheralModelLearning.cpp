@@ -3204,7 +3204,8 @@ klee::ref<klee::Expr> PeripheralModelLearning::switchModefromFtoL(S2EExecutionSt
     ss = ss + "_" + sum_hashStream.str();
     getDebugStream(state) << ss << " size " << hexval(size) << "\n";
 
-    onModeSwitch.emit(state, true);
+    bool fork_point_flag = true;
+    onModeSwitch.emit(state, true, &fork_point_flag);
     g_s2e_cache_mode = false;
 
     for (auto ittp : cache_type_flag_phs) {
@@ -3342,7 +3343,8 @@ void PeripheralModelLearning::switchModefromLtoF(S2EExecutionState *state) {
         getWarningsStream() << "Could not read peripheral regs from cache file" << fileName << "\n";
         exit(-1);
     }
-    onModeSwitch.emit(state, false);
+    bool fork_point_flag = true;
+    onModeSwitch.emit(state, false, &fork_point_flag);
     false_type_phs_fork_states.clear();
     for (auto learning_state : learning_mode_states) {
         if (learning_state != state) {
@@ -3355,6 +3357,13 @@ void PeripheralModelLearning::switchModefromLtoF(S2EExecutionState *state) {
     }
     learning_mode_states.clear();
 
+    if (fork_point_flag) {
+        std::string s;
+        llvm::raw_string_ostream ss(s);
+        ss << "Kill Current Fork State "<< state->getID() << " in learning mode before switch to fuzzing mode!\n";
+        ss.flush();
+        s2e()->getExecutor()->terminateState(*state, s);
+    }
 }
 
 // only used for no invalid state test version

@@ -233,9 +233,6 @@ void InvalidStatesDetection::initialize() {
     cache_tb_num = s2e()->getConfig()->getInt(getConfigKey() + ".bb_inv1", 20, &ok);
     max_loop_tb_num = s2e()->getConfig()->getInt(getConfigKey() + ".bb_inv2", 2000, &ok);
     terminate_tb_num = s2e()->getConfig()->getInt(getConfigKey() + ".bb_terminate", 30000, &ok);
-    if (cache_mode) {
-        terminate_tb_num = terminate_tb_num*0.8;
-    }
     initial_terminate_tb_num = terminate_tb_num;
     tb_interval = s2e()->getConfig()->getInt(getConfigKey() + ".tbInterval", 3000, &ok);
 
@@ -353,7 +350,7 @@ void InvalidStatesDetection::onCacheModeMonitor(S2EExecutionState *state, uint64
     if (!state->regs()->getInterruptFlag()) {
         if (plgState->gettbnum() != 0 && plgState->gettbnum() % tb_interval == 0) {
             getDebugStream() << " force exit every max loop tb num " << plgState->gettbnum() << "\n";
-            g_s2e_allow_interrupt = 1;
+            g_s2e_allow_interrupt = 2;
             s2e()->getExecutor()->setCpuExitRequest();
         }
     }

@@ -19,43 +19,9 @@ namespace plugins {
 
 S2E_DEFINE_PLUGIN(AFLFuzzer, "trigger and record external interrupts", "AFLFuzzer", "PeripheralModelLearning");
 
-class AFLFuzzerState : public PluginState {
-private:
-    uint64_t hit_count;
-
-public:
-    AFLFuzzerState() {
-        hit_count = 0;
-    }
-
-    virtual ~AFLFuzzerState() {
-    }
-
-    static PluginState *factory(Plugin *, S2EExecutionState *) {
-        return new AFLFuzzerState();
-    }
-
-    AFLFuzzerState *clone() const {
-        return new AFLFuzzerState(*this);
-    }
-
-    void inc_hit_count() {
-        hit_count++;
-    }
-
-    uint64_t get_hit_count() {
-        return hit_count;
-    }
-
-    void clear_hit_count() {
-        hit_count = 0;
-    }
-};
-
-/* Set up SHM region and initialize other stuff. */
 
 static void afl_setup(void) {
-
+/* Set up SHM region and initialize other stuff. */
     AFL_shm_id = shmget((key_t) AFL_IoT_S2E_KEY, sizeof(struct AFL_data), IPC_CREAT | 0660);
     bitmap_shm_id = shmget((key_t) AFL_BITMAP_KEY, MAP_SIZE, IPC_CREAT | 0660);
     testcase_shm_id = shmget((key_t) AFL_TESTCASE_KEY, TESTCASE_SIZE, IPC_CREAT | 0660);
@@ -189,12 +155,7 @@ void AFLFuzzer::initialize() {
     timer_ticks = 0;
     timerConnection = s2e()->getCorePlugin()->onTimer.connect(sigc::mem_fun(*this, &AFLFuzzer::onTimer));
     hang_timeout = s2e()->getConfig()->getInt(getConfigKey() + ".hangTimeout", 10);
-    max_fork_count = s2e()->getConfig()->getInt(getConfigKey() + ".forkCount", 10, &ok);
-    if (max_fork_count < 100) {
-        getWarningsStream()
-            << "Too frequent fork will slow down fuzzing speed and very like go to the deep path!!!\n";
-    }
-
+    max_afl_size = s2e()->getConfig()->getInt(getConfigKey() + ".maxTCSize", 128, &ok);
     auto crash_keys = cfg->getIntegerList(getConfigKey() + ".crashPoints");
     foreach2 (it, crash_keys.begin(), crash_keys.end()) {
         getWarningsStream() << "Add kill point address = " << hexval(*it) << "\n";
@@ -210,7 +171,8 @@ void AFLFuzzer::initialize() {
     bitmap = (uint8_t *) malloc(MAP_SIZE);
     afl_start_code = 0;
     afl_end_code = 0xffffffff;
-    cur_read = 0;
+    systick_flag = 0;
+    hit_flag = false;
 
     // crash or hang analysis
     tc_length = 0;
@@ -236,179 +198,7 @@ void AFLFuzzer::initialize() {
     }
 }
 
-/*static void SymbHwGetConcolicVector(uint64_t in, unsigned size, hw::ConcreteArray &out) {*/
-    //union {
-        //// XXX: assumes little endianness!
-        //uint64_t value;
-        //uint8_t array[8];
-    //};
-
-    //value = in;
-    //out.resize(size);
-    //for (unsigned i = 0; i < size; ++i) {
-        //out[i] = array[i];
-    //}
-/*}*/
-
-template <typename T> static bool getConcolicValue(S2EExecutionState *state, unsigned offset, T *value) {
-    auto size = sizeof(T);
-
-    klee::ref<klee::Expr> expr = state->regs()->read(offset, size * 8);
-    if (isa<klee::ConstantExpr>(expr)) {
-        klee::ref<klee::ConstantExpr> ce = dyn_cast<klee::ConstantExpr>(expr);
-        *value = ce->getZExtValue();
-        return true;
-    }
-
-    // evaluate symobolic regs
-    klee::ref<klee::ConstantExpr> ce;
-    ce = dyn_cast<klee::ConstantExpr>(state->concolics->evaluate(expr));
-    *value = ce->getZExtValue();
-    return true;
-}
-
-static void PrintRegs(S2EExecutionState *state) {
-    for (unsigned i = 0; i < 16; ++i) {
-        unsigned offset = offsetof(CPUARMState, regs[i]);
-        target_ulong concreteData;
-
-        getConcolicValue(state, offset, &concreteData);
-        g_s2e->getInfoStream() << "Regs " << i << " = " << hexval(concreteData) << "\n";
-    }
-}
-
-void AFLFuzzer::onCrashHang(S2EExecutionState *state, uint32_t flag) {
-    PrintRegs(state);
-    memcpy(afl_area_ptr, bitmap, MAP_SIZE);
-    if (flag == 1) {
-        afl_con->AFL_return = FAULT_CRASH;
-    } else {
-        afl_con->AFL_return = FAULT_TMOUT;
-    }
-    std::string s;
-    llvm::raw_string_ostream ss(s);
-    ss << "Kill path due to Crash/Hang\n";
-    ss.flush();
-    s2e()->getExecutor()->terminateState(*state, s);
-}
-
-void AFLFuzzer::onTimer() {
-    ++timer_ticks;
-}
-
-void AFLFuzzer::onModeSwitch(S2EExecutionState *state, bool fuzzing_to_learning) {
-    DECLARE_PLUGINSTATE(AFLFuzzerState, state);
-    if (fuzzing_to_learning) {
-        memcpy(afl_area_ptr, bitmap, MAP_SIZE);
-        afl_con->AFL_input = 0;
-        // afl_con->AFL_return = FAULT_ERROR;
-        concreteDataMemoryAccessConnection.disconnect();
-        invalidPCAccessConnection.disconnect();
-        timerConnection.disconnect();
-        plgState->clear_hit_count();
-        timer_ticks = 0;
-    } else {
-        getInfoStream() << " AFL Reconnection !!\n";
-        timer_ticks = 0;
-        concreteDataMemoryAccessConnection = s2e()->getCorePlugin()->onConcreteDataMemoryAccess.connect(
-            sigc::mem_fun(*this, &AFLFuzzer::onConcreteDataMemoryAccess));
-        invalidPCAccessConnection =
-            s2e()->getCorePlugin()->onInvalidPCAccess.connect(sigc::mem_fun(*this, &AFLFuzzer::onInvalidPCAccess));
-        timerConnection = s2e()->getCorePlugin()->onTimer.connect(sigc::mem_fun(*this, &AFLFuzzer::onTimer));
-    }
-}
-
-void AFLFuzzer::onInvalidPHs(S2EExecutionState *state, uint64_t addr) {
-    getWarningsStream() << "Kill path due to onInvalid PHs at pc = " << hexval(state->regs()->getPc())
-                        << "ph addr = " << hexval(addr) << "\n";
-    onCrashHang(state, INVALIDPH);
-}
-
-void AFLFuzzer::onFuzzingInput(S2EExecutionState *state, PeripheralRegisterType type, uint64_t phaddr,
-                               uint32_t t3_count, uint32_t *size, uint32_t *value, bool *doFuzz) {
-    DECLARE_PLUGINSTATE(AFLFuzzerState, state);
-
-    memset(value, 0, 4 * sizeof(char));
-    for (auto input_peripheral : input_peripherals) {
-        if (input_peripheral.first == phaddr) {
-            *doFuzz = true;
-            *size = input_peripherals[phaddr];
-            break;
-        }
-    }
-
-    if (phaddr >= Ethernet.addr && phaddr < Ethernet.addr + Ethernet.size) {
-        *doFuzz = true;
-        *size = 1;
-        Ethernet.pos++;
-        if (Ethernet.pos == Ethernet.size) {
-            Ethernet.pos = 0;
-        }
-    }
-
-    if (*doFuzz && g_s2e_cache_mode && t3_count == 0) {
-        if (plgState->get_hit_count() == 0) {
-            afl_con->AFL_return = 0;
-            invaild_pc = 0;
-            cur_read = 0;
-            Ethernet.pos = 0;
-            getDebugStream() << "fork at checking point phaddr  = " << hexval(phaddr)
-                                << " pc = " << hexval(state->regs()->getPc()) << "\n";
-            forkPoint(state);
-            /*hw::ConcreteArray concolicValue;*/
-            //SymbHwGetConcolicVector(0x0, *size, concolicValue);
-            //klee::ref<klee::Expr> original_value =
-                //state->createSymbolicValue("checking_point", *size * 8, concolicValue);
-            /*s2e()->getExecutor()->forkAndConcretize(state, original_value);*/
-        }
-
-        plgState->inc_hit_count();
-        timer_ticks = 0;
-
-        if (tc_length == 0) { // Fuzzing
-            if (cur_read >= afl_con->AFL_size) { // fork point
-                cur_read = 0;
-                memcpy(afl_area_ptr, bitmap, MAP_SIZE);
-                afl_con->AFL_input = 0;
-                fork_count++;
-                if (fork_count > max_fork_count) {
-                    fork_count = 0;
-                    std::string s;
-                    llvm::raw_string_ostream ss(s);
-                    ss << "Fork point each " << max_fork_count << " testcases\n";
-                    ss.flush();
-                    s2e()->getExecutor()->terminateState(*state, s);
-                }
-            }
-
-            if (afl_con->AFL_input) {
-                getDebugStream() << "AFL_input = " << afl_con->AFL_input << " AFL_size = " << afl_con->AFL_size
-                                 << " cur_read = " << cur_read << "\n";
-                memcpy(value, testcase + cur_read, *size);
-                cur_read += *size;
-            } else {
-                memset(value, 0, 4 * sizeof(char));
-                cur_read = 0;
-            }
-        } else {
-            if (cur_read >= tc_length) {
-                getInfoStream() << "The whole testcase has been read by firmware, specific testcase analysis finish\n";
-                g_s2e->getCorePlugin()->onEngineShutdown.emit();
-                // Flush here just in case ~S2E() is not called (e.g., if atexit()
-                // shutdown handler was not called properly).
-                g_s2e->flushOutputStreams();
-                exit(0);
-            }
-            memcpy(value, testcase + cur_read, *size);
-            cur_read += *size;
-            getInfoStream() << " read the " << cur_read << " Bytes from whole testcase :" << hexval(*value) << "\n";
-        }
-    }
-}
-
 void AFLFuzzer::forkPoint(S2EExecutionState *state) {
-    //target_ulong count;
-    //target_ulong nameptr;
 
     state->jumpToSymbolicCpp();
 
@@ -430,11 +220,248 @@ void AFLFuzzer::forkPoint(S2EExecutionState *state) {
             sp.second->pc = sp.second->prevPC;
         }
     }
+}
 
-    /*klee::ref<klee::Expr> cond = klee::EqExpr::create(var, klee::ConstantExpr::create(0, var->getWidth()));*/
-    //if (!state->addConstraint(cond)) {
-        //s2e()->getExecutor()->terminateState(*state, "Could not add condition");
-    /*}*/
+template <typename T> static bool getConcolicValue(S2EExecutionState *state, unsigned offset, T *value) {
+    auto size = sizeof(T);
+
+    klee::ref<klee::Expr> expr = state->regs()->read(offset, size * 8);
+    if (isa<klee::ConstantExpr>(expr)) {
+        klee::ref<klee::ConstantExpr> ce = dyn_cast<klee::ConstantExpr>(expr);
+        *value = ce->getZExtValue();
+        return true;
+    }
+
+    // evaluate symobolic regs
+    klee::ref<klee::ConstantExpr> ce;
+    ce = dyn_cast<klee::ConstantExpr>(state->concolics->evaluate(expr));
+    *value = ce->getZExtValue();
+    return false;
+}
+
+static void PrintRegs(S2EExecutionState *state) {
+    for (unsigned i = 0; i < 16; ++i) {
+        unsigned offset = offsetof(CPUARMState, regs[i]);
+        target_ulong concreteData;
+
+        getConcolicValue(state, offset, &concreteData);
+        g_s2e->getInfoStream() << "Regs " << i << " = " << hexval(concreteData) << "\n";
+    }
+}
+
+void AFLFuzzer::restoreSymRegs(S2EExecutionState *state) {
+    for (unsigned i = 0; i < 16; ++i) {
+        bool ret = state->regs()->write<target_ulong>(CPU_OFFSET(regs[i]), reg_snapshot[i]);
+        assert(ret);
+    }
+}
+
+void AFLFuzzer::saveSymRegs(S2EExecutionState *state) {
+    if (reg_snapshot.size() == 0) {
+        for (unsigned i = 0; i < 16; ++i) {
+            unsigned offset = offsetof(CPUARMState, regs[i]);
+            target_ulong concreteData;
+            getConcolicValue(state, offset, &concreteData);
+            reg_snapshot.push_back(concreteData);
+            g_s2e->getInfoStream() << "Regs " << i << " = " << hexval(reg_snapshot[i]) << "\n";
+        }
+    } else {
+        return;
+    }
+}
+
+void AFLFuzzer::onCrashHang(S2EExecutionState *state, uint32_t flag) {
+    PrintRegs(state);
+    systick_flag = 0;
+    memcpy(afl_area_ptr, bitmap, MAP_SIZE);
+    if (flag != 0) {
+        afl_con->AFL_return = FAULT_CRASH;
+    } else {
+        afl_con->AFL_return = FAULT_TMOUT;
+    }
+    invaild_pc = 0;
+    for (auto phaddr_cur_loc : cur_read) {
+        cur_read[phaddr_cur_loc.first] = 0;
+    }
+    Ethernet.pos = 0;
+    if (tc_length == 0) { // Fuzzing
+        restoreMemRegSnapShot(state);
+        restoreSymRegs(state);
+        PrintRegs(state);
+        s2e()->getExecutor()->doDeviceStateRestore(state);
+    } else {
+        g_s2e->getCorePlugin()->onEngineShutdown.emit();
+        // Flush here just in case ~S2E() is not called (e.g., if atexit()
+        // shutdown handler was not called properly).
+        g_s2e->flushOutputStreams();
+        exit(0);
+    }
+}
+
+void AFLFuzzer::onTimer() {
+    ++timer_ticks;
+}
+
+void AFLFuzzer::onModeSwitch(S2EExecutionState *state, bool fuzzing_to_learning, bool *fork_point_flag) {
+    if (fuzzing_to_learning) {
+        if (hit_flag) {
+            memcpy(afl_area_ptr, bitmap, MAP_SIZE);
+            afl_con->AFL_input = 0;
+        } else {
+            *fork_point_flag = false;
+        }
+        concreteDataMemoryAccessConnection.disconnect();
+        invalidPCAccessConnection.disconnect();
+        timerConnection.disconnect();
+        timer_ticks = 0;
+    } else {
+        getInfoStream() << " AFL Reconnection !!\n";
+        if (hit_flag) {
+            hit_flag = false;
+        } else {
+            *fork_point_flag = false;
+        }
+        timer_ticks = 0;
+        concreteDataMemoryAccessConnection = s2e()->getCorePlugin()->onConcreteDataMemoryAccess.connect(
+            sigc::mem_fun(*this, &AFLFuzzer::onConcreteDataMemoryAccess));
+        invalidPCAccessConnection =
+            s2e()->getCorePlugin()->onInvalidPCAccess.connect(sigc::mem_fun(*this, &AFLFuzzer::onInvalidPCAccess));
+        timerConnection = s2e()->getCorePlugin()->onTimer.connect(sigc::mem_fun(*this, &AFLFuzzer::onTimer));
+    }
+}
+
+void AFLFuzzer::onInvalidPHs(S2EExecutionState *state, uint64_t addr) {
+    getWarningsStream() << "Kill path due to onInvalid PHs at pc = " << hexval(state->regs()->getPc())
+                        << "ph addr = " << hexval(addr) << "\n";
+    onCrashHang(state, INVALIDPH);
+}
+
+void AFLFuzzer::onFuzzingInput(S2EExecutionState *state, PeripheralRegisterType type, uint32_t phaddr,
+                               uint32_t t3_count, uint32_t *size, uint32_t *value, bool *doFuzz) {
+
+    memset(value, 0, 4 * sizeof(char));
+    for (auto input_peripheral : input_peripherals) {
+        if (input_peripheral.first == phaddr) {
+            *doFuzz = true;
+            *size = input_peripherals[phaddr];
+            break;
+        } else if (input_peripherals.size() > 0){
+            *doFuzz = false;
+        }
+    }
+
+    if (phaddr >= Ethernet.addr && phaddr < Ethernet.addr + Ethernet.size) {
+        *doFuzz = true;
+        *size = 1;
+        Ethernet.pos++;
+        if (Ethernet.pos == Ethernet.size) {
+            Ethernet.pos = 0;
+        }
+    }
+
+    if (*doFuzz && g_s2e_cache_mode && t3_count == 0) {
+        if (hit_flag == false) {
+            afl_con->AFL_return = 0;
+            invaild_pc = 0;
+            cur_read.clear();
+            Ethernet.pos = 0;
+            getInfoStream() << "fork point phaddr  = " << hexval(phaddr)
+                                << " pc = " << hexval(state->regs()->getPc()) << "\n";
+            forkPoint(state);
+            saveMemRegSnapShot(state);
+            saveSymRegs(state);
+            s2e()->getExecutor()->doDeviceStateSave(state);
+        }
+
+        hit_flag = true;
+        timer_ticks = 0;
+        uint32_t afl_length;
+        if (tc_length == 0) { // Fuzzing
+            if (afl_con->AFL_size > max_afl_size) {
+               afl_length = max_afl_size;
+                getDebugStream() << " max_size = " << max_afl_size << "\n";
+            } else {
+                afl_length = afl_con->AFL_size;
+            }
+            if (cur_read[phaddr] >= afl_length) { // fork point
+                if (state->regs()->getInterruptFlag() && state->regs()->getExceptionIndex() == 15 && systick_flag != 2) {
+                    cur_read[phaddr] = 0;
+                    systick_flag = 1;
+                } else {
+                    for (auto phaddr_cur_loc : cur_read) {
+                        cur_read[phaddr_cur_loc.first] = 0;
+                    }
+                    getDebugStream() <<  " phaddr first = " << hexval(phaddr) << " phaddr second" << hexval(cur_read[phaddr]) << "\n";
+                    memcpy(afl_area_ptr, bitmap, MAP_SIZE);
+                    afl_con->AFL_input = 0;
+                    systick_flag = 0;
+                    getDebugStream() << "testcase finish "<< " pc = " << hexval(state->regs()->getPc()) << "\n";
+                    restoreMemRegSnapShot(state);
+                    restoreSymRegs(state);
+                    s2e()->getExecutor()->doDeviceStateRestore(state);
+                    return;
+                }
+            }
+
+            if (afl_con->AFL_input) {
+                getDebugStream() << "AFL_input = " << afl_con->AFL_input << " AFL_size = " << afl_con->AFL_size
+                                 << " cur_read = " << cur_read[phaddr] << "\n";
+                memcpy(value, testcase + cur_read[phaddr], *size);
+                cur_read[phaddr] += *size;
+            } else {
+                memset(value, 0, 4 * sizeof(char));
+                cur_read[phaddr] = 0;
+            }
+        } else {
+            if (cur_read[phaddr] >= tc_length) {
+                getInfoStream() << "The whole testcase has been read by firmware, specific testcase analysis finish\n";
+                g_s2e->getCorePlugin()->onEngineShutdown.emit();
+                // Flush here just in case ~S2E() is not called (e.g., if atexit()
+                // shutdown handler was not called properly).
+                g_s2e->flushOutputStreams();
+                exit(0);
+            }
+            memcpy(value, testcase + cur_read[phaddr], *size);
+            cur_read[phaddr] += *size;
+            getInfoStream() << " read the " << cur_read[phaddr] << " Bytes from whole testcase :" << hexval(*value) << "\n";
+        }
+    }
+}
+
+void AFLFuzzer::saveMemRegSnapShot(S2EExecutionState *state) {
+    // ram regions
+    if (mems_snapshot.size() == 0) {
+        for (uint32_t j = 0; j < rams.size(); j++) {
+            std::vector<uint32_t> mem_snapshot;
+            for (uint32_t i = 0; i < rams[j].size; i = i+4) {
+                uint32_t ram_data = 0;
+                bool ok = state->mem()->read(rams[j].baseaddr + i, &ram_data, sizeof(ram_data));
+                mem_snapshot.push_back(ram_data);
+                if (ok) {
+                   // getDebugStream(state) << "read mem addr:" << hexval(rams[j].baseaddr+i) << " value = " << hexval(ram_data) << "\n";
+                } else {
+                    getWarningsStream(state) << "read mem addr:" << hexval(rams[j].baseaddr+i) << "fail!!\n";
+                    exit(-1);
+                }
+            }
+            mems_snapshot.push_back(mem_snapshot);
+        }
+    }
+}
+
+void AFLFuzzer::restoreMemRegSnapShot(S2EExecutionState *state) {
+    // ram regions
+    for (uint32_t j = 0; j < rams.size(); j++) {
+        for (uint32_t i = 0; i < rams[j].size; i = i+4) {
+            bool ok = state->mem()->write(rams[j].baseaddr + i, &mems_snapshot[j][i/4], sizeof(mems_snapshot[j][i/4]));
+            if (ok) {
+                getDebugStream(state) << "write mem addr:" << hexval(rams[j].baseaddr+i) << " value = " << hexval(mems_snapshot[j][i/4]) << "\n";
+            } else {
+                getWarningsStream(state) << "write mem addr:" << hexval(rams[j].baseaddr+i) << "fail!!\n";
+                exit(-1);
+            }
+        }
+    }
 }
 
 void AFLFuzzer::onInvalidPCAccess(S2EExecutionState *state, uint64_t addr) {
@@ -445,7 +472,10 @@ void AFLFuzzer::onInvalidPCAccess(S2EExecutionState *state, uint64_t addr) {
 
 void AFLFuzzer::onConcreteDataMemoryAccess(S2EExecutionState *state, uint64_t address, uint64_t value, uint8_t size,
                                            unsigned flags) {
-    DECLARE_PLUGINSTATE(AFLFuzzerState, state);
+
+    if (!hit_flag) {
+        return;
+    }
 
     bool is_write = false;
     if (flags & MEM_TRACE_FLAG_WRITE) {
@@ -470,10 +500,6 @@ void AFLFuzzer::onConcreteDataMemoryAccess(S2EExecutionState *state, uint64_t ad
         return;
     }
 
-    if (plgState->get_hit_count() == 0) {
-        return;
-    }
-
     // additional user-defined available rw regions
     for (auto writeable_range : additional_writeable_ranges) {
         if (address >= writeable_range.first && address < writeable_range.first + writeable_range.second) {
@@ -495,11 +521,11 @@ void AFLFuzzer::onConcreteDataMemoryAccess(S2EExecutionState *state, uint64_t ad
         if (address > rams[0].baseaddr + rams[0].size) {
             getWarningsStream() << "Kill Fuzz State due to out of bound write, access address = " << hexval(address)
                                 << " pc = " << hexval(pc) << "\n";
-        onCrashHang(state, OBWRITE);
+            onCrashHang(state, OBWRITE);
         } else if (address > roms[0].baseaddr + 0x100 && address < (roms[0].baseaddr + roms[0].size)){
             getWarningsStream() << "Kill Fuzz State due to writing read-only rom address = " << hexval(address)
                                 << " pc = " << hexval(pc) << "\n";
-        onCrashHang(state, OBWRITE);
+            onCrashHang(state, OBWRITE);
         } else {
             return;
         }
@@ -531,8 +557,12 @@ void AFLFuzzer::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, unsigned 
     }
 
     if (timer_ticks > (hang_timeout - 1)) {
-        getWarningsStream() << g_s2e_allow_interrupt << " what happen when we are hang at pc = "
+        getWarningsStream() << state->regs()->getInterruptFlag() << g_s2e_allow_interrupt << g_s2e_fast_concrete_invocation << " what happen when we are hang at pc = "
                             << hexval(cur_loc) << ", maybe add it as a crash point\n";
+    }
+
+    if (!state->regs()->getInterruptFlag() && systick_flag == 1) {
+        systick_flag = 2;
     }
 
     // user-defined crash points
@@ -551,8 +581,25 @@ void AFLFuzzer::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, unsigned 
      concern. Phew. But instruction addresses may be aligned. Let's mangle
      the value to get something quasi-uniform. */
 
-    cur_loc = (cur_loc >> 4) ^ (cur_loc << 8);
-    cur_loc &= MAP_SIZE - 1;
+    // Do not map external interrupt
+    if (state->regs()->getInterruptFlag()) {
+        if (state->regs()->getExceptionIndex() > 15) {
+            return;
+        } else if (state->regs()->getExceptionIndex() == 15) {
+            cur_loc = (cur_loc >> 8) ^ (cur_loc << 4);
+            cur_loc &= MAP_SIZE - 1;
+            cur_loc |= 0x8000;
+            if (cur_loc >= afl_inst_rms)
+                return;
+            if (bitmap[cur_loc]) // only count once for systick irq
+                return;
+            bitmap[cur_loc]++;
+            return;
+        }
+    }
+
+    cur_loc = (cur_loc >> 8) ^ (cur_loc << 4);
+    cur_loc &= MAP_SIZE/2 - 1;
 
     /* Implement probabilistic instrumentation by looking at scrambled block
      address. This keeps the instrumented locations stable across runs. */

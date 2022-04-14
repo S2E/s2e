@@ -824,6 +824,59 @@ void S2EExecutor::resetStateSwitchTimer() {
     libcpu_mod_timer(m_stateSwitchTimer, libcpu_get_clock_ms(host_clock));
 }
 
+void S2EExecutor::doDeviceStateSave(S2EExecutionState *oldState) {
+    // Some state save/restore logic flushes the cache.
+    // This can have bad effects in case of saving/restoring states
+    // that were in the middle of a memory operation. Therefore,
+    // we disable it here and re-enable after the new state has been activated.
+    g_se_disable_tlb_flush = 1;
+    // Clear the asynchronous request queue, which is not part of the KVM state
+    s2e_kvm_flush_disk();
+
+    cpu_disable_ticks();
+
+    // XXX: specify which state should be used
+    s2e_kvm_save_device_state();
+    oldState->m_registers.saveConcreteState();
+    g_se_disable_tlb_flush = 0;
+}
+
+void S2EExecutor::doDeviceStateRestore(S2EExecutionState *newState) {
+    // Some state save/restore logic flushes the cache.
+    // This can have bad effects in case of saving/restoring states
+    // that were in the middle of a memory operation. Therefore,
+    // we disable it here and re-enable after the new state has been activated.
+    g_se_disable_tlb_flush = 1;
+    // Clear the asynchronous request queue, which is not part of the KVM state
+    s2e_kvm_flush_disk();
+
+    cpu_disable_ticks();
+    jmp_buf jmp_env;
+    memcpy(&jmp_env, &env->jmp_env, sizeof(jmp_buf));
+
+    newState->m_registers.restoreConcreteState();
+
+    memcpy(&env->jmp_env, &jmp_env, sizeof(jmp_buf));
+
+    // since the cpu state struct is different between kvm env and cpu env
+    // we need to sync some sregs after sregs restore.
+    s2e_kvm_sync_sregs();
+    g_se_dirty_mask_addend = g_s2e_state->mem()->getDirtyMaskStoreAddend();
+
+    // XXX: specify which state should be used
+    s2e_kvm_restore_device_state();
+    se_tb_safe_flush();
+
+    g_se_disable_tlb_flush = 0;
+
+    /**
+     * Memory topology may change on state switches.
+     * Ensure that there are no bad mappings left.
+     */
+    tlb_flush(env, 1);
+    longjmp(env->jmp_env, 0);
+}
+
 void S2EExecutor::doStateSwitch(S2EExecutionState *oldState, S2EExecutionState *newState) {
     assert(oldState || newState);
     assert(!oldState || oldState->m_active);

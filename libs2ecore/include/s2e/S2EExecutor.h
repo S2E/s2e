@@ -205,6 +205,10 @@ public:
 
     static bool findFile(const std::string &dataDir, const std::string &name, std::string &ret);
 
+    void doDeviceStateSave(S2EExecutionState *oldState);
+
+    void doDeviceStateRestore(S2EExecutionState *newState);
+
 protected:
     void updateClockScaling();
 

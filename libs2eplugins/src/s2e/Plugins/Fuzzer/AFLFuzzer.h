@@ -100,12 +100,10 @@ private:
     sigc::connection timerConnection;
 
     bool enable_fuzzing;
-    uint32_t max_fork_count;
-    uint32_t fork_count;
     std::map<uint32_t /* phaddr */, uint32_t /* size */> input_peripherals;
     std::map<uint32_t /* phaddr */, uint32_t /* size */> additional_writeable_ranges;
     Fuzz_Buffer Ethernet;
-    uint32_t cur_read;
+    std::map<uint32_t /* phaddr */, uint32_t /* cur_loc */> cur_read;
     std::vector<uint32_t> crash_points;
     uint32_t invaild_pc;
     std::vector<MEM> roms;
@@ -115,13 +113,18 @@ private:
     uint64_t hang_timeout;
     uint64_t timer_ticks;
     uint32_t tc_length;
+    uint32_t systick_flag;
+    uint32_t max_afl_size;
+    bool hit_flag;
+    std::vector<std::vector<uint32_t>> mems_snapshot;
+    std::vector<target_ulong> reg_snapshot;
 
     void onConcreteDataMemoryAccess(S2EExecutionState *state, uint64_t vaddr, uint64_t value, uint8_t size,
                                     unsigned flags);
     void onInvalidPHs(S2EExecutionState *state, uint64_t addr);
-    void onModeSwitch(S2EExecutionState *state, bool fuzzing_to_learning);
+    void onModeSwitch(S2EExecutionState *state, bool fuzzing_to_learning, bool *fork_point_flag);
     void onInvalidPCAccess(S2EExecutionState *state, uint64_t addr);
-    void onFuzzingInput(S2EExecutionState *state, PeripheralRegisterType type, uint64_t phaddr, uint32_t t3_count,
+    void onFuzzingInput(S2EExecutionState *state, PeripheralRegisterType type, uint32_t phaddr, uint32_t t3_count,
                         uint32_t *size, uint32_t *value, bool *doFuzz);
     void onTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb, uint64_t pc,
                              bool staticTarget, uint64_t staticTargetPc);
@@ -129,6 +132,10 @@ private:
     void onCrashHang(S2EExecutionState *state, uint32_t flag);
     void onTimer();
     void forkPoint(S2EExecutionState *state);
+    void saveMemRegSnapShot(S2EExecutionState *state);
+    void restoreMemRegSnapShot(S2EExecutionState *state);
+    void saveSymRegs(S2EExecutionState *state);
+    void restoreSymRegs(S2EExecutionState *state);
 };
 
 } // namespace plugins

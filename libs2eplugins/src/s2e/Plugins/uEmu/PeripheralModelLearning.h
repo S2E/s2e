@@ -161,12 +161,12 @@ private:
     void identifyDataPeripheralRegs(S2EExecutionState *state, std::ofstream &fPHKB);
 
 public:
-    sigc::signal<void, S2EExecutionState *, PeripheralRegisterType /* type */, uint64_t /* physicalAddress */,
+    sigc::signal<void, S2EExecutionState *, PeripheralRegisterType /* type */, uint32_t /* physicalAddress */,
                  uint32_t /* t3 rest count */, uint32_t * /* size */, uint32_t * /* fuzz input */,
                  bool * /* enable fuzz */>
         onFuzzingInput;
 
-    sigc::signal<void, S2EExecutionState *, bool /* fuzzing to learning mode */> onModeSwitch;
+    sigc::signal<void, S2EExecutionState *, bool /* fuzzing/learning mode */, bool * /* fork point or not*/> onModeSwitch;
 
     sigc::signal<void, S2EExecutionState *, uint64_t /* phaddr */> onInvalidPHs;
 
