@@ -471,10 +471,15 @@ public:
     // update hash
     void insert_hashstack(uint32_t irq_no, uint64_t sum_hash) {
         hash_stack[irq_no].push_back(sum_hash);
+        if (hash_stack[irq_no].size() > 9) {
+            hash_stack[irq_no].pop_front();
+        }
     }
 
     void pop_hashstack(uint32_t irq_no) {
-        hash_stack[irq_no].pop_back();
+        if (hash_stack[irq_no].size() > 0) {
+            hash_stack[irq_no].pop_back();
+        }
     }
 
     uint64_t get_current_hash(uint32_t irq_no) {
@@ -1717,6 +1722,10 @@ void PeripheralModelLearning::onWritePeripheral(S2EExecutionState *state, uint64
                          << "\n";
         plgState->update_writeph((uint32_t) phaddr, writeConcreteValue);
     } else {
+        if (g_s2e_cache_mode) {
+            getWarningsStream() << " only write concrete value in cache mode!\n";
+            return;
+        }
         uint32_t writeConcreteValue;
         // evaluate symbolic regs
         klee::ref<klee::ConstantExpr> ce;

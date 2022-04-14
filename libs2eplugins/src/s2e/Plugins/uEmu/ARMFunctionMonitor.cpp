@@ -154,6 +154,19 @@ void ARMFunctionMonitor::onTranslateBlockEnd(ExecutionSignal *signal, S2EExecuti
 void ARMFunctionMonitor::onFunctionCall(S2EExecutionState *state, uint64_t caller_pc, unsigned source_type) {
     DECLARE_PLUGINSTATE(ARMFunctionMonitorState, state);
 
+    uint32_t return_address;
+    uint32_t lr = state->regs()->getLr();
+    if (source_type == TB_CALL) {
+        return_address = caller_pc + 4;
+        getDebugStream() << "direct call lr = " << hexval(lr) << "\n";
+    } else if (source_type == TB_CALL_IND) {
+        return_address = caller_pc + 2;
+        getDebugStream() << "indirect call lr = " << hexval(lr) << "\n";
+    } else {
+        getWarningsStream() << "should not be here!!!\n";
+        return;
+    }
+
     uint64_t regs_hash = getRegsHash(state, function_parameter_num);
     std::vector<uint64_t> sum_hash_vec;
     sum_hash_vec.push_back(regs_hash);
@@ -170,18 +183,6 @@ void ARMFunctionMonitor::onFunctionCall(S2EExecutionState *state, uint64_t calle
     sum_hash_vec.push_back(caller_pc_hash);
     uint64_t sum_hash = FNV1aHash(sum_hash_vec);
 
-    uint32_t return_address;
-    uint32_t lr = state->regs()->getLr();
-    if (source_type == TB_CALL) {
-        return_address = caller_pc + 4;
-        getDebugStream() << "direct call lr = " << hexval(lr) << "\n";
-    } else if (source_type == TB_CALL_IND) {
-        return_address = caller_pc + 2;
-        getDebugStream() << "indirect call lr = " << hexval(lr) << "\n";
-    } else {
-        getWarningsStream() << "should not be here!!!\n";
-        return;
-    }
     getDebugStream() << "caller pc = " << hexval(caller_pc) << " hash = " << hexval(sum_hash)
                      << " return address = " << hexval(return_address) << "\n";
     plgState->push_currect_callerpc(caller_pc);

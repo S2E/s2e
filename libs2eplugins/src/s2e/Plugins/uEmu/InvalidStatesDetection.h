@@ -20,7 +20,7 @@ namespace plugins {
 typedef std::pair<uint32_t /* pc */, uint32_t /* reg num */> UniquePcRegMap;
 typedef std::vector<uint32_t> ConRegs;
 typedef std::deque<ConRegs> CacheConregs;
-typedef llvm::DenseMap<uint32_t, uint32_t> TBCounts;
+typedef std::map<uint32_t, uint32_t> TBCounts;
 enum InvalidStatesType { DL1, DL2, LL1, LL2, UKP, IM };
 
 class InvalidStatesDetection : public Plugin {

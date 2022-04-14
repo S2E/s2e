@@ -19,13 +19,12 @@ S2E_DEFINE_PLUGIN(ExternalInterrupt, "trigger and record external interrupts", "
 
 class ExternalInterruptState : public PluginState {
 private:
-    typedef llvm::DenseMap<uint32_t, uint32_t> TBCounts;
+    typedef std::map<uint32_t, uint32_t> TBCounts;
 
     uint64_t tb_count;
     uint64_t re_tb_count;
     uint64_t new_tb_count;
     std::vector<uint32_t> last_irqs_bitmap;
-    std::map<uint32_t /*external irq no*/, uint32_t /* count */> pirqs_map;
     std::map<uint32_t /* external irq no */, bool /*enable*/> active_irqs;
     bool disable_systick; // per state
     bool enable_interrupt;
@@ -36,9 +35,9 @@ public:
         tb_count = 0;
         re_tb_count = 0;
         new_tb_map.clear();
-        pirqs_map.clear();
         disable_systick = true;
         enable_interrupt = false;
+        last_irqs_bitmap.push_back(0);
         last_irqs_bitmap.push_back(0);
         last_irqs_bitmap.push_back(0);
     }
@@ -211,12 +210,6 @@ void ExternalInterrupt::onBlockStart(S2EExecutionState *state, uint64_t pc) {
         ++unique_tb_num;
     }
     ++all_tb_map[pc];
-    if (g_s2e_cache_mode) {
-        if (!g_s2e_fast_concrete_invocation) {
-            // getWarningsStream() <<" should not happen sym pc = " << hexval(pc) << "\n";
-            return;
-        }
-    }
 
     if (!g_s2e_cache_mode) { // learning mode only
         // in case no external irqs

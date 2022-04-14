@@ -15,7 +15,7 @@
 
 namespace s2e {
 namespace plugins {
-typedef llvm::DenseMap<uint32_t, uint32_t> TBCounts;
+typedef std::map<uint32_t, uint32_t> TBCounts;
 
 class ExternalInterrupt : public Plugin {
     S2E_PLUGIN
