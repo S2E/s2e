@@ -1823,6 +1823,7 @@ void PeripheralModelLearning::saveKBtoFile(S2EExecutionState *state, uint64_t tb
     T1PeripheralMap pt1_type_flag_all_phs = plgState->get_pt1_type_flag_all_phs();
     TypeFlagPeripheralMap All_rphs;
     TypeFlagPeripheralMap T0_phs;
+    TypeFlagPeripheralMap T1_phs;
     PT1_phs.clear();
     TypeFlagPeripheralMap T2_phs;
     TypeFlagPeripheralMap T3_phs;
@@ -1854,6 +1855,7 @@ void PeripheralModelLearning::saveKBtoFile(S2EExecutionState *state, uint64_t tb
         if (plgState->get_type_flag_ph_it(itt1.first.first) == T1) {
             if (plgState->get_t2_type_flag_ph_it(itt1.first) != T2) {
                 All_rphs[itt1.first.first] = 1;
+                T1_phs[itt1.first.first] = 1;
                 fPHKB << "t1_" << hexval(itt1.first.first) << "_" << hexval(itt1.first.second) << "_"
                       << hexval(itt1.second.first) << "_" << hexval(itt1.second.second.second) << std::endl;
             }
@@ -1872,7 +1874,9 @@ void PeripheralModelLearning::saveKBtoFile(S2EExecutionState *state, uint64_t tb
                         plgState->insert_dt1_type_flag_phs(itpt1.first.first, 0);
                     }
                 }
-                PT1_phs[itpt1.first.first] = 1;
+                if (T1_phs[itpt1.first.first] != 1) {
+                    PT1_phs[itpt1.first.first] = 1;
+                }
                 fPHKB << "pt1_" << hexval(itpt1.first.first) << "_" << hexval(itpt1.first.second) << "_"
                       << hexval(itpt1.second.first) << "_" << hexval(itpt1.second.second.second) << std::endl;
             }
