@@ -1943,7 +1943,7 @@ void PeripheralModelLearning::saveKBtoFile(S2EExecutionState *state, uint64_t tb
             if (unique_T3_values.size() <= 5) {
                 int j = 1;
                 for (uint32_t T3_value : unique_T3_values) {
-                    if (unique_T3_values.size() > 2) {
+                    if (unique_T3_values.size() > 2 && irq_data_phs[ituncaches.first] == 2) {
                         for (uint32_t k = 0; k < max_t3_size/unique_T3_values.size(); k++) {
                             fPHKB << "t3_" << hexval(ituncaches.first) << "_" << hexval(plgState->get_readphs_size(ituncaches.first))
                                   << "_" << j++ << "_" << hexval(T3_value) << std::endl;
