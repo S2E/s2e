@@ -961,7 +961,7 @@ void PeripheralModelLearning::writeTIRQPeripheralstoKB(S2EExecutionState *state,
     fPHKB << "IRQCR" << std::endl;
 
     for (auto ittirqc : tirqc_type_phs) {
-        if (plgState->get_type_flag_ph_it(ittirqc.first.second) == T1) {
+        if (plgState->get_type_flag_ph_it(ittirqc.first.second) == T1 && irq_data_phs[ittirqc.first.second] != 2) {
             if (plgState->get_irq_flag_ph_it(ittirqc.first.second) == 2) {
                 for (auto itcrs : ittirqc.second) {
                     for (auto itcr : itcrs.second) {
