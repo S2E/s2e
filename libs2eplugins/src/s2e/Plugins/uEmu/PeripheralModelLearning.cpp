@@ -932,7 +932,7 @@ void PeripheralModelLearning::writeTIRQPeripheralstoKB(S2EExecutionState *state,
     // tirq cache
     TIRQPeripheralMapFlag empty_tirqc_flag;
     for (auto itpossirqs : possible_irq_values) {
-        if (plgState->get_type_flag_ph_it(std::get<1>(itpossirqs.first)) == T1) {
+        if (plgState->get_type_flag_ph_it(std::get<1>(itpossirqs.first)) == T1 && irq_data_phs[std::get<1>(itpossirqs.first)] != 2) {
             if (plgState->get_irq_flag_ph_it(std::get<1>(itpossirqs.first)) == 1) {
                 for (auto irqs_value : itpossirqs.second) {
                     fPHKB << "tirqs_" << hexval(std::get<1>(itpossirqs.first)) << "_"
