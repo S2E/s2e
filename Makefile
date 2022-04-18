@@ -414,13 +414,14 @@ $(Z3_BINARY):
 	wget -O "$@" $(Z3_BINARY_URL)/$@
 
 stamps/z3-binary: $(Z3_BINARY) | stamps
-	unzip $<
+	unzip -qqo $<
 	mkdir -p $(S2E_PREFIX)
 	mkdir -p $(S2E_PREFIX)/include
 	mkdir -p $(S2E_PREFIX)/lib
 	mkdir -p $(S2E_PREFIX)/bin
 	cp -r $(Z3_BINARY_DIR)/include/* $(S2E_PREFIX)/include/
-	cp $(Z3_BINARY_DIR)/bin/*.{a,so} $(S2E_PREFIX)/lib/
+	cp $(Z3_BINARY_DIR)/bin/*.a $(S2E_PREFIX)/lib/
+	cp $(Z3_BINARY_DIR)/bin/*.so $(S2E_PREFIX)/lib/
 	cp $(Z3_BINARY_DIR)/bin/z3 $(S2E_PREFIX)/bin/
 	rm -r $(Z3_BINARY_DIR)/*
 	touch $@
