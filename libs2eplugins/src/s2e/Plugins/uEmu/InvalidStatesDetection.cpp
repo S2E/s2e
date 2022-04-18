@@ -327,7 +327,7 @@ void InvalidStatesDetection::onCacheModeMonitor(S2EExecutionState *state, uint64
                      << " interrupt flag = " << state->regs()->getInterruptFlag() << "\n";
 
     if (plgState->inctbnum(pc)) {
-        getInfoStream() << "The unqiue number of the executed basic blocks in current state is "
+        getInfoStream() << "The unqiue number of the executed translation blocks (end address) in current state is "
                             << plgState->getnewtbnum() << " pc = " << hexval(pc) << "\n";
     }
 

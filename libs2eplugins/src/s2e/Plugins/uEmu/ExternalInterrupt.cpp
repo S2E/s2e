@@ -168,7 +168,7 @@ void ExternalInterrupt::recordTBMap() {
 void ExternalInterrupt::onuEmuShutdown() {
     if (g_s2e_cache_mode) {
         recordTBMap();
-        getInfoStream() << "The total number of unique executed tb is " << unique_tb_num << "\n";
+        getInfoStream() << "The total number of unique executed translation block (start address) is " << unique_tb_num << "\n";
     }
 }
 
