@@ -264,9 +264,13 @@ endif()
 ###############################################################################
 # Exception handling
 ###############################################################################
-if (NOT LLVM_ENABLE_EH)
-  klee_component_add_cxx_flag("-fno-exceptions" REQUIRED)
-endif()
+# This is commented out since it is incomparible with pre-packaged LLVM
+# that comes with exceptions off. While not a perfect solution, there should
+# not be that many issues since even a no-EH LLVM links against a libc++
+# with EH enabled, so the exceptions *within KLEE itself* should still be fine
+#if (NOT LLVM_ENABLE_EH)
+#  klee_component_add_cxx_flag("-fno-exceptions" REQUIRED)
+#endif()
 
 
 ################################################################################
