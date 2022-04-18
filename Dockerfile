@@ -30,7 +30,8 @@ RUN sed -i '1ideb mirror://mirrors.ubuntu.com/mirrors.txt bionic main restricted
 # Install build dependencies
 RUN dpkg --add-architecture i386 && apt-get update &&                       \
     apt-get -y install build-essential cmake wget texinfo flex bison        \
-    python-dev python3-dev python3-venv python3-distro mingw-w64 lsb-release
+    python-dev python3-dev python3-venv python3-distro mingw-w64            \
+    lsb-release libgomp1
 
 # Install S2E dependencies
 RUN apt-get update && apt-get -y install libdwarf-dev libelf-dev libelf-dev:i386 \
@@ -44,6 +45,12 @@ RUN apt-get update && apt-get -y install libdwarf-dev libelf-dev libelf-dev:i386
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y software-properties-common
 RUN add-apt-repository ppa:ubuntu-toolchain-r/test && apt update
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y gcc-9 g++-9
+
+# Install LLVM and Z3 binary packages to avoid building LLVM from source
+ENV SYSTEM_LLVM=13 USE_Z3_BINARY=yes
+RUN wget https://apt.llvm.org/llvm.sh && \
+    chmod +x ./llvm.sh && \
+    ./llvm.sh ${SYSTEM_LLVM}
 
 # Install S2E git
 RUN apt-get -y install git
