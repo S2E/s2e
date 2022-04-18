@@ -36,7 +36,6 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include <llvm/Config/config.h>
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Support/Path.h>
 
