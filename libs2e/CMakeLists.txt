@@ -86,6 +86,9 @@ message(STATUS "Found libvmi ${VMI_PACKAGE_VERSION}")
 find_package(LIBCOROUTINE REQUIRED)
 message(STATUS "Found libcoroutine ${LIBCOROUTINE_PACKAGE_VERSION}")
 
+find_package(LibXml2 REQUIRED)
+message(STATUS "Found libxml2 ${LIBXML2_PACKAGE_VERSION}")
+
 if(WITH_TARGET MATCHES "s2e")
     # TODO: look at libcpu compile options to figure this out
     find_package(LIBS2ECORE REQUIRED)
