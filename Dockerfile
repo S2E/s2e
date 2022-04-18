@@ -31,7 +31,7 @@ RUN sed -i '1ideb mirror://mirrors.ubuntu.com/mirrors.txt bionic main restricted
 RUN dpkg --add-architecture i386 && apt-get update &&                       \
     apt-get -y install build-essential cmake wget texinfo flex bison        \
     python-dev python3-dev python3-venv python3-distro mingw-w64            \
-    lsb-release libgomp1
+    lsb-release libgomp1 unzip
 
 # Install S2E dependencies
 RUN apt-get update && apt-get -y install libdwarf-dev libelf-dev libelf-dev:i386 \
@@ -50,7 +50,8 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install -y gcc-9 g++-9
 ENV SYSTEM_LLVM=13 USE_Z3_BINARY=yes
 RUN wget https://apt.llvm.org/llvm.sh && \
     chmod +x ./llvm.sh && \
-    ./llvm.sh ${SYSTEM_LLVM}
+    ./llvm.sh ${SYSTEM_LLVM} && \
+    apt-get install libmlir-13-dev
 
 # Install S2E git
 RUN apt-get -y install git
@@ -71,7 +72,7 @@ RUN cd s2e-build &&                                                         \
     make -f ../s2e/Makefile S2E_PREFIX=/opt/s2e stamps/soci-make
 
 RUN cd s2e-build &&                                                         \
-    make -f ../s2e/Makefile S2E_PREFIX=/opt/s2e stamps/z3-make
+    make -f ../s2e/Makefile S2E_PREFIX=/opt/s2e stamps/z3                   \
 
 RUN cd s2e-build &&                                                         \
     make -f ../s2e/Makefile S2E_PREFIX=/opt/s2e stamps/protobuf-make
