@@ -47,7 +47,6 @@
 #include <llvm/Support/DynamicLibrary.h>
 #include <llvm/Support/Process.h>
 
-#include <llvm/Config/config.h>
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Support/Path.h>
 
