@@ -56,7 +56,8 @@ if(WITH_TARGET MATCHES "s2e")
     set(LIBS ${LIBS} memcached
                      lua
                      ${LLVM_LIBS}
-                     z3
+                     z3.a
+                     gomp
                      ${LIBQ_LIBRARY_DIR}/libq.a
                      ${PROTOBUF_LIBRARIES})
     set(LIBS ${LIBS} boost_serialization
