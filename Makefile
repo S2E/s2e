@@ -12,9 +12,6 @@
 #      Contains llvm-release, llvm-debug, and llvm source folders
 #      Can be used to avoid rebuilding clang/llvm for every branch of S2E
 #
-#  USE_Z3_BINARY=yes
-#      Whether to use the Z3 binary or to build Z3 from source
-#
 
 # Check the build directory
 ifeq ($(shell ls libs2e/src/libs2e.c 2>&1),libs2e/src/libs2e.c)
@@ -30,9 +27,6 @@ BUILD_SCRIPTS_SRC?=$(dir $(realpath $(lastword $(MAKEFILE_LIST))))/scripts
 S2E_SRC?=$(realpath $(BUILD_SCRIPTS_SRC)/../)
 S2E_PREFIX?=$(CURDIR)/opt
 S2E_BUILD:=$(CURDIR)
-
-# Build Z3 from binary (default, "yes") or source ("no")
-USE_Z3_BINARY?=yes
 
 # Either choose Release or RelWithDebInfo
 RELEASE_BUILD_TYPE=RelWithDebInfo
@@ -116,9 +110,6 @@ Z3_SRC=z3-$(Z3_VERSION).tar.gz
 Z3_SRC_DIR=z3-z3-$(Z3_VERSION)
 Z3_BUILD_DIR=z3
 Z3_URL=https://github.com/Z3Prover/z3
-Z3_BINARY_URL=https://github.com/Z3Prover/z3/releases/download/z3-$(Z3_VERSION)/
-Z3_BINARY=z3-$(Z3_VERSION)-x64-ubuntu-16.04.zip
-Z3_BINARY_DIR=z3-$(Z3_VERSION)-x64-ubuntu-16.04
 
 # Lua variables
 LUA_VERSION=5.3.4
@@ -389,30 +380,6 @@ stamps/z3-make: stamps/z3-configure
 	$(MAKE) -C $(Z3_BUILD_DIR) install
 	touch $@
 
-$(Z3_BINARY):
-	wget -O "$@" $(Z3_BINARY_URL)/$@
-
-stamps/z3-binary: $(Z3_BINARY) | stamps
-	unzip -qqo $<
-	mkdir -p $(S2E_PREFIX)
-	mkdir -p $(S2E_PREFIX)/include
-	mkdir -p $(S2E_PREFIX)/lib
-	mkdir -p $(S2E_PREFIX)/bin
-	cp -r $(Z3_BINARY_DIR)/include/* $(S2E_PREFIX)/include/
-	cp $(Z3_BINARY_DIR)/bin/*.a $(S2E_PREFIX)/lib/
-	cp $(Z3_BINARY_DIR)/bin/*.so $(S2E_PREFIX)/lib/
-	cp $(Z3_BINARY_DIR)/bin/z3 $(S2E_PREFIX)/bin/
-	rm -r $(Z3_BINARY_DIR)/*
-	touch $@
-
-ifeq ($(USE_Z3_BINARY),no)
-stamps/z3: stamps/z3-make
-	touch $@
-else
-stamps/z3: stamps/z3-binary
-	touch $@
-endif
-
 ############
 # Capstone #
 ############
@@ -526,14 +493,14 @@ KLEE_CONFIGURE_FLAGS = -DCMAKE_INSTALL_PREFIX=$(S2E_PREFIX)                     
                        -DZ3_INCLUDE_DIRS=$(S2E_PREFIX)/include                              \
                        -DZ3_LIBRARIES=$(S2E_PREFIX)/lib/libz3.a
 
-stamps/klee-debug-configure: stamps/llvm-debug-make stamps/z3 stamps/gtest-release-make $(call FIND_CONFIG_SOURCE,$(S2E_SRC)/klee)
+stamps/klee-debug-configure: stamps/llvm-debug-make stamps/z3-make stamps/gtest-release-make $(call FIND_CONFIG_SOURCE,$(S2E_SRC)/klee)
 stamps/klee-debug-configure: CONFIGURE_COMMAND = cmake $(KLEE_CONFIGURE_FLAGS)                      \
                                                  -DCMAKE_BUILD_TYPE=Debug                           \
                                                  -DLLVM_DIR=$(LLVM_BUILD)/llvm-debug/lib/cmake/llvm \
                                                  -DCMAKE_CXX_FLAGS="$(CXXFLAGS_DEBUG) -fno-omit-frame-pointer -fPIC" \
                                                  $(S2E_SRC)/klee
 
-stamps/klee-release-configure: stamps/llvm-release-make stamps/z3 stamps/gtest-release-make $(call FIND_CONFIG_SOURCE,$(S2E_SRC)/klee)
+stamps/klee-release-configure: stamps/llvm-release-make stamps/z3-make stamps/gtest-release-make $(call FIND_CONFIG_SOURCE,$(S2E_SRC)/klee)
 stamps/klee-release-configure: CONFIGURE_COMMAND = cmake $(KLEE_CONFIGURE_FLAGS)                        \
                                                    -DCMAKE_BUILD_TYPE=$(RELEASE_BUILD_TYPE)             \
                                                    -DLLVM_DIR=$(LLVM_BUILD)/llvm-release/lib/cmake/llvm \
