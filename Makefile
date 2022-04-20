@@ -400,7 +400,6 @@ stamps/z3-binary: $(Z3_BINARY) | stamps
 	mkdir -p $(S2E_PREFIX)/bin
 	cp -r $(Z3_BINARY_DIR)/include/* $(S2E_PREFIX)/include/
 	cp $(Z3_BINARY_DIR)/bin/*.a $(S2E_PREFIX)/lib/
-	cp $(Z3_BINARY_DIR)/bin/*.so $(S2E_PREFIX)/lib/
 	cp $(Z3_BINARY_DIR)/bin/z3 $(S2E_PREFIX)/bin/
 	rm -r $(Z3_BINARY_DIR)/*
 	touch $@
