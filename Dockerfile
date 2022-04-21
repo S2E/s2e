@@ -39,9 +39,12 @@ RUN apt-get update && apt-get -y install libdwarf-dev libelf-dev libelf-dev:i386
     libboost-system-dev libboost-serialization-dev libboost-regex-dev       \
     libbsd-dev libpixman-1-dev                                              \
     libglib2.0-dev libglib2.0-dev:i386 python3-docutils libpng-dev          \
-    gcc-multilib g++-multilib libgomp1 unzip
+    gcc-multilib g++-multilib libgomp1 unzip libpfm4-dev libedit-dev        \
+    libxml2-dev
 # The unzip and libgomp1 dependencies are needed to unzip and run binary Z3
-# distributions
+# distributions.
+# libedit-dev, libpfm4-dev and libxml2-dev are needed to link against binary
+# LLVM-13 distributions
 
 # Required for C++17
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y software-properties-common
@@ -57,13 +60,22 @@ RUN apt-get -y install git
 RUN wget -O cmake.sh https://github.com/Kitware/CMake/releases/download/v3.23.1/cmake-3.23.1-Linux-x86_64.sh && \
     sh ./cmake.sh --prefix=/usr/local --skip-license
 
+
+# Specify that we will use binary LLVM-13 packages
+ENV SYSTEM_LLVM=13
+#Install binary LLVM only if SYTEM_LLVM is not "no"
+RUN if [ "${SYSTEM_LLVM}" != "no" ]; then wget https://apt.llvm.org/llvm.sh && \
+    chmod +x ./llvm.sh && \
+    DEBIAN_FRONTEND=noninteractive ./llvm.sh ${SYSTEM_LLVM} && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -yq libmlir-${SYSTEM_LLVM}-dev; fi
+
 # Build LLVM first (to avoid rebuilding it for every change)
 RUN mkdir s2e
 RUN mkdir s2e-build
 COPY Makefile s2e/
 COPY scripts/determine_clang_binary_suffix.py s2e/scripts/
-RUN cd s2e-build &&                                                         \
-    make -f ../s2e/Makefile S2E_PREFIX=/opt/s2e stamps/clang-binary
+RUN if [ "${SYSTEM_LLVM}" == "no" ]; then cd s2e-build &&        \
+    make -f ../s2e/Makefile S2E_PREFIX=/opt/s2e stamps/clang-binary; fi
 
 RUN cd s2e-build &&                                                         \
     make -f ../s2e/Makefile S2E_PREFIX=/opt/s2e stamps/llvm-release-make
