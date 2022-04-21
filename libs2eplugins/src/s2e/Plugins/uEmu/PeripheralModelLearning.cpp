@@ -1880,6 +1880,10 @@ void PeripheralModelLearning::saveKBtoFile(S2EExecutionState *state, uint64_t tb
                 fPHKB << "pt1_" << hexval(itpt1.first.first) << "_" << hexval(itpt1.first.second) << "_"
                       << hexval(itpt1.second.first) << "_" << hexval(itpt1.second.second.second) << std::endl;
             }
+        } else if (plgState->get_type_flag_ph_it(itpt1.first.first) == T3) {
+            getInfoStream() << "dt1 type change to temp t3 during fuzzing phase!\n";
+            fPHKB << "dt1_" << hexval(itpt1.first.first) << "_" << hexval(itpt1.first.second) << "_"
+                  << hexval(itpt1.second.first) << "_" << hexval(itpt1.second.second.second) << std::endl;
         }
     }
 
