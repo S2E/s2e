@@ -61,7 +61,10 @@ add_definitions(${LLVM_DEFINITIONS})
 include_directories("include" ${LLVM_INCLUDE_DIRS})
 
 # llvm_map_components_to_libnames(LLVM_LIBS all) produces empty output for some reason
-set(LLVM_LIBS ${LLVM_AVAILABLE_LIBS})
+# Get a list of all LLVM static libraries to link against
+execute_process(COMMAND "${LLVM_TOOLS_BINARY_DIR}/llvm-config" --link-static --libfiles
+  OUTPUT_VARIABLE LLVM_LIBS)
+separate_arguments(LLVM_LIBS)
 
 ##################
 
