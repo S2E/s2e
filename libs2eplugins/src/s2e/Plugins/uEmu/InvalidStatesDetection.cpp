@@ -436,8 +436,11 @@ void InvalidStatesDetection::onInvalidPCAccess(S2EExecutionState *state, uint64_
         std::string reason_str = "Kill State due to invalid memory access:";
         onInvalidStatesKill(state, state->regs()->getPc(), IM, reason_str);
     } else {
-        bool actual_end = true;
-        onLearningTerminationEvent.emit(state, &actual_end, plgState->getnewtbnum());
+        if (!g_s2e_cache_mode) {
+            bool actual_end = true;
+            onLearningTerminationEvent.emit(state, &actual_end, plgState->getnewtbnum());
+            getWarningsStream() << "Invalid memory (" << hexval(addr) << ") access during cache mode\n";
+        }
     }
 }
 
