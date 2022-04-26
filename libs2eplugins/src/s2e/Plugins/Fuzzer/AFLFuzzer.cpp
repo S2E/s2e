@@ -257,6 +257,7 @@ void AFLFuzzer::restoreSymRegs(S2EExecutionState *state) {
 }
 
 void AFLFuzzer::saveSymRegs(S2EExecutionState *state) {
+    reg_snapshot.clear();
     if (reg_snapshot.size() == 0) {
         for (unsigned i = 0; i < 16; ++i) {
             unsigned offset = offsetof(CPUARMState, regs[i]);
@@ -430,6 +431,7 @@ void AFLFuzzer::onFuzzingInput(S2EExecutionState *state, PeripheralRegisterType 
 
 void AFLFuzzer::saveMemRegSnapShot(S2EExecutionState *state) {
     // ram regions
+    mems_snapshot.clear();
     if (mems_snapshot.size() == 0) {
         for (uint32_t j = 0; j < rams.size(); j++) {
             std::vector<uint32_t> mem_snapshot;
