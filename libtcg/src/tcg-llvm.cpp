@@ -25,8 +25,8 @@
 
 // Enforce include order
 // clang-format off
-extern "C" {
 #include <tcg/tcg.h>
+extern "C" {
 #include <tcg/tb.h>
 }
 // clang-format on

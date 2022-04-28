@@ -45,6 +45,10 @@ these four paragraphs for those parts of this code that are retained.
 #include <cpu/config-host.h>
 #include <inttypes.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*----------------------------------------------------------------------------
 | Each of the following `typedef's defines the most convenient type that holds
 | integers of at least as many bits as specified.  For example, `uint8' should
@@ -613,5 +617,9 @@ SINLINE int float128_is_any_nan(float128 a) {
 | The pattern for a default generated quadruple-precision NaN.
 *----------------------------------------------------------------------------*/
 extern const float128 float128_default_nan;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* !SOFTFLOAT_H */
