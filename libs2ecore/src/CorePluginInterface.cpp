@@ -21,7 +21,6 @@
 /// SOFTWARE.
 ///
 
-extern "C" {
 // clang-format off
 #include <cpu/i386/cpu.h>
 #include <tcg/tcg-op.h>
@@ -33,8 +32,9 @@ extern "C" {
 
 #define s2e_gen_pc_update instr_gen_pc_update
 #define s2e_gen_flags_update instr_gen_flags_update
-
 // clang-format on
+
+extern "C" {
 extern struct CPUX86State *env;
 void s2e_gen_pc_update(void *context, target_ulong pc, target_ulong cs_base);
 void s2e_gen_flags_update(void *context);

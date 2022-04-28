@@ -34,10 +34,6 @@
 
 #define __S2E_CPU_H__
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include <cpu/i386/cpu.h>
 #include <cpu/i386/helper.h>
 #include <cpu/exec.h>
@@ -53,6 +49,9 @@ extern "C" {
 #include <timer.h>
 #include <tcg/tcg.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 // TODO: move kvm apis to the right headers
 void s2e_kvm_flush_disk(void);
