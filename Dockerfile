@@ -29,7 +29,7 @@ RUN sed -i '1ideb mirror://mirrors.ubuntu.com/mirrors.txt bionic main restricted
 
 # Install build dependencies
 RUN dpkg --add-architecture i386 && apt-get update &&                       \
-    apt-get -y install build-essential wget texinfo flex bison              \
+    apt-get -y install build-essential curl wget texinfo flex bison         \
     python-dev python3-dev python3-venv python3-distro mingw-w64 lsb-release
 
 # Install S2E dependencies
