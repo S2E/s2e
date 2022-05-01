@@ -359,6 +359,7 @@ endif
 SOCI_CONFIGURE_FLAGS = -DCMAKE_INSTALL_PREFIX=$(S2E_PREFIX) \
                        -DCMAKE_C_COMPILER=$(CLANG_CC)       \
                        -DCMAKE_CXX_COMPILER=$(CLANG_CXX)    \
+                       -DSOCI_TESTS=Off                     \
                        -DCMAKE_C_FLAGS="-fPIC"              \
                        -G "Unix Makefiles"
 
