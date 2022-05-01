@@ -104,7 +104,7 @@ Release check list
     3. Build a `docker image <BuildingS2E.rst>`__.
     4. Run the docker demo from a fresh folder. This should automatically download the CGC image and run CADET_00001.
        PoVs should be found.
-    5. Build S2E from scratch on a fresh Ubuntu 18/20 LTS install.
+    5. Build S2E from scratch on a fresh install of a supported OS.
        You can use this `script <https://github.com/S2E/ci/blob/master/tests-s2e-env/install.sh>`__.
        Make sure to check out the correct branches.
     6. Build guest images with ``s2e image_build``.

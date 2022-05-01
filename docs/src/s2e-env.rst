@@ -11,8 +11,11 @@ with S2E. It entirely automates the complex tasks of building guest VM images re
 generating configuration files to run various types of binaries. The following steps describe how to use ``s2e-env``.
 You will find in the documentation various tutorials that go deeper into various topics.
 
-Before you start, make sure you have a working 64-bit Ubuntu 18.04 or 20.04 LTS installation. Earlier versions may
-still work, but we do not actively support them anymore.
+.. note::
+
+    S2E builds and runs on Ubuntu 22.04 LTS and Debian 11 (64-bit).
+    Earlier versions may still work, but we do not support them anymore.
+
 
 .. contents::
 
