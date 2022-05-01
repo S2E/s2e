@@ -77,7 +77,8 @@ ifeq ($(LLVM_BUILD),$(S2E_BUILD))
 LLVM_DIRS=llvm-release llvm-debug
 endif
 
-LLVM_VERSION=13.0.1
+# More recent point releases don't have the Ubuntu binaries yet, so stick with 14.0.0.
+LLVM_VERSION=14.0.0
 LLVM_SRC=llvm-$(LLVM_VERSION).src.tar.xz
 LLVM_SRC_DIR=llvm-$(LLVM_VERSION).src
 LLVM_SRC_URL=https://github.com/llvm/llvm-project/releases/download/llvmorg-$(LLVM_VERSION)/
@@ -314,6 +315,7 @@ LLVM_CONFIGURE_FLAGS = -DLLVM_TARGETS_TO_BUILD="X86"        \
                        -DLLVM_INCLUDE_TESTS=On              \
                        -DLLVM_ENABLE_RTTI=On                \
                        -DLLVM_ENABLE_EH=On                  \
+                       -DLLVM_INCLUDE_BENCHMARKS=Off        \
                        -DLLVM_BINUTILS_INCDIR=/usr/include  \
                        -DCOMPILER_RT_BUILD_SANITIZERS=Off   \
                        -DENABLE_ASSERTIONS=On               \
