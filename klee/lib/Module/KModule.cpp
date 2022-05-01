@@ -425,7 +425,7 @@ void KModule::computeOffsetsSeqTy(const GlobalAddresses &globalAddresses, KGEPIn
                                   ref<ConstantExpr> &constantOffset, uint64_t index, const TypeIt it) {
     const auto *sq = cast<SqType>(*it);
     auto &targetData = module->getDataLayout();
-    uint64_t elementSize = targetData.getTypeStoreSize(sq->getElementType());
+    uint64_t elementSize = targetData.getTypeStoreSize(sq->getPointerElementType());
     const Value *operand = it.getOperand();
     if (const Constant *c = dyn_cast<Constant>(operand)) {
         ref<ConstantExpr> index = evalConstant(globalAddresses, c)->SExt(Context::get().getPointerWidth());

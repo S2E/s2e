@@ -128,7 +128,7 @@ void Executor::initializeGlobalObject(ExecutionState &state, const ObjectStatePt
                                       unsigned offset) {
     auto dataLayout = kmodule->getDataLayout();
     if (auto *cp = dyn_cast<ConstantVector>(c)) {
-        unsigned elementSize = dataLayout->getTypeStoreSize(cp->getType()->getElementType());
+        unsigned elementSize = dataLayout->getTypeStoreSize(cp->getType()->getPointerElementType());
         for (unsigned i = 0, e = cp->getNumOperands(); i != e; ++i)
             initializeGlobalObject(state, os, cp->getOperand(i), offset + i * elementSize);
     } else if (isa<ConstantAggregateZero>(c)) {
@@ -136,11 +136,11 @@ void Executor::initializeGlobalObject(ExecutionState &state, const ObjectStatePt
         for (i = 0; i < size; i++)
             os->write8(offset + i, (uint8_t) 0);
     } else if (auto *ca = dyn_cast<ConstantArray>(c)) {
-        unsigned elementSize = dataLayout->getTypeStoreSize(ca->getType()->getElementType());
+        unsigned elementSize = dataLayout->getTypeStoreSize(ca->getType()->getPointerElementType());
         for (unsigned i = 0, e = ca->getNumOperands(); i != e; ++i)
             initializeGlobalObject(state, os, ca->getOperand(i), offset + i * elementSize);
     } else if (auto *da = dyn_cast<ConstantDataArray>(c)) {
-        unsigned elementSize = dataLayout->getTypeStoreSize(da->getType()->getElementType());
+        unsigned elementSize = dataLayout->getTypeStoreSize(da->getType()->getPointerElementType());
         for (unsigned i = 0, e = da->getNumElements(); i != e; ++i)
             initializeGlobalObject(state, os, da->getElementAsConstant(i), offset + i * elementSize);
     } else if (auto *cs = dyn_cast<ConstantStruct>(c)) {
@@ -244,7 +244,7 @@ void Executor::initializeGlobals(ExecutionState &state) {
             // better we could support user definition, or use the EXE style
             // hack where we check the object file information.
 
-            Type *ty = i->getType()->getElementType();
+            Type *ty = i->getType()->getPointerElementType();
             uint64_t size = kmodule->getDataLayout()->getTypeStoreSize(ty);
 
 // XXX - DWD - hardcode some things until we decide how to fix.
@@ -282,7 +282,7 @@ void Executor::initializeGlobals(ExecutionState &state) {
                 }
             }
         } else {
-            Type *ty = i->getType()->getElementType();
+            Type *ty = i->getType()->getPointerElementType();
             uint64_t size = kmodule->getDataLayout()->getTypeStoreSize(ty);
             auto mo = ObjectState::allocate(0, size, false);
 
@@ -920,9 +920,9 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
                     f = dyn_cast<Function>(ce->getOperand(0));
                     assert(f && "XXX unrecognized constant expression in call");
                     const FunctionType *fType =
-                        dyn_cast<FunctionType>(cast<PointerType>(f->getType())->getElementType());
+                        dyn_cast<FunctionType>(cast<PointerType>(f->getType())->getPointerElementType());
                     const FunctionType *ceType =
-                        dyn_cast<FunctionType>(cast<PointerType>(ce->getType())->getElementType());
+                        dyn_cast<FunctionType>(cast<PointerType>(ce->getType())->getPointerElementType());
                     check(fType && ceType, "unable to get function type");
 
                     // XXX check result coercion

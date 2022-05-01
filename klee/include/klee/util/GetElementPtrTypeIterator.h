@@ -84,7 +84,7 @@ public:
             CurTy = llvm::GetElementPtrInst::getTypeAtIndex(CurTy, getOperand());
 
         } else if (auto ptr = dyn_cast<llvm::PointerType>(CurTy)) {
-            CurTy = ptr->getElementType();
+            CurTy = ptr->getPointerElementType();
         } else {
             CurTy = 0;
         }
