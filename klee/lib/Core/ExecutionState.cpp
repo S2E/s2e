@@ -120,8 +120,8 @@ bool ExecutionState::merge(const ExecutionState &b) {
             m << "merge failed: different KLEE pc\n" << *(*pc).inst << "\n" << *(*b.pc).inst << "\n";
 
             std::stringstream ss;
-            this->printStack(nullptr, ss);
-            b.printStack(nullptr, ss);
+            this->printStack(ss);
+            b.printStack(ss);
             m << ss.str() << "\n";
         }
         return false;
@@ -320,7 +320,7 @@ bool ExecutionState::merge(const ExecutionState &b) {
     return true;
 }
 
-void ExecutionState::printStack(KInstruction *target, std::stringstream &msg) const {
+void ExecutionState::printStack(std::stringstream &msg) const {
     msg << "Stack: \n";
     unsigned idx = 0;
     for (ExecutionState::stack_ty::const_reverse_iterator it = stack.rbegin(), ie = stack.rend(); it != ie; ++it) {
@@ -343,8 +343,6 @@ void ExecutionState::printStack(KInstruction *target, std::stringstream &msg) co
         msg << ")";
 
         msg << "\n";
-
-        target = sf.caller;
     }
 }
 

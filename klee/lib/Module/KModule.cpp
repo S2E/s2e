@@ -313,7 +313,6 @@ void KModule::prepare(InterpreterHandler *ih) {
         if (NoTruncateSourceLines) {
             *ros << *module;
         } else {
-            bool truncated = false;
             std::string string;
             llvm::raw_string_ostream rss(string);
             rss << *module;
@@ -332,7 +331,6 @@ void KModule::prepare(InterpreterHandler *ih) {
                     } else {
                         ros->write(position, 254);
                         *ros << "\n";
-                        truncated = true;
                     }
                     position = end + 1;
                 }

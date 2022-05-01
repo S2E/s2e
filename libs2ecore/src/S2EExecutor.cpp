@@ -1450,7 +1450,7 @@ S2EExecutor::StatePair S2EExecutor::doFork(ExecutionState &current, const klee::
 
     if (VerboseFork) {
         std::stringstream ss;
-        currentState->printStack(nullptr, ss);
+        currentState->printStack(ss);
         m_s2e->getDebugStream() << "Stack frame at fork:" << '\n' << ss.str() << "\n";
     }
 
