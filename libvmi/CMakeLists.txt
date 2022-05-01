@@ -76,22 +76,22 @@ set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -g -O2")
 add_subdirectory(src)
 
 add_executable(crashdump src/crashdump.cpp)
-target_link_libraries(crashdump vmi ${LLVM_LIBS})
+target_link_libraries(crashdump vmi ${LLVM_LIBS} z)
 
 add_executable(vmidemo src/vmidemo.cpp)
-target_link_libraries(vmidemo vmi ${LIBDWARF_LIB} elf ${LLVM_LIBS})
+target_link_libraries(vmidemo vmi ${LIBDWARF_LIB} elf ${LLVM_LIBS} z)
 
 add_executable(injector src/injector.cpp)
-target_link_libraries(injector vmi elf ${LLVM_LIBS})
+target_link_libraries(injector vmi elf ${LLVM_LIBS} z)
 
 add_executable(dump src/dump.cpp)
-target_link_libraries(dump vmi elf ${LLVM_LIBS})
+target_link_libraries(dump vmi elf ${LLVM_LIBS} z)
 
 add_executable(reader src/reader.cpp)
-target_link_libraries(reader vmi elf ${LLVM_LIBS})
+target_link_libraries(reader vmi elf ${LLVM_LIBS} z)
 
 add_executable(addrs2lines src/addrs2lines.cpp)
-target_link_libraries(addrs2lines vmi ${LIBDWARF_LIB} elf ${LLVM_LIBS})
+target_link_libraries(addrs2lines vmi ${LIBDWARF_LIB} elf ${LLVM_LIBS} z)
 
 install(TARGETS crashdump vmidemo injector dump reader addrs2lines
         RUNTIME DESTINATION bin)
