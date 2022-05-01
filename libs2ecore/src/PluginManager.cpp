@@ -41,7 +41,9 @@ PluginManager::~PluginManager() {
 }
 
 void PluginManager::destroy() {
-    foreach2 (it, m_activePluginsList.begin(), m_activePluginsList.end()) { delete *it; }
+    foreach2 (it, m_activePluginsList.begin(), m_activePluginsList.end()) {
+        delete *it;
+    }
     m_activePluginsList.clear();
 
     if (m_pluginsFactory) {
@@ -152,6 +154,8 @@ Plugin *PluginManager::getPlugin(const std::string &name) const {
 }
 
 void PluginManager::refreshPlugins() {
-    foreach2 (it, m_activePluginsList.begin(), m_activePluginsList.end()) { (*it)->refresh(); }
+    foreach2 (it, m_activePluginsList.begin(), m_activePluginsList.end()) {
+        (*it)->refresh();
+    }
 }
 } // namespace s2e

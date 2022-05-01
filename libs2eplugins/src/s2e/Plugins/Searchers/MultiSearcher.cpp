@@ -80,7 +80,9 @@ klee::ExecutionState &MultiSearcher::selectState() {
 
 void MultiSearcher::update(klee::ExecutionState *current, const klee::StateSet &addedStates,
                            const klee::StateSet &removedStates) {
-    foreach2 (it, m_searchers.begin(), m_searchers.end()) { (*it).second->update(current, addedStates, removedStates); }
+    foreach2 (it, m_searchers.begin(), m_searchers.end()) {
+        (*it).second->update(current, addedStates, removedStates);
+    }
 }
 
 bool MultiSearcher::empty() {

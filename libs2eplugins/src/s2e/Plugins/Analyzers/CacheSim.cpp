@@ -283,7 +283,9 @@ CacheSimState::CacheSimState(S2EExecutionState *s, Plugin *p) {
 }
 
 CacheSimState::~CacheSimState() {
-    foreach2 (ci, m_caches.begin(), m_caches.end()) { delete (*ci).second; }
+    foreach2 (ci, m_caches.begin(), m_caches.end()) {
+        delete (*ci).second;
+    }
 }
 
 PluginState *CacheSimState::factory(Plugin *p, S2EExecutionState *s) {

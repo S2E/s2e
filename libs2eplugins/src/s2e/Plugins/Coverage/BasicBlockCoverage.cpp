@@ -127,7 +127,9 @@ void BasicBlockCoverage::printNonCoveredBlocks() {
         MultiStatesBB &bbs = (*it).second;
         StatesByPc &bypc = bbs.get<pc_t>();
 
-        foreach2 (bit, bypc.begin(), bypc.end()) { blocks[(*bit).pc]++; }
+        foreach2 (bit, bypc.begin(), bypc.end()) {
+            blocks[(*bit).pc]++;
+        }
 
         foreach2 (it, blocks.begin(), blocks.end()) {
             getDebugStream() << "BasicBlockCoverage: block " << module << "!" << hexval((*it).first)

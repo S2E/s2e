@@ -97,8 +97,8 @@
 
 /* NOTE: we use double casts if pointers and target_ulong have
    different sizes */
-#define saddr(x) (uint8_t *) (long)(x)
-#define laddr(x) (uint8_t *) (long)(x)
+#define saddr(x) (uint8_t *) (long) (x)
+#define laddr(x) (uint8_t *) (long) (x)
 
 #if !defined(CONFIG_SYMBEX) || defined(SYMBEX_LLVM_LIB)
 

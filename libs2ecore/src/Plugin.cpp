@@ -102,7 +102,9 @@ llvm::raw_ostream &Plugin::getWarningsStream(S2EExecutionState *state) const {
 PluginsFactory::PluginsFactory() {
     CompiledPlugin::CompiledPlugins *plugins = CompiledPlugin::getPlugins();
 
-    foreach2 (it, plugins->begin(), plugins->end()) { registerPlugin(*it); }
+    foreach2 (it, plugins->begin(), plugins->end()) {
+        registerPlugin(*it);
+    }
 }
 
 void PluginsFactory::registerPlugin(const PluginInfo *pluginInfo) {

@@ -164,7 +164,9 @@ class raw_tee_ostream : public llvm::raw_ostream {
     std::deque<llvm::raw_ostream *> m_parentBufs;
 
     virtual void write_impl(const char *Ptr, size_t size) {
-        foreach2 (it, m_parentBufs.begin(), m_parentBufs.end()) { (*it)->write(Ptr, size); }
+        foreach2 (it, m_parentBufs.begin(), m_parentBufs.end()) {
+            (*it)->write(Ptr, size);
+        }
     }
 
     virtual uint64_t current_pos() const {
