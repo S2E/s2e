@@ -1,5 +1,6 @@
 .idea
 .vscode
+.vagrant
 /s2e.config
 /s2e.creator
 /s2e.includes
