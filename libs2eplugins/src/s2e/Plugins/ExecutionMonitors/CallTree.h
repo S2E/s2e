@@ -143,7 +143,9 @@ public:
     }
 
     ~FunctionCall() {
-        foreach2 (it, m_callSites.begin(), m_callSites.end()) { delete (*it).second; }
+        foreach2 (it, m_callSites.begin(), m_callSites.end()) {
+            delete (*it).second;
+        }
         updateThingsCount(-m_thingsCount);
         assert(m_thingsCount == 0);
     }
@@ -206,7 +208,9 @@ public:
             }
         }
 
-        foreach2 (it, pcToErase.begin(), pcToErase.end()) { m_things.erase(*it); }
+        foreach2 (it, pcToErase.begin(), pcToErase.end()) {
+            m_things.erase(*it);
+        }
 
         if (removeParents) {
             remove(this);

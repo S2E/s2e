@@ -25,8 +25,8 @@
 
 // Enforce include order
 // clang-format off
-extern "C" {
 #include <tcg/tcg.h>
+extern "C" {
 #include <tcg/tb.h>
 }
 // clang-format on
@@ -667,7 +667,7 @@ int TCGLLVMTranslator::generateOperation(const TCGOp *op) {
             }
 #endif
 
-            FunctionType *FTy = cast<FunctionType>(cast<PointerType>(helperFunc->getType())->getElementType());
+            FunctionType *FTy = cast<FunctionType>(cast<PointerType>(helperFunc->getType())->getPointerElementType());
 
             /**
              * Cast arguments to target function type.
@@ -1352,13 +1352,13 @@ bool TCGLLVMTranslator::getCpuFieldGepIndexes(unsigned offset, unsigned sizeInBy
         } else if (curType->isArrayTy()) {
             compositeType = true;
             ArrayType *curArrayTy = dyn_cast<ArrayType>(curType);
-            auto elemSize = dataLayout.getTypeAllocSize(curArrayTy->getElementType());
+            auto elemSize = dataLayout.getTypeAllocSize(curArrayTy->getPointerElementType());
             auto curIdx = coffset / elemSize;
             assert(curIdx < curArrayTy->getNumElements() && "Illegal field offset into CPUState!");
 
             gepIndexes.push_back(ConstantInt::get(I32Ty, curIdx));
             coffset %= elemSize;
-            curType = curArrayTy->getElementType();
+            curType = curArrayTy->getPointerElementType();
         }
 
         if (!compositeType) {

@@ -70,7 +70,9 @@ void ProcessExecutionDetector::initialize() {
         getWarningsStream() << "no modules configured\n";
     }
 
-    foreach2 (it, moduleList.begin(), moduleList.end()) { m_trackedModules.insert(*it); }
+    foreach2 (it, moduleList.begin(), moduleList.end()) {
+        m_trackedModules.insert(*it);
+    }
 
     m_monitor->onProcessLoad.connect(sigc::mem_fun(*this, &ProcessExecutionDetector::onProcessLoad));
 

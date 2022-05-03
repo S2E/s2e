@@ -25,13 +25,13 @@
 #ifndef TCG_H
 #define TCG_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include <glib.h>
 #include <inttypes.h>
 #include <stddef.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #include <qqueue.h>
 #include <tcg/utils/bitops.h>

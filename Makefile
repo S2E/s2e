@@ -77,7 +77,8 @@ ifeq ($(LLVM_BUILD),$(S2E_BUILD))
 LLVM_DIRS=llvm-release llvm-debug
 endif
 
-LLVM_VERSION=13.0.1
+# More recent point releases don't have the Ubuntu binaries yet, so stick with 14.0.0.
+LLVM_VERSION=14.0.0
 LLVM_SRC=llvm-$(LLVM_VERSION).src.tar.xz
 LLVM_SRC_DIR=llvm-$(LLVM_VERSION).src
 LLVM_SRC_URL=https://github.com/llvm/llvm-project/releases/download/llvmorg-$(LLVM_VERSION)/
@@ -213,10 +214,15 @@ stamps/%-make:
 # Downloads #
 #############
 
+define DOWNLOAD
+curl -f -L "$1" -o "$2"
+endef
+
+
 ifeq ($(LLVM_BUILD),$(S2E_BUILD))
 # Download LLVM
 $(LLVM_SRC) $(CLANG_SRC) $(COMPILER_RT_SRC) $(CLANG_BINARY):
-	wget -O "$@" $(LLVM_SRC_URL)/$@
+	$(call DOWNLOAD,$(LLVM_SRC_URL)/$@,$@)
 
 
 .INTERMEDIATE: $(CLANG_SRC_DIR) $(COMPILER_RT_SRC_DIR) $(CLANG_BINARY_DIR)
@@ -238,7 +244,7 @@ endif
 
 # Download Lua
 $(LUA_SRC):
-	wget -O "$@" http://www.lua.org/ftp/$(LUA_SRC)
+	$(call DOWNLOAD,http://www.lua.org/ftp/$(LUA_SRC),$@)
 
 $(LUA_DIR): | $(LUA_SRC)
 	tar -zxf $(LUA_SRC)
@@ -246,7 +252,7 @@ $(LUA_DIR): | $(LUA_SRC)
 
 # Download Z3
 $(Z3_BUILD_DIR):
-	wget -O "$(Z3_SRC)" $(Z3_URL)/archive/$(Z3_SRC)
+	$(call DOWNLOAD,$(Z3_URL)/archive/$(Z3_SRC),$(Z3_SRC))
 	tar -zxf $(Z3_SRC)
 	mkdir -p $(S2E_BUILD)/$(Z3_BUILD_DIR)
 
@@ -259,18 +265,18 @@ $(SOCI_BUILD_DIR):
 # Download GTest
 $(GTEST_BUILD_DIR):
 	mkdir -p "$(GTEST_SRC_DIR)"
-	cd $(S2E_BUILD) && wget -O $(GTEST_SRC_DIR).tar.gz $(GTEST_URL)
+	cd $(S2E_BUILD) && wget -O $(GTEST_SRC_DIR).tar.gz $(GTEST_URL) || rm -f "$@"
 	cd $(S2E_BUILD) && tar xzvf $(GTEST_SRC_DIR).tar.gz -C $(GTEST_SRC_DIR) --strip-components=1
 	mkdir -p "$@"
 
 # Download Capstone
 $(CAPSTONE_BUILD_DIR):
-	wget -O $(CAPSTONE_SRC_DIR).tar.gz $(CAPSTONE_URL)
+	$(call DOWNLOAD,$(CAPSTONE_URL),$(CAPSTONE_SRC_DIR).tar.gz)
 	tar -zxf $(CAPSTONE_SRC_DIR).tar.gz
 	mkdir -p $(S2E_BUILD)/$(CAPSTONE_BUILD_DIR)
 
 $(LIBDWARF_BUILD_DIR):
-	wget -O $(S2E_BUILD)/$(LIBDWARF_BUILD_DIR).tar.gz $(LIBDWARF_URL)
+	$(call DOWNLOAD,$(LIBDWARF_URL),$(S2E_BUILD)/$(LIBDWARF_BUILD_DIR).tar.gz)
 	tar -zxf $(S2E_BUILD)/$(LIBDWARF_BUILD_DIR).tar.gz
 	mkdir -p $(S2E_BUILD)/$(LIBDWARF_BUILD_DIR)
 
@@ -280,7 +286,7 @@ $(RAPIDJSON_BUILD_DIR):
 	mkdir -p $(S2E_BUILD)/$(RAPIDJSON_BUILD_DIR)
 
 $(PROTOBUF_BUILD_DIR):
-	wget -O $(S2E_BUILD)/$(PROTOBUF_SRC_DIR).tar.gz $(PROTOBUF_URL)
+	$(call DOWNLOAD,$(PROTOBUF_URL),$(S2E_BUILD)/$(PROTOBUF_SRC_DIR).tar.gz)
 	tar -zxf $(S2E_BUILD)/$(PROTOBUF_SRC_DIR).tar.gz
 	mkdir -p $(S2E_BUILD)/$(PROTOBUF_BUILD_DIR)
 
@@ -309,6 +315,7 @@ LLVM_CONFIGURE_FLAGS = -DLLVM_TARGETS_TO_BUILD="X86"        \
                        -DLLVM_INCLUDE_TESTS=On              \
                        -DLLVM_ENABLE_RTTI=On                \
                        -DLLVM_ENABLE_EH=On                  \
+                       -DLLVM_INCLUDE_BENCHMARKS=Off        \
                        -DLLVM_BINUTILS_INCDIR=/usr/include  \
                        -DCOMPILER_RT_BUILD_SANITIZERS=Off   \
                        -DENABLE_ASSERTIONS=On               \
@@ -352,6 +359,7 @@ endif
 SOCI_CONFIGURE_FLAGS = -DCMAKE_INSTALL_PREFIX=$(S2E_PREFIX) \
                        -DCMAKE_C_COMPILER=$(CLANG_CC)       \
                        -DCMAKE_CXX_COMPILER=$(CLANG_CXX)    \
+                       -DSOCI_TESTS=Off                     \
                        -DCMAKE_C_FLAGS="-fPIC"              \
                        -G "Unix Makefiles"
 
@@ -390,7 +398,7 @@ stamps/z3-make: stamps/z3-configure
 	touch $@
 
 $(Z3_BINARY):
-	wget -O "$@" $(Z3_BINARY_URL)/$@
+	$(call DOWNLOAD,$(Z3_BINARY_URL)/$@,$@)
 
 stamps/z3-binary: $(Z3_BINARY) | stamps
 	unzip -qqo $<
@@ -869,39 +877,23 @@ stamps/guest-tools64-win-make: stamps/guest-tools64-win-configure
 $(S2E_PREFIX)/bin/guest-tools32 $(S2E_PREFIX)/bin/guest-tools64:
 	mkdir -p "$@"
 
-$(S2E_PREFIX)/bin/guest-tools32/s2e.sys: | $(S2E_PREFIX)/bin/guest-tools32
-	wget -O "$@" $(GUEST_TOOLS_BINARIES_URL)/s2e32.sys
+define DOWNLOAD_S2E_TOOL
+  $(S2E_PREFIX)/bin/guest-tools$1/$2: | $(S2E_PREFIX)/bin/guest-tools$1
+	$(call DOWNLOAD,$(GUEST_TOOLS_BINARIES_URL)/$3,$$@)
+endef
 
-$(S2E_PREFIX)/bin/guest-tools32/s2e.inf: | $(S2E_PREFIX)/bin/guest-tools32
-	wget -O "$@" $(GUEST_TOOLS_BINARIES_URL)/s2e.inf
+$(eval $(call DOWNLOAD_S2E_TOOL,32,s2e.sys,s2e32.sys))
+$(eval $(call DOWNLOAD_S2E_TOOL,32,s2e.inf,s2e.inf))
+$(eval $(call DOWNLOAD_S2E_TOOL,32,drvctl.exe,drvctl32.exe))
+$(eval $(call DOWNLOAD_S2E_TOOL,32,libs2e32.dll,libs2e32.dll))
+$(eval $(call DOWNLOAD_S2E_TOOL,32,tickler.exe,tickler32.exe))
 
-$(S2E_PREFIX)/bin/guest-tools32/drvctl.exe: | $(S2E_PREFIX)/bin/guest-tools32
-	wget -O "$@" $(GUEST_TOOLS_BINARIES_URL)/drvctl32.exe
-
-$(S2E_PREFIX)/bin/guest-tools32/libs2e32.dll: | $(S2E_PREFIX)/bin/guest-tools32
-	wget -O "$@" $(GUEST_TOOLS_BINARIES_URL)/libs2e32.dll
-
-$(S2E_PREFIX)/bin/guest-tools32/tickler.exe: | $(S2E_PREFIX)/bin/guest-tools32
-	wget -O "$@" $(GUEST_TOOLS_BINARIES_URL)/tickler32.exe
-
-
-$(S2E_PREFIX)/bin/guest-tools64/s2e.sys: | $(S2E_PREFIX)/bin/guest-tools64
-	wget -O "$@" $(GUEST_TOOLS_BINARIES_URL)/s2e.sys
-
-$(S2E_PREFIX)/bin/guest-tools64/s2e.inf: | $(S2E_PREFIX)/bin/guest-tools64
-	wget -O "$@" $(GUEST_TOOLS_BINARIES_URL)/s2e.inf
-
-$(S2E_PREFIX)/bin/guest-tools64/drvctl.exe: | $(S2E_PREFIX)/bin/guest-tools64
-	wget -O "$@" $(GUEST_TOOLS_BINARIES_URL)/drvctl.exe
-
-$(S2E_PREFIX)/bin/guest-tools64/libs2e32.dll: | $(S2E_PREFIX)/bin/guest-tools64
-	wget -O "$@" $(GUEST_TOOLS_BINARIES_URL)/libs2e32.dll
-
-$(S2E_PREFIX)/bin/guest-tools64/libs2e64.dll: | $(S2E_PREFIX)/bin/guest-tools64
-	wget -O "$@" $(GUEST_TOOLS_BINARIES_URL)/libs2e64.dll
-
-$(S2E_PREFIX)/bin/guest-tools64/tickler.exe: | $(S2E_PREFIX)/bin/guest-tools64
-	wget -O "$@" $(GUEST_TOOLS_BINARIES_URL)/tickler64.exe
+$(eval $(call DOWNLOAD_S2E_TOOL,64,s2e.sys,s2e.sys))
+$(eval $(call DOWNLOAD_S2E_TOOL,64,s2e.inf,s2e.inf))
+$(eval $(call DOWNLOAD_S2E_TOOL,64,drvctl.exe,drvctl.exe))
+$(eval $(call DOWNLOAD_S2E_TOOL,64,libs2e32.dll,libs2e32.dll))
+$(eval $(call DOWNLOAD_S2E_TOOL,64,libs2e64.dll,libs2e64.dll))
+$(eval $(call DOWNLOAD_S2E_TOOL,64,tickler.exe,tickler64.exe))
 
 guest-tools32-windrv: $(addprefix $(S2E_PREFIX)/bin/guest-tools32/,s2e.sys s2e.inf drvctl.exe libs2e32.dll tickler.exe)
 	echo $^

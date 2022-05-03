@@ -148,7 +148,7 @@ public:
 
     virtual bool merge(const ExecutionState &b);
 
-    void printStack(KInstruction *target, std::stringstream &msg) const;
+    void printStack(std::stringstream &msg) const;
 
     bool getSymbolicSolution(std::vector<std::pair<std::string, std::vector<unsigned char>>> &res);
 

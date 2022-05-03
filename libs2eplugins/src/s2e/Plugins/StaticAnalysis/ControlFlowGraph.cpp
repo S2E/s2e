@@ -196,7 +196,9 @@ bool ControlFlowGraph::isReachable(const BasicBlocks &bbs, uint64_t source, uint
 
         visited.insert(pc);
 
-        foreach2 (it, bb->successors.begin(), bb->successors.end()) { stk.push(*it); }
+        foreach2 (it, bb->successors.begin(), bb->successors.end()) {
+            stk.push(*it);
+        }
     }
 
     result = false;

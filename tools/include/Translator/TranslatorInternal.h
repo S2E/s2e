@@ -287,7 +287,8 @@ Value *Translator::getPcPtr(IRBuilder<> &builder) {
     SmallVector<Value *, 2> gepElements;
     gepElements.push_back(ConstantInt::get(m->getContext(), APInt(32, 0)));
     gepElements.push_back(ConstantInt::get(m->getContext(), APInt(32, 5)));
-    return builder.CreateGEP(arg, ArrayRef<Value *>(gepElements.begin(), gepElements.end()));
+    return builder.CreateGEP(arg->getType()->getPointerElementType(), arg,
+                             ArrayRef<Value *>(gepElements.begin(), gepElements.end()));
 }
 
 Translator::RegisterMask Translator::getRegisterMaskForHelper(llvm::Function *helper) {

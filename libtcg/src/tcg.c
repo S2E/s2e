@@ -2040,7 +2040,9 @@ void tcg_dump_op(TCGContext *s, bool have_prefs, TCGOp *op) {
 void tcg_dump_ops(TCGContext *s, bool have_prefs) {
     TCGOp *op;
 
-    QTAILQ_FOREACH (op, &s->ops, link) { tcg_dump_op(s, have_prefs, op); }
+    QTAILQ_FOREACH (op, &s->ops, link) {
+        tcg_dump_op(s, have_prefs, op);
+    }
 }
 
 /* we give more priority to constraints with less registers */
@@ -3648,7 +3650,9 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb) {
     {
         int n = 0;
 
-        QTAILQ_FOREACH (op, &s->ops, link) { n++; }
+        QTAILQ_FOREACH (op, &s->ops, link) {
+            n++;
+        }
         atomic_set(&prof->op_count, prof->op_count + n);
         if (n > prof->op_count_max) {
             atomic_set(&prof->op_count_max, n);

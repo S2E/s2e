@@ -74,7 +74,9 @@ struct Events {
         QDict *allPluginData = qdict_new();
         QDict *pluginData = createResult(p, allPluginData);
 
-        foreach2 (it, results.begin(), results.end()) { qdict_put_obj(pluginData, (*it).first, (*it).second); }
+        foreach2 (it, results.begin(), results.end()) {
+            qdict_put_obj(pluginData, (*it).first, (*it).second);
+        }
 
         qdict_put(s2e_event, "s2e-event", allPluginData);
         monitor_emit_json(QOBJECT(s2e_event));

@@ -1450,7 +1450,7 @@ S2EExecutor::StatePair S2EExecutor::doFork(ExecutionState &current, const klee::
 
     if (VerboseFork) {
         std::stringstream ss;
-        currentState->printStack(nullptr, ss);
+        currentState->printStack(ss);
         m_s2e->getDebugStream() << "Stack frame at fork:" << '\n' << ss.str() << "\n";
     }
 
@@ -1525,7 +1525,9 @@ std::vector<ExecutionState *> S2EExecutor::forkValues(S2EExecutionState *state, 
 
         if (!sp.first) {
             // expr always equals value, no point in trying other values
-            foreach2 (it2, it + 1, values.end()) { ret.push_back(nullptr); }
+            foreach2 (it2, it + 1, values.end()) {
+                ret.push_back(nullptr);
+            }
             return ret;
         }
 
