@@ -35,6 +35,10 @@
 
 /* Basic output routines.  Not for general consumption.  */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void tcg_gen_op1(TCGOpcode, TCGArg);
 void tcg_gen_op2(TCGOpcode, TCGArg, TCGArg);
 void tcg_gen_op3(TCGOpcode, TCGArg, TCGArg, TCGArg);
@@ -1082,5 +1086,9 @@ static inline void tcg_gen_trunc_ptr_i32(TCGv_i32 r, TCGv_ptr a) {
 
 #undef PTR
 #undef NAT
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* TCG_TCG_OP_H */
