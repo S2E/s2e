@@ -482,19 +482,16 @@ ref<Expr> ExecutionState::toUnique(ref<Expr> &e) {
 }
 
 bool ExecutionState::solve(const ConstraintManager &mgr, Assignment &assignment) {
-    ArrayVec symbObjects;
-    for (unsigned i = 0; i < symbolics.size(); ++i) {
-        symbObjects.push_back(symbolics[i]);
-    }
-
     std::vector<std::vector<unsigned char>> concreteObjects;
-    if (!solver()->getInitialValues(Query(mgr, ConstantExpr::alloc(0, Expr::Bool)), symbObjects, concreteObjects)) {
+    Query q(mgr, ConstantExpr::alloc(0, Expr::Bool));
+
+    if (!solver()->getInitialValues(q, symbolics, concreteObjects)) {
         return false;
     }
 
     assignment.clear();
-    for (unsigned i = 0; i < symbObjects.size(); ++i) {
-        assignment.add(symbObjects[i], concreteObjects[i]);
+    for (unsigned i = 0; i < symbolics.size(); ++i) {
+        assignment.add(symbolics[i], concreteObjects[i]);
     }
 
     return true;

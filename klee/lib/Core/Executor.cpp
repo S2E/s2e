@@ -356,9 +356,6 @@ Executor::StatePair Executor::fork(ExecutionState &current, const ref<Expr> &con
         }
     }
 
-    // Extract symbolic objects
-    ArrayVec symbObjects = current.symbolics;
-
     if (keepConditionTrueInCurrentState && !conditionIsTrue) {
         // Recompute concrete values to keep condition true in current state
 
@@ -366,18 +363,9 @@ Executor::StatePair Executor::fork(ExecutionState &current, const ref<Expr> &con
         ConstraintManager tmpConstraints = current.constraints();
         tmpConstraints.addConstraint(condition);
 
-        std::vector<std::vector<unsigned char>> concreteObjects;
-        auto solver = current.solver();
-        Query q(tmpConstraints, ConstantExpr::alloc(0, Expr::Bool));
-        if (!solver->getInitialValues(q, symbObjects, concreteObjects)) {
+        if (!current.solve(tmpConstraints, *(current.concolics))) {
             // Condition is always false in the current state
-            return StatePair(0, &current);
-        }
-
-        // Update concrete values
-        current.concolics->clear();
-        for (unsigned i = 0; i < symbObjects.size(); ++i) {
-            current.concolics->add(symbObjects[i], concreteObjects[i]);
+            return StatePair(nullptr, &current);
         }
 
         conditionIsTrue = true;
@@ -391,10 +379,8 @@ Executor::StatePair Executor::fork(ExecutionState &current, const ref<Expr> &con
         tmpConstraints.addConstraint(condition);
     }
 
-    std::vector<std::vector<unsigned char>> concreteObjects;
-    Query q(tmpConstraints, ConstantExpr::alloc(0, Expr::Bool));
-    auto solver = current.solver();
-    if (!solver->getInitialValues(q, symbObjects, concreteObjects)) {
+    AssignmentPtr concolics = Assignment::create(true);
+    if (!current.solve(tmpConstraints, *concolics)) {
         if (conditionIsTrue) {
             return StatePair(&current, nullptr);
         } else {
@@ -409,10 +395,7 @@ Executor::StatePair Executor::fork(ExecutionState &current, const ref<Expr> &con
     addedStates.insert(branchedState);
 
     // Update concrete values for the branched state
-    branchedState->concolics->clear();
-    for (unsigned i = 0; i < symbObjects.size(); ++i) {
-        branchedState->concolics->add(symbObjects[i], concreteObjects[i]);
-    }
+    branchedState->concolics = concolics;
 
     // Add constraint to both states
     if (conditionIsTrue) {
