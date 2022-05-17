@@ -21,5 +21,10 @@
 # SOFTWARE.
 
 add_executable(s2eget s2eget.c)
+target_link_options(s2eget PUBLIC ${COMPAT_LD_FLAGS})
 
 install(TARGETS s2eget RUNTIME DESTINATION .)
+
+if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
+    add_dependencies(s2eget glibc-compat-main)
+endif()

@@ -1,6 +1,5 @@
-# S2E Selective Symbolic Execution Platform
 #
-# Copyright (c) 2017 Dependable Systems Laboratory, EPFL
+# Copyright (c) 2022 Vitaly Chipounov
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -20,11 +19,9 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-add_executable(s2eput s2eput.c)
-target_link_options(s2eput PUBLIC ${COMPAT_LD_FLAGS})
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fpic")
 
-install(TARGETS s2eput RUNTIME DESTINATION .)
-
-if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
-    add_dependencies(s2eput glibc-compat-main)
-endif()
+add_library(
+    glibc-compat-main STATIC
+    libc_start_main.c
+)

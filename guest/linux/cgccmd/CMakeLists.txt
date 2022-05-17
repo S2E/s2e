@@ -21,5 +21,10 @@
 # SOFTWARE.
 
 add_executable(cgccmd cgccmd.c)
+target_link_options(cgccmd PUBLIC ${COMPAT_LD_FLAGS})
 
 install(TARGETS cgccmd RUNTIME DESTINATION .)
+
+if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
+    add_dependencies(cgccmd glibc-compat-main)
+endif()
