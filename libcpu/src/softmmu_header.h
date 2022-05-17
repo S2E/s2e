@@ -78,26 +78,26 @@
 // clang-format off
 #if defined(SYMBEX_LLVM_LIB) && !defined(STATIC_TRANSLATOR)
     #define SMHINLINE
-    #define INSTR_BEFORE_MEMORY_ACCESS(vaddr, value, flags) \
-        if (*g_sqi.events.before_memory_access_signals_count) tcg_llvm_before_memory_access(vaddr, value, sizeof(value), flags);
-    #define INSTR_AFTER_MEMORY_ACCESS(vaddr, value, flags) \
-        if (*g_sqi.events.after_memory_access_signals_count) tcg_llvm_after_memory_access(vaddr, value, sizeof(value), flags, 0);
+    #define INSTR_BEFORE_MEMORY_ACCESS(vaddr, value, size, flags) \
+        if (*g_sqi.events.before_memory_access_signals_count) tcg_llvm_before_memory_access(vaddr, value, size, flags);
+    #define INSTR_AFTER_MEMORY_ACCESS(vaddr, value, size, flags) \
+        if (*g_sqi.events.after_memory_access_signals_count) tcg_llvm_after_memory_access(vaddr, value, size, flags, 0);
     #define INSTR_FORK_AND_CONCRETIZE(val, max) \
         tcg_llvm_fork_and_concretize(val, 0, max, 0)
 #else // SYMBEX_LLVM_LIB
     #define SMHINLINE inline
     #if defined(SE_ENABLE_MEM_TRACING) && !defined(STATIC_TRANSLATOR)
         #if defined(SE_NO_TRACE)
-            #define INSTR_BEFORE_MEMORY_ACCESS(vaddr, value, flags)
-            #define INSTR_AFTER_MEMORY_ACCESS(vaddr, value, flags)
+            #define INSTR_BEFORE_MEMORY_ACCESS(vaddr, value, size, flags)
+            #define INSTR_AFTER_MEMORY_ACCESS(vaddr, value, size, flags)
         #else
-            #define INSTR_BEFORE_MEMORY_ACCESS(vaddr, value, flags)
-            #define INSTR_AFTER_MEMORY_ACCESS(vaddr, value, flags) \
-                if (unlikely(*g_sqi.events.after_memory_access_signals_count)) INSTR_AFTER_MEMORY_ACCESS(vaddr, value, sizeof(value), flags, 0);
+            #define INSTR_BEFORE_MEMORY_ACCESS(vaddr, value, size, flags)
+            #define INSTR_AFTER_MEMORY_ACCESS(vaddr, value, size, flags) \
+                if (unlikely(*g_sqi.events.after_memory_access_signals_count)) INSTR_AFTER_MEMORY_ACCESS(vaddr, value, size, flags, 0);
         #endif
     #else
-        #define INSTR_BEFORE_MEMORY_ACCESS(vaddr, value, flags)
-        #define INSTR_AFTER_MEMORY_ACCESS(vaddr, value, flags)
+        #define INSTR_BEFORE_MEMORY_ACCESS(vaddr, value, size, flags)
+        #define INSTR_AFTER_MEMORY_ACCESS(vaddr, value, size, flags)
     #endif
 
     #define INSTR_FORK_AND_CONCRETIZE(val, max) (val)
@@ -160,7 +160,7 @@ static SMHINLINE RES_TYPE glue(glue(glue(CPU_PREFIX, ld), USUFFIX), MEMSUFFIX)(C
     CPUTLBEntry *tlb_entry;
 
 #ifdef CONFIG_SYMBEX_MP
-    INSTR_BEFORE_MEMORY_ACCESS(ptr, 0, 0);
+    INSTR_BEFORE_MEMORY_ACCESS(ptr, 0, DATA_SIZE, 0);
     addr = INSTR_FORK_AND_CONCRETIZE_ADDR(ptr, ADDR_MAX);
     object_index = INSTR_FORK_AND_CONCRETIZE(addr >> SE_RAM_OBJECT_BITS, ADDR_MAX >> SE_RAM_OBJECT_BITS);
     page_index = (object_index >> SE_RAM_OBJECT_DIFF) & (CPU_TLB_SIZE - 1);
@@ -186,7 +186,7 @@ static SMHINLINE RES_TYPE glue(glue(glue(CPU_PREFIX, ld), USUFFIX), MEMSUFFIX)(C
         res = glue(glue(ld, USUFFIX), _p)((uint8_t *) physaddr);
 #endif
 
-        INSTR_AFTER_MEMORY_ACCESS(addr, res, 0);
+        INSTR_AFTER_MEMORY_ACCESS(addr, res, DATA_SIZE, 0);
     }
     return res;
 }
@@ -204,7 +204,7 @@ static SMHINLINE int glue(glue(glue(CPU_PREFIX, lds), SUFFIX), MEMSUFFIX)(CPUArc
     CPUTLBEntry *tlb_entry;
 
 #ifdef CONFIG_SYMBEX_MP
-    INSTR_BEFORE_MEMORY_ACCESS(ptr, 0, 0);
+    INSTR_BEFORE_MEMORY_ACCESS(ptr, 0, DATA_SIZE, 0);
     addr = INSTR_FORK_AND_CONCRETIZE_ADDR(ptr, ADDR_MAX);
     object_index = INSTR_FORK_AND_CONCRETIZE(addr >> SE_RAM_OBJECT_BITS, ADDR_MAX >> SE_RAM_OBJECT_BITS);
     page_index = (object_index >> SE_RAM_OBJECT_DIFF) & (CPU_TLB_SIZE - 1);
@@ -227,7 +227,7 @@ static SMHINLINE int glue(glue(glue(CPU_PREFIX, lds), SUFFIX), MEMSUFFIX)(CPUArc
         physaddr = addr + tlb_entry->addend;
         res = glue(glue(lds, SUFFIX), _p)((uint8_t *) physaddr);
 #endif
-        INSTR_AFTER_MEMORY_ACCESS(addr, res, 0);
+        INSTR_AFTER_MEMORY_ACCESS(addr, res, DATA_SIZE, 0);
     }
     return res;
 }
@@ -249,7 +249,7 @@ static SMHINLINE void glue(glue(glue(CPU_PREFIX, st), SUFFIX), MEMSUFFIX)(CPUArc
     CPUTLBEntry *tlb_entry;
 
 #ifdef CONFIG_SYMBEX_MP
-    INSTR_BEFORE_MEMORY_ACCESS(ptr, v, 1);
+    INSTR_BEFORE_MEMORY_ACCESS(ptr, v, DATA_SIZE, 1);
     addr = INSTR_FORK_AND_CONCRETIZE_ADDR(ptr, ADDR_MAX);
     object_index = INSTR_FORK_AND_CONCRETIZE(addr >> SE_RAM_OBJECT_BITS, ADDR_MAX >> SE_RAM_OBJECT_BITS);
     page_index = (object_index >> SE_RAM_OBJECT_DIFF) & (CPU_TLB_SIZE - 1);
@@ -273,7 +273,7 @@ static SMHINLINE void glue(glue(glue(CPU_PREFIX, st), SUFFIX), MEMSUFFIX)(CPUArc
         glue(glue(st, SUFFIX), _p)((uint8_t *) physaddr, v);
 #endif
 
-        INSTR_AFTER_MEMORY_ACCESS(addr, v, MEM_TRACE_FLAG_WRITE);
+        INSTR_AFTER_MEMORY_ACCESS(addr, v, DATA_SIZE, MEM_TRACE_FLAG_WRITE);
     }
 }
 
