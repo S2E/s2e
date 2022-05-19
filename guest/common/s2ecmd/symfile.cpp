@@ -44,6 +44,8 @@
 #include <string>
 #include <vector>
 
+namespace s2e {
+
 struct offset_size_t {
     unsigned offset;
     unsigned size;
@@ -472,3 +474,5 @@ int handler_symbfile(int argc, const char **args) {
     close(fd);
     return ret;
 }
+
+} // namespace s2e
