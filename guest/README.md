@@ -30,11 +30,11 @@ MINGW64 in order to cross-compile for Windows. There are three important tools:
 * ```s2eget```: downloads files from the host into the guest. It can be used
 in scenarios where there is no real network, as is often the case during
 symbolic execution. This is similar to the concept of "shared folders" in
-other virtual machine environments.
+other virtual machine environments. ** This tool is deprecated, use ```s2ecmd get``` instead. **
 
 * ```s2eput```: uploads files from the guest to the host. This is useful to
 save per-path data, such as core dumps, bug reports, and other experimental
-results.
+results.  ** This tool is deprecated, use ```s2ecmd put``` instead. **
 
 * ```s2ecmd```: contains various commands that are useful in shell scripts.
 Among them, creating symbolic files and fetching seeds from the host.

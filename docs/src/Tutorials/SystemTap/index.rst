@@ -29,7 +29,7 @@ Using SystemTap in S2E is very simple, the workflow looks like this:
 1. Build the SystemTap probe on your host machine. This will produce a ``.ko`` file.
    You can conveniently do this from the provided Docker image (see below).
 
-2. Upload the ``.ko`` file from the host into the guest using ``s2eget`` in the ``bootstrap.sh`` file.
+2. Upload the ``.ko`` file from the host into the guest using ``s2ecmd get`` in the ``bootstrap.sh`` file.
    It is best to store the ``.ko`` directly in the project directory.
 
 
@@ -73,7 +73,7 @@ At this point, you must have the ``/home/user/s2e/env/projects/systemtap/simple.
 
 .. code-block:: bash
 
-    ${S2EGET} simple.ko
+    ${S2ECMD} get simple.ko
     sudo staprun simple.ko
 
 Then, run the analysis:

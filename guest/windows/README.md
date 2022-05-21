@@ -39,14 +39,14 @@ by Visual Studio during build and requires test mode to be enabled. Windows
 will not load it otherwise.
 
 Copy `s2e.sys`, `s2e.inf`, as well as the other binaries you need in your guest. You
-can do this using the `s2eget` utility as part of the bootstrap file.
+can do this using the `s2ecmd get` command as part of the bootstrap file.
 
 ```bash
 # Copy files
 mkdir c:\s2e
 cd c:\s2e
-s2eget s2e.sys
-s2eget s2e.inf
+s2ecmd get s2e.sys
+s2ecmd get s2e.inf
 
 # Install and start the driver
 %SystemRoot%\System32\rundll32.exe setupapi,InstallHinfSection DefaultInstall 132 c:\s2e\s2e.inf
