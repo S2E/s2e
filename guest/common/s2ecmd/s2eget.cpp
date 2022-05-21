@@ -84,14 +84,6 @@ static int parse_arguments(const std::vector<std::string> &args, args_t &ret) {
     return 0;
 }
 
-static void wait_s2e_mode() {
-    std::cout << "Waiting for S2E mode...\n";
-    while (s2e_check() == 0) {
-        // nothing
-    }
-    std::cout << "S2E mode detected\n";
-}
-
 std::string get_dest_file(const args_t &args) {
     if (!args.dest_file.empty()) {
         return args.dest_file;

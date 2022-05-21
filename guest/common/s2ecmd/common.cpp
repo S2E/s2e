@@ -20,18 +20,27 @@
 /// SOFTWARE.
 ///
 
-#ifndef S2ECMD_H
-#define S2ECMD_H
-
+#include <filesystem>
+#include <fstream>
+#include <iostream>
+#include <sstream>
+#include <stdio.h>
+#include <string.h>
 #include <string>
 #include <vector>
 
+#include <s2e/s2e.h>
+
+#include "s2ecmd.h"
+
 namespace s2e {
-void wait_s2e_mode();
 
-int handler_symbfile(int argc, const char **args);
-int handler_get(const std::vector<std::string> &args);
-int handler_put(const std::vector<std::string> &args);
+void wait_s2e_mode() {
+    std::cout << "Waiting for S2E mode...\n";
+    while (s2e_check() == 0) {
+        // nothing
+    }
+    std::cout << "S2E mode detected\n";
+}
+
 } // namespace s2e
-
-#endif

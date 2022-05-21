@@ -272,13 +272,21 @@ static int handler_flush_tbs(int argc, const char **args) {
     return 0;
 }
 
-static int handler_get(int argc, const char **args) {
+std::vector<std::string> form_args(int argc, const char **args) {
     std::vector<std::string> a;
     for (auto i = 0; i < argc; ++i) {
         a.push_back(args[i]);
     }
 
-    return handler_get(a);
+    return a;
+}
+
+static int handler_get(int argc, const char **args) {
+    return handler_get(form_args(argc, args));
+}
+
+static int handler_put(int argc, const char **args) {
+    return handler_put(form_args(argc, args));
 }
 
 #define COMMAND(c, arg_count, desc) \
@@ -309,6 +317,7 @@ static cmd_t s_commands[] = {
     COMMAND(seedsearcher_enable, 0, "Activates the seed searcher"),
     COMMAND(flush_tbs, 0, "Flush the translation block cache"),
     COMMAND2(get, 1, 2, "Fetch files from the host file system"),
+    COMMAND2(put, 1, 2, "Upload files to the host file system"),
     {nullptr, nullptr, 0, 0, nullptr}};
 
 static void print_commands(void) {
