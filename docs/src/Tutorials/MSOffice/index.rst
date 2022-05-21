@@ -29,8 +29,8 @@ this case Windows and Microsoft Office. S2E supports various combinations of Win
 
     Available images:
      * cgc_debian-9.2.1-i386               - Debian i386 image with CGC kernel and user-space packages
-     * debian-9.2.1-i386                   - Debian i386 image
-     * debian-9.2.1-x86_64                 - Debian x86_64 image
+     * debian-11.3-i386                    - Debian i386 image
+     * debian-11.3-x86_64                  - Debian x86_64 image
      * windows-10pro1909-x86_64            - Windows 10 Pro 1909 x86_64
      * windows-10pro1909-x86_64/office2010 - Microsoft Office 2010 32-bit
      * windows-10pro1909-x86_64/office2013 - Microsoft Office 2013 32-bit
