@@ -1,4 +1,4 @@
-# Copyright (C) 2017-2019, Cyberhaven
+# Copyright (C) 2017-2022, Cyberhaven
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -20,17 +20,12 @@
 
 # Installs S2E and its associated libraries and tools to /opt/s2e
 
-FROM ubuntu:18.04
-
-# Use local mirrors if possible
-RUN sed -i '1ideb mirror://mirrors.ubuntu.com/mirrors.txt bionic main restricted' /etc/apt/sources.list && \
-    sed -i '1ideb mirror://mirrors.ubuntu.com/mirrors.txt bionic-updates main restricted' /etc/apt/sources.list && \
-    sed -i '1ideb mirror://mirrors.ubuntu.com/mirrors.txt bionic-security main restricted' /etc/apt/sources.list
+FROM ubuntu:22.04
 
 # Install build dependencies
 RUN dpkg --add-architecture i386 && apt-get update &&                       \
-    apt-get -y install build-essential curl wget texinfo flex bison         \
-    python-dev python3-dev python3-venv python3-distro mingw-w64 lsb-release
+    apt-get -y install ca-certificates build-essential curl wget texinfo flex bison  \
+    python-is-python3 python3-dev python3-venv python3-distro mingw-w64 lsb-release
 
 # Install S2E dependencies
 RUN apt-get update && apt-get -y install libdwarf-dev libelf-dev libelf-dev:i386 \
