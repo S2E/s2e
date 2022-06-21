@@ -614,7 +614,7 @@ void AFLFuzzer::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, unsigned 
     // getDebugStream() << "count bitmap = " << count_bytes(bitmap) << "\n";
 
     // crash/hang
-    if (timer_ticks > hang_timeout) {
+    if (timer_ticks > hang_timeout && hit_flag) {
         timer_ticks = 0;
         getWarningsStream() << "Kill Fuzz State due to Timeout\n";
         onCrashHang(state, TMOUT);
