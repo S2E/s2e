@@ -1352,13 +1352,13 @@ bool TCGLLVMTranslator::getCpuFieldGepIndexes(unsigned offset, unsigned sizeInBy
         } else if (curType->isArrayTy()) {
             compositeType = true;
             ArrayType *curArrayTy = dyn_cast<ArrayType>(curType);
-            auto elemSize = dataLayout.getTypeAllocSize(curArrayTy->getPointerElementType());
+            auto elemSize = dataLayout.getTypeAllocSize(curArrayTy->getElementType());
             auto curIdx = coffset / elemSize;
             assert(curIdx < curArrayTy->getNumElements() && "Illegal field offset into CPUState!");
 
             gepIndexes.push_back(ConstantInt::get(I32Ty, curIdx));
             coffset %= elemSize;
-            curType = curArrayTy->getPointerElementType();
+            curType = curArrayTy->getElementType();
         }
 
         if (!compositeType) {
