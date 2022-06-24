@@ -126,29 +126,29 @@ Executor::~Executor() {
 
 void Executor::initializeGlobalObject(ExecutionState &state, const ObjectStatePtr &os, const Constant *c,
                                       unsigned offset) {
-    auto dataLayout = kmodule->getDataLayout();
-    if (auto *cp = dyn_cast<ConstantVector>(c)) {
-        unsigned elementSize = dataLayout->getTypeStoreSize(cp->getType()->getPointerElementType());
+    auto targetData = kmodule->getDataLayout();
+    if (const ConstantVector *cp = dyn_cast<ConstantVector>(c)) {
+        unsigned elementSize = targetData->getTypeStoreSize(cp->getType()->getElementType());
         for (unsigned i = 0, e = cp->getNumOperands(); i != e; ++i)
             initializeGlobalObject(state, os, cp->getOperand(i), offset + i * elementSize);
     } else if (isa<ConstantAggregateZero>(c)) {
-        unsigned i, size = dataLayout->getTypeStoreSize(c->getType());
+        unsigned i, size = targetData->getTypeStoreSize(c->getType());
         for (i = 0; i < size; i++)
             os->write8(offset + i, (uint8_t) 0);
-    } else if (auto *ca = dyn_cast<ConstantArray>(c)) {
-        unsigned elementSize = dataLayout->getTypeStoreSize(ca->getType()->getPointerElementType());
+    } else if (const ConstantArray *ca = dyn_cast<ConstantArray>(c)) {
+        unsigned elementSize = targetData->getTypeStoreSize(ca->getType()->getElementType());
         for (unsigned i = 0, e = ca->getNumOperands(); i != e; ++i)
             initializeGlobalObject(state, os, ca->getOperand(i), offset + i * elementSize);
-    } else if (auto *da = dyn_cast<ConstantDataArray>(c)) {
-        unsigned elementSize = dataLayout->getTypeStoreSize(da->getType()->getPointerElementType());
-        for (unsigned i = 0, e = da->getNumElements(); i != e; ++i)
-            initializeGlobalObject(state, os, da->getElementAsConstant(i), offset + i * elementSize);
-    } else if (auto *cs = dyn_cast<ConstantStruct>(c)) {
-        const StructLayout *sl = dataLayout->getStructLayout(cast<StructType>(cs->getType()));
+    } else if (const ConstantStruct *cs = dyn_cast<ConstantStruct>(c)) {
+        const StructLayout *sl = targetData->getStructLayout(cast<StructType>(cs->getType()));
         for (unsigned i = 0, e = cs->getNumOperands(); i != e; ++i)
             initializeGlobalObject(state, os, cs->getOperand(i), offset + sl->getElementOffset(i));
-    } else {
-        unsigned StoreBits = dataLayout->getTypeStoreSizeInBits(c->getType());
+    } else if (const ConstantDataSequential *cds = dyn_cast<ConstantDataSequential>(c)) {
+        unsigned elementSize = targetData->getTypeStoreSize(cds->getElementType());
+        for (unsigned i = 0, e = cds->getNumElements(); i != e; ++i)
+            initializeGlobalObject(state, os, cds->getElementAsConstant(i), offset + i * elementSize);
+    } else if (!isa<UndefValue>(c) && !isa<MetadataAsValue>(c)) {
+        unsigned StoreBits = targetData->getTypeStoreSizeInBits(c->getType());
         ref<ConstantExpr> C = kmodule->evalConstant(globalAddresses, c);
 
         // Extend the constant if necessary;
