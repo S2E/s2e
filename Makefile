@@ -244,7 +244,7 @@ endif
 
 # Download Lua
 $(LUA_SRC):
-	$(call DOWNLOAD,http://www.lua.org/ftp/$(LUA_SRC),$@)
+	$(call DOWNLOAD,https://www.lua.org/ftp/$(LUA_SRC),$@)
 
 $(LUA_DIR): | $(LUA_SRC)
 	tar -zxf $(LUA_SRC)
