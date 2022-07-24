@@ -21,6 +21,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-add_executable(s2ecmd s2ecmd.cpp symfile.cpp)
+add_executable(s2ecmd s2ecmd.cpp symfile.cpp s2eget.cpp s2eput.cpp common.cpp)
+target_link_libraries(s2ecmd atomic)
 
 install(TARGETS s2ecmd RUNTIME DESTINATION .)

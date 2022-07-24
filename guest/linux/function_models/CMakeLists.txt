@@ -21,4 +21,6 @@
 # SOFTWARE.
 
 add_executable(models_test models_test.c models.c)
+target_link_options(models_test PUBLIC ${COMPAT_LD_FLAGS})
+
 target_link_libraries(models_test dl)

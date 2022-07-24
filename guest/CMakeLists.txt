@@ -39,7 +39,7 @@ include_directories("common/include")
 
 # Determine the architecture to build for. By default build for 64-bit
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -std=gnu99 -Werror -g")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=c++11 -Werror -g")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=c++17 -Werror -g")
 if(NOT BITS)
   set(BITS 64)
 endif()
@@ -56,6 +56,18 @@ endif()
 # Need static linking for C++ binaries because the guest may have different
 # version of stdlibc++.
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static")
+
+# Ubuntu 22.04 comes with GLIBC that introduces a new version for __libc_start_main.
+# This means that binaries compiled with that version of GLIBC will not run on older
+# distributions, e.g., on some S2E guest images. The following will patch all S2E
+# guest tools so that they run on older GLIBC versions, regardless of the version
+# that has been used to build them.
+if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
+  link_directories(${CMAKE_BINARY_DIR}/glibc-compat)
+  set(COMPAT_LD_FLAGS -Wl,--wrap,__libc_start_main -lglibc-compat-main)
+  add_subdirectory(glibc-compat)
+endif()
+
 
 # Build for all systems
 add_subdirectory(common)

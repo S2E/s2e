@@ -75,7 +75,7 @@ is concrete and we will not instruct S2E to make it symbolic).
 
 .. code-block:: console
 
-    s2e new_project --image debian-9.2.1-i386 /path/to/coreutils-8.26/build/bin/cat /etc/fstab
+    s2e new_project --image debian-11.3-i386 /path/to/coreutils-8.26/build/bin/cat /etc/fstab
 
 After creating the project, run S2E. This should take a few seconds and terminate.
 
@@ -242,7 +242,7 @@ folder.
 
 .. code-block:: console
 
-    s2e new_project -n cat-symb --image debian-9.2.1-i386 /path/to/coreutils-8.26/build/bin/cat -T @@
+    s2e new_project -n cat-symb --image debian-11.3-i386 /path/to/coreutils-8.26/build/bin/cat -T @@
 
 The ``@@`` symbol tells ``s2e-env`` to generate a bootstrap file that will run ``cat`` with a symbolic file as input.
 By default this symbolic file will be a 256 byte file filled with ``null`` bytes as concolic values.
@@ -387,7 +387,7 @@ other program.
 
    .. code-block:: console
 
-       s2e new_project -n linux-kernel -i debian-9.2.1-x86_64 --no-target --type linux
+       s2e new_project -n linux-kernel -i debian-11.3-x86_64 --no-target --type linux
 
 2. Add ``vmlinux`` to the ``ModuleExecutionDetector`` plugin configuration:
 
@@ -526,7 +526,7 @@ The typical symptom is that the coverage report is empty. Here is a checklist to
 
         $ ls -l /home/user/s2e/env/projects/my_project
         ...
-        lrwxrwxrwx 1 user user      51 Apr  8 18:34 guestfs -> /mnt/home3/guest-images/debian-9.2.1-x86_64/guestfs
+        lrwxrwxrwx 1 user user      51 Apr  8 18:34 guestfs -> /mnt/home3/guest-images/debian-11.3-x86_64/guestfs
         ...
 
 - Check that ``projects/my_project/guestfs/vmlinux`` is valid and contains line information (try ``addr2line``)

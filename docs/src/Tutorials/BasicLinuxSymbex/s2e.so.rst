@@ -14,7 +14,7 @@ We will symbolically execute the ``echo`` utility. For this, create a new analys
 .. code-block:: console
 
     # $S2EENV is the root of your S2E environment created with s2e init
-    s2e new_project -i debian-9.2.1-i386 $S2EENV/images/debian-9.2.1-i386/guestfs/bin/echo abc
+    s2e new_project -i debian-11.3-i386 $S2EENV/images/debian-11.3-i386/guestfs/bin/echo abc
 
 This command creates a new analysis project that invokes ``echo`` with one parameter ``abc``, which would normally print
 ``abc`` on the standard output.
@@ -118,7 +118,7 @@ symbolic, the simplest is to create your analysis project as follows:
 .. code-block:: console
 
     # The @@ is a placeholder for a concrete file name that contains symbolic data
-    s2e new_project -i debian-9.2.1-i386 $S2EENV/images/debian-9.2.1-i386/guestfs/bin/cat @@
+    s2e new_project -i debian-11.3-i386 $S2EENV/images/debian-11.3-i386/guestfs/bin/cat @@
 
 This generates a bootstrap file that creates a symbolic file in ramdisk (i.e., in ``/tmp`` on Linux), writes
 some symbolic data to that file, and passes the path to that file to ``cat``. The symbolic file must be stored in RAM
@@ -136,7 +136,7 @@ efficient at guiding the program towards an interesting path. Instead, you can u
 
 .. code-block:: console
 
-    s2e new_project -i debian-9.2.1-i386 $S2EENV/images/debian-9.2.1-i386/guestfs/bin/cat /path/to/file/on/host
+    s2e new_project -i debian-11.3-i386 $S2EENV/images/debian-11.3-i386/guestfs/bin/cat /path/to/file/on/host
 
 This commands scans the command line for arguments that look like paths (e.g., ``/path/to/file/on/host``) and
 configures ``bootstrap.sh`` to download such paths into the guest. In addition to that, it creates a ``.symranges``

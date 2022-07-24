@@ -42,7 +42,7 @@ echo "booted kernel $(uname -r)" > /dev/ttyS0
 
 echo "$SECRET_MESSAGE_SAVEVM" > /dev/ttyS0
 
-./s2eget bootstrap.sh
+./s2ecmd get bootstrap.sh
 chmod +x bootstrap.sh
 ./bootstrap.sh 2>&1 > /dev/ttyS0
 ./s2ecmd kill 0 "bootstrap terminated"

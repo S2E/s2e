@@ -126,12 +126,12 @@ You will need a virtual machine image to run your analysis target in. To see wha
 
     s2e image_build
 
-This will list an image template name and a description of that image. For example, to build a Linux Debian 9.2.1 i386
+This will list an image template name and a description of that image. For example, to build a Linux Debian 11.3 i386
 image run:
 
 .. code-block:: console
 
-    s2e image_build debian-9.2.1-i386
+    s2e image_build debian-11.3-i386
 
 This will:
 
@@ -162,6 +162,7 @@ linux``. You can find more information about the infrastructure that builds the 
 **NOTE**: The image build process caches intermediate build output in ``.tmp-output`` that can grow quite large. Once
 the images have been built you may wish to delete this directory if disk space is an issue.
 
+
 Windows images
 ~~~~~~~~~~~~~~
 
@@ -190,10 +191,25 @@ to analyze your target program. To create such a project, run:
 
     s2e new_project --image <image_name> /path/to/target/binary [target_args...]
 
-This will create a new project under the ``projects`` directory. When you run the analysis the virtual machine image
-that you specified with the ``--image`` option will be used. The target binary will be inspected so that the
-appropriate configuration files and launch scripts are generated. By default ``new_project`` will create the following
-files and directories:
+This will create a new project under the ``projects`` directory. When you run the analysis, the virtual machine image
+that you specified with the ``--image`` option will be used. You may omit this option to let ``s2e new_project``
+autodetect an appropriate guest image.
+
+.. warning::
+
+    If your host runs Ubuntu 22.04, dynamically linked binaries that you build on your host will not run
+    on Debian images that currently ship with S2E. The libc that ships with Ubuntu 22.04 is incompatible
+    with previous versions of the distribution. You have the following options:
+
+    1. Use the Ubuntu 22.04 guest image. Only a 64-bit image is available as Ubuntu no longer provides 32-bit images.
+    2. Build your binaries in a Docker environment that matches the guest.
+    3. Link your binaries statically. You will not be able to use `s2e.so <Tutorials/BasicLinuxSymbex/s2e.so.rst>`__.
+
+    ``s2e new_project`` will pick the optimal guest for your host and will warn you if you specify
+    the wrong one.
+
+
+``new_project`` inspects the target binary in order to create the appropriate configuration files and launch scripts:
 
 bootstrap.sh
     S2E downloads this file from the host into the guest, then executes it. This file contains instructions on how

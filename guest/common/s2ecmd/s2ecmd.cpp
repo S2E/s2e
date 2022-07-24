@@ -38,12 +38,18 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <vector>
+
+#include "s2ecmd.h"
+
 #ifdef _WIN32
 #include <windows.h>
 #define SLEEP(x) Sleep((x) *1000)
 #else
 #define SLEEP(x) sleep(x)
 #endif
+
+namespace s2e {
 
 typedef int (*cmd_handler_t)(int argc, const char **args);
 
@@ -54,8 +60,6 @@ typedef struct _cmd_t {
     unsigned max_args_count;
     const char *description;
 } cmd_t;
-
-int handler_symbfile(int argc, const char **args);
 
 static int handler_register_module(int argc, const char **args) {
     const char *name = args[0];
@@ -268,6 +272,23 @@ static int handler_flush_tbs(int argc, const char **args) {
     return 0;
 }
 
+std::vector<std::string> form_args(int argc, const char **args) {
+    std::vector<std::string> a;
+    for (auto i = 0; i < argc; ++i) {
+        a.push_back(args[i]);
+    }
+
+    return a;
+}
+
+static int handler_get(int argc, const char **args) {
+    return handler_get(form_args(argc, args));
+}
+
+static int handler_put(int argc, const char **args) {
+    return handler_put(form_args(argc, args));
+}
+
 #define COMMAND(c, arg_count, desc) \
     { #c, handler_##c, arg_count, arg_count, desc }
 
@@ -295,6 +316,8 @@ static cmd_t s_commands[] = {
     COMMAND(get_seed_file, 0, "Returns the name of the currently available seed file"),
     COMMAND(seedsearcher_enable, 0, "Activates the seed searcher"),
     COMMAND(flush_tbs, 0, "Flush the translation block cache"),
+    COMMAND2(get, 1, 2, "Fetch files from the host file system"),
+    COMMAND2(put, 1, 2, "Upload files to the host file system"),
     {nullptr, nullptr, 0, 0, nullptr}};
 
 static void print_commands(void) {
@@ -317,6 +340,10 @@ static int find_command(const char *cmd) {
     }
     return -1;
 }
+
+} // namespace s2e
+
+using namespace s2e;
 
 int main(int argc, const char **argv) {
     const char *cmd = nullptr;

@@ -93,7 +93,7 @@ If you wish to install your own software, there are two ways to go about it:
 
 2. Installing every time you start S2E
 
-   Modify ``bootstrap.sh``, add ``s2eget`` to download and run your software. This method is preferred if you intend to
+   Modify ``bootstrap.sh``, add ``s2ecmd get`` to download and run your software. This method is preferred if you intend to
    change your software very frequently. It adds start up overhead.
 
 

@@ -21,7 +21,7 @@ with ``libs2e.so`` and causes crashes. The disadvantage is that you cannot injec
     .. code-block:: bash
 
         $ ps aux | grep qemu
-        ubuntu    31044 96.7  4.7 3487216 1191460 pts/8 Sl   13:54   0:03 /home/ubuntu/s2e/env/install/bin/qemu-system-i386 -drive file=/home/ubuntu/s2e/env/images/debian-9.2.1-i386/image.raw.s2e,format=s2e,cache=writeback -k en-us -nographic -monitor null -m 256M -enable-kvm -serial file:serial.txt -net none -net nic,model=e1000 -loadvm ready
+        ubuntu    31044 96.7  4.7 3487216 1191460 pts/8 Sl   13:54   0:03 /home/ubuntu/s2e/env/install/bin/qemu-system-i386 -drive file=/home/ubuntu/s2e/env/images/debian-11.3-i386/image.raw.s2e,format=s2e,cache=writeback -k en-us -nographic -monitor null -m 256M -enable-kvm -serial file:serial.txt -net none -net nic,model=e1000 -loadvm ready
 
         $ heaptrack -p 31044
         heaptrack output will be written to "/home/ubuntu/heaptrack/build/heaptrack.qemu-system-i38.31044.gz"

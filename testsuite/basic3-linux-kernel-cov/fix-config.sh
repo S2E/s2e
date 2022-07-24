@@ -17,6 +17,6 @@ pluginsConfig.ModuleExecutionDetector = {
 EOF
 
 cat << EOF >> $PROJECT_DIR/bootstrap.sh
-${S2ECMD} flush_tbs
+\${S2ECMD} flush_tbs
 find /usr
 EOF

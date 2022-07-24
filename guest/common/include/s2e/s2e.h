@@ -842,4 +842,66 @@ static inline void s2e_flush_tbs(void) {
 }
 #endif
 
+#ifdef __cplusplus
+#include <memory>
+#include <string>
+#include <vector>
+
+namespace s2e {
+
+// C++ version of s2e_open
+class host_fd_t;
+using host_fd_ptr_t = std::shared_ptr<host_fd_t>;
+
+class host_fd_t {
+private:
+    int m_fd = -1;
+    bool m_write = false;
+
+    host_fd_t(int fd, bool write) : m_fd(fd), m_write(write) {
+    }
+
+public:
+    ~host_fd_t() {
+        if (m_fd >= 0) {
+            s2e_close(m_fd);
+        }
+    }
+
+    static host_fd_ptr_t open(const std::string &host_file, bool write = false) {
+        int fd;
+
+        if (write) {
+            fd = s2e_create(host_file.c_str());
+        } else {
+            fd = s2e_open(host_file.c_str());
+        }
+
+        if (fd >= 0) {
+            return host_fd_ptr_t(new host_fd_t(fd, write));
+        }
+        return nullptr;
+    }
+
+    int read(std::vector<uint8_t> &out) const {
+        if (m_write) {
+            return -1;
+        }
+
+        return s2e_read(m_fd, (char *) &out[0], out.size());
+    }
+
+    int write(const uint8_t *data, size_t size) const {
+        if (!m_write) {
+            return -1;
+        }
+
+        return s2e_write(m_fd, (char *) data, size);
+    }
+};
+
+} // namespace s2e
+
+#endif
+
 #endif
