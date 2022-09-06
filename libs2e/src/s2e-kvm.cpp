@@ -48,6 +48,7 @@
 #include "s2e-kvm.h"
 
 extern void *g_s2e;
+extern bool g_execute_always_klee;
 
 extern CPUX86State *env;
 
@@ -234,6 +235,13 @@ void S2EKVM::init(void) {
     if (!config_file) {
         fprintf(stderr, "Warning: S2E_CONFIG environment variable was not specified, "
                         "using the default (empty) config file\n");
+    }
+
+    auto always_klee = getenv("S2E_ALWAYS_KLEE");
+    if (always_klee) {
+        if (!strcmp(always_klee, "1")) {
+            g_execute_always_klee = true;
+        }
     }
 
     auto output_dir = getenv("S2E_OUTPUT_DIR");
