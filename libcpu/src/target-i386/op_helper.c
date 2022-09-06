@@ -736,7 +736,7 @@ void helper_outb(uint32_t port, uint32_t data) {
     if (tcg_llvm_trace_port_access(port, data, 8, 1)) {
         if (*g_sqi.mode.concretize_io_writes) {
             data &= 0xFF;
-            port = tcg_llvm_get_value(data, false);
+            data = tcg_llvm_get_value(data, false);
         }
         cpu_outb(port, data & 0xff);
     }
@@ -781,7 +781,7 @@ void helper_outl(uint32_t port, uint32_t data) {
 
     if (tcg_llvm_trace_port_access(port, data, 32, 1)) {
         if (*g_sqi.mode.concretize_io_writes) {
-            port = tcg_llvm_get_value(data, false);
+            data = tcg_llvm_get_value(data, false);
         }
         cpu_outl(port, data);
     }
@@ -802,8 +802,9 @@ void helper_outb(uint32_t port, uint32_t data) {
     if (g_sqi.mem.is_port_symbolic(port)) {
         g_sqi.exec.switch_to_symbolic((void *) GETPC());
     }
-    if (*g_sqi.events.on_port_access_signals_count)
+    if (*g_sqi.events.on_port_access_signals_count) {
         g_sqi.events.trace_port_access(port, data, 8, 1, (void *) GETPC());
+    }
 #endif
     cpu_outb(port, data & 0xff);
 }
@@ -816,8 +817,9 @@ target_ulong helper_inb(uint32_t port) {
 #endif
     target_ulong res = cpu_inb(port);
 #if defined(CONFIG_SYMBEX) && !defined(STATIC_TRANSLATOR)
-    if (*g_sqi.events.on_port_access_signals_count)
+    if (*g_sqi.events.on_port_access_signals_count) {
         g_sqi.events.trace_port_access(port, res, 8, 0, (void *) GETPC());
+    }
 #endif
     return res;
 }
@@ -827,8 +829,9 @@ void helper_outw(uint32_t port, uint32_t data) {
     if (g_sqi.mem.is_port_symbolic(port)) {
         g_sqi.exec.switch_to_symbolic((void *) GETPC());
     }
-    if (*g_sqi.events.on_port_access_signals_count)
+    if (*g_sqi.events.on_port_access_signals_count) {
         g_sqi.events.trace_port_access(port, data, 16, 1, (void *) GETPC());
+    }
 #endif
     cpu_outw(port, data & 0xffff);
 }
@@ -841,8 +844,9 @@ target_ulong helper_inw(uint32_t port) {
 #endif
     target_ulong res = cpu_inw(port);
 #if defined(CONFIG_SYMBEX) && !defined(STATIC_TRANSLATOR)
-    if (*g_sqi.events.on_port_access_signals_count)
+    if (*g_sqi.events.on_port_access_signals_count) {
         g_sqi.events.trace_port_access(port, res, 16, 0, (void *) GETPC());
+    }
 #endif
     return res;
 }
@@ -853,8 +857,9 @@ void helper_outl(uint32_t port, uint32_t data) {
         g_sqi.exec.switch_to_symbolic((void *) GETPC());
     }
 
-    if (*g_sqi.events.on_port_access_signals_count)
+    if (*g_sqi.events.on_port_access_signals_count) {
         g_sqi.events.trace_port_access(port, data, 32, 1, (void *) GETPC());
+    }
 #endif
     cpu_outl(port, data);
 }
@@ -867,8 +872,9 @@ target_ulong helper_inl(uint32_t port) {
 #endif
     target_ulong res = cpu_inl(port);
 #if defined(CONFIG_SYMBEX) && !defined(STATIC_TRANSLATOR)
-    if (*g_sqi.events.on_port_access_signals_count)
+    if (*g_sqi.events.on_port_access_signals_count) {
         g_sqi.events.trace_port_access(port, res, 32, 0, (void *) GETPC());
+    }
 #endif
     return res;
 }
