@@ -287,6 +287,7 @@ S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMTranslator *translator, InterpreterHan
 
     __DEFINE_EXT_FUNCTION(cpu_interrupt_handler)
 
+    __DEFINE_EXT_FUNCTION(exit)
     __DEFINE_EXT_FUNCTION(fprintf)
     __DEFINE_EXT_FUNCTION(sprintf)
     __DEFINE_EXT_FUNCTION(fputc)
