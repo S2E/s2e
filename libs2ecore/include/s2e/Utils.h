@@ -234,6 +234,8 @@ static inline std::string trim(std::string s, const char *t = " \t\n\r\f\v") {
 
 bool ReadLines(const std::string &file, std::vector<std::string> &lines, bool doTrim);
 
+uint64_t GetProcessMemoryUsage();
+
 } // namespace s2e
 
 #endif // S2E_UTILS_H
