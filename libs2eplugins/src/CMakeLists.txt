@@ -27,6 +27,7 @@ add_library(
     s2e/Plugins/Core/BaseInstructions.cpp
     s2e/Plugins/Core/HostFiles.cpp
     s2e/Plugins/Core/Vmi.cpp
+    s2e/Plugins/Core/StatsTracker.cpp
 
     # Support plugins
     s2e/Plugins/Support/KeyValueStore.cpp
