@@ -134,7 +134,7 @@ bool CachingSolver::computeValidity(const Query &query, Validity &result) {
     bool tmp, cacheHit = cacheLookup(query, cachedResult);
 
     if (cacheHit) {
-        ++stats::queryCacheHits;
+        ++*stats::queryCacheHits;
 
         switch (cachedResult) {
             case IncompleteSolver::MustBeTrue:
@@ -177,7 +177,7 @@ bool CachingSolver::computeValidity(const Query &query, Validity &result) {
         }
     }
 
-    ++stats::queryCacheMisses;
+    ++*stats::queryCacheMisses;
 
     if (!solver->impl->computeValidity(query, result))
         return false;
@@ -205,12 +205,12 @@ bool CachingSolver::computeTruth(const Query &query, bool &isValid) {
     // a cached result of MayBeTrue forces us to check whether
     // a False assignment exists.
     if (cacheHit && cachedResult != IncompleteSolver::MayBeTrue) {
-        ++stats::queryCacheHits;
+        ++*stats::queryCacheHits;
         isValid = (cachedResult == IncompleteSolver::MustBeTrue);
         return true;
     }
 
-    ++stats::queryCacheMisses;
+    ++*stats::queryCacheMisses;
 
     // cache miss: query solver
     if (!solver->impl->computeTruth(query, isValid))

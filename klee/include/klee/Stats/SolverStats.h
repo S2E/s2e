@@ -10,21 +10,21 @@
 #ifndef KLEE_SOLVERSTATS_H
 #define KLEE_SOLVERSTATS_H
 
-#include "klee/Statistic.h"
+#include "Statistic.h"
 
 namespace klee {
 namespace stats {
 
-extern Statistic cexCacheTime;
-extern Statistic queries;
-extern Statistic queriesInvalid;
-extern Statistic queriesValid;
-extern Statistic queryCacheHits;
-extern Statistic queryCacheMisses;
-extern Statistic queryConstructTime;
-extern Statistic queryConstructs;
-extern Statistic queryCounterexamples;
-extern Statistic queryTime;
+extern StatisticPtr cexCacheTime;
+extern StatisticPtr queries;
+extern StatisticPtr queriesInvalid;
+extern StatisticPtr queriesValid;
+extern StatisticPtr queryCacheHits;
+extern StatisticPtr queryCacheMisses;
+extern StatisticPtr queryConstructTime;
+extern StatisticPtr queryConstructs;
+extern StatisticPtr queryCounterexamples;
+extern StatisticPtr queryTime;
 } // namespace stats
 } // namespace klee
 

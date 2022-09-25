@@ -13,9 +13,8 @@
 
 #include "klee/Common.h"
 #include "klee/Solver.h"
-#include "klee/Statistics.h"
 
-#include "klee/CoreStats.h"
+#include "klee/Stats/CoreStats.h"
 
 using namespace llvm;
 using namespace std::chrono;
@@ -27,7 +26,7 @@ template <typename Func> static bool measureTime(double &queryCost, Func f) {
     auto ret = f();
 
     auto diff = steady_clock::now() - t1;
-    stats::solverTime += duration_cast<microseconds>(diff).count();
+    *stats::solverTime += duration_cast<microseconds>(diff).count();
     queryCost += duration_cast<duration<double>>(diff).count();
     return ret;
 }

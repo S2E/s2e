@@ -13,12 +13,10 @@ klee_add_component(kleeCore
 	CoreStats.cpp
 	ExecutionState.cpp
 	Executor.cpp
-	ExecutorTimers.cpp
 	ExternalDispatcher.cpp
 	Memory.cpp
 	Searcher.cpp
 	SpecialFunctionHandler.cpp
-	StatsTracker.cpp
 )
 
 set(LLVM_COMPONENTS

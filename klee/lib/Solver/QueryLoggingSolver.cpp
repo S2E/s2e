@@ -9,7 +9,8 @@
 #include "QueryLoggingSolver.h"
 #include "klee/Config/config.h"
 #include "klee/Internal/System/Time.h"
-#include "klee/Statistics.h"
+#include "klee/Stats/Statistic.h"
+#include "klee/Stats/StatisticManager.h"
 #ifdef HAVE_ZLIB_H
 #include "klee/Internal/Support/CompressionStream.h"
 #include "klee/Internal/Support/ErrorHandling.h"
@@ -68,7 +69,7 @@ void QueryLoggingSolver::flushBufferConditionally(bool writeToFile) {
 
 void QueryLoggingSolver::startQuery(const Query &query, const char *typeName, const Query *falseQuery,
                                     const ArrayVec &objects) {
-    Statistic *S = theStatisticManager->getStatisticByName("Instructions");
+    auto S = klee::stats::getStatisticManager()->getStatisticByName("Instructions");
     uint64_t instructions = S ? S->getValue() : 0;
 
     logBuffer << queryCommentSign << " Query " << queryCount++ << " -- "

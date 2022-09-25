@@ -7,23 +7,13 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "klee/CoreStats.h"
+#include "klee/Stats/CoreStats.h"
 
-using namespace klee;
-
-Statistic stats::allocations("Allocations", "Alloc");
-Statistic stats::coveredInstructions("CoveredInstructions", "Icov");
-Statistic stats::falseBranches("FalseBranches", "Bf");
-Statistic stats::forkTime("ForkTime", "Ftime");
-Statistic stats::forks("Forks", "Forks");
-Statistic stats::instructionRealTime("InstructionRealTimes", "Ireal");
-Statistic stats::instructionTime("InstructionTimes", "Itime");
-Statistic stats::instructions("Instructions", "I");
-Statistic stats::minDistToReturn("MinDistToReturn", "Rdist");
-Statistic stats::minDistToUncovered("MinDistToUncovered", "UCdist");
-Statistic stats::reachableUncovered("ReachableUncovered", "IuncovReach");
-Statistic stats::resolveTime("ResolveTime", "Rtime");
-Statistic stats::solverTime("SolverTime", "Stime");
-Statistic stats::states("States", "States");
-Statistic stats::trueBranches("TrueBranches", "Bt");
-Statistic stats::uncoveredInstructions("UncoveredInstructions", "Iuncov");
+namespace klee {
+namespace stats {
+auto instructions = Statistic::create("LLVMInstructions", "I");
+auto forks = Statistic::create("Forks", "Forks");
+auto solverTime = Statistic::create("SolverTime", "Stime");
+auto completedPaths = Statistic::create("CompletedPaths", "CompletedPaths");
+} // namespace stats
+} // namespace klee

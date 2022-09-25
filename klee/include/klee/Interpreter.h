@@ -57,7 +57,7 @@ public:
     ///
     /// \return The final module after it has been optimized, checks
     /// inserted, and modified for interpretation.
-    virtual const llvm::Module *setModule(llvm::Module *module, bool createStatsTracker = true) = 0;
+    virtual const llvm::Module *setModule(llvm::Module *module) = 0;
 };
 
 } // namespace klee

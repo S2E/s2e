@@ -7,17 +7,21 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "klee/SolverStats.h"
+#include "klee/Stats/SolverStats.h"
 
-using namespace klee;
+namespace klee {
+namespace stats {
 
-Statistic stats::cexCacheTime("CexCacheTime", "CCtime");
-Statistic stats::queries("Queries", "Q");
-Statistic stats::queriesInvalid("QueriesInvalid", "Qiv");
-Statistic stats::queriesValid("QueriesValid", "Qv");
-Statistic stats::queryCacheHits("QueryCacheHits", "QChits");
-Statistic stats::queryCacheMisses("QueryCacheMisses", "QCmisses");
-Statistic stats::queryConstructTime("QueryConstructTime", "QBtime");
-Statistic stats::queryConstructs("QueriesConstructs", "QB");
-Statistic stats::queryCounterexamples("QueriesCEX", "Qcex");
-Statistic stats::queryTime("QueryTime", "Qtime");
+auto cexCacheTime = Statistic::create("CexCacheTime", "CCtime");
+auto queries = Statistic::create("Queries", "Q");
+auto queriesInvalid = Statistic::create("QueriesInvalid", "Qiv");
+auto queriesValid = Statistic::create("QueriesValid", "Qv");
+auto queryCacheHits = Statistic::create("QueryCacheHits", "QChits");
+auto queryCacheMisses = Statistic::create("QueryCacheMisses", "QCmisses");
+auto queryConstructTime = Statistic::create("QueryConstructTime", "QBtime");
+auto queryConstructs = Statistic::create("QueriesConstructs", "QB");
+auto queryCounterexamples = Statistic::create("QueriesCEX", "Qcex");
+auto queryTime = Statistic::create("QueryTime", "Qtime");
+
+} // namespace stats
+} // namespace klee
