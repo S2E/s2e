@@ -53,13 +53,13 @@
 
 #include <llvm/ADT/IntervalMap.h>
 
-#include <klee/CoreStats.h>
 #include <klee/ExternalDispatcher.h>
 #include <klee/Memory.h>
 #include <klee/Searcher.h>
 #include <klee/Solver.h>
 #include <klee/SolverFactory.h>
-#include <klee/TimerStatIncrementer.h>
+#include <klee/Stats/CoreStats.h>
+#include <klee/Stats/TimerStatIncrementer.h>
 #include <klee/util/ExprTemplates.h>
 
 #include <tcg/tcg-llvm.h>
@@ -167,11 +167,6 @@ namespace {
     ClockSlowDownFastHelpers("clock-slow-down-fast-helpers",
             cl::desc("Slow down factor when interpreting LLVM code and using fast helpers"),
             cl::init(11));
-
-    cl::opt<bool>
-    EnableTimingLog("enable-executor-timing",
-            cl::desc("Measures execution times of various parts of S2E"),
-            cl::init(false));
 
     cl::opt<bool>
     SinglePathMode("single-path-mode",
@@ -386,7 +381,7 @@ S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMTranslator *translator, InterpreterHan
         exit(-1);
     }
 
-    setModule(m_llvmTranslator->getModule(), false);
+    setModule(m_llvmTranslator->getModule());
 
     if (UseFastHelpers) {
         disableConcreteLLVMHelpers();
@@ -423,8 +418,6 @@ S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMTranslator *translator, InterpreterHan
     }
 #endif
 
-    initializeStatistics();
-
     searcher = constructUserSearcher();
 
     g_s2e_fork_on_symbolic_address = ForkOnSymbolicAddress;
@@ -445,23 +438,11 @@ S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMTranslator *translator, InterpreterHan
     }
 }
 
-void S2EExecutor::initializeStatistics() {
-    if (StatsTracker::useStatistics()) {
-        if (!statsTracker) {
-            statsTracker = new S2EStatsTracker(*this, interpreterHandler->getOutputFilename("assembly.ll"));
-        }
-
-        statsTracker->writeHeaders();
-    }
-}
-
 void S2EExecutor::flushTb() {
     tb_flush(env); // release references to TB functions
 }
 
 S2EExecutor::~S2EExecutor() {
-    if (statsTracker)
-        statsTracker->done();
 }
 
 S2EExecutionState *S2EExecutor::createInitialState() {
@@ -524,7 +505,6 @@ void S2EExecutor::initializeExecution(S2EExecutionState *state, bool executeAlwa
     initializeGlobals(*state);
     kmodule->bindModuleConstants(globalAddresses);
 
-    initTimers();
     initializeStateSwitchTimer();
 }
 
@@ -986,8 +966,6 @@ inline bool S2EExecutor::executeInstructions(S2EExecutionState *state, unsigned 
         while (state->stack.size() != callerStackSize) {
             assert(!g_s2e_fast_concrete_invocation);
 
-            ++state->m_stats.m_statInstructionCountSymbolic;
-
             KInstruction *ki = state->pc;
 
             if (PrintLLVMInstructions) {
@@ -1107,8 +1085,6 @@ uintptr_t S2EExecutor::executeTranslationBlockKlee(S2EExecutionState *state, Tra
     assert(state->stack.size() == 1);
     assert(state->pc == m_dummyMain->getInstructions());
 
-    ++state->m_stats.m_statTranslationBlockSymbolic;
-
     if (!tb->llvm_function) {
         abort();
     }
@@ -1135,7 +1111,6 @@ uintptr_t S2EExecutor::executeTranslationBlockKlee(S2EExecutionState *state, Tra
 
 uintptr_t S2EExecutor::executeTranslationBlockConcrete(S2EExecutionState *state, TranslationBlock *tb) {
     assert(state->isActive() && state->isRunningConcrete());
-    ++state->m_stats.m_statTranslationBlockConcrete;
 
     uintptr_t ret = 0;
     S2EExternalDispatcher::saveJmpBuf();
@@ -1179,8 +1154,6 @@ uintptr_t S2EExecutor::executeTranslationBlockFast(struct CPUX86State *env1, str
 }
 
 uintptr_t S2EExecutor::executeTranslationBlock(S2EExecutionState *state, TranslationBlock *tb) {
-    // Avoid incrementing stats every time, very expensive.
-    static unsigned doStatsIncrementCount = 0;
     assert(state->isActive());
 
     updateConcreteFastPath(state);
@@ -1228,28 +1201,15 @@ uintptr_t S2EExecutor::executeTranslationBlock(S2EExecutionState *state, Transla
 
     if (executeKlee) {
         if (state->isRunningConcrete()) {
-            if (EnableTimingLog) {
-                TimerStatIncrementer t(stats::concreteModeTime);
-            }
-
             state->switchToSymbolic();
-        }
-
-        if (EnableTimingLog) {
-            TimerStatIncrementer t(stats::symbolicModeTime);
         }
 
         return executeTranslationBlockKlee(state, tb);
     } else {
         env->generate_llvm = 0;
 
-        if (!state->isRunningConcrete())
+        if (!state->isRunningConcrete()) {
             state->switchToConcrete();
-
-        if (EnableTimingLog) {
-            if (!((++doStatsIncrementCount) & 0xFFF)) {
-                TimerStatIncrementer t(stats::concreteModeTime);
-            }
         }
 
         return executeTranslationBlockConcrete(state, tb);
@@ -1635,8 +1595,6 @@ void S2EExecutor::terminateState(klee::ExecutionState &state, const std::string 
 void S2EExecutor::terminateState(ExecutionState &s) {
     S2EExecutionState &state = static_cast<S2EExecutionState &>(s);
 
-    klee::stats::completedPaths += 1;
-
     m_s2e->getCorePlugin()->onStateKill.emit(&state);
 
     Executor::terminateState(state);
@@ -1664,9 +1622,6 @@ inline void S2EExecutor::setCCOpEflags(S2EExecutionState *state) {
                 if (state->isRunningConcrete()) {
                     state->switchToSymbolic();
                 }
-                if (EnableTimingLog) {
-                    TimerStatIncrementer t(stats::symbolicModeTime);
-                }
 
                 executeFunction(state, "helper_set_cc_op_eflags");
             } catch (s2e::CpuExitException &) {
@@ -1678,9 +1633,9 @@ inline void S2EExecutor::setCCOpEflags(S2EExecutionState *state) {
         bool ok = state->regs()->read(CPU_OFFSET(cc_op), &cc_op, sizeof(cc_op), false);
         assert(ok);
         if (cc_op != CC_OP_EFLAGS) {
-            if (!state->isRunningConcrete())
+            if (!state->isRunningConcrete()) {
                 state->switchToConcrete();
-            // TimerStatIncrementer t(stats::concreteModeTime);
+            }
             helper_set_cc_op_eflags();
         }
     }
@@ -1692,7 +1647,6 @@ inline void S2EExecutor::doInterrupt(S2EExecutionState *state, int intno, int is
         if (!state->isRunningConcrete()) {
             state->switchToConcrete();
         }
-        // TimerStatIncrementer t(stats::concreteModeTime);
         se_do_interrupt_all(intno, is_int, error_code, next_eip, is_hw);
     } else {
         if (state->isRunningConcrete()) {
@@ -1705,9 +1659,6 @@ inline void S2EExecutor::doInterrupt(S2EExecutionState *state, int intno, int is
         args[3] = klee::ConstantExpr::create(next_eip, sizeof(target_ulong) * 8);
         args[4] = klee::ConstantExpr::create(is_hw, sizeof(int) * 8);
         try {
-            if (EnableTimingLog) {
-                TimerStatIncrementer t(stats::symbolicModeTime);
-            }
             executeFunction(state, "se_do_interrupt_all", args);
         } catch (s2e::CpuExitException &) {
             updateStates(state);
@@ -1744,10 +1695,6 @@ void S2EExecutor::doInterruptAll(int intno, int is_int, int error_code, uintptr_
     g_s2e_state->setRunningExceptionEmulationCode(false);
 }
 
-void S2EExecutor::setupTimersHandler() {
-    m_s2e->getCorePlugin()->onTimer.connect(sigc::bind(sigc::ptr_fun(&onAlarm), 0));
-}
-
 /** Suspend the given state (does not kill it) */
 bool S2EExecutor::suspendState(S2EExecutionState *state) {
     if (searcher) {
@@ -1774,6 +1721,7 @@ bool S2EExecutor::resumeState(S2EExecutionState *state) {
 S2ETranslationBlock *S2EExecutor::allocateS2ETb() {
     S2ETranslationBlockPtr se_tb(new S2ETranslationBlock);
     m_s2eTbs.insert(se_tb);
+    *klee::stats::translatedBlocksCount += 1;
     return se_tb.get();
 }
 
@@ -1863,12 +1811,10 @@ int s2e_is_tb_instrumented(void *se_tb) {
 void s2e_set_tb_function(void *se_tb, void *llvmFunction) {
     auto tb = static_cast<S2ETranslationBlock *>(se_tb);
     tb->translationBlock = static_cast<llvm::Function *>(llvmFunction);
+    *klee::stats::translatedBlocksLLVMCount += 1;
 }
 
 void s2e_flush_tb_cache() {
-    klee::stats::availableTranslationBlocks += -klee::stats::availableTranslationBlocks;
-    klee::stats::availableTranslationBlocksInstrumented += -klee::stats::availableTranslationBlocksInstrumented;
-
     if (g_s2e && g_s2e->getExecutor()->getStatesCount() > 1) {
         if (!FlushTBsOnStateSwitch) {
             g_s2e->getWarningsStream() << "Flushing TB cache with more than 1 state. Dangerous. Expect crashes.\n";
