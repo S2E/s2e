@@ -90,7 +90,6 @@ struct se_libcpu_interface_t {
         void (*flush_tb_cache)();
         void (*set_tb_function)(void *se_tb, void *llvmFunction);
         int (*is_tb_instrumented)(void *se_tb);
-        void (*increment_tb_stats)(void *se_tb);
     } tb;
 
     /* TLB management */

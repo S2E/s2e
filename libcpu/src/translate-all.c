@@ -300,7 +300,6 @@ int cpu_gen_code(CPUArchState *env, TranslationBlock *tb) {
 
 #ifdef CONFIG_SYMBEX
     tb->instrumented = g_sqi.tb.is_tb_instrumented(tb->se_tb);
-    g_sqi.tb.increment_tb_stats(tb);
 #endif
 
     return 0;

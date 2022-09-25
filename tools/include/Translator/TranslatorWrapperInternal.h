@@ -71,10 +71,6 @@ static int is_tb_instrumented(void *se_tb) {
     return 0;
 }
 
-static void increment_tb_stats(void *se_tb) {
-    return;
-}
-
 static void set_tb_function(void *se_tb, void *llvmFunction) {
     return;
 }
@@ -173,7 +169,6 @@ struct se_libcpu_interface_t g_sqi = {
     .tb = {
         .set_tb_function = set_tb_function,
         .is_tb_instrumented = is_tb_instrumented,
-        .increment_tb_stats = increment_tb_stats
     },
     .events = {
         .before_memory_access_signals_count = &s_count,
@@ -277,9 +272,6 @@ void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr) {
 
 int s2e_is_tb_instrumented(void *tb) {
     return 0;
-}
-
-void s2e_increment_tb_stats(TranslationBlock *tb) {
 }
 
 int s2e_is_running_concrete() {

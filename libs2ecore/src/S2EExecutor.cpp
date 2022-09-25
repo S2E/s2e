@@ -1781,11 +1781,6 @@ void S2EExecutor::flushS2ETBs() {
     m_s2eTbs.clear();
 }
 
-void S2EExecutor::updateStats(S2EExecutionState *state) {
-    state->m_stats.updateStats(state);
-    processTimers(state);
-}
-
 void S2EExecutor::updateStates(klee::ExecutionState *current) {
     S2EExecutionState *state = static_cast<S2EExecutionState *>(current);
     m_s2e->getCorePlugin()->onUpdateStates.emit(state, addedStates, removedStates);
@@ -1881,13 +1876,6 @@ void s2e_flush_tb_cache() {
     }
 
     g_s2e->getExecutor()->flushS2ETBs();
-}
-
-void s2e_increment_tb_stats(void *se_tb) {
-    ++klee::stats::availableTranslationBlocks;
-    if (s2e_is_tb_instrumented(se_tb)) {
-        ++klee::stats::availableTranslationBlocksInstrumented;
-    }
 }
 
 void s2e_flush_tlb_cache() {
