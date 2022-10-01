@@ -11,25 +11,28 @@
 #define KLEE_TIMERSTATINCREMENTER_H
 
 #include "klee/Internal/Support/Timer.h"
-#include "klee/Statistics.h"
+#include "Statistic.h"
 
 namespace klee {
+namespace stats {
 class TimerStatIncrementer {
 private:
     WallTimer timer;
-    Statistic &statistic;
+    StatisticPtr statistic;
 
 public:
-    TimerStatIncrementer(Statistic &_statistic) : statistic(_statistic) {
+    TimerStatIncrementer(StatisticPtr &_statistic) : statistic(_statistic) {
     }
+
     ~TimerStatIncrementer() {
-        statistic += timer.check();
+        *statistic += timer.check();
     };
 
     uint64_t check() {
         return timer.check();
     }
 };
+} // namespace stats
 } // namespace klee
 
 #endif

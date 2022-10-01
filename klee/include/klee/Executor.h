@@ -55,7 +55,6 @@ class ObjectState;
 class Searcher;
 class SpecialFunctionHandler;
 struct StackFrame;
-class StatsTracker;
 class TimingSolver;
 class BitfieldSimplifier;
 class SolverFactory;
@@ -67,32 +66,18 @@ template <class T> class ref;
 
 class Executor : public Interpreter {
     friend class SpecialFunctionHandler;
-    friend class StatsTracker;
 
 public:
-    class Timer {
-    public:
-        Timer();
-        virtual ~Timer();
-
-        /// The event callback.
-        virtual void run() = 0;
-    };
-
     typedef std::pair<ExecutionState *, ExecutionState *> StatePair;
 
 protected:
-    class TimerInfo;
-
     KModulePtr kmodule;
     InterpreterHandler *interpreterHandler;
     Searcher *searcher;
 
     ExternalDispatcher *externalDispatcher;
     StateSet states;
-    StatsTracker *statsTracker;
     SpecialFunctionHandler *specialFunctionHandler;
-    std::vector<TimerInfo *> timers;
 
     /// Used to track states that have been added during the current
     /// instructions step.
@@ -190,17 +175,6 @@ protected:
 
     void handlePointsToObj(ExecutionState &state, KInstruction *target, const std::vector<ref<Expr>> &arguments);
 
-    /// Add a timer to be executed periodically.
-    ///
-    /// \param timer The timer object to run on firings.
-    /// \param rate The approximate delay (in seconds) between firings.
-    void addTimer(Timer *timer, double rate);
-
-    static void onAlarm(int);
-    virtual void setupTimersHandler();
-    void initTimers();
-    void processTimers(ExecutionState *current);
-
     typedef void (*FunctionHandler)(Executor *executor, ExecutionState *state, KInstruction *target,
                                     std::vector<ref<Expr>> &arguments);
 
@@ -229,7 +203,7 @@ public:
 
     virtual void terminateState(ExecutionState &state, const std::string &reason);
 
-    virtual const llvm::Module *setModule(llvm::Module *module, bool createStatsTracker = true);
+    virtual const llvm::Module *setModule(llvm::Module *module);
 
     // Given a concrete object in our [klee's] address space, add it to
     // objects checked code can reference.

@@ -7,74 +7,88 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "klee/Statistics.h"
+#include <mutex>
+#include <sstream>
 
-#include <vector>
+#include "klee/Stats/Statistic.h"
+#include "klee/Stats/StatisticManager.h"
 
-using namespace klee;
+namespace klee {
+namespace stats {
 
-StatisticManager::StatisticManager() : enabled(true), globalStats(0), indexedStats(0), contextStats(0), index(0) {
+static StatisticManagerPtr s_statsManager = nullptr;
+static std::mutex s_mutex;
+
+StatisticManager::StatisticManager() {
 }
-
 StatisticManager::~StatisticManager() {
-    if (globalStats)
-        delete[] globalStats;
-    if (indexedStats)
-        delete[] indexedStats;
 }
 
-void StatisticManager::useIndexedStats(unsigned totalIndices) {
-    if (indexedStats)
-        delete[] indexedStats;
-    indexedStats = new uint64_t[totalIndices * stats.size()];
-    memset(indexedStats, 0, sizeof(*indexedStats) * totalIndices * stats.size());
+StatisticManagerPtr &getStatisticManager() {
+    std::unique_lock lock(s_mutex);
+
+    if (s_statsManager == nullptr) {
+        s_statsManager = StatisticManager::create();
+    }
+    return s_statsManager;
 }
 
-void StatisticManager::registerStatistic(Statistic &s) {
-    if (globalStats)
-        delete[] globalStats;
-    s.id = stats.size();
-    stats.push_back(&s);
-    globalStats = new uint64_t[stats.size()];
-    memset(globalStats, 0, sizeof(*globalStats) * stats.size());
+std::string StatisticManager::getCSVHeader() const {
+    std::stringstream ss;
+    for (size_t i = 0; i < stats.size(); ++i) {
+        ss << stats[i]->getName();
+        if (i < stats.size() - 1) {
+            ss << ",";
+        }
+    }
+    ss << "\n";
+    return ss.str();
 }
 
-int StatisticManager::getStatisticID(const std::string &name) const {
-    for (unsigned i = 0; i < stats.size(); i++)
-        if (stats[i]->getName() == name)
-            return i;
-    return -1;
-}
-
-Statistic *StatisticManager::getStatisticByName(const std::string &name) const {
-    for (unsigned i = 0; i < stats.size(); i++)
-        if (stats[i]->getName() == name)
-            return stats[i];
-    return 0;
-}
-
-StatisticManager *klee::theStatisticManager = 0;
-
-static StatisticManager &getStatisticManager() {
-    static StatisticManager sm;
-    theStatisticManager = &sm;
-    return sm;
+std::string StatisticManager::getCSVLine() const {
+    std::stringstream ss;
+    for (size_t i = 0; i < globalStats.size(); ++i) {
+        ss << globalStats[i];
+        if (i < globalStats.size() - 1) {
+            ss << ",";
+        }
+    }
+    ss << "\n";
+    return ss.str();
 }
 
 /* *** */
 
-Statistic::Statistic(const std::string &_name, const std::string &_shortName) : name(_name), shortName(_shortName) {
-    getStatisticManager().registerStatistic(*this);
+std::atomic<unsigned> Statistic::s_id(0);
+
+Statistic::Statistic(const std::string &_name, const std::string &_shortName)
+    : mId(s_id.fetch_add(1, std::memory_order_seq_cst)), mName(_name), mShortName(_shortName) {
 }
 
 Statistic::~Statistic() {
 }
 
+StatisticPtr Statistic::create(const std::string &_name, const std::string &_shortName) {
+    auto ret = StatisticPtr(new Statistic(_name, _shortName));
+    if (ret != nullptr) {
+        getStatisticManager()->registerStatistic(ret);
+    }
+
+    return ret;
+}
+
 Statistic &Statistic::operator+=(const uint64_t addend) {
-    theStatisticManager->incrementStatistic(*this, addend);
+    getStatisticManager()->incrementStatistic(*this, addend);
     return *this;
 }
 
 uint64_t Statistic::getValue() const {
-    return theStatisticManager->getValue(*this);
+    return getStatisticManager()->getValue(*this);
 }
+
+void Statistic::setValue(uint64_t value) {
+    return getStatisticManager()->setValue(*this, value);
+}
+
+} // namespace stats
+} // namespace klee

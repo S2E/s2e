@@ -175,10 +175,6 @@ public:
     S2ETranslationBlock *allocateS2ETb();
     void flushS2ETBs();
 
-    void initializeStatistics();
-
-    void updateStats(S2EExecutionState *state);
-
     bool isLoadBalancing() const {
         return m_inLoadBalancing;
     }
@@ -225,7 +221,6 @@ protected:
 
     void notifyBranch(klee::ExecutionState &state);
 
-    void setupTimersHandler();
     void initializeStateSwitchTimer();
     static void stateSwitchTimerCallback(void *opaque);
 

@@ -13,7 +13,7 @@
 #include "klee/Expr.h"
 #include "klee/Internal/ADT/MapOfSets.h"
 #include "klee/SolverImpl.h"
-#include "klee/TimerStatIncrementer.h"
+#include "klee/Stats/TimerStatIncrementer.h"
 #include "klee/util/Assignment.h"
 #include "klee/util/ExprUtil.h"
 #include "klee/util/ExprVisitor.h"
@@ -241,7 +241,7 @@ CexCachingSolver::~CexCachingSolver() {
 }
 
 bool CexCachingSolver::computeValidity(const Query &query, Validity &result) {
-    TimerStatIncrementer t(stats::cexCacheTime);
+    klee::stats::TimerStatIncrementer t(klee::stats::cexCacheTime);
     AssignmentPtr a;
     if (!getAssignment(query.withFalse(), a)) {
         return false;
@@ -264,7 +264,7 @@ bool CexCachingSolver::computeValidity(const Query &query, Validity &result) {
 }
 
 bool CexCachingSolver::computeTruth(const Query &query, bool &isValid) {
-    TimerStatIncrementer t(stats::cexCacheTime);
+    klee::stats::TimerStatIncrementer t(stats::cexCacheTime);
 
     // There is a small amount of redundancy here. We only need to know
     // truth and do not really need to compute an assignment. This means
@@ -292,7 +292,7 @@ bool CexCachingSolver::computeTruth(const Query &query, bool &isValid) {
 }
 
 bool CexCachingSolver::computeValue(const Query &query, ref<Expr> &result) {
-    TimerStatIncrementer t(stats::cexCacheTime);
+    klee::stats::TimerStatIncrementer t(stats::cexCacheTime);
 
     AssignmentPtr a;
     if (!getAssignment(query.withFalse(), a)) {
@@ -307,7 +307,7 @@ bool CexCachingSolver::computeValue(const Query &query, ref<Expr> &result) {
 
 bool CexCachingSolver::computeInitialValues(const Query &query, const ArrayVec &objects,
                                             std::vector<std::vector<unsigned char>> &values, bool &hasSolution) {
-    TimerStatIncrementer t(stats::cexCacheTime);
+    klee::stats::TimerStatIncrementer t(stats::cexCacheTime);
     AssignmentPtr a;
     if (!getAssignment(query, a)) {
         return false;

@@ -71,7 +71,7 @@ z3::expr Z3Builder::getOrMakeExpr(ref<Expr> e) {
 }
 
 z3::expr Z3Builder::makeExpr(ref<Expr> e) {
-    ++stats::queryConstructs;
+    ++*stats::queryConstructs;
 
     switch (e->getKind()) {
         case Expr::Constant: {

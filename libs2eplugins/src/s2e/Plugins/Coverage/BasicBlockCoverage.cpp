@@ -79,8 +79,6 @@ void BasicBlockCoverage::initialize() {
     if (writeCoverageOnStateKill) {
         s2e()->getCorePlugin()->onStateKill.connect(sigc::mem_fun(*this, &BasicBlockCoverage::onStateKill));
     }
-
-    klee::stats::totalBasicBlocks += m_cfg->getBasicBlockCount();
 }
 
 void BasicBlockCoverage::onCfgReload() {
@@ -267,8 +265,6 @@ void BasicBlockCoverage::onModuleTranslateBlockComplete(S2EExecutionState *state
     }
 
     plgState->coverage[module.Name] = BBs;
-
-    klee::stats::coveredBasicBlocks += newBlocks;
 
     // Assume that a translated block is going to be executed anyway
     if (hasUncoveredBlocks) {

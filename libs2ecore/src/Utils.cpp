@@ -155,4 +155,53 @@ bool ReadLines(const std::string &file, std::vector<std::string> &lines, bool do
     fs.close();
     return true;
 }
+
+uint64_t GetProcessMemoryUsage() {
+#if defined(CONFIG_WIN32)
+
+    PROCESS_MEMORY_COUNTERS Memory;
+    HANDLE CurrentProcess = GetCurrentProcess();
+
+    if (!GetProcessMemoryInfo(CurrentProcess, &Memory, sizeof(Memory))) {
+        return 0;
+    }
+
+    return Memory.PagefileUsage;
+
+#elif defined(CONFIG_DARWIN)
+    struct task_basic_info t_info;
+    mach_msg_type_number_t t_info_count = TASK_BASIC_INFO_COUNT;
+
+    if (KERN_SUCCESS != task_info(mach_task_self(), TASK_BASIC_INFO, (task_info_t) &t_info, &t_info_count)) {
+        return -1;
+    }
+    // resident size is in t_info.resident_size;
+    // return t_info.virtual_size;
+    return t_info.resident_size;
+
+#else
+    pid_t myPid = getpid();
+    std::stringstream ss;
+    ss << "/proc/" << myPid << "/status";
+
+    FILE *fp = fopen(ss.str().c_str(), "r");
+    if (!fp) {
+        return 0;
+    }
+
+    uint64_t peakMem = 0;
+
+    char buffer[512];
+    while (!peakMem && fgets(buffer, sizeof(buffer), fp)) {
+        if (sscanf(buffer, "VmSize: %" PRIu64, &peakMem)) {
+            break;
+        }
+    }
+
+    fclose(fp);
+
+    return peakMem * 1024;
+#endif
+}
+
 } // namespace s2e

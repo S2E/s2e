@@ -10,13 +10,17 @@
 #ifndef KLEE_STATISTIC_H
 #define KLEE_STATISTIC_H
 
+#include <atomic>
+#include <memory>
 #include <string>
 #include "llvm/Support/DataTypes.h"
 
 namespace klee {
+namespace stats {
+
 class Statistic;
-class StatisticManager;
-class StatisticRecord;
+
+using StatisticPtr = std::shared_ptr<Statistic>;
 
 /// Statistic - A named statistic instance.
 ///
@@ -25,36 +29,39 @@ class StatisticRecord;
 /// StatisticManager to enable transparent support for instruction
 /// level and call path level statistics.
 class Statistic {
-    friend class StatisticManager;
-    friend class StatisticRecord;
-
 private:
-    unsigned id;
-    const std::string name;
-    const std::string shortName;
+    static std::atomic<unsigned> s_id;
+    const unsigned mId;
+    const std::string mName;
+    const std::string mShortName;
+
+    Statistic(const std::string &_name, const std::string &_shortName);
 
 public:
-    Statistic(const std::string &_name, const std::string &_shortName);
     ~Statistic();
 
+    static StatisticPtr create(const std::string &_name, const std::string &_shortName);
+
     /// getID - Get the unique statistic ID.
-    unsigned getID() {
-        return id;
+    unsigned getID() const {
+        return mId;
     }
 
     /// getName - Get the statistic name.
     const std::string &getName() const {
-        return name;
+        return mName;
     }
 
     /// getShortName - Get the "short" statistic name, used in
     /// callgrind output for example.
     const std::string &getShortName() const {
-        return shortName;
+        return mShortName;
     }
 
     /// getValue - Get the current primary statistic value.
     uint64_t getValue() const;
+
+    void setValue(uint64_t value);
 
     /// operator uint64_t - Get the current primary statistic value.
     operator uint64_t() const {
@@ -69,6 +76,7 @@ public:
     /// operator+= - Increment the statistic by \arg addend.
     Statistic &operator+=(const uint64_t addend);
 };
+} // namespace stats
 } // namespace klee
 
 #endif

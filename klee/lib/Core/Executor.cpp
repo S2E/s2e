@@ -13,13 +13,13 @@
 
 #include "klee/BitfieldSimplifier.h"
 #include "klee/Context.h"
-#include "klee/CoreStats.h"
 #include "klee/ExternalDispatcher.h"
 #include "klee/Memory.h"
 #include "klee/Searcher.h"
 #include "klee/SolverFactory.h"
 #include "klee/SolverStats.h"
-#include "klee/StatsTracker.h"
+#include "klee/Stats/CoreStats.h"
+#include "klee/Stats/TimerStatIncrementer.h"
 #include "klee/TimingSolver.h"
 #include "SpecialFunctionHandler.h"
 
@@ -32,7 +32,6 @@
 #include "klee/Internal/Support/FloatEvaluation.h"
 #include "klee/Internal/System/Time.h"
 #include "klee/Interpreter.h"
-#include "klee/TimerStatIncrementer.h"
 #include "klee/util/Assignment.h"
 #include "klee/util/ExprPPrinter.h"
 #include "klee/util/ExprUtil.h"
@@ -85,11 +84,11 @@ extern cl::opt<bool> UseExprSimplifier;
 } // namespace klee
 
 Executor::Executor(InterpreterHandler *ih, LLVMContext &context)
-    : kmodule(0), interpreterHandler(ih), searcher(0), externalDispatcher(new ExternalDispatcher()), statsTracker(0),
+    : kmodule(0), interpreterHandler(ih), searcher(0), externalDispatcher(new ExternalDispatcher()),
       specialFunctionHandler(0) {
 }
 
-const Module *Executor::setModule(llvm::Module *module, bool createStatsTracker) {
+const Module *Executor::setModule(llvm::Module *module) {
     assert(!kmodule && module && "can only register one module"); // XXX gross
 
     kmodule = KModule::create(module);
@@ -106,11 +105,6 @@ const Module *Executor::setModule(llvm::Module *module, bool createStatsTracker)
 
     specialFunctionHandler->bind();
 
-    if (createStatsTracker && StatsTracker::useStatistics()) {
-        statsTracker = new StatsTracker(*this, interpreterHandler->getOutputFilename("assembly.ll"));
-        statsTracker->writeHeaders();
-    }
-
     return module;
 }
 
@@ -118,8 +112,6 @@ Executor::~Executor() {
     delete externalDispatcher;
     if (specialFunctionHandler)
         delete specialFunctionHandler;
-    if (statsTracker)
-        delete statsTracker;
 }
 
 /***/
@@ -393,6 +385,8 @@ Executor::StatePair Executor::fork(ExecutionState &current, const ref<Expr> &con
     notifyBranch(current);
     branchedState = current.clone();
     addedStates.insert(branchedState);
+
+    *klee::stats::forks += 1;
 
     // Update concrete values for the branched state
     branchedState->concolics = concolics;
@@ -760,6 +754,8 @@ Function *Executor::getTargetFunction(Value *calledVal, ExecutionState &state) {
 }
 
 void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
+    *klee::stats::instructions += 1;
+
     Instruction *i = ki->inst;
     switch (i->getOpcode()) {
         // Control flow
@@ -1623,6 +1619,8 @@ void Executor::deleteState(ExecutionState *state) {
 }
 
 void Executor::terminateState(ExecutionState &state) {
+    *klee::stats::completedPaths += 1;
+
     StateSet::iterator it = addedStates.find(&state);
     if (it == addedStates.end()) {
         // XXX: the following line makes delayed state termination impossible

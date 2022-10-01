@@ -142,8 +142,6 @@ protected:
 
     unsigned m_nextSymbVarId;
 
-    S2EStateStats m_stats;
-
     S2EExecutionStateTlb m_tlb;
 
     /* Temp location to store a symbolic mem_io_vaddr */

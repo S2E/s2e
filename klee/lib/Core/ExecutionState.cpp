@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "klee/ExecutionState.h"
-#include "klee/CoreStats.h"
+#include "klee/Stats/CoreStats.h"
 
 #include "klee/Internal/Module/Cell.h"
 #include "klee/Internal/Module/KInstruction.h"
@@ -575,11 +575,11 @@ void ExecutionState::bindArgument(KFunction *kf, unsigned index, ref<Expr> value
 
 void ExecutionState::stepInstruction() {
     if (DebugPrintInstructions) {
-        llvm::errs() << stats::instructions << " ";
+        llvm::errs() << *stats::instructions << " ";
         llvm::errs() << *(pc->inst) << "\n";
     }
 
-    ++stats::instructions;
+    ++*stats::instructions;
     prevPC = pc;
     ++pc;
 }

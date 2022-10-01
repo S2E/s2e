@@ -571,9 +571,6 @@ int S2E::fork() {
         getWarningsStream() << "Started new node id=" << newProcessId << " index=" << m_currentInstanceIndex
                             << " pid=" << getpid() << " parent_id=" << oldInstanceId << "\n";
 
-        // Also recreate new statistics files
-        m_s2eExecutor->initializeStatistics();
-
         s2e_kvm_clone_process();
     }
 

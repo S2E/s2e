@@ -1,6 +1,5 @@
 ///
-/// Copyright (C) 2010-2016, Dependable Systems Laboratory, EPFL
-/// Copyright (C) 2016, Cyberhaven
+/// Copyright (C) 2022, Vitaly Chipounov
 ///
 /// Permission is hereby granted, free of charge, to any person obtaining a copy
 /// of this software and associated documentation files (the "Software"), to deal
@@ -21,14 +20,38 @@
 /// SOFTWARE.
 ///
 
-#include <s2e/S2EStatsTracker.h>
+#ifndef S2E_PLUGINS_STATSTRACKER_H
+#define S2E_PLUGINS_STATSTRACKER_H
 
-namespace klee {
-namespace stats {
+#include <s2e/Plugin.h>
 
-auto translatedBlocksCount = Statistic::create("TranslatedBlocksCount", "TB");
-auto translatedBlocksLLVMCount = Statistic::create("TranslatedBlocksLLVMCount", "LLVMTB");
-auto memoryUsage = Statistic::create("MemoryUsage", "mem");
+#include <s2e/Plugins/Core/BaseInstructions.h>
 
-} // namespace stats
-} // namespace klee
+namespace s2e {
+namespace plugins {
+
+class StatsTracker : public Plugin {
+    S2E_PLUGIN
+
+    FILE *mFile;
+    std::string mFileName;
+
+public:
+    StatsTracker(S2E *s2e) : Plugin(s2e) {
+    }
+
+    ~StatsTracker();
+
+    void initialize();
+
+private:
+    void onTimer();
+    void createNewStatsFile(bool append);
+    void onProcessFork(bool preFork, bool isChild, unsigned parentProcId);
+    void onEngineShutdown();
+};
+
+} // namespace plugins
+} // namespace s2e
+
+#endif // S2E_PLUGINS_STATSTRACKER_H
