@@ -33,7 +33,7 @@
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Support/CommandLine.h"
 
-#include "klee/SolverStats.h"
+#include "klee/Stats/SolverStats.h"
 
 #include <boost/make_shared.hpp>
 

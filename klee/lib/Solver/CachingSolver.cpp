@@ -15,7 +15,7 @@
 #include "klee/IncompleteSolver.h"
 #include "klee/SolverImpl.h"
 
-#include "klee/SolverStats.h"
+#include "klee/Stats/SolverStats.h"
 
 #include <unordered_map>
 

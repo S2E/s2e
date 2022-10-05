@@ -11,7 +11,7 @@
 #include <klee/Common.h>
 #include "klee/SolverImpl.h"
 
-#include "klee/SolverStats.h"
+#include "klee/Stats/SolverStats.h"
 
 #include "klee/Constraints.h"
 #include "klee/Expr.h"
