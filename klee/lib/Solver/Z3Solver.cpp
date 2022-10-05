@@ -31,7 +31,7 @@
 #include "klee/Constraints.h"
 #include "klee/Solver.h"
 #include "klee/SolverImpl.h"
-#include "klee/SolverStats.h"
+#include "klee/Stats/SolverStats.h"
 #include "klee/util/Assignment.h"
 #include "klee/util/ExprHashMap.h"
 #include "klee/util/ExprUtil.h"

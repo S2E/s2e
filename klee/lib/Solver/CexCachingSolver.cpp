@@ -18,7 +18,7 @@
 #include "klee/util/ExprUtil.h"
 #include "klee/util/ExprVisitor.h"
 
-#include "klee/SolverStats.h"
+#include "klee/Stats/SolverStats.h"
 
 #include "llvm/Support/CommandLine.h"
 
