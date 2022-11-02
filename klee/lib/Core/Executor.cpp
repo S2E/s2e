@@ -846,7 +846,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
             if (sp.second) {
                 sp.second->pc = sp.second->prevPC;
             }
-            notifyFork(state, cond, sp);
+            notifyFork(state, condition, sp);
             cond = concreteCond;
 
             if (ConstantExpr *CE = dyn_cast<ConstantExpr>(cond)) {
