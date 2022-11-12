@@ -595,4 +595,30 @@ void ExecutionState::bindObject(const ObjectStatePtr &os, bool isLocal) {
         stack.back().allocas.push_back(os->getKey());
     }
 }
+
+void ExecutionState::executeAlloc(ref<Expr> size, bool isLocal, KInstruction *target, bool zeroMemory,
+                                  const ObjectStatePtr &reallocFrom) {
+    size = toUnique(size);
+    if (ConstantExpr *CE = dyn_cast<ConstantExpr>(size)) {
+        auto mo = ObjectState::allocate(0, CE->getZExtValue(), false);
+        if (!mo) {
+            bindLocal(target, ConstantExpr::alloc(0, Context::get().getPointerWidth()));
+        } else {
+            bindObject(mo, isLocal);
+            bindLocal(target, mo->getBaseExpr());
+
+            if (reallocFrom) {
+                unsigned count = std::min(reallocFrom->getSize(), mo->getSize());
+                for (unsigned i = 0; i < count; i++) {
+                    mo->write(i, reallocFrom->read8(i));
+                }
+                addressSpace.unbindObject(reallocFrom->getKey());
+            }
+        }
+    } else {
+        pabort("S2E should not cause allocs with symbolic size");
+        abort();
+    }
+}
+
 } // namespace klee

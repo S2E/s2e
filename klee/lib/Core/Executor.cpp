@@ -1200,7 +1200,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
                 size = MulExpr::create(size, count);
             }
             bool isLocal = i->getOpcode() == Instruction::Alloca;
-            executeAlloc(state, size, isLocal, ki);
+            state.executeAlloc(size, isLocal, ki);
             break;
         }
 
@@ -1755,31 +1755,6 @@ void Executor::callExternalFunction(ExecutionState &state, KInstruction *target,
 }
 
 /***/
-
-void Executor::executeAlloc(ExecutionState &state, ref<Expr> size, bool isLocal, KInstruction *target, bool zeroMemory,
-                            const ObjectStatePtr &reallocFrom) {
-    size = state.toUnique(size);
-    if (ConstantExpr *CE = dyn_cast<ConstantExpr>(size)) {
-        auto mo = ObjectState::allocate(0, CE->getZExtValue(), false);
-        if (!mo) {
-            state.bindLocal(target, ConstantExpr::alloc(0, Context::get().getPointerWidth()));
-        } else {
-            state.bindObject(mo, isLocal);
-            state.bindLocal(target, mo->getBaseExpr());
-
-            if (reallocFrom) {
-                unsigned count = std::min(reallocFrom->getSize(), mo->getSize());
-                for (unsigned i = 0; i < count; i++) {
-                    mo->write(i, reallocFrom->read8(i));
-                }
-                state.addressSpace.unbindObject(reallocFrom->getKey());
-            }
-        }
-    } else {
-        pabort("S2E should not cause allocs with symbolic size");
-        abort();
-    }
-}
 
 template <typename T>
 void Executor::writeAndNotify(ExecutionState &state, const ObjectStatePtr &wos, T address, ref<Expr> &value) {

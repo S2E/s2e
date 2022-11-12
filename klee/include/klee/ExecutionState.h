@@ -182,6 +182,24 @@ public:
     void setSolver(SolverPtr &solver) {
         m_solver = solver;
     }
+
+    /// Allocate and bind a new object in a particular state. NOTE: This
+    /// function may fork.
+    ///
+    /// \param isLocal Flag to indicate if the object should be
+    /// automatically deallocated on function return (this also makes it
+    /// illegal to free directly).
+    ///
+    /// \param target Value at which to bind the base address of the new
+    /// object.
+    ///
+    /// \param reallocFrom If non-zero and the allocation succeeds,
+    /// initialize the new object from the given one and unbind it when
+    /// done (realloc semantics). The initialized bytes will be the
+    /// minimum of the size of the old and new objects, with remaining
+    /// bytes initialized as specified by zeroMemory.
+    void executeAlloc(ref<Expr> size, bool isLocal, KInstruction *target, bool zeroMemory = false,
+                      const ObjectStatePtr &reallocFrom = nullptr);
 };
 } // namespace klee
 
