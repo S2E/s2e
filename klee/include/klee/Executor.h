@@ -104,7 +104,7 @@ protected:
     /// instead of being called directly.
     std::set<llvm::Function *> overridenInternalFunctions;
 
-    llvm::Function *getTargetFunction(llvm::Value *calledVal, ExecutionState &state);
+    llvm::Function *getTargetFunction(llvm::Value *calledVal);
 
     void executeInstruction(ExecutionState &state, KInstruction *ki);
 
