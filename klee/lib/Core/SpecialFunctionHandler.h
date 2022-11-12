@@ -16,7 +16,8 @@
 
 namespace llvm {
 class Function;
-}
+class Module;
+} // namespace llvm
 
 namespace klee {
 class Executor;
@@ -52,11 +53,11 @@ public:
     /// prepared for execution. At the moment this involves deleting
     /// unused function bodies and marking intrinsics with appropriate
     /// flags for use in optimizations.
-    void prepare();
+    void prepare(const llvm::Module &mod);
 
     /// Initialize the internal handler map after the module has been
     /// prepared for execution.
-    void bind();
+    void bind(const llvm::Module &mod);
 
     /// Add user handler function
     void addUHandler(llvm::Function *f, FunctionHandler handler);

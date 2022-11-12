@@ -48,12 +48,12 @@ HandlerInfo handlerInfo[] = {
 SpecialFunctionHandler::SpecialFunctionHandler(Executor &_executor) : executor(_executor) {
 }
 
-void SpecialFunctionHandler::prepare() {
+void SpecialFunctionHandler::prepare(const llvm::Module &mod) {
     unsigned N = sizeof(handlerInfo) / sizeof(handlerInfo[0]);
 
     for (unsigned i = 0; i < N; ++i) {
         HandlerInfo &hi = handlerInfo[i];
-        auto f = executor.kmodule->getModule()->getFunction(hi.name);
+        auto f = mod.getFunction(hi.name);
 
         // No need to create if the function doesn't exist, since it cannot
         // be called in that case.
@@ -61,23 +61,25 @@ void SpecialFunctionHandler::prepare() {
         if (f && (!hi.doNotOverride || f->isDeclaration())) {
             // Make sure NoReturn attribute is set, for optimization and
             // coverage counting.
-            if (hi.doesNotReturn)
+            if (hi.doesNotReturn) {
                 f->addFnAttr(Attribute::NoReturn);
+            }
 
             // Change to a declaration since we handle internally (simplifies
             // module and allows deleting dead code).
-            if (!f->isDeclaration())
+            if (!f->isDeclaration()) {
                 f->deleteBody();
+            }
         }
     }
 }
 
-void SpecialFunctionHandler::bind() {
+void SpecialFunctionHandler::bind(const llvm::Module &mod) {
     unsigned N = sizeof(handlerInfo) / sizeof(handlerInfo[0]);
 
     for (unsigned i = 0; i < N; ++i) {
         HandlerInfo &hi = handlerInfo[i];
-        auto f = executor.kmodule->getModule()->getFunction(hi.name);
+        auto f = mod.getFunction(hi.name);
 
         if (f && (!hi.doNotOverride || f->isDeclaration()))
             handlers[f] = std::make_pair(hi.handler, hi.hasReturnValue);

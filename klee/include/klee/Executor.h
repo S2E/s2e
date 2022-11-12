@@ -61,8 +61,6 @@ class SolverFactory;
 template <class T> class ref;
 
 class Executor {
-    friend class SpecialFunctionHandler;
-
 public:
     typedef std::pair<ExecutionState *, ExecutionState *> StatePair;
 

@@ -97,11 +97,11 @@ const Module *Executor::setModule(llvm::Module *module) {
 
     specialFunctionHandler = new SpecialFunctionHandler(*this);
 
-    specialFunctionHandler->prepare();
+    specialFunctionHandler->prepare(*module);
 
     kmodule->prepare();
 
-    specialFunctionHandler->bind();
+    specialFunctionHandler->bind(*module);
 
     return module;
 }
