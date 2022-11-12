@@ -40,17 +40,15 @@ S2E_DEFINE_PLUGIN(InstructionCounter, "Instruction counter plugin", "Instruction
 namespace {
 class InstructionCounterState : public PluginState {
 private:
-    uint64_t m_count;
-    bool m_enabled;
-    void *m_cachedTb;
+    uint64_t m_count = 0;
+    bool m_enabled = false;
+    void *m_cachedTb = nullptr;
 
 public:
-    InstructionCounterState() {
-        m_count = 0;
-        m_enabled = false;
-    }
+    InstructionCounterState(S2EExecutionState *s, Plugin *p){
 
-    InstructionCounterState(S2EExecutionState *s, Plugin *p){};
+    };
+
     virtual ~InstructionCounterState(){};
     virtual PluginState *clone() const {
         return new InstructionCounterState(*this);
