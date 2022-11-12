@@ -584,6 +584,19 @@ void ExecutionState::stepInstruction() {
     ++pc;
 }
 
+ObjectStatePtr ExecutionState::addExternalObject(void *addr, unsigned size, bool isReadOnly, bool isSharedConcrete) {
+    auto ret = ObjectState::allocate((uint64_t) addr, size, true);
+    bindObject(ret, false);
+    ret->setSharedConcrete(isSharedConcrete);
+    if (!isSharedConcrete) {
+        memcpy(ret->getConcreteBuffer(), addr, size);
+    }
+
+    ret->setReadOnly(isReadOnly);
+
+    return ret;
+}
+
 void ExecutionState::bindObject(const ObjectStatePtr &os, bool isLocal) {
     addressSpace.bindObject(os);
 

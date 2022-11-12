@@ -177,6 +177,10 @@ public:
     void bindArgument(KFunction *kf, unsigned index, ref<Expr> value);
     void stepInstruction();
 
+    // Given a concrete object in our [klee's] address space, add it to
+    // objects checked code can reference.
+    ObjectStatePtr addExternalObject(void *addr, unsigned size, bool isReadOnly, bool isSharedConcrete = false);
+
     void bindObject(const ObjectStatePtr &os, bool isLocal);
 
     void setSolver(SolverPtr &solver) {

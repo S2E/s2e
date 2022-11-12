@@ -187,11 +187,6 @@ public:
 
     virtual const llvm::Module *setModule(llvm::Module *module);
 
-    // Given a concrete object in our [klee's] address space, add it to
-    // objects checked code can reference.
-    ObjectStatePtr addExternalObject(ExecutionState &state, void *addr, unsigned size, bool isReadOnly,
-                                     bool isSharedConcrete = false);
-
     /*** State accessor methods ***/
     size_t getStatesCount() const {
         return states.size();

@@ -152,20 +152,6 @@ void Executor::initializeGlobalObject(ExecutionState &state, const ObjectStatePt
     }
 }
 
-ObjectStatePtr Executor::addExternalObject(ExecutionState &state, void *addr, unsigned size, bool isReadOnly,
-                                           bool isSharedConcrete) {
-    auto ret = ObjectState::allocate((uint64_t) addr, size, true);
-    state.bindObject(ret, false);
-    ret->setSharedConcrete(isSharedConcrete);
-    if (!isSharedConcrete) {
-        memcpy(ret->getConcreteBuffer(), addr, size);
-    }
-
-    ret->setReadOnly(isReadOnly);
-
-    return ret;
-}
-
 void Executor::initializeGlobals(ExecutionState &state) {
     auto m = kmodule->getModule();
 
@@ -198,23 +184,23 @@ void Executor::initializeGlobals(ExecutionState &state) {
 #ifndef DARWIN
     /* From /usr/include/errno.h: it [errno] is a per-thread variable. */
     int *errno_addr = __errno_location();
-    addExternalObject(state, (void *) errno_addr, sizeof *errno_addr, false);
+    state.addExternalObject((void *) errno_addr, sizeof *errno_addr, false);
 
     /* from /usr/include/ctype.h:
          These point into arrays of 384, so they can be indexed by any `unsigned
          char' value [0,255]; by EOF (-1); or by any `signed char' value
          [-128,-1).  ISO C requires that the ctype functions work for `unsigned */
     const uint16_t **addr = __ctype_b_loc();
-    addExternalObject(state, (void *) (*addr - 128), 384 * sizeof **addr, true);
-    addExternalObject(state, addr, sizeof(*addr), true);
+    state.addExternalObject((void *) (*addr - 128), 384 * sizeof **addr, true);
+    state.addExternalObject(addr, sizeof(*addr), true);
 
     const int32_t **lower_addr = __ctype_tolower_loc();
-    addExternalObject(state, (void *) (*lower_addr - 128), 384 * sizeof **lower_addr, true);
-    addExternalObject(state, lower_addr, sizeof(*lower_addr), true);
+    state.addExternalObject((void *) (*lower_addr - 128), 384 * sizeof **lower_addr, true);
+    state.addExternalObject(lower_addr, sizeof(*lower_addr), true);
 
     const int32_t **upper_addr = __ctype_toupper_loc();
-    addExternalObject(state, (void *) (*upper_addr - 128), 384 * sizeof **upper_addr, true);
-    addExternalObject(state, upper_addr, sizeof(*upper_addr), true);
+    state.addExternalObject((void *) (*upper_addr - 128), 384 * sizeof **upper_addr, true);
+    state.addExternalObject(upper_addr, sizeof(*upper_addr), true);
 #endif
 #endif
 #endif
@@ -476,9 +462,7 @@ void Executor::executeCall(ExecutionState &state, KInstruction *ki, Function *f,
 
     if (f && overridenInternalFunctions.find(f) != overridenInternalFunctions.end()) {
         callExternalFunction(state, ki, f, arguments);
-    } else
-
-        if (f && f->isDeclaration()) {
+    } else if (f && f->isDeclaration()) {
         switch (f->getIntrinsicID()) {
             case Intrinsic::not_intrinsic:
                 // state may be destroyed by this call, cannot touch
