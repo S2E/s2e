@@ -20,6 +20,7 @@
 #include "klee/util/ExprPPrinter.h"
 
 #include "llvm/IR/Function.h"
+#include "llvm/IR/Instructions.h"
 #include "llvm/Support/CommandLine.h"
 
 #include <cassert>
@@ -631,6 +632,29 @@ void ExecutionState::executeAlloc(ref<Expr> size, bool isLocal, KInstruction *ta
     } else {
         pabort("S2E should not cause allocs with symbolic size");
         abort();
+    }
+}
+
+void ExecutionState::transferToBasicBlock(BasicBlock *dst, BasicBlock *src) {
+    // Note that in general phi nodes can reuse phi values from the same
+    // block but the incoming value is the eval() result *before* the
+    // execution of any phi nodes. this is pathological and doesn't
+    // really seem to occur, but just in case we run the PhiCleanerPass
+    // which makes sure this cannot happen and so it is safe to just
+    // eval things in order. The PhiCleanerPass also makes sure that all
+    // incoming blocks have the same order for each PHINode so we only
+    // have to compute the index once.
+    //
+    // With that done we simply set an index in the state so that PHI
+    // instructions know which argument to eval, set the pc, and continue.
+
+    // XXX this lookup has to go ?
+    KFunction *kf = stack.back().kf;
+    unsigned entry = kf->getBbEntry(dst);
+    pc = kf->getInstructionPtr(entry);
+    if (pc->inst->getOpcode() == Instruction::PHI) {
+        PHINode *first = static_cast<PHINode *>(pc->inst);
+        incomingBBIndex = first->getBasicBlockIndex(src);
     }
 }
 

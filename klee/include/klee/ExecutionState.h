@@ -204,6 +204,8 @@ public:
     /// bytes initialized as specified by zeroMemory.
     void executeAlloc(ref<Expr> size, bool isLocal, KInstruction *target, bool zeroMemory = false,
                       const ObjectStatePtr &reallocFrom = nullptr);
+
+    void transferToBasicBlock(llvm::BasicBlock *dst, llvm::BasicBlock *src);
 };
 } // namespace klee
 

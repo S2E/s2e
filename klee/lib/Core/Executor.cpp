@@ -610,8 +610,9 @@ void Executor::executeCall(ExecutionState &state, KInstruction *ki, Function *f,
                 klee_error("unknown intrinsic: %s", f->getName().data());
         }
 
-        if (InvokeInst *ii = dyn_cast<InvokeInst>(i))
-            transferToBasicBlock(ii->getNormalDest(), i->getParent(), state);
+        if (InvokeInst *ii = dyn_cast<InvokeInst>(i)) {
+            state.transferToBasicBlock(ii->getNormalDest(), i->getParent());
+        }
     } else {
         // FIXME: I'm not really happy about this reliance on prevPC but it is ok, I
         // guess. This just done to avoid having to pass KInstIterator everywhere
@@ -684,29 +685,6 @@ void Executor::executeCall(ExecutionState &state, KInstruction *ki, Function *f,
     }
 }
 
-void Executor::transferToBasicBlock(BasicBlock *dst, BasicBlock *src, ExecutionState &state) {
-    // Note that in general phi nodes can reuse phi values from the same
-    // block but the incoming value is the eval() result *before* the
-    // execution of any phi nodes. this is pathological and doesn't
-    // really seem to occur, but just in case we run the PhiCleanerPass
-    // which makes sure this cannot happen and so it is safe to just
-    // eval things in order. The PhiCleanerPass also makes sure that all
-    // incoming blocks have the same order for each PHINode so we only
-    // have to compute the index once.
-    //
-    // With that done we simply set an index in the state so that PHI
-    // instructions know which argument to eval, set the pc, and continue.
-
-    // XXX this lookup has to go ?
-    KFunction *kf = state.stack.back().kf;
-    unsigned entry = kf->getBbEntry(dst);
-    state.pc = kf->getInstructionPtr(entry);
-    if (state.pc->inst->getOpcode() == Instruction::PHI) {
-        PHINode *first = static_cast<PHINode *>(state.pc->inst);
-        state.incomingBBIndex = first->getBasicBlockIndex(src);
-    }
-}
-
 /// Compute the true target of a function call, resolving LLVM aliases
 /// and bitcasts.
 Function *Executor::getTargetFunction(Value *calledVal) {
@@ -766,7 +744,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
                 state.popFrame();
 
                 if (InvokeInst *ii = dyn_cast<InvokeInst>(caller)) {
-                    transferToBasicBlock(ii->getNormalDest(), caller->getParent(), state);
+                    state.transferToBasicBlock(ii->getNormalDest(), caller->getParent());
                 } else {
                     state.pc = kcaller;
                     ++state.pc;
@@ -806,17 +784,19 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
         case Instruction::Br: {
             BranchInst *bi = cast<BranchInst>(i);
             if (bi->isUnconditional()) {
-                transferToBasicBlock(bi->getSuccessor(0), bi->getParent(), state);
+                state.transferToBasicBlock(bi->getSuccessor(0), bi->getParent());
             } else {
                 // FIXME: Find a way that we don't have this hidden dependency.
                 assert(bi->getCondition() == bi->getOperand(0) && "Wrong operand index!");
                 ref<Expr> cond = eval(ki, 0, state).value;
                 Executor::StatePair branches = fork(state, cond);
 
-                if (branches.first)
-                    transferToBasicBlock(bi->getSuccessor(0), bi->getParent(), *branches.first);
-                if (branches.second)
-                    transferToBasicBlock(bi->getSuccessor(1), bi->getParent(), *branches.second);
+                if (branches.first) {
+                    branches.first->transferToBasicBlock(bi->getSuccessor(0), bi->getParent());
+                }
+                if (branches.second) {
+                    branches.second->transferToBasicBlock(bi->getSuccessor(1), bi->getParent());
+                }
 
                 notifyFork(state, cond, branches);
             }
@@ -844,7 +824,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
                 llvm::IntegerType *Ty = cast<IntegerType>(si->getCondition()->getType());
                 ConstantInt *ci = ConstantInt::get(Ty, CE->getZExtValue());
                 SwitchInst::CaseIt cit = si->findCaseValue(ci);
-                transferToBasicBlock(cit->getCaseSuccessor(), si->getParent(), state);
+                state.transferToBasicBlock(cit->getCaseSuccessor(), si->getParent());
             } else {
                 pabort("Cannot get here in concolic mode");
                 abort();

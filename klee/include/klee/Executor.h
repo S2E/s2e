@@ -113,7 +113,6 @@ protected:
     void initializeGlobals(ExecutionState &state);
 
     virtual void updateStates(ExecutionState *current);
-    void transferToBasicBlock(llvm::BasicBlock *dst, llvm::BasicBlock *src, ExecutionState &state);
 
     void callExternalFunction(ExecutionState &state, KInstruction *target, llvm::Function *function,
                               std::vector<ref<Expr>> &arguments);
