@@ -31,7 +31,6 @@
 #include "klee/Internal/Module/KModule.h"
 #include "klee/Internal/Support/FloatEvaluation.h"
 #include "klee/Internal/System/Time.h"
-#include "klee/Interpreter.h"
 #include "klee/util/Assignment.h"
 #include "klee/util/ExprPPrinter.h"
 #include "klee/util/ExprUtil.h"
@@ -83,9 +82,8 @@ namespace klee {
 extern cl::opt<bool> UseExprSimplifier;
 } // namespace klee
 
-Executor::Executor(InterpreterHandler *ih, LLVMContext &context)
-    : kmodule(0), interpreterHandler(ih), searcher(0), externalDispatcher(new ExternalDispatcher()),
-      specialFunctionHandler(0) {
+Executor::Executor(LLVMContext &context)
+    : kmodule(0), searcher(0), externalDispatcher(new ExternalDispatcher()), specialFunctionHandler(0) {
 }
 
 const Module *Executor::setModule(llvm::Module *module) {
@@ -101,7 +99,7 @@ const Module *Executor::setModule(llvm::Module *module) {
 
     specialFunctionHandler->prepare();
 
-    kmodule->prepare(interpreterHandler);
+    kmodule->prepare();
 
     specialFunctionHandler->bind();
 

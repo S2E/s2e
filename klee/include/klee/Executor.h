@@ -26,7 +26,6 @@
 #include "klee/Internal/Module/Cell.h"
 #include "klee/Internal/Module/KInstruction.h"
 #include "klee/Internal/Module/KModule.h"
-#include "klee/Interpreter.h"
 
 namespace llvm {
 class BasicBlock;
@@ -40,6 +39,7 @@ class Instruction;
 class TargetData;
 class Twine;
 class Value;
+class LLVMContext;
 } // namespace llvm
 
 namespace klee {
@@ -60,11 +60,7 @@ class BitfieldSimplifier;
 class SolverFactory;
 template <class T> class ref;
 
-/// \todo Add a context object to keep track of data only live
-/// during an instruction step. Should contain addedStates,
-/// removedStates, and haltExecution, among others.
-
-class Executor : public Interpreter {
+class Executor {
     friend class SpecialFunctionHandler;
 
 public:
@@ -72,7 +68,6 @@ public:
 
 protected:
     KModulePtr kmodule;
-    InterpreterHandler *interpreterHandler;
     Searcher *searcher;
 
     ExternalDispatcher *externalDispatcher;
@@ -163,7 +158,7 @@ protected:
     void addSpecialFunctionHandler(llvm::Function *function, FunctionHandler handler);
 
 public:
-    Executor(InterpreterHandler *ie, llvm::LLVMContext &context);
+    Executor(llvm::LLVMContext &context);
     virtual ~Executor();
 
     // Fork current and return states in which condition holds / does

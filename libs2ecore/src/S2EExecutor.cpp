@@ -172,6 +172,16 @@ namespace {
     SinglePathMode("single-path-mode",
             cl::desc("Faster TLB, but forces single path execution"),
             cl::init(false));
+
+    cl::opt<bool> NoTruncateSourceLines("no-truncate-source-lines",
+                                    cl::desc("Don't truncate long lines in the output source"));
+
+    cl::opt<bool> OutputSource("output-source", cl::desc("Write the assembly for the final transformed source"),
+                            cl::init(true));
+
+    cl::opt<bool> OutputModule("output-module", cl::desc("Write the bitcode for the final transformed module"),
+                            cl::init(false));
+
 }
 
 //The logs may be flooded with messages when switching execution mode.
@@ -238,8 +248,8 @@ namespace s2e {
 /* Global array to hold tb function arguments */
 volatile void *tb_function_args[3];
 
-S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMTranslator *translator, InterpreterHandler *ie)
-    : Executor(ie, translator->getContext()), m_s2e(s2e), m_llvmTranslator(translator), m_executeAlwaysKlee(false),
+S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMTranslator *translator)
+    : Executor(translator->getContext()), m_s2e(s2e), m_llvmTranslator(translator), m_executeAlwaysKlee(false),
       m_forkProcTerminateCurrentState(false), m_inLoadBalancing(false) {
     delete externalDispatcher;
     externalDispatcher = new S2EExternalDispatcher();
@@ -435,6 +445,18 @@ S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMTranslator *translator, InterpreterHan
     if (SinglePathMode) {
         g_s2e_single_path_mode = 1;
         s2e->getWarningsStream() << "S2E will run in single path mode. Forking and symbolic execution not allowed.\n";
+    }
+
+    if (OutputModule) {
+        if (auto os = s2e->openOutputFile("module.bc")) {
+            kmodule->outputModule(*os);
+        }
+    }
+
+    if (OutputSource) {
+        if (auto os = s2e->openOutputFile("assembly.ll")) {
+            kmodule->outputSource(*os, NoTruncateSourceLines);
+        }
     }
 }
 

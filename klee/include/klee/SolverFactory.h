@@ -37,7 +37,6 @@
 namespace klee {
 
 class Solver;
-class InterpreterHandler;
 
 class SolverFactory {
 protected:

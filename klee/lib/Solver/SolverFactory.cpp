@@ -30,7 +30,6 @@
 #include "klee/SolverFactory.h"
 #include "klee/Common.h"
 #include "klee/Config/config.h"
-#include "klee/Interpreter.h"
 #include "klee/Solver.h"
 
 #include <llvm/Support/CommandLine.h>

@@ -79,7 +79,7 @@ protected:
     std::unordered_set<S2ETranslationBlockPtr, S2ETranslationBlockHash, S2ETranslationBlockEqual> m_s2eTbs;
 
 public:
-    S2EExecutor(S2E *s2e, TCGLLVMTranslator *translator, klee::InterpreterHandler *ie);
+    S2EExecutor(S2E *s2e, TCGLLVMTranslator *translator);
     virtual ~S2EExecutor();
 
     /** Called on fork, used to trace forks */
