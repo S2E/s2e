@@ -51,8 +51,6 @@ namespace s2e {
 /// data written to the second region will be immediately concretized.
 ///
 /// Limitations:
-///   - Since FP, MMX, SSE registers are currently located in
-///     the concrete region, they may not hold symbolic data.
 ///   - It is currently not possible to perform read/write operations that
 ///     span the symbolic and the concrete region.
 ///

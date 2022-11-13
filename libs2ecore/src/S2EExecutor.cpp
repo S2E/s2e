@@ -609,8 +609,6 @@ void S2EExecutor::registerRam(S2EExecutionState *initialState, MemoryDesc *regio
             m_s2e->getWarningsStream(nullptr) << "Could not map host RAM\n";
             exit(-1);
         }
-
-        m_unusedMemoryDescs.push_back(make_pair(hostAddress, size));
     }
 
     initialState->m_asCache.registerPool(hostAddress, size);

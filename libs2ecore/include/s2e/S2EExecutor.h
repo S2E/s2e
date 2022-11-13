@@ -58,11 +58,6 @@ protected:
 
     klee::KFunction *m_dummyMain;
 
-    /* Unused memory regions that should be unmapped.
-       Copy-then-unmap is used in order to catch possible
-       direct memory accesses from libcpu code. */
-    std::vector<std::pair<uint64_t, uint64_t>> m_unusedMemoryDescs;
-
     std::vector<klee::ObjectKey> m_saveOnContextSwitch;
 
     std::vector<S2EExecutionState *> m_deletedStates;
@@ -194,8 +189,6 @@ public:
      * To be called by plugin code
      */
     klee::Executor::StatePair forkAndConcretize(S2EExecutionState *state, klee::ref<klee::Expr> &value_);
-
-    static bool findFile(const std::string &dataDir, const std::string &name, std::string &ret);
 
 protected:
     void updateClockScaling();
