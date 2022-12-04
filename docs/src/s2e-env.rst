@@ -32,7 +32,7 @@ Installing s2e-env
     cd s2e-env
 
     python3 -m venv venv
-    . venv/bin/activate
+    source ./venv/bin/activate
     pip install --upgrade pip
 
     # By default, s2e-env uses https to clone repositories.
