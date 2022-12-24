@@ -214,4 +214,211 @@ bool AddressSpace::splitMemoryObject(ExecutionState &state, const ObjectStateCon
 
     return true;
 }
+
+bool AddressSpace::iterateRead(uintptr_t address, size_t size, IterateCb cb, AddressTranslator tr) {
+    while (size > 0) {
+        uint64_t hostAddress = address;
+        if (tr) {
+            if (!tr(address, hostAddress)) {
+                return false;
+            }
+        }
+
+        auto mo = findObject(hostAddress);
+        if (!mo) {
+            return false;
+        }
+
+        auto offset = mo->getOffset(hostAddress);
+        auto objSize = mo->getSize() - offset;
+        auto sizeToRead = objSize < size ? objSize : size;
+
+        if (!cb(mo, offset, sizeToRead)) {
+            return false;
+        }
+
+        size -= sizeToRead;
+        address += sizeToRead;
+    }
+
+    return true;
+}
+
+bool AddressSpace::read(uintptr_t address, uint8_t *buffer, size_t size, Concretizer c, AddressTranslator tr) {
+    auto cb = [&](ObjectStateConstPtr &mo, unsigned offset, unsigned sizeToRead) {
+        // TODO: optimize case when the memory object is fully concrete.
+        for (size_t i = 0; i < sizeToRead; ++i) {
+            auto expr = mo->read8(offset + i);
+            auto *ce = dyn_cast<ConstantExpr>(expr);
+            if (ce) {
+                buffer[i] = ce->getZExtValue();
+            } else {
+                if (!c) {
+                    return false;
+                }
+
+                buffer[i] = c(expr, mo, offset + i);
+            }
+        }
+
+        buffer += sizeToRead;
+        return true;
+    };
+
+    return iterateRead(address, size, cb, tr);
+}
+
+bool AddressSpace::read(uintptr_t address, std::vector<ref<Expr>> &data, size_t size, AddressTranslator tr) {
+    auto cb = [&](ObjectStateConstPtr &mo, unsigned offset, unsigned sizeToRead) {
+        for (size_t i = 0; i < sizeToRead; ++i) {
+            data.push_back(mo->read8(offset + i));
+        }
+        return true;
+    };
+
+    return iterateRead(address, size, cb, tr);
+}
+
+ref<Expr> AddressSpace::read(uintptr_t address, Expr::Width width, AddressTranslator tr) {
+    ref<Expr> ret = nullptr;
+    auto littleEndian = Context::get().isLittleEndian();
+
+    if (!(width == 1 || (width & 7) == 0)) {
+        return nullptr;
+    }
+
+    uint64_t size = Expr::getMinBytesForWidth(width);
+
+    auto cb = [&](ObjectStateConstPtr &mo, unsigned offset, unsigned sizeToRead) {
+        for (size_t i = 0; i < sizeToRead; ++i) {
+            auto byte = mo->read8(offset + i);
+            if (ret) {
+                ret = littleEndian ? ConcatExpr::create(byte, ret) : ConcatExpr::create(ret, byte);
+            } else {
+                ret = byte;
+            }
+        }
+        return true;
+    };
+
+    if (!iterateRead(address, size, cb, tr)) {
+        return nullptr;
+    }
+
+    if (width == Expr::Bool) {
+        return ExtractExpr::create(ret, 0, Expr::Bool);
+    }
+
+    return ret;
+}
+
+bool AddressSpace::iterateWrite(uintptr_t address, size_t size, IterateWriteCb cb, AddressTranslator tr) {
+    while (size > 0) {
+        uint64_t hostAddress = address;
+        if (tr) {
+            if (!tr(address, hostAddress)) {
+                return false;
+            }
+        }
+
+        auto mo = findObject(hostAddress);
+        if (!mo) {
+            return false;
+        }
+
+        if (mo->isReadOnly()) {
+            return false;
+        }
+
+        auto wos = getWriteable(mo);
+        if (!wos) {
+            return false;
+        }
+
+        auto oldAllConcrete = wos->isAllConcrete();
+        auto offset = wos->getOffset(hostAddress);
+        auto objSize = wos->getSize() - offset;
+        auto sizeToWrite = objSize < size ? objSize : size;
+
+        auto ret = cb(wos, offset, sizeToWrite);
+
+        auto newAllConcrete = wos->isAllConcrete();
+        if ((oldAllConcrete != newAllConcrete) && wos->notifyOnConcretenessChange()) {
+            state->addressSpaceSymbolicStatusChange(wos, newAllConcrete);
+        }
+
+        if (!ret) {
+            return false;
+        }
+
+        size -= sizeToWrite;
+        address += sizeToWrite;
+    }
+
+    return true;
+}
+
+// This may partially write data and fail.
+bool AddressSpace::write(uintptr_t address, const uint8_t *buffer, size_t size, AddressTranslator tr) {
+    auto cb = [&](ObjectStatePtr &mo, unsigned offset, unsigned sizeToWrite) {
+        // TODO: use fast memcpy to optimize.
+        for (size_t i = 0; i < sizeToWrite; ++i) {
+            mo->write(offset + i, buffer[i]);
+        }
+        buffer += sizeToWrite;
+        return true;
+    };
+
+    return iterateWrite(address, size, cb, tr);
+}
+
+bool AddressSpace::write(uintptr_t address, const ref<Expr> &data, Concretizer c, AddressTranslator tr) {
+    auto dataSize = Expr::getMinBytesForWidth(data->getWidth());
+    auto littleEndian = Context::get().isLittleEndian();
+
+    int j = 0;
+
+    auto cb = [&](ObjectStatePtr &mo, unsigned offset, unsigned sizeToWrite) {
+        for (size_t i = 0; i < sizeToWrite; ++i) {
+            unsigned idx = littleEndian ? i + j : (dataSize - i - j - 1);
+            auto e = ExtractExpr::create(data, 8 * idx, Expr::Int8);
+            if (mo->isSharedConcrete() && !isa<ConstantExpr>(e)) {
+                if (!c) {
+                    return false;
+                }
+
+                auto ce = c(e, mo, offset + i);
+                mo->write(offset + i, ce);
+            } else {
+                mo->write(offset + i, e);
+            }
+        }
+
+        j += sizeToWrite;
+        return true;
+    };
+
+    return iterateWrite(address, dataSize, cb, tr);
+}
+
+bool AddressSpace::symbolic(uintptr_t address, size_t size, AddressTranslator tr) {
+    bool isSymbolic = false;
+
+    auto cb = [&](ObjectStateConstPtr &mo, unsigned offset, unsigned sizeToRead) {
+        if (!mo->isAllConcrete()) {
+            for (size_t i = 0; i < sizeToRead; ++i) {
+                if (!mo->isConcrete(offset + i, klee::Expr::Int8)) {
+                    isSymbolic = true;
+                    return false;
+                }
+            }
+        }
+        return true;
+    };
+
+    // TODO: check for errors somehow.
+    iterateRead(address, size, cb, tr);
+    return isSymbolic;
+}
+
 } // namespace klee
