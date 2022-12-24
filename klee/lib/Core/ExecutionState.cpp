@@ -450,6 +450,18 @@ ref<ConstantExpr> ExecutionState::toConstant(ref<Expr> e, const std::string &rea
     return value;
 }
 
+uint64_t ExecutionState::toConstant(const ref<Expr> &value, const ObjectStateConstPtr &os, size_t offset) {
+    std::stringstream ss;
+    if (os->isSharedConcrete()) {
+        ss << "write to always concrete memory ";
+    }
+
+    ss << "name:" << os->getName() << " offset=" << offset;
+    auto s = ss.str();
+    auto ce = toConstant(value, s.c_str());
+    return ce->getZExtValue();
+}
+
 // This API does not add a constraint
 ref<ConstantExpr> ExecutionState::toConstantSilent(ref<Expr> e) {
     ref<Expr> evalResult = concolics->evaluate(e);

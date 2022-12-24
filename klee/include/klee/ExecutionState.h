@@ -159,6 +159,7 @@ public:
     }
 
     ref<ConstantExpr> toConstant(ref<Expr> e, const std::string &reason);
+    uint64_t toConstant(const ref<Expr> &value, const ObjectStateConstPtr &os, size_t offset);
     ref<ConstantExpr> toConstantSilent(ref<Expr> e);
 
     /// Return a unique constant value for the given expression in the
