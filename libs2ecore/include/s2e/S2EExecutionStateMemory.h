@@ -44,12 +44,6 @@ protected:
     klee::IAddressSpaceNotification *m_notification;
     klee::IConcretizer *m_concretizer;
 
-    void transferRamInternalSymbolic(const klee::ObjectStateConstPtr &os, uint64_t object_offset,
-                                     klee::ref<klee::Expr> *buf, uint64_t size, bool write);
-
-    void transferRamInternal(const klee::ObjectStateConstPtr &os, uint64_t object_offset, uint8_t *buf, uint64_t size,
-                             bool write, bool exitOnSymbolicRead);
-
     bool writeMemory8(uint64_t address, const klee::ref<klee::Expr> &value, AddressType addressType = VirtualAddress);
 
     klee::ref<klee::Expr> readMemory8(uint64_t address, AddressType addressType = VirtualAddress);
@@ -84,7 +78,7 @@ public:
     /// Read/write from physical memory, concretizing if necessary on reads.
     /// Note: this function accepts host address. Used by softmmu code.
     void transferRam(struct CPUTLBRAMEntry *te, uint64_t hostAddress, void *buf, uint64_t size, bool isWrite,
-                     bool exitOnSymbolicRead, bool isSymbolic);
+                     bool exitOnSymbolicRead);
 
     klee::ObjectStateConstPtr getMemoryObject(uint64_t address, AddressType addressType = VirtualAddress) const;
 

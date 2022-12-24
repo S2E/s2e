@@ -85,7 +85,7 @@ protected:
     PluginStateMap m_PluginState;
 
     /* Internal variable - set to PC where execution should be
-       switched to symbolic (e.g., due to access to symbolic memory */
+       switched to symbolic (e.g., due to access to symbolic memory). */
     uint64_t m_startSymbexAtPC;
 
     /** Set to true when the state is active (i.e., currently selected).

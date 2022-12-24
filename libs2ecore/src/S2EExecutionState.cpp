@@ -106,8 +106,8 @@ void S2EExecutionState::assignGuid(uint64_t guid) {
 /***/
 
 ExecutionState *S2EExecutionState::clone() {
-    // When cloning, all ObjectState becomes not owned by neither of states
-    // This means that we must clean owned-by-us flag in S2E TLB
+    // When cloning, all ObjectState become not owned by neither of states.
+    // This means that we must clean owned-by-us flag in S2E TLB.
     assert(m_active);
 
     m_tlb.clearTlbOwnership();
@@ -802,9 +802,8 @@ static inline void s2e_dma_rw(uint64_t hostAddress, uint8_t *buf, unsigned size,
                 memcpy(buf, ptr, length);
             }
         } else {
-            // Populate the TLB with a 1-byte transfer
-            g_s2e_state->mem()->transferRam(te, hostAddress, buf, 1, is_write, false, false);
-            length = 1;
+            // Populate the TLB
+            g_s2e_state->mem()->transferRam(te, hostAddress, buf, length, is_write, false);
         }
 
         buf = (uint8_t *) buf + length;
@@ -833,13 +832,13 @@ void s2e_dma_write(uint64_t hostAddress, uint8_t *buf, unsigned size) {
 void s2e_read_ram_concrete_check(uint64_t host_address, uint8_t *buf, uint64_t size) {
     assert(g_s2e_state->isRunningConcrete());
     CPUTLBRAMEntry *re = s2e_get_ram_tlb_entry(host_address);
-    g_s2e_state->mem()->transferRam(re, host_address, buf, size, false, true, false);
+    g_s2e_state->mem()->transferRam(re, host_address, buf, size, false, true);
 }
 
 void s2e_read_ram_concrete(uint64_t host_address, void *buf, uint64_t size) {
 #ifdef CONFIG_SYMBEX_MP
     CPUTLBRAMEntry *re = s2e_get_ram_tlb_entry(host_address);
-    g_s2e_state->mem()->transferRam(re, host_address, static_cast<uint8_t *>(buf), size, false, false, false);
+    g_s2e_state->mem()->transferRam(re, host_address, static_cast<uint8_t *>(buf), size, false, false);
 #else
     memcpy(buf, (const void *) host_address, size);
 #endif
@@ -848,7 +847,7 @@ void s2e_read_ram_concrete(uint64_t host_address, void *buf, uint64_t size) {
 void s2e_write_ram_concrete(uint64_t host_address, const uint8_t *buf, uint64_t size) {
 #ifdef CONFIG_SYMBEX_MP
     CPUTLBRAMEntry *re = s2e_get_ram_tlb_entry(host_address);
-    g_s2e_state->mem()->transferRam(re, host_address, const_cast<uint8_t *>(buf), size, true, false, false);
+    g_s2e_state->mem()->transferRam(re, host_address, const_cast<uint8_t *>(buf), size, true, false);
 #else
     memcpy((void *) host_address, buf, size);
 #endif
