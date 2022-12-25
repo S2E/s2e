@@ -1723,21 +1723,8 @@ void Executor::callExternalFunction(ExecutionState &state, KInstruction *target,
 
 /***/
 
-template <typename T>
-void Executor::writeAndNotify(ExecutionState &state, const ObjectStatePtr &wos, T address, ref<Expr> &value) {
-    bool oldAllConcrete = wos->isAllConcrete();
-
-    wos->write(address, value);
-
-    bool newAllConcrete = wos->isAllConcrete();
-
-    if ((oldAllConcrete != newAllConcrete) && (wos->notifyOnConcretenessChange())) {
-        state.addressSpaceSymbolicStatusChange(wos, newAllConcrete);
-    }
-}
-
-ref<Expr> Executor::executeMemoryOperationOverlapped(ExecutionState &state, bool isWrite, uint64_t concreteAddress,
-                                                     ref<Expr> value /* undef if read */, unsigned bytes) {
+ref<Expr> Executor::executeMemoryOperation(ExecutionState &state, bool isWrite, uint64_t concreteAddress,
+                                           ref<Expr> value /* undef if read */, unsigned bytes) {
     auto concretizer = [&](const ref<Expr> &value, const ObjectStateConstPtr &os, size_t offset) {
         return state.toConstant(value, os, offset);
     };
@@ -1758,74 +1745,6 @@ ref<Expr> Executor::executeMemoryOperationOverlapped(ExecutionState &state, bool
     return nullptr;
 }
 
-ref<Expr> Executor::executeMemoryOperation(ExecutionState &state, const ObjectStateConstPtr &os, bool isWrite,
-                                           uint64_t offset, ref<Expr> value /* undef if read */, Expr::Width type) {
-    if (isWrite) {
-        if (os->isReadOnly()) {
-            terminateState(state, "memory error: object read only");
-        } else {
-            auto wos = state.addressSpace.getWriteable(os);
-            if (wos->isSharedConcrete()) {
-                if (!dyn_cast<ConstantExpr>(value)) {
-                    std::stringstream ss;
-                    ss << "write to always concrete memory name:" << os->getName() << " offset=" << offset;
-                    auto s = ss.str();
-                    value = state.toConstant(value, s.c_str());
-                }
-            }
-
-            // Write the value and send a notification if the object changed
-            // its concrete/symbolic status.
-            writeAndNotify(state, wos, offset, value);
-        }
-    } else {
-        ref<Expr> result = os->read(offset, type);
-        return result;
-    }
-
-    return nullptr;
-}
-
-ref<Expr> Executor::executeMemoryOperation(ExecutionState &state, const ObjectStateConstPtr &os, bool isWrite,
-                                           ref<Expr> offset, ref<Expr> value /* undef if read */, Expr::Width type) {
-    if (isWrite) {
-        if (os->isReadOnly()) {
-            terminateState(state, "memory error: object read only");
-        } else {
-            auto wos = state.addressSpace.getWriteable(os);
-            if (wos->isSharedConcrete()) {
-                if (!dyn_cast<ConstantExpr>(offset) || !dyn_cast<ConstantExpr>(value)) {
-                    std::stringstream ss1, ss2;
-                    ss1 << "write to always concrete memory name:" << os->getName() << " offset:";
-                    ss2 << "write to always concrete memory name:" << os->getName() << " value:";
-
-                    auto s1 = ss1.str();
-                    auto s2 = ss2.str();
-                    offset = state.toConstant(offset, s1.c_str());
-                    value = state.toConstant(value, s2.c_str());
-                }
-            }
-
-            // Write the value and send a notification if the object changed
-            // its concrete/symbolic status.
-            writeAndNotify(state, wos, offset, value);
-        }
-    } else {
-        if (os->isSharedConcrete()) {
-            if (!dyn_cast<ConstantExpr>(offset)) {
-                std::stringstream ss;
-                ss << "Read from always concrete memory name:" << os->getName() << " offset=" << offset;
-
-                offset = state.toConstant(offset, ss.str().c_str());
-            }
-        }
-        ref<Expr> result = os->read(offset, type);
-        return result;
-    }
-
-    return NULL;
-}
-
 void Executor::executeMemoryOperation(ExecutionState &state, bool isWrite, ref<Expr> address,
                                       ref<Expr> value /* undef if read */, KInstruction *target /* undef if write */) {
     Expr::Width type = (isWrite ? value->getWidth() : kmodule->getWidthForLLVMType(target->inst->getType()));
@@ -1841,7 +1760,7 @@ void Executor::executeMemoryOperation(ExecutionState &state, bool isWrite, ref<E
     // Concrete address case.
     if (isa<ConstantExpr>(address)) {
         auto ce = dyn_cast<ConstantExpr>(address)->getZExtValue();
-        auto result = executeMemoryOperationOverlapped(state, isWrite, ce, value, bytes);
+        auto result = executeMemoryOperation(state, isWrite, ce, value, bytes);
 
         if (!isWrite) {
             state.bindLocal(target, result);
@@ -1906,7 +1825,7 @@ void Executor::executeMemoryOperation(ExecutionState &state, bool isWrite, ref<E
 
     if (isa<ConstantExpr>(address)) {
         auto ce = dyn_cast<ConstantExpr>(address)->getZExtValue();
-        auto result = executeMemoryOperationOverlapped(state, isWrite, ce, value, bytes);
+        auto result = executeMemoryOperation(state, isWrite, ce, value, bytes);
 
         if (!isWrite) {
             state.bindLocal(target, result);
