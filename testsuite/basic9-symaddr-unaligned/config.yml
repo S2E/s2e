@@ -1,0 +1,14 @@
+test:
+    description: "Check that symbolic addresses work properly"
+
+    target_arguments:
+        - ["@@"]
+
+    targets:
+        - windows64-basic9-symaddr-unaligned.exe
+        - windows32-basic9-symaddr-unaligned.exe
+        - linux32-basic9-symaddr-unaligned
+        - linux64-basic9-symaddr-unaligned
+
+    build-options:
+        post-project-generation-script: fix-config.sh
