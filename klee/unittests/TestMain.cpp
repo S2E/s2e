@@ -11,5 +11,8 @@
 
 int main(int argc, char **argv) {
     testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
+    auto ret = RUN_ALL_TESTS();
+
+    // Call exit to generate coverage info.
+    exit(ret);
 }

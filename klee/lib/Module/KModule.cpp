@@ -17,7 +17,6 @@
 #include "klee/Internal/Module/Cell.h"
 #include "klee/Internal/Module/KInstruction.h"
 #include "klee/Internal/Support/ModuleUtil.h"
-#include "klee/Interpreter.h"
 
 #include <klee/Context.h>
 
@@ -49,15 +48,6 @@ using namespace llvm;
 
 namespace {
 enum SwitchImplType { eSwitchTypeSimple, eSwitchTypeLLVM, eSwitchTypeInternal };
-
-cl::opt<bool> NoTruncateSourceLines("no-truncate-source-lines",
-                                    cl::desc("Don't truncate long lines in the output source"));
-
-cl::opt<bool> OutputSource("output-source", cl::desc("Write the assembly for the final transformed source"),
-                           cl::init(true));
-
-cl::opt<bool> OutputModule("output-module", cl::desc("Write the bitcode for the final transformed module"),
-                           cl::init(false));
 
 cl::opt<SwitchImplType> SwitchType("switch-type", cl::desc("Select the implementation of switch"),
                                    cl::values(clEnumValN(eSwitchTypeSimple, "simple", "lower to ordered branches"),
@@ -206,7 +196,7 @@ KModule::~KModule() {
     // delete module;
 }
 
-void KModule::prepare(InterpreterHandler *ih) {
+void KModule::prepare() {
     LLVMContext &context = module->getContext();
 
     // Inject checks prior to optimization... we also perform the
@@ -299,54 +289,46 @@ void KModule::prepare(InterpreterHandler *ih) {
     if (f && f->use_empty())
         f->eraseFromParent();
 
+    buildShadowStructures();
+}
+
+void KModule::outputModule(llvm::raw_ostream &os) {
+    WriteBitcodeToFile(*module, os);
+}
+
+void KModule::outputSource(llvm::raw_ostream &os, bool noTruncateSourceLines) {
     // Write out the .ll assembly file. We truncate long lines to work
     // around a kcachegrind parsing bug (it puts them on new lines), so
     // that source browsing works.
-    if (OutputSource) {
-        llvm::raw_ostream *os = ih->openOutputFile("assembly.ll");
-        assert(os && "unable to open source output");
 
-        llvm::raw_ostream *ros = os;
+    // We have an option for this in case the user wants a .ll they
+    // can compile.
+    if (noTruncateSourceLines) {
+        os << *module;
+    } else {
+        std::string string;
+        llvm::raw_string_ostream rss(string);
+        rss << *module;
+        rss.flush();
+        const char *position = string.c_str();
 
-        // We have an option for this in case the user wants a .ll they
-        // can compile.
-        if (NoTruncateSourceLines) {
-            *ros << *module;
-        } else {
-            std::string string;
-            llvm::raw_string_ostream rss(string);
-            rss << *module;
-            rss.flush();
-            const char *position = string.c_str();
-
-            for (;;) {
-                const char *end = index(position, '\n');
-                if (!end) {
-                    *ros << position;
-                    break;
+        for (;;) {
+            const char *end = index(position, '\n');
+            if (!end) {
+                os << position;
+                break;
+            } else {
+                unsigned count = (end - position) + 1;
+                if (count < 255) {
+                    os.write(position, count);
                 } else {
-                    unsigned count = (end - position) + 1;
-                    if (count < 255) {
-                        ros->write(position, count);
-                    } else {
-                        ros->write(position, 254);
-                        *ros << "\n";
-                    }
-                    position = end + 1;
+                    os.write(position, 254);
+                    os << "\n";
                 }
+                position = end + 1;
             }
         }
-
-        delete os;
     }
-
-    if (OutputModule) {
-        llvm::raw_ostream *f = ih->openOutputFile("final.bc");
-        WriteBitcodeToFile(*module, *f);
-        delete f;
-    }
-
-    buildShadowStructures();
 }
 
 void KModule::buildShadowStructures() {

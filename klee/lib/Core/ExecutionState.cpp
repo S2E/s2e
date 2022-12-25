@@ -20,6 +20,7 @@
 #include "klee/util/ExprPPrinter.h"
 
 #include "llvm/IR/Function.h"
+#include "llvm/IR/Instructions.h"
 #include "llvm/Support/CommandLine.h"
 
 #include <cassert>
@@ -449,6 +450,18 @@ ref<ConstantExpr> ExecutionState::toConstant(ref<Expr> e, const std::string &rea
     return value;
 }
 
+uint64_t ExecutionState::toConstant(const ref<Expr> &value, const ObjectStateConstPtr &os, size_t offset) {
+    std::stringstream ss;
+    if (os->isSharedConcrete()) {
+        ss << "write to always concrete memory ";
+    }
+
+    ss << "name:" << os->getName() << " offset=" << offset;
+    auto s = ss.str();
+    auto ce = toConstant(value, s.c_str());
+    return ce->getZExtValue();
+}
+
 // This API does not add a constraint
 ref<ConstantExpr> ExecutionState::toConstantSilent(ref<Expr> e) {
     ref<Expr> evalResult = concolics->evaluate(e);
@@ -584,6 +597,19 @@ void ExecutionState::stepInstruction() {
     ++pc;
 }
 
+ObjectStatePtr ExecutionState::addExternalObject(void *addr, unsigned size, bool isReadOnly, bool isSharedConcrete) {
+    auto ret = ObjectState::allocate((uint64_t) addr, size, true);
+    bindObject(ret, false);
+    ret->setSharedConcrete(isSharedConcrete);
+    if (!isSharedConcrete) {
+        memcpy(ret->getConcreteBuffer(), addr, size);
+    }
+
+    ret->setReadOnly(isReadOnly);
+
+    return ret;
+}
+
 void ExecutionState::bindObject(const ObjectStatePtr &os, bool isLocal) {
     addressSpace.bindObject(os);
 
@@ -595,4 +621,53 @@ void ExecutionState::bindObject(const ObjectStatePtr &os, bool isLocal) {
         stack.back().allocas.push_back(os->getKey());
     }
 }
+
+void ExecutionState::executeAlloc(ref<Expr> size, bool isLocal, KInstruction *target, bool zeroMemory,
+                                  const ObjectStatePtr &reallocFrom) {
+    size = toUnique(size);
+    if (ConstantExpr *CE = dyn_cast<ConstantExpr>(size)) {
+        auto mo = ObjectState::allocate(0, CE->getZExtValue(), false);
+        if (!mo) {
+            bindLocal(target, ConstantExpr::alloc(0, Context::get().getPointerWidth()));
+        } else {
+            bindObject(mo, isLocal);
+            bindLocal(target, mo->getBaseExpr());
+
+            if (reallocFrom) {
+                unsigned count = std::min(reallocFrom->getSize(), mo->getSize());
+                for (unsigned i = 0; i < count; i++) {
+                    mo->write(i, reallocFrom->read8(i));
+                }
+                addressSpace.unbindObject(reallocFrom->getKey());
+            }
+        }
+    } else {
+        pabort("S2E should not cause allocs with symbolic size");
+        abort();
+    }
+}
+
+void ExecutionState::transferToBasicBlock(BasicBlock *dst, BasicBlock *src) {
+    // Note that in general phi nodes can reuse phi values from the same
+    // block but the incoming value is the eval() result *before* the
+    // execution of any phi nodes. this is pathological and doesn't
+    // really seem to occur, but just in case we run the PhiCleanerPass
+    // which makes sure this cannot happen and so it is safe to just
+    // eval things in order. The PhiCleanerPass also makes sure that all
+    // incoming blocks have the same order for each PHINode so we only
+    // have to compute the index once.
+    //
+    // With that done we simply set an index in the state so that PHI
+    // instructions know which argument to eval, set the pc, and continue.
+
+    // XXX this lookup has to go ?
+    KFunction *kf = stack.back().kf;
+    unsigned entry = kf->getBbEntry(dst);
+    pc = kf->getInstructionPtr(entry);
+    if (pc->inst->getOpcode() == Instruction::PHI) {
+        PHINode *first = static_cast<PHINode *>(pc->inst);
+        incomingBBIndex = first->getBasicBlockIndex(src);
+    }
+}
+
 } // namespace klee

@@ -10,6 +10,8 @@
 #ifndef KLEE_ADDRESSSPACE_H
 #define KLEE_ADDRESSSPACE_H
 
+#include "klee/Expr.h"
+#include "klee/IAddressSpaceNotification.h"
 #include "klee/Internal/ADT/ImmutableMap.h"
 #include "klee/Memory.h"
 
@@ -64,11 +66,21 @@ class AddressSpace {
         }
     };
 
+public:
+    // Translates an address to a host address suitable for AddressSpace.
+    using AddressTranslator = std::function<bool(uint64_t, uint64_t &)>;
+
 private:
     /// Epoch counter used to control ownership of objects.
     mutable unsigned cowKey;
 
     mutable Cache m_cache;
+
+    using IterateCb = std::function<bool(ObjectStateConstPtr &, unsigned offset, unsigned size)>;
+    bool iterateRead(uintptr_t hostAddress, size_t size, IterateCb cb, AddressTranslator tr);
+
+    using IterateWriteCb = std::function<bool(ObjectStatePtr &, unsigned offset, unsigned size)>;
+    bool iterateWrite(uintptr_t hostAddress, size_t size, IterateWriteCb cb, AddressTranslator tr);
 
 protected:
     /// Unsupported, use copy constructor
@@ -92,10 +104,10 @@ public:
     MemoryMap objects;
 
     /// ExecutionState that owns this AddressSpace
-    ExecutionState *state;
+    IAddressSpaceNotification *state;
 
 public:
-    AddressSpace(ExecutionState *_state) : cowKey(1), state(_state) {
+    AddressSpace(IAddressSpaceNotification *_state) : cowKey(1), state(_state) {
     }
 
     AddressSpace(const AddressSpace &b) : cowKey(++b.cowKey), objects(b.objects) {
@@ -123,7 +135,7 @@ public:
     /// When a symbolic memory address references an object
     /// that is too big, split it to simplify the task of
     /// the constraint solver.
-    bool splitMemoryObject(ExecutionState &state, const ObjectStateConstPtr &object, ResolutionList &rl);
+    bool splitMemoryObject(IAddressSpaceNotification &state, const ObjectStateConstPtr &object, ResolutionList &rl);
 
     /// \brief Obtain an ObjectState suitable for writing.
     ///
@@ -136,6 +148,20 @@ public:
     /// \param os The current binding of the MemoryObject.
     /// \return A writeable ObjectState (\a os or a copy).
     ObjectStatePtr getWriteable(const ObjectStateConstPtr &os);
+
+    using Concretizer = std::function<uint8_t(const ref<Expr> &, const ObjectStateConstPtr &, size_t)>;
+
+    bool read(uintptr_t address, uint8_t *buffer, size_t size, Concretizer c, AddressTranslator tr = nullptr);
+
+    bool read(uintptr_t address, std::vector<ref<Expr>> &data, size_t size, AddressTranslator tr = nullptr);
+
+    ref<Expr> read(uintptr_t address, Expr::Width width, AddressTranslator tr = nullptr);
+
+    bool write(uintptr_t address, const uint8_t *buffer, size_t size, AddressTranslator tr = nullptr);
+
+    bool write(uintptr_t address, const ref<Expr> &data, Concretizer c, AddressTranslator tr = nullptr);
+
+    bool symbolic(uintptr_t address, size_t size, AddressTranslator tr = nullptr);
 };
 
 } // namespace klee

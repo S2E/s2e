@@ -159,6 +159,7 @@ public:
     }
 
     ref<ConstantExpr> toConstant(ref<Expr> e, const std::string &reason);
+    uint64_t toConstant(const ref<Expr> &value, const ObjectStateConstPtr &os, size_t offset);
     ref<ConstantExpr> toConstantSilent(ref<Expr> e);
 
     /// Return a unique constant value for the given expression in the
@@ -177,11 +178,35 @@ public:
     void bindArgument(KFunction *kf, unsigned index, ref<Expr> value);
     void stepInstruction();
 
+    // Given a concrete object in our [klee's] address space, add it to
+    // objects checked code can reference.
+    ObjectStatePtr addExternalObject(void *addr, unsigned size, bool isReadOnly, bool isSharedConcrete = false);
+
     void bindObject(const ObjectStatePtr &os, bool isLocal);
 
     void setSolver(SolverPtr &solver) {
         m_solver = solver;
     }
+
+    /// Allocate and bind a new object in a particular state. NOTE: This
+    /// function may fork.
+    ///
+    /// \param isLocal Flag to indicate if the object should be
+    /// automatically deallocated on function return (this also makes it
+    /// illegal to free directly).
+    ///
+    /// \param target Value at which to bind the base address of the new
+    /// object.
+    ///
+    /// \param reallocFrom If non-zero and the allocation succeeds,
+    /// initialize the new object from the given one and unbind it when
+    /// done (realloc semantics). The initialized bytes will be the
+    /// minimum of the size of the old and new objects, with remaining
+    /// bytes initialized as specified by zeroMemory.
+    void executeAlloc(ref<Expr> size, bool isLocal, KInstruction *target, bool zeroMemory = false,
+                      const ObjectStatePtr &reallocFrom = nullptr);
+
+    void transferToBasicBlock(llvm::BasicBlock *dst, llvm::BasicBlock *src);
 };
 } // namespace klee
 

@@ -11,7 +11,6 @@
 #define KLEE_KMODULE_H
 
 #include <klee/Expr.h>
-#include "klee/Interpreter.h"
 
 #include <llvm/ADT/DenseMap.h>
 #include <map>
@@ -37,7 +36,6 @@ namespace klee {
 struct Cell;
 class Executor;
 class Expr;
-class InterpreterHandler;
 struct KInstruction;
 struct KGEPInstruction;
 class KModule;
@@ -159,9 +157,7 @@ public:
     }
 
     /// Initialize local data structures.
-    //
-    // FIXME: ihandler should not be here
-    void prepare(InterpreterHandler *ihandler);
+    void prepare();
 
     void buildShadowStructures();
 
@@ -190,6 +186,10 @@ public:
     static KModulePtr create(llvm::Module *module) {
         return KModulePtr(new KModule(module));
     }
+
+    void outputModule(llvm::raw_ostream &os);
+
+    void outputSource(llvm::raw_ostream &os, bool noTruncatedSourceLines);
 };
 } // namespace klee
 
