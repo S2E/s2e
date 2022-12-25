@@ -135,7 +135,7 @@ public:
     /// When a symbolic memory address references an object
     /// that is too big, split it to simplify the task of
     /// the constraint solver.
-    bool splitMemoryObject(ExecutionState &state, const ObjectStateConstPtr &object, ResolutionList &rl);
+    bool splitMemoryObject(IAddressSpaceNotification &state, const ObjectStateConstPtr &object, ResolutionList &rl);
 
     /// \brief Obtain an ObjectState suitable for writing.
     ///

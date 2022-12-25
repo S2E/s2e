@@ -49,6 +49,7 @@ void InitAs(TestAsNotify &notify, AddressSpace &as) {
     for (auto i = 0x1000; i < 1024 * 1024; i += size) {
         auto mo = ObjectState::allocate(i, size, true);
         mo->setNotifyOnConcretenessChange(true);
+        mo->setSplittable(true);
         EXPECT_CALL(notify, addressSpaceChange).Times(1);
         as.bindObject(mo);
     }
@@ -327,6 +328,32 @@ TEST(AddressSpaceTest, CheckSymbolic) {
     EXPECT_EQ(as->symbolic(0x1ff0, 1), false);
     EXPECT_EQ(as->symbolic(0x1fff, 1), true);
     EXPECT_EQ(as->symbolic(0x2000, 245), true);
+}
+
+TEST(AddressSpaceTest, ObjectSplit) {
+    TestAsNotify notify;
+    auto as = std::make_unique<AddressSpace>(&notify);
+    InitAs(notify, *as);
+
+    auto in = GetBuffer(0x10000);
+    EXPECT_EQ(as->write(0x1fff, in.data(), in.size()), true);
+
+    for (auto i = 0x1000; i < 0x11000; i += 0x1000) {
+        auto os = as->findObject(i);
+        ResolutionList rl;
+        EXPECT_CALL(notify, addressSpaceChange).Times(33);
+        EXPECT_CALL(notify, addressSpaceObjectSplit).Times(1);
+        EXPECT_EQ(as->splitMemoryObject(notify, os, rl), true);
+        EXPECT_EQ(rl.size(), 0x1000u / 128u);
+    }
+
+    // Read symbolic
+    std::vector<klee::ref<klee::Expr>> outSymb;
+    EXPECT_EQ(as->read(0x1fff, outSymb, in.size()), true);
+    for (size_t i = 0; i < in.size(); ++i) {
+        auto ce = dyn_cast<ConstantExpr>(outSymb[i]);
+        EXPECT_EQ(ce->getZExtValue(), in[i]);
+    }
 }
 
 } // namespace

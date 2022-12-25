@@ -167,7 +167,7 @@ ObjectStatePtr AddressSpace::getWriteable(const ObjectStateConstPtr &os) {
     return ret;
 }
 
-bool AddressSpace::splitMemoryObject(ExecutionState &state, const ObjectStateConstPtr &originalObject,
+bool AddressSpace::splitMemoryObject(IAddressSpaceNotification &state, const ObjectStateConstPtr &originalObject,
                                      ResolutionList &rl) {
     static const unsigned PAGE_SIZE = 0x1000;
     // Only split memory objects
