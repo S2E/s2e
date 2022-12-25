@@ -1838,14 +1838,7 @@ void Executor::executeMemoryOperation(ExecutionState &state, bool isWrite, ref<E
             value = state.constraints().simplifyExpr(value);
     }
 
-    // fast path: single in-bounds resolution
-    ObjectStateConstPtr os;
-    bool success = false;
-    bool fastInBounds = false;
-
-    /////////////////////////////////////////////////////////////
-    // Fast pattern-matching of addresses
-    // Avoids calling the constraint solver for simple cases
+    // Concrete address case.
     if (isa<ConstantExpr>(address)) {
         auto ce = dyn_cast<ConstantExpr>(address)->getZExtValue();
         auto result = executeMemoryOperationOverlapped(state, isWrite, ce, value, bytes);
@@ -1856,86 +1849,48 @@ void Executor::executeMemoryOperation(ExecutionState &state, bool isWrite, ref<E
         return;
     }
 
-    uint64_t base;
-    ref<Expr> offset;
-    unsigned offsetSize;
-    bool ok;
-    if (UseExprSimplifier) {
-        ok = state.getSimplifier().getBaseOffset(address, base, offset, offsetSize);
-    } else {
-        ok = state.getSimplifier().getBaseOffsetFast(address, base, offset, offsetSize);
-    }
-
-    if (ok) {
-        bool tmp;
-        if (state.addressSpace.findObject(base, 1, os, tmp)) {
-            if (offsetSize <= os->getSize()) {
-                fastInBounds = true;
-                success = true;
-            }
-        }
-    }
-
-    if (success) {
-        ref<Expr> result;
-        if (fastInBounds) {
-            // Either a concrete address or some special types of symbolic addresses
-            if (auto CE = dyn_cast<ConstantExpr>(address)) {
-                uint64_t offset = os->getOffsetExpr(CE->getZExtValue());
-                result = executeMemoryOperation(state, os, isWrite, offset, value, type);
-            } else {
-                ref<Expr> offset = os->getOffsetExpr(address);
-                result = executeMemoryOperation(state, os, isWrite, offset, value, type);
-            }
-        } else {
-            // Can only be a concrete address that spans multiple pages.
-            // This can happen only if the page was split before.
-            ref<ConstantExpr> concreteAddress = dyn_cast<ConstantExpr>(address);
-            assert(concreteAddress);
-            result = executeMemoryOperationOverlapped(state, isWrite, concreteAddress->getZExtValue(), value, bytes);
-        }
-        if (!isWrite) {
-            state.bindLocal(target, result);
-        }
-        return;
-    }
-
-    /////////////////////////////////////////////////////////////
-    // At this point, we can only have a symbolic address
-
-    // Pick a concrete address
-    klee::ref<klee::ConstantExpr> concreteAddress;
-
-    concreteAddress = dyn_cast<ConstantExpr>(state.concolics->evaluate(address));
+    auto concreteAddress = dyn_cast<ConstantExpr>(state.concolics->evaluate(address));
     assert(concreteAddress && "Could not evaluate address");
 
     /////////////////////////////////////////////////////////////
     // Use the concrete address to determine which page
     // we handle in the current state.
-    success = state.addressSpace.findObject(concreteAddress->getZExtValue(), type, os, fastInBounds);
-    assert(success);
+    ObjectStateConstPtr os;
+    bool fastInBounds = false;
+    auto success = state.addressSpace.findObject(concreteAddress->getZExtValue(), type, os, fastInBounds);
+    if (!success) {
+        pabort("could not find memory object");
+    }
 
     // Split the object if necessary
     if (os->isSplittable()) {
         ResolutionList rl;
         success = state.addressSpace.splitMemoryObject(state, os, rl);
-        assert(success && "Could not split memory object");
+        if (!success) {
+            pabort("could not split memory object");
+        }
 
         // Resolve again, we'll get the subpage this time
         success = state.addressSpace.findObject(concreteAddress->getZExtValue(), type, os, fastInBounds);
-        assert(success && "Could not resolve concrete memory address");
+        if (!success) {
+            pabort("Could not resolve concrete memory address");
+        }
     }
 
-    /////////////////////////////////////////////////////////////
-    // We need to keep the address symbolic to avoid blowup.
-    // For that, add a constraint that will ensure that next time, we get a different memory object.
-    // Constrain the symbolic address so that it falls
-    // into the memory page determined by the concrete assignment.
-    // This concerns the base address, which may overlap the next page,
-    // depending on the size of the access.
-    klee::ref<klee::Expr> condition =
-        AndExpr::create(UgeExpr::create(address, os->getBaseExpr()),
-                        UltExpr::create(address, AddExpr::create(os->getBaseExpr(), os->getSizeExpr())));
+    assert(concreteAddress->getZExtValue() >= os->getAddress());
+
+    ref<Expr> condition;
+    // TODO: overflows
+    if (concreteAddress->getZExtValue() + bytes <= os->getAddress() + os->getSize()) {
+        condition =
+            AndExpr::create(UgeExpr::create(address, os->getBaseExpr()),
+                            UleExpr::create(AddExpr::create(address, ConstantExpr::create(bytes, address->getWidth())),
+                                            AddExpr::create(os->getBaseExpr(), os->getSizeExpr())));
+
+    } else {
+        condition = EqExpr::create(address, concreteAddress);
+        address = concreteAddress;
+    }
 
     assert(state.concolics->evaluate(condition)->isTrue());
 
@@ -1949,67 +1904,26 @@ void Executor::executeMemoryOperation(ExecutionState &state, bool isWrite, ref<E
 
     notifyFork(state, condition, branches);
 
-    /////////////////////////////////////////////////////////////
-    // A symbolic address that dereferences a concrete memory page
-    // will not be handled byte by byte by the softmmu and execution
-    // will end up here. Fork the overlapping cases in order to
-    // avoid missing states.
-    unsigned overlappedBytes = bytes - 1;
-    if (overlappedBytes > 0) {
-        uintptr_t limit = os->getAddress() + os->getSize() - overlappedBytes;
-        klee::ref<klee::Expr> overlappedCondition;
-
-        overlappedCondition = UltExpr::create(address, klee::ConstantExpr::create(limit, address->getWidth()));
-
-        if (!fastInBounds) {
-            overlappedCondition = NotExpr::create(overlappedCondition);
-        }
-
-        StatePair branches = fork(state, overlappedCondition);
-        auto forkedState = branches.first == &state ? branches.second : branches.first;
-        if (forkedState) {
-            // The forked state will have to re-execute the memory op
-            forkedState->pc = forkedState->prevPC;
-        }
-
-        notifyFork(state, overlappedCondition, branches);
-    }
-
-    /////////////////////////////////////////////////////////////
-    // The current concrete address does not overlap.
-    if (fastInBounds) {
-        ref<Expr> offset = os->getOffsetExpr(address);
-        ref<Expr> result = executeMemoryOperation(state, os, isWrite, offset, value, type);
+    if (isa<ConstantExpr>(address)) {
+        auto ce = dyn_cast<ConstantExpr>(address)->getZExtValue();
+        auto result = executeMemoryOperationOverlapped(state, isWrite, ce, value, bytes);
 
         if (!isWrite) {
             state.bindLocal(target, result);
         }
-
         return;
     }
 
-    /////////////////////////////////////////////////////////////
-    // The current concrete address overlaps
-    // Fork to ensure that all overlapping cases will be considered
-    condition = EqExpr::create(address, concreteAddress);
+    auto offset = SubExpr::create(address, os->getBaseExpr());
 
-    // The number of subsequent forks is constrained by the overlappedCondition
-    branches = fork(state, condition);
-    assert(branches.first == &state);
-    if (branches.second) {
-        // The forked state will have to re-execute the memory op
-        branches.second->pc = branches.second->prevPC;
-    }
-
-    notifyFork(state, condition, branches);
-
-    ref<Expr> result = executeMemoryOperationOverlapped(state, isWrite, concreteAddress->getZExtValue(), value, bytes);
-
-    if (!isWrite) {
+    if (isWrite) {
+        auto wos = state.addressSpace.getWriteable(os);
+        wos->write(offset, value);
+    } else {
+        auto result = os->read(offset, type);
+        assert(result);
         state.bindLocal(target, result);
     }
-
-    return;
 }
 
 void Executor::addSpecialFunctionHandler(Function *function, FunctionHandler handler) {
