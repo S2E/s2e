@@ -126,7 +126,7 @@ ref<Expr> S2EExecutionStateMemory::readMemory8(uint64_t address, AddressType add
 
 bool S2EExecutionStateMemory::read(uint64_t address, void *buf, uint64_t size, AddressType addressType) {
 #ifdef CONFIG_SYMBEX_MP
-    auto concretizer = [&](const ref<Expr> &e, const ObjectStateConstPtr &mo, size_t size) -> uint8_t {
+    auto concretizer = [&](const ref<Expr> &e, const ObjectStateConstPtr &mo, size_t offset) -> uint8_t {
         return (uint8_t) m_concretizer->concretize(e, "S2EExecutionStateMemory::read");
     };
 
@@ -161,7 +161,7 @@ bool S2EExecutionStateMemory::writeMemory8(uint64_t address, const ref<Expr> &va
     assert(value->getWidth() == 8);
 
 #ifdef CONFIG_SYMBEX_MP
-    auto concretizer = [&](const ref<Expr> &e, const ObjectStateConstPtr &mo, size_t size) -> uint8_t {
+    auto concretizer = [&](const ref<Expr> &e, const ObjectStateConstPtr &mo, size_t offset) -> uint8_t {
         return (uint8_t) m_concretizer->concretize(e, "S2EExecutionStateMemory::writeMemory8");
     };
 
@@ -184,6 +184,10 @@ bool S2EExecutionStateMemory::writeMemory8(uint64_t address, const ref<Expr> &va
 }
 
 bool S2EExecutionStateMemory::write(uint64_t address, const ref<Expr> &value, AddressType addressType) {
+    if (!value) {
+        return false;
+    }
+
     Expr::Width width = value->getWidth();
     unsigned numBytes = Expr::getMinBytesForWidth(value->getWidth());
 
@@ -216,6 +220,10 @@ bool S2EExecutionStateMemory::write(uint64_t address, const ref<Expr> &value, Ad
 }
 
 bool S2EExecutionStateMemory::write(uint64_t address, const void *buf, uint64_t size, AddressType addressType) {
+    if (!buf) {
+        return false;
+    }
+
 #ifdef CONFIG_SYMBEX_MP
     auto translate = [&](uint64_t addressToTranslate, uint64_t &hostAddress) -> bool {
         hostAddress = getHostAddress(addressToTranslate, addressType);
