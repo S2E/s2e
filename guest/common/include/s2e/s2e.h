@@ -111,6 +111,15 @@ static inline void __s2e_touch_buffer(volatile const void *buffer, unsigned size
 }
 
 ///
+/// \brief Forces the OS to map the page at the given address by issuing a read.
+///
+/// \param[in] address Address of the page to read
+///
+static inline void __s2e_touch_page(volatile const void *address) {
+    __s2e_touch_buffer(address, 1);
+}
+
+///
 /// \brief Get the S2E version
 ///
 /// \return The S2E version or 0 when running without S2E
