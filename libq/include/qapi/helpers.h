@@ -17,14 +17,6 @@ typedef struct Error Error;
 struct Visitor;
 typedef struct Visitor Visitor;
 
-#ifndef container_of
-#define container_of(ptr, type, member)                      \
-    ({                                                       \
-        const typeof(((type *) 0)->member) *__mptr = (ptr);  \
-        (type *) ((char *) __mptr - offsetof(type, member)); \
-    })
-#endif
-
 #ifndef glue
 #define xglue(x, y)  x##y
 #define glue(x, y)   xglue(x, y)
@@ -34,6 +26,24 @@ typedef struct Visitor Visitor;
 
 #ifdef __cplusplus
 }
+#endif
+
+#ifdef __cplusplus
+#ifndef container_of
+#define container_of(ptr, type, member)                       \
+    ({                                                        \
+        const decltype(((type *) 0)->member) *__mptr = (ptr); \
+        (type *) ((char *) __mptr - offsetof(type, member));  \
+    })
+#endif
+#else
+#ifndef container_of
+#define container_of(ptr, type, member)                      \
+    ({                                                       \
+        const typeof(((type *) 0)->member) *__mptr = (ptr);  \
+        (type *) ((char *) __mptr - offsetof(type, member)); \
+    })
+#endif
 #endif
 
 #endif

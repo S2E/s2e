@@ -38,6 +38,20 @@
 #include "qapi/qapi-builtin-types.h"
 
 #ifdef __cplusplus
+#define QOBJECT(obj)                                              \
+    ({                                                            \
+        decltype(obj) _obj = (obj);                               \
+        _obj ? container_of(&(_obj)->base, QObject, base) : NULL; \
+    })
+#else
+#define QOBJECT(obj)                                              \
+    ({                                                            \
+        typeof(obj) _obj = (obj);                                 \
+        _obj ? container_of(&(_obj)->base, QObject, base) : NULL; \
+    })
+#endif
+
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -51,12 +65,6 @@ struct QObjectBase_ {
 typedef struct QObject {
     struct QObjectBase_ base;
 } QObject;
-
-#define QOBJECT(obj)                                              \
-    ({                                                            \
-        typeof(obj) _obj = (obj);                                 \
-        _obj ? container_of(&(_obj)->base, QObject, base) : NULL; \
-    })
 
 /* Required for qobject_to() */
 #define QTYPE_CAST_TO_QNull   QTYPE_QNULL
