@@ -223,7 +223,9 @@ static QString *parse_string(JSONParserContext *ctxt, JSONToken *token) {
                 }
                 ptr = end;
                 len = mod_utf8_encode(utf8_buf, sizeof(utf8_buf), cp);
-                assert(len >= 0);
+                if (len < 0) {
+                    perror("Invalid length");
+                }
                 g_string_append(str, utf8_buf);
         }
     }
