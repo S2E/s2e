@@ -15,7 +15,7 @@
 #include "qapi/qmp/qstring.h"
 #include "qobject-internal.h"
 
-QEMU_BUILD_BUG_MSG(offsetof(QNull, base) != 0 || offsetof(QNum, base) != 0 || offsetof(QString, base) != 0 ||
+LIBQ_BUILD_BUG_MSG(offsetof(QNull, base) != 0 || offsetof(QNum, base) != 0 || offsetof(QString, base) != 0 ||
                        offsetof(QDict, base) != 0 || offsetof(QList, base) != 0 || offsetof(QBool, base) != 0,
                    "base qobject must be at offset 0");
 

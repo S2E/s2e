@@ -20,7 +20,7 @@
 #include "qapi/visitor.h"
 
 /* Zero-initialization must result in default policy */
-QEMU_BUILD_BUG_ON(COMPAT_POLICY_INPUT_ACCEPT || COMPAT_POLICY_OUTPUT_ACCEPT);
+LIBQ_BUILD_BUG_ON(COMPAT_POLICY_INPUT_ACCEPT || COMPAT_POLICY_OUTPUT_ACCEPT);
 
 void visit_complete(Visitor *v, void *opaque) {
     assert(v->type != VISITOR_OUTPUT || v->complete);

@@ -66,7 +66,7 @@ typedef struct QObject {
 #define QTYPE_CAST_TO_QList   QTYPE_QLIST
 #define QTYPE_CAST_TO_QBool   QTYPE_QBOOL
 
-QEMU_BUILD_BUG_MSG(QTYPE__MAX != 7, "The QTYPE_CAST_TO_* list needs to be extended");
+LIBQ_BUILD_BUG_MSG(QTYPE__MAX != 7, "The QTYPE_CAST_TO_* list needs to be extended");
 
 #define qobject_to(type, obj) ((type *) qobject_check_type(obj, glue(QTYPE_CAST_TO_, type)))
 

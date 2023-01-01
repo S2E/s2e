@@ -446,7 +446,7 @@ int libq_strtoi64(const char *nptr, const char **endptr, int base, int64_t *resu
     }
 
     /* This assumes int64_t is long long TODO relax */
-    QEMU_BUILD_BUG_ON(sizeof(int64_t) != sizeof(long long));
+    LIBQ_BUILD_BUG_ON(sizeof(int64_t) != sizeof(long long));
     errno = 0;
     *result = strtoll(nptr, &ep, base);
     return check_strtox_error(nptr, ep, endptr, *result == 0, errno);
@@ -469,7 +469,7 @@ int libq_strtou64(const char *nptr, const char **endptr, int base, uint64_t *res
     }
 
     /* This assumes uint64_t is unsigned long long TODO relax */
-    QEMU_BUILD_BUG_ON(sizeof(uint64_t) != sizeof(unsigned long long));
+    LIBQ_BUILD_BUG_ON(sizeof(uint64_t) != sizeof(unsigned long long));
     errno = 0;
     *result = strtoull(nptr, &ep, base);
     /* Windows returns 1 for negative out-of-range values.  */

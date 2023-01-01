@@ -8,9 +8,8 @@
 extern "C" {
 #endif
 
-// TODO: rename to LIBQ_***
-#define QEMU_BUILD_BUG_MSG(x, msg) _Static_assert(!(x), msg)
-#define QEMU_BUILD_BUG_ON(x)       QEMU_BUILD_BUG_MSG(x, "not expecting: " #x)
+#define LIBQ_BUILD_BUG_MSG(x, msg) _Static_assert(!(x), msg)
+#define LIBQ_BUILD_BUG_ON(x)       LIBQ_BUILD_BUG_MSG(x, "not expecting: " #x)
 
 struct Error;
 typedef struct Error Error;

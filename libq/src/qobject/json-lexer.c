@@ -23,17 +23,17 @@
 
 #define MAX_TOKEN_SIZE (64ULL << 20)
 
-#define QEMU_BUILD_BUG_ON_STRUCT(x) \
+#define LIBQ_BUILD_BUG_ON_STRUCT(x) \
     struct {                        \
         int : (x) ? -1 : 1;         \
     }
 
-#define QEMU_BUILD_BUG_ON_ZERO(x) (sizeof(QEMU_BUILD_BUG_ON_STRUCT(x)) - sizeof(QEMU_BUILD_BUG_ON_STRUCT(x)))
+#define LIBQ_BUILD_BUG_ON_ZERO(x) (sizeof(LIBQ_BUILD_BUG_ON_STRUCT(x)) - sizeof(LIBQ_BUILD_BUG_ON_STRUCT(x)))
 
-#define QEMU_IS_ARRAY(x) (!__builtin_types_compatible_p(typeof(x), typeof(&(x)[0])))
+#define LIBQ_IS_ARRAY(x) (!__builtin_types_compatible_p(typeof(x), typeof(&(x)[0])))
 
 #ifndef ARRAY_SIZE
-#define ARRAY_SIZE(x) ((sizeof(x) / sizeof((x)[0])) + QEMU_BUILD_BUG_ON_ZERO(!QEMU_IS_ARRAY(x)))
+#define ARRAY_SIZE(x) ((sizeof(x) / sizeof((x)[0])) + LIBQ_BUILD_BUG_ON_ZERO(!LIBQ_IS_ARRAY(x)))
 #endif
 
 /*
@@ -139,11 +139,11 @@ enum json_lexer_state {
     IN_START_INTERP, /* must be IN_START + 1 */
 };
 
-QEMU_BUILD_BUG_ON(JSON_ERROR != 0);
-QEMU_BUILD_BUG_ON(IN_RECOVERY != JSON_ERROR + 1);
-QEMU_BUILD_BUG_ON((int) JSON_MIN <= (int) IN_START_INTERP);
-QEMU_BUILD_BUG_ON(JSON_MAX >= 0x80);
-QEMU_BUILD_BUG_ON(IN_START_INTERP != IN_START + 1);
+LIBQ_BUILD_BUG_ON(JSON_ERROR != 0);
+LIBQ_BUILD_BUG_ON(IN_RECOVERY != JSON_ERROR + 1);
+LIBQ_BUILD_BUG_ON((int) JSON_MIN <= (int) IN_START_INTERP);
+LIBQ_BUILD_BUG_ON(JSON_MAX >= 0x80);
+LIBQ_BUILD_BUG_ON(IN_START_INTERP != IN_START + 1);
 
 #define LOOKAHEAD       0x80
 #define TERMINAL(state) [0 ... 0xFF] = ((state) | LOOKAHEAD)
