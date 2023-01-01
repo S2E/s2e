@@ -15,6 +15,10 @@
 
 #include "qapi/visitor.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct ForwardFieldVisitor ForwardFieldVisitor;
 
 /*
@@ -23,5 +27,9 @@ typedef struct ForwardFieldVisitor ForwardFieldVisitor;
  * Calls within a struct are forwarded without changing the name.
  */
 Visitor *visitor_forward_field(Visitor *target, const char *from, const char *to);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

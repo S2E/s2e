@@ -15,6 +15,10 @@
 
 #include "helpers.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef enum {
     QAPI_DEPRECATED,
     QAPI_UNSTABLE,
@@ -59,5 +63,9 @@ int parse_qapi_name(const char *name, bool complete);
         (*(tail))->value = (element);          \
         (tail) = &(*(tail))->next;             \
     } while (0)
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

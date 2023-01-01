@@ -15,6 +15,10 @@
 
 #include "qapi/qmp/qobject.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct QString {
     struct QObjectBase_ base;
     const char *string;
@@ -29,5 +33,9 @@ QString *qstring_from_str(const char *str);
 QString *qstring_from_substr(const char *str, size_t start, size_t end);
 QString *qstring_from_gstring(GString *gstr);
 const char *qstring_get_str(const QString *qstring);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QSTRING_H */

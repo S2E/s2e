@@ -15,6 +15,10 @@
 
 #include "qapi/qapi-builtin-types.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef enum CompatPolicyInput {
     COMPAT_POLICY_INPUT_ACCEPT,
     COMPAT_POLICY_INPUT_REJECT,
@@ -51,5 +55,9 @@ struct CompatPolicy {
 
 void qapi_free_CompatPolicy(CompatPolicy *obj);
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(CompatPolicy, qapi_free_CompatPolicy)
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QAPI_TYPES_COMPAT_H */

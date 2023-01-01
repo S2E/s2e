@@ -19,6 +19,10 @@
 
 #include "qlist.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define QDICT_BUCKET_MAX 512
 
 typedef struct QDictEntry {
@@ -68,5 +72,9 @@ bool qdict_get_try_bool(const QDict *qdict, const char *key, bool def_value);
 const char *qdict_get_try_str(const QDict *qdict, const char *key);
 
 QDict *qdict_clone_shallow(const QDict *src);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QDICT_H */

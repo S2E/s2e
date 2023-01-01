@@ -18,6 +18,10 @@
 #include <inttypes.h>
 #include <stdbool.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct JSONWriter JSONWriter;
 
 JSONWriter *json_writer_new(bool pretty);
@@ -37,5 +41,9 @@ void json_writer_int64(JSONWriter *, const char *name, int64_t val);
 void json_writer_uint64(JSONWriter *, const char *name, uint64_t val);
 void json_writer_double(JSONWriter *, const char *name, double val);
 void json_writer_str(JSONWriter *, const char *name, const char *str);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

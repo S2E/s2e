@@ -4,6 +4,10 @@
 
 #include <inttypes.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // TODO: rename to LIBQ_***
 #define QEMU_BUILD_BUG_MSG(x, msg) _Static_assert(!(x), msg)
 #define QEMU_BUILD_BUG_ON(x)       QEMU_BUILD_BUG_MSG(x, "not expecting: " #x)
@@ -27,6 +31,10 @@ typedef struct Visitor Visitor;
 #define glue(x, y)   xglue(x, y)
 #define stringify(s) tostring(s)
 #define tostring(s)  #s
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 
 #endif

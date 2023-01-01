@@ -14,5 +14,14 @@
 #ifndef QMP_EVENT_H
 #define QMP_EVENT_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 QDict *qmp_event_build_dict(const char *event_name);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif

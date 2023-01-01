@@ -15,6 +15,10 @@
 
 #include "qapi/visitor.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Inclusive upper bound on the size of any flattened range. This is a safety
  * (= anti-annoyance) measure; wrong ranges should not cause long startup
  * delays nor exhaust virtual memory.
@@ -35,5 +39,9 @@ typedef struct OptsVisitor OptsVisitor;
  * visit_start_list().
  */
 Visitor *opts_visitor_new(const QemuOpts *opts);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

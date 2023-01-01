@@ -15,6 +15,10 @@
 
 #include "qapi/visitor.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct StringInputVisitor StringInputVisitor;
 
 /*
@@ -24,4 +28,7 @@ typedef struct StringInputVisitor StringInputVisitor;
  */
 Visitor *string_input_visitor_new(const char *str);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

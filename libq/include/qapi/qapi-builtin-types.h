@@ -17,6 +17,10 @@
 #include <inttypes.h>
 #include <stdbool.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct QBool QBool;
 typedef struct QObject QObject;
 typedef struct QNull QNull;
@@ -186,5 +190,9 @@ struct nullList {
 
 void qapi_free_nullList(nullList *obj);
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(nullList, qapi_free_nullList)
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QAPI_BUILTIN_TYPES_H */

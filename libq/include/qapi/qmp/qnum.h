@@ -17,6 +17,10 @@
 
 #include "qapi/qmp/qobject.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef enum { QNUM_I64, QNUM_U64, QNUM_DOUBLE } QNumKind;
 
 /*
@@ -67,5 +71,9 @@ uint64_t qnum_get_uint(const QNum *qn);
 double qnum_get_double(QNum *qn);
 
 char *qnum_to_string(QNum *qn);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QNUM_H */

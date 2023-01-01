@@ -20,6 +20,10 @@
 #include "qapi/qapi-builtin-types.h"
 #include "qapi/qapi-types-compat.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * The QAPI schema defines both a set of C data types, and a QMP wire
  * format.  QAPI objects can contain references to other QAPI objects,
@@ -690,5 +694,9 @@ bool visit_type_any(Visitor *v, const char *name, QObject **obj, Error **errp);
  * Return true on success, false on failure.
  */
 bool visit_type_null(Visitor *v, const char *name, QNull **obj, Error **errp);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

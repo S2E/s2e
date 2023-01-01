@@ -16,6 +16,10 @@
 
 #include "qapi/visitor.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct QObjectOutputVisitor QObjectOutputVisitor;
 
 /**
@@ -53,4 +57,7 @@ typedef struct QObjectOutputVisitor QObjectOutputVisitor;
  */
 Visitor *qobject_output_visitor_new(QObject **result);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

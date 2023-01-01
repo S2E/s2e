@@ -16,6 +16,10 @@
 
 #include "qapi/visitor.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct QapiDeallocVisitor QapiDeallocVisitor;
 
 /*
@@ -24,5 +28,9 @@ typedef struct QapiDeallocVisitor QapiDeallocVisitor;
  * correctly in the face of a partially-constructed QAPI tree.
  */
 Visitor *qapi_dealloc_visitor_new(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

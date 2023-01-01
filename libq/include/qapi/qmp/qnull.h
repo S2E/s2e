@@ -13,6 +13,10 @@
 #ifndef QNULL_H
 #define QNULL_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "qapi/qmp/qobject.h"
 
 typedef struct QNull {
@@ -28,5 +32,9 @@ static inline QNull *qnull(void) {
 void qnull_unref(QNull *q);
 
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(QNull, qnull_unref)
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QNULL_H */

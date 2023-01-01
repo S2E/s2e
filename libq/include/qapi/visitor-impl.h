@@ -14,6 +14,10 @@
 
 #include "qapi/visitor.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * This file describes the callback interface for implementing a QAPI
  * visitor.  For the client interface, see visitor.h.  When
@@ -120,5 +124,9 @@ struct Visitor {
     /* Must be set */
     void (*free)(Visitor *v);
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

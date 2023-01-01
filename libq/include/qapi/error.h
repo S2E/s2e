@@ -276,6 +276,10 @@
 
 #include "util.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef enum QapiErrorClass {
     QAPI_ERROR_CLASS_GENERICERROR,
     QAPI_ERROR_CLASS_COMMANDNOTFOUND,
@@ -521,5 +525,9 @@ extern Error *error_abort;
  * See error_setg() and error_propagate() for details.
  */
 extern Error *error_fatal;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

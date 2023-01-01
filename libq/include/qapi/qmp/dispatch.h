@@ -14,6 +14,10 @@
 #ifndef QAPI_QMP_DISPATCH_H
 #define QAPI_QMP_DISPATCH_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "monitor/monitor.h"
 #include "qemu/queue.h"
 
@@ -56,5 +60,9 @@ bool qmp_is_oob(const QDict *dict);
 typedef void (*qmp_cmd_callback_fn)(const QmpCommand *cmd, void *opaque);
 
 void qmp_for_each_command(const QmpCommandList *cmds, qmp_cmd_callback_fn fn, void *opaque);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

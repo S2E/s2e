@@ -11,4 +11,18 @@
 
 #include "qapi/qapi-types-common.h"
 
+#ifndef LIBQ_TYPE_HELPERS
+
+#define LIBQ_TYPE_HELPERS
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 HumanReadableText *human_readable_text_from_str(GString *str);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif
