@@ -100,7 +100,7 @@ static inline void __s2e_touch_string(volatile const char *string) {
 /// \param[in] buffer Buffer to page into memory
 /// \param[in] size Number of bytes in the buffer
 ///
-static inline void __s2e_touch_buffer(volatile void *buffer, unsigned size) {
+static inline void __s2e_touch_buffer(volatile const void *buffer, unsigned size) {
     unsigned i;
     unsigned t __attribute__((unused));
     volatile char *b = (volatile char *) buffer;
@@ -108,6 +108,15 @@ static inline void __s2e_touch_buffer(volatile void *buffer, unsigned size) {
 	t = *b;
 	++b;
     }
+}
+
+///
+/// \brief Forces the OS to map the page at the given address by issuing a read.
+///
+/// \param[in] address Address of the page to read
+///
+static inline void __s2e_touch_page(volatile const void *address) {
+    __s2e_touch_buffer(address, 1);
 }
 
 ///

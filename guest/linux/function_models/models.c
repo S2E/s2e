@@ -23,6 +23,7 @@
 #define _GNU_SOURCE
 #include <dlfcn.h>
 
+#include <memory.h>
 #include <stdint.h>
 #include <stdio.h>
 
@@ -65,6 +66,27 @@ void initialize_models() {
     orig_crc16 = (T_crc16) dlsym(RTLD_NEXT, "crc16");
 }
 
+// It is not possible to determine the end of the string without
+// reading each byte and checking it for 0. Doing so will fork
+// on every byte, which we do not want. Instead, just touch one
+// byte to bring the page in memory and hope the string doesn't
+// overlap.
+static void touch_string(const char *s1, const char *s2) {
+    if (s1) {
+        __s2e_touch_page(s1);
+    }
+
+    if (s2) {
+        __s2e_touch_page(s2);
+    }
+}
+
+static void touch_buffer(const void *buffer, unsigned size) {
+    if (buffer) {
+        __s2e_touch_buffer(buffer, size);
+    }
+}
+
 char *strcpy_model(char *dest, const char *src) {
     if (s2e_is_symbolic(&dest, sizeof(void *)) || s2e_is_symbolic(&src, sizeof(void *))) {
         s2e_message("Symbolic address for a string is not supported yet!");
@@ -76,11 +98,14 @@ char *strcpy_model(char *dest, const char *src) {
     }
 
     struct S2E_LIBCWRAPPER_COMMAND cmd;
+    memset(&cmd, 0, sizeof(cmd));
 
     cmd.Command = LIBCWRAPPER_STRCPY;
     cmd.Strcpy.dst = (uintptr_t) dest;
     cmd.Strcpy.src = (uintptr_t) src;
     cmd.needOrigFunc = 1;
+
+    touch_string(src, dest);
 
     s2e_invoke_plugin("FunctionModels", &cmd, sizeof(cmd));
 
@@ -104,11 +129,15 @@ char *strncpy_model(char *dest, const char *src, size_t n) {
     }
 
     struct S2E_LIBCWRAPPER_COMMAND cmd;
+    memset(&cmd, 0, sizeof(cmd));
+
     cmd.Command = LIBCWRAPPER_STRNCPY;
     cmd.Strncpy.dst = (uintptr_t) dest;
     cmd.Strncpy.src = (uintptr_t) src;
     cmd.Strncpy.n = n;
     cmd.needOrigFunc = 1;
+
+    touch_string(src, dest);
 
     s2e_invoke_plugin("FunctionModels", &cmd, sizeof(cmd));
 
@@ -131,9 +160,13 @@ size_t strlen_model(const char *str) {
     }
 
     struct S2E_LIBCWRAPPER_COMMAND cmd;
+    memset(&cmd, 0, sizeof(cmd));
+
     cmd.Command = LIBCWRAPPER_STRLEN;
     cmd.Strlen.str = (uintptr_t) str;
     cmd.needOrigFunc = 1;
+
+    touch_string(str, NULL);
 
     s2e_invoke_plugin("FunctionModels", &cmd, sizeof(cmd));
 
@@ -155,10 +188,15 @@ int strcmp_model(const char *str1, const char *str2) {
     }
 
     struct S2E_LIBCWRAPPER_COMMAND cmd;
+    memset(&cmd, 0, sizeof(cmd));
+
     cmd.Command = LIBCWRAPPER_STRCMP;
     cmd.Strcmp.str1 = (uintptr_t) str1;
     cmd.Strcmp.str2 = (uintptr_t) str2;
     cmd.needOrigFunc = 1;
+
+    touch_string(str1, str2);
+
     s2e_invoke_plugin("FunctionModels", &cmd, sizeof(cmd));
 
     if (!cmd.needOrigFunc) {
@@ -185,11 +223,15 @@ int strncmp_model(const char *str1, const char *str2, size_t n) {
     }
 
     struct S2E_LIBCWRAPPER_COMMAND cmd;
+    memset(&cmd, 0, sizeof(cmd));
+
     cmd.Command = LIBCWRAPPER_STRNCMP;
     cmd.Strncmp.str1 = (uintptr_t) str1;
     cmd.Strncmp.str2 = (uintptr_t) str2;
     cmd.Strncmp.n = n;
     cmd.needOrigFunc = 1;
+
+    touch_string(str1, str2);
 
     s2e_invoke_plugin("FunctionModels", &cmd, sizeof(cmd));
 
@@ -221,11 +263,15 @@ void *memcpy_model(void *dest, const void *src, size_t n) {
     }
 
     struct S2E_LIBCWRAPPER_COMMAND cmd;
+    memset(&cmd, 0, sizeof(cmd));
+
     cmd.Command = LIBCWRAPPER_MEMCPY;
     cmd.Memcpy.dst = (uintptr_t) dest;
     cmd.Memcpy.src = (uintptr_t) src;
     cmd.Memcpy.n = n;
     cmd.needOrigFunc = 1;
+
+    touch_string(src, dest);
 
     s2e_invoke_plugin("FunctionModels", &cmd, sizeof(cmd));
 
@@ -253,11 +299,16 @@ int memcmp_model(const void *str1, const void *str2, size_t n) {
     }
 
     struct S2E_LIBCWRAPPER_COMMAND cmd;
+    memset(&cmd, 0, sizeof(cmd));
+
     cmd.Command = LIBCWRAPPER_MEMCMP;
     cmd.Memcmp.str1 = (uintptr_t) str1;
     cmd.Memcmp.str2 = (uintptr_t) str2;
     cmd.Memcmp.n = n;
     cmd.needOrigFunc = 1;
+
+    touch_buffer(str1, n);
+    touch_buffer(str2, n);
 
     s2e_invoke_plugin("FunctionModels", &cmd, sizeof(cmd));
 
@@ -283,11 +334,14 @@ char *strcat_model(char *dest, const char *src) {
     }
 
     struct S2E_LIBCWRAPPER_COMMAND cmd;
+    memset(&cmd, 0, sizeof(cmd));
 
     cmd.Command = LIBCWRAPPER_STRCAT;
     cmd.Strcat.dst = (uintptr_t) dest;
     cmd.Strcat.src = (uintptr_t) src;
     cmd.needOrigFunc = 1;
+
+    touch_string(dest, src);
 
     s2e_invoke_plugin("FunctionModels", &cmd, sizeof(cmd));
 
@@ -315,12 +369,15 @@ char *strncat_model(char *dest, const char *src, size_t n) {
     }
 
     struct S2E_LIBCWRAPPER_COMMAND cmd;
+    memset(&cmd, 0, sizeof(cmd));
 
     cmd.Command = LIBCWRAPPER_STRNCAT;
     cmd.Strncat.dst = (uintptr_t) dest;
     cmd.Strncat.src = (uintptr_t) src;
     cmd.Strncat.n = n;
     cmd.needOrigFunc = 1;
+
+    touch_string(dest, src);
 
     s2e_invoke_plugin("FunctionModels", &cmd, sizeof(cmd));
 
@@ -388,6 +445,7 @@ uint32_t crc32_model(uint32_t crc, const uint8_t *buf, unsigned len) {
     }
 
     struct S2E_LIBCWRAPPER_COMMAND cmd;
+    memset(&cmd, 0, sizeof(cmd));
 
     cmd.Command = WRAPPER_CRC;
     cmd.Crc.initial_value_ptr = (uintptr_t) &crc;
@@ -396,6 +454,8 @@ uint32_t crc32_model(uint32_t crc, const uint8_t *buf, unsigned len) {
     cmd.Crc.xor_result = 1;
     cmd.Crc.type = S2E_WRAPPER_CRC32;
     cmd.needOrigFunc = 1;
+
+    touch_buffer(buf, len);
 
     s2e_invoke_plugin("FunctionModels", &cmd, sizeof(cmd));
 
@@ -419,6 +479,7 @@ uint16_t crc16_model(uint16_t crc, const uint8_t *buf, unsigned len) {
     }
 
     struct S2E_LIBCWRAPPER_COMMAND cmd;
+    memset(&cmd, 0, sizeof(cmd));
 
     cmd.Command = WRAPPER_CRC;
     cmd.Crc.initial_value_ptr = (uintptr_t) &crc;
@@ -426,6 +487,8 @@ uint16_t crc16_model(uint16_t crc, const uint8_t *buf, unsigned len) {
     cmd.Crc.size = len;
     cmd.Crc.type = S2E_WRAPPER_CRC16;
     cmd.needOrigFunc = 1;
+
+    touch_buffer(buf, len);
 
     s2e_invoke_plugin("FunctionModels", &cmd, sizeof(cmd));
 
