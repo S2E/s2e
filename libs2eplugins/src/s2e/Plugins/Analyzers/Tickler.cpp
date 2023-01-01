@@ -21,7 +21,7 @@
 /// SOFTWARE.
 ///
 
-#include <qstring.h>
+#include <qapi/qmp/qstring.h>
 #include <s2e/ConfigFile.h>
 #include <s2e/Plugins/Analyzers/CFIChecker.h>
 #include <s2e/Plugins/ExecutionTracers/UserSpaceTracer.h>

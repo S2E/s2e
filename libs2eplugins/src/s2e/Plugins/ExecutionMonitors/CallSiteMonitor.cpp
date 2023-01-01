@@ -29,12 +29,10 @@
 
 #include <s2e/cpu.h>
 
-extern "C" {
-#include "qdict.h"
-#include "qint.h"
-#include "qjson.h"
-#include "qlist.h"
-}
+#include <qapi/qmp/qdict.h>
+#include <qapi/qmp/qjson.h>
+#include <qapi/qmp/qlist.h>
+#include <qapi/qmp/qnum.h>
 
 #include "CallSiteMonitor.h"
 
@@ -168,21 +166,20 @@ void CallSiteMonitor::generateJson(std::stringstream &callSiteInfo) {
         for (auto cit : callSites) {
             const CallSite &cs = cit;
             QList *info = qlist_new();
-            qlist_append_obj(info, QOBJECT(qint_from_int(cs.source)));
-            qlist_append_obj(info, QOBJECT(qint_from_int(cs.target)));
-            qlist_append_obj(info, QOBJECT(qint_from_int(cs.type)));
+            qlist_append_obj(info, QOBJECT(qnum_from_int(cs.source)));
+            qlist_append_obj(info, QOBJECT(qnum_from_int(cs.target)));
+            qlist_append_obj(info, QOBJECT(qnum_from_int(cs.type)));
             qlist_append_obj(qcall_sites, QOBJECT(info));
         }
 
         qdict_put_obj(pt, processName.c_str(), QOBJECT(qcall_sites));
     }
 
-    QString *json = qobject_to_json(QOBJECT(pt));
+    auto json = qobject_to_json(QOBJECT(pt));
+    callSiteInfo << json->str << "\n";
+    g_string_free(json, true);
 
-    callSiteInfo << qstring_get_str(json) << "\n";
-
-    QDECREF(json);
-    QDECREF(pt);
+    qobject_unref(pt);
 }
 
 } // namespace plugins

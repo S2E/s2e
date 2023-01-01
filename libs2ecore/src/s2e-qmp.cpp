@@ -26,11 +26,9 @@
 #include <stdio.h>
 #include <string>
 
-extern "C" {
+#include <qapi/qmp/qjson.h>
+#include <qapi/qmp/qstring.h>
 #include <s2e/monitor.h>
-#include "qjson.h"
-#include "qstring.h"
-}
 
 namespace s2e {
 
@@ -85,12 +83,12 @@ bool S2EQMPClient::connect() {
 }
 
 void S2EQMPClient::emitJson(QObject *obj) {
-    QString *json = qobject_to_json(obj);
+    auto json = qobject_to_json(obj);
 
     std::stringstream data;
-    data << qstring_get_str(json) << "\n";
-    QDECREF(json);
-    qobject_decref(obj);
+    data << json->str << "\n";
+    g_string_free(json, true);
+    qobject_unref(obj);
 
     try {
         boost::asio::write(m_socket, boost::asio::buffer(data.str().c_str(), data.str().length()));
@@ -136,7 +134,7 @@ void monitor_close(void) {
 
 void monitor_emit_json(QObject *object) {
     if (!s_client) {
-        qobject_decref(object);
+        qobject_unref(object);
         return;
     }
 

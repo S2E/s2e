@@ -27,10 +27,8 @@
 #include <s2e/Plugins/OSMonitors/Linux/LinuxMonitor.h>
 #include "WebServiceInterface.h"
 
-extern "C" {
-#include <qbool.h>
-#include <qstring.h>
-}
+#include <qapi/qmp/qbool.h>
+#include <qapi/qmp/qstring.h>
 
 namespace s2e {
 namespace plugins {
@@ -88,17 +86,17 @@ void WebServiceInterface::initialize() {
 QDict *WebServiceInterface::getGlobalStats() {
     QDict *stats = qdict_new();
 
-    qdict_put_obj(stats, "instance_current_count", QOBJECT(qint_from_int(s2e()->getCurrentInstanceCount())));
-    qdict_put_obj(stats, "instance_max_count", QOBJECT(qint_from_int(s2e()->getMaxInstances())));
+    qdict_put_obj(stats, "instance_current_count", QOBJECT(qnum_from_int(s2e()->getCurrentInstanceCount())));
+    qdict_put_obj(stats, "instance_max_count", QOBJECT(qnum_from_int(s2e()->getMaxInstances())));
 
     // state_highest_id is the highest state id across all currently running nodes.
     // To obtain number of queued paths, sum all state_completed_count and subtract from highest_state_id.
-    qdict_put_obj(stats, "state_highest_id", QOBJECT(qint_from_int(s2e()->fetchNextStateId())));
-    qdict_put_obj(stats, "state_completed_count", QOBJECT(qint_from_int(m_completedPaths)));
+    qdict_put_obj(stats, "state_highest_id", QOBJECT(qnum_from_int(s2e()->fetchNextStateId())));
+    qdict_put_obj(stats, "state_completed_count", QOBJECT(qnum_from_int(m_completedPaths)));
     m_completedPaths = 0;
 
     // Number of constraints on the deepest completed path
-    qdict_put_obj(stats, "state_max_completed_depth", QOBJECT(qint_from_int(m_maxCompletedPathDepth)));
+    qdict_put_obj(stats, "state_max_completed_depth", QOBJECT(qnum_from_int(m_maxCompletedPathDepth)));
 
     // Approximate current maximum path depth
     if (g_s2e_state) {
@@ -106,30 +104,30 @@ QDict *WebServiceInterface::getGlobalStats() {
         m_maxPathDepth = std::max(m_maxPathDepth, tmp);
     }
 
-    qdict_put_obj(stats, "state_max_depth", QOBJECT(qint_from_int(m_maxPathDepth)));
+    qdict_put_obj(stats, "state_max_depth", QOBJECT(qnum_from_int(m_maxPathDepth)));
 
     // Number of seed paths that terminated
-    qdict_put_obj(stats, "seeds_completed", QOBJECT(qint_from_int(m_completedSeeds)));
+    qdict_put_obj(stats, "seeds_completed", QOBJECT(qnum_from_int(m_completedSeeds)));
 
     // Fetch the global seed count, the service will display
     // the max count received from all nodes. All nodes should
     // normally have the same value, since it comes from a shared structure.
     if (m_seedSearcher) {
-        qdict_put_obj(stats, "seeds_used", QOBJECT(qint_from_int(m_seedSearcher->getUsedSeedsCount(true))));
+        qdict_put_obj(stats, "seeds_used", QOBJECT(qnum_from_int(m_seedSearcher->getUsedSeedsCount(true))));
     }
 
     if (m_recipe) {
         const recipe::RecipeStats &recipeStats = m_recipe->getStats();
-        qdict_put_obj(stats, "recipe_invalid_count", QOBJECT(qint_from_int(recipeStats.invalidRecipeCount)));
-        qdict_put_obj(stats, "recipe_failed_tries", QOBJECT(qint_from_int(recipeStats.failedRecipeTries)));
-        qdict_put_obj(stats, "recipe_successful_tries", QOBJECT(qint_from_int(recipeStats.successfulRecipeTries)));
-        qdict_put_obj(stats, "recipe_count", QOBJECT(qint_from_int(m_recipe->getRecipeCount())));
+        qdict_put_obj(stats, "recipe_invalid_count", QOBJECT(qnum_from_int(recipeStats.invalidRecipeCount)));
+        qdict_put_obj(stats, "recipe_failed_tries", QOBJECT(qnum_from_int(recipeStats.failedRecipeTries)));
+        qdict_put_obj(stats, "recipe_successful_tries", QOBJECT(qnum_from_int(recipeStats.successfulRecipeTries)));
+        qdict_put_obj(stats, "recipe_count", QOBJECT(qnum_from_int(m_recipe->getRecipeCount())));
 
         // The service will sum all stats, so need to reset here
         m_recipe->resetStats();
     }
 
-    qdict_put_obj(stats, "segfault_count", QOBJECT(qint_from_int(m_segFaults)));
+    qdict_put_obj(stats, "segfault_count", QOBJECT(qnum_from_int(m_segFaults)));
     m_segFaults = 0;
 
     return stats;

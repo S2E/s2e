@@ -24,14 +24,11 @@
 #ifndef S2E_PLUGINS_QMUEVENTS_H
 #define S2E_PLUGINS_QMUEVENTS_H
 
-extern "C" {
-
 #include <s2e/monitor.h>
 
-#include "qdict.h"
-#include "qint.h"
-#include "qobject.h"
-}
+#include <qapi/qmp/qdict.h>
+#include <qapi/qmp/qnum.h>
+#include <qapi/qmp/qobject.h>
 
 #include <s2e/CorePlugin.h>
 #include <s2e/Plugin.h>
@@ -101,7 +98,6 @@ struct Events {
     }
 
     static void emitQMPEvent(const Plugin *p, QObject *data) {
-
         monitor_emit_json(QOBJECT(prepareEvent(p, data)));
     }
 
@@ -116,17 +112,12 @@ struct Events {
      */
     static QDict *getPluginData(const Plugin *p, const QDict *command) {
         const char *pluginName = p->getPluginInfo()->name.c_str();
-        QObject *plg = qdict_get(command, pluginName);
-        if (!plg) {
-            return nullptr;
-        }
-
-        return qobject_to_qdict(plg);
+        return qdict_get_qdict(command, pluginName);
     }
 
     static void requestSessionId() {
         QDict *dict = qdict_new();
-        qdict_put_obj(dict, "get-session-id", QOBJECT(qint_from_int(0)));
+        qdict_put_obj(dict, "get-session-id", QOBJECT(qnum_from_int(0)));
         monitor_emit_json(QOBJECT(dict));
     }
 
@@ -137,11 +128,11 @@ struct Events {
         int idx = 0;
         for (ent = qdict_first(dict); ent; ent = qdict_next(dict, ent), ++idx) {
             const char *name = qdict_entry_key(ent);
-            const QObject *value = qdict_entry_value(ent);
+            const auto value = qdict_entry_value(ent);
 
-            const QInt *i = qobject_to_qint(value);
+            const auto i = qobject_to(QNum, value);
             if (i) {
-                os << name << ": " << hexval(i->value) << " ";
+                os << name << ": " << hexval(qnum_get_uint(i)) << " ";
                 if ((idx % 4) == 3) {
                     os << "\n";
                 }
