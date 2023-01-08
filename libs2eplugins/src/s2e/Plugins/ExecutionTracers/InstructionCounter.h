@@ -36,10 +36,19 @@
 namespace s2e {
 namespace plugins {
 
+enum S2E_ICOUNT_COMMANDS { ICOUNT_RESET, ICOUNT_GET };
+
+struct S2E_ICOUNT_COMMAND {
+    enum S2E_ICOUNT_COMMANDS Command;
+    union {
+        uint64_t Count;
+    };
+} __attribute__((packed));
+
 class ProcessExecutionDetector;
 class ModuleMap;
 
-class InstructionCounter : public Plugin {
+class InstructionCounter : public Plugin, public IPluginInvoker {
     S2E_PLUGIN
 private:
     ExecutionTracer *m_tracer;
@@ -69,6 +78,8 @@ private:
 
     void onThreadExit(S2EExecutionState *state, const ThreadDescriptor &thread);
     void onProcessUnload(S2EExecutionState *state, uint64_t pageDir, uint64_t pid, uint64_t returnCode);
+
+    void handleOpcodeInvocation(S2EExecutionState *state, uint64_t guestDataPtr, uint64_t guestDataSize);
 };
 
 } // namespace plugins

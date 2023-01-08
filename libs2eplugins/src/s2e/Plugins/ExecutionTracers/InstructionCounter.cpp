@@ -91,8 +91,16 @@ public:
         m_count++;
     }
 
+    inline void set(uint64_t v) {
+        m_count = v;
+    }
+
     inline Counts &get() {
         return m_counts;
+    }
+
+    inline uint64_t getCount() const {
+        return m_count;
     }
 
     inline void enable(bool v) {
@@ -236,6 +244,38 @@ void InstructionCounter::onProcessUnload(S2EExecutionState *state, uint64_t page
 
     for (auto &pt : toErase) {
         counts.erase(pt);
+    }
+}
+
+void InstructionCounter::handleOpcodeInvocation(S2EExecutionState *state, uint64_t guestDataPtr,
+                                                uint64_t guestDataSize) {
+    DECLARE_PLUGINSTATE(InstructionCounterState, state);
+
+    S2E_ICOUNT_COMMAND command;
+
+    if (guestDataSize != sizeof(command)) {
+        getWarningsStream(state) << "mismatched S2E_ICOUNT_COMMAND size\n";
+        exit(-1);
+    }
+
+    if (!state->mem()->read(guestDataPtr, &command, guestDataSize)) {
+        getWarningsStream(state) << "could not read transmitted data\n";
+        exit(-1);
+    }
+
+    switch (command.Command) {
+        case ICOUNT_RESET:
+            plgState->set(0);
+            break;
+
+        case ICOUNT_GET:
+            command.Count = plgState->getCount();
+            break;
+    }
+
+    if (!state->mem()->write(guestDataPtr, &command, guestDataSize)) {
+        getWarningsStream(state) << "could not write transmitted data\n";
+        exit(-1);
     }
 }
 
