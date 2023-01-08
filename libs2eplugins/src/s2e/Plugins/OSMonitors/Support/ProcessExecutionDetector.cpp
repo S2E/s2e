@@ -74,6 +74,8 @@ void ProcessExecutionDetector::initialize() {
         m_trackedModules.insert(*it);
     }
 
+    m_traceKernel = cfg->getBool(getConfigKey() + ".traceKernel", false);
+
     m_monitor->onProcessLoad.connect(sigc::mem_fun(*this, &ProcessExecutionDetector::onProcessLoad));
 
     m_monitor->onProcessUnload.connect(sigc::mem_fun(*this, &ProcessExecutionDetector::onProcessUnload));
@@ -130,7 +132,7 @@ bool ProcessExecutionDetector::isTrackedPc(S2EExecutionState *state, uint64_t pc
         return false;
     }
 
-    if (m_monitor->isKernelAddress(pc)) {
+    if (!m_traceKernel && m_monitor->isKernelAddress(pc)) {
         return false;
     }
 

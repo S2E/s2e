@@ -38,6 +38,9 @@ typedef llvm::DenseSet<uint64_t> TrackedPids;
 
 class ProcessExecutionDetector : public Plugin {
     S2E_PLUGIN
+
+    bool m_traceKernel = false;
+
 public:
     ProcessExecutionDetector(S2E *s2e) : Plugin(s2e) {
     }
