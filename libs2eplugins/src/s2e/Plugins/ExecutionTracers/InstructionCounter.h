@@ -28,6 +28,8 @@
 #include <s2e/S2EExecutionState.h>
 #include <unordered_set>
 
+#include <s2e/Plugins/OSMonitors/OSMonitor.h>
+
 #include "ExecutionTracer.h"
 #include "ModuleTracing.h"
 
@@ -42,10 +44,9 @@ class InstructionCounter : public Plugin {
 private:
     ExecutionTracer *m_tracer;
     ProcessExecutionDetector *m_detector;
+    OSMonitor *m_monitor;
 
     ModuleTracing m_modules;
-
-    sigc::connection m_tbConnection;
 
 public:
     InstructionCounter(S2E *s2e) : Plugin(s2e) {
@@ -54,14 +55,20 @@ public:
     void initialize();
 
 private:
-    void onInitializationComplete(S2EExecutionState *state);
+    void writeData(S2EExecutionState *state, uint64_t pid, uint64_t tid, uint64_t count);
+
+    void onMonitorLoad(S2EExecutionState *state);
     void onStateKill(S2EExecutionState *state);
     void onTranslateBlockStart(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb, uint64_t pc);
+    void onTbExecuteStart(S2EExecutionState *state, uint64_t pc);
 
     void onTranslateInstructionStart(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb,
                                      uint64_t pc);
 
     void onInstruction(S2EExecutionState *state, uint64_t pc);
+
+    void onThreadExit(S2EExecutionState *state, const ThreadDescriptor &thread);
+    void onProcessUnload(S2EExecutionState *state, uint64_t pageDir, uint64_t pid, uint64_t returnCode);
 };
 
 } // namespace plugins
