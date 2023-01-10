@@ -797,6 +797,12 @@ void BaseInstructions::handleBuiltInOps(S2EExecutionState *state, uint64_t opcod
             break;
         }
 
+        case BASE_S2E_IS_FORKING_ENABLED: { /* s2e_is_forking_enabled */
+            bool res = state->isForkingEnabled();
+            state->regs()->write(CPU_OFFSET(regs[R_EAX]), &res, sizeof(res));
+            break;
+        }
+
         case BASE_S2E_CHECK_PLUGIN: { /* s2e_plugin_loaded */
             checkPlugin(state);
             break;
