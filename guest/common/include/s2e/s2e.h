@@ -342,6 +342,18 @@ static inline void s2e_disable_forking(void)
 }
 
 ///
+/// \brief Check if forking is enabled on symbolic conditions
+///
+static inline int s2e_is_forking_enabled(void) {
+    int result;
+    __asm__ __volatile__(
+        S2E_INSTRUCTION_SIMPLE(BASE_S2E_IS_FORKING_ENABLED)
+        : "=a" (result)
+    );
+    return result;
+}
+
+///
 /// \brief Forks the given number of times without adding constraints
 ///
 /// \param[in] count The number of times to fork
