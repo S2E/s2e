@@ -52,6 +52,7 @@ add_library(
     # Guest support
     s2e/Plugins/OSMonitors/Support/ModuleExecutionDetector.cpp
     s2e/Plugins/OSMonitors/Support/ProcessExecutionDetector.cpp
+    s2e/Plugins/OSMonitors/Support/ThreadExecutionDetector.cpp
     s2e/Plugins/OSMonitors/Support/ModuleMap.cpp
     s2e/Plugins/OSMonitors/Support/MemoryMap.cpp
     s2e/Plugins/OSMonitors/Support/MemUtils.cpp
