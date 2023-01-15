@@ -261,8 +261,6 @@ public:
 
     void initialize();
 
-    sigc::signal<void, S2EExecutionState *> onProcessOrThreadSwitch;
-
     sigc::signal<void, S2EExecutionState *, const S2E_WINMON2_ACCESS_FAULT &> onAccessFault;
 
     sigc::signal<void, S2EExecutionState *, const S2E_WINMON2_ALLOCATE_VM &> onNtAllocateVirtualMemory;

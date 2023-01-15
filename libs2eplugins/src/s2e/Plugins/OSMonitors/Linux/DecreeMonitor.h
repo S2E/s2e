@@ -229,9 +229,6 @@ public:
 
     bool getFaultAddress(S2EExecutionState *state, uint64_t siginfo_ptr, uint64_t *address);
 
-    virtual uint64_t getPid(S2EExecutionState *state);
-    virtual uint64_t getTid(S2EExecutionState *state);
-
     void getPreFeedData(S2EExecutionState *state, uint64_t pid, uint64_t count, std::vector<uint8_t> &data);
     void getRandomData(S2EExecutionState *state, uint64_t count, std::vector<uint8_t> &data);
     klee::ref<klee::Expr> makeSymbolicRead(S2EExecutionState *state, uint64_t pid, uint64_t fd, uint64_t buf,
@@ -245,6 +242,8 @@ public:
     static bool isWriteFd(uint32_t fd);
 
 private:
+    void onInitializationComplete(S2EExecutionState *state);
+
     target_ulong getTaskStructPtr(S2EExecutionState *state);
 
     uint64_t getMaxValue(S2EExecutionState *state, klee::ref<klee::Expr> value);
@@ -273,6 +272,7 @@ private:
                                const S2E_DECREEMON_COMMAND_UPDATE_MEMORY_MAP &d);
     void handleSetParams(S2EExecutionState *state, uint64_t pid, S2E_DECREEMON_COMMAND_SET_CB_PARAMS &d);
     void handleInit(S2EExecutionState *state, const S2E_DECREEMON_COMMAND_INIT &d);
+    void handleTaskSwitch(S2EExecutionState *state, const S2E_DECREEMON_COMMAND &cmd);
 };
 
 } // namespace plugins

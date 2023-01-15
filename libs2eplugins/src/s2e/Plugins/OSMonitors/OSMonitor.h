@@ -65,6 +65,8 @@ public:
     sigc::signal<void, S2EExecutionState *, const ThreadDescriptor &> onThreadCreate;
     sigc::signal<void, S2EExecutionState *, const ThreadDescriptor &> onThreadExit;
 
+    sigc::signal<void, S2EExecutionState *> onProcessOrThreadSwitch;
+
     ///
     /// \brief Triggered when the OSMonitor plugin is ready for use.
     ///

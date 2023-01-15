@@ -35,6 +35,20 @@ namespace plugins {
 
 S2E_DEFINE_PLUGIN(LinuxMonitor, "LinuxMonitor S2E plugin", "OSMonitor", "BaseInstructions", "Vmi");
 
+namespace {
+class LinuxMonitorState : public BaseLinuxMonitorState {
+public:
+    virtual LinuxMonitorState *clone() const {
+        return new LinuxMonitorState(*this);
+    }
+
+    static PluginState *factory(Plugin *p, S2EExecutionState *s) {
+        return new LinuxMonitorState();
+    }
+};
+
+} // namespace
+
 void LinuxMonitor::initialize() {
     ConfigFile *cfg = s2e()->getConfig();
 
@@ -52,59 +66,20 @@ void LinuxMonitor::initialize() {
 
     m_commandSize = sizeof(S2E_LINUXMON_COMMAND);
     m_commandVersion = S2E_LINUXMON_COMMAND_VERSION;
+
+    s2e()->getCorePlugin()->onInitializationComplete.connect(
+        sigc::mem_fun(*this, &LinuxMonitor::onInitializationComplete));
 }
 
-///
-/// \brief Get the process id for the current state
-///
-/// In the Linux kernel, each thread has its own task_struct that contains:
-///  * Its own identifier, the process identifier (PID)
-///  * The identifier of the process that started the thread, the thread group
-///    (TGID)
-///
-/// Therefore the getPid method returns the TGID and getTid returns the PID.
-///
-/// \return The process id
-///
-uint64_t LinuxMonitor::getPid(S2EExecutionState *state) {
-    target_ulong currentTask;
-
-    if (!state->mem()->read(m_currentTaskAddr, &currentTask, sizeof(currentTask))) {
-        return -1;
-    }
-
-    // In the kernel the `pid_t` type is just a typedef for `int` (see include/uapi/asm-generic/posix_types.h)
-    int pid;
-    target_ulong pidAddress = currentTask + m_taskStructTgidOffset;
-
-    if (!state->mem()->read(pidAddress, &pid, sizeof(pid))) {
-        return -1;
-    } else {
-        return pid;
-    }
-}
-
-uint64_t LinuxMonitor::getTid(S2EExecutionState *state) {
-    target_ulong currentTask;
-
-    if (!state->mem()->read(m_currentTaskAddr, &currentTask, sizeof(currentTask))) {
-        return -1;
-    }
-
-    target_ulong tid;
-    target_ulong tidAddress = currentTask + m_taskStructPidOffset;
-
-    if (!state->mem()->read(tidAddress, &tid, sizeof(tid))) {
-        return -1;
-    } else {
-        return tid;
-    }
+void LinuxMonitor::onInitializationComplete(S2EExecutionState *state) {
+    // Initialize the plugin state before BaseLinuxMonitor tries to access it.
+    getPluginState(state, &LinuxMonitorState::factory);
 }
 
 void LinuxMonitor::handleSegfault(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd) {
     getWarningsStream(state) << "Received segfault"
                              << " type=" << cmd.SegFault.fault << " pagedir=" << hexval(state->regs()->getPageDir())
-                             << " pid=" << hexval(cmd.currentPid) << " pc=" << hexval(cmd.SegFault.pc)
+                             << " pid=" << hexval(cmd.CurrentTask.tgid) << " pc=" << hexval(cmd.SegFault.pc)
                              << " addr=" << hexval(cmd.SegFault.address) << "\n";
 
     // Don't switch states until it finishes and gets killed by
@@ -117,7 +92,7 @@ void LinuxMonitor::handleSegfault(S2EExecutionState *state, const S2E_LINUXMON_C
 
     state->disassemble(getDebugStream(state), cmd.SegFault.pc, 256);
 
-    onSegFault.emit(state, cmd.currentPid, cmd.SegFault.pc);
+    onSegFault.emit(state, cmd.CurrentTask.tgid, cmd.SegFault.pc);
 
     if (m_terminateOnSegfault) {
         getDebugStream(state) << "Terminating state: received segfault\n";
@@ -127,22 +102,35 @@ void LinuxMonitor::handleSegfault(S2EExecutionState *state, const S2E_LINUXMON_C
 
 void LinuxMonitor::handleProcessExit(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd) {
     auto pd = state->regs()->getPageDir();
-    getDebugStream(state) << "Removing task (pid=" << hexval(cmd.currentPid) << ", cr3=" << hexval(pd)
-                          << ", exitCode=" << cmd.ProcessExit.code << ").\n";
+    getDebugStream(state) << "Process exit pid=" << hexval(cmd.CurrentTask.tgid)
+                          << " tid=" << hexval(cmd.CurrentTask.pid) << " cr3=" << hexval(pd)
+                          << " exitCode=" << cmd.ProcessExit.code << "\n";
 
-    onProcessUnload.emit(state, pd, cmd.currentPid, cmd.ProcessExit.code);
+    onProcessUnload.emit(state, pd, cmd.CurrentTask.tgid, cmd.ProcessExit.code);
+}
+
+void LinuxMonitor::handleThreadExit(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd) {
+    auto pd = state->regs()->getPageDir();
+    getDebugStream(state) << "Thread exit pid=" << hexval(cmd.CurrentTask.tgid)
+                          << " tid=" << hexval(cmd.CurrentTask.pid) << " cr3=" << hexval(pd)
+                          << " exitCode=" << cmd.ProcessExit.code << "\n";
+
+    ThreadDescriptor desc;
+    desc.Pid = cmd.CurrentTask.tgid;
+    desc.Tid = cmd.CurrentTask.pid;
+    onThreadExit.emit(state, desc);
 }
 
 void LinuxMonitor::handleTrap(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd) {
     getWarningsStream(state) << "Received trap"
-                             << " pid=" << hexval(cmd.currentPid) << " pc=" << hexval(cmd.Trap.pc)
+                             << " pid=" << hexval(cmd.CurrentTask.tgid) << " pc=" << hexval(cmd.Trap.pc)
                              << " trapnr=" << hexval(cmd.Trap.trapnr) << " signr=" << hexval(cmd.Trap.signr)
                              << " err_code=" << cmd.Trap.error_code << "\n";
 
     getDebugStream(state) << "Blocking searcher until state is terminated\n";
     state->setStateSwitchForbidden(true);
 
-    onTrap.emit(state, cmd.currentPid, cmd.Trap.pc, cmd.Trap.trapnr);
+    onTrap.emit(state, cmd.CurrentTask.tgid, cmd.Trap.pc, cmd.Trap.trapnr);
 
     if (m_terminateOnTrap) {
         getDebugStream(state) << "Terminating state: received trap\n";
@@ -152,15 +140,9 @@ void LinuxMonitor::handleTrap(S2EExecutionState *state, const S2E_LINUXMON_COMMA
 
 void LinuxMonitor::handleInit(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd) {
     getDebugStream(state) << "Received kernel init"
-                          << " page_offset=" << hexval(cmd.Init.page_offset)
-                          << " &current_task=" << hexval(cmd.Init.current_task_address)
-                          << " task_struct.pid offset=" << cmd.Init.task_struct_pid_offset
-                          << " task_struct.tgid offset=" << cmd.Init.task_struct_tgid_offset << "\n";
+                          << " page_offset=" << hexval(cmd.Init.page_offset) << "\n";
 
     m_kernelStartAddress = cmd.Init.page_offset;
-    m_currentTaskAddr = cmd.Init.current_task_address;
-    m_taskStructPidOffset = cmd.Init.task_struct_pid_offset;
-    m_taskStructTgidOffset = cmd.Init.task_struct_tgid_offset;
 
     completeInitialization(state);
 
@@ -168,7 +150,7 @@ void LinuxMonitor::handleInit(S2EExecutionState *state, const S2E_LINUXMON_COMMA
 }
 
 void LinuxMonitor::handleMemMap(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd) {
-    getDebugStream(state) << "mmap pid=" << hexval(cmd.currentPid) << " addr=" << hexval(cmd.MemMap.address)
+    getDebugStream(state) << "mmap pid=" << hexval(cmd.CurrentTask.tgid) << " addr=" << hexval(cmd.MemMap.address)
                           << " size=" << hexval(cmd.MemMap.size) << " prot=" << hexval(cmd.MemMap.prot)
                           << " flag=" << hexval(cmd.MemMap.flag) << " pgoff=" << hexval(cmd.MemMap.pgoff) << "\n";
 
@@ -178,22 +160,27 @@ void LinuxMonitor::handleMemMap(S2EExecutionState *state, const S2E_LINUXMON_COM
         return;
     }
 
-    onMemoryMap.emit(state, cmd.currentPid, cmd.MemMap.address, cmd.MemMap.size, cmd.MemMap.prot);
+    onMemoryMap.emit(state, cmd.CurrentTask.tgid, cmd.MemMap.address, cmd.MemMap.size, cmd.MemMap.prot);
 }
 
 void LinuxMonitor::handleMemUnmap(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd) {
-    getDebugStream(state) << "munmap pid=" << hexval(cmd.currentPid) << " start=" << hexval(cmd.MemUnmap.start)
+    getDebugStream(state) << "munmap pid=" << hexval(cmd.CurrentTask.tgid) << " start=" << hexval(cmd.MemUnmap.start)
                           << " end=" << hexval(cmd.MemUnmap.end) << "\n";
 
     uint64_t size = cmd.MemUnmap.end - cmd.MemUnmap.start;
-    onMemoryUnmap.emit(state, cmd.currentPid, cmd.MemUnmap.start, size);
+    onMemoryUnmap.emit(state, cmd.CurrentTask.tgid, cmd.MemUnmap.start, size);
 }
 
 void LinuxMonitor::handleMemProtect(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd) {
-    getDebugStream(state) << "mprotect pid=" << hexval(cmd.currentPid) << " start=" << hexval(cmd.MemProtect.start)
-                          << " size=" << hexval(cmd.MemProtect.size) << " prot=" << hexval(cmd.MemProtect.prot) << "\n";
+    getDebugStream(state) << "mprotect pid=" << hexval(cmd.CurrentTask.tgid)
+                          << " start=" << hexval(cmd.MemProtect.start) << " size=" << hexval(cmd.MemProtect.size)
+                          << " prot=" << hexval(cmd.MemProtect.prot) << "\n";
 
-    onMemoryProtect.emit(state, cmd.currentPid, cmd.MemProtect.start, cmd.MemProtect.size, cmd.MemProtect.prot);
+    onMemoryProtect.emit(state, cmd.CurrentTask.tgid, cmd.MemProtect.start, cmd.MemProtect.size, cmd.MemProtect.prot);
+}
+
+void LinuxMonitor::handleTaskSwitch(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd) {
+    BaseLinuxMonitor::handleTaskSwitch(state, cmd.CurrentTask, cmd.TaskSwitch);
 }
 
 void LinuxMonitor::handleCommand(S2EExecutionState *state, uint64_t guestDataPtr, uint64_t guestDataSize, void *_cmd) {
@@ -204,11 +191,11 @@ void LinuxMonitor::handleCommand(S2EExecutionState *state, uint64_t guestDataPtr
             break;
 
         case LINUX_PROCESS_LOAD:
-            handleProcessLoad(state, cmd.currentPid, cmd.ProcessLoad);
+            handleProcessLoad(state, cmd.CurrentTask.tgid, cmd.ProcessLoad);
             break;
 
         case LINUX_MODULE_LOAD:
-            handleModuleLoad(state, cmd.currentPid, cmd.ModuleLoad);
+            handleModuleLoad(state, cmd.CurrentTask.tgid, cmd.ModuleLoad);
             break;
 
         case LINUX_TRAP:
@@ -217,6 +204,10 @@ void LinuxMonitor::handleCommand(S2EExecutionState *state, uint64_t guestDataPtr
 
         case LINUX_PROCESS_EXIT:
             handleProcessExit(state, cmd);
+            break;
+
+        case LINUX_THREAD_EXIT:
+            handleThreadExit(state, cmd);
             break;
 
         case LINUX_INIT:
@@ -237,6 +228,10 @@ void LinuxMonitor::handleCommand(S2EExecutionState *state, uint64_t guestDataPtr
 
         case LINUX_MEMORY_PROTECT:
             handleMemProtect(state, cmd);
+            break;
+
+        case LINUX_TASK_SWITCH:
+            handleTaskSwitch(state, cmd);
             break;
     }
 }

@@ -70,14 +70,10 @@ public:
     void initialize();
 
 private:
-    /// Address of the \c current_task object in the Linux kernel (see arch/x86/kernel/cpu/common.c)
-    uint64_t m_currentTaskAddr;
-
-    /// Offset of the thread group identifier in the \c task_struct struct (see include/linux/sched.h)
-    uint64_t m_taskStructTgidOffset;
-
     /// Terminate if a trap (e.g. divide by zero) occurs
     bool m_terminateOnTrap;
+
+    void onInitializationComplete(S2EExecutionState *state);
 
     //
     // Handle the various commands emitted by the kernel
@@ -86,11 +82,13 @@ private:
 
     void handleSegfault(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd);
     void handleProcessExit(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd);
+    void handleThreadExit(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd);
     void handleTrap(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd);
     void handleInit(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd);
     void handleMemMap(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd);
     void handleMemUnmap(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd);
     void handleMemProtect(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd);
+    void handleTaskSwitch(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd);
 
 public:
     /// Emitted when a trap occurs in the kernel (e.g. divide by zero, etc.)
@@ -109,12 +107,6 @@ public:
     sigc::signal<void, S2EExecutionState *, uint64_t /* pid */, uint64_t /* start */, uint64_t /* size */,
                  uint64_t /* prot */>
         onMemoryProtect;
-
-    // Get the current process identifier
-    virtual uint64_t getPid(S2EExecutionState *state);
-
-    /// Get the current thread identifier
-    virtual uint64_t getTid(S2EExecutionState *state);
 };
 
 } // namespace plugins

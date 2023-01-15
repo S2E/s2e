@@ -122,9 +122,12 @@ void DecreeMonitor::initialize() {
 
     m_commandSize = sizeof(S2E_DECREEMON_COMMAND);
     m_commandVersion = S2E_DECREEMON_COMMAND_VERSION;
+
+    s2e()->getCorePlugin()->onInitializationComplete.connect(
+        sigc::mem_fun(*this, &DecreeMonitor::onInitializationComplete));
 }
 
-class DecreeMonitorState : public PluginState {
+class DecreeMonitorState : public BaseLinuxMonitorState {
 public:
     /* How many bytes (symbolic or concrete) were read by each pid */
     std::map<uint64_t /* pid */, uint64_t> m_readBytesCount;
@@ -159,25 +162,14 @@ public:
     }
 };
 
+void DecreeMonitor::onInitializationComplete(S2EExecutionState *state) {
+    // Initialize the plugin state before BaseLinuxMonitor tries to access it.
+    getPluginState(state, &DecreeMonitorState::factory);
+}
+
 unsigned DecreeMonitor::getSymbolicReadsCount(S2EExecutionState *state) const {
     DECLARE_PLUGINSTATE_CONST(DecreeMonitorState, state);
     return plgState->m_totalReadBytesCount;
-}
-
-uint64_t DecreeMonitor::getPid(S2EExecutionState *state) {
-    target_ulong pid;
-    target_ulong taskStructPtr = getTaskStructPtr(state);
-    target_ulong pidAddress = taskStructPtr + m_taskStructPidOffset;
-
-    if (!state->mem()->read(pidAddress, &pid, sizeof(pid))) {
-        return -1;
-    } else {
-        return pid;
-    }
-}
-
-uint64_t DecreeMonitor::getTid(S2EExecutionState *state) {
-    return getPid(state);
 }
 
 void DecreeMonitor::getPreFeedData(S2EExecutionState *state, uint64_t pid, uint64_t count, std::vector<uint8_t> &data) {
@@ -447,7 +439,7 @@ void DecreeMonitor::handleGetCfgBool(S2EExecutionState *state, uint64_t pid, S2E
         // XXX: this induces  a circular dependency between DecreeMonitor and
         // ProcessExecutionDetector. Better design would be to have a signal
         // to ask other plugins whether this process should be instrumented or not.
-        if (m_detector && !m_detector->isTracked(state, pid)) {
+        if (m_detector && !m_detector->isTrackedPid(state, pid)) {
             value = true;
         } else {
             value = plgState->m_invokeOriginalSyscalls;
@@ -735,11 +727,9 @@ void DecreeMonitor::handleSetParams(S2EExecutionState *state, uint64_t pid, S2E_
 }
 
 void DecreeMonitor::handleInit(S2EExecutionState *state, const S2E_DECREEMON_COMMAND_INIT &d) {
-    getDebugStream(state) << "handleInit: page_offset=" << hexval(d.page_offset)
-                          << " task_struct.pid offset=" << d.task_struct_pid_offset << "\n";
+    getDebugStream(state) << "handleInit: page_offset=" << hexval(d.page_offset) << "\n";
 
     m_kernelStartAddress = d.page_offset;
-    m_taskStructPidOffset = d.task_struct_pid_offset;
 
     completeInitialization(state);
 
@@ -757,7 +747,6 @@ void DecreeMonitor::printOpcodeOffsets(S2EExecutionState *state) {
     } while (0)
 
     PRINTOFF(Command);
-    PRINTOFF(currentPid);
 
     PRINTOFF(Data.fd);
     PRINTOFF(Data.buffer);
@@ -808,15 +797,21 @@ void DecreeMonitor::printOpcodeOffsets(S2EExecutionState *state) {
     PRINTOFF(currentName);
 }
 
+void DecreeMonitor::handleTaskSwitch(S2EExecutionState *state, const S2E_DECREEMON_COMMAND &cmd) {
+    BaseLinuxMonitor::handleTaskSwitch(state, cmd.CurrentTask, cmd.TaskSwitch);
+}
+
 void DecreeMonitor::handleCommand(S2EExecutionState *state, uint64_t guestDataPtr, uint64_t guestDataSize, void *cmd) {
     S2E_DECREEMON_COMMAND &command = *(S2E_DECREEMON_COMMAND *) cmd;
     std::string currentName(command.currentName, strnlen(command.currentName, sizeof(command.currentName)));
 
     bool processSyscall = true;
-    if (m_detector && !m_detector->isTracked(state, command.currentPid)) {
-        processSyscall = false;
-        getDebugStream(state) << "Pid " << hexval(command.currentPid) << " is not tracked. "
-                              << "Skipping syscall processing.\n";
+    if (m_detector && !m_detector->isTrackedPid(state, command.CurrentTask.pid)) {
+        if (command.Command != DECREE_TASK_SWITCH) {
+            processSyscall = false;
+            getDebugStream(state) << "Pid " << hexval(command.CurrentTask.pid) << " is not tracked. "
+                                  << "Skipping syscall " << command.Command << " processing.\n";
+        }
     }
 
     switch (command.Command) {
@@ -831,7 +826,8 @@ void DecreeMonitor::handleCommand(S2EExecutionState *state, uint64_t guestDataPt
             getWarningsStream(state) << "received segfault"
                                      << " type=" << command.SegFault.fault
                                      << " pagedir=" << hexval(state->regs()->getPageDir())
-                                     << " pid=" << hexval(command.currentPid) << " pc=" << hexval(command.SegFault.pc)
+                                     << " pid=" << hexval(command.CurrentTask.pid)
+                                     << " pc=" << hexval(command.SegFault.pc)
                                      << " addr=" << hexval(command.SegFault.address) << " name=" << currentName << "\n";
 
             // Dont switch state until it finishes and gets killed by bootstrap
@@ -842,7 +838,7 @@ void DecreeMonitor::handleCommand(S2EExecutionState *state, uint64_t guestDataPt
 
             state->disassemble(getDebugStream(state), command.SegFault.pc, 256);
 
-            onSegFault.emit(state, command.currentPid, command.SegFault.pc);
+            onSegFault.emit(state, command.CurrentTask.pid, command.SegFault.pc);
 
             if (m_terminateProcessGroupOnSegfault) {
                 getWarningsStream(state) << "Terminating process group: received segfault\n";
@@ -856,24 +852,24 @@ void DecreeMonitor::handleCommand(S2EExecutionState *state, uint64_t guestDataPt
         } break;
 
         case DECREE_PROCESS_LOAD: {
-            handleProcessLoad(state, command.currentPid, command.ProcessLoad);
+            handleProcessLoad(state, command.CurrentTask.pid, command.ProcessLoad);
         } break;
 
         case DECREE_READ_DATA: {
             if (processSyscall) {
-                handleReadData(state, command.currentPid, command.Data);
+                handleReadData(state, command.CurrentTask.pid, command.Data);
             }
         } break;
 
         case DECREE_READ_DATA_POST: {
             if (processSyscall) {
-                handleReadDataPost(state, command.currentPid, command.DataPost);
+                handleReadDataPost(state, command.CurrentTask.pid, command.DataPost);
             }
         } break;
 
         case DECREE_WRITE_DATA: {
             if (processSyscall) {
-                handleWriteData(state, command.currentPid, command.WriteData);
+                handleWriteData(state, command.CurrentTask.pid, command.WriteData);
             }
         } break;
 
@@ -885,7 +881,7 @@ void DecreeMonitor::handleCommand(S2EExecutionState *state, uint64_t guestDataPt
 
         case DECREE_RANDOM: {
             if (processSyscall) {
-                handleRandom(state, command.currentPid, command.Random);
+                handleRandom(state, command.CurrentTask.pid, command.Random);
             }
         } break;
 
@@ -904,49 +900,49 @@ void DecreeMonitor::handleCommand(S2EExecutionState *state, uint64_t guestDataPt
         } break;
 
         case DECREE_GET_CFG_BOOL: {
-            handleGetCfgBool(state, command.currentPid, command.GetCfgBool);
+            handleGetCfgBool(state, command.CurrentTask.pid, command.GetCfgBool);
             bool ok = state->mem()->write(guestDataPtr, &command, sizeof(command));
             s2e_assert(state, ok, "Failed to write memory");
         } break;
 
         case DECREE_HANDLE_SYMBOLIC_ALLOCATE_SIZE: {
             if (processSyscall) {
-                handleSymbolicAllocateSize(state, command.currentPid, command.SymbolicSize);
+                handleSymbolicAllocateSize(state, command.CurrentTask.pid, command.SymbolicSize);
             }
         } break;
 
         case DECREE_HANDLE_SYMBOLIC_TRANSMIT_BUFFER: {
             if (processSyscall) {
-                handleSymbolicTransmitBuffer(state, command.currentPid, command.SymbolicBuffer);
+                handleSymbolicTransmitBuffer(state, command.CurrentTask.pid, command.SymbolicBuffer);
             }
         } break;
 
         case DECREE_HANDLE_SYMBOLIC_RECEIVE_BUFFER: {
             if (processSyscall) {
-                handleSymbolicReceiveBuffer(state, command.currentPid, command.SymbolicBuffer);
+                handleSymbolicReceiveBuffer(state, command.CurrentTask.pid, command.SymbolicBuffer);
             }
         } break;
 
         case DECREE_HANDLE_SYMBOLIC_RANDOM_BUFFER: {
             if (processSyscall) {
-                handleSymbolicRandomBuffer(state, command.currentPid, command.SymbolicBuffer);
+                handleSymbolicRandomBuffer(state, command.CurrentTask.pid, command.SymbolicBuffer);
             }
         } break;
 
         case DECREE_COPY_TO_USER: {
             if (processSyscall) {
-                handleCopyToUser(state, command.currentPid, command.CopyToUser);
+                handleCopyToUser(state, command.CurrentTask.pid, command.CopyToUser);
             }
         } break;
 
         case DECREE_UPDATE_MEMORY_MAP: {
             if (processSyscall) {
-                handleUpdateMemoryMap(state, command.currentPid, command.UpdateMemoryMap);
+                handleUpdateMemoryMap(state, command.CurrentTask.pid, command.UpdateMemoryMap);
             }
         } break;
 
         case DECREE_SET_CB_PARAMS: {
-            handleSetParams(state, command.currentPid, command.CbParams);
+            handleSetParams(state, command.CurrentTask.pid, command.CbParams);
             if (!state->mem()->write(guestDataPtr, &command, guestDataSize)) {
                 // Do not kill the state in case of an error here. This would prevent
                 // any exploration at all.
@@ -966,9 +962,13 @@ void DecreeMonitor::handleCommand(S2EExecutionState *state, uint64_t guestDataPt
         } break;
 
         case DECREE_MODULE_LOAD: {
-            handleModuleLoad(state, command.currentPid, command.ModuleLoad);
+            handleModuleLoad(state, command.CurrentTask.pid, command.ModuleLoad);
             break;
         }
+
+        case DECREE_TASK_SWITCH: {
+            handleTaskSwitch(state, command);
+        } break;
     }
 }
 
