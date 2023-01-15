@@ -31,6 +31,7 @@
 #include <s2e/Plugin.h>
 #include <s2e/Plugins/Core/BaseInstructions.h>
 #include <s2e/Plugins/Core/Vmi.h>
+#include <s2e/Plugins/OSMonitors/Support/ITracker.h>
 #include <s2e/Plugins/OSMonitors/Support/ModuleMap.h>
 
 #include <inttypes.h>
@@ -93,7 +94,7 @@ typedef ConfiguredModules::index<modbyname_t>::type ConfiguredModulesByName;
 /// It is possible to set trackExecution to false in order to decrease the overhead,
 /// at the expense of not being notified when execution enters or leaves a configured
 /// module.
-class ModuleExecutionDetector : public Plugin {
+class ModuleExecutionDetector : public Plugin, public ITracker {
     S2E_PLUGIN
 
 public:
@@ -143,6 +144,10 @@ public:
     /// modules that the user configured.
     ///
     sigc::signal<void, S2EExecutionState *, const ModuleDescriptor &> onModuleLoad;
+
+    sigc::signal<void, S2EExecutionState *> onConfigChange;
+    bool isTrackedPc(S2EExecutionState *state, uint64_t pc);
+    bool isTrackingConfigured(S2EExecutionState *state);
 
 private:
     OSMonitor *m_monitor;
