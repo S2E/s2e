@@ -25,20 +25,12 @@
 #include <s2e/S2E.h>
 
 #include <s2e/Plugins/OSMonitors/Support/ModuleMap.h>
+#include <s2e/Plugins/OSMonitors/Support/PidTid.h>
 #include <s2e/Plugins/OSMonitors/Support/ProcessExecutionDetector.h>
 
 #include "InstructionCounter.h"
 
 #include <TraceEntries.pb.h>
-
-// TODO: deduplicate with UserSpaceTracer
-namespace std {
-template <typename T1, typename T2> struct hash<std::pair<T1, T2>> {
-    std::size_t operator()(std::pair<T1, T2> const &p) const {
-        return p.first ^ p.second;
-    }
-};
-} // namespace std
 
 namespace s2e {
 namespace plugins {
@@ -49,7 +41,6 @@ S2E_DEFINE_PLUGIN(InstructionCounter, "Instruction counter plugin", "Instruction
 namespace {
 class InstructionCounterState : public PluginState {
 public:
-    using PidTid = std::pair<uint64_t, uint64_t>;
     using Counts = std::unordered_map<PidTid, uint64_t /* count */>;
 
 private:
@@ -115,16 +106,27 @@ public:
 
 void InstructionCounter::initialize() {
     m_tracer = s2e()->getPlugin<ExecutionTracer>();
-    m_detector = s2e()->getPlugin<ProcessExecutionDetector>();
     m_monitor = static_cast<OSMonitor *>(s2e()->getPlugin("OSMonitor"));
 
-    m_modules.initialize(s2e(), getConfigKey());
+    m_tracker = ITracker::getTracker(s2e(), this);
+    if (m_tracker) {
+        m_tracker->onConfigChange.connect(sigc::mem_fun(*this, &InstructionCounter::onConfigChange));
+    } else {
+        getWarningsStream() << "No filtering plugin specified. Counting all instructions in the system.\n";
+    }
 
     s2e()->getCorePlugin()->onStateKill.connect(sigc::mem_fun(*this, &InstructionCounter::onStateKill));
 
     m_monitor->onProcessUnload.connect(sigc::mem_fun(*this, &InstructionCounter::onProcessUnload));
     m_monitor->onThreadExit.connect(sigc::mem_fun(*this, &InstructionCounter::onThreadExit));
     m_monitor->onMonitorLoad.connect(sigc::mem_fun(*this, &InstructionCounter::onMonitorLoad));
+    m_monitor->onProcessOrThreadSwitch.connect(sigc::mem_fun(*this, &InstructionCounter::onProcessOrThreadSwitch));
+}
+
+void InstructionCounter::onConfigChange(S2EExecutionState *state) {
+    // The plugin will need to re-instrument blocks in case the tracker's
+    // configuration changes.
+    se_tb_safe_flush();
 }
 
 void InstructionCounter::onMonitorLoad(S2EExecutionState *state) {
@@ -140,25 +142,20 @@ void InstructionCounter::onMonitorLoad(S2EExecutionState *state) {
 
 void InstructionCounter::onTranslateBlockStart(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb,
                                                uint64_t pc) {
+    if (m_tracker && !m_tracker->isTrackingConfigured(state)) {
+        return;
+    }
+
     signal->connect(sigc::mem_fun(*this, &InstructionCounter::onTbExecuteStart));
 }
 
 void InstructionCounter::onTbExecuteStart(S2EExecutionState *state, uint64_t pc) {
     DECLARE_PLUGINSTATE(InstructionCounterState, state);
-
-    if (!m_detector->isTracked(state)) {
+    if (m_tracker && !m_tracker->isTracked(state)) {
         plgState->enable(false);
         return;
     }
-
-    auto pid = m_monitor->getPid(state);
-    auto tid = m_monitor->getTid(state);
-
-    plgState->updatePidTid(pid, tid);
-
-    // Per-module filtering.
-    auto isTraced = m_modules.isModuleTraced(state, pc);
-    plgState->enable(isTraced);
+    plgState->enable(true);
 }
 
 void InstructionCounter::onTranslateInstructionStart(ExecutionSignal *signal, S2EExecutionState *state,
@@ -208,6 +205,11 @@ void InstructionCounter::onStateKill(S2EExecutionState *state) {
     }
 }
 
+void InstructionCounter::onProcessOrThreadSwitch(S2EExecutionState *state) {
+    DECLARE_PLUGINSTATE(InstructionCounterState, state);
+    plgState->updatePidTid(m_monitor->getPid(state), m_monitor->getTid(state));
+}
+
 void InstructionCounter::onThreadExit(S2EExecutionState *state, const ThreadDescriptor &thread) {
     DECLARE_PLUGINSTATE(InstructionCounterState, state);
     plgState->flush();
@@ -220,6 +222,7 @@ void InstructionCounter::onThreadExit(S2EExecutionState *state, const ThreadDesc
         if (pid == thread.Pid && tid == thread.Tid) {
             writeData(state, pid, tid, kv.second);
             counts.erase(std::make_pair(pid, tid));
+            break;
         }
     }
 }
@@ -229,7 +232,7 @@ void InstructionCounter::onProcessUnload(S2EExecutionState *state, uint64_t page
     DECLARE_PLUGINSTATE(InstructionCounterState, state);
     plgState->flush();
 
-    std::vector<InstructionCounterState::PidTid> toErase;
+    std::vector<PidTid> toErase;
 
     auto &counts = plgState->get();
     for (auto kv : counts) {

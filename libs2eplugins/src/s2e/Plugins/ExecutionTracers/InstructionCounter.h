@@ -29,9 +29,9 @@
 #include <unordered_set>
 
 #include <s2e/Plugins/OSMonitors/OSMonitor.h>
+#include <s2e/Plugins/OSMonitors/Support/ITracker.h>
 
 #include "ExecutionTracer.h"
-#include "ModuleTracing.h"
 
 namespace s2e {
 namespace plugins {
@@ -51,11 +51,9 @@ class ModuleMap;
 class InstructionCounter : public Plugin, public IPluginInvoker {
     S2E_PLUGIN
 private:
-    ExecutionTracer *m_tracer;
-    ProcessExecutionDetector *m_detector;
-    OSMonitor *m_monitor;
-
-    ModuleTracing m_modules;
+    ExecutionTracer *m_tracer = nullptr;
+    ITracker *m_tracker = nullptr;
+    OSMonitor *m_monitor = nullptr;
 
 public:
     InstructionCounter(S2E *s2e) : Plugin(s2e) {
@@ -64,6 +62,7 @@ public:
     void initialize();
 
 private:
+    void onConfigChange(S2EExecutionState *state);
     void writeData(S2EExecutionState *state, uint64_t pid, uint64_t tid, uint64_t count);
 
     void onMonitorLoad(S2EExecutionState *state);
@@ -78,6 +77,8 @@ private:
 
     void onThreadExit(S2EExecutionState *state, const ThreadDescriptor &thread);
     void onProcessUnload(S2EExecutionState *state, uint64_t pageDir, uint64_t pid, uint64_t returnCode);
+
+    void onProcessOrThreadSwitch(S2EExecutionState *state);
 
     void handleOpcodeInvocation(S2EExecutionState *state, uint64_t guestDataPtr, uint64_t guestDataSize);
 };
