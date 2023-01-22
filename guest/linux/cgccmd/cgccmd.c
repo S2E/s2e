@@ -28,6 +28,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/syscall.h>
 #include <unistd.h>
 
 typedef int (*cmd_handler_t)(const char **args);
@@ -39,11 +40,16 @@ typedef struct _cmd_t {
     char *description;
 } cmd_t;
 
+static pid_t s2e_decree_gettid(void) {
+    return syscall(SYS_gettid);
+}
+
 static int handler_concolic(const char **args) {
     struct S2E_DECREEMON_COMMAND cmd = {0};
 
     cmd.version = S2E_DECREEMON_COMMAND_VERSION;
-    cmd.currentPid = getpid();
+    cmd.CurrentTask.tgid = getpid();
+    cmd.CurrentTask.pid = s2e_decree_gettid();
     strncpy(cmd.currentName, "cgccmd", sizeof(cmd.currentName));
 
     int enable = !strcmp(args[0], "on");

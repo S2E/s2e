@@ -209,6 +209,14 @@ public:
         return (*it).second;
     }
 
+    template <typename T> T *getPluginState(Plugin *plugin) const {
+        auto it = m_PluginState.find(plugin);
+        if (it == m_PluginState.end()) {
+            return nullptr;
+        }
+        return dynamic_cast<T *>((*it).second);
+    }
+
     /** Returns true if this is the active state */
     inline bool isActive() const {
         return m_active;

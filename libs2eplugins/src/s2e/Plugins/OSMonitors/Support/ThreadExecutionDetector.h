@@ -1,5 +1,5 @@
 ///
-/// Copyright (C) 2015, Cyberhaven
+/// Copyright (C) 2023, Vitaly Chipounov
 ///
 /// Permission is hereby granted, free of charge, to any person obtaining a copy
 /// of this software and associated documentation files (the "Software"), to deal
@@ -20,8 +20,8 @@
 /// SOFTWARE.
 ///
 
-#ifndef S2E_PLUGINS_ProcessExecutionDetector_H
-#define S2E_PLUGINS_ProcessExecutionDetector_H
+#ifndef S2E_PLUGINS_ThreadExecutionDetector_H
+#define S2E_PLUGINS_ThreadExecutionDetector_H
 
 #include <s2e/CorePlugin.h>
 #include <s2e/Plugin.h>
@@ -30,7 +30,7 @@
 
 #include <llvm/ADT/DenseSet.h>
 
-#include <s2e/monitors/support/process_execution_detector.h>
+#include <s2e/monitors/support/thread_execution_detector.h>
 
 #include "ITracker.h"
 
@@ -39,56 +39,35 @@ namespace plugins {
 
 class OSMonitor;
 
-typedef llvm::DenseSet<uint64_t> TrackedPids;
-
 ///
 /// @brief This class allows clients plugins to instrument code running
-/// inside processes of interest.
+/// inside threads of interest.
 ///
-/// This plugin can be configured from the lua file or dynamically from
-/// the guest, using the APIs in the guest header file. It is possible
-/// to enable/disable which PIDs are tracked at runtime.
+/// This plugin can only be configured from guest code. The guest header file
+/// provides APIs to enable/disable tracking for the thread they are called from
+/// as well as enable/disable kernel tracking in the context of that thread.
 ///
-class ProcessExecutionDetector : public Plugin, public IPluginInvoker, public ITracker {
+class ThreadExecutionDetector : public Plugin, public IPluginInvoker, public ITracker {
     S2E_PLUGIN
 
 public:
-    ProcessExecutionDetector(S2E *s2e) : Plugin(s2e) {
+    ThreadExecutionDetector(S2E *s2e) : Plugin(s2e) {
     }
 
     void initialize();
 
-    bool isTrackingConfigured(S2EExecutionState *state);
     bool isTrackedPc(S2EExecutionState *state, uint64_t pc);
-    bool isTrackedPid(S2EExecutionState *state, uint64_t pid);
-    bool isTrackedModule(const std::string &module) const;
-    bool isTrackedPc(S2EExecutionState *state, uint64_t pc, bool checkCpl);
-
-    void trackPid(S2EExecutionState *state, uint64_t pid);
-
-    sigc::signal<void, S2EExecutionState *> onMonitorLoad;
-    sigc::signal<void, S2EExecutionState *> onAllProcessesTerminated;
-
-    const TrackedPids &getTrackedPids(S2EExecutionState *state) const;
+    bool isTrackingConfigured(S2EExecutionState *state);
 
 private:
-    typedef std::unordered_set<std::string> StringSet;
-
     OSMonitor *m_monitor;
 
-    StringSet m_trackedModules;
-
-    bool m_trackKernel = false;
-
-    void onProcessLoad(S2EExecutionState *state, uint64_t pageDir, uint64_t pid, const std::string &ImageFileName);
     void onProcessUnload(S2EExecutionState *state, uint64_t pageDir, uint64_t pid, uint64_t returnCode);
-
-    void onMonitorLoadCb(S2EExecutionState *state);
-
+    void onThreadExit(S2EExecutionState *state, const ThreadDescriptor &thread);
     void handleOpcodeInvocation(S2EExecutionState *state, uint64_t guestDataPtr, uint64_t guestDataSize);
 };
 
 } // namespace plugins
 } // namespace s2e
 
-#endif // S2E_PLUGINS_ProcessExecutionDetector_H
+#endif // S2E_PLUGINS_ThreadExecutionDetector_H

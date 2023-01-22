@@ -38,15 +38,17 @@ public:
     TrackedPids m_trackedPids;
 
     // Records whether the plugin has ever seen a configured process
-    bool m_hadTrackedProcesses;
+    bool m_hadTrackedProcesses = false;
+
+    bool m_trackKernel = false;
 
     virtual ProcessExecutionDetectorState *clone() const {
         ProcessExecutionDetectorState *ret = new ProcessExecutionDetectorState(*this);
         return ret;
     }
 
-    ProcessExecutionDetectorState() {
-        m_hadTrackedProcesses = false;
+    bool removePid(uint64_t pid) {
+        return m_trackedPids.erase(pid);
     }
 
     static PluginState *factory(Plugin *p, S2EExecutionState *s) {
@@ -74,6 +76,8 @@ void ProcessExecutionDetector::initialize() {
         m_trackedModules.insert(*it);
     }
 
+    m_trackKernel = cfg->getBool(getConfigKey() + ".trackKernel", false);
+
     m_monitor->onProcessLoad.connect(sigc::mem_fun(*this, &ProcessExecutionDetector::onProcessLoad));
 
     m_monitor->onProcessUnload.connect(sigc::mem_fun(*this, &ProcessExecutionDetector::onProcessUnload));
@@ -91,25 +95,33 @@ void ProcessExecutionDetector::onProcessLoad(S2EExecutionState *state, uint64_t 
 
         plgState->m_trackedPids.insert(pid);
         plgState->m_hadTrackedProcesses = true;
+        plgState->m_trackKernel = m_trackKernel;
+        onConfigChange.emit(state);
     }
 }
 
 void ProcessExecutionDetector::onProcessUnload(S2EExecutionState *state, uint64_t pageDir, uint64_t pid,
                                                uint64_t returnCode) {
     DECLARE_PLUGINSTATE(ProcessExecutionDetectorState, state);
-    if (plgState->m_trackedPids.erase(pid)) {
+    if (plgState->removePid(pid)) {
         getDebugStream(state) << "Unloading process " << hexval(pid) << "\n";
         if (plgState->m_hadTrackedProcesses && plgState->m_trackedPids.size() == 0) {
             onAllProcessesTerminated.emit(state);
         }
+        onConfigChange.emit(state);
     }
 }
 
-bool ProcessExecutionDetector::isTracked(S2EExecutionState *state) {
-    return isTrackedPc(state, state->regs()->getPc());
+bool ProcessExecutionDetector::isTrackingConfigured(S2EExecutionState *state) {
+    DECLARE_PLUGINSTATE(ProcessExecutionDetectorState, state);
+    return !plgState->m_trackedPids.empty();
 }
 
-bool ProcessExecutionDetector::isTracked(S2EExecutionState *state, uint64_t pid) {
+bool ProcessExecutionDetector::isTrackedPc(S2EExecutionState *state, uint64_t pc) {
+    return isTrackedPc(state, pc, false);
+}
+
+bool ProcessExecutionDetector::isTrackedPid(S2EExecutionState *state, uint64_t pid) {
     DECLARE_PLUGINSTATE(ProcessExecutionDetectorState, state);
 
     if (plgState->m_trackedPids.size() == 0) {
@@ -119,7 +131,7 @@ bool ProcessExecutionDetector::isTracked(S2EExecutionState *state, uint64_t pid)
     return plgState->m_trackedPids.count(pid) > 0;
 }
 
-bool ProcessExecutionDetector::isTracked(const std::string &module) const {
+bool ProcessExecutionDetector::isTrackedModule(const std::string &module) const {
     return m_trackedModules.find(module) != m_trackedModules.end();
 }
 
@@ -130,7 +142,7 @@ bool ProcessExecutionDetector::isTrackedPc(S2EExecutionState *state, uint64_t pc
         return false;
     }
 
-    if (m_monitor->isKernelAddress(pc)) {
+    if (!plgState->m_trackKernel && m_monitor->isKernelAddress(pc)) {
         return false;
     }
 
@@ -165,6 +177,35 @@ void ProcessExecutionDetector::onMonitorLoadCb(S2EExecutionState *state) {
 const TrackedPids &ProcessExecutionDetector::getTrackedPids(S2EExecutionState *state) const {
     DECLARE_PLUGINSTATE(ProcessExecutionDetectorState, state);
     return plgState->m_trackedPids;
+}
+
+void ProcessExecutionDetector::handleOpcodeInvocation(S2EExecutionState *state, uint64_t guestDataPtr,
+                                                      uint64_t guestDataSize) {
+    DECLARE_PLUGINSTATE(ProcessExecutionDetectorState, state);
+
+    S2E_PROCEXECDETECTOR_COMMAND command;
+
+    if (guestDataSize != sizeof(command)) {
+        getWarningsStream(state) << "mismatched S2E_PROCEXECDETECTOR_COMMAND size\n";
+        exit(-1);
+    }
+
+    if (!state->mem()->read(guestDataPtr, &command, guestDataSize)) {
+        getWarningsStream(state) << "could not read transmitted data\n";
+        exit(-1);
+    }
+
+    switch (command.Command) {
+        case PROCEXEC_ENABLE_PID:
+            plgState->m_trackedPids.insert(command.Pid);
+            break;
+
+        case PROCEXEC_DISABLE_PID:
+            plgState->m_trackedPids.erase(command.Pid);
+            break;
+    }
+
+    onConfigChange.emit(state);
 }
 
 } // namespace plugins

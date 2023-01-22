@@ -245,7 +245,7 @@ static void ComputeStartEndAddress(uint64_t address, uint64_t size, uint64_t &st
 }
 
 void MemoryMap::onLinuxMemoryMap(S2EExecutionState *state, uint64_t pid, uint64_t addr, uint64_t size, uint64_t prot) {
-    if (!m_proc->isTracked(state, pid)) {
+    if (!m_proc->isTrackedPid(state, pid)) {
         return;
     }
 
@@ -271,7 +271,7 @@ void MemoryMap::onLinuxMemoryMap(S2EExecutionState *state, uint64_t pid, uint64_
 }
 
 void MemoryMap::onLinuxMemoryUnmap(S2EExecutionState *state, uint64_t pid, uint64_t addr, uint64_t size) {
-    if (!m_proc->isTracked(state, pid)) {
+    if (!m_proc->isTrackedPid(state, pid)) {
         return;
     }
     uint64_t start, end;
@@ -282,7 +282,7 @@ void MemoryMap::onLinuxMemoryUnmap(S2EExecutionState *state, uint64_t pid, uint6
 }
 
 void MemoryMap::onDecreeUpdateMemoryMap(S2EExecutionState *state, uint64_t pid, const S2E_DECREEMON_VMA &vma) {
-    if (!m_proc->isTracked(state, pid)) {
+    if (!m_proc->isTrackedPid(state, pid)) {
         return;
     }
 
@@ -321,7 +321,7 @@ void MemoryMap::onNtAllocateVirtualMemory(S2EExecutionState *state, const S2E_WI
     uint64_t target_pid = m_windows->getPidFromHandle(state, pid, d.ProcessHandle);
     uint64_t real_pid = target_pid ? target_pid : pid;
 
-    if (!m_proc->isTracked(state, real_pid)) {
+    if (!m_proc->isTrackedPid(state, real_pid)) {
         return;
     }
 
@@ -354,7 +354,7 @@ void MemoryMap::onNtFreeVirtualMemory(S2EExecutionState *state, const S2E_WINMON
     uint64_t target_pid = m_windows->getPidFromHandle(state, pid, d.ProcessHandle);
     uint64_t real_pid = target_pid ? target_pid : pid;
 
-    if (!m_proc->isTracked(state, real_pid)) {
+    if (!m_proc->isTrackedPid(state, real_pid)) {
         return;
     }
 
@@ -378,7 +378,7 @@ void MemoryMap::onNtProtectVirtualMemory(S2EExecutionState *state, const S2E_WIN
     uint64_t target_pid = m_windows->getPidFromHandle(state, pid, d.ProcessHandle);
     uint64_t real_pid = target_pid ? target_pid : pid;
 
-    if (!m_proc->isTracked(state, real_pid)) {
+    if (!m_proc->isTrackedPid(state, real_pid)) {
         return;
     }
 
@@ -405,7 +405,7 @@ void MemoryMap::onNtMapViewOfSection(S2EExecutionState *state, const S2E_WINMON2
     uint64_t target_pid = m_windows->getPidFromHandle(state, pid, d.ProcessHandle);
     uint64_t real_pid = target_pid ? target_pid : pid;
 
-    if (!m_proc->isTracked(state, real_pid)) {
+    if (!m_proc->isTrackedPid(state, real_pid)) {
         return;
     }
 

@@ -75,6 +75,16 @@ public:
     ~ExecutionTracer();
     void initialize();
 
+    template <typename T>
+    uint32_t writeData(S2EExecutionState *state, s2e_trace::PbTraceItemHeader &header, const T &item, uint32_t type) {
+        std::string data;
+        if (!item.AppendToString(&data)) {
+            getWarningsStream(state) << "Could not serialize protobuf data\n";
+            exit(-1);
+        }
+        return writeData(state, header, data.c_str(), data.size(), type);
+    }
+
     template <typename T> uint32_t writeData(S2EExecutionState *state, const T &item, uint32_t type) {
         std::string data;
         if (!item.AppendToString(&data)) {
@@ -83,6 +93,9 @@ public:
         }
         return writeData(state, data.c_str(), data.size(), type);
     }
+
+    uint32_t writeData(S2EExecutionState *state, s2e_trace::PbTraceItemHeader &header, const void *data, unsigned size,
+                       uint32_t type /* s2e_trace::PbTraceItemHeaderType */);
 
     uint32_t writeData(S2EExecutionState *state, const void *data, unsigned size,
                        uint32_t type /* s2e_trace::PbTraceItemHeaderType */);

@@ -157,10 +157,9 @@ configuration in ``s2e-config.lua``:
         tracePageFaults = true,
         traceTlbMisses = true,
 
-        -- This list specifies the modules to trace.
-        -- If this list is empty, MemoryTracer will trace all processes specified in ProcessExecutionDetector.
-        -- Modules specified here must run in the context of the process(es) defined in ProcessExecutionDetector.
-        moduleNames = { "test" }
+        -- The filterPlugin parameter specifies which plugin to use to restrict memory tracing.
+        -- If the parameter is missing, the memory tracer will trace all accesses in the system.
+        filterPlugin = "ThreadExecutionDetector"
     }
 
 .. note::
@@ -234,7 +233,7 @@ A translation block is a sequence of guest instructions that ends in a control f
 
 .. code-block:: lua
 
-    add_plugin("MemoryTracer")
+    add_plugin("TranslationBlockTracer")
 
     pluginsConfig.TranslationBlockTracer = {
         -- In general, the CPU state at the beginning of a translation block is equal
@@ -243,7 +242,11 @@ A translation block is a sequence of guest instructions that ends in a control f
         -- may not be recorded.
         traceTbStart = true,
         traceTbEnd = false,
-        moduleNames = {"test"}
+
+        -- The filterPlugin parameter specifies which plugin to use to restrict translation block tracing.
+        -- If the parameter is missing, the translation block tracer will trace all translation
+        -- blocks in the system.
+        filterPlugin = "ThreadExecutionDetector"
     }
 
 Here is an example of a trace entry for translation blocks for 64-bit x86 code:
@@ -302,8 +305,8 @@ There are several fields specific to this type of trace entry:
 - ``last_pc``: the program counter of the last instruction in the translation block.
 
 
-InstructionTracer
-=================
+InstructionCounter
+==================
 
 This plugin counts how many instructions have been executed in the configured processes or modules and writes
 the count to the execution trace. The plugin keeps a per-path count and writes it when the path terminates.
@@ -312,10 +315,9 @@ the count to the execution trace. The plugin keeps a per-path count and writes i
 
     add_plugin("InstructionCounter")
     pluginsConfig.InstructionCounter = {
-        -- This list specifies the modules to trace.
-        -- If this list is empty, MemoryTracer will trace all processes specified in ProcessExecutionDetector.
-        -- Modules specified here must run in the context of the process(es) defined in ProcessExecutionDetector.
-        moduleNames = {"test"}
+        -- The filterPlugin parameter specifies which plugin to use to restrict instruction counting.
+        -- If the parameter is missing, the instruction counter will count all instructions in the system.
+        filterPlugin = "ThreadExecutionDetector"
     }
 
 
@@ -332,4 +334,65 @@ Here is a sample trace entry:
         "state_id": 0,
         "timestamp": 631227908821908,
         "type": "TRACE_ICOUNT"
+    }
+
+Filtering Plugins
+=================
+
+Execution tracers record by default every event in the system. This may be very expensive and result
+in enormous trace files that are hard to work with.
+
+Execution tracers allow specifying a filtering plugin to restrict the trace to code of interest.
+A filtering plugin may, e.g., limit the trace to a single process, thread, or even a small code section.
+
+The following section describes available filtering plugins.
+
+
+ProcessExecutionDetector
+------------------------
+
+This plugin filters tracing to a process of interest. The process can be either specified by name
+inside the lua configuration file or set at run time by guest code using an API from
+``process_execution_detector.h``.
+
+.. code-block:: lua
+
+    add_plugin("ProcessExecutionDetector")
+    pluginsConfig.ProcessExecutionDetector = {
+        moduleNames = {
+            "myprogram.exe",
+        },
+        trackKernel = false
+    }
+
+ThreadExecutionDetector
+-----------------------
+
+This plugins filters tracing to one or more thread of interest. The plugin is configured from the guest
+using APIs in ``thread_execution_detector.h``. The plugin supports filtering of kernel code as well.
+
+
+.. code-block:: lua
+
+    add_plugin("ThreadExecutionDetector")
+    pluginsConfig.ThreadExecutionDetector = {
+
+    }
+
+
+ModuleExecutionDetector
+-----------------------
+
+This plugin filters tracing to specific binary names. It can be configured in the lua file.
+This plugin does not take into account threads or processes. For example, when using this filter
+to trace memory accesses in a shared library, accesses will be traced in every process where that
+library is loaded.
+
+.. code-block:: lua
+
+    add_plugin("ModuleExecutionDetector")
+    pluginsConfig.ModuleExecutionDetector = {
+        mod_0 = {
+            moduleName = "myprogram.exe",
+        },
     }

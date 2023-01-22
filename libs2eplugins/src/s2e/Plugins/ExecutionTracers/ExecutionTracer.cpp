@@ -151,6 +151,13 @@ uint32_t ExecutionTracer::writeData(S2EExecutionState *state, const void *data, 
         header.set_tid(0);
     }
 
+    return writeData(state, header, data, size, type);
+}
+
+uint32_t ExecutionTracer::writeData(S2EExecutionState *state, s2e_trace::PbTraceItemHeader &header, const void *data,
+                                    unsigned size, uint32_t type /* s2e_trace::PbTraceItemHeaderType */) {
+    assert(m_logFile);
+
     // We must take the guid instead of the id, because duplicate ids
     // across multiple traces will confuse the execution trace reader.
     header.set_state_id(state->getGuid());

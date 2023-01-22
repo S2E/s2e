@@ -323,7 +323,7 @@ void StackMonitor::update(S2EExecutionState *state, uint64_t sp, uint64_t pc, bo
 }
 
 void StackMonitor::onThreadExit(S2EExecutionState *state, const ThreadDescriptor &thread) {
-    if (!m_processDetector->isTracked(state, thread.Pid)) {
+    if (!m_processDetector->isTrackedPid(state, thread.Pid)) {
         return;
     }
 
@@ -332,7 +332,7 @@ void StackMonitor::onThreadExit(S2EExecutionState *state, const ThreadDescriptor
 }
 
 void StackMonitor::onProcessUnload(S2EExecutionState *state, uint64_t pageDir, uint64_t pid, uint64_t returnCode) {
-    if (!m_processDetector->isTracked(state, pid)) {
+    if (!m_processDetector->isTrackedPid(state, pid)) {
         return;
     }
 
