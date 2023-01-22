@@ -37,8 +37,8 @@
  *      @(#)queue.h     8.5 (Berkeley) 8/20/94
  */
 
-#ifndef QEMU_SYS_QUEUE_H
-#define QEMU_SYS_QUEUE_H
+#ifndef LIBQ_SYS_QUEUE_H
+#define LIBQ_SYS_QUEUE_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -485,4 +485,4 @@ typedef struct QTailQLink {
 }
 #endif
 
-#endif /* QEMU_SYS_QUEUE_H */
+#endif /* LIBQ_SYS_QUEUE_H */

@@ -28,7 +28,7 @@
 #include <cpu/exec.h>
 
 #include <timer.h>
-#include <qdict.h>
+#include <qapi/qmp/qdict.h>
 
 #define s2e_gen_pc_update instr_gen_pc_update
 #define s2e_gen_flags_update instr_gen_flags_update

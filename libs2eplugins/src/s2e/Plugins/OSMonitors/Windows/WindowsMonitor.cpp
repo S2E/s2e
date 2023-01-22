@@ -1306,15 +1306,15 @@ QDict *WindowsMonitor::getTrapInformation(S2EExecutionState *state, uint64_t tra
             return info;
         }
 
-        qdict_put_obj(info, "eip", QOBJECT(qint_from_int(TrapFrame.Eip)));
-        qdict_put_obj(info, "eax", QOBJECT(qint_from_int(TrapFrame.Eax)));
-        qdict_put_obj(info, "ebx", QOBJECT(qint_from_int(TrapFrame.Ebx)));
-        qdict_put_obj(info, "ecx", QOBJECT(qint_from_int(TrapFrame.Ecx)));
-        qdict_put_obj(info, "edx", QOBJECT(qint_from_int(TrapFrame.Edx)));
-        qdict_put_obj(info, "edi", QOBJECT(qint_from_int(TrapFrame.Edi)));
-        qdict_put_obj(info, "esi", QOBJECT(qint_from_int(TrapFrame.Esi)));
-        qdict_put_obj(info, "ebp", QOBJECT(qint_from_int(TrapFrame.Ebp)));
-        qdict_put_obj(info, "esp", QOBJECT(qint_from_int(TrapFrame.HardwareEsp)));
+        qdict_put_obj(info, "eip", QOBJECT(qnum_from_int(TrapFrame.Eip)));
+        qdict_put_obj(info, "eax", QOBJECT(qnum_from_int(TrapFrame.Eax)));
+        qdict_put_obj(info, "ebx", QOBJECT(qnum_from_int(TrapFrame.Ebx)));
+        qdict_put_obj(info, "ecx", QOBJECT(qnum_from_int(TrapFrame.Ecx)));
+        qdict_put_obj(info, "edx", QOBJECT(qnum_from_int(TrapFrame.Edx)));
+        qdict_put_obj(info, "edi", QOBJECT(qnum_from_int(TrapFrame.Edi)));
+        qdict_put_obj(info, "esi", QOBJECT(qnum_from_int(TrapFrame.Esi)));
+        qdict_put_obj(info, "ebp", QOBJECT(qnum_from_int(TrapFrame.Ebp)));
+        qdict_put_obj(info, "esp", QOBJECT(qnum_from_int(TrapFrame.HardwareEsp)));
 
         *pc = TrapFrame.Eip;
         *sp = TrapFrame.HardwareEsp;
@@ -1325,15 +1325,15 @@ QDict *WindowsMonitor::getTrapInformation(S2EExecutionState *state, uint64_t tra
             return info;
         }
 
-        qdict_put_obj(info, "rip", QOBJECT(qint_from_int(TrapFrame.Rip)));
-        qdict_put_obj(info, "rax", QOBJECT(qint_from_int(TrapFrame.Rax)));
-        qdict_put_obj(info, "rbx", QOBJECT(qint_from_int(TrapFrame.Rbx)));
-        qdict_put_obj(info, "rcx", QOBJECT(qint_from_int(TrapFrame.Rcx)));
-        qdict_put_obj(info, "rdx", QOBJECT(qint_from_int(TrapFrame.Rdx)));
-        qdict_put_obj(info, "rdi", QOBJECT(qint_from_int(TrapFrame.Rdi)));
-        qdict_put_obj(info, "rsi", QOBJECT(qint_from_int(TrapFrame.Rsi)));
-        qdict_put_obj(info, "rbp", QOBJECT(qint_from_int(TrapFrame.Rbp)));
-        qdict_put_obj(info, "rsp", QOBJECT(qint_from_int(TrapFrame.Rsp)));
+        qdict_put_obj(info, "rip", QOBJECT(qnum_from_int(TrapFrame.Rip)));
+        qdict_put_obj(info, "rax", QOBJECT(qnum_from_int(TrapFrame.Rax)));
+        qdict_put_obj(info, "rbx", QOBJECT(qnum_from_int(TrapFrame.Rbx)));
+        qdict_put_obj(info, "rcx", QOBJECT(qnum_from_int(TrapFrame.Rcx)));
+        qdict_put_obj(info, "rdx", QOBJECT(qnum_from_int(TrapFrame.Rdx)));
+        qdict_put_obj(info, "rdi", QOBJECT(qnum_from_int(TrapFrame.Rdi)));
+        qdict_put_obj(info, "rsi", QOBJECT(qnum_from_int(TrapFrame.Rsi)));
+        qdict_put_obj(info, "rbp", QOBJECT(qnum_from_int(TrapFrame.Rbp)));
+        qdict_put_obj(info, "rsp", QOBJECT(qnum_from_int(TrapFrame.Rsp)));
 
         *pc = TrapFrame.Rip;
         *sp = TrapFrame.Rsp;
