@@ -812,7 +812,9 @@ void BaseInstructions::handleBuiltInOps(S2EExecutionState *state, uint64_t opcod
             invokePlugin(state);
             break;
         }
-
+        case BASE_S2E_RESET_CONSTRAINTS: { /* s2e_reset_constraints */
+            state->resetConstraints();
+        }
         case BASE_S2E_ASSUME: { /* s2e_assume */
             assume(state);
             break;

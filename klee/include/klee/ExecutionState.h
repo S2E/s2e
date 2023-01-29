@@ -123,6 +123,10 @@ public:
         return m_constraints;
     }
 
+    void resetConstraints() {
+        m_constraints = ConstraintManager();
+    }
+
     ///
     /// \brief Add a constraints to the state
     ///

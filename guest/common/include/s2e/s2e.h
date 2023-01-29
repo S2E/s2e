@@ -441,6 +441,16 @@ static inline void s2e_end_atomic(void) {
 }
 
 ///
+/// \brief Reset all constraints
+///
+static inline void s2e_reset_constraints(void)
+{
+    __asm__ __volatile__(
+        S2E_INSTRUCTION_SIMPLE(BASE_S2E_RESET_CONSTRAINTS)
+    );
+}
+
+///
 /// \brief Adds a constraint to the current state
 ///
 /// The constraint must be satisfiable.
