@@ -20,7 +20,7 @@ namespace plugins {
 typedef std::pair<uint32_t /* pc */, uint32_t /* reg num */> UniquePcRegMap;
 typedef std::vector<uint32_t> ConRegs;
 typedef std::deque<ConRegs> CacheConregs;
-typedef std::map<uint32_t, uint32_t> TBCounts;
+typedef llvm::DenseMap<uint32_t, uint32_t> TBCounts;
 enum InvalidStatesType { DL1, DL2, LL1, LL2, UKP, IM };
 
 class InvalidStatesDetection : public Plugin {
@@ -39,42 +39,32 @@ public:
     sigc::signal<void, S2EExecutionState *, uint32_t /* PC */, InvalidStatesType /* invalid state type */, uint64_t /* unique tb num */>
         onInvalidStatesEvent;
 
-    sigc::signal<void, S2EExecutionState *, bool * /* succuess or not */, uint64_t /* unique tb num */>
-        onLearningTerminationEvent;
+    sigc::signal<void, S2EExecutionState *, uint32_t /* PC */, uint64_t /* tb num */>
+        onReceiveExternalDataEvent;
 
 private:
     sigc::connection invalidPCAccessConnection;
     sigc::connection blockStartConnection;
     uint32_t cache_tb_num;
-    uint64_t initial_terminate_tb_num;
-    uint64_t terminate_tb_num;
     uint64_t max_loop_tb_num;
     uint32_t disable_interrupt_count;
-    uint32_t tb_interval;
     std::vector<uint32_t> kill_points;
-    std::map<uint32_t, uint32_t> single_dead_loop;
     std::vector<uint32_t> alive_points;
-    bool cache_mode;
-    bool init_cache_mode;
+    TBCounts all_tb_map;
     bool alive_point_flag;
     bool kill_point_flag;
+    std::map<uint32_t/*pc*/, uint32_t/*count*/> kill_count_map;
+    uint32_t last_loop_pc;
 
     void onTranslateBlockStart(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb, uint64_t pc);
-
     void onTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb, uint64_t pc,
                              bool staticTarget, uint64_t staticTargetPc);
-
     void onInvalidPCAccess(S2EExecutionState *state, uint64_t addr);
-
     void onInvalidLoopDetection(S2EExecutionState *state, uint64_t pc, unsigned source_type);
-
     void onKillandAlivePoints(S2EExecutionState *state, uint64_t pc);
-
-    void onCacheModeMonitor(S2EExecutionState *state, uint64_t pc);
-
     void onInvalidStatesKill(S2EExecutionState *state, uint64_t pc, InvalidStatesType type, std::string reason_str);
 
-    bool onModeSwitchandTermination(S2EExecutionState *state, uint64_t pc);
+
 };
 
 } // namespace plugins

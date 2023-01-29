@@ -28,6 +28,7 @@
 
 #include <s2e/CorePlugin.h>
 #include <s2e/Plugin.h>
+#include <s2e/ConfigFile.h>
 #include <s2e/S2EExecutionState.h>
 #include <s2e/SymbolicHardwareHook.h>
 
@@ -43,6 +44,8 @@ typedef std::pair<uint64_t, uint64_t> SymbolicMmioRange;
 
 typedef llvm::SmallVector<SymbolicPortRange, 4> SymbolicPortRanges;
 typedef llvm::SmallVector<SymbolicMmioRange, 4> SymbolicMmioRanges;
+typedef std::pair<uint32_t, uint32_t> ARMMmioRange;
+typedef llvm::SmallVector<ARMMmioRange, 8> PeripheralMmioRanges;
 
 class SymbolicHardware : public Plugin {
     S2E_PLUGIN
@@ -51,22 +54,31 @@ private:
     // TODO: make this per-state and per-device
     SymbolicPortRanges m_ports;
     SymbolicMmioRanges m_mmio;
+    bool bitbandFlag;
 
     template <typename T> bool parseRangeList(ConfigFile *cfg, const std::string &key, T &result);
 
-    bool parseConfig();
+    bool ARMMMIORangeConfig();
+    bool configSymbolicMmioRange();
 
     template <typename T, typename U> inline bool isSymbolic(T ports, U port);
 
 public:
     ///
-    /// \brief onSymbolicRegisterRead control whether
+    /// \brief onSymbolicRegisterRead read value from peripheral model and control whether
     /// a symbolic value should be created upon a read from a symbolic
     /// hardware region.
     ///
-    sigc::signal<void, S2EExecutionState *, SymbolicHardwareAccessType /* type */, uint64_t /* physicalAddress */,
-                 unsigned /* size */, bool * /* createSymbolicValue */>
-        onSymbolicRegisterRead;
+    sigc::signal<void, S2EExecutionState *, SymbolicHardwareAccessType /* type */, uint32_t /* physicalAddress */,
+                 unsigned /* size */, uint32_t * /* value from peripheral model */, bool * /* createSymbolicValue */,
+                 std::stringstream * /* additional sym var string */>
+        onSymbolicRegisterReadEvent;
+    ///
+    /// \brief onSymbolicRegisterWrite write concrete value to peripheral model.
+    ///
+    sigc::signal<void, S2EExecutionState *, SymbolicHardwareAccessType /* type */, uint32_t /* physicalAddress */,
+                 uint32_t  /* writeconcretevalue */>
+        onSymbolicRegisterWriteEvent;
 
     SymbolicHardware(S2E *s2e) : Plugin(s2e) {
     }
@@ -76,8 +88,9 @@ public:
     bool isPortSymbolic(uint16_t port);
     bool isMmioSymbolic(uint64_t physAddr);
 
-    klee::ref<klee::Expr> createExpression(S2EExecutionState *state, SymbolicHardwareAccessType type, uint64_t address,
+    klee::ref<klee::Expr> onReadPeripheral(S2EExecutionState *state, SymbolicHardwareAccessType type, uint64_t address,
                                            unsigned size, uint64_t concreteValue);
+    void onWritePeripheral(S2EExecutionState *state, uint64_t phaddr, const klee::ref<klee::Expr> &value);
 };
 
 } // namespace hw

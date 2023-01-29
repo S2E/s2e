@@ -12,11 +12,10 @@
 #include <s2e/Plugin.h>
 #include <s2e/S2EExecutionState.h>
 #include <s2e/SymbolicHardwareHook.h>
+#include <s2e/Plugins/SEmu/NLPPeripheralModel.h>
 
 namespace s2e {
 namespace plugins {
-typedef std::map<uint32_t, uint32_t> TBCounts;
-
 class ExternalInterrupt : public Plugin {
     S2E_PLUGIN
 public:
@@ -25,18 +24,18 @@ public:
     void initialize();
 
 private:
-    uint32_t tb_interval;
-    uint32_t tb_scale;
+    NLPPeripheralModel *onNLPPeripheralModelConnection;
+    /*uint32_t tb_interval;*/
+    /*uint32_t tb_scale;*/
     bool systick_disable_flag; // used for state 0
     std::vector<uint32_t> disable_irqs;
     uint64_t systick_begin_point;
-    TBCounts all_tb_map;
-    uint64_t unique_tb_num; // new tb number
 
-    void onuEmuShutdown();
-    void recordTBMap();
     void onTranslateBlockStart(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb, uint64_t pc);
     void onBlockStart(S2EExecutionState *state, uint64_t pc);
+    void onExternelInterruptTrigger(S2EExecutionState *state, uint32_t irq_no, bool* irq_triggered);
+    void onDMARequest(S2EExecutionState *state, uint32_t irq_no, std::queue<uint8_t> data, bool* irq_triggered);
+    void onGetISERIRQ(S2EExecutionState *state, std::vector<uint32_t> *irq_no);
 };
 
 } // namespace plugins

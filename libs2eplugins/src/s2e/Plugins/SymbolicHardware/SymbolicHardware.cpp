@@ -55,9 +55,16 @@ static void symbhw_symbwrite(struct MemoryDesc *mr, uint64_t physaddress, const 
 S2E_DEFINE_PLUGIN(SymbolicHardware, "SymbolicHardware S2E plugin", "", );
 
 void SymbolicHardware::initialize() {
-    if (!parseConfig()) {
+    if (!ARMMMIORangeConfig()) {
         getWarningsStream() << "Could not parse config\n";
         exit(-1);
+    }
+
+    bitbandFlag = false;
+    std::string cpuArchName = s2e()->getConfig()->getString(getConfigKey() + ".CPUArchName", "ARMv7m");
+    if (cpuArchName == "ARMv7m") {
+        bitbandFlag = true;
+        getInfoStream() << "bit-banding feature only support for ARMv7m CPU!\n";
     }
 
     g_symbolicPortHook = SymbolicPortHook(symbhw_is_symbolic, symbhw_symbportread, symbhw_symbportwrite, this);
@@ -119,36 +126,49 @@ template <typename T> bool SymbolicHardware::parseRangeList(ConfigFile *cfg, con
 ///
 /// \return true if parsing was successful
 ///
-bool SymbolicHardware::parseConfig(void) {
-    ConfigFile *cfg = s2e()->getConfig();
-    auto keys = cfg->getListKeys(getConfigKey());
-    for (auto key : keys) {
-        std::stringstream ss;
-        ss << getConfigKey() << "." << key;
-        SymbolicPortRanges ports;
-        if (!parseRangeList(cfg, ss.str() + ".ports", ports)) {
-            return false;
-        }
+bool SymbolicHardware::ARMMMIORangeConfig(void) {
+    SymbolicMmioRange m;
 
-        for (auto port : ports) {
-            getDebugStream() << "Adding symbolic port range " << hexval(port.first) << " - " << hexval(port.second)
-                             << "\n";
-            m_ports.push_back(port);
-        }
+    // ARM MMIO range 0x40000000-0x60000000
+    m.first = 0x40000000;
+    m.second = 0x5fffffff;
 
-        SymbolicMmioRanges mmio;
-        if (!parseRangeList(cfg, ss.str() + ".mmio", mmio)) {
-            return false;
-        }
-
-        for (auto m : mmio) {
-            getDebugStream() << "Adding symbolic mmio range " << hexval(m.first) << " - " << hexval(m.second) << "\n";
-            m_mmio.push_back(m);
-        }
-    }
+    getDebugStream() << "Adding symbolic mmio range: " << hexval(m.first) << " - " << hexval(m.second) << "\n";
+    m_mmio.push_back(m);
 
     return true;
 }
+
+/*bool SymbolicHardware::parseConfig(void) {*/
+    //ConfigFile *cfg = s2e()->getConfig();
+    //auto keys = cfg->getListKeys(getConfigKey());
+    //for (auto key : keys) {
+        //std::stringstream ss;
+        //ss << getConfigKey() << "." << key;
+        //SymbolicPortRanges ports;
+        //if (!parseRangeList(cfg, ss.str() + ".ports", ports)) {
+            //return false;
+        //}
+
+        //for (auto port : ports) {
+            //getDebugStream() << "Adding symbolic port range " << hexval(port.first) << " - " << hexval(port.second)
+                             //<< "\n";
+            //m_ports.push_back(port);
+        //}
+
+        //SymbolicMmioRanges mmio;
+        //if (!parseRangeList(cfg, ss.str() + ".mmio", mmio)) {
+            //return false;
+        //}
+
+        //for (auto m : mmio) {
+            //getDebugStream() << "Adding symbolic mmio range " << hexval(m.first) << " - " << hexval(m.second) << "\n";
+            //m_mmio.push_back(m);
+        //}
+    //}
+
+    //return true;
+/*}*/
 
 template <typename T, typename U> inline bool SymbolicHardware::isSymbolic(T ports, U port) {
     for (auto &p : ports) {
@@ -182,10 +202,15 @@ static void SymbHwGetConcolicVector(uint64_t in, unsigned size, ConcreteArray &o
     }
 }
 
-klee::ref<klee::Expr> SymbolicHardware::createExpression(S2EExecutionState *state, SymbolicHardwareAccessType type,
+klee::ref<klee::Expr> SymbolicHardware::onReadPeripheral(S2EExecutionState *state, SymbolicHardwareAccessType type,
                                                          uint64_t address, unsigned size, uint64_t concreteValue) {
-    bool createVariable = true;
-    onSymbolicRegisterRead.emit(state, type, address, size, &createVariable);
+
+    // peripheral address bit-band alias
+    if (address >= 0x42000000 && address <= 0x43fffffc && bitbandFlag) {
+        uint32_t phaddr = (address - 0x42000000) / 32 + 0x40000000;
+        getDebugStream() << "bit band alias address = " << hexval(address) << " alias address = " << hexval(phaddr) << "\n";
+        address = phaddr;
+    }
 
     std::stringstream ss;
     switch (type) {
@@ -202,15 +227,20 @@ klee::ref<klee::Expr> SymbolicHardware::createExpression(S2EExecutionState *stat
 
     ss << hexval(address) << "@" << hexval(state->regs()->getPc());
 
-    getDebugStream(g_s2e_state) << ss.str() << " size " << hexval(size) << " value=" << hexval(concreteValue)
-                                << " sym=" << (createVariable ? "yes" : "no") << "\n";
+    bool createSymVar = false;
+    uint32_t hwModelValue = concreteValue;
+    onSymbolicRegisterReadEvent.emit(state, type, address, size, &hwModelValue, &createSymVar, &ss);
 
-    if (createVariable) {
+    getDebugStream(g_s2e_state) << ss.str() << " size " << hexval(size) << " value =" << hexval(concreteValue)
+                                << " sym =" << (createSymVar ? "yes" : "no") << "\n";
+
+    uint64_t LSB = ((uint64_t) 1 << (size * 8));
+    if (createSymVar) {
         ConcreteArray concolicValue;
-        SymbHwGetConcolicVector(concreteValue, size, concolicValue);
+        SymbHwGetConcolicVector((hwModelValue & (LSB - 1)), size, concolicValue);
         return state->createSymbolicValue(ss.str(), size * 8, concolicValue);
     } else {
-        return klee::ExtractExpr::create(klee::ConstantExpr::create(concreteValue, 64), 0, size * 8);
+        return klee::ConstantExpr::create((hwModelValue & (LSB - 1)), size * 8);
     }
 }
 
@@ -228,7 +258,7 @@ static klee::ref<klee::Expr> symbhw_symbportread(uint16_t port, unsigned size, u
         hw->getDebugStream(g_s2e_state) << "reading from port " << hexval(port) << " value: " << concreteValue << "\n";
     }
 
-    return hw->createExpression(g_s2e_state, SYMB_PORT, port, size, concreteValue);
+    return hw->onReadPeripheral(g_s2e_state, SYMB_PORT, port, size, concreteValue);
 }
 
 static bool symbhw_symbportwrite(uint16_t port, const klee::ref<klee::Expr> &value, void *opaque) {
@@ -259,7 +289,7 @@ static klee::ref<klee::Expr> symbhw_symbread(struct MemoryDesc *mr, uint64_t phy
 
     unsigned size = value->getWidth() / 8;
     uint64_t concreteValue = g_s2e_state->toConstantSilent(value)->getZExtValue();
-    return hw->createExpression(g_s2e_state, SYMB_MMIO, physaddress, size, concreteValue);
+    return hw->onReadPeripheral(g_s2e_state, SYMB_MMIO, physaddress, size, concreteValue);
 }
 
 static void symbhw_symbwrite(struct MemoryDesc *mr, uint64_t physaddress, const klee::ref<klee::Expr> &value,
@@ -269,8 +299,53 @@ static void symbhw_symbwrite(struct MemoryDesc *mr, uint64_t physaddress, const 
     if (DebugSymbHw) {
         hw->getDebugStream(g_s2e_state) << "writing mmio " << hexval(physaddress) << " value: " << value << "\n";
     }
+    hw->onWritePeripheral(g_s2e_state, physaddress, value);
+}
 
-    // TODO: return bool to not call original handler, like for I/O
+void SymbolicHardware::onWritePeripheral(S2EExecutionState *state, uint64_t phaddr,
+                                                const klee::ref<klee::Expr> &value) {
+    // peripheral address bit-band alias
+    uint32_t curMMIOvalue = 0;
+    uint32_t bit_loc = 0;
+    bool bit_alias = false;
+    if (phaddr >= 0x42000000 && phaddr <= 0x43fffffc && bitbandFlag) {
+        bit_loc = ((phaddr - 0x42000000) % 32) / 4;
+        phaddr = (phaddr - 0x42000000) / 32 + 0x40000000;
+        bool createSymFlag = false;
+        std::stringstream ss;
+        onSymbolicRegisterReadEvent.emit(state, SYMB_MMIO, phaddr, 0x4, &curMMIOvalue, &createSymFlag, &ss);
+        getDebugStream() << "write bit band alias address = " << hexval(phaddr)
+                         << " bit loc = " << hexval(bit_loc) << " cur value =" << hexval(curMMIOvalue) <<"\n";
+        bit_alias = true;
+    }
+
+    uint32_t writeConcreteValue;
+    if (isa<klee::ConstantExpr>(value)) {
+        klee::ref<klee::ConstantExpr> ce = dyn_cast<klee::ConstantExpr>(value);
+        writeConcreteValue = ce->getZExtValue();
+        if (bit_alias) {
+            if (writeConcreteValue) {
+                curMMIOvalue |= (uint32_t)(1<< bit_loc);
+            } else {
+                curMMIOvalue &= (uint32_t)(~(1<< bit_loc));
+            }
+            writeConcreteValue = curMMIOvalue;
+        }
+        getInfoStream() << "writing mmio " << hexval(phaddr) << " concrete value: " << hexval(writeConcreteValue) << "\n";
+        onSymbolicRegisterWriteEvent.emit(g_s2e_state, SYMB_MMIO, phaddr, writeConcreteValue);
+    } else {
+        if (bit_alias) {
+            getWarningsStream() << " bit band does not support symbolic value\n";
+            exit(-1);
+        }
+        // evaluate symbolic regs
+        klee::ref<klee::ConstantExpr> ce;
+        ce = dyn_cast<klee::ConstantExpr>(g_s2e_state->concolics->evaluate(value));
+        writeConcreteValue = ce->getZExtValue();
+        getInfoStream() << "writing mmio " << hexval(phaddr) << " symbolic to concrete value: " << hexval(writeConcreteValue) << "\n";
+        onSymbolicRegisterWriteEvent.emit(g_s2e_state, SYMB_MMIO, phaddr, writeConcreteValue);
+    }
+
 }
 
 } // namespace hw

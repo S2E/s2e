@@ -157,11 +157,11 @@ add_library(
     s2e/Plugins/Core/HostFiles.cpp
     s2e/Plugins/Core/Vmi.cpp
 
-    # uEmu specific plugins
-    s2e/Plugins/uEmu/PeripheralModelLearning.cpp
-    s2e/Plugins/uEmu/ExternalInterrupt.cpp
-    s2e/Plugins/uEmu/ARMFunctionMonitor.cpp
-    s2e/Plugins/uEmu/InvalidStatesDetection.cpp
+    # SEmu specific plugins
+    s2e/Plugins/SEmu/FailureAnalysis.cpp
+    s2e/Plugins/SEmu/ExternalInterrupt.cpp
+    s2e/Plugins/SEmu/InvalidStatesDetection.cpp
+    s2e/Plugins/SEmu/NLPPeripheralModel.cpp
 
     # Support plugins
     s2e/Plugins/Support/KeyValueStore.cpp
@@ -204,6 +204,9 @@ add_library(
     s2e/Plugins/ExecutionTracers/StateSwitchTracer.cpp
     s2e/Plugins/ExecutionTracers/TBCoverageTracer.cpp
 
+    # Symbolic hardware
+    s2e/Plugins/SymbolicHardware/SymbolicHardware.cpp
+
     # Searchers
     s2e/Plugins/Searchers/MultiSearcher.cpp
     s2e/Plugins/Searchers/CooperativeSearcher.cpp
@@ -242,9 +245,6 @@ add_library(
     s2e/Plugins/ExecutionMonitors/StackMonitor.cpp
     s2e/Plugins/ExecutionMonitors/StackClustering.cpp
     s2e/Plugins/ExecutionMonitors/LibraryCallMonitor.cpp
-
-    # Fuzzer
-    s2e/Plugins/Fuzzer/AFLFuzzer.cpp
 
     ${PROTO_SRCS} ${PROTO_HDRS}
 

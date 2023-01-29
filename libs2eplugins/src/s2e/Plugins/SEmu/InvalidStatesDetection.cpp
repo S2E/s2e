@@ -43,8 +43,8 @@ private:
     uint64_t tb_num;     // all tb number in per state
     bool enable_kill;    // indicate all external irqs have been invoked at once;
     TBCounts new_tb_map;
-    uint32_t current_irq_num;
-
+    std::vector<uint32_t> traceirq_tb;
+    std::vector<uint32_t> trace_tb;
 public:
     virtual InvalidStatesDetectionState *clone() const {
         return new InvalidStatesDetectionState(*this);
@@ -174,6 +174,10 @@ public:
         }
     }
 
+    TBCounts get_tb_map() {
+        return new_tb_map;
+    }
+
     uint64_t getnewtbnum() {
         return new_tb_num;
     }
@@ -215,33 +219,35 @@ public:
         return cacheconregs.at(cachePos).size();
     }
 
-    void insert_current_irq_num(uint32_t irq_num) {
-        current_irq_num = irq_num;
+    void insert_trace_pc(uint32_t pc) {
+        trace_tb.push_back(pc);
+    }
+
+    std::vector<uint32_t> get_all_trace() {
+        return trace_tb;
+    }
+
+    void insert_traceirq_pc(uint32_t pc) {
+        traceirq_tb.push_back(pc);
+    }
+
+    std::vector<uint32_t> get_all_traceirq() {
+        return traceirq_tb;
     }
 };
 }
 
 void InvalidStatesDetection::initialize() {
-
-    s2e()->getCorePlugin()->onTranslateBlockEnd.connect(
-        sigc::mem_fun(*this, &InvalidStatesDetection::onTranslateBlockEnd));
-
-    cache_mode = s2e()->getConfig()->getBool(getConfigKey() + ".usePeripheralCache", false);
-    init_cache_mode = cache_mode;
     bool ok;
     disable_interrupt_count = 0;
     cache_tb_num = s2e()->getConfig()->getInt(getConfigKey() + ".bb_inv1", 20, &ok);
     max_loop_tb_num = s2e()->getConfig()->getInt(getConfigKey() + ".bb_inv2", 2000, &ok);
-    terminate_tb_num = s2e()->getConfig()->getInt(getConfigKey() + ".bb_terminate", 30000, &ok);
-    initial_terminate_tb_num = terminate_tb_num;
-    tb_interval = s2e()->getConfig()->getInt(getConfigKey() + ".tbInterval", 3000, &ok);
 
-    if (!ok || cache_tb_num <= 0 || terminate_tb_num <= 0) {
+    if (!ok || cache_tb_num <= 0) {
         getWarningsStream() << "Could not set correct cache and max repeat tb number, \n";
         return;
     }
-    getDebugStream() << "cache tb num: " << cache_tb_num << " terminate_tb_num: " << terminate_tb_num
-                     << " max_loop_tb_num: " << max_loop_tb_num << "\n";
+    getDebugStream() << "cache tb num: " << cache_tb_num << " max_loop_tb_num: " << max_loop_tb_num << "\n";
 
     kill_point_flag = false;
     alive_point_flag = false;
@@ -258,17 +264,73 @@ void InvalidStatesDetection::initialize() {
         alive_points.push_back(*it);
     }
 
-    if (cache_mode) {
-        getWarningsStream() << "Invalid States Detection is unabled in cache mode\n";
-        return;
-    }
-
+    s2e()->getCorePlugin()->onTranslateBlockEnd.connect(
+        sigc::mem_fun(*this, &InvalidStatesDetection::onTranslateBlockEnd));
     // use for user-defined invlid pc and alive pc
     blockStartConnection = s2e()->getCorePlugin()->onTranslateBlockStart.connect(
         sigc::mem_fun(*this, &InvalidStatesDetection::onTranslateBlockStart));
     // use for invaild pc
     invalidPCAccessConnection = s2e()->getCorePlugin()->onInvalidPCAccess.connect(
         sigc::mem_fun(*this, &InvalidStatesDetection::onInvalidPCAccess));
+    //start_flag = false;
+    ///////K64/////
+    //uart
+    /*start_flag1 = 0x764;*/
+    //start_flag2 = 0xa6c;
+    //end_flag1 = 0xb14;
+    /*terminate_flag = 0x1164;*/
+    //i2c
+    /*start_flag1 = 0x764;*/
+    //start_flag2 = 0xa58;
+    //end_flag1 = 0xb18;
+    /*terminate_flag = 0x1120;*/
+    //SPI
+    /*start_flag1 = 0x764;*/
+    //start_flag2 = 0xa58;
+    //end_flag1 = 0xb00;
+    /*terminate_flag = 0x10f0;*/
+    //ADC
+    /*start_flag1 = 0x764;*/
+    //start_flag2 = 0xa58;
+    //end_flag1 = 0xb00;
+    /*terminate_flag = 0x10b6;*/
+    //GPIOINT
+    /*start_flag1 = 0x764;*/
+    //start_flag2 = 0xa60;
+    //end_flag1 = 0xad8;
+    /*terminate_flag = 0x12b0;*/
+    //Timer
+    /*start_flag1 = 0x764;*/
+    //start_flag2 = 0xa58;
+    //end_flag1 = 0xad0;
+    /*terminate_flag = 0x10a4;*/
+    //STM32F103
+    //uart
+    /*start_flag1 = 0x8000440;*/
+    //start_flag2 = 0x8000840;
+    //end_flag1 = 0x80008e8;
+    /*terminate_flag = 0x8000d60;*/
+    //i2c
+    /*start_flag1 = 0x8000440;*/
+    //start_flag2 = 0x8000828;
+    //end_flag1 = 0x80008d0;
+    /*terminate_flag = 0x8000d72;*/
+    //SPI
+    /*start_flag1 = 0x8000440;*/
+    //start_flag2 = 0x8000828;
+    //end_flag1 = 0x80008d0;
+    /*terminate_flag = 0x8000d50;*/
+    //GPIOINT
+    /*start_flag1 = 0x8000440;*/
+    //start_flag2 = 0x8000828;
+    //end_flag1 = 0x80008a0;
+    /*terminate_flag = 0x8000e1c;*/
+    //Timer
+    /*start_flag1 = 0x8000440;*/
+    //start_flag2 = 0x8000828;
+    //end_flag1 = 0x80008a0;
+    /*terminate_flag = 0x8000cbc;*/
+
 }
 
 void InvalidStatesDetection::onTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionState *state,
@@ -319,96 +381,58 @@ static std::vector<uint32_t> getRegs(S2EExecutionState *state, uint32_t pc) {
     return conregs;
 }
 
-void InvalidStatesDetection::onCacheModeMonitor(S2EExecutionState *state, uint64_t pc) {
-    DECLARE_PLUGINSTATE(InvalidStatesDetectionState, state);
-
-    getDebugStream() << "InvalidStatesDetection in cache mode " << plgState->getnewtbnum() << " pc = " << hexval(pc)
-                     << " disable_interrupt_count = " << disable_interrupt_count
-                     << " interrupt flag = " << state->regs()->getInterruptFlag() << "\n";
-
-    if (plgState->inctbnum(pc)) {
-        getInfoStream() << "The unqiue number of the executed translation blocks (end address) in current state is "
-                            << plgState->getnewtbnum() << " pc = " << hexval(pc) << "\n";
-    }
-
-    // we should make sure new tb in normal mode will be executed after interrupt
-    // in case too frequent interrupts
-    if (state->regs()->getInterruptFlag()) {
-        disable_interrupt_count = cache_tb_num;
-    } else {
-        if (disable_interrupt_count > 0) {
-            disable_interrupt_count--;
-        }
-    }
-
-    if (disable_interrupt_count == 0) {
-        g_s2e_allow_interrupt = 1;
-    } else {
-        g_s2e_allow_interrupt = 0;
-    }
-
-    if (!state->regs()->getInterruptFlag()) {
-        if (plgState->gettbnum() != 0 && plgState->gettbnum() % tb_interval == 0) {
-            getDebugStream() << " force exit every max loop tb num " << plgState->gettbnum() << "\n";
-            g_s2e_allow_interrupt = 2;
-            s2e()->getExecutor()->setCpuExitRequest();
-        }
-    }
-}
-
 void InvalidStatesDetection::onInvalidStatesKill(S2EExecutionState *state, uint64_t pc, InvalidStatesType type,
                                                  std::string reason_str) {
     DECLARE_PLUGINSTATE(InvalidStatesDetectionState, state);
-
-    onInvalidStatesEvent.emit(state, pc, type, plgState->getnewtbnum());
-    std::string s;
-    llvm::raw_string_ostream ss(s);
-    ss << reason_str << state->getID() << " pc = " << hexval(state->regs()->getPc()) << " tb num "
-       << plgState->getnewtbnum() << "\n";
-    ss.flush();
-    s2e()->getExecutor()->terminateState(*state, s);
-}
-
-bool InvalidStatesDetection::onModeSwitchandTermination(S2EExecutionState *state, uint64_t pc) {
-    DECLARE_PLUGINSTATE(InvalidStatesDetectionState, state);
-    // cache mode to learning mode switch
-    if (cache_mode && !g_s2e_cache_mode) {
-        blockStartConnection = s2e()->getCorePlugin()->onTranslateBlockStart.connect(
-            sigc::mem_fun(*this, &InvalidStatesDetection::onTranslateBlockStart));
-
-        invalidPCAccessConnection = s2e()->getCorePlugin()->onInvalidPCAccess.connect(
-            sigc::mem_fun(*this, &InvalidStatesDetection::onInvalidPCAccess));
-        getInfoStream() << "mode switch!! path killer is enable\n";
-        plgState->reset_allcache();
-        cache_mode = false;
-        return false;
+    kill_count_map[pc]++;
+    last_loop_pc = pc;
+    if (kill_count_map[pc] > 10 && plgState->getretbnum() > 100) {
+        onInvalidStatesEvent.emit(state, pc, type, plgState->getnewtbnum());
+        kill_count_map[pc] = 0;
+        std::string s;
+        llvm::raw_string_ostream ss(s);
+        ss << reason_str << state->getID() << " pc = " << hexval(state->regs()->getPc()) << " tb num "
+           << plgState->getnewtbnum() << "\n";
+        ss.flush();
+        s2e()->getExecutor()->terminateState(*state, s);
+    } else {
+        getDebugStream() << "begin kill count = "<<  kill_count_map[pc] << " pc =" << hexval(pc) << "\n";
+        onReceiveExternalDataEvent.emit(state, pc, plgState->gettbnum());
+        getWarningsStream() << " cannot kill invalid state right now, wait for a while for nlp\n";
+        s2e()->getExecutor()->setCpuExitRequest();
     }
 
-    // learning mode termination and switch to cache mode
-    if (plgState->getnewtbnum() > 200 && plgState->getretbnum() > terminate_tb_num &&
-        (state->regs()->getInterruptFlag() == 0)) {
-        bool actual_end = false;
-        if (terminate_tb_num > 2*initial_terminate_tb_num) {
-            actual_end = true;
-        }
-        onLearningTerminationEvent.emit(state, &actual_end, plgState->getnewtbnum());
-        if (actual_end) {
-            getInfoStream(state) << " mode switch current pc = " << hexval(pc) << "\n";
-            cache_mode = true;
-            plgState->reset_allcache();
-            invalidPCAccessConnection.disconnect();
-            blockStartConnection.disconnect();
-            return true;
-        } else {
-            terminate_tb_num += 0.05 * terminate_tb_num;
-            return false;
-        }
-    }
-    return false;
 }
+
+
 
 void InvalidStatesDetection::onKillandAlivePoints(S2EExecutionState *state, uint64_t pc) {
     DECLARE_PLUGINSTATE(InvalidStatesDetectionState, state);
+
+    /*if (state->regs()->getInterruptFlag() && state->regs()->getExceptionIndex() > 15) {*/
+        //plgState->insert_traceirq_pc(pc);
+    //} else if (!state->regs()->getInterruptFlag()) {
+        //if (pc == start_flag1 || pc == start_flag2 || start_flag) {
+            //if (pc != start_flag2 && pc != start_flag1)
+                //plgState->insert_trace_pc(pc);
+            //start_flag = true;
+        //}
+        //if (pc == end_flag1 || pc == terminate_flag) {
+            //start_flag = false;
+        //}
+    //}
+
+
+    //if (pc == terminate_flag) {
+        //recordTBTraceIRQ(state);
+        //recordTBTrace(state);
+        //getWarningsStream() << "===========unit test pass============\n";
+        //g_s2e->getCorePlugin()->onEngineShutdown.emit();
+        //// Flush here just in case ~S2E() is not called (e.g., if atexit()
+        //// shutdown handler was not called properly).
+        //g_s2e->flushOutputStreams();
+        //exit(0);
+    /*}*/
     // kill points defined by users
     for (auto kill_point : kill_points) {
         if (kill_point == pc) {
@@ -430,39 +454,17 @@ void InvalidStatesDetection::onKillandAlivePoints(S2EExecutionState *state, uint
 }
 
 void InvalidStatesDetection::onInvalidPCAccess(S2EExecutionState *state, uint64_t addr) {
-    DECLARE_PLUGINSTATE(InvalidStatesDetectionState, state);
-    if (!init_cache_mode) {
-        getWarningsStream() << "Invalid memory (" << hexval(addr) << ") access\n";
-        std::string reason_str = "Kill State due to invalid memory access:";
-        onInvalidStatesKill(state, state->regs()->getPc(), IM, reason_str);
-    } else {
-        if (!g_s2e_cache_mode) {
-            bool actual_end = true;
-            onLearningTerminationEvent.emit(state, &actual_end, plgState->getnewtbnum());
-            getWarningsStream() << "Invalid memory (" << hexval(addr) << ") access during cache mode\n";
-        }
-    }
+    getWarningsStream() << "Invalid memory (" << hexval(addr) << ") access\n";
+    std::string reason_str = "Kill State due to invalid memory access:";
+    onInvalidStatesKill(state, state->regs()->getPc(), IM, reason_str);
 }
 
 void InvalidStatesDetection::onInvalidLoopDetection(S2EExecutionState *state, uint64_t pc, unsigned source_type) {
     DECLARE_PLUGINSTATE(InvalidStatesDetectionState, state);
-
-    // cache mode
-    if (g_s2e_cache_mode) {
-        onCacheModeMonitor(state, pc);
-        return;
-    }
-
-    if (onModeSwitchandTermination(state, pc)) {
-        // learning mode termination
-        return;
-    }
-
-    // normal mode
     // we should make sure new tb in normal mode will be executed after interrupt
     // in case too frequent interrupts
     if (state->regs()->getInterruptFlag()) {
-        disable_interrupt_count = cache_tb_num;
+        disable_interrupt_count = cache_tb_num*5;
     } else {
         if (disable_interrupt_count > 0) {
             disable_interrupt_count--;
@@ -480,8 +482,17 @@ void InvalidStatesDetection::onInvalidLoopDetection(S2EExecutionState *state, ui
         plgState->inctbnum2(pc); // only counter new tb in irq
     } else {
         if (plgState->inctbnum(pc)) {
+            for (auto kill_count_pc: kill_count_map) {
+                kill_count_pc.second = 0;
+            }
             getInfoStream() << "InvalidStatesDetection in learning mode new tb num = " << plgState->getnewtbnum()
                                 << " pc = " << hexval(pc) << "\n";
+        }
+    }
+
+    if (!state->regs()->getInterruptFlag()) {
+        if (plgState->gettbnum() != 0 && plgState->gettbnum() % 500 == 0) {
+            onReceiveExternalDataEvent.emit(state, pc, plgState->gettbnum());
         }
     }
 
@@ -522,7 +533,7 @@ void InvalidStatesDetection::onInvalidLoopDetection(S2EExecutionState *state, ui
         std::vector<uint32_t> loopregs = plgState->getcurloopregs();
         int k;
         for (k = 0; k < conregs.size(); ++k) {
-            if (loopregs[k] == conregs[k] || k == 1) {
+            if (loopregs[k] == conregs[k]|| k == 1) {
                 continue;
             } else {
                 break;
@@ -542,7 +553,7 @@ void InvalidStatesDetection::onInvalidLoopDetection(S2EExecutionState *state, ui
                     std::string reason_str = "Kill State due to dead loop (multi-tbs):";
                     onInvalidStatesKill(state, pc, DL2, reason_str);
                 } else {
-                    getWarningsStream() << " cannot kill dead loop in concrete mode pc = " << hexval(pc) << "\n";
+                    getWarningsStream() << " cannot kill dead loop in concrete mode" << plgState->getnewtbnum() << "\n";
                     g_s2e_allow_interrupt = 2; // continue wait for irq
                     plgState->setloopflag(false);
                     plgState->inserttbregs(conregs);
@@ -563,6 +574,9 @@ void InvalidStatesDetection::onInvalidLoopDetection(S2EExecutionState *state, ui
                     std::string reason_str = "Kill State due to long loop (multi-tbs): ";
                     onInvalidStatesKill(state, pc, LL2, reason_str);
                 }
+            }
+            if (k == 0) {
+                kill_count_map[last_loop_pc] = 0;
             }
             plgState->setloopflag(false);
             plgState->inserttbregs(conregs);
@@ -587,15 +601,11 @@ void InvalidStatesDetection::onInvalidLoopDetection(S2EExecutionState *state, ui
             }
         }
 
-        if (j == conregs.size()) { // TODO: if only one reg is different, we should also go to long loop check.
+        if (j == conregs.size()) {
             if (i == plgState->getcachesize() - 1) {
                 if (conregs[1] == 0) {
                     // only one tb in loop, kill directly if it is in symbolic mode
                     std::string reason_str = "Kill State due to Dead Loop (single tb): ";
-                    single_dead_loop[pc]++;
-                    if (single_dead_loop[pc] > 1) {
-                        kill_points.push_back(pc);
-                    }
                     onInvalidStatesKill(state, pc, DL1, reason_str);
                 } else {
                     getWarningsStream() << " cannot kill dead single loop in concrete mode" << plgState->getnewtbnum()
@@ -613,8 +623,6 @@ void InvalidStatesDetection::onInvalidLoopDetection(S2EExecutionState *state, ui
                 plgState->inserttbregs(conregs); // insert current tb before assign loop tb
                 plgState->assignloopregs(i);     // assign loop tb
                 plgState->setloopflag(true);     // next round compare loop tb first
-                getDebugStream(state) << " Same as the " << i << " current pc = " << hexval(pc)
-                                      << " cachereg pc = " << hexval(cacheregs[0]) << " \n";
                 return;
             }
         } else {
@@ -639,45 +647,6 @@ void InvalidStatesDetection::onInvalidLoopDetection(S2EExecutionState *state, ui
 
     plgState->inserttbregs(conregs);
 }
-
-// only used in unit test addition confirmation
-/* static bool unittesthook(S2EExecutionState *state, uint32_t pc) { */
-// std::vector<uint32_t> conregs;
-
-// for (unsigned i = 0; i < 15; ++i) {
-// unsigned offset = offsetof(CPUARMState, regs[i]);
-// target_ulong concreteData;
-
-// //if (state->regs()->read(offset, &concreteData, sizeof(concreteData), false)) {
-// getConcolicValue(state, offset, &concreteData);
-// conregs.push_back(concreteData);
-// // }
-// }
-
-// if (pc == 0x800306c || pc == 0x80034b6 || pc == 0x8003058 || pc == 0x8001c6e) {
-// for (int j = 0; j < 13; j++) {
-// g_s2e->getDebugStream() << hexval(pc) << "Check  point R" << j << " = " << hexval(conregs[j]) << "\n";
-// }
-// }
-
-// return true;
-
-/* } */
-
-// only used for addtional log
-/*void InvalidStatesDetection::recordTBMap(S2EExecutionState *state) {*/
-// DECLARE_PLUGINSTATE(InvalidStatesDetectionState, state);
-// std::string fileName;
-// fileName = s2e()->getOutputDirectory() + "/" + "state" + std::to_string(state->getID()) + "_tb_map.dat";
-// std::ofstream fTBmap;
-// fTBmap.open(fileName, std::ios::out | std::ios::trunc);
-
-// for (auto ittb : plgState->getuniquetbmap()) {
-// fTBmap << "tb : " << hexval(ittb.first) << std::endl;;
-//}
-
-// fTBmap.close();
-/*}*/
 
 } // namespace plugins
 } // namespace s2e
