@@ -77,7 +77,8 @@ public:
     /// Emitted on an external library function call.
     sigc::signal<void, S2EExecutionState *, /* The current execution state */
                  const ModuleDescriptor &,  /* The module that is being called */
-                 uint64_t>                  /* The called function's address */
+                 uint64_t,                  /* The called function's address */
+                 const std::string &>       /* The called function's name */
         onLibraryCall;
 
 private:
