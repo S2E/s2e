@@ -10,9 +10,9 @@
 
 #include <s2e/CorePlugin.h>
 #include <s2e/Plugin.h>
+#include <s2e/Plugins/SEmu/NLPPeripheralModel.h>
 #include <s2e/S2EExecutionState.h>
 #include <s2e/SymbolicHardwareHook.h>
-#include <s2e/Plugins/SEmu/NLPPeripheralModel.h>
 
 namespace s2e {
 
@@ -25,21 +25,20 @@ typedef struct access {
     uint32_t phaddr;
     uint32_t cur_value;
     uint32_t pc;
-    access(std::string a, uint32_t b, int32_t c, uint32_t d, uint32_t e, uint32_t f) :
-        type(a), time(b), irq(c), phaddr(d), cur_value(e), pc(f) {
+    access(std::string a, uint32_t b, int32_t c, uint32_t d, uint32_t e, uint32_t f)
+        : type(a), time(b), irq(c), phaddr(d), cur_value(e), pc(f) {
     }
 } Access;
 
 typedef std::vector<std::vector<FieldList>> Type1Rules;
 typedef std::map<uint32_t, std::vector<Access>> AccessRecords;
-typedef std::map<uint32_t, std::vector<uint32_t>> AccessPair;
+typedef std::map<int32_t, std::vector<uint32_t>> AccessPair;
 typedef std::vector<std::vector<uint32_t>> Race;
 
 class ComplianceCheck : public Plugin {
     S2E_PLUGIN
 public:
-    ComplianceCheck(S2E *s2e) :
-        Plugin(s2e) {
+    ComplianceCheck(S2E *s2e) : Plugin(s2e) {
     }
 
 private:
@@ -76,7 +75,7 @@ private:
     void onFork(S2EExecutionState *state, uint32_t phaddr, uint32_t cur_val, int32_t irq, bool check);
 };
 
-}
-} // namespace s2e::plugins
+} // namespace plugins
+} // namespace s2e
 
 #endif // S2E_PLUGINS_ComplianceCheck_H

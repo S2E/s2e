@@ -643,7 +643,7 @@ void NLPPeripheralModel::hardware_write_to_receive_buffer(S2EExecutionState *sta
     for (int i = 0; i < 2; ++i) {
         tmp.push(0x1);
     }
-    if (phaddr == 0) {
+    if (phaddr != 0) {
         plgState->hardware_write_to_receive_buffer(phaddr, tmp, tmp.size());
         deal_rule_RWVB(state, phaddr, "B");
         return;
@@ -1183,7 +1183,7 @@ void NLPPeripheralModel::onForkPoints(S2EExecutionState *state, uint64_t pc, uns
         begin_irq_flag = true;
         init_dr_flag = true;
         plgState->inc_fork_count();
-        if (plgState->get_fork_point_count() < 3) {
+        if (plgState->get_fork_point_count() < 2) {
             return;
         }
 

@@ -6,6 +6,7 @@
 ///
 
 #include "ComplianceCheck.h"
+#include <algorithm>
 #include <s2e/ConfigFile.h>
 #include <s2e/S2E.h>
 #include <s2e/SymbolicHardwareHook.h>
@@ -13,7 +14,6 @@
 #include <s2e/cpu.h>
 #include <sys/shm.h>
 #include <time.h>
-#include <algorithm>
 
 namespace s2e {
 namespace plugins {
@@ -22,14 +22,10 @@ S2E_DEFINE_PLUGIN(ComplianceCheck, "Complaince Check Model", "ComplianceCheckMod
 
 void ComplianceCheck::initialize() {
     onNLPPeripheralModelConnection = s2e()->getPlugin<NLPPeripheralModel>();
-    onNLPPeripheralModelConnection->onHardwareWrite.connect(
-        sigc::mem_fun(*this, &ComplianceCheck::onHardwareWrite));
-    onNLPPeripheralModelConnection->onFirmwareWrite.connect(
-        sigc::mem_fun(*this, &ComplianceCheck::onPeripheralWrite));
-    onNLPPeripheralModelConnection->onFirmwareRead.connect(
-        sigc::mem_fun(*this, &ComplianceCheck::onPeripheralRead));
-    onNLPPeripheralModelConnection->onFirmwareCheck.connect(
-        sigc::mem_fun(*this, &ComplianceCheck::onFork));
+    onNLPPeripheralModelConnection->onHardwareWrite.connect(sigc::mem_fun(*this, &ComplianceCheck::onHardwareWrite));
+    onNLPPeripheralModelConnection->onFirmwareWrite.connect(sigc::mem_fun(*this, &ComplianceCheck::onPeripheralWrite));
+    onNLPPeripheralModelConnection->onFirmwareRead.connect(sigc::mem_fun(*this, &ComplianceCheck::onPeripheralRead));
+    onNLPPeripheralModelConnection->onFirmwareCheck.connect(sigc::mem_fun(*this, &ComplianceCheck::onFork));
 
     CCfileName = s2e()->getConfig()->getString(getConfigKey() + ".CCfileName", "all.txt");
     getDebugStream() << "CC peripheral model file name is " << CCfileName << "\n";
@@ -131,35 +127,40 @@ void ComplianceCheck::onHardwareWrite(S2EExecutionState *state, uint32_t phaddr,
     if (!read_data)
         readCCModelfromFile(state, CCfileName);
     cur_time++;
+    getDebugStream() << "ComplianceCheck hardware write!! time: " << cur_time << " irq: " << irq
+                     << " phaddr: " << hexval(phaddr) << " cur_val: " << cur_val << "\n";
     recording_write[phaddr].push_back(Access("HW", cur_time, irq, phaddr, cur_val, state->regs()->getPc()));
 }
 
 void ComplianceCheck::onPeripheralRead(S2EExecutionState *state, uint32_t phaddr, uint32_t cur_val, int32_t irq) {
-    getDebugStream() << "ComplianceCheck READ"
-                     << "\n";
     if (!read_data)
         readCCModelfromFile(state, CCfileName);
     cur_time++;
-    recording_write[phaddr].push_back(Access("FW", cur_time, irq, phaddr, cur_val, state->regs()->getPc()));
+    getDebugStream() << "ComplianceCheck READ  time: " << cur_time << " irq: " << irq << " phaddr: " << hexval(phaddr)
+                     << " cur_val: " << cur_val << "\n";
+    recording_read[phaddr].push_back(Access("FR", cur_time, irq, phaddr, cur_val, state->regs()->getPc()));
 }
 
 void ComplianceCheck::onPeripheralWrite(S2EExecutionState *state, uint32_t phaddr, uint32_t cur_val, int32_t irq) {
-    getDebugStream() << "ComplianceCheck WRITE"
-                     << "\n";
+    getDebugStream() << "ComplianceCheck WRITE  time: " << cur_time << " irq: " << irq << " phaddr: " << hexval(phaddr)
+                     << " cur_val: " << cur_val << "\n";
     if (!read_data)
         readCCModelfromFile(state, CCfileName);
+    if (cur_time % 1000 == 0) {
+        onComplianceCheck();
+    }
     cur_time++;
     recording_write[phaddr].push_back(Access("FW", cur_time, irq, phaddr, cur_val, state->regs()->getPc()));
 }
 
 void ComplianceCheck::onFork(S2EExecutionState *state, uint32_t phaddr, uint32_t cur_val, int32_t irq, bool check) {
-    getDebugStream() << "ComplianceCheck WRITE"
-                     << "\n";
+    getDebugStream() << "ComplianceCheck Fork  time: " << cur_time << " irq: " << irq << " phaddr: " << hexval(phaddr)
+                     << " cur_val: " << cur_val << "\n";
     if (!read_data)
         readCCModelfromFile(state, CCfileName);
     if (!check)
         cur_time++;
-    recording_write[phaddr].push_back(Access("FW", cur_time, irq, phaddr, cur_val, state->regs()->getPc()));
+    recording_check[phaddr].push_back(Access("FC", cur_time, irq, phaddr, cur_val, state->regs()->getPc()));
 }
 
 bool ComplianceCheck::checkField(Field &field, uint32_t cur_value) {
@@ -171,6 +172,8 @@ bool ComplianceCheck::checkField(Field &field, uint32_t cur_value) {
         int tmp = field.bits[i];
         res = (res << 1) + (cur_value >> tmp & 1);
     }
+    getDebugStream() << "checkField cur_value: " << cur_value << " at bit: " << field.bits[0] << " value: " << res
+                     << " field.value: " << field.value << "\n";
     return res == field.value;
 }
 
@@ -189,6 +192,7 @@ void ComplianceCheck::checkAtomic(std::vector<AccessPair> &existence_seq, Race &
                 auto prev_time = t - 1;
                 std::vector<uint32_t> &tmp = existence_seq[idx - 1][rule.first];
                 if (find(tmp.begin(), tmp.end(), prev_time) == tmp.end()) {
+                    getDebugStream() << "existence cur_time: " << t << "prevtime: " << t - 1 << "\n";
                     races.push_back({prev_time, t});
                 }
             }
@@ -199,24 +203,33 @@ void ComplianceCheck::checkAtomic(std::vector<AccessPair> &existence_seq, Race &
 void ComplianceCheck::type1Check(Race &races) {
     for (auto &seq : sequences) {
         std::vector<AccessPair> existence_seq;
+        bool rule_checker = true;
         for (auto &rule : seq) {
             std::vector<AccessPair> rules_existence;
             for (Field &f : rule) {
                 AccessPair access;
                 if (f.type == "CC") {
-                    if (recording_check.find(f.phaddr) == recording_check.end()) continue;
+                    if (recording_check.find(f.phaddr) == recording_check.end())
+                        continue;
                     getExsitence(recording_check[f.phaddr], f, access);
                 } else if (f.type == "CW") {
-                    if (recording_write.find(f.phaddr) == recording_write.end()) continue;
+                    if (recording_write.find(f.phaddr) == recording_write.end())
+                        continue;
                     getExsitence(recording_write[f.phaddr], f, access);
                 } else if (f.type == "CR") {
-                    if (recording_read.find(f.phaddr) == recording_read.end()) continue;
+                    if (recording_read.find(f.phaddr) == recording_read.end())
+                        continue;
                     getExsitence(recording_read[f.phaddr], f, access);
                 }
-                if (access.size() == 0) break;
+                if (access.size() == 0) {
+                    rule_checker = false;
+                    break;
+                }
+                getDebugStream() << "recording match rule phaddr:" << f.phaddr << " " << access.size()
+                                 << " rule: " << f.bits[0] << "\n";
                 rules_existence.push_back(access);
             }
-            if (rules_existence.size() == 0) {
+            if (!rule_checker || rules_existence.size() == 0) {
                 existence_seq.clear();
                 break;
             } else if (rules_existence.size() == 1) {
@@ -235,8 +248,11 @@ void ComplianceCheck::type1Check(Race &races) {
 
 void ComplianceCheck::onComplianceCheck() {
     Race races;
+    getInfoStream() << "calculate races \n";
     type1Check(races);
-    if (races.size() == 0) return;
+    getInfoStream() << "get races " << races.size() << "\n";
+    if (races.size() == 0)
+        return;
 
     getInfoStream() << "write Compliance Check files\n";
     std::string NLPstafileName = s2e()->getOutputDirectory() + "/" + "ComplianceCheck.dat";
@@ -263,13 +279,15 @@ void ComplianceCheck::onComplianceCheck() {
     for (auto &race : races) {
         for (auto &time : race) {
             for (auto &access : all_recordings[time])
-                fPHNLP << "time: " << access.time << " type: " << access.type << " irq: " << access.irq << " phaddr: " << access.phaddr << " pc: " << access.pc << "\n";
+                fPHNLP << "time: " << access.time << " type: " << access.type << " irq: " << access.irq
+                       << " phaddr: " << hexval(access.phaddr) << " pc: " << hexval(access.pc) << "\n";
         }
         fPHNLP << "==================\n";
     }
 
     fPHNLP.close();
+    exit(-1);
 }
 
-}
-} // namespace s2e::plugins
+} // namespace plugins
+} // namespace s2e
