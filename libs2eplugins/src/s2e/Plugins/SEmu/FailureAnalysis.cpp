@@ -43,7 +43,7 @@ S2E_DEFINE_PLUGIN(FailureAnalysis, "Identify the failure reason of NLPModel", ""
 namespace {
 class FailureAnalysisState : public PluginState {
 private:
-std::map<uint32_t, AllSymbolicPeripheralRegsMap> lastforkphs;
+    std::map<uint32_t, AllSymbolicPeripheralRegsMap> lastforkphs;
 
 public:
     FailureAnalysisState() {
@@ -73,20 +73,17 @@ public:
         lastforkphs[irq_num].clear();
     }
 };
-}
+} // namespace
 
 void FailureAnalysis::initialize() {
     onInvalidStateDectionConnection = s2e()->getPlugin<InvalidStatesDetection>();
     onInvalidStateDectionConnection->onInvalidStatesEvent.connect(
         sigc::mem_fun(*this, &FailureAnalysis::onInvalidStatesDetection));
-    s2e()->getCorePlugin()->onExceptionExit.connect(
-        sigc::mem_fun(*this, &FailureAnalysis::onExceptionExit));
-    s2e()->getCorePlugin()->onStateForkDecide.connect(
-        sigc::mem_fun(*this, &FailureAnalysis::onStateForkDecide));
+    s2e()->getCorePlugin()->onExceptionExit.connect(sigc::mem_fun(*this, &FailureAnalysis::onExceptionExit));
+    s2e()->getCorePlugin()->onStateForkDecide.connect(sigc::mem_fun(*this, &FailureAnalysis::onStateForkDecide));
     s2e()->getCorePlugin()->onStateFork.connect(sigc::mem_fun(*this, &FailureAnalysis::onFork));
     s2e()->getCorePlugin()->onStateKill.connect(sigc::mem_fun(*this, &FailureAnalysis::onStateKill));
-    s2e()->getCorePlugin()->onStateSwitch.connect(
-        sigc::mem_fun(*this, &FailureAnalysis::onStateSwitch));
+    s2e()->getCorePlugin()->onStateSwitch.connect(sigc::mem_fun(*this, &FailureAnalysis::onStateSwitch));
 }
 
 void SplitString(const std::string &s, std::vector<std::string> &v, const std::string &c) {
@@ -103,8 +100,8 @@ void SplitString(const std::string &s, std::vector<std::string> &v, const std::s
         v.push_back(s.substr(pos1));
 }
 
-bool FailureAnalysis::getPeripheralExecutionState(std::string variablePeripheralName, uint32_t *phaddr,
-                                                  uint32_t *pc, uint32_t *size, uint64_t *no) {
+bool FailureAnalysis::getPeripheralExecutionState(std::string variablePeripheralName, uint32_t *phaddr, uint32_t *pc,
+                                                  uint32_t *size, uint64_t *no) {
     boost::smatch what;
     if (!boost::regex_match(variablePeripheralName, what, SymbolicPeripheralRegEx)) {
         getWarningsStream() << "match false\n";
@@ -138,18 +135,18 @@ void FailureAnalysis::onExceptionExit(S2EExecutionState *state, uint32_t irq_no)
     plgState->clearlastfork_phs(irq_no);
 }
 
-void FailureAnalysis::onStateForkDecide(S2EExecutionState *state, bool *doFork,
-                                    const klee::ref<klee::Expr> &condition, bool *conditionFork) {
+void FailureAnalysis::onStateForkDecide(S2EExecutionState *state, bool *doFork, const klee::ref<klee::Expr> &condition,
+                                        bool *conditionFork) {
     uint32_t curPc = state->regs()->getPc();
     getDebugStream(state) << "Fork Decitde pc = " << hexval(curPc) << "\n";
     *conditionFork = false;
 }
 
 void FailureAnalysis::onFork(S2EExecutionState *state, const std::vector<S2EExecutionState *> &newStates,
-                         const std::vector<klee::ref<klee::Expr>> &newConditions) {
+                             const std::vector<klee::ref<klee::Expr>> &newConditions) {
     std::map<uint32_t, AllSymbolicPeripheralRegsMap> cachefork_phs;
     cachefork_phs.clear();
-
+    bool check = false;
     for (int k = newStates.size() - 1; k >= 0; --k) {
         ArrayVec results;
 
@@ -163,7 +160,8 @@ void FailureAnalysis::onFork(S2EExecutionState *state, const std::vector<S2EExec
             std::vector<unsigned char> data;
 
             getPeripheralExecutionState(arr->getName(), &phaddr, &pc, &size, &no);
-
+            onForkCheck.emit(state, phaddr, check);
+            check = true;
             // getDebugStream() << "The symbol name of value is " << arr->getName() << "\n";
             for (unsigned s = 0; s < arr->getSize(); ++s) {
                 ref<Expr> e = newStates[k]->concolics->evaluate(arr, s);
@@ -183,10 +181,9 @@ void FailureAnalysis::onFork(S2EExecutionState *state, const std::vector<S2EExec
             uint64_t LSB = ((uint64_t) 1 << (size * 8));
             uint32_t value = condConcreteValue & (LSB - 1);
 
-
             cachefork_phs[k][uniquePeripheral][no] = value;
             getInfoStream(newStates[k]) << " path: phaddr = " << hexval(phaddr) << " pc = " << hexval(pc)
-                                            << " value = " << hexval(value) << " no = " << no << "\n";
+                                        << " value = " << hexval(value) << " no = " << no << "\n";
 
         } // each condition
 
@@ -207,8 +204,8 @@ void FailureAnalysis::onFork(S2EExecutionState *state, const std::vector<S2EExec
             plgState->clearlastfork_phs(newStates[k]->regs()->getExceptionIndex());
             for (auto &it : cachefork_phs[k]) {
                 for (auto &itch : it.second) {
-                    plgState->insertlastfork_phs(newStates[k]->regs()->getExceptionIndex(), it.first,
-                                                     itch.first, itch.second);
+                    plgState->insertlastfork_phs(newStates[k]->regs()->getExceptionIndex(), it.first, itch.first,
+                                                 itch.second);
                 }
             }
         } else {
@@ -220,11 +217,10 @@ void FailureAnalysis::onFork(S2EExecutionState *state, const std::vector<S2EExec
             }
         }
     }
-
 }
 
 void FailureAnalysis::onInvalidStatesDetection(S2EExecutionState *state, uint32_t pc, InvalidStatesType type,
-                                                       uint64_t tb_num) {
+                                               uint64_t tb_num) {
     // remove current state in cache interrupt states
     if (irq_states.size() > 0) {
         auto itirqs = irq_states.begin();
@@ -253,7 +249,6 @@ void FailureAnalysis::onInvalidStatesDetection(S2EExecutionState *state, uint32_
 }
 
 void FailureAnalysis::onStateKill(S2EExecutionState *state) {
-
     if (irq_states.size() > 0) {
         auto itirqs = irq_states.begin();
         for (; itirqs != irq_states.end();) {
@@ -280,23 +275,20 @@ void FailureAnalysis::onStateKill(S2EExecutionState *state) {
 std::vector<uint32_t> identify_setbit_loc(uint32_t value) {
     std::vector<uint32_t> setbit_loc_vec;
     std::vector<bool> bin_vec;
-    for (int j = value; j; j = j/2) {
-		bin_vec.push_back(j%2 ? 1: 0);
-	}
+    for (int j = value; j; j = j / 2) {
+        bin_vec.push_back(j % 2 ? 1 : 0);
+    }
 
-    for (int k = 0;k < bin_vec.size(); k++)
-    {
+    for (int k = 0; k < bin_vec.size(); k++) {
         if (bin_vec[k] == 1) {
             setbit_loc_vec.push_back(k);
         }
     }
 
     return setbit_loc_vec;
-
 }
 
 void FailureAnalysis::onStateSwitch(S2EExecutionState *currentState, S2EExecutionState *nextState) {
-
     getDebugStream() << "next irq flag = " << nextState->regs()->getInterruptFlag()
                      << " previous irq flag = " << currentState->regs()->getInterruptFlag() << "\n";
 
@@ -304,8 +296,8 @@ void FailureAnalysis::onStateSwitch(S2EExecutionState *currentState, S2EExecutio
     if (!nextState->regs()->getInterruptFlag() && !currentState->regs()->getInterruptFlag()) {
         wrong_last_fork_phs = getLastBranchTargetRegValues(currentState, 0);
         correct_last_fork_phs = getLastBranchTargetRegValues(nextState, 0);
-    } else if (nextState->regs()->getInterruptFlag() && currentState->regs()->getInterruptFlag()
-               && (currentState->regs()->getExceptionIndex() == nextState->regs()->getExceptionIndex())) {
+    } else if (nextState->regs()->getInterruptFlag() && currentState->regs()->getInterruptFlag() &&
+               (currentState->regs()->getExceptionIndex() == nextState->regs()->getExceptionIndex())) {
         wrong_last_fork_phs = getLastBranchTargetRegValues(currentState, currentState->regs()->getExceptionIndex());
         correct_last_fork_phs = getLastBranchTargetRegValues(nextState, nextState->regs()->getExceptionIndex());
     } else {
@@ -318,11 +310,12 @@ void FailureAnalysis::onStateSwitch(S2EExecutionState *currentState, S2EExecutio
             // uint32_t correct_bits = ! (ph.second ^ correct_last_fork_phs[wrong_last_fork_ph.first][ph.first]);
             uint32_t wrong_bits = correct_last_fork_phs[wrong_last_fork_ph.first][ph.first] ^ ph.second;
             getWarningsStream() << "Wrong Peripheral = " << hexval(wrong_last_fork_ph.first.first)
-                << " at pc = " << hexval(wrong_last_fork_ph.first.second) << " wrong value = " << hexval(ph.second)
-                << " correct value = " << hexval(correct_last_fork_phs[wrong_last_fork_ph.first][ph.first]) << "\n";
-            std::string wrongbitStr= "Wrong bit:";
+                                << " at pc = " << hexval(wrong_last_fork_ph.first.second)
+                                << " wrong value = " << hexval(ph.second) << " correct value = "
+                                << hexval(correct_last_fork_phs[wrong_last_fork_ph.first][ph.first]) << "\n";
+            std::string wrongbitStr = "Wrong bit:";
             for (auto bit_loc : identify_setbit_loc(wrong_bits)) {
-                 wrongbitStr += " " + std::to_string(bit_loc);
+                wrongbitStr += " " + std::to_string(bit_loc);
             }
             getWarningsStream() << wrongbitStr << "\n";
         }
@@ -335,7 +328,6 @@ AllSymbolicPeripheralRegsMap FailureAnalysis::getLastBranchTargetRegValues(S2EEx
     DECLARE_PLUGINSTATE(FailureAnalysisState, state);
 
     return plgState->getlastfork_phs(irq_num);
-
 }
 
 } // namespace plugins

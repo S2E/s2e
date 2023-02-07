@@ -15,11 +15,11 @@
 namespace s2e {
 namespace plugins {
 
-S2E_DEFINE_PLUGIN(ExternalInterrupt, "trigger and record external interrupts", "ExternalInterrupt", "NLPPeripheralModel");
+S2E_DEFINE_PLUGIN(ExternalInterrupt, "trigger and record external interrupts", "ExternalInterrupt",
+                  "NLPPeripheralModel");
 
 class ExternalInterruptState : public PluginState {
 private:
-
     std::vector<uint32_t> last_irqs_bitmap;
     std::map<uint32_t /* external irq no */, bool /*enable*/> active_irqs;
     bool disable_systick; // per state
@@ -86,8 +86,7 @@ void ExternalInterrupt::initialize() {
     onNLPPeripheralModelConnection = s2e()->getPlugin<NLPPeripheralModel>();
     onNLPPeripheralModelConnection->onExternalInterruptEvent.connect(
         sigc::mem_fun(*this, &ExternalInterrupt::onExternelInterruptTrigger));
-    onNLPPeripheralModelConnection->onEnableISER.connect(
-        sigc::mem_fun(*this, &ExternalInterrupt::onGetISERIRQ));
+    onNLPPeripheralModelConnection->onEnableISER.connect(sigc::mem_fun(*this, &ExternalInterrupt::onGetISERIRQ));
 
     ConfigFile *cfg = s2e()->getConfig();
     auto disableirqs = cfg->getIntegerList(getConfigKey() + ".disableIrqs");
@@ -189,7 +188,6 @@ void ExternalInterrupt::onExternelInterruptTrigger(S2EExecutionState *state, uin
             getInfoStream() << "cannot trigger nlp interrupt no = " << irq_no << ", since it is not active\n";
         }
     }
-
 }
 
 } // namespace plugins

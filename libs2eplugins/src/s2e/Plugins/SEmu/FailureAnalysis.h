@@ -45,6 +45,8 @@ public:
     FailureAnalysis(S2E *s2e) : Plugin(s2e) {
     }
 
+    sigc::signal<void, S2EExecutionState *, uint32_t, bool> onForkCheck;
+
     void initialize();
     void onExceptionExit(S2EExecutionState *state, uint32_t irq_no);
     void onFork(S2EExecutionState *state, const std::vector<S2EExecutionState *> &newStates,
@@ -57,13 +59,13 @@ public:
 
 private:
     InvalidStatesDetection *onInvalidStateDectionConnection;
-    std::vector<S2EExecutionState *> irq_states;           // forking states in interrupt
-    int fs;                                                // count for false status fork states kill;
+    std::vector<S2EExecutionState *> irq_states; // forking states in interrupt
+    int fs;                                      // count for false status fork states kill;
     std::vector<S2EExecutionState *> false_type_phs_fork_states;
 
     AllSymbolicPeripheralRegsMap getLastBranchTargetRegValues(S2EExecutionState *state, uint32_t irq_num);
-    bool getPeripheralExecutionState(std::string variablePeripheralName, uint32_t *phaddr, uint32_t *size,
-                                     uint32_t *pc, uint64_t *no);
+    bool getPeripheralExecutionState(std::string variablePeripheralName, uint32_t *phaddr, uint32_t *size, uint32_t *pc,
+                                     uint64_t *no);
 };
 
 } // namespace plugins

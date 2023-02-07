@@ -45,6 +45,7 @@ private:
     TBCounts new_tb_map;
     std::vector<uint32_t> traceirq_tb;
     std::vector<uint32_t> trace_tb;
+
 public:
     virtual InvalidStatesDetectionState *clone() const {
         return new InvalidStatesDetectionState(*this);
@@ -235,7 +236,7 @@ public:
         return traceirq_tb;
     }
 };
-}
+} // namespace
 
 void InvalidStatesDetection::initialize() {
     bool ok;
@@ -272,65 +273,64 @@ void InvalidStatesDetection::initialize() {
     // use for invaild pc
     invalidPCAccessConnection = s2e()->getCorePlugin()->onInvalidPCAccess.connect(
         sigc::mem_fun(*this, &InvalidStatesDetection::onInvalidPCAccess));
-    //start_flag = false;
+    // start_flag = false;
     ///////K64/////
-    //uart
+    // uart
     /*start_flag1 = 0x764;*/
-    //start_flag2 = 0xa6c;
-    //end_flag1 = 0xb14;
+    // start_flag2 = 0xa6c;
+    // end_flag1 = 0xb14;
     /*terminate_flag = 0x1164;*/
-    //i2c
+    // i2c
     /*start_flag1 = 0x764;*/
-    //start_flag2 = 0xa58;
-    //end_flag1 = 0xb18;
+    // start_flag2 = 0xa58;
+    // end_flag1 = 0xb18;
     /*terminate_flag = 0x1120;*/
-    //SPI
+    // SPI
     /*start_flag1 = 0x764;*/
-    //start_flag2 = 0xa58;
-    //end_flag1 = 0xb00;
+    // start_flag2 = 0xa58;
+    // end_flag1 = 0xb00;
     /*terminate_flag = 0x10f0;*/
-    //ADC
+    // ADC
     /*start_flag1 = 0x764;*/
-    //start_flag2 = 0xa58;
-    //end_flag1 = 0xb00;
+    // start_flag2 = 0xa58;
+    // end_flag1 = 0xb00;
     /*terminate_flag = 0x10b6;*/
-    //GPIOINT
+    // GPIOINT
     /*start_flag1 = 0x764;*/
-    //start_flag2 = 0xa60;
-    //end_flag1 = 0xad8;
+    // start_flag2 = 0xa60;
+    // end_flag1 = 0xad8;
     /*terminate_flag = 0x12b0;*/
-    //Timer
+    // Timer
     /*start_flag1 = 0x764;*/
-    //start_flag2 = 0xa58;
-    //end_flag1 = 0xad0;
+    // start_flag2 = 0xa58;
+    // end_flag1 = 0xad0;
     /*terminate_flag = 0x10a4;*/
-    //STM32F103
-    //uart
+    // STM32F103
+    // uart
     /*start_flag1 = 0x8000440;*/
-    //start_flag2 = 0x8000840;
-    //end_flag1 = 0x80008e8;
+    // start_flag2 = 0x8000840;
+    // end_flag1 = 0x80008e8;
     /*terminate_flag = 0x8000d60;*/
-    //i2c
+    // i2c
     /*start_flag1 = 0x8000440;*/
-    //start_flag2 = 0x8000828;
-    //end_flag1 = 0x80008d0;
+    // start_flag2 = 0x8000828;
+    // end_flag1 = 0x80008d0;
     /*terminate_flag = 0x8000d72;*/
-    //SPI
+    // SPI
     /*start_flag1 = 0x8000440;*/
-    //start_flag2 = 0x8000828;
-    //end_flag1 = 0x80008d0;
+    // start_flag2 = 0x8000828;
+    // end_flag1 = 0x80008d0;
     /*terminate_flag = 0x8000d50;*/
-    //GPIOINT
+    // GPIOINT
     /*start_flag1 = 0x8000440;*/
-    //start_flag2 = 0x8000828;
-    //end_flag1 = 0x80008a0;
+    // start_flag2 = 0x8000828;
+    // end_flag1 = 0x80008a0;
     /*terminate_flag = 0x8000e1c;*/
-    //Timer
+    // Timer
     /*start_flag1 = 0x8000440;*/
-    //start_flag2 = 0x8000828;
-    //end_flag1 = 0x80008a0;
+    // start_flag2 = 0x8000828;
+    // end_flag1 = 0x80008a0;
     /*terminate_flag = 0x8000cbc;*/
-
 }
 
 void InvalidStatesDetection::onTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionState *state,
@@ -396,42 +396,38 @@ void InvalidStatesDetection::onInvalidStatesKill(S2EExecutionState *state, uint6
         ss.flush();
         s2e()->getExecutor()->terminateState(*state, s);
     } else {
-        getDebugStream() << "begin kill count = "<<  kill_count_map[pc] << " pc =" << hexval(pc) << "\n";
+        getDebugStream() << "begin kill count = " << kill_count_map[pc] << " pc =" << hexval(pc) << "\n";
         onReceiveExternalDataEvent.emit(state, pc, plgState->gettbnum());
         getWarningsStream() << " cannot kill invalid state right now, wait for a while for nlp\n";
         s2e()->getExecutor()->setCpuExitRequest();
     }
-
 }
-
-
 
 void InvalidStatesDetection::onKillandAlivePoints(S2EExecutionState *state, uint64_t pc) {
     DECLARE_PLUGINSTATE(InvalidStatesDetectionState, state);
 
     /*if (state->regs()->getInterruptFlag() && state->regs()->getExceptionIndex() > 15) {*/
-        //plgState->insert_traceirq_pc(pc);
+    // plgState->insert_traceirq_pc(pc);
     //} else if (!state->regs()->getInterruptFlag()) {
-        //if (pc == start_flag1 || pc == start_flag2 || start_flag) {
-            //if (pc != start_flag2 && pc != start_flag1)
-                //plgState->insert_trace_pc(pc);
-            //start_flag = true;
-        //}
-        //if (pc == end_flag1 || pc == terminate_flag) {
-            //start_flag = false;
-        //}
+    // if (pc == start_flag1 || pc == start_flag2 || start_flag) {
+    // if (pc != start_flag2 && pc != start_flag1)
+    // plgState->insert_trace_pc(pc);
+    // start_flag = true;
+    //}
+    // if (pc == end_flag1 || pc == terminate_flag) {
+    // start_flag = false;
+    //}
     //}
 
-
-    //if (pc == terminate_flag) {
-        //recordTBTraceIRQ(state);
-        //recordTBTrace(state);
-        //getWarningsStream() << "===========unit test pass============\n";
-        //g_s2e->getCorePlugin()->onEngineShutdown.emit();
-        //// Flush here just in case ~S2E() is not called (e.g., if atexit()
-        //// shutdown handler was not called properly).
-        //g_s2e->flushOutputStreams();
-        //exit(0);
+    // if (pc == terminate_flag) {
+    // recordTBTraceIRQ(state);
+    // recordTBTrace(state);
+    // getWarningsStream() << "===========unit test pass============\n";
+    // g_s2e->getCorePlugin()->onEngineShutdown.emit();
+    //// Flush here just in case ~S2E() is not called (e.g., if atexit()
+    //// shutdown handler was not called properly).
+    // g_s2e->flushOutputStreams();
+    // exit(0);
     /*}*/
     // kill points defined by users
     for (auto kill_point : kill_points) {
@@ -464,7 +460,7 @@ void InvalidStatesDetection::onInvalidLoopDetection(S2EExecutionState *state, ui
     // we should make sure new tb in normal mode will be executed after interrupt
     // in case too frequent interrupts
     if (state->regs()->getInterruptFlag()) {
-        disable_interrupt_count = cache_tb_num*5;
+        disable_interrupt_count = cache_tb_num * 5;
     } else {
         if (disable_interrupt_count > 0) {
             disable_interrupt_count--;
@@ -482,11 +478,11 @@ void InvalidStatesDetection::onInvalidLoopDetection(S2EExecutionState *state, ui
         plgState->inctbnum2(pc); // only counter new tb in irq
     } else {
         if (plgState->inctbnum(pc)) {
-            for (auto kill_count_pc: kill_count_map) {
+            for (auto kill_count_pc : kill_count_map) {
                 kill_count_pc.second = 0;
             }
             getInfoStream() << "InvalidStatesDetection in learning mode new tb num = " << plgState->getnewtbnum()
-                                << " pc = " << hexval(pc) << "\n";
+                            << " pc = " << hexval(pc) << "\n";
         }
     }
 
@@ -501,7 +497,7 @@ void InvalidStatesDetection::onInvalidLoopDetection(S2EExecutionState *state, ui
     std::vector<uint32_t> conregs = getRegs(state, pc);
 
     getInfoStream(state) << state->regs()->getInterruptFlag() << " current pc = " << hexval(pc) << " re tb num "
-                             << plgState->getretbnum() << " concrete mode: " << conregs[1] << "\n";
+                         << plgState->getretbnum() << " concrete mode: " << conregs[1] << "\n";
 
     // kill points defined by users
     if (kill_point_flag) {
@@ -533,7 +529,7 @@ void InvalidStatesDetection::onInvalidLoopDetection(S2EExecutionState *state, ui
         std::vector<uint32_t> loopregs = plgState->getcurloopregs();
         int k;
         for (k = 0; k < conregs.size(); ++k) {
-            if (loopregs[k] == conregs[k]|| k == 1) {
+            if (loopregs[k] == conregs[k] || k == 1) {
                 continue;
             } else {
                 break;

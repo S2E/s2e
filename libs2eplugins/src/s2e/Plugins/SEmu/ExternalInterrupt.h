@@ -10,9 +10,9 @@
 
 #include <s2e/CorePlugin.h>
 #include <s2e/Plugin.h>
+#include <s2e/Plugins/SEmu/NLPPeripheralModel.h>
 #include <s2e/S2EExecutionState.h>
 #include <s2e/SymbolicHardwareHook.h>
-#include <s2e/Plugins/SEmu/NLPPeripheralModel.h>
 
 namespace s2e {
 namespace plugins {
@@ -33,8 +33,8 @@ private:
 
     void onTranslateBlockStart(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb, uint64_t pc);
     void onBlockStart(S2EExecutionState *state, uint64_t pc);
-    void onExternelInterruptTrigger(S2EExecutionState *state, uint32_t irq_no, bool* irq_triggered);
-    void onDMARequest(S2EExecutionState *state, uint32_t irq_no, std::queue<uint8_t> data, bool* irq_triggered);
+    void onExternelInterruptTrigger(S2EExecutionState *state, uint32_t irq_no, bool *irq_triggered);
+    void onDMARequest(S2EExecutionState *state, uint32_t irq_no, std::queue<uint8_t> data, bool *irq_triggered);
     void onGetISERIRQ(S2EExecutionState *state, std::vector<uint32_t> *irq_no);
 };
 

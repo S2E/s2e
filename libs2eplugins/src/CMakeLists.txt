@@ -162,6 +162,8 @@ add_library(
     s2e/Plugins/SEmu/ExternalInterrupt.cpp
     s2e/Plugins/SEmu/InvalidStatesDetection.cpp
     s2e/Plugins/SEmu/NLPPeripheralModel.cpp
+    s2e/Plugins/SEmu/ComplianceCheck.cpp
+    s2e/Plugins/SEmu/ExternalHardwareSignal.cpp
 
     # Support plugins
     s2e/Plugins/Support/KeyValueStore.cpp

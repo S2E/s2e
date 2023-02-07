@@ -1,4 +1,3 @@
-
 ///
 /// Copyright (C) 2010-2013, Dependable Systems Laboratory, EPFL
 /// All rights reserved.
@@ -13,6 +12,8 @@
 #include <queue>
 #include <s2e/CorePlugin.h>
 #include <s2e/Plugin.h>
+#include <s2e/Plugins/SEmu/ExternalHardwareSignal.h>
+#include <s2e/Plugins/SEmu/FailureAnalysis.h>
 #include <s2e/Plugins/SEmu/InvalidStatesDetection.h>
 #include <s2e/Plugins/SymbolicHardware/SymbolicHardware.h>
 #include <s2e/S2EExecutionState.h>
@@ -23,14 +24,6 @@ namespace s2e {
 static const boost::regex TARegEx("([a-zA-Z\\d\\#\\*,=></]+)", boost::regex::perl);
 
 namespace plugins {
-
-typedef struct field {
-    std::string type; // R: receive; T: transmit; O: other
-    uint32_t phaddr;
-    std::vector<long> bits;
-    field() : type("*"), phaddr(0), bits({-1}) {
-    }
-} Field;
 
 typedef struct datareg {
     uint32_t t_size;
@@ -103,12 +96,16 @@ public:
     }
     sigc::signal<void, S2EExecutionState *, uint32_t /* irq_no */, bool * /* actual trigger or not */>
         onExternalInterruptEvent;
-    // sigc::signal<void, S2EExecutionState *, uint32_t /* irq_no */, std::queue<uint8_t>, bool * /* actual trigger or
-    // not */> onDMAInterruptEvent;
     sigc::signal<void, S2EExecutionState *, std::vector<uint32_t> * /* enable IRQ vector */> onEnableISER;
+    sigc::signal<void, S2EExecutionState *, uint32_t, uint32_t, int32_t> onHardwareWrite;
+    sigc::signal<void, S2EExecutionState *, uint32_t, uint32_t, int32_t> onFirmwareWrite;
+    sigc::signal<void, S2EExecutionState *, uint32_t, uint32_t, int32_t> onFirmwareRead;
+    sigc::signal<void, S2EExecutionState *, uint32_t, uint32_t, int32_t, bool> onFirmwareCheck;
 
 private:
     InvalidStatesDetection *onInvalidStateDectionConnection;
+    ExternalHardwareSignal *onExternalHardwareSignalConnection;
+    FailureAnalysis *onFailureAnalysisConnection;
 
     hw::PeripheralMmioRanges nlp_mmio;
     std::string NLPfileName;
@@ -174,6 +171,10 @@ private:
     void onForkPoints(S2EExecutionState *state, uint64_t pc, unsigned source_type);
     void onFeedData(S2EExecutionState *state, uint64_t pc);
     void onEnableReceive(S2EExecutionState *state, uint32_t pc, uint64_t tb_num);
+
+    void onUpdateBySignals(S2EExecutionState *state, SignalPair &irq_signals);
+    void onFork(S2EExecutionState *state, uint32_t phaddr, bool check);
+    bool checkField(S2EExecutionState *state, FieldList &fields);
 };
 
 } // namespace plugins
