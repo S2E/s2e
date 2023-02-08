@@ -52,8 +52,7 @@ private:
     Race races;
 
     uint32_t cur_time = 0;
-    bool read_data = false;
-
+    uint32_t fork_point;
     std::string CCfileName;
     void initialize();
     void onComplianceCheck();
@@ -62,17 +61,20 @@ private:
     void getExsitence(std::vector<Access> &access, Field &rule, AccessPair &pair);
     void checkAtomic(std::vector<AccessPair> &existence_seq, Race &races);
 
-    bool readCCModelfromFile(S2EExecutionState *state, std::string &fileName);
+    bool readCCModelfromFile(std::string &fileName);
     bool getSequences(std::string &peripheralcache);
     void ReadField(std::string &v, Field &field);
     std::vector<long> getBits(std::string &bits);
     void SplitString(const std::string &s, std::vector<std::string> &v, const std::string &c);
     void SplitStringToInt(const std::string &s, std::vector<long> &v, const std::string &c, int dtype);
 
-    void onPeripheralRead(S2EExecutionState *state, uint32_t phaddr, uint32_t cur_val, int32_t irq);
-    void onPeripheralWrite(S2EExecutionState *state, uint32_t phaddr, uint32_t cur_val, int32_t irq);
-    void onHardwareWrite(S2EExecutionState *state, uint32_t phaddr, uint32_t cur_val, int32_t irq);
-    void onFork(S2EExecutionState *state, uint32_t phaddr, uint32_t cur_val, int32_t irq, bool check);
+    void onPeripheralRead(S2EExecutionState *state, uint32_t phaddr, uint32_t cur_val);
+    void onPeripheralWrite(S2EExecutionState *state, uint32_t phaddr, uint32_t cur_val);
+    void onHardwareWrite(S2EExecutionState *state, uint32_t phaddr, uint32_t cur_val);
+    void onPeripheralCondition(S2EExecutionState *state, uint32_t phaddr, uint32_t cur_val);
+    void onTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb, uint64_t pc,
+                             bool staticTarget, uint64_t staticTargetPc);
+    void onForkPoints(S2EExecutionState *state, uint64_t pc, unsigned source_type);
 };
 
 } // namespace plugins

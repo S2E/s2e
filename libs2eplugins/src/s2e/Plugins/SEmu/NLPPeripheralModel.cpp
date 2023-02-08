@@ -9,6 +9,7 @@
 #include <s2e/ConfigFile.h>
 #include <s2e/S2E.h>
 #include <s2e/SymbolicHardwareHook.h>
+#include <klee/util/ExprUtil.h>
 #include <s2e/Utils.h>
 #include <s2e/cpu.h>
 #include <sys/shm.h>
@@ -16,9 +17,11 @@
 #include <algorithm>
 #include <random>
 
+using namespace klee;
 namespace s2e {
 namespace plugins {
 
+static const boost::regex SymbolicPeripheralRegEx("v\\d+_iommuread_(.+)_(.+)_(.+)", boost::regex::perl);
 S2E_DEFINE_PLUGIN(NLPPeripheralModel, "NLP Peripheral Model", "NLPPeripheralModel");
 
 class NLPPeripheralModelState : public PluginState {
@@ -90,46 +93,9 @@ public:
         }
     }
 
-    void write_dr_value(uint32_t phaddr, uint32_t value, uint32_t width, bool fork_point) {
-        // state_map[phaddr].t_value = value;
+    void write_dr_value(uint32_t phaddr, uint32_t value, uint32_t width) {
         state_map[phaddr].dr.t_value = (state_map[phaddr].dr.t_value << width * 8) + value;
         state_map[phaddr].dr.t_size = 0; // width;
-        /*if (state_map[phaddr].t_value == 0xAAFA && !fork_point) {
-            std::queue<uint8_t> tmp;
-            tmp.push(0x4F);
-            tmp.push(0x4B);
-            tmp.push(0x0D);
-            tmp.push(0x0A);
-            state_map[phaddr].r_value = tmp;
-            state_map[phaddr].r_size = 32; // * 4;
-            instruction = true;
-        } else if (phaddr == 0x40028014 && (state_map[phaddr].t_value & 0x8000)) {
-            std::queue<uint8_t> tmp;
-            tmp.push(0x4);
-            state_map[phaddr].r_value = tmp;
-            state_map[phaddr].r_size = 8; // 32;
-            instruction = true;
-        } else if (phaddr == 0x40028014 && (state_map[phaddr].t_value & 0x1000)) {
-            std::queue<uint8_t> tmp;
-            tmp.push(0x20);
-            state_map[phaddr].r_value = tmp;
-            state_map[phaddr].r_size = 8; // 32;
-            instruction = true;
-        } else if (phaddr == 0x40005410 && state_map[phaddr].t_value == 0x84) {
-            std::queue<uint8_t> tmp;
-            tmp.push(0x0);
-            tmp.push(0x16);
-            for (uint32_t i = 0; i < 64; i++) {
-                tmp.push(0x1);
-            }
-            state_map[phaddr].r_value = tmp;
-            state_map[phaddr].r_size = 66 * 8; // 576;
-            instruction = true;
-            //} else if (phaddr == 0x4001300c || phaddr == 0x4000380c || phaddr == 0x40011004) {
-        } // else if (phaddr == 0x4001300c || phaddr == 0x4000380c) {
-        //	state_map[phaddr].r_value.push(value);
-        //	state_map[phaddr].r_size += width*8;
-        //}*/
     }
 
     void rx_push_to_fix_size(uint32_t phaddr, int size) {
@@ -261,29 +227,14 @@ template <typename T> bool NLPPeripheralModel::parseRangeList(ConfigFile *cfg, c
 void NLPPeripheralModel::initialize() {
     NLPfileName = s2e()->getConfig()->getString(getConfigKey() + ".NLPfileName", "all.txt");
     getDebugStream() << "NLP peripheral model file name is " << NLPfileName << "\n";
-
     if (!parseConfig()) {
         getWarningsStream() << "Could not parse NLP range config\n";
         exit(-1);
     }
 
-    s2e()->getCorePlugin()->onEngineShutdown.connect(sigc::mem_fun(*this, &NLPPeripheralModel::onStatistics));
-
-    bool ok;
-    fork_point = s2e()->getConfig()->getInt(getConfigKey() + ".forkPoint", 0x0, &ok);
-    getInfoStream() << "set fork_point phaddr = " << hexval(fork_point) << "\n";
-    begin_irq_flag = false;
-    s2e()->getCorePlugin()->onTranslateBlockEnd.connect(sigc::mem_fun(*this, &NLPPeripheralModel::onTranslateBlockEnd));
-    s2e()->getCorePlugin()->onTranslateBlockStart.connect(
-        sigc::mem_fun(*this, &NLPPeripheralModel::onTranslateBlockStart));
     s2e()->getCorePlugin()->onExceptionExit.connect(sigc::mem_fun(*this, &NLPPeripheralModel::onExceptionExit));
-
-    onInvalidStateDectionConnection = s2e()->getPlugin<InvalidStatesDetection>();
-    onInvalidStateDectionConnection->onReceiveExternalDataEvent.connect(
-        sigc::mem_fun(*this, &NLPPeripheralModel::onEnableReceive));
-
-    onFailureAnalysisConnection = s2e()->getPlugin<FailureAnalysis>();
-    onFailureAnalysisConnection->onForkCheck.connect(sigc::mem_fun(*this, &NLPPeripheralModel::onFork));
+    s2e()->getCorePlugin()->onStateFork.connect(sigc::mem_fun(*this, &NLPPeripheralModel::onFirmwareFork));
+    s2e()->getCorePlugin()->onEngineShutdown.connect(sigc::mem_fun(*this, &NLPPeripheralModel::onStatistics));
 
     onExternalHardwareSignalConnection = s2e()->getPlugin<ExternalHardwareSignal>();
     onExternalHardwareSignalConnection->onReadUpdate.connect(
@@ -673,8 +624,6 @@ std::pair<uint32_t, uint32_t> NLPPeripheralModel::AddressCorrection(S2EExecution
 void NLPPeripheralModel::onPeripheralRead(S2EExecutionState *state, SymbolicHardwareAccessType type, uint32_t phaddr,
                                           unsigned size, uint32_t *NLPSymbolicValue, bool *createSymFlag,
                                           std::stringstream *ss) {
-    getDebugStream() << "NLPPeripheralModel READ"
-                     << "\n";
     DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
     *ss << "_" << hexval(size);
     rw_count++;
@@ -737,17 +686,12 @@ void NLPPeripheralModel::onPeripheralRead(S2EExecutionState *state, SymbolicHard
     }
     getDebugStream() << "Read phaddr " << hexval(phaddr) << " value " << hexval(*NLPSymbolicValue) << " \n";
     if (ExistInMMIO(phaddr)) {
-        int32_t irq = -1;
-        if (state->regs()->getInterruptFlag())
-            irq = state->regs()->getExceptionIndex();
-        onFirmwareRead.emit(state, phaddr, state_map[phaddr].cur_value, irq);
+        onFirmwareRead.emit(state, phaddr, state_map[phaddr].cur_value);
     }
 }
 
 void NLPPeripheralModel::onPeripheralWrite(S2EExecutionState *state, SymbolicHardwareAccessType type, uint32_t phaddr,
                                            uint32_t writeconcretevalue) {
-    getDebugStream() << "NLPPeripheralModel WRITE"
-                     << "\n";
     DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
     rw_count++;
     if (rw_count == 1) {
@@ -776,8 +720,8 @@ void NLPPeripheralModel::onPeripheralWrite(S2EExecutionState *state, SymbolicHar
             } else
                 write_unauthorized_freq[phaddr].insert(state->regs()->getPc());
         }
-        plgState->write_dr_value(phaddr, writeconcretevalue, 1, begin_irq_flag);
-        getInfoStream() << "Write to data register " << hexval(phaddr) << " flag " << begin_irq_flag
+        plgState->write_dr_value(phaddr, writeconcretevalue, 1);
+        getInfoStream() << "Write to data register " << hexval(phaddr)
                         << " value: " << hexval(writeconcretevalue)
                         << " cur dr: " << hexval(state_map[phaddr].dr.t_value) << " \n";
         deal_rule_RWVB(state, phaddr, "B");
@@ -788,10 +732,7 @@ void NLPPeripheralModel::onPeripheralWrite(S2EExecutionState *state, SymbolicHar
 
     deal_rule_RWVB(state, phaddr, "V");
     if (ExistInMMIO(phaddr)) {
-        int32_t irq = -1;
-        if (state->regs()->getInterruptFlag())
-            irq = state->regs()->getExceptionIndex();
-        onFirmwareWrite.emit(state, phaddr, state_map[phaddr].cur_value, irq);
+        onFirmwareWrite.emit(state, phaddr, state_map[phaddr].cur_value);
     }
 }
 
@@ -961,10 +902,7 @@ void NLPPeripheralModel::set_reg_value(S2EExecutionState *state, RegMap &state_m
             state_map[phaddr].cur_value = cur_value;
         }
         if (ExistInMMIO(phaddr)) {
-            int32_t irq = -1;
-            if (state->regs()->getInterruptFlag())
-                irq = state->regs()->getExceptionIndex();
-            onHardwareWrite.emit(state, phaddr, state_map[phaddr].cur_value, irq);
+            onHardwareWrite.emit(state, phaddr, state_map[phaddr].cur_value);
         }
         getDebugStream() << "new value " << hexval(state_map[phaddr].cur_value) << "\n";
     }
@@ -1121,7 +1059,7 @@ void NLPPeripheralModel::onExceptionExit(S2EExecutionState *state, uint32_t irq_
 
 void NLPPeripheralModel::onStatistics() {
     DECLARE_PLUGINSTATE(NLPPeripheralModelState, g_s2e_state);
-    getInfoStream() << "write NLP files\n";
+    getInfoStream() << "write NLP statistics file\n";
     std::string NLPstafileName = s2e()->getOutputDirectory() + "/" + "NLPStatistics.dat";
     std::ofstream fPHNLP;
 
@@ -1159,11 +1097,6 @@ void NLPPeripheralModel::onStatistics() {
     fPHNLP.close();
 }
 
-void NLPPeripheralModel::onTranslateBlockStart(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb,
-                                               uint64_t pc) {
-    signal->connect(sigc::bind(sigc::mem_fun(*this, &NLPPeripheralModel::onForkPoints), (unsigned) tb->se_tb_type));
-}
-
 void NLPPeripheralModel::CheckEnable(S2EExecutionState *state, std::vector<uint32_t> &irq_no) {
     DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
     std::map<uint32_t, uint32_t> interrupt_freq = plgState->get_irqs_freq();
@@ -1175,38 +1108,6 @@ void NLPPeripheralModel::CheckEnable(S2EExecutionState *state, std::vector<uint3
     }
 }
 
-void NLPPeripheralModel::onForkPoints(S2EExecutionState *state, uint64_t pc, unsigned source_type) {
-    DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
-
-    if (pc == fork_point) {
-        getDebugStream() << "at fork_point:" << hexval(fork_point) << "\n";
-        begin_irq_flag = true;
-        init_dr_flag = true;
-        plgState->inc_fork_count();
-        if (plgState->get_fork_point_count() < 2) {
-            return;
-        }
-
-        deal_rule_O(state);
-        deal_rule_flag(state, 0);
-        if (plgState->pending_interrupt())
-            return;
-        CheckEnable(state, irq_no);
-        getWarningsStream() << "already go though Main Loop Point Count = " << plgState->get_fork_point_count() << "\n";
-        getWarningsStream() << "===========unit test pass============\n";
-        g_s2e->getCorePlugin()->onEngineShutdown.emit();
-        // Flush here just in case ~S2E() is not called (e.g., if atexit()
-        // shutdown handler was not called properly).
-        g_s2e->flushOutputStreams();
-        exit(0);
-    }
-}
-
-void NLPPeripheralModel::onTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb,
-                                             uint64_t pc, bool staticTarget, uint64_t staticTargetPc) {
-    signal->connect(sigc::mem_fun(*this, &NLPPeripheralModel::onFeedData));
-}
-
 void NLPPeripheralModel::onEnableReceive(S2EExecutionState *state, uint32_t pc, uint64_t tb_num) {
     DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
     //  Write a value to DR
@@ -1214,15 +1115,6 @@ void NLPPeripheralModel::onEnableReceive(S2EExecutionState *state, uint32_t pc, 
     deal_rule_flag(state, 0);
     if (!plgState->check_instruction()) {
         hardware_write_to_receive_buffer(state);
-    }
-}
-
-void NLPPeripheralModel::onFeedData(S2EExecutionState *state, uint64_t cur_loc) {
-    if (init_dr_flag == true && (!state->regs()->getInterruptFlag())) {
-        deal_rule_O(state);
-        deal_rule_flag(state, 0);
-        hardware_write_to_receive_buffer(state);
-        init_dr_flag = false;
     }
 }
 
@@ -1273,17 +1165,54 @@ bool NLPPeripheralModel::checkField(S2EExecutionState *state, FieldList &fields)
     return ans;
 }
 
-void NLPPeripheralModel::onFork(S2EExecutionState *state, uint32_t phaddr, bool check) {
-    getDebugStream() << "NLPPeripheralModel Fork"
-                     << "\n";
+void NLPPeripheralModel::onFirmwareFork(S2EExecutionState *state, const std::vector<S2EExecutionState *> &newStates,
+                             const std::vector<klee::ref<klee::Expr>> &newConditions) {
     DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
     RegMap state_map = plgState->get_state_map();
-    if (ExistInMMIO(phaddr)) {
-        int32_t irq = -1;
-        if (state->regs()->getInterruptFlag())
-            irq = state->regs()->getExceptionIndex();
-        onFirmwareCheck.emit(state, phaddr, state_map[phaddr].cur_value, irq, check);
+    ArrayVec results;
+    findSymbolicObjects(newConditions[0], results);
+    for (int i = results.size() - 1; i >= 0; --i) { // one cond multiple sym var
+        uint32_t phaddr;
+        uint32_t pc;
+        uint32_t size;
+        uint64_t no;
+        auto &arr = results[i];
+
+        getPeripheralExecutionState(arr->getName(), &phaddr, &pc, &size, &no);
+        if (ExistInMMIO(phaddr)) {
+            onFirmwareCondition.emit(state, phaddr, state_map[phaddr].cur_value);
+        }
     }
 }
+
+bool NLPPeripheralModel::getPeripheralExecutionState(std::string variablePeripheralName, uint32_t *phaddr, uint32_t *pc,
+                                                  uint32_t *size, uint64_t *no) {
+    boost::smatch what;
+    if (!boost::regex_match(variablePeripheralName, what, SymbolicPeripheralRegEx)) {
+        getWarningsStream() << "match false\n";
+        exit(0);
+        return false;
+    }
+
+    if (what.size() != 4) {
+        getWarningsStream() << "wrong size = " << what.size() << "\n";
+        exit(0);
+        return false;
+    }
+
+    std::string peripheralAddressStr = what[1];
+    std::string sizeStr = what[2];
+    std::string noStr = what[3];
+
+    std::vector<std::string> v;
+    SplitString(peripheralAddressStr, v, "_");
+    *phaddr = std::stoull(v[0].c_str(), NULL, 16);
+    *pc = std::stoull(v[1].c_str(), NULL, 16);
+    *size = std::stoull(sizeStr.c_str(), NULL, 16);
+    *no = std::stoull(noStr.c_str(), NULL, 10);
+
+    return true;
+}
+
 } // namespace plugins
 } // namespace s2e

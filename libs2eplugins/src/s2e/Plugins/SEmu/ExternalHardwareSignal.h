@@ -64,11 +64,9 @@ public:
 private:
     IRQRules interrupt_conditions;
 
-    std::string CCfileName;
-    bool read_data;
+    std::string SignalfileName;
     void initialize();
-
-    bool readCCModelfromFile(S2EExecutionState *state, std::string &fileName);
+    bool readSignalfromFile(std::string &fileName);
     bool getSignals(std::string &peripheralcache);
     bool getSequences(std::string &peripheralcache);
     void extractSignal(std::string &expressions, int32_t interrupt, std::string &status, Signal &signal);

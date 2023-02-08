@@ -20,8 +20,13 @@ namespace plugins {
 S2E_DEFINE_PLUGIN(ExternalHardwareSignal, "External Hardware Signal", "ExternalHardwareSignal");
 
 void ExternalHardwareSignal::initialize() {
-    CCfileName = s2e()->getConfig()->getString(getConfigKey() + ".SignalfileName", "all.txt");
-    getDebugStream() << "Signal peripheral model file name is " << CCfileName << "\n";
+    SignalfileName = s2e()->getConfig()->getString(getConfigKey() + ".SignalfileName", "all.txt");
+    if (!readSignalfromFile(SignalfileName)) {
+        getWarningsStream() << "Could not open cache Signal file: " << SignalfileName << "\n";
+        exit(-1);
+    } else {
+        getDebugStream() << "Signal peripheral model file name is " << SignalfileName << "\n";
+    }
     hw::SymbolicHardware *symbolicPeripheralConnection = s2e()->getPlugin<hw::SymbolicHardware>();
     symbolicPeripheralConnection->onSymbolicRegisterReadEvent.connect(
         sigc::mem_fun(*this, &ExternalHardwareSignal::onPeripheralRead));
@@ -29,13 +34,11 @@ void ExternalHardwareSignal::initialize() {
         sigc::mem_fun(*this, &ExternalHardwareSignal::onPeripheralWrite));
 }
 
-bool ExternalHardwareSignal::readCCModelfromFile(S2EExecutionState *state, std::string &fileName) {
+bool ExternalHardwareSignal::readSignalfromFile(std::string &fileName) {
     std::ifstream fNLP;
     std::string line;
     fNLP.open(fileName, std::ios::in);
     if (!fNLP) {
-        getWarningsStream() << "Could not open cache Signal file: " << fileName << "\n";
-        exit(-1);
         return false;
     }
 
@@ -165,20 +168,14 @@ void ExternalHardwareSignal::triggerIRQ(S2EExecutionState *state, uint32_t phadd
 void ExternalHardwareSignal::onPeripheralRead(S2EExecutionState *state, SymbolicHardwareAccessType type, uint32_t phaddr,
                                               unsigned size, uint32_t *NLPSymbolicValue, bool *createSymFlag,
                                               std::stringstream *ss) {
-    getDebugStream() << "ExternalHardwareSignal READ"
-                     << "\n";
-    if (!read_data)
-        readCCModelfromFile(state, CCfileName);
+    getDebugStream() << "ExternalHardwareSignal READ\n";
     onReadUpdate.emit(state, type, phaddr, size, NLPSymbolicValue, createSymFlag, ss);
     triggerIRQ(state, phaddr);
 }
 
 void ExternalHardwareSignal::onPeripheralWrite(S2EExecutionState *state, SymbolicHardwareAccessType type, uint32_t phaddr,
                                                uint32_t writeconcretevalue) {
-    getDebugStream() << "ExternalHardwareSignal WRITE"
-                     << "\n";
-    if (!read_data)
-        readCCModelfromFile(state, CCfileName);
+    getDebugStream() << "ExternalHardwareSignal WRITE\n";
     onWriteUpdate.emit(state, type, phaddr, writeconcretevalue);
     triggerIRQ(state, phaddr);
 }

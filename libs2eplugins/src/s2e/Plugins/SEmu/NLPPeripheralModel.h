@@ -13,8 +13,6 @@
 #include <s2e/CorePlugin.h>
 #include <s2e/Plugin.h>
 #include <s2e/Plugins/SEmu/ExternalHardwareSignal.h>
-#include <s2e/Plugins/SEmu/FailureAnalysis.h>
-#include <s2e/Plugins/SEmu/InvalidStatesDetection.h>
 #include <s2e/Plugins/SymbolicHardware/SymbolicHardware.h>
 #include <s2e/S2EExecutionState.h>
 #include <s2e/SymbolicHardwareHook.h>
@@ -97,15 +95,13 @@ public:
     sigc::signal<void, S2EExecutionState *, uint32_t /* irq_no */, bool * /* actual trigger or not */>
         onExternalInterruptEvent;
     sigc::signal<void, S2EExecutionState *, std::vector<uint32_t> * /* enable IRQ vector */> onEnableISER;
-    sigc::signal<void, S2EExecutionState *, uint32_t, uint32_t, int32_t> onHardwareWrite;
-    sigc::signal<void, S2EExecutionState *, uint32_t, uint32_t, int32_t> onFirmwareWrite;
-    sigc::signal<void, S2EExecutionState *, uint32_t, uint32_t, int32_t> onFirmwareRead;
-    sigc::signal<void, S2EExecutionState *, uint32_t, uint32_t, int32_t, bool> onFirmwareCheck;
+    sigc::signal<void, S2EExecutionState *, uint32_t, uint32_t> onHardwareWrite;
+    sigc::signal<void, S2EExecutionState *, uint32_t, uint32_t> onFirmwareWrite;
+    sigc::signal<void, S2EExecutionState *, uint32_t, uint32_t> onFirmwareRead;
+    sigc::signal<void, S2EExecutionState *, uint32_t, uint32_t> onFirmwareCondition;
 
 private:
-    InvalidStatesDetection *onInvalidStateDectionConnection;
     ExternalHardwareSignal *onExternalHardwareSignalConnection;
-    FailureAnalysis *onFailureAnalysisConnection;
 
     hw::PeripheralMmioRanges nlp_mmio;
     std::string NLPfileName;
@@ -117,17 +113,12 @@ private:
     std::vector<uint32_t> irq_no;
 
     uint32_t rw_count;
-    uint32_t fork_point;
-    bool begin_irq_flag;
-
     std::set<uint32_t> unenabled_flag;
     std::set<uint32_t> untriggered_irq;
     std::map<uint32_t, std::set<uint64_t>> read_unauthorized_freq;
     std::map<uint32_t, std::set<uint64_t>> write_unauthorized_freq;
 
     bool checked_SR = false;
-
-    bool init_dr_flag;
 
     template <typename T> bool parseRangeList(ConfigFile *cfg, const std::string &key, T &result);
     bool parseConfig();
@@ -164,17 +155,15 @@ private:
 
     void onExceptionExit(S2EExecutionState *state, uint32_t irq_no);
     void onStatistics();
-    void onTranslateBlockStart(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb, uint64_t pc);
     void CheckEnable(S2EExecutionState *state, std::vector<uint32_t> &irq_no);
-    void onTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb, uint64_t pc,
-                             bool staticTarget, uint64_t staticTargetPc);
-    void onForkPoints(S2EExecutionState *state, uint64_t pc, unsigned source_type);
-    void onFeedData(S2EExecutionState *state, uint64_t pc);
     void onEnableReceive(S2EExecutionState *state, uint32_t pc, uint64_t tb_num);
 
     void onUpdateBySignals(S2EExecutionState *state, SignalPair &irq_signals);
-    void onFork(S2EExecutionState *state, uint32_t phaddr, bool check);
+    void onFirmwareFork(S2EExecutionState *state, const std::vector<S2EExecutionState *> &newStates,
+                const std::vector<klee::ref<klee::Expr>> &newConditions);
     bool checkField(S2EExecutionState *state, FieldList &fields);
+    bool getPeripheralExecutionState(std::string variablePeripheralName, uint32_t *phaddr, uint32_t *size, uint32_t *pc,
+                                     uint64_t *no);
 };
 
 } // namespace plugins
