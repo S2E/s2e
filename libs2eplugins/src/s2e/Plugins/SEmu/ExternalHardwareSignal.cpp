@@ -161,7 +161,7 @@ void ExternalHardwareSignal::SplitString(const std::string &s, std::vector<std::
         v.push_back(s.substr(pos1));
 }
 
-void ExternalHardwareSignal::triggerIRQ(S2EExecutionState *state, uint32_t phaddr) {
+void ExternalHardwareSignal::triggerHardwareEvents(S2EExecutionState *state, uint32_t phaddr) {
     onSignalUpdate.emit(state, interrupt_conditions[phaddr]);
 }
 
@@ -170,14 +170,15 @@ void ExternalHardwareSignal::onPeripheralRead(S2EExecutionState *state, Symbolic
                                               std::stringstream *ss) {
     getDebugStream() << "ExternalHardwareSignal READ\n";
     onReadUpdate.emit(state, type, phaddr, size, NLPSymbolicValue, createSymFlag, ss);
-    triggerIRQ(state, phaddr);
+    triggerHardwareEvents(state, phaddr);
 }
 
 void ExternalHardwareSignal::onPeripheralWrite(S2EExecutionState *state, SymbolicHardwareAccessType type, uint32_t phaddr,
                                                uint32_t writeconcretevalue) {
     getDebugStream() << "ExternalHardwareSignal WRITE\n";
     onWriteUpdate.emit(state, type, phaddr, writeconcretevalue);
-    triggerIRQ(state, phaddr);
+    triggerHardwareEvents(state, phaddr);
 }
+
 }
 } // namespace s2e::plugins

@@ -76,7 +76,7 @@ private:
     void SplitString(const std::string &s, std::vector<std::string> &v, const std::string &c);
     void SplitStringToInt(const std::string &s, std::vector<long> &v, const std::string &c, int dtype);
 
-    void triggerIRQ(S2EExecutionState *state, uint32_t phaddr);
+    void triggerHardwareEvents(S2EExecutionState *state, uint32_t phaddr);
     void onPeripheralRead(S2EExecutionState *state, SymbolicHardwareAccessType type, uint32_t phaddr, unsigned size,
                           uint32_t *NLPsymbolicvalue, bool *flag, std::stringstream *ss);
     void onPeripheralWrite(S2EExecutionState *state, SymbolicHardwareAccessType type, uint32_t phaddr,

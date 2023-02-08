@@ -112,6 +112,9 @@ private:
     std::vector<DMA> all_dmas;
     std::vector<uint32_t> irq_no;
 
+    uint32_t fork_point;
+    uint32_t disable_interrupt_count = 0;
+    bool init_dr_flag = false;
     uint32_t rw_count;
     std::set<uint32_t> unenabled_flag;
     std::set<uint32_t> untriggered_irq;
@@ -153,6 +156,11 @@ private:
     bool EmitIRQ(S2EExecutionState *state, int irq);
     bool compare(uint32_t a1, std::string &sym, uint32_t a2);
 
+    void onTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb, uint64_t pc,
+                             bool staticTarget, uint64_t staticTargetPc);
+    void onTranslateBlockStart(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb, uint64_t pc);
+    void onFeedData(S2EExecutionState *state, uint64_t pc);
+    void onForkPoints(S2EExecutionState *state, uint64_t pc, unsigned source_type);
     void onExceptionExit(S2EExecutionState *state, uint32_t irq_no);
     void onStatistics();
     void CheckEnable(S2EExecutionState *state, std::vector<uint32_t> &irq_no);

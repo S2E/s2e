@@ -26,13 +26,8 @@ void ComplianceCheck::initialize() {
     onNLPPeripheralModelConnection->onFirmwareWrite.connect(sigc::mem_fun(*this, &ComplianceCheck::onPeripheralWrite));
     onNLPPeripheralModelConnection->onFirmwareRead.connect(sigc::mem_fun(*this, &ComplianceCheck::onPeripheralRead));
     onNLPPeripheralModelConnection->onFirmwareCondition.connect(sigc::mem_fun(*this, &ComplianceCheck::onPeripheralCondition));
-    s2e()->getCorePlugin()->onTranslateBlockEnd.connect(
-        sigc::mem_fun(*this, &ComplianceCheck::onTranslateBlockEnd));
     s2e()->getCorePlugin()->onEngineShutdown.connect(sigc::mem_fun(*this, &ComplianceCheck::onComplianceCheck));
 
-    bool ok;
-    fork_point = s2e()->getConfig()->getInt(getConfigKey() + ".forkPoint", 0x0, &ok);
-    getInfoStream() << "set fork_point phaddr = " << hexval(fork_point) << "\n";
     CCfileName = s2e()->getConfig()->getString(getConfigKey() + ".CCfileName", "all.txt");
     if (!readCCModelfromFile(CCfileName)) {
         getWarningsStream() << "Could not open cache CC file: " << CCfileName << "\n";
@@ -154,13 +149,13 @@ void ComplianceCheck::onPeripheralWrite(S2EExecutionState *state, uint32_t phadd
     int32_t irq = -1;
     if (state->regs()->getInterruptFlag())
         irq = state->regs()->getExceptionIndex();
-    if (cur_time % 1000 == 0) {
+    if (cur_time % 500) {
         onComplianceCheck();
     }
     cur_time++;
     recording_write[phaddr].push_back(Access("FW", cur_time, irq, phaddr, cur_val, state->regs()->getPc()));
     getDebugStream() << "ComplianceCheck WRITE  time: " << cur_time << " irq: " << irq << " phaddr: " << hexval(phaddr)
-                     << " cur_val: " << cur_val << "\n";
+                     << " cur_val: " << cur_val  << " cur_time: " << cur_time<< "\n";
 }
 
 void ComplianceCheck::onPeripheralCondition(S2EExecutionState *state, uint32_t phaddr, uint32_t cur_val) {
@@ -297,24 +292,6 @@ void ComplianceCheck::onComplianceCheck() {
 
     fPHNLP.close();
     exit(-1);
-}
-
-void ComplianceCheck::onTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb,
-                                             uint64_t pc, bool staticTarget, uint64_t staticTargetPc) {
-    signal->connect(
-        sigc::bind(sigc::mem_fun(*this, &ComplianceCheck::onForkPoints), (unsigned) tb->se_tb_type));
-}
-
-void ComplianceCheck::onForkPoints(S2EExecutionState *state, uint64_t pc, unsigned source_type) {
-    if (pc == fork_point) {
-        getDebugStream() << "at fork_point:" << hexval(fork_point) << "\n";
-        g_s2e->getCorePlugin()->onEngineShutdown.emit();
-        getInfoStream() << "===========ComplianceCheck Test Finish============\n";
-        // Flush here just in case ~S2E() is not called (e.g., if atexit()
-        // shutdown handler was not called properly).
-        g_s2e->flushOutputStreams();
-        exit(0);
-    }
 }
 
 } // namespace plugins

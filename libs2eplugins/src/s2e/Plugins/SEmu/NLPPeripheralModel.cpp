@@ -158,6 +158,7 @@ public:
     uint32_t get_fork_point_count() {
         return fork_point_count;
     }
+
     // cur description loc
     void insert_cur_dp_addr(uint32_t mem_addr) {
         cur_dp_addr = mem_addr;
@@ -232,6 +233,12 @@ void NLPPeripheralModel::initialize() {
         exit(-1);
     }
 
+    bool ok;
+    fork_point = s2e()->getConfig()->getInt(getConfigKey() + ".forkPoint", 0x0, &ok);
+    getInfoStream() << "set fork_point phaddr = " << hexval(fork_point) << "\n";
+    s2e()->getCorePlugin()->onTranslateBlockStart.connect(
+            sigc::mem_fun(*this, &NLPPeripheralModel::onTranslateBlockStart));
+    s2e()->getCorePlugin()->onTranslateBlockEnd.connect(sigc::mem_fun(*this, &NLPPeripheralModel::onTranslateBlockEnd));
     s2e()->getCorePlugin()->onExceptionExit.connect(sigc::mem_fun(*this, &NLPPeripheralModel::onExceptionExit));
     s2e()->getCorePlugin()->onStateFork.connect(sigc::mem_fun(*this, &NLPPeripheralModel::onFirmwareFork));
     s2e()->getCorePlugin()->onEngineShutdown.connect(sigc::mem_fun(*this, &NLPPeripheralModel::onStatistics));
@@ -589,9 +596,9 @@ bool NLPPeripheralModel::extractDMA(std::string &peripheralcache, DMA &dma) {
 // access
 void NLPPeripheralModel::hardware_write_to_receive_buffer(S2EExecutionState *state, uint32_t phaddr) {
     DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
-    getDebugStream() << " write init dr value 0x2D!  \n";
+    getInfoStream() << " write random dr value e.g., 0x1!\n";
     std::queue<uint8_t> tmp;
-    for (int i = 0; i < 2; ++i) {
+    for (int i = 0; i < 1; ++i) {
         tmp.push(0x1);
     }
     if (phaddr != 0) {
@@ -1213,6 +1220,55 @@ bool NLPPeripheralModel::getPeripheralExecutionState(std::string variablePeriphe
 
     return true;
 }
+
+void NLPPeripheralModel::onTranslateBlockStart(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb,
+                                               uint64_t pc) {
+    signal->connect(sigc::bind(sigc::mem_fun(*this, &NLPPeripheralModel::onForkPoints), (unsigned) tb->se_tb_type));
+}
+
+void NLPPeripheralModel::onForkPoints(S2EExecutionState *state, uint64_t pc, unsigned source_type) {
+    DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
+
+    if (pc == fork_point) {
+        getInfoStream() << "at fork_point:" << hexval(fork_point) << "\n";
+        init_dr_flag = true;
+        plgState->inc_fork_count();
+        if (plgState->get_fork_point_count() < 2) {
+            return;
+        }
+
+        deal_rule_O(state);
+        deal_rule_flag(state, 0);
+        if (plgState->pending_interrupt()) {
+            return;
+        }
+        CheckEnable(state, irq_no);
+        getWarningsStream() << "already go though Main Loop Point Count = " << plgState->get_fork_point_count() << "\n";
+        getWarningsStream() << "===========unit test pass============\n";
+        g_s2e->getCorePlugin()->onEngineShutdown.emit();
+        // Flush here just in case ~S2E() is not called (e.g., if atexit()
+        // shutdown handler was not called properly).
+        g_s2e->flushOutputStreams();
+        exit(0);
+    }
+}
+
+void NLPPeripheralModel::onTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb,
+                                             uint64_t pc, bool staticTarget, uint64_t staticTargetPc) {
+    signal->connect(sigc::mem_fun(*this, &NLPPeripheralModel::onFeedData));
+}
+
+void NLPPeripheralModel::onFeedData(S2EExecutionState *state, uint64_t cur_loc) {
+    getInfoStream(state) << state->regs()->getInterruptFlag() << " current pc = " << hexval(cur_loc) << " re tb num "
+                         << "\n";
+    if (init_dr_flag == true && (!state->regs()->getInterruptFlag())) {
+        deal_rule_O(state);
+        deal_rule_flag(state, 0);
+        hardware_write_to_receive_buffer(state);
+        init_dr_flag = false;
+    }
+}
+
 
 } // namespace plugins
 } // namespace s2e

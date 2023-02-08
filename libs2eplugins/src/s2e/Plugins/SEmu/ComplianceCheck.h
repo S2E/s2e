@@ -52,7 +52,6 @@ private:
     Race races;
 
     uint32_t cur_time = 0;
-    uint32_t fork_point;
     std::string CCfileName;
     void initialize();
     void onComplianceCheck();
