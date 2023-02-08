@@ -716,9 +716,7 @@ static void do_v7m_exception_exit(CPUARMState *env) {
         env->interrupt_flag -= 1;
     HPRINTF(" interrupt exit r13 = 0x%x r15 = 0x%x flag = %d\n", env->regs[13], env->regs[15], env->interrupt_flag);
 #ifdef CONFIG_SYMBEX
-    if (unlikely(*g_sqi.events.on_invalid_pc_access_signals_count)) {
         g_sqi.events.on_armv7m_interrupt_exit(irq_no);
-    }
 #endif
     /* ??? The exception return type specifies Thread/Handler mode.  However
        this is also implied by the xPSR value. Not sure what to do
