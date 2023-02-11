@@ -113,7 +113,6 @@ private:
     std::vector<uint32_t> irq_no;
 
     uint32_t fork_point;
-    uint32_t disable_interrupt_count = 0;
     bool init_dr_flag = false;
     uint32_t rw_count;
     std::set<uint32_t> unenabled_flag;
@@ -164,11 +163,10 @@ private:
     void onExceptionExit(S2EExecutionState *state, uint32_t irq_no);
     void onStatistics();
     void CheckEnable(S2EExecutionState *state, std::vector<uint32_t> &irq_no);
-    void onEnableReceive(S2EExecutionState *state, uint32_t pc, uint64_t tb_num);
 
     void onUpdateBySignals(S2EExecutionState *state, SignalPair &irq_signals);
     void onFirmwareFork(S2EExecutionState *state, const std::vector<S2EExecutionState *> &newStates,
-                const std::vector<klee::ref<klee::Expr>> &newConditions);
+                        const std::vector<klee::ref<klee::Expr>> &newConditions);
     bool checkField(S2EExecutionState *state, FieldList &fields);
     bool getPeripheralExecutionState(std::string variablePeripheralName, uint32_t *phaddr, uint32_t *size, uint32_t *pc,
                                      uint64_t *no);

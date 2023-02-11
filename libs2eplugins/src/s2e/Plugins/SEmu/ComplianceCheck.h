@@ -30,6 +30,8 @@ typedef struct access {
     }
 } Access;
 
+enum AccessType { Read, Check, Write, Unknown };
+
 typedef std::vector<std::vector<FieldList>> Type1Rules;
 typedef std::map<uint32_t, std::vector<Access>> AccessRecords;
 typedef std::map<int32_t, std::vector<uint32_t>> AccessPair;
@@ -49,6 +51,8 @@ private:
     AccessRecords recording_write;
     AccessRecords recording_read;
     AccessRecords recording_check;
+    AccessType prev_access = Unknown;
+    int32_t prev_irq = -1;
     Race races;
 
     uint32_t cur_time = 0;

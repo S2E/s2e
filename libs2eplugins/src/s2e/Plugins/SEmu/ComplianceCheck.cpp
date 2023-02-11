@@ -25,7 +25,8 @@ void ComplianceCheck::initialize() {
     onNLPPeripheralModelConnection->onHardwareWrite.connect(sigc::mem_fun(*this, &ComplianceCheck::onHardwareWrite));
     onNLPPeripheralModelConnection->onFirmwareWrite.connect(sigc::mem_fun(*this, &ComplianceCheck::onPeripheralWrite));
     onNLPPeripheralModelConnection->onFirmwareRead.connect(sigc::mem_fun(*this, &ComplianceCheck::onPeripheralRead));
-    onNLPPeripheralModelConnection->onFirmwareCondition.connect(sigc::mem_fun(*this, &ComplianceCheck::onPeripheralCondition));
+    onNLPPeripheralModelConnection->onFirmwareCondition.connect(
+        sigc::mem_fun(*this, &ComplianceCheck::onPeripheralCondition));
     s2e()->getCorePlugin()->onEngineShutdown.connect(sigc::mem_fun(*this, &ComplianceCheck::onComplianceCheck));
 
     CCfileName = s2e()->getConfig()->getString(getConfigKey() + ".CCfileName", "all.txt");
@@ -35,7 +36,6 @@ void ComplianceCheck::initialize() {
     } else {
         getInfoStream() << "CC peripheral model file name is " << CCfileName << "\n";
     }
-
 }
 
 bool ComplianceCheck::readCCModelfromFile(std::string &fileName) {
@@ -129,7 +129,10 @@ void ComplianceCheck::onHardwareWrite(S2EExecutionState *state, uint32_t phaddr,
     int32_t irq = -1;
     if (state->regs()->getInterruptFlag())
         irq = state->regs()->getExceptionIndex();
-    cur_time++;
+    if (prev_access != Write || prev_irq != irq)
+        cur_time++;
+    prev_access = Write;
+    prev_irq = irq;
     getDebugStream() << "ComplianceCheck hardware write!! time: " << cur_time << " irq: " << irq
                      << " phaddr: " << hexval(phaddr) << " cur_val: " << cur_val << "\n";
     recording_write[phaddr].push_back(Access("HW", cur_time, irq, phaddr, cur_val, state->regs()->getPc()));
@@ -139,7 +142,10 @@ void ComplianceCheck::onPeripheralRead(S2EExecutionState *state, uint32_t phaddr
     int32_t irq = -1;
     if (state->regs()->getInterruptFlag())
         irq = state->regs()->getExceptionIndex();
-    cur_time++;
+    if (prev_access != Read || prev_irq != irq)
+        cur_time++;
+    prev_access = Read;
+    prev_irq = irq;
     recording_read[phaddr].push_back(Access("FR", cur_time, irq, phaddr, cur_val, state->regs()->getPc()));
     getDebugStream() << "ComplianceCheck READ  time: " << cur_time << " irq: " << irq << " phaddr: " << hexval(phaddr)
                      << " cur_val: " << cur_val << "\n";
@@ -149,22 +155,28 @@ void ComplianceCheck::onPeripheralWrite(S2EExecutionState *state, uint32_t phadd
     int32_t irq = -1;
     if (state->regs()->getInterruptFlag())
         irq = state->regs()->getExceptionIndex();
-    if (cur_time % 500) {
+    if (prev_access != Write || prev_irq != irq)
+        cur_time++;
+    prev_access = Write;
+    prev_irq = irq;
+    if (cur_time % 5 == 0) {
         onComplianceCheck();
     }
-    cur_time++;
     recording_write[phaddr].push_back(Access("FW", cur_time, irq, phaddr, cur_val, state->regs()->getPc()));
     getDebugStream() << "ComplianceCheck WRITE  time: " << cur_time << " irq: " << irq << " phaddr: " << hexval(phaddr)
-                     << " cur_val: " << cur_val  << " cur_time: " << cur_time<< "\n";
+                     << " cur_val: " << cur_val << " cur_time: " << cur_time << "\n";
 }
 
 void ComplianceCheck::onPeripheralCondition(S2EExecutionState *state, uint32_t phaddr, uint32_t cur_val) {
     int32_t irq = -1;
     if (state->regs()->getInterruptFlag())
         irq = state->regs()->getExceptionIndex();
-    cur_time++;
-    getDebugStream() << "ComplianceCheck condition time: " << cur_time << " irq: " << irq << " phaddr: " << hexval(phaddr)
-                     << " cur_val: " << cur_val << "\n";
+    if (prev_access != Check || prev_irq != irq)
+        cur_time++;
+    prev_access = Check;
+    prev_irq = irq;
+    getDebugStream() << "ComplianceCheck condition time: " << cur_time << " irq: " << irq
+                     << " phaddr: " << hexval(phaddr) << " cur_val: " << cur_val << "\n";
     recording_check[phaddr].push_back(Access("FC", cur_time, irq, phaddr, cur_val, state->regs()->getPc()));
 }
 
