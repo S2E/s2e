@@ -59,10 +59,12 @@ private:
     std::string CCfileName;
     void initialize();
     void onComplianceCheck();
-    void type1Check(Race &races);
     bool checkField(Field &field, uint32_t cur_value);
     void getExsitence(std::vector<Access> &access, Field &rule, AccessPair &pair);
+    void type1Check(Race &races);
     void checkAtomic(std::vector<AccessPair> &existence_seq, Race &races);
+    void type4Check(Race &races);
+    void checkClear(std::vector<AccessPair> &existence_seq, Race &races);
 
     bool readCCModelfromFile(std::string &fileName);
     bool getSequences(std::string &peripheralcache);

@@ -695,6 +695,8 @@ void NLPPeripheralModel::onPeripheralRead(S2EExecutionState *state, SymbolicHard
         *NLPSymbolicValue = *NLPSymbolicValue >> correction.second;
     }
     getDebugStream() << "Read phaddr " << hexval(phaddr) << " value " << hexval(*NLPSymbolicValue) << " \n";
+    deal_rule_Seq(state, phaddr, "SR");
+    prev_operation = std::make_pair("SR", phaddr);
 }
 
 void NLPPeripheralModel::onPeripheralWrite(S2EExecutionState *state, SymbolicHardwareAccessType type, uint32_t phaddr,
@@ -740,13 +742,15 @@ void NLPPeripheralModel::onPeripheralWrite(S2EExecutionState *state, SymbolicHar
     }
 
     deal_rule_RWVB(state, phaddr, "V");
+    deal_rule_Seq(state, phaddr, "SW");
+    prev_operation = std::make_pair("SW", phaddr);
 }
 
 // update graph
 void NLPPeripheralModel::take_action(S2EExecutionState *state, EquList &actions, bool buffer_related = false) {
     DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
     RegMap state_map = plgState->get_state_map();
-    std::vector<uint32_t> irqs;
+    std::vector<std::pair<uint32_t, uint32_t>> irqs;
     for (auto &equ : actions) {
         uint32_t value1 = get_reg_value(state, state_map, equ.a1);
         getDebugStream() << "take action equ.id: " << equ.id << " type_eq: " << equ.type_eq
@@ -797,8 +801,10 @@ void NLPPeripheralModel::take_action(S2EExecutionState *state, EquList &actions,
         getDebugStream() << "equ.interrupt = " << equ.interrupt
                          << " exit_inter = " << plgState->get_exit_interrupt(equ.interrupt) << "\n";
 
-        if (buffer_related)
+        if (buffer_related) {
             deal_rule_RWVB(state, equ.a1.phaddr, "V");
+        }
+
         // skip if the irq is triggered by the phaddr that is in nlp_mmio
         if (equ.interrupt == -1 || !ExistInMMIO(equ.a1.phaddr))
             continue;
@@ -808,8 +814,9 @@ void NLPPeripheralModel::take_action(S2EExecutionState *state, EquList &actions,
         if (!plgState->get_exit_interrupt(equ.interrupt)) {
             if (equ.a1.type == "D") {
                 getInfoStream() << "symbolic version unsupport for dma channel dignose \n";
-            } else
-                irqs.push_back(equ.interrupt);
+            } else {
+                irqs.push_back({equ.interrupt, equ.a1.phaddr});
+            }
         }
     }
 
@@ -817,10 +824,13 @@ void NLPPeripheralModel::take_action(S2EExecutionState *state, EquList &actions,
         std::shuffle(std::begin(irqs), std::end(irqs), std::default_random_engine());
     }
     for (auto &interrupt : irqs) {
-        if (plgState->get_exit_interrupt(interrupt))
+        if (plgState->get_exit_interrupt(interrupt.first))
             continue;
-        if (!EmitIRQ(state, interrupt)) {
-            untriggered_irq.insert(interrupt);
+
+        if (!EmitIRQ(state, interrupt.first)) {
+            untriggered_irq.insert(interrupt.first);
+        } else {
+            cur_interrupt_rule.insert(interrupt.second);
         }
     }
 }
@@ -900,8 +910,9 @@ void NLPPeripheralModel::set_reg_value(S2EExecutionState *state, RegMap &state_m
     if (a.type == "L") {
         state->mem()->write(phaddr + start, &cur_value, sizeof(cur_value));
     } else {
-        getDebugStream() << "set_reg_value phaddr " << hexval(phaddr)
-                         << " cur value:" << hexval(state_map[phaddr].cur_value) << "\n";
+        getDebugStream() << "set_reg_value phaddr " << hexval(phaddr) << "set value:" << value
+                         << " cur value:" << hexval(state_map[phaddr].cur_value) << " new value: " << hexval(cur_value)
+                         << "\n";
         if (bits[0] == -1) {
             state_map[phaddr].cur_value = value;
         } else {
@@ -939,6 +950,26 @@ bool NLPPeripheralModel::EmitIRQ(S2EExecutionState *state, int irq) {
     return irq_triggered;
 }
 
+void NLPPeripheralModel::deal_rule_Seq(S2EExecutionState *state, uint32_t address, std::string rule_type) {
+    getDebugStream() << "prev_operation: " << prev_operation.first << " phaddr: " << hexval(prev_operation.second)
+                     << "\n";
+    getDebugStream() << "cur request: " << rule_type << " phaddr: " << hexval(address) << "\n";
+    auto &s_rules = all_rules[prev_operation.first];
+    if (s_rules.find(address) == s_rules.end())
+        return;
+    for (TA &rule : s_rules[address]) {
+        getDebugStream() << "rule: " << rule.first[0].type_eq << " phaddr: " << hexval(rule.first[0].a1.phaddr) << "\n";
+        getDebugStream() << "rule: " << rule.first[1].type_eq << " phaddr: " << hexval(rule.first[1].a1.phaddr) << "\n";
+        auto &item = rule.first[0];
+        if (item.a1.phaddr != prev_operation.second)
+            continue;
+        item = rule.first[1];
+        if (rule_type == item.type_eq && item.a1.phaddr != address)
+            continue;
+        take_action(state, rule.second);
+    }
+}
+
 void NLPPeripheralModel::deal_rule_RWVB(S2EExecutionState *state, uint32_t address, std::string rule_type) {
     if (all_rules[rule_type].find(address) == all_rules[rule_type].end()) {
         getDebugStream() << "not find address: " << hexval(address) << " rule type: " << rule_type << "\n";
@@ -949,7 +980,7 @@ void NLPPeripheralModel::deal_rule_RWVB(S2EExecutionState *state, uint32_t addre
     DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
     RegMap state_map = plgState->get_state_map();
 
-    auto rules = all_rules[rule_type][address];
+    auto &rules = all_rules[rule_type][address];
     for (auto &rule : rules) {
         bool check = true;
         for (auto &trigger : rule.first) {
@@ -974,8 +1005,10 @@ void NLPPeripheralModel::deal_rule_RWVB(S2EExecutionState *state, uint32_t addre
                 getDebugStream() << "get by value, result: " << value1 << " new value " << value2 << " eq "
                                  << trigger.eq << " " << compare(value1, trigger.eq, value2) << "\n";
             } else {
+                check = false;
                 value2 = 0;
                 getWarningsStream() << "ERROR: equ a2 value: " << trigger.type_a2 << "\n";
+                break;
             }
             if (!compare(value1, trigger.eq, value2)) {
                 check = false;
@@ -1059,6 +1092,15 @@ void NLPPeripheralModel::onExceptionExit(S2EExecutionState *state, uint32_t irq_
 
     getInfoStream() << "EXIT Interrupt IRQ" << irq_no << " exit_inter = " << plgState->get_exit_interrupt(irq_no)
                     << "\n";
+
+    if (cur_interrupt_rule.size() != 0) {
+        std::set<uint32_t> tmp(cur_interrupt_rule);
+        for (auto phaddr : tmp) {
+            cur_interrupt_rule.erase(phaddr);
+            getInfoStream() << "repeat phaddr:" << hexval(phaddr) << "\n";
+            deal_rule_RWVB(state, phaddr, "B");
+        }
+    }
     // flip timer flag
     deal_rule_flag(state, 0);
 }
@@ -1114,51 +1156,55 @@ void NLPPeripheralModel::CheckEnable(S2EExecutionState *state, std::vector<uint3
     }
 }
 
-void NLPPeripheralModel::onUpdateBySignals(S2EExecutionState *state, SignalPair &irq_signals) {
-    DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
-    RegMap state_map = plgState->get_state_map();
-    for (auto &irq_signal : irq_signals) {
-        if (find(irq_no.begin(), irq_no.end(), irq_signal.first) != irq_no.end()) {
-            continue;
-        }
-        if (plgState->get_exit_interrupt(irq_signal.first))
-            continue;
-        getInfoStream() << "on Update By Signals: irq: " << irq_signal.first << "\n";
+void NLPPeripheralModel::onTranslateBlockStart(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb,
+                                               uint64_t pc) {
+    signal->connect(sigc::bind(sigc::mem_fun(*this, &NLPPeripheralModel::onForkPoints), (unsigned) tb->se_tb_type));
+}
 
-        for (auto &signal : irq_signal.second) {
-            if (checkField(state, signal.control) && checkField(state, signal.dma) && checkField(state, signal.other)) {
-                for (auto &key : signal.key) {
-                    getInfoStream() << "key.type: " << key.type << " phaddr: " << key.phaddr << " bits: " << key.bits[0]
-                                    << "\n";
-                    if (key.type == "R") {
-                        hardware_write_to_receive_buffer(state, key.phaddr);
-                    } else if (key.type == "S") {
-                        set_reg_value(state, state_map, key, key.value);
-                        plgState->insert_reg_map(key.phaddr, state_map[key.phaddr]);
-                        deal_rule_RWVB(state, key.phaddr, "V");
-                    }
-                }
-            }
+void NLPPeripheralModel::onForkPoints(S2EExecutionState *state, uint64_t pc, unsigned source_type) {
+    DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
+
+    if (pc == fork_point) {
+        getInfoStream() << "at fork_point:" << hexval(fork_point) << "\n";
+        init_dr_flag = true;
+        plgState->inc_fork_count();
+        if (plgState->get_fork_point_count() < 2) {
+            return;
         }
+
+        deal_rule_O(state);
+        deal_rule_flag(state, 0);
+        if (plgState->pending_interrupt()) {
+            return;
+        }
+        CheckEnable(state, irq_no);
+        getWarningsStream() << "already go though Main Loop Point Count = " << plgState->get_fork_point_count() << "\n";
+        getWarningsStream() << "===========unit test pass============\n";
+        g_s2e->getCorePlugin()->onEngineShutdown.emit();
+        // Flush here just in case ~S2E() is not called (e.g., if atexit()
+        // shutdown handler was not called properly).
+        g_s2e->flushOutputStreams();
+        exit(0);
     }
 }
 
-bool NLPPeripheralModel::checkField(S2EExecutionState *state, FieldList &fields) {
-    DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
-    RegMap state_map = plgState->get_state_map();
-    if (fields.size() == 0)
-        return true;
-    bool ans = true;
-    for (auto &f : fields) {
-        auto cur_value = state_map[f.phaddr].cur_value;
-        uint32_t res = 0;
-        for (int i = 0; i < f.bits.size(); ++i) {
-            int tmp = f.bits[i];
-            res = (res << 1) + (cur_value >> tmp & 1);
-        }
-        ans &= (res == f.value);
+void NLPPeripheralModel::onTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb,
+                                             uint64_t pc, bool staticTarget, uint64_t staticTargetPc) {
+    signal->connect(sigc::mem_fun(*this, &NLPPeripheralModel::onFeedData));
+}
+
+void NLPPeripheralModel::onFeedData(S2EExecutionState *state, uint64_t cur_loc) {
+    getInfoStream(state) << state->regs()->getInterruptFlag() << " current pc = " << hexval(cur_loc) << " re tb num "
+                         << "\n";
+    if (state->regs()->getInterruptFlag())
+        return;
+    bb_num++;
+    if (init_dr_flag == true || bb_num % 500 == 0) {
+        deal_rule_O(state);
+        deal_rule_flag(state, 0);
+        hardware_write_to_receive_buffer(state);
+        init_dr_flag = false;
     }
-    return ans;
 }
 
 void NLPPeripheralModel::onFirmwareFork(S2EExecutionState *state, const std::vector<S2EExecutionState *> &newStates,
@@ -1210,52 +1256,60 @@ bool NLPPeripheralModel::getPeripheralExecutionState(std::string variablePeriphe
     return true;
 }
 
-void NLPPeripheralModel::onTranslateBlockStart(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb,
-                                               uint64_t pc) {
-    signal->connect(sigc::bind(sigc::mem_fun(*this, &NLPPeripheralModel::onForkPoints), (unsigned) tb->se_tb_type));
-}
-
-void NLPPeripheralModel::onForkPoints(S2EExecutionState *state, uint64_t pc, unsigned source_type) {
+void NLPPeripheralModel::onUpdateBySignals(S2EExecutionState *state, SignalPair &irq_signals) {
+    int32_t irq = -1;
+    if (state->regs()->getInterruptFlag())
+        irq = state->regs()->getExceptionIndex() - 16;
     DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
-
-    if (pc == fork_point) {
-        getInfoStream() << "at fork_point:" << hexval(fork_point) << "\n";
-        init_dr_flag = true;
-        plgState->inc_fork_count();
-        if (plgState->get_fork_point_count() < 2) {
-            return;
+    RegMap state_map = plgState->get_state_map();
+    for (auto &irq_signal : irq_signals) {
+        getDebugStream() << "signal current irq:" << irq << " rule irq:" << irq_signal.first << "\n";
+        // if (irq == irq_signal.first || plgState->get_exit_interrupt(irq_signal.first))
+        //     continue;
+        if (find(irq_no.begin(), irq_no.end(), irq_signal.first) != irq_no.end()) {
+            continue;
         }
+        getDebugStream() << "on Update By Signals: irq: " << irq_signal.first << "\n";
 
-        deal_rule_O(state);
-        deal_rule_flag(state, 0);
-        if (plgState->pending_interrupt()) {
-            return;
+        for (auto &signal : irq_signal.second) {
+            if (checkField(state, signal.control) && checkField(state, signal.dma) && checkField(state, signal.other)) {
+                for (auto &key : signal.key) {
+                    getInfoStream() << "key.type: " << key.type << " phaddr: " << hexval(key.phaddr)
+                                    << " bits: " << key.bits[0] << " value: " << key.value << "\n";
+                    if (key.type == "R") {
+                        if (irq == irq_signal.first || plgState->get_exit_interrupt(irq_signal.first))
+                            break;
+                        hardware_write_to_receive_buffer(state, key.phaddr);
+                    } else if (key.type == "E") {
+                        set_reg_value(state, state_map, key, 1);
+                        plgState->insert_reg_map(key.phaddr, state_map[key.phaddr]);
+                        deal_rule_RWVB(state, key.phaddr, "V");
+                    }
+                }
+            }
         }
-        CheckEnable(state, irq_no);
-        getWarningsStream() << "already go though Main Loop Point Count = " << plgState->get_fork_point_count() << "\n";
-        getWarningsStream() << "===========unit test pass============\n";
-        g_s2e->getCorePlugin()->onEngineShutdown.emit();
-        // Flush here just in case ~S2E() is not called (e.g., if atexit()
-        // shutdown handler was not called properly).
-        g_s2e->flushOutputStreams();
-        exit(0);
     }
 }
 
-void NLPPeripheralModel::onTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb,
-                                             uint64_t pc, bool staticTarget, uint64_t staticTargetPc) {
-    signal->connect(sigc::mem_fun(*this, &NLPPeripheralModel::onFeedData));
-}
-
-void NLPPeripheralModel::onFeedData(S2EExecutionState *state, uint64_t cur_loc) {
-    getInfoStream(state) << state->regs()->getInterruptFlag() << " current pc = " << hexval(cur_loc) << " re tb num "
-                         << "\n";
-    if (init_dr_flag == true && (!state->regs()->getInterruptFlag())) {
-        deal_rule_O(state);
-        deal_rule_flag(state, 0);
-        hardware_write_to_receive_buffer(state);
-        init_dr_flag = false;
+bool NLPPeripheralModel::checkField(S2EExecutionState *state, FieldList &fields) {
+    DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
+    RegMap state_map = plgState->get_state_map();
+    if (fields.size() == 0)
+        return true;
+    bool ans = true;
+    for (auto &f : fields) {
+        auto cur_value = state_map[f.phaddr].cur_value;
+        uint32_t res = 0;
+        for (int i = 0; i < f.bits.size(); ++i) {
+            int tmp = f.bits[i];
+            res = (res << 1) + (cur_value >> tmp & 1);
+        }
+        getDebugStream() << "NLP checkField: phaddr: " << hexval(f.phaddr)
+                        << " cur_val: " << hexval(state_map[f.phaddr].cur_value) << " at bit:" << f.bits[0]
+                        << " res: " << res << " f.value: " << f.value << "\n";
+        ans &= (res == f.value);
     }
+    return ans;
 }
 
 } // namespace plugins

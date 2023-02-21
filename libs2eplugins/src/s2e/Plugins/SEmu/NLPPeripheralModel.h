@@ -114,13 +114,18 @@ private:
 
     uint32_t fork_point;
     bool init_dr_flag = false;
+    int bb_num = 0;
     uint32_t rw_count;
     std::set<uint32_t> unenabled_flag;
     std::set<uint32_t> untriggered_irq;
     std::map<uint32_t, std::set<uint64_t>> read_unauthorized_freq;
     std::map<uint32_t, std::set<uint64_t>> write_unauthorized_freq;
 
+    std::pair<std::string, uint32_t> prev_operation;
+
     bool checked_SR = false;
+
+    std::set<uint32_t> cur_interrupt_rule;
 
     template <typename T> bool parseRangeList(ConfigFile *cfg, const std::string &key, T &result);
     bool parseConfig();
@@ -146,6 +151,7 @@ private:
     std::pair<uint32_t, uint32_t> AddressCorrection(S2EExecutionState *state, uint32_t phaddr);
 
     void deal_rule_O(S2EExecutionState *state);
+    void deal_rule_Seq(S2EExecutionState *state, uint32_t address, std::string rule_type);
     void deal_rule_RWVB(S2EExecutionState *state, uint32_t address, std::string rule_type);
     void deal_rule_flag(S2EExecutionState *state, uint32_t phaddr);
     uint32_t get_reg_value(S2EExecutionState *state, RegMap &state_map, Field &a);

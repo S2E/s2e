@@ -83,6 +83,8 @@ void ComplianceCheck::ReadField(std::string &expressions, Field &field) {
     field.type = v[0];
     field.phaddr = std::stoull(v[1].c_str(), NULL, 16);
     field.bits = getBits(v[2]);
+    if (v.size() == 3)
+        field.value = 1;
     if (v.size() == 5 && v[4] != "*") {
         field.value = std::stoull(v[4].c_str(), NULL, 2);
     }
@@ -128,20 +130,20 @@ void ComplianceCheck::SplitString(const std::string &s, std::vector<std::string>
 void ComplianceCheck::onHardwareWrite(S2EExecutionState *state, uint32_t phaddr, uint32_t cur_val) {
     int32_t irq = -1;
     if (state->regs()->getInterruptFlag())
-        irq = state->regs()->getExceptionIndex();
+        irq = state->regs()->getExceptionIndex() - 16;
     if (prev_access != Write || prev_irq != irq)
         cur_time++;
     prev_access = Write;
     prev_irq = irq;
     getDebugStream() << "ComplianceCheck hardware write!! time: " << cur_time << " irq: " << irq
-                     << " phaddr: " << hexval(phaddr) << " cur_val: " << cur_val << "\n";
+                     << " phaddr: " << hexval(phaddr) << " cur_val: " << hexval(cur_val) << "\n";
     recording_write[phaddr].push_back(Access("HW", cur_time, irq, phaddr, cur_val, state->regs()->getPc()));
 }
 
 void ComplianceCheck::onPeripheralRead(S2EExecutionState *state, uint32_t phaddr, uint32_t cur_val) {
     int32_t irq = -1;
     if (state->regs()->getInterruptFlag())
-        irq = state->regs()->getExceptionIndex();
+        irq = state->regs()->getExceptionIndex() - 16;
     if (prev_access != Read || prev_irq != irq)
         cur_time++;
     prev_access = Read;
@@ -154,13 +156,17 @@ void ComplianceCheck::onPeripheralRead(S2EExecutionState *state, uint32_t phaddr
 void ComplianceCheck::onPeripheralWrite(S2EExecutionState *state, uint32_t phaddr, uint32_t cur_val) {
     int32_t irq = -1;
     if (state->regs()->getInterruptFlag())
-        irq = state->regs()->getExceptionIndex();
+        irq = state->regs()->getExceptionIndex() - 16;
     if (prev_access != Write || prev_irq != irq)
         cur_time++;
     prev_access = Write;
     prev_irq = irq;
     if (cur_time % 5 == 0) {
         onComplianceCheck();
+    }
+    if (cur_time > 150) {
+        onComplianceCheck();
+        exit(-1);
     }
     recording_write[phaddr].push_back(Access("FW", cur_time, irq, phaddr, cur_val, state->regs()->getPc()));
     getDebugStream() << "ComplianceCheck WRITE  time: " << cur_time << " irq: " << irq << " phaddr: " << hexval(phaddr)
@@ -170,7 +176,7 @@ void ComplianceCheck::onPeripheralWrite(S2EExecutionState *state, uint32_t phadd
 void ComplianceCheck::onPeripheralCondition(S2EExecutionState *state, uint32_t phaddr, uint32_t cur_val) {
     int32_t irq = -1;
     if (state->regs()->getInterruptFlag())
-        irq = state->regs()->getExceptionIndex();
+        irq = state->regs()->getExceptionIndex() - 16;
     if (prev_access != Check || prev_irq != irq)
         cur_time++;
     prev_access = Check;
@@ -189,8 +195,8 @@ bool ComplianceCheck::checkField(Field &field, uint32_t cur_value) {
         int tmp = field.bits[i];
         res = (res << 1) + (cur_value >> tmp & 1);
     }
-    getDebugStream() << "checkField cur_value: " << cur_value << " at bit: " << field.bits[0] << " value: " << res
-                     << " field.value: " << field.value << "\n";
+    getDebugStream() << "checkField" << hexval(field.phaddr) << " access cur_value: " << hexval(cur_value)
+                     << " at bit: " << field.bits[0] << "  value: " << res << " field.value: " << field.value << "\n";
     return res == field.value;
 }
 
@@ -242,7 +248,7 @@ void ComplianceCheck::type1Check(Race &races) {
                     rule_checker = false;
                     break;
                 }
-                getDebugStream() << "recording match rule phaddr:" << f.phaddr << " " << access.size()
+                getDebugStream() << "type 1 recording match rule phaddr:" << hexval(f.phaddr) << " " << access.size()
                                  << " rule: " << f.bits[0] << "\n";
                 rules_existence.push_back(access);
             }
@@ -263,11 +269,75 @@ void ComplianceCheck::type1Check(Race &races) {
     }
 }
 
+void ComplianceCheck::checkClear(std::vector<AccessPair> &existence_seq, Race &races) {
+    for (auto idx = 0; idx < existence_seq.size() - 1; ++idx) {
+        for (auto &rule : existence_seq[idx]) {
+            for (auto &t : rule.second) {
+                std::vector<uint32_t> &tmp = existence_seq[idx + 1][rule.first];
+                // getDebugStream() << "cur time: " << t << " tmp size:" << tmp.size() << "\n";
+                auto idx = upper_bound(tmp.begin(), tmp.end(), t);
+                if (idx == tmp.end()) {
+                    races.push_back({t, 0});
+                    getDebugStream() << "cur time: " << t << " race_size: " << races.size() << "\n";
+                } else {
+                    getDebugStream() << "non CE existence cur_time: " << t << "nexttime: " << idx - tmp.begin() << "\n";
+                }
+            }
+        }
+    }
+}
+
+void ComplianceCheck::type4Check(Race &races) {
+    for (auto &seq : sequences) {
+        std::vector<AccessPair> existence_seq;
+        bool rule_checker = true;
+        for (auto &rule : seq) {
+            std::vector<AccessPair> rules_existence;
+            for (Field &f : rule) {
+                AccessPair access;
+                if (f.type == "CE") {
+                    getDebugStream() << "CE phaddr: " << hexval(f.phaddr) << "\n";
+                    if (recording_write.find(f.phaddr) == recording_write.end())
+                        continue;
+                    getExsitence(recording_write[f.phaddr], f, access);
+                } else
+                    break;
+
+                if (access.size() == 0) {
+                    rule_checker = false;
+                    break;
+                }
+                getDebugStream() << "type 4 recording match rule phaddr:" << hexval(f.phaddr)
+                                 << " access_size: " << access.size() << " rule bit: " << f.bits[0] << "\n";
+                rules_existence.push_back(access);
+            }
+            if (!rule_checker || rules_existence.size() == 0) {
+                existence_seq.clear();
+                break;
+            } else if (rules_existence.size() == 1) {
+                existence_seq.push_back(rules_existence[0]);
+            } else {
+                existence_seq.clear();
+                getWarningsStream() << "cannot handle two rules now!"
+                                    << "\n";
+                break;
+            }
+        }
+        getDebugStream() << "existence_seq size:" << existence_seq.size() << "\n";
+        if (existence_seq.size() != 0)
+            checkClear(existence_seq, races);
+        getDebugStream() << "get total races events =" << races.size() << "\n";
+    }
+}
+
 void ComplianceCheck::onComplianceCheck() {
     Race races;
     getInfoStream() << "verify race events \n";
+    getInfoStream() << "type 1 check\n";
     type1Check(races);
-    getInfoStream() << "get total races events =" << races.size() << "\n";
+    getInfoStream() << "get type 1 races events =" << races.size() << "\n";
+    type4Check(races);
+    getInfoStream() << "get type 2 races events =" << races.size() << "\n";
     if (races.size() == 0)
         return;
 
