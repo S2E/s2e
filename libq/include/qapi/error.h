@@ -272,6 +272,7 @@
 #ifndef ERROR_H
 #define ERROR_H
 
+#include <errno.h>
 #include <glib.h>
 
 #include "util.h"
