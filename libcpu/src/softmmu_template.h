@@ -234,7 +234,7 @@ DATA_TYPE glue(glue(io_read_chk, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_p
     res.res = glue(glue(io_read, SUFFIX), MMUSUFFIX)(env, origaddr, addr, retaddr);
 
 end:
-    tcg_llvm_trace_mmio_access(addr, res.res, DATA_SIZE, 0);
+    res.res = tcg_llvm_trace_mmio_access(addr, res.res, DATA_SIZE, 0);
 
     SE_SET_MEM_IO_VADDR(env, 0, 1);
     return res.res;
