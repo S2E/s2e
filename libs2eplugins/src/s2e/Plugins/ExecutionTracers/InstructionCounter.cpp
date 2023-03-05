@@ -25,6 +25,7 @@
 #include <s2e/S2E.h>
 
 #include <s2e/Plugins/OSMonitors/Support/ModuleMap.h>
+#include <s2e/Plugins/OSMonitors/Support/PidTid.h>
 #include <s2e/Plugins/OSMonitors/Support/ProcessExecutionDetector.h>
 
 #include "InstructionCounter.h"
@@ -35,22 +36,25 @@ namespace s2e {
 namespace plugins {
 
 S2E_DEFINE_PLUGIN(InstructionCounter, "Instruction counter plugin", "InstructionCounter", "ExecutionTracer",
-                  "ProcessExecutionDetector", "ModuleMap");
+                  "ProcessExecutionDetector", "ModuleMap", "OSMonitor");
 
 namespace {
 class InstructionCounterState : public PluginState {
+public:
+    using Counts = std::unordered_map<PidTid, uint64_t /* count */>;
+
 private:
-    uint64_t m_count;
-    bool m_enabled;
-    void *m_cachedTb;
+    bool m_enabled = false;
+
+    uint64_t m_count = 0;
+    PidTid m_current = PidTid(-1, -1);
+    Counts m_counts;
 
 public:
-    InstructionCounterState() {
-        m_count = 0;
-        m_enabled = false;
-    }
+    InstructionCounterState(S2EExecutionState *s, Plugin *p){
 
-    InstructionCounterState(S2EExecutionState *s, Plugin *p){};
+    };
+
     virtual ~InstructionCounterState(){};
     virtual PluginState *clone() const {
         return new InstructionCounterState(*this);
@@ -59,11 +63,34 @@ public:
         return new InstructionCounterState(s, p);
     }
 
+    inline void updatePidTid(uint64_t pid, uint64_t tid) {
+        auto pt = PidTid(pid, tid);
+        if (m_current != pt) {
+            m_counts[m_current] = m_count;
+            m_count = m_counts[pt];
+            m_current = pt;
+        }
+    }
+
+    inline void flush() {
+        m_counts[m_current] = m_count;
+        m_count = 0;
+        m_current = PidTid(-1, -1);
+    }
+
     inline void inc() {
         m_count++;
     }
 
-    inline uint64_t get() const {
+    inline void set(uint64_t v) {
+        m_count = v;
+    }
+
+    inline Counts &get() {
+        return m_counts;
+    }
+
+    inline uint64_t getCount() const {
         return m_count;
     }
 
@@ -74,47 +101,61 @@ public:
     inline bool enabled() const {
         return m_enabled;
     }
-
-    inline void *getCachedTb() const {
-        return m_cachedTb;
-    }
-
-    inline void setCachedTb(void *tb) {
-        m_cachedTb = tb;
-    }
 };
 } // namespace
 
 void InstructionCounter::initialize() {
     m_tracer = s2e()->getPlugin<ExecutionTracer>();
-    m_detector = s2e()->getPlugin<ProcessExecutionDetector>();
+    m_monitor = static_cast<OSMonitor *>(s2e()->getPlugin("OSMonitor"));
 
-    m_modules.initialize(s2e(), getConfigKey());
+    m_tracker = ITracker::getTracker(s2e(), this);
+    if (m_tracker) {
+        m_tracker->onConfigChange.connect(sigc::mem_fun(*this, &InstructionCounter::onConfigChange));
+    } else {
+        getWarningsStream() << "No filtering plugin specified. Counting all instructions in the system.\n";
+    }
 
-    s2e()->getCorePlugin()->onInitializationComplete.connect(
-        sigc::mem_fun(*this, &InstructionCounter::onInitializationComplete));
-    s2e()->getCorePlugin()->onTranslateBlockStart.connect(
-        sigc::mem_fun(*this, &InstructionCounter::onTranslateBlockStart));
     s2e()->getCorePlugin()->onStateKill.connect(sigc::mem_fun(*this, &InstructionCounter::onStateKill));
+
+    m_monitor->onProcessUnload.connect(sigc::mem_fun(*this, &InstructionCounter::onProcessUnload));
+    m_monitor->onThreadExit.connect(sigc::mem_fun(*this, &InstructionCounter::onThreadExit));
+    m_monitor->onMonitorLoad.connect(sigc::mem_fun(*this, &InstructionCounter::onMonitorLoad));
+    m_monitor->onProcessOrThreadSwitch.connect(sigc::mem_fun(*this, &InstructionCounter::onProcessOrThreadSwitch));
 }
 
-void InstructionCounter::onInitializationComplete(S2EExecutionState *state) {
-    DECLARE_PLUGINSTATE(InstructionCounterState, state);
-    plgState->enable(true);
+void InstructionCounter::onConfigChange(S2EExecutionState *state) {
+    // The plugin will need to re-instrument blocks in case the tracker's
+    // configuration changes.
+    se_tb_safe_flush();
+}
+
+void InstructionCounter::onMonitorLoad(S2EExecutionState *state) {
+    s2e()->getCorePlugin()->onTranslateBlockStart.connect(
+        sigc::mem_fun(*this, &InstructionCounter::onTranslateBlockStart));
+
+    s2e()->getCorePlugin()->onTranslateInstructionStart.connect(
+        sigc::mem_fun(*this, &InstructionCounter::onTranslateInstructionStart));
+
+    // Make sure we don't miss any TBs.
+    se_tb_safe_flush();
 }
 
 void InstructionCounter::onTranslateBlockStart(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb,
                                                uint64_t pc) {
-    if (!m_modules.isModuleTraced(state, pc)) {
-        m_tbConnection.disconnect();
+    if (m_tracker && !m_tracker->isTrackingConfigured(state)) {
         return;
     }
 
-    if (!m_tbConnection.connected()) {
-        CorePlugin *plg = s2e()->getCorePlugin();
-        m_tbConnection = plg->onTranslateInstructionStart.connect(
-            sigc::mem_fun(*this, &InstructionCounter::onTranslateInstructionStart));
+    signal->connect(sigc::mem_fun(*this, &InstructionCounter::onTbExecuteStart));
+}
+
+void InstructionCounter::onTbExecuteStart(S2EExecutionState *state, uint64_t pc) {
+    DECLARE_PLUGINSTATE(InstructionCounterState, state);
+    if (m_tracker && !m_tracker->isTracked(state)) {
+        plgState->enable(false);
+        return;
     }
+    plgState->enable(true);
 }
 
 void InstructionCounter::onTranslateInstructionStart(ExecutionSignal *signal, S2EExecutionState *state,
@@ -126,30 +167,119 @@ void InstructionCounter::onTranslateInstructionStart(ExecutionSignal *signal, S2
 void InstructionCounter::onInstruction(S2EExecutionState *state, uint64_t pc) {
     // Get the plugin state for the current path
     DECLARE_PLUGINSTATE(InstructionCounterState, state);
-    if (!plgState->enabled()) {
-        return;
-    }
-
-    // This is an optimization to avoid expensive module lookups
-    if (plgState->getCachedTb() == state->getTb()) {
+    if (plgState->enabled()) {
         plgState->inc();
-        return;
-    }
-
-    if (m_modules.isModuleTraced(state, pc)) {
-        plgState->inc();
-        plgState->setCachedTb(state->getTb());
     }
 }
 
+void InstructionCounter::writeData(S2EExecutionState *state, uint64_t pid, uint64_t tid, uint64_t count) {
+    if (count == 0) {
+        return;
+    }
+
+    if (pid == -1 && tid == -1) {
+        return;
+    }
+
+    s2e_trace::PbTraceItemHeader header;
+
+    header.set_address_space(-1);
+    header.set_pc(-1);
+
+    header.set_pid(pid);
+    header.set_tid(tid);
+
+    s2e_trace::PbTraceInstructionCount item;
+    item.set_count(count);
+    m_tracer->writeData(state, header, item, s2e_trace::TRACE_ICOUNT);
+}
+
 void InstructionCounter::onStateKill(S2EExecutionState *state) {
-    // Get the plugin state for the current path
+    DECLARE_PLUGINSTATE(InstructionCounterState, state);
+    plgState->flush();
+
+    for (auto kv : plgState->get()) {
+        auto pid = kv.first.first;
+        auto tid = kv.first.second;
+        writeData(state, pid, tid, kv.second);
+    }
+}
+
+void InstructionCounter::onProcessOrThreadSwitch(S2EExecutionState *state) {
+    DECLARE_PLUGINSTATE(InstructionCounterState, state);
+    plgState->updatePidTid(m_monitor->getPid(state), m_monitor->getTid(state));
+}
+
+void InstructionCounter::onThreadExit(S2EExecutionState *state, const ThreadDescriptor &thread) {
+    DECLARE_PLUGINSTATE(InstructionCounterState, state);
+    plgState->flush();
+
+    auto &counts = plgState->get();
+    for (auto kv : counts) {
+        auto pid = kv.first.first;
+        auto tid = kv.first.second;
+
+        if (pid == thread.Pid && tid == thread.Tid) {
+            writeData(state, pid, tid, kv.second);
+            counts.erase(std::make_pair(pid, tid));
+            break;
+        }
+    }
+}
+
+void InstructionCounter::onProcessUnload(S2EExecutionState *state, uint64_t pageDir, uint64_t ppid,
+                                         uint64_t returnCode) {
+    DECLARE_PLUGINSTATE(InstructionCounterState, state);
+    plgState->flush();
+
+    std::vector<PidTid> toErase;
+
+    auto &counts = plgState->get();
+    for (auto kv : counts) {
+        auto pid = kv.first.first;
+        auto tid = kv.first.second;
+
+        if (pid == ppid) {
+            writeData(state, pid, tid, kv.second);
+            toErase.push_back(std::make_pair(pid, tid));
+        }
+    }
+
+    for (auto &pt : toErase) {
+        counts.erase(pt);
+    }
+}
+
+void InstructionCounter::handleOpcodeInvocation(S2EExecutionState *state, uint64_t guestDataPtr,
+                                                uint64_t guestDataSize) {
     DECLARE_PLUGINSTATE(InstructionCounterState, state);
 
-    // Flush the counter
-    s2e_trace::PbTraceInstructionCount item;
-    item.set_count(plgState->get());
-    m_tracer->writeData(state, item, s2e_trace::TRACE_ICOUNT);
+    S2E_ICOUNT_COMMAND command;
+
+    if (guestDataSize != sizeof(command)) {
+        getWarningsStream(state) << "mismatched S2E_ICOUNT_COMMAND size\n";
+        exit(-1);
+    }
+
+    if (!state->mem()->read(guestDataPtr, &command, guestDataSize)) {
+        getWarningsStream(state) << "could not read transmitted data\n";
+        exit(-1);
+    }
+
+    switch (command.Command) {
+        case ICOUNT_RESET:
+            plgState->set(0);
+            break;
+
+        case ICOUNT_GET:
+            command.Count = plgState->getCount();
+            break;
+    }
+
+    if (!state->mem()->write(guestDataPtr, &command, guestDataSize)) {
+        getWarningsStream(state) << "could not write transmitted data\n";
+        exit(-1);
+    }
 }
 
 } // namespace plugins

@@ -100,59 +100,59 @@ uint64_t S2EExecutionStateMemory::getHostAddress(uint64_t address, AddressType a
 /***/
 
 ref<Expr> S2EExecutionStateMemory::read(uint64_t address, Expr::Width width, AddressType addressType) {
-    assert(width == 1 || (width & 7) == 0);
-    uint64_t size = Expr::getMinBytesForWidth(width);
+#ifdef CONFIG_SYMBEX_MP
+    auto translate = [&](uint64_t addressToTranslate, uint64_t &hostAddress) -> bool {
+        hostAddress = getHostAddress(addressToTranslate, addressType);
+        return hostAddress != (uint64_t) -1;
+    };
 
-    /* Access spawns multiple MemoryObject's */
-    ref<Expr> res(0);
-    for (unsigned i = 0; i != size; ++i) {
-        unsigned idx = klee::Context::get().isLittleEndian() ? i : (size - i - 1);
-        ref<Expr> byte = readMemory8(address + idx, addressType);
-        if (!byte)
-            return ref<Expr>(0);
-        res = idx ? ConcatExpr::create(byte, res) : byte;
-    }
-    return res;
+    return m_addressSpace->read(address, width, translate);
+#else
+    pabort("Not implemented");
+#endif
 }
 
 ref<Expr> S2EExecutionStateMemory::readMemory8(uint64_t address, AddressType addressType) {
-    uint64_t hostAddress = getHostAddress(address, addressType);
-    if (hostAddress == (uint64_t) -1)
-        return ref<Expr>(0);
-
-    ref<Expr> retVal(0);
 #ifdef CONFIG_SYMBEX_MP
-    transferRam(nullptr, hostAddress, &retVal, 1, false, false, true);
+    return read(address, Expr::Int8, addressType);
 #else
-    retVal = ConstantExpr::create(*((uint8_t *) hostAddress), Expr::Int8);
+    uint64_t hostAddress = getHostAddress(address, addressType);
+    if (hostAddress == (uint64_t) -1) {
+        return nullptr;
+    }
+    return ConstantExpr::create(*((uint8_t *) hostAddress), Expr::Int8);
 #endif
-
-    return retVal;
 }
 
 bool S2EExecutionStateMemory::read(uint64_t address, void *buf, uint64_t size, AddressType addressType) {
+#ifdef CONFIG_SYMBEX_MP
+    auto concretizer = [&](const ref<Expr> &e, const ObjectStateConstPtr &mo, size_t offset) -> uint8_t {
+        return (uint8_t) m_concretizer->concretize(e, "S2EExecutionStateMemory::read");
+    };
+
+    auto translate = [&](uint64_t addressToTranslate, uint64_t &hostAddress) -> bool {
+        hostAddress = getHostAddress(addressToTranslate, addressType);
+        return hostAddress != (uint64_t) -1;
+    };
+
+    return m_addressSpace->read(address, (uint8_t *) buf, size, concretizer, translate);
+#else
     while (size > 0) {
         uint64_t hostAddress = getHostAddress(address, addressType);
-        if (hostAddress == (uint64_t) -1)
+        if (hostAddress == (uint64_t) -1) {
             return false;
-#ifdef CONFIG_SYMBEX_MP
-        uint64_t hostPage = hostAddress & SE_RAM_OBJECT_MASK;
-        uint64_t length = (hostPage + SE_RAM_OBJECT_SIZE) - hostAddress;
-        if (length > size) {
-            length = size;
         }
-        // XXX: return failure if could not read symbolic byte
-        transferRam(nullptr, hostAddress, buf, length, false, false, false);
-#else
+
         *((uint8_t *) buf) = *((uint8_t *) hostAddress);
         uint64_t length = 1;
-#endif
+
         buf = (uint8_t *) buf + length;
         address += length;
         size -= length;
     }
 
     return true;
+#endif
 }
 
 /***/
@@ -160,20 +160,34 @@ bool S2EExecutionStateMemory::read(uint64_t address, void *buf, uint64_t size, A
 bool S2EExecutionStateMemory::writeMemory8(uint64_t address, const ref<Expr> &value, AddressType addressType) {
     assert(value->getWidth() == 8);
 
-    uint64_t hostAddress = getHostAddress(address, addressType);
-    if (hostAddress == (uint64_t) -1)
-        return false;
 #ifdef CONFIG_SYMBEX_MP
-    transferRam(nullptr, hostAddress, (void *) &value, 1, true, false, true);
+    auto concretizer = [&](const ref<Expr> &e, const ObjectStateConstPtr &mo, size_t offset) -> uint8_t {
+        return (uint8_t) m_concretizer->concretize(e, "S2EExecutionStateMemory::writeMemory8");
+    };
+
+    auto translate = [&](uint64_t addressToTranslate, uint64_t &hostAddress) -> bool {
+        hostAddress = getHostAddress(addressToTranslate, addressType);
+        return hostAddress != (uint64_t) -1;
+    };
+
+    return m_addressSpace->write(address, value, concretizer, translate);
 #else
+    uint64_t hostAddress = getHostAddress(address, addressType);
+    if (hostAddress == (uint64_t) -1) {
+        return false;
+    }
+
     ConstantExpr *ce = dyn_cast<ConstantExpr>(value);
     *((uint8_t *) hostAddress) = (uint8_t) ce->getZExtValue();
-#endif
-
     return true;
+#endif
 }
 
 bool S2EExecutionStateMemory::write(uint64_t address, const ref<Expr> &value, AddressType addressType) {
+    if (!value) {
+        return false;
+    }
+
     Expr::Width width = value->getWidth();
     unsigned numBytes = Expr::getMinBytesForWidth(value->getWidth());
 
@@ -186,36 +200,46 @@ bool S2EExecutionStateMemory::write(uint64_t address, const ref<Expr> &value, Ad
         }
 
         return write(address, &val, numBytes, addressType);
-
     } else {
-        // Slowest case (TODO: could optimize it)
-        for (unsigned i = 0; i < numBytes; ++i) {
-            unsigned idx = Context::get().isLittleEndian() ? i : (numBytes - i - 1);
-            if (!writeMemory8(address + idx, ExtractExpr::create(value, 8 * i, Expr::Int8), addressType)) {
-                return false;
-            }
-        }
+#ifdef CONFIG_SYMBEX_MP
+        auto concretizer = [&](const ref<Expr> &e, const ObjectStateConstPtr &mo, size_t size) -> uint8_t {
+            return (uint8_t) m_concretizer->concretize(e, "S2EExecutionStateMemory::write");
+        };
+
+        auto translate = [&](uint64_t addressToTranslate, uint64_t &hostAddress) -> bool {
+            hostAddress = getHostAddress(addressToTranslate, addressType);
+            return hostAddress != (uint64_t) -1;
+        };
+
+        return m_addressSpace->write(address, value, concretizer, translate);
+#else
+        pabort("Not supported in single-path mode");
+#endif
     }
     return true;
 }
 
 bool S2EExecutionStateMemory::write(uint64_t address, const void *buf, uint64_t size, AddressType addressType) {
+    if (!buf) {
+        return false;
+    }
+
+#ifdef CONFIG_SYMBEX_MP
+    auto translate = [&](uint64_t addressToTranslate, uint64_t &hostAddress) -> bool {
+        hostAddress = getHostAddress(addressToTranslate, addressType);
+        return hostAddress != (uint64_t) -1;
+    };
+
+    return m_addressSpace->write(address, (uint8_t *) buf, size, translate);
+#else
     while (size > 0) {
         uint64_t hostAddress = getHostAddress(address, addressType);
-        if (hostAddress == (uint64_t) -1)
+        if (hostAddress == (uint64_t) -1) {
             return false;
-#ifdef CONFIG_SYMBEX_MP
-        uint64_t hostPage = hostAddress & SE_RAM_OBJECT_MASK;
-        uint64_t length = (hostPage + SE_RAM_OBJECT_SIZE) - hostAddress;
-        if (length > size) {
-            length = size;
         }
 
-        transferRam(nullptr, hostAddress, const_cast<void *>(buf), length, true, false, false);
-#else
         *((uint8_t *) hostAddress) = *((uint8_t *) buf);
         uint64_t length = 1;
-#endif
 
         buf = (uint8_t *) buf + length;
         address += length;
@@ -223,6 +247,7 @@ bool S2EExecutionStateMemory::write(uint64_t address, const void *buf, uint64_t 
     }
 
     return true;
+#endif
 }
 
 klee::ObjectStateConstPtr S2EExecutionStateMemory::getMemoryObject(uint64_t address, AddressType addressType) const {
@@ -245,201 +270,59 @@ const void *S2EExecutionStateMemory::getConcreteBuffer(uint64_t address, Address
     return store + (address & ~SE_RAM_OBJECT_MASK);
 }
 
+// TODO: redo this
 bool S2EExecutionStateMemory::symbolic(uint64_t address, uint64_t size, AddressType addressType) {
 #ifdef CONFIG_SYMBEX_MP
-    while (size > 0) {
-        uint64_t hostAddress = getHostAddress(address, addressType);
-        if (hostAddress == (uint64_t) -1) {
-            return false;
-        }
+    auto translate = [&](uint64_t addressToTranslate, uint64_t &hostAddress) -> bool {
+        hostAddress = getHostAddress(addressToTranslate, addressType);
+        return hostAddress != (uint64_t) -1;
+    };
 
-        uint64_t pageAddr = hostAddress & SE_RAM_OBJECT_MASK;
-        auto os = m_asCache->get(pageAddr);
-        assert(os);
-
-        uint64_t pageOffset = address % os->getSize();
-        uint64_t pageLength = os->getSize() - pageOffset;
-
-        if (pageLength > size) {
-            pageLength = size;
-        }
-
-        if (!os->isAllConcrete()) {
-            for (unsigned i = 0; i < pageLength; ++i) {
-                if (!os->isConcrete(pageOffset + i, klee::Expr::Int8)) {
-                    return true;
-                }
-            }
-        }
-
-        address += pageLength;
-        size -= pageLength;
-    }
+    return m_addressSpace->symbolic(address, size, translate);
 #endif
     return false;
 }
 
 /***/
 
-void S2EExecutionStateMemory::transferRamInternal(const klee::ObjectStateConstPtr &os_, uint64_t object_offset,
-                                                  uint8_t *buf, uint64_t size, bool write, bool exitOnSymbolicRead) {
-    klee::ObjectStateConstPtr os = os_;
-
-    if (os->isSharedConcrete()) {
-        assert(!exitOnSymbolicRead);
-
-        /* This can happen in case of access to device memory */
-        uint8_t *concreteStore = (uint8_t *) os->getAddress();
-        if (write) {
-            memcpy(concreteStore + object_offset, buf, size);
-        } else {
-            memcpy(buf, concreteStore + object_offset, size);
-        }
-        return;
-    }
-
-    if (write) {
-        auto wos = m_addressSpace->getWriteable(os);
-        bool oldAllConcrete = wos->isAllConcrete();
-
-        for (uint64_t i = 0; i < size; ++i) {
-            wos->write8(object_offset + i, buf[i]);
-        }
-
-        bool newAllConcrete = wos->isAllConcrete();
-        if ((oldAllConcrete != newAllConcrete) && (wos->notifyOnConcretenessChange())) {
-            m_notification->addressSpaceSymbolicStatusChange(wos, newAllConcrete);
-        }
-
-    } else {
-        ObjectStatePtr wos = nullptr;
-        for (uint64_t i = 0; i < size; ++i) {
-            if (!os->readConcrete8(object_offset + i, buf + i)) {
-                if (exitOnSymbolicRead) {
-                    // m_startSymbexAtPC = getPc();
-                    // XXX: what about regs_to_env ?
-                    pabort("Check cpu_restore_state");
-                    // fast_longjmp(env->jmp_env, 1);
-                }
-
-                if (!wos) {
-                    os = wos = m_addressSpace->getWriteable(os);
-                }
-
-                buf[i] = m_concretizer->concretize(wos->read8(object_offset + i), "memory access from concrete code");
-                wos->write8(object_offset + i, buf[i]);
-            }
-        }
-    }
-}
-
-void S2EExecutionStateMemory::transferRamInternalSymbolic(const klee::ObjectStateConstPtr &os, uint64_t object_offset,
-                                                          klee::ref<klee::Expr> *buf, uint64_t size, bool write) {
-    if (write) {
-        auto wos = m_addressSpace->getWriteable(os);
-        bool oldAllConcrete = wos->isAllConcrete();
-
-        for (uint64_t i = 0; i < size; ++i) {
-            assert(buf[i]->getWidth() == Expr::Int8);
-            wos->write(object_offset + i, buf[i]);
-        }
-
-        bool newAllConcrete = wos->isAllConcrete();
-        if ((oldAllConcrete != newAllConcrete) && (wos->notifyOnConcretenessChange())) {
-            m_notification->addressSpaceSymbolicStatusChange(wos, newAllConcrete);
-        }
-
-    } else {
-        for (uint64_t i = 0; i < size; ++i) {
-            buf[i] = os->read8(object_offset + i);
-        }
-    }
-}
-
 void S2EExecutionStateMemory::transferRam(struct CPUTLBRAMEntry *te, uint64_t hostAddress, void *buf, uint64_t size,
-                                          bool isWrite, bool exitOnSymbolicRead, bool isSymbolic) {
-    assert(*m_active);
-    uint64_t page_offset = hostAddress & ~SE_RAM_OBJECT_MASK;
-    if (!(page_offset + size <= SE_RAM_OBJECT_SIZE)) {
-        /* Access spans multiple MemoryObject's */
-        uint64_t size1 = SE_RAM_OBJECT_SIZE - page_offset;
-        uint8_t *ptr = static_cast<uint8_t *>(buf);
-        ref<Expr> *exprPtr = static_cast<ref<Expr> *>(buf);
-
-        if (isSymbolic) {
-            transferRam(te, hostAddress, exprPtr, size1, isWrite, exitOnSymbolicRead, isSymbolic);
-            transferRam(te, hostAddress + size1, exprPtr + size1, size - size1, isWrite, exitOnSymbolicRead,
-                        isSymbolic);
-        } else {
-            transferRam(te, hostAddress, ptr, size1, isWrite, exitOnSymbolicRead, isSymbolic);
-            transferRam(te, hostAddress + size1, ptr + size1, size - size1, isWrite, exitOnSymbolicRead, isSymbolic);
+                                          bool isWrite, bool exitOnSymbolicRead) {
+    // TODO: update CPUTLBRAMEntry entry on access to the page.
+    // This should probably be done using a signal in AddressSpace to notify
+    // S2EExecutionStateTlb of the access.
+    if (te) {
+        auto os = m_addressSpace->findObject(hostAddress);
+        if (!os) {
+            pabort("Unmapped host address");
         }
 
-        return;
-    }
-
-    /* Single-object access */
-    uint64_t page_addr = hostAddress & SE_RAM_OBJECT_MASK;
-
-    auto os = m_asCache->get(page_addr);
-    assert(os);
-
-    unsigned osSize = os->getBitArraySize();
-
-    /* Common case, the page is not split */
-    if (osSize == os->getSize()) {
-        assert(osSize == SE_RAM_OBJECT_SIZE);
-        if (te) {
-            if (!os->isSharedConcrete() && os->isAllConcrete()) {
-                /* The object state pointer will be automatically updated if it becomes writable */
-                // XXX: do proper reference counting
-                te->object_state = (void *) os.get();
-                te->host_page = os->getAddress();
-                te->addend = (uintptr_t) os->getConcreteBufferPtr()->get() - os->getAddress();
-                if (!m_asCache->isOwnedByUs(os)) {
-                    te->host_page |= TLB_NOT_OURS;
-                }
+        if (!os->isSharedConcrete() && os->isAllConcrete()) {
+            /* The object state pointer will be automatically updated if it becomes writable */
+            // XXX: do proper reference counting
+            te->object_state = (void *) os.get();
+            te->host_page = os->getAddress();
+            te->addend = (uintptr_t) os->getConcreteBufferPtr()->get() - os->getAddress();
+            if (!m_addressSpace->isOwnedByUs(os)) {
+                te->host_page |= TLB_NOT_OURS;
             }
         }
-
-        if (isSymbolic) {
-            transferRamInternalSymbolic(os, page_offset, static_cast<ref<Expr> *>(buf), size, isWrite);
-        } else {
-            transferRamInternal(os, page_offset, static_cast<uint8_t *>(buf), size, isWrite, exitOnSymbolicRead);
-        }
-
-        return;
     }
 
-    assert(!os->isSharedConcrete());
-
-    /* Slower path, fetch every individual object and do the transfer */
-    while (size > 0) {
-        os = m_addressSpace->findObject(page_addr);
-        assert(os);
-
-        /* Check that we indeed fall into this page */
-        if (page_offset && os->getSize() <= page_offset) {
-            page_offset -= os->getSize();
-            page_addr += os->getSize();
-            continue;
+    if (isWrite) {
+        if (!m_addressSpace->write(hostAddress, (uint8_t *) buf, size)) {
+            pabort("Error while writing to ram");
         }
+    } else {
+        auto concretizer = [&](const ref<Expr> &e, const ObjectStateConstPtr &mo, size_t size) -> uint8_t {
+            return (uint8_t) m_concretizer->concretize(e, "S2EExecutionStateMemory::transferRam");
+        };
 
-        uint64_t transferSize = os->getSize() < size ? os->getSize() : size;
-
-        if (isSymbolic) {
-            transferRamInternalSymbolic(os, page_offset, static_cast<ref<Expr> *>(buf), transferSize, isWrite);
-        } else {
-            transferRamInternal(os, page_offset, static_cast<uint8_t *>(buf), transferSize, isWrite,
-                                exitOnSymbolicRead);
+        if (!m_addressSpace->read(hostAddress, (uint8_t *) buf, size, concretizer)) {
+            pabort("Error while reading from ram");
         }
-
-        size -= transferSize;
-
-        // Only the first access can access the middle of an object
-        page_offset = 0;
-        page_addr += transferSize;
     }
+
+    return;
 }
 
 uint8_t S2EExecutionStateMemory::readDirtyMask(uint64_t host_address) {
@@ -451,7 +334,7 @@ uint8_t S2EExecutionStateMemory::readDirtyMask(uint64_t host_address) {
 
 void S2EExecutionStateMemory::writeDirtyMask(uint64_t host_address, uint8_t val) {
     host_address -= s_dirtyMask.address;
-    m_dirtyMask->write8(host_address, val);
+    m_dirtyMask->write(host_address, val);
 }
 
 /** Read an ASCIIZ string from memory */

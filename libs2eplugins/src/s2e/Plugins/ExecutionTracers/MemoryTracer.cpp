@@ -41,8 +41,7 @@
 namespace s2e {
 namespace plugins {
 
-S2E_DEFINE_PLUGIN(MemoryTracer, "Memory tracer plugin", "MemoryTracer", "ExecutionTracer", "ProcessExecutionDetector",
-                  "ModuleMap");
+S2E_DEFINE_PLUGIN(MemoryTracer, "Memory tracer plugin", "MemoryTracer", "ExecutionTracer");
 
 namespace {
 
@@ -94,7 +93,12 @@ MemoryTracer::MemoryTracer(S2E *s2e) : Plugin(s2e) {
 
 void MemoryTracer::initialize() {
     m_tracer = s2e()->getPlugin<ExecutionTracer>();
-    m_detector = s2e()->getPlugin<ProcessExecutionDetector>();
+
+    // TODO: MemoryTracer will only work properly with ModuleExecutionDetector.
+    m_tracker = ITracker::getTracker(s2e(), this);
+    if (!m_tracker) {
+        getWarningsStream() << "No filtering plugin specified. Tracing all memory accesses in the system.\n";
+    }
 
     // Whether or not to include host addresses in the trace.
     // This is useful for debugging, bug yields larger traces
@@ -110,8 +114,6 @@ void MemoryTracer::initialize() {
 
     getDebugStream() << "MonitorMemory: " << m_traceMemory << " PageFaults: " << m_tracePageFaults
                      << " TlbMisses: " << m_traceTlbMisses << '\n';
-
-    m_modules.initialize(s2e(), getConfigKey());
 
     s2e()->getCorePlugin()->onTranslateBlockStart.connect(sigc::mem_fun(*this, &MemoryTracer::onTranslateBlockStart));
 
@@ -138,13 +140,13 @@ void MemoryTracer::onInitializationComplete(S2EExecutionState *state) {
 
 void MemoryTracer::onTranslateBlockStart(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb,
                                          uint64_t pc) {
-    bool tracedModule = m_modules.isModuleTraced(state, pc);
-    signal->connect(sigc::bind(sigc::mem_fun(*this, &MemoryTracer::onBlockStart), tracedModule));
+    bool traced = !m_tracker || m_tracker->isTracked(state);
+    signal->connect(sigc::bind(sigc::mem_fun(*this, &MemoryTracer::onBlockStart), traced));
 }
 
 void MemoryTracer::onBlockStart(S2EExecutionState *state, uint64_t pc, bool traced_module) {
     DECLARE_PLUGINSTATE(MemoryTracerState, state);
-    if (!m_detector->isTracked(state)) {
+    if (m_tracker && !m_tracker->isTracked(state)) {
         plgState->activate(MemoryTracer::MEMORY, false);
         plgState->activate(MemoryTracer::TLB_MISSES, false);
         plgState->activate(MemoryTracer::PAGE_FAULT, false);

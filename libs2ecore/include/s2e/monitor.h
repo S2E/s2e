@@ -24,12 +24,12 @@
 
 #define __S2E_MONITOR_H__
 
+#include <qapi/qmp/qdict.h>
+#include <stdarg.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include <stdarg.h>
-#include "qdict.h"
 
 struct Monitor;
 typedef struct Monitor Monitor;

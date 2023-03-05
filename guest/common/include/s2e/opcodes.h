@@ -76,6 +76,7 @@ extern "C" {
 #define BASE_S2E_MAKE_CONCOLIC  0x11 // Keep this for backwards compatibility, behaves like s2e_make_symbolic
 #define BASE_S2E_BEGIN_ATOMIC   0x12
 #define BASE_S2E_END_ATOMIC     0x13
+#define BASE_S2E_IS_FORKING_ENABLED 0x14
 #define BASE_S2E_CONCRETIZE     0x20
 #define BASE_S2E_EXAMPLE        0x21
 #define BASE_S2E_STATE_COUNT    0x30

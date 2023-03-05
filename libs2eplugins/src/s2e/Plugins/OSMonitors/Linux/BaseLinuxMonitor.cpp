@@ -76,6 +76,75 @@ bool BaseLinuxMonitor::verifyLinuxCommand(S2EExecutionState *state, uint64_t gue
     return true;
 }
 
+///
+/// \brief Get the process id for the current state
+///
+/// In the Linux kernel, each thread has its own task_struct that contains:
+///  * Its own identifier, the process identifier (PID)
+///  * The identifier of the process that started the thread, the thread group
+///    (TGID)
+///
+/// Therefore the getPid method returns the TGID and getTid returns the PID.
+///
+/// \return The process id
+///
+uint64_t BaseLinuxMonitor::getPid(S2EExecutionState *state) {
+    auto plgState = state->getPluginState<BaseLinuxMonitorState>(this);
+    if (plgState) {
+        return plgState->getTgid();
+    } else {
+        return -1;
+    }
+}
+
+uint64_t BaseLinuxMonitor::getTid(S2EExecutionState *state) {
+    auto plgState = state->getPluginState<BaseLinuxMonitorState>(this);
+    if (plgState) {
+        return plgState->getPid();
+    } else {
+        return -1;
+    }
+}
+
+void BaseLinuxMonitor::handleTaskSwitch(S2EExecutionState *state, const S2E_LINUXMON_TASK &CurrentTask,
+                                        const S2E_LINUXMON_COMMAND_TASK_SWITCH &TaskSwitch) {
+    auto plgState = state->getPluginState<BaseLinuxMonitorState>(this);
+
+    if (!plgState) {
+        getWarningsStream(state) << "BaseLinuxMonitorState is not initialized\n";
+        return;
+    }
+
+    auto curPid = plgState->getPid();
+    auto curTgid = plgState->getTgid();
+
+    if (curPid != -1 && curTgid != -1) {
+        bool mismatch = false;
+        if (TaskSwitch.prev.pid != curPid) {
+            getWarningsStream(state) << "task pid mismatch\n";
+            mismatch = true;
+        }
+
+        if (TaskSwitch.prev.tgid != curTgid) {
+            getWarningsStream(state) << "task tgid mismatch\n";
+            mismatch = true;
+        }
+
+        if (mismatch) {
+            getWarningsStream(state) << "cur.tgid=" << hexval(CurrentTask.tgid)
+                                     << " cur.pid=" << hexval(CurrentTask.pid) << " cache.tgid=" << hexval(curTgid)
+                                     << " cache.pid=" << hexval(curPid) << " prev.tgid=" << hexval(TaskSwitch.prev.tgid)
+                                     << " prev.pid=" << hexval(TaskSwitch.prev.pid)
+                                     << " next.tgid=" << hexval(TaskSwitch.next.tgid)
+                                     << " next.pid=" << hexval(TaskSwitch.next.pid) << "\n";
+        }
+    }
+
+    plgState->setPidTgid(TaskSwitch.next.pid, TaskSwitch.next.tgid);
+
+    onProcessOrThreadSwitch.emit(state);
+}
+
 bool BaseLinuxMonitor::getCurrentStack(S2EExecutionState *state, uint64_t *base, uint64_t *size) {
     auto pid = getPid(state);
 

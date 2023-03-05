@@ -66,7 +66,7 @@ std::shared_ptr<VM> VM::create(std::shared_ptr<S2EKVM> &kvm) {
     s2e_init_timers();
 
     s2e_initialize_execution(g_execute_always_klee);
-    s2e_register_dirty_mask((uint64_t) get_ram_list_phys_dirty(), get_ram_list_phys_dirty_size() >> TARGET_PAGE_BITS);
+    s2e_register_dirty_mask((uint64_t) get_ram_list_phys_dirty(), get_ram_list_phys_dirty_size());
     s2e_on_initialization_complete();
 #endif
 

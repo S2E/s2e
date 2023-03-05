@@ -17,19 +17,19 @@ pluginsConfig.MemoryTracer = {
     traceMemory = true,
     traceTlbMisses = true,
     tracePageFaults = true,
-    moduleNames = {"$(basename $TARGET)"}
+    filterPlugin = "ModuleExecutionDetector"
 }
 
 add_plugin("TranslationBlockTracer")
 pluginsConfig.TranslationBlockTracer = {
     traceTbStart = true,
     traceTbEnd = true,
-    moduleNames = {"$(basename $TARGET)"}
+    filterPlugin = "ModuleExecutionDetector"
 }
 
 add_plugin("InstructionCounter")
 pluginsConfig.InstructionCounter = {
-    moduleNames = {"$(basename $TARGET)"}
+    filterPlugin = "ModuleExecutionDetector"
 }
 
 EOF

@@ -44,11 +44,6 @@
 #include "Synchronization.h"
 #include "s2e_config.h"
 
-namespace klee {
-class Interpreter;
-class InterpreterHandler;
-} // namespace klee
-
 namespace s2e {
 
 class Plugin;
@@ -99,7 +94,7 @@ struct S2EShared {
     }
 };
 
-class S2E : public klee::InterpreterHandler {
+class S2E {
 protected:
     S2ESynchronizedObject<S2EShared> m_sync;
     ConfigFile *m_configFile;

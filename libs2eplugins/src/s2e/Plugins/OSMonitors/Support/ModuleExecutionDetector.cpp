@@ -188,6 +188,14 @@ bool ModuleExecutionDetector::getModuleConfig(const std::string &id, ModuleExecu
     return true;
 }
 
+bool ModuleExecutionDetector::isTrackedPc(S2EExecutionState *state, uint64_t pc) {
+    return getDescriptor(state, pc) != nullptr;
+}
+
+bool ModuleExecutionDetector::isTrackingConfigured(S2EExecutionState *state) {
+    return !m_configuredModules.empty();
+}
+
 /*****************************************************************************/
 /*****************************************************************************/
 /*****************************************************************************/

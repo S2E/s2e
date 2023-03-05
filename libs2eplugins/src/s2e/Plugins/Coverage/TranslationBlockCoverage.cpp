@@ -22,12 +22,10 @@
 
 #include <s2e/cpu.h>
 
-extern "C" {
-#include "qdict.h"
-#include "qint.h"
-#include "qjson.h"
-#include "qlist.h"
-}
+#include <qapi/qmp/qdict.h>
+#include <qapi/qmp/qjson.h>
+#include <qapi/qmp/qlist.h>
+#include <qapi/qmp/qnum.h>
 
 #include <s2e/ConfigFile.h>
 #include <s2e/S2E.h>
@@ -203,9 +201,9 @@ void TranslationBlockCoverage::generateJsonCoverage(S2EExecutionState *state, st
         for (auto &tb : module.second) {
 
             QList *info = qlist_new();
-            qlist_append_obj(info, QOBJECT(qint_from_int(tb.startPc)));
-            qlist_append_obj(info, QOBJECT(qint_from_int(tb.lastPc)));
-            qlist_append_obj(info, QOBJECT(qint_from_int(tb.size)));
+            qlist_append_obj(info, QOBJECT(qnum_from_int(tb.startPc)));
+            qlist_append_obj(info, QOBJECT(qnum_from_int(tb.lastPc)));
+            qlist_append_obj(info, QOBJECT(qnum_from_int(tb.size)));
 
             qlist_append_obj(blocks, QOBJECT(info));
         }
@@ -213,12 +211,11 @@ void TranslationBlockCoverage::generateJsonCoverage(S2EExecutionState *state, st
         qdict_put_obj(pt, module.first.c_str(), QOBJECT(blocks));
     }
 
-    QString *json = qobject_to_json(QOBJECT(pt));
+    auto json = qobject_to_json(QOBJECT(pt));
+    coverage << json->str << "\n";
+    g_string_free(json, true);
 
-    coverage << qstring_get_str(json) << "\n";
-
-    QDECREF(json);
-    QDECREF(pt);
+    qobject_unref(pt);
 }
 
 bool mergeCoverage(ModuleTBs &dest, const ModuleTBs &source) {

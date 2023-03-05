@@ -172,6 +172,16 @@ namespace {
     SinglePathMode("single-path-mode",
             cl::desc("Faster TLB, but forces single path execution"),
             cl::init(false));
+
+    cl::opt<bool> NoTruncateSourceLines("no-truncate-source-lines",
+                                    cl::desc("Don't truncate long lines in the output source"));
+
+    cl::opt<bool> OutputSource("output-source", cl::desc("Write the assembly for the final transformed source"),
+                            cl::init(true));
+
+    cl::opt<bool> OutputModule("output-module", cl::desc("Write the bitcode for the final transformed module"),
+                            cl::init(false));
+
 }
 
 //The logs may be flooded with messages when switching execution mode.
@@ -238,8 +248,8 @@ namespace s2e {
 /* Global array to hold tb function arguments */
 volatile void *tb_function_args[3];
 
-S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMTranslator *translator, InterpreterHandler *ie)
-    : Executor(ie, translator->getContext()), m_s2e(s2e), m_llvmTranslator(translator), m_executeAlwaysKlee(false),
+S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMTranslator *translator)
+    : Executor(translator->getContext()), m_s2e(s2e), m_llvmTranslator(translator), m_executeAlwaysKlee(false),
       m_forkProcTerminateCurrentState(false), m_inLoadBalancing(false) {
     delete externalDispatcher;
     externalDispatcher = new S2EExternalDispatcher();
@@ -436,6 +446,18 @@ S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMTranslator *translator, InterpreterHan
         g_s2e_single_path_mode = 1;
         s2e->getWarningsStream() << "S2E will run in single path mode. Forking and symbolic execution not allowed.\n";
     }
+
+    if (OutputModule) {
+        if (auto os = s2e->openOutputFile("module.bc")) {
+            kmodule->outputModule(*os);
+        }
+    }
+
+    if (OutputSource) {
+        if (auto os = s2e->openOutputFile("assembly.ll")) {
+            kmodule->outputSource(*os, NoTruncateSourceLines);
+        }
+    }
 }
 
 void S2EExecutor::flushTb() {
@@ -462,18 +484,18 @@ S2EExecutionState *S2EExecutor::createInitialState() {
     addedStates.insert(state);
     updateStates(state);
 
-#define __DEFINE_EXT_OBJECT_RO(name)                                                   \
-    {                                                                                  \
-        predefinedSymbols.insert(std::make_pair(#name, (void *) &name));               \
-        auto op = addExternalObject(*state, (void *) &name, sizeof(name), true, true); \
-        op->setName(#name);                                                            \
+#define __DEFINE_EXT_OBJECT_RO(name)                                                  \
+    {                                                                                 \
+        predefinedSymbols.insert(std::make_pair(#name, (void *) &name));              \
+        auto op = state->addExternalObject((void *) &name, sizeof(name), true, true); \
+        op->setName(#name);                                                           \
     }
 
-#define __DEFINE_EXT_OBJECT_RO_SYMB(name)                                               \
-    {                                                                                   \
-        predefinedSymbols.insert(std::make_pair(#name, (void *) &name));                \
-        auto op = addExternalObject(*state, (void *) &name, sizeof(name), true, false); \
-        op->setName(#name);                                                             \
+#define __DEFINE_EXT_OBJECT_RO_SYMB(name)                                              \
+    {                                                                                  \
+        predefinedSymbols.insert(std::make_pair(#name, (void *) &name));               \
+        auto op = state->addExternalObject((void *) &name, sizeof(name), true, false); \
+        op->setName(#name);                                                            \
     }
 
     if (g_sqi.size != sizeof(g_sqi)) {
@@ -518,22 +540,22 @@ void S2EExecutor::registerCpu(S2EExecutionState *initialState, CPUX86State *cpuE
     }
 
     /* Add registers and eflags area as a true symbolic area */
-    auto symbolicRegs = addExternalObject(*initialState, cpuEnv, offsetof(CPUX86State, eip),
-                                          /* isReadOnly = */ false,
-                                          /* isSharedConcrete = */ false);
+    auto symbolicRegs = initialState->addExternalObject(cpuEnv, offsetof(CPUX86State, eip),
+                                                        /* isReadOnly = */ false,
+                                                        /* isSharedConcrete = */ false);
 
     /* Add the rest of the structure as concrete-only area */
-    auto concreteRegs = addExternalObject(*initialState, ((uint8_t *) cpuEnv) + offsetof(CPUX86State, eip),
-                                          sizeof(CPUX86State) - offsetof(CPUX86State, eip),
-                                          /* isReadOnly = */ false,
-                                          /* isSharedConcrete = */ true);
+    auto concreteRegs = initialState->addExternalObject(((uint8_t *) cpuEnv) + offsetof(CPUX86State, eip),
+                                                        sizeof(CPUX86State) - offsetof(CPUX86State, eip),
+                                                        /* isReadOnly = */ false,
+                                                        /* isSharedConcrete = */ true);
 
     initialState->m_registers.initialize(initialState->addressSpace, symbolicRegs, concreteRegs);
     klee::ExecutionState::s_ignoredMergeObjects.insert(initialState->m_registers.getConcreteRegs());
 }
 
 void S2EExecutor::registerSharedExternalObject(S2EExecutionState *state, void *address, unsigned size) {
-    addExternalObject(*state, address, size, false, true);
+    state->addExternalObject(address, size, false, true);
 }
 
 void S2EExecutor::registerRam(S2EExecutionState *initialState, MemoryDesc *region, uint64_t startAddress, uint64_t size,
@@ -551,7 +573,7 @@ void S2EExecutor::registerRam(S2EExecutionState *initialState, MemoryDesc *regio
 
     for (uint64_t addr = hostAddress; addr < hostAddress + size; addr += SE_RAM_OBJECT_SIZE) {
 
-        auto os = addExternalObject(*initialState, (void *) addr, SE_RAM_OBJECT_SIZE, false, isSharedConcrete);
+        auto os = initialState->addExternalObject((void *) addr, SE_RAM_OBJECT_SIZE, false, isSharedConcrete);
 
         os->setMemoryPage(true);
 
@@ -587,8 +609,6 @@ void S2EExecutor::registerRam(S2EExecutionState *initialState, MemoryDesc *regio
             m_s2e->getWarningsStream(nullptr) << "Could not map host RAM\n";
             exit(-1);
         }
-
-        m_unusedMemoryDescs.push_back(make_pair(hostAddress, size));
     }
 
     initialState->m_asCache.registerPool(hostAddress, size);
@@ -597,7 +617,7 @@ void S2EExecutor::registerRam(S2EExecutionState *initialState, MemoryDesc *regio
 
 void S2EExecutor::registerDirtyMask(S2EExecutionState *state, uint64_t hostAddress, uint64_t size) {
     // Assume that dirty mask is small enough, so no need to split it in small pages
-    auto dirtyMask = g_s2e->getExecutor()->addExternalObject(*state, (void *) hostAddress, size, false, true);
+    auto dirtyMask = state->addExternalObject((void *) hostAddress, size, false, true);
 
     state->m_memory.initialize(&state->addressSpace, &state->m_asCache, &state->m_active, state, state, dirtyMask);
 

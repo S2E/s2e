@@ -21,9 +21,7 @@
 /// SOFTWARE.
 ///
 
-extern "C" {
-#include <qstring.h>
-}
+#include <qapi/qmp/qstring.h>
 
 #include <s2e/ConfigFile.h>
 #include <s2e/Plugins/Core/Events.h>

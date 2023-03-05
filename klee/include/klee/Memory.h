@@ -231,13 +231,9 @@ public:
     }
 
     // return bytes written.
-    void write(unsigned offset, ref<Expr> value);
     void write(ref<Expr> offset, ref<Expr> value);
-
-    void write8(unsigned offset, uint8_t value);
-    void write16(unsigned offset, uint16_t value);
-    void write32(unsigned offset, uint32_t value);
-    void write64(unsigned offset, uint64_t value);
+    void write(unsigned offset, uint8_t value);
+    void write(unsigned offset, ref<Expr> value);
 
     bool isAllConcrete() const;
 
@@ -291,7 +287,6 @@ private:
     const UpdateListPtr &getUpdates() const;
 
     ref<Expr> read8(ref<Expr> offset) const;
-    void write8(unsigned offset, ref<Expr> value);
     void write8(ref<Expr> offset, ref<Expr> value);
 
     void fastRangeCheckOffset(ref<Expr> offset, unsigned *base_r, unsigned *size_r) const;

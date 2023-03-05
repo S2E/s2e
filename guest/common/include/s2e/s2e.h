@@ -100,7 +100,7 @@ static inline void __s2e_touch_string(volatile const char *string) {
 /// \param[in] buffer Buffer to page into memory
 /// \param[in] size Number of bytes in the buffer
 ///
-static inline void __s2e_touch_buffer(volatile void *buffer, unsigned size) {
+static inline void __s2e_touch_buffer(volatile const void *buffer, unsigned size) {
     unsigned i;
     unsigned t __attribute__((unused));
     volatile char *b = (volatile char *) buffer;
@@ -108,6 +108,15 @@ static inline void __s2e_touch_buffer(volatile void *buffer, unsigned size) {
 	t = *b;
 	++b;
     }
+}
+
+///
+/// \brief Forces the OS to map the page at the given address by issuing a read.
+///
+/// \param[in] address Address of the page to read
+///
+static inline void __s2e_touch_page(volatile const void *address) {
+    __s2e_touch_buffer(address, 1);
 }
 
 ///
@@ -330,6 +339,18 @@ static inline void s2e_disable_forking(void)
     __asm__ __volatile__(
         S2E_INSTRUCTION_SIMPLE(BASE_S2E_DISABLE_FORK)
     );
+}
+
+///
+/// \brief Check if forking is enabled on symbolic conditions
+///
+static inline int s2e_is_forking_enabled(void) {
+    int result;
+    __asm__ __volatile__(
+        S2E_INSTRUCTION_SIMPLE(BASE_S2E_IS_FORKING_ENABLED)
+        : "=a" (result)
+    );
+    return result;
 }
 
 ///

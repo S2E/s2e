@@ -216,7 +216,8 @@ bool BaseFunctionModels::strcmpHelperCommon(S2EExecutionState *state, const uint
     // Assemble expression
     //
 
-    const Expr::Width width = state->getPointerSize() * CHAR_BIT;
+    // Return value of the C library functions is a 32-bit int.
+    const Expr::Width width = Expr::Int32;
     const ref<Expr> nullByteExpr = E_CONST('\0', Expr::Int8);
 
     assert(width == Expr::Int32 && "-1 representation becomes wrong");

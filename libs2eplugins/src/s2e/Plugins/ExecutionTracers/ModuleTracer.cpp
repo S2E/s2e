@@ -51,9 +51,13 @@ void ModuleTracer::initialize() {
 
     OSMonitor *monitor = static_cast<OSMonitor *>(s2e()->getPlugin("OSMonitor"));
 
-    monitor->onModuleLoad.connect(sigc::mem_fun(*this, &ModuleTracer::moduleLoadListener));
-    monitor->onModuleUnload.connect(sigc::mem_fun(*this, &ModuleTracer::moduleUnloadListener));
-    monitor->onProcessUnload.connect(sigc::mem_fun(*this, &ModuleTracer::processUnloadListener));
+    // These module events must come first/last in the trace for it to be parsed properly.
+    monitor->onModuleLoad.connect(sigc::mem_fun(*this, &ModuleTracer::moduleLoadListener),
+                                  sigc::signal_base::HIGHEST_PRIORITY);
+    monitor->onModuleUnload.connect(sigc::mem_fun(*this, &ModuleTracer::moduleUnloadListener),
+                                    sigc::signal_base::LOWEST_PRIORITY);
+    monitor->onProcessUnload.connect(sigc::mem_fun(*this, &ModuleTracer::processUnloadListener),
+                                     sigc::signal_base::LOWEST_PRIORITY);
 }
 
 bool ModuleTracer::initSection(TracerConfigEntry *cfgEntry, const std::string &cfgKey, const std::string &entryId) {

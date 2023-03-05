@@ -1,0 +1,11 @@
+test:
+    description: "Check that InstructionCounter works properly"
+
+    targets:
+        - windows64-basic11-icount.exe
+        - windows32-basic11-icount.exe
+        - linux32-basic11-icount
+        - linux64-basic11-icount
+    
+    build-options:
+        post-project-generation-script: fix-config.sh

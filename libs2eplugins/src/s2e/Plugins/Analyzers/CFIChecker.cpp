@@ -439,7 +439,7 @@ void CFIChecker::onProcessOrThreadSwitch(S2EExecutionState *state) {
 
     plgState->setPidTid(pid, tid);
 
-    auto isTracked = m_process->isTracked(state, pid);
+    auto isTracked = m_process->isTrackedPid(state, pid);
     g_invokeCallRetInstrumentation = isTracked ? (void *) 1 : nullptr;
 }
 

@@ -1,7 +1,6 @@
 /// S2E Selective Symbolic Execution Platform
 ///
-/// Copyright (c) 2017 Cyberhaven
-/// Copyright (c) 2017 Dependable Systems Lab, EPFL
+/// Copyright (c) 2017, Dependable Systems Laboratory, EPFL
 ///
 /// Permission is hereby granted, free of charge, to any person obtaining a copy
 /// of this software and associated documentation files (the "Software"), to deal
@@ -20,17 +19,16 @@
 /// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 /// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 /// SOFTWARE.
+///
 
 #ifndef S2E_LINUX_COMMANDS_H
 #define S2E_LINUX_COMMANDS_H
-
-#include <inttypes.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#define S2E_LINUXMON_COMMAND_VERSION 0x201903212249ULL // date +%Y%m%d%H%M
+#define S2E_LINUXMON_COMMAND_VERSION 0x202301082207ULL // date +%Y%m%d%H%M
 
 enum S2E_LINUXMON_COMMANDS {
     LINUX_SEGFAULT,
@@ -38,11 +36,13 @@ enum S2E_LINUXMON_COMMANDS {
     LINUX_MODULE_LOAD,
     LINUX_TRAP,
     LINUX_PROCESS_EXIT,
+    LINUX_THREAD_EXIT,
     LINUX_INIT,
     LINUX_KERNEL_PANIC,
     LINUX_MEMORY_MAP,
     LINUX_MEMORY_UNMAP,
-    LINUX_MEMORY_PROTECT
+    LINUX_MEMORY_PROTECT,
+    LINUX_TASK_SWITCH
 };
 
 struct S2E_LINUXMON_COMMAND_MEMORY_MAP {
@@ -110,12 +110,19 @@ struct S2E_LINUXMON_COMMAND_PROCESS_EXIT {
     uint64_t code;
 } __attribute__((packed));
 
+struct S2E_LINUXMON_COMMAND_THREAD_EXIT {
+    uint64_t code;
+} __attribute__((packed));
+
+struct S2E_LINUXMON_TASK {
+    uint64_t task_struct;
+    uint64_t pid;
+    uint64_t tgid;
+} __attribute__((packed));
+
 struct S2E_LINUXMON_COMMAND_INIT {
     uint64_t page_offset;
     uint64_t start_kernel;
-    uint64_t current_task_address;
-    uint64_t task_struct_pid_offset;
-    uint64_t task_struct_tgid_offset;
 } __attribute__((packed));
 
 struct S2E_LINUXMON_COMMAND_KERNEL_PANIC {
@@ -123,21 +130,28 @@ struct S2E_LINUXMON_COMMAND_KERNEL_PANIC {
     uint64_t message_size;
 } __attribute__((packed));
 
+struct S2E_LINUXMON_COMMAND_TASK_SWITCH {
+    struct S2E_LINUXMON_TASK prev;
+    struct S2E_LINUXMON_TASK next;
+} __attribute__((packed));
+
 struct S2E_LINUXMON_COMMAND {
     uint64_t version;
     enum S2E_LINUXMON_COMMANDS Command;
-    uint64_t currentPid;
+    struct S2E_LINUXMON_TASK CurrentTask;
     union {
         struct S2E_LINUXMON_COMMAND_PROCESS_LOAD ProcessLoad;
         struct S2E_LINUXMON_COMMAND_MODULE_LOAD ModuleLoad;
         struct S2E_LINUXMON_COMMAND_SEG_FAULT SegFault;
         struct S2E_LINUXMON_COMMAND_TRAP Trap;
         struct S2E_LINUXMON_COMMAND_PROCESS_EXIT ProcessExit;
+        struct S2E_LINUXMON_COMMAND_THREAD_EXIT ThreadExit;
         struct S2E_LINUXMON_COMMAND_INIT Init;
         struct S2E_LINUXMON_COMMAND_KERNEL_PANIC Panic;
         struct S2E_LINUXMON_COMMAND_MEMORY_MAP MemMap;
         struct S2E_LINUXMON_COMMAND_MEMORY_UNMAP MemUnmap;
         struct S2E_LINUXMON_COMMAND_MEMORY_PROTECT MemProtect;
+        struct S2E_LINUXMON_COMMAND_TASK_SWITCH TaskSwitch;
     };
 } __attribute__((packed));
 

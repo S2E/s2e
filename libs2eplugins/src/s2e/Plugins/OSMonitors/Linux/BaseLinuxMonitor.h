@@ -57,6 +57,30 @@ static const uint64_t STACK_SIZE = 16 * 1024 * 1024;
 
 } // namespace linux_common
 
+class BaseLinuxMonitorState : public PluginState {
+private:
+    uint64_t mTgid = -1;
+    uint64_t mPid = -1;
+
+public:
+    BaseLinuxMonitorState(){};
+    virtual ~BaseLinuxMonitorState(){};
+    virtual PluginState *clone() const = 0;
+
+    inline uint64_t getTgid() const {
+        return mTgid;
+    }
+
+    inline uint64_t getPid() const {
+        return mPid;
+    }
+
+    inline void setPidTgid(uint64_t pid, uint64_t tgid) {
+        mPid = pid;
+        mTgid = tgid;
+    }
+};
+
 ///
 /// \brief Abstract base plugin for X86 Linux monitors, including the Linux and
 /// CGC monitors
@@ -72,9 +96,6 @@ protected:
     /// Start address of the Linux kernel
     uint64_t m_kernelStartAddress;
 
-    /// Offset of the process identifier in the \c task_struct struct (see include/linux/sched.h)
-    uint64_t m_taskStructPidOffset;
-
     /// Terminate if a segment fault occurs
     bool m_terminateOnSegfault;
 
@@ -87,6 +108,9 @@ protected:
 
     void handleModuleLoad(S2EExecutionState *state, uint64_t pid, const S2E_LINUXMON_COMMAND_MODULE_LOAD &modLoad);
     void handleProcessLoad(S2EExecutionState *state, uint64_t pid, const S2E_LINUXMON_COMMAND_PROCESS_LOAD &procLoad);
+
+    void handleTaskSwitch(S2EExecutionState *state, const S2E_LINUXMON_TASK &CurrentTask,
+                          const S2E_LINUXMON_COMMAND_TASK_SWITCH &TaskSwitch);
 
     template <typename T>
     bool loadSections(S2EExecutionState *state, uint64_t phdr, uint64_t phdr_size,
@@ -182,6 +206,12 @@ public:
         state->mem()->readString(message, str, messageSize);
         g_s2e->getExecutor()->terminateState(*state, str);
     }
+
+    // Get the current process identifier
+    virtual uint64_t getPid(S2EExecutionState *state);
+
+    /// Get the current thread identifier
+    virtual uint64_t getTid(S2EExecutionState *state);
 };
 
 } // namespace plugins

@@ -85,7 +85,7 @@ protected:
     PluginStateMap m_PluginState;
 
     /* Internal variable - set to PC where execution should be
-       switched to symbolic (e.g., due to access to symbolic memory */
+       switched to symbolic (e.g., due to access to symbolic memory). */
     uint64_t m_startSymbexAtPC;
 
     /** Set to true when the state is active (i.e., currently selected).
@@ -207,6 +207,14 @@ public:
             return ret;
         }
         return (*it).second;
+    }
+
+    template <typename T> T *getPluginState(Plugin *plugin) const {
+        auto it = m_PluginState.find(plugin);
+        if (it == m_PluginState.end()) {
+            return nullptr;
+        }
+        return dynamic_cast<T *>((*it).second);
     }
 
     /** Returns true if this is the active state */

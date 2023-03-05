@@ -29,18 +29,11 @@
 #include <s2e/Plugins/ExecutionTracers/ExecutionTracer.h>
 #include <s2e/Plugins/ExecutionTracers/MemoryTracer.h>
 #include <s2e/Plugins/ExecutionTracers/TranslationBlockTracer.h>
+#include <s2e/Plugins/OSMonitors/Support/PidTid.h>
 #include <s2e/Plugins/OSMonitors/Windows/WindowsMonitor.h>
 
 #include <TraceEntries.pb.h>
 #include "UserSpaceTracer.h"
-
-namespace std {
-template <typename T1, typename T2> struct hash<std::pair<T1, T2>> {
-    std::size_t operator()(std::pair<T1, T2> const &p) const {
-        return p.first ^ p.second;
-    }
-};
-} // namespace std
 
 namespace s2e {
 namespace plugins {
@@ -59,7 +52,6 @@ public:
     using TraceInfoPtr = std::shared_ptr<TraceInfo>;
 
     using Pid = uint64_t;
-    using PidTid = std::pair<uint64_t, uint64_t>;
     using PidTids = std::unordered_map<PidTid, TraceInfoPtr>;
     using Pids = llvm::DenseSet<Pid>;
 

@@ -23,11 +23,9 @@
 
 #include <s2e/cpu.h>
 
-extern "C" {
-#include "qdict.h"
-#include "qjson.h"
-#include "qlist.h"
-}
+#include <qapi/qmp/qdict.h>
+#include <qapi/qmp/qjson.h>
+#include <qapi/qmp/qlist.h>
 
 #include <s2e/ConfigFile.h>
 #include <s2e/Plugins/Core/Events.h>
@@ -175,9 +173,9 @@ void BasicBlockCoverage::generateJsonCoverage(S2EExecutionState *state, std::str
             bool isFcnEntryPoint = m_cfg->getFunctionName(module.first, bb->start_pc, fcnName);
 
             QList *info = qlist_new();
-            qlist_append_obj(info, QOBJECT(qint_from_int(bb->start_pc)));
-            qlist_append_obj(info, QOBJECT(qint_from_int(bb->end_pc)));
-            qlist_append_obj(info, QOBJECT(qint_from_int(isFcnEntryPoint)));
+            qlist_append_obj(info, QOBJECT(qnum_from_int(bb->start_pc)));
+            qlist_append_obj(info, QOBJECT(qnum_from_int(bb->end_pc)));
+            qlist_append_obj(info, QOBJECT(qnum_from_int(isFcnEntryPoint)));
 
             qlist_append_obj(blocks, QOBJECT(info));
         }
@@ -185,18 +183,17 @@ void BasicBlockCoverage::generateJsonCoverage(S2EExecutionState *state, std::str
         uint64_t bbcount = m_cfg->getBasicBlockCount(module.first);
 
         QDict *modInfo = qdict_new();
-        qdict_put_obj(modInfo, "static_bbs", QOBJECT(qint_from_int(bbcount)));
+        qdict_put_obj(modInfo, "static_bbs", QOBJECT(qnum_from_int(bbcount)));
         qdict_put_obj(modInfo, "covered_blocks", QOBJECT(blocks));
 
         qdict_put_obj(pt, module.first.c_str(), QOBJECT(modInfo));
     }
 
-    QString *json = qobject_to_json(QOBJECT(pt));
+    auto json = qobject_to_json(QOBJECT(pt));
+    coverage << json->str << "\n";
+    g_string_free(json, true);
 
-    coverage << qstring_get_str(json) << "\n";
-
-    QDECREF(json);
-    QDECREF(pt);
+    qobject_unref(pt);
 }
 
 S2EExecutionState *BasicBlockCoverage::getNonCoveredState(llvm::DenseSet<S2EExecutionState *> &filter) {

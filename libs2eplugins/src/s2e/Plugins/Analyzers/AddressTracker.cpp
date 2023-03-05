@@ -144,7 +144,7 @@ void AddressTracker::onMonitorLoad(S2EExecutionState *state) {
 }
 
 void AddressTracker::onModuleLoad(S2EExecutionState *state, const ModuleDescriptor &module) {
-    if (!m_process->isTracked(state, module.Pid)) {
+    if (!m_process->isTrackedPid(state, module.Pid)) {
         return;
     }
 

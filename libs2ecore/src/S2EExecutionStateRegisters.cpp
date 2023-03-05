@@ -223,8 +223,9 @@ void S2EExecutionStateRegisters::writeSymbolicRegion(unsigned offset, const void
         auto wos = m_symbolicRegs;
         bool oldAllConcrete = wos->isAllConcrete();
 
-        for (unsigned i = 0; i < size; ++i)
-            wos->write8(offset + i, buf[i]);
+        for (unsigned i = 0; i < size; ++i) {
+            wos->write(offset + i, buf[i]);
+        }
 
         bool newAllConcrete = wos->isAllConcrete();
         if ((oldAllConcrete != newAllConcrete) && (wos->notifyOnConcretenessChange())) {

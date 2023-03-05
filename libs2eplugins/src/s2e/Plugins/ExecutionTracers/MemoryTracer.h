@@ -25,13 +25,12 @@
 #define S2E_PLUGINS_MEMTRACER_H
 
 #include <s2e/Plugin.h>
+#include <s2e/Plugins/OSMonitors/Support/ITracker.h>
 #include <s2e/Plugins/OSMonitors/Support/ModuleMap.h>
-#include <s2e/Plugins/OSMonitors/Support/ProcessExecutionDetector.h>
 
 #include <string>
 
 #include "ExecutionTracer.h"
-#include "ModuleTracing.h"
 
 namespace s2e {
 namespace plugins {
@@ -59,9 +58,8 @@ private:
     bool m_debugObjectStates;
 
     ExecutionTracer *m_tracer;
-    ProcessExecutionDetector *m_detector;
 
-    ModuleTracing m_modules;
+    ITracker *m_tracker;
 
     void onTlbMiss(S2EExecutionState *state, uint64_t addr, bool is_write);
     void onPageFault(S2EExecutionState *state, uint64_t addr, bool is_write);
