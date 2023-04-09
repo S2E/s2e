@@ -34,7 +34,6 @@
 #include <s2e/S2EExecutor.h>
 #include <s2e/Utils.h>
 
-#include <llvm/Config/config.h>
 #include <llvm/Support/CommandLine.h>
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Support/Path.h>

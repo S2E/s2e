@@ -86,4 +86,4 @@ set(COMMON_FLAGS "${COMMON_FLAGS} -Wall -fPIC -fno-strict-aliasing -fexceptions"
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${WERROR_FLAGS} ${COMMON_FLAGS} -std=c++14")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${WERROR_FLAGS} ${COMMON_FLAGS}")
-set(CMAKE_SHARED_LINKER_FLAGS "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/mapfile")
+set(CMAKE_SHARED_LINKER_FLAGS "-Wl,--as-needed -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/mapfile")

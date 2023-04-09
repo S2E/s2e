@@ -174,8 +174,8 @@ template <typename T> static bool getConcolicValue(S2EExecutionState *state, uns
     return true;
 }
 
-static s2e_trace::PbTraceRegisterData getRegs(S2EExecutionState *state) {
-    s2e_trace::PbTraceRegisterData data;
+static s2e_trace::PbTraceRegisterData *getRegs(S2EExecutionState *state) {
+    auto data = new s2e_trace::PbTraceRegisterData();
 
     uint32_t symbMask = 0;
 
@@ -189,21 +189,21 @@ static s2e_trace::PbTraceRegisterData getRegs(S2EExecutionState *state) {
             symbMask |= 1 << i;
         }
 
-        data.add_values(concreteData);
+        data->add_values(concreteData);
     }
 
-    data.set_symb_mask(symbMask);
+    data->set_symb_mask(symbMask);
 
     return data;
 }
 
-static s2e_trace::PbTraceTbData getTbData(TranslationBlock *tb) {
-    s2e_trace::PbTraceTbData data;
+static s2e_trace::PbTraceTbData *getTbData(TranslationBlock *tb) {
+    auto data = new s2e_trace::PbTraceTbData();
 
-    data.set_tb_type(s2e_trace::PbTraceTbType(tb->se_tb_type));
-    data.set_size(tb->size);
-    data.set_first_pc(tb->pc);
-    data.set_last_pc(tb->pcOfLastInstr);
+    data->set_tb_type(s2e_trace::PbTraceTbType(tb->se_tb_type));
+    data->set_size(tb->size);
+    data->set_first_pc(tb->pc);
+    data->set_last_pc(tb->pcOfLastInstr);
 
     return data;
 }
@@ -216,21 +216,17 @@ void TranslationBlockTracer::trace(S2EExecutionState *state, ExecutionTracer *tr
         auto data = getTbData(tb);
 
         s2e_trace::PbTraceTranslationBlockStart item;
-        item.set_allocated_data(&data);
-        item.set_allocated_regs(&regs);
+        item.set_allocated_data(data);
+        item.set_allocated_regs(regs);
         tracer->writeData(state, item, type);
-        item.release_data();
-        item.release_regs();
     } else if (type == s2e_trace::PbTraceItemHeaderType::TRACE_TB_END) {
         auto regs = getRegs(state);
         auto data = getTbData(tb);
 
         s2e_trace::PbTraceTranslationBlockEnd item;
-        item.set_allocated_data(&data);
-        item.set_allocated_regs(&regs);
+        item.set_allocated_data(data);
+        item.set_allocated_regs(regs);
         tracer->writeData(state, item, type);
-        item.release_data();
-        item.release_regs();
     } else if (type == s2e_trace::PbTraceItemHeaderType::TRACE_BLOCK) {
         s2e_trace::PbTraceTranslationBlock item;
         item.set_pc(tb->pc);
