@@ -58,8 +58,6 @@ RUN mkdir s2e
 RUN mkdir s2e-build
 COPY Makefile s2e/
 COPY scripts/determine_clang_binary_suffix.py s2e/scripts/
-RUN cd s2e-build &&                                                         \
-    make -f ../s2e/Makefile S2E_PREFIX=/opt/s2e stamps/clang-binary
 
 RUN cd s2e-build &&                                                         \
     make -f ../s2e/Makefile S2E_PREFIX=/opt/s2e stamps/llvm-release-make
