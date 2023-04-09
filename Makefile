@@ -160,8 +160,8 @@ RAPIDJSON_BUILD_DIR=rapidjson-build
 
 # protobuf
 # We build our own because the one on Ubuntu 16 crashes.
-PROTOBUF_URL=https://github.com/protocolbuffers/protobuf/releases/download/v3.7.1/protobuf-cpp-3.7.1.tar.gz
-PROTOBUF_SRC_DIR=protobuf-3.7.1
+PROTOBUF_URL=https://github.com/protocolbuffers/protobuf/archive/refs/tags/v3.21.12.tar.gz
+PROTOBUF_SRC_DIR=protobuf-3.21.12
 PROTOBUF_BUILD_DIR=protobuf
 
 
@@ -273,8 +273,11 @@ $(RAPIDJSON_BUILD_DIR):
 	cd $(RAPIDJSON_SRC_DIR) && git checkout $(RAPIDJSON_GIT_REV)
 	mkdir -p $(S2E_BUILD)/$(RAPIDJSON_BUILD_DIR)
 
-$(PROTOBUF_BUILD_DIR):
+
+$(PROTOBUF_SRC_DIR).tar.gz:
 	$(call DOWNLOAD,$(PROTOBUF_URL),$(S2E_BUILD)/$(PROTOBUF_SRC_DIR).tar.gz)
+
+$(PROTOBUF_BUILD_DIR): $(PROTOBUF_SRC_DIR).tar.gz
 	tar -zxf $(S2E_BUILD)/$(PROTOBUF_SRC_DIR).tar.gz
 	mkdir -p $(S2E_BUILD)/$(PROTOBUF_BUILD_DIR)
 
@@ -422,13 +425,21 @@ stamps/rapidjson-make: stamps/rapidjson-configure
 # protobuf #
 ############
 
+PROTOBUF_CONFIGURE_FLAGS = -DCMAKE_INSTALL_PREFIX=$(S2E_PREFIX)                                 \
+                            -DCMAKE_C_FLAGS="$(CFLAGS_ARCH) -fno-omit-frame-pointer -fPIC"       \
+                            -DCMAKE_C_COMPILER=$(CLANG_CC)                                       \
+                            -DCMAKE_CXX_COMPILER=$(CLANG_CXX) \
+                            -Dprotobuf_BUILD_TESTS=OFF \
+                            -DCMAKE_BUILD_TYPE=Release
+
+
 stamps/protobuf-configure: stamps/llvm-release-make $(PROTOBUF_BUILD_DIR)
-	cd $(PROTOBUF_BUILD_DIR) &&                                         \
-	CC=$(CLANG_CC) CXX=$(CLANG_CXX) CXXFLAGS=-fPIC CFLAGS=-fPIC $(S2E_BUILD)/$(PROTOBUF_SRC_DIR)/configure --prefix=$(S2E_PREFIX)
+	cd $(PROTOBUF_BUILD_DIR) && cd $(S2E_BUILD)/$(PROTOBUF_SRC_DIR) && ./autogen.sh && \
+	CC=$(CLANG_CC) CXX=$(CLANG_CXX) CXXFLAGS=-fPIC CFLAGS=-fPIC ./configure --prefix=$(S2E_PREFIX)
 	touch $@
 
 stamps/protobuf-make: stamps/protobuf-configure
-	$(MAKE) -C $(PROTOBUF_BUILD_DIR) install
+	$(MAKE) -C $(S2E_BUILD)/$(PROTOBUF_SRC_DIR) install
 	touch $@
 
 
