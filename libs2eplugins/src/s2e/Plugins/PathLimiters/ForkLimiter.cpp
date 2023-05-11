@@ -71,7 +71,7 @@ void ForkLimiter::onStateForkDecide(S2EExecutionState *state, const klee::ref<kl
         return;
     }
 
-    if (m_forkCount[module->Name][curPc] > m_limit) {
+    if (m_forkCount[module->Name][curPc] >= m_limit) {
         allowForking = false;
     }
 }

@@ -229,7 +229,7 @@ void LibraryCallMonitor::onIndirectCallOrJump(S2EExecutionState *state, uint64_t
     }
 
     logLibraryCall(state, *currentMod.get(), *mod.get(), pc, targetAddr, sourceType, exportName);
-    onLibraryCall.emit(state, *mod, targetAddr);
+    onLibraryCall.emit(state, *mod, targetAddr, exportName);
 }
 
 } // namespace plugins

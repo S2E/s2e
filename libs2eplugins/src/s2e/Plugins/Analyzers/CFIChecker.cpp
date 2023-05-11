@@ -197,45 +197,39 @@ struct CFIViolation {
         s2e_trace::PbTraceCfiViolation v;
         v.set_type(isReturnViolation ? s2e_trace::RETURN_VIOLATION : s2e_trace::CALL_VIOLATION);
 
-        s2e_trace::PbTraceViolationPcInfo s;
-        s.set_pc(sourcePc);
+        auto s = new s2e_trace::PbTraceViolationPcInfo();
+        s->set_pc(sourcePc);
         if (source) {
             uint64_t native = 0;
             source->ToNativeBase(sourcePc, native);
-            s.set_module_pc(native);
-            s.set_module_path(source->Path);
+            s->set_module_pc(native);
+            s->set_module_path(source->Path);
         }
-        v.set_allocated_source(&s);
+        v.set_allocated_source(s);
 
-        s2e_trace::PbTraceViolationPcInfo d;
-        d.set_pc(destPc);
+        auto d = new s2e_trace::PbTraceViolationPcInfo();
+        d->set_pc(destPc);
         if (dest) {
             uint64_t native = 0;
             dest->ToNativeBase(destPc, native);
-            d.set_module_pc(native);
-            d.set_module_path(dest->Path);
+            d->set_module_pc(native);
+            d->set_module_path(dest->Path);
         }
-        v.set_allocated_destination(&d);
+        v.set_allocated_destination(d);
 
-        s2e_trace::PbTraceViolationPcInfo e;
         if (expectedDestPc) {
-            e.set_pc(expectedDestPc);
+            auto e = new s2e_trace::PbTraceViolationPcInfo();
+            e->set_pc(expectedDestPc);
             if (expectedDest) {
                 uint64_t native = 0;
                 expectedDest->ToNativeBase(expectedDestPc, native);
-                e.set_module_pc(native);
-                e.set_module_path(expectedDest->Path);
+                e->set_module_pc(native);
+                e->set_module_path(expectedDest->Path);
             }
-            v.set_allocated_expected_destination(&e);
+            v.set_allocated_expected_destination(e);
         }
 
         tracer->writeData(state, v, s2e_trace::TRACE_CFI_VIOLATION);
-
-        if (expectedDestPc) {
-            v.release_expected_destination();
-        }
-        v.release_destination();
-        v.release_source();
     }
 };
 

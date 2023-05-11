@@ -25,7 +25,8 @@ FROM ubuntu:22.04
 # Install build dependencies
 RUN dpkg --add-architecture i386 && apt-get update &&                       \
     apt-get -y install ca-certificates build-essential curl wget texinfo flex bison  \
-    python-is-python3 python3-dev python3-venv python3-distro mingw-w64 lsb-release
+    python-is-python3 python3-dev python3-venv python3-distro mingw-w64 lsb-release \
+    autoconf libtool
 
 # Install S2E dependencies
 RUN apt-get update && apt-get -y install libdwarf-dev libelf-dev libelf-dev:i386 \
@@ -57,8 +58,6 @@ RUN mkdir s2e
 RUN mkdir s2e-build
 COPY Makefile s2e/
 COPY scripts/determine_clang_binary_suffix.py s2e/scripts/
-RUN cd s2e-build &&                                                         \
-    make -f ../s2e/Makefile S2E_PREFIX=/opt/s2e stamps/clang-binary
 
 RUN cd s2e-build &&                                                         \
     make -f ../s2e/Makefile S2E_PREFIX=/opt/s2e stamps/llvm-release-make

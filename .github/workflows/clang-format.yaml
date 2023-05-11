@@ -2,7 +2,7 @@ name: Check code style
 on: [pull_request]
 jobs:
   clang-format:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Check out repository code
         uses: actions/checkout@v2
