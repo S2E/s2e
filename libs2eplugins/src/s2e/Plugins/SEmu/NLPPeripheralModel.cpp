@@ -958,12 +958,16 @@ void NLPPeripheralModel::deal_rule_Seq(S2EExecutionState *state, uint32_t addres
     if (s_rules.find(address) == s_rules.end())
         return;
     for (TA &rule : s_rules[address]) {
+        getDebugStream() << "rule: " << rule.first.size() << "\n";
         getDebugStream() << "rule: " << rule.first[0].type_eq << " phaddr: " << hexval(rule.first[0].a1.phaddr) << "\n";
         getDebugStream() << "rule: " << rule.first[1].type_eq << " phaddr: " << hexval(rule.first[1].a1.phaddr) << "\n";
-        auto &item = rule.first[0];
-        if (item.a1.phaddr != prev_operation.second)
-            continue;
-        item = rule.first[1];
+        int start = 0;
+        if (rule.first.size() == 2) {
+            auto &item = rule.first[start++];
+            if (item.a1.phaddr != prev_operation.second)
+                continue;
+        }
+        auto &item = rule.first[start];
         if (rule_type == item.type_eq && item.a1.phaddr != address)
             continue;
         take_action(state, rule.second);
@@ -1008,15 +1012,23 @@ void NLPPeripheralModel::deal_rule_RWVB(S2EExecutionState *state, uint32_t addre
                 check = false;
                 value2 = 0;
                 getWarningsStream() << "ERROR: equ a2 value: " << trigger.type_a2 << "\n";
-                break;
+                exit(-1);
             }
             if (!compare(value1, trigger.eq, value2)) {
                 check = false;
                 break;
             }
         }
-        if (check)
+        if (check) {
+            if (rule_type == "B") {
+                if (rule.first[0].a1.type.find("T") != std::string::npos) {
+                    cur_mode = "T";
+                } else if (rule.first[0].a1.type.find("R") != std::string::npos) {
+                    cur_mode = "R";
+                }
+            }
             take_action(state, rule.second, rule_type == "B");
+        }
     }
 }
 
@@ -1305,8 +1317,8 @@ bool NLPPeripheralModel::checkField(S2EExecutionState *state, FieldList &fields)
             res = (res << 1) + (cur_value >> tmp & 1);
         }
         getDebugStream() << "NLP checkField: phaddr: " << hexval(f.phaddr)
-                        << " cur_val: " << hexval(state_map[f.phaddr].cur_value) << " at bit:" << f.bits[0]
-                        << " res: " << res << " f.value: " << f.value << "\n";
+                         << " cur_val: " << hexval(state_map[f.phaddr].cur_value) << " at bit:" << f.bits[0]
+                         << " res: " << res << " f.value: " << f.value << "\n";
         ans &= (res == f.value);
     }
     return ans;

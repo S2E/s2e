@@ -195,15 +195,17 @@ bool ComplianceCheck::checkField(Field &field, uint32_t cur_value) {
         int tmp = field.bits[i];
         res = (res << 1) + (cur_value >> tmp & 1);
     }
-    getDebugStream() << "checkField" << hexval(field.phaddr) << " access cur_value: " << hexval(cur_value)
+    getDebugStream() << "checkField:" << hexval(field.phaddr) << " access cur_value: " << hexval(cur_value)
                      << " at bit: " << field.bits[0] << "  value: " << res << " field.value: " << field.value << "\n";
     return res == field.value;
 }
 
 void ComplianceCheck::getExsitence(std::vector<Access> &accesses, Field &rule, AccessPair &new_existence) {
     for (auto &access : accesses) {
+        getDebugStream() << "getExsitence:" << access.time << "\n";
         if (!checkField(rule, access.cur_value))
             continue;
+        getDebugStream() << "new_existence:" << access.irq << " time: " << access.time << "\n";
         new_existence[access.irq].push_back(access.time);
     }
 }
@@ -270,18 +272,27 @@ void ComplianceCheck::type1Check(Race &races) {
 }
 
 void ComplianceCheck::checkClear(std::vector<AccessPair> &existence_seq, Race &races) {
-    for (auto idx = 0; idx < existence_seq.size() - 1; ++idx) {
-        for (auto &rule : existence_seq[idx]) {
-            for (auto &t : rule.second) {
-                std::vector<uint32_t> &tmp = existence_seq[idx + 1][rule.first];
-                // getDebugStream() << "cur time: " << t << " tmp size:" << tmp.size() << "\n";
-                auto idx = upper_bound(tmp.begin(), tmp.end(), t);
-                if (idx == tmp.end()) {
-                    races.push_back({t, 0});
-                    getDebugStream() << "cur time: " << t << " race_size: " << races.size() << "\n";
-                } else {
-                    getDebugStream() << "non CE existence cur_time: " << t << "nexttime: " << idx - tmp.begin() << "\n";
-                }
+    std::vector<std::set<uint32_t>> new_existence_seq;
+    for (auto seq : existence_seq) {
+        std::set<uint32_t> tmp;
+        for (auto &rule : seq) {
+            for (auto &time : seq[rule.first]) {
+                tmp.insert(time);
+            }
+        }
+        new_existence_seq.push_back(tmp);
+    }
+
+    for (auto idx = 0; idx < new_existence_seq.size() - 1; ++idx) {
+        for (auto &t : new_existence_seq[idx]) {
+            auto &tmp = new_existence_seq[idx + 1];
+            getDebugStream() << "cur time: " << t << " tmp size:" << tmp.size() << "\n";
+            auto idx2 = tmp.upper_bound(t);
+            if (idx2 == tmp.end()) {
+                races.push_back({t, 0});
+                getDebugStream() << "cur time: " << t << " race_size: " << races.size() << "\n";
+            } else {
+                getDebugStream() << "non CE existence cur_time: " << t << " nexttime: " << *idx2 << "\n";
             }
         }
     }
@@ -290,37 +301,25 @@ void ComplianceCheck::checkClear(std::vector<AccessPair> &existence_seq, Race &r
 void ComplianceCheck::type4Check(Race &races) {
     for (auto &seq : sequences) {
         std::vector<AccessPair> existence_seq;
-        bool rule_checker = true;
         for (auto &rule : seq) {
+            if (rule[0].type != "CE" || recording_write.find(rule[0].phaddr) == recording_write.end()) {
+                existence_seq.clear();
+                continue;
+            }
             std::vector<AccessPair> rules_existence;
+            bool start = true;
             for (Field &f : rule) {
                 AccessPair access;
-                if (f.type == "CE") {
-                    getDebugStream() << "CE phaddr: " << hexval(f.phaddr) << "\n";
-                    if (recording_write.find(f.phaddr) == recording_write.end())
-                        continue;
-                    getExsitence(recording_write[f.phaddr], f, access);
-                } else
-                    break;
-
-                if (access.size() == 0) {
-                    rule_checker = false;
-                    break;
+                getExsitence(recording_write[f.phaddr], f, access);
+                if (start && access.size() == 0) {
+                    existence_seq.clear();
+                    continue;
                 }
-                getDebugStream() << "type 4 recording match rule phaddr:" << hexval(f.phaddr)
-                                 << " access_size: " << access.size() << " rule bit: " << f.bits[0] << "\n";
+                start = false;
                 rules_existence.push_back(access);
             }
-            if (!rule_checker || rules_existence.size() == 0) {
-                existence_seq.clear();
-                break;
-            } else if (rules_existence.size() == 1) {
+            if (!start) {
                 existence_seq.push_back(rules_existence[0]);
-            } else {
-                existence_seq.clear();
-                getWarningsStream() << "cannot handle two rules now!"
-                                    << "\n";
-                break;
             }
         }
         getDebugStream() << "existence_seq size:" << existence_seq.size() << "\n";
@@ -337,7 +336,7 @@ void ComplianceCheck::onComplianceCheck() {
     type1Check(races);
     getInfoStream() << "get type 1 races events =" << races.size() << "\n";
     type4Check(races);
-    getInfoStream() << "get type 2 races events =" << races.size() << "\n";
+    getInfoStream() << "get type 4 races events =" << races.size() << "\n";
     if (races.size() == 0)
         return;
 
@@ -367,7 +366,8 @@ void ComplianceCheck::onComplianceCheck() {
         for (auto &time : race) {
             for (auto &access : all_recordings[time])
                 fPHNLP << "time: " << access.time << " type: " << access.type << " irq: " << access.irq
-                       << " phaddr: " << hexval(access.phaddr) << " pc: " << hexval(access.pc) << "\n";
+                       << " phaddr: " << hexval(access.phaddr) << " pc: " << hexval(access.pc)
+                       << " cur_value: " << hexval(access.cur_value) << "\n";
         }
         fPHNLP << "==================\n";
     }

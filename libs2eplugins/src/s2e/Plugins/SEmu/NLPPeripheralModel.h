@@ -122,6 +122,7 @@ private:
     std::map<uint32_t, std::set<uint64_t>> write_unauthorized_freq;
 
     std::pair<std::string, uint32_t> prev_operation;
+    std::string cur_mode = "";
 
     bool checked_SR = false;
 
