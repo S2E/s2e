@@ -208,17 +208,17 @@ static void cpu_handle_debug_exception(CPUArchState *env) {
 volatile sig_atomic_t exit_request;
 
 #ifdef TRACE_EXEC
-static void dump_regs(CPUState *env, int isStart) {
+static void dump_regs(CPUX86State *env, int isStart) {
 #if defined(CONFIG_SYMBEX)
     target_ulong eax, ebx, ecx, edx, esi, edi, ebp, esp;
-    g_sqi.regs.read_concrete(offsetof(CPUState, regs[R_EAX]), (uint8_t *) &eax, sizeof(eax));
-    g_sqi.regs.read_concrete(offsetof(CPUState, regs[R_EBX]), (uint8_t *) &ebx, sizeof(ebx));
-    g_sqi.regs.read_concrete(offsetof(CPUState, regs[R_ECX]), (uint8_t *) &ecx, sizeof(ecx));
-    g_sqi.regs.read_concrete(offsetof(CPUState, regs[R_EDX]), (uint8_t *) &edx, sizeof(edx));
-    g_sqi.regs.read_concrete(offsetof(CPUState, regs[R_ESI]), (uint8_t *) &esi, sizeof(esi));
-    g_sqi.regs.read_concrete(offsetof(CPUState, regs[R_EDI]), (uint8_t *) &edi, sizeof(edi));
-    g_sqi.regs.read_concrete(offsetof(CPUState, regs[R_EBP]), (uint8_t *) &ebp, sizeof(ebp));
-    g_sqi.regs.read_concrete(offsetof(CPUState, regs[R_ESP]), (uint8_t *) &esp, sizeof(esp));
+    g_sqi.regs.read_concrete(offsetof(CPUX86State, regs[R_EAX]), (uint8_t *) &eax, sizeof(eax));
+    g_sqi.regs.read_concrete(offsetof(CPUX86State, regs[R_EBX]), (uint8_t *) &ebx, sizeof(ebx));
+    g_sqi.regs.read_concrete(offsetof(CPUX86State, regs[R_ECX]), (uint8_t *) &ecx, sizeof(ecx));
+    g_sqi.regs.read_concrete(offsetof(CPUX86State, regs[R_EDX]), (uint8_t *) &edx, sizeof(edx));
+    g_sqi.regs.read_concrete(offsetof(CPUX86State, regs[R_ESI]), (uint8_t *) &esi, sizeof(esi));
+    g_sqi.regs.read_concrete(offsetof(CPUX86State, regs[R_EDI]), (uint8_t *) &edi, sizeof(edi));
+    g_sqi.regs.read_concrete(offsetof(CPUX86State, regs[R_EBP]), (uint8_t *) &ebp, sizeof(ebp));
+    g_sqi.regs.read_concrete(offsetof(CPUX86State, regs[R_ESP]), (uint8_t *) &esp, sizeof(esp));
 
     fprintf(logfile, "%c cs:eip=%lx:%lx eax=%lx ebx=%lx ecx=%lx edx=%lx esi=%lx edi=%lx ebp=%lx ss:esp=%lx:%lx\n",
             isStart ? 's' : 'e', (uint64_t) env->segs[R_CS].selector, (uint64_t) env->eip, (uint64_t) eax,
