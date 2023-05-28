@@ -168,18 +168,6 @@ static void cpu_gen_init(TCGContext *ctx, tcg_settings_t *settings) {
     memcpy(ctx->qemu_ld_helpers, qemu_ld_helpers, sizeof(tcg_ctx->qemu_ld_helpers));
     memcpy(ctx->qemu_st_helpers, qemu_st_helpers, sizeof(tcg_ctx->qemu_st_helpers));
 
-#if defined(CONFIG_SYMBEX) && defined(TCG_ENABLE_MEM_TRACING)
-    ctx->qemu_ld_trace_helpers[0] = g_sqi.mem.__ldb_mmu_trace;
-    ctx->qemu_ld_trace_helpers[1] = g_sqi.mem.__ldw_mmu_trace;
-    ctx->qemu_ld_trace_helpers[2] = g_sqi.mem.__ldl_mmu_trace;
-    ctx->qemu_ld_trace_helpers[3] = g_sqi.mem.__ldq_mmu_trace;
-
-    ctx->qemu_st_trace_helpers[0] = g_sqi.mem.__stb_mmu_trace;
-    ctx->qemu_st_trace_helpers[1] = g_sqi.mem.__stw_mmu_trace;
-    ctx->qemu_st_trace_helpers[2] = g_sqi.mem.__stl_mmu_trace;
-    ctx->qemu_st_trace_helpers[3] = g_sqi.mem.__stq_mmu_trace;
-#endif
-
     extern CPUArchState *env;
     ctx->tcg_struct_size = sizeof(*tcg_ctx);
     ctx->env_ptr = (uintptr_t) &env;
