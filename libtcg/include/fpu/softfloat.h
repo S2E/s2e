@@ -42,7 +42,7 @@ these four paragraphs for those parts of this code that are retained.
 #include <sunmath.h>
 #endif
 
-#include <cpu/config-host.h>
+// #include <cpu/config-host.h>
 #include <inttypes.h>
 
 #ifdef __cplusplus

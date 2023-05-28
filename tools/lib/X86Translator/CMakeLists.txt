@@ -27,7 +27,7 @@ add_definitions(-D__STDC_FORMAT_MACROS -D_GNU_SOURCE -DNEED_CPU_H
 add_library(X86Translator STATIC ${LIBCPU_SRC_DIR}/src/target-${LIBCPU_TARGET}/translate.c
                                  ${LIBCPU_SRC_DIR}/src/target-${LIBCPU_TARGET}/helper.c
                                  ${LIBCPU_SRC_DIR}/src/target-${LIBCPU_TARGET}/op_helper.c
-                                 ${LIBCPU_SRC_DIR}/src/fpu/softfloat.c
+                                 ${LIBTCG_SRC_DIR}/src/fpu/softfloat.c
                                  ${LIBTCG_SRC_DIR}/src/tcg.c
                                  ${LIBTCG_SRC_DIR}/src/tcg-op.c
                                  ${LIBTCG_SRC_DIR}/src/tcg-common.c
