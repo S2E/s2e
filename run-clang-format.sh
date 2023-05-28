@@ -37,7 +37,7 @@ if [ -z "${CLANG_FORMAT}" ]; then
     exit 1
 fi
 
-FILE_EXTS=".c .h .cpp .hpp .cc .hh .cxx"
+FILE_EXTS=".c .h .cpp .hpp .cc .hh .cxx .c.inc"
 
 for EXT in ${FILE_EXTS}; do
     echo "Applying clang-format to ${EXT} files..."
