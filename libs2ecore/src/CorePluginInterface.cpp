@@ -23,6 +23,7 @@
 
 // clang-format off
 #include <cpu/i386/cpu.h>
+#include <tcg/tcg.h>
 #include <tcg/tcg-op.h>
 
 #include <cpu/exec.h>
