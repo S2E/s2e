@@ -22,8 +22,8 @@
 #include <cpu/cpu-common.h>
 #include <cpu/exec.h>
 #include <cpu/i386/cpu.h>
-#include "bswap.h"
 #include <tcg/cpu.h>
+#include <tcg/utils/bswap.h>
 #include "qemu-common.h"
 
 #ifdef CONFIG_SYMBEX

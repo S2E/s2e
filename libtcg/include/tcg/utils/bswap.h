@@ -19,10 +19,10 @@
 #ifndef BSWAP_H
 #define BSWAP_H
 
-#include <cpu/config-host.h>
+// #include <cpu/config-host.h>
 
+#include <fpu/softfloat.h>
 #include <inttypes.h>
-#include "softfloat.h"
 
 #ifdef CONFIG_MACHINE_BSWAP_H
 #include <machine/bswap.h>
@@ -33,6 +33,10 @@
 #ifdef CONFIG_BYTESWAP_H
 #include <byteswap.h>
 #else
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #define bswap_16(x)                                                    \
     ({                                                                 \
@@ -401,6 +405,10 @@ static inline void tswap64s(uint64_t *s) {
 #define tswapl(s)   tswap64(s)
 #define tswapls(s)  tswap64s((uint64_t *) (s))
 #define bswaptls(s) bswap64s(s)
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 
 #endif /* BSWAP_H */
