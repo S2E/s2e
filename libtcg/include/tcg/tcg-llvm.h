@@ -224,10 +224,12 @@ public:
     }
 
     llvm::Type *tcgType(int type) {
+        assert(type == TCG_TYPE_I64 || type == TCG_TYPE_I32);
         return type == TCG_TYPE_I64 ? intType(64) : intType(32);
     }
 
     llvm::Type *tcgPtrType(int type) {
+        assert(type == TCG_TYPE_I64 || type == TCG_TYPE_I32);
         return type == TCG_TYPE_I64 ? intPtrType(64) : intPtrType(32);
     }
 
