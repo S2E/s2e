@@ -22,13 +22,16 @@
  * THE SOFTWARE.
  */
 
-#include <inttypes.h>
-#include <memory.h>
-#include <tcg/utils/bitops.h>
+#include <glib.h>
+
+#include <tcg/utils/host-utils.h>
 #include <tcg/utils/osdep.h>
 
-// XXX: clean this up
-#define HELPER(x) helper_##x
+// clang-format off
+#include <tcg/tcg.h>
+#include <tcg/helper-proto.h>
+#include <tcg/helper-gen.h>
+// clang-format on
 
 /* 32-bit helpers */
 
@@ -120,4 +123,9 @@ uint32_t HELPER(ctpop_i32)(uint32_t arg) {
 
 uint64_t HELPER(ctpop_i64)(uint64_t arg) {
     return ctpop64(arg);
+}
+
+void HELPER(exit_atomic)(CPUArchState *env) {
+    abort();
+    // cpu_loop_exit_atomic(env_cpu(env), GETPC());
 }

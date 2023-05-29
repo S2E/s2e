@@ -18,6 +18,14 @@
  */
 
 /* ??? These bit widths are set for ARM SVE, maxing out at 256 byte vectors. */
+
+#ifndef TCG_GVEC_DEC_H
+#define TCG_GVEC_DEC_H
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define SIMD_OPRSZ_SHIFT 0
 #define SIMD_OPRSZ_BITS  5
 
@@ -44,3 +52,9 @@ static inline intptr_t simd_maxsz(uint32_t desc) {
 static inline int32_t simd_data(uint32_t desc) {
     return sextract32(desc, SIMD_DATA_SHIFT, SIMD_DATA_BITS);
 }
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif

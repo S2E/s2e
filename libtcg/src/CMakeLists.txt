@@ -22,7 +22,10 @@ set (TCG_SOURCES)
 
 list (APPEND TCG_SOURCES
         utils/cutils.c utils/osdep.c utils/memalign.c utils/cache.c
-        tcg.c  tcg-common.c tcg-op.c optimize.c tcg-op-gvec.c tcg-runtime-gvec.c tcg-op-vec.c fpu/softfloat.c)
+        region.c tcg.c  tcg-common.c tcg-op.c optimize.c tcg-op-gvec.c tcg-op-vec.c
+        tcg-rt/tcg-runtime-gvec.c tcg-rt/tcg-runtime.c
+        atomic-helpers.c
+        fpu/softfloat.c)
 
 if (WITH_SYMBEX)
     list(APPEND TCG_SOURCES tcg-llvm.cpp)
