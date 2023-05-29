@@ -21,6 +21,10 @@
 /// SOFTWARE.
 ///
 
+#include <inttypes.h>
+
+static_assert(sizeof(unsigned long long) == sizeof(uint64_t));
+
 extern "C" {
 #include <cpu-all.h>
 #include <exec-all.h>

@@ -35,9 +35,14 @@ add_library(X86Translator STATIC ${LIBCPU_SRC_DIR}/src/target-${LIBCPU_TARGET}/t
                                  ${LIBTCG_SRC_DIR}/src/tcg-llvm.cpp
                                  ${LIBTCG_SRC_DIR}/src/tcg-op-gvec.c
                                  ${LIBTCG_SRC_DIR}/src/tcg-op-vec.c
-                                 ${LIBTCG_SRC_DIR}/src/tcg-runtime-gvec.c
-                                 ${LIBTCG_SRC_DIR}/src/tcg-runtime.c
-                                 ${LIBTCG_SRC_DIR}/src/cutils.c
+                                 ${LIBTCG_SRC_DIR}/src/atomic-helpers.c
+                                 ${LIBTCG_SRC_DIR}/src/tcg-rt/tcg-runtime-gvec.c
+                                 ${LIBTCG_SRC_DIR}/src/tcg-rt/tcg-runtime.c
+                                 ${LIBTCG_SRC_DIR}/src/region.c
+                                 ${LIBTCG_SRC_DIR}/src/utils/cutils.c
+                                 ${LIBTCG_SRC_DIR}/src/utils/cache.c
+                                 ${LIBTCG_SRC_DIR}/src/utils/memalign.c
+                                 ${LIBTCG_SRC_DIR}/src/utils/osdep.c
                                  ${LIBCPU_SRC_DIR}/src/translate-all.c
                                  ${LIBCPU_SRC_DIR}/src/precise-pc.c
                                  Translator.cpp
