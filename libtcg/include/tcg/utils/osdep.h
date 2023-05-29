@@ -25,7 +25,13 @@
 #include <sys/types.h>
 #endif
 
+#include <inttypes.h>
 #include <sys/time.h>
+#include <unistd.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #ifndef glue
 #define xglue(x, y)  x##y
@@ -69,5 +75,45 @@
 
 #define likely(x)   __builtin_expect(!!(x), 1)
 #define unlikely(x) __builtin_expect(!!(x), 0)
+
+#define QEMU_FALLTHROUGH __attribute__((fallthrough))
+#define QEMU_PACKED      __attribute__((packed))
+
+#ifndef G_NORETURN
+#define G_NORETURN __attribute__((noreturn))
+#endif
+
+// TODO: move this elsewhere?
+static inline void flush_idcache_range(uintptr_t rx, uintptr_t rw, size_t len) {
+}
+
+#define LIBTCG_ERROR(X) __attribute__((error(X)))
+extern _Noreturn void LIBTCG_ERROR("code path is reachable") qemu_build_not_reached_always(void);
+
+static inline void qemu_thread_jit_write(void) {
+}
+static inline void qemu_thread_jit_execute(void) {
+}
+
+#define QEMU_MADV_INVALID -1
+
+int qemu_madvise(void *addr, size_t len, int advice);
+int qemu_mprotect_rw(void *addr, size_t size);
+int qemu_mprotect_rwx(void *addr, size_t size);
+int qemu_mprotect_none(void *addr, size_t size);
+
+static inline uintptr_t qemu_real_host_page_size(void) {
+    return getpagesize();
+}
+
+static inline intptr_t qemu_real_host_page_mask(void) {
+    return -(intptr_t) qemu_real_host_page_size();
+}
+
+size_t qemu_get_host_physmem(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

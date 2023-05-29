@@ -31,6 +31,10 @@
 #include <limits.h>
 #include <stdbool.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #if defined(__x86_64__)
 static inline void mulu64(uint64_t *plow, uint64_t *phigh, uint64_t a, uint64_t b) {
     __uint128_t r = (__uint128_t) a * b;
@@ -377,6 +381,161 @@ static inline uint8_t revbit8(uint8_t x) {
     return x;
 }
 
+/**
+ * Return the absolute value of a 64-bit integer as an unsigned 64-bit value
+ */
+static inline uint64_t uabs64(int64_t v) {
+    return v < 0 ? -v : v;
+}
+
+/**
+ * sadd32_overflow - addition with overflow indication
+ * @x, @y: addends
+ * @ret: Output for sum
+ *
+ * Computes *@ret = @x + @y, and returns true if and only if that
+ * value has been truncated.
+ */
+static inline bool sadd32_overflow(int32_t x, int32_t y, int32_t *ret) {
+    return __builtin_add_overflow(x, y, ret);
+}
+
+/**
+ * sadd64_overflow - addition with overflow indication
+ * @x, @y: addends
+ * @ret: Output for sum
+ *
+ * Computes *@ret = @x + @y, and returns true if and only if that
+ * value has been truncated.
+ */
+static inline bool sadd64_overflow(int64_t x, int64_t y, int64_t *ret) {
+    return __builtin_add_overflow(x, y, ret);
+}
+
+/**
+ * uadd32_overflow - addition with overflow indication
+ * @x, @y: addends
+ * @ret: Output for sum
+ *
+ * Computes *@ret = @x + @y, and returns true if and only if that
+ * value has been truncated.
+ */
+static inline bool uadd32_overflow(uint32_t x, uint32_t y, uint32_t *ret) {
+    return __builtin_add_overflow(x, y, ret);
+}
+
+/**
+ * uadd64_overflow - addition with overflow indication
+ * @x, @y: addends
+ * @ret: Output for sum
+ *
+ * Computes *@ret = @x + @y, and returns true if and only if that
+ * value has been truncated.
+ */
+static inline bool uadd64_overflow(uint64_t x, uint64_t y, uint64_t *ret) {
+    return __builtin_add_overflow(x, y, ret);
+}
+
+/**
+ * ssub32_overflow - subtraction with overflow indication
+ * @x: Minuend
+ * @y: Subtrahend
+ * @ret: Output for difference
+ *
+ * Computes *@ret = @x - @y, and returns true if and only if that
+ * value has been truncated.
+ */
+static inline bool ssub32_overflow(int32_t x, int32_t y, int32_t *ret) {
+    return __builtin_sub_overflow(x, y, ret);
+}
+
+/**
+ * ssub64_overflow - subtraction with overflow indication
+ * @x: Minuend
+ * @y: Subtrahend
+ * @ret: Output for sum
+ *
+ * Computes *@ret = @x - @y, and returns true if and only if that
+ * value has been truncated.
+ */
+static inline bool ssub64_overflow(int64_t x, int64_t y, int64_t *ret) {
+    return __builtin_sub_overflow(x, y, ret);
+}
+
+/**
+ * usub32_overflow - subtraction with overflow indication
+ * @x: Minuend
+ * @y: Subtrahend
+ * @ret: Output for sum
+ *
+ * Computes *@ret = @x - @y, and returns true if and only if that
+ * value has been truncated.
+ */
+static inline bool usub32_overflow(uint32_t x, uint32_t y, uint32_t *ret) {
+    return __builtin_sub_overflow(x, y, ret);
+}
+
+/**
+ * usub64_overflow - subtraction with overflow indication
+ * @x: Minuend
+ * @y: Subtrahend
+ * @ret: Output for sum
+ *
+ * Computes *@ret = @x - @y, and returns true if and only if that
+ * value has been truncated.
+ */
+static inline bool usub64_overflow(uint64_t x, uint64_t y, uint64_t *ret) {
+    return __builtin_sub_overflow(x, y, ret);
+}
+
+/**
+ * smul32_overflow - multiplication with overflow indication
+ * @x, @y: Input multipliers
+ * @ret: Output for product
+ *
+ * Computes *@ret = @x * @y, and returns true if and only if that
+ * value has been truncated.
+ */
+static inline bool smul32_overflow(int32_t x, int32_t y, int32_t *ret) {
+    return __builtin_mul_overflow(x, y, ret);
+}
+
+/**
+ * smul64_overflow - multiplication with overflow indication
+ * @x, @y: Input multipliers
+ * @ret: Output for product
+ *
+ * Computes *@ret = @x * @y, and returns true if and only if that
+ * value has been truncated.
+ */
+static inline bool smul64_overflow(int64_t x, int64_t y, int64_t *ret) {
+    return __builtin_mul_overflow(x, y, ret);
+}
+
+/**
+ * umul32_overflow - multiplication with overflow indication
+ * @x, @y: Input multipliers
+ * @ret: Output for product
+ *
+ * Computes *@ret = @x * @y, and returns true if and only if that
+ * value has been truncated.
+ */
+static inline bool umul32_overflow(uint32_t x, uint32_t y, uint32_t *ret) {
+    return __builtin_mul_overflow(x, y, ret);
+}
+
+/**
+ * umul64_overflow - multiplication with overflow indication
+ * @x, @y: Input multipliers
+ * @ret: Output for product
+ *
+ * Computes *@ret = @x * @y, and returns true if and only if that
+ * value has been truncated.
+ */
+static inline bool umul64_overflow(uint64_t x, uint64_t y, uint64_t *ret) {
+    return __builtin_mul_overflow(x, y, ret);
+}
+
 /* Host type specific sizes of these routines.  */
 
 #if ULONG_MAX == UINT32_MAX
@@ -469,5 +628,9 @@ void urshift(uint64_t *plow, uint64_t *phigh, int32_t shift);
  * verify/assert both the shift range and plow/phigh pointers.
  */
 void ulshift(uint64_t *plow, uint64_t *phigh, int32_t shift, bool *overflow);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -1,4 +1,4 @@
-// Copyright (c) 2019 Cyberhaven
+// Copyright (c) 2023 Vitaly Chipounov
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -18,34 +18,18 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-#ifndef _TCG_MUTEX_H_
+#ifndef TCG_CACHE_H
 
-#define _TCG_MUTEX_H_
-
-#include <pthread.h>
+#define TCG_CACHE_H
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-typedef struct _mutex_t {
-    pthread_mutex_t mutex;
-} mutex_t;
+extern int g_icache_linesize;
+extern int g_dcache_linesize;
 
-static inline void mutex_init(mutex_t *m) {
-    int ret = pthread_mutex_init(&m->mutex, NULL);
-    if (ret < 0) {
-        abort();
-    }
-}
-
-static inline void mutex_lock(mutex_t *m) {
-    pthread_mutex_lock(&m->mutex);
-}
-
-static inline void mutex_unlock(mutex_t *m) {
-    pthread_mutex_unlock(&m->mutex);
-}
+void init_cache_info();
 
 #ifdef __cplusplus
 }

@@ -16,6 +16,10 @@
 #include "host-utils.h"
 #include "rounding.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define BITS_PER_BYTE CHAR_BIT
 #define BITS_PER_LONG (sizeof(unsigned long) * BITS_PER_BYTE)
 
@@ -352,5 +356,9 @@ static inline uint64_t deposit64(uint64_t value, int start, int length, uint64_t
     mask = (~0ULL >> (64 - length)) << start;
     return (value & ~mask) | ((fieldval << start) & mask);
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
