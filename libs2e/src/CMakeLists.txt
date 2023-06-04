@@ -58,14 +58,13 @@ if(WITH_TARGET MATCHES "s2e")
                      ${LLVM_LIBS}
                      z3.a
                      gomp
-                     ${LIBQ_LIBRARY_DIR}/libq.a
                      ${PROTOBUF_LIBRARIES})
     set(LIBS ${LIBS} boost_serialization
                      boost_system
                      boost_regex)
 endif()
 
-set(LIBS ${LIBS} ${LIBCOROUTINE_LIBRARY_DIR}/libcoroutine.a ${FSIGCXX_LIBRARY_DIR}/libfsigc++.a ${CAPSTONE_LIB_DIR}/libcapstone.a pthread glib-2.0 bsd)
+set(LIBS ${LIBS} ${LIBCOROUTINE_LIBRARY_DIR}/libcoroutine.a ${FSIGCXX_LIBRARY_DIR}/libfsigc++.a ${LIBQ_LIBRARY_DIR}/libq.a ${CAPSTONE_LIB_DIR}/libcapstone.a pthread glib-2.0 bsd)
 
 target_link_libraries(tests2e PUBLIC ${LIBCOROUTINE_LIBRARY_DIR}/libcoroutine.a pthread glib-2.0)
 target_link_libraries(s2e ${LIBS})
