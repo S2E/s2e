@@ -1,6 +1,6 @@
 ; S2E Selective Symbolic Execution Platform
 ;
-; Copyright (c) 2013 Dependable Systems Laboratory, EPFL
+; Copyright (c) 2023 Vitaly Chipounov
 ;
 ; Permission is hereby granted, free of charge, to any person obtaining a copy
 ; of this software and associated documentation files (the "Software"), to deal
@@ -20,31 +20,42 @@
 ; OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 ; SOFTWARE.
 
-;Assemble this file to a raw binary, and specify it as the BIOS
-;This binary will be loaded at 0xf0000
 
-org 0
+section .text
+extern isr_handler_c
+global isr_handlers_ptr
 
-%include "init.asm"
+%macro ISR_HANDLER 1
+isr_handler_%1:
+    pusha
+    pushfd
 
-[bits 16]
-start:
-    cli
-    mov ax, cs
-    mov ds, ax
-    mov ax, 0x8000
-    mov ss, ax
-    mov sp, 0
-    call init_pmode
+    mov eax, %1
+    push eax
+    extern isr_handler_c
+    call isr_handler_c
+    add esp, 4
 
-    cli
-    hlt
+    popfd
+    popa
+    iretd
+%endmacro
 
+%macro ISR_HANDLER_DECL 1
+    dd isr_handler_%1
+%endmacro
 
-times 0x10000 - 16 - ($-$$) db 0
+%assign i 0
+%rep 256
+    ISR_HANDLER i
+    %assign i i+1
+%endrep
 
-;0xf000:fff0
-boot:
-jmp 0xf000:start
+isr_handlers:
+%assign i 0
+%rep 256
+    ISR_HANDLER_DECL i
+    %assign i i+1
+%endrep
 
-times 0x10000-($-$$) db 0
+isr_handlers_ptr dd isr_handlers

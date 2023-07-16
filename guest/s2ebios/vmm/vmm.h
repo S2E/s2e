@@ -20,40 +20,13 @@
 /// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 /// SOFTWARE.
 
-#ifndef S2E_BIOS_HELPER
-
-#define S2E_BIOS_HELPER
-
 #include <inttypes.h>
 
-static inline void outb(uint16_t port, uint8_t byte) {
-    __asm__ __volatile__("out %%al, %%dx" : : "a"(byte), "d"(port));
-}
+#ifndef __VMM_H__
 
-static inline void outw(uint16_t port, uint16_t word) {
-    __asm__ __volatile__("out %%ax, %%dx" : : "a"(word), "d"(port));
-}
+#define __VMM_H__
 
-static inline void outl(uint16_t port, uint32_t dword) {
-    __asm__ __volatile__("out %%eax, %%dx" : : "a"(dword), "d"(port));
-}
-
-static inline uint8_t inb(uint16_t port) {
-    uint8_t ret;
-    __asm__ __volatile__("in %%dx, %%al" : "=a"(ret) : "d"(port));
-    return ret;
-}
-
-static inline uint16_t inw(uint16_t port) {
-    uint16_t ret;
-    __asm__ __volatile__("in %%dx, %%ax" : "=a"(ret) : "d"(port));
-    return ret;
-}
-
-static inline uint32_t inl(uint16_t port) {
-    uint32_t ret;
-    __asm__ __volatile__("in %%dx, %%eax" : "=a"(ret) : "d"(port));
-    return ret;
-}
+void vmm_init();
+int vmm_map_page(uint64_t virtual, uint64_t physical);
 
 #endif

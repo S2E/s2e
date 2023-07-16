@@ -1,6 +1,6 @@
 /// S2E Selective Symbolic Execution Platform
 ///
-/// Copyright (c) 2013 Dependable Systems Laboratory, EPFL
+/// Copyright (c) 2023 Vitaly Chipounov
 ///
 /// Permission is hereby granted, free of charge, to any person obtaining a copy
 /// of this software and associated documentation files (the "Software"), to deal
@@ -20,36 +20,21 @@
 /// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 /// SOFTWARE.
 
-#ifndef S2E_BIOS_MAIN
+#ifndef _INTTYPES_H_
 
-#define S2E_BIOS_MAIN
+#define _INTTYPES_H_
 
-void test_symbhw_io_ports();
-void test_symbhw_mmio();
-void test_symbhw_pci_bars();
-void test_symbhw_pci_immutable_fields();
-void test_symbhw_pci_extraspace();
-void test_symbhw_symbolic_port_writes();
-void test_symbhw_query_resource_size();
-void test_symbhw_unaligned_reads();
-void test_symbhw_unaligned_cmd_port();
-void test_symbhw_hotplug();
-void test_symbhw_multiple_mappings();
-void test_symbhw_multiple_mappings_io();
-void test_symbhw_select_config_single_path();
-void test_symbhw_select_config_multi_path();
-void test_symbhw_switch_config_symbbus();
+typedef unsigned char uint8_t;
+typedef unsigned short uint16_t;
+typedef unsigned int uint32_t;
+typedef unsigned long long uint64_t;
 
-void test_range1();
+_Static_assert(sizeof(uint64_t) == 8, "Bad uint64_t size");
 
-void test_selfmod1();
-
-void test_constraints1();
-
-void test_maze();
-
-void test_memory_rw_new_page();
-void test_memory_rw_same_page_unaligned();
-void test_memory_rw_same_page_unaligned_signed();
+#if __WORD_SIZE == 64
+typedef uint64_t uintptr_t;
+#else
+typedef uint32_t uintptr_t;
+#endif
 
 #endif

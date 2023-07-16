@@ -20,36 +20,35 @@
 /// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 /// SOFTWARE.
 
-#ifndef S2E_BIOS_MAIN
+#include <inttypes.h>
+#include <string.h>
 
-#define S2E_BIOS_MAIN
+void memcpy(void *dest, const void *src, unsigned size) {
+    char *cd = dest;
+    const char *cs = src;
 
-void test_symbhw_io_ports();
-void test_symbhw_mmio();
-void test_symbhw_pci_bars();
-void test_symbhw_pci_immutable_fields();
-void test_symbhw_pci_extraspace();
-void test_symbhw_symbolic_port_writes();
-void test_symbhw_query_resource_size();
-void test_symbhw_unaligned_reads();
-void test_symbhw_unaligned_cmd_port();
-void test_symbhw_hotplug();
-void test_symbhw_multiple_mappings();
-void test_symbhw_multiple_mappings_io();
-void test_symbhw_select_config_single_path();
-void test_symbhw_select_config_multi_path();
-void test_symbhw_switch_config_symbbus();
+    for (unsigned i = 0; i < size; ++i) {
+        *cd = *cs;
+        cs++;
+        cd++;
+    }
+}
 
-void test_range1();
+void memset(void *dest, uint8_t c, unsigned size) {
+    char *cd = dest;
 
-void test_selfmod1();
+    for (unsigned i = 0; i < size; ++i) {
+        *cd = c;
+        cd++;
+    }
+}
 
-void test_constraints1();
+size_t strlen(const char *str) {
+    const char *s = str;
 
-void test_maze();
+    while (*s) {
+        ++s;
+    }
 
-void test_memory_rw_new_page();
-void test_memory_rw_same_page_unaligned();
-void test_memory_rw_same_page_unaligned_signed();
-
-#endif
+    return s - str;
+}

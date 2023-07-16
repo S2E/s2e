@@ -20,36 +20,11 @@
 /// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 /// SOFTWARE.
 
-#ifndef S2E_BIOS_MAIN
+#include "vmm.h"
 
-#define S2E_BIOS_MAIN
+void vmm_init() {
+}
 
-void test_symbhw_io_ports();
-void test_symbhw_mmio();
-void test_symbhw_pci_bars();
-void test_symbhw_pci_immutable_fields();
-void test_symbhw_pci_extraspace();
-void test_symbhw_symbolic_port_writes();
-void test_symbhw_query_resource_size();
-void test_symbhw_unaligned_reads();
-void test_symbhw_unaligned_cmd_port();
-void test_symbhw_hotplug();
-void test_symbhw_multiple_mappings();
-void test_symbhw_multiple_mappings_io();
-void test_symbhw_select_config_single_path();
-void test_symbhw_select_config_multi_path();
-void test_symbhw_switch_config_symbbus();
-
-void test_range1();
-
-void test_selfmod1();
-
-void test_constraints1();
-
-void test_maze();
-
-void test_memory_rw_new_page();
-void test_memory_rw_same_page_unaligned();
-void test_memory_rw_same_page_unaligned_signed();
-
-#endif
+int vmm_map_page(uint64_t virtual, uint64_t physical) {
+    return -1;
+}

@@ -20,36 +20,48 @@
 /// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 /// SOFTWARE.
 
-#ifndef S2E_BIOS_MAIN
+#ifndef __PORT_H__
 
-#define S2E_BIOS_MAIN
+#define __PORT_H__
 
-void test_symbhw_io_ports();
-void test_symbhw_mmio();
-void test_symbhw_pci_bars();
-void test_symbhw_pci_immutable_fields();
-void test_symbhw_pci_extraspace();
-void test_symbhw_symbolic_port_writes();
-void test_symbhw_query_resource_size();
-void test_symbhw_unaligned_reads();
-void test_symbhw_unaligned_cmd_port();
-void test_symbhw_hotplug();
-void test_symbhw_multiple_mappings();
-void test_symbhw_multiple_mappings_io();
-void test_symbhw_select_config_single_path();
-void test_symbhw_select_config_multi_path();
-void test_symbhw_switch_config_symbbus();
+#include <inttypes.h>
 
-void test_range1();
+static inline void outb(uint16_t port, uint8_t byte) {
+    __asm__ __volatile__("out %%al, %%dx" : : "a"(byte), "d"(port));
+}
 
-void test_selfmod1();
+static inline void outw(uint16_t port, uint16_t word) {
+    __asm__ __volatile__("out %%ax, %%dx" : : "a"(word), "d"(port));
+}
 
-void test_constraints1();
+static inline void outl(uint16_t port, uint32_t dword) {
+    __asm__ __volatile__("out %%eax, %%dx" : : "a"(dword), "d"(port));
+}
 
-void test_maze();
+static inline uint8_t inb(uint16_t port) {
+    uint8_t ret;
+    __asm__ __volatile__("in %%dx, %%al" : "=a"(ret) : "d"(port));
+    return ret;
+}
 
-void test_memory_rw_new_page();
-void test_memory_rw_same_page_unaligned();
-void test_memory_rw_same_page_unaligned_signed();
+static inline uint16_t inw(uint16_t port) {
+    uint16_t ret;
+    __asm__ __volatile__("in %%dx, %%ax" : "=a"(ret) : "d"(port));
+    return ret;
+}
+
+static inline uint32_t inl(uint16_t port) {
+    uint32_t ret;
+    __asm__ __volatile__("in %%dx, %%eax" : "=a"(ret) : "d"(port));
+    return ret;
+}
+
+static inline void mmio_writel(uintptr_t addr, uint32_t val) {
+    *(volatile uint32_t *) addr = val;
+}
+
+static inline uint32_t mmio_readl(uintptr_t addr) {
+    return *(volatile uint32_t *) addr;
+}
 
 #endif

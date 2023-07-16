@@ -20,37 +20,23 @@
 /// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 /// SOFTWARE.
 
-#include <s2e/monitors/raw.h>
+#include <hw/hw.h>
+#include <inttypes.h>
+#include <stdio.h>
+#include <utils/interrupt.h>
+#include <vmm/vmm.h>
+
 #include <s2e/s2e.h>
 
-#include <inttypes.h>
-
-#include "helper.h"
 #include "main.h"
-
-#if defined(S2E_PLUGIN_DIR)
-void test_external(void);
-#endif
-
-static struct S2E_RAWMON_COMMAND_STACK s_stack = {.stack_size = 0x1000, .stack_base = 0x80000 - 0x1000};
-
-static void test_iospeed(void) {
-    const uint32_t max_iter = 100 * 1000 * 1000;
-    for (uint32_t i = 0; i < max_iter; ++i) {
-        inl(0xcfc);
-    }
-}
 
 void main(void) {
     /* Init basic plugin environment */
-    s2e_raw_register_stack(&s_stack);
+    // s2e_raw_register_stack(&s_stack);
 
-// test_range1();
-// test_constraints1();
-#if defined(S2E_PLUGIN_DIR)
-    test_external();
-#endif
-    test_symbhw_mmio();
+    // test_range1();
+    // test_constraints1();
+    // test_symbhw_mmio();
     // test_symbhw_io_ports();
     // test_symbhw_pci_bars();
     // test_symbhw_pci_immutable_fields();
@@ -71,6 +57,32 @@ void main(void) {
     // test_iospeed();
     // test_fork();
     // test_maze();
+
+    printf("Initing memory manager\n");
+    vmm_init();
+
+    printf("Initing interrupt table\n");
+    interrupts_init();
+
+    printf("Initing IOAPIC\n");
+    ioapic_init();
+
+    apic_init();
+
+#if __WORD_SIZE == 64
+    printf("test_memory_rw_new_page\n");
+    test_memory_rw_new_page();
+
+    printf("test_memory_rw_same_page_unaligned\n");
+    test_memory_rw_same_page_unaligned();
+
+    printf("test_memory_rw_same_page_unaligned_signed\n");
+    test_memory_rw_same_page_unaligned_signed();
+#endif
+
+    while (1) {
+        __asm__("hlt");
+    }
 
     s2e_kill_state(0, "done");
 }

@@ -1,6 +1,6 @@
 /// S2E Selective Symbolic Execution Platform
 ///
-/// Copyright (c) 2013 Dependable Systems Laboratory, EPFL
+/// Copyright (c) 2023 Vitaly Chipounov
 ///
 /// Permission is hereby granted, free of charge, to any person obtaining a copy
 /// of this software and associated documentation files (the "Software"), to deal
@@ -20,14 +20,14 @@
 /// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 /// SOFTWARE.
 
-#ifndef _MYSTRINGH_
+#ifndef _HW_H_
 
-#define _MYSTRINGH_
+#define _HW_H_
 
-#include <inttypes.h>
+int ioapic_init(void);
+void apic_init(void);
+void hpet_init(void);
 
-void memcpy(void *dest, const void *src, unsigned size);
-
-void memset(void *dest, uint8_t c, unsigned size);
+void apic_eoi(void);
 
 #endif

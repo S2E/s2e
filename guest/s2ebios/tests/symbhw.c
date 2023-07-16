@@ -22,7 +22,7 @@
 
 #include <s2e/s2e.h>
 
-#include "pci.h"
+#include <hw/pci.h>
 #include "symbhw.h"
 
 #define TEST_VID 0x10ec

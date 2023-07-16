@@ -1,6 +1,6 @@
 /// S2E Selective Symbolic Execution Platform
 ///
-/// Copyright (c) 2013 Dependable Systems Laboratory, EPFL
+/// Copyright (c) 2023 Vitaly Chipounov
 ///
 /// Permission is hereby granted, free of charge, to any person obtaining a copy
 /// of this software and associated documentation files (the "Software"), to deal
@@ -20,24 +20,14 @@
 /// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 /// SOFTWARE.
 
-#include "string.h"
+#ifndef __INT_H__
+#define __INT_H__
 
-void memcpy(void *dest, const void *src, unsigned size) {
-    char *cd = dest;
-    const char *cs = src;
+#include <inttypes.h>
 
-    for (unsigned i = 0; i < size; ++i) {
-        *cd = *cs;
-        cs++;
-        cd++;
-    }
-}
+typedef void (*isr_t)(uint8_t num);
 
-void memset(void *dest, uint8_t c, unsigned size) {
-    char *cd = dest;
+int interrupts_register(uint8_t num, isr_t isr);
+void interrupts_init(void);
 
-    for (unsigned i = 0; i < size; ++i) {
-        *cd = c;
-        cd++;
-    }
-}
+#endif

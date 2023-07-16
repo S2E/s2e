@@ -20,36 +20,17 @@
 /// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 /// SOFTWARE.
 
-#ifndef S2E_BIOS_MAIN
+#ifndef _MYSTRINGH_
 
-#define S2E_BIOS_MAIN
+#define _MYSTRINGH_
 
-void test_symbhw_io_ports();
-void test_symbhw_mmio();
-void test_symbhw_pci_bars();
-void test_symbhw_pci_immutable_fields();
-void test_symbhw_pci_extraspace();
-void test_symbhw_symbolic_port_writes();
-void test_symbhw_query_resource_size();
-void test_symbhw_unaligned_reads();
-void test_symbhw_unaligned_cmd_port();
-void test_symbhw_hotplug();
-void test_symbhw_multiple_mappings();
-void test_symbhw_multiple_mappings_io();
-void test_symbhw_select_config_single_path();
-void test_symbhw_select_config_multi_path();
-void test_symbhw_switch_config_symbbus();
+#include <inttypes.h>
+#include <stddef.h>
 
-void test_range1();
+void memcpy(void *dest, const void *src, unsigned size);
 
-void test_selfmod1();
+void memset(void *dest, uint8_t c, unsigned size);
 
-void test_constraints1();
-
-void test_maze();
-
-void test_memory_rw_new_page();
-void test_memory_rw_same_page_unaligned();
-void test_memory_rw_same_page_unaligned_signed();
+size_t strlen(const char *str);
 
 #endif

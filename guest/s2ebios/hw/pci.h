@@ -26,7 +26,7 @@
 
 #include <inttypes.h>
 
-#include "helper.h"
+#include <hw/port.h>
 
 #define PCI_VENDOR_ID 0x00 /* 16 bits */
 #define PCI_DEVICE_ID 0x02 /* 16 bits */

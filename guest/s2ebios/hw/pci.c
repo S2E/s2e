@@ -22,7 +22,7 @@
 
 #include <s2e/s2e.h>
 
-#include "pci.h"
+#include <hw/pci.h>
 
 uint32_t pci_find_device(uint16_t vid, uint16_t pid, uint8_t *b, uint8_t *d, uint8_t *f) {
     for (uint8_t bus = 0; bus < 10; ++bus) {
@@ -59,7 +59,6 @@ static uint64_t pci_get_bar_size(uint8_t bus, uint8_t device, uint8_t function, 
         if (is_io)
             *is_io = 1;
     } else {
-
         if (orig_bar & PCI_BASE_ADDRESS_MEM_TYPE_64) {
             uint32_t offset_high = offset + sizeof(uint32_t);
             uint32_t orig_bar_high = pci_read_dword(bus, device, function, offset_high);
@@ -73,8 +72,9 @@ static uint64_t pci_get_bar_size(uint8_t bus, uint8_t device, uint8_t function, 
 
         size &= ~0xf;
         size = size & ~(size - 1);
-        if (is_io)
+        if (is_io) {
             *is_io = 0;
+        }
     }
 
     pci_write_dword(bus, device, function, offset, orig_bar);
