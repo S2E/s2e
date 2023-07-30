@@ -205,7 +205,7 @@ static void cpu_handle_debug_exception(CPUArchState *env) {
 
 /* main execution loop */
 
-volatile sig_atomic_t exit_request;
+// volatile sig_atomic_t exit_request;
 
 #ifdef TRACE_EXEC
 static void dump_regs(CPUX86State *env, int isStart) {
@@ -495,10 +495,6 @@ int cpu_exec(CPUArchState *env) {
     }
 
     cpu_single_env = env;
-
-    if (unlikely(exit_request)) {
-        env->exit_request = 1;
-    }
 
 #ifdef CONFIG_SYMBEX
     if (!g_sqi.exec.is_runnable()) {

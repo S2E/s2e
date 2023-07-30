@@ -157,7 +157,4 @@ typedef void(CPUDebugExcpHandler)(CPUArchState *env);
 
 CPUDebugExcpHandler *cpu_set_debug_excp_handler(CPUDebugExcpHandler *handler);
 
-/* cpu-exec.c */
-extern volatile sig_atomic_t exit_request;
-
 #endif
