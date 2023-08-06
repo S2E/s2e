@@ -35,6 +35,14 @@
 
 extern CPUX86State *env;
 
+#if 0
+#define SE_KVM_DEBUG_MMIO
+#define SE_KVM_DEBUG_APIC
+#define SE_KVM_DEBUG_IO
+
+#define DPRINTF(...) fprintf(logfile, __VA_ARGS__)
+#endif
+
 namespace s2e {
 namespace kvm {
 
@@ -121,9 +129,7 @@ uint64_t s2e_kvm_mmio_read(target_phys_addr_t addr, unsigned size) {
         print_addr = 1;
 #endif
     if (print_addr) {
-        printf("mmior%d[%" PRIx64 "]=%" PRIx64 "\n", size, (uint64_t) addr, ret);
-        // printf("env->mflags=%x hflags=%x hflags2=%x\n",
-        //       env->mflags, env->hflags, env->hflags2);
+        DPRINTF("mmior%d[%" PRIx64 "]=%" PRIx64 "\n", size, (uint64_t) addr, ret);
     }
 #endif
     return ret;
@@ -147,9 +153,7 @@ void s2e_kvm_mmio_write(target_phys_addr_t addr, uint64_t data, unsigned size) {
 #endif
 
     if (print_addr) {
-        printf("mmiow%d[%" PRIx64 "]=%" PRIx64 "\n", size, (uint64_t) addr, data);
-        // printf("env->mflags=%x hflags=%x hflags2=%x\n",
-        //       env->mflags, env->hflags, env->hflags2);
+        DPRINTF("mmiow%d[%" PRIx64 "]=%" PRIx64 "\n", size, (uint64_t) addr, data);
     }
 #endif
 
@@ -222,9 +226,7 @@ uint64_t s2e_kvm_ioport_read(pio_addr_t addr, unsigned size) {
     }
 
 #ifdef SE_KVM_DEBUG_IO
-    printf("ior%d[%x]=%" PRIx64 "\n", size, addr, ret);
-// printf("env->mflags=%x hflags=%x hflags2=%x\n",
-//       env->mflags, env->hflags, env->hflags2);
+    DPRINTF("ior%d[%#x]=0x%" PRIx64 "\n", size, addr, ret);
 #endif
 
     return ret;
@@ -260,9 +262,7 @@ void s2e_kvm_ioport_write(pio_addr_t addr, uint64_t data, unsigned size) {
     }
 
 #ifdef SE_KVM_DEBUG_IO
-    printf("iow%d[%x]=%" PRIx64 "\n", size, addr, data);
-// printf("env->mflags=%x hflags=%x hflags2=%x\n",
-//       env->mflags, env->hflags, env->hflags2);
+    DPRINTF("iow%d[%#x]=0x%" PRIx64 "\n", size, addr, data);
 #endif
 
     coroutine_yield();
