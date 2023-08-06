@@ -69,8 +69,9 @@ uint64_t S2EExecutionStateMemory::getPhysicalAddress(uint64_t virtualAddress) co
     assert(*m_active && "Can not use getPhysicalAddress when the state"
                         " is not active (TODO: fix it)");
     target_phys_addr_t physicalAddress = cpu_get_phys_page_debug(env, virtualAddress & TARGET_PAGE_MASK);
-    if (physicalAddress == (target_phys_addr_t) -1)
+    if (physicalAddress == (target_phys_addr_t) -1) {
         return (uint64_t) -1;
+    }
 
     return physicalAddress | (virtualAddress & ~TARGET_PAGE_MASK);
 }
@@ -81,8 +82,9 @@ uint64_t S2EExecutionStateMemory::getHostAddress(uint64_t address, AddressType a
         uint64_t hostAddress = address & TARGET_PAGE_MASK;
         if (addressType == VirtualAddress) {
             hostAddress = getPhysicalAddress(hostAddress);
-            if (hostAddress == (uint64_t) -1)
+            if (hostAddress == (uint64_t) -1) {
                 return (uint64_t) -1;
+            }
         }
 
         hostAddress = g_sqi.mem.get_host_address(hostAddress);
