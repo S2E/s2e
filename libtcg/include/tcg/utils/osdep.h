@@ -79,8 +79,8 @@ extern "C" {
 #define QEMU_FALLTHROUGH __attribute__((fallthrough))
 #define QEMU_PACKED      __attribute__((packed))
 
-#ifndef G_NORETURN
-#define G_NORETURN __attribute__((noreturn))
+#ifndef NORETURN
+#define NORETURN __attribute__((noreturn))
 #endif
 
 // TODO: move this elsewhere?
