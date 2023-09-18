@@ -47,112 +47,45 @@
 #include "exec-tb.h"
 #include "exec.h"
 
-/* code generation context */
-__thread TCGContext *tcg_ctx;
-
 /* Minimum size of the code gen buffer.  This number is randomly chosen,
    but not so small that we can't have a fair number of TB's live.  */
 #define MIN_CODE_GEN_BUFFER_SIZE (128 * 1024 * 1024)
 
-/* Maximum size of the code gen buffer we'd like to use.  Unless otherwise
-   indicated, this is constrained by the range of direct branches on the
-   host cpu, as used by the TCG implementation of goto_tb.  */
-#if defined(__x86_64__)
-#define MAX_CODE_GEN_BUFFER_SIZE (2ul * 1024 * 1024 * 1024)
+#if defined(CONFIG_SYMBEX_MP)
+tcg_target_ulong tcg_helper_ldb_mmu_symb(CPUArchState *env, target_ulong addr, int mmu_idx, void *retaddr);
+tcg_target_ulong tcg_helper_ldw_mmu_symb(CPUArchState *env, target_ulong addr, int mmu_idx, void *retaddr);
+tcg_target_ulong tcg_helper_ldl_mmu_symb(CPUArchState *env, target_ulong addr, int mmu_idx, void *retaddr);
+uint64_t tcg_helper_ldq_mmu_symb(CPUArchState *env, target_ulong addr, int mmu_idx, void *retaddr);
+
+static void *qemu_ld_helpers[(MO_SIZE | MO_BSWAP) + 1] = {[MO_UB] = tcg_helper_ldb_mmu_symb,
+                                                          [MO_LEUW] = tcg_helper_ldw_mmu_symb,
+                                                          [MO_LEUL] = tcg_helper_ldl_mmu_symb,
+                                                          [MO_LEUQ] = tcg_helper_ldq_mmu_symb};
+
+static void *qemu_st_helpers[(MO_SIZE | MO_BSWAP) + 1] = {[MO_UB] = helper_stb_mmu_symb,
+                                                          [MO_LEUW] = helper_stw_mmu_symb,
+                                                          [MO_LEUL] = helper_stl_mmu_symb,
+                                                          [MO_LEUQ] = helper_stq_mmu_symb};
+#elif defined(STATIC_TRANSLATOR)
+
+static void *qemu_ld_helpers[(MO_SIZE | MO_BSWAP) + 1] = {0};
+static void *qemu_st_helpers[(MO_SIZE | MO_BSWAP) + 1] = {0};
+
 #else
-#define MAX_CODE_GEN_BUFFER_SIZE ((size_t) -1)
-#endif
+tcg_target_ulong tcg_helper_ldb_mmu(CPUArchState *env, target_ulong addr, int mmu_idx, void *retaddr);
+tcg_target_ulong tcg_helper_ldw_mmu(CPUArchState *env, target_ulong addr, int mmu_idx, void *retaddr);
+tcg_target_ulong tcg_helper_ldl_mmu(CPUArchState *env, target_ulong addr, int mmu_idx, void *retaddr);
+uint64_t tcg_helper_ldq_mmu(CPUArchState *env, target_ulong addr, int mmu_idx, void *retaddr);
 
-#define DEFAULT_CODE_GEN_BUFFER_SIZE_1 (32u * 1024 * 1024)
-
-#define DEFAULT_CODE_GEN_BUFFER_SIZE                                                            \
-    (DEFAULT_CODE_GEN_BUFFER_SIZE_1 < MAX_CODE_GEN_BUFFER_SIZE ? DEFAULT_CODE_GEN_BUFFER_SIZE_1 \
-                                                               : MAX_CODE_GEN_BUFFER_SIZE)
-
-static inline size_t size_code_gen_buffer(size_t tb_size) {
-    /* Size the buffer.  */
-    if (tb_size == 0) {
-        tb_size = DEFAULT_CODE_GEN_BUFFER_SIZE;
-    }
-
-    if (tb_size < MIN_CODE_GEN_BUFFER_SIZE) {
-        tb_size = MIN_CODE_GEN_BUFFER_SIZE;
-    }
-    if (tb_size > MAX_CODE_GEN_BUFFER_SIZE) {
-        tb_size = MAX_CODE_GEN_BUFFER_SIZE;
-    }
-    return tb_size;
-}
-
-// XXX: deduplicate this
-#define CODE_GEN_ALIGN 16
-
-static inline void *alloc_code_gen_buffer(TCGContext *ctx) {
-    size_t length = ctx->code_gen_buffer_size;
-    void *buf = mmap(NULL, length, PROT_WRITE | PROT_READ | PROT_EXEC, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-    void *end = buf + length;
-    size_t size;
-
-    /* page-align the beginning and end of the buffer */
-    buf = ALIGN_PTR_UP(buf, 0x1000);
-    end = ALIGN_PTR_DOWN(end, 0x1000);
-
-    size = end - buf;
-
-    /* Honor a command-line option limiting the size of the buffer.  */
-    if (size > ctx->code_gen_buffer_size) {
-        size = ALIGN_DOWN(ctx->code_gen_buffer_size, 0x1000);
-    }
-    ctx->code_gen_buffer_size = size;
-
-    if (mprotect(buf, size, PROT_READ | PROT_WRITE | PROT_EXEC)) {
-        abort();
-    }
-
-    madvise(buf, size, MADV_HUGEPAGE);
-
-    return buf;
-}
-
-static inline void code_gen_alloc(TCGContext *tcg, size_t tb_size) {
-    tcg->code_gen_buffer_size = size_code_gen_buffer(tb_size);
-    tcg->code_gen_buffer = alloc_code_gen_buffer(tcg);
-    if (tcg->code_gen_buffer == NULL) {
-        fprintf(stderr, "Could not allocate dynamic translator buffer\n");
-        exit(1);
-    }
-}
-
-#if defined(CONFIG_SYMBEX_MP) || defined(STATIC_TRANSLATOR)
-static void *qemu_ld_helpers[4] = {
-    helper_ldb_mmu_symb,
-    helper_ldw_mmu_symb,
-    helper_ldl_mmu_symb,
-    helper_ldq_mmu_symb,
-};
-
-static void *qemu_st_helpers[4] = {
-    helper_stb_mmu_symb,
-    helper_stw_mmu_symb,
-    helper_stl_mmu_symb,
-    helper_stq_mmu_symb,
-};
-#else
-static void *qemu_ld_helpers[4] = {
-    helper_ldb_mmu,
-    helper_ldw_mmu,
-    helper_ldl_mmu,
-    helper_ldq_mmu,
-};
+static void *qemu_ld_helpers[(MO_SIZE | MO_BSWAP) + 1] = {[MO_UB] = tcg_helper_ldb_mmu,
+                                                          [MO_LEUW] = tcg_helper_ldw_mmu,
+                                                          [MO_LEUL] = tcg_helper_ldl_mmu,
+                                                          [MO_LEUQ] = tcg_helper_ldq_mmu};
 
 /* legacy helper signature: __st_mmu(target_ulong addr, uintxx_t val,
    int mmu_idx) */
-static void *qemu_st_helpers[4] = {
-    helper_stb_mmu,
-    helper_stw_mmu,
-    helper_stl_mmu,
-    helper_stq_mmu,
-};
+static void *qemu_st_helpers[(MO_SIZE | MO_BSWAP) + 1] = {
+    [MO_UB] = helper_stb_mmu, [MO_LEUW] = helper_stw_mmu, [MO_LEUL] = helper_stl_mmu, [MO_LEUQ] = helper_stq_mmu};
 #endif
 
 static void cpu_gen_init(TCGContext *ctx, tcg_settings_t *settings) {
@@ -163,22 +96,10 @@ static void cpu_gen_init(TCGContext *ctx, tcg_settings_t *settings) {
     settings->tlb_entry_addr_read_offset = offsetof(CPUTLBEntry, addr_read);
     settings->tlb_entry_addr_write_offset = offsetof(CPUTLBEntry, addr_write);
 
-    code_gen_alloc(ctx, 0);
+    tcg_init(ctx, MIN_CODE_GEN_BUFFER_SIZE, 0, 1);
 
     memcpy(ctx->qemu_ld_helpers, qemu_ld_helpers, sizeof(tcg_ctx->qemu_ld_helpers));
     memcpy(ctx->qemu_st_helpers, qemu_st_helpers, sizeof(tcg_ctx->qemu_st_helpers));
-
-#if defined(CONFIG_SYMBEX) && defined(TCG_ENABLE_MEM_TRACING)
-    ctx->qemu_ld_trace_helpers[0] = g_sqi.mem.__ldb_mmu_trace;
-    ctx->qemu_ld_trace_helpers[1] = g_sqi.mem.__ldw_mmu_trace;
-    ctx->qemu_ld_trace_helpers[2] = g_sqi.mem.__ldl_mmu_trace;
-    ctx->qemu_ld_trace_helpers[3] = g_sqi.mem.__ldq_mmu_trace;
-
-    ctx->qemu_st_trace_helpers[0] = g_sqi.mem.__stb_mmu_trace;
-    ctx->qemu_st_trace_helpers[1] = g_sqi.mem.__stw_mmu_trace;
-    ctx->qemu_st_trace_helpers[2] = g_sqi.mem.__stl_mmu_trace;
-    ctx->qemu_st_trace_helpers[3] = g_sqi.mem.__stq_mmu_trace;
-#endif
 
     extern CPUArchState *env;
     ctx->tcg_struct_size = sizeof(*tcg_ctx);
@@ -189,9 +110,9 @@ static void cpu_gen_init(TCGContext *ctx, tcg_settings_t *settings) {
     ctx->env_sizeof_ccop = sizeof(env->cc_op);
     ctx->env_offset_df = offsetof(CPUArchState, df);
 
-    ctx->env_offset_tlb[0] = offsetof(CPUArchState, tlb_table[0]);
-    ctx->env_offset_tlb[1] = offsetof(CPUArchState, tlb_table[1]);
-    ctx->env_offset_tlb[2] = offsetof(CPUArchState, tlb_table[2]);
+    for (int i = 0; i < NB_MMU_MODES; ++i) {
+        ctx->env_offset_tlb[i] = offsetof(CPUArchState, tlb_table[i]);
+    }
 
     ctx->tlbe_size = sizeof(CPUTLBEntry);
     ctx->tlbe_offset_addend = offsetof(CPUTLBEntry, addend);
@@ -205,8 +126,6 @@ static void cpu_gen_init(TCGContext *ctx, tcg_settings_t *settings) {
     ctx->target_page_bits = TARGET_PAGE_BITS;
     ctx->cpu_tlb_entry_bits = CPU_TLB_ENTRY_BITS;
     ctx->cpu_tlb_size = CPU_TLB_SIZE;
-
-    tcg_context_init(ctx);
 }
 
 /* Must be called before using the QEMU cpus. 'tb_size' is the size
@@ -214,46 +133,85 @@ static void cpu_gen_init(TCGContext *ctx, tcg_settings_t *settings) {
    size. */
 void tcg_exec_init(unsigned long tb_size) {
     cpu_gen_init(&tcg_init_ctx, &g_tcg_settings);
-    code_gen_alloc(&tcg_init_ctx, tb_size);
-
-    // tcg_register_jit(code_gen_buffer, code_gen_buffer_size);
 
     /* There's no guest base to take into account, so go ahead and
        initialize the prologue now.  */
     tcg_prologue_init(tcg_ctx);
+}
 
-    tcg_region_init();
+/*
+ * Isolate the portion of code gen which can setjmp/longjmp.
+ * Return the size of the generated code, or negative on error.
+ */
+static int setjmp_gen_code(TCGContext *tcg_ctx, CPUArchState *env, TranslationBlock *tb, int *max_insns) {
+    int ret = sigsetjmp(tcg_ctx->jmp_trans, 0);
+    if (unlikely(ret != 0)) {
+        return ret;
+    }
+
+    tcg_func_start(tcg_ctx);
+
+    tb->cflags &= ~CF_COUNT_MASK;
+    tb->cflags |= (*max_insns & CF_COUNT_MASK);
+    gen_intermediate_code(env, tb);
+    assert(tb->size != 0);
+    *max_insns = tb->icount;
+
+    return tcg_gen_code(tcg_ctx, tb, tb->pc);
 }
 
 int cpu_gen_code(CPUArchState *env, TranslationBlock *tb) {
     TCGContext *s = tcg_ctx;
-    uint8_t *gen_code_buf;
+    void *gen_code_buf;
     int gen_code_size;
+    int max_insns = TCG_MAX_INSNS;
 
-    tb->tc.ptr = tcg_ctx->code_gen_ptr;
+    //    tb->tc.ptr = tcg_ctx->code_gen_ptr;
+    gen_code_buf = tcg_ctx->code_gen_ptr;
+    tb->tc.ptr = gen_code_buf;
 
-    tcg_func_start(s);
+tb_overflow:
+    gen_code_size = setjmp_gen_code(s, env, tb, &max_insns);
+    if (unlikely(gen_code_size < 0)) {
+        switch (gen_code_size) {
+            case -1:
+                /*
+                 * Overflow of code_gen_buffer, or the current slice of it.
+                 *
+                 * TODO: We don't need to re-do gen_intermediate_code, nor
+                 * should we re-do the tcg optimization currently hidden
+                 * inside tcg_gen_code.  All that should be required is to
+                 * flush the TBs, allocate a new TB, re-initialize it per
+                 * above, and re-do the actual code generation.
+                 */
+                return -1;
 
-    gen_intermediate_code(env, tb);
+            case -2:
+                /*
+                 * The code generated for the TranslationBlock is too large.
+                 * The maximum size allowed by the unwind info is 64k.
+                 * There may be stricter constraints from relocations
+                 * in the tcg backend.
+                 *
+                 * Try again with half as many insns as we attempted this time.
+                 * If a single insn overflows, there's a bug somewhere...
+                 */
+                assert(max_insns > 1);
+                max_insns /= 2;
+
+#ifdef CONFIG_SYMBEX
+                tb->se_tb = g_sqi.tb.tb_alloc();
+#endif
+
+                goto tb_overflow;
+
+            default:
+                g_assert_not_reached();
+        }
+    }
 
     /* generate machine code */
     gen_code_buf = tb->tc.ptr;
-
-    tb->jmp_reset_offset[0] = TB_JMP_RESET_OFFSET_INVALID;
-    tb->jmp_reset_offset[1] = TB_JMP_RESET_OFFSET_INVALID;
-    tcg_ctx->tb_jmp_reset_offset = tb->jmp_reset_offset;
-    if (TCG_TARGET_HAS_direct_jump) {
-        tcg_ctx->tb_jmp_insn_offset = tb->jmp_target_arg;
-        tcg_ctx->tb_jmp_target_addr = NULL;
-    } else {
-        tcg_ctx->tb_jmp_insn_offset = NULL;
-        tcg_ctx->tb_jmp_target_addr = tb->jmp_target_arg;
-    }
-
-    gen_code_size = tcg_gen_code(s, tb);
-    if (unlikely(gen_code_size < 0)) {
-        return -1;
-    }
 
     if (libcpu_loglevel_mask(CPU_LOG_TB_OUT_ASM)) {
         libcpu_log("----------------\n");

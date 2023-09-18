@@ -21,6 +21,14 @@
 
 #include <stdio.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef int (*fprintf_function)(FILE *f, const char *fmt, ...);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

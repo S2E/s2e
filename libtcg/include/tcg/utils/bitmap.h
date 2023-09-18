@@ -25,9 +25,17 @@
 #include <string.h>
 #include "bitops.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 static inline void bitmap_zero(unsigned long *bitmap, long bits) {
     long length = BITS_TO_LONGS(bits) * sizeof(unsigned long);
     memset(bitmap, 0, length);
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

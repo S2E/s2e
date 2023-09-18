@@ -17,7 +17,7 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <tcg/regs.h>
+#include "regs.h"
 
 #if SHIFT == 0
 #define Reg    MMXReg
@@ -36,6 +36,10 @@
 #define dh_is_signed_Reg    dh_is_signed_ptr
 #define dh_is_signed_XMMReg dh_is_signed_ptr
 #define dh_is_signed_MMXReg dh_is_signed_ptr
+
+#define dh_typecode_Reg    dh_typecode_ptr
+#define dh_typecode_XMMReg dh_typecode_ptr
+#define dh_typecode_MMXReg dh_typecode_ptr
 
 DEF_HELPER_2(glue(psrlw, SUFFIX), void, Reg, Reg)
 DEF_HELPER_2(glue(psraw, SUFFIX), void, Reg, Reg)

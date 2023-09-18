@@ -21,6 +21,10 @@
 #ifndef TCG_ATOMIC_H
 #define TCG_ATOMIC_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define atomic_read(p)              __atomic_load_n(p, __ATOMIC_RELAXED)
 #define atomic_set(p, i)            __atomic_store_n(p, i, __ATOMIC_RELAXED)
 #define atomic_fetch_inc(p)         __atomic_fetch_add(p, 1, __ATOMIC_SEQ_CST)
@@ -28,5 +32,9 @@
 #define atomic_or_fetch(p, n)       __atomic_or_fetch(p, n, __ATOMIC_SEQ_CST)
 #define atomic_and(p, n)            ((void) __atomic_fetch_and(p, n, __ATOMIC_SEQ_CST))
 #define atomic_cmpxchg(p, old, new) __sync_val_compare_and_swap(p, old, new)
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

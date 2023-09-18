@@ -29,17 +29,6 @@
 #include <s2e/s2e_libcpu.h>
 
 extern "C" {
-// XXX: move these declarations to s2e
-uint8_t __ldb_mmu_trace(uint8_t *host_addr, target_ulong vaddr);
-uint16_t __ldw_mmu_trace(uint16_t *host_addr, target_ulong vaddr);
-uint32_t __ldl_mmu_trace(uint32_t *host_addr, target_ulong vaddr);
-uint64_t __ldq_mmu_trace(uint64_t *host_addr, target_ulong vaddr);
-
-void __stb_mmu_trace(uint8_t *host_addr, target_ulong vaddr);
-void __stw_mmu_trace(uint16_t *host_addr, target_ulong vaddr);
-void __stl_mmu_trace(uint32_t *host_addr, target_ulong vaddr);
-void __stq_mmu_trace(uint64_t *host_addr, target_ulong vaddr);
-
 extern se_do_interrupt_all_t g_s2e_do_interrupt_all;
 }
 #endif
@@ -92,15 +81,6 @@ void init_s2e_libcpu_interface(struct se_libcpu_interface_t *sqi) {
     sqi->mem.is_mmio_symbolic = s2e_is_mmio_symbolic;
     sqi->mem.is_vmem_symbolic = se_is_vmem_symbolic;
     sqi->mem.get_host_address = se_get_host_address;
-
-    sqi->mem.__ldb_mmu_trace = __ldb_mmu_trace;
-    sqi->mem.__ldw_mmu_trace = __ldw_mmu_trace;
-    sqi->mem.__ldl_mmu_trace = __ldl_mmu_trace;
-    sqi->mem.__ldq_mmu_trace = __ldq_mmu_trace;
-    sqi->mem.__stb_mmu_trace = __stb_mmu_trace;
-    sqi->mem.__stw_mmu_trace = __stw_mmu_trace;
-    sqi->mem.__stl_mmu_trace = __stl_mmu_trace;
-    sqi->mem.__stq_mmu_trace = __stq_mmu_trace;
 
     sqi->expr.mgr = s2e_expr_mgr;
     sqi->expr.clear = s2e_expr_clear;

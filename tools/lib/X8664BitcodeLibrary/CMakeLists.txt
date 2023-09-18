@@ -42,7 +42,7 @@ set(INC_DIRS ${INC_DIRS}
 
 link_llvm_bitcode(X8664BitcodeLibrary.bc "${FLAGS}" "${INC_DIRS}"
                                          ${LIBCPU_SRC_DIR}/src/target-${LIBCPU_TARGET}/op_helper.c
-                                         ${LIBCPU_SRC_DIR}/src/fpu/softfloat.c
+                                         ${LIBTCG_SRC_DIR}/src/fpu/softfloat.c
                                          ${CMAKE_CURRENT_SOURCE_DIR}/../X86BitcodeLibrary/BitcodeLibrary.cpp)
 
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/X8664BitcodeLibrary.bc DESTINATION lib)

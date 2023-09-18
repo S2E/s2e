@@ -22,7 +22,11 @@
 #include "cpu-defs.h"
 #include "cpu.h"
 
+// clang-format off
 #include <tcg/tcg-op.h>
+#include <tcg/helper-proto.h>
+#include <tcg/helper-gen.h>
+// clang-format on
 
 #include <tcg/utils/host-utils.h>
 #include "libcpu-log.h"

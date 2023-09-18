@@ -38,6 +38,14 @@
 #include <tcg/utils/bitops.h>
 #endif
 
+#if 0
+#define SE_KVM_DEBUG_IRQ
+
+#define DPRINTF(...) fprintf(logfile, __VA_ARGS__)
+#else
+#define DPRINTF(...)
+#endif
+
 extern "C" {
 void tcg_register_thread(void);
 }
@@ -88,7 +96,7 @@ VCPU::VCPU(std::shared_ptr<S2EKVM> &kvm, std::shared_ptr<VM> &vm, kvm_run *buffe
     m_env = g_cpu_env = env = cpu_x86_init(&m_kvm->getCpuid());
 
     if (!m_env) {
-        printf("Could not create cpu\n");
+        DPRINTF("Could not create cpu\n");
         exit(-1);
     }
 
@@ -142,9 +150,9 @@ void VCPU::unlock() {
 
 #ifdef SE_KVM_DEBUG_CPUID
 static void print_cpuid2(struct kvm_cpuid_entry2 *e) {
-    printf("cpuid function=%#010" PRIx32 " index=%#010" PRIx32 " flags=%#010" PRIx32 " eax=%#010" PRIx32
-           " ebx=%#010" PRIx32 " ecx=%#010" PRIx32 " edx=%#010" PRIx32 "\n",
-           e->function, e->index, e->flags, e->eax, e->ebx, e->ecx, e->edx);
+    DPRINTF("cpuid function=%#010" PRIx32 " index=%#010" PRIx32 " flags=%#010" PRIx32 " eax=%#010" PRIx32
+            " ebx=%#010" PRIx32 " ecx=%#010" PRIx32 " edx=%#010" PRIx32 "\n",
+            e->function, e->index, e->flags, e->eax, e->ebx, e->ecx, e->edx);
 }
 #endif
 
@@ -224,7 +232,7 @@ int VCPU::setSignalMask(kvm_signal_mask *mask) {
     m_sigmask_size = mask->len;
     for (unsigned i = 0; i < mask->len; ++i) {
 #ifdef SE_KVM_DEBUG_INTERFACE
-        printf("  signals %#04x\n", mask->sigset[i]);
+        DPRINTF("  signals %#04x\n", mask->sigset[i]);
 #endif
         m_sigmask.bytes[i] = mask->sigset[i];
     }
@@ -248,16 +256,16 @@ void VCPU::coroutineFcn(void *opaque) {
         // XXX: need to save irq state on state switches
         if (env->kvm_irq != -1) {
             if (env->interrupt_request == 0) {
-                printf("Forcing IRQ\n");
+                DPRINTF("Forcing IRQ\n");
             }
             env->interrupt_request |= CPU_INTERRUPT_HARD;
         }
 
 #ifdef SE_KVM_DEBUG_IRQ
         if (env->interrupt_request & CPU_INTERRUPT_HARD) {
-            printf("Handling IRQ %d req=%#x hflags=%x hflags2=%#x mflags=%#lx tpr=%#x esp=%#lx signal=%d\n",
-                   env->kvm_irq, env->interrupt_request, env->hflags, env->hflags2, (uint64_t) env->mflags, env->v_tpr,
-                   (uint64_t) env->regs[R_ESP], g_signal_pending);
+            DPRINTF("Handling IRQ %d req=%#x hflags=%x hflags2=%#x mflags=%#lx tpr=%#x esp=%#lx\n", env->kvm_irq,
+                    env->interrupt_request, env->hflags, env->hflags2, (uint64_t) env->mflags, env->v_tpr,
+                    (uint64_t) env->regs[R_ESP]);
         }
 #endif
 
@@ -272,14 +280,14 @@ void VCPU::coroutineFcn(void *opaque) {
         env->exit_request = 0;
         cpu_x86_exec(env);
         vcpu->m_cpuStateIsPrecise = true;
-        // printf("cpu_exec return %#x\n", ret);
+        // DPRINTF("cpu_exec return %#x\n", ret);
 
 #ifdef SE_KVM_DEBUG_IRQ
         bool mflags_changed = (prev_mflags != env->mflags);
         if (mflags_changed) {
-            printf("mflags changed: %lx old=%lx new=%lx reqwnd=%d peip=%lx, eip=%lx\n", (uint64_t) mflags_changed,
-                   (uint64_t) prev_mflags, (uint64_t) env->mflags, g_kvm_vcpu_buffer->request_interrupt_window,
-                   (uint64_t) prev_eip, (uint64_t) env->eip);
+            DPRINTF("mflags changed: %lx old=%lx new=%lx reqwnd=%d peip=%lx, eip=%lx\n", (uint64_t) mflags_changed,
+                    (uint64_t) prev_mflags, (uint64_t) env->mflags, g_kvm_vcpu_buffer->request_interrupt_window,
+                    (uint64_t) prev_eip, (uint64_t) env->eip);
         }
         prev_mflags = env->mflags;
 #endif
@@ -327,7 +335,7 @@ int VCPU::run(int vcpu_fd) {
 
     if (m_cpuBuffer->ready_for_interrupt_injection) {
 #ifdef SE_KVM_DEBUG_IRQ
-        printf("%s early ret for ints\n", __FUNCTION__);
+        DPRINTF("%s early ret for ints\n", __FUNCTION__);
 #endif
         m_cpuBuffer->exit_reason = KVM_EXIT_IRQ_WINDOW_OPEN;
         return 0;
@@ -339,8 +347,8 @@ int VCPU::run(int vcpu_fd) {
 
 #ifdef SE_KVM_DEBUG_RUN
     if (!m_handlingKvmCallback) {
-        printf("%s riw=%d cr8=%#x\n", __FUNCTION__, g_kvm_vcpu_buffer->request_interrupt_window,
-               (unsigned) g_kvm_vcpu_buffer->cr8);
+        DPRINTF("%s riw=%d cr8=%#x\n", __FUNCTION__, g_kvm_vcpu_buffer->request_interrupt_window,
+                (unsigned) g_kvm_vcpu_buffer->cr8);
     }
 #endif
 
@@ -406,9 +414,9 @@ int VCPU::run(int vcpu_fd) {
 
 #ifdef SE_KVM_DEBUG_RUN
     if (!m_handlingKvmCallback) {
-        printf("%s riw=%d rii=%d er=%#x cr8=%#x\n", __FUNCTION__, g_kvm_vcpu_buffer->request_interrupt_window,
-               g_kvm_vcpu_buffer->ready_for_interrupt_injection, g_kvm_vcpu_buffer->exit_reason,
-               (unsigned) g_kvm_vcpu_buffer->cr8);
+        DPRINTF("%s riw=%d rii=%d er=%#x cr8=%#x\n", __FUNCTION__, g_kvm_vcpu_buffer->request_interrupt_window,
+                g_kvm_vcpu_buffer->ready_for_interrupt_injection, g_kvm_vcpu_buffer->exit_reason,
+                (unsigned) g_kvm_vcpu_buffer->cr8);
     }
 #endif
 
@@ -431,8 +439,8 @@ int VCPU::run(int vcpu_fd) {
 
 int VCPU::interrupt(kvm_interrupt *interrupt) {
 #ifdef SE_KVM_DEBUG_IRQ
-    printf("IRQ %d env->mflags=%lx hflags=%x hflags2=%x ptr=%#x\n", interrupt->irq, (uint64_t) env->mflags, env->hflags,
-           env->hflags2, env->v_tpr);
+    DPRINTF("IRQ %d env->mflags=%lx hflags=%x hflags2=%x ptr=%#x\n", interrupt->irq, (uint64_t) env->mflags,
+            env->hflags, env->hflags2, env->v_tpr);
     fflush(stdout);
 #endif
 
@@ -544,7 +552,7 @@ void VCPU::requestExit(void) {
     }
 
 #ifdef SE_KVM_DEBUG_RUN
-    printf("s2e_kvm_request_exit\n");
+    DPRINTF("s2e_kvm_request_exit\n");
 #endif
 
     sendExitSignal();
@@ -569,6 +577,10 @@ void VCPU::requestExit(void) {
 /// \param code the exit code
 ///
 void VCPU::requestProcessExit(int code) {
+    if (logfile) {
+        fflush(logfile);
+    }
+
     m_kvm->setExiting();
 
     if (!m_coroutine) {

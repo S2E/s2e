@@ -23,6 +23,7 @@
 
 // clang-format off
 #include <cpu/i386/cpu.h>
+#include <tcg/tcg.h>
 #include <tcg/tcg-op.h>
 
 #include <cpu/exec.h>
@@ -371,42 +372,6 @@ void s2e_after_memory_access(uint64_t vaddr, uint64_t value, unsigned size, unsi
     } catch (s2e::CpuExitException &) {
         longjmp(env->jmp_env, 1);
     }
-}
-
-uint8_t __ldb_mmu_trace(uint8_t *host_addr, target_ulong vaddr) {
-    s2e_after_memory_access(vaddr, *host_addr, 1, 0, (uintptr_t) GETPC());
-    return *host_addr;
-}
-
-uint16_t __ldw_mmu_trace(uint16_t *host_addr, target_ulong vaddr) {
-    s2e_after_memory_access(vaddr, *host_addr, 2, 0, (uintptr_t) GETPC());
-    return *host_addr;
-}
-
-uint32_t __ldl_mmu_trace(uint32_t *host_addr, target_ulong vaddr) {
-    s2e_after_memory_access(vaddr, *host_addr, 4, 0, (uintptr_t) GETPC());
-    return *host_addr;
-}
-
-uint64_t __ldq_mmu_trace(uint64_t *host_addr, target_ulong vaddr) {
-    s2e_after_memory_access(vaddr, *host_addr, 8, 0, (uintptr_t) GETPC());
-    return *host_addr;
-}
-
-void __stb_mmu_trace(uint8_t *host_addr, target_ulong vaddr) {
-    s2e_after_memory_access(vaddr, *host_addr, 1, MEM_TRACE_FLAG_WRITE, (uintptr_t) GETPC());
-}
-
-void __stw_mmu_trace(uint16_t *host_addr, target_ulong vaddr) {
-    s2e_after_memory_access(vaddr, *host_addr, 2, MEM_TRACE_FLAG_WRITE, (uintptr_t) GETPC());
-}
-
-void __stl_mmu_trace(uint32_t *host_addr, target_ulong vaddr) {
-    s2e_after_memory_access(vaddr, *host_addr, 4, MEM_TRACE_FLAG_WRITE, (uintptr_t) GETPC());
-}
-
-void __stq_mmu_trace(uint64_t *host_addr, target_ulong vaddr) {
-    s2e_after_memory_access(vaddr, *host_addr, 8, MEM_TRACE_FLAG_WRITE, (uintptr_t) GETPC());
 }
 
 void s2e_on_page_fault(uint64_t addr, int is_write, void *retaddr) {
