@@ -12,17 +12,17 @@ jobs:
             sudo dpkg --add-architecture i386 && sudo apt-get update
             sudo apt-get -y install ca-certificates build-essential curl wget texinfo flex bison  \
               python-is-python3 python3-dev python3-venv python3-distro mingw-w64 lsb-release \
-              libdwarf-dev libelf-dev libelf-dev:i386 \
-              libboost-dev zlib1g-dev libjemalloc-dev nasm pkg-config                 \
-              libmemcached-dev libpq-dev libc6-dev-i386 binutils-dev                  \
-              libboost-system-dev libboost-serialization-dev libboost-regex-dev       \
-              libbsd-dev libpixman-1-dev                                              \
-              libglib2.0-dev libglib2.0-dev:i386 python3-docutils libpng-dev          \
-              gcc-multilib g++-multilib libgomp1 unzip
+              libdwarf-dev libelf-dev cmake \
+              libboost-dev zlib1g-dev libjemalloc-dev nasm pkg-config  \
+              libmemcached-dev libpq-dev binutils-dev \
+              libboost-system-dev libboost-serialization-dev libboost-regex-dev \
+              libbsd-dev libpixman-1-dev \
+              libglib2.0-dev python3-docutils libpng-dev \
+              gcc-multilib g++-multilib libgomp1 unzip software-properties-common
 
-            DEBIAN_FRONTEND=noninteractive sudo apt-get install -y software-properties-common
-            sudo add-apt-repository ppa:ubuntu-toolchain-r/test && sudo apt update
-            DEBIAN_FRONTEND=noninteractive sudo apt-get install -y gcc-9 g++-9
+            sudo apt-get install -f
+            sudo apt-get install -y libgcc-s1:i386 libstdc++6:i386
+            sudo apt-get install -y libglib2.0-dev:i386 libelf-dev:i386
 
       - name: Build libs2e.so
         run: |

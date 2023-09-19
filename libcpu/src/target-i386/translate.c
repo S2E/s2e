@@ -26,6 +26,8 @@
 // clang-format off
 #include "cpu.h"
 #include <tcg/tcg-op.h>
+#include <tcg/helper-proto.h>
+#include <tcg/helper-gen.h>
 // clang-format on
 
 #include <cpu/disas.h>
@@ -6839,7 +6841,7 @@ reswitch:
             {
                 gen_op_mov_TN_reg(OT_LONG, 0, reg);
                 tcg_gen_ext32u_tl(cpu_T[0], cpu_T[0]);
-                tcg_gen_bswap32_tl(cpu_T[0], cpu_T[0]);
+                tcg_gen_bswap32_tl(cpu_T[0], cpu_T[0], TCG_BSWAP_OZ);
                 gen_op_mov_reg_T0(OT_LONG, reg);
             }
             break;
@@ -7740,7 +7742,7 @@ static inline void gen_tb_start(TranslationBlock *tb) {
 
         tcg_ctx->exitreq_label = gen_new_label();
         exit_request = tcg_temp_new_i32();
-        tcg_gen_ld_i32(exit_request, cpu_env, offsetof(CPUState, exit_request));
+        tcg_gen_ld_i32(exit_request, cpu_env, offsetof(CPUArchState, exit_request));
 
         tcg_gen_brcondi_i32(TCG_COND_NE, exit_request, 0, tcg_ctx->exitreq_label);
 
@@ -7967,7 +7969,7 @@ static inline void gen_intermediate_code_internal(CPUX86State *env, TranslationB
     }
 
     if (libcpu_loglevel_mask(CPU_LOG_TB_OP)) {
-        tcg_dump_ops(tcg_ctx, 0);
+        tcg_dump_ops(tcg_ctx, stdout, 0);
         libcpu_log("\n");
     }
 #endif

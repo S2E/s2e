@@ -1064,3 +1064,7 @@ void do_cpu_init(CPUX86State *env1) {
 int cpu_is_bsp(CPUX86State *env) {
     return env->cpu_index == 0;
 }
+
+const void *helper_lookup_tb_ptr(CPUArchState *env) {
+    abort();
+}

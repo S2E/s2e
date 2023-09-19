@@ -124,16 +124,6 @@ struct se_libcpu_interface_t {
         int (*is_vmem_symbolic)(uint64_t vaddr, unsigned size);
 
         uintptr_t (*get_host_address)(uint64_t paddr);
-
-        uint8_t (*__ldb_mmu_trace)(uint8_t *host_addr, target_ulong vaddr);
-        uint16_t (*__ldw_mmu_trace)(uint16_t *host_addr, target_ulong vaddr);
-        uint32_t (*__ldl_mmu_trace)(uint32_t *host_addr, target_ulong vaddr);
-        uint64_t (*__ldq_mmu_trace)(uint64_t *host_addr, target_ulong vaddr);
-
-        void (*__stb_mmu_trace)(uint8_t *host_addr, target_ulong vaddr);
-        void (*__stw_mmu_trace)(uint16_t *host_addr, target_ulong vaddr);
-        void (*__stl_mmu_trace)(uint32_t *host_addr, target_ulong vaddr);
-        void (*__stq_mmu_trace)(uint64_t *host_addr, target_ulong vaddr);
     } mem;
 
     /* ExprInterface */
