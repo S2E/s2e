@@ -27,6 +27,7 @@
 #include <glib.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <errno.h>
 
 #include <tcg/utils/host-utils.h>
 #include <tcg/utils/memalign.h>
