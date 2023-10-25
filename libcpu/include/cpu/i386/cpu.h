@@ -20,7 +20,9 @@
 
 #define __LIBCPU_I386_CPU_H__
 
+#ifndef CPUArchState
 #define CPUArchState struct CPUX86State
+#endif
 
 #include <cpu/common.h>
 #include <cpu/interrupt.h>

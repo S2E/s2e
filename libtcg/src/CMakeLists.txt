@@ -19,7 +19,13 @@
 # SOFTWARE.
 
 set (TCG_SOURCES)
-list (APPEND TCG_SOURCES cutils.c tcg.c  tcg-common.c tcg-op.c optimize.c tcg-op-gvec.c tcg-runtime-gvec.c tcg-op-vec.c)
+
+list (APPEND TCG_SOURCES
+        utils/cutils.c utils/osdep.c utils/memalign.c utils/cache.c
+        region.c tcg.c  tcg-common.c tcg-op.c optimize.c tcg-op-gvec.c tcg-op-vec.c
+        tcg-rt/tcg-runtime-gvec.c tcg-rt/tcg-runtime.c
+        atomic-helpers.c
+        fpu/softfloat.c)
 
 if (WITH_SYMBEX)
     list(APPEND TCG_SOURCES tcg-llvm.cpp)
@@ -61,3 +67,11 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COMMON_FLAGS}")
 MESSAGE( STATUS "CMAKE_C_FLAGS: " ${CMAKE_C_FLAGS} )
 MESSAGE( STATUS "WITH_SYMBEX: " ${WITH_SYMBEX} )
 MESSAGE( STATUS "WITH_SYMBEX_MP: " ${WITH_SYMBEX_MP} )
+
+if (WITH_SYMBEX)
+add_custom_target(
+    softfloat_bc ALL
+    ${CMAKE_C_COMPILER} ${CMAKE_CURRENT_SOURCE_DIR}/fpu/softfloat.c -c ${CARGS_LIST} -I${LIBTCG_INCLUDE_DIR} -Wno-unused-function -O3 -DSYMBEX_LLVM_LIB -march=x86-64 -emit-llvm -o ${CMAKE_CURRENT_BINARY_DIR}/softfloat.bc ${BC_INC_DIRS} -fno-slp-vectorize -fno-tree-vectorize
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/fpu/softfloat.c
+)
+endif (WITH_SYMBEX)

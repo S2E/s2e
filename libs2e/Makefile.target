@@ -38,7 +38,7 @@ all: $(TARGETS)
 libtcg/src/libtcg.a:
 	$(MAKE) -C libtcg
 
-libcpu/src/libcpu.a:
+libcpu/src/libcpu.a: libtcg/src/libtcg.a
 	$(MAKE) -C libcpu
 
 libcpu/src/op_helper.bc: libcpu/src/libcpu.a

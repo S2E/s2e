@@ -26,7 +26,8 @@ bool Context::initialized() {
 }
 
 void Context::initialize(bool IsLittleEndian, Expr::Width PointerWidth) {
-    assert(!Initialized && "Duplicate context initialization!");
+    // TODO: get rid of context singleton.
+    // assert(!Initialized && "Duplicate context initialization!");
     TheContext = Context(IsLittleEndian, PointerWidth);
     Initialized = true;
 }

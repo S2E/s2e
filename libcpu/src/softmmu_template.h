@@ -24,21 +24,25 @@
 #define DATA_SIZE (1 << SHIFT)
 
 #if DATA_SIZE == 8
-#define SUFFIX    q
-#define USUFFIX   q
-#define DATA_TYPE uint64_t
+#define SUFFIX        q
+#define USUFFIX       q
+#define DATA_TYPE     uint64_t
+#define TCG_DATA_TYPE uint64_t
 #elif DATA_SIZE == 4
-#define SUFFIX    l
-#define USUFFIX   l
-#define DATA_TYPE uint32_t
+#define SUFFIX        l
+#define USUFFIX       l
+#define DATA_TYPE     uint32_t
+#define TCG_DATA_TYPE tcg_target_ulong
 #elif DATA_SIZE == 2
-#define SUFFIX    w
-#define USUFFIX   uw
-#define DATA_TYPE uint16_t
+#define SUFFIX        w
+#define USUFFIX       uw
+#define DATA_TYPE     uint16_t
+#define TCG_DATA_TYPE tcg_target_ulong
 #elif DATA_SIZE == 1
-#define SUFFIX    b
-#define USUFFIX   ub
-#define DATA_TYPE uint8_t
+#define SUFFIX        b
+#define USUFFIX       ub
+#define DATA_TYPE     uint8_t
+#define TCG_DATA_TYPE tcg_target_ulong
 #else
 #error unsupported data size
 #endif
@@ -51,8 +55,9 @@
 #define ADDR_READ        addr_read
 #endif
 
-#define CPU_PREFIX    cpu_
-#define HELPER_PREFIX helper_
+#define CPU_PREFIX        cpu_
+#define HELPER_PREFIX     helper_
+#define TCG_HELPER_PREFIX tcg_helper_
 
 #define ADDR_MAX ((target_ulong) -1)
 
@@ -317,6 +322,13 @@ redo:
 
     return res;
 }
+
+TCG_DATA_TYPE
+glue(glue(glue(TCG_HELPER_PREFIX, ld), SUFFIX), MMUSUFFIX)(CPUArchState *env, target_ulong addr, int mmu_idx,
+                                                           void *retaddr) {
+    return (TCG_DATA_TYPE) glue(glue(glue(HELPER_PREFIX, ld), SUFFIX), MMUSUFFIX)(env, addr, mmu_idx, retaddr);
+}
+
 #endif /* STATIC_TRANSLATOR */
 
 /* handle all unaligned cases */
@@ -640,9 +652,11 @@ redo:
 #undef READ_ACCESS_TYPE
 #undef SHIFT
 #undef DATA_TYPE
+#undef TCG_DATA_TYPE
 #undef SUFFIX
 #undef USUFFIX
 #undef DATA_SIZE
 #undef ADDR_READ
 #undef CPU_PREFIX
 #undef HELPER_PREFIX
+#undef TCG_HELPER_PREFIX

@@ -24,6 +24,10 @@
 
 #include <pthread.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct _mutex_t {
     pthread_mutex_t mutex;
 } mutex_t;
@@ -42,5 +46,9 @@ static inline void mutex_lock(mutex_t *m) {
 static inline void mutex_unlock(mutex_t *m) {
     pthread_mutex_unlock(&m->mutex);
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

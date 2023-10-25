@@ -48,4 +48,8 @@ void test_constraints1();
 
 void test_maze();
 
+void test_memory_rw_new_page();
+void test_memory_rw_same_page_unaligned();
+void test_memory_rw_same_page_unaligned_signed();
+
 #endif

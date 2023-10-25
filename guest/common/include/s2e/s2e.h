@@ -31,6 +31,7 @@
 #define S2E_CUSTOM_INSTRUCTIONS_H
 
 #include <stdarg.h>
+#include <stddef.h>
 #include <stdio.h>
 
 #ifdef __KERNEL__

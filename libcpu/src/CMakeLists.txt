@@ -3,7 +3,7 @@
 
 add_library(
     cpu cpu-exec.c cpus.c exec.c exec-bp.c exec-log.c exec-memdbg.c exec-phys.c exec-phystb.c exec-ram.c exec-tb.c exec-tlb.c ioport.c memory.c timer.c translate-all.c
-    fpu/softfloat.c precise-pc.c
+    precise-pc.c
     target-i386/cpuid.c target-i386/helper.c target-i386/op_helper.c target-i386/translate.c disas.c
 )
 
@@ -42,9 +42,8 @@ get_filename_component(LLVM_BIN_DIR ${CMAKE_C_COMPILER} DIRECTORY)
 add_custom_target(
     op_helper_bc ALL
     ${CMAKE_C_COMPILER} ${CMAKE_CURRENT_SOURCE_DIR}/target-i386/op_helper.c -c ${CARGS_LIST} -Wno-unused-function -O3 -DSYMBEX_LLVM_LIB -march=x86-64 -emit-llvm -o ${CMAKE_CURRENT_BINARY_DIR}/op_helper-org.bc ${BC_INC_DIRS} -fno-slp-vectorize -fno-tree-vectorize
-    COMMAND ${CMAKE_C_COMPILER} ${CMAKE_CURRENT_SOURCE_DIR}/fpu/softfloat.c -c ${CARGS_LIST} -Wno-unused-function -O3 -DSYMBEX_LLVM_LIB -march=x86-64 -emit-llvm -o ${CMAKE_CURRENT_BINARY_DIR}/softfloat.bc ${BC_INC_DIRS} -fno-slp-vectorize -fno-tree-vectorize
-    COMMAND ${LLVM_BIN_DIR}/llvm-link ${CMAKE_CURRENT_BINARY_DIR}/op_helper-org.bc ${CMAKE_CURRENT_BINARY_DIR}/softfloat.bc -o ${CMAKE_CURRENT_BINARY_DIR}/op_helper.bc
-    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/target-i386/op_helper.c ${CMAKE_CURRENT_SOURCE_DIR}/fpu/softfloat.c
+    COMMAND ${LLVM_BIN_DIR}/llvm-link ${CMAKE_CURRENT_BINARY_DIR}/op_helper-org.bc ${LIBTCG_DIR}/src/softfloat.bc -o ${CMAKE_CURRENT_BINARY_DIR}/op_helper.bc
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/target-i386/op_helper.c
 )
 
 endif (WITH_SYMBEX)

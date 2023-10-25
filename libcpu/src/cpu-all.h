@@ -22,7 +22,8 @@
 #include <cpu/cpu-common.h>
 #include <cpu/exec.h>
 #include <cpu/i386/cpu.h>
-#include "bswap.h"
+#include <tcg/cpu.h>
+#include <tcg/utils/bswap.h>
 #include "qemu-common.h"
 
 #ifdef CONFIG_SYMBEX
@@ -290,16 +291,6 @@ _symbex_define_st_raw_le(float32,  fl, 4)
 _symbex_define_st_raw_le(float64,  fq, 8)
 // clang-format on
 #endif
-
-/* same as PROT_xxx */
-#define PAGE_READ  0x0001
-#define PAGE_WRITE 0x0002
-#define PAGE_EXEC  0x0004
-#define PAGE_BITS  (PAGE_READ | PAGE_WRITE | PAGE_EXEC)
-#define PAGE_VALID 0x0008
-/* original state of the write flag (used when tracking self-modifying
-   code */
-#define PAGE_WRITE_ORG 0x0010
 
 #define CPU_DUMP_CODE 0x00010000
 
