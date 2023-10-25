@@ -53,7 +53,7 @@ test_memory_rw_new_page:
 
     ; 1 byte rw
     mov al, 0xdf
-    lea rcx, 0x20000
+    mov rcx, 0x20000
     mov [rcx], al
     mov dl, [rcx]
     cmp dl, al
@@ -61,7 +61,7 @@ test_memory_rw_new_page:
 
     ; 2 bytes rw
     mov ax, 0x12df
-    lea rcx, 0x21000
+    mov rcx, 0x21000
     mov [rcx], ax
     mov dx, [rcx]
     cmp dx, ax
@@ -69,7 +69,7 @@ test_memory_rw_new_page:
 
     ; 4 bytes rw
     mov eax, 0x212312df
-    lea rcx, 0x23000
+    mov rcx, 0x23000
     mov [rcx], eax
     mov edx, [rcx]
     cmp edx, eax
@@ -77,7 +77,7 @@ test_memory_rw_new_page:
 
     ; 8 bytes rw
     mov rax, 0x12df2233deadbeef
-    lea rcx, 0x24000
+    mov rcx, 0x24000
     mov [rcx], rax
     mov rdx, [rcx]
     cmp rdx, rax
@@ -100,7 +100,7 @@ test_memory_rw_same_page_unaligned:
 
     ; 2 bytes rw
     mov ax, 0x12df
-    lea rcx, 0x21001
+    mov rcx, 0x21001
     mov [rcx], ax
     mov dx, [rcx]
     cmp dx, ax
@@ -108,7 +108,7 @@ test_memory_rw_same_page_unaligned:
 
     ; 4 bytes rw
     mov eax, 0x12df2233
-    lea rcx, 0x23001
+    mov rcx, 0x23001
     mov [rcx], eax
     mov edx, [rcx]
     cmp edx, eax
@@ -116,7 +116,7 @@ test_memory_rw_same_page_unaligned:
 
     ; 8 bytes rw
     mov rax, 0x12df1234deadbeef
-    lea rcx, 0x24001
+    mov rcx, 0x24001
     mov [rcx], rax
     mov rdx, [rcx]
     cmp rdx, rax
@@ -139,7 +139,7 @@ test_memory_rw_same_page_unaligned_signed:
 
     ; 2 bytes rw
     mov ax, 0x82df
-    lea rcx, 0x21001
+    mov rcx, 0x21001
     mov [rcx], ax
     movsx edx, word [rcx]
     cmp edx, 0xffff82df
@@ -147,7 +147,7 @@ test_memory_rw_same_page_unaligned_signed:
 
     ; 4 bytes rw
     mov eax, 0x82df2233
-    lea rcx, 0x23001
+    mov rcx, 0x23001
     mov [rcx], eax
     movsx rdx, dword [rcx]
     cmp rdx, 0xffffffff82df2233

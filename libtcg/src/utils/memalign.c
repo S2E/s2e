@@ -24,6 +24,7 @@
  * THE SOFTWARE.
  */
 
+#include <errno.h>
 #include <glib.h>
 #include <stdio.h>
 #include <stdlib.h>
