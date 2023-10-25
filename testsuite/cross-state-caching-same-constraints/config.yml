@@ -1,0 +1,8 @@
+test:
+    description: "This is a smoke test that checks that guest images can load and run programs"
+    targets:
+        - windows32-cross-state-caching-same-constraints.exe
+    target-images:
+        - windows-7sp1pro-i386
+          #build-options:
+        #post-project-generation-script: fix-config.sh
