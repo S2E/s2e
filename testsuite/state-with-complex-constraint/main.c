@@ -41,7 +41,7 @@ static void test_fork_simple(void) {
 
     // Each of the two states should fork twice here,
     // resulting in a total of four states.
-    if(fnv1a_64(buffer, 0x100) == 0xdeadbeef) {
+    if(fnv1a_64(buffer, 0x2) == 0xdeadbeef) {
         s2e_printf("This is state %d here", s2e_get_path_id());
     }else{
         exit(0);

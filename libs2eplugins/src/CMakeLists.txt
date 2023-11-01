@@ -23,6 +23,8 @@ PROTOBUF_GENERATE_CPP(PROTO_SRCS PROTO_HDRS ${CMAKE_CURRENT_SOURCE_DIR}/s2e/Plug
 add_library(
     s2eplugins
 
+    s2e/Plugins/ConstraintsDumper.cpp
+
     # Core plugins
     s2e/Plugins/Core/BaseInstructions.cpp
     s2e/Plugins/Core/HostFiles.cpp
