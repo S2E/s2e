@@ -4,5 +4,5 @@ test:
         - windows32-state-with-complex-constraint.exe
     target-images:
         - windows-7sp1pro-i386
-          #build-options:
-        #post-project-generation-script: fix-config.sh
+    build-options:
+        post-project-generation-script: fix-config.sh

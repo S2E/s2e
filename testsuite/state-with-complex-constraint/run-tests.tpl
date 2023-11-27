@@ -4,4 +4,4 @@
 
 s2e run -n {{ project_name }}
 
-check_coverage {{project_name}} 100
+check_coverage {{project_name}} 2

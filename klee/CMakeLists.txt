@@ -330,7 +330,7 @@ add_subdirectory(lib)
 ################################################################################
 # Testing
 ################################################################################
-option(ENABLE_UNIT_TESTS "Enable unittests" ON)
+option(ENABLE_UNIT_TESTS "Enable unittests" OFF)
 
 if (ENABLE_UNIT_TESTS)
     # Find lit

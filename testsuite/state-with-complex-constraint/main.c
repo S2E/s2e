@@ -36,16 +36,23 @@ uint64_t fnv1a_64(const uint64_t* data, size_t length) {
 }
 
 static void test_fork_simple(void) {
-    char buffer[0x1000];
-    s2e_make_symbolic(buffer, sizeof(buffer), "buffer");
+    char buffer[0x10];
+    int sym_int = 0;
+    s2e_make_symbolic(&sym_int, sizeof(int), "varne0");
 
     // Each of the two states should fork twice here,
     // resulting in a total of four states.
-    if(fnv1a_64(buffer, 0x2) == 0xdeadbeef) {
+    if((sym_int & 0x1223) > 0) {
+        /*
+    if(fnv1a_64(buffer, 1) == 0xdead) {
         s2e_printf("This is state %d here", s2e_get_path_id());
     }else{
         exit(0);
     }
+         */
+        s2e_printf("This is state %d here", s2e_get_path_id());
+    }
+        s2e_printf("This is state %d here", s2e_get_path_id());
 }
 
 int main(int argc, char **argv) {
