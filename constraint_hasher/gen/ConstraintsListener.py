@@ -17,6 +17,42 @@ class ConstraintsListener(ParseTreeListener):
         pass
 
 
+    # Enter a parse tree produced by ConstraintsParser#statement.
+    def enterStatement(self, ctx:ConstraintsParser.StatementContext):
+        pass
+
+    # Exit a parse tree produced by ConstraintsParser#statement.
+    def exitStatement(self, ctx:ConstraintsParser.StatementContext):
+        pass
+
+
+    # Enter a parse tree produced by ConstraintsParser#query.
+    def enterQuery(self, ctx:ConstraintsParser.QueryContext):
+        pass
+
+    # Exit a parse tree produced by ConstraintsParser#query.
+    def exitQuery(self, ctx:ConstraintsParser.QueryContext):
+        pass
+
+
+    # Enter a parse tree produced by ConstraintsParser#false_array.
+    def enterFalse_array(self, ctx:ConstraintsParser.False_arrayContext):
+        pass
+
+    # Exit a parse tree produced by ConstraintsParser#false_array.
+    def exitFalse_array(self, ctx:ConstraintsParser.False_arrayContext):
+        pass
+
+
+    # Enter a parse tree produced by ConstraintsParser#var_array.
+    def enterVar_array(self, ctx:ConstraintsParser.Var_arrayContext):
+        pass
+
+    # Exit a parse tree produced by ConstraintsParser#var_array.
+    def exitVar_array(self, ctx:ConstraintsParser.Var_arrayContext):
+        pass
+
+
     # Enter a parse tree produced by ConstraintsParser#expression.
     def enterExpression(self, ctx:ConstraintsParser.ExpressionContext):
         pass

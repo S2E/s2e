@@ -1,7 +1,12 @@
 grammar Constraints;
 
 // Parser rules
-constraints: expression+ arrayDeclaration*;
+constraints: statement+;
+statement: 'State' 'ID:' INTEGER_VALUE arrayDeclaration* query;
+query: '(' 'query' '[' expression+ ']' false_array var_array ')';
+
+false_array: 'false' '[' ']';
+var_array: '[' normal_variable* ']';
 
 expression: operator dataType? expression+
             | parentExpression

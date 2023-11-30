@@ -87,10 +87,12 @@ void ConstraintsDumper::onFork(S2EExecutionState *state, const std::vector<S2EEx
 
     for(const auto new_state: newStates) {
         *output_stream_ << "State ID: " << new_state->getID() << "\n";
+        /*
         for(auto it = new_state->constraints().begin(); it != new_state->constraints().end(); ++it) {
             (*it)->print(*output_stream_);
             *output_stream_ << "\n";
         }
+        */
         new_state->dumpQuery(*output_stream_);
     }
 }

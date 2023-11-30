@@ -24,7 +24,7 @@ def _parse_stream(input_stream) -> Optional[ConstraintsParser.ConstraintsContext
   stream = CommonTokenStream(lexer)
   parser = ConstraintsParser(stream)
   tree = parser.constraints()
-  print(tree.toStringTree(recog=parser))
+  #print(tree.toStringTree(recog=parser))
   return None if parser.getNumberOfSyntaxErrors() > 0 else tree
 
 def hash_expr(obj: ConstraintsParser.ExpressionContext) -> int:
@@ -51,6 +51,7 @@ if __name__ == "__main__":
         content = f.read()
 
     tree =parse_string(content)
-    for i in tree.expression():
-        print(f"Hash of {i.getText()} is {hash_expr(i)}")
+    for statement in tree.statement():
+        for expression in statement.query().expression():
+            print(f"Hash of {expression.getText()} is {hash_expr(expression)}")
 

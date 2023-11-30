@@ -10,51 +10,64 @@ else:
 
 def serializedATN():
     return [
-        4,1,29,143,2,0,7,0,2,1,7,1,2,2,7,2,2,3,7,3,2,4,7,4,2,5,7,5,2,6,7,
+        4,1,32,182,2,0,7,0,2,1,7,1,2,2,7,2,2,3,7,3,2,4,7,4,2,5,7,5,2,6,7,
         6,2,7,7,7,2,8,7,8,2,9,7,9,2,10,7,10,2,11,7,11,2,12,7,12,2,13,7,13,
-        2,14,7,14,2,15,7,15,2,16,7,16,2,17,7,17,2,18,7,18,1,0,4,0,40,8,0,
-        11,0,12,0,41,1,0,5,0,45,8,0,10,0,12,0,48,9,0,1,1,1,1,3,1,52,8,1,
-        1,1,4,1,55,8,1,11,1,12,1,56,1,1,1,1,1,1,3,1,62,8,1,1,2,1,2,1,2,3,
-        2,67,8,2,1,3,1,3,1,4,1,4,1,4,1,4,1,5,1,5,1,5,1,5,1,6,1,6,1,6,1,7,
-        1,7,1,7,1,7,5,7,86,8,7,10,7,12,7,89,9,7,1,7,1,7,1,7,1,8,1,8,1,8,
-        1,8,1,9,1,9,4,9,100,8,9,11,9,12,9,101,1,9,1,9,1,10,1,10,1,10,1,10,
-        1,10,1,10,1,10,1,10,1,10,1,10,1,10,1,10,3,10,118,8,10,1,11,1,11,
-        1,11,3,11,123,8,11,1,12,1,12,1,13,1,13,1,14,1,14,3,14,131,8,14,1,
-        15,1,15,1,15,1,15,1,16,1,16,1,17,1,17,1,18,1,18,1,18,0,0,19,0,2,
-        4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,0,3,1,0,1,9,1,0,
-        26,27,1,0,24,25,138,0,39,1,0,0,0,2,61,1,0,0,0,4,66,1,0,0,0,6,68,
-        1,0,0,0,8,70,1,0,0,0,10,74,1,0,0,0,12,78,1,0,0,0,14,81,1,0,0,0,16,
-        93,1,0,0,0,18,97,1,0,0,0,20,105,1,0,0,0,22,122,1,0,0,0,24,124,1,
-        0,0,0,26,126,1,0,0,0,28,130,1,0,0,0,30,132,1,0,0,0,32,136,1,0,0,
-        0,34,138,1,0,0,0,36,140,1,0,0,0,38,40,3,2,1,0,39,38,1,0,0,0,40,41,
-        1,0,0,0,41,39,1,0,0,0,41,42,1,0,0,0,42,46,1,0,0,0,43,45,3,20,10,
-        0,44,43,1,0,0,0,45,48,1,0,0,0,46,44,1,0,0,0,46,47,1,0,0,0,47,1,1,
-        0,0,0,48,46,1,0,0,0,49,51,3,6,3,0,50,52,3,34,17,0,51,50,1,0,0,0,
-        51,52,1,0,0,0,52,54,1,0,0,0,53,55,3,2,1,0,54,53,1,0,0,0,55,56,1,
-        0,0,0,56,54,1,0,0,0,56,57,1,0,0,0,57,62,1,0,0,0,58,62,3,10,5,0,59,
-        62,3,8,4,0,60,62,3,4,2,0,61,49,1,0,0,0,61,58,1,0,0,0,61,59,1,0,0,
-        0,61,60,1,0,0,0,62,3,1,0,0,0,63,67,3,28,14,0,64,67,3,12,6,0,65,67,
-        3,22,11,0,66,63,1,0,0,0,66,64,1,0,0,0,66,65,1,0,0,0,67,5,1,0,0,0,
-        68,69,7,0,0,0,69,7,1,0,0,0,70,71,3,12,6,0,71,72,5,10,0,0,72,73,3,
-        10,5,0,73,9,1,0,0,0,74,75,5,11,0,0,75,76,3,2,1,0,76,77,5,12,0,0,
-        77,11,1,0,0,0,78,79,5,13,0,0,79,80,5,27,0,0,80,13,1,0,0,0,81,87,
-        5,14,0,0,82,83,3,16,8,0,83,84,5,15,0,0,84,86,1,0,0,0,85,82,1,0,0,
-        0,86,89,1,0,0,0,87,85,1,0,0,0,87,88,1,0,0,0,88,90,1,0,0,0,89,87,
-        1,0,0,0,90,91,3,16,8,0,91,92,5,16,0,0,92,15,1,0,0,0,93,94,5,26,0,
-        0,94,95,5,17,0,0,95,96,5,26,0,0,96,17,1,0,0,0,97,99,5,14,0,0,98,
-        100,5,26,0,0,99,98,1,0,0,0,100,101,1,0,0,0,101,99,1,0,0,0,101,102,
-        1,0,0,0,102,103,1,0,0,0,103,104,5,16,0,0,104,19,1,0,0,0,105,106,
-        5,18,0,0,106,107,3,32,16,0,107,108,5,14,0,0,108,109,3,24,12,0,109,
-        110,5,16,0,0,110,111,5,10,0,0,111,112,3,34,17,0,112,113,5,19,0,0,
-        113,114,3,34,17,0,114,117,5,17,0,0,115,118,5,20,0,0,116,118,3,18,
-        9,0,117,115,1,0,0,0,117,116,1,0,0,0,118,21,1,0,0,0,119,123,3,26,
-        13,0,120,123,5,21,0,0,121,123,5,22,0,0,122,119,1,0,0,0,122,120,1,
-        0,0,0,122,121,1,0,0,0,123,23,1,0,0,0,124,125,5,27,0,0,125,25,1,0,
-        0,0,126,127,7,1,0,0,127,27,1,0,0,0,128,131,3,32,16,0,129,131,3,30,
-        15,0,130,128,1,0,0,0,130,129,1,0,0,0,131,29,1,0,0,0,132,133,3,14,
-        7,0,133,134,3,36,18,0,134,135,3,32,16,0,135,31,1,0,0,0,136,137,5,
-        28,0,0,137,33,1,0,0,0,138,139,7,2,0,0,139,35,1,0,0,0,140,141,5,23,
-        0,0,141,37,1,0,0,0,11,41,46,51,56,61,66,87,101,117,122,130
+        2,14,7,14,2,15,7,15,2,16,7,16,2,17,7,17,2,18,7,18,2,19,7,19,2,20,
+        7,20,2,21,7,21,2,22,7,22,1,0,4,0,48,8,0,11,0,12,0,49,1,1,1,1,1,1,
+        1,1,5,1,56,8,1,10,1,12,1,59,9,1,1,1,1,1,1,2,1,2,1,2,1,2,4,2,67,8,
+        2,11,2,12,2,68,1,2,1,2,1,2,1,2,1,2,1,3,1,3,1,3,1,3,1,4,1,4,5,4,82,
+        8,4,10,4,12,4,85,9,4,1,4,1,4,1,5,1,5,3,5,91,8,5,1,5,4,5,94,8,5,11,
+        5,12,5,95,1,5,1,5,1,5,3,5,101,8,5,1,6,1,6,1,6,3,6,106,8,6,1,7,1,
+        7,1,8,1,8,1,8,1,8,1,9,1,9,1,9,1,9,1,10,1,10,1,10,1,11,1,11,1,11,
+        1,11,5,11,125,8,11,10,11,12,11,128,9,11,1,11,1,11,1,11,1,12,1,12,
+        1,12,1,12,1,13,1,13,4,13,139,8,13,11,13,12,13,140,1,13,1,13,1,14,
+        1,14,1,14,1,14,1,14,1,14,1,14,1,14,1,14,1,14,1,14,1,14,3,14,157,
+        8,14,1,15,1,15,1,15,3,15,162,8,15,1,16,1,16,1,17,1,17,1,18,1,18,
+        3,18,170,8,18,1,19,1,19,1,19,1,19,1,20,1,20,1,21,1,21,1,22,1,22,
+        1,22,0,0,23,0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,
+        38,40,42,44,0,3,1,0,9,17,1,0,29,30,1,0,27,28,175,0,47,1,0,0,0,2,
+        51,1,0,0,0,4,62,1,0,0,0,6,75,1,0,0,0,8,79,1,0,0,0,10,100,1,0,0,0,
+        12,105,1,0,0,0,14,107,1,0,0,0,16,109,1,0,0,0,18,113,1,0,0,0,20,117,
+        1,0,0,0,22,120,1,0,0,0,24,132,1,0,0,0,26,136,1,0,0,0,28,144,1,0,
+        0,0,30,161,1,0,0,0,32,163,1,0,0,0,34,165,1,0,0,0,36,169,1,0,0,0,
+        38,171,1,0,0,0,40,175,1,0,0,0,42,177,1,0,0,0,44,179,1,0,0,0,46,48,
+        3,2,1,0,47,46,1,0,0,0,48,49,1,0,0,0,49,47,1,0,0,0,49,50,1,0,0,0,
+        50,1,1,0,0,0,51,52,5,1,0,0,52,53,5,2,0,0,53,57,5,30,0,0,54,56,3,
+        28,14,0,55,54,1,0,0,0,56,59,1,0,0,0,57,55,1,0,0,0,57,58,1,0,0,0,
+        58,60,1,0,0,0,59,57,1,0,0,0,60,61,3,4,2,0,61,3,1,0,0,0,62,63,5,3,
+        0,0,63,64,5,4,0,0,64,66,5,5,0,0,65,67,3,10,5,0,66,65,1,0,0,0,67,
+        68,1,0,0,0,68,66,1,0,0,0,68,69,1,0,0,0,69,70,1,0,0,0,70,71,5,6,0,
+        0,71,72,3,6,3,0,72,73,3,8,4,0,73,74,5,7,0,0,74,5,1,0,0,0,75,76,5,
+        8,0,0,76,77,5,5,0,0,77,78,5,6,0,0,78,7,1,0,0,0,79,83,5,5,0,0,80,
+        82,3,40,20,0,81,80,1,0,0,0,82,85,1,0,0,0,83,81,1,0,0,0,83,84,1,0,
+        0,0,84,86,1,0,0,0,85,83,1,0,0,0,86,87,5,6,0,0,87,9,1,0,0,0,88,90,
+        3,14,7,0,89,91,3,42,21,0,90,89,1,0,0,0,90,91,1,0,0,0,91,93,1,0,0,
+        0,92,94,3,10,5,0,93,92,1,0,0,0,94,95,1,0,0,0,95,93,1,0,0,0,95,96,
+        1,0,0,0,96,101,1,0,0,0,97,101,3,18,9,0,98,101,3,16,8,0,99,101,3,
+        12,6,0,100,88,1,0,0,0,100,97,1,0,0,0,100,98,1,0,0,0,100,99,1,0,0,
+        0,101,11,1,0,0,0,102,106,3,36,18,0,103,106,3,20,10,0,104,106,3,30,
+        15,0,105,102,1,0,0,0,105,103,1,0,0,0,105,104,1,0,0,0,106,13,1,0,
+        0,0,107,108,7,0,0,0,108,15,1,0,0,0,109,110,3,20,10,0,110,111,5,18,
+        0,0,111,112,3,18,9,0,112,17,1,0,0,0,113,114,5,3,0,0,114,115,3,10,
+        5,0,115,116,5,7,0,0,116,19,1,0,0,0,117,118,5,19,0,0,118,119,5,30,
+        0,0,119,21,1,0,0,0,120,126,5,5,0,0,121,122,3,24,12,0,122,123,5,20,
+        0,0,123,125,1,0,0,0,124,121,1,0,0,0,125,128,1,0,0,0,126,124,1,0,
+        0,0,126,127,1,0,0,0,127,129,1,0,0,0,128,126,1,0,0,0,129,130,3,24,
+        12,0,130,131,5,6,0,0,131,23,1,0,0,0,132,133,5,29,0,0,133,134,5,21,
+        0,0,134,135,5,29,0,0,135,25,1,0,0,0,136,138,5,5,0,0,137,139,5,29,
+        0,0,138,137,1,0,0,0,139,140,1,0,0,0,140,138,1,0,0,0,140,141,1,0,
+        0,0,141,142,1,0,0,0,142,143,5,6,0,0,143,27,1,0,0,0,144,145,5,22,
+        0,0,145,146,3,40,20,0,146,147,5,5,0,0,147,148,3,32,16,0,148,149,
+        5,6,0,0,149,150,5,18,0,0,150,151,3,42,21,0,151,152,5,23,0,0,152,
+        153,3,42,21,0,153,156,5,21,0,0,154,157,5,24,0,0,155,157,3,26,13,
+        0,156,154,1,0,0,0,156,155,1,0,0,0,157,29,1,0,0,0,158,162,3,34,17,
+        0,159,162,5,8,0,0,160,162,5,25,0,0,161,158,1,0,0,0,161,159,1,0,0,
+        0,161,160,1,0,0,0,162,31,1,0,0,0,163,164,5,30,0,0,164,33,1,0,0,0,
+        165,166,7,1,0,0,166,35,1,0,0,0,167,170,3,40,20,0,168,170,3,38,19,
+        0,169,167,1,0,0,0,169,168,1,0,0,0,170,37,1,0,0,0,171,172,3,22,11,
+        0,172,173,3,44,22,0,173,174,3,40,20,0,174,39,1,0,0,0,175,176,5,31,
+        0,0,176,41,1,0,0,0,177,178,7,2,0,0,178,43,1,0,0,0,179,180,5,26,0,
+        0,180,45,1,0,0,0,13,49,57,68,83,90,95,100,105,126,140,156,161,169
     ]
 
 class ConstraintsParser ( Parser ):
@@ -67,11 +80,11 @@ class ConstraintsParser ( Parser ):
 
     sharedContextCache = PredictionContextCache()
 
-    literalNames = [ "<INVALID>", "'ReadLSB'", "'Read'", "'Eq'", "'Sle'", 
-                     "'And'", "'Or'", "'LShr'", "'ZExt'", "'Select'", "':'", 
-                     "'('", "')'", "'N'", "'['", "','", "']'", "'='", "'array'", 
-                     "'->'", "'symbolic'", "'false'", "'true'", "'@'", "'w32'", 
-                     "'w8'" ]
+    literalNames = [ "<INVALID>", "'State'", "'ID:'", "'('", "'query'", 
+                     "'['", "']'", "')'", "'false'", "'ReadLSB'", "'Read'", 
+                     "'Eq'", "'Sle'", "'And'", "'Or'", "'LShr'", "'ZExt'", 
+                     "'Select'", "':'", "'N'", "','", "'='", "'array'", 
+                     "'->'", "'symbolic'", "'true'", "'@'", "'w32'", "'w8'" ]
 
     symbolicNames = [ "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>", 
                       "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>", 
@@ -79,30 +92,35 @@ class ConstraintsParser ( Parser ):
                       "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>", 
                       "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>", 
                       "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>", 
-                      "W32", "W8", "HEX_VALUE", "INTEGER_VALUE", "VARIABLE", 
-                      "WS" ]
+                      "<INVALID>", "<INVALID>", "<INVALID>", "W32", "W8", 
+                      "HEX_VALUE", "INTEGER_VALUE", "VARIABLE", "WS" ]
 
     RULE_constraints = 0
-    RULE_expression = 1
-    RULE_element = 2
-    RULE_operator = 3
-    RULE_aliasExpression = 4
-    RULE_parentExpression = 5
-    RULE_alias = 6
-    RULE_indexBuffer = 7
-    RULE_indexPair = 8
-    RULE_buffer = 9
-    RULE_arrayDeclaration = 10
-    RULE_literal = 11
-    RULE_length = 12
-    RULE_integerValue = 13
-    RULE_variable = 14
-    RULE_array_variable = 15
-    RULE_normal_variable = 16
-    RULE_dataType = 17
-    RULE_atOp = 18
+    RULE_statement = 1
+    RULE_query = 2
+    RULE_false_array = 3
+    RULE_var_array = 4
+    RULE_expression = 5
+    RULE_element = 6
+    RULE_operator = 7
+    RULE_aliasExpression = 8
+    RULE_parentExpression = 9
+    RULE_alias = 10
+    RULE_indexBuffer = 11
+    RULE_indexPair = 12
+    RULE_buffer = 13
+    RULE_arrayDeclaration = 14
+    RULE_literal = 15
+    RULE_length = 16
+    RULE_integerValue = 17
+    RULE_variable = 18
+    RULE_array_variable = 19
+    RULE_normal_variable = 20
+    RULE_dataType = 21
+    RULE_atOp = 22
 
-    ruleNames =  [ "constraints", "expression", "element", "operator", "aliasExpression", 
+    ruleNames =  [ "constraints", "statement", "query", "false_array", "var_array", 
+                   "expression", "element", "operator", "aliasExpression", 
                    "parentExpression", "alias", "indexBuffer", "indexPair", 
                    "buffer", "arrayDeclaration", "literal", "length", "integerValue", 
                    "variable", "array_variable", "normal_variable", "dataType", 
@@ -132,12 +150,15 @@ class ConstraintsParser ( Parser ):
     T__20=21
     T__21=22
     T__22=23
-    W32=24
-    W8=25
-    HEX_VALUE=26
-    INTEGER_VALUE=27
-    VARIABLE=28
-    WS=29
+    T__23=24
+    T__24=25
+    T__25=26
+    W32=27
+    W8=28
+    HEX_VALUE=29
+    INTEGER_VALUE=30
+    VARIABLE=31
+    WS=32
 
     def __init__(self, input:TokenStream, output:TextIO = sys.stdout):
         super().__init__(input, output)
@@ -155,18 +176,11 @@ class ConstraintsParser ( Parser ):
             super().__init__(parent, invokingState)
             self.parser = parser
 
-        def expression(self, i:int=None):
+        def statement(self, i:int=None):
             if i is None:
-                return self.getTypedRuleContexts(ConstraintsParser.ExpressionContext)
+                return self.getTypedRuleContexts(ConstraintsParser.StatementContext)
             else:
-                return self.getTypedRuleContext(ConstraintsParser.ExpressionContext,i)
-
-
-        def arrayDeclaration(self, i:int=None):
-            if i is None:
-                return self.getTypedRuleContexts(ConstraintsParser.ArrayDeclarationContext)
-            else:
-                return self.getTypedRuleContext(ConstraintsParser.ArrayDeclarationContext,i)
+                return self.getTypedRuleContext(ConstraintsParser.StatementContext,i)
 
 
         def getRuleIndex(self):
@@ -190,28 +204,266 @@ class ConstraintsParser ( Parser ):
         self._la = 0 # Token type
         try:
             self.enterOuterAlt(localctx, 1)
-            self.state = 39 
+            self.state = 47 
             self._errHandler.sync(self)
             _la = self._input.LA(1)
             while True:
-                self.state = 38
-                self.expression()
-                self.state = 41 
+                self.state = 46
+                self.statement()
+                self.state = 49 
                 self._errHandler.sync(self)
                 _la = self._input.LA(1)
-                if not ((((_la) & ~0x3f) == 0 and ((1 << _la) & 476081150) != 0)):
+                if not (_la==1):
                     break
 
-            self.state = 46
+        except RecognitionException as re:
+            localctx.exception = re
+            self._errHandler.reportError(self, re)
+            self._errHandler.recover(self, re)
+        finally:
+            self.exitRule()
+        return localctx
+
+
+    class StatementContext(ParserRuleContext):
+        __slots__ = 'parser'
+
+        def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
+            super().__init__(parent, invokingState)
+            self.parser = parser
+
+        def INTEGER_VALUE(self):
+            return self.getToken(ConstraintsParser.INTEGER_VALUE, 0)
+
+        def query(self):
+            return self.getTypedRuleContext(ConstraintsParser.QueryContext,0)
+
+
+        def arrayDeclaration(self, i:int=None):
+            if i is None:
+                return self.getTypedRuleContexts(ConstraintsParser.ArrayDeclarationContext)
+            else:
+                return self.getTypedRuleContext(ConstraintsParser.ArrayDeclarationContext,i)
+
+
+        def getRuleIndex(self):
+            return ConstraintsParser.RULE_statement
+
+        def enterRule(self, listener:ParseTreeListener):
+            if hasattr( listener, "enterStatement" ):
+                listener.enterStatement(self)
+
+        def exitRule(self, listener:ParseTreeListener):
+            if hasattr( listener, "exitStatement" ):
+                listener.exitStatement(self)
+
+
+
+
+    def statement(self):
+
+        localctx = ConstraintsParser.StatementContext(self, self._ctx, self.state)
+        self.enterRule(localctx, 2, self.RULE_statement)
+        self._la = 0 # Token type
+        try:
+            self.enterOuterAlt(localctx, 1)
+            self.state = 51
+            self.match(ConstraintsParser.T__0)
+            self.state = 52
+            self.match(ConstraintsParser.T__1)
+            self.state = 53
+            self.match(ConstraintsParser.INTEGER_VALUE)
+            self.state = 57
             self._errHandler.sync(self)
             _la = self._input.LA(1)
-            while _la==18:
-                self.state = 43
+            while _la==22:
+                self.state = 54
                 self.arrayDeclaration()
-                self.state = 48
+                self.state = 59
                 self._errHandler.sync(self)
                 _la = self._input.LA(1)
 
+            self.state = 60
+            self.query()
+        except RecognitionException as re:
+            localctx.exception = re
+            self._errHandler.reportError(self, re)
+            self._errHandler.recover(self, re)
+        finally:
+            self.exitRule()
+        return localctx
+
+
+    class QueryContext(ParserRuleContext):
+        __slots__ = 'parser'
+
+        def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
+            super().__init__(parent, invokingState)
+            self.parser = parser
+
+        def false_array(self):
+            return self.getTypedRuleContext(ConstraintsParser.False_arrayContext,0)
+
+
+        def var_array(self):
+            return self.getTypedRuleContext(ConstraintsParser.Var_arrayContext,0)
+
+
+        def expression(self, i:int=None):
+            if i is None:
+                return self.getTypedRuleContexts(ConstraintsParser.ExpressionContext)
+            else:
+                return self.getTypedRuleContext(ConstraintsParser.ExpressionContext,i)
+
+
+        def getRuleIndex(self):
+            return ConstraintsParser.RULE_query
+
+        def enterRule(self, listener:ParseTreeListener):
+            if hasattr( listener, "enterQuery" ):
+                listener.enterQuery(self)
+
+        def exitRule(self, listener:ParseTreeListener):
+            if hasattr( listener, "exitQuery" ):
+                listener.exitQuery(self)
+
+
+
+
+    def query(self):
+
+        localctx = ConstraintsParser.QueryContext(self, self._ctx, self.state)
+        self.enterRule(localctx, 4, self.RULE_query)
+        self._la = 0 # Token type
+        try:
+            self.enterOuterAlt(localctx, 1)
+            self.state = 62
+            self.match(ConstraintsParser.T__2)
+            self.state = 63
+            self.match(ConstraintsParser.T__3)
+            self.state = 64
+            self.match(ConstraintsParser.T__4)
+            self.state = 66 
+            self._errHandler.sync(self)
+            _la = self._input.LA(1)
+            while True:
+                self.state = 65
+                self.expression()
+                self.state = 68 
+                self._errHandler.sync(self)
+                _la = self._input.LA(1)
+                if not ((((_la) & ~0x3f) == 0 and ((1 << _la) & 3792437032) != 0)):
+                    break
+
+            self.state = 70
+            self.match(ConstraintsParser.T__5)
+            self.state = 71
+            self.false_array()
+            self.state = 72
+            self.var_array()
+            self.state = 73
+            self.match(ConstraintsParser.T__6)
+        except RecognitionException as re:
+            localctx.exception = re
+            self._errHandler.reportError(self, re)
+            self._errHandler.recover(self, re)
+        finally:
+            self.exitRule()
+        return localctx
+
+
+    class False_arrayContext(ParserRuleContext):
+        __slots__ = 'parser'
+
+        def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
+            super().__init__(parent, invokingState)
+            self.parser = parser
+
+
+        def getRuleIndex(self):
+            return ConstraintsParser.RULE_false_array
+
+        def enterRule(self, listener:ParseTreeListener):
+            if hasattr( listener, "enterFalse_array" ):
+                listener.enterFalse_array(self)
+
+        def exitRule(self, listener:ParseTreeListener):
+            if hasattr( listener, "exitFalse_array" ):
+                listener.exitFalse_array(self)
+
+
+
+
+    def false_array(self):
+
+        localctx = ConstraintsParser.False_arrayContext(self, self._ctx, self.state)
+        self.enterRule(localctx, 6, self.RULE_false_array)
+        try:
+            self.enterOuterAlt(localctx, 1)
+            self.state = 75
+            self.match(ConstraintsParser.T__7)
+            self.state = 76
+            self.match(ConstraintsParser.T__4)
+            self.state = 77
+            self.match(ConstraintsParser.T__5)
+        except RecognitionException as re:
+            localctx.exception = re
+            self._errHandler.reportError(self, re)
+            self._errHandler.recover(self, re)
+        finally:
+            self.exitRule()
+        return localctx
+
+
+    class Var_arrayContext(ParserRuleContext):
+        __slots__ = 'parser'
+
+        def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
+            super().__init__(parent, invokingState)
+            self.parser = parser
+
+        def normal_variable(self, i:int=None):
+            if i is None:
+                return self.getTypedRuleContexts(ConstraintsParser.Normal_variableContext)
+            else:
+                return self.getTypedRuleContext(ConstraintsParser.Normal_variableContext,i)
+
+
+        def getRuleIndex(self):
+            return ConstraintsParser.RULE_var_array
+
+        def enterRule(self, listener:ParseTreeListener):
+            if hasattr( listener, "enterVar_array" ):
+                listener.enterVar_array(self)
+
+        def exitRule(self, listener:ParseTreeListener):
+            if hasattr( listener, "exitVar_array" ):
+                listener.exitVar_array(self)
+
+
+
+
+    def var_array(self):
+
+        localctx = ConstraintsParser.Var_arrayContext(self, self._ctx, self.state)
+        self.enterRule(localctx, 8, self.RULE_var_array)
+        self._la = 0 # Token type
+        try:
+            self.enterOuterAlt(localctx, 1)
+            self.state = 79
+            self.match(ConstraintsParser.T__4)
+            self.state = 83
+            self._errHandler.sync(self)
+            _la = self._input.LA(1)
+            while _la==31:
+                self.state = 80
+                self.normal_variable()
+                self.state = 85
+                self._errHandler.sync(self)
+                _la = self._input.LA(1)
+
+            self.state = 86
+            self.match(ConstraintsParser.T__5)
         except RecognitionException as re:
             localctx.exception = re
             self._errHandler.reportError(self, re)
@@ -272,55 +524,55 @@ class ConstraintsParser ( Parser ):
     def expression(self):
 
         localctx = ConstraintsParser.ExpressionContext(self, self._ctx, self.state)
-        self.enterRule(localctx, 2, self.RULE_expression)
+        self.enterRule(localctx, 10, self.RULE_expression)
         self._la = 0 # Token type
         try:
-            self.state = 61
+            self.state = 100
             self._errHandler.sync(self)
-            la_ = self._interp.adaptivePredict(self._input,4,self._ctx)
+            la_ = self._interp.adaptivePredict(self._input,6,self._ctx)
             if la_ == 1:
                 self.enterOuterAlt(localctx, 1)
-                self.state = 49
+                self.state = 88
                 self.operator()
-                self.state = 51
+                self.state = 90
                 self._errHandler.sync(self)
                 _la = self._input.LA(1)
-                if _la==24 or _la==25:
-                    self.state = 50
+                if _la==27 or _la==28:
+                    self.state = 89
                     self.dataType()
 
 
-                self.state = 54 
+                self.state = 93 
                 self._errHandler.sync(self)
                 _alt = 1
                 while _alt!=2 and _alt!=ATN.INVALID_ALT_NUMBER:
                     if _alt == 1:
-                        self.state = 53
+                        self.state = 92
                         self.expression()
 
                     else:
                         raise NoViableAltException(self)
-                    self.state = 56 
+                    self.state = 95 
                     self._errHandler.sync(self)
-                    _alt = self._interp.adaptivePredict(self._input,3,self._ctx)
+                    _alt = self._interp.adaptivePredict(self._input,5,self._ctx)
 
                 pass
 
             elif la_ == 2:
                 self.enterOuterAlt(localctx, 2)
-                self.state = 58
+                self.state = 97
                 self.parentExpression()
                 pass
 
             elif la_ == 3:
                 self.enterOuterAlt(localctx, 3)
-                self.state = 59
+                self.state = 98
                 self.aliasExpression()
                 pass
 
             elif la_ == 4:
                 self.enterOuterAlt(localctx, 4)
-                self.state = 60
+                self.state = 99
                 self.element()
                 pass
 
@@ -370,24 +622,24 @@ class ConstraintsParser ( Parser ):
     def element(self):
 
         localctx = ConstraintsParser.ElementContext(self, self._ctx, self.state)
-        self.enterRule(localctx, 4, self.RULE_element)
+        self.enterRule(localctx, 12, self.RULE_element)
         try:
-            self.state = 66
+            self.state = 105
             self._errHandler.sync(self)
             token = self._input.LA(1)
-            if token in [14, 28]:
+            if token in [5, 31]:
                 self.enterOuterAlt(localctx, 1)
-                self.state = 63
+                self.state = 102
                 self.variable()
                 pass
-            elif token in [13]:
+            elif token in [19]:
                 self.enterOuterAlt(localctx, 2)
-                self.state = 64
+                self.state = 103
                 self.alias()
                 pass
-            elif token in [21, 22, 26, 27]:
+            elif token in [8, 25, 29, 30]:
                 self.enterOuterAlt(localctx, 3)
-                self.state = 65
+                self.state = 104
                 self.literal()
                 pass
             else:
@@ -427,13 +679,13 @@ class ConstraintsParser ( Parser ):
     def operator(self):
 
         localctx = ConstraintsParser.OperatorContext(self, self._ctx, self.state)
-        self.enterRule(localctx, 6, self.RULE_operator)
+        self.enterRule(localctx, 14, self.RULE_operator)
         self._la = 0 # Token type
         try:
             self.enterOuterAlt(localctx, 1)
-            self.state = 68
+            self.state = 107
             _la = self._input.LA(1)
-            if not((((_la) & ~0x3f) == 0 and ((1 << _la) & 1022) != 0)):
+            if not((((_la) & ~0x3f) == 0 and ((1 << _la) & 261632) != 0)):
                 self._errHandler.recoverInline(self)
             else:
                 self._errHandler.reportMatch(self)
@@ -479,14 +731,14 @@ class ConstraintsParser ( Parser ):
     def aliasExpression(self):
 
         localctx = ConstraintsParser.AliasExpressionContext(self, self._ctx, self.state)
-        self.enterRule(localctx, 8, self.RULE_aliasExpression)
+        self.enterRule(localctx, 16, self.RULE_aliasExpression)
         try:
             self.enterOuterAlt(localctx, 1)
-            self.state = 70
+            self.state = 109
             self.alias()
-            self.state = 71
-            self.match(ConstraintsParser.T__9)
-            self.state = 72
+            self.state = 110
+            self.match(ConstraintsParser.T__17)
+            self.state = 111
             self.parentExpression()
         except RecognitionException as re:
             localctx.exception = re
@@ -525,15 +777,15 @@ class ConstraintsParser ( Parser ):
     def parentExpression(self):
 
         localctx = ConstraintsParser.ParentExpressionContext(self, self._ctx, self.state)
-        self.enterRule(localctx, 10, self.RULE_parentExpression)
+        self.enterRule(localctx, 18, self.RULE_parentExpression)
         try:
             self.enterOuterAlt(localctx, 1)
-            self.state = 74
-            self.match(ConstraintsParser.T__10)
-            self.state = 75
+            self.state = 113
+            self.match(ConstraintsParser.T__2)
+            self.state = 114
             self.expression()
-            self.state = 76
-            self.match(ConstraintsParser.T__11)
+            self.state = 115
+            self.match(ConstraintsParser.T__6)
         except RecognitionException as re:
             localctx.exception = re
             self._errHandler.reportError(self, re)
@@ -570,12 +822,12 @@ class ConstraintsParser ( Parser ):
     def alias(self):
 
         localctx = ConstraintsParser.AliasContext(self, self._ctx, self.state)
-        self.enterRule(localctx, 12, self.RULE_alias)
+        self.enterRule(localctx, 20, self.RULE_alias)
         try:
             self.enterOuterAlt(localctx, 1)
-            self.state = 78
-            self.match(ConstraintsParser.T__12)
-            self.state = 79
+            self.state = 117
+            self.match(ConstraintsParser.T__18)
+            self.state = 118
             self.match(ConstraintsParser.INTEGER_VALUE)
         except RecognitionException as re:
             localctx.exception = re
@@ -617,28 +869,28 @@ class ConstraintsParser ( Parser ):
     def indexBuffer(self):
 
         localctx = ConstraintsParser.IndexBufferContext(self, self._ctx, self.state)
-        self.enterRule(localctx, 14, self.RULE_indexBuffer)
+        self.enterRule(localctx, 22, self.RULE_indexBuffer)
         try:
             self.enterOuterAlt(localctx, 1)
-            self.state = 81
-            self.match(ConstraintsParser.T__13)
-            self.state = 87
+            self.state = 120
+            self.match(ConstraintsParser.T__4)
+            self.state = 126
             self._errHandler.sync(self)
-            _alt = self._interp.adaptivePredict(self._input,6,self._ctx)
+            _alt = self._interp.adaptivePredict(self._input,8,self._ctx)
             while _alt!=2 and _alt!=ATN.INVALID_ALT_NUMBER:
                 if _alt==1:
-                    self.state = 82
+                    self.state = 121
                     self.indexPair()
-                    self.state = 83
-                    self.match(ConstraintsParser.T__14) 
-                self.state = 89
+                    self.state = 122
+                    self.match(ConstraintsParser.T__19) 
+                self.state = 128
                 self._errHandler.sync(self)
-                _alt = self._interp.adaptivePredict(self._input,6,self._ctx)
+                _alt = self._interp.adaptivePredict(self._input,8,self._ctx)
 
-            self.state = 90
+            self.state = 129
             self.indexPair()
-            self.state = 91
-            self.match(ConstraintsParser.T__15)
+            self.state = 130
+            self.match(ConstraintsParser.T__5)
         except RecognitionException as re:
             localctx.exception = re
             self._errHandler.reportError(self, re)
@@ -678,14 +930,14 @@ class ConstraintsParser ( Parser ):
     def indexPair(self):
 
         localctx = ConstraintsParser.IndexPairContext(self, self._ctx, self.state)
-        self.enterRule(localctx, 16, self.RULE_indexPair)
+        self.enterRule(localctx, 24, self.RULE_indexPair)
         try:
             self.enterOuterAlt(localctx, 1)
-            self.state = 93
+            self.state = 132
             self.match(ConstraintsParser.HEX_VALUE)
-            self.state = 94
-            self.match(ConstraintsParser.T__16)
-            self.state = 95
+            self.state = 133
+            self.match(ConstraintsParser.T__20)
+            self.state = 134
             self.match(ConstraintsParser.HEX_VALUE)
         except RecognitionException as re:
             localctx.exception = re
@@ -726,26 +978,26 @@ class ConstraintsParser ( Parser ):
     def buffer_(self):
 
         localctx = ConstraintsParser.BufferContext(self, self._ctx, self.state)
-        self.enterRule(localctx, 18, self.RULE_buffer)
+        self.enterRule(localctx, 26, self.RULE_buffer)
         self._la = 0 # Token type
         try:
             self.enterOuterAlt(localctx, 1)
-            self.state = 97
-            self.match(ConstraintsParser.T__13)
-            self.state = 99 
+            self.state = 136
+            self.match(ConstraintsParser.T__4)
+            self.state = 138 
             self._errHandler.sync(self)
             _la = self._input.LA(1)
             while True:
-                self.state = 98
+                self.state = 137
                 self.match(ConstraintsParser.HEX_VALUE)
-                self.state = 101 
+                self.state = 140 
                 self._errHandler.sync(self)
                 _la = self._input.LA(1)
-                if not (_la==26):
+                if not (_la==29):
                     break
 
-            self.state = 103
-            self.match(ConstraintsParser.T__15)
+            self.state = 142
+            self.match(ConstraintsParser.T__5)
         except RecognitionException as re:
             localctx.exception = re
             self._errHandler.reportError(self, re)
@@ -798,38 +1050,38 @@ class ConstraintsParser ( Parser ):
     def arrayDeclaration(self):
 
         localctx = ConstraintsParser.ArrayDeclarationContext(self, self._ctx, self.state)
-        self.enterRule(localctx, 20, self.RULE_arrayDeclaration)
+        self.enterRule(localctx, 28, self.RULE_arrayDeclaration)
         try:
             self.enterOuterAlt(localctx, 1)
-            self.state = 105
-            self.match(ConstraintsParser.T__17)
-            self.state = 106
+            self.state = 144
+            self.match(ConstraintsParser.T__21)
+            self.state = 145
             self.normal_variable()
-            self.state = 107
-            self.match(ConstraintsParser.T__13)
-            self.state = 108
+            self.state = 146
+            self.match(ConstraintsParser.T__4)
+            self.state = 147
             self.length()
-            self.state = 109
-            self.match(ConstraintsParser.T__15)
-            self.state = 110
-            self.match(ConstraintsParser.T__9)
-            self.state = 111
+            self.state = 148
+            self.match(ConstraintsParser.T__5)
+            self.state = 149
+            self.match(ConstraintsParser.T__17)
+            self.state = 150
             self.dataType()
-            self.state = 112
-            self.match(ConstraintsParser.T__18)
-            self.state = 113
+            self.state = 151
+            self.match(ConstraintsParser.T__22)
+            self.state = 152
             self.dataType()
-            self.state = 114
-            self.match(ConstraintsParser.T__16)
-            self.state = 117
+            self.state = 153
+            self.match(ConstraintsParser.T__20)
+            self.state = 156
             self._errHandler.sync(self)
             token = self._input.LA(1)
-            if token in [20]:
-                self.state = 115
-                self.match(ConstraintsParser.T__19)
+            if token in [24]:
+                self.state = 154
+                self.match(ConstraintsParser.T__23)
                 pass
-            elif token in [14]:
-                self.state = 116
+            elif token in [5]:
+                self.state = 155
                 self.buffer_()
                 pass
             else:
@@ -872,25 +1124,25 @@ class ConstraintsParser ( Parser ):
     def literal(self):
 
         localctx = ConstraintsParser.LiteralContext(self, self._ctx, self.state)
-        self.enterRule(localctx, 22, self.RULE_literal)
+        self.enterRule(localctx, 30, self.RULE_literal)
         try:
-            self.state = 122
+            self.state = 161
             self._errHandler.sync(self)
             token = self._input.LA(1)
-            if token in [26, 27]:
+            if token in [29, 30]:
                 self.enterOuterAlt(localctx, 1)
-                self.state = 119
+                self.state = 158
                 self.integerValue()
                 pass
-            elif token in [21]:
+            elif token in [8]:
                 self.enterOuterAlt(localctx, 2)
-                self.state = 120
-                self.match(ConstraintsParser.T__20)
+                self.state = 159
+                self.match(ConstraintsParser.T__7)
                 pass
-            elif token in [22]:
+            elif token in [25]:
                 self.enterOuterAlt(localctx, 3)
-                self.state = 121
-                self.match(ConstraintsParser.T__21)
+                self.state = 160
+                self.match(ConstraintsParser.T__24)
                 pass
             else:
                 raise NoViableAltException(self)
@@ -931,10 +1183,10 @@ class ConstraintsParser ( Parser ):
     def length(self):
 
         localctx = ConstraintsParser.LengthContext(self, self._ctx, self.state)
-        self.enterRule(localctx, 24, self.RULE_length)
+        self.enterRule(localctx, 32, self.RULE_length)
         try:
             self.enterOuterAlt(localctx, 1)
-            self.state = 124
+            self.state = 163
             self.match(ConstraintsParser.INTEGER_VALUE)
         except RecognitionException as re:
             localctx.exception = re
@@ -975,13 +1227,13 @@ class ConstraintsParser ( Parser ):
     def integerValue(self):
 
         localctx = ConstraintsParser.IntegerValueContext(self, self._ctx, self.state)
-        self.enterRule(localctx, 26, self.RULE_integerValue)
+        self.enterRule(localctx, 34, self.RULE_integerValue)
         self._la = 0 # Token type
         try:
             self.enterOuterAlt(localctx, 1)
-            self.state = 126
+            self.state = 165
             _la = self._input.LA(1)
-            if not(_la==26 or _la==27):
+            if not(_la==29 or _la==30):
                 self._errHandler.recoverInline(self)
             else:
                 self._errHandler.reportMatch(self)
@@ -1027,19 +1279,19 @@ class ConstraintsParser ( Parser ):
     def variable(self):
 
         localctx = ConstraintsParser.VariableContext(self, self._ctx, self.state)
-        self.enterRule(localctx, 28, self.RULE_variable)
+        self.enterRule(localctx, 36, self.RULE_variable)
         try:
-            self.state = 130
+            self.state = 169
             self._errHandler.sync(self)
             token = self._input.LA(1)
-            if token in [28]:
+            if token in [31]:
                 self.enterOuterAlt(localctx, 1)
-                self.state = 128
+                self.state = 167
                 self.normal_variable()
                 pass
-            elif token in [14]:
+            elif token in [5]:
                 self.enterOuterAlt(localctx, 2)
-                self.state = 129
+                self.state = 168
                 self.array_variable()
                 pass
             else:
@@ -1090,14 +1342,14 @@ class ConstraintsParser ( Parser ):
     def array_variable(self):
 
         localctx = ConstraintsParser.Array_variableContext(self, self._ctx, self.state)
-        self.enterRule(localctx, 30, self.RULE_array_variable)
+        self.enterRule(localctx, 38, self.RULE_array_variable)
         try:
             self.enterOuterAlt(localctx, 1)
-            self.state = 132
+            self.state = 171
             self.indexBuffer()
-            self.state = 133
+            self.state = 172
             self.atOp()
-            self.state = 134
+            self.state = 173
             self.normal_variable()
         except RecognitionException as re:
             localctx.exception = re
@@ -1135,10 +1387,10 @@ class ConstraintsParser ( Parser ):
     def normal_variable(self):
 
         localctx = ConstraintsParser.Normal_variableContext(self, self._ctx, self.state)
-        self.enterRule(localctx, 32, self.RULE_normal_variable)
+        self.enterRule(localctx, 40, self.RULE_normal_variable)
         try:
             self.enterOuterAlt(localctx, 1)
-            self.state = 136
+            self.state = 175
             self.match(ConstraintsParser.VARIABLE)
         except RecognitionException as re:
             localctx.exception = re
@@ -1179,13 +1431,13 @@ class ConstraintsParser ( Parser ):
     def dataType(self):
 
         localctx = ConstraintsParser.DataTypeContext(self, self._ctx, self.state)
-        self.enterRule(localctx, 34, self.RULE_dataType)
+        self.enterRule(localctx, 42, self.RULE_dataType)
         self._la = 0 # Token type
         try:
             self.enterOuterAlt(localctx, 1)
-            self.state = 138
+            self.state = 177
             _la = self._input.LA(1)
-            if not(_la==24 or _la==25):
+            if not(_la==27 or _la==28):
                 self._errHandler.recoverInline(self)
             else:
                 self._errHandler.reportMatch(self)
@@ -1224,11 +1476,11 @@ class ConstraintsParser ( Parser ):
     def atOp(self):
 
         localctx = ConstraintsParser.AtOpContext(self, self._ctx, self.state)
-        self.enterRule(localctx, 36, self.RULE_atOp)
+        self.enterRule(localctx, 44, self.RULE_atOp)
         try:
             self.enterOuterAlt(localctx, 1)
-            self.state = 140
-            self.match(ConstraintsParser.T__22)
+            self.state = 179
+            self.match(ConstraintsParser.T__25)
         except RecognitionException as re:
             localctx.exception = re
             self._errHandler.reportError(self, re)
