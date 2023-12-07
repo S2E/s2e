@@ -336,7 +336,6 @@ static inline void instr_gen_call_ret(DisasContext *s, int isCall) {
     TCGv_ptr ptr = tcg_const_local_ptr(&g_invokeCallRetInstrumentation);
 
     tcg_gen_ld_i64(cpu_tmp1_i64, ptr, 0);
-    tcg_temp_free_ptr(ptr);
 
     tcg_gen_brcondi_i64(TCG_COND_EQ, cpu_tmp1_i64, 0, clabel);
 
@@ -1559,10 +1558,6 @@ static void gen_shift_rm_T1(DisasContext *s, int ot, int op1, int is_right, int 
 
     gen_set_label(shift_label);
     s->cc_op = CC_OP_DYNAMIC; /* cannot predict flags after */
-
-    tcg_temp_free(t0);
-    tcg_temp_free(t1);
-    tcg_temp_free(t2);
 }
 
 static void gen_shift_rm_im(DisasContext *s, int ot, int op1, int op2, int is_right, int is_arith) {
@@ -1711,11 +1706,6 @@ static void gen_rot_rm_T1(DisasContext *s, int ot, int op1, int is_right) {
 
     gen_set_label(label2);
     s->cc_op = CC_OP_DYNAMIC; /* cannot predict flags after */
-
-    tcg_temp_free(t0);
-    tcg_temp_free(t1);
-    tcg_temp_free(t2);
-    tcg_temp_free(a0);
 }
 
 static void gen_rot_rm_im(DisasContext *s, int ot, int op1, int op2, int is_right) {
@@ -1786,10 +1776,6 @@ static void gen_rot_rm_im(DisasContext *s, int ot, int op1, int op2, int is_righ
         tcg_gen_movi_i32(cpu_cc_op, CC_OP_EFLAGS);
         s->cc_op = CC_OP_EFLAGS;
     }
-
-    tcg_temp_free(t0);
-    tcg_temp_free(t1);
-    tcg_temp_free(a0);
 }
 
 /* XXX: add faster immediate = 1 case */
@@ -1979,11 +1965,6 @@ static void gen_shiftd_rm_T1_T3(DisasContext *s, int ot, int op1, int is_right) 
     }
     gen_set_label(label2);
     s->cc_op = CC_OP_DYNAMIC; /* cannot predict flags after */
-
-    tcg_temp_free(t0);
-    tcg_temp_free(t1);
-    tcg_temp_free(t2);
-    tcg_temp_free(a0);
 }
 
 static void gen_shift(DisasContext *s1, int op, int ot, int d, int s) {
@@ -2444,7 +2425,6 @@ static void gen_setcc(DisasContext *s, int b) {
         tcg_gen_movi_tl(t0, 1);
         gen_set_label(l1);
         tcg_gen_mov_tl(cpu_T[0], t0);
-        tcg_temp_free(t0);
     } else {
         /* slow case: it is more efficient not to generate a jump,
            although it is questionnable whether this optimization is
@@ -4920,10 +4900,6 @@ reswitch:
             tcg_gen_mov_tl(cpu_cc_src, t0);
             tcg_gen_mov_tl(cpu_cc_dst, t2);
             s->cc_op = CC_OP_SUBB + ot;
-            tcg_temp_free(t0);
-            tcg_temp_free(t1);
-            tcg_temp_free(t2);
-            tcg_temp_free(a0);
         } break;
         case 0x1c7: /* cmpxchg8b */
             modrm = cpu_ldub_code(s->env, s->pc++);
@@ -6411,7 +6387,6 @@ reswitch:
                 gen_op_mov_reg_v(ot, reg, t0);
                 gen_set_label(l1);
             }
-            tcg_temp_free(t0);
         } break;
 
         /************************/
@@ -6651,7 +6626,6 @@ reswitch:
                 tcg_gen_discard_tl(cpu_cc_src);
                 s->cc_op = CC_OP_LOGICB + ot;
             }
-            tcg_temp_free(t0);
         } break;
         /************************/
         /* bcd */
@@ -7397,7 +7371,6 @@ reswitch:
                 gen_set_label(label1);
                 if (mod != 3) {
                     gen_op_st_v(ot + s->mem_index, t0, a0);
-                    tcg_temp_free(a0);
                 } else {
                     gen_op_mov_reg_v(ot, rm, t0);
                 }
@@ -7407,9 +7380,6 @@ reswitch:
                 tcg_gen_andi_tl(cpu_cc_src, cpu_cc_src, ~CC_Z);
                 tcg_gen_or_tl(cpu_cc_src, cpu_cc_src, t2);
                 s->cc_op = CC_OP_EFLAGS;
-                tcg_temp_free(t0);
-                tcg_temp_free(t1);
-                tcg_temp_free(t2);
             }
             break;
         case 0x102: /* lar */
@@ -7436,7 +7406,6 @@ reswitch:
             gen_op_mov_reg_v(ot, reg, t0);
             gen_set_label(label1);
             s->cc_op = CC_OP_EFLAGS;
-            tcg_temp_free(t0);
         } break;
         case 0x118:
             modrm = cpu_ldub_code(s->env, s->pc++);
@@ -7745,8 +7714,6 @@ static inline void gen_tb_start(TranslationBlock *tb) {
         tcg_gen_ld_i32(exit_request, cpu_env, offsetof(CPUArchState, exit_request));
 
         tcg_gen_brcondi_i32(TCG_COND_NE, exit_request, 0, tcg_ctx->exitreq_label);
-
-        tcg_temp_free_i32(exit_request);
     }
 }
 
