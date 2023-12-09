@@ -24,6 +24,7 @@
 #ifndef S2ETOOLS_BBLP_H
 #define S2ETOOLS_BBLP_H
 
+#include <inttypes.h>
 #include <set>
 #include <string>
 
