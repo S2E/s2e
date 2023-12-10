@@ -29,8 +29,9 @@ vulnerabilities in them. S2E is pronounced *S two E*.
    Tutorials/PoV/pov
    Tutorials/PoV/index
 
-   Combining Kaitai Struct and S2E for analyzing parsers [external] <https://adrianherrera.github.io/post/kaitai-s2e>
-   Analyzing trigger-based malware with S2E [external] <https://adrianherrera.github.io/post/malware-s2e>
+   Combining Kaitai Struct and S2E for analyzing parsers [external] <https://adrianherrera.github.io/posts/kaitai-s2e>
+   Analyzing trigger-based malware with S2E [external] <https://adrianherrera.github.io/posts/malware-s2e>
+   Solving CTF challenges with S2E [external] <https://adrianherrera.github.io/posts/google-ctf-2016/>
 
    Tutorials/SystemTap/index.rst
    Tutorials/WindowsDLL/index.rst

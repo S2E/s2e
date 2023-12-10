@@ -34,6 +34,11 @@ In this section, we show how to use Revgen on DARPA CGC binaries. We cleaned up 
 <http://dslab.epfl.ch/pubs/revgen.pdf>`__ of Revgen in order to analyze CGC binaries, so it supports these binaries the
 best. Other types of binaries will be supported in the future.
 
+.. warning::
+
+  Revgen is not supported anymore and has been removed from the master branch of S2E.
+  Use `Remill <https://github.com/lifting-bits/remill>`__ instead if you want to translate binaries to LLVM.
+
 
 1. Prerequisites
 ----------------
