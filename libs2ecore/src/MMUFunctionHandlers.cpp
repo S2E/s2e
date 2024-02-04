@@ -233,7 +233,7 @@ static ref<Expr> handle_ldst_mmu(Executor *executor, ExecutionState *state, klee
 
 redo:
 
-    const auto &tlbEntry = env->tlb_table[mmu_idx][index];
+    const auto &tlbEntry = env->tlb_table[mmu_idx].table[index];
 
     if (isWrite) {
         tlb_addr = tlbEntry.addr_write & ~TLB_MEM_TRACE;
@@ -458,7 +458,7 @@ static void handle_ldst_kernel(Executor *executor, ExecutionState *state, klee::
     page_index = (object_index >> S2E_RAM_OBJECT_DIFF) & (CPU_TLB_SIZE - 1);
 
     //////////////////////////////////////////
-    const auto &tlbEntry = env->tlb_table[mmu_idx][page_index];
+    const auto &tlbEntry = env->tlb_table[mmu_idx].table[page_index];
 
     if (isWrite) {
         value = args[2];

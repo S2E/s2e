@@ -170,7 +170,7 @@ static SMHINLINE RES_TYPE glue(glue(glue(CPU_PREFIX, ld), USUFFIX), MEMSUFFIX)(C
 #endif
 
     mmu_idx = CPU_MMU_INDEX;
-    tlb_entry = &env->tlb_table[mmu_idx][page_index];
+    tlb_entry = &env->tlb_table[mmu_idx].table[page_index];
     tlb_addr = tlb_entry->ADDR_READ & ~TLB_MEM_TRACE;
     if (unlikely(tlb_addr != (addr & (TARGET_PAGE_MASK | (DATA_SIZE - 1))))) {
         res = glue(glue(glue(HELPER_PREFIX, ld), SUFFIX), MMUSUFFIX)(env, addr, mmu_idx, NULL);
@@ -182,7 +182,7 @@ static SMHINLINE RES_TYPE glue(glue(glue(CPU_PREFIX, ld), USUFFIX), MEMSUFFIX)(C
         physaddr = addr + tlb_entry->se_addend;
         res = glue(glue(ld, USUFFIX), _p)((uint8_t *) physaddr);
 #else
-        physaddr = addr + env->tlb_table[mmu_idx][page_index].addend;
+        physaddr = addr + env->tlb_table[mmu_idx].table[page_index].addend;
         res = glue(glue(ld, USUFFIX), _p)((uint8_t *) physaddr);
 #endif
 
@@ -214,7 +214,7 @@ static SMHINLINE int glue(glue(glue(CPU_PREFIX, lds), SUFFIX), MEMSUFFIX)(CPUArc
 #endif
 
     mmu_idx = CPU_MMU_INDEX;
-    tlb_entry = &env->tlb_table[mmu_idx][page_index];
+    tlb_entry = &env->tlb_table[mmu_idx].table[page_index];
     tlb_addr = tlb_entry->ADDR_READ & ~TLB_MEM_TRACE;
     if (unlikely(tlb_addr != (addr & (TARGET_PAGE_MASK | (DATA_SIZE - 1))))) {
         res = (DATA_STYPE) glue(glue(glue(HELPER_PREFIX, ld), SUFFIX), MMUSUFFIX)(env, addr, mmu_idx, NULL);
@@ -259,7 +259,7 @@ static SMHINLINE void glue(glue(glue(CPU_PREFIX, st), SUFFIX), MEMSUFFIX)(CPUArc
 #endif
 
     mmu_idx = CPU_MMU_INDEX;
-    tlb_entry = &env->tlb_table[mmu_idx][page_index];
+    tlb_entry = &env->tlb_table[mmu_idx].table[page_index];
     tlb_addr = tlb_entry->addr_write & ~TLB_MEM_TRACE;
     if (unlikely(tlb_addr != (addr & (TARGET_PAGE_MASK | (DATA_SIZE - 1))))) {
         glue(glue(glue(HELPER_PREFIX, st), SUFFIX), MMUSUFFIX)(env, addr, v, mmu_idx, NULL);
@@ -269,7 +269,7 @@ static SMHINLINE void glue(glue(glue(CPU_PREFIX, st), SUFFIX), MEMSUFFIX)(CPUArc
         physaddr = addr + tlb_entry->se_addend;
         glue(glue(st, SUFFIX), _p)((uint8_t *) physaddr, v);
 #else
-        physaddr = addr + env->tlb_table[mmu_idx][page_index].addend;
+        physaddr = addr + env->tlb_table[mmu_idx].table[page_index].addend;
         glue(glue(st, SUFFIX), _p)((uint8_t *) physaddr, v);
 #endif
 

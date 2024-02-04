@@ -137,7 +137,7 @@ void S2EExecutionStateTlb::updateTlb(const klee::ObjectStateConstPtr &oldState, 
 #ifdef S2E_DEBUG_TLBCACHE
             g_s2e->getDebugStream() << "    mmu_idx=" << coords.first << " index=" << coords.second << "\n";
 #endif
-            CPUTLBEntry *entry = &cpu->tlb_table[coords.first][coords.second];
+            CPUTLBEntry *entry = &cpu->tlb_table[coords.first].table[coords.second];
             assert(entry->objectState == (void *) oldState.get());
             assert(newState);
 
@@ -187,8 +187,8 @@ void S2EExecutionStateTlb::flushTlbCachePage(const klee::ObjectStatePtr &objectS
                                        << mmu_idx << "," << index << ")\n";
 #endif
 
-    env->tlb_table[mmu_idx][index].objectState = 0;
-    env->tlb_table[mmu_idx][index].se_addend = 0;
+    env->tlb_table[mmu_idx].table[index].objectState = 0;
+    env->tlb_table[mmu_idx].table[index].se_addend = 0;
 
     if (g_s2e_single_path_mode) {
         return;
@@ -225,7 +225,7 @@ void S2EExecutionStateTlb::flushTlbCachePage(const klee::ObjectStatePtr &objectS
  */
 void S2EExecutionStateTlb::updateTlbEntryConcreteStatus(struct CPUX86State *env, unsigned mmu_idx, unsigned index,
                                                         const klee::ObjectStateConstPtr &state) {
-    CPUTLBEntry *te = &env->tlb_table[mmu_idx][index];
+    CPUTLBEntry *te = &env->tlb_table[mmu_idx].table[index];
 
     if (!state->isAllConcrete()) {
         te->addr_read |= TLB_SYMB;
@@ -260,7 +260,7 @@ void S2EExecutionStateTlb::clearTlbOwnership() {
 
     for (unsigned i = 0; i < CPU_TLB_SIZE; i++) {
         for (unsigned mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
-            env->tlb_table[mmu_idx][i].addr_write |= TLB_NOT_OURS;
+            env->tlb_table[mmu_idx].table[i].addr_write |= TLB_NOT_OURS;
         }
     }
 }
@@ -271,7 +271,7 @@ void S2EExecutionStateTlb::updateTlbEntry(CPUX86State *env, int mmu_idx, uint64_
 
     unsigned int index = (virtAddr >> SE_RAM_OBJECT_BITS) & (CPU_TLB_SIZE - 1);
 
-    CPUTLBEntry *entry = &env->tlb_table[mmu_idx][index];
+    CPUTLBEntry *entry = &env->tlb_table[mmu_idx].table[index];
     ObjectState *oldObjectState = static_cast<ObjectState *>(entry->objectState);
 
     /* Retrieve the object state using the host address */
@@ -335,7 +335,7 @@ bool S2EExecutionStateTlb::audit() {
             unsigned mmu_idx = (*vit).first;
             unsigned index = (*vit).second;
 
-            CPUTLBEntry *entry = &env->tlb_table[mmu_idx][index];
+            CPUTLBEntry *entry = &env->tlb_table[mmu_idx].table[index];
             assert(entry->objectState == os);
             (void) entry;
             (void) os;
@@ -344,7 +344,7 @@ bool S2EExecutionStateTlb::audit() {
 
     for (unsigned i = 0; i < CPU_TLB_SIZE; i++) {
         for (unsigned mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
-            CPUTLBEntry *entry = &env->tlb_table[mmu_idx][i];
+            CPUTLBEntry *entry = &env->tlb_table[mmu_idx].table[i];
             if (!entry->objectState) {
                 continue;
             }

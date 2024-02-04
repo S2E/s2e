@@ -38,8 +38,9 @@ static inline void tlb_set_dirty(CPUArchState *env, target_ulong vaddr) {
 
     vaddr &= TARGET_PAGE_MASK;
     i = (vaddr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
-    for (mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++)
-        tlb_set_dirty1(&env->tlb_table[mmu_idx][i], vaddr);
+    for (mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
+        tlb_set_dirty1(&env->tlb_table[mmu_idx].table[i], vaddr);
+    }
 }
 
 static bool tlb_is_dirty_ram(CPUTLBEntry *tlbe) {
