@@ -29,7 +29,7 @@ extern "C" {
 extern int g_icache_linesize;
 extern int g_dcache_linesize;
 
-void init_cache_info();
+int init_cache_info();
 
 #ifdef __cplusplus
 }
