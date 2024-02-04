@@ -26,8 +26,6 @@
 #include <cpu/se_libcpu.h>
 #endif
 
-#define barrier() asm volatile("" ::: "memory")
-
 // #define DEBUG_EXEC
 // #define TRACE_EXEC
 
@@ -291,14 +289,14 @@ static uintptr_t fetch_and_run_tb(TranslationBlock *prev_tb, int tb_exit_code, C
     env->se_current_tb = tb;
     if (likely(*g_sqi.mode.fast_concrete_invocation)) {
         **g_sqi.mode.running_exception_emulation_code = 0;
-        last_tb = tcg_libcpu_tb_exec(env, tc_ptr);
+        last_tb = tcg_qemu_tb_exec(env, tc_ptr);
     } else {
         last_tb = g_sqi.exec.tb_exec(env, tb);
     }
     env->se_current_tb = NULL;
 #else
 
-    last_tb = tcg_libcpu_tb_exec(env, tc_ptr);
+    last_tb = tcg_qemu_tb_exec(env, tc_ptr);
 
 #endif
 

@@ -1138,7 +1138,7 @@ uintptr_t S2EExecutor::executeTranslationBlockConcrete(S2EExecutionState *state,
         S2EExternalDispatcher::restoreJmpBuf();
         throw CpuExitException();
     } else {
-        ret = tcg_libcpu_tb_exec(env, tb->tc.ptr);
+        ret = tcg_qemu_tb_exec(env, tb->tc.ptr);
     }
 
     S2EExternalDispatcher::restoreJmpBuf();
@@ -1166,7 +1166,7 @@ uintptr_t S2EExecutor::executeTranslationBlockFast(struct CPUX86State *env1, str
             assert(g_s2e_fast_concrete_invocation);
             g_s2e_state->switchToConcrete();
         }
-        return tcg_libcpu_tb_exec(env, tb->tc.ptr);
+        return tcg_qemu_tb_exec(env, tb->tc.ptr);
     } else {
         return executeTranslationBlockSlow(env, tb);
     }
