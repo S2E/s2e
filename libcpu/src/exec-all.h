@@ -121,7 +121,7 @@ static inline unsigned int tb_phys_hash_func(tb_page_addr_t pc) {
 
 extern TranslationBlock *tb_phys_hash[CODE_GEN_PHYS_HASH_SIZE];
 
-#include "qemu-lock.h"
+#include <tcg/utils/spinlock.h>
 
 extern spinlock_t tb_lock;
 

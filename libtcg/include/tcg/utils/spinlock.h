@@ -23,6 +23,10 @@
 #ifndef _LIBCPU_SPINLOCK_H_
 #define _LIBCPU_SPINLOCK_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef int spinlock_t;
 #define SPIN_LOCK_UNLOCKED 1
 
@@ -36,5 +40,12 @@ static inline void spin_lock(spinlock_t *lock) {
 static inline void spin_unlock(spinlock_t *lock) {
     __atomic_store_n(lock, SPIN_LOCK_UNLOCKED, __ATOMIC_SEQ_CST);
 }
+
+static inline void spin_destroy(spinlock_t *spin) {
+}
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

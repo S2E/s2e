@@ -33,7 +33,7 @@
 #define NO_CPU_IO_DEFS
 #include <tcg/tcg.h>
 #include "cpu.h"
-#include "qemu-lock.h"
+#include <tcg/utils/spinlock.h>
 #include "timer.h"
 
 #if defined(CONFIG_SYMBEX_MP) || defined(STATIC_TRANSLATOR)
