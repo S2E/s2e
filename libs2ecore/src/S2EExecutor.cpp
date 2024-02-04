@@ -1765,11 +1765,6 @@ void s2e_create_initial_state() {
 
 void s2e_initialize_execution(int execute_always_klee) {
     g_s2e->getExecutor()->initializeExecution(g_s2e_state, execute_always_klee);
-    // XXX: move it to better place (signal handler for this?)
-    tcg_register_helper((void *) &s2e_tcg_execution_handler, "s2e_tcg_execution_handler", 2, sizeof(void *),
-                        sizeof(uint64_t));
-    tcg_register_helper((void *) &s2e_tcg_custom_instruction_handler, "s2e_tcg_custom_instruction_handler", 1,
-                        sizeof(uint64_t));
 }
 
 void s2e_register_cpu(CPUX86State *cpu_env) {

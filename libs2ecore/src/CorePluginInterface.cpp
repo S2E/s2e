@@ -26,6 +26,11 @@
 #include <tcg/tcg.h>
 #include <tcg/tcg-op.h>
 
+extern "C" {
+#include <tcg/exec/helper-proto.h>
+#include <tcg/exec/helper-gen.h>
+}
+
 #include <cpu/exec.h>
 
 #include <timer.h>
@@ -62,7 +67,7 @@ extern "C" {
 
 int g_s2e_enable_signals = true;
 
-void s2e_tcg_execution_handler(void *signal, uint64_t pc) {
+void helper_s2e_tcg_execution_handler(void *signal, uint64_t pc) {
     try {
         ExecutionSignal *s = (ExecutionSignal *) signal;
         if (g_s2e_enable_signals) {
@@ -73,7 +78,7 @@ void s2e_tcg_execution_handler(void *signal, uint64_t pc) {
     }
 }
 
-void s2e_tcg_custom_instruction_handler(uint64_t arg) {
+void helper_s2e_tcg_custom_instruction_handler(uint64_t arg) {
     assert(!g_s2e->getCorePlugin()->onCustomInstruction.empty() &&
            "You must activate a plugin that uses custom instructions.");
 
@@ -85,12 +90,8 @@ void s2e_tcg_custom_instruction_handler(uint64_t arg) {
 }
 
 void s2e_tcg_emit_custom_instruction(uint64_t arg) {
-    TCGv_i64 t0 = tcg_const_i64(arg);
-
-    TCGTemp *args[1] = {tcgv_i64_temp(t0)};
-    tcg_gen_callN((void *) s2e_tcg_custom_instruction_handler, nullptr, 1, args);
-
-    tcg_temp_free_i64(t0);
+    TCGv_i64 t0 = tcg_constant_i64(arg);
+    gen_helper_s2e_tcg_custom_instruction_handler(t0);
 }
 
 /* Instrument generated code to emit signal on execution */
@@ -100,24 +101,17 @@ void s2e_tcg_emit_custom_instruction(uint64_t arg) {
 static void s2e_tcg_instrument_code(ExecutionSignal *signal, uint64_t pc, uint64_t nextpc = -1) {
     if (nextpc != (uint64_t) -1) {
 #if TCG_TARGET_REG_BITS == 64 && defined(TARGET_X86_64)
-        TCGv_i64 tpc = tcg_const_i64((tcg_target_ulong) nextpc);
+        TCGv_i64 tpc = tcg_constant_i64((tcg_target_ulong) nextpc);
         tcg_gen_st_i64(tpc, cpu_env, offsetof(CPUX86State, eip));
-        tcg_temp_free_i64(tpc);
 #else
-        TCGv_i32 tpc = tcg_const_i32((tcg_target_ulong) nextpc);
+        TCGv_i32 tpc = tcg_constant_i32((tcg_target_ulong) nextpc);
         tcg_gen_st_i32(tpc, cpu_env, offsetof(CPUX86State, eip));
-        tcg_temp_free_i32(tpc);
 #endif
     }
 
-    TCGv_ptr t0 = tcg_const_local_ptr(signal);
-    TCGv_i64 t1 = tcg_const_i64(pc);
-    TCGTemp *args[2] = {tcgv_ptr_temp(t0), tcgv_i64_temp(t1)};
-
-    tcg_gen_callN((void *) s2e_tcg_execution_handler, nullptr, 2, args);
-
-    tcg_temp_free_i64(t1);
-    tcg_temp_free_ptr(t0);
+    TCGv_ptr t0 = tcg_constant_ptr(signal);
+    TCGv_i64 t1 = tcg_constant_i64(pc);
+    gen_helper_s2e_tcg_execution_handler(t0, t1);
 }
 
 void s2e_on_translate_soft_interrupt_start(void *context, TranslationBlock *tb, uint64_t pc, unsigned vector) {
