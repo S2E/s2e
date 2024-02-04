@@ -26,8 +26,13 @@
 // clang-format off
 #include "cpu.h"
 #include <tcg/tcg-op.h>
-#include <tcg/helper-proto.h>
-#include <tcg/helper-gen.h>
+#include <tcg/exec/helper-proto.h>
+#include <tcg/exec/helper-gen.h>
+
+#define HELPER_H "tcg/helper.h"
+#include <tcg/exec/helper-info.c.inc>
+#undef HELPER_H
+
 // clang-format on
 
 #include <cpu/disas.h>
@@ -1499,9 +1504,9 @@ static void gen_shift_rm_T1(DisasContext *s, int ot, int op1, int is_right, int 
         gen_op_mov_TN_reg(ot, 0, op1);
     }
 
-    t0 = tcg_temp_local_new();
-    t1 = tcg_temp_local_new();
-    t2 = tcg_temp_local_new();
+    t0 = tcg_temp_new();
+    t1 = tcg_temp_new();
+    t2 = tcg_temp_new();
 
     tcg_gen_andi_tl(t2, cpu_T[1], mask);
 
@@ -1623,10 +1628,10 @@ static void gen_rot_rm_T1(DisasContext *s, int ot, int op1, int is_right) {
     TCGv t0, t1, t2, a0;
 
     /* XXX: inefficient, but we must use local temps */
-    t0 = tcg_temp_local_new();
-    t1 = tcg_temp_local_new();
-    t2 = tcg_temp_local_new();
-    a0 = tcg_temp_local_new();
+    t0 = tcg_temp_new();
+    t1 = tcg_temp_new();
+    t2 = tcg_temp_new();
+    a0 = tcg_temp_new();
 
     tcg_gen_movi_tl(t2, 0);
 
@@ -1714,9 +1719,9 @@ static void gen_rot_rm_im(DisasContext *s, int ot, int op1, int op2, int is_righ
     TCGv t0, t1, a0;
 
     /* XXX: inefficient, but we must use local temps */
-    t0 = tcg_temp_local_new();
-    t1 = tcg_temp_local_new();
-    a0 = tcg_temp_local_new();
+    t0 = tcg_temp_new();
+    t1 = tcg_temp_new();
+    a0 = tcg_temp_new();
 
     if (ot == OT_QUAD)
         mask = 0x3f;
@@ -1851,10 +1856,10 @@ static void gen_shiftd_rm_T1_T3(DisasContext *s, int ot, int op1, int is_right) 
     target_ulong mask;
     TCGv t0, t1, t2, a0;
 
-    t0 = tcg_temp_local_new();
-    t1 = tcg_temp_local_new();
-    t2 = tcg_temp_local_new();
-    a0 = tcg_temp_local_new();
+    t0 = tcg_temp_new();
+    t1 = tcg_temp_new();
+    t2 = tcg_temp_new();
+    a0 = tcg_temp_new();
 
     if (ot == OT_QUAD)
         mask = 0x3f;
@@ -2418,7 +2423,7 @@ static void gen_setcc(DisasContext *s, int b) {
     if (is_fast_jcc_case(s, b)) {
         /* nominal case: we use a jump */
         /* XXX: make it faster by adding new instructions in TCG */
-        t0 = tcg_temp_local_new();
+        t0 = tcg_temp_new();
         tcg_gen_movi_tl(t0, 0);
         l1 = gen_new_label();
         gen_jcc1(s, s->cc_op, b ^ 1, l1);
@@ -4862,10 +4867,10 @@ reswitch:
             modrm = cpu_ldub_code(s->env, s->pc++);
             reg = ((modrm >> 3) & 7) | rex_r;
             mod = (modrm >> 6) & 3;
-            t0 = tcg_temp_local_new();
-            t1 = tcg_temp_local_new();
-            t2 = tcg_temp_local_new();
-            a0 = tcg_temp_local_new();
+            t0 = tcg_temp_new();
+            t1 = tcg_temp_new();
+            t2 = tcg_temp_new();
+            a0 = tcg_temp_new();
             gen_op_mov_v_reg(ot, t1, reg);
             if (mod == 3) {
                 rm = (modrm & 7) | REX_B(s);
@@ -6363,7 +6368,7 @@ reswitch:
             modrm = cpu_ldub_code(s->env, s->pc++);
             reg = ((modrm >> 3) & 7) | rex_r;
             mod = (modrm >> 6) & 3;
-            t0 = tcg_temp_local_new();
+            t0 = tcg_temp_new();
             if (mod != 3) {
                 gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
                 gen_op_ld_v(ot + s->mem_index, t0, cpu_A0);
@@ -6596,7 +6601,7 @@ reswitch:
             reg = ((modrm >> 3) & 7) | rex_r;
             gen_ldst_modrm(s, modrm, ot, OR_TMP0, 0);
             gen_extu(ot, cpu_T[0]);
-            t0 = tcg_temp_local_new();
+            t0 = tcg_temp_new();
             tcg_gen_mov_tl(t0, cpu_T[0]);
             if ((b & 1) && (prefixes & PREFIX_REPZ) && (s->cpuid_ext3_features & CPUID_EXT3_ABM)) {
                 switch (ot) {
@@ -7343,9 +7348,9 @@ reswitch:
 
                 if (!s->pe || s->vm86)
                     goto illegal_op;
-                t0 = tcg_temp_local_new();
-                t1 = tcg_temp_local_new();
-                t2 = tcg_temp_local_new();
+                t0 = tcg_temp_new();
+                t1 = tcg_temp_new();
+                t2 = tcg_temp_new();
                 ot = OT_WORD;
                 modrm = cpu_ldub_code(s->env, s->pc++);
                 reg = (modrm >> 3) & 7;
@@ -7354,7 +7359,7 @@ reswitch:
                 if (mod != 3) {
                     gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
                     gen_op_ld_v(ot + s->mem_index, t0, cpu_A0);
-                    a0 = tcg_temp_local_new();
+                    a0 = tcg_temp_new();
                     tcg_gen_mov_tl(a0, cpu_A0);
                 } else {
                     gen_op_mov_v_reg(ot, t0, rm);
@@ -7393,7 +7398,7 @@ reswitch:
             modrm = cpu_ldub_code(s->env, s->pc++);
             reg = ((modrm >> 3) & 7) | rex_r;
             gen_ldst_modrm(s, modrm, OT_WORD, OR_TMP0, 0);
-            t0 = tcg_temp_local_new();
+            t0 = tcg_temp_new();
             if (s->cc_op != CC_OP_DYNAMIC)
                 gen_op_set_cc_op(s->cc_op);
             if (b == 0x102)
