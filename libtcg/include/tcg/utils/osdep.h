@@ -20,6 +20,8 @@
 
 #include <stdarg.h>
 #include <stddef.h>
+#include <stdio.h>
+#include <stdlib.h>
 #ifdef __OpenBSD__
 #include <sys/signal.h>
 #include <sys/types.h>
@@ -39,6 +41,8 @@ extern "C" {
 #define stringify(s) tostring(s)
 #define tostring(s)  #s
 #endif
+
+#define QEMU_ALIGNED(X) __attribute__((aligned(X)))
 
 #ifndef container_of
 #define container_of(ptr, type, member)                      \
@@ -79,9 +83,60 @@ extern "C" {
 #define QEMU_FALLTHROUGH __attribute__((fallthrough))
 #define QEMU_PACKED      __attribute__((packed))
 
+/*
+ * GCC doesn't provide __has_attribute() until GCC 5, but we know all the GCC
+ * versions we support have the "flatten" attribute. Clang may not have the
+ * "flatten" attribute but always has __has_attribute() to check for it.
+ */
+#if __has_attribute(flatten) || !defined(__clang__)
+#define QEMU_FLATTEN __attribute__((flatten))
+#else
+#define QEMU_FLATTEN
+#endif
+
+/*
+ * If __attribute__((error)) is present, use it to produce an error at
+ * compile time.  Otherwise, one must wait for the linker to diagnose
+ * the missing symbol.
+ */
+#if __has_attribute(error)
+#define QEMU_ERROR(X) __attribute__((error(X)))
+#else
+#define QEMU_ERROR(X)
+#endif
+
 #ifndef NORETURN
 #define NORETURN __attribute__((noreturn))
 #endif
+
+/**
+ * qemu_build_not_reached()
+ *
+ * The compiler, during optimization, is expected to prove that a call
+ * to this function cannot be reached and remove it.  If the compiler
+ * supports QEMU_ERROR, this will be reported at compile time; otherwise
+ * this will be reported at link time due to the missing symbol.
+ */
+NORETURN extern void QEMU_ERROR("code path is reachable") qemu_build_not_reached_always(void);
+#if defined(__OPTIMIZE__) && !defined(__NO_INLINE__)
+#define qemu_build_not_reached() qemu_build_not_reached_always()
+#else
+#define qemu_build_not_reached()        \
+    {                                   \
+        fprintf(stderr, "not reached"); \
+        abort();                        \
+    }
+#endif
+
+/**
+ * qemu_build_assert()
+ *
+ * The compiler, during optimization, is expected to prove that the
+ * assertion is true.
+ */
+#define qemu_build_assert(test) \
+    while (!(test))             \
+    qemu_build_not_reached()
 
 // TODO: move this elsewhere?
 static inline void flush_idcache_range(uintptr_t rx, uintptr_t rw, size_t len) {
@@ -111,6 +166,28 @@ static inline intptr_t qemu_real_host_page_mask(void) {
 }
 
 size_t qemu_get_host_physmem(void);
+
+#define QEMU_BUILD_BUG_ON_STRUCT(x) \
+    struct {                        \
+        int : (x) ? -1 : 1;         \
+    }
+
+#define QEMU_BUILD_BUG_MSG(x, msg) _Static_assert(!(x), msg)
+
+#define QEMU_BUILD_BUG_ON(x) QEMU_BUILD_BUG_MSG(x, "not expecting: " #x)
+
+#define QEMU_BUILD_BUG_ON_ZERO(x) (sizeof(QEMU_BUILD_BUG_ON_STRUCT(x)) - sizeof(QEMU_BUILD_BUG_ON_STRUCT(x)))
+
+#ifdef CONFIG_CFI
+/*
+ * If CFI is enabled, use an attribute to disable cfi-icall on the following
+ * function
+ */
+#define QEMU_DISABLE_CFI __attribute__((no_sanitize("cfi-icall")))
+#else
+/* If CFI is not enabled, use an empty define to not change the behavior */
+#define QEMU_DISABLE_CFI
+#endif
 
 #ifdef __cplusplus
 }
