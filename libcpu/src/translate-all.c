@@ -249,10 +249,10 @@ tb_overflow:
     tb->jmp_dest[1] = (uintptr_t) NULL;
 
     /* init original jump addresses which have been set during tcg_gen_code() */
-    if (tb->jmp_reset_offset[0] != TB_JMP_RESET_OFFSET_INVALID) {
+    if (tb->jmp_reset_offset[0] != TB_JMP_OFFSET_INVALID) {
         tb_reset_jump(tb, 0);
     }
-    if (tb->jmp_reset_offset[1] != TB_JMP_RESET_OFFSET_INVALID) {
+    if (tb->jmp_reset_offset[1] != TB_JMP_OFFSET_INVALID) {
         tb_reset_jump(tb, 1);
     }
 

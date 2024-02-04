@@ -610,18 +610,24 @@ void tb_jmp_unlink(TranslationBlock *dest) {
 }
 
 void tb_set_jmp_target(TranslationBlock *tb, int n, uintptr_t addr) {
-    if (TCG_TARGET_HAS_direct_jump) {
-        uintptr_t offset = tb->jmp_target_arg[n];
-        uintptr_t tc_ptr = (uintptr_t) tb->tc.ptr;
-        tb_target_set_jmp_target(tc_ptr, tc_ptr + offset, tc_ptr + offset, addr);
-    } else {
-        tb->jmp_target_arg[n] = addr;
-    }
+    /*
+     * Get the rx view of the structure, from which we find the
+     * executable code address, and tb_target_set_jmp_target can
+     * produce a pc-relative displacement to jmp_target_addr[n].
+     */
+    const TranslationBlock *c_tb = tcg_splitwx_to_rx(tb);
+    uintptr_t offset = tb->jmp_insn_offset[n];
+    uintptr_t jmp_rx = (uintptr_t) tb->tc.ptr + offset;
+    uintptr_t jmp_rw = jmp_rx - tcg_splitwx_diff;
+
+    tb->jmp_target_addr[n] = addr;
+    tb_target_set_jmp_target(c_tb, n, jmp_rx, jmp_rw);
 }
 
 void tb_add_jump(TranslationBlock *tb, int n, TranslationBlock *tb_next) {
     uintptr_t old;
 
+    qemu_thread_jit_write();
     assert(n < ARRAY_SIZE(tb->jmp_list_next));
     spin_lock(&tb_next->jmp_lock);
 
@@ -644,8 +650,7 @@ void tb_add_jump(TranslationBlock *tb, int n, TranslationBlock *tb_next) {
 
     spin_unlock(&tb_next->jmp_lock);
 
-    libcpu_log_mask(CPU_LOG_EXEC, "Linking TBs %p [" TARGET_FMT_lx "] index %d -> %p [" TARGET_FMT_lx "]\n", tb->tc.ptr,
-                    tb->pc, n, tb_next->tc.ptr, tb_next->pc);
+    libcpu_log_mask(CPU_LOG_EXEC, "Linking TBs %p index %d -> %p\n", tb->tc.ptr, n, tb_next->tc.ptr);
     return;
 
 out_unlock_next:
