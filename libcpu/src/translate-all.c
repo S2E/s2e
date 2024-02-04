@@ -227,8 +227,8 @@ tb_overflow:
         abort();
     }
 
-    atomic_set(&tcg_ctx->code_gen_ptr,
-               (void *) ROUND_UP((uintptr_t) gen_code_buf + gen_code_size + search_size, CODE_GEN_ALIGN));
+    qatomic_set(&tcg_ctx->code_gen_ptr,
+                (void *) ROUND_UP((uintptr_t) gen_code_buf + gen_code_size + search_size, CODE_GEN_ALIGN));
 
     tb->tc.size = gen_code_size;
 

@@ -546,7 +546,7 @@ void tb_remove_from_jmp_list(TranslationBlock *orig, int n_orig) {
     int n;
 
     /* mark the LSB of jmp_dest[] so that no further jumps can be inserted */
-    ptr = atomic_or_fetch(&orig->jmp_dest[n_orig], 1);
+    ptr = qatomic_or_fetch(&orig->jmp_dest[n_orig], 1);
     dest = (TranslationBlock *) (ptr & ~1);
     if (dest == NULL) {
         return;
@@ -557,7 +557,7 @@ void tb_remove_from_jmp_list(TranslationBlock *orig, int n_orig) {
      * While acquiring the lock, the jump might have been removed if the
      * destination TB was invalidated; check again.
      */
-    ptr_locked = atomic_read(&orig->jmp_dest[n_orig]);
+    ptr_locked = qatomic_read(&orig->jmp_dest[n_orig]);
     if (ptr_locked != ptr) {
         spin_unlock(&dest->jmp_lock);
         /*
@@ -601,7 +601,7 @@ void tb_jmp_unlink(TranslationBlock *dest) {
 
     TB_FOR_EACH_JMP(dest, tb, n) {
         tb_reset_jump(tb, n);
-        atomic_and(&tb->jmp_dest[n], (uintptr_t) NULL | 1);
+        qatomic_and(&tb->jmp_dest[n], (uintptr_t) NULL | 1);
         /* No need to clear the list entry; setting the dest ptr is enough */
     }
     dest->jmp_list_head = (uintptr_t) NULL;
@@ -630,7 +630,7 @@ void tb_add_jump(TranslationBlock *tb, int n, TranslationBlock *tb_next) {
         goto out_unlock_next;
     }
     /* Atomically claim the jump destination slot only if it was NULL */
-    old = atomic_cmpxchg(&tb->jmp_dest[n], (uintptr_t) NULL, (uintptr_t) tb_next);
+    old = qatomic_cmpxchg(&tb->jmp_dest[n], (uintptr_t) NULL, (uintptr_t) tb_next);
     if (old) {
         goto out_unlock_next;
     }
