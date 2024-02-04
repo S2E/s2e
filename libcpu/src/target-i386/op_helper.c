@@ -24,8 +24,8 @@
 
 // clang-format off
 #include <tcg/tcg-op.h>
-#include <tcg/helper-proto.h>
-#include <tcg/helper-gen.h>
+#include <tcg/exec/helper-proto.h>
+#include <tcg/exec/helper-gen.h>
 // clang-format on
 
 #include <tcg/utils/host-utils.h>
@@ -82,11 +82,12 @@ static inline target_long lshift(target_long x, int n) {
     }
 }
 
-#define FPU_RC_MASK 0xc00
-#define FPU_RC_NEAR 0x000
-#define FPU_RC_DOWN 0x400
-#define FPU_RC_UP   0x800
-#define FPU_RC_CHOP 0xc00
+#define FPU_RC_SHIFT 10
+#define FPU_RC_MASK  (3 << FPU_RC_SHIFT)
+#define FPU_RC_NEAR  0x000
+#define FPU_RC_DOWN  0x400
+#define FPU_RC_UP    0x800
+#define FPU_RC_CHOP  0xc00
 
 #define MAXTAN 9223372036854775808.0
 
@@ -4059,39 +4060,34 @@ uint32_t helper_fnstcw(void) {
     return FPUC;
 }
 
+static void set_x86_rounding_mode(unsigned mode, float_status *status) {
+    static FloatRoundMode x86_round_mode[4] = {float_round_nearest_even, float_round_down, float_round_up,
+                                               float_round_to_zero};
+    assert(mode < ARRAY_SIZE(x86_round_mode));
+    set_float_rounding_mode(x86_round_mode[mode], status);
+}
+
 static void update_fp_status(void) {
-    int rnd_type;
+    int rnd_mode;
+    FloatX80RoundPrec rnd_prec;
 
     /* set rounding mode */
-    switch (FPUC & FPU_RC_MASK) {
-        default:
-        case FPU_RC_NEAR:
-            rnd_type = float_round_nearest_even;
-            break;
-        case FPU_RC_DOWN:
-            rnd_type = float_round_down;
-            break;
-        case FPU_RC_UP:
-            rnd_type = float_round_up;
-            break;
-        case FPU_RC_CHOP:
-            rnd_type = float_round_to_zero;
-            break;
-    }
-    set_float_rounding_mode(rnd_type, &env->fp_status);
-    switch ((FPUC >> 8) & 3) {
+    rnd_mode = (env->fpuc & FPU_RC_MASK) >> FPU_RC_SHIFT;
+    set_x86_rounding_mode(rnd_mode, &env->fp_status);
+
+    switch ((env->fpuc >> 8) & 3) {
         case 0:
-            rnd_type = 32;
+            rnd_prec = floatx80_precision_s;
             break;
         case 2:
-            rnd_type = 64;
+            rnd_prec = floatx80_precision_d;
             break;
         case 3:
         default:
-            rnd_type = 80;
+            rnd_prec = floatx80_precision_x;
             break;
     }
-    set_floatx80_rounding_precision(rnd_type, &env->fp_status);
+    set_floatx80_rounding_precision(rnd_prec, &env->fp_status);
 }
 
 void helper_fldcw(uint32_t val) {
