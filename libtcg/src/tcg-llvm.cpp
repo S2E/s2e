@@ -26,6 +26,8 @@
 // Enforce include order
 // clang-format off
 #include <tcg/tcg.h>
+#include <tcg/tcg-internal.h>
+#include <tcg/insn-start-words.h>
 extern "C" {
 #include <tcg/tb.h>
 }
@@ -245,7 +247,7 @@ Value *TCGLLVMTranslator::getPtrForValue(int idx) {
     TCGContext *s = m_tcgContext;
     TCGTemp &temp = s->temps[idx];
 
-    assert(idx < s->nb_globals || (s->temps[idx].kind == TEMP_LOCAL));
+    assert(idx < s->nb_globals || (s->temps[idx].kind == TEMP_TB));
 
     if (m_memValuesPtr[idx] == NULL) {
         assert(idx < s->nb_globals);
@@ -308,7 +310,7 @@ Value *TCGLLVMTranslator::getValue(TCGArg arg) {
                 m_values[idx] = m_builder.CreatePtrToInt(v, tcgType(temp.type), StringRef(temp.name) + "_v");
             } break;
 
-            case TEMP_LOCAL: {
+            case TEMP_TB: {
                 auto ptr = getPtrForValue(idx);
                 m_values[idx] = m_builder.CreateLoad(ptr->getType()->getPointerElementType(), ptr);
                 std::ostringstream name;
@@ -351,7 +353,7 @@ void TCGLLVMTranslator::setValue(TCGArg arg, Value *v) {
     if (!v->hasName() && !isa<Constant>(v)) {
         if (tmp->kind == TEMP_GLOBAL) {
             v->setName(StringRef(tmp->name) + "_v");
-        } else if (tmp->kind == TEMP_LOCAL) {
+        } else if (tmp->kind == TEMP_TB) {
             std::ostringstream name;
             name << "loc" << (idx - m_tcgContext->nb_globals) << "_v";
             v->setName(name.str());
@@ -377,9 +379,10 @@ void TCGLLVMTranslator::setValue(TCGArg arg, Value *v) {
                 }
             }
         }
-    } else if (tmp->kind == TEMP_LOCAL) {
+    } else if (tmp->kind == TEMP_TB) {
         // We need to save an in-memory copy of a value
-        m_builder.CreateStore(v, getPtrForValue(idx));
+        auto ptr = getPtrForValue(idx);
+        m_builder.CreateStore(v, ptr);
     } else {
         // We don't need to save the temp value anywhere, it will be
         // dead at the end of the basic block. We just keep it in m_values
@@ -421,7 +424,7 @@ void TCGLLVMTranslator::initGlobalsAndLocalTemps() {
 
     // Allocate local temps
     for (int i = s->nb_globals; i < TCG_MAX_TEMPS; ++i) {
-        if (s->temps[i].kind == TEMP_LOCAL) {
+        if (s->temps[i].kind == TEMP_TB) {
             std::ostringstream pName;
             pName << "loc_" << (i - s->nb_globals) << "ptr";
             m_memValuesPtr[i] = m_builder.CreateAlloca(tcgType(s->temps[i].type), 0, pName.str());
@@ -482,7 +485,10 @@ void TCGLLVMTranslator::startNewBasicBlock(BasicBlock *bb) {
 
     /* Invalidate all temps */
     for (int i = 0; i < TCG_MAX_TEMPS; ++i) {
-        delValue(i);
+        const TCGTemp &temp = m_tcgContext->temps[i];
+        if (temp.kind != TEMP_EBB) {
+            delValue(i);
+        }
     }
 
     /* Invalidate all pointers to globals */
@@ -647,11 +653,9 @@ int TCGLLVMTranslator::generateOperation(const TCGOp *op) {
 
             for (int i = 0; i < nb_iargs; ++i) {
                 TCGArg arg = op->args[nb_oargs + i];
-                if (arg != TCG_CALL_DUMMY_ARG) {
-                    Value *v = getValue(arg);
-                    argValues.push_back(v);
-                    argTypes.push_back(v->getType());
-                }
+                Value *v = getValue(arg);
+                argValues.push_back(v);
+                argTypes.push_back(v->getType());
             }
 
             assert(nb_oargs == 0 || nb_oargs == 1);
@@ -664,13 +668,13 @@ int TCGLLVMTranslator::generateOperation(const TCGOp *op) {
                 retType = wordType(getValueBits(retIdx));
             }
 
-            tcg_target_ulong helperAddress = op->args[nb_oargs + nb_iargs];
+            auto helperAddress = tcg_call_func(op);
             assert(helperAddress);
 
-            const char *helperName = tcg_helper_get_name(m_tcgContext, (void *) helperAddress);
-            assert(helperName);
+            const auto helperInfo = tcg_call_info(op);
+            assert(helperInfo->name);
 
-            std::string funcName = std::string("helper_") + helperName;
+            std::string funcName = std::string("helper_") + helperInfo->name;
             Function *helperFunc = m_module->getFunction(funcName);
 
 #ifndef STATIC_TRANSLATOR
@@ -711,7 +715,7 @@ int TCGLLVMTranslator::generateOperation(const TCGOp *op) {
             }
 
             for (int i = m_tcgContext->nb_globals; i < TCG_MAX_TEMPS; ++i) {
-                if (m_tcgContext->temps[i].kind == TEMP_LOCAL) {
+                if (m_tcgContext->temps[i].kind == TEMP_TB) {
                     delValue(i);
                 }
             }
@@ -790,15 +794,28 @@ int TCGLLVMTranslator::generateOperation(const TCGOp *op) {
 #endif
 
 /* size extensions */
-#define __EXT_OP(opc_name, truncBits, opBits, signE)                                                                   \
-    case opc_name:                                                                                                     \
-        /*                                                                                                             \
-        assert(getValue(op->args[1])->getType() == intType(opBits) ||                                                  \
-               getValue(op->args[1])->getType() == intType(truncBits));                                                \
-        */                                                                                                             \
-        setValue(op->args[0], m_builder.Create##signE##Ext(                                                            \
-                                  m_builder.CreateTrunc(getValue(op->args[1]), intType(truncBits)), intType(opBits))); \
-        break;
+#define __EXT_OP(opc_name, truncBits, opBits, signE)                    \
+    case opc_name: {                                                    \
+        /*                                                              \
+        assert(getValue(op->args[1])->getType() == intType(opBits) ||   \
+               getValue(op->args[1])->getType() == intType(truncBits)); \
+        */                                                              \
+        auto source = getValue(op->args[1]);                            \
+        auto tb = intType(truncBits);                                   \
+        auto ob = intType(opBits);                                      \
+        auto trunc = m_builder.CreateTrunc(source, tb);                 \
+        auto sext = m_builder.Create##signE##Ext(trunc, ob);            \
+        setValue(op->args[0], sext);                                    \
+    } break;
+
+            /* extract ops */
+#define __EXTR_OP(opc_name, sourceBits, truncBits)      \
+    case opc_name: {                                    \
+        auto source = getValue(op->args[1]);            \
+        auto tb = intType(truncBits);                   \
+        auto trunc = m_builder.CreateTrunc(source, tb); \
+        setValue(op->args[0], trunc);                   \
+    } break;
 
             __EXT_OP(INDEX_op_ext8s_i32, 8, 32, S)
             __EXT_OP(INDEX_op_ext8u_i32, 8, 32, Z)
@@ -816,7 +833,8 @@ int TCGLLVMTranslator::generateOperation(const TCGOp *op) {
 
             __EXT_OP(INDEX_op_extu_i32_i64, 32, 64, Z)
             __EXT_OP(INDEX_op_ext32u_i64, 32, 64, Z)
-            __EXT_OP(INDEX_op_extrl_i64_i32, 32, 64, Z)
+
+            __EXTR_OP(INDEX_op_extrl_i64_i32, 64, 32)
 #endif
 
 #undef __EXT_OP
@@ -994,11 +1012,17 @@ int TCGLLVMTranslator::generateOperation(const TCGOp *op) {
         setValue(op->args[0], v);                                                    \
         break;
 
-            __OP_QEMU_ST(INDEX_op_qemu_st_i32, 32)
-            __OP_QEMU_ST(INDEX_op_qemu_st_i64, 64)
+            __OP_QEMU_ST(INDEX_op_qemu_st_a64_i32, 32)
+            __OP_QEMU_ST(INDEX_op_qemu_st_a64_i64, 64)
 
-            __OP_QEMU_LD(INDEX_op_qemu_ld_i32, 32)
-            __OP_QEMU_LD(INDEX_op_qemu_ld_i64, 64)
+            __OP_QEMU_ST(INDEX_op_qemu_st_a32_i32, 32)
+            __OP_QEMU_ST(INDEX_op_qemu_st_a32_i64, 64)
+
+            __OP_QEMU_LD(INDEX_op_qemu_ld_a64_i32, 32)
+            __OP_QEMU_LD(INDEX_op_qemu_ld_a64_i64, 64)
+
+            __OP_QEMU_LD(INDEX_op_qemu_ld_a32_i32, 32)
+            __OP_QEMU_LD(INDEX_op_qemu_ld_a32_i64, 64)
 
 #undef __OP_QEMU_LD
 #undef __OP_QEMU_ST
@@ -1071,6 +1095,10 @@ int TCGLLVMTranslator::generateOperation(const TCGOp *op) {
             setValue(op->args[0], ret);
         } break;
 #endif
+
+        case INDEX_op_mb:
+            // Memory barriers not supported.
+            break;
 
         default:
             std::cerr << "ERROR: unknown TCG micro operation '" << def.name << "'" << std::endl;
