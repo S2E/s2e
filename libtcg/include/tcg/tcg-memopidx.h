@@ -31,6 +31,10 @@
 
 #include "tcg-memop.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Combine the MemOp and mmu_idx parameters into a single value.  */
 typedef uint32_t MemOpIdx;
 
@@ -65,5 +69,9 @@ static inline MemOp get_memop(MemOpIdx oi) {
 static inline unsigned get_mmuidx(MemOpIdx oi) {
     return oi & 15;
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

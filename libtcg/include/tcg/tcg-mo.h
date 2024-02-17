@@ -25,6 +25,10 @@
 #ifndef TCG_MO_H
 #define TCG_MO_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef enum {
     /* Used to indicate the type of accesses on which ordering
        is to be ensured.  Modeled after SPARC barriers.
@@ -44,5 +48,9 @@ typedef enum {
     TCG_BAR_STRL = 0x20, /* Previous ops will not be delayed */
     TCG_BAR_SC = 0x30,   /* No ops cross barrier; OR of the above */
 } TCGBar;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* TCG_MO_H */

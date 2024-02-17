@@ -24,6 +24,10 @@
 #include <fpu/softfloat.h>
 #include <inttypes.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // XXX: this is in softfloat.
 typedef uint32_t float32;
 typedef uint64_t float64;
@@ -61,5 +65,9 @@ typedef union ZMMReg {
     XMMReg _x_ZMMReg[512 / 128];
     YMMReg _y_ZMMReg[512 / 256];
 } ZMMReg;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
