@@ -2270,11 +2270,15 @@ void tcg_dump_ops(TCGContext *s, FILE *f, bool have_prefs) {
     char buf[128];
     TCGOp *op;
 
+    int icount = 0;
+
     QTAILQ_FOREACH (op, &s->ops, link) {
         int i, k, nb_oargs, nb_iargs, nb_cargs;
         const TCGOpDef *def;
         TCGOpcode c;
         int col = 0;
+
+        fprintf(f, "%03d ", icount++);
 
         c = op->opc;
         def = &tcg_op_defs[c];
