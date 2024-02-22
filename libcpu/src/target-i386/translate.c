@@ -7942,7 +7942,7 @@ static inline void gen_intermediate_code_internal(CPUX86State *env, TranslationB
     }
 
     if (libcpu_loglevel_mask(CPU_LOG_TB_OP)) {
-        tcg_dump_ops(tcg_ctx, stdout, 0);
+        tcg_dump_ops(tcg_ctx, logfile, 0);
         libcpu_log("\n");
     }
 #endif
