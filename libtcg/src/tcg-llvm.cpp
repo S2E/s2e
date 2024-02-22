@@ -34,6 +34,7 @@ extern "C" {
 // clang-format on
 
 #include <tcg/tcg-llvm.h>
+#include <tcg/utils/log.h>
 
 #include <llvm/Bitcode/BitcodeReader.h>
 #include <llvm/ExecutionEngine/ExecutionEngine.h>
@@ -1151,10 +1152,20 @@ Function *TCGLLVMTranslator::generateCode(TCGContext *s, TranslationBlock *tb) {
 
     loadNativeCpuState(m_tbFunction);
 
+    if (libcpu_loglevel_mask(CPU_LOG_LLVM_IR)) {
+        fprintf(logfile, "OPS LLVM\n");
+        tcg_dump_ops(s, logfile, false);
+    }
+
     /* Generate code for each opc */
     const TCGOp *op;
+    int icount = 0;
     QTAILQ_FOREACH (op, &s->ops, link) {
         int opc = op->opc;
+
+        if (libcpu_loglevel_mask(CPU_LOG_LLVM_IR)) {
+            fprintf(logfile, "%03d\n", icount++);
+        }
 
         switch (opc) {
 #if defined(CONFIG_SYMBEX)
@@ -1222,21 +1233,19 @@ Function *TCGLLVMTranslator::generateCode(TCGContext *s, TranslationBlock *tb) {
         abort();
     }
 
-// KLEE will optimize the function later
-// m_functionPassManager->run(*m_tbFunction);
+    // KLEE will optimize the function later
+    // m_functionPassManager->run(*m_tbFunction);
 
-// XXX: implement proper logging
-#if 0
-    if(libcpu_loglevel_mask(CPU_LOG_LLVM_IR)) {
+    if (libcpu_loglevel_mask(CPU_LOG_LLVM_IR)) {
         std::string fcnString;
-        llvm::raw_string_ostream s(fcnString);
-        s << *m_tbFunction;
-        libcpu_log("OUT (LLVM IR):\n");
-        libcpu_log("%s", s.str().c_str());
-        libcpu_log("\n");
-        libcpu_log_flush();
+        llvm::raw_string_ostream stream(fcnString);
+        stream << *m_tbFunction;
+        fprintf(logfile, "OUT (LLVM IR):\n");
+        auto str = stream.str();
+        fprintf(logfile, "%s", str.c_str());
+        fprintf(logfile, "\n");
+        fflush(logfile);
     }
-#endif
 
     return m_tbFunction;
 }
