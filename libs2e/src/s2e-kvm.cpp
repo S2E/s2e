@@ -26,7 +26,7 @@
 #include <cpu/cpus.h>
 #include <cpu/exec.h>
 #include <cpu/memory.h>
-#include <libcpu-log.h>
+#include <tcg/utils/log.h>
 #include <timer.h>
 
 #include <cpu/cpu-common.h>

@@ -29,7 +29,7 @@
 // clang-format on
 
 #include <tcg/utils/host-utils.h>
-#include "libcpu-log.h"
+#include <tcg/utils/log.h>
 
 #include "softmmu_exec.h"
 

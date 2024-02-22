@@ -34,8 +34,8 @@
 #include <tcg/insn-start-words.h>
 #include <tcg/tcg.h>
 #include <tcg/utils/cache.h>
-#include "cpu.h"
 #include <tcg/utils/spinlock.h>
+#include "cpu.h"
 #include "timer.h"
 
 #if defined(CONFIG_SYMBEX_MP) || defined(STATIC_TRANSLATOR)

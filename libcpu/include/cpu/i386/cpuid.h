@@ -18,8 +18,8 @@
 #define LIBCPU_i386_CPUID
 
 #include <inttypes.h>
-#include <libcpu-log.h>
 #include <stdio.h>
+#include <tcg/utils/log.h>
 
 #ifdef __cplusplus
 extern "C" {

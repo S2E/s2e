@@ -16,18 +16,13 @@
 /// You should have received a copy of the GNU Library General Public
 /// License along with this library; if not, see <http://www.gnu.org/licenses/>.
 
-#include <cpu/config.h>
+#include <stdio.h>
+#include <string.h>
 #include <sys/mman.h>
 #include <sys/types.h>
 
-#include <cpu/types.h>
-#include <tcg/tcg.h>
+#include <tcg/utils/log.h>
 #include <tcg/utils/osdep.h>
-#include "cpu.h"
-#include "qemu-common.h"
-
-#include "exec-tb.h"
-#include "exec.h"
 
 extern uint8_t *code_gen_buffer;
 
@@ -39,11 +34,7 @@ typedef struct CPULogItem {
 } CPULogItem;
 
 /* log support */
-#ifdef WIN32
-static const char *logfilename = "qemu.log";
-#else
 static const char *logfilename = "/tmp/qemu.log";
-#endif
 FILE *logfile;
 int loglevel;
 static int log_append = 0;
