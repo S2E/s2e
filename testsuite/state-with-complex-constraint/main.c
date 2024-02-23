@@ -20,6 +20,8 @@
 
 #include <s2e/s2e.h>
 #include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
 
 const uint64_t FNV_PRIME = 1099511628211ULL;
 const uint64_t FNV_OFFSET_BASIS = 14695981039346656037ULL;
@@ -39,7 +41,9 @@ static void test_fork_simple(void) {
     char buffer[0x10];
     int sym_int = 0;
     s2e_make_symbolic(&sym_int, sizeof(int), "varne0");
-
+    
+    printf("This is a test for calling printf");
+    malloc(0x123);
     // Each of the two states should fork twice here,
     // resulting in a total of four states.
     if((sym_int & 0x1223) > 0) {
