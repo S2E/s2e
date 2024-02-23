@@ -21,8 +21,3 @@
 
 add_subdirectory(CFG)
 add_subdirectory(Utils)
-add_subdirectory(X8664BitcodeLibrary)
-add_subdirectory(X8664Translator)
-add_subdirectory(X86BitcodeLibrary)
-add_subdirectory(X86RuntimeLibrary)
-add_subdirectory(X86Translator)
