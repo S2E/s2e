@@ -398,7 +398,13 @@ bool AddressSpace::write(uintptr_t address, const ref<Expr> &data, Concretizer c
         return true;
     };
 
-    return iterateWrite(address, dataSize, cb, tr);
+    auto ce = dyn_cast<ConstantExpr>(data);
+    if (littleEndian && dataSize <= 8 && ce) {
+        auto cste = ce->getZExtValue(64);
+        return write(address, (uint8_t *) &cste, dataSize, tr);
+    } else {
+        return iterateWrite(address, dataSize, cb, tr);
+    }
 }
 
 bool AddressSpace::symbolic(uintptr_t address, size_t size, AddressTranslator tr) {
