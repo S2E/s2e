@@ -57,7 +57,7 @@ const CPULogItem cpu_log_items[] = {
 #ifdef DEBUG_IOPORT
     {CPU_LOG_IOPORT, "ioport", "show all i/o ports accesses"},
 #endif
-#ifdef CONFIG_LLVM
+#ifdef CONFIG_SYMBEX
     {CPU_LOG_LLVM_IR, "llvm_ir", "show generated LLVM IR code"},
 #endif
     {0, NULL, NULL},
