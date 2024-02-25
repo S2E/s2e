@@ -6743,13 +6743,7 @@ reswitch:
 #ifdef WANT_ICEBP
         case 0xf1: /* icebp (undocumented, exits to external debugger) */
             gen_svm_check_intercept(s, pc_start, SVM_EXIT_ICEBP);
-#if 1
             gen_debug(s, pc_start - s->cs_base);
-#else
-            /* start debug */
-            tb_flush(cpu_single_env);
-            cpu_set_log(CPU_LOG_INT | CPU_LOG_TB_IN_ASM);
-#endif
             break;
 #endif
         case 0xfa: /* cli */

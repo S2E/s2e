@@ -121,8 +121,6 @@ typedef int (*fprintf_function)(FILE *f, const char *fmt, ...);
             logfile = (f);         \
     } while (0)
 
-void cpu_set_log(int log_flags);
-void cpu_set_log_filename(const char *filename);
 int cpu_str_to_log_mask(const char *str);
 
 #ifdef __cplusplus
