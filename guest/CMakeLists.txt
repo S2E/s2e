@@ -28,6 +28,7 @@ set(guesttools_VERSION_MINOR 1)
 set(guesttools_VERSION_PATCH 0)
 set(guesttools_PACKAGE_VERSION
     "${guesttools_VERSION_MAJOR}.${guesttools_VERSION_MINOR}.${guesttools_VERSION_PATCH}")
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 include(CMakePackageConfigHelpers)
 set(CMAKE_VERSION_FILE "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Version.cmake")
