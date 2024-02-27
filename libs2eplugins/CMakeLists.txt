@@ -111,6 +111,8 @@ include_directories(${GLIB_PKG_INCLUDE_DIRS}
                     ${FSIGCXX_INCLUDE_DIR}
                     ${KLEE_INCLUDE_DIR}
                     ${LUA_DIR}
-                    ${S2EGUEST_INCLUDE_DIR})
+                    ${S2EGUEST_INCLUDE_DIR}
+                    ${LIBPS_INCLUDE_DIR}
+                    /usr/lib/glib-2.0/include)
 
 add_subdirectory(src)

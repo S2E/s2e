@@ -156,9 +156,9 @@ void LinuxMonitor::handleInit(S2EExecutionState *state, const S2E_LINUXMON_COMMA
 }
 
 void LinuxMonitor::handleMemMap(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd) {
-    getDebugStream(state) << "mmap pid=" << hexval(cmd.CurrentTask.tgid) << " addr=" << hexval(cmd.MemMap.address)
-                          << " size=" << hexval(cmd.MemMap.size) << " prot=" << hexval(cmd.MemMap.prot)
-                          << " flag=" << hexval(cmd.MemMap.flag) << " pgoff=" << hexval(cmd.MemMap.pgoff) << "\n";
+    // getDebugStream(state) << "mmap pid=" << hexval(cmd.CurrentTask.tgid) << " addr=" << hexval(cmd.MemMap.address)
+    //                       << " size=" << hexval(cmd.MemMap.size) << " prot=" << hexval(cmd.MemMap.prot)
+    //                       << " flag=" << hexval(cmd.MemMap.flag) << " pgoff=" << hexval(cmd.MemMap.pgoff) << "\n";
 
     // A negative address for mmap indicates failure
     if (int64_t(cmd.MemMap.address) < 0) {
@@ -170,17 +170,17 @@ void LinuxMonitor::handleMemMap(S2EExecutionState *state, const S2E_LINUXMON_COM
 }
 
 void LinuxMonitor::handleMemUnmap(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd) {
-    getDebugStream(state) << "munmap pid=" << hexval(cmd.CurrentTask.tgid) << " start=" << hexval(cmd.MemUnmap.start)
-                          << " end=" << hexval(cmd.MemUnmap.end) << "\n";
+    // getDebugStream(state) << "munmap pid=" << hexval(cmd.CurrentTask.tgid) << " start=" << hexval(cmd.MemUnmap.start)
+    //                       << " end=" << hexval(cmd.MemUnmap.end) << "\n";
 
     uint64_t size = cmd.MemUnmap.end - cmd.MemUnmap.start;
     onMemoryUnmap.emit(state, cmd.CurrentTask.tgid, cmd.MemUnmap.start, size);
 }
 
 void LinuxMonitor::handleMemProtect(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd) {
-    getDebugStream(state) << "mprotect pid=" << hexval(cmd.CurrentTask.tgid)
-                          << " start=" << hexval(cmd.MemProtect.start) << " size=" << hexval(cmd.MemProtect.size)
-                          << " prot=" << hexval(cmd.MemProtect.prot) << "\n";
+    // getDebugStream(state) << "mprotect pid=" << hexval(cmd.CurrentTask.tgid)
+    //                       << " start=" << hexval(cmd.MemProtect.start) << " size=" << hexval(cmd.MemProtect.size)
+    //                       << " prot=" << hexval(cmd.MemProtect.prot) << "\n";
 
     onMemoryProtect.emit(state, cmd.CurrentTask.tgid, cmd.MemProtect.start, cmd.MemProtect.size, cmd.MemProtect.prot);
 }
