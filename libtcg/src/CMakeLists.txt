@@ -23,7 +23,7 @@ set (TCG_SOURCES)
 list (APPEND TCG_SOURCES
         utils/cutils.c utils/osdep.c utils/memalign.c utils/cache.c utils/log.c
         utils/cpuinfo-i386.c utils/qtree.c utils/host-utils.c
-        region.c tcg.c tcg-op-ldst.c  tcg-common.c tcg-op.c optimize.c tcg-op-gvec.c tcg-op-vec.c
+        region.c tcg.c tcg-s2e.c tcg-op-ldst.c  tcg-common.c tcg-op.c optimize.c tcg-op-gvec.c tcg-op-vec.c
         tcg-rt/tcg-runtime-gvec.c tcg-rt/tcg-runtime.c
         atomic-helpers.c
         fpu/softfloat.c)

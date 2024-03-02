@@ -721,14 +721,6 @@ extern const void *tcg_code_gen_epilogue;
 extern uintptr_t tcg_splitwx_diff;
 extern TCGv_env cpu_env;
 
-#ifdef CONFIG_SYMBEX
-static inline int tcg_is_dyngen_addr(void *addr) {
-    uintptr_t a = (uintptr_t) addr;
-    return (a >= (uintptr_t) tcg_ctx->code_gen_buffer) &&
-           (a < ((uintptr_t) tcg_ctx->code_gen_buffer + (uintptr_t) tcg_ctx->code_gen_buffer_size));
-}
-#endif
-
 bool in_code_gen_buffer(const void *p);
 
 #ifdef CONFIG_DEBUG_TCG
@@ -1245,12 +1237,6 @@ void tcg_dump_ops(TCGContext *s, FILE *f, bool have_prefs);
 
 void tcg_target_force_tb_exit(uintptr_t gen_code, uintptr_t max_addr);
 bool tcg_can_emit_vecop_list(const TCGOpcode *, TCGType, unsigned);
-
-#ifdef CONFIG_SYMBEX
-void tcg_calc_regmask(TCGContext *s, uint64_t *rmask, uint64_t *wmask, uint64_t *accesses_mem);
-#endif
-
-const char *tcg_helper_get_name(TCGContext *s, void *func);
 
 #define plugin_gen_disable_mem_helpers()
 

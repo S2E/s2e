@@ -21,6 +21,8 @@
 #include "exec.h"
 #include "timer.h"
 
+#include <tcg/tcg-s2e.h>
+
 #define DATA_SIZE (1 << SHIFT)
 
 #if DATA_SIZE == 8

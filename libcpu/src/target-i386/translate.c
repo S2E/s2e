@@ -33,6 +33,8 @@
 #include <tcg/exec/helper-info.c.inc>
 #undef HELPER_H
 
+#include <tcg/tcg-s2e.h>
+
 // clang-format on
 
 #include <cpu/disas.h>
