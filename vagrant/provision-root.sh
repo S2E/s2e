@@ -35,6 +35,12 @@ fi
 
 apt-get -y install git gcc python3 python3-dev python3-venv
 
+# The Ubuntu image doesn't have enough space on the boot partition to install some packages.
+# Cleanup unused kernels.
+if uname -a | grep -q ubuntu2004; then
+    apt-get -y remove linux-image-5.4.0-42-generic linux-headers-5.4.0-42-generic linux-modules-5.4.0-42-generic
+fi
+
 chown -R vagrant:vagrant /mnt/disk/
 
 su -c "source /vagrant/provision-user.sh" vagrant
