@@ -173,6 +173,7 @@ void FunctionMonitor::onFunctionCall(S2EExecutionState *state, uint64_t callerPc
         getWarningsStream(state) << "Could not get relative caller/callee address\n";
         return;
     }
+    getWarningsStream(state) <<  "Caller " << callerMod->Name << ", addr " << hexval(callerPc) << " callee " << calleeMod->Name << ", callee addr: " << hexval(calleePc) << "\n";
 
     auto onRetSig = new FunctionMonitor::ReturnSignal();
     auto onRetSigPtr = std::shared_ptr<FunctionMonitor::ReturnSignal>(onRetSig);
