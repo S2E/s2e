@@ -60,8 +60,6 @@ extern struct cpu_stats_t g_cpu_stats;
 
 #define OPPARAM_BUF_SIZE (OPC_BUF_SIZE * MAX_OPC_PARAM)
 
-#include "libcpu-log.h"
-
 void gen_intermediate_code(CPUArchState *env, struct TranslationBlock *tb);
 void gen_intermediate_code_pc(CPUArchState *env, struct TranslationBlock *tb);
 
@@ -121,7 +119,7 @@ static inline unsigned int tb_phys_hash_func(tb_page_addr_t pc) {
 
 extern TranslationBlock *tb_phys_hash[CODE_GEN_PHYS_HASH_SIZE];
 
-#include "qemu-lock.h"
+#include <tcg/utils/spinlock.h>
 
 extern spinlock_t tb_lock;
 

@@ -33,7 +33,7 @@ cd s2e-env
 
 python3 -m venv venv
 . venv/bin/activate
-pip install --upgrade pip
+pip install --upgrade pip wheel
 
 pip install .
 

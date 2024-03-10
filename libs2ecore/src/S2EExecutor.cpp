@@ -1138,7 +1138,7 @@ uintptr_t S2EExecutor::executeTranslationBlockConcrete(S2EExecutionState *state,
         S2EExternalDispatcher::restoreJmpBuf();
         throw CpuExitException();
     } else {
-        ret = tcg_libcpu_tb_exec(env, tb->tc.ptr);
+        ret = tcg_qemu_tb_exec(env, tb->tc.ptr);
     }
 
     S2EExternalDispatcher::restoreJmpBuf();
@@ -1166,7 +1166,7 @@ uintptr_t S2EExecutor::executeTranslationBlockFast(struct CPUX86State *env1, str
             assert(g_s2e_fast_concrete_invocation);
             g_s2e_state->switchToConcrete();
         }
-        return tcg_libcpu_tb_exec(env, tb->tc.ptr);
+        return tcg_qemu_tb_exec(env, tb->tc.ptr);
     } else {
         return executeTranslationBlockSlow(env, tb);
     }
@@ -1765,11 +1765,6 @@ void s2e_create_initial_state() {
 
 void s2e_initialize_execution(int execute_always_klee) {
     g_s2e->getExecutor()->initializeExecution(g_s2e_state, execute_always_klee);
-    // XXX: move it to better place (signal handler for this?)
-    tcg_register_helper((void *) &s2e_tcg_execution_handler, "s2e_tcg_execution_handler", 2, sizeof(void *),
-                        sizeof(uint64_t));
-    tcg_register_helper((void *) &s2e_tcg_custom_instruction_handler, "s2e_tcg_custom_instruction_handler", 1,
-                        sizeof(uint64_t));
 }
 
 void s2e_register_cpu(CPUX86State *cpu_env) {

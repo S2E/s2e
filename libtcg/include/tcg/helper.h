@@ -226,4 +226,7 @@ DEF_HELPER_1(se_opcode, void, i64)
 #if defined(CONFIG_SYMBEX)
 DEF_HELPER_1(se_call, void, tl)
 DEF_HELPER_2(se_ret, void, tl, int)
+
+DEF_HELPER_2(s2e_tcg_execution_handler, void, ptr, i64)
+DEF_HELPER_1(s2e_tcg_custom_instruction_handler, void, i64)
 #endif

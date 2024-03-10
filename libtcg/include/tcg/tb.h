@@ -21,7 +21,6 @@
 #define _TCG_TB_H_
 
 #include <inttypes.h>
-#include <tcg/exec.h>
 #include <tcg/utils/atomic.h>
 
 #ifdef __cplusplus
@@ -60,12 +59,24 @@ typedef uintptr_t tb_page_addr_t;
 // XXX
 typedef int spinlock_t;
 
+/*
+ * Translation Cache-related fields of a TB.
+ * This struct exists just for convenience; we keep track of TB's in a binary
+ * search tree, and the only fields needed to compare TB's in the tree are
+ * @ptr and @size.
+ * Note: the address of search data can be obtained by adding @size to @ptr.
+ */
+struct tb_tc {
+    void *ptr; /* pointer to the translated code */
+    size_t size;
+};
+
 struct TranslationBlock {
-    target_ulong pc;      /* simulated PC corresponding to this block (EIP + CS base) */
-    target_ulong cs_base; /* CS base for this block */
-    uint64_t flags;       /* flags defining in which context the code was generated */
-    uint16_t size;        /* size of target code for this block (1 <=
-                             size <= TARGET_PAGE_SIZE) */
+    uint64_t pc;      /* simulated PC corresponding to this block (EIP + CS base) */
+    uint64_t cs_base; /* CS base for this block */
+    uint64_t flags;   /* flags defining in which context the code was generated */
+    uint16_t size;    /* size of target code for this block (1 <=
+                         size <= TARGET_PAGE_SIZE) */
 
 #define CF_COUNT_MASK         0x00007fff
 #define CF_NO_GOTO_TB         0x00000200 /* Do not chain with goto_tb */
@@ -74,6 +85,7 @@ struct TranslationBlock {
 #define CF_HAS_INTERRUPT_EXIT 0x00020000 /* The TB has a prologue to handle quick CPU loop exit */
 #define CF_INVALID            0x00040000 /* TB is stale. Set with @jmp_lock held */
 #define CF_PARALLEL           0x00080000 /* Generate code for a parallel context */
+#define CF_PCREL              0x00200000 /* Opcodes in TB are PC-relative */
 
     uint32_t cflags; /* compile flags */
 
@@ -98,9 +110,10 @@ struct TranslationBlock {
      * setting one of the jump targets (or patching the jump instruction). Only
      * two of such jumps are supported.
      */
-    uint16_t jmp_reset_offset[2];          /* offset of original jump target */
-#define TB_JMP_RESET_OFFSET_INVALID 0xffff /* indicates no jump generated */
-    uintptr_t jmp_target_arg[2];           /* target address or offset */
+#define TB_JMP_OFFSET_INVALID 0xffff /* indicates no jump generated */
+    uint16_t jmp_reset_offset[2];    /* offset of original jump target */
+    uint16_t jmp_insn_offset[2];     /* offset of direct jump insn */
+    uintptr_t jmp_target_addr[2];    /* target address */
 
     /*
      * Each TB has a NULL-terminated list (jmp_list_head) of incoming jumps.
@@ -150,7 +163,7 @@ typedef struct TranslationBlock TranslationBlock;
 
 /* Hide the atomic_read to make code a little easier on the eyes */
 static inline uint32_t tb_cflags(const TranslationBlock *tb) {
-    return atomic_read(&tb->cflags);
+    return qatomic_read(&tb->cflags);
 }
 
 #ifdef __cplusplus

@@ -23,19 +23,23 @@
  * THE SOFTWARE.
  */
 
+/* Portions of this work are licensed under the terms of the GNU GPL,
+ * version 2 or later. See the COPYING file in the top-level directory.
+ */
+
 #ifndef HOST_UTILS_H
 #define HOST_UTILS_H
 
-#include <assert.h>
-#include <inttypes.h>
 #include <limits.h>
-#include <stdbool.h>
+
+#include "bswap.h"
+#include "int128.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#if defined(__x86_64__)
+#ifdef CONFIG_INT128
 static inline void mulu64(uint64_t *plow, uint64_t *phigh, uint64_t a, uint64_t b) {
     __uint128_t r = (__uint128_t) a * b;
     *plow = r;
@@ -53,157 +57,34 @@ static inline uint64_t muldiv64(uint64_t a, uint32_t b, uint32_t c) {
     return (__int128_t) a * b / c;
 }
 
-static inline int divu128(uint64_t *plow, uint64_t *phigh, uint64_t divisor) {
-    if (divisor == 0) {
-        return 1;
-    } else {
-        __uint128_t dividend = ((__uint128_t) *phigh << 64) | *plow;
-        __uint128_t result = dividend / divisor;
-        *plow = result;
-        *phigh = dividend % divisor;
-        return result > UINT64_MAX;
-    }
+static inline uint64_t divu128(uint64_t *plow, uint64_t *phigh, uint64_t divisor) {
+    __uint128_t dividend = ((__uint128_t) *phigh << 64) | *plow;
+    __uint128_t result = dividend / divisor;
+
+    *plow = result;
+    *phigh = result >> 64;
+    return dividend % divisor;
 }
 
-static inline int divs128(int64_t *plow, int64_t *phigh, int64_t divisor) {
-    if (divisor == 0) {
-        return 1;
-    } else {
-        __int128_t dividend = ((__int128_t) *phigh << 64) | *plow;
-        __int128_t result = dividend / divisor;
-        *plow = result;
-        *phigh = dividend % divisor;
-        return result != *plow;
-    }
+static inline int64_t divs128(uint64_t *plow, int64_t *phigh, int64_t divisor) {
+    __int128_t dividend = ((__int128_t) *phigh << 64) | *plow;
+    __int128_t result = dividend / divisor;
+
+    *plow = result;
+    *phigh = result >> 64;
+    return dividend % divisor;
 }
 #else
-/* Long integer helpers */
-static inline void mul64(uint64_t *plow, uint64_t *phigh, uint64_t a, uint64_t b) {
-    typedef union {
-        uint64_t ll;
-        struct {
-#ifdef HOST_WORDS_BIGENDIAN
-            uint32_t high, low;
-#else
-            uint32_t low, high;
-#endif
-        } l;
-    } LL;
-    LL rl, rm, rn, rh, a0, b0;
-    uint64_t c;
-
-    a0.ll = a;
-    b0.ll = b;
-
-    rl.ll = (uint64_t) a0.l.low * b0.l.low;
-    rm.ll = (uint64_t) a0.l.low * b0.l.high;
-    rn.ll = (uint64_t) a0.l.high * b0.l.low;
-    rh.ll = (uint64_t) a0.l.high * b0.l.high;
-
-    c = (uint64_t) rl.l.high + rm.l.low + rn.l.low;
-    rl.l.high = c;
-    c >>= 32;
-    c = c + rm.l.high + rn.l.high + rh.l.low;
-    rh.l.low = c;
-    rh.l.high += (uint32_t) (c >> 32);
-
-    *plow = rl.ll;
-    *phigh = rh.ll;
-}
-
-static void mulu64(uint64_t *plow, uint64_t *phigh, uint64_t a, uint64_t b) {
-    mul64(plow, phigh, a, b);
-}
-
-static void muls64(uint64_t *plow, uint64_t *phigh, int64_t a, int64_t b) {
-    uint64_t rh;
-
-    mul64(plow, &rh, a, b);
-
-    /* Adjust for signs.  */
-    if (b < 0) {
-        rh -= a;
-    }
-    if (a < 0) {
-        rh -= b;
-    }
-    *phigh = rh;
-}
-
-static int divu128(uint64_t *plow, uint64_t *phigh, uint64_t divisor) {
-    uint64_t dhi = *phigh;
-    uint64_t dlo = *plow;
-    unsigned i;
-    uint64_t carry = 0;
-
-    if (divisor == 0) {
-        return 1;
-    } else if (dhi == 0) {
-        *plow = dlo / divisor;
-        *phigh = dlo % divisor;
-        return 0;
-    } else if (dhi > divisor) {
-        return 1;
-    } else {
-
-        for (i = 0; i < 64; i++) {
-            carry = dhi >> 63;
-            dhi = (dhi << 1) | (dlo >> 63);
-            if (carry || (dhi >= divisor)) {
-                dhi -= divisor;
-                carry = 1;
-            } else {
-                carry = 0;
-            }
-            dlo = (dlo << 1) | carry;
-        }
-
-        *plow = dlo;
-        *phigh = dhi;
-        return 0;
-    }
-}
-
-static int divs128(int64_t *plow, int64_t *phigh, int64_t divisor) {
-    int sgn_dvdnd = *phigh < 0;
-    int sgn_divsr = divisor < 0;
-    int overflow = 0;
-
-    if (sgn_dvdnd) {
-        *plow = ~(*plow);
-        *phigh = ~(*phigh);
-        if (*plow == (int64_t) -1) {
-            *plow = 0;
-            (*phigh)++;
-        } else {
-            (*plow)++;
-        }
-    }
-
-    if (sgn_divsr) {
-        divisor = 0 - divisor;
-    }
-
-    overflow = divu128((uint64_t *) plow, (uint64_t *) phigh, (uint64_t) divisor);
-
-    if (sgn_dvdnd ^ sgn_divsr) {
-        *plow = 0 - *plow;
-    }
-
-    if (!overflow) {
-        if ((*plow < 0) ^ (sgn_dvdnd ^ sgn_divsr)) {
-            overflow = 1;
-        }
-    }
-
-    return overflow;
-}
+void muls64(uint64_t *plow, uint64_t *phigh, int64_t a, int64_t b);
+void mulu64(uint64_t *plow, uint64_t *phigh, uint64_t a, uint64_t b);
+uint64_t divu128(uint64_t *plow, uint64_t *phigh, uint64_t divisor);
+int64_t divs128(uint64_t *plow, int64_t *phigh, int64_t divisor);
 
 static inline uint64_t muldiv64(uint64_t a, uint32_t b, uint32_t c) {
     union {
         uint64_t ll;
         struct {
-#ifdef HOST_WORDS_BIGENDIAN
+#if HOST_BIG_ENDIAN
             uint32_t high, low;
 #else
             uint32_t low, high;
@@ -220,8 +101,35 @@ static inline uint64_t muldiv64(uint64_t a, uint32_t b, uint32_t c) {
     res.l.low = (((rh % c) << 32) + (rl & 0xffffffff)) / c;
     return res.ll;
 }
-
 #endif
+
+/**
+ * clz8 - count leading zeros in a 8-bit value.
+ * @val: The value to search
+ *
+ * Returns 8 if the value is zero.  Note that the GCC builtin is
+ * undefined if the value is zero.
+ *
+ * Note that the GCC builtin will upcast its argument to an `unsigned int`
+ * so this function subtracts off the number of prepended zeroes.
+ */
+static inline int clz8(uint8_t val) {
+    return val ? __builtin_clz(val) - 24 : 8;
+}
+
+/**
+ * clz16 - count leading zeros in a 16-bit value.
+ * @val: The value to search
+ *
+ * Returns 16 if the value is zero.  Note that the GCC builtin is
+ * undefined if the value is zero.
+ *
+ * Note that the GCC builtin will upcast its argument to an `unsigned int`
+ * so this function subtracts off the number of prepended zeroes.
+ */
+static inline int clz16(uint16_t val) {
+    return val ? __builtin_clz(val) - 16 : 16;
+}
 
 /**
  * clz32 - count leading zeros in a 32-bit value.
@@ -263,6 +171,28 @@ static inline int clz64(uint64_t val) {
  */
 static inline int clo64(uint64_t val) {
     return clz64(~val);
+}
+
+/**
+ * ctz8 - count trailing zeros in a 8-bit value.
+ * @val: The value to search
+ *
+ * Returns 8 if the value is zero.  Note that the GCC builtin is
+ * undefined if the value is zero.
+ */
+static inline int ctz8(uint8_t val) {
+    return val ? __builtin_ctz(val) : 8;
+}
+
+/**
+ * ctz16 - count trailing zeros in a 16-bit value.
+ * @val: The value to search
+ *
+ * Returns 16 if the value is zero.  Note that the GCC builtin is
+ * undefined if the value is zero.
+ */
+static inline int ctz16(uint16_t val) {
+    return val ? __builtin_ctz(val) : 16;
 }
 
 /**
@@ -374,11 +304,70 @@ static inline int ctpop64(uint64_t val) {
  * @x: The value to modify.
  */
 static inline uint8_t revbit8(uint8_t x) {
+#if __has_builtin(__builtin_bitreverse8)
+    return __builtin_bitreverse8(x);
+#else
     /* Assign the correct nibble position.  */
     x = ((x & 0xf0) >> 4) | ((x & 0x0f) << 4);
     /* Assign the correct bit position.  */
     x = ((x & 0x88) >> 3) | ((x & 0x44) >> 1) | ((x & 0x22) << 1) | ((x & 0x11) << 3);
     return x;
+#endif
+}
+
+/**
+ * revbit16 - reverse the bits in a 16-bit value.
+ * @x: The value to modify.
+ */
+static inline uint16_t revbit16(uint16_t x) {
+#if __has_builtin(__builtin_bitreverse16)
+    return __builtin_bitreverse16(x);
+#else
+    /* Assign the correct byte position.  */
+    x = bswap16(x);
+    /* Assign the correct nibble position.  */
+    x = ((x & 0xf0f0) >> 4) | ((x & 0x0f0f) << 4);
+    /* Assign the correct bit position.  */
+    x = ((x & 0x8888) >> 3) | ((x & 0x4444) >> 1) | ((x & 0x2222) << 1) | ((x & 0x1111) << 3);
+    return x;
+#endif
+}
+
+/**
+ * revbit32 - reverse the bits in a 32-bit value.
+ * @x: The value to modify.
+ */
+static inline uint32_t revbit32(uint32_t x) {
+#if __has_builtin(__builtin_bitreverse32)
+    return __builtin_bitreverse32(x);
+#else
+    /* Assign the correct byte position.  */
+    x = bswap32(x);
+    /* Assign the correct nibble position.  */
+    x = ((x & 0xf0f0f0f0u) >> 4) | ((x & 0x0f0f0f0fu) << 4);
+    /* Assign the correct bit position.  */
+    x = ((x & 0x88888888u) >> 3) | ((x & 0x44444444u) >> 1) | ((x & 0x22222222u) << 1) | ((x & 0x11111111u) << 3);
+    return x;
+#endif
+}
+
+/**
+ * revbit64 - reverse the bits in a 64-bit value.
+ * @x: The value to modify.
+ */
+static inline uint64_t revbit64(uint64_t x) {
+#if __has_builtin(__builtin_bitreverse64)
+    return __builtin_bitreverse64(x);
+#else
+    /* Assign the correct byte position.  */
+    x = bswap64(x);
+    /* Assign the correct nibble position.  */
+    x = ((x & 0xf0f0f0f0f0f0f0f0ull) >> 4) | ((x & 0x0f0f0f0f0f0f0f0full) << 4);
+    /* Assign the correct bit position.  */
+    x = ((x & 0x8888888888888888ull) >> 3) | ((x & 0x4444444444444444ull) >> 1) | ((x & 0x2222222222222222ull) << 1) |
+        ((x & 0x1111111111111111ull) << 3);
+    return x;
+#endif
 }
 
 /**
@@ -536,6 +525,87 @@ static inline bool umul64_overflow(uint64_t x, uint64_t y, uint64_t *ret) {
     return __builtin_mul_overflow(x, y, ret);
 }
 
+/*
+ * Unsigned 128x64 multiplication.
+ * Returns true if the result got truncated to 128 bits.
+ * Otherwise, returns false and the multiplication result via plow and phigh.
+ */
+static inline bool mulu128(uint64_t *plow, uint64_t *phigh, uint64_t factor) {
+#if defined(CONFIG_INT128)
+    bool res;
+    __uint128_t r;
+    __uint128_t f = ((__uint128_t) *phigh << 64) | *plow;
+    res = __builtin_mul_overflow(f, factor, &r);
+
+    *plow = r;
+    *phigh = r >> 64;
+
+    return res;
+#else
+    uint64_t dhi = *phigh;
+    uint64_t dlo = *plow;
+    uint64_t ahi;
+    uint64_t blo, bhi;
+
+    if (dhi == 0) {
+        mulu64(plow, phigh, dlo, factor);
+        return false;
+    }
+
+    mulu64(plow, &ahi, dlo, factor);
+    mulu64(&blo, &bhi, dhi, factor);
+
+    return uadd64_overflow(ahi, blo, phigh) || bhi != 0;
+#endif
+}
+
+/**
+ * uadd64_carry - addition with carry-in and carry-out
+ * @x, @y: addends
+ * @pcarry: in-out carry value
+ *
+ * Computes @x + @y + *@pcarry, placing the carry-out back
+ * into *@pcarry and returning the 64-bit sum.
+ */
+static inline uint64_t uadd64_carry(uint64_t x, uint64_t y, bool *pcarry) {
+#if __has_builtin(__builtin_addcll)
+    unsigned long long c = *pcarry;
+    x = __builtin_addcll(x, y, c, &c);
+    *pcarry = c & 1;
+    return x;
+#else
+    bool c = *pcarry;
+    /* This is clang's internal expansion of __builtin_addc. */
+    c = uadd64_overflow(x, c, &x);
+    c |= uadd64_overflow(x, y, &x);
+    *pcarry = c;
+    return x;
+#endif
+}
+
+/**
+ * usub64_borrow - subtraction with borrow-in and borrow-out
+ * @x, @y: addends
+ * @pborrow: in-out borrow value
+ *
+ * Computes @x - @y - *@pborrow, placing the borrow-out back
+ * into *@pborrow and returning the 64-bit sum.
+ */
+static inline uint64_t usub64_borrow(uint64_t x, uint64_t y, bool *pborrow) {
+#if __has_builtin(__builtin_subcll) && !defined(BUILTIN_SUBCLL_BROKEN)
+    unsigned long long b = *pborrow;
+    x = __builtin_subcll(x, y, b, &b);
+    *pborrow = b & 1;
+    return x;
+#else
+    bool b = *pborrow;
+    b = usub64_overflow(x, b, &x);
+    b |= usub64_overflow(x, y, &x);
+    *pborrow = b;
+    return x;
+#endif
+}
+
 /* Host type specific sizes of these routines.  */
 
 #if ULONG_MAX == UINT32_MAX
@@ -628,6 +698,82 @@ void urshift(uint64_t *plow, uint64_t *phigh, int32_t shift);
  * verify/assert both the shift range and plow/phigh pointers.
  */
 void ulshift(uint64_t *plow, uint64_t *phigh, int32_t shift, bool *overflow);
+
+/* From the GNU Multi Precision Library - longlong.h __udiv_qrnnd
+ * (https://gmplib.org/repo/gmp/file/tip/longlong.h)
+ *
+ * Licensed under the GPLv2/LGPLv3
+ */
+static inline uint64_t udiv_qrnnd(uint64_t *r, uint64_t n1, uint64_t n0, uint64_t d) {
+#if defined(__x86_64__)
+    uint64_t q;
+    asm("divq %4" : "=a"(q), "=d"(*r) : "0"(n0), "1"(n1), "rm"(d));
+    return q;
+#elif defined(__s390x__) && !defined(__clang__)
+    /* Need to use a TImode type to get an even register pair for DLGR.  */
+    unsigned __int128 n = (unsigned __int128) n1 << 64 | n0;
+    asm("dlgr %0, %1" : "+r"(n) : "r"(d));
+    *r = n >> 64;
+    return n;
+#elif defined(_ARCH_PPC64) && defined(_ARCH_PWR7)
+    /* From Power ISA 2.06, programming note for divdeu.  */
+    uint64_t q1, q2, Q, r1, r2, R;
+    asm("divdeu %0,%2,%4; divdu %1,%3,%4" : "=&r"(q1), "=r"(q2) : "r"(n1), "r"(n0), "r"(d));
+    r1 = -(q1 * d); /* low part of (n1<<64) - (q1 * d) */
+    r2 = n0 - (q2 * d);
+    Q = q1 + q2;
+    R = r1 + r2;
+    if (R >= d || R < r2) { /* overflow implies R > d */
+        Q += 1;
+        R -= d;
+    }
+    *r = R;
+    return Q;
+#else
+    uint64_t d0, d1, q0, q1, r1, r0, m;
+
+    d0 = (uint32_t) d;
+    d1 = d >> 32;
+
+    r1 = n1 % d1;
+    q1 = n1 / d1;
+    m = q1 * d0;
+    r1 = (r1 << 32) | (n0 >> 32);
+    if (r1 < m) {
+        q1 -= 1;
+        r1 += d;
+        if (r1 >= d) {
+            if (r1 < m) {
+                q1 -= 1;
+                r1 += d;
+            }
+        }
+    }
+    r1 -= m;
+
+    r0 = r1 % d1;
+    q0 = r1 / d1;
+    m = q0 * d0;
+    r0 = (r0 << 32) | (uint32_t) n0;
+    if (r0 < m) {
+        q0 -= 1;
+        r0 += d;
+        if (r0 >= d) {
+            if (r0 < m) {
+                q0 -= 1;
+                r0 += d;
+            }
+        }
+    }
+    r0 -= m;
+
+    *r = r0;
+    return (q1 << 32) | q0;
+#endif
+}
+
+Int128 divu256(Int128 *plow, Int128 *phigh, Int128 divisor);
+Int128 divs256(Int128 *plow, Int128 *phigh, Int128 divisor);
 
 #ifdef __cplusplus
 }

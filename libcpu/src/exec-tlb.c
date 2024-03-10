@@ -87,11 +87,11 @@ void tlb_flush(CPUArchState *env, int flush_global) {
 
     int mmu_idx;
     for (mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
-        env->tlb_table[mmu_idx] = &env->_tlb_table[mmu_idx][0];
+        env->tlb_table[mmu_idx].mask = (CPU_TLB_SIZE - 1) << CPU_TLB_ENTRY_BITS;
+        env->tlb_table[mmu_idx].table = &env->_tlb_table[mmu_idx][0];
         for (i = 0; i < CPU_TLB_SIZE; i++) {
-            env->tlb_table[mmu_idx][i] = s_cputlb_empty_entry;
+            env->tlb_table[mmu_idx].table[i] = s_cputlb_empty_entry;
         }
-        env->tlb_mask[mmu_idx] = (CPU_TLB_SIZE - 1) << CPU_TLB_ENTRY_BITS;
     }
 
 #if defined(CONFIG_SYMBEX) && defined(SE_ENABLE_TLB)
@@ -131,12 +131,12 @@ void tlb_flush_page(CPUArchState *env, target_ulong addr) {
     i = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
     for (mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
         // tlb_flush_entry(&env->tlb_table[mmu_idx][i], addr);
-        CPUTLBEntry *tlb_entry = &env->tlb_table[mmu_idx][i];
+        CPUTLBEntry *tlb_entry = &env->tlb_table[mmu_idx].table[i];
         if (addr == (tlb_entry->addr_read & (TARGET_PAGE_MASK | TLB_INVALID_MASK)) ||
             addr == (tlb_entry->addr_write & (TARGET_PAGE_MASK | TLB_INVALID_MASK)) ||
             addr == (tlb_entry->addr_code & (TARGET_PAGE_MASK | TLB_INVALID_MASK))) {
 #if defined(CONFIG_SYMBEX)
-            g_sqi.tlb.flush_tlb_cache_page(env->tlb_table[mmu_idx][i].objectState, mmu_idx, i);
+            g_sqi.tlb.flush_tlb_cache_page(env->tlb_table[mmu_idx].table[i].objectState, mmu_idx, i);
 #endif
             *tlb_entry = s_cputlb_empty_entry;
         }
@@ -170,7 +170,7 @@ int tlb_is_dirty(CPUArchState *env, target_ulong vaddr) {
     vaddr &= TARGET_PAGE_MASK;
     i = (vaddr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
     for (mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
-        ret &= tlb_get_dirty1(&env->tlb_table[mmu_idx][i], vaddr);
+        ret &= tlb_get_dirty1(&env->tlb_table[mmu_idx].table[i], vaddr);
     }
 
     return ret;
@@ -254,7 +254,7 @@ void tlb_set_page(CPUArchState *env, target_ulong vaddr, target_phys_addr_t padd
     index = (vaddr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
     env->iotlb[mmu_idx][index] = iotlb - vaddr;
 
-    te = &env->tlb_table[mmu_idx][index];
+    te = &env->tlb_table[mmu_idx].table[index];
     te->addend = addend - vaddr;
     if (prot & PAGE_READ) {
         te->addr_read = address;

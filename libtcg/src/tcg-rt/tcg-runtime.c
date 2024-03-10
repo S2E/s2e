@@ -29,11 +29,15 @@
 
 // clang-format off
 #include <tcg/tcg.h>
-#include <tcg/helper-proto.h>
-#include <tcg/helper-gen.h>
+#include <tcg/exec/helper-proto.h>
+#include <tcg/exec/helper-gen.h>
 // clang-format on
 
 /* 32-bit helpers */
+
+#define HELPER_H "tcg/accel/tcg-runtime.h"
+#include "tcg/exec/helper-info.c.inc"
+#undef HELPER_H
 
 int32_t HELPER(div_i32)(int32_t arg1, int32_t arg2) {
     return arg1 / arg2;

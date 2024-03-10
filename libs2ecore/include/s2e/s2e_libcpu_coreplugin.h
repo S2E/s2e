@@ -36,8 +36,8 @@ extern "C" {
 
 struct TranslationBlock;
 
-void s2e_tcg_execution_handler(void *signal, uint64_t pc);
-void s2e_tcg_custom_instruction_handler(uint64_t arg);
+void helper_s2e_tcg_execution_handler(void *signal, uint64_t pc);
+void helper_s2e_tcg_custom_instruction_handler(uint64_t arg);
 
 /** Called by the translator when a custom instruction is detected */
 void s2e_tcg_emit_custom_instruction(uint64_t arg);

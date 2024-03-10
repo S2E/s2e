@@ -25,22 +25,15 @@
 #ifndef TCG_INTERNAL_H
 #define TCG_INTERNAL_H
 
-#include <inttypes.h>
-#include <stdbool.h>
-#include <stddef.h>
+#include "tcg/helper-info.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #define TCG_HIGHWATER 1024
 
-struct TCGContext;
-typedef struct TCGContext TCGContext;
-
-typedef struct TCGHelperInfo {
-    void *func;
-    const char *name;
-    unsigned flags;
-    unsigned typemask;
-} TCGHelperInfo;
-
+extern TCGContext tcg_init_ctx;
 extern TCGContext **tcg_ctxs;
 extern unsigned int tcg_cur_ctxs;
 extern unsigned int tcg_max_ctxs;
@@ -50,16 +43,45 @@ bool tcg_region_alloc(TCGContext *s);
 void tcg_region_initial_alloc(TCGContext *s);
 void tcg_region_prologue_set(TCGContext *s);
 
-static inline void *tcg_call_func(TCGOp *op) {
+static inline void *tcg_call_func(const TCGOp *op) {
     return (void *) (uintptr_t) op->args[TCGOP_CALLO(op) + TCGOP_CALLI(op)];
 }
 
-static inline const TCGHelperInfo *tcg_call_info(TCGOp *op) {
-    return (void *) (uintptr_t) op->args[TCGOP_CALLO(op) + TCGOP_CALLI(op) + 1];
+static inline const TCGHelperInfo *tcg_call_info(const TCGOp *op) {
+    return (const TCGHelperInfo *) (uintptr_t) op->args[TCGOP_CALLO(op) + TCGOP_CALLI(op) + 1];
 }
 
 static inline unsigned tcg_call_flags(TCGOp *op) {
     return tcg_call_info(op)->flags;
 }
+
+#if TCG_TARGET_REG_BITS == 32
+static inline TCGv_i32 TCGV_LOW(TCGv_i64 t) {
+    return temp_tcgv_i32(tcgv_i64_temp(t) + HOST_BIG_ENDIAN);
+}
+static inline TCGv_i32 TCGV_HIGH(TCGv_i64 t) {
+    return temp_tcgv_i32(tcgv_i64_temp(t) + !HOST_BIG_ENDIAN);
+}
+#else
+extern TCGv_i32 TCGV_LOW(TCGv_i64) QEMU_ERROR("32-bit code path is reachable");
+extern TCGv_i32 TCGV_HIGH(TCGv_i64) QEMU_ERROR("32-bit code path is reachable");
+#endif
+
+static inline TCGv_i64 TCGV128_LOW(TCGv_i128 t) {
+    /* For 32-bit, offset by 2, which may then have TCGV_{LOW,HIGH} applied. */
+    int o = HOST_BIG_ENDIAN ? 64 / TCG_TARGET_REG_BITS : 0;
+    return temp_tcgv_i64(tcgv_i128_temp(t) + o);
+}
+
+static inline TCGv_i64 TCGV128_HIGH(TCGv_i128 t) {
+    int o = HOST_BIG_ENDIAN ? 0 : 64 / TCG_TARGET_REG_BITS;
+    return temp_tcgv_i64(tcgv_i128_temp(t) + o);
+}
+
+bool tcg_target_has_memory_bswap(MemOp memop);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* TCG_INTERNAL_H */

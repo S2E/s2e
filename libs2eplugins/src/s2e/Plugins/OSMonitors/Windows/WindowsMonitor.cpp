@@ -92,7 +92,7 @@ public:
         }
     }
 
-    bool getPidFromHandle(uint64 ownerPid, uint64_t handle, uint64_t *pid) const {
+    bool getPidFromHandle(uint64_t ownerPid, uint64_t handle, uint64_t *pid) const {
         if (handle == (uint64_t) -1) {
             *pid = ownerPid;
             return true;

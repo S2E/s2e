@@ -161,7 +161,7 @@ void cpu_physical_memory_reset_dirty(ram_addr_t start, ram_addr_t end, int dirty
         int mmu_idx;
         for (mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
             for (i = 0; i < CPU_TLB_SIZE; i++)
-                tlb_reset_dirty_range(&env->tlb_table[mmu_idx][i], start1, length);
+                tlb_reset_dirty_range(&env->tlb_table[mmu_idx].table[i], start1, length);
         }
     }
 }
@@ -535,7 +535,7 @@ tb_page_addr_t get_page_addr_code(CPUArchState *env1, target_ulong addr) {
 
     page_index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
     mmu_idx = cpu_mmu_index(env1);
-    if (unlikely(env1->tlb_table[mmu_idx][page_index].addr_code != (addr & TARGET_PAGE_MASK))) {
+    if (unlikely(env1->tlb_table[mmu_idx].table[page_index].addr_code != (addr & TARGET_PAGE_MASK))) {
         cpu_ldub_code(env1, addr);
     }
     pd = env1->iotlb[mmu_idx][page_index] & ~TARGET_PAGE_MASK;
@@ -546,7 +546,7 @@ tb_page_addr_t get_page_addr_code(CPUArchState *env1, target_ulong addr) {
         cpu_abort(env1, "Trying to execute code outside RAM or ROM at 0x" TARGET_FMT_lx "\n", addr);
 #endif
     }
-    p = (void *) ((uintptr_t) addr + env1->tlb_table[mmu_idx][page_index].addend);
+    p = (void *) ((uintptr_t) addr + env1->tlb_table[mmu_idx].table[page_index].addend);
     return qemu_ram_addr_from_host_nofail(p);
 }
 

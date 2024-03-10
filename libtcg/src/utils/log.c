@@ -16,18 +16,13 @@
 /// You should have received a copy of the GNU Library General Public
 /// License along with this library; if not, see <http://www.gnu.org/licenses/>.
 
-#include <cpu/config.h>
+#include <stdio.h>
+#include <string.h>
 #include <sys/mman.h>
 #include <sys/types.h>
 
-#include <cpu/types.h>
-#include <tcg/tcg.h>
+#include <tcg/utils/log.h>
 #include <tcg/utils/osdep.h>
-#include "cpu.h"
-#include "qemu-common.h"
-
-#include "exec-tb.h"
-#include "exec.h"
 
 extern uint8_t *code_gen_buffer;
 
@@ -39,14 +34,8 @@ typedef struct CPULogItem {
 } CPULogItem;
 
 /* log support */
-#ifdef WIN32
-static const char *logfilename = "qemu.log";
-#else
-static const char *logfilename = "/tmp/qemu.log";
-#endif
 FILE *logfile;
 int loglevel;
-static int log_append = 0;
 
 const CPULogItem cpu_log_items[] = {
     {CPU_LOG_TB_OUT_ASM, "out_asm", "show generated host assembly code for each compiled TB"},
@@ -68,9 +57,8 @@ const CPULogItem cpu_log_items[] = {
 #ifdef DEBUG_IOPORT
     {CPU_LOG_IOPORT, "ioport", "show all i/o ports accesses"},
 #endif
-#ifdef CONFIG_LLVM
+#ifdef CONFIG_SYMBEX
     {CPU_LOG_LLVM_IR, "llvm_ir", "show generated LLVM IR code"},
-    {CPU_LOG_LLVM_ASM, "llvm_asm", "show LLVM-generated assembly code"},
 #endif
     {0, NULL, NULL},
 };
@@ -114,41 +102,3 @@ int cpu_str_to_log_mask(const char *str) {
 }
 
 extern int g_tlb_flush_count;
-
-/* enable or disable low levels log */
-void cpu_set_log(int log_flags) {
-    loglevel = log_flags;
-    if (loglevel && !logfile) {
-        logfile = fopen(logfilename, log_append ? "a" : "w");
-        if (!logfile) {
-            perror(logfilename);
-            _exit(1);
-        }
-#if !defined(CONFIG_SOFTMMU)
-        /* must avoid mmap() usage of glibc by setting a buffer "by hand" */
-        {
-            static char logfile_buf[4096];
-            setvbuf(logfile, logfile_buf, _IOLBF, sizeof(logfile_buf));
-        }
-#elif defined(_WIN32)
-        /* Win32 doesn't support line-buffering, so use unbuffered output. */
-        setvbuf(logfile, NULL, _IONBF, 0);
-#else
-        setvbuf(logfile, NULL, _IOLBF, 0);
-#endif
-        log_append = 1;
-    }
-    if (!loglevel && logfile) {
-        fclose(logfile);
-        logfile = NULL;
-    }
-}
-
-void cpu_set_log_filename(const char *filename) {
-    logfilename = strdup(filename);
-    if (logfile) {
-        fclose(logfile);
-        logfile = NULL;
-    }
-    cpu_set_log(loglevel);
-}

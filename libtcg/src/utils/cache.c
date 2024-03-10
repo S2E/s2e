@@ -25,18 +25,24 @@
 int g_icache_linesize = 0;
 int g_dcache_linesize = 0;
 
-static void sys_cache_info(int *isize, int *dsize) {
+static int sys_cache_info(int *isize, int *dsize) {
     int ret = (int) sysconf(_SC_LEVEL1_ICACHE_LINESIZE);
     if (ret > 0) {
         *isize = ret;
+    } else {
+        return -1;
     }
 
     ret = (int) sysconf(_SC_LEVEL1_DCACHE_LINESIZE);
     if (ret > 0) {
         *dsize = ret;
+    } else {
+        return -2;
     }
+
+    return 0;
 }
 
-void init_cache_info() {
-    sys_cache_info(&g_icache_linesize, &g_dcache_linesize);
+int init_cache_info() {
+    return sys_cache_info(&g_icache_linesize, &g_dcache_linesize);
 }

@@ -29,7 +29,7 @@
 
 #include <cpu/exec.h>
 #include <cpu/i386/cpu.h>
-#include <libcpu-log.h>
+#include <tcg/utils/log.h>
 #include "s2e-kvm-vcpu.h"
 #include "s2e-kvm.h"
 

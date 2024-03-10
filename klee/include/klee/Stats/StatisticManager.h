@@ -88,7 +88,7 @@ public:
     std::string getCSVLine() const;
 };
 
-StatisticManagerPtr &getStatisticManager();
+StatisticManagerPtr getStatisticManager();
 
 } // namespace stats
 } // namespace klee

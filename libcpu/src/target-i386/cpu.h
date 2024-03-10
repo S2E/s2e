@@ -24,7 +24,7 @@
 #include <cpu/interrupt.h>
 #include <cpu/tb.h>
 #include <cpu/types.h>
-#include <libcpu-log.h>
+#include <tcg/utils/log.h>
 
 #include "cpu-defs.h"
 

@@ -139,12 +139,24 @@ static void injectStaticConstructorsAndDestructors(Module *m) {
     GlobalVariable *dtors = m->getNamedGlobal("llvm.global_dtors");
 
     if (ctors || dtors) {
-        Function *mainFn = m->getFunction("main");
-        assert(mainFn && "unable to find main function");
+        if (ctors) {
+            if (llvm::ArrayType *arrayType = llvm::dyn_cast<llvm::ArrayType>(ctors->getValueType())) {
+                if (arrayType->getNumElements() > 0) {
+                    Function *mainFn = m->getFunction("main");
+                    assert(mainFn && "unable to find main function");
+                    CallInst::Create(getStubFunctionForCtorList(m, ctors, "klee.ctor_stub"), "",
+                                     &*mainFn->begin()->begin());
+                } else {
+                    ctors->eraseFromParent();
+                }
+            } else {
+                assert(false && "unexpected global_ctors type");
+            }
+        }
 
-        if (ctors)
-            CallInst::Create(getStubFunctionForCtorList(m, ctors, "klee.ctor_stub"), "", &*mainFn->begin()->begin());
         if (dtors) {
+            Function *mainFn = m->getFunction("main");
+            assert(mainFn && "unable to find main function");
             Function *dtorStub = getStubFunctionForCtorList(m, dtors, "klee.dtor_stub");
             for (Function::iterator it = mainFn->begin(), ie = mainFn->end(); it != ie; ++it) {
                 if (isa<ReturnInst>(it->getTerminator()))

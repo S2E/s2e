@@ -26,7 +26,7 @@
 #include <cpu/softmmu_defs.h>
 #include <cpu/tb.h>
 #include <libcpu-compiler.h>
-#include <libcpu-log.h>
+#include <tcg/utils/log.h>
 
 #ifdef __cplusplus
 extern "C" {

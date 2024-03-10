@@ -17,14 +17,11 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-// Bits taken from user-exec.c, QEMU 7.2.0
-
 #include <inttypes.h>
 
 // clang-format off
 #include <tcg/tcg.h>
-#include <tcg/helper-proto.h>
-#include <tcg/helper-gen.h>
+#include <tcg/exec/helper-gen.h>
 #include <tcg/cpu.h>
 // clang-format on
 
@@ -52,3 +49,13 @@
 #define DATA_SIZE 16
 #include "atomic_template.h"
 #endif
+
+// TODO: FIXME
+void helper_st_i128(CPUArchState *env, uint64_t addr, Int128 val, MemOpIdx oi) {
+    abort();
+}
+
+Int128 helper_ld_i128(CPUArchState *env, uint64_t addr, uint32_t oi) {
+    abort();
+    return int128_make64(0);
+}

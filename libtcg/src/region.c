@@ -41,6 +41,8 @@
 #include <tcg/utils/memalign.h>
 #include <tcg/utils/mutex.h>
 #include <tcg/utils/osdep.h>
+#include <tcg/utils/qtree.h>
+#include <tcg/utils/spinlock.h>
 #include <tcg/utils/units.h>
 
 // clang-format off
@@ -53,7 +55,7 @@
 
 struct tcg_region_tree {
     mutex_t lock;
-    GTree *tree;
+    QTree *tree;
     /* padding to avoid false sharing is computed at run-time */
 };
 
@@ -160,9 +162,8 @@ static gint tb_tc_cmp(gconstpointer ap, gconstpointer bp, gpointer userdata) {
 }
 
 static void tb_destroy(gpointer value) {
-    // TranslationBlock *tb = value;
-    // Not used.
-    // qemu_spin_destroy(&tb->jmp_lock);
+    TranslationBlock *tb = value;
+    spin_destroy(&tb->jmp_lock);
 }
 
 static void tcg_region_trees_init(void) {
@@ -174,7 +175,7 @@ static void tcg_region_trees_init(void) {
         struct tcg_region_tree *rt = region_trees + i * tree_size;
 
         mutex_init(&rt->lock);
-        rt->tree = g_tree_new_full(tb_tc_cmp, NULL, NULL, tb_destroy);
+        rt->tree = q_tree_new_full(tb_tc_cmp, NULL, NULL, tb_destroy);
     }
 }
 
@@ -211,7 +212,7 @@ void tcg_tb_insert(TranslationBlock *tb) {
 
     g_assert(rt != NULL);
     mutex_lock(&rt->lock);
-    g_tree_insert(rt->tree, &tb->tc, tb);
+    q_tree_insert(rt->tree, &tb->tc, tb);
     mutex_unlock(&rt->lock);
 }
 
@@ -220,7 +221,7 @@ void tcg_tb_remove(TranslationBlock *tb) {
 
     g_assert(rt != NULL);
     mutex_lock(&rt->lock);
-    g_tree_remove(rt->tree, &tb->tc);
+    q_tree_remove(rt->tree, &tb->tc);
     mutex_unlock(&rt->lock);
 }
 
@@ -239,7 +240,7 @@ TranslationBlock *tcg_tb_lookup(uintptr_t tc_ptr) {
     }
 
     mutex_lock(&rt->lock);
-    tb = g_tree_lookup(rt->tree, &s);
+    tb = q_tree_lookup(rt->tree, &s);
     mutex_unlock(&rt->lock);
     return tb;
 }
@@ -271,7 +272,7 @@ void tcg_tb_foreach(GTraverseFunc func, gpointer user_data) {
     for (i = 0; i < region.n; i++) {
         struct tcg_region_tree *rt = region_trees + i * tree_size;
 
-        g_tree_foreach(rt->tree, func, user_data);
+        q_tree_foreach(rt->tree, func, user_data);
     }
     tcg_region_tree_unlock_all();
 }
@@ -284,7 +285,7 @@ size_t tcg_nb_tbs(void) {
     for (i = 0; i < region.n; i++) {
         struct tcg_region_tree *rt = region_trees + i * tree_size;
 
-        nb_tbs += g_tree_nnodes(rt->tree);
+        nb_tbs += q_tree_nnodes(rt->tree);
     }
     tcg_region_tree_unlock_all();
     return nb_tbs;
@@ -298,8 +299,8 @@ static void tcg_region_tree_reset_all(void) {
         struct tcg_region_tree *rt = region_trees + i * tree_size;
 
         /* Increment the refcount first so that destroy acts as a reset */
-        g_tree_ref(rt->tree);
-        g_tree_destroy(rt->tree);
+        q_tree_ref(rt->tree);
+        q_tree_destroy(rt->tree);
     }
     tcg_region_tree_unlock_all();
 }
@@ -377,7 +378,7 @@ void tcg_region_initial_alloc(TCGContext *s) {
 
 /* Call from a safe-work context */
 void tcg_region_reset_all(void) {
-    unsigned int n_ctxs = atomic_read(&tcg_cur_ctxs);
+    unsigned int n_ctxs = qatomic_read(&tcg_cur_ctxs);
     unsigned int i;
 
     mutex_lock(&region.lock);
@@ -385,7 +386,7 @@ void tcg_region_reset_all(void) {
     region.agg_size_full = 0;
 
     for (i = 0; i < n_ctxs; i++) {
-        TCGContext *s = atomic_read(&tcg_ctxs[i]);
+        TCGContext *s = qatomic_read(&tcg_ctxs[i]);
         tcg_region_initial_alloc__locked(s);
     }
     mutex_unlock(&region.lock);
@@ -468,20 +469,20 @@ static size_t tcg_n_regions(size_t tb_size, unsigned max_cpus) {
 #ifdef USE_STATIC_CODE_GEN_BUFFER
 static uint8_t static_code_gen_buffer[DEFAULT_CODE_GEN_BUFFER_SIZE] __attribute__((aligned(CODE_GEN_ALIGN)));
 
-static int alloc_code_gen_buffer(size_t tb_size, int splitwx) {
+static int alloc_code_gen_buffer(size_t tb_size, int splitwx, Error **errp) {
     void *buf, *end;
     size_t size;
 
     if (splitwx > 0) {
-        fprintf(stderr, "jit split-wx not supported\n");
+        error_setg(errp, "jit split-wx not supported");
         return -1;
     }
 
     /* page-align the beginning and end of the buffer */
     buf = static_code_gen_buffer;
     end = static_code_gen_buffer + sizeof(static_code_gen_buffer);
-    buf = ALIGN_PTR_UP(buf, qemu_real_host_page_size());
-    end = ALIGN_PTR_DOWN(end, qemu_real_host_page_size());
+    buf = QEMU_ALIGN_PTR_UP(buf, qemu_real_host_page_size());
+    end = QEMU_ALIGN_PTR_DOWN(end, qemu_real_host_page_size());
 
     size = end - buf;
 
@@ -496,11 +497,19 @@ static int alloc_code_gen_buffer(size_t tb_size, int splitwx) {
     return PROT_READ | PROT_WRITE;
 }
 #elif defined(_WIN32)
-static int alloc_code_gen_buffer(size_t size, int splitwx) {
+/*
+ * Local source-level compatibility with Unix.
+ * Used by tcg_region_init below.
+ */
+#define PROT_READ  1
+#define PROT_WRITE 2
+#define PROT_EXEC  4
+
+static int alloc_code_gen_buffer(size_t size, int splitwx, Error **errp) {
     void *buf;
 
     if (splitwx > 0) {
-        fprintf(stderr, "jit split-wx not supported\n");
+        error_setg(errp, "jit split-wx not supported");
         return -1;
     }
 
@@ -513,7 +522,7 @@ static int alloc_code_gen_buffer(size_t size, int splitwx) {
     region.start_aligned = buf;
     region.total_size = size;
 
-    return PAGE_READ | PAGE_WRITE | PAGE_EXEC;
+    return PROT_READ | PROT_WRITE | PROT_EXEC;
 }
 #else
 static int alloc_code_gen_buffer_anon(size_t size, int prot, int flags, Error **errp) {
@@ -756,10 +765,10 @@ void tcg_region_init(size_t tb_size, int splitwx, unsigned max_cpus) {
      * buffer -- let that one use hugepages throughout.
      * Work with the page protections set up with the initial mapping.
      */
-    need_prot = PAGE_READ | PAGE_WRITE;
+    need_prot = PROT_READ | PROT_WRITE;
 #ifndef CONFIG_TCG_INTERPRETER
     if (tcg_splitwx_diff == 0) {
-        need_prot |= PAGE_EXEC;
+        need_prot |= PROT_EXEC;
     }
 #endif
     for (size_t i = 0, n = region.n; i < n; i++) {
@@ -769,9 +778,9 @@ void tcg_region_init(size_t tb_size, int splitwx, unsigned max_cpus) {
         if (have_prot != need_prot) {
             int rc;
 
-            if (need_prot == (PAGE_READ | PAGE_WRITE | PAGE_EXEC)) {
+            if (need_prot == (PROT_READ | PROT_WRITE | PROT_EXEC)) {
                 rc = qemu_mprotect_rwx(start, end - start);
-            } else if (need_prot == (PAGE_READ | PAGE_WRITE)) {
+            } else if (need_prot == (PROT_READ | PROT_WRITE)) {
                 rc = qemu_mprotect_rw(start, end - start);
             } else {
                 g_assert_not_reached();
@@ -817,17 +826,17 @@ void tcg_region_prologue_set(TCGContext *s) {
  * TCG context.
  */
 size_t tcg_code_size(void) {
-    unsigned int n_ctxs = atomic_read(&tcg_cur_ctxs);
+    unsigned int n_ctxs = qatomic_read(&tcg_cur_ctxs);
     unsigned int i;
     size_t total;
 
     mutex_lock(&region.lock);
     total = region.agg_size_full;
     for (i = 0; i < n_ctxs; i++) {
-        const TCGContext *s = atomic_read(&tcg_ctxs[i]);
+        const TCGContext *s = qatomic_read(&tcg_ctxs[i]);
         size_t size;
 
-        size = atomic_read(&s->code_gen_ptr) - s->code_gen_buffer;
+        size = qatomic_read(&s->code_gen_ptr) - s->code_gen_buffer;
         g_assert(size <= s->code_gen_buffer_size);
         total += size;
     }

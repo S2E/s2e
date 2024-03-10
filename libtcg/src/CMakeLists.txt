@@ -21,8 +21,9 @@
 set (TCG_SOURCES)
 
 list (APPEND TCG_SOURCES
-        utils/cutils.c utils/osdep.c utils/memalign.c utils/cache.c
-        region.c tcg.c  tcg-common.c tcg-op.c optimize.c tcg-op-gvec.c tcg-op-vec.c
+        utils/cutils.c utils/osdep.c utils/memalign.c utils/cache.c utils/log.c
+        utils/cpuinfo-i386.c utils/qtree.c utils/host-utils.c
+        region.c tcg.c tcg-s2e.c tcg-op-ldst.c  tcg-common.c tcg-op.c optimize.c tcg-op-gvec.c tcg-op-vec.c
         tcg-rt/tcg-runtime-gvec.c tcg-rt/tcg-runtime.c
         atomic-helpers.c
         fpu/softfloat.c)
@@ -34,7 +35,7 @@ endif (WITH_SYMBEX)
 add_library(tcg ${TCG_SOURCES})
 
 set (COMMON_FLAGS "-Wall -fPIC -Werror -Wno-zero-length-array -Wno-mismatched-tags -Wno-initializer-overrides")
-set (COMMON_FLAGS "${COMMON_FLAGS} -DCONFIG_SOFTMMU -DCPU_TEMP_BUF_NLONGS=128")
+set (COMMON_FLAGS "${COMMON_FLAGS} -DCONFIG_SOFTMMU -DCONFIG_INT128 -DCPU_TEMP_BUF_NLONGS=128 -DHOST_BIG_ENDIAN=0 -DHAVE_GLIB_WITH_SLICE_ALLOCATOR")
 
 if (WITH_SYMBEX)
     set (COMMON_FLAGS "${COMMON_FLAGS} -DCONFIG_SYMBEX -DTCG_ENABLE_MEM_TRACING")
@@ -69,9 +70,17 @@ MESSAGE( STATUS "WITH_SYMBEX: " ${WITH_SYMBEX} )
 MESSAGE( STATUS "WITH_SYMBEX_MP: " ${WITH_SYMBEX_MP} )
 
 if (WITH_SYMBEX)
+
+get_property(dirs TARGET tcg PROPERTY INCLUDE_DIRECTORIES)
+foreach(dir ${dirs})
+  message(STATUS "dir='${dir}'")
+  set(BC_INC_DIRS "${BC_INC_DIRS} -I${dir}")
+endforeach()
+separate_arguments(BC_INC_DIRS)
+
 add_custom_target(
     softfloat_bc ALL
-    ${CMAKE_C_COMPILER} ${CMAKE_CURRENT_SOURCE_DIR}/fpu/softfloat.c -c ${CARGS_LIST} -I${LIBTCG_INCLUDE_DIR} -Wno-unused-function -O3 -DSYMBEX_LLVM_LIB -march=x86-64 -emit-llvm -o ${CMAKE_CURRENT_BINARY_DIR}/softfloat.bc ${BC_INC_DIRS} -fno-slp-vectorize -fno-tree-vectorize
+    ${CMAKE_C_COMPILER} ${CMAKE_CURRENT_SOURCE_DIR}/fpu/softfloat.c -c ${CARGS_LIST} -I${LIBTCG_INCLUDE_DIR} ${BC_INC_DIRS} -Wno-unused-function -O3 -DSYMBEX_LLVM_LIB -march=x86-64 -emit-llvm -o ${CMAKE_CURRENT_BINARY_DIR}/softfloat.bc ${BC_INC_DIRS} -fno-slp-vectorize -fno-tree-vectorize
     DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/fpu/softfloat.c
 )
 endif (WITH_SYMBEX)

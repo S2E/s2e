@@ -31,9 +31,11 @@
 #include <cpu/types.h>
 
 #define NO_CPU_IO_DEFS
+#include <tcg/insn-start-words.h>
 #include <tcg/tcg.h>
+#include <tcg/utils/cache.h>
+#include <tcg/utils/spinlock.h>
 #include "cpu.h"
-#include "qemu-lock.h"
 #include "timer.h"
 
 #if defined(CONFIG_SYMBEX_MP) || defined(STATIC_TRANSLATOR)
@@ -46,6 +48,8 @@
 
 #include "exec-tb.h"
 #include "exec.h"
+
+extern TCGContext tcg_init_ctx;
 
 /* Minimum size of the code gen buffer.  This number is randomly chosen,
    but not so small that we can't have a fair number of TB's live.  */
@@ -88,31 +92,18 @@ static void *qemu_st_helpers[(MO_SIZE | MO_BSWAP) + 1] = {
     [MO_UB] = helper_stb_mmu, [MO_LEUW] = helper_stw_mmu, [MO_LEUL] = helper_stl_mmu, [MO_LEUQ] = helper_stq_mmu};
 #endif
 
-static void cpu_gen_init(TCGContext *ctx, tcg_settings_t *settings) {
-
-    settings->tlb_flags_mask = TLB_FLAGS_MASK;
-    settings->tlb_mask_offset = offsetof(CPUX86State, tlb_mask);
-    settings->tlb_entry_addend_offset = offsetof(CPUTLBEntry, addend);
-    settings->tlb_entry_addr_read_offset = offsetof(CPUTLBEntry, addr_read);
-    settings->tlb_entry_addr_write_offset = offsetof(CPUTLBEntry, addr_write);
-
-    tcg_init(ctx, MIN_CODE_GEN_BUFFER_SIZE, 0, 1);
-
-    memcpy(ctx->qemu_ld_helpers, qemu_ld_helpers, sizeof(tcg_ctx->qemu_ld_helpers));
-    memcpy(ctx->qemu_st_helpers, qemu_st_helpers, sizeof(tcg_ctx->qemu_st_helpers));
+static void cpu_gen_init(TCGContext *ctx) {
+    memcpy(ctx->qemu_ld_helpers, qemu_ld_helpers, sizeof(ctx->qemu_ld_helpers));
+    memcpy(ctx->qemu_st_helpers, qemu_st_helpers, sizeof(ctx->qemu_st_helpers));
 
     extern CPUArchState *env;
-    ctx->tcg_struct_size = sizeof(*tcg_ctx);
+    ctx->tcg_struct_size = sizeof(*ctx);
     ctx->env_ptr = (uintptr_t) &env;
     ctx->env_offset_eip = offsetof(CPUArchState, eip);
     ctx->env_sizeof_eip = sizeof(env->eip);
     ctx->env_offset_ccop = offsetof(CPUArchState, cc_op);
     ctx->env_sizeof_ccop = sizeof(env->cc_op);
     ctx->env_offset_df = offsetof(CPUArchState, df);
-
-    for (int i = 0; i < NB_MMU_MODES; ++i) {
-        ctx->env_offset_tlb[i] = offsetof(CPUArchState, tlb_table[i]);
-    }
 
     ctx->tlbe_size = sizeof(CPUTLBEntry);
     ctx->tlbe_offset_addend = offsetof(CPUTLBEntry, addend);
@@ -132,7 +123,13 @@ static void cpu_gen_init(TCGContext *ctx, tcg_settings_t *settings) {
    (in bytes) allocated to the translation buffer. Zero means default
    size. */
 void tcg_exec_init(unsigned long tb_size) {
-    cpu_gen_init(&tcg_init_ctx, &g_tcg_settings);
+    if (init_cache_info() < 0) {
+        fprintf(stderr, "Could not init cache size");
+        exit(-1);
+    }
+
+    tcg_init(MIN_CODE_GEN_BUFFER_SIZE, 0, 1);
+    cpu_gen_init(&tcg_init_ctx);
 
     /* There's no guest base to take into account, so go ahead and
        initialize the prologue now.  */
@@ -170,6 +167,23 @@ int cpu_gen_code(CPUArchState *env, TranslationBlock *tb) {
     gen_code_buf = tcg_ctx->code_gen_ptr;
     tb->tc.ptr = gen_code_buf;
 
+    tcg_ctx->gen_tb = tb;
+    tcg_ctx->addr_type = TARGET_LONG_BITS == 32 ? TCG_TYPE_I32 : TCG_TYPE_I64;
+
+#ifdef CONFIG_SOFTMMU
+    tcg_ctx->page_bits = TARGET_PAGE_BITS;
+    tcg_ctx->page_mask = TARGET_PAGE_MASK;
+    tcg_ctx->tlb_dyn_max_bits = CPU_TLB_DYN_MAX_BITS;
+    tcg_ctx->tlb_fast_offset =
+        offsetof(CPUX86State, tlb_table); // (int) offsetof(ArchCPU, neg.tlb.f) - (int) offsetof(ArchCPU, env);
+#endif
+    tcg_ctx->insn_start_words = TARGET_INSN_START_WORDS;
+#ifdef TCG_GUEST_DEFAULT_MO
+    tcg_ctx->guest_mo = TCG_GUEST_DEFAULT_MO;
+#else
+    tcg_ctx->guest_mo = TCG_MO_ALL;
+#endif
+
 tb_overflow:
     gen_code_size = setjmp_gen_code(s, env, tb, &max_insns);
     if (unlikely(gen_code_size < 0)) {
@@ -184,6 +198,7 @@ tb_overflow:
                  * flush the TBs, allocate a new TB, re-initialize it per
                  * above, and re-do the actual code generation.
                  */
+                tcg_ctx->gen_tb = NULL;
                 return -1;
 
             case -2:
@@ -210,6 +225,8 @@ tb_overflow:
         }
     }
 
+    tcg_ctx->gen_tb = NULL;
+
     /* generate machine code */
     gen_code_buf = tb->tc.ptr;
 
@@ -227,8 +244,8 @@ tb_overflow:
         abort();
     }
 
-    atomic_set(&tcg_ctx->code_gen_ptr,
-               (void *) ROUND_UP((uintptr_t) gen_code_buf + gen_code_size + search_size, CODE_GEN_ALIGN));
+    qatomic_set(&tcg_ctx->code_gen_ptr,
+                (void *) ROUND_UP((uintptr_t) gen_code_buf + gen_code_size + search_size, CODE_GEN_ALIGN));
 
     tb->tc.size = gen_code_size;
 
@@ -249,10 +266,10 @@ tb_overflow:
     tb->jmp_dest[1] = (uintptr_t) NULL;
 
     /* init original jump addresses which have been set during tcg_gen_code() */
-    if (tb->jmp_reset_offset[0] != TB_JMP_RESET_OFFSET_INVALID) {
+    if (tb->jmp_reset_offset[0] != TB_JMP_OFFSET_INVALID) {
         tb_reset_jump(tb, 0);
     }
-    if (tb->jmp_reset_offset[1] != TB_JMP_RESET_OFFSET_INVALID) {
+    if (tb->jmp_reset_offset[1] != TB_JMP_OFFSET_INVALID) {
         tb_reset_jump(tb, 1);
     }
 

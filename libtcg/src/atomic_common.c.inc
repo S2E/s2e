@@ -16,6 +16,10 @@ CMPXCHG_HELPER(cmpxchgq_le, uint64_t)
 
 #undef CMPXCHG_HELPER
 
+Int128 HELPER(nonatomic_cmpxchgo)(CPUArchState *env, uint64_t addr, Int128 cmpv, Int128 newv, uint32_t oi) {
+    abort();
+}
+
 #define ATOMIC_HELPER(OP, TYPE)                                                                    \
     TYPE HELPER(glue(atomic_, OP))(CPUArchState * env, target_ulong addr, TYPE val, uint32_t oi) { \
         abort();                                                                                   \

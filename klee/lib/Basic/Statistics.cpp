@@ -24,7 +24,12 @@ StatisticManager::StatisticManager() {
 StatisticManager::~StatisticManager() {
 }
 
-StatisticManagerPtr &getStatisticManager() {
+StatisticManagerPtr getStatisticManager() {
+    assert(s_statsManager);
+    return s_statsManager;
+}
+
+static StatisticManagerPtr getOrCreateStatisticManager() {
     std::unique_lock lock(s_mutex);
 
     if (s_statsManager == nullptr) {
@@ -71,7 +76,7 @@ Statistic::~Statistic() {
 StatisticPtr Statistic::create(const std::string &_name, const std::string &_shortName) {
     auto ret = StatisticPtr(new Statistic(_name, _shortName));
     if (ret != nullptr) {
-        getStatisticManager()->registerStatistic(ret);
+        getOrCreateStatisticManager()->registerStatistic(ret);
     }
 
     return ret;

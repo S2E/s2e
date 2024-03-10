@@ -27,6 +27,10 @@
 
 #include <stdbool.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * Conditions.  Note that these are laid out for easy manipulation by
  * the functions below:
@@ -93,5 +97,9 @@ static inline TCGCond tcg_high_cond(TCGCond c) {
             return c;
     }
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* TCG_COND_H */

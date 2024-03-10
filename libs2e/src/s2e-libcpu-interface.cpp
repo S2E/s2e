@@ -120,8 +120,8 @@ void init_s2e_libcpu_interface(struct se_libcpu_interface_t *sqi) {
     sqi->events.on_tlb_miss = s2e_on_tlb_miss;
     sqi->events.after_memory_access = s2e_after_memory_access;
     sqi->events.trace_port_access = s2e_trace_port_access;
-    sqi->events.tcg_execution_handler = s2e_tcg_execution_handler;
-    sqi->events.tcg_custom_instruction_handler = s2e_tcg_custom_instruction_handler;
+    sqi->events.tcg_execution_handler = helper_s2e_tcg_execution_handler;
+    sqi->events.tcg_custom_instruction_handler = helper_s2e_tcg_custom_instruction_handler;
     sqi->events.tcg_emit_custom_instruction = s2e_tcg_emit_custom_instruction;
 
     sqi->events.on_translate_soft_interrupt_start = s2e_on_translate_soft_interrupt_start;
