@@ -70,11 +70,13 @@ void FunctionCallLogger::onCall(S2EExecutionState *state, const ModuleDescriptor
                      const ModuleDescriptorConstPtr &dest, uint64_t callerPc, uint64_t calleePc,
                      const FunctionMonitor::ReturnSignalPtr &returnSignal) {
     auto module = m_detector->getCurrentDescriptor(state);
+    /*
     if (!module) {
         // Not in the binary.
         return;
     }
-    getDebugStream(state) << "Calling function from: " << hexval(callerPc) << " to " << hexval(calleePc) << "\n";
+    */
+    // getDebugStream(state) << "Calling function from: " << hexval(callerPc) << " to " << hexval(calleePc) << "\n";
 }
 
 
