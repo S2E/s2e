@@ -52,6 +52,7 @@ enum S2E_LIBCWRAPPER_COMMANDS {
     LIBCWRAPPER_MEMCMP,
     LIBCWRAPPER_STRCAT,
     LIBCWRAPPER_STRNCAT,
+    LIBCWRAPPER_STRCMPWIDTH,
 
     WRAPPER_CRC,
 };
@@ -114,6 +115,13 @@ struct S2E_LIBCWRAPPER_COMMAND_STRNCAT {
     uint64_t ret;
 } __attribute__((packed));
 
+struct S2E_LIBCWRAPPER_COMMAND_STRCMP_WIDTH {
+    uint64_t str1;
+    uint64_t str2;
+    int ret;
+    uint64_t width;
+} __attribute__((packed));
+
 enum S2E_WRAPPER_CRC_TYPE { S2E_WRAPPER_CRC16, S2E_WRAPPER_CRC32 };
 
 struct S2E_WRAPPER_COMMAND_CRC {
@@ -139,6 +147,7 @@ struct S2E_LIBCWRAPPER_COMMAND {
         struct S2E_LIBCWRAPPER_COMMAND_STRCAT Strcat;
         struct S2E_LIBCWRAPPER_COMMAND_STRNCAT Strncat;
         struct S2E_WRAPPER_COMMAND_CRC Crc;
+        struct S2E_LIBCWRAPPER_COMMAND_STRCMP_WIDTH StrcmpWidth;
     };
     uint64_t needOrigFunc;
 } __attribute__((packed));

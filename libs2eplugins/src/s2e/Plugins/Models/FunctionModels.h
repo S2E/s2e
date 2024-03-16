@@ -49,6 +49,7 @@ public:
 private:
     void handleStrlen(S2EExecutionState *state, S2E_LIBCWRAPPER_COMMAND &cmd, klee::ref<klee::Expr> &expr);
     void handleStrcmp(S2EExecutionState *state, S2E_LIBCWRAPPER_COMMAND &cmd, klee::ref<klee::Expr> &expr);
+    void handleStrcmpWidth(S2EExecutionState *state, S2E_LIBCWRAPPER_COMMAND &cmd, klee::ref<klee::Expr> &expr);
     void handleStrncmp(S2EExecutionState *state, S2E_LIBCWRAPPER_COMMAND &cmd, klee::ref<klee::Expr> &expr);
     void handleStrcpy(S2EExecutionState *state, S2E_LIBCWRAPPER_COMMAND &cmd);
     void handleStrncpy(S2EExecutionState *state, S2E_LIBCWRAPPER_COMMAND &cmd);

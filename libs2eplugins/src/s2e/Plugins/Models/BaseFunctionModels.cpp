@@ -60,6 +60,43 @@ bool BaseFunctionModels::readArgument(S2EExecutionState *state, unsigned param, 
     return true;
 }
 
+bool BaseFunctionModels::findNullCharWithWidth(S2EExecutionState *state, uint64_t stringAddr, size_t &len, size_t width){
+    assert(stringAddr);
+
+    getDebugStream(state) << "Searching for nullptr at " << hexval(stringAddr) << ", " << width << "\n";
+
+    auto solver = state->solver();
+    const ref<Expr> nullByteExpr = E_CONST('\0', width * 8);
+
+    for (len = 0; len < MAX_STRLEN; len+=width) {
+        assert(stringAddr <= UINT64_MAX - len);
+        ref<Expr> charExpr = m_memutils->read(state, stringAddr + len, width * 8);
+        if (!charExpr) {
+            getDebugStream(state) << "Failed to read char " << len << " of string " << hexval(stringAddr) << "\n";
+            return false;
+        }
+
+        ref<Expr> isNullByteExpr = E_EQ(charExpr, nullByteExpr);
+        Query query(state->constraints(), isNullByteExpr);
+
+        bool truth;
+        bool res = solver->mustBeTrue(query, truth);
+        if (res && truth) {
+            break;
+        }
+    }
+
+    if (len == MAX_STRLEN) {
+        getDebugStream(state) << "Could not find nullptr char\n";
+        return false;
+    }
+
+    getDebugStream(state) << "Max length " << len << "\n";
+
+    return true;
+
+}
+
 bool BaseFunctionModels::findNullChar(S2EExecutionState *state, uint64_t stringAddr, size_t &len) {
     assert(stringAddr);
 
@@ -170,6 +207,22 @@ bool BaseFunctionModels::strcmpHelper(S2EExecutionState *state, const uint64_t s
     return strcmpHelperCommon(state, strAddrs, memSize, retExpr);
 }
 
+bool BaseFunctionModels::strcmpWithWidthHelper(S2EExecutionState *state, const uint64_t strAddrs[2], ref<Expr> &retExpr, size_t width) {
+    getDebugStream(state) << "Handling strcmp(" << hexval(strAddrs[0]) << ", " << hexval(strAddrs[1]) << ")\n";
+
+    // Calculate the string lengths to determine the maximum
+    size_t strLens[2];
+    for (int i = 0; i < 2; i++) {
+        if (!findNullCharWithWidth(state, strAddrs[i], strLens[i], width)) {
+            getDebugStream(state) << "Failed to find nullptr char in string " << hexval(strAddrs[i]) << "\n";
+            return false;
+        }
+    }
+    size_t memSize = std::min(strLens[0], strLens[1]) + 1;
+
+    return strcmpWithWidthHelperCommon(state, strAddrs, memSize, retExpr, width);
+}
+
 bool BaseFunctionModels::strncmpHelper(S2EExecutionState *state, const uint64_t strAddrs[2], size_t size,
                                        ref<Expr> &retExpr) {
     getDebugStream(state) << "Handling strncmp(" << hexval(strAddrs[0]) << ", " << hexval(strAddrs[1]) << ", " << size
@@ -186,6 +239,53 @@ bool BaseFunctionModels::strncmpHelper(S2EExecutionState *state, const uint64_t 
     size_t memSize = std::min(std::min(strLens[0], strLens[1]) + 1, size);
 
     return strcmpHelperCommon(state, strAddrs, memSize, retExpr);
+}
+
+bool BaseFunctionModels::strcmpWithWidthHelperCommon(S2EExecutionState *state, const uint64_t strAddrs[2], uint64_t memSize, ref<Expr> &retExpr, size_t width){
+    getDebugStream(state) << "Comparing " << memSize << " chars\n";
+
+    if (!strAddrs[0] || !strAddrs[1]) {
+        getDebugStream(state) << "Got nullptr input\n";
+        return false;
+    }
+
+    if (memSize == 0) {
+        retExpr = E_CONST(0, Expr::Int8);
+        return true;
+    }
+
+    //
+    // Assemble expression
+    //
+
+    // Return value of the C library functions is a 32-bit int.
+    const Expr::Width retWidth = Expr::Int32;
+    const ref<Expr> nullByteExpr = E_CONST(0, width * 8);
+    const ref<Expr> retZeroExpr = E_CONST(0, retWidth);
+
+    for (int nr = memSize - 1; nr >= 0; nr--) {
+        ref<Expr> charExpr[2];
+        for (unsigned i = 0; i < 2; i++) {
+            charExpr[i] = m_memutils->read(state, strAddrs[i] + nr * width, width * 8);
+            if (!charExpr[i]) {
+                getDebugStream(state) << "Failed to read byte " << nr << " of memory " << hexval(strAddrs[i]) << "\n";
+                return false;
+            }
+        }
+
+        ref<Expr> subRes = E_SUB(E_ZE(charExpr[0], retWidth), E_ZE(charExpr[1], retWidth));
+        if ((unsigned) nr == memSize - 1) {
+            retExpr = E_ITE(E_GT(charExpr[0], charExpr[1]), subRes, retZeroExpr);
+            retExpr = E_ITE(E_LT(charExpr[0], charExpr[1]), subRes, retExpr);
+        } else {
+            retExpr =
+                E_ITE(E_AND(E_EQ(charExpr[0], nullByteExpr), E_EQ(charExpr[1], nullByteExpr)), retZeroExpr, retExpr);
+            retExpr = E_ITE(E_GT(charExpr[0], charExpr[1]), subRes, retExpr);
+            retExpr = E_ITE(E_LT(charExpr[0], charExpr[1]), subRes, retExpr);
+        }
+    }
+
+    return true;
 }
 
 ///

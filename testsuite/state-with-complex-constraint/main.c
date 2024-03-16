@@ -19,9 +19,13 @@
 // SOFTWARE.
 
 #include <s2e/s2e.h>
+#include <s2e/function_models/commands.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdint.h>
+#include <windows.h>
+
 
 const uint64_t FNV_PRIME = 1099511628211ULL;
 const uint64_t FNV_OFFSET_BASIS = 14695981039346656037ULL;
@@ -38,25 +42,29 @@ uint64_t fnv1a_64(const uint64_t* data, size_t length) {
 }
 
 static void test_fork_simple(void) {
-    char buffer[0x10];
-    int sym_int = 0;
-    s2e_make_symbolic(&sym_int, sizeof(int), "varne0");
-    
-    printf("This is a test for calling printf");
-    malloc(0x123);
-    // Each of the two states should fork twice here,
-    // resulting in a total of four states.
-    if((sym_int & 0x1223) > 0) {
-        /*
-    if(fnv1a_64(buffer, 1) == 0xdead) {
-        s2e_printf("This is state %d here", s2e_get_path_id());
-    }else{
-        exit(0);
+    WCHAR a[] = L"SecretToMatch";
+    WCHAR s[20] = {};
+    s2e_make_symbolic(s, sizeof(s), "varne0");
+    char* aa = (char*) a;
+    s2e_printf("Buffer: %x %x %x %x\n", aa[0], aa[1], aa[2], aa[3]);
+    struct S2E_LIBCWRAPPER_COMMAND cmd;
+    cmd.Command = LIBCWRAPPER_STRCMPWIDTH;
+    cmd.StrcmpWidth.str1 = (uintptr_t)a;
+    cmd.StrcmpWidth.str2 = (uintptr_t)s;
+    cmd.needOrigFunc = 1;
+    cmd.StrcmpWidth.width = 2;
+    s2e_invoke_plugin("FunctionModels", &cmd, sizeof(cmd));
+    if (!cmd.needOrigFunc)
+    {
+        if (cmd.StrcmpWidth.ret)
+        {
+            s2e_printf("String cmp return 1");
+        }
+        else
+        {
+            s2e_printf("String cmp return 0");
+        }
     }
-         */
-        s2e_printf("This is state %d here", s2e_get_path_id());
-    }
-        s2e_printf("This is state %d here", s2e_get_path_id());
 }
 
 int main(int argc, char **argv) {

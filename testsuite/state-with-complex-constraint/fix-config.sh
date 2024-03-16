@@ -19,5 +19,6 @@ pluginsConfig.ConstraintsDumper = {
 
 add_plugin("FunctionMonitor")
 add_plugin("FunctionCallLogger")
+add_plugin("FunctionModels")
 
 EOF

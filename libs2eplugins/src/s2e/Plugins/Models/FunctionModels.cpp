@@ -89,6 +89,20 @@ void FunctionModels::handleStrncmp(S2EExecutionState *state, S2E_LIBCWRAPPER_COM
     }
 }
 
+void FunctionModels::handleStrcmpWidth(S2EExecutionState *state, S2E_LIBCWRAPPER_COMMAND &cmd, ref<Expr> &retExpr) {
+    // Read function arguments
+    uint64_t stringAddrs[2];
+    stringAddrs[0] = (uint64_t) cmd.Strcmp.str1;
+    stringAddrs[1] = (uint64_t) cmd.Strcmp.str2;
+
+    // Assemble the string compare expression
+    if (strcmpWithWidthHelper(state, stringAddrs, retExpr, (uint32_t)(cmd.StrcmpWidth.width))) {
+        cmd.needOrigFunc = 0;
+    } else {
+        cmd.needOrigFunc = 1;
+    }
+}
+
 void FunctionModels::handleStrcpy(S2EExecutionState *state, S2E_LIBCWRAPPER_COMMAND &cmd) {
     // Read function arguments
     uint64_t stringAddrs[2];
@@ -241,6 +255,7 @@ void FunctionModels::handleCrc(S2EExecutionState *state, S2E_LIBCWRAPPER_COMMAND
 
 void FunctionModels::handleOpcodeInvocation(S2EExecutionState *state, uint64_t guestDataPtr, uint64_t guestDataSize) {
     S2E_LIBCWRAPPER_COMMAND command;
+    getWarningsStream(state) << "Trigger function model " << hexval(command.Command) << "\n";
 
     if (guestDataSize != sizeof(command)) {
         getWarningsStream(state) << "S2E_LIBCWRAPPER_COMMAND: "
@@ -317,6 +332,13 @@ void FunctionModels::handleOpcodeInvocation(S2EExecutionState *state, uint64_t g
             ref<Expr> retExpr;
             handleCrc(state, command, retExpr);
             UPDATE_RET_VAL(Crc, command);
+        } break;
+
+        case LIBCWRAPPER_STRCMPWIDTH: {
+            getWarningsStream(state) << "Trigger string cmp width " << hexval(command.Command) << "\n";
+            ref<Expr> retExpr;
+            handleStrcmpWidth(state, command, retExpr);
+            UPDATE_RET_VAL(StrcmpWidth, command);
         } break;
 
         default: {

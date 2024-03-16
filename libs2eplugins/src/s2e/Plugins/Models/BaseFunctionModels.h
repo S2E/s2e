@@ -24,6 +24,7 @@
 #ifndef S2E_PLUGINS_BASE_FUNCTION_MODELS_H
 #define S2E_PLUGINS_BASE_FUNCTION_MODELS_H
 
+#include <cstddef>
 #include <klee/Expr.h>
 #include <s2e/Plugin.h>
 #include <s2e/Plugins/OSMonitors/Support/MemUtils.h>
@@ -65,11 +66,14 @@ protected:
 
     bool readArgument(S2EExecutionState *state, unsigned param, uint64_t &arg);
     bool findNullChar(S2EExecutionState *state, uint64_t stringAddr, size_t &len);
+    bool findNullCharWithWidth(S2EExecutionState *state, uint64_t stringAddr, size_t &len, size_t width);
 
     bool strlenHelper(S2EExecutionState *state, uint64_t stringAddr, size_t &len, ref<Expr> &retExpr);
     bool strcmpHelper(S2EExecutionState *state, const uint64_t strAddrs[2], ref<Expr> &retExpr);
+    bool strcmpWithWidthHelper(S2EExecutionState *state, const uint64_t strAddrs[2], ref<Expr> &retExpr, size_t width);
     bool strncmpHelper(S2EExecutionState *state, const uint64_t strAddrs[2], size_t size, ref<Expr> &retExpr);
     bool strcmpHelperCommon(S2EExecutionState *state, const uint64_t strAddrs[2], uint64_t memSize, ref<Expr> &retExpr);
+    bool strcmpWithWidthHelperCommon(S2EExecutionState *state, const uint64_t strAddrs[2], uint64_t memSize, ref<Expr> &retExpr, size_t width);
     bool strcpyHelper(S2EExecutionState *state, const uint64_t strAddrs[2], ref<Expr> &retExpr);
     bool strncpyHelper(S2EExecutionState *state, const uint64_t strAddrs[2], uint64_t numBytes, ref<Expr> &retExpr);
     bool memcmpHelper(S2EExecutionState *state, const uint64_t memAddrs[2], uint64_t numBytes, ref<Expr> &retExpr);
