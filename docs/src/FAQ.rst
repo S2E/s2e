@@ -48,9 +48,6 @@ Third, use S2E to *selectively* relax and/or over-constrain path constraints.
   to decrease drastically the number of forks. `s2e.so <Tutorials/BasicLinuxSymbex/s2e.so.rst>`__ comes with models for
   several such functions. You can also give `state merging <StateMerging.rst>`__ a try.
 
-* Understanding what to select can be made considerably easier if you `attach a debugger <Howtos/Debugging.rst>`__ to
-  the S2E instance.
-
 * If you use a depth-first search and execution hits a polling loop, rapid forking may occur and execution may never
   exit the loop. Moreover, depending on the accumulated constraints, each iteration may be slower and slower. Make sure
   you use concolic execution, depth first search, and a test input to make sure at least the first path terminates.
