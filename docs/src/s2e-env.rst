@@ -13,7 +13,7 @@ You will find in the documentation various tutorials that go deeper into various
 
 .. note::
 
-    S2E builds and runs on Ubuntu 22.04 LTS and Debian 11 (64-bit).
+    S2E builds and runs on Ubuntu 22.04 LTS and Debian 11/12 (64-bit).
     Earlier versions may still work, but we do not support them anymore.
 
 
@@ -126,12 +126,12 @@ You will need a virtual machine image to run your analysis target in. To see wha
 
     s2e image_build
 
-This will list an image template name and a description of that image. For example, to build a Linux Debian 11.3 i386
+This will list an image template name and a description of that image. For example, to build a Linux Debian 12.5 i386
 image run:
 
 .. code-block:: console
 
-    s2e image_build debian-11.3-i386
+    s2e image_build debian-12.5-i386
 
 This will:
 
