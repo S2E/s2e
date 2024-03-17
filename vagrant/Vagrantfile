@@ -18,7 +18,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-$boxes = ["debian/bullseye64", "generic/ubuntu2004", "generic/ubuntu2204"]
+$boxes = ["debian/bullseye64", "debian/bookworm64", "generic/ubuntu2004", "generic/ubuntu2204"]
 
 Vagrant.configure("2") do |config|
   $boxes.to_enum.with_index(1).each do |box,i|
