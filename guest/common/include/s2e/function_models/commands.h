@@ -86,6 +86,7 @@ struct S2E_LIBCWRAPPER_COMMAND_STRSTR {
     uint64_t haystack;
     uint64_t needle;
     uint64_t ret;
+    uint32_t width;
 } __attribute__((packed));
 
 struct S2E_LIBCWRAPPER_COMMAND_STRNCMP {

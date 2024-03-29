@@ -27,7 +27,7 @@
 #include <windows.h>
 
 
-char needle[] = "SecretToMatch";
+WCHAR needle[] = L"Secret";
 const uint64_t FNV_PRIME = 1099511628211ULL;
 const uint64_t FNV_OFFSET_BASIS = 14695981039346656037ULL;
 
@@ -43,8 +43,8 @@ uint64_t fnv1a_64(const uint64_t* data, size_t length) {
 }
 
 static void test_fork_simple(void) {
-    char haystack[20] = {};
-    char* pp = haystack + 4;
+    WCHAR haystack[0x10] = {};
+    WCHAR* pp = haystack + 4;
     s2e_make_symbolic(haystack, sizeof(haystack), "varne0");
     //char* aa = (char*) a;
     //s2e_printf("Buffer: %x %x %x %x\n", aa[0], aa[1], aa[2], aa[3]);
@@ -59,6 +59,7 @@ static void test_fork_simple(void) {
     cmd.Command = LIBCWRAPPER_STRSTR;
     cmd.Strstr.haystack = (uintptr_t)haystack;
     cmd.Strstr.needle = (uintptr_t)needle;
+    cmd.Strstr.width = 2;
     cmd.needOrigFunc = 1;
     s2e_invoke_plugin("FunctionModels", &cmd, sizeof(cmd));
     if (!cmd.needOrigFunc)
