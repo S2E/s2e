@@ -198,6 +198,20 @@ void FunctionModels::handleStrncat(S2EExecutionState *state, S2E_LIBCWRAPPER_COM
     }
 }
 
+void FunctionModels::handleStrstr(S2EExecutionState *state, S2E_LIBCWRAPPER_COMMAND &cmd, ref<Expr> &retExpr) {
+    // Read function arguments
+    uint64_t stringAddrs[2];
+    stringAddrs[0] = (uint64_t) cmd.Strstr.haystack;
+    stringAddrs[1] = (uint64_t) cmd.Strstr.needle;
+
+    // Assemble the string compare expression
+    if (strstrHelper(state, stringAddrs[0], stringAddrs[1], retExpr)) {
+        cmd.needOrigFunc = 0;
+    } else {
+        cmd.needOrigFunc = 1;
+    }
+}
+
 void FunctionModels::handleCrc(S2EExecutionState *state, S2E_LIBCWRAPPER_COMMAND &cmd, ref<Expr> &ret) {
 
     std::vector<ref<Expr>> buffer;
@@ -293,6 +307,13 @@ void FunctionModels::handleOpcodeInvocation(S2EExecutionState *state, uint64_t g
             ref<Expr> retExpr;
             handleStrcmp(state, command, retExpr);
             UPDATE_RET_VAL(Strcmp, command);
+        } break;
+
+        case LIBCWRAPPER_STRSTR: {
+            getWarningsStream(state) << "Trigger string strstr " << hexval(command.Command) << "\n";
+            ref<Expr> retExpr;
+            handleStrstr(state, command, retExpr);
+            UPDATE_RET_VAL(Strstr, command);
         } break;
 
         case LIBCWRAPPER_STRNCMP: {

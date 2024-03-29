@@ -59,6 +59,7 @@ private:
     void handleStrncat(S2EExecutionState *state, S2E_LIBCWRAPPER_COMMAND &cmd);
     void handleCrc(S2EExecutionState *state, S2E_LIBCWRAPPER_COMMAND &cmd, ref<Expr> &ret);
     void handleOpcodeInvocation(S2EExecutionState *state, uint64_t guestDataPtr, uint64_t guestDataSize);
+    void handleStrstr(S2EExecutionState *state, S2E_LIBCWRAPPER_COMMAND &cmd, klee::ref<klee::Expr> &expr);
 };
 
 } // namespace models

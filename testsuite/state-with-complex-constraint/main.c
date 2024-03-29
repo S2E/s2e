@@ -27,6 +27,7 @@
 #include <windows.h>
 
 
+char needle[] = "SecretToMatch";
 const uint64_t FNV_PRIME = 1099511628211ULL;
 const uint64_t FNV_OFFSET_BASIS = 14695981039346656037ULL;
 
@@ -42,20 +43,27 @@ uint64_t fnv1a_64(const uint64_t* data, size_t length) {
 }
 
 static void test_fork_simple(void) {
-    WCHAR a[] = L"SecretToMatch";
-    WCHAR s[20] = {};
-    s2e_make_symbolic(s, sizeof(s), "varne0");
-    char* aa = (char*) a;
-    s2e_printf("Buffer: %x %x %x %x\n", aa[0], aa[1], aa[2], aa[3]);
+    char haystack[20] = {};
+    char* pp = haystack + 4;
+    s2e_make_symbolic(haystack, sizeof(haystack), "varne0");
+    //char* aa = (char*) a;
+    //s2e_printf("Buffer: %x %x %x %x\n", aa[0], aa[1], aa[2], aa[3]);
     struct S2E_LIBCWRAPPER_COMMAND cmd;
+    memset(&cmd, 0, sizeof(cmd));
+    /*
     cmd.Command = LIBCWRAPPER_STRCMPWIDTH;
     cmd.StrcmpWidth.str1 = (uintptr_t)a;
     cmd.StrcmpWidth.str2 = (uintptr_t)s;
-    cmd.needOrigFunc = 1;
     cmd.StrcmpWidth.width = 2;
+    */
+    cmd.Command = LIBCWRAPPER_STRSTR;
+    cmd.Strstr.haystack = (uintptr_t)haystack;
+    cmd.Strstr.needle = (uintptr_t)needle;
+    cmd.needOrigFunc = 1;
     s2e_invoke_plugin("FunctionModels", &cmd, sizeof(cmd));
     if (!cmd.needOrigFunc)
     {
+	/*
         if (cmd.StrcmpWidth.ret)
         {
             s2e_printf("String cmp return 1");
@@ -64,6 +72,15 @@ static void test_fork_simple(void) {
         {
             s2e_printf("String cmp return 0");
         }
+	*/
+	if (cmd.Strstr.ret ==(uint64_t)pp)
+	{
+	    s2e_printf("String strstr return not 0");
+	}
+	else
+	{
+	    s2e_printf("String strstr return 0");
+	}
     }
 }
 

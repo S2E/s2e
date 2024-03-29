@@ -53,6 +53,7 @@ enum S2E_LIBCWRAPPER_COMMANDS {
     LIBCWRAPPER_STRCAT,
     LIBCWRAPPER_STRNCAT,
     LIBCWRAPPER_STRCMPWIDTH,
+    LIBCWRAPPER_STRSTR,
 
     WRAPPER_CRC,
 };
@@ -79,6 +80,12 @@ struct S2E_LIBCWRAPPER_COMMAND_STRCMP {
     uint64_t str1;
     uint64_t str2;
     int ret;
+} __attribute__((packed));
+
+struct S2E_LIBCWRAPPER_COMMAND_STRSTR {
+    uint64_t haystack;
+    uint64_t needle;
+    uint64_t ret;
 } __attribute__((packed));
 
 struct S2E_LIBCWRAPPER_COMMAND_STRNCMP {
@@ -146,6 +153,7 @@ struct S2E_LIBCWRAPPER_COMMAND {
         struct S2E_LIBCWRAPPER_COMMAND_MEMCMP Memcmp;
         struct S2E_LIBCWRAPPER_COMMAND_STRCAT Strcat;
         struct S2E_LIBCWRAPPER_COMMAND_STRNCAT Strncat;
+        struct S2E_LIBCWRAPPER_COMMAND_STRSTR Strstr;
         struct S2E_WRAPPER_COMMAND_CRC Crc;
         struct S2E_LIBCWRAPPER_COMMAND_STRCMP_WIDTH StrcmpWidth;
     };

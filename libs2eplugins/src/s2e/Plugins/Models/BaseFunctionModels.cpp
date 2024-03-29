@@ -693,6 +693,41 @@ bool BaseFunctionModels::strcatHelper(S2EExecutionState *state, const uint64_t s
     return true;
 }
 
+bool BaseFunctionModels::strstrHelper(S2EExecutionState *state, uint64_t haystackAddr, uint64_t needleAddr, ref<Expr> &retExpr) {
+    const Expr::Width width = state->getPointerSize() * CHAR_BIT;
+    getDebugStream(state) << "Enter strstr yes\n";
+    size_t haystackLen, needleLen;
+    if (!findNullChar(state, haystackAddr, haystackLen) || !findNullChar(state, needleAddr, needleLen)) {
+        getDebugStream(state) << "Failed to find nullptr in haystack or needle\n";
+        return false;
+    }
+
+    if (needleLen == 0) {
+        retExpr = E_CONST(haystackAddr, width);
+        return true;
+    }
+
+    const ref<Expr> nullExpr = E_CONST(0, width);
+
+    ref<Expr> finalExpr = nullExpr; // Start with the assumption that we will not find the needle
+    for (size_t i = 0; i <= haystackLen - needleLen; ++i) {
+        uint64_t strAddrs[2] = {haystackAddr + i, needleAddr};
+        ref<Expr> strncmpResult;
+
+        // Use strncmpHelper to compare the substring of haystack with needle
+        if (!strncmpHelper(state, strAddrs, needleLen, strncmpResult)) {
+            getDebugStream(state) << "strncmpHelper failed during strstrHelper\n";
+            return false;
+        }
+
+        // Build the conditional expression for each possible starting position of needle in haystack
+        finalExpr = E_ITE(E_EQ(strncmpResult, E_CONST(0, Expr::Int32)), E_CONST(haystackAddr + i, width), finalExpr);
+    }
+
+    retExpr = finalExpr; // The resulting expression after evaluating all possible starting positions
+    return true;
+}
+
 } // namespace models
 } // namespace plugins
 } // namespace s2e
