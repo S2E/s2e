@@ -80,6 +80,7 @@ protected:
     bool memcpyHelper(S2EExecutionState *state, const uint64_t memAddrs[2], uint64_t numBytes, ref<Expr> &retExpr);
     bool strcatHelper(S2EExecutionState *state, const uint64_t strAddrs[2], ref<Expr> &retExpr, uint64_t numBytes = 0,
                       bool isNcat = false);
+    bool strstrHelper(S2EExecutionState *state, uint64_t haystackAddr, uint64_t needleAddr, ref<Expr> &retExpr);
 };
 
 } // namespace models
