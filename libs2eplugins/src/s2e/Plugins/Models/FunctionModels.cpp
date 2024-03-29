@@ -205,7 +205,7 @@ void FunctionModels::handleStrstr(S2EExecutionState *state, S2E_LIBCWRAPPER_COMM
     stringAddrs[1] = (uint64_t) cmd.Strstr.needle;
 
     // Assemble the string compare expression
-    if (strstrHelper(state, stringAddrs[0], stringAddrs[1], retExpr)) {
+    if (strstrHelper(state, stringAddrs[0], stringAddrs[1], retExpr, cmd.Strstr.width)) {
         cmd.needOrigFunc = 0;
     } else {
         cmd.needOrigFunc = 1;
