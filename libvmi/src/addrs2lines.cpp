@@ -189,7 +189,6 @@ struct DebugInfo {
 /// line, counting it several times.
 ///
 struct CompilationUnitCoverage {
-
     LinesSet Lines;
     FunctionsSet Functions;
 };
@@ -319,7 +318,7 @@ static bool getFunctions(Dwarf_Debug Dbg, Dwarf_Die CuDie, const StringPtr &File
             }
         }
 
-        Res = dwarf_siblingof(Dbg, Die, &SDie, &Error);
+        Res = dwarf_siblingof_c(Die, &SDie, &Error);
 
         dwarf_dealloc(Dbg, Die, DW_DLA_DIE);
 
@@ -327,6 +326,39 @@ static bool getFunctions(Dwarf_Debug Dbg, Dwarf_Die CuDie, const StringPtr &File
     } while (Res == DW_DLV_OK);
 
     return true;
+}
+
+static bool getStringAttr(Dwarf_Debug Dbg, Dwarf_Die CueDie, Dwarf_Half attr, std::string &str) {
+    Dwarf_Error Error;
+    Dwarf_Attribute Attr = nullptr;
+    char *Str = nullptr;
+    bool Ret = false;
+
+    auto Res = dwarf_attr(CueDie, attr, &Attr, &Error);
+    if (Res != DW_DLV_OK) {
+        std::cerr << "Could not get attr " << attr << " " << dwarf_errmsg(Error) << "\n";
+        goto out;
+    }
+
+    Res = dwarf_formstring(Attr, &Str, &Error);
+    if (Res != DW_DLV_OK) {
+        std::cerr << "dwarf_formstring failed " << Res << " Err=" << dwarf_errmsg(Error) << "\n";
+        goto out;
+    }
+
+    str = Str;
+    Ret = true;
+
+out:
+    if (Str) {
+        dwarf_dealloc(Dbg, Str, DW_DLA_STRING);
+    }
+
+    if (Attr) {
+        dwarf_dealloc(Dbg, Attr, DW_DLA_ATTR);
+    }
+
+    return Ret;
 }
 
 ///
@@ -337,48 +369,21 @@ static bool getFunctions(Dwarf_Debug Dbg, Dwarf_Die CuDie, const StringPtr &File
 /// \return true if the path could be retrieved, false otherwise
 ///
 static bool getCompilationUnitPath(Dwarf_Debug Dbg, Dwarf_Die CueDie, std::string &Path) {
-    int Res = 0;
-    Dwarf_Error Error;
-    Dwarf_Attribute AttrCompDir = nullptr, AttrName = nullptr;
-    char *CompDirStr = nullptr, *NameStr = nullptr;
-
-    Res = dwarf_attr(CueDie, DW_AT_comp_dir, &AttrCompDir, &Error);
-    if (Res == DW_DLV_OK) {
-        Res = dwarf_formstring(AttrCompDir, &CompDirStr, &Error);
-    }
-
-    Res = dwarf_attr(CueDie, DW_AT_name, &AttrName, &Error);
-    if (Res == DW_DLV_OK) {
-        Res = dwarf_formstring(AttrName, &NameStr, &Error);
-    }
+    std::string CompDirStr, NameStr;
+    getStringAttr(Dbg, CueDie, DW_AT_comp_dir, CompDirStr);
+    getStringAttr(Dbg, CueDie, DW_AT_name, NameStr);
 
     std::stringstream SS;
 
-    if (CompDirStr) {
+    if (CompDirStr.size() > 0) {
         SS << CompDirStr << "/";
     }
 
-    if (NameStr) {
+    if (NameStr.size() > 0) {
         SS << NameStr;
     }
 
     Path = SS.str();
-
-    if (CompDirStr) {
-        dwarf_dealloc(Dbg, CompDirStr, DW_DLA_STRING);
-    }
-
-    if (NameStr) {
-        dwarf_dealloc(Dbg, NameStr, DW_DLA_STRING);
-    }
-
-    if (AttrCompDir) {
-        dwarf_dealloc(Dbg, AttrCompDir, DW_DLA_ATTR);
-    }
-
-    if (AttrName) {
-        dwarf_dealloc(Dbg, AttrName, DW_DLA_ATTR);
-    }
 
     return Path.size() > 0;
 }
@@ -460,6 +465,7 @@ static bool parseCompilationUnit(Dwarf_Debug Dbg, Dwarf_Die CuDie, DebugInfo &In
 
     std::string Path;
     if (!getCompilationUnitPath(Dbg, CuDie, Path)) {
+        std::cerr << "Could not get CU path\n";
         return false;
     }
 
@@ -487,28 +493,40 @@ static bool parseCompilationUnit(Dwarf_Debug Dbg, Dwarf_Die CuDie, DebugInfo &In
 static bool parseCompilationUnits(Dwarf_Debug Dbg, DebugInfo &Info) {
     int Res = 0;
     Dwarf_Error Error;
-    Dwarf_Die NoDie = nullptr, CuDie = nullptr;
+    Dwarf_Die CuDie = nullptr;
 
     while (true) {
-
         Dwarf_Unsigned CuHeaderLength;
         Dwarf_Half Version;
         Dwarf_Off AbbrevOffset;
         Dwarf_Half AddressSize;
+        Dwarf_Half LengthSize;
+        Dwarf_Half ExtensionSize;
+        Dwarf_Sig8 Signature;
+        Dwarf_Unsigned TypeOffset;
         Dwarf_Unsigned NextCuHeaderOffset;
+        Dwarf_Half CuType;
 
-        Res = dwarf_next_cu_header(Dbg, &CuHeaderLength, &Version, &AbbrevOffset, &AddressSize, &NextCuHeaderOffset,
-                                   &Error);
+        Res = dwarf_next_cu_header_d(Dbg, 1, &CuHeaderLength, &Version, &AbbrevOffset, &AddressSize, &LengthSize,
+                                     &ExtensionSize, &Signature, &TypeOffset, &NextCuHeaderOffset, &CuType, &Error);
+
         if (Res != DW_DLV_OK) {
+            std::cerr << "dwarf_next_cu_header failed with " << Res << "\n";
             return Res != DW_DLV_ERROR;
         }
 
-        Res = dwarf_siblingof(Dbg, NoDie, &CuDie, &Error);
+        Res = dwarf_siblingof_b(Dbg, nullptr, 1, &CuDie, &Error);
         if (Res != DW_DLV_OK) {
+            std::cerr << "dwarf_siblingof_c failed with " << Res << "\n";
             return Res != DW_DLV_ERROR;
         }
 
         parseCompilationUnit(Dbg, CuDie, Info);
+
+        if (CuDie != nullptr) {
+            dwarf_dealloc(Dbg, CuDie, DW_DLA_DIE);
+            CuDie = nullptr; // Reset to nullptr after deallocating
+        }
     }
 
     return true;
@@ -778,7 +796,7 @@ int main(int argc, char **argv) {
         return -1;
     }
 
-    Res = dwarf_init(FD, DW_DLC_READ, nullptr, nullptr, &Dbg, &Error);
+    Res = dwarf_init_b(FD, DW_GROUPNUMBER_ANY, nullptr, nullptr, &Dbg, &Error);
     if (Res != DW_DLV_OK) {
         std::cerr << "Could not init dwarf\n";
         return -1;
@@ -818,7 +836,7 @@ int main(int argc, char **argv) {
         std::cout << Buffer.GetString() << "\n";
     }
 
-    Res = dwarf_finish(Dbg, &Error);
+    Res = dwarf_finish(Dbg);
     if (Res != DW_DLV_OK) {
         std::cerr << "dwarf_finish failed\n";
     }

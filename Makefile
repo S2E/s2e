@@ -146,8 +146,8 @@ GTEST_URL=https://github.com/google/googletest/archive/release-$(GTEST_VERSION).
 # libdwarf
 # We don't use the one that ships with the distro because we need
 # the latest features (PE file support mostly).
-LIBDWARF_URL=https://www.prevanders.net/libdwarf-20190110.tar.gz
-LIBDWARF_SRC_DIR=libdwarf-20190110
+LIBDWARF_URL=https://www.prevanders.net/libdwarf-0.9.1.tar.xz
+LIBDWARF_SRC_DIR=libdwarf-0.9.1
 LIBDWARF_BUILD_DIR=libdwarf
 
 # rapidjson
@@ -265,7 +265,7 @@ $(CAPSTONE_BUILD_DIR):
 
 $(LIBDWARF_BUILD_DIR):
 	$(call DOWNLOAD,$(LIBDWARF_URL),$(S2E_BUILD)/$(LIBDWARF_BUILD_DIR).tar.gz)
-	tar -zxf $(S2E_BUILD)/$(LIBDWARF_BUILD_DIR).tar.gz
+	tar -Jxf $(S2E_BUILD)/$(LIBDWARF_BUILD_DIR).tar.gz
 	mkdir -p $(S2E_BUILD)/$(LIBDWARF_BUILD_DIR)
 
 $(RAPIDJSON_BUILD_DIR):

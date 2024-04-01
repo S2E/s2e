@@ -43,9 +43,17 @@ message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 
 add_definitions(${LLVM_DEFINITIONS})
 
+find_package(RapidJSON REQUIRED)
+
+set(ENV{PKG_CONFIG_PATH} ${CMAKE_INSTALL_PREFIX}/lib/pkgconfig)
+find_package(PkgConfig REQUIRED)
+set(CMAKE_PREFIX_PATH ${CMAKE_INSTALL_PREFIX})
+pkg_check_modules(LIBDWARF REQUIRED IMPORTED_TARGET libdwarf)
+
 find_path(LIBDWARF_INCLUDE_DIRS
           NAMES libdwarf.h dwarf.h
           HINTS ${CMAKE_INSTALL_PREFIX}/include)
+message(STATUS "Found libdwarf include dir ${LIBDWARF_INCLUDE_DIRS}")
 
 find_library(LIBDWARF_LIB
              libdwarf.a
@@ -76,19 +84,19 @@ set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -g -O2")
 add_subdirectory(src)
 
 add_executable(crashdump src/crashdump.cpp)
-target_link_libraries(crashdump vmi ${LLVM_LIBS} z)
+target_link_libraries(crashdump vmi ${LLVM_LIBS})
 
 add_executable(injector src/injector.cpp)
-target_link_libraries(injector vmi elf ${LLVM_LIBS} z)
+target_link_libraries(injector vmi elf ${LLVM_LIBS})
 
 add_executable(dump src/dump.cpp)
-target_link_libraries(dump vmi elf ${LLVM_LIBS} z)
+target_link_libraries(dump vmi elf ${LLVM_LIBS})
 
 add_executable(reader src/reader.cpp)
-target_link_libraries(reader vmi elf ${LLVM_LIBS} z)
+target_link_libraries(reader vmi elf ${LLVM_LIBS})
 
 add_executable(addrs2lines src/addrs2lines.cpp)
-target_link_libraries(addrs2lines vmi ${LIBDWARF_LIB} elf ${LLVM_LIBS} z)
+target_link_libraries(addrs2lines vmi ${LIBDWARF_LIB} elf ${LLVM_LIBS} zstd)
 
 install(TARGETS crashdump injector dump reader addrs2lines
         RUNTIME DESTINATION bin)
