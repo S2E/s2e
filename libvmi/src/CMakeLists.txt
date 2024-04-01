@@ -19,11 +19,9 @@
 # SOFTWARE.
 
 add_library(vmi STATIC DecreeFile.cpp
-                       ElfDwarf.cpp
                        ExecutableFile.cpp
                        FileProvider.cpp
                        PEFile.cpp
-                       Vmi.cpp
                        WindowsCrashDumpGenerator.cpp
                        WinKernDumpFile.cpp)
 

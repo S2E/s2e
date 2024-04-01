@@ -78,9 +78,6 @@ add_subdirectory(src)
 add_executable(crashdump src/crashdump.cpp)
 target_link_libraries(crashdump vmi ${LLVM_LIBS} z)
 
-add_executable(vmidemo src/vmidemo.cpp)
-target_link_libraries(vmidemo vmi ${LIBDWARF_LIB} elf ${LLVM_LIBS} z)
-
 add_executable(injector src/injector.cpp)
 target_link_libraries(injector vmi elf ${LLVM_LIBS} z)
 
@@ -93,7 +90,7 @@ target_link_libraries(reader vmi elf ${LLVM_LIBS} z)
 add_executable(addrs2lines src/addrs2lines.cpp)
 target_link_libraries(addrs2lines vmi ${LIBDWARF_LIB} elf ${LLVM_LIBS} z)
 
-install(TARGETS crashdump vmidemo injector dump reader addrs2lines
+install(TARGETS crashdump injector dump reader addrs2lines
         RUNTIME DESTINATION bin)
 install(DIRECTORY "include/vmi"
         DESTINATION include)
