@@ -59,6 +59,15 @@ struct SectionDescriptor {
     }
 };
 
+inline llvm::raw_ostream &operator<<(llvm::raw_ostream &out, const SectionDescriptor &md) {
+    out << "[SectionDescriptor"
+        << " Name=" << md.name << " RTLB=" << hexval(md.runtimeLoadBase) << " NLB=" << hexval(md.nativeLoadBase)
+        << " Size=" << hexval(md.size) << " R=" << hexval(md.readable) << " W=" << hexval(md.writable)
+        << " X=" << hexval(md.executable) << "]";
+
+    return out;
+}
+
 using ModuleSections = std::vector<SectionDescriptor>;
 
 ///
