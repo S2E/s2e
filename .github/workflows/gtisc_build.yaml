@@ -1,0 +1,22 @@
+name: Rebuild the GTISC s2e image
+
+on: 
+  workflow_call:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+jobs:
+  build:
+      runs-on: ${{ matrix.runner }}
+      strategy:
+        matrix:
+          runner: [s2e-worker, s2e-worker-2, s2e-worker-3]
+      steps:
+        - name: checkout code
+          uses: actions/checkout@v3
+        - name: build and push
+          env:
+            DOCKER_REGISTRY_USER: ${{ secrets.DOCKER_REGISTRY_USER }}
+            DOCKER_REGISTRY_PASS: ${{ secrets.DOCKER_REGISTRY_PASS }}
+          run: ./scripts/gtisc/docker_build/build_image_and_push.sh
