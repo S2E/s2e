@@ -31,10 +31,8 @@
 
 #include <llvm/ADT/DenseSet.h>
 #include <llvm/Support/Path.h>
-#include <vmi/ElfDwarf.h>
 #include <vmi/ExecutableFile.h>
 #include <vmi/PEFile.h>
-#include <vmi/Vmi.h>
 
 #include <vmi/FileProvider.h>
 #include <vmi/RegisterProvider.h>
