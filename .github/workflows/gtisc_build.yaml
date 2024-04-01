@@ -11,7 +11,7 @@ jobs:
       runs-on: ${{ matrix.runner }}
       strategy:
         matrix:
-          runner: [s2e-worker, s2e-worker-2, s2e-worker-3]
+          runner: [s2e-worker, s2e-worker-2, s2e-worker-3, s2e-ci]
       steps:
         - name: checkout code
           uses: actions/checkout@v3
