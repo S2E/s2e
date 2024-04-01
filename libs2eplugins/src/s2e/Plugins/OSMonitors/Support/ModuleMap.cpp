@@ -53,7 +53,7 @@ class ModuleMapManager : public ProcessRegionMapManager<ModuleDescriptorConstPtr
                                                                    ModuleDescriptorConstPtr value) -> bool {
             os << "pid=" << hexval(pid);
             os << " [" << hexval(start) << ", " << hexval(end) << "] ";
-            os << value.get();
+            os << *value.get();
             os << "\n";
 
             return true;
