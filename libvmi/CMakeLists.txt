@@ -64,7 +64,8 @@ find_library(LIBDWARF_LIB
 # configuration.
 include_directories(${LLVM_INCLUDE_DIRS}
                     "include"
-                    ${LIBDWARF_INCLUDE_DIRS})
+                    ${LIBDWARF_INCLUDE_DIRS}
+                    ${RapidJSON_INCLUDE_DIRS})
 
 link_directories(${LIBDWARF_LIB_DIRS})
 
