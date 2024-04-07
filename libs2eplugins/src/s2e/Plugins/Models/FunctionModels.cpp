@@ -199,7 +199,8 @@ void FunctionModels::handleStrncat(S2EExecutionState *state, S2E_LIBCWRAPPER_COM
 }
 
 void FunctionModels::handleStrstr(S2EExecutionState *state, S2E_LIBCWRAPPER_COMMAND &cmd, ref<Expr> &retExpr) {
-    getDebugStream(state) << "Handling strstr(" << hexval(cmd.Strstr.haystack) << ", " << hexval(cmd.Strstr.needle)
+    getWarningsStream(state) << "Enter here\n";
+    getWarningsStream(state) << "Handling strstr(" << hexval(cmd.Strstr.haystack) << ", " << hexval(cmd.Strstr.needle)
 	    		  << ", " << cmd.Strstr.width
 			  << ")\n";
     // Read function arguments
