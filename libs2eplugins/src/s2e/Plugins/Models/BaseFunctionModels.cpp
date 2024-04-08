@@ -694,10 +694,10 @@ bool BaseFunctionModels::strcatHelper(S2EExecutionState *state, const uint64_t s
 }
 
 bool BaseFunctionModels::strstrHelper(S2EExecutionState *state, uint64_t haystackAddr, uint64_t needleAddr, ref<Expr> &retExpr, uint32_t byte_width) {
-    getDebugStream(state) << "Enter strstr yes\n";
+    getWarningsStream(state) << "Enter strstr yes\n";
     size_t haystackLen, needleLen;
     if (!findNullCharWithWidth(state, haystackAddr, haystackLen, byte_width) || !findNullCharWithWidth(state, needleAddr, needleLen, byte_width)) {
-        getDebugStream(state) << "Failed to find nullptr in haystack or needle\n";
+        getWarningsStream(state) << "Failed to find nullptr in haystack or needle\n";
         return false;
     }
 
@@ -716,7 +716,7 @@ bool BaseFunctionModels::strstrHelper(S2EExecutionState *state, uint64_t haystac
 
         // Use strncmpHelper to compare the substring of haystack with needle
         if (!memcmpHelper(state, strAddrs, needleLen, memcmpResult)) {
-            getDebugStream(state) << "Failed to compare substring of haystack with needle\n";
+            getWarningsStream(state) << "Failed to compare substring of haystack with needle\n";
             return false;
         }
 
