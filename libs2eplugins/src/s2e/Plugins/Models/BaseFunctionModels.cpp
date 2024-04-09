@@ -718,7 +718,7 @@ bool BaseFunctionModels::strstrHelper(S2EExecutionState *state, uint64_t haystac
 
         // Use strncmpHelper to compare the substring of haystack with needle
         if (!memcmpHelper(state, strAddrs, needleLen, memcmpResult)) {
-            getWarningsStream(state) << "Failed to compare substring of haystack with needle\n";
+            getWarningsStream(state) << "Failed to compare substring of haystack with needle " << needleLen << "\n";
             return false;
         }
 
