@@ -1371,7 +1371,7 @@ S2EExecutor::StatePair S2EExecutor::doFork(ExecutionState &current, const klee::
     //    as the fork will not branch.
     bool forkOk = true;
     m_s2e->getDebugStream() << "condition " << (bool)(condition) << " " << (bool)(dyn_cast<klee::ConstantExpr>(condition)) << "\n";
-    m_s2e->getDebugStream() "log at pc = " << hexval(currentState->regs()->getPc()) << "\n";
+    m_s2e->getDebugStream() << "log at pc = " << hexval(currentState->regs()->getPc()) << "\n";
     if (!condition || !dyn_cast<klee::ConstantExpr>(condition)) {
         m_s2e->getDebugStream() << "doFork 1\n";
         if (currentState->forkDisabled) {
