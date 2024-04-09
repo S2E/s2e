@@ -183,7 +183,7 @@ void FunctionMonitor::onFunctionCall(S2EExecutionState *state, uint64_t callerPc
     }
     if(callerMod && calleeMod) {
         if(!ends_with(callerMod->Name.c_str(), ".dll")){
-          getDebugStream(state) <<  "Caller " << callerMod->Name << ", addr " << hexval(callerPc) << " callee " << calleeMod->Name << ", callee addr: " << hexval(calleePc) << "\n";
+          getWarningsStream(state) <<  "Caller " << callerMod->Name << ", addr " << hexval(callerPc) << " callee " << calleeMod->Name << ", callee addr: " << hexval(calleePc) << "\n";
         }
     }
 
