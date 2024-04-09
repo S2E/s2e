@@ -377,9 +377,10 @@ klee_warning_once(nullptr, "Executor::fork 8");
 
     if (!current.solve(tmpConstraints, *concolics)) {
         std::string constraints_str;
-        current.dumpQuery(llvm::raw_string_ostream(constraints_str));
+        llvm::raw_string_ostream rso(constraints_str);
+        current.dumpQuery(rso);
         klee_warning_once(nullptr, "Executor::fork 15");
-        klee_warning_once(nullptr, constraints_str.c_str());
+        klee_warning_once(nullptr, "%s", constraints_str.c_str());
         if (conditionIsTrue) {
             klee_warning_once(nullptr, "Executor::fork 16");
             return StatePair(&current, nullptr);
