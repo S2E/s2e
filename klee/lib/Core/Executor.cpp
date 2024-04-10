@@ -316,6 +316,7 @@ Executor::StatePair Executor::fork(ExecutionState &current, const ref<Expr> &con
     ref<Expr> evalResult = current.concolics->evaluate(condition);
     ConstantExpr *ce = dyn_cast<ConstantExpr>(evalResult);
     check(ce, "Could not evaluate the expression to a constant.");
+    
     bool conditionIsTrue = ce->isTrue();
     if (current.forkDisabled) {
         if (conditionIsTrue) {

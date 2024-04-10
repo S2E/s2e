@@ -21,7 +21,9 @@ WORKDIR /home/s2e/s2e-env
 ENV PATH=$PATH:/home/s2e/.local/bin
 RUN pip install --upgrade pip
 RUN pip install .
-RUN s2e init /home/s2e/s2e
+
+ARG TARGET_BRANCH=master
+RUN s2e init /home/s2e/s2e -sb $TARGET_BRANCH
 
 WORKDIR /home/s2e/s2e
 SHELL ["/bin/bash", "-c"]
