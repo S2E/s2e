@@ -305,43 +305,33 @@ Executor::StatePair Executor::fork(ExecutionState &current, const ref<Expr> &con
 
     // If we are passed a constant, no need to do anything
     if (auto ce = dyn_cast<ConstantExpr>(condition)) {
-        klee_warning_once(nullptr, "Executor::fork says constant");
         if (ce->isTrue()) {
-            klee_warning_once(nullptr, "Executor::fork 1");
             return StatePair(&current, nullptr);
         } else {
-            klee_warning_once(nullptr, "Executor::fork 2");
             return StatePair(nullptr, &current);
         }
     }
-
-    klee_warning_once(nullptr, "Executor::fork 3");
 
     // Evaluate the expression using the current variable assignment
     ref<Expr> evalResult = current.concolics->evaluate(condition);
     ConstantExpr *ce = dyn_cast<ConstantExpr>(evalResult);
     check(ce, "Could not evaluate the expression to a constant.");
     bool conditionIsTrue = ce->isTrue();
-    klee_warning_once(nullptr, "Executor::fork 4");
     if (current.forkDisabled) {
-        klee_warning_once(nullptr, "Executor::fork 5");
         if (conditionIsTrue) {
-            klee_warning_once(nullptr, "Executor::fork 6");
             if (!current.addConstraint(condition)) {
                 abort();
             }
             return StatePair(&current, nullptr);
         } else {
-            klee_warning_once(nullptr, "Executor::fork 7");
             if (!current.addConstraint(Expr::createIsZero(condition))) {
                 abort();
             }
             return StatePair(nullptr, &current);
         }
     }
-klee_warning_once(nullptr, "Executor::fork 8");
+
     if (keepConditionTrueInCurrentState && !conditionIsTrue) {
-        klee_warning_once(nullptr, "Executor::fork 9");
         // Recompute concrete values to keep condition true in current state
 
         // Build constraints where condition must be true
@@ -349,43 +339,31 @@ klee_warning_once(nullptr, "Executor::fork 8");
         tmpConstraints.addConstraint(condition);
 
         if (!current.solve(tmpConstraints, *(current.concolics))) {
-            klee_warning_once(nullptr, "Executor::fork 10");
             // Condition is always false in the current state
             return StatePair(nullptr, &current);
         }
-        klee_warning_once(nullptr, "Executor::fork 11");
         conditionIsTrue = true;
     }
 
-    klee_warning_once(nullptr, "Executor::fork 11");
     // Build constraints for branched state
     ConstraintManager tmpConstraints = current.constraints();
     if (conditionIsTrue) {
-        klee_warning_once(nullptr, "Executor::fork 12");
         tmpConstraints.addConstraint(Expr::createIsZero(condition));
     } else {
-        klee_warning_once(nullptr, "Executor::fork 13");
         tmpConstraints.addConstraint(condition);
     }
 
-    klee_warning_once(nullptr, "Executor::fork 14");
     AssignmentPtr concolics = Assignment::create(true);
     
-
-    
-    
-
     if (!current.solve(tmpConstraints, *concolics)) {
-        std::string constraints_str;
-        llvm::raw_string_ostream rso(constraints_str);
-        current.dumpQuery(rso);
-        klee_warning_once(nullptr, "Executor::fork 15");
-        klee_warning_once(nullptr, "%s", constraints_str.c_str());
+        //std::string constraints_str;
+        //llvm::raw_string_ostream rso(constraints_str);
+        //current.dumpQuery(rso);
+        //klee_warning_once(nullptr, "Executor::fork 15");
+        //klee_warning_once(nullptr, "%s", constraints_str.c_str());
         if (conditionIsTrue) {
-            klee_warning_once(nullptr, "Executor::fork 16");
             return StatePair(&current, nullptr);
         } else {
-            klee_warning_once(nullptr, "Executor::fork 17");
             return StatePair(nullptr, &current);
         }
     }
@@ -401,10 +379,8 @@ klee_warning_once(nullptr, "Executor::fork 8");
     // Update concrete values for the branched state
     branchedState->concolics = concolics;
 
-    klee_warning_once(nullptr, "Executor::fork 18");
     // Add constraint to both states
     if (conditionIsTrue) {
-        klee_warning_once(nullptr, "Executor::fork 19");
         if (!current.addConstraint(condition)) {
             abort();
         }
@@ -412,7 +388,6 @@ klee_warning_once(nullptr, "Executor::fork 8");
             abort();
         }
     } else {
-        klee_warning_once(nullptr, "Executor::fork 20");
         if (!current.addConstraint(Expr::createIsZero(condition))) {
             abort();
         }
@@ -424,16 +399,12 @@ klee_warning_once(nullptr, "Executor::fork 8");
     // Classify states
     ExecutionState *trueState, *falseState;
     if (conditionIsTrue) {
-        klee_warning_once(nullptr, "Executor::fork 21");
         trueState = &current;
         falseState = branchedState;
     } else {
-        klee_warning_once(nullptr, "Executor::fork 22");
         falseState = &current;
         trueState = branchedState;
     }
-
-    klee_warning_once(nullptr, "Executor::fork 23");
 
     return StatePair(trueState, falseState);
 }

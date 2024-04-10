@@ -40,7 +40,7 @@ static void klee_vfmessage(llvm::raw_ostream *os, const char *pfx, const char *m
     if (!os)
         return;
 
-    (*os) << "KLEEE: ";
+    (*os) << "KLEE: ";
     if (pfx)
         (*os) << pfx << ": ";
 

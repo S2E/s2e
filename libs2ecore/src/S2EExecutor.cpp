@@ -1357,7 +1357,6 @@ S2EExecutor::StatePair S2EExecutor::fork(ExecutionState &current) {
 
 S2EExecutor::StatePair S2EExecutor::doFork(ExecutionState &current, const klee::ref<Expr> &condition,
                                            bool keepConditionTrueInCurrentState) {
-                                            m_s2e->getDebugStream() << "Inside doFork\n";
     S2EExecutionState *currentState = dynamic_cast<S2EExecutionState *>(&current);
     assert(currentState);
     assert(!currentState->isRunningConcrete());
@@ -1370,10 +1369,7 @@ S2EExecutor::StatePair S2EExecutor::doFork(ExecutionState &current, const klee::
     // 2. If the condition is constant, there is no need to do anything
     //    as the fork will not branch.
     bool forkOk = true;
-    m_s2e->getDebugStream() << "condition " << (bool)(condition) << " " << (bool)(dyn_cast<klee::ConstantExpr>(condition)) << "\n";
-    m_s2e->getDebugStream() << "log at pc = " << hexval(currentState->regs()->getPc()) << "\n";
     if (!condition || !dyn_cast<klee::ConstantExpr>(condition)) {
-        m_s2e->getDebugStream() << "doFork 1\n";
         if (currentState->forkDisabled) {
             g_s2e->getDebugStream(currentState) << "fork disabled at " << hexval(currentState->regs()->getPc()) << "\n";
         }
@@ -1384,30 +1380,21 @@ S2EExecutor::StatePair S2EExecutor::doFork(ExecutionState &current, const klee::
         }
     }
 
-    m_s2e->getDebugStream() << "doFork 2\n";
-
     bool oldForkStatus = currentState->forkDisabled;
     if (!forkOk && !currentState->forkDisabled) {
-        m_s2e->getDebugStream() << "doFork 3\n";
         currentState->forkDisabled = true;
     }
 
-    m_s2e->getDebugStream() << "doFork 4\n";
     if (condition) {
-        m_s2e->getDebugStream() << "doFork 5\n";
         res = Executor::fork(current, condition, keepConditionTrueInCurrentState);
     } else {
-        m_s2e->getDebugStream() << "doFork 6\n";
         res = Executor::fork(current);
     }
 
     currentState->forkDisabled = oldForkStatus;
-    m_s2e->getDebugStream() << "doFork 7\n";
     if (!(res.first && res.second)) {
-        m_s2e->getDebugStream() << "doFork 8\n";
         return res;
     }
-    m_s2e->getDebugStream() << "doFork 9\n";
     llvm::SmallVector<S2EExecutionState *, 2> newStates(2);
     llvm::SmallVector<klee::ref<Expr>, 2> newConditions(2);
 
@@ -1415,7 +1402,6 @@ S2EExecutor::StatePair S2EExecutor::doFork(ExecutionState &current, const klee::
     newStates[1] = static_cast<S2EExecutionState *>(res.second);
 
     if (condition) {
-        m_s2e->getDebugStream() << "doFork 10\n";
         newConditions[0] = condition;
         newConditions[1] = klee::NotExpr::create(condition);
     }
