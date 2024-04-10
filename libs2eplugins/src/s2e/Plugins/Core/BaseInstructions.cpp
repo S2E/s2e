@@ -473,7 +473,8 @@ void BaseInstructions::printMessage(S2EExecutionState *state, bool isWarning) {
     }
 
     std::string str = "";
-    if (!address || !state->mem()->readString(address, str)) {
+    constexpr int kMaxMessageLength = 0x1000;
+    if (!address || !state->mem()->readString(address, str, kMaxMessageLength)) {
         getWarningsStream(state) << "Error reading string message from the guest at address " << hexval(address)
                                  << '\n';
     } else {
