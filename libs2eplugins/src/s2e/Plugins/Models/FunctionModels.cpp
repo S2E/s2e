@@ -92,21 +92,15 @@ void FunctionModels::handleStrncmp(S2EExecutionState *state, S2E_LIBCWRAPPER_COM
 void FunctionModels::handleStrcmpWidth(S2EExecutionState *state, S2E_LIBCWRAPPER_COMMAND &cmd, ref<Expr> &retExpr) {
     // Read function arguments
     uint64_t stringAddrs[2];
-    getWarningsStream(state) << "Trigger test 5\n";
     stringAddrs[0] = (uint64_t) cmd.Strcmp.str1;
-    getWarningsStream(state) << "Trigger test 6\n";
     stringAddrs[1] = (uint64_t) cmd.Strcmp.str2;
-    getWarningsStream(state) << "Trigger test 7\n";
 
     // Assemble the string compare expression
     if (strcmpWithWidthHelper(state, stringAddrs, retExpr, (uint32_t)(cmd.StrcmpWidth.width))) {
         cmd.needOrigFunc = 0;
-        getWarningsStream(state) << "Trigger test 9\n";
     } else {
         cmd.needOrigFunc = 1;
-        getWarningsStream(state) << "Trigger test 10\n";
     }
-    getWarningsStream(state) << "Trigger test 8\n";
 }
 
 void FunctionModels::handleStrcpy(S2EExecutionState *state, S2E_LIBCWRAPPER_COMMAND &cmd) {
@@ -368,11 +362,8 @@ void FunctionModels::handleOpcodeInvocation(S2EExecutionState *state, uint64_t g
         case LIBCWRAPPER_STRCMPWIDTH: {
             getWarningsStream(state) << "Trigger string cmp width " << hexval(command.Command) << "\n";
             ref<Expr> retExpr;
-            getWarningsStream(state) << "Trigger test 2\n";
             handleStrcmpWidth(state, command, retExpr);
-            getWarningsStream(state) << "Trigger test 3\n";
             UPDATE_RET_VAL(StrcmpWidth, command);
-            getWarningsStream(state) << "Trigger test 4\n";
         } break;
 
         default: {

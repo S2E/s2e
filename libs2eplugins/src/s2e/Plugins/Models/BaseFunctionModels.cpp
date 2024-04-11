@@ -208,9 +208,7 @@ bool BaseFunctionModels::strcmpHelper(S2EExecutionState *state, const uint64_t s
 }
 
 bool BaseFunctionModels::strcmpWithWidthHelper(S2EExecutionState *state, const uint64_t strAddrs[2], ref<Expr> &retExpr, size_t width) {
-    getWarningsStream(state) << "Trigger test 11\n";
     getDebugStream(state) << "Handling strcmp(" << hexval(strAddrs[0]) << ", " << hexval(strAddrs[1]) << ")\n";
-    getWarningsStream(state) << "Trigger test 12\n";
 
     // Calculate the string lengths to determine the maximum
     size_t strLens[2];
