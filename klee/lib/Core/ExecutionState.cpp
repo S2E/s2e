@@ -34,6 +34,11 @@ using namespace llvm;
 
 namespace klee {
 
+cl::opt<bool> AddConstraintWhenForkingDisabledDefault("add-constraint-when-forking-disabled",
+                                 cl::desc("Sets whether to (by default) add constraints when forking is disabled. Users can "
+                                          "still switch on/off this at runtime for a state."),
+                                 cl::init(true));
+
 cl::opt<bool> DebugLogStateMerge("debug-log-state-merge");
 
 cl::opt<bool> ValidateSimplifier("validate-expr-simplifier",
@@ -57,7 +62,7 @@ std::set<ObjectKey, ObjectKeyLTS> ExecutionState::s_ignoredMergeObjects;
 
 ExecutionState::ExecutionState(KFunction *kf)
     : pc(kf->getInstructions()), prevPC(nullptr), addressSpace(this), forkDisabled(false),
-      concolics(Assignment::create(true)) {
+      concolics(Assignment::create(true)), addConstraintWhenForkingDisabled(AddConstraintWhenForkingDisabledDefault) {
     pushFrame(0, kf);
 }
 

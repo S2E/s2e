@@ -302,7 +302,6 @@ void Executor::notifyBranch(ExecutionState &state) {
 Executor::StatePair Executor::fork(ExecutionState &current, const ref<Expr> &condition_,
                                    bool keepConditionTrueInCurrentState) {
     auto condition = current.simplifyExpr(condition_);
-
     // If we are passed a constant, no need to do anything
     if (auto ce = dyn_cast<ConstantExpr>(condition)) {
         if (ce->isTrue()) {
@@ -320,13 +319,15 @@ Executor::StatePair Executor::fork(ExecutionState &current, const ref<Expr> &con
     bool conditionIsTrue = ce->isTrue();
     if (current.forkDisabled) {
         if (conditionIsTrue) {
-            if (!current.addConstraint(condition)) {
+            if (current.addConstraintWhenForkingDisabled && 
+                !current.addConstraint(condition)) {
                 abort();
             }
             return StatePair(&current, nullptr);
         } else {
-            if (!current.addConstraint(Expr::createIsZero(condition))) {
-                abort();
+            if (current.addConstraintWhenForkingDisabled && 
+                !current.addConstraint(Expr::createIsZero(condition))) {
+                    abort();
             }
             return StatePair(nullptr, &current);
         }
