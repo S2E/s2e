@@ -94,8 +94,6 @@ UINT32 NTAPI S2EWriteMemory(PVOID Destination, PVOID Source, DWORD Count);
 VOID NTAPI S2EDisableAllApicInterrupts(VOID);
 VOID NTAPI S2EEnableAllApicInterrupts(VOID);
 
-VOID NTAPI S2ESetCpuLogLevel(UINT32 LogLevel);
-
 VOID NTAPI S2EMakeSymbolic(PVOID Buffer, UINT32 Size, PCSTR Name);
 INT NTAPI S2ESymbolicInt(PCSTR Name, INT InitialValue);
 UINT8 NTAPI S2ESymbolicChar(PCSTR Name, UINT8 InitialValue);

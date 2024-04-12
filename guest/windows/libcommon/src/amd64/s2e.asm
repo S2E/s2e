@@ -424,15 +424,4 @@ S2EReturnHook64 proc frame
     ret
 S2EReturnHook64 endp
 
-;RCX, RDX, R8, R9
-public S2ESetCpuLogLevel
-S2ESetCpuLogLevel proc frame ; _Level: dword
-    .endprolog
-    mov rax, rcx; _Level
-    db 0fh, 3fh
-    db 00h, 56h, 00h, 00h
-    db 00h, 00h, 00h, 00h
-    ret
-S2ESetCpuLogLevel endp
-
 end

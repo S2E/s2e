@@ -17,7 +17,6 @@ EXPORTS
     S2EPrintExpression
     S2EKillState
     S2EWriteMemory
-    S2ESetCpuLogLevel
     S2EMakeSymbolic
     S2ESymbolicInt
     S2ESymbolicChar

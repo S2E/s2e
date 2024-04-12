@@ -315,15 +315,5 @@ S2EEnableAllApicInterrupts proc near
     ret
 S2EEnableAllApicInterrupts endp
 
-public S2ESetCpuLogLevel
-S2ESetCpuLogLevel proc near _Level: dword
-    mov eax, _Level
-    db 0fh, 3fh
-    db 00h, 56h, 00h, 00h
-    db 00h, 00h, 00h, 00h
-    ret 08h
-S2ESetCpuLogLevel endp
-
-
 end
 
