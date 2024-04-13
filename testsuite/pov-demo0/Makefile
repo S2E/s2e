@@ -36,10 +36,10 @@ linux32-$(TARGET): $(SOURCE)
 	$(GCC_LINUX) -m32 $(CFLAGS) -o "$@" "$^"
 
 windows64-$(TARGET).exe: $(SOURCE)
-	$(GCC_WINDOWS64) -m64 $(CFLAGS) -gstabs -o "$@" "$^"
+	$(GCC_WINDOWS64) -m64 $(CFLAGS) -o "$@" "$^"
 
 windows32-$(TARGET).exe: $(SOURCE)
-	$(GCC_WINDOWS32) -m32 $(CFLAGS) -gstabs -o "$@" "$^"
+	$(GCC_WINDOWS32) -m32 $(CFLAGS) -o "$@" "$^"
 
 TARGETS=linux64-$(TARGET) linux32-$(TARGET) windows64-$(TARGET).exe windows32-$(TARGET).exe
 
