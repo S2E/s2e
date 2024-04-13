@@ -26,16 +26,15 @@ FROM ubuntu:22.04
 RUN dpkg --add-architecture i386 && apt-get update &&                       \
     apt-get -y install ca-certificates build-essential curl wget texinfo flex bison  \
     python-is-python3 python3-dev python3-venv python3-distro mingw-w64 lsb-release \
-    autoconf libtool
-
-# Install S2E dependencies
-RUN apt-get update && apt-get -y install libdwarf-dev libelf-dev libelf-dev:i386 \
+    autoconf libtool libprotobuf-dev protobuf-compiler protobuf-c-compiler \
+    libdwarf-dev libelf-dev libelf-dev:i386 \
     libboost-dev zlib1g-dev libjemalloc-dev nasm pkg-config                 \
     libmemcached-dev libpq-dev libc6-dev-i386 binutils-dev                  \
     libboost-system-dev libboost-serialization-dev libboost-regex-dev       \
     libbsd-dev libpixman-1-dev                                              \
     libglib2.0-dev libglib2.0-dev:i386 python3-docutils libpng-dev          \
-    gcc-multilib g++-multilib libgomp1 unzip
+    gcc-multilib g++-multilib libgomp1 unzip libzstd-dev
+
 # The unzip and libgomp1 dependencies are needed to unzip and run binary Z3
 # distributions
 
@@ -71,9 +70,6 @@ RUN cd s2e-build &&                                                         \
 
 RUN cd s2e-build &&                                                         \
     make -f ../s2e/Makefile S2E_PREFIX=/opt/s2e stamps/z3
-
-RUN cd s2e-build &&                                                         \
-    make -f ../s2e/Makefile S2E_PREFIX=/opt/s2e stamps/protobuf-make
 
 RUN cd s2e-build &&                                                         \
     make -f ../s2e/Makefile S2E_PREFIX=/opt/s2e stamps/libdwarf-make
