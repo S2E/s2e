@@ -33,7 +33,8 @@ RUN dpkg --add-architecture i386 && apt-get update &&                       \
     libboost-system-dev libboost-serialization-dev libboost-regex-dev       \
     libbsd-dev libpixman-1-dev                                              \
     libglib2.0-dev libglib2.0-dev:i386 python3-docutils libpng-dev          \
-    gcc-multilib g++-multilib libgomp1 unzip libzstd-dev
+    gcc-multilib g++-multilib libgomp1 unzip libzstd-dev \
+    libgmock-dev libgtest-dev
 
 # The unzip and libgomp1 dependencies are needed to unzip and run binary Z3
 # distributions
