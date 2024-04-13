@@ -158,12 +158,6 @@ RAPIDJSON_GIT_REV=fd3dc29a5c2852df569e1ea81dbde2c412ac5051
 RAPIDJSON_SRC_DIR=rapidjson
 RAPIDJSON_BUILD_DIR=rapidjson-build
 
-# protobuf
-# We build our own because the one on Ubuntu 16 crashes.
-PROTOBUF_URL=https://github.com/protocolbuffers/protobuf/archive/refs/tags/v3.21.12.tar.gz
-PROTOBUF_SRC_DIR=protobuf-3.21.12
-PROTOBUF_BUILD_DIR=protobuf
-
 
 ###########
 # Targets #
@@ -272,14 +266,6 @@ $(RAPIDJSON_BUILD_DIR):
 	git clone $(RAPIDJSON_GIT_URL) $(RAPIDJSON_SRC_DIR)
 	cd $(RAPIDJSON_SRC_DIR) && git checkout $(RAPIDJSON_GIT_REV)
 	mkdir -p $(S2E_BUILD)/$(RAPIDJSON_BUILD_DIR)
-
-
-$(PROTOBUF_SRC_DIR).tar.gz:
-	$(call DOWNLOAD,$(PROTOBUF_URL),$(S2E_BUILD)/$(PROTOBUF_SRC_DIR).tar.gz)
-
-$(PROTOBUF_BUILD_DIR): $(PROTOBUF_SRC_DIR).tar.gz
-	tar -zxf $(S2E_BUILD)/$(PROTOBUF_SRC_DIR).tar.gz
-	mkdir -p $(S2E_BUILD)/$(PROTOBUF_BUILD_DIR)
 
 ########
 # LLVM #
@@ -419,27 +405,6 @@ stamps/rapidjson-configure: stamps/llvm-release-make $(RAPIDJSON_BUILD_DIR)
 
 stamps/rapidjson-make: stamps/rapidjson-configure
 	$(MAKE) -C $(RAPIDJSON_BUILD_DIR) install
-	touch $@
-
-############
-# protobuf #
-############
-
-PROTOBUF_CONFIGURE_FLAGS = -DCMAKE_INSTALL_PREFIX=$(S2E_PREFIX)                                 \
-                            -DCMAKE_C_FLAGS="$(CFLAGS_ARCH) -fno-omit-frame-pointer -fPIC"       \
-                            -DCMAKE_C_COMPILER=$(CLANG_CC)                                       \
-                            -DCMAKE_CXX_COMPILER=$(CLANG_CXX) \
-                            -Dprotobuf_BUILD_TESTS=OFF \
-                            -DCMAKE_BUILD_TYPE=Release
-
-
-stamps/protobuf-configure: stamps/llvm-release-make $(PROTOBUF_BUILD_DIR)
-	cd $(PROTOBUF_BUILD_DIR) && cd $(S2E_BUILD)/$(PROTOBUF_SRC_DIR) && ./autogen.sh && \
-	CC=$(CLANG_CC) CXX=$(CLANG_CXX) CXXFLAGS=-fPIC CFLAGS=-fPIC ./configure --prefix=$(S2E_PREFIX)
-	touch $@
-
-stamps/protobuf-make: stamps/protobuf-configure
-	$(MAKE) -C $(S2E_BUILD)/$(PROTOBUF_SRC_DIR) install
 	touch $@
 
 
@@ -681,7 +646,7 @@ stamps/libs2e-debug-configure: $(call FIND_CONFIG_SOURCE,$(S2E_SRC)/libs2e)
 stamps/libs2e-debug-configure: stamps/lua-make stamps/libvmi-debug-install      \
     stamps/klee-debug-make stamps/soci-make stamps/libfsigc++-debug-make        \
     stamps/libq-debug-make stamps/libcoroutine-debug-make stamps/capstone-make  \
-    stamps/protobuf-make stamps/klee-coverage-make
+    stamps/klee-coverage-make
 stamps/libs2e-debug-configure: CONFIGURE_COMMAND = $(S2E_SRC)/libs2e/configure  \
                                                    $(LIBS2E_CONFIGURE_FLAGS)    \
                                                    $(LIBS2E_DEBUG_FLAGS)
@@ -689,8 +654,8 @@ stamps/libs2e-debug-configure: CONFIGURE_COMMAND = $(S2E_SRC)/libs2e/configure  
 stamps/libs2e-release-configure: $(call FIND_CONFIG_SOURCE,$(S2E_SRC)/libs2e)
 stamps/libs2e-release-configure: stamps/lua-make stamps/libvmi-release-install  \
     stamps/klee-release-make stamps/soci-make stamps/libfsigc++-release-make    \
-    stamps/libq-release-make stamps/libcoroutine-release-make  stamps/capstone-make \
-    stamps/protobuf-make
+    stamps/libq-release-make stamps/libcoroutine-release-make stamps/capstone-make
+
 stamps/libs2e-release-configure: CONFIGURE_COMMAND = $(S2E_SRC)/libs2e/configure    \
                                                      $(LIBS2E_CONFIGURE_FLAGS)      \
                                                      $(LIBS2E_RELEASE_FLAGS)
