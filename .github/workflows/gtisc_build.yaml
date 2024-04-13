@@ -8,10 +8,10 @@ on:
       - master
 jobs:
   build:
-      runs-on: [self-hosted, super]
+      runs-on: [self-hosted, ubuntu-129, Linux]
       steps:
         - name: checkout code
-          uses: actions/checkout@v3
+          uses: actions/checkout@v4
         - name: build and push
           env:
             DOCKER_REGISTRY_USER: ${{ secrets.DOCKER_REGISTRY_USER }}
