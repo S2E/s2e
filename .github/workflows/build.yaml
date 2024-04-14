@@ -20,7 +20,7 @@ jobs:
               libglib2.0-dev python3-docutils libpng-dev \
               gcc-multilib g++-multilib libgomp1 unzip software-properties-common \
               libprotobuf-dev protobuf-compiler protobuf-c-compiler \
-              libgmock-dev libgtest-dev rapidjson-dev
+              libgmock-dev libgtest-dev rapidjson-dev libsoci-dev
 
             sudo apt-get install -f
             sudo apt-get install -y libgcc-s1:i386 libstdc++6:i386

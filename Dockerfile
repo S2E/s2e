@@ -34,7 +34,7 @@ RUN dpkg --add-architecture i386 && apt-get update &&                       \
     libbsd-dev libpixman-1-dev                                              \
     libglib2.0-dev libglib2.0-dev:i386 python3-docutils libpng-dev          \
     gcc-multilib g++-multilib libgomp1 unzip libzstd-dev \
-    libgmock-dev libgtest-dev rapidjson-dev
+    libgmock-dev libgtest-dev rapidjson-dev libsoci-dev
 
 # The unzip and libgomp1 dependencies are needed to unzip and run binary Z3
 # distributions
@@ -64,10 +64,6 @@ RUN cd s2e-build &&                                                         \
 
 # Be explicit about not building Z3 from source, even though its default
 ENV USE_Z3_BINARY=yes
-
-# Build S2E dependencies
-RUN cd s2e-build &&                                                         \
-    make -f ../s2e/Makefile S2E_PREFIX=/opt/s2e stamps/soci-make
 
 RUN cd s2e-build &&                                                         \
     make -f ../s2e/Makefile S2E_PREFIX=/opt/s2e stamps/z3
