@@ -692,41 +692,59 @@ bool BaseFunctionModels::strcatHelper(S2EExecutionState *state, const uint64_t s
 
     return true;
 }
-
 bool BaseFunctionModels::strstrHelper(S2EExecutionState *state, uint64_t haystackAddr, uint64_t needleAddr, ref<Expr> &retExpr, uint32_t byte_width) {
-    getWarningsStream(state) << "Enter strstr yes\n";
+    getWarningsStream(state) << "Entering strstrHelper\n";
+
     size_t haystackLen, needleLen;
-    if (!findNullCharWithWidth(state, haystackAddr, haystackLen, byte_width) || !findNullCharWithWidth(state, needleAddr, needleLen, byte_width)) {
+    if (!findNullCharWithWidth(state, haystackAddr, haystackLen, byte_width) ||
+        !findNullCharWithWidth(state, needleAddr, needleLen, byte_width)) {
         getWarningsStream(state) << "Failed to find nullptr in haystack or needle\n";
         return false;
     }
 
-    const Expr::Width ret_width = state->getPointerSize() * CHAR_BIT;
     if (needleLen == 0) {
-        retExpr = E_CONST(haystackAddr, ret_width);
-        return true;
+        retExpr = E_CONST(haystackAddr, state->getPointerSize() * CHAR_BIT);
+        return true;  // Immediate return if needle is an empty string
     }
 
-    const ref<Expr> nullExpr = E_CONST(0, ret_width);
+    const Expr::Width pointerWidth = state->getPointerSize() * CHAR_BIT;
+    const ref<Expr> nullExpr = E_CONST(0, pointerWidth);
 
-    ref<Expr> finalExpr = nullExpr; // Start with the assumption that we will not find the needle
-    for (size_t i = 0; i <= haystackLen - needleLen; i += byte_width) {
-        uint64_t strAddrs[2] = {haystackAddr + i, needleAddr};
-        ref<Expr> memcmpResult;
-
-        // Use strncmpHelper to compare the substring of haystack with needle
-        if (!memcmpHelper(state, strAddrs, needleLen, memcmpResult)) {
-            getWarningsStream(state) << "Failed to compare substring of haystack with needle " << needleLen << "\n";
+    std::vector<size_t> badCharSkip(256, needleLen);  // Bad character skip array
+    uint8_t charByte = 0;  // Temporary variable for reading bytes
+    for (size_t i = 0; i < needleLen - 1; ++i) {
+        uint64_t readAddr = needleAddr + i * byte_width;
+        if (!state->mem()->read(readAddr, &charByte, VirtualAddress, true)) {
+            getWarningsStream(state) << "Failed to read byte at address " << hexval(readAddr) << "\n";
             return false;
         }
-
-        // Build the conditional expression for each possible starting position of needle in haystack
-        finalExpr = E_ITE(E_EQ(memcmpResult, E_CONST(0, Expr::Int32)), E_CONST(haystackAddr + i, ret_width), finalExpr);
+        badCharSkip[charByte] = needleLen - 1 - i;
     }
 
-    retExpr = finalExpr; // The resulting expression after evaluating all possible starting positions
+    size_t i = 0;  // Position in haystack
+    while (i <= haystackLen - needleLen) {
+        uint64_t currentHaystackAddr = haystackAddr + i * byte_width;
+        uint64_t strAddrs[2] = {currentHaystackAddr, needleAddr};
+        ref<Expr> cmpResult;
+
+        if (strncmpHelper(state, strAddrs, needleLen, cmpResult) && E_EQ(cmpResult, E_CONST(0, Expr::Int32))) {
+            retExpr = E_CONST(currentHaystackAddr, pointerWidth);
+            return true;
+        }
+
+        uint64_t nextCharAddr = currentHaystackAddr + needleLen * byte_width;
+        if (!state->mem()->read(nextCharAddr, &charByte, VirtualAddress, true)) {
+            getWarningsStream(state) << "Failed to read next char at address " << hexval(nextCharAddr) << "\n";
+            continue;  // If fail to read, just continue to try the next character
+        }
+        i += badCharSkip[charByte];  // Use the bad character heuristic to skip positions
+    }
+
+    retExpr = nullExpr;  // Needle not found
     return true;
 }
+
+
 
 } // namespace models
 } // namespace plugins
