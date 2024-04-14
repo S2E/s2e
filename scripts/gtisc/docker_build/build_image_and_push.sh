@@ -1,3 +1,5 @@
+#!/usr/bin/bash
+
 if [[ -z "${DOCKER_REGISTRY_USER}" ]]; then
   echo "Error: Please set DOCKER_REGISTRY_USER."
   exit 1
@@ -14,7 +16,8 @@ if [ -z "${TARGET_BRANCH}" ]; then
 else 
     echo "TARGET_BRANCH set to ${TARGET_BRANCH}"
 fi
-
+# force to remove all images
+docker system prune -a -f 
 cd "$(dirname "$0")"
 docker build --no-cache --build-arg TARGET_BRANCH=$TARGET_BRANCH -t super.gtisc.gatech.edu/s2e:$TARGET_BRANCH .
 
