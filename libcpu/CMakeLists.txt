@@ -23,6 +23,8 @@ configure_file(LIBCPUConfig.cmake.in ${CMAKE_CONFIG_FILE} @ONLY)
 
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GLIB_PKG glib-2.0)
+pkg_check_modules(CAPSTONE REQUIRED capstone)
+
 
 find_package(LIBQ REQUIRED)
 message(STATUS "Found libq ${LIBQ_PACKAGE_VERSION}")
@@ -107,7 +109,7 @@ endforeach()
 
 include_directories(${GLIB_PKG_INCLUDE_DIRS}
                     ${LIBQ_INCLUDE_DIR}
-                    ${CAPSTONE_INCLUDE_DIR}
+                    ${CAPSTONE_INCLUDE_DIRS}
                     ${LIBTCG_INCLUDE_DIR}
                     ${HOST_INCLUDE_DIR}
                     ${TARGET_INCLUDE_DIR}

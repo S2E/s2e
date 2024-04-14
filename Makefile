@@ -109,13 +109,6 @@ CLANG_LLVM_RELEASE_URL=https://github.com/S2E/s2e/releases/download/v2.0.0/$(CLA
 
 KLEE_DIRS=$(foreach suffix,-debug -release -coverage,$(addsuffix $(suffix),klee))
 
-# Capstone variables
-CAPSTONE_VERSION=4.0.2
-CAPSTONE_SRC=$(CAPSTONE_VERSION).tar.gz
-CAPSTONE_BUILD_DIR=capstone-$(CAPSTONE_VERSION)-build
-CAPSTONE_SRC_DIR=capstone-$(CAPSTONE_VERSION)
-CAPSTONE_URL=https://github.com/aquynh/capstone/archive/$(CAPSTONE_SRC)
-
 # Z3 variables
 Z3_VERSION=4.7.1
 Z3_SRC=z3-$(Z3_VERSION).tar.gz
@@ -218,12 +211,6 @@ $(Z3_BUILD_DIR):
 	tar -zxf $(Z3_SRC)
 	mkdir -p $(S2E_BUILD)/$(Z3_BUILD_DIR)
 
-# Download Capstone
-$(CAPSTONE_BUILD_DIR):
-	$(call DOWNLOAD,$(CAPSTONE_URL),$(CAPSTONE_SRC_DIR).tar.gz)
-	tar -zxf $(CAPSTONE_SRC_DIR).tar.gz
-	mkdir -p $(S2E_BUILD)/$(CAPSTONE_BUILD_DIR)
-
 $(LIBDWARF_BUILD_DIR):
 	$(call DOWNLOAD,$(LIBDWARF_URL),$(S2E_BUILD)/$(LIBDWARF_BUILD_DIR).tar.gz)
 	tar -Jxf $(S2E_BUILD)/$(LIBDWARF_BUILD_DIR).tar.gz
@@ -293,27 +280,6 @@ else
 stamps/z3: stamps/z3-binary
 	touch $@
 endif
-
-############
-# Capstone #
-############
-
-CAPSTONE_CONFIGURE_FLAGS = -DCMAKE_INSTALL_PREFIX=$(S2E_PREFIX)         \
-                     -DCMAKE_C_COMPILER=$(CLANG_CC)                     \
-                     -DCMAKE_CXX_COMPILER=$(CLANG_CXX)                  \
-                     -DCMAKE_C_FLAGS="-fno-omit-frame-pointer -fPIC"    \
-                     -DCMAKE_CXX_FLAGS="-fno-omit-frame-pointer -fPIC"  \
-                     -G "Unix Makefiles"
-
-stamps/capstone-configure: stamps/llvm-release-make $(CAPSTONE_BUILD_DIR)
-	cd $(CAPSTONE_BUILD_DIR) &&                                         \
-	cmake $(CAPSTONE_CONFIGURE_FLAGS) $(S2E_BUILD)/$(CAPSTONE_SRC_DIR)
-	touch $@
-
-stamps/capstone-make: stamps/capstone-configure
-	$(MAKE) -C $(CAPSTONE_BUILD_DIR)
-	$(MAKE) -C $(CAPSTONE_BUILD_DIR) install
-	touch $@
 
 ############
 # libdwarf #
@@ -522,8 +488,6 @@ LIBS2E_CONFIGURE_FLAGS = --with-cc=$(CLANG_CC)                                  
                          --with-s2e-guest-incdir=$(S2E_SRC)/guest/common/include    \
                          --with-z3-incdir=$(S2E_PREFIX)/include                     \
                          --with-z3-libdir=$(S2E_PREFIX)/lib                         \
-                         --with-capstone-incdir=$(S2E_PREFIX)/include               \
-                         --with-capstone-libdir=$(S2E_PREFIX)/lib                   \
                          --with-libtcg-src=$(S2E_SRC)/libtcg                        \
                          --with-libcpu-src=$(S2E_SRC)/libcpu                        \
                          --with-libs2ecore-src=$(S2E_SRC)/libs2ecore                \
@@ -550,7 +514,7 @@ LIBS2E_RELEASE_FLAGS = --with-llvm=$(LLVM_BUILD)/llvm-release                   
 stamps/libs2e-debug-configure: $(call FIND_CONFIG_SOURCE,$(S2E_SRC)/libs2e)
 stamps/libs2e-debug-configure: stamps/lua-make stamps/libvmi-debug-install      \
     stamps/klee-debug-make stamps/libfsigc++-debug-make        \
-    stamps/libq-debug-make stamps/libcoroutine-debug-make stamps/capstone-make  \
+    stamps/libq-debug-make stamps/libcoroutine-debug-make  \
     stamps/klee-coverage-make
 stamps/libs2e-debug-configure: CONFIGURE_COMMAND = $(S2E_SRC)/libs2e/configure  \
                                                    $(LIBS2E_CONFIGURE_FLAGS)    \
@@ -559,7 +523,7 @@ stamps/libs2e-debug-configure: CONFIGURE_COMMAND = $(S2E_SRC)/libs2e/configure  
 stamps/libs2e-release-configure: $(call FIND_CONFIG_SOURCE,$(S2E_SRC)/libs2e)
 stamps/libs2e-release-configure: stamps/lua-make stamps/libvmi-release-install  \
     stamps/klee-release-make stamps/libfsigc++-release-make    \
-    stamps/libq-release-make stamps/libcoroutine-release-make stamps/capstone-make
+    stamps/libq-release-make stamps/libcoroutine-release-make
 
 stamps/libs2e-release-configure: CONFIGURE_COMMAND = $(S2E_SRC)/libs2e/configure    \
                                                      $(LIBS2E_CONFIGURE_FLAGS)      \

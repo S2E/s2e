@@ -42,8 +42,6 @@ echo "  --with-libs2ecore-src=PATH       Path to libs2ecore source"
 echo "  --with-libs2eplugins-src=PATH    Path to libs2eplugins source"
 echo "  --with-z3-incdir=PATH            Z3 include directory"
 echo "  --with-z3-libdir=PATH            Z3 library directory"
-echo "  --with-capstone-incdir=PATH      Capstone include directory"
-echo "  --with-capstone-libdir=PATH      Capstone lib directory"
 echo "  --enable-debug                   Compile library with debug information"
 echo "  --with-s2e-guest-incdir=PATH     Path to S2E guest headers"
 }
@@ -96,14 +94,6 @@ for opt do
 
     --with-z3-libdir=*)
       Z3_LIBDIR="$optarg"
-    ;;
-
-    --with-capstone-incdir=*)
-      CAPSTONE_INCDIR="$optarg"
-    ;;
-
-    --with-capstone-libdir=*)
-      CAPSTONE_LIBDIR="$optarg"
     ;;
 
     --with-fsigc++*)
@@ -172,18 +162,6 @@ fi
 
 if [ ! -e "$Z3_LIBDIR/libz3.a" ]; then
   echo "Cannot find Z3 library files in $Z3_LIBDIR"
-  print_usage
-  exit 1
-fi
-
-if [ ! -e "$CAPSTONE_INCDIR/capstone/xcore.h" ]; then
-  echo "Cannot find Capstone header files in $CAPSTONE_INCDIR"
-  print_usage
-  exit 1
-fi
-
-if [ ! -e "$CAPSTONE_LIBDIR/libcapstone.a" ]; then
-  echo "Cannot find Capstone library files in $CAPSTONE_LIBDIR"
   print_usage
   exit 1
 fi
@@ -278,7 +256,6 @@ cmake -DCMAKE_C_COMPILER="$CC" -DCMAKE_CXX_COMPILER="$CXX"  \
     -DTARGET_INCLUDE_DIR="$(cd $(pwd)/../ && echo $(pwd))"  \
     -DS2EGUEST_INCLUDE_DIR=$S2EGUEST_INCDIR                 \
     -DLIBQ_DIR=$LIBQ_DIR                                    \
-    -DCAPSTONE_INCLUDE_DIR=$CAPSTONE_INCDIR                 \
     -DWITH_TARGET="$target"                                 \
     -DCONFIG_DATE="$(date)"                                 \
     -DCONFIG_LIBCPU_DATADIR="$BUILD_DIR/$target"            \
@@ -361,7 +338,6 @@ cmake -DCMAKE_C_COMPILER="$CC" -DCMAKE_CXX_COMPILER="$CXX"  \
     -DLUA_DIR="$LIBLUA_LIB"                                 \
     -DFSIGCXX_DIR="$FSIGCXX_DIR"                            \
     -DZ3_DIR="$Z3_LIBDIR"                                   \
-    -DCAPSTONE_LIB_DIR=$CAPSTONE_LIBDIR                     \
     -DWITH_TARGET="$target"                                 \
     "$SRC_DIR"
 
