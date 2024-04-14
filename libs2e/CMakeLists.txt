@@ -44,6 +44,8 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(GLIB_PKG glib-2.0)
 include_directories(${GLIB_PKG_INCLUDE_DIRS})
 
+pkg_check_modules (CAPSTONE REQUIRED capstone)
+
 include(FindProtobuf)
 find_package(Protobuf REQUIRED)
 
