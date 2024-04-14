@@ -24,7 +24,7 @@ FROM ubuntu:22.04
 
 # Install build dependencies
 RUN dpkg --add-architecture i386 && apt-get update &&                       \
-    apt-get -y install ca-certificates build-essential curl wget texinfo flex bison  \
+    apt-get -y install ca-certificates build-essential cmake curl wget texinfo flex bison  \
     python-is-python3 python3-dev python3-venv python3-distro mingw-w64 lsb-release \
     autoconf libtool libprotobuf-dev protobuf-compiler protobuf-c-compiler \
     libdwarf-dev libelf-dev libelf-dev:i386 \
@@ -46,12 +46,6 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install -y gcc-9 g++-9
 
 # Install S2E git
 RUN apt-get -y install git
-
-# CMake 3.13.4 or higher is required to build LLVM-13 from source.
-# Ubuntu 18.04 comes with cmake 3.10.2
-# Install the latest cmake (as of this writing)
-RUN wget -O cmake.sh https://github.com/Kitware/CMake/releases/download/v3.23.1/cmake-3.23.1-Linux-x86_64.sh && \
-    sh ./cmake.sh --prefix=/usr/local --skip-license
 
 # Build LLVM first (to avoid rebuilding it for every change)
 RUN mkdir s2e
