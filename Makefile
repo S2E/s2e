@@ -131,12 +131,6 @@ LUA_VERSION=5.3.4
 LUA_SRC=lua-$(LUA_VERSION).tar.gz
 LUA_DIR=lua-$(LUA_VERSION)
 
-# SOCI variables
-SOCI_SRC_DIR=soci-src
-SOCI_BUILD_DIR=soci
-SOCI_GIT_REV=438e354
-SOCI_GIT_URL=https://github.com/SOCI/soci.git
-
 # libdwarf
 # We don't use the one that ships with the distro because we need
 # the latest features (PE file support mostly).
@@ -224,12 +218,6 @@ $(Z3_BUILD_DIR):
 	tar -zxf $(Z3_SRC)
 	mkdir -p $(S2E_BUILD)/$(Z3_BUILD_DIR)
 
-# Download SOCI
-$(SOCI_BUILD_DIR):
-	git clone $(SOCI_GIT_URL) $(SOCI_SRC_DIR)
-	cd $(SOCI_SRC_DIR) && git checkout $(SOCI_GIT_REV)
-	mkdir -p $(S2E_BUILD)/$(SOCI_BUILD_DIR)
-
 # Download Capstone
 $(CAPSTONE_BUILD_DIR):
 	$(call DOWNLOAD,$(CAPSTONE_URL),$(CAPSTONE_SRC_DIR).tar.gz)
@@ -257,26 +245,6 @@ stamps/llvm-debug-make: $(CLANG_LLVM_DEBUG_ARCHIVE) | stamps
 CLANG_CC=$(S2E_BUILD)/llvm-release/bin/clang
 CLANG_CXX=$(S2E_BUILD)/llvm-release/bin/clang++
 CLANG_LIB=$(S2E_BUILD)/llvm-release/lib
-
-########
-# SOCI #
-########
-
-SOCI_CONFIGURE_FLAGS = -DCMAKE_INSTALL_PREFIX=$(S2E_PREFIX) \
-                       -DCMAKE_C_COMPILER=$(CLANG_CC)       \
-                       -DCMAKE_CXX_COMPILER=$(CLANG_CXX)    \
-                       -DSOCI_TESTS=Off                     \
-                       -DCMAKE_C_FLAGS="-fPIC"              \
-                       -G "Unix Makefiles"
-
-stamps/soci-configure: stamps/llvm-release-make $(SOCI_BUILD_DIR)
-stamps/soci-configure: CONFIGURE_COMMAND = cmake $(SOCI_CONFIGURE_FLAGS)    \
-                                           $(S2E_BUILD)/$(SOCI_SRC_DIR)
-
-stamps/soci-make: stamps/soci-configure
-	$(MAKE) -C $(SOCI_BUILD_DIR)
-	$(MAKE) -C $(SOCI_BUILD_DIR) install
-	touch $@
 
 ######
 # Z3 #
@@ -581,7 +549,7 @@ LIBS2E_RELEASE_FLAGS = --with-llvm=$(LLVM_BUILD)/llvm-release                   
 
 stamps/libs2e-debug-configure: $(call FIND_CONFIG_SOURCE,$(S2E_SRC)/libs2e)
 stamps/libs2e-debug-configure: stamps/lua-make stamps/libvmi-debug-install      \
-    stamps/klee-debug-make stamps/soci-make stamps/libfsigc++-debug-make        \
+    stamps/klee-debug-make stamps/libfsigc++-debug-make        \
     stamps/libq-debug-make stamps/libcoroutine-debug-make stamps/capstone-make  \
     stamps/klee-coverage-make
 stamps/libs2e-debug-configure: CONFIGURE_COMMAND = $(S2E_SRC)/libs2e/configure  \
@@ -590,7 +558,7 @@ stamps/libs2e-debug-configure: CONFIGURE_COMMAND = $(S2E_SRC)/libs2e/configure  
 
 stamps/libs2e-release-configure: $(call FIND_CONFIG_SOURCE,$(S2E_SRC)/libs2e)
 stamps/libs2e-release-configure: stamps/lua-make stamps/libvmi-release-install  \
-    stamps/klee-release-make stamps/soci-make stamps/libfsigc++-release-make    \
+    stamps/klee-release-make stamps/libfsigc++-release-make    \
     stamps/libq-release-make stamps/libcoroutine-release-make stamps/capstone-make
 
 stamps/libs2e-release-configure: CONFIGURE_COMMAND = $(S2E_SRC)/libs2e/configure    \
