@@ -1,5 +1,6 @@
 S2E Library
 ===========
+[![Rebuild the GTISC s2e image](https://github.com/GTISC/s2e/actions/workflows/gtisc_build.yaml/badge.svg)](https://github.com/GTISC/s2e/actions/workflows/gtisc_build.yaml)
 
 This repository contains all the necessary components to build ``libs2e.so``. This shared
 library is preloaded in QEMU to enable symbolic execution.
