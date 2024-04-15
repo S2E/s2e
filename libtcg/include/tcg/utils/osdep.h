@@ -143,7 +143,7 @@ static inline void flush_idcache_range(uintptr_t rx, uintptr_t rw, size_t len) {
 }
 
 #define LIBTCG_ERROR(X) __attribute__((error(X)))
-extern _Noreturn void LIBTCG_ERROR("code path is reachable") qemu_build_not_reached_always(void);
+NORETURN extern void LIBTCG_ERROR("code path is reachable") qemu_build_not_reached_always(void);
 
 static inline void qemu_thread_jit_write(void) {
 }
