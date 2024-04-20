@@ -120,7 +120,7 @@ Z3_BINARY=z3-$(Z3_VERSION)-x64-ubuntu-16.04.zip
 Z3_BINARY_DIR=z3-$(Z3_VERSION)-x64-ubuntu-16.04
 
 # Lua variables
-LUA_VERSION=5.3.4
+LUA_VERSION=5.4.6
 LUA_SRC=lua-$(LUA_VERSION).tar.gz
 LUA_DIR=lua-$(LUA_VERSION)
 
@@ -199,11 +199,10 @@ $(CLANG_LLVM_RELEASE_ARCHIVE):
 
 # Download Lua
 $(LUA_SRC):
-	$(call DOWNLOAD,https://www.lua.org/ftp/$(LUA_SRC),$@)
+	$(call DOWNLOAD,https://github.com/S2E/s2e/releases/download/v2.0.0/$(LUA_SRC),$@)
 
 $(LUA_DIR): | $(LUA_SRC)
 	tar -zxf $(LUA_SRC)
-	cp $(S2E_SRC)/lua/luaconf.h $(LUA_DIR)/src
 
 # Download Z3
 $(Z3_BUILD_DIR):
@@ -301,7 +300,6 @@ stamps/libdwarf-make: stamps/libdwarf-configure
 
 stamps/lua-make: $(LUA_DIR)
 	if [ "$(PLATFORM)" = "linux" ]; then \
-		$(SED) -i 's/-lreadline//g' $(LUA_DIR)/src/Makefile; \
 		$(MAKE) -C $^ linux CFLAGS="-DLUA_USE_LINUX -O2 -g -fPIC"; \
 	elif [ "$(PLATFORM)" = "darwin" ]; then \
 		$(MAKE) -C $^ macosx CFLAGS="-DLUA_USE_LINUX -O2 -g -fPIC"; \
