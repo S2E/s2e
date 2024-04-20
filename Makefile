@@ -110,24 +110,24 @@ CLANG_LLVM_RELEASE_URL=https://github.com/S2E/s2e/releases/download/v2.0.0/$(CLA
 KLEE_DIRS=$(foreach suffix,-debug -release -coverage,$(addsuffix $(suffix),klee))
 
 # Z3 variables
-Z3_VERSION=4.7.1
+Z3_VERSION=4.13.0
 Z3_SRC=z3-$(Z3_VERSION).tar.gz
 Z3_SRC_DIR=z3-z3-$(Z3_VERSION)
 Z3_BUILD_DIR=z3
 Z3_URL=https://github.com/Z3Prover/z3
 Z3_BINARY_URL=https://github.com/Z3Prover/z3/releases/download/z3-$(Z3_VERSION)/
-Z3_BINARY=z3-$(Z3_VERSION)-x64-ubuntu-16.04.zip
-Z3_BINARY_DIR=z3-$(Z3_VERSION)-x64-ubuntu-16.04
+Z3_BINARY=z3-$(Z3_VERSION)-x64-glibc-2.31.zip
+Z3_BINARY_DIR=z3-$(Z3_VERSION)-x64-glibc-2.31
 
 # Lua variables
-LUA_VERSION=5.3.4
+LUA_VERSION=5.4.6
 LUA_SRC=lua-$(LUA_VERSION).tar.gz
 LUA_DIR=lua-$(LUA_VERSION)
 
 # libdwarf
 # We don't use the one that ships with the distro because we need
 # the latest features (PE file support mostly).
-LIBDWARF_URL=https://www.prevanders.net/libdwarf-0.9.1.tar.xz
+LIBDWARF_URL=https://github.com/S2E/s2e/releases/download/v2.0.0/libdwarf-0.9.1.tar.xz
 LIBDWARF_SRC_DIR=libdwarf-0.9.1
 LIBDWARF_BUILD_DIR=libdwarf
 
@@ -199,11 +199,10 @@ $(CLANG_LLVM_RELEASE_ARCHIVE):
 
 # Download Lua
 $(LUA_SRC):
-	$(call DOWNLOAD,https://www.lua.org/ftp/$(LUA_SRC),$@)
+	$(call DOWNLOAD,https://github.com/S2E/s2e/releases/download/v2.0.0/$(LUA_SRC),$@)
 
 $(LUA_DIR): | $(LUA_SRC)
 	tar -zxf $(LUA_SRC)
-	cp $(S2E_SRC)/lua/luaconf.h $(LUA_DIR)/src
 
 # Download Z3
 $(Z3_BUILD_DIR):
@@ -301,7 +300,6 @@ stamps/libdwarf-make: stamps/libdwarf-configure
 
 stamps/lua-make: $(LUA_DIR)
 	if [ "$(PLATFORM)" = "linux" ]; then \
-		$(SED) -i 's/-lreadline//g' $(LUA_DIR)/src/Makefile; \
 		$(MAKE) -C $^ linux CFLAGS="-DLUA_USE_LINUX -O2 -g -fPIC"; \
 	elif [ "$(PLATFORM)" = "darwin" ]; then \
 		$(MAKE) -C $^ macosx CFLAGS="-DLUA_USE_LINUX -O2 -g -fPIC"; \
