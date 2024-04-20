@@ -127,7 +127,7 @@ LUA_DIR=lua-$(LUA_VERSION)
 # libdwarf
 # We don't use the one that ships with the distro because we need
 # the latest features (PE file support mostly).
-LIBDWARF_URL=https://www.prevanders.net/libdwarf-0.9.1.tar.xz
+LIBDWARF_URL=https://github.com/S2E/s2e/releases/download/v2.0.0/libdwarf-0.9.1.tar.xz
 LIBDWARF_SRC_DIR=libdwarf-0.9.1
 LIBDWARF_BUILD_DIR=libdwarf
 
