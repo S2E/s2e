@@ -110,14 +110,14 @@ CLANG_LLVM_RELEASE_URL=https://github.com/S2E/s2e/releases/download/v2.0.0/$(CLA
 KLEE_DIRS=$(foreach suffix,-debug -release -coverage,$(addsuffix $(suffix),klee))
 
 # Z3 variables
-Z3_VERSION=4.7.1
+Z3_VERSION=4.13.0
 Z3_SRC=z3-$(Z3_VERSION).tar.gz
 Z3_SRC_DIR=z3-z3-$(Z3_VERSION)
 Z3_BUILD_DIR=z3
 Z3_URL=https://github.com/Z3Prover/z3
 Z3_BINARY_URL=https://github.com/Z3Prover/z3/releases/download/z3-$(Z3_VERSION)/
-Z3_BINARY=z3-$(Z3_VERSION)-x64-ubuntu-16.04.zip
-Z3_BINARY_DIR=z3-$(Z3_VERSION)-x64-ubuntu-16.04
+Z3_BINARY=z3-$(Z3_VERSION)-x64-glibc-2.31.zip
+Z3_BINARY_DIR=z3-$(Z3_VERSION)-x64-glibc-2.31
 
 # Lua variables
 LUA_VERSION=5.4.6
