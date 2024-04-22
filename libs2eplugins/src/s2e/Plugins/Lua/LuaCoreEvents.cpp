@@ -88,7 +88,7 @@ void LuaCoreEvents::onStateForkDecide(S2EExecutionState *state, const klee::ref<
     lua_pop(L, 1);
 
     if (!allowForking) {
-        s2e()->getInfoStream() << "instrumentation prevented forking at pc=" << hexval(state->regs()->getPc()) << "\n";
+        s2e()->getDebugStream() << "instrumentation prevented forking at pc=" << hexval(state->regs()->getPc()) << "\n";
     }
 }
 
