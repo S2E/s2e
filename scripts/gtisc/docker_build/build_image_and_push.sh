@@ -1,5 +1,7 @@
 #!/usr/bin/bash
 
+set -e
+
 if [[ -z "${DOCKER_REGISTRY_USER}" ]]; then
   echo "Error: Please set DOCKER_REGISTRY_USER."
   exit 1
