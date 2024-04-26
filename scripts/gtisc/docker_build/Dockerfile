@@ -10,6 +10,7 @@ ENV TERM=xterm-256color
 
 RUN apt update
 RUN apt install -y --fix-missing qemu sudo qemu-kvm git curl wget lsb-release gcc python3 python3-dev python3-venv python3-pip jq libmagic1 libsdl1.2-dev fuse3
+RUN apt install python-is-python3
 RUN echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 
 RUN useradd -m s2e && echo "s2e:s2e" | chpasswd && adduser s2e sudo
