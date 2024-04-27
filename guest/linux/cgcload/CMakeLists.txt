@@ -1,4 +1,6 @@
-# Copyright (c) 2017 Dependable Systems Laboratory, EPFL
+# S2E Selective Symbolic Execution Platform
+#
+# Copyright (c) 2024 Vitaly Chipounov
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -18,23 +20,12 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-# We must use optimization-level zero to prevent the compiler from optimizing
-# away functions like strlen, strcmp, etc. and replacing them with precomputed,
-# constant values
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -static")
 
-include_directories("include")
+set(CMAKE_ASM_NASM_OBJECT_FORMAT elf32)
+enable_language(ASM_NASM)
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O0")
-add_subdirectory(function_models)
+add_executable(cgcload main.c loader.c launcher.asm)
+target_link_options(cgcload PUBLIC -T ${CMAKE_CURRENT_SOURCE_DIR}/linker.ld)
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3")
-add_subdirectory(cgccmd)
-add_subdirectory(s2e.so)
-
-if(${BITS} EQUAL 32)
-add_subdirectory(libpov)
-add_subdirectory(libcgc)
-add_subdirectory(cgcload)
-endif()
-
-install(DIRECTORY scripts/ DESTINATION .)
+install(TARGETS cgcload RUNTIME DESTINATION .)
