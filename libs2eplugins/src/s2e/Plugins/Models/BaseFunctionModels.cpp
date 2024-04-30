@@ -67,6 +67,7 @@ bool BaseFunctionModels::findNullCharWithWidth(S2EExecutionState *state, uint64_
 
     auto solver = state->solver();
     const ref<Expr> nullByteExpr = E_CONST('\0', width * 8);
+    bool allSymbolic = true; // Flag to check if all characters are symbolic
 
     for (len = 0; len < MAX_STRLEN; len+=width) {
         assert(stringAddr <= UINT64_MAX - len);
@@ -81,18 +82,31 @@ bool BaseFunctionModels::findNullCharWithWidth(S2EExecutionState *state, uint64_
 
         bool truth;
         bool res = solver->mustBeTrue(query, truth);
-        if (res && truth) {
+
+        if (truth && res) {
+            allSymbolic = false; // Found a null byte, not all characters are symbolic
+            getDebugStream(state) << "Found nullptr at offset " << len << "\n";
             break;
         }
     }
 
-    if (len == MAX_STRLEN) {
-        getDebugStream(state) << "Could not find nullptr char\n";
+    if (allSymbolic && len == MAX_STRLEN) {
+        // If we reached the end and all characters were symbolic, null-terminate the string
+        std::vector<uint8_t> buffer(width, 0);
+
+        bool success = state->mem()->write(stringAddr + len - width, buffer.data(), width);
+        if (!success) {
+            getDebugStream(state) << "Failed to write nullptr at the last valid position " << (len - width) << "\n";
+            return false;
+        }
+        getDebugStream(state) << "All characters were symbolic, inserted nullptr at the last valid position " << (len - width) << "\n";
+        return true;
+    }else if(len == MAX_STRLEN){
+        getDebugStream(state) << "failed to find nullptr" << (len - width) << "\n";
         return false;
     }
 
     getDebugStream(state) << "Max length " << len << "\n";
-
     return true;
 
 }
@@ -104,6 +118,7 @@ bool BaseFunctionModels::findNullChar(S2EExecutionState *state, uint64_t stringA
 
     auto solver = state->solver();
     const ref<Expr> nullByteExpr = E_CONST('\0', Expr::Int8);
+    bool allSymbolic = true; // Flag to check if all characters are symbolic
 
     for (len = 0; len < MAX_STRLEN; len++) {
         assert(stringAddr <= UINT64_MAX - len);
@@ -119,17 +134,29 @@ bool BaseFunctionModels::findNullChar(S2EExecutionState *state, uint64_t stringA
         bool truth;
         bool res = solver->mustBeTrue(query, truth);
         if (res && truth) {
+            allSymbolic = false; // Found a null byte, not all characters are symbolic
+            getDebugStream(state) << "Found nullptr at offset " << len << "\n";            
             break;
         }
     }
 
-    if (len == MAX_STRLEN) {
+    if (allSymbolic && len == MAX_STRLEN) {
         getDebugStream(state) << "Could not find nullptr char\n";
+        std::vector<uint8_t> buffer(1, 0);
+
+        bool success = state->mem()->write(stringAddr + len -1, buffer.data(), 1);
+        if (!success) {
+            getDebugStream(state) << "Failed to write nullptr at the last valid position " << (len) << "\n";
+            return false;
+        }
+        getDebugStream(state) << "All characters were symbolic, inserted nullptr at the last valid position " << len << "\n";
+        return true;
+    }else if (len == MAX_STRLEN){
+        getDebugStream(state) << "failed to find nullptr" << len << "\n";
         return false;
     }
 
     getDebugStream(state) << "Max length " << len << "\n";
-
     return true;
 }
 
@@ -696,6 +723,7 @@ bool BaseFunctionModels::strcatHelper(S2EExecutionState *state, const uint64_t s
 bool BaseFunctionModels::strstrHelper(S2EExecutionState *state, uint64_t haystackAddr, uint64_t needleAddr, ref<Expr> &retExpr, uint32_t byte_width) {
     getWarningsStream(state) << "Enter strstr yes\n";
     size_t haystackLen, needleLen;
+    getInfoStream(state) << "the addr of haystack is " <<hexval(haystackAddr) << " the addr of needle is " << hexval(needleAddr);
     if (!findNullCharWithWidth(state, haystackAddr, haystackLen, byte_width) || !findNullCharWithWidth(state, needleAddr, needleLen, byte_width)) {
         getWarningsStream(state) << "Failed to find nullptr in haystack or needle\n";
         return false;

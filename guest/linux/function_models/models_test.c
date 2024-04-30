@@ -98,6 +98,16 @@ static void test_strcmp(const char *str1) {
     validate_signs(res1, res2);
 }
 
+//function model testcase for updated null char search
+static void test_null_char_search_using_strcmp(const char* str1){
+    char* str2 = "A"*4096;
+    s2e_make_symbolic(str2, 4096, "test_string_2");
+    int res = strcmp_model(str1, str2);
+    //if we did not set the last char byte to null, the function model will fail on cannot find null char
+    //falling back to original call and concretize the ret 
+    assert(s2e_is_symbolic(res, 4))
+}
+
 static void test_strncmp(const char *str1) {
     char *str2 = "123";
     s2e_make_symbolic(str2, strlen(str2), "test_string_2");
