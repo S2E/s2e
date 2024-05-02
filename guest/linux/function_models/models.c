@@ -44,6 +44,7 @@ T_printf orig_printf = NULL;
 T_fprintf orig_fprintf = NULL;
 T_strcat orig_strcat = NULL;
 T_strncat orig_strncat = NULL;
+T_strstr orig_strstr = NULL;
 
 T_crc32 orig_crc32 = NULL;
 T_crc16 orig_crc16 = NULL;
@@ -61,6 +62,7 @@ void initialize_models() {
     orig_fprintf = (T_fprintf) dlsym(RTLD_NEXT, "fprintf");
     orig_strcat = (T_strcat) dlsym(RTLD_NEXT, "strcat");
     orig_strncat = (T_strncat) dlsym(RTLD_NEXT, "strncat");
+    orig_strstr= (T_strstr) dlsym(RTLD_NEXT, "strstr");
 
     orig_crc32 = (T_crc32) dlsym(RTLD_NEXT, "crc32");
     orig_crc16 = (T_crc16) dlsym(RTLD_NEXT, "crc16");
@@ -497,4 +499,41 @@ uint16_t crc16_model(uint16_t crc, const uint8_t *buf, unsigned len) {
     }
 
     return (*orig_crc16)(crc, buf, len);
+}
+
+char *strstr_model(const char *haystack, const char *needle, unsigned int char_width)
+{
+    // Check whether the address itself is symbolic. If so, function model doesn's support that.
+    if (s2e_is_symbolic(&haystack, sizeof(void *)) || s2e_is_symbolic(&needle, sizeof(void *)))
+    {
+        // TODO: Disdable forking
+        s2e_message("Symbolic address for a string is not supported yet!");
+        return (*orig_strstr)(haystack, needle);
+    }
+
+    // Quick check for empty strings, as the lib functions assumes pointers are valid.
+    // Otherwise the behaviors are undefined. So we are free to return 1.
+    if (!needle)
+    {
+        return (char *)haystack;
+    }
+
+    // Struct for executing the symbolic procedures. Just follow the example.
+    cmd.Command = WRAPPER_StrStr;
+    cmd.Strstr.haystack = (uintptr_t)haystack;
+    cmd.Strstr.needle = (uintptr_t)needle;
+    cmd.needOrigFunc = 1;
+    cmd.Strstr.width = char_width;
+
+    touch_string(haystack, needle);
+
+    ExecuteCmd(cmd);
+
+    if (!cmd.needOrigFunc)
+    {
+        return (char *)(cmd.Strstr.ret);
+    }
+
+    // Touch here means Function model fails and then we use original function in libc.so
+    return (*orig_strstr)(haystack, needle);
 }
