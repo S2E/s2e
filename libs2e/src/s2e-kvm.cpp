@@ -262,7 +262,7 @@ void S2EKVM::init(void) {
 
     int max_processes = 1;
     const char *max_processes_str = getenv("S2E_MAX_PROCESSES");
-    if (max_processes) {
+    if (max_processes_str) {
         max_processes = strtol(max_processes_str, NULL, 0);
     }
 
