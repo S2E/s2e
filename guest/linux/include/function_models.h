@@ -52,7 +52,7 @@ typedef int (*T_fprintf)(FILE *stream, const char *format, ...);
 
 typedef char *(*T_strcat)(char *dest, const char *src);
 typedef char *(*T_strncat)(char *dest, const char *src, size_t n);
-typedef char *(*T_strstr)(char *haystack, const char *needle, size_t n);
+typedef char *(*T_strstr)(char *haystack, const char *needle);
 
 typedef uint32_t (*T_crc32)(uint32_t crc, const uint8_t *buf, unsigned len);
 typedef uint16_t (*T_crc16)(uint16_t crc, const uint8_t *buf, unsigned len);
@@ -115,7 +115,7 @@ int memcmp_model(const void *str1, const void *str2, size_t n);
 
 char *strcat_model(char *dest, const char *src);
 char *strncat_model(char *dest, const char *src, size_t n);
-char *strstr_model(char *haystack, const char *needle, size_t n);
+char *strstr_model(char *haystack, const char *needle);
 
 int printf_model(const char *format, ...);
 int fprintf_model(FILE *stream, const char *format, ...);

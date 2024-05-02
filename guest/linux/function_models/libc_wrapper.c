@@ -66,8 +66,8 @@ char *strcat(char *dest, const char *src) {
 char *strncat(char *dest, const char *src, size_t n) {
     FUNC_MODEL_BODY(strncat, dest, src, n);
 }
-char *strstr(char *haystack, const char *needle, size_t n, size_t width) {
-    FUNC_MODEL_BODY(strstr, haystack, needle, n, width);
+char *strstr(const char *haystack, const char *needle) {
+    FUNC_MODEL_BODY(strstr, (char*)haystack, (char*)needle);
 }
 int printf(const char *format, ...) {
     va_list arg;

@@ -501,7 +501,7 @@ uint16_t crc16_model(uint16_t crc, const uint8_t *buf, unsigned len) {
     return (*orig_crc16)(crc, buf, len);
 }
 
-char *strstr_model(const char *haystack, const char *needle, unsigned int char_width)
+char *strstr_model(char *haystack, const char *needle)
 {
     // Check whether the address itself is symbolic. If so, function model doesn's support that.
     if (s2e_is_symbolic(&haystack, sizeof(void *)) || s2e_is_symbolic(&needle, sizeof(void *)))
@@ -518,16 +518,17 @@ char *strstr_model(const char *haystack, const char *needle, unsigned int char_w
         return (char *)haystack;
     }
 
+    struct S2E_LIBCWRAPPER_COMMAND cmd;
+
     // Struct for executing the symbolic procedures. Just follow the example.
-    cmd.Command = WRAPPER_StrStr;
+    cmd.Command = LIBCWRAPPER_STRSTR;
     cmd.Strstr.haystack = (uintptr_t)haystack;
     cmd.Strstr.needle = (uintptr_t)needle;
     cmd.needOrigFunc = 1;
-    cmd.Strstr.width = char_width;
 
     touch_string(haystack, needle);
 
-    ExecuteCmd(cmd);
+    s2e_invoke_plugin("FunctionModels", &cmd, sizeof(cmd));
 
     if (!cmd.needOrigFunc)
     {
@@ -535,5 +536,5 @@ char *strstr_model(const char *haystack, const char *needle, unsigned int char_w
     }
 
     // Touch here means Function model fails and then we use original function in libc.so
-    return (*orig_strstr)(haystack, needle);
+    return (*orig_strstr)((char*)haystack, needle);
 }
