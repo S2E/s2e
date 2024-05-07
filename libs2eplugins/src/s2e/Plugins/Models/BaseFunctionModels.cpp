@@ -739,19 +739,20 @@ bool BaseFunctionModels::strstrHelper(S2EExecutionState *state, uint64_t haystac
         return true;  
     }
     const ref<Expr> nullExpr = E_CONST(0, pointerWidth);
+    ref<Expr> finalExpr = nullExpr;  
 
     std::vector<size_t> badCharSkip(256, needleLen);  // Bad character skip array. initialized to needleLen for all entry
-    uint8_t charByte = 0;  // Temporary variable for reading bytes
+    uint8_t charByte = 0; 
     for (size_t i = 0; i < needleLen - byte_width; i+=byte_width) {
         uint64_t readAddr = needleAddr + i * byte_width;
         if (!state->mem()->read(readAddr, &charByte, VirtualAddress, true)) {
             getWarningsStream(state) << "Failed to read byte at address " << hexval(readAddr) << "\n";
             return false;
         }
-        badCharSkip[charByte] = needleLen - 1*byte_width - i*byte_width; // set each of the needle char to corresponding skip len
+        badCharSkip[charByte] = needleLen - byte_width - i*byte_width; // set each of the needle char to corresponding skip len
     }
 
-    size_t i = 0;  // Position in haystack
+    size_t i = 0;  
     auto solver = state->solver();
     while (i <= haystackLen - needleLen) {
         uint64_t currentHaystackAddr = haystackAddr + i * byte_width;
@@ -760,24 +761,20 @@ bool BaseFunctionModels::strstrHelper(S2EExecutionState *state, uint64_t haystac
 
         if (strncmpHelper(state, strAddrs, needleLen, cmpResult)) {
             // incrementally adding the state constriant based on solver feedback
-            ref<Expr> findNeedle = E_EQ(cmpResult, E_CONST(0, Expr::Int32));
-            Query query(state->constraints(), findNeedle);
-            bool truth;
-            if (solver->mayBeTrue(query,truth)) {
-                retExpr = E_CONST(haystackAddr + i, state->getPointerSize() * CHAR_BIT);
-                return true;
-            }
+            finalExpr = E_ITE(E_EQ(cmpResult, E_CONST(0, Expr::Int32)), E_CONST(haystackAddr + i, pointerWidth), finalExpr);
         }
+        
 
         uint64_t nextCharAddr = currentHaystackAddr + needleLen * byte_width;
         if (!state->mem()->read(nextCharAddr, &charByte, VirtualAddress, true)) {
             getWarningsStream(state) << "Failed to read next char at address " << hexval(nextCharAddr) << "\n";
+            i += byte_width;  // Default skip if unable to read
             continue;  
         }
         i += badCharSkip[charByte];  // Use the bad character heuristic to skip positions
     }
 
-    retExpr = nullExpr;  // Needle not found
+    retExpr = finalExpr;  // Needle not found
     return true;
 }
 
