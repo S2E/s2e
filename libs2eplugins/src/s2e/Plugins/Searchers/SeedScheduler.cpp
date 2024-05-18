@@ -54,8 +54,6 @@ void SeedScheduler::initialize() {
 
     if (auto lm = dynamic_cast<LinuxMonitor *>(monitor)) {
         lm->onSegFault.connect(sigc::mem_fun(*this, &SeedScheduler::onSegFault));
-    } else if (auto dm = dynamic_cast<DecreeMonitor *>(monitor)) {
-        dm->onSegFault.connect(sigc::mem_fun(*this, &SeedScheduler::onSegFault));
     } else if (dynamic_cast<WindowsMonitor *>(monitor)) {
         WindowsCrashMonitor *cmon = s2e()->getPlugin<WindowsCrashMonitor>();
         if (!cmon) {
@@ -232,7 +230,7 @@ void SeedScheduler::onSeed(const seeds::Seed &seed, seeds::SeedEvent event) {
     }
 }
 
-void SeedScheduler::onSegFault(S2EExecutionState *state, uint64_t pid, uint64_t address) {
+void SeedScheduler::onSegFault(S2EExecutionState *state, uint64_t pid, const S2E_LINUXMON_COMMAND_SEG_FAULT &data) {
     m_timeOfLastCrash = std::chrono::steady_clock::now();
 }
 

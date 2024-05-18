@@ -168,7 +168,8 @@ void WebServiceInterface::onEngineShutdown() {
     sendStats();
 }
 
-void WebServiceInterface::onSegFault(S2EExecutionState *state, uint64_t pid, uint64_t pc) {
+void WebServiceInterface::onSegFault(S2EExecutionState *state, uint64_t pid,
+                                     const S2E_LINUXMON_COMMAND_SEG_FAULT &data) {
     ++m_segFaults;
 }
 

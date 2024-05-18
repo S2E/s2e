@@ -92,7 +92,7 @@ void LinuxMonitor::handleSegfault(S2EExecutionState *state, const S2E_LINUXMON_C
 
     state->disassemble(getDebugStream(state), cmd.SegFault.pc, 256);
 
-    onSegFault.emit(state, cmd.CurrentTask.tgid, cmd.SegFault.pc);
+    onSegFault.emit(state, cmd.CurrentTask.tgid, cmd.SegFault);
 
     if (m_terminateOnSegfault) {
         getDebugStream(state) << "Terminating state: received segfault\n";
