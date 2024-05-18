@@ -62,6 +62,7 @@ void LinuxMonitor::initialize() {
     }
 
     m_terminateOnSegfault = cfg->getBool(getConfigKey() + ".terminateOnSegfault", true);
+    m_terminateProcessGroupOnSegfault = cfg->getBool(getConfigKey() + ".terminateProcessGroupOnSegfault", false);
     m_terminateOnTrap = cfg->getBool(getConfigKey() + ".terminateOnTrap", true);
 
     m_commandSize = sizeof(S2E_LINUXMON_COMMAND);
@@ -97,6 +98,11 @@ void LinuxMonitor::handleSegfault(S2EExecutionState *state, const S2E_LINUXMON_C
     if (m_terminateOnSegfault) {
         getDebugStream(state) << "Terminating state: received segfault\n";
         s2e()->getExecutor()->terminateState(*state, "Segfault");
+    }
+
+    if (m_terminateProcessGroupOnSegfault) {
+        getWarningsStream(state) << "Terminating process group: received segfault\n";
+        killpg(0, SIGTERM);
     }
 }
 

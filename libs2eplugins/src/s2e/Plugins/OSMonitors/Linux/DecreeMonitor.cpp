@@ -104,7 +104,6 @@ void DecreeMonitor::initialize() {
 
     m_invokeOriginalSyscalls = cfg->getBool(getConfigKey() + ".invokeOriginalSyscalls", false);
     m_printOpcodeOffsets = cfg->getBool(getConfigKey() + ".printOpcodeOffsets", false);
-    m_terminateProcessGroupOnSegfault = cfg->getBool(getConfigKey() + ".terminateProcessGroupOnSegfault", false);
     m_concolicMode = cfg->getBool(getConfigKey() + ".concolicMode", false);
     m_logWrittenData = cfg->getBool(getConfigKey() + ".logWrittenData", true);
     m_handleSymbolicAllocateSize = cfg->getBool(getConfigKey() + ".handleSymbolicAllocateSize", false);
@@ -716,23 +715,6 @@ void DecreeMonitor::onSegFault(S2EExecutionState *state, uint64_t pid, const S2E
         time(&now);
         m_timeToFirstSegfault = difftime(now, m_startTime);
         m_firstSegfault = false;
-    }
-
-    getWarningsStream(state) << "received segfault"
-                             << " pagedir=" << hexval(state->regs()->getPageDir()) << " pid=" << hexval(pid)
-                             << " pc=" << hexval(data.pc) << " addr=" << hexval(data.address) << "\n";
-
-    // Don't switch state until it finishes and gets killed by bootstrap
-    // Need to print a message here to avoid confusion and needless debugging,
-    // wondering why the searcher doesn't work anymore.
-    getDebugStream(state) << "Blocking searcher until state is terminated\n";
-    state->setStateSwitchForbidden(true);
-
-    state->disassemble(getDebugStream(state), data.pc, 256);
-
-    if (m_terminateProcessGroupOnSegfault) {
-        getWarningsStream(state) << "Terminating process group: received segfault\n";
-        killpg(0, SIGTERM);
     }
 }
 

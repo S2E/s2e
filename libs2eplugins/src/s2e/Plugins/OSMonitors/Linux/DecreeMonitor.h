@@ -144,7 +144,6 @@ private:
     uint64_t m_symbolicReadLimitCount;
     uint64_t m_maxReadLimitCount;
 
-    bool m_terminateProcessGroupOnSegfault;
     bool m_concolicMode;
     bool m_logWrittenData;
     bool m_handleSymbolicAllocateSize;

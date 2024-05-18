@@ -98,6 +98,7 @@ protected:
 
     /// Terminate if a segment fault occurs
     bool m_terminateOnSegfault;
+    bool m_terminateProcessGroupOnSegfault;
 
     uint64_t m_commandVersion;
     uint64_t m_commandSize;
