@@ -117,7 +117,6 @@ private:
 
     void updateMemoryStats(S2EExecutionState *state);
 
-    void onDecreeUpdateMemoryMap(S2EExecutionState *state, uint64_t pid, const s2e::plugins::S2E_DECREEMON_VMA &vma);
     void onLinuxMemoryMap(S2EExecutionState *state, uint64_t pid, uint64_t addr, uint64_t size, uint64_t prot);
     void onLinuxMemoryUnmap(S2EExecutionState *state, uint64_t pid, uint64_t addr, uint64_t size);
 
