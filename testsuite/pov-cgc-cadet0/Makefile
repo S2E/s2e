@@ -23,7 +23,7 @@ SOURCE=main.c
 
 BUILD_SCRIPTS_SRC:=$(dir $(realpath $(lastword $(MAKEFILE_LIST))))
 
-RUN_DOCKER = docker run --rm -w $(BUILD_SCRIPTS_SRC) -e NO_CB_EXTENDED_APP=1 -v $(BUILD_SCRIPTS_SRC):$(BUILD_SCRIPTS_SRC) linux-build-i386cgc /run_as.sh $(shell id -u) $(shell id -g) make -C CADET_00001 $(1)
+RUN_DOCKER = docker run --rm -w $(BUILD_SCRIPTS_SRC) -e NO_CB_EXTENDED_APP=1 -v $(BUILD_SCRIPTS_SRC):$(BUILD_SCRIPTS_SRC) linux-build-i386 /run_as.sh $(shell id -u) $(shell id -g) make -C CADET_00001 $(1)
 
 $(CB)/bin/$(CB): $(CB)/src/service.c
 	cd $(BUILD_SCRIPTS_SRC) && $(call RUN_DOCKER,build)
