@@ -42,6 +42,10 @@ protected:
     using RM = llvm::IntervalMapWrapper<T>;
 
 public:
+    const llvm::IntervalMapWrapper<T> &map() const {
+        return m_map;
+    }
+
     void add(uint64_t start, uint64_t end, T value) {
         assert(start < end);
         m_map.insert(start, end - 1, value);
