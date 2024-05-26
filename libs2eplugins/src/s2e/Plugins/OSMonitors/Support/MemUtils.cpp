@@ -168,6 +168,10 @@ void MemUtils::findMemoryPages(S2EExecutionState *state, uint64_t pid, bool must
     auto lambda = [&](uint64_t start, uint64_t end, MemoryMapRegionType type) {
         bool doAdd = false;
 
+        if (!mustBeWritable && (type & MM_READ)) {
+            doAdd = true;
+        }
+
         if (mustBeWritable && (type & MM_WRITE)) {
             doAdd = true;
         }
