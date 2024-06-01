@@ -394,9 +394,8 @@ the binary, S2E disassembles it, extracts all function addresses, then invokes e
 the function produces the expected output, identification succeeded.
 
 
-
-    S2E uses `RevGen <https://github.com/S2E/s2e/tree/master/tools/tools/revgen32>`__, an x86-to-LLVM translator,
-    in order to extract function types from the binary before analyzing it.
+S2E used `RevGen <../Revgen/Revgen.rst>`__, an x86-to-LLVM translator, in order to extract function types from
+the binary before analyzing it.
 
 
 Generating Replayable PoVs
@@ -536,10 +535,10 @@ A correct PoV would look like this:
 
 To generate a correct PoV, S2E looks at all branch conditions and looks for cases where the content of a receive buffer
 is compared with a symbolic value derived from the random number generator. Once it found such a comparison, it can
-easily generate the correct PoV code by mapping the symbolic value created in the receive call to the symbolic value
+generate the correct PoV code by mapping the symbolic value created in the receive call to the symbolic value
 written by the transmit function.
 
-A much harder case happens when the PoV needs to perform computations. Consider the slightly modified above example:
+A harder case happens when the PoV needs to perform computations. Consider the slightly modified above example:
 
 .. code-block:: c
     :number-lines:
@@ -589,9 +588,9 @@ solver. The following snippet shows how would an automatically generated PoV wit
       transmit(&data1, sizeof(data1));
     }
 
-Unfortunately, we ran out of time and didn't have time to implement this solution. The main challenge was to fit an
-entire solver within the size and memory limits of a PoV, as well as modifying the solver to accommodate a very
-restricted runtime environment, that has primitive memory allocation, no standard library, etc.
+Unfortunately, we ran out of time and did not have time to implement this solution. The main challenge was to fit an
+entire solver within the size and memory limits of a PoV, as well as modifying the solver to accommodate
+a restricted runtime environment, that has primitive memory allocation, no standard library, etc.
 
 Conclusion
 ==========
