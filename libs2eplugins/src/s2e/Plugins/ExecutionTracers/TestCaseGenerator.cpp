@@ -157,16 +157,22 @@ void TestCaseGenerator::disable() {
 }
 
 void TestCaseGenerator::onWindowsUserCrash(S2EExecutionState *state, const WindowsUserModeCrash &desc) {
-    onSegFault(state, desc.Pid, desc.ExceptionAddress);
+    S2E_LINUXMON_COMMAND_SEG_FAULT data = {0};
+    data.pc = desc.ExceptionAddress;
+
+    onSegFault(state, desc.Pid, data);
 }
 
 void TestCaseGenerator::onWindowsKernelCrash(S2EExecutionState *state, const vmi::windows::BugCheckDescription &desc) {
-    onSegFault(state, 0, state->pc);
+    S2E_LINUXMON_COMMAND_SEG_FAULT data = {0};
+    data.pc = state->pc;
+
+    onSegFault(state, 0, data);
 }
 
-void TestCaseGenerator::onSegFault(S2EExecutionState *state, uint64_t pid, uint64_t pc) {
+void TestCaseGenerator::onSegFault(S2EExecutionState *state, uint64_t pid, const S2E_LINUXMON_COMMAND_SEG_FAULT &data) {
     std::stringstream ss;
-    ss << "crash:" << hexval(pid) << ":" << hexval(pc);
+    ss << "crash:" << hexval(pid) << ":" << hexval(data.pc);
     generateTestCases(state, ss.str(), TC_FILE);
 }
 

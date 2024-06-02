@@ -27,6 +27,7 @@
 #include <s2e/Plugins/Core/Vmi.h>
 #include <s2e/Plugins/OSMonitors/Support/MemoryMap.h>
 #include <s2e/Plugins/OSMonitors/Support/ModuleMap.h>
+#include <s2e/Plugins/OSMonitors/Support/RegionMap.h>
 #include <s2e/S2E.h>
 #include <s2e/S2EExecutionState.h>
 
@@ -95,7 +96,7 @@ public:
     /// \param prevItem Used to automatically merge sequence spanning 2 memory pages.
     /// If the function is called with bitmask 111000 and then 0111, it will update previously
     /// found sequence to have size 4.
-    void findSequencesOfSymbolicData(const BitArrayPtr &concreteMask, uint64_t baseAddr, AddrSize *prevItem,
+    void findSequencesOfSymbolicData(const klee::BitArrayPtr &concreteMask, uint64_t baseAddr, AddrSize *prevItem,
                                      std::vector<AddrSize> &sequences);
 
     /// \brief Find contiguous chunks of symbolic data in selected memory pages
@@ -116,7 +117,7 @@ public:
                                      std::vector<AddrSize> &symbolicSequences);
 
     void findMemoryPages(S2EExecutionState *state, uint64_t pid, bool mustBeWritable, bool mustBeExecutable,
-                         std::unordered_set<uint64_t> &pages);
+                         RegionMap<MemoryMapRegionType> &pages);
 };
 } // namespace plugins
 } // namespace s2e

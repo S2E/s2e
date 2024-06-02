@@ -1,4 +1,6 @@
-# Copyright (c) 2019, Cyberhaven
+# S2E Selective Symbolic Execution Platform
+#
+# Copyright (c) 2024 Vitaly Chipounov
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -18,19 +20,11 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-CB=CADET_00001
-SOURCE=main.c
 
-BUILD_SCRIPTS_SRC:=$(dir $(realpath $(lastword $(MAKEFILE_LIST))))
+add_library(cgc STATIC
+    main.c
+)
 
-RUN_DOCKER = docker run --rm -w $(BUILD_SCRIPTS_SRC) -e NO_CB_EXTENDED_APP=1 -v $(BUILD_SCRIPTS_SRC):$(BUILD_SCRIPTS_SRC) linux-build-i386 /run_as.sh $(shell id -u) $(shell id -g) make -C CADET_00001 $(1)
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIE")
 
-$(CB)/bin/$(CB): $(CB)/src/service.c
-	cd $(BUILD_SCRIPTS_SRC) && $(call RUN_DOCKER,build)
-
-TARGETS=$(CB)/bin/$(CB)
-
-all: $(TARGETS)
-
-clean:
-	$(call RUN_DOCKER,clean)
+install(TARGETS cgc LIBRARY DESTINATION .)

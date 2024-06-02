@@ -25,6 +25,7 @@
 
 #include <s2e/CorePlugin.h>
 #include <s2e/Plugin.h>
+#include <s2e/Plugins/OSMonitors/Linux/LinuxMonitor.h>
 #include <s2e/Plugins/OSMonitors/Windows/WindowsCrashMonitor.h>
 #include <s2e/S2EExecutionState.h>
 
@@ -76,7 +77,7 @@ private:
 
     void onSeed(const Seed &seed, SeedEvent event);
     void onNewBlockCovered(S2EExecutionState *state);
-    void onSegFault(S2EExecutionState *state, uint64_t pid, uint64_t address);
+    void onSegFault(S2EExecutionState *state, uint64_t pid, const S2E_LINUXMON_COMMAND_SEG_FAULT &data);
     void onWindowsUserCrash(S2EExecutionState *state, const WindowsUserModeCrash &desc);
     void onWindowsKernelCrash(S2EExecutionState *state, const vmi::windows::BugCheckDescription &desc);
 

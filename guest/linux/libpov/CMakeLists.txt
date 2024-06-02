@@ -1,6 +1,6 @@
 # S2E Selective Symbolic Execution Platform
 #
-# Copyright (c) 2017 Dependable Systems Laboratory, EPFL
+# Copyright (c) 2024 Vitaly Chipounov
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -20,11 +20,11 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-add_executable(cgccmd cgccmd.c)
-target_link_options(cgccmd PUBLIC ${COMPAT_LD_FLAGS})
 
-install(TARGETS cgccmd RUNTIME DESTINATION .)
+add_library(pov STATIC
+    main.c
+)
 
-if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
-    add_dependencies(cgccmd glibc-compat-main)
-endif()
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIE")
+
+install(TARGETS pov LIBRARY DESTINATION .)

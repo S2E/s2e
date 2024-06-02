@@ -36,12 +36,12 @@ You can find the corresponding source file in
 .. code-block:: console
 
     $ cd ~/s2e/env
-    $ s2e new_project -i debian-11.3-i386 -n vuln-lin32-32 --tools=pov \
+    $ s2e new_project -i debian-12.5-i386 -n vuln-lin32-32 --tools=pov \
       build/s2e/guest-tools32/common/demos/vulnerabilities @@
 
 Here is a breakdown of the ``s2e new_project`` command above:
 
-* It creates a new project called ``vuln-lin32-32`` that will run on the ``debian-11.3-i386`` image.
+* It creates a new project called ``vuln-lin32-32`` that will run on the ``debian-12.5-i386`` image.
 
 * The ``--tools=pov`` option is important in order to generate PoVs. If you omit it, you will just get random test
   cases, which will at best crash the binary depending on what the constraint solver generates. Vulnerability generation
@@ -222,13 +222,20 @@ find vulnerabilities and exploit them. This demo walks you through the process o
 The CGC Final Event (CFE) ran on the Decree operating system. Decree is a modified Linux OS with a reduced number of
 `system calls  <https://github.com/CyberGrandChallenge/libcgc>`__. In addition to this, the Decree OS has been modified
 to add "hook points" for S2E (e.g. to signal process creation, termination, etc.) and to allow S2E to inject symbolic
-values. The source code for the Decree OS is available at https://github.com/S2E/s2e-linux-kernel. A Decree
-virtual machine image can be built by running the following command:
+values. The source code for the Decree OS is available at https://github.com/S2E/s2e-linux-kernel.
+
+The current version of S2E does not use the old Decree kernel anymore. It was based on Linux 3.13, which does not build
+on modern Linux images that currently ship with S2E. Instead, S2E comes with ``cgcload``, a tool that emulates the Decree system calls
+in user-mode using the syscall `user dispatch mechanism <https://docs.kernel.org/5.19/admin-guide/syscall-user-dispatch.html>`__
+in recent Linux kernels. This tool is a loader that maps the native CGC challenge binary into its address space, sets up syscall emulation
+that translates Decree syscalls into native Linux syscalls, then jumps to the binary's entry point.
+
+To run CGC binaries, build the 32-bit Linux image. This is the same image that is used for running normal Linux binaries.
 
 .. code-block:: console
 
     $ cd ~/s2e/env
-    $ s2e image_build cgc_debian-9.2.1-i386
+    $ s2e image_build debian-12.5-i386
 
 
 Next, create an analysis project for a challenge binary. Sample CBs are available `here
@@ -236,37 +243,36 @@ Next, create an analysis project for a challenge binary. Sample CBs are availabl
 <https://github.com/CyberGrandChallenge/cgc-release-documentation/blob/master/walk-throughs/building-a-cb.md>`__ . The
 remainder of this tutorial will focus on the CADET_00001 program (a pre-compiled version of which is available `here
 <https://github.com/S2E/Decree/blob/master/samples/CADET_00001>`__), but the ideas and techniques should be applicable
-to all of the CBs.
+to all of the CBs. Note that the S2E tooling does not support multi-binary CBs.
 
 The following command creates a ``projects/CADET_00001`` directory with various scripts and configuration files needed
 by S2E, as described `here <../../s2e-env.rst>`__.
 
 .. code-block:: console
 
-    $ s2e new_project --image cgc_debian-9.2.1-i386 ./source/s2e/decree/samples/CADET_00001
+    $ s2e new_project ./source/s2e/decree/samples/CADET_00001
 
-Finally, to start S2E, run the following command:
+Then run S2E:
 
 .. code-block:: console
 
-    $ s2e run CADET_00001
+    $ cd projects/CADET_00001
+    $ ./launch-s2e.sh
 
-This will display a TUI-based dashboard, similar to that used by the American Fuzzy Lop (AFL) fuzzer. As S2E finds
-vulnerabilities, it generates PoV files in the ``s2e-last`` directory. These files have either ``.xml`` or ``.c``
-file extensions. Once some PoV files have been generated you can press ``q`` to stop S2E.
+Wait for PoVs to be generated (``s2e-last/*.c`` files) then interrupt S2E with Ctrl+C.
+Finally, verify that the generated PoVs are valid, i.e., they can reproduce the correct crashes when run,
+using the following command:
 
-.. image:: cadet_00001_tui.png
+.. code-block:: console
 
-Alternatively, you can run S2E without the TUI by using the ``-n`` option in ``s2e run``. Instead of the TUI you will
-see the standard S2E output.  Once some POVs have been generated you can stop S2E by killing the process with
-``Ctrl+C`` or ``killall -9 qemu-system-i386``.
+    $ ./verify-pov.sh
 
 
 Understanding CGC-style PoVs
 ============================
 
 If you followed the tutorial on PoV generation on Linux, you will notice that the PoV format for CGC binaries is
-different. Instead of being a concrete input file, CGC binaries produce PoVs in ``.xml`` or ``.c`` format. The reason
+different. Instead of being a concrete input file, S2E plugins produce PoVs in ``.c`` format. The reason
 for this is that CGC binaries read their input from ``stdin`` and write results to ``stdout``. So in order to exercise
 the vulnerability, the PoV must implement a two-way communication with the program, by reading the program's output and
 writing an appropriate input. This is different from file-based PoVs, where all the input is sent to the program at
@@ -280,21 +286,29 @@ once, and the program's output is ignored.
 
 
 For this reason, replaying a CGC-style PoV is more complex. It requires a special setup so that the PoV can communicate
-with the CB. For more details, see `here
-<https://github.com/CyberGrandChallenge/cgc-release-documentation/blob/master/walk-throughs/understanding-cfe-povs.md>`__.
-The following outlines the steps required to replay a PoV:
+with the CB. The ``verify-pov.sh`` script takes care of all the steps. First, the PoV file must be compiled to a binary.
+Then the ``povtest`` tool takes this binary and connects its standard input/output to the challenge binary's output/input.
+It negotiates the PoV parameters with the PoV binary and monitors the challenge binary for crashes. When the PoV terminates,
+``povtest`` verifies that the challenge binary crashed at the correct location (type 1 PoV) or the PoV binary exfiltrated
+the correct data from the challenge binary's address space (type 2 PoV).
 
-1. Follow the instructions `here
-   <https://github.com/CyberGrandChallenge/cgc-release-documentation/blob/master/walk-throughs/running-the-vm.md>`__ to
-   setup and run the CGC testing VM
+.. code-block:: console
 
-2. As discussed in the instructions in the previous step, files can be shared between the host and CGC testing VM via
-   the ``/vagrant`` directory. Copy the CADET_00001 binary, the PoV XML files generated by S2E and `this
-   <https://github.com/S2E/decree/blob/master/scripts/test_pov.sh>`__ script (located in your S2E environment in
-   ``bin/cgc-tools/test_pov.sh``) to the CGC testing VM.
+    # Build the PoV source code. The C file is generated by the DecreePoVGenerator plugin.
+    $ gcc -O0 -g -m32 -o s2e-last/recipe-type2_i386_decree_shellcode_1.rcp-pov-type2-1 \
+          -L$S2EDIR/install/bin/guest-tools32/lib -I$S2EDIR/source/s2e/guest/linux/include \
+          s2e-last/recipe-type2_i386_decree_shellcode_1.rcp-pov-type2-1.c -lpov -lcgc
 
-3. Run ``vagrant ssh`` to access the VM and copy the files from ``/vagrant`` into ``/home/vagrant``. Then run the
-   ``test_pov.sh`` script to check the PoV's correctness.
+    # Verify the PoV.
+    $ $S2EDIR/install/bin/guest-tools32/povtest \
+          --pov=s2e-last/recipe-type2_i386_decree_shellcode_1.rcp-pov-type2-1 \
+          -- $S2EDIR/bin/guest-tools32/cgcload $S2EDIR/source/s2e/testsuite/pov-cgc-cadet0/CADET_00001/bin/CADET_00001
+
+.. note::
+
+    S2E does not use the original DARPA CGC tooling for PoV verification. The tooling is not maintained
+    and does not run on modern Linux distributions, mostly because it uses an old Python 2 version.
+    The Decree kernel does not build anymore either so it is not possible to run the CGC binaries natively.
 
 
 Plugin architecture overview

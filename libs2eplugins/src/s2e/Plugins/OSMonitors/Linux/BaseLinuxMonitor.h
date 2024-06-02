@@ -98,6 +98,7 @@ protected:
 
     /// Terminate if a segment fault occurs
     bool m_terminateOnSegfault;
+    bool m_terminateProcessGroupOnSegfault;
 
     uint64_t m_commandVersion;
     uint64_t m_commandSize;
@@ -148,7 +149,7 @@ protected:
 
 public:
     /// Emitted when a segment fault occurs in the kernel
-    sigc::signal<void, S2EExecutionState *, uint64_t, /* pid */ uint64_t /* pc */> onSegFault;
+    sigc::signal<void, S2EExecutionState *, uint64_t, /* pid */ const S2E_LINUXMON_COMMAND_SEG_FAULT &> onSegFault;
 
     ///
     /// Create a new monitor for the Linux kernel

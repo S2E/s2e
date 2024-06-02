@@ -59,6 +59,16 @@ def poll_recipes(s2e, directory):
 
     return False
 
+def verify_pov():
+    cwd = os.path.dirname(__file__)
+    verifier_path = os.path.join(cwd, 'verify-pov.sh')
+    verifier = subprocess.Popen(verifier_path, stdout=sys.stdout, stderr=sys.stderr, cwd=cwd)
+    while verifier.poll() is None:
+        print('Waiting for verifier...')
+        time.sleep(1)
+
+    return verifier.returncode == 0
+
 
 def main():
     if not os.getenv('S2EDIR'):
@@ -72,10 +82,20 @@ def main():
 
     global g_success
 
+    recipes_ok = False
+    pov_verified = False
+
     try:
         s2e = run_s2e('s2e', 'run', '-n', PROJECT_NAME)
-        g_success = poll_recipes(s2e, s2e_last)
+        recipes_ok = poll_recipes(s2e, s2e_last)
         s2e.terminate()
+
+        try:
+            pov_verified = verify_pov()
+        except Exception as e:
+            print('Caught exception %s' % e)
+
+        g_success = recipes_ok and pov_verified
     except Exception as e:
         print('Caught exception %s' % e)
     finally:

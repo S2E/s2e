@@ -1,6 +1,6 @@
 /// S2E Selective Symbolic Execution Platform
 ///
-/// Copyright (c) 2016 Cyberhaven
+/// Copyright (c) 2024 Vitaly Chipounov
 ///
 /// Permission is hereby granted, free of charge, to any person obtaining a copy
 /// of this software and associated documentation files (the "Software"), to deal
@@ -20,28 +20,20 @@
 /// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 /// SOFTWARE.
 
-#ifndef S2E_DECREE_INTERFACE_H
-#define S2E_DECREE_INTERFACE_H
+#ifndef LIBCGC_H
 
-#include <inttypes.h>
+#define LIBCGC_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include <stddef.h>
+#include <sys/select.h>
 
-enum S2E_CGCINT_COMMANDS {
-    CGCINT_SET_SEED_ID,
-};
+int transmit(int fd, const void *buf, size_t count, size_t *tx_bytes);
+int receive(int fd, void *buf, size_t count, size_t *rx_bytes);
+int fdwait(int nfds, fd_set *readfds, fd_set *writefds, const struct timeval *timeout, int *readyfds);
+int allocate(size_t length, int is_X, void **addr);
+int deallocate(void *addr, size_t length);
 
-struct S2E_CGCINT_COMMAND {
-    enum S2E_CGCINT_COMMANDS Command;
-    union {
-        uint64_t SeedId;
-    };
-} __attribute__((packed));
-
-#ifdef __cplusplus
-}
-#endif
+// TODO: fix conflict with stdlib.
+// int random(void *buf, size_t count, size_t *rnd_bytes);
 
 #endif

@@ -26,6 +26,7 @@
 #include <s2e/CorePlugin.h>
 #include <s2e/Plugin.h>
 #include <s2e/Plugins/Core/Events.h>
+#include <s2e/Plugins/OSMonitors/Linux/LinuxMonitor.h>
 #include <s2e/Plugins/OSMonitors/Windows/WindowsCrashMonitor.h>
 #include <s2e/Plugins/OSMonitors/Windows/WindowsMonitor.h>
 #include <s2e/Plugins/Searchers/SeedSearcher.h>
@@ -68,7 +69,7 @@ private:
     void onProcessForkComplete(bool isChild);
     void onStateKill(S2EExecutionState *state);
     void onSeed(const seeds::Seed &seed, seeds::SeedEvent event);
-    void onSegFault(S2EExecutionState *state, uint64_t pid, uint64_t pc);
+    void onSegFault(S2EExecutionState *state, uint64_t pid, const S2E_LINUXMON_COMMAND_SEG_FAULT &data);
 
     void onWindowsUserCrash(S2EExecutionState *state, const WindowsUserModeCrash &desc);
     void onWindowsKernelCrash(S2EExecutionState *state, const vmi::windows::BugCheckDescription &desc);

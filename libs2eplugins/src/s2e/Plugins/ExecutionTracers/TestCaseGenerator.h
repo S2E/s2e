@@ -32,6 +32,7 @@
 
 #include <s2e/Plugin.h>
 #include <s2e/Plugins/ExecutionTracers/ExecutionTracer.h>
+#include <s2e/Plugins/OSMonitors/Linux/LinuxMonitor.h>
 #include <s2e/Plugins/OSMonitors/Windows/WindowsCrashMonitor.h>
 #include <s2e/test_case_generator/commands.h>
 
@@ -256,7 +257,7 @@ private:
     void onStateFork(S2EExecutionState *state, const std::vector<S2EExecutionState *> &newStates,
                      const std::vector<klee::ref<klee::Expr>> &newConditions);
     void onStateKill(S2EExecutionState *state);
-    void onSegFault(S2EExecutionState *state, uint64_t pid, uint64_t pc);
+    void onSegFault(S2EExecutionState *state, uint64_t pid, const S2E_LINUXMON_COMMAND_SEG_FAULT &data);
     void onWindowsUserCrash(S2EExecutionState *state, const WindowsUserModeCrash &desc);
     void onWindowsKernelCrash(S2EExecutionState *state, const vmi::windows::BugCheckDescription &desc);
 

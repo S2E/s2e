@@ -24,9 +24,15 @@
 #ifndef S2E_PLUGINS_DECREE_MONITOR_H
 #define S2E_PLUGINS_DECREE_MONITOR_H
 
-#include <s2e/monitors/commands/decree.h>
+#include <s2e/Plugin.h>
+#include <s2e/S2E.h>
 
-#include <s2e/Plugins/OSMonitors/Linux/BaseLinuxMonitor.h>
+#include <s2e/Plugins/Core/BaseInstructions.h>
+#include <s2e/Plugins/Core/Vmi.h>
+#include <s2e/Plugins/OSMonitors/Linux/LinuxMonitor.h>
+#include <s2e/Plugins/OSMonitors/Support/MemoryMap.h>
+
+#include <s2e/monitors/commands/decree.h>
 
 #include <llvm/ADT/DenseMap.h>
 #include <llvm/ADT/StringMap.h>
@@ -58,12 +64,6 @@ template <typename T> T &operator<<(T &stream, const S2E_DECREEMON_VMA &v) {
 
 template <typename T> T &operator<<(T &stream, const S2E_DECREEMON_COMMANDS &c) {
     switch (c) {
-        case DECREE_SEGFAULT:
-            stream << "SEGFAULT";
-            break;
-        case DECREE_PROCESS_LOAD:
-            stream << "PROCESS_LOAD";
-            break;
         case DECREE_READ_DATA:
             stream << "READ_DATA";
             break;
@@ -100,12 +100,6 @@ template <typename T> T &operator<<(T &stream, const S2E_DECREEMON_COMMANDS &c) 
         case DECREE_HANDLE_SYMBOLIC_RANDOM_BUFFER:
             stream << "HANDLE_SYMBOLIC_RANDOM_BUFFER";
             break;
-        case DECREE_COPY_TO_USER:
-            stream << "COPY_TO_USER";
-            break;
-        case DECREE_UPDATE_MEMORY_MAP:
-            stream << "UPDATE_MEMORY_MAP";
-            break;
         case DECREE_SET_CB_PARAMS:
             stream << "SET_CB_PARAMS";
             break;
@@ -116,13 +110,13 @@ template <typename T> T &operator<<(T &stream, const S2E_DECREEMON_COMMANDS &c) 
     return stream;
 }
 
-class DecreeMonitor : public BaseLinuxMonitor {
+class DecreeMonitor : public Plugin, public IPluginInvoker {
     S2E_PLUGIN
 
     friend class DecreeMonitorState;
 
 public:
-    DecreeMonitor(S2E *s2e) : BaseLinuxMonitor(s2e) {
+    DecreeMonitor(S2E *s2e) : Plugin(s2e) {
     }
 
     void initialize();
@@ -132,11 +126,12 @@ public:
     }
 
 private:
+    Vmi *m_vmi;
+    MemoryMap *m_map;
     MemUtils *m_memutils;
     BaseInstructions *m_base;
     seeds::SeedSearcher *m_seedSearcher;
-
-    // XXX: circular dependency
+    LinuxMonitor *m_monitor;
     ProcessExecutionDetector *m_detector;
 
     llvm::DenseMap<uint64_t, llvm::StringRef> m_functionsMap;
@@ -149,7 +144,6 @@ private:
     uint64_t m_symbolicReadLimitCount;
     uint64_t m_maxReadLimitCount;
 
-    bool m_terminateProcessGroupOnSegfault;
     bool m_concolicMode;
     bool m_logWrittenData;
     bool m_handleSymbolicAllocateSize;
@@ -220,13 +214,6 @@ public:
                  >
         onSymbolicBuffer;
 
-    /// \brief onUpdateMemoryMap is emitted when the memory layout
-    /// of the guest process changes
-    ///
-    /// Currently event is emitted after process is loaded, and also
-    /// after allocate and deallocate syscalls.
-    sigc::signal<void, S2EExecutionState *, uint64_t /* pid */, const S2E_DECREEMON_VMA & /* vma */> onUpdateMemoryMap;
-
     bool getFaultAddress(S2EExecutionState *state, uint64_t siginfo_ptr, uint64_t *address);
 
     void getPreFeedData(S2EExecutionState *state, uint64_t pid, uint64_t count, std::vector<uint8_t> &data);
@@ -234,7 +221,7 @@ public:
     klee::ref<klee::Expr> makeSymbolicRead(S2EExecutionState *state, uint64_t pid, uint64_t fd, uint64_t buf,
                                            uint64_t count, klee::ref<klee::Expr> countExpr);
 
-    virtual void handleCommand(S2EExecutionState *state, uint64_t guestDataPtr, uint64_t guestDataSize, void *cmd);
+    virtual void handleOpcodeInvocation(S2EExecutionState *state, uint64_t guestDataPtr, uint64_t guestDataSize);
 
     unsigned getSymbolicReadsCount(S2EExecutionState *state) const;
 
@@ -242,9 +229,11 @@ public:
     static bool isWriteFd(uint32_t fd);
 
 private:
-    void onInitializationComplete(S2EExecutionState *state);
-
     target_ulong getTaskStructPtr(S2EExecutionState *state);
+
+    void onSegFault(S2EExecutionState *state, uint64_t pid, const S2E_LINUXMON_COMMAND_SEG_FAULT &data);
+
+    void handleCommand(S2EExecutionState *state, uint64_t guestDataPtr, uint64_t guestDataSize, void *cmd);
 
     uint64_t getMaxValue(S2EExecutionState *state, klee::ref<klee::Expr> value);
     void handleSymbolicSize(S2EExecutionState *state, uint64_t pid, uint64_t safeLimit, klee::ref<klee::Expr> size,
@@ -267,12 +256,7 @@ private:
                                       const S2E_DECREEMON_COMMAND_HANDLE_SYMBOLIC_BUFFER &d);
     void handleSymbolicRandomBuffer(S2EExecutionState *state, uint64_t pid,
                                     const S2E_DECREEMON_COMMAND_HANDLE_SYMBOLIC_BUFFER &d);
-    void handleCopyToUser(S2EExecutionState *state, uint64_t pid, const S2E_DECREEMON_COMMAND_COPY_TO_USER &d);
-    void handleUpdateMemoryMap(S2EExecutionState *state, uint64_t pid,
-                               const S2E_DECREEMON_COMMAND_UPDATE_MEMORY_MAP &d);
     void handleSetParams(S2EExecutionState *state, uint64_t pid, S2E_DECREEMON_COMMAND_SET_CB_PARAMS &d);
-    void handleInit(S2EExecutionState *state, const S2E_DECREEMON_COMMAND_INIT &d);
-    void handleTaskSwitch(S2EExecutionState *state, const S2E_DECREEMON_COMMAND &cmd);
 };
 
 } // namespace plugins

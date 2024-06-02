@@ -164,9 +164,13 @@ void MemUtils::findSequencesOfSymbolicData(S2EExecutionState *state, uint64_t pi
 }
 
 void MemUtils::findMemoryPages(S2EExecutionState *state, uint64_t pid, bool mustBeWritable, bool mustBeExecutable,
-                               std::unordered_set<uint64_t> &pages) {
+                               RegionMap<MemoryMapRegionType> &pages) {
     auto lambda = [&](uint64_t start, uint64_t end, MemoryMapRegionType type) {
         bool doAdd = false;
+
+        if (!mustBeWritable && (type & MM_READ)) {
+            doAdd = true;
+        }
 
         if (mustBeWritable && (type & MM_WRITE)) {
             doAdd = true;
@@ -177,9 +181,7 @@ void MemUtils::findMemoryPages(S2EExecutionState *state, uint64_t pid, bool must
         }
 
         if (doAdd) {
-            for (uint64_t s = start; s < end; s += TARGET_PAGE_SIZE) {
-                pages.insert(s & TARGET_PAGE_MASK);
-            }
+            pages.add(start, end, type);
         }
 
         return true;

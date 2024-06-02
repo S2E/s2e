@@ -31,7 +31,6 @@
 #include <s2e/S2E.h>
 #include <s2e/Utils.h>
 
-#include <s2e/Plugins/OSMonitors/Linux/DecreeMonitor.h>
 #include <s2e/Plugins/OSMonitors/Linux/LinuxMonitor.h>
 #include <s2e/Plugins/OSMonitors/Windows/WindowsMonitor.h>
 
@@ -205,13 +204,6 @@ void MemoryMap::initialize() {
         return;
     }
 
-    // Register Decree events
-    DecreeMonitor *decree = dynamic_cast<DecreeMonitor *>(m_monitor);
-    if (decree) {
-        decree->onUpdateMemoryMap.connect(sigc::mem_fun(*this, &MemoryMap::onDecreeUpdateMemoryMap));
-        return;
-    }
-
     // Register Linux events
     LinuxMonitor *linmon = dynamic_cast<LinuxMonitor *>(m_monitor);
     if (linmon) {
@@ -279,29 +271,6 @@ void MemoryMap::onLinuxMemoryUnmap(S2EExecutionState *state, uint64_t pid, uint6
 
     DECLARE_PLUGINSTATE(MemoryMapState, state);
     plgState->removeRegion(pid, start, end);
-}
-
-void MemoryMap::onDecreeUpdateMemoryMap(S2EExecutionState *state, uint64_t pid, const S2E_DECREEMON_VMA &vma) {
-    if (!m_proc->isTrackedPid(state, pid)) {
-        return;
-    }
-
-    MemoryMapRegionType type = MM_NONE;
-
-    if (vma.flags & S2E_DECREEMON_VM_READ) {
-        type |= MM_READ;
-    }
-
-    if (vma.flags & S2E_DECREEMON_VM_WRITE) {
-        type |= MM_WRITE;
-    }
-
-    if (vma.flags & S2E_DECREEMON_VM_EXEC) {
-        type |= MM_EXEC;
-    }
-
-    DECLARE_PLUGINSTATE(MemoryMapState, state);
-    plgState->addRegion(pid, vma.start, vma.end, type);
 }
 
 void MemoryMap::onProcessUnload(S2EExecutionState *state, uint64_t pageDir, uint64_t pid, uint64_t returnCode) {

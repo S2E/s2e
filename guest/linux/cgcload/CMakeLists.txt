@@ -1,4 +1,6 @@
-# Copyright (c) 2019, Cyberhaven
+# S2E Selective Symbolic Execution Platform
+#
+# Copyright (c) 2024 Vitaly Chipounov
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -18,19 +20,12 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-CB=CADET_00001
-SOURCE=main.c
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -static")
 
-BUILD_SCRIPTS_SRC:=$(dir $(realpath $(lastword $(MAKEFILE_LIST))))
+set(CMAKE_ASM_NASM_OBJECT_FORMAT elf32)
+enable_language(ASM_NASM)
 
-RUN_DOCKER = docker run --rm -w $(BUILD_SCRIPTS_SRC) -e NO_CB_EXTENDED_APP=1 -v $(BUILD_SCRIPTS_SRC):$(BUILD_SCRIPTS_SRC) linux-build-i386 /run_as.sh $(shell id -u) $(shell id -g) make -C CADET_00001 $(1)
+add_executable(cgcload main.c loader.c launcher.asm)
+target_link_options(cgcload PUBLIC -T ${CMAKE_CURRENT_SOURCE_DIR}/linker.ld)
 
-$(CB)/bin/$(CB): $(CB)/src/service.c
-	cd $(BUILD_SCRIPTS_SRC) && $(call RUN_DOCKER,build)
-
-TARGETS=$(CB)/bin/$(CB)
-
-all: $(TARGETS)
-
-clean:
-	$(call RUN_DOCKER,clean)
+install(TARGETS cgcload RUNTIME DESTINATION .)
