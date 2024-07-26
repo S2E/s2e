@@ -22,6 +22,6 @@
 
 add_executable(povtest main.c)
 
-target_link_libraries(povtest pov cgc)
+target_link_libraries(povtest pov cgc pthread)
 
 install(TARGETS povtest RUNTIME DESTINATION .)
