@@ -47,6 +47,7 @@
 #include <stdlib.h>
 #include <sys/mman.h>
 #include <sys/prctl.h>
+#include <unistd.h>
 
 #include "cgc.h"
 #include "loader.h"
