@@ -31,5 +31,5 @@ jobs:
            set -x
            cd ..
            mkdir build && cd build
-           make -f ../s2e/Makefile all-release
+           make -f ../s2e/Makefile all
       - run: echo "🍏 This job's status is ${{ job.status }}."
