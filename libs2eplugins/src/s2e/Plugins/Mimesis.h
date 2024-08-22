@@ -176,12 +176,12 @@ private:
     // /**
     //  * Start sending packets to the interface with the given `if_name`.
     //  */
-    // void send_packets_to(S2EExecutionState *state, const std::string &if_name) const;
+    void send_packets_to(S2EExecutionState *state, const std::string &if_name) const;
     //
     // /**
     //  * Stop sending packets.
     //  */
-    // void stop_sending_packets(S2EExecutionState *state) const;
+    void stop_sending_packets(S2EExecutionState *state) const;
 
     void create_sym_var(S2EExecutionState *state, uintptr_t address, unsigned int size,
                         const std::string &var_name) const;
@@ -199,6 +199,10 @@ private:
      */
     void record_trace(S2EExecutionState *state, const klee::ref<klee::Expr> egress_intf,
                       const klee::ref<klee::Expr> egress_pkt);
+    
+    void kernel_recv(S2EExecutionState *state);
+    void kernel_send(S2EExecutionState *state);
+    
 
 public:
     Mimesis(S2E *s2e) : Plugin(s2e) {

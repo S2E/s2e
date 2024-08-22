@@ -42,6 +42,7 @@
 #include <linux/if_tun.h>
 #include <net/if.h>
 #include <string>
+#include <thread>
 #include <sys/ioctl.h>
 #include <unistd.h>
 
@@ -60,6 +61,7 @@
 #include "cpu/types.h"
 #include "fsigc++/fsigc++.h"
 #include "libps/manager.hpp"
+
 
 namespace s2e {
 namespace plugins {
@@ -156,7 +158,13 @@ void Mimesis::onStateFork(S2EExecutionState *original_state, const std::vector<S
                           const std::vector<klee::ref<klee::Expr>> &conditions) {
     auto pc = get_pc(original_state);
     if (!_proc_detector->isTrackedPc(original_state, pc)) {
-        getWarningsStream(original_state) << "State forking in untracked region.\n";
+    	getWarningsStream(original_state) << "State forking in untracked region, terminating both states.\n";
+    
+    	DECLARE_PLUGINSTATE(MimesisState, original_state);
+        s2e()->getExecutor()->terminateState(*original_state, "Kill state at depth " + std::to_string(plgState->depth));
+        
+        DECLARE_PLUGINSTATE(MimesisState, new_state);
+        s2e()->getExecutor()->terminateState(*new_state, "Kill state at depth " + std::to_string(plgState->depth));
         return;
     }
 
@@ -183,6 +191,14 @@ void Mimesis::onCustomInstruction(S2EExecutionState *state, uint64_t opcode) {
         case MIMESIS_OP_USER_SEND:
             user_send(state);
             break;
+        case MIMESIS_OP_KERNEL_RECV:
+       		kernel_recv(state);
+       		//getWarningsStream(state) << "Mimesis kernel_recv handler called " << '\n';
+       		break;
+       	case MIMESIS_OP_KERNEL_SEND:
+       		kernel_send(state);
+       		//getWarningsStream(state) << "Mimesis kernel_send handler called " << '\n';
+       		break;
         default:
             getWarningsStream(state) << "Invalid Mimesis opcode " << hexval(op) << '\n';
             break;
@@ -233,7 +249,7 @@ void Mimesis::onConcreteDataMemoryAccess(S2EExecutionState *state, uint64_t virt
 void Mimesis::onProcessLoad(S2EExecutionState *state, uint64_t page_dir, uint64_t pid, const std::string &proc_name) {
     getInfoStream(state) << "Target program loaded: " << proc_name << ", pid: " << hexval(pid) << ".\n";
     getInfoStream(state) << "Timestamp: (onProcessLoad) " + timestamp() + "\n";
-    // send_packets_to(state, _interfaces.at(0));
+    send_packets_to(state, _interfaces.at(0));
 }
 
 void Mimesis::onProcessUnload(S2EExecutionState *state, uint64_t page_dir, uint64_t pid, uint64_t return_code) {
@@ -268,17 +284,17 @@ uint64_t Mimesis::get_pc(S2EExecutionState *state) const {
     return ret;
 }
 
-// void Mimesis::send_packets_to(S2EExecutionState *state, const std::string &if_name) const {
-//     constexpr char send_packet_fn[] = "/dev/shm/send_packet";
-//     std::ofstream send_packet(send_packet_fn, std::ofstream::out | std::ofstream::trunc);
-//     s2e_assert(state, send_packet, "Failed to open " + std::string(send_packet_fn));
-//     send_packet << if_name << std::endl;
-//     send_packet.close();
-// }
-//
-// void Mimesis::stop_sending_packets(S2EExecutionState *state) const {
-//     send_packets_to(state, "");
-// }
+void Mimesis::send_packets_to(S2EExecutionState *state, const std::string &if_name) const {
+    constexpr char send_packet_fn[] = "/dev/shm/send_packet";
+    std::ofstream send_packet(send_packet_fn, std::ofstream::out | std::ofstream::trunc);
+    s2e_assert(state, send_packet, "Failed to open " + std::string(send_packet_fn));
+    send_packet << if_name << std::endl;
+    send_packet.close();
+}
+
+void Mimesis::stop_sending_packets(S2EExecutionState *state) const {
+    send_packets_to(state, "");
+}
 
 void Mimesis::create_sym_var(S2EExecutionState *state, uintptr_t address, unsigned int size,
                              const std::string &var_name) const {
@@ -286,7 +302,7 @@ void Mimesis::create_sym_var(S2EExecutionState *state, uintptr_t address, unsign
     _base_inst->makeSymbolic(state, address, size, var_name, nullptr, &klee_var_name);
     ps::Manager::get().register_symbolic_variable(var_name, /*nbits=*/size * 8, klee_var_name);
     getInfoStream(state) << "Symbolic variable created: " << klee_var_name << "\n";
-    // stop_sending_packets(state);
+    stop_sending_packets(state);
 }
 
 // TODO: Make this configurable in `s2e-config.lua`.
@@ -382,6 +398,51 @@ void Mimesis::record_trace(S2EExecutionState *state, const klee::ref<klee::Expr>
     plgState->ingress_intf = nullptr;
     plgState->ingress_pkt = nullptr;
 }
+
+void Mimesis::kernel_recv(S2EExecutionState *state) {
+    DECLARE_PLUGINSTATE(MimesisState, state);
+    s2e_assert(state, !plgState->ingress_intf && !plgState->ingress_pkt,
+               "Ingress interface and packet must be both set or both unset");
+               
+    llvm::raw_ostream *os = &getInfoStream(state);
+
+    // Next depth (next packet in the input sequence)
+    plgState->depth++;
+    if (plgState->depth > max_depth) {
+        s2e()->getExecutor()->terminateState(*state, "Kill state at depth " + std::to_string(plgState->depth));
+        return;
+    }
+
+    // Create symbolic arrays for the ingress interface and packet.
+    target_ulong intf_ptr, buffer, len;
+    bool ok = true;
+    ok &= state->regs()->read(CPU_OFFSET(regs[R_EAX]), &intf_ptr, sizeof(intf_ptr), false);
+    ok &= state->regs()->read(CPU_OFFSET(regs[R_ECX]), &buffer, sizeof(buffer), false);
+    ok &= state->regs()->read(CPU_OFFSET(regs[R_EDX]), &len, sizeof(len), false);
+    s2e_assert(state, ok, "Symbolic argument was passed to kernel_recv");
+    create_sym_var(state, /*address=*/intf_ptr, /*size=*/1, "in_intf_d" + std::to_string(plgState->depth));
+    create_sym_var(state, /*address=*/buffer, /*size=*/len, "in_pkt_d" + std::to_string(plgState->depth));
+
+    // Update the plugin state with the ingress interface and packet.
+    plgState->ingress_intf = state->mem()->read(intf_ptr, /*width=(bits)*/ 8, VirtualAddress);
+    plgState->ingress_pkt = state->mem()->read(buffer, /*width=(bits)*/ len * 8, VirtualAddress);
+}
+
+void Mimesis::kernel_send(S2EExecutionState *state) {
+    // Get the egress interface and packet as symbolic expressions.
+    klee::ref<klee::Expr> intf, pkt;
+    target_ulong buffer, len;
+    bool ok = true;
+    intf = state->regs()->read(CPU_OFFSET(regs[R_EAX]), klee::Expr::Int8);
+    ok &= state->regs()->read(CPU_OFFSET(regs[R_ECX]), &buffer, sizeof(buffer), false);
+    ok &= state->regs()->read(CPU_OFFSET(regs[R_EDX]), &len, sizeof(len), false);
+    s2e_assert(state, intf, "Incorrect offset/width for kernel_send intf");
+    s2e_assert(state, ok, "Symbolic egress buffer address or length in kernel_send");
+    pkt = state->mem()->read(buffer, /*width=(bits)*/ len * 8, VirtualAddress);
+
+    record_trace(state, intf, pkt);
+}
+
 
 } // namespace plugins
 } // namespace s2e
