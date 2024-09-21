@@ -102,16 +102,12 @@ uint64_t S2EExecutionStateMemory::getHostAddress(uint64_t address, AddressType a
 /***/
 
 ref<Expr> S2EExecutionStateMemory::read(uint64_t address, Expr::Width width, AddressType addressType) {
-#ifdef CONFIG_SYMBEX_MP
     auto translate = [&](uint64_t addressToTranslate, uint64_t &hostAddress) -> bool {
         hostAddress = getHostAddress(addressToTranslate, addressType);
         return hostAddress != (uint64_t) -1;
     };
 
     return m_addressSpace->read(address, width, translate);
-#else
-    pabort("Not implemented");
-#endif
 }
 
 ref<Expr> S2EExecutionStateMemory::readMemory8(uint64_t address, AddressType addressType) {
