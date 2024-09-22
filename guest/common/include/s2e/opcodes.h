@@ -97,6 +97,13 @@ extern "C" {
 // Maximum S2E opcode allowed
 #define BASE_S2E_MAX_OPCODE     0x70
 
+// Mimesis custom instructions
+#define MIMESIS_OPCODE          0x99
+#define MIMESIS_OP_USER_RECV    0x00
+#define MIMESIS_OP_USER_SEND    0x01
+#define MIMESIS_OP_KERNEL_RECV  0x02
+#define MIMESIS_OP_KERNEL_SEND  0x03
+
 // clang-format on
 
 #ifdef __cplusplus

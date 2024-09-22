@@ -104,7 +104,7 @@ TestCaseGenerator::TestCaseGenerator(S2E *s2e) : Plugin(s2e) {
 
 void TestCaseGenerator::initialize() {
     m_tracer = s2e()->getPlugin<ExecutionTracer>();
-    enable();
+    // enable();
 }
 
 void TestCaseGenerator::enable() {

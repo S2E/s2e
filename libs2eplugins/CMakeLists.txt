@@ -26,6 +26,7 @@ set(LIBS2EPLUGINS_VERSION_MINOR 0)
 set(LIBS2EPLUGINS_VERSION_PATCH 0)
 set(LIBS2EPLUGINS_PACKAGE_VERSION
     "${LIBS2EPLUGINS_VERSION_MAJOR}.${LIBS2EPLUGINS_VERSION_MINOR}.${LIBS2EPLUGINS_VERSION_PATCH}")
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 include(CMakePackageConfigHelpers)
 set(CMAKE_VERSION_FILE "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Version.cmake")
@@ -110,6 +111,8 @@ include_directories(${GLIB_PKG_INCLUDE_DIRS}
                     ${FSIGCXX_INCLUDE_DIR}
                     ${KLEE_INCLUDE_DIR}
                     ${LUA_DIR}
-                    ${S2EGUEST_INCLUDE_DIR})
+                    ${S2EGUEST_INCLUDE_DIR}
+                    ${LIBPS_INCLUDE_DIR}
+                    /usr/lib/glib-2.0/include)
 
 add_subdirectory(src)

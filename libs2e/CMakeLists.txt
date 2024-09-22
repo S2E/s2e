@@ -27,6 +27,7 @@ set(LIBS2E_VERSION_MINOR 0)
 set(LIBS2E_VERSION_PATCH 0)
 set(LIBS2E_PACKAGE_VERSION
     "${LIBS2E_VERSION_MAJOR}.${LIBS2E_VERSION_MINOR}.${LIBS2E_VERSION_PATCH}")
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 include(CMakePackageConfigHelpers)
 set(CMAKE_VERSION_FILE "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Version.cmake")
@@ -82,6 +83,15 @@ message(STATUS "Found libvmi ${VMI_PACKAGE_VERSION}")
 
 find_package(LIBCOROUTINE REQUIRED)
 message(STATUS "Found libcoroutine ${LIBCOROUTINE_PACKAGE_VERSION}")
+
+find_library(libps ps PATHS ${LIBPS_LIBRARY_DIR} NO_DEFAULT_PATH)
+message(STATUS "Found libps ${libps}")
+
+find_library(liblace lace PATHS ${LIBPS_LIBRARY_DIR} NO_DEFAULT_PATH)
+message(STATUS "Found lace ${liblace}")
+
+find_library(libsylvan sylvan PATHS ${LIBPS_LIBRARY_DIR} NO_DEFAULT_PATH)
+message(STATUS "Found sylvan ${libsylvan}")
 
 if(WITH_TARGET MATCHES "s2e")
     # TODO: look at libcpu compile options to figure this out

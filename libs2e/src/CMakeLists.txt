@@ -39,7 +39,7 @@ add_executable(
 # Specify whole path for libraries so that libs2e can be relinked if any of them changes.
 # Just specifying the short library name prevents cmake from detecting the dependency.
 if(WITH_TARGET MATCHES "s2e")
-set(LIBS -Wl,--whole-archive ${LIBS2EPLUGINS_LIBRARY_DIR}/libs2eplugins.a ${LIBS2ECORE_LIBRARY_DIR}/libs2ecore.a -Wl,--no-whole-archive ${LIBS})
+set(LIBS -Wl,--whole-archive ${LIBS2EPLUGINS_LIBRARY_DIR}/libs2eplugins.a ${LIBS2ECORE_LIBRARY_DIR}/libs2ecore.a ${libps} ${liblace} ${libsylvan} -Wl,--no-whole-archive ${LIBS})
 endif()
 
 set(LIBS ${LIBS} ${LIBCPU_LIBRARY_DIR}/libcpu.a ${LIBTCG_LIBRARY_DIR}/libtcg.a)

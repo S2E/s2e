@@ -490,6 +490,8 @@ LIBS2E_CONFIGURE_FLAGS = --with-cc=$(CLANG_CC)                                  
                          --with-libcpu-src=$(S2E_SRC)/libcpu                        \
                          --with-libs2ecore-src=$(S2E_SRC)/libs2ecore                \
                          --with-libs2eplugins-src=$(S2E_SRC)/libs2eplugins          \
+                         --with-libps-incdir=$(S2E_PREFIX)/include                  \
+                         --with-libps-libdir=$(S2E_PREFIX)/lib                      \
                          --prefix=$(S2E_PREFIX)                                     \
 
 LIBS2E_DEBUG_FLAGS = --with-llvm=$(LLVM_BUILD)/llvm-debug                           \

@@ -44,6 +44,8 @@ echo "  --with-z3-incdir=PATH            Z3 include directory"
 echo "  --with-z3-libdir=PATH            Z3 library directory"
 echo "  --enable-debug                   Compile library with debug information"
 echo "  --with-s2e-guest-incdir=PATH     Path to S2E guest headers"
+echo "  --with-libps-incdir=PATH         libps include directory"
+echo "  --with-libps-libdir=PATH         libps library directory"
 }
 
 LLVM_ROOT=
@@ -130,6 +132,14 @@ for opt do
 
     --with-s2e-guest-incdir=*)
         S2EGUEST_INCDIR="$optarg"
+    ;;
+
+    --with-libps-incdir=*)
+      LIBPS_INCDIR="$optarg"
+    ;;
+
+    --with-libps-libdir=*)
+      LIBPS_LIBDIR="$optarg"
     ;;
 
     *) echo "Unknown option $opt"
@@ -309,6 +319,8 @@ cmake -DCMAKE_C_COMPILER="$CC" -DCMAKE_CXX_COMPILER="$CXX"  \
     -DLIBQ_DIR=$LIBQ_DIR                                    \
     -DLUA_DIR=$LIBLUA_LIB                                   \
     -DS2EGUEST_INCLUDE_DIR=$S2EGUEST_INCDIR                 \
+    -DLIBPS_INCLUDE_DIR="$LIBPS_INCDIR"                     \
+    -DLIBPS_LIBRARY_DIR="$LIBPS_LIBDIR"                     \
     "$LIBS2EPLUGINS_SRC"
 
 if [ $? -ne 0 ]; then
@@ -339,6 +351,8 @@ cmake -DCMAKE_C_COMPILER="$CC" -DCMAKE_CXX_COMPILER="$CXX"  \
     -DFSIGCXX_DIR="$FSIGCXX_DIR"                            \
     -DZ3_DIR="$Z3_LIBDIR"                                   \
     -DWITH_TARGET="$target"                                 \
+    -DLIBPS_INCLUDE_DIR="$LIBPS_INCDIR"                     \
+    -DLIBPS_LIBRARY_DIR="$LIBPS_LIBDIR"                     \
     "$SRC_DIR"
 
 if [ $? -ne 0 ]; then

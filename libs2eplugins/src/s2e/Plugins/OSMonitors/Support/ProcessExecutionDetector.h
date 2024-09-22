@@ -58,6 +58,7 @@ public:
 
     void initialize();
 
+    bool isTrackedModulesEmpty() const;
     bool isTrackingConfigured(S2EExecutionState *state);
     bool isTrackedPc(S2EExecutionState *state, uint64_t pc);
     bool isTrackedPid(S2EExecutionState *state, uint64_t pid);
@@ -65,9 +66,14 @@ public:
     bool isTrackedPc(S2EExecutionState *state, uint64_t pc, bool checkCpl);
 
     void trackPid(S2EExecutionState *state, uint64_t pid);
+    void setTrackKernel(bool trackKernel);
 
     sigc::signal<void, S2EExecutionState *> onMonitorLoad;
     sigc::signal<void, S2EExecutionState *> onAllProcessesTerminated;
+    sigc::signal<void, S2EExecutionState *, uint64_t /*pageDir*/, uint64_t /*pid*/, const std::string & /*procName*/>
+        onProcessLoad;
+    sigc::signal<void, S2EExecutionState *, uint64_t /*pageDir*/, uint64_t /*pid*/, uint64_t /*returnCode*/>
+        onProcessUnload;
 
     const TrackedPids &getTrackedPids(S2EExecutionState *state) const;
 
@@ -80,8 +86,8 @@ private:
 
     bool m_trackKernel = false;
 
-    void onProcessLoad(S2EExecutionState *state, uint64_t pageDir, uint64_t pid, const std::string &ImageFileName);
-    void onProcessUnload(S2EExecutionState *state, uint64_t pageDir, uint64_t pid, uint64_t returnCode);
+    void onProcessLoadCb(S2EExecutionState *state, uint64_t pageDir, uint64_t pid, const std::string &ImageFileName);
+    void onProcessUnloadCb(S2EExecutionState *state, uint64_t pageDir, uint64_t pid, uint64_t returnCode);
 
     void onMonitorLoadCb(S2EExecutionState *state);
 

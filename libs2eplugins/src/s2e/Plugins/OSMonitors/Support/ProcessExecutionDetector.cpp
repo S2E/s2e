@@ -78,15 +78,15 @@ void ProcessExecutionDetector::initialize() {
 
     m_trackKernel = cfg->getBool(getConfigKey() + ".trackKernel", false);
 
-    m_monitor->onProcessLoad.connect(sigc::mem_fun(*this, &ProcessExecutionDetector::onProcessLoad));
+    m_monitor->onProcessLoad.connect(sigc::mem_fun(*this, &ProcessExecutionDetector::onProcessLoadCb));
 
-    m_monitor->onProcessUnload.connect(sigc::mem_fun(*this, &ProcessExecutionDetector::onProcessUnload));
+    m_monitor->onProcessUnload.connect(sigc::mem_fun(*this, &ProcessExecutionDetector::onProcessUnloadCb));
 
     m_monitor->onMonitorLoad.connect(sigc::mem_fun(*this, &ProcessExecutionDetector::onMonitorLoadCb));
 }
 
-void ProcessExecutionDetector::onProcessLoad(S2EExecutionState *state, uint64_t pageDir, uint64_t pid,
-                                             const std::string &ImageFileName) {
+void ProcessExecutionDetector::onProcessLoadCb(S2EExecutionState *state, uint64_t pageDir, uint64_t pid,
+                                               const std::string &ImageFileName) {
     if (m_trackedModules.find(ImageFileName) != m_trackedModules.end()) {
         DECLARE_PLUGINSTATE(ProcessExecutionDetectorState, state);
 
@@ -97,11 +97,12 @@ void ProcessExecutionDetector::onProcessLoad(S2EExecutionState *state, uint64_t 
         plgState->m_hadTrackedProcesses = true;
         plgState->m_trackKernel = m_trackKernel;
         onConfigChange.emit(state);
+        onProcessLoad.emit(state, pageDir, pid, ImageFileName);
     }
 }
 
-void ProcessExecutionDetector::onProcessUnload(S2EExecutionState *state, uint64_t pageDir, uint64_t pid,
-                                               uint64_t returnCode) {
+void ProcessExecutionDetector::onProcessUnloadCb(S2EExecutionState *state, uint64_t pageDir, uint64_t pid,
+                                                 uint64_t returnCode) {
     DECLARE_PLUGINSTATE(ProcessExecutionDetectorState, state);
     if (plgState->removePid(pid)) {
         getDebugStream(state) << "Unloading process " << hexval(pid) << "\n";
@@ -109,7 +110,12 @@ void ProcessExecutionDetector::onProcessUnload(S2EExecutionState *state, uint64_
             onAllProcessesTerminated.emit(state);
         }
         onConfigChange.emit(state);
+        onProcessUnload.emit(state, pageDir, pid, returnCode);
     }
+}
+
+bool ProcessExecutionDetector::isTrackedModulesEmpty() const {
+    return m_trackedModules.empty();
 }
 
 bool ProcessExecutionDetector::isTrackingConfigured(S2EExecutionState *state) {
@@ -168,6 +174,10 @@ void ProcessExecutionDetector::trackPid(S2EExecutionState *state, uint64_t pid) 
 
     getDebugStream(state) << "starting to track pid: " << hexval(pid) << "\n";
     plgState->m_trackedPids.insert(pid);
+}
+
+void ProcessExecutionDetector::setTrackKernel(bool trackKernel) {
+    m_trackKernel = trackKernel;
 }
 
 void ProcessExecutionDetector::onMonitorLoadCb(S2EExecutionState *state) {
