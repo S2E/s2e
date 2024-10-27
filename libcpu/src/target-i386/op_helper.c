@@ -145,7 +145,7 @@ uint32_t compute_eflags(void) {
     return ((uint32_t) env->mflags) | helper_cc_compute_all(CC_OP) | (DF & DF_MASK) | 2;
 }
 
-#if defined(CONFIG_SYMBEX) && !defined(SYMBEX_LLVM_LIB) && !defined(STATIC_TRANSLATOR)
+#if defined(CONFIG_SYMBEX) && !defined(SYMBEX_LLVM_LIB) && !defined(STATIC_TRANSLATOR) && defined(CONFIG_SYMBEX_MP)
 static inline void se_load_eflags(void *mgr, void *eflags, int update_mask) {
     void *symb_flags = g_sqi.expr.andc(mgr, eflags, CFLAGS_MASK);
     g_sqi.expr.write_cpu(symb_flags, offsetof(CPUX86State, cc_src), sizeof(env->cc_src));
@@ -952,7 +952,7 @@ static int exeption_has_error_code(int intno) {
         sp += 4;                                                          \
     }
 
-#if defined(CONFIG_SYMBEX) && !defined(SYMBEX_LLVM_LIB)
+#if defined(CONFIG_SYMBEX) && !defined(SYMBEX_LLVM_LIB) && defined(CONFIG_SYMBEX_MP)
 #define POPW_T(ssp, sp, sp_mask, val)                         \
     {                                                         \
         val = cpu_lduw_kernel(env, (ssp) + (sp & (sp_mask))); \
@@ -2823,7 +2823,7 @@ static inline void validate_seg(int seg_reg, int cpl) {
 
 /* protected mode iret */
 static inline void helper_ret_protected(CPUX86State *env, int shift, int is_iret, int addend, uintptr_t ra) {
-#if defined(CONFIG_SYMBEX) && !defined(SYMBEX_LLVM_LIB) && !defined(STATIC_TRANSLATOR)
+#if defined(CONFIG_SYMBEX) && !defined(SYMBEX_LLVM_LIB) && !defined(STATIC_TRANSLATOR) && defined(CONFIG_SYMBEX_MP)
     void *mgr = NULL;
     void *symb_new_eflags = NULL;
 #endif
@@ -2850,7 +2850,7 @@ static inline void helper_ret_protected(CPUX86State *env, int shift, int is_iret
         POPQ(sp, new_cs);
         new_cs &= 0xffff;
         if (is_iret) {
-#if defined(CONFIG_SYMBEX) && !defined(SYMBEX_LLVM_LIB) && !defined(STATIC_TRANSLATOR)
+#if defined(CONFIG_SYMBEX) && !defined(SYMBEX_LLVM_LIB) && !defined(STATIC_TRANSLATOR) && defined(CONFIG_SYMBEX_MP)
             mgr = g_sqi.expr.mgr();
             POPQ_S(mgr, sp, symb_new_eflags);
 #else
@@ -2865,7 +2865,7 @@ static inline void helper_ret_protected(CPUX86State *env, int shift, int is_iret
         POPL_T(ssp, sp, sp_mask, new_cs);
         new_cs &= 0xffff;
         if (is_iret) {
-#if defined(CONFIG_SYMBEX) && !defined(SYMBEX_LLVM_LIB) && !defined(STATIC_TRANSLATOR)
+#if defined(CONFIG_SYMBEX) && !defined(SYMBEX_LLVM_LIB) && !defined(STATIC_TRANSLATOR) && defined(CONFIG_SYMBEX_MP)
             mgr = g_sqi.expr.mgr();
             POPL_T_S(mgr, ssp, sp, sp_mask, symb_new_eflags);
             if (g_sqi.expr.to_constant(g_sqi.expr.andc(mgr, symb_new_eflags, VM_MASK)))
@@ -2992,7 +2992,7 @@ static inline void helper_ret_protected(CPUX86State *env, int shift, int is_iret
         if (shift == 0)
             eflags_mask &= 0xffff;
 
-#if defined(CONFIG_SYMBEX) && !defined(SYMBEX_LLVM_LIB) && !defined(STATIC_TRANSLATOR)
+#if defined(CONFIG_SYMBEX) && !defined(SYMBEX_LLVM_LIB) && !defined(STATIC_TRANSLATOR) && defined(CONFIG_SYMBEX_MP)
         if (symb_new_eflags == NULL) { // 16-bit case no one cares about, let it be concrete
             load_eflags(new_eflags, eflags_mask);
         } else {
@@ -3021,7 +3021,7 @@ return_to_vm86:
     POPL(ssp, sp, sp_mask, new_gs);
 
 /* modify processor state */
-#if defined(CONFIG_SYMBEX) && !defined(SYMBEX_LLVM_LIB) && !defined(STATIC_TRANSLATOR)
+#if defined(CONFIG_SYMBEX) && !defined(SYMBEX_LLVM_LIB) && !defined(STATIC_TRANSLATOR) && defined(CONFIG_SYMBEX_MP)
     se_load_eflags(mgr, symb_new_eflags,
                    TF_MASK | AC_MASK | ID_MASK | IF_MASK | IOPL_MASK | VM_MASK | NT_MASK | VIF_MASK | VIP_MASK);
 
