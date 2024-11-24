@@ -35,7 +35,7 @@
 /// \return the value for hflags
 ///
 uint32_t cpu_compute_hflags(const CPUX86State *env) {
-    uint32_t hflags = 0;
+    uint32_t hflags = HF_SOFTMMU_MASK;
 
     /* Update CR0 flags */
     target_ulong pe_state = (env->cr[0] & CR0_PE_MASK);
@@ -89,7 +89,7 @@ uint32_t cpu_compute_hflags(const CPUX86State *env) {
         hflags |= ((env->segs[R_DS].base | env->segs[R_ES].base | env->segs[R_SS].base) != 0) << HF_ADDSEG_SHIFT;
     }
 
-    hflags = (env->hflags & ~(HF_SS32_MASK | HF_ADDSEG_MASK)) | hflags;
+    hflags = (hflags & ~(HF_SS32_MASK | HF_ADDSEG_MASK)) | hflags;
 
     return hflags;
 }
