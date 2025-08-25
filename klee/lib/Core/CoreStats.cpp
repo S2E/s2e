@@ -11,9 +11,9 @@
 
 namespace klee {
 namespace stats {
-auto instructions = Statistic::create("LLVMInstructions", "I");
-auto forks = Statistic::create("Forks", "Forks");
-auto solverTime = Statistic::create("SolverTime", "Stime");
-auto completedPaths = Statistic::create("CompletedPaths", "CompletedPaths");
+StatisticPtr instructions = Statistic::create("LLVMInstructions", "I");
+StatisticPtr forks = Statistic::create("Forks", "Forks");
+StatisticPtr solverTime = Statistic::create("SolverTime", "Stime");
+StatisticPtr completedPaths = Statistic::create("CompletedPaths", "CompletedPaths");
 } // namespace stats
 } // namespace klee

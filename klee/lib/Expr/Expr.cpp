@@ -1228,18 +1228,6 @@ BCREATE(ShlExpr, Shl)
 BCREATE(LShrExpr, LShr)
 BCREATE(AShrExpr, AShr)
 
-#if 0
-#define CMPCREATE(_e_op, _op)                                         \
-    ref<Expr> _e_op::create(const ref<Expr> &l, const ref<Expr> &r) { \
-        assert(l->getWidth() == r->getWidth() && "type mismatch");    \
-        if (ConstantExpr *cl = dyn_cast<ConstantExpr>(l))             \
-            if (ConstantExpr *cr = dyn_cast<ConstantExpr>(r))         \
-                return cl->_op(cr);                                   \
-//__LIFT_CONST_SELECT_2(l, r);                                          \
-return _e_op ## _create(l, r);                                        \
-}
-#endif
-
 #define CMPCREATE(_e_op, _op)                                         \
     ref<Expr> _e_op::create(const ref<Expr> &l, const ref<Expr> &r) { \
         assert(l->getWidth() == r->getWidth() && "type mismatch");    \
@@ -1249,22 +1237,6 @@ return _e_op ## _create(l, r);                                        \
         return _e_op##_create(l, r);                                  \
     }
 
-#if 0
-#define CMPCREATE_T(_e_op, _op, _reflexive_e_op, partialL, partialR)  \
-    ref<Expr> _e_op::create(const ref<Expr> &l, const ref<Expr> &r) { \
-        assert(l->getWidth() == r->getWidth() && "type mismatch");    \
-//__LIFT_CONST_SELECT_2(l, r);                                         \
-if (ConstantExpr *cl = dyn_cast<ConstantExpr>(l)) {                  \
-    if (ConstantExpr *cr = dyn_cast<ConstantExpr>(r))                  \
-        return cl->_op(cr);                                              \
-    return partialR(cl, r.get());                                      \
-} else if (ConstantExpr *cr = dyn_cast<ConstantExpr>(r)) {           \
-    return partialL(l.get(), cr);                                      \
-} else {                                                             \
-return _e_op ## _create(l.get(), r.get());                         \
-}                                                                    \
-}
-#endif
 #define CMPCREATE_T(_e_op, _op, _reflexive_e_op, partialL, partialR)  \
     ref<Expr> _e_op::create(const ref<Expr> &l, const ref<Expr> &r) { \
         assert(l->getWidth() == r->getWidth() && "type mismatch");    \

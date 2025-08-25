@@ -64,9 +64,6 @@ public:
     static std::set<ObjectKey, ObjectKeyLTS> s_ignoredMergeObjects;
 
 private:
-    // unsupported, use copy constructor
-    ExecutionState &operator=(const ExecutionState &);
-
     SolverPtr m_solver;
 
 public:

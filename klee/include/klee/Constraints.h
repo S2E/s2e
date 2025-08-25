@@ -41,7 +41,7 @@
 #include "klee/Solver.h"
 
 // We don't use KLEE's own ref<T> because it is intrusive.
-#include <boost/bind.hpp>
+#include <boost/bind/bind.hpp>
 #include <boost/enable_shared_from_this.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/weak_ptr.hpp>
@@ -186,7 +186,8 @@ public:
         root_ = ConditionNodeRef(new ConditionNode());
         head_ = root_;
 
-        std::for_each(cs.begin(), cs.end(), boost::bind(&ConstraintManager::addConstraint, this, _1));
+        std::for_each(cs.begin(), cs.end(),
+                      boost::bind(&ConstraintManager::addConstraint, this, boost::placeholders::_1));
     }
 
     ref<Expr> toExpr(const ref<Expr> e) const {

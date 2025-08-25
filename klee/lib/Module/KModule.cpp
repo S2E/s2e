@@ -7,6 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <cstdarg>
+
 // FIXME: This does not belong here.
 #include "klee/Common.h"
 

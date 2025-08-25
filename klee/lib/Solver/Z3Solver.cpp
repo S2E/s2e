@@ -297,6 +297,8 @@ bool Z3BaseSolverImpl::computeInitialValues(const Query &query, const ArrayVec &
             ++*stats::queriesInvalid;
             return true;
     }
+
+    return false;
 }
 
 void Z3BaseSolverImpl::configureSolver() {
