@@ -125,9 +125,9 @@ const FunctionAddresses &ExecutableFile::guessFunctionAddresses() const {
             continue;
         }
 
-        for (auto i = 0; i < s.size; ++i) {
+        for (unsigned i = 0; i < s.size; ++i) {
             uint8_t buffer[MAX_PATTERN_SIZE];
-            auto size = sizeof(buffer);
+            ssize_t size = sizeof(buffer);
             if (read(buffer, size, s.start + i) != size) {
                 break;
             }
