@@ -23,27 +23,27 @@
 #ifndef KLEE_UTIL_PTRS_H
 #define KLEE_UTIL_PTRS_H
 
+#include <atomic>
+
 namespace klee {
 
-#define INTRUSIVE_PTR_ADD_REF(T)                \
-    inline void intrusive_ptr_add_ref(T *ptr) { \
-        ++ptr->m_refCount;                      \
+class RefCount {
+private:
+    std::atomic<unsigned> m_refCount = 0;
+
+    friend void intrusive_ptr_add_ref(RefCount *ptr);
+    friend void intrusive_ptr_release(RefCount *ptr);
+};
+
+inline void intrusive_ptr_add_ref(RefCount *ptr) {
+    ++ptr->m_refCount;
+}
+
+inline void intrusive_ptr_release(RefCount *ptr) {
+    if (--ptr->m_refCount == 0) {
+        delete ptr;
     }
-
-#define INTRUSIVE_PTR_RELEASE(T)                \
-    inline void intrusive_ptr_release(T *ptr) { \
-        if (--ptr->m_refCount == 0) {           \
-            delete ptr;                         \
-        }                                       \
-    }
-
-#define INTRUSIVE_PTR_ADD_REL(T) \
-    INTRUSIVE_PTR_ADD_REF(T)     \
-    INTRUSIVE_PTR_RELEASE(T)
-
-#define INTRUSIVE_PTR_FRIENDS(T)               \
-    friend void intrusive_ptr_add_ref(T *ptr); \
-    friend void intrusive_ptr_release(T *ptr);
+}
 
 } // namespace klee
 

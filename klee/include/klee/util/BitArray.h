@@ -18,12 +18,11 @@
 
 namespace klee {
 
-template <typename T> class BitArrayT {
+template <typename T> class BitArrayT : public RefCount {
 private:
     // XXX(s2e) for now we keep this first to access from C code
     // (yes, we do need to access if really fast)
     T *m_bits;
-    std::atomic<unsigned> m_refCount;
     unsigned m_bitcount;
     unsigned m_setbitcount;
 
@@ -36,12 +35,11 @@ protected:
     }
 
     BitArrayT(unsigned size, bool value = false)
-        : m_bits(new T[words(size)]), m_refCount(0), m_bitcount(size), m_setbitcount(value ? size : 0) {
+        : m_bits(new T[words(size)]), m_bitcount(size), m_setbitcount(value ? size : 0) {
         memset(m_bits, value ? 0xFF : 0, sizeof(*m_bits) * words(size));
     }
 
-    BitArrayT(const boost::intrusive_ptr<BitArrayT> &b)
-        : m_bits(nullptr), m_refCount(0), m_bitcount(0), m_setbitcount(0) {
+    BitArrayT(const boost::intrusive_ptr<BitArrayT> &b) : m_bits(nullptr), m_bitcount(0), m_setbitcount(0) {
         m_bitcount = b->m_bitcount;
         m_setbitcount = b->m_setbitcount;
         m_bits = new T[words(m_bitcount)];
@@ -145,15 +143,10 @@ public:
 
         return false;
     }
-
-    INTRUSIVE_PTR_FRIENDS(BitArrayT)
 };
 
 using BitArray = BitArrayT<uint64_t>;
 using BitArrayPtr = boost::intrusive_ptr<BitArray>;
-
-INTRUSIVE_PTR_ADD_REL(BitArrayT<uint64_t>)
-INTRUSIVE_PTR_ADD_REL(BitArrayT<uint32_t>)
 
 } // namespace klee
 

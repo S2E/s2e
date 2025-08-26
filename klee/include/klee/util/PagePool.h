@@ -37,9 +37,8 @@ namespace klee {
 class Pages;
 typedef boost::intrusive_ptr<Pages> PagesPtr;
 
-class Pages {
+class Pages : public RefCount {
     static unsigned const PAGE_SIZE = 0x1000;
-    std::atomic<uint32_t> m_refCount;
     BitArrayPtr m_pageStatus;
     uint8_t *m_buffer;
     size_t m_size;
@@ -72,11 +71,7 @@ public:
     inline unsigned getFreePagesCount() const {
         return m_pageStatus->getSetBitCount();
     }
-
-    INTRUSIVE_PTR_FRIENDS(Pages)
 };
-
-INTRUSIVE_PTR_ADD_REL(Pages)
 
 struct PagePoolDesc {
     static const uint64_t POOL_PAGE_COUNT;
@@ -103,15 +98,14 @@ typedef boost::intrusive_ptr<PagePool> PagePoolPtr;
 /// class uses mmap to allocate larger chunks at once and maintains
 /// a bitmap to return individual pages to callers.
 ///
-class PagePool {
-    std::atomic<uint32_t> m_refCount;
+class PagePool : public RefCount {
     std::map<uintptr_t, PagesPtr, PagePoolDesc> m_map;
     std::unordered_map<uintptr_t, PagesPtr> m_freePages;
     PagesPtr m_cachedPages;
 
     static PagePoolPtr s_pool;
 
-    PagePool() : m_refCount(0) {
+    PagePool() {
     }
 
     PagesPtr allocatePages();
@@ -134,11 +128,7 @@ public:
     }
 
     unsigned getFreePages() const;
-
-    INTRUSIVE_PTR_FRIENDS(PagePool)
 };
-
-INTRUSIVE_PTR_ADD_REL(PagePool)
 
 } // namespace klee
 
