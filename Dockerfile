@@ -34,7 +34,7 @@ RUN dpkg --add-architecture i386 && apt-get update &&                       \
     libbsd-dev libpixman-1-dev                                              \
     libglib2.0-dev libglib2.0-dev:i386 python3-docutils libpng-dev          \
     gcc-multilib g++-multilib libgomp1 unzip libzstd-dev \
-    libgmock-dev libgtest-dev rapidjson-dev libsoci-dev libcapstone-dev
+    libgmock-dev libgtest-dev libsoci-dev libcapstone-dev
 
 # The unzip and libgomp1 dependencies are needed to unzip and run binary Z3
 # distributions
@@ -64,6 +64,9 @@ RUN cd s2e-build &&                                                         \
 
 RUN cd s2e-build &&                                                         \
     make -f ../s2e/Makefile S2E_PREFIX=/opt/s2e stamps/libdwarf-make
+
+RUN cd s2e-build &&                                                         \
+    make -f ../s2e/Makefile S2E_PREFIX=/opt/s2e stamps/rapidjson-make
 
 # Make the S2E codebase available in the container
 COPY . s2e/
