@@ -84,13 +84,14 @@ add_definitions(${LLVM_DEFINITIONS})
 
 include_directories("include"
                     ${CMAKE_CURRENT_SOURCE_DIR}
-                    ${LLVM_INCLUDE_DIRS}
                     ${LIBCPU_SRC_DIR}
                     ${S2EPLUGINS_SRC_DIR}
                     ${VMI_INCLUDE_DIR}
                     ${LIBQ_INCLUDE_DIR}
                     ${FSIGCXX_INCLUDE_DIR}
                     ${PROTOBUF_INCLUDE_DIRS})
+
+include_directories(SYSTEM ${LLVM_INCLUDE_DIRS})
 
 link_directories(${VMI_LIBRARY_DIR} ${FSIGCXX_LIBRARY_DIR} ${LIBQ_LIBRARY_DIR})
 

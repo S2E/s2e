@@ -62,10 +62,11 @@ find_library(LIBDWARF_LIB
 # LLVM include paths should come first, because the one in /opt
 # may contain LLVM include files that were built for a different
 # configuration.
-include_directories(${LLVM_INCLUDE_DIRS}
-                    "include"
+include_directories(SYSTEM ${LLVM_INCLUDE_DIRS}
                     ${LIBDWARF_INCLUDE_DIRS}
                     ${RapidJSON_INCLUDE_DIRS})
+
+include_directories("include")
 
 link_directories(${LIBDWARF_LIB_DIRS})
 

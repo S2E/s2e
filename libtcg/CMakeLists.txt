@@ -50,8 +50,8 @@ message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 
 add_definitions(${LLVM_DEFINITIONS})
 
-include_directories("include"
-                    ${LLVM_INCLUDE_DIRS})
+include_directories("include")
+include_directories(SYSTEM ${LLVM_INCLUDE_DIRS})
 
 llvm_map_components_to_libnames(LLVM_LIBS core)
 
