@@ -177,14 +177,13 @@ public:
     ///  - The \c onCustomInstruction signal is emitted with \c done set to \c true
     ///
     virtual void handleOpcodeInvocation(S2EExecutionState *state, uint64_t guestDataPtr, uint64_t guestDataSize) {
-        uint8_t cmd[guestDataSize];
-        memset(cmd, 0, guestDataSize);
+        std::vector<uint8_t> cmd(guestDataSize, 0);
 
-        if (!verifyLinuxCommand(state, guestDataPtr, guestDataSize, cmd)) {
+        if (!verifyLinuxCommand(state, guestDataPtr, guestDataSize, cmd.data())) {
             return;
         }
 
-        handleCommand(state, guestDataPtr, guestDataSize, cmd);
+        handleCommand(state, guestDataPtr, guestDataSize, cmd.data());
     }
 
     ///
