@@ -43,12 +43,11 @@ message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 
 add_definitions(${LLVM_DEFINITIONS})
 
-find_package(RapidJSON REQUIRED)
-
 set(ENV{PKG_CONFIG_PATH} ${CMAKE_INSTALL_PREFIX}/lib/pkgconfig)
 find_package(PkgConfig REQUIRED)
 set(CMAKE_PREFIX_PATH ${CMAKE_INSTALL_PREFIX})
 pkg_check_modules(LIBDWARF REQUIRED IMPORTED_TARGET libdwarf)
+pkg_check_modules(RapidJSON REQUIRED IMPORTED_TARGET RapidJSON)
 
 find_path(LIBDWARF_INCLUDE_DIRS
           NAMES libdwarf.h dwarf.h
