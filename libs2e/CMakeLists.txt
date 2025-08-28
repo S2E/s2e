@@ -50,6 +50,7 @@ include(FindProtobuf)
 find_package(Protobuf REQUIRED)
 
 ##### LLVM #####
+find_package(CURL REQUIRED)
 find_package(LLVM REQUIRED)
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 
