@@ -261,13 +261,6 @@ else()
   set(ENABLE_Z3 0) # For config.h
 endif()
 
-###############################################################################
-# Exception handling
-###############################################################################
-if (NOT LLVM_ENABLE_EH)
-  klee_component_add_cxx_flag("-fno-exceptions" REQUIRED)
-endif()
-
 
 ################################################################################
 # Generate `config.h`
