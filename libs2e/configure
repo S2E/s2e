@@ -233,12 +233,11 @@ echo "CXXFLAGS := $CXXFLAGS" >> config.mak
 
 echo "=== Configuring libtcg... ==="
 rm -rf libtcg && mkdir -p libtcg && cd libtcg
-LLVM_DIR="$LLVM_ROOT/lib/cmake/llvm"
 cmake -DCMAKE_C_COMPILER="$CC" -DCMAKE_CXX_COMPILER="$CXX"      \
     -DCMAKE_C_FLAGS="$CFLAGS" -DCMAKE_CXX_FLAGS="$CXXFLAGS"     \
     -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DWITH_GUEST="$target"       \
     -DLIBQ_DIR=$LIBQ_DIR                                        \
-    -DLLVM_DIR="$LLVM_DIR" "$LIBTCG_SRC"
+    "$LIBTCG_SRC"
 if [ $? -ne 0 ]; then
   >&2 echo "Failed to configure libtcg"
   exit 1
@@ -278,7 +277,6 @@ cmake -DCMAKE_C_COMPILER="$CC" -DCMAKE_CXX_COMPILER="$CXX"  \
     -DCMAKE_PREFIX_PATH="$PREFIX"                           \
     -DLIBTCG_DIR="$(pwd)/../libtcg"                         \
     -DLIBCPU_DIR="$(pwd)/../libcpu"                         \
-    -DLLVM_DIR="$LLVM_DIR"                                  \
     -DKLEE_DIR="$KLEE_ROOT"                                 \
     -DFSIGCXX_DIR="$FSIGCXX_DIR"                            \
     -DLIBQ_DIR="$LIBQ_DIR"                                  \
@@ -302,7 +300,6 @@ cmake -DCMAKE_C_COMPILER="$CC" -DCMAKE_CXX_COMPILER="$CXX"  \
     -DLIBTCG_DIR="$(pwd)/../libtcg"                         \
     -DLIBCPU_DIR="$(pwd)/../libcpu"                         \
     -DLIBS2ECORE_DIR="$(pwd)/../libs2ecore"                 \
-    -DLLVM_DIR="$LLVM_DIR"                                  \
     -DKLEE_DIR="$KLEE_ROOT"                                 \
     -DVMI_DIR="$LIBVMI_DIR"                                 \
     -DFSIGCXX_DIR="$FSIGCXX_DIR"                            \
@@ -331,7 +328,6 @@ cmake -DCMAKE_C_COMPILER="$CC" -DCMAKE_CXX_COMPILER="$CXX"  \
     -DLIBS2ECORE_DIR="$(pwd)/../libs2ecore"                 \
     -DLIBS2EPLUGINS_DIR="$(pwd)/../libs2eplugins"           \
     -DLIBQ_DIR="$LIBQ_DIR"                                  \
-    -DLLVM_DIR="$LLVM_DIR"                                  \
     -DLIBCOROUTINE_DIR="$LIBCOROUTINE_DIR"                  \
     -DKLEE_DIR="$KLEE_ROOT"                                 \
     -DVMI_DIR="$LIBVMI_DIR"                                 \

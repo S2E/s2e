@@ -353,21 +353,18 @@ KLEE_CONFIGURE_FLAGS = -DCMAKE_INSTALL_PREFIX=$(S2E_PREFIX)                     
 stamps/klee-debug-configure: stamps/z3 $(call FIND_CONFIG_SOURCE,$(S2E_SRC)/klee)
 stamps/klee-debug-configure: CONFIGURE_COMMAND = cmake $(KLEE_CONFIGURE_FLAGS)                      \
                                                  -DCMAKE_BUILD_TYPE=Debug                           \
-                                                 -DLLVM_DIR=$(LLVM_CMAKE_DIR)                       \
                                                  -DCMAKE_CXX_FLAGS="$(CXXFLAGS_DEBUG) -fno-omit-frame-pointer -fPIC" \
                                                  $(S2E_SRC)/klee
 
 stamps/klee-coverage-configure: stamps/z3 $(call FIND_CONFIG_SOURCE,$(S2E_SRC)/klee)
 stamps/klee-coverage-configure: CONFIGURE_COMMAND = cmake $(KLEE_CONFIGURE_FLAGS)                      \
                                                  -DCMAKE_BUILD_TYPE=Debug                           \
-                                                 -DLLVM_DIR=$(LLVM_CMAKE_DIR)                       \
                                                  -DCMAKE_CXX_FLAGS="$(CXXFLAGS_DEBUG) -fno-omit-frame-pointer -fPIC -fprofile-instr-generate -fcoverage-mapping" \
                                                  $(S2E_SRC)/klee
 
 stamps/klee-release-configure: stamps/z3 $(call FIND_CONFIG_SOURCE,$(S2E_SRC)/klee)
 stamps/klee-release-configure: CONFIGURE_COMMAND = cmake $(KLEE_CONFIGURE_FLAGS)                        \
                                                    -DCMAKE_BUILD_TYPE=$(RELEASE_BUILD_TYPE)             \
-                                                   -DLLVM_DIR=$(LLVM_CMAKE_DIR)                         \
                                                    -DCMAKE_CXX_FLAGS="$(CXXFLAGS_RELEASE) -fno-omit-frame-pointer -fPIC" \
                                                    $(S2E_SRC)/klee
 
@@ -390,14 +387,12 @@ LIBVMI_COMMON_FLAGS = -DCMAKE_INSTALL_PREFIX=$(S2E_PREFIX)          \
 
 stamps/libvmi-debug-configure: stamps/libdwarf-make stamps/rapidjson-make $(call FIND_CONFIG_SOURCE,$(S2E_SRC)/libvmi)
 stamps/libvmi-debug-configure: CONFIGURE_COMMAND = cmake $(LIBVMI_COMMON_FLAGS)                         \
-                                                   -DLLVM_DIR=$(LLVM_CMAKE_DIR)                         \
                                                    -DCMAKE_BUILD_TYPE=Debug                             \
                                                    -DCMAKE_CXX_FLAGS="$(CXXFLAGS_DEBUG) -fPIC"          \
                                                    $(S2E_SRC)/libvmi
 
 stamps/libvmi-release-configure: stamps/libdwarf-make stamps/rapidjson-make $(call FIND_CONFIG_SOURCE,$(S2E_SRC)/libvmi)
 stamps/libvmi-release-configure: CONFIGURE_COMMAND = cmake $(LIBVMI_COMMON_FLAGS)                           \
-                                                     -DLLVM_DIR=$(LLVM_CMAKE_DIR)                           \
                                                      -DCMAKE_BUILD_TYPE=$(RELEASE_BUILD_TYPE)               \
                                                      -DCMAKE_CXX_FLAGS="$(CXXFLAGS_RELEASE) -fPIC"          \
                                                      $(S2E_SRC)/libvmi
@@ -630,7 +625,6 @@ TOOLS_CONFIGURE_FLAGS = -DCMAKE_INSTALL_PREFIX=$(S2E_PREFIX)              \
 
 stamps/tools-debug-configure: stamps/libvmi-debug-make stamps/libfsigc++-debug-make stamps/libq-debug-make
 stamps/tools-debug-configure: CONFIGURE_COMMAND = cmake $(TOOLS_CONFIGURE_FLAGS)                        \
-                                                  -DLLVM_DIR=$(LLVM_CMAKE_DIR)                          \
                                                   -DVMI_DIR=$(S2E_BUILD)/libvmi-debug                   \
                                                   -DFSIGCXX_DIR=$(S2E_BUILD)/libfsigc++-debug           \
                                                   -DLIBQ_DIR=$(S2E_BUILD)/libq-debug                    \
@@ -640,7 +634,6 @@ stamps/tools-debug-configure: CONFIGURE_COMMAND = cmake $(TOOLS_CONFIGURE_FLAGS)
 
 stamps/tools-release-configure: stamps/libvmi-release-make stamps/libfsigc++-release-make stamps/libq-release-make
 stamps/tools-release-configure: CONFIGURE_COMMAND = cmake $(TOOLS_CONFIGURE_FLAGS)                          \
-                                                    -DLLVM_DIR=$(LLVM_CMAKE_DIR)                            \
                                                     -DVMI_DIR=$(S2E_BUILD)/libvmi-release                   \
                                                     -DFSIGCXX_DIR=$(S2E_BUILD)/libfsigc++-release           \
                                                     -DLIBQ_DIR=$(S2E_BUILD)/libq-release                    \
