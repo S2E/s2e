@@ -46,7 +46,7 @@ find_package(Protobuf REQUIRED)
 # Old CMake does not support static libraries, so we have to patch the library manually
 string(REPLACE .so .a PROTOBUF_LIBRARIES "${PROTOBUF_LIBRARIES}")
 
-find_package(LLVM REQUIRED)
+find_package(LLVM 14...<15 REQUIRED)
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 
 find_package(VMI REQUIRED)

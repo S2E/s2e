@@ -44,7 +44,7 @@ pkg_check_modules(GLIB_PKG glib-2.0)
 include_directories(${GLIB_PKG_INCLUDE_DIRS})
 
 ##### LLVM #####
-find_package(LLVM REQUIRED)
+find_package(LLVM 14...<15 REQUIRED)
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 
 add_definitions(${LLVM_DEFINITIONS})

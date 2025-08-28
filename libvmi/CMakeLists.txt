@@ -38,7 +38,7 @@ set(VMI_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/include")
 set(VMI_LIBRARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/src")
 configure_file(VMIConfig.cmake.in ${CMAKE_CONFIG_FILE} @ONLY)
 
-find_package(LLVM REQUIRED)
+find_package(LLVM 14...<15 REQUIRED)
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 
 add_definitions(${LLVM_DEFINITIONS})

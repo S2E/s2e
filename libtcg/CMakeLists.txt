@@ -45,7 +45,7 @@ find_package(LIBQ REQUIRED)
 message(STATUS "Found libq ${LIBQ_PACKAGE_VERSION}")
 
 ##### LLVM #####
-find_package(LLVM REQUIRED)
+find_package(LLVM 14...<15 REQUIRED)
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 
 add_definitions(${LLVM_DEFINITIONS})
