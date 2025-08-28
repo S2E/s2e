@@ -1,0 +1,15 @@
+name: Build libs2e.so docker image
+on: [pull_request]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v2
+      
+      - name: Build docker image
+        run: |
+          set -x
+          docker build -t s2e-build .
+
+      - run: echo "🍏 This job's status is ${{ job.status }}."
