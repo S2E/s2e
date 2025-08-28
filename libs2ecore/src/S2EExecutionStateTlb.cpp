@@ -359,7 +359,9 @@ bool S2EExecutionStateTlb::audit() {
                     foundCount++;
                 }
             }
-            assert(foundCount == 1);
+            if (foundCount != 1) {
+                abort();
+            }
         }
     }
 
