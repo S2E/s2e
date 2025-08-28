@@ -981,8 +981,11 @@ ExprResult ParserImpl::ParseParenExpr(TypeResult FIXME_UNUSED) {
         case 2:
             return ParseBinaryParenExpr(Name, ExprKind, IsFixed, ResTy);
         case 3:
-            if (ExprKind == Expr::Select)
+            if (ExprKind == Expr::Select) {
                 return ParseSelectParenExpr(Name, ResTy);
+            } else {
+                assert(0 && "Invalid ternary expression kind.");
+            }
         default:
             pabort("Invalid argument kind (number of args).");
             return ExprResult();
