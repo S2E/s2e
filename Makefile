@@ -132,10 +132,10 @@ LIBDWARF_SRC_DIR=libdwarf-0.9.1
 LIBDWARF_BUILD_DIR=libdwarf
 
 # rapidjson
-# We don't use the one that ships with the distro because we need
-# the latest features.
+# We don't use the one that ships with the distro because
+# it doesn't build with clang.
 RAPIDJSON_GIT_URL=https://github.com/Tencent/rapidjson.git
-RAPIDJSON_GIT_REV=fd3dc29a5c2852df569e1ea81dbde2c412ac5051
+RAPIDJSON_GIT_REV=24b5e7a
 RAPIDJSON_SRC_DIR=rapidjson
 RAPIDJSON_BUILD_DIR=rapidjson-build
 
