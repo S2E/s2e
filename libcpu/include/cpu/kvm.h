@@ -840,31 +840,6 @@ struct kvm_irq_routing {
 
 #endif
 
-#ifdef KVM_CAP_MCE
-/* x86 MCE */
-struct kvm_x86_mce {
-    __u64 status;
-    __u64 addr;
-    __u64 misc;
-    __u64 mcg_status;
-    __u8 bank;
-    __u8 pad1[7];
-    __u64 pad2[3];
-};
-#endif
-
-#ifdef KVM_CAP_XEN_HVM
-struct kvm_xen_hvm_config {
-    __u32 flags;
-    __u32 msr;
-    __u64 blob_addr_32;
-    __u64 blob_addr_64;
-    __u8 blob_size_32;
-    __u8 blob_size_64;
-    __u8 pad2[30];
-};
-#endif
-
 #define KVM_IRQFD_FLAG_DEASSIGN (1 << 0)
 /*
  * Available with KVM_CAP_IRQFD_RESAMPLE
