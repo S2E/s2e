@@ -33,7 +33,7 @@ Installing s2e-env
 
     python3 -m venv venv
     . venv/bin/activate
-    pip install --upgrade pip wheel
+    pip install --upgrade pip wheel setuptools
 
     # By default, s2e-env uses https to clone repositories.
     # If you want ssh, please edit s2e_env/dat/config.yaml before running pip install.
