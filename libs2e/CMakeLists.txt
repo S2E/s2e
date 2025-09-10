@@ -19,7 +19,7 @@
 # SOFTWARE.
 
 
-cmake_minimum_required(VERSION 3.4.3)
+cmake_minimum_required(VERSION 3.10)
 
 project(LIBS2E)
 set(LIBS2E_VERSION_MAJOR 2)
