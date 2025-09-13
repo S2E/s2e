@@ -18,13 +18,17 @@
 
 namespace klee {
 
-template <typename T> class BitArrayT : public RefCount {
+// This class cannot derive from RefCount because we need to keep m_bits
+// as the first member for fast access from C code.
+template <typename T> class BitArrayT {
 private:
     // XXX(s2e) for now we keep this first to access from C code
     // (yes, we do need to access if really fast)
     T *m_bits;
     unsigned m_bitcount;
     unsigned m_setbitcount;
+
+    std::atomic<unsigned> m_refCount = 0;
 
     static const auto BITS = sizeof(*m_bits) * 8;
     static const auto BITSM1 = BITS - 1;
@@ -143,7 +147,30 @@ public:
 
         return false;
     }
+
+    friend void intrusive_ptr_add_ref(BitArrayT<T> *ptr);
+    friend void intrusive_ptr_release(BitArrayT<T> *ptr);
 };
+
+inline void intrusive_ptr_add_ref(BitArrayT<uint64_t> *ptr) {
+    ++ptr->m_refCount;
+}
+
+inline void intrusive_ptr_release(BitArrayT<uint64_t> *ptr) {
+    if (--ptr->m_refCount == 0) {
+        delete ptr;
+    }
+}
+
+inline void intrusive_ptr_add_ref(BitArrayT<uint32_t> *ptr) {
+    ++ptr->m_refCount;
+}
+
+inline void intrusive_ptr_release(BitArrayT<uint32_t> *ptr) {
+    if (--ptr->m_refCount == 0) {
+        delete ptr;
+    }
+}
 
 using BitArray = BitArrayT<uint64_t>;
 using BitArrayPtr = boost::intrusive_ptr<BitArray>;
