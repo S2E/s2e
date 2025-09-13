@@ -59,9 +59,6 @@ add_definitions(${LLVM_DEFINITIONS})
 include_directories("include")
 include_directories(SYSTEM ${LLVM_INCLUDE_DIRS})
 
-# llvm_map_components_to_libnames(LLVM_LIBS all) produces empty output for some reason
-set(LLVM_LIBS ${LLVM_AVAILABLE_LIBS})
-
 ##################
 
 find_package(KLEE REQUIRED)
