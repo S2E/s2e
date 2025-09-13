@@ -48,7 +48,7 @@ check_coverage() {
 
     echo === Checking code coverage
 
-    COV_PC=$(grep "lines......" $S2E_LAST/cov.log | cut -d : -f 2 | cut -d '%' -f 1)
+    COV_PC=$(grep "lines\.\." $S2E_LAST/cov.log | cut -d : -f 2 | cut -d '%' -f 1)
     if [ "x$COV_PC" = "x" ]; then
         echo Could not get coverage
         exit 1
