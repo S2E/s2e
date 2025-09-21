@@ -38,6 +38,11 @@
 #  SYSTEM_CLANG_VERSION=19
 #      Override the default clang version (defaults to clang-19)
 
+ifndef S2E_SRC
+S2E_SRC:=$(dir $(realpath $(lastword $(MAKEFILE_LIST))))
+endif
+
+include $(S2E_SRC)/Makefile.common
 
 # Check the build directory
 ifeq ($(shell ls libs2e/src/libs2e.c 2>&1),libs2e/src/libs2e.c)
@@ -49,50 +54,12 @@ endif
 #############
 
 # S2E variables
-BUILD_SCRIPTS_SRC?=$(dir $(realpath $(lastword $(MAKEFILE_LIST))))/scripts
-S2E_SRC?=$(realpath $(BUILD_SCRIPTS_SRC)/../)
+
 S2E_PREFIX?=$(CURDIR)/opt
 S2E_BUILD:=$(CURDIR)
 
 # Build Z3 from binary (default, "yes") or source ("no")
 USE_Z3_BINARY?=yes
-
-# Either choose Release or RelWithDebInfo
-RELEASE_BUILD_TYPE=RelWithDebInfo
-
-# corei7 avoids instructions not supported by VirtualBox. Use "native" instead
-# to optimize for your current CPU.
-BUILD_ARCH?=native
-
-CFLAGS_ARCH:=-march=$(BUILD_ARCH)
-CXXFLAGS_ARCH:=-march=$(BUILD_ARCH)
-
-CXXFLAGS_DEBUG:=$(CXXFLAGS_ARCH) -fno-limit-debug-info
-CXXFLAGS_RELEASE:=$(CXXFLAGS_ARCH)
-
-SED:=sed
-
-# Set the number of parallel build jobs
-OS:=$(shell uname)
-ifeq ($(PARALLEL), no)
-JOBS:=1
-else ifeq ($(OS),Darwin)
-JOBS:=$(patsubst hw.ncpu:%,%,$(shell sysctl hw.ncpu))
-SED:=gsed
-PLATFORM:=darwin
-else ifeq ($(OS),Linux)
-JOBS:=$(shell grep -c ^processor /proc/cpuinfo)
-PLATFORM:=linux
-endif
-
-MAKE:=make -j$(JOBS)
-
-FIND_SOURCE=$(shell find $(1) -name '*.cpp' -o -name '*.h' -o -name '*.c')
-FIND_CONFIG_SOURCE=$(shell find $(1) -name 'configure' -o -name 'CMakeLists.txt' -o -name '*.in')
-
-# TODO: figure out how to automatically get the latest version without
-# having to update this URL.
-GUEST_TOOLS_BINARIES_URL=https://github.com/S2E/s2e/releases/download/v2.0.0/
 
 # System LLVM variables
 SYSTEM_LLVM_CONFIG?=llvm-config-14
@@ -145,23 +112,15 @@ RAPIDJSON_BUILD_DIR=rapidjson-build
 # Targets #
 ###########
 
-all: all-release guest-tools
+all: all-release
 
 all-release: stamps/libs2e-release-make stamps/tools-release-make
 all-debug: stamps/libs2e-debug-make stamps/tools-debug-make
 
-guest-tools: stamps/guest-tools32-make stamps/guest-tools64-make
-guest-tools-win: stamps/guest-tools32-win-make stamps/guest-tools64-win-make
-
-guest-tools-install: stamps/guest-tools32-install stamps/guest-tools64-install
-guest-tools-win-install: stamps/guest-tools32-win-install stamps/guest-tools64-win-install
-
 install: all-release stamps/libs2e-release-install stamps/tools-release-install \
-    stamps/libvmi-release-install guest-tools-install     \
-    guest-tools-win-install
+    stamps/libvmi-release-install
 install-debug: all-debug stamps/libs2e-debug-install stamps/tools-debug-install \
-    stamps/libvmi-debug-install guest-tools-install       \
-    guest-tools-win-install
+    stamps/libvmi-debug-install
 
 # From https://stackoverflow.com/questions/4219255/how-do-you-get-the-list-of-targets-in-a-makefile
 list:
@@ -178,26 +137,12 @@ ALWAYS:
 $(KLEE_DIRS) libq-debug libq-release                       \
 libfsigc++-debug libfsigc++-release libvmi-debug libvmi-release     \
 libcoroutine-release libcoroutine-debug libs2e-debug libs2e-release \
-tools-debug tools-release                                           \
-guest-tools32 guest-tools64 guest-tools32-win guest-tools64-win     \
-stamps:
+tools-debug tools-release:
 	mkdir -p $@
-
-stamps/%-configure: | % stamps
-	cd $* && $(CONFIGURE_COMMAND)
-	touch $@
-
-stamps/%-make:
-	$(MAKE) -C $* $(BUILD_OPTS)
-	touch $@
 
 #############
 # Downloads #
 #############
-
-define DOWNLOAD
-curl -f -L "$1" -o "$2"
-endef
 
 # Download Lua
 $(LUA_SRC):
@@ -221,24 +166,6 @@ $(RAPIDJSON_BUILD_DIR):
 	git clone $(RAPIDJSON_GIT_URL) $(RAPIDJSON_SRC_DIR)
 	cd $(RAPIDJSON_SRC_DIR) && git checkout $(RAPIDJSON_GIT_REV)
 	mkdir -p $(S2E_BUILD)/$(RAPIDJSON_BUILD_DIR)
-
-#####################
-# System Compilers #
-#####################
-
-# S2E is validated with clang-19. GCC is not supported.
-SYSTEM_CLANG_VERSION?=19
-SYSTEM_CLANG_CC?=clang-$(SYSTEM_CLANG_VERSION)
-SYSTEM_CLANG_CXX?=clang++-$(SYSTEM_CLANG_VERSION)
-
-# Verify compilers are available
-ifeq ($(shell which $(SYSTEM_CLANG_CC)),)
-$(error $(SYSTEM_CLANG_CC) not found in PATH. Please ensure a C compiler is installed.)
-endif
-
-ifeq ($(shell which $(SYSTEM_CLANG_CXX)),)
-$(error $(SYSTEM_CLANG_CXX) not found in PATH. Please ensure a C++ compiler is installed.)
-endif
 
 
 ######
@@ -651,76 +578,4 @@ stamps/tools-release-install: stamps/tools-release-make
 
 stamps/tools-debug-install: stamps/tools-debug-make
 	$(MAKE) -C tools-debug install
-	touch $@
-
-###############
-# Guest tools #
-###############
-
-stamps/guest-tools32-configure: CONFIGURE_COMMAND = cmake                                                                    \
-                                                    -DCMAKE_C_COMPILER=$(SYSTEM_CLANG_CC)                                    \
-                                                    -DCMAKE_CXX_COMPILER=$(SYSTEM_CLANG_CXX)                                 \
-                                                    -DCMAKE_INSTALL_PREFIX=$(S2E_PREFIX)/bin/guest-tools32                   \
-                                                    -DCMAKE_TOOLCHAIN_FILE=$(S2E_SRC)/guest/cmake/Toolchain-linux-i686.cmake \
-                                                    $(S2E_SRC)/guest
-
-stamps/guest-tools64-configure: CONFIGURE_COMMAND = cmake                                                                       \
-                                                    -DCMAKE_C_COMPILER=$(SYSTEM_CLANG_CC)                                       \
-                                                    -DCMAKE_CXX_COMPILER=$(SYSTEM_CLANG_CXX)                                    \
-                                                    -DCMAKE_INSTALL_PREFIX=$(S2E_PREFIX)/bin/guest-tools64                      \
-                                                    -DCMAKE_TOOLCHAIN_FILE=$(S2E_SRC)/guest/cmake/Toolchain-linux-x86_64.cmake  \
-                                                    $(S2E_SRC)/guest
-
-stamps/guest-tools32-win-configure: CONFIGURE_COMMAND = cmake                                                                       \
-                                                        -DCMAKE_INSTALL_PREFIX=$(S2E_PREFIX)/bin/guest-tools32                      \
-                                                        -DCMAKE_TOOLCHAIN_FILE=$(S2E_SRC)/guest/cmake/Toolchain-windows-i686.cmake  \
-                                                        $(S2E_SRC)/guest
-
-stamps/guest-tools64-win-configure: CONFIGURE_COMMAND = cmake                                                                        \
-                                                        -DCMAKE_INSTALL_PREFIX=$(S2E_PREFIX)/bin/guest-tools64                       \
-                                                        -DCMAKE_TOOLCHAIN_FILE=$(S2E_SRC)/guest/cmake/Toolchain-windows-x86_64.cmake \
-                                                        $(S2E_SRC)/guest
-
-stamps/guest-tools32-make: stamps/guest-tools32-configure
-
-stamps/guest-tools64-make: stamps/guest-tools64-configure
-
-stamps/guest-tools32-win-make: stamps/guest-tools32-win-configure
-
-stamps/guest-tools64-win-make: stamps/guest-tools64-win-configure
-
-# Install precompiled windows drivers
-$(S2E_PREFIX)/bin/guest-tools32 $(S2E_PREFIX)/bin/guest-tools64:
-	mkdir -p "$@"
-
-define DOWNLOAD_S2E_TOOL
-  $(S2E_PREFIX)/bin/guest-tools$1/$2: | $(S2E_PREFIX)/bin/guest-tools$1
-	$(call DOWNLOAD,$(GUEST_TOOLS_BINARIES_URL)/$3,$$@)
-endef
-
-$(eval $(call DOWNLOAD_S2E_TOOL,32,s2e.sys,s2e32.sys))
-$(eval $(call DOWNLOAD_S2E_TOOL,32,s2e.inf,s2e.inf))
-$(eval $(call DOWNLOAD_S2E_TOOL,32,drvctl.exe,drvctl32.exe))
-$(eval $(call DOWNLOAD_S2E_TOOL,32,libs2e32.dll,libs2e32.dll))
-$(eval $(call DOWNLOAD_S2E_TOOL,32,tickler.exe,tickler32.exe))
-
-$(eval $(call DOWNLOAD_S2E_TOOL,64,s2e.sys,s2e.sys))
-$(eval $(call DOWNLOAD_S2E_TOOL,64,s2e.inf,s2e.inf))
-$(eval $(call DOWNLOAD_S2E_TOOL,64,drvctl.exe,drvctl.exe))
-$(eval $(call DOWNLOAD_S2E_TOOL,64,libs2e32.dll,libs2e32.dll))
-$(eval $(call DOWNLOAD_S2E_TOOL,64,libs2e64.dll,libs2e64.dll))
-$(eval $(call DOWNLOAD_S2E_TOOL,64,tickler.exe,tickler64.exe))
-
-guest-tools32-windrv: $(addprefix $(S2E_PREFIX)/bin/guest-tools32/,s2e.sys s2e.inf drvctl.exe libs2e32.dll tickler.exe)
-	echo $^
-
-guest-tools64-windrv: $(addprefix $(S2E_PREFIX)/bin/guest-tools64/,s2e.sys s2e.inf drvctl.exe libs2e32.dll libs2e64.dll tickler.exe)
-	echo $^
-
-stamps/guest-tools%-win-install: stamps/guest-tools%-win-make guest-tools32-windrv guest-tools64-windrv
-	$(MAKE) -C guest-tools$*-win install
-	touch $@
-
-stamps/guest-tools%-install: stamps/guest-tools%-make guest-tools32-windrv guest-tools64-windrv
-	$(MAKE) -C guest-tools$* install
 	touch $@

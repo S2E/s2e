@@ -1,0 +1,99 @@
+# Copyright (C) 2014-2023 Cyberhaven
+# Copyright (C) 2010-2014 Dependable Systems Laboratory, EPFL
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+#####################
+# System Compilers #
+#####################
+
+# S2E is validated with clang-19. GCC is not supported.
+SYSTEM_CLANG_VERSION?=19
+SYSTEM_CLANG_CC?=clang-$(SYSTEM_CLANG_VERSION)
+SYSTEM_CLANG_CXX?=clang++-$(SYSTEM_CLANG_VERSION)
+
+# Verify compilers are available
+ifeq ($(shell which $(SYSTEM_CLANG_CC)),)
+$(error $(SYSTEM_CLANG_CC) not found in PATH. Please ensure a C compiler is installed.)
+endif
+
+ifeq ($(shell which $(SYSTEM_CLANG_CXX)),)
+$(error $(SYSTEM_CLANG_CXX) not found in PATH. Please ensure a C++ compiler is installed.)
+endif
+
+#############
+# Downloads #
+#############
+
+define DOWNLOAD
+curl -f -L "$1" -o "$2"
+endef
+
+#############
+
+# Set the number of parallel build jobs
+OS:=$(shell uname)
+ifeq ($(PARALLEL), no)
+JOBS:=1
+else ifeq ($(OS),Darwin)
+JOBS:=$(patsubst hw.ncpu:%,%,$(shell sysctl hw.ncpu))
+SED:=gsed
+PLATFORM:=darwin
+else ifeq ($(OS),Linux)
+JOBS:=$(shell grep -c ^processor /proc/cpuinfo)
+PLATFORM:=linux
+endif
+
+MAKE:=make -j$(JOBS)
+
+FIND_SOURCE=$(shell find $(1) -name '*.cpp' -o -name '*.h' -o -name '*.c')
+FIND_CONFIG_SOURCE=$(shell find $(1) -name 'configure' -o -name 'CMakeLists.txt' -o -name '*.in')
+
+SED:=sed
+
+# Either choose Release or RelWithDebInfo
+RELEASE_BUILD_TYPE=RelWithDebInfo
+
+# corei7 avoids instructions not supported by VirtualBox. Use "native" instead
+# to optimize for your current CPU.
+BUILD_ARCH?=native
+
+CFLAGS_ARCH:=-march=$(BUILD_ARCH)
+CXXFLAGS_ARCH:=-march=$(BUILD_ARCH)
+
+CXXFLAGS_DEBUG:=$(CXXFLAGS_ARCH) -fno-limit-debug-info
+CXXFLAGS_RELEASE:=$(CXXFLAGS_ARCH)
+
+
+##################
+# Common targets #
+##################
+
+stamps:
+	mkdir -p $@
+
+stamps/%-configure: | % stamps
+	cd $* && $(CONFIGURE_COMMAND)
+	touch $@
+
+stamps/%-make:
+	$(MAKE) -C $* $(BUILD_OPTS)
+	touch $@
+
+
