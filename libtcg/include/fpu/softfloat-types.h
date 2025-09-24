@@ -107,9 +107,8 @@ typedef struct {
     uint64_t low;
     uint16_t high;
 } floatx80;
-#define make_floatx80(exp, mant) ((floatx80){mant, exp})
-#define make_floatx80_init(exp, mant) \
-    { .low = mant, .high = exp }
+#define make_floatx80(exp, mant)      ((floatx80) {mant, exp})
+#define make_floatx80_init(exp, mant) {.low = mant, .high = exp}
 typedef struct {
 #if HOST_BIG_ENDIAN
     uint64_t high, low;
@@ -117,9 +116,8 @@ typedef struct {
     uint64_t low, high;
 #endif
 } float128;
-#define make_float128(high_, low_) ((float128){.high = high_, .low = low_})
-#define make_float128_init(high_, low_) \
-    { .high = high_, .low = low_ }
+#define make_float128(high_, low_)      ((float128) {.high = high_, .low = low_})
+#define make_float128_init(high_, low_) {.high = high_, .low = low_}
 
 /*
  * Software neural-network floating-point types.

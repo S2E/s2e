@@ -121,7 +121,7 @@ public:
 
 class PluginState {
 public:
-    virtual ~PluginState(){};
+    virtual ~PluginState() {};
     virtual PluginState *clone() const = 0;
 };
 

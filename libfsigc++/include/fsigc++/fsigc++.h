@@ -30,7 +30,7 @@
 #include <stdlib.h>
 #include <vector>
 
-//#define FASSERT assert
+// #define FASSERT assert
 #define FASSERT(x)
 #define fsigc sigc
 

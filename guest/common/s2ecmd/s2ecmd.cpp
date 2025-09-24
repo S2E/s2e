@@ -44,7 +44,7 @@
 
 #ifdef _WIN32
 #include <windows.h>
-#define SLEEP(x) Sleep((x) *1000)
+#define SLEEP(x) Sleep((x) * 1000)
 #else
 #define SLEEP(x) sleep(x)
 #endif
@@ -289,11 +289,9 @@ static int handler_put(int argc, const char **args) {
     return handler_put(form_args(argc, args));
 }
 
-#define COMMAND(c, arg_count, desc) \
-    { #c, handler_##c, arg_count, arg_count, desc }
+#define COMMAND(c, arg_count, desc) {#c, handler_##c, arg_count, arg_count, desc}
 
-#define COMMAND2(c, min_arg_count, max_arg_count, desc) \
-    { #c, handler_##c, min_arg_count, max_arg_count, desc }
+#define COMMAND2(c, min_arg_count, max_arg_count, desc) {#c, handler_##c, min_arg_count, max_arg_count, desc}
 
 static cmd_t s_commands[] = {
     COMMAND(kill, 2, "Kill the current state with the specified numeric status and message"),

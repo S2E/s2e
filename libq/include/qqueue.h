@@ -90,8 +90,7 @@ extern "C" {
         struct type *lh_first; /* first element */ \
     }
 
-#define QLIST_HEAD_INITIALIZER(head) \
-    { NULL }
+#define QLIST_HEAD_INITIALIZER(head) {NULL}
 
 #define QLIST_ENTRY(type)                                             \
     struct {                                                          \
@@ -172,8 +171,7 @@ extern "C" {
         struct type *slh_first; /* first element */ \
     }
 
-#define QSLIST_HEAD_INITIALIZER(head) \
-    { NULL }
+#define QSLIST_HEAD_INITIALIZER(head) {NULL}
 
 #define QSLIST_ENTRY(type)                        \
     struct {                                      \
@@ -244,8 +242,7 @@ extern "C" {
         struct type **sqh_last; /* addr of last next element */ \
     }
 
-#define QSIMPLEQ_HEAD_INITIALIZER(head) \
-    { NULL, &(head).sqh_first }
+#define QSIMPLEQ_HEAD_INITIALIZER(head) {NULL, &(head).sqh_first}
 
 #define QSIMPLEQ_ENTRY(type)                      \
     struct {                                      \

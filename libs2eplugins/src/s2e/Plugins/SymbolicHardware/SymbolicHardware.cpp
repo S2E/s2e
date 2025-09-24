@@ -78,15 +78,13 @@ template <typename T> bool SymbolicHardware::parseRangeList(ConfigFile *cfg, con
         ss << key << "[" << (i + 1) << "]";
         uint64_t start = cfg->getInt(ss.str() + "[1]", 0, &ok);
         if (!ok) {
-            getWarningsStream() << "Could not parse start port: " << ss.str() + "[1]"
-                                << "\n";
+            getWarningsStream() << "Could not parse start port: " << ss.str() + "[1]" << "\n";
             return false;
         }
 
         uint64_t end = cfg->getInt(ss.str() + "[2]", 0, &ok);
         if (!ok) {
-            getWarningsStream() << "Could not parse port range: " << ss.str() + "[2]"
-                                << "\n";
+            getWarningsStream() << "Could not parse port range: " << ss.str() + "[2]" << "\n";
             return false;
         }
 

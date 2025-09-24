@@ -63,8 +63,8 @@ private:
     uint64_t mPid = -1;
 
 public:
-    BaseLinuxMonitorState(){};
-    virtual ~BaseLinuxMonitorState(){};
+    BaseLinuxMonitorState() {};
+    virtual ~BaseLinuxMonitorState() {};
     virtual PluginState *clone() const = 0;
 
     inline uint64_t getTgid() const {

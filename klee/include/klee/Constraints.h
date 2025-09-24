@@ -52,7 +52,9 @@ class ConditionNode;
 } // namespace klee
 
 namespace std {
-template <> struct iterator_traits<klee::ConditionIterator> { using value_type = klee::ConditionNode; };
+template <> struct iterator_traits<klee::ConditionIterator> {
+    using value_type = klee::ConditionNode;
+};
 } // namespace std
 
 namespace klee {

@@ -75,10 +75,10 @@
 
 #include <functional>
 
-//#define S2E_DEBUG_INSTRUCTIONS
-//#define S2E_DEBUG_MEMOBJECT_NAME
-//#define S2E_TRACE_EFLAGS
-//#define FORCE_CONCRETIZATION
+// #define S2E_DEBUG_INSTRUCTIONS
+// #define S2E_DEBUG_MEMOBJECT_NAME
+// #define S2E_TRACE_EFLAGS
+// #define FORCE_CONCRETIZATION
 
 using namespace std;
 using namespace llvm;

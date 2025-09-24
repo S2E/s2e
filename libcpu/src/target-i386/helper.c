@@ -104,7 +104,7 @@ target_ulong cpu_get_eflags(CPUX86State *env) {
     return (cpu_get_eflags_dirty(env));
 }
 
-//#define DEBUG_MMU
+// #define DEBUG_MMU
 
 /* NOTE: must be called outside the CPU execute loop */
 void cpu_state_reset(CPUX86State *env) {

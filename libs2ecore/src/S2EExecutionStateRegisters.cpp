@@ -31,8 +31,8 @@
 #include <llvm/Support/CommandLine.h>
 
 // XXX: The idea is to avoid function calls
-//#define small_memcpy(dest, source, count) asm volatile ("cld; rep movsb"::"S"(source), "D"(dest), "c" (count):"flags",
-//"memory")
+// #define small_memcpy(dest, source, count) asm volatile ("cld; rep movsb"::"S"(source), "D"(dest), "c"
+// (count):"flags", "memory")
 #define small_memcpy __builtin_memcpy
 
 extern llvm::cl::opt<bool> PrintModeSwitch;

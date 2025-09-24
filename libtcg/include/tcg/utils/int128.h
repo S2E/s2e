@@ -211,15 +211,15 @@ struct Int128 {
 };
 
 static inline Int128 int128_make64(uint64_t a) {
-    return (Int128){.lo = a, .hi = 0};
+    return (Int128) {.lo = a, .hi = 0};
 }
 
 static inline Int128 int128_makes64(int64_t a) {
-    return (Int128){.lo = (uint64_t) a, .hi = a >> 63};
+    return (Int128) {.lo = (uint64_t) a, .hi = a >> 63};
 }
 
 static inline Int128 int128_make128(uint64_t lo, uint64_t hi) {
-    return (Int128){.lo = lo, .hi = (int64_t) hi};
+    return (Int128) {.lo = lo, .hi = (int64_t) hi};
 }
 
 static inline uint64_t int128_get64(Int128 a) {

@@ -39,18 +39,12 @@ struct QLitDictEntry {
     QLitObject value;
 };
 
-#define QLIT_QNULL \
-    { .type = QTYPE_QNULL }
-#define QLIT_QBOOL(val) \
-    { .type = QTYPE_QBOOL, .value.qbool = (val) }
-#define QLIT_QNUM(val) \
-    { .type = QTYPE_QNUM, .value.qnum = (val) }
-#define QLIT_QSTR(val) \
-    { .type = QTYPE_QSTRING, .value.qstr = (val) }
-#define QLIT_QDICT(val) \
-    { .type = QTYPE_QDICT, .value.qdict = (val) }
-#define QLIT_QLIST(val) \
-    { .type = QTYPE_QLIST, .value.qlist = (val) }
+#define QLIT_QNULL      {.type = QTYPE_QNULL}
+#define QLIT_QBOOL(val) {.type = QTYPE_QBOOL, .value.qbool = (val)}
+#define QLIT_QNUM(val)  {.type = QTYPE_QNUM, .value.qnum = (val)}
+#define QLIT_QSTR(val)  {.type = QTYPE_QSTRING, .value.qstr = (val)}
+#define QLIT_QDICT(val) {.type = QTYPE_QDICT, .value.qdict = (val)}
+#define QLIT_QLIST(val) {.type = QTYPE_QLIST, .value.qlist = (val)}
 
 bool qlit_equal_qobject(const QLitObject *lhs, const QObject *rhs);
 

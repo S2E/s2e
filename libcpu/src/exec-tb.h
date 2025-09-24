@@ -28,8 +28,8 @@ struct TranslationBlock;
 void tb_invalidate_phys_page_fast(tb_page_addr_t start, int len);
 
 /* list iterators for lists of tagged pointers in TranslationBlock */
-#define TB_FOR_EACH_TAGGED(head, tb, n, field)                                                               \
-    for (n = (head) &1, tb = (TranslationBlock *) ((head) & ~1); tb; tb = (TranslationBlock *) tb->field[n], \
+#define TB_FOR_EACH_TAGGED(head, tb, n, field)                                                                \
+    for (n = (head) & 1, tb = (TranslationBlock *) ((head) & ~1); tb; tb = (TranslationBlock *) tb->field[n], \
         n = (uintptr_t) tb & 1, tb = (TranslationBlock *) ((uintptr_t) tb & ~1))
 
 #define PAGE_FOR_EACH_TB(pagedesc, tb, n) TB_FOR_EACH_TAGGED((pagedesc)->first_tb, tb, n, page_next)

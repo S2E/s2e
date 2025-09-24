@@ -143,7 +143,7 @@ struct NDIS_COMMON_OPEN_BLOCK32 {
     uint32_t StatusHandler;
     uint32_t StatusCompleteHandler;
 
-    //#if defined(NDIS_WRAPPER)
+    // #if defined(NDIS_WRAPPER)
     ULONG Flags;
     LONG References;
     KSPIN_LOCK SpinLock; // guards Closing
@@ -182,7 +182,7 @@ struct NDIS_COMMON_OPEN_BLOCK32 {
 
     uint32_t NextGlobalOpen; // PNDIS_OPEN_BLOCK
 
-    //#endif
+    // #endif
 
 } __attribute__((packed));
 
@@ -192,7 +192,7 @@ struct NDIS_COMMON_OPEN_BLOCK32 {
 struct NDIS_OPEN_BLOCK32 {
     NDIS_COMMON_OPEN_BLOCK32 NdisCommonOpenBlock;
 
-    //#if defined(NDIS_WRAPPER)
+    // #if defined(NDIS_WRAPPER)
 
     //
     // The stuff below is for CO drivers/protocols. This part is not allocated for
@@ -229,7 +229,7 @@ struct NDIS_OPEN_BLOCK32 {
         LONG PendingAfNotifications;
         uint32_t AfNotifyCompleteEvent; // PKEVENT
     } NDIS_OPEN_CO;
-    //#endif
+    // #endif
 } __attribute__((packed));
 
 struct NDIS_PROTOCOL_BLOCK32 {

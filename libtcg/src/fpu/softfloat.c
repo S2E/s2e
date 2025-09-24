@@ -524,7 +524,7 @@ static const FloatFmt float128_params = {FLOAT_PARAMS(15, 112)};
 
 #define FLOATX80_PARAMS(R)                                             \
     FLOAT_PARAMS_(15), .frac_size = R == 64 ? 63 : R, .frac_shift = 0, \
-                       .round_mask = R == 64 ? -1 : (1ull << ((-R - 1) & 63)) - 1
+        .round_mask = R == 64 ? -1 : (1ull << ((-R - 1) & 63)) - 1
 
 static const FloatFmt floatx80_params[3] = {
     [floatx80_precision_s] = {FLOATX80_PARAMS(23)},
@@ -537,10 +537,10 @@ static void unpack_raw64(FloatParts64 *r, const FloatFmt *fmt, uint64_t raw) {
     const int f_size = fmt->frac_size;
     const int e_size = fmt->exp_size;
 
-    *r = (FloatParts64){.cls = float_class_unclassified,
-                        .sign = extract64(raw, f_size + e_size, 1),
-                        .exp = extract64(raw, f_size, e_size),
-                        .frac = extract64(raw, 0, f_size)};
+    *r = (FloatParts64) {.cls = float_class_unclassified,
+                         .sign = extract64(raw, f_size + e_size, 1),
+                         .exp = extract64(raw, f_size, e_size),
+                         .frac = extract64(raw, 0, f_size)};
 }
 
 static void QEMU_FLATTEN float16_unpack_raw(FloatParts64 *p, float16 f) {
@@ -560,17 +560,17 @@ static void QEMU_FLATTEN float64_unpack_raw(FloatParts64 *p, float64 f) {
 }
 
 static void QEMU_FLATTEN floatx80_unpack_raw(FloatParts128 *p, floatx80 f) {
-    *p = (FloatParts128){.cls = float_class_unclassified,
-                         .sign = extract32(f.high, 15, 1),
-                         .exp = extract32(f.high, 0, 15),
-                         .frac_hi = f.low};
+    *p = (FloatParts128) {.cls = float_class_unclassified,
+                          .sign = extract32(f.high, 15, 1),
+                          .exp = extract32(f.high, 0, 15),
+                          .frac_hi = f.low};
 }
 
 static void QEMU_FLATTEN float128_unpack_raw(FloatParts128 *p, float128 f) {
     const int f_size = float128_params.frac_size - 64;
     const int e_size = float128_params.exp_size;
 
-    *p = (FloatParts128){
+    *p = (FloatParts128) {
         .cls = float_class_unclassified,
         .sign = extract64(f.high, f_size + e_size, 1),
         .exp = extract64(f.high, f_size, e_size),
@@ -628,10 +628,10 @@ static float128 QEMU_FLATTEN float128_pack_raw(const FloatParts128 *p) {
 *----------------------------------------------------------------------------*/
 #include "softfloat-specialize.c.inc"
 
-#define PARTS_GENERIC_64_128(NAME, P) _Generic((P), FloatParts64 * : parts64_##NAME, FloatParts128 * : parts128_##NAME)
+#define PARTS_GENERIC_64_128(NAME, P) _Generic((P), FloatParts64 *: parts64_##NAME, FloatParts128 *: parts128_##NAME)
 
 #define PARTS_GENERIC_64_128_256(NAME, P) \
-    _Generic((P), FloatParts64 * : parts64_##NAME, FloatParts128 * : parts128_##NAME, FloatParts256 * : parts256_##NAME)
+    _Generic((P), FloatParts64 *: parts64_##NAME, FloatParts128 *: parts128_##NAME, FloatParts256 *: parts256_##NAME)
 
 #define parts_default_nan(P, S) PARTS_GENERIC_64_128(default_nan, P)(P, S)
 #define parts_silence_nan(P, S) PARTS_GENERIC_64_128(silence_nan, P)(P, S)
@@ -774,10 +774,10 @@ static void parts128_log2(FloatParts128 *a, float_status *s, const FloatFmt *f);
  * Helper functions for softfloat-parts.c.inc, per-size operations.
  */
 
-#define FRAC_GENERIC_64_128(NAME, P) _Generic((P), FloatParts64 * : frac64_##NAME, FloatParts128 * : frac128_##NAME)
+#define FRAC_GENERIC_64_128(NAME, P) _Generic((P), FloatParts64 *: frac64_##NAME, FloatParts128 *: frac128_##NAME)
 
 #define FRAC_GENERIC_64_128_256(NAME, P) \
-    _Generic((P), FloatParts64 * : frac64_##NAME, FloatParts128 * : frac128_##NAME, FloatParts256 * : frac256_##NAME)
+    _Generic((P), FloatParts64 *: frac64_##NAME, FloatParts128 *: frac128_##NAME, FloatParts256 *: frac256_##NAME)
 
 static bool frac64_add(FloatParts64 *r, FloatParts64 *a, FloatParts64 *b) {
     return uadd64_overflow(a->frac, b->frac, &r->frac);

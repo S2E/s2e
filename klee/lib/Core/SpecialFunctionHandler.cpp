@@ -37,10 +37,8 @@ struct HandlerInfo {
 };
 
 HandlerInfo handlerInfo[] = {
-#define add(name, handler, ret) \
-    { name, &SpecialFunctionHandler::handler, false, ret, false }
-#define addDNR(name, handler) \
-    { name, &SpecialFunctionHandler::handler, true, false, false }
+#define add(name, handler, ret) {name, &SpecialFunctionHandler::handler, false, ret, false}
+#define addDNR(name, handler)   {name, &SpecialFunctionHandler::handler, true, false, false}
 #undef addDNR
 #undef add
 };

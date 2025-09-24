@@ -24,7 +24,7 @@
 #include <s2e/cpu.h>
 #include <s2e/opcodes.h>
 
-//#define DEBUG_DPC
+// #define DEBUG_DPC
 
 #include <s2e/ConfigFile.h>
 #include <s2e/FastReg.h>

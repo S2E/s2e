@@ -325,7 +325,7 @@ static uint64_t do_constant_folding_2(TCGOpcode op, uint64_t x, uint64_t y) {
         case INDEX_op_rotl_i64:
             return rol64(x, y & 63);
 
-            CASE_OP_32_64_VEC(not ) : return ~x;
+            CASE_OP_32_64_VEC(not) : return ~x;
 
             CASE_OP_32_64(neg) : return -x;
 
@@ -1921,8 +1921,8 @@ void tcg_optimize(TCGContext *s) {
             case INDEX_op_brcond2_i32:
                 done = fold_brcond2(&ctx, op);
                 break;
-                CASE_OP_32_64(bswap16)
-                    : CASE_OP_32_64(bswap32) : case INDEX_op_bswap64_i64 : done = fold_bswap(&ctx, op);
+            CASE_OP_32_64(bswap16) : CASE_OP_32_64(bswap32) : case INDEX_op_bswap64_i64:
+                done = fold_bswap(&ctx, op);
                 break;
                 CASE_OP_32_64(clz) : CASE_OP_32_64(ctz) : done = fold_count_zeros(&ctx, op);
                 break;
@@ -1944,20 +1944,20 @@ void tcg_optimize(TCGContext *s) {
                 break;
                 CASE_OP_32_64(extract2) : done = fold_extract2(&ctx, op);
                 break;
-                CASE_OP_32_64(ext8s)
-                    : CASE_OP_32_64(ext16s)
-                    : case INDEX_op_ext32s_i64 : case INDEX_op_ext_i32_i64 : done = fold_exts(&ctx, op);
+            CASE_OP_32_64(ext8s) : CASE_OP_32_64(ext16s) : case INDEX_op_ext32s_i64:
+            case INDEX_op_ext_i32_i64:
+                done = fold_exts(&ctx, op);
                 break;
-                CASE_OP_32_64(ext8u)
-                    : CASE_OP_32_64(ext16u)
-                    : case INDEX_op_ext32u_i64 : case INDEX_op_extu_i32_i64 : case INDEX_op_extrl_i64_i32
-                    : case INDEX_op_extrh_i64_i32 : done = fold_extu(&ctx, op);
+            CASE_OP_32_64(ext8u) : CASE_OP_32_64(ext16u) : case INDEX_op_ext32u_i64:
+            case INDEX_op_extu_i32_i64:
+            case INDEX_op_extrl_i64_i32:
+            case INDEX_op_extrh_i64_i32:
+                done = fold_extu(&ctx, op);
                 break;
-                CASE_OP_32_64(ld8s)
-                    : CASE_OP_32_64(ld8u)
-                    : CASE_OP_32_64(ld16s)
-                    : CASE_OP_32_64(ld16u)
-                    : case INDEX_op_ld32s_i64 : case INDEX_op_ld32u_i64 : done = fold_tcg_ld(&ctx, op);
+            CASE_OP_32_64(ld8s)
+                : CASE_OP_32_64(ld8u) : CASE_OP_32_64(ld16s) : CASE_OP_32_64(ld16u) : case INDEX_op_ld32s_i64:
+            case INDEX_op_ld32u_i64:
+                done = fold_tcg_ld(&ctx, op);
                 break;
             case INDEX_op_mb:
                 done = fold_mb(&ctx, op);
@@ -1978,7 +1978,7 @@ void tcg_optimize(TCGContext *s) {
                 break;
                 CASE_OP_32_64_VEC(nor) : done = fold_nor(&ctx, op);
                 break;
-                CASE_OP_32_64_VEC(not ) : done = fold_not(&ctx, op);
+                CASE_OP_32_64_VEC(not) : done = fold_not(&ctx, op);
                 break;
                 CASE_OP_32_64_VEC(or) : done = fold_or(&ctx, op);
                 break;

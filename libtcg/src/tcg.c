@@ -893,7 +893,7 @@ static ffi_cif *init_ffi_layout(TCGHelperInfo *info) {
     struct {
         ffi_cif cif;
         ffi_type *args[];
-    } * ca;
+    } *ca;
     ffi_status status;
     int nargs;
 
@@ -958,7 +958,7 @@ static void layout_arg_even(TCGCumulativeArgs *cum) {
 static void layout_arg_1(TCGCumulativeArgs *cum, TCGHelperInfo *info, TCGCallArgumentKind kind) {
     TCGCallArgumentLoc *loc = &info->in[cum->info_in_idx];
 
-    *loc = (TCGCallArgumentLoc){
+    *loc = (TCGCallArgumentLoc) {
         .kind = kind,
         .arg_idx = cum->arg_idx,
         .arg_slot = cum->arg_slot,
@@ -972,7 +972,7 @@ static void layout_arg_normal_n(TCGCumulativeArgs *cum, TCGHelperInfo *info, int
 
     for (int i = 0; i < n; ++i) {
         /* Layout all using the same arg_idx, adjusting the subindex. */
-        loc[i] = (TCGCallArgumentLoc){
+        loc[i] = (TCGCallArgumentLoc) {
             .kind = TCG_CALL_ARG_NORMAL,
             .arg_idx = cum->arg_idx,
             .tmp_subindex = i,
@@ -1003,7 +1003,7 @@ static void layout_arg_by_ref(TCGCumulativeArgs *cum, TCGHelperInfo *info) {
      * do not accumulate into the regular arguments.
      */
     for (int i = 1; i < n; ++i) {
-        loc[i] = (TCGCallArgumentLoc){
+        loc[i] = (TCGCallArgumentLoc) {
             .kind = TCG_CALL_ARG_BY_REF_N,
             .arg_idx = cum->arg_idx,
             .tmp_subindex = i,
@@ -2687,7 +2687,7 @@ static void process_op_defs(TCGContext *s) {
                     o = i - 1;
                     tcg_debug_assert(!def->args_ct[o].pair);
                     tcg_debug_assert(!def->args_ct[o].ct);
-                    def->args_ct[i] = (TCGArgConstraint){
+                    def->args_ct[i] = (TCGArgConstraint) {
                         .pair = 2,
                         .pair_index = o,
                         .regs = def->args_ct[o].regs << 1,
@@ -2703,7 +2703,7 @@ static void process_op_defs(TCGContext *s) {
                     o = i - 1;
                     tcg_debug_assert(!def->args_ct[o].pair);
                     tcg_debug_assert(!def->args_ct[o].ct);
-                    def->args_ct[i] = (TCGArgConstraint){
+                    def->args_ct[i] = (TCGArgConstraint) {
                         .pair = 1,
                         .pair_index = o,
                         .regs = def->args_ct[o].regs >> 1,
@@ -5076,7 +5076,7 @@ static TCGAtomAlign atom_and_align_for_opc(TCGContext *s, MemOp opc, MemOp host_
             g_assert_not_reached();
     }
 
-    return (TCGAtomAlign){.atom = atmax, .align = align};
+    return (TCGAtomAlign) {.atom = atmax, .align = align};
 }
 
 /*
@@ -5828,127 +5828,126 @@ static void tcg_register_jit_int(const void *buf_ptr, size_t buf_size, const voi
 
     struct ElfImage *img;
 
-    static const struct ElfImage
-        img_template =
-            {
-                .ehdr =
-                    {
-                        .e_ident[EI_MAG0] = ELFMAG0,
-                        .e_ident[EI_MAG1] = ELFMAG1,
-                        .e_ident[EI_MAG2] = ELFMAG2,
-                        .e_ident[EI_MAG3] = ELFMAG3,
-                        .e_ident[EI_CLASS] = ELF_CLASS,
-                        .e_ident[EI_DATA] = ELF_DATA,
-                        .e_ident[EI_VERSION] = EV_CURRENT,
-                        .e_type = ET_EXEC,
-                        .e_machine = ELF_HOST_MACHINE,
-                        .e_version = EV_CURRENT,
-                        .e_phoff = offsetof(struct ElfImage, phdr),
-                        .e_shoff = offsetof(struct ElfImage, shdr),
-                        .e_ehsize = sizeof(ElfW(Shdr)),
-                        .e_phentsize = sizeof(ElfW(Phdr)),
-                        .e_phnum = 1,
-                        .e_shentsize = sizeof(ElfW(Shdr)),
-                        .e_shnum = ARRAY_SIZE(img->shdr),
-                        .e_shstrndx = ARRAY_SIZE(img->shdr) - 1,
+    static const struct ElfImage img_template =
+        {
+            .ehdr =
+                {
+                    .e_ident[EI_MAG0] = ELFMAG0,
+                    .e_ident[EI_MAG1] = ELFMAG1,
+                    .e_ident[EI_MAG2] = ELFMAG2,
+                    .e_ident[EI_MAG3] = ELFMAG3,
+                    .e_ident[EI_CLASS] = ELF_CLASS,
+                    .e_ident[EI_DATA] = ELF_DATA,
+                    .e_ident[EI_VERSION] = EV_CURRENT,
+                    .e_type = ET_EXEC,
+                    .e_machine = ELF_HOST_MACHINE,
+                    .e_version = EV_CURRENT,
+                    .e_phoff = offsetof(struct ElfImage, phdr),
+                    .e_shoff = offsetof(struct ElfImage, shdr),
+                    .e_ehsize = sizeof(ElfW(Shdr)),
+                    .e_phentsize = sizeof(ElfW(Phdr)),
+                    .e_phnum = 1,
+                    .e_shentsize = sizeof(ElfW(Shdr)),
+                    .e_shnum = ARRAY_SIZE(img->shdr),
+                    .e_shstrndx = ARRAY_SIZE(img->shdr) - 1,
 #ifdef ELF_HOST_FLAGS
-                        .e_flags = ELF_HOST_FLAGS,
+                    .e_flags = ELF_HOST_FLAGS,
 #endif
 #ifdef ELF_OSABI
-                        .e_ident[EI_OSABI] = ELF_OSABI,
+                    .e_ident[EI_OSABI] = ELF_OSABI,
 #endif
-                    },
-                .phdr =
-                    {
-                        .p_type = PT_LOAD,
-                        .p_flags = PF_X,
-                    },
-                .shdr = {[0] = {.sh_type = SHT_NULL},
-                         /* Trick: The contents of code_gen_buffer are not present in
-                            this fake ELF file; that got allocated elsewhere.  Therefore
-                            we mark .text as SHT_NOBITS (similar to .bss) so that readers
-                            will not look for contents.  We can record any address.  */
-                         [1] =
-                             {
-                                 /* .text */
-                                 .sh_type = SHT_NOBITS,
-                                 .sh_flags = SHF_EXECINSTR | SHF_ALLOC,
-                             },
-                         [2] =
-                             {
-                                 /* .debug_info */
-                                 .sh_type = SHT_PROGBITS,
-                                 .sh_offset = offsetof(struct ElfImage, di),
-                                 .sh_size = sizeof(struct DebugInfo),
-                             },
-                         [3] =
-                             {
-                                 /* .debug_abbrev */
-                                 .sh_type = SHT_PROGBITS,
-                                 .sh_offset = offsetof(struct ElfImage, da),
-                                 .sh_size = sizeof(img->da),
-                             },
-                         [4] =
-                             {
-                                 /* .debug_frame */
-                                 .sh_type = SHT_PROGBITS,
-                                 .sh_offset = sizeof(struct ElfImage),
-                             },
-                         [5] =
-                             {
-                                 /* .symtab */
-                                 .sh_type = SHT_SYMTAB,
-                                 .sh_offset = offsetof(struct ElfImage, sym),
-                                 .sh_size = sizeof(img->sym),
-                                 .sh_info = 1,
-                                 .sh_link = ARRAY_SIZE(img->shdr) - 1,
-                                 .sh_entsize = sizeof(ElfW(Sym)),
-                             },
-                         [6] =
-                             {
-                                 /* .strtab */
-                                 .sh_type = SHT_STRTAB,
-                                 .sh_offset = offsetof(struct ElfImage, str),
-                                 .sh_size = sizeof(img->str),
-                             }},
-                .sym = {[1] =
-                            {
-                                /* code_gen_buffer */
-                                .st_info = ELF_ST_INFO(STB_GLOBAL, STT_FUNC),
-                                .st_shndx = 1,
-                            }},
-                .di = {.len = sizeof(struct DebugInfo) - 4,
-                       .version = 2,
-                       .ptr_size = sizeof(void *),
-                       .cu_die = 1,
-                       .cu_lang = 0x8001, /* DW_LANG_Mips_Assembler */
-                       .fn_die = 2,
-                       .fn_name = "code_gen_buffer"},
-                .da =
-                    {
-                        1,         /* abbrev number (the cu) */
-                        0x11, 1,   /* DW_TAG_compile_unit, has children */
-                        0x13, 0x5, /* DW_AT_language, DW_FORM_data2 */
-                        0x11, 0x1, /* DW_AT_low_pc, DW_FORM_addr */
-                        0x12, 0x1, /* DW_AT_high_pc, DW_FORM_addr */
-                        0,    0,   /* end of abbrev */
-                        2,         /* abbrev number (the fn) */
-                        0x2e, 0,   /* DW_TAG_subprogram, no children */
-                        0x3,  0x8, /* DW_AT_name, DW_FORM_string */
-                        0x11, 0x1, /* DW_AT_low_pc, DW_FORM_addr */
-                        0x12, 0x1, /* DW_AT_high_pc, DW_FORM_addr */
-                        0,    0,   /* end of abbrev */
-                        0          /* no more abbrev */
-                    },
-                .str = "\0"
-                       ".text\0"
-                       ".debug_info\0"
-                       ".debug_abbrev\0"
-                       ".debug_frame\0"
-                       ".symtab\0"
-                       ".strtab\0"
-                       "code_gen_buffer",
-            };
+                },
+            .phdr =
+                {
+                    .p_type = PT_LOAD,
+                    .p_flags = PF_X,
+                },
+            .shdr = {[0] = {.sh_type = SHT_NULL},
+                     /* Trick: The contents of code_gen_buffer are not present in
+                        this fake ELF file; that got allocated elsewhere.  Therefore
+                        we mark .text as SHT_NOBITS (similar to .bss) so that readers
+                        will not look for contents.  We can record any address.  */
+                     [1] =
+                         {
+                             /* .text */
+                             .sh_type = SHT_NOBITS,
+                             .sh_flags = SHF_EXECINSTR | SHF_ALLOC,
+                         },
+                     [2] =
+                         {
+                             /* .debug_info */
+                             .sh_type = SHT_PROGBITS,
+                             .sh_offset = offsetof(struct ElfImage, di),
+                             .sh_size = sizeof(struct DebugInfo),
+                         },
+                     [3] =
+                         {
+                             /* .debug_abbrev */
+                             .sh_type = SHT_PROGBITS,
+                             .sh_offset = offsetof(struct ElfImage, da),
+                             .sh_size = sizeof(img->da),
+                         },
+                     [4] =
+                         {
+                             /* .debug_frame */
+                             .sh_type = SHT_PROGBITS,
+                             .sh_offset = sizeof(struct ElfImage),
+                         },
+                     [5] =
+                         {
+                             /* .symtab */
+                             .sh_type = SHT_SYMTAB,
+                             .sh_offset = offsetof(struct ElfImage, sym),
+                             .sh_size = sizeof(img->sym),
+                             .sh_info = 1,
+                             .sh_link = ARRAY_SIZE(img->shdr) - 1,
+                             .sh_entsize = sizeof(ElfW(Sym)),
+                         },
+                     [6] =
+                         {
+                             /* .strtab */
+                             .sh_type = SHT_STRTAB,
+                             .sh_offset = offsetof(struct ElfImage, str),
+                             .sh_size = sizeof(img->str),
+                         }},
+            .sym = {[1] =
+                        {
+                            /* code_gen_buffer */
+                            .st_info = ELF_ST_INFO(STB_GLOBAL, STT_FUNC),
+                            .st_shndx = 1,
+                        }},
+            .di = {.len = sizeof(struct DebugInfo) - 4,
+                   .version = 2,
+                   .ptr_size = sizeof(void *),
+                   .cu_die = 1,
+                   .cu_lang = 0x8001, /* DW_LANG_Mips_Assembler */
+                   .fn_die = 2,
+                   .fn_name = "code_gen_buffer"},
+            .da =
+                {
+                    1,         /* abbrev number (the cu) */
+                    0x11, 1,   /* DW_TAG_compile_unit, has children */
+                    0x13, 0x5, /* DW_AT_language, DW_FORM_data2 */
+                    0x11, 0x1, /* DW_AT_low_pc, DW_FORM_addr */
+                    0x12, 0x1, /* DW_AT_high_pc, DW_FORM_addr */
+                    0,    0,   /* end of abbrev */
+                    2,         /* abbrev number (the fn) */
+                    0x2e, 0,   /* DW_TAG_subprogram, no children */
+                    0x3,  0x8, /* DW_AT_name, DW_FORM_string */
+                    0x11, 0x1, /* DW_AT_low_pc, DW_FORM_addr */
+                    0x12, 0x1, /* DW_AT_high_pc, DW_FORM_addr */
+                    0,    0,   /* end of abbrev */
+                    0          /* no more abbrev */
+                },
+            .str = "\0"
+                   ".text\0"
+                   ".debug_info\0"
+                   ".debug_abbrev\0"
+                   ".debug_frame\0"
+                   ".symtab\0"
+                   ".strtab\0"
+                   "code_gen_buffer",
+        };
 
     /* We only need a single jit entry; statically allocate it.  */
     static struct jit_code_entry one_entry;
