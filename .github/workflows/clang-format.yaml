@@ -2,13 +2,13 @@ name: Check code style
 on: [pull_request]
 jobs:
   clang-format:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - name: Check out repository code
         uses: actions/checkout@v2
       - name: Run clang-format
         run: |
            set -x
-           sudo apt-get install clang-format-14
-           CLANG_FORMAT=clang-format-14 ./test-clang-format.sh
+           sudo apt-get install clang-format-19
+           CLANG_FORMAT=clang-format-19 ./test-clang-format.sh
       - run: echo "🍏 This job's status is ${{ job.status }}."
