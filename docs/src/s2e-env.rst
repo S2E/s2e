@@ -13,7 +13,7 @@ You will find in the documentation various tutorials that go deeper into various
 
 .. note::
 
-    S2E builds and runs on Ubuntu 22.04 LTS and Debian 11/12 (64-bit).
+    S2E builds and runs on Ubuntu 22.04, 24.04 and Debian 12/13 (64-bit).
     Earlier versions may still work, but we do not support them anymore.
 
 
@@ -39,9 +39,6 @@ Installing s2e-env
     # If you want ssh, please edit s2e_env/dat/config.yaml before running pip install.
     # If your key is password-protected, use ssh-agent.
     pip install .
-
-    # Note: if your pip version is earlier than v19, use the following command:
-    pip install --process-dependency-links .
 
 
 Using s2e-env
