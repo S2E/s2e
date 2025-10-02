@@ -33,7 +33,7 @@ if ! findmnt /mnt/disk; then
     mount /dev/vdb /mnt/disk
 fi
 
-apt-get -y install git gcc python3 python3-dev python3-venv
+apt-get -y install git gcc python3 python3-dev python3-venv docker.io
 
 # The Ubuntu image doesn't have enough space on the boot partition to install some packages.
 # Cleanup unused kernels.
@@ -42,5 +42,6 @@ if uname -a | grep -q ubuntu2004; then
 fi
 
 chown -R vagrant:vagrant /mnt/disk/
+usermod -a -G docker vagrant
 
 su -c "source /vagrant/provision-user.sh" vagrant
