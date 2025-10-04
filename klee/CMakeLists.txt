@@ -10,7 +10,7 @@
 ###############################################################################
 # Minimum CMake version and policies
 ###############################################################################
-cmake_minimum_required(VERSION 2.8.12)
+cmake_minimum_required(VERSION 3.10)
 
 project(KLEE)
 set(KLEE_VERSION_MAJOR 1)
@@ -169,7 +169,7 @@ set(KLEE_COMPONENT_EXTRA_LIBRARIES "")
 # Find LLVM
 ################################################################################
 include(${CMAKE_SOURCE_DIR}/cmake/find_llvm.cmake)
-find_package(LLVM REQUIRED)
+find_package(LLVM 14...<15 REQUIRED)
 
 
 foreach (vname ${NEEDED_LLVM_VARS})
@@ -188,7 +188,6 @@ endif()
 
 
 list(APPEND KLEE_COMPONENT_CXX_DEFINES ${LLVM_DEFINITIONS})
-list(APPEND KLEE_COMPONENT_EXTRA_INCLUDE_DIRS ${LLVM_INCLUDE_DIRS})
 
 # Find llvm-link
 set(LLVM_LINK "${LLVM_TOOLS_BINARY_DIR}/llvm-link")
@@ -259,13 +258,6 @@ if (ENABLE_SOLVER_Z3)
 else()
   message(STATUS "Z3 solver support disabled")
   set(ENABLE_Z3 0) # For config.h
-endif()
-
-###############################################################################
-# Exception handling
-###############################################################################
-if (NOT LLVM_ENABLE_EH)
-  klee_component_add_cxx_flag("-fno-exceptions" REQUIRED)
 endif()
 
 

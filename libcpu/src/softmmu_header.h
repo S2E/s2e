@@ -70,7 +70,7 @@
 #define ADDR_READ addr_read
 #endif
 
-#define ADDR_MAX ((target_ulong) -1)
+#define ADDR_MAX ((target_ulong) - 1)
 
 #ifdef CONFIG_SYMBEX
 #include <cpu/se_libcpu_config.h>

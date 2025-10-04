@@ -158,7 +158,7 @@ static void parts64_default_nan(FloatParts64 *p, float_status *status) {
     }
 #endif
 
-    *p = (FloatParts64){.cls = float_class_qnan, .sign = sign, .exp = INT_MAX, .frac = frac};
+    *p = (FloatParts64) {.cls = float_class_qnan, .sign = sign, .exp = INT_MAX, .frac = frac};
 }
 
 static void parts128_default_nan(FloatParts128 *p, float_status *status) {
@@ -170,7 +170,7 @@ static void parts128_default_nan(FloatParts128 *p, float_status *status) {
     FloatParts64 p64;
     parts64_default_nan(&p64, status);
 
-    *p = (FloatParts128){
+    *p = (FloatParts128) {
         .cls = float_class_qnan, .sign = p64.sign, .exp = INT_MAX, .frac_hi = p64.frac, .frac_lo = -(p64.frac & 1)};
 }
 

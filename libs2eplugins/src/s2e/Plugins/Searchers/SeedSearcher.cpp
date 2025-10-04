@@ -50,7 +50,7 @@ public:
     /// Indicates that this is the main path of the seed
     bool seedState;
 
-    SeedSearcherState() : seedIndex(-1), seedState(false){};
+    SeedSearcherState() : seedIndex(-1), seedState(false) {};
 
     virtual SeedSearcherState *clone() const {
         SeedSearcherState *ret = new SeedSearcherState(*this);

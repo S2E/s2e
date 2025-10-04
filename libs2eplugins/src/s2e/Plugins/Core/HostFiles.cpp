@@ -163,15 +163,15 @@ void HostFiles::read(S2EExecutionState *state) {
     }
 
     HostFD hf = plgState->m_openFiles[guestFd];
-    char buf[count];
+    std::vector<char> buf(count);
 
-    read_ret = ::read(hf.fd, buf, count);
+    read_ret = ::read(hf.fd, buf.data(), count);
     if (-1 == read_ret) {
         return;
     }
     ret = read_ret;
 
-    ok = state->mem()->write(bufAddr, buf, ret);
+    ok = state->mem()->write(bufAddr, buf.data(), ret);
     if (!ok) {
         getWarningsStream(state) << "ERROR: HostFiles can not write to guest buffer\n";
         return;
@@ -335,15 +335,15 @@ void HostFiles::write(S2EExecutionState *state) {
     }
 
     HostFD hf = plgState->m_openFiles[guestFd];
-    char buf[count];
+    std::vector<char> buf(count);
 
-    ok = state->mem()->read(bufAddr, buf, count);
+    ok = state->mem()->read(bufAddr, buf.data(), count);
     if (!ok) {
         getWarningsStream(state) << "ERROR: HostFiles can not read guest buffer\n";
         return;
     }
 
-    write_ret = ::write(hf.fd, buf, count);
+    write_ret = ::write(hf.fd, buf.data(), count);
     if (-1 == write_ret)
         return;
     ret = write_ret;

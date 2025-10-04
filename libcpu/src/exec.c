@@ -38,17 +38,17 @@
 #include "exec-tlb.h"
 #include "exec.h"
 
-//#define DEBUG_TB_INVALIDATE
-//#define DEBUG_FLUSH
-//#define DEBUG_TLB
-//#define DEBUG_UNASSIGNED
+// #define DEBUG_TB_INVALIDATE
+// #define DEBUG_FLUSH
+// #define DEBUG_TLB
+// #define DEBUG_UNASSIGNED
 
 /* make various TB consistency checks */
-//#define DEBUG_TB_CHECK
-//#define DEBUG_TLB_CHECK
+// #define DEBUG_TB_CHECK
+// #define DEBUG_TLB_CHECK
 
-//#define DEBUG_IOPORT
-//#define DEBUG_SUBPAGE
+// #define DEBUG_IOPORT
+// #define DEBUG_SUBPAGE
 
 /* TB consistency checks only implemented for usermode emulation.  */
 #undef DEBUG_TB_CHECK

@@ -35,7 +35,7 @@ extern "C" {
 // E.g. Using size of 4096, we get this behavior:
 //    {4095, 4096, 4097} = {4096, 4096, 8192}.
 // Note: The size argument has side effects (expanded multiple times).
-#define ALIGN_UP(base, size) ALIGN_DOWN((base) + (size) -1, (base))
+#define ALIGN_UP(base, size) ALIGN_DOWN((base) + (size) - 1, (base))
 
 // Same as ALIGN_DOWN(), but automatically casts when base is a pointer
 #define ALIGN_PTR_DOWN(base, size) ((typeof(base)) ALIGN_DOWN((uintptr_t) (base), (size)))
@@ -47,11 +47,11 @@ extern "C" {
 // Round number up to multiple.
 // Requires that size be a power of 2.
 #ifndef ROUND_UP
-#define ROUND_UP(base, size) (((base) + (size) -1) & -(size))
+#define ROUND_UP(base, size) (((base) + (size) - 1) & -(size))
 #endif
 
 #ifndef DIV_ROUND_UP
-#define DIV_ROUND_UP(base, size) (((base) + (size) -1) / (size))
+#define DIV_ROUND_UP(base, size) (((base) + (size) - 1) / (size))
 #endif
 
 #ifdef __cplusplus

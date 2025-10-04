@@ -56,8 +56,7 @@ typedef boost::intrusive_ptr<ConcreteBuffer> ConcreteBufferPtr;
  * ObjectStates (e.g., when splitting a big object into
  * smaller ones).
  */
-class ConcreteBuffer {
-    std::atomic<uint32_t> m_refCount;
+class ConcreteBuffer : public RefCount {
     uint8_t *m_buffer;
     unsigned m_size;
 
@@ -88,7 +87,7 @@ class ConcreteBuffer {
         }
     }
 
-    ConcreteBuffer(size_t size) : m_refCount(0), m_buffer(allocateBuffer(size)), m_size(size) {
+    ConcreteBuffer(size_t size) : m_buffer(allocateBuffer(size)), m_size(size) {
         memset(m_buffer, 0, size);
     }
 
@@ -124,11 +123,7 @@ public:
     unsigned size() const {
         return m_size;
     }
-
-    INTRUSIVE_PTR_FRIENDS(ConcreteBuffer)
 };
-
-INTRUSIVE_PTR_ADD_REL(ConcreteBuffer)
 
 } // namespace klee
 

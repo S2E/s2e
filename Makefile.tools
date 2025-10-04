@@ -1,0 +1,124 @@
+# Copyright (C) 2014-2023 Cyberhaven
+# Copyright (C) 2010-2014 Dependable Systems Laboratory, EPFL
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+ifndef S2E_SRC
+S2E_SRC:=$(dir $(realpath $(lastword $(MAKEFILE_LIST))))
+endif
+
+include $(S2E_SRC)/Makefile.common
+
+# Check the build directory
+ifeq ($(shell ls libs2e/src/libs2e.c 2>&1),libs2e/src/libs2e.c)
+    $(error You should not run make in the S2E source directory!)
+endif
+
+###############
+# Guest tools #
+###############
+
+# TODO: figure out how to automatically get the latest version without
+# having to update this URL.
+GUEST_TOOLS_BINARIES_URL=https://github.com/S2E/s2e/releases/download/v2.0.0/
+
+
+all: guest-tools
+install: guest-tools-install guest-tools-win-install
+install-debug: guest-tools-install guest-tools-win-install
+
+guest-tools32 guest-tools64 guest-tools32-win guest-tools64-win:
+	echo $(shell  pwd)
+	ls -la $(shell  pwd)
+	mkdir -p $@
+
+guest-tools: stamps/guest-tools32-make stamps/guest-tools64-make
+guest-tools-win: stamps/guest-tools32-win-make stamps/guest-tools64-win-make
+
+guest-tools-install: stamps/guest-tools32-install stamps/guest-tools64-install
+guest-tools-win-install: stamps/guest-tools32-win-install stamps/guest-tools64-win-install
+
+
+stamps/guest-tools32-configure: CONFIGURE_COMMAND = cmake                                                                    \
+                                                    -DCMAKE_C_COMPILER=$(SYSTEM_CLANG_CC)                                    \
+                                                    -DCMAKE_CXX_COMPILER=$(SYSTEM_CLANG_CXX)                                 \
+                                                    -DCMAKE_INSTALL_PREFIX=$(S2E_PREFIX)/bin/guest-tools32                   \
+                                                    -DCMAKE_TOOLCHAIN_FILE=$(S2E_SRC)/guest/cmake/Toolchain-linux-i686.cmake \
+                                                    $(S2E_SRC)/guest
+
+stamps/guest-tools64-configure: CONFIGURE_COMMAND = cmake                                                                       \
+                                                    -DCMAKE_C_COMPILER=$(SYSTEM_CLANG_CC)                                       \
+                                                    -DCMAKE_CXX_COMPILER=$(SYSTEM_CLANG_CXX)                                    \
+                                                    -DCMAKE_INSTALL_PREFIX=$(S2E_PREFIX)/bin/guest-tools64                      \
+                                                    -DCMAKE_TOOLCHAIN_FILE=$(S2E_SRC)/guest/cmake/Toolchain-linux-x86_64.cmake  \
+                                                    $(S2E_SRC)/guest
+
+stamps/guest-tools32-win-configure: CONFIGURE_COMMAND = cmake                                                                       \
+                                                        -DCMAKE_INSTALL_PREFIX=$(S2E_PREFIX)/bin/guest-tools32                      \
+                                                        -DCMAKE_TOOLCHAIN_FILE=$(S2E_SRC)/guest/cmake/Toolchain-windows-i686.cmake  \
+                                                        $(S2E_SRC)/guest
+
+stamps/guest-tools64-win-configure: CONFIGURE_COMMAND = cmake                                                                        \
+                                                        -DCMAKE_INSTALL_PREFIX=$(S2E_PREFIX)/bin/guest-tools64                       \
+                                                        -DCMAKE_TOOLCHAIN_FILE=$(S2E_SRC)/guest/cmake/Toolchain-windows-x86_64.cmake \
+                                                        $(S2E_SRC)/guest
+
+stamps/guest-tools32-make: stamps/guest-tools32-configure
+
+stamps/guest-tools64-make: stamps/guest-tools64-configure
+
+stamps/guest-tools32-win-make: stamps/guest-tools32-win-configure
+
+stamps/guest-tools64-win-make: stamps/guest-tools64-win-configure
+
+# Install precompiled windows drivers
+$(S2E_PREFIX)/bin/guest-tools32 $(S2E_PREFIX)/bin/guest-tools64:
+	mkdir -p "$@"
+
+define DOWNLOAD_S2E_TOOL
+  $(S2E_PREFIX)/bin/guest-tools$1/$2: | $(S2E_PREFIX)/bin/guest-tools$1
+	$(call DOWNLOAD,$(GUEST_TOOLS_BINARIES_URL)/$3,$$@)
+endef
+
+$(eval $(call DOWNLOAD_S2E_TOOL,32,s2e.sys,s2e32.sys))
+$(eval $(call DOWNLOAD_S2E_TOOL,32,s2e.inf,s2e.inf))
+$(eval $(call DOWNLOAD_S2E_TOOL,32,drvctl.exe,drvctl32.exe))
+$(eval $(call DOWNLOAD_S2E_TOOL,32,libs2e32.dll,libs2e32.dll))
+$(eval $(call DOWNLOAD_S2E_TOOL,32,tickler.exe,tickler32.exe))
+
+$(eval $(call DOWNLOAD_S2E_TOOL,64,s2e.sys,s2e.sys))
+$(eval $(call DOWNLOAD_S2E_TOOL,64,s2e.inf,s2e.inf))
+$(eval $(call DOWNLOAD_S2E_TOOL,64,drvctl.exe,drvctl.exe))
+$(eval $(call DOWNLOAD_S2E_TOOL,64,libs2e32.dll,libs2e32.dll))
+$(eval $(call DOWNLOAD_S2E_TOOL,64,libs2e64.dll,libs2e64.dll))
+$(eval $(call DOWNLOAD_S2E_TOOL,64,tickler.exe,tickler64.exe))
+
+guest-tools32-windrv: $(addprefix $(S2E_PREFIX)/bin/guest-tools32/,s2e.sys s2e.inf drvctl.exe libs2e32.dll tickler.exe)
+	echo $^
+
+guest-tools64-windrv: $(addprefix $(S2E_PREFIX)/bin/guest-tools64/,s2e.sys s2e.inf drvctl.exe libs2e32.dll libs2e64.dll tickler.exe)
+	echo $^
+
+stamps/guest-tools%-win-install: stamps/guest-tools%-win-make guest-tools32-windrv guest-tools64-windrv
+	$(MAKE) -C guest-tools$*-win install
+	touch $@
+
+stamps/guest-tools%-install: stamps/guest-tools%-make guest-tools32-windrv guest-tools64-windrv
+	$(MAKE) -C guest-tools$* install
+	touch $@

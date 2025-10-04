@@ -80,7 +80,7 @@ separate_arguments(BC_INC_DIRS)
 
 add_custom_target(
     softfloat_bc ALL
-    ${CMAKE_C_COMPILER} ${CMAKE_CURRENT_SOURCE_DIR}/fpu/softfloat.c -c ${CARGS_LIST} -I${LIBTCG_INCLUDE_DIR} ${BC_INC_DIRS} -Wno-unused-function -O3 -DSYMBEX_LLVM_LIB -march=x86-64 -emit-llvm -o ${CMAKE_CURRENT_BINARY_DIR}/softfloat.bc ${BC_INC_DIRS} -fno-slp-vectorize -fno-tree-vectorize
+    clang-14 ${CMAKE_CURRENT_SOURCE_DIR}/fpu/softfloat.c -c ${CARGS_LIST} -I${LIBTCG_INCLUDE_DIR} ${BC_INC_DIRS} -Wno-unused-function -O3 -DSYMBEX_LLVM_LIB -march=x86-64 -emit-llvm -o ${CMAKE_CURRENT_BINARY_DIR}/softfloat.bc ${BC_INC_DIRS} -fno-slp-vectorize -fno-tree-vectorize
     DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/fpu/softfloat.c
 )
 endif (WITH_SYMBEX)

@@ -67,7 +67,7 @@
 #define REX_B(s)  0
 #endif
 
-//#define MACRO_TEST   1
+// #define MACRO_TEST   1
 
 /* global register indexes */
 static TCGv cpu_A0, cpu_cc_src, cpu_cc_dst, cpu_cc_tmp;
@@ -2869,10 +2869,14 @@ static inline void gen_op_movq_env_0(int d_offset) {
 #define SSE_SPECIAL ((void *) 1)
 #define SSE_DUMMY   ((void *) 2)
 
-#define MMX_OP2(x) \
-    { gen_helper_##x##_mmx, gen_helper_##x##_xmm }
-#define SSE_FOP(x) \
-    { gen_helper_##x##ps, gen_helper_##x##pd, gen_helper_##x##ss, gen_helper_##x##sd, }
+#define MMX_OP2(x) {gen_helper_##x##_mmx, gen_helper_##x##_xmm}
+#define SSE_FOP(x)          \
+    {                       \
+        gen_helper_##x##ps, \
+        gen_helper_##x##pd, \
+        gen_helper_##x##ss, \
+        gen_helper_##x##sd, \
+    }
 
 static void *sse_op_table1[256][4] = {
     /* 3DNow! extensions */
@@ -3043,14 +3047,10 @@ struct sse_op_helper_s {
     void *op[2];
     uint32_t ext_mask;
 };
-#define SSSE3_OP(x) \
-    { MMX_OP2(x), CPUID_EXT_SSSE3 }
-#define SSE41_OP(x) \
-    { {NULL, gen_helper_##x##_xmm}, CPUID_EXT_SSE41 }
-#define SSE42_OP(x) \
-    { {NULL, gen_helper_##x##_xmm}, CPUID_EXT_SSE42 }
-#define SSE41_SPECIAL \
-    { {NULL, SSE_SPECIAL}, CPUID_EXT_SSE41 }
+#define SSSE3_OP(x)   {MMX_OP2(x), CPUID_EXT_SSSE3}
+#define SSE41_OP(x)   {{NULL, gen_helper_##x##_xmm}, CPUID_EXT_SSE41}
+#define SSE42_OP(x)   {{NULL, gen_helper_##x##_xmm}, CPUID_EXT_SSE42}
+#define SSE41_SPECIAL {{NULL, SSE_SPECIAL}, CPUID_EXT_SSE41}
 static struct sse_op_helper_s sse_op_table6[256] = {
     [0x00] = SSSE3_OP(pshufb),   [0x01] = SSSE3_OP(phaddw),    [0x02] = SSSE3_OP(phaddd),
     [0x03] = SSSE3_OP(phaddsw),  [0x04] = SSSE3_OP(pmaddubsw), [0x05] = SSSE3_OP(phsubw),
@@ -5386,7 +5386,7 @@ reswitch:
         case 0xc1:
             /* shift Ev,Ib */
             shift = 2;
-        grp2 : {
+        grp2: {
             if ((b & 1) == 0)
                 ot = OT_BYTE;
             else

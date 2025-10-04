@@ -93,7 +93,7 @@ bool ParseMcSemaCfgFile(const std::string &file, BinaryBasicBlocks &bbs, BinaryF
             do {
                 // Set default base address in case block turns out to be empty
                 int64_t base_addr = b.base_address();
-                int64_t last_addr;
+                int64_t last_addr = 0;
                 int64_t size = 0;
 
                 if (iit != iit_end) {

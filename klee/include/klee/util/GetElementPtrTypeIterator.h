@@ -24,9 +24,10 @@
 #include "llvm/IR/User.h"
 
 namespace klee {
-template <typename ItTy = llvm::User::const_op_iterator>
-class generic_gep_type_iterator : public std::iterator<std::forward_iterator_tag, llvm::Type *, ptrdiff_t> {
-    typedef std::iterator<std::forward_iterator_tag, llvm::Type *, ptrdiff_t> super;
+template <typename ItTy = llvm::User::const_op_iterator> class generic_gep_type_iterator {
+    using iterator_category = std::forward_iterator_tag;
+    using value_type = llvm::Type *;
+    using difference_type = ptrdiff_t;
 
     ItTy OpIt;
     llvm::Type *CurTy;

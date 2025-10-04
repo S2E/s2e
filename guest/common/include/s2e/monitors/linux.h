@@ -56,7 +56,7 @@ static inline void s2e_linux_load_module(uint64_t pid, const struct S2E_LINUXMON
     cmd.CurrentTask.tgid = getpid();
     cmd.CurrentTask.pid = s2e_linux_gettid();
     cmd.ModuleLoad = *m;
-    __s2e_touch_string((char *) cmd.ModuleLoad.module_path);
+    __s2e_touch_string((char *) (uintptr_t) cmd.ModuleLoad.module_path);
 
     s2e_invoke_plugin("LinuxMonitor", &cmd, sizeof(cmd));
 }

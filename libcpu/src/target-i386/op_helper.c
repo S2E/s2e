@@ -59,7 +59,7 @@ struct CPUX86State *env = 0;
 
 #endif
 
-//#define DEBUG_PCALL
+// #define DEBUG_PCALL
 
 #ifdef DEBUG_PCALL
 #define LOG_PCALL(...)       libcpu_log_mask(CPU_LOG_PCALL, ##__VA_ARGS__)
@@ -910,14 +910,14 @@ static int exeption_has_error_code(int intno) {
 }
 
 #ifdef TARGET_X86_64
-#define SET_ESP(val, sp_mask)                         \
-    do {                                              \
-        if ((sp_mask) == 0xffff)                      \
-            ESP_W((ESP & ~0xffff) | ((val) &0xffff)); \
-        else if ((sp_mask) == 0xffffffffLL)           \
-            ESP_W((uint32_t) (val));                  \
-        else                                          \
-            ESP_W(val);                               \
+#define SET_ESP(val, sp_mask)                          \
+    do {                                               \
+        if ((sp_mask) == 0xffff)                       \
+            ESP_W((ESP & ~0xffff) | ((val) & 0xffff)); \
+        else if ((sp_mask) == 0xffffffffLL)            \
+            ESP_W((uint32_t) (val));                   \
+        else                                           \
+            ESP_W(val);                                \
     } while (0)
 #else
 #define SET_ESP(val, sp_mask) ESP_W((ESP & ~(sp_mask)) | ((val) & (sp_mask)))
@@ -4680,7 +4680,7 @@ floatx80 cpu_set_fp80(uint64_t mant, uint16_t upper) {
 
 #ifdef TARGET_X86_64
 
-//#define DEBUG_MULDIV
+// #define DEBUG_MULDIV
 
 static void add128(uint64_t *plow, uint64_t *phigh, uint64_t a, uint64_t b) {
     *plow += a;

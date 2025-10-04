@@ -18,7 +18,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-cmake_minimum_required(VERSION 3.4.3)
+cmake_minimum_required(VERSION 3.10)
 
 project(LIBS2EPLUGINS)
 set(LIBS2EPLUGINS_VERSION_MAJOR 2)
@@ -43,12 +43,12 @@ find_package(PkgConfig REQUIRED)
 include_directories("include")
 
 ##### LLVM #####
-find_package(LLVM REQUIRED)
+find_package(LLVM 14...<15 REQUIRED)
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 
 add_definitions(${LLVM_DEFINITIONS})
 
-include_directories(${LLVM_INCLUDE_DIRS})
+include_directories(SYSTEM ${LLVM_INCLUDE_DIRS})
 
 
 ##### glib #####

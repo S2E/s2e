@@ -69,7 +69,7 @@ public:
     SolverImplPtr impl;
 
 protected:
-    Solver(SolverImplPtr _impl) : impl(_impl){};
+    Solver(SolverImplPtr _impl) : impl(_impl) {};
 
 public:
     virtual ~Solver();

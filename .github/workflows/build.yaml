@@ -2,34 +2,59 @@ name: Build libs2e.so
 on: [pull_request]
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            clang_version: 15
+          - os: ubuntu-24.04
+            clang_version: 19
     steps:
       - name: Check out repository code
         uses: actions/checkout@v2
-      - name: Install packages
-        run: |
-            set -ex
-            sudo dpkg --add-architecture i386 && sudo apt-get update
-            sudo apt-get -y install ca-certificates build-essential curl wget texinfo flex bison  \
-              python-is-python3 python3-dev python3-venv python3-distro mingw-w64 lsb-release \
-              libdwarf-dev libelf-dev cmake \
-              libboost-dev zlib1g-dev libjemalloc-dev nasm pkg-config  \
-              libmemcached-dev libpq-dev binutils-dev \
-              libboost-system-dev libboost-serialization-dev libboost-regex-dev \
-              libbsd-dev libpixman-1-dev \
-              libglib2.0-dev python3-docutils libpng-dev \
-              gcc-multilib g++-multilib libgomp1 unzip software-properties-common \
-              libprotobuf-dev protobuf-compiler protobuf-c-compiler \
-              libgmock-dev libgtest-dev rapidjson-dev libsoci-dev libcapstone-dev
 
-            sudo apt-get install -f
-            sudo apt-get install -y libgcc-s1:i386 libstdc++6:i386
-            sudo apt-get install -y libglib2.0-dev:i386 libelf-dev:i386
+      - name: Install common packages
+        run: |
+          set -ex
+          sudo dpkg --add-architecture i386 && sudo apt-get update
+          sudo apt-get install -y libelf-dev:i386
+
+          sudo apt-get -y install ca-certificates build-essential curl wget texinfo flex bison  \
+            python-is-python3 python3-dev python3-venv python3-distro mingw-w64 lsb-release \
+            libdwarf-dev libelf-dev cmake \
+            libboost-dev zlib1g-dev libjemalloc-dev nasm pkg-config  \
+            libmemcached-dev libpq-dev binutils-dev \
+            libboost-system-dev libboost-serialization-dev libboost-regex-dev \
+            libbsd-dev libpixman-1-dev \
+            libglib2.0-dev python3-docutils libpng-dev \
+            gcc-multilib g++-multilib libgomp1 unzip software-properties-common \
+            libprotobuf-dev protobuf-compiler protobuf-c-compiler \
+            libgmock-dev libgtest-dev libsoci-dev libcapstone-dev \
+            libcurl4-openssl-dev \
+            libedit-dev \
+            libpfm4-dev \
+            llvm-14-dev \
+            clang-format-14 \
+            libmlir-14-dev \
+            clang-14
+
+      - name: Install OS-specific clang version
+        run: |
+          set -ex
+          sudo apt-get install -y clang-${{ matrix.clang_version }}
+
+      - name: Install Ubuntu 24.04 packages
+        if: matrix.os == 'ubuntu-24.04'
+        run: |
+          set -ex
+          sudo apt-get install -y libpolly-14-dev
 
       - name: Build libs2e.so
         run: |
-           set -x
-           cd ..
-           mkdir build && cd build
-           make -f ../s2e/Makefile all
+          set -x
+          cd ..
+          mkdir build && cd build
+          SYSTEM_CLANG_VERSION=${{ matrix.clang_version }} make -f ../s2e/Makefile all
+
       - run: echo "🍏 This job's status is ${{ job.status }}."

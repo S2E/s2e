@@ -149,11 +149,11 @@ int main(int argc, char **argv) {
     }
 
     if (dump.getPointerSize() == sizeof(uint32_t)) {
-        DUMP_HEADER32 Header;
+        DUMP_HEADER32 Header = {0};
         dump.getHeader32(Header);
         dumpHeader(Header);
     } else {
-        DUMP_HEADER64 Header;
+        DUMP_HEADER64 Header = {0};
         dump.getHeader64(Header);
         dumpHeader(Header);
     }

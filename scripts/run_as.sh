@@ -1,7 +1,6 @@
 #!/bin/bash
 
-# Copyright (C) 2017, Cyberhaven
-# All rights reserved.
+# Copyright (c) 2018, Cyberhaven
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -21,18 +20,39 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-set -e
+# This script allows running a command in the docker image with the given UID/GID.
+#
+# Usage: ./run_as.sh UID GID command args...
+#
 
-if [ "$#" -ne 3 ]; then
-    echo "Usage: $0 <docker_image> <docker_dir_or_file> <output_dir>"
+if [ $# -lt 3 ]; then
+    echo "Usage: $0 uid gid path_to_binary [binary args...]"
     exit 1
 fi
 
-docker_image=$1
-docker_dir=$2
-output_dir=$(mkdir -p $3 && cd $3 && pwd)
+MUID="$1"
+shift
 
-docker_container=`docker run -d "$docker_image" sleep 1000`
-docker cp "${docker_container}:$docker_dir" "$output_dir" || true
-docker kill "$docker_container" >/dev/null || true
-docker rm "$docker_container" >/dev/null
+MGID="$1"
+shift
+
+# Verify that the specified group and user ids don't exist locally.
+# If so, delete them. This may happen if the host OS is not Debian-based,
+# where user ids may conflict with those preinstalled in the docker image.
+GROUP=$(getent group $MGID | cut -d ':' -f 1)
+USER=$(getent passwd $MUID | cut -d ':' -f 1)
+
+if [ "x$USER" != "x" ]; then
+  userdel $USER
+fi
+
+if [ "x$GROUP" != "x" ]; then
+  groupdel $GROUP
+fi
+
+groupadd -g $MGID s2e
+useradd -u $MUID -g s2e s2e
+
+# Run the rest of the script with the uid/gid provided, otherwise
+# new files will be owned by root.
+exec sudo -E -u s2e $*

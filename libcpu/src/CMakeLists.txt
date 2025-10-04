@@ -37,12 +37,10 @@ foreach(dir ${dirs})
 endforeach()
 separate_arguments(BC_INC_DIRS)
 
-get_filename_component(LLVM_BIN_DIR ${CMAKE_C_COMPILER} DIRECTORY)
-
 add_custom_target(
     op_helper_bc ALL
-    ${CMAKE_C_COMPILER} ${CMAKE_CURRENT_SOURCE_DIR}/target-i386/op_helper.c -c ${CARGS_LIST} -Wno-unused-function -O3 -DSYMBEX_LLVM_LIB -march=x86-64 -emit-llvm -o ${CMAKE_CURRENT_BINARY_DIR}/op_helper-org.bc ${BC_INC_DIRS} -fno-slp-vectorize -fno-tree-vectorize
-    COMMAND ${LLVM_BIN_DIR}/llvm-link ${CMAKE_CURRENT_BINARY_DIR}/op_helper-org.bc ${LIBTCG_DIR}/src/softfloat.bc -o ${CMAKE_CURRENT_BINARY_DIR}/op_helper.bc
+    clang-14 ${CMAKE_CURRENT_SOURCE_DIR}/target-i386/op_helper.c -c ${CARGS_LIST} -Wno-unused-function -O3 -DSYMBEX_LLVM_LIB -march=x86-64 -emit-llvm -o ${CMAKE_CURRENT_BINARY_DIR}/op_helper-org.bc ${BC_INC_DIRS} -fno-slp-vectorize -fno-tree-vectorize
+    COMMAND llvm-link-14 ${CMAKE_CURRENT_BINARY_DIR}/op_helper-org.bc ${LIBTCG_DIR}/src/softfloat.bc -o ${CMAKE_CURRENT_BINARY_DIR}/op_helper.bc
     DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/target-i386/op_helper.c
 )
 

@@ -20,7 +20,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-cmake_minimum_required(VERSION 3.4.3)
+cmake_minimum_required(VERSION 3.10)
 
 project(guesttools)
 set(guesttools_VERSION_MAJOR 0)
@@ -41,7 +41,7 @@ include_directories("common/include")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -std=gnu99 -Werror -g")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=c++17 -Werror -g")
 if(NOT BITS)
-  set(BITS 64)
+  message(FATAL_ERROR "BITS is not set")
 endif()
 if(${BITS} EQUAL 32)
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -m32 -march=i386 -mtune=generic")
@@ -56,18 +56,6 @@ endif()
 # Need static linking for C++ binaries because the guest may have different
 # version of stdlibc++.
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static")
-
-# Ubuntu 22.04 comes with GLIBC that introduces a new version for __libc_start_main.
-# This means that binaries compiled with that version of GLIBC will not run on older
-# distributions, e.g., on some S2E guest images. The following will patch all S2E
-# guest tools so that they run on older GLIBC versions, regardless of the version
-# that has been used to build them.
-if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
-  link_directories(${CMAKE_BINARY_DIR}/glibc-compat)
-  set(COMPAT_LD_FLAGS -Wl,--wrap,__libc_start_main -lglibc-compat-main)
-  add_subdirectory(glibc-compat)
-endif()
-
 
 # Build for all systems
 add_subdirectory(common)

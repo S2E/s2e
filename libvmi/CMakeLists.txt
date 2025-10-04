@@ -18,7 +18,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-cmake_minimum_required(VERSION 3.4.3)
+cmake_minimum_required(VERSION 3.10)
 
 project(VMI)
 set(VMI_VERSION_MAJOR 1)
@@ -38,17 +38,16 @@ set(VMI_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/include")
 set(VMI_LIBRARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/src")
 configure_file(VMIConfig.cmake.in ${CMAKE_CONFIG_FILE} @ONLY)
 
-find_package(LLVM REQUIRED)
+find_package(LLVM 14...<15 REQUIRED)
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 
 add_definitions(${LLVM_DEFINITIONS})
-
-find_package(RapidJSON REQUIRED)
 
 set(ENV{PKG_CONFIG_PATH} ${CMAKE_INSTALL_PREFIX}/lib/pkgconfig)
 find_package(PkgConfig REQUIRED)
 set(CMAKE_PREFIX_PATH ${CMAKE_INSTALL_PREFIX})
 pkg_check_modules(LIBDWARF REQUIRED IMPORTED_TARGET libdwarf)
+pkg_check_modules(RapidJSON REQUIRED IMPORTED_TARGET RapidJSON)
 
 find_path(LIBDWARF_INCLUDE_DIRS
           NAMES libdwarf.h dwarf.h
@@ -62,10 +61,11 @@ find_library(LIBDWARF_LIB
 # LLVM include paths should come first, because the one in /opt
 # may contain LLVM include files that were built for a different
 # configuration.
-include_directories(${LLVM_INCLUDE_DIRS}
-                    "include"
+include_directories(SYSTEM ${LLVM_INCLUDE_DIRS}
                     ${LIBDWARF_INCLUDE_DIRS}
                     ${RapidJSON_INCLUDE_DIRS})
+
+include_directories("include")
 
 link_directories(${LIBDWARF_LIB_DIRS})
 

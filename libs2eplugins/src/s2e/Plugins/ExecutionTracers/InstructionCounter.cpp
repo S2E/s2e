@@ -51,11 +51,11 @@ private:
     Counts m_counts;
 
 public:
-    InstructionCounterState(S2EExecutionState *s, Plugin *p){
+    InstructionCounterState(S2EExecutionState *s, Plugin *p) {
 
     };
 
-    virtual ~InstructionCounterState(){};
+    virtual ~InstructionCounterState() {};
     virtual PluginState *clone() const {
         return new InstructionCounterState(*this);
     }

@@ -345,20 +345,20 @@ static int make_partial_file_symbolic(int fd, const std::string &cleaned_name, c
 /// \return error code (0 on success)
 ///
 static int make_whole_file_symbolic(int fd, unsigned file_size, unsigned block_size, const std::string &cleaned_name) {
-    char buffer[block_size];
+    std::vector<uint8_t> buffer(block_size);
 
     unsigned current_chunk = 0;
-    unsigned total_chunks = file_size / sizeof(buffer);
-    if (file_size % sizeof(buffer)) {
+    unsigned total_chunks = file_size / buffer.size();
+    if (file_size % buffer.size()) {
         ++total_chunks;
     }
 
     off_t offset = 0;
     do {
-        ssize_t totransfer = file_size > sizeof(buffer) ? sizeof(buffer) : file_size;
+        ssize_t totransfer = file_size > buffer.size() ? buffer.size() : file_size;
 
         std::string name = get_chunk_name(cleaned_name, current_chunk, total_chunks);
-        auto read_count = make_chunk_symbolic(fd, offset, buffer, totransfer, name);
+        auto read_count = make_chunk_symbolic(fd, offset, buffer.data(), totransfer, name);
 
         offset += read_count;
         file_size -= read_count;

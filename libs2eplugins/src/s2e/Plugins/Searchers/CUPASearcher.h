@@ -129,7 +129,7 @@ protected:
     virtual uint64_t getClass(S2EExecutionState *state) = 0;
 
 public:
-    CUPASearcherClass(CUPASearcher *plugin, unsigned level) : m_plg(plugin), m_level(level){};
+    CUPASearcherClass(CUPASearcher *plugin, unsigned level) : m_plg(plugin), m_level(level) {};
 
     virtual klee::ExecutionState &selectState();
 
@@ -145,7 +145,7 @@ public:
 
 class CUPASearcherSeedClass : public CUPASearcherClass {
 public:
-    CUPASearcherSeedClass(CUPASearcher *plugin, unsigned level) : CUPASearcherClass(plugin, level){};
+    CUPASearcherSeedClass(CUPASearcher *plugin, unsigned level) : CUPASearcherClass(plugin, level) {};
 
 protected:
     virtual uint64_t getClass(S2EExecutionState *state) {
@@ -161,7 +161,7 @@ protected:
 
 class CUPASearcherPcClass : public CUPASearcherClass {
 public:
-    CUPASearcherPcClass(CUPASearcher *plugin, unsigned level) : CUPASearcherClass(plugin, level){};
+    CUPASearcherPcClass(CUPASearcher *plugin, unsigned level) : CUPASearcherClass(plugin, level) {};
 
 protected:
     virtual uint64_t getClass(S2EExecutionState *state) {
@@ -173,7 +173,7 @@ protected:
 
 class CUPASearcherPageDirClass : public CUPASearcherClass {
 public:
-    CUPASearcherPageDirClass(CUPASearcher *plugin, unsigned level) : CUPASearcherClass(plugin, level){};
+    CUPASearcherPageDirClass(CUPASearcher *plugin, unsigned level) : CUPASearcherClass(plugin, level) {};
 
 protected:
     virtual uint64_t getClass(S2EExecutionState *state) {
@@ -185,7 +185,7 @@ protected:
 
 class CUPASearcherRandomClass : public CUPASearcherClass {
 public:
-    CUPASearcherRandomClass(CUPASearcher *plugin, unsigned level) : CUPASearcherClass(plugin, level){};
+    CUPASearcherRandomClass(CUPASearcher *plugin, unsigned level) : CUPASearcherClass(plugin, level) {};
 
     virtual klee::ExecutionState &selectState();
     virtual void update(klee::ExecutionState *current, const klee::StateSet &addedStates,
@@ -241,7 +241,7 @@ private:
     ForkCountMap m_map;
 
 public:
-    CUPASearcherForkCountClass(CUPASearcher *plugin, unsigned level) : CUPASearcherClass(plugin, level){};
+    CUPASearcherForkCountClass(CUPASearcher *plugin, unsigned level) : CUPASearcherClass(plugin, level) {};
 
 protected:
     virtual uint64_t getClass(S2EExecutionState *state) {

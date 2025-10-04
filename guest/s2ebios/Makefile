@@ -52,6 +52,7 @@ BIOS_CFLAGS+=-m32 -D__WORD_SIZE=32
 LD_SCRIPT="$(S2EBIOS)/bios.ld"
 BIOS_ASM_SOURCE=$(S2EBIOS)/s2e-bios-32.asm
 ASM_FMT=elf32
+LD_FLAGS=-m elf_i386
 S2E_BIOS_ASM_TESTS=utils/arch32.asm
 S2E_BIOS_C_SOURCE:=$(S2E_BIOS_C_SOURCE) vmm/vmm32.c
 endif
@@ -74,7 +75,7 @@ s2e-bios-up.bin : $(BIOS_ASM_SOURCE)
 	$(call quiet-command,$(ASM) -O1 -i$(S2EBIOS)/ -f bin -o $@ $(BIOS_ASM_SOURCE),"  Building $(TARGET_DIR)$@")
 
 s2e-bios-low-c: $(S2E_BIOS_C_OBJ)
-	$(LD) -T $(LD_SCRIPT)  -o $@ $^
+	$(LD) $(LD_FLAGS) -T $(LD_SCRIPT)  -o $@ $^
 
 s2e-bios-low-c.bin: s2e-bios-low-c
 	objcopy -O binary --rename-section .data=.rodata,alloc,load,data,contents,readonly $^ $@

@@ -362,7 +362,7 @@ static inline int hw_breakpoint_len(unsigned long dr7, int index) {
 #define cpu_list_id        x86_cpu_list
 #define cpudef_setup       x86_cpudef_setup
 
-//#define CPU_SAVE_VERSION 12
+// #define CPU_SAVE_VERSION 12
 
 /* MMU modes definitions */
 #define MMU_MODE0_SUFFIX _kernel

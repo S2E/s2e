@@ -242,7 +242,6 @@ void BasicBlockCoverage::onModuleTranslateBlockComplete(S2EExecutionState *state
 
     BasicBlockCoverage::BasicBlocks BBs = plgState->coverage[module.Name];
 
-    unsigned newBlocks = 0;
     bool hasUncoveredBlocks = false;
     foreach2 (it, blocks.begin(), blocks.end()) {
         BBs = BBs.insert((*it)->start_pc);
@@ -250,7 +249,6 @@ void BasicBlockCoverage::onModuleTranslateBlockComplete(S2EExecutionState *state
         if (moduleBlocks.find((*it)->start_pc) == moduleBlocks.end()) {
             hasUncoveredBlocks = true;
             moduleBlocks.insert((*it)->start_pc);
-            ++newBlocks;
 
             // Erase all the states that forked to the newly covered bb
             if (cit != m_nonCoveredBasicBlocks.end()) {

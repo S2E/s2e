@@ -44,11 +44,11 @@ check_coverage() {
     fi
 
     echo === Computing code coverage
-    s2e coverage $EXTRA_PARAMS lcov --html {{ project_name }} | tee $S2E_LAST/cov.log
+    s2e coverage $EXTRA_PARAMS lcov --exclude-pattern /usr/x86_64-w64-mingw32 --exclude-pattern /usr/i686-w64-mingw32 --html {{ project_name }} | tee $S2E_LAST/cov.log
 
     echo === Checking code coverage
 
-    COV_PC=$(grep "lines......" $S2E_LAST/cov.log | cut -d : -f 2 | cut -d '%' -f 1)
+    COV_PC=$(grep "lines\.\." $S2E_LAST/cov.log | cut -d : -f 2 | cut -d '%' -f 1)
     if [ "x$COV_PC" = "x" ]; then
         echo Could not get coverage
         exit 1

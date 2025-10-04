@@ -584,13 +584,13 @@ bool CFIChecker::isKnownFunctionPattern(S2EExecutionState *state, uint64_t pc) {
         }
     }
 
-    uint8_t buf[maxSize];
-    if (!state->mem()->read(pc, buf, maxSize)) {
+    std::vector<uint8_t> buf(maxSize, 0);
+    if (!state->mem()->read(pc, buf.data(), maxSize)) {
         return false;
     }
 
     for (const auto *pattern = &s_function_patterns[0]; pattern->size; ++pattern) {
-        if (!::memcmp(pattern->pattern, buf, pattern->size)) {
+        if (!::memcmp(pattern->pattern, buf.data(), pattern->size)) {
             return true;
         }
     }

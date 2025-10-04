@@ -12,16 +12,16 @@
 namespace klee {
 namespace stats {
 
-auto cexCacheTime = Statistic::create("CexCacheTime", "CCtime");
-auto queries = Statistic::create("Queries", "Q");
-auto queriesInvalid = Statistic::create("QueriesInvalid", "Qiv");
-auto queriesValid = Statistic::create("QueriesValid", "Qv");
-auto queryCacheHits = Statistic::create("QueryCacheHits", "QChits");
-auto queryCacheMisses = Statistic::create("QueryCacheMisses", "QCmisses");
-auto queryConstructTime = Statistic::create("QueryConstructTime", "QBtime");
-auto queryConstructs = Statistic::create("QueriesConstructs", "QB");
-auto queryCounterexamples = Statistic::create("QueriesCEX", "Qcex");
-auto queryTime = Statistic::create("QueryTime", "Qtime");
+StatisticPtr cexCacheTime = Statistic::create("CexCacheTime", "CCtime");
+StatisticPtr queries = Statistic::create("Queries", "Q");
+StatisticPtr queriesInvalid = Statistic::create("QueriesInvalid", "Qiv");
+StatisticPtr queriesValid = Statistic::create("QueriesValid", "Qv");
+StatisticPtr queryCacheHits = Statistic::create("QueryCacheHits", "QChits");
+StatisticPtr queryCacheMisses = Statistic::create("QueryCacheMisses", "QCmisses");
+StatisticPtr queryConstructTime = Statistic::create("QueryConstructTime", "QBtime");
+StatisticPtr queryConstructs = Statistic::create("QueriesConstructs", "QB");
+StatisticPtr queryCounterexamples = Statistic::create("QueriesCEX", "Qcex");
+StatisticPtr queryTime = Statistic::create("QueryTime", "Qtime");
 
 } // namespace stats
 } // namespace klee

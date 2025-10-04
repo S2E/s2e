@@ -44,7 +44,7 @@ private:
     bool m_child;
 
 public:
-    LuaFunctionInstrumentationPluginState() : m_child(false){};
+    LuaFunctionInstrumentationPluginState() : m_child(false) {};
 
     virtual LuaFunctionInstrumentationPluginState *clone() const {
         return new LuaFunctionInstrumentationPluginState(*this);

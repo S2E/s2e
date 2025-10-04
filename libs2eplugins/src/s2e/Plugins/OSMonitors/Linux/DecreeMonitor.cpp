@@ -632,10 +632,9 @@ void DecreeMonitor::handleSetParams(S2EExecutionState *state, uint64_t pid, S2E_
         if (len > sizeof(d.cgc_seed)) {
             len = sizeof(d.cgc_seed);
         }
-        uint8_t buffer[len];
-        memset(buffer, 0, len);
+        std::vector<uint8_t> buffer(len, 0);
 
-        if (!state->mem()->read(d.cgc_seed_ptr, buffer, len)) {
+        if (!state->mem()->read(d.cgc_seed_ptr, buffer.data(), len)) {
             ss << "\n";
             getWarningsStream(state) << "Could not read seed\n";
         } else {
@@ -721,8 +720,7 @@ void DecreeMonitor::onSegFault(S2EExecutionState *state, uint64_t pid, const S2E
 void DecreeMonitor::handleOpcodeInvocation(S2EExecutionState *state, uint64_t guestDataPtr, uint64_t guestDataSize) {
     uint64_t commandSize = sizeof(S2E_DECREEMON_COMMAND);
     uint64_t commandVersion = S2E_DECREEMON_COMMAND_VERSION;
-    uint8_t cmd[guestDataSize];
-    memset(cmd, 0, guestDataSize);
+    std::vector<uint8_t> cmd(guestDataSize, 0);
 
     // Validate the size of the instruction
     s2e_assert(state, guestDataSize == commandSize,
@@ -744,13 +742,13 @@ void DecreeMonitor::handleOpcodeInvocation(S2EExecutionState *state, uint64_t gu
     }
 
     // Read the instruction
-    bool ok = state->mem()->read(guestDataPtr, cmd, guestDataSize);
+    bool ok = state->mem()->read(guestDataPtr, cmd.data(), guestDataSize);
     s2e_assert(state, ok, "Failed to read instruction memory");
 
     // Validate the instruction's version
 
     // The version field comes always first in all commands
-    uint64_t version = *(uint64_t *) cmd;
+    uint64_t version = *(uint64_t *) cmd.data();
 
     if (version != commandVersion) {
         std::ostringstream os;
@@ -767,7 +765,7 @@ void DecreeMonitor::handleOpcodeInvocation(S2EExecutionState *state, uint64_t gu
                                               << " pc=" << hexval(state->regs()->getPc()));
     }
 
-    handleCommand(state, guestDataPtr, guestDataSize, cmd);
+    handleCommand(state, guestDataPtr, guestDataSize, cmd.data());
 }
 
 void DecreeMonitor::handleCommand(S2EExecutionState *state, uint64_t guestDataPtr, uint64_t guestDataSize, void *cmd) {

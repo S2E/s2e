@@ -18,7 +18,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-cmake_minimum_required(VERSION 3.4.3)
+cmake_minimum_required(VERSION 3.10)
 
 project(LIBS2ECORE)
 set(LIBS2ECORE_VERSION_MAJOR 2)
@@ -44,12 +44,13 @@ pkg_check_modules(GLIB_PKG glib-2.0)
 include_directories(${GLIB_PKG_INCLUDE_DIRS})
 
 ##### LLVM #####
-find_package(LLVM REQUIRED)
+find_package(LLVM 14...<15 REQUIRED)
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 
 add_definitions(${LLVM_DEFINITIONS})
 
-include_directories("include" ${LLVM_INCLUDE_DIRS})
+include_directories("include")
+include_directories(SYSTEM ${LLVM_INCLUDE_DIRS})
 
 llvm_map_components_to_libnames(LLVM_LIBS core)
 

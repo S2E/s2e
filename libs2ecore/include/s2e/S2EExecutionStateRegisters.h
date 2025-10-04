@@ -98,7 +98,7 @@ public:
     S2EExecutionStateRegisters(const bool *active, const bool *running_concrete,
                                klee::IAddressSpaceNotification *notification, klee::IConcretizer *concretizer)
         : m_active(active), m_runningConcrete(running_concrete), m_notification(notification),
-          m_concretizer(concretizer){};
+          m_concretizer(concretizer) {};
 
     void initialize(klee::AddressSpace &addressSpace, const klee::ObjectStatePtr &symbolicRegs,
                     const klee::ObjectStatePtr &concreteRegs);

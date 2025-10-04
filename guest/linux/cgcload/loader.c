@@ -53,8 +53,8 @@
 #include "loader.h"
 
 static uintptr_t cgc_map(int filep, struct CGC32_phdr *phdr, int prot, int type) {
-    uintptr_t addr, zaddr;
-    uintptr_t lo, hi;
+    uintptr_t addr = 0, zaddr = 0;
+    uintptr_t lo = 0, hi = 0;
     off_t off = 0;
     unsigned long size = 0;
     int ret = 0;

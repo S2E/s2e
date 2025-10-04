@@ -1,0 +1,24 @@
+name: Build libs2e.so docker image
+on: [pull_request]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v2
+
+      - name: Build docker image
+        run: |
+          set -x
+          docker build -t s2e-build .
+
+      - name: Build guest tools in docker image
+        run: |
+          set -x
+          docker build --target s2e-build-env -t s2e-build-env .
+
+          mkdir -p $HOME/s2e/env/build
+          cd $HOME/s2e/env/build
+          docker run -t --rm -e SYSTEM_CLANG_VERSION=15 -e S2E_PREFIX="$HOME/s2e/env/install" -w $(pwd) -v $HOME:$HOME s2e-build-env /run_as.sh $(id -u) $(id -g) make  -f $GITHUB_WORKSPACE/Makefile.tools install
+
+      - run: echo "🍏 This job's status is ${{ job.status }}."

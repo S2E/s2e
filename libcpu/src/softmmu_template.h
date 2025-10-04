@@ -61,7 +61,7 @@
 #define HELPER_PREFIX     helper_
 #define TCG_HELPER_PREFIX tcg_helper_
 
-#define ADDR_MAX ((target_ulong) -1)
+#define ADDR_MAX ((target_ulong) - 1)
 
 #ifdef CONFIG_SYMBEX
 #include <cpu/se_libcpu_config.h>

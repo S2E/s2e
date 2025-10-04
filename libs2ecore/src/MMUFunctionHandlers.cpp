@@ -581,8 +581,7 @@ static void handle_stq_kernel(Executor *executor, ExecutionState *state, klee::K
 #endif
 
 static Handler s_handlerInfo[] = {
-#define add(name, handler) \
-    { name, &handler, nullptr }
+#define add(name, handler) {name, &handler, nullptr}
     add("helper_ldb_mmu", handle_ldb_mmu),
     add("helper_ldw_mmu", handle_ldw_mmu),
     add("helper_ldl_mmu", handle_ldl_mmu),

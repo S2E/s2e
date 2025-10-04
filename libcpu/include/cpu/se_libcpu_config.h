@@ -61,13 +61,13 @@ extern "C" {
 #define SE_ENABLE_PHYSRAM_TLB
 #endif
 
-//#define SE_ENABLE_FAST_DIRTYMASK
+// #define SE_ENABLE_FAST_DIRTYMASK
 
 /** When enabled, the program counter is explicitely updated
  * between each guest instruction and compared to the
  * program counter recovered by cpu_restore_state. */
-//#define ENABLE_PRECISE_EXCEPTION_DEBUGGING
-//#define ENABLE_PRECISE_EXCEPTION_DEBUGGING_COMPARE
+// #define ENABLE_PRECISE_EXCEPTION_DEBUGGING
+// #define ENABLE_PRECISE_EXCEPTION_DEBUGGING_COMPARE
 
 #endif // CONFIG_SYMBEX
 

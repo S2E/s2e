@@ -101,7 +101,7 @@ void receive_null(int fd, size_t count);
 int buffered_receive(int fd, void *buf, size_t count, size_t *rx_bytes);
 void delay(unsigned int msec);
 
-#define GET_BYTE(v, i) ((((uint32_t) (v)) >> ((i) *8)) & 0xFF)
+#define GET_BYTE(v, i) ((((uint32_t) (v)) >> ((i) * 8)) & 0xFF)
 
 /// @brief Read the negotiation parameters from the POV binary.
 int type_negotiate(int fd, type_request *req);

@@ -19,7 +19,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-cmake_minimum_required(VERSION 3.4.3)
+cmake_minimum_required(VERSION 3.10)
 
 project(s2etools)
 set(s2etools_VERSION_MAJOR 1)
@@ -46,7 +46,7 @@ find_package(Protobuf REQUIRED)
 # Old CMake does not support static libraries, so we have to patch the library manually
 string(REPLACE .so .a PROTOBUF_LIBRARIES "${PROTOBUF_LIBRARIES}")
 
-find_package(LLVM REQUIRED)
+find_package(LLVM 14...<15 REQUIRED)
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 
 find_package(VMI REQUIRED)
@@ -84,13 +84,14 @@ add_definitions(${LLVM_DEFINITIONS})
 
 include_directories("include"
                     ${CMAKE_CURRENT_SOURCE_DIR}
-                    ${LLVM_INCLUDE_DIRS}
                     ${LIBCPU_SRC_DIR}
                     ${S2EPLUGINS_SRC_DIR}
                     ${VMI_INCLUDE_DIR}
                     ${LIBQ_INCLUDE_DIR}
                     ${FSIGCXX_INCLUDE_DIR}
                     ${PROTOBUF_INCLUDE_DIRS})
+
+include_directories(SYSTEM ${LLVM_INCLUDE_DIRS})
 
 link_directories(${VMI_LIBRARY_DIR} ${FSIGCXX_LIBRARY_DIR} ${LIBQ_LIBRARY_DIR})
 

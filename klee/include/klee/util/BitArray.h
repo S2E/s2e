@@ -18,14 +18,17 @@
 
 namespace klee {
 
+// This class cannot derive from RefCount because we need to keep m_bits
+// as the first member for fast access from C code.
 template <typename T> class BitArrayT {
 private:
     // XXX(s2e) for now we keep this first to access from C code
     // (yes, we do need to access if really fast)
     T *m_bits;
-    std::atomic<unsigned> m_refCount;
     unsigned m_bitcount;
     unsigned m_setbitcount;
+
+    std::atomic<unsigned> m_refCount = 0;
 
     static const auto BITS = sizeof(*m_bits) * 8;
     static const auto BITSM1 = BITS - 1;
@@ -36,12 +39,11 @@ protected:
     }
 
     BitArrayT(unsigned size, bool value = false)
-        : m_bits(new T[words(size)]), m_refCount(0), m_bitcount(size), m_setbitcount(value ? size : 0) {
+        : m_bits(new T[words(size)]), m_bitcount(size), m_setbitcount(value ? size : 0) {
         memset(m_bits, value ? 0xFF : 0, sizeof(*m_bits) * words(size));
     }
 
-    BitArrayT(const boost::intrusive_ptr<BitArrayT> &b)
-        : m_bits(nullptr), m_refCount(0), m_bitcount(0), m_setbitcount(0) {
+    BitArrayT(const boost::intrusive_ptr<BitArrayT> &b) : m_bits(nullptr), m_bitcount(0), m_setbitcount(0) {
         m_bitcount = b->m_bitcount;
         m_setbitcount = b->m_setbitcount;
         m_bits = new T[words(m_bitcount)];
@@ -146,14 +148,32 @@ public:
         return false;
     }
 
-    INTRUSIVE_PTR_FRIENDS(BitArrayT)
+    friend void intrusive_ptr_add_ref(BitArrayT<T> *ptr);
+    friend void intrusive_ptr_release(BitArrayT<T> *ptr);
 };
+
+inline void intrusive_ptr_add_ref(BitArrayT<uint64_t> *ptr) {
+    ++ptr->m_refCount;
+}
+
+inline void intrusive_ptr_release(BitArrayT<uint64_t> *ptr) {
+    if (--ptr->m_refCount == 0) {
+        delete ptr;
+    }
+}
+
+inline void intrusive_ptr_add_ref(BitArrayT<uint32_t> *ptr) {
+    ++ptr->m_refCount;
+}
+
+inline void intrusive_ptr_release(BitArrayT<uint32_t> *ptr) {
+    if (--ptr->m_refCount == 0) {
+        delete ptr;
+    }
+}
 
 using BitArray = BitArrayT<uint64_t>;
 using BitArrayPtr = boost::intrusive_ptr<BitArray>;
-
-INTRUSIVE_PTR_ADD_REL(BitArrayT<uint64_t>)
-INTRUSIVE_PTR_ADD_REL(BitArrayT<uint32_t>)
 
 } // namespace klee
 

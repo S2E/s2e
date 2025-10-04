@@ -211,7 +211,7 @@ static bool tcg_target_const_match(int64_t val, TCGType type, int ct) {
     return 0;
 }
 
-#define LOWREGMASK(x) ((x) &7)
+#define LOWREGMASK(x) ((x) & 7)
 
 #define P_EXT    0x100  /* 0x0f opcode prefix */
 #define P_EXT38  0x200  /* 0x0f 0x38 opcode prefix */
@@ -2376,7 +2376,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg args[TC
 
             OP_32_64(neg) : tcg_out_modrm(s, OPC_GRP3_Ev + rexw, EXT3_NEG, a0);
             break;
-            OP_32_64(not ) : tcg_out_modrm(s, OPC_GRP3_Ev + rexw, EXT3_NOT, a0);
+            OP_32_64(not) : tcg_out_modrm(s, OPC_GRP3_Ev + rexw, EXT3_NOT, a0);
             break;
 
         case INDEX_op_qemu_ld_a64_i32:

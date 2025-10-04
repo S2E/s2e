@@ -329,7 +329,7 @@ private:
     ThingsT m_things;
 
 public:
-    CallTreeRandomPath(){};
+    CallTreeRandomPath() {};
 
     void visit(const CallTree<T> &tree) {
         tree.getRoot()->accept(this);

@@ -317,15 +317,15 @@ static inline int satsw(int x) {
 #define FOR(a, b)   (a) | (b)
 #define FXOR(a, b)  (a) ^ (b)
 
-#define FCMPGTB(a, b) (int8_t)(a) > (int8_t) (b) ? -1 : 0
-#define FCMPGTW(a, b) (int16_t)(a) > (int16_t) (b) ? -1 : 0
-#define FCMPGTL(a, b) (int32_t)(a) > (int32_t) (b) ? -1 : 0
+#define FCMPGTB(a, b) (int8_t) (a) > (int8_t) (b) ? -1 : 0
+#define FCMPGTW(a, b) (int16_t) (a) > (int16_t) (b) ? -1 : 0
+#define FCMPGTL(a, b) (int32_t) (a) > (int32_t) (b) ? -1 : 0
 #define FCMPEQ(a, b)  (a) == (b) ? -1 : 0
 
 #define FMULLW(a, b)  (a) * (b)
 #define FMULHRW(a, b) ((int16_t) (a) * (int16_t) (b) + 0x8000) >> 16
 #define FMULHUW(a, b) (a) * (b) >> 16
-#define FMULHW(a, b)  (int16_t)(a) * (int16_t) (b) >> 16
+#define FMULHW(a, b)  (int16_t) (a) * (int16_t) (b) >> 16
 
 #define FAVG(a, b) ((a) + (b) + 1) >> 1
 #endif
@@ -1857,7 +1857,7 @@ target_ulong helper_crc32(uint32_t crc1, target_ulong msg, uint32_t len) {
     return crc;
 }
 
-#define POPMASK(i)     ((target_ulong) -1 / ((1LL << (1 << i)) + 1))
+#define POPMASK(i)     ((target_ulong) - 1 / ((1LL << (1 << i)) + 1))
 #define POPCOUNT(n, i) (n & POPMASK(i)) + ((n >> (1 << i)) & POPMASK(i))
 target_ulong helper_popcnt(target_ulong n, uint32_t type) {
     CC_SRC_W(n ? 0 : CC_Z);

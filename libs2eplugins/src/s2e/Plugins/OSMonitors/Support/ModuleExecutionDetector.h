@@ -180,7 +180,7 @@ public:
     ModuleExecutionDetector(S2E *s2e) : Plugin(s2e) {
     }
 
-    virtual ~ModuleExecutionDetector(){};
+    virtual ~ModuleExecutionDetector() {};
 
     void initialize();
 

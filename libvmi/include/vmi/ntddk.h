@@ -156,7 +156,7 @@ extern const char *s_irpMjArray[];
 
 // KPCR is at fs:1c
 // This is only valid for XP (no ASLR)
-//#define KPCR_ADDRESS  0xFFDFF000
+// #define KPCR_ADDRESS  0xFFDFF000
 
 // Offset of the pointer to KPCR relative to the fs register
 static const uint32_t KPCR_FS_OFFSET = 0x1c;
@@ -177,13 +177,13 @@ static const uint32_t ETHREAD_PROCESS_OFFSET_XP = 0x44;
 
 static const uint32_t EPROCESS_ACTIVE_PROCESS_LINK_XP = 0x88;
 
-//#define KD_VERSION_BLOCK (KPCR_ADDRESS + 0x34)
+// #define KD_VERSION_BLOCK (KPCR_ADDRESS + 0x34)
 static const uint32_t PS_LOADED_MODULE_LIST_OFFSET = 0x70; // Inside the kd version block
 
 static const uint32_t BUILD_WINXP = 2600;
 static const uint32_t BUILD_LONGHORN = 5048;
 
-//#define KPRCB_OFFSET 0xFFDFF120
+// #define KPRCB_OFFSET 0xFFDFF120
 static const uint32_t IRQL_OFFSET = 0xFFDFF124;
 static const uint32_t PEB_OFFSET = 0x7FFDF000;
 typedef uint32_t KAFFINITY;

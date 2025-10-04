@@ -299,7 +299,7 @@ typedef struct mips_elf_abiflags_v0 {
 
 #define ELF_ST_BIND(x)          ((x) >> 4)
 #define ELF_ST_TYPE(x)          (((unsigned int) x) & 0xf)
-#define ELF_ST_INFO(bind, type) (((bind) << 4) | ((type) &0xf))
+#define ELF_ST_INFO(bind, type) (((bind) << 4) | ((type) & 0xf))
 #define ELF32_ST_BIND(x)        ELF_ST_BIND(x)
 #define ELF32_ST_TYPE(x)        ELF_ST_TYPE(x)
 #define ELF64_ST_BIND(x)        ELF_ST_BIND(x)
@@ -360,10 +360,10 @@ typedef struct {
 
 /* The following are used with relocations */
 #define ELF32_R_SYM(x)  ((x) >> 8)
-#define ELF32_R_TYPE(x) ((x) &0xff)
+#define ELF32_R_TYPE(x) ((x) & 0xff)
 
 #define ELF64_R_SYM(i)       ((i) >> 32)
-#define ELF64_R_TYPE(i)      ((i) &0xffffffff)
+#define ELF64_R_TYPE(i)      ((i) & 0xffffffff)
 #define ELF64_R_TYPE_DATA(i) (((ELF64_R_TYPE(i) >> 8) ^ 0x00800000) - 0x00800000)
 
 #define R_386_NONE     0
@@ -781,7 +781,7 @@ typedef struct {
 #define EF_ARM_BE8 0x00800000
 #define EF_ARM_LE8 0x00400000
 
-#define EF_ARM_EABI_VERSION(flags) ((flags) &EF_ARM_EABIMASK)
+#define EF_ARM_EABI_VERSION(flags) ((flags) & EF_ARM_EABIMASK)
 #define EF_ARM_EABI_UNKNOWN        0x00000000
 #define EF_ARM_EABI_VER1           0x01000000
 #define EF_ARM_EABI_VER2           0x02000000

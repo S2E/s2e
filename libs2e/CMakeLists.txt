@@ -19,7 +19,7 @@
 # SOFTWARE.
 
 
-cmake_minimum_required(VERSION 3.4.3)
+cmake_minimum_required(VERSION 3.10)
 
 project(LIBS2E)
 set(LIBS2E_VERSION_MAJOR 2)
@@ -50,15 +50,14 @@ include(FindProtobuf)
 find_package(Protobuf REQUIRED)
 
 ##### LLVM #####
-find_package(LLVM REQUIRED)
+find_package(CURL REQUIRED)
+find_package(LLVM 14...<15 REQUIRED)
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 
 add_definitions(${LLVM_DEFINITIONS})
 
-include_directories("include" ${LLVM_INCLUDE_DIRS})
-
-# llvm_map_components_to_libnames(LLVM_LIBS all) produces empty output for some reason
-set(LLVM_LIBS ${LLVM_AVAILABLE_LIBS})
+include_directories("include")
+include_directories(SYSTEM ${LLVM_INCLUDE_DIRS})
 
 ##################
 

@@ -30,7 +30,7 @@
 #include <s2e/Utils.h>
 #include <s2e/s2e_config.h>
 
-//#define S2E_DEBUG_TLBCACHE
+// #define S2E_DEBUG_TLBCACHE
 
 #ifdef S2E_DEBUG_TLBCACHE
 #include <s2e/S2E.h>
@@ -359,7 +359,9 @@ bool S2EExecutionStateTlb::audit() {
                     foundCount++;
                 }
             }
-            assert(foundCount == 1);
+            if (foundCount != 1) {
+                abort();
+            }
         }
     }
 

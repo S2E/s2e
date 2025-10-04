@@ -49,8 +49,8 @@ public:
     // pgbovine - to be called when a searcher gets activated and
     // deactivated, say, by a higher-level searcher; most searchers
     // don't need this functionality, so don't have to override.
-    virtual void activate(){};
-    virtual void deactivate(){};
+    virtual void activate() {};
+    virtual void deactivate() {};
 
     // utility functions
 

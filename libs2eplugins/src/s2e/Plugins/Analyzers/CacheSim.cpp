@@ -487,9 +487,8 @@ void CacheSim::onMemoryAccess(S2EExecutionState *state, uint64_t address, unsign
     writeCacheDescriptionToLog(state);
 
     unsigned missCountLength = isCode ? plgState->m_i1_length : plgState->m_d1_length;
-    unsigned missCount[missCountLength];
-    memset(missCount, 0, sizeof(missCount));
-    cache->access(address, size, isWrite, missCount, missCountLength);
+    std::vector<unsigned> missCount(missCountLength, 0);
+    cache->access(address, size, isWrite, missCount.data(), missCountLength);
 
     // Decide whether to log the access in the database
     if (!reportAccess(state)) {

@@ -34,7 +34,7 @@ PagePoolPtr PagePool::s_pool = PagePool::create();
 const uint64_t PagePoolDesc::POOL_PAGE_COUNT = 2 * 1024 * 1024 / 4096;
 const uint64_t PagePoolDesc::POOL_PAGE_SIZE = PagePoolDesc::POOL_PAGE_COUNT * 4096;
 
-Pages::Pages(unsigned numPages) : m_refCount(0), m_buffer(nullptr), m_size(0) {
+Pages::Pages(unsigned numPages) : m_buffer(nullptr), m_size(0) {
     assert(numPages > 0);
     m_size = numPages * PAGE_SIZE;
     m_buffer = (uint8_t *) mmap(NULL, m_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);

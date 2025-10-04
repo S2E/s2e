@@ -1022,15 +1022,15 @@ static void simple_dict(void) {
     } test_cases[] = {
         {
             .encoded = "{\"foo\": 42, \"bar\": \"hello world\"}",
-            .decoded = QLIT_QDICT(((QLitDictEntry[]){{"foo", QLIT_QNUM(42)}, {"bar", QLIT_QSTR("hello world")}, {}})),
+            .decoded = QLIT_QDICT(((QLitDictEntry[]) {{"foo", QLIT_QNUM(42)}, {"bar", QLIT_QSTR("hello world")}, {}})),
         },
         {
             .encoded = "{}",
-            .decoded = QLIT_QDICT(((QLitDictEntry[]){{}})),
+            .decoded = QLIT_QDICT(((QLitDictEntry[]) {{}})),
         },
         {
             .encoded = "{\"foo\": 43}",
-            .decoded = QLIT_QDICT(((QLitDictEntry[]){{"foo", QLIT_QNUM(43)}, {}})),
+            .decoded = QLIT_QDICT(((QLitDictEntry[]) {{"foo", QLIT_QNUM(43)}, {}})),
         },
         {}};
 
@@ -1107,20 +1107,20 @@ static void simple_list(void) {
         QLitObject decoded;
     } test_cases[] = {{
                           .encoded = "[43,42]",
-                          .decoded = QLIT_QLIST(((QLitObject[]){QLIT_QNUM(43), QLIT_QNUM(42), {}})),
+                          .decoded = QLIT_QLIST(((QLitObject[]) {QLIT_QNUM(43), QLIT_QNUM(42), {}})),
                       },
                       {
                           .encoded = "[43]",
-                          .decoded = QLIT_QLIST(((QLitObject[]){QLIT_QNUM(43), {}})),
+                          .decoded = QLIT_QLIST(((QLitObject[]) {QLIT_QNUM(43), {}})),
                       },
                       {
                           .encoded = "[]",
-                          .decoded = QLIT_QLIST(((QLitObject[]){{}})),
+                          .decoded = QLIT_QLIST(((QLitObject[]) {{}})),
                       },
                       {
                           .encoded = "[{}]",
-                          .decoded = QLIT_QLIST(((QLitObject[]){
-                              QLIT_QDICT(((QLitDictEntry[]){
+                          .decoded = QLIT_QLIST(((QLitObject[]) {
+                              QLIT_QDICT(((QLitDictEntry[]) {
                                   {},
                               })),
                               {},
@@ -1153,24 +1153,24 @@ static void simple_whitespace(void) {
     } test_cases[] = {
         {
             .encoded = " [ 43 , 42 ]",
-            .decoded = QLIT_QLIST(((QLitObject[]){QLIT_QNUM(43), QLIT_QNUM(42), {}})),
+            .decoded = QLIT_QLIST(((QLitObject[]) {QLIT_QNUM(43), QLIT_QNUM(42), {}})),
         },
         {
             .encoded = "\t[ 43 , { 'h' : 'b' },\r\n\t[ ], 42 ]\n",
-            .decoded = QLIT_QLIST(((QLitObject[]){QLIT_QNUM(43),
-                                                  QLIT_QDICT(((QLitDictEntry[]){{"h", QLIT_QSTR("b")}, {}})),
-                                                  QLIT_QLIST(((QLitObject[]){{}})),
-                                                  QLIT_QNUM(42),
-                                                  {}})),
+            .decoded = QLIT_QLIST(((QLitObject[]) {QLIT_QNUM(43),
+                                                   QLIT_QDICT(((QLitDictEntry[]) {{"h", QLIT_QSTR("b")}, {}})),
+                                                   QLIT_QLIST(((QLitObject[]) {{}})),
+                                                   QLIT_QNUM(42),
+                                                   {}})),
         },
         {
             .encoded = " [ 43 , { 'h' : 'b' , 'a' : 32 }, [ ], 42 ]",
             .decoded = QLIT_QLIST(
-                ((QLitObject[]){QLIT_QNUM(43),
-                                QLIT_QDICT(((QLitDictEntry[]){{"h", QLIT_QSTR("b")}, {"a", QLIT_QNUM(32)}, {}})),
-                                QLIT_QLIST(((QLitObject[]){{}})),
-                                QLIT_QNUM(42),
-                                {}})),
+                ((QLitObject[]) {QLIT_QNUM(43),
+                                 QLIT_QDICT(((QLitDictEntry[]) {{"h", QLIT_QSTR("b")}, {"a", QLIT_QNUM(32)}, {}})),
+                                 QLIT_QLIST(((QLitObject[]) {{}})),
+                                 QLIT_QNUM(42),
+                                 {}})),
         },
         {}};
 
@@ -1195,8 +1195,8 @@ static void simple_whitespace(void) {
 static void simple_interpolation(void) {
     QObject *embedded_obj;
     QObject *obj;
-    QLitObject decoded = QLIT_QLIST(((QLitObject[]){
-        QLIT_QNUM(1), QLIT_QSTR("100%"), QLIT_QLIST(((QLitObject[]){QLIT_QNUM(32), QLIT_QNUM(42), {}})), {}}));
+    QLitObject decoded = QLIT_QLIST(((QLitObject[]) {
+        QLIT_QNUM(1), QLIT_QSTR("100%"), QLIT_QLIST(((QLitObject[]) {QLIT_QNUM(32), QLIT_QNUM(42), {}})), {}}));
 
     embedded_obj = qobject_from_json("[32, 42]", &error_abort);
     g_assert(embedded_obj != NULL);
