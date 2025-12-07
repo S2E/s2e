@@ -128,7 +128,7 @@ protected:
     /// allows plugins to kill states and exit to the CPU loop safely.
     virtual void notifyFork(ExecutionState &originalState, ref<Expr> &condition, Executor::StatePair &targets);
 
-    const Cell &eval(KInstruction *ki, unsigned index, ExecutionState &state) const;
+    const Cell &eval(KInstruction *ki, unsigned index, LLVMExecutionState &state) const;
 
     // delete the state (called internally by terminateState and updateStates)
     virtual void deleteState(ExecutionState *state);
