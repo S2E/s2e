@@ -112,9 +112,6 @@ protected:
 
     void executeCall(ExecutionState &state, KInstruction *ki, llvm::Function *f, std::vector<ref<Expr>> &arguments);
 
-    ref<Expr> executeMemoryOperation(ExecutionState &state, bool isWrite, uint64_t concreteAddress,
-                                     ref<Expr> value /* undef if read */, unsigned bytes);
-
     // do address resolution / object binding / out of bounds checking
     // and perform the operation
     void executeMemoryOperation(ExecutionState &state, bool isWrite, ref<Expr> address,

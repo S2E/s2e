@@ -203,6 +203,9 @@ public:
     void executeAlloc(ref<Expr> size, bool isLocal, KInstruction *target, bool zeroMemory = false,
                       const ObjectStatePtr &reallocFrom = nullptr);
 
+    ref<Expr> executeMemoryRead(uint64_t concreteAddress, unsigned bytes);
+    void executeMemoryWrite(uint64_t concreteAddress, const ref<Expr> &value);
+
     void transferToBasicBlock(llvm::BasicBlock *dst, llvm::BasicBlock *src);
 };
 } // namespace klee

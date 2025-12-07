@@ -647,6 +647,24 @@ void ExecutionState::executeAlloc(ref<Expr> size, bool isLocal, KInstruction *ta
     }
 }
 
+ref<Expr> ExecutionState::executeMemoryRead(uint64_t concreteAddress, unsigned bytes) {
+    auto ret = addressSpace.read(concreteAddress, bytes * 8);
+    if (!ret) {
+        pabort("read failed");
+    }
+    return ret;
+}
+
+void ExecutionState::executeMemoryWrite(uint64_t concreteAddress, const ref<Expr> &value) {
+    auto concretizer = [&](const ref<Expr> &value, const ObjectStateConstPtr &os, size_t offset) {
+        return toConstant(value, os, offset);
+    };
+
+    if (!addressSpace.write(concreteAddress, value, concretizer)) {
+        pabort("write failed");
+    }
+}
+
 void ExecutionState::transferToBasicBlock(BasicBlock *dst, BasicBlock *src) {
     // Note that in general phi nodes can reuse phi values from the same
     // block but the incoming value is the eval() result *before* the

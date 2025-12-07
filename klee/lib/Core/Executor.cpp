@@ -1720,28 +1720,6 @@ void Executor::callExternalFunction(ExecutionState &state, KInstruction *target,
 
 /***/
 
-ref<Expr> Executor::executeMemoryOperation(ExecutionState &state, bool isWrite, uint64_t concreteAddress,
-                                           ref<Expr> value /* undef if read */, unsigned bytes) {
-    auto concretizer = [&](const ref<Expr> &value, const ObjectStateConstPtr &os, size_t offset) {
-        return state.toConstant(value, os, offset);
-    };
-
-    if (isWrite) {
-        assert(Expr::getMinBytesForWidth(value->getWidth()) == bytes);
-        if (!state.addressSpace.write(concreteAddress, value, concretizer)) {
-            pabort("write failed");
-        }
-    } else {
-        auto ret = state.addressSpace.read(concreteAddress, bytes * 8);
-        if (!ret) {
-            pabort("read failed");
-        }
-        return ret;
-    }
-
-    return nullptr;
-}
-
 void Executor::executeMemoryOperation(ExecutionState &state, bool isWrite, ref<Expr> address,
                                       ref<Expr> value /* undef if read */, KInstruction *target /* undef if write */) {
     Expr::Width type = (isWrite ? value->getWidth() : kmodule->getWidthForLLVMType(target->inst->getType()));
@@ -1757,9 +1735,10 @@ void Executor::executeMemoryOperation(ExecutionState &state, bool isWrite, ref<E
     // Concrete address case.
     if (isa<ConstantExpr>(address)) {
         auto ce = dyn_cast<ConstantExpr>(address)->getZExtValue();
-        auto result = executeMemoryOperation(state, isWrite, ce, value, bytes);
-
-        if (!isWrite) {
+        if (isWrite) {
+            state.executeMemoryWrite(ce, value);
+        } else {
+            auto result = state.executeMemoryRead(ce, bytes);
             state.bindLocal(target, result);
         }
         return;
@@ -1822,9 +1801,10 @@ void Executor::executeMemoryOperation(ExecutionState &state, bool isWrite, ref<E
 
     if (isa<ConstantExpr>(address)) {
         auto ce = dyn_cast<ConstantExpr>(address)->getZExtValue();
-        auto result = executeMemoryOperation(state, isWrite, ce, value, bytes);
-
-        if (!isWrite) {
+        if (isWrite) {
+            state.executeMemoryWrite(ce, value);
+        } else {
+            auto result = state.executeMemoryRead(ce, bytes);
             state.bindLocal(target, result);
         }
         return;
