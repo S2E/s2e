@@ -282,9 +282,9 @@ void Executor::initializeGlobals(ExecutionState &state) {
         if (i->hasInitializer()) {
             assert(globalObjects.find(&*i) != globalObjects.end());
             auto mo = globalObjects.find(&*i)->second;
-            auto os = state.addressSpace.findObject(mo.address);
+            auto os = state.addressSpace().findObject(mo.address);
             assert(os);
-            auto wos = state.addressSpace.getWriteable(os);
+            auto wos = state.addressSpace().getWriteable(os);
             initializeGlobalObject(state, wos, i->getInitializer(), 0);
             // if(i->isConstant()) os->setReadOnly(true);
         }
@@ -310,7 +310,7 @@ Executor::StatePair Executor::fork(ExecutionState &current, const ref<Expr> &con
     }
 
     // Evaluate the expression using the current variable assignment
-    ref<Expr> evalResult = current.concolics->evaluate(condition);
+    ref<Expr> evalResult = current.concolics()->evaluate(condition);
     ConstantExpr *ce = dyn_cast<ConstantExpr>(evalResult);
     check(ce, "Could not evaluate the expression to a constant.");
     bool conditionIsTrue = ce->isTrue();
@@ -336,7 +336,7 @@ Executor::StatePair Executor::fork(ExecutionState &current, const ref<Expr> &con
         ConstraintManager tmpConstraints = current.constraints();
         tmpConstraints.addConstraint(condition);
 
-        if (!current.solve(tmpConstraints, *(current.concolics))) {
+        if (!current.solve(tmpConstraints, *(current.concolics()))) {
             // Condition is always false in the current state
             return StatePair(nullptr, &current);
         }
@@ -370,7 +370,7 @@ Executor::StatePair Executor::fork(ExecutionState &current, const ref<Expr> &con
     *klee::stats::forks += 1;
 
     // Update concrete values for the branched state
-    branchedState->concolics = concolics;
+    branchedState->setConcolics(concolics);
 
     // Add constraint to both states
     if (conditionIsTrue) {
@@ -412,8 +412,8 @@ Executor::StatePair Executor::fork(ExecutionState &current) {
     clonedState = current.clone();
     addedStates.insert(clonedState);
 
-    // Deep copy concolics.
-    clonedState->concolics = Assignment::create(current.concolics);
+    // Deep copy concolics().
+    clonedState->setConcolics(Assignment::create(current.concolics()));
 
     return StatePair(&current, clonedState);
 }
@@ -805,7 +805,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
 
             cond = state.simplifyExpr(state.toUnique(cond));
 
-            klee::ref<klee::Expr> concreteCond = state.concolics->evaluate(cond);
+            klee::ref<klee::Expr> concreteCond = state.concolics()->evaluate(cond);
             klee::ref<klee::Expr> condition = EqExpr::create(concreteCond, cond);
             StatePair sp = fork(state, condition);
             assert(sp.first == &state);
@@ -1628,7 +1628,7 @@ void Executor::callExternalFunction(ExecutionState &state, KInstruction *target,
         } else {
             // Fork all possible concrete solutions
             klee::ref<klee::ConstantExpr> concreteArg;
-            klee::ref<klee::Expr> ca = state.concolics->evaluate(arg);
+            klee::ref<klee::Expr> ca = state.concolics()->evaluate(arg);
             assert(dyn_cast<klee::ConstantExpr>(ca) && "Could not evaluate address");
             concreteArg = dyn_cast<klee::ConstantExpr>(ca);
 
@@ -1738,7 +1738,7 @@ void Executor::executeMemoryOperation(ExecutionState &state, bool isWrite, ref<E
         return;
     }
 
-    auto concreteAddress = dyn_cast<ConstantExpr>(state.concolics->evaluate(address));
+    auto concreteAddress = dyn_cast<ConstantExpr>(state.concolics()->evaluate(address));
     assert(concreteAddress && "Could not evaluate address");
 
     /////////////////////////////////////////////////////////////
@@ -1746,7 +1746,7 @@ void Executor::executeMemoryOperation(ExecutionState &state, bool isWrite, ref<E
     // we handle in the current state.
     ObjectStateConstPtr os;
     bool fastInBounds = false;
-    auto success = state.addressSpace.findObject(concreteAddress->getZExtValue(), type, os, fastInBounds);
+    auto success = state.addressSpace().findObject(concreteAddress->getZExtValue(), type, os, fastInBounds);
     if (!success) {
         pabort("could not find memory object");
     }
@@ -1754,13 +1754,13 @@ void Executor::executeMemoryOperation(ExecutionState &state, bool isWrite, ref<E
     // Split the object if necessary
     if (os->isSplittable()) {
         ResolutionList rl;
-        success = state.addressSpace.splitMemoryObject(state, os, rl);
+        success = state.addressSpace().splitMemoryObject(state, os, rl);
         if (!success) {
             pabort("could not split memory object");
         }
 
         // Resolve again, we'll get the subpage this time
-        success = state.addressSpace.findObject(concreteAddress->getZExtValue(), type, os, fastInBounds);
+        success = state.addressSpace().findObject(concreteAddress->getZExtValue(), type, os, fastInBounds);
         if (!success) {
             pabort("Could not resolve concrete memory address");
         }
@@ -1781,7 +1781,7 @@ void Executor::executeMemoryOperation(ExecutionState &state, bool isWrite, ref<E
         address = concreteAddress;
     }
 
-    assert(state.concolics->evaluate(condition)->isTrue());
+    assert(state.concolics()->evaluate(condition)->isTrue());
 
     StatePair branches = fork(state, condition);
 
@@ -1807,7 +1807,7 @@ void Executor::executeMemoryOperation(ExecutionState &state, bool isWrite, ref<E
     auto offset = SubExpr::create(address, os->getBaseExpr());
 
     if (isWrite) {
-        auto wos = state.addressSpace.getWriteable(os);
+        auto wos = state.addressSpace().getWriteable(os);
         wos->write(offset, value);
     } else {
         auto result = os->read(offset, type);

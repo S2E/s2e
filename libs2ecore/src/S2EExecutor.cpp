@@ -548,7 +548,7 @@ void S2EExecutor::registerCpu(S2EExecutionState *initialState, CPUX86State *cpuE
                                                         /* isReadOnly = */ false,
                                                         /* isSharedConcrete = */ true);
 
-    initialState->m_registers.initialize(initialState->addressSpace, symbolicRegs, concreteRegs);
+    initialState->m_registers.initialize(initialState->addressSpace(), symbolicRegs, concreteRegs);
     klee::ExecutionState::s_ignoredMergeObjects.insert(initialState->m_registers.getConcreteRegs());
 }
 
@@ -617,7 +617,7 @@ void S2EExecutor::registerDirtyMask(S2EExecutionState *state, uint64_t hostAddre
     // Assume that dirty mask is small enough, so no need to split it in small pages
     auto dirtyMask = state->addExternalObject((void *) hostAddress, size, false, true);
 
-    state->m_memory.initialize(&state->addressSpace, &state->m_asCache, &state->m_active, state, state, dirtyMask);
+    state->m_memory.initialize(&state->addressSpace(), &state->m_asCache, &state->m_active, state, state, dirtyMask);
 
     klee::ExecutionState::s_ignoredMergeObjects.insert(state->m_memory.getDirtyMask());
 
@@ -811,8 +811,8 @@ void S2EExecutor::doStateSwitch(S2EExecutionState *oldState, S2EExecutionState *
         }
 
         for (auto &mo : m_saveOnContextSwitch) {
-            auto oldOS = oldState->addressSpace.findObject(mo.address);
-            auto oldWOS = oldState->addressSpace.getWriteable(oldOS);
+            auto oldOS = oldState->addressSpace().findObject(mo.address);
+            auto oldWOS = oldState->addressSpace().getWriteable(oldOS);
             uint8_t *oldStore = oldWOS->getConcreteBuffer();
             assert(oldStore);
             memcpy(oldStore, (uint8_t *) mo.address, mo.size);
@@ -856,7 +856,7 @@ void S2EExecutor::doStateSwitch(S2EExecutionState *oldState, S2EExecutionState *
         s2e_kvm_restore_device_state();
 
         for (auto &mo : m_saveOnContextSwitch) {
-            auto newOS = newState->addressSpace.findObject(mo.address);
+            auto newOS = newState->addressSpace().findObject(mo.address);
             const uint8_t *newStore = newOS->getConcreteBuffer();
             assert(newStore);
             memcpy((uint8_t *) mo.address, newStore, mo.size);
@@ -1490,7 +1490,7 @@ std::vector<ExecutionState *> S2EExecutor::forkValues(S2EExecutionState *state, 
         klee::ref<klee::Expr> condition = E_NEQ(expr, *it);
 
         if (isSeedState) {
-            klee::ref<klee::Expr> eval = state->concolics->evaluate(condition);
+            klee::ref<klee::Expr> eval = state->concolics()->evaluate(condition);
             klee::ConstantExpr *ce = dyn_cast<klee::ConstantExpr>(eval);
             assert(ce && "Could not evaluate expression to constant");
             if (ce->isFalse()) {
@@ -1539,8 +1539,8 @@ void S2EExecutor::notifyBranch(ExecutionState &state) {
      * getWritable() may modify the TLB.
      */
     for (auto &mo : m_saveOnContextSwitch) {
-        auto os = s2eState->addressSpace.findObject(mo.address);
-        auto wos = s2eState->addressSpace.getWriteable(os);
+        auto os = s2eState->addressSpace().findObject(mo.address);
+        auto wos = s2eState->addressSpace().getWriteable(os);
         uint8_t *store = wos->getConcreteBuffer();
         assert(store);
         memcpy(store, (uint8_t *) mo.address, mo.size);

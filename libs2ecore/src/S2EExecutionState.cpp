@@ -65,7 +65,7 @@ unsigned S2EExecutionState::s_lastSymbolicId = 0;
 S2EExecutionState::S2EExecutionState(klee::KFunction *kf)
     : klee::ExecutionState(kf), m_stateID(g_s2e->fetchAndIncrementStateId()), m_startSymbexAtPC((uint64_t) -1),
       m_active(true), m_zombie(false), m_yielded(false), m_runningConcrete(true), m_pinned(false),
-      m_isStateSwitchForbidden(false), m_deviceState(this), m_asCache(&addressSpace),
+      m_isStateSwitchForbidden(false), m_deviceState(this), m_asCache(&addressSpace()),
       m_registers(&m_active, &m_runningConcrete, this, this), m_memory(), m_lastS2ETb(nullptr),
       m_needFinalizeTBExec(false), m_forkAborted(false), m_nextSymbVarId(0), m_tlb(&m_asCache, &m_registers),
       m_runningExceptionEmulationCode(false) {
@@ -112,9 +112,9 @@ ExecutionState *S2EExecutionState::clone() {
 #endif
 
     S2EExecutionState *ret = new S2EExecutionState(*this);
-    ret->addressSpace.state = ret;
+    ret->addressSpace().state = ret;
     ret->m_deviceState.setExecutionState(ret);
-    ret->concolics = Assignment::create(true);
+    ret->setConcolics(Assignment::create(true));
     ret->m_lastS2ETb = m_lastS2ETb;
 
     ret->m_stateID = g_s2e->fetchAndIncrementStateId();
@@ -132,14 +132,14 @@ ExecutionState *S2EExecutionState::clone() {
 
     ret->m_tlb.assignNewState(&ret->m_asCache, &ret->m_registers);
 
-    ret->m_registers.update(ret->addressSpace, &ret->m_active, &ret->m_runningConcrete, ret, ret);
+    ret->m_registers.update(ret->addressSpace(), &ret->m_active, &ret->m_runningConcrete, ret, ret);
 
-    ret->m_asCache.update(&ret->addressSpace);
+    ret->m_asCache.update(&ret->addressSpace());
 
-    m_registers.update(addressSpace, &m_active, &m_runningConcrete, this, this);
+    m_registers.update(addressSpace(), &m_active, &m_runningConcrete, this, this);
 
-    m_memory.update(&addressSpace, &m_asCache, &m_active, this, this);
-    ret->m_memory.update(&ret->addressSpace, &ret->m_asCache, &ret->m_active, ret, ret);
+    m_memory.update(&addressSpace(), &m_asCache, &m_active, this, this);
+    ret->m_memory.update(&ret->addressSpace(), &ret->m_asCache, &ret->m_active, ret, ret);
 
     return ret;
 }
@@ -283,10 +283,10 @@ ref<Expr> S2EExecutionState::createSymbolicValue(const std::string &name, Expr::
 
     auto array = Array::create(sname, bytes, nullptr, nullptr, name);
 
-    symbolics.push_back(array);
+    m_symbolics.push_back(array);
 
     if (bufferSize == bytes) {
-        concolics->add(array, buffer);
+        m_concolics->add(array, buffer);
     }
 
     ref<Expr> ret = ReadExpr::createTempRead(array, width);
@@ -338,10 +338,10 @@ std::vector<ref<Expr>> S2EExecutionState::createSymbolicArray(const std::string 
     // Add it to the set of symbolic expressions, to be able to generate
     // test cases later.
     // Dummy memory object
-    symbolics.push_back(array);
+    m_symbolics.push_back(array);
 
     if (concreteBuffer.size() == size) {
-        concolics->add(array, concreteBuffer);
+        m_concolics->add(array, concreteBuffer);
     }
 
     g_s2e->getCorePlugin()->onSymbolicVariableCreation.emit(this, name, result, array);
@@ -457,10 +457,10 @@ bool S2EExecutionState::merge(const ExecutionState &_b) {
     // NOTE: this requires flushing TLB
     {
         auto &dirtyMask = S2EExecutionStateMemory::getDirtyMask();
-        auto os = addressSpace.findObject(dirtyMask.address);
-        auto wos = addressSpace.getWriteable(os);
+        auto os = addressSpace().findObject(dirtyMask.address);
+        auto wos = addressSpace().getWriteable(os);
         uint8_t *dirtyMaskA = wos->getConcreteBuffer();
-        const uint8_t *dirtyMaskB = b.addressSpace.findObject(dirtyMask.address)->getConcreteBuffer();
+        const uint8_t *dirtyMaskB = b.addressSpace().findObject(dirtyMask.address)->getConcreteBuffer();
 
         for (unsigned i = 0; i < dirtyMask.size; ++i) {
             if (dirtyMaskA[i] != dirtyMaskB[i]) {
@@ -473,8 +473,7 @@ bool S2EExecutionState::merge(const ExecutionState &_b) {
 }
 
 void S2EExecutionState::enumPossibleRanges(ref<Expr> e, ref<Expr> start, ref<Expr> end, std::vector<Range> &ranges) {
-    ArrayVec symbObjects = symbolics;
-    solver()->getRanges(constraints(), symbObjects, e, start, end, ranges);
+    solver()->getRanges(constraints(), symbolics(), e, start, end, ranges);
 }
 
 /***/
@@ -499,7 +498,7 @@ bool S2EExecutionState::testConstraints(const std::vector<ref<Expr>> &c, Constra
         tmpConstraints.addConstraint(*it);
     }
 
-    ArrayVec symbObjects = symbolics;
+    ArrayVec symbObjects = symbolics();
 
     std::vector<std::vector<unsigned char>> concreteObjects;
     if (!solver()->getInitialValues(Query(tmpConstraints, ConstantExpr::create(0, Expr::Bool)), symbObjects,
@@ -583,7 +582,7 @@ uint64_t S2EExecutionState::readMemIoVaddr(bool masked) {
         result = AndExpr::create(m_memIoVaddr,
                                  klee::ConstantExpr::create((target_ulong) TARGET_PAGE_MASK, m_memIoVaddr->getWidth()));
         // This assumes that the page is already fully constrained by the MMU
-        result = concolics->evaluate(result);
+        result = concolics()->evaluate(result);
         assert(dyn_cast<ConstantExpr>(result) && "Expression must be constant here");
     } else {
         result = m_memIoVaddr;
@@ -787,7 +786,7 @@ static inline void s2e_dma_rw(uint64_t hostAddress, uint8_t *buf, unsigned size,
         if (te->host_page == hostPage) {
             if (is_write) {
                 klee::ObjectStateConstPtr os = static_cast<const klee::ObjectState *>(te->object_state);
-                os = g_s2e_state->addressSpace.getWriteable(os);
+                os = g_s2e_state->addressSpace().getWriteable(os);
                 assert(!(te->host_page & TLB_NOT_OURS));
             }
 

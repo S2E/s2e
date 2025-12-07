@@ -23,6 +23,7 @@
 #include "klee/util/Assignment.h"
 #include "IAddressSpaceNotification.h"
 
+#include "IExecutionState.h"
 #include "LLVMExecutionState.h"
 
 #include <map>
@@ -36,9 +37,7 @@ struct KInstruction;
 
 llvm::raw_ostream &operator<<(llvm::raw_ostream &os, const MemoryMap &mm);
 
-class ExecutionState : public IAddressSpaceNotification {
-    friend class AddressSpace;
-
+class ExecutionState : public IExecutionState, public IAddressSpaceNotification {
 public:
     /// Set of objects that should not be merged by the base merge function.
     /// Overloaded functions will take care of it.
@@ -46,30 +45,21 @@ public:
 
 private:
     SolverPtr m_solver;
+    AddressSpace m_addressSpace;
 
-public:
-    AddressSpace addressSpace;
-
-    /// Disables forking, set by user code.
-    bool forkDisabled;
-
-    /// ordered list of symbolics: used to generate test cases.
-    std::vector<ArrayPtr> symbolics;
-
-    AssignmentPtr concolics;
-
-    LLVMExecutionState llvm;
-
-private:
     /// Simplifier user to simplify expressions when adding them
     static BitfieldSimplifier s_simplifier;
 
     ConstraintManager m_constraints;
 
-    ExecutionState() : addressSpace(this) {
+    ExecutionState() : m_addressSpace(this) {
     }
 
 protected:
+    /// ordered list of symbolics: used to generate test cases.
+    std::vector<ArrayPtr> m_symbolics;
+    AssignmentPtr m_concolics;
+
     virtual void addressSpaceChange(const klee::ObjectKey &key, const ObjectStateConstPtr &oldState,
                                     const ObjectStatePtr &newState);
 
@@ -77,6 +67,34 @@ protected:
                                          const std::vector<ObjectStatePtr> &newObjects);
 
 public:
+    /// Disables forking, set by user code.
+    bool forkDisabled;
+    LLVMExecutionState llvm;
+
+    virtual SolverPtr solver() {
+        return m_solver;
+    }
+
+    virtual AddressSpace &addressSpace() {
+        return m_addressSpace;
+    }
+
+    virtual const AddressSpace &addressSpace() const {
+        return m_addressSpace;
+    }
+
+    virtual const std::vector<ArrayPtr> &symbolics() const {
+        return m_symbolics;
+    }
+
+    virtual const AssignmentPtr concolics() const {
+        return m_concolics;
+    }
+
+    virtual void setConcolics(AssignmentPtr concolics) {
+        m_concolics = concolics;
+    }
+
     // Fired whenever an object becomes all concrete or gets at least one symbolic byte.
     // Only fired in the context of a memory operation (load/store)
     virtual void addressSpaceSymbolicStatusChange(const ObjectStatePtr &object, bool becameConcrete);

@@ -169,7 +169,7 @@ template <typename T> static bool getConcolicValue(S2EExecutionState *state, uns
     }
 
     klee::ref<klee::ConstantExpr> ce;
-    ce = dyn_cast<klee::ConstantExpr>(state->concolics->evaluate(expr));
+    ce = dyn_cast<klee::ConstantExpr>(state->concolics()->evaluate(expr));
     *value = ce->getZExtValue();
     return true;
 }

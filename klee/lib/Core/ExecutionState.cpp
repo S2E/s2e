@@ -53,7 +53,7 @@ BitfieldSimplifier ExecutionState::s_simplifier;
 std::set<ObjectKey, ObjectKeyLTS> ExecutionState::s_ignoredMergeObjects;
 
 ExecutionState::ExecutionState(KFunction *kf)
-    : addressSpace(this), forkDisabled(false), concolics(Assignment::create(true)) {
+    : m_addressSpace(this), m_concolics(Assignment::create(true)), forkDisabled(false) {
     llvm.initialize(kf);
 }
 
@@ -65,8 +65,8 @@ ExecutionState::~ExecutionState() {
 
 ExecutionState *ExecutionState::clone() {
     ExecutionState *state = new ExecutionState(*this);
-    state->addressSpace.state = state;
-    state->concolics = Assignment::create(true);
+    state->m_addressSpace.state = state;
+    state->m_concolics = Assignment::create(true);
     return state;
 }
 
@@ -84,7 +84,7 @@ void ExecutionState::addressSpaceSymbolicStatusChange(const ObjectStatePtr &obje
 void ExecutionState::popFrame() {
     StackFrame &sf = llvm.stack.back();
     for (auto it : sf.allocas) {
-        addressSpace.unbindObject(it);
+        m_addressSpace.unbindObject(it);
     }
     llvm.stack.pop_back();
 }
@@ -114,15 +114,15 @@ bool ExecutionState::merge(const ExecutionState &b) {
 
     // XXX is it even possible for these to differ? does it matter? probably
     // implies difference in object states?
-    if (symbolics != b.symbolics) {
+    if (m_symbolics != b.m_symbolics) {
         if (DebugLogStateMerge) {
-            m << "merge failed: different symbolics" << '\n';
+            m << "merge failed: different m_symbolics" << '\n';
 
-            for (auto it : symbolics) {
+            for (auto it : m_symbolics) {
                 m << it->getName() << "\n";
             }
             m << "\n";
-            for (auto it : b.symbolics) {
+            for (auto it : b.m_symbolics) {
                 m << it->getName() << "\n";
             }
         }
@@ -166,10 +166,10 @@ bool ExecutionState::merge(const ExecutionState &b) {
     // and not the other
 
     std::set<ObjectKey> mutated;
-    MemoryMap::iterator ai = addressSpace.objects.begin();
-    MemoryMap::iterator bi = b.addressSpace.objects.begin();
-    MemoryMap::iterator ae = addressSpace.objects.end();
-    MemoryMap::iterator be = b.addressSpace.objects.end();
+    MemoryMap::iterator ai = m_addressSpace.objects.begin();
+    MemoryMap::iterator bi = b.m_addressSpace.objects.begin();
+    MemoryMap::iterator ae = m_addressSpace.objects.end();
+    MemoryMap::iterator be = b.m_addressSpace.objects.end();
     for (; ai != ae && bi != be; ++ai, ++bi) {
         if (ai->first != bi->first) {
             if (DebugLogStateMerge) {
@@ -220,8 +220,8 @@ bool ExecutionState::merge(const ExecutionState &b) {
 
     int selectCountMem = 0;
     for (auto mo : mutated) {
-        auto os = addressSpace.findObject(mo.address);
-        auto otherOS = b.addressSpace.findObject(mo.address);
+        auto os = m_addressSpace.findObject(mo.address);
+        auto otherOS = b.m_addressSpace.findObject(mo.address);
         assert(os && !os->isReadOnly() && "objects mutated but not writable in merging state");
         assert(otherOS);
 
@@ -229,7 +229,7 @@ bool ExecutionState::merge(const ExecutionState &b) {
             m << "Merging object " << os->getName() << "\n";
         }
 
-        auto wos = addressSpace.getWriteable(os);
+        auto wos = m_addressSpace.getWriteable(os);
         for (unsigned i = 0; i < mo.size; i++) {
             ref<Expr> av = wos->read8(i);
             ref<Expr> bv = otherOS->read8(i);
@@ -260,20 +260,20 @@ bool ExecutionState::merge(const ExecutionState &b) {
 }
 
 bool ExecutionState::getSymbolicSolution(std::vector<std::pair<std::string, std::vector<unsigned char>>> &res) {
-    for (unsigned i = 0; i != symbolics.size(); ++i) {
-        auto &arr = symbolics[i];
+    for (unsigned i = 0; i != m_symbolics.size(); ++i) {
+        auto &arr = m_symbolics[i];
         std::vector<unsigned char> data;
         for (unsigned s = 0; s < arr->getSize(); ++s) {
-            ref<Expr> e = concolics->evaluate(arr, s);
+            ref<Expr> e = m_concolics->evaluate(arr, s);
             if (!isa<ConstantExpr>(e)) {
                 (*klee_warning_stream) << "Failed to evaluate concrete value for " << arr->getName() << "[" << s
                                        << "]: " << e << "\n";
-                (*klee_warning_stream) << "  Symbolics (" << symbolics.size() << "):\n";
-                for (auto it : symbolics) {
+                (*klee_warning_stream) << "  Symbolics (" << m_symbolics.size() << "):\n";
+                for (auto it : m_symbolics) {
                     (*klee_warning_stream) << "    " << it->getName() << "\n";
                 }
-                (*klee_warning_stream) << "  Assignments (" << concolics->bindings.size() << "):\n";
-                for (auto it : concolics->bindings) {
+                (*klee_warning_stream) << "  Assignments (" << m_concolics->bindings.size() << "):\n";
+                for (auto it : m_concolics->bindings) {
                     (*klee_warning_stream) << "    " << it.first->getName() << "\n";
                 }
                 klee_warning_stream->flush();
@@ -300,8 +300,8 @@ ref<Expr> ExecutionState::simplifyExpr(const ref<Expr> &e) const {
     if (ValidateSimplifier) {
         bool isEqual;
 
-        ref<Expr> originalConcrete = concolics->evaluate(e);
-        ref<Expr> simplifiedConcrete = concolics->evaluate(simplified);
+        ref<Expr> originalConcrete = m_concolics->evaluate(e);
+        ref<Expr> simplifiedConcrete = m_concolics->evaluate(simplified);
         isEqual = originalConcrete == simplifiedConcrete;
 
         if (!isEqual) {
@@ -331,7 +331,7 @@ ref<ConstantExpr> ExecutionState::toConstant(ref<Expr> e, const std::string &rea
 
     ref<ConstantExpr> value;
 
-    ref<Expr> evalResult = concolics->evaluate(e);
+    ref<Expr> evalResult = m_concolics->evaluate(e);
     assert(isa<ConstantExpr>(evalResult) && "Must be concrete");
     value = dyn_cast<ConstantExpr>(evalResult);
 
@@ -376,7 +376,7 @@ uint64_t ExecutionState::toConstant(const ref<Expr> &value, const ObjectStateCon
 
 // This API does not add a constraint
 ref<ConstantExpr> ExecutionState::toConstantSilent(ref<Expr> e) {
-    ref<Expr> evalResult = concolics->evaluate(e);
+    ref<Expr> evalResult = m_concolics->evaluate(e);
     assert(isa<ConstantExpr>(evalResult) && "Must be concrete");
     return dyn_cast<ConstantExpr>(evalResult);
 }
@@ -391,7 +391,7 @@ ref<Expr> ExecutionState::toUnique(ref<Expr> &e) {
 
     ref<ConstantExpr> value;
 
-    ref<Expr> evalResult = concolics->evaluate(e);
+    ref<Expr> evalResult = m_concolics->evaluate(e);
     assert(isa<ConstantExpr>(evalResult) && "Must be concrete");
     value = dyn_cast<ConstantExpr>(evalResult);
 
@@ -410,13 +410,13 @@ bool ExecutionState::solve(const ConstraintManager &mgr, Assignment &assignment)
     std::vector<std::vector<unsigned char>> concreteObjects;
     Query q(mgr, ConstantExpr::alloc(0, Expr::Bool));
 
-    if (!solver()->getInitialValues(q, symbolics, concreteObjects)) {
+    if (!solver()->getInitialValues(q, m_symbolics, concreteObjects)) {
         return false;
     }
 
     assignment.clear();
-    for (unsigned i = 0; i < symbolics.size(); ++i) {
-        assignment.add(symbolics[i], concreteObjects[i]);
+    for (unsigned i = 0; i < m_symbolics.size(); ++i) {
+        assignment.add(m_symbolics[i], concreteObjects[i]);
     }
 
     return true;
@@ -430,7 +430,7 @@ bool ExecutionState::addConstraint(const ref<Expr> &constraint, bool recomputeCo
         return false;
     }
 
-    auto evaluated = concolics->evaluate(simplified);
+    auto evaluated = m_concolics->evaluate(simplified);
     ConstantExpr *ce = dyn_cast<ConstantExpr>(evaluated);
     if (!ce) {
         *klee_warning_stream << "Constraint does not evaluate to a constant:" << evaluated << "\n";
@@ -441,7 +441,7 @@ bool ExecutionState::addConstraint(const ref<Expr> &constraint, bool recomputeCo
         if (recomputeConcolics) {
             ConstraintManager newConstraints = m_constraints;
             newConstraints.addConstraint(simplified);
-            if (!solve(newConstraints, *concolics)) {
+            if (!solve(newConstraints, *m_concolics)) {
                 *klee_warning_stream << "Could not compute concolic values for the new constraint\n";
                 return false;
             }
@@ -463,8 +463,8 @@ bool ExecutionState::addConstraint(const ref<Expr> &constraint, bool recomputeCo
 /// \param os output stream
 void ExecutionState::dumpQuery(llvm::raw_ostream &os) const {
     ArrayVec symbObjects;
-    for (unsigned i = 0; i < symbolics.size(); ++i) {
-        symbObjects.push_back(symbolics[i]);
+    for (unsigned i = 0; i < m_symbolics.size(); ++i) {
+        symbObjects.push_back(m_symbolics[i]);
     }
 
     auto printer = std::unique_ptr<ExprPPrinter>(ExprPPrinter::create(os));
@@ -504,7 +504,7 @@ ObjectStatePtr ExecutionState::addExternalObject(void *addr, unsigned size, bool
 }
 
 void ExecutionState::bindObject(const ObjectStatePtr &os, bool isLocal) {
-    addressSpace.bindObject(os);
+    m_addressSpace.bindObject(os);
 
     // Its possible that multiple bindings of the same mo in the state
     // will put multiple copies on this list, but it doesn't really
@@ -531,7 +531,7 @@ void ExecutionState::executeAlloc(ref<Expr> size, bool isLocal, KInstruction *ta
                 for (unsigned i = 0; i < count; i++) {
                     mo->write(i, reallocFrom->read8(i));
                 }
-                addressSpace.unbindObject(reallocFrom->getKey());
+                m_addressSpace.unbindObject(reallocFrom->getKey());
             }
         }
     } else {
@@ -541,7 +541,7 @@ void ExecutionState::executeAlloc(ref<Expr> size, bool isLocal, KInstruction *ta
 }
 
 ref<Expr> ExecutionState::executeMemoryRead(uint64_t concreteAddress, unsigned bytes) {
-    auto ret = addressSpace.read(concreteAddress, bytes * 8);
+    auto ret = m_addressSpace.read(concreteAddress, bytes * 8);
     if (!ret) {
         pabort("read failed");
     }
@@ -553,7 +553,7 @@ void ExecutionState::executeMemoryWrite(uint64_t concreteAddress, const ref<Expr
         return toConstant(value, os, offset);
     };
 
-    if (!addressSpace.write(concreteAddress, value, concretizer)) {
+    if (!m_addressSpace.write(concreteAddress, value, concretizer)) {
         pabort("write failed");
     }
 }

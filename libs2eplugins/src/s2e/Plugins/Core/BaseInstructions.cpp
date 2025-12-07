@@ -315,7 +315,7 @@ void BaseInstructions::printExpression(S2EExecutionState *state) {
     getInfoStream() << "SymbExpression " << nameStr << " - " << val << '\n';
 
     if (!isa<klee::ConstantExpr>(val)) {
-        klee::ref<klee::Expr> concrete = state->concolics->evaluate(val);
+        klee::ref<klee::Expr> concrete = state->concolics()->evaluate(val);
         getInfoStream() << "SymbExpression " << nameStr << " - Value: " << concrete << '\n';
     }
 }
