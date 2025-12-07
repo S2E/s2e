@@ -30,6 +30,8 @@
 
 set -e
 
+CLANG_FORMAT=${CLANG_FORMAT:-clang-format-19}
+
 if [ -z "${CLANG_FORMAT}" ]; then
     echo "Usage: CLANG_FORMAT=/path/to/clang-format ${0}"
     echo ""
