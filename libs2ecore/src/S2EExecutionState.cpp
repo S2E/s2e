@@ -51,10 +51,6 @@ namespace klee {
 extern llvm::cl::opt<bool> DebugLogStateMerge;
 }
 
-namespace {
-// CPUTLBEntry s_cputlb_empty_entry = { -1, -1, -1, -1, 0 };
-}
-
 extern llvm::cl::opt<bool> PrintModeSwitch;
 extern llvm::cl::opt<bool> PrintForkingStatus;
 extern llvm::cl::opt<bool> VerboseStateDeletion;

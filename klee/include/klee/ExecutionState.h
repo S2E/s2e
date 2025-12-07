@@ -105,10 +105,6 @@ public:
 
     ExecutionState(KFunction *kf);
 
-    // XXX total hack, just used to make a state so solver can
-    // use on structure
-    ExecutionState(const std::vector<ref<Expr>> &assumptions);
-
     virtual ~ExecutionState();
 
     virtual ExecutionState *clone();

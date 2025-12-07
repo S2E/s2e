@@ -133,8 +133,6 @@ protected:
     // delete the state (called internally by terminateState and updateStates)
     virtual void deleteState(ExecutionState *state);
 
-    void handlePointsToObj(ExecutionState &state, KInstruction *target, const std::vector<ref<Expr>> &arguments);
-
     typedef void (*FunctionHandler)(Executor *executor, ExecutionState *state, KInstruction *target,
                                     std::vector<ref<Expr>> &arguments);
 
