@@ -68,9 +68,9 @@ protected:
     KModulePtr kmodule;
     Searcher *searcher;
 
-    ExternalDispatcher *externalDispatcher;
+    std::unique_ptr<ExternalDispatcher> externalDispatcher;
     StateSet states;
-    SpecialFunctionHandler *specialFunctionHandler;
+    std::unique_ptr<SpecialFunctionHandler> specialFunctionHandler;
 
     /// Used to track states that have been added during the current
     /// instructions step.
@@ -177,10 +177,6 @@ public:
 
     const StateSet &getRemovedStates() {
         return removedStates;
-    }
-
-    ExternalDispatcher *getDispatcher() const {
-        return externalDispatcher;
     }
 
     KModulePtr getModule() const {

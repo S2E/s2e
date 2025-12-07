@@ -83,7 +83,7 @@ extern cl::opt<bool> UseExprSimplifier;
 } // namespace klee
 
 Executor::Executor(LLVMContext &context)
-    : kmodule(0), searcher(0), externalDispatcher(new ExternalDispatcher()), specialFunctionHandler(0) {
+    : kmodule(0), searcher(0), externalDispatcher(std::make_unique<ExternalDispatcher>()) {
 }
 
 const Module *Executor::setModule(llvm::Module *module) {
@@ -95,7 +95,7 @@ const Module *Executor::setModule(llvm::Module *module) {
     auto TD = kmodule->getDataLayout();
     Context::initialize(TD->isLittleEndian(), (Expr::Width) TD->getPointerSizeInBits());
 
-    specialFunctionHandler = new SpecialFunctionHandler(*this);
+    specialFunctionHandler = std::make_unique<SpecialFunctionHandler>(*this);
 
     specialFunctionHandler->prepare(*module);
 
@@ -107,9 +107,6 @@ const Module *Executor::setModule(llvm::Module *module) {
 }
 
 Executor::~Executor() {
-    delete externalDispatcher;
-    if (specialFunctionHandler)
-        delete specialFunctionHandler;
 }
 
 /***/
