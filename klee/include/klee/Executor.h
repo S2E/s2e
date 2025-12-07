@@ -60,6 +60,12 @@ class BitfieldSimplifier;
 class SolverFactory;
 template <class T> class ref;
 
+class LLVMExecutorException : public std::runtime_error {
+public:
+    LLVMExecutorException(const std::string &msg) : std::runtime_error(msg) {
+    }
+};
+
 class Executor {
 public:
     typedef std::pair<ExecutionState *, ExecutionState *> StatePair;

@@ -467,8 +467,9 @@ void Executor::executeCall(ExecutionState &state, KInstruction *ki, Function *f,
 
             case Intrinsic::fabs: {
                 ref<ConstantExpr> arg = state.toConstant(arguments[0], "floating point");
-                if (!fpWidthToSemantics(arg->getWidth()))
-                    return terminateState(state, "Unsupported intrinsic llvm.fabs call");
+                if (!fpWidthToSemantics(arg->getWidth())) {
+                    throw LLVMExecutorException("Unsupported intrinsic llvm.fabs call");
+                }
 
                 llvm::APFloat Res(*fpWidthToSemantics(arg->getWidth()), arg->getAPValue());
                 Res = llvm::abs(Res);
@@ -478,8 +479,9 @@ void Executor::executeCall(ExecutionState &state, KInstruction *ki, Function *f,
             }
 
             case Intrinsic::abs: {
-                if (isa<VectorType>(i->getOperand(0)->getType()))
-                    return terminateState(state, "llvm.abs with vectors is not supported");
+                if (isa<VectorType>(i->getOperand(0)->getType())) {
+                    throw LLVMExecutorException("llvm.abs with vectors is not supported");
+                }
 
                 ref<Expr> op = eval(ki, 1, llvmState).value;
                 ref<Expr> poison = eval(ki, 2, llvmState).value;
@@ -496,8 +498,9 @@ void Executor::executeCall(ExecutionState &state, KInstruction *ki, Function *f,
 
                 if (poison->isTrue()) {
                     ref<Expr> issmin = EqExpr::create(op, smin);
-                    if (issmin->isTrue())
-                        return terminateState(state, "llvm.abs called with poison and INT_MIN");
+                    if (issmin->isTrue()) {
+                        throw LLVMExecutorException("llvm.abs called with poison and INT_MIN");
+                    }
                 }
 
                 // conditions to flip the sign: INT_MIN < op < 0
@@ -517,8 +520,9 @@ void Executor::executeCall(ExecutionState &state, KInstruction *ki, Function *f,
             case Intrinsic::smin:
             case Intrinsic::umax:
             case Intrinsic::umin: {
-                if (isa<VectorType>(i->getOperand(0)->getType()) || isa<VectorType>(i->getOperand(1)->getType()))
-                    return terminateState(state, "llvm.{s,u}{max,min} with vectors is not supported");
+                if (isa<VectorType>(i->getOperand(0)->getType()) || isa<VectorType>(i->getOperand(1)->getType())) {
+                    throw LLVMExecutorException("llvm.{s,u}{max,min} with vectors is not supported");
+                }
 
                 ref<Expr> op1 = eval(ki, 1, llvmState).value;
                 ref<Expr> op2 = eval(ki, 2, llvmState).value;
@@ -627,13 +631,11 @@ void Executor::executeCall(ExecutionState &state, KInstruction *ki, Function *f,
             if (callingArgs > funcArgs) {
                 klee_warning_once(f, "calling %s with extra arguments.", f->getName().data());
             } else if (callingArgs < funcArgs) {
-                terminateState(state, "calling function with too few arguments");
-                return;
+                throw LLVMExecutorException("calling function with too few arguments");
             }
         } else {
             if (callingArgs < funcArgs) {
-                terminateState(state, "calling function with too few arguments");
-                return;
+                throw LLVMExecutorException("calling function with too few arguments");
             }
 
             StackFrame &sf = llvmState.stack.back();
@@ -651,8 +653,7 @@ void Executor::executeCall(ExecutionState &state, KInstruction *ki, Function *f,
 
             auto mo = ObjectState::allocate(0, size, false);
             if (!mo) {
-                terminateState(state, "out of memory (varargs)");
-                return;
+                throw LLVMExecutorException("out of memory (varargs)");
             }
 
             sf.varargs.push_back(mo->getKey());
@@ -735,8 +736,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
             }
 
             if (llvmState.stack.size() <= 1) {
-                assert(!caller && "caller set on initial stack frame");
-                terminateState(state);
+                throw LLVMExecutorException("invalid stack size");
             } else {
                 state.popFrame();
 
@@ -772,7 +772,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
                     // checking the type, since C defaults to returning int for
                     // undeclared functions.
                     if (!caller->use_empty()) {
-                        terminateState(state, "return void when caller expected a result");
+                        throw LLVMExecutorException("return void when caller expected a result");
                     }
                 }
             }
@@ -833,7 +833,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
             // generate unreachable instructions in cases where it knows the
             // program will crash. So it is effectively a SEGV or internal
             // error.
-            terminateState(state, "reached \"unreachable\" instruction");
+            throw LLVMExecutorException("reached \"unreachable\" instruction");
             break;
 
         case Instruction::Invoke:
@@ -894,7 +894,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
                         i++;
                     }
                 } else if (isa<InlineAsm>(fp)) {
-                    terminateState(state, "inline assembly is unsupported");
+                    throw LLVMExecutorException("inline assembly is unsupported");
                     break;
                 }
             }
@@ -905,15 +905,13 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
                 ref<Expr> v = eval(ki, 0, llvmState).value;
                 ref<ConstantExpr> constantTarget = dyn_cast<ConstantExpr>(v);
                 if (!constantTarget) {
-                    terminateState(state, "the engine encountered a symbolic function pointer");
-                    abort();
+                    throw LLVMExecutorException("the engine encountered a symbolic function pointer");
                 }
 
                 uint64_t addr = constantTarget->getZExtValue();
                 CallInst *ci = dyn_cast<CallInst>(i);
                 if (!ci) {
-                    terminateState(state, "could not cast call inst");
-                    abort();
+                    throw LLVMExecutorException("could not cast call inst");
                 }
 
                 Module *m = i->getParent()->getParent()->getParent();
@@ -950,7 +948,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
         }
 
         case Instruction::VAArg:
-            terminateState(state, "unexpected VAArg instruction");
+            throw LLVMExecutorException("unexpected VAArg instruction");
             break;
 
             // Arithmetic / logical
@@ -1144,7 +1142,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
                 }
 
                 default:
-                    terminateState(state, "invalid ICmp predicate");
+                    throw LLVMExecutorException("invalid ICmp predicate");
             }
             break;
         }
@@ -1299,7 +1297,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
             Expr::Width resultType = kmodule->getWidthForLLVMType(fi->getType());
             ref<ConstantExpr> arg = state.toConstant(eval(ki, 0, llvmState).value, "floating point");
             if (arg->getWidth() > 64)
-                return terminateState(state, "Unsupported FPTrunc operation");
+                throw LLVMExecutorException("Unsupported FPTrunc operation");
             uint64_t value = floats::trunc(arg->getZExtValue(), resultType, arg->getWidth());
             state.bindLocal(ki, ConstantExpr::alloc(value, resultType));
             break;
@@ -1310,7 +1308,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
             Expr::Width resultType = kmodule->getWidthForLLVMType(fi->getType());
             ref<ConstantExpr> arg = state.toConstant(eval(ki, 0, llvmState).value, "floating point");
             if (arg->getWidth() > 64)
-                return terminateState(state, "Unsupported FPExt operation");
+                throw LLVMExecutorException("Unsupported FPExt operation");
             uint64_t value = floats::ext(arg->getZExtValue(), resultType, arg->getWidth());
             state.bindLocal(ki, ConstantExpr::alloc(value, resultType));
             break;
@@ -1321,7 +1319,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
             Expr::Width resultType = kmodule->getWidthForLLVMType(fi->getType());
             ref<ConstantExpr> arg = state.toConstant(eval(ki, 0, llvmState).value, "floating point");
             if (arg->getWidth() > 64)
-                return terminateState(state, "Unsupported FPToUI operation");
+                throw LLVMExecutorException("Unsupported FPToUI operation");
             uint64_t value = floats::toUnsignedInt(arg->getZExtValue(), resultType, arg->getWidth());
             state.bindLocal(ki, ConstantExpr::alloc(value, resultType));
             break;
@@ -1332,7 +1330,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
             Expr::Width resultType = kmodule->getWidthForLLVMType(fi->getType());
             ref<ConstantExpr> arg = state.toConstant(eval(ki, 0, llvmState).value, "floating point");
             if (arg->getWidth() > 64)
-                return terminateState(state, "Unsupported FPToSI operation");
+                throw LLVMExecutorException("Unsupported FPToSI operation");
             uint64_t value = floats::toSignedInt(arg->getZExtValue(), resultType, arg->getWidth());
             state.bindLocal(ki, ConstantExpr::alloc(value, resultType));
             break;
@@ -1343,7 +1341,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
             Expr::Width resultType = kmodule->getWidthForLLVMType(fi->getType());
             ref<ConstantExpr> arg = state.toConstant(eval(ki, 0, llvmState).value, "floating point");
             if (arg->getWidth() > 64)
-                return terminateState(state, "Unsupported UIToFP operation");
+                throw LLVMExecutorException("Unsupported UIToFP operation");
             uint64_t value = floats::UnsignedIntToFP(arg->getZExtValue(), resultType);
             state.bindLocal(ki, ConstantExpr::alloc(value, resultType));
             break;
@@ -1354,7 +1352,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
             Expr::Width resultType = kmodule->getWidthForLLVMType(fi->getType());
             ref<ConstantExpr> arg = state.toConstant(eval(ki, 0, llvmState).value, "floating point");
             if (arg->getWidth() > 64)
-                return terminateState(state, "Unsupported SIToFP operation");
+                throw LLVMExecutorException("Unsupported SIToFP operation");
             uint64_t value = floats::SignedIntToFP(arg->getZExtValue(), resultType, arg->getWidth());
             state.bindLocal(ki, ConstantExpr::alloc(value, resultType));
             break;
@@ -1489,8 +1487,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
 
             ConstantExpr *cIdx = dyn_cast<ConstantExpr>(idx);
             if (cIdx == NULL) {
-                terminateState(state, "InsertElement, support for symbolic index not implemented");
-                return;
+                throw LLVMExecutorException("InsertElement, support for symbolic index not implemented");
             }
             uint64_t iIdx = cIdx->getZExtValue();
             const auto *vt = cast<llvm::FixedVectorType>(iei->getType());
@@ -1498,8 +1495,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
 
             if (iIdx >= vt->getNumElements()) {
                 // Out of bounds write
-                terminateState(state, "Out of bounds write when inserting element");
-                return;
+                throw LLVMExecutorException("Out of bounds write when inserting element");
             }
 
             const unsigned elementCount = vt->getNumElements();
@@ -1523,8 +1519,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
 
             ConstantExpr *cIdx = dyn_cast<ConstantExpr>(idx);
             if (cIdx == NULL) {
-                terminateState(state, "ExtractElement, support for symbolic index not implemented");
-                return;
+                throw LLVMExecutorException("ExtractElement, support for symbolic index not implemented");
             }
             uint64_t iIdx = cIdx->getZExtValue();
             const auto *vt = cast<llvm::FixedVectorType>(eei->getVectorOperandType());
@@ -1532,8 +1527,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
 
             if (iIdx >= vt->getNumElements()) {
                 // Out of bounds read
-                terminateState(state, "Out of bounds read when extracting element");
-                return;
+                throw LLVMExecutorException("Out of bounds read when extracting element");
             }
 
             unsigned bitOffset = EltBits * iIdx;
@@ -1544,7 +1538,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
         case Instruction::ShuffleVector:
             // Should never happen due to Scalarizer pass removing ShuffleVector
             // instructions.
-            terminateState(state, "Unexpected ShuffleVector instruction");
+            throw LLVMExecutorException("Unexpected ShuffleVector instruction");
             break;
 
         // Other instructions...
@@ -1553,7 +1547,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
             std::string errstr;
             llvm::raw_string_ostream err(errstr);
             err << *i;
-            terminateState(state, "illegal instruction " + errstr);
+            throw LLVMExecutorException("illegal instruction " + errstr);
         }
 
         break;
@@ -1620,8 +1614,7 @@ void Executor::callExternalFunction(ExecutionState &state, KInstruction *target,
 
     if (NoExternals && !okExternals.count(function->getName().str())) {
         llvm::errs() << "KLEE:ERROR: Calling not-OK external function : " << function->getName() << "\n";
-        terminateState(state, "externals disallowed");
-        return;
+        throw LLVMExecutorException("externals disallowed");
     }
 
     ExternalDispatcher::Arguments cas;
@@ -1679,14 +1672,14 @@ void Executor::callExternalFunction(ExecutionState &state, KInstruction *target,
     if (!targetFunction) {
         std::stringstream ss;
         ss << "Could not find address of external function " << function->getName().str();
-        terminateState(state, ss.str());
+        throw LLVMExecutorException(ss.str());
         return;
     }
 
     std::stringstream ss;
     if (!externalDispatcher->call(targetFunction, cas, &result, ss)) {
         ss << ": " << function->getName().str();
-        terminateState(state, ss.str());
+        throw LLVMExecutorException(ss.str());
         return;
     }
 

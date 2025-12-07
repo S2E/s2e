@@ -992,7 +992,11 @@ inline bool S2EExecutor::executeInstructions(S2EExecutionState *state, unsigned 
             }
 
             state->llvm.stepInstruction();
-            executeInstruction(*state, ki);
+            try {
+                executeInstruction(*state, ki);
+            } catch (const klee::LLVMExecutorException &e) {
+                terminateState(*state, e.what());
+            }
 
             updateStates(state);
 
