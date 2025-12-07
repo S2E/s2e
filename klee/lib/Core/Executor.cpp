@@ -566,7 +566,7 @@ void Executor::executeCall(ExecutionState &state, KInstruction *ki, Function *f,
             // va_arg is handled by caller and intrinsic lowering, see comment for
             // ExecutionState::varargs
             case Intrinsic::vastart: {
-                StackFrame &sf = state.llvm.stack.back();
+                StackFrame &sf = llvmState.stack.back();
                 assert(sf.varargs.size() && "vastart called in function with no vararg object");
 
                 // FIXME: This is really specific to the architecture, not the pointer
@@ -607,7 +607,7 @@ void Executor::executeCall(ExecutionState &state, KInstruction *ki, Function *f,
         }
 
         if (InvokeInst *ii = dyn_cast<InvokeInst>(i)) {
-            state.llvm.transferToBasicBlock(ii->getNormalDest(), i->getParent());
+            llvmState.transferToBasicBlock(ii->getNormalDest(), i->getParent());
         }
     } else {
         // FIXME: I'm not really happy about this reliance on prevPC but it is ok, I
@@ -615,8 +615,8 @@ void Executor::executeCall(ExecutionState &state, KInstruction *ki, Function *f,
         // instead of the actual instruction, since we can't make a KInstIterator
         // from just an instruction (unlike LLVM).
         auto kf = kmodule->getKFunction(f);
-        state.llvm.pushFrame(state.llvm.prevPC, kf);
-        state.llvm.pc = kf->getInstructions();
+        llvmState.pushFrame(llvmState.prevPC, kf);
+        llvmState.pc = kf->getInstructions();
 
         // TODO: support "byval" parameter attribute
         // TODO: support zeroext, signext, sret attributes
@@ -636,7 +636,7 @@ void Executor::executeCall(ExecutionState &state, KInstruction *ki, Function *f,
                 return;
             }
 
-            StackFrame &sf = state.llvm.stack.back();
+            StackFrame &sf = llvmState.stack.back();
             unsigned size = 0;
             for (unsigned i = funcArgs; i < callingArgs; i++) {
                 // FIXME: This is really specific to the architecture, not the pointer
@@ -725,7 +725,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
         // Control flow
         case Instruction::Ret: {
             ReturnInst *ri = cast<ReturnInst>(i);
-            KInstIterator kcaller = state.llvm.stack.back().caller;
+            KInstIterator kcaller = llvmState.stack.back().caller;
             Instruction *caller = kcaller ? kcaller->inst : nullptr;
             bool isVoidReturn = (ri->getNumOperands() == 0);
             ref<Expr> result = ConstantExpr::alloc(0, Expr::Bool);
@@ -734,17 +734,17 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
                 result = eval(ki, 0, llvmState).value;
             }
 
-            if (state.llvm.stack.size() <= 1) {
+            if (llvmState.stack.size() <= 1) {
                 assert(!caller && "caller set on initial stack frame");
                 terminateState(state);
             } else {
                 state.popFrame();
 
                 if (InvokeInst *ii = dyn_cast<InvokeInst>(caller)) {
-                    state.llvm.transferToBasicBlock(ii->getNormalDest(), caller->getParent());
+                    llvmState.transferToBasicBlock(ii->getNormalDest(), caller->getParent());
                 } else {
-                    state.llvm.pc = kcaller;
-                    ++state.llvm.pc;
+                    llvmState.pc = kcaller;
+                    ++llvmState.pc;
                 }
 
                 if (!isVoidReturn) {
@@ -781,7 +781,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
         case Instruction::Br: {
             BranchInst *bi = cast<BranchInst>(i);
             if (bi->isUnconditional()) {
-                state.llvm.transferToBasicBlock(bi->getSuccessor(0), bi->getParent());
+                llvmState.transferToBasicBlock(bi->getSuccessor(0), bi->getParent());
             } else {
                 // FIXME: Find a way that we don't have this hidden dependency.
                 assert(bi->getCondition() == bi->getOperand(0) && "Wrong operand index!");
@@ -821,7 +821,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
                 llvm::IntegerType *Ty = cast<IntegerType>(si->getCondition()->getType());
                 ConstantInt *ci = ConstantInt::get(Ty, CE->getZExtValue());
                 SwitchInst::CaseIt cit = si->findCaseValue(ci);
-                state.llvm.transferToBasicBlock(cit->getCaseSuccessor(), si->getParent());
+                llvmState.transferToBasicBlock(cit->getCaseSuccessor(), si->getParent());
             } else {
                 pabort("Cannot get here in concolic mode");
                 abort();
@@ -932,7 +932,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
             break;
         }
         case Instruction::PHI: {
-            ref<Expr> result = eval(ki, state.llvm.incomingBBIndex, llvmState).value;
+            ref<Expr> result = eval(ki, llvmState.incomingBBIndex, llvmState).value;
             state.bindLocal(ki, result);
             break;
         }
@@ -1588,7 +1588,7 @@ void Executor::terminateState(ExecutionState &state) {
     StateSet::iterator it = addedStates.find(&state);
     if (it == addedStates.end()) {
         // XXX: the following line makes delayed state termination impossible
-        // state.llvm.pc = state.llvm.prevPC;
+        // llvmState.pc = llvmState.prevPC;
 
         removedStates.insert(&state);
     } else {
