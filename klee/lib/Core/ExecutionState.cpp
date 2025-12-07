@@ -58,7 +58,6 @@ ExecutionState::ExecutionState(KFunction *kf)
 }
 
 ExecutionState::~ExecutionState() {
-
 }
 
 ExecutionState *ExecutionState::clone() {
@@ -472,15 +471,6 @@ SolverPtr ExecutionState::solver() const {
     return m_solver;
 }
 
-void ExecutionState::bindLocal(KInstruction *target, ref<Expr> value) {
-
-    llvm.bindLocal(target, simplifyExpr(value));
-}
-
-void ExecutionState::bindArgument(KFunction *kf, unsigned index, ref<Expr> value) {
-    llvm.bindArgument(kf, index, simplifyExpr(value));
-}
-
 ObjectStatePtr ExecutionState::addExternalObject(void *addr, unsigned size, bool isReadOnly, bool isSharedConcrete) {
     auto ret = ObjectState::allocate((uint64_t) addr, size, true);
     bindObject(ret, false);
@@ -512,10 +502,10 @@ void ExecutionState::executeAlloc(ref<Expr> size, bool isLocal, KInstruction *ta
     if (ConstantExpr *CE = dyn_cast<ConstantExpr>(size)) {
         auto mo = ObjectState::allocate(0, CE->getZExtValue(), false);
         if (!mo) {
-            bindLocal(target, ConstantExpr::alloc(0, Context::get().getPointerWidth()));
+            llvm.bindLocal(target, ConstantExpr::alloc(0, Context::get().getPointerWidth()));
         } else {
             bindObject(mo, isLocal);
-            bindLocal(target, mo->getBaseExpr());
+            llvm.bindLocal(target, mo->getBaseExpr());
 
             if (reallocFrom) {
                 unsigned count = std::min(reallocFrom->getSize(), mo->getSize());

@@ -58,7 +58,8 @@ using stack_ty = llvm::SmallVector<StackFrame, 16>;
 
 class LLVMExecutionState {
 public:
-    LLVMExecutionState(IExecutionState *state) : state(state) {}
+    LLVMExecutionState(IExecutionState *state) : state(state) {
+    }
     LLVMExecutionState() = delete;
     ~LLVMExecutionState();
 

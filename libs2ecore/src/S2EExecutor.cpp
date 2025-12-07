@@ -975,7 +975,7 @@ void S2EExecutor::prepareFunctionExecution(S2EExecutionState *state, llvm::Funct
 
     /* Pass argument */
     for (unsigned i = 0; i < args.size(); ++i) {
-        state->bindArgument(kf, i, args[i]);
+        state->llvm.bindArgument(kf, i, args[i]);
     }
 }
 

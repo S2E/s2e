@@ -384,7 +384,7 @@ static void handle_ldb_mmu(Executor *executor, ExecutionState *state, klee::KIns
     assert(args.size() == 4);
     ref<Expr> value = handle_ldst_mmu(executor, state, target, args, false, 1, false, false);
     assert(value->getWidth() == Expr::Int8);
-    state->bindLocal(target, value);
+    state->llvm.bindLocal(target, value);
 }
 
 static void handle_ldw_mmu(Executor *executor, ExecutionState *state, klee::KInstruction *target,
@@ -392,7 +392,7 @@ static void handle_ldw_mmu(Executor *executor, ExecutionState *state, klee::KIns
     assert(args.size() == 4);
     ref<Expr> value = handle_ldst_mmu(executor, state, target, args, false, 2, false, false);
     assert(value->getWidth() == Expr::Int16);
-    state->bindLocal(target, value);
+    state->llvm.bindLocal(target, value);
 }
 
 static void handle_ldl_mmu(Executor *executor, ExecutionState *state, klee::KInstruction *target,
@@ -400,7 +400,7 @@ static void handle_ldl_mmu(Executor *executor, ExecutionState *state, klee::KIns
     assert(args.size() == 4);
     ref<Expr> value = handle_ldst_mmu(executor, state, target, args, false, 4, false, false);
     assert(value->getWidth() == Expr::Int32);
-    state->bindLocal(target, value);
+    state->llvm.bindLocal(target, value);
 }
 
 static void handle_ldq_mmu(Executor *executor, ExecutionState *state, klee::KInstruction *target,
@@ -408,7 +408,7 @@ static void handle_ldq_mmu(Executor *executor, ExecutionState *state, klee::KIns
     assert(args.size() == 4);
     ref<Expr> value = handle_ldst_mmu(executor, state, target, args, false, 8, false, false);
     assert(value->getWidth() == Expr::Int64);
-    state->bindLocal(target, value);
+    state->llvm.bindLocal(target, value);
 }
 
 static void handle_stb_mmu(Executor *executor, ExecutionState *state, klee::KInstruction *target,
@@ -488,7 +488,7 @@ static void handle_ldst_kernel(Executor *executor, ExecutionState *state, klee::
             slowArgs.push_back(ConstantExpr::create(mmu_idx, Expr::Int64));
             slowArgs.push_back(ConstantExpr::create(0, Expr::Int64));
             value = handle_ldst_mmu(executor, state, target, slowArgs, isWrite, dataSize, signExtend, zeroExtend);
-            state->bindLocal(target, value);
+            state->llvm.bindLocal(target, value);
         }
         return;
 
@@ -522,7 +522,7 @@ static void handle_ldst_kernel(Executor *executor, ExecutionState *state, klee::
                 assert(dataSize < 4);
                 value = ZExtExpr::create(value, Expr::Int32);
             }
-            state->bindLocal(target, value);
+            state->llvm.bindLocal(target, value);
         }
     }
 }

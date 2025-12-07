@@ -125,11 +125,11 @@ void LLVMExecutionState::popFrame() {
 
 void LLVMExecutionState::bindLocal(KInstruction *target, ref<Expr> value) {
 
-    getDestCell(target).value = value;
+    getDestCell(target).value = state->simplifyExpr(value);
 }
 
 void LLVMExecutionState::bindArgument(KFunction *kf, unsigned index, ref<Expr> value) {
-    getArgumentCell(kf, index).value = value;
+    getArgumentCell(kf, index).value = state->simplifyExpr(value);
 }
 
 bool LLVMExecutionState::mergeable(const LLVMExecutionState &b) const {

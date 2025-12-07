@@ -40,6 +40,7 @@ public:
     virtual const std::vector<ArrayPtr> &symbolics() const = 0;
     virtual const AssignmentPtr concolics() const = 0;
     virtual void setConcolics(AssignmentPtr concolics) = 0;
+    virtual ref<Expr> simplifyExpr(const ref<Expr> &e) const = 0;
 };
 
 } // namespace klee

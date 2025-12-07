@@ -155,9 +155,6 @@ public:
 
     SolverPtr solver() const;
 
-    void bindLocal(KInstruction *target, ref<Expr> value);
-    void bindArgument(KFunction *kf, unsigned index, ref<Expr> value);
-
     // Given a concrete object in our [klee's] address space, add it to
     // objects checked code can reference.
     ObjectStatePtr addExternalObject(void *addr, unsigned size, bool isReadOnly, bool isSharedConcrete = false);
