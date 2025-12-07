@@ -1246,7 +1246,7 @@ void S2EExecutor::cleanupTranslationBlock(S2EExecutionState *state) {
     }
 
     while (state->llvm.stack.size() != 1) {
-        state->popFrame();
+        state->llvm.popFrame();
     }
 
     state->llvm.prevPC = 0;

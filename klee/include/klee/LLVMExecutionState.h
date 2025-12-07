@@ -31,6 +31,7 @@
 #include "klee/Stats/CoreStats.h"
 
 #include "klee/AddressSpace.h"
+#include "klee/IExecutionState.h"
 
 namespace klee {
 
@@ -57,6 +58,12 @@ using stack_ty = llvm::SmallVector<StackFrame, 16>;
 
 class LLVMExecutionState {
 public:
+    LLVMExecutionState(IExecutionState *state) : state(state) {}
+    LLVMExecutionState() = delete;
+    ~LLVMExecutionState();
+
+    IExecutionState *state = nullptr;
+
     // pc - pointer to current instruction stream
     KInstIterator pc = nullptr, prevPC = nullptr;
     stack_ty stack;
@@ -73,6 +80,7 @@ public:
     void transferToBasicBlock(llvm::BasicBlock *dst, llvm::BasicBlock *src);
     void printStack(std::stringstream &msg) const;
     void pushFrame(KInstIterator caller, KFunction *kf);
+    void popFrame();
     void bindLocal(KInstruction *target, ref<Expr> value);
     void bindArgument(KFunction *kf, unsigned index, ref<Expr> value);
     bool mergeable(const LLVMExecutionState &b) const;

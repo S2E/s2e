@@ -37,6 +37,12 @@ cl::opt<bool> DebugPrintInstructions("debug-print-instructions", cl::desc("Print
 
 extern cl::opt<bool> DebugLogStateMerge;
 
+LLVMExecutionState::~LLVMExecutionState() {
+    while (!stack.empty()) {
+        popFrame();
+    }
+}
+
 Cell &LLVMExecutionState::getArgumentCell(KFunction *kf, unsigned index) {
     return stack.back().locals[kf->getArgRegister(index)];
 }
@@ -97,8 +103,7 @@ void LLVMExecutionState::printStack(std::stringstream &msg) const {
             msg << ai->getName().str();
             // XXX should go through function
             ref<Expr> value = sf.locals[sf.kf->getArgRegister(index++)].value;
-            // msg << " [" << concolics->evaluate(value) << "]";
-            msg << " [" << value << "]";
+            msg << " [" << state->concolics()->evaluate(value) << "]";
         }
         msg << ")";
 
@@ -108,6 +113,14 @@ void LLVMExecutionState::printStack(std::stringstream &msg) const {
 
 void LLVMExecutionState::pushFrame(KInstIterator caller, KFunction *kf) {
     stack.push_back(StackFrame(caller, kf));
+}
+
+void LLVMExecutionState::popFrame() {
+    StackFrame &sf = stack.back();
+    for (auto it : sf.allocas) {
+        state->addressSpace().unbindObject(it);
+    }
+    stack.pop_back();
 }
 
 void LLVMExecutionState::bindLocal(KInstruction *target, ref<Expr> value) {

@@ -113,6 +113,7 @@ ExecutionState *S2EExecutionState::clone() {
 
     S2EExecutionState *ret = new S2EExecutionState(*this);
     ret->addressSpace().state = ret;
+    ret->llvm.state = ret;
     ret->m_deviceState.setExecutionState(ret);
     ret->setConcolics(Assignment::create(true));
     ret->m_lastS2ETb = m_lastS2ETb;

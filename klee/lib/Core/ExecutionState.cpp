@@ -53,19 +53,18 @@ BitfieldSimplifier ExecutionState::s_simplifier;
 std::set<ObjectKey, ObjectKeyLTS> ExecutionState::s_ignoredMergeObjects;
 
 ExecutionState::ExecutionState(KFunction *kf)
-    : m_addressSpace(this), m_concolics(Assignment::create(true)), forkDisabled(false) {
+    : m_addressSpace(this), m_concolics(Assignment::create(true)), forkDisabled(false), llvm(this) {
     llvm.initialize(kf);
 }
 
 ExecutionState::~ExecutionState() {
-    while (!llvm.stack.empty()) {
-        popFrame();
-    }
+
 }
 
 ExecutionState *ExecutionState::clone() {
     ExecutionState *state = new ExecutionState(*this);
     state->m_addressSpace.state = state;
+    state->llvm.state = state;
     state->m_concolics = Assignment::create(true);
     return state;
 }
@@ -79,14 +78,6 @@ void ExecutionState::addressSpaceObjectSplit(const ObjectStateConstPtr &oldObjec
 }
 
 void ExecutionState::addressSpaceSymbolicStatusChange(const ObjectStatePtr &object, bool becameConcrete) {
-}
-
-void ExecutionState::popFrame() {
-    StackFrame &sf = llvm.stack.back();
-    for (auto it : sf.allocas) {
-        m_addressSpace.unbindObject(it);
-    }
-    llvm.stack.pop_back();
 }
 
 llvm::raw_ostream &operator<<(llvm::raw_ostream &os, const MemoryMap &mm) {

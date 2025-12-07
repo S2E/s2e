@@ -738,7 +738,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
             if (llvmState.stack.size() <= 1) {
                 throw LLVMExecutorException("invalid stack size");
             } else {
-                state.popFrame();
+                llvmState.popFrame();
 
                 if (InvokeInst *ii = dyn_cast<InvokeInst>(caller)) {
                     llvmState.transferToBasicBlock(ii->getNormalDest(), caller->getParent());

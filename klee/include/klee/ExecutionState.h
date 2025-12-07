@@ -52,7 +52,7 @@ private:
 
     ConstraintManager m_constraints;
 
-    ExecutionState() : m_addressSpace(this) {
+    ExecutionState() : m_addressSpace(this), llvm(this) {
     }
 
 protected:
@@ -104,8 +104,6 @@ public:
     virtual ~ExecutionState();
 
     virtual ExecutionState *clone();
-
-    void popFrame();
 
     const ConstraintManager &constraints() const {
         return m_constraints;
