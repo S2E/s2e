@@ -438,7 +438,7 @@ const Cell &Executor::eval(KInstruction *ki, unsigned index, ExecutionState &sta
         return kmodule->getConstant(index);
     } else {
         unsigned index = vnumber;
-        StackFrame &sf = state.stack.back();
+        StackFrame &sf = state.llvm.stack.back();
         //*klee_warning_stream << "op idx=" << std::dec << index << '\n';
         return sf.locals[index];
     }
@@ -568,7 +568,7 @@ void Executor::executeCall(ExecutionState &state, KInstruction *ki, Function *f,
             // va_arg is handled by caller and intrinsic lowering, see comment for
             // ExecutionState::varargs
             case Intrinsic::vastart: {
-                StackFrame &sf = state.stack.back();
+                StackFrame &sf = state.llvm.stack.back();
                 assert(sf.varargs.size() && "vastart called in function with no vararg object");
 
                 // FIXME: This is really specific to the architecture, not the pointer
@@ -609,7 +609,7 @@ void Executor::executeCall(ExecutionState &state, KInstruction *ki, Function *f,
         }
 
         if (InvokeInst *ii = dyn_cast<InvokeInst>(i)) {
-            state.transferToBasicBlock(ii->getNormalDest(), i->getParent());
+            state.llvm.transferToBasicBlock(ii->getNormalDest(), i->getParent());
         }
     } else {
         // FIXME: I'm not really happy about this reliance on prevPC but it is ok, I
@@ -617,8 +617,8 @@ void Executor::executeCall(ExecutionState &state, KInstruction *ki, Function *f,
         // instead of the actual instruction, since we can't make a KInstIterator
         // from just an instruction (unlike LLVM).
         auto kf = kmodule->getKFunction(f);
-        state.pushFrame(state.prevPC, kf);
-        state.pc = kf->getInstructions();
+        state.llvm.pushFrame(state.llvm.prevPC, kf);
+        state.llvm.pc = kf->getInstructions();
 
         // TODO: support "byval" parameter attribute
         // TODO: support zeroext, signext, sret attributes
@@ -638,7 +638,7 @@ void Executor::executeCall(ExecutionState &state, KInstruction *ki, Function *f,
                 return;
             }
 
-            StackFrame &sf = state.stack.back();
+            StackFrame &sf = state.llvm.stack.back();
             unsigned size = 0;
             for (unsigned i = funcArgs; i < callingArgs; i++) {
                 // FIXME: This is really specific to the architecture, not the pointer
@@ -726,7 +726,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
         // Control flow
         case Instruction::Ret: {
             ReturnInst *ri = cast<ReturnInst>(i);
-            KInstIterator kcaller = state.stack.back().caller;
+            KInstIterator kcaller = state.llvm.stack.back().caller;
             Instruction *caller = kcaller ? kcaller->inst : nullptr;
             bool isVoidReturn = (ri->getNumOperands() == 0);
             ref<Expr> result = ConstantExpr::alloc(0, Expr::Bool);
@@ -735,17 +735,17 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
                 result = eval(ki, 0, state).value;
             }
 
-            if (state.stack.size() <= 1) {
+            if (state.llvm.stack.size() <= 1) {
                 assert(!caller && "caller set on initial stack frame");
                 terminateState(state);
             } else {
                 state.popFrame();
 
                 if (InvokeInst *ii = dyn_cast<InvokeInst>(caller)) {
-                    state.transferToBasicBlock(ii->getNormalDest(), caller->getParent());
+                    state.llvm.transferToBasicBlock(ii->getNormalDest(), caller->getParent());
                 } else {
-                    state.pc = kcaller;
-                    ++state.pc;
+                    state.llvm.pc = kcaller;
+                    ++state.llvm.pc;
                 }
 
                 if (!isVoidReturn) {
@@ -782,7 +782,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
         case Instruction::Br: {
             BranchInst *bi = cast<BranchInst>(i);
             if (bi->isUnconditional()) {
-                state.transferToBasicBlock(bi->getSuccessor(0), bi->getParent());
+                state.llvm.transferToBasicBlock(bi->getSuccessor(0), bi->getParent());
             } else {
                 // FIXME: Find a way that we don't have this hidden dependency.
                 assert(bi->getCondition() == bi->getOperand(0) && "Wrong operand index!");
@@ -790,10 +790,10 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
                 Executor::StatePair branches = fork(state, cond);
 
                 if (branches.first) {
-                    branches.first->transferToBasicBlock(bi->getSuccessor(0), bi->getParent());
+                    branches.first->llvm.transferToBasicBlock(bi->getSuccessor(0), bi->getParent());
                 }
                 if (branches.second) {
-                    branches.second->transferToBasicBlock(bi->getSuccessor(1), bi->getParent());
+                    branches.second->llvm.transferToBasicBlock(bi->getSuccessor(1), bi->getParent());
                 }
 
                 notifyFork(state, cond, branches);
@@ -811,7 +811,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
             StatePair sp = fork(state, condition);
             assert(sp.first == &state);
             if (sp.second) {
-                sp.second->pc = sp.second->prevPC;
+                sp.second->llvm.pc = sp.second->llvm.prevPC;
             }
             notifyFork(state, condition, sp);
             cond = concreteCond;
@@ -822,7 +822,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
                 llvm::IntegerType *Ty = cast<IntegerType>(si->getCondition()->getType());
                 ConstantInt *ci = ConstantInt::get(Ty, CE->getZExtValue());
                 SwitchInst::CaseIt cit = si->findCaseValue(ci);
-                state.transferToBasicBlock(cit->getCaseSuccessor(), si->getParent());
+                state.llvm.transferToBasicBlock(cit->getCaseSuccessor(), si->getParent());
             } else {
                 pabort("Cannot get here in concolic mode");
                 abort();
@@ -933,7 +933,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
             break;
         }
         case Instruction::PHI: {
-            ref<Expr> result = eval(ki, state.incomingBBIndex, state).value;
+            ref<Expr> result = eval(ki, state.llvm.incomingBBIndex, state).value;
             state.bindLocal(ki, result);
             break;
         }
@@ -1587,7 +1587,7 @@ void Executor::terminateState(ExecutionState &state) {
     StateSet::iterator it = addedStates.find(&state);
     if (it == addedStates.end()) {
         // XXX: the following line makes delayed state termination impossible
-        // state.pc = state.prevPC;
+        // state.llvm.pc = state.llvm.prevPC;
 
         removedStates.insert(&state);
     } else {
@@ -1645,16 +1645,16 @@ void Executor::callExternalFunction(ExecutionState &state, KInstruction *target,
             assert(sp.first == &state);
 
             if (sp.second) {
-                sp.second->pc = sp.second->prevPC;
+                sp.second->llvm.pc = sp.second->llvm.prevPC;
             }
 
-            KInstIterator savedPc = sp.first->pc;
-            sp.first->pc = sp.first->prevPC;
+            KInstIterator savedPc = sp.first->llvm.pc;
+            sp.first->llvm.pc = sp.first->llvm.prevPC;
 
             // This might throw an exception
             notifyFork(state, condition, sp);
 
-            sp.first->pc = savedPc;
+            sp.first->llvm.pc = savedPc;
 
             cas.push_back(concreteArg->getZExtValue());
         }
@@ -1794,7 +1794,7 @@ void Executor::executeMemoryOperation(ExecutionState &state, bool isWrite, ref<E
     assert(branches.first == &state);
     if (branches.second) {
         // The forked state will have to re-execute the memory op
-        branches.second->pc = branches.second->prevPC;
+        branches.second->llvm.pc = branches.second->llvm.prevPC;
     }
 
     notifyFork(state, condition, branches);

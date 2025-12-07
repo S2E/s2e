@@ -109,7 +109,7 @@ void handleForkAndConcretize(Executor *executor, ExecutionState *state, klee::KI
     // TODO: find a test case for that
     if (sp.second) {
         // Will have to reexecute handleForkAndConcretize in the speculative state
-        sp.second->pc = sp.second->prevPC;
+        sp.second->llvm.pc = sp.second->llvm.prevPC;
     }
 
     state->bindLocal(target, concreteAddress);

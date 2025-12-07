@@ -43,9 +43,6 @@ cl::opt<bool> ValidateSimplifier("validate-expr-simplifier",
 cl::opt<bool> UseExprSimplifier("use-expr-simplifier", cl::desc("Apply expression simplifier for new expressions"),
                                 cl::init(true));
 
-cl::opt<bool> DebugPrintInstructions("debug-print-instructions", cl::desc("Print instructions during execution."),
-                                     cl::init(false));
-
 // This is set to false in order to avoid the overhead of printing large expressions
 cl::opt<bool> PrintConcretizedExpression("print-concretized-expression", cl::desc("Print concretized expression."),
                                          cl::init(false));
@@ -56,13 +53,12 @@ BitfieldSimplifier ExecutionState::s_simplifier;
 std::set<ObjectKey, ObjectKeyLTS> ExecutionState::s_ignoredMergeObjects;
 
 ExecutionState::ExecutionState(KFunction *kf)
-    : pc(kf->getInstructions()), prevPC(nullptr), addressSpace(this), forkDisabled(false),
-      concolics(Assignment::create(true)) {
-    pushFrame(0, kf);
+    : addressSpace(this), forkDisabled(false), concolics(Assignment::create(true)) {
+    llvm.initialize(kf);
 }
 
 ExecutionState::~ExecutionState() {
-    while (!stack.empty()) {
+    while (!llvm.stack.empty()) {
         popFrame();
     }
 }
@@ -85,16 +81,12 @@ void ExecutionState::addressSpaceObjectSplit(const ObjectStateConstPtr &oldObjec
 void ExecutionState::addressSpaceSymbolicStatusChange(const ObjectStatePtr &object, bool becameConcrete) {
 }
 
-void ExecutionState::pushFrame(KInstIterator caller, KFunction *kf) {
-    stack.push_back(StackFrame(caller, kf));
-}
-
 void ExecutionState::popFrame() {
-    StackFrame &sf = stack.back();
+    StackFrame &sf = llvm.stack.back();
     for (auto it : sf.allocas) {
         addressSpace.unbindObject(it);
     }
-    stack.pop_back();
+    llvm.stack.pop_back();
 }
 
 llvm::raw_ostream &operator<<(llvm::raw_ostream &os, const MemoryMap &mm) {
@@ -116,15 +108,7 @@ bool ExecutionState::merge(const ExecutionState &b) {
         m << "-- attempting merge of A:" << this << " with B:" << &b << "--\n";
     }
 
-    if (pc != b.pc) {
-        if (DebugLogStateMerge) {
-            m << "merge failed: different KLEE pc\n" << *(*pc).inst << "\n" << *(*b.pc).inst << "\n";
-
-            std::stringstream ss;
-            this->printStack(ss);
-            b.printStack(ss);
-            m << ss.str() << "\n";
-        }
+    if (!llvm.mergeable(b.llvm)) {
         return false;
     }
 
@@ -143,27 +127,6 @@ bool ExecutionState::merge(const ExecutionState &b) {
             }
         }
         return false;
-    }
-
-    {
-        auto itA = stack.begin();
-        auto itB = b.stack.begin();
-        while (itA != stack.end() && itB != b.stack.end()) {
-            // XXX vaargs?
-            if (itA->caller != itB->caller || itA->kf != itB->kf) {
-                if (DebugLogStateMerge) {
-                    m << "merge failed: different callstacks" << '\n';
-                }
-            }
-            ++itA;
-            ++itB;
-        }
-        if (itA != stack.end() || itB != b.stack.end()) {
-            if (DebugLogStateMerge) {
-                m << "merge failed: different callstacks" << '\n';
-            }
-            return false;
-        }
     }
 
     std::set<ref<Expr>> aConstraints = constraints().getConstraintSet();
@@ -253,34 +216,9 @@ bool ExecutionState::merge(const ExecutionState &b) {
         inB = AndExpr::create(inB, *it);
     }
 
-    // XXX should we have a preference as to which predicate to use?
-    // it seems like it can make a difference, even though logically
-    // they must contradict each other and so inA => !inB
+    llvm.merge(b.llvm, inA);
 
-    int selectCountStack = 0, selectCountMem = 0;
-
-    auto itA = stack.begin();
-    auto itB = b.stack.begin();
-    for (; itA != stack.end(); ++itA, ++itB) {
-        StackFrame &af = *itA;
-        const StackFrame &bf = *itB;
-        for (unsigned i = 0; i < af.kf->getNumRegisters(); i++) {
-            ref<Expr> &av = af.locals[i].value;
-            const ref<Expr> &bv = bf.locals[i].value;
-            if (!av || !bv) {
-                // if one is null then by implication (we are at same pc)
-                // we cannot reuse this local, so just ignore
-            } else {
-                av = SelectExpr::create(inA, av, bv);
-                selectCountStack += 1;
-            }
-        }
-    }
-
-    if (DebugLogStateMerge) {
-        m << "\t\tcreated " << selectCountStack << " select expressions on the stack\n";
-    }
-
+    int selectCountMem = 0;
     for (auto mo : mutated) {
         auto os = addressSpace.findObject(mo.address);
         auto otherOS = b.addressSpace.findObject(mo.address);
@@ -319,32 +257,6 @@ bool ExecutionState::merge(const ExecutionState &b) {
     // XXX: do we need to recompute concolic values?
 
     return true;
-}
-
-void ExecutionState::printStack(std::stringstream &msg) const {
-    msg << "Stack: \n";
-    unsigned idx = 0;
-    for (ExecutionState::stack_ty::const_reverse_iterator it = stack.rbegin(), ie = stack.rend(); it != ie; ++it) {
-        const StackFrame &sf = *it;
-        Function *f = sf.kf->getFunction();
-
-        msg << "\t#" << idx++ << " " << std::setw(8) << std::setfill('0') << " in " << f->getName().str() << " (";
-
-        // Yawn, we could go up and print varargs if we wanted to.
-        unsigned index = 0;
-        for (Function::arg_iterator ai = f->arg_begin(), ae = f->arg_end(); ai != ae; ++ai) {
-            if (ai != f->arg_begin())
-                msg << ", ";
-
-            msg << ai->getName().str();
-            // XXX should go through function
-            ref<Expr> value = sf.locals[sf.kf->getArgRegister(index++)].value;
-            msg << " [" << concolics->evaluate(value) << "]";
-        }
-        msg << ")";
-
-        msg << "\n";
-    }
 }
 
 bool ExecutionState::getSymbolicSolution(std::vector<std::pair<std::string, std::vector<unsigned char>>> &res) {
@@ -428,7 +340,7 @@ ref<ConstantExpr> ExecutionState::toConstant(ref<Expr> e, const std::string &rea
 
     os << "silently concretizing ";
 
-    const KInstruction *ki = prevPC;
+    const auto ki = llvm.prevPC;
     if (ki && ki->inst) {
         os << "(instruction: " << ki->inst->getParent()->getParent()->getName().str() << ": " << *ki->inst << ") ";
     }
@@ -569,32 +481,13 @@ SolverPtr ExecutionState::solver() const {
     return m_solver;
 }
 
-Cell &ExecutionState::getArgumentCell(KFunction *kf, unsigned index) {
-    return stack.back().locals[kf->getArgRegister(index)];
-}
-
-Cell &ExecutionState::getDestCell(KInstruction *target) {
-    return stack.back().locals[target->dest];
-}
-
 void ExecutionState::bindLocal(KInstruction *target, ref<Expr> value) {
 
-    getDestCell(target).value = simplifyExpr(value);
+    llvm.bindLocal(target, simplifyExpr(value));
 }
 
 void ExecutionState::bindArgument(KFunction *kf, unsigned index, ref<Expr> value) {
-    getArgumentCell(kf, index).value = simplifyExpr(value);
-}
-
-void ExecutionState::stepInstruction() {
-    if (DebugPrintInstructions) {
-        llvm::errs() << *stats::instructions << " ";
-        llvm::errs() << *(pc->inst) << "\n";
-    }
-
-    ++*stats::instructions;
-    prevPC = pc;
-    ++pc;
+    llvm.bindArgument(kf, index, simplifyExpr(value));
 }
 
 ObjectStatePtr ExecutionState::addExternalObject(void *addr, unsigned size, bool isReadOnly, bool isSharedConcrete) {
@@ -618,7 +511,7 @@ void ExecutionState::bindObject(const ObjectStatePtr &os, bool isLocal) {
     // matter because all we use this list for is to unbind the object
     // on function return.
     if (isLocal) {
-        stack.back().allocas.push_back(os->getKey());
+        llvm.stack.back().allocas.push_back(os->getKey());
     }
 }
 
@@ -662,29 +555,6 @@ void ExecutionState::executeMemoryWrite(uint64_t concreteAddress, const ref<Expr
 
     if (!addressSpace.write(concreteAddress, value, concretizer)) {
         pabort("write failed");
-    }
-}
-
-void ExecutionState::transferToBasicBlock(BasicBlock *dst, BasicBlock *src) {
-    // Note that in general phi nodes can reuse phi values from the same
-    // block but the incoming value is the eval() result *before* the
-    // execution of any phi nodes. this is pathological and doesn't
-    // really seem to occur, but just in case we run the PhiCleanerPass
-    // which makes sure this cannot happen and so it is safe to just
-    // eval things in order. The PhiCleanerPass also makes sure that all
-    // incoming blocks have the same order for each PHINode so we only
-    // have to compute the index once.
-    //
-    // With that done we simply set an index in the state so that PHI
-    // instructions know which argument to eval, set the pc, and continue.
-
-    // XXX this lookup has to go ?
-    KFunction *kf = stack.back().kf;
-    unsigned entry = kf->getBbEntry(dst);
-    pc = kf->getInstructionPtr(entry);
-    if (pc->inst->getOpcode() == Instruction::PHI) {
-        PHINode *first = static_cast<PHINode *>(pc->inst);
-        incomingBBIndex = first->getBasicBlockIndex(src);
     }
 }
 

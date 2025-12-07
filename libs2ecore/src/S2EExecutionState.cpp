@@ -596,11 +596,11 @@ uint64_t S2EExecutionState::readMemIoVaddr(bool masked) {
 }
 
 bool S2EExecutionState::getStaticTarget(uint64_t *target) {
-    if (stack.size() == 1) {
+    if (llvm.stack.size() == 1) {
         return false;
     }
 
-    const llvm::Instruction *instr = pc->inst;
+    const llvm::Instruction *instr = llvm.pc->inst;
     const llvm::BasicBlock *BB = instr->getParent();
     if (!TCGLLVMTranslator::GetStaticBranchTarget(BB, target)) {
         return false;
@@ -616,11 +616,11 @@ bool S2EExecutionState::getStaticTarget(uint64_t *target) {
  * TODO: move this to the translator?
  */
 bool S2EExecutionState::getStaticBranchTargets(uint64_t *truePc, uint64_t *falsePc) {
-    if (stack.size() == 1) {
+    if (llvm.stack.size() == 1) {
         return false;
     }
 
-    const llvm::Instruction *instr = pc->inst;
+    const llvm::Instruction *instr = llvm.pc->inst;
 
     // Check whether we are the first instruction of the block.
     const llvm::BasicBlock *BB = instr->getParent();

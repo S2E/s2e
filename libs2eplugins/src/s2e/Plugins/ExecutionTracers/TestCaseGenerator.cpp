@@ -165,7 +165,7 @@ void TestCaseGenerator::onWindowsUserCrash(S2EExecutionState *state, const Windo
 
 void TestCaseGenerator::onWindowsKernelCrash(S2EExecutionState *state, const vmi::windows::BugCheckDescription &desc) {
     S2E_LINUXMON_COMMAND_SEG_FAULT data = {0};
-    data.pc = state->pc;
+    data.pc = state->llvm.pc;
 
     onSegFault(state, 0, data);
 }

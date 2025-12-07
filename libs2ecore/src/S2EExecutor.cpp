@@ -969,10 +969,10 @@ void S2EExecutor::prepareFunctionExecution(S2EExecutionState *state, llvm::Funct
     auto kf = kmodule->bindFunctionConstants(globalAddresses, function);
 
     /* Emulate call to a TB function */
-    state->prevPC = state->pc;
+    state->llvm.prevPC = state->llvm.pc;
 
-    state->pushFrame(state->pc, kf);
-    state->pc = kf->getInstructions();
+    state->llvm.pushFrame(state->llvm.pc, kf);
+    state->llvm.pc = kf->getInstructions();
 
     /* Pass argument */
     for (unsigned i = 0; i < args.size(); ++i) {
@@ -982,17 +982,17 @@ void S2EExecutor::prepareFunctionExecution(S2EExecutionState *state, llvm::Funct
 
 inline bool S2EExecutor::executeInstructions(S2EExecutionState *state, unsigned callerStackSize) {
     try {
-        while (state->stack.size() != callerStackSize) {
+        while (state->llvm.stack.size() != callerStackSize) {
             assert(!g_s2e_fast_concrete_invocation);
 
-            KInstruction *ki = state->pc;
+            KInstruction *ki = state->llvm.pc;
 
             if (PrintLLVMInstructions) {
                 m_s2e->getDebugStream(state)
                     << "executing " << ki->inst->getParent()->getParent()->getName().str() << ": " << *ki->inst << '\n';
             }
 
-            state->stepInstruction();
+            state->llvm.stepInstruction();
             executeInstruction(*state, ki);
 
             updateStates(state);
@@ -1013,8 +1013,8 @@ inline bool S2EExecutor::executeInstructions(S2EExecutionState *state, unsigned 
 
     // The TB finished executing normally
     if (callerStackSize == 1) {
-        state->prevPC = 0;
-        state->pc = m_dummyMain->getInstructions();
+        state->llvm.prevPC = 0;
+        state->llvm.pc = m_dummyMain->getInstructions();
     }
 
     return false;
@@ -1027,13 +1027,13 @@ bool S2EExecutor::finalizeTranslationBlockExec(S2EExecutionState *state) {
     state->m_needFinalizeTBExec = false;
     state->m_forkAborted = false;
 
-    assert(state->stack.size() != 1);
+    assert(state->llvm.stack.size() != 1);
 
     assert(!state->isRunningConcrete());
 
     if (VerboseTbFinalize) {
         m_s2e->getDebugStream(state) << "Finalizing TB execution\n";
-        for (const auto &fr : state->stack) {
+        for (const auto &fr : state->llvm.stack) {
             m_s2e->getDebugStream() << fr.kf->getFunction()->getName().str() << '\n';
         }
     }
@@ -1086,7 +1086,7 @@ void S2EExecutor::updateConcreteFastPath(S2EExecutionState *state) {
 
                                      // Check that we are not currently running in KLEE
                                      //(CPU register access from concrete code depend on g_s2e_fast_concrete_invocation)
-                                     (state->stack.size() == 1) &&
+                                     (state->llvm.stack.size() == 1) &&
 
                                      (m_executeAlwaysKlee == false) && (state->isRunningConcrete());
 
@@ -1101,8 +1101,8 @@ void S2EExecutor::updateConcreteFastPath(S2EExecutionState *state) {
 
 uintptr_t S2EExecutor::executeTranslationBlockKlee(S2EExecutionState *state, TranslationBlock *tb) {
     assert(state->m_active && !state->isRunningConcrete());
-    assert(state->stack.size() == 1);
-    assert(state->pc == m_dummyMain->getInstructions());
+    assert(state->llvm.stack.size() == 1);
+    assert(state->llvm.pc == m_dummyMain->getInstructions());
 
     if (!tb->llvm_function) {
         abort();
@@ -1242,23 +1242,23 @@ void S2EExecutor::cleanupTranslationBlock(S2EExecutionState *state) {
         return;
     }
 
-    while (state->stack.size() != 1) {
+    while (state->llvm.stack.size() != 1) {
         state->popFrame();
     }
 
-    state->prevPC = 0;
-    state->pc = m_dummyMain->getInstructions();
+    state->llvm.prevPC = 0;
+    state->llvm.pc = m_dummyMain->getInstructions();
 }
 
 klee::ref<klee::Expr> S2EExecutor::executeFunction(S2EExecutionState *state, llvm::Function *function,
                                                    const std::vector<klee::ref<klee::Expr>> &args) {
     assert(!state->isRunningConcrete());
-    assert(!state->prevPC);
-    assert(state->stack.size() == 1);
+    assert(!state->llvm.prevPC);
+    assert(state->llvm.stack.size() == 1);
 
     /* Update state */
-    KInstIterator callerPC = state->pc;
-    uint32_t callerStackSize = state->stack.size();
+    KInstIterator callerPC = state->llvm.pc;
+    uint32_t callerStackSize = state->llvm.stack.size();
 
     /* Prepare function execution */
     prepareFunctionExecution(state, function, args);
@@ -1269,14 +1269,14 @@ klee::ref<klee::Expr> S2EExecutor::executeFunction(S2EExecutionState *state, llv
     }
 
     if (callerPC == m_dummyMain->getInstructions()) {
-        assert(state->stack.size() == 1);
-        state->prevPC = 0;
-        state->pc = callerPC;
+        assert(state->llvm.stack.size() == 1);
+        state->llvm.prevPC = 0;
+        state->llvm.pc = callerPC;
     }
 
     klee::ref<Expr> resExpr(0);
     if (function->getReturnType()->getTypeID() != Type::VoidTyID) {
-        resExpr = state->getDestCell(state->pc).value;
+        resExpr = state->llvm.getDestCell(state->llvm.pc).value;
     }
 
     return resExpr;
@@ -1312,7 +1312,7 @@ void S2EExecutor::notifyFork(ExecutionState &originalState, klee::ref<Expr> &con
     try {
         m_s2e->getCorePlugin()->onStateFork.emit(state, newStates, newConditions);
     } catch (CpuExitException e) {
-        if (state->stack.size() != 1) {
+        if (state->llvm.stack.size() != 1) {
             state->m_needFinalizeTBExec = true;
             state->m_forkAborted = true;
         }
@@ -1338,7 +1338,7 @@ Executor::StatePair S2EExecutor::forkAndConcretize(S2EExecutionState *state, kle
     // TODO: find a test case for that
     if (sp.second) {
         // Re-execute the plugin invocation in the other state
-        sp.second->pc = sp.second->prevPC;
+        sp.second->llvm.pc = sp.second->llvm.prevPC;
     }
 
     notifyFork(*state, condition, sp);
@@ -1430,7 +1430,7 @@ S2EExecutor::StatePair S2EExecutor::doFork(ExecutionState &current, const klee::
 
     if (VerboseFork) {
         std::stringstream ss;
-        currentState->printStack(ss);
+        currentState->llvm.printStack(ss);
         m_s2e->getDebugStream() << "Stack frame at fork:" << '\n' << ss.str() << "\n";
     }
 

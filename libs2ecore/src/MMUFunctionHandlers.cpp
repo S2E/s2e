@@ -191,7 +191,7 @@ static ref<ConstantExpr> handleForkAndConcretizeNative(Executor *executor, Execu
         forkArgs.push_back(0);
         handleForkAndConcretize(executor, state, kinst, forkArgs);
 
-        constantAddress = dyn_cast<ConstantExpr>(state->getDestCell(kinst).value);
+        constantAddress = dyn_cast<ConstantExpr>(state->llvm.getDestCell(kinst).value);
         assert(constantAddress);
     }
     return constantAddress;

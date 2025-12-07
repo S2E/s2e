@@ -23,6 +23,8 @@
 #include "klee/util/Assignment.h"
 #include "IAddressSpaceNotification.h"
 
+#include "LLVMExecutionState.h"
+
 #include <map>
 #include <set>
 #include <vector>
@@ -34,31 +36,10 @@ struct KInstruction;
 
 llvm::raw_ostream &operator<<(llvm::raw_ostream &os, const MemoryMap &mm);
 
-struct StackFrame {
-    KInstIterator caller;
-    KFunction *kf;
-
-    llvm::SmallVector<ObjectKey, 16> allocas;
-    llvm::SmallVector<Cell, 16> locals;
-
-    // For vararg functions: arguments not passed via parameter are
-    // stored (packed tightly) in a local (alloca) memory object. This
-    // is setup to match the way the front-end generates vaarg code (it
-    // does not pass vaarg through as expected). VACopy is lowered inside
-    // of intrinsic lowering.
-    std::vector<ObjectKey> varargs;
-
-    StackFrame(KInstIterator _caller, KFunction *_kf) : caller(_caller), kf(_kf), varargs(0) {
-        locals.resize(kf->getNumRegisters());
-    }
-};
-
 class ExecutionState : public IAddressSpaceNotification {
     friend class AddressSpace;
 
 public:
-    typedef llvm::SmallVector<StackFrame, 16> stack_ty;
-
     /// Set of objects that should not be merged by the base merge function.
     /// Overloaded functions will take care of it.
     static std::set<ObjectKey, ObjectKeyLTS> s_ignoredMergeObjects;
@@ -67,9 +48,6 @@ private:
     SolverPtr m_solver;
 
 public:
-    // pc - pointer to current instruction stream
-    KInstIterator pc, prevPC;
-    stack_ty stack;
     AddressSpace addressSpace;
 
     /// Disables forking, set by user code.
@@ -80,7 +58,7 @@ public:
 
     AssignmentPtr concolics;
 
-    unsigned incomingBBIndex;
+    LLVMExecutionState llvm;
 
 private:
     /// Simplifier user to simplify expressions when adding them
@@ -109,7 +87,6 @@ public:
 
     virtual ExecutionState *clone();
 
-    void pushFrame(KInstIterator caller, KFunction *kf);
     void popFrame();
 
     const ConstraintManager &constraints() const {
@@ -141,8 +118,6 @@ public:
 
     virtual bool merge(const ExecutionState &b);
 
-    void printStack(std::stringstream &msg) const;
-
     bool getSymbolicSolution(std::vector<std::pair<std::string, std::vector<unsigned char>>> &res);
 
     ref<Expr> simplifyExpr(const ref<Expr> &e) const;
@@ -164,12 +139,8 @@ public:
 
     SolverPtr solver() const;
 
-    Cell &getArgumentCell(KFunction *kf, unsigned index);
-    Cell &getDestCell(KInstruction *target);
-
     void bindLocal(KInstruction *target, ref<Expr> value);
     void bindArgument(KFunction *kf, unsigned index, ref<Expr> value);
-    void stepInstruction();
 
     // Given a concrete object in our [klee's] address space, add it to
     // objects checked code can reference.
@@ -201,8 +172,6 @@ public:
 
     ref<Expr> executeMemoryRead(uint64_t concreteAddress, unsigned bytes);
     void executeMemoryWrite(uint64_t concreteAddress, const ref<Expr> &value);
-
-    void transferToBasicBlock(llvm::BasicBlock *dst, llvm::BasicBlock *src);
 };
 } // namespace klee
 

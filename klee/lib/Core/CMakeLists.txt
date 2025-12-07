@@ -12,6 +12,7 @@ klee_add_component(kleeCore
 	Context.cpp
 	CoreStats.cpp
 	ExecutionState.cpp
+	LLVMExecutionState.cpp
 	Executor.cpp
 	ExternalDispatcher.cpp
 	Memory.cpp
