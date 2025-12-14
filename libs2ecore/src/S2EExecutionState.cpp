@@ -65,7 +65,7 @@ unsigned S2EExecutionState::s_lastSymbolicId = 0;
 S2EExecutionState::S2EExecutionState(klee::KFunction *kf)
     : klee::ExecutionState(kf), m_stateID(g_s2e->fetchAndIncrementStateId()), m_startSymbexAtPC((uint64_t) -1),
       m_active(true), m_zombie(false), m_yielded(false), m_runningConcrete(true), m_pinned(false),
-      m_isStateSwitchForbidden(false), m_deviceState(this), m_asCache(&addressSpace()),
+      m_isStateSwitchForbidden(false), m_asCache(&addressSpace()),
       m_registers(&m_active, &m_runningConcrete, this, this), m_memory(), m_lastS2ETb(nullptr),
       m_needFinalizeTBExec(false), m_forkAborted(false), m_nextSymbVarId(0), m_tlb(&m_asCache, &m_registers),
       m_runningExceptionEmulationCode(false) {
@@ -76,11 +76,6 @@ S2EExecutionState::~S2EExecutionState() {
     if (VerboseStateDeletion) {
         g_s2e->getDebugStream() << "Deleting state " << m_stateID << " " << this << '\n';
     }
-
-    // print_stacktrace();
-
-    // XXX: This cannot be done, as device states may refer to each other
-    // delete m_deviceState;
 }
 
 void S2EExecutionState::assignGuid(uint64_t guid) {
@@ -100,9 +95,8 @@ ExecutionState *S2EExecutionState::clone() {
 #endif
 
     S2EExecutionState *ret = new S2EExecutionState(*this);
-    ret->addressSpace().state = ret;
+    ret->addressSpace().setState(ret);
     ret->llvm.state = ret;
-    ret->m_deviceState.setExecutionState(ret);
     ret->setConcolics(Assignment::create(true));
     ret->m_lastS2ETb = m_lastS2ETb;
 

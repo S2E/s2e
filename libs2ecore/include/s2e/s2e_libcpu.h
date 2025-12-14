@@ -151,8 +151,6 @@ int s2e_libcpu_finalize_tb_exec(void);
 
 void s2e_init_timers(void);
 
-void s2e_init_device_state(void);
-
 int s2e_is_zombie(void);
 int s2e_is_speculative(void);
 int s2e_is_yielded(void);

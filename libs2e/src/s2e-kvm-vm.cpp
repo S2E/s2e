@@ -62,7 +62,6 @@ std::shared_ptr<VM> VM::create(std::shared_ptr<S2EKVM> &kvm) {
     init_clocks();
 
 #ifdef CONFIG_SYMBEX
-    s2e_init_device_state();
     s2e_init_timers();
 
     s2e_initialize_execution(g_execute_always_klee);
