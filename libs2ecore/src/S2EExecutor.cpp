@@ -415,11 +415,11 @@ S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMTranslator *translator)
     CallInst::Create(tbFunction, ArrayRef<Value *>(tbFunctionArgs), "tbFunctionCall", dummyMainBB);
     ReturnInst::Create(m_llvmTranslator->getContext(), dummyMainBB);
 
-    kmodule->updateModuleWithFunction(dummyMain);
-    m_dummyMain = kmodule->getKFunction(dummyMain);
+    m_kmodule->updateModuleWithFunction(dummyMain);
+    m_dummyMain = m_kmodule->getKFunction(dummyMain);
 
 #ifdef CONFIG_SYMBEX_MP
-    registerFunctionHandlers(*kmodule->getModule());
+    registerFunctionHandlers(*m_kmodule->getModule());
 
     if (UseFastHelpers) {
         replaceExternalFunctionsWithSpecialHandlers();
@@ -447,13 +447,13 @@ S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMTranslator *translator)
 
     if (OutputModule) {
         if (auto os = s2e->openOutputFile("module.bc")) {
-            kmodule->outputModule(*os);
+            m_kmodule->outputModule(*os);
         }
     }
 
     if (OutputSource) {
         if (auto os = s2e->openOutputFile("assembly.ll")) {
-            kmodule->outputSource(*os, NoTruncateSourceLines);
+            m_kmodule->outputSource(*os, NoTruncateSourceLines);
         }
     }
 }
@@ -523,7 +523,7 @@ void S2EExecutor::initializeExecution(S2EExecutionState *state, bool executeAlwa
     m_executeAlwaysKlee = executeAlwaysKlee;
 
     initializeGlobals(*state);
-    kmodule->bindModuleConstants(globalAddresses);
+    m_kmodule->bindModuleConstants(globalAddresses);
 
     initializeStateSwitchTimer();
 }
@@ -965,7 +965,7 @@ S2EExecutionState *S2EExecutor::selectNextState(S2EExecutionState *state) {
 /** Simulate start of function execution, creating KLEE structs of required */
 void S2EExecutor::prepareFunctionExecution(S2EExecutionState *state, llvm::Function *function,
                                            const std::vector<klee::ref<klee::Expr>> &args) {
-    auto kf = kmodule->bindFunctionConstants(globalAddresses, function);
+    auto kf = m_kmodule->bindFunctionConstants(globalAddresses, function);
 
     /* Emulate call to a TB function */
     state->llvm.prevPC = state->llvm.pc;
@@ -1287,7 +1287,7 @@ klee::ref<klee::Expr> S2EExecutor::executeFunction(S2EExecutionState *state, llv
 
 klee::ref<klee::Expr> S2EExecutor::executeFunction(S2EExecutionState *state, const std::string &functionName,
                                                    const std::vector<klee::ref<klee::Expr>> &args) {
-    auto function = kmodule->getModule()->getFunction(functionName);
+    auto function = m_kmodule->getModule()->getFunction(functionName);
     assert(function && "function with given name do not exists in LLVM module");
     return executeFunction(state, function, args);
 }

@@ -612,7 +612,7 @@ void S2EExecutor::replaceExternalFunctionsWithSpecialHandlers() {
 
     for (unsigned i = 0; i < N; ++i) {
         const auto &hi = s_handlerInfo[i];
-        auto f = kmodule->getModule()->getFunction(hi.name);
+        auto f = m_kmodule->getModule()->getFunction(hi.name);
         assert(f);
         addSpecialFunctionHandler(f, hi.handler);
         overridenInternalFunctions.insert(f);
@@ -628,9 +628,9 @@ void S2EExecutor::disableConcreteLLVMHelpers() {
     unsigned N = sizeof(s_disabledHelpers) / sizeof(s_disabledHelpers[0]);
 
     for (unsigned i = 0; i < N; ++i) {
-        llvm::Function *f = kmodule->getModule()->getFunction(s_disabledHelpers[i]);
+        llvm::Function *f = m_kmodule->getModule()->getFunction(s_disabledHelpers[i]);
         assert(f && "Could not find required helper");
-        kmodule->removeFunction(f, true);
+        m_kmodule->removeFunction(f, true);
     }
 }
 } // namespace s2e

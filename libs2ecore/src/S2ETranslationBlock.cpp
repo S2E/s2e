@@ -32,11 +32,11 @@ S2ETranslationBlock::~S2ETranslationBlock() {
     if (translationBlock) {
         auto executor = g_s2e->getExecutor();
 
-        auto kmodule = executor->getModule();
+        auto m_kmodule = executor->getModule();
 
         // We may have generated LLVM code that was never executed
-        if (kmodule->getKFunction(translationBlock)) {
-            kmodule->removeFunction(translationBlock);
+        if (m_kmodule->getKFunction(translationBlock)) {
+            m_kmodule->removeFunction(translationBlock);
         } else {
             translationBlock->eraseFromParent();
         }

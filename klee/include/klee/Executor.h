@@ -71,7 +71,7 @@ public:
     typedef std::pair<ExecutionState *, ExecutionState *> StatePair;
 
 protected:
-    KModulePtr kmodule;
+    KModulePtr m_kmodule;
     Searcher *searcher;
 
     std::unique_ptr<ExternalDispatcher> externalDispatcher;
@@ -186,7 +186,7 @@ public:
     }
 
     KModulePtr getModule() const {
-        return kmodule;
+        return m_kmodule;
     }
 };
 
