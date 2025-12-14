@@ -478,8 +478,8 @@ S2EExecutionState *S2EExecutor::createInitialState() {
     state->m_active = true;
     state->setForking(EnableForking);
 
-    states.insert(state);
-    addedStates.insert(state);
+    m_states.insert(state);
+    m_addedStates.insert(state);
     updateStates(state);
 
 #define __DEFINE_EXT_OBJECT_RO(name)                                                  \
@@ -657,7 +657,7 @@ void S2EExecutor::computeNewStateGuids(std::unordered_map<ExecutionState *, uint
 }
 
 void S2EExecutor::doLoadBalancing() {
-    if (states.size() < 2) {
+    if (m_states.size() < 2) {
         return;
     }
 
@@ -668,7 +668,7 @@ void S2EExecutor::doLoadBalancing() {
 
     std::vector<S2EExecutionState *> allStates;
 
-    foreach2 (it, states.begin(), states.end()) {
+    foreach2 (it, m_states.begin(), m_states.end()) {
         S2EExecutionState *s2estate = static_cast<S2EExecutionState *>(*it);
         if (!s2estate->isZombie() && !s2estate->isPinned()) {
             allStates.push_back(s2estate);
@@ -928,7 +928,7 @@ S2EExecutionState *S2EExecutor::selectNextState(S2EExecutionState *state) {
     // In case the searcher returns a bogus state, this allows
     // spotting it immediately. The dynamic cast however, might cause
     // memory corruptions.
-    assert(states.find(nstate) != states.end());
+    assert(m_states.find(nstate) != m_states.end());
 
     S2EExecutionState *newState = dynamic_cast<S2EExecutionState *>(nstate);
 
@@ -1478,7 +1478,7 @@ S2EExecutor::StatePair S2EExecutor::forkCondition(S2EExecutionState *state, klee
 /// unconstrained concolic values that must be preserved)
 /// \param expr Expression which will equal desired value in the forked state
 /// \param values List of desired expression values
-/// \return List of forked states. State index equals index of desired value.
+/// \return List of forked m_states. State index equals index of desired value.
 /// State pointer will be nullptr when forked state is infeasible.
 ///
 std::vector<ExecutionState *> S2EExecutor::forkValues(S2EExecutionState *state, bool isSeedState,
@@ -1721,7 +1721,7 @@ void S2EExecutor::doInterruptAll(int intno, int is_int, int error_code, uintptr_
 bool S2EExecutor::suspendState(S2EExecutionState *state) {
     if (m_searcher) {
         m_searcher->removeState(state, nullptr);
-        size_t r = states.erase(state);
+        size_t r = m_states.erase(state);
         assert(r == 1);
         return true;
     }
@@ -1730,10 +1730,10 @@ bool S2EExecutor::suspendState(S2EExecutionState *state) {
 
 bool S2EExecutor::resumeState(S2EExecutionState *state) {
     if (m_searcher) {
-        if (states.find(state) != states.end()) {
+        if (m_states.find(state) != m_states.end()) {
             return false;
         }
-        states.insert(state);
+        m_states.insert(state);
         m_searcher->addState(state, nullptr);
         return true;
     }
@@ -1753,7 +1753,7 @@ void S2EExecutor::flushS2ETBs() {
 
 void S2EExecutor::updateStates(klee::ExecutionState *current) {
     S2EExecutionState *state = static_cast<S2EExecutionState *>(current);
-    m_s2e->getCorePlugin()->onUpdateStates.emit(state, addedStates, removedStates);
+    m_s2e->getCorePlugin()->onUpdateStates.emit(state, m_addedStates, m_removedStates);
     klee::Executor::updateStates(current);
 }
 

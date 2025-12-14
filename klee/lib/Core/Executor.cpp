@@ -365,7 +365,7 @@ Executor::StatePair Executor::fork(ExecutionState &current, const ref<Expr> &con
     ExecutionState *branchedState;
     notifyBranch(current);
     branchedState = current.clone();
-    addedStates.insert(branchedState);
+    m_addedStates.insert(branchedState);
 
     *klee::stats::forks += 1;
 
@@ -410,7 +410,7 @@ Executor::StatePair Executor::fork(ExecutionState &current) {
     ExecutionState *clonedState;
     notifyBranch(current);
     clonedState = current.clone();
-    addedStates.insert(clonedState);
+    m_addedStates.insert(clonedState);
 
     // Deep copy concolics().
     clonedState->setConcolics(Assignment::create(current.concolics()));
@@ -1557,20 +1557,20 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
 
 void Executor::updateStates(ExecutionState *current) {
     if (m_searcher) {
-        m_searcher->update(current, addedStates, removedStates);
+        m_searcher->update(current, m_addedStates, m_removedStates);
     }
 
-    states.insert(addedStates.begin(), addedStates.end());
-    addedStates.clear();
+    m_states.insert(m_addedStates.begin(), m_addedStates.end());
+    m_addedStates.clear();
 
-    for (StateSet::iterator it = removedStates.begin(), ie = removedStates.end(); it != ie; ++it) {
+    for (StateSet::iterator it = m_removedStates.begin(), ie = m_removedStates.end(); it != ie; ++it) {
         ExecutionState *es = *it;
-        StateSet::iterator it2 = states.find(es);
-        assert(it2 != states.end());
-        states.erase(it2);
+        StateSet::iterator it2 = m_states.find(es);
+        assert(it2 != m_states.end());
+        m_states.erase(it2);
         deleteState(es);
     }
-    removedStates.clear();
+    m_removedStates.clear();
 }
 
 void Executor::deleteState(ExecutionState *state) {
@@ -1580,15 +1580,15 @@ void Executor::deleteState(ExecutionState *state) {
 void Executor::terminateState(ExecutionState &state) {
     *klee::stats::completedPaths += 1;
 
-    StateSet::iterator it = addedStates.find(&state);
-    if (it == addedStates.end()) {
+    StateSet::iterator it = m_addedStates.find(&state);
+    if (it == m_addedStates.end()) {
         // XXX: the following line makes delayed state termination impossible
         // llvmState.pc = llvmState.prevPC;
 
-        removedStates.insert(&state);
+        m_removedStates.insert(&state);
     } else {
         // never reached searcher, just delete immediately
-        addedStates.erase(it);
+        m_addedStates.erase(it);
         deleteState(&state);
     }
 }

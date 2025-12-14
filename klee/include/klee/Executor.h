@@ -75,19 +75,19 @@ protected:
     Searcher *m_searcher;
 
     std::unique_ptr<ExternalDispatcher> m_externalDispatcher;
-    StateSet states;
+    StateSet m_states;
     std::unique_ptr<SpecialFunctionHandler> m_specialFunctionHandler;
 
     /// Used to track states that have been added during the current
     /// instructions step.
     /// \invariant \ref addedStates is a subset of \ref states.
     /// \invariant \ref addedStates and \ref removedStates are disjoint.
-    StateSet addedStates;
+    StateSet m_addedStates;
     /// Used to track states that have been removed during the current
     /// instructions step.
     /// \invariant \ref removedStates is a subset of \ref states.
     /// \invariant \ref addedStates and \ref removedStates are disjoint.
-    StateSet removedStates;
+    StateSet m_removedStates;
 
     /// Map of predefined global values
     std::map<std::string, void *> predefinedSymbols;
@@ -171,18 +171,18 @@ public:
 
     /*** State accessor methods ***/
     size_t getStatesCount() const {
-        return states.size();
+        return m_states.size();
     }
     const StateSet &getStates() {
-        return states;
+        return m_states;
     }
 
     const StateSet &getAddedStates() {
-        return addedStates;
+        return m_addedStates;
     }
 
     const StateSet &getRemovedStates() {
-        return removedStates;
+        return m_removedStates;
     }
 
     KModulePtr getModule() const {
