@@ -74,7 +74,7 @@ protected:
     KModulePtr m_kmodule;
     Searcher *m_searcher;
 
-    std::unique_ptr<ExternalDispatcher> externalDispatcher;
+    std::unique_ptr<ExternalDispatcher> m_externalDispatcher;
     StateSet states;
     std::unique_ptr<SpecialFunctionHandler> specialFunctionHandler;
 

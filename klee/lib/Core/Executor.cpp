@@ -83,7 +83,7 @@ extern cl::opt<bool> UseExprSimplifier;
 } // namespace klee
 
 Executor::Executor(LLVMContext &context)
-    : m_kmodule(0), m_searcher(0), externalDispatcher(std::make_unique<ExternalDispatcher>()) {
+    : m_kmodule(0), m_searcher(0), m_externalDispatcher(std::make_unique<ExternalDispatcher>()) {
 }
 
 const Module *Executor::setModule(llvm::Module *module) {
@@ -164,7 +164,7 @@ void Executor::initializeGlobals(ExecutionState &state) {
         // If the symbol has external weak linkage then it is implicitly
         // not defined in this module; if it isn't resolvable then it
         // should be null.
-        if (f->hasExternalWeakLinkage() && !externalDispatcher->resolveSymbol(f->getName().str())) {
+        if (f->hasExternalWeakLinkage() && !m_externalDispatcher->resolveSymbol(f->getName().str())) {
             addr = Expr::createPointer(0);
         } else {
             addr = Expr::createPointer((uintptr_t) (void *) f);
@@ -245,7 +245,7 @@ void Executor::initializeGlobals(ExecutionState &state) {
             // concrete value and write it to our copy.
             if (size) {
                 void *addr;
-                addr = externalDispatcher->resolveSymbol(i->getName().str());
+                addr = m_externalDispatcher->resolveSymbol(i->getName().str());
 
                 if (!addr)
                     klee_error("unable to load symbol(%s) while initializing globals.", i->getName().data());
@@ -1669,7 +1669,7 @@ void Executor::callExternalFunction(ExecutionState &state, KInstruction *target,
     }
 
     uint64_t result;
-    external_fcn_t targetFunction = (external_fcn_t) externalDispatcher->resolveSymbol(function->getName().str());
+    external_fcn_t targetFunction = (external_fcn_t) m_externalDispatcher->resolveSymbol(function->getName().str());
     if (!targetFunction) {
         std::stringstream ss;
         ss << "Could not find address of external function " << function->getName().str();
@@ -1678,7 +1678,7 @@ void Executor::callExternalFunction(ExecutionState &state, KInstruction *target,
     }
 
     std::stringstream ss;
-    if (!externalDispatcher->call(targetFunction, cas, &result, ss)) {
+    if (!m_externalDispatcher->call(targetFunction, cas, &result, ss)) {
         ss << ": " << function->getName().str();
         throw LLVMExecutorException(ss.str());
         return;
