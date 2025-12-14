@@ -76,7 +76,7 @@ protected:
 
     std::unique_ptr<ExternalDispatcher> m_externalDispatcher;
     StateSet states;
-    std::unique_ptr<SpecialFunctionHandler> specialFunctionHandler;
+    std::unique_ptr<SpecialFunctionHandler> m_specialFunctionHandler;
 
     /// Used to track states that have been added during the current
     /// instructions step.

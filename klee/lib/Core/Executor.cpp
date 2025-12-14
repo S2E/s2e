@@ -95,13 +95,13 @@ const Module *Executor::setModule(llvm::Module *module) {
     auto TD = m_kmodule->getDataLayout();
     Context::initialize(TD->isLittleEndian(), (Expr::Width) TD->getPointerSizeInBits());
 
-    specialFunctionHandler = std::make_unique<SpecialFunctionHandler>(*this);
+    m_specialFunctionHandler = std::make_unique<SpecialFunctionHandler>(*this);
 
-    specialFunctionHandler->prepare(*module);
+    m_specialFunctionHandler->prepare(*module);
 
     m_kmodule->prepare();
 
-    specialFunctionHandler->bind(*module);
+    m_specialFunctionHandler->bind(*module);
 
     return module;
 }
@@ -1610,7 +1610,7 @@ typedef uint64_t (*external_fcn_t)(...);
 void Executor::callExternalFunction(ExecutionState &state, KInstruction *target, Function *function,
                                     std::vector<ref<Expr>> &arguments) {
     // check if specialFunctionHandler wants it
-    if (specialFunctionHandler->handle(state, function, target, arguments))
+    if (m_specialFunctionHandler->handle(state, function, target, arguments))
         return;
 
     if (NoExternals && !okExternals.count(function->getName().str())) {
@@ -1818,5 +1818,5 @@ void Executor::executeMemoryOperation(ExecutionState &state, bool isWrite, ref<E
 }
 
 void Executor::addSpecialFunctionHandler(Function *function, FunctionHandler handler) {
-    specialFunctionHandler->addUHandler(function, handler);
+    m_specialFunctionHandler->addUHandler(function, handler);
 }
