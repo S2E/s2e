@@ -484,14 +484,14 @@ S2EExecutionState *S2EExecutor::createInitialState() {
 
 #define __DEFINE_EXT_OBJECT_RO(name)                                                  \
     {                                                                                 \
-        predefinedSymbols.insert(std::make_pair(#name, (void *) &name));              \
+        m_predefinedSymbols.insert(std::make_pair(#name, (void *) &name));            \
         auto op = state->addExternalObject((void *) &name, sizeof(name), true, true); \
         op->setName(#name);                                                           \
     }
 
 #define __DEFINE_EXT_OBJECT_RO_SYMB(name)                                              \
     {                                                                                  \
-        predefinedSymbols.insert(std::make_pair(#name, (void *) &name));               \
+        m_predefinedSymbols.insert(std::make_pair(#name, (void *) &name));             \
         auto op = state->addExternalObject((void *) &name, sizeof(name), true, false); \
         op->setName(#name);                                                            \
     }
@@ -523,7 +523,7 @@ void S2EExecutor::initializeExecution(S2EExecutionState *state, bool executeAlwa
     m_executeAlwaysKlee = executeAlwaysKlee;
 
     initializeGlobals(*state);
-    m_kmodule->bindModuleConstants(globalAddresses);
+    m_kmodule->bindModuleConstants(m_globalAddresses);
 
     initializeStateSwitchTimer();
 }
@@ -965,7 +965,7 @@ S2EExecutionState *S2EExecutor::selectNextState(S2EExecutionState *state) {
 /** Simulate start of function execution, creating KLEE structs of required */
 void S2EExecutor::prepareFunctionExecution(S2EExecutionState *state, llvm::Function *function,
                                            const std::vector<klee::ref<klee::Expr>> &args) {
-    auto kf = m_kmodule->bindFunctionConstants(globalAddresses, function);
+    auto kf = m_kmodule->bindFunctionConstants(m_globalAddresses, function);
 
     /* Emulate call to a TB function */
     state->llvm.prevPC = state->llvm.pc;

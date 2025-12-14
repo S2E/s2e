@@ -615,7 +615,7 @@ void S2EExecutor::replaceExternalFunctionsWithSpecialHandlers() {
         auto f = m_kmodule->getModule()->getFunction(hi.name);
         assert(f);
         addSpecialFunctionHandler(f, hi.handler);
-        overridenInternalFunctions.insert(f);
+        m_overridenInternalFunctions.insert(f);
     }
 }
 

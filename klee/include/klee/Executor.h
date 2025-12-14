@@ -90,18 +90,18 @@ protected:
     StateSet m_removedStates;
 
     /// Map of predefined global values
-    std::map<std::string, void *> predefinedSymbols;
+    std::map<std::string, void *> m_predefinedSymbols;
 
     /// Map of globals to their representative memory object.
-    std::map<const llvm::GlobalValue *, ObjectKey> globalObjects;
+    std::map<const llvm::GlobalValue *, ObjectKey> m_globalObjects;
 
     /// Map of globals to their bound address. This also includes
     /// globals that have no representative object (i.e. functions).
-    GlobalAddresses globalAddresses;
+    GlobalAddresses m_globalAddresses;
 
     /// The set of functions that must be handled via custom function handlers
     /// instead of being called directly.
-    std::set<llvm::Function *> overridenInternalFunctions;
+    std::set<llvm::Function *> m_overridenInternalFunctions;
 
     llvm::Function *getTargetFunction(llvm::Value *calledVal);
 

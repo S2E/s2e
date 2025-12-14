@@ -136,7 +136,7 @@ void Executor::initializeGlobalObject(ExecutionState &state, const ObjectStatePt
             initializeGlobalObject(state, os, cds->getElementAsConstant(i), offset + i * elementSize);
     } else if (!isa<UndefValue>(c) && !isa<MetadataAsValue>(c)) {
         unsigned StoreBits = targetData->getTypeStoreSizeInBits(c->getType());
-        ref<ConstantExpr> C = m_kmodule->evalConstant(globalAddresses, c);
+        ref<ConstantExpr> C = m_kmodule->evalConstant(m_globalAddresses, c);
 
         // Extend the constant if necessary;
         assert(StoreBits >= C->getWidth() && "Invalid store size!");
@@ -170,7 +170,7 @@ void Executor::initializeGlobals(ExecutionState &state) {
             addr = Expr::createPointer((uintptr_t) (void *) f);
         }
 
-        globalAddresses.insert(std::make_pair(f, addr));
+        m_globalAddresses.insert(std::make_pair(f, addr));
     }
 
 // Disabled, we don't want to promote use of live externals.
@@ -205,10 +205,10 @@ void Executor::initializeGlobals(ExecutionState &state) {
 
     // allocate memory objects for all globals
     for (Module::const_global_iterator i = m->global_begin(), e = m->global_end(); i != e; ++i) {
-        std::map<std::string, void *>::iterator po = predefinedSymbols.find(i->getName().str());
-        if (po != predefinedSymbols.end()) {
+        std::map<std::string, void *>::iterator po = m_predefinedSymbols.find(i->getName().str());
+        if (po != m_predefinedSymbols.end()) {
             // This object was externally defined
-            globalAddresses.insert(
+            m_globalAddresses.insert(
                 std::make_pair(&*i, ConstantExpr::create((uint64_t) po->second, sizeof(void *) * 8)));
 
         } else if (i->isDeclaration()) {
@@ -238,8 +238,8 @@ void Executor::initializeGlobals(ExecutionState &state) {
 
             auto mo = ObjectState::allocate(0, size, false);
             state.bindObject(mo, false);
-            globalObjects.insert(std::make_pair(&*i, mo->getKey()));
-            globalAddresses.insert(std::make_pair(&*i, mo->getBaseExpr()));
+            m_globalObjects.insert(std::make_pair(&*i, mo->getKey()));
+            m_globalAddresses.insert(std::make_pair(&*i, mo->getBaseExpr()));
 
             // Program already running = object already initialized.  Read
             // concrete value and write it to our copy.
@@ -261,8 +261,8 @@ void Executor::initializeGlobals(ExecutionState &state) {
 
             assert(mo && "out of memory");
             state.bindObject(mo, false);
-            globalObjects.insert(std::make_pair(&*i, mo->getKey()));
-            globalAddresses.insert(std::make_pair(&*i, mo->getBaseExpr()));
+            m_globalObjects.insert(std::make_pair(&*i, mo->getKey()));
+            m_globalAddresses.insert(std::make_pair(&*i, mo->getBaseExpr()));
         }
     }
 
@@ -270,18 +270,18 @@ void Executor::initializeGlobals(ExecutionState &state) {
     for (auto i = m->alias_begin(), ie = m->alias_end(); i != ie; ++i) {
         // Map the alias to its aliasee's address. This works because we have
         // addresses for everything, even undefined functions.
-        globalAddresses.insert(std::make_pair(&*i, m_kmodule->evalConstant(globalAddresses, i->getAliasee())));
+        m_globalAddresses.insert(std::make_pair(&*i, m_kmodule->evalConstant(m_globalAddresses, i->getAliasee())));
     }
 
     // once all objects are allocated, do the actual initialization
     for (auto i = m->global_begin(), e = m->global_end(); i != e; ++i) {
-        if (predefinedSymbols.find(i->getName().str()) != predefinedSymbols.end()) {
+        if (m_predefinedSymbols.find(i->getName().str()) != m_predefinedSymbols.end()) {
             continue;
         }
 
         if (i->hasInitializer()) {
-            assert(globalObjects.find(&*i) != globalObjects.end());
-            auto mo = globalObjects.find(&*i)->second;
+            assert(m_globalObjects.find(&*i) != m_globalObjects.end());
+            auto mo = m_globalObjects.find(&*i)->second;
             auto os = state.addressSpace().findObject(mo.address);
             assert(os);
             auto wos = state.addressSpace().getWriteable(os);
@@ -456,7 +456,7 @@ void Executor::executeCall(ExecutionState &state, KInstruction *ki, Function *f,
     Instruction *i = ki->inst;
     auto &llvmState = state.llvm;
 
-    if (f && overridenInternalFunctions.find(f) != overridenInternalFunctions.end()) {
+    if (f && m_overridenInternalFunctions.find(f) != m_overridenInternalFunctions.end()) {
         callExternalFunction(state, ki, f, arguments);
     } else if (f && f->isDeclaration()) {
         switch (f->getIntrinsicID()) {
