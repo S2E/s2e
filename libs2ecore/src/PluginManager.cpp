@@ -41,19 +41,16 @@ PluginManager::~PluginManager() {
 }
 
 void PluginManager::destroy() {
-    foreach2 (it, m_activePluginsList.begin(), m_activePluginsList.end()) {
-        delete *it;
+    for (auto plugin : m_activePluginsList) {
+        delete plugin;
     }
     m_activePluginsList.clear();
 
-    if (m_pluginsFactory) {
-        delete m_pluginsFactory;
-        m_pluginsFactory = nullptr;
-    }
+    m_pluginsFactory = nullptr;
 }
 
 bool PluginManager::initialize(S2E *_s2e, ConfigFile *cfg) {
-    m_pluginsFactory = new PluginsFactory();
+    m_pluginsFactory = std::make_unique<PluginsFactory>();
 
     m_corePlugin = static_cast<CorePlugin *>(m_pluginsFactory->createPlugin(_s2e, "CorePlugin"));
     assert(m_corePlugin);
@@ -66,8 +63,7 @@ bool PluginManager::initialize(S2E *_s2e, ConfigFile *cfg) {
     vector<string> pluginNames = cfg->getStringList("plugins");
 
     /* Check and load plugins */
-    foreach2 (it, pluginNames.begin(), pluginNames.end()) {
-        const string &pluginName = *it;
+    for (const auto &pluginName : pluginNames) {
         const PluginInfo *pluginInfo = m_pluginsFactory->getPluginInfo(pluginName);
         if (!pluginInfo) {
             std::cerr << "ERROR: plugin '" << pluginName << "' does not exist in this S2E installation" << '\n';
@@ -94,12 +90,12 @@ bool PluginManager::initialize(S2E *_s2e, ConfigFile *cfg) {
     }
 
     /* Check dependencies */
-    foreach2 (it, m_activePluginsList.begin(), m_activePluginsList.end()) {
-        Plugin *p = *it;
-        foreach2 (it, p->getPluginInfo()->dependencies.begin(), p->getPluginInfo()->dependencies.end()) {
-            const string &name = *it;
-            if (!getPlugin(name)) {
-                std::cerr << "ERROR: plugin '" << p->getPluginInfo()->name << "' depends on plugin '" << name
+    for (auto plugin : m_activePluginsList) {
+        const auto info = plugin->getPluginInfo();
+
+        for (const auto &dependency : info->dependencies) {
+            if (!getPlugin(dependency)) {
+                std::cerr << "ERROR: plugin '" << info->name << "' depends on plugin '" << dependency
                           << "' which is not enabled in config" << '\n';
                 return false;
             }
@@ -113,18 +109,18 @@ bool PluginManager::initialize(S2E *_s2e, ConfigFile *cfg) {
     PluginGraph g;
 
     /* Add all the plugin as vertices to the graph */
-    foreach2 (it, m_activePluginsList.begin(), m_activePluginsList.end()) {
-        const PluginInfo *info = (*it)->getPluginInfo();
+    for (auto plugin : m_activePluginsList) {
+        const PluginInfo *info = plugin->getPluginInfo();
         boost::add_vertex(info, g);
         g[info].info = info;
     }
 
     /* Add dependencies (edges) */
-    foreach2 (it, m_activePluginsList.begin(), m_activePluginsList.end()) {
-        const PluginInfo *info = (*it)->getPluginInfo();
+    for (auto plugin : m_activePluginsList) {
+        const PluginInfo *info = plugin->getPluginInfo();
 
-        foreach2 (dit, info->dependencies.begin(), info->dependencies.end()) {
-            const PluginInfo *dependentPlugin = getPlugin(*dit)->getPluginInfo();
+        for (const auto &dependency : info->dependencies) {
+            const PluginInfo *dependentPlugin = getPlugin(dependency)->getPluginInfo();
             boost::add_edge_by_label(dependentPlugin, info, g);
         }
     }
@@ -154,8 +150,8 @@ Plugin *PluginManager::getPlugin(const std::string &name) const {
 }
 
 void PluginManager::refreshPlugins() {
-    foreach2 (it, m_activePluginsList.begin(), m_activePluginsList.end()) {
-        (*it)->refresh();
+    for (auto plugin : m_activePluginsList) {
+        plugin->refresh();
     }
 }
 } // namespace s2e

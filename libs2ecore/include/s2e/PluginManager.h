@@ -27,6 +27,7 @@
 #include <s2e/ConfigFile.h>
 #include <s2e/Plugin.h>
 
+#include <memory>
 #include <unordered_map>
 
 namespace s2e {
@@ -35,7 +36,7 @@ class S2E;
 
 class PluginManager {
 private:
-    PluginsFactory *m_pluginsFactory;
+    std::unique_ptr<PluginsFactory> m_pluginsFactory;
 
     CorePlugin *m_corePlugin;
     std::vector<Plugin *> m_activePluginsList;
