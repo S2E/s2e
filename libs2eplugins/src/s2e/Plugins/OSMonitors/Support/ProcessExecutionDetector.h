@@ -69,7 +69,7 @@ public:
     sigc::signal<void, S2EExecutionState *> onMonitorLoad;
     sigc::signal<void, S2EExecutionState *> onAllProcessesTerminated;
 
-    const TrackedPids &getTrackedPids(S2EExecutionState *state) const;
+    const TrackedPids &getTrackedPids(S2EExecutionState *state);
 
 private:
     typedef std::unordered_set<std::string> StringSet;

@@ -38,6 +38,8 @@
 #include "S2ETranslationBlock.h"
 #include "s2e_config.h"
 
+#include <s2e/Plugin.h>
+
 extern "C" {
 struct TranslationBlock;
 struct TimersState;
@@ -48,7 +50,7 @@ struct CPUX86State;
 
 #include <llvm/ADT/DenseMap.h>
 #include <llvm/ADT/SmallVector.h>
-#include <tr1/unordered_map>
+#include <unordered_map>
 
 namespace s2e {
 
@@ -83,6 +85,8 @@ protected:
     unsigned m_guid;
 
     PluginStateMap m_pluginState;
+    PluginState *m_cachedPluginState = nullptr;
+    const Plugin *m_cachedPlugin = nullptr;
 
     /* Internal variable - set to PC where execution should be
        switched to symbolic (e.g., due to access to symbolic memory). */
@@ -199,17 +203,30 @@ public:
     /*************************************************/
 
     PluginState *getPluginState(Plugin *plugin, PluginStateFactory factory) {
+        if (m_cachedPlugin == plugin) {
+            return m_cachedPluginState;
+        }
+
         PluginStateMap::iterator it = m_pluginState.find(plugin);
         if (it == m_pluginState.end()) {
             PluginState *ret = factory(plugin, this);
             assert(ret);
             m_pluginState[plugin] = ret;
+            m_cachedPlugin = plugin;
+            m_cachedPluginState = ret;
             return ret;
         }
+
+        m_cachedPlugin = plugin;
+        m_cachedPluginState = (*it).second;
         return (*it).second;
     }
 
-    template <typename T> T *getPluginState(Plugin *plugin) const {
+    template <typename T> T *getPluginState(const Plugin *plugin) const {
+        if (m_cachedPlugin == plugin) {
+            return dynamic_cast<T *>(m_cachedPluginState);
+        }
+
         auto it = m_pluginState.find(plugin);
         if (it == m_pluginState.end()) {
             return nullptr;

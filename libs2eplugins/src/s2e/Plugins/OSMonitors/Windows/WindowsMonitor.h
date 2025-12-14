@@ -425,8 +425,8 @@ public:
         return m_kernel;
     }
 
-    uint64_t getProcess(S2EExecutionState *state, uint64_t pid) const;
-    uint64_t getProcessParent(S2EExecutionState *state, uint64_t pid) const;
+    uint64_t getProcess(S2EExecutionState *state, uint64_t pid);
+    uint64_t getProcessParent(S2EExecutionState *state, uint64_t pid);
 
     uint64_t getCurrentProcess(S2EExecutionState *state) {
         assert(m_cachedState == state && m_cachedEprocess);
@@ -463,7 +463,7 @@ public:
 
     static uint64_t getTidReg(S2EExecutionState *state);
 
-    uint64_t getPidFromHandle(S2EExecutionState *state, uint64_t ownerPid, uint64_t handle) const;
+    uint64_t getPidFromHandle(S2EExecutionState *state, uint64_t ownerPid, uint64_t handle);
     bool getMemoryStatisticsForCurrentProcess(S2EExecutionState *state, MemoryInformation &info);
 
     bool moduleUnloadSupported() const {

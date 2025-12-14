@@ -413,23 +413,23 @@ void MemoryMap::updateMemoryStats(S2EExecutionState *state) {
     }
 }
 
-MemoryMapRegionType MemoryMap::getType(S2EExecutionState *state, uint64_t pid, uint64_t address) const {
+MemoryMapRegionType MemoryMap::getType(S2EExecutionState *state, uint64_t pid, uint64_t address) {
     DECLARE_PLUGINSTATE_CONST(MemoryMapState, state);
     return plgState->lookupRegion(pid, address);
 }
 
 bool MemoryMap::lookupRegion(S2EExecutionState *state, uint64_t pid, uint64_t addr, uint64_t &start, uint64_t &end,
-                             MemoryMapRegionType &type) const {
+                             MemoryMapRegionType &type) {
     DECLARE_PLUGINSTATE_CONST(MemoryMapState, state);
     return plgState->lookupRegion(pid, addr, start, end, type);
 }
 
-void MemoryMap::iterateRegions(S2EExecutionState *state, uint64_t pid, MemoryMapCb callback) const {
+void MemoryMap::iterateRegions(S2EExecutionState *state, uint64_t pid, MemoryMapCb callback) {
     DECLARE_PLUGINSTATE_CONST(MemoryMapState, state);
     return plgState->iterateRegions(pid, callback);
 }
 
-void MemoryMap::dump(S2EExecutionState *state) const {
+void MemoryMap::dump(S2EExecutionState *state) {
     DECLARE_PLUGINSTATE(MemoryMapState, state);
 
     llvm::raw_ostream &os = getDebugStream(state);
@@ -437,7 +437,7 @@ void MemoryMap::dump(S2EExecutionState *state) const {
     plgState->dump(os);
 }
 
-void MemoryMap::dump(S2EExecutionState *state, uint64_t pid) const {
+void MemoryMap::dump(S2EExecutionState *state, uint64_t pid) {
     DECLARE_PLUGINSTATE(MemoryMapState, state);
 
     llvm::raw_ostream &os = getDebugStream(state);
@@ -445,7 +445,7 @@ void MemoryMap::dump(S2EExecutionState *state, uint64_t pid) const {
     plgState->dump(os, pid);
 }
 
-uint64_t MemoryMap::getPeakCommitCharge(S2EExecutionState *state) const {
+uint64_t MemoryMap::getPeakCommitCharge(S2EExecutionState *state) {
     DECLARE_PLUGINSTATE(MemoryMapState, state);
     return plgState->getPeakCommitCharge();
 }

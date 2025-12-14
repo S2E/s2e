@@ -47,12 +47,8 @@ private:
     LogLevel m_logLevel;
     llvm::raw_ostream *m_nullOutput;
 
-protected:
-    mutable PluginState *m_CachedPluginState;
-    mutable S2EExecutionState *m_CachedPluginS2EState;
-
 public:
-    Plugin(S2E *s2e) : m_s2e(s2e), m_CachedPluginState(nullptr), m_CachedPluginS2EState(nullptr) {
+    Plugin(S2E *s2e) : m_s2e(s2e) {
     }
 
     virtual ~Plugin() {
@@ -83,13 +79,6 @@ public:
     /** Return configuration key for this plugin */
     const std::string &getConfigKey() const;
 
-    PluginState *getPluginState(S2EExecutionState *s, PluginState *(*f)(Plugin *, S2EExecutionState *) ) const;
-
-    void refresh() {
-        m_CachedPluginS2EState = nullptr;
-        m_CachedPluginState = nullptr;
-    }
-
     virtual bool getProperty(S2EExecutionState *state, const std::string &name, std::string &value) {
         return false;
     }
@@ -107,17 +96,18 @@ public:
 };
 
 #define DECLARE_PLUGINSTATE_P(plg, c, execstate) \
-    c *plgState = static_cast<c *>(plg->getPluginState(execstate, &c::factory))
+    c *plgState = static_cast<c *>(execstate->getPluginState(plg, &c::factory))
 
-#define DECLARE_PLUGINSTATE(c, execstate) c *plgState = static_cast<c *>(getPluginState(execstate, &c::factory))
+#define DECLARE_PLUGINSTATE(c, execstate) c *plgState = static_cast<c *>(execstate->getPluginState(this, &c::factory))
 
-#define DECLARE_PLUGINSTATE_N(c, name, execstate) c *name = static_cast<c *>(getPluginState(execstate, &c::factory))
+#define DECLARE_PLUGINSTATE_N(c, name, execstate) \
+    c *name = static_cast<c *>(execstate->getPluginState(this, &c::factory))
 
 #define DECLARE_PLUGINSTATE_CONST(c, execstate) \
-    const c *plgState = static_cast<c *>(getPluginState(execstate, &c::factory))
+    const c *plgState = static_cast<c *>(execstate->getPluginState(this, &c::factory))
 
 #define DECLARE_PLUGINSTATE_NCONST(c, name, execstate) \
-    const c *name = static_cast<c *>(getPluginState(execstate, &c::factory))
+    const c *name = static_cast<c *>(execstate->getPluginState(this, &c::factory))
 
 class PluginState {
 public:

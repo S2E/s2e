@@ -59,7 +59,6 @@ public:
     Plugin *getPlugin(const std::string &name) const;
     template <class PluginClass> PluginClass *getPlugin() const;
 
-    void refreshPlugins();
     void destroy();
 };
 

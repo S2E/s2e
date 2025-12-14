@@ -188,7 +188,7 @@ void TestCaseGenerator::onStateKill(S2EExecutionState *state) {
     generateTestCases(state, "kill", TC_LOG | TC_TRACE | TC_FILE);
 }
 
-const ConcreteFileTemplates &TestCaseGenerator::getTemplates(S2EExecutionState *state) const {
+const ConcreteFileTemplates &TestCaseGenerator::getTemplates(S2EExecutionState *state) {
     DECLARE_PLUGINSTATE_CONST(TestCaseGeneratorState, state);
     return plgState->getTemplates();
 }

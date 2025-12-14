@@ -532,7 +532,7 @@ public:
     /// \param state to query
     /// \return the seed index of the state
     ///
-    uint64_t getSubtreeSeedIndex(S2EExecutionState *state) const;
+    uint64_t getSubtreeSeedIndex(S2EExecutionState *state);
 
     ///
     /// \brief getUsedSeedsCount returns how many seeds have been fetched by the guest

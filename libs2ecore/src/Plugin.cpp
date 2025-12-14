@@ -66,15 +66,6 @@ void Plugin::configureLogLevel() {
     }
 }
 
-PluginState *Plugin::getPluginState(S2EExecutionState *s, PluginStateFactory f) const {
-    if (m_CachedPluginS2EState == s) {
-        return m_CachedPluginState;
-    }
-    m_CachedPluginState = s->getPluginState(const_cast<Plugin *>(this), f);
-    m_CachedPluginS2EState = s;
-    return m_CachedPluginState;
-}
-
 llvm::raw_ostream &Plugin::getDebugStream(S2EExecutionState *state) const {
     if (m_logLevel <= LOG_DEBUG) {
         return s2e()->getDebugStream(state) << getPluginInfo()->name << ": ";

@@ -155,7 +155,7 @@ public:
     }
 };
 
-unsigned DecreeMonitor::getSymbolicReadsCount(S2EExecutionState *state) const {
+unsigned DecreeMonitor::getSymbolicReadsCount(S2EExecutionState *state) {
     DECLARE_PLUGINSTATE_CONST(DecreeMonitorState, state);
     return plgState->m_totalReadBytesCount;
 }

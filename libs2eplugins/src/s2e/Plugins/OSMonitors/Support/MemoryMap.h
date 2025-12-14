@@ -65,7 +65,7 @@ public:
     /// \param address the address to query
     /// \return the region type
     ///
-    MemoryMapRegionType getType(S2EExecutionState *state, uint64_t pid, uint64_t address) const;
+    MemoryMapRegionType getType(S2EExecutionState *state, uint64_t pid, uint64_t address);
 
     ///
     /// \brief Retrieves information about the memory region of the given address
@@ -78,7 +78,7 @@ public:
     /// \return true if a region such that start <= addr <= end could be found.
     ///
     bool lookupRegion(S2EExecutionState *state, uint64_t pid, uint64_t addr, uint64_t &start, uint64_t &end,
-                      MemoryMapRegionType &type) const;
+                      MemoryMapRegionType &type);
 
     ///
     /// \brief iterates over all regions of the given state/pid while invoking the
@@ -88,27 +88,27 @@ public:
     /// \param pid the program id
     /// \param callback the function to invoke for each memory region
     ///
-    void iterateRegions(S2EExecutionState *state, uint64_t pid, MemoryMapCb callback) const;
+    void iterateRegions(S2EExecutionState *state, uint64_t pid, MemoryMapCb callback);
 
     ///
     /// \brief return the peak commit charge (Windows-specifiec)
     /// \param state the execution state
     /// \return the commit charge
     ///
-    uint64_t getPeakCommitCharge(S2EExecutionState *state) const;
+    uint64_t getPeakCommitCharge(S2EExecutionState *state);
 
     ///
     /// \brief dump the memory map of all tracked processes
     /// \param state the execution state
     ///
-    void dump(S2EExecutionState *state) const;
+    void dump(S2EExecutionState *state);
 
     ///
     /// \brief dump the memory map of the given tracked process
     /// \param state the execution state
     /// \param pid the pid of the process to dump
     ///
-    void dump(S2EExecutionState *state, uint64_t pid) const;
+    void dump(S2EExecutionState *state, uint64_t pid);
 
 private:
     OSMonitor *m_monitor;

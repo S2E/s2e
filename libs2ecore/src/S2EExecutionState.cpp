@@ -87,8 +87,6 @@ S2EExecutionState::~S2EExecutionState() {
         delete it->second;
     }
 
-    g_s2e->refreshPlugins();
-
     // XXX: This cannot be done, as device states may refer to each other
     // delete m_deviceState;
 
@@ -127,6 +125,9 @@ ExecutionState *S2EExecutionState::clone() {
     // Clone the plugins
     PluginStateMap::iterator it;
     ret->m_pluginState.clear();
+    ret->m_cachedPlugin = nullptr;
+    ret->m_cachedPluginState = nullptr;
+
     for (it = m_pluginState.begin(); it != m_pluginState.end(); ++it) {
         ret->m_pluginState.insert(std::make_pair((*it).first, (*it).second->clone()));
     }

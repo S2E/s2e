@@ -236,12 +236,6 @@ public:
         return m_s2eExecutor;
     }
 
-    // XXX: A plugin can hold cached state information. When a state is deleted,
-    // remove all the cached info from all plugins.
-    void refreshPlugins() {
-        m_pluginManager.refreshPlugins();
-    }
-
     void writeBitCodeToFile();
 
     int fork();
