@@ -82,7 +82,7 @@ protected:
     ///
     unsigned m_guid;
 
-    PluginStateMap m_PluginState;
+    PluginStateMap m_pluginState;
 
     /* Internal variable - set to PC where execution should be
        switched to symbolic (e.g., due to access to symbolic memory). */
@@ -199,19 +199,19 @@ public:
     /*************************************************/
 
     PluginState *getPluginState(Plugin *plugin, PluginStateFactory factory) {
-        PluginStateMap::iterator it = m_PluginState.find(plugin);
-        if (it == m_PluginState.end()) {
+        PluginStateMap::iterator it = m_pluginState.find(plugin);
+        if (it == m_pluginState.end()) {
             PluginState *ret = factory(plugin, this);
             assert(ret);
-            m_PluginState[plugin] = ret;
+            m_pluginState[plugin] = ret;
             return ret;
         }
         return (*it).second;
     }
 
     template <typename T> T *getPluginState(Plugin *plugin) const {
-        auto it = m_PluginState.find(plugin);
-        if (it == m_PluginState.end()) {
+        auto it = m_pluginState.find(plugin);
+        if (it == m_pluginState.end()) {
             return nullptr;
         }
         return dynamic_cast<T *>((*it).second);

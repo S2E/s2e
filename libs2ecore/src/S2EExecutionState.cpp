@@ -83,7 +83,7 @@ S2EExecutionState::~S2EExecutionState() {
 
     // print_stacktrace();
 
-    for (it = m_PluginState.begin(); it != m_PluginState.end(); ++it) {
+    for (it = m_pluginState.begin(); it != m_pluginState.end(); ++it) {
         delete it->second;
     }
 
@@ -126,9 +126,9 @@ ExecutionState *S2EExecutionState::clone() {
 
     // Clone the plugins
     PluginStateMap::iterator it;
-    ret->m_PluginState.clear();
-    for (it = m_PluginState.begin(); it != m_PluginState.end(); ++it) {
-        ret->m_PluginState.insert(std::make_pair((*it).first, (*it).second->clone()));
+    ret->m_pluginState.clear();
+    for (it = m_pluginState.begin(); it != m_pluginState.end(); ++it) {
+        ret->m_pluginState.insert(std::make_pair((*it).first, (*it).second->clone()));
     }
 
     ret->m_tlb.assignNewState(&ret->m_asCache, &ret->m_registers);
