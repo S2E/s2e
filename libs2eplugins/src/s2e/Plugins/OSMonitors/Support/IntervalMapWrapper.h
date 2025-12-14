@@ -28,7 +28,7 @@
 
 #include <inttypes.h>
 
-#include <llvm/ADT/IntervalMap.h>
+#include <klee/Internal/ADT/IntervalMap.h>
 
 namespace llvm {
 
