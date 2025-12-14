@@ -426,7 +426,7 @@ S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMTranslator *translator)
     }
 #endif
 
-    searcher = constructUserSearcher();
+    m_searcher = constructUserSearcher();
 
     g_s2e_fork_on_symbolic_address = ForkOnSymbolicAddress;
     g_s2e_concretize_io_addresses = ConcretizeIoAddress;
@@ -885,8 +885,8 @@ void S2EExecutor::doStateSwitch(S2EExecutionState *oldState, S2EExecutionState *
 ExecutionState *S2EExecutor::selectSearcherState(S2EExecutionState *state) {
     ExecutionState *newState = nullptr;
 
-    if (!searcher->empty()) {
-        newState = &searcher->selectState();
+    if (!m_searcher->empty()) {
+        newState = &m_searcher->selectState();
     }
 
     if (!newState) {
@@ -1719,8 +1719,8 @@ void S2EExecutor::doInterruptAll(int intno, int is_int, int error_code, uintptr_
 
 /** Suspend the given state (does not kill it) */
 bool S2EExecutor::suspendState(S2EExecutionState *state) {
-    if (searcher) {
-        searcher->removeState(state, nullptr);
+    if (m_searcher) {
+        m_searcher->removeState(state, nullptr);
         size_t r = states.erase(state);
         assert(r == 1);
         return true;
@@ -1729,12 +1729,12 @@ bool S2EExecutor::suspendState(S2EExecutionState *state) {
 }
 
 bool S2EExecutor::resumeState(S2EExecutionState *state) {
-    if (searcher) {
+    if (m_searcher) {
         if (states.find(state) != states.end()) {
             return false;
         }
         states.insert(state);
-        searcher->addState(state, nullptr);
+        m_searcher->addState(state, nullptr);
         return true;
     }
     return false;

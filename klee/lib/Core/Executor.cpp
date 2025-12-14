@@ -83,7 +83,7 @@ extern cl::opt<bool> UseExprSimplifier;
 } // namespace klee
 
 Executor::Executor(LLVMContext &context)
-    : m_kmodule(0), searcher(0), externalDispatcher(std::make_unique<ExternalDispatcher>()) {
+    : m_kmodule(0), m_searcher(0), externalDispatcher(std::make_unique<ExternalDispatcher>()) {
 }
 
 const Module *Executor::setModule(llvm::Module *module) {
@@ -1556,8 +1556,8 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
 }
 
 void Executor::updateStates(ExecutionState *current) {
-    if (searcher) {
-        searcher->update(current, addedStates, removedStates);
+    if (m_searcher) {
+        m_searcher->update(current, addedStates, removedStates);
     }
 
     states.insert(addedStates.begin(), addedStates.end());

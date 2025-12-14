@@ -72,7 +72,7 @@ public:
 
 protected:
     KModulePtr m_kmodule;
-    Searcher *searcher;
+    Searcher *m_searcher;
 
     std::unique_ptr<ExternalDispatcher> externalDispatcher;
     StateSet states;
