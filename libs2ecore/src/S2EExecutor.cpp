@@ -821,7 +821,7 @@ void S2EExecutor::doStateSwitch(S2EExecutionState *oldState, S2EExecutionState *
         // XXX: specify which state should be used
         s2e_kvm_save_device_state();
 
-        *oldState->m_timersState = timers_state;
+        oldState->m_timersState = timers_state;
 
         oldState->m_registers.saveConcreteState();
         oldState->m_active = false;
@@ -832,7 +832,7 @@ void S2EExecutor::doStateSwitch(S2EExecutionState *oldState, S2EExecutionState *
             m_s2e->getDebugStream(newState) << "Restoring state\n";
         }
 
-        timers_state = *newState->m_timersState;
+        timers_state = newState->m_timersState;
         if (g_sqi.exec.clock_scaling_factor) {
             *g_sqi.exec.clock_scaling_factor = timers_state.cpu_clock_scale_factor;
         }
@@ -1561,7 +1561,7 @@ void S2EExecutor::notifyBranch(ExecutionState &state) {
 
     cpu_disable_ticks();
     s2e_kvm_save_device_state();
-    *s2eState->m_timersState = timers_state;
+    s2eState->m_timersState = timers_state;
     cpu_enable_ticks();
 }
 

@@ -38,11 +38,12 @@
 #include "S2ETranslationBlock.h"
 #include "s2e_config.h"
 
+#include <cpu/cpus.h>
+
 #include <s2e/Plugin.h>
 
 extern "C" {
 struct TranslationBlock;
-struct TimersState;
 }
 
 // XXX
@@ -136,7 +137,7 @@ protected:
 
     /* The following structure is used to store libcpu time accounting
        variables while the state is inactive */
-    TimersState *m_timersState;
+    TimersState m_timersState = {};
 
     S2ETranslationBlockPtr m_lastS2ETb;
 

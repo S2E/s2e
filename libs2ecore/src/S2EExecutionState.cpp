@@ -69,8 +69,6 @@ S2EExecutionState::S2EExecutionState(klee::KFunction *kf)
       m_registers(&m_active, &m_runningConcrete, this, this), m_memory(), m_lastS2ETb(nullptr),
       m_needFinalizeTBExec(false), m_forkAborted(false), m_nextSymbVarId(0), m_tlb(&m_asCache, &m_registers),
       m_runningExceptionEmulationCode(false) {
-    // XXX: make this a struct, not a pointer...
-    m_timersState = new TimersState;
     m_guid = m_stateID;
 }
 
@@ -89,8 +87,6 @@ S2EExecutionState::~S2EExecutionState() {
 
     // XXX: This cannot be done, as device states may refer to each other
     // delete m_deviceState;
-
-    delete m_timersState;
 }
 
 void S2EExecutionState::assignGuid(uint64_t guid) {
@@ -119,8 +115,7 @@ ExecutionState *S2EExecutionState::clone() {
     ret->m_stateID = g_s2e->fetchAndIncrementStateId();
     ret->m_guid = ret->m_stateID;
 
-    ret->m_timersState = new TimersState;
-    *ret->m_timersState = *m_timersState;
+    ret->m_timersState = m_timersState;
 
     // Clone the plugins
     PluginStateMap::iterator it;
