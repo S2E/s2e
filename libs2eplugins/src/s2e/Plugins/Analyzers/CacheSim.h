@@ -117,10 +117,10 @@ private:
 
 public:
     CacheSimState();
-    CacheSimState(S2EExecutionState *s, Plugin *p);
+    CacheSimState(Plugin *p);
     virtual ~CacheSimState();
     virtual PluginState *clone() const;
-    static PluginState *factory(Plugin *p, S2EExecutionState *s);
+    static PluginState *factory(Plugin *p);
 
     Cache *getCache(const std::string &name);
 

@@ -57,7 +57,7 @@ public:
         m_enabledTrace[TranslationBlockTracer::TB_END] = false;
     }
 
-    static PluginState *factory(Plugin *p, S2EExecutionState *s) {
+    static PluginState *factory(Plugin *p) {
         return new TranslationBlockTracerState();
     }
 

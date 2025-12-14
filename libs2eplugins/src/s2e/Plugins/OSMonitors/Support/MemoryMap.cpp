@@ -154,7 +154,7 @@ public:
         m_plugin = p;
     }
 
-    static PluginState *factory(Plugin *p, S2EExecutionState *s) {
+    static PluginState *factory(Plugin *p) {
         return new MemoryMapState(p);
     }
 

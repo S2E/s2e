@@ -73,10 +73,10 @@ private:
 
 public:
     HostFilesState();
-    HostFilesState(S2EExecutionState *s, Plugin *p);
+    HostFilesState(Plugin *p);
     virtual ~HostFilesState();
     virtual PluginState *clone() const;
-    static PluginState *factory(Plugin *p, S2EExecutionState *s);
+    static PluginState *factory(Plugin *p);
 
     friend class HostFiles;
 };

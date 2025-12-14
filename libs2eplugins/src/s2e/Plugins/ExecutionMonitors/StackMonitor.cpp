@@ -218,7 +218,7 @@ public:
     StackMonitorState(StackMonitor::DebugLevel debugLevel);
     virtual ~StackMonitorState();
     virtual StackMonitorState *clone() const;
-    static PluginState *factory(Plugin *p, S2EExecutionState *s);
+    static PluginState *factory(Plugin *p);
 
     friend class StackMonitor;
 };
@@ -386,7 +386,7 @@ StackMonitorState *StackMonitorState::clone() const {
     return new StackMonitorState(*this);
 }
 
-PluginState *StackMonitorState::factory(Plugin *p, S2EExecutionState *s) {
+PluginState *StackMonitorState::factory(Plugin *p) {
     StackMonitor *sm = g_s2e->getPlugin<StackMonitor>();
     return new StackMonitorState(sm->m_debugLevel);
 }

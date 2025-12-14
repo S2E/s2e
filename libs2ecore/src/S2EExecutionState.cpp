@@ -73,17 +73,11 @@ S2EExecutionState::S2EExecutionState(klee::KFunction *kf)
 }
 
 S2EExecutionState::~S2EExecutionState() {
-    PluginStateMap::iterator it;
-
     if (VerboseStateDeletion) {
         g_s2e->getDebugStream() << "Deleting state " << m_stateID << " " << this << '\n';
     }
 
     // print_stacktrace();
-
-    for (it = m_pluginState.begin(); it != m_pluginState.end(); ++it) {
-        delete it->second;
-    }
 
     // XXX: This cannot be done, as device states may refer to each other
     // delete m_deviceState;
@@ -116,16 +110,6 @@ ExecutionState *S2EExecutionState::clone() {
     ret->m_guid = ret->m_stateID;
 
     ret->m_timersState = m_timersState;
-
-    // Clone the plugins
-    PluginStateMap::iterator it;
-    ret->m_pluginState.clear();
-    ret->m_cachedPlugin = nullptr;
-    ret->m_cachedPluginState = nullptr;
-
-    for (it = m_pluginState.begin(); it != m_pluginState.end(); ++it) {
-        ret->m_pluginState.insert(std::make_pair((*it).first, (*it).second->clone()));
-    }
 
     ret->m_tlb.assignNewState(&ret->m_asCache, &ret->m_registers);
 

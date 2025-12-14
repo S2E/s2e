@@ -51,16 +51,13 @@ private:
     Counts m_counts;
 
 public:
-    InstructionCounterState(S2EExecutionState *s, Plugin *p) {
-
-    };
-
+    InstructionCounterState(Plugin *p) {};
     virtual ~InstructionCounterState() {};
     virtual PluginState *clone() const {
         return new InstructionCounterState(*this);
     }
-    static PluginState *factory(Plugin *p, S2EExecutionState *s) {
-        return new InstructionCounterState(s, p);
+    static PluginState *factory(Plugin *p) {
+        return new InstructionCounterState(p);
     }
 
     inline void updatePidTid(uint64_t pid, uint64_t tid) {

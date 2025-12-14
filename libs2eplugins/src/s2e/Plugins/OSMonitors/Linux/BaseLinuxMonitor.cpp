@@ -89,7 +89,7 @@ bool BaseLinuxMonitor::verifyLinuxCommand(S2EExecutionState *state, uint64_t gue
 /// \return The process id
 ///
 uint64_t BaseLinuxMonitor::getPid(S2EExecutionState *state) {
-    auto plgState = state->getPluginState<BaseLinuxMonitorState>(this);
+    auto plgState = state->getPluginStateManager().getPluginState<BaseLinuxMonitorState>(this);
     if (plgState) {
         return plgState->getTgid();
     } else {
@@ -98,7 +98,7 @@ uint64_t BaseLinuxMonitor::getPid(S2EExecutionState *state) {
 }
 
 uint64_t BaseLinuxMonitor::getTid(S2EExecutionState *state) {
-    auto plgState = state->getPluginState<BaseLinuxMonitorState>(this);
+    auto plgState = state->getPluginStateManager().getPluginState<BaseLinuxMonitorState>(this);
     if (plgState) {
         return plgState->getPid();
     } else {
@@ -108,7 +108,7 @@ uint64_t BaseLinuxMonitor::getTid(S2EExecutionState *state) {
 
 void BaseLinuxMonitor::handleTaskSwitch(S2EExecutionState *state, const S2E_LINUXMON_TASK &CurrentTask,
                                         const S2E_LINUXMON_COMMAND_TASK_SWITCH &TaskSwitch) {
-    auto plgState = state->getPluginState<BaseLinuxMonitorState>(this);
+    auto plgState = state->getPluginStateManager().getPluginState<BaseLinuxMonitorState>(this);
 
     if (!plgState) {
         getWarningsStream(state) << "BaseLinuxMonitorState is not initialized\n";

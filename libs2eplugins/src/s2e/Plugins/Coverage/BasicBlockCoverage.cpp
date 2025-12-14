@@ -47,7 +47,7 @@ namespace {
 struct BasicBlockCoverageState : public PluginState {
     BasicBlockCoverage::ModuleBasicBlocks coverage;
 
-    static PluginState *factory(Plugin *p, S2EExecutionState *) {
+    static PluginState *factory(Plugin *p) {
         return new BasicBlockCoverageState();
     }
 

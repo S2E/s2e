@@ -51,7 +51,7 @@ public:
         return m_trackedPids.erase(pid);
     }
 
-    static PluginState *factory(Plugin *p, S2EExecutionState *s) {
+    static PluginState *factory(Plugin *p) {
         return new ProcessExecutionDetectorState();
     }
 

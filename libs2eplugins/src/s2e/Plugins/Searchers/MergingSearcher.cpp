@@ -265,7 +265,7 @@ MergingSearcherState *MergingSearcherState::clone() const {
     return new MergingSearcherState(*this);
 }
 
-PluginState *MergingSearcherState::factory(Plugin *p, S2EExecutionState *s) {
+PluginState *MergingSearcherState::factory(Plugin *p) {
     return new MergingSearcherState();
 }
 

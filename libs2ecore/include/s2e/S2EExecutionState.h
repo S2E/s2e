@@ -29,6 +29,7 @@
 #include <klee/Memory.h>
 
 #include "AddressSpaceCache.h"
+#include "PluginStateManager.h"
 #include "S2EDeviceState.h"
 #include "S2EExecutionStateMemory.h"
 #include "S2EExecutionStateRegisters.h"
@@ -60,9 +61,6 @@ class PluginState;
 class S2EDeviceState;
 class S2EExecutionState;
 
-typedef std::unordered_map<const Plugin *, PluginState *> PluginStateMap;
-typedef PluginState *(*PluginStateFactory)(Plugin *p, S2EExecutionState *s);
-
 class S2EExecutionState : public klee::ExecutionState, public klee::IConcretizer {
 protected:
     friend class S2EExecutor;
@@ -85,9 +83,7 @@ protected:
     ///
     unsigned m_guid;
 
-    PluginStateMap m_pluginState;
-    PluginState *m_cachedPluginState = nullptr;
-    const Plugin *m_cachedPlugin = nullptr;
+    PluginStateManager m_pluginState;
 
     /* Internal variable - set to PC where execution should be
        switched to symbolic (e.g., due to access to symbolic memory). */
@@ -203,36 +199,8 @@ public:
 
     /*************************************************/
 
-    PluginState *getPluginState(Plugin *plugin, PluginStateFactory factory) {
-        if (m_cachedPlugin == plugin) {
-            return m_cachedPluginState;
-        }
-
-        PluginStateMap::iterator it = m_pluginState.find(plugin);
-        if (it == m_pluginState.end()) {
-            PluginState *ret = factory(plugin, this);
-            assert(ret);
-            m_pluginState[plugin] = ret;
-            m_cachedPlugin = plugin;
-            m_cachedPluginState = ret;
-            return ret;
-        }
-
-        m_cachedPlugin = plugin;
-        m_cachedPluginState = (*it).second;
-        return (*it).second;
-    }
-
-    template <typename T> T *getPluginState(const Plugin *plugin) const {
-        if (m_cachedPlugin == plugin) {
-            return dynamic_cast<T *>(m_cachedPluginState);
-        }
-
-        auto it = m_pluginState.find(plugin);
-        if (it == m_pluginState.end()) {
-            return nullptr;
-        }
-        return dynamic_cast<T *>((*it).second);
+    PluginStateManager &getPluginStateManager() {
+        return m_pluginState;
     }
 
     /** Returns true if this is the active state */

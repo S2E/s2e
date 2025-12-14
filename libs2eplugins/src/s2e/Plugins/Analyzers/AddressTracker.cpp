@@ -101,7 +101,7 @@ public:
         m_addresses.erase(pid);
     }
 
-    static PluginState *factory(Plugin *p, S2EExecutionState *s) {
+    static PluginState *factory(Plugin *p) {
         return new AddressTrackerState();
     }
 

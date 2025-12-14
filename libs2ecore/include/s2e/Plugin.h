@@ -96,18 +96,19 @@ public:
 };
 
 #define DECLARE_PLUGINSTATE_P(plg, c, execstate) \
-    c *plgState = static_cast<c *>(execstate->getPluginState(plg, &c::factory))
+    c *plgState = static_cast<c *>(execstate->getPluginStateManager().getPluginState(plg, &c::factory))
 
-#define DECLARE_PLUGINSTATE(c, execstate) c *plgState = static_cast<c *>(execstate->getPluginState(this, &c::factory))
+#define DECLARE_PLUGINSTATE(c, execstate) \
+    c *plgState = static_cast<c *>(execstate->getPluginStateManager().getPluginState(this, &c::factory))
 
 #define DECLARE_PLUGINSTATE_N(c, name, execstate) \
-    c *name = static_cast<c *>(execstate->getPluginState(this, &c::factory))
+    c *name = static_cast<c *>(execstate->getPluginStateManager().getPluginState(this, &c::factory))
 
 #define DECLARE_PLUGINSTATE_CONST(c, execstate) \
-    const c *plgState = static_cast<c *>(execstate->getPluginState(this, &c::factory))
+    const c *plgState = static_cast<c *>(execstate->getPluginStateManager().getPluginState(this, &c::factory))
 
 #define DECLARE_PLUGINSTATE_NCONST(c, name, execstate) \
-    const c *name = static_cast<c *>(execstate->getPluginState(this, &c::factory))
+    const c *name = static_cast<c *>(execstate->getPluginStateManager().getPluginState(this, &c::factory))
 
 class PluginState {
 public:

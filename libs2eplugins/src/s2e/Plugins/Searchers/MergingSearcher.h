@@ -122,7 +122,7 @@ public:
     MergingSearcherState();
     virtual ~MergingSearcherState();
     virtual MergingSearcherState *clone() const;
-    static PluginState *factory(Plugin *p, S2EExecutionState *s);
+    static PluginState *factory(Plugin *p);
 
     void setGroupId(uint64_t groupId) {
         m_groupId = groupId;

@@ -44,7 +44,7 @@ namespace {
 struct TBCoverageState : public PluginState {
     ModuleTBs coverage;
 
-    static PluginState *factory(Plugin *p, S2EExecutionState *) {
+    static PluginState *factory(Plugin *p) {
         return new TBCoverageState();
     }
 

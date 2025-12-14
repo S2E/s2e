@@ -53,7 +53,7 @@ public:
         return new TestCaseGeneratorState(*this);
     }
 
-    static PluginState *factory(Plugin *p, S2EExecutionState *s) {
+    static PluginState *factory(Plugin *p) {
         return new TestCaseGeneratorState();
     }
 

@@ -385,7 +385,7 @@ KeyValueStoreState *KeyValueStoreState::clone() const {
     return new KeyValueStoreState(*this);
 }
 
-PluginState *KeyValueStoreState::factory(Plugin *p, S2EExecutionState *s) {
+PluginState *KeyValueStoreState::factory(Plugin *p) {
     return new KeyValueStoreState();
 }
 

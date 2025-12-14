@@ -149,7 +149,7 @@ public:
     KeyValueStoreState();
     virtual ~KeyValueStoreState();
     virtual KeyValueStoreState *clone() const;
-    static PluginState *factory(Plugin *p, S2EExecutionState *s);
+    static PluginState *factory(Plugin *p);
 
     bool put(const std::string &key, const std::string &val);
     bool get(const std::string &key, std::string &val);

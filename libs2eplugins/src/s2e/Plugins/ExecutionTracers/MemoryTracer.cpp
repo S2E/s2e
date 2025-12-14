@@ -67,7 +67,7 @@ public:
         m_traceOverride[MemoryTracer::PAGE_FAULT] = false;
     }
 
-    static PluginState *factory(Plugin *p, S2EExecutionState *s) {
+    static PluginState *factory(Plugin *p) {
         return new MemoryTracerState();
     }
 
