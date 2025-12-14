@@ -1,3 +1,3 @@
 add_klee_unit_test(ADTTest
   ImmutableMap.cpp)
-target_link_libraries(ADTTest PRIVATE kleeCore kleeSupport)
+target_link_libraries(ADTTest PRIVATE)
