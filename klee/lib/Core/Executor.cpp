@@ -75,7 +75,6 @@ cl::opt<bool> SimplifySymIndices("simplify-sym-indices", cl::init(true));
 
 cl::opt<bool> SuppressExternalWarnings("suppress-external-warnings", cl::init(true));
 
-cl::opt<bool> NoExternals("no-externals", cl::desc("Do not allow external functin calls"));
 } // namespace
 
 namespace klee {
@@ -1598,11 +1597,6 @@ void Executor::terminateState(ExecutionState &state, const std::string &reason) 
     terminateState(state);
 }
 
-// XXX shoot me
-static const char *okExternalsList[] = {"printf", "fprintf", "puts", "getpid"};
-static std::set<std::string> okExternals(okExternalsList,
-                                         okExternalsList + (sizeof(okExternalsList) / sizeof(okExternalsList[0])));
-
 extern "C" {
 typedef uint64_t (*external_fcn_t)(...);
 }
@@ -1610,12 +1604,8 @@ typedef uint64_t (*external_fcn_t)(...);
 void Executor::callExternalFunction(ExecutionState &state, KInstruction *target, Function *function,
                                     std::vector<ref<Expr>> &arguments) {
     // check if specialFunctionHandler wants it
-    if (m_specialFunctionHandler->handle(state, function, target, arguments))
+    if (m_specialFunctionHandler->handle(state, function, target, arguments)) {
         return;
-
-    if (NoExternals && !okExternals.count(function->getName().str())) {
-        llvm::errs() << "KLEE:ERROR: Calling not-OK external function : " << function->getName() << "\n";
-        throw LLVMExecutorException("externals disallowed");
     }
 
     ExternalDispatcher::Arguments cas;
