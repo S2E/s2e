@@ -83,7 +83,7 @@ extern cl::opt<bool> UseExprSimplifier;
 } // namespace klee
 
 Executor::Executor(LLVMContext &context)
-    : m_kmodule(0), m_searcher(0), m_externalDispatcher(std::make_unique<ExternalDispatcher>()) {
+    : m_kmodule(0), m_externalDispatcher(std::make_unique<ExternalDispatcher>()), m_searcher(0) {
 }
 
 const Module *Executor::setModule(llvm::Module *module) {
