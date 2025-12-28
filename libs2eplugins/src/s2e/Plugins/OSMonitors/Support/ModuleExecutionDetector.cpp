@@ -56,7 +56,7 @@ public:
     virtual ModuleTransitionState *clone() const {
         return new ModuleTransitionState(*this);
     }
-    static PluginState *factory(Plugin *p, S2EExecutionState *s) {
+    static PluginState *factory(Plugin *p) {
         return new ModuleTransitionState();
     }
 };

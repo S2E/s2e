@@ -410,7 +410,7 @@ HostFilesState::HostFilesState() : m_openFiles() {
     nb_open = 0;
 }
 
-HostFilesState::HostFilesState(S2EExecutionState *s, Plugin *p) : m_openFiles() {
+HostFilesState::HostFilesState(Plugin *p) : m_openFiles() {
     nb_open = 0;
 }
 
@@ -421,8 +421,8 @@ PluginState *HostFilesState::clone() const {
     return new HostFilesState();
 }
 
-PluginState *HostFilesState::factory(Plugin *p, S2EExecutionState *s) {
-    return new HostFilesState(s, p);
+PluginState *HostFilesState::factory(Plugin *p) {
+    return new HostFilesState(p);
 }
 
 } // namespace plugins

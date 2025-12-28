@@ -350,7 +350,7 @@ public:
         return m_stats;
     }
 
-    static PluginState *factory(Plugin *p, S2EExecutionState *s) {
+    static PluginState *factory(Plugin *p) {
         return new CFICheckerState();
     }
 

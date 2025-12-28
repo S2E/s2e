@@ -96,7 +96,7 @@ bool SpecialFunctionHandler::handle(ExecutionState &state, Function *f, KInstruc
         bool hasReturnValue = it->second.second;
         // FIXME: Check this... add test?
         if (!hasReturnValue && !target->inst->use_empty()) {
-            executor.terminateState(state, "expected return value from void special function");
+            throw LLVMExecutorException("expected return value from void special function");
         } else {
             (this->*h)(state, target, arguments);
         }
@@ -109,7 +109,7 @@ bool SpecialFunctionHandler::handle(ExecutionState &state, Function *f, KInstruc
         bool hasReturnValue = uit->second.second;
         // FIXME: Check this... add test?
         if (!hasReturnValue && !target->inst->use_empty()) {
-            executor.terminateState(state, "expected return value from void special function");
+            throw LLVMExecutorException("expected return value from void special function");
         } else {
             h(&executor, &state, target, arguments);
         }

@@ -191,7 +191,7 @@ static ref<ConstantExpr> handleForkAndConcretizeNative(Executor *executor, Execu
         forkArgs.push_back(0);
         handleForkAndConcretize(executor, state, kinst, forkArgs);
 
-        constantAddress = dyn_cast<ConstantExpr>(state->getDestCell(kinst).value);
+        constantAddress = dyn_cast<ConstantExpr>(state->llvm.getDestCell(kinst).value);
         assert(constantAddress);
     }
     return constantAddress;
@@ -384,7 +384,7 @@ static void handle_ldb_mmu(Executor *executor, ExecutionState *state, klee::KIns
     assert(args.size() == 4);
     ref<Expr> value = handle_ldst_mmu(executor, state, target, args, false, 1, false, false);
     assert(value->getWidth() == Expr::Int8);
-    state->bindLocal(target, value);
+    state->llvm.bindLocal(target, value);
 }
 
 static void handle_ldw_mmu(Executor *executor, ExecutionState *state, klee::KInstruction *target,
@@ -392,7 +392,7 @@ static void handle_ldw_mmu(Executor *executor, ExecutionState *state, klee::KIns
     assert(args.size() == 4);
     ref<Expr> value = handle_ldst_mmu(executor, state, target, args, false, 2, false, false);
     assert(value->getWidth() == Expr::Int16);
-    state->bindLocal(target, value);
+    state->llvm.bindLocal(target, value);
 }
 
 static void handle_ldl_mmu(Executor *executor, ExecutionState *state, klee::KInstruction *target,
@@ -400,7 +400,7 @@ static void handle_ldl_mmu(Executor *executor, ExecutionState *state, klee::KIns
     assert(args.size() == 4);
     ref<Expr> value = handle_ldst_mmu(executor, state, target, args, false, 4, false, false);
     assert(value->getWidth() == Expr::Int32);
-    state->bindLocal(target, value);
+    state->llvm.bindLocal(target, value);
 }
 
 static void handle_ldq_mmu(Executor *executor, ExecutionState *state, klee::KInstruction *target,
@@ -408,7 +408,7 @@ static void handle_ldq_mmu(Executor *executor, ExecutionState *state, klee::KIns
     assert(args.size() == 4);
     ref<Expr> value = handle_ldst_mmu(executor, state, target, args, false, 8, false, false);
     assert(value->getWidth() == Expr::Int64);
-    state->bindLocal(target, value);
+    state->llvm.bindLocal(target, value);
 }
 
 static void handle_stb_mmu(Executor *executor, ExecutionState *state, klee::KInstruction *target,
@@ -488,7 +488,7 @@ static void handle_ldst_kernel(Executor *executor, ExecutionState *state, klee::
             slowArgs.push_back(ConstantExpr::create(mmu_idx, Expr::Int64));
             slowArgs.push_back(ConstantExpr::create(0, Expr::Int64));
             value = handle_ldst_mmu(executor, state, target, slowArgs, isWrite, dataSize, signExtend, zeroExtend);
-            state->bindLocal(target, value);
+            state->llvm.bindLocal(target, value);
         }
         return;
 
@@ -522,7 +522,7 @@ static void handle_ldst_kernel(Executor *executor, ExecutionState *state, klee::
                 assert(dataSize < 4);
                 value = ZExtExpr::create(value, Expr::Int32);
             }
-            state->bindLocal(target, value);
+            state->llvm.bindLocal(target, value);
         }
     }
 }
@@ -612,10 +612,10 @@ void S2EExecutor::replaceExternalFunctionsWithSpecialHandlers() {
 
     for (unsigned i = 0; i < N; ++i) {
         const auto &hi = s_handlerInfo[i];
-        auto f = kmodule->getModule()->getFunction(hi.name);
+        auto f = m_kmodule->getModule()->getFunction(hi.name);
         assert(f);
         addSpecialFunctionHandler(f, hi.handler);
-        overridenInternalFunctions.insert(f);
+        m_overridenInternalFunctions.insert(f);
     }
 }
 
@@ -628,9 +628,9 @@ void S2EExecutor::disableConcreteLLVMHelpers() {
     unsigned N = sizeof(s_disabledHelpers) / sizeof(s_disabledHelpers[0]);
 
     for (unsigned i = 0; i < N; ++i) {
-        llvm::Function *f = kmodule->getModule()->getFunction(s_disabledHelpers[i]);
+        llvm::Function *f = m_kmodule->getModule()->getFunction(s_disabledHelpers[i]);
         assert(f && "Could not find required helper");
-        kmodule->removeFunction(f, true);
+        m_kmodule->removeFunction(f, true);
     }
 }
 } // namespace s2e

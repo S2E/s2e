@@ -29,6 +29,7 @@
 #include <klee/Memory.h>
 
 #include "AddressSpaceCache.h"
+#include "PluginStateManager.h"
 #include "S2EDeviceState.h"
 #include "S2EExecutionStateMemory.h"
 #include "S2EExecutionStateRegisters.h"
@@ -38,9 +39,12 @@
 #include "S2ETranslationBlock.h"
 #include "s2e_config.h"
 
+#include <cpu/cpus.h>
+
+#include <s2e/Plugin.h>
+
 extern "C" {
 struct TranslationBlock;
-struct TimersState;
 }
 
 // XXX
@@ -48,7 +52,7 @@ struct CPUX86State;
 
 #include <llvm/ADT/DenseMap.h>
 #include <llvm/ADT/SmallVector.h>
-#include <tr1/unordered_map>
+#include <unordered_map>
 
 namespace s2e {
 
@@ -56,9 +60,6 @@ class Plugin;
 class PluginState;
 class S2EDeviceState;
 class S2EExecutionState;
-
-typedef std::unordered_map<const Plugin *, PluginState *> PluginStateMap;
-typedef PluginState *(*PluginStateFactory)(Plugin *p, S2EExecutionState *s);
 
 class S2EExecutionState : public klee::ExecutionState, public klee::IConcretizer {
 protected:
@@ -82,7 +83,7 @@ protected:
     ///
     unsigned m_guid;
 
-    PluginStateMap m_PluginState;
+    PluginStateManager m_pluginState;
 
     /* Internal variable - set to PC where execution should be
        switched to symbolic (e.g., due to access to symbolic memory). */
@@ -132,7 +133,7 @@ protected:
 
     /* The following structure is used to store libcpu time accounting
        variables while the state is inactive */
-    TimersState *m_timersState;
+    TimersState m_timersState = {};
 
     S2ETranslationBlockPtr m_lastS2ETb;
 
@@ -198,23 +199,8 @@ public:
 
     /*************************************************/
 
-    PluginState *getPluginState(Plugin *plugin, PluginStateFactory factory) {
-        PluginStateMap::iterator it = m_PluginState.find(plugin);
-        if (it == m_PluginState.end()) {
-            PluginState *ret = factory(plugin, this);
-            assert(ret);
-            m_PluginState[plugin] = ret;
-            return ret;
-        }
-        return (*it).second;
-    }
-
-    template <typename T> T *getPluginState(Plugin *plugin) const {
-        auto it = m_PluginState.find(plugin);
-        if (it == m_PluginState.end()) {
-            return nullptr;
-        }
-        return dynamic_cast<T *>((*it).second);
+    PluginStateManager &getPluginStateManager() {
+        return m_pluginState;
     }
 
     /** Returns true if this is the active state */

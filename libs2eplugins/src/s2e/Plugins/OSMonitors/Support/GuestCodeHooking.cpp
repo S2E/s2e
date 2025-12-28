@@ -64,7 +64,7 @@ public:
     virtual GuestCodeHookingState *clone() const {
         return new GuestCodeHookingState(*this);
     }
-    static PluginState *factory(Plugin *p, S2EExecutionState *s) {
+    static PluginState *factory(Plugin *p) {
         return new GuestCodeHookingState();
     }
 };

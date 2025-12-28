@@ -58,7 +58,7 @@ void handleForkAndConcretize(Executor *executor, ExecutionState *state, klee::KI
 
     // If address is already concrete, nothing to fork
     if (dyn_cast<klee::ConstantExpr>(address)) {
-        state->bindLocal(target, address);
+        state->llvm.bindLocal(target, address);
         return;
     }
 
@@ -93,7 +93,7 @@ void handleForkAndConcretize(Executor *executor, ExecutionState *state, klee::KI
         if (!state->addConstraint(condition)) {
             abort();
         }
-        state->bindLocal(target, concreteAddress);
+        state->llvm.bindLocal(target, concreteAddress);
         return;
     }
 
@@ -109,10 +109,10 @@ void handleForkAndConcretize(Executor *executor, ExecutionState *state, klee::KI
     // TODO: find a test case for that
     if (sp.second) {
         // Will have to reexecute handleForkAndConcretize in the speculative state
-        sp.second->pc = sp.second->prevPC;
+        sp.second->llvm.pc = sp.second->llvm.prevPC;
     }
 
-    state->bindLocal(target, concreteAddress);
+    state->llvm.bindLocal(target, concreteAddress);
 
     s2eExecutor->notifyFork(*state, condition, sp);
 }
@@ -135,7 +135,7 @@ static void handleGetValue(klee::Executor *executor, klee::ExecutionState *state
         result = state->toConstantSilent(value);
     }
 
-    state->bindLocal(target, result);
+    state->llvm.bindLocal(target, result);
 }
 
 static void handlerWriteMemIoVaddr(klee::Executor *executor, klee::ExecutionState *state, klee::KInstruction *target,
@@ -258,7 +258,7 @@ static void handlerTraceMmioAccess(Executor *executor, ExecutionState *state, kl
     auto symbolicPhysAddress = args[0];
     if (!g_symbolicMemoryHook.hasHook()) {
         // Avoid forced concretizations if symbolic hardware is not enabled
-        state->bindLocal(target, symbolicPhysAddress);
+        state->llvm.bindLocal(target, symbolicPhysAddress);
         return;
     }
 
@@ -267,7 +267,7 @@ static void handlerTraceMmioAccess(Executor *executor, ExecutionState *state, kl
     unsigned size = cast<klee::ConstantExpr>(args[2])->getZExtValue();
 
     if (!g_symbolicMemoryHook.symbolic(nullptr, physAddress, size)) {
-        state->bindLocal(target, value);
+        state->llvm.bindLocal(target, value);
         return;
     }
 
@@ -276,12 +276,12 @@ static void handlerTraceMmioAccess(Executor *executor, ExecutionState *state, kl
 
     if (isWrite) {
         g_symbolicMemoryHook.write(nullptr, physAddress, resizedValue, SYMB_MMIO);
-        state->bindLocal(target, value);
+        state->llvm.bindLocal(target, value);
     } else {
         klee::ref<Expr> ret = g_symbolicMemoryHook.read(nullptr, physAddress, resizedValue, SYMB_MMIO);
         assert(ret->getWidth() == resizedValue->getWidth());
         ret = klee::ZExtExpr::create(ret, klee::Expr::Int64);
-        state->bindLocal(target, ret);
+        state->llvm.bindLocal(target, ret);
     }
 }
 
@@ -307,7 +307,7 @@ static void handlerTracePortAccess(Executor *executor, ExecutionState *state, kl
             state->toConstant(resizedValue, "Symbolic I/O port value");
         }
 
-        state->bindLocal(target, klee::ConstantExpr::create(callOrig, klee::Expr::Int64));
+        state->llvm.bindLocal(target, klee::ConstantExpr::create(callOrig, klee::Expr::Int64));
 
     } else {
         /**
@@ -320,7 +320,7 @@ static void handlerTracePortAccess(Executor *executor, ExecutionState *state, kl
             outputValue = g_symbolicPortHook.read(port->getZExtValue(), width / 8, concreteInputValue->getZExtValue());
         }
 
-        state->bindLocal(target, klee::ZExtExpr::create(outputValue, klee::Expr::Int64));
+        state->llvm.bindLocal(target, klee::ZExtExpr::create(outputValue, klee::Expr::Int64));
     }
 
     if (!g_s2e->getCorePlugin()->onPortAccess.empty()) {

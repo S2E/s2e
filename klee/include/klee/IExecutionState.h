@@ -1,6 +1,6 @@
 ///
 /// Copyright (C) 2010-2016, Dependable Systems Laboratory, EPFL
-/// Copyright (C) 2014-2019, Cyberhaven
+/// Copyright (C) 2014-2016, Cyberhaven
 ///
 /// Permission is hereby granted, free of charge, to any person obtaining a copy
 /// of this software and associated documentation files (the "Software"), to deal
@@ -21,29 +21,28 @@
 /// SOFTWARE.
 ///
 
-#include <s2e/S2E.h>
-#include <s2e/S2EExecutor.h>
-#include <s2e/S2EExternalDispatcher.h>
-#include <s2e/S2ETranslationBlock.h>
+#ifndef KLEE_IEXECUTIONSTATE_H
+#define KLEE_IEXECUTIONSTATE_H
 
-namespace s2e {
+#include <vector>
 
-S2ETranslationBlock::~S2ETranslationBlock() {
-    if (translationBlock) {
-        auto executor = g_s2e->getExecutor();
+#include "klee/AddressSpace.h"
+#include "klee/Solver.h"
+#include "klee/util/Assignment.h"
 
-        auto m_kmodule = executor->getModule();
+namespace klee {
 
-        // We may have generated LLVM code that was never executed
-        if (m_kmodule->getKFunction(translationBlock)) {
-            m_kmodule->removeFunction(translationBlock);
-        } else {
-            translationBlock->eraseFromParent();
-        }
-    }
+class IExecutionState {
+public:
+    virtual SolverPtr solver() = 0;
+    virtual AddressSpace &addressSpace() = 0;
+    virtual const AddressSpace &addressSpace() const = 0;
+    virtual const std::vector<ArrayPtr> &symbolics() const = 0;
+    virtual const AssignmentPtr concolics() const = 0;
+    virtual void setConcolics(AssignmentPtr concolics) = 0;
+    virtual ref<Expr> simplifyExpr(const ref<Expr> &e) const = 0;
+};
 
-    for (auto it : executionSignals) {
-        delete it;
-    }
-}
-} // namespace s2e
+} // namespace klee
+
+#endif

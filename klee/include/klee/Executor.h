@@ -60,42 +60,52 @@ class BitfieldSimplifier;
 class SolverFactory;
 template <class T> class ref;
 
+class LLVMExecutorException : public std::runtime_error {
+public:
+    LLVMExecutorException(const std::string &msg) : std::runtime_error(msg) {
+    }
+};
+
 class Executor {
 public:
     typedef std::pair<ExecutionState *, ExecutionState *> StatePair;
 
 protected:
-    KModulePtr kmodule;
-    Searcher *searcher;
+    // ======= LLVM management =======
+    KModulePtr m_kmodule;
+    /// The set of functions that must be handled via custom function handlers
+    /// instead of being called directly.
+    std::set<llvm::Function *> m_overridenInternalFunctions;
 
-    ExternalDispatcher *externalDispatcher;
-    StateSet states;
-    SpecialFunctionHandler *specialFunctionHandler;
+    /// Map of globals to their bound address. This also includes
+    /// globals that have no representative object (i.e. functions).
+    GlobalAddresses m_globalAddresses;
 
+    /// Map of globals to their representative memory object.
+    std::map<const llvm::GlobalValue *, ObjectKey> m_globalObjects;
+
+    /// Map of predefined global values
+    std::map<std::string, void *> m_predefinedSymbols;
+
+    std::unique_ptr<SpecialFunctionHandler> m_specialFunctionHandler;
+
+    // ======= Misc =======
+
+    std::unique_ptr<ExternalDispatcher> m_externalDispatcher;
+
+    // ======= Execution state management =======
+    Searcher *m_searcher;
+    StateSet m_states;
     /// Used to track states that have been added during the current
     /// instructions step.
     /// \invariant \ref addedStates is a subset of \ref states.
     /// \invariant \ref addedStates and \ref removedStates are disjoint.
-    StateSet addedStates;
+    StateSet m_addedStates;
     /// Used to track states that have been removed during the current
     /// instructions step.
     /// \invariant \ref removedStates is a subset of \ref states.
     /// \invariant \ref addedStates and \ref removedStates are disjoint.
-    StateSet removedStates;
-
-    /// Map of predefined global values
-    std::map<std::string, void *> predefinedSymbols;
-
-    /// Map of globals to their representative memory object.
-    std::map<const llvm::GlobalValue *, ObjectKey> globalObjects;
-
-    /// Map of globals to their bound address. This also includes
-    /// globals that have no representative object (i.e. functions).
-    GlobalAddresses globalAddresses;
-
-    /// The set of functions that must be handled via custom function handlers
-    /// instead of being called directly.
-    std::set<llvm::Function *> overridenInternalFunctions;
+    StateSet m_removedStates;
 
     llvm::Function *getTargetFunction(llvm::Value *calledVal);
 
@@ -111,9 +121,6 @@ protected:
                               std::vector<ref<Expr>> &arguments);
 
     void executeCall(ExecutionState &state, KInstruction *ki, llvm::Function *f, std::vector<ref<Expr>> &arguments);
-
-    ref<Expr> executeMemoryOperation(ExecutionState &state, bool isWrite, uint64_t concreteAddress,
-                                     ref<Expr> value /* undef if read */, unsigned bytes);
 
     // do address resolution / object binding / out of bounds checking
     // and perform the operation
@@ -131,12 +138,10 @@ protected:
     /// allows plugins to kill states and exit to the CPU loop safely.
     virtual void notifyFork(ExecutionState &originalState, ref<Expr> &condition, Executor::StatePair &targets);
 
-    const Cell &eval(KInstruction *ki, unsigned index, ExecutionState &state) const;
+    const Cell &eval(KInstruction *ki, unsigned index, LLVMExecutionState &state) const;
 
     // delete the state (called internally by terminateState and updateStates)
     virtual void deleteState(ExecutionState *state);
-
-    void handlePointsToObj(ExecutionState &state, KInstruction *target, const std::vector<ref<Expr>> &arguments);
 
     typedef void (*FunctionHandler)(Executor *executor, ExecutionState *state, KInstruction *target,
                                     std::vector<ref<Expr>> &arguments);
@@ -170,26 +175,22 @@ public:
 
     /*** State accessor methods ***/
     size_t getStatesCount() const {
-        return states.size();
+        return m_states.size();
     }
     const StateSet &getStates() {
-        return states;
+        return m_states;
     }
 
     const StateSet &getAddedStates() {
-        return addedStates;
+        return m_addedStates;
     }
 
     const StateSet &getRemovedStates() {
-        return removedStates;
-    }
-
-    ExternalDispatcher *getDispatcher() const {
-        return externalDispatcher;
+        return m_removedStates;
     }
 
     KModulePtr getModule() const {
-        return kmodule;
+        return m_kmodule;
     }
 };
 

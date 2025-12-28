@@ -84,7 +84,7 @@ public:
         m_allowedPids.erase(pid);
     }
 
-    static PluginState *factory(Plugin *p, S2EExecutionState *s) {
+    static PluginState *factory(Plugin *p) {
         return new BaseInstructionsState();
     }
 
@@ -315,7 +315,7 @@ void BaseInstructions::printExpression(S2EExecutionState *state) {
     getInfoStream() << "SymbExpression " << nameStr << " - " << val << '\n';
 
     if (!isa<klee::ConstantExpr>(val)) {
-        klee::ref<klee::Expr> concrete = state->concolics->evaluate(val);
+        klee::ref<klee::Expr> concrete = state->concolics()->evaluate(val);
         getInfoStream() << "SymbExpression " << nameStr << " - Value: " << concrete << '\n';
     }
 }

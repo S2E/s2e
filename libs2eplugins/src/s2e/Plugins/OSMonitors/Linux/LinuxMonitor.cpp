@@ -42,7 +42,7 @@ public:
         return new LinuxMonitorState(*this);
     }
 
-    static PluginState *factory(Plugin *p, S2EExecutionState *s) {
+    static PluginState *factory(Plugin *p) {
         return new LinuxMonitorState();
     }
 };
@@ -74,7 +74,7 @@ void LinuxMonitor::initialize() {
 
 void LinuxMonitor::onInitializationComplete(S2EExecutionState *state) {
     // Initialize the plugin state before BaseLinuxMonitor tries to access it.
-    getPluginState(state, &LinuxMonitorState::factory);
+    state->getPluginStateManager().getPluginState(this, &LinuxMonitorState::factory);
 }
 
 void LinuxMonitor::handleSegfault(S2EExecutionState *state, const S2E_LINUXMON_COMMAND &cmd) {

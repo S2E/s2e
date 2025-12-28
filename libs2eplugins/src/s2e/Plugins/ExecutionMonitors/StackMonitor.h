@@ -70,9 +70,9 @@ public:
 
     void registerNoframeFunction(S2EExecutionState *state, uint64_t pid, uint64_t callAddr);
 
-    bool getFrameInfo(S2EExecutionState *state, uint64_t sp, bool &onTheStack, StackFrameInfo &info) const;
-    bool getCallStack(S2EExecutionState *state, uint64_t pid, uint64_t tid, CallStack &callStack) const;
-    bool getCallStacks(S2EExecutionState *state, CallStacks &callStacks) const;
+    bool getFrameInfo(S2EExecutionState *state, uint64_t sp, bool &onTheStack, StackFrameInfo &info);
+    bool getCallStack(S2EExecutionState *state, uint64_t pid, uint64_t tid, CallStack &callStack);
+    bool getCallStacks(S2EExecutionState *state, CallStacks &callStacks);
 
     void dump(S2EExecutionState *state);
 

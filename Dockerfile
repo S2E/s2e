@@ -26,7 +26,7 @@ FROM ubuntu:22.04 AS s2e-build-env
 # The unzip and libgomp1 dependencies are needed to unzip and run binary Z3
 # distributions.
 
-RUN dpkg --add-architecture i386 && apt-get update &&                       \
+RUN apt-get update && dpkg --add-architecture i386 && apt-get update &&                       \
     apt-get -y install sudo git ca-certificates build-essential cmake curl wget texinfo flex bison  \
     python-is-python3 python3-dev python3-venv python3-distro mingw-w64 lsb-release \
     autoconf libtool libprotobuf-dev protobuf-compiler protobuf-c-compiler \

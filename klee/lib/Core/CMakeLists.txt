@@ -12,6 +12,7 @@ klee_add_component(kleeCore
 	Context.cpp
 	CoreStats.cpp
 	ExecutionState.cpp
+	LLVMExecutionState.cpp
 	Executor.cpp
 	ExternalDispatcher.cpp
 	Memory.cpp
@@ -19,12 +20,7 @@ klee_add_component(kleeCore
 	SpecialFunctionHandler.cpp
 )
 
-set(LLVM_COMPONENTS
-  core
-  support
-)
-
-# list(APPEND LLVM_COMPONENTS engine)
+set(LLVM_COMPONENTS core support)
 
 klee_get_llvm_libs(LLVM_LIBS ${LLVM_COMPONENTS})
 target_link_libraries(kleeCore PUBLIC ${LLVM_LIBS})

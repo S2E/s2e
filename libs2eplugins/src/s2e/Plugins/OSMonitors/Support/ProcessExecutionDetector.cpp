@@ -51,7 +51,7 @@ public:
         return m_trackedPids.erase(pid);
     }
 
-    static PluginState *factory(Plugin *p, S2EExecutionState *s) {
+    static PluginState *factory(Plugin *p) {
         return new ProcessExecutionDetectorState();
     }
 
@@ -174,7 +174,7 @@ void ProcessExecutionDetector::onMonitorLoadCb(S2EExecutionState *state) {
     onMonitorLoad.emit(state);
 }
 
-const TrackedPids &ProcessExecutionDetector::getTrackedPids(S2EExecutionState *state) const {
+const TrackedPids &ProcessExecutionDetector::getTrackedPids(S2EExecutionState *state) {
     DECLARE_PLUGINSTATE(ProcessExecutionDetectorState, state);
     return plgState->m_trackedPids;
 }

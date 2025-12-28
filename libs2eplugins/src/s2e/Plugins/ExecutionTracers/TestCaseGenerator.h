@@ -243,7 +243,7 @@ public:
     /// \param state the state whose concrete file templates to get
     /// \return a mapping of a sanitized file name to the actual file content
     ///
-    const ConcreteFileTemplates &getTemplates(S2EExecutionState *state) const;
+    const ConcreteFileTemplates &getTemplates(S2EExecutionState *state);
 
 private:
     sigc::connection m_stateForkConnection;

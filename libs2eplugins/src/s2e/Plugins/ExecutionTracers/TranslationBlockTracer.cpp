@@ -57,7 +57,7 @@ public:
         m_enabledTrace[TranslationBlockTracer::TB_END] = false;
     }
 
-    static PluginState *factory(Plugin *p, S2EExecutionState *s) {
+    static PluginState *factory(Plugin *p) {
         return new TranslationBlockTracerState();
     }
 
@@ -169,7 +169,7 @@ template <typename T> static bool getConcolicValue(S2EExecutionState *state, uns
     }
 
     klee::ref<klee::ConstantExpr> ce;
-    ce = dyn_cast<klee::ConstantExpr>(state->concolics->evaluate(expr));
+    ce = dyn_cast<klee::ConstantExpr>(state->concolics()->evaluate(expr));
     *value = ce->getZExtValue();
     return true;
 }

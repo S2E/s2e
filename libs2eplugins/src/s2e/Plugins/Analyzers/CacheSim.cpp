@@ -209,7 +209,7 @@ CacheSimState::CacheSimState() {
     m_d1 = nullptr;
 }
 
-CacheSimState::CacheSimState(S2EExecutionState *s, Plugin *p) {
+CacheSimState::CacheSimState(Plugin *p) {
     CacheSim *csp = dynamic_cast<CacheSim *>(p);
     S2E *s2e = csp->s2e();
 
@@ -288,9 +288,9 @@ CacheSimState::~CacheSimState() {
     }
 }
 
-PluginState *CacheSimState::factory(Plugin *p, S2EExecutionState *s) {
+PluginState *CacheSimState::factory(Plugin *p) {
     p->getDebugStream() << "Creating initial CacheSimState" << '\n';
-    CacheSimState *ret = new CacheSimState(s, p);
+    CacheSimState *ret = new CacheSimState(p);
     return ret;
 }
 

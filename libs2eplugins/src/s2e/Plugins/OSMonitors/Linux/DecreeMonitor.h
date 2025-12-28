@@ -223,7 +223,7 @@ public:
 
     virtual void handleOpcodeInvocation(S2EExecutionState *state, uint64_t guestDataPtr, uint64_t guestDataSize);
 
-    unsigned getSymbolicReadsCount(S2EExecutionState *state) const;
+    unsigned getSymbolicReadsCount(S2EExecutionState *state);
 
     static bool isReadFd(uint32_t fd);
     static bool isWriteFd(uint32_t fd);

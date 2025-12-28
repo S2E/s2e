@@ -149,13 +149,13 @@ public:
         m_totalReadBytesCount = 0;
     }
 
-    static PluginState *factory(Plugin *p, S2EExecutionState *s) {
+    static PluginState *factory(Plugin *p) {
         DecreeMonitor *plugin = static_cast<DecreeMonitor *>(p);
         return new DecreeMonitorState(plugin->m_invokeOriginalSyscalls, plugin->m_concolicMode);
     }
 };
 
-unsigned DecreeMonitor::getSymbolicReadsCount(S2EExecutionState *state) const {
+unsigned DecreeMonitor::getSymbolicReadsCount(S2EExecutionState *state) {
     DECLARE_PLUGINSTATE_CONST(DecreeMonitorState, state);
     return plgState->m_totalReadBytesCount;
 }

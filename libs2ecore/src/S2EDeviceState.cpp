@@ -55,57 +55,16 @@ llvm::SmallVector<struct S2EBlockDevice *, 5> S2EDeviceState::s_blockDevices;
 
 bool S2EDeviceState::s_devicesInited = false;
 
-extern "C" {
-
-void s2e_init_device_state(void) {
-    g_s2e_state->getDeviceState()->initDeviceState();
-}
-
-} // extern C
-
-S2EDeviceState::S2EDeviceState(const S2EDeviceState &state) : m_deviceState(state.m_deviceState) {
-    if (state.m_stateBuffer) {
-        m_stateBuffer = (uint8_t *) malloc(state.m_stateBufferSize);
-        m_stateBufferSize = state.m_stateBufferSize;
-        memcpy(m_stateBuffer, state.m_stateBuffer, m_stateBufferSize);
-    } else {
-        m_stateBuffer = nullptr;
-        m_stateBufferSize = 0;
-    }
-}
-
-S2EDeviceState::S2EDeviceState(klee::ExecutionState *state) : m_deviceState(state) {
-    m_stateBuffer = nullptr;
-    m_stateBufferSize = 0;
-}
-
-S2EDeviceState::~S2EDeviceState() {
-    if (m_stateBuffer) {
-        free(m_stateBuffer);
-    }
-}
-
-void S2EDeviceState::initDeviceState() {
-    m_stateBuffer = nullptr;
-}
-
 /*****************************************************************************/
 /*****************************************************************************/
 /*****************************************************************************/
 
 void S2EDeviceState::allocateBuffer(unsigned int size) {
-    if (size < m_stateBufferSize) {
+    if (size < m_stateBuffer.size()) {
         return;
     }
 
-    /* Need to expand the buffer */
-    uint8_t *new_buffer = (uint8_t *) realloc(m_stateBuffer, size);
-    if (!new_buffer) {
-        cerr << "Cannot reallocate memory for device state snapshot" << endl;
-        exit(-1);
-    }
-    m_stateBuffer = new_buffer;
-    m_stateBufferSize = size;
+    m_stateBuffer.resize(size);
 }
 
 int S2EDeviceState::putBuffer(const uint8_t *buf, int64_t pos, int size) {
@@ -119,9 +78,7 @@ int S2EDeviceState::putBuffer(const uint8_t *buf, int64_t pos, int size) {
 }
 
 int S2EDeviceState::getBuffer(uint8_t *buf, int64_t pos, int size) {
-    assert(m_stateBuffer);
-    int toCopy = pos + size <= m_stateBufferSize ? size : m_stateBufferSize - pos;
-
+    int toCopy = pos + size <= m_stateBuffer.size() ? size : m_stateBuffer.size() - pos;
     memcpy(buf, &m_stateBuffer[pos], toCopy);
     return toCopy;
 }
@@ -132,8 +89,8 @@ int S2EDeviceState::getBuffer(uint8_t *buf, int64_t pos, int size) {
 
 unsigned S2EDeviceState::getBlockDeviceId(struct S2EBlockDevice *dev) {
     unsigned i = 0;
-    foreach2 (it, s_blockDevices.begin(), s_blockDevices.end()) {
-        if ((*it) == dev) {
+    for (auto it : s_blockDevices) {
+        if (it == dev) {
             return i;
         }
         ++i;

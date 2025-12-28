@@ -67,7 +67,7 @@ public:
         m_traceOverride[MemoryTracer::PAGE_FAULT] = false;
     }
 
-    static PluginState *factory(Plugin *p, S2EExecutionState *s) {
+    static PluginState *factory(Plugin *p) {
         return new MemoryTracerState();
     }
 
@@ -186,11 +186,11 @@ void MemoryTracer::traceConcreteDataMemoryAccess(S2EExecutionState *state, uint6
         traceFlags |= s2e_trace::PbTraceMemoryAccess::EXECTRACE_MEM_HASHOSTADDR;
         traceFlags |= s2e_trace::PbTraceMemoryAccess::EXECTRACE_MEM_OBJECTSTATE;
 
-        auto os = state->addressSpace.findObject(item.host_address() & SE_RAM_OBJECT_MASK);
+        auto os = state->addressSpace().findObject(item.host_address() & SE_RAM_OBJECT_MASK);
         if (os) {
             item.set_concrete_buffer((uint64_t) os->getConcreteBuffer());
             if ((flags & MEM_TRACE_FLAG_WRITE) && m_debugObjectStates) {
-                assert(state->addressSpace.isOwnedByUs(os));
+                assert(state->addressSpace().isOwnedByUs(os));
             }
         }
     }
@@ -215,10 +215,10 @@ void MemoryTracer::traceSymbolicDataMemoryAccess(S2EExecutionState *state, klee:
     uint64_t concreteAddress = 0xdeadbeef;
     uint64_t concreteValue = 0xdeadbeef;
 
-    klee::ref<klee::ConstantExpr> ce = dyn_cast<klee::ConstantExpr>(state->concolics->evaluate(address));
+    klee::ref<klee::ConstantExpr> ce = dyn_cast<klee::ConstantExpr>(state->concolics()->evaluate(address));
     concreteAddress = ce->getZExtValue();
 
-    ce = dyn_cast<klee::ConstantExpr>(state->concolics->evaluate(value));
+    ce = dyn_cast<klee::ConstantExpr>(state->concolics()->evaluate(value));
     concreteValue = ce->getZExtValue();
 
     item.set_address(isAddrCste ? cast<klee::ConstantExpr>(address)->getZExtValue(64) : concreteAddress);
@@ -240,11 +240,11 @@ void MemoryTracer::traceSymbolicDataMemoryAccess(S2EExecutionState *state, klee:
         traceFlags |= s2e_trace::PbTraceMemoryAccess::EXECTRACE_MEM_HASHOSTADDR;
         traceFlags |= s2e_trace::PbTraceMemoryAccess::EXECTRACE_MEM_OBJECTSTATE;
 
-        auto os = state->addressSpace.findObject(item.host_address() & SE_RAM_OBJECT_MASK);
+        auto os = state->addressSpace().findObject(item.host_address() & SE_RAM_OBJECT_MASK);
         if (os) {
             item.set_concrete_buffer((uint64_t) os->getConcreteBuffer());
             if ((flags & MEM_TRACE_FLAG_WRITE) && m_debugObjectStates) {
-                assert(state->addressSpace.isOwnedByUs(os));
+                assert(state->addressSpace().isOwnedByUs(os));
             }
         }
     }

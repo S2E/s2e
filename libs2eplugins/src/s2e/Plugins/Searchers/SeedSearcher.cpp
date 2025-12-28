@@ -58,7 +58,7 @@ public:
         return ret;
     }
 
-    static PluginState *factory(Plugin *p, S2EExecutionState *s) {
+    static PluginState *factory(Plugin *p) {
         return new SeedSearcherState();
     }
 
@@ -500,7 +500,7 @@ void SeedSearcher::handleGetSeedFile(S2EExecutionState *state, S2E_SEEDSEARCHER_
     // now we expect initial state to fork, producing a seed state
 }
 
-uint64_t SeedSearcher::getSubtreeSeedIndex(S2EExecutionState *state) const {
+uint64_t SeedSearcher::getSubtreeSeedIndex(S2EExecutionState *state) {
     DECLARE_PLUGINSTATE_CONST(SeedSearcherState, state);
     return plgState->seedIndex;
 }

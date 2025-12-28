@@ -101,7 +101,7 @@ public:
         m_addresses.erase(pid);
     }
 
-    static PluginState *factory(Plugin *p, S2EExecutionState *s) {
+    static PluginState *factory(Plugin *p) {
         return new AddressTrackerState();
     }
 
@@ -296,7 +296,7 @@ void AddressTracker::onTranslateLeaRipRelative(ExecutionSignal *signal, S2EExecu
     m_lea[mod->Name].insert(native);
 }
 
-bool AddressTracker::isValidCallTarget(S2EExecutionState *state, uint64_t pid, uint64_t address) const {
+bool AddressTracker::isValidCallTarget(S2EExecutionState *state, uint64_t pid, uint64_t address) {
     DECLARE_PLUGINSTATE_CONST(AddressTrackerState, state);
 
     // TODO: distinguish call targets from anything else

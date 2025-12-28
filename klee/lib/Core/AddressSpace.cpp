@@ -111,8 +111,9 @@ void AddressSpace::updateWritable(const ObjectStateConstPtr &os, const ObjectSta
 
 void AddressSpace::addressSpaceChange(const klee::ObjectKey &key, const ObjectStateConstPtr &oldState,
                                       const ObjectStatePtr &newState) {
-    assert(state);
-    state->addressSpaceChange(key, oldState, newState);
+    if (m_state) {
+        m_state->addressSpaceChange(key, oldState, newState);
+    }
 }
 
 ObjectStatePtr AddressSpace::getWriteable(const ObjectStateConstPtr &os) {
@@ -344,7 +345,9 @@ bool AddressSpace::iterateWrite(uintptr_t address, size_t size, IterateWriteCb c
 
         auto newAllConcrete = wos->isAllConcrete();
         if ((oldAllConcrete != newAllConcrete) && wos->notifyOnConcretenessChange()) {
-            state->addressSpaceSymbolicStatusChange(wos, newAllConcrete);
+            if (m_state) {
+                m_state->addressSpaceSymbolicStatusChange(wos, newAllConcrete);
+            }
         }
 
         if (!ret) {

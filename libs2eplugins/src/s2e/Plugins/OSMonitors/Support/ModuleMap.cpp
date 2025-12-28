@@ -91,7 +91,7 @@ public:
         return new ModuleMapState(*this);
     }
 
-    static PluginState *factory(Plugin *p, S2EExecutionState *s) {
+    static PluginState *factory(Plugin *p) {
         return new ModuleMapState();
     }
 

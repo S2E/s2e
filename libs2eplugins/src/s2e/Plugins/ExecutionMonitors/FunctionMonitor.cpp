@@ -54,7 +54,7 @@ public:
     virtual FunctionMonitorState *clone() const {
         return new FunctionMonitorState(*this);
     }
-    static PluginState *factory(Plugin *p, S2EExecutionState *s) {
+    static PluginState *factory(Plugin *p) {
         return new FunctionMonitorState();
     }
 

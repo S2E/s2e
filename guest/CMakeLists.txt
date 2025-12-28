@@ -39,7 +39,7 @@ include_directories("common/include")
 
 # Determine the architecture to build for. By default build for 64-bit
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -std=gnu99 -Werror -g")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=c++17 -Werror -g")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=c++20 -Werror -g")
 if(NOT BITS)
   message(FATAL_ERROR "BITS is not set")
 endif()

@@ -50,8 +50,7 @@ private:
     static std::set<std::string> s_customDevices;
     static bool s_devicesInited;
 
-    uint8_t *m_stateBuffer;
-    unsigned m_stateBufferSize;
+    std::vector<uint8_t> m_stateBuffer;
 
     static llvm::SmallVector<struct S2EBlockDevice *, 5> s_blockDevices;
     klee::AddressSpace m_deviceState;
@@ -62,15 +61,8 @@ private:
     static uint64_t getBlockDeviceStart(struct S2EBlockDevice *dev);
 
 public:
-    S2EDeviceState(klee::ExecutionState *state);
-    S2EDeviceState(const S2EDeviceState &state);
-    ~S2EDeviceState();
-
-    void setExecutionState(klee::ExecutionState *state) {
-        m_deviceState.state = state;
-    }
-
-    void initDeviceState();
+    S2EDeviceState() : m_deviceState(nullptr) {};
+    S2EDeviceState(const S2EDeviceState &state) = default;
 
     int putBuffer(const uint8_t *buf, int64_t pos, int size);
     int getBuffer(uint8_t *buf, int64_t pos, int size);

@@ -73,7 +73,7 @@ public:
         m_trackedPidsTids.erase(PidTid(pid, tid));
     }
 
-    static PluginState *factory(Plugin *p, S2EExecutionState *s) {
+    static PluginState *factory(Plugin *p) {
         return new ThreadExecutionDetectorState();
     }
 

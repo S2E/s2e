@@ -62,7 +62,7 @@ public:
 
     void initialize();
 
-    bool isValidCallTarget(S2EExecutionState *state, uint64_t pid, uint64_t address) const;
+    bool isValidCallTarget(S2EExecutionState *state, uint64_t pid, uint64_t address);
     void addCallTarget(S2EExecutionState *state, uint64_t pid, uint64_t pc);
 
 private:

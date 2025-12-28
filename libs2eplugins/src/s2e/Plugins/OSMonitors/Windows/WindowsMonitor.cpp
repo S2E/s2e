@@ -133,7 +133,7 @@ public:
         return new WindowsMonitorState(*this);
     }
 
-    static PluginState *factory(Plugin *p, S2EExecutionState *s) {
+    static PluginState *factory(Plugin *p) {
         return new WindowsMonitorState();
     }
 };
@@ -1149,7 +1149,7 @@ bool WindowsMonitor::getCurrentStack(S2EExecutionState *state, uint64_t *bottom,
     return getKernelStack(state, pEThread, bottom, size);
 }
 
-uint64_t WindowsMonitor::getPidFromHandle(S2EExecutionState *state, uint64_t ownerPid, uint64_t handle) const {
+uint64_t WindowsMonitor::getPidFromHandle(S2EExecutionState *state, uint64_t ownerPid, uint64_t handle) {
     DECLARE_PLUGINSTATE(WindowsMonitorState, state);
     uint64_t pid;
     if (!plgState->getPidFromHandle(ownerPid, handle, &pid)) {
@@ -1286,12 +1286,12 @@ bool WindowsMonitor::dumpVad(S2EExecutionState *state) {
     return true;
 }
 
-uint64_t WindowsMonitor::getProcess(S2EExecutionState *state, uint64_t pid) const {
+uint64_t WindowsMonitor::getProcess(S2EExecutionState *state, uint64_t pid) {
     DECLARE_PLUGINSTATE_CONST(WindowsMonitorState, state);
     return plgState->getProcess(pid).eprocess;
 }
 
-uint64_t WindowsMonitor::getProcessParent(S2EExecutionState *state, uint64_t pid) const {
+uint64_t WindowsMonitor::getProcessParent(S2EExecutionState *state, uint64_t pid) {
     DECLARE_PLUGINSTATE_CONST(WindowsMonitorState, state);
     return plgState->getProcess(pid).parentPid;
 }

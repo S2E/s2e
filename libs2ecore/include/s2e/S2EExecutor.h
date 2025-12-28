@@ -151,11 +151,11 @@ public:
     bool resumeState(S2EExecutionState *state);
 
     klee::Searcher *getSearcher() const {
-        return searcher;
+        return m_searcher;
     }
 
     void setSearcher(klee::Searcher *s) {
-        searcher = s;
+        m_searcher = s;
     }
 
     StatePair forkCondition(S2EExecutionState *state, klee::ref<klee::Expr> condition,

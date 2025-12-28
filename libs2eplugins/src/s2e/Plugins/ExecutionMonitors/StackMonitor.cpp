@@ -218,7 +218,7 @@ public:
     StackMonitorState(StackMonitor::DebugLevel debugLevel);
     virtual ~StackMonitorState();
     virtual StackMonitorState *clone() const;
-    static PluginState *factory(Plugin *p, S2EExecutionState *s);
+    static PluginState *factory(Plugin *p);
 
     friend class StackMonitor;
 };
@@ -345,7 +345,7 @@ void StackMonitor::registerNoframeFunction(S2EExecutionState *state, uint64_t pi
     plgState->registerNoframeFunction(pid, callAddr);
 }
 
-bool StackMonitor::getFrameInfo(S2EExecutionState *state, uint64_t sp, bool &onTheStack, StackFrameInfo &info) const {
+bool StackMonitor::getFrameInfo(S2EExecutionState *state, uint64_t sp, bool &onTheStack, StackFrameInfo &info) {
     if (!m_processDetector->isTracked(state)) {
         return false;
     }
@@ -354,12 +354,12 @@ bool StackMonitor::getFrameInfo(S2EExecutionState *state, uint64_t sp, bool &onT
     return plgState->getFrameInfo(state, sp, onTheStack, info);
 }
 
-bool StackMonitor::getCallStack(S2EExecutionState *state, uint64_t pid, uint64_t tid, CallStack &callStack) const {
+bool StackMonitor::getCallStack(S2EExecutionState *state, uint64_t pid, uint64_t tid, CallStack &callStack) {
     DECLARE_PLUGINSTATE(StackMonitorState, state);
     return plgState->getCallStack(state, pid, tid, callStack);
 }
 
-bool StackMonitor::getCallStacks(S2EExecutionState *state, CallStacks &callStacks) const {
+bool StackMonitor::getCallStacks(S2EExecutionState *state, CallStacks &callStacks) {
     DECLARE_PLUGINSTATE(StackMonitorState, state);
     return plgState->getCallStacks(state, callStacks);
 }
@@ -386,7 +386,7 @@ StackMonitorState *StackMonitorState::clone() const {
     return new StackMonitorState(*this);
 }
 
-PluginState *StackMonitorState::factory(Plugin *p, S2EExecutionState *s) {
+PluginState *StackMonitorState::factory(Plugin *p) {
     StackMonitor *sm = g_s2e->getPlugin<StackMonitor>();
     return new StackMonitorState(sm->m_debugLevel);
 }

@@ -82,6 +82,9 @@ private:
     using IterateWriteCb = std::function<bool(ObjectStatePtr &, unsigned offset, unsigned size)>;
     bool iterateWrite(uintptr_t hostAddress, size_t size, IterateWriteCb cb, AddressTranslator tr);
 
+    /// ExecutionState that owns this AddressSpace
+    IAddressSpaceNotification *m_state = nullptr;
+
 protected:
     /// Unsupported, use copy constructor
     AddressSpace &operator=(const AddressSpace &);
@@ -103,17 +106,18 @@ public:
     /// \invariant forall o in objects, o->copyOnWriteOwner <= cowKey
     MemoryMap objects;
 
-    /// ExecutionState that owns this AddressSpace
-    IAddressSpaceNotification *state;
-
 public:
-    AddressSpace(IAddressSpaceNotification *_state) : cowKey(1), state(_state) {
+    AddressSpace(IAddressSpaceNotification *state) : cowKey(1), m_state(state) {
     }
 
-    AddressSpace(const AddressSpace &b) : cowKey(++b.cowKey), objects(b.objects) {
+    AddressSpace(const AddressSpace &b) : cowKey(++b.cowKey), m_state(b.m_state), objects(b.objects) {
     }
 
     ~AddressSpace() {
+    }
+
+    void setState(IAddressSpaceNotification *state) {
+        m_state = state;
     }
 
     /// Add a binding to the address space.
