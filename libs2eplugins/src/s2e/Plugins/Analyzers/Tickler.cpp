@@ -221,25 +221,25 @@ void Tickler::onTimer(void) {
         return;
     }
 
-    uint64_t memUsage = m_memory->getPeakCommitCharge(g_s2e_state);
+    uint64_t memUsage = m_memory->getPeakCommitCharge(g_s2e_state.get());
     if (memUsage >= m_heapSprayingThreshold) {
         if (!highMemoryUsageNotified) {
-            onFYINotification(g_s2e_state, "high memory usage");
+            onFYINotification(g_s2e_state.get(), "high memory usage");
             highMemoryUsageNotified = true;
         }
     }
 
     // stopIfJITCodeNotRunning(g_s2e_state);
     if (m_stopRequested) {
-        stopAnalysis(g_s2e_state);
+        stopAnalysis(g_s2e_state.get());
     }
 
     if (m_cfi_checker) {
-        stopIfTooManyCFIViolations(g_s2e_state);
-        stopIfSegfaultDetected(g_s2e_state);
+        stopIfTooManyCFIViolations(g_s2e_state.get());
+        stopIfSegfaultDetected(g_s2e_state.get());
     }
 
-    stopIfIdle(g_s2e_state);
+    stopIfIdle(g_s2e_state.get());
 }
 
 void Tickler::onFYINotification(S2EExecutionState *state, const std::string &info) {

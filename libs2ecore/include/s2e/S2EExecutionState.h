@@ -61,6 +61,8 @@ class PluginState;
 class S2EDeviceState;
 class S2EExecutionState;
 
+using S2EExecutionStatePtr = boost::intrusive_ptr<S2EExecutionState>;
+
 class S2EExecutionState : public klee::ExecutionState, public klee::IConcretizer {
 protected:
     friend class S2EExecutor;
@@ -195,7 +197,7 @@ public:
         m_runningExceptionEmulationCode = state.m_runningExceptionEmulationCode;
     }
 
-    virtual ExecutionState *clone();
+    virtual klee::ExecutionStatePtr clone();
 
     int getID() const {
         return m_stateID;
@@ -422,11 +424,25 @@ public:
 
     void enumPossibleRanges(klee::ref<klee::Expr> e, klee::ref<klee::Expr> start, klee::ref<klee::Expr> end,
                             std::vector<klee::Range> &ranges);
+
+    friend void intrusive_ptr_add_ref(S2EExecutionState *ptr);
+    friend void intrusive_ptr_release(S2EExecutionState *ptr);
 };
+
+inline void intrusive_ptr_add_ref(S2EExecutionState *ptr) {
+    ++ptr->m_refCount;
+}
+
+inline void intrusive_ptr_release(S2EExecutionState *ptr) {
+    if (--ptr->m_refCount == 0) {
+        delete ptr;
+    }
+}
+
 } // namespace s2e
 
 extern "C" {
-extern s2e::S2EExecutionState *g_s2e_state;
+extern s2e::S2EExecutionStatePtr g_s2e_state;
 }
 
 #endif // S2E_EXECUTIONSTATE_H

@@ -202,7 +202,7 @@ void StackClustering::onTimer() {
 void StackClustering::onUpdateStates(S2EExecutionState *state, const klee::StateSet &addedStates,
                                      const klee::StateSet &removedStates) {
     foreach2 (it, addedStates.begin(), addedStates.end()) {
-        S2EExecutionState *ss = static_cast<S2EExecutionState *>(*it);
+        auto ss = static_pointer_cast<S2EExecutionState>(*it).get();
         calltree::CallStack cs;
         calltree::Location loc;
 
@@ -211,8 +211,8 @@ void StackClustering::onUpdateStates(S2EExecutionState *state, const klee::State
     }
 
     foreach2 (it, removedStates.begin(), removedStates.end()) {
-        S2EExecutionState *ss = static_cast<S2EExecutionState *>(*it);
-        m_callTree.remove(ss);
+        auto ss = static_pointer_cast<S2EExecutionState>(*it);
+        m_callTree.remove(ss.get());
     }
 }
 

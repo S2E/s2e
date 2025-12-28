@@ -200,8 +200,8 @@ klee::ref<klee::Expr> SymbolicHardware::createExpression(S2EExecutionState *stat
 
     ss << hexval(address) << "@" << hexval(state->regs()->getPc());
 
-    getDebugStream(g_s2e_state) << ss.str() << " size " << hexval(size) << " value=" << hexval(concreteValue)
-                                << " sym=" << (createVariable ? "yes" : "no") << "\n";
+    getDebugStream(g_s2e_state.get()) << ss.str() << " size " << hexval(size) << " value=" << hexval(concreteValue)
+                                      << " sym=" << (createVariable ? "yes" : "no") << "\n";
 
     if (createVariable) {
         ConcreteArray concolicValue;
@@ -223,17 +223,18 @@ static klee::ref<klee::Expr> symbhw_symbportread(uint16_t port, unsigned size, u
     SymbolicHardware *hw = static_cast<SymbolicHardware *>(opaque);
 
     if (DebugSymbHw) {
-        hw->getDebugStream(g_s2e_state) << "reading from port " << hexval(port) << " value: " << concreteValue << "\n";
+        hw->getDebugStream(g_s2e_state.get())
+            << "reading from port " << hexval(port) << " value: " << concreteValue << "\n";
     }
 
-    return hw->createExpression(g_s2e_state, SYMB_PORT, port, size, concreteValue);
+    return hw->createExpression(g_s2e_state.get(), SYMB_PORT, port, size, concreteValue);
 }
 
 static bool symbhw_symbportwrite(uint16_t port, const klee::ref<klee::Expr> &value, void *opaque) {
     SymbolicHardware *hw = static_cast<SymbolicHardware *>(opaque);
 
     if (DebugSymbHw) {
-        hw->getDebugStream(g_s2e_state) << "writing to port " << hexval(port) << " value: " << value << "\n";
+        hw->getDebugStream(g_s2e_state.get()) << "writing to port " << hexval(port) << " value: " << value << "\n";
     }
 
     return !hw->isPortSymbolic(port);
@@ -252,12 +253,12 @@ static klee::ref<klee::Expr> symbhw_symbread(struct MemoryDesc *mr, uint64_t phy
     SymbolicHardware *hw = static_cast<SymbolicHardware *>(opaque);
 
     if (DebugSymbHw) {
-        hw->getDebugStream(g_s2e_state) << "reading mmio " << hexval(physaddress) << " value: " << value << "\n";
+        hw->getDebugStream(g_s2e_state.get()) << "reading mmio " << hexval(physaddress) << " value: " << value << "\n";
     }
 
     unsigned size = value->getWidth() / 8;
     uint64_t concreteValue = g_s2e_state->toConstantSilent(value)->getZExtValue();
-    return hw->createExpression(g_s2e_state, SYMB_MMIO, physaddress, size, concreteValue);
+    return hw->createExpression(g_s2e_state.get(), SYMB_MMIO, physaddress, size, concreteValue);
 }
 
 static void symbhw_symbwrite(struct MemoryDesc *mr, uint64_t physaddress, const klee::ref<klee::Expr> &value,
@@ -265,7 +266,7 @@ static void symbhw_symbwrite(struct MemoryDesc *mr, uint64_t physaddress, const 
     SymbolicHardware *hw = static_cast<SymbolicHardware *>(opaque);
 
     if (DebugSymbHw) {
-        hw->getDebugStream(g_s2e_state) << "writing mmio " << hexval(physaddress) << " value: " << value << "\n";
+        hw->getDebugStream(g_s2e_state.get()) << "writing mmio " << hexval(physaddress) << " value: " << value << "\n";
     }
 
     // TODO: return bool to not call original handler, like for I/O

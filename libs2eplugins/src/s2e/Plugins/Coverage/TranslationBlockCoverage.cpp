@@ -163,7 +163,7 @@ void TranslationBlockCoverage::onTimer() {
     }
 
     m_timerTicks = 0;
-    generateJsonCoverageFile(g_s2e_state);
+    generateJsonCoverageFile(g_s2e_state.get());
 }
 
 const ModuleTBs &TranslationBlockCoverage::getCoverage(S2EExecutionState *state) {

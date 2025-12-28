@@ -63,26 +63,26 @@ int LuaS2E::getPlugin(lua_State *L) {
 
 int LuaS2E::debug(lua_State *L) {
     const char *str = lua_tostring(L, 1);
-    g_s2e->getDebugStream(g_s2e_state) << str << "\n";
+    g_s2e->getDebugStream(g_s2e_state.get()) << str << "\n";
     return 0;
 }
 
 int LuaS2E::info(lua_State *L) {
     const char *str = lua_tostring(L, 1);
-    g_s2e->getInfoStream(g_s2e_state) << str << "\n";
+    g_s2e->getInfoStream(g_s2e_state.get()) << str << "\n";
     return 0;
 }
 
 int LuaS2E::warning(lua_State *L) {
     const char *str = lua_tostring(L, 1);
-    g_s2e->getWarningsStream(g_s2e_state) << str << "\n";
+    g_s2e->getWarningsStream(g_s2e_state.get()) << str << "\n";
     return 0;
 }
 
 int LuaS2E::exit(lua_State *L) {
     long returnCode = (long) luaL_checkinteger(L, 1);
 
-    g_s2e->getInfoStream(g_s2e_state) << "Lua instrumentation requested S2E exit\n";
+    g_s2e->getInfoStream(g_s2e_state.get()) << "Lua instrumentation requested S2E exit\n";
 
     ::exit(returnCode);
     return 0;

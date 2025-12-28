@@ -9,8 +9,6 @@
 
 #include "klee/Common.h"
 
-#include "klee/Searcher.h"
-
 #include "klee/Executor.h"
 
 #include "klee/ExecutionState.h"
@@ -24,6 +22,8 @@
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Module.h"
 #include "llvm/Support/CommandLine.h"
+
+#include "klee/Searcher.h"
 
 #include <cassert>
 #include <climits>
@@ -47,21 +47,21 @@ namespace klee {
 Searcher::~Searcher() {
 }
 
-ExecutionState &DFSSearcher::selectState() {
-    ExecutionState *ret = states.back();
+ExecutionStatePtr DFSSearcher::selectState() {
+    ExecutionStatePtr ret = states.back();
 
-    if (currentState == NULL) {
+    if (currentState == nullptr) {
         currentState = ret;
     }
 
-    return *currentState;
+    return currentState;
 }
 
-void DFSSearcher::update(ExecutionState *current, const StateSet &addedStates, const StateSet &removedStates) {
+void DFSSearcher::update(ExecutionStatePtr current, const StateSet &addedStates, const StateSet &removedStates) {
     bool firstTime = states.size() == 0;
     states.insert(states.end(), addedStates.begin(), addedStates.end());
     for (StateSet::const_iterator it = removedStates.begin(), ie = removedStates.end(); it != ie; ++it) {
-        ExecutionState *es = *it;
+        ExecutionStatePtr es = *it;
         if (currentState == es) {
             currentState = NULL;
         }
@@ -71,7 +71,7 @@ void DFSSearcher::update(ExecutionState *current, const StateSet &addedStates, c
         } else {
             bool ok = false;
 
-            for (std::vector<ExecutionState *>::iterator it = states.begin(), ie = states.end(); it != ie; ++it) {
+            for (std::vector<ExecutionStatePtr>::iterator it = states.begin(), ie = states.end(); it != ie; ++it) {
                 if (es == *it) {
                     states.erase(it);
                     ok = true;
@@ -92,18 +92,18 @@ void DFSSearcher::update(ExecutionState *current, const StateSet &addedStates, c
 
 ///
 
-ExecutionState &RandomSearcher::selectState() {
+ExecutionStatePtr RandomSearcher::selectState() {
     auto val = uni(rng) % states.size();
-    return *states[val];
+    return states[val];
 }
 
-void RandomSearcher::update(ExecutionState *current, const StateSet &addedStates, const StateSet &removedStates) {
+void RandomSearcher::update(ExecutionStatePtr current, const StateSet &addedStates, const StateSet &removedStates) {
     states.insert(states.end(), addedStates.begin(), addedStates.end());
     for (StateSet::const_iterator it = removedStates.begin(), ie = removedStates.end(); it != ie; ++it) {
-        ExecutionState *es = *it;
+        ExecutionStatePtr es = *it;
         bool ok = false;
 
-        for (std::vector<ExecutionState *>::iterator it = states.begin(), ie = states.end(); it != ie; ++it) {
+        for (std::vector<ExecutionStatePtr>::iterator it = states.begin(), ie = states.end(); it != ie; ++it) {
             if (es == *it) {
                 states.erase(it);
                 ok = true;

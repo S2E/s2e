@@ -46,7 +46,7 @@ public:
         Yield = 1,
     };
 
-    typedef std::map<uint32_t, S2EExecutionState *> States;
+    typedef std::map<uint32_t, S2EExecutionStatePtr> States;
 
     CooperativeSearcher(S2E *s2e) : Plugin(s2e) {
     }
@@ -54,9 +54,9 @@ public:
 
     // Selects the last specified state.
     // If no states specified, schedules the one with the lowest ID.
-    virtual klee::ExecutionState &selectState();
+    virtual klee::ExecutionStatePtr selectState();
 
-    virtual void update(klee::ExecutionState *current, const klee::StateSet &addedStates,
+    virtual void update(klee::ExecutionStatePtr current, const klee::StateSet &addedStates,
                         const klee::StateSet &removedStates);
 
     virtual bool empty();
@@ -64,7 +64,7 @@ public:
 private:
     bool m_searcherInited;
     States m_states;
-    S2EExecutionState *m_currentState;
+    S2EExecutionStatePtr m_currentState;
 
     void initializeSearcher();
 

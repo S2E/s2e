@@ -396,12 +396,12 @@ void CFIChecker::initialize() {
 }
 
 void CFIChecker::onTimer(void) {
-    DECLARE_PLUGINSTATE(CFICheckerState, g_s2e_state);
+    DECLARE_PLUGINSTATE(CFICheckerState, g_s2e_state.get());
     auto &stats = plgState->getStats();
-    auto &os = getDebugStream(g_s2e_state);
+    auto &os = getDebugStream(g_s2e_state.get());
     stats.print(os);
     if (m_tracer) {
-        stats.log(m_tracer, g_s2e_state);
+        stats.log(m_tracer, g_s2e_state.get());
     }
 }
 
@@ -769,11 +769,11 @@ const CFIStatistics &CFIChecker::getStats(S2EExecutionState *state) {
 // For now we only have CFIChecker.
 extern "C" {
 void helper_se_call(target_ulong pc) {
-    s_checker->onCall(g_s2e_state, pc);
+    s_checker->onCall(g_s2e_state.get(), pc);
 }
 
 void helper_se_ret(target_ulong pc, int retim_value) {
-    s_checker->onRet(g_s2e_state, pc, retim_value);
+    s_checker->onRet(g_s2e_state.get(), pc, retim_value);
 }
 }
 

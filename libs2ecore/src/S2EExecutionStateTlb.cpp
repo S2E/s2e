@@ -120,9 +120,9 @@ void S2EExecutionStateTlb::updateTlb(const klee::ObjectStateConstPtr &oldState, 
     }
 
 #ifdef S2E_DEBUG_TLBCACHE
-    g_s2e->getDebugStream(g_s2e_state) << "updateTlb: Replacing " << hexval(oldState) << " by " << hexval(newState)
-                                       << "\n";
-    g_s2e->getDebugStream(g_s2e_state) << "updateTlb: tlb map size=" << m_tlbMap.size() << '\n';
+    g_s2e->getDebugStream(g_s2e_state.get())
+        << "updateTlb: Replacing " << hexval(oldState) << " by " << hexval(newState) << "\n";
+    g_s2e->getDebugStream(g_s2e_state.get()) << "updateTlb: tlb map size=" << m_tlbMap.size() << '\n';
 #endif
 
     assert(oldState->isSharedConcrete() == newState->isSharedConcrete());
@@ -172,7 +172,7 @@ void S2EExecutionStateTlb::updateTlb(const klee::ObjectStateConstPtr &oldState, 
 
 void S2EExecutionStateTlb::flushTlbCache() {
 #ifdef S2E_DEBUG_TLBCACHE
-    g_s2e->getDebugStream(g_s2e_state) << "Flushing TLB cache\n";
+    g_s2e->getDebugStream(g_s2e_state.get()) << "Flushing TLB cache\n";
 #endif
     m_tlbMap.clear();
 }
@@ -183,8 +183,8 @@ void S2EExecutionStateTlb::flushTlbCachePage(const klee::ObjectStatePtr &objectS
     }
 
 #ifdef S2E_DEBUG_TLBCACHE
-    g_s2e->getDebugStream(g_s2e_state) << "flushTlbCachePage: clearing cache entry for " << objectState << " ("
-                                       << mmu_idx << "," << index << ")\n";
+    g_s2e->getDebugStream(g_s2e_state.get())
+        << "flushTlbCachePage: clearing cache entry for " << objectState << " (" << mmu_idx << "," << index << ")\n";
 #endif
 
     env->tlb_table[mmu_idx].table[index].objectState = 0;
@@ -213,7 +213,8 @@ void S2EExecutionStateTlb::flushTlbCachePage(const klee::ObjectStatePtr &objectS
 
     if (vec.empty()) {
 #ifdef S2E_DEBUG_TLBCACHE
-        g_s2e->getDebugStream(g_s2e_state) << "flushTlbCachePage: Erasing cache entry for " << objectState << "\n";
+        g_s2e->getDebugStream(g_s2e_state.get())
+            << "flushTlbCachePage: Erasing cache entry for " << objectState << "\n";
 #endif
         m_tlbMap.erase(tlbIt);
     }
@@ -280,8 +281,8 @@ void S2EExecutionStateTlb::updateTlbEntry(CPUX86State *env, int mmu_idx, uint64_
 
 /* Store the new mapping in the cache */
 #ifdef S2E_DEBUG_TLBCACHE
-    g_s2e->getDebugStream(g_s2e_state) << "updateTlbEntry: replacing " << hexval(oldObjectState) << " with "
-                                       << hexval(newObjectState) << " (" << mmu_idx << ',' << index << ")\n";
+    g_s2e->getDebugStream(g_s2e_state.get()) << "updateTlbEntry: replacing " << hexval(oldObjectState) << " with "
+                                             << hexval(newObjectState) << " (" << mmu_idx << ',' << index << ")\n";
 #endif
 
     if (oldObjectState != newObjectState) {
@@ -294,8 +295,8 @@ void S2EExecutionStateTlb::updateTlbEntry(CPUX86State *env, int mmu_idx, uint64_
 #ifdef S2E_DEBUG_TLBCACHE
     const ObjectStateTlbReferences &refs = m_tlbMap[const_cast<ObjectState *>(newObjectState)];
     for (unsigned i = 0; i < refs.size(); ++i) {
-        g_s2e->getDebugStream(g_s2e_state) << "   "
-                                           << " (" << refs[i].first << ',' << refs[i].second << ")\n";
+        g_s2e->getDebugStream(g_s2e_state.get()) << "   "
+                                                 << " (" << refs[i].first << ',' << refs[i].second << ")\n";
     }
 #endif
 

@@ -171,7 +171,7 @@ void ResourceMonitor::dropStates() {
                          << "\n";
 
         for (auto it = states.begin(); it != states.end() && nrStatesToTerminate > 0; it++, nrStatesToTerminate--) {
-            S2EExecutionState *state = dynamic_cast<S2EExecutionState *>(*it);
+            auto state = static_pointer_cast<S2EExecutionState>(*it);
 
             // Never kill state 0, because it is used by SeedSearcher
             if (state->getID() == 0) {

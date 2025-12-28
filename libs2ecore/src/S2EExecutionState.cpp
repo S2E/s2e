@@ -84,7 +84,7 @@ void S2EExecutionState::assignGuid(uint64_t guid) {
 
 /***/
 
-ExecutionState *S2EExecutionState::clone() {
+ExecutionStatePtr S2EExecutionState::clone() {
     // When cloning, all ObjectState become not owned by neither of states.
     // This means that we must clean owned-by-us flag in S2E TLB.
     assert(m_active);
@@ -689,7 +689,7 @@ bool S2EExecutionState::disassemble(llvm::raw_ostream &os, uint64_t pc, unsigned
 
 extern "C" {
 
-s2e::S2EExecutionState *g_s2e_state = nullptr;
+s2e::S2EExecutionStatePtr g_s2e_state = nullptr;
 
 int s2e_is_zombie() {
     return g_s2e_state->isZombie();

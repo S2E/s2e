@@ -48,35 +48,35 @@ void MergingSearcher::initialize() {
     m_debug = s2e()->getConfig()->getBool(getConfigKey() + ".debug");
 }
 
-klee::ExecutionState &MergingSearcher::selectState() {
+klee::ExecutionStatePtr MergingSearcher::selectState() {
     if (m_selector) {
-        S2EExecutionState *state = m_selector->selectState();
+        auto state = m_selector->selectState();
         assert(m_activeStates.find(state) != m_activeStates.end());
-        return *state;
+        return state;
     }
 
-    S2EExecutionState *state = m_currentState;
+    auto state = m_currentState;
     if (state) {
-        return *state;
+        return state;
     }
 
     assert(!m_activeStates.empty());
 
     state = *m_activeStates.begin();
     m_currentState = state;
-    return *state;
+    return state;
 }
 
-void MergingSearcher::update(klee::ExecutionState *current, const klee::StateSet &addedStates,
+void MergingSearcher::update(klee::ExecutionStatePtr current, const klee::StateSet &addedStates,
                              const klee::StateSet &removedStates) {
     States states;
     foreach2 (it, addedStates.begin(), addedStates.end()) {
-        S2EExecutionState *state = static_cast<S2EExecutionState *>(*it);
+        auto state = static_pointer_cast<S2EExecutionState>(*it);
         states.insert(state);
     }
 
     foreach2 (it, removedStates.begin(), removedStates.end()) {
-        S2EExecutionState *state = static_cast<S2EExecutionState *>(*it);
+        auto state = static_pointer_cast<S2EExecutionState>(*it);
         states.erase(state);
         m_activeStates.erase(state);
 
@@ -91,7 +91,7 @@ void MergingSearcher::update(klee::ExecutionState *current, const klee::StateSet
     }
 
     foreach2 (it, states.begin(), states.end()) {
-        S2EExecutionState *state = static_cast<S2EExecutionState *>(*it);
+        auto state = static_pointer_cast<S2EExecutionState>(*it);
         m_activeStates.insert(state);
 
         DECLARE_PLUGINSTATE(MergingSearcherState, state);

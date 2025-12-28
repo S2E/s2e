@@ -22,7 +22,7 @@ class Searcher {
 public:
     virtual ~Searcher();
 
-    virtual ExecutionState &selectState() = 0;
+    virtual ExecutionStatePtr selectState() = 0;
 
     // Clients must first process the addedStates set
     // and then the removedStates set. A state can be included in
@@ -30,19 +30,19 @@ public:
     // immediately after. Processing the sets in the wrong order
     // may cause the searcher to return a state that
     // has actually been deleted.
-    virtual void update(ExecutionState *current, const StateSet &addedStates, const StateSet &removedStates) = 0;
+    virtual void update(ExecutionStatePtr current, const StateSet &addedStates, const StateSet &removedStates) = 0;
 
     virtual bool empty() = 0;
 
     // utility functions
 
-    void addState(ExecutionState *es, ExecutionState *current = 0) {
+    void addState(ExecutionStatePtr es, ExecutionStatePtr current = nullptr) {
         StateSet tmp;
         tmp.insert(es);
         update(current, tmp, StateSet());
     }
 
-    void removeState(ExecutionState *es, ExecutionState *current = 0) {
+    void removeState(ExecutionStatePtr es, ExecutionStatePtr current = nullptr) {
         StateSet tmp;
         tmp.insert(es);
         update(current, StateSet(), tmp);
@@ -50,27 +50,27 @@ public:
 };
 
 class DFSSearcher : public Searcher {
-    std::vector<ExecutionState *> states;
-    ExecutionState *currentState;
+    std::vector<ExecutionStatePtr> states;
+    ExecutionStatePtr currentState;
 
 public:
     DFSSearcher() {
-        currentState = NULL;
+        currentState = nullptr;
     }
 
-    ExecutionState &selectState();
-    void update(ExecutionState *current, const StateSet &addedStates, const StateSet &removedStates);
+    ExecutionStatePtr selectState();
+    void update(ExecutionStatePtr current, const StateSet &addedStates, const StateSet &removedStates);
     bool empty() {
         return states.empty();
     }
 };
 
 class RandomSearcher : public Searcher {
-    std::vector<ExecutionState *> states;
+    std::vector<ExecutionStatePtr> states;
 
 public:
-    ExecutionState &selectState();
-    void update(ExecutionState *current, const StateSet &addedStates, const StateSet &removedStates);
+    ExecutionStatePtr selectState();
+    void update(ExecutionStatePtr current, const StateSet &addedStates, const StateSet &removedStates);
     bool empty() {
         return states.empty();
     }

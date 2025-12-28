@@ -60,8 +60,8 @@ ExecutionState::ExecutionState(KFunction *kf)
 ExecutionState::~ExecutionState() {
 }
 
-ExecutionState *ExecutionState::clone() {
-    return new ExecutionState(*this);
+ExecutionStatePtr ExecutionState::clone() {
+    return ExecutionStatePtr(new ExecutionState(*this));
 }
 
 void ExecutionState::addressSpaceChange(const ObjectKey &key, const ObjectStateConstPtr &oldState,

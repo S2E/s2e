@@ -288,7 +288,7 @@ template <class PluginClass> PluginClass *S2E::getPlugin() const {
 #define s2e_assert(state, condition, message)                                                                     \
     do {                                                                                                          \
         if (!(condition)) {                                                                                       \
-            S2EExecutionState *currentState = (state) != nullptr ? (state) : g_s2e_state;                         \
+            auto currentState = (state) != nullptr ? (state) : g_s2e_state.get();                                 \
             int currentStateId = currentState ? currentState->getID() : -1;                                       \
             g_s2e->getWarningsStream() << __FILE__ << ":" << __LINE__ << ": " << __PRETTY_FUNCTION__              \
                                        << ": Assertion `" << #condition << "' failed in state " << currentStateId \
@@ -317,7 +317,7 @@ template <class PluginClass> PluginClass *S2E::getPlugin() const {
 #define s2e_warn_assert(state, condition, message)                                                                \
     do {                                                                                                          \
         if (!(condition)) {                                                                                       \
-            S2EExecutionState *currentState = (state) != nullptr ? (state) : g_s2e_state;                         \
+            auto currentState = (state) != nullptr ? (state) : g_s2e_state.get();                                 \
             int currentStateId = currentState ? currentState->getID() : -1;                                       \
             g_s2e->getWarningsStream() << __FILE__ << ":" << __LINE__ << ": " << __PRETTY_FUNCTION__              \
                                        << ": Assertion `" << #condition << "' failed in state " << currentStateId \

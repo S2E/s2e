@@ -46,10 +46,10 @@ static s2e::plugins::WindowsCrashDumpGenerator *s_bsod;
 
 extern "C" {
 void s2e_win_crash_dump(void) {
-    std::string path = s_bsod->getPathForDump(g_s2e_state);
+    std::string path = s_bsod->getPathForDump(g_s2e_state.get());
 
     vmi::windows::BugCheckDescription desc;
-    s_bsod->generateManualDump(g_s2e_state, path, &desc);
+    s_bsod->generateManualDump(g_s2e_state.get(), path, &desc);
 }
 }
 
@@ -167,7 +167,7 @@ int WindowsCrashDumpInvoker::generateCrashDump(lua_State *L) {
 
     std::string prefix = luaL_checkstring(L, 1);
 
-    S2EExecutionState *state = g_s2e_state;
+    auto state = g_s2e_state;
     int stateId = g_s2e_state->getID();
     if (lua_isnumber(L, 2)) {
         stateId = lua_tointeger(L, 2);
@@ -176,8 +176,8 @@ int WindowsCrashDumpInvoker::generateCrashDump(lua_State *L) {
         // Fetch the right state
         // XXX: Avoid linear search
         const klee::StateSet &states = g_s2e->getExecutor()->getStates();
-        foreach2 (it, states.begin(), states.end()) {
-            S2EExecutionState *ss = static_cast<S2EExecutionState *>(*it);
+        for (auto it : states) {
+            auto ss = static_pointer_cast<S2EExecutionState>(it);
             if (ss->getID() == stateId) {
                 state = ss;
                 break;
@@ -195,10 +195,10 @@ int WindowsCrashDumpInvoker::generateCrashDump(lua_State *L) {
         return 0;
     }
 
-    std::string path = m_plugin->getPathForDump(state);
+    std::string path = m_plugin->getPathForDump(state.get());
 
     BugCheckDescription desc;
-    m_plugin->generateManualDump(state, path, &desc);
+    m_plugin->generateManualDump(state.get(), path, &desc);
 
     return 0;
 }

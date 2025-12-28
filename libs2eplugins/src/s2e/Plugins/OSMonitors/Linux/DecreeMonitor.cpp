@@ -497,22 +497,21 @@ void DecreeMonitor::handleSymbolicSize(S2EExecutionState *state, uint64_t pid, u
     Executor::StatePair sp = s2e()->getExecutor()->forkCondition(state, sizeIsSafe, true);
 
     if (sp.first) {
-        S2EExecutionState *s = dynamic_cast<S2EExecutionState *>(sp.first);
+        auto s = dynamic_pointer_cast<S2EExecutionState>(sp.first);
         s2e_assert(s, s->isActive(), "S2EExecutionState::writePointer requires state to be active");
 
-        uint64_t max = getMaxValue(s, size);
+        uint64_t max = getMaxValue(s.get(), size);
         s2e_assert(s, max <= safeLimit, "Solver must be wrong about max size value " << hexval(max));
 
         bool ok = s->writePointer(sizeAddr, max);
         s2e_assert(s, ok, "Failed to write memory");
 
-        getDebugStream(s) << "Using size " << hexval(max) << "\n";
+        getDebugStream(s.get()) << "Using size " << hexval(max) << "\n";
     }
 
     if (sp.second) {
-        S2EExecutionState *s = dynamic_cast<S2EExecutionState *>(sp.second);
-
-        getDebugStream(s) << "Size may be too big, leaving it symbolic\n";
+        auto s = dynamic_pointer_cast<S2EExecutionState>(sp.second);
+        getDebugStream(s.get()) << "Size may be too big, leaving it symbolic\n";
     }
 }
 
