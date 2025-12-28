@@ -66,6 +66,16 @@ protected:
     virtual void addressSpaceObjectSplit(const ObjectStateConstPtr &oldObject,
                                          const std::vector<ObjectStatePtr> &newObjects);
 
+    ExecutionState(const ExecutionState &state) : m_addressSpace(state.m_addressSpace), llvm(state.llvm) {
+        m_solver = state.m_solver;
+        m_addressSpace.setState(this);
+        m_constraints = state.m_constraints;
+        m_symbolics = state.m_symbolics;
+        m_concolics = Assignment::create(true);
+        forkDisabled = state.forkDisabled;
+        llvm.state = this;
+    }
+
 public:
     /// Disables forking, set by user code.
     bool forkDisabled;

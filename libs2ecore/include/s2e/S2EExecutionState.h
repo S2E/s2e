@@ -169,6 +169,32 @@ public:
     S2EExecutionState(klee::KFunction *kf);
     ~S2EExecutionState();
 
+    S2EExecutionState(const S2EExecutionState &state)
+        : ExecutionState(state), m_pluginState(state.m_pluginState), m_toRunSymbolically(state.m_toRunSymbolically),
+          m_deviceState(state.m_deviceState), m_asCache(state.m_asCache), m_registers(state.m_registers),
+          m_memory(state.m_memory), m_tlb(&m_asCache, &m_registers) {
+        m_stateID = state.m_stateID; // To be updated in clone().
+        m_guid = state.m_guid;
+        m_startSymbexAtPC = state.m_startSymbexAtPC;
+        m_active = state.m_active;
+        m_zombie = state.m_zombie;
+        m_yielded = state.m_yielded;
+        m_runningConcrete = state.m_runningConcrete;
+        m_pinned = state.m_pinned;
+        m_isStateSwitchForbidden = state.m_isStateSwitchForbidden;
+
+        m_tlb = state.m_tlb;
+
+        m_timersState = state.m_timersState;
+        m_lastS2ETb = state.m_lastS2ETb;
+        m_needFinalizeTBExec = state.m_needFinalizeTBExec;
+        m_forkAborted = state.m_forkAborted;
+        m_nextSymbVarId = state.m_nextSymbVarId;
+
+        m_memIoVaddr = state.m_memIoVaddr;
+        m_runningExceptionEmulationCode = state.m_runningExceptionEmulationCode;
+    }
+
     virtual ExecutionState *clone();
 
     int getID() const {

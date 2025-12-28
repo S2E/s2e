@@ -39,7 +39,7 @@ private:
 
 public:
     PluginStateManager() = default;
-    PluginStateManager(PluginStateManager &other) {
+    PluginStateManager(const PluginStateManager &other) {
         m_pluginState = {};
         m_cachedPlugin = nullptr;
         m_cachedPluginState = nullptr;
