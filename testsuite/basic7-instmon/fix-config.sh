@@ -8,7 +8,7 @@ echo "Patching s2e-config.lua..."
 
 PROJECT_NAME="$(basename $PROJECT_DIR)"
 
-SCANF_CS_ADDR=$(objdump -S $TARGET | grep scanf | grep call | head -n 1 | cut -d ':' -f 1 | xargs)
+SCANF_CS_ADDR=$(objdump -S $TARGET | grep -E "<.?scanf|__isoc99_scanf" | grep call | head -n 1 | cut -d ':' -f 1 | xargs)
 if [ "x$SCANF_CS_ADDR" = "x" ]; then
     echo "Could not get call site of scanf instruction"
     exit 1
