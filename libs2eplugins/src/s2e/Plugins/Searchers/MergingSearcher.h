@@ -34,6 +34,8 @@
 
 #include <klee/Searcher.h>
 
+#include <unordered_set>
+
 namespace s2e {
 namespace plugins {
 
@@ -42,7 +44,7 @@ public:
     virtual ~IMergingSearcher() {
     }
     virtual S2EExecutionState *selectState() = 0;
-    virtual void update(klee::ExecutionState *current, const klee::StateSet &addedStates,
+    virtual void update(klee::ExecutionStatePtr current, const klee::StateSet &addedStates,
                         const klee::StateSet &removedStates) = 0;
 
     virtual void setActive(S2EExecutionState *state, bool active) = 0;
@@ -52,7 +54,7 @@ class MergingSearcher : public Plugin, public klee::Searcher, public IPluginInvo
     S2E_PLUGIN
 
 public:
-    typedef llvm::DenseSet<S2EExecutionState *> States;
+    typedef std::unordered_set<S2EExecutionStatePtr> States;
 
 private:
     /* Custom instruction command */
@@ -77,7 +79,7 @@ private:
 
     MergePools m_mergePools;
     States m_activeStates;
-    S2EExecutionState *m_currentState;
+    S2EExecutionStatePtr m_currentState;
     uint64_t m_nextMergeGroupId;
 
     IMergingSearcher *m_selector;
@@ -97,9 +99,9 @@ public:
         return m_activeStates;
     }
 
-    virtual klee::ExecutionState &selectState();
+    virtual klee::ExecutionStatePtr selectState();
 
-    virtual void update(klee::ExecutionState *current, const klee::StateSet &addedStates,
+    virtual void update(klee::ExecutionStatePtr current, const klee::StateSet &addedStates,
                         const klee::StateSet &removedStates);
 
     virtual bool empty();

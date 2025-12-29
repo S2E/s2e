@@ -42,6 +42,7 @@
 #include <memory>
 #include <random>
 #include <unordered_map>
+#include <unordered_set>
 
 namespace s2e {
 namespace plugins {
@@ -88,7 +89,8 @@ public:
     klee::Searcher *createSearcher(unsigned level);
 
     void updateState(S2EExecutionState *state);
-    void update(klee::ExecutionState *current, const klee::StateSet &addedStates, const klee::StateSet &removedStates);
+    void update(klee::ExecutionStatePtr current, const klee::StateSet &addedStates,
+                const klee::StateSet &removedStates);
 
     void enable(bool e);
 
@@ -113,15 +115,15 @@ protected:
     unsigned m_level;
 
     // Current CUPA class for each state
-    std::unordered_map<klee::ExecutionState *, uint64_t> m_stateClasses;
+    std::unordered_map<klee::ExecutionStatePtr, uint64_t> m_stateClasses;
 
     // Searchers for each CUPA class
     std::map<uint64_t, std::unique_ptr<klee::Searcher>> m_searchers;
 
     std::mt19937 m_rnd;
 
-    void doAddState(klee::ExecutionState *state, uint64_t stateClass);
-    void doRemoveState(klee::ExecutionState *state);
+    void doAddState(klee::ExecutionStatePtr state, uint64_t stateClass);
+    void doRemoveState(klee::ExecutionStatePtr state);
 
     llvm::raw_ostream &getDebugStream(S2EExecutionState *state = nullptr) const;
 
@@ -131,9 +133,9 @@ protected:
 public:
     CUPASearcherClass(CUPASearcher *plugin, unsigned level) : m_plg(plugin), m_level(level) {};
 
-    virtual klee::ExecutionState &selectState();
+    virtual klee::ExecutionStatePtr selectState();
 
-    virtual void update(klee::ExecutionState *current, const klee::StateSet &addedStates,
+    virtual void update(klee::ExecutionStatePtr current, const klee::StateSet &addedStates,
                         const klee::StateSet &removedStates);
 
     virtual bool empty();
@@ -156,7 +158,7 @@ protected:
         return state->getID() == 0 ? 0 : 1;
     }
 
-    virtual klee::ExecutionState &selectState();
+    virtual klee::ExecutionStatePtr selectState();
 };
 
 class CUPASearcherPcClass : public CUPASearcherClass {
@@ -187,8 +189,8 @@ class CUPASearcherRandomClass : public CUPASearcherClass {
 public:
     CUPASearcherRandomClass(CUPASearcher *plugin, unsigned level) : CUPASearcherClass(plugin, level) {};
 
-    virtual klee::ExecutionState &selectState();
-    virtual void update(klee::ExecutionState *current, const klee::StateSet &addedStates,
+    virtual klee::ExecutionStatePtr selectState();
+    virtual void update(klee::ExecutionStatePtr current, const klee::StateSet &addedStates,
                         const klee::StateSet &removedStates);
 
     virtual bool empty() {
@@ -196,7 +198,7 @@ public:
     }
 
 private:
-    typedef std::set<S2EExecutionState *> StateSet;
+    typedef std::unordered_set<S2EExecutionStatePtr> StateSet;
     StateSet m_states;
 
 protected:
@@ -213,7 +215,7 @@ public:
     virtual ~CUPASearcherReadCountClass() {
     }
 
-    virtual klee::ExecutionState &selectState();
+    virtual klee::ExecutionStatePtr selectState();
 
 private:
     DecreeMonitor *m_monitor;
@@ -255,7 +257,7 @@ protected:
         return count > 10 ? 1 : 0;
     }
 
-    virtual klee::ExecutionState &selectState() {
+    virtual klee::ExecutionStatePtr selectState() {
         unsigned size = m_searchers.size();
         assert(size > 0 && size <= 2);
         (void) size;
@@ -274,7 +276,7 @@ public:
 protected:
     virtual uint64_t getClass(S2EExecutionState *state);
 
-    virtual klee::ExecutionState &selectState() {
+    virtual klee::ExecutionStatePtr selectState() {
         unsigned size = m_searchers.size();
         assert(size > 0);
         (void) size;
@@ -308,12 +310,12 @@ public:
     }
 
 private:
-    klee::ExecutionState *m_state;
+    klee::ExecutionStatePtr m_state;
     std::chrono::steady_clock::time_point m_lastSelectedTime;
     std::chrono::seconds m_batchTime;
 
 protected:
-    virtual void update(klee::ExecutionState *current, const klee::StateSet &addedStates,
+    virtual void update(klee::ExecutionStatePtr current, const klee::StateSet &addedStates,
                         const klee::StateSet &removedStates) {
         if (removedStates.count(m_state)) {
             m_state = nullptr;
@@ -326,23 +328,21 @@ protected:
         return 0;
     }
 
-    virtual klee::ExecutionState &selectState() {
+    virtual klee::ExecutionStatePtr selectState() {
         using namespace std::chrono;
         auto t1 = steady_clock::now();
         auto d1 = seconds(m_batchTime);
 
         if (m_state) {
             if (t1 - m_lastSelectedTime < d1) {
-                return *m_state;
+                return m_state;
             }
         }
 
-        unsigned size = m_searchers.size();
-        assert(size > 0);
-        (void) size;
-        m_state = &m_searchers.rbegin()->second->selectState();
+        assert(m_searchers.size() > 0);
+        m_state = m_searchers.rbegin()->second->selectState();
         m_lastSelectedTime = t1;
-        return *m_state;
+        return m_state;
     }
 };
 

@@ -34,6 +34,8 @@
 #include <llvm/ADT/DenseSet.h>
 #include <llvm/ADT/StringMap.h>
 
+#include <unordered_set>
+
 #include <boost/multi_index/member.hpp>
 #include <boost/multi_index/ordered_index.hpp>
 #include <boost/multi_index_container.hpp>
@@ -51,7 +53,7 @@ public:
     typedef std::map<std::string, BasicBlocks> ModuleBasicBlocks;
 
     struct StateBB {
-        S2EExecutionState *state;
+        S2EExecutionStatePtr state;
         uint64_t pc;
     };
 
@@ -61,7 +63,7 @@ public:
     typedef boost::multi_index_container<
         StateBB, boost::multi_index::indexed_by<
                      boost::multi_index::ordered_unique<boost::multi_index::tag<state_t>,
-                                                        BOOST_MULTI_INDEX_MEMBER(StateBB, S2EExecutionState *, state)>,
+                                                        BOOST_MULTI_INDEX_MEMBER(StateBB, S2EExecutionStatePtr, state)>,
                      boost::multi_index::ordered_non_unique<boost::multi_index::tag<pc_t>,
                                                             BOOST_MULTI_INDEX_MEMBER(StateBB, uint64_t, pc)>>>
         MultiStatesBB;
@@ -102,7 +104,7 @@ public:
     void generateJsonCoverageFile(S2EExecutionState *state, const std::string &filePath);
     void generateJsonCoverage(S2EExecutionState *state, std::stringstream &ss);
 
-    S2EExecutionState *getNonCoveredState(llvm::DenseSet<S2EExecutionState *> &filter);
+    S2EExecutionStatePtr getNonCoveredState(const std::unordered_set<S2EExecutionStatePtr> &filter);
     const ModuleBasicBlocks &getCoverage(S2EExecutionState *state);
 
 private:

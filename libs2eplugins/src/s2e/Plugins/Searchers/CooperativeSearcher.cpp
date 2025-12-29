@@ -69,27 +69,27 @@ void CooperativeSearcher::initializeSearcher() {
         sigc::mem_fun(*this, &CooperativeSearcher::onCustomInstruction));
 }
 
-klee::ExecutionState &CooperativeSearcher::selectState() {
+klee::ExecutionStatePtr CooperativeSearcher::selectState() {
     if (m_currentState) {
-        return *m_currentState;
+        return m_currentState;
     }
 
     if (m_states.size() > 0) {
-        return *(*m_states.begin()).second;
+        return (*m_states.begin()).second;
     }
 
     pabort("There are no states to select!");
 }
 
-void CooperativeSearcher::update(klee::ExecutionState *current, const klee::StateSet &addedStates,
+void CooperativeSearcher::update(klee::ExecutionStatePtr current, const klee::StateSet &addedStates,
                                  const klee::StateSet &removedStates) {
     foreach2 (it, addedStates.begin(), addedStates.end()) {
-        S2EExecutionState *es = dynamic_cast<S2EExecutionState *>(*it);
+        auto es = dynamic_pointer_cast<S2EExecutionState>(*it);
         m_states[es->getID()] = es;
     }
 
     foreach2 (it, removedStates.begin(), removedStates.end()) {
-        S2EExecutionState *es = dynamic_cast<S2EExecutionState *>(*it);
+        auto es = dynamic_pointer_cast<S2EExecutionState>(*it);
         m_states.erase(es->getID());
 
         if (m_currentState == es) {

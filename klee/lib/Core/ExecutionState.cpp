@@ -60,12 +60,8 @@ ExecutionState::ExecutionState(KFunction *kf)
 ExecutionState::~ExecutionState() {
 }
 
-ExecutionState *ExecutionState::clone() {
-    ExecutionState *state = new ExecutionState(*this);
-    state->m_addressSpace.setState(state);
-    state->llvm.state = state;
-    state->m_concolics = Assignment::create(true);
-    return state;
+ExecutionStatePtr ExecutionState::clone() {
+    return ExecutionStatePtr(new ExecutionState(*this));
 }
 
 void ExecutionState::addressSpaceChange(const ObjectKey &key, const ObjectStateConstPtr &oldState,

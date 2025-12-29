@@ -35,7 +35,7 @@ namespace plugins {
 namespace searchers {
 
 struct StatePriority {
-    S2EExecutionState *state;
+    S2EExecutionStatePtr state;
     int64_t priority;
 
     StatePriority() {
@@ -43,7 +43,7 @@ struct StatePriority {
         priority = 0;
     }
 
-    StatePriority(S2EExecutionState *state, int64_t p) {
+    StatePriority(S2EExecutionStatePtr state, int64_t p) {
         this->state = state;
 
         /* State with a higher p get selected first */
@@ -58,7 +58,7 @@ typedef boost::multi_index_container<
     StatePriority,
     boost::multi_index::indexed_by<
         boost::multi_index::ordered_unique<boost::multi_index::tag<state_t>,
-                                           BOOST_MULTI_INDEX_MEMBER(StatePriority, S2EExecutionState *, state)>,
+                                           BOOST_MULTI_INDEX_MEMBER(StatePriority, S2EExecutionStatePtr, state)>,
         boost::multi_index::ordered_non_unique<boost::multi_index::tag<priority_t>,
                                                BOOST_MULTI_INDEX_MEMBER(StatePriority, int64_t, priority)>>>
     MultiStates;

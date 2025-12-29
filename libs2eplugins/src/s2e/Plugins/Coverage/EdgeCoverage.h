@@ -42,7 +42,7 @@ class EdgeCoverage : public Plugin {
 private:
     typedef std::pair<uint64_t, uint64_t> Edge;
     struct StateEdge {
-        S2EExecutionState *state;
+        S2EExecutionStatePtr state;
         Edge edge;
     };
 
@@ -53,7 +53,7 @@ private:
         StateEdge,
         boost::multi_index::indexed_by<
             boost::multi_index::ordered_unique<boost::multi_index::tag<state_t>,
-                                               BOOST_MULTI_INDEX_MEMBER(StateEdge, S2EExecutionState *, state)>,
+                                               BOOST_MULTI_INDEX_MEMBER(StateEdge, S2EExecutionStatePtr, state)>,
             boost::multi_index::ordered_non_unique<boost::multi_index::tag<edge_t>,
                                                    BOOST_MULTI_INDEX_MEMBER(StateEdge, Edge, edge)>>>
         MultiStatesEdges;
@@ -85,7 +85,7 @@ public:
     }
 
     void addNonCoveredEdge(S2EExecutionState *state, const std::string &module, uint64_t source, uint64_t dest);
-    S2EExecutionState *getNonCoveredState(llvm::DenseSet<S2EExecutionState *> &filter);
+    S2EExecutionStatePtr getNonCoveredState(const std::unordered_set<S2EExecutionStatePtr> &filter);
 
 private:
     EdgeDetector *m_edgeDetector;

@@ -729,7 +729,7 @@ void s2e_debug_print_hex(void *addr, int len) {
 void s2e_print_constraints(void);
 void s2e_print_constraints(void) {
     g_s2e->getDebugStream() << "===== Constraints =====\n";
-    for (auto c : g_s2e_state->constraints()) {
+    for (auto c : g_s2e_state.get()->constraints()) {
         g_s2e->getDebugStream() << c << '\n';
     }
     g_s2e->getDebugStream() << "\n";

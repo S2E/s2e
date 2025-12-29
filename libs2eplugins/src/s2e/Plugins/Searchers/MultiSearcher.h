@@ -54,9 +54,9 @@ public:
     bool registerSearcher(const std::string &name, klee::Searcher *searcher);
     bool selectSearcher(const std::string &name);
 
-    virtual klee::ExecutionState &selectState();
+    virtual klee::ExecutionStatePtr selectState();
 
-    virtual void update(klee::ExecutionState *current, const klee::StateSet &addedStates,
+    virtual void update(klee::ExecutionStatePtr current, const klee::StateSet &addedStates,
                         const klee::StateSet &removedStates);
 
     virtual bool empty();

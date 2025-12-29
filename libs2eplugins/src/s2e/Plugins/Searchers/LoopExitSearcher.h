@@ -62,7 +62,7 @@ private:
 
     searchers::MultiStates m_states;
     searchers::MultiStates m_waitingStates;
-    S2EExecutionState *m_currentState;
+    S2EExecutionStatePtr m_currentState;
 
     unsigned m_timerTicks;
 
@@ -78,9 +78,9 @@ public:
     }
     void initialize();
 
-    virtual klee::ExecutionState &selectState();
+    virtual klee::ExecutionStatePtr selectState();
 
-    virtual void update(klee::ExecutionState *current, const klee::StateSet &addedStates,
+    virtual void update(klee::ExecutionStatePtr current, const klee::StateSet &addedStates,
                         const klee::StateSet &removedStates);
 
     virtual bool empty();

@@ -406,14 +406,14 @@ public:
     }
     void initialize();
 
-    virtual klee::ExecutionState &selectState();
-    virtual void update(klee::ExecutionState *current, const klee::StateSet &addedStates,
+    virtual klee::ExecutionStatePtr selectState();
+    virtual void update(klee::ExecutionStatePtr current, const klee::StateSet &addedStates,
                         const klee::StateSet &removedStates);
 
     virtual bool empty();
 
 private:
-    typedef std::set<S2EExecutionState *> States;
+    typedef std::set<S2EExecutionStatePtr> States;
     MultiSearcher *m_multiSearcher;
     CUPASearcher *m_cupa;
 
@@ -425,10 +425,10 @@ private:
     Seed m_currentSeed;
     bool m_selectSeedState;
 
-    S2EExecutionState *m_cachedState;
+    S2EExecutionStatePtr m_cachedState;
 
     /// Stores the pointer to state 0
-    S2EExecutionState *m_initialState;
+    S2EExecutionStatePtr m_initialState;
 
     bool m_initialStateHasSeedFile;
 

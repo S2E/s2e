@@ -93,7 +93,7 @@ void BasicBlockCoverage::onStateKill(S2EExecutionState *state) {
 void BasicBlockCoverage::onUpdateStates(S2EExecutionState *state, const klee::StateSet &addedStates,
                                         const klee::StateSet &removedStates) {
     foreach2 (it, removedStates.begin(), removedStates.end()) {
-        S2EExecutionState *state = static_cast<S2EExecutionState *>(*it);
+        auto state = static_pointer_cast<S2EExecutionState>(*it);
         // XXX: avoid the loop
         foreach2 (mit, m_nonCoveredBasicBlocks.begin(), m_nonCoveredBasicBlocks.end()) {
             MultiStatesBB &bbs = (*mit).second;
@@ -196,13 +196,13 @@ void BasicBlockCoverage::generateJsonCoverage(S2EExecutionState *state, std::str
     qobject_unref(pt);
 }
 
-S2EExecutionState *BasicBlockCoverage::getNonCoveredState(llvm::DenseSet<S2EExecutionState *> &filter) {
+S2EExecutionStatePtr BasicBlockCoverage::getNonCoveredState(const std::unordered_set<S2EExecutionStatePtr> &filter) {
     foreach2 (it, m_nonCoveredBasicBlocks.begin(), m_nonCoveredBasicBlocks.end()) {
         MultiStatesBB &bbs = (*it).second;
         StatesByPc &bypc = bbs.get<pc_t>();
 
         foreach2 (bit, bypc.begin(), bypc.end()) {
-            S2EExecutionState *state = (*bit).state;
+            S2EExecutionStatePtr state = (*bit).state;
             if (filter.find(state) != filter.end()) {
                 getDebugStream() << "BasicBlockCoverage: "
                                  << "State id " << (*bit).state->getID() << " has not covered bb " << hexval((*bit).pc)

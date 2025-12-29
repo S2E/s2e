@@ -61,6 +61,8 @@ class PluginState;
 class S2EDeviceState;
 class S2EExecutionState;
 
+using S2EExecutionStatePtr = boost::intrusive_ptr<S2EExecutionState>;
+
 class S2EExecutionState : public klee::ExecutionState, public klee::IConcretizer {
 protected:
     friend class S2EExecutor;
@@ -169,7 +171,33 @@ public:
     S2EExecutionState(klee::KFunction *kf);
     ~S2EExecutionState();
 
-    virtual ExecutionState *clone();
+    S2EExecutionState(const S2EExecutionState &state)
+        : ExecutionState(state), m_pluginState(state.m_pluginState), m_toRunSymbolically(state.m_toRunSymbolically),
+          m_deviceState(state.m_deviceState), m_asCache(state.m_asCache), m_registers(state.m_registers),
+          m_memory(state.m_memory), m_tlb(&m_asCache, &m_registers) {
+        m_stateID = state.m_stateID; // To be updated in clone().
+        m_guid = state.m_guid;
+        m_startSymbexAtPC = state.m_startSymbexAtPC;
+        m_active = state.m_active;
+        m_zombie = state.m_zombie;
+        m_yielded = state.m_yielded;
+        m_runningConcrete = state.m_runningConcrete;
+        m_pinned = state.m_pinned;
+        m_isStateSwitchForbidden = state.m_isStateSwitchForbidden;
+
+        m_tlb = state.m_tlb;
+
+        m_timersState = state.m_timersState;
+        m_lastS2ETb = state.m_lastS2ETb;
+        m_needFinalizeTBExec = state.m_needFinalizeTBExec;
+        m_forkAborted = state.m_forkAborted;
+        m_nextSymbVarId = state.m_nextSymbVarId;
+
+        m_memIoVaddr = state.m_memIoVaddr;
+        m_runningExceptionEmulationCode = state.m_runningExceptionEmulationCode;
+    }
+
+    virtual klee::ExecutionStatePtr clone();
 
     int getID() const {
         return m_stateID;
@@ -396,11 +424,25 @@ public:
 
     void enumPossibleRanges(klee::ref<klee::Expr> e, klee::ref<klee::Expr> start, klee::ref<klee::Expr> end,
                             std::vector<klee::Range> &ranges);
+
+    friend void intrusive_ptr_add_ref(S2EExecutionState *ptr);
+    friend void intrusive_ptr_release(S2EExecutionState *ptr);
 };
+
+inline void intrusive_ptr_add_ref(S2EExecutionState *ptr) {
+    ++ptr->m_refCount;
+}
+
+inline void intrusive_ptr_release(S2EExecutionState *ptr) {
+    if (--ptr->m_refCount == 0) {
+        delete ptr;
+    }
+}
+
 } // namespace s2e
 
 extern "C" {
-extern s2e::S2EExecutionState *g_s2e_state;
+extern s2e::S2EExecutionStatePtr g_s2e_state;
 }
 
 #endif // S2E_EXECUTIONSTATE_H

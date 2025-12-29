@@ -38,10 +38,6 @@ static inline void check(bool x, const char *msg) {
 
 // XXX ugh
 namespace klee {
-class Solver;
-class ExecutionState;
-
-typedef std::unordered_set<ExecutionState *> StateSet;
 
 const char ALL_QUERIES_SMT2_FILE_NAME[] = "all-queries.smt2";
 const char SOLVER_QUERIES_SMT2_FILE_NAME[] = "solver-queries.smt2";

@@ -197,9 +197,9 @@ void SeedSearcher::onStateKill(S2EExecutionState *state) {
     }
 }
 
-void SeedSearcher::update(klee::ExecutionState *current, const klee::StateSet &addedStates,
+void SeedSearcher::update(klee::ExecutionStatePtr current, const klee::StateSet &addedStates,
                           const klee::StateSet &removedStates) {
-    S2EExecutionState *cs = dynamic_cast<S2EExecutionState *>(current);
+    auto cs = static_pointer_cast<S2EExecutionState>(current);
     if (!m_initialState) {
         if (cs->getID() == 0) {
             m_initialState = cs;
@@ -207,12 +207,12 @@ void SeedSearcher::update(klee::ExecutionState *current, const klee::StateSet &a
     }
 
     for (auto addedState : addedStates) {
-        S2EExecutionState *es = dynamic_cast<S2EExecutionState *>(addedState);
+        auto es = static_pointer_cast<S2EExecutionState>(addedState);
         m_states.insert(es);
     }
 
     for (auto removedState : removedStates) {
-        S2EExecutionState *es = dynamic_cast<S2EExecutionState *>(removedState);
+        auto es = static_pointer_cast<S2EExecutionState>(removedState);
 
         // This can only happen if state 0 dies for some reason
         if (es == m_initialState) {
@@ -234,7 +234,7 @@ void SeedSearcher::update(klee::ExecutionState *current, const klee::StateSet &a
     }
 }
 
-klee::ExecutionState &SeedSearcher::selectState() {
+klee::ExecutionStatePtr SeedSearcher::selectState() {
     // Found new seed file, let initial state use it.
     // We want to prioritize state 0 as soon as new seeds
     // are available. Otherwise, it might never be scheduled
@@ -244,7 +244,7 @@ klee::ExecutionState &SeedSearcher::selectState() {
     // seed state, and inserts the forked state into m_seedStates,
     // otherwise, switching to CUPA searcher may be done too early.
     if ((m_initialState && m_selectSeedState) || m_initialStateHasSeedFile) {
-        return *m_initialState;
+        return m_initialState;
     }
 
     // Run previously selected seed state until it is terminated
@@ -252,19 +252,19 @@ klee::ExecutionState &SeedSearcher::selectState() {
     // On a single core, DFS will lead to infinite time.
     // TODO: have a timeout mechanism to switch to CUPA
     if (m_cachedState) {
-        return *m_cachedState;
+        return m_cachedState;
     }
 
     auto it = m_seedStates.begin();
     if (it != m_seedStates.end()) {
         m_cachedState = *it;
-        return *m_cachedState;
+        return m_cachedState;
     }
 
     // No more seed states, and no new seed files, revert to CUPA
     switchToCUPA();
     assert(m_states.size() > 0);
-    return **m_states.begin();
+    return *m_states.begin();
 }
 
 bool SeedSearcher::empty() {

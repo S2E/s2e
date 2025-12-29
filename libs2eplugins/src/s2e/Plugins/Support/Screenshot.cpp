@@ -71,7 +71,7 @@ void Screenshot::onTimer() {
     }
 
     if ((m_counter % m_period) == 0) {
-        std::string outputFile = takeScreenShot(g_s2e_state);
+        std::string outputFile = takeScreenShot(g_s2e_state.get());
         if (monitor_ready()) {
             Events::PluginData data;
             QString *str = qstring_from_str(outputFile.c_str());

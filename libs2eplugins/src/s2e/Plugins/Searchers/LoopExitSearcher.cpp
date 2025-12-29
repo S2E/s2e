@@ -205,22 +205,22 @@ void LoopExitSearcher::increasePriority(S2EExecutionState *state, int64_t priori
     pabort("Can't get here");
 }
 
-klee::ExecutionState &LoopExitSearcher::selectState() {
+klee::ExecutionStatePtr LoopExitSearcher::selectState() {
     assert(!m_states.empty());
 
-    llvm::DenseSet<S2EExecutionState *> ds;
-    S2EExecutionState *nc = m_bbcov->getNonCoveredState(ds);
+    std::unordered_set<S2EExecutionStatePtr> ds;
+    auto nc = m_bbcov->getNonCoveredState(ds);
     if (nc) {
         getDebugStream() << "Found non-covered basic block\n";
         m_currentState = nc;
-        return *nc;
+        return nc;
     }
 
     nc = m_ecov->getNonCoveredState(ds);
     if (nc) {
         getDebugStream() << "Found non-covered edge\n";
         m_currentState = nc;
-        return *nc;
+        return nc;
     }
 
     if (m_states.empty()) {
@@ -240,7 +240,7 @@ klee::ExecutionState &LoopExitSearcher::selectState() {
 
     if (!m_currentState) {
         m_currentState = p.state;
-        return *m_currentState;
+        return m_currentState;
     }
 
     // Select new state only if it has higher priority than the current one
@@ -252,15 +252,15 @@ klee::ExecutionState &LoopExitSearcher::selectState() {
         m_currentState = p.state;
     }
 
-    return *m_currentState;
+    return m_currentState;
 }
 
-void LoopExitSearcher::update(klee::ExecutionState *current, const klee::StateSet &addedStates,
+void LoopExitSearcher::update(klee::ExecutionStatePtr current, const klee::StateSet &addedStates,
                               const klee::StateSet &removedStates) {
     /* The forked states will get this priority */
     /* All the added states should be there already (see onFork event) ? */
     foreach2 (ait, addedStates.begin(), addedStates.end()) {
-        S2EExecutionState *state = static_cast<S2EExecutionState *>(*ait);
+        auto state = static_pointer_cast<S2EExecutionState>(*ait);
 
         StatesByPointer &byPointer = m_states.get<state_t>();
         StatesByPointer::iterator it = byPointer.find(state);
@@ -271,7 +271,7 @@ void LoopExitSearcher::update(klee::ExecutionState *current, const klee::StateSe
     }
 
     foreach2 (it, removedStates.begin(), removedStates.end()) {
-        S2EExecutionState *state = static_cast<S2EExecutionState *>(*it);
+        auto state = static_pointer_cast<S2EExecutionState>(*it);
         StatesByPointer &byPointer = m_states.get<state_t>();
         byPointer.erase(state);
         if (state == m_currentState) {

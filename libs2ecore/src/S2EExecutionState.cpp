@@ -84,7 +84,7 @@ void S2EExecutionState::assignGuid(uint64_t guid) {
 
 /***/
 
-ExecutionState *S2EExecutionState::clone() {
+ExecutionStatePtr S2EExecutionState::clone() {
     // When cloning, all ObjectState become not owned by neither of states.
     // This means that we must clean owned-by-us flag in S2E TLB.
     assert(m_active);
@@ -95,24 +95,14 @@ ExecutionState *S2EExecutionState::clone() {
 #endif
 
     S2EExecutionState *ret = new S2EExecutionState(*this);
-    ret->addressSpace().setState(ret);
-    ret->llvm.state = ret;
-    ret->setConcolics(Assignment::create(true));
-    ret->m_lastS2ETb = m_lastS2ETb;
 
     ret->m_stateID = g_s2e->fetchAndIncrementStateId();
     ret->m_guid = ret->m_stateID;
 
-    ret->m_timersState = m_timersState;
-
     ret->m_tlb.assignNewState(&ret->m_asCache, &ret->m_registers);
-
     ret->m_registers.update(ret->addressSpace(), &ret->m_active, &ret->m_runningConcrete, ret, ret);
-
     ret->m_asCache.update(&ret->addressSpace());
-
     m_registers.update(addressSpace(), &m_active, &m_runningConcrete, this, this);
-
     m_memory.update(&addressSpace(), &m_asCache, &m_active, this, this);
     ret->m_memory.update(&ret->addressSpace(), &ret->m_asCache, &ret->m_active, ret, ret);
 
@@ -699,7 +689,7 @@ bool S2EExecutionState::disassemble(llvm::raw_ostream &os, uint64_t pc, unsigned
 
 extern "C" {
 
-s2e::S2EExecutionState *g_s2e_state = nullptr;
+s2e::S2EExecutionStatePtr g_s2e_state = nullptr;
 
 int s2e_is_zombie() {
     return g_s2e_state->isZombie();

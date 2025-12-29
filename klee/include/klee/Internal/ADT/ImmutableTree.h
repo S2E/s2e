@@ -119,7 +119,7 @@ public:
     void pop_back() {
         --pos;
     }
-    bool empty() {
+    bool empty() const {
         return pos == 0;
     }
     T &back() {
@@ -133,10 +133,10 @@ public:
         return *this;
     }
 
-    bool operator==(const FixedStack &b) {
+    bool operator==(const FixedStack &b) const {
         return (pos == b.pos && std::equal(elts, elts + pos, b.elts));
     }
-    bool operator!=(const FixedStack &b) {
+    bool operator!=(const FixedStack &b) const {
         return !(*this == b);
     }
 };
@@ -179,10 +179,10 @@ public:
         return &n->value;
     }
 
-    bool operator==(const iterator &b) {
+    bool operator==(const iterator &b) const {
         return stack == b.stack;
     }
-    bool operator!=(const iterator &b) {
+    bool operator!=(const iterator &b) const {
         return stack != b.stack;
     }
 

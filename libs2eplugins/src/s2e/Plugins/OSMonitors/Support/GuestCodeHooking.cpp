@@ -163,7 +163,7 @@ void GuestCodeHooking::erase(S2EExecutionState *state, GuestCodeHooking::GCHPred
     bool needFlush = false;
     auto eraser = [&](Hooks &hooks) {
         std::vector<HookLocation> toErase;
-        for (const auto it : hooks) {
+        for (const auto &it : hooks) {
             if (doErase(it.first, it.second)) {
                 toErase.push_back(it.first);
                 needFlush = true;

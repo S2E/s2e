@@ -68,7 +68,7 @@ public:
 
 class Executor {
 public:
-    typedef std::pair<ExecutionState *, ExecutionState *> StatePair;
+    typedef std::pair<ExecutionStatePtr, ExecutionStatePtr> StatePair;
 
 protected:
     // ======= LLVM management =======
@@ -115,7 +115,7 @@ protected:
                                 unsigned offset);
     void initializeGlobals(ExecutionState &state);
 
-    virtual void updateStates(ExecutionState *current);
+    virtual void updateStates(ExecutionStatePtr current);
 
     void callExternalFunction(ExecutionState &state, KInstruction *target, llvm::Function *function,
                               std::vector<ref<Expr>> &arguments);
@@ -139,9 +139,6 @@ protected:
     virtual void notifyFork(ExecutionState &originalState, ref<Expr> &condition, Executor::StatePair &targets);
 
     const Cell &eval(KInstruction *ki, unsigned index, LLVMExecutionState &state) const;
-
-    // delete the state (called internally by terminateState and updateStates)
-    virtual void deleteState(ExecutionState *state);
 
     typedef void (*FunctionHandler)(Executor *executor, ExecutionState *state, KInstruction *target,
                                     std::vector<ref<Expr>> &arguments);

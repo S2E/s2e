@@ -26,8 +26,11 @@
 #include "IExecutionState.h"
 #include "LLVMExecutionState.h"
 
+#include <boost/intrusive_ptr.hpp>
+
 #include <map>
 #include <set>
+#include <unordered_set>
 #include <vector>
 
 namespace klee {
@@ -36,6 +39,9 @@ struct Cell;
 struct KInstruction;
 
 llvm::raw_ostream &operator<<(llvm::raw_ostream &os, const MemoryMap &mm);
+
+class ExecutionState;
+using ExecutionStatePtr = boost::intrusive_ptr<ExecutionState>;
 
 class ExecutionState : public IExecutionState, public IAddressSpaceNotification {
 public:
@@ -56,6 +62,8 @@ private:
     }
 
 protected:
+    std::atomic<unsigned> m_refCount;
+
     /// ordered list of symbolics: used to generate test cases.
     std::vector<ArrayPtr> m_symbolics;
     AssignmentPtr m_concolics;
@@ -65,6 +73,17 @@ protected:
 
     virtual void addressSpaceObjectSplit(const ObjectStateConstPtr &oldObject,
                                          const std::vector<ObjectStatePtr> &newObjects);
+
+    ExecutionState(const ExecutionState &state) : m_addressSpace(state.m_addressSpace), llvm(state.llvm) {
+        m_refCount = 0;
+        m_solver = state.m_solver;
+        m_addressSpace.setState(this);
+        m_constraints = state.m_constraints;
+        m_symbolics = state.m_symbolics;
+        m_concolics = Assignment::create(true);
+        forkDisabled = state.forkDisabled;
+        llvm.state = this;
+    }
 
 public:
     /// Disables forking, set by user code.
@@ -103,7 +122,7 @@ public:
 
     virtual ~ExecutionState();
 
-    virtual ExecutionState *clone();
+    virtual ExecutionStatePtr clone();
 
     const ConstraintManager &constraints() const {
         return m_constraints;
@@ -185,7 +204,23 @@ public:
 
     ref<Expr> executeMemoryRead(uint64_t concreteAddress, unsigned bytes);
     void executeMemoryWrite(uint64_t concreteAddress, const ref<Expr> &value);
+
+    friend void intrusive_ptr_add_ref(ExecutionState *ptr);
+    friend void intrusive_ptr_release(ExecutionState *ptr);
 };
+
+inline void intrusive_ptr_add_ref(ExecutionState *ptr) {
+    ++ptr->m_refCount;
+}
+
+inline void intrusive_ptr_release(ExecutionState *ptr) {
+    if (--ptr->m_refCount == 0) {
+        delete ptr;
+    }
+}
+
+using StateSet = std::unordered_set<ExecutionStatePtr>;
+
 } // namespace klee
 
 #endif

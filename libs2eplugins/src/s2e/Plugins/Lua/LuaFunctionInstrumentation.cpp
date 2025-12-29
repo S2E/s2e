@@ -207,8 +207,8 @@ void LuaFunctionInstrumentation::forkInstrumentation(S2EExecutionState *state, c
     klee::ref<klee::Expr> cond = state->createSymbolicValue<uint8_t>(ss.str(), 0);
     cond = klee::Expr::createIsZero(cond);
     S2EExecutor::StatePair sp = s2e()->getExecutor()->forkCondition(state, cond);
-    S2EExecutionState *s1 = static_cast<S2EExecutionState *>(sp.first);
-    S2EExecutionState *s2 = static_cast<S2EExecutionState *>(sp.second);
+    S2EExecutionState *s1 = static_pointer_cast<S2EExecutionState>(sp.first).get();
+    S2EExecutionState *s2 = static_pointer_cast<S2EExecutionState>(sp.second).get();
 
     DECLARE_PLUGINSTATE_N(LuaFunctionInstrumentationPluginState, p1, s1);
     p1->makeChild(false);

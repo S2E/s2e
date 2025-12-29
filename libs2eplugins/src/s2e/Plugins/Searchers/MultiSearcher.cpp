@@ -73,12 +73,12 @@ bool MultiSearcher::selectSearcher(const std::string &name) {
     return true;
 }
 
-klee::ExecutionState &MultiSearcher::selectState() {
+klee::ExecutionStatePtr MultiSearcher::selectState() {
     assert(m_currentSearcher);
     return m_currentSearcher->selectState();
 }
 
-void MultiSearcher::update(klee::ExecutionState *current, const klee::StateSet &addedStates,
+void MultiSearcher::update(klee::ExecutionStatePtr current, const klee::StateSet &addedStates,
                            const klee::StateSet &removedStates) {
     foreach2 (it, m_searchers.begin(), m_searchers.end()) {
         (*it).second->update(current, addedStates, removedStates);

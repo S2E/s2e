@@ -31,6 +31,7 @@
 #include <s2e/s2e_libcpu.h>
 #include <timer.h>
 
+#include "S2EExecutionState.h"
 #include "S2ETranslationBlock.h"
 
 struct TranslationBlock;
@@ -59,8 +60,6 @@ protected:
     klee::KFunction *m_dummyMain;
 
     std::vector<klee::ObjectKey> m_saveOnContextSwitch;
-
-    std::vector<S2EExecutionState *> m_deletedStates;
 
     bool m_executeAlwaysKlee;
 
@@ -134,10 +133,10 @@ public:
 
     void cleanupTranslationBlock(S2EExecutionState *state);
 
-    S2EExecutionState *selectNextState(S2EExecutionState *state);
-    klee::ExecutionState *selectSearcherState(S2EExecutionState *state);
+    S2EExecutionStatePtr selectNextState(S2EExecutionStatePtr state);
+    klee::ExecutionStatePtr selectSearcherState(S2EExecutionStatePtr state);
 
-    void updateStates(klee::ExecutionState *current);
+    void updateStates(klee::ExecutionStatePtr current);
 
     void setCCOpEflags(S2EExecutionState *state);
     void doInterrupt(S2EExecutionState *state, int intno, int is_int, int error_code, uint64_t next_eip, int is_hw);
@@ -161,9 +160,9 @@ public:
     StatePair forkCondition(S2EExecutionState *state, klee::ref<klee::Expr> condition,
                             bool keepConditionTrueInCurrentState = false);
 
-    std::vector<klee::ExecutionState *> forkValues(S2EExecutionState *state, bool isSeedState,
-                                                   klee::ref<klee::Expr> expr,
-                                                   const std::vector<klee::ref<klee::Expr>> &values);
+    std::vector<klee::ExecutionStatePtr> forkValues(S2EExecutionState *state, bool isSeedState,
+                                                    klee::ref<klee::Expr> expr,
+                                                    const std::vector<klee::ref<klee::Expr>> &values);
 
     bool merge(klee::ExecutionState &base, klee::ExecutionState &other);
 
@@ -201,13 +200,11 @@ protected:
 
     uintptr_t executeTranslationBlockConcrete(S2EExecutionState *state, TranslationBlock *tb);
 
-    void deleteState(klee::ExecutionState *state);
+    void doStateSwitch(S2EExecutionStatePtr oldState, S2EExecutionStatePtr newState);
 
-    void doStateSwitch(S2EExecutionState *oldState, S2EExecutionState *newState);
-
-    void splitStates(const std::vector<S2EExecutionState *> &allStates, klee::StateSet &parentSet,
+    void splitStates(const std::vector<S2EExecutionStatePtr> &allStates, klee::StateSet &parentSet,
                      klee::StateSet &childSet);
-    void computeNewStateGuids(std::unordered_map<klee::ExecutionState *, uint64_t> &newIds, klee::StateSet &parentSet,
+    void computeNewStateGuids(std::unordered_map<klee::ExecutionStatePtr, uint64_t> &newIds, klee::StateSet &parentSet,
                               klee::StateSet &childSet);
 
     void doLoadBalancing();

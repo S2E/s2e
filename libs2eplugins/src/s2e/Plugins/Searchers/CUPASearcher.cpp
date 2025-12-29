@@ -174,7 +174,7 @@ void CUPASearcher::updateState(S2EExecutionState *state) {
     m_top->addState(state);
 }
 
-void CUPASearcher::update(klee::ExecutionState *current, const klee::StateSet &addedStates,
+void CUPASearcher::update(klee::ExecutionStatePtr current, const klee::StateSet &addedStates,
                           const klee::StateSet &removedStates) {
     m_top->update(current, addedStates, removedStates);
 }
@@ -197,7 +197,7 @@ llvm::raw_ostream &CUPASearcherClass::getDebugStream(S2EExecutionState *state) c
     }
 }
 
-void CUPASearcherClass::doAddState(klee::ExecutionState *state, uint64_t stateClass) {
+void CUPASearcherClass::doAddState(klee::ExecutionStatePtr state, uint64_t stateClass) {
     auto searchersIt = m_searchers.find(stateClass);
     if (searchersIt == m_searchers.end()) {
         getDebugStream() << "Creating new searcher for class " << hexval(stateClass) << "\n";
@@ -210,7 +210,7 @@ void CUPASearcherClass::doAddState(klee::ExecutionState *state, uint64_t stateCl
     searchersIt->second->addState(state);
 }
 
-void CUPASearcherClass::doRemoveState(klee::ExecutionState *state) {
+void CUPASearcherClass::doRemoveState(klee::ExecutionStatePtr state) {
     auto stateClassesIt = m_stateClasses.find(state);
     if (stateClassesIt == m_stateClasses.end()) {
         return;
@@ -230,16 +230,16 @@ void CUPASearcherClass::doRemoveState(klee::ExecutionState *state) {
     }
 }
 
-void CUPASearcherClass::update(klee::ExecutionState *current, const klee::StateSet &addedStates,
+void CUPASearcherClass::update(klee::ExecutionStatePtr current, const klee::StateSet &addedStates,
                                const klee::StateSet &removedStates) {
 
     for (auto addedState : addedStates) {
         if (m_stateClasses.count(addedState) == 0) {
-            S2EExecutionState *s = static_cast<S2EExecutionState *>(addedState);
+            auto s = static_pointer_cast<S2EExecutionState>(addedState);
             // XXX: removing state here first before re-adding
             // does not solve the problem caused by fork
             // (see implementation notes)
-            doAddState(addedState, getClass(s));
+            doAddState(addedState, getClass(s.get()));
         }
     }
 
@@ -248,7 +248,7 @@ void CUPASearcherClass::update(klee::ExecutionState *current, const klee::StateS
     }
 }
 
-klee::ExecutionState &CUPASearcherClass::selectState() {
+klee::ExecutionStatePtr CUPASearcherClass::selectState() {
     assert(!m_searchers.empty());
     int idx = std::uniform_int_distribution<>(0, m_searchers.size() - 1)(m_rnd);
     getDebugStream(nullptr) << "selectState class " << idx << "\n";
@@ -347,17 +347,17 @@ uint64_t CUPASearcherGroupClass::getClass(S2EExecutionState *state) {
     return group;
 }
 
-klee::ExecutionState &CUPASearcherRandomClass::selectState() {
+klee::ExecutionStatePtr CUPASearcherRandomClass::selectState() {
     if (m_states.size() > 0) {
         int idx = std::uniform_int_distribution<>(0, m_states.size() - 1)(m_rnd);
-        S2EExecutionState *es = dynamic_cast<S2EExecutionState *>(*std::next(std::begin(m_states), idx));
-        getDebugStream(es) << hexval(this) << " selected state " << es->getID() << "\n";
-        return *es;
+        auto es = static_pointer_cast<S2EExecutionState>(*std::next(std::begin(m_states), idx));
+        getDebugStream(es.get()) << hexval(this) << " selected state " << es->getID() << "\n";
+        return es;
     }
     return CUPASearcherClass::selectState();
 }
 
-klee::ExecutionState &CUPASearcherSeedClass::selectState() {
+klee::ExecutionStatePtr CUPASearcherSeedClass::selectState() {
     /**
      * Never schedule the unique state in the seed class,
      *  unless it's the only state.
@@ -370,15 +370,15 @@ klee::ExecutionState &CUPASearcherSeedClass::selectState() {
     return (*it).second->selectState();
 }
 
-void CUPASearcherRandomClass::update(klee::ExecutionState *current, const klee::StateSet &addedStates,
+void CUPASearcherRandomClass::update(klee::ExecutionStatePtr current, const klee::StateSet &addedStates,
                                      const klee::StateSet &removedStates) {
     foreach2 (it, addedStates.begin(), addedStates.end()) {
-        S2EExecutionState *es = dynamic_cast<S2EExecutionState *>(*it);
+        auto es = static_pointer_cast<S2EExecutionState>(*it);
         m_states.insert(es);
     }
 
     foreach2 (it, removedStates.begin(), removedStates.end()) {
-        S2EExecutionState *es = dynamic_cast<S2EExecutionState *>(*it);
+        auto es = static_pointer_cast<S2EExecutionState>(*it);
         m_states.erase(es);
     }
 }
@@ -412,7 +412,7 @@ void CUPASearcherReadCountClass::onSymbolicRead(
 /**
  * Selects the class with the fewest number of reads first.
  */
-klee::ExecutionState &CUPASearcherReadCountClass::selectState() {
+klee::ExecutionStatePtr CUPASearcherReadCountClass::selectState() {
     assert(!m_searchers.empty());
     return (*m_searchers.begin()).second->selectState();
 }

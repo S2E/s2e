@@ -45,7 +45,7 @@ void EdgeCoverage::initialize() {
 void EdgeCoverage::onUpdateStates(S2EExecutionState *state, const klee::StateSet &addedStates,
                                   const klee::StateSet &removedStates) {
     foreach2 (it, removedStates.begin(), removedStates.end()) {
-        S2EExecutionState *state = static_cast<S2EExecutionState *>(*it);
+        auto state = static_pointer_cast<S2EExecutionState>(*it);
         // XXX: avoid the loop
         foreach2 (mit, m_nonCoveredEdges.begin(), m_nonCoveredEdges.end()) {
             MultiStatesEdges &bbs = (*mit).second;
@@ -116,13 +116,13 @@ void EdgeCoverage::addNonCoveredEdge(S2EExecutionState *state, const std::string
     }
 }
 
-S2EExecutionState *EdgeCoverage::getNonCoveredState(llvm::DenseSet<S2EExecutionState *> &filter) {
+S2EExecutionStatePtr EdgeCoverage::getNonCoveredState(const std::unordered_set<S2EExecutionStatePtr> &filter) {
     foreach2 (it, m_nonCoveredEdges.begin(), m_nonCoveredEdges.end()) {
         MultiStatesEdges &bbs = (*it).second;
         StatesByEdge &bypc = bbs.get<edge_t>();
 
         foreach2 (bit, bypc.begin(), bypc.end()) {
-            S2EExecutionState *state = (*bit).state;
+            S2EExecutionStatePtr state = (*bit).state;
             if (filter.find(state) != filter.end()) {
                 getDebugStream() << "State id " << (*bit).state->getID() << " has not covered edge "
                                  << hexval((*bit).edge.first) << ", " << hexval((*bit).edge.second) << " yet\n";

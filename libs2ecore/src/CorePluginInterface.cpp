@@ -71,7 +71,7 @@ void helper_s2e_tcg_execution_handler(void *signal, uint64_t pc) {
     try {
         ExecutionSignal *s = (ExecutionSignal *) signal;
         if (g_s2e_enable_signals) {
-            s->emit(g_s2e_state, pc);
+            s->emit(g_s2e_state.get(), pc);
         }
     } catch (s2e::CpuExitException &) {
         longjmp(env->jmp_env, 1);
@@ -83,7 +83,7 @@ void helper_s2e_tcg_custom_instruction_handler(uint64_t arg) {
            "You must activate a plugin that uses custom instructions.");
 
     try {
-        g_s2e->getCorePlugin()->onCustomInstruction.emit(g_s2e_state, arg);
+        g_s2e->getCorePlugin()->onCustomInstruction.emit(g_s2e_state.get(), arg);
     } catch (s2e::CpuExitException &) {
         longjmp(env->jmp_env, 1);
     }
@@ -122,7 +122,7 @@ void s2e_on_translate_soft_interrupt_start(void *context, TranslationBlock *tb, 
     assert(signal->empty());
 
     try {
-        g_s2e->getCorePlugin()->onTranslateSoftInterruptStart.emit(signal, g_s2e_state, tb, pc, vector);
+        g_s2e->getCorePlugin()->onTranslateSoftInterruptStart.emit(signal, g_s2e_state.get(), tb, pc, vector);
         if (!signal->empty()) {
             s2e_gen_pc_update(context, pc, tb->cs_base);
             s2e_tcg_instrument_code(signal, pc - tb->cs_base);
@@ -141,7 +141,7 @@ void s2e_on_translate_block_start(void *context, TranslationBlock *tb, uint64_t 
     assert(signal->empty());
 
     try {
-        g_s2e->getCorePlugin()->onTranslateBlockStart.emit(signal, g_s2e_state, tb, pc);
+        g_s2e->getCorePlugin()->onTranslateBlockStart.emit(signal, g_s2e_state.get(), tb, pc);
         if (!signal->empty()) {
             s2e_gen_pc_update(context, pc, tb->cs_base);
             s2e_tcg_instrument_code(signal, pc - tb->cs_base);
@@ -160,7 +160,7 @@ void s2e_on_translate_block_end(TranslationBlock *tb, uint64_t insPc, int static
     assert(signal->empty());
 
     try {
-        g_s2e->getCorePlugin()->onTranslateBlockEnd.emit(signal, g_s2e_state, tb, insPc, staticTarget, targetPc);
+        g_s2e->getCorePlugin()->onTranslateBlockEnd.emit(signal, g_s2e_state.get(), tb, insPc, staticTarget, targetPc);
     } catch (s2e::CpuExitException &) {
         longjmp(env->jmp_env, 1);
     }
@@ -175,7 +175,7 @@ void s2e_on_translate_block_complete(TranslationBlock *tb, uint64_t pc) {
     assert(g_s2e_state->isActive());
 
     try {
-        g_s2e->getCorePlugin()->onTranslateBlockComplete.emit(g_s2e_state, tb, pc);
+        g_s2e->getCorePlugin()->onTranslateBlockComplete.emit(g_s2e_state.get(), tb, pc);
     } catch (s2e::CpuExitException &) {
         longjmp(env->jmp_env, 1);
     }
@@ -189,7 +189,7 @@ void s2e_on_translate_instruction_start(void *context, TranslationBlock *tb, uin
     assert(signal->empty());
 
     try {
-        g_s2e->getCorePlugin()->onTranslateInstructionStart.emit(signal, g_s2e_state, tb, pc);
+        g_s2e->getCorePlugin()->onTranslateInstructionStart.emit(signal, g_s2e_state.get(), tb, pc);
         if (!signal->empty()) {
             s2e_gen_pc_update(context, pc, tb->cs_base);
             s2e_tcg_instrument_code(signal, pc - tb->cs_base);
@@ -210,7 +210,7 @@ void s2e_on_translate_special_instruction_end(void *context, TranslationBlock *t
     assert(signal->empty());
 
     try {
-        g_s2e->getCorePlugin()->onTranslateSpecialInstructionEnd.emit(signal, g_s2e_state, tb, pc, type, data);
+        g_s2e->getCorePlugin()->onTranslateSpecialInstructionEnd.emit(signal, g_s2e_state.get(), tb, pc, type, data);
         if (!signal->empty()) {
 
             if (update_pc) {
@@ -233,7 +233,7 @@ void s2e_on_translate_jump_start(void *context, TranslationBlock *tb, uint64_t p
     assert(signal->empty());
 
     try {
-        g_s2e->getCorePlugin()->onTranslateJumpStart.emit(signal, g_s2e_state, tb, pc, jump_type);
+        g_s2e->getCorePlugin()->onTranslateJumpStart.emit(signal, g_s2e_state.get(), tb, pc, jump_type);
         if (!signal->empty()) {
             s2e_gen_pc_update(context, pc, tb->cs_base);
             s2e_tcg_instrument_code(signal, pc - tb->cs_base);
@@ -252,7 +252,7 @@ void s2e_on_translate_indirect_cti_start(void *context, TranslationBlock *tb, ui
     assert(signal->empty());
 
     try {
-        g_s2e->getCorePlugin()->onTranslateICTIStart.emit(signal, g_s2e_state, tb, pc, rm, op, offset);
+        g_s2e->getCorePlugin()->onTranslateICTIStart.emit(signal, g_s2e_state.get(), tb, pc, rm, op, offset);
         if (!signal->empty()) {
             s2e_gen_pc_update(context, pc, tb->cs_base);
             s2e_tcg_instrument_code(signal, pc - tb->cs_base);
@@ -271,7 +271,7 @@ void s2e_on_translate_lea_rip_relative(void *context, TranslationBlock *tb, uint
 
     assert(signal->empty());
     try {
-        g_s2e->getCorePlugin()->onTranslateLeaRipRelative.emit(signal, g_s2e_state, tb, pc, addr);
+        g_s2e->getCorePlugin()->onTranslateLeaRipRelative.emit(signal, g_s2e_state.get(), tb, pc, addr);
 
         if (!signal->empty()) {
             s2e_gen_pc_update(context, pc, tb->cs_base);
@@ -293,7 +293,7 @@ void s2e_on_translate_instruction_end(void *context, TranslationBlock *tb, uint6
     assert(signal->empty());
 
     try {
-        g_s2e->getCorePlugin()->onTranslateInstructionEnd.emit(signal, g_s2e_state, tb, pc);
+        g_s2e->getCorePlugin()->onTranslateInstructionEnd.emit(signal, g_s2e_state.get(), tb, pc);
         if (!signal->empty()) {
             s2e_gen_flags_update(context);
             s2e_tcg_instrument_code(signal, pc, nextpc);
@@ -313,8 +313,8 @@ void s2e_on_translate_register_access(TranslationBlock *tb, uint64_t pc, uint64_
     assert(signal->empty());
 
     try {
-        g_s2e->getCorePlugin()->onTranslateRegisterAccessEnd.emit(signal, g_s2e_state, tb, pc, readMask, writeMask,
-                                                                  (bool) isMemoryAccess);
+        g_s2e->getCorePlugin()->onTranslateRegisterAccessEnd.emit(signal, g_s2e_state.get(), tb, pc, readMask,
+                                                                  writeMask, (bool) isMemoryAccess);
 
         if (!signal->empty()) {
             s2e_tcg_instrument_code(signal, pc - tb->cs_base);
@@ -329,7 +329,7 @@ void s2e_on_exception(unsigned intNb) {
     assert(g_s2e_state->isActive());
 
     try {
-        g_s2e->getCorePlugin()->onException.emit(g_s2e_state, intNb, g_s2e_state->regs()->getPc());
+        g_s2e->getCorePlugin()->onException.emit(g_s2e_state.get(), intNb, g_s2e_state->regs()->getPc());
     } catch (s2e::CpuExitException &) {
         longjmp(env->jmp_env, 1);
     }
@@ -362,7 +362,7 @@ void s2e_after_memory_access(uint64_t vaddr, uint64_t value, unsigned size, unsi
     }
 
     try {
-        g_s2e->getCorePlugin()->onConcreteDataMemoryAccess.emit(g_s2e_state, vaddr, value, size, flags);
+        g_s2e->getCorePlugin()->onConcreteDataMemoryAccess.emit(g_s2e_state.get(), vaddr, value, size, flags);
     } catch (s2e::CpuExitException &) {
         longjmp(env->jmp_env, 1);
     }
@@ -374,7 +374,7 @@ void s2e_on_page_fault(uint64_t addr, int is_write, void *retaddr) {
     }
 
     try {
-        g_s2e->getCorePlugin()->onPageFault.emit(g_s2e_state, addr, (bool) is_write);
+        g_s2e->getCorePlugin()->onPageFault.emit(g_s2e_state.get(), addr, (bool) is_write);
     } catch (s2e::CpuExitException &) {
         longjmp(env->jmp_env, 1);
     }
@@ -386,7 +386,7 @@ void s2e_on_tlb_miss(uint64_t addr, int is_write, void *retaddr) {
     }
 
     try {
-        g_s2e->getCorePlugin()->onTlbMiss.emit(g_s2e_state, addr, (bool) is_write);
+        g_s2e->getCorePlugin()->onTlbMiss.emit(g_s2e_state.get(), addr, (bool) is_write);
     } catch (s2e::CpuExitException &) {
         longjmp(env->jmp_env, 1);
     }
@@ -402,7 +402,7 @@ void s2e_trace_port_access(uint64_t port, uint64_t value, unsigned size, int isW
     }
 
     try {
-        g_s2e->getCorePlugin()->onPortAccess.emit(g_s2e_state, klee::ConstantExpr::create(port, 64),
+        g_s2e->getCorePlugin()->onPortAccess.emit(g_s2e_state.get(), klee::ConstantExpr::create(port, 64),
                                                   klee::ConstantExpr::create(value, size), isWrite);
     } catch (s2e::CpuExitException &) {
         longjmp(env->jmp_env, 1);
@@ -413,7 +413,7 @@ void s2e_on_privilege_change(unsigned previous, unsigned current) {
     assert(g_s2e_state->isActive());
 
     try {
-        g_s2e->getCorePlugin()->onPrivilegeChange.emit(g_s2e_state, previous, current);
+        g_s2e->getCorePlugin()->onPrivilegeChange.emit(g_s2e_state.get(), previous, current);
     } catch (s2e::CpuExitException &) {
         pabort("Cannot throw exceptions here. VM state may be inconsistent at this point.");
     }
@@ -423,7 +423,7 @@ void s2e_on_page_directory_change(uint64_t previous, uint64_t current) {
     assert(g_s2e_state->isActive());
 
     try {
-        g_s2e->getCorePlugin()->onPageDirectoryChange.emit(g_s2e_state, previous, current);
+        g_s2e->getCorePlugin()->onPageDirectoryChange.emit(g_s2e_state.get(), previous, current);
     } catch (s2e::CpuExitException &) {
         pabort("Cannot throw exceptions here. VM state may be inconsistent at this point.");
     }
@@ -431,7 +431,7 @@ void s2e_on_page_directory_change(uint64_t previous, uint64_t current) {
 
 void s2e_on_initialization_complete(void) {
     try {
-        g_s2e->getCorePlugin()->onInitializationComplete.emit(g_s2e_state);
+        g_s2e->getCorePlugin()->onInitializationComplete.emit(g_s2e_state.get());
     } catch (s2e::CpuExitException &) {
         pabort("Cannot throw exceptions here. VM state may be inconsistent at this point.");
     }
@@ -440,7 +440,7 @@ void s2e_on_initialization_complete(void) {
 int s2e_on_call_return_translate(uint64_t pc, int isCall) {
     bool instrument = false;
     try {
-        g_s2e->getCorePlugin()->onCallReturnTranslate.emit(g_s2e_state, pc, isCall, &instrument);
+        g_s2e->getCorePlugin()->onCallReturnTranslate.emit(g_s2e_state.get(), pc, isCall, &instrument);
     } catch (s2e::CpuExitException &) {
         pabort("Cannot throw exceptions here.");
     }
