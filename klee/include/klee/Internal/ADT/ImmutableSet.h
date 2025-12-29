@@ -66,7 +66,7 @@ public:
     const value_type &max() const {
         return elts.max();
     }
-    size_t size() {
+    size_t size() const {
         return elts.size();
     }
 
