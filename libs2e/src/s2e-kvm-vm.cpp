@@ -144,7 +144,7 @@ int VM::memoryReadWrite(kvm_mem_rw *mem) {
 
 int VM::registerFixedRegion(kvm_fixed_region *region) {
 #ifdef CONFIG_SYMBEX_MP
-    s2e_register_ram2(region->name, region->host_address, region->size, region->flags & KVM_MEM_SHARED_CONCRETE);
+    s2e_register_ram(region->name, region->host_address, region->size, region->flags & KVM_MEM_SHARED_CONCRETE);
 #endif
     return 0;
 }

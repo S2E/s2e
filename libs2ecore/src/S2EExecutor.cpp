@@ -556,17 +556,14 @@ void S2EExecutor::registerSharedExternalObject(S2EExecutionState *state, void *a
     state->addExternalObject(address, size, false, true);
 }
 
-void S2EExecutor::registerRam(S2EExecutionState *initialState, MemoryDesc *region, uint64_t startAddress, uint64_t size,
-                              uint64_t hostAddress, bool isSharedConcrete, bool saveOnContextSwitch, const char *name) {
+void S2EExecutor::registerRam(S2EExecutionState *initialState, uint64_t size, uint64_t hostAddress,
+                              bool isSharedConcrete, const char *name) {
 #ifdef CONFIG_SYMBEX_MP
 
-    assert(isSharedConcrete || !saveOnContextSwitch);
-    assert(startAddress == (uint64_t) -1 || (startAddress & ~TARGET_PAGE_MASK) == 0);
     assert((size & ~TARGET_PAGE_MASK) == 0);
     assert((hostAddress & ~TARGET_PAGE_MASK) == 0);
 
-    m_s2e->getDebugStream() << "Adding memory block (startAddr = " << hexval(startAddress)
-                            << ", size = " << hexval(size) << ", hostAddr = " << hexval(hostAddress)
+    m_s2e->getDebugStream() << "Adding memory block (size = " << hexval(size) << ", hostAddr = " << hexval(hostAddress)
                             << ", isSharedConcrete=" << isSharedConcrete << ", name=" << name << ")\n";
 
     for (uint64_t addr = hostAddress; addr < hostAddress + size; addr += SE_RAM_OBJECT_SIZE) {
@@ -586,7 +583,7 @@ void S2EExecutor::registerRam(S2EExecutionState *initialState, MemoryDesc *regio
         mo->setName(ss.str());
 #endif
 
-        if (isSharedConcrete && (saveOnContextSwitch || !StateSharedMemory)) {
+        if (isSharedConcrete && !StateSharedMemory) {
             m_saveOnContextSwitch.push_back(os->getKey());
         }
     }
@@ -1752,16 +1749,8 @@ void s2e_register_cpu(CPUX86State *cpu_env) {
     g_s2e->getExecutor()->registerCpu(g_s2e_state.get(), cpu_env);
 }
 
-// TODO: remove unused params
-void s2e_register_ram(MemoryDesc *region, uint64_t start_address, uint64_t size, uint64_t host_address,
-                      int is_shared_concrete, int save_on_context_switch, const char *name) {
-    g_s2e->getExecutor()->registerRam(g_s2e_state.get(), region, start_address, size, host_address, is_shared_concrete,
-                                      save_on_context_switch, name);
-}
-
-void s2e_register_ram2(const char *name, uint64_t host_address, uint64_t size, int is_shared_concrete) {
-    g_s2e->getExecutor()->registerRam(g_s2e_state.get(), nullptr, -1, size, host_address, is_shared_concrete, false,
-                                      name);
+void s2e_register_ram(const char *name, uint64_t host_address, uint64_t size, int is_shared_concrete) {
+    g_s2e->getExecutor()->registerRam(g_s2e_state.get(), size, host_address, is_shared_concrete, name);
 }
 
 void s2e_register_dirty_mask(uint64_t host_address, uint64_t size) {

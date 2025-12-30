@@ -104,8 +104,7 @@ public:
     void initializeExecution(S2EExecutionState *initialState, bool executeAlwaysKlee);
 
     void registerCpu(S2EExecutionState *initialState, CPUX86State *cpuEnv);
-    void registerRam(S2EExecutionState *initialState, struct MemoryDesc *region, uint64_t startAddress, uint64_t size,
-                     uint64_t hostAddress, bool isSharedConcrete, bool saveOnContextSwitch = true,
+    void registerRam(S2EExecutionState *initialState, uint64_t size, uint64_t hostAddress, bool isSharedConcrete,
                      const char *name = "");
 
     void registerSharedExternalObject(S2EExecutionState *state, void *address, unsigned size);
