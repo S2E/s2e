@@ -107,8 +107,6 @@ protected:
     /// \invariant \ref addedStates and \ref removedStates are disjoint.
     StateSet m_removedStates;
 
-    llvm::Function *getTargetFunction(llvm::Value *calledVal);
-
     void executeInstruction(ExecutionState &state, KInstruction *ki);
 
     void initializeGlobalObject(ExecutionState &state, const ObjectStatePtr &os, const llvm::Constant *c,
