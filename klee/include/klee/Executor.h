@@ -159,8 +159,6 @@ public:
     // remove state from queue and delete
     virtual void terminateState(ExecutionState &state);
 
-    virtual void terminateState(ExecutionState &state, const std::string &reason);
-
     virtual const llvm::Module *setModule(llvm::Module *module);
 
     /*** State accessor methods ***/

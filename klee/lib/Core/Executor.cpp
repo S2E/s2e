@@ -1572,11 +1572,6 @@ void Executor::terminateState(ExecutionState &state) {
     }
 }
 
-void Executor::terminateState(ExecutionState &state, const std::string &reason) {
-    *klee_warning_stream << "Terminating state: " << reason << "\n";
-    terminateState(state);
-}
-
 extern "C" {
 typedef uint64_t (*external_fcn_t)(...);
 }
