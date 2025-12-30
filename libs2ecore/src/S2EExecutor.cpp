@@ -1415,43 +1415,6 @@ std::vector<ExecutionStatePtr> S2EExecutor::forkValues(S2EExecutionState *state,
     return ret;
 }
 
-/**
- * Called from klee::Executor when the engine is about to fork
- * the current state.
- */
-void S2EExecutor::notifyBranch(ExecutionState &state) {
-    S2EExecutionState *s2eState = dynamic_cast<S2EExecutionState *>(&state);
-
-    /* Checkpoint the device state before branching */
-    s2e_kvm_flush_disk();
-
-    s2eState->m_tlb.clearTlbOwnership();
-
-    /**
-     * These objects must be saved before the cpu state, because
-     * getWritable() may modify the TLB.
-     */
-    s2eState->saveSharedConcreteMemory();
-
-#if defined(SE_ENABLE_PHYSRAM_TLB)
-    s2eState->m_tlb.clearRamTlb();
-#endif
-
-    // We must not save the current tb, because this pointer will become
-    // stale on state restore. If a signal occurs while restoring the state,
-    // its handler will try to unlink a stale tb, which could cause a hang
-    // or a crash.
-    auto old_tb = env->current_tb;
-    env->current_tb = nullptr;
-    s2eState->m_registers.saveConcreteState();
-    env->current_tb = old_tb;
-
-    cpu_disable_ticks();
-    s2e_kvm_save_device_state();
-    s2eState->m_timersState = timers_state;
-    cpu_enable_ticks();
-}
-
 bool S2EExecutor::merge(klee::ExecutionState &_base, klee::ExecutionState &_other) {
     assert(dynamic_cast<S2EExecutionState *>(&_base));
     assert(dynamic_cast<S2EExecutionState *>(&_other));

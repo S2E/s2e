@@ -290,11 +290,6 @@ void Executor::initializeGlobals(ExecutionState &state) {
     }
 }
 
-void Executor::notifyBranch(ExecutionState &state) {
-    // Should not get here
-    pabort("Must go through S2E");
-}
-
 Executor::StatePair Executor::fork(ExecutionState &current, const ref<Expr> &condition_,
                                    bool keepConditionTrueInCurrentState) {
     auto condition = current.simplifyExpr(condition_);
@@ -361,7 +356,6 @@ Executor::StatePair Executor::fork(ExecutionState &current, const ref<Expr> &con
     }
 
     // Branch
-    notifyBranch(current);
     auto branchedState = current.clone();
     m_addedStates.insert(branchedState);
 
@@ -405,7 +399,6 @@ Executor::StatePair Executor::fork(ExecutionState &current) {
         return StatePair(&current, nullptr);
     }
 
-    notifyBranch(current);
     auto clonedState = current.clone();
     m_addedStates.insert(clonedState);
 

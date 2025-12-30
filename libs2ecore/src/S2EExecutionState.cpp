@@ -100,10 +100,28 @@ ExecutionStatePtr S2EExecutionState::clone() {
     // This means that we must clean owned-by-us flag in S2E TLB.
     assert(m_active);
 
+    s2e_kvm_flush_disk();
+
     m_tlb.clearTlbOwnership();
 #if defined(SE_ENABLE_PHYSRAM_TLB)
     m_tlb.clearRamTlb();
 #endif
+
+    saveSharedConcreteMemory();
+
+    // We must not save the current tb, because this pointer will become
+    // stale on state restore. If a signal occurs while restoring the state,
+    // its handler will try to unlink a stale tb, which could cause a hang
+    // or a crash.
+    auto old_tb = env->current_tb;
+    env->current_tb = nullptr;
+    m_registers.saveConcreteState();
+    env->current_tb = old_tb;
+
+    cpu_disable_ticks();
+    s2e_kvm_save_device_state();
+    m_timersState = timers_state;
+    cpu_enable_ticks();
 
     S2EExecutionState *ret = new S2EExecutionState(*this);
 

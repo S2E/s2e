@@ -127,11 +127,6 @@ protected:
     void executeMemoryOperation(ExecutionState &state, bool isWrite, ref<Expr> address,
                                 ref<Expr> value /* undef if read */, KInstruction *target /* undef if write */);
 
-    /// The current state is about to be branched.
-    /// Give a chance to S2E to checkpoint the current device state
-    /// so that the branched state gets it as well.
-    virtual void notifyBranch(ExecutionState &state);
-
     /// When the fork is complete and state properly updated,
     /// notify the S2EExecutor, so that it can generate an onFork event.
     /// Sending notification after the fork completed

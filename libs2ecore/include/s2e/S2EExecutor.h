@@ -204,8 +204,6 @@ protected:
 
     void doLoadBalancing();
 
-    void notifyBranch(klee::ExecutionState &state);
-
     void initializeStateSwitchTimer();
     static void stateSwitchTimerCallback(void *opaque);
 
