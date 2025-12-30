@@ -59,8 +59,6 @@ protected:
 
     klee::KFunction *m_dummyMain;
 
-    std::vector<klee::ObjectKey> m_saveOnContextSwitch;
-
     bool m_executeAlwaysKlee;
 
     bool m_forkProcTerminateCurrentState;
@@ -104,9 +102,6 @@ public:
     void initializeExecution(S2EExecutionState *initialState, bool executeAlwaysKlee);
 
     void registerCpu(S2EExecutionState *initialState, CPUX86State *cpuEnv);
-    void registerRam(S2EExecutionState *initialState, struct MemoryDesc *region, uint64_t startAddress, uint64_t size,
-                     uint64_t hostAddress, bool isSharedConcrete, bool saveOnContextSwitch = true,
-                     const char *name = "");
 
     void registerSharedExternalObject(S2EExecutionState *state, void *address, unsigned size);
 
@@ -208,8 +203,6 @@ protected:
                               klee::StateSet &childSet);
 
     void doLoadBalancing();
-
-    void notifyBranch(klee::ExecutionState &state);
 
     void initializeStateSwitchTimer();
     static void stateSwitchTimerCallback(void *opaque);

@@ -107,8 +107,6 @@ protected:
     /// \invariant \ref addedStates and \ref removedStates are disjoint.
     StateSet m_removedStates;
 
-    llvm::Function *getTargetFunction(llvm::Value *calledVal);
-
     void executeInstruction(ExecutionState &state, KInstruction *ki);
 
     void initializeGlobalObject(ExecutionState &state, const ObjectStatePtr &os, const llvm::Constant *c,
@@ -127,16 +125,11 @@ protected:
     void executeMemoryOperation(ExecutionState &state, bool isWrite, ref<Expr> address,
                                 ref<Expr> value /* undef if read */, KInstruction *target /* undef if write */);
 
-    /// The current state is about to be branched.
-    /// Give a chance to S2E to checkpoint the current device state
-    /// so that the branched state gets it as well.
-    virtual void notifyBranch(ExecutionState &state);
-
     /// When the fork is complete and state properly updated,
     /// notify the S2EExecutor, so that it can generate an onFork event.
     /// Sending notification after the fork completed
     /// allows plugins to kill states and exit to the CPU loop safely.
-    virtual void notifyFork(ExecutionState &originalState, ref<Expr> &condition, Executor::StatePair &targets);
+    virtual void notifyFork(ExecutionState &originalState, ref<Expr> &condition, Executor::StatePair &targets) = 0;
 
     const Cell &eval(KInstruction *ki, unsigned index, LLVMExecutionState &state) const;
 
@@ -165,8 +158,6 @@ public:
 
     // remove state from queue and delete
     virtual void terminateState(ExecutionState &state);
-
-    virtual void terminateState(ExecutionState &state, const std::string &reason);
 
     virtual const llvm::Module *setModule(llvm::Module *module);
 

@@ -290,11 +290,6 @@ void Executor::initializeGlobals(ExecutionState &state) {
     }
 }
 
-void Executor::notifyBranch(ExecutionState &state) {
-    // Should not get here
-    pabort("Must go through S2E");
-}
-
 Executor::StatePair Executor::fork(ExecutionState &current, const ref<Expr> &condition_,
                                    bool keepConditionTrueInCurrentState) {
     auto condition = current.simplifyExpr(condition_);
@@ -361,7 +356,6 @@ Executor::StatePair Executor::fork(ExecutionState &current, const ref<Expr> &con
     }
 
     // Branch
-    notifyBranch(current);
     auto branchedState = current.clone();
     m_addedStates.insert(branchedState);
 
@@ -405,7 +399,6 @@ Executor::StatePair Executor::fork(ExecutionState &current) {
         return StatePair(&current, nullptr);
     }
 
-    notifyBranch(current);
     auto clonedState = current.clone();
     m_addedStates.insert(clonedState);
 
@@ -413,11 +406,6 @@ Executor::StatePair Executor::fork(ExecutionState &current) {
     clonedState->setConcolics(Assignment::create(current.concolics()));
 
     return StatePair(&current, clonedState);
-}
-
-void Executor::notifyFork(ExecutionState &originalState, ref<Expr> &condition, Executor::StatePair &targets) {
-    // Should not get here
-    pabort("Must go through S2E");
 }
 
 const Cell &Executor::eval(KInstruction *ki, unsigned index, LLVMExecutionState &state) const {
@@ -446,6 +434,41 @@ static inline const llvm::fltSemantics *fpWidthToSemantics(unsigned width) {
             return &llvm::APFloat::IEEEdouble();
         default:
             return 0;
+    }
+}
+
+/// Compute the true target of a function call, resolving LLVM aliases
+/// and bitcasts.
+static Function *getTargetFunction(Value *calledVal) {
+    SmallPtrSet<const GlobalValue *, 3> Visited;
+
+    Constant *c = dyn_cast<Constant>(calledVal);
+    if (!c) {
+        return 0;
+    }
+
+    while (true) {
+        if (GlobalValue *gv = dyn_cast<GlobalValue>(c)) {
+            if (!Visited.insert(gv).second) {
+                return 0;
+            }
+
+            if (Function *f = dyn_cast<Function>(gv)) {
+                return f;
+            } else if (GlobalAlias *ga = dyn_cast<GlobalAlias>(gv)) {
+                c = ga->getAliasee();
+            } else {
+                return 0;
+            }
+        } else if (llvm::ConstantExpr *ce = dyn_cast<llvm::ConstantExpr>(c)) {
+            if (ce->getOpcode() == Instruction::BitCast) {
+                c = ce->getOperand(0);
+            } else {
+                return 0;
+            }
+        } else {
+            return 0;
+        }
     }
 }
 
@@ -675,41 +698,6 @@ void Executor::executeCall(ExecutionState &state, KInstruction *ki, Function *f,
         unsigned numFormals = f->arg_size();
         for (unsigned i = 0; i < numFormals; ++i) {
             llvmState.bindArgument(kf, i, arguments[i]);
-        }
-    }
-}
-
-/// Compute the true target of a function call, resolving LLVM aliases
-/// and bitcasts.
-Function *Executor::getTargetFunction(Value *calledVal) {
-    SmallPtrSet<const GlobalValue *, 3> Visited;
-
-    Constant *c = dyn_cast<Constant>(calledVal);
-    if (!c) {
-        return 0;
-    }
-
-    while (true) {
-        if (GlobalValue *gv = dyn_cast<GlobalValue>(c)) {
-            if (!Visited.insert(gv).second) {
-                return 0;
-            }
-
-            if (Function *f = dyn_cast<Function>(gv)) {
-                return f;
-            } else if (GlobalAlias *ga = dyn_cast<GlobalAlias>(gv)) {
-                c = ga->getAliasee();
-            } else {
-                return 0;
-            }
-        } else if (llvm::ConstantExpr *ce = dyn_cast<llvm::ConstantExpr>(c)) {
-            if (ce->getOpcode() == Instruction::BitCast) {
-                c = ce->getOperand(0);
-            } else {
-                return 0;
-            }
-        } else {
-            return 0;
         }
     }
 }
@@ -1582,11 +1570,6 @@ void Executor::terminateState(ExecutionState &state) {
         // never reached searcher, just delete immediately
         m_addedStates.erase(it);
     }
-}
-
-void Executor::terminateState(ExecutionState &state, const std::string &reason) {
-    *klee_warning_stream << "Terminating state: " << reason << "\n";
-    terminateState(state);
 }
 
 extern "C" {

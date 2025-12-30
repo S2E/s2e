@@ -102,10 +102,7 @@ void s2e_initialize_execution(int execute_always_klee);
 
 void s2e_register_cpu(struct CPUX86State *cpu_env);
 
-void s2e_register_ram(struct MemoryDesc *region, uint64_t start_address, uint64_t size, uint64_t host_address,
-                      int is_shared_concrete, int save_on_context_switch, const char *name);
-
-void s2e_register_ram2(const char *name, uint64_t host_address, uint64_t size, int is_shared_concrete);
+void s2e_register_ram(const char *name, uint64_t host_address, uint64_t size, int is_shared_concrete);
 
 uintptr_t se_get_host_address(uint64_t paddr);
 
