@@ -153,6 +153,8 @@ protected:
     /** Set when execution enters doInterrupt, reset when it exits. */
     bool m_runningExceptionEmulationCode;
 
+    llvm::SmallVector<klee::ObjectKey, 8> m_saveOnContextSwitch;
+
     virtual void addressSpaceChange(const klee::ObjectKey &key, const klee::ObjectStateConstPtr &oldState,
                                     const klee::ObjectStatePtr &newState);
 
@@ -195,6 +197,7 @@ public:
 
         m_memIoVaddr = state.m_memIoVaddr;
         m_runningExceptionEmulationCode = state.m_runningExceptionEmulationCode;
+        m_saveOnContextSwitch = state.m_saveOnContextSwitch;
     }
 
     virtual klee::ExecutionStatePtr clone();
@@ -305,6 +308,10 @@ public:
 
     /** Copy concrete values to the execution state storage */
     void switchToSymbolic();
+
+    void registerRam(uint64_t size, uint64_t hostAddress, bool isSharedConcrete, const char *name);
+    void saveSharedConcreteMemory();
+    void restoreSharedConcreteMemory();
 
     bool isForkingEnabled() const {
         return !forkDisabled;

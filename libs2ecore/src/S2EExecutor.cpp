@@ -86,14 +86,6 @@ using namespace klee;
 
 // clang-format off
 namespace {
-    // This should be true by default, because otherwise overheads are way too high.
-    // Drawback is that execution is not fully consistent by default.
-    cl::opt<bool>
-    StateSharedMemory("state-shared-memory",
-            cl::desc("Allow unimportant memory regions (like video RAM) to be shared between states"),
-            cl::init(true));
-
-
     cl::opt<bool>
     FlushTBsOnStateSwitch("flush-tbs-on-state-switch",
             cl::desc("Flush translation blocks when switching states -"
@@ -556,60 +548,6 @@ void S2EExecutor::registerSharedExternalObject(S2EExecutionState *state, void *a
     state->addExternalObject(address, size, false, true);
 }
 
-void S2EExecutor::registerRam(S2EExecutionState *initialState, uint64_t size, uint64_t hostAddress,
-                              bool isSharedConcrete, const char *name) {
-#ifdef CONFIG_SYMBEX_MP
-
-    assert((size & ~TARGET_PAGE_MASK) == 0);
-    assert((hostAddress & ~TARGET_PAGE_MASK) == 0);
-
-    m_s2e->getDebugStream() << "Adding memory block (size = " << hexval(size) << ", hostAddr = " << hexval(hostAddress)
-                            << ", isSharedConcrete=" << isSharedConcrete << ", name=" << name << ")\n";
-
-    for (uint64_t addr = hostAddress; addr < hostAddress + size; addr += SE_RAM_OBJECT_SIZE) {
-
-        auto os = initialState->addExternalObject((void *) addr, SE_RAM_OBJECT_SIZE, false, isSharedConcrete);
-
-        os->setMemoryPage(true);
-
-        if (!isSharedConcrete) {
-            os->setSplittable(true);
-            os->setNotifyOnConcretenessChange(true);
-        }
-
-#ifdef S2E_DEBUG_MEMOBJECT_NAME
-        std::stringstream ss;
-        ss << name << "_" << std::hex << (addr - hostAddress);
-        mo->setName(ss.str());
-#endif
-
-        if (isSharedConcrete && !StateSharedMemory) {
-            m_saveOnContextSwitch.push_back(os->getKey());
-        }
-    }
-
-    if (!isSharedConcrete) {
-        // mprotecting does not actually free the RAM, it's still committed,
-        // we need to explicitely unmap it.
-        // mprotect((void*) hostAddress, size, PROT_NONE);
-        if (munmap((void *) hostAddress, size) < 0) {
-            m_s2e->getWarningsStream(nullptr) << "Could not unmap host RAM\n";
-            exit(-1);
-        }
-
-        // Make sure that the memory space is reserved and won't be used anymore
-        // so that there are no conflicts with klee memory objects.
-        void *newhost = mmap((void *) hostAddress, size, PROT_NONE, MAP_ANONYMOUS | MAP_FIXED | MAP_PRIVATE, 0, 0);
-        if (newhost == MAP_FAILED || newhost != (void *) hostAddress) {
-            m_s2e->getWarningsStream(nullptr) << "Could not map host RAM\n";
-            exit(-1);
-        }
-    }
-
-    initialState->m_asCache.registerPool(hostAddress, size);
-#endif
-}
-
 void S2EExecutor::registerDirtyMask(S2EExecutionState *state, uint64_t hostAddress, uint64_t size) {
     // Assume that dirty mask is small enough, so no need to split it in small pages
     auto dirtyMask = state->addExternalObject((void *) hostAddress, size, false, true);
@@ -795,9 +733,6 @@ void S2EExecutor::doStateSwitch(S2EExecutionStatePtr oldState, S2EExecutionState
     m_s2e->getInfoStream(oldState.get()) << "Switching from state " << (oldState ? oldState->getID() : -1)
                                          << " to state " << (newState ? newState->getID() : -1) << '\n';
 
-    uint64_t totalCopied = 0;
-    uint64_t objectsCopied = 0;
-
     if (oldState) {
         if (VerboseStateSwitching) {
             m_s2e->getDebugStream(oldState.get()) << "Saving state\n";
@@ -807,13 +742,7 @@ void S2EExecutor::doStateSwitch(S2EExecutionStatePtr oldState, S2EExecutionState
             oldState->switchToSymbolic();
         }
 
-        for (auto &mo : m_saveOnContextSwitch) {
-            auto oldOS = oldState->addressSpace().findObject(mo.address);
-            auto oldWOS = oldState->addressSpace().getWriteable(oldOS);
-            uint8_t *oldStore = oldWOS->getConcreteBuffer();
-            assert(oldStore);
-            memcpy(oldStore, (uint8_t *) mo.address, mo.size);
-        }
+        oldState->saveSharedConcreteMemory();
 
         // XXX: specify which state should be used
         s2e_kvm_save_device_state();
@@ -852,21 +781,10 @@ void S2EExecutor::doStateSwitch(S2EExecutionStatePtr oldState, S2EExecutionState
         // XXX: specify which state should be used
         s2e_kvm_restore_device_state();
 
-        for (auto &mo : m_saveOnContextSwitch) {
-            auto newOS = newState->addressSpace().findObject(mo.address);
-            const uint8_t *newStore = newOS->getConcreteBuffer();
-            assert(newStore);
-            memcpy((uint8_t *) mo.address, newStore, mo.size);
-            totalCopied += mo.size;
-            objectsCopied++;
-        }
+        newState->restoreSharedConcreteMemory();
     }
 
     cpu_enable_ticks();
-
-    if (VerboseStateSwitching) {
-        s2e_debug_print("Copied %d (count=%d)\n", totalCopied, objectsCopied);
-    }
 
     if (FlushTBsOnStateSwitch) {
         se_tb_safe_flush();
@@ -1513,13 +1431,7 @@ void S2EExecutor::notifyBranch(ExecutionState &state) {
      * These objects must be saved before the cpu state, because
      * getWritable() may modify the TLB.
      */
-    for (auto &mo : m_saveOnContextSwitch) {
-        auto os = s2eState->addressSpace().findObject(mo.address);
-        auto wos = s2eState->addressSpace().getWriteable(os);
-        uint8_t *store = wos->getConcreteBuffer();
-        assert(store);
-        memcpy(store, (uint8_t *) mo.address, mo.size);
-    }
+    s2eState->saveSharedConcreteMemory();
 
 #if defined(SE_ENABLE_PHYSRAM_TLB)
     s2eState->m_tlb.clearRamTlb();
@@ -1750,7 +1662,7 @@ void s2e_register_cpu(CPUX86State *cpu_env) {
 }
 
 void s2e_register_ram(const char *name, uint64_t host_address, uint64_t size, int is_shared_concrete) {
-    g_s2e->getExecutor()->registerRam(g_s2e_state.get(), size, host_address, is_shared_concrete, name);
+    g_s2e_state->registerRam(size, host_address, is_shared_concrete, name);
 }
 
 void s2e_register_dirty_mask(uint64_t host_address, uint64_t size) {

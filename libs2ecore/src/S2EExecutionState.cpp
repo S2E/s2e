@@ -56,6 +56,17 @@ extern llvm::cl::opt<bool> PrintForkingStatus;
 extern llvm::cl::opt<bool> VerboseStateDeletion;
 extern llvm::cl::opt<bool> DebugConstraints;
 
+// clang-format off
+namespace {
+    // This should be true by default, because otherwise overheads are way too high.
+    // Drawback is that execution is not fully consistent by default.
+    llvm::cl::opt<bool>
+    StateSharedMemory("state-shared-memory",
+            llvm::cl::desc("Allow unimportant memory regions (like video RAM) to be shared between states"),
+            llvm::cl::init(true));
+}
+// clang-format on
+
 namespace s2e {
 
 using namespace klee;
@@ -107,6 +118,78 @@ ExecutionStatePtr S2EExecutionState::clone() {
     ret->m_memory.update(&ret->addressSpace(), &ret->m_asCache, &ret->m_active, ret, ret);
 
     return ret;
+}
+
+void S2EExecutionState::registerRam(uint64_t size, uint64_t hostAddress, bool isSharedConcrete, const char *name) {
+#ifdef CONFIG_SYMBEX_MP
+    assert(m_stateID == 0 && "Ram registration must be done in the initial state");
+    assert((size & ~TARGET_PAGE_MASK) == 0);
+    assert((hostAddress & ~TARGET_PAGE_MASK) == 0);
+
+    g_s2e->getDebugStream() << "Adding memory block (size = " << hexval(size) << ", hostAddr = " << hexval(hostAddress)
+                            << ", isSharedConcrete=" << isSharedConcrete << ", name=" << name << ")\n";
+
+    for (uint64_t addr = hostAddress; addr < hostAddress + size; addr += SE_RAM_OBJECT_SIZE) {
+
+        auto os = addExternalObject((void *) addr, SE_RAM_OBJECT_SIZE, false, isSharedConcrete);
+
+        os->setMemoryPage(true);
+
+        if (!isSharedConcrete) {
+            os->setSplittable(true);
+            os->setNotifyOnConcretenessChange(true);
+        }
+
+#ifdef S2E_DEBUG_MEMOBJECT_NAME
+        std::stringstream ss;
+        ss << name << "_" << std::hex << (addr - hostAddress);
+        mo->setName(ss.str());
+#endif
+
+        if (isSharedConcrete && !StateSharedMemory) {
+            m_saveOnContextSwitch.push_back(os->getKey());
+        }
+    }
+
+    if (!isSharedConcrete) {
+        // mprotecting does not actually free the RAM, it's still committed,
+        // we need to explicitely unmap it.
+        // mprotect((void*) hostAddress, size, PROT_NONE);
+        if (munmap((void *) hostAddress, size) < 0) {
+            g_s2e->getWarningsStream(nullptr) << "Could not unmap host RAM\n";
+            exit(-1);
+        }
+
+        // Make sure that the memory space is reserved and won't be used anymore
+        // so that there are no conflicts with klee memory objects.
+        void *newhost = mmap((void *) hostAddress, size, PROT_NONE, MAP_ANONYMOUS | MAP_FIXED | MAP_PRIVATE, 0, 0);
+        if (newhost == MAP_FAILED || newhost != (void *) hostAddress) {
+            g_s2e->getWarningsStream(nullptr) << "Could not map host RAM\n";
+            exit(-1);
+        }
+    }
+
+    m_asCache.registerPool(hostAddress, size);
+#endif
+}
+
+void S2EExecutionState::saveSharedConcreteMemory() {
+    for (auto &mo : m_saveOnContextSwitch) {
+        auto os = addressSpace().findObject(mo.address);
+        auto wos = addressSpace().getWriteable(os);
+        uint8_t *store = wos->getConcreteBuffer();
+        assert(store);
+        memcpy(store, (uint8_t *) mo.address, mo.size);
+    }
+}
+
+void S2EExecutionState::restoreSharedConcreteMemory() {
+    for (auto &mo : m_saveOnContextSwitch) {
+        auto os = addressSpace().findObject(mo.address);
+        const uint8_t *store = os->getConcreteBuffer();
+        assert(store);
+        memcpy((uint8_t *) mo.address, store, mo.size);
+    }
 }
 
 /***/
