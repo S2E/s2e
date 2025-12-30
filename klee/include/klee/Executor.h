@@ -131,7 +131,7 @@ protected:
     /// notify the S2EExecutor, so that it can generate an onFork event.
     /// Sending notification after the fork completed
     /// allows plugins to kill states and exit to the CPU loop safely.
-    virtual void notifyFork(ExecutionState &originalState, ref<Expr> &condition, Executor::StatePair &targets);
+    virtual void notifyFork(ExecutionState &originalState, ref<Expr> &condition, Executor::StatePair &targets) = 0;
 
     const Cell &eval(KInstruction *ki, unsigned index, LLVMExecutionState &state) const;
 

@@ -408,11 +408,6 @@ Executor::StatePair Executor::fork(ExecutionState &current) {
     return StatePair(&current, clonedState);
 }
 
-void Executor::notifyFork(ExecutionState &originalState, ref<Expr> &condition, Executor::StatePair &targets) {
-    // Should not get here
-    pabort("Must go through S2E");
-}
-
 const Cell &Executor::eval(KInstruction *ki, unsigned index, LLVMExecutionState &state) const {
     assert(index < ki->inst->getNumOperands());
     int vnumber = ki->operands[index];
