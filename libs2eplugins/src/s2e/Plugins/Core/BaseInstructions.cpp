@@ -285,7 +285,7 @@ void BaseInstructions::killState(S2EExecutionState *state) {
     os << "State was terminated by opcode\n"
        << "            message: \"" << message << "\"\n"
        << "            status: " << status;
-    s2e()->getExecutor()->terminateState(*state, os.str());
+    s2e()->getExecutor()->terminateState(state, os.str());
 }
 
 void BaseInstructions::printExpression(S2EExecutionState *state) {
@@ -635,7 +635,7 @@ void BaseInstructions::assumeInternal(S2EExecutionState *state, klee::ref<klee::
     getDebugStream(state) << "Assuming " << boolExpr << "\n";
 
     if (!state->addConstraint(boolExpr, true)) {
-        s2e()->getExecutor()->terminateState(*state, "Tried to add an invalid constraint");
+        s2e()->getExecutor()->terminateState(state, "Tried to add an invalid constraint");
     }
 }
 

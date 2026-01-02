@@ -237,7 +237,7 @@ void LuaFunctionInstrumentation::invokeInstrumentation(S2EExecutionState *state,
     Lunar<LuaFunctionInstrumentationState>::push(L, &luaInstrumentation);
 
     if (entry.paramCount > 0 && state->getPointerSize() == 8) {
-        s2e()->getExecutor()->terminateState(*state, "64-bit support not implemented");
+        s2e()->getExecutor()->terminateState(state, "64-bit support not implemented");
     }
 
     lua_pushboolean(L, isCall);

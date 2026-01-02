@@ -101,7 +101,7 @@ void WindowsCrashMonitor::onBlueScreen(S2EExecutionState *state, vmi::windows::B
     onKernelModeCrash.emit(state, *info);
 
     // There is no point of letting the state up at this point, the guest is stuck with a BSOD
-    s2e()->getExecutor()->terminateState(*state, "BSOD");
+    s2e()->getExecutor()->terminateState(state, "BSOD");
 }
 
 /*****************************************************************/
@@ -134,7 +134,7 @@ void WindowsCrashMonitor::opUserModeCrash(S2EExecutionState *state, uint64_t gue
     }
 
     if (m_terminateOnCrash) {
-        s2e()->getExecutor()->terminateState(*state, "User mode crash");
+        s2e()->getExecutor()->terminateState(state, "User mode crash");
     }
 }
 

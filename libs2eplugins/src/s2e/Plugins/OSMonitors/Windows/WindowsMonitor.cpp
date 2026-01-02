@@ -462,7 +462,7 @@ template <typename UNICODE_STRING> void WindowsMonitor::unloadModule(S2EExecutio
                     base = state->regs()->read<target_ulong>(CPU_OFFSET(regs[9]));
 
                     if (!state->mem()->read(state->regs()->getSp() + (1 + 4) * pointerSize, &size, pointerSize)) {
-                        s2e()->getExecutor()->terminateState(*state, "WindowsMonitor: could not read stack");
+                        s2e()->getExecutor()->terminateState(state, "WindowsMonitor: could not read stack");
                     }
                 } break;
 
@@ -479,16 +479,16 @@ template <typename UNICODE_STRING> void WindowsMonitor::unloadModule(S2EExecutio
                         pName = state->regs()->read<target_ulong>(CPU_OFFSET(regs[R_EDX]));
 
                         if (!state->mem()->read(state->regs()->getSp() + 1 * pointerSize, &pid, pointerSize)) {
-                            s2e()->getExecutor()->terminateState(*state, "WindowsMonitor: could not read stack");
+                            s2e()->getExecutor()->terminateState(state, "WindowsMonitor: could not read stack");
                         }
                         if (!state->mem()->read(state->regs()->getSp() + 2 * pointerSize, &base, pointerSize)) {
-                            s2e()->getExecutor()->terminateState(*state, "WindowsMonitor: could not read stack");
+                            s2e()->getExecutor()->terminateState(state, "WindowsMonitor: could not read stack");
                         }
                     }
                 } break;
 
                 default:
-                    s2e()->getExecutor()->terminateState(*state,
+                    s2e()->getExecutor()->terminateState(state,
                                                          "WindowsMonitor: unsupported OS for onPerfLogImageUnload");
             }
         } break;
@@ -502,12 +502,12 @@ template <typename UNICODE_STRING> void WindowsMonitor::unloadModule(S2EExecutio
             base = state->regs()->read<target_ulong>(CPU_OFFSET(regs[9]));
 
             if (!state->mem()->read(state->regs()->getSp() + (1 + 4) * pointerSize, &size, pointerSize)) {
-                s2e()->getExecutor()->terminateState(*state, "WindowsMonitor: could not read stack");
+                s2e()->getExecutor()->terminateState(state, "WindowsMonitor: could not read stack");
             }
         } break;
 
         default: {
-            s2e()->getExecutor()->terminateState(*state, "WindowsMonitor: unsupported OS for onPerfLogImageUnload");
+            s2e()->getExecutor()->terminateState(state, "WindowsMonitor: unsupported OS for onPerfLogImageUnload");
             break;
         }
     }

@@ -180,7 +180,7 @@ void ResourceMonitor::dropStates() {
 
             // We might terminate the current state so the executor could throw an exception
             try {
-                executor->terminateState(*state);
+                executor->terminateState(state);
             } catch (s2e::CpuExitException &) {
             }
         }

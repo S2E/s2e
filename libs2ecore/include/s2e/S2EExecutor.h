@@ -169,10 +169,10 @@ public:
     }
 
     /** Kills the specified state and raises an exception to exit the cpu loop */
-    virtual void terminateState(klee::ExecutionState &state);
+    virtual void terminateState(klee::ExecutionStatePtr state);
 
     /** Kills the specified state and raises an exception to exit the cpu loop */
-    virtual void terminateState(klee::ExecutionState &state, const std::string &message);
+    virtual void terminateState(klee::ExecutionStatePtr state, const std::string &message);
 
     void resetStateSwitchTimer();
 

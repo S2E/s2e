@@ -659,7 +659,7 @@ void S2EExecutor::doLoadBalancing() {
     for (auto state : allStates) {
         auto s2estate = static_pointer_cast<S2EExecutionState>(state);
         if (!currentSet.count(s2estate)) {
-            Executor::terminateState(*s2estate);
+            Executor::terminateState(s2estate);
 
             // This is important if we kill the current state
             s2estate->zombify();
@@ -893,7 +893,7 @@ inline bool S2EExecutor::executeInstructions(S2EExecutionState *state, unsigned 
             try {
                 executeInstruction(*state, ki);
             } catch (const klee::LLVMExecutorException &e) {
-                terminateState(*state, e.what());
+                terminateState(state, e.what());
             }
 
             updateStates(state);
@@ -1458,26 +1458,26 @@ bool S2EExecutor::merge(klee::ExecutionState &_base, klee::ExecutionState &_othe
     return result;
 }
 
-void S2EExecutor::terminateState(klee::ExecutionState &state, const std::string &message) {
-    S2EExecutionState *s2estate = static_cast<S2EExecutionState *>(&state);
-    m_s2e->getInfoStream(s2estate) << "Terminating state: " << message << "\n";
+void S2EExecutor::terminateState(klee::ExecutionStatePtr state, const std::string &message) {
+    auto s2estate = static_pointer_cast<S2EExecutionState>(state);
+    m_s2e->getInfoStream(s2estate.get()) << "Terminating state: " << message << "\n";
     terminateState(state);
 }
 
-void S2EExecutor::terminateState(ExecutionState &s) {
-    S2EExecutionState &state = static_cast<S2EExecutionState &>(s);
+void S2EExecutor::terminateState(ExecutionStatePtr s) {
+    auto state = static_pointer_cast<S2EExecutionState>(s);
 
-    m_s2e->getCorePlugin()->onStateKill.emit(&state);
+    m_s2e->getCorePlugin()->onStateKill.emit(state.get());
 
     Executor::terminateState(state);
-    state.zombify();
+    state->zombify();
 
     g_s2e->getWarningsStream().flush();
     g_s2e->getDebugStream().flush();
 
     // No need for exiting the loop if we kill another state.
-    if (!m_inLoadBalancing && (&state == g_s2e_state)) {
-        state.regs()->write<int>(CPU_OFFSET(exception_index), EXCP_SE);
+    if (!m_inLoadBalancing && (state == g_s2e_state)) {
+        state->regs()->write<int>(CPU_OFFSET(exception_index), EXCP_SE);
         throw CpuExitException();
     }
 }
@@ -1712,7 +1712,7 @@ uint64_t s2e_read_mem_io_vaddr(int masked) {
 }
 
 void s2e_kill_state(const char *message) {
-    g_s2e->getExecutor()->terminateState(*g_s2e_state, message);
+    g_s2e->getExecutor()->terminateState(g_s2e_state, message);
 }
 
 void s2e_print_instructions(bool val) {

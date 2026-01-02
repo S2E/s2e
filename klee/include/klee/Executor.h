@@ -157,7 +157,7 @@ public:
     virtual StatePair fork(ExecutionState &current);
 
     // remove state from queue and delete
-    virtual void terminateState(ExecutionState &state);
+    virtual void terminateState(ExecutionStatePtr state);
 
     virtual const llvm::Module *setModule(llvm::Module *module);
 

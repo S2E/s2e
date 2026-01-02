@@ -1557,15 +1557,15 @@ void Executor::updateStates(ExecutionStatePtr current) {
     m_removedStates.clear();
 }
 
-void Executor::terminateState(ExecutionState &state) {
+void Executor::terminateState(ExecutionStatePtr state) {
     *klee::stats::completedPaths += 1;
 
-    StateSet::iterator it = m_addedStates.find(&state);
+    StateSet::iterator it = m_addedStates.find(state);
     if (it == m_addedStates.end()) {
         // XXX: the following line makes delayed state termination impossible
         // llvmState.pc = llvmState.prevPC;
 
-        m_removedStates.insert(&state);
+        m_removedStates.insert(state);
     } else {
         // never reached searcher, just delete immediately
         m_addedStates.erase(it);
