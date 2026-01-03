@@ -1251,6 +1251,124 @@ S2EExecutor::StatePair S2EExecutor::fork(ExecutionState &current) {
     return doFork(current, nullptr, false);
 }
 
+Executor::StatePair S2EExecutor::conditionalFork(ExecutionState &current, const klee::ref<Expr> &condition_,
+                                                 bool keepConditionTrueInCurrentState) {
+    auto condition = current.simplifyExpr(condition_);
+
+    // If we are passed a constant, no need to do anything
+    if (auto ce = dyn_cast<klee::ConstantExpr>(condition)) {
+        if (ce->isTrue()) {
+            return StatePair(&current, nullptr);
+        } else {
+            return StatePair(nullptr, &current);
+        }
+    }
+
+    // Evaluate the expression using the current variable assignment
+    klee::ref<Expr> evalResult = current.concolics()->evaluate(condition);
+    klee::ConstantExpr *ce = dyn_cast<klee::ConstantExpr>(evalResult);
+    check(ce, "Could not evaluate the expression to a constant.");
+    bool conditionIsTrue = ce->isTrue();
+
+    if (current.forkDisabled) {
+        if (conditionIsTrue) {
+            if (!current.addConstraint(condition)) {
+                abort();
+            }
+            return StatePair(&current, nullptr);
+        } else {
+            if (!current.addConstraint(Expr::createIsZero(condition))) {
+                abort();
+            }
+            return StatePair(nullptr, &current);
+        }
+    }
+
+    if (keepConditionTrueInCurrentState && !conditionIsTrue) {
+        // Recompute concrete values to keep condition true in current state
+
+        // Build constraints where condition must be true
+        ConstraintManager tmpConstraints = current.constraints();
+        tmpConstraints.addConstraint(condition);
+
+        if (!current.solve(tmpConstraints, *(current.concolics()))) {
+            // Condition is always false in the current state
+            return StatePair(nullptr, &current);
+        }
+
+        conditionIsTrue = true;
+    }
+
+    // Build constraints for branched state
+    ConstraintManager tmpConstraints = current.constraints();
+    if (conditionIsTrue) {
+        tmpConstraints.addConstraint(Expr::createIsZero(condition));
+    } else {
+        tmpConstraints.addConstraint(condition);
+    }
+
+    AssignmentPtr concolics = Assignment::create(true);
+    if (!current.solve(tmpConstraints, *concolics)) {
+        if (conditionIsTrue) {
+            return StatePair(&current, nullptr);
+        } else {
+            return StatePair(nullptr, &current);
+        }
+    }
+
+    // Branch
+    auto branchedState = current.clone();
+    m_addedStates.insert(branchedState);
+
+    *klee::stats::forks += 1;
+
+    // Update concrete values for the branched state
+    branchedState->setConcolics(concolics);
+
+    // Add constraint to both states
+    if (conditionIsTrue) {
+        if (!current.addConstraint(condition)) {
+            abort();
+        }
+        if (!branchedState->addConstraint(Expr::createIsZero(condition))) {
+            abort();
+        }
+    } else {
+        if (!current.addConstraint(Expr::createIsZero(condition))) {
+            abort();
+        }
+        if (!branchedState->addConstraint(condition)) {
+            abort();
+        }
+    }
+
+    // Classify states
+    ExecutionStatePtr trueState, falseState;
+    if (conditionIsTrue) {
+        trueState = &current;
+        falseState = branchedState;
+    } else {
+        falseState = &current;
+        trueState = branchedState;
+    }
+
+    return StatePair(trueState, falseState);
+}
+
+Executor::StatePair S2EExecutor::unconditionalFork(ExecutionState &current) {
+    if (current.forkDisabled) {
+        return StatePair(&current, nullptr);
+    }
+
+    auto clonedState = current.clone();
+    m_addedStates.insert(clonedState);
+
+    // Deep copy concolics().
+    clonedState->setConcolics(Assignment::create(current.concolics()));
+
+    return StatePair(&current, clonedState);
+}
+
 S2EExecutor::StatePair S2EExecutor::doFork(ExecutionState &current, const klee::ref<Expr> &condition,
                                            bool keepConditionTrueInCurrentState) {
     S2EExecutionState *currentState = dynamic_cast<S2EExecutionState *>(&current);
@@ -1282,9 +1400,9 @@ S2EExecutor::StatePair S2EExecutor::doFork(ExecutionState &current, const klee::
     }
 
     if (condition) {
-        res = Executor::fork(current, condition, keepConditionTrueInCurrentState);
+        res = conditionalFork(current, condition, keepConditionTrueInCurrentState);
     } else {
-        res = Executor::fork(current);
+        res = unconditionalFork(current);
     }
 
     currentState->forkDisabled = oldForkStatus;

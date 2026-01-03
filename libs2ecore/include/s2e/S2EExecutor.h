@@ -216,6 +216,11 @@ private:
     // If `condition` is a nullptr, then no path constraints will be added.
     StatePair doFork(klee::ExecutionState &current, const klee::ref<klee::Expr> &condition,
                      bool keepConditionTrueInCurrentState);
+
+    StatePair unconditionalFork(klee::ExecutionState &current);
+
+    StatePair conditionalFork(klee::ExecutionState &current, const klee::ref<klee::Expr> &condition_,
+                              bool keepConditionTrueInCurrentState);
 };
 
 } // namespace s2e
