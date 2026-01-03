@@ -1215,7 +1215,7 @@ Executor::StatePair S2EExecutor::forkAndConcretize(S2EExecutionState *state, kle
     klee::ref<klee::ConstantExpr> concreteValue = state->toConstantSilent(value);
 
     klee::ref<klee::Expr> condition = EqExpr::create(concreteValue, value);
-    Executor::StatePair sp = fork(*state, condition);
+    Executor::StatePair sp = fork(*state, condition, false);
 
     // The condition is always true in the current state
     //(i.e., value == concreteValue holds).
@@ -1504,7 +1504,7 @@ std::vector<ExecutionStatePtr> S2EExecutor::forkValues(S2EExecutionState *state,
             }
         }
 
-        StatePair sp = fork(*state, condition);
+        StatePair sp = fork(*state, condition, false);
         notifyFork(*state, condition, sp);
 
         ret.push_back(sp.second);

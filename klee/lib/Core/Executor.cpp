@@ -653,7 +653,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
                 // FIXME: Find a way that we don't have this hidden dependency.
                 assert(bi->getCondition() == bi->getOperand(0) && "Wrong operand index!");
                 ref<Expr> cond = eval(ki, 0, llvmState).value;
-                Executor::StatePair branches = fork(state, cond);
+                Executor::StatePair branches = fork(state, cond, false);
 
                 if (branches.first) {
                     branches.first->llvm.transferToBasicBlock(bi->getSuccessor(0), bi->getParent());
@@ -674,7 +674,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
 
             klee::ref<klee::Expr> concreteCond = state.concolics()->evaluate(cond);
             klee::ref<klee::Expr> condition = EqExpr::create(concreteCond, cond);
-            StatePair sp = fork(state, condition);
+            StatePair sp = fork(state, condition, false);
             assert(sp.first == &state);
             if (sp.second) {
                 sp.second->llvm.pc = sp.second->llvm.prevPC;
@@ -1482,7 +1482,7 @@ void Executor::callExternalFunction(ExecutionState &state, KInstruction *target,
 
             klee::ref<klee::Expr> condition = EqExpr::create(concreteArg, arg);
 
-            StatePair sp = fork(state, condition);
+            StatePair sp = fork(state, condition, false);
 
             assert(sp.first == &state);
 
@@ -1631,7 +1631,7 @@ void Executor::executeMemoryOperation(ExecutionState &state, bool isWrite, ref<E
 
     assert(state.concolics()->evaluate(condition)->isTrue());
 
-    StatePair branches = fork(state, condition);
+    StatePair branches = fork(state, condition, false);
 
     assert(branches.first == &state);
     if (branches.second) {

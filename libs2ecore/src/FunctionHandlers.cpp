@@ -98,7 +98,7 @@ void handleForkAndConcretize(Executor *executor, ExecutionState *state, klee::KI
     }
 
     // XXX: may create deep paths!
-    Executor::StatePair sp = s2eExecutor->fork(*state, condition);
+    Executor::StatePair sp = s2eExecutor->fork(*state, condition, false);
 
     // The condition is always true in the current state
     //(i.e., expr == concreteAddress holds).

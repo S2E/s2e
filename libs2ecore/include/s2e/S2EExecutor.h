@@ -74,7 +74,7 @@ public:
 
     /** Called on fork, used to trace forks */
     StatePair fork(klee::ExecutionState &current, const klee::ref<klee::Expr> &condition,
-                   bool keepConditionTrueInCurrentState = false);
+                   bool keepConditionTrueInCurrentState);
 
     // A special version of fork() which does not take any symbolic condition,
     // so internally it will just work like the regular fork method

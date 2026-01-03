@@ -151,7 +151,7 @@ public:
     // This is useful when forking one state with several different values.
     // NOTE: In concolic mode it will recompute initial values for current state, do not use it for seed state.
     virtual StatePair fork(ExecutionState &current, const ref<Expr> &condition,
-                           bool keepConditionTrueInCurrentState = false) = 0;
+                           bool keepConditionTrueInCurrentState) = 0;
 
     // remove state from queue and delete
     virtual void terminateState(ExecutionStatePtr state);
