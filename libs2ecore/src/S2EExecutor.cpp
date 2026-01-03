@@ -241,7 +241,7 @@ volatile void *tb_function_args[3];
 
 S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMTranslator *translator)
     : Executor(translator->getContext()), m_s2e(s2e), m_llvmTranslator(translator), m_executeAlwaysKlee(false),
-      m_forkProcTerminateCurrentState(false), m_inLoadBalancing(false) {
+      m_inLoadBalancing(false) {
     m_externalDispatcher = std::make_unique<S2EExternalDispatcher>();
 
     LLVMContext &ctx = m_llvmTranslator->getContext();
@@ -897,14 +897,6 @@ inline bool S2EExecutor::executeInstructions(S2EExecutionState *state, unsigned 
             }
 
             updateStates(state);
-
-            // Handle the case where we killed the current state inside processFork
-            if (m_forkProcTerminateCurrentState) {
-                state->regs()->write<int>(CPU_OFFSET(exception_index), EXCP_SE);
-                state->zombify();
-                m_forkProcTerminateCurrentState = false;
-                return true;
-            }
         }
     } catch (CpuExitException &) {
         updateStates(state);

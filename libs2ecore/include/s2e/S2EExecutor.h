@@ -61,8 +61,6 @@ protected:
 
     bool m_executeAlwaysKlee;
 
-    bool m_forkProcTerminateCurrentState;
-
     bool m_inLoadBalancing;
 
     struct CPUTimer *m_stateSwitchTimer;
