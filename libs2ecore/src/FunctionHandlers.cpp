@@ -98,23 +98,10 @@ void handleForkAndConcretize(Executor *executor, ExecutionState *state, klee::KI
     }
 
     // XXX: may create deep paths!
-    Executor::StatePair sp = s2eExecutor->fork(*state, condition, false);
-
-    // The condition is always true in the current state
-    //(i.e., expr == concreteAddress holds).
-    assert(sp.first == state);
-
-    // It may happen that the simplifier figures out that
-    // the condition is always true, in which case, no fork is needed.
-    // TODO: find a test case for that
-    if (sp.second) {
-        // Will have to reexecute handleForkAndConcretize in the speculative state
-        sp.second->llvm.pc = sp.second->llvm.prevPC;
-    }
+    Executor::StatePair sp =
+        s2eExecutor->fork(*state, condition, false, S2EExecutor::reexecuteCurrentInstructionInForkedState);
 
     state->llvm.bindLocal(target, concreteAddress);
-
-    s2eExecutor->notifyFork(*state, condition, sp);
 }
 
 static void handleGetValue(klee::Executor *executor, klee::ExecutionState *state, klee::KInstruction *target,

@@ -1182,7 +1182,8 @@ klee::ref<klee::Expr> S2EExecutor::executeFunction(S2EExecutionState *state, con
     return executeFunction(state, function, args);
 }
 
-void S2EExecutor::notifyFork(ExecutionState &originalState, klee::ref<Expr> &condition, Executor::StatePair &targets) {
+void S2EExecutor::notifyFork(ExecutionState &originalState, const klee::ref<Expr> &condition,
+                             Executor::StatePair &targets) {
     if (targets.first == nullptr || targets.second == nullptr) {
         return;
     }
@@ -1215,32 +1216,24 @@ Executor::StatePair S2EExecutor::forkAndConcretize(S2EExecutionState *state, kle
     klee::ref<klee::ConstantExpr> concreteValue = state->toConstantSilent(value);
 
     klee::ref<klee::Expr> condition = EqExpr::create(concreteValue, value);
-    Executor::StatePair sp = fork(*state, condition, false);
-
-    // The condition is always true in the current state
-    //(i.e., value == concreteValue holds).
-    assert(sp.first == state);
-
-    // It may happen that the simplifier figures out that
-    // the condition is always true, in which case, no fork is needed.
-    // TODO: find a test case for that
-    if (sp.second) {
-        // Re-execute the plugin invocation in the other state
-        sp.second->llvm.pc = sp.second->llvm.prevPC;
-    }
-
-    notifyFork(*state, condition, sp);
+    Executor::StatePair sp = fork(*state, condition, false, reexecuteCurrentInstructionInForkedState);
     value_ = concreteValue;
     return sp;
 }
 
 S2EExecutor::StatePair S2EExecutor::fork(ExecutionState &current, const klee::ref<Expr> &condition,
-                                         bool keepConditionTrueInCurrentState) {
-    return doFork(current, condition, keepConditionTrueInCurrentState);
+                                         bool keepConditionTrueInCurrentState,
+                                         std::function<void(ExecutionStatePtr, const StatePair &)> onBeforeNotify) {
+    auto ret = doFork(current, condition, keepConditionTrueInCurrentState);
+    onBeforeNotify(&current, ret);
+    notifyFork(current, condition, ret);
+    return ret;
 }
 
 S2EExecutor::StatePair S2EExecutor::fork(ExecutionState &current) {
-    return doFork(current, nullptr, false);
+    auto ret = doFork(current, nullptr, false);
+    notifyFork(current, nullptr, ret);
+    return ret;
 }
 
 Executor::StatePair S2EExecutor::conditionalFork(ExecutionState &current, const klee::ref<Expr> &condition_,
@@ -1459,7 +1452,8 @@ S2EExecutor::StatePair S2EExecutor::doFork(ExecutionState &current, const klee::
 ///
 S2EExecutor::StatePair S2EExecutor::forkCondition(S2EExecutionState *state, klee::ref<Expr> condition,
                                                   bool keepConditionTrueInCurrentState) {
-    S2EExecutor::StatePair sp = fork(*state, condition, keepConditionTrueInCurrentState);
+    S2EExecutor::StatePair sp =
+        fork(*state, condition, keepConditionTrueInCurrentState, skipCurrentInstructionInForkedState);
     notifyFork(*state, condition, sp);
     return sp;
 }
@@ -1504,8 +1498,7 @@ std::vector<ExecutionStatePtr> S2EExecutor::forkValues(S2EExecutionState *state,
             }
         }
 
-        StatePair sp = fork(*state, condition, false);
-        notifyFork(*state, condition, sp);
+        StatePair sp = fork(*state, condition, false, skipCurrentInstructionInForkedState);
 
         ret.push_back(sp.second);
 

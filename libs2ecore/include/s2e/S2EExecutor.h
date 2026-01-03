@@ -74,7 +74,8 @@ public:
 
     /** Called on fork, used to trace forks */
     StatePair fork(klee::ExecutionState &current, const klee::ref<klee::Expr> &condition,
-                   bool keepConditionTrueInCurrentState);
+                   bool keepConditionTrueInCurrentState,
+                   std::function<void(klee::ExecutionStatePtr, const StatePair &)> onBeforeNotify);
 
     // A special version of fork() which does not take any symbolic condition,
     // so internally it will just work like the regular fork method
@@ -174,9 +175,6 @@ public:
 
     void resetStateSwitchTimer();
 
-    // Should be public because of manual forks in plugins
-    void notifyFork(klee::ExecutionState &originalState, klee::ref<klee::Expr> &condition, StatePair &targets);
-
     /**
      * To be called by plugin code
      */
@@ -219,6 +217,12 @@ private:
 
     StatePair conditionalFork(klee::ExecutionState &current, const klee::ref<klee::Expr> &condition_,
                               bool keepConditionTrueInCurrentState);
+
+    /// When the fork is complete and state properly updated,
+    /// notify the S2EExecutor, so that it can generate an onFork event.
+    /// Sending notification after the fork completed
+    /// allows plugins to kill states and exit to the CPU loop safely.
+    void notifyFork(klee::ExecutionState &originalState, const klee::ref<klee::Expr> &condition, StatePair &targets);
 };
 
 } // namespace s2e

@@ -584,6 +584,17 @@ void Executor::executeCall(ExecutionState &state, KInstruction *ki, Function *f,
     }
 }
 
+void Executor::reexecuteCurrentInstructionInForkedState(ExecutionStatePtr state, const StatePair &sp) {
+    assert(sp.first == state);
+    if (sp.second) {
+        sp.second->llvm.pc = sp.second->llvm.prevPC;
+    }
+}
+
+void Executor::skipCurrentInstructionInForkedState(ExecutionStatePtr state, const StatePair &sp) {
+    // This is a noop for llvm.
+}
+
 void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
     *klee::stats::instructions += 1;
     auto &llvmState = state.llvm;
@@ -653,16 +664,14 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
                 // FIXME: Find a way that we don't have this hidden dependency.
                 assert(bi->getCondition() == bi->getOperand(0) && "Wrong operand index!");
                 ref<Expr> cond = eval(ki, 0, llvmState).value;
-                Executor::StatePair branches = fork(state, cond, false);
-
-                if (branches.first) {
-                    branches.first->llvm.transferToBasicBlock(bi->getSuccessor(0), bi->getParent());
-                }
-                if (branches.second) {
-                    branches.second->llvm.transferToBasicBlock(bi->getSuccessor(1), bi->getParent());
-                }
-
-                notifyFork(state, cond, branches);
+                fork(state, cond, false, [&](ExecutionStatePtr state, const StatePair &sp) {
+                    if (sp.first) {
+                        sp.first->llvm.transferToBasicBlock(bi->getSuccessor(0), bi->getParent());
+                    }
+                    if (sp.second) {
+                        sp.second->llvm.transferToBasicBlock(bi->getSuccessor(1), bi->getParent());
+                    }
+                });
             }
             break;
         }
@@ -674,12 +683,8 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
 
             klee::ref<klee::Expr> concreteCond = state.concolics()->evaluate(cond);
             klee::ref<klee::Expr> condition = EqExpr::create(concreteCond, cond);
-            StatePair sp = fork(state, condition, false);
-            assert(sp.first == &state);
-            if (sp.second) {
-                sp.second->llvm.pc = sp.second->llvm.prevPC;
-            }
-            notifyFork(state, condition, sp);
+            StatePair sp = fork(state, condition, false, reexecuteCurrentInstructionInForkedState);
+
             cond = concreteCond;
 
             if (ConstantExpr *CE = dyn_cast<ConstantExpr>(cond)) {
@@ -1482,21 +1487,7 @@ void Executor::callExternalFunction(ExecutionState &state, KInstruction *target,
 
             klee::ref<klee::Expr> condition = EqExpr::create(concreteArg, arg);
 
-            StatePair sp = fork(state, condition, false);
-
-            assert(sp.first == &state);
-
-            if (sp.second) {
-                sp.second->llvm.pc = sp.second->llvm.prevPC;
-            }
-
-            KInstIterator savedPc = sp.first->llvm.pc;
-            sp.first->llvm.pc = sp.first->llvm.prevPC;
-
-            // This might throw an exception
-            notifyFork(state, condition, sp);
-
-            sp.first->llvm.pc = savedPc;
+            fork(state, condition, false, reexecuteCurrentInstructionInForkedState);
 
             cas.push_back(concreteArg->getZExtValue());
         }
@@ -1631,15 +1622,7 @@ void Executor::executeMemoryOperation(ExecutionState &state, bool isWrite, ref<E
 
     assert(state.concolics()->evaluate(condition)->isTrue());
 
-    StatePair branches = fork(state, condition, false);
-
-    assert(branches.first == &state);
-    if (branches.second) {
-        // The forked state will have to re-execute the memory op
-        branches.second->llvm.pc = branches.second->llvm.prevPC;
-    }
-
-    notifyFork(state, condition, branches);
+    fork(state, condition, false, reexecuteCurrentInstructionInForkedState);
 
     if (isa<ConstantExpr>(address)) {
         auto ce = dyn_cast<ConstantExpr>(address)->getZExtValue();
