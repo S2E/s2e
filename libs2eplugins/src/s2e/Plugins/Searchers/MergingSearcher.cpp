@@ -223,7 +223,7 @@ bool MergingSearcher::mergeEnd(S2EExecutionState *state, bool skipOpcode, bool c
     }
 
     if (success) {
-        g_s2e->getExecutor()->terminateState(*state, "Killed by merge");
+        g_s2e->getExecutor()->terminateState(state, "Killed by merge");
     } else {
         plgState->setGroupId(0);
         getDebugStream(state) << "Merge failed\n";

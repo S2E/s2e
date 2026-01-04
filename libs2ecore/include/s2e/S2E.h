@@ -295,7 +295,7 @@ template <class PluginClass> PluginClass *S2E::getPlugin() const {
                                        << ": " << message << "\n";                                                \
             print_stacktrace(s2e_warning_print, "state assertion failed");                                        \
             assert(currentState != nullptr && "state assertion failed, no current state to terminate");           \
-            g_s2e->getExecutor()->terminateState(*currentState, "state assertion failed");                        \
+            g_s2e->getExecutor()->terminateState(currentState, "state assertion failed");                         \
             assert(false && "Unreachable code - current state must be terminated");                               \
         }                                                                                                         \
     } while (0)

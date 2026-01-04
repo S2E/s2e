@@ -241,7 +241,7 @@ volatile void *tb_function_args[3];
 
 S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMTranslator *translator)
     : Executor(translator->getContext()), m_s2e(s2e), m_llvmTranslator(translator), m_executeAlwaysKlee(false),
-      m_forkProcTerminateCurrentState(false), m_inLoadBalancing(false) {
+      m_inLoadBalancing(false) {
     m_externalDispatcher = std::make_unique<S2EExternalDispatcher>();
 
     LLVMContext &ctx = m_llvmTranslator->getContext();
@@ -659,7 +659,7 @@ void S2EExecutor::doLoadBalancing() {
     for (auto state : allStates) {
         auto s2estate = static_pointer_cast<S2EExecutionState>(state);
         if (!currentSet.count(s2estate)) {
-            Executor::terminateState(*s2estate);
+            Executor::terminateState(s2estate);
 
             // This is important if we kill the current state
             s2estate->zombify();
@@ -893,18 +893,10 @@ inline bool S2EExecutor::executeInstructions(S2EExecutionState *state, unsigned 
             try {
                 executeInstruction(*state, ki);
             } catch (const klee::LLVMExecutorException &e) {
-                terminateState(*state, e.what());
+                terminateState(state, e.what());
             }
 
             updateStates(state);
-
-            // Handle the case where we killed the current state inside processFork
-            if (m_forkProcTerminateCurrentState) {
-                state->regs()->write<int>(CPU_OFFSET(exception_index), EXCP_SE);
-                state->zombify();
-                m_forkProcTerminateCurrentState = false;
-                return true;
-            }
         }
     } catch (CpuExitException &) {
         updateStates(state);
@@ -1190,20 +1182,25 @@ klee::ref<klee::Expr> S2EExecutor::executeFunction(S2EExecutionState *state, con
     return executeFunction(state, function, args);
 }
 
-void S2EExecutor::notifyFork(ExecutionState &originalState, klee::ref<Expr> &condition, Executor::StatePair &targets) {
+void S2EExecutor::notifyFork(ExecutionState &originalState, const klee::ref<Expr> &condition,
+                             Executor::StatePair &targets) {
     if (targets.first == nullptr || targets.second == nullptr) {
         return;
     }
 
-    std::vector<S2EExecutionState *> newStates(2);
-    std::vector<klee::ref<Expr>> newConditions(2);
-
     S2EExecutionState *state = static_cast<S2EExecutionState *>(&originalState);
+
+    std::vector<S2EExecutionState *> newStates(2);
     newStates[0] = static_pointer_cast<S2EExecutionState>(targets.first).get();
     newStates[1] = static_pointer_cast<S2EExecutionState>(targets.second).get();
 
-    newConditions[0] = condition;
-    newConditions[1] = klee::NotExpr::create(condition);
+    std::vector<klee::ref<Expr>> newConditions;
+
+    if (condition) {
+        newConditions.resize(2);
+        newConditions[0] = condition;
+        newConditions[1] = klee::NotExpr::create(condition);
+    }
 
     try {
         m_s2e->getCorePlugin()->onStateFork.emit(state, newStates, newConditions);
@@ -1223,32 +1220,142 @@ Executor::StatePair S2EExecutor::forkAndConcretize(S2EExecutionState *state, kle
     klee::ref<klee::ConstantExpr> concreteValue = state->toConstantSilent(value);
 
     klee::ref<klee::Expr> condition = EqExpr::create(concreteValue, value);
-    Executor::StatePair sp = fork(*state, condition);
-
-    // The condition is always true in the current state
-    //(i.e., value == concreteValue holds).
-    assert(sp.first == state);
-
-    // It may happen that the simplifier figures out that
-    // the condition is always true, in which case, no fork is needed.
-    // TODO: find a test case for that
-    if (sp.second) {
-        // Re-execute the plugin invocation in the other state
-        sp.second->llvm.pc = sp.second->llvm.prevPC;
-    }
-
-    notifyFork(*state, condition, sp);
+    Executor::StatePair sp = fork(*state, condition, false, reexecuteCurrentInstructionInForkedState);
     value_ = concreteValue;
     return sp;
 }
 
 S2EExecutor::StatePair S2EExecutor::fork(ExecutionState &current, const klee::ref<Expr> &condition,
-                                         bool keepConditionTrueInCurrentState) {
-    return doFork(current, condition, keepConditionTrueInCurrentState);
+                                         bool keepConditionTrueInCurrentState,
+                                         std::function<void(ExecutionStatePtr, const StatePair &)> onBeforeNotify) {
+    auto ret = doFork(current, condition, keepConditionTrueInCurrentState);
+    onBeforeNotify(&current, ret);
+    notifyFork(current, condition, ret);
+    return ret;
 }
 
 S2EExecutor::StatePair S2EExecutor::fork(ExecutionState &current) {
-    return doFork(current, nullptr, false);
+    auto ret = doFork(current, nullptr, false);
+    notifyFork(current, nullptr, ret);
+    return ret;
+}
+
+Executor::StatePair S2EExecutor::conditionalFork(ExecutionState &current, const klee::ref<Expr> &condition_,
+                                                 bool keepConditionTrueInCurrentState) {
+    auto condition = current.simplifyExpr(condition_);
+
+    // If we are passed a constant, no need to do anything
+    if (auto ce = dyn_cast<klee::ConstantExpr>(condition)) {
+        if (ce->isTrue()) {
+            return StatePair(&current, nullptr);
+        } else {
+            return StatePair(nullptr, &current);
+        }
+    }
+
+    // Evaluate the expression using the current variable assignment
+    klee::ref<Expr> evalResult = current.concolics()->evaluate(condition);
+    klee::ConstantExpr *ce = dyn_cast<klee::ConstantExpr>(evalResult);
+    check(ce, "Could not evaluate the expression to a constant.");
+    bool conditionIsTrue = ce->isTrue();
+
+    if (current.forkDisabled) {
+        if (conditionIsTrue) {
+            if (!current.addConstraint(condition)) {
+                abort();
+            }
+            return StatePair(&current, nullptr);
+        } else {
+            if (!current.addConstraint(Expr::createIsZero(condition))) {
+                abort();
+            }
+            return StatePair(nullptr, &current);
+        }
+    }
+
+    if (keepConditionTrueInCurrentState && !conditionIsTrue) {
+        // Recompute concrete values to keep condition true in current state
+
+        // Build constraints where condition must be true
+        ConstraintManager tmpConstraints = current.constraints();
+        tmpConstraints.addConstraint(condition);
+
+        if (!current.solve(tmpConstraints, *(current.concolics()))) {
+            // Condition is always false in the current state
+            return StatePair(nullptr, &current);
+        }
+
+        conditionIsTrue = true;
+    }
+
+    // Build constraints for branched state
+    ConstraintManager tmpConstraints = current.constraints();
+    if (conditionIsTrue) {
+        tmpConstraints.addConstraint(Expr::createIsZero(condition));
+    } else {
+        tmpConstraints.addConstraint(condition);
+    }
+
+    AssignmentPtr concolics = Assignment::create(true);
+    if (!current.solve(tmpConstraints, *concolics)) {
+        if (conditionIsTrue) {
+            return StatePair(&current, nullptr);
+        } else {
+            return StatePair(nullptr, &current);
+        }
+    }
+
+    // Branch
+    auto branchedState = current.clone();
+    m_addedStates.insert(branchedState);
+
+    *klee::stats::forks += 1;
+
+    // Update concrete values for the branched state
+    branchedState->setConcolics(concolics);
+
+    // Add constraint to both states
+    if (conditionIsTrue) {
+        if (!current.addConstraint(condition)) {
+            abort();
+        }
+        if (!branchedState->addConstraint(Expr::createIsZero(condition))) {
+            abort();
+        }
+    } else {
+        if (!current.addConstraint(Expr::createIsZero(condition))) {
+            abort();
+        }
+        if (!branchedState->addConstraint(condition)) {
+            abort();
+        }
+    }
+
+    // Classify states
+    ExecutionStatePtr trueState, falseState;
+    if (conditionIsTrue) {
+        trueState = &current;
+        falseState = branchedState;
+    } else {
+        falseState = &current;
+        trueState = branchedState;
+    }
+
+    return StatePair(trueState, falseState);
+}
+
+Executor::StatePair S2EExecutor::unconditionalFork(ExecutionState &current) {
+    if (current.forkDisabled) {
+        return StatePair(&current, nullptr);
+    }
+
+    auto clonedState = current.clone();
+    m_addedStates.insert(clonedState);
+
+    // Deep copy concolics().
+    clonedState->setConcolics(Assignment::create(current.concolics()));
+
+    return StatePair(&current, clonedState);
 }
 
 S2EExecutor::StatePair S2EExecutor::doFork(ExecutionState &current, const klee::ref<Expr> &condition,
@@ -1282,9 +1389,9 @@ S2EExecutor::StatePair S2EExecutor::doFork(ExecutionState &current, const klee::
     }
 
     if (condition) {
-        res = Executor::fork(current, condition, keepConditionTrueInCurrentState);
+        res = conditionalFork(current, condition, keepConditionTrueInCurrentState);
     } else {
-        res = Executor::fork(current);
+        res = unconditionalFork(current);
     }
 
     currentState->forkDisabled = oldForkStatus;
@@ -1349,7 +1456,8 @@ S2EExecutor::StatePair S2EExecutor::doFork(ExecutionState &current, const klee::
 ///
 S2EExecutor::StatePair S2EExecutor::forkCondition(S2EExecutionState *state, klee::ref<Expr> condition,
                                                   bool keepConditionTrueInCurrentState) {
-    S2EExecutor::StatePair sp = fork(*state, condition, keepConditionTrueInCurrentState);
+    S2EExecutor::StatePair sp =
+        fork(*state, condition, keepConditionTrueInCurrentState, skipCurrentInstructionInForkedState);
     notifyFork(*state, condition, sp);
     return sp;
 }
@@ -1394,8 +1502,7 @@ std::vector<ExecutionStatePtr> S2EExecutor::forkValues(S2EExecutionState *state,
             }
         }
 
-        StatePair sp = fork(*state, condition);
-        notifyFork(*state, condition, sp);
+        StatePair sp = fork(*state, condition, false, skipCurrentInstructionInForkedState);
 
         ret.push_back(sp.second);
 
@@ -1458,26 +1565,26 @@ bool S2EExecutor::merge(klee::ExecutionState &_base, klee::ExecutionState &_othe
     return result;
 }
 
-void S2EExecutor::terminateState(klee::ExecutionState &state, const std::string &message) {
-    S2EExecutionState *s2estate = static_cast<S2EExecutionState *>(&state);
-    m_s2e->getInfoStream(s2estate) << "Terminating state: " << message << "\n";
+void S2EExecutor::terminateState(klee::ExecutionStatePtr state, const std::string &message) {
+    auto s2estate = static_pointer_cast<S2EExecutionState>(state);
+    m_s2e->getInfoStream(s2estate.get()) << "Terminating state: " << message << "\n";
     terminateState(state);
 }
 
-void S2EExecutor::terminateState(ExecutionState &s) {
-    S2EExecutionState &state = static_cast<S2EExecutionState &>(s);
+void S2EExecutor::terminateState(ExecutionStatePtr s) {
+    auto state = static_pointer_cast<S2EExecutionState>(s);
 
-    m_s2e->getCorePlugin()->onStateKill.emit(&state);
+    m_s2e->getCorePlugin()->onStateKill.emit(state.get());
 
     Executor::terminateState(state);
-    state.zombify();
+    state->zombify();
 
     g_s2e->getWarningsStream().flush();
     g_s2e->getDebugStream().flush();
 
     // No need for exiting the loop if we kill another state.
-    if (!m_inLoadBalancing && (&state == g_s2e_state)) {
-        state.regs()->write<int>(CPU_OFFSET(exception_index), EXCP_SE);
+    if (!m_inLoadBalancing && (state == g_s2e_state)) {
+        state->regs()->write<int>(CPU_OFFSET(exception_index), EXCP_SE);
         throw CpuExitException();
     }
 }
@@ -1712,7 +1819,7 @@ uint64_t s2e_read_mem_io_vaddr(int masked) {
 }
 
 void s2e_kill_state(const char *message) {
-    g_s2e->getExecutor()->terminateState(*g_s2e_state, message);
+    g_s2e->getExecutor()->terminateState(g_s2e_state, message);
 }
 
 void s2e_print_instructions(bool val) {

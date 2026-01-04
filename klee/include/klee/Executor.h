@@ -125,12 +125,6 @@ protected:
     void executeMemoryOperation(ExecutionState &state, bool isWrite, ref<Expr> address,
                                 ref<Expr> value /* undef if read */, KInstruction *target /* undef if write */);
 
-    /// When the fork is complete and state properly updated,
-    /// notify the S2EExecutor, so that it can generate an onFork event.
-    /// Sending notification after the fork completed
-    /// allows plugins to kill states and exit to the CPU loop safely.
-    virtual void notifyFork(ExecutionState &originalState, ref<Expr> &condition, Executor::StatePair &targets) = 0;
-
     const Cell &eval(KInstruction *ki, unsigned index, LLVMExecutionState &state) const;
 
     typedef void (*FunctionHandler)(Executor *executor, ExecutionState *state, KInstruction *target,
@@ -150,16 +144,16 @@ public:
     // keepConditionTrueInCurrentState makes sure original state will have condition equal true.
     // This is useful when forking one state with several different values.
     // NOTE: In concolic mode it will recompute initial values for current state, do not use it for seed state.
-    virtual StatePair fork(ExecutionState &current, const ref<Expr> &condition,
-                           bool keepConditionTrueInCurrentState = false);
-
-    // Unconditional fork
-    virtual StatePair fork(ExecutionState &current);
+    virtual StatePair fork(ExecutionState &current, const ref<Expr> &condition, bool keepConditionTrueInCurrentState,
+                           std::function<void(ExecutionStatePtr, const StatePair &)> onBeforeNotify) = 0;
 
     // remove state from queue and delete
-    virtual void terminateState(ExecutionState &state);
+    virtual void terminateState(ExecutionStatePtr state);
 
     virtual const llvm::Module *setModule(llvm::Module *module);
+
+    static void reexecuteCurrentInstructionInForkedState(ExecutionStatePtr state, const StatePair &sp);
+    static void skipCurrentInstructionInForkedState(ExecutionStatePtr state, const StatePair &sp);
 
     /*** State accessor methods ***/
     size_t getStatesCount() const {

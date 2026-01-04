@@ -290,124 +290,6 @@ void Executor::initializeGlobals(ExecutionState &state) {
     }
 }
 
-Executor::StatePair Executor::fork(ExecutionState &current, const ref<Expr> &condition_,
-                                   bool keepConditionTrueInCurrentState) {
-    auto condition = current.simplifyExpr(condition_);
-
-    // If we are passed a constant, no need to do anything
-    if (auto ce = dyn_cast<ConstantExpr>(condition)) {
-        if (ce->isTrue()) {
-            return StatePair(&current, nullptr);
-        } else {
-            return StatePair(nullptr, &current);
-        }
-    }
-
-    // Evaluate the expression using the current variable assignment
-    ref<Expr> evalResult = current.concolics()->evaluate(condition);
-    ConstantExpr *ce = dyn_cast<ConstantExpr>(evalResult);
-    check(ce, "Could not evaluate the expression to a constant.");
-    bool conditionIsTrue = ce->isTrue();
-
-    if (current.forkDisabled) {
-        if (conditionIsTrue) {
-            if (!current.addConstraint(condition)) {
-                abort();
-            }
-            return StatePair(&current, nullptr);
-        } else {
-            if (!current.addConstraint(Expr::createIsZero(condition))) {
-                abort();
-            }
-            return StatePair(nullptr, &current);
-        }
-    }
-
-    if (keepConditionTrueInCurrentState && !conditionIsTrue) {
-        // Recompute concrete values to keep condition true in current state
-
-        // Build constraints where condition must be true
-        ConstraintManager tmpConstraints = current.constraints();
-        tmpConstraints.addConstraint(condition);
-
-        if (!current.solve(tmpConstraints, *(current.concolics()))) {
-            // Condition is always false in the current state
-            return StatePair(nullptr, &current);
-        }
-
-        conditionIsTrue = true;
-    }
-
-    // Build constraints for branched state
-    ConstraintManager tmpConstraints = current.constraints();
-    if (conditionIsTrue) {
-        tmpConstraints.addConstraint(Expr::createIsZero(condition));
-    } else {
-        tmpConstraints.addConstraint(condition);
-    }
-
-    AssignmentPtr concolics = Assignment::create(true);
-    if (!current.solve(tmpConstraints, *concolics)) {
-        if (conditionIsTrue) {
-            return StatePair(&current, nullptr);
-        } else {
-            return StatePair(nullptr, &current);
-        }
-    }
-
-    // Branch
-    auto branchedState = current.clone();
-    m_addedStates.insert(branchedState);
-
-    *klee::stats::forks += 1;
-
-    // Update concrete values for the branched state
-    branchedState->setConcolics(concolics);
-
-    // Add constraint to both states
-    if (conditionIsTrue) {
-        if (!current.addConstraint(condition)) {
-            abort();
-        }
-        if (!branchedState->addConstraint(Expr::createIsZero(condition))) {
-            abort();
-        }
-    } else {
-        if (!current.addConstraint(Expr::createIsZero(condition))) {
-            abort();
-        }
-        if (!branchedState->addConstraint(condition)) {
-            abort();
-        }
-    }
-
-    // Classify states
-    ExecutionStatePtr trueState, falseState;
-    if (conditionIsTrue) {
-        trueState = &current;
-        falseState = branchedState;
-    } else {
-        falseState = &current;
-        trueState = branchedState;
-    }
-
-    return StatePair(trueState, falseState);
-}
-
-Executor::StatePair Executor::fork(ExecutionState &current) {
-    if (current.forkDisabled) {
-        return StatePair(&current, nullptr);
-    }
-
-    auto clonedState = current.clone();
-    m_addedStates.insert(clonedState);
-
-    // Deep copy concolics().
-    clonedState->setConcolics(Assignment::create(current.concolics()));
-
-    return StatePair(&current, clonedState);
-}
-
 const Cell &Executor::eval(KInstruction *ki, unsigned index, LLVMExecutionState &state) const {
     assert(index < ki->inst->getNumOperands());
     int vnumber = ki->operands[index];
@@ -702,6 +584,17 @@ void Executor::executeCall(ExecutionState &state, KInstruction *ki, Function *f,
     }
 }
 
+void Executor::reexecuteCurrentInstructionInForkedState(ExecutionStatePtr state, const StatePair &sp) {
+    assert(sp.first == state);
+    if (sp.second) {
+        sp.second->llvm.pc = sp.second->llvm.prevPC;
+    }
+}
+
+void Executor::skipCurrentInstructionInForkedState(ExecutionStatePtr state, const StatePair &sp) {
+    // This is a noop for llvm.
+}
+
 void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
     *klee::stats::instructions += 1;
     auto &llvmState = state.llvm;
@@ -771,16 +664,14 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
                 // FIXME: Find a way that we don't have this hidden dependency.
                 assert(bi->getCondition() == bi->getOperand(0) && "Wrong operand index!");
                 ref<Expr> cond = eval(ki, 0, llvmState).value;
-                Executor::StatePair branches = fork(state, cond);
-
-                if (branches.first) {
-                    branches.first->llvm.transferToBasicBlock(bi->getSuccessor(0), bi->getParent());
-                }
-                if (branches.second) {
-                    branches.second->llvm.transferToBasicBlock(bi->getSuccessor(1), bi->getParent());
-                }
-
-                notifyFork(state, cond, branches);
+                fork(state, cond, false, [&](ExecutionStatePtr state, const StatePair &sp) {
+                    if (sp.first) {
+                        sp.first->llvm.transferToBasicBlock(bi->getSuccessor(0), bi->getParent());
+                    }
+                    if (sp.second) {
+                        sp.second->llvm.transferToBasicBlock(bi->getSuccessor(1), bi->getParent());
+                    }
+                });
             }
             break;
         }
@@ -792,12 +683,8 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
 
             klee::ref<klee::Expr> concreteCond = state.concolics()->evaluate(cond);
             klee::ref<klee::Expr> condition = EqExpr::create(concreteCond, cond);
-            StatePair sp = fork(state, condition);
-            assert(sp.first == &state);
-            if (sp.second) {
-                sp.second->llvm.pc = sp.second->llvm.prevPC;
-            }
-            notifyFork(state, condition, sp);
+            StatePair sp = fork(state, condition, false, reexecuteCurrentInstructionInForkedState);
+
             cond = concreteCond;
 
             if (ConstantExpr *CE = dyn_cast<ConstantExpr>(cond)) {
@@ -1557,15 +1444,15 @@ void Executor::updateStates(ExecutionStatePtr current) {
     m_removedStates.clear();
 }
 
-void Executor::terminateState(ExecutionState &state) {
+void Executor::terminateState(ExecutionStatePtr state) {
     *klee::stats::completedPaths += 1;
 
-    StateSet::iterator it = m_addedStates.find(&state);
+    StateSet::iterator it = m_addedStates.find(state);
     if (it == m_addedStates.end()) {
         // XXX: the following line makes delayed state termination impossible
         // llvmState.pc = llvmState.prevPC;
 
-        m_removedStates.insert(&state);
+        m_removedStates.insert(state);
     } else {
         // never reached searcher, just delete immediately
         m_addedStates.erase(it);
@@ -1600,21 +1487,7 @@ void Executor::callExternalFunction(ExecutionState &state, KInstruction *target,
 
             klee::ref<klee::Expr> condition = EqExpr::create(concreteArg, arg);
 
-            StatePair sp = fork(state, condition);
-
-            assert(sp.first == &state);
-
-            if (sp.second) {
-                sp.second->llvm.pc = sp.second->llvm.prevPC;
-            }
-
-            KInstIterator savedPc = sp.first->llvm.pc;
-            sp.first->llvm.pc = sp.first->llvm.prevPC;
-
-            // This might throw an exception
-            notifyFork(state, condition, sp);
-
-            sp.first->llvm.pc = savedPc;
+            fork(state, condition, false, reexecuteCurrentInstructionInForkedState);
 
             cas.push_back(concreteArg->getZExtValue());
         }
@@ -1749,15 +1622,7 @@ void Executor::executeMemoryOperation(ExecutionState &state, bool isWrite, ref<E
 
     assert(state.concolics()->evaluate(condition)->isTrue());
 
-    StatePair branches = fork(state, condition);
-
-    assert(branches.first == &state);
-    if (branches.second) {
-        // The forked state will have to re-execute the memory op
-        branches.second->llvm.pc = branches.second->llvm.prevPC;
-    }
-
-    notifyFork(state, condition, branches);
+    fork(state, condition, false, reexecuteCurrentInstructionInForkedState);
 
     if (isa<ConstantExpr>(address)) {
         auto ce = dyn_cast<ConstantExpr>(address)->getZExtValue();

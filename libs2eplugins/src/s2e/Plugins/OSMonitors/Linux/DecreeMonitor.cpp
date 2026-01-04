@@ -246,7 +246,7 @@ ref<Expr> DecreeMonitor::makeSymbolicRead(S2EExecutionState *state, uint64_t pid
         return E_CONST(feedCount, Expr::Int32);
     }
 
-    g_s2e->getExecutor()->terminateState(*state, "read data limit exceeded");
+    g_s2e->getExecutor()->terminateState(state, "read data limit exceeded");
     return E_CONST(0, Expr::Int32);
 }
 
