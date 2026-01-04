@@ -1188,15 +1188,19 @@ void S2EExecutor::notifyFork(ExecutionState &originalState, const klee::ref<Expr
         return;
     }
 
-    std::vector<S2EExecutionState *> newStates(2);
-    std::vector<klee::ref<Expr>> newConditions(2);
-
     S2EExecutionState *state = static_cast<S2EExecutionState *>(&originalState);
+
+    std::vector<S2EExecutionState *> newStates(2);
     newStates[0] = static_pointer_cast<S2EExecutionState>(targets.first).get();
     newStates[1] = static_pointer_cast<S2EExecutionState>(targets.second).get();
 
-    newConditions[0] = condition;
-    newConditions[1] = klee::NotExpr::create(condition);
+    std::vector<klee::ref<Expr>> newConditions;
+
+    if (condition) {
+        newConditions.resize(2);
+        newConditions[0] = condition;
+        newConditions[1] = klee::NotExpr::create(condition);
+    }
 
     try {
         m_s2e->getCorePlugin()->onStateFork.emit(state, newStates, newConditions);
