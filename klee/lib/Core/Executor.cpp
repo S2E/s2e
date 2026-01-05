@@ -1427,36 +1427,14 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
     }
 }
 
-void Executor::updateStates(ExecutionStatePtr current) {
-    if (m_searcher) {
-        m_searcher->update(current, m_addedStates, m_removedStates);
-    }
-
-    m_states.insert(m_addedStates.begin(), m_addedStates.end());
-    m_addedStates.clear();
-
-    for (StateSet::iterator it = m_removedStates.begin(), ie = m_removedStates.end(); it != ie; ++it) {
-        auto es = *it;
-        StateSet::iterator it2 = m_states.find(es);
-        assert(it2 != m_states.end());
-        m_states.erase(it2);
-    }
-    m_removedStates.clear();
-}
-
 void Executor::terminateState(ExecutionStatePtr state) {
     *klee::stats::completedPaths += 1;
 
-    StateSet::iterator it = m_addedStates.find(state);
-    if (it == m_addedStates.end()) {
-        // XXX: the following line makes delayed state termination impossible
-        // llvmState.pc = llvmState.prevPC;
-
-        m_removedStates.insert(state);
-    } else {
-        // never reached searcher, just delete immediately
-        m_addedStates.erase(it);
+    if (m_searcher) {
+        m_searcher->removeState(state);
     }
+
+    m_states.erase(state);
 }
 
 extern "C" {
