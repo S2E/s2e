@@ -96,24 +96,12 @@ protected:
     // ======= Execution state management =======
     Searcher *m_searcher;
     StateSet m_states;
-    /// Used to track states that have been added during the current
-    /// instructions step.
-    /// \invariant \ref addedStates is a subset of \ref states.
-    /// \invariant \ref addedStates and \ref removedStates are disjoint.
-    StateSet m_addedStates;
-    /// Used to track states that have been removed during the current
-    /// instructions step.
-    /// \invariant \ref removedStates is a subset of \ref states.
-    /// \invariant \ref addedStates and \ref removedStates are disjoint.
-    StateSet m_removedStates;
 
     void executeInstruction(ExecutionState &state, KInstruction *ki);
 
     void initializeGlobalObject(ExecutionState &state, const ObjectStatePtr &os, const llvm::Constant *c,
                                 unsigned offset);
     void initializeGlobals(ExecutionState &state);
-
-    virtual void updateStates(ExecutionStatePtr current);
 
     void callExternalFunction(ExecutionState &state, KInstruction *target, llvm::Function *function,
                               std::vector<ref<Expr>> &arguments);
@@ -161,14 +149,6 @@ public:
     }
     const StateSet &getStates() {
         return m_states;
-    }
-
-    const StateSet &getAddedStates() {
-        return m_addedStates;
-    }
-
-    const StateSet &getRemovedStates() {
-        return m_removedStates;
     }
 
     KModulePtr getModule() const {

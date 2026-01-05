@@ -471,8 +471,9 @@ S2EExecutionState *S2EExecutor::createInitialState() {
     state->setForking(EnableForking);
 
     m_states.insert(state);
-    m_addedStates.insert(state);
-    updateStates(state);
+    if (m_searcher) {
+        m_searcher->addState(state);
+    }
 
 #define __DEFINE_EXT_OBJECT_RO(name)                                                  \
     {                                                                                 \
@@ -819,7 +820,6 @@ ExecutionStatePtr S2EExecutor::selectSearcherState(S2EExecutionStatePtr state) {
 
 S2EExecutionStatePtr S2EExecutor::selectNextState(S2EExecutionStatePtr state) {
     assert(state->m_active);
-    updateStates(state);
 
     /* Prevent state switching */
     if (state->isStateSwitchForbidden() && !state->isZombie()) {
@@ -895,12 +895,8 @@ inline bool S2EExecutor::executeInstructions(S2EExecutionState *state, unsigned 
             } catch (const klee::LLVMExecutorException &e) {
                 terminateState(state, e.what());
             }
-
-            updateStates(state);
         }
     } catch (CpuExitException &) {
-        updateStates(state);
-        // assert(addedStates.empty());
         return true;
     }
 
@@ -1043,7 +1039,6 @@ uintptr_t S2EExecutor::executeTranslationBlockSlow(struct CPUX86State *env1, str
         uintptr_t ret = g_s2e->getExecutor()->executeTranslationBlock(g_s2e_state.get(), tb);
         return ret;
     } catch (s2e::CpuExitException &) {
-        g_s2e->getExecutor()->updateStates(g_s2e_state);
         longjmp(env->jmp_env, 1);
     }
 }
@@ -1228,20 +1223,47 @@ Executor::StatePair S2EExecutor::forkAndConcretize(S2EExecutionState *state, kle
 S2EExecutor::StatePair S2EExecutor::fork(ExecutionState &current, const klee::ref<Expr> &condition,
                                          bool keepConditionTrueInCurrentState,
                                          std::function<void(ExecutionStatePtr, const StatePair &)> onBeforeNotify) {
-    auto ret = doFork(current, condition, keepConditionTrueInCurrentState);
+
+    ExecutionStatePtr newState;
+    auto ret = doFork(current, condition, keepConditionTrueInCurrentState, newState);
     onBeforeNotify(&current, ret);
     notifyFork(current, condition, ret);
+
+    // TODO: deduplicate.
+    if (newState) {
+        if (m_searcher) {
+            m_searcher->addState(newState);
+        }
+        m_states.insert(newState);
+        StateSet addedStates = {newState};
+        auto s2eState = static_cast<S2EExecutionState *>(&current);
+        m_s2e->getCorePlugin()->onUpdateStates.emit(s2eState, addedStates, StateSet());
+    }
+
     return ret;
 }
 
 S2EExecutor::StatePair S2EExecutor::fork(ExecutionState &current) {
-    auto ret = doFork(current, nullptr, false);
+    ExecutionStatePtr newState;
+    auto ret = doFork(current, nullptr, false, newState);
     notifyFork(current, nullptr, ret);
+    assert(newState);
+
+    if (m_searcher) {
+        m_searcher->addState(newState);
+    }
+    m_states.insert(newState);
+    StateSet addedStates = {newState};
+
+    auto s2eState = static_cast<S2EExecutionState *>(&current);
+    m_s2e->getCorePlugin()->onUpdateStates.emit(s2eState, addedStates, StateSet());
+
     return ret;
 }
 
 Executor::StatePair S2EExecutor::conditionalFork(ExecutionState &current, const klee::ref<Expr> &condition_,
-                                                 bool keepConditionTrueInCurrentState) {
+                                                 bool keepConditionTrueInCurrentState, ExecutionStatePtr &newState) {
+    newState = nullptr;
     auto condition = current.simplifyExpr(condition_);
 
     // If we are passed a constant, no need to do anything
@@ -1307,7 +1329,7 @@ Executor::StatePair S2EExecutor::conditionalFork(ExecutionState &current, const 
 
     // Branch
     auto branchedState = current.clone();
-    m_addedStates.insert(branchedState);
+    newState = branchedState;
 
     *klee::stats::forks += 1;
 
@@ -1344,13 +1366,13 @@ Executor::StatePair S2EExecutor::conditionalFork(ExecutionState &current, const 
     return StatePair(trueState, falseState);
 }
 
-Executor::StatePair S2EExecutor::unconditionalFork(ExecutionState &current) {
+Executor::StatePair S2EExecutor::unconditionalFork(ExecutionState &current, ExecutionStatePtr &newState) {
     if (current.forkDisabled) {
         return StatePair(&current, nullptr);
     }
 
     auto clonedState = current.clone();
-    m_addedStates.insert(clonedState);
+    newState = clonedState;
 
     // Deep copy concolics().
     clonedState->setConcolics(Assignment::create(current.concolics()));
@@ -1359,7 +1381,7 @@ Executor::StatePair S2EExecutor::unconditionalFork(ExecutionState &current) {
 }
 
 S2EExecutor::StatePair S2EExecutor::doFork(ExecutionState &current, const klee::ref<Expr> &condition,
-                                           bool keepConditionTrueInCurrentState) {
+                                           bool keepConditionTrueInCurrentState, ExecutionStatePtr &newState) {
     S2EExecutionState *currentState = dynamic_cast<S2EExecutionState *>(&current);
     assert(currentState);
     assert(!currentState->isRunningConcrete());
@@ -1389,9 +1411,9 @@ S2EExecutor::StatePair S2EExecutor::doFork(ExecutionState &current, const klee::
     }
 
     if (condition) {
-        res = conditionalFork(current, condition, keepConditionTrueInCurrentState);
+        res = conditionalFork(current, condition, keepConditionTrueInCurrentState, newState);
     } else {
-        res = unconditionalFork(current);
+        res = unconditionalFork(current, newState);
     }
 
     currentState->forkDisabled = oldForkStatus;
@@ -1582,6 +1604,9 @@ void S2EExecutor::terminateState(ExecutionStatePtr s) {
     g_s2e->getWarningsStream().flush();
     g_s2e->getDebugStream().flush();
 
+    StateSet removed = {state};
+    m_s2e->getCorePlugin()->onUpdateStates.emit(state.get(), StateSet(), removed);
+
     // No need for exiting the loop if we kill another state.
     if (!m_inLoadBalancing && (state == g_s2e_state)) {
         state->regs()->write<int>(CPU_OFFSET(exception_index), EXCP_SE);
@@ -1604,7 +1629,6 @@ inline void S2EExecutor::setCCOpEflags(S2EExecutionState *state) {
 
                 executeFunction(state, "helper_set_cc_op_eflags");
             } catch (s2e::CpuExitException &) {
-                updateStates(state);
                 longjmp(env->jmp_env, 1);
             }
         }
@@ -1640,7 +1664,6 @@ inline void S2EExecutor::doInterrupt(S2EExecutionState *state, int intno, int is
         try {
             executeFunction(state, "se_do_interrupt_all", args);
         } catch (s2e::CpuExitException &) {
-            updateStates(state);
             longjmp(env->jmp_env, 1);
         }
     }
@@ -1706,12 +1729,6 @@ S2ETranslationBlock *S2EExecutor::allocateS2ETb() {
 
 void S2EExecutor::flushS2ETBs() {
     m_s2eTbs.clear();
-}
-
-void S2EExecutor::updateStates(klee::ExecutionStatePtr current) {
-    S2EExecutionState *state = static_cast<S2EExecutionState *>(current.get());
-    m_s2e->getCorePlugin()->onUpdateStates.emit(state, m_addedStates, m_removedStates);
-    klee::Executor::updateStates(current);
 }
 
 } // namespace s2e
