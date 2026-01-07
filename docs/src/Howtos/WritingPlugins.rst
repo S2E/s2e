@@ -137,7 +137,7 @@ not need to store per-state information.
 
         virtual ~InstructionTrackerState() {}
 
-        static PluginState *factory(Plugin*, S2EExecutionState*) {
+        static PluginState *factory(Plugin*) {
             return new InstructionTrackerState();
         }
 
