@@ -197,36 +197,38 @@ void SeedSearcher::onStateKill(S2EExecutionState *state) {
     }
 }
 
-void SeedSearcher::update(klee::ExecutionStatePtr current, const klee::StateSet &addedStates,
-                          const klee::StateSet &removedStates) {
-    auto cs = static_pointer_cast<S2EExecutionState>(current);
+void SeedSearcher::addState(klee::ExecutionStatePtr state) {
+    auto es = static_pointer_cast<S2EExecutionState>(state);
     if (!m_initialState) {
-        if (cs->getID() == 0) {
-            m_initialState = cs;
+        if (es->getID() == 0) {
+            m_initialState = es;
         }
     }
 
-    for (auto addedState : addedStates) {
-        auto es = static_pointer_cast<S2EExecutionState>(addedState);
-        m_states.insert(es);
+    m_states.insert(es);
+
+    // Always prefer seed states
+    if (m_seedStates.size()) {
+        switchToSeedSearcher();
+    }
+}
+
+void SeedSearcher::removeState(klee::ExecutionStatePtr state) {
+    auto es = static_pointer_cast<S2EExecutionState>(state);
+
+    // This can only happen if state 0 dies for some reason
+    if (es == m_initialState) {
+        s2e_warn_assert(es, false, "Initial state no longer exists, seed look up is not possible");
+        m_initialState = nullptr;
+        m_selectSeedState = false;
     }
 
-    for (auto removedState : removedStates) {
-        auto es = static_pointer_cast<S2EExecutionState>(removedState);
-
-        // This can only happen if state 0 dies for some reason
-        if (es == m_initialState) {
-            s2e_warn_assert(cs, false, "Initial state no longer exists, seed look up is not possible");
-            m_initialState = nullptr;
-            m_selectSeedState = false;
-        }
-
-        if (es == m_cachedState) {
-            m_cachedState = nullptr;
-        }
-        m_seedStates.erase(es);
-        m_states.erase(es);
+    if (es == m_cachedState) {
+        m_cachedState = nullptr;
     }
+
+    m_seedStates.erase(es);
+    m_states.erase(es);
 
     // Always prefer seed states
     if (m_seedStates.size()) {

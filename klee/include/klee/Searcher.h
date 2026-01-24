@@ -24,55 +24,36 @@ public:
 
     virtual ExecutionStatePtr selectState() = 0;
 
-    // Clients must first process the addedStates set
-    // and then the removedStates set. A state can be included in
-    // both sets if it has been added and then removed
-    // immediately after. Processing the sets in the wrong order
-    // may cause the searcher to return a state that
-    // has actually been deleted.
-    virtual void update(ExecutionStatePtr current, const StateSet &addedStates, const StateSet &removedStates) = 0;
-
     virtual bool empty() = 0;
 
-    // utility functions
-
-    void addState(ExecutionStatePtr es, ExecutionStatePtr current = nullptr) {
-        StateSet tmp;
-        tmp.insert(es);
-        update(current, tmp, StateSet());
-    }
-
-    void removeState(ExecutionStatePtr es, ExecutionStatePtr current = nullptr) {
-        StateSet tmp;
-        tmp.insert(es);
-        update(current, StateSet(), tmp);
-    }
+    virtual void addState(klee::ExecutionStatePtr state) = 0;
+    virtual void removeState(klee::ExecutionStatePtr state) = 0;
 };
 
 class DFSSearcher : public Searcher {
-    std::vector<ExecutionStatePtr> states;
-    ExecutionStatePtr currentState;
+    std::vector<ExecutionStatePtr> m_states;
+    ExecutionStatePtr m_currentState;
 
 public:
-    DFSSearcher() {
-        currentState = nullptr;
-    }
-
     ExecutionStatePtr selectState();
-    void update(ExecutionStatePtr current, const StateSet &addedStates, const StateSet &removedStates);
+
+    virtual void addState(klee::ExecutionStatePtr state);
+    virtual void removeState(klee::ExecutionStatePtr state);
+
     bool empty() {
-        return states.empty();
+        return m_states.empty();
     }
 };
 
 class RandomSearcher : public Searcher {
-    std::vector<ExecutionStatePtr> states;
+    std::vector<ExecutionStatePtr> m_states;
 
 public:
     ExecutionStatePtr selectState();
-    void update(ExecutionStatePtr current, const StateSet &addedStates, const StateSet &removedStates);
+    virtual void addState(klee::ExecutionStatePtr state);
+    virtual void removeState(klee::ExecutionStatePtr state);
     bool empty() {
-        return states.empty();
+        return m_states.empty();
     }
 };
 

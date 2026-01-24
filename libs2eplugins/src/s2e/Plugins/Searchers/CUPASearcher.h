@@ -89,8 +89,9 @@ public:
     klee::Searcher *createSearcher(unsigned level);
 
     void updateState(S2EExecutionState *state);
-    void update(klee::ExecutionStatePtr current, const klee::StateSet &addedStates,
-                const klee::StateSet &removedStates);
+
+    virtual void addState(klee::ExecutionStatePtr state);
+    virtual void removeState(klee::ExecutionStatePtr state);
 
     void enable(bool e);
 
@@ -135,8 +136,8 @@ public:
 
     virtual klee::ExecutionStatePtr selectState();
 
-    virtual void update(klee::ExecutionStatePtr current, const klee::StateSet &addedStates,
-                        const klee::StateSet &removedStates);
+    virtual void addState(klee::ExecutionStatePtr state);
+    virtual void removeState(klee::ExecutionStatePtr state);
 
     virtual bool empty();
 };
@@ -190,8 +191,8 @@ public:
     CUPASearcherRandomClass(CUPASearcher *plugin, unsigned level) : CUPASearcherClass(plugin, level) {};
 
     virtual klee::ExecutionStatePtr selectState();
-    virtual void update(klee::ExecutionStatePtr current, const klee::StateSet &addedStates,
-                        const klee::StateSet &removedStates);
+    virtual void addState(klee::ExecutionStatePtr state);
+    virtual void removeState(klee::ExecutionStatePtr state);
 
     virtual bool empty() {
         return m_states.empty();
@@ -315,13 +316,16 @@ private:
     std::chrono::seconds m_batchTime;
 
 protected:
-    virtual void update(klee::ExecutionStatePtr current, const klee::StateSet &addedStates,
-                        const klee::StateSet &removedStates) {
-        if (removedStates.count(m_state)) {
+    virtual void addState(klee::ExecutionStatePtr state) {
+        CUPASearcherClass::addState(state);
+    }
+
+    virtual void removeState(klee::ExecutionStatePtr state) {
+        if (state == m_state) {
             m_state = nullptr;
         }
 
-        CUPASearcherClass::update(current, addedStates, removedStates);
+        CUPASearcherClass::removeState(state);
     }
 
     virtual uint64_t getClass(S2EExecutionState *state) {

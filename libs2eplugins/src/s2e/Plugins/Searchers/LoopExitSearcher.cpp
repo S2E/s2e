@@ -255,28 +255,23 @@ klee::ExecutionStatePtr LoopExitSearcher::selectState() {
     return m_currentState;
 }
 
-void LoopExitSearcher::update(klee::ExecutionStatePtr current, const klee::StateSet &addedStates,
-                              const klee::StateSet &removedStates) {
-    /* The forked states will get this priority */
-    /* All the added states should be there already (see onFork event) ? */
-    foreach2 (ait, addedStates.begin(), addedStates.end()) {
-        auto state = static_pointer_cast<S2EExecutionState>(*ait);
+void LoopExitSearcher::addState(klee::ExecutionStatePtr es) {
+    auto state = static_pointer_cast<S2EExecutionState>(es);
 
-        StatesByPointer &byPointer = m_states.get<state_t>();
-        StatesByPointer::iterator it = byPointer.find(state);
-        if (it == byPointer.end()) {
-            StatePriority p(state, 0);
-            m_states.insert(p);
-        }
+    StatesByPointer &byPointer = m_states.get<state_t>();
+    StatesByPointer::iterator it = byPointer.find(state);
+    if (it == byPointer.end()) {
+        StatePriority p(state, 0);
+        m_states.insert(p);
     }
+}
 
-    foreach2 (it, removedStates.begin(), removedStates.end()) {
-        auto state = static_pointer_cast<S2EExecutionState>(*it);
-        StatesByPointer &byPointer = m_states.get<state_t>();
-        byPointer.erase(state);
-        if (state == m_currentState) {
-            m_currentState = nullptr;
-        }
+void LoopExitSearcher::removeState(klee::ExecutionStatePtr es) {
+    auto state = static_pointer_cast<S2EExecutionState>(es);
+    StatesByPointer &byPointer = m_states.get<state_t>();
+    byPointer.erase(state);
+    if (state == m_currentState) {
+        m_currentState = nullptr;
     }
 }
 

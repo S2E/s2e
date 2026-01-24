@@ -67,41 +67,35 @@ klee::ExecutionStatePtr MergingSearcher::selectState() {
     return state;
 }
 
-void MergingSearcher::update(klee::ExecutionStatePtr current, const klee::StateSet &addedStates,
-                             const klee::StateSet &removedStates) {
-    States states;
-    foreach2 (it, addedStates.begin(), addedStates.end()) {
-        auto state = static_pointer_cast<S2EExecutionState>(*it);
-        states.insert(state);
-    }
+void MergingSearcher::addState(klee::ExecutionStatePtr state) {
+    auto es = static_pointer_cast<S2EExecutionState>(state);
+    m_activeStates.insert(es);
 
-    foreach2 (it, removedStates.begin(), removedStates.end()) {
-        auto state = static_pointer_cast<S2EExecutionState>(*it);
-        states.erase(state);
-        m_activeStates.erase(state);
-
-        DECLARE_PLUGINSTATE(MergingSearcherState, state);
-        if (plgState->getGroupId()) {
-            m_mergePools[plgState->getGroupId()].states.erase(state);
-        }
-
-        if (state == m_currentState) {
-            m_currentState = nullptr;
-        }
-    }
-
-    foreach2 (it, states.begin(), states.end()) {
-        auto state = static_pointer_cast<S2EExecutionState>(*it);
-        m_activeStates.insert(state);
-
-        DECLARE_PLUGINSTATE(MergingSearcherState, state);
-        if (plgState->getGroupId()) {
-            m_mergePools[plgState->getGroupId()].states.insert(state);
-        }
+    DECLARE_PLUGINSTATE(MergingSearcherState, es);
+    if (plgState->getGroupId()) {
+        m_mergePools[plgState->getGroupId()].states.insert(es);
     }
 
     if (m_selector) {
-        m_selector->update(current, addedStates, removedStates);
+        m_selector->addState(state);
+    }
+}
+
+void MergingSearcher::removeState(klee::ExecutionStatePtr state) {
+    auto es = static_pointer_cast<S2EExecutionState>(state);
+    m_activeStates.erase(es);
+
+    DECLARE_PLUGINSTATE(MergingSearcherState, es);
+    if (plgState->getGroupId()) {
+        m_mergePools[plgState->getGroupId()].states.erase(es);
+    }
+
+    if (es == m_currentState) {
+        m_currentState = nullptr;
+    }
+
+    if (m_selector) {
+        m_selector->removeState(state);
     }
 }
 

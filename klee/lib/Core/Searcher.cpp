@@ -48,72 +48,47 @@ Searcher::~Searcher() {
 }
 
 ExecutionStatePtr DFSSearcher::selectState() {
-    ExecutionStatePtr ret = states.back();
+    assert(m_states.size() && "No states available");
+    ExecutionStatePtr ret = m_states.back();
 
-    if (currentState == nullptr) {
-        currentState = ret;
+    if (m_currentState == nullptr) {
+        m_currentState = ret;
     }
 
-    return currentState;
+    return m_currentState;
 }
 
-void DFSSearcher::update(ExecutionStatePtr current, const StateSet &addedStates, const StateSet &removedStates) {
-    bool firstTime = states.size() == 0;
-    states.insert(states.end(), addedStates.begin(), addedStates.end());
-    for (StateSet::const_iterator it = removedStates.begin(), ie = removedStates.end(); it != ie; ++it) {
-        ExecutionStatePtr es = *it;
-        if (currentState == es) {
-            currentState = NULL;
-        }
+void DFSSearcher::addState(ExecutionStatePtr state) {
+    m_states.push_back(state);
+}
 
-        if (es == states.back()) {
-            states.pop_back();
-        } else {
-            bool ok = false;
-
-            for (std::vector<ExecutionStatePtr>::iterator it = states.begin(), ie = states.end(); it != ie; ++it) {
-                if (es == *it) {
-                    states.erase(it);
-                    ok = true;
-                    break;
-                }
-            }
-
-            if (!ok) {
-                pabort("invalid state removed");
-            }
-        }
+void DFSSearcher::removeState(ExecutionStatePtr state) {
+    if (m_currentState == state) {
+        m_currentState = nullptr;
     }
 
-    if (firstTime) {
-        currentState = states[0];
+    auto it = std::find(m_states.begin(), m_states.end(), state);
+    if (it != m_states.end()) {
+        m_states.erase(it);
     }
 }
 
 ///
 
 ExecutionStatePtr RandomSearcher::selectState() {
-    auto val = uni(rng) % states.size();
-    return states[val];
+    assert(m_states.size() && "No states available");
+    auto val = uni(rng) % m_states.size();
+    return m_states[val];
 }
 
-void RandomSearcher::update(ExecutionStatePtr current, const StateSet &addedStates, const StateSet &removedStates) {
-    states.insert(states.end(), addedStates.begin(), addedStates.end());
-    for (StateSet::const_iterator it = removedStates.begin(), ie = removedStates.end(); it != ie; ++it) {
-        ExecutionStatePtr es = *it;
-        bool ok = false;
+void RandomSearcher::addState(ExecutionStatePtr state) {
+    m_states.push_back(state);
+}
 
-        for (std::vector<ExecutionStatePtr>::iterator it = states.begin(), ie = states.end(); it != ie; ++it) {
-            if (es == *it) {
-                states.erase(it);
-                ok = true;
-                break;
-            }
-        }
-
-        if (!ok) {
-            pabort("invalid state removed");
-        }
+void RandomSearcher::removeState(ExecutionStatePtr state) {
+    auto it = std::find(m_states.begin(), m_states.end(), state);
+    if (it != m_states.end()) {
+        m_states.erase(it);
     }
 }
 

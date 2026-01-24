@@ -472,7 +472,7 @@ S2EExecutionState *S2EExecutor::createInitialState() {
 
     m_states.insert(state);
     if (m_searcher) {
-        m_searcher->addState(state, state);
+        m_searcher->addState(state);
     }
 
 #define __DEFINE_EXT_OBJECT_RO(name)                                                  \
@@ -1685,7 +1685,7 @@ void S2EExecutor::doInterruptAll(int intno, int is_int, int error_code, uintptr_
 /** Suspend the given state (does not kill it) */
 bool S2EExecutor::suspendState(S2EExecutionState *state) {
     if (m_searcher) {
-        m_searcher->removeState(state, nullptr);
+        m_searcher->removeState(state);
         size_t r = m_states.erase(state);
         assert(r == 1);
         return true;
@@ -1699,7 +1699,7 @@ bool S2EExecutor::resumeState(S2EExecutionState *state) {
             return false;
         }
         m_states.insert(state);
-        m_searcher->addState(state, nullptr);
+        m_searcher->addState(state);
         return true;
     }
     return false;
