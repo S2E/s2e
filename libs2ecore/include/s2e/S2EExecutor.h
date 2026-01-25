@@ -135,12 +135,8 @@ public:
 
     static void doInterruptAll(int intno, int is_int, int error_code, uintptr_t next_eip, int is_hw);
 
-    klee::Searcher *getSearcher() const {
-        return m_searcher;
-    }
-
     void setSearcher(klee::Searcher *s) {
-        m_searcher = s;
+        m_stateManager.setSearcher(s);
     }
 
     StatePair forkCondition(S2EExecutionState *state, klee::ref<klee::Expr> condition,

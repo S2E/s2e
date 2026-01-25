@@ -26,6 +26,7 @@
 #include "klee/Internal/Module/Cell.h"
 #include "klee/Internal/Module/KInstruction.h"
 #include "klee/Internal/Module/KModule.h"
+#include "klee/StateManager.h"
 
 namespace llvm {
 class BasicBlock;
@@ -94,8 +95,7 @@ protected:
     std::unique_ptr<ExternalDispatcher> m_externalDispatcher;
 
     // ======= Execution state management =======
-    Searcher *m_searcher;
-    StateSet m_states;
+    StateManager m_stateManager;
 
     void executeInstruction(ExecutionState &state, KInstruction *ki);
 
@@ -135,16 +135,13 @@ public:
     virtual StatePair fork(ExecutionState &current, const ref<Expr> &condition, bool keepConditionTrueInCurrentState,
                            std::function<void(ExecutionStatePtr, const StatePair &)> onBeforeNotify) = 0;
 
-    // remove state from queue and delete
-    virtual void terminateState(ExecutionStatePtr state);
-
     virtual const llvm::Module *setModule(llvm::Module *module);
 
     static void reexecuteCurrentInstructionInForkedState(ExecutionStatePtr state, const StatePair &sp);
     static void skipCurrentInstructionInForkedState(ExecutionStatePtr state, const StatePair &sp);
 
     const StateSet &states() const {
-        return m_states;
+        return m_stateManager.states();
     }
 
     KModulePtr getModule() const {
