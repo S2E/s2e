@@ -78,10 +78,15 @@ klee::ExecutionStatePtr MultiSearcher::selectState() {
     return m_currentSearcher->selectState();
 }
 
-void MultiSearcher::update(klee::ExecutionStatePtr current, const klee::StateSet &addedStates,
-                           const klee::StateSet &removedStates) {
-    foreach2 (it, m_searchers.begin(), m_searchers.end()) {
-        (*it).second->update(current, addedStates, removedStates);
+void MultiSearcher::addState(klee::ExecutionStatePtr state) {
+    for (auto &it : m_searchers) {
+        it.second->addState(state);
+    }
+}
+
+void MultiSearcher::removeState(klee::ExecutionStatePtr state) {
+    for (auto &it : m_searchers) {
+        it.second->removeState(state);
     }
 }
 

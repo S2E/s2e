@@ -44,8 +44,8 @@ public:
     virtual ~IMergingSearcher() {
     }
     virtual S2EExecutionState *selectState() = 0;
-    virtual void update(klee::ExecutionStatePtr current, const klee::StateSet &addedStates,
-                        const klee::StateSet &removedStates) = 0;
+    virtual void addState(klee::ExecutionStatePtr state) = 0;
+    virtual void removeState(klee::ExecutionStatePtr state) = 0;
 
     virtual void setActive(S2EExecutionState *state, bool active) = 0;
 };
@@ -101,8 +101,8 @@ public:
 
     virtual klee::ExecutionStatePtr selectState();
 
-    virtual void update(klee::ExecutionStatePtr current, const klee::StateSet &addedStates,
-                        const klee::StateSet &removedStates);
+    virtual void addState(klee::ExecutionStatePtr state);
+    virtual void removeState(klee::ExecutionStatePtr state);
 
     virtual bool empty();
 

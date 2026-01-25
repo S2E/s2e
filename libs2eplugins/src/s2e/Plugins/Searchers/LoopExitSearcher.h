@@ -80,8 +80,8 @@ public:
 
     virtual klee::ExecutionStatePtr selectState();
 
-    virtual void update(klee::ExecutionStatePtr current, const klee::StateSet &addedStates,
-                        const klee::StateSet &removedStates);
+    virtual void addState(klee::ExecutionStatePtr state);
+    virtual void removeState(klee::ExecutionStatePtr state);
 
     virtual bool empty();
 

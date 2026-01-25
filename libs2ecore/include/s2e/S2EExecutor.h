@@ -130,8 +130,6 @@ public:
     S2EExecutionStatePtr selectNextState(S2EExecutionStatePtr state);
     klee::ExecutionStatePtr selectSearcherState(S2EExecutionStatePtr state);
 
-    void updateStates(klee::ExecutionStatePtr current);
-
     void setCCOpEflags(S2EExecutionState *state);
     void doInterrupt(S2EExecutionState *state, int intno, int is_int, int error_code, uint64_t next_eip, int is_hw);
 
@@ -211,12 +209,12 @@ protected:
 private:
     // If `condition` is a nullptr, then no path constraints will be added.
     StatePair doFork(klee::ExecutionState &current, const klee::ref<klee::Expr> &condition,
-                     bool keepConditionTrueInCurrentState);
+                     bool keepConditionTrueInCurrentState, klee::ExecutionStatePtr &newState);
 
-    StatePair unconditionalFork(klee::ExecutionState &current);
+    StatePair unconditionalFork(klee::ExecutionState &current, klee::ExecutionStatePtr &newState);
 
     StatePair conditionalFork(klee::ExecutionState &current, const klee::ref<klee::Expr> &condition_,
-                              bool keepConditionTrueInCurrentState);
+                              bool keepConditionTrueInCurrentState, klee::ExecutionStatePtr &newState);
 
     /// When the fork is complete and state properly updated,
     /// notify the S2EExecutor, so that it can generate an onFork event.

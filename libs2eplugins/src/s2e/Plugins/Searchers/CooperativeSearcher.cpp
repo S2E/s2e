@@ -81,24 +81,17 @@ klee::ExecutionStatePtr CooperativeSearcher::selectState() {
     pabort("There are no states to select!");
 }
 
-void CooperativeSearcher::update(klee::ExecutionStatePtr current, const klee::StateSet &addedStates,
-                                 const klee::StateSet &removedStates) {
-    foreach2 (it, addedStates.begin(), addedStates.end()) {
-        auto es = dynamic_pointer_cast<S2EExecutionState>(*it);
-        m_states[es->getID()] = es;
-    }
+void CooperativeSearcher::addState(klee::ExecutionStatePtr state) {
+    auto es = static_pointer_cast<S2EExecutionState>(state);
+    m_states[es->getID()] = es;
+}
 
-    foreach2 (it, removedStates.begin(), removedStates.end()) {
-        auto es = dynamic_pointer_cast<S2EExecutionState>(*it);
-        m_states.erase(es->getID());
+void CooperativeSearcher::removeState(klee::ExecutionStatePtr state) {
+    auto es = static_pointer_cast<S2EExecutionState>(state);
+    m_states.erase(es->getID());
 
-        if (m_currentState == es) {
-            m_currentState = nullptr;
-        }
-    }
-
-    if (m_currentState == nullptr && m_states.size() > 0) {
-        m_currentState = (*m_states.begin()).second;
+    if (m_currentState == es) {
+        m_currentState = nullptr;
     }
 }
 
