@@ -131,7 +131,7 @@ void SeedScheduler::onProcessForkDecide(bool *proceed) {
     static unsigned previousAvailableSeedCount = 0;
     static time_point lastSeedFetchTime;
 
-    if (s2e()->getExecutor()->getStatesCount() >= 3) {
+    if (s2e()->getExecutor()->states().size() >= 3) {
         // We have plenty of states to load balance, so no need
         // to block instance forking.
         return;
@@ -247,7 +247,7 @@ void SeedScheduler::onNewBlockCovered(S2EExecutionState *state) {
 }
 
 void SeedScheduler::terminateIdleInstance() {
-    if (s2e()->getExecutor()->getStatesCount() > 1) {
+    if (s2e()->getExecutor()->states().size() > 1) {
         getDebugStream() << "idle detection: too many states\n";
         return;
     }
@@ -317,7 +317,7 @@ void SeedScheduler::processSeedStateMachine(time_point currentTime) {
         if (!foundBlocks && !foundCrashes) {
             m_explorationState = WAIT_FOR_NEW_SEEDS;
         } else if ((m_stateKilled || s2e()->getCurrentInstanceCount() > 1) &&
-                   (s2e()->getExecutor()->getStatesCount() == 1)) {
+                   (s2e()->getExecutor()->states().size() == 1)) {
             // The warm up phase terminates if no seedless states remain, i.e., there
             // is only state 0 remaining, in which case we have to wait for new seeds
             // as there is nothing else to do. We have to check for m_stateKilled because
@@ -340,7 +340,7 @@ void SeedScheduler::processSeedStateMachine(time_point currentTime) {
             /* Prioritize normal seeds if S2E couldn't find coverage on its own */
             m_seeds->enableSeeds(true);
             m_explorationState = WAIT_SEED_SCHEDULING;
-        } else if (s2e()->getExecutor()->getStatesCount() == 1) {
+        } else if (s2e()->getExecutor()->states().size() == 1) {
             /* Prioritize normal seeds if no other states are running */
             m_seeds->enableSeeds(true);
             m_explorationState = WAIT_SEED_SCHEDULING;
@@ -351,7 +351,7 @@ void SeedScheduler::processSeedStateMachine(time_point currentTime) {
 
     } else if (m_explorationState == WAIT_SEED_EXECUTION) {
         /* Give newly fetched seed some time to execute */
-        if (!recentSeedFetch || (s2e()->getExecutor()->getStatesCount() == 1)) {
+        if (!recentSeedFetch || (s2e()->getExecutor()->states().size() == 1)) {
             m_explorationState = WAIT_FOR_NEW_SEEDS;
         }
     }

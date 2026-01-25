@@ -143,11 +143,7 @@ public:
     static void reexecuteCurrentInstructionInForkedState(ExecutionStatePtr state, const StatePair &sp);
     static void skipCurrentInstructionInForkedState(ExecutionStatePtr state, const StatePair &sp);
 
-    /*** State accessor methods ***/
-    size_t getStatesCount() const {
-        return m_states.size();
-    }
-    const StateSet &getStates() {
+    const StateSet &states() const {
         return m_states;
     }
 

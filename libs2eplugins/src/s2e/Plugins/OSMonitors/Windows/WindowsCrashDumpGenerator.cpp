@@ -175,7 +175,7 @@ int WindowsCrashDumpInvoker::generateCrashDump(lua_State *L) {
 
         // Fetch the right state
         // XXX: Avoid linear search
-        const klee::StateSet &states = g_s2e->getExecutor()->getStates();
+        const klee::StateSet &states = g_s2e->getExecutor()->states();
         for (auto it : states) {
             auto ss = static_pointer_cast<S2EExecutionState>(it);
             if (ss->getID() == stateId) {
