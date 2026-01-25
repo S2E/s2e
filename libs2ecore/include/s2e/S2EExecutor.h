@@ -135,12 +135,6 @@ public:
 
     static void doInterruptAll(int intno, int is_int, int error_code, uintptr_t next_eip, int is_hw);
 
-    /** Suspend the given state (does not kill it) */
-    bool suspendState(S2EExecutionState *state);
-
-    /** Puts back the previously suspended state in the queue */
-    bool resumeState(S2EExecutionState *state);
-
     klee::Searcher *getSearcher() const {
         return m_searcher;
     }
