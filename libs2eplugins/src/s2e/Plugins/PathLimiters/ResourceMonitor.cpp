@@ -154,19 +154,19 @@ void ResourceMonitor::updateMemoryUsage() {
 
 void ResourceMonitor::dropStates() {
     S2EExecutor *executor = s2e()->getExecutor();
-    assert(executor->getStatesCount() > 0 && "no states left to remove\n");
+    assert(executor->states().size() > 0 && "no states left to remove\n");
 
     // try to kill 5% of the states
-    size_t nrStatesToTerminate = (size_t) (0.05 * executor->getStatesCount());
+    size_t nrStatesToTerminate = (size_t) (0.05 * executor->states().size());
 
-    if (nrStatesToTerminate < 1 && executor->getStatesCount() > 0) {
+    if (nrStatesToTerminate < 1 && executor->states().size() > 0) {
         nrStatesToTerminate = 1; // kill at least one state
     }
 
     if (nrStatesToTerminate > 0) {
-        const klee::StateSet &states = s2e()->getExecutor()->getStates();
+        const klee::StateSet &states = s2e()->getExecutor()->states();
         getDebugStream() << "ResourceMonitor: will kill " << nrStatesToTerminate << " states, reason: out of memory"
-                         << " #states = " << executor->getStatesCount() << "\n";
+                         << " #states = " << executor->states().size() << "\n";
         getDebugStream() << "ResourceMonitor: limit - rss (MB) = " << ((m_cgroupMemLimit - m_rss) / 1024 / 1024)
                          << "\n";
 

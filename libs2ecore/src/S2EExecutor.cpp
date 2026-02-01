@@ -418,7 +418,8 @@ S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMTranslator *translator)
     }
 #endif
 
-    m_searcher = constructUserSearcher();
+    auto searcher = constructUserSearcher();
+    m_stateManager.setSearcher(searcher);
 
     g_s2e_fork_on_symbolic_address = ForkOnSymbolicAddress;
     g_s2e_concretize_io_addresses = ConcretizeIoAddress;
@@ -470,10 +471,7 @@ S2EExecutionState *S2EExecutor::createInitialState() {
     state->m_active = true;
     state->setForking(EnableForking);
 
-    m_states.insert(state);
-    if (m_searcher) {
-        m_searcher->addState(state);
-    }
+    m_stateManager.addState(state);
 
 #define __DEFINE_EXT_OBJECT_RO(name)                                                  \
     {                                                                                 \
@@ -593,7 +591,8 @@ void S2EExecutor::computeNewStateGuids(std::unordered_map<ExecutionStatePtr, uin
 }
 
 void S2EExecutor::doLoadBalancing() {
-    if (m_states.size() < 2) {
+    auto states = m_stateManager.states();
+    if (states.size() < 2) {
         return;
     }
 
@@ -604,7 +603,7 @@ void S2EExecutor::doLoadBalancing() {
 
     std::vector<S2EExecutionStatePtr> allStates;
 
-    for (auto it : m_states) {
+    for (auto it : states) {
         S2EExecutionStatePtr s2estate = static_pointer_cast<S2EExecutionState>(it);
         if (!s2estate->isZombie() && !s2estate->isPinned()) {
             allStates.push_back(s2estate);
@@ -660,7 +659,7 @@ void S2EExecutor::doLoadBalancing() {
     for (auto state : allStates) {
         auto s2estate = static_pointer_cast<S2EExecutionState>(state);
         if (!currentSet.count(s2estate)) {
-            Executor::terminateState(s2estate);
+            m_stateManager.removeState(s2estate);
 
             // This is important if we kill the current state
             s2estate->zombify();
@@ -801,8 +800,8 @@ void S2EExecutor::doStateSwitch(S2EExecutionStatePtr oldState, S2EExecutionState
 ExecutionStatePtr S2EExecutor::selectSearcherState(S2EExecutionStatePtr state) {
     ExecutionStatePtr newState;
 
-    if (!m_searcher->empty()) {
-        newState = m_searcher->selectState();
+    if (!m_stateManager.empty()) {
+        newState = m_stateManager.selectState();
     }
 
     if (!newState) {
@@ -830,12 +829,6 @@ S2EExecutionStatePtr S2EExecutor::selectNextState(S2EExecutionStatePtr state) {
     if (nstate == nullptr) {
         return nullptr;
     }
-
-    // This assertion must go before the cast to S2EExecutionState.
-    // In case the searcher returns a bogus state, this allows
-    // spotting it immediately. The dynamic cast however, might cause
-    // memory corruptions.
-    assert(m_states.find(nstate) != m_states.end());
 
     auto newState = dynamic_pointer_cast<S2EExecutionState>(nstate);
 
@@ -1230,10 +1223,7 @@ S2EExecutor::StatePair S2EExecutor::fork(ExecutionState &current, const klee::re
     notifyFork(current, condition, ret);
 
     if (newState) {
-        if (m_searcher) {
-            m_searcher->addState(newState);
-        }
-        m_states.insert(newState);
+        m_stateManager.addState(newState);
         StateSet addedStates = {newState};
         auto s2eState = static_cast<S2EExecutionState *>(&current);
         m_s2e->getCorePlugin()->onUpdateStates.emit(s2eState, addedStates, StateSet());
@@ -1579,11 +1569,13 @@ void S2EExecutor::terminateState(klee::ExecutionStatePtr state, const std::strin
 }
 
 void S2EExecutor::terminateState(ExecutionStatePtr s) {
+    *klee::stats::completedPaths += 1;
+
     auto state = static_pointer_cast<S2EExecutionState>(s);
 
     m_s2e->getCorePlugin()->onStateKill.emit(state.get());
 
-    Executor::terminateState(state);
+    m_stateManager.removeState(state);
     state->zombify();
 
     g_s2e->getWarningsStream().flush();
@@ -1682,29 +1674,6 @@ void S2EExecutor::doInterruptAll(int intno, int is_int, int error_code, uintptr_
     g_s2e_state->setRunningExceptionEmulationCode(false);
 }
 
-/** Suspend the given state (does not kill it) */
-bool S2EExecutor::suspendState(S2EExecutionState *state) {
-    if (m_searcher) {
-        m_searcher->removeState(state);
-        size_t r = m_states.erase(state);
-        assert(r == 1);
-        return true;
-    }
-    return false;
-}
-
-bool S2EExecutor::resumeState(S2EExecutionState *state) {
-    if (m_searcher) {
-        if (m_states.find(state) != m_states.end()) {
-            return false;
-        }
-        m_states.insert(state);
-        m_searcher->addState(state);
-        return true;
-    }
-    return false;
-}
-
 S2ETranslationBlock *S2EExecutor::allocateS2ETb() {
     S2ETranslationBlockPtr se_tb(new S2ETranslationBlock);
     m_s2eTbs.insert(se_tb);
@@ -1784,7 +1753,7 @@ void s2e_set_tb_function(void *se_tb, void *llvmFunction) {
 }
 
 void s2e_flush_tb_cache() {
-    if (g_s2e && g_s2e->getExecutor()->getStatesCount() > 1) {
+    if (g_s2e && g_s2e->getExecutor()->states().size() > 1) {
         if (!FlushTBsOnStateSwitch) {
             g_s2e->getWarningsStream() << "Flushing TB cache with more than 1 state. Dangerous. Expect crashes.\n";
         }

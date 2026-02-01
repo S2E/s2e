@@ -81,8 +81,7 @@ namespace klee {
 extern cl::opt<bool> UseExprSimplifier;
 } // namespace klee
 
-Executor::Executor(LLVMContext &context)
-    : m_kmodule(0), m_externalDispatcher(std::make_unique<ExternalDispatcher>()), m_searcher(0) {
+Executor::Executor(LLVMContext &context) : m_kmodule(0), m_externalDispatcher(std::make_unique<ExternalDispatcher>()) {
 }
 
 const Module *Executor::setModule(llvm::Module *module) {
@@ -1425,16 +1424,6 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
 
         break;
     }
-}
-
-void Executor::terminateState(ExecutionStatePtr state) {
-    *klee::stats::completedPaths += 1;
-
-    if (m_searcher) {
-        m_searcher->removeState(state);
-    }
-
-    m_states.erase(state);
 }
 
 extern "C" {
