@@ -26,20 +26,27 @@
 extern "C" {
 #endif
 
-#ifndef TARGET_INSN_START_EXTRA_WORDS
+#if INSN_START_WORDS != 3
+#error Mismatch with insn-start-words.h
+#endif
+
+#if TARGET_INSN_START_EXTRA_WORDS == 0
 static inline void tcg_gen_insn_start(target_ulong pc) {
-    TCGOp *op = tcg_emit_op(INDEX_op_insn_start, 64 / TCG_TARGET_REG_BITS);
+    TCGOp *op = tcg_emit_op(INDEX_op_insn_start, INSN_START_WORDS * 64 / TCG_TARGET_REG_BITS);
     tcg_set_insn_start_param(op, 0, pc);
+    tcg_set_insn_start_param(op, 1, 0);
+    tcg_set_insn_start_param(op, 2, 0);
 }
 #elif TARGET_INSN_START_EXTRA_WORDS == 1
 static inline void tcg_gen_insn_start(target_ulong pc, target_ulong a1) {
-    TCGOp *op = tcg_emit_op(INDEX_op_insn_start, 2 * 64 / TCG_TARGET_REG_BITS);
+    TCGOp *op = tcg_emit_op(INDEX_op_insn_start, INSN_START_WORDS * 64 / TCG_TARGET_REG_BITS);
     tcg_set_insn_start_param(op, 0, pc);
     tcg_set_insn_start_param(op, 1, a1);
+    tcg_set_insn_start_param(op, 2, 0);
 }
 #elif TARGET_INSN_START_EXTRA_WORDS == 2
 static inline void tcg_gen_insn_start(target_ulong pc, target_ulong a1, target_ulong a2) {
-    TCGOp *op = tcg_emit_op(INDEX_op_insn_start, 3 * 64 / TCG_TARGET_REG_BITS);
+    TCGOp *op = tcg_emit_op(INDEX_op_insn_start, INSN_START_WORDS * 64 / TCG_TARGET_REG_BITS);
     tcg_set_insn_start_param(op, 0, pc);
     tcg_set_insn_start_param(op, 1, a1);
     tcg_set_insn_start_param(op, 2, a2);
@@ -52,7 +59,6 @@ static inline void tcg_gen_insn_start(target_ulong pc, target_ulong a1, target_u
 typedef TCGv_i32 TCGv;
 #define tcg_temp_new()     tcg_temp_new_i32()
 #define tcg_global_mem_new tcg_global_mem_new_i32
-#define tcg_temp_free      tcg_temp_free_i32
 #define tcgv_tl_temp       tcgv_i32_temp
 #define tcg_gen_qemu_ld_tl tcg_gen_qemu_ld_i32
 #define tcg_gen_qemu_st_tl tcg_gen_qemu_st_i32
@@ -60,7 +66,6 @@ typedef TCGv_i32 TCGv;
 typedef TCGv_i64 TCGv;
 #define tcg_temp_new()     tcg_temp_new_i64()
 #define tcg_global_mem_new tcg_global_mem_new_i64
-#define tcg_temp_free      tcg_temp_free_i64
 #define tcgv_tl_temp       tcgv_i64_temp
 #define tcg_gen_qemu_ld_tl tcg_gen_qemu_ld_i64
 #define tcg_gen_qemu_st_tl tcg_gen_qemu_st_i64
@@ -156,13 +161,16 @@ DEF_ATOMIC3(tcg_gen_nonatomic_cmpxchg, i128)
 
 DEF_ATOMIC2(tcg_gen_atomic_xchg, i32)
 DEF_ATOMIC2(tcg_gen_atomic_xchg, i64)
+DEF_ATOMIC2(tcg_gen_atomic_xchg, i128)
 
 DEF_ATOMIC2(tcg_gen_atomic_fetch_add, i32)
 DEF_ATOMIC2(tcg_gen_atomic_fetch_add, i64)
 DEF_ATOMIC2(tcg_gen_atomic_fetch_and, i32)
 DEF_ATOMIC2(tcg_gen_atomic_fetch_and, i64)
+DEF_ATOMIC2(tcg_gen_atomic_fetch_and, i128)
 DEF_ATOMIC2(tcg_gen_atomic_fetch_or, i32)
 DEF_ATOMIC2(tcg_gen_atomic_fetch_or, i64)
+DEF_ATOMIC2(tcg_gen_atomic_fetch_or, i128)
 DEF_ATOMIC2(tcg_gen_atomic_fetch_xor, i32)
 DEF_ATOMIC2(tcg_gen_atomic_fetch_xor, i64)
 DEF_ATOMIC2(tcg_gen_atomic_fetch_smin, i32)
@@ -232,6 +240,8 @@ DEF_ATOMIC2(tcg_gen_atomic_umax_fetch, i64)
 #define tcg_gen_brcondi_tl           tcg_gen_brcondi_i64
 #define tcg_gen_setcond_tl           tcg_gen_setcond_i64
 #define tcg_gen_setcondi_tl          tcg_gen_setcondi_i64
+#define tcg_gen_negsetcond_tl        tcg_gen_negsetcond_i64
+#define tcg_gen_negsetcondi_tl       tcg_gen_negsetcondi_i64
 #define tcg_gen_mul_tl               tcg_gen_mul_i64
 #define tcg_gen_muli_tl              tcg_gen_muli_i64
 #define tcg_gen_div_tl               tcg_gen_div_i64
@@ -251,6 +261,7 @@ DEF_ATOMIC2(tcg_gen_atomic_umax_fetch, i64)
 #define tcg_gen_ext16s_tl            tcg_gen_ext16s_i64
 #define tcg_gen_ext32u_tl            tcg_gen_ext32u_i64
 #define tcg_gen_ext32s_tl            tcg_gen_ext32s_i64
+#define tcg_gen_ext_tl               tcg_gen_ext_i64
 #define tcg_gen_bswap16_tl           tcg_gen_bswap16_i64
 #define tcg_gen_bswap32_tl           tcg_gen_bswap32_i64
 #define tcg_gen_bswap64_tl           tcg_gen_bswap64_i64
@@ -283,6 +294,7 @@ DEF_ATOMIC2(tcg_gen_atomic_umax_fetch, i64)
 #define tcg_gen_movcond_tl           tcg_gen_movcond_i64
 #define tcg_gen_add2_tl              tcg_gen_add2_i64
 #define tcg_gen_sub2_tl              tcg_gen_sub2_i64
+#define tcg_gen_addcio_tl            tcg_gen_addcio_i64
 #define tcg_gen_mulu2_tl             tcg_gen_mulu2_i64
 #define tcg_gen_muls2_tl             tcg_gen_muls2_i64
 #define tcg_gen_mulsu2_tl            tcg_gen_mulsu2_i64
@@ -349,6 +361,8 @@ DEF_ATOMIC2(tcg_gen_atomic_umax_fetch, i64)
 #define tcg_gen_brcondi_tl           tcg_gen_brcondi_i32
 #define tcg_gen_setcond_tl           tcg_gen_setcond_i32
 #define tcg_gen_setcondi_tl          tcg_gen_setcondi_i32
+#define tcg_gen_negsetcond_tl        tcg_gen_negsetcond_i32
+#define tcg_gen_negsetcondi_tl       tcg_gen_negsetcondi_i32
 #define tcg_gen_mul_tl               tcg_gen_mul_i32
 #define tcg_gen_muli_tl              tcg_gen_muli_i32
 #define tcg_gen_div_tl               tcg_gen_div_i32
@@ -368,6 +382,7 @@ DEF_ATOMIC2(tcg_gen_atomic_umax_fetch, i64)
 #define tcg_gen_ext16s_tl            tcg_gen_ext16s_i32
 #define tcg_gen_ext32u_tl            tcg_gen_mov_i32
 #define tcg_gen_ext32s_tl            tcg_gen_mov_i32
+#define tcg_gen_ext_tl               tcg_gen_ext_i32
 #define tcg_gen_bswap16_tl           tcg_gen_bswap16_i32
 #define tcg_gen_bswap32_tl(D, S, F)  tcg_gen_bswap32_i32(D, S)
 #define tcg_gen_bswap_tl             tcg_gen_bswap32_i32
@@ -398,6 +413,7 @@ DEF_ATOMIC2(tcg_gen_atomic_umax_fetch, i64)
 #define tcg_gen_movcond_tl           tcg_gen_movcond_i32
 #define tcg_gen_add2_tl              tcg_gen_add2_i32
 #define tcg_gen_sub2_tl              tcg_gen_sub2_i32
+#define tcg_gen_addcio_tl            tcg_gen_addcio_i32
 #define tcg_gen_mulu2_tl             tcg_gen_mulu2_i32
 #define tcg_gen_muls2_tl             tcg_gen_muls2_i32
 #define tcg_gen_mulsu2_tl            tcg_gen_mulsu2_i32

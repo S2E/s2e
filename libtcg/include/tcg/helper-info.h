@@ -1,5 +1,5 @@
 /*
- * TCG Helper Infomation Structure
+ * TCG Helper Information Structure
  *
  * Copyright (c) 2023 Linaro Ltd
  *
@@ -12,12 +12,23 @@
 #include <inttypes.h>
 
 #ifdef CONFIG_TCG_INTERPRETER
+/*
+ * MacOSX 15 uses an old version of libffi which contains
+ *   #if FFI_GO_CLOSURES
+ * but does not define that in <ffitarget.h>, included from <ffi.h>.
+ * This was fixed upstream with
+ *   https://github.com/libffi/libffi/commit/c23e9a1c
+ * We don't care about go closures one way or the other;
+ * just suppress the warning.
+ */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wundef"
 #include <ffi.h>
+#pragma GCC diagnostic pop
 #endif
+#include "i386/tcg-target-reg-bits.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#define MAX_CALL_IARGS 7
 
 /*
  * Describe the calling convention of a given argument type.
@@ -67,8 +78,6 @@ struct TCGHelperInfo {
     TCGCallArgumentLoc in[MAX_CALL_IARGS * (128 / TCG_TARGET_REG_BITS)];
 };
 
-#ifdef __cplusplus
-}
-#endif
+typedef struct TCGHelperInfo TCGHelperInfo;
 
 #endif /* TCG_HELPER_INFO_H */

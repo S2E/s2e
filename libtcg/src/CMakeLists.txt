@@ -22,7 +22,7 @@ set (TCG_SOURCES)
 
 list (APPEND TCG_SOURCES
         utils/cutils.c utils/osdep.c utils/memalign.c utils/cache.c utils/log.c
-        utils/cpuinfo-i386.c utils/qtree.c utils/host-utils.c
+        utils/cpuinfo-i386.c utils/qtree.c utils/host-utils.c utils/interval-tree.c
         region.c tcg.c tcg-s2e.c tcg-op-ldst.c  tcg-common.c tcg-op.c optimize.c tcg-op-gvec.c tcg-op-vec.c
         tcg-rt/tcg-runtime-gvec.c tcg-rt/tcg-runtime.c
         atomic-helpers.c
@@ -35,7 +35,7 @@ endif (WITH_SYMBEX)
 add_library(tcg ${TCG_SOURCES})
 
 set (COMMON_FLAGS "-Wall -fPIC -Werror -Wno-zero-length-array -Wno-mismatched-tags -Wno-initializer-overrides")
-set (COMMON_FLAGS "${COMMON_FLAGS} -DCONFIG_SOFTMMU -DCONFIG_INT128 -DCPU_TEMP_BUF_NLONGS=128 -DHOST_BIG_ENDIAN=0 -DHAVE_GLIB_WITH_SLICE_ALLOCATOR")
+set (COMMON_FLAGS "${COMMON_FLAGS} -DCOMPILING_PER_TARGET -DCONFIG_SOFTMMU -DCONFIG_INT128 -DCPU_TEMP_BUF_NLONGS=128 -DHOST_BIG_ENDIAN=0 -DHAVE_GLIB_WITH_SLICE_ALLOCATOR")
 
 if (WITH_SYMBEX)
     set (COMMON_FLAGS "${COMMON_FLAGS} -DCONFIG_SYMBEX -DTCG_ENABLE_MEM_TRACING")
