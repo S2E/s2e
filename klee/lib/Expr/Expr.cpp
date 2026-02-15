@@ -1162,6 +1162,11 @@ static ref<Expr> LShrExpr_create(const ref<Expr> &l, const ref<Expr> &r) {
     if (l->getWidth() == Expr::Bool) { // l & !r
         return AndExpr::create(l, Expr::createIsZero(r));
     } else {
+        // Shifting by 0 is a no-op
+        ConstantExpr *ce = dyn_cast<ConstantExpr>(r);
+        if (ce && ce->getAPValue() == 0) {
+            return l;
+        }
         return LShrExpr::alloc(l, r);
     }
 }
@@ -1170,6 +1175,11 @@ static ref<Expr> AShrExpr_create(const ref<Expr> &l, const ref<Expr> &r) {
     if (l->getWidth() == Expr::Bool) { // l
         return l;
     } else {
+        // Shifting by 0 is a no-op
+        ConstantExpr *ce = dyn_cast<ConstantExpr>(r);
+        if (ce && ce->getAPValue() == 0) {
+            return l;
+        }
         return AShrExpr::alloc(l, r);
     }
 }

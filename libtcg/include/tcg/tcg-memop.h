@@ -39,7 +39,7 @@ typedef enum MemOp {
     MO_LE = 0,
     MO_BE = MO_BSWAP,
 #endif
-#ifdef NEED_CPU_H
+#ifdef COMPILING_PER_TARGET
 #if TARGET_BIG_ENDIAN
     MO_TE = MO_BE,
 #else
@@ -77,6 +77,16 @@ typedef enum MemOp {
     MO_ALIGN = MO_AMASK,
 
     /*
+     * MO_ALIGN_TLB_ONLY:
+     * Apply MO_AMASK only along the TCG slow path if TLB_CHECK_ALIGNED
+     * is set; otherwise unaligned access is permitted.
+     * This is used by target/arm, where unaligned accesses are
+     * permitted for pages marked Normal but aligned accesses are
+     * required for pages marked Device.
+     */
+    MO_ALIGN_TLB_ONLY = 1 << 8,
+
+    /*
      * MO_ATOM_* describes the atomicity requirements of the operation:
      * MO_ATOM_IFALIGN: the operation must be single-copy atomic if it
      *    is aligned; if unaligned there is no atomicity.
@@ -95,8 +105,12 @@ typedef enum MemOp {
      *    Depending on alignment, one or both will be single-copy atomic.
      *    This is the atomicity e.g. of Arm FEAT_LSE2 LDP.
      * MO_ATOM_SUBALIGN: the operation is single-copy atomic by parts
-     *    by the alignment.  E.g. if the address is 0 mod 4, then each
-     *    4-byte subobject is single-copy atomic.
+     *    by the alignment.  E.g. if an 8-byte value is accessed at an
+     *    address which is 0 mod 8, then the whole 8-byte access is
+     *    single-copy atomic; otherwise, if it is accessed at 0 mod 4
+     *    then each 4-byte subobject is single-copy atomic; otherwise
+     *    if it is accessed at 0 mod 2 then the four 2-byte subobjects
+     *    are single-copy atomic.
      *    This is the atomicity e.g. of IBM Power.
      * MO_ATOM_NONE: the operation has no atomicity requirements.
      *
@@ -104,7 +118,7 @@ typedef enum MemOp {
      * size of the operation, if aligned.  This retains the behaviour
      * from before this field was introduced.
      */
-    MO_ATOM_SHIFT = 8,
+    MO_ATOM_SHIFT = 9,
     MO_ATOM_IFALIGN = 0 << MO_ATOM_SHIFT,
     MO_ATOM_IFALIGN_PAIR = 1 << MO_ATOM_SHIFT,
     MO_ATOM_WITHIN16 = 2 << MO_ATOM_SHIFT,
@@ -139,7 +153,7 @@ typedef enum MemOp {
     MO_BESL = MO_BE | MO_SL,
     MO_BESQ = MO_BE | MO_SQ,
 
-#ifdef NEED_CPU_H
+#ifdef COMPILING_PER_TARGET
     MO_TEUW = MO_TE | MO_UW,
     MO_TEUL = MO_TE | MO_UL,
     MO_TEUQ = MO_TE | MO_UQ,
@@ -160,15 +174,42 @@ static inline unsigned memop_size(MemOp op) {
 /* Size in bytes to MemOp.  */
 static inline MemOp size_memop(unsigned size) {
 #ifdef CONFIG_DEBUG_TCG
-    /* Power of 2 up to 8.  */
-    assert((size & (size - 1)) == 0 && size >= 1 && size <= 8);
+    /* Power of 2 up to 1024 */
+    assert(is_power_of_2(size) && size >= 1 && size <= (1 << MO_SIZE));
 #endif
     return (MemOp) ctz32(size);
 }
 
-/* Big endianness from MemOp.  */
-static inline bool memop_big_endian(MemOp op) {
-    return (op & MO_BSWAP) == MO_BE;
+/**
+ * memop_tlb_alignment_bits:
+ * @memop: MemOp value
+ *
+ * Extract the alignment size for use with TLB_CHECK_ALIGNED.
+ */
+static inline unsigned memop_tlb_alignment_bits(MemOp memop, bool tlb_check) {
+    unsigned a = memop & MO_AMASK;
+
+    if (a == MO_UNALN || (!tlb_check && (memop & MO_ALIGN_TLB_ONLY))) {
+        /* No alignment required.  */
+        a = 0;
+    } else if (a == MO_ALIGN) {
+        /* A natural alignment requirement.  */
+        a = memop & MO_SIZE;
+    } else {
+        /* A specific alignment requirement.  */
+        a = a >> MO_ASHIFT;
+    }
+    return a;
+}
+
+/**
+ * memop_alignment_bits:
+ * @memop: MemOp value
+ *
+ * Extract the alignment size from the memop.
+ */
+static inline unsigned memop_alignment_bits(MemOp memop) {
+    return memop_tlb_alignment_bits(memop, false);
 }
 
 #ifdef __cplusplus

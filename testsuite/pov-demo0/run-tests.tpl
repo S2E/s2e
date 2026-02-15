@@ -2,7 +2,11 @@
 
 {% include 'common-run.sh.tpl' %}
 
-s2e run -n {{ project_name }}
+s2e run -n {{ project_name }} &
+S2E_PID=$!
+trap "rc=\$?; kill $S2E_PID 2>/dev/null || true; wait $S2E_PID 2>/dev/null || true; (exit \$rc); on_exit" EXIT
+
+wait_s2e
 
 TARGET="$(jq  -r '.target.files[0]' $DIR_NAME/project.json)"
 
@@ -23,7 +27,7 @@ if [ "$BITS" = "32" ]; then
     elif [ "$PLATFORM" = "windows" ]; then
         EXPECTED_GENERIC_REGS="ebp"
     else
-        echo Invaliid platform
+        echo Invalid platform
         exit 1
     fi
 else
@@ -99,21 +103,40 @@ check_expected_povs() {
     for REG in $EXPECTED_SHELLCODE_REGS; do
         if ! echo $RECIPES | grep -q "generic_shellcode_$REG"; then
             echo Did not find recipe "generic_shellcode_$REG"
-            exit 1
+            return 1
         fi
     done
 
     for REG in $EXPECTED_GENERIC_REGS; do
         if ! echo $RECIPES | grep -q "generic_reg_$REG"; then
             echo Did not find recipe "generic_reg_$REG"
-            exit 1
+            return 1
         fi
     done
+
+    return 0
 }
+
+# Periodically check for expected POVs while S2E is running.
+# If all expected POVs are found, stop S2E early.
+while kill -0 $S2E_PID 2>/dev/null; do
+    RECIPES=$S2E_LAST/*input_0-recipe-type1_*
+    if check_expected_povs "$RECIPES" >/dev/null 2>&1; then
+        echo "All expected POVs found, stopping S2E"
+        kill $S2E_PID 2>/dev/null
+        wait $S2E_PID 2>/dev/null || true
+        break
+    fi
+
+    sleep 2
+done
+
+# Wait for S2E to finish if it exited on its own
+wait $S2E_PID 2>/dev/null || true
 
 RECIPES=$S2E_LAST/*input_0-recipe-type1_*
 
-check_expected_povs "$RECIPES"
+check_expected_povs "$RECIPES" || exit 1
 
 for RECIPE in $RECIPES; do
     echo Checking $RECIPE

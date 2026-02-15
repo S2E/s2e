@@ -60,4 +60,17 @@ check_coverage() {
     fi
 }
 
+wait_s2e() {
+    local TIMEOUT=30
+    local ELAPSED=0
+    while [ ! -d "$S2E_LAST" ]; do
+    if [ $ELAPSED -ge $TIMEOUT ]; then
+        echo "Timed out waiting for $S2E_LAST to appear after ${TIMEOUT}s"
+        exit 1
+    fi
+    sleep 1
+    ELAPSED=$((ELAPSED + 1))
+    done
+}
+
 {% include 'helpers.sh' %}
