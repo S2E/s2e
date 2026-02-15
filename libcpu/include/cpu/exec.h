@@ -26,33 +26,11 @@
 #include <cpu/softmmu_defs.h>
 #include <cpu/tb.h>
 #include <libcpu-compiler.h>
+#include <tcg/accel/getpc.h>
 #include <tcg/utils/log.h>
 
 #ifdef __cplusplus
 extern "C" {
-#endif
-
-/* The return address may point to the start of the next instruction.
-   Subtracting one gets us the call instruction itself.  */
-#if defined(CONFIG_TCG_INTERPRETER)
-/* Alpha and SH4 user mode emulations and Softmmu call GETPC().
-   For all others, GETPC remains undefined (which makes TCI a little faster. */
-#if defined(CONFIG_SOFTMMU) || defined(TARGET_ALPHA) || defined(TARGET_SH4)
-extern void *tci_tb_ptr;
-#define GETPC() tci_tb_ptr
-#endif
-#elif defined(__s390__) && !defined(__s390x__)
-#define GETPC() ((void *) (((uintptr_t) __builtin_return_address(0) & 0x7fffffffUL) - 1))
-#elif defined(__arm__)
-/* Thumb return addresses have the low bit set, so we need to subtract two.
-   This is still safe in ARM mode because instructions are 4 bytes.  */
-#define GETPC() ((void *) ((uintptr_t) __builtin_return_address(0) - 2))
-#else
-#if defined(SYMBEX_LLVM_LIB)
-#define GETPC() 0
-#else
-#define GETPC() (((uintptr_t) __builtin_return_address(0) - 1))
-#endif
 #endif
 
 /* The true return address will often point to a host insn that is part of

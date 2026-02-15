@@ -68,7 +68,7 @@ static target_long decode_sleb128(uint8_t **pp) {
 /* Encode the data collected about the instructions while compiling TB.
    Place the data at BLOCK, and return the number of bytes consumed.
 
-   The logical table consists of TARGET_INSN_START_WORDS target_ulong's,
+   The logical table consists of INSN_START_WORDS uint64_t's,
    which come from the target's insn_start data, followed by a uintptr_t
    which comes from the host pc of the end of the code implementing the insn.
 
@@ -87,13 +87,13 @@ int encode_search(TCGContext *tcg_ctx, TranslationBlock *tb, uint8_t *block) {
     for (i = 0, n = tb->icount; i < n; ++i) {
         uint64_t prev, curr;
 
-        for (j = 0; j < TARGET_INSN_START_WORDS; ++j) {
+        for (j = 0; j < INSN_START_WORDS; ++j) {
             if (i == 0) {
                 prev = (!(tb_cflags(tb) & CF_PCREL) && j == 0 ? tb->pc : 0);
             } else {
-                prev = insn_data[(i - 1) * TARGET_INSN_START_WORDS + j];
+                prev = insn_data[(i - 1) * INSN_START_WORDS + j];
             }
-            curr = insn_data[i * TARGET_INSN_START_WORDS + j];
+            curr = insn_data[i * INSN_START_WORDS + j];
             p = encode_sleb128(p, curr - prev);
         }
         prev = (i == 0 ? 0 : insn_end_off[i - 1]);
@@ -113,7 +113,7 @@ int encode_search(TCGContext *tcg_ctx, TranslationBlock *tb, uint8_t *block) {
 }
 
 int tb_get_instruction_size(TranslationBlock *tb, uint64_t pc) {
-    target_ulong data[TARGET_INSN_START_WORDS] = {tb->pc};
+    target_ulong data[INSN_START_WORDS] = {tb->pc};
     uint8_t *p = tb->tc.ptr + tb->tc.size;
     int i, j, num_insns = tb->icount;
 
@@ -122,7 +122,7 @@ int tb_get_instruction_size(TranslationBlock *tb, uint64_t pc) {
     }
 
     for (i = 0; i < num_insns; ++i) {
-        for (j = 0; j < TARGET_INSN_START_WORDS; ++j) {
+        for (j = 0; j < INSN_START_WORDS; ++j) {
             data[j] += decode_sleb128(&p);
         }
         decode_sleb128(&p);
@@ -130,7 +130,7 @@ int tb_get_instruction_size(TranslationBlock *tb, uint64_t pc) {
             if (i == num_insns - 1) {
                 return tb->size - (pc - tb->pc);
             } else {
-                for (j = 0; j < TARGET_INSN_START_WORDS; ++j) {
+                for (j = 0; j < INSN_START_WORDS; ++j) {
                     data[j] += decode_sleb128(&p);
                 }
                 return data[0] - pc;
@@ -155,7 +155,7 @@ static int tb_find_guest_pc(TranslationBlock *tb, uintptr_t searched_host_pc, ta
     // Reconstruct the stored insn data while looking for the point at
     // which the end of the insn exceeds the searched_pc.
     for (i = 0; i < num_insns; ++i) {
-        for (j = 0; j < TARGET_INSN_START_WORDS; ++j) {
+        for (j = 0; j < INSN_START_WORDS; ++j) {
             data[j] += decode_sleb128(&p);
         }
         host_pc += decode_sleb128(&p);
@@ -171,7 +171,7 @@ static int tb_find_guest_pc(TranslationBlock *tb, uintptr_t searched_host_pc, ta
  * icount should be recalculated.
  */
 static int cpu_restore_state_from_tb(CPUArchState *env, TranslationBlock *tb, uintptr_t searched_pc) {
-    target_ulong data[TARGET_INSN_START_WORDS] = {tb->pc};
+    target_ulong data[INSN_START_WORDS] = {tb->pc};
 
     if (tb_find_guest_pc(tb, searched_pc, data) < 0) {
         return -1;
