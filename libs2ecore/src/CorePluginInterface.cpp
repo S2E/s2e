@@ -102,10 +102,10 @@ static void s2e_tcg_instrument_code(ExecutionSignal *signal, uint64_t pc, uint64
     if (nextpc != (uint64_t) -1) {
 #if TCG_TARGET_REG_BITS == 64 && defined(TARGET_X86_64)
         TCGv_i64 tpc = tcg_constant_i64((tcg_target_ulong) nextpc);
-        tcg_gen_st_i64(tpc, cpu_env, offsetof(CPUX86State, eip));
+        tcg_gen_st_i64(tpc, tcg_env, offsetof(CPUX86State, eip));
 #else
         TCGv_i32 tpc = tcg_constant_i32((tcg_target_ulong) nextpc);
-        tcg_gen_st_i32(tpc, cpu_env, offsetof(CPUX86State, eip));
+        tcg_gen_st_i32(tpc, tcg_env, offsetof(CPUX86State, eip));
 #endif
     }
 
