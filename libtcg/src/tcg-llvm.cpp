@@ -726,11 +726,27 @@ int TCGLLVMTranslator::generateOperation(const TCGOp *op) {
         startNewBasicBlock(bb);                                    \
     } break;
 
-            __OP_BRCOND(INDEX_op_brcond_i32, 32)
-
-#if TCG_TARGET_REG_BITS == 64
-            __OP_BRCOND(INDEX_op_brcond_i64, 64)
-#endif
+        case INDEX_op_brcond: {
+            // Generic brcond - determine bits from operand types
+            assert(getValue(op->args[0])->getType() == getValue(op->args[1])->getType());
+            switch (op->args[2]) {
+                __OP_BRCOND_C(TCG_COND_EQ, EQ)
+                __OP_BRCOND_C(TCG_COND_NE, NE)
+                __OP_BRCOND_C(TCG_COND_LT, SLT)
+                __OP_BRCOND_C(TCG_COND_GE, SGE)
+                __OP_BRCOND_C(TCG_COND_LE, SLE)
+                __OP_BRCOND_C(TCG_COND_GT, SGT)
+                __OP_BRCOND_C(TCG_COND_LTU, ULT)
+                __OP_BRCOND_C(TCG_COND_GEU, UGE)
+                __OP_BRCOND_C(TCG_COND_LEU, ULE)
+                __OP_BRCOND_C(TCG_COND_GTU, UGT)
+                default:
+                    tcg_abort();
+            }
+            BasicBlock *bb = BasicBlock::Create(getContext());
+            m_builder.CreateCondBr(v, getLabel(op->args[3]), bb);
+            startNewBasicBlock(bb);
+        } break;
 
 #undef __OP_BRCOND_C
 #undef __OP_BRCOND
@@ -740,26 +756,25 @@ int TCGLLVMTranslator::generateOperation(const TCGOp *op) {
             startNewBasicBlock(getLabel(op->args[0]));
         } break;
 
-            /*case INDEX_op_movi_i32:
-                setValue(op->args[0], ConstantInt::get(intType(32), op->args[1]));
-                break;*/
+        case INDEX_op_mov: {
+            // Generic mov - handles both 32-bit and 64-bit
+            // May perform truncation if destination is smaller than source
+            int destIdx = temp_idx(arg_temp(op->args[0]));
+            unsigned destBits = getValueBits(destIdx);
+            Value *src = getValue(op->args[1]);
+            unsigned srcBits = src->getType()->getIntegerBitWidth();
 
-        case INDEX_op_mov_i32:
-            // Move operation may perform truncation of the value
-            assert(getValue(op->args[1])->getType() == intType(32) || getValue(op->args[1])->getType() == intType(64));
-            setValue(op->args[0], m_builder.CreateTrunc(getValue(op->args[1]), intType(32)));
-            break;
-
-#if TCG_TARGET_REG_BITS == 64
-            /*case INDEX_op_movi_i64:
-                setValue(op->args[0], ConstantInt::get(intType(64), op->args[1]));
-                break;*/
-
-        case INDEX_op_mov_i64:
-            assert(getValue(op->args[1])->getType() == intType(64));
-            setValue(op->args[0], getValue(op->args[1]));
-            break;
-#endif
+            if (srcBits > destBits) {
+                // Truncate if source is larger than destination
+                setValue(op->args[0], m_builder.CreateTrunc(src, intType(destBits)));
+            } else if (srcBits == destBits) {
+                // Direct copy if same size
+                setValue(op->args[0], src);
+            } else {
+                // This shouldn't happen in well-formed TCG, but handle it
+                setValue(op->args[0], m_builder.CreateZExt(src, intType(destBits)));
+            }
+        } break;
 
 /* size extensions */
 #define __EXT_OP(opc_name, truncBits, opBits, signE)                    \
@@ -776,7 +791,7 @@ int TCGLLVMTranslator::generateOperation(const TCGOp *op) {
         setValue(op->args[0], sext);                                    \
     } break;
 
-            /* extract ops */
+        /* extract ops */
 #define __EXTR_OP(opc_name, sourceBits, truncBits)      \
     case opc_name: {                                    \
         auto source = getValue(op->args[1]);            \
@@ -785,84 +800,97 @@ int TCGLLVMTranslator::generateOperation(const TCGOp *op) {
         setValue(op->args[0], trunc);                   \
     } break;
 
-            __EXT_OP(INDEX_op_ext8s_i32, 8, 32, S)
-            __EXT_OP(INDEX_op_ext8u_i32, 8, 32, Z)
-            __EXT_OP(INDEX_op_ext16s_i32, 16, 32, S)
-            __EXT_OP(INDEX_op_ext16u_i32, 16, 32, Z)
-
 #if TCG_TARGET_REG_BITS == 64
-            __EXT_OP(INDEX_op_ext8s_i64, 8, 64, S)
-            __EXT_OP(INDEX_op_ext8u_i64, 8, 64, Z)
-            __EXT_OP(INDEX_op_ext16s_i64, 16, 64, S)
-            __EXT_OP(INDEX_op_ext16u_i64, 16, 64, Z)
-
             __EXT_OP(INDEX_op_ext_i32_i64, 32, 64, S)
-            __EXT_OP(INDEX_op_ext32s_i64, 32, 64, S)
-
             __EXT_OP(INDEX_op_extu_i32_i64, 32, 64, Z)
-            __EXT_OP(INDEX_op_ext32u_i64, 32, 64, Z)
 
             __EXTR_OP(INDEX_op_extrl_i64_i32, 64, 32)
 #endif
 
 #undef __EXT_OP
+#undef __EXTR_OP
 
-#define __LD_OP(opc_name, memBits, regBits, signE)                     \
-    case opc_name:                                                     \
-        generateQemuCpuLoad(op->args, memBits, regBits, signE == 'S'); \
-        break;
+        /* Generic load/store opcodes - determine register size from operands */
+        case INDEX_op_ld8u: {
+            int destIdx = temp_idx(arg_temp(op->args[0]));
+            unsigned regBits = getValueBits(destIdx);
+            generateQemuCpuLoad(op->args, 8, regBits, false);
+        } break;
 
-#define __ST_OP(opc_name, memBits, regBits)                           \
-    case opc_name: {                                                  \
-        assert(getValue(op->args[0])->getType() == intType(regBits)); \
-        assert(getValue(op->args[1])->getType() == wordType());       \
-        Value *valueToStore = getValue(op->args[0]);                  \
-                                                                      \
-        generateQemuCpuStore(op->args, memBits, valueToStore);        \
-    } break;
+        case INDEX_op_ld8s: {
+            int destIdx = temp_idx(arg_temp(op->args[0]));
+            unsigned regBits = getValueBits(destIdx);
+            generateQemuCpuLoad(op->args, 8, regBits, true);
+        } break;
 
-            __LD_OP(INDEX_op_ld8u_i32, 8, 32, 'Z')
-            __LD_OP(INDEX_op_ld8s_i32, 8, 32, 'S')
-            __LD_OP(INDEX_op_ld16u_i32, 16, 32, 'Z')
-            __LD_OP(INDEX_op_ld16s_i32, 16, 32, 'S')
-            __LD_OP(INDEX_op_ld_i32, 32, 32, 'Z')
+        case INDEX_op_ld16u: {
+            int destIdx = temp_idx(arg_temp(op->args[0]));
+            unsigned regBits = getValueBits(destIdx);
+            generateQemuCpuLoad(op->args, 16, regBits, false);
+        } break;
 
-            __ST_OP(INDEX_op_st8_i32, 8, 32)
-            __ST_OP(INDEX_op_st16_i32, 16, 32)
-            __ST_OP(INDEX_op_st_i32, 32, 32)
+        case INDEX_op_ld16s: {
+            int destIdx = temp_idx(arg_temp(op->args[0]));
+            unsigned regBits = getValueBits(destIdx);
+            generateQemuCpuLoad(op->args, 16, regBits, true);
+        } break;
 
-#if TCG_TARGET_REG_BITS == 64
-            __LD_OP(INDEX_op_ld8u_i64, 8, 64, 'Z')
-            __LD_OP(INDEX_op_ld8s_i64, 8, 64, 'S')
-            __LD_OP(INDEX_op_ld16u_i64, 16, 64, 'Z')
-            __LD_OP(INDEX_op_ld16s_i64, 16, 64, 'S')
-            __LD_OP(INDEX_op_ld32u_i64, 32, 64, 'Z')
-            __LD_OP(INDEX_op_ld32s_i64, 32, 64, 'S')
-            __LD_OP(INDEX_op_ld_i64, 64, 64, 'Z')
+        case INDEX_op_ld32u: {
+            int destIdx = temp_idx(arg_temp(op->args[0]));
+            unsigned regBits = getValueBits(destIdx);
+            generateQemuCpuLoad(op->args, 32, regBits, false);
+        } break;
 
-            __ST_OP(INDEX_op_st8_i64, 8, 64)
-            __ST_OP(INDEX_op_st16_i64, 16, 64)
-            __ST_OP(INDEX_op_st32_i64, 32, 64)
-            __ST_OP(INDEX_op_st_i64, 64, 64)
-#endif
+        case INDEX_op_ld32s: {
+            int destIdx = temp_idx(arg_temp(op->args[0]));
+            unsigned regBits = getValueBits(destIdx);
+            generateQemuCpuLoad(op->args, 32, regBits, true);
+        } break;
 
-#undef __LD_OP
-#undef __ST_OP
+        case INDEX_op_ld: {
+            int destIdx = temp_idx(arg_temp(op->args[0]));
+            unsigned regBits = getValueBits(destIdx);
+            generateQemuCpuLoad(op->args, regBits, regBits, false);
+        } break;
 
-/* arith */
-#define __ARITH_OP(opc_name, op1, bits)                       \
+        case INDEX_op_st8: {
+            assert(getValue(op->args[1])->getType() == wordType());
+            Value *valueToStore = getValue(op->args[0]);
+            generateQemuCpuStore(op->args, 8, valueToStore);
+        } break;
+
+        case INDEX_op_st16: {
+            assert(getValue(op->args[1])->getType() == wordType());
+            Value *valueToStore = getValue(op->args[0]);
+            generateQemuCpuStore(op->args, 16, valueToStore);
+        } break;
+
+        case INDEX_op_st32: {
+            assert(getValue(op->args[1])->getType() == wordType());
+            Value *valueToStore = getValue(op->args[0]);
+            generateQemuCpuStore(op->args, 32, valueToStore);
+        } break;
+
+        case INDEX_op_st: {
+            int srcIdx = temp_idx(arg_temp(op->args[0]));
+            unsigned regBits = getValueBits(srcIdx);
+            assert(getValue(op->args[1])->getType() == wordType());
+            Value *valueToStore = getValue(op->args[0]);
+            generateQemuCpuStore(op->args, regBits, valueToStore);
+        } break;
+
+/* arith - Generic macros for QEMU 10.2+ unified opcodes */
+#define __ARITH_OP_GENERIC(opc_name, op1)                     \
     case opc_name: {                                          \
         Value *v1 = getValue(op->args[1]);                    \
         Value *v2 = getValue(op->args[2]);                    \
-        adjustTypeSize(bits, &v1, &v2);                       \
-        assert(v1->getType() == intType(bits));               \
-        assert(v2->getType() == intType(bits));               \
+        assert(v1->getType() == v2->getType());               \
         setValue(op->args[0], m_builder.Create##op1(v1, v2)); \
     } break;
 
-#define __ARITH_OP_DIV2(opc_name, signE, bits)                                                                   \
-    case opc_name:                                                                                               \
-        assert(getValue(op->args[2])->getType() == intType(bits));                                               \
+#define __ARITH_OP_DIV2_GENERIC(opc_name, signE)                                                                 \
+    case opc_name: {                                                                                             \
+        unsigned bits = getValue(op->args[2])->getType()->getIntegerBitWidth();                                  \
         assert(getValue(op->args[3])->getType() == intType(bits));                                               \
         assert(getValue(op->args[4])->getType() == intType(bits));                                               \
         v = m_builder.CreateShl(m_builder.CreateZExt(getValue(op->args[3]), intType(bits * 2)),                  \
@@ -870,130 +898,85 @@ int TCGLLVMTranslator::generateOperation(const TCGOp *op) {
         v = m_builder.CreateOr(v, m_builder.CreateZExt(getValue(op->args[2]), intType(bits * 2)));               \
         setValue(op->args[0], m_builder.Create##signE##Div(v, getValue(op->args[4])));                           \
         setValue(op->args[1], m_builder.Create##signE##Rem(v, getValue(op->args[4])));                           \
-        break;
+    } break;
 
-#define __ARITH_OP_ROT(opc_name, op1, op2, bits)                                                                      \
-    case opc_name:                                                                                                    \
-        assert(getValue(op->args[1])->getType() == intType(bits));                                                    \
+#define __ARITH_OP_ROT_GENERIC(opc_name, op1, op2)                                                                    \
+    case opc_name: {                                                                                                  \
+        unsigned bits = getValue(op->args[1])->getType()->getIntegerBitWidth();                                       \
         assert(getValue(op->args[2])->getType() == intType(bits));                                                    \
         v = m_builder.CreateSub(ConstantInt::get(intType(bits), bits), getValue(op->args[2]));                        \
         setValue(op->args[0], m_builder.CreateOr(m_builder.Create##op1(getValue(op->args[1]), getValue(op->args[2])), \
                                                  m_builder.Create##op2(getValue(op->args[1]), v)));                   \
-        break;
+    } break;
 
-#define __ARITH_OP_I(opc_name, op1, i, bits)                                                                     \
-    case opc_name:                                                                                               \
-        assert(getValue(op->args[1])->getType() == intType(bits));                                               \
-        setValue(op->args[0], m_builder.Create##op1(ConstantInt::get(intType(bits), i), getValue(op->args[1]))); \
-        break;
-
-#define __ARITH_OP_BSWAP(opc_name, sBits, bits)                                                                  \
+#define __ARITH_OP_I_GENERIC(opc_name, op1, i)                                                                   \
     case opc_name: {                                                                                             \
-        assert(getValue(op->args[1])->getType() == intType(bits));                                               \
+        unsigned bits = getValue(op->args[1])->getType()->getIntegerBitWidth();                                  \
+        setValue(op->args[0], m_builder.Create##op1(ConstantInt::get(intType(bits), i), getValue(op->args[1]))); \
+    } break;
+
+#define __ARITH_OP_BSWAP_GENERIC(opc_name, sBits)                                                                \
+    case opc_name: {                                                                                             \
+        unsigned bits = getValue(op->args[1])->getType()->getIntegerBitWidth();                                  \
         Type *Tys[] = {intType(sBits)};                                                                          \
         Function *bswap = Intrinsic::getDeclaration(m_module.get(), Intrinsic::bswap, ArrayRef<Type *>(Tys, 1)); \
         v = m_builder.CreateTrunc(getValue(op->args[1]), intType(sBits));                                        \
         setValue(op->args[0], m_builder.CreateZExt(m_builder.CreateCall(bswap, v), intType(bits)));              \
     } break;
 
-            __ARITH_OP(INDEX_op_add_i32, Add, 32)
-            __ARITH_OP(INDEX_op_sub_i32, Sub, 32)
-            __ARITH_OP(INDEX_op_mul_i32, Mul, 32)
+            /* Generic arithmetic operations */
+            __ARITH_OP_GENERIC(INDEX_op_add, Add)
+            __ARITH_OP_GENERIC(INDEX_op_sub, Sub)
+            __ARITH_OP_GENERIC(INDEX_op_mul, Mul)
 
 #ifdef TCG_TARGET_HAS_div_i32
-            __ARITH_OP(INDEX_op_div_i32, SDiv, 32)
-            __ARITH_OP(INDEX_op_divu_i32, UDiv, 32)
-            __ARITH_OP(INDEX_op_rem_i32, SRem, 32)
-            __ARITH_OP(INDEX_op_remu_i32, URem, 32)
+            __ARITH_OP_GENERIC(INDEX_op_divs, SDiv)
+            __ARITH_OP_GENERIC(INDEX_op_divu, UDiv)
+            __ARITH_OP_GENERIC(INDEX_op_rems, SRem)
+            __ARITH_OP_GENERIC(INDEX_op_remu, URem)
 #else
-            __ARITH_OP_DIV2(INDEX_op_div2_i32, S, 32)
-            __ARITH_OP_DIV2(INDEX_op_divu2_i32, U, 32)
+            __ARITH_OP_DIV2_GENERIC(INDEX_op_divs2, S)
+            __ARITH_OP_DIV2_GENERIC(INDEX_op_divu2, U)
 #endif
 
-            __ARITH_OP(INDEX_op_and_i32, And, 32)
-            __ARITH_OP(INDEX_op_or_i32, Or, 32)
-            __ARITH_OP(INDEX_op_xor_i32, Xor, 32)
+            __ARITH_OP_GENERIC(INDEX_op_and, And)
+            __ARITH_OP_GENERIC(INDEX_op_or, Or)
+            __ARITH_OP_GENERIC(INDEX_op_xor, Xor)
 
-            __ARITH_OP(INDEX_op_shl_i32, Shl, 32)
-            __ARITH_OP(INDEX_op_shr_i32, LShr, 32)
-            __ARITH_OP(INDEX_op_sar_i32, AShr, 32)
+            __ARITH_OP_GENERIC(INDEX_op_shl, Shl)
+            __ARITH_OP_GENERIC(INDEX_op_shr, LShr)
+            __ARITH_OP_GENERIC(INDEX_op_sar, AShr)
 
-            __ARITH_OP_ROT(INDEX_op_rotl_i32, Shl, LShr, 32)
-            __ARITH_OP_ROT(INDEX_op_rotr_i32, LShr, Shl, 32)
+            __ARITH_OP_ROT_GENERIC(INDEX_op_rotl, Shl, LShr)
+            __ARITH_OP_ROT_GENERIC(INDEX_op_rotr, LShr, Shl)
 
-            __ARITH_OP_I(INDEX_op_not_i32, Xor, (uint64_t) -1, 32)
-            __ARITH_OP_I(INDEX_op_neg_i32, Sub, 0, 32)
+            __ARITH_OP_I_GENERIC(INDEX_op_not, Xor, (uint64_t) -1)
+            __ARITH_OP_I_GENERIC(INDEX_op_neg, Sub, 0)
 
-            __ARITH_OP_BSWAP(INDEX_op_bswap16_i32, 16, 32)
-            __ARITH_OP_BSWAP(INDEX_op_bswap32_i32, 32, 32)
+            __ARITH_OP_BSWAP_GENERIC(INDEX_op_bswap16, 16)
+            __ARITH_OP_BSWAP_GENERIC(INDEX_op_bswap32, 32)
+            __ARITH_OP_BSWAP_GENERIC(INDEX_op_bswap64, 64)
 
-#if TCG_TARGET_REG_BITS == 64
-            __ARITH_OP(INDEX_op_add_i64, Add, 64)
-            __ARITH_OP(INDEX_op_sub_i64, Sub, 64)
-            __ARITH_OP(INDEX_op_mul_i64, Mul, 64)
+#undef __ARITH_OP_BSWAP_GENERIC
+#undef __ARITH_OP_I_GENERIC
+#undef __ARITH_OP_ROT_GENERIC
+#undef __ARITH_OP_DIV2_GENERIC
+#undef __ARITH_OP_GENERIC
 
-#ifdef TCG_TARGET_HAS_div_i64
-            __ARITH_OP(INDEX_op_div_i64, SDiv, 64)
-            __ARITH_OP(INDEX_op_divu_i64, UDiv, 64)
-            __ARITH_OP(INDEX_op_rem_i64, SRem, 64)
-            __ARITH_OP(INDEX_op_remu_i64, URem, 64)
-#else
-            __ARITH_OP_DIV2(INDEX_op_div2_i64, S, 64)
-            __ARITH_OP_DIV2(INDEX_op_divu2_i64, U, 64)
-#endif
+            /* QEMU specific */
+        case INDEX_op_qemu_st: {
+            int dataIdx = temp_idx(arg_temp(op->args[0]));
+            unsigned dataBits = getValueBits(dataIdx);
+            generateQemuMemOp(false, m_builder.CreateIntCast(getValue(op->args[0]), intType(dataBits), false),
+                              getValue(op->args[1]), op->args[2], dataBits);
+        } break;
 
-            __ARITH_OP(INDEX_op_and_i64, And, 64)
-            __ARITH_OP(INDEX_op_or_i64, Or, 64)
-            __ARITH_OP(INDEX_op_xor_i64, Xor, 64)
-
-            __ARITH_OP(INDEX_op_shl_i64, Shl, 64)
-            __ARITH_OP(INDEX_op_shr_i64, LShr, 64)
-            __ARITH_OP(INDEX_op_sar_i64, AShr, 64)
-
-            __ARITH_OP_ROT(INDEX_op_rotl_i64, Shl, LShr, 64)
-            __ARITH_OP_ROT(INDEX_op_rotr_i64, LShr, Shl, 64)
-
-            __ARITH_OP_I(INDEX_op_not_i64, Xor, (uint64_t) -1, 64)
-            __ARITH_OP_I(INDEX_op_neg_i64, Sub, 0, 64)
-
-            __ARITH_OP_BSWAP(INDEX_op_bswap16_i64, 16, 64)
-            __ARITH_OP_BSWAP(INDEX_op_bswap32_i64, 32, 64)
-            __ARITH_OP_BSWAP(INDEX_op_bswap64_i64, 64, 64)
-#endif
-
-#undef __ARITH_OP_BSWAP
-#undef __ARITH_OP_I
-#undef __ARITH_OP_ROT
-#undef __ARITH_OP_DIV2
-#undef __ARITH_OP
-
-/* QEMU specific */
-#define __OP_QEMU_ST(opc_name, bits)                                                                   \
-    case opc_name:                                                                                     \
-        generateQemuMemOp(false, m_builder.CreateIntCast(getValue(op->args[0]), intType(bits), false), \
-                          getValue(op->args[1]), op->args[2], bits);                                   \
-        break;
-
-#define __OP_QEMU_LD(opc_name, bits)                                                 \
-    case opc_name:                                                                   \
-        v = generateQemuMemOp(true, NULL, getValue(op->args[1]), op->args[2], bits); \
-        setValue(op->args[0], v);                                                    \
-        break;
-
-            __OP_QEMU_ST(INDEX_op_qemu_st_a64_i32, 32)
-            __OP_QEMU_ST(INDEX_op_qemu_st_a64_i64, 64)
-
-            __OP_QEMU_ST(INDEX_op_qemu_st_a32_i32, 32)
-            __OP_QEMU_ST(INDEX_op_qemu_st_a32_i64, 64)
-
-            __OP_QEMU_LD(INDEX_op_qemu_ld_a64_i32, 32)
-            __OP_QEMU_LD(INDEX_op_qemu_ld_a64_i64, 64)
-
-            __OP_QEMU_LD(INDEX_op_qemu_ld_a32_i32, 32)
-            __OP_QEMU_LD(INDEX_op_qemu_ld_a32_i64, 64)
-
-#undef __OP_QEMU_LD
-#undef __OP_QEMU_ST
+        case INDEX_op_qemu_ld: {
+            int destIdx = temp_idx(arg_temp(op->args[0]));
+            unsigned destBits = getValueBits(destIdx);
+            v = generateQemuMemOp(true, NULL, getValue(op->args[1]), op->args[2], destBits);
+            setValue(op->args[0], v);
+        } break;
 
         case INDEX_op_exit_tb: {
             m_builder.CreateRet(ConstantInt::get(wordType(), op->args[0]));
@@ -1003,61 +986,107 @@ int TCGLLVMTranslator::generateOperation(const TCGOp *op) {
             // tb linking is disabled
             break;
 
-        case INDEX_op_deposit_i32: {
+        case INDEX_op_extract: {
+            // Extract a bit field: extract 'len' bits starting at bit 'ofs' from source
+            // Zero-extends the extracted field to destination size
+            Value *src = getValue(op->args[1]);
+            int destIdx = temp_idx(arg_temp(op->args[0]));
+            unsigned destBits = getValueBits(destIdx);
+            unsigned srcBits = src->getType()->getIntegerBitWidth();
+
+            uint32_t ofs = op->args[2]; // bit offset
+            uint32_t len = op->args[3]; // bit length
+
+            Value *result;
+            if (ofs == 0 && len == srcBits) {
+                // Extracting entire value - just copy (with potential extension)
+                if (srcBits < destBits) {
+                    result = m_builder.CreateZExt(src, intType(destBits));
+                } else {
+                    result = src;
+                }
+            } else {
+                // Shift right to position the field, then mask to extract
+                Value *shifted = m_builder.CreateLShr(src, APInt(srcBits, ofs));
+                uint64_t mask = (1ULL << len) - 1;
+                Value *extracted = m_builder.CreateAnd(shifted, APInt(srcBits, mask));
+
+                // Extend to destination size if needed
+                if (srcBits < destBits) {
+                    result = m_builder.CreateZExt(extracted, intType(destBits));
+                } else if (len < destBits) {
+                    result = m_builder.CreateZExt(m_builder.CreateTrunc(extracted, intType(len)), intType(destBits));
+                } else {
+                    result = extracted;
+                }
+            }
+            setValue(op->args[0], result);
+        } break;
+
+        case INDEX_op_sextract: {
+            // Extract a bit field and sign-extend: extract 'len' bits starting at bit 'ofs'
+            // Sign-extends the extracted field to destination size
+            Value *src = getValue(op->args[1]);
+            int destIdx = temp_idx(arg_temp(op->args[0]));
+            unsigned destBits = getValueBits(destIdx);
+            unsigned srcBits = src->getType()->getIntegerBitWidth();
+
+            uint32_t ofs = op->args[2]; // bit offset
+            uint32_t len = op->args[3]; // bit length
+
+            Value *result;
+            if (ofs == 0 && len == srcBits) {
+                // Extracting entire value - just copy (with potential sign-extension)
+                if (srcBits < destBits) {
+                    result = m_builder.CreateSExt(src, intType(destBits));
+                } else {
+                    result = src;
+                }
+            } else {
+                // Shift right to position the field, then mask to extract
+                Value *shifted = m_builder.CreateLShr(src, APInt(srcBits, ofs));
+                uint64_t mask = (1ULL << len) - 1;
+                Value *extracted = m_builder.CreateAnd(shifted, APInt(srcBits, mask));
+
+                // Truncate to the exact field size, then sign-extend to destination
+                Value *truncated = m_builder.CreateTrunc(extracted, intType(len));
+                if (len < destBits) {
+                    result = m_builder.CreateSExt(truncated, intType(destBits));
+                } else {
+                    result = truncated;
+                }
+            }
+            setValue(op->args[0], result);
+        } break;
+
+        case INDEX_op_deposit: {
             Value *arg1 = getValue(op->args[1]);
             Value *arg2 = getValue(op->args[2]);
-            arg2 = m_builder.CreateTrunc(arg2, intType(32));
+            int destIdx = temp_idx(arg_temp(op->args[0]));
+            unsigned bits = getValueBits(destIdx);
+            arg2 = m_builder.CreateTrunc(arg2, intType(bits));
 
             uint32_t ofs = op->args[3];
             uint32_t len = op->args[4];
 
-            if (ofs == 0 && len == 32) {
+            if (ofs == 0 && len == bits) {
                 setValue(op->args[0], arg2);
                 break;
             }
 
-            uint32_t mask = (1u << len) - 1;
+            uint64_t mask = (1ULL << len) - 1;
             Value *t1, *ret;
-            if (ofs + len < 32) {
-                t1 = m_builder.CreateAnd(arg2, APInt(32, mask));
-                t1 = m_builder.CreateShl(t1, APInt(32, ofs));
+            if (ofs + len < bits) {
+                t1 = m_builder.CreateAnd(arg2, APInt(bits, mask));
+                t1 = m_builder.CreateShl(t1, APInt(bits, ofs));
             } else {
-                t1 = m_builder.CreateShl(arg2, APInt(32, ofs));
+                t1 = m_builder.CreateShl(arg2, APInt(bits, ofs));
             }
 
-            ret = m_builder.CreateAnd(arg1, APInt(32, ~(mask << ofs)));
+            ret = m_builder.CreateAnd(arg1, APInt(bits, ~(mask << ofs)));
             ret = m_builder.CreateOr(ret, t1);
             setValue(op->args[0], ret);
         } break;
-#if TCG_TARGET_REG_BITS == 64
-        case INDEX_op_deposit_i64: {
-            Value *arg1 = getValue(op->args[1]);
-            Value *arg2 = getValue(op->args[2]);
-            arg2 = m_builder.CreateTrunc(arg2, intType(64));
-
-            uint32_t ofs = op->args[3];
-            uint32_t len = op->args[4];
-
-            if (0 == ofs && 64 == len) {
-                setValue(op->args[0], arg2);
-                break;
-            }
-
-            uint64_t mask = (1u << len) - 1;
-            Value *t1, *ret;
-
-            if (ofs + len < 64) {
-                t1 = m_builder.CreateAnd(arg2, APInt(64, mask));
-                t1 = m_builder.CreateShl(t1, APInt(64, ofs));
-            } else {
-                t1 = m_builder.CreateShl(arg2, APInt(64, ofs));
-            }
-
-            ret = m_builder.CreateAnd(arg1, APInt(64, ~(mask << ofs)));
-            ret = m_builder.CreateOr(ret, t1);
-            setValue(op->args[0], ret);
-        } break;
-#endif
 
         case INDEX_op_mb:
             // Memory barriers not supported.
@@ -1170,7 +1199,7 @@ Function *TCGLLVMTranslator::generateCode(TCGContext *s, TranslationBlock *tb) {
         switch (opc) {
 #if defined(CONFIG_SYMBEX)
             case INDEX_op_insn_start: {
-                assert(TARGET_INSN_START_WORDS == 2);
+                assert(INSN_START_WORDS == 3);
                 uint64_t curpc = op->args[0] - tb->cs_base;
                 uint64_t cc_op = op->args[1];
 
