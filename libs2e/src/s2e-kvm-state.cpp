@@ -99,18 +99,28 @@ int VCPU::setRegisters(kvm_regs *regs) {
 }
 
 int VCPU::setFPU(kvm_fpu *fpu) {
-    m_env->fpstt = (fpu->fsw >> 11) & 7;
-    m_env->fpus = fpu->fsw;
-    m_env->fpuc = fpu->fcw;
-    m_env->fpop = fpu->last_opcode;
-    m_env->fpip = fpu->last_ip;
-    m_env->fpdp = fpu->last_dp;
+    unsigned int fpstt = (fpu->fsw >> 11) & 7;
+    WR_cpu(m_env, fpstt, fpstt);
+    WR_cpu(m_env, fpus, fpu->fsw);
+    WR_cpu(m_env, fpuc, fpu->fcw);
+    WR_cpu(m_env, fpop, fpu->last_opcode);
+    WR_cpu(m_env, fpip, fpu->last_ip);
+    WR_cpu(m_env, fpdp, fpu->last_dp);
     for (unsigned i = 0; i < 8; ++i) {
-        m_env->fptags[i] = !((fpu->ftwx >> i) & 1);
+        uint8_t tag = !((fpu->ftwx >> i) & 1);
+        WR_cpu(m_env, fptags[i], tag);
     }
-    memcpy(m_env->fpregs, fpu->fpr, sizeof m_env->fpregs);
-    memcpy(m_env->xmm_regs, fpu->xmm, sizeof m_env->xmm_regs);
-    m_env->mxcsr = fpu->mxcsr;
+    for (unsigned i = 0; i < 8; ++i) {
+        FPReg reg;
+        memcpy(&reg, fpu->fpr[i], sizeof(reg));
+        WR_cpu(m_env, fpregs[i], reg);
+    }
+    for (unsigned i = 0; i < CPU_NB_REGS; ++i) {
+        XMMReg reg;
+        memcpy(&reg, fpu->xmm[i], sizeof(reg));
+        WR_cpu(m_env, xmm_regs[i], reg);
+    }
+    WR_cpu(m_env, mxcsr, fpu->mxcsr);
     return 0;
 }
 
@@ -217,20 +227,33 @@ int VCPU::getRegisters(kvm_regs *regs) {
 }
 
 int VCPU::getFPU(kvm_fpu *fpu) {
-    int i;
+    uint16_t fpus;
+    RR_cpu(m_env, fpus, fpus);
+    unsigned int fpstt;
+    RR_cpu(m_env, fpstt, fpstt);
+    fpu->fsw = fpus & ~(7 << 11);
+    fpu->fsw |= (fpstt & 7) << 11;
 
-    fpu->fsw = m_env->fpus & ~(7 << 11);
-    fpu->fsw |= (m_env->fpstt & 7) << 11;
-    fpu->fcw = m_env->fpuc;
-    fpu->last_opcode = m_env->fpop;
-    fpu->last_ip = m_env->fpip;
-    fpu->last_dp = m_env->fpdp;
-    for (i = 0; i < 8; ++i) {
-        fpu->ftwx |= (!m_env->fptags[i]) << i;
+    RR_cpu(m_env, fpuc, fpu->fcw);
+    RR_cpu(m_env, fpop, fpu->last_opcode);
+    RR_cpu(m_env, fpip, fpu->last_ip);
+    RR_cpu(m_env, fpdp, fpu->last_dp);
+    for (int i = 0; i < 8; ++i) {
+        uint8_t tag;
+        RR_cpu(m_env, fptags[i], tag);
+        fpu->ftwx |= (!tag) << i;
     }
-    memcpy(fpu->fpr, m_env->fpregs, sizeof m_env->fpregs);
-    memcpy(fpu->xmm, m_env->xmm_regs, sizeof m_env->xmm_regs);
-    fpu->mxcsr = m_env->mxcsr;
+    for (int i = 0; i < 8; ++i) {
+        FPReg reg;
+        RR_cpu(m_env, fpregs[i], reg);
+        memcpy(fpu->fpr[i], &reg, sizeof(reg));
+    }
+    for (int i = 0; i < CPU_NB_REGS; ++i) {
+        XMMReg reg;
+        RR_cpu(m_env, xmm_regs[i], reg);
+        memcpy(fpu->xmm[i], &reg, sizeof(reg));
+    }
+    RR_cpu(m_env, mxcsr, fpu->mxcsr);
 
     return 0;
 }
