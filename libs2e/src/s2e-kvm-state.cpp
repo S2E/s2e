@@ -53,6 +53,101 @@ uint64_t helper_rdmsr_v(uint64_t index);
 namespace s2e {
 namespace kvm {
 
+// MPX (Memory Protection Extensions) register types
+typedef struct BNDReg {
+    uint64_t lower;
+    uint64_t upper;
+} BNDReg;
+
+typedef struct BNDCSReg {
+    uint64_t cfgu;
+    uint64_t status;
+} BNDCSReg;
+
+// AVX-512 constants
+#define NB_OPMASK_REGS 8
+
+typedef union X86LegacyXSaveArea {
+    struct {
+        uint16_t fcw;
+        uint16_t fsw;
+        uint8_t ftw;
+        uint8_t reserved;
+        uint16_t fpop;
+        uint64_t fpip;
+        uint64_t fpdp;
+        uint32_t mxcsr;
+        uint32_t mxcsr_mask;
+        FPReg fpregs[8];
+        uint8_t xmm_regs[16][16];
+    };
+    uint8_t data[512];
+} X86LegacyXSaveArea;
+
+typedef struct X86XSaveHeader {
+    uint64_t xstate_bv;
+    uint64_t xcomp_bv;
+    uint64_t reserve0;
+    uint8_t reserved[40];
+} X86XSaveHeader;
+
+/* Ext. save area 2: AVX State */
+typedef struct XSaveAVX {
+    uint8_t ymmh[16][16];
+} XSaveAVX;
+
+/* Ext. save area 3: BNDREG */
+typedef struct XSaveBNDREG {
+    BNDReg bnd_regs[4];
+} XSaveBNDREG;
+
+/* Ext. save area 4: BNDCSR */
+typedef union XSaveBNDCSR {
+    BNDCSReg bndcsr;
+    uint8_t data[64];
+} XSaveBNDCSR;
+
+/* Ext. save area 5: Opmask */
+typedef struct XSaveOpmask {
+    uint64_t opmask_regs[NB_OPMASK_REGS];
+} XSaveOpmask;
+
+/* Ext. save area 6: ZMM_Hi256 */
+typedef struct XSaveZMM_Hi256 {
+    uint8_t zmm_hi256[16][32];
+} XSaveZMM_Hi256;
+
+/* Ext. save area 7: Hi16_ZMM */
+typedef struct XSaveHi16_ZMM {
+    uint8_t hi16_zmm[16][64];
+} XSaveHi16_ZMM;
+
+/* Ext. save area 9: PKRU state */
+typedef struct XSavePKRU {
+    uint32_t pkru;
+    uint32_t padding;
+} XSavePKRU;
+
+typedef struct X86XSaveArea {
+    X86LegacyXSaveArea legacy;
+    X86XSaveHeader header;
+
+    /* Extended save areas: */
+
+    /* AVX State: */
+    XSaveAVX avx_state;
+    uint8_t padding[960 - 576 - sizeof(XSaveAVX)];
+    /* MPX State: */
+    XSaveBNDREG bndreg_state;
+    XSaveBNDCSR bndcsr_state;
+    /* AVX-512 State: */
+    XSaveOpmask opmask_state;
+    XSaveZMM_Hi256 zmm_hi256_state;
+    XSaveHi16_ZMM hi16_zmm_state;
+    /* PKRU State: */
+    XSavePKRU pkru_state;
+} X86XSaveArea;
+
 int VCPU::setRegisters(kvm_regs *regs) {
     WR_cpu(m_env, regs[R_EAX], regs->rax);
     WR_cpu(m_env, regs[R_EBX], regs->rbx);
@@ -121,6 +216,58 @@ int VCPU::setFPU(kvm_fpu *fpu) {
         WR_cpu(m_env, xmm_regs[i], reg);
     }
     WR_cpu(m_env, mxcsr, fpu->mxcsr);
+    return 0;
+}
+
+int VCPU::setXSAVE(kvm_xsave *xsave) {
+    // XSAVE state layout (total 4096 bytes):
+    // Offset   0-511: Legacy region (FXSAVE compatible)
+    // Offset 512-575: XSAVE header
+    // Offset 576+   : Extended state components (AVX, MPX, AVX-512, etc.)
+    //
+    // This implementation is based on QEMU 10's x86_cpu_xsave_all_areas
+    // but adapted for loading state (reverse operation).
+
+    X86XSaveArea *xsave_area = (X86XSaveArea *) xsave->region;
+    uint16_t swd, twd;
+    int i;
+
+    // Restore FPU control and status words
+    WR_cpu(m_env, fpuc, xsave_area->legacy.fcw);
+
+    swd = xsave_area->legacy.fsw;
+    unsigned int fpstt = (swd >> 11) & 7;
+    WR_cpu(m_env, fpstt, fpstt);
+
+    WR_cpu(m_env, fpus, swd);
+
+    // Restore FPU tag word (convert from abridged format)
+    twd = xsave_area->legacy.ftw;
+    for (i = 0; i < 8; ++i) {
+        uint8_t tag = !(twd & (1 << i));
+        WR_cpu(m_env, fptags[i], tag);
+    }
+
+    // Restore FPU instruction pointer, data pointer, and last opcode
+    WR_cpu(m_env, fpop, xsave_area->legacy.fpop);
+    WR_cpu(m_env, fpip, xsave_area->legacy.fpip);
+    WR_cpu(m_env, fpdp, xsave_area->legacy.fpdp);
+
+    // Restore FPU registers (ST0-ST7)
+    for (i = 0; i < 8; ++i) {
+        WR_cpu(m_env, fpregs[i], xsave_area->legacy.fpregs[i]);
+    }
+
+    // Restore MXCSR
+    WR_cpu(m_env, mxcsr, xsave_area->legacy.mxcsr);
+
+    for (i = 0; i < CPU_NB_REGS; i++) {
+        // Restore XMM (low 128 bits)
+        XMMReg xmm_reg;
+        memcpy(&xmm_reg, xsave_area->legacy.xmm_regs[i], sizeof(xmm_reg));
+        WR_cpu(m_env, xmm_regs[i], xmm_reg);
+    }
+
     return 0;
 }
 
@@ -254,6 +401,55 @@ int VCPU::getFPU(kvm_fpu *fpu) {
         memcpy(fpu->xmm[i], &reg, sizeof(reg));
     }
     RR_cpu(m_env, mxcsr, fpu->mxcsr);
+
+    return 0;
+}
+
+int VCPU::getXSAVE(kvm_xsave *xsave) {
+    X86XSaveArea *xsave_area = (X86XSaveArea *) xsave->region;
+    int i;
+
+    // Zero out the entire region first
+    memset(xsave->region, 0, sizeof(xsave->region));
+
+    // Reconstruct FSW from fpus and fpstt
+    uint16_t fpus;
+    RR_cpu(m_env, fpus, fpus);
+    unsigned int fpstt;
+    RR_cpu(m_env, fpstt, fpstt);
+    xsave_area->legacy.fsw = (fpus & ~(7 << 11)) | ((fpstt & 7) << 11);
+
+    // FPU control word
+    RR_cpu(m_env, fpuc, xsave_area->legacy.fcw);
+
+    // FPU tag word (convert from internal format to abridged)
+    uint8_t ftw = 0;
+    for (i = 0; i < 8; ++i) {
+        uint8_t tag;
+        RR_cpu(m_env, fptags[i], tag);
+        ftw |= (!tag) << i;
+    }
+    xsave_area->legacy.ftw = ftw;
+
+    // FPU instruction pointer, data pointer, and last opcode
+    RR_cpu(m_env, fpop, xsave_area->legacy.fpop);
+    RR_cpu(m_env, fpip, xsave_area->legacy.fpip);
+    RR_cpu(m_env, fpdp, xsave_area->legacy.fpdp);
+
+    // FPU registers (ST0-ST7)
+    for (i = 0; i < 8; ++i) {
+        RR_cpu(m_env, fpregs[i], xsave_area->legacy.fpregs[i]);
+    }
+
+    // MXCSR
+    RR_cpu(m_env, mxcsr, xsave_area->legacy.mxcsr);
+
+    for (i = 0; i < CPU_NB_REGS; i++) {
+        // XMM (low 128 bits) in legacy area
+        XMMReg xmm_reg;
+        RR_cpu(m_env, xmm_regs[i], xmm_reg);
+        memcpy(xsave_area->legacy.xmm_regs[i], &xmm_reg, sizeof(xmm_reg));
+    }
 
     return 0;
 }

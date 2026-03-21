@@ -136,12 +136,14 @@ private:
     int setRegisters(kvm_regs *regs);
 
     int setFPU(kvm_fpu *fpu);
+    int setXSAVE(kvm_xsave *xsave);
     int setSystemRegisters(kvm_sregs *sregs);
     int setMSRs(kvm_msrs *msrs);
     int setMPState(kvm_mp_state *mp);
 
     int getRegisters(kvm_regs *regs);
     int getFPU(kvm_fpu *fpu);
+    int getXSAVE(kvm_xsave *xsave);
     int getSystemRegisters(kvm_sregs *sregs);
     int getMSRs(kvm_msrs *msrs);
     int getMPState(kvm_mp_state *mp);
