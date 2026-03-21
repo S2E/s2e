@@ -34,10 +34,15 @@
 
 #include "s2e-kvm-vcpu.h"
 
+#ifdef CONFIG_SYMBEX
 #define WR_cpu(cpu, reg, value) \
-    g_sqi.regs.write_concrete(offsetof(CPUX86State, reg), (uint8_t *) &value, sizeof(target_ulong))
+    g_sqi.regs.write_concrete(offsetof(CPUX86State, reg), (uint8_t *) &value, sizeof(CPUX86State::reg))
 #define RR_cpu(cpu, reg, value) \
-    g_sqi.regs.read_concrete(offsetof(CPUX86State, reg), (uint8_t *) &value, sizeof(target_ulong))
+    g_sqi.regs.read_concrete(offsetof(CPUX86State, reg), (uint8_t *) &value, sizeof(CPUX86State::reg))
+#else
+#define WR_cpu(cpu, reg, value) (cpu)->reg = value
+#define RR_cpu(cpu, reg, value) value = (cpu)->reg
+#endif
 
 extern "C" {
 // XXX: fix this declaration
@@ -49,7 +54,6 @@ namespace s2e {
 namespace kvm {
 
 int VCPU::setRegisters(kvm_regs *regs) {
-#ifdef CONFIG_SYMBEX
     WR_cpu(m_env, regs[R_EAX], regs->rax);
     WR_cpu(m_env, regs[R_EBX], regs->rbx);
     WR_cpu(m_env, regs[R_ECX], regs->rcx);
@@ -68,27 +72,6 @@ int VCPU::setRegisters(kvm_regs *regs) {
     WR_cpu(m_env, regs[13], regs->r13);
     WR_cpu(m_env, regs[14], regs->r14);
     WR_cpu(m_env, regs[15], regs->r15);
-#endif
-#else
-    m_env->regs[R_EAX] = regs->rax;
-    m_env->regs[R_EBX] = regs->rbx;
-    m_env->regs[R_ECX] = regs->rcx;
-    m_env->regs[R_EDX] = regs->rdx;
-    m_env->regs[R_ESI] = regs->rsi;
-    m_env->regs[R_EDI] = regs->rdi;
-    m_env->regs[R_ESP] = regs->rsp;
-    m_env->regs[R_EBP] = regs->rbp;
-
-#ifdef TARGET_X86_64
-    m_env->regs[8] = regs->r8;
-    m_env->regs[9] = regs->r9;
-    m_env->regs[10] = regs->r10;
-    m_env->regs[11] = regs->r11;
-    m_env->regs[12] = regs->r12;
-    m_env->regs[13] = regs->r13;
-    m_env->regs[14] = regs->r14;
-    m_env->regs[15] = regs->r15;
-#endif
 #endif
 
     if (regs->rip != m_env->eip) {
@@ -199,7 +182,6 @@ int VCPU::getRegisters(kvm_regs *regs) {
         fprintf(stderr, "Getting register state in the middle of a translation block, eip/flags may be imprecise\n");
     }
 
-#ifdef CONFIG_SYMBEX
     RR_cpu(m_env, regs[R_EAX], regs->rax);
     RR_cpu(m_env, regs[R_EBX], regs->rbx);
     RR_cpu(m_env, regs[R_ECX], regs->rcx);
@@ -218,27 +200,6 @@ int VCPU::getRegisters(kvm_regs *regs) {
     RR_cpu(m_env, regs[13], regs->r13);
     RR_cpu(m_env, regs[14], regs->r14);
     RR_cpu(m_env, regs[15], regs->r15);
-#endif
-#else
-    regs->rax = m_env->regs[R_EAX];
-    regs->rbx = m_env->regs[R_EBX];
-    regs->rcx = m_env->regs[R_ECX];
-    regs->rdx = m_env->regs[R_EDX];
-    regs->rsi = m_env->regs[R_ESI];
-    regs->rdi = m_env->regs[R_EDI];
-    regs->rsp = m_env->regs[R_ESP];
-    regs->rbp = m_env->regs[R_EBP];
-
-#ifdef TARGET_X86_64
-    regs->r8 = m_env->regs[8];
-    regs->r9 = m_env->regs[9];
-    regs->r10 = m_env->regs[10];
-    regs->r11 = m_env->regs[11];
-    regs->r12 = m_env->regs[12];
-    regs->r13 = m_env->regs[13];
-    regs->r14 = m_env->regs[14];
-    regs->r15 = m_env->regs[15];
-#endif
 #endif
 
     regs->rip = m_env->eip;
