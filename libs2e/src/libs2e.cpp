@@ -279,6 +279,11 @@ static bool check_kvm_switch(int argc, char **argv) {
         if (strstr(argv[i], "-enable-kvm")) {
             return true;
         }
+        if (strstr(argv[i], "-accel")) {
+            if (i + 1 < argc && strstr(argv[i + 1], "accel=kvm")) {
+                return true;
+            }
+        }
     }
 
     return false;

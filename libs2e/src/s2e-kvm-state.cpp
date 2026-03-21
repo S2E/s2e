@@ -34,10 +34,15 @@
 
 #include "s2e-kvm-vcpu.h"
 
+#ifdef CONFIG_SYMBEX
 #define WR_cpu(cpu, reg, value) \
-    g_sqi.regs.write_concrete(offsetof(CPUX86State, reg), (uint8_t *) &value, sizeof(target_ulong))
+    g_sqi.regs.write_concrete(offsetof(CPUX86State, reg), (uint8_t *) &value, sizeof(CPUX86State::reg))
 #define RR_cpu(cpu, reg, value) \
-    g_sqi.regs.read_concrete(offsetof(CPUX86State, reg), (uint8_t *) &value, sizeof(target_ulong))
+    g_sqi.regs.read_concrete(offsetof(CPUX86State, reg), (uint8_t *) &value, sizeof(CPUX86State::reg))
+#else
+#define WR_cpu(cpu, reg, value) (cpu)->reg = value
+#define RR_cpu(cpu, reg, value) value = (cpu)->reg
+#endif
 
 extern "C" {
 // XXX: fix this declaration
@@ -48,8 +53,102 @@ uint64_t helper_rdmsr_v(uint64_t index);
 namespace s2e {
 namespace kvm {
 
+// MPX (Memory Protection Extensions) register types
+typedef struct BNDReg {
+    uint64_t lower;
+    uint64_t upper;
+} BNDReg;
+
+typedef struct BNDCSReg {
+    uint64_t cfgu;
+    uint64_t status;
+} BNDCSReg;
+
+// AVX-512 constants
+#define NB_OPMASK_REGS 8
+
+typedef union X86LegacyXSaveArea {
+    struct {
+        uint16_t fcw;
+        uint16_t fsw;
+        uint8_t ftw;
+        uint8_t reserved;
+        uint16_t fpop;
+        uint64_t fpip;
+        uint64_t fpdp;
+        uint32_t mxcsr;
+        uint32_t mxcsr_mask;
+        FPReg fpregs[8];
+        uint8_t xmm_regs[16][16];
+    };
+    uint8_t data[512];
+} X86LegacyXSaveArea;
+
+typedef struct X86XSaveHeader {
+    uint64_t xstate_bv;
+    uint64_t xcomp_bv;
+    uint64_t reserve0;
+    uint8_t reserved[40];
+} X86XSaveHeader;
+
+/* Ext. save area 2: AVX State */
+typedef struct XSaveAVX {
+    uint8_t ymmh[16][16];
+} XSaveAVX;
+
+/* Ext. save area 3: BNDREG */
+typedef struct XSaveBNDREG {
+    BNDReg bnd_regs[4];
+} XSaveBNDREG;
+
+/* Ext. save area 4: BNDCSR */
+typedef union XSaveBNDCSR {
+    BNDCSReg bndcsr;
+    uint8_t data[64];
+} XSaveBNDCSR;
+
+/* Ext. save area 5: Opmask */
+typedef struct XSaveOpmask {
+    uint64_t opmask_regs[NB_OPMASK_REGS];
+} XSaveOpmask;
+
+/* Ext. save area 6: ZMM_Hi256 */
+typedef struct XSaveZMM_Hi256 {
+    uint8_t zmm_hi256[16][32];
+} XSaveZMM_Hi256;
+
+/* Ext. save area 7: Hi16_ZMM */
+typedef struct XSaveHi16_ZMM {
+    uint8_t hi16_zmm[16][64];
+} XSaveHi16_ZMM;
+
+/* Ext. save area 9: PKRU state */
+typedef struct XSavePKRU {
+    uint32_t pkru;
+    uint32_t padding;
+} XSavePKRU;
+
+typedef struct X86XSaveArea {
+    X86LegacyXSaveArea legacy;
+    X86XSaveHeader header;
+
+    /* Extended save areas: */
+
+    /* AVX State: */
+    XSaveAVX avx_state;
+    uint8_t padding[960 - 576 - sizeof(XSaveAVX)];
+    /* MPX State: */
+    XSaveBNDREG bndreg_state;
+    XSaveBNDCSR bndcsr_state;
+    /* AVX-512 State: */
+    XSaveOpmask opmask_state;
+    XSaveZMM_Hi256 zmm_hi256_state;
+    XSaveHi16_ZMM hi16_zmm_state;
+    /* PKRU State: */
+    XSavePKRU pkru_state;
+} X86XSaveArea;
+
 int VCPU::setRegisters(kvm_regs *regs) {
-#ifdef CONFIG_SYMBEX
     WR_cpu(m_env, regs[R_EAX], regs->rax);
     WR_cpu(m_env, regs[R_EBX], regs->rbx);
     WR_cpu(m_env, regs[R_ECX], regs->rcx);
@@ -68,27 +167,6 @@ int VCPU::setRegisters(kvm_regs *regs) {
     WR_cpu(m_env, regs[13], regs->r13);
     WR_cpu(m_env, regs[14], regs->r14);
     WR_cpu(m_env, regs[15], regs->r15);
-#endif
-#else
-    m_env->regs[R_EAX] = regs->rax;
-    m_env->regs[R_EBX] = regs->rbx;
-    m_env->regs[R_ECX] = regs->rcx;
-    m_env->regs[R_EDX] = regs->rdx;
-    m_env->regs[R_ESI] = regs->rsi;
-    m_env->regs[R_EDI] = regs->rdi;
-    m_env->regs[R_ESP] = regs->rsp;
-    m_env->regs[R_EBP] = regs->rbp;
-
-#ifdef TARGET_X86_64
-    m_env->regs[8] = regs->r8;
-    m_env->regs[9] = regs->r9;
-    m_env->regs[10] = regs->r10;
-    m_env->regs[11] = regs->r11;
-    m_env->regs[12] = regs->r12;
-    m_env->regs[13] = regs->r13;
-    m_env->regs[14] = regs->r14;
-    m_env->regs[15] = regs->r15;
-#endif
 #endif
 
     if (regs->rip != m_env->eip) {
@@ -116,18 +194,80 @@ int VCPU::setRegisters(kvm_regs *regs) {
 }
 
 int VCPU::setFPU(kvm_fpu *fpu) {
-    m_env->fpstt = (fpu->fsw >> 11) & 7;
-    m_env->fpus = fpu->fsw;
-    m_env->fpuc = fpu->fcw;
-    m_env->fpop = fpu->last_opcode;
-    m_env->fpip = fpu->last_ip;
-    m_env->fpdp = fpu->last_dp;
+    unsigned int fpstt = (fpu->fsw >> 11) & 7;
+    WR_cpu(m_env, fpstt, fpstt);
+    WR_cpu(m_env, fpus, fpu->fsw);
+    WR_cpu(m_env, fpuc, fpu->fcw);
+    WR_cpu(m_env, fpop, fpu->last_opcode);
+    WR_cpu(m_env, fpip, fpu->last_ip);
+    WR_cpu(m_env, fpdp, fpu->last_dp);
     for (unsigned i = 0; i < 8; ++i) {
-        m_env->fptags[i] = !((fpu->ftwx >> i) & 1);
+        uint8_t tag = !((fpu->ftwx >> i) & 1);
+        WR_cpu(m_env, fptags[i], tag);
     }
-    memcpy(m_env->fpregs, fpu->fpr, sizeof m_env->fpregs);
-    memcpy(m_env->xmm_regs, fpu->xmm, sizeof m_env->xmm_regs);
-    m_env->mxcsr = fpu->mxcsr;
+    for (unsigned i = 0; i < 8; ++i) {
+        FPReg reg;
+        memcpy(&reg, fpu->fpr[i], sizeof(reg));
+        WR_cpu(m_env, fpregs[i], reg);
+    }
+    for (unsigned i = 0; i < CPU_NB_REGS; ++i) {
+        XMMReg reg;
+        memcpy(&reg, fpu->xmm[i], sizeof(reg));
+        WR_cpu(m_env, xmm_regs[i], reg);
+    }
+    WR_cpu(m_env, mxcsr, fpu->mxcsr);
+    return 0;
+}
+
+int VCPU::setXSAVE(kvm_xsave *xsave) {
+    // XSAVE state layout (total 4096 bytes):
+    // Offset   0-511: Legacy region (FXSAVE compatible)
+    // Offset 512-575: XSAVE header
+    // Offset 576+   : Extended state components (AVX, MPX, AVX-512, etc.)
+    //
+    // This implementation is based on QEMU 10's x86_cpu_xsave_all_areas
+    // but adapted for loading state (reverse operation).
+
+    X86XSaveArea *xsave_area = (X86XSaveArea *) xsave->region;
+    uint16_t swd, twd;
+    int i;
+
+    // Restore FPU control and status words
+    WR_cpu(m_env, fpuc, xsave_area->legacy.fcw);
+
+    swd = xsave_area->legacy.fsw;
+    unsigned int fpstt = (swd >> 11) & 7;
+    WR_cpu(m_env, fpstt, fpstt);
+
+    WR_cpu(m_env, fpus, swd);
+
+    // Restore FPU tag word (convert from abridged format)
+    twd = xsave_area->legacy.ftw;
+    for (i = 0; i < 8; ++i) {
+        uint8_t tag = !(twd & (1 << i));
+        WR_cpu(m_env, fptags[i], tag);
+    }
+
+    // Restore FPU instruction pointer, data pointer, and last opcode
+    WR_cpu(m_env, fpop, xsave_area->legacy.fpop);
+    WR_cpu(m_env, fpip, xsave_area->legacy.fpip);
+    WR_cpu(m_env, fpdp, xsave_area->legacy.fpdp);
+
+    // Restore FPU registers (ST0-ST7)
+    for (i = 0; i < 8; ++i) {
+        WR_cpu(m_env, fpregs[i], xsave_area->legacy.fpregs[i]);
+    }
+
+    // Restore MXCSR
+    WR_cpu(m_env, mxcsr, xsave_area->legacy.mxcsr);
+
+    for (i = 0; i < CPU_NB_REGS; i++) {
+        // Restore XMM (low 128 bits)
+        XMMReg xmm_reg;
+        memcpy(&xmm_reg, xsave_area->legacy.xmm_regs[i], sizeof(xmm_reg));
+        WR_cpu(m_env, xmm_regs[i], xmm_reg);
+    }
+
     return 0;
 }
 
@@ -199,7 +339,6 @@ int VCPU::getRegisters(kvm_regs *regs) {
         fprintf(stderr, "Getting register state in the middle of a translation block, eip/flags may be imprecise\n");
     }
 
-#ifdef CONFIG_SYMBEX
     RR_cpu(m_env, regs[R_EAX], regs->rax);
     RR_cpu(m_env, regs[R_EBX], regs->rbx);
     RR_cpu(m_env, regs[R_ECX], regs->rcx);
@@ -219,27 +358,6 @@ int VCPU::getRegisters(kvm_regs *regs) {
     RR_cpu(m_env, regs[14], regs->r14);
     RR_cpu(m_env, regs[15], regs->r15);
 #endif
-#else
-    regs->rax = m_env->regs[R_EAX];
-    regs->rbx = m_env->regs[R_EBX];
-    regs->rcx = m_env->regs[R_ECX];
-    regs->rdx = m_env->regs[R_EDX];
-    regs->rsi = m_env->regs[R_ESI];
-    regs->rdi = m_env->regs[R_EDI];
-    regs->rsp = m_env->regs[R_ESP];
-    regs->rbp = m_env->regs[R_EBP];
-
-#ifdef TARGET_X86_64
-    regs->r8 = m_env->regs[8];
-    regs->r9 = m_env->regs[9];
-    regs->r10 = m_env->regs[10];
-    regs->r11 = m_env->regs[11];
-    regs->r12 = m_env->regs[12];
-    regs->r13 = m_env->regs[13];
-    regs->r14 = m_env->regs[14];
-    regs->r15 = m_env->regs[15];
-#endif
-#endif
 
     regs->rip = m_env->eip;
 
@@ -256,20 +374,82 @@ int VCPU::getRegisters(kvm_regs *regs) {
 }
 
 int VCPU::getFPU(kvm_fpu *fpu) {
+    uint16_t fpus;
+    RR_cpu(m_env, fpus, fpus);
+    unsigned int fpstt;
+    RR_cpu(m_env, fpstt, fpstt);
+    fpu->fsw = fpus & ~(7 << 11);
+    fpu->fsw |= (fpstt & 7) << 11;
+
+    RR_cpu(m_env, fpuc, fpu->fcw);
+    RR_cpu(m_env, fpop, fpu->last_opcode);
+    RR_cpu(m_env, fpip, fpu->last_ip);
+    RR_cpu(m_env, fpdp, fpu->last_dp);
+    for (int i = 0; i < 8; ++i) {
+        uint8_t tag;
+        RR_cpu(m_env, fptags[i], tag);
+        fpu->ftwx |= (!tag) << i;
+    }
+    for (int i = 0; i < 8; ++i) {
+        FPReg reg;
+        RR_cpu(m_env, fpregs[i], reg);
+        memcpy(fpu->fpr[i], &reg, sizeof(reg));
+    }
+    for (int i = 0; i < CPU_NB_REGS; ++i) {
+        XMMReg reg;
+        RR_cpu(m_env, xmm_regs[i], reg);
+        memcpy(fpu->xmm[i], &reg, sizeof(reg));
+    }
+    RR_cpu(m_env, mxcsr, fpu->mxcsr);
+
+    return 0;
+}
+
+int VCPU::getXSAVE(kvm_xsave *xsave) {
+    X86XSaveArea *xsave_area = (X86XSaveArea *) xsave->region;
     int i;
 
-    fpu->fsw = m_env->fpus & ~(7 << 11);
-    fpu->fsw |= (m_env->fpstt & 7) << 11;
-    fpu->fcw = m_env->fpuc;
-    fpu->last_opcode = m_env->fpop;
-    fpu->last_ip = m_env->fpip;
-    fpu->last_dp = m_env->fpdp;
+    // Zero out the entire region first
+    memset(xsave->region, 0, sizeof(xsave->region));
+
+    // Reconstruct FSW from fpus and fpstt
+    uint16_t fpus;
+    RR_cpu(m_env, fpus, fpus);
+    unsigned int fpstt;
+    RR_cpu(m_env, fpstt, fpstt);
+    xsave_area->legacy.fsw = (fpus & ~(7 << 11)) | ((fpstt & 7) << 11);
+
+    // FPU control word
+    RR_cpu(m_env, fpuc, xsave_area->legacy.fcw);
+
+    // FPU tag word (convert from internal format to abridged)
+    uint8_t ftw = 0;
     for (i = 0; i < 8; ++i) {
-        fpu->ftwx |= (!m_env->fptags[i]) << i;
+        uint8_t tag;
+        RR_cpu(m_env, fptags[i], tag);
+        ftw |= (!tag) << i;
     }
-    memcpy(fpu->fpr, m_env->fpregs, sizeof m_env->fpregs);
-    memcpy(fpu->xmm, m_env->xmm_regs, sizeof m_env->xmm_regs);
-    fpu->mxcsr = m_env->mxcsr;
+    xsave_area->legacy.ftw = ftw;
+
+    // FPU instruction pointer, data pointer, and last opcode
+    RR_cpu(m_env, fpop, xsave_area->legacy.fpop);
+    RR_cpu(m_env, fpip, xsave_area->legacy.fpip);
+    RR_cpu(m_env, fpdp, xsave_area->legacy.fpdp);
+
+    // FPU registers (ST0-ST7)
+    for (i = 0; i < 8; ++i) {
+        RR_cpu(m_env, fpregs[i], xsave_area->legacy.fpregs[i]);
+    }
+
+    // MXCSR
+    RR_cpu(m_env, mxcsr, xsave_area->legacy.mxcsr);
+
+    for (i = 0; i < CPU_NB_REGS; i++) {
+        // XMM (low 128 bits) in legacy area
+        XMMReg xmm_reg;
+        RR_cpu(m_env, xmm_regs[i], xmm_reg);
+        memcpy(xsave_area->legacy.xmm_regs[i], &xmm_reg, sizeof(xmm_reg));
+    }
 
     return 0;
 }
@@ -353,6 +533,25 @@ int VCPU::getMSRs(kvm_msrs *msrs) {
         msrs->entries[i].data = helper_rdmsr_v(msrs->entries[i].index);
     }
     return msrs->nmsrs;
+}
+
+int VCPU::setDebugRegs(kvm_debugregs *dregs) {
+    for (int i = 0; i < 4; ++i) {
+        m_env->dr[i] = dregs->db[i];
+    }
+    m_env->dr[6] = dregs->dr6;
+    m_env->dr[7] = dregs->dr7;
+    return 0;
+}
+
+int VCPU::getDebugRegs(kvm_debugregs *dregs) {
+    memset(dregs, 0, sizeof(*dregs));
+    for (int i = 0; i < 4; ++i) {
+        dregs->db[i] = m_env->dr[i];
+    }
+    dregs->dr6 = m_env->dr[6];
+    dregs->dr7 = m_env->dr[7];
+    return 0;
 }
 
 int VCPU::getMPState(kvm_mp_state *mp) {

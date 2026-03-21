@@ -304,10 +304,8 @@ void S2EExecutionStateRegisters::writeSymbolicRegionUnsafe(unsigned offset, klee
 /***/
 
 void S2EExecutionStateRegisters::readConcreteRegion(unsigned offset, void *buffer, unsigned size) const {
-    unsigned width = size * 8;
-    assert((width == 1 || (width & 7) == 0) && width <= 64);
     assert(offset >= offsetof(CPUX86State, eip));
-    assert(offset + Expr::getMinBytesForWidth(width) <= sizeof(CPUX86State));
+    assert(offset + size <= sizeof(CPUX86State));
 
     const uint8_t *address;
     if (*m_active) {
@@ -322,10 +320,8 @@ void S2EExecutionStateRegisters::readConcreteRegion(unsigned offset, void *buffe
 }
 
 void S2EExecutionStateRegisters::writeConcreteRegion(unsigned offset, const void *buffer, unsigned size) {
-    unsigned width = size * 8;
-    assert((width == 1 || (width & 7) == 0) && width <= 64);
     assert(offset >= offsetof(CPUX86State, eip));
-    assert(offset + Expr::getMinBytesForWidth(width) <= sizeof(CPUX86State));
+    assert(offset + size <= sizeof(CPUX86State));
 
     uint8_t *address;
     if (*m_active) {
