@@ -327,6 +327,7 @@ int S2EKVM::checkExtension(int capability) {
         case KVM_CAP_NR_VCPUS:
         case KVM_CAP_MAX_VCPUS:
         case KVM_CAP_XSAVE:
+        case KVM_CAP_DEBUGREGS:
 
         // We don't really need to support this call, just pretend that we do.
         // The real exit will be done through our custom KVM_CAP_FORCE_EXIT.

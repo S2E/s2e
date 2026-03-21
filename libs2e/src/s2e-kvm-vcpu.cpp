@@ -664,6 +664,15 @@ int VCPU::sys_ioctl(int fd, int request, uint64_t arg1) {
                 ret = setMPState((kvm_mp_state *) arg1);
             }
         } break;
+
+        case KVM_SET_DEBUGREGS: {
+            if (m_handlingDeviceState) {
+                ret = 0;
+            } else {
+                ret = setDebugRegs((kvm_debugregs *) arg1);
+            }
+        } break;
+
         /***********************************************/
         case KVM_GET_REGS: {
             if (m_handlingDeviceState) {
@@ -695,6 +704,10 @@ int VCPU::sys_ioctl(int fd, int request, uint64_t arg1) {
 
         case KVM_GET_MP_STATE: {
             ret = getMPState((kvm_mp_state *) arg1);
+        } break;
+
+        case KVM_GET_DEBUGREGS: {
+            ret = getDebugRegs((kvm_debugregs *) arg1);
         } break;
 
         /***********************************************/

@@ -535,6 +535,25 @@ int VCPU::getMSRs(kvm_msrs *msrs) {
     return msrs->nmsrs;
 }
 
+int VCPU::setDebugRegs(kvm_debugregs *dregs) {
+    for (int i = 0; i < 4; ++i) {
+        m_env->dr[i] = dregs->db[i];
+    }
+    m_env->dr[6] = dregs->dr6;
+    m_env->dr[7] = dregs->dr7;
+    return 0;
+}
+
+int VCPU::getDebugRegs(kvm_debugregs *dregs) {
+    memset(dregs, 0, sizeof(*dregs));
+    for (int i = 0; i < 4; ++i) {
+        dregs->db[i] = m_env->dr[i];
+    }
+    dregs->dr6 = m_env->dr[6];
+    dregs->dr7 = m_env->dr[7];
+    return 0;
+}
+
 int VCPU::getMPState(kvm_mp_state *mp) {
     // Not needed without IRQ chip?
     mp->mp_state = KVM_MP_STATE_RUNNABLE;
