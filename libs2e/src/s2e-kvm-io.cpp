@@ -72,6 +72,11 @@ static void abort_and_retranslate_if_needed() {
 }
 
 uint64_t s2e_kvm_mmio_read(target_phys_addr_t addr, unsigned size) {
+    auto dev_result = g_s2e_kvm->vm()->dev_mgr().mmio_read(addr, size);
+    if (dev_result) {
+        return *dev_result;
+    }
+
     int is_apic_tpr_access = 0;
 
     ++g_stats.mmio_reads;
@@ -136,6 +141,10 @@ uint64_t s2e_kvm_mmio_read(target_phys_addr_t addr, unsigned size) {
 }
 
 void s2e_kvm_mmio_write(target_phys_addr_t addr, uint64_t data, unsigned size) {
+    if (g_s2e_kvm->vm()->dev_mgr().mmio_write(addr, data, size)) {
+        return;
+    }
+
     ++g_stats.mmio_writes;
 
     g_kvm_vcpu_buffer->exit_reason = KVM_EXIT_MMIO;
