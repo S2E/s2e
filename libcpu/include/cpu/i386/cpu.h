@@ -171,9 +171,6 @@ typedef struct CPUX86State {
     uint32_t smbase;
     int old_exception; /* exception in flight */
 
-    uint8_t timer_interrupt_disabled;
-    uint8_t all_apic_interrupts_disabled;
-
     /* KVM states, automatically cleared on reset */
     uint8_t nmi_injected;
     uint8_t nmi_pending;

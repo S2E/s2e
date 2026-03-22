@@ -507,42 +507,6 @@ static inline int s2e_range(int start, int end, const char *name) {
 }
 
 ///
-/// \brief Enable timer interrupts in the VM
-///
-static inline void s2e_enable_timer_interrupt(void) {
-    __asm__ __volatile__(
-        S2E_INSTRUCTION_SIMPLE(BASE_S2E_SET_TIMER_INT)
-    );
-}
-
-///
-/// \brief Disable timer interrupts in the guest
-///
-static inline void s2e_disable_timer_interrupt(void) {
-    __asm__ __volatile__(
-        S2E_INSTRUCTION_COMPLEX(BASE_S2E_SET_TIMER_INT, 0x01)
-    );
-}
-
-///
-/// \brief Enable all APIC interrupts in the guest
-///
-static inline void s2e_enable_all_apic_interrupts(void) {
-    __asm__ __volatile__(
-        S2E_INSTRUCTION_SIMPLE(BASE_S2E_SET_APIC_INT)
-    );
-}
-
-///
-/// \brief Disable all APIC interrupts in the guest
-///
-static inline void s2e_disable_all_apic_interrupts(void) {
-    __asm__ __volatile__(
-        S2E_INSTRUCTION_COMPLEX(BASE_S2E_SET_APIC_INT, 0x01)
-    );
-}
-
-///
 /// \brief Get the size of a RAM object in bits
 ///
 /// \return The value of \c SE_RAM_OBJECT_BITS

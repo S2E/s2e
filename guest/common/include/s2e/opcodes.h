@@ -87,8 +87,6 @@ extern "C" {
 #define BASE_S2E_CONSTR_CNT     0x35
 #define BASE_S2E_HEX_DUMP       0x36
 #define BASE_S2E_CHECK_PLUGIN   0x40
-#define BASE_S2E_SET_TIMER_INT  0x50
-#define BASE_S2E_SET_APIC_INT   0x51
 #define BASE_S2E_GET_OBJ_SZ     0x52
 #define BASE_S2E_CLEAR_TEMPS    0x53
 #define BASE_S2E_FORK_COUNT     0x54
