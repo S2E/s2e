@@ -450,6 +450,12 @@ int VCPU::interrupt(kvm_interrupt *interrupt) {
     assert(!m_handlingKvmCallback);
     assert(!m_inKvmRun);
     assert(m_env->mflags & IF_MASK);
+
+    if (m_env->interrupt_request & CPU_INTERRUPT_HARD) {
+        DPRINTF("Interrupt already pending, cannot inject IRQ %d\n", interrupt->irq);
+        return -EEXIST;
+    }
+
     assert(!(m_env->interrupt_request & CPU_INTERRUPT_HARD));
     m_env->interrupt_request |= CPU_INTERRUPT_HARD;
     m_env->kvm_irq = interrupt->irq;
