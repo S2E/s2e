@@ -331,6 +331,7 @@ int S2EKVM::checkExtension(int capability) {
         case KVM_CAP_IOEVENTFD:
         case KVM_CAP_IOEVENTFD_ANY_LENGTH:
         case KVM_CAP_SPLIT_IRQCHIP:
+        case KVM_CAP_SET_IDENTITY_MAP_ADDR:
 
         // We don't really need to support this call, just pretend that we do.
         // The real exit will be done through our custom KVM_CAP_FORCE_EXIT.
