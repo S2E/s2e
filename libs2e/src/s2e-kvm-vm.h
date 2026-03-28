@@ -114,6 +114,7 @@ private:
     int setClockScalePointer(unsigned *scale);
     int handle_irq_fd(const struct kvm_irqfd *irqfd);
     int set_gsi_routing(const kvm_irq_routing *routing);
+    int irq_line(const kvm_irq_level *level);
 
 public:
     virtual ~VM() {
