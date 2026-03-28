@@ -332,6 +332,37 @@ int VM::set_gsi_routing(const kvm_irq_routing *routing) {
     return 0;
 }
 
+int VM::irq_line(const kvm_irq_level *level) {
+    uint32_t gsi = level->irq;
+
+    libcpu_log_mask(CPU_LOG_INT, "KVM_IRQ_LINE gsi=%d level=%d\n", gsi, level->level);
+
+    if (!level->level) {
+        return 0;
+    }
+
+    if (!m_cpu || !m_cpu->lapic()) {
+        fprintf(stderr, "libs2e: KVM_IRQ_LINE gsi=%d but no LAPIC configured\n", gsi);
+        return -1;
+    }
+
+    auto it = m_gsi_routes.find(gsi);
+    if (it == m_gsi_routes.end()) {
+        return 0;
+    }
+
+    auto lapic = m_cpu->lapic();
+    for (const auto &entry : it->second) {
+        if (entry.type == KVM_IRQ_ROUTING_MSI) {
+            lapic->deliver_msi(entry.u.msi.address_lo, entry.u.msi.address_hi, entry.u.msi.data);
+        } else {
+            fprintf(stderr, "libs2e: KVM_IRQ_LINE gsi=%d unsupported routing type %d\n", gsi, entry.type);
+        }
+    }
+
+    return 0;
+}
+
 int VM::sys_ioctl(int fd, int request, uint64_t arg1) {
     int ret = -1;
     switch ((uint32_t) request) {
@@ -409,6 +440,18 @@ int VM::sys_ioctl(int fd, int request, uint64_t arg1) {
 
         case KVM_SET_GSI_ROUTING: {
             ret = set_gsi_routing((const kvm_irq_routing *) arg1);
+        } break;
+
+        case KVM_IRQ_LINE: {
+            m_cpu->request_exit_cpu_loop();
+            m_cpu->lock();
+            ret = irq_line((const kvm_irq_level *) arg1);
+            m_cpu->unlock();
+        } break;
+
+        case KVM_CREATE_IRQCHIP: {
+            printf("Not implemented KVM_CREATE_IRQCHIP\n");
+            ret = 0;
         } break;
 
         default: {
