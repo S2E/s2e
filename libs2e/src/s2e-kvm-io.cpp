@@ -32,6 +32,7 @@
 #include <cpu/exec.h>
 #include <cpu/i386/cpu.h>
 #include <tcg/utils/log.h>
+#include "hw/lapic.h"
 #include "s2e-kvm-vcpu.h"
 #include "s2e-kvm-vm.h"
 #include "s2e-kvm.h"
@@ -304,22 +305,40 @@ void s2e_kvm_ioport_write(pio_addr_t addr, uint64_t data, unsigned size) {
 
 static uint64_t s2e_apic_get_base(CPUX86State *env) {
     auto vcpu = VCPU::current();
+    if (auto lapic = vcpu->lapic()) {
+        return lapic->get_apic_base();
+    }
     return vcpu->vapic().get_apic_base();
 }
 
 static void s2e_apic_set_base(CPUX86State *env, uint64_t new_base) {
     auto vcpu = VCPU::current();
-    vcpu->vapic().set_apic_base(new_base);
+    if (auto lapic = vcpu->lapic()) {
+        lapic->set_apic_base(new_base);
+        if (!g_s2e_kvm->vm()->dev_mgr().rebase_device(new_base & ~0xfffULL, lapic)) {
+            fprintf(stderr, "Failed to rebase LAPIC to %#" PRIx64 "\n", new_base);
+            abort();
+        }
+    } else {
+        vcpu->vapic().set_apic_base(new_base);
+    }
 }
 
 static uint64_t s2e_apic_get_tpr(CPUX86State *env) {
     auto vcpu = VCPU::current();
+    if (auto lapic = vcpu->lapic()) {
+        return lapic->get_tpr();
+    }
     return vcpu->vapic().get_tpr();
 }
 
 static void s2e_apic_set_tpr(CPUX86State *env, uint64_t new_tpr) {
     auto vcpu = VCPU::current();
-    vcpu->vapic().set_tpr(new_tpr);
+    if (auto lapic = vcpu->lapic()) {
+        lapic->set_tpr(new_tpr);
+    } else {
+        vcpu->vapic().set_tpr(new_tpr);
+    }
 }
 
 struct cpu_io_funcs_t g_io = {
