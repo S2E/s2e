@@ -111,6 +111,7 @@ private:
     int diskReadWrite(kvm_disk_rw *d);
     int deviceSnapshot(kvm_dev_snapshot *s);
     int setClockScalePointer(unsigned *scale);
+    int handle_irq_fd(const struct kvm_irqfd *irqfd);
 
 public:
     virtual ~VM() {

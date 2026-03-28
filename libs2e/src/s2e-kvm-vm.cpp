@@ -318,6 +318,11 @@ int VM::setClockScalePointer(unsigned *scale) {
 #endif
 }
 
+int VM::handle_irq_fd(const struct kvm_irqfd *irqfd) {
+    printf("Unhandled handle_irq_fd fd=%d gsi=%d flags=%#" PRIx32 "\n", irqfd->fd, irqfd->gsi, irqfd->flags);
+    return 0;
+}
+
 int VM::sys_ioctl(int fd, int request, uint64_t arg1) {
     int ret = -1;
     switch ((uint32_t) request) {
@@ -387,6 +392,10 @@ int VM::sys_ioctl(int fd, int request, uint64_t arg1) {
 
         case KVM_SET_CLOCK_SCALE: {
             ret = setClockScalePointer((unsigned *) arg1);
+        } break;
+
+        case KVM_IRQFD: {
+            ret = handle_irq_fd((const struct kvm_irqfd *) arg1);
         } break;
 
         default: {
