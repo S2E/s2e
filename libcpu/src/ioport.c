@@ -55,3 +55,19 @@ uint64_t cpu_mmio_read(target_phys_addr_t addr, unsigned size) {
 void cpu_mmio_write(target_phys_addr_t addr, uint64_t data, unsigned size) {
     s_io.mmio_write(addr, data, size);
 }
+
+uint64_t cpu_apic_get_tpr(CPUX86State *env) {
+    return s_io.lapic_get_tpr(env);
+}
+
+void cpu_apic_set_tpr(CPUX86State *env, uint64_t new_tpr) {
+    s_io.lapic_set_tpr(env, new_tpr);
+}
+
+uint64_t cpu_apic_get_base(CPUX86State *env) {
+    return s_io.lapic_get_base(env);
+}
+
+void cpu_apic_set_base(CPUX86State *env, uint64_t new_base) {
+    s_io.lapic_set_base(env, new_base);
+}

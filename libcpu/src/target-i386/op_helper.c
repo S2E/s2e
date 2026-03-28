@@ -3162,7 +3162,7 @@ target_ulong helper_read_crN(int reg) {
             val = env->cr[reg];
             break;
         case 8:
-            val = env->v_tpr;
+            val = cpu_apic_get_tpr(env);
             break;
     }
     return val;
@@ -3181,7 +3181,7 @@ void helper_write_crN(int reg, target_ulong t0) {
             cpu_x86_update_cr4(env, t0);
             break;
         case 8:
-            env->v_tpr = t0 & 0x0f;
+            cpu_apic_set_tpr(env, t0 & 0x0f);
 
             // Give a chance to the KVM client to inject any
             // pending interrupts. Failing to exit the CPU loop
@@ -3270,7 +3270,7 @@ void helper_wrmsr_v(target_ulong index, uint64_t val) {
             env->sysenter_eip = val;
             break;
         case MSR_IA32_APICBASE:
-            env->v_apic_base = val;
+            cpu_apic_set_base(env, val);
             break;
         case MSR_EFER: {
             uint64_t update_mask;
@@ -3406,7 +3406,7 @@ uint64_t helper_rdmsr_v(uint64_t index) {
             val = env->sysenter_eip;
             break;
         case MSR_IA32_APICBASE:
-            val = env->v_apic_base;
+            val = cpu_apic_get_base(env);
             break;
         case MSR_EFER:
             val = env->efer;
@@ -5117,7 +5117,7 @@ void helper_vmrun(int aflag, int next_eip_addend) {
     int_ctl = ldl_phys(env->vm_vmcb + offsetof(struct vmcb, control.int_ctl));
     env->hflags2 &= ~(HF2_HIF_MASK | HF2_VINTR_MASK);
     if (int_ctl & V_INTR_MASKING_MASK) {
-        env->v_tpr = int_ctl & V_TPR_MASK;
+        cpu_apic_set_tpr(env, int_ctl & V_TPR_MASK);
         env->hflags2 |= HF2_VINTR_MASK;
         if (env->mflags & IF_MASK)
             env->hflags2 |= HF2_HIF_MASK;
@@ -5436,7 +5436,7 @@ void helper_vmexit(uint32_t exit_code, uint64_t exit_info_1) {
 
     int_ctl = ldl_phys(env->vm_vmcb + offsetof(struct vmcb, control.int_ctl));
     int_ctl &= ~(V_TPR_MASK | V_IRQ_MASK);
-    int_ctl |= env->v_tpr & V_TPR_MASK;
+    int_ctl |= cpu_apic_get_tpr(env) & V_TPR_MASK;
     if (env->interrupt_request & CPU_INTERRUPT_VIRQ)
         int_ctl |= V_IRQ_MASK;
     stl_phys(env->vm_vmcb + offsetof(struct vmcb, control.int_ctl), int_ctl);

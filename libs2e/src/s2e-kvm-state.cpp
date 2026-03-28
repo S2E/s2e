@@ -308,11 +308,11 @@ int VCPU::setSystemRegisters(kvm_sregs *sregs) {
     m_env->cr[2] = sregs->cr2;
     m_env->cr[3] = sregs->cr3;
     m_env->cr[4] = sregs->cr4;
-    m_env->v_tpr = sregs->cr8;
-    m_env->v_apic_tpr = sregs->cr8 << 4;
+
+    m_vapic.set_tpr(sregs->cr8 << 4);
 
     if (sregs->apic_base) {
-        m_env->v_apic_base = sregs->apic_base;
+        m_vapic.set_apic_base(sregs->apic_base);
     }
 
     m_env->efer = sregs->efer;
@@ -519,10 +519,9 @@ int VCPU::getSystemRegisters(kvm_sregs *sregs) {
     sregs->cr2 = m_env->cr[2];
     sregs->cr3 = m_env->cr[3];
     sregs->cr4 = m_env->cr[4];
-    sregs->cr8 = m_env->v_tpr;
 
-    sregs->apic_base = m_env->v_apic_base;
-    sregs->cr8 = m_env->v_tpr;
+    sregs->apic_base = m_vapic.get_apic_base();
+    sregs->cr8 = m_vapic.get_tpr() >> 4;
 
     sregs->efer = m_env->efer;
     return 0;

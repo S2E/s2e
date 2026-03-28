@@ -100,7 +100,7 @@ VCPU::VCPU(std::shared_ptr<S2EKVM> &kvm, std::shared_ptr<VM> &vm, kvm_run *buffe
         exit(-1);
     }
 
-    m_env->v_apic_base = 0xfee00000;
+    m_vapic.set_apic_base(0xfee00000);
     m_env->size = sizeof(*m_env);
 
 #ifdef CONFIG_SYMBEX
@@ -115,6 +115,10 @@ VCPU::VCPU(std::shared_ptr<S2EKVM> &kvm, std::shared_ptr<VM> &vm, kvm_run *buffe
 VCPU::~VCPU() {
     m_onExit.disconnect();
     m_onSelect.disconnect();
+}
+
+VCPU *VCPU::current() {
+    return s_vcpu;
 }
 
 std::shared_ptr<VCPU> VCPU::create(std::shared_ptr<S2EKVM> &kvm, std::shared_ptr<VM> &vm) {
@@ -259,15 +263,15 @@ void VCPU::coroutineFcn(void *opaque) {
                 DPRINTF("Forcing IRQ\n");
             }
             env->interrupt_request |= CPU_INTERRUPT_HARD;
-        }
 
 #ifdef SE_KVM_DEBUG_IRQ
-        if (env->interrupt_request & CPU_INTERRUPT_HARD) {
-            DPRINTF("Handling IRQ %d req=%#x hflags=%x hflags2=%#x mflags=%#lx tpr=%#x esp=%#lx\n", env->kvm_irq,
-                    env->interrupt_request, env->hflags, env->hflags2, (uint64_t) env->mflags, env->v_tpr,
-                    (uint64_t) env->regs[R_ESP]);
-        }
+            if (env->interrupt_request & CPU_INTERRUPT_HARD) {
+                DPRINTF("Handling IRQ %d req=%#x hflags=%x hflags2=%#x mflags=%#lx tpr=%#x esp=%#lx\n", env->kvm_irq,
+                        env->interrupt_request, env->hflags, env->hflags2, (uint64_t) env->mflags,
+                        vcpu->vapic().get_tpr(), (uint64_t) env->regs[R_ESP]);
+            }
 #endif
+        }
 
         env->kvm_request_interrupt_window |= buffer->request_interrupt_window;
 
@@ -327,8 +331,8 @@ int VCPU::run(int vcpu_fd) {
 
     /* Return asap if interrupts can be injected */
     m_cpuBuffer->if_flag = (m_env->mflags & IF_MASK) != 0;
-    m_cpuBuffer->apic_base = m_env->v_apic_base;
-    m_cpuBuffer->cr8 = m_env->v_tpr;
+    m_cpuBuffer->apic_base = m_vapic.get_apic_base();
+    m_cpuBuffer->cr8 = m_vapic.get_tpr() >> 4;
 
     m_cpuBuffer->ready_for_interrupt_injection = !m_handlingKvmCallback && m_cpuBuffer->request_interrupt_window &&
                                                  m_cpuBuffer->if_flag && (m_env->kvm_irq == -1);
@@ -360,8 +364,8 @@ int VCPU::run(int vcpu_fd) {
      * Eventually, we'll need to figure out how KVM handles it.
      * Having an incorrect (null) APIC base will cause the APIC to get stuck.
      */
-    m_env->v_apic_base = m_cpuBuffer->apic_base;
-    m_env->v_tpr = m_cpuBuffer->cr8;
+    m_vapic.set_apic_base(m_cpuBuffer->apic_base);
+    m_vapic.set_tpr(m_cpuBuffer->cr8 << 4);
 
     m_handlingKvmCallback = false;
     m_handlingDeviceState = false;
@@ -385,8 +389,8 @@ int VCPU::run(int vcpu_fd) {
     // assert(env->current_tb == NULL);
 
     m_cpuBuffer->if_flag = (m_env->mflags & IF_MASK) != 0;
-    m_cpuBuffer->apic_base = m_env->v_apic_base;
-    m_cpuBuffer->cr8 = m_env->v_tpr;
+    m_cpuBuffer->apic_base = m_vapic.get_apic_base();
+    m_cpuBuffer->cr8 = m_vapic.get_tpr() >> 4;
 
     // KVM specs says that we should also check for request for interrupt window,
     // but that causes missed interrupts.
@@ -440,13 +444,10 @@ int VCPU::run(int vcpu_fd) {
 int VCPU::interrupt(kvm_interrupt *interrupt) {
 #ifdef SE_KVM_DEBUG_IRQ
     DPRINTF("IRQ %d env->mflags=%lx hflags=%x hflags2=%x ptr=%#x\n", interrupt->irq, (uint64_t) env->mflags,
-            env->hflags, env->hflags2, env->v_tpr);
+            env->hflags, env->hflags2, m_vapic.get_tpr());
     fflush(stdout);
 #endif
 
-    if (m_env->cr[0] & CR0_PE_MASK) {
-        assert(interrupt->irq > (m_env->v_tpr << 4));
-    }
     assert(!m_handlingKvmCallback);
     assert(!m_inKvmRun);
     assert(m_env->mflags & IF_MASK);
@@ -457,6 +458,11 @@ int VCPU::interrupt(kvm_interrupt *interrupt) {
     }
 
     assert(!(m_env->interrupt_request & CPU_INTERRUPT_HARD));
+
+    if (m_env->cr[0] & CR0_PE_MASK) {
+        assert(interrupt->irq > m_vapic.get_tpr());
+    }
+
     m_env->interrupt_request |= CPU_INTERRUPT_HARD;
     m_env->kvm_irq = interrupt->irq;
 

@@ -28,6 +28,7 @@
 extern "C" {
 #endif
 
+typedef struct CPUX86State CPUX86State;
 typedef uint32_t pio_addr_t;
 
 #define MAX_IOPORTS  (64 * 1024)
@@ -43,17 +44,32 @@ uint32_t cpu_inl(pio_addr_t addr);
 uint64_t cpu_mmio_read(target_phys_addr_t addr, unsigned size);
 void cpu_mmio_write(target_phys_addr_t addr, uint64_t data, unsigned size);
 
+uint64_t cpu_apic_get_tpr(CPUX86State *env);
+void cpu_apic_set_tpr(CPUX86State *env, uint64_t new_tpr);
+uint64_t cpu_apic_get_base(CPUX86State *env);
+void cpu_apic_set_base(CPUX86State *env, uint64_t new_base);
+
 typedef uint64_t (*cpu_ioport_read_t)(pio_addr_t addr, unsigned size);
 typedef void (*cpu_ioport_write_t)(pio_addr_t addr, uint64_t data, unsigned size);
 
 typedef uint64_t (*cpu_mmio_read_t)(target_phys_addr_t addr, unsigned size);
 typedef void (*cpu_mmio_write_t)(target_phys_addr_t addr, uint64_t data, unsigned size);
 
+typedef uint64_t (*cpu_lapic_get_base_t)(CPUX86State *env);
+typedef void (*cpu_lapic_set_base_t)(CPUX86State *env, uint64_t new_base);
+
+typedef uint64_t (*cpu_lapic_get_tpr_t)(CPUX86State *env);
+typedef void (*cpu_lapic_set_tpr_t)(CPUX86State *env, uint64_t new_tpr);
+
 struct cpu_io_funcs_t {
     cpu_ioport_read_t io_read;
     cpu_ioport_write_t io_write;
     cpu_mmio_read_t mmio_read;
     cpu_mmio_write_t mmio_write;
+    cpu_lapic_get_base_t lapic_get_base;
+    cpu_lapic_set_base_t lapic_set_base;
+    cpu_lapic_get_tpr_t lapic_get_tpr;
+    cpu_lapic_set_tpr_t lapic_set_tpr;
 };
 
 void cpu_register_io(const struct cpu_io_funcs_t *f);
