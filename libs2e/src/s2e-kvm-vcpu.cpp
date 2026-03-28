@@ -50,6 +50,7 @@ extern "C" {
 void tcg_register_thread(void);
 }
 
+#include "hw/lapic.h"
 #include "s2e-kvm-vcpu.h"
 #include "syscalls.h"
 
@@ -129,6 +130,12 @@ std::shared_ptr<VCPU> VCPU::create(std::shared_ptr<S2EKVM> &kvm, std::shared_ptr
     }
 
     return std::shared_ptr<VCPU>(new VCPU(kvm, vm, buffer));
+}
+
+void VCPU::create_lapic() {
+    m_lapic = std::make_shared<LocalApic>(LocalApic::APIC_DEFAULT_BASE,
+                                          [this](int mask, bool reset) { interrupt(mask, reset); });
+    m_vm->dev_mgr().register_device(LocalApic::APIC_DEFAULT_BASE, LocalApic::APIC_SIZE, m_lapic);
 }
 
 int VCPU::initCpuLock(void) {
@@ -375,7 +382,8 @@ int VCPU::run(int vcpu_fd) {
     m_handlingKvmCallback =
         m_cpuBuffer->exit_reason == KVM_EXIT_IO || m_cpuBuffer->exit_reason == KVM_EXIT_MMIO ||
         m_cpuBuffer->exit_reason == KVM_EXIT_FLUSH_DISK || m_cpuBuffer->exit_reason == KVM_EXIT_SAVE_DEV_STATE ||
-        m_cpuBuffer->exit_reason == KVM_EXIT_RESTORE_DEV_STATE || m_cpuBuffer->exit_reason == KVM_EXIT_CLONE_PROCESS;
+        m_cpuBuffer->exit_reason == KVM_EXIT_RESTORE_DEV_STATE || m_cpuBuffer->exit_reason == KVM_EXIT_CLONE_PROCESS ||
+        m_cpuBuffer->exit_reason == KVM_EXIT_IOAPIC_EOI;
 
     // Might not be NULL if resuming from an interrupted I/O
     // assert(env->current_tb == NULL);
@@ -747,6 +755,17 @@ void *VCPU::sys_mmap(void *addr, size_t len, int prot, int flags, int fd, off_t 
 
 void VCPU::flushTlb() {
     tlb_flush(m_env, 1);
+}
+
+void VCPU::interrupt(int mask, bool reset) {
+    libcpu_log_mask(CPU_LOG_INT, "Interrupt: mask=%#x reset=%d\n", mask, reset);
+    cpu_exit(m_env);
+
+    if (reset) {
+        m_env->interrupt_request &= ~mask;
+    } else {
+        m_env->interrupt_request |= mask;
+    }
 }
 } // namespace kvm
 } // namespace s2e

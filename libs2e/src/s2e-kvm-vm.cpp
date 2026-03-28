@@ -41,6 +41,7 @@
 #include <tcg/tcg-llvm.h>
 #endif
 
+#include "hw/lapic.h"
 #include "libs2e.h"
 #include "s2e-kvm-vcpu.h"
 #include "s2e-kvm-vm.h"
@@ -79,9 +80,17 @@ void VM::sendCpuExitSignal() {
 }
 
 int VM::enableCapability(kvm_enable_cap *cap) {
-    printf("Enable capability not supported %d\n", cap->cap);
-    errno = 1;
-    return -1;
+    switch (cap->cap) {
+        case KVM_CAP_SPLIT_IRQCHIP: {
+            printf("KVM_CAP_SPLIT_IRQCHIP=%d\n", (int) cap->args[0]);
+            m_split_irqchip = true;
+            return 0;
+        }
+        default:
+            printf("Enable capability not supported %d\n", cap->cap);
+            errno = 1;
+            return -1;
+    }
 }
 
 int VM::createVirtualCPU() {
@@ -99,6 +108,10 @@ int VM::createVirtualCPU() {
     }
 
     m_cpu = vcpu;
+
+    if (m_split_irqchip) {
+        m_cpu->create_lapic();
+    }
 
     return g_fdm->registerInterface(vcpu);
 }

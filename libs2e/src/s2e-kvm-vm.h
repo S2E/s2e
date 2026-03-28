@@ -57,6 +57,8 @@ private:
     std::vector<IoEventFdEntry> m_ioeventfds_pio;
     std::vector<IoEventFdEntry> m_ioeventfds_mmio;
 
+    bool m_split_irqchip = false;
+
     VM(std::shared_ptr<S2EKVM> &kvm) : m_kvm(kvm) {
     }
 
