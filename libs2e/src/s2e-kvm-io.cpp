@@ -20,6 +20,8 @@
 /// SOFTWARE.
 ///
 
+#include <unistd.h>
+
 #include <coroutine.h>
 #include <cpu/ioport.h>
 #include <cpu/kvm.h>
@@ -31,6 +33,7 @@
 #include <cpu/i386/cpu.h>
 #include <tcg/utils/log.h>
 #include "s2e-kvm-vcpu.h"
+#include "s2e-kvm-vm.h"
 #include "s2e-kvm.h"
 
 extern CPUX86State *env;
@@ -45,6 +48,14 @@ extern CPUX86State *env;
 
 namespace s2e {
 namespace kvm {
+
+static void signal_ioeventfd(int fd) {
+    uint64_t val = 1;
+    ssize_t ret = write(fd, &val, sizeof(val));
+    if (ret != sizeof(val)) {
+        fprintf(stderr, "ioeventfd: write to fd %d failed\n", fd);
+    }
+}
 
 // This is an experimental feature
 // #define ENABLE_RETRANSLATE
@@ -143,6 +154,12 @@ uint64_t s2e_kvm_mmio_read(target_phys_addr_t addr, unsigned size) {
 }
 
 void s2e_kvm_mmio_write(target_phys_addr_t addr, uint64_t data, unsigned size) {
+    int efd = g_s2e_kvm->vm()->lookupIoEventFd(false, addr, data, size);
+    if (efd >= 0) {
+        signal_ioeventfd(efd);
+        return;
+    }
+
     if (g_s2e_kvm->vm()->dev_mgr().mmio_write(addr, data, size)) {
         return;
     }
@@ -244,6 +261,12 @@ uint64_t s2e_kvm_ioport_read(pio_addr_t addr, unsigned size) {
 }
 
 void s2e_kvm_ioport_write(pio_addr_t addr, uint64_t data, unsigned size) {
+    int efd = g_s2e_kvm->vm()->lookupIoEventFd(true, addr, data, size);
+    if (efd >= 0) {
+        signal_ioeventfd(efd);
+        return;
+    }
+
     ++g_stats.io_writes;
 
     g_kvm_vcpu_buffer->exit_reason = KVM_EXIT_IO;

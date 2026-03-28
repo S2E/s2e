@@ -103,6 +103,27 @@ int VM::createVirtualCPU() {
     return g_fdm->registerInterface(vcpu);
 }
 
+int VM::lookupIoEventFd(bool is_pio, uint64_t addr, uint64_t data, unsigned size) {
+    const auto &events = is_pio ? m_ioeventfds_pio : m_ioeventfds_mmio;
+
+    for (const auto &entry : events) {
+        if (entry.addr != addr) {
+            continue;
+        }
+        if (entry.len != 0 && entry.len != size) {
+            continue;
+        }
+        if (entry.has_datamatch) {
+            uint64_t mask = (size < 8) ? ((uint64_t) 1 << (size * 8)) - 1 : ~(uint64_t) 0;
+            if ((data & mask) != (entry.datamatch & mask)) {
+                continue;
+            }
+        }
+        return entry.fd;
+    }
+    return -1;
+}
+
 int VM::setTSSAddress(uint64_t tss_addr) {
 #ifdef SE_KVM_DEBUG_INTERFACE
     printf("Setting tss addr %#" PRIx64 " not implemented yet\n", tss_addr);
@@ -191,10 +212,53 @@ int VM::getClock(kvm_clock_data *clock) {
 
 int VM::ioEventFD(kvm_ioeventfd *event) {
 #ifdef SE_KVM_DEBUG_INTERFACE
-    printf("kvm_ioeventd datamatch=%#llx addr=%#llx len=%d fd=%d flags=%#" PRIx32 "\n", event->datamatch, event->addr,
+    printf("kvm_ioeventfd datamatch=%#llx addr=%#llx len=%d fd=%d flags=%#" PRIx32 "\n", event->datamatch, event->addr,
            event->len, event->fd, event->flags);
 #endif
-    return -1;
+
+    if (event->flags & ~KVM_IOEVENTFD_VALID_FLAG_MASK) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    if (event->flags & KVM_IOEVENTFD_FLAG_VIRTIO_CCW_NOTIFY) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    if (event->len != 0 && event->len != 1 && event->len != 2 && event->len != 4 && event->len != 8) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    bool is_pio = (event->flags & KVM_IOEVENTFD_FLAG_PIO) != 0;
+    bool has_datamatch = (event->flags & KVM_IOEVENTFD_FLAG_DATAMATCH) != 0;
+    bool is_deassign = (event->flags & KVM_IOEVENTFD_FLAG_DEASSIGN) != 0;
+
+    auto &eventfds = is_pio ? m_ioeventfds_pio : m_ioeventfds_mmio;
+
+    if (is_deassign) {
+        for (auto it = eventfds.begin(); it != eventfds.end(); ++it) {
+            if (it->addr == event->addr && it->len == event->len && it->has_datamatch == has_datamatch &&
+                (!has_datamatch || it->datamatch == event->datamatch) && it->fd == event->fd) {
+                eventfds.erase(it);
+                return 0;
+            }
+        }
+        errno = ENOENT;
+        return -1;
+    }
+
+    IoEventFdEntry entry;
+    entry.addr = event->addr;
+    entry.datamatch = has_datamatch ? event->datamatch : 0;
+    entry.len = event->len;
+    entry.fd = event->fd;
+    entry.is_pio = is_pio;
+    entry.has_datamatch = has_datamatch;
+
+    eventfds.push_back(entry);
+    return 0;
 }
 
 int VM::diskReadWrite(kvm_disk_rw *d) {
