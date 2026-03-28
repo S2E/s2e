@@ -102,7 +102,14 @@ public:
     const cpuid_t &getCpuid() const {
         return m_cpuid;
     }
+
+    std::shared_ptr<VM> vm() const {
+        return m_vm;
+    }
 };
+
+extern std::shared_ptr<S2EKVM> g_s2e_kvm;
+
 } // namespace kvm
 } // namespace s2e
 
