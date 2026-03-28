@@ -59,6 +59,8 @@ private:
 
     bool m_split_irqchip = false;
 
+    int m_maxVcpuId = 0;
+
     VM(std::shared_ptr<S2EKVM> &kvm) : m_kvm(kvm) {
     }
 
