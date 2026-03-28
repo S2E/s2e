@@ -81,6 +81,10 @@ void VM::sendCpuExitSignal() {
 
 int VM::enableCapability(kvm_enable_cap *cap) {
     switch (cap->cap) {
+        case KVM_CAP_MAX_VCPU_ID:
+            printf("KVM_CAP_MAX_VCPU_ID=%d\n", (int) cap->args[0]);
+            m_maxVcpuId = (int) cap->args[0];
+            return 0;
         case KVM_CAP_SPLIT_IRQCHIP: {
             printf("KVM_CAP_SPLIT_IRQCHIP=%d\n", (int) cap->args[0]);
             m_split_irqchip = true;
