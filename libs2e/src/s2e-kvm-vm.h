@@ -99,7 +99,7 @@ private:
     ///
     int getDirtyLog(kvm_dirty_log *log);
 
-    int setIdentityMapAddress(uint64_t addr);
+    int setIdentityMapAddress(uint64_t *addr);
 
     int setClock(kvm_clock_data *clock);
     int getClock(kvm_clock_data *clock);

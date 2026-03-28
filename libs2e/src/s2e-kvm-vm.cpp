@@ -207,8 +207,10 @@ int VM::getDirtyLog(kvm_dirty_log *log) {
     return 0;
 }
 
-int VM::setIdentityMapAddress(uint64_t addr) {
-    assert(false && "Not implemented");
+int VM::setIdentityMapAddress(uint64_t *addr) {
+    // XXX: fixme
+    printf("setIdentityMapAddress %#" PRIx64 " not implemented yet\n", *addr);
+    return 0;
 }
 
 int VM::setClock(kvm_clock_data *clock) {
@@ -351,7 +353,7 @@ int VM::sys_ioctl(int fd, int request, uint64_t arg1) {
         } break;
 
         case KVM_SET_IDENTITY_MAP_ADDR: {
-            ret = setIdentityMapAddress(arg1);
+            ret = setIdentityMapAddress((uint64_t *) arg1);
         } break;
 
         case KVM_GET_DIRTY_LOG: {
