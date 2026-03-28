@@ -26,6 +26,8 @@
 
 #include <cpu/kvm.h>
 #include <inttypes.h>
+#include <unordered_map>
+#include <vector>
 
 #include "FileDescriptorManager.h"
 #include "hw/manager.h"
@@ -33,6 +35,15 @@
 
 namespace s2e {
 namespace kvm {
+
+struct IoEventFdEntry {
+    uint64_t addr;
+    uint64_t datamatch;
+    uint32_t len;
+    int fd;
+    bool is_pio;
+    bool has_datamatch;
+};
 
 class VCPU;
 
@@ -42,6 +53,9 @@ private:
     std::shared_ptr<VCPU> m_cpu;
 
     VirtualDeviceManager m_dev_mgr;
+
+    std::vector<IoEventFdEntry> m_ioeventfds_pio;
+    std::vector<IoEventFdEntry> m_ioeventfds_mmio;
 
     VM(std::shared_ptr<S2EKVM> &kvm) : m_kvm(kvm) {
     }
@@ -106,6 +120,8 @@ public:
     VirtualDeviceManager &dev_mgr() {
         return m_dev_mgr;
     }
+
+    int lookupIoEventFd(bool is_pio, uint64_t addr, uint64_t data, unsigned size);
 };
 } // namespace kvm
 } // namespace s2e
