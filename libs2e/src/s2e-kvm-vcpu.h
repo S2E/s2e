@@ -41,6 +41,8 @@
 namespace s2e {
 namespace kvm {
 
+class LocalApic;
+
 // TODO: remove this global var
 extern kvm_run *g_kvm_vcpu_buffer;
 
@@ -48,6 +50,7 @@ class VCPU : public IFile {
 private:
     std::shared_ptr<S2EKVM> m_kvm;
     std::shared_ptr<VM> m_vm;
+    std::shared_ptr<LocalApic> m_lapic;
 
     int m_fd = -1;
 
@@ -168,6 +171,7 @@ public:
     static std::shared_ptr<VCPU> create(std::shared_ptr<S2EKVM> &kvm, std::shared_ptr<VM> &vm);
     static VCPU *current();
 
+    void create_lapic();
 
     void lock();
     void tryLock();
@@ -180,6 +184,11 @@ public:
     void saveDeviceState(void);
     void restoreDeviceState(void);
     void cloneProcess(void);
+    void interrupt(int mask, bool reset);
+
+    std::shared_ptr<LocalApic> lapic() const {
+        return m_lapic;
+    }
 
     inline bool inKvmRun() const {
         return m_inKvmRun;
