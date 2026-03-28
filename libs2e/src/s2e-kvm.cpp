@@ -55,7 +55,7 @@ extern CPUX86State *env;
 namespace s2e {
 namespace kvm {
 
-static std::shared_ptr<S2EKVM> s_s2e_kvm;
+std::shared_ptr<S2EKVM> g_s2e_kvm;
 struct stats_t g_stats;
 
 static const int MAX_MEMORY_SLOTS = 32;
@@ -167,14 +167,14 @@ const bool S2EKVM::s_is64 = false;
 IFilePtr S2EKVM::create() {
     auto ret = std::shared_ptr<S2EKVM>(new S2EKVM());
     ret->init();
-    s_s2e_kvm = ret;
+    g_s2e_kvm = ret;
     return ret;
 }
 
 void S2EKVM::cleanup(void) {
-    s_s2e_kvm->m_exiting = true;
+    g_s2e_kvm->m_exiting = true;
 
-    while (!s_s2e_kvm->m_timerExited) {
+    while (!g_s2e_kvm->m_timerExited) {
     }
 
 #ifdef CONFIG_SYMBEX
@@ -182,7 +182,7 @@ void S2EKVM::cleanup(void) {
         monitor_close();
         s2e_close();
         g_s2e = nullptr;
-        s_s2e_kvm = nullptr;
+        g_s2e_kvm = nullptr;
     }
 #endif
 }
