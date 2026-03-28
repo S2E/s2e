@@ -342,6 +342,9 @@ int S2EKVM::checkExtension(int capability) {
         case KVM_CAP_FORCE_EXIT:
             return 1;
 
+        case KVM_CAP_IRQ_ROUTING:
+            return 4096;          // KVM_MAX_IRQ_ROUTES
+
 #ifdef CONFIG_SYMBEX
         case KVM_CAP_MEM_FIXED_REGION:
         case KVM_CAP_DISK_RW:

@@ -58,6 +58,7 @@ private:
     std::vector<IoEventFdEntry> m_ioeventfds_mmio;
 
     bool m_split_irqchip = false;
+    std::unordered_map<uint32_t, std::vector<kvm_irq_routing_entry>> m_gsi_routes;
 
     int m_maxVcpuId = 0;
 
@@ -112,6 +113,7 @@ private:
     int deviceSnapshot(kvm_dev_snapshot *s);
     int setClockScalePointer(unsigned *scale);
     int handle_irq_fd(const struct kvm_irqfd *irqfd);
+    int set_gsi_routing(const kvm_irq_routing *routing);
 
 public:
     virtual ~VM() {

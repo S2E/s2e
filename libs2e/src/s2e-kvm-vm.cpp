@@ -323,6 +323,15 @@ int VM::handle_irq_fd(const struct kvm_irqfd *irqfd) {
     return 0;
 }
 
+int VM::set_gsi_routing(const kvm_irq_routing *routing) {
+    m_gsi_routes.clear();
+    for (uint32_t i = 0; i < routing->nr; ++i) {
+        const auto &entry = routing->entries[i];
+        m_gsi_routes[entry.gsi].push_back(entry);
+    }
+    return 0;
+}
+
 int VM::sys_ioctl(int fd, int request, uint64_t arg1) {
     int ret = -1;
     switch ((uint32_t) request) {
@@ -396,6 +405,10 @@ int VM::sys_ioctl(int fd, int request, uint64_t arg1) {
 
         case KVM_IRQFD: {
             ret = handle_irq_fd((const struct kvm_irqfd *) arg1);
+        } break;
+
+        case KVM_SET_GSI_ROUTING: {
+            ret = set_gsi_routing((const kvm_irq_routing *) arg1);
         } break;
 
         default: {
