@@ -86,6 +86,7 @@ static void abort_and_retranslate_if_needed() {
 uint64_t s2e_kvm_mmio_read(target_phys_addr_t addr, unsigned size) {
     auto dev_result = g_s2e_kvm->vm()->dev_mgr().mmio_read(addr, size);
     if (dev_result) {
+        // DPRINTF("mmior%d[%" PRIx64 "]=%" PRIx64 "\n", size, (uint64_t) addr, *dev_result);
         return *dev_result;
     }
 
@@ -155,6 +156,18 @@ uint64_t s2e_kvm_mmio_read(target_phys_addr_t addr, unsigned size) {
 }
 
 void s2e_kvm_mmio_write(target_phys_addr_t addr, uint64_t data, unsigned size) {
+#ifdef SE_KVM_DEBUG_MMIO
+    unsigned print_addr = 0;
+#ifdef SE_KVM_DEBUG_APIC
+    if (addr >= 0xf0000000)
+        print_addr = 1;
+#endif
+
+    if (print_addr) {
+        DPRINTF("mmiow%d[%" PRIx64 "]=%" PRIx64 "\n", size, (uint64_t) addr, data);
+    }
+#endif
+
     int efd = g_s2e_kvm->vm()->lookupIoEventFd(false, addr, data, size);
     if (efd >= 0) {
         signal_ioeventfd(efd);
@@ -173,18 +186,6 @@ void s2e_kvm_mmio_write(target_phys_addr_t addr, uint64_t data, unsigned size) {
     g_kvm_vcpu_buffer->mmio.len = size;
 
     uint8_t *dataptr = g_kvm_vcpu_buffer->mmio.data;
-
-#ifdef SE_KVM_DEBUG_MMIO
-    unsigned print_addr = 0;
-#ifdef SE_KVM_DEBUG_APIC
-    if (addr >= 0xf0000000)
-        print_addr = 1;
-#endif
-
-    if (print_addr) {
-        DPRINTF("mmiow%d[%" PRIx64 "]=%" PRIx64 "\n", size, (uint64_t) addr, data);
-    }
-#endif
 
     switch (size) {
         case 1:

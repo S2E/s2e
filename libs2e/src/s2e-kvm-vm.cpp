@@ -20,6 +20,7 @@
 /// SOFTWARE.
 ///
 
+#include <cerrno>
 #include <memory.h>
 
 #include <cpu/cpus.h>
