@@ -331,9 +331,6 @@ int VCPU::run(int vcpu_fd) {
 
     /* Return asap if interrupts can be injected */
     m_cpuBuffer->if_flag = (m_env->mflags & IF_MASK) != 0;
-    m_cpuBuffer->apic_base = m_vapic.get_apic_base();
-    m_cpuBuffer->cr8 = m_vapic.get_tpr() >> 4;
-
     m_cpuBuffer->ready_for_interrupt_injection = !m_handlingKvmCallback && m_cpuBuffer->request_interrupt_window &&
                                                  m_cpuBuffer->if_flag && (m_env->kvm_irq == -1);
 
@@ -358,12 +355,7 @@ int VCPU::run(int vcpu_fd) {
 
     m_cpuBuffer->exit_reason = -1;
 
-    /**
-     * Some KVM clients do not set this when calling kvm_run, although the KVM
-     * spec says they should. For now, we patch the clients to pass the right value.
-     * Eventually, we'll need to figure out how KVM handles it.
-     * Having an incorrect (null) APIC base will cause the APIC to get stuck.
-     */
+    assert(m_cpuBuffer->apic_base);
     m_vapic.set_apic_base(m_cpuBuffer->apic_base);
     m_vapic.set_tpr(m_cpuBuffer->cr8 << 4);
 
