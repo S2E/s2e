@@ -754,6 +754,16 @@ int VCPU::sys_ioctl(int fd, int request, uint64_t arg1) {
             ret = 0;
         } break;
 
+        case KVM_GET_VCPU_EVENTS: {
+            printf("Not implemented KVM_GET_VCPU_EVENTS\n");
+            ret = 0;
+        } break;
+
+        case KVM_SET_VCPU_EVENTS: {
+            printf("Not implemented KVM_SET_VCPU_EVENTS\n");
+            ret = 0;
+        } break;
+
         default: {
             fprintf(stderr, "libs2e: unknown KVM VCPU IOCTL vcpu %d request=%#x arg=%#" PRIx64 " ret=%#x\n", fd,
                     request, arg1, ret);
