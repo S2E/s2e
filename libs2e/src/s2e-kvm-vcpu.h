@@ -35,6 +35,7 @@
 #include "s2e-kvm.h"
 
 #include "FileDescriptorManager.h"
+#include "hw/vapic.h"
 #include "syscalls.h"
 
 namespace s2e {
@@ -79,6 +80,8 @@ private:
 
     // XXX: do we need this? Looks unused
     bool m_signalPending = false;
+
+    VirtualApic m_vapic;
 
     volatile bool m_inKvmRun = false;
 
@@ -163,6 +166,7 @@ public:
     virtual ~VCPU();
 
     static std::shared_ptr<VCPU> create(std::shared_ptr<S2EKVM> &kvm, std::shared_ptr<VM> &vm);
+    static VCPU *current();
 
     void lock();
     void tryLock();
@@ -178,6 +182,13 @@ public:
 
     inline bool inKvmRun() const {
         return m_inKvmRun;
+    }
+
+    VirtualApic &vapic() {
+        return m_vapic;
+    }
+    const VirtualApic &vapic() const {
+        return m_vapic;
     }
 
     void flushTlb();

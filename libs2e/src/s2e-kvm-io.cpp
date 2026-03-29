@@ -72,11 +72,17 @@ static void abort_and_retranslate_if_needed() {
 }
 
 uint64_t s2e_kvm_mmio_read(target_phys_addr_t addr, unsigned size) {
+    auto dev_result = g_s2e_kvm->vm()->dev_mgr().mmio_read(addr, size);
+    if (dev_result) {
+        return *dev_result;
+    }
+
     int is_apic_tpr_access = 0;
 
     ++g_stats.mmio_reads;
 
-    if ((addr >> TARGET_PAGE_BITS) == (env->v_apic_base >> TARGET_PAGE_BITS)) {
+    auto cpu = VCPU::current();
+    if ((addr >> TARGET_PAGE_BITS) == (cpu->vapic().get_apic_base() >> TARGET_PAGE_BITS)) {
         if ((addr & 0xfff) == 0x80) {
             is_apic_tpr_access = 1;
         }
@@ -117,8 +123,9 @@ uint64_t s2e_kvm_mmio_read(target_phys_addr_t addr, unsigned size) {
     // MMIO, but not both, so we should still be consistent.
     if (is_apic_tpr_access) {
         if (!(env->hflags & HF_LMA_MASK)) {
-            assert((env->v_apic_tpr & 0xf0) == (ret & 0xf0));
-            ret |= env->v_apic_tpr & 0x3;
+            auto apic_tpr = cpu->vapic().get_tpr();
+            assert((apic_tpr & 0xf0) == (ret & 0xf0));
+            ret |= apic_tpr & 0x3;
         }
     }
 
@@ -136,6 +143,10 @@ uint64_t s2e_kvm_mmio_read(target_phys_addr_t addr, unsigned size) {
 }
 
 void s2e_kvm_mmio_write(target_phys_addr_t addr, uint64_t data, unsigned size) {
+    if (g_s2e_kvm->vm()->dev_mgr().mmio_write(addr, data, size)) {
+        return;
+    }
+
     ++g_stats.mmio_writes;
 
     g_kvm_vcpu_buffer->exit_reason = KVM_EXIT_MMIO;
@@ -171,12 +182,12 @@ void s2e_kvm_mmio_write(target_phys_addr_t addr, uint64_t data, unsigned size) {
             assert(false && "Can't get here");
     }
 
+    auto cpu = VCPU::current();
     bool is_apic_tpr_access = false;
-    if ((addr >> TARGET_PAGE_BITS) == (env->v_apic_base >> TARGET_PAGE_BITS)) {
+    if ((addr >> TARGET_PAGE_BITS) == (cpu->vapic().get_apic_base() >> TARGET_PAGE_BITS)) {
         if ((addr & 0xfff) == 0x80) {
             abort_and_retranslate_if_needed();
-            env->v_apic_tpr = (uint8_t) data;
-            env->v_tpr = env->v_apic_tpr >> 4;
+            cpu->vapic().set_tpr((uint8_t) data);
             is_apic_tpr_access = true;
         }
     }
@@ -268,11 +279,35 @@ void s2e_kvm_ioport_write(pio_addr_t addr, uint64_t data, unsigned size) {
     coroutine_yield();
 }
 
+static uint64_t s2e_apic_get_base(CPUX86State *env) {
+    auto vcpu = VCPU::current();
+    return vcpu->vapic().get_apic_base();
+}
+
+static void s2e_apic_set_base(CPUX86State *env, uint64_t new_base) {
+    auto vcpu = VCPU::current();
+    vcpu->vapic().set_apic_base(new_base);
+}
+
+static uint64_t s2e_apic_get_tpr(CPUX86State *env) {
+    auto vcpu = VCPU::current();
+    return vcpu->vapic().get_tpr();
+}
+
+static void s2e_apic_set_tpr(CPUX86State *env, uint64_t new_tpr) {
+    auto vcpu = VCPU::current();
+    vcpu->vapic().set_tpr(new_tpr);
+}
+
 struct cpu_io_funcs_t g_io = {
     .io_read = s2e_kvm_ioport_read,
     .io_write = s2e_kvm_ioport_write,
     .mmio_read = s2e_kvm_mmio_read,
     .mmio_write = s2e_kvm_mmio_write,
+    .lapic_get_base = s2e_apic_get_base,
+    .lapic_set_base = s2e_apic_set_base,
+    .lapic_get_tpr = s2e_apic_get_tpr,
+    .lapic_set_tpr = s2e_apic_set_tpr,
 };
 } // namespace kvm
 } // namespace s2e

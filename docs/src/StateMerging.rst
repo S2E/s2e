@@ -2,6 +2,10 @@
 Exponential Analysis Speedup with State Merging
 ===============================================
 
+.. warning::
+
+    This feature is experimental and may not work reliably.
+
 Symbolic execution can produce an exponential number of paths, considerably slowing down analysis. When S2E encounters
 a branch that depends on a symbolic condition and both outcomes are possible, S2E forks the current execution path in
 two. This process can repeat recursively, resulting in an exponential number of paths.
@@ -70,7 +74,6 @@ Then, compile the following program, then run it in S2E:
             uint8_t reg = 0;
             s2e_make_symbolic(&reg, sizeof(reg), "reg");
 
-            s2e_disable_all_apic_interrupts();
             s2e_merge_group_begin();
 
             if (reg) {
@@ -78,7 +81,6 @@ Then, compile the following program, then run it in S2E:
             }
 
             s2e_merge_group_end();
-            s2e_enable_all_apic_interrupts();
         }
 
         return value;
@@ -130,8 +132,5 @@ Limitations
 * It is not possible to merge two states if their concrete CPU state differs (e.g., floating point or MMX registers,
   program counter, etc.).
 
-* ``s2e_disable_all_apic_interrupts()`` and ``s2e_enable_all_apic_interrupts()`` ensure that the concrete state is not
-  clobbered needlessly by interrupts. The direct consequence is that the merged subtree cannot call into the
-  environment (no syscalls, etc.). Not disabling interrupts will make merging much harder because the side effects of
-  the interrupt handlers and those of the OS will have to be merged as well. If the side effects affected the concrete CPU state,
-  merging will fail.
+* A merge group should not be implemented by interrupts, in order to ensure that the concrete state is not
+  clobbered needlessly.

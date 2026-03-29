@@ -61,11 +61,6 @@ typedef struct {
 #define CPU_NB_REGS CPU_NB_REGS32
 #endif
 
-typedef enum TPRAccess {
-    TPR_ACCESS_READ,
-    TPR_ACCESS_WRITE,
-} TPRAccess;
-
 typedef struct CPUX86State {
     /* standard registers */
     target_ulong regs[CPU_NB_REGS];
@@ -139,9 +134,6 @@ typedef struct CPUX86State {
     uint16_t intercept_dr_read;
     uint16_t intercept_dr_write;
     uint32_t intercept_exceptions;
-    uint8_t v_tpr;
-    uint8_t v_apic_tpr;
-    uint64_t v_apic_base;
 
 #ifdef TARGET_X86_64
     target_ulong lstar;
@@ -171,9 +163,6 @@ typedef struct CPUX86State {
     uint32_t smbase;
     int old_exception; /* exception in flight */
 
-    uint8_t timer_interrupt_disabled;
-    uint8_t all_apic_interrupts_disabled;
-
     /* KVM states, automatically cleared on reset */
     uint8_t nmi_injected;
     uint8_t nmi_pending;
@@ -194,10 +183,6 @@ typedef struct CPUX86State {
     int kvm_request_interrupt_window;
     int kvm_irq;
 
-    /* in order to simplify APIC support, we leave this pointer to the
-       user */
-    struct DeviceState *apic_state;
-
     uint64_t mcg_cap;
     uint64_t mcg_ctl;
     uint64_t mce_banks[MCE_BANKS_DEF * 4];
@@ -210,8 +195,6 @@ typedef struct CPUX86State {
     uint16_t fpregs_format_vmstate;
 
     uint64_t xcr0;
-
-    TPRAccess tpr_access_type;
 
 #ifdef ENABLE_PRECISE_EXCEPTION_DEBUGGING
     target_ulong precise_eip;

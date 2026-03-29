@@ -28,6 +28,7 @@
 #include <inttypes.h>
 
 #include "FileDescriptorManager.h"
+#include "hw/manager.h"
 #include "s2e-kvm.h"
 
 namespace s2e {
@@ -39,6 +40,8 @@ class VM : public IFile {
 private:
     std::shared_ptr<S2EKVM> m_kvm;
     std::shared_ptr<VCPU> m_cpu;
+
+    VirtualDeviceManager m_dev_mgr;
 
     VM(std::shared_ptr<S2EKVM> &kvm) : m_kvm(kvm) {
     }
@@ -99,6 +102,10 @@ public:
 
     void sendCpuExitSignal();
     virtual int sys_ioctl(int fd, int request, uint64_t arg1);
+
+    VirtualDeviceManager &dev_mgr() {
+        return m_dev_mgr;
+    }
 };
 } // namespace kvm
 } // namespace s2e

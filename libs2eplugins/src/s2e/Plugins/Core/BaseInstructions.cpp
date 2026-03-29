@@ -896,25 +896,6 @@ void BaseInstructions::handleBuiltInOps(S2EExecutionState *state, uint64_t opcod
             break;
         }
 
-        case BASE_S2E_SET_TIMER_INT: { /* s2e_enable_timer_interrupt / s2e_disable_timer_interrupt */
-            uint8_t disabled = opcode >> 16;
-            if (disabled)
-                getDebugStream(state) << "Disabling timer interrupt\n";
-            else
-                getDebugStream(state) << "Enabling timer interrupt\n";
-            state->regs()->write(CPU_OFFSET(timer_interrupt_disabled), disabled);
-            break;
-        }
-        case BASE_S2E_SET_APIC_INT: { /* s2e_enable_all_apic_interrupts / s2e_disable_all_apic_interrupts */
-            uint8_t disabled = opcode >> 16;
-            if (disabled)
-                getDebugStream(state) << "Disabling all apic interrupt\n";
-            else
-                getDebugStream(state) << "Enabling all apic interrupt\n";
-            state->regs()->write(CPU_OFFSET(all_apic_interrupts_disabled), disabled);
-            break;
-        }
-
         case BASE_S2E_GET_OBJ_SZ: { /* s2e_get_ram_objects_bits */
             target_ulong size = SE_RAM_OBJECT_BITS;
             state->regs()->write(CPU_OFFSET(regs[R_EAX]), &size, sizeof size);
