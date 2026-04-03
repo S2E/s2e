@@ -185,6 +185,7 @@ public:
     void restoreDeviceState(void);
     void cloneProcess(void);
     void interrupt(int mask, bool reset);
+    void request_exit_cpu_loop();
 
     std::shared_ptr<LocalApic> lapic() const {
         return m_lapic;

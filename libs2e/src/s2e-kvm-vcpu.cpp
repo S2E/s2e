@@ -570,6 +570,10 @@ void VCPU::requestExit(void) {
     sendExitSignal();
 }
 
+void VCPU::request_exit_cpu_loop() {
+    cpu_exit(m_env);
+}
+
 ///
 /// \brief s2e_kvm_request_process_exit cleanly exits
 /// the process by sending it SIGTERM
