@@ -429,21 +429,19 @@ static bool execution_loop(CPUArchState *env) {
     TranslationBlock *ltb = NULL;
 
     for (;;) {
-        bool has_interrupt = false;
-        if (process_interrupt_request(env)) {
-            // Ensure that no TB jump will be modified as
-            // the program flow was changed
-            ltb = NULL;
-            has_interrupt = true;
-        }
-
-        if (unlikely(!has_interrupt && env->exit_request)) {
+        if (unlikely(env->exit_request)) {
             DPRINTF("  execution_loop: exit_request\n");
             env->exit_request = 0;
             env->exception_index = EXCP_INTERRUPT;
 
             // XXX: return status code instead
             cpu_loop_exit(env);
+        }
+
+        if (process_interrupt_request(env)) {
+            // Ensure that no TB jump will be modified as
+            // the program flow was changed
+            ltb = NULL;
         }
 
         env->exit_request = 0;
