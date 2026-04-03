@@ -745,6 +745,11 @@ int VCPU::sys_ioctl(int fd, int request, uint64_t arg1) {
             ret = 0;
         } break;
 
+        case KVM_GET_STATS_FD: {
+            printf("Not implemented KVM_GET_STATS_FD\n");
+            ret = open("/dev/null", O_RDWR);
+        } break;
+
         default: {
             fprintf(stderr, "libs2e: unknown KVM VCPU IOCTL vcpu %d request=%#x arg=%#" PRIx64 " ret=%#x\n", fd,
                     request, arg1, ret);
