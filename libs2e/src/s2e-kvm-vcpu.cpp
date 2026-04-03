@@ -49,6 +49,7 @@
 
 extern "C" {
 void tcg_register_thread(void);
+int cpu_get_pic_interrupt(CPUX86State *env);
 }
 
 #include "hw/lapic.h"
@@ -64,6 +65,22 @@ CPUX86State *g_cpu_env;
 
 // TODO: remove this global var from libcpu
 extern CPUX86State *env;
+
+int cpu_get_pic_interrupt(CPUX86State *env) {
+    if (env->kvm_irq >= 0) {
+        auto irq = env->kvm_irq;
+        env->kvm_irq = -1;
+        return irq;
+    }
+
+    auto vcpu = s2e::kvm::VCPU::current();
+    if (auto apic = vcpu->lapic()) {
+        return apic->get_interrupt();
+    }
+
+    libcpu_log_mask(CPU_LOG_INT, "Interrupt requested but LAPIC is not initialized\n");
+    abort();
+}
 
 namespace s2e {
 namespace kvm {
@@ -257,53 +274,17 @@ void VCPU::coroutineFcn(void *opaque) {
     CPUX86State *env = vcpu->m_env;
     auto buffer = vcpu->m_cpuBuffer;
 
-#ifdef SE_KVM_DEBUG_IRQ
-    static uint64_t prev_mflags = 0;
-#endif
-
     while (1) {
         libcpu_run_all_timers();
 
         assert(env->current_tb == NULL);
 
-        // XXX: need to save irq state on state switches
-        if (env->kvm_irq != -1) {
-            if (env->interrupt_request == 0) {
-                DPRINTF("Forcing IRQ\n");
-            }
-            env->interrupt_request |= CPU_INTERRUPT_HARD;
-
-#ifdef SE_KVM_DEBUG_IRQ
-            if (env->interrupt_request & CPU_INTERRUPT_HARD) {
-                DPRINTF("Handling IRQ %d req=%#x hflags=%x hflags2=%#x mflags=%#lx tpr=%#x esp=%#lx\n", env->kvm_irq,
-                        env->interrupt_request, env->hflags, env->hflags2, (uint64_t) env->mflags,
-                        vcpu->vapic().get_tpr(), (uint64_t) env->regs[R_ESP]);
-            }
-#endif
-        }
-
         env->kvm_request_interrupt_window |= buffer->request_interrupt_window;
-
-#ifdef SE_KVM_DEBUG_IRQ
-        prev_mflags = env->mflags;
-        uint64_t prev_eip = env->eip;
-#endif
 
         vcpu->m_cpuStateIsPrecise = false;
         env->exit_request = 0;
         cpu_x86_exec(env);
         vcpu->m_cpuStateIsPrecise = true;
-        // DPRINTF("cpu_exec return %#x\n", ret);
-
-#ifdef SE_KVM_DEBUG_IRQ
-        bool mflags_changed = (prev_mflags != env->mflags);
-        if (mflags_changed) {
-            DPRINTF("mflags changed: %lx old=%lx new=%lx reqwnd=%d peip=%lx, eip=%lx\n", (uint64_t) mflags_changed,
-                    (uint64_t) prev_mflags, (uint64_t) env->mflags, g_kvm_vcpu_buffer->request_interrupt_window,
-                    (uint64_t) prev_eip, (uint64_t) env->eip);
-        }
-        prev_mflags = env->mflags;
-#endif
 
         assert(env->current_tb == NULL);
 
@@ -444,18 +425,15 @@ int VCPU::run(int vcpu_fd) {
 }
 
 int VCPU::interrupt(kvm_interrupt *interrupt) {
-#ifdef SE_KVM_DEBUG_IRQ
-    DPRINTF("IRQ %d env->mflags=%lx hflags=%x hflags2=%x ptr=%#x\n", interrupt->irq, (uint64_t) env->mflags,
-            env->hflags, env->hflags2, m_vapic.get_tpr());
-    fflush(stdout);
-#endif
+    libcpu_log_mask(CPU_LOG_INT, "IRQ %d env->mflags=%lx hflags=%x hflags2=%x ptr=%#x\n", interrupt->irq,
+                    (uint64_t) env->mflags, env->hflags, env->hflags2, m_vapic.get_tpr());
 
     assert(!m_handlingKvmCallback);
     assert(!m_inKvmRun);
     assert(m_env->mflags & IF_MASK);
 
     if (m_env->interrupt_request & CPU_INTERRUPT_HARD) {
-        DPRINTF("Interrupt already pending, cannot inject IRQ %d\n", interrupt->irq);
+        libcpu_log_mask(CPU_LOG_INT, "Interrupt already pending, cannot inject IRQ %d\n", interrupt->irq);
         return -EEXIST;
     }
 
