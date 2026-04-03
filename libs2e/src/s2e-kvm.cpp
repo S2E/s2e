@@ -332,6 +332,9 @@ int S2EKVM::checkExtension(int capability) {
         case KVM_CAP_VCPU_EVENTS:
         case KVM_CAP_IRQFD:
         case KVM_CAP_IRQCHIP:
+        case KVM_CAP_INTERNAL_ERROR_DATA:   // TODO
+        case KVM_CAP_SIGNAL_MSI:            // TODO
+        case KVM_CAP_X86_ROBUST_SINGLESTEP: // TODO
 
         // We don't really need to support this call, just pretend that we do.
         // The real exit will be done through our custom KVM_CAP_FORCE_EXIT.
@@ -343,8 +346,11 @@ int S2EKVM::checkExtension(int capability) {
         case KVM_CAP_FORCE_EXIT:
             return 1;
 
+        case KVM_CAP_MCE:
+            return 10;
+
         case KVM_CAP_IRQ_ROUTING:
-            return 4096;          // KVM_MAX_IRQ_ROUTES
+            return 4096; // KVM_MAX_IRQ_ROUTES
 
 #ifdef CONFIG_SYMBEX
         case KVM_CAP_MEM_FIXED_REGION:
@@ -513,6 +519,10 @@ int S2EKVM::sys_ioctl(int fd, int request, uint64_t arg1) {
             ret = 0;
         } break;
 #endif
+
+        case KVM_X86_GET_MCE_CAP_SUPPORTED: {
+            ret = 0; // MSR_IA32_MCG_CAP is not supported, so no MCE support.
+        } break;
 
         default: {
             fprintf(stderr, "libs2e: unknown KVM IOCTL %x\n", request);

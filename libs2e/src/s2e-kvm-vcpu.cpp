@@ -764,6 +764,26 @@ int VCPU::sys_ioctl(int fd, int request, uint64_t arg1) {
             ret = 0;
         } break;
 
+        case KVM_GET_STATS_FD: {
+            printf("Not implemented KVM_GET_STATS_FD\n");
+            ret = open("/dev/null", O_RDWR);
+        } break;
+
+        case KVM_X86_SETUP_MCE: {
+            printf("Not implemented KVM_X86_SETUP_MCE\n");
+            ret = 0;
+        } break;
+
+        case KVM_TPR_ACCESS_REPORTING: {
+            const auto data = (kvm_tpr_access_ctl *) arg1;
+            if (data->enabled) {
+                printf("libs2e: KVM client requested TPR access reporting, but it's not implemented\n");
+                ret = -1;
+            } else {
+                ret = 0;
+            }
+        } break;
+
         default: {
             fprintf(stderr, "libs2e: unknown KVM VCPU IOCTL vcpu %d request=%#x arg=%#" PRIx64 " ret=%#x\n", fd,
                     request, arg1, ret);
