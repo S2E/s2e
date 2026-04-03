@@ -358,12 +358,14 @@ static bool process_interrupt_request(CPUArchState *env) {
                     (!(env->hflags2 & HF2_VINTR_MASK) &&
                      (env->mflags & IF_MASK && !(env->hflags & HF_INHIBIT_IRQ_MASK))))) {
             int intno;
+
             svm_check_intercept(env, SVM_EXIT_INTR);
             env->interrupt_request &= ~(CPU_INTERRUPT_HARD | CPU_INTERRUPT_VIRQ);
-            intno = env->kvm_irq;
-            env->kvm_irq = -1;
 
-            libcpu_log_mask(CPU_LOG_INT, "Servicing hardware INT=0x%02x\n", intno);
+            intno = cpu_get_pic_interrupt(env);
+            assert(intno >= 0);
+
+            libcpu_log_mask(CPU_LOG_INT, "Servicing hardware INT=%d\n", intno);
             if (intno >= 0) {
 #ifdef SE_KVM_DEBUG_IRQ
                 DPRINTF("Handling interrupt %d\n", intno);
