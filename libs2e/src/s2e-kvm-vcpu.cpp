@@ -498,10 +498,6 @@ void VCPU::cloneProcess(void) {
     coroutine_yield();
 
     m_cpuThread = pthread_self();
-
-    if (m_kvm->initTimerThread() < 0) {
-        exit(-1);
-    }
 }
 
 ///

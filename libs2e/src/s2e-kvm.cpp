@@ -174,9 +174,6 @@ IFilePtr S2EKVM::create() {
 void S2EKVM::cleanup(void) {
     g_s2e_kvm->m_exiting = true;
 
-    while (!g_s2e_kvm->m_timerExited) {
-    }
-
 #ifdef CONFIG_SYMBEX
     if (g_s2e) {
         monitor_close();
@@ -385,10 +382,6 @@ int S2EKVM::createVM() {
 
     m_vm = vm;
 
-    if (initTimerThread() < 0) {
-        exit(-1);
-    }
-
     return g_fdm->registerInterface(vm);
 }
 
@@ -467,62 +460,6 @@ int S2EKVM::getSupportedCPUID(struct kvm_cpuid2 *cpuid) {
 void S2EKVM::sendCpuExitSignal() {
     assert(m_vm);
     m_vm->sendCpuExitSignal();
-}
-
-void *S2EKVM::timerCb(void *param) {
-    auto obj = reinterpret_cast<S2EKVM *>(param);
-
-    while (!obj->m_exiting) {
-        usleep(100 * 1000);
-
-        // Send a signal to exit CPU loop only when no slow KLEE code
-        // is running. Otherwise, there are too many exits and little
-        // progress in the guest.
-        if (timers_state.cpu_clock_scale_factor == 1) {
-            // Required for shutdown, otherwise kvm clients may get stuck
-            // Also required to give a chance timers to run
-
-            obj->sendCpuExitSignal();
-        }
-    }
-
-    obj->m_timerExited = true;
-    return nullptr;
-}
-
-int S2EKVM::initTimerThread(void) {
-    int ret;
-    pthread_attr_t attr;
-    sigset_t signals;
-
-    ret = pthread_attr_init(&attr);
-    if (ret < 0) {
-        fprintf(stderr, "Could not init thread attributes\n");
-        goto err1;
-    }
-
-    ret = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-    if (ret < 0) {
-        fprintf(stderr, "Could not set detached state for thread\n");
-        goto err1;
-    }
-
-    ret = pthread_create(&m_timerThread, &attr, timerCb, this);
-    if (ret < 0) {
-        fprintf(stderr, "could not create timer thread\n");
-        goto err1;
-    }
-
-    sigfillset(&signals);
-    if (pthread_sigmask(SIG_BLOCK, &signals, NULL) < 0) {
-        fprintf(stderr, "could not block signals on the timer thread\n");
-        goto err1;
-    }
-
-    pthread_attr_destroy(&attr);
-
-err1:
-    return ret;
 }
 
 int S2EKVM::sys_ioctl(int fd, int request, uint64_t arg1) {
