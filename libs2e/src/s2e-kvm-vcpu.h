@@ -37,6 +37,7 @@
 #include "FileDescriptorManager.h"
 #include "hw/vapic.h"
 #include "syscalls.h"
+#include "task_runner.h"
 
 namespace s2e {
 namespace kvm {
@@ -51,6 +52,8 @@ private:
     std::shared_ptr<S2EKVM> m_kvm;
     std::shared_ptr<VM> m_vm;
     std::shared_ptr<LocalApic> m_lapic;
+
+    TaskRunner m_task_runner;
 
     int m_fd = -1;
 
@@ -199,6 +202,10 @@ public:
     }
     const VirtualApic &vapic() const {
         return m_vapic;
+    }
+
+    TaskRunner &task_runner() {
+        return m_task_runner;
     }
 
     void flushTlb();

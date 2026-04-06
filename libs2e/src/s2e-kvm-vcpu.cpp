@@ -288,6 +288,10 @@ void VCPU::coroutineFcn(void *opaque) {
     auto buffer = vcpu->m_cpuBuffer;
 
     while (1) {
+        if (!vcpu->m_task_runner.run_on_thread()) {
+            abort();
+        }
+
         libcpu_run_all_timers();
 
         assert(env->current_tb == NULL);

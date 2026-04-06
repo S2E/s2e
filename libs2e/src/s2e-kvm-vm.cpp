@@ -354,7 +354,9 @@ int VM::irq_line(const kvm_irq_level *level) {
     auto lapic = m_cpu->lapic();
     for (const auto &entry : it->second) {
         if (entry.type == KVM_IRQ_ROUTING_MSI) {
-            lapic->deliver_msi(entry.u.msi.address_lo, entry.u.msi.address_hi, entry.u.msi.data);
+            m_cpu->task_runner().run_on_thread([lapic, entry]() {
+                lapic->deliver_msi(entry.u.msi.address_lo, entry.u.msi.address_hi, entry.u.msi.data);
+            });
         } else {
             fprintf(stderr, "libs2e: KVM_IRQ_LINE gsi=%d unsupported routing type %d\n", gsi, entry.type);
         }
@@ -444,9 +446,7 @@ int VM::sys_ioctl(int fd, int request, uint64_t arg1) {
 
         case KVM_IRQ_LINE: {
             m_cpu->request_exit_cpu_loop();
-            m_cpu->lock();
             ret = irq_line((const kvm_irq_level *) arg1);
-            m_cpu->unlock();
         } break;
 
         case KVM_CREATE_IRQCHIP: {
