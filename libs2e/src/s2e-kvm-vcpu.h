@@ -174,7 +174,6 @@ public:
     void create_lapic();
 
     void lock();
-    void tryLock();
     void unlock();
 
     void sendExitSignal();

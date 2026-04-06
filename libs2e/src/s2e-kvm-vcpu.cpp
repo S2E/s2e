@@ -41,6 +41,7 @@
 
 #if 0
 #define SE_KVM_DEBUG_IRQ
+#define DEBUG_LOCKS
 
 #define DPRINTF(...) fprintf(logfile, __VA_ARGS__)
 #else
@@ -158,24 +159,36 @@ void VCPU::create_lapic() {
 }
 
 int VCPU::initCpuLock(void) {
-    int ret = pthread_mutex_init(&m_cpuLock, nullptr);
+    pthread_mutexattr_t attr;
+    pthread_mutexattr_init(&attr);
+
+#if DEBUG_LOCKS
+    pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_ERRORCHECK);
+#endif
+
+    int ret = pthread_mutex_init(&m_cpuLock, &attr);
     if (ret < 0) {
         fprintf(stderr, "Could not init cpu lock\n");
     }
 
+    pthread_mutexattr_destroy(&attr);
     return ret;
 }
 
 void VCPU::lock() {
-    pthread_mutex_lock(&m_cpuLock);
-}
-
-void VCPU::tryLock() {
-    pthread_mutex_trylock(&m_cpuLock);
+    auto ret = pthread_mutex_lock(&m_cpuLock);
+    if (ret != 0) {
+        fprintf(stderr, "Could not lock cpu: %d\n", ret);
+        abort();
+    }
 }
 
 void VCPU::unlock() {
-    pthread_mutex_unlock(&m_cpuLock);
+    auto ret = pthread_mutex_unlock(&m_cpuLock);
+    if (ret != 0) {
+        fprintf(stderr, "Could not unlock cpu: %d\n", ret);
+        abort();
+    }
 }
 
 #ifdef SE_KVM_DEBUG_CPUID

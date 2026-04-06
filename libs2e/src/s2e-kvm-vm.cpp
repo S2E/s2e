@@ -200,7 +200,7 @@ int VM::getDirtyLog(kvm_dirty_log *log) {
         return 0;
     }
 
-    m_cpu->tryLock();
+    m_cpu->lock();
 
     cpu_physical_memory_get_dirty_bitmap((uint8_t *) log->dirty_bitmap, r->ram_addr, r->kvm.memory_size,
                                          VGA_DIRTY_FLAG);
