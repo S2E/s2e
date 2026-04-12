@@ -1,4 +1,4 @@
-# Copyright (C) 2021 Vitaly Chipounov
+# Copyright (c) 2019, Cyberhaven
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -18,25 +18,29 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-$boxes = ["debian/bookworm64", "debian/trixie64", "generic/ubuntu2204", "bento/ubuntu-24.04"]
+TARGET=basic12-256paths
+SOURCE=main.c
 
-Vagrant.configure("2") do |config|
-  $boxes.to_enum.with_index(1).each do |box,i|
-    config.vm.define "s2e_machine_#{i}" do |node|
-      node.vm.box = box
-      node.vm.synced_folder ".", "/vagrant", type: "rsync"
-      node.vm.provision :shell do |s|
-        s.path = "provision-root.sh"
-      end
+GCC_LINUX=gcc
+GCC_WINDOWS64=x86_64-w64-mingw32-gcc
+GCC_WINDOWS32=i686-w64-mingw32-gcc
 
-      node.ssh.forward_agent = true
-      node.ssh.forward_x11 = true
+CFLAGS:=-O0 -g -Wall -std=c99 $(CFLAGS)
 
-      node.vm.provider :libvirt do |v|
-        v.cpus = 16
-        v.memory = 16384
-        v.storage :file, :size => '100G'
-      end
-    end
-  end
-end
+linux64-$(TARGET): $(SOURCE)
+	$(GCC_LINUX) -m64 $(CFLAGS) -o "$@" "$^"
+
+linux32-$(TARGET): $(SOURCE)
+	$(GCC_LINUX) -m32 $(CFLAGS) -o "$@" "$^"
+
+windows64-$(TARGET).exe: $(SOURCE)
+	$(GCC_WINDOWS64) -m64 $(CFLAGS) -o "$@" "$^"
+
+windows32-$(TARGET).exe: $(SOURCE)
+	$(GCC_WINDOWS32) -m32 $(CFLAGS) -o "$@" "$^"
+
+TARGETS=linux64-$(TARGET) linux32-$(TARGET) windows64-$(TARGET).exe windows32-$(TARGET).exe
+
+all: $(TARGETS)
+clean:
+	rm -f $(TARGETS)

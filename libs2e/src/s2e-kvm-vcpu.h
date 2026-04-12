@@ -37,9 +37,12 @@
 #include "FileDescriptorManager.h"
 #include "hw/vapic.h"
 #include "syscalls.h"
+#include "task_runner.h"
 
 namespace s2e {
 namespace kvm {
+
+class LocalApic;
 
 // TODO: remove this global var
 extern kvm_run *g_kvm_vcpu_buffer;
@@ -48,6 +51,9 @@ class VCPU : public IFile {
 private:
     std::shared_ptr<S2EKVM> m_kvm;
     std::shared_ptr<VM> m_vm;
+    std::shared_ptr<LocalApic> m_lapic;
+
+    TaskRunner m_task_runner;
 
     int m_fd = -1;
 
@@ -168,8 +174,9 @@ public:
     static std::shared_ptr<VCPU> create(std::shared_ptr<S2EKVM> &kvm, std::shared_ptr<VM> &vm);
     static VCPU *current();
 
+    void create_lapic();
+
     void lock();
-    void tryLock();
     void unlock();
 
     void sendExitSignal();
@@ -179,6 +186,12 @@ public:
     void saveDeviceState(void);
     void restoreDeviceState(void);
     void cloneProcess(void);
+    void interrupt(int mask, bool reset);
+    void request_exit_cpu_loop();
+
+    std::shared_ptr<LocalApic> lapic() const {
+        return m_lapic;
+    }
 
     inline bool inKvmRun() const {
         return m_inKvmRun;
@@ -189,6 +202,10 @@ public:
     }
     const VirtualApic &vapic() const {
         return m_vapic;
+    }
+
+    TaskRunner &task_runner() {
+        return m_task_runner;
     }
 
     void flushTlb();

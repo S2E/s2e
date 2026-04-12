@@ -99,6 +99,7 @@ int KVMTrace::sys_ioctl(int fd, int request, uint64_t arg1) {
                 case KVM_CAP_NR_VCPUS:
                 case KVM_CAP_MAX_VCPUS:
                 case KVM_CAP_JOIN_MEMORY_REGIONS_WORKS:
+                case KVM_CAP_IOEVENTFD:
                     // case KVM_CAP_READONLY_MEM:
                     ret = 1;
                     break;

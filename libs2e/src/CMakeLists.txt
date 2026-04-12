@@ -29,6 +29,7 @@ add_library(
     s2e-kvm-vcpu.cpp
     s2e-libcpu-interface.cpp
     crashdump.cpp
+    hw/lapic.cpp
 )
 
 add_executable(

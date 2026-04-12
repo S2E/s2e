@@ -173,6 +173,7 @@ struct kvm_pit_config {
 #define KVM_EXIT_S390_TSCH       22
 #define KVM_EXIT_EPR             23
 #define KVM_EXIT_SYSTEM_EVENT    24
+#define KVM_EXIT_IOAPIC_EOI      26
 
 /* Symbolic execution exit codes */
 #define KVM_EXIT_FLUSH_DISK        100
@@ -317,6 +318,10 @@ struct kvm_run {
             __u32 type;
             __u64 flags;
         } system_event;
+        /* KVM_EXIT_IOAPIC_EOI */
+        struct {
+            __u8 vector;
+        } eoi;
         /* Fix the size of the union. */
         char padding[256];
     };
@@ -762,6 +767,9 @@ struct kvm_ppc_smmu_info {
 #define KVM_CAP_PPC_FIXUP_HCALL         103
 #define KVM_CAP_PPC_ENABLE_HCALL        104
 #define KVM_CAP_CHECK_EXTENSION_VM      105
+#define KVM_CAP_SPLIT_IRQCHIP           121
+#define KVM_CAP_IOEVENTFD_ANY_LENGTH    122
+#define KVM_CAP_MAX_VCPU_ID             128
 
 #define KVM_CAP_IMMEDIATE_EXIT 136
 
@@ -1247,5 +1255,81 @@ struct kvm_assigned_msix_entry {
     __u16 entry; /* The index of entry in the MSI-X table */
     __u16 padding[3];
 };
+
+/**
+ * struct kvm_stats_header - Header of per vm/vcpu binary statistics data.
+ * @flags: Some extra information for header, always 0 for now.
+ * @name_size: The size in bytes of the memory which contains statistics
+ *             name string including trailing '\0'. The memory is allocated
+ *             at the send of statistics descriptor.
+ * @num_desc: The number of statistics the vm or vcpu has.
+ * @id_offset: The offset of the vm/vcpu stats' id string in the file pointed
+ *             by vm/vcpu stats fd.
+ * @desc_offset: The offset of the vm/vcpu stats' descriptor block in the file
+ *               pointd by vm/vcpu stats fd.
+ * @data_offset: The offset of the vm/vcpu stats' data block in the file
+ *               pointed by vm/vcpu stats fd.
+ *
+ * This is the header userspace needs to read from stats fd before any other
+ * readings. It is used by userspace to discover all the information about the
+ * vm/vcpu's binary statistics.
+ * Userspace reads this header from the start of the vm/vcpu's stats fd.
+ */
+struct kvm_stats_header {
+    __u32 flags;
+    __u32 name_size;
+    __u32 num_desc;
+    __u32 id_offset;
+    __u32 desc_offset;
+    __u32 data_offset;
+};
+
+#define KVM_STATS_TYPE_SHIFT       0
+#define KVM_STATS_TYPE_MASK        (0xF << KVM_STATS_TYPE_SHIFT)
+#define KVM_STATS_TYPE_CUMULATIVE  (0x0 << KVM_STATS_TYPE_SHIFT)
+#define KVM_STATS_TYPE_INSTANT     (0x1 << KVM_STATS_TYPE_SHIFT)
+#define KVM_STATS_TYPE_PEAK        (0x2 << KVM_STATS_TYPE_SHIFT)
+#define KVM_STATS_TYPE_LINEAR_HIST (0x3 << KVM_STATS_TYPE_SHIFT)
+#define KVM_STATS_TYPE_LOG_HIST    (0x4 << KVM_STATS_TYPE_SHIFT)
+#define KVM_STATS_TYPE_MAX         KVM_STATS_TYPE_LOG_HIST
+
+#define KVM_STATS_UNIT_SHIFT   4
+#define KVM_STATS_UNIT_MASK    (0xF << KVM_STATS_UNIT_SHIFT)
+#define KVM_STATS_UNIT_NONE    (0x0 << KVM_STATS_UNIT_SHIFT)
+#define KVM_STATS_UNIT_BYTES   (0x1 << KVM_STATS_UNIT_SHIFT)
+#define KVM_STATS_UNIT_SECONDS (0x2 << KVM_STATS_UNIT_SHIFT)
+#define KVM_STATS_UNIT_CYCLES  (0x3 << KVM_STATS_UNIT_SHIFT)
+#define KVM_STATS_UNIT_BOOLEAN (0x4 << KVM_STATS_UNIT_SHIFT)
+#define KVM_STATS_UNIT_MAX     KVM_STATS_UNIT_BOOLEAN
+
+#define KVM_STATS_BASE_SHIFT 8
+#define KVM_STATS_BASE_MASK  (0xF << KVM_STATS_BASE_SHIFT)
+#define KVM_STATS_BASE_POW10 (0x0 << KVM_STATS_BASE_SHIFT)
+#define KVM_STATS_BASE_POW2  (0x1 << KVM_STATS_BASE_SHIFT)
+#define KVM_STATS_BASE_MAX   KVM_STATS_BASE_POW2
+
+/**
+ * struct kvm_stats_desc - Descriptor of a KVM statistics.
+ * @flags: Annotations of the stats, like type, unit, etc.
+ * @exponent: Used together with @flags to determine the unit.
+ * @size: The number of data items for this stats.
+ *        Every data item is of type __u64.
+ * @offset: The offset of the stats to the start of stat structure in
+ *          structure kvm or kvm_vcpu.
+ * @bucket_size: A parameter value used for histogram stats. It is only used
+ *		for linear histogram stats, specifying the size of the bucket;
+ * @name: The name string for the stats. Its size is indicated by the
+ *        &kvm_stats_header->name_size.
+ */
+struct kvm_stats_desc {
+    __u32 flags;
+    __s16 exponent;
+    __u16 size;
+    __u32 offset;
+    __u32 bucket_size;
+    char name[];
+};
+
+#define KVM_GET_STATS_FD _IO(KVMIO, 0xce)
 
 #endif /* __LINUX_KVM_H */
