@@ -202,11 +202,17 @@ VOID S2EBSODHook(
 {
     S2E_BSOD_CRASH Command;
     ULONG BufferNeeded = 0;
+    NTSTATUS Status = 0;
+
     LOG("Invoked S2EBSODHook\n");
 
     S2EDumpBackTrace();
 
-    InitializeCrashDumpHeader(&BufferNeeded);
+    Status = InitializeCrashDumpHeader(&BufferNeeded);
+    if (!NT_SUCCESS(Status)) {
+        LOG("InitializeCrashDumpHeader failed: %#x\n", Status);
+        S2EKillState(Status, "Could not generate crash dump header");
+    }
 
     if (IsWindows8OrAbove(&g_kernelStructs.Version)) {
         DecryptKdDataBlock();
