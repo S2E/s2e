@@ -69,8 +69,6 @@ private:
 
     static void cleanup();
 
-    void sendCpuExitSignal();
-
     int getApiVersion(void);
     int createVM();
     int getMSRIndexList(kvm_msr_list *list);

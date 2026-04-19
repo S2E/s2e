@@ -73,12 +73,6 @@ std::shared_ptr<VM> VM::create(std::shared_ptr<S2EKVM> &kvm) {
     return ret;
 }
 
-void VM::sendCpuExitSignal() {
-    if (m_cpu) {
-        m_cpu->sendExitSignal();
-    }
-}
-
 int VM::enableCapability(kvm_enable_cap *cap) {
     switch (cap->cap) {
         case KVM_CAP_MAX_VCPU_ID:

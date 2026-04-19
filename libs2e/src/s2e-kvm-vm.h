@@ -122,7 +122,6 @@ public:
 
     static std::shared_ptr<VM> create(std::shared_ptr<S2EKVM> &kvm);
 
-    void sendCpuExitSignal();
     virtual int sys_ioctl(int fd, int request, uint64_t arg1);
 
     VirtualDeviceManager &dev_mgr() {

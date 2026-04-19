@@ -473,11 +473,6 @@ int S2EKVM::getSupportedCPUID(struct kvm_cpuid2 *cpuid) {
     return 0;
 }
 
-void S2EKVM::sendCpuExitSignal() {
-    assert(m_vm);
-    m_vm->sendCpuExitSignal();
-}
-
 int S2EKVM::sys_ioctl(int fd, int request, uint64_t arg1) {
     int ret = -1;
 
