@@ -92,10 +92,6 @@ private:
     volatile bool m_inKvmRun = false;
 
     fsigc::connection m_onExit;
-    fsigc::connection m_onSelect;
-
-    static void cpuExitSignal(int signum);
-    void initializeCpuExitSignal();
 
     static void setCpuSegment(SegmentCache *libcpu_seg, const kvm_segment *kvm_seg);
     static void getCpuSegment(kvm_segment *kvm_seg, const SegmentCache *libcpu_seg);
@@ -178,9 +174,6 @@ public:
 
     void lock();
     void unlock();
-
-    void sendExitSignal();
-    void requestExit(void);
 
     void flushDisk(void);
     void saveDeviceState(void);

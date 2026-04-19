@@ -93,8 +93,6 @@ static VCPU *s_vcpu;
 // Default stack is a few megabytes, it's not enough.
 static const uint64_t S2E_STACK_SIZE = 1024 * 1024 * 1024;
 
-static const int CPU_EXIT_SIGNAL = SIGUSR2;
-
 VCPU::VCPU(std::shared_ptr<S2EKVM> &kvm, std::shared_ptr<VM> &vm, kvm_run *buffer) {
     s_vcpu = this;
     m_kvm = kvm;
@@ -106,7 +104,6 @@ VCPU::VCPU(std::shared_ptr<S2EKVM> &kvm, std::shared_ptr<VM> &vm, kvm_run *buffe
     tcg_register_thread();
 
     m_onExit = g_syscalls.onExit.connect(sigc::mem_fun(*this, &VCPU::requestProcessExit));
-    m_onSelect = g_syscalls.onSelect.connect(sigc::mem_fun(*this, &VCPU::requestExit));
 
     if (initCpuLock() < 0) {
         exit(-1);
@@ -134,7 +131,6 @@ VCPU::VCPU(std::shared_ptr<S2EKVM> &kvm, std::shared_ptr<VM> &vm, kvm_run *buffe
 
 VCPU::~VCPU() {
     m_onExit.disconnect();
-    m_onSelect.disconnect();
 }
 
 VCPU *VCPU::current() {
@@ -242,32 +238,6 @@ int VCPU::setCPUID2(kvm_cpuid2 *cpuid) {
     return 0;
 }
 
-void VCPU::cpuExitSignal(int signum) {
-    s_vcpu->m_env->kvm_request_interrupt_window = 1;
-    cpu_exit(s_vcpu->m_env);
-}
-
-void VCPU::initializeCpuExitSignal() {
-    struct sigaction act;
-    memset(&act, 0, sizeof(act));
-    sigfillset(&act.sa_mask);
-    act.sa_flags = 0;
-    act.sa_handler = cpuExitSignal;
-
-    if (sigaction(CPU_EXIT_SIGNAL, &act, NULL) < 0) {
-        perror("Could not initialize cpu exit signal");
-        exit(-1);
-    }
-
-    // The KVM client usually blocks all signals on the CPU thread.
-    // This interferes with our ability to exit the CPU loop, so we must unblock it.
-    union s2e_kvm_sigmask_t mask = m_sigmask;
-    sigaddset(&mask.sigset, CPU_EXIT_SIGNAL);
-    if (pthread_sigmask(SIG_UNBLOCK, &mask.sigset, NULL) < 0) {
-        abort();
-    }
-}
-
 // Defines which signals are blocked during execution of kvm.
 int VCPU::setSignalMask(kvm_signal_mask *mask) {
     // XXX: doesn't seem to matter for typical kvm clients,
@@ -324,7 +294,6 @@ int VCPU::run(int vcpu_fd) {
     }
 
     if (!m_cpuThreadInited) {
-        initializeCpuExitSignal();
         m_cpuThread = pthread_self();
         m_cpuThreadInited = true;
     }
@@ -503,64 +472,6 @@ void VCPU::cloneProcess(void) {
     coroutine_yield();
 
     m_cpuThread = pthread_self();
-}
-
-///
-/// \brief s2e_kvm_send_cpu_exit_signal sends a signal
-/// to the cpu loop thread in order to exit the cpu loop.
-///
-/// It is important to use a signal that executes on the
-/// same thread as the cpu loop in order to avoid race conditions
-/// and complex locking.
-///
-void VCPU::sendExitSignal() {
-    if (!m_cpuThreadInited) {
-        return;
-    }
-
-    if (pthread_kill(m_cpuThread, CPU_EXIT_SIGNAL) < 0) {
-        abort();
-    }
-}
-
-///
-/// \brief s2e_kvm_request_exit triggers an exit from the cpu loop
-///
-/// In vanilla KVM, the CPU stops executing guest code when there is
-/// an external event pending. Execution can stop at any instruction.
-///
-/// In our emulated KVM, stopping at any instruction is not possible
-/// because of TB chaining, threading, etc.
-///
-/// This may cause missed interrupts. The KVM client is ready to inject an interrupt,
-/// but cannot do so because kvm_run has not exited yet. While it is running,
-/// several interrupts of different priorities may be queued up. When kvm_run
-/// eventually returns, the highest priority interrupt is injected first.
-/// Because DBT is much slower than native execution, it often happens
-/// that lower priority don't get to run at all, and higher
-/// priority ones are missed.
-///
-/// Since we can't easily replicate KVM's behavior, we resort to doing
-/// what vanilla QEMU in DBT mode would do: interrupt the CPU loop when an interrupt
-/// is raised so that the interrupt is scheduled asap.
-///
-/// This requires adding an extra API to KVM. Things that have been tried
-/// to avoid adding the extra API, but did not work properly:
-/// - Intercept pthread_kill. KVM client may kick the CPU when an interrupt is ready.
-/// This is still too slow.
-/// - Intercept eventfd. KVM clients call poll eventfds instead of using signals.
-/// Polling for them from a separate thread didn't work either.
-///
-void VCPU::requestExit(void) {
-    if (!m_env) {
-        return;
-    }
-
-#ifdef SE_KVM_DEBUG_RUN
-    DPRINTF("s2e_kvm_request_exit\n");
-#endif
-
-    sendExitSignal();
 }
 
 void VCPU::request_exit_cpu_loop() {

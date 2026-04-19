@@ -143,7 +143,7 @@ int VM::setTSSAddress(uint64_t tss_addr) {
 }
 
 int VM::setUserMemoryRegion(kvm_userspace_memory_region *region) {
-    m_cpu->requestExit();
+    m_cpu->request_exit_cpu_loop();
 
     m_cpu->lock();
 
@@ -167,7 +167,7 @@ int VM::memoryReadWrite(kvm_mem_rw *mem) {
     }
 #endif
 
-    m_cpu->requestExit();
+    m_cpu->request_exit_cpu_loop();
     m_cpu->lock();
     cpu_host_memory_rw(mem->source, mem->dest, mem->length, mem->is_write);
     m_cpu->unlock();
@@ -182,7 +182,7 @@ int VM::registerFixedRegion(kvm_fixed_region *region) {
 }
 
 int VM::getDirtyLog(kvm_dirty_log *log) {
-    m_cpu->requestExit();
+    m_cpu->request_exit_cpu_loop();
 
     const MemoryDesc *r = mem_desc_get_slot(log->slot);
 
@@ -410,7 +410,7 @@ int VM::sys_ioctl(int fd, int request, uint64_t arg1) {
         } break;
 
         case KVM_FORCE_EXIT: {
-            m_cpu->requestExit();
+            m_cpu->request_exit_cpu_loop();
             ret = 0;
         } break;
 
