@@ -38,12 +38,10 @@ namespace s2e {
 namespace plugins {
 
 S2E_DEFINE_PLUGIN(WindowsCrashMonitor, "This plugin aggregates various sources of Windows crashes", "",
-                  "WindowsMonitor", "WindowsCrashDumpGenerator", "BlueScreenInterceptor");
+                  "WindowsMonitor");
 
 void WindowsCrashMonitor::initialize() {
     m_windowsMonitor = s2e()->getPlugin<WindowsMonitor>();
-    m_bsodInterceptor = s2e()->getPlugin<BlueScreenInterceptor>();
-    m_bsodGenerator = s2e()->getPlugin<WindowsCrashDumpGenerator>();
 
     auto cfg = s2e()->getConfig();
 
@@ -62,7 +60,21 @@ void WindowsCrashMonitor::initialize() {
     m_maxCrashDumpCount = cfg->getInt(getConfigKey() + ".maxCrashDumps", 10);
     *m_crashCount.get() = 0;
 
-    m_bsodInterceptor->onBlueScreen.connect(sigc::mem_fun(*this, &WindowsCrashMonitor::onBlueScreen));
+    if (m_generateDumpOnKernelCrash) {
+        m_bsodInterceptor = s2e()->getPlugin<BlueScreenInterceptor>();
+        if (!m_bsodInterceptor) {
+            getWarningsStream() << "BlueScreenInterceptor is required for generateCrashDumpOnKernelCrash\n";
+            exit(-1);
+        }
+
+        m_bsodGenerator = s2e()->getPlugin<WindowsCrashDumpGenerator>();
+        if (!m_bsodGenerator) {
+            getWarningsStream() << "WindowsCrashDumpGenerator is required for generateCrashDumpOnKernelCrash\n";
+            exit(-1);
+        }
+
+        m_bsodInterceptor->onBlueScreen.connect(sigc::mem_fun(*this, &WindowsCrashMonitor::onBlueScreen));
+    }
 }
 
 void WindowsCrashMonitor::generateCrashDump(S2EExecutionState *state, const vmi::windows::BugCheckDescription *info,
