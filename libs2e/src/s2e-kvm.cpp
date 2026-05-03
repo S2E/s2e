@@ -465,9 +465,10 @@ int S2EKVM::getSupportedCPUID(struct kvm_cpuid2 *cpuid) {
         }
         e->function = s_cpuid_entries[i][0];
 
-#ifdef SE_KVM_DEBUG_CPUID
-        print_cpuid2(e);
-#endif
+        libcpu_log_mask(CPU_LOG_KVM,
+                        "cpuid function=%#010" PRIx32 " index=%#010" PRIx32 " flags=%#010" PRIx32 " eax=%#010" PRIx32
+                        " ebx=%#010" PRIx32 " ecx=%#010" PRIx32 " edx=%#010" PRIx32 "\n",
+                        e->function, e->index, e->flags, e->eax, e->ebx, e->ecx, e->edx);
     }
 
     return 0;
