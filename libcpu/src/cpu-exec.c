@@ -19,20 +19,12 @@
 #include <cpu/config.h>
 #include <cpu/types.h>
 #include <tcg/tcg.h>
+#include <tcg/utils/log.h>
 #include "cpu.h"
 #include "exec-tb.h"
 
 #ifdef CONFIG_SYMBEX
 #include <cpu/se_libcpu.h>
-#endif
-
-// #define DEBUG_EXEC
-// #define TRACE_EXEC
-
-#ifdef DEBUG_EXEC
-#define DPRINTF(...) fprintf(logfile, __VA_ARGS__)
-#else
-#define DPRINTF(...)
 #endif
 
 #if defined(CONFIG_SYMBEX_MP)
@@ -203,9 +195,6 @@ static void cpu_handle_debug_exception(CPUArchState *env) {
 
 /* main execution loop */
 
-// volatile sig_atomic_t exit_request;
-
-#ifdef TRACE_EXEC
 static void dump_regs(CPUX86State *env, int isStart) {
 #if defined(CONFIG_SYMBEX)
     target_ulong eax, ebx, ecx, edx, esi, edi, ebp, esp;
@@ -230,7 +219,6 @@ static void dump_regs(CPUX86State *env, int isStart) {
             (uint64_t) env->segs[R_SS].selector, (uint64_t) env->regs[R_ESP]);
 #endif
 }
-#endif
 
 static uintptr_t fetch_and_run_tb(TranslationBlock *prev_tb, int tb_exit_code, CPUArchState *env) {
     uint8_t *tc_ptr;
@@ -238,19 +226,17 @@ static uintptr_t fetch_and_run_tb(TranslationBlock *prev_tb, int tb_exit_code, C
 
     TranslationBlock *tb = tb_find_fast(env);
 
-    DPRINTF("fetch_and_run_tb cs:eip=%#lx:%#lx e=%#lx fl=%lx riw=%d\n", (uint64_t) env->segs[R_CS].selector,
-            (uint64_t) env->eip, (uint64_t) env->eip + tb->size, (uint64_t) env->mflags,
-            env->kvm_request_interrupt_window);
+    libcpu_log_mask(CPU_LOG_EXEC, "fetch_and_run_tb cs:eip=%#lx:%#lx e=%#lx fl=%lx riw=%d\n",
+                    (uint64_t) env->segs[R_CS].selector, (uint64_t) env->eip, (uint64_t) env->eip + tb->size,
+                    (uint64_t) env->mflags, env->kvm_request_interrupt_window);
 
     if (tb_invalidated_flag) {
         prev_tb = NULL;
         tb_invalidated_flag = 0;
     }
 
-#ifdef CONFIG_DEBUG_EXEC
-    libcpu_log_mask(CPU_LOG_EXEC, "Trace 0x%08lx [" TARGET_FMT_lx "] %s\n", (long) tb->tc_ptr, tb->pc,
-                    lookup_symbol(tb->pc));
-#endif
+    libcpu_log_mask(CPU_LOG_EXEC, "Trace 0x%08lx [%016" PRIx64 "]\n", (long) tb->tc.ptr, tb->pc);
+
     /*
      * see if we can patch the calling TB. When the TB
      * spans two pages, we cannot safely do a direct jump.
@@ -281,9 +267,9 @@ static uintptr_t fetch_and_run_tb(TranslationBlock *prev_tb, int tb_exit_code, C
 
     /* execute the generated code */
 
-#ifdef TRACE_EXEC
-    dump_regs(env, 1);
-#endif
+    if (libcpu_log_enabled() && libcpu_loglevel_mask(CPU_LOG_EXEC)) {
+        dump_regs(env, 1);
+    }
 
 #if defined(CONFIG_SYMBEX)
     env->se_current_tb = tb;
@@ -300,9 +286,9 @@ static uintptr_t fetch_and_run_tb(TranslationBlock *prev_tb, int tb_exit_code, C
 
 #endif
 
-#ifdef TRACE_EXEC
-    dump_regs(env, 0);
-#endif
+    if (libcpu_log_enabled() && libcpu_loglevel_mask(CPU_LOG_EXEC)) {
+        dump_regs(env, 0);
+    }
 
     env->current_tb = NULL;
 
@@ -318,8 +304,8 @@ static bool process_interrupt_request(CPUArchState *env) {
 
     bool has_interrupt = false;
 
-    DPRINTF("  process_interrupt intrq=%#x mflags=%#lx hf1=%#x hf2=%#x\n", interrupt_request, (uint64_t) env->mflags,
-            env->hflags, env->hflags2);
+    libcpu_log_mask(CPU_LOG_INT, "  process_interrupt intrq=%#x mflags=%#lx hf1=%#x hf2=%#x\n", interrupt_request,
+                    (uint64_t) env->mflags, env->hflags, env->hflags2);
 
     if (unlikely(env->singlestep_enabled & SSTEP_NOIRQ)) {
         /* Mask out external interrupts for this step. */
@@ -367,10 +353,7 @@ static bool process_interrupt_request(CPUArchState *env) {
 
             libcpu_log_mask(CPU_LOG_INT, "Servicing hardware INT=%d\n", intno);
             if (intno >= 0) {
-#ifdef SE_KVM_DEBUG_IRQ
-                DPRINTF("Handling interrupt %d\n", intno);
-#endif
-
+                libcpu_log_mask(CPU_LOG_INT, "Handling interrupt INT=%d\n", intno);
                 do_interrupt_x86_hardirq(env, intno, 1);
             }
 
@@ -415,7 +398,7 @@ static int process_exceptions(CPUArchState *env) {
             cpu_handle_debug_exception(env);
         }
     } else {
-        DPRINTF("  do_interrupt exidx=%x\n", env->exception_index);
+        libcpu_log_mask(CPU_LOG_INT, "  do_interrupt exidx=%x\n", env->exception_index);
         do_interrupt(env);
         env->exception_index = -1;
     }
@@ -438,7 +421,7 @@ static bool execution_loop(CPUArchState *env) {
         }
 
         if (unlikely(!has_interrupt && env->exit_request)) {
-            DPRINTF("  execution_loop: exit_request\n");
+            libcpu_log_mask(CPU_LOG_EXEC, "  execution_loop: exit_request\n");
             env->exit_request = 0;
             env->exception_index = EXCP_INTERRUPT;
 
@@ -464,9 +447,9 @@ static bool execution_loop(CPUArchState *env) {
         ltb = (TranslationBlock *) (last_tb & ~TB_EXIT_MASK);
 
         if (ltb) {
-            DPRINTF("ltb s=%#lx e=%#lx fl=%lx exit_code=%x riw=%d\n", (uint64_t) ltb->pc,
-                    (uint64_t) ltb->pc + ltb->size, (uint64_t) env->mflags, last_tb_exit_code,
-                    env->kvm_request_interrupt_window);
+            libcpu_log_mask(CPU_LOG_EXEC, "ltb s=%#lx e=%#lx fl=%lx exit_code=%x riw=%d\n", (uint64_t) ltb->pc,
+                            (uint64_t) ltb->pc + ltb->size, (uint64_t) env->mflags, last_tb_exit_code,
+                            env->kvm_request_interrupt_window);
         }
 
         if (last_tb_exit_code > TB_EXIT_IDXMAX) {
@@ -506,7 +489,8 @@ int cpu_exec(CPUArchState *env) {
 
     env->exception_index = -1;
 
-    DPRINTF("cpu_loop enter mflags=%#lx hf1=%#x hf2=%#x\n", (uint64_t) env->mflags, env->hflags, env->hflags2);
+    libcpu_log_mask(CPU_LOG_EXEC, "cpu_loop enter mflags=%#lx hf1=%#x hf2=%#x\n", (uint64_t) env->mflags, env->hflags,
+                    env->hflags2);
 
     /* prepare setjmp context for exception handling */
     for (;;) {
@@ -518,7 +502,7 @@ int cpu_exec(CPUArchState *env) {
              */
             env->current_tb = NULL;
 
-            DPRINTF("  setjmp entered eip=%#lx\n", (uint64_t) env->eip);
+            libcpu_log_mask(CPU_LOG_EXEC, "  setjmp entered eip=%#lx\n", (uint64_t) env->eip);
 
 #ifdef CONFIG_SYMBEX
             assert(env->exception_index != EXCP_SE);
@@ -561,7 +545,7 @@ int cpu_exec(CPUArchState *env) {
             env = cpu_single_env;
         }
     } /* for(;;) */
-    DPRINTF("cpu_loop exit ret=%#x eip=%#lx\n", ret, (uint64_t) env->eip);
+    libcpu_log_mask(CPU_LOG_EXEC, "cpu_loop exit ret=%#x eip=%#lx\n", ret, (uint64_t) env->eip);
 
     env->current_tb = NULL;
 
