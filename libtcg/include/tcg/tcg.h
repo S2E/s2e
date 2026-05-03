@@ -595,6 +595,7 @@ struct TCGContext {
 
 #ifdef CONFIG_SYMBEX
     unsigned tlbe_offset_symbex_addend;
+    unsigned env_offset_se_tb_abort;
 #endif
 
     unsigned target_page_bits;
