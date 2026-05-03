@@ -39,14 +39,8 @@
 #include <tcg/utils/bitops.h>
 #endif
 
-#if 0
-#define SE_KVM_DEBUG_IRQ
-#define DEBUG_LOCKS
-
-#define DPRINTF(...) fprintf(logfile, __VA_ARGS__)
-#else
-#define DPRINTF(...)
-#endif
+// #define SE_KVM_DEBUG_IRQ
+// #define DEBUG_LOCKS
 
 extern "C" {
 void tcg_register_thread(void);
@@ -113,7 +107,7 @@ VCPU::VCPU(std::shared_ptr<S2EKVM> &kvm, std::shared_ptr<VM> &vm, kvm_run *buffe
     m_env = g_cpu_env = env = cpu_x86_init(&m_kvm->getCpuid());
 
     if (!m_env) {
-        DPRINTF("Could not create cpu\n");
+        libcpu_log_mask(CPU_LOG_KVM, "Could not create cpu\n");
         exit(-1);
     }
 
@@ -187,14 +181,6 @@ void VCPU::unlock() {
     }
 }
 
-#ifdef SE_KVM_DEBUG_CPUID
-static void print_cpuid2(struct kvm_cpuid_entry2 *e) {
-    DPRINTF("cpuid function=%#010" PRIx32 " index=%#010" PRIx32 " flags=%#010" PRIx32 " eax=%#010" PRIx32
-            " ebx=%#010" PRIx32 " ecx=%#010" PRIx32 " edx=%#010" PRIx32 "\n",
-            e->function, e->index, e->flags, e->eax, e->ebx, e->ecx, e->edx);
-}
-#endif
-
 int VCPU::getClock(kvm_clock_data *clock) {
     assert(false && "Not implemented");
 }
@@ -244,9 +230,7 @@ int VCPU::setSignalMask(kvm_signal_mask *mask) {
     // not sure what the implications of spurious signals are.
     m_sigmask_size = mask->len;
     for (unsigned i = 0; i < mask->len; ++i) {
-#ifdef SE_KVM_DEBUG_INTERFACE
-        DPRINTF("  signals %#04x\n", mask->sigset[i]);
-#endif
+        libcpu_log_mask(CPU_LOG_KVM, "  signals %#04x\n", mask->sigset[i]);
         m_sigmask.bytes[i] = mask->sigset[i];
     }
     return 0;
@@ -311,9 +295,7 @@ int VCPU::run(int vcpu_fd) {
                                                  m_cpuBuffer->if_flag && (m_env->kvm_irq == -1);
 
     if (m_cpuBuffer->ready_for_interrupt_injection) {
-#ifdef SE_KVM_DEBUG_IRQ
-        DPRINTF("%s early ret for ints\n", __FUNCTION__);
-#endif
+        libcpu_log_mask(CPU_LOG_KVM, "%s early ret for ints\n", __FUNCTION__);
         m_cpuBuffer->exit_reason = KVM_EXIT_IRQ_WINDOW_OPEN;
         return 0;
     }
@@ -322,12 +304,10 @@ int VCPU::run(int vcpu_fd) {
 
     m_inKvmRun = true;
 
-#ifdef SE_KVM_DEBUG_RUN
     if (!m_handlingKvmCallback) {
-        DPRINTF("%s riw=%d cr8=%#x\n", __FUNCTION__, g_kvm_vcpu_buffer->request_interrupt_window,
-                (unsigned) g_kvm_vcpu_buffer->cr8);
+        libcpu_log_mask(CPU_LOG_KVM, "%s riw=%d cr8=%#x\n", __FUNCTION__, g_kvm_vcpu_buffer->request_interrupt_window,
+                        (unsigned) g_kvm_vcpu_buffer->cr8);
     }
-#endif
 
     m_cpuBuffer->exit_reason = -1;
 
@@ -385,13 +365,11 @@ int VCPU::run(int vcpu_fd) {
 
     assert(m_cpuBuffer->exit_reason != 1);
 
-#ifdef SE_KVM_DEBUG_RUN
     if (!m_handlingKvmCallback) {
-        DPRINTF("%s riw=%d rii=%d er=%#x cr8=%#x\n", __FUNCTION__, g_kvm_vcpu_buffer->request_interrupt_window,
-                g_kvm_vcpu_buffer->ready_for_interrupt_injection, g_kvm_vcpu_buffer->exit_reason,
-                (unsigned) g_kvm_vcpu_buffer->cr8);
+        libcpu_log_mask(CPU_LOG_KVM, "%s riw=%d rii=%d er=%#x cr8=%#x\n", __FUNCTION__,
+                        g_kvm_vcpu_buffer->request_interrupt_window, g_kvm_vcpu_buffer->ready_for_interrupt_injection,
+                        g_kvm_vcpu_buffer->exit_reason, (unsigned) g_kvm_vcpu_buffer->cr8);
     }
-#endif
 
     if (m_cpuBuffer->exit_reason == KVM_EXIT_INTR) {
         // This must be set at the very end, because syscalls might
@@ -557,6 +535,7 @@ int VCPU::sys_ioctl(int fd, int request, uint64_t arg1) {
             if (m_handlingDeviceState) {
                 ret = 0;
             } else {
+                libcpu_log_mask(CPU_LOG_KVM, "set_xsave\n");
                 ret = setXSAVE((kvm_xsave *) arg1);
             }
         } break;
@@ -611,6 +590,7 @@ int VCPU::sys_ioctl(int fd, int request, uint64_t arg1) {
         } break;
 
         case KVM_GET_XSAVE: {
+            libcpu_log_mask(CPU_LOG_KVM, "get_xsave\n");
             ret = getXSAVE((kvm_xsave *) arg1);
         } break;
 
@@ -655,7 +635,7 @@ int VCPU::sys_ioctl(int fd, int request, uint64_t arg1) {
 
         case KVM_SET_VAPIC_ADDR: {
             const auto data = (kvm_vapic_addr *) arg1;
-            printf("Setting VAPIC address to %#" PRIx64 "\n", (uint64_t) data->vapic_addr);
+            libcpu_log_mask(CPU_LOG_KVM, "Setting VAPIC address to %#" PRIx64 "\n", (uint64_t) data->vapic_addr);
             if (auto lapic = this->lapic()) {
                 lapic->set_apic_base(data->vapic_addr);
             } else {
@@ -665,22 +645,22 @@ int VCPU::sys_ioctl(int fd, int request, uint64_t arg1) {
         } break;
 
         case KVM_GET_VCPU_EVENTS: {
-            printf("Not implemented KVM_GET_VCPU_EVENTS\n");
+            libcpu_log_mask(CPU_LOG_KVM, "Not implemented KVM_GET_VCPU_EVENTS\n");
             ret = 0;
         } break;
 
         case KVM_SET_VCPU_EVENTS: {
-            printf("Not implemented KVM_SET_VCPU_EVENTS\n");
+            libcpu_log_mask(CPU_LOG_KVM, "Not implemented KVM_SET_VCPU_EVENTS\n");
             ret = 0;
         } break;
 
         case KVM_GET_STATS_FD: {
-            printf("Not implemented KVM_GET_STATS_FD\n");
+            libcpu_log_mask(CPU_LOG_KVM, "Not implemented KVM_GET_STATS_FD\n");
             ret = open("/dev/null", O_RDWR);
         } break;
 
         case KVM_X86_SETUP_MCE: {
-            printf("Not implemented KVM_X86_SETUP_MCE\n");
+            libcpu_log_mask(CPU_LOG_KVM, "Not implemented KVM_X86_SETUP_MCE\n");
             ret = 0;
         } break;
 

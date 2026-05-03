@@ -39,14 +39,6 @@
 
 extern CPUX86State *env;
 
-#if 0
-#define SE_KVM_DEBUG_MMIO
-#define SE_KVM_DEBUG_APIC
-#define SE_KVM_DEBUG_IO
-
-#define DPRINTF(...) fprintf(logfile, __VA_ARGS__)
-#endif
-
 namespace s2e {
 namespace kvm {
 
@@ -141,16 +133,7 @@ uint64_t s2e_kvm_mmio_read(target_phys_addr_t addr, unsigned size) {
         }
     }
 
-#ifdef SE_KVM_DEBUG_MMIO
-    unsigned print_addr = 0;
-#ifdef SE_KVM_DEBUG_APIC
-    if (addr >= 0xf0000000)
-        print_addr = 1;
-#endif
-    if (print_addr) {
-        DPRINTF("mmior%d[%" PRIx64 "]=%" PRIx64 "\n", size, (uint64_t) addr, ret);
-    }
-#endif
+    libcpu_log_mask(CPU_LOG_KVM_IO, "mmior%d[%" PRIx64 "]=%" PRIx64 "\n", size, (uint64_t) addr, ret);
     return ret;
 }
 
@@ -174,17 +157,7 @@ void s2e_kvm_mmio_write(target_phys_addr_t addr, uint64_t data, unsigned size) {
 
     uint8_t *dataptr = g_kvm_vcpu_buffer->mmio.data;
 
-#ifdef SE_KVM_DEBUG_MMIO
-    unsigned print_addr = 0;
-#ifdef SE_KVM_DEBUG_APIC
-    if (addr >= 0xf0000000)
-        print_addr = 1;
-#endif
-
-    if (print_addr) {
-        DPRINTF("mmiow%d[%" PRIx64 "]=%" PRIx64 "\n", size, (uint64_t) addr, data);
-    }
-#endif
+    libcpu_log_mask(CPU_LOG_KVM_IO, "mmiow%d[%" PRIx64 "]=%" PRIx64 "\n", size, (uint64_t) addr, data);
 
     switch (size) {
         case 1:
@@ -254,9 +227,7 @@ uint64_t s2e_kvm_ioport_read(pio_addr_t addr, unsigned size) {
             assert(false && "Can't get here");
     }
 
-#ifdef SE_KVM_DEBUG_IO
-    DPRINTF("ior%d[%#x]=0x%" PRIx64 "\n", size, addr, ret);
-#endif
+    libcpu_log_mask(CPU_LOG_KVM_IO, "ior%d[%#x]=0x%" PRIx64 "\n", size, addr, ret);
 
     return ret;
 }
@@ -296,9 +267,7 @@ void s2e_kvm_ioport_write(pio_addr_t addr, uint64_t data, unsigned size) {
             assert(false && "Can't get here");
     }
 
-#ifdef SE_KVM_DEBUG_IO
-    DPRINTF("iow%d[%#x]=0x%" PRIx64 "\n", size, addr, data);
-#endif
+    libcpu_log_mask(CPU_LOG_KVM_IO, "iow%d[%#x]=0x%" PRIx64 "\n", size, addr, data);
 
     coroutine_yield();
 }
