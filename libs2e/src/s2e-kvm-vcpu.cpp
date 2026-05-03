@@ -25,6 +25,7 @@
 
 #include <cpu/exec.h>
 #include <cpu/i386/cpu.h>
+#include <cpu/kvm.h>
 #include <timer.h>
 
 #ifdef CONFIG_SYMBEX
@@ -38,18 +39,15 @@
 #include <tcg/utils/bitops.h>
 #endif
 
-#if 0
-#define SE_KVM_DEBUG_IRQ
-
-#define DPRINTF(...) fprintf(logfile, __VA_ARGS__)
-#else
-#define DPRINTF(...)
-#endif
+// #define SE_KVM_DEBUG_IRQ
+// #define DEBUG_LOCKS
 
 extern "C" {
 void tcg_register_thread(void);
+int cpu_get_pic_interrupt(CPUX86State *env);
 }
 
+#include "hw/lapic.h"
 #include "s2e-kvm-vcpu.h"
 #include "syscalls.h"
 
@@ -63,6 +61,22 @@ CPUX86State *g_cpu_env;
 // TODO: remove this global var from libcpu
 extern CPUX86State *env;
 
+int cpu_get_pic_interrupt(CPUX86State *env) {
+    if (env->kvm_irq >= 0) {
+        auto irq = env->kvm_irq;
+        env->kvm_irq = -1;
+        return irq;
+    }
+
+    auto vcpu = s2e::kvm::VCPU::current();
+    if (auto apic = vcpu->lapic()) {
+        return apic->get_interrupt();
+    }
+
+    libcpu_log_mask(CPU_LOG_INT, "Interrupt requested but LAPIC is not initialized\n");
+    abort();
+}
+
 namespace s2e {
 namespace kvm {
 
@@ -72,8 +86,6 @@ static VCPU *s_vcpu;
 // We may need a very large stack in case of deep expressions.
 // Default stack is a few megabytes, it's not enough.
 static const uint64_t S2E_STACK_SIZE = 1024 * 1024 * 1024;
-
-static const int CPU_EXIT_SIGNAL = SIGUSR2;
 
 VCPU::VCPU(std::shared_ptr<S2EKVM> &kvm, std::shared_ptr<VM> &vm, kvm_run *buffer) {
     s_vcpu = this;
@@ -86,7 +98,6 @@ VCPU::VCPU(std::shared_ptr<S2EKVM> &kvm, std::shared_ptr<VM> &vm, kvm_run *buffe
     tcg_register_thread();
 
     m_onExit = g_syscalls.onExit.connect(sigc::mem_fun(*this, &VCPU::requestProcessExit));
-    m_onSelect = g_syscalls.onSelect.connect(sigc::mem_fun(*this, &VCPU::requestExit));
 
     if (initCpuLock() < 0) {
         exit(-1);
@@ -96,7 +107,7 @@ VCPU::VCPU(std::shared_ptr<S2EKVM> &kvm, std::shared_ptr<VM> &vm, kvm_run *buffe
     m_env = g_cpu_env = env = cpu_x86_init(&m_kvm->getCpuid());
 
     if (!m_env) {
-        DPRINTF("Could not create cpu\n");
+        libcpu_log_mask(CPU_LOG_KVM, "Could not create cpu\n");
         exit(-1);
     }
 
@@ -114,7 +125,6 @@ VCPU::VCPU(std::shared_ptr<S2EKVM> &kvm, std::shared_ptr<VM> &vm, kvm_run *buffe
 
 VCPU::~VCPU() {
     m_onExit.disconnect();
-    m_onSelect.disconnect();
 }
 
 VCPU *VCPU::current() {
@@ -131,34 +141,45 @@ std::shared_ptr<VCPU> VCPU::create(std::shared_ptr<S2EKVM> &kvm, std::shared_ptr
     return std::shared_ptr<VCPU>(new VCPU(kvm, vm, buffer));
 }
 
+void VCPU::create_lapic() {
+    m_lapic = std::make_shared<LocalApic>(
+        LocalApic::APIC_DEFAULT_BASE, [this](int mask, bool reset) { interrupt(mask, reset); },
+        [this]() { request_exit_cpu_loop(); });
+    m_vm->dev_mgr().register_device(LocalApic::APIC_DEFAULT_BASE, LocalApic::APIC_SIZE, m_lapic);
+}
+
 int VCPU::initCpuLock(void) {
-    int ret = pthread_mutex_init(&m_cpuLock, nullptr);
+    pthread_mutexattr_t attr;
+    pthread_mutexattr_init(&attr);
+
+#if DEBUG_LOCKS
+    pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_ERRORCHECK);
+#endif
+
+    int ret = pthread_mutex_init(&m_cpuLock, &attr);
     if (ret < 0) {
         fprintf(stderr, "Could not init cpu lock\n");
     }
 
+    pthread_mutexattr_destroy(&attr);
     return ret;
 }
 
 void VCPU::lock() {
-    pthread_mutex_lock(&m_cpuLock);
-}
-
-void VCPU::tryLock() {
-    pthread_mutex_trylock(&m_cpuLock);
+    auto ret = pthread_mutex_lock(&m_cpuLock);
+    if (ret != 0) {
+        fprintf(stderr, "Could not lock cpu: %d\n", ret);
+        abort();
+    }
 }
 
 void VCPU::unlock() {
-    pthread_mutex_unlock(&m_cpuLock);
+    auto ret = pthread_mutex_unlock(&m_cpuLock);
+    if (ret != 0) {
+        fprintf(stderr, "Could not unlock cpu: %d\n", ret);
+        abort();
+    }
 }
-
-#ifdef SE_KVM_DEBUG_CPUID
-static void print_cpuid2(struct kvm_cpuid_entry2 *e) {
-    DPRINTF("cpuid function=%#010" PRIx32 " index=%#010" PRIx32 " flags=%#010" PRIx32 " eax=%#010" PRIx32
-            " ebx=%#010" PRIx32 " ecx=%#010" PRIx32 " edx=%#010" PRIx32 "\n",
-            e->function, e->index, e->flags, e->eax, e->ebx, e->ecx, e->edx);
-}
-#endif
 
 int VCPU::getClock(kvm_clock_data *clock) {
     assert(false && "Not implemented");
@@ -203,41 +224,13 @@ int VCPU::setCPUID2(kvm_cpuid2 *cpuid) {
     return 0;
 }
 
-void VCPU::cpuExitSignal(int signum) {
-    s_vcpu->m_env->kvm_request_interrupt_window = 1;
-    cpu_exit(s_vcpu->m_env);
-}
-
-void VCPU::initializeCpuExitSignal() {
-    struct sigaction act;
-    memset(&act, 0, sizeof(act));
-    sigfillset(&act.sa_mask);
-    act.sa_flags = 0;
-    act.sa_handler = cpuExitSignal;
-
-    if (sigaction(CPU_EXIT_SIGNAL, &act, NULL) < 0) {
-        perror("Could not initialize cpu exit signal");
-        exit(-1);
-    }
-
-    // The KVM client usually blocks all signals on the CPU thread.
-    // This interferes with our ability to exit the CPU loop, so we must unblock it.
-    union s2e_kvm_sigmask_t mask = m_sigmask;
-    sigaddset(&mask.sigset, CPU_EXIT_SIGNAL);
-    if (pthread_sigmask(SIG_UNBLOCK, &mask.sigset, NULL) < 0) {
-        abort();
-    }
-}
-
 // Defines which signals are blocked during execution of kvm.
 int VCPU::setSignalMask(kvm_signal_mask *mask) {
     // XXX: doesn't seem to matter for typical kvm clients,
     // not sure what the implications of spurious signals are.
     m_sigmask_size = mask->len;
     for (unsigned i = 0; i < mask->len; ++i) {
-#ifdef SE_KVM_DEBUG_INTERFACE
-        DPRINTF("  signals %#04x\n", mask->sigset[i]);
-#endif
+        libcpu_log_mask(CPU_LOG_KVM, "  signals %#04x\n", mask->sigset[i]);
         m_sigmask.bytes[i] = mask->sigset[i];
     }
     return 0;
@@ -248,53 +241,21 @@ void VCPU::coroutineFcn(void *opaque) {
     CPUX86State *env = vcpu->m_env;
     auto buffer = vcpu->m_cpuBuffer;
 
-#ifdef SE_KVM_DEBUG_IRQ
-    static uint64_t prev_mflags = 0;
-#endif
-
     while (1) {
+        if (!vcpu->m_task_runner.run_on_thread()) {
+            abort();
+        }
+
         libcpu_run_all_timers();
 
         assert(env->current_tb == NULL);
 
-        // XXX: need to save irq state on state switches
-        if (env->kvm_irq != -1) {
-            if (env->interrupt_request == 0) {
-                DPRINTF("Forcing IRQ\n");
-            }
-            env->interrupt_request |= CPU_INTERRUPT_HARD;
-
-#ifdef SE_KVM_DEBUG_IRQ
-            if (env->interrupt_request & CPU_INTERRUPT_HARD) {
-                DPRINTF("Handling IRQ %d req=%#x hflags=%x hflags2=%#x mflags=%#lx tpr=%#x esp=%#lx\n", env->kvm_irq,
-                        env->interrupt_request, env->hflags, env->hflags2, (uint64_t) env->mflags,
-                        vcpu->vapic().get_tpr(), (uint64_t) env->regs[R_ESP]);
-            }
-#endif
-        }
-
         env->kvm_request_interrupt_window |= buffer->request_interrupt_window;
-
-#ifdef SE_KVM_DEBUG_IRQ
-        prev_mflags = env->mflags;
-        uint64_t prev_eip = env->eip;
-#endif
 
         vcpu->m_cpuStateIsPrecise = false;
         env->exit_request = 0;
         cpu_x86_exec(env);
         vcpu->m_cpuStateIsPrecise = true;
-        // DPRINTF("cpu_exec return %#x\n", ret);
-
-#ifdef SE_KVM_DEBUG_IRQ
-        bool mflags_changed = (prev_mflags != env->mflags);
-        if (mflags_changed) {
-            DPRINTF("mflags changed: %lx old=%lx new=%lx reqwnd=%d peip=%lx, eip=%lx\n", (uint64_t) mflags_changed,
-                    (uint64_t) prev_mflags, (uint64_t) env->mflags, g_kvm_vcpu_buffer->request_interrupt_window,
-                    (uint64_t) prev_eip, (uint64_t) env->eip);
-        }
-        prev_mflags = env->mflags;
-#endif
 
         assert(env->current_tb == NULL);
 
@@ -317,7 +278,6 @@ int VCPU::run(int vcpu_fd) {
     }
 
     if (!m_cpuThreadInited) {
-        initializeCpuExitSignal();
         m_cpuThread = pthread_self();
         m_cpuThreadInited = true;
     }
@@ -335,9 +295,7 @@ int VCPU::run(int vcpu_fd) {
                                                  m_cpuBuffer->if_flag && (m_env->kvm_irq == -1);
 
     if (m_cpuBuffer->ready_for_interrupt_injection) {
-#ifdef SE_KVM_DEBUG_IRQ
-        DPRINTF("%s early ret for ints\n", __FUNCTION__);
-#endif
+        libcpu_log_mask(CPU_LOG_KVM, "%s early ret for ints\n", __FUNCTION__);
         m_cpuBuffer->exit_reason = KVM_EXIT_IRQ_WINDOW_OPEN;
         return 0;
     }
@@ -346,12 +304,10 @@ int VCPU::run(int vcpu_fd) {
 
     m_inKvmRun = true;
 
-#ifdef SE_KVM_DEBUG_RUN
     if (!m_handlingKvmCallback) {
-        DPRINTF("%s riw=%d cr8=%#x\n", __FUNCTION__, g_kvm_vcpu_buffer->request_interrupt_window,
-                (unsigned) g_kvm_vcpu_buffer->cr8);
+        libcpu_log_mask(CPU_LOG_KVM, "%s riw=%d cr8=%#x\n", __FUNCTION__, g_kvm_vcpu_buffer->request_interrupt_window,
+                        (unsigned) g_kvm_vcpu_buffer->cr8);
     }
-#endif
 
     m_cpuBuffer->exit_reason = -1;
 
@@ -375,7 +331,8 @@ int VCPU::run(int vcpu_fd) {
     m_handlingKvmCallback =
         m_cpuBuffer->exit_reason == KVM_EXIT_IO || m_cpuBuffer->exit_reason == KVM_EXIT_MMIO ||
         m_cpuBuffer->exit_reason == KVM_EXIT_FLUSH_DISK || m_cpuBuffer->exit_reason == KVM_EXIT_SAVE_DEV_STATE ||
-        m_cpuBuffer->exit_reason == KVM_EXIT_RESTORE_DEV_STATE || m_cpuBuffer->exit_reason == KVM_EXIT_CLONE_PROCESS;
+        m_cpuBuffer->exit_reason == KVM_EXIT_RESTORE_DEV_STATE || m_cpuBuffer->exit_reason == KVM_EXIT_CLONE_PROCESS ||
+        m_cpuBuffer->exit_reason == KVM_EXIT_IOAPIC_EOI;
 
     // Might not be NULL if resuming from an interrupted I/O
     // assert(env->current_tb == NULL);
@@ -408,13 +365,11 @@ int VCPU::run(int vcpu_fd) {
 
     assert(m_cpuBuffer->exit_reason != 1);
 
-#ifdef SE_KVM_DEBUG_RUN
     if (!m_handlingKvmCallback) {
-        DPRINTF("%s riw=%d rii=%d er=%#x cr8=%#x\n", __FUNCTION__, g_kvm_vcpu_buffer->request_interrupt_window,
-                g_kvm_vcpu_buffer->ready_for_interrupt_injection, g_kvm_vcpu_buffer->exit_reason,
-                (unsigned) g_kvm_vcpu_buffer->cr8);
+        libcpu_log_mask(CPU_LOG_KVM, "%s riw=%d rii=%d er=%#x cr8=%#x\n", __FUNCTION__,
+                        g_kvm_vcpu_buffer->request_interrupt_window, g_kvm_vcpu_buffer->ready_for_interrupt_injection,
+                        g_kvm_vcpu_buffer->exit_reason, (unsigned) g_kvm_vcpu_buffer->cr8);
     }
-#endif
 
     if (m_cpuBuffer->exit_reason == KVM_EXIT_INTR) {
         // This must be set at the very end, because syscalls might
@@ -434,18 +389,15 @@ int VCPU::run(int vcpu_fd) {
 }
 
 int VCPU::interrupt(kvm_interrupt *interrupt) {
-#ifdef SE_KVM_DEBUG_IRQ
-    DPRINTF("IRQ %d env->mflags=%lx hflags=%x hflags2=%x ptr=%#x\n", interrupt->irq, (uint64_t) env->mflags,
-            env->hflags, env->hflags2, m_vapic.get_tpr());
-    fflush(stdout);
-#endif
+    libcpu_log_mask(CPU_LOG_INT, "IRQ %d env->mflags=%lx hflags=%x hflags2=%x ptr=%#x\n", interrupt->irq,
+                    (uint64_t) env->mflags, env->hflags, env->hflags2, m_vapic.get_tpr());
 
     assert(!m_handlingKvmCallback);
     assert(!m_inKvmRun);
     assert(m_env->mflags & IF_MASK);
 
     if (m_env->interrupt_request & CPU_INTERRUPT_HARD) {
-        DPRINTF("Interrupt already pending, cannot inject IRQ %d\n", interrupt->irq);
+        libcpu_log_mask(CPU_LOG_INT, "Interrupt already pending, cannot inject IRQ %d\n", interrupt->irq);
         return -EEXIST;
     }
 
@@ -498,68 +450,10 @@ void VCPU::cloneProcess(void) {
     coroutine_yield();
 
     m_cpuThread = pthread_self();
-
-    if (m_kvm->initTimerThread() < 0) {
-        exit(-1);
-    }
 }
 
-///
-/// \brief s2e_kvm_send_cpu_exit_signal sends a signal
-/// to the cpu loop thread in order to exit the cpu loop.
-///
-/// It is important to use a signal that executes on the
-/// same thread as the cpu loop in order to avoid race conditions
-/// and complex locking.
-///
-void VCPU::sendExitSignal() {
-    if (!m_cpuThreadInited) {
-        return;
-    }
-
-    if (pthread_kill(m_cpuThread, CPU_EXIT_SIGNAL) < 0) {
-        abort();
-    }
-}
-
-///
-/// \brief s2e_kvm_request_exit triggers an exit from the cpu loop
-///
-/// In vanilla KVM, the CPU stops executing guest code when there is
-/// an external event pending. Execution can stop at any instruction.
-///
-/// In our emulated KVM, stopping at any instruction is not possible
-/// because of TB chaining, threading, etc.
-///
-/// This may cause missed interrupts. The KVM client is ready to inject an interrupt,
-/// but cannot do so because kvm_run has not exited yet. While it is running,
-/// several interrupts of different priorities may be queued up. When kvm_run
-/// eventually returns, the highest priority interrupt is injected first.
-/// Because DBT is much slower than native execution, it often happens
-/// that lower priority don't get to run at all, and higher
-/// priority ones are missed.
-///
-/// Since we can't easily replicate KVM's behavior, we resort to doing
-/// what vanilla QEMU in DBT mode would do: interrupt the CPU loop when an interrupt
-/// is raised so that the interrupt is scheduled asap.
-///
-/// This requires adding an extra API to KVM. Things that have been tried
-/// to avoid adding the extra API, but did not work properly:
-/// - Intercept pthread_kill. KVM client may kick the CPU when an interrupt is ready.
-/// This is still too slow.
-/// - Intercept eventfd. KVM clients call poll eventfds instead of using signals.
-/// Polling for them from a separate thread didn't work either.
-///
-void VCPU::requestExit(void) {
-    if (!m_env) {
-        return;
-    }
-
-#ifdef SE_KVM_DEBUG_RUN
-    DPRINTF("s2e_kvm_request_exit\n");
-#endif
-
-    sendExitSignal();
+void VCPU::request_exit_cpu_loop() {
+    cpu_exit(m_env);
 }
 
 ///
@@ -641,6 +535,7 @@ int VCPU::sys_ioctl(int fd, int request, uint64_t arg1) {
             if (m_handlingDeviceState) {
                 ret = 0;
             } else {
+                libcpu_log_mask(CPU_LOG_KVM, "set_xsave\n");
                 ret = setXSAVE((kvm_xsave *) arg1);
             }
         } break;
@@ -695,6 +590,7 @@ int VCPU::sys_ioctl(int fd, int request, uint64_t arg1) {
         } break;
 
         case KVM_GET_XSAVE: {
+            libcpu_log_mask(CPU_LOG_KVM, "get_xsave\n");
             ret = getXSAVE((kvm_xsave *) arg1);
         } break;
 
@@ -708,6 +604,16 @@ int VCPU::sys_ioctl(int fd, int request, uint64_t arg1) {
 
         case KVM_GET_MP_STATE: {
             ret = getMPState((kvm_mp_state *) arg1);
+        } break;
+
+        case KVM_GET_LAPIC: {
+            m_lapic->get_lapic((kvm_lapic_state *) arg1);
+            ret = 0;
+        } break;
+
+        case KVM_SET_LAPIC: {
+            m_lapic->set_lapic((kvm_lapic_state *) arg1);
+            ret = 0;
         } break;
 
         case KVM_GET_DEBUGREGS: {
@@ -725,6 +631,47 @@ int VCPU::sys_ioctl(int fd, int request, uint64_t arg1) {
 
         case KVM_NMI: {
             ret = nmi();
+        } break;
+
+        case KVM_SET_VAPIC_ADDR: {
+            const auto data = (kvm_vapic_addr *) arg1;
+            libcpu_log_mask(CPU_LOG_KVM, "Setting VAPIC address to %#" PRIx64 "\n", (uint64_t) data->vapic_addr);
+            if (auto lapic = this->lapic()) {
+                lapic->set_apic_base(data->vapic_addr);
+            } else {
+                m_vapic.set_apic_base(data->vapic_addr);
+            }
+            ret = 0;
+        } break;
+
+        case KVM_GET_VCPU_EVENTS: {
+            libcpu_log_mask(CPU_LOG_KVM, "Not implemented KVM_GET_VCPU_EVENTS\n");
+            ret = 0;
+        } break;
+
+        case KVM_SET_VCPU_EVENTS: {
+            libcpu_log_mask(CPU_LOG_KVM, "Not implemented KVM_SET_VCPU_EVENTS\n");
+            ret = 0;
+        } break;
+
+        case KVM_GET_STATS_FD: {
+            libcpu_log_mask(CPU_LOG_KVM, "Not implemented KVM_GET_STATS_FD\n");
+            ret = open("/dev/null", O_RDWR);
+        } break;
+
+        case KVM_X86_SETUP_MCE: {
+            libcpu_log_mask(CPU_LOG_KVM, "Not implemented KVM_X86_SETUP_MCE\n");
+            ret = 0;
+        } break;
+
+        case KVM_TPR_ACCESS_REPORTING: {
+            const auto data = (kvm_tpr_access_ctl *) arg1;
+            if (data->enabled) {
+                printf("libs2e: KVM client requested TPR access reporting, but it's not implemented\n");
+                ret = -1;
+            } else {
+                ret = 0;
+            }
         } break;
 
         default: {
@@ -747,6 +694,17 @@ void *VCPU::sys_mmap(void *addr, size_t len, int prot, int flags, int fd, off_t 
 
 void VCPU::flushTlb() {
     tlb_flush(m_env, 1);
+}
+
+void VCPU::interrupt(int mask, bool reset) {
+    libcpu_log_mask(CPU_LOG_INT, "Interrupt: mask=%#x reset=%d\n", mask, reset);
+    cpu_exit(m_env);
+
+    if (reset) {
+        m_env->interrupt_request &= ~mask;
+    } else {
+        m_env->interrupt_request |= mask;
+    }
 }
 } // namespace kvm
 } // namespace s2e

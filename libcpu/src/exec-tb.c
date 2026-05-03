@@ -395,6 +395,10 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end, int
                 if (env->mem_io_pc) {
                     /* now we have a real cpu fault */
                     current_tb = tcg_tb_lookup(env->mem_io_pc);
+                } else {
+#ifdef CONFIG_SYMBEX
+                    env->se_tb_abort = 1;
+#endif
                 }
             }
             if (current_tb == tb && (current_tb->cflags & CF_COUNT_MASK) != 1) {
@@ -443,18 +447,6 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end, int
 #endif
         }
     }
-
-#ifdef TARGET_HAS_PRECISE_SMC
-#ifdef CONFIG_SYMBEX
-/* In symbex mode, we don't keep env->mem_io_pc information, so we can't be
-   sure whether current tb was invalidated or not. We abort it
-   in any case */
-/* XXX: is it safe to do ? */
-// env->current_tb = NULL;
-// cpu_resume_from_signal(env, NULL);
-// XXX: check env->mem_io_pc handling!
-#endif
-#endif
 }
 
 /* len must be <= 8 and start must be a multiple of len */

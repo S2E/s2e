@@ -529,7 +529,7 @@ void glue(glue(glue(HELPER_PREFIX, st), SUFFIX), MMUSUFFIX)(CPUArchState *env, t
 redo:
     tlb_entry = &env->tlb_table[mmu_idx].table[index];
     tlb_addr = tlb_entry->addr_write & ~TLB_MEM_TRACE;
-    ;
+
     if (likely((addr & TARGET_PAGE_MASK) == (tlb_addr & (TARGET_PAGE_MASK | TLB_INVALID_MASK)))) {
         if (unlikely(tlb_addr & ~TARGET_PAGE_MASK)) {
             /* IO access */

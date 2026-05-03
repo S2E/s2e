@@ -114,6 +114,7 @@ private:
     llvm::Instruction *m_noop;
     llvm::Value *m_eip;
     llvm::Value *m_ccop;
+    llvm::BasicBlock *m_abortBB;
 
     static unsigned m_eip_last_gep_index;
 

@@ -41,6 +41,7 @@
 #include <tcg/tcg-llvm.h>
 #endif
 
+#include "hw/lapic.h"
 #include "libs2e.h"
 #include "s2e-kvm-vcpu.h"
 #include "s2e-kvm-vm.h"
@@ -72,16 +73,22 @@ std::shared_ptr<VM> VM::create(std::shared_ptr<S2EKVM> &kvm) {
     return ret;
 }
 
-void VM::sendCpuExitSignal() {
-    if (m_cpu) {
-        m_cpu->sendExitSignal();
-    }
-}
-
 int VM::enableCapability(kvm_enable_cap *cap) {
-    printf("Enable capability not supported %d\n", cap->cap);
-    errno = 1;
-    return -1;
+    switch (cap->cap) {
+        case KVM_CAP_MAX_VCPU_ID:
+            printf("KVM_CAP_MAX_VCPU_ID=%d\n", (int) cap->args[0]);
+            m_maxVcpuId = (int) cap->args[0];
+            return 0;
+        case KVM_CAP_SPLIT_IRQCHIP: {
+            printf("KVM_CAP_SPLIT_IRQCHIP=%d\n", (int) cap->args[0]);
+            m_split_irqchip = true;
+            return 0;
+        }
+        default:
+            printf("Enable capability not supported %d\n", cap->cap);
+            errno = 1;
+            return -1;
+    }
 }
 
 int VM::createVirtualCPU() {
@@ -100,7 +107,32 @@ int VM::createVirtualCPU() {
 
     m_cpu = vcpu;
 
+    if (m_split_irqchip) {
+        m_cpu->create_lapic();
+    }
+
     return g_fdm->registerInterface(vcpu);
+}
+
+int VM::lookupIoEventFd(bool is_pio, uint64_t addr, uint64_t data, unsigned size) {
+    const auto &events = is_pio ? m_ioeventfds_pio : m_ioeventfds_mmio;
+
+    for (const auto &entry : events) {
+        if (entry.addr != addr) {
+            continue;
+        }
+        if (entry.len != 0 && entry.len != size) {
+            continue;
+        }
+        if (entry.has_datamatch) {
+            uint64_t mask = (size < 8) ? ((uint64_t) 1 << (size * 8)) - 1 : ~(uint64_t) 0;
+            if ((data & mask) != (entry.datamatch & mask)) {
+                continue;
+            }
+        }
+        return entry.fd;
+    }
+    return -1;
 }
 
 int VM::setTSSAddress(uint64_t tss_addr) {
@@ -111,7 +143,7 @@ int VM::setTSSAddress(uint64_t tss_addr) {
 }
 
 int VM::setUserMemoryRegion(kvm_userspace_memory_region *region) {
-    m_cpu->requestExit();
+    m_cpu->request_exit_cpu_loop();
 
     m_cpu->lock();
 
@@ -135,7 +167,7 @@ int VM::memoryReadWrite(kvm_mem_rw *mem) {
     }
 #endif
 
-    m_cpu->requestExit();
+    m_cpu->request_exit_cpu_loop();
     m_cpu->lock();
     cpu_host_memory_rw(mem->source, mem->dest, mem->length, mem->is_write);
     m_cpu->unlock();
@@ -150,7 +182,7 @@ int VM::registerFixedRegion(kvm_fixed_region *region) {
 }
 
 int VM::getDirtyLog(kvm_dirty_log *log) {
-    m_cpu->requestExit();
+    m_cpu->request_exit_cpu_loop();
 
     const MemoryDesc *r = mem_desc_get_slot(log->slot);
 
@@ -162,7 +194,7 @@ int VM::getDirtyLog(kvm_dirty_log *log) {
         return 0;
     }
 
-    m_cpu->tryLock();
+    m_cpu->lock();
 
     cpu_physical_memory_get_dirty_bitmap((uint8_t *) log->dirty_bitmap, r->ram_addr, r->kvm.memory_size,
                                          VGA_DIRTY_FLAG);
@@ -173,8 +205,10 @@ int VM::getDirtyLog(kvm_dirty_log *log) {
     return 0;
 }
 
-int VM::setIdentityMapAddress(uint64_t addr) {
-    assert(false && "Not implemented");
+int VM::setIdentityMapAddress(uint64_t *addr) {
+    // XXX: fixme
+    printf("setIdentityMapAddress %#" PRIx64 " not implemented yet\n", *addr);
+    return 0;
 }
 
 int VM::setClock(kvm_clock_data *clock) {
@@ -191,10 +225,53 @@ int VM::getClock(kvm_clock_data *clock) {
 
 int VM::ioEventFD(kvm_ioeventfd *event) {
 #ifdef SE_KVM_DEBUG_INTERFACE
-    printf("kvm_ioeventd datamatch=%#llx addr=%#llx len=%d fd=%d flags=%#" PRIx32 "\n", event->datamatch, event->addr,
+    printf("kvm_ioeventfd datamatch=%#llx addr=%#llx len=%d fd=%d flags=%#" PRIx32 "\n", event->datamatch, event->addr,
            event->len, event->fd, event->flags);
 #endif
-    return -1;
+
+    if (event->flags & ~KVM_IOEVENTFD_VALID_FLAG_MASK) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    if (event->flags & KVM_IOEVENTFD_FLAG_VIRTIO_CCW_NOTIFY) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    if (event->len != 0 && event->len != 1 && event->len != 2 && event->len != 4 && event->len != 8) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    bool is_pio = (event->flags & KVM_IOEVENTFD_FLAG_PIO) != 0;
+    bool has_datamatch = (event->flags & KVM_IOEVENTFD_FLAG_DATAMATCH) != 0;
+    bool is_deassign = (event->flags & KVM_IOEVENTFD_FLAG_DEASSIGN) != 0;
+
+    auto &eventfds = is_pio ? m_ioeventfds_pio : m_ioeventfds_mmio;
+
+    if (is_deassign) {
+        for (auto it = eventfds.begin(); it != eventfds.end(); ++it) {
+            if (it->addr == event->addr && it->len == event->len && it->has_datamatch == has_datamatch &&
+                (!has_datamatch || it->datamatch == event->datamatch) && it->fd == event->fd) {
+                eventfds.erase(it);
+                return 0;
+            }
+        }
+        errno = ENOENT;
+        return -1;
+    }
+
+    IoEventFdEntry entry;
+    entry.addr = event->addr;
+    entry.datamatch = has_datamatch ? event->datamatch : 0;
+    entry.len = event->len;
+    entry.fd = event->fd;
+    entry.is_pio = is_pio;
+    entry.has_datamatch = has_datamatch;
+
+    eventfds.push_back(entry);
+    return 0;
 }
 
 int VM::diskReadWrite(kvm_disk_rw *d) {
@@ -233,6 +310,53 @@ int VM::setClockScalePointer(unsigned *scale) {
 #else
     return -1;
 #endif
+}
+
+int VM::handle_irq_fd(const struct kvm_irqfd *irqfd) {
+    printf("Unhandled handle_irq_fd fd=%d gsi=%d flags=%#" PRIx32 "\n", irqfd->fd, irqfd->gsi, irqfd->flags);
+    return 0;
+}
+
+int VM::set_gsi_routing(const kvm_irq_routing *routing) {
+    m_gsi_routes.clear();
+    for (uint32_t i = 0; i < routing->nr; ++i) {
+        const auto &entry = routing->entries[i];
+        m_gsi_routes[entry.gsi].push_back(entry);
+    }
+    return 0;
+}
+
+int VM::irq_line(const kvm_irq_level *level) {
+    uint32_t gsi = level->irq;
+
+    libcpu_log_mask(CPU_LOG_INT, "KVM_IRQ_LINE gsi=%d level=%d\n", gsi, level->level);
+
+    if (!level->level) {
+        return 0;
+    }
+
+    if (!m_cpu || !m_cpu->lapic()) {
+        fprintf(stderr, "libs2e: KVM_IRQ_LINE gsi=%d but no LAPIC configured\n", gsi);
+        return -1;
+    }
+
+    auto it = m_gsi_routes.find(gsi);
+    if (it == m_gsi_routes.end()) {
+        return 0;
+    }
+
+    auto lapic = m_cpu->lapic();
+    for (const auto &entry : it->second) {
+        if (entry.type == KVM_IRQ_ROUTING_MSI) {
+            m_cpu->task_runner().run_on_thread([lapic, entry]() {
+                lapic->deliver_msi(entry.u.msi.address_lo, entry.u.msi.address_hi, entry.u.msi.data);
+            });
+        } else {
+            fprintf(stderr, "libs2e: KVM_IRQ_LINE gsi=%d unsupported routing type %d\n", gsi, entry.type);
+        }
+    }
+
+    return 0;
 }
 
 int VM::sys_ioctl(int fd, int request, uint64_t arg1) {
@@ -274,7 +398,7 @@ int VM::sys_ioctl(int fd, int request, uint64_t arg1) {
         } break;
 
         case KVM_SET_IDENTITY_MAP_ADDR: {
-            ret = setIdentityMapAddress(arg1);
+            ret = setIdentityMapAddress((uint64_t *) arg1);
         } break;
 
         case KVM_GET_DIRTY_LOG: {
@@ -286,7 +410,7 @@ int VM::sys_ioctl(int fd, int request, uint64_t arg1) {
         } break;
 
         case KVM_FORCE_EXIT: {
-            m_cpu->requestExit();
+            m_cpu->request_exit_cpu_loop();
             ret = 0;
         } break;
 
@@ -304,6 +428,24 @@ int VM::sys_ioctl(int fd, int request, uint64_t arg1) {
 
         case KVM_SET_CLOCK_SCALE: {
             ret = setClockScalePointer((unsigned *) arg1);
+        } break;
+
+        case KVM_IRQFD: {
+            ret = handle_irq_fd((const struct kvm_irqfd *) arg1);
+        } break;
+
+        case KVM_SET_GSI_ROUTING: {
+            ret = set_gsi_routing((const kvm_irq_routing *) arg1);
+        } break;
+
+        case KVM_IRQ_LINE: {
+            m_cpu->request_exit_cpu_loop();
+            ret = irq_line((const kvm_irq_level *) arg1);
+        } break;
+
+        case KVM_CREATE_IRQCHIP: {
+            printf("Not implemented KVM_CREATE_IRQCHIP\n");
+            ret = 0;
         } break;
 
         default: {

@@ -60,6 +60,8 @@ const CPULogItem cpu_log_items[] = {
 #ifdef CONFIG_SYMBEX
     {CPU_LOG_LLVM_IR, "llvm_ir", "show generated LLVM IR code"},
 #endif
+    {CPU_LOG_KVM, "kvm", "log kvm calls"},
+    {CPU_LOG_KVM_IO, "kvm_io", "log kvm i/o (mmio, ioport)"},
     {0, NULL, NULL},
 };
 

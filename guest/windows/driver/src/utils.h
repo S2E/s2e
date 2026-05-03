@@ -33,6 +33,27 @@ NTSTATUS S2EEncodeBackTraceForKnownModules(
 );
 
 
+static inline BOOLEAN IsWindows_2003SP1_OrAbove(_In_ const RTL_OSVERSIONINFOEXW *Version)
+{
+    if (Version->dwMajorVersion > 5) {
+        return TRUE;
+    }
+
+    if (Version->dwMajorVersion < 5) {
+        return FALSE;
+    }
+
+    if (Version->dwMinorVersion > 2) {
+        return TRUE;
+    }
+
+    if (Version->dwMinorVersion < 2) {
+        return FALSE;
+    }
+
+    return Version->wServicePackMajor >= 1;
+}
+
 static inline BOOLEAN IsWindows8OrAbove(_In_ const RTL_OSVERSIONINFOEXW *Version)
 {
     if (Version->dwMajorVersion > 6) {

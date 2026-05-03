@@ -26,7 +26,7 @@
     <Configuration>Debug</Configuration>
     <Platform Condition="'$(Platform)' == ''">Win32</Platform>
     <RootNamespace>driver</RootNamespace>
-    <WindowsTargetPlatformVersion>$(LatestTargetPlatformVersion)</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.19041.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -106,6 +106,9 @@
       <ForcedIncludeFiles>$(KIT_SHARED_IncludePath)\warning.h;$(SolutionDir)\formatting.h</ForcedIncludeFiles>
       <SupportJustMyCode>false</SupportJustMyCode>
     </ClCompile>
+    <DriverSign>
+      <FileDigestAlgorithm>SHA1</FileDigestAlgorithm>
+    </DriverSign>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <Link>
@@ -115,6 +118,9 @@
     <ClCompile>
       <ForcedIncludeFiles>$(KIT_SHARED_IncludePath)\warning.h;$(SolutionDir)\formatting.h</ForcedIncludeFiles>
     </ClCompile>
+    <DriverSign>
+      <FileDigestAlgorithm>SHA1</FileDigestAlgorithm>
+    </DriverSign>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <Link>
@@ -125,6 +131,9 @@
       <ForcedIncludeFiles>$(KIT_SHARED_IncludePath)\warning.h;$(SolutionDir)\formatting.h</ForcedIncludeFiles>
       <SupportJustMyCode>false</SupportJustMyCode>
     </ClCompile>
+    <DriverSign>
+      <FileDigestAlgorithm>SHA1</FileDigestAlgorithm>
+    </DriverSign>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <Link>
@@ -134,6 +143,9 @@
     <ClCompile>
       <ForcedIncludeFiles>$(KIT_SHARED_IncludePath)\warning.h;$(SolutionDir)\formatting.h</ForcedIncludeFiles>
     </ClCompile>
+    <DriverSign>
+      <FileDigestAlgorithm>SHA1</FileDigestAlgorithm>
+    </DriverSign>
   </ItemDefinitionGroup>
   <ItemGroup>
     <FilesToPackage Include="$(TargetPath)" />

@@ -16,3 +16,5 @@ dist
 *PVS-Studio*
 *.idea
 *.TMP
+packages
+
