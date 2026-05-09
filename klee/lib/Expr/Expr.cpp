@@ -33,6 +33,14 @@ cl::opt<bool> ConstArrayOpt("const-array-opt", cl::init(true),
 
 /***/
 
+const Expr::Width Expr::InvalidWidth;
+const Expr::Width Expr::Bool;
+const Expr::Width Expr::Int8;
+const Expr::Width Expr::Int16;
+const Expr::Width Expr::Int32;
+const Expr::Width Expr::Int64;
+const Expr::Width Expr::Int128;
+
 ///
 /// \brief Simplify the pattern that results from an unaligned read to memory.
 ///
