@@ -60,6 +60,9 @@ static ref<Expr> ReadUnalignedWord(const ObjectStatePtr &os, unsigned addr, unsi
     unsigned addr2 = addr1 + dataSize;
     unsigned shift = (addr & (dataSize - 1)) * 8;
     ref<Expr> res1 = os->read(addr1, dataSize * 8);
+    if (shift == 0) {
+        return res1;
+    }
     ref<Expr> res2 = os->read(addr2, dataSize * 8);
 
     // clang-format off
