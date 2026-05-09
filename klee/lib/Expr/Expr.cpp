@@ -1455,33 +1455,119 @@ static ref<Expr> UltExpr_create(const ref<Expr> &l, const ref<Expr> &r) {
     Expr::Width t = l->getWidth();
     if (t == Expr::Bool) { // !l && r
         return AndExpr::create(Expr::createIsZero(l), r);
-    } else {
-        return UltExpr::alloc(l, r);
     }
+    // Ult l l => false
+    if (l == r) {
+        return ConstantExpr::create(0, Expr::Bool);
+    }
+    return UltExpr::alloc(l, r);
+}
+
+/// Returns the unsigned upper bound of \p e (the maximum value it can take),
+/// or UINT64_MAX if unknown. Handles constants, ZExt, and And-with-constant-mask.
+/// Recurses one level into ZExt to propagate inner And-mask bounds.
+static uint64_t get_unsigned_upper_bound(const ref<Expr> &e) {
+    if (e->getWidth() > 64) {
+        return UINT64_MAX;
+    }
+
+    if (const ConstantExpr *ce = dyn_cast<ConstantExpr>(e)) {
+        return ce->getZExtValue();
+    }
+
+    if (const ZExtExpr *ze = dyn_cast<ZExtExpr>(e)) {
+        unsigned innerW = ze->getSrc()->getWidth();
+        uint64_t widthMax = (innerW < 64) ? bitmask<uint64_t>(innerW) : UINT64_MAX;
+        // Recurse to pick up a tighter inner bound (e.g. And-mask inside ZExt).
+        uint64_t srcBound = get_unsigned_upper_bound(ze->getSrc());
+        return std::min(widthMax, srcBound);
+    }
+
+    if (const AndExpr *ae = dyn_cast<AndExpr>(e)) {
+        if (const ConstantExpr *mask = dyn_cast<ConstantExpr>(ae->getRight())) {
+            return mask->getZExtValue();
+        }
+        if (const ConstantExpr *mask = dyn_cast<ConstantExpr>(ae->getLeft())) {
+            return mask->getZExtValue();
+        }
+    }
+
+    return UINT64_MAX;
 }
 
 static ref<Expr> UleExpr_create(const ref<Expr> &l, const ref<Expr> &r) {
-    if (l->getWidth() == Expr::Bool) { // !(l && !r)
+    Expr::Width t = l->getWidth();
+
+    if (t == Expr::Bool) { // !(l && !r)
         return OrExpr::create(Expr::createIsZero(l), r);
-    } else {
-        return UleExpr::alloc(l, r);
     }
+
+    // Ule l l => true
+    if (l == r) {
+        return ConstantExpr::create(1, Expr::Bool);
+    }
+
+    // Patterns only reliable for widths that fit in uint64_t.
+    if (t <= 64) {
+        uint64_t maxVal = bitmask<uint64_t>(t); // UINT_t_MAX
+
+        // Pattern: Ule C (Add C (ZExt x)) => true when C + max(ZExt) doesn't overflow.
+        // Rationale: ZExt is non-negative, so the minimum of (Add C ZExt) is C (when
+        // ZExt == 0), making C <= C + ZExt trivially true as long as there is no wraparound.
+        if (const ConstantExpr *cl = dyn_cast<ConstantExpr>(l)) {
+            if (const AddExpr *addR = dyn_cast<AddExpr>(r)) {
+                if (const ConstantExpr *addConst = dyn_cast<ConstantExpr>(addR->getLeft())) {
+                    if (addConst->getAPValue() == cl->getAPValue()) {
+                        uint64_t clVal = cl->getZExtValue();
+                        uint64_t maxAdd = get_unsigned_upper_bound(addR->getRight());
+                        // No overflow: clVal + maxAdd <= maxVal
+                        if (maxAdd != UINT64_MAX && clVal <= maxVal - maxAdd) {
+                            return ConstantExpr::create(1, Expr::Bool);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Pattern: Ule (Add C (ZExt inner)) D => true when C + max(inner) <= D.
+        if (const ConstantExpr *cr = dyn_cast<ConstantExpr>(r)) {
+            if (const AddExpr *addL = dyn_cast<AddExpr>(l)) {
+                if (const ConstantExpr *addConst = dyn_cast<ConstantExpr>(addL->getLeft())) {
+                    uint64_t cVal = addConst->getZExtValue();
+                    uint64_t maxRhs = get_unsigned_upper_bound(addL->getRight());
+                    uint64_t dVal = cr->getZExtValue();
+                    // C + max(rhs) <= D, with overflow guard.
+                    if (maxRhs != UINT64_MAX && cVal <= maxVal - maxRhs && cVal + maxRhs <= dVal) {
+                        return ConstantExpr::create(1, Expr::Bool);
+                    }
+                }
+            }
+        }
+    }
+
+    return UleExpr::alloc(l, r);
 }
 
 static ref<Expr> SltExpr_create(const ref<Expr> &l, const ref<Expr> &r) {
     if (l->getWidth() == Expr::Bool) { // l && !r
         return AndExpr::create(l, Expr::createIsZero(r));
-    } else {
-        return SltExpr::alloc(l, r);
     }
+    // Slt l l => false
+    if (l == r) {
+        return ConstantExpr::create(0, Expr::Bool);
+    }
+    return SltExpr::alloc(l, r);
 }
 
 static ref<Expr> SleExpr_create(const ref<Expr> &l, const ref<Expr> &r) {
     if (l->getWidth() == Expr::Bool) { // !(!l && r)
         return OrExpr::create(l, Expr::createIsZero(r));
-    } else {
-        return SleExpr::alloc(l, r);
     }
+    // Sle l l => true
+    if (l == r) {
+        return ConstantExpr::create(1, Expr::Bool);
+    }
+    return SleExpr::alloc(l, r);
 }
 
 CMPCREATE_T(EqExpr, Eq, EqExpr, EqExpr_createPartial, EqExpr_createPartialR)

@@ -393,4 +393,71 @@ TEST(ExprTest, ZExtRoundtripChain) {
     EXPECT_EQ(x32, reExtended->getKid(0));
 }
 
+///
+/// \brief Check that Ule/Ult/Sle/Slt of identical symbolic expressions simplify.
+///
+/// Ule x x => true, Ult x x => false, Sle x x => true, Slt x x => false.
+///
+TEST(ExprTest, CompareIdentical) {
+    auto loads = GenerateLoads({"cmp32"}, Expr::Int32);
+    ref<Expr> x = loads[0];
+
+    ref<Expr> t = ConstantExpr::create(1, Expr::Bool);
+    ref<Expr> f = ConstantExpr::create(0, Expr::Bool);
+
+    EXPECT_EQ(t, UleExpr::create(x, x));
+    EXPECT_EQ(f, UltExpr::create(x, x));
+    EXPECT_EQ(t, SleExpr::create(x, x));
+    EXPECT_EQ(f, SltExpr::create(x, x));
+}
+
+///
+/// \brief Check that Ule C (Add C (ZExt x)) simplifies to true when no overflow is possible.
+///
+/// C <= C + ZExt(x) is trivially true because ZExt(x) >= 0 and C + max(ZExt) fits in the width.
+///
+TEST(ExprTest, UleSelfPlusZExt) {
+    auto loads = GenerateLoads({"z32"}, Expr::Int32);
+    ref<Expr> x32 = loads[0];
+
+    auto zext = ZExtExpr::create(x32, Expr::Int64);
+    auto c = ConstantExpr::create(0x7f5855589c50ULL, Expr::Int64);
+    // Add normalises constant to the left: Add(C, ZExt)
+    auto add = AddExpr::create(c, zext);
+    auto ule = UleExpr::create(c, add);
+    EXPECT_EQ(ref<Expr>(ConstantExpr::create(1, Expr::Bool)), ule);
+
+    // Overflow check: if C is large enough that C + UINT32_MAX would overflow, do NOT simplify.
+    auto cBig = ConstantExpr::create(UINT64_MAX - 5, Expr::Int64);
+    auto addBig = AddExpr::create(cBig, zext);
+    auto uleBig = UleExpr::create(cBig, addBig);
+    EXPECT_NE(ref<Expr>(ConstantExpr::create(1, Expr::Bool)), uleBig);
+}
+
+///
+/// \brief Check that Ule (Add C (ZExt (And x mask))) D simplifies to true
+///        when C + mask <= D.
+///
+TEST(ExprTest, UleAddZExtAndMask) {
+    auto loads = GenerateLoads({"m32"}, Expr::Int32);
+    ref<Expr> x32 = loads[0];
+
+    // N0 = ZExt w64 (And w32 x 0xFF) — max value is 0xFF
+    auto mask = ConstantExpr::create(0xFF, Expr::Int32);
+    auto inner = AndExpr::create(x32, mask);
+    auto zext = ZExtExpr::create(inner, Expr::Int64);
+
+    // C + 0xFF == D  => always true
+    auto c = ConstantExpr::create(0x7f5855589c51ULL, Expr::Int64);
+    auto d = ConstantExpr::create(0x7f5855589d50ULL, Expr::Int64); // c + 0xFF
+    auto add = AddExpr::create(c, zext);
+    auto ule = UleExpr::create(add, d);
+    EXPECT_EQ(ref<Expr>(ConstantExpr::create(1, Expr::Bool)), ule);
+
+    // C + 0xFF > D  => NOT simplified to true
+    auto dSmall = ConstantExpr::create(0x7f5855589d4fULL, Expr::Int64); // c + 0xFF - 1
+    auto uleSmall = UleExpr::create(add, dSmall);
+    EXPECT_NE(ref<Expr>(ConstantExpr::create(1, Expr::Bool)), uleSmall);
+}
+
 } // namespace
