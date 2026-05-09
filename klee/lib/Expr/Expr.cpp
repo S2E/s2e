@@ -855,6 +855,22 @@ ref<Expr> ZExtExpr::create(const ref<Expr> &e, Width w) {
             return ZExtExpr::alloc(e, w);
         }
     } else {
+        // ZExt wN (Extract wM 0 (And wN X mask)) where mask == 2^M-1 => And wN X mask
+        // The And already zeros all bits above M, so the Extract+ZExt roundtrip is redundant.
+        if (const ExtractExpr *ext = dyn_cast<ExtractExpr>(e)) {
+            if (ext->getOffset() == 0) {
+                if (const AndExpr *andx = dyn_cast<AndExpr>(ext->getExpr())) {
+                    if (andx->getWidth() == w) {
+                        if (const ConstantExpr *mask = dyn_cast<ConstantExpr>(andx->getKid(1))) {
+                            if (kBits <= 64 && mask->getWidth() <= 64 &&
+                                mask->getZExtValue() == bitmask<uint64_t>(kBits)) {
+                                return ext->getExpr();
+                            }
+                        }
+                    }
+                }
+            }
+        }
         __LIFT_CONST_SELECT_1(e, w);
         return ZExtExpr::alloc(e, w);
     }
@@ -1018,6 +1034,13 @@ static ref<Expr> AndExpr_createPartial(Expr *l, const ref<ConstantExpr> &cr) {
         if (c2) {
             return AndExpr::create(a, AndExpr::create(c1, c2));
         }
+    } else if (const ZExtExpr *ze = dyn_cast<ZExtExpr>(l)) {
+        // And wN (ZExt wN X_M) mask where mask == 2^M-1 => ZExt wN X_M
+        // ZExt already zeros bits above M, so masking by the inner width is redundant.
+        auto innerW = ze->getKid(0)->getWidth();
+        if (innerW <= 64 && cr->getWidth() <= 64 && cr->getZExtValue() == bitmask<uint64_t>(innerW)) {
+            return l;
+        }
     }
 
     return AndExpr::alloc(l, cr);
@@ -1030,6 +1053,16 @@ static ref<Expr> AndExpr_createPartialR(const ref<ConstantExpr> &cl, Expr *r) {
 static ref<Expr> AndExpr_create(Expr *l, Expr *r) {
     if (l->isNegationOf(r))
         return ConstantExpr::create(0, Expr::Bool);
+    // And wN (ZExt wN X_M) (ZExt wN Y_M) => ZExt wN (And wM X_M Y_M)
+    if (const ZExtExpr *lz = dyn_cast<ZExtExpr>(l)) {
+        if (const ZExtExpr *rz = dyn_cast<ZExtExpr>(r)) {
+            ref<Expr> lx = lz->getKid(0);
+            ref<Expr> rx = rz->getKid(0);
+            if (lx->getWidth() == rx->getWidth()) {
+                return ZExtExpr::create(AndExpr::create(lx, rx), l->getWidth());
+            }
+        }
+    }
     if (OrExpr *ae = dyn_cast<OrExpr>(l)) {
         // (!r || b) && r == b && r
         if (ae->getLeft()->isNegationOf(r))
@@ -1071,6 +1104,16 @@ static ref<Expr> OrExpr_createPartialR(const ref<ConstantExpr> &cl, Expr *r) {
 static ref<Expr> OrExpr_create(Expr *l, Expr *r) {
     if (l->isNegationOf(r))
         return ConstantExpr::create(1, Expr::Bool);
+    // Or wN (ZExt wN X_M) (ZExt wN Y_M) => ZExt wN (Or wM X_M Y_M)
+    if (const ZExtExpr *lz = dyn_cast<ZExtExpr>(l)) {
+        if (const ZExtExpr *rz = dyn_cast<ZExtExpr>(r)) {
+            ref<Expr> lx = lz->getKid(0);
+            ref<Expr> rx = rz->getKid(0);
+            if (lx->getWidth() == rx->getWidth()) {
+                return ZExtExpr::create(OrExpr::create(lx, rx), l->getWidth());
+            }
+        }
+    }
     /*
   if (EqExpr *e = dyn_cast<EqExpr>(l)) {
     if (e->getLeft()->isZero() && *r == *e->getRight()) {
@@ -1118,6 +1161,16 @@ static ref<Expr> XorExpr_create(Expr *l, Expr *r) {
         return ConstantExpr::alloc(0, l->getWidth());
     if (l->isNegationOf(r))
         return ConstantExpr::alloc(1, Expr::Bool);
+    // Xor wN (ZExt wN X_M) (ZExt wN Y_M) => ZExt wN (Xor wM X_M Y_M)
+    if (const ZExtExpr *lz = dyn_cast<ZExtExpr>(l)) {
+        if (const ZExtExpr *rz = dyn_cast<ZExtExpr>(r)) {
+            ref<Expr> lx = lz->getKid(0);
+            ref<Expr> rx = rz->getKid(0);
+            if (lx->getWidth() == rx->getWidth()) {
+                return ZExtExpr::create(XorExpr::create(lx, rx), l->getWidth());
+            }
+        }
+    }
     return XorExpr::alloc(l, r);
 }
 
