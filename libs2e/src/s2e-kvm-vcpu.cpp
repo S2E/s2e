@@ -253,7 +253,6 @@ void VCPU::coroutineFcn(void *opaque) {
         env->kvm_request_interrupt_window |= buffer->request_interrupt_window;
 
         vcpu->m_cpuStateIsPrecise = false;
-        env->exit_request = 0;
         cpu_x86_exec(env);
         vcpu->m_cpuStateIsPrecise = true;
 

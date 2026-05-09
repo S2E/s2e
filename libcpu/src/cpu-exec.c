@@ -430,8 +430,6 @@ static bool execution_loop(CPUArchState *env) {
             cpu_loop_exit(env);
         }
 
-        env->exit_request = 0;
-
 #if defined(DEBUG_DISAS) || defined(CONFIG_DEBUG_EXEC)
         if (libcpu_loglevel_mask(CPU_LOG_TB_CPU)) {
 #if defined(TARGET_I386)
