@@ -270,12 +270,14 @@ bool WindowsCrashDumpGenerator::writeHeader(HEADER *Header, const CONTEXT *conte
 }
 
 bool WindowsCrashDumpGenerator::generate(const BugCheckDescription &bugDesc, void *context, unsigned contextSize) {
-    uint8_t buffer[0x2000];
+    uint8_t buffer[0x2000] = {0};
 
     if (bugDesc.headerSize <= sizeof(buffer)) {
         if (!m_virtualMemory->readb(buffer, bugDesc.headerSize, bugDesc.guestHeader)) {
             return false;
         }
+    } else {
+        return false;
     }
 
     if (bugDesc.headerSize == 0x2000) {

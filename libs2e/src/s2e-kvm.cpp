@@ -174,9 +174,6 @@ IFilePtr S2EKVM::create() {
 void S2EKVM::cleanup(void) {
     g_s2e_kvm->m_exiting = true;
 
-    while (!g_s2e_kvm->m_timerExited) {
-    }
-
 #ifdef CONFIG_SYMBEX
     if (g_s2e) {
         monitor_close();
@@ -328,6 +325,16 @@ int S2EKVM::checkExtension(int capability) {
         case KVM_CAP_MAX_VCPUS:
         case KVM_CAP_XSAVE:
         case KVM_CAP_DEBUGREGS:
+        case KVM_CAP_IOEVENTFD:
+        case KVM_CAP_IOEVENTFD_ANY_LENGTH:
+        case KVM_CAP_SPLIT_IRQCHIP:
+        case KVM_CAP_SET_IDENTITY_MAP_ADDR:
+        case KVM_CAP_VCPU_EVENTS:
+        case KVM_CAP_IRQFD:
+        case KVM_CAP_IRQCHIP:
+        case KVM_CAP_INTERNAL_ERROR_DATA:   // TODO
+        case KVM_CAP_SIGNAL_MSI:            // TODO
+        case KVM_CAP_X86_ROBUST_SINGLESTEP: // TODO
 
         // We don't really need to support this call, just pretend that we do.
         // The real exit will be done through our custom KVM_CAP_FORCE_EXIT.
@@ -338,6 +345,12 @@ int S2EKVM::checkExtension(int capability) {
         case KVM_CAP_MEM_RW:
         case KVM_CAP_FORCE_EXIT:
             return 1;
+
+        case KVM_CAP_MCE:
+            return 10;
+
+        case KVM_CAP_IRQ_ROUTING:
+            return 4096; // KVM_MAX_IRQ_ROUTES
 
 #ifdef CONFIG_SYMBEX
         case KVM_CAP_MEM_FIXED_REGION:
@@ -384,10 +397,6 @@ int S2EKVM::createVM() {
     }
 
     m_vm = vm;
-
-    if (initTimerThread() < 0) {
-        exit(-1);
-    }
 
     return g_fdm->registerInterface(vm);
 }
@@ -456,73 +465,13 @@ int S2EKVM::getSupportedCPUID(struct kvm_cpuid2 *cpuid) {
         }
         e->function = s_cpuid_entries[i][0];
 
-#ifdef SE_KVM_DEBUG_CPUID
-        print_cpuid2(e);
-#endif
+        libcpu_log_mask(CPU_LOG_KVM,
+                        "cpuid function=%#010" PRIx32 " index=%#010" PRIx32 " flags=%#010" PRIx32 " eax=%#010" PRIx32
+                        " ebx=%#010" PRIx32 " ecx=%#010" PRIx32 " edx=%#010" PRIx32 "\n",
+                        e->function, e->index, e->flags, e->eax, e->ebx, e->ecx, e->edx);
     }
 
     return 0;
-}
-
-void S2EKVM::sendCpuExitSignal() {
-    assert(m_vm);
-    m_vm->sendCpuExitSignal();
-}
-
-void *S2EKVM::timerCb(void *param) {
-    auto obj = reinterpret_cast<S2EKVM *>(param);
-
-    while (!obj->m_exiting) {
-        usleep(100 * 1000);
-
-        // Send a signal to exit CPU loop only when no slow KLEE code
-        // is running. Otherwise, there are too many exits and little
-        // progress in the guest.
-        if (timers_state.cpu_clock_scale_factor == 1) {
-            // Required for shutdown, otherwise kvm clients may get stuck
-            // Also required to give a chance timers to run
-
-            obj->sendCpuExitSignal();
-        }
-    }
-
-    obj->m_timerExited = true;
-    return nullptr;
-}
-
-int S2EKVM::initTimerThread(void) {
-    int ret;
-    pthread_attr_t attr;
-    sigset_t signals;
-
-    ret = pthread_attr_init(&attr);
-    if (ret < 0) {
-        fprintf(stderr, "Could not init thread attributes\n");
-        goto err1;
-    }
-
-    ret = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-    if (ret < 0) {
-        fprintf(stderr, "Could not set detached state for thread\n");
-        goto err1;
-    }
-
-    ret = pthread_create(&m_timerThread, &attr, timerCb, this);
-    if (ret < 0) {
-        fprintf(stderr, "could not create timer thread\n");
-        goto err1;
-    }
-
-    sigfillset(&signals);
-    if (pthread_sigmask(SIG_BLOCK, &signals, NULL) < 0) {
-        fprintf(stderr, "could not block signals on the timer thread\n");
-        goto err1;
-    }
-
-    pthread_attr_destroy(&attr);
-
-err1:
-    return ret;
 }
 
 int S2EKVM::sys_ioctl(int fd, int request, uint64_t arg1) {
@@ -566,6 +515,10 @@ int S2EKVM::sys_ioctl(int fd, int request, uint64_t arg1) {
             ret = 0;
         } break;
 #endif
+
+        case KVM_X86_GET_MCE_CAP_SUPPORTED: {
+            ret = 0; // MSR_IA32_MCG_CAP is not supported, so no MCE support.
+        } break;
 
         default: {
             fprintf(stderr, "libs2e: unknown KVM IOCTL %x\n", request);

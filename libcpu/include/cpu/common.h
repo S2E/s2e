@@ -71,6 +71,8 @@ typedef struct CPUWatchpoint {
     long temp_buf[CPU_TEMP_BUF_NLONGS];                                                               \
     /* Used to handle self-modifying code */                                                          \
     unsigned restored_instruction_size;                                                               \
+    /* Set when the LLVM interpreter should exit the current TB (e.g., self-modifying code) */        \
+    uint32_t se_tb_abort;                                                                             \
                                                                                                       \
     /* from this point: preserved by CPU reset */                                                     \
     /* ice debug support */                                                                           \

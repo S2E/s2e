@@ -53,9 +53,7 @@ private:
     static const char *s_cpuModel;
     static const bool s_is64;
 
-    pthread_t m_timerThread;
     bool m_exiting = false;
-    volatile bool m_timerExited = false;
     cpuid_t m_cpuid;
 
     std::shared_ptr<VM> m_vm;
@@ -64,15 +62,12 @@ private:
     static std::string getBitcodeLibrary(const std::string &dir);
 #endif
 
-    static void *timerCb(void *param);
     void init(void);
     void initLogLevel(void);
 
     S2EKVM() = default;
 
     static void cleanup();
-
-    void sendCpuExitSignal();
 
     int getApiVersion(void);
     int createVM();
@@ -89,7 +84,6 @@ public:
     virtual int sys_ioctl(int fd, int request, uint64_t arg1);
 
     int checkExtension(int capability);
-    int initTimerThread(void);
 
     bool exiting() const {
         return m_exiting;

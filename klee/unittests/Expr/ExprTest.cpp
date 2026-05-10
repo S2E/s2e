@@ -60,6 +60,9 @@ static ref<Expr> ReadUnalignedWord(const ObjectStatePtr &os, unsigned addr, unsi
     unsigned addr2 = addr1 + dataSize;
     unsigned shift = (addr & (dataSize - 1)) * 8;
     ref<Expr> res1 = os->read(addr1, dataSize * 8);
+    if (shift == 0) {
+        return res1;
+    }
     ref<Expr> res2 = os->read(addr2, dataSize * 8);
 
     // clang-format off
@@ -247,4 +250,214 @@ TEST(ExprTest, ExtractConcat) {
     EXPECT_EQ(Expr::Extract, concat2->getKid(0)->getKind());
     EXPECT_EQ(Expr::Extract, concat2->getKid(1)->getKind());
 }
+
+///
+/// \brief Check that ZExt(Extract(And(X, mask), 0, M)) simplifies to And(X, mask).
+///
+/// This pattern is common when 32-bit arithmetic is emulated in 64-bit registers:
+/// a 64-bit value is masked to 32 bits, extracted to w32, then zero-extended back
+/// to w64 — which is redundant since the And already zeroes the upper bits.
+///
+TEST(ExprTest, ZExtExtractAndMaskSimplification) {
+    // Use a 64-bit symbolic expression that is not a ZExt itself
+    auto loads = GenerateLoads({"x64"}, Expr::Int64);
+    ref<Expr> x64 = loads[0];
+
+    // Build And w64 X 0xffffffff
+    ref<Expr> mask = ConstantExpr::create(0xffffffff, Expr::Int64);
+    ref<Expr> andExpr = AndExpr::create(x64, mask);
+
+    // ZExt w64 (Extract w32 0 (And w64 X 0xffffffff)) should simplify to andExpr
+    ref<Expr> extract = ExtractExpr::create(andExpr, 0, Expr::Int32);
+    ref<Expr> zext = ZExtExpr::create(extract, Expr::Int64);
+    EXPECT_EQ(andExpr, zext);
+
+    // Also test with a 16-bit mask (w16 inner, w32 outer)
+    auto loads32 = GenerateLoads({"x32"}, Expr::Int32);
+    ref<Expr> x32 = loads32[0];
+    ref<Expr> mask16 = ConstantExpr::create(0xffff, Expr::Int32);
+    ref<Expr> andExpr16 = AndExpr::create(x32, mask16);
+    ref<Expr> extract16 = ExtractExpr::create(andExpr16, 0, Expr::Int16);
+    ref<Expr> zext16 = ZExtExpr::create(extract16, Expr::Int32);
+    EXPECT_EQ(andExpr16, zext16);
+}
+
+///
+/// \brief Check that And(ZExt wN X_M, mask) simplifies to ZExt wN X_M when mask == 2^M-1.
+///
+/// ZExt already zeros the upper bits, so masking to the inner width is redundant.
+///
+TEST(ExprTest, AndZExtMaskRedundant) {
+    auto loads = GenerateLoads({"a32", "b32"}, Expr::Int32);
+    ref<Expr> x32 = loads[0];
+
+    // ZExt w64 X_32
+    ref<Expr> zext = ZExtExpr::create(x32, Expr::Int64);
+
+    // And w64 (ZExt w64 X_32) 0xffffffff => ZExt w64 X_32
+    ref<Expr> masked = AndExpr::create(zext, ConstantExpr::create(0xffffffff, Expr::Int64));
+    EXPECT_EQ(zext, masked);
+
+    // Same check with 16-bit inner width
+    auto loads16 = GenerateLoads({"c16"}, Expr::Int16);
+    ref<Expr> x16 = loads16[0];
+    ref<Expr> zext32 = ZExtExpr::create(x16, Expr::Int32);
+    ref<Expr> masked16 = AndExpr::create(zext32, ConstantExpr::create(0xffff, Expr::Int32));
+    EXPECT_EQ(zext32, masked16);
+}
+
+///
+/// \brief Check that And/Or/Xor of two ZExt expressions is pushed inside the ZExt.
+///
+/// And wN (ZExt wN X_M) (ZExt wN Y_M) => ZExt wN (And wM X_M Y_M)
+/// Or  wN (ZExt wN X_M) (ZExt wN Y_M) => ZExt wN (Or  wM X_M Y_M)
+/// Xor wN (ZExt wN X_M) (ZExt wN Y_M) => ZExt wN (Xor wM X_M Y_M)
+///
+/// Since the rule creates new expression nodes, we verify the result structure
+/// using getKind() and pointer equality on the leaf operands (x32, y32).
+///
+TEST(ExprTest, BinaryOpZExtPushdown) {
+    auto loads = GenerateLoads({"p32", "q32"}, Expr::Int32);
+    ref<Expr> x32 = loads[0];
+    ref<Expr> y32 = loads[1];
+
+    ref<Expr> zx = ZExtExpr::create(x32, Expr::Int64);
+    ref<Expr> zy = ZExtExpr::create(y32, Expr::Int64);
+
+    // And wN (ZExt X) (ZExt Y) => ZExt wN (And wM X Y)
+    ref<Expr> andResult = AndExpr::create(zx, zy);
+    ASSERT_EQ(Expr::ZExt, andResult->getKind());
+    EXPECT_EQ(Expr::Int64, andResult->getWidth());
+    ASSERT_EQ(Expr::And, andResult->getKid(0)->getKind());
+    EXPECT_EQ(x32, andResult->getKid(0)->getKid(0));
+    EXPECT_EQ(y32, andResult->getKid(0)->getKid(1));
+
+    // Or wN (ZExt X) (ZExt Y) => ZExt wN (Or wM X Y)
+    ref<Expr> orResult = OrExpr::create(zx, zy);
+    ASSERT_EQ(Expr::ZExt, orResult->getKind());
+    EXPECT_EQ(Expr::Int64, orResult->getWidth());
+    ASSERT_EQ(Expr::Or, orResult->getKid(0)->getKind());
+    EXPECT_EQ(x32, orResult->getKid(0)->getKid(0));
+    EXPECT_EQ(y32, orResult->getKid(0)->getKid(1));
+
+    // Xor wN (ZExt X) (ZExt Y) => ZExt wN (Xor wM X Y)
+    ref<Expr> xorResult = XorExpr::create(zx, zy);
+    ASSERT_EQ(Expr::ZExt, xorResult->getKind());
+    EXPECT_EQ(Expr::Int64, xorResult->getWidth());
+    ASSERT_EQ(Expr::Xor, xorResult->getKid(0)->getKind());
+    EXPECT_EQ(x32, xorResult->getKid(0)->getKid(0));
+    EXPECT_EQ(y32, xorResult->getKid(0)->getKid(1));
+
+    // Also verify with 16->32 bit extension
+    auto loads16 = GenerateLoads({"r16", "s16"}, Expr::Int16);
+    ref<Expr> r16 = loads16[0];
+    ref<Expr> s16 = loads16[1];
+    ref<Expr> zr = ZExtExpr::create(r16, Expr::Int32);
+    ref<Expr> zs = ZExtExpr::create(s16, Expr::Int32);
+
+    ref<Expr> andResult16 = AndExpr::create(zr, zs);
+    ASSERT_EQ(Expr::ZExt, andResult16->getKind());
+    EXPECT_EQ(Expr::Int32, andResult16->getWidth());
+    ASSERT_EQ(Expr::And, andResult16->getKid(0)->getKind());
+    EXPECT_EQ(r16, andResult16->getKid(0)->getKid(0));
+    EXPECT_EQ(s16, andResult16->getKid(0)->getKid(1));
+}
+
+///
+/// \brief Check the chained simplification that models 32-bit ops in 64-bit registers.
+///
+/// The pattern ZExt w64 (Extract w32 0 (And w64 (ZExt w64 X_32) 0xffffffff))
+/// should fully collapse through chained rules:
+///   1. And(ZExt X, 0xffffffff) => ZExt X      (redundant mask, pointer equality)
+///   2. Extract w32 0 (ZExt w64 X_32) => X_32  (existing rule, pointer equality)
+///   3. ZExt w64 X_32                           (verify structure)
+///
+TEST(ExprTest, ZExtRoundtripChain) {
+    auto loads = GenerateLoads({"chain32"}, Expr::Int32);
+    ref<Expr> x32 = loads[0];
+
+    ref<Expr> zext64 = ZExtExpr::create(x32, Expr::Int64);
+
+    // Step 1: And(ZExt X, mask) => ZExt X (returns the same ZExt pointer)
+    ref<Expr> andMasked = AndExpr::create(zext64, ConstantExpr::create(0xffffffff, Expr::Int64));
+    EXPECT_EQ(zext64, andMasked);
+
+    // Step 2: Extract w32 0 (ZExt w64 X_32) => X_32 (returns the original x32 pointer)
+    ref<Expr> extracted = ExtractExpr::create(andMasked, 0, Expr::Int32);
+    EXPECT_EQ(x32, extracted);
+
+    // Step 3: ZExt w64 X_32 — re-extension produces a new ZExt node wrapping x32
+    ref<Expr> reExtended = ZExtExpr::create(extracted, Expr::Int64);
+    ASSERT_EQ(Expr::ZExt, reExtended->getKind());
+    EXPECT_EQ(Expr::Int64, reExtended->getWidth());
+    EXPECT_EQ(x32, reExtended->getKid(0));
+}
+
+///
+/// \brief Check that Ule/Ult/Sle/Slt of identical symbolic expressions simplify.
+///
+/// Ule x x => true, Ult x x => false, Sle x x => true, Slt x x => false.
+///
+TEST(ExprTest, CompareIdentical) {
+    auto loads = GenerateLoads({"cmp32"}, Expr::Int32);
+    ref<Expr> x = loads[0];
+
+    ref<Expr> t = ConstantExpr::create(1, Expr::Bool);
+    ref<Expr> f = ConstantExpr::create(0, Expr::Bool);
+
+    EXPECT_EQ(t, UleExpr::create(x, x));
+    EXPECT_EQ(f, UltExpr::create(x, x));
+    EXPECT_EQ(t, SleExpr::create(x, x));
+    EXPECT_EQ(f, SltExpr::create(x, x));
+}
+
+///
+/// \brief Check that Ule C (Add C (ZExt x)) simplifies to true when no overflow is possible.
+///
+/// C <= C + ZExt(x) is trivially true because ZExt(x) >= 0 and C + max(ZExt) fits in the width.
+///
+TEST(ExprTest, UleSelfPlusZExt) {
+    auto loads = GenerateLoads({"z32"}, Expr::Int32);
+    ref<Expr> x32 = loads[0];
+
+    auto zext = ZExtExpr::create(x32, Expr::Int64);
+    auto c = ConstantExpr::create(0x7f5855589c50ULL, Expr::Int64);
+    // Add normalises constant to the left: Add(C, ZExt)
+    auto add = AddExpr::create(c, zext);
+    auto ule = UleExpr::create(c, add);
+    EXPECT_EQ(ref<Expr>(ConstantExpr::create(1, Expr::Bool)), ule);
+
+    // Overflow check: if C is large enough that C + UINT32_MAX would overflow, do NOT simplify.
+    auto cBig = ConstantExpr::create(UINT64_MAX - 5, Expr::Int64);
+    auto addBig = AddExpr::create(cBig, zext);
+    auto uleBig = UleExpr::create(cBig, addBig);
+    EXPECT_NE(ref<Expr>(ConstantExpr::create(1, Expr::Bool)), uleBig);
+}
+
+///
+/// \brief Check that Ule (Add C (ZExt (And x mask))) D simplifies to true
+///        when C + mask <= D.
+///
+TEST(ExprTest, UleAddZExtAndMask) {
+    auto loads = GenerateLoads({"m32"}, Expr::Int32);
+    ref<Expr> x32 = loads[0];
+
+    // N0 = ZExt w64 (And w32 x 0xFF) — max value is 0xFF
+    auto mask = ConstantExpr::create(0xFF, Expr::Int32);
+    auto inner = AndExpr::create(x32, mask);
+    auto zext = ZExtExpr::create(inner, Expr::Int64);
+
+    // C + 0xFF == D  => always true
+    auto c = ConstantExpr::create(0x7f5855589c51ULL, Expr::Int64);
+    auto d = ConstantExpr::create(0x7f5855589d50ULL, Expr::Int64); // c + 0xFF
+    auto add = AddExpr::create(c, zext);
+    auto ule = UleExpr::create(add, d);
+    EXPECT_EQ(ref<Expr>(ConstantExpr::create(1, Expr::Bool)), ule);
+
+    // C + 0xFF > D  => NOT simplified to true
+    auto dSmall = ConstantExpr::create(0x7f5855589d4fULL, Expr::Int64); // c + 0xFF - 1
+    auto uleSmall = UleExpr::create(add, dSmall);
+    EXPECT_NE(ref<Expr>(ConstantExpr::create(1, Expr::Bool)), uleSmall);
+}
+
 } // namespace

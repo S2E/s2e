@@ -43,6 +43,8 @@ typedef int (*fprintf_function)(FILE *f, const char *fmt, ...);
 #define CPU_LOG_RESET      (1 << 9)
 #define CPU_LOG_LLVM_IR    (1 << 10)
 #define CPU_LOG_LLVM_ASM   (1 << 11)
+#define CPU_LOG_KVM        (1 << 12)
+#define CPU_LOG_KVM_IO     (1 << 13)
 
 /* Log settings checking macros: */
 

@@ -1,0 +1,11 @@
+test:
+    description: "Checks that basic symbolic execution works by forking 256 paths"
+
+    target_arguments:
+        - ["@@"]
+
+    targets:
+        - windows64-basic12-256paths.exe
+        - windows32-basic12-256paths.exe
+        - linux32-basic12-256paths
+        - linux64-basic12-256paths

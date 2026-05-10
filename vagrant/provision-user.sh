@@ -20,31 +20,50 @@
 # SOFTWARE.
 
 set -xe
-cd /mnt/disk
+
+ROOTDIR=/mnt/disk
+
+REPO_BRANCH=master
+# SCRIPTS_BRANCH=qemu-10.2
+# S2EENV_BRANCH=qemu-10.2
+# LIBS2E_BRANCH=issue/qemu-10.2-tmp
+# QEMU_BRANCH=stable-10.2-se
+
+cd "$ROOTDIR"
 
 if [ ! -d s2e-env ]; then
     git clone https://github.com/s2e/s2e-env.git
 fi
 
-cd s2e-env
+cd "$ROOTDIR/s2e-env"
 
-# Checkout custom s2e-env branch here
-# git checkout issue/xxx-debian
+if [ "x$S2EENV_BRANCH" != "x" ]; then
+    git checkout "$S2EENV_BRANCH"
+fi
 
 python3 -m venv venv
 . venv/bin/activate
 pip install --upgrade pip wheel
-
 pip install .
-
 . venv/bin/activate
 
-cd /mnt/disk
-s2e init env
-cd env/source/s2e
+cd "$ROOTDIR"
+s2e init -mb "$REPO_BRANCH" env
 
-# Checkout custom s2e branch here
-# git checkout issue/xxx-debian
+if [ "x$LIBS2E_BRANCH" != "x" ]; then
+    cd "$ROOTDIR/env/source/s2e"
+    git checkout "$LIBS2E_BRANCH"
+fi
 
-cd /mnt/disk/env
+if [ "x$SCRIPTS_BRANCH" != "x" ]; then
+    cd "$ROOTDIR/env/source/scripts"
+    git checkout "$SCRIPTS_BRANCH"
+fi
+
+if [ "x$QEMU_BRANCH" != "x" ]; then
+    cd "$ROOTDIR/env/source/qemu"
+    git checkout "$QEMU_BRANCH"
+fi
+
+cd "$ROOTDIR/env"
 s2e build

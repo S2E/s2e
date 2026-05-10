@@ -33,6 +33,14 @@ cl::opt<bool> ConstArrayOpt("const-array-opt", cl::init(true),
 
 /***/
 
+const Expr::Width Expr::InvalidWidth;
+const Expr::Width Expr::Bool;
+const Expr::Width Expr::Int8;
+const Expr::Width Expr::Int16;
+const Expr::Width Expr::Int32;
+const Expr::Width Expr::Int64;
+const Expr::Width Expr::Int128;
+
 ///
 /// \brief Simplify the pattern that results from an unaligned read to memory.
 ///
@@ -847,6 +855,22 @@ ref<Expr> ZExtExpr::create(const ref<Expr> &e, Width w) {
             return ZExtExpr::alloc(e, w);
         }
     } else {
+        // ZExt wN (Extract wM 0 (And wN X mask)) where mask == 2^M-1 => And wN X mask
+        // The And already zeros all bits above M, so the Extract+ZExt roundtrip is redundant.
+        if (const ExtractExpr *ext = dyn_cast<ExtractExpr>(e)) {
+            if (ext->getOffset() == 0) {
+                if (const AndExpr *andx = dyn_cast<AndExpr>(ext->getExpr())) {
+                    if (andx->getWidth() == w) {
+                        if (const ConstantExpr *mask = dyn_cast<ConstantExpr>(andx->getKid(1))) {
+                            if (kBits <= 64 && mask->getWidth() <= 64 &&
+                                mask->getZExtValue() == bitmask<uint64_t>(kBits)) {
+                                return ext->getExpr();
+                            }
+                        }
+                    }
+                }
+            }
+        }
         __LIFT_CONST_SELECT_1(e, w);
         return ZExtExpr::alloc(e, w);
     }
@@ -1010,6 +1034,13 @@ static ref<Expr> AndExpr_createPartial(Expr *l, const ref<ConstantExpr> &cr) {
         if (c2) {
             return AndExpr::create(a, AndExpr::create(c1, c2));
         }
+    } else if (const ZExtExpr *ze = dyn_cast<ZExtExpr>(l)) {
+        // And wN (ZExt wN X_M) mask where mask == 2^M-1 => ZExt wN X_M
+        // ZExt already zeros bits above M, so masking by the inner width is redundant.
+        auto innerW = ze->getKid(0)->getWidth();
+        if (innerW <= 64 && cr->getWidth() <= 64 && cr->getZExtValue() == bitmask<uint64_t>(innerW)) {
+            return l;
+        }
     }
 
     return AndExpr::alloc(l, cr);
@@ -1022,6 +1053,16 @@ static ref<Expr> AndExpr_createPartialR(const ref<ConstantExpr> &cl, Expr *r) {
 static ref<Expr> AndExpr_create(Expr *l, Expr *r) {
     if (l->isNegationOf(r))
         return ConstantExpr::create(0, Expr::Bool);
+    // And wN (ZExt wN X_M) (ZExt wN Y_M) => ZExt wN (And wM X_M Y_M)
+    if (const ZExtExpr *lz = dyn_cast<ZExtExpr>(l)) {
+        if (const ZExtExpr *rz = dyn_cast<ZExtExpr>(r)) {
+            ref<Expr> lx = lz->getKid(0);
+            ref<Expr> rx = rz->getKid(0);
+            if (lx->getWidth() == rx->getWidth()) {
+                return ZExtExpr::create(AndExpr::create(lx, rx), l->getWidth());
+            }
+        }
+    }
     if (OrExpr *ae = dyn_cast<OrExpr>(l)) {
         // (!r || b) && r == b && r
         if (ae->getLeft()->isNegationOf(r))
@@ -1063,6 +1104,16 @@ static ref<Expr> OrExpr_createPartialR(const ref<ConstantExpr> &cl, Expr *r) {
 static ref<Expr> OrExpr_create(Expr *l, Expr *r) {
     if (l->isNegationOf(r))
         return ConstantExpr::create(1, Expr::Bool);
+    // Or wN (ZExt wN X_M) (ZExt wN Y_M) => ZExt wN (Or wM X_M Y_M)
+    if (const ZExtExpr *lz = dyn_cast<ZExtExpr>(l)) {
+        if (const ZExtExpr *rz = dyn_cast<ZExtExpr>(r)) {
+            ref<Expr> lx = lz->getKid(0);
+            ref<Expr> rx = rz->getKid(0);
+            if (lx->getWidth() == rx->getWidth()) {
+                return ZExtExpr::create(OrExpr::create(lx, rx), l->getWidth());
+            }
+        }
+    }
     /*
   if (EqExpr *e = dyn_cast<EqExpr>(l)) {
     if (e->getLeft()->isZero() && *r == *e->getRight()) {
@@ -1110,6 +1161,16 @@ static ref<Expr> XorExpr_create(Expr *l, Expr *r) {
         return ConstantExpr::alloc(0, l->getWidth());
     if (l->isNegationOf(r))
         return ConstantExpr::alloc(1, Expr::Bool);
+    // Xor wN (ZExt wN X_M) (ZExt wN Y_M) => ZExt wN (Xor wM X_M Y_M)
+    if (const ZExtExpr *lz = dyn_cast<ZExtExpr>(l)) {
+        if (const ZExtExpr *rz = dyn_cast<ZExtExpr>(r)) {
+            ref<Expr> lx = lz->getKid(0);
+            ref<Expr> rx = rz->getKid(0);
+            if (lx->getWidth() == rx->getWidth()) {
+                return ZExtExpr::create(XorExpr::create(lx, rx), l->getWidth());
+            }
+        }
+    }
     return XorExpr::alloc(l, r);
 }
 
@@ -1394,33 +1455,119 @@ static ref<Expr> UltExpr_create(const ref<Expr> &l, const ref<Expr> &r) {
     Expr::Width t = l->getWidth();
     if (t == Expr::Bool) { // !l && r
         return AndExpr::create(Expr::createIsZero(l), r);
-    } else {
-        return UltExpr::alloc(l, r);
     }
+    // Ult l l => false
+    if (l == r) {
+        return ConstantExpr::create(0, Expr::Bool);
+    }
+    return UltExpr::alloc(l, r);
+}
+
+/// Returns the unsigned upper bound of \p e (the maximum value it can take),
+/// or UINT64_MAX if unknown. Handles constants, ZExt, and And-with-constant-mask.
+/// Recurses one level into ZExt to propagate inner And-mask bounds.
+static uint64_t get_unsigned_upper_bound(const ref<Expr> &e) {
+    if (e->getWidth() > 64) {
+        return UINT64_MAX;
+    }
+
+    if (const ConstantExpr *ce = dyn_cast<ConstantExpr>(e)) {
+        return ce->getZExtValue();
+    }
+
+    if (const ZExtExpr *ze = dyn_cast<ZExtExpr>(e)) {
+        unsigned innerW = ze->getSrc()->getWidth();
+        uint64_t widthMax = (innerW < 64) ? bitmask<uint64_t>(innerW) : UINT64_MAX;
+        // Recurse to pick up a tighter inner bound (e.g. And-mask inside ZExt).
+        uint64_t srcBound = get_unsigned_upper_bound(ze->getSrc());
+        return std::min(widthMax, srcBound);
+    }
+
+    if (const AndExpr *ae = dyn_cast<AndExpr>(e)) {
+        if (const ConstantExpr *mask = dyn_cast<ConstantExpr>(ae->getRight())) {
+            return mask->getZExtValue();
+        }
+        if (const ConstantExpr *mask = dyn_cast<ConstantExpr>(ae->getLeft())) {
+            return mask->getZExtValue();
+        }
+    }
+
+    return UINT64_MAX;
 }
 
 static ref<Expr> UleExpr_create(const ref<Expr> &l, const ref<Expr> &r) {
-    if (l->getWidth() == Expr::Bool) { // !(l && !r)
+    Expr::Width t = l->getWidth();
+
+    if (t == Expr::Bool) { // !(l && !r)
         return OrExpr::create(Expr::createIsZero(l), r);
-    } else {
-        return UleExpr::alloc(l, r);
     }
+
+    // Ule l l => true
+    if (l == r) {
+        return ConstantExpr::create(1, Expr::Bool);
+    }
+
+    // Patterns only reliable for widths that fit in uint64_t.
+    if (t <= 64) {
+        uint64_t maxVal = bitmask<uint64_t>(t); // UINT_t_MAX
+
+        // Pattern: Ule C (Add C (ZExt x)) => true when C + max(ZExt) doesn't overflow.
+        // Rationale: ZExt is non-negative, so the minimum of (Add C ZExt) is C (when
+        // ZExt == 0), making C <= C + ZExt trivially true as long as there is no wraparound.
+        if (const ConstantExpr *cl = dyn_cast<ConstantExpr>(l)) {
+            if (const AddExpr *addR = dyn_cast<AddExpr>(r)) {
+                if (const ConstantExpr *addConst = dyn_cast<ConstantExpr>(addR->getLeft())) {
+                    if (addConst->getAPValue() == cl->getAPValue()) {
+                        uint64_t clVal = cl->getZExtValue();
+                        uint64_t maxAdd = get_unsigned_upper_bound(addR->getRight());
+                        // No overflow: clVal + maxAdd <= maxVal
+                        if (maxAdd != UINT64_MAX && clVal <= maxVal - maxAdd) {
+                            return ConstantExpr::create(1, Expr::Bool);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Pattern: Ule (Add C (ZExt inner)) D => true when C + max(inner) <= D.
+        if (const ConstantExpr *cr = dyn_cast<ConstantExpr>(r)) {
+            if (const AddExpr *addL = dyn_cast<AddExpr>(l)) {
+                if (const ConstantExpr *addConst = dyn_cast<ConstantExpr>(addL->getLeft())) {
+                    uint64_t cVal = addConst->getZExtValue();
+                    uint64_t maxRhs = get_unsigned_upper_bound(addL->getRight());
+                    uint64_t dVal = cr->getZExtValue();
+                    // C + max(rhs) <= D, with overflow guard.
+                    if (maxRhs != UINT64_MAX && cVal <= maxVal - maxRhs && cVal + maxRhs <= dVal) {
+                        return ConstantExpr::create(1, Expr::Bool);
+                    }
+                }
+            }
+        }
+    }
+
+    return UleExpr::alloc(l, r);
 }
 
 static ref<Expr> SltExpr_create(const ref<Expr> &l, const ref<Expr> &r) {
     if (l->getWidth() == Expr::Bool) { // l && !r
         return AndExpr::create(l, Expr::createIsZero(r));
-    } else {
-        return SltExpr::alloc(l, r);
     }
+    // Slt l l => false
+    if (l == r) {
+        return ConstantExpr::create(0, Expr::Bool);
+    }
+    return SltExpr::alloc(l, r);
 }
 
 static ref<Expr> SleExpr_create(const ref<Expr> &l, const ref<Expr> &r) {
     if (l->getWidth() == Expr::Bool) { // !(!l && r)
         return OrExpr::create(l, Expr::createIsZero(r));
-    } else {
-        return SleExpr::alloc(l, r);
     }
+    // Sle l l => true
+    if (l == r) {
+        return ConstantExpr::create(1, Expr::Bool);
+    }
+    return SleExpr::alloc(l, r);
 }
 
 CMPCREATE_T(EqExpr, Eq, EqExpr, EqExpr_createPartial, EqExpr_createPartialR)

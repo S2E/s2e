@@ -45,14 +45,17 @@ void test_selfmod1() {
 
     void *exec_mem = (char *) 0x301bd;
 
-    memset(exec_mem, 0xf4, 0x1000); // Put hlt everywhere
+    memset(exec_mem, 0xc3, 0x1000); // Put ret everywhere
     memcpy(exec_mem, code, sizeof(code));
 
 #ifdef __x86_64__
+    s2e_message("Starting self-modifying code");
     __asm__ __volatile__("mov %0, %%rax\n"
                          "mov %%rax, %%rcx\n"
                          "mov $0x5b07e8d8c90406de, %%rdx\n"
                          "callq *%%rax\n" ::"a"(exec_mem));
+
+    s2e_message("Done self-modifying code");
 
 #else
     s2e_message("test_selfmod1 not supported in 32-bits mode");

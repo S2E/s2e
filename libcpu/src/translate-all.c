@@ -112,6 +112,7 @@ static void cpu_gen_init(TCGContext *ctx) {
 
 #ifdef CONFIG_SYMBEX
     ctx->tlbe_offset_symbex_addend = offsetof(CPUTLBEntry, se_addend);
+    ctx->env_offset_se_tb_abort = offsetof(CPUArchState, se_tb_abort);
 #endif
 
     ctx->target_page_bits = TARGET_PAGE_BITS;

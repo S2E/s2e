@@ -26,6 +26,8 @@
 
 #include <cpu/kvm.h>
 #include <inttypes.h>
+#include <unordered_map>
+#include <vector>
 
 #include "FileDescriptorManager.h"
 #include "hw/manager.h"
@@ -33,6 +35,15 @@
 
 namespace s2e {
 namespace kvm {
+
+struct IoEventFdEntry {
+    uint64_t addr;
+    uint64_t datamatch;
+    uint32_t len;
+    int fd;
+    bool is_pio;
+    bool has_datamatch;
+};
 
 class VCPU;
 
@@ -42,6 +53,14 @@ private:
     std::shared_ptr<VCPU> m_cpu;
 
     VirtualDeviceManager m_dev_mgr;
+
+    std::vector<IoEventFdEntry> m_ioeventfds_pio;
+    std::vector<IoEventFdEntry> m_ioeventfds_mmio;
+
+    bool m_split_irqchip = false;
+    std::unordered_map<uint32_t, std::vector<kvm_irq_routing_entry>> m_gsi_routes;
+
+    int m_maxVcpuId = 0;
 
     VM(std::shared_ptr<S2EKVM> &kvm) : m_kvm(kvm) {
     }
@@ -83,7 +102,7 @@ private:
     ///
     int getDirtyLog(kvm_dirty_log *log);
 
-    int setIdentityMapAddress(uint64_t addr);
+    int setIdentityMapAddress(uint64_t *addr);
 
     int setClock(kvm_clock_data *clock);
     int getClock(kvm_clock_data *clock);
@@ -93,6 +112,9 @@ private:
     int diskReadWrite(kvm_disk_rw *d);
     int deviceSnapshot(kvm_dev_snapshot *s);
     int setClockScalePointer(unsigned *scale);
+    int handle_irq_fd(const struct kvm_irqfd *irqfd);
+    int set_gsi_routing(const kvm_irq_routing *routing);
+    int irq_line(const kvm_irq_level *level);
 
 public:
     virtual ~VM() {
@@ -100,12 +122,13 @@ public:
 
     static std::shared_ptr<VM> create(std::shared_ptr<S2EKVM> &kvm);
 
-    void sendCpuExitSignal();
     virtual int sys_ioctl(int fd, int request, uint64_t arg1);
 
     VirtualDeviceManager &dev_mgr() {
         return m_dev_mgr;
     }
+
+    int lookupIoEventFd(bool is_pio, uint64_t addr, uint64_t data, unsigned size);
 };
 } // namespace kvm
 } // namespace s2e

@@ -20,6 +20,8 @@
 /// SOFTWARE.
 ///
 
+#include <unistd.h>
+
 #include <coroutine.h>
 #include <cpu/ioport.h>
 #include <cpu/kvm.h>
@@ -30,21 +32,23 @@
 #include <cpu/exec.h>
 #include <cpu/i386/cpu.h>
 #include <tcg/utils/log.h>
+#include "hw/lapic.h"
 #include "s2e-kvm-vcpu.h"
+#include "s2e-kvm-vm.h"
 #include "s2e-kvm.h"
 
 extern CPUX86State *env;
 
-#if 0
-#define SE_KVM_DEBUG_MMIO
-#define SE_KVM_DEBUG_APIC
-#define SE_KVM_DEBUG_IO
-
-#define DPRINTF(...) fprintf(logfile, __VA_ARGS__)
-#endif
-
 namespace s2e {
 namespace kvm {
+
+static void signal_ioeventfd(int fd) {
+    uint64_t val = 1;
+    ssize_t ret = write(fd, &val, sizeof(val));
+    if (ret != sizeof(val)) {
+        fprintf(stderr, "ioeventfd: write to fd %d failed\n", fd);
+    }
+}
 
 // This is an experimental feature
 // #define ENABLE_RETRANSLATE
@@ -129,20 +133,17 @@ uint64_t s2e_kvm_mmio_read(target_phys_addr_t addr, unsigned size) {
         }
     }
 
-#ifdef SE_KVM_DEBUG_MMIO
-    unsigned print_addr = 0;
-#ifdef SE_KVM_DEBUG_APIC
-    if (addr >= 0xf0000000)
-        print_addr = 1;
-#endif
-    if (print_addr) {
-        DPRINTF("mmior%d[%" PRIx64 "]=%" PRIx64 "\n", size, (uint64_t) addr, ret);
-    }
-#endif
+    libcpu_log_mask(CPU_LOG_KVM_IO, "mmior%d[%" PRIx64 "]=%" PRIx64 "\n", size, (uint64_t) addr, ret);
     return ret;
 }
 
 void s2e_kvm_mmio_write(target_phys_addr_t addr, uint64_t data, unsigned size) {
+    int efd = g_s2e_kvm->vm()->lookupIoEventFd(false, addr, data, size);
+    if (efd >= 0) {
+        signal_ioeventfd(efd);
+        return;
+    }
+
     if (g_s2e_kvm->vm()->dev_mgr().mmio_write(addr, data, size)) {
         return;
     }
@@ -156,17 +157,7 @@ void s2e_kvm_mmio_write(target_phys_addr_t addr, uint64_t data, unsigned size) {
 
     uint8_t *dataptr = g_kvm_vcpu_buffer->mmio.data;
 
-#ifdef SE_KVM_DEBUG_MMIO
-    unsigned print_addr = 0;
-#ifdef SE_KVM_DEBUG_APIC
-    if (addr >= 0xf0000000)
-        print_addr = 1;
-#endif
-
-    if (print_addr) {
-        DPRINTF("mmiow%d[%" PRIx64 "]=%" PRIx64 "\n", size, (uint64_t) addr, data);
-    }
-#endif
+    libcpu_log_mask(CPU_LOG_KVM_IO, "mmiow%d[%" PRIx64 "]=%" PRIx64 "\n", size, (uint64_t) addr, data);
 
     switch (size) {
         case 1:
@@ -236,14 +227,18 @@ uint64_t s2e_kvm_ioport_read(pio_addr_t addr, unsigned size) {
             assert(false && "Can't get here");
     }
 
-#ifdef SE_KVM_DEBUG_IO
-    DPRINTF("ior%d[%#x]=0x%" PRIx64 "\n", size, addr, ret);
-#endif
+    libcpu_log_mask(CPU_LOG_KVM_IO, "ior%d[%#x]=0x%" PRIx64 "\n", size, addr, ret);
 
     return ret;
 }
 
 void s2e_kvm_ioport_write(pio_addr_t addr, uint64_t data, unsigned size) {
+    int efd = g_s2e_kvm->vm()->lookupIoEventFd(true, addr, data, size);
+    if (efd >= 0) {
+        signal_ioeventfd(efd);
+        return;
+    }
+
     ++g_stats.io_writes;
 
     g_kvm_vcpu_buffer->exit_reason = KVM_EXIT_IO;
@@ -272,31 +267,47 @@ void s2e_kvm_ioport_write(pio_addr_t addr, uint64_t data, unsigned size) {
             assert(false && "Can't get here");
     }
 
-#ifdef SE_KVM_DEBUG_IO
-    DPRINTF("iow%d[%#x]=0x%" PRIx64 "\n", size, addr, data);
-#endif
+    libcpu_log_mask(CPU_LOG_KVM_IO, "iow%d[%#x]=0x%" PRIx64 "\n", size, addr, data);
 
     coroutine_yield();
 }
 
 static uint64_t s2e_apic_get_base(CPUX86State *env) {
     auto vcpu = VCPU::current();
+    if (auto lapic = vcpu->lapic()) {
+        return lapic->get_apic_base();
+    }
     return vcpu->vapic().get_apic_base();
 }
 
 static void s2e_apic_set_base(CPUX86State *env, uint64_t new_base) {
     auto vcpu = VCPU::current();
-    vcpu->vapic().set_apic_base(new_base);
+    if (auto lapic = vcpu->lapic()) {
+        lapic->set_apic_base(new_base);
+        if (!g_s2e_kvm->vm()->dev_mgr().rebase_device(new_base & ~0xfffULL, lapic)) {
+            fprintf(stderr, "Failed to rebase LAPIC to %#" PRIx64 "\n", new_base);
+            abort();
+        }
+    } else {
+        vcpu->vapic().set_apic_base(new_base);
+    }
 }
 
 static uint64_t s2e_apic_get_tpr(CPUX86State *env) {
     auto vcpu = VCPU::current();
+    if (auto lapic = vcpu->lapic()) {
+        return lapic->get_tpr();
+    }
     return vcpu->vapic().get_tpr();
 }
 
 static void s2e_apic_set_tpr(CPUX86State *env, uint64_t new_tpr) {
     auto vcpu = VCPU::current();
-    vcpu->vapic().set_tpr(new_tpr);
+    if (auto lapic = vcpu->lapic()) {
+        lapic->set_tpr(new_tpr);
+    } else {
+        vcpu->vapic().set_tpr(new_tpr);
+    }
 }
 
 struct cpu_io_funcs_t g_io = {

@@ -1172,6 +1172,7 @@ Function *TCGLLVMTranslator::generateCode(TCGContext *s, TranslationBlock *tb) {
 
     m_tbFunction = createTbFunction(name);
     m_tbFunction->addFnAttr(Attribute::AlwaysInline);
+    m_abortBB = nullptr;
 
     BasicBlock *basicBlock = BasicBlock::Create(getContext(), "entry", m_tbFunction);
     m_builder.SetInsertPoint(basicBlock);
@@ -1218,6 +1219,25 @@ Function *TCGLLVMTranslator::generateCode(TCGContext *s, TranslationBlock *tb) {
                     valueToStore = ConstantInt::get(wordType(m_tcgContext->env_sizeof_ccop * 8), cc_op);
                     generateQemuCpuStore(args, m_tcgContext->env_sizeof_ccop * 8, valueToStore);
                 }
+
+                // Check env->se_tb_abort: set by tb_phys_invalidate() when self-modifying
+                // code invalidates the currently running TB. The eip has already been stored
+                // above, so returning here lets the CPU loop re-fetch at the correct PC.
+                auto *abortPtr = generateCpuStatePtr(m_tcgContext->env_offset_se_tb_abort, sizeof(uint32_t));
+                auto *abortVal = m_builder.CreateLoad(intType(32), abortPtr);
+                auto *cond = m_builder.CreateICmpNE(abortVal, ConstantInt::get(intType(32), 0));
+
+                if (!m_abortBB) {
+                    m_abortBB = BasicBlock::Create(getContext(), "tb_abort", m_tbFunction);
+                    IRBuilder<>::InsertPointGuard guard(m_builder);
+                    m_builder.SetInsertPoint(m_abortBB);
+                    m_builder.CreateRet(ConstantInt::get(wordType(), 0));
+                }
+
+                auto *continueBB = BasicBlock::Create(getContext(), "tb_continue", m_tbFunction);
+                m_builder.CreateCondBr(cond, m_abortBB, continueBB);
+
+                m_builder.SetInsertPoint(continueBB);
             } break;
 #endif
 

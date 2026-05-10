@@ -24,28 +24,30 @@
 
 [Version]
 Signature   = "$Windows NT$"
-Class       = "S2EGuestDriver"
+Class       = "ActivityMonitor"
 ClassGuid   = {b86dff51-a31e-4bac-b3cf-e8cfe75c9fc2}
 Provider    = %Cyberhaven%
 DriverVer   = 11/01/2018,2.0.0.0
 CatalogFile = s2e.cat
+PnpLockdown = 1
 
 
 [DestinationDirs]
 DefaultDestDir      = 12
 s2e.DriverFiles     = 12            ;%windir%\system32\drivers
 
-[DefaultInstall]
+[DefaultInstall.NTamd64]
 OptionDesc          = %ServiceDescription%
 CopyFiles           = s2e.DriverFiles
 
-[DefaultInstall.Services]
+[DefaultInstall.NTamd64.Services]
 AddService          = %ServiceName%,,s2e.Service
 
-[DefaultUninstall]
+[DefaultUninstall.NTamd64]
+LegacyUninstall     = 1
 DelFiles            =
 
-[DefaultUninstall.Services]
+[DefaultUninstall.NTamd64.Services]
 DelService = s2e,0x200      ;Ensure service is stopped before deleting
 
 [s2e.Service]
@@ -56,13 +58,13 @@ Dependencies     = "FltMgr"
 ServiceType      = 2                            ;SERVICE_FILE_SYSTEM_DRIVER
 StartType        = 3                            ;SERVICE_DEMAND_START
 ErrorControl     = 1                            ;SERVICE_ERROR_NORMAL
-LoadOrderGroup   = "FSFilter Content Screener"
+LoadOrderGroup   = "FSFilter Activity Monitor"
 AddReg           = s2e.AddRegistry
 
 [s2e.AddRegistry]
-HKR,"Instances","DefaultInstance",0x00000000,%DefaultInstance%
-HKR,"Instances\"%Instance1.Name%,"Altitude",0x00000000,%Instance1.Altitude%
-HKR,"Instances\"%Instance1.Name%,"Flags",0x00010001,%Instance1.Flags%
+HKR,"Parameters\Instances","DefaultInstance",0x00000000,%DefaultInstance%
+HKR,"Parameters\Instances\%Instance1.Name%","Altitude",0x00000000,%Instance1.Altitude%
+HKR,"Parameters\Instances\%Instance1.Name%","Flags",0x00010001,%Instance1.Flags%
 
 [s2e.DriverFiles]
 %DriverName%.sys

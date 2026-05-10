@@ -107,15 +107,17 @@ static NTSTATUS LfiKeInitializeCrashDumpHeader(
         return STATUS_NOT_SUPPORTED;
     }
 
-    if (IsWindows10_1909_OrAbove(&g_kernelStructs.Version)) {
+    if (IsWindows_2003SP1_OrAbove(&g_kernelStructs.Version)) {
+        auto ret = u._KeInitializeCrashDumpHeader(DumpType, Flags, Buffer, BufferSize, BufferNeeded);
+        LOG("_KeInitializeCrashDumpHeader returned %#x", ret);
+        return ret;
+    } else {
         if (!BufferSize) {
             *BufferNeeded = CRASH_DUMP_HEADER_SIZE;
             return STATUS_SUCCESS;
         }
 
         return u._KeInitializeCrashDumpHeader2(DumpType, Flags, Buffer, BufferSize);
-    } else {
-        return u._KeInitializeCrashDumpHeader(DumpType, Flags, Buffer, BufferSize, BufferNeeded);
     }
 }
 
@@ -131,28 +133,16 @@ NTSTATUS InitializeCrashDumpHeader(ULONG *BufferSize)
 
     /* Determine the size for the buffer */
     Status = LfiKeInitializeCrashDumpHeader(
-        1 /* DUMP_TYPE_FULL */, 0,
-        s_BugCheckHeaderBuffer, 0, &BufferNeeded);
+        1 /* DUMP_TYPE_FULL */, 0, s_BugCheckHeaderBuffer, CRASH_DUMP_HEADER_SIZE,
+                                            &BufferNeeded);
 
     if (!NT_SUCCESS(Status)) {
         return Status;
     }
 
-    if (BufferNeeded > 0) {
-        LOG("S2EBSODHook: crash dump header of size %#x\n", BufferNeeded);
-
-        if (BufferNeeded > CRASH_DUMP_HEADER_SIZE) {
-            LOG("S2EBSODHook: required buffer too big");
-            Status = STATUS_INSUFFICIENT_RESOURCES;
-        } else {
-            Status = LfiKeInitializeCrashDumpHeader(
-                1 /* DUMP_TYPE_FULL */, 0,
-                s_BugCheckHeaderBuffer, BufferNeeded, NULL);
-
-            if (!NT_SUCCESS(Status)) {
-                LOG("S2EBSODHook: failed to initialize crash dump header\n");
-            }
-        }
+    if (BufferNeeded > CRASH_DUMP_HEADER_SIZE) {
+        LOG("Requied buffer of size %#x is too large", BufferNeeded);
+        return STATUS_NOT_IMPLEMENTED;
     }
 
     *BufferSize = BufferNeeded;
@@ -202,11 +192,17 @@ VOID S2EBSODHook(
 {
     S2E_BSOD_CRASH Command;
     ULONG BufferNeeded = 0;
+    NTSTATUS Status = 0;
+
     LOG("Invoked S2EBSODHook\n");
 
     S2EDumpBackTrace();
 
-    InitializeCrashDumpHeader(&BufferNeeded);
+    Status = InitializeCrashDumpHeader(&BufferNeeded);
+    if (!NT_SUCCESS(Status)) {
+        LOG("InitializeCrashDumpHeader failed: %#x\n", Status);
+        S2EKillState(Status, "Could not generate crash dump header");
+    }
 
     if (IsWindows8OrAbove(&g_kernelStructs.Version)) {
         DecryptKdDataBlock();
