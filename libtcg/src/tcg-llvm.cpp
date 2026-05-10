@@ -112,12 +112,14 @@ TCGLLVMTranslator *TCGLLVMTranslator::create(const std::string &bitcodeLibraryPa
     // Read the helper bitcode file
     auto ErrorOrMemBuff = MemoryBuffer::getFile(bitcodeLibraryPath);
     if (std::error_code EC = ErrorOrMemBuff.getError()) {
-        llvm::errs() << "Reading " << bitcodeLibraryPath << " failed!\n";
+        llvm::errs() << "Reading " << bitcodeLibraryPath << " failed: " << EC.message() << "\n";
         return nullptr;
     }
 
     auto ErrorOrMod = parseBitcodeFile(ErrorOrMemBuff.get()->getMemBufferRef(), *ctx);
     if (!ErrorOrMod) {
+        llvm::errs() << "Parsing " << bitcodeLibraryPath << " failed: " << llvm::toString(ErrorOrMod.takeError())
+                     << "\n";
         return nullptr;
     }
 
