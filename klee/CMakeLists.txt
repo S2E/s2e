@@ -168,8 +168,8 @@ set(KLEE_COMPONENT_EXTRA_LIBRARIES "")
 ################################################################################
 # Find LLVM
 ################################################################################
+find_package(LLVM 19.1...<20 REQUIRED)
 include(${CMAKE_SOURCE_DIR}/cmake/find_llvm.cmake)
-find_package(LLVM 14...<15 REQUIRED)
 
 
 foreach (vname ${NEEDED_LLVM_VARS})

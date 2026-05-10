@@ -45,7 +45,7 @@ endif()
 
 set(LIBS ${LIBS} ${LIBCPU_LIBRARY_DIR}/libcpu.a ${LIBTCG_LIBRARY_DIR}/libtcg.a)
 
-llvm_map_components_to_libnames(LLVM_LIBS core support bitreader bitstreamreader bitwriter transformutils scalaropts codegen)
+llvm_map_components_to_libnames(LLVM_LIBS core passes support bitreader bitstreamreader bitwriter transformutils scalaropts codegen)
 
 if(WITH_TARGET MATCHES "s2e")
     set(LIBS ${LIBS} ${KLEE_LIBRARY_DIR}/libkleeCore.a

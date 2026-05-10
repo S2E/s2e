@@ -51,7 +51,7 @@ find_package(Protobuf REQUIRED)
 
 ##### LLVM #####
 find_package(CURL REQUIRED)
-find_package(LLVM 14...<15 REQUIRED)
+find_package(LLVM 19.1...<20 REQUIRED)
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 
 add_definitions(${LLVM_DEFINITIONS})
