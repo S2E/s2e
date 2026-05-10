@@ -71,13 +71,7 @@ link_directories(${LIBDWARF_LIB_DIRS})
 
 llvm_map_components_to_libnames(LLVM_LIBS core support)
 
-set(LLVM_CONFIG "${LLVM_TOOLS_BINARY_DIR}/llvm-config"
-    CACHE PATH "Path to llvm-config")
-execute_process(COMMAND ${LLVM_CONFIG} "--cxxflags"
-                RESULT_VARIABLE LLVM_CONFIG_RESULT
-                OUTPUT_VARIABLE LLVM_CXXFLAGS
-                OUTPUT_STRIP_TRAILING_WHITESPACE)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${LLVM_CXXFLAGS} -Wall -std=c++20")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=c++20")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror -Wno-gnu-anonymous-struct -Wno-nested-anon-types -Wno-c99-extensions")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-address-of-packed-member")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -g -O2")

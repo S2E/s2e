@@ -55,13 +55,6 @@ include_directories(SYSTEM ${LLVM_INCLUDE_DIRS})
 
 llvm_map_components_to_libnames(LLVM_LIBS core)
 
-set(LLVM_CONFIG "${LLVM_TOOLS_BINARY_DIR}/llvm-config"
-    CACHE PATH "Path to llvm-config")
-execute_process(COMMAND ${LLVM_CONFIG} "--cxxflags"
-                RESULT_VARIABLE LLVM_CONFIG_RESULT
-                OUTPUT_VARIABLE LLVM_CXXFLAGS
-                OUTPUT_STRIP_TRAILING_WHITESPACE)
-
 ##################
 
 option(WITH_GUEST "Type of guest target to support")
