@@ -48,7 +48,9 @@ message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 
 add_definitions(${LLVM_DEFINITIONS})
 
-include_directories(SYSTEM ${LLVM_INCLUDE_DIRS})
+foreach(dir ${LLVM_INCLUDE_DIRS})
+    add_compile_options("SHELL:-idirafter ${dir}")
+endforeach()
 
 
 ##### glib #####
