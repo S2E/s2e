@@ -32,8 +32,8 @@
 #  USE_Z3_BINARY=yes
 #      Whether to use the Z3 binary or to build Z3 from source
 #
-#  SYSTEM_LLVM_CONFIG=llvm-config-14
-#      Override the default llvm-config command (defaults to llvm-config-14)
+#  SYSTEM_LLVM_CONFIG=llvm-config-19
+#      Override the default llvm-config command (defaults to llvm-config-19)
 #
 #  SYSTEM_CLANG_VERSION=19
 #      Override the default clang version (defaults to clang-19)
@@ -62,17 +62,17 @@ S2E_BUILD:=$(CURDIR)
 USE_Z3_BINARY?=yes
 
 # System LLVM variables
-SYSTEM_LLVM_CONFIG?=llvm-config-14
+SYSTEM_LLVM_CONFIG?=llvm-config-19
 LLVM_VERSION := $(shell $(SYSTEM_LLVM_CONFIG) --version)
 LLVM_PREFIX := $(shell $(SYSTEM_LLVM_CONFIG) --prefix)
 LLVM_INCLUDEDIR := $(shell $(SYSTEM_LLVM_CONFIG) --includedir)
 LLVM_LIBDIR := $(shell $(SYSTEM_LLVM_CONFIG) --libdir)
 LLVM_CMAKE_DIR := $(LLVM_LIBDIR)/cmake/llvm
 
-# Verify LLVM version is 14.x
+# Verify LLVM version is 19.x
 LLVM_MAJOR_VERSION := $(shell echo $(LLVM_VERSION) | cut -d. -f1)
-ifneq ($(LLVM_MAJOR_VERSION),14)
-$(error LLVM version $(LLVM_VERSION) found, but version 14.x is required)
+ifneq ($(LLVM_MAJOR_VERSION),19)
+$(error LLVM version $(LLVM_VERSION) found, but version 19.x is required)
 endif
 
 KLEE_DIRS=$(foreach suffix,-debug -release -coverage,$(addsuffix $(suffix),klee))
