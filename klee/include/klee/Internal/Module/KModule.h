@@ -38,6 +38,8 @@ class Executor;
 class Expr;
 struct KInstruction;
 struct KGEPInstruction;
+struct KInsertValueInstruction;
+struct KExtractValueInstruction;
 class KModule;
 template <class T> class ref;
 
@@ -119,12 +121,9 @@ private:
     KModule() {
     }
 
-    template <typename SqType, typename TypeIt>
-    void computeOffsetsSeqTy(const GlobalAddresses &globalAddresses, KGEPInstruction *kgepi,
-                             ref<ConstantExpr> &constantOffset, uint64_t index, const TypeIt it);
-
-    template <typename TypeIt>
-    void computeOffsets(const GlobalAddresses &globalAddresses, KGEPInstruction *kgepi, TypeIt ib, TypeIt ie);
+    void bindGEPInstructionConstants(KGEPInstruction *kgepi);
+    void bindInsertValueConstants(KInsertValueInstruction *kivi);
+    void bindExtractValueConstants(KExtractValueInstruction *kevi);
 
     /// bindInstructionConstants - Initialize any necessary per instruction
     /// constant values.

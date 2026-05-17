@@ -137,8 +137,8 @@ void IntrinsicCleanerPass::replaceIntrinsicAdd(Module &M, CallInst *CI) {
 
     // Store the values in the aggregated type
     Value *aggrValPtr = new AllocaInst(aggregate, as, NULL, "", CI);
-    Value *aggrVal = new LoadInst(aggrValPtr->getType()->getPointerElementType(), aggrValPtr, "", CI);
-    Value *addResult = new LoadInst(alloca->getType()->getPointerElementType(), alloca, "", CI);
+    Value *aggrVal = new LoadInst(aggregate, aggrValPtr, "", CI);
+    Value *addResult = new LoadInst(itype, alloca, "", CI);
     InsertValueInst *insRes = InsertValueInst::Create(aggrVal, addResult, 0, "", CI);
     InsertValueInst *insOverflow = InsertValueInst::Create(insRes, overflow, 1, "", CI);
     CI->replaceAllUsesWith(insOverflow);
@@ -174,9 +174,9 @@ void IntrinsicCleanerPass::injectIntrinsicAddImplementation(Module &M, const std
 
     LLVMContext &ctx = M.getContext();
     std::vector<Type *> argTypes;
-    argTypes.push_back(Type::getIntNPtrTy(ctx, bits)); // Result
-    argTypes.push_back(Type::getIntNTy(ctx, bits));    // a
-    argTypes.push_back(Type::getIntNTy(ctx, bits));    // b
+    argTypes.push_back(PointerType::getUnqual(ctx)); // Result
+    argTypes.push_back(Type::getIntNTy(ctx, bits));  // a
+    argTypes.push_back(Type::getIntNTy(ctx, bits));  // b
 
     FunctionType *type = FunctionType::get(Type::getInt1Ty(ctx), ArrayRef<Type *>(argTypes), false);
     f = dyn_cast<Function>(M.getOrInsertFunction(name, type).getCallee());
@@ -253,8 +253,7 @@ bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b, Module &M) {
                         Type *i8pp = PointerType::getUnqual(PointerType::getUnqual(Type::getInt8Ty(ctx)));
                         auto castedDst = Builder.CreatePointerCast(dst, i8pp, "vacopy.cast.dst");
                         auto castedSrc = Builder.CreatePointerCast(src, i8pp, "vacopy.cast.src");
-                        auto load =
-                            Builder.CreateLoad(castedSrc->getType()->getPointerElementType(), castedSrc, "vacopy.read");
+                        auto load = Builder.CreateLoad(PointerType::getUnqual(ctx), castedSrc, "vacopy.read");
                         Builder.CreateStore(load, castedDst, false /* isVolatile */);
                     } else {
                         assert(WordSize == 8 && "Invalid word size!");
@@ -262,8 +261,8 @@ bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b, Module &M) {
                         auto pDst = Builder.CreatePointerCast(dst, i64p, "vacopy.cast.dst");
                         auto pSrc = Builder.CreatePointerCast(src, i64p, "vacopy.cast.src");
 
-                        auto pSrcType = pSrc->getType()->getPointerElementType();
-                        auto pDstType = pDst->getType()->getPointerElementType();
+                        auto pSrcType = Type::getInt64Ty(ctx);
+                        auto pDstType = Type::getInt64Ty(ctx);
 
                         auto val = Builder.CreateLoad(pSrcType, pSrc);
                         Builder.CreateStore(val, pDst, ii);
@@ -495,7 +494,7 @@ bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b, Module &M) {
                 case Intrinsic::exp:
                 case Intrinsic::expect:
                 case Intrinsic::floor:
-                case Intrinsic::flt_rounds:
+                case Intrinsic::get_rounding:
                 case Intrinsic::frameaddress:
                 case Intrinsic::get_dynamic_area_offset:
                 case Intrinsic::invariant_end:

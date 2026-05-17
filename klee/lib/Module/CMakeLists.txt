@@ -16,3 +16,7 @@ klee_add_component(kleeModule
 	PhiCleaner.cpp
 	RaiseAsm.cpp
 )
+
+set(LLVM_COMPONENTS core passes support)
+klee_get_llvm_libs(LLVM_LIBS ${LLVM_COMPONENTS})
+target_link_libraries(kleeModule PUBLIC ${LLVM_LIBS})

@@ -34,7 +34,6 @@
 #include "klee/util/Assignment.h"
 #include "klee/util/ExprPPrinter.h"
 #include "klee/util/ExprUtil.h"
-#include "klee/util/GetElementPtrTypeIterator.h"
 
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/IR/Attributes.h"
@@ -63,7 +62,6 @@
 
 #include <sys/mman.h>
 
-#include <cxxabi.h>
 #include <errno.h>
 #include <inttypes.h>
 
@@ -215,7 +213,7 @@ void Executor::initializeGlobals(ExecutionState &state) {
             // better we could support user definition, or use the EXE style
             // hack where we check the object file information.
 
-            Type *ty = i->getType()->getPointerElementType();
+            Type *ty = i->getValueType();
             uint64_t size = m_kmodule->getDataLayout()->getTypeStoreSize(ty);
 
 // XXX - DWD - hardcode some things until we decide how to fix.
@@ -253,7 +251,7 @@ void Executor::initializeGlobals(ExecutionState &state) {
                 }
             }
         } else {
-            Type *ty = i->getType()->getPointerElementType();
+            Type *ty = i->getValueType();
             uint64_t size = m_kmodule->getDataLayout()->getTypeStoreSize(ty);
             auto mo = ObjectState::allocate(0, size, false);
 
@@ -735,10 +733,8 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
                 if (ce && ce->getOpcode() == Instruction::BitCast) {
                     f = dyn_cast<Function>(ce->getOperand(0));
                     assert(f && "XXX unrecognized constant expression in call");
-                    const FunctionType *fType =
-                        dyn_cast<FunctionType>(cast<PointerType>(f->getType())->getPointerElementType());
-                    const FunctionType *ceType =
-                        dyn_cast<FunctionType>(cast<PointerType>(ce->getType())->getPointerElementType());
+                    const FunctionType *fType = f->getFunctionType();
+                    const FunctionType *ceType = f->getFunctionType();
                     check(fType && ceType, "unable to get function type");
 
                     // XXX check result coercion
@@ -1055,16 +1051,14 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
             KGEPInstruction *kgepi = static_cast<KGEPInstruction *>(ki);
             ref<Expr> base = eval(ki, 0, llvmState).value;
 
-            for (std::vector<std::pair<unsigned, uint64_t>>::iterator it = kgepi->indices.begin(),
-                                                                      ie = kgepi->indices.end();
-                 it != ie; ++it) {
-                uint64_t elementSize = it->second;
-                ref<Expr> index = eval(ki, it->first, llvmState).value;
+            for (auto &[operandIdx, elementSize] : kgepi->indices) {
+                ref<Expr> index = eval(ki, operandIdx, llvmState).value;
                 base = AddExpr::create(
                     base, MulExpr::create(Expr::createCoerceToPointerType(index), Expr::createPointer(elementSize)));
             }
             if (kgepi->offset)
                 base = AddExpr::create(base, Expr::createPointer(kgepi->offset));
+
             llvmState.bindLocal(ki, base);
             break;
         }
@@ -1313,13 +1307,13 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
         }
 
         case Instruction::InsertValue: {
-            KGEPInstruction *kgepi = static_cast<KGEPInstruction *>(ki);
+            KInsertValueInstruction *kivi = static_cast<KInsertValueInstruction *>(ki);
 
             ref<Expr> agg = eval(ki, 0, llvmState).value;
             ref<Expr> val = eval(ki, 1, llvmState).value;
 
             ref<Expr> l = NULL, r = NULL;
-            unsigned lOffset = kgepi->offset * 8, rOffset = kgepi->offset * 8 + val->getWidth();
+            unsigned lOffset = kivi->offset * 8, rOffset = kivi->offset * 8 + val->getWidth();
 
             if (lOffset > 0)
                 l = ExtractExpr::create(agg, 0, lOffset);
@@ -1340,12 +1334,11 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
             break;
         }
         case Instruction::ExtractValue: {
-            KGEPInstruction *kgepi = static_cast<KGEPInstruction *>(ki);
+            KExtractValueInstruction *kevi = static_cast<KExtractValueInstruction *>(ki);
 
             ref<Expr> agg = eval(ki, 0, llvmState).value;
 
-            ref<Expr> result =
-                ExtractExpr::create(agg, kgepi->offset * 8, m_kmodule->getWidthForLLVMType(i->getType()));
+            ref<Expr> result = ExtractExpr::create(agg, kevi->offset * 8, m_kmodule->getWidthForLLVMType(i->getType()));
 
             llvmState.bindLocal(ki, result);
             break;
