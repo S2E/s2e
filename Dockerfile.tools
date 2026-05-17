@@ -18,9 +18,9 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-# Installs S2E and its associated libraries and tools to /opt/s2e
+# This creates the build environment for guest tools.
 
-FROM ubuntu:24.04 AS s2e-build-env
+FROM ubuntu:22.04 AS s2e-build-env
 
 # Install build dependencies.
 # The unzip and libgomp1 dependencies are needed to unzip and run binary Z3
@@ -41,10 +41,7 @@ RUN apt-get update && dpkg --add-architecture i386 && apt-get update &&         
     libcurl4-openssl-dev \
     libedit-dev \
     libpfm4-dev \
-    llvm-19-dev \
-    clang-format-19 \
-    clang-19 \
-    clang-17
+    clang-15
 
 # This scripts allows running commands as a host user inside the container.
 # For example, guest tools can be built as follows:
@@ -53,31 +50,3 @@ RUN apt-get update && dpkg --add-architecture i386 && apt-get update &&         
 # cd $HOME/s2e/env/build
 # docker run -ti --rm -e SYSTEM_CLANG_VERSION=19 -e S2E_PREFIX="$HOME/s2e/env/install" -w $(pwd) -v $HOME:$HOME s2e-build-env /run_as.sh $(id -u) $(id -g) make  -f $HOME/s2e/env/source/s2e/Makefile.tools install
 COPY scripts/run_as.sh /
-
-###############################################################################
-FROM s2e-build-env AS s2e-build-all
-
-RUN mkdir s2e && mkdir s2e-build
-COPY Makefile Makefile.tools Makefile.common s2e/
-
-# Be explicit about not building Z3 from source, even though its default
-ARG USE_Z3_BINARY=yes
-
-RUN cd s2e-build &&                                                         \
-    make -f ../s2e/Makefile S2E_PREFIX=/opt/s2e stamps/z3
-
-RUN cd s2e-build &&                                                         \
-    make -f ../s2e/Makefile S2E_PREFIX=/opt/s2e stamps/libdwarf-make
-
-RUN cd s2e-build &&                                                         \
-    make -f ../s2e/Makefile S2E_PREFIX=/opt/s2e stamps/rapidjson-make
-
-# Make the S2E codebase available in the container
-COPY . s2e/
-
-# Build and install everything else
-RUN cd s2e-build &&                                                         \
-    make -f ../s2e/Makefile S2E_PREFIX=/opt/s2e install
-
-RUN cd s2e-build &&                                                         \
-    make -f ../s2e/Makefile.tools S2E_PREFIX=/opt/s2e install

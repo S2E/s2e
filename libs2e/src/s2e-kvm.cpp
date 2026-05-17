@@ -246,6 +246,10 @@ void S2EKVM::init(void) {
     auto bc = getBitcodeLibrary(shared_dir);
     fprintf(stdout, "Using module %s\n", bc.c_str());
     tcg_llvm_translator = TCGLLVMTranslator::create(bc);
+    if (!tcg_llvm_translator) {
+        fprintf(stderr, "Could not create the LLVM tanslator\n");
+        exit(-1);
+    }
 
     if (monitor_init() < 0) {
         exit(-1);

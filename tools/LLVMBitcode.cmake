@@ -208,4 +208,4 @@ endfunction(optimize_llvm_bitcode)
 ###############################################################################
 
 # Ensure that LLVM is available
-find_package(LLVM 14...<15 REQUIRED)
+find_package(LLVM 19.1...<20 REQUIRED)

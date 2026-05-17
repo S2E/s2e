@@ -62,10 +62,9 @@ void LowerSwitchPass::switchConvert(CaseItr begin, CaseItr end, Value *value, Ba
     // iterate through all the cases, creating a new BasicBlock for each
     for (CaseItr it = begin; it < end; ++it) {
         BasicBlock *newBlock = BasicBlock::Create(context, "NodeBlock");
-        Function::iterator FI = origBlock->getIterator();
-        F->getBasicBlockList().insert(++FI, newBlock);
+        newBlock->insertInto(F, origBlock->getNextNode());
 
-        ICmpInst *cmpInst = new ICmpInst(*newBlock, ICmpInst::ICMP_EQ, value, it->value, "case.cmp");
+        ICmpInst *cmpInst = new ICmpInst(newBlock, ICmpInst::ICMP_EQ, value, it->value, "case.cmp");
         BranchInst::Create(it->block, curHead, cmpInst, newBlock);
 
         // If there were any PHI nodes in this successor, rewrite one entry
@@ -99,7 +98,7 @@ void LowerSwitchPass::processSwitchInst(SwitchInst *SI) {
     // if-then statements go to this and the PHI nodes are happy.
     BasicBlock *newDefault = BasicBlock::Create(context, "newDefault");
 
-    F->getBasicBlockList().insert(defaultBlock->getIterator(), newDefault);
+    newDefault->insertInto(F, defaultBlock);
     BranchInst::Create(defaultBlock, newDefault);
 
     // If there is an entry in any PHI nodes for the default edge, make sure
@@ -126,6 +125,6 @@ void LowerSwitchPass::processSwitchInst(SwitchInst *SI) {
     switchConvert(cases.begin(), cases.end(), switchValue, origBlock, newDefault);
 
     // We are now done with the switch instruction, so delete it
-    origBlock->getInstList().erase(SI);
+    SI->eraseFromParent();
 }
 } // namespace klee

@@ -34,6 +34,8 @@
 #include "llvm/IR/Operator.h"
 #include "llvm/IR/ValueSymbolTable.h"
 
+#include "llvm/IR/PassManager.h"
+#include "llvm/Passes/PassBuilder.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/raw_os_ostream.h"
@@ -42,11 +44,30 @@
 #include "llvm/Transforms/Scalar/Scalarizer.h"
 #include "llvm/Transforms/Utils.h"
 
-#include "klee/util/GetElementPtrTypeIterator.h"
+#include "llvm/ADT/MapVector.h"
 
 #include <sstream>
 
 using namespace llvm;
+
+namespace {
+// createScalarizerPass() was removed from the legacy PM in LLVM 17.
+// Wrap the new-PM ScalarizerPass for use with the legacy PM.
+struct LegacyScalarizerWrapper : public FunctionPass {
+    static char ID;
+    LegacyScalarizerWrapper() : FunctionPass(ID) {
+    }
+    bool runOnFunction(Function &F) override {
+        FunctionAnalysisManager FAM;
+        PassBuilder PB;
+        PB.registerFunctionAnalyses(FAM);
+        ScalarizerPass pass;
+        pass.run(F, FAM);
+        return true; // conservative: assume modifications
+    }
+};
+char LegacyScalarizerWrapper::ID = 0;
+} // namespace
 
 namespace {
 enum SwitchImplType { eSwitchTypeSimple, eSwitchTypeLLVM, eSwitchTypeInternal };
@@ -226,7 +247,7 @@ void KModule::prepare() {
     //
     // NOTE: Must come before division/overshift checks because those passes
     // don't know how to handle vector instructions.
-    pm.add(createScalarizerPass());
+    pm.add(new LegacyScalarizerWrapper());
 
     // FIXME: This false here is to work around a bug in
     // IntrinsicLowering which caches values which may eventually be
@@ -278,7 +299,7 @@ void KModule::prepare() {
     }
     InstructionOperandTypeCheckPass *operandTypeCheckPass = new InstructionOperandTypeCheckPass();
     pm3.add(new IntrinsicCleanerPass(*dataLayout));
-    pm3.add(createScalarizerPass());
+    pm3.add(new LegacyScalarizerWrapper());
     pm3.add(new PhiCleanerPass());
     pm3.add(operandTypeCheckPass);
     pm3.run(*module);
@@ -416,57 +437,65 @@ Expr::Width KModule::getWidthForLLVMType(llvm::Type *type) const {
     return dataLayout->getTypeSizeInBits(type);
 }
 
-template <typename SqType, typename TypeIt>
-void KModule::computeOffsetsSeqTy(const GlobalAddresses &globalAddresses, KGEPInstruction *kgepi,
-                                  ref<ConstantExpr> &constantOffset, uint64_t index, const TypeIt it) {
-    const auto *sq = cast<SqType>(*it);
-    auto &targetData = module->getDataLayout();
-    uint64_t elementSize = targetData.getTypeStoreSize(sq->getElementType());
-    const Value *operand = it.getOperand();
-    if (const Constant *c = dyn_cast<Constant>(operand)) {
-        ref<ConstantExpr> index = evalConstant(globalAddresses, c)->SExt(Context::get().getPointerWidth());
-        ref<ConstantExpr> addend = index->Mul(ConstantExpr::alloc(elementSize, Context::get().getPointerWidth()));
-        constantOffset = constantOffset->Add(addend);
-    } else {
-        kgepi->indices.emplace_back(index, elementSize);
+static uint64_t computeAggregateByteOffset(llvm::Type *ty, llvm::ArrayRef<unsigned> indices,
+                                           const llvm::DataLayout &DL) {
+    uint64_t offset = 0;
+    llvm::Type *curTy = ty;
+    for (unsigned idx : indices) {
+        if (auto *st = dyn_cast<StructType>(curTy)) {
+            offset += DL.getStructLayout(st)->getElementOffset(idx);
+            curTy = st->getElementType(idx);
+        } else {
+            auto *at = cast<ArrayType>(curTy);
+            offset += idx * DL.getTypeStoreSize(at->getElementType());
+            curTy = at->getElementType();
+        }
+    }
+    return offset;
+}
+
+void KModule::bindGEPInstructionConstants(KGEPInstruction *kgepi) {
+    auto *gepi = cast<GetElementPtrInst>(kgepi->inst);
+    auto &DL = module->getDataLayout();
+    unsigned ptrWidth = Context::get().getPointerWidth();
+
+    llvm::MapVector<llvm::Value *, llvm::APInt> varOffsets;
+    llvm::APInt constOffset(ptrWidth, 0);
+    [[maybe_unused]] bool ok = gepi->collectOffset(DL, ptrWidth, varOffsets, constOffset);
+    assert(ok && "collectOffset failed on GEP instruction");
+
+    kgepi->offset = constOffset.getZExtValue();
+
+    // GEP operand 0 is the base pointer; index operands start at 1.
+    // For each variable index, record its operand position and scale.
+    for (unsigned i = 1, e = gepi->getNumOperands(); i < e; ++i) {
+        llvm::Value *v = gepi->getOperand(i);
+        auto it = varOffsets.find(v);
+        if (it != varOffsets.end()) {
+            kgepi->indices.emplace_back(i, it->second.getZExtValue());
+            varOffsets.erase(it);
+        }
     }
 }
 
-template <typename TypeIt>
-void KModule::computeOffsets(const GlobalAddresses &globalAddresses, KGEPInstruction *kgepi, TypeIt ib, TypeIt ie) {
-    ref<ConstantExpr> constantOffset = ConstantExpr::alloc(0, Context::get().getPointerWidth());
-    uint64_t index = 1;
-    for (TypeIt ii = ib; ii != ie; ++ii) {
-        if (StructType *st = dyn_cast<StructType>(*ii)) {
-            auto &targetData = module->getDataLayout();
-            const StructLayout *sl = targetData.getStructLayout(st);
-            const ConstantInt *ci = cast<ConstantInt>(ii.getOperand());
-            uint64_t addend = sl->getElementOffset((unsigned) ci->getZExtValue());
-            constantOffset = constantOffset->Add(ConstantExpr::alloc(addend, Context::get().getPointerWidth()));
-        } else if (isa<ArrayType>(*ii)) {
-            computeOffsetsSeqTy<ArrayType>(globalAddresses, kgepi, constantOffset, index, ii);
-        } else if (isa<VectorType>(*ii)) {
-            computeOffsetsSeqTy<VectorType>(globalAddresses, kgepi, constantOffset, index, ii);
-        } else if (isa<PointerType>(*ii)) {
-            computeOffsetsSeqTy<PointerType>(globalAddresses, kgepi, constantOffset, index, ii);
-        } else
-            assert("invalid type" && 0);
-        index++;
-    }
-    kgepi->offset = constantOffset->getZExtValue();
+void KModule::bindInsertValueConstants(KInsertValueInstruction *kivi) {
+    auto *ivi = cast<InsertValueInst>(kivi->inst);
+    kivi->offset = computeAggregateByteOffset(ivi->getType(), ivi->getIndices(), module->getDataLayout());
+}
+
+void KModule::bindExtractValueConstants(KExtractValueInstruction *kevi) {
+    auto *evi = cast<ExtractValueInst>(kevi->inst);
+    kevi->offset =
+        computeAggregateByteOffset(evi->getOperand(0)->getType(), evi->getIndices(), module->getDataLayout());
 }
 
 void KModule::bindInstructionConstants(const GlobalAddresses &globalAddresses, KInstruction *KI) {
-    KGEPInstruction *kgepi = static_cast<KGEPInstruction *>(KI);
-
-    if (GetElementPtrInst *gepi = dyn_cast<GetElementPtrInst>(KI->inst)) {
-        computeOffsets(globalAddresses, kgepi, klee::gep_type_begin(gepi), klee::gep_type_end(gepi));
-    } else if (InsertValueInst *ivi = dyn_cast<InsertValueInst>(KI->inst)) {
-        computeOffsets(globalAddresses, kgepi, iv_type_begin(ivi), iv_type_end(ivi));
-        assert(kgepi->indices.empty() && "InsertValue constant offset expected");
-    } else if (ExtractValueInst *evi = dyn_cast<ExtractValueInst>(KI->inst)) {
-        computeOffsets(globalAddresses, kgepi, ev_type_begin(evi), ev_type_end(evi));
-        assert(kgepi->indices.empty() && "ExtractValue constant offset expected");
+    if (isa<GetElementPtrInst>(KI->inst)) {
+        bindGEPInstructionConstants(static_cast<KGEPInstruction *>(KI));
+    } else if (isa<InsertValueInst>(KI->inst)) {
+        bindInsertValueConstants(static_cast<KInsertValueInstruction *>(KI));
+    } else if (isa<ExtractValueInst>(KI->inst)) {
+        bindExtractValueConstants(static_cast<KExtractValueInstruction *>(KI));
     }
 }
 
@@ -734,7 +763,9 @@ klee::ref<klee::ConstantExpr> KModule::evalConstantExpr(const GlobalAddresses &g
         }
 
         case Instruction::ICmp: {
-            switch (ce->getPredicate()) {
+            // ICmp ConstantExprs were removed in LLVM 17+; this is unreachable.
+            llvm_unreachable("ICmp ConstantExpr is not supported in LLVM 17+");
+            switch (0) {
                 default:
                     assert(0 && "unhandled ICmp predicate");
                 case ICmpInst::ICMP_EQ:
@@ -831,9 +862,13 @@ KFunction::KFunction(llvm::Function *_function, KModule *km) : function(_functio
 
             switch (it->getOpcode()) {
                 case Instruction::GetElementPtr:
-                case Instruction::InsertValue:
-                case Instruction::ExtractValue:
                     ki = new KGEPInstruction();
+                    break;
+                case Instruction::InsertValue:
+                    ki = new KInsertValueInstruction();
+                    break;
+                case Instruction::ExtractValue:
+                    ki = new KExtractValueInstruction();
                     break;
 
                 case Instruction::Call:

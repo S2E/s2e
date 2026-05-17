@@ -43,12 +43,18 @@ find_package(PkgConfig REQUIRED)
 include_directories("include")
 
 ##### LLVM #####
-find_package(LLVM 14...<15 REQUIRED)
+if (POLICY CMP0075)
+  cmake_policy(SET CMP0075 NEW)
+endif()
+
+find_package(LLVM 19.1...<20 REQUIRED)
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 
 add_definitions(${LLVM_DEFINITIONS})
 
-include_directories(SYSTEM ${LLVM_INCLUDE_DIRS})
+foreach(dir ${LLVM_INCLUDE_DIRS})
+    add_compile_options("SHELL:-idirafter ${dir}")
+endforeach()
 
 
 ##### glib #####
@@ -66,13 +72,6 @@ find_path(LIBDWARF_INCLUDE_DIRS
 include_directories(${LIBDWARF_INCLUDE_DIRS})
 
 llvm_map_components_to_libnames(LLVM_LIBS core)
-
-set(LLVM_CONFIG "${LLVM_TOOLS_BINARY_DIR}/llvm-config"
-    CACHE PATH "Path to llvm-config")
-execute_process(COMMAND ${LLVM_CONFIG} "--cxxflags"
-                RESULT_VARIABLE LLVM_CONFIG_RESULT
-                OUTPUT_VARIABLE LLVM_CXXFLAGS
-                OUTPUT_STRIP_TRAILING_WHITESPACE)
 
 ##################
 

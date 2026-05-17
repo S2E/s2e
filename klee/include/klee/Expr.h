@@ -508,7 +508,7 @@ public:
 
     /// isAllOnes - Is this constant all ones.
     bool isAllOnes() const {
-        return getAPValue().isAllOnesValue();
+        return getAPValue().isAllOnes();
     }
 
     /* Constant Operations */

@@ -20,22 +20,14 @@
 /// SOFTWARE.
 ///
 
-#include <llvm/Support/FileSystem.h>
-#include <llvm/Support/Path.h>
-
-#if defined(CONFIG_WIN32)
-static void print_stacktrace(const char *reason) {
-    std::ostream &os = g_s2e->getDebugStream();
-    os << "Stack trace printing unsupported on Windows" << '\n';
-}
-#else
+#include <cstring>
 #include <cxxabi.h>
 #include <execinfo.h>
-#include <llvm/Support/raw_ostream.h>
-#include <s2e/S2E.h>
-#include <s2e/s2e_libcpu.h>
-#include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
+
+#include <filesystem>
+#include <fstream>
 
 #include <s2e/Utils.h>
 
@@ -111,7 +103,6 @@ void print_stacktrace(void (*print_func)(const char *fmt, ...), const char *reas
     free(funcname);
     free(symbollist);
 }
-#endif // CONFIG_WIN32
 
 namespace s2e {
 
@@ -125,12 +116,12 @@ std::string compress_file(const std::string &path) {
     }
 
     // Check that the file was compressed
-    llvm::SmallString<128> compressed(path);
-    llvm::sys::path::replace_extension(compressed, "gz");
+    std::filesystem::path compressed(path);
+    compressed.replace_extension("gz");
 
-    if (llvm::sys::fs::exists(compressed)) {
+    if (std::filesystem::exists(compressed)) {
         unlink(path.c_str());
-        return compressed.c_str();
+        return compressed.string();
     }
 
     return path;
@@ -157,29 +148,6 @@ bool ReadLines(const std::string &file, std::vector<std::string> &lines, bool do
 }
 
 uint64_t GetProcessMemoryUsage() {
-#if defined(CONFIG_WIN32)
-
-    PROCESS_MEMORY_COUNTERS Memory;
-    HANDLE CurrentProcess = GetCurrentProcess();
-
-    if (!GetProcessMemoryInfo(CurrentProcess, &Memory, sizeof(Memory))) {
-        return 0;
-    }
-
-    return Memory.PagefileUsage;
-
-#elif defined(CONFIG_DARWIN)
-    struct task_basic_info t_info;
-    mach_msg_type_number_t t_info_count = TASK_BASIC_INFO_COUNT;
-
-    if (KERN_SUCCESS != task_info(mach_task_self(), TASK_BASIC_INFO, (task_info_t) &t_info, &t_info_count)) {
-        return -1;
-    }
-    // resident size is in t_info.resident_size;
-    // return t_info.virtual_size;
-    return t_info.resident_size;
-
-#else
     pid_t myPid = getpid();
     std::stringstream ss;
     ss << "/proc/" << myPid << "/status";
@@ -201,7 +169,6 @@ uint64_t GetProcessMemoryUsage() {
     fclose(fp);
 
     return peakMem * 1024;
-#endif
 }
 
 } // namespace s2e

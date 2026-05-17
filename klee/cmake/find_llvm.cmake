@@ -7,8 +7,6 @@
 #
 #===------------------------------------------------------------------------===#
 
-find_package(LLVM 14...<15 CONFIG REQUIRED)
-
 # Provide function to map LLVM components to libraries.
 function(klee_get_llvm_libs output_var)
     llvm_map_components_to_libnames(${output_var} ${ARGN})

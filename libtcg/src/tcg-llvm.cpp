@@ -83,7 +83,7 @@ void *tcg_llvm_translator = 0;
 
 using namespace llvm;
 
-unsigned TCGLLVMTranslator::m_eip_last_gep_index = 0;
+uint64_t TCGLLVMTranslator::m_eip_byte_offset = 0;
 
 TCGLLVMTranslator::TCGLLVMTranslator(const std::string &bitcodeLibraryPath, std::unique_ptr<Module> module)
     : m_bitcodeLibraryPath(bitcodeLibraryPath), m_module(std::move(module)), m_builder(m_module->getContext()),
@@ -92,7 +92,6 @@ TCGLLVMTranslator::TCGLLVMTranslator(const std::string &bitcodeLibraryPath, std:
     std::memset(m_memValuesPtr, 0, sizeof(m_memValuesPtr));
     std::memset(m_globalsIdx, 0, sizeof(m_globalsIdx));
 
-    m_cpuType = NULL;
     m_cpuState = NULL;
     m_eip = NULL;
     m_ccop = NULL;
@@ -112,12 +111,14 @@ TCGLLVMTranslator *TCGLLVMTranslator::create(const std::string &bitcodeLibraryPa
     // Read the helper bitcode file
     auto ErrorOrMemBuff = MemoryBuffer::getFile(bitcodeLibraryPath);
     if (std::error_code EC = ErrorOrMemBuff.getError()) {
-        llvm::errs() << "Reading " << bitcodeLibraryPath << " failed!\n";
+        llvm::errs() << "Reading " << bitcodeLibraryPath << " failed: " << EC.message() << "\n";
         return nullptr;
     }
 
     auto ErrorOrMod = parseBitcodeFile(ErrorOrMemBuff.get()->getMemBufferRef(), *ctx);
     if (!ErrorOrMod) {
+        llvm::errs() << "Parsing " << bitcodeLibraryPath << " failed: " << llvm::toString(ErrorOrMod.takeError())
+                     << "\n";
         return nullptr;
     }
 
@@ -135,7 +136,7 @@ llvm::FunctionType *TCGLLVMTranslator::tbType() {
         return m_tbType;
     }
     llvm::SmallVector<Type *, 1> args;
-    args.push_back(m_cpuType->getPointerTo());
+    args.push_back(llvm::PointerType::getUnqual(getContext()));
     m_tbType = llvm::FunctionType::get(wordType(), args, false);
     return m_tbType;
 }
@@ -184,9 +185,6 @@ uint64_t TCGLLVMTranslator::toInteger(llvm::Value *v) const {
 #ifdef CONFIG_SYMBEX
 
 void TCGLLVMTranslator::initializeNativeCpuState() {
-    auto &ctx = m_module->getContext();
-    m_cpuType = StructType::getTypeByName(ctx, "struct.CPUX86State");
-    assert(m_cpuType && "Could not find CPUX86State in LLVM bitcode");
 }
 
 void TCGLLVMTranslator::initializeHelpers() {
@@ -237,7 +235,7 @@ Value *TCGLLVMTranslator::getPtrForValue(int idx) {
             assert(idx == 0); // Assume we access CPUState
             Value *v = &*m_tbFunction->arg_begin();
 
-            m_memValuesPtr[idx] = m_builder.CreatePointerCast(v, tcgPtrType(temp.type), StringRef(temp.name) + "_ptr");
+            m_memValuesPtr[idx] = v;
         } else {
             m_memValuesPtr[idx] = generateCpuStatePtr(temp.mem_offset, tcgType(temp.type)->getScalarSizeInBits() / 8);
         }
@@ -281,8 +279,7 @@ Value *TCGLLVMTranslator::getValue(TCGArg arg) {
             case TEMP_GLOBAL: {
                 assert(idx < m_tcgContext->nb_globals);
                 auto ptr = getPtrForValue(idx);
-                m_values[idx] =
-                    m_builder.CreateLoad(ptr->getType()->getPointerElementType(), ptr, StringRef(temp.name) + "_v");
+                m_values[idx] = m_builder.CreateLoad(tcgType(temp.type), ptr, StringRef(temp.name) + "_v");
             } break;
 
             case TEMP_FIXED: {
@@ -293,7 +290,7 @@ Value *TCGLLVMTranslator::getValue(TCGArg arg) {
 
             case TEMP_TB: {
                 auto ptr = getPtrForValue(idx);
-                m_values[idx] = m_builder.CreateLoad(ptr->getType()->getPointerElementType(), ptr);
+                m_values[idx] = m_builder.CreateLoad(tcgType(temp.type), ptr);
                 std::ostringstream name;
                 name << "loc" << (idx - m_tcgContext->nb_globals) << "_v";
                 m_values[idx]->setName(name.str());
@@ -411,7 +408,6 @@ void TCGLLVMTranslator::initGlobalsAndLocalTemps() {
 
 void TCGLLVMTranslator::loadNativeCpuState(Function *f) {
     m_cpuState = &*(f->arg_begin());
-    m_cpuStateInt = dyn_cast<Instruction>(m_builder.CreatePtrToInt(m_cpuState, wordType()));
 
     auto ci = ConstantInt::get(wordType(), 0);
     auto add = BinaryOperator::Create(Instruction::Add, ci, ci, "");
@@ -420,14 +416,8 @@ void TCGLLVMTranslator::loadNativeCpuState(Function *f) {
     m_eip = generateCpuStatePtr(m_tcgContext->env_offset_eip, m_tcgContext->env_sizeof_eip);
     m_ccop = generateCpuStatePtr(m_tcgContext->env_offset_ccop, m_tcgContext->env_sizeof_ccop);
 
-    if (m_eip_last_gep_index == 0) {
-        SmallVector<Value *, 3> gepElements;
-        bool ok = getCpuFieldGepIndexes(m_tcgContext->env_offset_eip, sizeof(target_ulong), gepElements);
-        if (!ok) {
-            abort();
-        }
-
-        m_eip_last_gep_index = (unsigned) dyn_cast<ConstantInt>(gepElements.back())->getZExtValue();
+    if (m_eip_byte_offset == 0) {
+        m_eip_byte_offset = m_tcgContext->env_offset_eip;
     }
 }
 
@@ -457,7 +447,7 @@ void TCGLLVMTranslator::startNewBasicBlock(BasicBlock *bb) {
         m_builder.CreateBr(bb);
     }
 
-    m_tbFunction->getBasicBlockList().push_back(bb);
+    bb->insertInto(m_tbFunction);
     m_builder.SetInsertPoint(bb);
 
     /* Invalidate all temps */
@@ -475,44 +465,18 @@ void TCGLLVMTranslator::startNewBasicBlock(BasicBlock *bb) {
 }
 
 Value *TCGLLVMTranslator::generateCpuStatePtr(uint64_t registerOffset, unsigned sizeInBytes) {
-    SmallVector<Value *, 3> gepElements;
-    Instruction *ret = nullptr;
     auto regsz = std::make_pair(registerOffset, sizeInBytes);
 
-    // XXX: assumes x86
-    static unsigned TARGET_LONG_BYTES = TARGET_LONG_BITS / 8;
-
-    if ((registerOffset % (TARGET_LONG_BITS / 8)) == 0) {
-        auto &instList = m_tbFunction->begin()->getInstList();
-        auto it = m_registers.find(regsz);
-
-        if (it != m_registers.end()) {
-            return (*it).second;
-        } else {
-            bool ok = getCpuFieldGepIndexes(registerOffset, sizeInBytes, gepElements);
-            if (ok) {
-                ret = GetElementPtrInst::Create(m_cpuState->getType()->getPointerElementType(), m_cpuState,
-                                                ArrayRef<Value *>(gepElements.begin(), gepElements.end()));
-                instList.push_front(ret);
-                m_registers[regsz] = ret;
-            }
-        }
+    auto it = m_registers.find(regsz);
+    if (it != m_registers.end()) {
+        return it->second;
     }
 
-    if (ret && sizeInBytes < TARGET_LONG_BYTES) {
-        auto ty = intPtrType(sizeInBytes * 8);
-        ret = CastInst::CreatePointerCast(ret, ty, "", ret->getNextNode());
-        m_registers[regsz] = ret;
-        return ret;
-    }
-
-    if (!ret) {
-        // If gep fails, fallback to pointer arithmetic
-        auto ci = ConstantInt::get(wordType(), registerOffset);
-        auto add = BinaryOperator::Create(Instruction::Add, m_cpuStateInt, ci, "", m_noop);
-        ret = CastInst::CreateBitOrPointerCast(add, intPtrType(sizeInBytes * 8), "", m_noop);
-        m_registers[regsz] = ret;
-    }
+    auto i8Ty = Type::getInt8Ty(getContext());
+    auto offsetVal = ConstantInt::get(wordType(), registerOffset);
+    Instruction *ret = GetElementPtrInst::Create(i8Ty, m_cpuState, {offsetVal});
+    ret->insertBefore(m_noop);
+    m_registers[regsz] = ret;
 
     return ret;
 }
@@ -523,7 +487,7 @@ void TCGLLVMTranslator::generateQemuCpuLoad(const TCGArg *args, unsigned memBits
     Value *gep = generateCpuStatePtr(args[2], memBits / 8);
     Value *v;
 
-    v = m_builder.CreateLoad(gep->getType()->getPointerElementType(), gep);
+    v = m_builder.CreateLoad(intType(memBits), gep);
     v = m_builder.CreateTrunc(v, intType(memBits));
 
     if (signExtend) {
@@ -542,11 +506,7 @@ void TCGLLVMTranslator::generateQemuCpuStore(const TCGArg *args, unsigned memBit
     }
 
     Value *gep = generateCpuStatePtr(offset, memBits / 8);
-    Value *v = NULL;
-
-    v = m_builder.CreatePointerCast(gep, intType(memBits)->getPointerTo());
-
-    m_builder.CreateStore(m_builder.CreateTrunc(valueToStore, intType(memBits)), v);
+    m_builder.CreateStore(m_builder.CreateTrunc(valueToStore, intType(memBits)), gep);
 }
 
 Value *TCGLLVMTranslator::generateQemuMemOp(bool ld, Value *value, Value *addr, int mem_index, int bits) {
@@ -654,7 +614,7 @@ int TCGLLVMTranslator::generateOperation(const TCGOp *op) {
                 sys::DynamicLibrary::AddSymbol(funcName, (void *) helperAddress);
             }
 
-            FunctionType *FTy = cast<FunctionType>(cast<PointerType>(helperFunc->getType())->getPointerElementType());
+            FunctionType *FTy = helperFunc->getFunctionType();
 
             /**
              * Cast arguments to target function type.
@@ -1153,8 +1113,7 @@ void TCGLLVMTranslator::removeInterruptExit() {
     auto br = dyn_cast<BranchInst>(bb.getTerminator());
     auto target = br->getSuccessor(1);
     br->eraseFromParent();
-    auto newBr = BranchInst::Create(target);
-    bb.getInstList().push_back(newBr);
+    BranchInst::Create(target, &bb);
 }
 
 Function *TCGLLVMTranslator::generateCode(TCGContext *s, TranslationBlock *tb) {
@@ -1299,52 +1258,6 @@ Function *TCGLLVMTranslator::generateCode(TCGContext *s, TranslationBlock *tb) {
     return m_tbFunction;
 }
 
-bool TCGLLVMTranslator::getCpuFieldGepIndexes(unsigned offset, unsigned sizeInBytes,
-                                              SmallVector<Value *, 3> &gepIndexes) {
-
-    Type *curType = m_cpuType;
-    auto &dataLayout = m_module->getDataLayout();
-    auto I32Ty = Type::getInt32Ty(m_module->getContext());
-
-    auto coffset = offset;
-    gepIndexes.push_back(ConstantInt::get(I32Ty, 0));
-
-    do {
-        bool compositeType = false;
-
-        if (curType->isStructTy()) {
-            compositeType = true;
-            StructType *curStructTy = dyn_cast<StructType>(curType);
-            const StructLayout *curStructLayout = dataLayout.getStructLayout(curStructTy);
-
-            auto curIdx = curStructLayout->getElementContainingOffset(coffset);
-
-            gepIndexes.push_back(ConstantInt::get(I32Ty, curIdx));
-            curType = curStructTy->getTypeAtIndex(curIdx);
-            coffset -= curStructLayout->getElementOffset(curIdx);
-        } else if (curType->isArrayTy()) {
-            compositeType = true;
-            ArrayType *curArrayTy = dyn_cast<ArrayType>(curType);
-            auto elemSize = dataLayout.getTypeAllocSize(curArrayTy->getElementType());
-            auto curIdx = coffset / elemSize;
-            assert(curIdx < curArrayTy->getNumElements() && "Illegal field offset into CPUState!");
-
-            gepIndexes.push_back(ConstantInt::get(I32Ty, curIdx));
-            coffset %= elemSize;
-            curType = curArrayTy->getElementType();
-        }
-
-        if (!compositeType) {
-            // Offset may point in the middle of a structure/union, make sure
-            // that the element size matches the requested size.
-            auto typeSz = dataLayout.getTypeAllocSize(curType);
-            return coffset == 0 && typeSz == sizeInBytes;
-        }
-    } while (true);
-
-    return false;
-}
-
 bool TCGLLVMTranslator::GetStaticBranchTarget(const llvm::BasicBlock *BB, uint64_t *target) {
     if (!isa<llvm::ReturnInst>(BB->getTerminator())) {
         return false;
@@ -1367,18 +1280,12 @@ bool TCGLLVMTranslator::GetStaticBranchTarget(const llvm::BasicBlock *BB, uint64
             continue;
         }
 
-        if (gep->getNumOperands() != 3) {
+        if (gep->getNumOperands() != 2) {
             continue;
         }
 
-        const llvm::ConstantInt *go1 = dyn_cast<llvm::ConstantInt>(gep->getOperand(1));
-        const llvm::ConstantInt *go2 = dyn_cast<llvm::ConstantInt>(gep->getOperand(2));
-        if (!go1 || !go2) {
-            continue;
-        }
-
-        // XXX: hard-coded pc index
-        if (!go1->isZero() || go2->getZExtValue() != TCGLLVMTranslator::m_eip_last_gep_index) {
+        const llvm::ConstantInt *offset = dyn_cast<llvm::ConstantInt>(gep->getOperand(1));
+        if (!offset || offset->getZExtValue() != TCGLLVMTranslator::m_eip_byte_offset) {
             continue;
         }
 

@@ -124,7 +124,7 @@ BitfieldSimplifier::ExprBitsInfo BitfieldSimplifier::doSimplifyBits(const ref<Ex
     for (unsigned i = 0; i < numKids; ++i) {
         // By setting ignoredBits to zero we disable any ignoredBits-related
         // optimization. Only optimizations based on knownBits will be done.
-        ExprBitsInfo r = doSimplifyBits(e->getKid(i), APInt::getNullValue(e->getKid(i)->getWidth()));
+        ExprBitsInfo r = doSimplifyBits(e->getKid(i), APInt::getZero(e->getKid(i)->getWidth()));
         kids[i] = r.first;
         bits[i] = r.second;
 
@@ -153,8 +153,8 @@ BitfieldSimplifier::ExprBitsInfo BitfieldSimplifier::doSimplifyBits(const ref<Ex
             for (unsigned i = 0; i < 2; ++i) {
                 if (~(bits[i].knownOneBits | bits[i].ignoredBits) == 0) {
                     // All bits of this kid is either one or ignored
-                    bits[i].knownOneBits = APInt::getAllOnesValue(e->getWidth());
-                    bits[i].knownZeroBits = APInt::getNullValue(e->getWidth());
+                    bits[i].knownOneBits = APInt::getAllOnes(e->getWidth());
+                    bits[i].knownZeroBits = APInt::getZero(e->getWidth());
                 }
             }
 
@@ -171,8 +171,8 @@ BitfieldSimplifier::ExprBitsInfo BitfieldSimplifier::doSimplifyBits(const ref<Ex
             for (unsigned i = 0; i < 2; ++i) {
                 if (~(bits[i].knownZeroBits | bits[i].ignoredBits) == 0) {
                     // All bits of this kid is either zero or ignored
-                    bits[i].knownOneBits = APInt::getNullValue(e->getWidth());
-                    bits[i].knownZeroBits = APInt::getAllOnesValue(e->getWidth());
+                    bits[i].knownOneBits = APInt::getZero(e->getWidth());
+                    bits[i].knownZeroBits = APInt::getAllOnes(e->getWidth());
                 }
             }
 
@@ -216,14 +216,14 @@ BitfieldSimplifier::ExprBitsInfo BitfieldSimplifier::doSimplifyBits(const ref<Ex
                     bits[0].ignoredBits = ignoredBits.lshr(shift) | APInt::getHighBitsSet(width, shift);
                 } else {
                     // When the shift amount is >= the expression's width, the result is always 0
-                    rbits.knownOneBits = APInt::getNullValue(width);
-                    rbits.knownZeroBits = APInt::getAllOnesValue(width);
-                    bits[0].ignoredBits = APInt::getAllOnesValue(width);
+                    rbits.knownOneBits = APInt::getZero(width);
+                    rbits.knownZeroBits = APInt::getAllOnes(width);
+                    bits[0].ignoredBits = APInt::getAllOnes(width);
                 }
             } else {
                 // This is the most general assumption
-                rbits.knownOneBits = APInt::getNullValue(width);
-                rbits.knownZeroBits = APInt::getNullValue(width);
+                rbits.knownOneBits = APInt::getZero(width);
+                rbits.knownZeroBits = APInt::getZero(width);
             }
         } break;
 
@@ -246,14 +246,14 @@ BitfieldSimplifier::ExprBitsInfo BitfieldSimplifier::doSimplifyBits(const ref<Ex
                     bits[0].ignoredBits = (ignoredBits << shift) | APInt::getLowBitsSet(width, shift);
                 } else {
                     // When the shift amout is >= the expression's width, the result is always 0
-                    rbits.knownOneBits = APInt::getNullValue(width);
-                    rbits.knownZeroBits = APInt::getAllOnesValue(width);
-                    bits[0].ignoredBits = APInt::getAllOnesValue(width);
+                    rbits.knownOneBits = APInt::getZero(width);
+                    rbits.knownZeroBits = APInt::getAllOnes(width);
+                    bits[0].ignoredBits = APInt::getAllOnes(width);
                 }
             } else {
                 // This is the most general assumption
-                rbits.knownOneBits = APInt::getNullValue(width);
-                rbits.knownZeroBits = APInt::getNullValue(width);
+                rbits.knownOneBits = APInt::getZero(width);
+                rbits.knownZeroBits = APInt::getZero(width);
             }
         } break;
 
@@ -340,8 +340,8 @@ BitfieldSimplifier::ExprBitsInfo BitfieldSimplifier::doSimplifyBits(const ref<Ex
 
         default:
             // This is the most general assumption
-            rbits.knownOneBits = APInt::getNullValue(e->getWidth());
-            rbits.knownZeroBits = APInt::getNullValue(e->getWidth());
+            rbits.knownOneBits = APInt::getZero(e->getWidth());
+            rbits.knownZeroBits = APInt::getZero(e->getWidth());
             break;
     }
 
@@ -417,7 +417,7 @@ ref<Expr> BitfieldSimplifier::simplify(const ref<Expr> &e, APInt *knownZeroBits)
 
     ++m_cacheMisses;
 
-    ExprBitsInfo ret = doSimplifyBits(e, APInt::getNullValue(e->getWidth()));
+    ExprBitsInfo ret = doSimplifyBits(e, APInt::getZero(e->getWidth()));
 
     m_simplifiedExpressions[e] = ret;
 

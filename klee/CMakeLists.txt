@@ -31,23 +31,14 @@ set(KLEE_LIBRARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/lib")
 configure_file(KLEEConfig.cmake.in ${CMAKE_CONFIG_FILE} @ONLY)
 
 
-if (POLICY CMP0054)
-  # FIXME: This is horrible. With the old behaviour,
-  # quoted strings like "MSVC" in if() conditionals
-  # get implicitly dereferenced. The NEW behaviour
-  # doesn't do this but CMP0054 was only introduced
-  # in CMake 3.1 and we support lower versions as the
-  # minimum. We could set NEW here but it would be very
-  # confusing to use NEW for some builds and OLD for others
-  # which could lead to some subtle bugs. Instead when the
-  # minimum version is 3.1 change this policy to NEW and remove
-  # the hacks in place to work around it.
-  cmake_policy(SET CMP0054 OLD)
-endif()
-
 if (POLICY CMP0042)
   # Enable `MACOSX_RPATH` by default.
   cmake_policy(SET CMP0042 NEW)
+endif()
+
+if (POLICY CMP0075)
+  # Honor CMAKE_REQUIRED_LIBRARIES in check_include_file() (required by LLVM 19's FindLibEdit).
+  cmake_policy(SET CMP0075 NEW)
 endif()
 
 # This overrides the default flags for the different CMAKE_BUILD_TYPEs
@@ -168,8 +159,8 @@ set(KLEE_COMPONENT_EXTRA_LIBRARIES "")
 ################################################################################
 # Find LLVM
 ################################################################################
+find_package(LLVM 19.1...<20 REQUIRED)
 include(${CMAKE_SOURCE_DIR}/cmake/find_llvm.cmake)
-find_package(LLVM 14...<15 REQUIRED)
 
 
 foreach (vname ${NEEDED_LLVM_VARS})

@@ -29,13 +29,16 @@ S2E is a symbolic execution platform. This repository builds `libs2e.so`, a shar
 - Use C++20 in all components.
 - **Header guards**: `#ifndef S2E_*_H` / `#define` / `#endif`
 - Use `///` for license headers
+- Use braces for all if/for/while, etc. blocks, even when there is only a single instructions.
+- **Member variables**:
+   - `m_` prefix + `snake_case` (e.g., `m_devices`)
+   - Class member variables should go at the beginning of the class.
+- **Namespaces**: lowercase (e.g., `s2e::kvm`)
+- **Class names**: `PascalCase` (e.g., `VirtualDeviceManager`)
 
 ## Code Style for `libs2e/*`
-
-- **Class names**: `PascalCase` (e.g., `VirtualDeviceManager`)
 - **Method/function names**: `snake_case` (e.g., `mmio_read`, `find_device`)
-- **Member variables**: `m_` prefix + `snake_case` (e.g., `m_devices`)
-- **Namespaces**: lowercase (e.g., `s2e::kvm`)
+
 
 ## Commit Messages
 

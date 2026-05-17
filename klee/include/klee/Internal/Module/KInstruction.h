@@ -44,13 +44,21 @@ public:
 
 struct KGEPInstruction : KInstruction {
     /// indices - The list of variable sized adjustments to add to the pointer
-    /// operand to execute the instruction. The first element is the operand
-    /// index into the GetElementPtr instruction, and the second element is the
-    /// element size to multiple that index by.
+    /// operand to execute the getelementptr instruction. The first element is
+    /// the operand index and the second is the element size to multiply by.
     std::vector<std::pair<unsigned, uint64_t>> indices;
 
-    /// offset - A constant offset to add to the pointer operand to execute the
-    /// insturction.
+    /// offset - A constant byte offset to add to the pointer operand.
+    uint64_t offset;
+};
+
+struct KInsertValueInstruction : KInstruction {
+    /// offset - Constant byte offset of the insertion point within the aggregate.
+    uint64_t offset;
+};
+
+struct KExtractValueInstruction : KInstruction {
+    /// offset - Constant byte offset of the extracted element within the aggregate.
     uint64_t offset;
 };
 

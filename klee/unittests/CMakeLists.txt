@@ -23,6 +23,15 @@ llvm_map_components_to_libnames(LLVM_LIBS core)
 
 set(LIBS ${LIBS} ${LLVM_LIBS} ${GTEST_LIBRARIES} ${GMOCK_LIBRARIES} gmock)
 
+
+# Prevent googletest from including libc++abi's cxxabi.h, since it has a
+# conflicting declaration of the __cxa_init_primary_exception symbol with
+# libstdc++. It's very unclear why googletest unconditionally includes this
+# header when the build is not set up to use libc++abi otherwise. We could
+# add detection here to keep it when using libc++abi but we currently
+# don't. See https://github.com/llvm/llvm-project/issues/121300
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DGTEST_HAS_CXXABI_H_=0")
+
 function(add_klee_unit_test target_name)
   add_executable(${target_name} ${ARGN} ${PROJECT_SOURCE_DIR}/unittests/TestMain.cpp)
   target_link_libraries(${target_name} PRIVATE ${LIBS})

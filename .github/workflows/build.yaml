@@ -6,8 +6,6 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: ubuntu-22.04
-            clang_version: 15
           - os: ubuntu-24.04
             clang_version: 19
     steps:
@@ -34,10 +32,10 @@ jobs:
             libcurl4-openssl-dev \
             libedit-dev \
             libpfm4-dev \
-            llvm-14-dev \
-            clang-format-14 \
+            llvm-19-dev \
+            clang-format-19 \
             libmlir-14-dev \
-            clang-14
+            clang-19
 
       - name: Install OS-specific clang version
         run: |
