@@ -44,6 +44,10 @@ pkg_check_modules(GLIB_PKG glib-2.0)
 include_directories(${GLIB_PKG_INCLUDE_DIRS})
 
 ##### LLVM #####
+if (POLICY CMP0075)
+  cmake_policy(SET CMP0075 NEW)
+endif()
+
 find_package(LLVM 19.1...<20 REQUIRED)
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 

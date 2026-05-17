@@ -50,6 +50,10 @@ include(FindProtobuf)
 find_package(Protobuf REQUIRED)
 
 ##### LLVM #####
+if (POLICY CMP0075)
+  cmake_policy(SET CMP0075 NEW)
+endif()
+
 find_package(CURL REQUIRED)
 find_package(LLVM 19.1...<20 REQUIRED)
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")

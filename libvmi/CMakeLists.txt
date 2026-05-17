@@ -38,6 +38,10 @@ set(VMI_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/include")
 set(VMI_LIBRARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/src")
 configure_file(VMIConfig.cmake.in ${CMAKE_CONFIG_FILE} @ONLY)
 
+if (POLICY CMP0075)
+  cmake_policy(SET CMP0075 NEW)
+endif()
+
 find_package(LLVM 19.1...<20 REQUIRED)
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 

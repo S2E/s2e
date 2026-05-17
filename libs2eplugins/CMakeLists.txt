@@ -43,6 +43,10 @@ find_package(PkgConfig REQUIRED)
 include_directories("include")
 
 ##### LLVM #####
+if (POLICY CMP0075)
+  cmake_policy(SET CMP0075 NEW)
+endif()
+
 find_package(LLVM 19.1...<20 REQUIRED)
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 
