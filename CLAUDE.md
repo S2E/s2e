@@ -13,9 +13,7 @@ S2E is a symbolic execution platform. This repository builds `libs2e.so`, a shar
 - `libtcg/` - TCG (Tiny Code Generator) library
 - `klee/` - KLEE symbolic execution engine (fork)
 - `libvmi/` - Virtual machine introspection
-- `libq/` - Utility library
-- `libfsigc++/` - Signal/slot library
-- `libcoroutine/` - Coroutine support
+- `libutils/` - Utility library (QObject/QAPI, signal/slot, coroutines)
 - `guest/` - Guest-side tools and libraries
 - `tools/` - Offline analysis tools
 - `lua/` - Lua headers (for plugin configuration)
