@@ -56,11 +56,8 @@ message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 find_package(VMI REQUIRED)
 message(STATUS "Found VMI ${VMI_PACKAGE_VERSION}")
 
-find_package(FSIGCXX REQUIRED)
-message(STATUS "Found fsigc++ ${FSIGCXX_PACKAGE_VERSION}")
-
-find_package(LIBQ REQUIRED)
-message(STATUS "Found libq ${LIBQ_PACKAGE_VERSION}")
+find_package(LIBUTILS REQUIRED)
+message(STATUS "Found libutils ${LIBUTILS_PACKAGE_VERSION}")
 
 if(LIBCPU_SRC_DIR)
   message(STATUS "libcpu source directory: ${LIBCPU_SRC_DIR}")
@@ -91,13 +88,12 @@ include_directories("include"
                     ${LIBCPU_SRC_DIR}
                     ${S2EPLUGINS_SRC_DIR}
                     ${VMI_INCLUDE_DIR}
-                    ${LIBQ_INCLUDE_DIR}
-                    ${FSIGCXX_INCLUDE_DIR}
+                    ${LIBUTILS_INCLUDE_DIR}
                     ${PROTOBUF_INCLUDE_DIRS})
 
 include_directories(SYSTEM ${LLVM_INCLUDE_DIRS})
 
-link_directories(${VMI_LIBRARY_DIR} ${FSIGCXX_LIBRARY_DIR} ${LIBQ_LIBRARY_DIR})
+link_directories(${VMI_LIBRARY_DIR} ${LIBUTILS_LIBRARY_DIR})
 
 llvm_map_components_to_libnames(LLVM_LIBS core
                                           debuginfodwarf

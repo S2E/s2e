@@ -20,23 +20,23 @@
 
 cmake_minimum_required(VERSION 3.10)
 
-project(FSIGCXX)
-set(FSIGCXX_VERSION_MAJOR 1)
-set(FSIGCXX_VERSION_MINOR 0)
-set(FSIGCXX_VERSION_PATCH 0)
-set(FSIGCXX_PACKAGE_VERSION
-    "${FSIGCXX_VERSION_MAJOR}.${FSIGCXX_VERSION_MINOR}.${FSIGCXX_VERSION_PATCH}")
+project(LIBUTILS)
+set(LIBUTILS_VERSION_MAJOR 1)
+set(LIBUTILS_VERSION_MINOR 0)
+set(LIBUTILS_VERSION_PATCH 0)
+set(LIBUTILS_PACKAGE_VERSION
+    "${LIBUTILS_VERSION_MAJOR}.${LIBUTILS_VERSION_MINOR}.${LIBUTILS_VERSION_PATCH}")
 
 include(CMakePackageConfigHelpers)
 set(CMAKE_VERSION_FILE "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Version.cmake")
 write_basic_package_version_file(${CMAKE_VERSION_FILE}
-                                 VERSION ${FSIGCXX_PACKAGE_VERSION}
+                                 VERSION ${LIBUTILS_PACKAGE_VERSION}
                                  COMPATIBILITY AnyNewerVersion)
 
 set(CMAKE_CONFIG_FILE "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake")
-set(FSIGCXX_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/include")
-set(FSIGCXX_LIBRARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/src")
-configure_file(FSIGCXXConfig.cmake.in ${CMAKE_CONFIG_FILE} @ONLY)
+set(LIBUTILS_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/include")
+set(LIBUTILS_LIBRARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/src")
+configure_file(LIBUTILSConfig.cmake.in ${CMAKE_CONFIG_FILE} @ONLY)
 
 # We want to remove NDEBUG from all builds
 foreach (flags_var_to_scrub
@@ -50,6 +50,9 @@ string (REGEX REPLACE "(^| )[/-]D *NDEBUG($| )" " "
     "${flags_var_to_scrub}" "${${flags_var_to_scrub}}")
 endforeach()
 
-include_directories(${FSIGCXX_INCLUDE_DIR})
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(GLIB_PKG glib-2.0)
+
+include_directories(${GLIB_PKG_INCLUDE_DIRS} ${LIBUTILS_INCLUDE_DIR})
 
 add_subdirectory(src)

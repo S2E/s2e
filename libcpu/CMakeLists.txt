@@ -26,8 +26,8 @@ pkg_check_modules(GLIB_PKG glib-2.0)
 pkg_check_modules(CAPSTONE REQUIRED capstone)
 
 
-find_package(LIBQ REQUIRED)
-message(STATUS "Found libq ${LIBQ_PACKAGE_VERSION}")
+find_package(LIBUTILS REQUIRED)
+message(STATUS "Found libutils ${LIBUTILS_PACKAGE_VERSION}")
 
 find_package(LIBTCG REQUIRED)
 message(STATUS "Found libtcg ${LIBTCG_PACKAGE_VERSION}")
@@ -108,7 +108,7 @@ string (REGEX REPLACE "(^| )[/-]D *NDEBUG($| )" " "
 endforeach()
 
 include_directories(${GLIB_PKG_INCLUDE_DIRS}
-                    ${LIBQ_INCLUDE_DIR}
+                    ${LIBUTILS_INCLUDE_DIR}
                     ${CAPSTONE_INCLUDE_DIRS}
                     ${LIBTCG_INCLUDE_DIR}
                     ${HOST_INCLUDE_DIR}
