@@ -68,12 +68,11 @@ include/tcg/utils/host/generic/load-extract-al16-al8.h	host/include/generic/host
 include/tcg/utils/host/generic/store-insert-al16.h	host/include/generic/host/store-insert-al16.h.inc
 src/utils/cpuinfo-i386.c	util/cpuinfo-i386.c
 # --- utilities ----------------------------------------------------------
-# Mostly still at QEMU v8.1.0; the upgrade deliberately lags the TCG core,
-# and only what newer TCG or softfloat actually needs has been pulled in.
+# These track BASELINE. Files not listed as changing upstream since v8.1.0
+# were simply never touched there, so they are current by definition.
 include/tcg/utils/atomic.h	include/qemu/atomic.h
 include/tcg/utils/atomic128.h	include/qemu/atomic128.h
 include/tcg/utils/bitops.h	include/qemu/bitops.h
-include/tcg/utils/bswap.h	include/qemu/bswap.h
 include/tcg/utils/cpuid.h	include/qemu/cpuid.h
 include/tcg/utils/debug-assert.h	include/tcg/debug-assert.h
 include/tcg/utils/host-utils.h	include/qemu/host-utils.h
@@ -89,7 +88,9 @@ src/utils/interval-tree.c	util/interval-tree.c
 src/utils/memalign.c	util/memalign.c
 src/utils/qtree.c	util/qtree.c
 src/elf.h	include/elf.h
-# Heavily reduced S2E-specific subsets: merge by hand, not mechanically.
+# Heavily reduced S2E-specific subsets, still v8.1.0-era: these are hand
+# written rather than vendored, so merge by hand, not mechanically.
+include/tcg/utils/bswap.h	include/qemu/bswap.h
 include/tcg/utils/bitmap.h	include/qemu/bitmap.h
 include/tcg/utils/cutils.h	include/qemu/cutils.h
 include/tcg/utils/log.h	include/qemu/log.h

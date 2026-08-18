@@ -1,6 +1,6 @@
 /*
  * SPDX-License-Identifier: GPL-2.0-or-later
- * Host specific cpu indentification for x86.
+ * Host specific cpu identification for x86.
  */
 
 #include <tcg/utils/host/x86_64/cpuinfo.h>
@@ -34,11 +34,11 @@ unsigned __attribute__((constructor)) cpuinfo_init(void) {
     if (max >= 1) {
         __cpuid(1, a, b, c, d);
 
-        info |= (d & bit_CMOV ? CPUINFO_CMOV : 0);
         info |= (d & bit_SSE2 ? CPUINFO_SSE2 : 0);
-        info |= (c & bit_SSE4_1 ? CPUINFO_SSE4 : 0);
+        info |= (c & bit_OSXSAVE ? CPUINFO_OSXSAVE : 0);
         info |= (c & bit_MOVBE ? CPUINFO_MOVBE : 0);
         info |= (c & bit_POPCNT ? CPUINFO_POPCNT : 0);
+        info |= (c & bit_PCLMUL ? CPUINFO_PCLMUL : 0);
 
         /* Our AES support requires PSHUFB as well. */
         info |= ((c & bit_AES) && (c & bit_SSSE3) ? CPUINFO_AES : 0);
@@ -50,6 +50,7 @@ unsigned __attribute__((constructor)) cpuinfo_init(void) {
             if ((bv & 6) == 6) {
                 info |= CPUINFO_AVX1;
                 info |= (b7 & bit_AVX2 ? CPUINFO_AVX2 : 0);
+                info |= (c7 & bit_GFNI ? CPUINFO_GFNI : 0);
 
                 if ((bv & 0xe0) == 0xe0) {
                     info |= (b7 & bit_AVX512F ? CPUINFO_AVX512F : 0);
@@ -74,7 +75,7 @@ unsigned __attribute__((constructor)) cpuinfo_init(void) {
                  * of their memory operands to be 16-byte aligned.
                  *
                  * AMD has provided an even stronger guarantee that processors
-                 * with AVX provide 16-byte atomicity for all cachable,
+                 * with AVX provide 16-byte atomicity for all cacheable,
                  * naturally aligned single loads and stores, e.g. MOVDQU.
                  *
                  * See https://gcc.gnu.org/bugzilla/show_bug.cgi?id=104688

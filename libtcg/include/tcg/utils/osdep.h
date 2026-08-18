@@ -104,6 +104,49 @@ extern "C" {
 #define QEMU_ALWAYS_INLINE
 #endif
 
+#ifndef __cplusplus
+/*
+ * Take the type of an expression, stripped of any const/volatile qualifiers.
+ * The atomic builtins return values through a pointer-type argument, as in
+ * __atomic_load(&var, &old, MODEL), so the destination must be non-qualified.
+ *
+ * Types smaller than int are handled explicitly because of implicit promotion;
+ * int and larger types, and pointers, are stripped by applying a binary
+ * operator. Upstream keeps this in include/qemu/compiler.h, whose contents
+ * libtcg folds into osdep.h.
+ */
+#define typeof_strip_qual(expr)                                                                                       \
+    typeof(__builtin_choose_expr(                                                                                     \
+        __builtin_types_compatible_p(typeof(expr), bool) || __builtin_types_compatible_p(typeof(expr), const bool) || \
+            __builtin_types_compatible_p(typeof(expr), volatile bool) ||                                              \
+            __builtin_types_compatible_p(typeof(expr), const volatile bool),                                          \
+        (bool) 1,                                                                                                     \
+        __builtin_choose_expr(                                                                                        \
+            __builtin_types_compatible_p(typeof(expr), signed char) ||                                                \
+                __builtin_types_compatible_p(typeof(expr), const signed char) ||                                      \
+                __builtin_types_compatible_p(typeof(expr), volatile signed char) ||                                   \
+                __builtin_types_compatible_p(typeof(expr), const volatile signed char),                               \
+            (signed char) 1,                                                                                          \
+            __builtin_choose_expr(                                                                                    \
+                __builtin_types_compatible_p(typeof(expr), unsigned char) ||                                          \
+                    __builtin_types_compatible_p(typeof(expr), const unsigned char) ||                                \
+                    __builtin_types_compatible_p(typeof(expr), volatile unsigned char) ||                             \
+                    __builtin_types_compatible_p(typeof(expr), const volatile unsigned char),                         \
+                (unsigned char) 1,                                                                                    \
+                __builtin_choose_expr(                                                                                \
+                    __builtin_types_compatible_p(typeof(expr), signed short) ||                                       \
+                        __builtin_types_compatible_p(typeof(expr), const signed short) ||                             \
+                        __builtin_types_compatible_p(typeof(expr), volatile signed short) ||                          \
+                        __builtin_types_compatible_p(typeof(expr), const volatile signed short),                      \
+                    (signed short) 1,                                                                                 \
+                    __builtin_choose_expr(                                                                            \
+                        __builtin_types_compatible_p(typeof(expr), unsigned short) ||                                 \
+                            __builtin_types_compatible_p(typeof(expr), const unsigned short) ||                       \
+                            __builtin_types_compatible_p(typeof(expr), volatile unsigned short) ||                    \
+                            __builtin_types_compatible_p(typeof(expr), const volatile unsigned short),                \
+                        (unsigned short) 1, (expr) + 0))))))
+#endif /* !__cplusplus */
+
 /*
  * If __attribute__((error)) is present, use it to produce an error at
  * compile time.  Otherwise, one must wait for the linker to diagnose

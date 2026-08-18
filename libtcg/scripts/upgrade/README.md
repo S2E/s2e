@@ -39,19 +39,23 @@ The upgrade is then an ordinary three-way merge:
 reports files that were deleted upstream or added since the old tag, both of
 which need a human decision.
 
-Not every libtcg file tracks upstream closely. Several utility files
-(`utils/osdep.h`, `utils/cutils.c`, `utils/log.c`, `utils/bitmap.h`) are heavily
-reduced S2E-specific subsets, and most of `utils/` still sits at QEMU v8.1.0.
-These are listed in `mapping.tsv` for reference but normally want a manual look
-rather than a mechanical merge.
+Not every libtcg file tracks upstream closely. The utility files below the
+"hand written" marker in `mapping.tsv` (`utils/osdep.h`, `utils/cutils.*`,
+`utils/log.*`, `utils/bitmap.h`, `utils/bswap.h`) are heavily reduced
+S2E-specific subsets rather than vendored copies, and are still v8.1.0-era.
+They are listed for reference but want a manual look rather than a mechanical
+merge.
 
-Two S2E deviations in the merged code are deliberate and must survive future
+Several S2E deviations in the merged code are deliberate and must survive future
 merges:
 
 - `float_status.float_rounding_mode` is a plain field rather than a bitfield.
   S2E addresses the CPU state by (offset, size) so helpers running as bitcode
   inside KLEE can read it back, which `offsetof`/`sizeof` on a bitfield cannot
   express.
+- `host/generic/atomic128-cas.h` renames the `new` parameter to `_new`, since
+  these headers are included from C++.
+- `utils/osdep.h` carries what upstream keeps in `include/qemu/compiler.h`.
 - `utils/cpu-float.h` holds the float/integer reinterpretation unions that
   upstream keeps in `include/qemu/cpu-float.h`. Leaving them in `bswap.h`, as
   older libtcg did, creates an include cycle through `softfloat-types.h` ->
