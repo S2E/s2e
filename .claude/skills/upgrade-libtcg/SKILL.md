@@ -1,0 +1,169 @@
+---
+name: upgrade-libtcg
+description: Upgrade libtcg (and its softfloat/utils subsets) to a newer QEMU release. Use when asked to move libtcg to a new QEMU version, pull in upstream TCG changes, rebase the TCG fork, or when a QEMU tag is named alongside libtcg/tcg/softfloat. Covers the normalize-then-merge workflow, the S2E deviations that must survive, and the libcpu fallout.
+---
+
+# Upgrading libtcg to a new QEMU release
+
+libtcg is a de-QEMU-ified fork of QEMU's TCG: headers are moved out of `qemu/`,
+`exec/` and `accel/tcg/` into `tcg/utils/`, `tcg/exec/` and `tcg/accel/`, and the
+whole tree is reformatted with the S2E `.clang-format`. **`git cherry-pick` and
+`patch` never apply** — every line differs because of reformatting alone.
+
+The tooling lives in `libtcg/scripts/upgrade/`. Read its `README.md` first.
+
+## The core idea
+
+Run the upstream file through clang-format with the S2E style *before*
+comparing. That collapses the diff to the genuine S2E delta — `src/tcg.c` goes
+from ~6800 differing lines to ~79 — which makes the upgrade an ordinary
+three-way merge:
+
+    base   = clang-formatted upstream at the OLD tag
+    theirs = clang-formatted upstream at the NEW tag
+    ours   = the current libtcg file
+
+Expect most files to merge clean, including the big ones (`tcg.c`, `tcg-op.c`,
+`optimize.c`, `tcg-target.c.inc`). Conflicts are almost always one hunk in an
+include block or where S2E's `extern "C"` guard meets appended upstream code.
+
+## Steps
+
+### 1. Scope it
+
+    cat libtcg/scripts/upgrade/BASELINE          # the tag libtcg currently tracks
+    git -C ~/qemu log --oneline <old>..<new> -- tcg/ include/tcg/
+
+**libtcg is not uniformly at one version.** Only the TCG core tracks `BASELINE`;
+much of `utils/` still sits at v8.1.0. Before assuming a file's baseline, check
+it: format the file at several candidate tags and pick the smallest diff. A file
+that is stale relative to its neighbours is a bug waiting to happen — the 11.1
+upgrade found `tcg-gvec-desc.h` stranded at an old descriptor encoding while
+`simd_desc()` already wrote the new one.
+
+Note deleted, added and renamed files in the upstream range; `merge.sh` reports
+them but cannot decide what to do about them.
+
+### 2. Merge
+
+    cd libtcg/scripts/upgrade
+    QEMU_SRC=~/qemu ./merge.sh <old-tag> <new-tag>            # dry run, reports conflicts
+    QEMU_SRC=~/qemu ./merge.sh <old-tag> <new-tag> --apply    # write back
+
+Prefer applying a chosen subset by hand over `--apply` when the upgrade is
+scoped to part of the tree (e.g. TCG core but not `fpu/`). Merged output sits in
+`scripts/upgrade/out/merged/`.
+
+Resolve conflicts by keeping the libtcg side of include blocks (the `<tcg/...>`
+paths and `// clang-format off` markers), and keeping the upstream side of
+everything else, with the `extern "C"` guard moved to wrap the new code.
+
+### 3. Import new files by hand
+
+Files upstream added have no libtcg name to merge into. Normalize, then rewrite
+the includes to libtcg paths and add `extern "C"` guards:
+
+    QEMU_SRC=~/qemu ./normalize.sh <new-tag> include/tcg/foo.h > ../../include/tcg/foo.h
+
+**Make imported headers self-contained.** Upstream relies on `qemu/osdep.h`
+being included first everywhere; libtcg has no such prelude, and the S2E
+clang-format sets `SortIncludes: true`, so it will reorder an include block and
+break any header that depends on its position.
+
+### 4. Build
+
+    cd ~/s2e/build/libs2e-release && make -j16
+    cd ~/s2e/build/libs2e-debug   && make -j16
+
+Both trees, six configurations each: `{i386,x86_64}-{,s2e-,s2e_sp-}softmmu`.
+Iterate on `libs2e-release/x86_64-s2e-softmmu/libtcg` alone for a fast loop, but
+finish on the full build — the i386 (`TARGET_LONG_BITS=32`) configurations
+exercise different paths.
+
+### 5. Verify the S2E patches survived
+
+A clean merge is not a correct merge. Diff each changed file against normalized
+upstream at the new tag and confirm the residual is *only* the expected S2E
+delta:
+
+    diff scripts/upgrade/out/new/src/x86_64/tcg-target.c.inc src/x86_64/tcg-target.c.inc
+
+Patches that must still be there, and that upstream refactors can silently
+relocate:
+
+- `s->qemu_ld_helpers` / `s->qemu_st_helpers` (per-context, not the static table)
+- the `CONFIG_SYMBEX && CONFIG_SYMBEX_MP` `se_addend` load on the TLB hit path —
+  check it is anchored to the right `tcg_out_ld`, not merely present
+- `tcg_target_force_tb_exit`
+- `tcg_prologue_init(TCGContext *s)` taking the context explicitly
+- `mutex_t` / `spin_*` / `g_*cache_linesize` in `region.c`
+
+### 6. Re-normalize and record
+
+    ./run-clang-format.sh          # from the S2E source root
+    make -j16                      # formatting can reorder includes; rebuild
+
+Then update `BASELINE` and any renamed paths in `mapping.tsv`, add newly tracked
+files, and confirm the tree is normalized by merging the new tag onto itself:
+
+    QEMU_SRC=~/qemu ./merge.sh <new-tag> <new-tag>    # must be 0 conflicts
+
+### 7. Commit
+
+Per `CLAUDE.md`: `component: short description`, lowercase. Split by phase —
+tooling, rename, the merge itself, then each consumer. Explain *why* in the
+body, especially for anything that deviates from upstream.
+
+## Deviations that must survive every merge
+
+- **`float_status.float_rounding_mode` is a plain field, not a bitfield.** S2E
+  addresses the CPU state by `(offset, size)`; `RR_cpu`/`WR_cpu` need
+  `offsetof`/`sizeof`, which no bitfield supports.
+- **`tcg/utils/cpu-float.h`** holds the float/integer reinterpretation unions
+  that upstream keeps in `include/qemu/cpu-float.h`. Leaving them in `bswap.h`
+  creates a cycle: `softfloat-types.h` → `registerfields.h` → `bitops.h` →
+  `host-utils.h` → `bswap.h`.
+- **`accel/getpc.h`** drops upstream's `#ifndef CONFIG_TCG #error` guard.
+- **`exec/helper-head.h.inc`** keeps its `#ifdef TARGET_LONG_BITS` guard instead
+  of including `exec/target_long.h`.
+
+## The libcpu fallout
+
+libcpu consumes libtcg and breaks in ways libtcg's own build will not catch.
+
+**Never replace `RR_cpu`/`WR_cpu` with direct struct access to silence a
+compiler error.** Under `CONFIG_SYMBEX` these route through
+`g_sqi.regs.read_concrete()` when `fast_concrete_invocation` is false — that is,
+when the helper runs as bitcode inside KLEE. Direct access reads the native copy
+of the CPU state instead of KLEE's, silently, on exactly the symbolic paths that
+matter. If upstream makes a field unaddressable, change the field in libtcg.
+
+**Check for newly required initialization.** Softfloat asserts at runtime when a
+NaN propagation rule or default NaN pattern was never set. `cpu_state_reset()`
+memsets the CPU state, so anything of that kind must be reapplied there — see
+`cpu_init_fp_statuses()` in `libcpu/src/target-i386/helper.c`, mirroring QEMU's
+`target/i386/tcg/fpu_helper.c`. This class of bug builds clean and aborts later,
+so grep upstream's target code for setters the fork does not call.
+
+**Watch for removed macros and renamed flags**, e.g. the removal of
+`TARGET_INSN_START_EXTRA_WORDS` (which made `tcg_gen_insn_start` take a fixed
+`INSN_START_WORDS` arguments, callers padding with zeroes), and
+`float_flag_input_denormal` → `float_flag_input_denormal_flushed`.
+
+## Things that change behaviour, not just code
+
+Say so explicitly when reporting the upgrade:
+
+- Softfloat changes are guest-visible, and `softfloat.c` is compiled to
+  `softfloat.bc` and interpreted by KLEE, so symbolic paths see them too.
+- `float_status` layout changes do not break compatibility with existing S2E snapshots. Snapshots are handled by vanilla QEMU.
+- `tcg-llvm.cpp` switches over TCG opcodes; if the upstream range removes or
+  renames any, the LLVM translator needs updating. Check the opcode list diff:
+  `diff <(git show <old>:include/tcg/tcg-opc.h | grep -oE '^DEF\([a-z0-9_]+') ...`
+
+## Testing
+
+`testsuite/` drives real guest images through `~/s2e/projects/testsuite/*`. The
+launch scripts use `BUILD=debug`, so build `libs2e-debug` before running.
+`basic4-xmm` is the one most likely to notice softfloat changes. Ask before
+running the suite — it is slow, and the user often has it covered.
