@@ -29,6 +29,9 @@ extern "C" {
 #endif
 
 /* Leaf 1, %ecx */
+#ifndef bit_PCLMUL
+#define bit_PCLMUL (1 << 1)
+#endif
 #ifndef bit_SSE4_1
 #define bit_SSE4_1 (1 << 19)
 #endif
@@ -68,6 +71,9 @@ extern "C" {
 /* Leaf 7, %ecx */
 #ifndef bit_AVX512VBMI2
 #define bit_AVX512VBMI2 (1 << 6)
+#endif
+#ifndef bit_GFNI
+#define bit_GFNI (1 << 8)
 #endif
 
 /* Leaf 0x80000001, %ecx */

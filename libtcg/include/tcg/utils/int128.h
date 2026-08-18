@@ -2,9 +2,8 @@
 #define INT128_H
 
 #include <assert.h>
+#include <inttypes.h>
 #include <stdbool.h>
-
-#include "bswap.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -17,6 +16,7 @@ extern "C" {
  */
 #if defined(CONFIG_INT128) && !defined(CONFIG_TCG_INTERPRETER)
 typedef __int128_t Int128;
+typedef __int128_t __attribute__((aligned(16))) Int128Aligned;
 
 static inline Int128 int128_make64(uint64_t a) {
     return a;
@@ -160,7 +160,7 @@ static inline Int128 bswap128(Int128 a) {
 #if __has_builtin(__builtin_bswap128)
     return __builtin_bswap128(a);
 #else
-    return int128_make128(bswap64(int128_gethi(a)), bswap64(int128_getlo(a)));
+    return int128_make128(__builtin_bswap64(int128_gethi(a)), __builtin_bswap64(int128_getlo(a)));
 #endif
 }
 
@@ -191,6 +191,7 @@ static inline Int128 int128_rems(Int128 a, Int128 b) {
 #else /* !CONFIG_INT128 */
 
 typedef struct Int128 Int128;
+typedef struct Int128 __attribute__((aligned(16))) Int128Aligned;
 
 /*
  * We guarantee that the in-memory byte representation of an
@@ -381,7 +382,7 @@ static inline void int128_subfrom(Int128 *a, Int128 b) {
 }
 
 static inline Int128 bswap128(Int128 a) {
-    return int128_make128(bswap64(a.hi), bswap64(a.lo));
+    return int128_make128(__builtin_bswap64(a.hi), __builtin_bswap64(a.lo));
 }
 
 static inline int clz128(Int128 a) {

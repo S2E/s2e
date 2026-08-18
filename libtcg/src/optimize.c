@@ -25,6 +25,7 @@
 
 #include <glib.h>
 
+#include "tcg/utils/bswap.h"
 #include "tcg/utils/int128.h"
 #include "tcg/utils/interval-tree.h"
 #include "tcg/utils/osdep.h"
