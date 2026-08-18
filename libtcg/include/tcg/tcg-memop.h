@@ -40,10 +40,12 @@ typedef enum MemOp {
     MO_BE = MO_BSWAP,
 #endif
 #ifdef COMPILING_PER_TARGET
+#ifndef TARGET_NOT_USING_LEGACY_NATIVE_ENDIAN_API
 #if TARGET_BIG_ENDIAN
     MO_TE = MO_BE,
 #else
     MO_TE = MO_LE,
+#endif
 #endif
 #endif
 
@@ -154,6 +156,7 @@ typedef enum MemOp {
     MO_BESQ = MO_BE | MO_SQ,
 
 #ifdef COMPILING_PER_TARGET
+#ifndef TARGET_NOT_USING_LEGACY_NATIVE_ENDIAN_API
     MO_TEUW = MO_TE | MO_UW,
     MO_TEUL = MO_TE | MO_UL,
     MO_TEUQ = MO_TE | MO_UQ,
@@ -161,6 +164,7 @@ typedef enum MemOp {
     MO_TESW = MO_TE | MO_SW,
     MO_TESL = MO_TE | MO_SL,
     MO_TESQ = MO_TE | MO_SQ,
+#endif
 #endif
 
     MO_SSIZE = MO_SIZE | MO_SIGN,

@@ -8,6 +8,8 @@
 #ifndef ACCEL_TCG_GETPC_H
 #define ACCEL_TCG_GETPC_H
 
+/* Upstream guards this header on CONFIG_TCG; libtcg is TCG by construction. */
+
 /* GETPC is the true target of the return instruction that we'll execute.  */
 #ifdef CONFIG_TCG_INTERPRETER
 extern __thread uintptr_t tci_tb_ptr;
