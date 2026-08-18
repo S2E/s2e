@@ -12,6 +12,7 @@
 #ifndef BITOPS_H
 #define BITOPS_H
 
+#include <assert.h>
 #include <limits.h>
 
 #include "atomic.h"

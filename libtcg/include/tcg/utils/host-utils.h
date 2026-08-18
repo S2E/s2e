@@ -32,7 +32,6 @@
 
 #include <limits.h>
 
-#include "bswap.h"
 #include "int128.h"
 
 #ifdef __cplusplus
@@ -324,7 +323,7 @@ static inline uint16_t revbit16(uint16_t x) {
     return __builtin_bitreverse16(x);
 #else
     /* Assign the correct byte position.  */
-    x = bswap16(x);
+    x = __builtin_bswap16(x);
     /* Assign the correct nibble position.  */
     x = ((x & 0xf0f0) >> 4) | ((x & 0x0f0f) << 4);
     /* Assign the correct bit position.  */
@@ -342,7 +341,7 @@ static inline uint32_t revbit32(uint32_t x) {
     return __builtin_bitreverse32(x);
 #else
     /* Assign the correct byte position.  */
-    x = bswap32(x);
+    x = __builtin_bswap32(x);
     /* Assign the correct nibble position.  */
     x = ((x & 0xf0f0f0f0u) >> 4) | ((x & 0x0f0f0f0fu) << 4);
     /* Assign the correct bit position.  */
@@ -360,7 +359,7 @@ static inline uint64_t revbit64(uint64_t x) {
     return __builtin_bitreverse64(x);
 #else
     /* Assign the correct byte position.  */
-    x = bswap64(x);
+    x = __builtin_bswap64(x);
     /* Assign the correct nibble position.  */
     x = ((x & 0xf0f0f0f0f0f0f0f0ull) >> 4) | ((x & 0x0f0f0f0f0f0f0f0full) << 4);
     /* Assign the correct bit position.  */

@@ -95,6 +95,16 @@ extern "C" {
 #endif
 
 /*
+ * If __attribute__((always_inline)) is available, use it to force inlining
+ * where softfloat relies on constant folding of its format parameters.
+ */
+#if __has_attribute(always_inline) || !defined(__clang__)
+#define QEMU_ALWAYS_INLINE __attribute__((always_inline))
+#else
+#define QEMU_ALWAYS_INLINE
+#endif
+
+/*
  * If __attribute__((error)) is present, use it to produce an error at
  * compile time.  Otherwise, one must wait for the linker to diagnose
  * the missing symbol.

@@ -68,7 +68,8 @@ include/tcg/utils/host/generic/load-extract-al16-al8.h	host/include/generic/host
 include/tcg/utils/host/generic/store-insert-al16.h	host/include/generic/host/store-insert-al16.h.inc
 src/utils/cpuinfo-i386.c	util/cpuinfo-i386.c
 # --- utilities ----------------------------------------------------------
-# Still at QEMU v8.1.0; upgrade deliberately lags the TCG core.
+# Mostly still at QEMU v8.1.0; the upgrade deliberately lags the TCG core,
+# and only what newer TCG or softfloat actually needs has been pulled in.
 include/tcg/utils/atomic.h	include/qemu/atomic.h
 include/tcg/utils/atomic128.h	include/qemu/atomic128.h
 include/tcg/utils/bitops.h	include/qemu/bitops.h
@@ -81,6 +82,8 @@ include/tcg/utils/interval-tree.h	include/qemu/interval-tree.h
 include/tcg/utils/memalign.h	include/qemu/memalign.h
 include/tcg/utils/qtree.h	include/qemu/qtree.h
 include/tcg/utils/units.h	include/qemu/units.h
+include/tcg/utils/registerfields.h	include/hw/core/registerfields.h
+include/tcg/utils/cpu-float.h	include/qemu/cpu-float.h
 src/utils/host-utils.c	util/host-utils.c
 src/utils/interval-tree.c	util/interval-tree.c
 src/utils/memalign.c	util/memalign.c
@@ -95,12 +98,11 @@ src/utils/cutils.c	util/cutils.c
 src/utils/log.c	util/log.c
 src/utils/osdep.c	util/osdep.c
 # --- fpu ----------------------------------------------------------------
-# Still at QEMU v8.1.0. Upgrading softfloat changes float semantics that
-# KLEE interprets symbolically via softfloat.bc; treat as a separate task.
 include/fpu/softfloat.h	include/fpu/softfloat.h
 include/fpu/softfloat-types.h	include/fpu/softfloat-types.h
 include/fpu/softfloat-macros.h	include/fpu/softfloat-macros.h
 include/fpu/softfloat-helpers.h	include/fpu/softfloat-helpers.h
+include/fpu/softfloat-parts.h	include/fpu/softfloat-parts.h
 src/fpu/softfloat.c	fpu/softfloat.c
 src/fpu/softfloat-parts.c.inc	fpu/softfloat-parts.c.inc
 src/fpu/softfloat-parts-addsub.c.inc	fpu/softfloat-parts-addsub.c.inc
