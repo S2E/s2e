@@ -1,0 +1,107 @@
+# libtcg path <TAB> upstream QEMU path, as of the tag recorded in BASELINE.
+#
+# Only files that track upstream appear here. S2E-original files
+# (tcg-s2e.c, tcg-llvm.cpp, tcg/tb.h, tcg/tlb.h, tcg/regs.h, tcg/cpu.h,
+# tcg/helper.h, tcg/ops_sse_header.h, utils/cache.h, utils/mutex.h,
+# utils/spinlock.h, utils/rounding.h, tcg/qemu-plugin.h) are deliberately
+# absent: they have no upstream counterpart to merge from.
+#
+# --- TCG core -----------------------------------------------------------
+include/tcg/tcg.h	include/tcg/tcg.h
+include/tcg/tcg-op.h	include/tcg/tcg-op.h
+include/tcg/tcg-op-mem.h	include/tcg/tcg-op-mem.h
+include/tcg/tcg-op-common.h	include/tcg/tcg-op-common.h
+include/tcg/tcg-opc.h	include/tcg/tcg-opc.h
+include/tcg/tcg-cond.h	include/tcg/tcg-cond.h
+include/tcg/tcg-mo.h	include/tcg/tcg-mo.h
+include/tcg/tcg-has.h	tcg/tcg-has.h
+include/tcg/tcg-internal.h	tcg/tcg-internal.h
+include/tcg/tcg-ldst.h	include/tcg/tcg-ldst.h
+include/tcg/tcg-temp-internal.h	include/tcg/tcg-temp-internal.h
+include/tcg/tcg-gvec-desc.h	include/tcg/tcg-gvec-desc.h
+include/tcg/tcg-memop.h	include/exec/memop.h
+include/tcg/tcg-memopidx.h	include/exec/memopidx.h
+include/tcg/helper-info.h	include/tcg/helper-info.h
+include/tcg/insn-start-words.h	include/tcg/insn-start-words.h
+include/tcg/target-reg-bits.h	include/tcg/target-reg-bits.h
+include/tcg/perf.h	include/tcg/perf.h
+src/tcg.c	tcg/tcg.c
+src/tcg-common.c	tcg/tcg-common.c
+src/tcg-op.c	tcg/tcg-op.c
+src/tcg-op-ldst.c	tcg/tcg-op-ldst.c
+src/tcg-op-vec.c	tcg/tcg-op-vec.c
+src/tcg-op-gvec.c	tcg/tcg-op-gvec.c
+src/tcg-op-gvec.h	include/tcg/tcg-op-gvec.h
+src/tcg-op-gvec-common.h	include/tcg/tcg-op-gvec-common.h
+src/optimize.c	tcg/optimize.c
+src/region.c	tcg/region.c
+# --- x86_64 backend -----------------------------------------------------
+include/tcg/x86_64/tcg-target.h	tcg/x86_64/tcg-target.h
+include/tcg/x86_64/tcg-target-has.h	tcg/x86_64/tcg-target-has.h
+include/tcg/x86_64/tcg-target-mo.h	tcg/x86_64/tcg-target-mo.h
+include/tcg/x86_64/tcg-target-opc.h.inc	tcg/x86_64/tcg-target-opc.h.inc
+src/x86_64/tcg-target.c.inc	tcg/x86_64/tcg-target.c.inc
+src/x86_64/tcg-target-con-set.h	tcg/x86_64/tcg-target-con-set.h
+src/x86_64/tcg-target-con-str.h	tcg/x86_64/tcg-target-con-str.h
+# --- accel/tcg and exec glue --------------------------------------------
+include/tcg/accel/getpc.h	include/accel/tcg/getpc.h
+include/tcg/accel/tcg-runtime.h	accel/tcg/tcg-runtime.h
+include/tcg/exec/helper-gen.h	include/exec/helper-gen.h
+include/tcg/exec/helper-gen.h.inc	include/exec/helper-gen.h.inc
+include/tcg/exec/helper-gen-common.h	include/exec/helper-gen-common.h
+include/tcg/exec/helper-head.h.inc	include/exec/helper-head.h.inc
+include/tcg/exec/helper-info.c.inc	include/exec/helper-info.c.inc
+include/tcg/exec/helper-proto.h	include/exec/helper-proto.h
+include/tcg/exec/helper-proto.h.inc	include/exec/helper-proto.h.inc
+include/tcg/exec/helper-proto-common.h	include/exec/helper-proto-common.h
+include/tcg/exec/plugin-gen.h	include/exec/plugin-gen.h
+src/tcg-rt/tcg-runtime.c	accel/tcg/tcg-runtime.c
+src/tcg-rt/tcg-runtime-gvec.c	accel/tcg/tcg-runtime-gvec.c
+src/atomic_common.c.inc	accel/tcg/atomic_common.c.inc
+src/atomic_template.h	accel/tcg/atomic_template.h
+# --- host support -------------------------------------------------------
+include/tcg/utils/host/x86_64/cpuinfo.h	host/include/x86_64/host/cpuinfo.h
+include/tcg/utils/host/x86_64/atomic128-ldst.h	host/include/x86_64/host/atomic128-ldst.h.inc
+include/tcg/utils/host/generic/atomic128-cas.h	host/include/generic/host/atomic128-cas.h.inc
+include/tcg/utils/host/generic/atomic128-ldst.h	host/include/generic/host/atomic128-ldst.h.inc
+include/tcg/utils/host/generic/load-extract-al16-al8.h	host/include/generic/host/load-extract-al16-al8.h.inc
+include/tcg/utils/host/generic/store-insert-al16.h	host/include/generic/host/store-insert-al16.h.inc
+src/utils/cpuinfo-i386.c	util/cpuinfo-i386.c
+# --- utilities ----------------------------------------------------------
+# Still at QEMU v8.1.0; upgrade deliberately lags the TCG core.
+include/tcg/utils/atomic.h	include/qemu/atomic.h
+include/tcg/utils/atomic128.h	include/qemu/atomic128.h
+include/tcg/utils/bitops.h	include/qemu/bitops.h
+include/tcg/utils/bswap.h	include/qemu/bswap.h
+include/tcg/utils/cpuid.h	include/qemu/cpuid.h
+include/tcg/utils/debug-assert.h	include/tcg/debug-assert.h
+include/tcg/utils/host-utils.h	include/qemu/host-utils.h
+include/tcg/utils/int128.h	include/qemu/int128.h
+include/tcg/utils/interval-tree.h	include/qemu/interval-tree.h
+include/tcg/utils/memalign.h	include/qemu/memalign.h
+include/tcg/utils/qtree.h	include/qemu/qtree.h
+include/tcg/utils/units.h	include/qemu/units.h
+src/utils/host-utils.c	util/host-utils.c
+src/utils/interval-tree.c	util/interval-tree.c
+src/utils/memalign.c	util/memalign.c
+src/utils/qtree.c	util/qtree.c
+src/elf.h	include/elf.h
+# Heavily reduced S2E-specific subsets: merge by hand, not mechanically.
+include/tcg/utils/bitmap.h	include/qemu/bitmap.h
+include/tcg/utils/cutils.h	include/qemu/cutils.h
+include/tcg/utils/log.h	include/qemu/log.h
+include/tcg/utils/osdep.h	include/qemu/osdep.h
+src/utils/cutils.c	util/cutils.c
+src/utils/log.c	util/log.c
+src/utils/osdep.c	util/osdep.c
+# --- fpu ----------------------------------------------------------------
+# Still at QEMU v8.1.0. Upgrading softfloat changes float semantics that
+# KLEE interprets symbolically via softfloat.bc; treat as a separate task.
+include/fpu/softfloat.h	include/fpu/softfloat.h
+include/fpu/softfloat-types.h	include/fpu/softfloat-types.h
+include/fpu/softfloat-macros.h	include/fpu/softfloat-macros.h
+include/fpu/softfloat-helpers.h	include/fpu/softfloat-helpers.h
+src/fpu/softfloat.c	fpu/softfloat.c
+src/fpu/softfloat-parts.c.inc	fpu/softfloat-parts.c.inc
+src/fpu/softfloat-parts-addsub.c.inc	fpu/softfloat-parts-addsub.c.inc
+src/fpu/softfloat-specialize.c.inc	fpu/softfloat-specialize.c.inc
