@@ -21,7 +21,6 @@
 
 // #include <cpu/config-host.h>
 
-#include <fpu/softfloat-types.h>
 #include <inttypes.h>
 
 #ifdef __cplusplus
@@ -182,62 +181,6 @@ static inline void cpu_to_be32wu(uint32_t *p, uint32_t v) {
 #undef le_bswaps
 #undef be_bswaps
 
-typedef union {
-    float32 f;
-    uint32_t l;
-} CPU_FloatU;
-
-typedef union {
-    float64 d;
-#if defined(HOST_WORDS_BIGENDIAN)
-    struct {
-        uint32_t upper;
-        uint32_t lower;
-    } l;
-#else
-    struct {
-        uint32_t lower;
-        uint32_t upper;
-    } l;
-#endif
-    uint64_t ll;
-} CPU_DoubleU;
-
-typedef union {
-    floatx80 d;
-    struct {
-        uint64_t lower;
-        uint16_t upper;
-    } l;
-} CPU_LDoubleU;
-
-typedef union {
-    float128 q;
-#if defined(HOST_WORDS_BIGENDIAN)
-    struct {
-        uint32_t upmost;
-        uint32_t upper;
-        uint32_t lower;
-        uint32_t lowest;
-    } l;
-    struct {
-        uint64_t upper;
-        uint64_t lower;
-    } ll;
-#else
-    struct {
-        uint32_t lowest;
-        uint32_t lower;
-        uint32_t upper;
-        uint32_t upmost;
-    } l;
-    struct {
-        uint64_t lower;
-        uint64_t upper;
-    } ll;
-#endif
-} CPU_QuadU;
-
 static inline int ldub_p(const void *ptr) {
     return *(uint8_t *) ptr;
 }
@@ -279,22 +222,6 @@ static inline void stq_le_p(void *ptr, uint64_t v) {
 }
 
 /* float access */
-
-static inline float32 ldfl_le_p(const void *ptr) {
-    return *(float32 *) ptr;
-}
-
-static inline float64 ldfq_le_p(const void *ptr) {
-    return *(float64 *) ptr;
-}
-
-static inline void stfl_le_p(void *ptr, float32 v) {
-    *(float32 *) ptr = v;
-}
-
-static inline void stfq_le_p(void *ptr, float64 v) {
-    *(float64 *) ptr = v;
-}
 
 /* some important defines:
  *
