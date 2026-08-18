@@ -34,8 +34,10 @@ include block or where S2E's `extern "C"` guard meets appended upstream code.
     cat libtcg/scripts/upgrade/BASELINE          # the tag libtcg currently tracks
     git -C ~/qemu log --oneline <old>..<new> -- tcg/ include/tcg/
 
-**libtcg is not uniformly at one version.** Only the TCG core tracks `BASELINE`;
-much of `utils/` still sits at v8.1.0. Before assuming a file's baseline, check
+**libtcg is not uniformly at one version.** The TCG core, `fpu/` and most of
+`utils/` track `BASELINE`, but the hand-written subsets flagged in `mapping.tsv`
+(`osdep.h`, `cutils.*`, `log.*`, `bitmap.h`, `bswap.h`) are still v8.1.0-era and
+are not vendored. Before assuming a file's baseline, check
 it: format the file at several candidate tags and pick the smallest diff. A file
 that is stale relative to its neighbours is a bug waiting to happen — the 11.1
 upgrade found `tcg-gvec-desc.h` stranded at an old descriptor encoding while
@@ -126,6 +128,13 @@ body, especially for anything that deviates from upstream.
 - **`accel/getpc.h`** drops upstream's `#ifndef CONFIG_TCG #error` guard.
 - **`exec/helper-head.h.inc`** keeps its `#ifdef TARGET_LONG_BITS` guard instead
   of including `exec/target_long.h`.
+- **`host/generic/atomic128-cas.h`** renames the `new` parameter to `_new`.
+  These headers are included from C++, where `new` is a keyword.
+- **`utils/bitops.h`** wraps `#define BIT(nr)` in `#ifndef BIT`, because
+  `libcpu/include/cpu/kvm.h` also defines it.
+- **`utils/osdep.h`** carries what upstream keeps in `include/qemu/compiler.h`
+  (`QEMU_FLATTEN`, `QEMU_ALWAYS_INLINE`, `typeof_strip_qual`, ...). When a merge
+  pulls in code that needs a new compiler macro, add it here.
 
 ## The libcpu fallout
 
