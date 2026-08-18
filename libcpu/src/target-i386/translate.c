@@ -4062,8 +4062,9 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start) {
     target_ulong next_eip, tval;
     int rex_w, rex_r;
 
-    // This is required for precise pc generation
-    tcg_gen_insn_start(pc_start, s->cc_op);
+    // This is required for precise pc generation. The trailing zero pads out
+    // the fixed INSN_START_WORDS-wide slot; i386 only uses one extra word.
+    tcg_gen_insn_start(pc_start, s->cc_op, 0);
 
 #ifdef ENABLE_PRECISE_EXCEPTION_DEBUGGING
     tcg_gen_movi_tl(cpu_tmp0, pc_start - s->cs_base);
