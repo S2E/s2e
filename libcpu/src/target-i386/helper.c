@@ -107,6 +107,53 @@ target_ulong cpu_get_eflags(CPUX86State *env) {
 // #define DEBUG_MMU
 
 /* NOTE: must be called outside the CPU execute loop */
+/*
+ * Set up the float_status fields that describe baked-in hardware behaviour
+ * rather than guest-visible control register state. Since QEMU 11.1 softfloat
+ * asserts when it has to pick between NaNs and no rule was selected, so these
+ * must be reapplied every time cpu_state_reset() zeroes the CPU state.
+ *
+ * This mirrors cpu_init_fp_statuses() in QEMU's target/i386/tcg/fpu_helper.c.
+ */
+static void cpu_init_fp_statuses(CPUX86State *env) {
+    /*
+     * Use x87 NaN propagation rules:
+     * SNaN + QNaN => return the QNaN
+     * two SNaNs => return the one with the larger significand, silenced
+     * two QNaNs => return the one with the larger significand
+     * SNaN and a non-NaN => return the SNaN, silenced
+     * QNaN and a non-NaN => return the QNaN
+     *
+     * If we get down to comparing significands and they are the same,
+     * return the NaN with the positive sign bit (if any).
+     */
+    set_float_2nan_prop_rule(float_2nan_prop_x87, &env->fp_status);
+    set_float_2nan_prop_rule(float_2nan_prop_x87, &env->mmx_status);
+    set_float_2nan_prop_rule(float_2nan_prop_x87, &env->sse_status);
+
+    /*
+     * Only SSE has multiply-add instructions. For 0 * inf + NaN the input NaN
+     * is selected, and multiple input NaNs are selected in the order a, b, c.
+     * Invalid is not raised for the 0 * inf + (Q)NaN case.
+     */
+    set_float_infzeronan_rule(float_infzeronan_dnan_never | float_infzeronan_suppress_invalid, &env->sse_status);
+    set_float_3nan_prop_rule(float_3nan_prop_abc, &env->sse_status);
+
+    /* Default NaN: sign bit set, most significant frac bit set */
+    set_float_default_nan_pattern(0b11000000, &env->fp_status);
+    set_float_default_nan_pattern(0b11000000, &env->mmx_status);
+    set_float_default_nan_pattern(0b11000000, &env->sse_status);
+
+    /*
+     * x86 does flush-to-zero detection after rounding: the SDM section 10.2.3.3
+     * on the FTZ bit of MXCSR says that we flush when we detect underflow,
+     * which x86 does after rounding.
+     */
+    set_float_ftz_detection(float_ftz_after_rounding, &env->fp_status);
+    set_float_ftz_detection(float_ftz_after_rounding, &env->mmx_status);
+    set_float_ftz_detection(float_ftz_after_rounding, &env->sse_status);
+}
+
 void cpu_state_reset(CPUX86State *env) {
     int i;
 
@@ -116,6 +163,8 @@ void cpu_state_reset(CPUX86State *env) {
     }
 
     memset(env, 0, offsetof(CPUX86State, breakpoints));
+
+    cpu_init_fp_statuses(env);
 
     tlb_flush(env, 1);
 
