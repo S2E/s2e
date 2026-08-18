@@ -78,7 +78,6 @@ include/tcg/utils/debug-assert.h	include/tcg/debug-assert.h
 include/tcg/utils/host-utils.h	include/qemu/host-utils.h
 include/tcg/utils/int128.h	include/qemu/int128.h
 include/tcg/utils/interval-tree.h	include/qemu/interval-tree.h
-include/tcg/utils/memalign.h	include/qemu/memalign.h
 include/tcg/utils/qtree.h	include/qemu/qtree.h
 include/tcg/utils/units.h	include/qemu/units.h
 include/tcg/utils/registerfields.h	include/hw/core/registerfields.h
@@ -91,6 +90,7 @@ src/elf.h	include/elf.h
 # Heavily reduced S2E-specific subsets, still v8.1.0-era: these are hand
 # written rather than vendored, so merge by hand, not mechanically.
 include/tcg/utils/bswap.h	include/qemu/bswap.h
+include/tcg/utils/memalign.h	include/qemu/memalign.h
 include/tcg/utils/bitmap.h	include/qemu/bitmap.h
 include/tcg/utils/cutils.h	include/qemu/cutils.h
 include/tcg/utils/log.h	include/qemu/log.h
