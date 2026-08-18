@@ -7,12 +7,7 @@
 #ifndef TCG_HAS_H
 #define TCG_HAS_H
 
-#include "i386/tcg-target-has.h"
-
-#if TCG_TARGET_REG_BITS == 32
-/* Turn some undef macros into false macros.  */
-#define TCG_TARGET_HAS_extr_i64_i32 0
-#endif
+#include "x86_64/tcg-target-has.h"
 
 #if !defined(TCG_TARGET_HAS_v64) && !defined(TCG_TARGET_HAS_v128) && !defined(TCG_TARGET_HAS_v256)
 #define TCG_TARGET_MAYBE_vec      0

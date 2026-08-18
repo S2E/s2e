@@ -7,10 +7,10 @@
 #ifndef TCG_TARGET_REG_BITS_H
 #define TCG_TARGET_REG_BITS_H
 
-#ifdef __x86_64__
+/*
+ * We only support 64-bit hosts now.
+ * Retain the identifier for documentation.
+ */
 #define TCG_TARGET_REG_BITS 64
-#else
-#define TCG_TARGET_REG_BITS 32
-#endif
 
 #endif
