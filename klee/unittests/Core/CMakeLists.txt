@@ -27,6 +27,10 @@ foreach(src add compute function)
     add_bitcode_fixture(${src} -O0)
 endforeach()
 
+# The floating point class predicates must stay unfolded: at -O1 and above
+# clang rewrites most of them into comparisons and llvm.is.fpclass disappears.
+add_bitcode_fixture(fpintrinsics -O0 -ffp-contract=on)
+
 # The aliasing hints only show up once the inliner has run. Contraction is
 # turned off to keep the fixture down to the hints and plain arithmetic.
 add_bitcode_fixture(noalias -O2 -ffp-contract=off)
@@ -35,5 +39,6 @@ target_compile_definitions(ExecutorTest PRIVATE
     ADD_BC_PATH="${CMAKE_CURRENT_BINARY_DIR}/add.bc"
     COMPUTE_BC_PATH="${CMAKE_CURRENT_BINARY_DIR}/compute.bc"
     FUNCTION_BC_PATH="${CMAKE_CURRENT_BINARY_DIR}/function.bc"
+    FPINTRINSICS_BC_PATH="${CMAKE_CURRENT_BINARY_DIR}/fpintrinsics.bc"
     NOALIAS_BC_PATH="${CMAKE_CURRENT_BINARY_DIR}/noalias.bc"
 )

@@ -377,6 +377,40 @@ void Executor::executeCall(ExecutionState &state, KInstruction *ki, Function *f,
                 break;
             }
 
+            case Intrinsic::fma: {
+                ref<ConstantExpr> a = state.toConstant(arguments[0], "floating point");
+                ref<ConstantExpr> b = state.toConstant(arguments[1], "floating point");
+                ref<ConstantExpr> c = state.toConstant(arguments[2], "floating point");
+                auto semantics = fpWidthToSemantics(a->getWidth());
+                if (!semantics) {
+                    throw LLVMExecutorException("Unsupported intrinsic llvm.fma call");
+                }
+
+                llvm::APFloat Res(*semantics, a->getAPValue());
+                Res.fusedMultiplyAdd(llvm::APFloat(*semantics, b->getAPValue()),
+                                     llvm::APFloat(*semantics, c->getAPValue()), llvm::APFloat::rmNearestTiesToEven);
+
+                llvmState.bindLocal(ki, ConstantExpr::alloc(Res.bitcastToAPInt()));
+                break;
+            }
+
+            case Intrinsic::nearbyint:
+            case Intrinsic::rint: {
+                ref<ConstantExpr> arg = state.toConstant(arguments[0], "floating point");
+                auto semantics = fpWidthToSemantics(arg->getWidth());
+                if (!semantics) {
+                    throw LLVMExecutorException("Unsupported intrinsic llvm.rint call");
+                }
+
+                // The guest rounding mode is emulated by softfloat, the host one
+                // is left at its default of round to nearest, ties to even.
+                llvm::APFloat Res(*semantics, arg->getAPValue());
+                Res.roundToIntegral(llvm::APFloat::rmNearestTiesToEven);
+
+                llvmState.bindLocal(ki, ConstantExpr::alloc(Res.bitcastToAPInt()));
+                break;
+            }
+
             case Intrinsic::abs: {
                 if (isa<VectorType>(i->getOperand(0)->getType())) {
                     throw LLVMExecutorException("llvm.abs with vectors is not supported");
