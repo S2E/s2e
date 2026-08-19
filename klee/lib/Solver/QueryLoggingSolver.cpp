@@ -60,7 +60,7 @@ QueryLoggingSolver::~QueryLoggingSolver() {
 void QueryLoggingSolver::flushBufferConditionally(bool writeToFile) {
     logBuffer.flush();
     if (writeToFile) {
-        *os << logBuffer.str();
+        *os << BufferString;
         os->flush();
     }
     // prepare the buffer for reuse

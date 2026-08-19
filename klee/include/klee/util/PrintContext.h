@@ -85,7 +85,8 @@ public:
         std::string str;
         llvm::raw_string_ostream ss(str);
         ss << elt;
-        write(ss.str());
+        ss.flush();
+        write(str);
         return *this;
     }
 };

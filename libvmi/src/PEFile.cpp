@@ -168,7 +168,8 @@ bool PEFile::initExports(void) {
         std::string _str;
         llvm::raw_string_ostream FunctionName(_str);
         FunctionName << i;
-        m_exports[FuncRva + m_loadAddress] = FunctionName.str();
+        FunctionName.flush();
+        m_exports[FuncRva + m_loadAddress] = _str;
     }
 
     return true;

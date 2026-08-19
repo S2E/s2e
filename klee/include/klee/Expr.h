@@ -317,7 +317,8 @@ inline std::ostream &operator<<(std::ostream &out, const Expr::Kind kind) {
     std::string ss;
     llvm::raw_string_ostream ros(ss);
     Expr::printKind(ros, kind);
-    out << ros.str();
+    ros.flush();
+    out << ss;
     return out;
 }
 
@@ -325,7 +326,8 @@ inline std::ostream &operator<<(std::ostream &out, const klee::ref<klee::Expr> &
     std::string ss;
     llvm::raw_string_ostream ros(ss);
     ros << expr;
-    out << ros.str();
+    ros.flush();
+    out << ss;
     return out;
 }
 
