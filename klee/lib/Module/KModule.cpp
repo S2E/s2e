@@ -647,7 +647,12 @@ ref<klee::ConstantExpr> KModule::evalConstant(const GlobalAddresses &globalAddre
         } else {
             std::string msg("Cannot handle constant ");
             llvm::raw_string_ostream os(msg);
-            klee_error("%s", os.str().c_str());
+            os << *c << " of type " << *c->getType();
+            if (ki && ki->inst) {
+                os << " at " << *ki->inst;
+            }
+            os.flush();
+            klee_error("%s", msg.c_str());
         }
     }
 }
@@ -674,8 +679,7 @@ klee::ref<klee::ConstantExpr> KModule::evalConstantExpr(const GlobalAddresses &g
         case Instruction::URem:
             if (op2->getLimitedValue() == 0) {
                 std::string msg("Division/modulo by zero during constant folding at location ");
-                llvm::raw_string_ostream os(msg);
-                klee_error("%s", os.str().c_str());
+                klee_error("%s", msg.c_str());
             }
             break;
         case Instruction::Shl:
@@ -683,17 +687,15 @@ klee::ref<klee::ConstantExpr> KModule::evalConstantExpr(const GlobalAddresses &g
         case Instruction::AShr:
             if (op2->getLimitedValue() >= op1->getWidth()) {
                 std::string msg("Overshift during constant folding at location ");
-                llvm::raw_string_ostream os(msg);
-                klee_error("%s", os.str().c_str());
+                klee_error("%s", msg.c_str());
             }
     }
 
     std::string msg("Unknown ConstantExpr type");
-    llvm::raw_string_ostream os(msg);
 
     switch (ce->getOpcode()) {
         default:
-            klee_error("%s", os.str().c_str());
+            klee_error("%s", msg.c_str());
 
         case Instruction::Trunc:
             return op1->Extract(0, getWidthForLLVMType(type));

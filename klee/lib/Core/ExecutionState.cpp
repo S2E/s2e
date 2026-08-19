@@ -339,7 +339,9 @@ ref<ConstantExpr> ExecutionState::toConstant(ref<Expr> e, const std::string &rea
 
     os << " to value " << value;
 
-    klee_warning_external(reason.c_str(), "%s", os.str().c_str());
+    os.flush();
+
+    klee_warning_external(reason.c_str(), "%s", s.c_str());
 
     if (!addConstraint(EqExpr::create(e, value))) {
         abort();

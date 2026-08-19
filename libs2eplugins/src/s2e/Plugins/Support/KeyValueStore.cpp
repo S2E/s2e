@@ -98,7 +98,8 @@ void KeyValueStore::connectNative() {
 
         if (m_session_id.size() == 0) {
             ss << "get-session-id\n";
-            boost::asio::write(m_socket, boost::asio::buffer(ss.str().c_str(), ss.str().length()));
+            auto request = ss.str();
+            boost::asio::write(m_socket, boost::asio::buffer(request));
 
             boost::asio::streambuf streamBuf;
             if (!syncReadUntil(streamBuf, "\n")) {
@@ -111,7 +112,8 @@ void KeyValueStore::connectNative() {
             getDebugStream() << "KeyValueStore: got session id " << m_session_id << "\n";
         } else {
             ss << "set-session-id " << m_session_id << "\n";
-            boost::asio::write(m_socket, boost::asio::buffer(ss.str().c_str(), ss.str().length()));
+            auto request = ss.str();
+            boost::asio::write(m_socket, boost::asio::buffer(request));
         }
 
     } catch (std::exception &e) {
@@ -188,8 +190,8 @@ bool KeyValueStore::put(const std::string &key, const std::string &value) {
     } else if (m_server_type == ST_NATIVE) {
         std::stringstream ss;
         ss << "set-value " << key << "=" << value << "\n";
-        boost::asio::write(m_socket, boost::asio::buffer(ss.str().c_str(), ss.str().length()),
-                           boost::asio::transfer_all());
+        auto request = ss.str();
+        boost::asio::write(m_socket, boost::asio::buffer(request), boost::asio::transfer_all());
         return true;
     } else if (m_server_type == ST_LOCAL) {
         m_global_storage[key] = value;
@@ -226,7 +228,8 @@ bool KeyValueStore::get(const std::string &key, std::string &val) {
     } else if (m_server_type == ST_NATIVE) {
         std::stringstream ss;
         ss << "get-value " << key << "\n";
-        boost::asio::write(m_socket, boost::asio::buffer(ss.str().c_str(), ss.str().length()));
+        auto request = ss.str();
+        boost::asio::write(m_socket, boost::asio::buffer(request));
 
         boost::asio::streambuf streamBuf;
         if (!syncReadUntil(streamBuf, "\n")) {
