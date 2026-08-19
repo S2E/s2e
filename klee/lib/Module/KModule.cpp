@@ -30,6 +30,7 @@
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/LegacyPassManager.h"
+#include "llvm/IR/Metadata.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Operator.h"
 #include "llvm/IR/ValueSymbolTable.h"
@@ -823,7 +824,11 @@ static int getOperandNum(Value *v, std::map<Instruction *, unsigned> &registerMa
         return registerMap[inst];
     } else if (Argument *a = dyn_cast<Argument>(v)) {
         return a->getArgNo();
-    } else if (isa<BasicBlock>(v) || isa<InlineAsm>(v)) {
+    } else if (isa<BasicBlock>(v) || isa<InlineAsm>(v) || isa<MetadataAsValue>(v)) {
+        // Metadata carries no value, so there is nothing to read at run time.
+        // Intrinsics that take it (llvm.experimental.noalias.scope.decl and
+        // friends) must be stripped by IntrinsicCleaner, but do not crash the
+        // constant table if one slips through.
         return -1;
     } else {
         assert(isa<Constant>(v));
@@ -901,19 +906,7 @@ KFunction::KFunction(llvm::Function *_function, KModule *km) : function(_functio
                 unsigned numOperands = it->getNumOperands();
                 ki->operands = new int[numOperands];
                 for (unsigned j = 0; j < numOperands; j++) {
-                    Value *v = it->getOperand(j);
-
-                    if (Instruction *inst = dyn_cast<Instruction>(v)) {
-                        ki->operands[j] = registerMap[inst];
-                    } else if (Argument *a = dyn_cast<Argument>(v)) {
-                        ki->operands[j] = a->getArgNo();
-                    } else if (isa<BasicBlock>(v) || isa<InlineAsm>(v) || isa<MDNode>(ValueAsMetadata::get(v))) {
-                        ki->operands[j] = -1;
-                    } else {
-                        assert(isa<Constant>(v));
-                        Constant *c = cast<Constant>(v);
-                        ki->operands[j] = -(km->getConstantID(c, ki) + 2);
-                    }
+                    ki->operands[j] = getOperandNum(it->getOperand(j), registerMap, km, ki);
                 }
             }
 

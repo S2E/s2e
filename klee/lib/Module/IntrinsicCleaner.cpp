@@ -474,6 +474,16 @@ bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b, Module &M) {
                     break;
                 }
 
+                case Intrinsic::experimental_noalias_scope_decl: {
+                    // A pure aliasing hint with no semantics, emitted by clang when
+                    // it inlines a function with noalias/restrict parameters. Its
+                    // only operand is metadata, which evalConstant() cannot
+                    // evaluate, so the call has to go rather than merely warn.
+                    ii->eraseFromParent();
+                    dirty = true;
+                    break;
+                }
+
                 // The following intrinsics are currently handled by LowerIntrinsicCall
                 // (Invoking LowerIntrinsicCall with any intrinsics not on this
                 // list throws an exception.)
