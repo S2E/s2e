@@ -177,6 +177,15 @@ public:
         return nullptr;
     }
 
+    /// Build the KFunction for \p fn without running it.
+    ///
+    /// Constructing a KFunction is what walks the operands of every
+    /// instruction and interns the constant ones, so this is enough to
+    /// exercise the operand classification on its own.
+    KFunction *prepareFunction(llvm::Function *fn) {
+        return m_kmodule->bindFunctionConstants(m_globalAddresses, fn);
+    }
+
     /// Execute the state until a ret instruction is reached.
     ///
     /// Stops just before executing ret so that the caller can inspect
@@ -1549,6 +1558,88 @@ TEST(ExecutorTest, ICmpSLE) {
     EXPECT_EQ(evalICmp(ICmpInst::ICMP_SLE, 0xFFFFFFFFu, 1), 1u);           // -1 <=s 1 → true
     EXPECT_EQ(evalICmp(ICmpInst::ICMP_SLE, 0xFFFFFFFFu, 0xFFFFFFFFu), 1u); // -1 <=s -1 → true (equal)
     EXPECT_EQ(evalICmp(ICmpInst::ICMP_SLE, 1, 0xFFFFFFFFu), 0u);           // 1 <=s -1 → false
+}
+
+// ============================================================
+// llvm.experimental.noalias.scope.decl
+//
+// Its only operand is metadata, which has no value to read at run time.
+// Leaving the call in place used to abort the engine while interning the
+// constants of the enclosing function.
+// ============================================================
+
+TEST(ExecutorTest, NoAliasScopeDeclDoesNotBreakThePreparePasses) {
+    llvm::LLVMContext ctx;
+
+    // The hints must be in the fixture, otherwise the test proves nothing.
+    auto buf = llvm::MemoryBuffer::getFile(NOALIAS_BC_PATH);
+    ASSERT_TRUE(!!buf);
+    auto raw = llvm::parseBitcodeFile(buf.get()->getMemBufferRef(), ctx);
+    ASSERT_TRUE(!!raw);
+    ASSERT_NE(raw.get()->getFunction("llvm.experimental.noalias.scope.decl"), nullptr)
+        << "the fixture no longer contains any aliasing hint";
+
+    llvm::LLVMContext execCtx;
+    TestExecutor executor(execCtx, NOALIAS_BC_PATH);
+    auto *m = executor.getLLVMModule();
+
+    auto *hint = m->getFunction("llvm.experimental.noalias.scope.decl");
+    EXPECT_TRUE(hint == nullptr || hint->use_empty()) << "the aliasing hints should have been stripped";
+
+    llvm::Function *fn = m->getFunction("noalias_dot2");
+    ASSERT_NE(fn, nullptr);
+
+    double a[2] = {1.5, 2.5};
+    double b[2] = {3.0, 4.0};
+
+    ExecutionStatePtr state = executor.createState();
+    state->addExternalObject(a, sizeof(a), /*isReadOnly=*/true, /*isSharedConcrete=*/false);
+    state->addExternalObject(b, sizeof(b), /*isReadOnly=*/true, /*isSharedConcrete=*/false);
+
+    unsigned ptrWidth = executor.getModule()->getDataLayout()->getPointerSizeInBits();
+    auto result = executor.runFunction(
+        *state, fn,
+        {klee::ConstantExpr::create((uint64_t) a, ptrWidth), klee::ConstantExpr::create((uint64_t) b, ptrWidth)});
+
+    ASSERT_NE(result.get(), nullptr);
+    auto *ce = dyn_cast<klee::ConstantExpr>(result);
+    ASSERT_NE(ce, nullptr);
+    // 1.5 * 3.0 + 2.5 * 4.0 = 14.5
+    EXPECT_EQ(ce->getZExtValue(), 0x402D000000000000ULL);
+}
+
+// ============================================================
+// Metadata operands
+//
+// An intrinsic that the cleaner does not know about keeps its metadata
+// operand. Such an operand carries no value, so it must be classified as
+// invalid instead of being interned as a constant.
+// ============================================================
+
+TEST(ExecutorTest, MetadataOperandsAreNotInterned) {
+    llvm::LLVMContext ctx;
+    TestExecutor executor(ctx);
+    auto *mod = executor.getLLVMModule();
+
+    // llvm.type.test(ptr, metadata) is not handled by IntrinsicCleaner, so it
+    // reaches the constant table with its metadata operand intact.
+    auto *hint = llvm::Intrinsic::getDeclaration(mod, llvm::Intrinsic::type_test);
+
+    auto *i32Ty = llvm::Type::getInt32Ty(ctx);
+    auto *fn = llvm::Function::Create(llvm::FunctionType::get(i32Ty, false), llvm::Function::ExternalLinkage,
+                                      "with_metadata", mod);
+    llvm::IRBuilder<> builder(llvm::BasicBlock::Create(ctx, "entry", fn));
+    auto *call = builder.CreateCall(hint, {llvm::ConstantPointerNull::get(llvm::PointerType::getUnqual(ctx)),
+                                           llvm::MetadataAsValue::get(ctx, llvm::MDString::get(ctx, "typeid"))});
+    builder.CreateRet(llvm::ConstantInt::get(i32Ty, 42));
+
+    auto *kf = executor.prepareFunction(fn);
+    ASSERT_NE(kf, nullptr);
+
+    auto *ki = kf->getInstruction(call);
+    ASSERT_NE(ki, nullptr);
+    // operands[0] is the callee, then one entry per argument.
+    EXPECT_EQ(ki->operands[2], -1) << "the metadata operand must not have a constant table entry";
 }
 
 } // namespace

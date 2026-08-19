@@ -10,10 +10,10 @@ target_link_libraries(ExecutorTest PRIVATE kleeCore kleeModule kleaverSolver kle
 # Compile C sources to LLVM bitcode and expose their paths to the test.
 find_program(CLANG_EXECUTABLE NAMES clang-19 clang REQUIRED)
 
-foreach(src add compute function)
+function(add_bitcode_fixture src)
     add_custom_command(
         OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${src}.bc
-        COMMAND ${CLANG_EXECUTABLE} -emit-llvm -c -O0
+        COMMAND ${CLANG_EXECUTABLE} -emit-llvm -c ${ARGN}
                 ${CMAKE_CURRENT_SOURCE_DIR}/LLVM/${src}.c
                 -o ${CMAKE_CURRENT_BINARY_DIR}/${src}.bc
         DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/LLVM/${src}.c
@@ -21,10 +21,19 @@ foreach(src add compute function)
     )
     add_custom_target(${src}_bc DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${src}.bc)
     add_dependencies(ExecutorTest ${src}_bc)
+endfunction()
+
+foreach(src add compute function)
+    add_bitcode_fixture(${src} -O0)
 endforeach()
+
+# The aliasing hints only show up once the inliner has run. Contraction is
+# turned off to keep the fixture down to the hints and plain arithmetic.
+add_bitcode_fixture(noalias -O2 -ffp-contract=off)
 
 target_compile_definitions(ExecutorTest PRIVATE
     ADD_BC_PATH="${CMAKE_CURRENT_BINARY_DIR}/add.bc"
     COMPUTE_BC_PATH="${CMAKE_CURRENT_BINARY_DIR}/compute.bc"
     FUNCTION_BC_PATH="${CMAKE_CURRENT_BINARY_DIR}/function.bc"
+    NOALIAS_BC_PATH="${CMAKE_CURRENT_BINARY_DIR}/noalias.bc"
 )
