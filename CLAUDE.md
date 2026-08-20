@@ -45,3 +45,17 @@ Examples:
 - `libs2e: implemented basic device manager`
 - `libcpu: removed unused ymm fields`
 - `libs2ecore: allow any sizes for read/writes from/to concrete regions`
+
+
+## Writing style
+
+- No em dashes. Use commas, parentheses, or a new sentence.
+  Do not simply replace em dashes with semicolons.
+- Banned phrases: "load-bearing", "worth stating plainly", "full stop",
+  "carry the argument", "the trap", "isn't just X — it's Y".
+- No punchy fragments for drama. Write complete sentences.
+- Do not build to a turn of phrase. State the claim directly.
+- Technical documentation, not marketing copy.
+- Comments explain why, in one line. No paragraph-length comments.
+- Write no documentation unless explicitly asked.
+- Use American English.
