@@ -68,10 +68,16 @@ they are resolved.
 
 Not every file tracks upstream closely:
 
-- libtcg's `utils/bswap.h` and `utils/log.{h,c}` are heavily reduced
-  S2E-specific subsets rather than vendored copies, still v8.1.0-era. They are
-  listed in `mapping.tsv` for reference but want a manual look rather than a
-  mechanical merge.
+- libtcg's `utils/log.{h,c}` are heavily reduced S2E-specific subsets rather
+  than vendored copies, still v8.1.0-era. They are listed in `mapping.tsv` for
+  reference but want a manual look rather than a mechanical merge.
+- `include/qemu/bswap.h` is split: the host-only half is libutils'
+  `utils/bswap.h`, the `MemOp` and target-endian half is libtcg's
+  `utils/bswap.h`. Both rows map to the same upstream file, so each merge
+  reports the other half's upstream changes as a conflict in a deleted
+  section; delete it again. libtcg's `utils/target-info.h` answers
+  `target_big_endian()` with `TARGET_BIG_ENDIAN` under `COMPILING_PER_TARGET`,
+  and `exec/tswap.h` drops the `CPUState`-based `cpu_internal_tswap*`.
 - libutils' `utils/cutils.h`, `utils/osdep.h`, `src/utils/cutils.c`,
   `src/utils/osdep.c` and `src/utils/oslib-posix.c` are pruned copies: upstream
   text with whole sections deleted because they need meson configuration,

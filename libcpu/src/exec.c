@@ -22,6 +22,7 @@
 
 #include <cpu/ioport.h>
 #include <cpu/memory.h>
+#include <tcg/exec/tswap.h>
 #include <tcg/tcg.h>
 #include <utils/osdep.h>
 #include "cpu.h"

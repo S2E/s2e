@@ -43,16 +43,18 @@ include block or where S2E's `extern "C"` guard meets appended upstream code.
     git -C ~/qemu log --oneline <old>..<new> -- tcg/ include/tcg/ util/ include/qemu/ host/include/
 
 **Neither component is uniformly at one version.** The TCG core, `fpu/` and the
-vendored utilities track `BASELINE`, but libtcg's hand-written subsets
-(`log.*`, `bswap.h`, flagged below the "hand written" marker in its
-`mapping.tsv`) are still v8.1.0-era and are not vendored. libutils has no
-hand-written subsets left, only pruned copies (`cutils.h`, `osdep.h`,
-`cutils.c`, `osdep.c`, `oslib-posix.c`: upstream text with sections deleted),
-which merge like any other row. Before assuming a file's baseline, check it:
-format the file at several candidate tags and pick the smallest diff. A file
-that is stale relative to its neighbors is a bug waiting to happen: the 11.1
-upgrade found `tcg-gvec-desc.h` stranded at an old descriptor encoding while
-`simd_desc()` already wrote the new one.
+vendored utilities track `BASELINE`, but libtcg's hand-written subset (`log.*`,
+flagged below the "hand written" marker in its `mapping.tsv`) is still
+v8.1.0-era and is not vendored. libutils has no hand-written subsets left, only
+pruned copies (`cutils.h`, `osdep.h`, `bswap.h`, `cutils.c`, `osdep.c`,
+`oslib-posix.c`: upstream text with sections deleted), which merge like any
+other row. `bswap.h` is split between the two components (host half in
+libutils, `MemOp`/target-endian half in libtcg), so each side's merge reports
+the other half as a conflict in a deleted section. Before assuming a file's
+baseline, check it: format the file at several candidate tags and pick the
+smallest diff. A file that is stale relative to its neighbors is a bug waiting
+to happen: the 11.1 upgrade found `tcg-gvec-desc.h` stranded at an old
+descriptor encoding while `simd_desc()` already wrote the new one.
 
 Note deleted, added and renamed files in the upstream range; `merge.sh` reports
 them but cannot decide what to do about them.
@@ -176,6 +178,9 @@ libtcg:
   that upstream keeps in `include/qemu/cpu-float.h`. Leaving them in `bswap.h`
   creates a cycle: `softfloat-types.h` -> `registerfields.h` -> `bitops.h` ->
   `host-utils.h` -> `bswap.h`.
+- **`tcg/utils/target-info.h`** defines `target_big_endian()` as
+  `TARGET_BIG_ENDIAN` under `COMPILING_PER_TARGET`; `TARGET_BIG_ENDIAN` is
+  defined (0) by libcpu's generated `config-target.h` and libtcg's CMake.
 - **`accel/getpc.h`** drops upstream's `#ifndef CONFIG_TCG #error` guard.
 - **`exec/helper-head.h.inc`** keeps its `#ifdef TARGET_LONG_BITS` guard instead
   of including `exec/target_long.h`.
