@@ -801,7 +801,7 @@ static inline void *tcg_malloc(int size) {
     uintptr_t ptr, ptr_end;
 
     /* ??? This is a weak placeholder for minimum malloc alignment.  */
-    size = ALIGN_UP(size, 8);
+    size = QEMU_ALIGN_UP(size, 8);
 
     ptr = s->pool_cur;
     ptr_end = ptr + size;

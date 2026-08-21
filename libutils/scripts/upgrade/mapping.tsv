@@ -3,10 +3,9 @@
 # Only the vendored QEMU utilities below include/utils/ and src/utils/ appear
 # here. The rest of libutils (QAPI, QObject, the visitors, coroutines,
 # fsigc++) is S2E-original or diverged far enough that it is not merged
-# mechanically, and the S2E-original utilities (utils/cache.h, utils/cache.c,
-# utils/config-host.h, utils/mutex.h, utils/spinlock.h, utils/rounding.h) have
-# no upstream counterpart at all. The merge driver is scripts/upgrade/merge.sh
-# at the S2E source root.
+# mechanically, and the S2E-original utilities (utils/config-host.h,
+# utils/mutex.h, utils/spinlock.h) have no upstream counterpart at all. The
+# merge driver is scripts/upgrade/merge.sh at the S2E source root.
 #
 # upstream-dirs: util/ include/qemu/ host/include/
 #
@@ -24,23 +23,34 @@ src/utils/cpuinfo-i386.c	util/cpuinfo-i386.c
 include/utils/atomic.h	include/qemu/atomic.h
 include/utils/atomic128.h	include/qemu/atomic128.h
 include/utils/bitops.h	include/qemu/bitops.h
+include/utils/cacheflush.h	include/qemu/cacheflush.h
+include/utils/cacheinfo.h	include/qemu/cacheinfo.h
+include/utils/compiler.h	include/qemu/compiler.h
 include/utils/cpuid.h	include/qemu/cpuid.h
+include/utils/ctype.h	include/qemu/ctype.h
 include/utils/debug-assert.h	include/tcg/debug-assert.h
 include/utils/host-utils.h	include/qemu/host-utils.h
 include/utils/int128.h	include/qemu/int128.h
 include/utils/interval-tree.h	include/qemu/interval-tree.h
+include/utils/madvise.h	include/qemu/madvise.h
+include/utils/memalign.h	include/qemu/memalign.h
+include/utils/mprotect.h	include/qemu/mprotect.h
 include/utils/qtree.h	include/qemu/qtree.h
 include/utils/units.h	include/qemu/units.h
 include/utils/registerfields.h	include/hw/core/registerfields.h
+src/utils/cacheflush.c	util/cacheflush.c
+src/utils/hexdump.c	util/hexdump.c
 src/utils/host-utils.c	util/host-utils.c
 src/utils/interval-tree.c	util/interval-tree.c
 src/utils/memalign.c	util/memalign.c
 src/utils/qtree.c	util/qtree.c
-# Heavily reduced S2E-specific subsets, still v8.1.0-era: these are hand
-# written rather than vendored, so merge by hand, not mechanically.
-include/utils/memalign.h	include/qemu/memalign.h
-include/utils/bitmap.h	include/qemu/bitmap.h
+# Pruned copies: upstream text with whole sections removed because they need
+# meson configuration, os-posix.h, the Error API or sockets. They merge
+# mechanically as long as upstream leaves the kept sections alone; a conflict
+# in a removed section is resolved by deleting it again. cutils.h drops the
+# prototypes whose bodies cutils.c prunes.
 include/utils/cutils.h	include/qemu/cutils.h
 include/utils/osdep.h	include/qemu/osdep.h
 src/utils/cutils.c	util/cutils.c
 src/utils/osdep.c	util/osdep.c
+src/utils/oslib-posix.c	util/oslib-posix.c

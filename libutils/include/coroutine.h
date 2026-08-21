@@ -20,6 +20,8 @@
 #include <inttypes.h>
 #include <stdbool.h>
 
+#include <utils/osdep.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -33,22 +35,6 @@ extern "C" {
  *
  * These functions are re-entrant and may be used outside the global mutex.
  */
-
-/**
- * Mark a function that executes in coroutine context
- *
- * Functions that execute in coroutine context cannot be called directly from
- * normal functions.  In the future it would be nice to enable compiler or
- * static checker support for catching such errors.  This annotation might make
- * it possible and in the meantime it serves as documentation.
- *
- * For example:
- *
- *   static void coroutine_fn foo(void) {
- *       ....
- *   }
- */
-#define coroutine_fn
 
 typedef struct Coroutine Coroutine;
 

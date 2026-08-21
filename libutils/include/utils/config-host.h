@@ -26,17 +26,16 @@
 // every translation unit that includes a utils header, in any component and
 // under any build rule (including the clang -emit-llvm bitcode rules), sees the
 // same definitions. Struct layouts in int128.h and qtree.h depend on them.
+// HOST_BIG_ENDIAN comes from utils/compiler.h, as upstream.
 
 // Upstream CONFIG_INT128: the compiler has __int128.
 #ifdef __SIZEOF_INT128__
 #define CONFIG_INT128 1
 #endif
 
-#if defined(__BYTE_ORDER__) && defined(__ORDER_BIG_ENDIAN__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
-#define HOST_BIG_ENDIAN 1
-#else
-#define HOST_BIG_ENDIAN 0
-#endif
+// Upstream detects these at configure time; every supported host has them.
+#define CONFIG_MADVISE        1
+#define CONFIG_POSIX_MEMALIGN 1
 
 // Always use QEMU's own QTree rather than aliasing it to GTree. Upstream
 // switches on the glib version; keeping one implementation avoids a behavior

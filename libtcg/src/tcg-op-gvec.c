@@ -19,7 +19,6 @@
 
 // Order of includes is important
 // clang-format off
-#include <utils/rounding.h>
 #include <tcg/tcg-op.h>
 #include <tcg/tcg.h>
 #include <tcg/exec/helper-proto.h>

@@ -1,7 +1,11 @@
 /*
- * Simple C functions to supplement the C library
+ * os-posix-lib.c
  *
- * Copyright (c) 2006 Fabrice Bellard
+ * Copyright (c) 2003-2008 Fabrice Bellard
+ * Copyright (c) 2010 Red Hat, Inc.
+ *
+ * QEMU library functions on POSIX which are shared between QEMU and
+ * the QEMU tools.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,20 +26,18 @@
  * THE SOFTWARE.
  */
 
-#ifndef LIBQ_CUTILS_H
-#define LIBQ_CUTILS_H
+#include <utils/osdep.h>
 
-#include <inttypes.h>
-
-int libq_strtosz(const char *nptr, const char **end, uint64_t *result);
-
-int libq_strtoi(const char *nptr, const char **endptr, int base, int *result);
-int libq_strtoui(const char *nptr, const char **endptr, int base, unsigned int *result);
-int libq_strtol(const char *nptr, const char **endptr, int base, long *result);
-int libq_strtoul(const char *nptr, const char **endptr, int base, unsigned long *result);
-int libq_strtoi64(const char *nptr, const char **endptr, int base, int64_t *result);
-int libq_strtou64(const char *nptr, const char **endptr, int base, uint64_t *result);
-int libq_strtod(const char *nptr, const char **endptr, double *result);
-int libq_strtod_finite(const char *nptr, const char **endptr, double *result);
-
+size_t qemu_get_host_physmem(void) {
+#ifdef _SC_PHYS_PAGES
+    long pages = sysconf(_SC_PHYS_PAGES);
+    if (pages > 0) {
+        if (pages > SIZE_MAX / qemu_real_host_page_size()) {
+            return SIZE_MAX;
+        } else {
+            return pages * qemu_real_host_page_size();
+        }
+    }
 #endif
+    return 0;
+}

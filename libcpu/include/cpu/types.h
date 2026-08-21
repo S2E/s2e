@@ -23,6 +23,7 @@
 #include <inttypes.h>
 
 #include <cpu/config.h>
+#include <utils/compiler.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -32,15 +33,6 @@ extern "C" {
 #define TARGET_LONG_BITS 64
 #else
 #define TARGET_LONG_BITS 32
-#endif
-
-/* HOST_LONG_BITS is the size of a native pointer in bits. */
-#if UINTPTR_MAX == UINT32_MAX
-#define HOST_LONG_BITS 32
-#elif UINTPTR_MAX == UINT64_MAX
-#define HOST_LONG_BITS 64
-#else
-#error Unknown pointer size
 #endif
 
 #define TARGET_LONG_SIZE (TARGET_LONG_BITS / 8)

@@ -17,7 +17,7 @@
 
 #include "atomic.h"
 #include "host-utils.h"
-#include "rounding.h"
+#include "osdep.h"
 
 #ifdef __cplusplus
 extern "C" {

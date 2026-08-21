@@ -27,7 +27,7 @@
 #include "qapi/qmp/qnum.h"
 #include "qapi/qmp/qstring.h"
 
-#include "../cutils.h"
+#include <utils/cutils.h>
 #include "../unicode.h"
 
 struct JSONToken {
@@ -485,8 +485,8 @@ static QObject *parse_literal(JSONParserContext *ctxt) {
         case JSON_INTEGER: {
             /*
              * Represent JSON_INTEGER as QNUM_I64 if possible, else as
-             * QNUM_U64, else as QNUM_DOUBLE.  Note that libq_strtoi64()
-             * and libq_strtou64() fail with ERANGE when it's not
+             * QNUM_U64, else as QNUM_DOUBLE.  Note that qemu_strtoi64()
+             * and qemu_strtou64() fail with ERANGE when it's not
              * possible.
              *
              * qnum_get_int() will then work for any signed 64-bit
@@ -499,14 +499,14 @@ static QObject *parse_literal(JSONParserContext *ctxt) {
             int64_t value;
             uint64_t uvalue;
 
-            ret = libq_strtoi64(token->str, NULL, 10, &value);
+            ret = qemu_strtoi64(token->str, NULL, 10, &value);
             if (!ret) {
                 return QOBJECT(qnum_from_int(value));
             }
             assert(ret == -ERANGE);
 
             if (token->str[0] != '-') {
-                ret = libq_strtou64(token->str, NULL, 10, &uvalue);
+                ret = qemu_strtou64(token->str, NULL, 10, &uvalue);
                 if (!ret) {
                     return QOBJECT(qnum_from_uint(uvalue));
                 }

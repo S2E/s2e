@@ -36,9 +36,11 @@
 #include <sys/mman.h>
 
 #include <utils/atomic.h>
-#include <utils/cache.h>
+#include <utils/cacheinfo.h>
 #include <utils/cutils.h>
+#include <utils/madvise.h>
 #include <utils/memalign.h>
+#include <utils/mprotect.h>
 #include <utils/mutex.h>
 #include <utils/osdep.h>
 #include <utils/qtree.h>
@@ -190,8 +192,8 @@ static void tb_destroy(gpointer value) {
 static void tcg_region_trees_init(void) {
     size_t i;
 
-    tree_size = ROUND_UP(sizeof(struct tcg_region_tree), g_dcache_linesize);
-    region_trees = qemu_memalign(g_dcache_linesize, region.n * tree_size);
+    tree_size = ROUND_UP(sizeof(struct tcg_region_tree), qemu_dcache_linesize);
+    region_trees = qemu_memalign(qemu_dcache_linesize, region.n * tree_size);
     for (i = 0; i < region.n; i++) {
         struct tcg_region_tree *rt = region_trees + i * tree_size;
 
@@ -498,7 +500,7 @@ static int alloc_code_gen_buffer(size_t tb_size, int splitwx, Error **errp) {
 
     /* Honor a command-line option limiting the size of the buffer.  */
     if (size > tb_size) {
-        size = ALIGN_DOWN(tb_size, qemu_real_host_page_size());
+        size = QEMU_ALIGN_DOWN(tb_size, qemu_real_host_page_size());
     }
 
     region.start_aligned = buf;
@@ -707,7 +709,7 @@ void tcg_region_init(size_t tb_size, int splitwx, unsigned max_threads) {
         if (phys_mem == 0) {
             tb_size = DEFAULT_CODE_GEN_BUFFER_SIZE;
         } else {
-            tb_size = ALIGN_DOWN(phys_mem / 8, page_size);
+            tb_size = QEMU_ALIGN_DOWN(phys_mem / 8, page_size);
             tb_size = MIN(DEFAULT_CODE_GEN_BUFFER_SIZE, tb_size);
         }
     }
@@ -722,9 +724,9 @@ void tcg_region_init(size_t tb_size, int splitwx, unsigned max_threads) {
     assert(have_prot >= 0);
 
     /* Request large pages for the buffer and the splitwx.  */
-    qemu_madvise(region.start_aligned, region.total_size, MADV_HUGEPAGE);
+    qemu_madvise(region.start_aligned, region.total_size, QEMU_MADV_HUGEPAGE);
     if (tcg_splitwx_diff) {
-        qemu_madvise(region.start_aligned + tcg_splitwx_diff, region.total_size, MADV_HUGEPAGE);
+        qemu_madvise(region.start_aligned + tcg_splitwx_diff, region.total_size, QEMU_MADV_HUGEPAGE);
     }
 
     /*
@@ -734,7 +736,7 @@ void tcg_region_init(size_t tb_size, int splitwx, unsigned max_threads) {
      */
     region.n = tcg_n_regions(tb_size, max_threads);
     region_size = tb_size / region.n;
-    region_size = ALIGN_DOWN(region_size, page_size);
+    region_size = QEMU_ALIGN_DOWN(region_size, page_size);
 
     /* A region must have at least 2 pages; one code, one guard */
     g_assert(region_size >= 2 * page_size);
