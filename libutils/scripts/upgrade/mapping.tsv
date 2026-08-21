@@ -3,8 +3,12 @@
 # Only the vendored QEMU utilities below include/utils/ and src/utils/ appear
 # here. The rest of libutils (QAPI, QObject, the visitors, coroutines,
 # fsigc++) is S2E-original or diverged far enough that it is not merged
-# mechanically, and the S2E-original utilities (utils/cache.h, utils/mutex.h,
-# utils/spinlock.h, utils/rounding.h) have no upstream counterpart at all.
+# mechanically, and the S2E-original utilities (utils/cache.h, utils/cache.c,
+# utils/config-host.h, utils/mutex.h, utils/spinlock.h, utils/rounding.h) have
+# no upstream counterpart at all. The merge driver is scripts/upgrade/merge.sh
+# at the S2E source root.
+#
+# upstream-dirs: util/ include/qemu/ host/include/
 #
 # --- host support -------------------------------------------------------
 include/utils/host/x86_64/cpuinfo.h	host/include/x86_64/host/cpuinfo.h

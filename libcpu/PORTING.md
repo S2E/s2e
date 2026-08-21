@@ -29,7 +29,7 @@ makes upstream QEMU hard to extract.
 
 Second, libtcg has already been through this exercise. It is a de-QEMU-ified
 fork at `v11.1.0` with a normalize-then-three-way-merge upgrade path
-(`libtcg/scripts/upgrade/`), and it is *almost* free-standing: the only symbol it
+(`scripts/upgrade/` at the source root), and it is *almost* free-standing: the only symbol it
 needs from libcpu today is `helper_lookup_tb_ptr`. The boundary is already clean.
 
 ### Fate of the current tree
@@ -70,12 +70,13 @@ ones. Take the same route libtcg took, so that the second upgrade (11.1 to
 3. Record the pairing in `libcpu/scripts/upgrade/mapping.tsv`, with `BASELINE` =
    `v11.1.0`.
 4. Confirm normalization by merging the tag onto itself:
-   `./merge.sh v11.1.0 v11.1.0` must report zero conflicts.
+   `./merge.sh libcpu v11.1.0 v11.1.0` must report zero conflicts.
 
-`libtcg/scripts/upgrade/{normalize.sh,merge.sh}` already do steps 1 and 4; they
-need a tree-root parameter so they can serve both components. Every S2E
-deviation introduced from here on gets a comment saying *why*, because the merge
-tool cannot preserve intent it cannot see.
+`scripts/upgrade/{normalize.sh,merge.sh}` at the S2E source root already do
+steps 1 and 4 for any component that carries `scripts/upgrade/mapping.tsv`, so
+libcpu only needs the data files. Every S2E deviation introduced from here on
+gets a comment saying *why*, because the merge tool cannot preserve intent it
+cannot see.
 
 libcpu's current state is exactly what happens without this discipline: fourteen
 years of drift that can no longer be merged. The tooling is cheap, a day or two
@@ -269,9 +270,10 @@ relocation is done: libtcg's `utils/` subset moved to `libutils/include/utils/`
 and `libutils/src/utils/`, and the include prefix is now `<utils/...>`, matching
 libutils' existing flat `<qqueue.h>` / `<coroutine.h>` shape.
 
-Three files stayed behind in `libtcg/include/tcg/utils/`. `utils/log.c` has
-three `#ifdef TARGET_I386` / `#ifdef CONFIG_SYMBEX` blocks that populate the
-`CPU_LOG_*` mask table (`log.h` itself is clean); `utils/bswap.h` tests
+Four files stayed behind: `utils/{log.h,bswap.h,cpu-float.h}` in
+`libtcg/include/tcg/utils/` and `utils/log.c` in `libtcg/src/utils/`.
+`utils/log.c` has three `#ifdef TARGET_I386` / `#ifdef CONFIG_SYMBEX` blocks
+that populate the `CPU_LOG_*` mask table (`log.h` itself is clean); `utils/bswap.h` tests
 `TARGET_WORDS_BIGENDIAN` and `TARGET_LONG_SIZE` in live code and is mapped to
 upstream `include/qemu/bswap.h`, so it cannot be edited to drop the dependency
 without creating a merge deviation; `utils/cpu-float.h` needs the softfloat
@@ -280,15 +282,17 @@ splitting bswap's target-dependent tail into a libcpu header would let the
 first two follow, but neither is on the critical path.
 
 `utils/qtree.h`, `utils/int128.h` and `utils/host-utils.h` read
-`HAVE_GLIB_WITH_SLICE_ALLOCATOR`, `CONFIG_INT128` and `HOST_BIG_ENDIAN`.
-`libutils/src/CMakeLists.txt` defines them for its own objects; every component
-that includes these headers has to define them identically, or struct layouts
-disagree across translation units.
+`HAVE_GLIB_WITH_SLICE_ALLOCATOR`, `CONFIG_INT128` and `HOST_BIG_ENDIAN`. They
+come from `utils/config-host.h`, included by `int128.h` and `osdep.h` and
+derived from compiler builtins, so every translation unit in every component
+(including the bitcode rules) sees the same definitions without any `-D` flag.
+Do not reintroduce command-line copies in libtcg or libcpu.
 
-The upgrade tooling followed the files: libutils now has its own
-`scripts/upgrade/{BASELINE,mapping.tsv,merge.sh,normalize.sh}`, and the 28
-corresponding rows moved out of libtcg's mapping. Both components report zero
-conflicts under `merge.sh v11.1.0 v11.1.0`.
+The upgrade tooling followed the files: the shared driver now lives in
+`scripts/upgrade/` at the source root, and libutils has its own
+`scripts/upgrade/{BASELINE,mapping.tsv}` holding the 28 rows that moved out of
+libtcg's mapping. Both components report zero conflicts under
+`merge.sh <component> v11.1.0 v11.1.0`.
 
 ### 4.2 What 11.1 needs that we do not have
 
@@ -307,7 +311,7 @@ vendored utils gives a short list. Placement follows the rule above.
 | `exec/icount.h`, `exec/replay-core.h`, `system/tcg.h`, `qemu/plugin.h`, `qemu/target-info.h` | n/a | missing | **Stub** in libcpu; these are configuration-dependent. icount off, replay off, `tcg_enabled()` is true, plugins compiled out. |
 | `qemu/queue.h` | n/a | have | libutils `qqueue.h`, already in the right place. |
 | glib allocation shims (`g_new`, `g_try_new`, `g_free`, `GArray`) | n/a | verify | Used by `qht.c`, `cputlb.c`, `tb-maint.c`; confirm libtcg's existing glib-compat covers the import closure, extend in **libutils** if not. |
-| osdep, cutils, bitops, bitmap, int128, host-utils, atomic, atomic128, interval-tree, qtree, memalign, cacheinfo, units, cpuid | ~7,140 | have | Moved to `libutils/include/utils/` and `libutils/src/utils/` per 4.1. |
+| osdep, cutils, bitops, bitmap, int128, host-utils, atomic, atomic128, interval-tree, qtree, memalign, units, cpuid | ~7,140 | have | Moved to `libutils/include/utils/` and `libutils/src/utils/` per 4.1. `utils/cache.{h,c}` is S2E-original, not upstream `cacheinfo.c`. |
 | bswap | 308 | have, target-dependent | Tests `TARGET_WORDS_BIGENDIAN` / `TARGET_LONG_SIZE`; stayed in libtcg with log unless its target tail is split out (see 4.1). |
 | log | 238 | have, target-dependent | Stayed in libtcg unless the `CPU_LOG_*` mask table is made registrable. |
 
@@ -339,11 +343,10 @@ codebase.
 
 ### Phase 0: Tooling and scaffolding (~1 week)
 
-- Generalize `libtcg/scripts/upgrade/{normalize.sh,merge.sh}` to take a component
-  root, so libcpu can drive them; or fork them into `libcpu/scripts/upgrade/` if
-  that turns out cleaner.
-- Create `libcpu/scripts/upgrade/{BASELINE,mapping.tsv,README.md}`. `BASELINE` is
-  `v11.1.0` from the start; `mapping.tsv` grows as files land.
+- `scripts/upgrade/{normalize.sh,merge.sh}` already take a component name, so
+  nothing needs generalizing. Create `libcpu/scripts/upgrade/{BASELINE,mapping.tsv}`
+  with an `# upstream-dirs:` header. `BASELINE` is `v11.1.0` from the start;
+  `mapping.tsv` grows as files land.
 - Settle the target directory layout. Proposal, mirroring libtcg: `src/accel/`
   for accel/tcg files, `src/target-i386/` for the frontend and helpers,
   `src/s2e/` for S2E originals (exec-ram, exec-phys, memory, ioport, cpus, timer,
@@ -351,14 +354,14 @@ codebase.
 - Create a scratch branch that builds the *current* tree with `CONFIG_SYMBEX`
   off, so the concrete-only configuration is known-good before anything moves.
 
-**Exit:** `./merge.sh v11.1.0 v11.1.0` runs clean over an empty mapping;
+**Exit:** `./merge.sh libcpu v11.1.0 v11.1.0` runs clean over an empty mapping;
 `normalize.sh` can emit any 11.1 file into its intended libcpu path;
 `x86_64-softmmu` builds and boots on the old code.
 
 ### Phase 1: Substrate, utilities, CPUState, memory shim (2-3 weeks)
 
-- **Relocate libtcg's platform-independent utils to libutils** (section 4.1)
-  — done. 33 files moved, 77 include lines across 46 files rewritten to
+- **Relocate libtcg's platform-independent utils to libutils** (section 4.1).
+  Done: 33 files moved, 77 include lines across 46 files rewritten to
   `<utils/...>`, `utils/{log.h,log.c,bswap.h,cpu-float.h}` left behind, and 28
   mapping rows moved into libutils' new `scripts/upgrade/`.
 - Import qht, rcu, thread, xxhash, seqlock into **libutils** per section 4.2; add
