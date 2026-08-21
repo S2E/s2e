@@ -24,8 +24,8 @@
 
 #include <glib.h>
 
-#include <tcg/utils/host-utils.h>
-#include <tcg/utils/osdep.h>
+#include <utils/host-utils.h>
+#include <utils/osdep.h>
 
 // clang-format off
 #include <tcg/tcg.h>

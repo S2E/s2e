@@ -23,7 +23,7 @@
  */
 
 #include <tcg/tcg.h>
-#include <tcg/utils/osdep.h>
+#include <utils/osdep.h>
 
 const TCGOpDef tcg_op_defs[] = {
 #define DEF(s, oargs, iargs, cargs, flags) {#s, oargs, iargs, cargs, iargs + oargs + cargs, flags},

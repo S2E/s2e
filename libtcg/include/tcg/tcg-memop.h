@@ -12,7 +12,7 @@
 #ifndef MEMOP_H
 #define MEMOP_H
 
-#include <tcg/utils/host-utils.h>
+#include <utils/host-utils.h>
 
 #ifdef __cplusplus
 extern "C" {

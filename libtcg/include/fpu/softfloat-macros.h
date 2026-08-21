@@ -78,7 +78,7 @@ this code that are retained.
 #define FPU_SOFTFLOAT_MACROS_H
 
 #include "fpu/softfloat-types.h"
-#include "tcg/utils/host-utils.h"
+#include "utils/host-utils.h"
 
 #ifdef __cplusplus
 extern "C" {

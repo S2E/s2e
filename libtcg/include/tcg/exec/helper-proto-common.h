@@ -7,7 +7,7 @@
 #ifndef HELPER_PROTO_COMMON_H
 #define HELPER_PROTO_COMMON_H
 
-#include "tcg/utils/atomic128.h" /* for HAVE_CMPXCHG128 */
+#include "utils/atomic128.h" /* for HAVE_CMPXCHG128 */
 
 #define HELPER_H "tcg/accel/tcg-runtime.h"
 #include "tcg/exec/helper-proto.h.inc"

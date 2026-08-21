@@ -33,8 +33,8 @@
 #define NO_CPU_IO_DEFS
 #include <tcg/insn-start-words.h>
 #include <tcg/tcg.h>
-#include <tcg/utils/cache.h>
-#include <tcg/utils/spinlock.h>
+#include <utils/cache.h>
+#include <utils/spinlock.h>
 #include "cpu.h"
 #include "timer.h"
 

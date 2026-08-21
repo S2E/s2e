@@ -26,9 +26,9 @@
 #include <glib.h>
 
 #include "tcg/utils/bswap.h"
-#include "tcg/utils/int128.h"
-#include "tcg/utils/interval-tree.h"
-#include "tcg/utils/osdep.h"
+#include "utils/int128.h"
+#include "utils/interval-tree.h"
+#include "utils/osdep.h"
 
 // clang-format off
 #include "tcg/tcg.h"

@@ -3,8 +3,8 @@
  * Host specific cpu identification for x86.
  */
 
-#include <tcg/utils/host/x86_64/cpuinfo.h>
-#include <tcg/utils/osdep.h>
+#include <utils/host/x86_64/cpuinfo.h>
+#include <utils/osdep.h>
 
 #ifdef CONFIG_CPUID_H
 #include "qemu/cpuid.h"

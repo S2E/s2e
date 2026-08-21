@@ -43,11 +43,11 @@ extern "C" {
 #include <tcg/tcg-memop.h>
 #include <tcg/tcg-memopidx.h>
 #include <tcg/tcg-mo.h>
-#include <tcg/utils/bitops.h>
-#include <tcg/utils/debug-assert.h>
-#include <tcg/utils/host-utils.h>
 #include <tcg/utils/log.h>
-#include <tcg/utils/osdep.h>
+#include <utils/bitops.h>
+#include <utils/debug-assert.h>
+#include <utils/host-utils.h>
+#include <utils/osdep.h>
 
 #include <tcg/helper-info.h>
 #include <tcg/insn-start-words.h>

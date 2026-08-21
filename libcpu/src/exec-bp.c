@@ -21,7 +21,7 @@
 #include <cpu/config.h>
 #include <cpu/memory.h>
 #include <tcg/tcg.h>
-#include <tcg/utils/osdep.h>
+#include <utils/osdep.h>
 #include "exec.h"
 #include "qemu-common.h"
 

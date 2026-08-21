@@ -20,7 +20,7 @@
 
 #include <unistd.h>
 
-#include <tcg/utils/cache.h>
+#include <utils/cache.h>
 
 int g_icache_linesize = 0;
 int g_dcache_linesize = 0;

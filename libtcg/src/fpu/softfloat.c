@@ -88,8 +88,8 @@ this code that are retained.
 #include <fpu/softfloat-parts.h>
 #include <fpu/softfloat.h>
 #include <math.h>
-#include <tcg/utils/bitops.h>
-#include <tcg/utils/osdep.h>
+#include <utils/bitops.h>
+#include <utils/osdep.h>
 
 /* We only need stdlib for abort() */
 

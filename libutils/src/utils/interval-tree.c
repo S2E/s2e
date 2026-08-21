@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "tcg/utils/interval-tree.h"
-#include "tcg/utils/atomic.h"
-#include "tcg/utils/osdep.h"
+#include "utils/interval-tree.h"
+#include "utils/atomic.h"
+#include "utils/osdep.h"
 
 /*
  * Red Black Trees.

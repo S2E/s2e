@@ -29,8 +29,8 @@
  * MT safe
  */
 
-#include <tcg/utils/osdep.h>
-#include <tcg/utils/qtree.h>
+#include <utils/osdep.h>
+#include <utils/qtree.h>
 
 /**
  * SECTION:trees-binary

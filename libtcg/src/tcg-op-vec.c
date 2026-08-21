@@ -24,7 +24,7 @@
 #include <tcg/tcg-internal.h>
 #include <tcg/tcg-temp-internal.h>
 #include <tcg/tcg-has.h>
-#include <tcg/utils/osdep.h>
+#include <utils/osdep.h>
 // clang-format on
 
 /*

@@ -21,12 +21,12 @@
 #include <sys/mman.h>
 
 #include <cpu/config.h>
-#include <tcg/utils/osdep.h>
+#include <utils/osdep.h>
 #include "exec-ram.h"
 #include "exec.h"
 #include "qemu-common.h"
 
-#include <tcg/utils/cutils.h>
+#include <utils/cutils.h>
 
 RAMList ram_list;
 

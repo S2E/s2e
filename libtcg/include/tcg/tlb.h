@@ -3,7 +3,7 @@
 #define TCG_TLB_H
 
 #include <inttypes.h>
-#include <tcg/utils/osdep.h>
+#include <utils/osdep.h>
 
 #ifdef __cplusplus
 extern "C" {

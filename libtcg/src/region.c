@@ -35,15 +35,15 @@
 #include <string.h>
 #include <sys/mman.h>
 
-#include <tcg/utils/atomic.h>
-#include <tcg/utils/cache.h>
-#include <tcg/utils/cutils.h>
-#include <tcg/utils/memalign.h>
-#include <tcg/utils/mutex.h>
-#include <tcg/utils/osdep.h>
-#include <tcg/utils/qtree.h>
-#include <tcg/utils/spinlock.h>
-#include <tcg/utils/units.h>
+#include <utils/atomic.h>
+#include <utils/cache.h>
+#include <utils/cutils.h>
+#include <utils/memalign.h>
+#include <utils/mutex.h>
+#include <utils/osdep.h>
+#include <utils/qtree.h>
+#include <utils/spinlock.h>
+#include <utils/units.h>
 
 // clang-format off
 #include <tcg/tcg.h>
