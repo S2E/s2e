@@ -21,16 +21,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-
-#include <errno.h>
-#include <glib.h>
-#include <stdio.h>
-#include <string.h>
-#include <sys/mman.h>
-#include <unistd.h>
+#include <utils/madvise.h>
+#include <utils/mprotect.h>
 #include <utils/osdep.h>
-
-#define CONFIG_MADVISE
 
 int qemu_madvise(void *addr, size_t len, int advice) {
     if (advice == QEMU_MADV_INVALID) {
@@ -40,9 +33,14 @@ int qemu_madvise(void *addr, size_t len, int advice) {
 #if defined(CONFIG_MADVISE)
     return madvise(addr, len, advice);
 #elif defined(CONFIG_POSIX_MADVISE)
-    return posix_madvise(addr, len, advice);
+    int rc = posix_madvise(addr, len, advice);
+    if (rc) {
+        errno = rc;
+        return -1;
+    }
+    return 0;
 #else
-    errno = EINVAL;
+    errno = ENOSYS;
     return -1;
 #endif
 }
@@ -56,7 +54,7 @@ static int qemu_mprotect__osdep(void *addr, size_t size, int prot) {
 
     if (!VirtualProtect(addr, size, prot, &old_protect)) {
         g_autofree gchar *emsg = g_win32_error_message(GetLastError());
-        fprintf(stderr, ("%s: VirtualProtect failed: %s", __func__, emsg);
+        fprintf(stderr, "%s: VirtualProtect failed: %s", __func__, emsg);
         return -1;
     }
     return 0;
@@ -91,18 +89,4 @@ int qemu_mprotect_none(void *addr, size_t size) {
 #else
     return qemu_mprotect__osdep(addr, size, PROT_NONE);
 #endif
-}
-
-size_t qemu_get_host_physmem(void) {
-#ifdef _SC_PHYS_PAGES
-    long pages = sysconf(_SC_PHYS_PAGES);
-    if (pages > 0) {
-        if (pages > SIZE_MAX / qemu_real_host_page_size()) {
-            return SIZE_MAX;
-        } else {
-            return pages * qemu_real_host_page_size();
-        }
-    }
-#endif
-    return 0;
 }

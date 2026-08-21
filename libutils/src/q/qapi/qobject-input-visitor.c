@@ -15,7 +15,7 @@
 #include <math.h>
 #include <stdio.h>
 
-#include "../cutils.h"
+#include <utils/cutils.h>
 #include "qapi/error.h"
 #include "qapi/qmp/qbool.h"
 #include "qapi/qmp/qdict.h"
@@ -379,7 +379,7 @@ static bool qobject_input_type_int64_keyval(Visitor *v, const char *name, int64_
         return false;
     }
 
-    if (libq_strtoi64(str, NULL, 0, obj) < 0) {
+    if (qemu_strtoi64(str, NULL, 0, obj) < 0) {
         /* TODO report -ERANGE more nicely */
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE, full_name(qiv, name), "integer");
         return false;
@@ -424,7 +424,7 @@ static bool qobject_input_type_uint64_keyval(Visitor *v, const char *name, uint6
         return false;
     }
 
-    if (libq_strtou64(str, NULL, 0, obj) < 0) {
+    if (qemu_strtou64(str, NULL, 0, obj) < 0) {
         /* TODO report -ERANGE more nicely */
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE, full_name(qiv, name), "integer");
         return false;
@@ -519,7 +519,7 @@ static bool qobject_input_type_number_keyval(Visitor *v, const char *name, doubl
         return false;
     }
 
-    if (libq_strtod_finite(str, NULL, &val)) {
+    if (qemu_strtod_finite(str, NULL, &val)) {
         /* TODO report -ERANGE more nicely */
         error_setg(errp, QERR_INVALID_PARAMETER_TYPE, full_name(qiv, name), "number");
         return false;
@@ -567,7 +567,7 @@ static bool qobject_input_type_size_keyval(Visitor *v, const char *name, uint64_
         return false;
     }
 
-    if (libq_strtosz(str, NULL, obj) < 0) {
+    if (qemu_strtosz(str, NULL, obj) < 0) {
         /* TODO report -ERANGE more nicely */
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE, full_name(qiv, name), "size");
         return false;

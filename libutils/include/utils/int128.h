@@ -5,6 +5,7 @@
 #include <inttypes.h>
 #include <stdbool.h>
 
+#include <utils/compiler.h>
 #include <utils/config-host.h>
 
 #ifdef __cplusplus

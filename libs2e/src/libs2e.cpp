@@ -32,6 +32,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+// glib pulls in dirent.h later, and that header has no fallback when
+// __REDIRECT_NTH is undefined, so include it before undefining the macro.
+#include <dirent.h>
+
 #undef __REDIRECT_NTH
 #include <sys/mman.h>
 #include <sys/types.h>

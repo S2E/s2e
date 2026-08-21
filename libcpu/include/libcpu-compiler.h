@@ -1,7 +1,7 @@
 /* public domain */
 
-#ifndef COMPILER_H
-#define COMPILER_H
+#ifndef LIBCPU_COMPILER_H
+#define LIBCPU_COMPILER_H
 
 #include <cpu/config-host.h>
 
@@ -54,4 +54,4 @@ extern "C" {
 }
 #endif
 
-#endif /* COMPILER_H */
+#endif /* LIBCPU_COMPILER_H */

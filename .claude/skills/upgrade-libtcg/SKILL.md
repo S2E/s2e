@@ -43,10 +43,12 @@ include block or where S2E's `extern "C"` guard meets appended upstream code.
     git -C ~/qemu log --oneline <old>..<new> -- tcg/ include/tcg/ util/ include/qemu/ host/include/
 
 **Neither component is uniformly at one version.** The TCG core, `fpu/` and the
-vendored utilities track `BASELINE`, but the hand-written subsets flagged below
-the "hand written" marker in each `mapping.tsv` (libutils: `osdep.*`,
-`cutils.*`, `bitmap.h`, `memalign.h`; libtcg: `log.*`, `bswap.h`) are still
-v8.1.0-era and are not vendored. Before assuming a file's baseline, check it:
+vendored utilities track `BASELINE`, but libtcg's hand-written subsets
+(`log.*`, `bswap.h`, flagged below the "hand written" marker in its
+`mapping.tsv`) are still v8.1.0-era and are not vendored. libutils has no
+hand-written subsets left, only pruned copies (`cutils.h`, `osdep.h`,
+`cutils.c`, `osdep.c`, `oslib-posix.c`: upstream text with sections deleted),
+which merge like any other row. Before assuming a file's baseline, check it:
 format the file at several candidate tags and pick the smallest diff. A file
 that is stale relative to its neighbors is a bug waiting to happen: the 11.1
 upgrade found `tcg-gvec-desc.h` stranded at an old descriptor encoding while
@@ -90,7 +92,7 @@ type, libutils once). Add the new row to that component's `mapping.tsv`.
 being included first everywhere; S2E has no such prelude, and the S2E
 clang-format sets `SortIncludes: true`, so it will reorder an include block and
 break any header that depends on its position. Host configuration macros
-(`CONFIG_INT128`, `HOST_BIG_ENDIAN`, `HAVE_GLIB_WITH_SLICE_ALLOCATOR`) come from
+(`CONFIG_INT128`, `CONFIG_MADVISE` and the rest) come from
 `utils/config-host.h`, pulled in by `utils/int128.h` and `utils/osdep.h`; never
 add `-D` copies to a CMakeLists.
 
@@ -124,7 +126,8 @@ relocate:
   check it is anchored to the right `tcg_out_ld`, not merely present
 - `tcg_target_force_tb_exit`
 - `tcg_prologue_init(TCGContext *s)` taking the context explicitly
-- `mutex_t` / `spin_*` / `g_*cache_linesize` in `region.c`
+- `mutex_t` / `spin_*` in `region.c` and `tb.h` (libutils keeps its own
+  `mutex.h`/`spinlock.h` instead of `qemu/thread.h`)
 
 ### 6. Re-normalize and record
 
@@ -152,10 +155,14 @@ libutils:
   These headers are included from C++, where `new` is a keyword.
 - **`utils/bitops.h`** wraps `#define BIT(nr)` in `#ifndef BIT`, because
   `libcpu/include/cpu/kvm.h` also defines it.
-- **`utils/osdep.h`** carries what upstream keeps in `include/qemu/compiler.h`
-  (`QEMU_FLATTEN`, `QEMU_ALWAYS_INLINE`, `typeof_strip_qual`, ...). When a merge
-  pulls in code that needs a new compiler macro, add it here.
-- **`utils/int128.h` and `utils/osdep.h`** include `<utils/config-host.h>`.
+- **`utils/compiler.h`** is vendored; it adds `<stdbool.h>`/`<stddef.h>` and
+  `#define typeof __typeof__` for C++. **`utils/osdep.h`** is a pruned copy of
+  upstream's: it redefines `MIN`/`MAX`/`ARRAY_SIZE` for C++ and drops the
+  `NDEBUG` `#error`.
+- **`utils/int128.h` and `utils/osdep.h`** include `<utils/config-host.h>`;
+  `int128.h` also includes `<utils/compiler.h>`.
+- **`src/utils/osdep.c`** uses `fprintf(stderr)` where upstream calls
+  `error_report()`.
 - **`src/utils/cpuinfo-i386.c`** includes `<utils/cpuid.h>`; `CONFIG_CPUID_H`
   stays undefined on purpose (see `utils/config-host.h`: the TCG op set must
   not grow past what `tcg-llvm.cpp` translates).

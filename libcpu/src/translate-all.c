@@ -33,7 +33,6 @@
 #define NO_CPU_IO_DEFS
 #include <tcg/insn-start-words.h>
 #include <tcg/tcg.h>
-#include <utils/cache.h>
 #include <utils/spinlock.h>
 #include "cpu.h"
 #include "timer.h"
@@ -124,11 +123,6 @@ static void cpu_gen_init(TCGContext *ctx) {
    (in bytes) allocated to the translation buffer. Zero means default
    size. */
 void tcg_exec_init(unsigned long tb_size) {
-    if (init_cache_info() < 0) {
-        fprintf(stderr, "Could not init cache size");
-        exit(-1);
-    }
-
     tcg_init(MIN_CODE_GEN_BUFFER_SIZE, 0, 1);
     cpu_gen_init(&tcg_init_ctx);
 

@@ -1,32 +1,12 @@
 /*
- * memalign.c: Allocate an aligned memory region
+ * Allocation and free functions for aligned memory
  *
- * Copyright (c) 2003-2008 Fabrice Bellard
- * Copyright (c) 2010-2016 Red Hat, Inc.
- * Copyright (c) 2022 Linaro Ltd
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
- * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+ * This work is licensed under the terms of the GNU GPL, version 2 or later.
+ * See the COPYING file in the top-level directory.
  */
 
-#ifndef LIBTCG_MEMALIGN
-
-#define LIBTCG_MEMALIGN
+#ifndef QEMU_MEMALIGN_H
+#define QEMU_MEMALIGN_H
 
 #include <stddef.h>
 
@@ -34,9 +14,54 @@
 extern "C" {
 #endif
 
+/**
+ * qemu_try_memalign: Allocate aligned memory
+ * @alignment: required alignment, in bytes
+ * @size: size of allocation, in bytes
+ *
+ * Allocate memory on an aligned boundary (i.e. the returned
+ * address will be an exact multiple of @alignment).
+ * @alignment must be a power of 2, or the function will assert().
+ * On success, returns allocated memory; on failure, returns NULL.
+ *
+ * The memory allocated through this function must be freed via
+ * qemu_vfree() (and not via free()).
+ */
 void *qemu_try_memalign(size_t alignment, size_t size);
+/**
+ * qemu_memalign: Allocate aligned memory, without failing
+ * @alignment: required alignment, in bytes
+ * @size: size of allocation, in bytes
+ *
+ * Allocate memory in the same way as qemu_try_memalign(), but
+ * abort() with an error message if the memory allocation fails.
+ *
+ * The memory allocated through this function must be freed via
+ * qemu_vfree() (and not via free()).
+ */
 void *qemu_memalign(size_t alignment, size_t size);
+/**
+ * qemu_vfree: Free memory allocated through qemu_memalign
+ * @ptr: memory to free
+ *
+ * This function must be used to free memory allocated via qemu_memalign()
+ * or qemu_try_memalign(). (Using the wrong free function will cause
+ * subtle bugs on Windows hosts.)
+ */
 void qemu_vfree(void *ptr);
+/*
+ * It's an analog of GLIB's g_autoptr_cleanup_generic_gfree(), used to define
+ * g_autofree macro.
+ */
+static inline void qemu_cleanup_generic_vfree(void *p) {
+    void **pp = (void **) p;
+    qemu_vfree(*pp);
+}
+
+/*
+ * Analog of g_autofree, but qemu_vfree is called on cleanup instead of g_free.
+ */
+#define QEMU_AUTO_VFREE __attribute__((cleanup(qemu_cleanup_generic_vfree)))
 
 #ifdef __cplusplus
 }

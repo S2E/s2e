@@ -1,167 +1,148 @@
-/// Copyright (C) 2003  Fabrice Bellard
-/// Copyright (C) 2016  Cyberhaven
-/// Copyrights of all contributions belong to their respective owners.
-///
-/// This library is free software; you can redistribute it and/or
-/// modify it under the terms of the GNU Library General Public
-/// License as published by the Free Software Foundation; either
-/// version 2 of the License, or (at your option) any later version.
-///
-/// This library is distributed in the hope that it will be useful,
-/// but WITHOUT ANY WARRANTY; without even the implied warranty of
-/// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-/// Library General Public License for more details.
-///
-/// You should have received a copy of the GNU Library General Public
-/// License along with this library; if not, see <http://www.gnu.org/licenses/>.
+/*
+ * OS includes and handling of OS dependencies
+ *
+ * This header exists to pull in some common system headers that
+ * most code in QEMU will want, and to fix up some possible issues with
+ * it (missing defines, Windows weirdness, and so on).
+ *
+ * To avoid getting into possible circular include dependencies, this
+ * file should not include any other QEMU headers, with the exceptions
+ * of config-host.h, config-target.h, qemu/compiler.h,
+ * system/os-posix.h, system/os-win32.h, system/os-wasm.h, glib-compat.h and
+ * qemu/typedefs.h, all of which are doing a similar job to this file
+ * and are under similar constraints.
+ *
+ * This header also contains prototypes for functions defined in
+ * os-*.c and util/oslib-*.c; those would probably be better split
+ * out into separate header files.
+ *
+ * In an ideal world this header would contain only:
+ *  (1) things which everybody needs
+ *  (2) things without which code would work on most platforms but
+ *      fail to compile or misbehave on a minority of host OSes
+ *
+ * This work is licensed under the terms of the GNU GPL, version 2 or later.
+ * See the COPYING file in the top-level directory.
+ */
+#ifndef QEMU_OSDEP_H
+#define QEMU_OSDEP_H
 
-#ifndef TCG_OSDEP_H
-#define TCG_OSDEP_H
+#include <utils/compiler.h>
+#include <utils/config-host.h>
 
-#include <stdarg.h>
-#include <stddef.h>
-#include <stdio.h>
-#include <stdlib.h>
-#ifdef __OpenBSD__
-#include <sys/signal.h>
-#include <sys/types.h>
+/* Older versions of C++ don't get definitions of various macros from
+ * stdlib.h unless we define these macros before first inclusion of
+ * that system header.
+ */
+#ifndef __STDC_CONSTANT_MACROS
+#define __STDC_CONSTANT_MACROS
+#endif
+#ifndef __STDC_LIMIT_MACROS
+#define __STDC_LIMIT_MACROS
+#endif
+#ifndef __STDC_FORMAT_MACROS
+#define __STDC_FORMAT_MACROS
 #endif
 
+#include <assert.h>
+#include <ctype.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <getopt.h>
 #include <inttypes.h>
+#include <limits.h>
+#include <setjmp.h>
+#include <signal.h>
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
 #include <sys/time.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <time.h>
 #include <unistd.h>
 
-#include <utils/config-host.h>
+#include <glib.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#ifndef glue
-#define xglue(x, y)  x##y
-#define glue(x, y)   xglue(x, y)
-#define stringify(s) tostring(s)
-#define tostring(s)  #s
-#endif
-
-#define QEMU_ALIGNED(X) __attribute__((aligned(X)))
-
-#ifndef container_of
-#define container_of(ptr, type, member)                      \
-    ({                                                       \
-        const typeof(((type *) 0)->member) *__mptr = (ptr);  \
-        (type *) ((char *) __mptr - offsetof(type, member)); \
-    })
-#endif
-
-/* Convert from a base type to a parent type, with compile time checking.  */
-#ifdef __GNUC__
-#define DO_UPCAST(type, field, dev)                                               \
-    (__extension__({                                                              \
-        char __attribute__((unused)) offset_must_be_zero[-offsetof(type, field)]; \
-        container_of(dev, type, field);                                           \
-    }))
-#else
-#define DO_UPCAST(type, field, dev) container_of(dev, type, field)
-#endif
-
-#define typeof_field(type, field) typeof(((type *) 0)->field)
-#define type_check(t1, t2)        ((t1 *) 0 - (t2 *) 0)
-
-#ifndef MIN
-#define MIN(a, b) (((a) < (b)) ? (a) : (b))
-#endif
-#ifndef MAX
-#define MAX(a, b) (((a) > (b)) ? (a) : (b))
-#endif
-
-#ifndef ARRAY_SIZE
-#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
-#endif
-
-#define likely(x)   __builtin_expect(!!(x), 1)
-#define unlikely(x) __builtin_expect(!!(x), 0)
-
-#define QEMU_FALLTHROUGH __attribute__((fallthrough))
-#define QEMU_PACKED      __attribute__((packed))
-
-/*
- * GCC doesn't provide __has_attribute() until GCC 5, but we know all the GCC
- * versions we support have the "flatten" attribute. Clang may not have the
- * "flatten" attribute but always has __has_attribute() to check for it.
- */
-#if __has_attribute(flatten) || !defined(__clang__)
-#define QEMU_FLATTEN __attribute__((flatten))
-#else
-#define QEMU_FLATTEN
-#endif
-
-/*
- * If __attribute__((always_inline)) is available, use it to force inlining
- * where softfloat relies on constant folding of its format parameters.
- */
-#if __has_attribute(always_inline) || !defined(__clang__)
-#define QEMU_ALWAYS_INLINE __attribute__((always_inline))
-#else
-#define QEMU_ALWAYS_INLINE
-#endif
-
-#ifndef __cplusplus
-/*
- * Take the type of an expression, stripped of any const/volatile qualifiers.
- * The atomic builtins return values through a pointer-type argument, as in
- * __atomic_load(&var, &old, MODEL), so the destination must be non-qualified.
+/**
+ * Mark a function that executes in coroutine context
  *
- * Types smaller than int are handled explicitly because of implicit promotion;
- * int and larger types, and pointers, are stripped by applying a binary
- * operator. Upstream keeps this in include/qemu/compiler.h, whose contents
- * libtcg folds into osdep.h.
+ * Functions that execute in coroutine context cannot be called directly from
+ * normal functions.  In the future it would be nice to enable compiler or
+ * static checker support for catching such errors.  This annotation might make
+ * it possible and in the meantime it serves as documentation.
+ *
+ * For example:
+ *
+ *   static void coroutine_fn foo(void) {
+ *       ....
+ *   }
  */
-#define typeof_strip_qual(expr)                                                                                       \
-    typeof(__builtin_choose_expr(                                                                                     \
-        __builtin_types_compatible_p(typeof(expr), bool) || __builtin_types_compatible_p(typeof(expr), const bool) || \
-            __builtin_types_compatible_p(typeof(expr), volatile bool) ||                                              \
-            __builtin_types_compatible_p(typeof(expr), const volatile bool),                                          \
-        (bool) 1,                                                                                                     \
-        __builtin_choose_expr(                                                                                        \
-            __builtin_types_compatible_p(typeof(expr), signed char) ||                                                \
-                __builtin_types_compatible_p(typeof(expr), const signed char) ||                                      \
-                __builtin_types_compatible_p(typeof(expr), volatile signed char) ||                                   \
-                __builtin_types_compatible_p(typeof(expr), const volatile signed char),                               \
-            (signed char) 1,                                                                                          \
-            __builtin_choose_expr(                                                                                    \
-                __builtin_types_compatible_p(typeof(expr), unsigned char) ||                                          \
-                    __builtin_types_compatible_p(typeof(expr), const unsigned char) ||                                \
-                    __builtin_types_compatible_p(typeof(expr), volatile unsigned char) ||                             \
-                    __builtin_types_compatible_p(typeof(expr), const volatile unsigned char),                         \
-                (unsigned char) 1,                                                                                    \
-                __builtin_choose_expr(                                                                                \
-                    __builtin_types_compatible_p(typeof(expr), signed short) ||                                       \
-                        __builtin_types_compatible_p(typeof(expr), const signed short) ||                             \
-                        __builtin_types_compatible_p(typeof(expr), volatile signed short) ||                          \
-                        __builtin_types_compatible_p(typeof(expr), const volatile signed short),                      \
-                    (signed short) 1,                                                                                 \
-                    __builtin_choose_expr(                                                                            \
-                        __builtin_types_compatible_p(typeof(expr), unsigned short) ||                                 \
-                            __builtin_types_compatible_p(typeof(expr), const unsigned short) ||                       \
-                            __builtin_types_compatible_p(typeof(expr), volatile unsigned short) ||                    \
-                            __builtin_types_compatible_p(typeof(expr), const volatile unsigned short),                \
-                        (unsigned short) 1, (expr) + 0))))))
-#endif /* !__cplusplus */
-
-/*
- * If __attribute__((error)) is present, use it to produce an error at
- * compile time.  Otherwise, one must wait for the linker to diagnose
- * the missing symbol.
- */
-#if __has_attribute(error)
-#define QEMU_ERROR(X) __attribute__((error(X)))
+#ifdef __clang__
+#define coroutine_fn QEMU_ANNOTATE("coroutine_fn")
 #else
-#define QEMU_ERROR(X)
+#define coroutine_fn
 #endif
 
-#ifndef NORETURN
-#define NORETURN __attribute__((noreturn))
+/**
+ * Mark a function that can suspend when executed in coroutine context,
+ * but can handle running in non-coroutine context too.
+ */
+#ifdef __clang__
+#define coroutine_mixed_fn QEMU_ANNOTATE("coroutine_mixed_fn")
+#else
+#define coroutine_mixed_fn
+#endif
+
+/**
+ * Mark a function that should not be called from a coroutine context.
+ * Usually there will be an analogous, coroutine_fn function that should
+ * be used instead.
+ *
+ * When the function is also marked as coroutine_mixed_fn, the function should
+ * only be called if the caller does not know whether it is in coroutine
+ * context.
+ *
+ * Functions that are only no_coroutine_fn, on the other hand, should not
+ * be called from within coroutines at all.  This for example includes
+ * functions that block.
+ *
+ * In the future it would be nice to enable compiler or static checker
+ * support for catching such errors.  This annotation is the first step
+ * towards this, and in the meantime it serves as documentation.
+ *
+ * For example:
+ *
+ *   static void no_coroutine_fn foo(void) {
+ *       ....
+ *   }
+ */
+#ifdef __clang__
+#define no_coroutine_fn QEMU_ANNOTATE("no_coroutine_fn")
+#else
+#define no_coroutine_fn
+#endif
+
+/*
+ * For mingw, as of v6.0.0, the function implementing the assert macro is
+ * not marked as noreturn, so the compiler cannot delete code following an
+ * assert(false) as unused.  We rely on this within the code base to delete
+ * code that is unreachable when features are disabled.
+ * All supported versions of Glib's g_assert() satisfy this requirement.
+ */
+#ifdef __MINGW32__
+#undef assert
+#define assert(x) g_assert(x)
 #endif
 
 /**
@@ -172,15 +153,12 @@ extern "C" {
  * supports QEMU_ERROR, this will be reported at compile time; otherwise
  * this will be reported at link time due to the missing symbol.
  */
-NORETURN extern void QEMU_ERROR("code path is reachable") qemu_build_not_reached_always(void);
+G_NORETURN
+void QEMU_ERROR("code path is reachable") qemu_build_not_reached_always(void);
 #if defined(__OPTIMIZE__) && !defined(__NO_INLINE__)
 #define qemu_build_not_reached() qemu_build_not_reached_always()
 #else
-#define qemu_build_not_reached()        \
-    {                                   \
-        fprintf(stderr, "not reached"); \
-        abort();                        \
-    }
+#define qemu_build_not_reached() g_assert_not_reached()
 #endif
 
 /**
@@ -193,25 +171,237 @@ NORETURN extern void QEMU_ERROR("code path is reachable") qemu_build_not_reached
     while (!(test))             \
     qemu_build_not_reached()
 
-// TODO: move this elsewhere?
-static inline void flush_idcache_range(uintptr_t rx, uintptr_t rw, size_t len) {
-}
+/*
+ * According to waitpid man page:
+ * WCOREDUMP
+ *  This  macro  is  not  specified  in POSIX.1-2001 and is not
+ *  available on some UNIX implementations (e.g., AIX, SunOS).
+ *  Therefore, enclose its use inside #ifdef WCOREDUMP ... #endif.
+ */
+#ifndef WCOREDUMP
+#define WCOREDUMP(status) 0
+#endif
+/*
+ * We have a lot of unaudited code that may fail in strange ways, or
+ * even be a security risk during migration, if you disable assertions
+ * at compile-time.  You may comment out these safety checks if you
+ * absolutely want to disable assertion overhead, but it is not
+ * supported upstream so the risk is all yours.  Meanwhile, please
+ * submit patches to remove any side-effects inside an assertion, or
+ * fixing error handling that should use Error instead of assert.
+ */
+/* S2E builds libtcg and libcpu with NDEBUG in release, so upstream's NDEBUG refusal is dropped here. */
+#ifdef G_DISABLE_ASSERT
+#error building with G_DISABLE_ASSERT is not supported
+#endif
 
-#define LIBTCG_ERROR(X) __attribute__((error(X)))
-NORETURN extern void LIBTCG_ERROR("code path is reachable") qemu_build_not_reached_always(void);
+#ifndef OFF_MAX
+#define OFF_MAX (sizeof(off_t) == 8 ? INT64_MAX : INT32_MAX)
+#endif
 
-static inline void qemu_thread_jit_write(void) {
-}
-static inline void qemu_thread_jit_execute(void) {
-}
+#ifndef O_LARGEFILE
+#define O_LARGEFILE 0
+#endif
+#ifndef O_BINARY
+#define O_BINARY 0
+#endif
+#ifndef MAP_ANONYMOUS
+#define MAP_ANONYMOUS MAP_ANON
+#endif
+#ifndef MAP_NORESERVE
+#define MAP_NORESERVE 0
+#endif
+#ifndef ENOMEDIUM
+#define ENOMEDIUM ENODEV
+#endif
+#if !defined(ENOTSUP)
+#define ENOTSUP 4096
+#endif
+#if !defined(ECANCELED)
+#define ECANCELED 4097
+#endif
+#if !defined(EMEDIUMTYPE)
+#define EMEDIUMTYPE 4098
+#endif
+#if !defined(ESHUTDOWN)
+#define ESHUTDOWN 4099
+#endif
 
-#define QEMU_MADV_INVALID -1
+#define RETRY_ON_EINTR(expr)                        \
+    (__extension__({                                \
+        typeof(expr) __result;                      \
+        do {                                        \
+            __result = (expr);                      \
+        } while (__result == -1 && errno == EINTR); \
+        __result;                                   \
+    }))
 
-int qemu_madvise(void *addr, size_t len, int advice);
-int qemu_mprotect_rw(void *addr, size_t size);
-int qemu_mprotect_rwx(void *addr, size_t size);
-int qemu_mprotect_none(void *addr, size_t size);
+/* time_t may be either 32 or 64 bits depending on the host OS, and
+ * can be either signed or unsigned, so we can't just hardcode a
+ * specific maximum value. This is not a C preprocessor constant,
+ * so you can't use TIME_MAX in an #ifdef, but for our purposes
+ * this isn't a problem.
+ */
 
+/* The macros TYPE_SIGNED, TYPE_WIDTH, and TYPE_MAXIMUM are from
+ * Gnulib, and are under the LGPL v2.1 or (at your option) any
+ * later version.
+ */
+
+/* True if the real type T is signed.  */
+#define TYPE_SIGNED(t) (!((t) 0 < (t) - 1))
+
+/* The width in bits of the integer type or expression T.
+ * Padding bits are not supported.
+ */
+#define TYPE_WIDTH(t) (sizeof(t) * CHAR_BIT)
+
+/* The maximum and minimum values for the integer type T.  */
+#define TYPE_MAXIMUM(t) ((t) (!TYPE_SIGNED(t) ? (t) - 1 : ((((t) 1 << (TYPE_WIDTH(t) - 2)) - 1) * 2 + 1)))
+
+#ifndef TIME_MAX
+#define TIME_MAX TYPE_MAXIMUM(time_t)
+#endif
+
+#ifndef PATH_MAX
+#define PATH_MAX 1024
+#endif
+
+/*
+ * Use the same value as Linux for now.
+ */
+#ifndef IOV_MAX
+#define IOV_MAX 1024
+#endif
+
+/* Mac OSX has a <stdint.h> bug that incorrectly defines SIZE_MAX with
+ * the wrong type. Our replacement isn't usable in preprocessor
+ * expressions, but it is sufficient for our needs. */
+#ifdef HAVE_BROKEN_SIZE_MAX
+#undef SIZE_MAX
+#define SIZE_MAX ((size_t) -1)
+#endif
+
+/*
+ * Two variations of MIN/MAX macros. The first is for runtime use, and
+ * evaluates arguments only once (so it is safe even with side
+ * effects), but will not work in constant contexts (such as array
+ * size declarations) because of the '{}'.  The second is for constant
+ * expression use, where evaluating arguments twice is safe because
+ * the result is going to be constant anyway, but will not work in a
+ * runtime context because of a void expression where a value is
+ * expected.  Thus, both gcc and clang will fail to compile if you use
+ * the wrong macro (even if the error may seem a bit cryptic).
+ *
+ * Note that neither form is usable as an #if condition; if you truly
+ * need to write conditional code that depends on a minimum or maximum
+ * determined by the pre-processor instead of the compiler, you'll
+ * have to open-code it.  Sadly, Coverity is severely confused by the
+ * constant variants, so we have to dumb things down there.
+ *
+ * Preprocessor sorcery ahead: use different identifiers for the local
+ * variables in each expansion, so we can nest macro calls without
+ * shadowing variables.
+ */
+#define MIN_INTERNAL(a, b, _a, _b)                \
+    ({                                            \
+        typeof(1 ? (a) : (b)) _a = (a), _b = (b); \
+        _a < _b ? _a : _b;                        \
+    })
+#undef MIN
+#define MIN(a, b) MIN_INTERNAL((a), (b), MAKE_IDENTIFIER(_a), MAKE_IDENTIFIER(_b))
+
+#define MAX_INTERNAL(a, b, _a, _b)                \
+    ({                                            \
+        typeof(1 ? (a) : (b)) _a = (a), _b = (b); \
+        _a > _b ? _a : _b;                        \
+    })
+#undef MAX
+#define MAX(a, b) MAX_INTERNAL((a), (b), MAKE_IDENTIFIER(_a), MAKE_IDENTIFIER(_b))
+
+#ifdef __COVERITY__
+#define MIN_CONST(a, b) ((a) < (b) ? (a) : (b))
+#define MAX_CONST(a, b) ((a) > (b) ? (a) : (b))
+#else
+#define MIN_CONST(a, b) \
+    __builtin_choose_expr(__builtin_constant_p(a) && __builtin_constant_p(b), (a) < (b) ? (a) : (b), ((void) 0))
+#define MAX_CONST(a, b) \
+    __builtin_choose_expr(__builtin_constant_p(a) && __builtin_constant_p(b), (a) > (b) ? (a) : (b), ((void) 0))
+#endif
+
+/*
+ * Minimum function that returns zero only if both values are zero.
+ * Intended for use with unsigned values only.
+ *
+ * Preprocessor sorcery ahead: use different identifiers for the local
+ * variables in each expansion, so we can nest macro calls without
+ * shadowing variables.
+ */
+#define MIN_NON_ZERO_INTERNAL(a, b, _a, _b)            \
+    ({                                                 \
+        typeof(1 ? (a) : (b)) _a = (a), _b = (b);      \
+        _a == 0 ? _b : (_b == 0 || _b > _a) ? _a : _b; \
+    })
+#define MIN_NON_ZERO(a, b) MIN_NON_ZERO_INTERNAL((a), (b), MAKE_IDENTIFIER(_a), MAKE_IDENTIFIER(_b))
+
+/*
+ * Round number down to multiple. Safe when m is not a power of 2 (see
+ * ROUND_DOWN for a faster version when a power of 2 is guaranteed).
+ */
+#define QEMU_ALIGN_DOWN(n, m) ((n) / (m) * (m))
+
+/*
+ * Round number up to multiple. Safe when m is not a power of 2 (see
+ * ROUND_UP for a faster version when a power of 2 is guaranteed).
+ */
+#define QEMU_ALIGN_UP(n, m) QEMU_ALIGN_DOWN((n) + (m) - 1, (m))
+
+/* Check if n is a multiple of m */
+#define QEMU_IS_ALIGNED(n, m) (((n) % (m)) == 0)
+
+/* n-byte align pointer down */
+#define QEMU_ALIGN_PTR_DOWN(p, n) ((typeof(p)) QEMU_ALIGN_DOWN((uintptr_t) (p), (n)))
+
+/* n-byte align pointer up */
+#define QEMU_ALIGN_PTR_UP(p, n) ((typeof(p)) QEMU_ALIGN_UP((uintptr_t) (p), (n)))
+
+/* Check if pointer p is n-bytes aligned */
+#define QEMU_PTR_IS_ALIGNED(p, n) QEMU_IS_ALIGNED((uintptr_t) (p), (n))
+
+/*
+ * Round number down to multiple. Requires that d be a power of 2 (see
+ * QEMU_ALIGN_UP for a safer but slower version on arbitrary
+ * numbers); works even if d is a smaller type than n.
+ */
+#ifndef ROUND_DOWN
+#define ROUND_DOWN(n, d) ((n) & -(0 ? (n) : (d)))
+#endif
+
+/*
+ * Round number up to multiple. Requires that d be a power of 2 (see
+ * QEMU_ALIGN_UP for a safer but slower version on arbitrary
+ * numbers); works even if d is a smaller type than n.
+ */
+#ifndef ROUND_UP
+#define ROUND_UP(n, d) ROUND_DOWN((n) + (d) - 1, (d))
+#endif
+
+#ifndef DIV_ROUND_UP
+#define DIV_ROUND_UP(n, d) (((n) + (d) - 1) / (d))
+#endif
+
+/*
+ * &(x)[0] is always a pointer - if it's same type as x then the argument is a
+ * pointer, not an array.
+ */
+#define QEMU_IS_ARRAY(x) (!__builtin_types_compatible_p(typeof(x), typeof(&(x)[0])))
+#ifndef ARRAY_SIZE
+#define ARRAY_SIZE(x) ((sizeof(x) / sizeof((x)[0])) + QEMU_BUILD_BUG_ON_ZERO(!QEMU_IS_ARRAY(x)))
+#endif
+
+/* Using intptr_t ensures that qemu_*_page_mask is sign-extended even
+ * when intptr_t is 32-bit and we are aligning a long long.
+ */
 static inline uintptr_t qemu_real_host_page_size(void) {
     return getpagesize();
 }
@@ -220,28 +410,45 @@ static inline intptr_t qemu_real_host_page_mask(void) {
     return -(intptr_t) qemu_real_host_page_size();
 }
 
+/**
+ * qemu_get_host_physmem:
+ *
+ * Operating system agnostic way of querying host memory.
+ *
+ * Returns amount of physical memory on the system. This is purely
+ * advisery and may return 0 if we can't work it out. At the other
+ * end we saturate to SIZE_MAX if you are lucky enough to have that
+ * much memory.
+ */
 size_t qemu_get_host_physmem(void);
 
-#define QEMU_BUILD_BUG_ON_STRUCT(x) \
-    struct {                        \
-        int : (x) ? -1 : 1;         \
-    }
-
-#define QEMU_BUILD_BUG_MSG(x, msg) _Static_assert(!(x), msg)
-
-#define QEMU_BUILD_BUG_ON(x) QEMU_BUILD_BUG_MSG(x, "not expecting: " #x)
-
-#define QEMU_BUILD_BUG_ON_ZERO(x) (sizeof(QEMU_BUILD_BUG_ON_STRUCT(x)) - sizeof(QEMU_BUILD_BUG_ON_STRUCT(x)))
-
-#ifdef CONFIG_CFI
 /*
- * If CFI is enabled, use an attribute to disable cfi-icall on the following
- * function
+ * Toggle write/execute on the pages marked MAP_JIT
+ * for the current thread.
  */
-#define QEMU_DISABLE_CFI __attribute__((no_sanitize("cfi-icall")))
+#ifdef __APPLE__
+static inline void qemu_thread_jit_execute(void) {
+    pthread_jit_write_protect_np(true);
+}
+
+static inline void qemu_thread_jit_write(void) {
+    pthread_jit_write_protect_np(false);
+}
 #else
-/* If CFI is not enabled, use an empty define to not change the behavior */
-#define QEMU_DISABLE_CFI
+static inline void qemu_thread_jit_write(void) {
+}
+static inline void qemu_thread_jit_execute(void) {
+}
+#endif
+
+#ifdef __cplusplus
+/* S2E keeps the plain forms for C++; the ones above rely on statement expressions and __builtin_types_compatible_p. */
+#undef MIN
+#undef MAX
+#undef ARRAY_SIZE
+#define MIN(a, b)     (((a) < (b)) ? (a) : (b))
+#define MAX(a, b)     (((a) > (b)) ? (a) : (b))
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 #endif
 
 #ifdef __cplusplus

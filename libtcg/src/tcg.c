@@ -41,7 +41,8 @@
 
 #include <tcg/perf.h>
 #include <utils/atomic.h>
-#include <utils/cache.h>
+#include <utils/cacheflush.h>
+#include <utils/cacheinfo.h>
 #include <utils/cutils.h>
 #include <utils/mutex.h>
 #include <utils/osdep.h>
@@ -719,7 +720,7 @@ static int tcg_out_pool_finalize(TCGContext *s) {
     }
 
     /*
-     * ??? Round up to g_icache_linesize, but then do not round
+     * ??? Round up to qemu_icache_linesize, but then do not round
      * again when allocating the next TranslationBlock structure.
      */
     a = (void *) ROUND_UP((uintptr_t) s->code_ptr, sizeof(tcg_target_ulong) * p->nlong);
@@ -1686,7 +1687,7 @@ void tcg_init(size_t tb_size, int splitwx, unsigned max_threads) {
  * sure that TBs and code are on different cache lines.
  */
 TranslationBlock *tcg_tb_alloc(TCGContext *s) {
-    uintptr_t align = g_icache_linesize;
+    uintptr_t align = qemu_icache_linesize;
     TranslationBlock *tb;
     void *next;
 

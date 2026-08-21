@@ -17,6 +17,7 @@
 /// License along with this library; if not, see <http://www.gnu.org/licenses/>.
 
 #include <glib.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <sys/mman.h>
 
@@ -44,16 +45,15 @@ static int64_t parse_ram_size(int argc, char **argv) {
     }
 
     if (found == 1) {
-        int64_t value;
-        char *end_str;
+        uint64_t value;
+        const char *end_str;
 
-        value = strtosz(argv[id], &end_str);
-        if (value < 0 || *end_str) {
+        if (qemu_strtosz_MiB(argv[id], &end_str, &value) < 0 || *end_str) {
             fprintf(stderr, "libcpu: invalid ram size: %s\n", optarg);
             goto end;
         }
 
-        if (value != (uint64_t) (ram_addr_t) value) {
+        if (value > INT64_MAX || value != (uint64_t) (ram_addr_t) value) {
             fprintf(stderr, "libcpu: ram size too large\n");
             goto end;
         }

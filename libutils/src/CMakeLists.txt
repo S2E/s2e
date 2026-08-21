@@ -50,15 +50,16 @@ add_library (
     q/qapi/qapi-util.c
     q/error.c
     q/unicode.c
-    q/cutils.c
 
-    utils/cache.c
+    utils/cacheflush.c
     utils/cpuinfo-i386.c
     utils/cutils.c
+    utils/hexdump.c
     utils/host-utils.c
     utils/interval-tree.c
     utils/memalign.c
     utils/osdep.c
+    utils/oslib-posix.c
     utils/qtree.c
 )
 

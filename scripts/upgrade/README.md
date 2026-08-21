@@ -64,16 +64,26 @@ of those need a human decision. `--apply` writes conflicted files with their
 conflict markers and lists them at the end, so the tree does not build until
 they are resolved.
 
-## Hand-written subsets
+## Hand-written subsets and pruned copies
 
-Not every file tracks upstream closely. The rows below the "hand written"
-marker in each `mapping.tsv` are heavily reduced S2E-specific subsets rather
-than vendored copies, and are still v8.1.0-era. They are listed for reference
-but want a manual look rather than a mechanical merge:
+Not every file tracks upstream closely:
 
-- libutils: `utils/memalign.h`, `utils/bitmap.h`, `utils/cutils.{h,c}`,
-  `utils/osdep.{h,c}`.
-- libtcg: `utils/bswap.h`, `utils/log.{h,c}`.
+- libtcg's `utils/bswap.h` and `utils/log.{h,c}` are heavily reduced
+  S2E-specific subsets rather than vendored copies, still v8.1.0-era. They are
+  listed in `mapping.tsv` for reference but want a manual look rather than a
+  mechanical merge.
+- libutils' `utils/cutils.h`, `utils/osdep.h`, `src/utils/cutils.c`,
+  `src/utils/osdep.c` and `src/utils/oslib-posix.c` are pruned copies: upstream
+  text with whole sections deleted because they need meson configuration,
+  `os-posix.h`, the `Error` API, `error_report()` or sockets. The kept sections
+  are verbatim, so they merge mechanically; a conflict inside a deleted section
+  is resolved by deleting it again. `merge.sh` reports them like any other row.
+  `cutils.h` drops the prototypes (`qemu_init_exec_dir`, `get_relocated_path`,
+  `parse_debug_env`) whose bodies `cutils.c` prunes.
+
+libutils' `utils/mutex.h` and `utils/spinlock.h` stay S2E-original: upstream's
+`qemu/thread.h` drags in `qsp`, `notify`, `trace` and the generated
+`config-host.h`, which is far more than the two wrappers replace.
 
 ## Deviations that must survive every merge
 
@@ -83,14 +93,29 @@ but want a manual look rather than a mechanical merge:
   these headers are included from C++.
 - `utils/bitops.h` wraps `#define BIT(nr)` in `#ifndef BIT`, because
   `libcpu/include/cpu/kvm.h` also defines it.
-- `utils/osdep.h` carries what upstream keeps in `include/qemu/compiler.h`
-  (`QEMU_FLATTEN`, `QEMU_ALWAYS_INLINE`, `typeof_strip_qual`, ...). When a merge
-  pulls in code that needs a new compiler macro, add it here.
+- `utils/compiler.h` includes `<stdbool.h>` and `<stddef.h>` itself and, in
+  C++, defines `typeof` as `__typeof__`: upstream's `container_of`,
+  `QEMU_ALIGN_PTR_*` and `MIN`/`MAX` use GNU C `typeof`, which strict
+  `-std=c++20` does not have. `utils/osdep.h` additionally redefines `MIN`,
+  `MAX` and `ARRAY_SIZE` for C++ with the plain forms, since upstream's use
+  statement expressions and `__builtin_types_compatible_p`, and drops
+  upstream's `#error` on `NDEBUG` because libtcg and libcpu build with it in
+  release.
 - `utils/int128.h` and `utils/osdep.h` include `<utils/config-host.h>`, the
-  S2E-original header that defines `CONFIG_INT128`, `HOST_BIG_ENDIAN` and
-  `HAVE_GLIB_WITH_SLICE_ALLOCATOR` from compiler builtins. Upstream gets them
-  from meson through `qemu/osdep.h`; here the header is what keeps every
-  translation unit, in every component, on the same definitions.
+  S2E-original header that defines the host configuration macros
+  (`CONFIG_INT128`, `CONFIG_MADVISE` and the rest) from compiler builtins.
+  Upstream gets them from meson through `qemu/osdep.h`; here the header is
+  what keeps every translation unit, in every component, on the same
+  definitions. `int128.h` also includes `<utils/compiler.h>` for
+  `HOST_BIG_ENDIAN`.
+- `utils/cutils.h` spells `restrict` as `__restrict` in
+  `qemu_hexdump_to_buffer()` and casts the `buffer_is_zero()` argument, so
+  the header compiles as C++ behind its `extern "C"` guard.
+- `src/utils/osdep.c` reports `mprotect` failures with `fprintf(stderr)`,
+  since libutils has no `error_report()`.
+- `utils/madvise.h` includes `<utils/osdep.h>` for `CONFIG_MADVISE` and the
+  `MADV_*` constants; every other vendored header likewise includes what it
+  needs, because S2E has no `qemu/osdep.h` prelude.
 - `src/utils/cpuinfo-i386.c` includes `<utils/cpuid.h>` where upstream
   includes `qemu/cpuid.h`, and `CONFIG_CPUID_H` stays undefined on purpose; see
   `utils/config-host.h`.
