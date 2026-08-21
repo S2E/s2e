@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # Extract one file from a QEMU tag and reformat it with the S2E style, so that
-# it can be compared or merged against its libtcg counterpart.
+# it can be compared or merged against its S2E counterpart.
 #
 # Usage: QEMU_SRC=~/qemu ./normalize.sh v11.1.0 tcg/tcg.c [assumed-filename]
 #
@@ -9,7 +9,7 @@ set -e
 
 QEMU_SRC=${QEMU_SRC:-${HOME}/qemu}
 CLANG_FORMAT=${CLANG_FORMAT:-clang-format-19}
-STYLE_FILE=${STYLE_FILE:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)/.clang-format}
+STYLE_FILE=${STYLE_FILE:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/.clang-format}
 
 TAG=$1
 FILE=$2

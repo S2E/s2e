@@ -6,7 +6,10 @@
 # absent: they have no upstream counterpart to merge from.
 #
 # The platform-independent utilities live in libutils; see
-# libutils/scripts/upgrade/mapping.tsv for their rows.
+# libutils/scripts/upgrade/mapping.tsv for their rows. The merge driver is
+# scripts/upgrade/merge.sh at the S2E source root.
+#
+# upstream-dirs: tcg/ include/tcg/ accel/tcg/ include/accel/
 # --- TCG core -----------------------------------------------------------
 include/tcg/tcg.h	include/tcg/tcg.h
 include/tcg/tcg-op.h	include/tcg/tcg-op.h
