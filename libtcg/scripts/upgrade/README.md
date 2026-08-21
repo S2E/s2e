@@ -6,6 +6,13 @@ libtcg is a fork of QEMU's TCG that has been de-QEMU-ified (headers moved out of
 `git cherry-pick` or `patch` against upstream therefore never applies: every
 line differs because of reformatting alone.
 
+Most of what used to sit in `tcg/utils/` now lives in libutils under
+`utils/`, with its own copy of this tooling in `libutils/scripts/upgrade/`.
+Only `utils/bswap.h`, `utils/cpu-float.h` and `utils/log.*` stayed here: the
+first two depend on the target and on the softfloat types, and `log.c` tests
+`TARGET_I386` and `CONFIG_SYMBEX` to build its mask table. Bumping a QEMU tag
+means running both components' `merge.sh`.
+
 The trick that makes upgrades tractable is to *normalize the formatting first*.
 Running an upstream file through `clang-format` with the S2E style reduces the
 difference against its libtcg counterpart to the genuine S2E delta. For
@@ -40,11 +47,10 @@ reports files that were deleted upstream or added since the old tag, both of
 which need a human decision.
 
 Not every libtcg file tracks upstream closely. The utility files below the
-"hand written" marker in `mapping.tsv` (`utils/osdep.h`, `utils/cutils.*`,
-`utils/log.*`, `utils/bitmap.h`, `utils/bswap.h`) are heavily reduced
-S2E-specific subsets rather than vendored copies, and are still v8.1.0-era.
-They are listed for reference but want a manual look rather than a mechanical
-merge.
+"hand written" marker in `mapping.tsv` (`utils/log.*`, `utils/bswap.h`) are
+heavily reduced S2E-specific subsets rather than vendored copies, and are still
+v8.1.0-era. They are listed for reference but want a manual look rather than a
+mechanical merge.
 
 Several S2E deviations in the merged code are deliberate and must survive future
 merges:
@@ -53,9 +59,6 @@ merges:
   S2E addresses the CPU state by (offset, size) so helpers running as bitcode
   inside KLEE can read it back, which `offsetof`/`sizeof` on a bitfield cannot
   express.
-- `host/generic/atomic128-cas.h` renames the `new` parameter to `_new`, since
-  these headers are included from C++.
-- `utils/osdep.h` carries what upstream keeps in `include/qemu/compiler.h`.
 - `utils/cpu-float.h` holds the float/integer reinterpretation unions that
   upstream keeps in `include/qemu/cpu-float.h`. Leaving them in `bswap.h`, as
   older libtcg did, creates an include cycle through `softfloat-types.h` ->

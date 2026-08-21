@@ -11,7 +11,7 @@
 #ifndef REGISTERFIELDS_H
 #define REGISTERFIELDS_H
 
-#include <tcg/utils/bitops.h>
+#include <utils/bitops.h>
 
 /* Define constants for a 32 bit register */
 

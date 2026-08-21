@@ -2,10 +2,11 @@
 #
 # Only files that track upstream appear here. S2E-original files
 # (tcg-s2e.c, tcg-llvm.cpp, tcg/tb.h, tcg/tlb.h, tcg/regs.h, tcg/cpu.h,
-# tcg/helper.h, tcg/ops_sse_header.h, utils/cache.h, utils/mutex.h,
-# utils/spinlock.h, utils/rounding.h, tcg/qemu-plugin.h) are deliberately
+# tcg/helper.h, tcg/ops_sse_header.h, tcg/qemu-plugin.h) are deliberately
 # absent: they have no upstream counterpart to merge from.
 #
+# The platform-independent utilities live in libutils; see
+# libutils/scripts/upgrade/mapping.tsv for their rows.
 # --- TCG core -----------------------------------------------------------
 include/tcg/tcg.h	include/tcg/tcg.h
 include/tcg/tcg-op.h	include/tcg/tcg-op.h
@@ -59,45 +60,17 @@ src/tcg-rt/tcg-runtime.c	accel/tcg/tcg-runtime.c
 src/tcg-rt/tcg-runtime-gvec.c	accel/tcg/tcg-runtime-gvec.c
 src/atomic_common.c.inc	accel/tcg/atomic_common.c.inc
 src/atomic_template.h	accel/tcg/atomic_template.h
-# --- host support -------------------------------------------------------
-include/tcg/utils/host/x86_64/cpuinfo.h	host/include/x86_64/host/cpuinfo.h
-include/tcg/utils/host/x86_64/atomic128-ldst.h	host/include/x86_64/host/atomic128-ldst.h.inc
-include/tcg/utils/host/generic/atomic128-cas.h	host/include/generic/host/atomic128-cas.h.inc
-include/tcg/utils/host/generic/atomic128-ldst.h	host/include/generic/host/atomic128-ldst.h.inc
-include/tcg/utils/host/generic/load-extract-al16-al8.h	host/include/generic/host/load-extract-al16-al8.h.inc
-include/tcg/utils/host/generic/store-insert-al16.h	host/include/generic/host/store-insert-al16.h.inc
-src/utils/cpuinfo-i386.c	util/cpuinfo-i386.c
-# --- utilities ----------------------------------------------------------
-# These track BASELINE. Files not listed as changing upstream since v8.1.0
-# were simply never touched there, so they are current by definition.
-include/tcg/utils/atomic.h	include/qemu/atomic.h
-include/tcg/utils/atomic128.h	include/qemu/atomic128.h
-include/tcg/utils/bitops.h	include/qemu/bitops.h
-include/tcg/utils/cpuid.h	include/qemu/cpuid.h
-include/tcg/utils/debug-assert.h	include/tcg/debug-assert.h
-include/tcg/utils/host-utils.h	include/qemu/host-utils.h
-include/tcg/utils/int128.h	include/qemu/int128.h
-include/tcg/utils/interval-tree.h	include/qemu/interval-tree.h
-include/tcg/utils/qtree.h	include/qemu/qtree.h
-include/tcg/utils/units.h	include/qemu/units.h
-include/tcg/utils/registerfields.h	include/hw/core/registerfields.h
+# --- target-dependent utilities -----------------------------------------
+# What is left of the old utils/ subset: everything platform-independent
+# moved to libutils. cpu-float.h needs the softfloat types, and bswap.h and
+# log.c test TARGET_* / CONFIG_SYMBEX macros, so all three stay here.
 include/tcg/utils/cpu-float.h	include/qemu/cpu-float.h
-src/utils/host-utils.c	util/host-utils.c
-src/utils/interval-tree.c	util/interval-tree.c
-src/utils/memalign.c	util/memalign.c
-src/utils/qtree.c	util/qtree.c
 src/elf.h	include/elf.h
 # Heavily reduced S2E-specific subsets, still v8.1.0-era: these are hand
 # written rather than vendored, so merge by hand, not mechanically.
 include/tcg/utils/bswap.h	include/qemu/bswap.h
-include/tcg/utils/memalign.h	include/qemu/memalign.h
-include/tcg/utils/bitmap.h	include/qemu/bitmap.h
-include/tcg/utils/cutils.h	include/qemu/cutils.h
 include/tcg/utils/log.h	include/qemu/log.h
-include/tcg/utils/osdep.h	include/qemu/osdep.h
-src/utils/cutils.c	util/cutils.c
 src/utils/log.c	util/log.c
-src/utils/osdep.c	util/osdep.c
 # --- fpu ----------------------------------------------------------------
 include/fpu/softfloat.h	include/fpu/softfloat.h
 include/fpu/softfloat-types.h	include/fpu/softfloat-types.h

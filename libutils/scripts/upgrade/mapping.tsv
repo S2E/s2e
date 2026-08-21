@@ -1,0 +1,42 @@
+# libutils path <TAB> upstream QEMU path, as of the tag recorded in BASELINE.
+#
+# Only the vendored QEMU utilities below include/utils/ and src/utils/ appear
+# here. The rest of libutils (QAPI, QObject, the visitors, coroutines,
+# fsigc++) is S2E-original or diverged far enough that it is not merged
+# mechanically, and the S2E-original utilities (utils/cache.h, utils/mutex.h,
+# utils/spinlock.h, utils/rounding.h) have no upstream counterpart at all.
+#
+# --- host support -------------------------------------------------------
+include/utils/host/x86_64/cpuinfo.h	host/include/x86_64/host/cpuinfo.h
+include/utils/host/x86_64/atomic128-ldst.h	host/include/x86_64/host/atomic128-ldst.h.inc
+include/utils/host/generic/atomic128-cas.h	host/include/generic/host/atomic128-cas.h.inc
+include/utils/host/generic/atomic128-ldst.h	host/include/generic/host/atomic128-ldst.h.inc
+include/utils/host/generic/load-extract-al16-al8.h	host/include/generic/host/load-extract-al16-al8.h.inc
+include/utils/host/generic/store-insert-al16.h	host/include/generic/host/store-insert-al16.h.inc
+src/utils/cpuinfo-i386.c	util/cpuinfo-i386.c
+# --- utilities ----------------------------------------------------------
+# These track BASELINE. Files not listed as changing upstream since v8.1.0
+# were simply never touched there, so they are current by definition.
+include/utils/atomic.h	include/qemu/atomic.h
+include/utils/atomic128.h	include/qemu/atomic128.h
+include/utils/bitops.h	include/qemu/bitops.h
+include/utils/cpuid.h	include/qemu/cpuid.h
+include/utils/debug-assert.h	include/tcg/debug-assert.h
+include/utils/host-utils.h	include/qemu/host-utils.h
+include/utils/int128.h	include/qemu/int128.h
+include/utils/interval-tree.h	include/qemu/interval-tree.h
+include/utils/qtree.h	include/qemu/qtree.h
+include/utils/units.h	include/qemu/units.h
+include/utils/registerfields.h	include/hw/core/registerfields.h
+src/utils/host-utils.c	util/host-utils.c
+src/utils/interval-tree.c	util/interval-tree.c
+src/utils/memalign.c	util/memalign.c
+src/utils/qtree.c	util/qtree.c
+# Heavily reduced S2E-specific subsets, still v8.1.0-era: these are hand
+# written rather than vendored, so merge by hand, not mechanically.
+include/utils/memalign.h	include/qemu/memalign.h
+include/utils/bitmap.h	include/qemu/bitmap.h
+include/utils/cutils.h	include/qemu/cutils.h
+include/utils/osdep.h	include/qemu/osdep.h
+src/utils/cutils.c	util/cutils.c
+src/utils/osdep.c	util/osdep.c

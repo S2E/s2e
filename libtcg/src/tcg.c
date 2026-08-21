@@ -40,13 +40,13 @@
 #undef DEBUG_JIT
 
 #include <tcg/perf.h>
-#include <tcg/utils/atomic.h>
-#include <tcg/utils/cache.h>
-#include <tcg/utils/cutils.h>
-#include <tcg/utils/mutex.h>
-#include <tcg/utils/osdep.h>
+#include <utils/atomic.h>
+#include <utils/cache.h>
+#include <utils/cutils.h>
+#include <utils/mutex.h>
+#include <utils/osdep.h>
 
-#include <tcg/utils/host/x86_64/cpuinfo.h>
+#include <utils/host/x86_64/cpuinfo.h>
 
 #include <tcg/tcg.h>
 

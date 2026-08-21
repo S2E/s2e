@@ -29,8 +29,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include <tcg/utils/host-utils.h>
-#include <tcg/utils/memalign.h>
+#include <utils/host-utils.h>
+#include <utils/memalign.h>
 
 #define CONFIG_POSIX_MEMALIGN
 

@@ -83,7 +83,7 @@ this code that are retained.
 #include <inttypes.h>
 #include <stdbool.h>
 
-#include <tcg/utils/registerfields.h>
+#include <utils/registerfields.h>
 
 #ifdef __cplusplus
 extern "C" {

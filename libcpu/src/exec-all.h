@@ -119,7 +119,7 @@ static inline unsigned int tb_phys_hash_func(tb_page_addr_t pc) {
 
 extern TranslationBlock *tb_phys_hash[CODE_GEN_PHYS_HASH_SIZE];
 
-#include <tcg/utils/spinlock.h>
+#include <utils/spinlock.h>
 
 extern spinlock_t tb_lock;
 

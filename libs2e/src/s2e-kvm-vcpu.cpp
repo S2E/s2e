@@ -36,7 +36,7 @@
 #include <s2e/s2e_config.h>
 #include <s2e/s2e_libcpu.h>
 #include <tcg/tcg-llvm.h>
-#include <tcg/utils/bitops.h>
+#include <utils/bitops.h>
 #endif
 
 // #define SE_KVM_DEBUG_IRQ

@@ -20,7 +20,7 @@
 #ifndef TCG_GVEC_DEC_H
 #define TCG_GVEC_DEC_H
 
-#include <tcg/utils/bitops.h>
+#include <utils/bitops.h>
 
 #ifdef __cplusplus
 extern "C" {

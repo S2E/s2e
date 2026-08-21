@@ -264,29 +264,31 @@ the same object.
 libtcg already declares `find_package(LIBUTILS REQUIRED)`, so the dependency edge
 exists and nothing new has to be wired up.
 
-**This applies to what is already there, not only to the new imports.** Of
-libtcg's 7,683-line `utils/` subset, ~7,140 lines are platform-independent
-today. Two files reference a target or config macro: `utils/log.c`, in three
-`#ifdef TARGET_I386` / `#ifdef CONFIG_SYMBEX` blocks that populate the
-`CPU_LOG_*` mask table (`log.h` itself is clean), and `utils/bswap.h`, which
-tests `TARGET_WORDS_BIGENDIAN` and `TARGET_LONG_SIZE` in live code, and is
-mapped to upstream `include/qemu/bswap.h`, so it cannot be edited to drop the
-dependency without creating a merge deviation. Move the rest to libutils;
-either leave log and bswap behind, or make the log-mask table registrable and
-split bswap's target-dependent tail into a libcpu header.
+**This applies to what is already there, not only to the new imports.** That
+relocation is done: libtcg's `utils/` subset moved to `libutils/include/utils/`
+and `libutils/src/utils/`, and the include prefix is now `<utils/...>`, matching
+libutils' existing flat `<qqueue.h>` / `<coroutine.h>` shape.
 
-Two consequences to plan for:
+Three files stayed behind in `libtcg/include/tcg/utils/`. `utils/log.c` has
+three `#ifdef TARGET_I386` / `#ifdef CONFIG_SYMBEX` blocks that populate the
+`CPU_LOG_*` mask table (`log.h` itself is clean); `utils/bswap.h` tests
+`TARGET_WORDS_BIGENDIAN` and `TARGET_LONG_SIZE` in live code and is mapped to
+upstream `include/qemu/bswap.h`, so it cannot be edited to drop the dependency
+without creating a merge deviation; `utils/cpu-float.h` needs the softfloat
+types, which stay with libtcg. Making the log-mask table registrable and
+splitting bswap's target-dependent tail into a libcpu header would let the
+first two follow, but neither is on the critical path.
 
-- The include prefix changes from `<tcg/utils/...>` to whatever libutils adopts
-  (proposal: `<utils/...>`, matching libutils' existing flat `<qqueue.h>` /
-  `<coroutine.h>` shape). 54 files tree-wide include `tcg/utils/` (33 in
-  libtcg, 18 in libcpu, 3 in libs2e), so the rewrite is mechanical but wide; it
-  should land as its own commit, ahead of any libcpu work, and be re-verified
-  with `merge.sh v11.1.0 v11.1.0` reporting zero conflicts afterwards.
-- The upgrade tooling follows the files. libutils becomes a home for vendored
-  QEMU code and needs its own `scripts/upgrade/{BASELINE,mapping.tsv}`, or, if
-  the scripts are parameterized by component root in phase 0, a second mapping
-  driven by the same driver.
+`utils/qtree.h`, `utils/int128.h` and `utils/host-utils.h` read
+`HAVE_GLIB_WITH_SLICE_ALLOCATOR`, `CONFIG_INT128` and `HOST_BIG_ENDIAN`.
+`libutils/src/CMakeLists.txt` defines them for its own objects; every component
+that includes these headers has to define them identically, or struct layouts
+disagree across translation units.
+
+The upgrade tooling followed the files: libutils now has its own
+`scripts/upgrade/{BASELINE,mapping.tsv,merge.sh,normalize.sh}`, and the 28
+corresponding rows moved out of libtcg's mapping. Both components report zero
+conflicts under `merge.sh v11.1.0 v11.1.0`.
 
 ### 4.2 What 11.1 needs that we do not have
 
@@ -305,13 +307,13 @@ vendored utils gives a short list. Placement follows the rule above.
 | `exec/icount.h`, `exec/replay-core.h`, `system/tcg.h`, `qemu/plugin.h`, `qemu/target-info.h` | n/a | missing | **Stub** in libcpu; these are configuration-dependent. icount off, replay off, `tcg_enabled()` is true, plugins compiled out. |
 | `qemu/queue.h` | n/a | have | libutils `qqueue.h`, already in the right place. |
 | glib allocation shims (`g_new`, `g_try_new`, `g_free`, `GArray`) | n/a | verify | Used by `qht.c`, `cputlb.c`, `tb-maint.c`; confirm libtcg's existing glib-compat covers the import closure, extend in **libutils** if not. |
-| osdep, cutils, bitops, bitmap, int128, host-utils, atomic, atomic128, interval-tree, qtree, memalign, cacheinfo, units, cpuid | ~7,140 | have, misplaced | In `libtcg/include/tcg/utils/`; move to **libutils** per 4.1. |
-| bswap | 308 | have, target-dependent | Tests `TARGET_WORDS_BIGENDIAN` / `TARGET_LONG_SIZE`; stays behind with log unless its target tail is split out (see 4.1). |
-| log | 238 | have, target-dependent | Stays in libtcg unless the `CPU_LOG_*` mask table is made registrable. |
+| osdep, cutils, bitops, bitmap, int128, host-utils, atomic, atomic128, interval-tree, qtree, memalign, cacheinfo, units, cpuid | ~7,140 | have | Moved to `libutils/include/utils/` and `libutils/src/utils/` per 4.1. |
+| bswap | 308 | have, target-dependent | Tests `TARGET_WORDS_BIGENDIAN` / `TARGET_LONG_SIZE`; stayed in libtcg with log unless its target tail is split out (see 4.1). |
+| log | 238 | have, target-dependent | Stayed in libtcg unless the `CPU_LOG_*` mask table is made registrable. |
 
-Net: about 3.2k lines of newly imported utility code, plus a ~7.1k-line
-relocation that removes five redundant compilations of each object per build
-type. The dependency work is not what makes this project long.
+Net: about 3.2k lines of newly imported utility code, on top of the ~7.1k-line
+relocation that already removed five redundant compilations of each object per
+build type. The dependency work is not what makes this project long.
 
 ## 5. What is deliberately not ported
 
@@ -355,11 +357,10 @@ codebase.
 
 ### Phase 1: Substrate, utilities, CPUState, memory shim (2-3 weeks)
 
-- **Relocate libtcg's platform-independent utils to libutils** (section 4.1), as
-  a standalone commit before anything else in this phase: 7,445 of 7,683 lines,
-  33 include-site rewrites, `utils/log.{h,c}` left behind. Give libutils its own
-  `scripts/upgrade/{BASELINE,mapping.tsv}` and move the corresponding rows out of
-  libtcg's. Verify with `merge.sh v11.1.0 v11.1.0` on both components.
+- **Relocate libtcg's platform-independent utils to libutils** (section 4.1)
+  — done. 33 files moved, 77 include lines across 46 files rewritten to
+  `<utils/...>`, `utils/{log.h,log.c,bswap.h,cpu-float.h}` left behind, and 28
+  mapping rows moved into libutils' new `scripts/upgrade/`.
 - Import qht, rcu, thread, xxhash, seqlock into **libutils** per section 4.2; add
   them to libutils' new `mapping.tsv`. Fold libtcg's `utils/mutex.h` into the
   real thread header.

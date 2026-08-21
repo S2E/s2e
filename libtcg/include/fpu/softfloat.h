@@ -99,7 +99,7 @@ typedef enum {
 
 #include "fpu/softfloat-helpers.h"
 #include "fpu/softfloat-types.h"
-#include "tcg/utils/int128.h"
+#include "utils/int128.h"
 
 /*----------------------------------------------------------------------------
 | Routine to raise any or all of the software IEC/IEEE floating-point

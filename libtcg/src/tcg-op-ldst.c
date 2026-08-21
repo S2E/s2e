@@ -23,7 +23,7 @@
  */
 
 #include <tcg/tb.h>
-#include <tcg/utils/osdep.h>
+#include <utils/osdep.h>
 
 // clang-format off
 #include <tcg/tcg-mo.h>

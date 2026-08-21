@@ -7,7 +7,7 @@
 #ifndef TCG_TARGET_HAS_H
 #define TCG_TARGET_HAS_H
 
-#include <tcg/utils/host/x86_64/cpuinfo.h>
+#include <utils/host/x86_64/cpuinfo.h>
 
 #define have_bmi1   (cpuinfo & CPUINFO_BMI1)
 #define have_popcnt (cpuinfo & CPUINFO_POPCNT)

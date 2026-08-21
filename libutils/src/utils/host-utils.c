@@ -23,8 +23,8 @@
  * THE SOFTWARE.
  */
 
-#include <tcg/utils/host-utils.h>
-#include <tcg/utils/osdep.h>
+#include <utils/host-utils.h>
+#include <utils/osdep.h>
 
 #ifndef CONFIG_INT128
 /* Long integer helpers */

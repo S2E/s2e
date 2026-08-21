@@ -28,8 +28,8 @@
 #include <tcg/exec/helper-gen.h>
 // clang-format on
 
-#include <tcg/utils/host-utils.h>
 #include <tcg/utils/log.h>
+#include <utils/host-utils.h>
 
 #include "softmmu_exec.h"
 

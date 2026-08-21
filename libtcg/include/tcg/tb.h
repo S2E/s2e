@@ -21,7 +21,7 @@
 #define _TCG_TB_H_
 
 #include <inttypes.h>
-#include <tcg/utils/atomic.h>
+#include <utils/atomic.h>
 
 #ifdef __cplusplus
 extern "C" {

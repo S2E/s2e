@@ -20,7 +20,7 @@
 #include <cpu/memory.h>
 #include <inttypes.h>
 
-#include <tcg/utils/osdep.h>
+#include <utils/osdep.h>
 #include "exec.h"
 #include "qemu-common.h"
 

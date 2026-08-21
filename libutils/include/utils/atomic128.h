@@ -13,7 +13,7 @@
 #ifndef QEMU_ATOMIC128_H
 #define QEMU_ATOMIC128_H
 
-#include "tcg/utils/int128.h"
+#include "utils/int128.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -62,8 +62,8 @@ extern "C" {
  * Therefore, special case each platform.
  */
 
-#include "tcg/utils/host/generic/atomic128-cas.h"
-#include "tcg/utils/host/x86_64/atomic128-ldst.h"
+#include "utils/host/generic/atomic128-cas.h"
+#include "utils/host/x86_64/atomic128-ldst.h"
 
 #ifdef __cplusplus
 }

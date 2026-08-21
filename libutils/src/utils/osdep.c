@@ -27,8 +27,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/mman.h>
-#include <tcg/utils/osdep.h>
 #include <unistd.h>
+#include <utils/osdep.h>
 
 #define CONFIG_MADVISE
 
