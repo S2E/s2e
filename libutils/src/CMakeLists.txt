@@ -21,10 +21,6 @@
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Werror -Wno-initializer-overrides -fPIC")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Werror -fPIC -std=c++20")
 
-# The vendored QEMU utilities in utils/ read these. Consumers that include the
-# headers must define them identically, so keep them in sync with libtcg.
-add_definitions(-DCONFIG_INT128 -DHOST_BIG_ENDIAN=0 -DHAVE_GLIB_WITH_SLICE_ALLOCATOR)
-
 add_library (
     utils
 

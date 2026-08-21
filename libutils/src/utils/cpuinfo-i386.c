@@ -7,7 +7,7 @@
 #include <utils/osdep.h>
 
 #ifdef CONFIG_CPUID_H
-#include "qemu/cpuid.h"
+#include <utils/cpuid.h>
 #endif
 
 unsigned cpuinfo;

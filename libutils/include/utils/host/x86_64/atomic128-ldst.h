@@ -13,8 +13,8 @@
 
 #ifdef CONFIG_INT128_TYPE
 #include <immintrin.h>
-#include "host/cpuinfo.h"
-#include "tcg/debug-assert.h"
+#include <utils/debug-assert.h>
+#include <utils/host/x86_64/cpuinfo.h>
 
 typedef union {
     __m128i v;
