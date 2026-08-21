@@ -397,7 +397,7 @@ LIBS2E_RELEASE_FLAGS = --with-llvm=$(LLVM_PREFIX)                               
 
 stamps/libs2e-debug-configure: $(call FIND_CONFIG_SOURCE,$(S2E_SRC)/libs2e)
 stamps/libs2e-debug-configure: stamps/lua-make stamps/libvmi-debug-install      \
-    stamps/klee-debug-make stamps/libutils-debug-make       \
+    stamps/klee-debug-make stamps/libutils-debug-configure       \
     stamps/klee-coverage-make
 stamps/libs2e-debug-configure: CONFIGURE_COMMAND = $(S2E_SRC)/libs2e/configure  \
                                                    $(LIBS2E_CONFIGURE_FLAGS)    \
@@ -405,20 +405,22 @@ stamps/libs2e-debug-configure: CONFIGURE_COMMAND = $(S2E_SRC)/libs2e/configure  
 
 stamps/libs2e-release-configure: $(call FIND_CONFIG_SOURCE,$(S2E_SRC)/libs2e)
 stamps/libs2e-release-configure: stamps/lua-make stamps/libvmi-release-install  \
-    stamps/klee-release-make stamps/libutils-release-make
+    stamps/klee-release-make stamps/libutils-release-configure
 
 stamps/libs2e-release-configure: CONFIGURE_COMMAND = $(S2E_SRC)/libs2e/configure    \
                                                      $(LIBS2E_CONFIGURE_FLAGS)      \
                                                      $(LIBS2E_RELEASE_FLAGS)
 
-stamps/libs2e-debug-make: stamps/libs2e-debug-configure \
+# libutils changes must not reconfigure libs2e: configure wipes every per-target
+# tree. Depend on its make stamp here so they only trigger an incremental build.
+stamps/libs2e-debug-make: stamps/libs2e-debug-configure stamps/libutils-debug-make \
 	$(call FIND_SOURCE,$(S2E_SRC)/libs2e) \
 	$(call FIND_SOURCE,$(S2E_SRC)/libcpu) \
 	$(call FIND_SOURCE,$(S2E_SRC)/libtcg) \
 	$(call FIND_SOURCE,$(S2E_SRC)/libs2ecore) \
 	$(call FIND_SOURCE,$(S2E_SRC)/libs2eplugins)
 
-stamps/libs2e-release-make: stamps/libs2e-release-configure  \
+stamps/libs2e-release-make: stamps/libs2e-release-configure stamps/libutils-release-make \
 	$(call FIND_SOURCE,$(S2E_SRC)/libs2e) \
 	$(call FIND_SOURCE,$(S2E_SRC)/libcpu) \
 	$(call FIND_SOURCE,$(S2E_SRC)/libtcg) \
@@ -486,7 +488,7 @@ TOOLS_CONFIGURE_FLAGS = -DCMAKE_INSTALL_PREFIX=$(S2E_PREFIX)              \
                         -DS2EPLUGINS_SRC_DIR=$(S2E_SRC)/libs2eplugins/src \
                         -G "Unix Makefiles"
 
-stamps/tools-debug-configure: stamps/libvmi-debug-make stamps/libutils-debug-make
+stamps/tools-debug-configure: stamps/libvmi-debug-make stamps/libutils-debug-configure
 stamps/tools-debug-configure: CONFIGURE_COMMAND = cmake $(TOOLS_CONFIGURE_FLAGS)                        \
                                                   -DVMI_DIR=$(S2E_BUILD)/libvmi-debug                   \
                                                   -DLIBUTILS_DIR=$(S2E_BUILD)/libutils-debug            \
@@ -494,7 +496,7 @@ stamps/tools-debug-configure: CONFIGURE_COMMAND = cmake $(TOOLS_CONFIGURE_FLAGS)
                                                   -DCMAKE_CXX_FLAGS="$(CXXFLAGS_DEBUG)"                 \
                                                   $(S2E_SRC)/tools
 
-stamps/tools-release-configure: stamps/libvmi-release-make stamps/libutils-release-make
+stamps/tools-release-configure: stamps/libvmi-release-make stamps/libutils-release-configure
 stamps/tools-release-configure: CONFIGURE_COMMAND = cmake $(TOOLS_CONFIGURE_FLAGS)                          \
                                                     -DVMI_DIR=$(S2E_BUILD)/libvmi-release                   \
                                                     -DLIBUTILS_DIR=$(S2E_BUILD)/libutils-release            \
@@ -502,9 +504,9 @@ stamps/tools-release-configure: CONFIGURE_COMMAND = cmake $(TOOLS_CONFIGURE_FLAG
                                                     -DCMAKE_CXX_FLAGS="$(CXXFLAGS_RELEASE)"                 \
                                                     $(S2E_SRC)/tools
 
-stamps/tools-debug-make: stamps/tools-debug-configure
+stamps/tools-debug-make: stamps/tools-debug-configure stamps/libutils-debug-make
 
-stamps/tools-release-make: stamps/tools-release-configure
+stamps/tools-release-make: stamps/tools-release-configure stamps/libutils-release-make
 
 stamps/tools-release-install: stamps/tools-release-make
 	$(MAKE) -C tools-release install
