@@ -65,13 +65,17 @@ src/atomic_common.c.inc	accel/tcg/atomic_common.c.inc
 src/atomic_template.h	accel/tcg/atomic_template.h
 # --- target-dependent utilities -----------------------------------------
 # What is left of the old utils/ subset: everything platform-independent
-# moved to libutils. cpu-float.h needs the softfloat types, and bswap.h and
-# log.c test TARGET_* / CONFIG_SYMBEX macros, so all three stay here.
+# moved to libutils. cpu-float.h needs the softfloat types, bswap.h is the
+# MemOp and target-endian half of upstream's (the host half is libutils'
+# utils/bswap.h), target-info.h answers target_big_endian() at compile time,
+# and log.c tests TARGET_* / CONFIG_SYMBEX macros.
 include/tcg/utils/cpu-float.h	include/qemu/cpu-float.h
+include/tcg/utils/bswap.h	include/qemu/bswap.h
+include/tcg/utils/target-info.h	include/qemu/target-info.h
+include/tcg/exec/tswap.h	include/exec/tswap.h
 src/elf.h	include/elf.h
 # Heavily reduced S2E-specific subsets, still v8.1.0-era: these are hand
 # written rather than vendored, so merge by hand, not mechanically.
-include/tcg/utils/bswap.h	include/qemu/bswap.h
 include/tcg/utils/log.h	include/qemu/log.h
 src/utils/log.c	util/log.c
 # --- fpu ----------------------------------------------------------------

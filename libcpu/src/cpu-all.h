@@ -68,29 +68,15 @@
  *   kernel : kernel mode access using soft MMU
  */
 
-/* target-endianness CPU memory access functions */
-#if defined(TARGET_WORDS_BIGENDIAN)
-#define lduw_p(p)    lduw_be_p(p)
-#define ldsw_p(p)    ldsw_be_p(p)
-#define ldl_p(p)     ldl_be_p(p)
-#define ldq_p(p)     ldq_be_p(p)
+/* target-endianness float access functions; the integer ones come from tcg/utils/bswap.h */
+#if TARGET_BIG_ENDIAN
 #define ldfl_p(p)    ldfl_be_p(p)
 #define ldfq_p(p)    ldfq_be_p(p)
-#define stw_p(p, v)  stw_be_p(p, v)
-#define stl_p(p, v)  stl_be_p(p, v)
-#define stq_p(p, v)  stq_be_p(p, v)
 #define stfl_p(p, v) stfl_be_p(p, v)
 #define stfq_p(p, v) stfq_be_p(p, v)
 #else
-#define lduw_p(p)    lduw_le_p(p)
-#define ldsw_p(p)    ldsw_le_p(p)
-#define ldl_p(p)     ldl_le_p(p)
-#define ldq_p(p)     ldq_le_p(p)
 #define ldfl_p(p)    ldfl_le_p(p)
 #define ldfq_p(p)    ldfq_le_p(p)
-#define stw_p(p, v)  stw_le_p(p, v)
-#define stl_p(p, v)  stl_le_p(p, v)
-#define stq_p(p, v)  stq_le_p(p, v)
 #define stfl_p(p, v) stfl_le_p(p, v)
 #define stfq_p(p, v) stfq_le_p(p, v)
 #endif

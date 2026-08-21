@@ -37,6 +37,11 @@
 #define CONFIG_MADVISE        1
 #define CONFIG_POSIX_MEMALIGN 1
 
+// Upstream only enables AVX2 when cpuid.h is usable; keep that dependency.
+#ifdef CONFIG_CPUID_H
+#define CONFIG_AVX2_OPT 1
+#endif
+
 // Always use QEMU's own QTree rather than aliasing it to GTree. Upstream
 // switches on the glib version; keeping one implementation avoids a behavior
 // change when the host glib is upgraded.

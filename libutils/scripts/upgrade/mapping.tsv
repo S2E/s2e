@@ -12,6 +12,7 @@
 # --- host support -------------------------------------------------------
 include/utils/host/x86_64/cpuinfo.h	host/include/x86_64/host/cpuinfo.h
 include/utils/host/x86_64/atomic128-ldst.h	host/include/x86_64/host/atomic128-ldst.h.inc
+include/utils/host/x86_64/bufferiszero.c.inc	host/include/x86_64/host/bufferiszero.c.inc
 include/utils/host/generic/atomic128-cas.h	host/include/generic/host/atomic128-cas.h.inc
 include/utils/host/generic/atomic128-ldst.h	host/include/generic/host/atomic128-ldst.h.inc
 include/utils/host/generic/load-extract-al16-al8.h	host/include/generic/host/load-extract-al16-al8.h.inc
@@ -22,6 +23,7 @@ src/utils/cpuinfo-i386.c	util/cpuinfo-i386.c
 # were simply never touched there, so they are current by definition.
 include/utils/atomic.h	include/qemu/atomic.h
 include/utils/atomic128.h	include/qemu/atomic128.h
+include/utils/bitmap.h	include/qemu/bitmap.h
 include/utils/bitops.h	include/qemu/bitops.h
 include/utils/cacheflush.h	include/qemu/cacheflush.h
 include/utils/cacheinfo.h	include/qemu/cacheinfo.h
@@ -38,6 +40,8 @@ include/utils/mprotect.h	include/qemu/mprotect.h
 include/utils/qtree.h	include/qemu/qtree.h
 include/utils/units.h	include/qemu/units.h
 include/utils/registerfields.h	include/hw/core/registerfields.h
+src/utils/bitmap.c	util/bitmap.c
+src/utils/bufferiszero.c	util/bufferiszero.c
 src/utils/cacheflush.c	util/cacheflush.c
 src/utils/hexdump.c	util/hexdump.c
 src/utils/host-utils.c	util/host-utils.c
@@ -47,8 +51,10 @@ src/utils/qtree.c	util/qtree.c
 # Pruned copies: upstream text with whole sections removed because they need
 # meson configuration, os-posix.h, the Error API or sockets. They merge
 # mechanically as long as upstream leaves the kept sections alone; a conflict
-# in a removed section is resolved by deleting it again. cutils.h drops the
-# prototypes whose bodies cutils.c prunes.
+# in a removed section is resolved by deleting it again. bswap.h keeps the
+# host-only half; the MemOp and target-endian half is libtcg's utils/bswap.h.
+# cutils.h drops the prototypes whose bodies cutils.c prunes.
+include/utils/bswap.h	include/qemu/bswap.h
 include/utils/cutils.h	include/qemu/cutils.h
 include/utils/osdep.h	include/qemu/osdep.h
 src/utils/cutils.c	util/cutils.c

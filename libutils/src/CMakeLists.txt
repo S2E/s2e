@@ -51,6 +51,8 @@ add_library (
     q/error.c
     q/unicode.c
 
+    utils/bitmap.c
+    utils/bufferiszero.c
     utils/cacheflush.c
     utils/cpuinfo-i386.c
     utils/cutils.c
