@@ -5,6 +5,8 @@
 #include <inttypes.h>
 #include <stdbool.h>
 
+#include <utils/config-host.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
