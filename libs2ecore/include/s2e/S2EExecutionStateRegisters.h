@@ -33,6 +33,7 @@
 
 extern "C" {
 struct CPUX86State;
+struct CPUState;
 }
 
 #define CPU_OFFSET(field) offsetof(CPUX86State, field)
@@ -60,8 +61,13 @@ protected:
     static klee::ObjectKey s_symbolicRegs;
     static klee::ObjectKey s_concreteRegs;
 
+    // The CPU caches (TLB, RAM TLB, TB jump cache), i.e., the CPUState part
+    // of the global ArchCPU that precedes CPUX86State (see cpu/state.h)
+    static klee::ObjectKey s_cpuCaches;
+
     klee::ObjectStatePtr m_symbolicRegs;
     klee::ObjectStatePtr m_concreteRegs;
+    klee::ObjectStatePtr m_cpuCaches;
 
     const bool *m_active;
     const bool *m_runningConcrete;
@@ -101,7 +107,7 @@ public:
           m_concretizer(concretizer) {};
 
     void initialize(klee::AddressSpace &addressSpace, const klee::ObjectStatePtr &symbolicRegs,
-                    const klee::ObjectStatePtr &concreteRegs);
+                    const klee::ObjectStatePtr &concreteRegs, const klee::ObjectStatePtr &cpuCaches);
 
     void update(klee::AddressSpace &addressSpace, const bool *active, const bool *running_concrete,
                 klee::IAddressSpaceNotification *notification, klee::IConcretizer *concretizer);
@@ -112,10 +118,12 @@ public:
 
     inline void saveConcreteState() {
         memcpy((void *) m_concreteRegs->getConcreteBuffer(), (void *) s_concreteRegs.address, s_concreteRegs.size);
+        memcpy((void *) m_cpuCaches->getConcreteBuffer(), (void *) s_cpuCaches.address, s_cpuCaches.size);
     }
 
     inline void restoreConcreteState() {
         memcpy((void *) s_concreteRegs.address, (void *) m_concreteRegs->getConcreteBuffer(), s_concreteRegs.size);
+        memcpy((void *) s_cpuCaches.address, (void *) m_cpuCaches->getConcreteBuffer(), s_cpuCaches.size);
     }
 
     bool addressSpaceChange(const klee::ObjectKey &key, const klee::ObjectStateConstPtr &oldState,
@@ -125,6 +133,10 @@ public:
         return s_concreteRegs;
     }
 
+    static const klee::ObjectKey &getCpuCachesKey() {
+        return s_cpuCaches;
+    }
+
     void dump(std::ostream &ss) const;
 
     /// Returns a pointer to the store where the concrete
@@ -132,6 +144,11 @@ public:
     /// to the backing store if the state is inactive, or to
     /// the global CPUState object if active.
     CPUX86State *getCpuState() const;
+
+    /// Returns a pointer to the store holding the CPU caches (the CPUState
+    /// part of ArchCPU): the global object if the state is active, the
+    /// snapshot buffer otherwise.
+    CPUState *getCpuCaches() const;
 
     bool allConcrete() const {
         return m_symbolicRegs->isAllConcrete();

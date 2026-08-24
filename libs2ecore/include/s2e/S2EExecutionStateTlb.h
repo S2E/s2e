@@ -73,7 +73,7 @@ public:
 
     void flushTlbCachePage(const klee::ObjectStatePtr &objectState, int mmu_idx, int index);
 
-    void updateTlbEntryConcreteStatus(struct CPUX86State *env, unsigned mmu_idx, unsigned index,
+    void updateTlbEntryConcreteStatus(struct CPUState *cpu, unsigned mmu_idx, unsigned index,
                                       const klee::ObjectStateConstPtr &state);
 
 #if defined(SE_ENABLE_PHYSRAM_TLB)

@@ -146,7 +146,7 @@ DATA_TYPE glue(glue(io_read, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_phys_
     }
 
     if (is_notdirty_ops(ops)) {
-        CPUTLBEntry *e = env->se_tlb_current;
+        CPUTLBEntry *e = env_cpu(env)->neg.se_tlb_current;
         if (likely(_se_check_concrete(e->objectState, addr & ~SE_RAM_OBJECT_MASK, DATA_SIZE))) {
             return glue(glue(ld, USUFFIX), _p)((uint8_t *) (addr + (e->se_addend)));
         } else if (!tcg_is_dyngen_addr(retaddr)) {
@@ -275,16 +275,16 @@ glue(glue(glue(HELPER_PREFIX, ld), SUFFIX), MMUSUFFIX)(CPUArchState *env, target
 #endif
 
 redo:
-    tlb_entry = &env->tlb_table[mmu_idx].table[index];
+    tlb_entry = &env_tlb(env)->f[mmu_idx].table[index];
     tlb_addr = tlb_entry->ADDR_READ & ~TLB_MEM_TRACE;
     if (likely((addr & TARGET_PAGE_MASK) == (tlb_addr & (TARGET_PAGE_MASK | TLB_INVALID_MASK)))) {
         if (unlikely(tlb_addr & ~TARGET_PAGE_MASK)) {
             /* IO access */
             if ((addr & (DATA_SIZE - 1)) != 0)
                 goto do_unaligned_access;
-            ioaddr = env->iotlb[mmu_idx][index];
+            ioaddr = env_tlb(env)->d[mmu_idx].iotlb[index];
 #ifdef CONFIG_SYMBEX
-            env->se_tlb_current = tlb_entry;
+            env_cpu(env)->neg.se_tlb_current = tlb_entry;
 #endif
             res = glue(glue(io_read_chk, SUFFIX), MMUSUFFIX)(env, ioaddr, addr, retaddr);
 
@@ -347,7 +347,7 @@ static DATA_TYPE glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(CPUArchState *env, targe
     object_index = INSTR_FORK_AND_CONCRETIZE(addr >> SE_RAM_OBJECT_BITS, ADDR_MAX >> SE_RAM_OBJECT_BITS);
     index = (object_index >> SE_RAM_OBJECT_DIFF) & (CPU_TLB_SIZE - 1);
 redo:
-    tlb_entry = &env->tlb_table[mmu_idx].table[index];
+    tlb_entry = &env_tlb(env)->f[mmu_idx].table[index];
     tlb_addr = tlb_entry->ADDR_READ & ~TLB_MEM_TRACE;
 
     if ((addr & TARGET_PAGE_MASK) == (tlb_addr & (TARGET_PAGE_MASK | TLB_INVALID_MASK))) {
@@ -355,10 +355,10 @@ redo:
             /* IO access */
             if ((addr & (DATA_SIZE - 1)) != 0)
                 goto do_unaligned_access;
-            ioaddr = env->iotlb[mmu_idx][index];
+            ioaddr = env_tlb(env)->d[mmu_idx].iotlb[index];
 
 #ifdef CONFIG_SYMBEX
-            env->se_tlb_current = tlb_entry;
+            env_cpu(env)->neg.se_tlb_current = tlb_entry;
 #endif
             res = glue(glue(io_read_chk, SUFFIX), MMUSUFFIX)(env, ioaddr, addr, retaddr);
 
@@ -425,7 +425,7 @@ void glue(glue(io_write, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_phys_addr
     }
 
     if (unlikely(is_notdirty_ops(ops))) {
-        CPUTLBEntry *e = env->se_tlb_current;
+        CPUTLBEntry *e = env_cpu(env)->neg.se_tlb_current;
         if (!(e->addr_write & (TLB_NOT_OURS | TLB_NOTDIRTY))) {
             if (likely(_se_check_concrete(e->objectState, addr & ~SE_RAM_OBJECT_MASK, DATA_SIZE))) {
                 glue(glue(st, SUFFIX), _p)((uint8_t *) (addr + (e->se_addend)), val);
@@ -527,7 +527,7 @@ void glue(glue(glue(HELPER_PREFIX, st), SUFFIX), MMUSUFFIX)(CPUArchState *env, t
 #endif
 
 redo:
-    tlb_entry = &env->tlb_table[mmu_idx].table[index];
+    tlb_entry = &env_tlb(env)->f[mmu_idx].table[index];
     tlb_addr = tlb_entry->addr_write & ~TLB_MEM_TRACE;
 
     if (likely((addr & TARGET_PAGE_MASK) == (tlb_addr & (TARGET_PAGE_MASK | TLB_INVALID_MASK)))) {
@@ -536,10 +536,10 @@ redo:
             if ((addr & (DATA_SIZE - 1)) != 0)
                 goto do_unaligned_access;
 
-            ioaddr = env->iotlb[mmu_idx][index];
+            ioaddr = env_tlb(env)->d[mmu_idx].iotlb[index];
 
 #ifdef CONFIG_SYMBEX
-            env->se_tlb_current = tlb_entry;
+            env_cpu(env)->neg.se_tlb_current = tlb_entry;
 #endif
 
             glue(glue(io_write_chk, SUFFIX), MMUSUFFIX)(env, ioaddr, val, addr, retaddr);
@@ -594,7 +594,7 @@ static void glue(glue(slow_st, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_ulo
     object_index = INSTR_FORK_AND_CONCRETIZE(addr >> SE_RAM_OBJECT_BITS, ADDR_MAX >> SE_RAM_OBJECT_BITS);
     index = (object_index >> SE_RAM_OBJECT_DIFF) & (CPU_TLB_SIZE - 1);
 redo:
-    tlb_entry = &env->tlb_table[mmu_idx].table[index];
+    tlb_entry = &env_tlb(env)->f[mmu_idx].table[index];
     tlb_addr = tlb_entry->addr_write & ~TLB_MEM_TRACE;
     ;
     if ((addr & TARGET_PAGE_MASK) == (tlb_addr & (TARGET_PAGE_MASK | TLB_INVALID_MASK))) {
@@ -602,9 +602,9 @@ redo:
             /* IO access */
             if ((addr & (DATA_SIZE - 1)) != 0)
                 goto do_unaligned_access;
-            ioaddr = env->iotlb[mmu_idx][index];
+            ioaddr = env_tlb(env)->d[mmu_idx].iotlb[index];
 #ifdef CONFIG_SYMBEX
-            env->se_tlb_current = tlb_entry;
+            env_cpu(env)->neg.se_tlb_current = tlb_entry;
 #endif
             glue(glue(io_write_chk, SUFFIX), MMUSUFFIX)(env, ioaddr, val, addr, retaddr);
 

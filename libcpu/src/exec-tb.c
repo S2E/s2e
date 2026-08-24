@@ -94,7 +94,7 @@ void tb_flush(CPUArchState *env) {
 #endif
 
     for (env = first_cpu; env != NULL; env = env->next_cpu) {
-        memset(env->tb_jmp_cache, 0, TB_JMP_CACHE_SIZE * sizeof(void *));
+        memset(env_cpu(env)->neg.tb_jmp_cache, 0, TB_JMP_CACHE_SIZE * sizeof(void *));
     }
 
     memset(tb_phys_hash, 0, CODE_GEN_PHYS_HASH_SIZE * sizeof(void *));
@@ -208,8 +208,8 @@ void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr) {
     /* remove the TB from the hash list */
     h = tb_jmp_cache_hash_func(tb->pc);
     for (env = first_cpu; env != NULL; env = env->next_cpu) {
-        if (env->tb_jmp_cache[h] == tb)
-            env->tb_jmp_cache[h] = NULL;
+        if (env_cpu(env)->neg.tb_jmp_cache[h] == tb)
+            env_cpu(env)->neg.tb_jmp_cache[h] = NULL;
     }
 
     /* suppress this TB from the two jump lists */

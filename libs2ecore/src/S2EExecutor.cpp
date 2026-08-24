@@ -543,8 +543,16 @@ void S2EExecutor::registerCpu(S2EExecutionState *initialState, CPUX86State *cpuE
                                                         /* isReadOnly = */ false,
                                                         /* isSharedConcrete = */ true);
 
-    initialState->m_registers.initialize(initialState->addressSpace(), symbolicRegs, concreteRegs);
+    /* Add the CPU caches (TLB, RAM TLB, TB jump cache) that precede the env
+       inside ArchCPU. The softmmu fast path runs as bitcode inside KLEE and
+       reads the TLB through this object. See cpu/state.h. */
+    auto cpuCaches = initialState->addExternalObject(env_cpu(cpuEnv), offsetof(ArchCPU, env),
+                                                     /* isReadOnly = */ false,
+                                                     /* isSharedConcrete = */ true);
+
+    initialState->m_registers.initialize(initialState->addressSpace(), symbolicRegs, concreteRegs, cpuCaches);
     klee::ExecutionState::s_ignoredMergeObjects.insert(initialState->m_registers.getConcreteRegs());
+    klee::ExecutionState::s_ignoredMergeObjects.insert(initialState->m_registers.getCpuCachesKey());
 }
 
 void S2EExecutor::registerSharedExternalObject(S2EExecutionState *state, void *address, unsigned size) {

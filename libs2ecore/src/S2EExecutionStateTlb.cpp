@@ -87,9 +87,9 @@ bool S2EExecutionStateTlb::addressSpaceChangeUpdateTlb(const klee::ObjectStateCo
 #if defined(SE_ENABLE_PHYSRAM_TLB)
 void S2EExecutionStateTlb::updateRamTlb(const klee::ObjectStateConstPtr &oldState,
                                         const klee::ObjectStatePtr &newState) {
-    CPUX86State *cpu = m_registers->getCpuState();
+    CPUState *cpu = m_registers->getCpuCaches();
     uintptr_t tlb_index = (oldState->getAddress() >> 12) & (CPU_TLB_SIZE - 1);
-    CPUTLBRAMEntry *re = &cpu->se_ram_tlb[tlb_index];
+    CPUTLBRAMEntry *re = &cpu->neg.se_ram_tlb[tlb_index];
 
     assert(oldState->isSharedConcrete() == newState->isSharedConcrete());
 
@@ -112,7 +112,7 @@ void S2EExecutionStateTlb::updateRamTlb(const klee::ObjectStateConstPtr &oldStat
 
 void S2EExecutionStateTlb::updateTlb(const klee::ObjectStateConstPtr &oldState, const klee::ObjectStatePtr &newState) {
 
-    CPUX86State *cpu = m_registers->getCpuState();
+    CPUState *cpu = m_registers->getCpuCaches();
 
     if (g_s2e_single_path_mode) {
         llvm::errs() << "Multi-path mode disabled.\n";
@@ -137,7 +137,7 @@ void S2EExecutionStateTlb::updateTlb(const klee::ObjectStateConstPtr &oldState, 
 #ifdef S2E_DEBUG_TLBCACHE
             g_s2e->getDebugStream() << "    mmu_idx=" << coords.first << " index=" << coords.second << "\n";
 #endif
-            CPUTLBEntry *entry = &cpu->tlb_table[coords.first].table[coords.second];
+            CPUTLBEntry *entry = &cpu->neg.tlb.f[coords.first].table[coords.second];
             assert(entry->objectState == (void *) oldState.get());
             assert(newState);
 
@@ -187,8 +187,9 @@ void S2EExecutionStateTlb::flushTlbCachePage(const klee::ObjectStatePtr &objectS
         << "flushTlbCachePage: clearing cache entry for " << objectState << " (" << mmu_idx << "," << index << ")\n";
 #endif
 
-    env->tlb_table[mmu_idx].table[index].objectState = 0;
-    env->tlb_table[mmu_idx].table[index].se_addend = 0;
+    CPUTLBEntry *entry = &m_registers->getCpuCaches()->neg.tlb.f[mmu_idx].table[index];
+    entry->objectState = 0;
+    entry->se_addend = 0;
 
     if (g_s2e_single_path_mode) {
         return;
@@ -224,9 +225,9 @@ void S2EExecutionStateTlb::flushTlbCachePage(const klee::ObjectStatePtr &objectS
  * If a page contains at least one byte of symbolic data, it will go through
  * the slow path. Otherwise, softmmu will directly access the concrete array.
  */
-void S2EExecutionStateTlb::updateTlbEntryConcreteStatus(struct CPUX86State *env, unsigned mmu_idx, unsigned index,
+void S2EExecutionStateTlb::updateTlbEntryConcreteStatus(struct CPUState *cpu, unsigned mmu_idx, unsigned index,
                                                         const klee::ObjectStateConstPtr &state) {
-    CPUTLBEntry *te = &env->tlb_table[mmu_idx].table[index];
+    CPUTLBEntry *te = &cpu->neg.tlb.f[mmu_idx].table[index];
 
     if (!state->isAllConcrete()) {
         te->addr_read |= TLB_SYMB;
@@ -240,7 +241,7 @@ void S2EExecutionStateTlb::updateTlbEntryConcreteStatus(struct CPUX86State *env,
 
 #ifdef SE_ENABLE_PHYSRAM_TLB
     uintptr_t ram_tlb_index = (state->getAddress() >> 12) & (CPU_TLB_SIZE - 1);
-    CPUTLBRAMEntry *re = &env->se_ram_tlb[ram_tlb_index];
+    CPUTLBRAMEntry *re = &cpu->neg.se_ram_tlb[ram_tlb_index];
     re->host_page = 0;
     re->addend = 0;
     re->object_state = 0;
@@ -250,18 +251,19 @@ void S2EExecutionStateTlb::updateTlbEntryConcreteStatus(struct CPUX86State *env,
 #if defined(SE_ENABLE_PHYSRAM_TLB)
 void S2EExecutionStateTlb::clearRamTlb() {
     static CPUTLBRAMEntry empty = {0, 0, nullptr};
+    CPUState *cpu = m_registers->getCpuCaches();
     for (unsigned i = 0; i < CPU_TLB_SIZE; i++) {
-        env->se_ram_tlb[i] = empty;
+        cpu->neg.se_ram_tlb[i] = empty;
     }
 }
 #endif
 
 void S2EExecutionStateTlb::clearTlbOwnership() {
-    CPUX86State *env = m_registers->getCpuState();
+    CPUState *cpu = m_registers->getCpuCaches();
 
     for (unsigned i = 0; i < CPU_TLB_SIZE; i++) {
         for (unsigned mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
-            env->tlb_table[mmu_idx].table[i].addr_write |= TLB_NOT_OURS;
+            cpu->neg.tlb.f[mmu_idx].table[i].addr_write |= TLB_NOT_OURS;
         }
     }
 }
@@ -272,7 +274,7 @@ void S2EExecutionStateTlb::updateTlbEntry(CPUX86State *env, int mmu_idx, uint64_
 
     unsigned int index = (virtAddr >> SE_RAM_OBJECT_BITS) & (CPU_TLB_SIZE - 1);
 
-    CPUTLBEntry *entry = &env->tlb_table[mmu_idx].table[index];
+    CPUTLBEntry *entry = &env_cpu(env)->neg.tlb.f[mmu_idx].table[index];
     ObjectState *oldObjectState = static_cast<ObjectState *>(entry->objectState);
 
     /* Retrieve the object state using the host address */
@@ -315,7 +317,7 @@ void S2EExecutionStateTlb::updateTlbEntry(CPUX86State *env, int mmu_idx, uint64_
         }
     }
 
-    updateTlbEntryConcreteStatus(env, mmu_idx, index, newObjectState);
+    updateTlbEntryConcreteStatus(env_cpu(env), mmu_idx, index, newObjectState);
 
 #ifdef S2E_DEBUG_TLBCACHE
     audit();
@@ -327,7 +329,7 @@ bool S2EExecutionStateTlb::audit() {
      * Go through the TLB and make sure that all object states are
      * properly referenced.
      */
-    CPUX86State *env = m_registers->getCpuState();
+    CPUState *cpu = m_registers->getCpuCaches();
 
     for (auto tlbIt : m_tlbMap) {
         auto os = tlbIt.first;
@@ -336,7 +338,7 @@ bool S2EExecutionStateTlb::audit() {
             unsigned mmu_idx = (*vit).first;
             unsigned index = (*vit).second;
 
-            CPUTLBEntry *entry = &env->tlb_table[mmu_idx].table[index];
+            CPUTLBEntry *entry = &cpu->neg.tlb.f[mmu_idx].table[index];
             assert(entry->objectState == os);
             (void) entry;
             (void) os;
@@ -345,7 +347,7 @@ bool S2EExecutionStateTlb::audit() {
 
     for (unsigned i = 0; i < CPU_TLB_SIZE; i++) {
         for (unsigned mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
-            CPUTLBEntry *entry = &env->tlb_table[mmu_idx].table[i];
+            CPUTLBEntry *entry = &cpu->neg.tlb.f[mmu_idx].table[i];
             if (!entry->objectState) {
                 continue;
             }
