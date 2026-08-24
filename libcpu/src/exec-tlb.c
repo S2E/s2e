@@ -36,10 +36,10 @@ static inline void tlb_flush_jmp_cache(CPUArchState *env, target_ulong addr) {
     /* Discard jump cache entries for any tb which might potentially
        overlap the flushed page.  */
     i = tb_jmp_cache_hash_page(addr - TARGET_PAGE_SIZE);
-    memset(&env->tb_jmp_cache[i], 0, TB_JMP_PAGE_SIZE * sizeof(TranslationBlock *));
+    memset(&env_cpu(env)->neg.tb_jmp_cache[i], 0, TB_JMP_PAGE_SIZE * sizeof(TranslationBlock *));
 
     i = tb_jmp_cache_hash_page(addr);
-    memset(&env->tb_jmp_cache[i], 0, TB_JMP_PAGE_SIZE * sizeof(TranslationBlock *));
+    memset(&env_cpu(env)->neg.tb_jmp_cache[i], 0, TB_JMP_PAGE_SIZE * sizeof(TranslationBlock *));
 }
 
 static const CPUTLBEntry s_cputlb_empty_entry = {
@@ -86,11 +86,12 @@ void tlb_flush(CPUArchState *env, int flush_global) {
     env->current_tb = NULL;
 
     int mmu_idx;
+    CPUTLB *tlb = env_tlb(env);
     for (mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
-        env->tlb_table[mmu_idx].mask = (CPU_TLB_SIZE - 1) << CPU_TLB_ENTRY_BITS;
-        env->tlb_table[mmu_idx].table = &env->_tlb_table[mmu_idx][0];
+        tlb->f[mmu_idx].mask = (CPU_TLB_SIZE - 1) << CPU_TLB_ENTRY_BITS;
+        tlb->f[mmu_idx].table = &tlb->d[mmu_idx].table[0];
         for (i = 0; i < CPU_TLB_SIZE; i++) {
-            env->tlb_table[mmu_idx].table[i] = s_cputlb_empty_entry;
+            tlb->f[mmu_idx].table[i] = s_cputlb_empty_entry;
         }
     }
 
@@ -100,10 +101,10 @@ void tlb_flush(CPUArchState *env, int flush_global) {
     }
 #endif
 
-    memset(env->tb_jmp_cache, 0, TB_JMP_CACHE_SIZE * sizeof(void *));
+    memset(env_cpu(env)->neg.tb_jmp_cache, 0, TB_JMP_CACHE_SIZE * sizeof(void *));
 
-    env->tlb_flush_addr = -1;
-    env->tlb_flush_mask = 0;
+    tlb->tlb_flush_addr = -1;
+    tlb->tlb_flush_mask = 0;
     g_tlb_flush_count++;
 }
 
@@ -115,10 +116,10 @@ void tlb_flush_page(CPUArchState *env, target_ulong addr) {
     printf("tlb_flush_page: " TARGET_FMT_lx "\n", addr);
 #endif
     /* Check if we need to flush due to large pages.  */
-    if ((addr & env->tlb_flush_mask) == env->tlb_flush_addr) {
+    if ((addr & env_tlb(env)->tlb_flush_mask) == env_tlb(env)->tlb_flush_addr) {
 #if defined(DEBUG_TLB)
-        printf("tlb_flush_page: forced full flush (" TARGET_FMT_lx "/" TARGET_FMT_lx ")\n", env->tlb_flush_addr,
-               env->tlb_flush_mask);
+        printf("tlb_flush_page: forced full flush (" TARGET_FMT_lx "/" TARGET_FMT_lx ")\n",
+               env_tlb(env)->tlb_flush_addr, env_tlb(env)->tlb_flush_mask);
 #endif
         tlb_flush(env, 1);
         return;
@@ -130,13 +131,12 @@ void tlb_flush_page(CPUArchState *env, target_ulong addr) {
     addr &= TARGET_PAGE_MASK;
     i = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
     for (mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
-        // tlb_flush_entry(&env->tlb_table[mmu_idx][i], addr);
-        CPUTLBEntry *tlb_entry = &env->tlb_table[mmu_idx].table[i];
+        CPUTLBEntry *tlb_entry = &env_tlb(env)->f[mmu_idx].table[i];
         if (addr == (tlb_entry->addr_read & (TARGET_PAGE_MASK | TLB_INVALID_MASK)) ||
             addr == (tlb_entry->addr_write & (TARGET_PAGE_MASK | TLB_INVALID_MASK)) ||
             addr == (tlb_entry->addr_code & (TARGET_PAGE_MASK | TLB_INVALID_MASK))) {
 #if defined(CONFIG_SYMBEX)
-            g_sqi.tlb.flush_tlb_cache_page(env->tlb_table[mmu_idx].table[i].objectState, mmu_idx, i);
+            g_sqi.tlb.flush_tlb_cache_page(tlb_entry->objectState, mmu_idx, i);
 #endif
             *tlb_entry = s_cputlb_empty_entry;
         }
@@ -170,7 +170,7 @@ int tlb_is_dirty(CPUArchState *env, target_ulong vaddr) {
     vaddr &= TARGET_PAGE_MASK;
     i = (vaddr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
     for (mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
-        ret &= tlb_get_dirty1(&env->tlb_table[mmu_idx].table[i], vaddr);
+        ret &= tlb_get_dirty1(&env_tlb(env)->f[mmu_idx].table[i], vaddr);
     }
 
     return ret;
@@ -181,21 +181,22 @@ int tlb_is_dirty(CPUArchState *env, target_ulong vaddr) {
    large pages and trigger a full TLB flush if these are invalidated.  */
 static void tlb_add_large_page(CPUArchState *env, target_ulong vaddr, target_ulong size) {
     target_ulong mask = ~(size - 1);
+    CPUTLB *tlb = env_tlb(env);
 
-    if (env->tlb_flush_addr == (target_ulong) -1) {
-        env->tlb_flush_addr = vaddr & mask;
-        env->tlb_flush_mask = mask;
+    if (tlb->tlb_flush_addr == (target_ulong) -1) {
+        tlb->tlb_flush_addr = vaddr & mask;
+        tlb->tlb_flush_mask = mask;
         return;
     }
     /* Extend the existing region to include the new page.
        This is a compromise between unnecessary flushes and the cost
        of maintaining a full variable size TLB.  */
-    mask &= env->tlb_flush_mask;
-    while (((env->tlb_flush_addr ^ vaddr) & mask) != 0) {
+    mask &= tlb->tlb_flush_mask;
+    while (((tlb->tlb_flush_addr ^ vaddr) & mask) != 0) {
         mask <<= 1;
     }
-    env->tlb_flush_addr &= mask;
-    env->tlb_flush_mask = mask;
+    tlb->tlb_flush_addr &= mask;
+    tlb->tlb_flush_mask = mask;
 }
 
 /* Add a new TLB entry. At most one entry for a given virtual address
@@ -252,9 +253,9 @@ void tlb_set_page(CPUArchState *env, target_ulong vaddr, target_phys_addr_t padd
     }
 
     index = (vaddr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
-    env->iotlb[mmu_idx][index] = iotlb - vaddr;
+    env_tlb(env)->d[mmu_idx].iotlb[index] = iotlb - vaddr;
 
-    te = &env->tlb_table[mmu_idx].table[index];
+    te = &env_tlb(env)->f[mmu_idx].table[index];
     te->addend = addend - vaddr;
     if (prot & PAGE_READ) {
         te->addr_read = address;

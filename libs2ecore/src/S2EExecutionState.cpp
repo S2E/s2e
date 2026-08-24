@@ -831,8 +831,8 @@ void se_write_dirty_mask(uint64_t host_address, uint8_t val) {
 static inline CPUTLBRAMEntry *s2e_get_ram_tlb_entry(uint64_t host_address) {
 #if defined(SE_ENABLE_PHYSRAM_TLB)
     uintptr_t tlb_index = (host_address >> 12) & (CPU_TLB_SIZE - 1);
-    CPUX86State *env = g_s2e_state->regs()->getCpuState();
-    return &env->se_ram_tlb[tlb_index];
+    CPUState *cpu = g_s2e_state->regs()->getCpuCaches();
+    return &cpu->neg.se_ram_tlb[tlb_index];
 #else
     return nullptr;
 #endif

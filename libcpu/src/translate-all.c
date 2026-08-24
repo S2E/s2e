@@ -169,8 +169,7 @@ int cpu_gen_code(CPUArchState *env, TranslationBlock *tb) {
     tcg_ctx->page_bits = TARGET_PAGE_BITS;
     tcg_ctx->page_mask = TARGET_PAGE_MASK;
     tcg_ctx->tlb_dyn_max_bits = CPU_TLB_DYN_MAX_BITS;
-    tcg_ctx->tlb_fast_offset =
-        offsetof(CPUX86State, tlb_table); // (int) offsetof(ArchCPU, neg.tlb.f) - (int) offsetof(ArchCPU, env);
+    tcg_ctx->tlb_fast_offset = (int) offsetof(ArchCPU, parent_obj.neg.tlb.f) - (int) offsetof(ArchCPU, env);
 #endif
 #ifdef TCG_GUEST_DEFAULT_MO
     tcg_ctx->guest_mo = TCG_GUEST_DEFAULT_MO;

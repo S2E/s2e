@@ -233,7 +233,7 @@ static ref<Expr> handle_ldst_mmu(Executor *executor, ExecutionState *state, klee
 
 redo:
 
-    const auto &tlbEntry = env->tlb_table[mmu_idx].table[index];
+    const auto &tlbEntry = env_tlb(env)->f[mmu_idx].table[index];
 
     if (isWrite) {
         tlb_addr = tlbEntry.addr_write & ~TLB_MEM_TRACE;
@@ -248,7 +248,7 @@ redo:
                 goto do_unaligned_access;
             }
 
-            ioaddr = env->iotlb[mmu_idx][index];
+            ioaddr = env_tlb(env)->d[mmu_idx].iotlb[index];
 
             if (!isWrite) {
                 value = io_read_chk(s2estate, tlbEntry, ioaddr, addr, retaddr, width);
@@ -458,7 +458,7 @@ static void handle_ldst_kernel(Executor *executor, ExecutionState *state, klee::
     page_index = (object_index >> S2E_RAM_OBJECT_DIFF) & (CPU_TLB_SIZE - 1);
 
     //////////////////////////////////////////
-    const auto &tlbEntry = env->tlb_table[mmu_idx].table[page_index];
+    const auto &tlbEntry = env_tlb(env)->f[mmu_idx].table[page_index];
 
     if (isWrite) {
         value = args[2];

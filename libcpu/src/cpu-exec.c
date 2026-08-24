@@ -128,7 +128,7 @@ found:
         tb_phys_hash[h] = tb;
     }
     /* we add the TB in the virtual pc hash table */
-    env->tb_jmp_cache[tb_jmp_cache_hash_func(pc)] = tb;
+    env_cpu(env)->neg.tb_jmp_cache[tb_jmp_cache_hash_func(pc)] = tb;
     return tb;
 }
 
@@ -153,7 +153,7 @@ static inline TranslationBlock *tb_find_fast(CPUArchState *env) {
        always be the same before a given translated block
        is executed. */
     cpu_get_tb_cpu_state(env, &pc, &cs_base, &flags);
-    tb = env->tb_jmp_cache[tb_jmp_cache_hash_func(pc)];
+    tb = env_cpu(env)->neg.tb_jmp_cache[tb_jmp_cache_hash_func(pc)];
 
 #ifdef CONFIG_SYMBEX
     int llvm_nok = env->generate_llvm && (!tb || !tb->llvm_function);

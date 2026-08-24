@@ -201,6 +201,9 @@ typedef struct CPUX86State {
 #endif
 } CPUX86State;
 
+/* Requires the complete CPUX86State: defines ArchCPU and the CPU caches. */
+#include <cpu/state.h>
+
 void do_cpu_init(CPUX86State *env);
 
 CPUX86State *cpu_x86_init(const cpuid_t *cpuid);

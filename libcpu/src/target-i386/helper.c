@@ -1078,7 +1078,10 @@ CPUX86State *cpu_x86_init(const cpuid_t *cpuid) {
     CPUX86State *env;
     static int inited;
 
-    env = g_malloc0(sizeof(CPUX86State));
+    /* The env must be embedded in an ArchCPU so that the caches in CPUState
+       are reachable at negative offsets from it; see cpu/state.h. */
+    ArchCPU *cpu = g_malloc0(sizeof(ArchCPU));
+    env = &cpu->env;
     cpu_exec_init(env);
 
     /* init various static tables used in TCG mode */

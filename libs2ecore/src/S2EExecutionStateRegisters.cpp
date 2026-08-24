@@ -43,15 +43,19 @@ using namespace klee;
 
 ObjectKey S2EExecutionStateRegisters::s_concreteRegs;
 ObjectKey S2EExecutionStateRegisters::s_symbolicRegs;
+ObjectKey S2EExecutionStateRegisters::s_cpuCaches;
 
 void S2EExecutionStateRegisters::initialize(klee::AddressSpace &addressSpace, const klee::ObjectStatePtr &symbolicRegs,
-                                            const klee::ObjectStatePtr &concreteRegs) {
-    assert(!s_concreteRegs.address && !s_symbolicRegs.address);
+                                            const klee::ObjectStatePtr &concreteRegs,
+                                            const klee::ObjectStatePtr &cpuCaches) {
+    assert(!s_concreteRegs.address && !s_symbolicRegs.address && !s_cpuCaches.address);
     s_concreteRegs = concreteRegs->getKey();
     s_symbolicRegs = symbolicRegs->getKey();
+    s_cpuCaches = cpuCaches->getKey();
 
     symbolicRegs->setName("SymbolicCpuRegisters");
     concreteRegs->setName("ConcreteCpuRegisters");
+    cpuCaches->setName("CpuCaches");
 
     /* The fast path in the cpu loop relies on this */
     symbolicRegs->setNotifyOnConcretenessChange(true);
@@ -64,9 +68,11 @@ void S2EExecutionStateRegisters::update(klee::AddressSpace &addressSpace, const 
                                         klee::IConcretizer *concretizer) {
     auto concreteState = addressSpace.findObject(s_concreteRegs.address);
     auto symbolicState = addressSpace.findObject(s_symbolicRegs.address);
+    auto cachesState = addressSpace.findObject(s_cpuCaches.address);
 
     m_symbolicRegs = addressSpace.getWriteable(symbolicState);
     m_concreteRegs = addressSpace.getWriteable(concreteState);
+    m_cpuCaches = addressSpace.getWriteable(cachesState);
 
     if (active && running_concrete) {
         m_runningConcrete = running_concrete;
@@ -100,6 +106,10 @@ CPUX86State *S2EExecutionStateRegisters::getCpuState() const {
     return cpu;
 }
 
+CPUState *S2EExecutionStateRegisters::getCpuCaches() const {
+    return *m_active ? (CPUState *) s_cpuCaches.address : (CPUState *) m_cpuCaches->getConcreteBuffer(true);
+}
+
 bool S2EExecutionStateRegisters::addressSpaceChange(const klee::ObjectKey &key,
                                                     const klee::ObjectStateConstPtr &oldState,
                                                     const klee::ObjectStatePtr &newState) {
@@ -113,6 +123,10 @@ bool S2EExecutionStateRegisters::addressSpaceChange(const klee::ObjectKey &key,
         return true;
     } else if (key == s_symbolicRegs) {
         m_symbolicRegs = newState;
+        assert(newState);
+        return true;
+    } else if (key == s_cpuCaches) {
+        m_cpuCaches = newState;
         assert(newState);
         return true;
     } else {

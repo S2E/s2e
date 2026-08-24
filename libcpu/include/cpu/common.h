@@ -63,10 +63,7 @@ typedef struct CPUWatchpoint {
     uint32_t halted; /* Nonzero if the CPU is in suspend state */                                     \
     uint32_t interrupt_request;                                                                       \
     volatile sig_atomic_t exit_request;                                                               \
-    CPU_COMMON_TLB                                                                                    \
-    CPU_COMMON_PHYSRAM_TLB                                                                            \
-    CPUTLBEntry *se_tlb_current;                                                                      \
-    struct TranslationBlock *tb_jmp_cache[TB_JMP_CACHE_SIZE];                                         \
+    /* The TLB, RAM TLB and TB jump cache live in CPUState; see cpu/state.h */                        \
     /* buffer for temporaries in the code generator */                                                \
     long temp_buf[CPU_TEMP_BUF_NLONGS];                                                               \
     /* Used to handle self-modifying code */                                                          \
