@@ -143,8 +143,13 @@ libutils' `utils/mutex.h` and `utils/spinlock.h` stay S2E-original: upstream's
 ## After merging
 
 Re-run `run-clang-format.sh` from the S2E source root so the tree stays
-normalized for the next upgrade, update each component's `BASELINE`, and
-confirm normalization by merging the new tag onto itself:
+normalized for the next upgrade, update each component's `BASELINE`, and check
+that every mapping row still resolves by merging the new tag onto itself:
 
-    ./merge.sh libutils <new-tag> <new-tag>    # must be 0 conflicts
-    ./merge.sh libtcg   <new-tag> <new-tag>    # must be 0 conflicts
+    ./merge.sh libutils <new-tag> <new-tag>
+    ./merge.sh libtcg   <new-tag> <new-tag>
+
+A same-tag run cannot conflict, because base and theirs are identical, so zero
+conflicts here proves only that the mapping resolves at the tag and that the
+normalize pipeline runs. Whether the S2E deviations (including pruned sections)
+merge cleanly is only tested by a real upgrade to a different tag.

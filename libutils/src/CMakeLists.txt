@@ -18,7 +18,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Werror -Wno-initializer-overrides -fPIC")
+# _GNU_SOURCE: glibc only declares pthread_setname_np and friends with it (see utils/config-host.h).
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Werror -Wno-initializer-overrides -fPIC -D_GNU_SOURCE")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Werror -fPIC -std=c++20")
 
 add_library (
@@ -56,13 +57,18 @@ add_library (
     utils/cacheflush.c
     utils/cpuinfo-i386.c
     utils/cutils.c
+    utils/event.c
     utils/hexdump.c
     utils/host-utils.c
     utils/interval-tree.c
     utils/memalign.c
+    utils/notify.c
     utils/osdep.c
     utils/oslib-posix.c
+    utils/qemu-thread-posix.c
+    utils/qht.c
     utils/qtree.c
+    utils/rcu.c
 )
 
 ##########

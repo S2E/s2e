@@ -6,6 +6,9 @@
  * queues, and tail queues.
  */
 
+/* S2E: compiler.h maps typeof to __typeof__, and QLIST_SWAP uses a typed temporary, so the macros expand in C++. */
+#include <utils/compiler.h>
+
 /*
  * Copyright (c) 1991, 1993
  *      The Regents of the University of California.  All rights reserved.
@@ -37,12 +40,8 @@
  *      @(#)queue.h     8.5 (Berkeley) 8/20/94
  */
 
-#ifndef LIBQ_SYS_QUEUE_H
-#define LIBQ_SYS_QUEUE_H
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#ifndef QEMU_SYS_QUEUE_H
+#define QEMU_SYS_QUEUE_H
 
 /*
  * This file defines four types of data structures: singly-linked lists,
@@ -108,7 +107,7 @@ extern "C" {
 
 #define QLIST_SWAP(dstlist, srclist, field)                            \
     do {                                                               \
-        void *tmplist;                                                 \
+        __typeof__((srclist)->lh_first) tmplist;                       \
         tmplist = (srclist)->lh_first;                                 \
         (srclist)->lh_first = (dstlist)->lh_first;                     \
         if ((srclist)->lh_first != NULL) {                             \
@@ -149,7 +148,26 @@ extern "C" {
         if ((elm)->field.le_next != NULL)                               \
             (elm)->field.le_next->field.le_prev = (elm)->field.le_prev; \
         *(elm)->field.le_prev = (elm)->field.le_next;                   \
+        (elm)->field.le_next = NULL;                                    \
+        (elm)->field.le_prev = NULL;                                    \
     } while (/*CONSTCOND*/ 0)
+
+/*
+ * Like QLIST_REMOVE() but safe to call when elm is not in a list
+ */
+#define QLIST_SAFE_REMOVE(elm, field)                                       \
+    do {                                                                    \
+        if ((elm)->field.le_prev != NULL) {                                 \
+            if ((elm)->field.le_next != NULL)                               \
+                (elm)->field.le_next->field.le_prev = (elm)->field.le_prev; \
+            *(elm)->field.le_prev = (elm)->field.le_next;                   \
+            (elm)->field.le_next = NULL;                                    \
+            (elm)->field.le_prev = NULL;                                    \
+        }                                                                   \
+    } while (/*CONSTCOND*/ 0)
+
+/* Is elm in a list? */
+#define QLIST_IS_INSERTED(elm, field) ((elm)->field.le_prev != NULL)
 
 #define QLIST_FOREACH(var, head, field) for ((var) = ((head)->lh_first); (var); (var) = ((var)->field.le_next))
 
@@ -198,27 +216,44 @@ extern "C" {
         (head)->slh_first = (elm);                 \
     } while (/*CONSTCOND*/ 0)
 
-#define QSLIST_INSERT_HEAD_ATOMIC(head, elm, field)                                          \
-    do {                                                                                     \
-        __typeof__(elm) save_sle_next;                                                       \
-        do {                                                                                 \
-            save_sle_next = (elm)->field.sle_next = (head)->slh_first;                       \
-        } while (atomic_cmpxchg(&(head)->slh_first, save_sle_next, (elm)) != save_sle_next); \
+#define QSLIST_INSERT_HEAD_ATOMIC(head, elm, field)                                           \
+    do {                                                                                      \
+        typeof(elm) save_sle_next;                                                            \
+        do {                                                                                  \
+            save_sle_next = (elm)->field.sle_next = (head)->slh_first;                        \
+        } while (qatomic_cmpxchg(&(head)->slh_first, save_sle_next, (elm)) != save_sle_next); \
     } while (/*CONSTCOND*/ 0)
 
-#define QSLIST_MOVE_ATOMIC(dest, src)                             \
-    do {                                                          \
-        (dest)->slh_first = atomic_xchg(&(src)->slh_first, NULL); \
+#define QSLIST_MOVE_ATOMIC(dest, src)                              \
+    do {                                                           \
+        (dest)->slh_first = qatomic_xchg(&(src)->slh_first, NULL); \
     } while (/*CONSTCOND*/ 0)
 
-#define QSLIST_REMOVE_HEAD(head, field)                        \
-    do {                                                       \
-        (head)->slh_first = (head)->slh_first->field.sle_next; \
+#define QSLIST_REMOVE_HEAD(head, field)                    \
+    do {                                                   \
+        typeof((head)->slh_first) elm = (head)->slh_first; \
+        (head)->slh_first = elm->field.sle_next;           \
+        elm->field.sle_next = NULL;                        \
     } while (/*CONSTCOND*/ 0)
 
-#define QSLIST_REMOVE_AFTER(slistelm, field)                                             \
-    do {                                                                                 \
-        (slistelm)->field.sle_next = QSLIST_NEXT(QSLIST_NEXT((slistelm), field), field); \
+#define QSLIST_REMOVE_AFTER(slistelm, field)                \
+    do {                                                    \
+        typeof(slistelm) next = (slistelm)->field.sle_next; \
+        (slistelm)->field.sle_next = next->field.sle_next;  \
+        next->field.sle_next = NULL;                        \
+    } while (/*CONSTCOND*/ 0)
+
+#define QSLIST_REMOVE(head, elm, type, field)                                \
+    do {                                                                     \
+        if ((head)->slh_first == (elm)) {                                    \
+            QSLIST_REMOVE_HEAD((head), field);                               \
+        } else {                                                             \
+            struct type *curelm = (head)->slh_first;                         \
+            while (curelm->field.sle_next != (elm))                          \
+                curelm = curelm->field.sle_next;                             \
+            curelm->field.sle_next = curelm->field.sle_next->field.sle_next; \
+            (elm)->field.sle_next = NULL;                                    \
+        }                                                                    \
     } while (/*CONSTCOND*/ 0)
 
 #define QSLIST_FOREACH(var, head, field) for ((var) = (head)->slh_first; (var); (var) = (var)->field.sle_next)
@@ -279,10 +314,12 @@ extern "C" {
         (listelm)->field.sqe_next = (elm);                               \
     } while (/*CONSTCOND*/ 0)
 
-#define QSIMPLEQ_REMOVE_HEAD(head, field)                                    \
-    do {                                                                     \
-        if (((head)->sqh_first = (head)->sqh_first->field.sqe_next) == NULL) \
-            (head)->sqh_last = &(head)->sqh_first;                           \
+#define QSIMPLEQ_REMOVE_HEAD(head, field)                      \
+    do {                                                       \
+        typeof((head)->sqh_first) elm = (head)->sqh_first;     \
+        if (((head)->sqh_first = elm->field.sqe_next) == NULL) \
+            (head)->sqh_last = &(head)->sqh_first;             \
+        elm->field.sqe_next = NULL;                            \
     } while (/*CONSTCOND*/ 0)
 
 #define QSIMPLEQ_SPLIT_AFTER(head, elm, field, removed)                \
@@ -307,6 +344,7 @@ extern "C" {
                 curelm = curelm->field.sqe_next;                                           \
             if ((curelm->field.sqe_next = curelm->field.sqe_next->field.sqe_next) == NULL) \
                 (head)->sqh_last = &(curelm)->field.sqe_next;                              \
+            (elm)->field.sqe_next = NULL;                                                  \
         }                                                                                  \
     } while (/*CONSTCOND*/ 0)
 
@@ -340,7 +378,7 @@ extern "C" {
 /*
  * Simple queue access methods.
  */
-#define QSIMPLEQ_EMPTY_ATOMIC(head) (atomic_read(&((head)->sqh_first)) == NULL)
+#define QSIMPLEQ_EMPTY_ATOMIC(head) (qatomic_read(&((head)->sqh_first)) == NULL)
 #define QSIMPLEQ_EMPTY(head)        ((head)->sqh_first == NULL)
 #define QSIMPLEQ_FIRST(head)        ((head)->sqh_first)
 #define QSIMPLEQ_NEXT(elm, field)   ((elm)->field.sqe_next)
@@ -424,6 +462,18 @@ typedef struct QTailQLink {
             (head)->tqh_circ.tql_prev = (elm)->field.tqe_circ.tql_prev;                      \
         (elm)->field.tqe_circ.tql_prev->tql_next = (elm)->field.tqe_next;                    \
         (elm)->field.tqe_circ.tql_prev = NULL;                                               \
+        (elm)->field.tqe_circ.tql_next = NULL;                                               \
+        (elm)->field.tqe_next = NULL;                                                        \
+    } while (/*CONSTCOND*/ 0)
+
+/* remove @left, @right and all elements in between from @head */
+#define QTAILQ_REMOVE_SEVERAL(head, left, right, field)                                         \
+    do {                                                                                        \
+        if (((right)->field.tqe_next) != NULL)                                                  \
+            (right)->field.tqe_next->field.tqe_circ.tql_prev = (left)->field.tqe_circ.tql_prev; \
+        else                                                                                    \
+            (head)->tqh_circ.tql_prev = (left)->field.tqe_circ.tql_prev;                        \
+        (left)->field.tqe_circ.tql_prev->tql_next = (right)->field.tqe_next;                    \
     } while (/*CONSTCOND*/ 0)
 
 #define QTAILQ_FOREACH(var, head, field) for ((var) = ((head)->tqh_first); (var); (var) = ((var)->field.tqe_next))
@@ -445,8 +495,8 @@ typedef struct QTailQLink {
 #define QTAILQ_IN_USE(elm, field) ((elm)->field.tqe_circ.tql_prev != NULL)
 
 #define QTAILQ_LINK_PREV(link)  ((link).tql_prev->tql_prev->tql_next)
-#define QTAILQ_LAST(head)       ((__typeof__((head)->tqh_first)) QTAILQ_LINK_PREV((head)->tqh_circ))
-#define QTAILQ_PREV(elm, field) ((__typeof__((elm)->field.tqe_next)) QTAILQ_LINK_PREV((elm)->field.tqe_circ))
+#define QTAILQ_LAST(head)       ((typeof((head)->tqh_first)) QTAILQ_LINK_PREV((head)->tqh_circ))
+#define QTAILQ_PREV(elm, field) ((typeof((elm)->field.tqe_next)) QTAILQ_LINK_PREV((elm)->field.tqe_circ))
 
 #define field_at_offset(base, offset, type) ((type *) (((char *) (base)) + (offset)))
 
@@ -478,8 +528,33 @@ typedef struct QTailQLink {
         QTAILQ_RAW_TQH_CIRC(head)->tql_prev = QTAILQ_RAW_TQE_CIRC(elm, entry);           \
     } while (/*CONSTCOND*/ 0)
 
-#ifdef __cplusplus
-}
-#endif
+#define QLIST_RAW_FIRST(head) field_at_offset(head, 0, void *)
 
-#endif /* LIBQ_SYS_QUEUE_H */
+#define QLIST_RAW_NEXT(elm, entry) field_at_offset(elm, entry, void *)
+
+#define QLIST_RAW_PREVIOUS(elm, entry) field_at_offset(elm, entry + sizeof(void *), void *)
+
+#define QLIST_RAW_FOREACH(elm, head, entry) \
+    for ((elm) = *QLIST_RAW_FIRST(head); (elm); (elm) = *QLIST_RAW_NEXT(elm, entry))
+
+#define QLIST_RAW_INSERT_AFTER(head, prev, elem, entry)                 \
+    do {                                                                \
+        *QLIST_RAW_NEXT(prev, entry) = elem;                            \
+        *QLIST_RAW_PREVIOUS(elem, entry) = QLIST_RAW_NEXT(prev, entry); \
+        *QLIST_RAW_NEXT(elem, entry) = NULL;                            \
+    } while (0)
+
+#define QLIST_RAW_INSERT_HEAD(head, elm, entry)                             \
+    do {                                                                    \
+        void *first = *QLIST_RAW_FIRST(head);                               \
+        *QLIST_RAW_FIRST(head) = elm;                                       \
+        *QLIST_RAW_PREVIOUS(elm, entry) = QLIST_RAW_FIRST(head);            \
+        if (first) {                                                        \
+            *QLIST_RAW_NEXT(elm, entry) = first;                            \
+            *QLIST_RAW_PREVIOUS(first, entry) = QLIST_RAW_NEXT(elm, entry); \
+        } else {                                                            \
+            *QLIST_RAW_NEXT(elm, entry) = NULL;                             \
+        }                                                                   \
+    } while (0)
+
+#endif /* QEMU_SYS_QUEUE_H */

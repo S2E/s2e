@@ -41,10 +41,10 @@
 #include <utils/madvise.h>
 #include <utils/memalign.h>
 #include <utils/mprotect.h>
-#include <utils/mutex.h>
 #include <utils/osdep.h>
 #include <utils/qtree.h>
 #include <utils/spinlock.h>
+#include <utils/thread.h>
 #include <utils/units.h>
 
 // clang-format off
@@ -66,7 +66,7 @@
 #endif
 
 struct tcg_region_tree {
-    mutex_t lock;
+    QemuMutex lock;
     QTree *tree;
     /* padding to avoid false sharing is computed at run-time */
 };
@@ -78,7 +78,7 @@ struct tcg_region_tree {
  * more code than others.
  */
 struct tcg_region_state {
-    mutex_t lock;
+    QemuMutex lock;
 
     /* fields set at init time */
     void *start_aligned;
@@ -197,7 +197,7 @@ static void tcg_region_trees_init(void) {
     for (i = 0; i < region.n; i++) {
         struct tcg_region_tree *rt = region_trees + i * tree_size;
 
-        mutex_init(&rt->lock);
+        qemu_mutex_init(&rt->lock);
         rt->tree = q_tree_new_full(tb_tc_cmp, NULL, NULL, tb_destroy);
     }
 }
@@ -234,18 +234,18 @@ void tcg_tb_insert(TranslationBlock *tb) {
     struct tcg_region_tree *rt = tc_ptr_to_region_tree(tb->tc.ptr);
 
     g_assert(rt != NULL);
-    mutex_lock(&rt->lock);
+    qemu_mutex_lock(&rt->lock);
     q_tree_insert(rt->tree, &tb->tc, tb);
-    mutex_unlock(&rt->lock);
+    qemu_mutex_unlock(&rt->lock);
 }
 
 void tcg_tb_remove(TranslationBlock *tb) {
     struct tcg_region_tree *rt = tc_ptr_to_region_tree(tb->tc.ptr);
 
     g_assert(rt != NULL);
-    mutex_lock(&rt->lock);
+    qemu_mutex_lock(&rt->lock);
     q_tree_remove(rt->tree, &tb->tc);
-    mutex_unlock(&rt->lock);
+    qemu_mutex_unlock(&rt->lock);
 }
 
 /*
@@ -262,9 +262,9 @@ TranslationBlock *tcg_tb_lookup(uintptr_t tc_ptr) {
         return NULL;
     }
 
-    mutex_lock(&rt->lock);
+    qemu_mutex_lock(&rt->lock);
     tb = q_tree_lookup(rt->tree, &s);
-    mutex_unlock(&rt->lock);
+    qemu_mutex_unlock(&rt->lock);
     return tb;
 }
 
@@ -274,7 +274,7 @@ static void tcg_region_tree_lock_all(void) {
     for (i = 0; i < region.n; i++) {
         struct tcg_region_tree *rt = region_trees + i * tree_size;
 
-        mutex_lock(&rt->lock);
+        qemu_mutex_lock(&rt->lock);
     }
 }
 
@@ -284,7 +284,7 @@ static void tcg_region_tree_unlock_all(void) {
     for (i = 0; i < region.n; i++) {
         struct tcg_region_tree *rt = region_trees + i * tree_size;
 
-        mutex_unlock(&rt->lock);
+        qemu_mutex_unlock(&rt->lock);
     }
 }
 
@@ -375,12 +375,12 @@ bool tcg_region_alloc(TCGContext *s) {
     /* read the region size now; alloc__locked will overwrite it on success */
     size_t size_full = s->code_gen_buffer_size;
 
-    mutex_lock(&region.lock);
+    qemu_mutex_lock(&region.lock);
     err = tcg_region_alloc__locked(s);
     if (!err) {
         region.agg_size_full += size_full - TCG_HIGHWATER;
     }
-    mutex_unlock(&region.lock);
+    qemu_mutex_unlock(&region.lock);
     return err;
 }
 
@@ -394,9 +394,9 @@ static void tcg_region_initial_alloc__locked(TCGContext *s) {
 }
 
 void tcg_region_initial_alloc(TCGContext *s) {
-    mutex_lock(&region.lock);
+    qemu_mutex_lock(&region.lock);
     tcg_region_initial_alloc__locked(s);
-    mutex_unlock(&region.lock);
+    qemu_mutex_unlock(&region.lock);
 }
 
 /* Call from a safe-work context */
@@ -404,7 +404,7 @@ void tcg_region_reset_all(void) {
     unsigned int n_ctxs = qatomic_read(&tcg_cur_ctxs);
     unsigned int i;
 
-    mutex_lock(&region.lock);
+    qemu_mutex_lock(&region.lock);
     region.current = 0;
     region.agg_size_full = 0;
 
@@ -412,7 +412,7 @@ void tcg_region_reset_all(void) {
         TCGContext *s = qatomic_read(&tcg_ctxs[i]);
         tcg_region_initial_alloc__locked(s);
     }
-    mutex_unlock(&region.lock);
+    qemu_mutex_unlock(&region.lock);
 
     tcg_region_tree_reset_all();
 }
@@ -544,7 +544,8 @@ static int alloc_code_gen_buffer_anon(size_t size, int prot, int flags, Error **
 }
 
 #ifndef CONFIG_TCG_INTERPRETER
-#ifdef CONFIG_POSIX
+/* S2E: upstream keys this on CONFIG_POSIX; qemu/memfd.h is not vendored. */
+#ifdef HAVE_QEMU_MEMFD
 #include "qemu/memfd.h"
 
 static int alloc_code_gen_buffer_splitwx_memfd(size_t size, Error **errp) {
@@ -579,7 +580,7 @@ fail:
     }
     return -1;
 }
-#endif /* CONFIG_POSIX */
+#endif /* HAVE_QEMU_MEMFD */
 
 #ifdef CONFIG_DARWIN
 #include <mach/mach.h>
@@ -628,7 +629,7 @@ static int alloc_code_gen_buffer_splitwx(size_t size, Error **errp) {
 #ifdef CONFIG_DARWIN
     return alloc_code_gen_buffer_splitwx_vmremap(size, errp);
 #endif
-#ifdef CONFIG_POSIX
+#ifdef HAVE_QEMU_MEMFD
     return alloc_code_gen_buffer_splitwx_memfd(size, errp);
 #endif
 #endif
@@ -754,7 +755,7 @@ void tcg_region_init(size_t tb_size, int splitwx, unsigned max_threads) {
     region.after_prologue = region.start_aligned;
 
     /* init the region struct */
-    mutex_init(&region.lock);
+    qemu_mutex_init(&region.lock);
 
     /*
      * Set guard pages in the rw buffer, as that's the one into which
@@ -783,7 +784,8 @@ void tcg_region_init(size_t tb_size, int splitwx, unsigned max_threads) {
 #ifdef CONFIG_POSIX
                 rc = mprotect(start, end - start, need_prot);
                 if (rc) {
-                    error_report("mprotect of jit buffer: %s", strerror(errno));
+                    /* S2E: error_report is not vendored. */
+                    fprintf(stderr, "mprotect of jit buffer: %s\n", strerror(errno));
                 }
 #else
                 g_assert_not_reached();
@@ -834,7 +836,7 @@ size_t tcg_code_size(void) {
     unsigned int i;
     size_t total;
 
-    mutex_lock(&region.lock);
+    qemu_mutex_lock(&region.lock);
     total = region.agg_size_full;
     for (i = 0; i < n_ctxs; i++) {
         const TCGContext *s = qatomic_read(&tcg_ctxs[i]);
@@ -844,7 +846,7 @@ size_t tcg_code_size(void) {
         g_assert(size <= s->code_gen_buffer_size);
         total += size;
     }
-    mutex_unlock(&region.lock);
+    qemu_mutex_unlock(&region.lock);
     return total;
 }
 
