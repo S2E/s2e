@@ -37,6 +37,25 @@
 #define CONFIG_MADVISE        1
 #define CONFIG_POSIX_MEMALIGN 1
 
+// pthread_condattr_setclock is plain POSIX; glibc always provides it.
+#define CONFIG_PTHREAD_CONDATTR_SETCLOCK 1
+
+// GNU extensions, in glibc since 2.12. glibc only declares them under
+// _GNU_SOURCE, which libutils/src/CMakeLists.txt defines as upstream meson does.
+#define CONFIG_PTHREAD_SETNAME_NP_W_TID 1
+#define CONFIG_PTHREAD_GETNAME_NP       1
+#define CONFIG_PTHREAD_AFFINITY_NP      1
+
+// malloc_trim is glibc; rcu.c uses it to return freed memory to the OS.
+#define CONFIG_MALLOC_TRIM 1
+
+// Upstream sets these from meson's host_os; every supported host is POSIX.
+// utils/futex.h keys HAVE_FUTEX on CONFIG_LINUX.
+#define CONFIG_POSIX 1
+#ifdef __linux__
+#define CONFIG_LINUX 1
+#endif
+
 // Upstream only enables AVX2 when cpuid.h is usable; keep that dependency.
 #ifdef CONFIG_CPUID_H
 #define CONFIG_AVX2_OPT 1

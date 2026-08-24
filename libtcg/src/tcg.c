@@ -44,7 +44,6 @@
 #include <utils/cacheflush.h>
 #include <utils/cacheinfo.h>
 #include <utils/cutils.h>
-#include <utils/mutex.h>
 #include <utils/osdep.h>
 
 #include <utils/host/x86_64/cpuinfo.h>

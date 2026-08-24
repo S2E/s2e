@@ -69,8 +69,10 @@ ones. Take the same route libtcg took, so that the second upgrade (11.1 to
 2. Rewrite its includes to libcpu/libtcg paths and add `extern "C"` guards.
 3. Record the pairing in `libcpu/scripts/upgrade/mapping.tsv`, with `BASELINE` =
    `v11.1.0`.
-4. Confirm normalization by merging the tag onto itself:
-   `./merge.sh libcpu v11.1.0 v11.1.0` must report zero conflicts.
+4. Check that every mapping row resolves by merging the tag onto itself:
+   `./merge.sh libcpu v11.1.0 v11.1.0`. A same-tag run cannot conflict (base
+   and theirs are identical), so it validates the mapping and the normalize
+   pipeline, not the S2E deviations.
 
 `scripts/upgrade/{normalize.sh,merge.sh}` at the S2E source root already do
 steps 1 and 4 for any component that carries `scripts/upgrade/mapping.tsv`, so
@@ -291,8 +293,9 @@ Do not reintroduce command-line copies in libtcg or libcpu.
 The upgrade tooling followed the files: the shared driver now lives in
 `scripts/upgrade/` at the source root, and libutils has its own
 `scripts/upgrade/{BASELINE,mapping.tsv}` holding the 28 rows that moved out of
-libtcg's mapping. Both components report zero conflicts under
-`merge.sh <component> v11.1.0 v11.1.0`.
+libtcg's mapping. Both components' mappings resolve under
+`merge.sh <component> v11.1.0 v11.1.0` (a same-tag run cannot conflict; it
+checks mapping resolution and normalization only).
 
 ### 4.2 What 11.1 needs that we do not have
 
@@ -367,6 +370,14 @@ codebase.
 - Import qht, rcu, thread, xxhash, seqlock into **libutils** per section 4.2; add
   them to libutils' new `mapping.tsv`. Fold libtcg's `utils/mutex.h` into the
   real thread header.
+  Done: 18 files imported (with their closure: futex, processor, lockable,
+  notify, sys_membarrier, coroutine-tls, event, qemu-thread-common), 19 rows
+  added to the mapping, qdist compiled out of qht, the BQL pruned out of rcu.c,
+  and `qqueue.h` replaced by the full upstream `qemu/queue.h` (with
+  `utils/compiler.h` mapping `typeof` for C++). `utils/mutex.h` is gone;
+  `region.c` uses `QemuMutex`. `merge.sh libutils v11.1.0 v11.1.0` still
+  resolves every row; a same-tag run cannot conflict, so the pruned sections
+  get their first real merge test at the next upgrade.
 - Write `libcpu/include/cpu/state.h`: slim `CPUState`, `CPUNegativeOffsetState`,
   `ArchCPU`, `cpu_env()` / `env_cpu()`, and the `TCGCPUOps` pointer that replaces
   `cpu->cc`.
