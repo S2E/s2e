@@ -148,8 +148,27 @@ fixing them afterwards.
   plugin write to guest memory of a *suspended* state
   (`S2EExecutionStateMemory::write()` has no `m_active` guard) lands here too.
   `addressSpaceSymbolicStatusChange()` and `addressSpaceObjectSplit()` are two
-  more unguarded entry points into `updateTlb()`. Decide the intended
-  behavior now and document it; step 4 makes all of them an early return.
+  more unguarded entry points into `updateTlb()`.
+
+  Decision: each entry point does two kinds of work, and they split along
+  the active/inactive line. Invalidating the per-state `AddressSpaceCache`
+  (directly, or through `notifySplit()`) must run on every state, because a
+  suspended state whose object was replaced would otherwise hand back the
+  stale one when it next runs. The TLB update is only meaningful for the
+  active state, but today it must run on inactive states too: the snapshot
+  buffer holds object pointers that a copy-on-write in a suspended state has
+  to repoint, or the restored TLB dangles. So step 1 changes nothing on the
+  TLB path and step 4 adds the guard inside `updateTlb()` / `updateRamTlb()`,
+  below the cache invalidation, where it covers all three callers.
+  `S2EExecutionStateMemory::write()` stays unguarded: writing to a suspended
+  state is legitimate, and the notifications are the bookkeeping it needs.
+
+  One part is a bug already: `addressSpaceSymbolicStatusChange()` calls
+  `updateConcreteFastPath()`, which writes globals describing the *active*
+  state (the fast-path flag, `generate_llvm`, the clock scaling), for
+  whichever state changed. A plugin that makes a suspended state's registers
+  symbolic clobbers the active state's flags until the next switch. Guard
+  that call with `m_active` in step 1; it is independent of the TLB.
 
 ### Step 2: Introduce `ArchCPU`, no ownership change (2-3 days)
 
@@ -202,9 +221,12 @@ This step changes behavior; the earlier ones do not.
   always against the *active* state), `clearRamTlb()`, and an explicit
   `m_tlbMap.clear()` on the *outgoing* state, which the hook does not touch.
   Ordering matters, because `tlb_flush()` returns early while the guard is set.
-- `addressSpaceChangeUpdateTlb()`: early-return when the state is not active.
-  Sound, because an inactive state has no TLB; it gets one when it is
-  activated.
+- `updateTlb()` and `updateRamTlb()`: when the state is not active, check
+  that `m_tlbMap` is empty and return. Sound, because an inactive state has
+  no TLB; it gets one when it is activated. The guard sits below the
+  `AddressSpaceCache` invalidation in the three entry points (step 1
+  decision), and `S2EExecutionStateTlb` receives the `m_active` pointer the
+  way `S2EExecutionStateMemory` does.
 - `getCpuCaches()`: drop the per-state buffer branch. It aborts when the state
   is not active and otherwise returns the global region, so every TLB method
   enforces I3 through the one accessor step 1 routed them through.
