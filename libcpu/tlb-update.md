@@ -120,8 +120,7 @@ behavior.
 
 ### Step 0: Baseline and harness (half a day)
 
-- Record testsuite results, and two numbers to compare against later:
-  `doStateSwitch()` wall time, and resident memory at a fixed state count.
+- Record testsuite results.
 - Promote `audit()` from the `S2E_DEBUG_TLBCACHE` compile-time switch to a
   runtime flag (`--tlb-audit`) so it can be turned on for a whole suite run.
 
@@ -211,9 +210,7 @@ This step changes behavior; the earlier ones do not.
   hoisting it to the executor and gives the same guarantee; hoist later if it
   reads better.
 
-Exit: testsuite green; the two step-0 numbers re-measured. Expect
-`doStateSwitch()` to get *faster* (the memcpy drops by ~216 KB) and per-state
-memory to drop by the same amount.
+Exit: testsuite green.
 
 ### Step 5: Test the assumption directly (1 day)
 
