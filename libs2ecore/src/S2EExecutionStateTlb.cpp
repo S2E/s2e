@@ -156,7 +156,7 @@ void S2EExecutionStateTlb::updateTlb(const klee::ObjectStateConstPtr &oldState, 
                 }
             }
 
-            updateTlbEntryConcreteStatus(cpu, coords.first, coords.second, newState);
+            updateTlbEntryConcreteStatus(coords.first, coords.second, newState);
         }
 
         m_tlbMap[newState] = vec;
@@ -227,8 +227,9 @@ void S2EExecutionStateTlb::flushTlbCachePage(const klee::ObjectStatePtr &objectS
  * If a page contains at least one byte of symbolic data, it will go through
  * the slow path. Otherwise, softmmu will directly access the concrete array.
  */
-void S2EExecutionStateTlb::updateTlbEntryConcreteStatus(struct CPUState *cpu, unsigned mmu_idx, unsigned index,
+void S2EExecutionStateTlb::updateTlbEntryConcreteStatus(unsigned mmu_idx, unsigned index,
                                                         const klee::ObjectStateConstPtr &state) {
+    CPUState *cpu = m_registers->getCpuCaches();
     CPUTLBEntry *te = &cpu->neg.tlb.f[mmu_idx].table[index];
 
     if (!state->isAllConcrete()) {
@@ -270,13 +271,13 @@ void S2EExecutionStateTlb::clearTlbOwnership() {
     }
 }
 
-void S2EExecutionStateTlb::updateTlbEntry(CPUX86State *env, int mmu_idx, uint64_t virtAddr, uint64_t hostAddr) {
+void S2EExecutionStateTlb::updateTlbEntry(int mmu_idx, uint64_t virtAddr, uint64_t hostAddr) {
     assert((hostAddr & ~TARGET_PAGE_MASK) == 0);
     assert((virtAddr & ~TARGET_PAGE_MASK) == 0);
 
     unsigned int index = (virtAddr >> SE_RAM_OBJECT_BITS) & (CPU_TLB_SIZE - 1);
 
-    CPUTLBEntry *entry = &env_cpu(env)->neg.tlb.f[mmu_idx].table[index];
+    CPUTLBEntry *entry = &m_registers->getCpuCaches()->neg.tlb.f[mmu_idx].table[index];
     ObjectState *oldObjectState = static_cast<ObjectState *>(entry->objectState);
 
     /* Retrieve the object state using the host address */
@@ -319,7 +320,7 @@ void S2EExecutionStateTlb::updateTlbEntry(CPUX86State *env, int mmu_idx, uint64_
         }
     }
 
-    updateTlbEntryConcreteStatus(env_cpu(env), mmu_idx, index, newObjectState);
+    updateTlbEntryConcreteStatus(mmu_idx, index, newObjectState);
 
     if (TlbAudit && !audit()) {
         pabort("TLB cache audit failed");

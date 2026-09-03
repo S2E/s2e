@@ -31,10 +31,6 @@
 #include "AddressSpaceCache.h"
 #include "S2EExecutionStateRegisters.h"
 
-extern "C" {
-struct CPUX86State;
-}
-
 namespace s2e {
 
 class S2EExecutionStateTlb {
@@ -53,6 +49,8 @@ private:
 #if defined(SE_ENABLE_PHYSRAM_TLB)
     void updateRamTlb(const klee::ObjectStateConstPtr &oldState, const klee::ObjectStatePtr &newState);
 #endif
+
+    void updateTlbEntryConcreteStatus(unsigned mmu_idx, unsigned index, const klee::ObjectStateConstPtr &state);
 
 public:
     S2EExecutionStateTlb(AddressSpaceCache *ascache, S2EExecutionStateRegisters *regs)
@@ -73,16 +71,13 @@ public:
 
     void flushTlbCachePage(const klee::ObjectStatePtr &objectState, int mmu_idx, int index);
 
-    void updateTlbEntryConcreteStatus(struct CPUState *cpu, unsigned mmu_idx, unsigned index,
-                                      const klee::ObjectStateConstPtr &state);
-
 #if defined(SE_ENABLE_PHYSRAM_TLB)
     void clearRamTlb();
 #endif
 
     void clearTlbOwnership();
 
-    void updateTlbEntry(struct CPUX86State *env, int mmu_idx, uint64_t virtAddr, uint64_t hostAddr);
+    void updateTlbEntry(int mmu_idx, uint64_t virtAddr, uint64_t hostAddr);
 
     bool audit();
 };

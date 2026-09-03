@@ -1786,7 +1786,12 @@ void se_flush_tlb_cache_page(void *objectState, int mmu_idx, int index) {
 /** Tlb cache helpers */
 void s2e_update_tlb_entry(CPUX86State *env, int mmu_idx, uint64_t virtAddr, uint64_t hostAddr) {
 #if defined(SE_ENABLE_TLB) && defined(CONFIG_SYMBEX_MP)
-    g_s2e_state->getTlb()->updateTlbEntry(env, mmu_idx, virtAddr, hostAddr);
+    // libcpu fills TLB entries only for the CPU it is executing, which must be
+    // the active state's. The TLB code itself never takes a CPU pointer.
+    if (env_cpu(env) != g_s2e_state->regs()->getCpuCaches()) {
+        pabort("TLB entry update for a CPU that is not the active state's");
+    }
+    g_s2e_state->getTlb()->updateTlbEntry(mmu_idx, virtAddr, hostAddr);
 #endif
 }
 
