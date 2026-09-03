@@ -518,9 +518,13 @@ bool S2EExecutionState::merge(const ExecutionState &_b) {
         return false;
     }
 
-    // Merge dirty mask by clearing bits that differ. Clearning bits in
-    // dirty mask can only affect performance but not correcntess.
-    // NOTE: this requires flushing TLB
+    // Merge the dirty masks by clearing the bits that differ. A cleared bit
+    // sends the next write to that page through the slow path, which costs
+    // performance but never correctness. TLB entries cache the bit as
+    // TLB_NOTDIRTY, so a TLB filled from the old mask would be stale. This
+    // state is inactive here and has no TLB: doStateSwitch() flushes the
+    // TLB when the state is activated again, and every entry filled after
+    // that reads the merged mask.
     {
         auto &dirtyMask = S2EExecutionStateMemory::getDirtyMask();
         auto os = addressSpace().findObject(dirtyMask.address);
