@@ -46,16 +46,23 @@ Examples:
 - `libcpu: removed unused ymm fields`
 - `libs2ecore: allow any sizes for read/writes from/to concrete regions`
 
-
-## Writing style
-
-- No em dashes. Use commas, parentheses, or a new sentence.
-  Do not simply replace em dashes with semicolons.
-- Banned phrases: "load-bearing", "worth stating plainly", "full stop",
-  "carry the argument", "the trap", "isn't just X — it's Y".
+## Comments and Documentation
+- Write accurate and concise comments. Conciseness does not mean loss of important information and should not make readability worse.
+- Comments are accurate first. Verify every claim a comment makes against the code it describes. A comment that promises behavior ("retried later", "cannot happen") must name the mechanism, and the mechanism must exist. Re-derive constants that carry units in their comment (a timeout "in seconds" computed in the wrong unit is a live bug the comment helps find).
+- When shortening or rewording a comment, every fact in the old text is either kept or consciously discarded as wrong.
+- Do not use "we" in comments. Be specific (e.g., the driver, the caller, etc.).
+- Do not overuse semicolons or em-dashes.
+- Use doxygen-style comments where appropriate (`///`, `@param`, `@return`). Use proper markers for parameters, etc. Every file starts (after the license header) with a `/// @file` block saying what the module does.
+- Comments should be easy to read and sound natural.
+- Do not use passive voice when the subject would actually convey additional information.
+- In a multi-line comment, do not leave one or two words alone on the last line.
+- Do not overuse the word "classic" (e.g., classic cause), "load bearing", "bearing", "seam", "wedged", "latch", "worth stating plainly", "full stop", "carry the argument", "the trap", "isn't just X — it's Y". and other LLMisms.
+- Do not use adjectives and other words that bring no value (e.g., honest).
+- Minimize jargon and uncommon words. Non-experts should be able to read and understand everything reasonably well.
+- When introducing a new term or abbreviation for the first time, define it, especially if it is driver-specific. Common knowledge does not need to be defined (e.g., any standard driver terminology).
+- Use plain English in comments and documentation. Do not coin aphorisms or metaphor slogans. A documentation heading must state its point plainly and be understandable before reading the body.
 - No punchy fragments for drama. Write complete sentences.
-- Do not build to a turn of phrase. State the claim directly.
-- Technical documentation, not marketing copy.
-- Comments explain why, in one line. No paragraph-length comments.
-- Write no documentation unless explicitly asked.
+- You are writing technical documentation, not marketing material.
+- Some comments are functional and must keep their exact form: formatter on/off markers, and similar tool-consumed comments. Never restyle them.
+- Comments justify designs on technical grounds. They do not narrate history, compare against previous implementations, reference external documentation, or paraphrase the code.
 - Use American English.
