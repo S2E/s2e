@@ -45,6 +45,7 @@ private:
     TlbMap m_tlbMap;
     AddressSpaceCache *m_asCache;
     S2EExecutionStateRegisters *m_registers;
+    const bool *m_active;
 
 #if defined(SE_ENABLE_PHYSRAM_TLB)
     void updateRamTlb(const klee::ObjectStateConstPtr &oldState, const klee::ObjectStatePtr &newState);
@@ -53,13 +54,20 @@ private:
     void updateTlbEntryConcreteStatus(unsigned mmu_idx, unsigned index, const klee::ObjectStateConstPtr &state);
 
 public:
-    S2EExecutionStateTlb(AddressSpaceCache *ascache, S2EExecutionStateRegisters *regs)
-        : m_asCache(ascache), m_registers(regs) {
+    S2EExecutionStateTlb(AddressSpaceCache *ascache, S2EExecutionStateRegisters *regs, const bool *active)
+        : m_asCache(ascache), m_registers(regs), m_active(active) {
     }
 
-    void assignNewState(AddressSpaceCache *ascache, S2EExecutionStateRegisters *regs) {
+    void assignNewState(AddressSpaceCache *ascache, S2EExecutionStateRegisters *regs, const bool *active) {
         m_asCache = ascache;
         m_registers = regs;
+        m_active = active;
+    }
+
+    /// True when no TLB entry refers to any object state. This must hold
+    /// whenever the state is inactive, since only the active state has a TLB.
+    bool isEmpty() const {
+        return m_tlbMap.empty();
     }
 
     /* Change all entries that refer to oldState to newState */

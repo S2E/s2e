@@ -78,7 +78,7 @@ S2EExecutionState::S2EExecutionState(klee::KFunction *kf)
       m_active(true), m_zombie(false), m_yielded(false), m_runningConcrete(true), m_pinned(false),
       m_isStateSwitchForbidden(false), m_asCache(&addressSpace()),
       m_registers(&m_active, &m_runningConcrete, this, this), m_memory(), m_lastS2ETb(nullptr),
-      m_needFinalizeTBExec(false), m_forkAborted(false), m_nextSymbVarId(0), m_tlb(&m_asCache, &m_registers),
+      m_needFinalizeTBExec(false), m_forkAborted(false), m_nextSymbVarId(0), m_tlb(&m_asCache, &m_registers, &m_active),
       m_runningExceptionEmulationCode(false) {
     m_guid = m_stateID;
 }
@@ -128,7 +128,7 @@ ExecutionStatePtr S2EExecutionState::clone() {
     ret->m_stateID = g_s2e->fetchAndIncrementStateId();
     ret->m_guid = ret->m_stateID;
 
-    ret->m_tlb.assignNewState(&ret->m_asCache, &ret->m_registers);
+    ret->m_tlb.assignNewState(&ret->m_asCache, &ret->m_registers, &ret->m_active);
     ret->m_registers.update(ret->addressSpace(), &ret->m_active, &ret->m_runningConcrete, ret, ret);
     ret->m_asCache.update(&ret->addressSpace());
     m_registers.update(addressSpace(), &m_active, &m_runningConcrete, this, this);

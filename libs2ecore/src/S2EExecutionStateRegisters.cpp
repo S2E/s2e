@@ -68,11 +68,9 @@ void S2EExecutionStateRegisters::update(klee::AddressSpace &addressSpace, const 
                                         klee::IConcretizer *concretizer) {
     auto concreteState = addressSpace.findObject(s_concreteRegs.address);
     auto symbolicState = addressSpace.findObject(s_symbolicRegs.address);
-    auto cachesState = addressSpace.findObject(s_cpuCaches.address);
 
     m_symbolicRegs = addressSpace.getWriteable(symbolicState);
     m_concreteRegs = addressSpace.getWriteable(concreteState);
-    m_cpuCaches = addressSpace.getWriteable(cachesState);
 
     if (active && running_concrete) {
         m_runningConcrete = running_concrete;
@@ -107,7 +105,10 @@ CPUX86State *S2EExecutionStateRegisters::getCpuState() const {
 }
 
 CPUState *S2EExecutionStateRegisters::getCpuCaches() const {
-    return *m_active ? (CPUState *) s_cpuCaches.address : (CPUState *) m_cpuCaches->getConcreteBuffer(true);
+    if (!*m_active) {
+        pabort("CPU caches accessed from an inactive state");
+    }
+    return (CPUState *) s_cpuCaches.address;
 }
 
 bool S2EExecutionStateRegisters::addressSpaceChange(const klee::ObjectKey &key,
@@ -126,7 +127,9 @@ bool S2EExecutionStateRegisters::addressSpaceChange(const klee::ObjectKey &key,
         assert(newState);
         return true;
     } else if (key == s_cpuCaches) {
-        m_cpuCaches = newState;
+        // The caches are never snapshotted, so there is no per-state
+        // reference to patch. The object is only reported as handled
+        // so that the TLB code does not see it.
         assert(newState);
         return true;
     } else {

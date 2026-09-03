@@ -761,6 +761,15 @@ void S2EExecutor::doStateSwitch(S2EExecutionStatePtr oldState, S2EExecutionState
 
         oldState->m_timersState = timers_state;
 
+#if defined(SE_ENABLE_PHYSRAM_TLB)
+        // The RAM TLB is not snapshotted. It is cleared here, while the
+        // state is still active, so that no state ever sees another state's
+        // entries: the device restore of the incoming state writes guest
+        // memory through it (cpu_host_memory_rw), and an inactive state
+        // cannot repopulate it since getCpuCaches() aborts.
+        oldState->getTlb()->clearRamTlb();
+#endif
+
         oldState->m_registers.saveConcreteState();
         oldState->m_active = false;
     }
@@ -805,6 +814,27 @@ void S2EExecutor::doStateSwitch(S2EExecutionStatePtr oldState, S2EExecutionState
     assert(env->current_tb == nullptr);
 
     g_se_disable_tlb_flush = 0;
+
+    // The CPU caches (TLB, RAM TLB, TB jump cache) are not part of the
+    // snapshotted state: only the active state has a TLB, and it starts
+    // empty. The RAM TLB was cleared at deactivation. The flush must come
+    // after the guard above is cleared, because tlb_flush() returns early
+    // while it is set.
+    if (oldState) {
+        // The outgoing state's entries are still in the global TLB; the map
+        // that tracks them goes away with them.
+        oldState->getTlb()->flushTlbCache();
+    }
+
+    if (newState) {
+        if (!newState->getTlb()->isEmpty()) {
+            pabort("Activated state has a non-empty TLB cache map");
+        }
+
+        // Clears the TLB and the TB jump cache, and in multi-path mode
+        // empties the active state's map, which is newState here.
+        tlb_flush(env, 1);
+    }
 
     // m_s2e->getCorePlugin()->onStateSwitch.emit(oldState, newState);
 }
