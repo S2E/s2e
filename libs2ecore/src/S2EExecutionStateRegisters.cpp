@@ -364,10 +364,21 @@ bool S2EExecutionStateRegisters::getRegionType(unsigned offset, unsigned size, b
     }
 }
 
-/**
- * The architectural part of the concrete portion of CPUState contains the COMMON stuff.
- * We skip this stuff in the comparison.
- */
+/// Compares the concrete registers of two states, skipping the execution
+/// fields that are not architectural state.
+///
+/// The concrete region of CPUX86State holds, between the se_common_start
+/// and se_common_end markers, the fields that CPU_COMMON leaves in the
+/// structure: the current TB, the softmmu IO context, the breakpoint and
+/// watchpoint lists, jmp_env, the code generator's temporary buffer and
+/// the opaque pointer. Two states that agree on every register can differ
+/// there without being different for the guest, so this function compares
+/// the two ranges on either side of the markers. The CPU caches live in
+/// CPUState and are not compared at all: only the active state has them.
+///
+/// @param other the state to compare against
+/// @return zero when the architectural registers are identical, and the
+///         result of memcmp() on the first differing range otherwise
 int S2EExecutionStateRegisters::compareArchitecturalConcreteState(const S2EExecutionStateRegisters &other) {
     CPUX86State *a = getCpuState();
     CPUX86State *b = other.getCpuState();
