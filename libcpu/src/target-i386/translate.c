@@ -7714,7 +7714,8 @@ static inline void gen_tb_start(TranslationBlock *tb) {
 
         tcg_ctx->exitreq_label = gen_new_label();
         exit_request = tcg_temp_new_i32();
-        tcg_gen_ld_i32(exit_request, tcg_env, offsetof(CPUArchState, exit_request));
+        tcg_gen_ld_i32(exit_request, tcg_env,
+                       (int) offsetof(ArchCPU, parent_obj.exit_request) - (int) offsetof(ArchCPU, env));
 
         tcg_gen_brcondi_i32(TCG_COND_NE, exit_request, 0, tcg_ctx->exitreq_label);
     }
@@ -7757,7 +7758,7 @@ static inline void gen_intermediate_code_internal(CPUX86State *env, TranslationB
     dc->cpl = (flags >> HF_CPL_SHIFT) & 3;
     dc->iopl = (flags >> IOPL_SHIFT) & 3;
     dc->tf = (flags >> TF_SHIFT) & 1;
-    dc->singlestep_enabled = env->singlestep_enabled;
+    dc->singlestep_enabled = env_cpu(env)->singlestep_enabled;
     dc->cc_op = CC_OP_DYNAMIC;
     dc->cs_base = cs_base;
     dc->tb = tb;
@@ -7779,7 +7780,7 @@ static inline void gen_intermediate_code_internal(CPUX86State *env, TranslationB
     dc->code64 = (flags >> HF_CS64_SHIFT) & 1;
 #endif
     dc->flags = flags;
-    dc->jmp_opt = !(dc->tf || env->singlestep_enabled || (flags & HF_INHIBIT_IRQ_MASK)
+    dc->jmp_opt = !(dc->tf || env_cpu(env)->singlestep_enabled || (flags & HF_INHIBIT_IRQ_MASK)
 #ifndef CONFIG_SOFTMMU
                     || (flags & HF_SOFTMMU_MASK)
 #endif
@@ -7822,7 +7823,8 @@ static inline void gen_intermediate_code_internal(CPUX86State *env, TranslationB
    temporary one in case we regenerate LLVM bitcode */
 #ifndef STATIC_TRANSLATOR
     tcg_gen_movi_i64(cpu_tmp1_i64, (uint64_t) tb);
-    tcg_gen_st_i64(cpu_tmp1_i64, tcg_env, offsetof(CPUArchState, se_current_tb));
+    tcg_gen_st_i64(cpu_tmp1_i64, tcg_env,
+                   (int) offsetof(ArchCPU, parent_obj.se_current_tb) - (int) offsetof(ArchCPU, env));
 
     if (unlikely(*g_sqi.events.on_translate_block_start_signals_count && dc->instrument)) {
         g_sqi.events.on_translate_block_start(dc, tb, pc_start);
@@ -7831,8 +7833,8 @@ static inline void gen_intermediate_code_internal(CPUX86State *env, TranslationB
 #endif
 
     for (;;) {
-        if (unlikely(!QTAILQ_EMPTY(&env->breakpoints))) {
-            QTAILQ_FOREACH (bp, &env->breakpoints, entry) {
+        if (unlikely(!QTAILQ_EMPTY(&env_cpu(env)->breakpoints))) {
+            QTAILQ_FOREACH (bp, &env_cpu(env)->breakpoints, entry) {
                 if (bp->pc == pc_ptr && !((bp->flags & BP_CPU) && (tb->flags & HF_RF_MASK))) {
                     gen_debug(dc, pc_ptr - dc->cs_base);
                     break;
@@ -7884,7 +7886,8 @@ static inline void gen_intermediate_code_internal(CPUX86State *env, TranslationB
         /* if irq were inhibited with HF_INHIBIT_IRQ_MASK, we clear
            the flag and abort the translation to give the irqs a
            change to be happen */
-        if (dc->tf || dc->singlestep_enabled || (flags & HF_INHIBIT_IRQ_MASK) || env->translate_single_instruction) {
+        if (dc->tf || dc->singlestep_enabled || (flags & HF_INHIBIT_IRQ_MASK) ||
+            env_cpu(env)->translate_single_instruction) {
             gen_jmp_im(dc, pc_ptr - dc->cs_base);
 #ifdef CONFIG_SYMBEX
             gen_eob_event(dc, 1, pc_ptr - dc->cs_base);

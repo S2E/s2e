@@ -5,7 +5,11 @@ the gap is too wide to merge: it gets rebuilt from upstream instead. This
 document is the plan for doing that **concrete execution first**, keeping S2E's
 KVM-shim architecture and leaving symbolic execution to land on top afterwards.
 
-Measured against `~/qemu` at `v11.1.0` and this tree at `9982579d`.
+Measured against `~/softs/qemu` at `v11.1.0` and this tree at `9982579d`. Work that
+has landed since is marked **Done** in the phase it belongs to; the state
+management half of the TLB work (`tlb-update.md`) and the move of the
+execution fields out of `CPUX86State` are in, so phases 1, 2 and 4 are
+lighter than the estimates below.
 
 | | |
 |---|---|
@@ -111,6 +115,11 @@ the negative TLB offsets work unmodified), and replace `cpu->cc` with a direct
 imports as-is.
 
 - Cost: ~200 lines of hand-written header, in `libcpu/include/cpu/state.h`.
+  **Done**: the header exists, with `CPUState` carrying the execution fields
+  (`exception_index`, `interrupt_request`, `halted`, `exit_request`,
+  `jmp_env`, the breakpoint and watchpoint lists, the current TB and the S2E
+  flags) ahead of `CPUNegativeOffsetState`, and `cpu_env()` / `env_cpu()` as
+  pointer arithmetic. `tcg_ops` is declared but unused until phase 2.
 - Buys: accel/tcg and target/i386/tcg compile essentially unmodified.
 - Risk: **low**. Fields are added on demand; a missing one is a compile error,
   not a silent bug.
@@ -170,7 +179,9 @@ Disable the victim TLB initially, and move S2E's flags into
 
 - Cost: mostly deletion. `exec-tlb.c` goes away, and so do ~216 KB of per-state
   cache. The main-TLB `CPU_TLB_SIZE` sites in libs2ecore become run-time mask
-  reads (the `se_ram_tlb` sites keep a pinned size; see 9.2).
+  reads (the `se_ram_tlb` sites keep a pinned size; see 9.2). **Done** for
+  the ownership half: the caches live in `ArchCPU`, are never snapshotted,
+  and are flushed on every state switch (`tlb-update.md`).
 - Buys: smaller per-state memory, faster state switches, and `objectState` gets
   a better home in `CPUTLBEntryFull` than in the fast entry. `cputlb.c` still
   needs one contained deviation (a pinned TLB size, two functions) because
@@ -380,7 +391,13 @@ codebase.
   get their first real merge test at the next upgrade.
 - Write `libcpu/include/cpu/state.h`: slim `CPUState`, `CPUNegativeOffsetState`,
   `ArchCPU`, `cpu_env()` / `env_cpu()`, and the `TCGCPUOps` pointer that replaces
-  `cpu->cc`.
+  `cpu->cc`. Done: `CPU_COMMON` is gone from `CPUX86State`; its fields are in
+  `CPUState`, reached through `env_cpu(env)` in libcpu, libs2e and libs2ecore,
+  and `cpu_common_reset()` clears the ones a CPU reset discards. libs2ecore
+  registers `[&g_cpu, offsetof(CPUState, neg))` as a snapshotted
+  shared-concrete object (`CpuExecutionState`) next to the caches. Generated
+  code reaches `exit_request`, `se_current_tb` and `se_tb_abort` at negative
+  offsets from `tcg_env`, so `TCGContext::env_offset_se_tb_abort` is signed.
 - Write the memory shim: upstream's `iotlb_to_section`,
   `memory_region_dispatch_*`, `qemu_ram_addr_from_host*` and the dirty-tracking
   predicates, expressed over `MemoryDesc` and `exec-ram.h`.
@@ -402,9 +419,9 @@ drives qht insert/lookup/remove/resize.
 - Rewrite the eight `MemoryRegion` touch points in `cputlb.c` against the phase 1
   shim.
 - Apply the TLB decisions from section 9: disable the victim TLB, move S2E's flag
-  bits into `slow_flags[]`, and move `objectState` into `CPUTLBEntryFull`. If
-  `tlb-update.md` has landed first, the ownership half of this is already done
-  and `cputlb.c` imports without S2E-side surprises. Bring
+  bits into `slow_flags[]`, and move `objectState` into `CPUTLBEntryFull`.
+  `tlb-update.md` has landed, so the ownership half of this is done and
+  `cputlb.c` imports without S2E-side surprises. Bring
   `libtcg/include/tcg/tlb.h` forward to the 11.1 flag scheme at the same time. It
   is an S2E-original that was never upgraded and still describes the pre-11.1
   bit allocation.
@@ -457,29 +474,27 @@ off, in both release and debug trees.
 
 ### Phase 4: Wire to the KVM shim and boot (2-3 weeks)
 
-- Update libs2e for fields that moved from `CPUX86State` into `CPUState`:
-  `jmp_env` (~30 sites), `interrupt_request`, `exception_index`, `halted`,
-  `current_tb`, `tlb_table`. Mostly mechanical; `s2e-kvm-vcpu.cpp` and
-  `s2e-kvm-state.cpp` carry most of it.
-- **Extend the per-state snapshot to the non-cache part of `CPUState`.** Today
-  `interrupt_request`, `exception_index`, `halted` and `jmp_env` are saved
-  implicitly because they sit inside the snapshotted `CPUX86State` window; once
-  they move into the slim `CPUState` they land in the `[&g_cpu, &g_cpu.env)`
-  region that `tlb-update.md` registers as shared-concrete and *never
-  snapshots*. They are per-state execution state, not caches, so
-  `saveConcreteState()` / `restoreConcreteState()` (or a separate registered
-  object) must cover them explicitly, or state switches corrupt silently.
+- Done: libs2e, libs2ecore and libcpu already reach the fields that moved
+  from `CPUX86State` into `CPUState` (`jmp_env`, `interrupt_request`,
+  `exception_index`, `halted`, `current_tb`, ...) through `env_cpu()`, and
+  the per-state snapshot covers them: `saveConcreteState()` /
+  `restoreConcreteState()` copy the `CpuExecutionState` object together with
+  the concrete registers, and `doStateSwitch()` carries `jmp_env` across the
+  restore because it belongs to the host call stack doing the switch. What
+  remains here is renaming the S2E-only fields upstream does not have
+  (`current_tb`, `se_current_tb`, `translate_single_instruction`,
+  `se_tb_abort`, `generate_llvm`, `mem_io_vaddr`) onto their 11.1
+  equivalents where one exists (`cflags_next_tb`, `tcg_tb_lookup()`).
 - Map libcpu's exit reasons onto `kvm_run` as before; `cpu_x86_exec()` keeps its
   shape, `cpu_exec()` gains upstream's `cpu_exec_setjmp` structure.
 - Re-derive `cpu_get_pic_interrupt()`, `do_cpu_init()`, `cpu_state_reset()`
   against the new state layout, including `cpu_init_fp_statuses()`, which must
   run after every reset memset.
-- Move the TLB, `se_ram_tlb`, `se_tlb_current` and `tb_jmp_cache` out of the
-  snapshotted concrete region, and flush them in `doStateSwitch()` after the new
-  state is activated
-  and `g_se_disable_tlb_flush` is cleared. Collapse the per-state
-  `S2EExecutionStateTlb` into executor-owned data. (Phase 6 work in spirit, but
-  the struct layout change belongs here.)
+- Done: the TLB, `se_ram_tlb`, `se_tlb_current` and `tb_jmp_cache` are out of
+  the snapshotted region and flushed in `doStateSwitch()` after the new state
+  is activated and `g_se_disable_tlb_flush` is cleared. Still open: collapsing
+  the per-state `S2EExecutionStateTlb` into executor-owned data; today the
+  class stays per state and asserts that an inactive state's map is empty.
 - Rewire libs2e's CPUID plumbing to the new feature model: `S2EKVM::init()`'s
   `x86_cpudef_setup()` + `cpu_x86_register(&m_cpuid, model, is64)` pair becomes
   `x86_cpu_load_model()` +
@@ -792,7 +807,8 @@ difference between ~200 MB and ~1 GB of cache nobody reads across a switch.
 *State switches get faster, not slower.* The `saveConcreteState` /
 `restoreConcreteState` memcpy shrinks from ~216 KB to a few KB.
 
-**What it requires.**
+**What it requires.** All of this has landed except the collapse of
+`S2EExecutionStateTlb` into a single instance; see `tlb-update.md`.
 
 - Flush the TLB, the RAM TLB and `m_tlbMap` on state switch. Placement matters:
   `doStateSwitch()` sets `g_se_disable_tlb_flush = 1` for the duration precisely
@@ -855,12 +871,14 @@ doing only if profiling says the misses matter.
 
 The ownership change above is entangled with S2E's state management rather than
 with QEMU's code, so it is the part of the port least helped by being done in
-the middle of a 43k-line import. It can be landed on the current tree first
+the middle of a 43k-line import. It was landed on the current tree first
 (introduce the `ArchCPU` layout, move the caches out of the registered KLEE
 region entirely, flush at state switch) and validated on its own, on a tree
-that still boots. `tlb-update.md` is that plan; it also shows why upstream's
-dynamic sizing needs a pinned size or a fixed arena rather than an
-allocator hook.
+that still boots. `tlb-update.md` is that plan and records what landed; it
+also shows why upstream's dynamic sizing needs a pinned size or a fixed arena
+rather than an allocator hook. The same argument then carried the rest of
+`CPU_COMMON` into `CPUState` (phase 1), so the snapshot boundary that
+`tlb-update.md` section 1 warned about is settled before the import.
 
 ### 9.6 What still has to be pinned or checked
 
@@ -883,11 +901,11 @@ analysis:
   inheriting upstream's 22-mode maximum.
 - **The `CPUTLBDescFast` index convention** must match between libtcg's
   `tlb_mask_table_ofs()` and upstream's `mmuidx_to_fast_index()`. See section 8.
-- **`env->se_tlb_current`** is a cached `CPUTLBEntry *` inside the snapshotted
-  state, written by the softmmu IO path and read from bitcode. Once the tables
-  are executor-owned it becomes a raw pointer from per-state data into a
-  reallocatable array: move it next to the TLB in `CPUNegativeOffsetState`, or
-  demote it to an index.
+- **`se_tlb_current`** is a cached `CPUTLBEntry *`, written by the softmmu IO
+  path and read from bitcode. It now sits next to the TLB in
+  `CPUNegativeOffsetState`, so it lives and dies with the tables; under the
+  arena option it would still have to be rebased or demoted to an index when
+  the in-use sub-range changes.
 - **`libtcg/include/tcg/tlb.h`** is an S2E-original that was never brought
   forward and still describes the pre-11.1 flag scheme (including `TLB_RECHECK`,
   removed upstream in 4.1, and a `TLB_FLAGS_MASK` that omits `TLB_MEM_TRACE`).

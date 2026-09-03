@@ -61,7 +61,7 @@ static void io_write_chk(S2EExecutionState *state, CPUArchState *env, target_phy
     physaddr = (physaddr & TARGET_PAGE_MASK) + addr;
 
     state->setMemIoVaddr(ConstantExpr::create(addr, sizeof(target_ulong) * 8));
-    env->mem_io_pc = (uintptr_t) retaddr;
+    env_cpu(env)->mem_io_pc = (uintptr_t) retaddr;
 
     if (width <= Expr::Int32) {
         if (se_ismemfunc(ops, 1)) {
@@ -118,7 +118,7 @@ static ref<Expr> io_read_chk(S2EExecutionState *state, const CPUTLBEntry &tlb, t
 
     target_ulong naddr = (physaddr & TARGET_PAGE_MASK) + addr;
 
-    env->mem_io_pc = (uintptr_t) retaddr;
+    env_cpu(env)->mem_io_pc = (uintptr_t) retaddr;
     state->setMemIoVaddr(ConstantExpr::create(addr, sizeof(target_ulong) * 8));
 
     if (is_notdirty_ops(ops)) {

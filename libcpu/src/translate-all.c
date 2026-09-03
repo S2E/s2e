@@ -111,7 +111,7 @@ static void cpu_gen_init(TCGContext *ctx) {
 
 #ifdef CONFIG_SYMBEX
     ctx->tlbe_offset_symbex_addend = offsetof(CPUTLBEntry, se_addend);
-    ctx->env_offset_se_tb_abort = offsetof(CPUArchState, se_tb_abort);
+    ctx->env_offset_se_tb_abort = (int) offsetof(ArchCPU, parent_obj.se_tb_abort) - (int) offsetof(ArchCPU, env);
 #endif
 
     ctx->target_page_bits = TARGET_PAGE_BITS;
@@ -243,7 +243,7 @@ tb_overflow:
     tb->tc.size = gen_code_size;
 
 #if defined(CONFIG_SYMBEX_MP) || defined(STATIC_TRANSLATOR)
-    if (env->generate_llvm) {
+    if (env_cpu(env)->generate_llvm) {
         assert(tb->llvm_function == NULL);
         tb->llvm_function = tcg_llvm_gen_code(tcg_llvm_translator, s, tb);
         g_sqi.tb.set_tb_function(tb->se_tb, tb->llvm_function);

@@ -94,7 +94,7 @@
     #define INSTR_FORK_AND_CONCRETIZE(val, max) (val)
 
     #define SE_SET_MEM_IO_VADDR(env, addr, reset) \
-            env->mem_io_vaddr = addr;
+            env_cpu(env)->mem_io_vaddr = addr;
 
 #endif // SYMBEX_LLVM_LIB
 
@@ -115,7 +115,7 @@
 #define SE_RAM_OBJECT_MASK TARGET_PAGE_MASK
 #define SE_RAM_OBJECT_DIFF 0
 
-#define SE_SET_MEM_IO_VADDR(env, addr, reset) env->mem_io_vaddr = addr;
+#define SE_SET_MEM_IO_VADDR(env, addr, reset) env_cpu(env)->mem_io_vaddr = addr;
 
 #endif // CONFIG_SYMBEX
 
@@ -164,7 +164,7 @@ DATA_TYPE glue(glue(io_read, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_phys_
     }
 #endif
 
-    env->mem_io_pc = (uintptr_t) retaddr;
+    env_cpu(env)->mem_io_pc = (uintptr_t) retaddr;
 
     SE_SET_MEM_IO_VADDR(env, addr, 0);
 #if SHIFT <= 2
@@ -206,7 +206,7 @@ DATA_TYPE glue(glue(io_read_chk, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_p
     target_ulong naddr = (physaddr & TARGET_PAGE_MASK) + addr;
 
     // If it is not DMA, then check if it is normal memory
-    env->mem_io_pc = (uintptr_t) retaddr;
+    env_cpu(env)->mem_io_pc = (uintptr_t) retaddr;
 
     SE_SET_MEM_IO_VADDR(env, addr, 0);
 #if SHIFT <= 2
@@ -438,7 +438,7 @@ void glue(glue(io_write, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_phys_addr
 #endif
 
     SE_SET_MEM_IO_VADDR(env, addr, 0);
-    env->mem_io_pc = (uintptr_t) retaddr;
+    env_cpu(env)->mem_io_pc = (uintptr_t) retaddr;
 #if SHIFT <= 2
     ops->write(physaddr, val, 1 << SHIFT);
 #else
@@ -475,7 +475,7 @@ void glue(glue(io_write_chk, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_phys_
     physaddr = (physaddr & TARGET_PAGE_MASK) + addr;
 
     SE_SET_MEM_IO_VADDR(env, addr, 0);
-    env->mem_io_pc = (uintptr_t) retaddr;
+    env_cpu(env)->mem_io_pc = (uintptr_t) retaddr;
 #if SHIFT <= 2
     if (se_ismemfunc(ops, 1)) {
         uintptr_t pa = se_notdirty_mem_write(physaddr, 1 << SHIFT);

@@ -1567,7 +1567,7 @@ void do_interrupt(CPUX86State *env) {
     /* simulate a real cpu exception. On i386, it can
        trigger new exceptions, but we do not handle
        double or triple faults yet. */
-    do_interrupt_all(env->exception_index, env->exception_is_int, env->error_code, env->exception_next_eip, 0);
+    do_interrupt_all(env_cpu(env)->exception_index, env->exception_is_int, env->error_code, env->exception_next_eip, 0);
     /* successfully delivered */
     env->old_exception = -1;
 }
@@ -1629,7 +1629,7 @@ static void LIBCPU_NORETURN raise_interrupt2(CPUX86State *env, int intno, int is
         helper_svm_check_intercept_param(SVM_EXIT_SWINT, 0);
     }
 
-    env->exception_index = intno;
+    env_cpu(env)->exception_index = intno;
     env->error_code = error_code;
     env->exception_is_int = is_int;
     env->exception_next_eip = env->eip + next_eip_addend;
@@ -4815,8 +4815,8 @@ void helper_idivq_EAX(target_ulong t0) {
 
 static void do_hlt(void) {
     env->hflags &= ~HF_INHIBIT_IRQ_MASK; /* needed if sti is just before */
-    env->halted = 1;
-    env->exception_index = EXCP_HLT;
+    env_cpu(env)->halted = 1;
+    env_cpu(env)->exception_index = EXCP_HLT;
     cpu_loop_exit(env);
 }
 
@@ -4841,7 +4841,7 @@ void helper_mwait(int next_eip_addend) {
     EIP += next_eip_addend;
 
     /* XXX: not complete but not completely erroneous */
-    if (env->cpu_index != 0 || env->next_cpu != NULL) {
+    if (env_cpu(env)->cpu_index != 0) {
         /* more than one CPU: do not sleep because another CPU may
            wake this one */
     } else {
@@ -4850,7 +4850,7 @@ void helper_mwait(int next_eip_addend) {
 }
 
 void helper_debug(void) {
-    env->exception_index = EXCP_DEBUG;
+    env_cpu(env)->exception_index = EXCP_DEBUG;
     cpu_loop_exit(env);
 }
 
@@ -4999,7 +4999,7 @@ void tlb_fill(CPUX86State *env1, target_ulong addr, target_ulong page_addr, int 
         /* In symbex mode, pass page address instead of addr to cpu_x86_handle_mmu_fault,
            since the latter can be symbolic while the former is always concrete.
            To compensate, we reset fault address here. */
-        if (env->exception_index == EXCP0E_PAGE) {
+        if (env_cpu(env)->exception_index == EXCP0E_PAGE) {
             if (env->intercept_exceptions & (1 << EXCP0E_PAGE))
                 stq_phys(env->vm_vmcb + offsetof(struct vmcb, control.exit_info_2), addr);
             else
@@ -5012,7 +5012,7 @@ void tlb_fill(CPUX86State *env1, target_ulong addr, target_ulong page_addr, int 
             g_sqi.events.on_page_fault(addr, is_write, retaddr);
         }
 #endif
-        raise_exception_err_ra(env, env->exception_index, env->error_code, (uintptr_t) retaddr);
+        raise_exception_err_ra(env, env_cpu(env)->exception_index, env->error_code, (uintptr_t) retaddr);
     }
 }
 #endif
@@ -5159,7 +5159,7 @@ void helper_vmrun(int aflag, int next_eip_addend) {
     env->hflags2 |= HF2_GIF_MASK;
 
     if (int_ctl & V_IRQ_MASK) {
-        env->interrupt_request |= CPU_INTERRUPT_VIRQ;
+        env_cpu(env)->interrupt_request |= CPU_INTERRUPT_VIRQ;
     }
 
 #if defined(CONFIG_SYMBEX) && !defined(STATIC_TRANSLATOR)
@@ -5179,7 +5179,7 @@ void helper_vmrun(int aflag, int next_eip_addend) {
         /* FIXME: need to implement valid_err */
         switch (event_inj & SVM_EVTINJ_TYPE_MASK) {
             case SVM_EVTINJ_TYPE_INTR:
-                env->exception_index = vector;
+                env_cpu(env)->exception_index = vector;
                 env->error_code = event_inj_err;
                 env->exception_is_int = 0;
                 env->exception_next_eip = -1;
@@ -5188,7 +5188,7 @@ void helper_vmrun(int aflag, int next_eip_addend) {
                 do_interrupt_all(vector, 0, 0, 0, 1);
                 break;
             case SVM_EVTINJ_TYPE_NMI:
-                env->exception_index = EXCP02_NMI;
+                env_cpu(env)->exception_index = EXCP02_NMI;
                 env->error_code = event_inj_err;
                 env->exception_is_int = 0;
                 env->exception_next_eip = EIP;
@@ -5196,7 +5196,7 @@ void helper_vmrun(int aflag, int next_eip_addend) {
                 cpu_loop_exit(env);
                 break;
             case SVM_EVTINJ_TYPE_EXEPT:
-                env->exception_index = vector;
+                env_cpu(env)->exception_index = vector;
                 env->error_code = event_inj_err;
                 env->exception_is_int = 0;
                 env->exception_next_eip = -1;
@@ -5204,7 +5204,7 @@ void helper_vmrun(int aflag, int next_eip_addend) {
                 cpu_loop_exit(env);
                 break;
             case SVM_EVTINJ_TYPE_SOFT:
-                env->exception_index = vector;
+                env_cpu(env)->exception_index = vector;
                 env->error_code = event_inj_err;
                 env->exception_is_int = 1;
                 env->exception_next_eip = EIP;
@@ -5212,7 +5212,7 @@ void helper_vmrun(int aflag, int next_eip_addend) {
                 cpu_loop_exit(env);
                 break;
         }
-        libcpu_log_mask(CPU_LOG_TB_IN_ASM, " %#x %#x\n", env->exception_index, env->error_code);
+        libcpu_log_mask(CPU_LOG_TB_IN_ASM, " %#x %#x\n", env_cpu(env)->exception_index, env->error_code);
     }
 }
 
@@ -5437,7 +5437,7 @@ void helper_vmexit(uint32_t exit_code, uint64_t exit_info_1) {
     int_ctl = ldl_phys(env->vm_vmcb + offsetof(struct vmcb, control.int_ctl));
     int_ctl &= ~(V_TPR_MASK | V_IRQ_MASK);
     int_ctl |= (cpu_apic_get_tpr(env) >> 4) & V_TPR_MASK;
-    if (env->interrupt_request & CPU_INTERRUPT_VIRQ)
+    if (env_cpu(env)->interrupt_request & CPU_INTERRUPT_VIRQ)
         int_ctl |= V_IRQ_MASK;
     stl_phys(env->vm_vmcb + offsetof(struct vmcb, control.int_ctl), int_ctl);
 
@@ -5454,7 +5454,7 @@ void helper_vmexit(uint32_t exit_code, uint64_t exit_info_1) {
     env->hflags &= ~HF_SVMI_MASK;
     env->intercept = 0;
     env->intercept_exceptions = 0;
-    env->interrupt_request &= ~CPU_INTERRUPT_VIRQ;
+    env_cpu(env)->interrupt_request &= ~CPU_INTERRUPT_VIRQ;
     env->tsc_offset = 0;
 
     env->gdt.base = ldq_phys(env->vm_hsave + offsetof(struct vmcb, save.gdtr.base));
@@ -5523,7 +5523,7 @@ void helper_vmexit(uint32_t exit_code, uint64_t exit_info_1) {
        #GP fault is delivered inside the host.) */
 
     /* remove any pending exception */
-    env->exception_index = -1;
+    env_cpu(env)->exception_index = -1;
     env->error_code = 0;
     env->old_exception = -1;
 

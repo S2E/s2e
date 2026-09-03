@@ -45,7 +45,7 @@ bool S2EExternalDispatcher::call(external_fcn_t targetFunction, const Arguments 
 
     saveJmpBuf();
 
-    if (setjmp(env->jmp_env)) {
+    if (setjmp(env_cpu(env)->jmp_env)) {
         restoreJmpBuf();
         throw CpuExitException();
     } else {
@@ -58,10 +58,10 @@ bool S2EExternalDispatcher::call(external_fcn_t targetFunction, const Arguments 
 }
 
 void S2EExternalDispatcher::saveJmpBuf() {
-    memcpy(s2e_cpuExitJmpBuf, env->jmp_env, sizeof(env->jmp_env));
+    memcpy(s2e_cpuExitJmpBuf, env_cpu(env)->jmp_env, sizeof(env_cpu(env)->jmp_env));
 }
 
 void S2EExternalDispatcher::restoreJmpBuf() {
-    memcpy(env->jmp_env, s2e_cpuExitJmpBuf, sizeof(env->jmp_env));
+    memcpy(env_cpu(env)->jmp_env, s2e_cpuExitJmpBuf, sizeof(env_cpu(env)->jmp_env));
 }
 } // namespace s2e

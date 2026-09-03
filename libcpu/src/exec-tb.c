@@ -93,7 +93,8 @@ void tb_flush(CPUArchState *env) {
     g_sqi.tb.flush_tb_cache();
 #endif
 
-    for (env = first_cpu; env != NULL; env = env->next_cpu) {
+    env = first_cpu;
+    if (env) {
         memset(env_cpu(env)->neg.tb_jmp_cache, 0, TB_JMP_CACHE_SIZE * sizeof(void *));
     }
 
@@ -207,7 +208,8 @@ void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr) {
 
     /* remove the TB from the hash list */
     h = tb_jmp_cache_hash_func(tb->pc);
-    for (env = first_cpu; env != NULL; env = env->next_cpu) {
+    env = first_cpu;
+    if (env) {
         if (env_cpu(env)->neg.tb_jmp_cache[h] == tb)
             env_cpu(env)->neg.tb_jmp_cache[h] = NULL;
     }
@@ -395,17 +397,17 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end, int
             if (current_tb_not_found) {
                 current_tb_not_found = 0;
                 current_tb = NULL;
-                if (env->mem_io_pc) {
+                if (env_cpu(env)->mem_io_pc) {
                     /* now we have a real cpu fault */
-                    current_tb = tcg_tb_lookup(env->mem_io_pc);
+                    current_tb = tcg_tb_lookup(env_cpu(env)->mem_io_pc);
                 } else {
 #ifdef CONFIG_SYMBEX
-                    env->se_tb_abort = 1;
+                    env_cpu(env)->se_tb_abort = 1;
 #endif
                 }
             }
             if (current_tb == tb && (current_tb->cflags & CF_COUNT_MASK) != 1) {
-                cpu_restore_state(env, env->mem_io_pc);
+                cpu_restore_state(env, env_cpu(env)->mem_io_pc);
                 cpu_get_tb_cpu_state(env, &current_pc, &current_cs_base, &current_flags);
 
                 // When an instruction modifies itself, advance pc to the next instruction
@@ -414,7 +416,8 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end, int
                 assert(instr_size);
                 if (current_tb->pc + current_tb->size > env->eip + instr_size) {
                     env->eip += instr_size;
-                    tcg_target_force_tb_exit(env->mem_io_pc, (uintptr_t) (current_tb->tc.ptr + current_tb->tc.size));
+                    tcg_target_force_tb_exit(env_cpu(env)->mem_io_pc,
+                                             (uintptr_t) (current_tb->tc.ptr + current_tb->tc.size));
                 }
             }
 #endif /* TARGET_HAS_PRECISE_SMC */
@@ -422,15 +425,15 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end, int
                occurs while doing tb_phys_invalidate() */
             saved_tb = NULL;
             if (env) {
-                saved_tb = env->current_tb;
-                env->current_tb = NULL;
+                saved_tb = env_cpu(env)->current_tb;
+                env_cpu(env)->current_tb = NULL;
             }
             tb_phys_invalidate(tb, -1);
             if (env) {
-                env->current_tb = saved_tb;
+                env_cpu(env)->current_tb = saved_tb;
 #if 0
-                if (env->interrupt_request && env->current_tb) {
-                    cpu_interrupt(env, env->interrupt_request);
+                if (env_cpu(env)->interrupt_request && env_cpu(env)->current_tb) {
+                    cpu_interrupt(env, env_cpu(env)->interrupt_request);
                 }
 #endif
             }
@@ -446,7 +449,7 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end, int
             target_ulong iovaddr = g_sqi.mem.read_mem_io_vaddr(1);
             tlb_unprotect_code_phys(env, start, iovaddr);
 #else
-            tlb_unprotect_code_phys(env, start, env->mem_io_vaddr);
+            tlb_unprotect_code_phys(env, start, env_cpu(env)->mem_io_vaddr);
 #endif
         }
     }
@@ -459,7 +462,7 @@ void tb_invalidate_phys_page_fast(tb_page_addr_t start, int len) {
 #if 0
     if (1) {
         libcpu_log("modifying code at 0x%x size=%d EIP=%x PC=%08x\n",
-                  cpu_single_env->mem_io_vaddr, len,
+                  env_cpu(cpu_single_env)->mem_io_vaddr, len,
                   cpu_single_env->eip,
                   cpu_single_env->eip + (long)cpu_single_env->segs[R_CS].base);
     }
