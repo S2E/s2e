@@ -39,10 +39,12 @@
 #undef cat
 #endif
 
-#include <klee/AddressSpace.h>
-#include <llvm/Support/CommandLine.h>
-
 extern llvm::cl::opt<bool> PrintModeSwitch;
+
+namespace {
+llvm::cl::opt<bool> TlbAudit("tlb-audit", llvm::cl::desc("Check the TLB cache map against the TLB after every update"),
+                             llvm::cl::init(false));
+}
 
 namespace s2e {
 
@@ -163,9 +165,9 @@ void S2EExecutionStateTlb::updateTlb(const klee::ObjectStateConstPtr &oldState, 
         }
     }
 
-#ifdef S2E_DEBUG_TLBCACHE
-    audit();
-#endif
+    if (TlbAudit && !audit()) {
+        pabort("TLB cache audit failed");
+    }
 }
 
 /***/
@@ -319,9 +321,9 @@ void S2EExecutionStateTlb::updateTlbEntry(CPUX86State *env, int mmu_idx, uint64_
 
     updateTlbEntryConcreteStatus(env_cpu(env), mmu_idx, index, newObjectState);
 
-#ifdef S2E_DEBUG_TLBCACHE
-    audit();
-#endif
+    if (TlbAudit && !audit()) {
+        pabort("TLB cache audit failed");
+    }
 }
 
 bool S2EExecutionStateTlb::audit() {
@@ -331,39 +333,42 @@ bool S2EExecutionStateTlb::audit() {
      */
     CPUState *cpu = m_registers->getCpuCaches();
 
-    for (auto tlbIt : m_tlbMap) {
-        auto os = tlbIt.first;
-        const ObjectStateTlbReferences &vec = tlbIt.second;
-        foreach2 (vit, vec.begin(), vec.end()) {
-            unsigned mmu_idx = (*vit).first;
-            unsigned index = (*vit).second;
-
-            CPUTLBEntry *entry = &cpu->neg.tlb.f[mmu_idx].table[index];
-            assert(entry->objectState == os);
-            (void) entry;
-            (void) os;
+    for (const auto &[os, refs] : m_tlbMap) {
+        for (const auto &[mmu_idx, index] : refs) {
+            const CPUTLBEntry *entry = &cpu->neg.tlb.f[mmu_idx].table[index];
+            if (entry->objectState != os.get()) {
+                llvm::errs() << "TLB audit: map entry (" << mmu_idx << "," << index << ") refers to "
+                             << hexval(os.get()) << " but the TLB holds " << hexval(entry->objectState) << "\n";
+                return false;
+            }
         }
     }
 
-    for (unsigned i = 0; i < CPU_TLB_SIZE; i++) {
-        for (unsigned mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
-            CPUTLBEntry *entry = &cpu->neg.tlb.f[mmu_idx].table[i];
+    for (unsigned mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
+        for (unsigned index = 0; index < CPU_TLB_SIZE; index++) {
+            const CPUTLBEntry *entry = &cpu->neg.tlb.f[mmu_idx].table[index];
             if (!entry->objectState) {
                 continue;
             }
 
-            TlbMap::const_iterator it = m_tlbMap.find((ObjectState *) entry->objectState);
-            assert(it != m_tlbMap.end());
+            auto it = m_tlbMap.find(static_cast<ObjectState *>(entry->objectState));
+            if (it == m_tlbMap.end()) {
+                llvm::errs() << "TLB audit: TLB entry (" << mmu_idx << "," << index << ") refers to "
+                             << hexval(entry->objectState) << " which is not in the map\n";
+                return false;
+            }
 
-            const ObjectStateTlbReferences &vec = (*it).second;
             unsigned foundCount = 0;
-            foreach2 (vit, vec.begin(), vec.end()) {
-                if ((*vit).first == mmu_idx && (*vit).second == i) {
+            for (const auto &coords : it->second) {
+                if (coords == TlbCoordinates(mmu_idx, index)) {
                     foundCount++;
                 }
             }
+
             if (foundCount != 1) {
-                abort();
+                llvm::errs() << "TLB audit: TLB entry (" << mmu_idx << "," << index << ") is referenced " << foundCount
+                             << " times by " << hexval(entry->objectState) << "\n";
+                return false;
             }
         }
     }
