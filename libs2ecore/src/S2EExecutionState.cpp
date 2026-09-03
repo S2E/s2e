@@ -618,8 +618,13 @@ end:
 }
 
 void S2EExecutionState::addressSpaceSymbolicStatusChange(const ObjectStatePtr &object, bool becameConcrete) {
-    // Deal with CPU registers
-    g_s2e->getExecutor()->updateConcreteFastPath(this);
+    // Deal with CPU registers. The fast path flags are globals that describe
+    // the active state, so a suspended state whose registers change (e.g.,
+    // a plugin writing a symbolic value into them) must not touch them.
+    // selectSearcherState() recomputes them after switching to the state.
+    if (m_active) {
+        g_s2e->getExecutor()->updateConcreteFastPath(this);
+    }
 
     // Deal with RAM
     if (object->getBitArraySize() != SE_RAM_OBJECT_SIZE) {
