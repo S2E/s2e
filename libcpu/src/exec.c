@@ -72,36 +72,42 @@ void cpu_exec_init_all(void) {
 }
 
 void cpu_exec_init(CPUArchState *env) {
-    CPUArchState **penv;
-    int cpu_index;
+    CPUState *cpu = env_cpu(env);
 
-    env->next_cpu = NULL;
-    penv = &first_cpu;
-    cpu_index = 0;
-    while (*penv != NULL) {
-        penv = &(*penv)->next_cpu;
-        cpu_index++;
-    }
-    env->cpu_index = cpu_index;
-    env->numa_node = 0;
-    QTAILQ_INIT(&env->breakpoints);
-    QTAILQ_INIT(&env->watchpoints);
-    *penv = env;
+    /* libcpu emulates exactly one CPU. */
+    assert(first_cpu == NULL);
+    first_cpu = env;
+
+    cpu->cpu_index = 0;
+    QTAILQ_INIT(&cpu->breakpoints);
+    QTAILQ_INIT(&cpu->watchpoints);
+}
+
+void cpu_common_reset(CPUState *cpu) {
+    cpu->current_tb = NULL;
+    cpu->se_current_tb = NULL;
+    cpu->mem_io_pc = 0;
+    cpu->mem_io_vaddr = 0;
+    cpu->translate_single_instruction = 0;
+    cpu->halted = 0;
+    cpu->interrupt_request = 0;
+    cpu->exit_request = 0;
+    cpu->se_tb_abort = 0;
 }
 
 /* mask must never be zero, except for A20 change call */
 static void tcg_handle_interrupt(CPUArchState *env, int mask) {
-    env->interrupt_request |= mask;
+    env_cpu(env)->interrupt_request |= mask;
 }
 
 CPUInterruptHandler cpu_interrupt_handler = tcg_handle_interrupt;
 
 void cpu_reset_interrupt(CPUArchState *env, int mask) {
-    env->interrupt_request &= ~mask;
+    env_cpu(env)->interrupt_request &= ~mask;
 }
 
 void cpu_exit(CPUArchState *env) {
-    env->exit_request = 1;
+    env_cpu(env)->exit_request = 1;
 }
 
 void cpu_abort(CPUArchState *env, const char *fmt, ...) {
@@ -158,7 +164,8 @@ void cpu_physical_memory_reset_dirty(ram_addr_t start, ram_addr_t end, int dirty
         abort();
     }
 
-    for (env = first_cpu; env != NULL; env = env->next_cpu) {
+    env = first_cpu;
+    if (env) {
         int mmu_idx;
         for (mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
             for (i = 0; i < CPU_TLB_SIZE; i++)
@@ -233,7 +240,7 @@ static void notdirty_mem_write(target_phys_addr_t ram_addr, uint64_t val, unsign
         target_ulong iovaddr = g_sqi.mem.read_mem_io_vaddr(1);
         tlb_set_dirty(cpu_single_env, iovaddr);
 #else
-        tlb_set_dirty(cpu_single_env, cpu_single_env->mem_io_vaddr);
+        tlb_set_dirty(cpu_single_env, env_cpu(cpu_single_env)->mem_io_vaddr);
 #endif
     }
 }

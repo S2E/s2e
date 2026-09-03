@@ -21,6 +21,13 @@ import a drop-in.
 
 Estimated effort: 1.5-2 weeks.
 
+**Status: landed.** Steps 0, 1, 2, 4 and 6 are in the tree. Steps 3 and 5 are
+test-only and were not run. The follow-up that section 1 defers to
+`PORTING.md` phase 4, moving the per-state execution fields out of
+`CPUX86State`, has landed as well: `CPUState` now holds them ahead of the
+caches, libs2ecore registers them as a separate snapshotted object, and the
+`se_common_start` / `se_common_end` window is gone.
+
 
 ## 1. Target shape
 
@@ -75,11 +82,13 @@ Two KLEE objects over the CPU, as today, plus one for the caches:
 | `[env + offsetof(eip), env + sizeof(CPUX86State))` | shared concrete | yes (explicit memcpy) |
 | `[&g_cpu, &g_cpu.env)`, the caches | shared concrete | **no** |
 
-During this work `CPUState` holds *only* the caches. When the port later moves
-per-state execution fields (`interrupt_request`, `exception_index`, `halted`,
-`jmp_env`) into the slim `CPUState`, they must not silently inherit this
-never-snapshotted region; the snapshot boundary has to be revisited at that
-point (`PORTING.md` phase 4).
+During this work `CPUState` held *only* the caches. The per-state execution
+fields (`interrupt_request`, `exception_index`, `halted`, `jmp_env`, ...)
+followed afterwards, and they did not inherit the never-snapshotted region:
+`CPUState` is now split at `neg` into a fourth object,
+`[&g_cpu, &g_cpu.parent_obj.neg)`, shared concrete and snapshotted by the same
+explicit memcpy as the concrete registers, with the caches keeping the row
+above.
 
 **The caches must stay KLEE-visible even though they are never snapshotted.**
 `use-fast-helpers` defaults to *off*, so `replaceExternalFunctionsWithSpecialHandlers()`
@@ -250,13 +259,13 @@ Exit: testsuite green.
 
 ### Step 6: Cleanups this enables (half a day)
 
-- `compareArchitecturalConcreteState()` currently does two `memcmp`s to skip the
-  `se_common_start` .. `se_common_end` window. That window does *not* exist only
-  for the caches: it also hides `current_tb`, `jmp_env`, the breakpoint and
-  watchpoint list heads, `opaque`, `temp_buf` and friends, which remain in
-  `CPUX86State` after this work. The window shrinks, but the two-`memcmp` shape
-  and the marker fields stay; they can only be deleted once the full port moves
-  the rest of `CPU_COMMON` into the slim `CPUState`.
+- `compareArchitecturalConcreteState()` did two `memcmp`s to skip the
+  `se_common_start` .. `se_common_end` window. That window did *not* exist only
+  for the caches: it also hid `current_tb`, `jmp_env`, the breakpoint and
+  watchpoint list heads, `opaque`, `temp_buf` and friends. With the rest of
+  `CPU_COMMON` moved into the slim `CPUState`, the window and the marker
+  fields are gone and the comparison is a single `memcmp` over
+  `[eip, sizeof(CPUX86State))`.
 - State merging becomes strictly more permissive as a side effect: it stops
   comparing cache contents that were never architecturally meaningful. (The
   `tlb_flush(env, 1)` that `MergingSearcher` performs before merging becomes

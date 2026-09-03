@@ -46,8 +46,8 @@ void se_tb_safe_flush(void) {
 // #define CONFIG_DEBUG_EXEC
 
 void cpu_loop_exit(CPUArchState *env) {
-    env->current_tb = NULL;
-    longjmp(env->jmp_env, 1);
+    env_cpu(env)->current_tb = NULL;
+    longjmp(env_cpu(env)->jmp_env, 1);
 }
 
 void cpu_loop_exit_restore(CPUArchState *env, uintptr_t ra) {
@@ -65,8 +65,8 @@ void cpu_loop_exit_restore(CPUArchState *env, uintptr_t ra) {
 void cpu_resume_from_signal(CPUArchState *env, void *puc) {
     /* XXX: restore cpu registers saved in host registers */
 
-    env->exception_index = -1;
-    longjmp(env->jmp_env, 1);
+    env_cpu(env)->exception_index = -1;
+    longjmp(env_cpu(env)->jmp_env, 1);
 }
 #endif
 
@@ -91,7 +91,7 @@ static TranslationBlock *tb_find_slow(CPUArchState *env, target_ulong pc, target
 
         int llvm_nok = 0;
 #if defined(CONFIG_SYMBEX_MP)
-        if (env->generate_llvm && !tb->llvm_function) {
+        if (env_cpu(env)->generate_llvm && !tb->llvm_function) {
             llvm_nok = 1;
         }
 #endif
@@ -156,7 +156,7 @@ static inline TranslationBlock *tb_find_fast(CPUArchState *env) {
     tb = env_cpu(env)->neg.tb_jmp_cache[tb_jmp_cache_hash_func(pc)];
 
 #ifdef CONFIG_SYMBEX
-    int llvm_nok = env->generate_llvm && (!tb || !tb->llvm_function);
+    int llvm_nok = env_cpu(env)->generate_llvm && (!tb || !tb->llvm_function);
 #else
     int llvm_nok = 0;
 #endif
@@ -181,8 +181,8 @@ CPUDebugExcpHandler *cpu_set_debug_excp_handler(CPUDebugExcpHandler *handler) {
 static void cpu_handle_debug_exception(CPUArchState *env) {
     CPUWatchpoint *wp;
 
-    if (!env->watchpoint_hit) {
-        QTAILQ_FOREACH (wp, &env->watchpoints, entry) {
+    if (!env_cpu(env)->watchpoint_hit) {
+        QTAILQ_FOREACH (wp, &env_cpu(env)->watchpoints, entry) {
             wp->flags &= ~BP_WATCHPOINT_HIT;
         }
     }
@@ -221,6 +221,7 @@ static void dump_regs(CPUX86State *env, int isStart) {
 }
 
 static uintptr_t fetch_and_run_tb(TranslationBlock *prev_tb, int tb_exit_code, CPUArchState *env) {
+    CPUState *cpu = env_cpu(env);
     uint8_t *tc_ptr;
     uintptr_t last_tb;
 
@@ -247,16 +248,16 @@ static uintptr_t fetch_and_run_tb(TranslationBlock *prev_tb, int tb_exit_code, C
 
     /* cpu_interrupt might be called while translating the
        TB, but before it is linked into a potentially
-       infinite loop and becomes env->current_tb. Avoid
+       infinite loop and becomes cpu->current_tb. Avoid
        starting execution if there is a pending interrupt. */
 
-    env->current_tb = tb;
+    cpu->current_tb = tb;
 
-    env->translate_single_instruction = 0;
+    cpu->translate_single_instruction = 0;
 
     barrier();
-    if (unlikely(env->exit_request)) {
-        env->current_tb = NULL;
+    if (unlikely(cpu->exit_request)) {
+        cpu->current_tb = NULL;
         return 0;
     }
 
@@ -272,15 +273,15 @@ static uintptr_t fetch_and_run_tb(TranslationBlock *prev_tb, int tb_exit_code, C
     }
 
 #if defined(CONFIG_SYMBEX)
-    env->se_tb_abort = 0;
-    env->se_current_tb = tb;
+    cpu->se_tb_abort = 0;
+    cpu->se_current_tb = tb;
     if (likely(*g_sqi.mode.fast_concrete_invocation)) {
         **g_sqi.mode.running_exception_emulation_code = 0;
         last_tb = tcg_qemu_tb_exec(env, tc_ptr);
     } else {
         last_tb = g_sqi.exec.tb_exec(env, tb);
     }
-    env->se_current_tb = NULL;
+    cpu->se_current_tb = NULL;
 #else
 
     last_tb = tcg_qemu_tb_exec(env, tc_ptr);
@@ -291,13 +292,14 @@ static uintptr_t fetch_and_run_tb(TranslationBlock *prev_tb, int tb_exit_code, C
         dump_regs(env, 0);
     }
 
-    env->current_tb = NULL;
+    cpu->current_tb = NULL;
 
     return last_tb;
 }
 
 static bool process_interrupt_request(CPUArchState *env) {
-    int interrupt_request = env->interrupt_request;
+    CPUState *cpu = env_cpu(env);
+    int interrupt_request = cpu->interrupt_request;
 
     if (likely(!interrupt_request)) {
         return false;
@@ -308,36 +310,36 @@ static bool process_interrupt_request(CPUArchState *env) {
     libcpu_log_mask(CPU_LOG_INT, "  process_interrupt intrq=%#x mflags=%#lx hf1=%#x hf2=%#x\n", interrupt_request,
                     (uint64_t) env->mflags, env->hflags, env->hflags2);
 
-    if (unlikely(env->singlestep_enabled & SSTEP_NOIRQ)) {
+    if (unlikely(cpu->singlestep_enabled & SSTEP_NOIRQ)) {
         /* Mask out external interrupts for this step. */
         interrupt_request &= ~CPU_INTERRUPT_SSTEP_MASK;
     }
     if (interrupt_request & CPU_INTERRUPT_DEBUG) {
-        env->interrupt_request &= ~CPU_INTERRUPT_DEBUG;
-        env->exception_index = EXCP_DEBUG;
+        cpu->interrupt_request &= ~CPU_INTERRUPT_DEBUG;
+        cpu->exception_index = EXCP_DEBUG;
         cpu_loop_exit(env);
     }
 
     if (interrupt_request & CPU_INTERRUPT_INIT) {
         svm_check_intercept(env, SVM_EXIT_INIT);
         do_cpu_init(env);
-        env->exception_index = EXCP_HALTED;
+        cpu->exception_index = EXCP_HALTED;
         cpu_loop_exit(env);
     } else if (interrupt_request & CPU_INTERRUPT_SIPI) {
         perror("Not implemented");
     } else if (env->hflags2 & HF2_GIF_MASK) {
         if ((interrupt_request & CPU_INTERRUPT_SMI) && !(env->hflags & HF_SMM_MASK)) {
             svm_check_intercept(env, SVM_EXIT_SMI);
-            env->interrupt_request &= ~CPU_INTERRUPT_SMI;
+            cpu->interrupt_request &= ~CPU_INTERRUPT_SMI;
             do_smm_enter(env);
             has_interrupt = true;
         } else if ((interrupt_request & CPU_INTERRUPT_NMI) && !(env->hflags2 & HF2_NMI_MASK)) {
-            env->interrupt_request &= ~CPU_INTERRUPT_NMI;
+            cpu->interrupt_request &= ~CPU_INTERRUPT_NMI;
             env->hflags2 |= HF2_NMI_MASK;
             do_interrupt_x86_hardirq(env, EXCP02_NMI, 1);
             has_interrupt = true;
         } else if (interrupt_request & CPU_INTERRUPT_MCE) {
-            env->interrupt_request &= ~CPU_INTERRUPT_MCE;
+            cpu->interrupt_request &= ~CPU_INTERRUPT_MCE;
             do_interrupt_x86_hardirq(env, EXCP12_MCHK, 0);
             has_interrupt = true;
         } else if ((interrupt_request & CPU_INTERRUPT_HARD) &&
@@ -347,7 +349,7 @@ static bool process_interrupt_request(CPUArchState *env) {
             int intno;
 
             svm_check_intercept(env, SVM_EXIT_INTR);
-            env->interrupt_request &= ~(CPU_INTERRUPT_HARD | CPU_INTERRUPT_VIRQ);
+            cpu->interrupt_request &= ~(CPU_INTERRUPT_HARD | CPU_INTERRUPT_VIRQ);
 
             intno = cpu_get_pic_interrupt(env);
             assert(intno >= 0);
@@ -369,15 +371,15 @@ static bool process_interrupt_request(CPUArchState *env) {
             intno = ldl_phys(env->vm_vmcb + offsetof(struct vmcb, control.int_vector));
             libcpu_log_mask(CPU_LOG_TB_IN_ASM, "Servicing virtual hardware INT=0x%02x\n", intno);
             do_interrupt_x86_hardirq(env, intno, 1);
-            env->interrupt_request &= ~CPU_INTERRUPT_VIRQ;
+            cpu->interrupt_request &= ~CPU_INTERRUPT_VIRQ;
             has_interrupt = true;
         }
     }
 
     /* Don't use the cached interrupt_request value,
           do_interrupt may have updated the EXITTB flag. */
-    if (env->interrupt_request & CPU_INTERRUPT_EXITTB) {
-        env->interrupt_request &= ~CPU_INTERRUPT_EXITTB;
+    if (cpu->interrupt_request & CPU_INTERRUPT_EXITTB) {
+        cpu->interrupt_request &= ~CPU_INTERRUPT_EXITTB;
         has_interrupt = true;
     }
 
@@ -385,29 +387,31 @@ static bool process_interrupt_request(CPUArchState *env) {
 }
 
 static int process_exceptions(CPUArchState *env) {
+    CPUState *cpu = env_cpu(env);
     int ret = 0;
 
-    if (env->exception_index < 0) {
+    if (cpu->exception_index < 0) {
         return ret;
     }
 
     /* if an exception is pending, we execute it here */
-    if (env->exception_index >= EXCP_INTERRUPT) {
+    if (cpu->exception_index >= EXCP_INTERRUPT) {
         /* exit request from the cpu execution loop */
-        ret = env->exception_index;
+        ret = cpu->exception_index;
         if (ret == EXCP_DEBUG) {
             cpu_handle_debug_exception(env);
         }
     } else {
-        libcpu_log_mask(CPU_LOG_INT, "  do_interrupt exidx=%x\n", env->exception_index);
+        libcpu_log_mask(CPU_LOG_INT, "  do_interrupt exidx=%x\n", cpu->exception_index);
         do_interrupt(env);
-        env->exception_index = -1;
+        cpu->exception_index = -1;
     }
 
     return ret;
 }
 
 static bool execution_loop(CPUArchState *env) {
+    CPUState *cpu = env_cpu(env);
     uintptr_t last_tb = 0;
     int last_tb_exit_code = 0;
     TranslationBlock *ltb = NULL;
@@ -421,10 +425,10 @@ static bool execution_loop(CPUArchState *env) {
             has_interrupt = true;
         }
 
-        if (unlikely(!has_interrupt && env->exit_request)) {
+        if (unlikely(!has_interrupt && cpu->exit_request)) {
             libcpu_log_mask(CPU_LOG_EXEC, "  execution_loop: exit_request\n");
-            env->exit_request = 0;
-            env->exception_index = EXCP_INTERRUPT;
+            cpu->exit_request = 0;
+            cpu->exception_index = EXCP_INTERRUPT;
 
             // XXX: return status code instead
             cpu_loop_exit(env);
@@ -466,14 +470,15 @@ static bool execution_loop(CPUArchState *env) {
 }
 
 int cpu_exec(CPUArchState *env) {
+    CPUState *cpu = env_cpu(env);
     int ret;
 
-    if (env->halted) {
+    if (cpu->halted) {
         if (!cpu_has_work(env)) {
             return EXCP_HALTED;
         }
 
-        env->halted = 0;
+        cpu->halted = 0;
     }
 
     cpu_single_env = env;
@@ -486,30 +491,30 @@ int cpu_exec(CPUArchState *env) {
     }
 #endif
 
-    env->exception_index = -1;
+    cpu->exception_index = -1;
 
     libcpu_log_mask(CPU_LOG_EXEC, "cpu_loop enter mflags=%#lx hf1=%#x hf2=%#x\n", (uint64_t) env->mflags, env->hflags,
                     env->hflags2);
 
     /* prepare setjmp context for exception handling */
     for (;;) {
-        if (setjmp(env->jmp_env) == 0) {
+        if (setjmp(cpu->jmp_env) == 0) {
             /**
              * It is important to reset the current TB everywhere where the CPU loop exits.
              * Otherwise, TB unchaining might get stuck on the next signal.
              * This usually happens when TB cache is flushed but current tb is not reset.
              */
-            env->current_tb = NULL;
+            cpu->current_tb = NULL;
 
             libcpu_log_mask(CPU_LOG_EXEC, "  setjmp entered eip=%#lx\n", (uint64_t) env->eip);
 
 #ifdef CONFIG_SYMBEX
-            assert(env->exception_index != EXCP_SE);
+            assert(cpu->exception_index != EXCP_SE);
             if (g_sqi.exec.finalize_tb_exec()) {
                 g_sqi.exec.cleanup_tb_exec();
-                if (env->exception_index == EXCP_SE) {
+                if (cpu->exception_index == EXCP_SE) {
                     cpu_single_env = NULL;
-                    env->current_tb = NULL;
+                    cpu->current_tb = NULL;
                     return EXCP_SE;
                 }
                 continue;
@@ -518,9 +523,9 @@ int cpu_exec(CPUArchState *env) {
 
             ret = process_exceptions(env);
             if (ret) {
-                if (ret == EXCP_HLT && env->interrupt_request) {
-                    env->exception_index = -1;
-                    env->halted = 0;
+                if (ret == EXCP_HLT && cpu->interrupt_request) {
+                    cpu->exception_index = -1;
+                    cpu->halted = 0;
                     continue;
                 }
                 break;
@@ -534,7 +539,7 @@ int cpu_exec(CPUArchState *env) {
             g_sqi.exec.cleanup_tb_exec();
             if (!g_sqi.exec.is_runnable()) {
                 cpu_single_env = NULL;
-                env->current_tb = NULL;
+                cpu->current_tb = NULL;
                 return EXCP_SE;
             }
 #endif
@@ -542,11 +547,12 @@ int cpu_exec(CPUArchState *env) {
             /* Reload env after longjmp - the compiler may have smashed all
              * local variables as longjmp is marked 'noreturn'. */
             env = cpu_single_env;
+            cpu = env_cpu(env);
         }
     } /* for(;;) */
     libcpu_log_mask(CPU_LOG_EXEC, "cpu_loop exit ret=%#x eip=%#lx\n", ret, (uint64_t) env->eip);
 
-    env->current_tb = NULL;
+    cpu->current_tb = NULL;
 
 #if defined(TARGET_I386)
 #ifdef CONFIG_SYMBEX
@@ -587,7 +593,7 @@ int cpu_exec(CPUArchState *env) {
 #error unsupported target CPU
 #endif
 
-    env->current_tb = NULL;
+    cpu->current_tb = NULL;
 
     /* fail safe : never use cpu_single_env outside cpu_exec() */
     cpu_single_env = NULL;

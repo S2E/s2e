@@ -158,11 +158,12 @@ void cpu_state_reset(CPUX86State *env) {
     int i;
 
     if (libcpu_loglevel_mask(CPU_LOG_RESET)) {
-        libcpu_log("CPU Reset (CPU %d)\n", env->cpu_index);
+        libcpu_log("CPU Reset (CPU %d)\n", env_cpu(env)->cpu_index);
         log_cpu_state(env, X86_DUMP_FPU | X86_DUMP_CCOP);
     }
 
-    memset(env, 0, offsetof(CPUX86State, breakpoints));
+    memset(env, 0, offsetof(CPUX86State, size));
+    cpu_common_reset(env_cpu(env));
 
     cpu_init_fp_statuses(env);
 
@@ -350,7 +351,7 @@ void cpu_dump_state(CPUX86State *env, FILE *f, fprintf_function cpu_fprintf, int
                         eflags & CC_O ? 'O' : '-', eflags & CC_S ? 'S' : '-', eflags & CC_Z ? 'Z' : '-',
                         eflags & CC_A ? 'A' : '-', eflags & CC_P ? 'P' : '-', eflags & CC_C ? 'C' : '-',
                         env->hflags & HF_CPL_MASK, (env->hflags >> HF_INHIBIT_IRQ_SHIFT) & 1, (env->a20_mask >> 20) & 1,
-                        (env->hflags >> HF_SMM_SHIFT) & 1, env->halted);
+                        (env->hflags >> HF_SMM_SHIFT) & 1, env_cpu(env)->halted);
         } else
 #endif
         {
@@ -365,7 +366,7 @@ void cpu_dump_state(CPUX86State *env, FILE *f, fprintf_function cpu_fprintf, int
                         eflags, eflags & DF_MASK ? 'D' : '-', eflags & CC_O ? 'O' : '-', eflags & CC_S ? 'S' : '-',
                         eflags & CC_Z ? 'Z' : '-', eflags & CC_A ? 'A' : '-', eflags & CC_P ? 'P' : '-',
                         eflags & CC_C ? 'C' : '-', env->hflags & HF_CPL_MASK, (env->hflags >> HF_INHIBIT_IRQ_SHIFT) & 1,
-                        (env->a20_mask >> 20) & 1, (env->hflags >> HF_SMM_SHIFT) & 1, env->halted);
+                        (env->a20_mask >> 20) & 1, (env->hflags >> HF_SMM_SHIFT) & 1, env_cpu(env)->halted);
         }
     }
 
@@ -615,7 +616,7 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr, int is_write1,
             sext = (int64_t) addr >> 47;
             if (sext != 0 && sext != -1) {
                 env->error_code = 0;
-                env->exception_index = EXCP0D_GPF;
+                env_cpu(env)->exception_index = EXCP0D_GPF;
                 return 1;
             }
 
@@ -848,7 +849,7 @@ do_fault:
         env->cr[2] = addr;
     }
     env->error_code = error_code;
-    env->exception_index = EXCP0E_PAGE;
+    env_cpu(env)->exception_index = EXCP0E_PAGE;
     return 1;
 }
 
@@ -1011,16 +1012,16 @@ static CPUDebugExcpHandler *prev_debug_excp_handler;
 static void breakpoint_handler(CPUX86State *env) {
     CPUBreakpoint *bp;
 
-    if (env->watchpoint_hit) {
-        if (env->watchpoint_hit->flags & BP_CPU) {
-            env->watchpoint_hit = NULL;
+    if (env_cpu(env)->watchpoint_hit) {
+        if (env_cpu(env)->watchpoint_hit->flags & BP_CPU) {
+            env_cpu(env)->watchpoint_hit = NULL;
             if (check_hw_breakpoints(env, 0))
                 raise_exception(env, EXCP01_DB);
             else
                 cpu_resume_from_signal(env, NULL);
         }
     } else {
-        QTAILQ_FOREACH (bp, &env->breakpoints, entry)
+        QTAILQ_FOREACH (bp, &env_cpu(env)->breakpoints, entry)
             if (bp->pc == env->eip) {
                 if (bp->flags & BP_CPU) {
                     check_hw_breakpoints(env, 1);
@@ -1093,7 +1094,7 @@ CPUX86State *cpu_x86_init(const cpuid_t *cpuid) {
 
     env->cpuid = *cpuid;
 
-    env->cpuid.cpuid_apic_id = env->cpu_index;
+    env->cpuid.cpuid_apic_id = env_cpu(env)->cpu_index;
     mce_init(env);
 
     qemu_init_vcpu(env);
@@ -1104,17 +1105,17 @@ CPUX86State *cpu_x86_init(const cpuid_t *cpuid) {
 void do_cpu_init(CPUX86State *env1) {
     extern CPUX86State *env;
     env = env1;
-    int sipi = env->interrupt_request & CPU_INTERRUPT_SIPI;
+    int sipi = env_cpu(env)->interrupt_request & CPU_INTERRUPT_SIPI;
     uint64_t pat = env->pat;
 
     cpu_state_reset(env);
-    env->interrupt_request = sipi;
+    env_cpu(env)->interrupt_request = sipi;
     env->pat = pat;
-    env->halted = !cpu_is_bsp(env);
+    env_cpu(env)->halted = !cpu_is_bsp(env);
 }
 
 int cpu_is_bsp(CPUX86State *env) {
-    return env->cpu_index == 0;
+    return env_cpu(env)->cpu_index == 0;
 }
 
 const void *helper_lookup_tb_ptr(CPUArchState *env) {

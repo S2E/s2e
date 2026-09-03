@@ -167,7 +167,10 @@ typedef struct CPUX86State {
     uint8_t nmi_injected;
     uint8_t nmi_pending;
 
-    CPU_COMMON
+    /* cpu_state_reset() clears everything before this point; size and the
+       fields after it survive a reset. The execution fields that QEMU 1.0
+       kept here (CPU_COMMON) live in CPUState; see cpu/state.h. */
+    unsigned size; /* sizeof(CPUX86State), checked by libs2ecore against its own build */
 
     uint64_t pat;
 
@@ -210,8 +213,9 @@ CPUX86State *cpu_x86_init(const cpuid_t *cpuid);
 int cpu_x86_exec(CPUX86State *s);
 
 static inline bool cpu_has_work(CPUX86State *env) {
-    return ((env->interrupt_request & CPU_INTERRUPT_HARD) && (env->mflags & IF_MASK)) ||
-           (env->interrupt_request & (CPU_INTERRUPT_NMI | CPU_INTERRUPT_INIT | CPU_INTERRUPT_SIPI | CPU_INTERRUPT_MCE));
+    return ((env_cpu(env)->interrupt_request & CPU_INTERRUPT_HARD) && (env->mflags & IF_MASK)) ||
+           (env_cpu(env)->interrupt_request &
+            (CPU_INTERRUPT_NMI | CPU_INTERRUPT_INIT | CPU_INTERRUPT_SIPI | CPU_INTERRUPT_MCE));
 }
 
 target_ulong cpu_get_eflags(CPUX86State *env);

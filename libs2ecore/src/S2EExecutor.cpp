@@ -543,15 +543,25 @@ void S2EExecutor::registerCpu(S2EExecutionState *initialState, CPUX86State *cpuE
                                                         /* isReadOnly = */ false,
                                                         /* isSharedConcrete = */ true);
 
-    /* Add the CPU caches (TLB, RAM TLB, TB jump cache) that precede the env
-       inside ArchCPU. The softmmu fast path runs as bitcode inside KLEE and
-       reads the TLB through this object. See cpu/state.h. */
-    auto cpuCaches = initialState->addExternalObject(env_cpu(cpuEnv), offsetof(ArchCPU, env),
+    /* The CPUState that precedes the env inside ArchCPU is registered as two
+       objects (see cpu/state.h). The execution fields (exception_index,
+       interrupt_request, the current TB, ...) are snapshotted per state like
+       the concrete registers. The caches (TLB, RAM TLB, TB jump cache) are
+       not: only the active state has a TLB. Both are shared-concrete so that
+       helpers and the softmmu fast path can reach them as bitcode. */
+    CPUState *cpu = env_cpu(cpuEnv);
+    auto cpuExecState = initialState->addExternalObject(cpu, offsetof(CPUState, neg),
+                                                        /* isReadOnly = */ false,
+                                                        /* isSharedConcrete = */ true);
+
+    auto cpuCaches = initialState->addExternalObject(&cpu->neg, offsetof(ArchCPU, env) - offsetof(CPUState, neg),
                                                      /* isReadOnly = */ false,
                                                      /* isSharedConcrete = */ true);
 
-    initialState->m_registers.initialize(initialState->addressSpace(), symbolicRegs, concreteRegs, cpuCaches);
+    initialState->m_registers.initialize(initialState->addressSpace(), symbolicRegs, concreteRegs, cpuExecState,
+                                         cpuCaches);
     klee::ExecutionState::s_ignoredMergeObjects.insert(initialState->m_registers.getConcreteRegs());
+    klee::ExecutionState::s_ignoredMergeObjects.insert(initialState->m_registers.getCpuExecStateKey());
     klee::ExecutionState::s_ignoredMergeObjects.insert(initialState->m_registers.getCpuCachesKey());
 }
 
@@ -700,7 +710,7 @@ void S2EExecutor::doLoadBalancing() {
 void S2EExecutor::stateSwitchTimerCallback(void *opaque) {
     S2EExecutor *c = (S2EExecutor *) opaque;
 
-    assert(env->current_tb == nullptr);
+    assert(env_cpu(env)->current_tb == nullptr);
 
     if (g_s2e_state) {
         c->doLoadBalancing();
@@ -784,12 +794,15 @@ void S2EExecutor::doStateSwitch(S2EExecutionStatePtr oldState, S2EExecutionState
             *g_sqi.exec.clock_scaling_factor = timers_state.cpu_clock_scale_factor;
         }
 
+        // jmp_env belongs to the host call stack that is performing the
+        // switch, not to the incoming state, so it is carried across the
+        // restore of the CPU execution fields.
         jmp_buf jmp_env;
-        memcpy(&jmp_env, &env->jmp_env, sizeof(jmp_buf));
+        memcpy(&jmp_env, &env_cpu(env)->jmp_env, sizeof(jmp_buf));
 
         newState->m_registers.restoreConcreteState();
 
-        memcpy(&env->jmp_env, &jmp_env, sizeof(jmp_buf));
+        memcpy(&env_cpu(env)->jmp_env, &jmp_env, sizeof(jmp_buf));
 
         newState->m_active = true;
 
@@ -811,7 +824,7 @@ void S2EExecutor::doStateSwitch(S2EExecutionStatePtr oldState, S2EExecutionState
         se_tb_safe_flush();
     }
 
-    assert(env->current_tb == nullptr);
+    assert(env_cpu(env)->current_tb == nullptr);
 
     g_se_disable_tlb_flush = 0;
 
@@ -1013,7 +1026,7 @@ void S2EExecutor::updateConcreteFastPath(S2EExecutionState *state) {
     g_s2e_running_exception_emulation_code = (char *) &state->m_runningExceptionEmulationCode;
 
     if (g_s2e_fast_concrete_invocation) {
-        env->generate_llvm = 0;
+        env_cpu(env)->generate_llvm = 0;
     }
 
     updateClockScaling();
@@ -1054,7 +1067,7 @@ uintptr_t S2EExecutor::executeTranslationBlockConcrete(S2EExecutionState *state,
     uintptr_t ret = 0;
     S2EExternalDispatcher::saveJmpBuf();
 
-    if (setjmp(env->jmp_env)) {
+    if (setjmp(env_cpu(env)->jmp_env)) {
         S2EExternalDispatcher::restoreJmpBuf();
         throw CpuExitException();
     } else {
@@ -1070,7 +1083,7 @@ uintptr_t S2EExecutor::executeTranslationBlockSlow(struct CPUX86State *env1, str
         uintptr_t ret = g_s2e->getExecutor()->executeTranslationBlock(g_s2e_state.get(), tb);
         return ret;
     } catch (s2e::CpuExitException &) {
-        longjmp(env->jmp_env, 1);
+        longjmp(env_cpu(env)->jmp_env, 1);
     }
 }
 
@@ -1102,7 +1115,7 @@ uintptr_t S2EExecutor::executeTranslationBlock(S2EExecutionState *state, Transla
         executeKlee |= (state->regs()->getPc() == state->m_startSymbexAtPC);
 
         if (executeKlee && !tb->llvm_function) {
-            env->generate_llvm = 1;
+            env_cpu(env)->generate_llvm = 1;
             return 0;
         }
 
@@ -1115,7 +1128,7 @@ uintptr_t S2EExecutor::executeTranslationBlock(S2EExecutionState *state, Transla
         auto pair = std::make_pair(state->regs()->getPc(), state->regs()->getPageDir());
         if (state->m_toRunSymbolically.find(pair) != state->m_toRunSymbolically.end()) {
             if (!tb->llvm_function) {
-                env->generate_llvm = 1;
+                env_cpu(env)->generate_llvm = 1;
                 return 0;
             }
             state->m_toRunSymbolically.erase(pair);
@@ -1133,7 +1146,7 @@ uintptr_t S2EExecutor::executeTranslationBlock(S2EExecutionState *state, Transla
     }
 
     if (executeKlee && !tb->llvm_function) {
-        env->generate_llvm = 1;
+        env_cpu(env)->generate_llvm = 1;
         return 0;
     }
 
@@ -1144,7 +1157,7 @@ uintptr_t S2EExecutor::executeTranslationBlock(S2EExecutionState *state, Transla
 
         return executeTranslationBlockKlee(state, tb);
     } else {
-        env->generate_llvm = 0;
+        env_cpu(env)->generate_llvm = 0;
 
         if (!state->isRunningConcrete()) {
             state->switchToConcrete();
@@ -1624,7 +1637,7 @@ void S2EExecutor::terminateState(ExecutionStatePtr s) {
 
     // No need for exiting the loop if we kill another state.
     if (!m_inLoadBalancing && (state == g_s2e_state)) {
-        state->regs()->write<int>(CPU_OFFSET(exception_index), EXCP_SE);
+        state->regs()->getCpu()->exception_index = EXCP_SE;
         throw CpuExitException();
     }
 }
@@ -1644,7 +1657,7 @@ inline void S2EExecutor::setCCOpEflags(S2EExecutionState *state) {
 
                 executeFunction(state, "helper_set_cc_op_eflags");
             } catch (s2e::CpuExitException &) {
-                longjmp(env->jmp_env, 1);
+                longjmp(env_cpu(env)->jmp_env, 1);
             }
         }
     } else {
@@ -1679,7 +1692,7 @@ inline void S2EExecutor::doInterrupt(S2EExecutionState *state, int intno, int is
         try {
             executeFunction(state, "se_do_interrupt_all", args);
         } catch (s2e::CpuExitException &) {
-            longjmp(env->jmp_env, 1);
+            longjmp(env_cpu(env)->jmp_env, 1);
         }
     }
 }

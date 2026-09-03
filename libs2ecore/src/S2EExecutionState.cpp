@@ -113,10 +113,10 @@ ExecutionStatePtr S2EExecutionState::clone() {
     // stale on state restore. If a signal occurs while restoring the state,
     // its handler will try to unlink a stale tb, which could cause a hang
     // or a crash.
-    auto old_tb = env->current_tb;
-    env->current_tb = nullptr;
+    auto old_tb = env_cpu(env)->current_tb;
+    env_cpu(env)->current_tb = nullptr;
     m_registers.saveConcreteState();
-    env->current_tb = old_tb;
+    env_cpu(env)->current_tb = old_tb;
 
     cpu_disable_ticks();
     s2e_kvm_save_device_state();
@@ -308,7 +308,7 @@ bool S2EExecutionState::getReturnAddress(uint64_t *retAddr) {
 }
 
 TranslationBlock *S2EExecutionState::getTb() const {
-    return (TranslationBlock *) s2e_read_register_concrete_fast<uintptr_t>(CPU_OFFSET(se_current_tb));
+    return regs()->getCpu()->se_current_tb;
 }
 
 /***/
@@ -473,7 +473,7 @@ void S2EExecutionState::jumpToSymbolic() {
     g_s2e->getExecutor()->updateConcreteFastPath(this);
 
     // XXX: what about regs_to_env ?
-    longjmp(env->jmp_env, 1);
+    longjmp(env_cpu(env)->jmp_env, 1);
 }
 
 bool S2EExecutionState::needToJumpToSymbolic() const {
@@ -486,7 +486,7 @@ void S2EExecutionState::yield() {
     setYieldState(true);
 
     // Stop current execution
-    regs()->write<int>(CPU_OFFSET(exception_index), EXCP_SE);
+    regs()->getCpu()->exception_index = EXCP_SE;
     throw CpuExitException();
 }
 
@@ -650,7 +650,7 @@ uint64_t S2EExecutionState::readMemIoVaddr(bool masked) {
     klee::ref<klee::Expr> result;
 
     if (!m_memIoVaddr) {
-        return env->mem_io_vaddr;
+        return env_cpu(env)->mem_io_vaddr;
     }
 
     if (masked) {

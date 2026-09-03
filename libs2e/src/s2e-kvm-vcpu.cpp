@@ -248,7 +248,7 @@ void VCPU::coroutineFcn(void *opaque) {
 
         libcpu_run_all_timers();
 
-        assert(env->current_tb == NULL);
+        assert(env_cpu(env)->current_tb == NULL);
 
         env->kvm_request_interrupt_window |= buffer->request_interrupt_window;
 
@@ -256,9 +256,9 @@ void VCPU::coroutineFcn(void *opaque) {
         cpu_x86_exec(env);
         vcpu->m_cpuStateIsPrecise = true;
 
-        assert(env->current_tb == NULL);
+        assert(env_cpu(env)->current_tb == NULL);
 
-        env->exception_index = 0;
+        env_cpu(env)->exception_index = 0;
         coroutine_yield();
     }
 }
@@ -334,7 +334,7 @@ int VCPU::run(int vcpu_fd) {
         m_cpuBuffer->exit_reason == KVM_EXIT_IOAPIC_EOI;
 
     // Might not be NULL if resuming from an interrupted I/O
-    // assert(env->current_tb == NULL);
+    // assert(env_cpu(env)->current_tb == NULL);
 
     m_cpuBuffer->if_flag = (m_env->mflags & IF_MASK) != 0;
     m_cpuBuffer->apic_base = m_vapic.get_apic_base();
@@ -346,7 +346,7 @@ int VCPU::run(int vcpu_fd) {
                                                  m_cpuBuffer->if_flag && (m_env->kvm_irq == -1);
 
     if (m_cpuBuffer->exit_reason == -1) {
-        if (m_env->halted) {
+        if (env_cpu(m_env)->halted) {
             m_cpuBuffer->exit_reason = KVM_EXIT_HLT;
         } else if (m_cpuBuffer->ready_for_interrupt_injection) {
             m_cpuBuffer->exit_reason = KVM_EXIT_IRQ_WINDOW_OPEN;
@@ -395,25 +395,25 @@ int VCPU::interrupt(kvm_interrupt *interrupt) {
     assert(!m_inKvmRun);
     assert(m_env->mflags & IF_MASK);
 
-    if (m_env->interrupt_request & CPU_INTERRUPT_HARD) {
+    if (env_cpu(m_env)->interrupt_request & CPU_INTERRUPT_HARD) {
         libcpu_log_mask(CPU_LOG_KVM, "Interrupt already pending, cannot inject IRQ %d\n", interrupt->irq);
         return -EEXIST;
     }
 
-    assert(!(m_env->interrupt_request & CPU_INTERRUPT_HARD));
+    assert(!(env_cpu(m_env)->interrupt_request & CPU_INTERRUPT_HARD));
 
     if (m_env->cr[0] & CR0_PE_MASK) {
         assert(interrupt->irq > m_vapic.get_tpr());
     }
 
-    m_env->interrupt_request |= CPU_INTERRUPT_HARD;
+    env_cpu(m_env)->interrupt_request |= CPU_INTERRUPT_HARD;
     m_env->kvm_irq = interrupt->irq;
 
     return 0;
 }
 
 int VCPU::nmi() {
-    m_env->interrupt_request |= CPU_INTERRUPT_NMI;
+    env_cpu(m_env)->interrupt_request |= CPU_INTERRUPT_NMI;
     return 0;
 }
 
@@ -702,9 +702,9 @@ void VCPU::interrupt(int mask, bool reset) {
     cpu_exit(m_env);
 
     if (reset) {
-        m_env->interrupt_request &= ~mask;
+        env_cpu(m_env)->interrupt_request &= ~mask;
     } else {
-        m_env->interrupt_request |= mask;
+        env_cpu(m_env)->interrupt_request |= mask;
     }
 }
 } // namespace kvm

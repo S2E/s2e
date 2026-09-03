@@ -83,7 +83,7 @@ void tlb_flush(CPUArchState *env, int flush_global) {
 #endif
     /* must reset current TB so that interrupts cannot modify the
        links while we are modifying them */
-    env->current_tb = NULL;
+    env_cpu(env)->current_tb = NULL;
 
     int mmu_idx;
     CPUTLB *tlb = env_tlb(env);
@@ -126,7 +126,7 @@ void tlb_flush_page(CPUArchState *env, target_ulong addr) {
     }
     /* must reset current TB so that interrupts cannot modify the
        links while we are modifying them */
-    env->current_tb = NULL;
+    env_cpu(env)->current_tb = NULL;
 
     addr &= TARGET_PAGE_MASK;
     i = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
@@ -241,7 +241,7 @@ void tlb_set_page(CPUArchState *env, target_ulong vaddr, target_phys_addr_t padd
     code_address = address;
     /* Make accesses to pages with watchpoints go via the
        watchpoint trap routines.  */
-    QTAILQ_FOREACH (wp, &env->watchpoints, entry) {
+    QTAILQ_FOREACH (wp, &env_cpu(env)->watchpoints, entry) {
         if (vaddr == (wp->vaddr & TARGET_PAGE_MASK)) {
             /* Avoid trapping reads of pages with a write breakpoint. */
             if ((prot & PAGE_WRITE) || (wp->flags & BP_MEM_READ)) {
