@@ -176,7 +176,7 @@ public:
     S2EExecutionState(const S2EExecutionState &state)
         : ExecutionState(state), m_pluginState(state.m_pluginState), m_toRunSymbolically(state.m_toRunSymbolically),
           m_deviceState(state.m_deviceState), m_asCache(state.m_asCache), m_registers(state.m_registers),
-          m_memory(state.m_memory), m_tlb(&m_asCache, &m_registers) {
+          m_memory(state.m_memory), m_tlb(&m_asCache, &m_registers, &m_active) {
         m_stateID = state.m_stateID; // To be updated in clone().
         m_guid = state.m_guid;
         m_startSymbexAtPC = state.m_startSymbexAtPC;
@@ -187,7 +187,9 @@ public:
         m_pinned = state.m_pinned;
         m_isStateSwitchForbidden = state.m_isStateSwitchForbidden;
 
-        m_tlb = state.m_tlb;
+        // m_tlb is deliberately not copied. The fork logic deactivates the
+        // copy, and it has no TLB until doStateSwitch() activates it with a
+        // flushed one, so its map must start empty.
 
         m_timersState = state.m_timersState;
         m_lastS2ETb = state.m_lastS2ETb;

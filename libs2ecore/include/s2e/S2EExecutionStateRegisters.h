@@ -62,12 +62,14 @@ protected:
     static klee::ObjectKey s_concreteRegs;
 
     // The CPU caches (TLB, RAM TLB, TB jump cache), i.e., the CPUState part
-    // of the global ArchCPU that precedes CPUX86State (see cpu/state.h)
+    // of the global ArchCPU that precedes CPUX86State (see cpu/state.h).
+    // The region is registered so that the bitcode softmmu fast path can
+    // resolve it, but it is never snapshotted: the active state owns the
+    // global copy and doStateSwitch() flushes it on every switch.
     static klee::ObjectKey s_cpuCaches;
 
     klee::ObjectStatePtr m_symbolicRegs;
     klee::ObjectStatePtr m_concreteRegs;
-    klee::ObjectStatePtr m_cpuCaches;
 
     const bool *m_active;
     const bool *m_runningConcrete;
@@ -118,12 +120,10 @@ public:
 
     inline void saveConcreteState() {
         memcpy((void *) m_concreteRegs->getConcreteBuffer(), (void *) s_concreteRegs.address, s_concreteRegs.size);
-        memcpy((void *) m_cpuCaches->getConcreteBuffer(), (void *) s_cpuCaches.address, s_cpuCaches.size);
     }
 
     inline void restoreConcreteState() {
         memcpy((void *) s_concreteRegs.address, (void *) m_concreteRegs->getConcreteBuffer(), s_concreteRegs.size);
-        memcpy((void *) s_cpuCaches.address, (void *) m_cpuCaches->getConcreteBuffer(), s_cpuCaches.size);
     }
 
     bool addressSpaceChange(const klee::ObjectKey &key, const klee::ObjectStateConstPtr &oldState,
@@ -145,9 +145,9 @@ public:
     /// the global CPUState object if active.
     CPUX86State *getCpuState() const;
 
-    /// Returns a pointer to the store holding the CPU caches (the CPUState
-    /// part of ArchCPU): the global object if the state is active, the
-    /// snapshot buffer otherwise.
+    /// Returns a pointer to the global CPU caches (the CPUState part of
+    /// ArchCPU). Only the active state has a TLB, so this aborts when the
+    /// state is inactive.
     CPUState *getCpuCaches() const;
 
     bool allConcrete() const {

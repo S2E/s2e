@@ -89,6 +89,11 @@ bool S2EExecutionStateTlb::addressSpaceChangeUpdateTlb(const klee::ObjectStateCo
 #if defined(SE_ENABLE_PHYSRAM_TLB)
 void S2EExecutionStateTlb::updateRamTlb(const klee::ObjectStateConstPtr &oldState,
                                         const klee::ObjectStatePtr &newState) {
+    // An inactive state has no RAM TLB; it gets an empty one when activated.
+    if (!*m_active) {
+        return;
+    }
+
     CPUState *cpu = m_registers->getCpuCaches();
     uintptr_t tlb_index = (oldState->getAddress() >> 12) & (CPU_TLB_SIZE - 1);
     CPUTLBRAMEntry *re = &cpu->neg.se_ram_tlb[tlb_index];
@@ -113,13 +118,22 @@ void S2EExecutionStateTlb::updateRamTlb(const klee::ObjectStateConstPtr &oldStat
 #endif
 
 void S2EExecutionStateTlb::updateTlb(const klee::ObjectStateConstPtr &oldState, const klee::ObjectStatePtr &newState) {
-
-    CPUState *cpu = m_registers->getCpuCaches();
-
     if (g_s2e_single_path_mode) {
         llvm::errs() << "Multi-path mode disabled.\n";
         exit(-1);
     }
+
+    // An inactive state has no TLB, so there is nothing to repoint. Its map
+    // must be empty: doStateSwitch() clears it on deactivation and a forked
+    // state starts with an empty one.
+    if (!*m_active) {
+        if (!m_tlbMap.empty()) {
+            pabort("Inactive state has a non-empty TLB cache map");
+        }
+        return;
+    }
+
+    CPUState *cpu = m_registers->getCpuCaches();
 
 #ifdef S2E_DEBUG_TLBCACHE
     g_s2e->getDebugStream(g_s2e_state.get())
