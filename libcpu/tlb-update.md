@@ -138,7 +138,10 @@ fixing them afterwards.
   `updateTlbEntryConcreteStatus()` take `env` as a parameter, with a latent
   mixed-accessor bug: `updateTlbEntry()` indexes its parameter, but the
   `flushTlbCachePage()` it calls clears the global. Route all of them through
-  one accessor, a three-way unification rather than a two-way one.
+  one accessor, a three-way unification rather than a two-way one. The libcpu
+  hook `s2e_update_tlb_entry()` keeps its `env` parameter, since that is
+  libcpu's interface, but only checks that it names the active state's CPU
+  and then calls the parameterless method.
 - **`addressSpaceChangeUpdateTlb()` can fire on an inactive state.**
   `AddressSpace::getWriteable()` notifies whichever state owns the address
   space. The merge path runs with `!m_active`, and, in the dominant case, any
@@ -202,6 +205,9 @@ This step changes behavior; the earlier ones do not.
 - `addressSpaceChangeUpdateTlb()`: early-return when the state is not active.
   Sound, because an inactive state has no TLB; it gets one when it is
   activated.
+- `getCpuCaches()`: drop the per-state buffer branch. It aborts when the state
+  is not active and otherwise returns the global region, so every TLB method
+  enforces I3 through the one accessor step 1 routed them through.
 - Assert `m_tlbMap.empty()` whenever `!m_active`. This needs one edit first:
   `S2EExecutionState`'s copy constructor does `m_tlb = state.m_tlb`, handing
   every forked child the parent's populated map, so `clone()` must clear the
