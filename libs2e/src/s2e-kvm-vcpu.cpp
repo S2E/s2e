@@ -605,11 +605,24 @@ int VCPU::sys_ioctl(int fd, int request, uint64_t arg1) {
         } break;
 
         case KVM_GET_LAPIC: {
+            // Interrupts raised by other threads are queued until the next KVM_RUN.
+            // Deliver them now, otherwise they are lost if the client saves the
+            // state (e.g., savevm) before running the cpu again.
+            if (!m_task_runner.run_on_thread()) {
+                abort();
+            }
             m_lapic->get_lapic((kvm_lapic_state *) arg1);
             ret = 0;
         } break;
 
         case KVM_SET_LAPIC: {
+            // Interrupts queued before this call belong to the state that is being
+            // overwritten. Deliver them to that state now, so that they are not
+            // delivered to the new one on the next KVM_RUN. This only discards fixed
+            // interrupts, an nmi or smi stays pending in the cpu.
+            if (!m_task_runner.run_on_thread()) {
+                abort();
+            }
             m_lapic->set_lapic((kvm_lapic_state *) arg1);
             ret = 0;
         } break;
