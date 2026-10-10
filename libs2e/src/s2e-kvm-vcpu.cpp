@@ -22,6 +22,10 @@
 
 #include <inttypes.h>
 #include <memory.h>
+#include <poll.h>
+#include <signal.h>
+#include <sys/eventfd.h>
+#include <unistd.h>
 
 #include <cpu/exec.h>
 #include <cpu/i386/cpu.h>
@@ -103,6 +107,8 @@ VCPU::VCPU(std::shared_ptr<S2EKVM> &kvm, std::shared_ptr<VM> &vm, kvm_run *buffe
         exit(-1);
     }
 
+    init_halt_fd();
+
     /* We want the default libcpu CPU, not the KVM one. */
     m_env = g_cpu_env = env = cpu_x86_init(&m_kvm->getCpuid());
 
@@ -125,6 +131,10 @@ VCPU::VCPU(std::shared_ptr<S2EKVM> &kvm, std::shared_ptr<VM> &vm, kvm_run *buffe
 
 VCPU::~VCPU() {
     m_onExit.disconnect();
+
+    if (m_halt_fd >= 0) {
+        close(m_halt_fd);
+    }
 }
 
 VCPU *VCPU::current() {
@@ -418,11 +428,67 @@ int VCPU::run(int vcpu_fd) {
     assert(ret >= 0 || errno == EINTR);
     assert(m_cpuBuffer->exit_reason != -1);
 
+    // A client that does not emulate the lapic expects KVM_RUN to block while
+    // the cpu is halted. It would otherwise call us back in a busy loop.
+    bool wait = m_lapic && m_cpuBuffer->exit_reason == KVM_EXIT_HLT;
+
+    // The timers must be read while holding the cpu lock
+    int64_t delay = wait ? libcpu_get_next_timer_delay_ns() : -1;
+
     m_inKvmRun = false;
 
     unlock();
 
+    if (wait) {
+        wait_while_halted(delay);
+    }
+
     return ret;
+}
+
+void VCPU::init_halt_fd() {
+    int fd = eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
+    if (fd < 0) {
+        fprintf(stderr, "Could not create halt eventfd\n");
+        exit(-1);
+    }
+
+    // A signal handler may use the descriptor at any time, it must always be valid
+    int old_fd = m_halt_fd;
+    m_halt_fd = fd;
+    if (old_fd >= 0) {
+        close(old_fd);
+    }
+}
+
+void VCPU::wait_while_halted(int64_t delay) {
+    static constexpr int64_t NS_PER_SEC = 1000 * 1000 * 1000;
+
+    struct pollfd pfd = {.fd = m_halt_fd, .events = POLLIN, .revents = 0};
+    struct timespec ts = {.tv_sec = delay / NS_PER_SEC, .tv_nsec = delay % NS_PER_SEC};
+
+    // Like KVM_RUN, wait with the signal mask of the client, so that the signals it uses
+    // to kick the cpu interrupt the wait.
+    const sigset_t *mask = m_sigmask_size ? &m_sigmask.sigset : nullptr;
+
+    // request_exit_cpu_loop sets its flag and then checks ours, we do the opposite.
+    // Whatever the interleaving, either we see the request or the requester sees
+    // that it must wake us up. This also holds when the requester is a signal handler
+    // that interrupts this thread right before the wait starts, so there is no need
+    // to bound the wait when there are no timers.
+    m_halt_waiting = true;
+    if (!m_exit_requested) {
+        ppoll(&pfd, 1, delay < 0 ? nullptr : &ts, mask);
+    }
+    m_halt_waiting = false;
+
+    // KVM_RUN returns to the client after this, which satisfies all the requests so far
+    m_exit_requested = false;
+
+    uint64_t val;
+    if (read(m_halt_fd, &val, sizeof(val)) < 0 && errno != EAGAIN && errno != EINTR) {
+        fprintf(stderr, "Could not read halt eventfd: %s\n", strerror(errno));
+    }
 }
 
 int VCPU::interrupt(kvm_interrupt *interrupt) {
@@ -488,10 +554,30 @@ void VCPU::cloneProcess(void) {
     coroutine_yield();
 
     m_cpuThread = pthread_self();
+
+    // The parent and the child must not steal each other's wake up requests
+    init_halt_fd();
 }
 
 void VCPU::request_exit_cpu_loop() {
     cpu_exit(m_env);
+
+    // The cpu only needs a wake up when it sleeps in wait_while_halted. In all the other
+    // cases, it finds the flag before it goes to sleep. Keep the system call out of
+    // the way of the callers that are on a hot path (dma, irq lines, etc.).
+    m_exit_requested = true;
+    if (!m_halt_waiting) {
+        return;
+    }
+
+    // This may run in a signal handler, preserve errno for the interrupted code
+    int saved_errno = errno;
+    uint64_t val = 1;
+    if (write(m_halt_fd, &val, sizeof(val)) < 0 && errno != EAGAIN) {
+        // The cpu would sleep forever
+        abort();
+    }
+    errno = saved_errno;
 }
 
 ///

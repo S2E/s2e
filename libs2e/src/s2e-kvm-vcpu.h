@@ -27,6 +27,7 @@
 #include <cpu/kvm.h>
 #include <inttypes.h>
 
+#include <atomic>
 #include <coroutine.h>
 #include <cpu/i386/cpu.h>
 #include <fsigc++/fsigc++.h>
@@ -90,6 +91,18 @@ private:
     VirtualApic m_vapic;
 
     volatile bool m_inKvmRun = false;
+
+    // Lets a halted cpu sleep in KVM_RUN until something needs its attention.
+    // This is an eventfd because the kvm client may kick the cpu from a signal handler.
+    int m_halt_fd = -1;
+
+    // Set while the cpu sleeps on m_halt_fd, so that exit requests only pay
+    // for a wake up when there is someone to wake up.
+    std::atomic<bool> m_halt_waiting = false;
+
+    // Set by exit requests, so that the cpu does not go to sleep when a request
+    // came in after it left the cpu loop.
+    std::atomic<bool> m_exit_requested = false;
 
     fsigc::connection m_onExit;
 
@@ -156,6 +169,8 @@ private:
     int getMPState(kvm_mp_state *mp);
 
     int run(int vcpu_fd);
+    void init_halt_fd();
+    void wait_while_halted(int64_t delay);
     int interrupt(kvm_interrupt *interrupt);
     int nmi();
 

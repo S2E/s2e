@@ -61,6 +61,10 @@ int libcpu_timer_expired(CPUTimer *timer_head, int64_t current_time);
 
 void libcpu_run_timers(CPUClock *clock);
 void libcpu_run_all_timers(void);
+
+/* Returns the number of nanoseconds until the next timer expires on any clock,
+   0 if a timer is already due, and -1 if there are no active timers. */
+int64_t libcpu_get_next_timer_delay_ns(void);
 void init_clocks(void);
 
 int64_t cpu_get_ticks(void);
