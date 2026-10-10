@@ -309,9 +309,10 @@ int VCPU::setSystemRegisters(kvm_sregs *sregs) {
     m_env->cr[3] = sregs->cr3;
     m_env->cr[4] = sregs->cr4;
 
-    m_vapic.set_tpr(sregs->cr8 << 4);
+    set_tpr(sregs->cr8 << 4);
 
-    if (sregs->apic_base) {
+    // The base of the in-kernel lapic is set through its msr
+    if (sregs->apic_base && !m_lapic) {
         m_vapic.set_apic_base(sregs->apic_base);
     }
 
@@ -520,8 +521,8 @@ int VCPU::getSystemRegisters(kvm_sregs *sregs) {
     sregs->cr3 = m_env->cr[3];
     sregs->cr4 = m_env->cr[4];
 
-    sregs->apic_base = m_vapic.get_apic_base();
-    sregs->cr8 = m_vapic.get_tpr() >> 4;
+    sregs->apic_base = get_apic_base();
+    sregs->cr8 = get_tpr() >> 4;
 
     sregs->efer = m_env->efer;
     return 0;

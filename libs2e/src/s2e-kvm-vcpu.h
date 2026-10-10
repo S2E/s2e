@@ -172,6 +172,13 @@ public:
 
     void create_lapic();
 
+    /// These use the in-kernel lapic when there is one and fall back
+    /// to the state provided by the kvm client otherwise.
+    uint8_t get_tpr() const;
+    void set_tpr(uint8_t val);
+    uint64_t get_apic_base() const;
+    void set_apic_base(uint64_t val);
+
     void lock();
     void unlock();
 

@@ -148,6 +148,41 @@ void VCPU::create_lapic() {
     m_vm->dev_mgr().register_device(LocalApic::APIC_DEFAULT_BASE, LocalApic::APIC_SIZE, m_lapic);
 }
 
+uint8_t VCPU::get_tpr() const {
+    if (m_lapic) {
+        return m_lapic->get_tpr();
+    }
+    return m_vapic.get_tpr();
+}
+
+void VCPU::set_tpr(uint8_t val) {
+    if (m_lapic) {
+        m_lapic->set_tpr(val);
+    } else {
+        m_vapic.set_tpr(val);
+    }
+}
+
+uint64_t VCPU::get_apic_base() const {
+    if (m_lapic) {
+        return m_lapic->get_apic_base();
+    }
+    return m_vapic.get_apic_base();
+}
+
+void VCPU::set_apic_base(uint64_t val) {
+    if (!m_lapic) {
+        m_vapic.set_apic_base(val);
+        return;
+    }
+
+    m_lapic->set_apic_base(val);
+    if (!m_vm->dev_mgr().rebase_device(val & ~0xfffULL, m_lapic)) {
+        fprintf(stderr, "Failed to rebase LAPIC to %#" PRIx64 "\n", val);
+        abort();
+    }
+}
+
 int VCPU::initCpuLock(void) {
     pthread_mutexattr_t attr;
     pthread_mutexattr_init(&attr);
@@ -310,9 +345,12 @@ int VCPU::run(int vcpu_fd) {
 
     m_cpuBuffer->exit_reason = -1;
 
-    assert(m_cpuBuffer->apic_base);
-    m_vapic.set_apic_base(m_cpuBuffer->apic_base);
-    m_vapic.set_tpr(m_cpuBuffer->cr8 << 4);
+    if (!m_lapic) {
+        // The kvm client only keeps these up to date when it emulates the apic itself
+        assert(m_cpuBuffer->apic_base);
+        m_vapic.set_apic_base(m_cpuBuffer->apic_base);
+        m_vapic.set_tpr(m_cpuBuffer->cr8 << 4);
+    }
 
     m_handlingKvmCallback = false;
     m_handlingDeviceState = false;
@@ -337,8 +375,8 @@ int VCPU::run(int vcpu_fd) {
     // assert(env->current_tb == NULL);
 
     m_cpuBuffer->if_flag = (m_env->mflags & IF_MASK) != 0;
-    m_cpuBuffer->apic_base = m_vapic.get_apic_base();
-    m_cpuBuffer->cr8 = m_vapic.get_tpr() >> 4;
+    m_cpuBuffer->apic_base = get_apic_base();
+    m_cpuBuffer->cr8 = get_tpr() >> 4;
 
     // KVM specs says that we should also check for request for interrupt window,
     // but that causes missed interrupts.
@@ -389,7 +427,7 @@ int VCPU::run(int vcpu_fd) {
 
 int VCPU::interrupt(kvm_interrupt *interrupt) {
     libcpu_log_mask(CPU_LOG_KVM, "IRQ %d env->mflags=%lx hflags=%x hflags2=%x ptr=%#x\n", interrupt->irq,
-                    (uint64_t) env->mflags, env->hflags, env->hflags2, m_vapic.get_tpr());
+                    (uint64_t) env->mflags, env->hflags, env->hflags2, get_tpr());
 
     assert(!m_handlingKvmCallback);
     assert(!m_inKvmRun);
@@ -402,8 +440,9 @@ int VCPU::interrupt(kvm_interrupt *interrupt) {
 
     assert(!(m_env->interrupt_request & CPU_INTERRUPT_HARD));
 
-    if (m_env->cr[0] & CR0_PE_MASK) {
-        assert(interrupt->irq > m_vapic.get_tpr());
+    // External interrupts are not subject to the tpr of the in-kernel lapic
+    if (!m_lapic && (m_env->cr[0] & CR0_PE_MASK)) {
+        assert(interrupt->irq > get_tpr());
     }
 
     m_env->interrupt_request |= CPU_INTERRUPT_HARD;
