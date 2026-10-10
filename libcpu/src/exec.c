@@ -542,7 +542,7 @@ tb_page_addr_t get_page_addr_code(CPUArchState *env1, target_ulong addr) {
     void *p;
 
     page_index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
-    mmu_idx = cpu_mmu_index(env1);
+    mmu_idx = x86_mmu_index(env1);
     if (unlikely(env_tlb(env1)->f[mmu_idx].table[page_index].addr_code != (addr & TARGET_PAGE_MASK))) {
         cpu_ldub_code(env1, addr);
     }

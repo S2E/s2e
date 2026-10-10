@@ -221,7 +221,9 @@ static inline bool cpu_has_work(CPUX86State *env) {
 target_ulong cpu_get_eflags(CPUX86State *env);
 void cpu_restore_eflags(CPUX86State *env);
 
-static inline int cpu_mmu_index(CPUX86State *env) {
+/* MMU index of the current privilege level. cpu_mmu_index() in
+   cpu/accel/cpu-mmu-index.h is the CPUState version. */
+static inline int x86_mmu_index(CPUX86State *env) {
     return (env->hflags & HF_CPL_MASK) == 3 ? 1 : 0;
 }
 
