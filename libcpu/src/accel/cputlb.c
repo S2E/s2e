@@ -17,42 +17,13 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "exec/cputlb.h"
-#include "accel/tcg/cpu-ldst-common.h"
-#include "accel/tcg/cpu-loop.h"
-#include "accel/tcg/cpu-mmu-index.h"
-#include "accel/tcg/cpu-ops.h"
-#include "accel/tcg/iommu.h"
-#include "accel/tcg/probe.h"
-#include "exec/helper-proto-common.h"
-#include "exec/log.h"
-#include "exec/mmu-access-type.h"
-#include "exec/page-protection.h"
-#include "exec/tb-flush.h"
-#include "exec/tlb-common.h"
-#include "exec/tlb-flags.h"
-#include "exec/vaddr.h"
-#include "internal-common.h"
-#include "qemu/atomic.h"
-#include "qemu/atomic128.h"
-#include "qemu/error-report.h"
-#include "qemu/main-loop.h"
-#include "qemu/osdep.h"
-#include "qemu/target-info.h"
-#include "system-page-protection.h"
-#include "system/memory.h"
-#include "system/physmem.h"
-#include "system/ramblock.h"
-#include "tb-hash.h"
-#include "tb-internal.h"
-#include "tcg/tcg.h"
+/*
+ * S2E: the include block is replaced. cputlb-deps.h stands in for the QEMU
+ * subsystems that libcpu does not have (memory API, dirty tracking, work
+ * queues, plugins, tracing).
+ */
+#include "s2e/cputlb-deps.h"
 #include "tlb-bounds.h"
-#include "trace.h"
-#ifdef CONFIG_PLUGIN
-#include "qemu/plugin-memory.h"
-#endif
-#include "backend-ldst.h"
-#include "tcg/tcg-ldst.h"
 
 /* DEBUG defines, enable DEBUG_TLB_LOG to log to the CPU_LOG_MMU target */
 /* #define DEBUG_TLB */
@@ -120,7 +91,8 @@ static inline uint64_t tlb_addr_write(const CPUTLBEntry *entry) {
 static inline uintptr_t tlb_index(CPUState *cpu, uintptr_t mmu_idx, vaddr addr) {
     uintptr_t size_mask = cpu_tlb_fast(cpu, mmu_idx)->mask >> CPU_TLB_ENTRY_BITS;
 
-    return (addr >> TARGET_PAGE_BITS) & size_mask;
+    /* S2E: the bitcode build forks on the page number, see cputlb-deps.h. */
+    return SE_CONCRETE_PAGE(addr >> TARGET_PAGE_BITS) & size_mask;
 }
 
 /* Find the TLB entry corresponding to the mmu_idx + address pair.  */
@@ -128,23 +100,18 @@ static inline CPUTLBEntry *tlb_entry(CPUState *cpu, uintptr_t mmu_idx, vaddr add
     return &cpu_tlb_fast(cpu, mmu_idx)->table[tlb_index(cpu, mmu_idx, addr)];
 }
 
+#ifndef SYMBEX_LLVM_LIB /* S2E: native only, see cputlb-deps.h */
 static void tlb_window_reset(CPUTLBDesc *desc, int64_t ns, size_t max_entries) {
     desc->window_begin_ns = ns;
     desc->window_max_entries = max_entries;
 }
 
 static void tb_jmp_cache_clear_page(CPUState *cpu, vaddr page_addr) {
-    CPUJumpCache *jc = cpu->tb_jmp_cache;
-    int i, i0;
+    /* S2E: the jump cache is still QEMU 1.0's array of TB pointers in neg.
+       Upstream's CPUJumpCache arrives with cpu-exec.c. */
+    unsigned int i0 = tb_jmp_cache_hash_page(page_addr);
 
-    if (unlikely(!jc)) {
-        return;
-    }
-
-    i0 = tb_jmp_cache_hash_page(page_addr);
-    for (i = 0; i < TB_JMP_PAGE_SIZE; i++) {
-        qatomic_set(&jc->array[i0 + i].tb, NULL);
-    }
+    memset(&cpu->neg.tb_jmp_cache[i0], 0, TB_JMP_PAGE_SIZE * sizeof(TranslationBlock *));
 }
 
 /**
@@ -273,6 +240,9 @@ static void tlb_flush_one_mmuidx_locked(CPUState *cpu, int mmu_idx, int64_t now)
     CPUTLBDesc *desc = &cpu->neg.tlb.d[mmu_idx];
     CPUTLBDescFast *fast = cpu_tlb_fast(cpu, mmu_idx);
 
+    /* S2E: libs2ecore drops its references to the entries of this index. */
+    se_tlb_drop_mmuidx(cpu, mmu_idx);
+
     tlb_mmu_resize_locked(desc, fast, now);
     tlb_mmu_flush_locked(desc, fast);
 }
@@ -283,8 +253,11 @@ static void tlb_mmu_init(CPUTLBDesc *desc, CPUTLBDescFast *fast, int64_t now) {
     tlb_window_reset(desc, now, 0);
     desc->n_used_entries = 0;
     fast->mask = (n_entries - 1) << CPU_TLB_ENTRY_BITS;
-    fast->table = g_new(CPUTLBEntry, n_entries);
-    desc->fulltlb = g_new(CPUTLBEntryFull, n_entries);
+    /* S2E: the tables are static arrays inside neg, so that the KLEE object
+       registered over neg covers them. tlb-bounds.h pins their size. */
+    QEMU_BUILD_BUG_ON(ARRAY_SIZE(desc->se_table) != (1 << CPU_TLB_DYN_DEFAULT_BITS));
+    fast->table = desc->se_table;
+    desc->fulltlb = desc->se_fulltlb;
     tlb_mmu_flush_locked(desc, fast);
 }
 
@@ -318,8 +291,9 @@ void tlb_destroy(CPUState *cpu) {
         CPUTLBDesc *desc = &cpu->neg.tlb.d[i];
         CPUTLBDescFast *fast = cpu_tlb_fast(cpu, i);
 
-        g_free(fast->table);
-        g_free(desc->fulltlb);
+        /* S2E: the tables are static (tlb_mmu_init), there is nothing to free. */
+        fast->table = NULL;
+        desc->fulltlb = NULL;
     }
 }
 
@@ -344,6 +318,11 @@ static void tlb_flush_by_mmuidx_async_work(CPUState *cpu, run_on_cpu_data data) 
     MMUIdxMap asked = data.host_int;
     MMUIdxMap all_dirty, work, to_clean;
     int64_t now = get_clock_realtime();
+
+    /* S2E: no flush while libs2ecore switches states, see cputlb-deps.h. */
+    if (se_tlb_flush_disabled()) {
+        return;
+    }
 
     assert_cpu_is_self(cpu);
 
@@ -460,6 +439,10 @@ static void tlb_flush_page_locked(CPUState *cpu, int midx, vaddr page) {
         tlb_debug("forcing full flush midx %d (%016" VADDR_PRIx "/%016" VADDR_PRIx ")\n", midx, lp_addr, lp_mask);
         tlb_flush_one_mmuidx_locked(cpu, midx, get_clock_realtime());
     } else {
+        /* S2E: libs2ecore drops its reference before the entry is cleared. */
+        if (tlb_hit_page_anyprot(tlb_entry(cpu, midx, page), page)) {
+            se_tlb_drop_entry(cpu, midx, tlb_index(cpu, midx, page));
+        }
         if (tlb_flush_entry_locked(tlb_entry(cpu, midx, page), page)) {
             tlb_n_used_entries_dec(cpu, midx);
         }
@@ -478,6 +461,11 @@ static void tlb_flush_page_locked(CPUState *cpu, int midx, vaddr page) {
  */
 static void tlb_flush_page_by_mmuidx_async_0(CPUState *cpu, vaddr addr, MMUIdxMap idxmap) {
     int mmu_idx;
+
+    /* S2E: no flush while libs2ecore switches states, see cputlb-deps.h. */
+    if (se_tlb_flush_disabled()) {
+        return;
+    }
 
     assert_cpu_is_self(cpu);
 
@@ -632,6 +620,10 @@ static void tlb_flush_range_locked(CPUState *cpu, int midx, vaddr addr, vaddr le
         vaddr page = addr + i;
         CPUTLBEntry *entry = tlb_entry(cpu, midx, page);
 
+        /* S2E: libs2ecore drops its reference before the entry is cleared. */
+        if (tlb_hit_page_mask_anyprot(entry, page, mask)) {
+            se_tlb_drop_entry(cpu, midx, tlb_index(cpu, midx, page));
+        }
         if (tlb_flush_entry_mask_locked(entry, page, mask)) {
             tlb_n_used_entries_dec(cpu, midx);
         }
@@ -648,6 +640,11 @@ typedef struct {
 
 static void tlb_flush_range_by_mmuidx_async_0(CPUState *cpu, TLBFlushRangeData d) {
     int mmu_idx;
+
+    /* S2E: no flush while libs2ecore switches states, see cputlb-deps.h. */
+    if (se_tlb_flush_disabled()) {
+        return;
+    }
 
     assert_cpu_is_self(cpu);
 
@@ -1012,12 +1009,12 @@ void tlb_set_page_full(CPUState *cpu, int mmu_idx, vaddr addr, CPUTLBEntryFull *
      * different page; otherwise just overwrite the stale data.
      */
     if (!tlb_hit_page_anyprot(te, addr_page) && !tlb_entry_is_empty(te)) {
-        unsigned vidx = desc->vindex++ % CPU_VTLB_SIZE;
-        CPUTLBEntry *tv = &desc->vtable[vidx];
-
-        /* Evict the old entry into the victim tlb.  */
-        copy_tlb_helper_locked(tv, te);
-        desc->vfulltlb[vidx] = desc->fulltlb[index];
+        /*
+         * S2E: the victim TLB is disabled, the old entry is dropped. libs2ecore
+         * records where each KLEE object is referenced in the TLB and cannot
+         * follow an entry that moves. The victim table stays empty, so
+         * victim_tlb_hit() never finds anything.
+         */
         tlb_n_used_entries_dec(cpu, mmu_idx);
     }
 
@@ -1035,6 +1032,10 @@ void tlb_set_page_full(CPUState *cpu, int mmu_idx, vaddr addr, CPUTLBEntryFull *
      * subtract here is that of the page base, and not the same as the
      * vaddr we add back in io_prepare()/get_page_addr_code().
      */
+    /* S2E: libs2ecore drops its reference to the entry being replaced. This
+       must come first: the reference is found through the old full entry. */
+    se_tlb_drop_entry(cpu, mmu_idx, index);
+
     desc->fulltlb[index] = *full;
     full = &desc->fulltlb[index];
     full->xlat_offset = iotlb - addr_page;
@@ -1045,6 +1046,9 @@ void tlb_set_page_full(CPUState *cpu, int mmu_idx, vaddr addr, CPUTLBEntryFull *
     tn.addend = addend - addr_page;
 
     tlb_set_compare(full, &tn, addr_page, read_flags, MMU_INST_FETCH, prot & PAGE_EXEC);
+
+    /* S2E: flags for loads and stores only, the code comparator is set. */
+    se_tlb_fill_flags(paddr_page, &read_flags, &write_flags);
 
     if (wp_flags & BP_MEM_READ) {
         read_flags |= TLB_WATCHPOINT;
@@ -1061,6 +1065,11 @@ void tlb_set_page_full(CPUState *cpu, int mmu_idx, vaddr addr, CPUTLBEntryFull *
 
     copy_tlb_helper_locked(te, &tn);
     tlb_n_used_entries_inc(cpu, mmu_idx);
+
+    /* S2E: libs2ecore records the KLEE object behind the page and completes
+       the entry (se_addend, TLB_SYMB, TLB_NOT_OURS). */
+    se_tlb_set_entry(cpu, mmu_idx, addr_page, (is_ram || is_romd) ? addend : 0);
+
     qemu_spin_unlock(&tlb->c.lock);
 }
 
@@ -1075,6 +1084,7 @@ void tlb_set_page_with_attrs(CPUState *cpu, vaddr addr, hwaddr paddr, MemTxAttrs
 void tlb_set_page(CPUState *cpu, vaddr addr, hwaddr paddr, int prot, int mmu_idx, vaddr size) {
     tlb_set_page_with_attrs(cpu, addr, paddr, MEMTXATTRS_UNSPECIFIED, prot, mmu_idx, size);
 }
+#endif /* !SYMBEX_LLVM_LIB */
 
 /**
  * tlb_hit_page: return true if page aligned @addr is a hit against the
@@ -1105,10 +1115,12 @@ static inline bool tlb_hit(uint64_t tlb_addr, vaddr addr) {
  */
 static bool tlb_fill_align(CPUState *cpu, vaddr addr, MMUAccessType type, int mmu_idx, MemOp memop, int size,
                            bool probe, uintptr_t ra) {
+    /* S2E: SE_TCG_HAS_OP() and SE_TCG_OP() select the bitcode copies of the
+       target hooks in the bitcode build, see cputlb-deps.h. */
     const TCGCPUOps *ops = cpu->cc->tcg_ops;
     CPUTLBEntryFull full;
 
-    if (ops->tlb_fill_align) {
+    if (SE_TCG_HAS_OP(ops, tlb_fill_align)) {
         if (ops->tlb_fill_align(cpu, &full, addr, type, mmu_idx, memop, size, probe, ra)) {
             tlb_set_page_full(cpu, mmu_idx, addr, &full);
             return true;
@@ -1116,9 +1128,9 @@ static bool tlb_fill_align(CPUState *cpu, vaddr addr, MMUAccessType type, int mm
     } else {
         /* Legacy behaviour is alignment before paging. */
         if (addr & ((1u << memop_alignment_bits(memop)) - 1)) {
-            ops->do_unaligned_access(cpu, addr, type, mmu_idx, ra);
+            SE_TCG_OP(cpu, do_unaligned_access)(cpu, addr, type, mmu_idx, ra);
         }
-        if (ops->tlb_fill(cpu, addr, size, type, mmu_idx, probe, ra)) {
+        if (SE_TCG_OP(cpu, tlb_fill)(cpu, addr, size, type, mmu_idx, probe, ra)) {
             return true;
         }
     }
@@ -1128,9 +1140,10 @@ static bool tlb_fill_align(CPUState *cpu, vaddr addr, MMUAccessType type, int mm
 
 static inline void cpu_unaligned_access(CPUState *cpu, vaddr addr, MMUAccessType access_type, int mmu_idx,
                                         uintptr_t retaddr) {
-    cpu->cc->tcg_ops->do_unaligned_access(cpu, addr, access_type, mmu_idx, retaddr);
+    SE_TCG_OP(cpu, do_unaligned_access)(cpu, addr, access_type, mmu_idx, retaddr); /* S2E, see tlb_fill_align() */
 }
 
+#ifndef SYMBEX_LLVM_LIB /* S2E: native only, see cputlb-deps.h */
 static MemoryRegionSection *io_prepare(hwaddr *out_offset, CPUState *cpu, CPUTLBEntryFull *full, vaddr addr,
                                        uintptr_t retaddr) {
     MemoryRegionSection *section;
@@ -1189,7 +1202,7 @@ static bool victim_tlb_hit(CPUState *cpu, size_t mmu_idx, size_t index, MMUAcces
     return false;
 }
 
-static void notdirty_write(CPUState *cpu, vaddr mem_vaddr, unsigned size, CPUTLBEntryFull *full, uintptr_t retaddr) {
+SE_NATIVE void notdirty_write(CPUState *cpu, vaddr mem_vaddr, unsigned size, CPUTLBEntryFull *full, uintptr_t retaddr) {
     ram_addr_t ram_addr = mem_vaddr + full->xlat_offset;
 
     trace_memory_notdirty_write_access(mem_vaddr, ram_addr, size);
@@ -1248,6 +1261,17 @@ static int probe_access_internal(CPUState *cpu, vaddr addr, int fault_size, MMUA
 
     *pfull = full = &cpu->neg.tlb.d[mmu_idx].fulltlb[index];
     flags |= full->slow_flags[access_type];
+
+    /*
+     * S2E: a code page that carries S2E flags is still RAM that code can be
+     * translated from. libs2ecore sets TLB_SYMB on the code comparator so that
+     * the code fetch functions concretize symbolic code bytes; without this,
+     * get_page_addr_code_hostp() would refuse every code page that holds
+     * symbolic data.
+     */
+    if (access_type == MMU_INST_FETCH) {
+        flags &= ~(TLB_SE_FLAGS_MASK | TLB_SYMB_MMIO);
+    }
 
     /* Fold all "mmio-like" bits into TLB_MMIO.  This is not RAM.  */
     if (unlikely(flags & ~(TLB_WATCHPOINT | TLB_NOTDIRTY | TLB_CHECK_ALIGNED)) ||
@@ -1387,6 +1411,7 @@ tb_page_addr_t get_page_addr_code_hostp(CPUArchState *env, vaddr addr, void **ho
 
     return qemu_ram_addr_from_host_nofail(p);
 }
+#endif /* !SYMBEX_LLVM_LIB */
 
 /* Load/store with atomicity primitives. */
 #include "ldst_atomicity.c.inc"
@@ -1449,6 +1474,9 @@ typedef struct MMULookupLocals {
     int mmu_idx;
 } MMULookupLocals;
 
+/* S2E: se_mmu_resolve(), and plain load and store primitives. */
+#include "s2e/cputlb-symbex.c.inc"
+
 /**
  * mmu_lookup1: translate one page
  * @cpu: generic cpu state
@@ -1499,7 +1527,13 @@ static bool mmu_lookup1(CPUState *cpu, MMULookupPageData *data, MemOp memop, int
     data->full = full;
     data->flags = flags;
     /* Compute haddr speculatively; depending on flags it might be invalid. */
+#if defined(CONFIG_SYMBEX_MP) && !defined(SYMBEX_LLVM_LIB)
+    /* S2E: natively executed code accesses the concrete buffer of the KLEE
+       object that backs the page in the current state. */
+    data->haddr = (void *) ((uintptr_t) addr + entry->se_addend);
+#else
     data->haddr = (void *) ((uintptr_t) addr + entry->addend);
+#endif
 
     return maybe_resized;
 }
@@ -1557,6 +1591,14 @@ static bool mmu_lookup(CPUState *cpu, vaddr addr, MemOpIdx oi, uintptr_t ra, MMU
 
     tcg_debug_assert(l->mmu_idx < NB_MMU_MODES);
 
+#if defined(SYMBEX_LLVM_LIB)
+    /* S2E: with fork-on-symbolic-address, a symbolic address is replaced by
+       one of its values and the state forks on the others. */
+    if (*g_sqi.mode.fork_on_symbolic_address) {
+        addr = tcg_llvm_fork_and_concretize(addr, 0, (target_ulong) -1, 0);
+    }
+#endif
+
     l->page[0].addr = addr;
     l->page[0].size = memop_size(l->memop);
     l->page[1].addr = 0;
@@ -1581,7 +1623,7 @@ static bool mmu_lookup(CPUState *cpu, vaddr addr, MemOpIdx oi, uintptr_t ra, MMU
         int size0 = addr1 - addr;
         l->page[1].size = l->page[0].size - size0;
         l->page[0].size = size0;
-        l->page[1].addr = cpu->cc->tcg_ops->pointer_wrap(cpu, l->mmu_idx, addr1, addr);
+        l->page[1].addr = SE_TCG_OP(cpu, pointer_wrap)(cpu, l->mmu_idx, addr1, addr); /* S2E, see tlb_fill_align() */
 
         /*
          * Lookup and recognize exceptions from the second page.
@@ -1607,9 +1649,13 @@ static bool mmu_lookup(CPUState *cpu, vaddr addr, MemOpIdx oi, uintptr_t ra, MMU
         tcg_debug_assert((flags & TLB_BSWAP) == 0);
     }
 
+    /* S2E: symbolic data, shared KLEE objects and symbolic hardware. */
+    se_mmu_resolve(cpu, l, type, ra);
+
     return crosspage;
 }
 
+#ifndef SYMBEX_LLVM_LIB /* S2E: native only, see cputlb-deps.h */
 /*
  * Probe for an atomic operation.  Do not allow unaligned operations,
  * or io operations to proceed.  Return the host address.
@@ -1713,6 +1759,7 @@ static void *atomic_mmu_lookup(CPUState *cpu, vaddr addr, MemOpIdx oi, int size,
 stop_the_world:
     cpu_loop_exit_atomic(cpu, retaddr);
 }
+#endif /* !SYMBEX_LLVM_LIB */
 
 /*
  * Load Helpers
@@ -1731,6 +1778,7 @@ stop_the_world:
  * We don't bother with this widened value for SOFTMMU_CODE_ACCESS.
  */
 
+#ifndef SYMBEX_LLVM_LIB /* S2E: native only, see cputlb-deps.h */
 /**
  * do_ld_mmio_beN:
  * @cpu: generic cpu state
@@ -1775,13 +1823,19 @@ static uint64_t int_ld_mmio_beN(CPUState *cpu, CPUTLBEntryFull *full, uint64_t r
     return ret_be;
 }
 
-static uint64_t do_ld_mmio_beN(CPUState *cpu, CPUTLBEntryFull *full, uint64_t ret_be, vaddr addr, int size, int mmu_idx,
-                               MMUAccessType type, uintptr_t ra) {
+SE_NATIVE uint64_t do_ld_mmio_beN(CPUState *cpu, CPUTLBEntryFull *full, uint64_t ret_be, vaddr addr, int size,
+                                  int mmu_idx, MMUAccessType type, uintptr_t ra) {
     MemoryRegionSection *section;
     MemoryRegion *mr;
     hwaddr mr_offset;
 
     tcg_debug_assert(size > 0 && size <= 8);
+
+    /* S2E: a RAM page that natively executed code cannot access directly is
+       routed here by se_mmu_resolve() and accessed through libs2ecore. */
+    if (se_ram_ld_beN(cpu, full, &ret_be, addr, size, mmu_idx)) {
+        return ret_be;
+    }
 
     section = io_prepare(&mr_offset, cpu, full, addr, ra);
     mr = section->mr;
@@ -1790,14 +1844,22 @@ static uint64_t do_ld_mmio_beN(CPUState *cpu, CPUTLBEntryFull *full, uint64_t re
     return int_ld_mmio_beN(cpu, full, ret_be, addr, size, mmu_idx, type, ra, mr, mr_offset);
 }
 
-static Int128 do_ld16_mmio_beN(CPUState *cpu, CPUTLBEntryFull *full, uint64_t ret_be, vaddr addr, int size, int mmu_idx,
-                               uintptr_t ra) {
+SE_NATIVE Int128 do_ld16_mmio_beN(CPUState *cpu, CPUTLBEntryFull *full, uint64_t ret_be, vaddr addr, int size,
+                                  int mmu_idx, uintptr_t ra) {
     MemoryRegionSection *section;
     MemoryRegion *mr;
     hwaddr mr_offset;
     uint64_t a, b;
 
     tcg_debug_assert(size > 8 && size <= 16);
+
+    /* S2E: a RAM page that natively executed code cannot access directly is
+       routed here by se_mmu_resolve() and accessed through libs2ecore. */
+    if (se_ram_ld_beN(cpu, full, &ret_be, addr, size - 8, mmu_idx)) {
+        b = 0;
+        se_ram_ld_beN(cpu, full, &b, addr + size - 8, 8, mmu_idx);
+        return int128_make128(b, ret_be);
+    }
 
     section = io_prepare(&mr_offset, cpu, full, addr, ra);
     mr = section->mr;
@@ -1807,6 +1869,7 @@ static Int128 do_ld16_mmio_beN(CPUState *cpu, CPUTLBEntryFull *full, uint64_t re
     b = int_ld_mmio_beN(cpu, full, ret_be, addr + size - 8, 8, mmu_idx, MMU_DATA_LOAD, ra, mr, mr_offset + size - 8);
     return int128_make128(b, a);
 }
+#endif /* !SYMBEX_LLVM_LIB */
 
 /**
  * do_ld_bytes_beN
@@ -2202,6 +2265,7 @@ static Int128 do_ld16_mmu(CPUState *cpu, vaddr addr, MemOpIdx oi, uintptr_t ra) 
  * Store Helpers
  */
 
+#ifndef SYMBEX_LLVM_LIB /* S2E: native only, see cputlb-deps.h */
 /**
  * do_st_mmio_leN:
  * @cpu: generic cpu state
@@ -2246,13 +2310,19 @@ static uint64_t int_st_mmio_leN(CPUState *cpu, CPUTLBEntryFull *full, uint64_t v
     return val_le;
 }
 
-static uint64_t do_st_mmio_leN(CPUState *cpu, CPUTLBEntryFull *full, uint64_t val_le, vaddr addr, int size, int mmu_idx,
-                               uintptr_t ra) {
+SE_NATIVE uint64_t do_st_mmio_leN(CPUState *cpu, CPUTLBEntryFull *full, uint64_t val_le, vaddr addr, int size,
+                                  int mmu_idx, uintptr_t ra) {
     MemoryRegionSection *section;
     hwaddr mr_offset;
     MemoryRegion *mr;
 
     tcg_debug_assert(size > 0 && size <= 8);
+
+    /* S2E: a RAM page that natively executed code cannot access directly is
+       routed here by se_mmu_resolve() and accessed through libs2ecore. */
+    if (se_ram_st_leN(cpu, full, &val_le, addr, size, mmu_idx)) {
+        return val_le;
+    }
 
     section = io_prepare(&mr_offset, cpu, full, addr, ra);
     mr = section->mr;
@@ -2261,13 +2331,22 @@ static uint64_t do_st_mmio_leN(CPUState *cpu, CPUTLBEntryFull *full, uint64_t va
     return int_st_mmio_leN(cpu, full, val_le, addr, size, mmu_idx, ra, mr, mr_offset);
 }
 
-static uint64_t do_st16_mmio_leN(CPUState *cpu, CPUTLBEntryFull *full, Int128 val_le, vaddr addr, int size, int mmu_idx,
-                                 uintptr_t ra) {
+SE_NATIVE uint64_t do_st16_mmio_leN(CPUState *cpu, CPUTLBEntryFull *full, Int128 val_le, vaddr addr, int size,
+                                    int mmu_idx, uintptr_t ra) {
     MemoryRegionSection *section;
     MemoryRegion *mr;
     hwaddr mr_offset;
 
     tcg_debug_assert(size > 8 && size <= 16);
+
+    /* S2E: a RAM page that natively executed code cannot access directly is
+       routed here by se_mmu_resolve() and accessed through libs2ecore. */
+    uint64_t se_lo = int128_getlo(val_le);
+    if (se_ram_st_leN(cpu, full, &se_lo, addr, 8, mmu_idx)) {
+        uint64_t se_hi = int128_gethi(val_le);
+        se_ram_st_leN(cpu, full, &se_hi, addr + 8, size - 8, mmu_idx);
+        return se_hi;
+    }
 
     section = io_prepare(&mr_offset, cpu, full, addr, ra);
     mr = section->mr;
@@ -2276,6 +2355,7 @@ static uint64_t do_st16_mmio_leN(CPUState *cpu, CPUTLBEntryFull *full, Int128 va
     int_st_mmio_leN(cpu, full, int128_getlo(val_le), addr, 8, mmu_idx, ra, mr, mr_offset);
     return int_st_mmio_leN(cpu, full, int128_gethi(val_le), addr + 8, size - 8, mmu_idx, ra, mr, mr_offset + 8);
 }
+#endif /* !SYMBEX_LLVM_LIB */
 
 /*
  * Wrapper for the above.
@@ -2552,8 +2632,12 @@ static void do_st16_mmu(CPUState *cpu, vaddr addr, Int128 val, MemOpIdx oi, uint
     }
 }
 
+/* S2E: memory tracing wrappers around do_{ld,st}{1,2,4,8}_mmu(). */
+#include "s2e/cputlb-symbex-ldst.c.inc"
+
 #include "ldst_common.c.inc"
 
+#ifndef SYMBEX_LLVM_LIB /* S2E: native only, see cputlb-deps.h */
 /*
  * First set of functions passes in OI and RETADDR.
  * This makes them callable from other helpers.
@@ -2581,6 +2665,7 @@ static void do_st16_mmu(CPUState *cpu, vaddr addr, Int128 val, MemOpIdx oi, uint
 #define DATA_SIZE 16
 #include "atomic_template.h"
 #endif
+#endif /* !SYMBEX_LLVM_LIB */
 
 /* Code access functions.  */
 
