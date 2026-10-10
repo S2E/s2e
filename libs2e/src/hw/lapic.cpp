@@ -287,7 +287,7 @@ uint32_t LocalApic::get_current_count() const {
     int64_t d = (libcpu_get_clock_ns(vm_clock) - m_initial_count_load_time) >> m_count_shift;
 
     if (m_lvt[LVT_TIMER] & LVT_TIMER_PERIODIC) {
-        d = ((unsigned) d % ((uint64_t) m_initial_count + 1));
+        d = d % ((uint64_t) m_initial_count + 1);
     } else {
         if (d >= m_initial_count) {
             return 0;
