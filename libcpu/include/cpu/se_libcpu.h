@@ -119,7 +119,6 @@ struct se_libcpu_interface_t {
         void (*read_ram_concrete)(uint64_t host_address, void *buf, uint64_t size);
         void (*write_ram_concrete)(uint64_t host_address, const uint8_t *buf, uint64_t size);
 
-        uint64_t (*read_mem_io_vaddr)(int masked);
         int (*is_port_symbolic)(uint64_t port);
         int (*is_mmio_symbolic)(uint64_t phys_addr, unsigned size);
         int (*is_vmem_symbolic)(uint64_t vaddr, unsigned size);
@@ -251,7 +250,6 @@ uint64_t tcg_llvm_trace_port_access(uint64_t port, uint64_t value, unsigned bits
 
 uint64_t tcg_llvm_trace_mmio_access(uint64_t physaddr, uint64_t value, unsigned bytes, int isWrite);
 
-void tcg_llvm_write_mem_io_vaddr(uint64_t value, int reset);
 uint64_t tcg_llvm_get_value(uint64_t value, bool addConstraint);
 #endif
 

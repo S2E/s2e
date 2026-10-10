@@ -205,11 +205,8 @@ uint64_t tcg_llvm_trace_port_access(uint64_t port, uint64_t value, unsigned bits
 
 uint64_t tcg_llvm_trace_mmio_access(uint64_t physaddr, uint64_t value, unsigned bytes, int isWrite);
 
-void tcg_llvm_write_mem_io_vaddr(uint64_t value, int reset);
 void tcg_llvm_get_value(void *addr, unsigned nbytes, bool addConstraint);
 #endif
-
-uint64_t s2e_read_mem_io_vaddr(int masked);
 
 void s2e_kill_state(const char *message);
 

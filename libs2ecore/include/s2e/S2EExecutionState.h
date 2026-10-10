@@ -147,9 +147,6 @@ protected:
 
     S2EExecutionStateTlb m_tlb;
 
-    /* Temp location to store a symbolic mem_io_vaddr */
-    klee::ref<klee::Expr> m_memIoVaddr;
-
     /** Set when execution enters doInterrupt, reset when it exits. */
     bool m_runningExceptionEmulationCode;
 
@@ -197,7 +194,6 @@ public:
         m_forkAborted = state.m_forkAborted;
         m_nextSymbVarId = state.m_nextSymbVarId;
 
-        m_memIoVaddr = state.m_memIoVaddr;
         m_runningExceptionEmulationCode = state.m_runningExceptionEmulationCode;
         m_saveOnContextSwitch = state.m_saveOnContextSwitch;
     }
@@ -210,10 +206,6 @@ public:
 
     int getGuid() const {
         return m_guid;
-    }
-
-    void setMemIoVaddr(const klee::ref<klee::Expr> &e) {
-        m_memIoVaddr = e;
     }
 
     ///
@@ -286,12 +278,6 @@ public:
     /** Returns true if this state is currently running in concrete mode */
     inline bool isRunningConcrete() const {
         return m_runningConcrete;
-    }
-
-    // XXX: Move to S2EExecutionStateMemory.cpp
-    uint64_t readMemIoVaddr(bool masked);
-    void writeMemIoVaddr(klee::ref<klee::Expr> value) {
-        m_memIoVaddr = value;
     }
 
     bool getReturnAddress(uint64_t *retAddr);

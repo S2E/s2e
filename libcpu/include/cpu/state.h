@@ -260,7 +260,6 @@ typedef struct CPUState {
        access being handled, so that the MMIO and TB invalidation code can
        restore the CPU state without more arguments. */
     uintptr_t mem_io_pc;
-    target_ulong mem_io_vaddr;
 
     /* Forces the translator to put a single instruction in the next TB.
        Reset before code execution (S2E). */

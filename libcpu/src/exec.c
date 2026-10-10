@@ -101,7 +101,6 @@ void cpu_common_reset(CPUState *cpu) {
     cpu->current_tb = NULL;
     cpu->se_current_tb = NULL;
     cpu->mem_io_pc = 0;
-    cpu->mem_io_vaddr = 0;
     cpu->translate_single_instruction = 0;
     cpu->halted = 0;
     cpu->interrupt_request = 0;

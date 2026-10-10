@@ -650,29 +650,6 @@ void S2EExecutionState::addressSpaceObjectSplit(const ObjectStateConstPtr &oldOb
     m_tlb.updateTlb(oldObject, baseObject);
 }
 
-uint64_t S2EExecutionState::readMemIoVaddr(bool masked) {
-    klee::ref<klee::Expr> result;
-
-    if (!m_memIoVaddr) {
-        return env_cpu(env)->mem_io_vaddr;
-    }
-
-    if (masked) {
-        result = AndExpr::create(m_memIoVaddr,
-                                 klee::ConstantExpr::create((target_ulong) TARGET_PAGE_MASK, m_memIoVaddr->getWidth()));
-        // This assumes that the page is already fully constrained by the MMU
-        result = concolics()->evaluate(result);
-        assert(dyn_cast<ConstantExpr>(result) && "Expression must be constant here");
-    } else {
-        result = m_memIoVaddr;
-        result = this->toConstant(result, "Reading mem_io_vaddr");
-    }
-
-    ConstantExpr *ce = dyn_cast<ConstantExpr>(result);
-    assert(ce && "Expression must be constant here");
-    return ce->getZExtValue();
-}
-
 bool S2EExecutionState::getStaticTarget(uint64_t *target) {
     if (llvm.stack.size() == 1) {
         return false;

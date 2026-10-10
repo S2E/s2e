@@ -1842,10 +1842,6 @@ void helper_register_symbol(const char *name, void *address) {
     llvm::sys::DynamicLibrary::AddSymbol(name, address);
 }
 
-uint64_t s2e_read_mem_io_vaddr(int masked) {
-    return g_s2e_state->readMemIoVaddr(masked);
-}
-
 void s2e_kill_state(const char *message) {
     g_s2e->getExecutor()->terminateState(g_s2e_state, message);
 }
