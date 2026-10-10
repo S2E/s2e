@@ -181,9 +181,8 @@ template <typename T> static inline bool s2e_fast_read_mem(uint64_t addr, T *res
     int mmu_idx;
 
     object_index = addr >> SE_RAM_OBJECT_BITS;
-    page_index = object_index & (CPU_TLB_SIZE - 1);
-
     mmu_idx = x86_mmu_index(env);
+    page_index = object_index & (env_tlb(env)->f[mmu_idx].mask >> CPU_TLB_ENTRY_BITS);
     CPUTLBEntry *tlb_entry = &env_tlb(env)->f[mmu_idx].table[page_index];
     if (unlikely(env_tlb(env)->f[mmu_idx].table[page_index].addr_read !=
                  (addr & (TARGET_PAGE_MASK | (sizeof(*res) - 1))))) {

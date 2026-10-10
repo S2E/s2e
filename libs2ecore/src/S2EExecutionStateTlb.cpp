@@ -50,6 +50,24 @@ namespace s2e {
 
 using namespace klee;
 
+namespace {
+/// Number of entries of the main TLB of one MMU index.
+inline unsigned tlbSize(CPUState *cpu, unsigned mmu_idx) {
+    return (cpu->neg.tlb.f[mmu_idx].mask >> CPU_TLB_ENTRY_BITS) + 1;
+}
+
+/// The comparators, addend and se_addend of entry (mmu_idx, index).
+inline CPUTLBEntry *fastEntry(CPUState *cpu, unsigned mmu_idx, unsigned index) {
+    return &cpu->neg.tlb.f[mmu_idx].table[index];
+}
+
+/// The KLEE object that backs the page of entry (mmu_idx, index). The
+/// pointer is in the full entry, which generated code does not read.
+inline void *&entryObject(CPUState *cpu, unsigned mmu_idx, unsigned index) {
+    return cpu->neg.tlb.d[mmu_idx].fulltlb[index].extra.object_state;
+}
+} // namespace
+
 bool S2EExecutionStateTlb::addressSpaceChangeUpdateTlb(const klee::ObjectStateConstPtr &oldState,
                                                        const klee::ObjectStatePtr &newState) {
     if (!(oldState && oldState->isMemoryPage())) {
@@ -153,12 +171,12 @@ void S2EExecutionStateTlb::updateTlb(const klee::ObjectStateConstPtr &oldState, 
 #ifdef S2E_DEBUG_TLBCACHE
             g_s2e->getDebugStream() << "    mmu_idx=" << coords.first << " index=" << coords.second << "\n";
 #endif
-            CPUTLBEntry *entry = &cpu->neg.tlb.f[coords.first].table[coords.second];
-            assert(entry->objectState == (void *) oldState.get());
+            CPUTLBEntry *entry = fastEntry(cpu, coords.first, coords.second);
+            assert(entryObject(cpu, coords.first, coords.second) == (void *) oldState.get());
             assert(newState);
 
             // XXX: use proper refcounting
-            entry->objectState = newState.get();
+            entryObject(cpu, coords.first, coords.second) = newState.get();
 
             if (!newState->isSharedConcrete()) {
                 // The addend does not change.
@@ -215,9 +233,9 @@ void S2EExecutionStateTlb::flushTlbCachePage(const klee::ObjectStatePtr &objectS
         << "flushTlbCachePage: clearing cache entry for " << objectState << " (" << mmu_idx << "," << index << ")\n";
 #endif
 
-    CPUTLBEntry *entry = &m_registers->getCpuCaches()->neg.tlb.f[mmu_idx].table[index];
-    entry->objectState = 0;
-    entry->se_addend = 0;
+    CPUState *cpu = m_registers->getCpuCaches();
+    entryObject(cpu, mmu_idx, index) = nullptr;
+    fastEntry(cpu, mmu_idx, index)->se_addend = 0;
 
     if (g_s2e_single_path_mode) {
         return;
@@ -290,9 +308,9 @@ void S2EExecutionStateTlb::clearRamTlb() {
 void S2EExecutionStateTlb::clearTlbOwnership() {
     CPUState *cpu = m_registers->getCpuCaches();
 
-    for (unsigned i = 0; i < CPU_TLB_SIZE; i++) {
-        for (unsigned mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
-            cpu->neg.tlb.f[mmu_idx].table[i].addr_write |= TLB_NOT_OURS;
+    for (unsigned mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
+        for (unsigned i = 0; i < tlbSize(cpu, mmu_idx); i++) {
+            fastEntry(cpu, mmu_idx, i)->addr_write |= TLB_NOT_OURS;
         }
     }
 }
@@ -301,10 +319,11 @@ void S2EExecutionStateTlb::updateTlbEntry(int mmu_idx, uint64_t virtAddr, uint64
     assert((hostAddr & ~TARGET_PAGE_MASK) == 0);
     assert((virtAddr & ~TARGET_PAGE_MASK) == 0);
 
-    unsigned int index = (virtAddr >> SE_RAM_OBJECT_BITS) & (CPU_TLB_SIZE - 1);
+    CPUState *cpu = m_registers->getCpuCaches();
+    unsigned int index = (virtAddr >> TARGET_PAGE_BITS) & (tlbSize(cpu, mmu_idx) - 1);
 
-    CPUTLBEntry *entry = &m_registers->getCpuCaches()->neg.tlb.f[mmu_idx].table[index];
-    ObjectState *oldObjectState = static_cast<ObjectState *>(entry->objectState);
+    CPUTLBEntry *entry = fastEntry(cpu, mmu_idx, index);
+    ObjectState *oldObjectState = static_cast<ObjectState *>(entryObject(cpu, mmu_idx, index));
 
     /* Retrieve the object state using the host address */
     auto newObjectState = m_asCache->get(hostAddr);
@@ -332,7 +351,7 @@ void S2EExecutionStateTlb::updateTlbEntry(int mmu_idx, uint64_t virtAddr, uint64
 #endif
 
     /* Update the TLB entry */
-    entry->objectState = const_cast<ObjectState *>(newObjectState.get());
+    entryObject(cpu, mmu_idx, index) = const_cast<ObjectState *>(newObjectState.get());
 
     if (newObjectState->isSharedConcrete()) {
         entry->se_addend = (hostAddr - virtAddr);
@@ -362,26 +381,26 @@ bool S2EExecutionStateTlb::audit() {
 
     for (const auto &[os, refs] : m_tlbMap) {
         for (const auto &[mmu_idx, index] : refs) {
-            const CPUTLBEntry *entry = &cpu->neg.tlb.f[mmu_idx].table[index];
-            if (entry->objectState != os.get()) {
+            void *object = entryObject(cpu, mmu_idx, index);
+            if (object != os.get()) {
                 llvm::errs() << "TLB audit: map entry (" << mmu_idx << "," << index << ") refers to "
-                             << hexval(os.get()) << " but the TLB holds " << hexval(entry->objectState) << "\n";
+                             << hexval(os.get()) << " but the TLB holds " << hexval(object) << "\n";
                 return false;
             }
         }
     }
 
     for (unsigned mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
-        for (unsigned index = 0; index < CPU_TLB_SIZE; index++) {
-            const CPUTLBEntry *entry = &cpu->neg.tlb.f[mmu_idx].table[index];
-            if (!entry->objectState) {
+        for (unsigned index = 0; index < tlbSize(cpu, mmu_idx); index++) {
+            void *object = entryObject(cpu, mmu_idx, index);
+            if (!object) {
                 continue;
             }
 
-            auto it = m_tlbMap.find(static_cast<ObjectState *>(entry->objectState));
+            auto it = m_tlbMap.find(static_cast<ObjectState *>(object));
             if (it == m_tlbMap.end()) {
-                llvm::errs() << "TLB audit: TLB entry (" << mmu_idx << "," << index << ") refers to "
-                             << hexval(entry->objectState) << " which is not in the map\n";
+                llvm::errs() << "TLB audit: TLB entry (" << mmu_idx << "," << index << ") refers to " << hexval(object)
+                             << " which is not in the map\n";
                 return false;
             }
 
@@ -394,7 +413,7 @@ bool S2EExecutionStateTlb::audit() {
 
             if (foundCount != 1) {
                 llvm::errs() << "TLB audit: TLB entry (" << mmu_idx << "," << index << ") is referenced " << foundCount
-                             << " times by " << hexval(entry->objectState) << "\n";
+                             << " times by " << hexval(object) << "\n";
                 return false;
             }
         }

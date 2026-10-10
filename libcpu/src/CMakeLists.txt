@@ -2,11 +2,15 @@
 # This work is licensed under the terms of the GNU LGPL, version 2.1 or later.
 
 add_library(
-    cpu cpu-exec.c cpus.c exec.c exec-bp.c exec-memdbg.c exec-phys.c exec-phystb.c exec-ram.c exec-tb.c exec-tlb.c ioport.c memory.c timer.c translate-all.c
-    precise-pc.c
+    cpu cpu-exec.c cpus.c exec.c exec-bp.c exec-memdbg.c exec-phystb.c exec-ram.c exec-tb.c ioport.c memory.c timer.c translate-all.c
+    precise-pc.c accel/cputlb.c
     target-i386/cpuid.c target-i386/helper.c target-i386/op_helper.c target-i386/translate.c disas.c
 )
 
+
+# cputlb.c replaces the load and store primitives of ldst_atomicity.c.inc in
+# builds with symbolic execution, which leaves the upstream ones unused.
+set_source_files_properties(accel/cputlb.c PROPERTIES COMPILE_OPTIONS "-Wno-unused-function")
 
 target_include_directories (cpu PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
@@ -37,11 +41,16 @@ foreach(dir ${dirs})
 endforeach()
 separate_arguments(BC_INC_DIRS)
 
+# The bitcode library that KLEE interprets: the helpers, the softmmu access
+# path (accel/cputlb.c) and softfloat.
+set(BC_FLAGS ${CARGS_LIST} -Wno-unused-function -O3 -DSYMBEX_LLVM_LIB -march=x86-64 -emit-llvm ${BC_INC_DIRS} -fno-slp-vectorize -fno-tree-vectorize)
+
 add_custom_target(
     op_helper_bc ALL
-    clang-19 ${CMAKE_CURRENT_SOURCE_DIR}/target-i386/op_helper.c -c ${CARGS_LIST} -Wno-unused-function -O3 -DSYMBEX_LLVM_LIB -march=x86-64 -emit-llvm -o ${CMAKE_CURRENT_BINARY_DIR}/op_helper-org.bc ${BC_INC_DIRS} -fno-slp-vectorize -fno-tree-vectorize
-    COMMAND llvm-link-19 ${CMAKE_CURRENT_BINARY_DIR}/op_helper-org.bc ${LIBTCG_DIR}/src/softfloat.bc -o ${CMAKE_CURRENT_BINARY_DIR}/op_helper.bc
-    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/target-i386/op_helper.c
+    clang-19 ${CMAKE_CURRENT_SOURCE_DIR}/target-i386/op_helper.c -c ${BC_FLAGS} -o ${CMAKE_CURRENT_BINARY_DIR}/op_helper-org.bc
+    COMMAND clang-19 ${CMAKE_CURRENT_SOURCE_DIR}/accel/cputlb.c -c ${BC_FLAGS} -o ${CMAKE_CURRENT_BINARY_DIR}/cputlb.bc
+    COMMAND llvm-link-19 ${CMAKE_CURRENT_BINARY_DIR}/op_helper-org.bc ${CMAKE_CURRENT_BINARY_DIR}/cputlb.bc ${LIBTCG_DIR}/src/softfloat.bc -o ${CMAKE_CURRENT_BINARY_DIR}/op_helper.bc
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/target-i386/op_helper.c ${CMAKE_CURRENT_SOURCE_DIR}/accel/cputlb.c
 )
 
 endif (WITH_SYMBEX)

@@ -110,12 +110,6 @@ void s2e_read_ram_concrete(uint64_t host_address, void *buf, uint64_t size);
 
 void s2e_write_ram_concrete(uint64_t host_address, const uint8_t *buf, uint64_t size);
 
-/** This function is called when RAM is read by concretely executed
-    generated code. If the memory location turns out to be symbolic,
-    this function will either concretize it of switch to execution
-    in KLEE */
-void s2e_read_ram_concrete_check(uint64_t host_address, uint8_t *buf, uint64_t size);
-
 void s2e_read_register_concrete(unsigned offset, uint8_t *buf, unsigned size);
 
 void s2e_write_register_concrete(unsigned offset, uint8_t *buf, unsigned size);

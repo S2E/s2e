@@ -60,11 +60,7 @@ extern "C" {
 #define TARGET_PAGE_SIZE (1 << TARGET_PAGE_BITS)
 #define TARGET_PAGE_MASK ~(TARGET_PAGE_SIZE - 1)
 
-#include <tcg/tlb.h>
-
-// XXX: Fix me
-#define CPU_TLB_BITS 10
-#define CPU_TLB_SIZE (1 << CPU_TLB_BITS)
+#include <tcg/exec/tlb-common.h>
 
 #define QEMU_NORETURN __attribute__((__noreturn__))
 
@@ -78,8 +74,6 @@ typedef uint32_t target_ulong __attribute__((aligned(TARGET_LONG_ALIGNMENT)));
 #define TARGET_FMT_ld "%d"
 #define TARGET_FMT_lu "%u"
 
-#define CPU_TLB_DYN_MAX_BITS (32 - TARGET_PAGE_BITS)
-
 #elif TARGET_LONG_SIZE == 8
 #define TARGET_LONG_ALIGNMENT 8
 typedef int64_t target_long __attribute__((aligned(TARGET_LONG_ALIGNMENT)));
@@ -87,9 +81,6 @@ typedef uint64_t target_ulong __attribute__((aligned(TARGET_LONG_ALIGNMENT)));
 #define TARGET_FMT_lx         "%016" PRIx64
 #define TARGET_FMT_ld         "%" PRId64
 #define TARGET_FMT_lu         "%" PRIu64
-
-// XXX: fix this
-#define CPU_TLB_DYN_MAX_BITS  (32 - TARGET_PAGE_BITS)
 
 #else
 #error TARGET_LONG_SIZE undefined
@@ -551,22 +542,6 @@ struct TCGContext {
     void *__caller_init;
 
     /* Everything below is set before initializing TCG */
-    /* helper signature: helper_ret_ld_mmu(CPUState *env, target_ulong addr,
-     *                                     int mmu_idx, uintptr_t ra)
-     */
-    void *qemu_ld_helpers[(MO_SIZE | MO_BSWAP) + 1];
-
-    /* helper signature: helper_ret_st_mmu(CPUState *env, target_ulong addr,
-     *                                     uintxx_t val, int mmu_idx, uintptr_t ra)
-     */
-    void *qemu_st_helpers[(MO_SIZE | MO_BSWAP) + 1];
-
-// XXX: remove these?
-#if defined(CONFIG_SYMBEX) && defined(TCG_ENABLE_MEM_TRACING)
-    void *qemu_ld_trace_helpers[4];
-    void *qemu_st_trace_helpers[4];
-#endif
-
     // CPU state offset information
     uintptr_t env_ptr;
     unsigned env_offset_eip;

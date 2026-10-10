@@ -990,7 +990,7 @@ void *VCPU::sys_mmap(void *addr, size_t len, int prot, int flags, int fd, off_t 
 }
 
 void VCPU::flushTlb() {
-    tlb_flush(m_env, 1);
+    tlb_flush(env_cpu(m_env));
 }
 
 void VCPU::interrupt(int mask, bool reset) {

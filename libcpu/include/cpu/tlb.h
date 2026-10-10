@@ -23,12 +23,14 @@
 #include <cpu/config.h>
 #include <cpu/types.h>
 
-#include <tcg/tlb.h>
+#include <cpu/exec/tlb-flags.h>
+#include <tcg/exec/tlb-common.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+/* The TLB size is pinned (src/accel/tlb-bounds.h must agree). */
 #define CPU_TLB_BITS 10
 #define CPU_TLB_SIZE (1 << CPU_TLB_BITS)
 

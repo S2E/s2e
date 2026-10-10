@@ -125,21 +125,6 @@ static void handleGetValue(klee::Executor *executor, klee::ExecutionState *state
     state->llvm.bindLocal(target, result);
 }
 
-static void handlerWriteMemIoVaddr(klee::Executor *executor, klee::ExecutionState *state, klee::KInstruction *target,
-                                   std::vector<klee::ref<klee::Expr>> &args) {
-    S2EExecutionState *s2eState = static_cast<S2EExecutionState *>(state);
-    assert(args.size() == 2);
-
-    klee::ConstantExpr *reset = dyn_cast<klee::ConstantExpr>(args[1]);
-    assert(reset && "Invalid parameter");
-
-    if (reset->getZExtValue()) {
-        s2eState->setMemIoVaddr(nullptr);
-    } else {
-        s2eState->setMemIoVaddr(args[0]);
-    }
-}
-
 static void handlerBeforeMemoryAccess(klee::Executor *executor, klee::ExecutionState *state, klee::KInstruction *target,
                                       std::vector<klee::ref<klee::Expr>> &args) {
     if (g_s2e->getCorePlugin()->onBeforeSymbolicDataMemoryAccess.empty()) {
@@ -315,8 +300,7 @@ static void handlerTracePortAccess(Executor *executor, ExecutionState *state, kl
     }
 }
 
-static Handler s_handlers[] = {{"tcg_llvm_write_mem_io_vaddr", handlerWriteMemIoVaddr, nullptr},
-                               {"tcg_llvm_before_memory_access", handlerBeforeMemoryAccess, nullptr},
+static Handler s_handlers[] = {{"tcg_llvm_before_memory_access", handlerBeforeMemoryAccess, nullptr},
                                {"tcg_llvm_after_memory_access", handlerAfterMemoryAccess, nullptr},
                                {"tcg_llvm_trace_port_access", handlerTracePortAccess, nullptr},
                                {"tcg_llvm_trace_mmio_access", handlerTraceMmioAccess, nullptr},

@@ -118,7 +118,6 @@ struct se_libcpu_interface_t {
 
         void (*read_ram_concrete)(uint64_t host_address, void *buf, uint64_t size);
         void (*write_ram_concrete)(uint64_t host_address, const uint8_t *buf, uint64_t size);
-        void (*read_ram_concrete_check)(uint64_t host_address, uint8_t *buf, uint64_t size);
 
         uint64_t (*read_mem_io_vaddr)(int masked);
         int (*is_port_symbolic)(uint64_t port);

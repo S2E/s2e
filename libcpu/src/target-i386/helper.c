@@ -167,7 +167,7 @@ void cpu_state_reset(CPUX86State *env) {
 
     cpu_init_fp_statuses(env);
 
-    tlb_flush(env, 1);
+    tlb_flush(env_cpu(env));
 
     env->old_exception = -1;
 
@@ -488,7 +488,7 @@ void cpu_x86_set_a20(CPUX86State *env, int a20_state) {
 
         /* when a20 is changed, all the MMU mappings are invalid, so
            we must flush everything */
-        tlb_flush(env, 1);
+        tlb_flush(env_cpu(env));
         env->a20_mask = ~(1 << 20) | (a20_state << 20);
     }
 }
@@ -501,7 +501,7 @@ void cpu_x86_update_cr0(CPUX86State *env, uint32_t new_cr0) {
 #endif
     if ((new_cr0 & (CR0_PG_MASK | CR0_WP_MASK | CR0_PE_MASK)) !=
         (env->cr[0] & (CR0_PG_MASK | CR0_WP_MASK | CR0_PE_MASK))) {
-        tlb_flush(env, 1);
+        tlb_flush(env_cpu(env));
     }
 
 #ifdef TARGET_X86_64
@@ -545,7 +545,7 @@ void cpu_x86_update_cr3(CPUX86State *env, target_ulong new_cr3) {
 #if defined(DEBUG_MMU)
         printf("CR3 update: CR3=" TARGET_FMT_lx "\n", new_cr3);
 #endif
-        tlb_flush(env, 0);
+        tlb_flush(env_cpu(env));
     }
 }
 
@@ -555,7 +555,7 @@ void cpu_x86_update_cr4(CPUX86State *env, uint32_t new_cr4) {
 #endif
     if ((new_cr4 & (CR4_PGE_MASK | CR4_PAE_MASK | CR4_PSE_MASK)) !=
         (env->cr[4] & (CR4_PGE_MASK | CR4_PAE_MASK | CR4_PSE_MASK))) {
-        tlb_flush(env, 1);
+        tlb_flush(env_cpu(env));
     }
     /* SSE handling */
     if (!(env->cpuid.cpuid_features & CPUID_SSE))
@@ -832,7 +832,7 @@ do_mapping:
     paddr = (pte & TARGET_PAGE_MASK) + page_offset;
     vaddr = virt_addr + page_offset;
 
-    tlb_set_page(env, vaddr, paddr, prot, mmu_idx, page_size);
+    tlb_set_page(env_cpu(env), vaddr, paddr, prot, mmu_idx, page_size);
     return 0;
 do_fault_protect:
     error_code = PG_ERROR_P_MASK;

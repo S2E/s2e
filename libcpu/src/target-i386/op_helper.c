@@ -31,33 +31,11 @@
 #include <tcg/utils/log.h>
 #include <utils/host-utils.h>
 
-#include "softmmu_exec.h"
+#include <cpu/accel/cpu-ops.h>
+#include "softmmu-compat.h"
 
 // SYMBEX: Keep the environment in a variable
 struct CPUX86State *env = 0;
-
-#if defined(CONFIG_SYMBEX) && !defined(SYMBEX_LLVM_LIB)
-#include <cpu/softmmu_defs.h>
-
-#define ACCESS_TYPE 0
-#define MEMSUFFIX   _kernel_symb
-#define _raw        _raw_symb
-#define DATA_SIZE   1
-#include "softmmu_header.h"
-
-#define DATA_SIZE 2
-#include "softmmu_header.h"
-
-#define DATA_SIZE 4
-#include "softmmu_header.h"
-
-#define DATA_SIZE 8
-#include "softmmu_header.h"
-#undef _raw
-#undef ACCESS_TYPE
-#undef MEMSUFFIX
-
-#endif
 
 // #define DEBUG_PCALL
 
@@ -3193,7 +3171,7 @@ void helper_clts(void) {
 
 void helper_invlpg(target_ulong addr) {
     helper_svm_check_intercept_param(SVM_EXIT_INVLPG, 0);
-    tlb_flush_page(env, addr);
+    tlb_flush_page(env_cpu(env), addr);
 }
 
 void helper_rdtsc(void) {
@@ -4884,80 +4862,96 @@ void helper_boundl(target_ulong a0, int v) {
     }
 }
 
-#define MMUSUFFIX _mmu
+/*
+ * The hooks that the softmmu (accel/cputlb.c) calls through TCGCPUOps.
+ *
+ * This file is compiled twice, natively and as LLVM bitcode for KLEE, and so
+ * is cputlb.c. The native softmmu reaches the hooks through cpu->cc->tcg_ops.
+ * The bitcode softmmu calls the bitcode copies by name, because the address
+ * it passes can be symbolic and a native function would force KLEE to fork
+ * on every possible value.
+ */
 
-#define SHIFT 0
-#include "softmmu_template.h"
-
-#define SHIFT 1
-#include "softmmu_template.h"
-
-#define SHIFT 2
-#include "softmmu_template.h"
-
-#define SHIFT 3
-#include "softmmu_template.h"
-
-#if defined(CONFIG_SYMBEX) && !defined(SYMBEX_LLVM_LIB)
-#undef MMUSUFFIX
-#define MMUSUFFIX _mmu_symb
-#define _raw      _raw_symb
-
-#define SHIFT 0
-#include "softmmu_template.h"
-
-#define SHIFT 1
-#include "softmmu_template.h"
-
-#define SHIFT 2
-#include "softmmu_template.h"
-
-#define SHIFT 3
-#include "softmmu_template.h"
-
-#undef _raw
-#endif
-
-/* try to fill the TLB and return an exception if error. If retaddr is
-   NULL, it means that the function was called in C code (i.e. not
-   from generated code or from helper.c) */
-/* XXX: fix it to restore all registers */
-void tlb_fill(CPUX86State *env1, target_ulong addr, target_ulong page_addr, int is_write, int mmu_idx, void *retaddr) {
+/* Fills the TLB for one page, or raises the guest exception if the access
+   faults. A retaddr of 0 means that the caller is not generated code. */
+bool x86_cpu_tlb_fill(CPUState *cs, vaddr addr, int size, MMUAccessType access_type, int mmu_idx, bool probe,
+                      uintptr_t retaddr) {
+    CPUX86State *env = cpu_env(cs);
     int ret;
 
 #if defined(CONFIG_SYMBEX)
     if (unlikely(*g_sqi.events.on_tlb_miss_signals_count)) {
-        g_sqi.events.on_tlb_miss(addr, is_write, retaddr);
+        g_sqi.events.on_tlb_miss(addr, access_type, (void *) retaddr);
     }
 #endif
 
 #if defined(CONFIG_SYMBEX) && defined(CONFIG_SYMBEX_MP)
-    ret = cpu_x86_handle_mmu_fault(env, page_addr, is_write, mmu_idx);
+    /* The offset inside the page can be symbolic when this runs in KLEE, and
+       the page table walk is native code. Only the page address, which is
+       always concrete, is passed to it. */
+    ret = cpu_x86_handle_mmu_fault(env, addr & TARGET_PAGE_MASK, access_type, mmu_idx);
 #else
-    ret = cpu_x86_handle_mmu_fault(env1, addr, is_write, mmu_idx);
+    ret = cpu_x86_handle_mmu_fault(env, addr, access_type, mmu_idx);
 #endif
 
-    if (ret) {
+    if (!ret) {
+        return true;
+    }
+
+    if (probe) {
+        /* cpu_x86_handle_mmu_fault() has already written the fault to CR2 (or
+           the VMCB) and to the exception fields, which a probe must not do. */
+        cpu_abort(env, "page fault while probing address 0x%" VADDR_PRIx "\n", addr);
+    }
+
 #if defined(CONFIG_SYMBEX) && defined(CONFIG_SYMBEX_MP)
-        /* In symbex mode, pass page address instead of addr to cpu_x86_handle_mmu_fault,
-           since the latter can be symbolic while the former is always concrete.
-           To compensate, we reset fault address here. */
-        if (env_cpu(env)->exception_index == EXCP0E_PAGE) {
-            if (env->intercept_exceptions & (1 << EXCP0E_PAGE))
-                stq_phys(env->vm_vmcb + offsetof(struct vmcb, control.exit_info_2), addr);
-            else
-                env->cr[2] = addr;
+    /* The page table walk recorded the page address as the fault address.
+       Replace it with the address of the access. */
+    if (cs->exception_index == EXCP0E_PAGE) {
+        if (env->intercept_exceptions & (1 << EXCP0E_PAGE)) {
+            stq_phys(env->vm_vmcb + offsetof(struct vmcb, control.exit_info_2), addr);
+        } else {
+            env->cr[2] = addr;
         }
+    }
 #endif
 
 #if defined(CONFIG_SYMBEX)
-        if (unlikely(*g_sqi.events.on_page_fault_signals_count)) {
-            g_sqi.events.on_page_fault(addr, is_write, retaddr);
-        }
-#endif
-        raise_exception_err_ra(env, env_cpu(env)->exception_index, env->error_code, (uintptr_t) retaddr);
+    if (unlikely(*g_sqi.events.on_page_fault_signals_count)) {
+        g_sqi.events.on_page_fault(addr, access_type, (void *) retaddr);
     }
+#endif
+    raise_exception_err_ra(env, cs->exception_index, env->error_code, retaddr);
 }
+
+/* Raises the exception for an access that violates the alignment its
+   instruction requires. */
+void x86_cpu_do_unaligned_access(CPUState *cs, vaddr addr, MMUAccessType access_type, int mmu_idx, uintptr_t retaddr) {
+    raise_exception_err_ra(cpu_env(cs), EXCP0D_GPF, 0, retaddr);
+}
+
+/* Returns the address of the second page of an access that crosses a page
+   boundary. Outside of 64-bit code, addresses wrap around at 4GB. */
+vaddr x86_cpu_pointer_wrap(CPUState *cs, int mmu_idx, vaddr result, vaddr base) {
+    return (cpu_env(cs)->hflags & HF_CS64_MASK) ? result : (uint32_t) result;
+}
+
+#if !defined(SYMBEX_LLVM_LIB)
+static int x86_cpu_mmu_index(CPUState *cs, bool ifetch) {
+    return x86_mmu_index(cpu_env(cs));
+}
+
+static const TCGCPUOps s_x86_tcg_ops = {
+    .mmu_index = x86_cpu_mmu_index,
+    .tlb_fill = x86_cpu_tlb_fill,
+    .do_unaligned_access = x86_cpu_do_unaligned_access,
+    .pointer_wrap = x86_cpu_pointer_wrap,
+};
+
+const CPUClass g_x86_cpu_class = {
+    .tcg_ops = &s_x86_tcg_ops,
+};
+#endif
 
 /* Secure Virtual Machine helpers */
 static inline void svm_save_seg(target_phys_addr_t addr, const SegmentCache *sc) {
@@ -5094,7 +5088,7 @@ void helper_vmrun(int aflag, int next_eip_addend) {
             break;
         case TLB_CONTROL_FLUSH_ALL_ASID:
             /* FIXME: this is not 100% correct but should work for now */
-            tlb_flush(env, 1);
+            tlb_flush(env_cpu(env));
             break;
     }
 
@@ -5248,7 +5242,7 @@ void helper_invlpga(int aflag) {
 
     /* XXX: could use the ASID to see if it is needed to do the
        flush */
-    tlb_flush_page(env, addr);
+    tlb_flush_page(env_cpu(env), addr);
 }
 
 void helper_svm_check_intercept_param(uint32_t type, uint64_t param) {

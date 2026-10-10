@@ -445,12 +445,7 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end, int
     if (!p->first_tb) {
         invalidate_page_bitmap(p);
         if (is_cpu_write_access) {
-#ifdef CONFIG_SYMBEX_MP
-            target_ulong iovaddr = g_sqi.mem.read_mem_io_vaddr(1);
-            tlb_unprotect_code_phys(env, start, iovaddr);
-#else
-            tlb_unprotect_code_phys(env, start, env_cpu(env)->mem_io_vaddr);
-#endif
+            tlb_unprotect_code(start);
         }
     }
 }
@@ -459,14 +454,6 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end, int
 void tb_invalidate_phys_page_fast(tb_page_addr_t start, int len) {
     PageDesc *p;
     int offset, b;
-#if 0
-    if (1) {
-        libcpu_log("modifying code at 0x%x size=%d EIP=%x PC=%08x\n",
-                  env_cpu(cpu_single_env)->mem_io_vaddr, len,
-                  cpu_single_env->eip,
-                  cpu_single_env->eip + (long)cpu_single_env->segs[R_CS].base);
-    }
-#endif
     p = page_find(start >> TARGET_PAGE_BITS);
     if (!p)
         return;

@@ -471,6 +471,14 @@ void raise_exception(CPUX86State *env, int exception_index);
 void raise_exception_err(CPUX86State *env, int exception_index, int error_code);
 void raise_exception_err_ra(CPUX86State *env, int exception_index, int error_code, uintptr_t retaddr);
 
+/* The softmmu hooks, see op_helper.c. */
+extern const CPUClass g_x86_cpu_class;
+bool x86_cpu_tlb_fill(CPUState *cs, vaddr addr, int size, MMUAccessType access_type, int mmu_idx, bool probe,
+                      uintptr_t retaddr);
+void LIBCPU_NORETURN x86_cpu_do_unaligned_access(CPUState *cs, vaddr addr, MMUAccessType access_type, int mmu_idx,
+                                                 uintptr_t retaddr);
+vaddr x86_cpu_pointer_wrap(CPUState *cs, int mmu_idx, vaddr result, vaddr base);
+
 void do_smm_enter(CPUX86State *env1);
 
 void svm_check_intercept(CPUX86State *env1, uint32_t type);

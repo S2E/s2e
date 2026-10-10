@@ -77,9 +77,6 @@ void cpu_exec_init(CPUArchState *env);
 int page_unprotect(target_ulong address, uintptr_t pc, void *puc);
 void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end, int is_cpu_write_access);
 
-void tlb_set_page(CPUArchState *env, target_ulong vaddr, target_phys_addr_t paddr, int prot, int mmu_idx,
-                  target_ulong size);
-
 #define CODE_GEN_ALIGN 16 /* must be >= of the size of a icache line */
 
 #define CODE_GEN_PHYS_HASH_BITS 15
@@ -122,29 +119,27 @@ extern int tb_invalidated_flag;
 
 #include <cpu/exec.h>
 
-#include <cpu/softmmu_defs.h>
 #include <cpu/tlb.h>
 
-#define ACCESS_TYPE (NB_MMU_MODES + 1)
-#define MEMSUFFIX   _code
+#include "softmmu-compat.h"
 
-#define DATA_SIZE 1
-#include "softmmu_header.h"
+/* Entry points of accel/cputlb.c that upstream declares in
+   accel/tcg/internal-common.h. */
+void tlb_init(CPUState *cpu);
+void tlb_destroy(CPUState *cpu);
+tb_page_addr_t get_page_addr_code_hostp(CPUArchState *env, vaddr addr, void **hostp);
 
-#define DATA_SIZE 2
-#include "softmmu_header.h"
-
-#define DATA_SIZE 4
-#include "softmmu_header.h"
-
-#define DATA_SIZE 8
-#include "softmmu_header.h"
-
-#undef ACCESS_TYPE
-#undef MEMSUFFIX
-#undef env
-
-tb_page_addr_t get_page_addr_code(CPUArchState *env1, target_ulong addr);
+/* Returns the ram address of the code page at addr, filling the TLB and
+   raising a guest exception if needed. libcpu cannot execute code from MMIO:
+   it has no way to translate one instruction at a time without caching. */
+static inline tb_page_addr_t get_page_addr_code(CPUArchState *env, target_ulong addr) {
+    void *host;
+    tb_page_addr_t ret = get_page_addr_code_hostp(env, addr, &host);
+    if (ret == -1) {
+        cpu_abort(env, "Trying to execute code outside RAM or ROM at 0x" TARGET_FMT_lx "\n", addr);
+    }
+    return ret;
+}
 
 typedef void(CPUDebugExcpHandler)(CPUArchState *env);
 

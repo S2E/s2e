@@ -1717,7 +1717,7 @@ static bool tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *l) {
     }
 
     tcg_out_ld_helper_args(s, l, &ldst_helper_param);
-    tcg_out_branch(s, 1, s->qemu_ld_helpers[opc & MO_SIZE]);
+    tcg_out_branch(s, 1, qemu_ld_helpers[opc & MO_SIZE]);
     tcg_out_ld_helper_ret(s, l, false, &ldst_helper_param);
 
     tcg_out_jmp(s, l->raddr);
@@ -1738,7 +1738,7 @@ static bool tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *l) {
     }
 
     tcg_out_st_helper_args(s, l, &ldst_helper_param);
-    tcg_out_branch(s, 1, s->qemu_st_helpers[opc & MO_SIZE]);
+    tcg_out_branch(s, 1, qemu_st_helpers[opc & MO_SIZE]);
 
     tcg_out_jmp(s, l->raddr);
     return true;

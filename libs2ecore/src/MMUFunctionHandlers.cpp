@@ -21,6 +21,17 @@
 /// SOFTWARE.
 ///
 
+/// @file
+/// Native replacements for the softmmu entry points that translated code
+/// calls when it runs in KLEE.
+///
+/// By default, KLEE interprets the bitcode of helper_{ld,st}*_mmu()
+/// (libcpu/src/accel/cputlb.c). With the use-fast-helpers option, the handlers
+/// below run instead. They do the same TLB lookup in C++ and read or write
+/// the KLEE memory object directly, which avoids interpreting the lookup.
+/// They make the whole address concrete, where the bitcode keeps the offset
+/// inside the page symbolic.
+
 #include <s2e/cpu.h>
 
 #include <s2e/CorePlugin.h>
@@ -34,146 +45,11 @@
 #include <llvm/IR/Module.h>
 
 #include <cpu/memory.h>
+#include <cpu/se_softmmu.h>
 
 using namespace klee;
 
 namespace s2e {
-
-#define S2E_RAM_OBJECT_DIFF (TARGET_PAGE_BITS - SE_RAM_OBJECT_BITS)
-#ifdef SOFTMMU_CODE_ACCESS
-#define READ_ACCESS_TYPE 2
-#define ADDR_READ        addr_code
-#else
-#define READ_ACCESS_TYPE 0
-#define ADDR_READ        addr_read
-#endif
-
-// XXX: Fix this
-#define CPU_MMU_INDEX 0
-
-// This is an io_write_chkX_mmu function
-// XXX: width is redundant
-static void io_write_chk(S2EExecutionState *state, CPUArchState *env, target_phys_addr_t physaddr, const ref<Expr> &val,
-                         target_ulong addr, void *retaddr, Expr::Width width) {
-    target_phys_addr_t origaddr = physaddr;
-    uint64_t concreteVal;
-    const struct MemoryDescOps *ops = phys_get_ops(physaddr);
-    physaddr = (physaddr & TARGET_PAGE_MASK) + addr;
-
-    state->setMemIoVaddr(ConstantExpr::create(addr, sizeof(target_ulong) * 8));
-    env_cpu(env)->mem_io_pc = (uintptr_t) retaddr;
-
-    if (width <= Expr::Int32) {
-        if (se_ismemfunc(ops, 1)) {
-            uintptr_t pa = se_notdirty_mem_write(physaddr, Expr::getMinBytesForWidth(width));
-            state->mem()->write(pa, val, HostAddress);
-            goto end;
-        }
-    } else {
-#ifdef TARGET_WORDS_BIGENDIAN
-#error Big endian not supported
-#else
-        if (se_ismemfunc(ops, 1)) {
-            uintptr_t pa = se_notdirty_mem_write(physaddr, Expr::getMinBytesForWidth(width));
-            state->mem()->write(pa, ExtractExpr::create(val, 0, Expr::Int32), HostAddress);
-            pa = se_notdirty_mem_write(physaddr + 4, Expr::getMinBytesForWidth(width));
-            state->mem()->write(pa, LShrExpr::create(val, ConstantExpr::create(32, width)), HostAddress);
-            goto end;
-        }
-#endif
-    }
-
-    concreteVal = state->concretize(val, "io_write_chk", false);
-    switch (width) {
-        case Expr::Int8:
-            io_writeb_mmu(env, origaddr, concreteVal, addr, retaddr);
-            break;
-        case Expr::Int16:
-            io_writew_mmu(env, origaddr, concreteVal, addr, retaddr);
-            break;
-        case Expr::Int32:
-            io_writel_mmu(env, origaddr, concreteVal, addr, retaddr);
-            break;
-        case Expr::Int64:
-            io_writeq_mmu(env, origaddr, concreteVal, addr, retaddr);
-            break;
-        default:
-            abort();
-    }
-
-end:
-    // XXX: handle memory access
-    // tcg_llvm_trace_mmio_access(addr, val, Expr::getMinBytesForWidth(width), 1);
-    state->setMemIoVaddr(nullptr);
-}
-
-// This is an io_read_chkX_mmu function
-static ref<Expr> io_read_chk(S2EExecutionState *state, const CPUTLBEntry &tlb, target_phys_addr_t physaddr,
-                             target_ulong addr, void *retaddr, Expr::Width width) {
-    uint64_t r;
-    unsigned bw;
-    ref<Expr> ret;
-    target_phys_addr_t origaddr = physaddr;
-    const struct MemoryDescOps *ops = phys_get_ops(physaddr);
-
-    target_ulong naddr = (physaddr & TARGET_PAGE_MASK) + addr;
-
-    env_cpu(env)->mem_io_pc = (uintptr_t) retaddr;
-    state->setMemIoVaddr(ConstantExpr::create(addr, sizeof(target_ulong) * 8));
-
-    if (is_notdirty_ops(ops)) {
-        ret = state->mem()->read(tlb.addend + addr, width, HostAddress);
-        goto end;
-    }
-
-    bw = Expr::getMinBytesForWidth(width);
-
-    if (bw <= 4) {
-        if (se_ismemfunc(ops, 0)) {
-            uintptr_t pa = se_notdirty_mem_read(naddr);
-            ret = state->mem()->read(pa, width, HostAddress);
-            goto end;
-        }
-    } else {
-#ifdef TARGET_WORDS_BIGENDIAN
-        abort();
-#else
-        if (se_ismemfunc(ops, 0)) {
-            uintptr_t pa = se_notdirty_mem_read(naddr);
-            auto e1 = state->mem()->read(pa, width, HostAddress);
-
-            pa = se_notdirty_mem_read(naddr + 4);
-            auto e2 = state->mem()->read(pa, width, HostAddress);
-
-            ret = ConcatExpr::create(e2, e1);
-            goto end;
-        }
-#endif
-    }
-
-    switch (bw) {
-        case 1:
-            r = io_readb_mmu(env, origaddr, addr, retaddr);
-            break;
-        case 2:
-            r = io_readw_mmu(env, origaddr, addr, retaddr);
-            break;
-        case 4:
-            r = io_readl_mmu(env, origaddr, addr, retaddr);
-            break;
-        case 8:
-            r = io_readq_mmu(env, origaddr, addr, retaddr);
-            break;
-        default:
-            abort();
-    }
-
-    ret = ConstantExpr::create(r, width);
-end:
-    // TODO: trace mmio
-    state->setMemIoVaddr(nullptr);
-    return ret;
-}
 
 static ref<ConstantExpr> handleForkAndConcretizeNative(Executor *executor, ExecutionState *state,
                                                        klee::KInstruction *target, const ref<Expr> &symbAddress) {
@@ -197,413 +73,193 @@ static ref<ConstantExpr> handleForkAndConcretizeNative(Executor *executor, Execu
     return constantAddress;
 }
 
-template <typename V>
-static ref<Expr> handle_ldst_mmu(Executor *executor, ExecutionState *state, klee::KInstruction *target, const V &args,
-                                 bool isWrite, unsigned data_size, bool signExtend, bool zeroExtend) {
-    S2EExecutionState *s2estate = static_cast<S2EExecutionState *>(state);
+static void traceAccess(Executor *executor, ExecutionState *state, klee::KInstruction *target, const ref<Expr> &address,
+                        const ref<Expr> &value, unsigned size, unsigned flags) {
+    auto corePlugin = g_s2e->getCorePlugin();
+    if (corePlugin->onAfterSymbolicDataMemoryAccess.empty() && corePlugin->onConcreteDataMemoryAccess.empty()) {
+        return;
+    }
 
-    ref<ConstantExpr> envExpr = dyn_cast<ConstantExpr>(args[0]);
-    assert(envExpr);
-    CPUArchState *env = (CPUArchState *) envExpr->getZExtValue();
+    std::vector<ref<Expr>> traceArgs;
+    traceArgs.push_back(address);
+    traceArgs.push_back(value);
+    traceArgs.push_back(ConstantExpr::create(size, Expr::Int32));
+    traceArgs.push_back(ConstantExpr::create(flags, Expr::Int64));
+    traceArgs.push_back(ConstantExpr::create(0, Expr::Int64));
+    handlerAfterMemoryAccess(executor, state, target, traceArgs);
+}
 
-    const auto &symbAddress = args[1];
-    ref<ConstantExpr> constantAddress = handleForkAndConcretizeNative(executor, state, target, symbAddress);
-
-    ref<Expr> mmuIdxExpr = args[isWrite ? 3 : 2];
-    unsigned mmu_idx = get_mmuidx(dyn_cast<ConstantExpr>(mmuIdxExpr)->getZExtValue());
-
-    // XXX: determine this by looking at the instruction that called us
-    Expr::Width width = data_size * 8;
-    Expr::Width addressWidth = symbAddress->getWidth();
-
-    target_ulong addr = constantAddress->getZExtValue();
-    target_ulong object_index, index;
-    ref<Expr> value;
-    target_ulong tlb_addr, addr1, addr2;
-    target_phys_addr_t addend, ioaddr;
-    void *retaddr = nullptr;
-
+/// Reads or writes a device register through the native softmmu. Devices
+/// only take concrete values.
+static ref<Expr> accessMmio(S2EExecutionState *state, CPUArchState *env, target_ulong addr, const ref<Expr> &value,
+                            MemOpIdx oi, bool isWrite, unsigned size) {
     if (isWrite) {
-        value = args[2];
-        assert(value->getWidth() == width);
-    }
-
-    object_index = addr >> SE_RAM_OBJECT_BITS;
-    index = (object_index >> S2E_RAM_OBJECT_DIFF) & (CPU_TLB_SIZE - 1);
-
-redo:
-
-    const auto &tlbEntry = env_tlb(env)->f[mmu_idx].table[index];
-
-    if (isWrite) {
-        tlb_addr = tlbEntry.addr_write & ~TLB_MEM_TRACE;
-    } else {
-        tlb_addr = tlbEntry.addr_read & ~TLB_MEM_TRACE;
-    }
-
-    if (likely((addr & TARGET_PAGE_MASK) == (tlb_addr & (TARGET_PAGE_MASK | TLB_INVALID_MASK)))) {
-        if (unlikely(tlb_addr & ~TARGET_PAGE_MASK)) {
-            /* IO access */
-            if ((addr & (data_size - 1)) != 0) {
-                goto do_unaligned_access;
-            }
-
-            ioaddr = env_tlb(env)->d[mmu_idx].iotlb[index];
-
-            if (!isWrite) {
-                value = io_read_chk(s2estate, tlbEntry, ioaddr, addr, retaddr, width);
-            }
-
-            auto corePlugin = g_s2e->getCorePlugin();
-            if (!corePlugin->onAfterSymbolicDataMemoryAccess.empty() ||
-                !corePlugin->onConcreteDataMemoryAccess.empty()) {
-                // Trace the access
-                std::vector<ref<Expr>> traceArgs;
-                traceArgs.push_back(symbAddress);
-                traceArgs.push_back(value);
-                traceArgs.push_back(ConstantExpr::create(width / 8, Expr::Int32));
-                unsigned flags = isWrite ? MEM_TRACE_FLAG_WRITE : 0;
-                traceArgs.push_back(ConstantExpr::create(flags | MEM_TRACE_FLAG_IO, Expr::Int64));
-                traceArgs.push_back(ConstantExpr::create(0, Expr::Int64));
-                handlerAfterMemoryAccess(executor, state, target, traceArgs);
-            }
-
-            if (isWrite) {
-                io_write_chk(s2estate, env, ioaddr, value, addr, retaddr, width);
-            }
-
-        } else if (unlikely(((addr & ~SE_RAM_OBJECT_MASK) + data_size - 1) >= SE_RAM_OBJECT_SIZE)) {
-        /* slow unaligned access (it spans two pages or IO) */
-        do_unaligned_access:
-
-            if (isWrite) {
-                for (int i = data_size - 1; i >= 0; i--) {
-                    HandlerArgs unalignedAccessArgs;
-#ifdef TARGET_WORDS_BIGENDIAN
-                    ref<Expr> shiftCount = ConstantExpr::create((((data_size - 1) * 8) - (i * 8)), width);
-#else
-                    ref<Expr> shiftCount = ConstantExpr::create(i * 8, width);
-#endif
-
-                    ref<Expr> shiftedValue = LShrExpr::create(value, shiftCount);
-                    ref<Expr> resizedValue = ExtractExpr::create(shiftedValue, 0, Expr::Int8);
-                    unalignedAccessArgs.push_back(args[0]);
-                    unalignedAccessArgs.push_back(ConstantExpr::create(addr + i, addressWidth));
-                    unalignedAccessArgs.push_back(resizedValue);
-                    unalignedAccessArgs.push_back(mmuIdxExpr);
-                    unalignedAccessArgs.push_back(args[3]);
-                    handle_ldst_mmu(executor, state, target, unalignedAccessArgs, true, 1, false, false);
-                }
-            } else {
-                addr1 = addr & ~((target_ulong) data_size - 1);
-                addr2 = addr1 + (target_ulong) data_size;
-
-                HandlerArgs unalignedAccessArgs;
-                unalignedAccessArgs.push_back(args[0]);
-                unalignedAccessArgs.push_back(ConstantExpr::create(addr1, addressWidth));
-                unalignedAccessArgs.push_back(mmuIdxExpr);
-                unalignedAccessArgs.push_back(args[2]);
-                ref<Expr> value1 = handle_ldst_mmu(executor, state, target, unalignedAccessArgs, isWrite, data_size,
-                                                   signExtend, zeroExtend);
-
-                unalignedAccessArgs[1] = ConstantExpr::create(addr2, addressWidth);
-                ref<Expr> value2 = handle_ldst_mmu(executor, state, target, unalignedAccessArgs, isWrite, data_size,
-                                                   signExtend, zeroExtend);
-
-                ref<Expr> shift = ConstantExpr::create((addr & (data_size - 1)) * 8, width);
-                ref<Expr> shift2 = ConstantExpr::create((data_size * 8) - ((addr & (data_size - 1)) * 8), width);
-
-#ifdef TARGET_WORDS_BIGENDIAN
-                value = OrExpr::create(ShlExpr::create(value1, shift), LShrExpr::create(value2, shift2));
-#else
-                value = OrExpr::create(LShrExpr::create(value1, shift), ShlExpr::create(value2, shift2));
-#endif
-
-                auto corePlugin = g_s2e->getCorePlugin();
-                if (!corePlugin->onAfterSymbolicDataMemoryAccess.empty() ||
-                    !corePlugin->onConcreteDataMemoryAccess.empty()) {
-                    // Trace the access
-                    std::vector<ref<Expr>> traceArgs;
-                    traceArgs.push_back(symbAddress);
-                    traceArgs.push_back(value);
-                    traceArgs.push_back(ConstantExpr::create(width / 8, Expr::Int32));
-                    unsigned flags = isWrite ? MEM_TRACE_FLAG_WRITE : 0;
-                    traceArgs.push_back(ConstantExpr::create(flags, Expr::Int64));
-                    traceArgs.push_back(ConstantExpr::create(0, Expr::Int64));
-                    handlerAfterMemoryAccess(executor, state, target, traceArgs);
-                }
-            }
-        } else {
-/* unaligned/aligned access in the same page */
-#ifdef ALIGNED_ONLY
-            if ((addr & (DATA_SIZE - 1)) != 0) {
-                do_unaligned_access(ENV_VAR addr, READ_ACCESS_TYPE, mmu_idx, retaddr);
-            }
-#endif
-            addend = tlbEntry.addend;
-
-            if (isWrite) {
-                s2estate->mem()->write(addr + addend, value, HostAddress);
-            } else {
-                value = s2estate->mem()->read(addr + addend, width, HostAddress);
-            }
-
-            auto corePlugin = g_s2e->getCorePlugin();
-            if (!corePlugin->onAfterSymbolicDataMemoryAccess.empty() ||
-                !corePlugin->onConcreteDataMemoryAccess.empty()) {
-                // Trace the access
-                std::vector<ref<Expr>> traceArgs;
-                traceArgs.push_back(symbAddress);
-                traceArgs.push_back(value);
-                traceArgs.push_back(ConstantExpr::create(width / 8, Expr::Int32));
-                unsigned flags = isWrite ? MEM_TRACE_FLAG_WRITE : 0;
-                traceArgs.push_back(ConstantExpr::create(flags, Expr::Int64));
-                traceArgs.push_back(ConstantExpr::create(0, Expr::Int64));
-                handlerAfterMemoryAccess(executor, state, target, traceArgs);
-            }
+        uint64_t v = state->concretize(value, "mmio write", false);
+        switch (size) {
+            case 1:
+                cpu_stb_mmu(env, addr, v, oi, 0);
+                break;
+            case 2:
+                cpu_stw_mmu(env, addr, v, oi, 0);
+                break;
+            case 4:
+                cpu_stl_mmu(env, addr, v, oi, 0);
+                break;
+            case 8:
+                cpu_stq_mmu(env, addr, v, oi, 0);
+                break;
+            default:
+                abort();
         }
-    } else {
-        /* the page is not in the TLB : fill it */
-        tlb_fill(env, addr, object_index << SE_RAM_OBJECT_BITS, isWrite, mmu_idx, retaddr);
-        goto redo;
-    }
-
-    if (!isWrite) {
-        if (zeroExtend) {
-            assert(data_size == 2);
-            value = ZExtExpr::create(value, Expr::Int32);
-        }
-        return value;
-    } else {
         return ref<Expr>();
     }
+
+    uint64_t v;
+    switch (size) {
+        case 1:
+            v = cpu_ldb_mmu(env, addr, oi, 0);
+            break;
+        case 2:
+            v = cpu_ldw_mmu(env, addr, oi, 0);
+            break;
+        case 4:
+            v = cpu_ldl_mmu(env, addr, oi, 0);
+            break;
+        case 8:
+            v = cpu_ldq_mmu(env, addr, oi, 0);
+            break;
+        default:
+            abort();
+    }
+    return ConstantExpr::create(v, size * 8);
 }
 
-static void handle_ldb_mmu(Executor *executor, ExecutionState *state, klee::KInstruction *target,
-                           std::vector<ref<Expr>> &args) {
-    assert(args.size() == 4);
-    ref<Expr> value = handle_ldst_mmu(executor, state, target, args, false, 1, false, false);
-    assert(value->getWidth() == Expr::Int8);
-    state->llvm.bindLocal(target, value);
-}
-
-static void handle_ldw_mmu(Executor *executor, ExecutionState *state, klee::KInstruction *target,
-                           std::vector<ref<Expr>> &args) {
-    assert(args.size() == 4);
-    ref<Expr> value = handle_ldst_mmu(executor, state, target, args, false, 2, false, false);
-    assert(value->getWidth() == Expr::Int16);
-    state->llvm.bindLocal(target, value);
-}
-
-static void handle_ldl_mmu(Executor *executor, ExecutionState *state, klee::KInstruction *target,
-                           std::vector<ref<Expr>> &args) {
-    assert(args.size() == 4);
-    ref<Expr> value = handle_ldst_mmu(executor, state, target, args, false, 4, false, false);
-    assert(value->getWidth() == Expr::Int32);
-    state->llvm.bindLocal(target, value);
-}
-
-static void handle_ldq_mmu(Executor *executor, ExecutionState *state, klee::KInstruction *target,
-                           std::vector<ref<Expr>> &args) {
-    assert(args.size() == 4);
-    ref<Expr> value = handle_ldst_mmu(executor, state, target, args, false, 8, false, false);
-    assert(value->getWidth() == Expr::Int64);
-    state->llvm.bindLocal(target, value);
-}
-
-static void handle_stb_mmu(Executor *executor, ExecutionState *state, klee::KInstruction *target,
-                           std::vector<ref<Expr>> &args) {
-    assert(args.size() == 5);
-    handle_ldst_mmu(executor, state, target, args, true, 1, false, false);
-}
-
-static void handle_stw_mmu(Executor *executor, ExecutionState *state, klee::KInstruction *target,
-                           std::vector<ref<Expr>> &args) {
-    assert(args.size() == 5);
-    handle_ldst_mmu(executor, state, target, args, true, 2, false, false);
-}
-
-static void handle_stl_mmu(Executor *executor, ExecutionState *state, klee::KInstruction *target,
-                           std::vector<ref<Expr>> &args) {
-    assert(args.size() == 5);
-    handle_ldst_mmu(executor, state, target, args, true, 4, false, false);
-}
-
-static void handle_stq_mmu(Executor *executor, ExecutionState *state, klee::KInstruction *target,
-                           std::vector<ref<Expr>> &args) {
-    assert(args.size() == 5);
-    handle_ldst_mmu(executor, state, target, args, true, 8, false, false);
-}
-
-static void handle_ldst_kernel(Executor *executor, ExecutionState *state, klee::KInstruction *target,
-                               std::vector<ref<Expr>> &args, bool isWrite, unsigned dataSize, bool signExtend,
-                               bool zeroExtend) {
+/// Performs one guest memory access.
+///
+/// @param address the guest virtual address, possibly symbolic
+/// @param value the value to store, size bytes wide; unused for loads
+/// @return the value loaded, size bytes wide; null for stores
+static ref<Expr> accessMemory(Executor *executor, ExecutionState *state, klee::KInstruction *target, CPUArchState *env,
+                              const ref<Expr> &address, const ref<Expr> &value, MemOpIdx oi, bool isWrite,
+                              unsigned size) {
     S2EExecutionState *s2estate = static_cast<S2EExecutionState *>(state);
-    unsigned mmu_idx = CPU_MMU_INDEX;
+    CPUState *cpu = env_cpu(env);
+    const unsigned mmu_idx = get_mmuidx(oi);
+    const MMUAccessType type = isWrite ? MMU_DATA_STORE : MMU_DATA_LOAD;
+    const Expr::Width width = size * 8;
 
-    ref<ConstantExpr> envExpr = dyn_cast<ConstantExpr>(args[0]);
-    assert(envExpr);
-    CPUArchState *env = (CPUArchState *) envExpr->getZExtValue();
-
-    const auto &symbAddress = args[1];
-    ref<ConstantExpr> constantAddress = handleForkAndConcretizeNative(executor, state, target, symbAddress);
-
-    Expr::Width width = dataSize * 8;
+    ref<ConstantExpr> constantAddress = handleForkAndConcretizeNative(executor, state, target, address);
     target_ulong addr = constantAddress->getZExtValue();
-    target_ulong object_index, page_index, tlb_addr;
-    ref<Expr> value;
-    uintptr_t physaddr;
 
-    object_index = addr >> SE_RAM_OBJECT_BITS;
-    page_index = (object_index >> S2E_RAM_OBJECT_DIFF) & (CPU_TLB_SIZE - 1);
-
-    //////////////////////////////////////////
-    const auto &tlbEntry = env_tlb(env)->f[mmu_idx].table[page_index];
-
-    if (isWrite) {
-        value = args[2];
-        if (value->getWidth() > width) {
-            value = ExtractExpr::create(value, 0, width);
-        }
-
-        tlb_addr = tlbEntry.addr_write & ~TLB_MEM_TRACE;
-    } else {
-        tlb_addr = tlbEntry.addr_read & ~TLB_MEM_TRACE;
-    }
-
-    if (unlikely(tlb_addr != (addr & (TARGET_PAGE_MASK | (dataSize - 1))))) {
-
-        HandlerArgs slowArgs;
-
-        if (isWrite) {
-            slowArgs.push_back(envExpr);
-            slowArgs.push_back(constantAddress);
-            slowArgs.push_back(value);
-            slowArgs.push_back(ConstantExpr::create(mmu_idx, Expr::Int64));
-            slowArgs.push_back(ConstantExpr::create(0, Expr::Int64));
-            handle_ldst_mmu(executor, state, target, slowArgs, isWrite, dataSize, signExtend, zeroExtend);
-        } else {
-            slowArgs.push_back(envExpr);
-            slowArgs.push_back(constantAddress);
-            slowArgs.push_back(ConstantExpr::create(mmu_idx, Expr::Int64));
-            slowArgs.push_back(ConstantExpr::create(0, Expr::Int64));
-            value = handle_ldst_mmu(executor, state, target, slowArgs, isWrite, dataSize, signExtend, zeroExtend);
-            state->llvm.bindLocal(target, value);
-        }
-        return;
-
-    } else {
-        // When we get here, the address is aligned with the size of the access,
-        // which by definition means that it will fall inside the small page, without overflowing.
-        physaddr = addr + tlbEntry.addend;
-
-        if (isWrite) {
-            s2estate->mem()->write(physaddr, value, HostAddress);
-        } else {
-            value = s2estate->mem()->read(physaddr, width, HostAddress);
-        }
-
-        // Trace the access
-        // TODO: don't do this if there is no instrumentation
-        auto corePlugin = g_s2e->getCorePlugin();
-        if (!corePlugin->onAfterSymbolicDataMemoryAccess.empty() || !corePlugin->onConcreteDataMemoryAccess.empty()) {
-            std::vector<ref<Expr>> traceArgs;
-            traceArgs.push_back(constantAddress);
-            traceArgs.push_back(value);
-            traceArgs.push_back(ConstantExpr::create(width / 8, Expr::Int32));
-            unsigned flags = isWrite ? MEM_TRACE_FLAG_WRITE : 0;
-            traceArgs.push_back(ConstantExpr::create(flags, Expr::Int64));
-            traceArgs.push_back(ConstantExpr::create(0, Expr::Int64));
-            handlerAfterMemoryAccess(executor, state, target, traceArgs);
-        }
-
-        if (!isWrite) {
-            if (zeroExtend) {
-                assert(dataSize < 4);
-                value = ZExtExpr::create(value, Expr::Int32);
+    if (((addr & ~TARGET_PAGE_MASK) + size) > TARGET_PAGE_SIZE) {
+        // The access spans two pages: do it one byte at a time, in guest
+        // (little endian) byte order.
+        ref<Expr> result;
+        for (unsigned i = 0; i < size; ++i) {
+            auto byteAddress = ConstantExpr::create((target_ulong) (addr + i), address->getWidth());
+            MemOpIdx byteOi = make_memop_idx(MO_UB, mmu_idx);
+            if (isWrite) {
+                auto byte = ExtractExpr::create(value, i * 8, Expr::Int8);
+                accessMemory(executor, state, target, env, byteAddress, byte, byteOi, true, 1);
+            } else {
+                auto byte = accessMemory(executor, state, target, env, byteAddress, ref<Expr>(), byteOi, false, 1);
+                result = result ? ConcatExpr::create(byte, result) : byte;
             }
-            state->llvm.bindLocal(target, value);
         }
+        return result;
     }
+
+    CPUTLBDescFast *fast = cpu_tlb_fast(cpu, mmu_idx);
+    const uintptr_t index = (addr >> TARGET_PAGE_BITS) & (fast->mask >> CPU_TLB_ENTRY_BITS);
+    const CPUTLBEntry *entry = &fast->table[index];
+    uintptr_t tlb_addr = isWrite ? entry->addr_write : entry->addr_read;
+
+    if ((addr & TARGET_PAGE_MASK) != (tlb_addr & (TARGET_PAGE_MASK | TLB_INVALID_MASK))) {
+        // Not in the TLB. A guest fault leaves through the CPU loop and does
+        // not come back here.
+        x86_cpu_tlb_fill(cpu, addr, size, type, mmu_idx, false, 0);
+        tlb_addr = isWrite ? entry->addr_write : entry->addr_read;
+    }
+
+    CPUTLBEntryFull *full = &cpu->neg.tlb.d[mmu_idx].fulltlb[index];
+    int flags = tlb_addr & (TLB_FLAGS_MASK & ~TLB_FORCE_SLOW);
+    flags |= full->slow_flags[type];
+
+    if (flags & TLB_WATCHPOINT) {
+        cpu_check_watchpoint(cpu, addr, size, full->attrs, isWrite ? BP_MEM_WRITE : BP_MEM_READ, 0);
+    }
+
+    ref<Expr> result;
+
+    if (flags & TLB_MMIO) {
+        result = accessMmio(s2estate, env, addr, value, oi, isWrite, size);
+        traceAccess(executor, state, target, address, isWrite ? value : result, size,
+                    (isWrite ? MEM_TRACE_FLAG_WRITE : 0) | MEM_TRACE_FLAG_IO);
+        return result;
+    }
+
+    if (isWrite && (flags & TLB_NOTDIRTY)) {
+        notdirty_write(cpu, addr, size, full, 0);
+    }
+
+    // KLEE binds the page at its address in guest RAM (addend). se_addend
+    // points into the concrete buffer and is for natively executed code.
+    const uint64_t host = addr + entry->addend;
+    if (isWrite) {
+        if (!(flags & TLB_DISCARD_WRITE)) {
+            s2estate->mem()->write(host, value, HostAddress);
+        }
+    } else {
+        result = s2estate->mem()->read(host, width, HostAddress);
+    }
+
+    traceAccess(executor, state, target, address, isWrite ? value : result, size, isWrite ? MEM_TRACE_FLAG_WRITE : 0);
+    return result;
 }
 
-static void handle_ldub_kernel(Executor *executor, ExecutionState *state, klee::KInstruction *target,
-                               std::vector<ref<Expr>> &args) {
-    assert(args.size() == 2);
-    handle_ldst_kernel(executor, state, target, args, false, 1, false, true);
+/// Handles helper_ld{ub,uw,ul,q,sb,sw,sl}_mmu(env, addr, oi, retaddr). They
+/// return a register-sized value, zero or sign extended.
+template <unsigned SIZE, bool SIGNED>
+static void handleLoad(Executor *executor, ExecutionState *state, klee::KInstruction *target,
+                       std::vector<ref<Expr>> &args) {
+    assert(args.size() == 4);
+    auto env = (CPUArchState *) cast<ConstantExpr>(args[0])->getZExtValue();
+    MemOpIdx oi = cast<ConstantExpr>(args[2])->getZExtValue();
+
+    ref<Expr> value = accessMemory(executor, state, target, env, args[1], ref<Expr>(), oi, false, SIZE);
+
+    const Expr::Width retWidth = sizeof(tcg_target_ulong) * 8;
+    if (value->getWidth() < retWidth) {
+        value = SIGNED ? SExtExpr::create(value, retWidth) : ZExtExpr::create(value, retWidth);
+    }
+    state->llvm.bindLocal(target, value);
 }
 
-static void handle_lduw_kernel(Executor *executor, ExecutionState *state, klee::KInstruction *target,
-                               std::vector<ref<Expr>> &args) {
-    assert(args.size() == 2);
-    handle_ldst_kernel(executor, state, target, args, false, 2, false, true);
-}
+/// Handles helper_st{b,w,l,q}_mmu(env, addr, val, oi, retaddr). The value
+/// argument can be wider than the access.
+template <unsigned SIZE>
+static void handleStore(Executor *executor, ExecutionState *state, klee::KInstruction *target,
+                        std::vector<ref<Expr>> &args) {
+    assert(args.size() == 5);
+    auto env = (CPUArchState *) cast<ConstantExpr>(args[0])->getZExtValue();
+    MemOpIdx oi = cast<ConstantExpr>(args[3])->getZExtValue();
 
-// TODO: implement lds
-static void handle_ldl_kernel(Executor *executor, ExecutionState *state, klee::KInstruction *target,
-                              std::vector<ref<Expr>> &args) {
-    assert(args.size() == 2);
-    handle_ldst_kernel(executor, state, target, args, false, 4, false, false);
-}
+    ref<Expr> value = args[2];
+    if (value->getWidth() > SIZE * 8) {
+        value = ExtractExpr::create(value, 0, SIZE * 8);
+    }
 
-#ifdef TARGET_X86_64
-static void handle_ldq_kernel(Executor *executor, ExecutionState *state, klee::KInstruction *target,
-                              std::vector<ref<Expr>> &args) {
-    assert(args.size() == 2);
-    handle_ldst_kernel(executor, state, target, args, false, 8, false, false);
+    accessMemory(executor, state, target, env, args[1], value, oi, true, SIZE);
 }
-#endif
-
-static void handle_stb_kernel(Executor *executor, ExecutionState *state, klee::KInstruction *target,
-                              std::vector<ref<Expr>> &args) {
-    assert(args.size() == 3);
-    handle_ldst_kernel(executor, state, target, args, true, 1, false, false);
-}
-
-static void handle_stw_kernel(Executor *executor, ExecutionState *state, klee::KInstruction *target,
-                              std::vector<ref<Expr>> &args) {
-    assert(args.size() == 3);
-    handle_ldst_kernel(executor, state, target, args, true, 2, false, false);
-}
-
-static void handle_stl_kernel(Executor *executor, ExecutionState *state, klee::KInstruction *target,
-                              std::vector<ref<Expr>> &args) {
-    assert(args.size() == 3);
-    handle_ldst_kernel(executor, state, target, args, true, 4, false, false);
-}
-
-#ifdef TARGET_X86_64
-static void handle_stq_kernel(Executor *executor, ExecutionState *state, klee::KInstruction *target,
-                              std::vector<ref<Expr>> &args) {
-    assert(args.size() == 3);
-    handle_ldst_kernel(executor, state, target, args, true, 8, false, false);
-}
-#endif
 
 static Handler s_handlerInfo[] = {
 #define add(name, handler) {name, &handler, nullptr}
-    add("helper_ldb_mmu", handle_ldb_mmu),
-    add("helper_ldw_mmu", handle_ldw_mmu),
-    add("helper_ldl_mmu", handle_ldl_mmu),
-    add("helper_ldq_mmu", handle_ldq_mmu),
-    add("helper_stb_mmu", handle_stb_mmu),
-    add("helper_stw_mmu", handle_stw_mmu),
-    add("helper_stl_mmu", handle_stl_mmu),
-    add("helper_stq_mmu", handle_stq_mmu),
-    add("cpu_stb_kernel", handle_stb_kernel),
-    add("cpu_stw_kernel", handle_stw_kernel),
-    add("cpu_stl_kernel", handle_stl_kernel),
-    add("cpu_ldub_kernel", handle_ldub_kernel),
-    add("cpu_lduw_kernel", handle_lduw_kernel),
-    add("cpu_ldl_kernel", handle_ldl_kernel),
-
-#ifdef TARGET_X86_64
-    add("helper_ldq_mmu", handle_ldq_mmu),
-    add("helper_stq_mmu", handle_stq_mmu),
-    add("cpu_ldq_kernel", handle_ldq_kernel),
-    add("cpu_stq_kernel", handle_stq_kernel)
-#endif /* TARGET_X86_64 */
-
+    add("helper_ldub_mmu", (handleLoad<1, false>) ), add("helper_lduw_mmu", (handleLoad<2, false>) ),
+    add("helper_ldul_mmu", (handleLoad<4, false>) ), add("helper_ldq_mmu", (handleLoad<8, false>) ),
+    add("helper_ldsb_mmu", (handleLoad<1, true>) ),  add("helper_ldsw_mmu", (handleLoad<2, true>) ),
+    add("helper_ldsl_mmu", (handleLoad<4, true>) ),  add("helper_stb_mmu", handleStore<1>),
+    add("helper_stw_mmu", handleStore<2>),           add("helper_stl_mmu", handleStore<4>),
+    add("helper_stq_mmu", handleStore<8>),
 #undef add
 };
 

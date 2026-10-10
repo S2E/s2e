@@ -23,7 +23,6 @@
 #include <cpu/config.h>
 #include <cpu/i386/cpu.h>
 #include <cpu/interrupt.h>
-#include <cpu/softmmu_defs.h>
 #include <cpu/tb.h>
 #include <libcpu-compiler.h>
 #include <tcg/accel/getpc.h>
@@ -47,10 +46,6 @@ extern "C" {
 void cpu_exit(CPUArchState *s);
 void cpu_exec_init_all(void);
 void tcg_exec_init(unsigned long tb_size);
-
-void tlb_flush(CPUArchState *env, int flush_global);
-void tlb_flush_page(CPUArchState *env, target_ulong addr);
-void tlb_fill(CPUArchState *env1, target_ulong addr, target_ulong page_addr, int is_write, int mmu_idx, void *retaddr);
 
 void tb_flush(CPUArchState *env);
 
@@ -91,12 +86,9 @@ void cpu_physical_memory_get_dirty_bitmap(uint8_t *bitmap, ram_addr_t start, int
 
 void cpu_physical_memory_reset_dirty(ram_addr_t start, ram_addr_t end, int dirty_flags);
 
-const struct MemoryDescOps *phys_get_ops(target_phys_addr_t index);
-bool is_notdirty_ops(const struct MemoryDescOps *ops);
-
-#ifdef CONFIG_SYMBEX
-bool se_ismemfunc(const struct MemoryDescOps *ops, int isWrite);
-#endif
+/* tlb_flush(), tlb_flush_page() and tlb_set_page(). The header is upstream's
+   and has no C++ guard of its own, so it is included inside this one. */
+#include <cpu/exec/cputlb.h>
 
 #ifdef __cplusplus
 }

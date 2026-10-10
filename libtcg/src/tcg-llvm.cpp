@@ -194,9 +194,9 @@ void TCGLLVMTranslator::initializeHelpers() {
         abort();
     }
 
-    m_qemu_ld_helpers[0] = m_module->getFunction("helper_ldb_mmu");
-    m_qemu_ld_helpers[1] = m_module->getFunction("helper_ldw_mmu");
-    m_qemu_ld_helpers[2] = m_module->getFunction("helper_ldl_mmu");
+    m_qemu_ld_helpers[0] = m_module->getFunction("helper_ldub_mmu");
+    m_qemu_ld_helpers[1] = m_module->getFunction("helper_lduw_mmu");
+    m_qemu_ld_helpers[2] = m_module->getFunction("helper_ldul_mmu");
     m_qemu_ld_helpers[3] = m_module->getFunction("helper_ldq_mmu");
     m_qemu_ld_helpers[4] = m_module->getFunction("helper_ldq_mmu");
 
@@ -515,15 +515,31 @@ Value *TCGLLVMTranslator::generateQemuMemOp(bool ld, Value *value, Value *addr, 
     assert(TCG_TARGET_REG_BITS == 64); // XXX
     MemOp memop = get_memop(mem_index);
     unsigned helper_size = memop & MO_SIZE;
+    if (helper_size > MO_64) {
+        // The i386 frontend emits no 128-bit memory operations.
+        abort();
+    }
 
 #ifdef CONFIG_SOFTMMU
 #if defined(CONFIG_SYMBEX)
-    auto retAddr = Constant::getNullValue(intPtrType(8));
+    // The argument types come from the helper's prototype in the bitcode
+    // library: helper_ld*_mmu(env, addr, oi, retaddr) and
+    // helper_st*_mmu(env, addr, val, oi, retaddr). The address is 64 bits
+    // wide whatever the target is, and the return address is an integer. It
+    // is zero because the caller is not natively generated code.
+    Function *helper = ld ? m_qemu_ld_helpers[helper_size] : m_qemu_st_helpers[helper_size];
+    FunctionType *helperType = helper->getFunctionType();
+    unsigned oiIndex = ld ? 2 : 3;
+
+    addr = m_builder.CreateZExt(addr, helperType->getParamType(1));
+    auto oi = ConstantInt::get(helperType->getParamType(oiIndex), mem_index);
+    auto retAddr = Constant::getNullValue(helperType->getParamType(oiIndex + 1));
 
     if (ld) {
-        Value *v = attachCurrentPc(
-            m_builder.CreateCall(m_qemu_ld_helpers[helper_size],
-                                 {m_cpuState, addr, ConstantInt::get(intType(8 * sizeof(int)), mem_index), retAddr}));
+        Value *v = attachCurrentPc(m_builder.CreateCall(helper, {m_cpuState, addr, oi, retAddr}));
+
+        // The load helpers return a zero-extended register-sized value.
+        v = m_builder.CreateTrunc(v, intType((1 << helper_size) * 8));
 
         if (memop & MO_SIGN) {
             v = m_builder.CreateSExt(v, intType(bits));
@@ -533,14 +549,15 @@ Value *TCGLLVMTranslator::generateQemuMemOp(bool ld, Value *value, Value *addr, 
 
         return v;
     } else {
+        // The store helpers take the value in the type of their third
+        // parameter, which is wider than the access for the small sizes.
         auto new_bits = (1 << helper_size) * 8;
         if (new_bits < bits) {
             value = m_builder.CreateTrunc(value, intType(new_bits));
         }
+        value = m_builder.CreateZExt(value, helperType->getParamType(2));
 
-        attachCurrentPc(m_builder.CreateCall(
-            m_qemu_st_helpers[helper_size],
-            {m_cpuState, addr, value, ConstantInt::get(intType(8 * sizeof(int)), mem_index), retAddr}));
+        attachCurrentPc(m_builder.CreateCall(helper, {m_cpuState, addr, value, oi, retAddr}));
         return NULL;
     }
 #endif

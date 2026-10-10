@@ -36,6 +36,8 @@
 
 #include <s2e/s2e_libcpu.h>
 
+#include <cpu/se_softmmu.h>
+
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/DataLayout.h>
 #include <llvm/IR/DerivedTypes.h>
@@ -329,15 +331,12 @@ S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMTranslator *translator)
     __DEFINE_EXT_FUNCTION(tlb_flush_page)
     __DEFINE_EXT_FUNCTION(tlb_flush)
 
-    __DEFINE_EXT_FUNCTION(io_readb_mmu)
-    __DEFINE_EXT_FUNCTION(io_readw_mmu)
-    __DEFINE_EXT_FUNCTION(io_readl_mmu)
-    __DEFINE_EXT_FUNCTION(io_readq_mmu)
-
-    __DEFINE_EXT_FUNCTION(io_writeb_mmu)
-    __DEFINE_EXT_FUNCTION(io_writew_mmu)
-    __DEFINE_EXT_FUNCTION(io_writel_mmu)
-    __DEFINE_EXT_FUNCTION(io_writeq_mmu)
+    // The native half of the softmmu, which its bitcode half calls
+    // (libcpu/src/accel/cputlb.c).
+    __DEFINE_EXT_FUNCTION(notdirty_write)
+    __DEFINE_EXT_FUNCTION(do_ld_mmio_beN)
+    __DEFINE_EXT_FUNCTION(do_st_mmio_leN)
+    __DEFINE_EXT_FUNCTION(cpu_check_watchpoint)
 
     __DEFINE_EXT_FUNCTION(se_ensure_symbolic)
 
@@ -353,13 +352,6 @@ S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMTranslator *translator)
 
     __DEFINE_EXT_FUNCTION(s2e_on_privilege_change);
     __DEFINE_EXT_FUNCTION(s2e_on_page_fault);
-
-    __DEFINE_EXT_FUNCTION(se_notdirty_mem_write)
-    __DEFINE_EXT_FUNCTION(se_notdirty_mem_read)
-
-    __DEFINE_EXT_FUNCTION(se_ismemfunc)
-    __DEFINE_EXT_FUNCTION(phys_get_ops)
-    __DEFINE_EXT_FUNCTION(is_notdirty_ops)
 
     __DEFINE_EXT_FUNCTION(ldub_phys)
     __DEFINE_EXT_FUNCTION(stb_phys)
@@ -851,7 +843,7 @@ void S2EExecutor::doStateSwitch(S2EExecutionStatePtr oldState, S2EExecutionState
 
         // Clears the TLB and the TB jump cache, and in multi-path mode
         // empties the active state's map, which is newState here.
-        tlb_flush(env, 1);
+        tlb_flush(env_cpu(env));
     }
 
     // m_s2e->getCorePlugin()->onStateSwitch.emit(oldState, newState);
@@ -995,7 +987,7 @@ bool S2EExecutor::finalizeTranslationBlockExec(S2EExecutionState *state) {
      * Memory topology may change on state switches.
      * Ensure that there are no bad mappings left.
      */
-    tlb_flush(env, 1);
+    tlb_flush(env_cpu(env));
 
     return ret;
 }

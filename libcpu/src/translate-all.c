@@ -45,6 +45,7 @@
 #include <cpu/se_libcpu.h>
 #endif
 
+#include "accel/tlb-bounds.h"
 #include "exec-tb.h"
 #include "exec.h"
 
@@ -54,42 +55,7 @@ extern TCGContext tcg_init_ctx;
    but not so small that we can't have a fair number of TB's live.  */
 #define MIN_CODE_GEN_BUFFER_SIZE (128 * 1024 * 1024)
 
-#if defined(CONFIG_SYMBEX_MP)
-tcg_target_ulong tcg_helper_ldb_mmu_symb(CPUArchState *env, target_ulong addr, int mmu_idx, void *retaddr);
-tcg_target_ulong tcg_helper_ldw_mmu_symb(CPUArchState *env, target_ulong addr, int mmu_idx, void *retaddr);
-tcg_target_ulong tcg_helper_ldl_mmu_symb(CPUArchState *env, target_ulong addr, int mmu_idx, void *retaddr);
-uint64_t tcg_helper_ldq_mmu_symb(CPUArchState *env, target_ulong addr, int mmu_idx, void *retaddr);
-
-static void *qemu_ld_helpers[(MO_SIZE | MO_BSWAP) + 1] = {[MO_UB] = tcg_helper_ldb_mmu_symb,
-                                                          [MO_LEUW] = tcg_helper_ldw_mmu_symb,
-                                                          [MO_LEUL] = tcg_helper_ldl_mmu_symb,
-                                                          [MO_LEUQ] = tcg_helper_ldq_mmu_symb};
-
-static void *qemu_st_helpers[(MO_SIZE | MO_BSWAP) + 1] = {[MO_UB] = helper_stb_mmu_symb,
-                                                          [MO_LEUW] = helper_stw_mmu_symb,
-                                                          [MO_LEUL] = helper_stl_mmu_symb,
-                                                          [MO_LEUQ] = helper_stq_mmu_symb};
-#else
-tcg_target_ulong tcg_helper_ldb_mmu(CPUArchState *env, target_ulong addr, int mmu_idx, void *retaddr);
-tcg_target_ulong tcg_helper_ldw_mmu(CPUArchState *env, target_ulong addr, int mmu_idx, void *retaddr);
-tcg_target_ulong tcg_helper_ldl_mmu(CPUArchState *env, target_ulong addr, int mmu_idx, void *retaddr);
-uint64_t tcg_helper_ldq_mmu(CPUArchState *env, target_ulong addr, int mmu_idx, void *retaddr);
-
-static void *qemu_ld_helpers[(MO_SIZE | MO_BSWAP) + 1] = {[MO_UB] = tcg_helper_ldb_mmu,
-                                                          [MO_LEUW] = tcg_helper_ldw_mmu,
-                                                          [MO_LEUL] = tcg_helper_ldl_mmu,
-                                                          [MO_LEUQ] = tcg_helper_ldq_mmu};
-
-/* legacy helper signature: __st_mmu(target_ulong addr, uintxx_t val,
-   int mmu_idx) */
-static void *qemu_st_helpers[(MO_SIZE | MO_BSWAP) + 1] = {
-    [MO_UB] = helper_stb_mmu, [MO_LEUW] = helper_stw_mmu, [MO_LEUL] = helper_stl_mmu, [MO_LEUQ] = helper_stq_mmu};
-#endif
-
 static void cpu_gen_init(TCGContext *ctx) {
-    memcpy(ctx->qemu_ld_helpers, qemu_ld_helpers, sizeof(ctx->qemu_ld_helpers));
-    memcpy(ctx->qemu_st_helpers, qemu_st_helpers, sizeof(ctx->qemu_st_helpers));
-
     extern CPUArchState *env;
     ctx->tcg_struct_size = sizeof(*ctx);
     ctx->env_ptr = (uintptr_t) &env;

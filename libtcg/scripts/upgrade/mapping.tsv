@@ -1,7 +1,7 @@
 # libtcg path <TAB> upstream QEMU path, as of the tag recorded in BASELINE.
 #
 # Only files that track upstream appear here. S2E-original files
-# (tcg-s2e.c, tcg-llvm.cpp, tcg/tb.h, tcg/tlb.h, tcg/regs.h, tcg/cpu.h,
+# (tcg-s2e.c, tcg-llvm.cpp, tcg/tb.h, tcg/regs.h,
 # tcg/helper.h, tcg/ops_sse_header.h, tcg/qemu-plugin.h) are deliberately
 # absent: they have no upstream counterpart to merge from.
 #
@@ -61,8 +61,6 @@ include/tcg/exec/helper-proto-common.h	include/exec/helper-proto-common.h
 include/tcg/exec/plugin-gen.h	include/exec/plugin-gen.h
 src/tcg-rt/tcg-runtime.c	accel/tcg/tcg-runtime.c
 src/tcg-rt/tcg-runtime-gvec.c	accel/tcg/tcg-runtime-gvec.c
-src/atomic_common.c.inc	accel/tcg/atomic_common.c.inc
-src/atomic_template.h	accel/tcg/atomic_template.h
 # --- target-dependent utilities -----------------------------------------
 # What is left of the old utils/ subset: everything platform-independent
 # moved to libutils. cpu-float.h needs the softfloat types, bswap.h is the

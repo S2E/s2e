@@ -841,6 +841,7 @@ void se_write_dirty_mask(uint64_t host_address, uint8_t val) {
     return g_s2e_state->mem()->writeDirtyMask(host_address, val);
 }
 
+#if defined(CONFIG_SYMBEX_MP) || defined(SE_ENABLE_PHYSRAM_TLB)
 static inline CPUTLBRAMEntry *s2e_get_ram_tlb_entry(uint64_t host_address) {
 #if defined(SE_ENABLE_PHYSRAM_TLB)
     uintptr_t tlb_index = (host_address >> 12) & (CPU_TLB_SIZE - 1);
@@ -850,6 +851,7 @@ static inline CPUTLBRAMEntry *s2e_get_ram_tlb_entry(uint64_t host_address) {
     return nullptr;
 #endif
 }
+#endif
 
 #ifdef SE_ENABLE_PHYSRAM_TLB
 static inline void s2e_dma_rw(uint64_t hostAddress, uint8_t *buf, unsigned size, bool is_write) {
@@ -901,12 +903,6 @@ void s2e_dma_write(uint64_t hostAddress, uint8_t *buf, unsigned size) {
 #else
     g_s2e_state->mem()->write(hostAddress, buf, size, s2e::HostAddress);
 #endif
-}
-
-void s2e_read_ram_concrete_check(uint64_t host_address, uint8_t *buf, uint64_t size) {
-    assert(g_s2e_state->isRunningConcrete());
-    CPUTLBRAMEntry *re = s2e_get_ram_tlb_entry(host_address);
-    g_s2e_state->mem()->transferRam(re, host_address, buf, size, false, true);
 }
 
 void s2e_read_ram_concrete(uint64_t host_address, void *buf, uint64_t size) {

@@ -24,7 +24,7 @@ list (APPEND TCG_SOURCES
         utils/log.c
         region.c tcg.c tcg-s2e.c tcg-op-ldst.c  tcg-common.c tcg-op.c optimize.c tcg-op-gvec.c tcg-op-vec.c
         tcg-rt/tcg-runtime-gvec.c tcg-rt/tcg-runtime.c
-        atomic-helpers.c
+
         fpu/softfloat.c)
 
 if (WITH_SYMBEX)

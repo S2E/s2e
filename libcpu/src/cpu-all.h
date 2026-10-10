@@ -21,8 +21,8 @@
 
 #include <cpu/cpu-common.h>
 #include <cpu/exec.h>
+#include <cpu/exec/page-protection.h>
 #include <cpu/i386/cpu.h>
-#include <tcg/cpu.h>
 #include <tcg/utils/bswap.h>
 #include <tcg/utils/cpu-float.h>
 #include "qemu-common.h"
@@ -164,8 +164,6 @@ static inline void *_se_check_translate_ram_access(const void *p, unsigned size)
     return NULL;
 }
 
-/* Functions suffixed with symb abort execution if it is in concrete mode */
-
 /* host endianness */
 #define _symbex_define_ld_raw(ct, t, s)                                \
     static inline ct ld##t##_raw(const void *p) {                      \
@@ -176,11 +174,6 @@ static inline void *_se_check_translate_ram_access(const void *p, unsigned size)
         uint8_t buf[s];                                                \
         g_sqi.mem.read_ram_concrete((uint64_t) p, buf, s);             \
         return ld##t##_p(buf); /* read right type of value from buf */ \
-    }                                                                  \
-    static inline ct ld##t##_raw_symb(const void *p) {                 \
-        uint8_t buf[s];                                                \
-        g_sqi.mem.read_ram_concrete_check((uint64_t) p, buf, s);       \
-        return ld##t##_p(buf);                                         \
     }
 
 /* explicit little endian */
@@ -189,11 +182,6 @@ static inline void *_se_check_translate_ram_access(const void *p, unsigned size)
         uint8_t buf[s];                                                   \
         g_sqi.mem.read_ram_concrete((uint64_t) p, buf, s);                \
         return ld##t##_le_p(buf); /* read right type of value from buf */ \
-    }                                                                     \
-    static inline ct ld##t##_le_raw_symb(const void *p) {                 \
-        uint8_t buf[s];                                                   \
-        g_sqi.mem.read_ram_concrete_check((uint64_t) p, buf, s);          \
-        return ld##t##_le_p(buf);                                         \
     }
 
 /* explicit big endian */
@@ -202,11 +190,6 @@ static inline void *_se_check_translate_ram_access(const void *p, unsigned size)
         uint8_t buf[s];                                                   \
         g_sqi.mem.read_ram_concrete((uint64_t) p, buf, s);                \
         return ld##t##_be_p(buf); /* read right type of value from buf */ \
-    }                                                                     \
-    static inline ct ld##t##_be_raw_symb(const void *p) {                 \
-        uint8_t buf[s];                                                   \
-        g_sqi.mem.read_ram_concrete_check((uint64_t) p, buf, s);          \
-        return ld##t##_be_p(buf);                                         \
     }
 
 /* host endianness */
@@ -220,9 +203,6 @@ static inline void *_se_check_translate_ram_access(const void *p, unsigned size)
         uint8_t buf[s];                                          \
         st##t##_p(buf, v);                                       \
         g_sqi.mem.write_ram_concrete((uint64_t) p, buf, s);      \
-    }                                                            \
-    static inline void st##t##_raw_symb(void *p, ct v) {         \
-        st##t##_raw(p, v);                                       \
     }
 
 /* explicit little endian */
@@ -231,9 +211,6 @@ static inline void *_se_check_translate_ram_access(const void *p, unsigned size)
         uint8_t buf[s];                                     \
         st##t##_le_p(buf, v);                               \
         g_sqi.mem.write_ram_concrete((uint64_t) p, buf, s); \
-    }                                                       \
-    static inline void st##t##_le_raw_symb(void *p, ct v) { \
-        st##t##_le_raw(p, v);                               \
     }
 
 /* explicit big endian */
@@ -242,9 +219,6 @@ static inline void *_se_check_translate_ram_access(const void *p, unsigned size)
         uint8_t buf[s];                                     \
         st##t##_be_p(buf, v);                               \
         g_sqi.mem.write_ram_concrete((uint64_t) p, buf, s); \
-    }                                                       \
-    static inline void st##t##_be_raw_symb(void *p, ct v) { \
-        st##t##_be_raw(p, v);                               \
     }
 
 // clang-format off

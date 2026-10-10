@@ -49,9 +49,12 @@
  * execution fields through tcg_env at a negative offset, computed as
  * offsetof(ArchCPU, parent_obj.field) - offsetof(ArchCPU, env).
  *
- * The TLB keeps the QEMU 1.0 organization (fixed size, iotlb, no victim TLB,
- * no CPUTLBEntryFull); upstream's algorithms arrive with the cputlb.c import
- * (PORTING.md phase 2).
+ * The TLB structures are upstream's (accel/tcg/cputlb.c), with two
+ * differences. The tables of each MMU mode are static arrays inside neg
+ * instead of heap allocations, so that the KLEE object registered over neg
+ * covers them and the softmmu can read them as bitcode. Their size is
+ * therefore pinned (src/accel/tlb-bounds.h). MemoryRegionSection is a small
+ * libcpu structure over MemoryDesc (cpu/memory.h), not upstream's.
  *
  * This header is included at the end of cpu/i386/cpu.h: ArchCPU embeds
  * CPUArchState by value, so the complete CPUX86State must be visible first.
@@ -59,13 +62,18 @@
 
 #include <setjmp.h>
 #include <signal.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
 #include <utils/compiler.h>
 
 #include <cpu/common.h>
+#include <cpu/exec/memattrs.h>
+#include <cpu/exec/mmu-access-type.h>
+#include <cpu/exec/vaddr.h>
 #include <cpu/i386/defs.h>
+#include <cpu/memory.h>
 #include <cpu/tb.h>
 #include <cpu/tlb.h>
 #include <cpu/types.h>
@@ -81,21 +89,117 @@ extern "C" {
 struct TCGCPUOps;
 struct TranslationBlock;
 
-/* Data elements that are per MMU mode, minus the bits accessed by the TCG fast path. */
+/* The part of upstream's CPUClass that accel/tcg reads. */
+typedef struct CPUClass {
+    const struct TCGCPUOps *tcg_ops;
+} CPUClass;
+
+typedef uint32_t MMUIdxMap;
+
+/* Size of the victim TLB. The victim TLB is disabled (src/accel/cputlb.c),
+   the arrays only exist so that the upstream code compiles unchanged. */
+#define CPU_VTLB_SIZE 8
+
+/*
+ * The full TLB entry, which is not accessed by generated TCG code,
+ * so the layout is not as critical as that of CPUTLBEntry. This is
+ * also why we don't want to combine the two structs.
+ */
+typedef struct CPUTLBEntryFull {
+    /*
+     * @xlat_offset: TARGET_PAGE_BITS aligned offset which must be added to
+     * the virtual address to obtain:
+     *   + the ram_addr_t of the target RAM (if the section is RAM)
+     *   + the guest physical address of the MMIO access (otherwise)
+     */
+    hwaddr xlat_offset;
+
+    /* @section contains physical section. */
+    MemoryRegionSection *section;
+
+    /* @phys_addr contains the physical address of the page. */
+    hwaddr phys_addr;
+
+    /* @attrs contains the memory transaction attributes for the page. */
+    MemTxAttrs attrs;
+
+    /* @prot contains the complete protections for the page. */
+    uint8_t prot;
+
+    /* @lg_page_size contains the log2 of the page size. */
+    uint8_t lg_page_size;
+
+    /* Additional tlb flags requested by tlb_fill. */
+    uint8_t tlb_fill_flags;
+
+    /*
+     * Additional tlb flags for use by the slow path. If non-zero,
+     * the corresponding CPUTLBEntry comparator must have TLB_FORCE_SLOW.
+     */
+    uint8_t slow_flags[MMU_ACCESS_COUNT];
+
+    /* Target-specific and S2E additions. */
+    struct {
+        /* The KLEE ObjectState that backs the page in the current state, or
+           NULL. libs2ecore owns the field (S2EExecutionStateTlb). */
+        void *object_state;
+    } extra;
+} CPUTLBEntryFull;
+
+/*
+ * Data elements that are per MMU mode, minus the bits accessed by
+ * the TCG fast path.
+ */
 typedef struct CPUTLBDesc {
-    target_phys_addr_t iotlb[CPU_TLB_SIZE];
-    /* Backing store for the fast-path table; f[i].table points here. */
-    CPUTLBEntry table[CPU_TLB_SIZE];
+    /*
+     * Describe a region covering all of the large pages allocated
+     * into the tlb.  When any page within this region is flushed,
+     * we must flush the entire tlb.  The region is matched if
+     * (addr & large_page_mask) == large_page_addr.
+     */
+    vaddr large_page_addr;
+    vaddr large_page_mask;
+    /* host time (in ns) at the beginning of the time window */
+    int64_t window_begin_ns;
+    /* maximum number of entries observed in the window */
+    size_t window_max_entries;
+    size_t n_used_entries;
+    /* The next index to use in the tlb victim table.  */
+    size_t vindex;
+    /* The tlb victim table, in two parts.  */
+    CPUTLBEntry vtable[CPU_VTLB_SIZE];
+    CPUTLBEntryFull vfulltlb[CPU_VTLB_SIZE];
+    /* Points at se_fulltlb below. */
+    CPUTLBEntryFull *fulltlb;
+
+    /* Backing store of f[i].table and of fulltlb (S2E). */
+    CPUTLBEntry se_table[CPU_TLB_SIZE];
+    CPUTLBEntryFull se_fulltlb[CPU_TLB_SIZE];
 } CPUTLBDesc;
+
+/*
+ * Data elements that are shared between all MMU modes.
+ */
+typedef struct CPUTLBCommon {
+    /* Upstream serializes TLB updates with this lock. libcpu has one vCPU
+       and never takes it. */
+    int lock;
+    /*
+     * Within dirty, for each bit N, modifications have been made to
+     * mmu_idx N since the last time that mmu_idx was flushed.
+     */
+    MMUIdxMap dirty;
+    /* Statistics. */
+    size_t full_flush_count;
+    size_t part_flush_count;
+    size_t elide_flush_count;
+} CPUTLBCommon;
 
 /* The entire softmmu tlb, for all MMU modes. */
 typedef struct CPUTLB {
+    CPUTLBCommon c;
     CPUTLBDesc d[NB_MMU_MODES];
     CPUTLBDescFast f[NB_MMU_MODES];
-    /* Region covered by large pages, one pair for all MMU modes; invalidating
-       it forces a full flush (upstream 11.1 tracks this per CPUTLBDesc). */
-    target_ulong tlb_flush_addr;
-    target_ulong tlb_flush_mask;
 } CPUTLB;
 
 /*
@@ -109,11 +213,10 @@ typedef struct CPUNegativeOffsetState {
     /* The RAM TLB has no CPUTLBDescFast and keeps its own pinned size (PORTING.md 9.2). */
     CPUTLBRAMEntry se_ram_tlb[CPU_TLB_SIZE];
 #endif
-    /* Cached by the softmmu IO path; points into the tables above, so it
-       lives and dies with them (PORTING.md 9.6). */
-    CPUTLBEntry *se_tlb_current;
-
     struct TranslationBlock *tb_jmp_cache[TB_JMP_CACHE_SIZE];
+
+    /* Always true: libcpu has no icount mode. */
+    bool can_do_io;
 } CPUNegativeOffsetState;
 
 /*
@@ -126,9 +229,13 @@ typedef struct CPUNegativeOffsetState {
  * exception_index, generate_llvm) survive a reset.
  */
 typedef struct CPUState {
-    /* Replaces upstream's cpu->cc->tcg_ops; wired up when the 11.1 accel/tcg
-       code lands (PORTING.md 3.1). */
-    const struct TCGCPUOps *tcg_ops;
+    /* Gives the accel/tcg code its cpu->cc->tcg_ops. Bitcode must not follow
+       the pointer: the class is not registered with KLEE. */
+    const CPUClass *cc;
+
+    /* Fields that the accel/tcg code reads and that libcpu never changes. */
+    bool created;
+    bool ignore_memory_transaction_failures;
 
     int cpu_index;
 
@@ -149,9 +256,9 @@ typedef struct CPUState {
        function still names the original TB (S2E). */
     struct TranslationBlock *se_current_tb;
 
-    /* Softmmu support: the host pc and the guest virtual address of the
-       memory access being handled, so that the MMIO helpers can restore the
-       CPU state without more arguments. */
+    /* Softmmu support: the return address into generated code of the memory
+       access being handled, so that the MMIO and TB invalidation code can
+       restore the CPU state without more arguments. */
     uintptr_t mem_io_pc;
     target_ulong mem_io_vaddr;
 

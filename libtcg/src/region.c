@@ -50,7 +50,6 @@
 // clang-format off
 #include <tcg/tcg.h>
 #include <tcg/tcg-internal.h>
-#include <tcg/cpu.h>
 // clang-format on
 
 #include <qerror.h>

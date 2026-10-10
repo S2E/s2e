@@ -54,10 +54,6 @@
 #define SMC_BITMAP_USE_THRESHOLD 10
 
 void tlb_protect_code(ram_addr_t ram_addr);
-void tlb_unprotect_code_phys(CPUArchState *env, ram_addr_t ram_addr, target_ulong vaddr);
-
-const MemoryDesc *phys_page_find(target_phys_addr_t index);
-
-extern const struct MemoryDescOps watch_mem_ops;
+void tlb_unprotect_code(ram_addr_t ram_addr);
 
 #endif
