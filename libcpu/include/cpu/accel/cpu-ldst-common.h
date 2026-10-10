@@ -11,10 +11,10 @@
 #error Can only include this header with TCG
 #endif
 
-#include "exec/memopidx.h"
-#include "exec/mmu-access-type.h"
-#include "exec/vaddr.h"
-#include "qemu/int128.h"
+#include <cpu/exec/mmu-access-type.h>
+#include <cpu/exec/vaddr.h>
+#include <tcg/tcg-memopidx.h>
+#include <utils/int128.h>
 
 uint8_t cpu_ldb_mmu(CPUArchState *env, vaddr ptr, MemOpIdx oi, uintptr_t ra);
 uint16_t cpu_ldw_mmu(CPUArchState *env, vaddr ptr, MemOpIdx oi, uintptr_t ra);

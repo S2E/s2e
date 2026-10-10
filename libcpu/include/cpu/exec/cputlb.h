@@ -20,13 +20,11 @@
 #ifndef CPUTLB_H
 #define CPUTLB_H
 
-#include "exec/cpu-common.h"
-#include "exec/hwaddr.h"
-#include "exec/memattrs.h"
-#include "exec/vaddr.h"
+#include <cpu/exec/memattrs.h>
+#include <cpu/exec/vaddr.h>
+#include <cpu/i386/cpu.h>
 
 #ifndef CONFIG_USER_ONLY
-#include "system/ram_addr.h"
 
 void tlb_reset_dirty(CPUState *cpu, uintptr_t start, uintptr_t length);
 void tlb_reset_dirty_range_all(ram_addr_t start, ram_addr_t length);

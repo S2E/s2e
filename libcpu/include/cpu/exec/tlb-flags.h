@@ -19,6 +19,8 @@
 #ifndef TLB_FLAGS_H
 #define TLB_FLAGS_H
 
+#include <utils/compiler.h>
+
 /*
  * Flags returned for lookup of a TLB virtual address.
  */
@@ -54,7 +56,20 @@
 /* Set if TLB entry is an IO callback.  */
 #define TLB_MMIO          (1 << 4)
 
-#define TLB_SLOW_FLAGS_MASK (TLB_BSWAP | TLB_WATCHPOINT | TLB_CHECK_ALIGNED | TLB_DISCARD_WRITE | TLB_MMIO)
+#ifdef CONFIG_SYMBEX
+/*
+ * S2E: set if the page is RAM that contains symbolic MMIO or DMA ranges.
+ * tlb_set_page_full() sets the flag when it fills the entry. This is the
+ * only bit that upstream leaves free here: the slow flags are merged with
+ * the comparator flags below, which start at bit 6.
+ */
+#define TLB_SYMB_MMIO (1 << 5)
+#else
+#define TLB_SYMB_MMIO 0
+#endif
+
+#define TLB_SLOW_FLAGS_MASK \
+    (TLB_BSWAP | TLB_WATCHPOINT | TLB_CHECK_ALIGNED | TLB_DISCARD_WRITE | TLB_MMIO | TLB_SYMB_MMIO)
 
 /*
  * Flags stored in CPUTLBEntry.addr_idx[x].
@@ -64,17 +79,40 @@
  */
 
 /* Zero if TLB entry is valid.  */
-#define TLB_INVALID_MASK    (1 << 6)
+#define TLB_INVALID_MASK (1 << 6)
 /* Set if TLB entry references a clean RAM page.  */
-#define TLB_NOTDIRTY        (1 << 7)
+#define TLB_NOTDIRTY     (1 << 7)
 /* Set if the slow path must be used; more flags in CPUTLBEntryFull. */
-#define TLB_FORCE_SLOW      (1 << 8)
+#define TLB_FORCE_SLOW   (1 << 8)
+
+#ifdef CONFIG_SYMBEX
+/*
+ * S2E flags. They live in the comparator, above upstream's flags and below
+ * TARGET_PAGE_BITS, so that libs2ecore can set and clear them with one write
+ * and the inline fast path fails while any of them is set.
+ */
+
+/* Set if the page holds symbolic data. */
+#define TLB_SYMB      (1 << 9)
+/* Set on the write comparator if the KLEE object that backs the page is
+   shared with another state and must be copied before a store. */
+#define TLB_NOT_OURS  (1 << 10)
+/* Set if a plugin subscribed to memory access events. */
+#define TLB_MEM_TRACE (1 << 11)
+
+#define TLB_SE_FLAGS_MASK (TLB_SYMB | TLB_NOT_OURS | TLB_MEM_TRACE)
+#else
+#define TLB_SE_FLAGS_MASK 0
+#endif
 
 /*
  * Use this mask to check interception with an alignment mask
  * in a TCG backend.
  */
-#define TLB_FLAGS_MASK      (TLB_INVALID_MASK | TLB_NOTDIRTY | TLB_FORCE_SLOW)
+#define TLB_FLAGS_MASK (TLB_INVALID_MASK | TLB_NOTDIRTY | TLB_FORCE_SLOW | TLB_SE_FLAGS_MASK)
+
+/* S2E: every comparator flag must lie below the page number. */
+QEMU_BUILD_BUG_ON(TLB_FLAGS_MASK >= (1 << 12));
 
 /* The two sets of flags must not overlap. */
 QEMU_BUILD_BUG_ON(TLB_FLAGS_MASK &TLB_SLOW_FLAGS_MASK);

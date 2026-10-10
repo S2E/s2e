@@ -9,8 +9,8 @@
  * See the COPYING file in the top-level directory.
  */
 
-#include "host/load-extract-al16-al8.h.inc"
-#include "host/store-insert-al16.h.inc"
+#include <utils/host/generic/load-extract-al16-al8.h>
+#include <utils/host/generic/store-insert-al16.h>
 
 /**
  * required_atomicity:

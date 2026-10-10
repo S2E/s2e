@@ -11,8 +11,8 @@
 #error Can only include this header with TCG
 #endif
 
-#include "exec/mmu-access-type.h"
-#include "exec/vaddr.h"
+#include <cpu/exec/mmu-access-type.h>
+#include <cpu/exec/vaddr.h>
 
 /**
  * probe_access:

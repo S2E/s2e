@@ -14,14 +14,23 @@
 #error Can only include this header with TCG
 #endif
 
-#include "accel/tcg/tb-cpu-state.h"
-#include "exec/breakpoint.h"
-#include "exec/hwaddr.h"
-#include "exec/memattrs.h"
-#include "exec/memop.h"
-#include "exec/mmu-access-type.h"
-#include "exec/vaddr.h"
-#include "tcg/tcg-mo.h"
+#include <cpu/common.h>
+#include <cpu/exec/memattrs.h>
+#include <cpu/exec/mmu-access-type.h>
+#include <cpu/exec/vaddr.h>
+#include <tcg/tcg-memop.h>
+#include <tcg/tcg-mo.h>
+
+/* S2E: libcpu's CPUState is hand-written (cpu/state.h) and only knows this
+   structure by name. TCGTBCPUState belongs to upstream's TB lookup, which is
+   not imported yet. */
+struct CPUState;
+typedef struct CPUState CPUState;
+struct CPUTLBEntryFull;
+typedef struct CPUTLBEntryFull CPUTLBEntryFull;
+typedef struct TranslationBlock TranslationBlock;
+typedef struct TCGTBCPUState TCGTBCPUState;
+typedef struct TCGCPUOps TCGCPUOps;
 
 struct TCGCPUOps {
     /**

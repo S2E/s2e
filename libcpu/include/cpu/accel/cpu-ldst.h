@@ -65,10 +65,9 @@
 #error Can only include this header with TCG
 #endif
 
-#include "accel/tcg/cpu-ldst-common.h"
-#include "accel/tcg/cpu-mmu-index.h"
-#include "exec/abi_ptr.h"
-#include "exec/cpu-common.h"
+#include <cpu/accel/cpu-ldst-common.h>
+#include <cpu/accel/cpu-mmu-index.h>
+#include <cpu/i386/cpu.h>
 
 static inline uint32_t cpu_ldub_mmuidx_ra(CPUArchState *env, abi_ptr addr, int mmu_idx, uintptr_t ra) {
     MemOpIdx oi = make_memop_idx(MO_UB, mmu_idx);
