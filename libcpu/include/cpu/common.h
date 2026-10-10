@@ -29,6 +29,15 @@
 extern "C" {
 #endif
 
+/* Breakpoint/watchpoint flags */
+#define BP_MEM_READ           0x01
+#define BP_MEM_WRITE          0x02
+#define BP_MEM_ACCESS         (BP_MEM_READ | BP_MEM_WRITE)
+#define BP_STOP_BEFORE_ACCESS 0x04
+#define BP_WATCHPOINT_HIT     0x08
+#define BP_GDB                0x10
+#define BP_CPU                0x20
+
 typedef struct CPUBreakpoint {
     target_ulong pc;
     int flags; /* BP_* */
