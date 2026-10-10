@@ -28,6 +28,9 @@ static const unsigned MEM_REGION_MAX_COUNT = 32;
 static MemoryDesc s_regions[MEM_REGION_MAX_COUNT];
 static unsigned s_region_count = 0;
 
+static MemoryRegion s_mmio_region = {.desc = NULL};
+MemoryRegionSection g_mmio_section = {.mr = &s_mmio_region, .readonly = false};
+
 static bool get_memory_access_flags(uint64_t start, uint64_t size, bool *readable, bool *writable) {
     bool ret = false;
     FILE *fp = fopen("/proc/self/maps", "r");
@@ -82,6 +85,9 @@ const MemoryDesc *mem_desc_register(struct kvm_userspace_memory_region *kr) {
     MemoryDesc *r = &s_regions[kr->slot];
     r->kvm = *kr;
     r->read_only = ro;
+    r->mr.desc = r;
+    r->section.mr = &r->mr;
+    r->section.readonly = ro;
 
     if (s_region_count < kr->slot + 1) {
         s_region_count = kr->slot + 1;

@@ -37,6 +37,21 @@ struct MemoryDescOps {
     mem_write_t write;
 };
 
+struct MemoryDesc;
+
+/// What the softmmu (src/accel/cputlb.c) sees of a memory region. Upstream has
+/// a full memory API behind these two names. libcpu only needs to tell RAM
+/// from MMIO, so a region is a pointer to its MemoryDesc, which is null for
+/// MMIO, and a section is a region plus its read-only attribute.
+typedef struct MemoryRegion {
+    const struct MemoryDesc *desc;
+} MemoryRegion;
+
+typedef struct MemoryRegionSection {
+    MemoryRegion *mr;
+    bool readonly;
+} MemoryRegionSection;
+
 typedef struct MemoryDesc {
     struct kvm_userspace_memory_region kvm;
     struct MemoryDescOps ops;
@@ -44,7 +59,14 @@ typedef struct MemoryDesc {
 
     // TODO: get rid of this too
     uint64_t ram_addr;
+
+    /// The softmmu view of this region. mem_desc_register() fills them in.
+    MemoryRegion mr;
+    MemoryRegionSection section;
 } MemoryDesc;
+
+/// The section that stands for everything that is not RAM.
+extern MemoryRegionSection g_mmio_section;
 
 const MemoryDesc *mem_desc_register(struct kvm_userspace_memory_region *kr);
 

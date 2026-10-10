@@ -77,6 +77,13 @@ typedef uint64_t target_phys_addr_t;
 
 typedef uintptr_t ram_addr_t;
 
+/* Guest physical address. Upstream name of target_phys_addr_t. */
+typedef uint64_t hwaddr;
+#define HWADDR_FMT_plx "%016" PRIx64
+
+/* Guest virtual address as passed to the cpu_{ld,st}*() accessors. */
+typedef uintptr_t abi_ptr;
+
 #ifdef __cplusplus
 }
 #endif
