@@ -62,6 +62,9 @@ std::shared_ptr<VM> VM::create(std::shared_ptr<S2EKVM> &kvm) {
 
     init_clocks();
 
+    // The lapic timer runs on the vm clock, which does not advance until ticks are enabled
+    cpu_enable_ticks();
+
 #ifdef CONFIG_SYMBEX
     s2e_init_timers();
 
