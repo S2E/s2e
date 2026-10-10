@@ -73,6 +73,7 @@ include/tcg/utils/cpu-float.h	include/qemu/cpu-float.h
 include/tcg/utils/bswap.h	include/qemu/bswap.h
 include/tcg/utils/target-info.h	include/qemu/target-info.h
 include/tcg/exec/tswap.h	include/exec/tswap.h
+include/tcg/exec/tlb-common.h	include/exec/tlb-common.h
 src/elf.h	include/elf.h
 # Heavily reduced S2E-specific subsets, still v8.1.0-era: these are hand
 # written rather than vendored, so merge by hand, not mechanically.
