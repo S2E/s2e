@@ -152,10 +152,6 @@ struct TranslationBlock {
     /* Indicates whether there are execution handlers attached */
     int instrumented;
 
-#ifdef STATIC_TRANSLATOR
-    /* pc after which to stop the translation */
-    target_ulong last_pc;
-#endif
 #endif
 };
 

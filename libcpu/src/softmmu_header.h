@@ -76,7 +76,7 @@
 #include <cpu/se_libcpu_config.h>
 
 // clang-format off
-#if defined(SYMBEX_LLVM_LIB) && !defined(STATIC_TRANSLATOR)
+#if defined(SYMBEX_LLVM_LIB)
     #define SMHINLINE
     #define INSTR_BEFORE_MEMORY_ACCESS(vaddr, value, size, flags) \
         if (*g_sqi.events.before_memory_access_signals_count) tcg_llvm_before_memory_access(vaddr, value, size, flags);
@@ -86,7 +86,7 @@
         tcg_llvm_fork_and_concretize(val, 0, max, 0)
 #else // SYMBEX_LLVM_LIB
     #define SMHINLINE inline
-    #if defined(SE_ENABLE_MEM_TRACING) && !defined(STATIC_TRANSLATOR)
+    #if defined(SE_ENABLE_MEM_TRACING)
         #if defined(SE_NO_TRACE)
             #define INSTR_BEFORE_MEMORY_ACCESS(vaddr, value, size, flags)
             #define INSTR_AFTER_MEMORY_ACCESS(vaddr, value, size, flags)
@@ -119,27 +119,6 @@
 #define SE_RAM_OBJECT_DIFF 0
 
 #endif // CONFIG_SYMBEX
-
-#ifdef STATIC_TRANSLATOR
-
-#define CPU_PREFIX
-#define HELPER_PREFIX __
-
-// The static translator uses QEMU's translator as a library and redirects all memory accesses
-// to its custom routines.
-// Here we simply declare the functions
-RES_TYPE glue(glue(ld, USUFFIX), MEMSUFFIX)(CPUArchState *env, target_ulong ptr);
-
-#if DATA_SIZE <= 2
-int glue(glue(lds, SUFFIX), MEMSUFFIX)(CPUArchState *env, target_ulong ptr);
-#endif
-
-#if ACCESS_TYPE != (NB_MMU_MODES + 1)
-/* generic store macro */
-void glue(glue(st, SUFFIX), MEMSUFFIX)(CPUArchState *env, target_ulong ptr, RES_TYPE v);
-#endif
-
-#else // STATIC_TRANSLATOR
 
 #define CPU_PREFIX    cpu_
 #define HELPER_PREFIX helper_
@@ -278,8 +257,6 @@ static SMHINLINE void glue(glue(glue(CPU_PREFIX, st), SUFFIX), MEMSUFFIX)(CPUArc
 }
 
 #endif /* ACCESS_TYPE != (NB_MMU_MODES + 1) */
-
-#endif // STATIC_TRANSLATOR
 
 #if ACCESS_TYPE != (NB_MMU_MODES + 1)
 

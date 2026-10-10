@@ -67,7 +67,7 @@
 #include <cpu/se_libcpu_config.h>
 
 // clang-format off
-#if defined(SYMBEX_LLVM_LIB) && !defined(STATIC_TRANSLATOR)
+#if defined(SYMBEX_LLVM_LIB)
     #define INSTR_BEFORE_MEMORY_ACCESS(vaddr, value, size, flags) \
         if (*g_sqi.events.before_memory_access_signals_count) tcg_llvm_before_memory_access(vaddr, value, size, flags);
     #define INSTR_AFTER_MEMORY_ACCESS(vaddr, value, size, flags, retaddr) \
@@ -77,7 +77,7 @@
     #define SE_SET_MEM_IO_VADDR(env, addr, reset) \
         tcg_llvm_write_mem_io_vaddr(addr, reset)
 #else // SYMBEX_LLVM_LIB
-    #if defined(SE_ENABLE_MEM_TRACING) && !defined(STATIC_TRANSLATOR)
+    #if defined(SE_ENABLE_MEM_TRACING)
         #ifdef SOFTMMU_CODE_ACCESS
             #define INSTR_BEFORE_MEMORY_ACCESS(vaddr, value, size, flags)
             #define INSTR_AFTER_MEMORY_ACCESS(vaddr, value, size, flags, retaddr)
@@ -125,13 +125,7 @@ static DATA_TYPE glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(CPUArchState *env, targe
 DATA_TYPE glue(glue(io_read, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_phys_addr_t physaddr, target_ulong addr,
                                                  void *retaddr);
 
-#if defined(STATIC_TRANSLATOR)
-DATA_TYPE glue(glue(io_read_chk, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_phys_addr_t physaddr, target_ulong addr,
-                                                     void *retaddr) {
-    assert(false && "Cannot run statically");
-}
-
-#elif !defined(SYMBEX_LLVM_LIB)
+#if !defined(SYMBEX_LLVM_LIB)
 DATA_TYPE glue(glue(io_read, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_phys_addr_t physaddr, target_ulong addr,
                                                  void *retaddr) {
     DATA_TYPE res;
@@ -249,7 +243,6 @@ end:
 
 #endif
 
-#ifndef STATIC_TRANSLATOR
 /* handle all cases except unaligned access which span two pages */
 DATA_TYPE
 glue(glue(glue(HELPER_PREFIX, ld), SUFFIX), MMUSUFFIX)(CPUArchState *env, target_ulong addr, int mmu_idx,
@@ -331,8 +324,6 @@ glue(glue(glue(TCG_HELPER_PREFIX, ld), SUFFIX), MMUSUFFIX)(CPUArchState *env, ta
     return (TCG_DATA_TYPE) glue(glue(glue(HELPER_PREFIX, ld), SUFFIX), MMUSUFFIX)(env, addr, mmu_idx, retaddr);
 }
 
-#endif /* STATIC_TRANSLATOR */
-
 /* handle all unaligned cases */
 static DATA_TYPE glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_ulong addr, int mmu_idx,
                                                         void *retaddr) {
@@ -404,13 +395,7 @@ static void glue(glue(slow_st, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_ulo
 
 void glue(glue(io_write, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_phys_addr_t physaddr, DATA_TYPE val,
                                              target_ulong addr, void *retaddr);
-#if defined(STATIC_TRANSLATOR)
-void glue(glue(io_write_chk, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_phys_addr_t physaddr, DATA_TYPE val,
-                                                 target_ulong addr, void *retaddr) {
-    assert(false && "Cannot run statically");
-}
-
-#elif !defined(SYMBEX_LLVM_LIB)
+#if !defined(SYMBEX_LLVM_LIB)
 
 void glue(glue(io_write, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_phys_addr_t physaddr, DATA_TYPE val,
                                              target_ulong addr, void *retaddr) {
@@ -506,7 +491,6 @@ end:
 
 #endif
 
-#ifndef STATIC_TRANSLATOR
 void glue(glue(glue(HELPER_PREFIX, st), SUFFIX), MMUSUFFIX)(CPUArchState *env, target_ulong addr, DATA_TYPE val,
                                                             int mmu_idx, void *retaddr) {
     target_phys_addr_t ioaddr;
@@ -578,7 +562,6 @@ redo:
         goto redo;
     }
 }
-#endif /* STATIC_TRANSLATOR */
 
 /* handles all unaligned cases */
 static void glue(glue(slow_st, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_ulong addr, DATA_TYPE val, int mmu_idx,

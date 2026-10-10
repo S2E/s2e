@@ -43,12 +43,7 @@ extern struct cpu_stats_t g_cpu_stats;
 #define DISAS_UPDATE  2 /* cpu state was modified dynamically */
 #define DISAS_TB_JUMP 3 /* only pc was modified statically */
 
-#ifdef STATIC_TRANSLATOR
-/* Accomodate large TBs */
-#define OPC_BUF_SIZE 640000
-#else
 #define OPC_BUF_SIZE 640
-#endif
 
 #define OPC_MAX_SIZE (OPC_BUF_SIZE - MAX_OP_PER_INSTR)
 

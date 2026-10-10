@@ -2352,10 +2352,6 @@ static inline void gen_goto_tb(DisasContext *s, int tb_num, target_ulong eip) {
     pc = s->cs_base + eip;
     tb = s->tb;
 
-#ifdef STATIC_TRANSLATOR
-    gen_jmp_im(s, eip);
-    tcg_gen_exit_tb(tb, eip);
-#else
     /* NOTE: we handle the case where the TB spans two pages here */
     if ((pc & TARGET_PAGE_MASK) == (tb->pc & TARGET_PAGE_MASK) ||
         (pc & TARGET_PAGE_MASK) == ((s->pc - 1) & TARGET_PAGE_MASK)) {
@@ -2377,7 +2373,6 @@ static inline void gen_goto_tb(DisasContext *s, int tb_num, target_ulong eip) {
 #endif
         gen_eob(s);
     }
-#endif
 }
 
 static inline void gen_jcc(DisasContext *s, int b, target_ulong val, target_ulong next_eip) {
@@ -4637,9 +4632,7 @@ reswitch:
                     next_eip = s->pc - s->cs_base;
                     gen_movtl_T1_im(next_eip);
 
-#if !defined(STATIC_TRANSLATOR)
                     tcg_gen_st_tl(cpu_T[1], tcg_env, offsetof(CPUArchState, return_address));
-#endif
 
                     gen_push_T1(s);
                     gen_op_jmp_T0(s);
@@ -6281,9 +6274,7 @@ reswitch:
                 tval &= 0xffffffff;
             SET_TB_CALL_EIP(tval);
             gen_movtl_T0_im(next_eip);
-#if !defined(STATIC_TRANSLATOR)
             tcg_gen_st_tl(cpu_T[0], tcg_env, offsetof(CPUArchState, return_address));
-#endif
             gen_push_T0(s);
             gen_jmp(s, tval);
         } break;
@@ -6446,11 +6437,9 @@ reswitch:
                 }
                 gen_pop_update(s);
                 s->cc_op = CC_OP_EFLAGS;
-/* abort translation because TF flag may change */
-#ifndef STATIC_TRANSLATOR
+                /* abort translation because TF flag may change */
                 gen_jmp_im(s, s->pc - s->cs_base);
                 gen_eob(s);
-#endif
             }
             break;
         case 0x9e: /* sahf */
@@ -7807,9 +7796,7 @@ static inline void gen_intermediate_code_internal(CPUX86State *env, TranslationB
     if (max_insns == 0)
         max_insns = TCG_MAX_INSNS;
 
-#ifndef STATIC_TRANSLATOR
     gen_tb_start(tb);
-#endif
 
 #ifdef CONFIG_SYMBEX
     dc->instrument = 1;
@@ -7819,9 +7806,8 @@ static inline void gen_intermediate_code_internal(CPUX86State *env, TranslationB
     tb->se_tb_type = TB_DEFAULT;
     tb->se_tb_call_eip = 0;
 
-/* Make sure to refer to the original TB instead of the
-   temporary one in case we regenerate LLVM bitcode */
-#ifndef STATIC_TRANSLATOR
+    /* Make sure to refer to the original TB instead of the
+       temporary one in case we regenerate LLVM bitcode */
     tcg_gen_movi_i64(cpu_tmp1_i64, (uint64_t) tb);
     tcg_gen_st_i64(cpu_tmp1_i64, tcg_env,
                    (int) offsetof(ArchCPU, parent_obj.se_current_tb) - (int) offsetof(ArchCPU, env));
@@ -7829,7 +7815,6 @@ static inline void gen_intermediate_code_internal(CPUX86State *env, TranslationB
     if (unlikely(*g_sqi.events.on_translate_block_start_signals_count && dc->instrument)) {
         g_sqi.events.on_translate_block_start(dc, tb, pc_start);
     }
-#endif
 #endif
 
     for (;;) {
@@ -7905,19 +7890,9 @@ static inline void gen_intermediate_code_internal(CPUX86State *env, TranslationB
             gen_eob(dc);
             break;
         }
-
-#if defined(CONFIG_SYMBEX) && defined(STATIC_TRANSLATOR)
-        if (tb->last_pc && dc->insPc == tb->last_pc) {
-            gen_jmp_im(dc, pc_ptr - dc->cs_base);
-            gen_eob(dc);
-            break;
-        }
-#endif
     }
 
-#ifndef STATIC_TRANSLATOR
     gen_tb_end(tb);
-#endif
 
 #ifdef CONFIG_SYMBEX
     if (dc->invalid_instr) {

@@ -37,7 +37,7 @@
 #include "cpu.h"
 #include "timer.h"
 
-#if defined(CONFIG_SYMBEX_MP) || defined(STATIC_TRANSLATOR)
+#if defined(CONFIG_SYMBEX_MP)
 #include <tcg/tcg-llvm.h>
 #endif
 
@@ -69,11 +69,6 @@ static void *qemu_st_helpers[(MO_SIZE | MO_BSWAP) + 1] = {[MO_UB] = helper_stb_m
                                                           [MO_LEUW] = helper_stw_mmu_symb,
                                                           [MO_LEUL] = helper_stl_mmu_symb,
                                                           [MO_LEUQ] = helper_stq_mmu_symb};
-#elif defined(STATIC_TRANSLATOR)
-
-static void *qemu_ld_helpers[(MO_SIZE | MO_BSWAP) + 1] = {0};
-static void *qemu_st_helpers[(MO_SIZE | MO_BSWAP) + 1] = {0};
-
 #else
 tcg_target_ulong tcg_helper_ldb_mmu(CPUArchState *env, target_ulong addr, int mmu_idx, void *retaddr);
 tcg_target_ulong tcg_helper_ldw_mmu(CPUArchState *env, target_ulong addr, int mmu_idx, void *retaddr);
@@ -242,7 +237,7 @@ tb_overflow:
 
     tb->tc.size = gen_code_size;
 
-#if defined(CONFIG_SYMBEX_MP) || defined(STATIC_TRANSLATOR)
+#if defined(CONFIG_SYMBEX_MP)
     if (env_cpu(env)->generate_llvm) {
         assert(tb->llvm_function == NULL);
         tb->llvm_function = tcg_llvm_gen_code(tcg_llvm_translator, s, tb);
