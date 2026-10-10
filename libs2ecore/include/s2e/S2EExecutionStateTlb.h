@@ -77,6 +77,10 @@ public:
 
     void flushTlbCache();
 
+    /// Drops the references to the TLB entries of one MMU index. libcpu calls
+    /// it before it invalidates all the entries of that index.
+    void flushTlbCacheMmuIdx(int mmu_idx);
+
     void flushTlbCachePage(const klee::ObjectStatePtr &objectState, int mmu_idx, int index);
 
 #if defined(SE_ENABLE_PHYSRAM_TLB)

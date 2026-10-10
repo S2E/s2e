@@ -62,6 +62,7 @@ void init_s2e_libcpu_interface(struct se_libcpu_interface_t *sqi) {
     sqi->tb.is_tb_instrumented = s2e_is_tb_instrumented;
 
     sqi->tlb.flush_tlb_cache = s2e_flush_tlb_cache;
+    sqi->tlb.flush_tlb_cache_mmuidx = s2e_flush_tlb_cache_mmuidx;
     sqi->tlb.flush_tlb_cache_page = se_flush_tlb_cache_page;
     sqi->tlb.update_tlb_entry = s2e_update_tlb_entry;
 

@@ -193,6 +193,18 @@ void S2EExecutionStateTlb::flushTlbCache() {
     m_tlbMap.clear();
 }
 
+void S2EExecutionStateTlb::flushTlbCacheMmuIdx(int mmu_idx) {
+    for (auto it = m_tlbMap.begin(); it != m_tlbMap.end();) {
+        auto &vec = it->second;
+        llvm::erase_if(vec, [&](const TlbCoordinates &coords) { return coords.first == (unsigned) mmu_idx; });
+        if (vec.empty()) {
+            it = m_tlbMap.erase(it);
+        } else {
+            ++it;
+        }
+    }
+}
+
 void S2EExecutionStateTlb::flushTlbCachePage(const klee::ObjectStatePtr &objectState, int mmu_idx, int index) {
     if (!objectState) {
         return;

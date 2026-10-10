@@ -95,6 +95,8 @@ struct se_libcpu_interface_t {
     /* TLB management */
     struct tlb {
         void (*flush_tlb_cache)(void);
+        /* Drops the references to the TLB entries of one MMU index. */
+        void (*flush_tlb_cache_mmuidx)(int mmu_idx);
         void (*flush_tlb_cache_page)(void *objectState, int mmu_idx, int index);
         void (*update_tlb_entry)(struct CPUX86State *env, int mmu_idx, uint64_t virtAddr, uint64_t hostAddr);
     } tlb;

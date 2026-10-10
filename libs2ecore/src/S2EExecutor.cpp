@@ -1822,6 +1822,10 @@ void s2e_flush_tlb_cache() {
     g_s2e_state->getTlb()->flushTlbCache();
 }
 
+void s2e_flush_tlb_cache_mmuidx(int mmu_idx) {
+    g_s2e_state->getTlb()->flushTlbCacheMmuIdx(mmu_idx);
+}
+
 void se_flush_tlb_cache_page(void *objectState, int mmu_idx, int index) {
     g_s2e_state->getTlb()->flushTlbCachePage(static_cast<klee::ObjectState *>(objectState), mmu_idx, index);
 }

@@ -137,6 +137,7 @@ int s2e_is_tb_instrumented(void *se_tb);
 
 void s2e_flush_tb_cache();
 void s2e_flush_tlb_cache(void);
+void s2e_flush_tlb_cache_mmuidx(int mmu_idx);
 void se_flush_tlb_cache_page(void *objectState, int mmu_idx, int index);
 
 extern se_libcpu_tb_exec_t se_libcpu_tb_exec;
