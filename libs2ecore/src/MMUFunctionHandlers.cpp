@@ -210,7 +210,7 @@ static ref<Expr> handle_ldst_mmu(Executor *executor, ExecutionState *state, klee
     ref<ConstantExpr> constantAddress = handleForkAndConcretizeNative(executor, state, target, symbAddress);
 
     ref<Expr> mmuIdxExpr = args[isWrite ? 3 : 2];
-    unsigned mmu_idx = dyn_cast<ConstantExpr>(mmuIdxExpr)->getZExtValue() & 0xf;
+    unsigned mmu_idx = get_mmuidx(dyn_cast<ConstantExpr>(mmuIdxExpr)->getZExtValue());
 
     // XXX: determine this by looking at the instruction that called us
     Expr::Width width = data_size * 8;

@@ -260,7 +260,7 @@ glue(glue(glue(HELPER_PREFIX, ld), SUFFIX), MMUSUFFIX)(CPUArchState *env, target
     target_phys_addr_t ioaddr;
     CPUTLBEntry *tlb_entry;
 
-    mmu_idx = mmu_idx & 0xf;
+    mmu_idx = get_mmuidx(mmu_idx);
 
 /* test if there is match for unaligned or IO access */
 /* XXX: could done more in memory macro in a non portable way */
@@ -514,7 +514,7 @@ void glue(glue(glue(HELPER_PREFIX, st), SUFFIX), MMUSUFFIX)(CPUArchState *env, t
     target_ulong object_index, index;
     CPUTLBEntry *tlb_entry;
 
-    mmu_idx = mmu_idx & 0xf;
+    mmu_idx = get_mmuidx(mmu_idx);
 
 #ifdef CONFIG_SYMBEX_MP
     INSTR_BEFORE_MEMORY_ACCESS(addr, val, DATA_SIZE, 1);

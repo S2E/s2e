@@ -1,33 +1,17 @@
 /*
- * Tiny Code Generator for QEMU
+ * Combine the MemOp and mmu_idx parameters into a single value.
  *
- * Copyright (c) 2008 Fabrice Bellard
+ * Authors:
+ *  Richard Henderson <rth@twiddle.net>
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
- * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+ * This work is licensed under the terms of the GNU GPL, version 2 or later.
+ * See the COPYING file in the top-level directory.
  */
 
-#ifndef TCG_MEMOPIDX
+#ifndef EXEC_MEMOPIDX_H
+#define EXEC_MEMOPIDX_H
 
-#define TCG_MEMOPIDX
-
-#include <assert.h>
-#include <inttypes.h>
+#include <utils/host-utils.h>
 
 #include "tcg-memop.h"
 
@@ -35,7 +19,6 @@
 extern "C" {
 #endif
 
-/* Combine the MemOp and mmu_idx parameters into a single value.  */
 typedef uint32_t MemOpIdx;
 
 /**
@@ -46,8 +29,11 @@ typedef uint32_t MemOpIdx;
  * Encode these values into a single parameter.
  */
 static inline MemOpIdx make_memop_idx(MemOp op, unsigned idx) {
-    assert(idx <= 15);
-    return (op << 4) | idx;
+#ifdef CONFIG_DEBUG_TCG
+    assert(idx <= 31);
+    assert(clz32(op) >= 5);
+#endif
+    return (op << 5) | idx;
 }
 
 /**
@@ -57,7 +43,8 @@ static inline MemOpIdx make_memop_idx(MemOp op, unsigned idx) {
  * Extract the memory operation from the combined value.
  */
 static inline MemOp get_memop(MemOpIdx oi) {
-    return (MemOp) (oi >> 4);
+    /* The cast is required to compile this header as C++ (tcg-llvm.cpp). */
+    return (MemOp) (oi >> 5);
 }
 
 /**
@@ -67,7 +54,7 @@ static inline MemOp get_memop(MemOpIdx oi) {
  * Extract the mmu index from the combined value.
  */
 static inline unsigned get_mmuidx(MemOpIdx oi) {
-    return oi & 15;
+    return oi & 31;
 }
 
 #ifdef __cplusplus
