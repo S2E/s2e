@@ -156,6 +156,11 @@ void LocalApic::ioapic_eoi_broadcast(int vector) {
 }
 
 void LocalApic::set_irq(int vector_num, int trigger_mode) {
+    // A disabled apic does not accept fixed interrupts
+    if (!enabled() || !(m_spurious_vec & SV_ENABLE)) {
+        return;
+    }
+
     set_bit(m_irr.data(), vector_num);
 
     if (get_bit(m_tmr.data(), vector_num) != !!trigger_mode) {
