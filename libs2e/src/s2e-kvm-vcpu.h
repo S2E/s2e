@@ -83,6 +83,13 @@ private:
     // This implies that g_handling_kvm_cb is 1.
     bool m_handlingDeviceState = false;
 
+    // Indicates that the engine is between begin_state_switch and end_state_switch.
+    bool m_switching_state = false;
+
+    // Indicates that the kvm client is handling KVM_EXIT_SWITCH_STATE. It holds its
+    // global lock and waits for the next step.
+    bool m_client_switching_state = false;
+
     bool m_cpuStateIsPrecise = true;
 
     // XXX: do we need this? Looks unused
@@ -173,7 +180,10 @@ private:
     void check_debug_registers(const kvm_debugregs *dregs) const;
     int set_device_state_msrs(const kvm_msrs *msrs);
 
+    int interrupt_exiting_process();
     int run(int vcpu_fd);
+    void run_state_switch_step(unsigned step);
+    int continue_state_switch();
     void init_halt_fd();
     void wait_while_halted(int64_t delay);
     int interrupt(kvm_interrupt *interrupt);
@@ -201,6 +211,12 @@ public:
 
     void lock();
     void unlock();
+
+    /// The kvm client handles all the steps between these two calls atomically.
+    /// Flushing the disk and saving or restoring the device state are steps,
+    /// they must be between these two calls.
+    void begin_state_switch();
+    void end_state_switch();
 
     void flushDisk(void);
     void saveDeviceState(void);

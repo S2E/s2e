@@ -176,10 +176,19 @@ struct kvm_pit_config {
 #define KVM_EXIT_IOAPIC_EOI      26
 
 /* Symbolic execution exit codes */
-#define KVM_EXIT_FLUSH_DISK        100
-#define KVM_EXIT_SAVE_DEV_STATE    101
-#define KVM_EXIT_RESTORE_DEV_STATE 102
-#define KVM_EXIT_CLONE_PROCESS     103
+#define KVM_EXIT_CLONE_PROCESS 103
+#define KVM_EXIT_SWITCH_STATE  104
+
+/*
+ * For KVM_EXIT_SWITCH_STATE. The client must perform the requested step,
+ * call KVM_SWITCH_STATE_CONTINUE, and repeat until the step is
+ * KVM_SWITCH_STATE_DONE. The client must not do anything else with the
+ * virtual machine until then.
+ */
+#define KVM_SWITCH_STATE_DONE              0
+#define KVM_SWITCH_STATE_FLUSH_DISK        1
+#define KVM_SWITCH_STATE_SAVE_DEV_STATE    2
+#define KVM_SWITCH_STATE_RESTORE_DEV_STATE 3
 
 /* For KVM_EXIT_INTERNAL_ERROR */
 /* Emulate instruction failed. */
@@ -322,6 +331,10 @@ struct kvm_run {
         struct {
             __u8 vector;
         } eoi;
+        /* KVM_EXIT_SWITCH_STATE */
+        struct {
+            __u32 step;
+        } switch_state;
         /* Fix the size of the union. */
         char padding[256];
     };
@@ -1205,6 +1218,9 @@ struct kvm_dev_upcalls {
 
 /* Available with KVM_CAP_UPCALLS */
 #define KVM_REGISTER_UPCALLS _IOWR(KVMIO, 0xf9, unsigned *)
+
+/* Resumes a state switch after the client completed a step of KVM_EXIT_SWITCH_STATE */
+#define KVM_SWITCH_STATE_CONTINUE _IO(KVMIO, 0xfa)
 
 #define KVM_DEV_ASSIGN_ENABLE_IOMMU (1 << 0)
 #define KVM_DEV_ASSIGN_PCI_2_3      (1 << 1)

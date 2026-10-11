@@ -314,6 +314,23 @@ void VCPU::coroutineFcn(void *opaque) {
     }
 }
 
+///
+/// \brief Tells the kvm client that the process is exiting
+///
+/// The client gets the same result as when a signal interrupts KVM_RUN
+/// and terminates when it handles the signal.
+///
+/// \return the return value of the ioctl
+///
+int VCPU::interrupt_exiting_process() {
+    m_cpuBuffer->exit_reason = KVM_EXIT_INTR;
+    kill(getpid(), SIGTERM);
+
+    // This must be set at the very end, because syscalls might overwrite errno
+    errno = EINTR;
+    return -1;
+}
+
 int VCPU::run(int vcpu_fd) {
     int ret = 0;
 
@@ -333,10 +350,7 @@ int VCPU::run(int vcpu_fd) {
     }
 
     if (m_kvm->exiting()) {
-        g_kvm_vcpu_buffer->exit_reason = KVM_EXIT_INTR;
-        kill(getpid(), SIGTERM);
-        errno = EINTR;
-        return -1;
+        return interrupt_exiting_process();
     }
 
     /* Return asap if interrupts can be injected */
@@ -375,17 +389,13 @@ int VCPU::run(int vcpu_fd) {
 
     if (m_kvm->exiting()) {
         unlock();
-        g_kvm_vcpu_buffer->exit_reason = KVM_EXIT_INTR;
-        kill(getpid(), SIGTERM);
-        errno = EINTR;
-        return -1;
+        return interrupt_exiting_process();
     }
 
-    m_handlingKvmCallback =
-        m_cpuBuffer->exit_reason == KVM_EXIT_IO || m_cpuBuffer->exit_reason == KVM_EXIT_MMIO ||
-        m_cpuBuffer->exit_reason == KVM_EXIT_FLUSH_DISK || m_cpuBuffer->exit_reason == KVM_EXIT_SAVE_DEV_STATE ||
-        m_cpuBuffer->exit_reason == KVM_EXIT_RESTORE_DEV_STATE || m_cpuBuffer->exit_reason == KVM_EXIT_CLONE_PROCESS ||
-        m_cpuBuffer->exit_reason == KVM_EXIT_IOAPIC_EOI;
+    m_handlingKvmCallback = m_cpuBuffer->exit_reason == KVM_EXIT_IO || m_cpuBuffer->exit_reason == KVM_EXIT_MMIO ||
+                            m_cpuBuffer->exit_reason == KVM_EXIT_SWITCH_STATE ||
+                            m_cpuBuffer->exit_reason == KVM_EXIT_CLONE_PROCESS ||
+                            m_cpuBuffer->exit_reason == KVM_EXIT_IOAPIC_EOI;
 
     // Might not be NULL if resuming from an interrupted I/O
     // assert(env->current_tb == NULL);
@@ -528,10 +538,72 @@ int VCPU::nmi() {
     return 0;
 }
 
-void VCPU::flushDisk(void) {
-    g_kvm_vcpu_buffer->exit_reason = KVM_EXIT_FLUSH_DISK;
+void VCPU::begin_state_switch() {
+    assert(!m_switching_state);
+    m_switching_state = true;
+}
+
+void VCPU::end_state_switch() {
+    assert(m_switching_state);
+
+    if (m_client_switching_state) {
+        // Let the client leave its handler and release its lock
+        g_kvm_vcpu_buffer->exit_reason = KVM_EXIT_SWITCH_STATE;
+        g_kvm_vcpu_buffer->switch_state.step = KVM_SWITCH_STATE_DONE;
+        coroutine_yield();
+        m_client_switching_state = false;
+    }
+
+    m_switching_state = false;
+}
+
+///
+/// \brief Asks the kvm client to perform a step of a state switch
+///
+/// The first step of a switch returns from KVM_RUN with KVM_EXIT_SWITCH_STATE.
+/// The client then holds its global lock and gets the next steps when
+/// it calls KVM_SWITCH_STATE_CONTINUE, until end_state_switch.
+///
+void VCPU::run_state_switch_step(unsigned step) {
+    if (!m_switching_state) {
+        // The client would never release its lock
+        fprintf(stderr, "libs2e: state switch step %u requested outside of a state switch\n", step);
+        abort();
+    }
+
+    g_kvm_vcpu_buffer->exit_reason = KVM_EXIT_SWITCH_STATE;
+    g_kvm_vcpu_buffer->switch_state.step = step;
     m_handlingDeviceState = true;
+    m_client_switching_state = true;
     coroutine_yield();
+}
+
+int VCPU::continue_state_switch() {
+    if (!m_client_switching_state) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    lock();
+    m_inKvmRun = true;
+
+    coroutine_enter(m_coroutine, this);
+
+    m_inKvmRun = false;
+    unlock();
+
+    if (m_kvm->exiting()) {
+        return interrupt_exiting_process();
+    }
+
+    // The guest does not run during a state switch
+    assert(m_cpuBuffer->exit_reason == KVM_EXIT_SWITCH_STATE);
+
+    return 0;
+}
+
+void VCPU::flushDisk(void) {
+    run_state_switch_step(KVM_SWITCH_STATE_FLUSH_DISK);
 }
 
 void VCPU::saveDeviceState(void) {
@@ -539,9 +611,7 @@ void VCPU::saveDeviceState(void) {
     libcpu_log("Saving device state\n");
     log_cpu_state(g_cpu_env, 0);
 #endif
-    g_kvm_vcpu_buffer->exit_reason = KVM_EXIT_SAVE_DEV_STATE;
-    m_handlingDeviceState = true;
-    coroutine_yield();
+    run_state_switch_step(KVM_SWITCH_STATE_SAVE_DEV_STATE);
 }
 
 void VCPU::restoreDeviceState(void) {
@@ -549,9 +619,7 @@ void VCPU::restoreDeviceState(void) {
     libcpu_log("Restoring device state\n");
     log_cpu_state(g_cpu_env, 0);
 #endif
-    g_kvm_vcpu_buffer->exit_reason = KVM_EXIT_RESTORE_DEV_STATE;
-    m_handlingDeviceState = 1;
-    coroutine_yield();
+    run_state_switch_step(KVM_SWITCH_STATE_RESTORE_DEV_STATE);
 }
 
 void VCPU::cloneProcess(void) {
@@ -777,10 +845,15 @@ int VCPU::sys_ioctl(int fd, int request, uint64_t arg1) {
         } break;
 
         case KVM_SET_LAPIC: {
-            // Interrupts queued before this call belong to the state that is being
-            // overwritten. Deliver them to that state now, so that they are not
-            // delivered to the new one on the next KVM_RUN. This only discards fixed
-            // interrupts, an nmi or smi stays pending in the cpu.
+            // Interrupts queued before this call belong to the lapic state that is
+            // being overwritten (e.g., loadvm). Deliver them to that state now, so
+            // that they are not delivered to the new one on the next KVM_RUN. This
+            // only discards fixed interrupts, an nmi or smi stays pending in the cpu.
+            //
+            // There are no such interrupts when the engine switches states. The client
+            // holds its global lock from the save of the old state to the restore of
+            // the new one (KVM_EXIT_SWITCH_STATE), its devices cannot raise interrupts
+            // in between.
             if (!m_task_runner.run_on_thread()) {
                 abort();
             }
@@ -795,6 +868,10 @@ int VCPU::sys_ioctl(int fd, int request, uint64_t arg1) {
         /***********************************************/
         case KVM_RUN: {
             return run(fd);
+        } break;
+
+        case KVM_SWITCH_STATE_CONTINUE: {
+            return continue_state_switch();
         } break;
 
         case KVM_INTERRUPT: {
@@ -902,6 +979,14 @@ void s2e_kvm_save_device_state(void) {
 
 void s2e_kvm_restore_device_state(void) {
     s2e::kvm::s_vcpu->restoreDeviceState();
+}
+
+void s2e_kvm_begin_state_switch(void) {
+    s2e::kvm::s_vcpu->begin_state_switch();
+}
+
+void s2e_kvm_end_state_switch(void) {
+    s2e::kvm::s_vcpu->end_state_switch();
 }
 
 void s2e_kvm_clone_process(void) {
