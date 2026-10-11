@@ -102,6 +102,9 @@ void tb_flush(CPUArchState *env) {
 
     tcg_region_reset_all();
 
+    /* The TB that just ran is gone, the execution loop must not chain it to the next one. */
+    tb_invalidated_flag = 1;
+
     g_tb_flush_count++;
     g_tb_alloc_count = 0;
 }

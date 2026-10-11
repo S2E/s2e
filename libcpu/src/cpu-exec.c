@@ -76,8 +76,6 @@ static TranslationBlock *tb_find_slow(CPUArchState *env, target_ulong pc, target
     tb_page_addr_t phys_pc, phys_page1;
     target_ulong virt_page2;
 
-    tb_invalidated_flag = 0;
-
     /* find translated block using physical mappings */
     phys_pc = get_page_addr_code(env, pc);
     phys_page1 = phys_pc & TARGET_PAGE_MASK;
