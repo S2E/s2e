@@ -186,7 +186,13 @@ void VCPU::set_apic_base(uint64_t val) {
         return;
     }
 
+    // The kvm client rewrites the same base every time it sets the system registers
+    uint64_t old_base = m_lapic->get_apic_base();
     m_lapic->set_apic_base(val);
+    if (m_lapic->get_apic_base() == old_base) {
+        return;
+    }
+
     if (!m_vm->dev_mgr().rebase_device(val & ~0xfffULL, m_lapic)) {
         fprintf(stderr, "Failed to rebase LAPIC to %#" PRIx64 "\n", val);
         abort();
@@ -634,13 +640,19 @@ int VCPU::sys_ioctl(int fd, int request, uint64_t arg1) {
 
         /***********************************************/
         // When the symbolic execution engine needs to take a system snapshot,
-        // it must rely on the KVM client to save the device state. That client
-        // will typically also save/restore the CPU state. We don't want the client
-        // to do that, so in order to not modify the client too much, we ignore
-        // the calls to register setters when they are done in the context of
-        // device state snapshotting.
+        // it relies on the KVM client to save and restore the device state.
+        // The engine manages the entire cpu state itself, concrete and symbolic.
+        // The client keeps its own copy of the concrete cpu state and writes it
+        // back when it handles a snapshot. In order to not modify the client too
+        // much, we ignore the calls to register setters when they are done in the
+        // context of device state snapshotting. We only check that the client
+        // has the same concrete state as the engine.
+        //
+        // The lapic is a device, the client restores it with KVM_SET_LAPIC and
+        // the apic base msr. These must always be applied.
         case KVM_SET_REGS: {
             if (m_handlingDeviceState) {
+                check_registers((kvm_regs *) arg1);
                 ret = 0;
             } else {
                 ret = setRegisters((kvm_regs *) arg1);
@@ -666,6 +678,7 @@ int VCPU::sys_ioctl(int fd, int request, uint64_t arg1) {
 
         case KVM_SET_SREGS: {
             if (m_handlingDeviceState) {
+                check_system_registers((kvm_sregs *) arg1);
                 ret = 0;
             } else {
                 ret = setSystemRegisters((kvm_sregs *) arg1);
@@ -674,7 +687,7 @@ int VCPU::sys_ioctl(int fd, int request, uint64_t arg1) {
 
         case KVM_SET_MSRS: {
             if (m_handlingDeviceState) {
-                ret = ((kvm_msrs *) arg1)->nmsrs;
+                ret = set_device_state_msrs((kvm_msrs *) arg1);
             } else {
                 ret = setMSRs((kvm_msrs *) arg1);
             }
@@ -690,6 +703,7 @@ int VCPU::sys_ioctl(int fd, int request, uint64_t arg1) {
 
         case KVM_SET_DEBUGREGS: {
             if (m_handlingDeviceState) {
+                check_debug_registers((kvm_debugregs *) arg1);
                 ret = 0;
             } else {
                 ret = setDebugRegs((kvm_debugregs *) arg1);
@@ -699,10 +713,14 @@ int VCPU::sys_ioctl(int fd, int request, uint64_t arg1) {
         /***********************************************/
         case KVM_GET_REGS: {
             if (m_handlingDeviceState) {
-                // Poison the returned registers to make sure we don't use
-                // it again by accident. We can't just fail the call because
-                // the client needs it to save the cpu state (that we ignore).
-                memset((void *) arg1, 0xff, sizeof(kvm_regs));
+                // The general purpose registers and the arithmetic flags may be
+                // symbolic. Poison them to make sure we don't use them again by
+                // accident. The client only gets the concrete registers, it needs
+                // the system flags to interpret the segment registers.
+                auto regs = (kvm_regs *) arg1;
+                memset(regs, 0xff, sizeof(*regs));
+                regs->rip = m_env->eip;
+                regs->rflags = m_env->mflags;
                 ret = 0;
             } else {
                 ret = getRegisters((kvm_regs *) arg1);
@@ -710,11 +728,29 @@ int VCPU::sys_ioctl(int fd, int request, uint64_t arg1) {
         } break;
 
         case KVM_GET_FPU: {
-            ret = getFPU((kvm_fpu *) arg1);
+            if (m_handlingDeviceState) {
+                // The fpu state may be symbolic, reading it would concretize it.
+                // See KVM_GET_XSAVE for why it is fine to poison it.
+                memset((void *) arg1, 0xff, sizeof(kvm_fpu));
+                ret = 0;
+            } else {
+                ret = getFPU((kvm_fpu *) arg1);
+            }
         } break;
 
         case KVM_GET_XSAVE: {
-            ret = getXSAVE((kvm_xsave *) arg1);
+            if (m_handlingDeviceState) {
+                // The fpu state may be symbolic, reading it would concretize it.
+                // Poison the entire area instead, including the xsave header and
+                // the control words. This requires a client that stores the area
+                // in its snapshot without validating it. The poison never comes back
+                // to the guest: we stay in device state mode until the next KVM_RUN
+                // and ignore KVM_SET_XSAVE and KVM_SET_FPU until then.
+                memset((void *) arg1, 0xff, sizeof(kvm_xsave));
+                ret = 0;
+            } else {
+                ret = getXSAVE((kvm_xsave *) arg1);
+            }
         } break;
 
         case KVM_GET_SREGS: {

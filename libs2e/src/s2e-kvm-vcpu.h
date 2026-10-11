@@ -168,6 +168,11 @@ private:
     int getMSRs(kvm_msrs *msrs);
     int getMPState(kvm_mp_state *mp);
 
+    void check_registers(const kvm_regs *regs) const;
+    void check_system_registers(const kvm_sregs *sregs);
+    void check_debug_registers(const kvm_debugregs *dregs) const;
+    int set_device_state_msrs(const kvm_msrs *msrs);
+
     int run(int vcpu_fd);
     void init_halt_fd();
     void wait_while_halted(int64_t delay);

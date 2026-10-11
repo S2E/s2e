@@ -68,7 +68,7 @@ void LocalApic::set_tpr(uint8_t val) {
 }
 
 void LocalApic::set_apic_base(uint64_t val) {
-    printf("Setting APIC base to %#" PRIx64 "\n", val);
+    libcpu_log_mask(CPU_LOG_KVM, "Setting APIC base to %#" PRIx64 "\n", val);
     // The BSP flag is read-only, it does not depend on what is written to the msr
     m_apic_base = (val & ~0xfffULL) | (m_apic_base & APICBASE_BSP) | (val & (APICBASE_ENABLE | APICBASE_EXTD));
 }
