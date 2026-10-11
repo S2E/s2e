@@ -34,6 +34,7 @@
 namespace s2e {
 namespace kvm {
 
+static constexpr uint32_t APICBASE_BSP = 1 << 8;
 static constexpr uint32_t APICBASE_EXTD = 1 << 10;
 static constexpr uint32_t APICBASE_ENABLE = 1 << 11;
 
@@ -49,7 +50,8 @@ static constexpr uint32_t LVT_TIMER_TSCDEADLINE = 2 << 17;
 LocalApic::LocalApic(uint64_t phys_base, CpuInterruptFn cpu_interrupt, CpuExitFn cpu_exit)
     : m_cpu_interrupt(std::move(cpu_interrupt)), m_cpu_exit(std::move(cpu_exit)) {
     m_version = 0x14;
-    m_apic_base = phys_base | APICBASE_ENABLE;
+    // There is only one cpu, which is the bootstrap processor
+    m_apic_base = phys_base | APICBASE_BSP | APICBASE_ENABLE;
     m_dest_mode = 0xf;
     m_spurious_vec = 0xff;
     m_lvt.fill(LVT_MASKED);
@@ -67,7 +69,8 @@ void LocalApic::set_tpr(uint8_t val) {
 
 void LocalApic::set_apic_base(uint64_t val) {
     printf("Setting APIC base to %#" PRIx64 "\n", val);
-    m_apic_base = (val & ~0xfffULL) | (val & (APICBASE_ENABLE | APICBASE_EXTD));
+    // The BSP flag is read-only, it does not depend on what is written to the msr
+    m_apic_base = (val & ~0xfffULL) | (m_apic_base & APICBASE_BSP) | (val & (APICBASE_ENABLE | APICBASE_EXTD));
 }
 
 bool LocalApic::enabled() const {
