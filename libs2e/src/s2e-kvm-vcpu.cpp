@@ -772,9 +772,9 @@ int VCPU::sys_ioctl(int fd, int request, uint64_t arg1) {
         case KVM_SET_VAPIC_ADDR: {
             const auto data = (kvm_vapic_addr *) arg1;
             libcpu_log_mask(CPU_LOG_KVM, "Setting VAPIC address to %#" PRIx64 "\n", (uint64_t) data->vapic_addr);
-            if (auto lapic = this->lapic()) {
-                lapic->set_apic_base(data->vapic_addr);
-            } else {
+            // The vapic address is not the apic base. The in-kernel lapic does not
+            // use it, its base is only set through the msr.
+            if (!m_lapic) {
                 m_vapic.set_apic_base(data->vapic_addr);
             }
             ret = 0;
