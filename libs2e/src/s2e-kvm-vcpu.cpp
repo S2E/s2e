@@ -840,6 +840,11 @@ void VCPU::interrupt(int mask, bool reset) {
     cpu_exit(m_env);
 
     if (reset) {
+        // An interrupt injected with KVM_INTERRUPT is still waiting to be delivered,
+        // the lapic must not clear the request on its behalf.
+        if (m_env->kvm_irq >= 0) {
+            mask &= ~CPU_INTERRUPT_HARD;
+        }
         m_env->interrupt_request &= ~mask;
     } else {
         m_env->interrupt_request |= mask;
