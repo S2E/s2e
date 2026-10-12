@@ -132,9 +132,9 @@ int LocalApic::get_arb_pri() const {
 
 void LocalApic::update_irq() {
     if (irq_pending() > 0) {
-        m_cpu_interrupt(CPU_INTERRUPT_HARD, false);
+        m_cpu_interrupt(CPU_INTERRUPT_HARD_APIC, false);
     } else {
-        m_cpu_interrupt(CPU_INTERRUPT_HARD, true);
+        m_cpu_interrupt(CPU_INTERRUPT_HARD_APIC, true);
     }
 }
 
@@ -237,7 +237,9 @@ void LocalApic::local_deliver(int vector) {
             m_cpu_interrupt(CPU_INTERRUPT_NMI, false);
             break;
         case DM_EXTINT:
-            m_cpu_interrupt(CPU_INTERRUPT_HARD, false);
+            // The lapic has no vector for this mode. The kvm client supplies
+            // the vector of its pic with KVM_INTERRUPT.
+            libcpu_log_mask(CPU_LOG_KVM, "lapic: ignoring ExtINT interrupt from lvt %d (%#x)\n", vector, lvt);
             break;
         default:
             break;
@@ -609,7 +611,9 @@ void LocalApic::deliver_msi(uint32_t addr_lo, uint32_t addr_hi, uint32_t data) {
             m_cpu_interrupt(CPU_INTERRUPT_NMI, false);
             break;
         case DM_EXTINT:
-            m_cpu_interrupt(CPU_INTERRUPT_HARD, false);
+            // The lapic has no vector for this mode. The kvm client supplies
+            // the vector of its pic with KVM_INTERRUPT.
+            libcpu_log_mask(CPU_LOG_KVM, "lapic: ignoring ExtINT msi addr=%#x data=%#x\n", addr_lo, data);
             break;
         default:
             break;

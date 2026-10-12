@@ -234,6 +234,9 @@ void cpu_set_eflags(CPUX86State *env, target_ulong eflags);
 
 uint32_t cpu_compute_hflags(const CPUX86State *env);
 
+/* Returns the vector of the pending hardware interrupt and clears the bit
+   of its source in interrupt_request (CPU_INTERRUPT_HARD_EXT or
+   CPU_INTERRUPT_HARD_APIC). */
 int cpu_get_pic_interrupt(CPUX86State *env);
 
 #ifdef __cplusplus

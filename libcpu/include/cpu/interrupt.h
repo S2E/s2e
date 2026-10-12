@@ -32,8 +32,16 @@ extern "C" {
    the vmstate dump.  */
 
 /* External hardware interrupt pending.  This is typically used for
-   interrupts from devices.  */
-#define CPU_INTERRUPT_HARD 0x0002
+   interrupts from devices.  There are two independent sources, each one
+   sets and clears its own bit:
+   - CPU_INTERRUPT_HARD_EXT: the vector is supplied from outside of the
+     interrupt controller of the cpu (e.g., by the kvm client).
+   - CPU_INTERRUPT_HARD_APIC: the local apic of the cpu has a vector to
+     deliver.
+   CPU_INTERRUPT_HARD is the mask to test whether any of them is pending.  */
+#define CPU_INTERRUPT_HARD_EXT  0x0002
+#define CPU_INTERRUPT_HARD_APIC 0x4000
+#define CPU_INTERRUPT_HARD      (CPU_INTERRUPT_HARD_EXT | CPU_INTERRUPT_HARD_APIC)
 
 /* Exit the current TB.  This is typically used when some system-level device
    makes some change to the memory mapping.  E.g. the a20 line change.  */
@@ -63,7 +71,7 @@ extern "C" {
 #define CPU_INTERRUPT_TGT_INT_2 0x0800
 #define CPU_INTERRUPT_TGT_INT_3 0x2000
 
-/* First unused bit: 0x4000.  */
+/* First unused bit: 0x8000.  */
 
 /* The set of all bits that should be masked when single-stepping.  */
 #define CPU_INTERRUPT_SSTEP_MASK                                                                        \

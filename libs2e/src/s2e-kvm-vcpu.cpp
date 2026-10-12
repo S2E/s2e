@@ -66,14 +66,22 @@ CPUX86State *g_cpu_env;
 extern CPUX86State *env;
 
 int cpu_get_pic_interrupt(CPUX86State *env) {
+    // The interrupt injected by the kvm client goes first, like in KVM.
+    // An interrupt of the lapic keeps its own request and is taken next.
     if (env->kvm_irq >= 0) {
+        assert(env->interrupt_request & CPU_INTERRUPT_HARD_EXT);
         auto irq = env->kvm_irq;
         env->kvm_irq = -1;
+        env->interrupt_request &= ~CPU_INTERRUPT_HARD_EXT;
         return irq;
     }
 
+    assert(!(env->interrupt_request & CPU_INTERRUPT_HARD_EXT));
+
     auto vcpu = s2e::kvm::VCPU::current();
     if (auto apic = vcpu->lapic()) {
+        // The vector moves to ISR, which masks what is left in IRR until the EOI
+        env->interrupt_request &= ~CPU_INTERRUPT_HARD_APIC;
         return apic->get_interrupt();
     }
 
@@ -515,19 +523,21 @@ int VCPU::interrupt(kvm_interrupt *interrupt) {
     assert(!m_inKvmRun);
     assert(m_env->mflags & IF_MASK);
 
-    if (m_env->interrupt_request & CPU_INTERRUPT_HARD) {
+    // Only a previous injection that the cpu did not take yet prevents a new one.
+    // An interrupt of the lapic may be pending at the same time, it has its own request.
+    if (m_env->kvm_irq >= 0) {
         libcpu_log_mask(CPU_LOG_KVM, "Interrupt already pending, cannot inject IRQ %d\n", interrupt->irq);
         return -EEXIST;
     }
 
-    assert(!(m_env->interrupt_request & CPU_INTERRUPT_HARD));
+    assert(!(m_env->interrupt_request & CPU_INTERRUPT_HARD_EXT));
 
     // External interrupts are not subject to the tpr of the in-kernel lapic
     if (!m_lapic && (m_env->cr[0] & CR0_PE_MASK)) {
         assert(interrupt->irq > get_tpr());
     }
 
-    m_env->interrupt_request |= CPU_INTERRUPT_HARD;
+    m_env->interrupt_request |= CPU_INTERRUPT_HARD_EXT;
     m_env->kvm_irq = interrupt->irq;
 
     return 0;
@@ -952,12 +962,10 @@ void VCPU::interrupt(int mask, bool reset) {
 #endif
     cpu_exit(m_env);
 
+    // The request of an interrupt injected with KVM_INTERRUPT belongs to the kvm client
+    assert(!(mask & CPU_INTERRUPT_HARD_EXT));
+
     if (reset) {
-        // An interrupt injected with KVM_INTERRUPT is still waiting to be delivered,
-        // the lapic must not clear the request on its behalf.
-        if (m_env->kvm_irq >= 0) {
-            mask &= ~CPU_INTERRUPT_HARD;
-        }
         m_env->interrupt_request &= ~mask;
     } else {
         m_env->interrupt_request |= mask;

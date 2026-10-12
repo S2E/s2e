@@ -345,8 +345,10 @@ static bool process_interrupt_request(CPUArchState *env) {
             int intno;
 
             svm_check_intercept(env, SVM_EXIT_INTR);
-            env->interrupt_request &= ~(CPU_INTERRUPT_HARD | CPU_INTERRUPT_VIRQ);
+            env->interrupt_request &= ~CPU_INTERRUPT_VIRQ;
 
+            /* This clears the request of the source that supplies the vector.
+               The request of the other source stays pending. */
             intno = cpu_get_pic_interrupt(env);
             assert(intno >= 0);
 
