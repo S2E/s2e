@@ -181,6 +181,7 @@ private:
     int set_device_state_msrs(const kvm_msrs *msrs);
 
     int interrupt_exiting_process();
+    bool ready_for_interrupt_injection() const;
     int run(int vcpu_fd);
     void run_state_switch_step(unsigned step);
     int continue_state_switch();

@@ -339,6 +339,25 @@ int VCPU::interrupt_exiting_process() {
     return -1;
 }
 
+///
+/// \brief Tells whether the kvm client may inject an interrupt with KVM_INTERRUPT
+///
+/// The cpu must be able to take the interrupt at the next instruction, as in KVM:
+/// interrupts are enabled and there is no interrupt shadow (the instruction after
+/// sti or mov ss). The previous injection must also have been taken.
+///
+bool VCPU::ready_for_interrupt_injection() const {
+    if (m_handlingKvmCallback || !m_cpuBuffer->request_interrupt_window) {
+        return false;
+    }
+
+    if (!(m_env->mflags & IF_MASK) || (m_env->hflags & HF_INHIBIT_IRQ_MASK)) {
+        return false;
+    }
+
+    return m_env->kvm_irq == -1;
+}
+
 int VCPU::run(int vcpu_fd) {
     int ret = 0;
 
@@ -363,8 +382,7 @@ int VCPU::run(int vcpu_fd) {
 
     /* Return asap if interrupts can be injected */
     m_cpuBuffer->if_flag = (m_env->mflags & IF_MASK) != 0;
-    m_cpuBuffer->ready_for_interrupt_injection = !m_handlingKvmCallback && m_cpuBuffer->request_interrupt_window &&
-                                                 m_cpuBuffer->if_flag && (m_env->kvm_irq == -1);
+    m_cpuBuffer->ready_for_interrupt_injection = ready_for_interrupt_injection();
 
     if (m_cpuBuffer->ready_for_interrupt_injection) {
         libcpu_log_mask(CPU_LOG_KVM, "%s early ret for ints\n", __FUNCTION__);
@@ -412,10 +430,7 @@ int VCPU::run(int vcpu_fd) {
     m_cpuBuffer->apic_base = get_apic_base();
     m_cpuBuffer->cr8 = get_tpr() >> 4;
 
-    // KVM specs says that we should also check for request for interrupt window,
-    // but that causes missed interrupts.
-    m_cpuBuffer->ready_for_interrupt_injection = !m_handlingKvmCallback && m_cpuBuffer->request_interrupt_window &&
-                                                 m_cpuBuffer->if_flag && (m_env->kvm_irq == -1);
+    m_cpuBuffer->ready_for_interrupt_injection = ready_for_interrupt_injection();
 
     if (m_cpuBuffer->exit_reason == -1) {
         if (m_env->halted) {

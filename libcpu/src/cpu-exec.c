@@ -456,7 +456,8 @@ static bool execution_loop(CPUArchState *env) {
             ltb = NULL;
         }
 
-        if (env->kvm_request_interrupt_window && (env->mflags & IF_MASK)) {
+        /* The window is closed during an interrupt shadow, it opens after the next instruction */
+        if (env->kvm_request_interrupt_window && (env->mflags & IF_MASK) && !(env->hflags & HF_INHIBIT_IRQ_MASK)) {
             env->kvm_request_interrupt_window = 0;
             return true;
         }
