@@ -74,9 +74,11 @@ foreach(dir ${dirs})
 endforeach()
 separate_arguments(BC_INC_DIRS)
 
+# Optimized for size, as the rest of the bitcode library (see BC_OPT_FLAGS in
+# libcpu/src/CMakeLists.txt).
 add_custom_target(
     softfloat_bc ALL
-    clang-19 ${CMAKE_CURRENT_SOURCE_DIR}/fpu/softfloat.c -c ${CARGS_LIST} -I${LIBTCG_INCLUDE_DIR} ${BC_INC_DIRS} -Wno-unused-function -O3 -DSYMBEX_LLVM_LIB -march=x86-64 -emit-llvm -o ${CMAKE_CURRENT_BINARY_DIR}/softfloat.bc ${BC_INC_DIRS} -fno-slp-vectorize -fno-tree-vectorize
+    clang-19 ${CMAKE_CURRENT_SOURCE_DIR}/fpu/softfloat.c -c ${CARGS_LIST} -I${LIBTCG_INCLUDE_DIR} ${BC_INC_DIRS} -Wno-unused-function -Oz -mllvm -inline-threshold=50 -DSYMBEX_LLVM_LIB -march=x86-64 -emit-llvm -o ${CMAKE_CURRENT_BINARY_DIR}/softfloat.bc ${BC_INC_DIRS} -fno-slp-vectorize -fno-tree-vectorize
     DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/fpu/softfloat.c
 )
 endif (WITH_SYMBEX)

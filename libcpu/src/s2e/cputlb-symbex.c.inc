@@ -41,10 +41,13 @@
 /// two functions call se_ram_ld_beN() and se_ram_st_leN() below, which do
 /// the access through libs2ecore when the page is RAM. The upstream load and
 /// store functions therefore need no S2E change, and no state is kept
-/// between the lookup and the access.
+/// between the lookup and the access. In the bitcode build, se_mmu_resolve()
+/// only routes the accesses to symbolic hardware, which are reported to the
+/// plugins.
 ///
 /// The file also replaces the atomic load and store primitives of
-/// ldst_atomicity.c.inc in builds with symbolic execution.
+/// ldst_atomicity.c.inc in builds with symbolic execution, and makes the
+/// bitcode build inline the load and store path (see the end of the file).
 
 #if defined(CONFIG_SYMBEX)
 
@@ -213,10 +216,128 @@ static inline bool se_ram_st_leN(CPUState *cpu, CPUTLBEntryFull *full, uint64_t 
     return true;
 }
 
+#elif defined(CONFIG_SYMBEX) && defined(SYMBEX_LLVM_LIB)
+
+/*
+ * The bitcode build. KLEE handles symbolic data and copies shared objects
+ * itself, so the only S2E case left is symbolic hardware: the accesses to a
+ * device page (TLB_MMIO) or to a RAM page with symbolic MMIO or DMA ranges
+ * (TLB_SYMB_MMIO) are reported to libs2ecore with
+ * tcg_llvm_trace_mmio_access(), which passes them to the symbolic hardware
+ * plugins.
+ *
+ * se_mmu_resolve() sends the accesses to RAM pages with TLB_SYMB_MMIO down
+ * the device path, like the native build does for the pages it cannot access
+ * directly. se_hw_ld_beN() and se_hw_st_leN() replace do_ld_mmio_beN() and
+ * do_st_mmio_leN() on that path. They do the access and report it. The flags
+ * of the page are known there, so the other accesses pay nothing for the
+ * check.
+ *
+ * An access that crosses a page boundary is reported once per page that has
+ * symbolic hardware, with the physical address and the size of the part in
+ * that page. The two pages need not be contiguous in physical memory, and
+ * the native device path splits such an access in the same way.
+ */
+
+static inline void se_mmu_route_hw_page(MMULookupPageData *p) {
+    if (p->size && (p->flags & TLB_SYMB_MMIO)) {
+        p->flags |= TLB_MMIO;
+    }
+}
+
+static inline void se_mmu_resolve(CPUState *cpu, MMULookupLocals *l, MMUAccessType type, uintptr_t ra) {
+    /* Code fetches are not reported. Accesses of 16 bytes to RAM pages are not
+       reported either: do_ld16_mmio_beN() and do_st16_mmio_leN() have no
+       replacement, and the native ones would concretize the symbolic bytes of
+       a RAM page. A device page already has TLB_MMIO. Its accesses reach
+       se_hw_ld_beN() and se_hw_st_leN() unless they are 16 bytes long and fit
+       in the page, in which case the native 16-byte functions handle them. */
+    if (type == MMU_INST_FETCH || memop_size(l->memop) > 8) {
+        return;
+    }
+
+    se_mmu_route_hw_page(&l->page[0]);
+    se_mmu_route_hw_page(&l->page[1]);
+}
+
+/*
+ * Replaces do_ld_mmio_beN() in bitcode. A device page is read through the
+ * native function. A RAM page is read here, so that KLEE returns its symbolic
+ * bytes as they are. The symbolic hardware plugins may replace the bytes that
+ * were read, and the guest gets the bytes they return. Code fetches from a
+ * device page are not reported.
+ *
+ * @param ret_be the bytes are appended to it, most significant first
+ * @param haddr the host address of the bytes, which mmu_lookup1() computed;
+ *        only valid for a RAM page
+ * @return ret_be with the size bytes of the access appended
+ */
+static uint64_t se_hw_ld_beN(CPUState *cpu, CPUTLBEntryFull *full, uint64_t ret_be, vaddr addr, int size, int mmu_idx,
+                             MMUAccessType type, uintptr_t ra, const uint8_t *haddr) {
+    if (full->slow_flags[type] & TLB_MMIO) {
+        ret_be = do_ld_mmio_beN(cpu, full, ret_be, addr, size, mmu_idx, type, ra);
+        if (type == MMU_INST_FETCH) {
+            return ret_be;
+        }
+    } else {
+        for (int i = 0; i < size; i++) {
+            ret_be = (ret_be << 8) | haddr[i];
+        }
+    }
+
+    /* The handler converts the bytes to the guest byte order that the plugins
+       use, and only when a plugin takes the access. Doing it here would put
+       the symbolic bytes of every other access through a byte swap and back. */
+    return tcg_llvm_trace_mmio_access(full->phys_addr | (addr & ~TARGET_PAGE_MASK), ret_be, size, 0);
+}
+
+/*
+ * Replaces do_st_mmio_leN() in bitcode. A device page is written through the
+ * native function. A RAM page is written here, so that KLEE stores symbolic
+ * bytes as they are and copies the object first if it is shared. A store to
+ * a read-only RAM page (TLB_DISCARD_WRITE) leaves memory unchanged and is not
+ * reported.
+ *
+ * @param val_le the bytes are taken from it, least significant first
+ * @param haddr the host address of the bytes, which mmu_lookup1() computed;
+ *        only valid for a RAM page
+ * @return val_le shifted right by the size bytes of the access
+ */
+static uint64_t se_hw_st_leN(CPUState *cpu, CPUTLBEntryFull *full, uint64_t val_le, vaddr addr, int size, int mmu_idx,
+                             uintptr_t ra, uint8_t *haddr) {
+    uint64_t value_le = size == 8 ? val_le : val_le & ((1ull << (size * 8)) - 1);
+    int flags = full->slow_flags[MMU_DATA_STORE];
+
+    if (flags & TLB_MMIO) {
+        val_le = do_st_mmio_leN(cpu, full, val_le, addr, size, mmu_idx, ra);
+    } else if (flags & TLB_DISCARD_WRITE) {
+        return size == 8 ? 0 : val_le >> (size * 8);
+    } else {
+        for (int i = 0; i < size; i++) {
+            haddr[i] = val_le;
+            val_le >>= 8;
+        }
+    }
+
+    tcg_llvm_trace_mmio_access(full->phys_addr | (addr & ~TARGET_PAGE_MASK), value_le, size, 1);
+    return val_le;
+}
+
+/* Every caller of do_ld_mmio_beN() and do_st_mmio_leN() in cputlb.c passes
+   p->full and p->addr, where p is the MMULookupPageData of the page. The
+   macros take the host address from the same p. In bitcode, it is the addend
+   of the TLB entry, not se_addend, so KLEE resolves it to the object of the
+   page in the current state. Computing it again from the TLB would cost
+   another tcg_llvm_fork_and_concretize() call. */
+#define do_ld_mmio_beN(cpu, full, ret_be, addr, size, mmu_idx, type, ra) \
+    se_hw_ld_beN(cpu, full, ret_be, addr, size, mmu_idx, type, ra, (const uint8_t *) p->haddr)
+#define do_st_mmio_leN(cpu, full, val_le, addr, size, mmu_idx, ra) \
+    se_hw_st_leN(cpu, full, val_le, addr, size, mmu_idx, ra, (uint8_t *) p->haddr)
+
 #else
 
-/* KLEE handles symbolic data and copies shared objects itself, and the other
-   builds have neither. */
+/* Builds without multi-path symbolic execution have no symbolic data and no
+   shared KLEE objects. */
 #define se_mmu_resolve(cpu, l, type, ra) ((void) 0)
 
 static inline bool se_ram_ld_beN(CPUState *cpu, CPUTLBEntryFull *full, uint64_t *ret_be, vaddr addr, int size,
@@ -229,4 +350,17 @@ static inline bool se_ram_st_leN(CPUState *cpu, CPUTLBEntryFull *full, uint64_t 
     return false;
 }
 
+#endif
+
+#if defined(SYMBEX_LLVM_LIB)
+/*
+ * KLEE executes a call by pushing a stack frame, and a local variable whose
+ * address is taken, such as the MMULookupLocals of every access, by
+ * allocating a memory object and mapping it in the address space of the
+ * state. Inlining the access path into its entry points lets the compiler
+ * keep these locals in registers and fold the work that depends on constants.
+ * The attribute applies to every function that cputlb.c defines from here to
+ * the end of cputlb-symbex-ldst.c.inc, which ends the region.
+ */
+#pragma clang attribute push(__attribute__((always_inline)), apply_to = function)
 #endif

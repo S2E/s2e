@@ -378,7 +378,7 @@ How each case is handled in the two builds:
 
 | Case | Native build | Bitcode build |
 |---|---|---|
-| Address | Always concrete | `mmu_lookup()` calls `tcg_llvm_before_memory_access()`, then `tcg_llvm_fork_and_concretize()` on the address when `fork-on-symbolic-address` is set. `tlb_index()` concretizes the page number and computes the index from the result (hazard 5.5). |
+| Address | Always concrete | The wrappers of `do_{ld,st}{1,2,4,8}_mmu` in `cputlb-symbex-ldst.c.inc` call `tcg_llvm_before_memory_access()`. These wrappers and those of `do_{ld,st}16_mmu` call `tcg_llvm_fork_and_concretize()` on the address when `fork-on-symbolic-address` is set, once per access and before the TLB lookup. `mmu_lookup()` gets the concrete address. `tlb_index()` concretizes the page number and computes the index from the result (hazard 5.5). |
 | Host address | `mmu_lookup1()` computes `addr + se_addend` under `CONFIG_SYMBEX_MP`, else `addr + addend` | `addr + addend`; the access resolves through the KLEE address space |
 | `TLB_SYMB`, loads | `se_mmu_resolve()` checks the accessed bytes with `_se_check_concrete()`. If they are symbolic and `ra` is in generated code, it calls `switch_to_symbolic(ra)`. Otherwise it routes the load to `do_ld_mmio_beN()`, which reads the concretized bytes with `g_sqi.mem.read_ram_concrete()`. | Ignored |
 | `TLB_SYMB` or `TLB_NOT_OURS`, stores | If the object is shared or the accessed bytes are symbolic, `se_mmu_resolve()` routes the store to `do_st_mmio_leN()`, which writes the value with `g_sqi.mem.write_ram_concrete()`. This copies the object, makes the bytes concrete and updates the TLB entry. | Ignored; KLEE copies the object |

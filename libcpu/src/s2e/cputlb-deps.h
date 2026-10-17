@@ -475,6 +475,14 @@ static inline void se_tlb_fill_flags(hwaddr paddr_page, unsigned *read_flags, un
 
 #define SE_CONCRETE_PAGE(page) tcg_llvm_fork_and_concretize(page, 0, ((target_ulong) - 1) >> TARGET_PAGE_BITS, 0)
 
+/*
+ * The bitcode is optimized for size, which inlines less. tlb_index() and
+ * tlb_entry() are on the TLB hit path of every access, and KLEE pushes a stack
+ * frame for each call. They are defined before the always_inline region that
+ * cputlb-symbex.c.inc starts, so they carry the attribute themselves.
+ */
+#define SE_ALWAYS_INLINE __attribute__((always_inline))
+
 /* The victim TLB is disabled and always empty (tlb_set_page_full()). */
 #define victim_tlb_hit(cpu, mmu_idx, index, access_type, page) false
 
@@ -483,6 +491,7 @@ static inline void se_tlb_fill_flags(hwaddr paddr_page, unsigned *read_flags, un
 #define SE_TCG_HAS_OP(ops, op) ((ops)->op != NULL)
 #define SE_TCG_OP(cpu, op)     ((cpu)->cc->tcg_ops->op)
 #define SE_CONCRETE_PAGE(page) (page)
+#define SE_ALWAYS_INLINE
 
 #endif
 

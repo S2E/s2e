@@ -43,7 +43,14 @@ separate_arguments(BC_INC_DIRS)
 
 # The bitcode library that KLEE interprets: the helpers, the softmmu access
 # path (accel/cputlb.c) and softfloat.
-set(BC_FLAGS ${CARGS_LIST} -Wno-unused-function -O3 -DSYMBEX_LLVM_LIB -march=x86-64 -emit-llvm ${BC_INC_DIRS} -fno-slp-vectorize -fno-tree-vectorize)
+#
+# The bitcode is optimized for size because KLEE interprets every instruction
+# of it. -Oz alone does not inline functions of a few instructions, such as
+# extract64(). KLEE pushes a stack frame for each call, which costs more than
+# such a body, so the inline threshold is raised to that of -Os.
+# libtcg/src/CMakeLists.txt compiles softfloat.bc with the same options.
+set(BC_OPT_FLAGS -Oz -mllvm -inline-threshold=50)
+set(BC_FLAGS ${CARGS_LIST} -Wno-unused-function ${BC_OPT_FLAGS} -DSYMBEX_LLVM_LIB -march=x86-64 -emit-llvm ${BC_INC_DIRS} -fno-slp-vectorize -fno-tree-vectorize)
 
 add_custom_target(
     op_helper_bc ALL

@@ -203,6 +203,11 @@ void tcg_llvm_after_memory_access(target_ulong vaddr, uint64_t value, unsigned s
 
 uint64_t tcg_llvm_trace_port_access(uint64_t port, uint64_t value, unsigned bits, int isWrite);
 
+/* Reports an access to symbolic hardware. For a load, the low bytes of value
+   hold the bytes that were read, most significant first, and the function
+   returns value with them replaced by the bytes that the plugins return. For
+   a store, the low bytes hold the bytes that were written, least significant
+   first. See handlerTraceMmioAccess() in libs2ecore. */
 uint64_t tcg_llvm_trace_mmio_access(uint64_t physaddr, uint64_t value, unsigned bytes, int isWrite);
 
 void tcg_llvm_get_value(void *addr, unsigned nbytes, bool addConstraint);

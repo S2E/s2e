@@ -88,7 +88,8 @@ static inline uint64_t tlb_addr_write(const CPUTLBEntry *entry) {
 }
 
 /* Find the TLB index corresponding to the mmu_idx + address pair.  */
-static inline uintptr_t tlb_index(CPUState *cpu, uintptr_t mmu_idx, vaddr addr) {
+/* S2E: SE_ALWAYS_INLINE here and on tlb_entry(), see cputlb-deps.h. */
+static inline SE_ALWAYS_INLINE uintptr_t tlb_index(CPUState *cpu, uintptr_t mmu_idx, vaddr addr) {
     uintptr_t size_mask = cpu_tlb_fast(cpu, mmu_idx)->mask >> CPU_TLB_ENTRY_BITS;
 
     /* S2E: the bitcode build forks on the page number, see cputlb-deps.h. */
@@ -96,7 +97,7 @@ static inline uintptr_t tlb_index(CPUState *cpu, uintptr_t mmu_idx, vaddr addr) 
 }
 
 /* Find the TLB entry corresponding to the mmu_idx + address pair.  */
-static inline CPUTLBEntry *tlb_entry(CPUState *cpu, uintptr_t mmu_idx, vaddr addr) {
+static inline SE_ALWAYS_INLINE CPUTLBEntry *tlb_entry(CPUState *cpu, uintptr_t mmu_idx, vaddr addr) {
     return &cpu_tlb_fast(cpu, mmu_idx)->table[tlb_index(cpu, mmu_idx, addr)];
 }
 
@@ -1495,7 +1496,10 @@ static bool mmu_lookup1(CPUState *cpu, MMULookupPageData *data, MemOp memop, int
                         uintptr_t ra) {
     vaddr addr = data->addr;
     uintptr_t index = tlb_index(cpu, mmu_idx, addr);
-    CPUTLBEntry *entry = tlb_entry(cpu, mmu_idx, addr);
+    /* S2E: the entry is taken from index rather than from tlb_entry(), which
+       would compute the index again. In bitcode, each computation is a call
+       to tcg_llvm_fork_and_concretize() that the compiler cannot merge. */
+    CPUTLBEntry *entry = &cpu_tlb_fast(cpu, mmu_idx)->table[index];
     uint64_t tlb_addr = tlb_read_idx(entry, access_type);
     bool maybe_resized = false;
     CPUTLBEntryFull *full;
@@ -1507,7 +1511,7 @@ static bool mmu_lookup1(CPUState *cpu, MMULookupPageData *data, MemOp memop, int
             tlb_fill_align(cpu, addr, access_type, mmu_idx, memop, data->size, false, ra);
             maybe_resized = true;
             index = tlb_index(cpu, mmu_idx, addr);
-            entry = tlb_entry(cpu, mmu_idx, addr);
+            entry = &cpu_tlb_fast(cpu, mmu_idx)->table[index]; /* S2E, see above */
         }
         tlb_addr = tlb_read_idx(entry, access_type) & ~TLB_INVALID_MASK;
     }
@@ -1590,14 +1594,6 @@ static bool mmu_lookup(CPUState *cpu, vaddr addr, MemOpIdx oi, uintptr_t ra, MMU
     l->mmu_idx = get_mmuidx(oi);
 
     tcg_debug_assert(l->mmu_idx < NB_MMU_MODES);
-
-#if defined(SYMBEX_LLVM_LIB)
-    /* S2E: with fork-on-symbolic-address, a symbolic address is replaced by
-       one of its values and the state forks on the others. */
-    if (*g_sqi.mode.fork_on_symbolic_address) {
-        addr = tcg_llvm_fork_and_concretize(addr, 0, (target_ulong) -1, 0);
-    }
-#endif
 
     l->page[0].addr = addr;
     l->page[0].size = memop_size(l->memop);
