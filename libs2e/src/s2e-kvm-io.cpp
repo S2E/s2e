@@ -96,7 +96,7 @@ uint64_t s2e_kvm_mmio_read(target_phys_addr_t addr, unsigned size) {
         abort_and_retranslate_if_needed();
     }
 
-    g_kvm_vcpu_buffer->exit_reason = KVM_EXIT_MMIO;
+    set_exit_reason(KVM_EXIT_MMIO);
     g_kvm_vcpu_buffer->mmio.is_write = 0;
     g_kvm_vcpu_buffer->mmio.phys_addr = addr;
     g_kvm_vcpu_buffer->mmio.len = size;
@@ -150,7 +150,7 @@ void s2e_kvm_mmio_write(target_phys_addr_t addr, uint64_t data, unsigned size) {
 
     ++g_stats.mmio_writes;
 
-    g_kvm_vcpu_buffer->exit_reason = KVM_EXIT_MMIO;
+    set_exit_reason(KVM_EXIT_MMIO);
     g_kvm_vcpu_buffer->mmio.is_write = 1;
     g_kvm_vcpu_buffer->mmio.phys_addr = addr;
     g_kvm_vcpu_buffer->mmio.len = size;
@@ -198,7 +198,7 @@ void s2e_kvm_mmio_write(target_phys_addr_t addr, uint64_t data, unsigned size) {
 uint64_t s2e_kvm_ioport_read(pio_addr_t addr, unsigned size) {
     ++g_stats.io_reads;
 
-    g_kvm_vcpu_buffer->exit_reason = KVM_EXIT_IO;
+    set_exit_reason(KVM_EXIT_IO);
     g_kvm_vcpu_buffer->io.direction = KVM_EXIT_IO_IN;
     g_kvm_vcpu_buffer->io.size = size;
     g_kvm_vcpu_buffer->io.port = addr;
@@ -241,7 +241,7 @@ void s2e_kvm_ioport_write(pio_addr_t addr, uint64_t data, unsigned size) {
 
     ++g_stats.io_writes;
 
-    g_kvm_vcpu_buffer->exit_reason = KVM_EXIT_IO;
+    set_exit_reason(KVM_EXIT_IO);
     g_kvm_vcpu_buffer->io.direction = KVM_EXIT_IO_OUT;
     g_kvm_vcpu_buffer->io.size = size;
     g_kvm_vcpu_buffer->io.port = addr;

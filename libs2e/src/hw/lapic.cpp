@@ -153,7 +153,7 @@ void LocalApic::eoi() {
 }
 
 void LocalApic::ioapic_eoi_broadcast(int vector) {
-    g_kvm_vcpu_buffer->exit_reason = KVM_EXIT_IOAPIC_EOI;
+    set_exit_reason(KVM_EXIT_IOAPIC_EOI);
     g_kvm_vcpu_buffer->eoi.vector = vector;
     m_cpu_exit();
 }

@@ -48,6 +48,10 @@ class LocalApic;
 // TODO: remove this global var
 extern kvm_run *g_kvm_vcpu_buffer;
 
+/// Sets the exit reason of KVM_RUN from the cpu coroutine.
+/// Aborts if it would overwrite an exit reason that the kvm client did not see yet.
+void set_exit_reason(int reason);
+
 class VCPU : public IFile {
 private:
     std::shared_ptr<S2EKVM> m_kvm;

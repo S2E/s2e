@@ -95,6 +95,26 @@ namespace kvm {
 kvm_run *g_kvm_vcpu_buffer;
 static VCPU *s_vcpu;
 
+///
+/// KVM_RUN and KVM_SWITCH_STATE_CONTINUE set the exit reason to -1 before they
+/// enter the coroutine, so -1 means that the client saw the previous exit.
+/// Some exits are not delivered right away (e.g., KVM_EXIT_IOAPIC_EOI waits
+/// until the cpu loop exits). Any other exit in between would overwrite them,
+/// and the client would never see them.
+///
+void set_exit_reason(int reason) {
+    auto prev = g_kvm_vcpu_buffer->exit_reason;
+    if (prev != (decltype(prev)) -1) {
+        fprintf(stderr,
+                "libs2e: exit reason %d overwrites exit reason %d before the kvm client saw it "
+                "(eoi.vector=%#x eip=%#" PRIx64 ")\n",
+                reason, (int) prev, g_kvm_vcpu_buffer->eoi.vector, (uint64_t) g_cpu_env->eip);
+        abort();
+    }
+
+    g_kvm_vcpu_buffer->exit_reason = reason;
+}
+
 // We may need a very large stack in case of deep expressions.
 // Default stack is a few megabytes, it's not enough.
 static const uint64_t S2E_STACK_SIZE = 1024 * 1024 * 1024;
@@ -573,7 +593,7 @@ void VCPU::end_state_switch() {
 
     if (m_client_switching_state) {
         // Let the client leave its handler and release its lock
-        g_kvm_vcpu_buffer->exit_reason = KVM_EXIT_SWITCH_STATE;
+        set_exit_reason(KVM_EXIT_SWITCH_STATE);
         g_kvm_vcpu_buffer->switch_state.step = KVM_SWITCH_STATE_DONE;
         coroutine_yield();
         m_client_switching_state = false;
@@ -596,7 +616,7 @@ void VCPU::run_state_switch_step(unsigned step) {
         abort();
     }
 
-    g_kvm_vcpu_buffer->exit_reason = KVM_EXIT_SWITCH_STATE;
+    set_exit_reason(KVM_EXIT_SWITCH_STATE);
     g_kvm_vcpu_buffer->switch_state.step = step;
     m_handlingDeviceState = true;
     m_client_switching_state = true;
@@ -611,6 +631,9 @@ int VCPU::continue_state_switch() {
 
     lock();
     m_inKvmRun = true;
+
+    // The client saw the previous step
+    m_cpuBuffer->exit_reason = -1;
 
     coroutine_enter(m_coroutine, this);
 
@@ -648,7 +671,7 @@ void VCPU::restoreDeviceState(void) {
 }
 
 void VCPU::cloneProcess(void) {
-    g_kvm_vcpu_buffer->exit_reason = KVM_EXIT_CLONE_PROCESS;
+    set_exit_reason(KVM_EXIT_CLONE_PROCESS);
 
     coroutine_yield();
 
