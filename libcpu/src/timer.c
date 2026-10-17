@@ -199,6 +199,29 @@ void libcpu_run_all_timers(void) {
     libcpu_run_timers(host_clock);
 }
 
+int64_t libcpu_get_next_timer_delay_ns(void) {
+    CPUClock *clocks[] = {vm_clock, rt_clock, host_clock};
+    int64_t ret = -1;
+
+    for (unsigned i = 0; i < sizeof(clocks) / sizeof(clocks[0]); ++i) {
+        CPUClock *clock = clocks[i];
+        if (!clock->enabled || !clock->active_timers) {
+            continue;
+        }
+
+        int64_t delay = clock->active_timers->expire_time - libcpu_get_clock_ns(clock);
+        if (delay < 0) {
+            delay = 0;
+        }
+
+        if (ret < 0 || delay < ret) {
+            ret = delay;
+        }
+    }
+
+    return ret;
+}
+
 /***********************************************************/
 /* real time host monotonic timer */
 

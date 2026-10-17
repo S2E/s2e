@@ -729,6 +729,9 @@ void S2EExecutor::doStateSwitch(S2EExecutionStatePtr oldState, S2EExecutionState
     // we disable it here and re-enable after the new state has been activated.
     g_se_disable_tlb_flush = 1;
 
+    // The kvm client must not touch the devices until the new state is active
+    s2e_kvm_begin_state_switch();
+
     // Clear the asynchronous request queue, which is not part of the KVM state
     s2e_kvm_flush_disk();
 
@@ -787,6 +790,8 @@ void S2EExecutor::doStateSwitch(S2EExecutionStatePtr oldState, S2EExecutionState
 
         newState->restoreSharedConcreteMemory();
     }
+
+    s2e_kvm_end_state_switch();
 
     cpu_enable_ticks();
 

@@ -22,6 +22,10 @@
 
 #include <inttypes.h>
 #include <memory.h>
+#include <poll.h>
+#include <signal.h>
+#include <sys/eventfd.h>
+#include <unistd.h>
 
 #include <cpu/exec.h>
 #include <cpu/i386/cpu.h>
@@ -62,14 +66,22 @@ CPUX86State *g_cpu_env;
 extern CPUX86State *env;
 
 int cpu_get_pic_interrupt(CPUX86State *env) {
+    // The interrupt injected by the kvm client goes first, like in KVM.
+    // An interrupt of the lapic keeps its own request and is taken next.
     if (env->kvm_irq >= 0) {
+        assert(env->interrupt_request & CPU_INTERRUPT_HARD_EXT);
         auto irq = env->kvm_irq;
         env->kvm_irq = -1;
+        env->interrupt_request &= ~CPU_INTERRUPT_HARD_EXT;
         return irq;
     }
 
+    assert(!(env->interrupt_request & CPU_INTERRUPT_HARD_EXT));
+
     auto vcpu = s2e::kvm::VCPU::current();
     if (auto apic = vcpu->lapic()) {
+        // The vector moves to ISR, which masks what is left in IRR until the EOI
+        env->interrupt_request &= ~CPU_INTERRUPT_HARD_APIC;
         return apic->get_interrupt();
     }
 
@@ -82,6 +94,26 @@ namespace kvm {
 
 kvm_run *g_kvm_vcpu_buffer;
 static VCPU *s_vcpu;
+
+///
+/// KVM_RUN and KVM_SWITCH_STATE_CONTINUE set the exit reason to -1 before they
+/// enter the coroutine, so -1 means that the client saw the previous exit.
+/// Some exits are not delivered right away (e.g., KVM_EXIT_IOAPIC_EOI waits
+/// until the cpu loop exits). Any other exit in between would overwrite them,
+/// and the client would never see them.
+///
+void set_exit_reason(int reason) {
+    auto prev = g_kvm_vcpu_buffer->exit_reason;
+    if (prev != (decltype(prev)) -1) {
+        fprintf(stderr,
+                "libs2e: exit reason %d overwrites exit reason %d before the kvm client saw it "
+                "(eoi.vector=%#x eip=%#" PRIx64 ")\n",
+                reason, (int) prev, g_kvm_vcpu_buffer->eoi.vector, (uint64_t) g_cpu_env->eip);
+        abort();
+    }
+
+    g_kvm_vcpu_buffer->exit_reason = reason;
+}
 
 // We may need a very large stack in case of deep expressions.
 // Default stack is a few megabytes, it's not enough.
@@ -102,6 +134,8 @@ VCPU::VCPU(std::shared_ptr<S2EKVM> &kvm, std::shared_ptr<VM> &vm, kvm_run *buffe
     if (initCpuLock() < 0) {
         exit(-1);
     }
+
+    init_halt_fd();
 
     /* We want the default libcpu CPU, not the KVM one. */
     m_env = g_cpu_env = env = cpu_x86_init(&m_kvm->getCpuid());
@@ -125,6 +159,10 @@ VCPU::VCPU(std::shared_ptr<S2EKVM> &kvm, std::shared_ptr<VM> &vm, kvm_run *buffe
 
 VCPU::~VCPU() {
     m_onExit.disconnect();
+
+    if (m_halt_fd >= 0) {
+        close(m_halt_fd);
+    }
 }
 
 VCPU *VCPU::current() {
@@ -146,6 +184,47 @@ void VCPU::create_lapic() {
         LocalApic::APIC_DEFAULT_BASE, [this](int mask, bool reset) { interrupt(mask, reset); },
         [this]() { request_exit_cpu_loop(); });
     m_vm->dev_mgr().register_device(LocalApic::APIC_DEFAULT_BASE, LocalApic::APIC_SIZE, m_lapic);
+}
+
+uint8_t VCPU::get_tpr() const {
+    if (m_lapic) {
+        return m_lapic->get_tpr();
+    }
+    return m_vapic.get_tpr();
+}
+
+void VCPU::set_tpr(uint8_t val) {
+    if (m_lapic) {
+        m_lapic->set_tpr(val);
+    } else {
+        m_vapic.set_tpr(val);
+    }
+}
+
+uint64_t VCPU::get_apic_base() const {
+    if (m_lapic) {
+        return m_lapic->get_apic_base();
+    }
+    return m_vapic.get_apic_base();
+}
+
+void VCPU::set_apic_base(uint64_t val) {
+    if (!m_lapic) {
+        m_vapic.set_apic_base(val);
+        return;
+    }
+
+    // The kvm client rewrites the same base every time it sets the system registers
+    uint64_t old_base = m_lapic->get_apic_base();
+    m_lapic->set_apic_base(val);
+    if (m_lapic->get_apic_base() == old_base) {
+        return;
+    }
+
+    if (!m_vm->dev_mgr().rebase_device(val & ~0xfffULL, m_lapic)) {
+        fprintf(stderr, "Failed to rebase LAPIC to %#" PRIx64 "\n", val);
+        abort();
+    }
 }
 
 int VCPU::initCpuLock(void) {
@@ -263,6 +342,42 @@ void VCPU::coroutineFcn(void *opaque) {
     }
 }
 
+///
+/// \brief Tells the kvm client that the process is exiting
+///
+/// The client gets the same result as when a signal interrupts KVM_RUN
+/// and terminates when it handles the signal.
+///
+/// \return the return value of the ioctl
+///
+int VCPU::interrupt_exiting_process() {
+    m_cpuBuffer->exit_reason = KVM_EXIT_INTR;
+    kill(getpid(), SIGTERM);
+
+    // This must be set at the very end, because syscalls might overwrite errno
+    errno = EINTR;
+    return -1;
+}
+
+///
+/// \brief Tells whether the kvm client may inject an interrupt with KVM_INTERRUPT
+///
+/// The cpu must be able to take the interrupt at the next instruction, as in KVM:
+/// interrupts are enabled and there is no interrupt shadow (the instruction after
+/// sti or mov ss). The previous injection must also have been taken.
+///
+bool VCPU::ready_for_interrupt_injection() const {
+    if (m_handlingKvmCallback || !m_cpuBuffer->request_interrupt_window) {
+        return false;
+    }
+
+    if (!(m_env->mflags & IF_MASK) || (m_env->hflags & HF_INHIBIT_IRQ_MASK)) {
+        return false;
+    }
+
+    return m_env->kvm_irq == -1;
+}
+
 int VCPU::run(int vcpu_fd) {
     int ret = 0;
 
@@ -282,16 +397,12 @@ int VCPU::run(int vcpu_fd) {
     }
 
     if (m_kvm->exiting()) {
-        g_kvm_vcpu_buffer->exit_reason = KVM_EXIT_INTR;
-        kill(getpid(), SIGTERM);
-        errno = EINTR;
-        return -1;
+        return interrupt_exiting_process();
     }
 
     /* Return asap if interrupts can be injected */
     m_cpuBuffer->if_flag = (m_env->mflags & IF_MASK) != 0;
-    m_cpuBuffer->ready_for_interrupt_injection = !m_handlingKvmCallback && m_cpuBuffer->request_interrupt_window &&
-                                                 m_cpuBuffer->if_flag && (m_env->kvm_irq == -1);
+    m_cpuBuffer->ready_for_interrupt_injection = ready_for_interrupt_injection();
 
     if (m_cpuBuffer->ready_for_interrupt_injection) {
         libcpu_log_mask(CPU_LOG_KVM, "%s early ret for ints\n", __FUNCTION__);
@@ -310,9 +421,12 @@ int VCPU::run(int vcpu_fd) {
 
     m_cpuBuffer->exit_reason = -1;
 
-    assert(m_cpuBuffer->apic_base);
-    m_vapic.set_apic_base(m_cpuBuffer->apic_base);
-    m_vapic.set_tpr(m_cpuBuffer->cr8 << 4);
+    if (!m_lapic) {
+        // The kvm client only keeps these up to date when it emulates the apic itself
+        assert(m_cpuBuffer->apic_base);
+        m_vapic.set_apic_base(m_cpuBuffer->apic_base);
+        m_vapic.set_tpr(m_cpuBuffer->cr8 << 4);
+    }
 
     m_handlingKvmCallback = false;
     m_handlingDeviceState = false;
@@ -321,29 +435,22 @@ int VCPU::run(int vcpu_fd) {
 
     if (m_kvm->exiting()) {
         unlock();
-        g_kvm_vcpu_buffer->exit_reason = KVM_EXIT_INTR;
-        kill(getpid(), SIGTERM);
-        errno = EINTR;
-        return -1;
+        return interrupt_exiting_process();
     }
 
-    m_handlingKvmCallback =
-        m_cpuBuffer->exit_reason == KVM_EXIT_IO || m_cpuBuffer->exit_reason == KVM_EXIT_MMIO ||
-        m_cpuBuffer->exit_reason == KVM_EXIT_FLUSH_DISK || m_cpuBuffer->exit_reason == KVM_EXIT_SAVE_DEV_STATE ||
-        m_cpuBuffer->exit_reason == KVM_EXIT_RESTORE_DEV_STATE || m_cpuBuffer->exit_reason == KVM_EXIT_CLONE_PROCESS ||
-        m_cpuBuffer->exit_reason == KVM_EXIT_IOAPIC_EOI;
+    m_handlingKvmCallback = m_cpuBuffer->exit_reason == KVM_EXIT_IO || m_cpuBuffer->exit_reason == KVM_EXIT_MMIO ||
+                            m_cpuBuffer->exit_reason == KVM_EXIT_SWITCH_STATE ||
+                            m_cpuBuffer->exit_reason == KVM_EXIT_CLONE_PROCESS ||
+                            m_cpuBuffer->exit_reason == KVM_EXIT_IOAPIC_EOI;
 
     // Might not be NULL if resuming from an interrupted I/O
     // assert(env->current_tb == NULL);
 
     m_cpuBuffer->if_flag = (m_env->mflags & IF_MASK) != 0;
-    m_cpuBuffer->apic_base = m_vapic.get_apic_base();
-    m_cpuBuffer->cr8 = m_vapic.get_tpr() >> 4;
+    m_cpuBuffer->apic_base = get_apic_base();
+    m_cpuBuffer->cr8 = get_tpr() >> 4;
 
-    // KVM specs says that we should also check for request for interrupt window,
-    // but that causes missed interrupts.
-    m_cpuBuffer->ready_for_interrupt_injection = !m_handlingKvmCallback && m_cpuBuffer->request_interrupt_window &&
-                                                 m_cpuBuffer->if_flag && (m_env->kvm_irq == -1);
+    m_cpuBuffer->ready_for_interrupt_injection = ready_for_interrupt_injection();
 
     if (m_cpuBuffer->exit_reason == -1) {
         if (m_env->halted) {
@@ -380,33 +487,92 @@ int VCPU::run(int vcpu_fd) {
     assert(ret >= 0 || errno == EINTR);
     assert(m_cpuBuffer->exit_reason != -1);
 
+    // A client that does not emulate the lapic expects KVM_RUN to block while
+    // the cpu is halted. It would otherwise call us back in a busy loop.
+    bool wait = m_lapic && m_cpuBuffer->exit_reason == KVM_EXIT_HLT;
+
+    // The timers must be read while holding the cpu lock
+    int64_t delay = wait ? libcpu_get_next_timer_delay_ns() : -1;
+
     m_inKvmRun = false;
 
     unlock();
 
+    if (wait) {
+        wait_while_halted(delay);
+    }
+
     return ret;
+}
+
+void VCPU::init_halt_fd() {
+    int fd = eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
+    if (fd < 0) {
+        fprintf(stderr, "Could not create halt eventfd\n");
+        exit(-1);
+    }
+
+    // A signal handler may use the descriptor at any time, it must always be valid
+    int old_fd = m_halt_fd;
+    m_halt_fd = fd;
+    if (old_fd >= 0) {
+        close(old_fd);
+    }
+}
+
+void VCPU::wait_while_halted(int64_t delay) {
+    static constexpr int64_t NS_PER_SEC = 1000 * 1000 * 1000;
+
+    struct pollfd pfd = {.fd = m_halt_fd, .events = POLLIN, .revents = 0};
+    struct timespec ts = {.tv_sec = delay / NS_PER_SEC, .tv_nsec = delay % NS_PER_SEC};
+
+    // Like KVM_RUN, wait with the signal mask of the client, so that the signals it uses
+    // to kick the cpu interrupt the wait.
+    const sigset_t *mask = m_sigmask_size ? &m_sigmask.sigset : nullptr;
+
+    // request_exit_cpu_loop sets its flag and then checks ours, we do the opposite.
+    // Whatever the interleaving, either we see the request or the requester sees
+    // that it must wake us up. This also holds when the requester is a signal handler
+    // that interrupts this thread right before the wait starts, so there is no need
+    // to bound the wait when there are no timers.
+    m_halt_waiting = true;
+    if (!m_exit_requested) {
+        ppoll(&pfd, 1, delay < 0 ? nullptr : &ts, mask);
+    }
+    m_halt_waiting = false;
+
+    // KVM_RUN returns to the client after this, which satisfies all the requests so far
+    m_exit_requested = false;
+
+    uint64_t val;
+    if (read(m_halt_fd, &val, sizeof(val)) < 0 && errno != EAGAIN && errno != EINTR) {
+        fprintf(stderr, "Could not read halt eventfd: %s\n", strerror(errno));
+    }
 }
 
 int VCPU::interrupt(kvm_interrupt *interrupt) {
     libcpu_log_mask(CPU_LOG_KVM, "IRQ %d env->mflags=%lx hflags=%x hflags2=%x ptr=%#x\n", interrupt->irq,
-                    (uint64_t) env->mflags, env->hflags, env->hflags2, m_vapic.get_tpr());
+                    (uint64_t) env->mflags, env->hflags, env->hflags2, get_tpr());
 
     assert(!m_handlingKvmCallback);
     assert(!m_inKvmRun);
     assert(m_env->mflags & IF_MASK);
 
-    if (m_env->interrupt_request & CPU_INTERRUPT_HARD) {
+    // Only a previous injection that the cpu did not take yet prevents a new one.
+    // An interrupt of the lapic may be pending at the same time, it has its own request.
+    if (m_env->kvm_irq >= 0) {
         libcpu_log_mask(CPU_LOG_KVM, "Interrupt already pending, cannot inject IRQ %d\n", interrupt->irq);
         return -EEXIST;
     }
 
-    assert(!(m_env->interrupt_request & CPU_INTERRUPT_HARD));
+    assert(!(m_env->interrupt_request & CPU_INTERRUPT_HARD_EXT));
 
-    if (m_env->cr[0] & CR0_PE_MASK) {
-        assert(interrupt->irq > m_vapic.get_tpr());
+    // External interrupts are not subject to the tpr of the in-kernel lapic
+    if (!m_lapic && (m_env->cr[0] & CR0_PE_MASK)) {
+        assert(interrupt->irq > get_tpr());
     }
 
-    m_env->interrupt_request |= CPU_INTERRUPT_HARD;
+    m_env->interrupt_request |= CPU_INTERRUPT_HARD_EXT;
     m_env->kvm_irq = interrupt->irq;
 
     return 0;
@@ -417,10 +583,75 @@ int VCPU::nmi() {
     return 0;
 }
 
-void VCPU::flushDisk(void) {
-    g_kvm_vcpu_buffer->exit_reason = KVM_EXIT_FLUSH_DISK;
+void VCPU::begin_state_switch() {
+    assert(!m_switching_state);
+    m_switching_state = true;
+}
+
+void VCPU::end_state_switch() {
+    assert(m_switching_state);
+
+    if (m_client_switching_state) {
+        // Let the client leave its handler and release its lock
+        set_exit_reason(KVM_EXIT_SWITCH_STATE);
+        g_kvm_vcpu_buffer->switch_state.step = KVM_SWITCH_STATE_DONE;
+        coroutine_yield();
+        m_client_switching_state = false;
+    }
+
+    m_switching_state = false;
+}
+
+///
+/// \brief Asks the kvm client to perform a step of a state switch
+///
+/// The first step of a switch returns from KVM_RUN with KVM_EXIT_SWITCH_STATE.
+/// The client then holds its global lock and gets the next steps when
+/// it calls KVM_SWITCH_STATE_CONTINUE, until end_state_switch.
+///
+void VCPU::run_state_switch_step(unsigned step) {
+    if (!m_switching_state) {
+        // The client would never release its lock
+        fprintf(stderr, "libs2e: state switch step %u requested outside of a state switch\n", step);
+        abort();
+    }
+
+    set_exit_reason(KVM_EXIT_SWITCH_STATE);
+    g_kvm_vcpu_buffer->switch_state.step = step;
     m_handlingDeviceState = true;
+    m_client_switching_state = true;
     coroutine_yield();
+}
+
+int VCPU::continue_state_switch() {
+    if (!m_client_switching_state) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    lock();
+    m_inKvmRun = true;
+
+    // The client saw the previous step
+    m_cpuBuffer->exit_reason = -1;
+
+    coroutine_enter(m_coroutine, this);
+
+    m_inKvmRun = false;
+    unlock();
+
+    if (m_kvm->exiting()) {
+        return interrupt_exiting_process();
+    }
+
+    // The guest does not run during a state switch
+    assert(m_cpuBuffer->exit_reason == KVM_EXIT_SWITCH_STATE);
+
+    return 0;
+}
+
+void VCPU::flushDisk(void) {
+    run_state_switch_step(KVM_SWITCH_STATE_FLUSH_DISK);
 }
 
 void VCPU::saveDeviceState(void) {
@@ -428,9 +659,7 @@ void VCPU::saveDeviceState(void) {
     libcpu_log("Saving device state\n");
     log_cpu_state(g_cpu_env, 0);
 #endif
-    g_kvm_vcpu_buffer->exit_reason = KVM_EXIT_SAVE_DEV_STATE;
-    m_handlingDeviceState = true;
-    coroutine_yield();
+    run_state_switch_step(KVM_SWITCH_STATE_SAVE_DEV_STATE);
 }
 
 void VCPU::restoreDeviceState(void) {
@@ -438,21 +667,39 @@ void VCPU::restoreDeviceState(void) {
     libcpu_log("Restoring device state\n");
     log_cpu_state(g_cpu_env, 0);
 #endif
-    g_kvm_vcpu_buffer->exit_reason = KVM_EXIT_RESTORE_DEV_STATE;
-    m_handlingDeviceState = 1;
-    coroutine_yield();
+    run_state_switch_step(KVM_SWITCH_STATE_RESTORE_DEV_STATE);
 }
 
 void VCPU::cloneProcess(void) {
-    g_kvm_vcpu_buffer->exit_reason = KVM_EXIT_CLONE_PROCESS;
+    set_exit_reason(KVM_EXIT_CLONE_PROCESS);
 
     coroutine_yield();
 
     m_cpuThread = pthread_self();
+
+    // The parent and the child must not steal each other's wake up requests
+    init_halt_fd();
 }
 
 void VCPU::request_exit_cpu_loop() {
     cpu_exit(m_env);
+
+    // The cpu only needs a wake up when it sleeps in wait_while_halted. In all the other
+    // cases, it finds the flag before it goes to sleep. Keep the system call out of
+    // the way of the callers that are on a hot path (dma, irq lines, etc.).
+    m_exit_requested = true;
+    if (!m_halt_waiting) {
+        return;
+    }
+
+    // This may run in a signal handler, preserve errno for the interrupted code
+    int saved_errno = errno;
+    uint64_t val = 1;
+    if (write(m_halt_fd, &val, sizeof(val)) < 0 && errno != EAGAIN) {
+        // The cpu would sleep forever
+        abort();
+    }
+    errno = saved_errno;
 }
 
 ///
@@ -509,13 +756,19 @@ int VCPU::sys_ioctl(int fd, int request, uint64_t arg1) {
 
         /***********************************************/
         // When the symbolic execution engine needs to take a system snapshot,
-        // it must rely on the KVM client to save the device state. That client
-        // will typically also save/restore the CPU state. We don't want the client
-        // to do that, so in order to not modify the client too much, we ignore
-        // the calls to register setters when they are done in the context of
-        // device state snapshotting.
+        // it relies on the KVM client to save and restore the device state.
+        // The engine manages the entire cpu state itself, concrete and symbolic.
+        // The client keeps its own copy of the concrete cpu state and writes it
+        // back when it handles a snapshot. In order to not modify the client too
+        // much, we ignore the calls to register setters when they are done in the
+        // context of device state snapshotting. We only check that the client
+        // has the same concrete state as the engine.
+        //
+        // The lapic is a device, the client restores it with KVM_SET_LAPIC and
+        // the apic base msr. These must always be applied.
         case KVM_SET_REGS: {
             if (m_handlingDeviceState) {
+                check_registers((kvm_regs *) arg1);
                 ret = 0;
             } else {
                 ret = setRegisters((kvm_regs *) arg1);
@@ -541,6 +794,7 @@ int VCPU::sys_ioctl(int fd, int request, uint64_t arg1) {
 
         case KVM_SET_SREGS: {
             if (m_handlingDeviceState) {
+                check_system_registers((kvm_sregs *) arg1);
                 ret = 0;
             } else {
                 ret = setSystemRegisters((kvm_sregs *) arg1);
@@ -549,7 +803,7 @@ int VCPU::sys_ioctl(int fd, int request, uint64_t arg1) {
 
         case KVM_SET_MSRS: {
             if (m_handlingDeviceState) {
-                ret = ((kvm_msrs *) arg1)->nmsrs;
+                ret = set_device_state_msrs((kvm_msrs *) arg1);
             } else {
                 ret = setMSRs((kvm_msrs *) arg1);
             }
@@ -565,6 +819,7 @@ int VCPU::sys_ioctl(int fd, int request, uint64_t arg1) {
 
         case KVM_SET_DEBUGREGS: {
             if (m_handlingDeviceState) {
+                check_debug_registers((kvm_debugregs *) arg1);
                 ret = 0;
             } else {
                 ret = setDebugRegs((kvm_debugregs *) arg1);
@@ -574,10 +829,14 @@ int VCPU::sys_ioctl(int fd, int request, uint64_t arg1) {
         /***********************************************/
         case KVM_GET_REGS: {
             if (m_handlingDeviceState) {
-                // Poison the returned registers to make sure we don't use
-                // it again by accident. We can't just fail the call because
-                // the client needs it to save the cpu state (that we ignore).
-                memset((void *) arg1, 0xff, sizeof(kvm_regs));
+                // The general purpose registers and the arithmetic flags may be
+                // symbolic. Poison them to make sure we don't use them again by
+                // accident. The client only gets the concrete registers, it needs
+                // the system flags to interpret the segment registers.
+                auto regs = (kvm_regs *) arg1;
+                memset(regs, 0xff, sizeof(*regs));
+                regs->rip = m_env->eip;
+                regs->rflags = m_env->mflags;
                 ret = 0;
             } else {
                 ret = getRegisters((kvm_regs *) arg1);
@@ -585,11 +844,29 @@ int VCPU::sys_ioctl(int fd, int request, uint64_t arg1) {
         } break;
 
         case KVM_GET_FPU: {
-            ret = getFPU((kvm_fpu *) arg1);
+            if (m_handlingDeviceState) {
+                // The fpu state may be symbolic, reading it would concretize it.
+                // See KVM_GET_XSAVE for why it is fine to poison it.
+                memset((void *) arg1, 0xff, sizeof(kvm_fpu));
+                ret = 0;
+            } else {
+                ret = getFPU((kvm_fpu *) arg1);
+            }
         } break;
 
         case KVM_GET_XSAVE: {
-            ret = getXSAVE((kvm_xsave *) arg1);
+            if (m_handlingDeviceState) {
+                // The fpu state may be symbolic, reading it would concretize it.
+                // Poison the entire area instead, including the xsave header and
+                // the control words. This requires a client that stores the area
+                // in its snapshot without validating it. The poison never comes back
+                // to the guest: we stay in device state mode until the next KVM_RUN
+                // and ignore KVM_SET_XSAVE and KVM_SET_FPU until then.
+                memset((void *) arg1, 0xff, sizeof(kvm_xsave));
+                ret = 0;
+            } else {
+                ret = getXSAVE((kvm_xsave *) arg1);
+            }
         } break;
 
         case KVM_GET_SREGS: {
@@ -605,11 +882,29 @@ int VCPU::sys_ioctl(int fd, int request, uint64_t arg1) {
         } break;
 
         case KVM_GET_LAPIC: {
+            // Interrupts raised by other threads are queued until the next KVM_RUN.
+            // Deliver them now, otherwise they are lost if the client saves the
+            // state (e.g., savevm) before running the cpu again.
+            if (!m_task_runner.run_on_thread()) {
+                abort();
+            }
             m_lapic->get_lapic((kvm_lapic_state *) arg1);
             ret = 0;
         } break;
 
         case KVM_SET_LAPIC: {
+            // Interrupts queued before this call belong to the lapic state that is
+            // being overwritten (e.g., loadvm). Deliver them to that state now, so
+            // that they are not delivered to the new one on the next KVM_RUN. This
+            // only discards fixed interrupts, an nmi or smi stays pending in the cpu.
+            //
+            // There are no such interrupts when the engine switches states. The client
+            // holds its global lock from the save of the old state to the restore of
+            // the new one (KVM_EXIT_SWITCH_STATE), its devices cannot raise interrupts
+            // in between.
+            if (!m_task_runner.run_on_thread()) {
+                abort();
+            }
             m_lapic->set_lapic((kvm_lapic_state *) arg1);
             ret = 0;
         } break;
@@ -623,6 +918,10 @@ int VCPU::sys_ioctl(int fd, int request, uint64_t arg1) {
             return run(fd);
         } break;
 
+        case KVM_SWITCH_STATE_CONTINUE: {
+            return continue_state_switch();
+        } break;
+
         case KVM_INTERRUPT: {
             ret = interrupt((kvm_interrupt *) arg1);
         } break;
@@ -634,9 +933,9 @@ int VCPU::sys_ioctl(int fd, int request, uint64_t arg1) {
         case KVM_SET_VAPIC_ADDR: {
             const auto data = (kvm_vapic_addr *) arg1;
             libcpu_log_mask(CPU_LOG_KVM, "Setting VAPIC address to %#" PRIx64 "\n", (uint64_t) data->vapic_addr);
-            if (auto lapic = this->lapic()) {
-                lapic->set_apic_base(data->vapic_addr);
-            } else {
+            // The vapic address is not the apic base. The in-kernel lapic does not
+            // use it, its base is only set through the msr.
+            if (!m_lapic) {
                 m_vapic.set_apic_base(data->vapic_addr);
             }
             ret = 0;
@@ -701,6 +1000,9 @@ void VCPU::interrupt(int mask, bool reset) {
 #endif
     cpu_exit(m_env);
 
+    // The request of an interrupt injected with KVM_INTERRUPT belongs to the kvm client
+    assert(!(mask & CPU_INTERRUPT_HARD_EXT));
+
     if (reset) {
         m_env->interrupt_request &= ~mask;
     } else {
@@ -723,6 +1025,14 @@ void s2e_kvm_save_device_state(void) {
 
 void s2e_kvm_restore_device_state(void) {
     s2e::kvm::s_vcpu->restoreDeviceState();
+}
+
+void s2e_kvm_begin_state_switch(void) {
+    s2e::kvm::s_vcpu->begin_state_switch();
+}
+
+void s2e_kvm_end_state_switch(void) {
+    s2e::kvm::s_vcpu->end_state_switch();
 }
 
 void s2e_kvm_clone_process(void) {

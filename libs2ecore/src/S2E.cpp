@@ -528,7 +528,9 @@ int S2E::fork() {
 
     m_sync.release();
 
+    s2e_kvm_begin_state_switch();
     s2e_kvm_flush_disk();
+    s2e_kvm_end_state_switch();
 
     pid_t pid = ::fork();
     if (pid < 0) {

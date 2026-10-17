@@ -57,6 +57,12 @@ extern "C" {
 void s2e_kvm_flush_disk(void);
 void s2e_kvm_save_device_state(void);
 void s2e_kvm_restore_device_state(void);
+
+// Delimit a state switch. The kvm client does not touch the devices
+// in between, except to flush the disk and save or restore their state.
+// These three operations must be between these two calls.
+void s2e_kvm_begin_state_switch(void);
+void s2e_kvm_end_state_switch(void);
 void s2e_kvm_clone_process(void);
 
 // Called by the kvm interface

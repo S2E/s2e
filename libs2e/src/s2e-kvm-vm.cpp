@@ -62,6 +62,9 @@ std::shared_ptr<VM> VM::create(std::shared_ptr<S2EKVM> &kvm) {
 
     init_clocks();
 
+    // The lapic timer runs on the vm clock, which does not advance until ticks are enabled
+    cpu_enable_ticks();
+
 #ifdef CONFIG_SYMBEX
     s2e_init_timers();
 
@@ -439,8 +442,9 @@ int VM::sys_ioctl(int fd, int request, uint64_t arg1) {
         } break;
 
         case KVM_IRQ_LINE: {
-            m_cpu->request_exit_cpu_loop();
+            // Queue the interrupt first, a halted cpu must find it when it wakes up
             ret = irq_line((const kvm_irq_level *) arg1);
+            m_cpu->request_exit_cpu_loop();
         } break;
 
         case KVM_CREATE_IRQCHIP: {

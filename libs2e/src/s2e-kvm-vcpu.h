@@ -27,6 +27,7 @@
 #include <cpu/kvm.h>
 #include <inttypes.h>
 
+#include <atomic>
 #include <coroutine.h>
 #include <cpu/i386/cpu.h>
 #include <fsigc++/fsigc++.h>
@@ -46,6 +47,10 @@ class LocalApic;
 
 // TODO: remove this global var
 extern kvm_run *g_kvm_vcpu_buffer;
+
+/// Sets the exit reason of KVM_RUN from the cpu coroutine.
+/// Aborts if it would overwrite an exit reason that the kvm client did not see yet.
+void set_exit_reason(int reason);
 
 class VCPU : public IFile {
 private:
@@ -82,6 +87,13 @@ private:
     // This implies that g_handling_kvm_cb is 1.
     bool m_handlingDeviceState = false;
 
+    // Indicates that the engine is between begin_state_switch and end_state_switch.
+    bool m_switching_state = false;
+
+    // Indicates that the kvm client is handling KVM_EXIT_SWITCH_STATE. It holds its
+    // global lock and waits for the next step.
+    bool m_client_switching_state = false;
+
     bool m_cpuStateIsPrecise = true;
 
     // XXX: do we need this? Looks unused
@@ -90,6 +102,18 @@ private:
     VirtualApic m_vapic;
 
     volatile bool m_inKvmRun = false;
+
+    // Lets a halted cpu sleep in KVM_RUN until something needs its attention.
+    // This is an eventfd because the kvm client may kick the cpu from a signal handler.
+    int m_halt_fd = -1;
+
+    // Set while the cpu sleeps on m_halt_fd, so that exit requests only pay
+    // for a wake up when there is someone to wake up.
+    std::atomic<bool> m_halt_waiting = false;
+
+    // Set by exit requests, so that the cpu does not go to sleep when a request
+    // came in after it left the cpu loop.
+    std::atomic<bool> m_exit_requested = false;
 
     fsigc::connection m_onExit;
 
@@ -155,7 +179,18 @@ private:
     int getMSRs(kvm_msrs *msrs);
     int getMPState(kvm_mp_state *mp);
 
+    void check_registers(const kvm_regs *regs) const;
+    void check_system_registers(const kvm_sregs *sregs);
+    void check_debug_registers(const kvm_debugregs *dregs) const;
+    int set_device_state_msrs(const kvm_msrs *msrs);
+
+    int interrupt_exiting_process();
+    bool ready_for_interrupt_injection() const;
     int run(int vcpu_fd);
+    void run_state_switch_step(unsigned step);
+    int continue_state_switch();
+    void init_halt_fd();
+    void wait_while_halted(int64_t delay);
     int interrupt(kvm_interrupt *interrupt);
     int nmi();
 
@@ -172,8 +207,21 @@ public:
 
     void create_lapic();
 
+    /// These use the in-kernel lapic when there is one and fall back
+    /// to the state provided by the kvm client otherwise.
+    uint8_t get_tpr() const;
+    void set_tpr(uint8_t val);
+    uint64_t get_apic_base() const;
+    void set_apic_base(uint64_t val);
+
     void lock();
     void unlock();
+
+    /// The kvm client handles all the steps between these two calls atomically.
+    /// Flushing the disk and saving or restoring the device state are steps,
+    /// they must be between these two calls.
+    void begin_state_switch();
+    void end_state_switch();
 
     void flushDisk(void);
     void saveDeviceState(void);

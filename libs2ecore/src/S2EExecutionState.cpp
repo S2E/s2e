@@ -100,6 +100,9 @@ ExecutionStatePtr S2EExecutionState::clone() {
     // This means that we must clean owned-by-us flag in S2E TLB.
     assert(m_active);
 
+    // The kvm client must not touch the devices between the flush and the save
+    s2e_kvm_begin_state_switch();
+
     s2e_kvm_flush_disk();
 
     m_tlb.clearTlbOwnership();
@@ -121,6 +124,7 @@ ExecutionStatePtr S2EExecutionState::clone() {
     cpu_disable_ticks();
     s2e_kvm_save_device_state();
     m_timersState = timers_state;
+    s2e_kvm_end_state_switch();
     cpu_enable_ticks();
 
     S2EExecutionState *ret = new S2EExecutionState(*this);

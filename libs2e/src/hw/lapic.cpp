@@ -34,6 +34,7 @@
 namespace s2e {
 namespace kvm {
 
+static constexpr uint32_t APICBASE_BSP = 1 << 8;
 static constexpr uint32_t APICBASE_EXTD = 1 << 10;
 static constexpr uint32_t APICBASE_ENABLE = 1 << 11;
 
@@ -49,7 +50,8 @@ static constexpr uint32_t LVT_TIMER_TSCDEADLINE = 2 << 17;
 LocalApic::LocalApic(uint64_t phys_base, CpuInterruptFn cpu_interrupt, CpuExitFn cpu_exit)
     : m_cpu_interrupt(std::move(cpu_interrupt)), m_cpu_exit(std::move(cpu_exit)) {
     m_version = 0x14;
-    m_apic_base = phys_base | APICBASE_ENABLE;
+    // There is only one cpu, which is the bootstrap processor
+    m_apic_base = phys_base | APICBASE_BSP | APICBASE_ENABLE;
     m_dest_mode = 0xf;
     m_spurious_vec = 0xff;
     m_lvt.fill(LVT_MASKED);
@@ -66,8 +68,9 @@ void LocalApic::set_tpr(uint8_t val) {
 }
 
 void LocalApic::set_apic_base(uint64_t val) {
-    printf("Setting APIC base to %#" PRIx64 "\n", val);
-    m_apic_base = (val & ~0xfffULL) | (val & (APICBASE_ENABLE | APICBASE_EXTD));
+    libcpu_log_mask(CPU_LOG_KVM, "Setting APIC base to %#" PRIx64 "\n", val);
+    // The BSP flag is read-only, it does not depend on what is written to the msr
+    m_apic_base = (val & ~0xfffULL) | (m_apic_base & APICBASE_BSP) | (val & (APICBASE_ENABLE | APICBASE_EXTD));
 }
 
 bool LocalApic::enabled() const {
@@ -129,9 +132,9 @@ int LocalApic::get_arb_pri() const {
 
 void LocalApic::update_irq() {
     if (irq_pending() > 0) {
-        m_cpu_interrupt(CPU_INTERRUPT_HARD, false);
+        m_cpu_interrupt(CPU_INTERRUPT_HARD_APIC, false);
     } else {
-        m_cpu_interrupt(CPU_INTERRUPT_HARD, true);
+        m_cpu_interrupt(CPU_INTERRUPT_HARD_APIC, true);
     }
 }
 
@@ -150,12 +153,17 @@ void LocalApic::eoi() {
 }
 
 void LocalApic::ioapic_eoi_broadcast(int vector) {
-    g_kvm_vcpu_buffer->exit_reason = KVM_EXIT_IOAPIC_EOI;
+    set_exit_reason(KVM_EXIT_IOAPIC_EOI);
     g_kvm_vcpu_buffer->eoi.vector = vector;
     m_cpu_exit();
 }
 
 void LocalApic::set_irq(int vector_num, int trigger_mode) {
+    // A disabled apic does not accept fixed interrupts
+    if (!enabled() || !(m_spurious_vec & SV_ENABLE)) {
+        return;
+    }
+
     set_bit(m_irr.data(), vector_num);
 
     if (get_bit(m_tmr.data(), vector_num) != !!trigger_mode) {
@@ -229,7 +237,9 @@ void LocalApic::local_deliver(int vector) {
             m_cpu_interrupt(CPU_INTERRUPT_NMI, false);
             break;
         case DM_EXTINT:
-            m_cpu_interrupt(CPU_INTERRUPT_HARD, false);
+            // The lapic has no vector for this mode. The kvm client supplies
+            // the vector of its pic with KVM_INTERRUPT.
+            libcpu_log_mask(CPU_LOG_KVM, "lapic: ignoring ExtINT interrupt from lvt %d (%#x)\n", vector, lvt);
             break;
         default:
             break;
@@ -287,7 +297,7 @@ uint32_t LocalApic::get_current_count() const {
     int64_t d = (libcpu_get_clock_ns(vm_clock) - m_initial_count_load_time) >> m_count_shift;
 
     if (m_lvt[LVT_TIMER] & LVT_TIMER_PERIODIC) {
-        d = ((unsigned) d % ((uint64_t) m_initial_count + 1));
+        d = d % ((uint64_t) m_initial_count + 1);
     } else {
         if (d >= m_initial_count) {
             return 0;
@@ -601,7 +611,9 @@ void LocalApic::deliver_msi(uint32_t addr_lo, uint32_t addr_hi, uint32_t data) {
             m_cpu_interrupt(CPU_INTERRUPT_NMI, false);
             break;
         case DM_EXTINT:
-            m_cpu_interrupt(CPU_INTERRUPT_HARD, false);
+            // The lapic has no vector for this mode. The kvm client supplies
+            // the vector of its pic with KVM_INTERRUPT.
+            libcpu_log_mask(CPU_LOG_KVM, "lapic: ignoring ExtINT msi addr=%#x data=%#x\n", addr_lo, data);
             break;
         default:
             break;

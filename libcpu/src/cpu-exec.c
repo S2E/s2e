@@ -76,8 +76,6 @@ static TranslationBlock *tb_find_slow(CPUArchState *env, target_ulong pc, target
     tb_page_addr_t phys_pc, phys_page1;
     target_ulong virt_page2;
 
-    tb_invalidated_flag = 0;
-
     /* find translated block using physical mappings */
     phys_pc = get_page_addr_code(env, pc);
     phys_page1 = phys_pc & TARGET_PAGE_MASK;
@@ -347,8 +345,10 @@ static bool process_interrupt_request(CPUArchState *env) {
             int intno;
 
             svm_check_intercept(env, SVM_EXIT_INTR);
-            env->interrupt_request &= ~(CPU_INTERRUPT_HARD | CPU_INTERRUPT_VIRQ);
+            env->interrupt_request &= ~CPU_INTERRUPT_VIRQ;
 
+            /* This clears the request of the source that supplies the vector.
+               The request of the other source stays pending. */
             intno = cpu_get_pic_interrupt(env);
             assert(intno >= 0);
 
@@ -456,7 +456,8 @@ static bool execution_loop(CPUArchState *env) {
             ltb = NULL;
         }
 
-        if (env->kvm_request_interrupt_window && (env->mflags & IF_MASK)) {
+        /* The window is closed during an interrupt shadow, it opens after the next instruction */
+        if (env->kvm_request_interrupt_window && (env->mflags & IF_MASK) && !(env->hflags & HF_INHIBIT_IRQ_MASK)) {
             env->kvm_request_interrupt_window = 0;
             return true;
         }

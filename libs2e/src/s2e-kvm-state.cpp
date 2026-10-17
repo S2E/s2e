@@ -309,13 +309,14 @@ int VCPU::setSystemRegisters(kvm_sregs *sregs) {
     m_env->cr[3] = sregs->cr3;
     m_env->cr[4] = sregs->cr4;
 
-    m_vapic.set_tpr(sregs->cr8 << 4);
+    set_tpr(sregs->cr8 << 4);
 
     if (sregs->apic_base) {
-        m_vapic.set_apic_base(sregs->apic_base);
+        set_apic_base(sregs->apic_base);
     }
 
     m_env->efer = sregs->efer;
+
     m_env->hflags = cpu_compute_hflags(m_env);
 
     return 0;
@@ -520,8 +521,8 @@ int VCPU::getSystemRegisters(kvm_sregs *sregs) {
     sregs->cr3 = m_env->cr[3];
     sregs->cr4 = m_env->cr[4];
 
-    sregs->apic_base = m_vapic.get_apic_base();
-    sregs->cr8 = m_vapic.get_tpr() >> 4;
+    sregs->apic_base = get_apic_base();
+    sregs->cr8 = get_tpr() >> 4;
 
     sregs->efer = m_env->efer;
     return 0;
@@ -541,6 +542,99 @@ int VCPU::setDebugRegs(kvm_debugregs *dregs) {
     m_env->dr[6] = dregs->dr6;
     m_env->dr[7] = dregs->dr7;
     return 0;
+}
+
+///
+/// The functions below check the cpu state that the kvm client writes while
+/// it handles a device state snapshot. The symbolic execution engine manages
+/// that state itself and ignores what the client writes. The copy of the client
+/// must nevertheless match the concrete state of the engine, the client may rely
+/// on it internally. A discrepancy is a bug in the state handling, it is safer
+/// to abort than to let the guest run with it.
+///
+static void check_client_value(const char *name, unsigned index, uint64_t client, uint64_t engine) {
+    if (client != engine) {
+        fprintf(stderr, "libs2e: kvm client has %s[%#x]=%#" PRIx64 " but the cpu has %#" PRIx64 "\n", name, index,
+                client, engine);
+        abort();
+    }
+}
+
+static void check_client_segment(const char *name, const kvm_segment &client, const kvm_segment &engine) {
+    // The client decides by itself if a segment is unusable
+    bool same = client.selector == engine.selector && client.base == engine.base && client.limit == engine.limit &&
+                client.type == engine.type && client.present == engine.present && client.dpl == engine.dpl &&
+                client.db == engine.db && client.s == engine.s && client.l == engine.l && client.g == engine.g &&
+                client.avl == engine.avl;
+    if (same) {
+        return;
+    }
+
+    auto print = [name](const char *owner, const kvm_segment &seg) {
+        fprintf(stderr,
+                "libs2e: %s has %s selector=%#x base=%#" PRIx64 " limit=%#x type=%d present=%d dpl=%d db=%d s=%d "
+                "l=%d g=%d avl=%d\n",
+                owner, name, seg.selector, (uint64_t) seg.base, seg.limit, seg.type, seg.present, seg.dpl, seg.db,
+                seg.s, seg.l, seg.g, seg.avl);
+    };
+
+    print("kvm client", client);
+    print("the cpu", engine);
+    abort();
+}
+
+void VCPU::check_registers(const kvm_regs *regs) const {
+    // The other registers may be symbolic, the client does not have them
+    check_client_value("rip", 0, regs->rip, m_env->eip);
+    check_client_value("rflags", 0, regs->rflags, m_env->mflags);
+}
+
+void VCPU::check_system_registers(const kvm_sregs *sregs) {
+    kvm_sregs engine;
+    getSystemRegisters(&engine);
+
+    check_client_segment("cs", sregs->cs, engine.cs);
+    check_client_segment("ds", sregs->ds, engine.ds);
+    check_client_segment("es", sregs->es, engine.es);
+    check_client_segment("fs", sregs->fs, engine.fs);
+    check_client_segment("gs", sregs->gs, engine.gs);
+    check_client_segment("ss", sregs->ss, engine.ss);
+    check_client_segment("tr", sregs->tr, engine.tr);
+    check_client_segment("ldt", sregs->ldt, engine.ldt);
+
+    check_client_value("idt.base", 0, sregs->idt.base, engine.idt.base);
+    check_client_value("idt.limit", 0, sregs->idt.limit, engine.idt.limit);
+    check_client_value("gdt.base", 0, sregs->gdt.base, engine.gdt.base);
+    check_client_value("gdt.limit", 0, sregs->gdt.limit, engine.gdt.limit);
+
+    check_client_value("cr", 0, sregs->cr0, engine.cr0);
+    check_client_value("cr", 2, sregs->cr2, engine.cr2);
+    check_client_value("cr", 3, sregs->cr3, engine.cr3);
+    check_client_value("cr", 4, sregs->cr4, engine.cr4);
+    check_client_value("cr", 8, sregs->cr8, engine.cr8);
+    check_client_value("efer", 0, sregs->efer, engine.efer);
+    check_client_value("apic_base", 0, sregs->apic_base, engine.apic_base);
+}
+
+void VCPU::check_debug_registers(const kvm_debugregs *dregs) const {
+    for (int i = 0; i < 4; ++i) {
+        check_client_value("dr", i, dregs->db[i], m_env->dr[i]);
+    }
+    check_client_value("dr", 6, dregs->dr6, m_env->dr[6]);
+    check_client_value("dr", 7, dregs->dr7, m_env->dr[7]);
+}
+
+int VCPU::set_device_state_msrs(const kvm_msrs *msrs) {
+    for (unsigned i = 0; i < msrs->nmsrs; ++i) {
+        const auto &entry = msrs->entries[i];
+        if (entry.index == MSR_IA32_APICBASE) {
+            // The lapic is a device, the client restores its base with this msr
+            set_apic_base(entry.data);
+        } else {
+            check_client_value("msr", entry.index, entry.data, helper_rdmsr_v(entry.index));
+        }
+    }
+    return msrs->nmsrs;
 }
 
 int VCPU::getDebugRegs(kvm_debugregs *dregs) {

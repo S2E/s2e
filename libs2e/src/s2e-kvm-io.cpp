@@ -96,7 +96,7 @@ uint64_t s2e_kvm_mmio_read(target_phys_addr_t addr, unsigned size) {
         abort_and_retranslate_if_needed();
     }
 
-    g_kvm_vcpu_buffer->exit_reason = KVM_EXIT_MMIO;
+    set_exit_reason(KVM_EXIT_MMIO);
     g_kvm_vcpu_buffer->mmio.is_write = 0;
     g_kvm_vcpu_buffer->mmio.phys_addr = addr;
     g_kvm_vcpu_buffer->mmio.len = size;
@@ -150,7 +150,7 @@ void s2e_kvm_mmio_write(target_phys_addr_t addr, uint64_t data, unsigned size) {
 
     ++g_stats.mmio_writes;
 
-    g_kvm_vcpu_buffer->exit_reason = KVM_EXIT_MMIO;
+    set_exit_reason(KVM_EXIT_MMIO);
     g_kvm_vcpu_buffer->mmio.is_write = 1;
     g_kvm_vcpu_buffer->mmio.phys_addr = addr;
     g_kvm_vcpu_buffer->mmio.len = size;
@@ -198,7 +198,7 @@ void s2e_kvm_mmio_write(target_phys_addr_t addr, uint64_t data, unsigned size) {
 uint64_t s2e_kvm_ioport_read(pio_addr_t addr, unsigned size) {
     ++g_stats.io_reads;
 
-    g_kvm_vcpu_buffer->exit_reason = KVM_EXIT_IO;
+    set_exit_reason(KVM_EXIT_IO);
     g_kvm_vcpu_buffer->io.direction = KVM_EXIT_IO_IN;
     g_kvm_vcpu_buffer->io.size = size;
     g_kvm_vcpu_buffer->io.port = addr;
@@ -241,7 +241,7 @@ void s2e_kvm_ioport_write(pio_addr_t addr, uint64_t data, unsigned size) {
 
     ++g_stats.io_writes;
 
-    g_kvm_vcpu_buffer->exit_reason = KVM_EXIT_IO;
+    set_exit_reason(KVM_EXIT_IO);
     g_kvm_vcpu_buffer->io.direction = KVM_EXIT_IO_OUT;
     g_kvm_vcpu_buffer->io.size = size;
     g_kvm_vcpu_buffer->io.port = addr;
@@ -273,41 +273,19 @@ void s2e_kvm_ioport_write(pio_addr_t addr, uint64_t data, unsigned size) {
 }
 
 static uint64_t s2e_apic_get_base(CPUX86State *env) {
-    auto vcpu = VCPU::current();
-    if (auto lapic = vcpu->lapic()) {
-        return lapic->get_apic_base();
-    }
-    return vcpu->vapic().get_apic_base();
+    return VCPU::current()->get_apic_base();
 }
 
 static void s2e_apic_set_base(CPUX86State *env, uint64_t new_base) {
-    auto vcpu = VCPU::current();
-    if (auto lapic = vcpu->lapic()) {
-        lapic->set_apic_base(new_base);
-        if (!g_s2e_kvm->vm()->dev_mgr().rebase_device(new_base & ~0xfffULL, lapic)) {
-            fprintf(stderr, "Failed to rebase LAPIC to %#" PRIx64 "\n", new_base);
-            abort();
-        }
-    } else {
-        vcpu->vapic().set_apic_base(new_base);
-    }
+    VCPU::current()->set_apic_base(new_base);
 }
 
 static uint64_t s2e_apic_get_tpr(CPUX86State *env) {
-    auto vcpu = VCPU::current();
-    if (auto lapic = vcpu->lapic()) {
-        return lapic->get_tpr();
-    }
-    return vcpu->vapic().get_tpr();
+    return VCPU::current()->get_tpr();
 }
 
 static void s2e_apic_set_tpr(CPUX86State *env, uint64_t new_tpr) {
-    auto vcpu = VCPU::current();
-    if (auto lapic = vcpu->lapic()) {
-        lapic->set_tpr(new_tpr);
-    } else {
-        vcpu->vapic().set_tpr(new_tpr);
-    }
+    VCPU::current()->set_tpr(new_tpr);
 }
 
 struct cpu_io_funcs_t g_io = {

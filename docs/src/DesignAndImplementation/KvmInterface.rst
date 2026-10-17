@@ -439,8 +439,8 @@ Requirement - Mandatory for a KVM emulation engine that supports multi-path exec
         __u8 is_write;
     };
 
-This command should only be called when KVM_RUN returns the ``KVM_EXIT_SAVE_DEV_STATE`` or
-``KVM_EXIT_RESTORE_DEV_STATE`` exit code.
+This command should only be called while handling the ``KVM_SWITCH_STATE_SAVE_DEV_STATE`` or
+``KVM_SWITCH_STATE_RESTORE_DEV_STATE`` step of a ``KVM_EXIT_SWITCH_STATE`` exit (see `KVM_RUN exit codes`_).
 
 When saving a device snapshot (``is_write = 1``), only ``buffer`` and ``size`` are valid. ``buffer`` must point to a host
 virtual address containing the state of all virtual devices. The KVM client  must call ``KVM_DEV_SNAPSHOT`` only once.
@@ -450,6 +450,30 @@ When restoring a device snapshot (``is_write = 0``), the commands allows reading
 saved. ``pos`` and ``size`` must be set to read the desired chunk of data. The KVM client must call ``KVM_DEV_SNAPSHOT``
 multiple times. The call returns the number of bytes effectively read, which may be smaller than ``size`` in case
 the specified range exceeds the amount of data in the snapshot.
+
+
+Continuing a state switch
+-------------------------
+
+=========== ========================================================================
+Command     KVM_SWITCH_STATE_CONTINUE
+Capability  None
+Requirement - Mandatory for a KVM emulation engine that supports multi-path execution
+            - Optional for single-path implementations
+=========== ========================================================================
+
+This command is a virtual CPU command that takes no parameters. The KVM client calls it after it completed a step of a
+state switch that the KVM emulation engine requested with the ``KVM_EXIT_SWITCH_STATE`` exit code. The KVM emulation
+engine then resumes the state switch until it needs the client again or until the switch is over. When the command
+returns successfully, ``kvm_run.switch_state.step`` contains the next step that the client must perform.
+See the description of ``KVM_EXIT_SWITCH_STATE`` in `KVM_RUN exit codes`_ for the complete protocol.
+
+The command fails with ``EINVAL`` if there is no state switch in progress, i.e., if the last exit code was not
+``KVM_EXIT_SWITCH_STATE``. It fails with ``EINTR`` if the KVM emulation engine is terminating.
+
+The client must not call this command after it got the ``KVM_SWITCH_STATE_DONE`` step. The state switch is over at that
+point and the client must call ``KVM_RUN`` to resume the guest. The KVM emulation engine does not detect this error and
+its behavior is undefined.
 
 
 Setting the clock scale pointer
@@ -485,34 +509,64 @@ When the KVM_RUN command exits, it indicates to the KVM client the reason of the
 addition to the standard codes, the KVM emulation engine adds the following exit codes. They should be implemented by
 any client that supports multi-path execution.
 
-``KVM_EXIT_FLUSH_DISK``
+``KVM_EXIT_SWITCH_STATE``
 
-    This exit code indicates to the client that it must flush any buffers associated with virtual disks.
-    The client should call ``KVM_DISK_RW`` in order to flush any in-progress transfers before invoking ``KVM_RUN`` again.
+    This exit code indicates to the client that the KVM emulation engine is forking a new execution path or switching
+    to another one, and that it needs the client to perform one or more steps on its behalf. The step to perform is in
+    ``kvm_run.switch_state.step``.
 
-    The KVM emulation engine returns this code when it is ready to fork a new execution path or in any other case where
-    it needs the disk state to be consistent.
+    .. code-block:: c
 
-    Implementing this code is optional if the client does not support virtual disks.
+        /* KVM_EXIT_SWITCH_STATE */
+        struct {
+            __u32 step;
+        } switch_state;
 
+    The client must handle this exit code as follows:
 
-``KVM_EXIT_SAVE_DEV_STATE``
+    1. Perform the step specified in ``kvm_run.switch_state.step``.
+    2. Call ``KVM_SWITCH_STATE_CONTINUE`` on the virtual CPU. This updates ``kvm_run.switch_state.step``.
+    3. Repeat until the step is ``KVM_SWITCH_STATE_DONE``, then invoke ``KVM_RUN`` again.
 
-    This exit code indicates to the client that it must take a snapshot of all virtual devices and send the
-    snapshot data to the KVM emulation engine using the ``KVM_DEV_SNAPSHOT`` command.
+    The whole sequence must be atomic for the client. The client must not do anything else with the virtual machine
+    between the moment ``KVM_RUN`` returns and the moment it gets ``KVM_SWITCH_STATE_DONE``. In particular, it must not
+    let other threads run device emulation code, inject interrupts, or access guest memory, as they would otherwise
+    observe a mix of two execution paths. In practice, the client holds its global lock for the entire duration of the
+    sequence. The KVM emulation engine may request any number of steps, in any order, before it completes the switch.
 
-    The KVM emulation engine returns this code when it is ready to fork a new execution path or wants to switch to
-    another execution path. In either case, it needs the virtual device state to be committed to the per-state storage
-    before continuing.
+    The steps are as follows.
 
+    ``KVM_SWITCH_STATE_FLUSH_DISK``
 
-``KVM_EXIT_RESTORE_DEV_STATE``
+        The client must flush any buffers associated with virtual disks. It should call ``KVM_DISK_RW`` in order to
+        flush any in-progress transfers.
 
-    This exit code indicates to the client that it must restore a snapshot of all virtual devices after reading
-    the snapshot data from the KVM emulation engine by using the ``KVM_DEV_SNAPSHOT`` command.
+        The KVM emulation engine requests this step when it is ready to fork a new execution path or in any other case
+        where it needs the disk state to be consistent.
 
-    The KVM emulation engine returns this code when it wants to switch to another execution path and needs the client
-    to restore the associated virtual device state.
+        This step requires no action if the client does not support virtual disks.
+
+    ``KVM_SWITCH_STATE_SAVE_DEV_STATE``
+
+        The client must take a snapshot of all virtual devices and send the snapshot data to the KVM emulation engine
+        using the ``KVM_DEV_SNAPSHOT`` command.
+
+        The KVM emulation engine requests this step when it is ready to fork a new execution path or wants to switch to
+        another execution path. In either case, it needs the virtual device state to be committed to the per-state
+        storage before continuing.
+
+    ``KVM_SWITCH_STATE_RESTORE_DEV_STATE``
+
+        The client must restore a snapshot of all virtual devices after reading the snapshot data from the KVM
+        emulation engine by using the ``KVM_DEV_SNAPSHOT`` command.
+
+        The KVM emulation engine requests this step when it wants to switch to another execution path and needs the
+        client to restore the associated virtual device state.
+
+    ``KVM_SWITCH_STATE_DONE``
+
+        The state switch is over. There is nothing to do for the client, which must leave its handler and invoke
+        ``KVM_RUN`` again.
 
 
 ``KVM_EXIT_CLONE_PROCESS``
