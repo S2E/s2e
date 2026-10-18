@@ -57,6 +57,7 @@ add_custom_target(
     clang-19 ${CMAKE_CURRENT_SOURCE_DIR}/target-i386/op_helper.c -c ${BC_FLAGS} -o ${CMAKE_CURRENT_BINARY_DIR}/op_helper-org.bc
     COMMAND clang-19 ${CMAKE_CURRENT_SOURCE_DIR}/accel/cputlb.c -c ${BC_FLAGS} -o ${CMAKE_CURRENT_BINARY_DIR}/cputlb.bc
     COMMAND llvm-link-19 ${CMAKE_CURRENT_BINARY_DIR}/op_helper-org.bc ${CMAKE_CURRENT_BINARY_DIR}/cputlb.bc ${LIBTCG_DIR}/src/softfloat.bc -o ${CMAKE_CURRENT_BINARY_DIR}/op_helper.bc
+    COMMAND ${CMAKE_COMMAND} -DLLVM_DIS=llvm-dis-19 -DBITCODE=${CMAKE_CURRENT_BINARY_DIR}/op_helper.bc -P ${CMAKE_CURRENT_SOURCE_DIR}/check-no-inline-asm.cmake
     DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/target-i386/op_helper.c ${CMAKE_CURRENT_SOURCE_DIR}/accel/cputlb.c
 )
 
