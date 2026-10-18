@@ -7,9 +7,10 @@ KVM-shim architecture and leaving symbolic execution to land on top afterwards.
 
 Measured against `~/softs/qemu` at `v11.1.0` and this tree at `9982579d`. Work that
 has landed since is marked **Done** in the phase it belongs to; the state
-management half of the TLB work (`tlb-update.md`) and the move of the
-execution fields out of `CPUX86State` are in, so phases 1, 2 and 4 are
-lighter than the estimates below.
+management half of the TLB work (`tlb-update.md`), the move of the
+execution fields out of `CPUX86State`, and the replacement of the softmmu with
+upstream's `cputlb.c` (`softmmu-update.md`) are in, so phases 1, 2, 4 and 6
+are lighter than the estimates below.
 
 | | |
 |---|---|
@@ -401,8 +402,12 @@ codebase.
 - Write the memory shim: upstream's `iotlb_to_section`,
   `memory_region_dispatch_*`, `qemu_ram_addr_from_host*` and the dirty-tracking
   predicates, expressed over `MemoryDesc` and `exec-ram.h`.
+  Done for what `cputlb.c` needs: `cpu/memory.h` defines `MemoryRegion` and
+  `MemoryRegionSection` over `MemoryDesc`, and `src/s2e/cputlb-deps.h`
+  implements the memory API and dirty tracking on top of them.
 - Write the stub headers: BQL, icount, replay, plugins, `tcg_enabled()`,
-  target-info.
+  target-info. Done for `cputlb.c`, in `src/s2e/cputlb-deps.h`. The other
+  imported files will need more of them.
 
 **Exit:** the substrate compiles standalone against libtcg. A small unit test
 drives qht insert/lookup/remove/resize.
@@ -416,18 +421,23 @@ drives qht insert/lookup/remove/resize.
   `ldst_common.c.inc`, `ldst_atomicity.c.inc`, and the atomic helpers
   `atomic_common.c.inc` / `atomic_template.h` that `cputlb.c` pulls in
   (`tcg-runtime*` already lives in libtcg).
+  Done for the softmmu (`softmmu-update.md`): `cputlb.c`, `tlb-bounds.h`,
+  `ldst_common.c.inc`, `ldst_atomicity.c.inc`, `atomic_common.c.inc` and
+  `atomic_template.h` are imported. `internal-common.h` and `backend-ldst.h`
+  are not: `src/s2e/cputlb-deps.h` provides the little that `cputlb.c` uses
+  from them. `watchpoint.c` is not imported either, and `exec-bp.c` implements
+  the two functions `cputlb.c` calls.
 - Rewrite the eight `MemoryRegion` touch points in `cputlb.c` against the phase 1
-  shim.
-- Apply the TLB decisions from section 9: disable the victim TLB, move S2E's flag
-  bits into `slow_flags[]`, and move `objectState` into `CPUTLBEntryFull`.
-  `tlb-update.md` has landed, so the ownership half of this is done and
-  `cputlb.c` imports without S2E-side surprises. Bring
-  `libtcg/include/tcg/tlb.h` forward to the 11.1 flag scheme at the same time. It
-  is an S2E-original that was never upgraded and still describes the pre-11.1
-  bit allocation.
-- Delete `cpu-exec.c`, `exec.c`, `exec-tb.c`, `exec-tlb.c`, `exec-phystb.c`,
-  `exec-bp.c`, `translate-all.c`, `softmmu_*.h`, `cpu-all.h`, `cpu-defs.h`,
-  `exec-all.h`.
+  shim. Done differently: `cputlb.c` keeps upstream's text, and the shim
+  provides the memory API it calls.
+- Apply the TLB decisions from section 9: disable the victim TLB, give S2E's
+  flags their own bits, and move `objectState` into `CPUTLBEntryFull`. Done.
+  The flags went into the comparator rather than into `slow_flags[]` (see 9.6).
+  `libtcg/include/tcg/tlb.h` is gone: `tlb-common.h` and `tlb-flags.h`
+  replace it.
+- Delete `cpu-exec.c`, `exec.c`, `exec-tb.c`, `exec-phystb.c`, `exec-bp.c`,
+  `translate-all.c`, `cpu-all.h`, `cpu-defs.h`, `exec-all.h`. `exec-tlb.c` and
+  `softmmu_*.h` are already gone.
 - Reconcile `libtcg/include/tcg/tb.h` with upstream's `TranslationBlock`: the S2E
   copy has drifted (it still carries `phys_hash_next` and `page_next` from the
   pre-qht era, alongside 11.1's `jmp_*` fields).
@@ -483,15 +493,16 @@ off, in both release and debug trees.
   restore because it belongs to the host call stack doing the switch. What
   remains here is renaming the S2E-only fields upstream does not have
   (`current_tb`, `se_current_tb`, `translate_single_instruction`,
-  `se_tb_abort`, `generate_llvm`, `mem_io_vaddr`) onto their 11.1
-  equivalents where one exists (`cflags_next_tb`, `tcg_tb_lookup()`).
+  `se_tb_abort`, `generate_llvm`) onto their 11.1 equivalents where one
+  exists (`cflags_next_tb`, `tcg_tb_lookup()`). `mem_io_vaddr` is already
+  gone: upstream's softmmu passes the address directly.
 - Map libcpu's exit reasons onto `kvm_run` as before; `cpu_x86_exec()` keeps its
   shape, `cpu_exec()` gains upstream's `cpu_exec_setjmp` structure.
 - Re-derive `cpu_get_pic_interrupt()`, `do_cpu_init()`, `cpu_state_reset()`
   against the new state layout, including `cpu_init_fp_statuses()`, which must
   run after every reset memset.
-- Done: the TLB, `se_ram_tlb`, `se_tlb_current` and `tb_jmp_cache` are out of
-  the snapshotted region and flushed in `doStateSwitch()` after the new state
+- Done: the TLB, `se_ram_tlb` and `tb_jmp_cache` are out of the snapshotted
+  region and flushed in `doStateSwitch()` after the new state
   is activated and `g_se_disable_tlb_flush` is cleared. Still open: collapsing
   the per-state `S2EExecutionStateTlb` into executor-owned data; today the
   class stays per state and asserts that an inactive state's map is empty.
@@ -534,12 +545,15 @@ against a recorded trace from the pre-port build.
   `env->field` access inside a helper translation unit.
 - Re-add the symbolic softmmu: the `TLB_SYMB` / `TLB_NOT_OURS` / `TLB_MEM_TRACE`
   paths, `objectState` plumbing, and `g_sqi.mem.*` hooks, now inside upstream's
-  `do_ld_mmu` / `do_st_mmu` rather than `softmmu_template.h`.
+  `do_ld_mmu` / `do_st_mmu` rather than `softmmu_template.h`. Done, on the
+  current tree, ahead of the other phases (`softmmu-update.md`).
 - Rebuild the bitcode target. `op_helper.c` was one translation unit compiled to
   `op_helper.bc`; upstream's helpers are twelve files, so either `llvm-link` them
-  all or add a unity `.c` that includes them. Note the ld/st helper names
-  changed upstream (the 32-bit load is `helper_ldul_mmu`); the KLEE-side
-  handlers and handler tables must follow.
+  all or add a unity `.c` that includes them. The ld/st helpers already have
+  upstream's names, and `cputlb.c` is already compiled to bitcode and linked
+  into `op_helper.bc`. The phase 3 helpers pass `GETPC()` to the softmmu, so
+  `se_mmu_resolve()` will select `switch_to_symbolic()` for them
+  (`softmmu-update.md` hazard 5.6).
 - Check `tcg-llvm.cpp`'s opcode switch against 11.1's `tcg-opc.h`, and re-verify
   the `se_addend` / `fast_concrete_invocation` invariants end to end. Keep in
   mind `se_addend` is a native-execution concern only: the bitcode softmmu path
@@ -882,31 +896,27 @@ rather than an allocator hook. The same argument then carried the rest of
 
 ### 9.6 What still has to be pinned or checked
 
-Nothing about the TLB size remains open. What remains from the earlier
-analysis:
+The softmmu replacement (`softmmu-update.md`) settled most of this section:
 
-- **S2E's flags go in `CPUTLBEntryFull.slow_flags[]`** (bits 5, 6, 7 are free,
-  exactly the three S2E needs; `TLB_MMIO` moved into the slow set at bit 4,
-  which is why only three remain), driven by `TLB_FORCE_SLOW`. No new fast-path
-  bit, no change to `TLB_FLAGS_MASK`, no codegen change. `softmmu_header.h` and
-  the KLEE-side handlers change from testing `tlb_entry->addr_read & TLB_SYMB`
-  to `full->slow_flags[MMU_DATA_LOAD] & TLB_SYMB`.
-- **`se_addend` stays in `CPUTLBEntry`** (the backend loads it inline on the hit
-  path); **`objectState` moves to `CPUTLBEntryFull`** (only the helpers read it).
-  `CPUTLBEntry` becomes upstream's union, including `addr_idx[]`, whose layout
-  `tlb_read_idx()` asserts.
-- **`NB_MMU_MODES`**: x86 uses 8 against S2E's 2. This no longer costs snapshot
-  bytes, but it still multiplies `tlb_init()` allocations and the
-  `clearTlbOwnership` / `audit` sweeps. Declare it as x86's 8 rather than
-  inheriting upstream's 22-mode maximum.
-- **The `CPUTLBDescFast` index convention** must match between libtcg's
-  `tlb_mask_table_ofs()` and upstream's `mmuidx_to_fast_index()`. See section 8.
-- **`se_tlb_current`** is a cached `CPUTLBEntry *`, written by the softmmu IO
-  path and read from bitcode. It now sits next to the TLB in
-  `CPUNegativeOffsetState`, so it lives and dies with the tables; under the
-  arena option it would still have to be rebased or demoted to an index when
-  the in-use sub-range changes.
-- **`libtcg/include/tcg/tlb.h`** is an S2E-original that was never brought
-  forward and still describes the pre-11.1 flag scheme (including `TLB_RECHECK`,
-  removed upstream in 4.1, and a `TLB_FLAGS_MASK` that omits `TLB_MEM_TRACE`).
-  It has to be fixed regardless of anything else here.
+- **S2E's flags.** `TLB_SYMB`, `TLB_NOT_OURS` and `TLB_MEM_TRACE` are bits 9 to
+  11 of the comparator, inside `TLB_FLAGS_MASK`. They cannot go in
+  `slow_flags[]`: the lookup merges the slow flags with the comparator flags
+  (bits 6 to 8) into one value, which leaves only bit 5 free. That bit holds
+  `TLB_SYMB_MMIO`, which is known when the entry is filled. Any nonzero bit
+  below the page mask fails the inline compare, so the backend is unchanged.
+- **`se_addend` stays in `CPUTLBEntry`**, and **`objectState` is in
+  `CPUTLBEntryFull`**. `CPUTLBEntry` is upstream's union, 64 bytes in symbex
+  builds.
+- **The `CPUTLBDescFast` index convention** is not inverted: `cputlb.c`
+  reaches `f[]` only through `cpu_tlb_fast()` in `state.h`, which agrees with
+  libtcg's `tlb_mask_table_ofs()`.
+- **`se_tlb_current`** and **`libtcg/include/tcg/tlb.h`** are gone.
+
+What remains:
+
+- **`NB_MMU_MODES`**: x86 uses 8 against S2E's 2. It is still 2, and
+  `cputlb.c` does not depend on the number, so it changes with the phase 3
+  frontend. This no longer costs snapshot bytes, but it multiplies the static
+  tables in `CPUNegativeOffsetState` and the `clearTlbOwnership` / `audit`
+  sweeps. Declare it as x86's 8 rather than inheriting upstream's 22-mode
+  maximum.

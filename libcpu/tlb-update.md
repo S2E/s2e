@@ -393,3 +393,8 @@ otherwise have to be debugged simultaneously with a 43k-line import.
 After this lands, `PORTING.md` phase 2's TLB work reduces to importing
 `cputlb.c` and mapping `CPUTLBEntryFull` onto `MemoryDesc`, with the state
 management already in the shape the imported code expects.
+
+That import has landed (`softmmu-update.md`). It brought upstream's
+`CPUTLBEntryFull`, flag allocation and dynamic sizing code, with the size
+pinned to `CPU_TLB_SIZE` entries and the victim TLB disabled. `NB_MMU_MODES`
+is still 2.

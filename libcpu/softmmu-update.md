@@ -14,10 +14,10 @@ kept working throughout. The reasoning is the same as for `tlb-update.md`. The
 softmmu is the part of `accel/tcg` most entangled with S2E, so it is easier to
 validate on a tree that still boots than in the middle of the larger import.
 
-**Status: implemented, not validated.** Steps 1 to 4 are in the tree and all
-six targets build. No guest has been booted on it yet, so the exit criteria of
-step 3 are still open. The code differs from the plan below in the following
-places. Where the two disagree, the code is the reference.
+**Status: landed.** Steps 1 to 4 are in the tree, all six targets build, and
+guests boot and pass the testsuite on them. The code differs from the plan
+below in the following places. Where the two disagree, the code is the
+reference.
 
 - **Memory model (deviation 1).** `cputlb.c` keeps upstream's text for the
   memory API. `cpu/memory.h` defines a small `MemoryRegion` and
@@ -66,7 +66,19 @@ places. Where the two disagree, the code is the reference.
   symbolic hardware.
 - **Hazard 5.3.** `required_atomicity()` is not redirected. `cputlb.c` only
   reaches it through `load_atom_N()` and `store_atom_N()`, which are. The
-  16-byte entry points stay in the bitcode build.
+  16-byte entry points stay in the bitcode build. A 16-byte access to a RAM
+  page runs in bitcode. One to a device page calls the native
+  `do_ld16_mmio_beN()` or `do_st16_mmio_leN()`. They are not registered with
+  KLEE, which cannot pass their `Int128` to native code, so KLEE stops with an
+  error if a guest reaches them. `tcg-llvm.cpp` aborts on a 128-bit memory
+  operation.
+- **Hazard 5.1.** The existing assertion on `sizeof(CPUTLBEntry)` also
+  catches `se_addend` not fitting in the entry. Every user of the field goes
+  through its name or `offsetof()`, so there is no separate assertion.
+- **Probes.** `x86_cpu_tlb_fill()` calls `cpu_abort()` when a probe faults.
+  `cpu_x86_handle_mmu_fault()` records the fault in CR2 (or the VMCB) before
+  it returns, which a probe must not do. Nothing probes yet. The phase 3
+  frontend replaces the page walk.
 - **Bitcode build.** Five `#ifndef SYMBEX_LLVM_LIB` regions remove the
   native-only code, and `SE_TCG_OPS()` / `SE_TCG_OP()` select the bitcode
   copies of the target hooks.
@@ -79,8 +91,8 @@ places. Where the two disagree, the code is the reference.
   the map references.
 - **Step 4.** The static translator code was dead and has been removed
   (`tools/include/Translator/` and every `STATIC_TRANSLATOR` conditional).
-  The `ld*_raw_symb` accessors in `cpu-all.h` are still there, unused.
-  `PORTING.md` and `tlb-update.md` have not been updated yet.
+  Removing the `ld*_raw_symb` accessors also removed their only use of
+  `g_sqi.mem.read_ram_concrete_check`, which is gone from the interface.
 
 
 ## 1. The softmmu today
