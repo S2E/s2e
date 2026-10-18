@@ -42,6 +42,7 @@
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/GetElementPtrTypeIterator.h"
+#include "llvm/IR/InlineAsm.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/Module.h"
@@ -795,7 +796,9 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
                         i++;
                     }
                 } else if (isa<InlineAsm>(fp)) {
-                    throw LLVMExecutorException("inline assembly is unsupported");
+                    throw LLVMExecutorException("inline assembly is unsupported: \"" +
+                                                cast<InlineAsm>(fp)->getAsmString() + "\" in function " +
+                                                i->getFunction()->getName().str());
                     break;
                 }
             }
