@@ -30,9 +30,12 @@
 #include <fstream>
 
 #include <s2e/Utils.h>
+#include <s2e/s2e_log.h>
 
 // stacktrace.h (c) 2008, Timo Bingmann from http://idlebox.net/
 // published under the WTFPL v2.0
+
+extern "C" {
 
 /** Print a demangled stack backtrace of the caller function to FILE* out. */
 void print_stacktrace(void (*print_func)(const char *fmt, ...), const char *reason) {
@@ -102,6 +105,7 @@ void print_stacktrace(void (*print_func)(const char *fmt, ...), const char *reas
 
     free(funcname);
     free(symbollist);
+}
 }
 
 namespace s2e {
