@@ -31,7 +31,8 @@ from curses.ascii import isgraph
 
 g_cpu_env = 'g_cpu_env'
 
-CPU_TLB_SIZE = 256
+CPU_TLB_ENTRY_BITS = 6
+NB_MMU_MODES = 2
 TARGET_PAGE_BITS = 12
 TARGET_PAGE_SIZE = 1 << TARGET_PAGE_BITS
 TARGET_PAGE_MASK = ~(TARGET_PAGE_SIZE - 1)
@@ -191,11 +192,19 @@ class X86CPU(object):
         base = self.segs[seg]['base']
         return int(base + addr)
 
+    def get_tlb_fast(self, mmu_idx):
+        # The TLB is in the CPUState that precedes env in ArchCPU.
+        cpu = gdb.parse_and_eval('(ArchCPU *) ((char *) %s - (unsigned long) &((ArchCPU *) 0)->env)' % g_cpu_env)
+        fast = cpu['parent_obj']['neg']['tlb']['f'][mmu_idx]
+        size = (int(fast['mask']) >> CPU_TLB_ENTRY_BITS) + 1
+        return fast['table'], size
+
     def virt_to_host_tlb(self, addr):
         mmu_idx = 0
-        index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1)
-        tlb_entry = self.env['tlb_table'][mmu_idx][index]
-        if tlb_entry['addend'] == -1:
+        table, size = self.get_tlb_fast(mmu_idx)
+        index = (addr >> TARGET_PAGE_BITS) & (size - 1)
+        tlb_entry = table[index]
+        if int(tlb_entry['addr_read']) & TARGET_PAGE_MASK != addr & TARGET_PAGE_MASK:
             raise Exception('Address %x is not mapped' % addr)
 
         # TODO: check if we run in S2E mode or not
@@ -212,20 +221,21 @@ class X86CPU(object):
         return read_virt_memory(cr0, cr3, vaddr, count)
 
     def dump_tlb(self):
-        tlb_table = self._env['tlb_table']
-        for i in range(0, CPU_TLB_SIZE):
-            tlb_entry = tlb_table[0][i]
-            if tlb_entry['addend'] == -1:
-                continue
+        for mmu_idx in range(0, NB_MMU_MODES):
+            table, size = self.get_tlb_fast(mmu_idx)
+            for i in range(0, size):
+                tlb_entry = table[i]
+                if tlb_entry['addend'] == -1:
+                    continue
 
-            line = '0x{0:02x} read=0x{1:08x} write=0x{2:08x} code=0x{3:08x} addend=0x{4:x}'.format(
-                i, int(tlb_entry['addr_read']),
-                int(tlb_entry['addr_write']),
-                int(tlb_entry['addr_code']),
-                int(tlb_entry['addend'])
-            )
+                line = '{0} 0x{1:03x} read=0x{2:08x} write=0x{3:08x} code=0x{4:08x} addend=0x{5:x}'.format(
+                    mmu_idx, i, int(tlb_entry['addr_read']),
+                    int(tlb_entry['addr_write']),
+                    int(tlb_entry['addr_code']),
+                    int(tlb_entry['addend'])
+                )
 
-            print(line)
+                print(line)
 
     def dump_regs(self):
         print('eip=%#010x (%#010x)' % (self.pc, self.pc_linear))
