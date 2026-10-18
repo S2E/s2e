@@ -318,7 +318,6 @@ int VCPU::setSignalMask(kvm_signal_mask *mask) {
 void VCPU::coroutineFcn(void *opaque) {
     VCPU *vcpu = reinterpret_cast<VCPU *>(opaque);
     CPUX86State *env = vcpu->m_env;
-    auto buffer = vcpu->m_cpuBuffer;
 
     while (1) {
         if (!vcpu->m_task_runner.run_on_thread()) {
@@ -328,8 +327,6 @@ void VCPU::coroutineFcn(void *opaque) {
         libcpu_run_all_timers();
 
         assert(env_cpu(env)->current_tb == NULL);
-
-        env->kvm_request_interrupt_window |= buffer->request_interrupt_window;
 
         vcpu->m_cpuStateIsPrecise = false;
         cpu_x86_exec(env);
@@ -430,6 +427,14 @@ int VCPU::run(int vcpu_fd) {
 
     m_handlingKvmCallback = false;
     m_handlingDeviceState = false;
+
+    // The client may request an interrupt window on any KVM_RUN, including the one
+    // that completes an I/O exit. In that case, the coroutine resumes in the middle
+    // of cpu_x86_exec, so the request must reach the cpu here rather than when the
+    // coroutine starts a new cpu_x86_exec. Otherwise, an interrupt raised by an I/O
+    // handler (e.g., the floppy controller's reset interrupt) stays pending until an
+    // unrelated exit occurs.
+    m_env->kvm_request_interrupt_window |= m_cpuBuffer->request_interrupt_window;
 
     coroutine_enter(m_coroutine, this);
 
