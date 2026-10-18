@@ -760,7 +760,12 @@ void ulshift(uint64_t *plow, uint64_t *phigh, int32_t shift, bool *overflow);
  * Licensed under the GPLv2/LGPLv3
  */
 static inline uint64_t udiv_qrnnd(uint64_t *r, uint64_t n1, uint64_t n0, uint64_t d) {
-#if defined(__x86_64__)
+/*
+ * S2E: KLEE cannot interpret inline assembly, so the bitcode uses the generic
+ * version. A 128-bit division would not work either, because clang lowers it
+ * to a call to __udivti3, which the bitcode does not define.
+ */
+#if defined(__x86_64__) && !defined(SYMBEX_LLVM_LIB)
     uint64_t q;
     asm("divq %4" : "=a"(q), "=d"(*r) : "0"(n0), "1"(n1), "rm"(d));
     return q;
