@@ -21,7 +21,7 @@
 #define _TCG_TB_H_
 
 #include <inttypes.h>
-#include <tcg/utils/atomic.h>
+#include <utils/atomic.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -152,10 +152,6 @@ struct TranslationBlock {
     /* Indicates whether there are execution handlers attached */
     int instrumented;
 
-#ifdef STATIC_TRANSLATOR
-    /* pc after which to stop the translation */
-    target_ulong last_pc;
-#endif
 #endif
 };
 

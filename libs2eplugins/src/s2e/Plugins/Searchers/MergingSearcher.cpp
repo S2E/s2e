@@ -192,9 +192,6 @@ bool MergingSearcher::mergeEnd(S2EExecutionState *state, bool skipOpcode, bool c
         state->regs()->write(CPU_OFFSET(cc_tmp), 0);
     }
 
-    // The TLB state must be identical when we merge
-    tlb_flush(env, 1);
-
     if (!mergePool.firstState) {
         // state is the first to reach merge_end.
         // all other states that reach merge_end will be merged with it and destroyed

@@ -41,8 +41,8 @@ configure_file(LIBTCGConfig.cmake.in ${CMAKE_CONFIG_FILE} @ONLY)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GLIB_PKG glib-2.0)
 
-find_package(LIBQ REQUIRED)
-message(STATUS "Found libq ${LIBQ_PACKAGE_VERSION}")
+find_package(LIBUTILS REQUIRED)
+message(STATUS "Found libutils ${LIBUTILS_PACKAGE_VERSION}")
 
 ##### LLVM #####
 if (POLICY CMP0075)
@@ -73,10 +73,8 @@ message(STATUS "WITH_GUEST: ${WITH_GUEST}")
 
 if(WITH_GUEST MATCHES "i386")
     set(TARGET_LONG_BITS "32")
-    set(TARGET_INSN_START_EXTRA_WORDS "1")
 elseif(WITH_GUEST MATCHES "x86_64")
     set(TARGET_LONG_BITS "64")
-    set(TARGET_INSN_START_EXTRA_WORDS "1")
     set(TARGET_X86_64 "1")
 else()
     message(FATAL_ERROR "Incorrect target ${WITH_GUEST}")
@@ -89,5 +87,5 @@ if(WITH_GUEST MATCHES "s2e")
     endif()
 endif()
 
-include_directories(${GLIB_PKG_INCLUDE_DIRS} ${LIBTCG_INCLUDE_DIR} ${LIBQ_INCLUDE_DIR})
+include_directories(${GLIB_PKG_INCLUDE_DIRS} ${LIBTCG_INCLUDE_DIR} ${LIBUTILS_INCLUDE_DIR})
 add_subdirectory(src)

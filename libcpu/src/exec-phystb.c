@@ -19,7 +19,7 @@
 #include <glib.h>
 
 #include <cpu/config.h>
-#include <tcg/utils/osdep.h>
+#include <utils/osdep.h>
 #include "exec-phystb.h"
 #include "exec.h"
 #include "qemu-common.h"

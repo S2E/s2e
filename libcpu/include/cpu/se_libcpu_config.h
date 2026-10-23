@@ -52,10 +52,8 @@ extern "C" {
 
 /** Whether to compile softmmu with memory tracing enabled. */
 /** Can be disabled for debugging purposes. */
-#if !defined(STATIC_TRANSLATOR)
 #define SE_ENABLE_MEM_TRACING
 #define TCG_ENABLE_MEM_TRACING
-#endif
 
 #ifdef CONFIG_SYMBEX_MP
 #define SE_ENABLE_PHYSRAM_TLB

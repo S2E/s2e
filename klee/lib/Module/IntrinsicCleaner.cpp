@@ -12,6 +12,8 @@
 #include <klee/Common.h>
 #include <llvm/Support/raw_ostream.h>
 #include "klee/Config/config.h"
+#include "llvm/ADT/APFloat.h"
+#include "llvm/ADT/FloatingPointMode.h"
 #include "llvm/Analysis/MemoryBuiltins.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DataLayout.h"
@@ -199,6 +201,73 @@ void IntrinsicCleanerPass::injectIntrinsicAddImplementation(Module &M, const std
     builder.CreateRet(cmp1);
 }
 
+/// Expand llvm.is.fpclass into integer bit tests on the raw encoding of the
+/// operand. Clang emits it for isnormal()/isnan()/fpclassify(), which the
+/// hard float fast paths of softfloat use on every guest fp operation.
+/// Testing the encoding rather than calling out to libm keeps the result
+/// symbolic when the operand is.
+static bool expandIsFPClass(IntrinsicInst *ii) {
+    Value *val = ii->getArgOperand(0);
+    Type *ty = val->getType();
+
+    // x86_fp80 stores the leading significand bit explicitly, so the tests
+    // below do not apply to it. Vectors are handled by the scalarizer pass.
+    if (!ty->isHalfTy() && !ty->isFloatTy() && !ty->isDoubleTy() && !ty->isFP128Ty()) {
+        return false;
+    }
+
+    const uint64_t mask = cast<ConstantInt>(ii->getArgOperand(1))->getZExtValue();
+
+    IRBuilder<> builder(ii);
+
+    unsigned bits = ty->getPrimitiveSizeInBits();
+    unsigned mantissaBits = APFloat::semanticsPrecision(ty->getFltSemantics()) - 1;
+
+    auto intTy = IntegerType::get(ii->getContext(), bits);
+    auto constant = [&](const APInt &v) { return ConstantInt::get(intTy, v); };
+
+    APInt signMask = APInt::getSignedMinValue(bits);
+    APInt minNormal = APInt::getOneBitSet(bits, mantissaBits); // exp == 1, mantissa == 0
+    APInt infinity = APInt::getBitsSetFrom(bits, mantissaBits) & ~signMask;
+    APInt quietBit = APInt::getOneBitSet(bits, mantissaBits - 1);
+
+    Value *raw = builder.CreateBitCast(val, intTy, "fpclass.bits");
+    Value *abs = builder.CreateAnd(raw, constant(~signMask), "fpclass.abs");
+
+    Value *isNeg = builder.CreateICmpNE(builder.CreateAnd(raw, constant(signMask)), constant(APInt(bits, 0)));
+    Value *isPos = builder.CreateNot(isNeg);
+
+    Value *isZero = builder.CreateICmpEQ(abs, constant(APInt(bits, 0)));
+    Value *isSubnormal = builder.CreateAnd(builder.CreateNot(isZero), builder.CreateICmpULT(abs, constant(minNormal)));
+    Value *isInf = builder.CreateICmpEQ(abs, constant(infinity));
+    Value *isNan = builder.CreateICmpUGT(abs, constant(infinity));
+    Value *isNormal = builder.CreateAnd(builder.CreateICmpUGE(abs, constant(minNormal)),
+                                        builder.CreateICmpULT(abs, constant(infinity)));
+    Value *isQuiet = builder.CreateICmpNE(builder.CreateAnd(abs, constant(quietBit)), constant(APInt(bits, 0)));
+
+    Value *result = builder.getFalse();
+    auto testClass = [&](FPClassTest test, Value *cond) {
+        if (mask & test) {
+            result = builder.CreateOr(result, cond);
+        }
+    };
+
+    testClass(fcSNan, builder.CreateAnd(isNan, builder.CreateNot(isQuiet)));
+    testClass(fcQNan, builder.CreateAnd(isNan, isQuiet));
+    testClass(fcNegInf, builder.CreateAnd(isInf, isNeg));
+    testClass(fcNegNormal, builder.CreateAnd(isNormal, isNeg));
+    testClass(fcNegSubnormal, builder.CreateAnd(isSubnormal, isNeg));
+    testClass(fcNegZero, builder.CreateAnd(isZero, isNeg));
+    testClass(fcPosZero, builder.CreateAnd(isZero, isPos));
+    testClass(fcPosSubnormal, builder.CreateAnd(isSubnormal, isPos));
+    testClass(fcPosNormal, builder.CreateAnd(isNormal, isPos));
+    testClass(fcPosInf, builder.CreateAnd(isInf, isPos));
+
+    ii->replaceAllUsesWith(result);
+    ii->eraseFromParent();
+    return true;
+}
+
 bool IntrinsicCleanerPass::runOnModule(Module &M) {
     bool dirty = true;
 
@@ -229,8 +298,11 @@ bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b, Module &M) {
                 case Intrinsic::vastart:
                 case Intrinsic::vaend:
                 case Intrinsic::fabs:
+                case Intrinsic::fma:
                 case Intrinsic::fshr:
                 case Intrinsic::fshl:
+                case Intrinsic::nearbyint:
+                case Intrinsic::rint:
 
                 case Intrinsic::abs:
                 case Intrinsic::smax:
@@ -469,6 +541,37 @@ bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b, Module &M) {
                         ii->replaceAllUsesWith(constant);
                     else
                         ii->replaceAllUsesWith(ConstantInt::getFalse(ii->getType()));
+                    ii->eraseFromParent();
+                    dirty = true;
+                    break;
+                }
+
+                case Intrinsic::is_fpclass: {
+                    if (!expandIsFPClass(ii)) {
+                        klee_warning_once((void *) ii->getCalledFunction(), "unsupported llvm.is.fpclass operand type");
+                        break;
+                    }
+                    dirty = true;
+                    break;
+                }
+
+                case Intrinsic::fmuladd: {
+                    // The fused form is optional, so the unfused expansion is a
+                    // valid lowering and keeps the operands symbolic.
+                    IRBuilder<> builder(ii);
+                    Value *mul = builder.CreateFMul(ii->getArgOperand(0), ii->getArgOperand(1));
+                    Value *add = builder.CreateFAdd(mul, ii->getArgOperand(2));
+                    ii->replaceAllUsesWith(add);
+                    ii->eraseFromParent();
+                    dirty = true;
+                    break;
+                }
+
+                case Intrinsic::experimental_noalias_scope_decl: {
+                    // A pure aliasing hint with no semantics, emitted by clang when
+                    // it inlines a function with noalias/restrict parameters. Its
+                    // only operand is metadata, which evalConstant() cannot
+                    // evaluate, so the call has to go rather than merely warn.
                     ii->eraseFromParent();
                     dirty = true;
                     break;

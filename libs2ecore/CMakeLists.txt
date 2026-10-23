@@ -62,8 +62,8 @@ llvm_map_components_to_libnames(LLVM_LIBS core)
 
 ##################
 
-find_package(LIBQ REQUIRED)
-message(STATUS "Found libq ${LIBQ_PACKAGE_VERSION}")
+find_package(LIBUTILS REQUIRED)
+message(STATUS "Found libutils ${LIBUTILS_PACKAGE_VERSION}")
 
 find_package(LIBCPU REQUIRED)
 message(STATUS "Found libcpu ${LIBCPU_PACKAGE_VERSION}")
@@ -71,17 +71,13 @@ message(STATUS "Found libcpu ${LIBCPU_PACKAGE_VERSION}")
 find_package(LIBTCG REQUIRED)
 message(STATUS "Found libtcg ${LIBTCG_PACKAGE_VERSION}")
 
-find_package(FSIGCXX REQUIRED)
-message(STATUS "Found fsigc++ ${FSIGCXX_PACKAGE_VERSION}")
-
 find_package(KLEE REQUIRED)
 message(STATUS "Found klee ${KLEE_PACKAGE_VERSION}")
 
 include_directories(${GLIB_PKG_INCLUDE_DIRS}
-                    ${LIBQ_INCLUDE_DIR}
+                    ${LIBUTILS_INCLUDE_DIR}
                     ${LIBTCG_INCLUDE_DIR}
                     ${LIBCPU_INCLUDE_DIR}
-                    ${FSIGCXX_INCLUDE_DIR}
                     ${LIBS2ECORE_INCLUDE_DIR}
                     ${KLEE_INCLUDE_DIR}
                     ${LUA_DIR}

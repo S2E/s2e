@@ -24,12 +24,19 @@
 #include <cpu/tlb.h>
 #include <cpu/types.h>
 #include <qqueue.h>
-#include <setjmp.h>
-#include <signal.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/* Breakpoint/watchpoint flags */
+#define BP_MEM_READ           0x01
+#define BP_MEM_WRITE          0x02
+#define BP_MEM_ACCESS         (BP_MEM_READ | BP_MEM_WRITE)
+#define BP_STOP_BEFORE_ACCESS 0x04
+#define BP_WATCHPOINT_HIT     0x08
+#define BP_GDB                0x10
+#define BP_CPU                0x20
 
 typedef struct CPUBreakpoint {
     target_ulong pc;
@@ -43,61 +50,6 @@ typedef struct CPUWatchpoint {
     int flags; /* BP_* */
     QTAILQ_ENTRY(CPUWatchpoint) entry;
 } CPUWatchpoint;
-
-#define CPU_TEMP_BUF_NLONGS 128
-#define CPU_COMMON                                                                                    \
-    int se_common_start;                    /* Dummy variable to mark the start of the common area */ \
-    struct TranslationBlock *current_tb;    /* currently executing TB  */                             \
-    struct TranslationBlock *se_current_tb; /* currently executing TB  */                             \
-    /* soft mmu support */                                                                            \
-    /* in order to avoid passing too many arguments to the MMIO                                       \
-       helpers, we store some rarely used information in the CPU                                      \
-       context) */                                                                                    \
-    unsigned long mem_io_pc;   /* host pc at which the memory was                                     \
-                                  accessed */                                                         \
-    target_ulong mem_io_vaddr; /* target virtual addr at which the                                    \
-                                     memory was accessed */                                           \
-    /* When set, this forces the translator to put only one instruction in the next TB.               \
-     * This variable is automatically reset before code execution */                                  \
-    uint32_t translate_single_instruction;                                                            \
-    uint32_t halted; /* Nonzero if the CPU is in suspend state */                                     \
-    uint32_t interrupt_request;                                                                       \
-    volatile sig_atomic_t exit_request;                                                               \
-    CPU_COMMON_TLB                                                                                    \
-    CPU_COMMON_PHYSRAM_TLB                                                                            \
-    CPUTLBEntry *se_tlb_current;                                                                      \
-    struct TranslationBlock *tb_jmp_cache[TB_JMP_CACHE_SIZE];                                         \
-    /* buffer for temporaries in the code generator */                                                \
-    long temp_buf[CPU_TEMP_BUF_NLONGS];                                                               \
-    /* Used to handle self-modifying code */                                                          \
-    unsigned restored_instruction_size;                                                               \
-    /* Set when the LLVM interpreter should exit the current TB (e.g., self-modifying code) */        \
-    uint32_t se_tb_abort;                                                                             \
-                                                                                                      \
-    /* from this point: preserved by CPU reset */                                                     \
-    /* ice debug support */                                                                           \
-    QTAILQ_HEAD(breakpoints_head, CPUBreakpoint) breakpoints;                                         \
-    int singlestep_enabled;                                                                           \
-                                                                                                      \
-    QTAILQ_HEAD(watchpoints_head, CPUWatchpoint) watchpoints;                                         \
-    CPUWatchpoint *watchpoint_hit;                                                                    \
-                                                                                                      \
-    /* Core interrupt code */                                                                         \
-    jmp_buf jmp_env;                                                                                  \
-    int exception_index;                                                                              \
-                                                                                                      \
-    CPUArchState *next_cpu; /* next CPU sharing TB cache */                                           \
-    int cpu_index;          /* CPU index (informative) */                                             \
-    int numa_node;          /* NUMA node this cpu is belonging to  */                                 \
-    int running;            /* Nonzero if cpu is currently running(usermode).  */                     \
-    /* user data */                                                                                   \
-    void *opaque;                                                                                     \
-    unsigned size; /* Size of this structure */                                                       \
-                                                                                                      \
-    uint32_t created;                                                                                 \
-    uint32_t stop;     /* Stop request */                                                             \
-    int generate_llvm; /* Generate LLVM code during translation */                                    \
-    int se_common_end; /* Dummy variable to mark the end of the common area */
 
 #ifdef __cplusplus
 }

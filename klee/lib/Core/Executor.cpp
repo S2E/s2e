@@ -42,6 +42,7 @@
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/GetElementPtrTypeIterator.h"
+#include "llvm/IR/InlineAsm.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/Module.h"
@@ -372,6 +373,40 @@ void Executor::executeCall(ExecutionState &state, KInstruction *ki, Function *f,
 
                 llvm::APFloat Res(*fpWidthToSemantics(arg->getWidth()), arg->getAPValue());
                 Res = llvm::abs(Res);
+
+                llvmState.bindLocal(ki, ConstantExpr::alloc(Res.bitcastToAPInt()));
+                break;
+            }
+
+            case Intrinsic::fma: {
+                ref<ConstantExpr> a = state.toConstant(arguments[0], "floating point");
+                ref<ConstantExpr> b = state.toConstant(arguments[1], "floating point");
+                ref<ConstantExpr> c = state.toConstant(arguments[2], "floating point");
+                auto semantics = fpWidthToSemantics(a->getWidth());
+                if (!semantics) {
+                    throw LLVMExecutorException("Unsupported intrinsic llvm.fma call");
+                }
+
+                llvm::APFloat Res(*semantics, a->getAPValue());
+                Res.fusedMultiplyAdd(llvm::APFloat(*semantics, b->getAPValue()),
+                                     llvm::APFloat(*semantics, c->getAPValue()), llvm::APFloat::rmNearestTiesToEven);
+
+                llvmState.bindLocal(ki, ConstantExpr::alloc(Res.bitcastToAPInt()));
+                break;
+            }
+
+            case Intrinsic::nearbyint:
+            case Intrinsic::rint: {
+                ref<ConstantExpr> arg = state.toConstant(arguments[0], "floating point");
+                auto semantics = fpWidthToSemantics(arg->getWidth());
+                if (!semantics) {
+                    throw LLVMExecutorException("Unsupported intrinsic llvm.rint call");
+                }
+
+                // The guest rounding mode is emulated by softfloat, the host one
+                // is left at its default of round to nearest, ties to even.
+                llvm::APFloat Res(*semantics, arg->getAPValue());
+                Res.roundToIntegral(llvm::APFloat::rmNearestTiesToEven);
 
                 llvmState.bindLocal(ki, ConstantExpr::alloc(Res.bitcastToAPInt()));
                 break;
@@ -761,7 +796,9 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
                         i++;
                     }
                 } else if (isa<InlineAsm>(fp)) {
-                    throw LLVMExecutorException("inline assembly is unsupported");
+                    throw LLVMExecutorException("inline assembly is unsupported: \"" +
+                                                cast<InlineAsm>(fp)->getAsmString() + "\" in function " +
+                                                i->getFunction()->getName().str());
                     break;
                 }
             }

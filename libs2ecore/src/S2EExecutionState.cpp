@@ -78,7 +78,7 @@ S2EExecutionState::S2EExecutionState(klee::KFunction *kf)
       m_active(true), m_zombie(false), m_yielded(false), m_runningConcrete(true), m_pinned(false),
       m_isStateSwitchForbidden(false), m_asCache(&addressSpace()),
       m_registers(&m_active, &m_runningConcrete, this, this), m_memory(), m_lastS2ETb(nullptr),
-      m_needFinalizeTBExec(false), m_forkAborted(false), m_nextSymbVarId(0), m_tlb(&m_asCache, &m_registers),
+      m_needFinalizeTBExec(false), m_forkAborted(false), m_nextSymbVarId(0), m_tlb(&m_asCache, &m_registers, &m_active),
       m_runningExceptionEmulationCode(false) {
     m_guid = m_stateID;
 }
@@ -116,10 +116,10 @@ ExecutionStatePtr S2EExecutionState::clone() {
     // stale on state restore. If a signal occurs while restoring the state,
     // its handler will try to unlink a stale tb, which could cause a hang
     // or a crash.
-    auto old_tb = env->current_tb;
-    env->current_tb = nullptr;
+    auto old_tb = env_cpu(env)->current_tb;
+    env_cpu(env)->current_tb = nullptr;
     m_registers.saveConcreteState();
-    env->current_tb = old_tb;
+    env_cpu(env)->current_tb = old_tb;
 
     cpu_disable_ticks();
     s2e_kvm_save_device_state();
@@ -132,7 +132,7 @@ ExecutionStatePtr S2EExecutionState::clone() {
     ret->m_stateID = g_s2e->fetchAndIncrementStateId();
     ret->m_guid = ret->m_stateID;
 
-    ret->m_tlb.assignNewState(&ret->m_asCache, &ret->m_registers);
+    ret->m_tlb.assignNewState(&ret->m_asCache, &ret->m_registers, &ret->m_active);
     ret->m_registers.update(ret->addressSpace(), &ret->m_active, &ret->m_runningConcrete, ret, ret);
     ret->m_asCache.update(&ret->addressSpace());
     m_registers.update(addressSpace(), &m_active, &m_runningConcrete, this, this);
@@ -312,7 +312,7 @@ bool S2EExecutionState::getReturnAddress(uint64_t *retAddr) {
 }
 
 TranslationBlock *S2EExecutionState::getTb() const {
-    return (TranslationBlock *) s2e_read_register_concrete_fast<uintptr_t>(CPU_OFFSET(se_current_tb));
+    return regs()->getCpu()->se_current_tb;
 }
 
 /***/
@@ -477,7 +477,7 @@ void S2EExecutionState::jumpToSymbolic() {
     g_s2e->getExecutor()->updateConcreteFastPath(this);
 
     // XXX: what about regs_to_env ?
-    longjmp(env->jmp_env, 1);
+    longjmp(env_cpu(env)->jmp_env, 1);
 }
 
 bool S2EExecutionState::needToJumpToSymbolic() const {
@@ -490,7 +490,7 @@ void S2EExecutionState::yield() {
     setYieldState(true);
 
     // Stop current execution
-    regs()->write<int>(CPU_OFFSET(exception_index), EXCP_SE);
+    regs()->getCpu()->exception_index = EXCP_SE;
     throw CpuExitException();
 }
 
@@ -522,9 +522,13 @@ bool S2EExecutionState::merge(const ExecutionState &_b) {
         return false;
     }
 
-    // Merge dirty mask by clearing bits that differ. Clearning bits in
-    // dirty mask can only affect performance but not correcntess.
-    // NOTE: this requires flushing TLB
+    // Merge the dirty masks by clearing the bits that differ. A cleared bit
+    // sends the next write to that page through the slow path, which costs
+    // performance but never correctness. TLB entries cache the bit as
+    // TLB_NOTDIRTY, so a TLB filled from the old mask would be stale. This
+    // state is inactive here and has no TLB: doStateSwitch() flushes the
+    // TLB when the state is activated again, and every entry filled after
+    // that reads the merged mask.
     {
         auto &dirtyMask = S2EExecutionStateMemory::getDirtyMask();
         auto os = addressSpace().findObject(dirtyMask.address);
@@ -622,8 +626,13 @@ end:
 }
 
 void S2EExecutionState::addressSpaceSymbolicStatusChange(const ObjectStatePtr &object, bool becameConcrete) {
-    // Deal with CPU registers
-    g_s2e->getExecutor()->updateConcreteFastPath(this);
+    // Deal with CPU registers. The fast path flags are globals that describe
+    // the active state, so a suspended state whose registers change (e.g.,
+    // a plugin writing a symbolic value into them) must not touch them.
+    // selectSearcherState() recomputes them after switching to the state.
+    if (m_active) {
+        g_s2e->getExecutor()->updateConcreteFastPath(this);
+    }
 
     // Deal with RAM
     if (object->getBitArraySize() != SE_RAM_OBJECT_SIZE) {
@@ -639,29 +648,6 @@ void S2EExecutionState::addressSpaceObjectSplit(const ObjectStateConstPtr &oldOb
     // Splitting can only happen to RAM
     auto baseObject = m_asCache.notifySplit(oldObject, newObjects);
     m_tlb.updateTlb(oldObject, baseObject);
-}
-
-uint64_t S2EExecutionState::readMemIoVaddr(bool masked) {
-    klee::ref<klee::Expr> result;
-
-    if (!m_memIoVaddr) {
-        return env->mem_io_vaddr;
-    }
-
-    if (masked) {
-        result = AndExpr::create(m_memIoVaddr,
-                                 klee::ConstantExpr::create((target_ulong) TARGET_PAGE_MASK, m_memIoVaddr->getWidth()));
-        // This assumes that the page is already fully constrained by the MMU
-        result = concolics()->evaluate(result);
-        assert(dyn_cast<ConstantExpr>(result) && "Expression must be constant here");
-    } else {
-        result = m_memIoVaddr;
-        result = this->toConstant(result, "Reading mem_io_vaddr");
-    }
-
-    ConstantExpr *ce = dyn_cast<ConstantExpr>(result);
-    assert(ce && "Expression must be constant here");
-    return ce->getZExtValue();
 }
 
 bool S2EExecutionState::getStaticTarget(uint64_t *target) {
@@ -832,15 +818,17 @@ void se_write_dirty_mask(uint64_t host_address, uint8_t val) {
     return g_s2e_state->mem()->writeDirtyMask(host_address, val);
 }
 
+#if defined(CONFIG_SYMBEX_MP) || defined(SE_ENABLE_PHYSRAM_TLB)
 static inline CPUTLBRAMEntry *s2e_get_ram_tlb_entry(uint64_t host_address) {
 #if defined(SE_ENABLE_PHYSRAM_TLB)
     uintptr_t tlb_index = (host_address >> 12) & (CPU_TLB_SIZE - 1);
-    CPUX86State *env = g_s2e_state->regs()->getCpuState();
-    return &env->se_ram_tlb[tlb_index];
+    CPUState *cpu = g_s2e_state->regs()->getCpuCaches();
+    return &cpu->neg.se_ram_tlb[tlb_index];
 #else
     return nullptr;
 #endif
 }
+#endif
 
 #ifdef SE_ENABLE_PHYSRAM_TLB
 static inline void s2e_dma_rw(uint64_t hostAddress, uint8_t *buf, unsigned size, bool is_write) {
@@ -892,12 +880,6 @@ void s2e_dma_write(uint64_t hostAddress, uint8_t *buf, unsigned size) {
 #else
     g_s2e_state->mem()->write(hostAddress, buf, size, s2e::HostAddress);
 #endif
-}
-
-void s2e_read_ram_concrete_check(uint64_t host_address, uint8_t *buf, uint64_t size) {
-    assert(g_s2e_state->isRunningConcrete());
-    CPUTLBRAMEntry *re = s2e_get_ram_tlb_entry(host_address);
-    g_s2e_state->mem()->transferRam(re, host_address, buf, size, false, true);
 }
 
 void s2e_read_ram_concrete(uint64_t host_address, void *buf, uint64_t size) {

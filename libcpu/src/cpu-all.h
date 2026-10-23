@@ -21,9 +21,10 @@
 
 #include <cpu/cpu-common.h>
 #include <cpu/exec.h>
+#include <cpu/exec/page-protection.h>
 #include <cpu/i386/cpu.h>
-#include <tcg/cpu.h>
 #include <tcg/utils/bswap.h>
+#include <tcg/utils/cpu-float.h>
 #include "qemu-common.h"
 
 #ifdef CONFIG_SYMBEX
@@ -67,29 +68,15 @@
  *   kernel : kernel mode access using soft MMU
  */
 
-/* target-endianness CPU memory access functions */
-#if defined(TARGET_WORDS_BIGENDIAN)
-#define lduw_p(p)    lduw_be_p(p)
-#define ldsw_p(p)    ldsw_be_p(p)
-#define ldl_p(p)     ldl_be_p(p)
-#define ldq_p(p)     ldq_be_p(p)
+/* target-endianness float access functions; the integer ones come from tcg/utils/bswap.h */
+#if TARGET_BIG_ENDIAN
 #define ldfl_p(p)    ldfl_be_p(p)
 #define ldfq_p(p)    ldfq_be_p(p)
-#define stw_p(p, v)  stw_be_p(p, v)
-#define stl_p(p, v)  stl_be_p(p, v)
-#define stq_p(p, v)  stq_be_p(p, v)
 #define stfl_p(p, v) stfl_be_p(p, v)
 #define stfq_p(p, v) stfq_be_p(p, v)
 #else
-#define lduw_p(p)    lduw_le_p(p)
-#define ldsw_p(p)    ldsw_le_p(p)
-#define ldl_p(p)     ldl_le_p(p)
-#define ldq_p(p)     ldq_le_p(p)
 #define ldfl_p(p)    ldfl_le_p(p)
 #define ldfq_p(p)    ldfq_le_p(p)
-#define stw_p(p, v)  stw_le_p(p, v)
-#define stl_p(p, v)  stl_le_p(p, v)
-#define stq_p(p, v)  stq_le_p(p, v)
 #define stfl_p(p, v) stfl_le_p(p, v)
 #define stfq_p(p, v) stfq_le_p(p, v)
 #endif
@@ -169,15 +156,13 @@ static inline void *_se_check_translate_ram_access(const void *p, unsigned size)
 #if defined(SE_ENABLE_PHYSRAM_TLB)
     extern CPUArchState *env;
     uintptr_t tlb_index = ((uintptr_t) p >> 12) & (CPU_TLB_SIZE - 1);
-    CPUTLBRAMEntry *re = &env->se_ram_tlb[tlb_index];
+    CPUTLBRAMEntry *re = &env_cpu(env)->neg.se_ram_tlb[tlb_index];
     if (re->host_page == (((uintptr_t) p) & (~(uintptr_t) 0xfff | (size - 1)))) {
         return (void *) ((uintptr_t) p + re->addend);
     }
 #endif
     return NULL;
 }
-
-/* Functions suffixed with symb abort execution if it is in concrete mode */
 
 /* host endianness */
 #define _symbex_define_ld_raw(ct, t, s)                                \
@@ -189,11 +174,6 @@ static inline void *_se_check_translate_ram_access(const void *p, unsigned size)
         uint8_t buf[s];                                                \
         g_sqi.mem.read_ram_concrete((uint64_t) p, buf, s);             \
         return ld##t##_p(buf); /* read right type of value from buf */ \
-    }                                                                  \
-    static inline ct ld##t##_raw_symb(const void *p) {                 \
-        uint8_t buf[s];                                                \
-        g_sqi.mem.read_ram_concrete_check((uint64_t) p, buf, s);       \
-        return ld##t##_p(buf);                                         \
     }
 
 /* explicit little endian */
@@ -202,11 +182,6 @@ static inline void *_se_check_translate_ram_access(const void *p, unsigned size)
         uint8_t buf[s];                                                   \
         g_sqi.mem.read_ram_concrete((uint64_t) p, buf, s);                \
         return ld##t##_le_p(buf); /* read right type of value from buf */ \
-    }                                                                     \
-    static inline ct ld##t##_le_raw_symb(const void *p) {                 \
-        uint8_t buf[s];                                                   \
-        g_sqi.mem.read_ram_concrete_check((uint64_t) p, buf, s);          \
-        return ld##t##_le_p(buf);                                         \
     }
 
 /* explicit big endian */
@@ -215,11 +190,6 @@ static inline void *_se_check_translate_ram_access(const void *p, unsigned size)
         uint8_t buf[s];                                                   \
         g_sqi.mem.read_ram_concrete((uint64_t) p, buf, s);                \
         return ld##t##_be_p(buf); /* read right type of value from buf */ \
-    }                                                                     \
-    static inline ct ld##t##_be_raw_symb(const void *p) {                 \
-        uint8_t buf[s];                                                   \
-        g_sqi.mem.read_ram_concrete_check((uint64_t) p, buf, s);          \
-        return ld##t##_be_p(buf);                                         \
     }
 
 /* host endianness */
@@ -233,9 +203,6 @@ static inline void *_se_check_translate_ram_access(const void *p, unsigned size)
         uint8_t buf[s];                                          \
         st##t##_p(buf, v);                                       \
         g_sqi.mem.write_ram_concrete((uint64_t) p, buf, s);      \
-    }                                                            \
-    static inline void st##t##_raw_symb(void *p, ct v) {         \
-        st##t##_raw(p, v);                                       \
     }
 
 /* explicit little endian */
@@ -244,9 +211,6 @@ static inline void *_se_check_translate_ram_access(const void *p, unsigned size)
         uint8_t buf[s];                                     \
         st##t##_le_p(buf, v);                               \
         g_sqi.mem.write_ram_concrete((uint64_t) p, buf, s); \
-    }                                                       \
-    static inline void st##t##_le_raw_symb(void *p, ct v) { \
-        st##t##_le_raw(p, v);                               \
     }
 
 /* explicit big endian */
@@ -255,9 +219,6 @@ static inline void *_se_check_translate_ram_access(const void *p, unsigned size)
         uint8_t buf[s];                                     \
         st##t##_be_p(buf, v);                               \
         g_sqi.mem.write_ram_concrete((uint64_t) p, buf, s); \
-    }                                                       \
-    static inline void st##t##_be_raw_symb(void *p, ct v) { \
-        st##t##_be_raw(p, v);                               \
     }
 
 // clang-format off
@@ -299,15 +260,6 @@ static inline void cpu_interrupt(CPUArchState *s, int mask) {
 }
 
 void cpu_reset_interrupt(CPUArchState *env, int mask);
-
-/* Breakpoint/watchpoint flags */
-#define BP_MEM_READ           0x01
-#define BP_MEM_WRITE          0x02
-#define BP_MEM_ACCESS         (BP_MEM_READ | BP_MEM_WRITE)
-#define BP_STOP_BEFORE_ACCESS 0x04
-#define BP_WATCHPOINT_HIT     0x08
-#define BP_GDB                0x10
-#define BP_CPU                0x20
 
 int cpu_breakpoint_insert(CPUArchState *env, target_ulong pc, int flags, CPUBreakpoint **breakpoint);
 int cpu_breakpoint_remove(CPUArchState *env, target_ulong pc, int flags);

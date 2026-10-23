@@ -78,7 +78,7 @@ this code that are retained.
 #define FPU_SOFTFLOAT_MACROS_H
 
 #include "fpu/softfloat-types.h"
-#include "tcg/utils/host-utils.h"
+#include "utils/host-utils.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -93,7 +93,8 @@ extern "C" {
  * Shift @l left by @c bits, shifting in bits from @r.
  */
 static inline uint64_t shl_double(uint64_t l, uint64_t r, int c) {
-#if defined(__x86_64__)
+/* S2E: KLEE cannot interpret inline assembly, so the bitcode uses the C version. */
+#if defined(__x86_64__) && !defined(SYMBEX_LLVM_LIB)
     asm("shld %b2, %1, %0" : "+r"(l) : "r"(r), "ci"(c));
     return l;
 #else
@@ -110,7 +111,8 @@ static inline uint64_t shl_double(uint64_t l, uint64_t r, int c) {
  * Shift @r right by @c bits, shifting in bits from @l.
  */
 static inline uint64_t shr_double(uint64_t l, uint64_t r, int c) {
-#if defined(__x86_64__)
+/* S2E: KLEE cannot interpret inline assembly, so the bitcode uses the C version. */
+#if defined(__x86_64__) && !defined(SYMBEX_LLVM_LIB)
     asm("shrd %b2, %1, %0" : "+r"(r) : "r"(l), "ci"(c));
     return r;
 #else

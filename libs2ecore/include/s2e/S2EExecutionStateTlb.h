@@ -31,10 +31,6 @@
 #include "AddressSpaceCache.h"
 #include "S2EExecutionStateRegisters.h"
 
-extern "C" {
-struct CPUX86State;
-}
-
 namespace s2e {
 
 class S2EExecutionStateTlb {
@@ -49,19 +45,29 @@ private:
     TlbMap m_tlbMap;
     AddressSpaceCache *m_asCache;
     S2EExecutionStateRegisters *m_registers;
+    const bool *m_active;
 
 #if defined(SE_ENABLE_PHYSRAM_TLB)
     void updateRamTlb(const klee::ObjectStateConstPtr &oldState, const klee::ObjectStatePtr &newState);
 #endif
 
+    void updateTlbEntryConcreteStatus(unsigned mmu_idx, unsigned index, const klee::ObjectStateConstPtr &state);
+
 public:
-    S2EExecutionStateTlb(AddressSpaceCache *ascache, S2EExecutionStateRegisters *regs)
-        : m_asCache(ascache), m_registers(regs) {
+    S2EExecutionStateTlb(AddressSpaceCache *ascache, S2EExecutionStateRegisters *regs, const bool *active)
+        : m_asCache(ascache), m_registers(regs), m_active(active) {
     }
 
-    void assignNewState(AddressSpaceCache *ascache, S2EExecutionStateRegisters *regs) {
+    void assignNewState(AddressSpaceCache *ascache, S2EExecutionStateRegisters *regs, const bool *active) {
         m_asCache = ascache;
         m_registers = regs;
+        m_active = active;
+    }
+
+    /// True when no TLB entry refers to any object state. This must hold
+    /// whenever the state is inactive, since only the active state has a TLB.
+    bool isEmpty() const {
+        return m_tlbMap.empty();
     }
 
     /* Change all entries that refer to oldState to newState */
@@ -71,10 +77,11 @@ public:
 
     void flushTlbCache();
 
-    void flushTlbCachePage(const klee::ObjectStatePtr &objectState, int mmu_idx, int index);
+    /// Drops the references to the TLB entries of one MMU index. libcpu calls
+    /// it before it invalidates all the entries of that index.
+    void flushTlbCacheMmuIdx(int mmu_idx);
 
-    void updateTlbEntryConcreteStatus(struct CPUX86State *env, unsigned mmu_idx, unsigned index,
-                                      const klee::ObjectStateConstPtr &state);
+    void flushTlbCachePage(const klee::ObjectStatePtr &objectState, int mmu_idx, int index);
 
 #if defined(SE_ENABLE_PHYSRAM_TLB)
     void clearRamTlb();
@@ -82,7 +89,7 @@ public:
 
     void clearTlbOwnership();
 
-    void updateTlbEntry(struct CPUX86State *env, int mmu_idx, uint64_t virtAddr, uint64_t hostAddr);
+    void updateTlbEntry(int mmu_idx, uint64_t virtAddr, uint64_t hostAddr);
 
     bool audit();
 };

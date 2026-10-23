@@ -167,7 +167,10 @@ typedef struct CPUX86State {
     uint8_t nmi_injected;
     uint8_t nmi_pending;
 
-    CPU_COMMON
+    /* cpu_state_reset() clears everything before this point; size and the
+       fields after it survive a reset. The execution fields that QEMU 1.0
+       kept here (CPU_COMMON) live in CPUState; see cpu/state.h. */
+    unsigned size; /* sizeof(CPUX86State), checked by libs2ecore against its own build */
 
     uint64_t pat;
 
@@ -201,20 +204,26 @@ typedef struct CPUX86State {
 #endif
 } CPUX86State;
 
+/* Requires the complete CPUX86State: defines ArchCPU and the CPU caches. */
+#include <cpu/state.h>
+
 void do_cpu_init(CPUX86State *env);
 
 CPUX86State *cpu_x86_init(const cpuid_t *cpuid);
 int cpu_x86_exec(CPUX86State *s);
 
 static inline bool cpu_has_work(CPUX86State *env) {
-    return ((env->interrupt_request & CPU_INTERRUPT_HARD) && (env->mflags & IF_MASK)) ||
-           (env->interrupt_request & (CPU_INTERRUPT_NMI | CPU_INTERRUPT_INIT | CPU_INTERRUPT_SIPI | CPU_INTERRUPT_MCE));
+    return ((env_cpu(env)->interrupt_request & CPU_INTERRUPT_HARD) && (env->mflags & IF_MASK)) ||
+           (env_cpu(env)->interrupt_request &
+            (CPU_INTERRUPT_NMI | CPU_INTERRUPT_INIT | CPU_INTERRUPT_SIPI | CPU_INTERRUPT_MCE));
 }
 
 target_ulong cpu_get_eflags(CPUX86State *env);
 void cpu_restore_eflags(CPUX86State *env);
 
-static inline int cpu_mmu_index(CPUX86State *env) {
+/* MMU index of the current privilege level. cpu_mmu_index() in
+   cpu/accel/cpu-mmu-index.h is the CPUState version. */
+static inline int x86_mmu_index(CPUX86State *env) {
     return (env->hflags & HF_CPL_MASK) == 3 ? 1 : 0;
 }
 

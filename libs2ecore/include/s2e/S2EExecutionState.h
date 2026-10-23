@@ -147,9 +147,6 @@ protected:
 
     S2EExecutionStateTlb m_tlb;
 
-    /* Temp location to store a symbolic mem_io_vaddr */
-    klee::ref<klee::Expr> m_memIoVaddr;
-
     /** Set when execution enters doInterrupt, reset when it exits. */
     bool m_runningExceptionEmulationCode;
 
@@ -176,7 +173,7 @@ public:
     S2EExecutionState(const S2EExecutionState &state)
         : ExecutionState(state), m_pluginState(state.m_pluginState), m_toRunSymbolically(state.m_toRunSymbolically),
           m_deviceState(state.m_deviceState), m_asCache(state.m_asCache), m_registers(state.m_registers),
-          m_memory(state.m_memory), m_tlb(&m_asCache, &m_registers) {
+          m_memory(state.m_memory), m_tlb(&m_asCache, &m_registers, &m_active) {
         m_stateID = state.m_stateID; // To be updated in clone().
         m_guid = state.m_guid;
         m_startSymbexAtPC = state.m_startSymbexAtPC;
@@ -187,7 +184,9 @@ public:
         m_pinned = state.m_pinned;
         m_isStateSwitchForbidden = state.m_isStateSwitchForbidden;
 
-        m_tlb = state.m_tlb;
+        // m_tlb is deliberately not copied. The fork logic deactivates the
+        // copy, and it has no TLB until doStateSwitch() activates it with a
+        // flushed one, so its map must start empty.
 
         m_timersState = state.m_timersState;
         m_lastS2ETb = state.m_lastS2ETb;
@@ -195,7 +194,6 @@ public:
         m_forkAborted = state.m_forkAborted;
         m_nextSymbVarId = state.m_nextSymbVarId;
 
-        m_memIoVaddr = state.m_memIoVaddr;
         m_runningExceptionEmulationCode = state.m_runningExceptionEmulationCode;
         m_saveOnContextSwitch = state.m_saveOnContextSwitch;
     }
@@ -208,10 +206,6 @@ public:
 
     int getGuid() const {
         return m_guid;
-    }
-
-    void setMemIoVaddr(const klee::ref<klee::Expr> &e) {
-        m_memIoVaddr = e;
     }
 
     ///
@@ -284,12 +278,6 @@ public:
     /** Returns true if this state is currently running in concrete mode */
     inline bool isRunningConcrete() const {
         return m_runningConcrete;
-    }
-
-    // XXX: Move to S2EExecutionStateMemory.cpp
-    uint64_t readMemIoVaddr(bool masked);
-    void writeMemIoVaddr(klee::ref<klee::Expr> value) {
-        m_memIoVaddr = value;
     }
 
     bool getReturnAddress(uint64_t *retAddr);

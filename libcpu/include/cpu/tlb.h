@@ -23,41 +23,24 @@
 #include <cpu/config.h>
 #include <cpu/types.h>
 
-#include <tcg/tlb.h>
+#include <cpu/exec/tlb-flags.h>
+#include <tcg/exec/tlb-common.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+/* The TLB size is pinned (src/accel/tlb-bounds.h must agree). */
 #define CPU_TLB_BITS 10
 #define CPU_TLB_SIZE (1 << CPU_TLB_BITS)
 
-#if defined(CONFIG_SYMBEX) && defined(CONFIG_SYMBEX_MP)
-#define CPU_IOTLB_CHECK target_phys_addr_t iotlb_ramaddr[NB_MMU_MODES][CPU_TLB_SIZE];
-#else
-#define CPU_IOTLB_CHECK
-#endif
-
-#define CPU_COMMON_TLB                                                \
-    /* The meaning of the MMU modes is defined in the target code. */ \
-    CPUTLBDescFast tlb_table[NB_MMU_MODES];                           \
-    CPUTLBEntry _tlb_table[NB_MMU_MODES][CPU_TLB_SIZE];               \
-    target_phys_addr_t iotlb[NB_MMU_MODES][CPU_TLB_SIZE];             \
-    CPU_IOTLB_CHECK                                                   \
-    target_ulong tlb_flush_addr;                                      \
-    target_ulong tlb_flush_mask;
+/* The TLB itself lives outside CPUX86State, in CPUState; see cpu/state.h. */
 
 typedef struct CPUTLBRAMEntry {
     uintptr_t host_page;
     uintptr_t addend;
     void *object_state;
 } CPUTLBRAMEntry;
-
-#if defined(SE_ENABLE_PHYSRAM_TLB)
-#define CPU_COMMON_PHYSRAM_TLB CPUTLBRAMEntry se_ram_tlb[CPU_TLB_SIZE];
-#else
-#define CPU_COMMON_PHYSRAM_TLB
-#endif
 
 #ifdef __cplusplus
 }

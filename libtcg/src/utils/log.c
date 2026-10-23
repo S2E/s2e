@@ -22,7 +22,7 @@
 #include <sys/types.h>
 
 #include <tcg/utils/log.h>
-#include <tcg/utils/osdep.h>
+#include <utils/osdep.h>
 
 extern uint8_t *code_gen_buffer;
 

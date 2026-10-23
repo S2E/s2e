@@ -43,28 +43,24 @@ extern "C" {
 #include <tcg/tcg-memop.h>
 #include <tcg/tcg-memopidx.h>
 #include <tcg/tcg-mo.h>
-#include <tcg/utils/bitops.h>
-#include <tcg/utils/debug-assert.h>
-#include <tcg/utils/host-utils.h>
 #include <tcg/utils/log.h>
-#include <tcg/utils/osdep.h>
+#include <utils/bitops.h>
+#include <utils/debug-assert.h>
+#include <utils/host-utils.h>
+#include <utils/osdep.h>
 
 #include <tcg/helper-info.h>
-#include <tcg/i386/tcg-target-reg-bits.h>
-#include <tcg/i386/tcg-target.h>
 #include <tcg/insn-start-words.h>
+#include <tcg/target-reg-bits.h>
 #include <tcg/tcg-cond.h>
+#include <tcg/x86_64/tcg-target.h>
 #include "tcg-mo.h"
 
 #define TARGET_PAGE_BITS 12
 #define TARGET_PAGE_SIZE (1 << TARGET_PAGE_BITS)
 #define TARGET_PAGE_MASK ~(TARGET_PAGE_SIZE - 1)
 
-#include <tcg/tlb.h>
-
-// XXX: Fix me
-#define CPU_TLB_BITS 10
-#define CPU_TLB_SIZE (1 << CPU_TLB_BITS)
+#include <tcg/exec/tlb-common.h>
 
 #define QEMU_NORETURN __attribute__((__noreturn__))
 
@@ -78,8 +74,6 @@ typedef uint32_t target_ulong __attribute__((aligned(TARGET_LONG_ALIGNMENT)));
 #define TARGET_FMT_ld "%d"
 #define TARGET_FMT_lu "%u"
 
-#define CPU_TLB_DYN_MAX_BITS (32 - TARGET_PAGE_BITS)
-
 #elif TARGET_LONG_SIZE == 8
 #define TARGET_LONG_ALIGNMENT 8
 typedef int64_t target_long __attribute__((aligned(TARGET_LONG_ALIGNMENT)));
@@ -87,9 +81,6 @@ typedef uint64_t target_ulong __attribute__((aligned(TARGET_LONG_ALIGNMENT)));
 #define TARGET_FMT_lx         "%016" PRIx64
 #define TARGET_FMT_ld         "%" PRId64
 #define TARGET_FMT_lu         "%" PRIu64
-
-// XXX: fix this
-#define CPU_TLB_DYN_MAX_BITS  (32 - TARGET_PAGE_BITS)
 
 #else
 #error TARGET_LONG_SIZE undefined
@@ -142,19 +133,10 @@ static inline bool qemu_log_in_addr_range(uint64_t addr) {
 #define CPU_TEMP_BUF_NLONGS   128
 #define TCG_STATIC_FRAME_SIZE (CPU_TEMP_BUF_NLONGS * sizeof(long))
 
-#if TCG_TARGET_REG_BITS == 32
-typedef int32_t tcg_target_long;
-typedef uint32_t tcg_target_ulong;
-#define TCG_PRIlx PRIx32
-#define TCG_PRIld PRId32
-#elif TCG_TARGET_REG_BITS == 64
 typedef int64_t tcg_target_long;
 typedef uint64_t tcg_target_ulong;
 #define TCG_PRIlx PRIx64
 #define TCG_PRIld PRId64
-#else
-#error unsupported
-#endif
 
 #if TCG_TARGET_NB_REGS <= 32
 typedef uint32_t TCGRegSet;
@@ -245,12 +227,8 @@ typedef enum TCGType {
 /* Number of different types (integer not enum) */
 #define TCG_TYPE_COUNT (TCG_TYPE_V256 + 1)
 
-/* An alias for the size of the host register.  */
-#if TCG_TARGET_REG_BITS == 32
-    TCG_TYPE_REG = TCG_TYPE_I32,
-#else
+    /* An alias for the size of the host register.  */
     TCG_TYPE_REG = TCG_TYPE_I64,
-#endif
 
 /* An alias for the size of the native pointer.  */
 #if UINTPTR_MAX == UINT32_MAX
@@ -564,22 +542,6 @@ struct TCGContext {
     void *__caller_init;
 
     /* Everything below is set before initializing TCG */
-    /* helper signature: helper_ret_ld_mmu(CPUState *env, target_ulong addr,
-     *                                     int mmu_idx, uintptr_t ra)
-     */
-    void *qemu_ld_helpers[(MO_SIZE | MO_BSWAP) + 1];
-
-    /* helper signature: helper_ret_st_mmu(CPUState *env, target_ulong addr,
-     *                                     uintxx_t val, int mmu_idx, uintptr_t ra)
-     */
-    void *qemu_st_helpers[(MO_SIZE | MO_BSWAP) + 1];
-
-// XXX: remove these?
-#if defined(CONFIG_SYMBEX) && defined(TCG_ENABLE_MEM_TRACING)
-    void *qemu_ld_trace_helpers[4];
-    void *qemu_st_trace_helpers[4];
-#endif
-
     // CPU state offset information
     uintptr_t env_ptr;
     unsigned env_offset_eip;
@@ -595,7 +557,8 @@ struct TCGContext {
 
 #ifdef CONFIG_SYMBEX
     unsigned tlbe_offset_symbex_addend;
-    unsigned env_offset_se_tb_abort;
+    /* Signed: se_tb_abort lives in CPUState, below env (S2E). */
+    int env_offset_se_tb_abort;
 #endif
 
     unsigned target_page_bits;
@@ -607,15 +570,9 @@ static inline bool temp_readonly(TCGTemp *ts) {
     return ts->kind >= TEMP_FIXED;
 }
 
-#ifdef CONFIG_USER_ONLY
-extern bool tcg_use_softmmu;
-#else
-#define tcg_use_softmmu true
-#endif
-
 extern __thread TCGContext *tcg_ctx;
 extern const void *tcg_code_gen_epilogue;
-extern uintptr_t tcg_splitwx_diff;
+extern ptrdiff_t tcg_splitwx_diff;
 extern TCGv_env tcg_env;
 
 bool in_code_gen_buffer(const void *p);
@@ -730,21 +687,12 @@ static inline void tcg_set_insn_param(TCGOp *op, unsigned arg, TCGArg v) {
 
 static inline uint64_t tcg_get_insn_start_param(TCGOp *op, unsigned arg) {
     tcg_debug_assert(arg < INSN_START_WORDS);
-    if (TCG_TARGET_REG_BITS == 64) {
-        return tcg_get_insn_param(op, arg);
-    } else {
-        return deposit64(tcg_get_insn_param(op, arg * 2), 32, 32, tcg_get_insn_param(op, arg * 2 + 1));
-    }
+    return tcg_get_insn_param(op, arg);
 }
 
 static inline void tcg_set_insn_start_param(TCGOp *op, unsigned arg, uint64_t v) {
     tcg_debug_assert(arg < INSN_START_WORDS);
-    if (TCG_TARGET_REG_BITS == 64) {
-        tcg_set_insn_param(op, arg, v);
-    } else {
-        tcg_set_insn_param(op, arg * 2, v);
-        tcg_set_insn_param(op, arg * 2 + 1, v >> 32);
-    }
+    tcg_set_insn_param(op, arg, v);
 }
 
 /* The last op that was emitted.  */
@@ -829,7 +777,7 @@ static inline void *tcg_malloc(int size) {
     uintptr_t ptr, ptr_end;
 
     /* ??? This is a weak placeholder for minimum malloc alignment.  */
-    size = ALIGN_UP(size, 8);
+    size = QEMU_ALIGN_UP(size, 8);
 
     ptr = s->pool_cur;
     ptr_end = ptr + size;

@@ -1,0 +1,90 @@
+# libutils path <TAB> upstream QEMU path, as of the tag recorded in BASELINE.
+#
+# Only the vendored QEMU utilities appear here: the files below include/utils/
+# and src/utils/, plus include/qqueue.h (upstream include/qemu/queue.h).
+# The rest of libutils (QAPI, QObject, the visitors, coroutines,
+# fsigc++) is S2E-original or diverged far enough that it is not merged
+# mechanically, and the S2E-original utilities (utils/config-host.h,
+# utils/spinlock.h) have no upstream counterpart at all. The merge driver
+# is scripts/upgrade/merge.sh at the S2E source root.
+#
+# upstream-dirs: util/ include/qemu/ host/include/
+#
+# --- host support -------------------------------------------------------
+include/utils/host/x86_64/cpuinfo.h	host/include/x86_64/host/cpuinfo.h
+include/utils/host/x86_64/atomic128-ldst.h	host/include/x86_64/host/atomic128-ldst.h.inc
+include/utils/host/x86_64/bufferiszero.c.inc	host/include/x86_64/host/bufferiszero.c.inc
+include/utils/host/generic/atomic128-cas.h	host/include/generic/host/atomic128-cas.h.inc
+include/utils/host/generic/atomic128-ldst.h	host/include/generic/host/atomic128-ldst.h.inc
+include/utils/host/generic/load-extract-al16-al8.h	host/include/generic/host/load-extract-al16-al8.h.inc
+include/utils/host/generic/store-insert-al16.h	host/include/generic/host/store-insert-al16.h.inc
+src/utils/cpuinfo-i386.c	util/cpuinfo-i386.c
+# --- utilities ----------------------------------------------------------
+# These track BASELINE. Files not listed as changing upstream since v8.1.0
+# were simply never touched there, so they are current by definition.
+include/utils/atomic.h	include/qemu/atomic.h
+include/utils/atomic128.h	include/qemu/atomic128.h
+include/utils/bitmap.h	include/qemu/bitmap.h
+include/utils/bitops.h	include/qemu/bitops.h
+include/utils/cacheflush.h	include/qemu/cacheflush.h
+include/utils/cacheinfo.h	include/qemu/cacheinfo.h
+include/utils/compiler.h	include/qemu/compiler.h
+include/utils/cpuid.h	include/qemu/cpuid.h
+include/utils/ctype.h	include/qemu/ctype.h
+include/utils/debug-assert.h	include/tcg/debug-assert.h
+include/utils/host-utils.h	include/qemu/host-utils.h
+include/utils/int128.h	include/qemu/int128.h
+include/qqueue.h	include/qemu/queue.h
+include/utils/coroutine-tls.h	include/qemu/coroutine-tls.h
+include/utils/interval-tree.h	include/qemu/interval-tree.h
+include/utils/madvise.h	include/qemu/madvise.h
+include/utils/memalign.h	include/qemu/memalign.h
+include/utils/mprotect.h	include/qemu/mprotect.h
+include/utils/processor.h	include/qemu/processor.h
+include/utils/qtree.h	include/qemu/qtree.h
+include/utils/seqlock.h	include/qemu/seqlock.h
+include/utils/thread-posix.h	include/qemu/thread-posix.h
+include/utils/units.h	include/qemu/units.h
+include/utils/xxhash.h	include/qemu/xxhash.h
+include/utils/registerfields.h	include/hw/core/registerfields.h
+src/utils/bitmap.c	util/bitmap.c
+src/utils/event.c	util/event.c
+src/utils/bufferiszero.c	util/bufferiszero.c
+src/utils/cacheflush.c	util/cacheflush.c
+src/utils/hexdump.c	util/hexdump.c
+src/utils/host-utils.c	util/host-utils.c
+src/utils/interval-tree.c	util/interval-tree.c
+src/utils/memalign.c	util/memalign.c
+src/utils/qtree.c	util/qtree.c
+# Pruned copies: upstream text with whole sections removed because they need
+# meson configuration, os-posix.h, the Error API or sockets. They merge
+# mechanically as long as upstream leaves the kept sections alone; a conflict
+# in a removed section is resolved by deleting it again. bswap.h keeps the
+# host-only half; the MemOp and target-endian half is libtcg's utils/bswap.h.
+# cutils.h drops the prototypes whose bodies cutils.c prunes.
+include/utils/bswap.h	include/qemu/bswap.h
+include/utils/cutils.h	include/qemu/cutils.h
+include/utils/osdep.h	include/qemu/osdep.h
+src/utils/cutils.c	util/cutils.c
+src/utils/osdep.c	util/osdep.c
+src/utils/oslib-posix.c	util/oslib-posix.c
+# More pruned copies, from the qht/rcu/thread import. thread.h drops win32
+# and the QSP profiler indirection (its macros call the _impl functions
+# directly); futex.h drops win32; lockable.h drops CoMutex; notify.{h,c}
+# drop NotifierWithReturn (Error API); qht.{h,c} drop qht_statistics
+# (qdist is not vendored); rcu.c drops the BQL around callbacks and keeps
+# the atfork hooks unconditionally; sys_membarrier.h keeps only the
+# non-CONFIG_MEMBARRIER branch; qemu-thread-common.h drops tracing and BQL
+# status tracking; qemu-thread-posix.c drops the TSAN annotation and traces.
+include/utils/futex.h	include/qemu/futex.h
+include/utils/lockable.h	include/qemu/lockable.h
+include/utils/notify.h	include/qemu/notify.h
+include/utils/qht.h	include/qemu/qht.h
+include/utils/rcu.h	include/qemu/rcu.h
+include/utils/sys_membarrier.h	include/qemu/sys_membarrier.h
+include/utils/thread.h	include/qemu/thread.h
+src/utils/notify.c	util/notify.c
+src/utils/qemu-thread-common.h	util/qemu-thread-common.h
+src/utils/qemu-thread-posix.c	util/qemu-thread-posix.c
+src/utils/qht.c	util/qht.c
+src/utils/rcu.c	util/rcu.c

@@ -43,7 +43,10 @@ if(WITH_TARGET MATCHES "s2e")
 set(LIBS -Wl,--whole-archive ${LIBS2EPLUGINS_LIBRARY_DIR}/libs2eplugins.a ${LIBS2ECORE_LIBRARY_DIR}/libs2ecore.a -Wl,--no-whole-archive ${LIBS})
 endif()
 
-set(LIBS ${LIBS} ${LIBCPU_LIBRARY_DIR}/libcpu.a ${LIBTCG_LIBRARY_DIR}/libtcg.a)
+# libtcg refers to the softmmu and runtime helpers that libcpu defines
+# (helper_*_mmu, helper_atomic_*, helper_lookup_tb_ptr), so the linker must
+# search the two archives together.
+set(LIBS ${LIBS} -Wl,--start-group ${LIBCPU_LIBRARY_DIR}/libcpu.a ${LIBTCG_LIBRARY_DIR}/libtcg.a -Wl,--end-group)
 
 llvm_map_components_to_libnames(LLVM_LIBS core passes support bitreader bitstreamreader bitwriter transformutils scalaropts codegen)
 
@@ -66,9 +69,9 @@ if(WITH_TARGET MATCHES "s2e")
                      boost_regex)
 endif()
 
-set(LIBS ${LIBS} ${LIBCOROUTINE_LIBRARY_DIR}/libcoroutine.a ${FSIGCXX_LIBRARY_DIR}/libfsigc++.a ${LIBQ_LIBRARY_DIR}/libq.a ${CAPSTONE_LIBRARIES} pthread glib-2.0 bsd dl)
+set(LIBS ${LIBS} ${LIBUTILS_LIBRARY_DIR}/libutils.a ${CAPSTONE_LIBRARIES} pthread glib-2.0 bsd dl)
 
-target_link_libraries(tests2e PUBLIC ${LIBCOROUTINE_LIBRARY_DIR}/libcoroutine.a pthread glib-2.0)
+target_link_libraries(tests2e PUBLIC ${LIBUTILS_LIBRARY_DIR}/libutils.a pthread glib-2.0)
 target_link_libraries(s2e ${LIBS})
 
 

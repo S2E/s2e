@@ -89,7 +89,8 @@ void S2EQMPClient::emitJson(QObject *obj) {
     qobject_unref(obj);
 
     try {
-        boost::asio::write(m_socket, boost::asio::buffer(data.str().c_str(), data.str().length()));
+        auto payload = data.str();
+        boost::asio::write(m_socket, boost::asio::buffer(payload));
     } catch (std::exception &e) {
         std::cerr << "s2e-qmp: could not write to socket\n";
         m_socket.close();

@@ -107,17 +107,67 @@ target_ulong cpu_get_eflags(CPUX86State *env) {
 // #define DEBUG_MMU
 
 /* NOTE: must be called outside the CPU execute loop */
+/*
+ * Set up the float_status fields that describe baked-in hardware behaviour
+ * rather than guest-visible control register state. Since QEMU 11.1 softfloat
+ * asserts when it has to pick between NaNs and no rule was selected, so these
+ * must be reapplied every time cpu_state_reset() zeroes the CPU state.
+ *
+ * This mirrors cpu_init_fp_statuses() in QEMU's target/i386/tcg/fpu_helper.c.
+ */
+static void cpu_init_fp_statuses(CPUX86State *env) {
+    /*
+     * Use x87 NaN propagation rules:
+     * SNaN + QNaN => return the QNaN
+     * two SNaNs => return the one with the larger significand, silenced
+     * two QNaNs => return the one with the larger significand
+     * SNaN and a non-NaN => return the SNaN, silenced
+     * QNaN and a non-NaN => return the QNaN
+     *
+     * If we get down to comparing significands and they are the same,
+     * return the NaN with the positive sign bit (if any).
+     */
+    set_float_2nan_prop_rule(float_2nan_prop_x87, &env->fp_status);
+    set_float_2nan_prop_rule(float_2nan_prop_x87, &env->mmx_status);
+    set_float_2nan_prop_rule(float_2nan_prop_x87, &env->sse_status);
+
+    /*
+     * Only SSE has multiply-add instructions. For 0 * inf + NaN the input NaN
+     * is selected, and multiple input NaNs are selected in the order a, b, c.
+     * Invalid is not raised for the 0 * inf + (Q)NaN case.
+     */
+    set_float_infzeronan_rule(float_infzeronan_dnan_never | float_infzeronan_suppress_invalid, &env->sse_status);
+    set_float_3nan_prop_rule(float_3nan_prop_abc, &env->sse_status);
+
+    /* Default NaN: sign bit set, most significant frac bit set */
+    set_float_default_nan_pattern(0b11000000, &env->fp_status);
+    set_float_default_nan_pattern(0b11000000, &env->mmx_status);
+    set_float_default_nan_pattern(0b11000000, &env->sse_status);
+
+    /*
+     * x86 does flush-to-zero detection after rounding: the SDM section 10.2.3.3
+     * on the FTZ bit of MXCSR says that we flush when we detect underflow,
+     * which x86 does after rounding.
+     */
+    set_float_ftz_detection(float_ftz_after_rounding, &env->fp_status);
+    set_float_ftz_detection(float_ftz_after_rounding, &env->mmx_status);
+    set_float_ftz_detection(float_ftz_after_rounding, &env->sse_status);
+}
+
 void cpu_state_reset(CPUX86State *env) {
     int i;
 
     if (libcpu_loglevel_mask(CPU_LOG_RESET)) {
-        libcpu_log("CPU Reset (CPU %d)\n", env->cpu_index);
+        libcpu_log("CPU Reset (CPU %d)\n", env_cpu(env)->cpu_index);
         log_cpu_state(env, X86_DUMP_FPU | X86_DUMP_CCOP);
     }
 
-    memset(env, 0, offsetof(CPUX86State, breakpoints));
+    memset(env, 0, offsetof(CPUX86State, size));
+    cpu_common_reset(env_cpu(env));
 
-    tlb_flush(env, 1);
+    cpu_init_fp_statuses(env);
+
+    tlb_flush(env_cpu(env));
 
     env->old_exception = -1;
 
@@ -301,7 +351,7 @@ void cpu_dump_state(CPUX86State *env, FILE *f, fprintf_function cpu_fprintf, int
                         eflags & CC_O ? 'O' : '-', eflags & CC_S ? 'S' : '-', eflags & CC_Z ? 'Z' : '-',
                         eflags & CC_A ? 'A' : '-', eflags & CC_P ? 'P' : '-', eflags & CC_C ? 'C' : '-',
                         env->hflags & HF_CPL_MASK, (env->hflags >> HF_INHIBIT_IRQ_SHIFT) & 1, (env->a20_mask >> 20) & 1,
-                        (env->hflags >> HF_SMM_SHIFT) & 1, env->halted);
+                        (env->hflags >> HF_SMM_SHIFT) & 1, env_cpu(env)->halted);
         } else
 #endif
         {
@@ -316,7 +366,7 @@ void cpu_dump_state(CPUX86State *env, FILE *f, fprintf_function cpu_fprintf, int
                         eflags, eflags & DF_MASK ? 'D' : '-', eflags & CC_O ? 'O' : '-', eflags & CC_S ? 'S' : '-',
                         eflags & CC_Z ? 'Z' : '-', eflags & CC_A ? 'A' : '-', eflags & CC_P ? 'P' : '-',
                         eflags & CC_C ? 'C' : '-', env->hflags & HF_CPL_MASK, (env->hflags >> HF_INHIBIT_IRQ_SHIFT) & 1,
-                        (env->a20_mask >> 20) & 1, (env->hflags >> HF_SMM_SHIFT) & 1, env->halted);
+                        (env->a20_mask >> 20) & 1, (env->hflags >> HF_SMM_SHIFT) & 1, env_cpu(env)->halted);
         }
     }
 
@@ -438,7 +488,7 @@ void cpu_x86_set_a20(CPUX86State *env, int a20_state) {
 
         /* when a20 is changed, all the MMU mappings are invalid, so
            we must flush everything */
-        tlb_flush(env, 1);
+        tlb_flush(env_cpu(env));
         env->a20_mask = ~(1 << 20) | (a20_state << 20);
     }
 }
@@ -451,7 +501,7 @@ void cpu_x86_update_cr0(CPUX86State *env, uint32_t new_cr0) {
 #endif
     if ((new_cr0 & (CR0_PG_MASK | CR0_WP_MASK | CR0_PE_MASK)) !=
         (env->cr[0] & (CR0_PG_MASK | CR0_WP_MASK | CR0_PE_MASK))) {
-        tlb_flush(env, 1);
+        tlb_flush(env_cpu(env));
     }
 
 #ifdef TARGET_X86_64
@@ -495,7 +545,7 @@ void cpu_x86_update_cr3(CPUX86State *env, target_ulong new_cr3) {
 #if defined(DEBUG_MMU)
         printf("CR3 update: CR3=" TARGET_FMT_lx "\n", new_cr3);
 #endif
-        tlb_flush(env, 0);
+        tlb_flush(env_cpu(env));
     }
 }
 
@@ -505,7 +555,7 @@ void cpu_x86_update_cr4(CPUX86State *env, uint32_t new_cr4) {
 #endif
     if ((new_cr4 & (CR4_PGE_MASK | CR4_PAE_MASK | CR4_PSE_MASK)) !=
         (env->cr[4] & (CR4_PGE_MASK | CR4_PAE_MASK | CR4_PSE_MASK))) {
-        tlb_flush(env, 1);
+        tlb_flush(env_cpu(env));
     }
     /* SSE handling */
     if (!(env->cpuid.cpuid_features & CPUID_SSE))
@@ -566,7 +616,7 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr, int is_write1,
             sext = (int64_t) addr >> 47;
             if (sext != 0 && sext != -1) {
                 env->error_code = 0;
-                env->exception_index = EXCP0D_GPF;
+                env_cpu(env)->exception_index = EXCP0D_GPF;
                 return 1;
             }
 
@@ -782,7 +832,7 @@ do_mapping:
     paddr = (pte & TARGET_PAGE_MASK) + page_offset;
     vaddr = virt_addr + page_offset;
 
-    tlb_set_page(env, vaddr, paddr, prot, mmu_idx, page_size);
+    tlb_set_page(env_cpu(env), vaddr, paddr, prot, mmu_idx, page_size);
     return 0;
 do_fault_protect:
     error_code = PG_ERROR_P_MASK;
@@ -799,7 +849,7 @@ do_fault:
         env->cr[2] = addr;
     }
     env->error_code = error_code;
-    env->exception_index = EXCP0E_PAGE;
+    env_cpu(env)->exception_index = EXCP0E_PAGE;
     return 1;
 }
 
@@ -962,16 +1012,16 @@ static CPUDebugExcpHandler *prev_debug_excp_handler;
 static void breakpoint_handler(CPUX86State *env) {
     CPUBreakpoint *bp;
 
-    if (env->watchpoint_hit) {
-        if (env->watchpoint_hit->flags & BP_CPU) {
-            env->watchpoint_hit = NULL;
+    if (env_cpu(env)->watchpoint_hit) {
+        if (env_cpu(env)->watchpoint_hit->flags & BP_CPU) {
+            env_cpu(env)->watchpoint_hit = NULL;
             if (check_hw_breakpoints(env, 0))
                 raise_exception(env, EXCP01_DB);
             else
                 cpu_resume_from_signal(env, NULL);
         }
     } else {
-        QTAILQ_FOREACH (bp, &env->breakpoints, entry)
+        QTAILQ_FOREACH (bp, &env_cpu(env)->breakpoints, entry)
             if (bp->pc == env->eip) {
                 if (bp->flags & BP_CPU) {
                     check_hw_breakpoints(env, 1);
@@ -1029,7 +1079,10 @@ CPUX86State *cpu_x86_init(const cpuid_t *cpuid) {
     CPUX86State *env;
     static int inited;
 
-    env = g_malloc0(sizeof(CPUX86State));
+    /* The env must be embedded in an ArchCPU so that the caches in CPUState
+       are reachable at negative offsets from it; see cpu/state.h. */
+    ArchCPU *cpu = g_malloc0(sizeof(ArchCPU));
+    env = &cpu->env;
     cpu_exec_init(env);
 
     /* init various static tables used in TCG mode */
@@ -1041,7 +1094,7 @@ CPUX86State *cpu_x86_init(const cpuid_t *cpuid) {
 
     env->cpuid = *cpuid;
 
-    env->cpuid.cpuid_apic_id = env->cpu_index;
+    env->cpuid.cpuid_apic_id = env_cpu(env)->cpu_index;
     mce_init(env);
 
     qemu_init_vcpu(env);
@@ -1052,17 +1105,17 @@ CPUX86State *cpu_x86_init(const cpuid_t *cpuid) {
 void do_cpu_init(CPUX86State *env1) {
     extern CPUX86State *env;
     env = env1;
-    int sipi = env->interrupt_request & CPU_INTERRUPT_SIPI;
+    int sipi = env_cpu(env)->interrupt_request & CPU_INTERRUPT_SIPI;
     uint64_t pat = env->pat;
 
     cpu_state_reset(env);
-    env->interrupt_request = sipi;
+    env_cpu(env)->interrupt_request = sipi;
     env->pat = pat;
-    env->halted = !cpu_is_bsp(env);
+    env_cpu(env)->halted = !cpu_is_bsp(env);
 }
 
 int cpu_is_bsp(CPUX86State *env) {
-    return env->cpu_index == 0;
+    return env_cpu(env)->cpu_index == 0;
 }
 
 const void *helper_lookup_tb_ptr(CPUArchState *env) {

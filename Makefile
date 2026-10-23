@@ -134,9 +134,8 @@ list:
 
 ALWAYS:
 
-$(KLEE_DIRS) libq-debug libq-release                       \
-libfsigc++-debug libfsigc++-release libvmi-debug libvmi-release     \
-libcoroutine-release libcoroutine-debug libs2e-debug libs2e-release \
+$(KLEE_DIRS) libutils-debug libutils-release                \
+libvmi-debug libvmi-release libs2e-debug libs2e-release     \
 tools-debug tools-release:
 	mkdir -p $@
 
@@ -337,92 +336,34 @@ stamps/libvmi-release-install: stamps/libvmi-release-make
 	$(MAKE) -C libvmi-release install
 	touch $@
 
-##############
-# libfsigc++ #
-##############
+############
+# libutils #
+############
 
-LIBFSIGCXX_COMMON_FLAGS = -DCMAKE_MODULE_PATH=$(S2E_SRC)/cmake  \
-                          -DCMAKE_C_COMPILER=$(SYSTEM_CLANG_CC)        \
-                          -DCMAKE_CXX_COMPILER=$(SYSTEM_CLANG_CXX)     \
-                          -DCMAKE_C_FLAGS="$(CFLAGS_ARCH)"      \
-                          -G "Unix Makefiles"
+LIBUTILS_COMMON_FLAGS = -DCMAKE_MODULE_PATH=$(S2E_SRC)/cmake    \
+                        -DCMAKE_C_COMPILER=$(SYSTEM_CLANG_CC)   \
+                        -DCMAKE_CXX_COMPILER=$(SYSTEM_CLANG_CXX)    \
+                        -DCMAKE_C_FLAGS="$(CFLAGS_ARCH)"        \
+                        -G "Unix Makefiles"
 
-stamps/libfsigc++-debug-configure: $(call FIND_CONFIG_SOURCE,$(S2E_SRC)/libfsigc++)
+stamps/libutils-debug-configure: $(call FIND_CONFIG_SOURCE,$(S2E_SRC)/libutils)
 
-stamps/libfsigc++-debug-configure: CONFIGURE_COMMAND = cmake $(LIBFSIGCXX_COMMON_FLAGS) \
-                                                       -DCMAKE_BUILD_TYPE=Debug         \
-                                                       -DCMAKE_CXX_FLAGS="$(CXXFLAGS_DEBUG)" \
-                                                       $(S2E_SRC)/libfsigc++
-
-
-stamps/libfsigc++-release-configure: $(call FIND_CONFIG_SOURCE,$(S2E_SRC)/libfsigc++)
-
-stamps/libfsigc++-release-configure: CONFIGURE_COMMAND = cmake $(LIBFSIGCXX_COMMON_FLAGS)   \
-                                     -DCMAKE_BUILD_TYPE=$(RELEASE_BUILD_TYPE)               \
-                                     -DCMAKE_CXX_FLAGS="$(CXXFLAGS_RELEASE)"                \
-                                     $(S2E_SRC)/libfsigc++
-
-stamps/libfsigc++-debug-make: stamps/libfsigc++-debug-configure $(call FIND_SOURCE,$(S2E_SRC)/libfsigc++)
-
-stamps/libfsigc++-release-make: stamps/libfsigc++-release-configure $(call FIND_SOURCE,$(S2E_SRC)/libfsigc++)
-
-########
-# libq #
-########
-
-LIBQ_COMMON_FLAGS = -DCMAKE_MODULE_PATH=$(S2E_SRC)/cmake    \
-                    -DCMAKE_C_COMPILER=$(SYSTEM_CLANG_CC)          \
-                    -DCMAKE_CXX_COMPILER=$(SYSTEM_CLANG_CXX)       \
-                    -DCMAKE_C_FLAGS="$(CFLAGS_ARCH)"        \
-                    -G "Unix Makefiles"
-
-stamps/libq-debug-configure: $(call FIND_CONFIG_SOURCE,$(S2E_SRC)/libq)
-
-stamps/libq-debug-configure: CONFIGURE_COMMAND = cmake $(LIBQ_COMMON_FLAGS) \
-                                                 -DCMAKE_BUILD_TYPE=Debug   \
-                                                 -DCMAKE_CXX_FLAGS="$(CXXFLAGS_DEBUG)" \
-                                                 $(S2E_SRC)/libq
+stamps/libutils-debug-configure: CONFIGURE_COMMAND = cmake $(LIBUTILS_COMMON_FLAGS)     \
+                                                     -DCMAKE_BUILD_TYPE=Debug           \
+                                                     -DCMAKE_CXX_FLAGS="$(CXXFLAGS_DEBUG)" \
+                                                     $(S2E_SRC)/libutils
 
 
-stamps/libq-release-configure: $(call FIND_CONFIG_SOURCE,$(S2E_SRC)/libq)
+stamps/libutils-release-configure: $(call FIND_CONFIG_SOURCE,$(S2E_SRC)/libutils)
 
-stamps/libq-release-configure: CONFIGURE_COMMAND = cmake $(LIBQ_COMMON_FLAGS)                 \
-                                                   -DCMAKE_BUILD_TYPE=$(RELEASE_BUILD_TYPE)   \
-                                                   -DCMAKE_CXX_FLAGS="$(CXXFLAGS_RELEASE)"    \
-                                                   $(S2E_SRC)/libq
+stamps/libutils-release-configure: CONFIGURE_COMMAND = cmake $(LIBUTILS_COMMON_FLAGS)        \
+                                                       -DCMAKE_BUILD_TYPE=$(RELEASE_BUILD_TYPE)  \
+                                                       -DCMAKE_CXX_FLAGS="$(CXXFLAGS_RELEASE)"   \
+                                                       $(S2E_SRC)/libutils
 
-stamps/libq-debug-make: stamps/libq-debug-configure $(call FIND_SOURCE,$(S2E_SRC)/libq)
+stamps/libutils-debug-make: stamps/libutils-debug-configure $(call FIND_SOURCE,$(S2E_SRC)/libutils)
 
-stamps/libq-release-make: stamps/libq-release-configure $(call FIND_SOURCE,$(S2E_SRC)/libq)
-
-################
-# libcoroutine #
-################
-
-LIBCOROUTINE_COMMON_FLAGS = -DCMAKE_MODULE_PATH=$(S2E_SRC)/cmake    \
-                            -DCMAKE_C_COMPILER=$(SYSTEM_CLANG_CC)          \
-                            -DCMAKE_CXX_COMPILER=$(SYSTEM_CLANG_CXX)       \
-                            -DCMAKE_C_FLAGS="$(CFLAGS_ARCH)"        \
-                            -G "Unix Makefiles"
-
-stamps/libcoroutine-debug-configure: $(call FIND_CONFIG_SOURCE,$(S2E_SRC)/libcoroutine)
-
-stamps/libcoroutine-debug-configure: CONFIGURE_COMMAND = cmake $(LIBCOROUTINE_COMMON_FLAGS)    \
-                                                         -DCMAKE_BUILD_TYPE=Debug              \
-                                                         -DCMAKE_CXX_FLAGS="$(CXXFLAGS_DEBUG)" \
-                                                         $(S2E_SRC)/libcoroutine
-
-
-stamps/libcoroutine-release-configure: $(call FIND_CONFIG_SOURCE,$(S2E_SRC)/libcoroutine)
-
-stamps/libcoroutine-release-configure: CONFIGURE_COMMAND = cmake $(LIBCOROUTINE_COMMON_FLAGS)        \
-                                                           -DCMAKE_BUILD_TYPE=$(RELEASE_BUILD_TYPE)  \
-                                                           -DCMAKE_CXX_FLAGS="$(CXXFLAGS_RELEASE)"   \
-                                                           $(S2E_SRC)/libcoroutine
-
-stamps/libcoroutine-debug-make: stamps/libcoroutine-debug-configure $(call FIND_SOURCE,$(S2E_SRC)/libcoroutine)
-
-stamps/libcoroutine-release-make: stamps/libcoroutine-release-configure $(call FIND_SOURCE,$(S2E_SRC)/libcoroutine)
+stamps/libutils-release-make: stamps/libutils-release-configure $(call FIND_SOURCE,$(S2E_SRC)/libutils)
 
 ##########
 # libs2e #
@@ -444,24 +385,19 @@ LIBS2E_CONFIGURE_FLAGS = --with-cc=$(SYSTEM_CLANG_CC)                           
 LIBS2E_DEBUG_FLAGS = --with-llvm=$(LLVM_PREFIX)                                     \
                      --with-klee=$(S2E_BUILD)/klee-debug                            \
                      --with-libvmi=$(S2E_BUILD)/libvmi-debug                        \
-                     --with-fsigc++=$(S2E_BUILD)/libfsigc++-debug                   \
-                     --with-libq=$(S2E_BUILD)/libq-debug                            \
-                     --with-libcoroutine=$(S2E_BUILD)/libcoroutine-debug            \
+                     --with-libutils=$(S2E_BUILD)/libutils-debug                    \
                      --with-cxxflags="$(CXXFLAGS_DEBUG)"                            \
                      --enable-debug
 
 LIBS2E_RELEASE_FLAGS = --with-llvm=$(LLVM_PREFIX)                                   \
                        --with-klee=$(S2E_BUILD)/klee-release                        \
                        --with-libvmi=$(S2E_BUILD)/libvmi-release                    \
-                       --with-fsigc++=$(S2E_BUILD)/libfsigc++-release               \
-                       --with-libq=$(S2E_BUILD)/libq-release                        \
-                       --with-libcoroutine=$(S2E_BUILD)/libcoroutine-release        \
+                       --with-libutils=$(S2E_BUILD)/libutils-release                \
                        --with-cxxflags="$(CXXFLAGS_RELEASE)"
 
 stamps/libs2e-debug-configure: $(call FIND_CONFIG_SOURCE,$(S2E_SRC)/libs2e)
 stamps/libs2e-debug-configure: stamps/lua-make stamps/libvmi-debug-install      \
-    stamps/klee-debug-make stamps/libfsigc++-debug-make        \
-    stamps/libq-debug-make stamps/libcoroutine-debug-make  \
+    stamps/klee-debug-make stamps/libutils-debug-configure       \
     stamps/klee-coverage-make
 stamps/libs2e-debug-configure: CONFIGURE_COMMAND = $(S2E_SRC)/libs2e/configure  \
                                                    $(LIBS2E_CONFIGURE_FLAGS)    \
@@ -469,21 +405,22 @@ stamps/libs2e-debug-configure: CONFIGURE_COMMAND = $(S2E_SRC)/libs2e/configure  
 
 stamps/libs2e-release-configure: $(call FIND_CONFIG_SOURCE,$(S2E_SRC)/libs2e)
 stamps/libs2e-release-configure: stamps/lua-make stamps/libvmi-release-install  \
-    stamps/klee-release-make stamps/libfsigc++-release-make    \
-    stamps/libq-release-make stamps/libcoroutine-release-make
+    stamps/klee-release-make stamps/libutils-release-configure
 
 stamps/libs2e-release-configure: CONFIGURE_COMMAND = $(S2E_SRC)/libs2e/configure    \
                                                      $(LIBS2E_CONFIGURE_FLAGS)      \
                                                      $(LIBS2E_RELEASE_FLAGS)
 
-stamps/libs2e-debug-make: stamps/libs2e-debug-configure \
+# libutils changes must not reconfigure libs2e: configure wipes every per-target
+# tree. Depend on its make stamp here so they only trigger an incremental build.
+stamps/libs2e-debug-make: stamps/libs2e-debug-configure stamps/libutils-debug-make \
 	$(call FIND_SOURCE,$(S2E_SRC)/libs2e) \
 	$(call FIND_SOURCE,$(S2E_SRC)/libcpu) \
 	$(call FIND_SOURCE,$(S2E_SRC)/libtcg) \
 	$(call FIND_SOURCE,$(S2E_SRC)/libs2ecore) \
 	$(call FIND_SOURCE,$(S2E_SRC)/libs2eplugins)
 
-stamps/libs2e-release-make: stamps/libs2e-release-configure  \
+stamps/libs2e-release-make: stamps/libs2e-release-configure stamps/libutils-release-make \
 	$(call FIND_SOURCE,$(S2E_SRC)/libs2e) \
 	$(call FIND_SOURCE,$(S2E_SRC)/libcpu) \
 	$(call FIND_SOURCE,$(S2E_SRC)/libtcg) \
@@ -551,27 +488,25 @@ TOOLS_CONFIGURE_FLAGS = -DCMAKE_INSTALL_PREFIX=$(S2E_PREFIX)              \
                         -DS2EPLUGINS_SRC_DIR=$(S2E_SRC)/libs2eplugins/src \
                         -G "Unix Makefiles"
 
-stamps/tools-debug-configure: stamps/libvmi-debug-make stamps/libfsigc++-debug-make stamps/libq-debug-make
+stamps/tools-debug-configure: stamps/libvmi-debug-make stamps/libutils-debug-configure
 stamps/tools-debug-configure: CONFIGURE_COMMAND = cmake $(TOOLS_CONFIGURE_FLAGS)                        \
                                                   -DVMI_DIR=$(S2E_BUILD)/libvmi-debug                   \
-                                                  -DFSIGCXX_DIR=$(S2E_BUILD)/libfsigc++-debug           \
-                                                  -DLIBQ_DIR=$(S2E_BUILD)/libq-debug                    \
+                                                  -DLIBUTILS_DIR=$(S2E_BUILD)/libutils-debug            \
                                                   -DCMAKE_BUILD_TYPE=Debug                              \
                                                   -DCMAKE_CXX_FLAGS="$(CXXFLAGS_DEBUG)"                 \
                                                   $(S2E_SRC)/tools
 
-stamps/tools-release-configure: stamps/libvmi-release-make stamps/libfsigc++-release-make stamps/libq-release-make
+stamps/tools-release-configure: stamps/libvmi-release-make stamps/libutils-release-configure
 stamps/tools-release-configure: CONFIGURE_COMMAND = cmake $(TOOLS_CONFIGURE_FLAGS)                          \
                                                     -DVMI_DIR=$(S2E_BUILD)/libvmi-release                   \
-                                                    -DFSIGCXX_DIR=$(S2E_BUILD)/libfsigc++-release           \
-                                                    -DLIBQ_DIR=$(S2E_BUILD)/libq-release                    \
+                                                    -DLIBUTILS_DIR=$(S2E_BUILD)/libutils-release            \
                                                     -DCMAKE_BUILD_TYPE=$(RELEASE_BUILD_TYPE)                \
                                                     -DCMAKE_CXX_FLAGS="$(CXXFLAGS_RELEASE)"                 \
                                                     $(S2E_SRC)/tools
 
-stamps/tools-debug-make: stamps/tools-debug-configure
+stamps/tools-debug-make: stamps/tools-debug-configure stamps/libutils-debug-make
 
-stamps/tools-release-make: stamps/tools-release-configure
+stamps/tools-release-make: stamps/tools-release-configure stamps/libutils-release-make
 
 stamps/tools-release-install: stamps/tools-release-make
 	$(MAKE) -C tools-release install

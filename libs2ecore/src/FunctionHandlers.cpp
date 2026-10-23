@@ -125,21 +125,6 @@ static void handleGetValue(klee::Executor *executor, klee::ExecutionState *state
     state->llvm.bindLocal(target, result);
 }
 
-static void handlerWriteMemIoVaddr(klee::Executor *executor, klee::ExecutionState *state, klee::KInstruction *target,
-                                   std::vector<klee::ref<klee::Expr>> &args) {
-    S2EExecutionState *s2eState = static_cast<S2EExecutionState *>(state);
-    assert(args.size() == 2);
-
-    klee::ConstantExpr *reset = dyn_cast<klee::ConstantExpr>(args[1]);
-    assert(reset && "Invalid parameter");
-
-    if (reset->getZExtValue()) {
-        s2eState->setMemIoVaddr(nullptr);
-    } else {
-        s2eState->setMemIoVaddr(args[0]);
-    }
-}
-
 static void handlerBeforeMemoryAccess(klee::Executor *executor, klee::ExecutionState *state, klee::KInstruction *target,
                                       std::vector<klee::ref<klee::Expr>> &args) {
     if (g_s2e->getCorePlugin()->onBeforeSymbolicDataMemoryAccess.empty()) {
@@ -238,19 +223,40 @@ static void handlerOnTlbMiss(Executor *executor, ExecutionState *state, klee::KI
 }
 #endif
 
+/// Reverses the order of the bytes of an expression whose width is a multiple
+/// of 8. Extracts and concatenations keep the expression simple: swapping twice
+/// gives back the original expression.
+static klee::ref<Expr> swapBytes(const klee::ref<Expr> &value) {
+    unsigned size = value->getWidth() / 8;
+    klee::ref<Expr> ret = klee::ExtractExpr::create(value, 0, 8);
+    for (unsigned i = 1; i < size; ++i) {
+        ret = klee::ConcatExpr::create(ret, klee::ExtractExpr::create(value, i * 8, 8));
+    }
+    return ret;
+}
+
+/// Passes an access to symbolic hardware to the plugins.
+///
+/// The arguments are those of tcg_llvm_trace_mmio_access(). For a load, the
+/// low size bytes of the value hold the bytes that were read, most significant
+/// first, and the handler returns the value with these bytes replaced by the
+/// ones that the plugins return. The other bytes are kept. For a store, the low
+/// size bytes hold the bytes that were written, least significant first. When
+/// the access does not hit symbolic hardware, the handler returns the value
+/// unchanged, so that symbolic bytes do not go through any computation.
 static void handlerTraceMmioAccess(Executor *executor, ExecutionState *state, klee::KInstruction *target,
                                    std::vector<klee::ref<klee::Expr>> &args) {
     assert(args.size() == 4);
 
     auto symbolicPhysAddress = args[0];
+    klee::ref<Expr> value = args[1];
     if (!g_symbolicMemoryHook.hasHook()) {
         // Avoid forced concretizations if symbolic hardware is not enabled
-        state->llvm.bindLocal(target, symbolicPhysAddress);
+        state->llvm.bindLocal(target, value);
         return;
     }
 
     uint64_t physAddress = state->toConstant(symbolicPhysAddress, "MMIO address")->getZExtValue();
-    klee::ref<Expr> value = args[1];
     unsigned size = cast<klee::ConstantExpr>(args[2])->getZExtValue();
 
     if (!g_symbolicMemoryHook.symbolic(nullptr, physAddress, size)) {
@@ -265,9 +271,13 @@ static void handlerTraceMmioAccess(Executor *executor, ExecutionState *state, kl
         g_symbolicMemoryHook.write(nullptr, physAddress, resizedValue, SYMB_MMIO);
         state->llvm.bindLocal(target, value);
     } else {
-        klee::ref<Expr> ret = g_symbolicMemoryHook.read(nullptr, physAddress, resizedValue, SYMB_MMIO);
+        // The plugins take and return the value in guest byte order.
+        klee::ref<Expr> ret = g_symbolicMemoryHook.read(nullptr, physAddress, swapBytes(resizedValue), SYMB_MMIO);
         assert(ret->getWidth() == resizedValue->getWidth());
-        ret = klee::ZExtExpr::create(ret, klee::Expr::Int64);
+        ret = swapBytes(ret);
+        if (size < 8) {
+            ret = klee::ConcatExpr::create(klee::ExtractExpr::create(value, size * 8, 64 - size * 8), ret);
+        }
         state->llvm.bindLocal(target, ret);
     }
 }
@@ -315,8 +325,7 @@ static void handlerTracePortAccess(Executor *executor, ExecutionState *state, kl
     }
 }
 
-static Handler s_handlers[] = {{"tcg_llvm_write_mem_io_vaddr", handlerWriteMemIoVaddr, nullptr},
-                               {"tcg_llvm_before_memory_access", handlerBeforeMemoryAccess, nullptr},
+static Handler s_handlers[] = {{"tcg_llvm_before_memory_access", handlerBeforeMemoryAccess, nullptr},
                                {"tcg_llvm_after_memory_access", handlerAfterMemoryAccess, nullptr},
                                {"tcg_llvm_trace_port_access", handlerTracePortAccess, nullptr},
                                {"tcg_llvm_trace_mmio_access", handlerTraceMmioAccess, nullptr},

@@ -19,8 +19,8 @@
 
 #include <glib.h>
 
-#include <tcg/utils/host-utils.h>
-#include <tcg/utils/osdep.h>
+#include <utils/host-utils.h>
+#include <utils/osdep.h>
 
 // clang-format off
 #include <tcg/tcg.h>
@@ -1023,10 +1023,7 @@ void HELPER(gvec_ssadd32)(void *d, void *a, void *b, uint32_t desc) {
     for (i = 0; i < oprsz; i += sizeof(int32_t)) {
         int32_t ai = *(int32_t *) (a + i);
         int32_t bi = *(int32_t *) (b + i);
-        int32_t di;
-        if (sadd32_overflow(ai, bi, &di)) {
-            di = (di < 0 ? INT32_MAX : INT32_MIN);
-        }
+        int32_t di = sadd32_saturate(ai, bi);
         *(int32_t *) (d + i) = di;
     }
     clear_high(d, oprsz, desc);
@@ -1039,10 +1036,7 @@ void HELPER(gvec_ssadd64)(void *d, void *a, void *b, uint32_t desc) {
     for (i = 0; i < oprsz; i += sizeof(int64_t)) {
         int64_t ai = *(int64_t *) (a + i);
         int64_t bi = *(int64_t *) (b + i);
-        int64_t di;
-        if (sadd64_overflow(ai, bi, &di)) {
-            di = (di < 0 ? INT64_MAX : INT64_MIN);
-        }
+        int64_t di = sadd64_saturate(ai, bi);
         *(int64_t *) (d + i) = di;
     }
     clear_high(d, oprsz, desc);
@@ -1087,10 +1081,7 @@ void HELPER(gvec_sssub32)(void *d, void *a, void *b, uint32_t desc) {
     for (i = 0; i < oprsz; i += sizeof(int32_t)) {
         int32_t ai = *(int32_t *) (a + i);
         int32_t bi = *(int32_t *) (b + i);
-        int32_t di;
-        if (ssub32_overflow(ai, bi, &di)) {
-            di = (di < 0 ? INT32_MAX : INT32_MIN);
-        }
+        int32_t di = ssub32_saturate(ai, bi);
         *(int32_t *) (d + i) = di;
     }
     clear_high(d, oprsz, desc);
@@ -1103,10 +1094,7 @@ void HELPER(gvec_sssub64)(void *d, void *a, void *b, uint32_t desc) {
     for (i = 0; i < oprsz; i += sizeof(int64_t)) {
         int64_t ai = *(int64_t *) (a + i);
         int64_t bi = *(int64_t *) (b + i);
-        int64_t di;
-        if (ssub64_overflow(ai, bi, &di)) {
-            di = (di < 0 ? INT64_MAX : INT64_MIN);
-        }
+        int64_t di = ssub64_saturate(ai, bi);
         *(int64_t *) (d + i) = di;
     }
     clear_high(d, oprsz, desc);

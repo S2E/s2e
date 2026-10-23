@@ -33,12 +33,11 @@
 #define NO_CPU_IO_DEFS
 #include <tcg/insn-start-words.h>
 #include <tcg/tcg.h>
-#include <tcg/utils/cache.h>
-#include <tcg/utils/spinlock.h>
+#include <utils/spinlock.h>
 #include "cpu.h"
 #include "timer.h"
 
-#if defined(CONFIG_SYMBEX_MP) || defined(STATIC_TRANSLATOR)
+#if defined(CONFIG_SYMBEX_MP)
 #include <tcg/tcg-llvm.h>
 #endif
 
@@ -46,6 +45,7 @@
 #include <cpu/se_libcpu.h>
 #endif
 
+#include "accel/tlb-bounds.h"
 #include "exec-tb.h"
 #include "exec.h"
 
@@ -55,47 +55,7 @@ extern TCGContext tcg_init_ctx;
    but not so small that we can't have a fair number of TB's live.  */
 #define MIN_CODE_GEN_BUFFER_SIZE (128 * 1024 * 1024)
 
-#if defined(CONFIG_SYMBEX_MP)
-tcg_target_ulong tcg_helper_ldb_mmu_symb(CPUArchState *env, target_ulong addr, int mmu_idx, void *retaddr);
-tcg_target_ulong tcg_helper_ldw_mmu_symb(CPUArchState *env, target_ulong addr, int mmu_idx, void *retaddr);
-tcg_target_ulong tcg_helper_ldl_mmu_symb(CPUArchState *env, target_ulong addr, int mmu_idx, void *retaddr);
-uint64_t tcg_helper_ldq_mmu_symb(CPUArchState *env, target_ulong addr, int mmu_idx, void *retaddr);
-
-static void *qemu_ld_helpers[(MO_SIZE | MO_BSWAP) + 1] = {[MO_UB] = tcg_helper_ldb_mmu_symb,
-                                                          [MO_LEUW] = tcg_helper_ldw_mmu_symb,
-                                                          [MO_LEUL] = tcg_helper_ldl_mmu_symb,
-                                                          [MO_LEUQ] = tcg_helper_ldq_mmu_symb};
-
-static void *qemu_st_helpers[(MO_SIZE | MO_BSWAP) + 1] = {[MO_UB] = helper_stb_mmu_symb,
-                                                          [MO_LEUW] = helper_stw_mmu_symb,
-                                                          [MO_LEUL] = helper_stl_mmu_symb,
-                                                          [MO_LEUQ] = helper_stq_mmu_symb};
-#elif defined(STATIC_TRANSLATOR)
-
-static void *qemu_ld_helpers[(MO_SIZE | MO_BSWAP) + 1] = {0};
-static void *qemu_st_helpers[(MO_SIZE | MO_BSWAP) + 1] = {0};
-
-#else
-tcg_target_ulong tcg_helper_ldb_mmu(CPUArchState *env, target_ulong addr, int mmu_idx, void *retaddr);
-tcg_target_ulong tcg_helper_ldw_mmu(CPUArchState *env, target_ulong addr, int mmu_idx, void *retaddr);
-tcg_target_ulong tcg_helper_ldl_mmu(CPUArchState *env, target_ulong addr, int mmu_idx, void *retaddr);
-uint64_t tcg_helper_ldq_mmu(CPUArchState *env, target_ulong addr, int mmu_idx, void *retaddr);
-
-static void *qemu_ld_helpers[(MO_SIZE | MO_BSWAP) + 1] = {[MO_UB] = tcg_helper_ldb_mmu,
-                                                          [MO_LEUW] = tcg_helper_ldw_mmu,
-                                                          [MO_LEUL] = tcg_helper_ldl_mmu,
-                                                          [MO_LEUQ] = tcg_helper_ldq_mmu};
-
-/* legacy helper signature: __st_mmu(target_ulong addr, uintxx_t val,
-   int mmu_idx) */
-static void *qemu_st_helpers[(MO_SIZE | MO_BSWAP) + 1] = {
-    [MO_UB] = helper_stb_mmu, [MO_LEUW] = helper_stw_mmu, [MO_LEUL] = helper_stl_mmu, [MO_LEUQ] = helper_stq_mmu};
-#endif
-
 static void cpu_gen_init(TCGContext *ctx) {
-    memcpy(ctx->qemu_ld_helpers, qemu_ld_helpers, sizeof(ctx->qemu_ld_helpers));
-    memcpy(ctx->qemu_st_helpers, qemu_st_helpers, sizeof(ctx->qemu_st_helpers));
-
     extern CPUArchState *env;
     ctx->tcg_struct_size = sizeof(*ctx);
     ctx->env_ptr = (uintptr_t) &env;
@@ -112,7 +72,7 @@ static void cpu_gen_init(TCGContext *ctx) {
 
 #ifdef CONFIG_SYMBEX
     ctx->tlbe_offset_symbex_addend = offsetof(CPUTLBEntry, se_addend);
-    ctx->env_offset_se_tb_abort = offsetof(CPUArchState, se_tb_abort);
+    ctx->env_offset_se_tb_abort = (int) offsetof(ArchCPU, parent_obj.se_tb_abort) - (int) offsetof(ArchCPU, env);
 #endif
 
     ctx->target_page_bits = TARGET_PAGE_BITS;
@@ -124,11 +84,6 @@ static void cpu_gen_init(TCGContext *ctx) {
    (in bytes) allocated to the translation buffer. Zero means default
    size. */
 void tcg_exec_init(unsigned long tb_size) {
-    if (init_cache_info() < 0) {
-        fprintf(stderr, "Could not init cache size");
-        exit(-1);
-    }
-
     tcg_init(MIN_CODE_GEN_BUFFER_SIZE, 0, 1);
     cpu_gen_init(&tcg_init_ctx);
 
@@ -175,8 +130,7 @@ int cpu_gen_code(CPUArchState *env, TranslationBlock *tb) {
     tcg_ctx->page_bits = TARGET_PAGE_BITS;
     tcg_ctx->page_mask = TARGET_PAGE_MASK;
     tcg_ctx->tlb_dyn_max_bits = CPU_TLB_DYN_MAX_BITS;
-    tcg_ctx->tlb_fast_offset =
-        offsetof(CPUX86State, tlb_table); // (int) offsetof(ArchCPU, neg.tlb.f) - (int) offsetof(ArchCPU, env);
+    tcg_ctx->tlb_fast_offset = (int) offsetof(ArchCPU, parent_obj.neg.tlb.f) - (int) offsetof(ArchCPU, env);
 #endif
 #ifdef TCG_GUEST_DEFAULT_MO
     tcg_ctx->guest_mo = TCG_GUEST_DEFAULT_MO;
@@ -249,8 +203,8 @@ tb_overflow:
 
     tb->tc.size = gen_code_size;
 
-#if defined(CONFIG_SYMBEX_MP) || defined(STATIC_TRANSLATOR)
-    if (env->generate_llvm) {
+#if defined(CONFIG_SYMBEX_MP)
+    if (env_cpu(env)->generate_llvm) {
         assert(tb->llvm_function == NULL);
         tb->llvm_function = tcg_llvm_gen_code(tcg_llvm_translator, s, tb);
         g_sqi.tb.set_tb_function(tb->se_tb, tb->llvm_function);

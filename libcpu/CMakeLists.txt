@@ -26,8 +26,8 @@ pkg_check_modules(GLIB_PKG glib-2.0)
 pkg_check_modules(CAPSTONE REQUIRED capstone)
 
 
-find_package(LIBQ REQUIRED)
-message(STATUS "Found libq ${LIBQ_PACKAGE_VERSION}")
+find_package(LIBUTILS REQUIRED)
+message(STATUS "Found libutils ${LIBUTILS_PACKAGE_VERSION}")
 
 find_package(LIBTCG REQUIRED)
 message(STATUS "Found libtcg ${LIBTCG_PACKAGE_VERSION}")
@@ -56,10 +56,11 @@ file(WRITE ${CONFIG_TARGET_H}
 #define TARGET_INT_ALIGNMENT 4
 #define TARGET_LLONG_ALIGNMENT 8
 #define TARGET_I386 1
+#define TARGET_BIG_ENDIAN 0
 #define TARGET_PHYS_ADDR_BITS 64
 #define CONFIG_SOFTMMU 1
+#define CONFIG_TCG 1
 #define CONFIG_I386_DIS 1
-#define CONFIG_INT128 1
 "
 )
 
@@ -76,12 +77,10 @@ message(STATUS "WITH_TARGET: ${WITH_TARGET}")
 if(WITH_TARGET MATCHES "i386")
     file(APPEND ${CONFIG_TARGET_H} "#define TARGET_ARCH \"i386\"\n")
     file(APPEND ${CONFIG_TARGET_H} "#define TARGET_LONG_ALIGNMENT 4\n")
-    file(APPEND ${CONFIG_TARGET_H} "#define TARGET_INSN_START_EXTRA_WORDS 1\n")
 elseif(WITH_TARGET MATCHES "x86_64")
     file(APPEND ${CONFIG_TARGET_H} "#define TARGET_ARCH \"x86_64\"\n")
     file(APPEND ${CONFIG_TARGET_H} "#define TARGET_X86_64 1\n")
     file(APPEND ${CONFIG_TARGET_H} "#define TARGET_LONG_ALIGNMENT 8\n")
-    file(APPEND ${CONFIG_TARGET_H} "#define TARGET_INSN_START_EXTRA_WORDS 1\n")
 else()
     message(FATAL_ERROR "Incorrect target ${WITH_TARGET}")
 endif()
@@ -108,7 +107,7 @@ string (REGEX REPLACE "(^| )[/-]D *NDEBUG($| )" " "
 endforeach()
 
 include_directories(${GLIB_PKG_INCLUDE_DIRS}
-                    ${LIBQ_INCLUDE_DIR}
+                    ${LIBUTILS_INCLUDE_DIR}
                     ${CAPSTONE_INCLUDE_DIRS}
                     ${LIBTCG_INCLUDE_DIR}
                     ${HOST_INCLUDE_DIR}

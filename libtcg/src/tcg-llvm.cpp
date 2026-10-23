@@ -51,8 +51,15 @@ extern "C" {
 #include <llvm/Support/Threading.h>
 #include <llvm/Transforms/InstCombine/InstCombine.h>
 #include <llvm/Transforms/Scalar.h>
+#include <llvm/Transforms/Scalar/ADCE.h>
+#include <llvm/Transforms/Scalar/EarlyCSE.h>
 #include <llvm/Transforms/Scalar/GVN.h>
+#include <llvm/Transforms/Scalar/InstSimplifyPass.h>
+#include <llvm/Transforms/Scalar/SROA.h>
+#include <llvm/Transforms/Scalar/SimplifyCFG.h>
 #include <llvm/Transforms/Utils.h>
+#include <llvm/Transforms/Utils/BasicBlockUtils.h>
+#include <llvm/Transforms/Utils/Local.h>
 
 #include <llvm/Support/DynamicLibrary.h>
 #include <llvm/Support/FileSystem.h>
@@ -85,6 +92,22 @@ using namespace llvm;
 
 uint64_t TCGLLVMTranslator::m_eip_byte_offset = 0;
 
+/*
+ * Removes the memory effects that the compiler inferred for the functions of
+ * the helper library, such as memory(none) on helper_lzcnt(). Without them,
+ * the optimizer of the translation blocks treats every helper call as a
+ * possible read and write of the CPU state. KLEE can fork inside a helper that
+ * branches on a symbolic argument, and the plugins then read the CPU state,
+ * so the stores before the call must not be removed or moved past it.
+ */
+static void dropHelperMemoryEffects(Module &module) {
+    for (Function &f : module) {
+        if (!f.isDeclaration()) {
+            f.removeFnAttr(Attribute::Memory);
+        }
+    }
+}
+
 TCGLLVMTranslator::TCGLLVMTranslator(const std::string &bitcodeLibraryPath, std::unique_ptr<Module> module)
     : m_bitcodeLibraryPath(bitcodeLibraryPath), m_module(std::move(module)), m_builder(m_module->getContext()),
       m_tbCount(0), m_tcgContext(NULL), m_tbFunction(NULL), m_tbType(NULL) {
@@ -96,6 +119,60 @@ TCGLLVMTranslator::TCGLLVMTranslator(const std::string &bitcodeLibraryPath, std:
     m_eip = NULL;
     m_ccop = NULL;
 
+    m_passBuilder.registerModuleAnalyses(m_mam);
+    m_passBuilder.registerCGSCCAnalyses(m_cgam);
+    m_passBuilder.registerFunctionAnalyses(m_fam);
+    m_passBuilder.registerLoopAnalyses(m_lam);
+    m_passBuilder.crossRegisterProxies(m_lam, m_fam, m_cgam, m_mam);
+
+    /*
+     * KLEE interprets every instruction of a translation block, so each one
+     * removed saves time on every execution of the block. SROA turns the TCG
+     * local temps from allocas into registers, which also saves the memory
+     * object that KLEE allocates for each alloca. EarlyCSE removes repeated
+     * loads of the CPU state. Only a helper call can set se_tb_abort, so the
+     * check of a guest instruction becomes a constant when no call ran since
+     * the previous check. SimplifyCFG then removes the branches whose
+     * condition became constant, and merges the blocks.
+     *
+     * The pipeline must keep the shape of the code that KLEE and S2E depend on:
+     * - SimplifyCFG does not speculate blocks and does not simplify
+     *   conditional branches. Both turn branches into selects or merge the
+     *   conditions of several branches into one. KLEE forks the state on a
+     *   branch with a symbolic condition, while a select merges both paths
+     *   into one symbolic value, which can be the guest PC. The branch
+     *   simplifications also merge conditional stores into a store of a
+     *   select, and turn chains of comparisons into a switch preceded by a
+     *   freeze instruction, which the KLEE executor does not implement.
+     *   SimplifyCFG still folds the branches whose condition is a constant.
+     *   EarlyCSE already replaces a condition with a constant in a block whose
+     *   only predecessor branches on the same condition, which covers the
+     *   repeated se_tb_abort checks.
+     * - InstSimplify replaces InstCombine. InstCombine can create intrinsics,
+     *   such as llvm.ctpop or llvm.usub.sat, that the KLEE executor does not
+     *   implement. KLEE lowers them when it loads the bitcode library. The
+     *   translation blocks only go through the KFunction constructor, which
+     *   lowers bswap and nothing else.
+     * - There is no dead store elimination pass. KLEE reads the CPU state where
+     *   LLVM sees no read: when KLEE forks the state, on a branch of the block
+     *   or inside a helper that the block calls, plugins read the guest PC and
+     *   registers. Such a pass could remove a store before the branch if all
+     *   paths after it overwrite the same location. EarlyCSE only removes a
+     *   store that a later store in the same block overwrites with nothing in
+     *   between that may read memory. A branch ends its block, and every helper
+     *   call may read memory because dropHelperMemoryEffects() removes the
+     *   memory effects of the helpers.
+     * SimplifyCFG also merges all returns into one block, which
+     * splitCommonReturn() undoes.
+     */
+    m_fpm.addPass(llvm::SROAPass(llvm::SROAOptions::PreserveCFG));
+    m_fpm.addPass(llvm::EarlyCSEPass(/* UseMemorySSA */ true));
+    m_fpm.addPass(llvm::InstSimplifyPass());
+    m_fpm.addPass(
+        llvm::SimplifyCFGPass(llvm::SimplifyCFGOptions().speculateBlocks(false).setSimplifyCondBranch(false)));
+    m_fpm.addPass(llvm::ADCEPass());
+
+    dropHelperMemoryEffects(*m_module);
     initializeNativeCpuState();
     initializeHelpers();
 }
@@ -194,9 +271,9 @@ void TCGLLVMTranslator::initializeHelpers() {
         abort();
     }
 
-    m_qemu_ld_helpers[0] = m_module->getFunction("helper_ldb_mmu");
-    m_qemu_ld_helpers[1] = m_module->getFunction("helper_ldw_mmu");
-    m_qemu_ld_helpers[2] = m_module->getFunction("helper_ldl_mmu");
+    m_qemu_ld_helpers[0] = m_module->getFunction("helper_ldub_mmu");
+    m_qemu_ld_helpers[1] = m_module->getFunction("helper_lduw_mmu");
+    m_qemu_ld_helpers[2] = m_module->getFunction("helper_ldul_mmu");
     m_qemu_ld_helpers[3] = m_module->getFunction("helper_ldq_mmu");
     m_qemu_ld_helpers[4] = m_module->getFunction("helper_ldq_mmu");
 
@@ -515,15 +592,31 @@ Value *TCGLLVMTranslator::generateQemuMemOp(bool ld, Value *value, Value *addr, 
     assert(TCG_TARGET_REG_BITS == 64); // XXX
     MemOp memop = get_memop(mem_index);
     unsigned helper_size = memop & MO_SIZE;
+    if (helper_size > MO_64) {
+        // The i386 frontend emits no 128-bit memory operations.
+        abort();
+    }
 
 #ifdef CONFIG_SOFTMMU
 #if defined(CONFIG_SYMBEX)
-    auto retAddr = Constant::getNullValue(intPtrType(8));
+    // The argument types come from the helper's prototype in the bitcode
+    // library: helper_ld*_mmu(env, addr, oi, retaddr) and
+    // helper_st*_mmu(env, addr, val, oi, retaddr). The address is 64 bits
+    // wide whatever the target is, and the return address is an integer. It
+    // is zero because the caller is not natively generated code.
+    Function *helper = ld ? m_qemu_ld_helpers[helper_size] : m_qemu_st_helpers[helper_size];
+    FunctionType *helperType = helper->getFunctionType();
+    unsigned oiIndex = ld ? 2 : 3;
+
+    addr = m_builder.CreateZExt(addr, helperType->getParamType(1));
+    auto oi = ConstantInt::get(helperType->getParamType(oiIndex), mem_index);
+    auto retAddr = Constant::getNullValue(helperType->getParamType(oiIndex + 1));
 
     if (ld) {
-        Value *v = attachCurrentPc(
-            m_builder.CreateCall(m_qemu_ld_helpers[helper_size],
-                                 {m_cpuState, addr, ConstantInt::get(intType(8 * sizeof(int)), mem_index), retAddr}));
+        Value *v = attachCurrentPc(m_builder.CreateCall(helper, {m_cpuState, addr, oi, retAddr}));
+
+        // The load helpers return a zero-extended register-sized value.
+        v = m_builder.CreateTrunc(v, intType((1 << helper_size) * 8));
 
         if (memop & MO_SIGN) {
             v = m_builder.CreateSExt(v, intType(bits));
@@ -533,14 +626,15 @@ Value *TCGLLVMTranslator::generateQemuMemOp(bool ld, Value *value, Value *addr, 
 
         return v;
     } else {
+        // The store helpers take the value in the type of their third
+        // parameter, which is wider than the access for the small sizes.
         auto new_bits = (1 << helper_size) * 8;
         if (new_bits < bits) {
             value = m_builder.CreateTrunc(value, intType(new_bits));
         }
+        value = m_builder.CreateZExt(value, helperType->getParamType(2));
 
-        attachCurrentPc(m_builder.CreateCall(
-            m_qemu_st_helpers[helper_size],
-            {m_cpuState, addr, value, ConstantInt::get(intType(8 * sizeof(int)), mem_index), retAddr}));
+        attachCurrentPc(m_builder.CreateCall(helper, {m_cpuState, addr, value, oi, retAddr}));
         return NULL;
     }
 #endif
@@ -1116,6 +1210,58 @@ void TCGLLVMTranslator::removeInterruptExit() {
     BranchInst::Create(target, &bb);
 }
 
+/// @brief Runs the pass pipeline that the constructor sets up on the current
+/// translation block.
+void TCGLLVMTranslator::optimizeTbFunction() {
+    m_fpm.run(*m_tbFunction, m_fam);
+
+    // The analysis manager caches results by function address. splitCommonReturn()
+    // changes the function, and the function is erased when its translation block
+    // is flushed, after which a new one may get the same address.
+    m_fam.clear(*m_tbFunction, m_tbFunction->getName());
+
+    splitCommonReturn();
+}
+
+///
+/// @brief Gives each exit of the translation block its own return instruction.
+///
+/// SimplifyCFG merges all return instructions into one block, and the exits
+/// branch to it after storing their constant PC. GetStaticBranchTarget()
+/// expects the store and the return in the same block, and
+/// S2EExecutionState::getStaticBranchTargets() expects both successors of the
+/// forking branch to be such blocks. This copies the return into each block
+/// that ends in an unconditional branch to it. The blocks that reach the return
+/// through a conditional branch, such as the se_tb_abort checks, keep using it.
+///
+void TCGLLVMTranslator::splitCommonReturn() {
+    SmallVector<ReturnInst *, 4> rets;
+    for (auto &bb : *m_tbFunction) {
+        if (auto ret = dyn_cast<ReturnInst>(bb.getTerminator())) {
+            rets.push_back(ret);
+        }
+    }
+
+    for (auto ret : rets) {
+        auto bb = ret->getParent();
+        SmallVector<BasicBlock *, 8> preds(predecessors(bb));
+        for (auto pred : preds) {
+            auto br = dyn_cast<BranchInst>(pred->getTerminator());
+            if (br && br->isUnconditional()) {
+                FoldReturnIntoUncondBranch(ret, bb, pred);
+            }
+        }
+
+        if (pred_empty(bb) && bb != &m_tbFunction->getEntryBlock()) {
+            bb->eraseFromParent();
+        } else {
+            // Folds the phi of the returned value when the remaining predecessors
+            // all return the same constant.
+            SimplifyInstructionsInBlock(bb);
+        }
+    }
+}
+
 Function *TCGLLVMTranslator::generateCode(TCGContext *s, TranslationBlock *tb) {
     m_tcgContext = s;
     m_tb = tb;
@@ -1241,8 +1387,7 @@ Function *TCGLLVMTranslator::generateCode(TCGContext *s, TranslationBlock *tb) {
         abort();
     }
 
-    // KLEE will optimize the function later
-    // m_functionPassManager->run(*m_tbFunction);
+    optimizeTbFunction();
 
     if (libcpu_loglevel_mask(CPU_LOG_LLVM_IR)) {
         std::string fcnString;

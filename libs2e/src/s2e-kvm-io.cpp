@@ -58,19 +58,19 @@ static void signal_ioeventfd(int fd) {
 // an I/O operation (e.g., VAPIC emulation).
 static void abort_and_retranslate_if_needed() {
 #ifdef ENABLE_RETRANSLATE
-    if (env->se_current_tb->icount == 1) {
+    if (env_cpu(env)->se_current_tb->icount == 1) {
         return;
     }
 
-    if (cpu_restore_state(env->se_current_tb, env, env->mem_io_pc)) {
+    if (cpu_restore_state(env_cpu(env)->se_current_tb, env, env_cpu(env)->mem_io_pc)) {
         abort();
     }
 
     libcpu_log("Aborting and retranslating at eip=%#lx\n", (uint64_t) env->eip);
 
-    env->translate_single_instruction = 1;
-    env->exception_index = -1;
-    tb_phys_invalidate(env->se_current_tb, -1);
+    env_cpu(env)->translate_single_instruction = 1;
+    env_cpu(env)->exception_index = -1;
+    tb_phys_invalidate(env_cpu(env)->se_current_tb, -1);
     cpu_loop_exit(env);
 #endif
 }

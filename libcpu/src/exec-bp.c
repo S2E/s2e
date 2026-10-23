@@ -21,7 +21,7 @@
 #include <cpu/config.h>
 #include <cpu/memory.h>
 #include <tcg/tcg.h>
-#include <tcg/utils/osdep.h>
+#include <utils/osdep.h>
 #include "exec.h"
 #include "qemu-common.h"
 
@@ -61,11 +61,11 @@ int cpu_watchpoint_insert(CPUArchState *env, target_ulong addr, target_ulong len
 
     /* keep all GDB-injected watchpoints in front */
     if (flags & BP_GDB)
-        QTAILQ_INSERT_HEAD(&env->watchpoints, wp, entry);
+        QTAILQ_INSERT_HEAD(&env_cpu(env)->watchpoints, wp, entry);
     else
-        QTAILQ_INSERT_TAIL(&env->watchpoints, wp, entry);
+        QTAILQ_INSERT_TAIL(&env_cpu(env)->watchpoints, wp, entry);
 
-    tlb_flush_page(env, addr);
+    tlb_flush_page(env_cpu(env), addr);
 
     if (watchpoint)
         *watchpoint = wp;
@@ -77,7 +77,7 @@ int cpu_watchpoint_remove(CPUArchState *env, target_ulong addr, target_ulong len
     target_ulong len_mask = ~(len - 1);
     CPUWatchpoint *wp;
 
-    QTAILQ_FOREACH (wp, &env->watchpoints, entry) {
+    QTAILQ_FOREACH (wp, &env_cpu(env)->watchpoints, entry) {
         if (addr == wp->vaddr && len_mask == wp->len_mask && flags == (wp->flags & ~BP_WATCHPOINT_HIT)) {
             cpu_watchpoint_remove_by_ref(env, wp);
             return 0;
@@ -88,9 +88,9 @@ int cpu_watchpoint_remove(CPUArchState *env, target_ulong addr, target_ulong len
 
 /* Remove a specific watchpoint by reference.  */
 void cpu_watchpoint_remove_by_ref(CPUArchState *env, CPUWatchpoint *watchpoint) {
-    QTAILQ_REMOVE(&env->watchpoints, watchpoint, entry);
+    QTAILQ_REMOVE(&env_cpu(env)->watchpoints, watchpoint, entry);
 
-    tlb_flush_page(env, watchpoint->vaddr);
+    tlb_flush_page(env_cpu(env), watchpoint->vaddr);
 
     g_free(watchpoint);
 }
@@ -99,7 +99,7 @@ void cpu_watchpoint_remove_by_ref(CPUArchState *env, CPUWatchpoint *watchpoint) 
 void cpu_watchpoint_remove_all(CPUArchState *env, int mask) {
     CPUWatchpoint *wp, *next;
 
-    QTAILQ_FOREACH_SAFE(wp, &env->watchpoints, entry, next) {
+    QTAILQ_FOREACH_SAFE(wp, &env_cpu(env)->watchpoints, entry, next) {
         if (wp->flags & mask)
             cpu_watchpoint_remove_by_ref(env, wp);
     }
@@ -117,9 +117,9 @@ int cpu_breakpoint_insert(CPUArchState *env, target_ulong pc, int flags, CPUBrea
 
     /* keep all GDB-injected breakpoints in front */
     if (flags & BP_GDB)
-        QTAILQ_INSERT_HEAD(&env->breakpoints, bp, entry);
+        QTAILQ_INSERT_HEAD(&env_cpu(env)->breakpoints, bp, entry);
     else
-        QTAILQ_INSERT_TAIL(&env->breakpoints, bp, entry);
+        QTAILQ_INSERT_TAIL(&env_cpu(env)->breakpoints, bp, entry);
 
     breakpoint_invalidate(env, pc);
 
@@ -136,7 +136,7 @@ int cpu_breakpoint_remove(CPUArchState *env, target_ulong pc, int flags) {
 #if defined(TARGET_HAS_ICE)
     CPUBreakpoint *bp;
 
-    QTAILQ_FOREACH (bp, &env->breakpoints, entry) {
+    QTAILQ_FOREACH (bp, &env_cpu(env)->breakpoints, entry) {
         if (bp->pc == pc && bp->flags == flags) {
             cpu_breakpoint_remove_by_ref(env, bp);
             return 0;
@@ -151,7 +151,7 @@ int cpu_breakpoint_remove(CPUArchState *env, target_ulong pc, int flags) {
 /* Remove a specific breakpoint by reference.  */
 void cpu_breakpoint_remove_by_ref(CPUArchState *env, CPUBreakpoint *breakpoint) {
 #if defined(TARGET_HAS_ICE)
-    QTAILQ_REMOVE(&env->breakpoints, breakpoint, entry);
+    QTAILQ_REMOVE(&env_cpu(env)->breakpoints, breakpoint, entry);
 
     breakpoint_invalidate(env, breakpoint->pc);
 
@@ -164,7 +164,7 @@ void cpu_breakpoint_remove_all(CPUArchState *env, int mask) {
 #if defined(TARGET_HAS_ICE)
     CPUBreakpoint *bp, *next;
 
-    QTAILQ_FOREACH_SAFE(bp, &env->breakpoints, entry, next) {
+    QTAILQ_FOREACH_SAFE(bp, &env_cpu(env)->breakpoints, entry, next) {
         if (bp->flags & mask)
             cpu_breakpoint_remove_by_ref(env, bp);
     }
@@ -175,8 +175,8 @@ void cpu_breakpoint_remove_all(CPUArchState *env, int mask) {
    CPU loop after each instruction */
 void cpu_single_step(CPUArchState *env, int enabled) {
 #if defined(TARGET_HAS_ICE)
-    if (env->singlestep_enabled != enabled) {
-        env->singlestep_enabled = enabled;
+    if (env_cpu(env)->singlestep_enabled != enabled) {
+        env_cpu(env)->singlestep_enabled = enabled;
 
         /* must flush all the translated code to avoid inconsistencies */
         /* XXX: only flush what is necessary */
@@ -185,16 +185,47 @@ void cpu_single_step(CPUArchState *env, int enabled) {
 #endif
 }
 
-/* Generate a debug exception if a watchpoint has been hit.  */
-static void check_watchpoint(int offset, int len_mask, int flags) {
-    CPUArchState *env = cpu_single_env;
+/* Returns the length of the range that a watchpoint covers. */
+static inline vaddr watchpoint_len(const CPUWatchpoint *wp) {
+    return (vaddr) (target_ulong) ~wp->len_mask + 1;
+}
+
+static inline bool watchpoint_address_matches(const CPUWatchpoint *wp, vaddr addr, vaddr len) {
+    /* Compare the last bytes of the two ranges instead of their ends, so
+       that a range that ends at the top of the address space does not wrap
+       around to zero. */
+    vaddr wpend = wp->vaddr + watchpoint_len(wp) - 1;
+    vaddr addrend = addr + len - 1;
+
+    return !(addr > wpend || wp->vaddr > addrend);
+}
+
+/* Returns the flags of the watchpoints that overlap [addr, addr + len).
+   tlb_set_page_full() calls it to decide whether accesses to a page must
+   take the slow path (TLB_WATCHPOINT). */
+int cpu_watchpoint_address_matches(CPUState *cpu, vaddr addr, vaddr len) {
+    CPUWatchpoint *wp;
+    int ret = 0;
+
+    QTAILQ_FOREACH (wp, &cpu->watchpoints, entry) {
+        if (watchpoint_address_matches(wp, addr, len)) {
+            ret |= wp->flags;
+        }
+    }
+    return ret;
+}
+
+/* Generates a debug exception if the access hits a watchpoint. The softmmu
+   calls it for accesses to pages that carry TLB_WATCHPOINT. ra is the return
+   address of the access into generated code. */
+void cpu_check_watchpoint(CPUState *cpu, vaddr addr, vaddr len, MemTxAttrs attrs, int flags, uintptr_t ra) {
+    CPUArchState *env = cpu_env(cpu);
     target_ulong pc, cs_base;
     TranslationBlock *tb;
-    target_ulong vaddr;
     CPUWatchpoint *wp;
     int cpu_flags;
 
-    if (env->watchpoint_hit) {
+    if (cpu->watchpoint_hit) {
         /* We re-entered the check after replacing the TB. Now raise
          * the debug interrupt so that is will trigger after the
          * current instruction. */
@@ -202,28 +233,22 @@ static void check_watchpoint(int offset, int len_mask, int flags) {
         return;
     }
 
-#ifdef CONFIG_SYMBEX
-    vaddr = (g_sqi.mem.read_mem_io_vaddr(1)) + offset;
-#else
-    vaddr = (env->mem_io_vaddr & TARGET_PAGE_MASK) + offset;
-#endif
-
-    QTAILQ_FOREACH (wp, &env->watchpoints, entry) {
-        if ((vaddr == (wp->vaddr & len_mask) || (vaddr & wp->len_mask) == wp->vaddr) && (wp->flags & flags)) {
+    QTAILQ_FOREACH (wp, &cpu->watchpoints, entry) {
+        if ((wp->flags & flags) && watchpoint_address_matches(wp, addr, len)) {
             wp->flags |= BP_WATCHPOINT_HIT;
-            if (!env->watchpoint_hit) {
-                env->watchpoint_hit = wp;
-                tb = tcg_tb_lookup(env->mem_io_pc);
+            if (!cpu->watchpoint_hit) {
+                cpu->watchpoint_hit = wp;
+                tb = tcg_tb_lookup(ra);
                 if (!tb) {
                     cpu_abort(env,
                               "check_watchpoint: could not find TB for "
                               "pc=%p",
-                              (void *) env->mem_io_pc);
+                              (void *) ra);
                 }
-                cpu_restore_state(env, env->mem_io_pc);
+                cpu_restore_state(env, ra);
                 tb_phys_invalidate(tb, -1);
                 if (wp->flags & BP_STOP_BEFORE_ACCESS) {
-                    env->exception_index = EXCP_DEBUG;
+                    cpu->exception_index = EXCP_DEBUG;
                     cpu_loop_exit(env);
                 } else {
                     cpu_get_tb_cpu_state(env, &pc, &cs_base, &cpu_flags);
@@ -236,42 +261,3 @@ static void check_watchpoint(int offset, int len_mask, int flags) {
         }
     }
 }
-
-/* Watchpoint access routines.  Watchpoints are inserted using TLB tricks,
-   so these check for a hit then pass through to the normal out-of-line
-   phys routines.  */
-static uint64_t watch_mem_read(target_phys_addr_t addr, unsigned size) {
-    check_watchpoint(addr & ~TARGET_PAGE_MASK, ~(size - 1), BP_MEM_READ);
-    switch (size) {
-        case 1:
-            return ldub_phys(addr);
-        case 2:
-            return lduw_phys(addr);
-        case 4:
-            return ldl_phys(addr);
-        default:
-            abort();
-    }
-}
-
-static void watch_mem_write(target_phys_addr_t addr, uint64_t val, unsigned size) {
-    check_watchpoint(addr & ~TARGET_PAGE_MASK, ~(size - 1), BP_MEM_WRITE);
-    switch (size) {
-        case 1:
-            stb_phys(addr, val);
-            break;
-        case 2:
-            stw_phys(addr, val);
-            break;
-        case 4:
-            stl_phys(addr, val);
-            break;
-        default:
-            abort();
-    }
-}
-
-const struct MemoryDescOps watch_mem_ops = {
-    .read = watch_mem_read,
-    .write = watch_mem_write,
-};

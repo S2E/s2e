@@ -177,6 +177,15 @@ public:
         return nullptr;
     }
 
+    /// Build the KFunction for \p fn without running it.
+    ///
+    /// Constructing a KFunction is what walks the operands of every
+    /// instruction and interns the constant ones, so this is enough to
+    /// exercise the operand classification on its own.
+    KFunction *prepareFunction(llvm::Function *fn) {
+        return m_kmodule->bindFunctionConstants(m_globalAddresses, fn);
+    }
+
     /// Execute the state until a ret instruction is reached.
     ///
     /// Stops just before executing ret so that the caller can inspect
@@ -1549,6 +1558,274 @@ TEST(ExecutorTest, ICmpSLE) {
     EXPECT_EQ(evalICmp(ICmpInst::ICMP_SLE, 0xFFFFFFFFu, 1), 1u);           // -1 <=s 1 → true
     EXPECT_EQ(evalICmp(ICmpInst::ICMP_SLE, 0xFFFFFFFFu, 0xFFFFFFFFu), 1u); // -1 <=s -1 → true (equal)
     EXPECT_EQ(evalICmp(ICmpInst::ICMP_SLE, 1, 0xFFFFFFFFu), 0u);           // 1 <=s -1 → false
+}
+
+// ============================================================
+// Intrinsics emitted by softfloat's hard float fast paths
+//
+// fpintrinsics.bc holds one function per intrinsic (see LLVM/fpintrinsics.c).
+// llvm.is.fpclass and llvm.fmuladd are expanded by IntrinsicCleaner, llvm.fma
+// and llvm.rint are evaluated by the Executor itself.
+// ============================================================
+
+// ── helpers ─────────────────────────────────────────────────
+
+/// Run a function from fpintrinsics.bc and return the raw bits of its result.
+static uint64_t evalFPIntrinsic(const char *name, const std::vector<ref<Expr>> &args) {
+    llvm::LLVMContext ctx;
+    TestExecutor executor(ctx, FPINTRINSICS_BC_PATH);
+    llvm::Function *fn = executor.getLLVMModule()->getFunction(name);
+    assert(fn && "function not found in fpintrinsics.bc");
+    ExecutionStatePtr s = executor.createState();
+    auto r = executor.runFunction(*s, fn, args);
+    return dyn_cast<klee::ConstantExpr>(r)->getZExtValue();
+}
+
+/// A double operand given by its raw encoding.
+static ref<Expr> f64Bits(uint64_t bits) {
+    return klee::ConstantExpr::create(bits, Expr::Int64);
+}
+
+/// A float operand given by its raw encoding.
+static ref<Expr> f32Bits(uint32_t bits) {
+    return klee::ConstantExpr::create(bits, Expr::Int32);
+}
+
+/// Run one of the double class predicates on \p bits.
+static uint64_t evalFPClass(const char *name, uint64_t bits) {
+    return evalFPIntrinsic(name, {f64Bits(bits)});
+}
+
+// Representative encodings, one per class and sign.
+static const uint64_t kQNaN = 0x7FF8000000000000ULL;
+static const uint64_t kSNaN = 0x7FF0000000000001ULL;
+static const uint64_t kPosInf = 0x7FF0000000000000ULL;
+static const uint64_t kNegInf = 0xFFF0000000000000ULL;
+static const uint64_t kPosNormal = 0x3FF0000000000000ULL;    // 1.0
+static const uint64_t kNegNormal = 0xC004000000000000ULL;    // -2.5
+static const uint64_t kPosSubnormal = 0x0000000000000001ULL; // smallest denormal
+static const uint64_t kNegSubnormal = 0x8000000000000001ULL;
+static const uint64_t kPosZero = 0x0000000000000000ULL;
+static const uint64_t kNegZero = 0x8000000000000000ULL;
+
+// ── llvm.is.fpclass ─────────────────────────────────────────
+//
+// Every predicate is checked against every class so that a wrong bit in the
+// expansion shows up as a mismatch somewhere in the matrix rather than
+// cancelling out.
+
+namespace {
+struct FPClassCase {
+    const char *what;
+    uint64_t bits;
+    bool signaling;
+    bool nan;
+    bool inf;
+    bool finite;
+    bool normal;
+    bool subnormal;
+    bool zero;
+};
+} // namespace
+
+TEST(ExecutorTest, IsFPClassPredicates) {
+    static const FPClassCase cases[] = {
+        //  what            bits            sig    nan    inf    fin    norm   subn   zero
+        {"quiet nan", kQNaN, false, true, false, false, false, false, false},
+        {"signaling nan", kSNaN, true, true, false, false, false, false, false},
+        {"+inf", kPosInf, false, false, true, false, false, false, false},
+        {"-inf", kNegInf, false, false, true, false, false, false, false},
+        {"+normal", kPosNormal, false, false, false, true, true, false, false},
+        {"-normal", kNegNormal, false, false, false, true, true, false, false},
+        {"+subnormal", kPosSubnormal, false, false, false, true, false, true, false},
+        {"-subnormal", kNegSubnormal, false, false, false, true, false, true, false},
+        {"+zero", kPosZero, false, false, false, true, false, false, true},
+        {"-zero", kNegZero, false, false, false, true, false, false, true},
+    };
+
+    for (const auto &c : cases) {
+        SCOPED_TRACE(c.what);
+        EXPECT_EQ(evalFPClass("is_signaling_d", c.bits), c.signaling ? 1u : 0u);
+        EXPECT_EQ(evalFPClass("is_nan_d", c.bits), c.nan ? 1u : 0u);
+        EXPECT_EQ(evalFPClass("is_inf_d", c.bits), c.inf ? 1u : 0u);
+        EXPECT_EQ(evalFPClass("is_finite_d", c.bits), c.finite ? 1u : 0u);
+        EXPECT_EQ(evalFPClass("is_normal_d", c.bits), c.normal ? 1u : 0u);
+        EXPECT_EQ(evalFPClass("is_subnormal_d", c.bits), c.subnormal ? 1u : 0u);
+        EXPECT_EQ(evalFPClass("is_zero_d", c.bits), c.zero ? 1u : 0u);
+    }
+}
+
+TEST(ExecutorTest, IsFPClassOnFloats) {
+    // The expansion derives the exponent and mantissa widths from the type,
+    // so the single precision variant needs its own check.
+    EXPECT_EQ(evalFPIntrinsic("is_normal_f", {f32Bits(0x3F800000u)}), 1u); // 1.0f
+    EXPECT_EQ(evalFPIntrinsic("is_normal_f", {f32Bits(0x00000001u)}), 0u); // smallest denormal
+    EXPECT_EQ(evalFPIntrinsic("is_normal_f", {f32Bits(0x00000000u)}), 0u); // +0.0f
+    EXPECT_EQ(evalFPIntrinsic("is_normal_f", {f32Bits(0x7F800000u)}), 0u); // +inf
+    EXPECT_EQ(evalFPIntrinsic("is_normal_f", {f32Bits(0x7FC00000u)}), 0u); // nan
+}
+
+// ── llvm.fma ────────────────────────────────────────────────
+
+TEST(ExecutorTest, FmaRoundsOnlyOnce) {
+    // (1 + 2^-52)^2 - (1 + 2^-51) is exactly 2^-104. Rounding the product
+    // first loses that term and yields zero, so the result tells the fused
+    // form apart from a plain multiply followed by an add.
+    EXPECT_EQ(evalFPIntrinsic("fma_d", {f64Bits(0x3FF0000000000001ULL), f64Bits(0x3FF0000000000001ULL),
+                                        f64Bits(0xBFF0000000000002ULL)}),
+              0x3970000000000000ULL); // 2^-104
+
+    // (1 + 2^-23)^2 - (1 + 2^-22) = 2^-46 for the single precision variant.
+    EXPECT_EQ(evalFPIntrinsic("fma_f", {f32Bits(0x3F800001u), f32Bits(0x3F800001u), f32Bits(0xBF800002u)}),
+              0x28800000u); // 2^-46
+
+    // 2.0 * 1.5 + 1.0 = 4.0, no rounding involved.
+    EXPECT_EQ(evalFPIntrinsic("fma_d", {f64Bits(0x4000000000000000ULL), f64Bits(0x3FF8000000000000ULL),
+                                        f64Bits(0x3FF0000000000000ULL)}),
+              0x4010000000000000ULL);
+}
+
+// ── llvm.rint ───────────────────────────────────────────────
+
+TEST(ExecutorTest, RintRoundsToNearestEven) {
+    auto rint = [](uint64_t bits) { return evalFPIntrinsic("rint_d", {f64Bits(bits)}); };
+
+    EXPECT_EQ(rint(0x4004000000000000ULL), 0x4000000000000000ULL); // 2.5 → 2.0, ties to even
+    EXPECT_EQ(rint(0x400C000000000000ULL), 0x4010000000000000ULL); // 3.5 → 4.0, ties to even
+    EXPECT_EQ(rint(0xC004000000000000ULL), 0xC000000000000000ULL); // -2.5 → -2.0
+    EXPECT_EQ(rint(0x3FF6666666666666ULL), 0x3FF0000000000000ULL); // 1.4 → 1.0
+    EXPECT_EQ(rint(0xBFE0000000000000ULL), 0x8000000000000000ULL); // -0.5 → -0.0, keeps the sign
+}
+
+// ── llvm.fmuladd ────────────────────────────────────────────
+
+TEST(ExecutorTest, FMulAddIsUnfused) {
+    // 2.0 * 3.0 + 4.0 = 10.0
+    EXPECT_EQ(evalFPIntrinsic("muladd_d", {f64Bits(0x4000000000000000ULL), f64Bits(0x4008000000000000ULL),
+                                           f64Bits(0x4010000000000000ULL)}),
+              0x4024000000000000ULL);
+
+    // Contraction is optional and the expansion does not fuse, so the input
+    // that yields 2^-104 through llvm.fma cancels to zero here.
+    EXPECT_EQ(evalFPIntrinsic("muladd_d", {f64Bits(0x3FF0000000000001ULL), f64Bits(0x3FF0000000000001ULL),
+                                           f64Bits(0xBFF0000000000002ULL)}),
+              0x0ULL);
+}
+
+// ── the fixture itself ──────────────────────────────────────
+
+TEST(ExecutorTest, FPIntrinsicsAreCleanedUpAsExpected) {
+    llvm::LLVMContext ctx;
+
+    // Guard against a compiler that stops emitting the intrinsics: without
+    // them in the bitcode the tests above would pass without proving anything.
+    auto buf = llvm::MemoryBuffer::getFile(FPINTRINSICS_BC_PATH);
+    ASSERT_TRUE(!!buf);
+    auto raw = llvm::parseBitcodeFile(buf.get()->getMemBufferRef(), ctx);
+    ASSERT_TRUE(!!raw);
+    for (const char *name : {"llvm.is.fpclass.f64", "llvm.is.fpclass.f32", "llvm.fma.f64", "llvm.fma.f32",
+                             "llvm.rint.f64", "llvm.fmuladd.f64"}) {
+        EXPECT_NE(raw.get()->getFunction(name), nullptr) << name << " is missing from the fixture";
+    }
+
+    // After the prepare passes the expanded ones are gone, while the two the
+    // Executor evaluates natively are still there.
+    llvm::LLVMContext execCtx;
+    TestExecutor executor(execCtx, FPINTRINSICS_BC_PATH);
+    auto *m = executor.getLLVMModule();
+
+    for (const char *name : {"llvm.is.fpclass.f64", "llvm.is.fpclass.f32", "llvm.fmuladd.f64"}) {
+        auto *fn = m->getFunction(name);
+        EXPECT_TRUE(fn == nullptr || fn->use_empty()) << name << " should have been expanded";
+    }
+
+    for (const char *name : {"llvm.fma.f64", "llvm.rint.f64"}) {
+        auto *fn = m->getFunction(name);
+        ASSERT_NE(fn, nullptr) << name << " should have been left for the Executor";
+        EXPECT_FALSE(fn->use_empty()) << name << " should have been left for the Executor";
+    }
+}
+
+// ============================================================
+// llvm.experimental.noalias.scope.decl
+//
+// Its only operand is metadata, which has no value to read at run time.
+// Leaving the call in place used to abort the engine while interning the
+// constants of the enclosing function.
+// ============================================================
+
+TEST(ExecutorTest, NoAliasScopeDeclDoesNotBreakThePreparePasses) {
+    llvm::LLVMContext ctx;
+
+    // The hints must be in the fixture, otherwise the test proves nothing.
+    auto buf = llvm::MemoryBuffer::getFile(NOALIAS_BC_PATH);
+    ASSERT_TRUE(!!buf);
+    auto raw = llvm::parseBitcodeFile(buf.get()->getMemBufferRef(), ctx);
+    ASSERT_TRUE(!!raw);
+    ASSERT_NE(raw.get()->getFunction("llvm.experimental.noalias.scope.decl"), nullptr)
+        << "the fixture no longer contains any aliasing hint";
+
+    llvm::LLVMContext execCtx;
+    TestExecutor executor(execCtx, NOALIAS_BC_PATH);
+    auto *m = executor.getLLVMModule();
+
+    auto *hint = m->getFunction("llvm.experimental.noalias.scope.decl");
+    EXPECT_TRUE(hint == nullptr || hint->use_empty()) << "the aliasing hints should have been stripped";
+
+    llvm::Function *fn = m->getFunction("noalias_dot2");
+    ASSERT_NE(fn, nullptr);
+
+    double a[2] = {1.5, 2.5};
+    double b[2] = {3.0, 4.0};
+
+    ExecutionStatePtr state = executor.createState();
+    state->addExternalObject(a, sizeof(a), /*isReadOnly=*/true, /*isSharedConcrete=*/false);
+    state->addExternalObject(b, sizeof(b), /*isReadOnly=*/true, /*isSharedConcrete=*/false);
+
+    unsigned ptrWidth = executor.getModule()->getDataLayout()->getPointerSizeInBits();
+    auto result = executor.runFunction(
+        *state, fn,
+        {klee::ConstantExpr::create((uint64_t) a, ptrWidth), klee::ConstantExpr::create((uint64_t) b, ptrWidth)});
+
+    ASSERT_NE(result.get(), nullptr);
+    auto *ce = dyn_cast<klee::ConstantExpr>(result);
+    ASSERT_NE(ce, nullptr);
+    // 1.5 * 3.0 + 2.5 * 4.0 = 14.5
+    EXPECT_EQ(ce->getZExtValue(), 0x402D000000000000ULL);
+}
+
+// ============================================================
+// Metadata operands
+//
+// An intrinsic that the cleaner does not know about keeps its metadata
+// operand. Such an operand carries no value, so it must be classified as
+// invalid instead of being interned as a constant.
+// ============================================================
+
+TEST(ExecutorTest, MetadataOperandsAreNotInterned) {
+    llvm::LLVMContext ctx;
+    TestExecutor executor(ctx);
+    auto *mod = executor.getLLVMModule();
+
+    // llvm.type.test(ptr, metadata) is not handled by IntrinsicCleaner, so it
+    // reaches the constant table with its metadata operand intact.
+    auto *hint = llvm::Intrinsic::getDeclaration(mod, llvm::Intrinsic::type_test);
+
+    auto *i32Ty = llvm::Type::getInt32Ty(ctx);
+    auto *fn = llvm::Function::Create(llvm::FunctionType::get(i32Ty, false), llvm::Function::ExternalLinkage,
+                                      "with_metadata", mod);
+    llvm::IRBuilder<> builder(llvm::BasicBlock::Create(ctx, "entry", fn));
+    auto *call = builder.CreateCall(hint, {llvm::ConstantPointerNull::get(llvm::PointerType::getUnqual(ctx)),
+                                           llvm::MetadataAsValue::get(ctx, llvm::MDString::get(ctx, "typeid"))});
+    builder.CreateRet(llvm::ConstantInt::get(i32Ty, 42));
+
+    auto *kf = executor.prepareFunction(fn);
+    ASSERT_NE(kf, nullptr);
+
+    auto *ki = kf->getInstruction(call);
+    ASSERT_NE(ki, nullptr);
+    // operands[0] is the callee, then one entry per argument.
+    EXPECT_EQ(ki->operands[2], -1) << "the metadata operand must not have a constant table entry";
 }
 
 } // namespace

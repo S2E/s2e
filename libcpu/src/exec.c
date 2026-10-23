@@ -22,8 +22,9 @@
 
 #include <cpu/ioport.h>
 #include <cpu/memory.h>
+#include <tcg/exec/tswap.h>
 #include <tcg/tcg.h>
-#include <tcg/utils/osdep.h>
+#include <utils/osdep.h>
 #include "cpu.h"
 #include "qemu-common.h"
 
@@ -32,10 +33,8 @@
 #include <cpu/se_libcpu.h>
 #include <cpu/se_libcpu_config.h>
 #endif
-#include "exec-phys.h"
 #include "exec-ram.h"
 #include "exec-tb.h"
-#include "exec-tlb.h"
 #include "exec.h"
 
 // #define DEBUG_TB_INVALIDATE
@@ -57,50 +56,71 @@ CPUArchState *first_cpu, *cpu_single_env;
 
 #ifdef CONFIG_SYMBEX
 struct se_libcpu_interface_t g_sqi;
+
+/* Nonzero while libs2ecore switches execution states. The TLB flush
+   functions of accel/cputlb.c return without doing anything during that
+   time, see se_tlb_flush_disabled(). */
+int g_se_disable_tlb_flush = 0;
 #endif
 
-static void io_mem_init(void);
+#ifdef CONFIG_SYMBEX
+static uint32_t se_ldub_code(CPUArchState *env, target_ulong addr) {
+    return cpu_ldub_code(env, addr);
+}
+
+static uint32_t se_ldl_code(CPUArchState *env, target_ulong addr) {
+    return cpu_ldl_code(env, addr);
+}
+#endif
 
 void cpu_exec_init_all(void) {
-    io_mem_init();
-
 #ifdef CONFIG_SYMBEX
-    g_sqi.libcpu.ldub_code = cpu_ldub_code;
-    g_sqi.libcpu.ldl_code = cpu_ldl_code;
+    g_sqi.libcpu.ldub_code = se_ldub_code;
+    g_sqi.libcpu.ldl_code = se_ldl_code;
 #endif
 }
 
 void cpu_exec_init(CPUArchState *env) {
-    CPUArchState **penv;
-    int cpu_index;
+    CPUState *cpu = env_cpu(env);
 
-    env->next_cpu = NULL;
-    penv = &first_cpu;
-    cpu_index = 0;
-    while (*penv != NULL) {
-        penv = &(*penv)->next_cpu;
-        cpu_index++;
-    }
-    env->cpu_index = cpu_index;
-    env->numa_node = 0;
-    QTAILQ_INIT(&env->breakpoints);
-    QTAILQ_INIT(&env->watchpoints);
-    *penv = env;
+    /* libcpu emulates exactly one CPU. */
+    assert(first_cpu == NULL);
+    first_cpu = env;
+
+    cpu->cpu_index = 0;
+    cpu->cc = &g_x86_cpu_class;
+    cpu->created = true;
+    cpu->neg.can_do_io = true;
+    QTAILQ_INIT(&cpu->breakpoints);
+    QTAILQ_INIT(&cpu->watchpoints);
+
+    tlb_init(cpu);
+}
+
+void cpu_common_reset(CPUState *cpu) {
+    cpu->current_tb = NULL;
+    cpu->se_current_tb = NULL;
+    cpu->mem_io_pc = 0;
+    cpu->translate_single_instruction = 0;
+    cpu->halted = 0;
+    cpu->interrupt_request = 0;
+    cpu->exit_request = 0;
+    cpu->se_tb_abort = 0;
 }
 
 /* mask must never be zero, except for A20 change call */
 static void tcg_handle_interrupt(CPUArchState *env, int mask) {
-    env->interrupt_request |= mask;
+    env_cpu(env)->interrupt_request |= mask;
 }
 
 CPUInterruptHandler cpu_interrupt_handler = tcg_handle_interrupt;
 
 void cpu_reset_interrupt(CPUArchState *env, int mask) {
-    env->interrupt_request &= ~mask;
+    env_cpu(env)->interrupt_request &= ~mask;
 }
 
 void cpu_exit(CPUArchState *env) {
-    env->exit_request = 1;
+    env_cpu(env)->exit_request = 1;
 }
 
 void cpu_abort(CPUArchState *env, const char *fmt, ...) {
@@ -138,7 +158,6 @@ void cpu_abort(CPUArchState *env, const char *fmt, ...) {
 void cpu_physical_memory_reset_dirty(ram_addr_t start, ram_addr_t end, int dirty_flags) {
     CPUArchState *env;
     unsigned long length, start1;
-    int i;
 
     start &= TARGET_PAGE_MASK;
     end = TARGET_PAGE_ALIGN(end);
@@ -157,12 +176,9 @@ void cpu_physical_memory_reset_dirty(ram_addr_t start, ram_addr_t end, int dirty
         abort();
     }
 
-    for (env = first_cpu; env != NULL; env = env->next_cpu) {
-        int mmu_idx;
-        for (mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
-            for (i = 0; i < CPU_TLB_SIZE; i++)
-                tlb_reset_dirty_range(&env->tlb_table[mmu_idx].table[i], start1, length);
-        }
+    env = first_cpu;
+    if (env) {
+        tlb_reset_dirty(env_cpu(env), start1, length);
     }
 }
 
@@ -174,181 +190,6 @@ uintptr_t se_get_host_address(target_phys_addr_t paddr) {
 
     return sreg->kvm.userspace_addr + mem_desc_get_offset(sreg, paddr);
 }
-
-#if defined(__linux__) && !defined(TARGET_S390X)
-
-static void unassigned_mem_write(target_phys_addr_t addr, uint64_t val, unsigned size) {
-#ifdef DEBUG_UNASSIGNED
-    printf("Unassigned mem write " TARGET_FMT_plx " = 0x%" PRIx64 "\n", addr, val);
-#endif
-#if defined(TARGET_ALPHA) || defined(TARGET_SPARC) || defined(TARGET_MICROBLAZE)
-    cpu_unassigned_access(cpu_single_env, addr, 1, 0, 0, size);
-#endif
-}
-
-/** All writes to unassigned memory cause a vm exit */
-static const struct MemoryDescOps unassigned_mem_ops = {
-    .read = cpu_mmio_read,
-    .write = cpu_mmio_write,
-};
-
-static uint64_t error_mem_read(target_phys_addr_t addr, unsigned size) {
-    abort();
-}
-
-static const struct MemoryDescOps rom_mem_ops = {
-    .read = error_mem_read,
-    .write = unassigned_mem_write,
-};
-
-static void notdirty_mem_write(target_phys_addr_t ram_addr, uint64_t val, unsigned size) {
-    int dirty_flags;
-    dirty_flags = cpu_physical_memory_get_dirty_flags(ram_addr);
-    if (!(dirty_flags & CODE_DIRTY_FLAG)) {
-        tb_invalidate_phys_page_fast(ram_addr, size);
-        dirty_flags = cpu_physical_memory_get_dirty_flags(ram_addr);
-    }
-
-    switch (size) {
-        case 1:
-            stb_raw(qemu_get_ram_ptr(ram_addr), val);
-            break;
-        case 2:
-            stw_raw(qemu_get_ram_ptr(ram_addr), val);
-            break;
-        case 4:
-            stl_raw(qemu_get_ram_ptr(ram_addr), val);
-            break;
-        default:
-            abort();
-    }
-
-    dirty_flags |= (0xff & ~CODE_DIRTY_FLAG);
-    cpu_physical_memory_set_dirty_flags(ram_addr, dirty_flags);
-    /* we remove the notdirty callback only if the code has been
-       flushed */
-    if (dirty_flags == 0xff) {
-#ifdef CONFIG_SYMBEX
-        target_ulong iovaddr = g_sqi.mem.read_mem_io_vaddr(1);
-        tlb_set_dirty(cpu_single_env, iovaddr);
-#else
-        tlb_set_dirty(cpu_single_env, cpu_single_env->mem_io_vaddr);
-#endif
-    }
-}
-
-#ifdef CONFIG_SYMBEX
-uintptr_t se_notdirty_mem_write(target_phys_addr_t ram_addr, int size) {
-    int dirty_flags;
-
-    target_ulong iovaddr = g_sqi.mem.read_mem_io_vaddr(1);
-
-    if (tlb_is_dirty(cpu_single_env, iovaddr)) {
-        return (uintptr_t) qemu_get_ram_ptr(ram_addr);
-    }
-
-    dirty_flags = cpu_physical_memory_get_dirty_flags(ram_addr);
-
-    if (!(dirty_flags & CODE_DIRTY_FLAG)) {
-        tb_invalidate_phys_page_fast(ram_addr, size);
-        dirty_flags = cpu_physical_memory_get_dirty_flags(ram_addr);
-    }
-
-    dirty_flags |= (0xff & ~CODE_DIRTY_FLAG);
-
-    cpu_physical_memory_set_dirty_flags(ram_addr, dirty_flags);
-
-    /* we remove the notdirty callback only if the code has been
-       flushed */
-    if (dirty_flags == 0xff)
-        tlb_set_dirty(cpu_single_env, iovaddr);
-
-    return (uintptr_t) qemu_get_ram_ptr(ram_addr);
-}
-
-uintptr_t se_notdirty_mem_read(target_phys_addr_t ram_addr) {
-    uintptr_t ret = (uintptr_t) qemu_get_ram_ptr(ram_addr);
-    // g_sqi.log.debug("se_notdirty_mem_read: %llx => %llx\n", ram_addr, ret);
-    return ret;
-}
-
-/* Some pages might be partially used for DMA. All read accesses outside DMA
-   regions in a page go here. */
-static uint64_t se_dma_mem_read(target_phys_addr_t ram_addr, unsigned size) {
-    switch (size) {
-        case 1:
-            return ldub_raw(qemu_get_ram_ptr(ram_addr));
-        case 2:
-            return lduw_raw(qemu_get_ram_ptr(ram_addr));
-        case 4:
-            return ldl_raw(qemu_get_ram_ptr(ram_addr));
-        case 8:
-            return ldq_raw(qemu_get_ram_ptr(ram_addr));
-    }
-    assert(false && "Invalid size");
-    return 0;
-}
-
-static void se_dma_mem_write(target_phys_addr_t ram_addr, uint64_t val, unsigned size) {
-    target_ulong iovaddr = g_sqi.mem.read_mem_io_vaddr(1);
-    if (!tlb_is_dirty(cpu_single_env, iovaddr)) {
-        notdirty_mem_write(ram_addr, val, size);
-        return;
-    }
-
-    switch (size) {
-        case 1:
-            stb_raw(qemu_get_ram_ptr(ram_addr), val);
-            break;
-        case 2:
-            stw_raw(qemu_get_ram_ptr(ram_addr), val);
-            break;
-        case 4:
-            stl_raw(qemu_get_ram_ptr(ram_addr), val);
-            break;
-        case 8:
-            stq_raw(qemu_get_ram_ptr(ram_addr), val);
-            break;
-        default:
-            abort();
-    }
-}
-
-#endif
-
-#ifdef CONFIG_SYMBEX
-static const struct MemoryDescOps se_dma_mem_ops = {
-    .read = se_dma_mem_read,
-    .write = se_dma_mem_write,
-};
-
-bool se_ismemfunc(const struct MemoryDescOps *ops, int isWrite) {
-    if (isWrite) {
-        return ops->write == se_dma_mem_ops.write;
-    } else {
-        return ops->read == se_dma_mem_ops.read;
-    }
-}
-
-#else
-static const struct MemoryDescOps notdirty_mem_ops = {
-    .read = error_mem_read,
-    .write = notdirty_mem_write,
-};
-#endif
-
-static void io_mem_init(void) {
-    phys_register_section(phys_section_rom, &rom_mem_ops);
-    phys_register_section(phys_section_unassigned, &unassigned_mem_ops);
-#ifdef CONFIG_SYMBEX
-    phys_register_section(phys_section_notdirty, &se_dma_mem_ops);
-#else
-    phys_register_section(phys_section_notdirty, &notdirty_mem_ops);
-#endif
-    phys_register_section(phys_section_watch, &watch_mem_ops);
-}
-
-#endif
 
 /* warning: addr must be aligned */
 static inline uint32_t ldl_phys_internal(target_phys_addr_t addr) {
@@ -525,47 +366,3 @@ void stq_be_phys(target_phys_addr_t addr, uint64_t val) {
     val = cpu_to_be64(val);
     cpu_physical_memory_write(addr, &val, 8);
 }
-
-/* NOTE: this function can trigger an exception */
-/* NOTE2: the returned address is not exactly the physical address: it
-   is the offset relative to phys_ram_base */
-tb_page_addr_t get_page_addr_code(CPUArchState *env1, target_ulong addr) {
-    int mmu_idx, page_index, pd;
-    void *p;
-
-    page_index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
-    mmu_idx = cpu_mmu_index(env1);
-    if (unlikely(env1->tlb_table[mmu_idx].table[page_index].addr_code != (addr & TARGET_PAGE_MASK))) {
-        cpu_ldub_code(env1, addr);
-    }
-    pd = env1->iotlb[mmu_idx][page_index] & ~TARGET_PAGE_MASK;
-    if (!mem_desc_find(pd)) {
-#if defined(TARGET_ALPHA) || defined(TARGET_MIPS) || defined(TARGET_SPARC)
-        cpu_unassigned_access(env1, addr, 0, 1, 0, 4);
-#else
-        cpu_abort(env1, "Trying to execute code outside RAM or ROM at 0x" TARGET_FMT_lx "\n", addr);
-#endif
-    }
-    p = (void *) ((uintptr_t) addr + env1->tlb_table[mmu_idx].table[page_index].addend);
-    return qemu_ram_addr_from_host_nofail(p);
-}
-
-#define MMUSUFFIX _cmmu
-#undef GETPC
-#define GETPC() NULL
-#define env     cpu_single_env
-#define SOFTMMU_CODE_ACCESS
-
-#define SHIFT 0
-#include "softmmu_template.h"
-
-#define SHIFT 1
-#include "softmmu_template.h"
-
-#define SHIFT 2
-#include "softmmu_template.h"
-
-#define SHIFT 3
-#include "softmmu_template.h"
-
-#undef env

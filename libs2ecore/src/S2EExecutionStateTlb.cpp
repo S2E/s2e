@@ -39,14 +39,34 @@
 #undef cat
 #endif
 
-#include <klee/AddressSpace.h>
-#include <llvm/Support/CommandLine.h>
-
 extern llvm::cl::opt<bool> PrintModeSwitch;
+
+namespace {
+llvm::cl::opt<bool> TlbAudit("tlb-audit", llvm::cl::desc("Check the TLB cache map against the TLB after every update"),
+                             llvm::cl::init(false));
+}
 
 namespace s2e {
 
 using namespace klee;
+
+namespace {
+/// Number of entries of the main TLB of one MMU index.
+inline unsigned tlbSize(CPUState *cpu, unsigned mmu_idx) {
+    return (cpu->neg.tlb.f[mmu_idx].mask >> CPU_TLB_ENTRY_BITS) + 1;
+}
+
+/// The comparators, addend and se_addend of entry (mmu_idx, index).
+inline CPUTLBEntry *fastEntry(CPUState *cpu, unsigned mmu_idx, unsigned index) {
+    return &cpu->neg.tlb.f[mmu_idx].table[index];
+}
+
+/// The KLEE object that backs the page of entry (mmu_idx, index). The
+/// pointer is in the full entry, which generated code does not read.
+inline void *&entryObject(CPUState *cpu, unsigned mmu_idx, unsigned index) {
+    return cpu->neg.tlb.d[mmu_idx].fulltlb[index].extra.object_state;
+}
+} // namespace
 
 bool S2EExecutionStateTlb::addressSpaceChangeUpdateTlb(const klee::ObjectStateConstPtr &oldState,
                                                        const klee::ObjectStatePtr &newState) {
@@ -87,9 +107,14 @@ bool S2EExecutionStateTlb::addressSpaceChangeUpdateTlb(const klee::ObjectStateCo
 #if defined(SE_ENABLE_PHYSRAM_TLB)
 void S2EExecutionStateTlb::updateRamTlb(const klee::ObjectStateConstPtr &oldState,
                                         const klee::ObjectStatePtr &newState) {
-    CPUX86State *cpu = m_registers->getCpuState();
+    // An inactive state has no RAM TLB; it gets an empty one when activated.
+    if (!*m_active) {
+        return;
+    }
+
+    CPUState *cpu = m_registers->getCpuCaches();
     uintptr_t tlb_index = (oldState->getAddress() >> 12) & (CPU_TLB_SIZE - 1);
-    CPUTLBRAMEntry *re = &cpu->se_ram_tlb[tlb_index];
+    CPUTLBRAMEntry *re = &cpu->neg.se_ram_tlb[tlb_index];
 
     assert(oldState->isSharedConcrete() == newState->isSharedConcrete());
 
@@ -111,13 +136,22 @@ void S2EExecutionStateTlb::updateRamTlb(const klee::ObjectStateConstPtr &oldStat
 #endif
 
 void S2EExecutionStateTlb::updateTlb(const klee::ObjectStateConstPtr &oldState, const klee::ObjectStatePtr &newState) {
-
-    CPUX86State *cpu = m_registers->getCpuState();
-
     if (g_s2e_single_path_mode) {
         llvm::errs() << "Multi-path mode disabled.\n";
         exit(-1);
     }
+
+    // An inactive state has no TLB, so there is nothing to repoint. Its map
+    // must be empty: doStateSwitch() clears it on deactivation and a forked
+    // state starts with an empty one.
+    if (!*m_active) {
+        if (!m_tlbMap.empty()) {
+            pabort("Inactive state has a non-empty TLB cache map");
+        }
+        return;
+    }
+
+    CPUState *cpu = m_registers->getCpuCaches();
 
 #ifdef S2E_DEBUG_TLBCACHE
     g_s2e->getDebugStream(g_s2e_state.get())
@@ -137,12 +171,12 @@ void S2EExecutionStateTlb::updateTlb(const klee::ObjectStateConstPtr &oldState, 
 #ifdef S2E_DEBUG_TLBCACHE
             g_s2e->getDebugStream() << "    mmu_idx=" << coords.first << " index=" << coords.second << "\n";
 #endif
-            CPUTLBEntry *entry = &cpu->tlb_table[coords.first].table[coords.second];
-            assert(entry->objectState == (void *) oldState.get());
+            CPUTLBEntry *entry = fastEntry(cpu, coords.first, coords.second);
+            assert(entryObject(cpu, coords.first, coords.second) == (void *) oldState.get());
             assert(newState);
 
             // XXX: use proper refcounting
-            entry->objectState = newState.get();
+            entryObject(cpu, coords.first, coords.second) = newState.get();
 
             if (!newState->isSharedConcrete()) {
                 // The addend does not change.
@@ -154,7 +188,7 @@ void S2EExecutionStateTlb::updateTlb(const klee::ObjectStateConstPtr &oldState, 
                 }
             }
 
-            updateTlbEntryConcreteStatus(cpu, coords.first, coords.second, newState);
+            updateTlbEntryConcreteStatus(coords.first, coords.second, newState);
         }
 
         m_tlbMap[newState] = vec;
@@ -163,9 +197,9 @@ void S2EExecutionStateTlb::updateTlb(const klee::ObjectStateConstPtr &oldState, 
         }
     }
 
-#ifdef S2E_DEBUG_TLBCACHE
-    audit();
-#endif
+    if (TlbAudit && !audit()) {
+        pabort("TLB cache audit failed");
+    }
 }
 
 /***/
@@ -175,6 +209,18 @@ void S2EExecutionStateTlb::flushTlbCache() {
     g_s2e->getDebugStream(g_s2e_state.get()) << "Flushing TLB cache\n";
 #endif
     m_tlbMap.clear();
+}
+
+void S2EExecutionStateTlb::flushTlbCacheMmuIdx(int mmu_idx) {
+    for (auto it = m_tlbMap.begin(); it != m_tlbMap.end();) {
+        auto &vec = it->second;
+        llvm::erase_if(vec, [&](const TlbCoordinates &coords) { return coords.first == (unsigned) mmu_idx; });
+        if (vec.empty()) {
+            it = m_tlbMap.erase(it);
+        } else {
+            ++it;
+        }
+    }
 }
 
 void S2EExecutionStateTlb::flushTlbCachePage(const klee::ObjectStatePtr &objectState, int mmu_idx, int index) {
@@ -187,8 +233,9 @@ void S2EExecutionStateTlb::flushTlbCachePage(const klee::ObjectStatePtr &objectS
         << "flushTlbCachePage: clearing cache entry for " << objectState << " (" << mmu_idx << "," << index << ")\n";
 #endif
 
-    env->tlb_table[mmu_idx].table[index].objectState = 0;
-    env->tlb_table[mmu_idx].table[index].se_addend = 0;
+    CPUState *cpu = m_registers->getCpuCaches();
+    entryObject(cpu, mmu_idx, index) = nullptr;
+    fastEntry(cpu, mmu_idx, index)->se_addend = 0;
 
     if (g_s2e_single_path_mode) {
         return;
@@ -224,9 +271,10 @@ void S2EExecutionStateTlb::flushTlbCachePage(const klee::ObjectStatePtr &objectS
  * If a page contains at least one byte of symbolic data, it will go through
  * the slow path. Otherwise, softmmu will directly access the concrete array.
  */
-void S2EExecutionStateTlb::updateTlbEntryConcreteStatus(struct CPUX86State *env, unsigned mmu_idx, unsigned index,
+void S2EExecutionStateTlb::updateTlbEntryConcreteStatus(unsigned mmu_idx, unsigned index,
                                                         const klee::ObjectStateConstPtr &state) {
-    CPUTLBEntry *te = &env->tlb_table[mmu_idx].table[index];
+    CPUState *cpu = m_registers->getCpuCaches();
+    CPUTLBEntry *te = &cpu->neg.tlb.f[mmu_idx].table[index];
 
     if (!state->isAllConcrete()) {
         te->addr_read |= TLB_SYMB;
@@ -240,7 +288,7 @@ void S2EExecutionStateTlb::updateTlbEntryConcreteStatus(struct CPUX86State *env,
 
 #ifdef SE_ENABLE_PHYSRAM_TLB
     uintptr_t ram_tlb_index = (state->getAddress() >> 12) & (CPU_TLB_SIZE - 1);
-    CPUTLBRAMEntry *re = &env->se_ram_tlb[ram_tlb_index];
+    CPUTLBRAMEntry *re = &cpu->neg.se_ram_tlb[ram_tlb_index];
     re->host_page = 0;
     re->addend = 0;
     re->object_state = 0;
@@ -250,30 +298,32 @@ void S2EExecutionStateTlb::updateTlbEntryConcreteStatus(struct CPUX86State *env,
 #if defined(SE_ENABLE_PHYSRAM_TLB)
 void S2EExecutionStateTlb::clearRamTlb() {
     static CPUTLBRAMEntry empty = {0, 0, nullptr};
+    CPUState *cpu = m_registers->getCpuCaches();
     for (unsigned i = 0; i < CPU_TLB_SIZE; i++) {
-        env->se_ram_tlb[i] = empty;
+        cpu->neg.se_ram_tlb[i] = empty;
     }
 }
 #endif
 
 void S2EExecutionStateTlb::clearTlbOwnership() {
-    CPUX86State *env = m_registers->getCpuState();
+    CPUState *cpu = m_registers->getCpuCaches();
 
-    for (unsigned i = 0; i < CPU_TLB_SIZE; i++) {
-        for (unsigned mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
-            env->tlb_table[mmu_idx].table[i].addr_write |= TLB_NOT_OURS;
+    for (unsigned mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
+        for (unsigned i = 0; i < tlbSize(cpu, mmu_idx); i++) {
+            fastEntry(cpu, mmu_idx, i)->addr_write |= TLB_NOT_OURS;
         }
     }
 }
 
-void S2EExecutionStateTlb::updateTlbEntry(CPUX86State *env, int mmu_idx, uint64_t virtAddr, uint64_t hostAddr) {
+void S2EExecutionStateTlb::updateTlbEntry(int mmu_idx, uint64_t virtAddr, uint64_t hostAddr) {
     assert((hostAddr & ~TARGET_PAGE_MASK) == 0);
     assert((virtAddr & ~TARGET_PAGE_MASK) == 0);
 
-    unsigned int index = (virtAddr >> SE_RAM_OBJECT_BITS) & (CPU_TLB_SIZE - 1);
+    CPUState *cpu = m_registers->getCpuCaches();
+    unsigned int index = (virtAddr >> TARGET_PAGE_BITS) & (tlbSize(cpu, mmu_idx) - 1);
 
-    CPUTLBEntry *entry = &env->tlb_table[mmu_idx].table[index];
-    ObjectState *oldObjectState = static_cast<ObjectState *>(entry->objectState);
+    CPUTLBEntry *entry = fastEntry(cpu, mmu_idx, index);
+    ObjectState *oldObjectState = static_cast<ObjectState *>(entryObject(cpu, mmu_idx, index));
 
     /* Retrieve the object state using the host address */
     auto newObjectState = m_asCache->get(hostAddr);
@@ -301,7 +351,7 @@ void S2EExecutionStateTlb::updateTlbEntry(CPUX86State *env, int mmu_idx, uint64_
 #endif
 
     /* Update the TLB entry */
-    entry->objectState = const_cast<ObjectState *>(newObjectState.get());
+    entryObject(cpu, mmu_idx, index) = const_cast<ObjectState *>(newObjectState.get());
 
     if (newObjectState->isSharedConcrete()) {
         entry->se_addend = (hostAddr - virtAddr);
@@ -315,11 +365,11 @@ void S2EExecutionStateTlb::updateTlbEntry(CPUX86State *env, int mmu_idx, uint64_
         }
     }
 
-    updateTlbEntryConcreteStatus(env, mmu_idx, index, newObjectState);
+    updateTlbEntryConcreteStatus(mmu_idx, index, newObjectState);
 
-#ifdef S2E_DEBUG_TLBCACHE
-    audit();
-#endif
+    if (TlbAudit && !audit()) {
+        pabort("TLB cache audit failed");
+    }
 }
 
 bool S2EExecutionStateTlb::audit() {
@@ -327,41 +377,44 @@ bool S2EExecutionStateTlb::audit() {
      * Go through the TLB and make sure that all object states are
      * properly referenced.
      */
-    CPUX86State *env = m_registers->getCpuState();
+    CPUState *cpu = m_registers->getCpuCaches();
 
-    for (auto tlbIt : m_tlbMap) {
-        auto os = tlbIt.first;
-        const ObjectStateTlbReferences &vec = tlbIt.second;
-        foreach2 (vit, vec.begin(), vec.end()) {
-            unsigned mmu_idx = (*vit).first;
-            unsigned index = (*vit).second;
-
-            CPUTLBEntry *entry = &env->tlb_table[mmu_idx].table[index];
-            assert(entry->objectState == os);
-            (void) entry;
-            (void) os;
+    for (const auto &[os, refs] : m_tlbMap) {
+        for (const auto &[mmu_idx, index] : refs) {
+            void *object = entryObject(cpu, mmu_idx, index);
+            if (object != os.get()) {
+                llvm::errs() << "TLB audit: map entry (" << mmu_idx << "," << index << ") refers to "
+                             << hexval(os.get()) << " but the TLB holds " << hexval(object) << "\n";
+                return false;
+            }
         }
     }
 
-    for (unsigned i = 0; i < CPU_TLB_SIZE; i++) {
-        for (unsigned mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
-            CPUTLBEntry *entry = &env->tlb_table[mmu_idx].table[i];
-            if (!entry->objectState) {
+    for (unsigned mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
+        for (unsigned index = 0; index < tlbSize(cpu, mmu_idx); index++) {
+            void *object = entryObject(cpu, mmu_idx, index);
+            if (!object) {
                 continue;
             }
 
-            TlbMap::const_iterator it = m_tlbMap.find((ObjectState *) entry->objectState);
-            assert(it != m_tlbMap.end());
+            auto it = m_tlbMap.find(static_cast<ObjectState *>(object));
+            if (it == m_tlbMap.end()) {
+                llvm::errs() << "TLB audit: TLB entry (" << mmu_idx << "," << index << ") refers to " << hexval(object)
+                             << " which is not in the map\n";
+                return false;
+            }
 
-            const ObjectStateTlbReferences &vec = (*it).second;
             unsigned foundCount = 0;
-            foreach2 (vit, vec.begin(), vec.end()) {
-                if ((*vit).first == mmu_idx && (*vit).second == i) {
+            for (const auto &coords : it->second) {
+                if (coords == TlbCoordinates(mmu_idx, index)) {
                     foundCount++;
                 }
             }
+
             if (foundCount != 1) {
-                abort();
+                llvm::errs() << "TLB audit: TLB entry (" << mmu_idx << "," << index << ") is referenced " << foundCount
+                             << " times by " << hexval(object) << "\n";
+                return false;
             }
         }
     }

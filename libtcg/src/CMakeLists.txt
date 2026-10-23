@@ -21,11 +21,10 @@
 set (TCG_SOURCES)
 
 list (APPEND TCG_SOURCES
-        utils/cutils.c utils/osdep.c utils/memalign.c utils/cache.c utils/log.c
-        utils/cpuinfo-i386.c utils/qtree.c utils/host-utils.c utils/interval-tree.c
+        utils/log.c
         region.c tcg.c tcg-s2e.c tcg-op-ldst.c  tcg-common.c tcg-op.c optimize.c tcg-op-gvec.c tcg-op-vec.c
         tcg-rt/tcg-runtime-gvec.c tcg-rt/tcg-runtime.c
-        atomic-helpers.c
+
         fpu/softfloat.c)
 
 if (WITH_SYMBEX)
@@ -35,7 +34,7 @@ endif (WITH_SYMBEX)
 add_library(tcg ${TCG_SOURCES})
 
 set (COMMON_FLAGS "-Wall -fPIC -Werror -Wno-zero-length-array -Wno-mismatched-tags -Wno-initializer-overrides")
-set (COMMON_FLAGS "${COMMON_FLAGS} -DCOMPILING_PER_TARGET -DCONFIG_SOFTMMU -DCONFIG_INT128 -DCPU_TEMP_BUF_NLONGS=128 -DHOST_BIG_ENDIAN=0 -DHAVE_GLIB_WITH_SLICE_ALLOCATOR")
+set (COMMON_FLAGS "${COMMON_FLAGS} -DCOMPILING_PER_TARGET -DCONFIG_SOFTMMU -DCPU_TEMP_BUF_NLONGS=128 -DTARGET_BIG_ENDIAN=0")
 
 if (WITH_SYMBEX)
     set (COMMON_FLAGS "${COMMON_FLAGS} -DCONFIG_SYMBEX -DTCG_ENABLE_MEM_TRACING")
@@ -56,11 +55,8 @@ else (TARGET_LONG_BITS)
     MESSAGE (FATAL_ERROR "Please specify -DTARGET_LONG_BITS")
 endif (TARGET_LONG_BITS)
 
-if (TARGET_INSN_START_EXTRA_WORDS)
-    set (COMMON_FLAGS "${COMMON_FLAGS} -DTARGET_INSN_START_EXTRA_WORDS=${TARGET_INSN_START_EXTRA_WORDS}")
-else (TARGET_INSN_START_EXTRA_WORDS)
-    MESSAGE (FATAL_ERROR "Please specify -DTARGET_INSN_START_EXTRA_WORDS")
-endif (TARGET_INSN_START_EXTRA_WORDS)
+# TARGET_INSN_START_EXTRA_WORDS was dropped in QEMU 11.1: tcg_gen_insn_start
+# now always takes INSN_START_WORDS arguments, padded with zeroes by the caller.
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${COMMON_FLAGS}")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COMMON_FLAGS}")
@@ -78,9 +74,11 @@ foreach(dir ${dirs})
 endforeach()
 separate_arguments(BC_INC_DIRS)
 
+# Optimized for size, as the rest of the bitcode library (see BC_OPT_FLAGS in
+# libcpu/src/CMakeLists.txt).
 add_custom_target(
     softfloat_bc ALL
-    clang-19 ${CMAKE_CURRENT_SOURCE_DIR}/fpu/softfloat.c -c ${CARGS_LIST} -I${LIBTCG_INCLUDE_DIR} ${BC_INC_DIRS} -Wno-unused-function -O3 -DSYMBEX_LLVM_LIB -march=x86-64 -emit-llvm -o ${CMAKE_CURRENT_BINARY_DIR}/softfloat.bc ${BC_INC_DIRS} -fno-slp-vectorize -fno-tree-vectorize
+    clang-19 ${CMAKE_CURRENT_SOURCE_DIR}/fpu/softfloat.c -c ${CARGS_LIST} -I${LIBTCG_INCLUDE_DIR} ${BC_INC_DIRS} -Wno-unused-function -Oz -mllvm -inline-threshold=50 -DSYMBEX_LLVM_LIB -march=x86-64 -emit-llvm -o ${CMAKE_CURRENT_BINARY_DIR}/softfloat.bc ${BC_INC_DIRS} -fno-slp-vectorize -fno-tree-vectorize
     DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/fpu/softfloat.c
 )
 endif (WITH_SYMBEX)

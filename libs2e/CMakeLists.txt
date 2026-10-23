@@ -71,8 +71,8 @@ endforeach()
 find_package(KLEE REQUIRED)
 message(STATUS "Found klee ${KLEE_PACKAGE_VERSION}")
 
-find_package(LIBQ REQUIRED)
-message(STATUS "Found libq ${LIBQ_PACKAGE_VERSION}")
+find_package(LIBUTILS REQUIRED)
+message(STATUS "Found libutils ${LIBUTILS_PACKAGE_VERSION}")
 
 find_package(LIBCPU REQUIRED)
 message(STATUS "Found libcpu ${LIBCPU_PACKAGE_VERSION}")
@@ -80,14 +80,8 @@ message(STATUS "Found libcpu ${LIBCPU_PACKAGE_VERSION}")
 find_package(LIBTCG REQUIRED)
 message(STATUS "Found libtcg ${LIBTCG_PACKAGE_VERSION}")
 
-find_package(FSIGCXX REQUIRED)
-message(STATUS "Found fsigc++ ${FSIGCXX_PACKAGE_VERSION}")
-
 find_package(VMI REQUIRED)
 message(STATUS "Found libvmi ${VMI_PACKAGE_VERSION}")
-
-find_package(LIBCOROUTINE REQUIRED)
-message(STATUS "Found libcoroutine ${LIBCOROUTINE_PACKAGE_VERSION}")
 
 if(WITH_TARGET MATCHES "s2e")
     # TODO: look at libcpu compile options to figure this out
@@ -117,20 +111,16 @@ endforeach()
 include_directories(${GLIB_PKG_INCLUDE_DIRS}
                     ${LIBTCG_INCLUDE_DIR}
                     ${LIBCPU_INCLUDE_DIR}
-                    ${FSIGCXX_INCLUDE_DIR}
-                    ${LIBQ_INCLUDE_DIR}
-                    ${LIBCOROUTINE_INCLUDE_DIR}
+                    ${LIBUTILS_INCLUDE_DIR}
                     ${VMI_INCLUDE_DIR})
 
 link_directories(${GLIB_PKG_LIBRARY_DIRS}
                     ${LIBTCG_LIBRARY_DIR}
                     ${LIBCPU_LIBRARY_DIR}
-                    ${LIBQ_LIBRARY_DIR}
+                    ${LIBUTILS_LIBRARY_DIR}
                     ${KLEE_LIBRARY_DIR}
                     ${LUA_DIR}
                     ${Z3_DIR}
-                    ${FSIGCXX_LIBRARY_DIR}
-                    ${LIBCOROUTINE_LIBRARY_DIR}
                     ${LIBS2ECORE_LIBRARY_DIR}
                     ${LIBS2EPLUGINS_LIBRARY_DIR}
                     ${VMI_LIBRARY_DIR})

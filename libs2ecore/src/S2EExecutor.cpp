@@ -36,6 +36,8 @@
 
 #include <s2e/s2e_libcpu.h>
 
+#include <cpu/se_softmmu.h>
+
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/DataLayout.h>
 #include <llvm/IR/DerivedTypes.h>
@@ -329,15 +331,12 @@ S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMTranslator *translator)
     __DEFINE_EXT_FUNCTION(tlb_flush_page)
     __DEFINE_EXT_FUNCTION(tlb_flush)
 
-    __DEFINE_EXT_FUNCTION(io_readb_mmu)
-    __DEFINE_EXT_FUNCTION(io_readw_mmu)
-    __DEFINE_EXT_FUNCTION(io_readl_mmu)
-    __DEFINE_EXT_FUNCTION(io_readq_mmu)
-
-    __DEFINE_EXT_FUNCTION(io_writeb_mmu)
-    __DEFINE_EXT_FUNCTION(io_writew_mmu)
-    __DEFINE_EXT_FUNCTION(io_writel_mmu)
-    __DEFINE_EXT_FUNCTION(io_writeq_mmu)
+    // The native half of the softmmu, which its bitcode half calls
+    // (libcpu/src/accel/cputlb.c).
+    __DEFINE_EXT_FUNCTION(notdirty_write)
+    __DEFINE_EXT_FUNCTION(do_ld_mmio_beN)
+    __DEFINE_EXT_FUNCTION(do_st_mmio_leN)
+    __DEFINE_EXT_FUNCTION(cpu_check_watchpoint)
 
     __DEFINE_EXT_FUNCTION(se_ensure_symbolic)
 
@@ -353,13 +352,6 @@ S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMTranslator *translator)
 
     __DEFINE_EXT_FUNCTION(s2e_on_privilege_change);
     __DEFINE_EXT_FUNCTION(s2e_on_page_fault);
-
-    __DEFINE_EXT_FUNCTION(se_notdirty_mem_write)
-    __DEFINE_EXT_FUNCTION(se_notdirty_mem_read)
-
-    __DEFINE_EXT_FUNCTION(se_ismemfunc)
-    __DEFINE_EXT_FUNCTION(phys_get_ops)
-    __DEFINE_EXT_FUNCTION(is_notdirty_ops)
 
     __DEFINE_EXT_FUNCTION(ldub_phys)
     __DEFINE_EXT_FUNCTION(stb_phys)
@@ -543,8 +535,26 @@ void S2EExecutor::registerCpu(S2EExecutionState *initialState, CPUX86State *cpuE
                                                         /* isReadOnly = */ false,
                                                         /* isSharedConcrete = */ true);
 
-    initialState->m_registers.initialize(initialState->addressSpace(), symbolicRegs, concreteRegs);
+    /* The CPUState that precedes the env inside ArchCPU is registered as two
+       objects (see cpu/state.h). The execution fields (exception_index,
+       interrupt_request, the current TB, ...) are snapshotted per state like
+       the concrete registers. The caches (TLB, RAM TLB, TB jump cache) are
+       not: only the active state has a TLB. Both are shared-concrete so that
+       helpers and the softmmu fast path can reach them as bitcode. */
+    CPUState *cpu = env_cpu(cpuEnv);
+    auto cpuExecState = initialState->addExternalObject(cpu, offsetof(CPUState, neg),
+                                                        /* isReadOnly = */ false,
+                                                        /* isSharedConcrete = */ true);
+
+    auto cpuCaches = initialState->addExternalObject(&cpu->neg, offsetof(ArchCPU, env) - offsetof(CPUState, neg),
+                                                     /* isReadOnly = */ false,
+                                                     /* isSharedConcrete = */ true);
+
+    initialState->m_registers.initialize(initialState->addressSpace(), symbolicRegs, concreteRegs, cpuExecState,
+                                         cpuCaches);
     klee::ExecutionState::s_ignoredMergeObjects.insert(initialState->m_registers.getConcreteRegs());
+    klee::ExecutionState::s_ignoredMergeObjects.insert(initialState->m_registers.getCpuExecStateKey());
+    klee::ExecutionState::s_ignoredMergeObjects.insert(initialState->m_registers.getCpuCachesKey());
 }
 
 void S2EExecutor::registerSharedExternalObject(S2EExecutionState *state, void *address, unsigned size) {
@@ -692,7 +702,7 @@ void S2EExecutor::doLoadBalancing() {
 void S2EExecutor::stateSwitchTimerCallback(void *opaque) {
     S2EExecutor *c = (S2EExecutor *) opaque;
 
-    assert(env->current_tb == nullptr);
+    assert(env_cpu(env)->current_tb == nullptr);
 
     if (g_s2e_state) {
         c->doLoadBalancing();
@@ -756,6 +766,15 @@ void S2EExecutor::doStateSwitch(S2EExecutionStatePtr oldState, S2EExecutionState
 
         oldState->m_timersState = timers_state;
 
+#if defined(SE_ENABLE_PHYSRAM_TLB)
+        // The RAM TLB is not snapshotted. It is cleared here, while the
+        // state is still active, so that no state ever sees another state's
+        // entries: the device restore of the incoming state writes guest
+        // memory through it (cpu_host_memory_rw), and an inactive state
+        // cannot repopulate it since getCpuCaches() aborts.
+        oldState->getTlb()->clearRamTlb();
+#endif
+
         oldState->m_registers.saveConcreteState();
         oldState->m_active = false;
     }
@@ -770,12 +789,15 @@ void S2EExecutor::doStateSwitch(S2EExecutionStatePtr oldState, S2EExecutionState
             *g_sqi.exec.clock_scaling_factor = timers_state.cpu_clock_scale_factor;
         }
 
+        // jmp_env belongs to the host call stack that is performing the
+        // switch, not to the incoming state, so it is carried across the
+        // restore of the CPU execution fields.
         jmp_buf jmp_env;
-        memcpy(&jmp_env, &env->jmp_env, sizeof(jmp_buf));
+        memcpy(&jmp_env, &env_cpu(env)->jmp_env, sizeof(jmp_buf));
 
         newState->m_registers.restoreConcreteState();
 
-        memcpy(&env->jmp_env, &jmp_env, sizeof(jmp_buf));
+        memcpy(&env_cpu(env)->jmp_env, &jmp_env, sizeof(jmp_buf));
 
         newState->m_active = true;
 
@@ -799,9 +821,30 @@ void S2EExecutor::doStateSwitch(S2EExecutionStatePtr oldState, S2EExecutionState
         se_tb_safe_flush();
     }
 
-    assert(env->current_tb == nullptr);
+    assert(env_cpu(env)->current_tb == nullptr);
 
     g_se_disable_tlb_flush = 0;
+
+    // The CPU caches (TLB, RAM TLB, TB jump cache) are not part of the
+    // snapshotted state: only the active state has a TLB, and it starts
+    // empty. The RAM TLB was cleared at deactivation. The flush must come
+    // after the guard above is cleared, because tlb_flush() returns early
+    // while it is set.
+    if (oldState) {
+        // The outgoing state's entries are still in the global TLB; the map
+        // that tracks them goes away with them.
+        oldState->getTlb()->flushTlbCache();
+    }
+
+    if (newState) {
+        if (!newState->getTlb()->isEmpty()) {
+            pabort("Activated state has a non-empty TLB cache map");
+        }
+
+        // Clears the TLB and the TB jump cache, and in multi-path mode
+        // empties the active state's map, which is newState here.
+        tlb_flush(env_cpu(env));
+    }
 
     // m_s2e->getCorePlugin()->onStateSwitch.emit(oldState, newState);
 }
@@ -944,7 +987,7 @@ bool S2EExecutor::finalizeTranslationBlockExec(S2EExecutionState *state) {
      * Memory topology may change on state switches.
      * Ensure that there are no bad mappings left.
      */
-    tlb_flush(env, 1);
+    tlb_flush(env_cpu(env));
 
     return ret;
 }
@@ -980,7 +1023,7 @@ void S2EExecutor::updateConcreteFastPath(S2EExecutionState *state) {
     g_s2e_running_exception_emulation_code = (char *) &state->m_runningExceptionEmulationCode;
 
     if (g_s2e_fast_concrete_invocation) {
-        env->generate_llvm = 0;
+        env_cpu(env)->generate_llvm = 0;
     }
 
     updateClockScaling();
@@ -1021,7 +1064,7 @@ uintptr_t S2EExecutor::executeTranslationBlockConcrete(S2EExecutionState *state,
     uintptr_t ret = 0;
     S2EExternalDispatcher::saveJmpBuf();
 
-    if (setjmp(env->jmp_env)) {
+    if (setjmp(env_cpu(env)->jmp_env)) {
         S2EExternalDispatcher::restoreJmpBuf();
         throw CpuExitException();
     } else {
@@ -1037,7 +1080,7 @@ uintptr_t S2EExecutor::executeTranslationBlockSlow(struct CPUX86State *env1, str
         uintptr_t ret = g_s2e->getExecutor()->executeTranslationBlock(g_s2e_state.get(), tb);
         return ret;
     } catch (s2e::CpuExitException &) {
-        longjmp(env->jmp_env, 1);
+        longjmp(env_cpu(env)->jmp_env, 1);
     }
 }
 
@@ -1069,7 +1112,7 @@ uintptr_t S2EExecutor::executeTranslationBlock(S2EExecutionState *state, Transla
         executeKlee |= (state->regs()->getPc() == state->m_startSymbexAtPC);
 
         if (executeKlee && !tb->llvm_function) {
-            env->generate_llvm = 1;
+            env_cpu(env)->generate_llvm = 1;
             return 0;
         }
 
@@ -1082,7 +1125,7 @@ uintptr_t S2EExecutor::executeTranslationBlock(S2EExecutionState *state, Transla
         auto pair = std::make_pair(state->regs()->getPc(), state->regs()->getPageDir());
         if (state->m_toRunSymbolically.find(pair) != state->m_toRunSymbolically.end()) {
             if (!tb->llvm_function) {
-                env->generate_llvm = 1;
+                env_cpu(env)->generate_llvm = 1;
                 return 0;
             }
             state->m_toRunSymbolically.erase(pair);
@@ -1100,7 +1143,7 @@ uintptr_t S2EExecutor::executeTranslationBlock(S2EExecutionState *state, Transla
     }
 
     if (executeKlee && !tb->llvm_function) {
-        env->generate_llvm = 1;
+        env_cpu(env)->generate_llvm = 1;
         return 0;
     }
 
@@ -1111,7 +1154,7 @@ uintptr_t S2EExecutor::executeTranslationBlock(S2EExecutionState *state, Transla
 
         return executeTranslationBlockKlee(state, tb);
     } else {
-        env->generate_llvm = 0;
+        env_cpu(env)->generate_llvm = 0;
 
         if (!state->isRunningConcrete()) {
             state->switchToConcrete();
@@ -1591,7 +1634,7 @@ void S2EExecutor::terminateState(ExecutionStatePtr s) {
 
     // No need for exiting the loop if we kill another state.
     if (!m_inLoadBalancing && (state == g_s2e_state)) {
-        state->regs()->write<int>(CPU_OFFSET(exception_index), EXCP_SE);
+        state->regs()->getCpu()->exception_index = EXCP_SE;
         throw CpuExitException();
     }
 }
@@ -1611,7 +1654,7 @@ inline void S2EExecutor::setCCOpEflags(S2EExecutionState *state) {
 
                 executeFunction(state, "helper_set_cc_op_eflags");
             } catch (s2e::CpuExitException &) {
-                longjmp(env->jmp_env, 1);
+                longjmp(env_cpu(env)->jmp_env, 1);
             }
         }
     } else {
@@ -1646,7 +1689,7 @@ inline void S2EExecutor::doInterrupt(S2EExecutionState *state, int intno, int is
         try {
             executeFunction(state, "se_do_interrupt_all", args);
         } catch (s2e::CpuExitException &) {
-            longjmp(env->jmp_env, 1);
+            longjmp(env_cpu(env)->jmp_env, 1);
         }
     }
 }
@@ -1771,6 +1814,10 @@ void s2e_flush_tlb_cache() {
     g_s2e_state->getTlb()->flushTlbCache();
 }
 
+void s2e_flush_tlb_cache_mmuidx(int mmu_idx) {
+    g_s2e_state->getTlb()->flushTlbCacheMmuIdx(mmu_idx);
+}
+
 void se_flush_tlb_cache_page(void *objectState, int mmu_idx, int index) {
     g_s2e_state->getTlb()->flushTlbCachePage(static_cast<klee::ObjectState *>(objectState), mmu_idx, index);
 }
@@ -1778,7 +1825,12 @@ void se_flush_tlb_cache_page(void *objectState, int mmu_idx, int index) {
 /** Tlb cache helpers */
 void s2e_update_tlb_entry(CPUX86State *env, int mmu_idx, uint64_t virtAddr, uint64_t hostAddr) {
 #if defined(SE_ENABLE_TLB) && defined(CONFIG_SYMBEX_MP)
-    g_s2e_state->getTlb()->updateTlbEntry(env, mmu_idx, virtAddr, hostAddr);
+    // libcpu fills TLB entries only for the CPU it is executing, which must be
+    // the active state's. The TLB code itself never takes a CPU pointer.
+    if (env_cpu(env) != g_s2e_state->regs()->getCpuCaches()) {
+        pabort("TLB entry update for a CPU that is not the active state's");
+    }
+    g_s2e_state->getTlb()->updateTlbEntry(mmu_idx, virtAddr, hostAddr);
 #endif
 }
 
@@ -1788,10 +1840,6 @@ int s2e_is_load_balancing() {
 
 void helper_register_symbol(const char *name, void *address) {
     llvm::sys::DynamicLibrary::AddSymbol(name, address);
-}
-
-uint64_t s2e_read_mem_io_vaddr(int masked) {
-    return g_s2e_state->readMemIoVaddr(masked);
 }
 
 void s2e_kill_state(const char *message) {

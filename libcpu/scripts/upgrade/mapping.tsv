@@ -1,0 +1,26 @@
+# libcpu path <TAB> upstream QEMU path, as of the tag recorded in BASELINE.
+#
+# Only files that track upstream appear here. Hand-written files (cpu/state.h,
+# everything under src/s2e/, the QEMU 1.0 code that has not been replaced yet)
+# are deliberately absent: they have no upstream counterpart to merge from.
+#
+# The merge driver is scripts/upgrade/merge.sh at the S2E source root.
+#
+# upstream-dirs: accel/tcg/ include/accel/tcg/ include/exec/
+# --- softmmu -------------------------------------------------------------
+src/accel/cputlb.c	accel/tcg/cputlb.c
+src/accel/ldst_common.c.inc	accel/tcg/ldst_common.c.inc
+src/accel/ldst_atomicity.c.inc	accel/tcg/ldst_atomicity.c.inc
+src/accel/tlb-bounds.h	accel/tcg/tlb-bounds.h
+include/cpu/accel/cpu-ldst.h	include/accel/tcg/cpu-ldst.h
+include/cpu/accel/cpu-ldst-common.h	include/accel/tcg/cpu-ldst-common.h
+include/cpu/accel/probe.h	include/accel/tcg/probe.h
+include/cpu/exec/cputlb.h	include/exec/cputlb.h
+include/cpu/exec/tlb-flags.h	include/exec/tlb-flags.h
+include/cpu/exec/vaddr.h	include/exec/vaddr.h
+include/cpu/exec/memattrs.h	include/exec/memattrs.h
+include/cpu/exec/mmu-access-type.h	include/exec/mmu-access-type.h
+include/cpu/exec/page-protection.h	include/exec/page-protection.h
+include/cpu/accel/cpu-ops.h	include/accel/tcg/cpu-ops.h
+src/accel/atomic_common.c.inc	accel/tcg/atomic_common.c.inc
+src/accel/atomic_template.h	accel/tcg/atomic_template.h

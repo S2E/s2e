@@ -40,7 +40,7 @@
 #include <s2e/s2e_config.h>
 #include <s2e/s2e_libcpu.h>
 #include <tcg/tcg-llvm.h>
-#include <tcg/utils/bitops.h>
+#include <utils/bitops.h>
 #endif
 
 // #define SE_KVM_DEBUG_IRQ
@@ -69,19 +69,19 @@ int cpu_get_pic_interrupt(CPUX86State *env) {
     // The interrupt injected by the kvm client goes first, like in KVM.
     // An interrupt of the lapic keeps its own request and is taken next.
     if (env->kvm_irq >= 0) {
-        assert(env->interrupt_request & CPU_INTERRUPT_HARD_EXT);
+        assert(env_cpu(env)->interrupt_request & CPU_INTERRUPT_HARD_EXT);
         auto irq = env->kvm_irq;
         env->kvm_irq = -1;
-        env->interrupt_request &= ~CPU_INTERRUPT_HARD_EXT;
+        env_cpu(env)->interrupt_request &= ~CPU_INTERRUPT_HARD_EXT;
         return irq;
     }
 
-    assert(!(env->interrupt_request & CPU_INTERRUPT_HARD_EXT));
+    assert(!(env_cpu(env)->interrupt_request & CPU_INTERRUPT_HARD_EXT));
 
     auto vcpu = s2e::kvm::VCPU::current();
     if (auto apic = vcpu->lapic()) {
         // The vector moves to ISR, which masks what is left in IRR until the EOI
-        env->interrupt_request &= ~CPU_INTERRUPT_HARD_APIC;
+        env_cpu(env)->interrupt_request &= ~CPU_INTERRUPT_HARD_APIC;
         return apic->get_interrupt();
     }
 
@@ -318,7 +318,6 @@ int VCPU::setSignalMask(kvm_signal_mask *mask) {
 void VCPU::coroutineFcn(void *opaque) {
     VCPU *vcpu = reinterpret_cast<VCPU *>(opaque);
     CPUX86State *env = vcpu->m_env;
-    auto buffer = vcpu->m_cpuBuffer;
 
     while (1) {
         if (!vcpu->m_task_runner.run_on_thread()) {
@@ -327,17 +326,15 @@ void VCPU::coroutineFcn(void *opaque) {
 
         libcpu_run_all_timers();
 
-        assert(env->current_tb == NULL);
-
-        env->kvm_request_interrupt_window |= buffer->request_interrupt_window;
+        assert(env_cpu(env)->current_tb == NULL);
 
         vcpu->m_cpuStateIsPrecise = false;
         cpu_x86_exec(env);
         vcpu->m_cpuStateIsPrecise = true;
 
-        assert(env->current_tb == NULL);
+        assert(env_cpu(env)->current_tb == NULL);
 
-        env->exception_index = 0;
+        env_cpu(env)->exception_index = 0;
         coroutine_yield();
     }
 }
@@ -431,6 +428,14 @@ int VCPU::run(int vcpu_fd) {
     m_handlingKvmCallback = false;
     m_handlingDeviceState = false;
 
+    // The client may request an interrupt window on any KVM_RUN, including the one
+    // that completes an I/O exit. In that case, the coroutine resumes in the middle
+    // of cpu_x86_exec, so the request must reach the cpu here rather than when the
+    // coroutine starts a new cpu_x86_exec. Otherwise, an interrupt raised by an I/O
+    // handler (e.g., the floppy controller's reset interrupt) stays pending until an
+    // unrelated exit occurs.
+    m_env->kvm_request_interrupt_window |= m_cpuBuffer->request_interrupt_window;
+
     coroutine_enter(m_coroutine, this);
 
     if (m_kvm->exiting()) {
@@ -444,7 +449,7 @@ int VCPU::run(int vcpu_fd) {
                             m_cpuBuffer->exit_reason == KVM_EXIT_IOAPIC_EOI;
 
     // Might not be NULL if resuming from an interrupted I/O
-    // assert(env->current_tb == NULL);
+    // assert(env_cpu(env)->current_tb == NULL);
 
     m_cpuBuffer->if_flag = (m_env->mflags & IF_MASK) != 0;
     m_cpuBuffer->apic_base = get_apic_base();
@@ -453,7 +458,7 @@ int VCPU::run(int vcpu_fd) {
     m_cpuBuffer->ready_for_interrupt_injection = ready_for_interrupt_injection();
 
     if (m_cpuBuffer->exit_reason == -1) {
-        if (m_env->halted) {
+        if (env_cpu(m_env)->halted) {
             m_cpuBuffer->exit_reason = KVM_EXIT_HLT;
         } else if (m_cpuBuffer->ready_for_interrupt_injection) {
             m_cpuBuffer->exit_reason = KVM_EXIT_IRQ_WINDOW_OPEN;
@@ -565,21 +570,21 @@ int VCPU::interrupt(kvm_interrupt *interrupt) {
         return -EEXIST;
     }
 
-    assert(!(m_env->interrupt_request & CPU_INTERRUPT_HARD_EXT));
+    assert(!(env_cpu(m_env)->interrupt_request & CPU_INTERRUPT_HARD_EXT));
 
     // External interrupts are not subject to the tpr of the in-kernel lapic
     if (!m_lapic && (m_env->cr[0] & CR0_PE_MASK)) {
         assert(interrupt->irq > get_tpr());
     }
 
-    m_env->interrupt_request |= CPU_INTERRUPT_HARD_EXT;
+    env_cpu(m_env)->interrupt_request |= CPU_INTERRUPT_HARD_EXT;
     m_env->kvm_irq = interrupt->irq;
 
     return 0;
 }
 
 int VCPU::nmi() {
-    m_env->interrupt_request |= CPU_INTERRUPT_NMI;
+    env_cpu(m_env)->interrupt_request |= CPU_INTERRUPT_NMI;
     return 0;
 }
 
@@ -990,7 +995,7 @@ void *VCPU::sys_mmap(void *addr, size_t len, int prot, int flags, int fd, off_t 
 }
 
 void VCPU::flushTlb() {
-    tlb_flush(m_env, 1);
+    tlb_flush(env_cpu(m_env));
 }
 
 void VCPU::interrupt(int mask, bool reset) {
@@ -1004,9 +1009,9 @@ void VCPU::interrupt(int mask, bool reset) {
     assert(!(mask & CPU_INTERRUPT_HARD_EXT));
 
     if (reset) {
-        m_env->interrupt_request &= ~mask;
+        env_cpu(m_env)->interrupt_request &= ~mask;
     } else {
-        m_env->interrupt_request |= mask;
+        env_cpu(m_env)->interrupt_request |= mask;
     }
 }
 } // namespace kvm

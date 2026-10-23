@@ -33,6 +33,7 @@
 
 extern "C" {
 struct CPUX86State;
+struct CPUState;
 }
 
 #define CPU_OFFSET(field) offsetof(CPUX86State, field)
@@ -60,8 +61,23 @@ protected:
     static klee::ObjectKey s_symbolicRegs;
     static klee::ObjectKey s_concreteRegs;
 
+    // The CPUState that precedes CPUX86State in the global ArchCPU is split
+    // in two objects (see cpu/state.h).
+    //
+    // The execution fields (exception_index, interrupt_request, the current
+    // TB, ...) are per-state and snapshotted together with the concrete
+    // registers.
+    static klee::ObjectKey s_cpuExecState;
+
+    // The CPU caches (TLB, RAM TLB, TB jump cache) are registered so that
+    // the bitcode softmmu fast path can resolve them, but never snapshotted:
+    // the active state owns the global copy and doStateSwitch() flushes it
+    // on every switch.
+    static klee::ObjectKey s_cpuCaches;
+
     klee::ObjectStatePtr m_symbolicRegs;
     klee::ObjectStatePtr m_concreteRegs;
+    klee::ObjectStatePtr m_cpuExecState;
 
     const bool *m_active;
     const bool *m_runningConcrete;
@@ -101,7 +117,8 @@ public:
           m_concretizer(concretizer) {};
 
     void initialize(klee::AddressSpace &addressSpace, const klee::ObjectStatePtr &symbolicRegs,
-                    const klee::ObjectStatePtr &concreteRegs);
+                    const klee::ObjectStatePtr &concreteRegs, const klee::ObjectStatePtr &cpuExecState,
+                    const klee::ObjectStatePtr &cpuCaches);
 
     void update(klee::AddressSpace &addressSpace, const bool *active, const bool *running_concrete,
                 klee::IAddressSpaceNotification *notification, klee::IConcretizer *concretizer);
@@ -110,12 +127,17 @@ public:
 
     int compareArchitecturalConcreteState(const S2EExecutionStateRegisters &other);
 
+    /// Copies the concrete registers and the CPU execution fields of the
+    /// active state into this state's snapshot buffers.
     inline void saveConcreteState() {
         memcpy((void *) m_concreteRegs->getConcreteBuffer(), (void *) s_concreteRegs.address, s_concreteRegs.size);
+        memcpy((void *) m_cpuExecState->getConcreteBuffer(), (void *) s_cpuExecState.address, s_cpuExecState.size);
     }
 
+    /// Copies this state's snapshot buffers back into the global CPU.
     inline void restoreConcreteState() {
         memcpy((void *) s_concreteRegs.address, (void *) m_concreteRegs->getConcreteBuffer(), s_concreteRegs.size);
+        memcpy((void *) s_cpuExecState.address, (void *) m_cpuExecState->getConcreteBuffer(), s_cpuExecState.size);
     }
 
     bool addressSpaceChange(const klee::ObjectKey &key, const klee::ObjectStateConstPtr &oldState,
@@ -125,6 +147,14 @@ public:
         return s_concreteRegs;
     }
 
+    static const klee::ObjectKey &getCpuExecStateKey() {
+        return s_cpuExecState;
+    }
+
+    static const klee::ObjectKey &getCpuCachesKey() {
+        return s_cpuCaches;
+    }
+
     void dump(std::ostream &ss) const;
 
     /// Returns a pointer to the store where the concrete
@@ -132,6 +162,17 @@ public:
     /// to the backing store if the state is inactive, or to
     /// the global CPUState object if active.
     CPUX86State *getCpuState() const;
+
+    /// Returns a pointer to the CPU execution fields (CPUState). For the
+    /// active state this is the global CPU; for an inactive state it is the
+    /// snapshot buffer, which only covers the fields before neg. The caches
+    /// are reachable through getCpuCaches() only.
+    CPUState *getCpu() const;
+
+    /// Returns a pointer to the global CPU caches (the neg part of CPUState).
+    /// Only the active state has a TLB, so this aborts when the state is
+    /// inactive.
+    CPUState *getCpuCaches() const;
 
     bool allConcrete() const {
         return m_symbolicRegs->isAllConcrete();

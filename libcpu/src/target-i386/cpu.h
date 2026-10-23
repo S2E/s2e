@@ -280,7 +280,7 @@ static inline void cpu_x86_load_seg_cache_sipi(CPUX86State *env, int sipi_vector
     env->eip = 0;
     cpu_x86_load_seg_cache(env, R_CS, sipi_vector << 8, sipi_vector << 12, env->segs[R_CS].limit,
                            env->segs[R_CS].flags);
-    env->halted = 0;
+    env_cpu(env)->halted = 0;
 }
 
 int cpu_x86_get_descr_debug(CPUX86State *env, unsigned int selector, target_ulong *base, unsigned int *limit,
@@ -470,6 +470,14 @@ void do_interrupt_x86_hardirq(CPUX86State *env, int intno, int is_hw);
 void raise_exception(CPUX86State *env, int exception_index);
 void raise_exception_err(CPUX86State *env, int exception_index, int error_code);
 void raise_exception_err_ra(CPUX86State *env, int exception_index, int error_code, uintptr_t retaddr);
+
+/* The softmmu hooks, see op_helper.c. */
+extern const CPUClass g_x86_cpu_class;
+bool x86_cpu_tlb_fill(CPUState *cs, vaddr addr, int size, MMUAccessType access_type, int mmu_idx, bool probe,
+                      uintptr_t retaddr);
+void LIBCPU_NORETURN x86_cpu_do_unaligned_access(CPUState *cs, vaddr addr, MMUAccessType access_type, int mmu_idx,
+                                                 uintptr_t retaddr);
+vaddr x86_cpu_pointer_wrap(CPUState *cs, int mmu_idx, vaddr result, vaddr base);
 
 void do_smm_enter(CPUX86State *env1);
 

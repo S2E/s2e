@@ -43,15 +43,23 @@ using namespace klee;
 
 ObjectKey S2EExecutionStateRegisters::s_concreteRegs;
 ObjectKey S2EExecutionStateRegisters::s_symbolicRegs;
+ObjectKey S2EExecutionStateRegisters::s_cpuExecState;
+ObjectKey S2EExecutionStateRegisters::s_cpuCaches;
 
 void S2EExecutionStateRegisters::initialize(klee::AddressSpace &addressSpace, const klee::ObjectStatePtr &symbolicRegs,
-                                            const klee::ObjectStatePtr &concreteRegs) {
-    assert(!s_concreteRegs.address && !s_symbolicRegs.address);
+                                            const klee::ObjectStatePtr &concreteRegs,
+                                            const klee::ObjectStatePtr &cpuExecState,
+                                            const klee::ObjectStatePtr &cpuCaches) {
+    assert(!s_concreteRegs.address && !s_symbolicRegs.address && !s_cpuExecState.address && !s_cpuCaches.address);
     s_concreteRegs = concreteRegs->getKey();
     s_symbolicRegs = symbolicRegs->getKey();
+    s_cpuExecState = cpuExecState->getKey();
+    s_cpuCaches = cpuCaches->getKey();
 
     symbolicRegs->setName("SymbolicCpuRegisters");
     concreteRegs->setName("ConcreteCpuRegisters");
+    cpuExecState->setName("CpuExecutionState");
+    cpuCaches->setName("CpuCaches");
 
     /* The fast path in the cpu loop relies on this */
     symbolicRegs->setNotifyOnConcretenessChange(true);
@@ -64,9 +72,11 @@ void S2EExecutionStateRegisters::update(klee::AddressSpace &addressSpace, const 
                                         klee::IConcretizer *concretizer) {
     auto concreteState = addressSpace.findObject(s_concreteRegs.address);
     auto symbolicState = addressSpace.findObject(s_symbolicRegs.address);
+    auto cpuExecState = addressSpace.findObject(s_cpuExecState.address);
 
     m_symbolicRegs = addressSpace.getWriteable(symbolicState);
     m_concreteRegs = addressSpace.getWriteable(concreteState);
+    m_cpuExecState = addressSpace.getWriteable(cpuExecState);
 
     if (active && running_concrete) {
         m_runningConcrete = running_concrete;
@@ -100,6 +110,19 @@ CPUX86State *S2EExecutionStateRegisters::getCpuState() const {
     return cpu;
 }
 
+CPUState *S2EExecutionStateRegisters::getCpu() const {
+    return *m_active ? (CPUState *) s_cpuExecState.address : (CPUState *) m_cpuExecState->getConcreteBuffer(true);
+}
+
+CPUState *S2EExecutionStateRegisters::getCpuCaches() const {
+    if (!*m_active) {
+        pabort("CPU caches accessed from an inactive state");
+    }
+    // The object starts at the neg member, so step back to the CPUState
+    // base; callers address the caches as cpu->neg.
+    return (CPUState *) (s_cpuCaches.address - offsetof(CPUState, neg));
+}
+
 bool S2EExecutionStateRegisters::addressSpaceChange(const klee::ObjectKey &key,
                                                     const klee::ObjectStateConstPtr &oldState,
                                                     const klee::ObjectStatePtr &newState) {
@@ -113,6 +136,16 @@ bool S2EExecutionStateRegisters::addressSpaceChange(const klee::ObjectKey &key,
         return true;
     } else if (key == s_symbolicRegs) {
         m_symbolicRegs = newState;
+        assert(newState);
+        return true;
+    } else if (key == s_cpuExecState) {
+        m_cpuExecState = newState;
+        assert(newState);
+        return true;
+    } else if (key == s_cpuCaches) {
+        // The caches are never snapshotted, so there is no per-state
+        // reference to patch. The object is only reported as handled
+        // so that the TLB code does not see it.
         assert(newState);
         return true;
     } else {
@@ -347,21 +380,22 @@ bool S2EExecutionStateRegisters::getRegionType(unsigned offset, unsigned size, b
     }
 }
 
-/**
- * The architectural part of the concrete portion of CPUState contains the COMMON stuff.
- * We skip this stuff in the comparison.
- */
+/// Compares the concrete registers of two states.
+///
+/// The concrete region of CPUX86State holds only architectural state. The
+/// execution fields that are not (the current TB, the softmmu IO context,
+/// the breakpoint and watchpoint lists, jmp_env, ...) live in CPUState, as
+/// do the CPU caches, and neither is compared: two states that agree on
+/// every register can differ there without being different for the guest.
+///
+/// @param other the state to compare against
+/// @return zero when the architectural registers are identical, and the
+///         result of memcmp() otherwise
 int S2EExecutionStateRegisters::compareArchitecturalConcreteState(const S2EExecutionStateRegisters &other) {
     CPUX86State *a = getCpuState();
     CPUX86State *b = other.getCpuState();
 
-    int ret = memcmp(&a->eip, &b->eip, CPU_OFFSET(se_common_start) - CPU_OFFSET(eip));
-    if (ret) {
-        return ret;
-    }
-
-    ret = memcmp(&a->se_common_end, &b->se_common_end, sizeof(CPUX86State) - CPU_OFFSET(se_common_end));
-    return ret;
+    return memcmp(&a->eip, &b->eip, sizeof(CPUX86State) - CPU_OFFSET(eip));
 }
 
 /***/

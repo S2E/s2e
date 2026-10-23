@@ -28,36 +28,14 @@
 #include <tcg/exec/helper-gen.h>
 // clang-format on
 
-#include <tcg/utils/host-utils.h>
 #include <tcg/utils/log.h>
+#include <utils/host-utils.h>
 
-#include "softmmu_exec.h"
+#include <cpu/accel/cpu-ops.h>
+#include "softmmu-compat.h"
 
 // SYMBEX: Keep the environment in a variable
 struct CPUX86State *env = 0;
-
-#if defined(CONFIG_SYMBEX) && !defined(SYMBEX_LLVM_LIB)
-#include <cpu/softmmu_defs.h>
-
-#define ACCESS_TYPE 0
-#define MEMSUFFIX   _kernel_symb
-#define _raw        _raw_symb
-#define DATA_SIZE   1
-#include "softmmu_header.h"
-
-#define DATA_SIZE 2
-#include "softmmu_header.h"
-
-#define DATA_SIZE 4
-#include "softmmu_header.h"
-
-#define DATA_SIZE 8
-#include "softmmu_header.h"
-#undef _raw
-#undef ACCESS_TYPE
-#undef MEMSUFFIX
-
-#endif
 
 // #define DEBUG_PCALL
 
@@ -145,7 +123,7 @@ uint32_t compute_eflags(void) {
     return ((uint32_t) env->mflags) | helper_cc_compute_all(CC_OP) | (DF & DF_MASK) | 2;
 }
 
-#if defined(CONFIG_SYMBEX) && !defined(SYMBEX_LLVM_LIB) && !defined(STATIC_TRANSLATOR) && defined(CONFIG_SYMBEX_MP)
+#if defined(CONFIG_SYMBEX) && !defined(SYMBEX_LLVM_LIB) && defined(CONFIG_SYMBEX_MP)
 static inline void se_load_eflags(void *mgr, void *eflags, int update_mask) {
     void *symb_flags = g_sqi.expr.andc(mgr, eflags, CFLAGS_MASK);
     g_sqi.expr.write_cpu(symb_flags, offsetof(CPUX86State, cc_src), sizeof(env->cc_src));
@@ -202,7 +180,7 @@ static inline void cpu_load_efer(CPUX86State *env, uint64_t val) {
     }
 }
 
-#if !defined(SYMBEX_LLVM_LIB) || defined(STATIC_TRANSLATOR)
+#if !defined(SYMBEX_LLVM_LIB)
 
 const uint8_t parity_table[256] = {
     CC_P, 0,    0,    CC_P, 0,    CC_P, CC_P, 0,    0,    CC_P, CC_P, 0,    CC_P, 0,    0,    CC_P, 0,    CC_P, CC_P,
@@ -242,7 +220,7 @@ extern const uint8_t rclb_table[32];
 #define floatx80_l2t make_floatx80(0x4000, 0xd49a784bcd1b8afeLL)
 
 /* broken thread support */
-#if !defined(SYMBEX_LLVM_LIB) || defined(STATIC_TRANSLATOR)
+#if !defined(SYMBEX_LLVM_LIB)
 // static spinlock_t global_cpu_lock = SPIN_LOCK_UNLOCKED;
 
 /**
@@ -252,15 +230,11 @@ extern const uint8_t rclb_table[32];
  * We don't need locking on single cpu anyway.
  */
 void helper_lock(void) {
-#ifndef STATIC_TRANSLATOR
-// spin_lock(&global_cpu_lock);
-#endif
+    // spin_lock(&global_cpu_lock);
 }
 
 void helper_unlock(void) {
-#ifndef STATIC_TRANSLATOR
-// spin_unlock(&global_cpu_lock);
-#endif
+    // spin_unlock(&global_cpu_lock);
 }
 #endif /* SYMBEX_LLVM_LIB */
 
@@ -420,7 +394,7 @@ static void switch_tss(CPUX86State *env, int tss_selector, uint32_t e1, uint32_t
     int index;
     target_ulong ptr;
 
-#if defined(CONFIG_SYMBEX) && !defined(STATIC_TRANSLATOR)
+#if defined(CONFIG_SYMBEX)
     int cpl = env->hflags & HF_CPL_MASK;
 #endif
 
@@ -615,7 +589,7 @@ static void switch_tss(CPUX86State *env, int tss_selector, uint32_t e1, uint32_t
     env->ldt.limit = 0;
     env->ldt.flags = 0;
 
-#if defined(CONFIG_SYMBEX) && !defined(STATIC_TRANSLATOR)
+#if defined(CONFIG_SYMBEX)
     if (unlikely(*g_sqi.events.on_privilege_change_signals_count)) {
         g_sqi.events.on_privilege_change(cpl, dpl);
     }
@@ -700,33 +674,6 @@ void helper_check_iol(uint32_t t0) {
     check_io(env, t0, 4, GETPC());
 }
 
-#ifdef STATIC_TRANSLATOR
-void helper_outb(uint32_t port, uint32_t data) {
-    assert(0);
-}
-
-target_ulong helper_inb(uint32_t port) {
-    assert(0);
-}
-
-void helper_outw(uint32_t port, uint32_t data) {
-    assert(0);
-}
-
-target_ulong helper_inw(uint32_t port) {
-    assert(0);
-}
-
-void helper_outl(uint32_t port, uint32_t data) {
-    assert(0);
-}
-
-target_ulong helper_inl(uint32_t port) {
-    assert(0);
-}
-
-#else
-
 #ifdef SYMBEX_LLVM_LIB
 /**
  *  We bypass the call to the handlers in case of writes to symbolic ports to
@@ -803,7 +750,7 @@ target_ulong helper_inl(uint32_t port) {
 #else
 
 void helper_outb(uint32_t port, uint32_t data) {
-#if defined(CONFIG_SYMBEX) && !defined(STATIC_TRANSLATOR)
+#if defined(CONFIG_SYMBEX)
     if (g_sqi.mem.is_port_symbolic(port)) {
         g_sqi.exec.switch_to_symbolic((void *) GETPC());
     }
@@ -815,13 +762,13 @@ void helper_outb(uint32_t port, uint32_t data) {
 }
 
 target_ulong helper_inb(uint32_t port) {
-#if defined(CONFIG_SYMBEX) && !defined(STATIC_TRANSLATOR)
+#if defined(CONFIG_SYMBEX)
     if (g_sqi.mem.is_port_symbolic(port)) {
         g_sqi.exec.switch_to_symbolic((void *) GETPC());
     }
 #endif
     target_ulong res = cpu_inb(port);
-#if defined(CONFIG_SYMBEX) && !defined(STATIC_TRANSLATOR)
+#if defined(CONFIG_SYMBEX)
     if (*g_sqi.events.on_port_access_signals_count) {
         g_sqi.events.trace_port_access(port, res, 8, 0, (void *) GETPC());
     }
@@ -830,7 +777,7 @@ target_ulong helper_inb(uint32_t port) {
 }
 
 void helper_outw(uint32_t port, uint32_t data) {
-#if defined(CONFIG_SYMBEX) && !defined(STATIC_TRANSLATOR)
+#if defined(CONFIG_SYMBEX)
     if (g_sqi.mem.is_port_symbolic(port)) {
         g_sqi.exec.switch_to_symbolic((void *) GETPC());
     }
@@ -842,13 +789,13 @@ void helper_outw(uint32_t port, uint32_t data) {
 }
 
 target_ulong helper_inw(uint32_t port) {
-#if defined(CONFIG_SYMBEX) && !defined(STATIC_TRANSLATOR)
+#if defined(CONFIG_SYMBEX)
     if (g_sqi.mem.is_port_symbolic(port)) {
         g_sqi.exec.switch_to_symbolic((void *) GETPC());
     }
 #endif
     target_ulong res = cpu_inw(port);
-#if defined(CONFIG_SYMBEX) && !defined(STATIC_TRANSLATOR)
+#if defined(CONFIG_SYMBEX)
     if (*g_sqi.events.on_port_access_signals_count) {
         g_sqi.events.trace_port_access(port, res, 16, 0, (void *) GETPC());
     }
@@ -857,7 +804,7 @@ target_ulong helper_inw(uint32_t port) {
 }
 
 void helper_outl(uint32_t port, uint32_t data) {
-#if defined(CONFIG_SYMBEX) && !defined(STATIC_TRANSLATOR)
+#if defined(CONFIG_SYMBEX)
     if (g_sqi.mem.is_port_symbolic(port)) {
         g_sqi.exec.switch_to_symbolic((void *) GETPC());
     }
@@ -870,13 +817,13 @@ void helper_outl(uint32_t port, uint32_t data) {
 }
 
 target_ulong helper_inl(uint32_t port) {
-#if defined(CONFIG_SYMBEX) && !defined(STATIC_TRANSLATOR)
+#if defined(CONFIG_SYMBEX)
     if (g_sqi.mem.is_port_symbolic(port)) {
         g_sqi.exec.switch_to_symbolic((void *) GETPC());
     }
 #endif
     target_ulong res = cpu_inl(port);
-#if defined(CONFIG_SYMBEX) && !defined(STATIC_TRANSLATOR)
+#if defined(CONFIG_SYMBEX)
     if (*g_sqi.events.on_port_access_signals_count) {
         g_sqi.events.trace_port_access(port, res, 32, 0, (void *) GETPC());
     }
@@ -885,8 +832,6 @@ target_ulong helper_inl(uint32_t port) {
 }
 
 #endif
-
-#endif /* STATIC_TRANSLATOR */
 
 static inline unsigned int get_sp_mask(unsigned int e2) {
     if (e2 & DESC_B_MASK)
@@ -1162,7 +1107,7 @@ static void do_interrupt_protected(CPUX86State *env, int intno, int is_int, int 
     }
     env->mflags &= ~(TF_MASK | VM_MASK | RF_MASK | NT_MASK);
 
-#if defined(CONFIG_SYMBEX) && !defined(STATIC_TRANSLATOR)
+#if defined(CONFIG_SYMBEX)
     if (unlikely(*g_sqi.events.on_privilege_change_signals_count)) {
         g_sqi.events.on_privilege_change(cpl, dpl);
     }
@@ -1325,7 +1270,7 @@ static void do_interrupt64(CPUX86State *env, int intno, int is_int, int error_co
 void helper_syscall(int next_eip_addend) {
     int selector;
 
-#if defined(CONFIG_SYMBEX) && !defined(STATIC_TRANSLATOR)
+#if defined(CONFIG_SYMBEX)
     int old_cpl = env->hflags & HF_CPL_MASK;
 #endif
 
@@ -1372,7 +1317,7 @@ void helper_syscall(int next_eip_addend) {
         WR_se_eip(env, (uint32_t) env->star);
     }
 
-#if defined(CONFIG_SYMBEX) && !defined(STATIC_TRANSLATOR)
+#if defined(CONFIG_SYMBEX)
     if (unlikely(*g_sqi.events.on_privilege_change_signals_count)) {
         g_sqi.events.on_privilege_change(old_cpl, 0);
     }
@@ -1384,7 +1329,7 @@ void helper_syscall(int next_eip_addend) {
 void helper_sysret(int dflag) {
     int cpl, selector;
 
-#if defined(CONFIG_SYMBEX) && !defined(STATIC_TRANSLATOR)
+#if defined(CONFIG_SYMBEX)
     int old_cpl = env->hflags & HF_CPL_MASK;
 #endif
 
@@ -1429,7 +1374,7 @@ void helper_sysret(int dflag) {
         cpu_x86_set_cpl(env, 3);
     }
 
-#if defined(CONFIG_SYMBEX) && !defined(STATIC_TRANSLATOR)
+#if defined(CONFIG_SYMBEX)
     if (unlikely(*g_sqi.events.on_privilege_change_signals_count)) {
         g_sqi.events.on_privilege_change(old_cpl, 3);
     }
@@ -1567,7 +1512,7 @@ void do_interrupt(CPUX86State *env) {
     /* simulate a real cpu exception. On i386, it can
        trigger new exceptions, but we do not handle
        double or triple faults yet. */
-    do_interrupt_all(env->exception_index, env->exception_is_int, env->error_code, env->exception_next_eip, 0);
+    do_interrupt_all(env_cpu(env)->exception_index, env->exception_is_int, env->error_code, env->exception_next_eip, 0);
     /* successfully delivered */
     env->old_exception = -1;
 }
@@ -1618,7 +1563,7 @@ static int check_exception(int intno, int *error_code) {
  */
 static void LIBCPU_NORETURN raise_interrupt2(CPUX86State *env, int intno, int is_int, int error_code,
                                              int next_eip_addend, uintptr_t retaddr) {
-#if defined(CONFIG_SYMBEX) && !defined(SYMBEX_LLVM_LIB) && !defined(STATIC_TRANSLATOR)
+#if defined(CONFIG_SYMBEX) && !defined(SYMBEX_LLVM_LIB)
     g_sqi.expr.mgr_clear();
 #endif
 
@@ -1629,7 +1574,7 @@ static void LIBCPU_NORETURN raise_interrupt2(CPUX86State *env, int intno, int is
         helper_svm_check_intercept_param(SVM_EXIT_SWINT, 0);
     }
 
-    env->exception_index = intno;
+    env_cpu(env)->exception_index = intno;
     env->error_code = error_code;
     env->exception_is_int = is_int;
     env->exception_next_eip = env->eip + next_eip_addend;
@@ -2756,7 +2701,7 @@ void helper_lcall_protected(int new_cs, target_ulong new_eip, int shift, int nex
         EIP = offset;
         WR_se_eip(env, offset);
 
-#if defined(CONFIG_SYMBEX) && !defined(STATIC_TRANSLATOR)
+#if defined(CONFIG_SYMBEX)
         if (unlikely(*g_sqi.events.on_privilege_change_signals_count)) {
             g_sqi.events.on_privilege_change(cpl, dpl);
         }
@@ -2823,7 +2768,7 @@ static inline void validate_seg(int seg_reg, int cpl) {
 
 /* protected mode iret */
 static inline void helper_ret_protected(CPUX86State *env, int shift, int is_iret, int addend, uintptr_t ra) {
-#if defined(CONFIG_SYMBEX) && !defined(SYMBEX_LLVM_LIB) && !defined(STATIC_TRANSLATOR) && defined(CONFIG_SYMBEX_MP)
+#if defined(CONFIG_SYMBEX) && !defined(SYMBEX_LLVM_LIB) && defined(CONFIG_SYMBEX_MP)
     void *mgr = NULL;
     void *symb_new_eflags = NULL;
 #endif
@@ -2850,7 +2795,7 @@ static inline void helper_ret_protected(CPUX86State *env, int shift, int is_iret
         POPQ(sp, new_cs);
         new_cs &= 0xffff;
         if (is_iret) {
-#if defined(CONFIG_SYMBEX) && !defined(SYMBEX_LLVM_LIB) && !defined(STATIC_TRANSLATOR) && defined(CONFIG_SYMBEX_MP)
+#if defined(CONFIG_SYMBEX) && !defined(SYMBEX_LLVM_LIB) && defined(CONFIG_SYMBEX_MP)
             mgr = g_sqi.expr.mgr();
             POPQ_S(mgr, sp, symb_new_eflags);
 #else
@@ -2865,7 +2810,7 @@ static inline void helper_ret_protected(CPUX86State *env, int shift, int is_iret
         POPL_T(ssp, sp, sp_mask, new_cs);
         new_cs &= 0xffff;
         if (is_iret) {
-#if defined(CONFIG_SYMBEX) && !defined(SYMBEX_LLVM_LIB) && !defined(STATIC_TRANSLATOR) && defined(CONFIG_SYMBEX_MP)
+#if defined(CONFIG_SYMBEX) && !defined(SYMBEX_LLVM_LIB) && defined(CONFIG_SYMBEX_MP)
             mgr = g_sqi.expr.mgr();
             POPL_T_S(mgr, ssp, sp, sp_mask, symb_new_eflags);
             if (g_sqi.expr.to_constant(g_sqi.expr.andc(mgr, symb_new_eflags, VM_MASK)))
@@ -2992,7 +2937,7 @@ static inline void helper_ret_protected(CPUX86State *env, int shift, int is_iret
         if (shift == 0)
             eflags_mask &= 0xffff;
 
-#if defined(CONFIG_SYMBEX) && !defined(SYMBEX_LLVM_LIB) && !defined(STATIC_TRANSLATOR) && defined(CONFIG_SYMBEX_MP)
+#if defined(CONFIG_SYMBEX) && !defined(SYMBEX_LLVM_LIB) && defined(CONFIG_SYMBEX_MP)
         if (symb_new_eflags == NULL) { // 16-bit case no one cares about, let it be concrete
             load_eflags(new_eflags, eflags_mask);
         } else {
@@ -3004,7 +2949,7 @@ static inline void helper_ret_protected(CPUX86State *env, int shift, int is_iret
 #endif
     }
 
-#if defined(CONFIG_SYMBEX) && !defined(STATIC_TRANSLATOR)
+#if defined(CONFIG_SYMBEX)
     if (cpl != rpl && unlikely(*g_sqi.events.on_privilege_change_signals_count)) {
         g_sqi.events.on_privilege_change(cpl, rpl);
     }
@@ -3021,7 +2966,7 @@ return_to_vm86:
     POPL(ssp, sp, sp_mask, new_gs);
 
 /* modify processor state */
-#if defined(CONFIG_SYMBEX) && !defined(SYMBEX_LLVM_LIB) && !defined(STATIC_TRANSLATOR) && defined(CONFIG_SYMBEX_MP)
+#if defined(CONFIG_SYMBEX) && !defined(SYMBEX_LLVM_LIB) && defined(CONFIG_SYMBEX_MP)
     se_load_eflags(mgr, symb_new_eflags,
                    TF_MASK | AC_MASK | ID_MASK | IF_MASK | IOPL_MASK | VM_MASK | NT_MASK | VIF_MASK | VIP_MASK);
 
@@ -3043,7 +2988,7 @@ return_to_vm86:
     WR_se_eip(env, new_eip);
     ESP_W(new_esp);
 
-#if defined(CONFIG_SYMBEX) && !defined(STATIC_TRANSLATOR)
+#if defined(CONFIG_SYMBEX)
     if (unlikely(*g_sqi.events.on_privilege_change_signals_count)) {
         g_sqi.events.on_privilege_change(cpl, 3);
     }
@@ -3081,7 +3026,7 @@ void helper_lret_protected(int shift, int addend) {
 }
 
 void helper_sysenter(void) {
-#if defined(CONFIG_SYMBEX) && !defined(STATIC_TRANSLATOR)
+#if defined(CONFIG_SYMBEX)
     int cpl = env->hflags & HF_CPL_MASK;
 #endif
 
@@ -3109,7 +3054,7 @@ void helper_sysenter(void) {
     EIP = env->sysenter_eip;
     WR_se_eip(env, EIP);
 
-#if defined(CONFIG_SYMBEX) && !defined(STATIC_TRANSLATOR)
+#if defined(CONFIG_SYMBEX)
     if (unlikely(*g_sqi.events.on_privilege_change_signals_count)) {
         g_sqi.events.on_privilege_change(cpl, 0);
     }
@@ -3146,7 +3091,7 @@ void helper_sysexit(int dflag) {
     EIP = EDX;
     WR_se_eip(env, EIP);
 
-#if defined(CONFIG_SYMBEX) && !defined(STATIC_TRANSLATOR)
+#if defined(CONFIG_SYMBEX)
     if (unlikely(*g_sqi.events.on_privilege_change_signals_count)) {
         g_sqi.events.on_privilege_change(cpl, 3);
     }
@@ -3226,7 +3171,7 @@ void helper_clts(void) {
 
 void helper_invlpg(target_ulong addr) {
     helper_svm_check_intercept_param(SVM_EXIT_INVLPG, 0);
-    tlb_flush_page(env, addr);
+    tlb_flush_page(env_cpu(env), addr);
 }
 
 void helper_rdtsc(void) {
@@ -4815,8 +4760,8 @@ void helper_idivq_EAX(target_ulong t0) {
 
 static void do_hlt(void) {
     env->hflags &= ~HF_INHIBIT_IRQ_MASK; /* needed if sti is just before */
-    env->halted = 1;
-    env->exception_index = EXCP_HLT;
+    env_cpu(env)->halted = 1;
+    env_cpu(env)->exception_index = EXCP_HLT;
     cpu_loop_exit(env);
 }
 
@@ -4841,7 +4786,7 @@ void helper_mwait(int next_eip_addend) {
     EIP += next_eip_addend;
 
     /* XXX: not complete but not completely erroneous */
-    if (env->cpu_index != 0 || env->next_cpu != NULL) {
+    if (env_cpu(env)->cpu_index != 0) {
         /* more than one CPU: do not sleep because another CPU may
            wake this one */
     } else {
@@ -4850,7 +4795,7 @@ void helper_mwait(int next_eip_addend) {
 }
 
 void helper_debug(void) {
-    env->exception_index = EXCP_DEBUG;
+    env_cpu(env)->exception_index = EXCP_DEBUG;
     cpu_loop_exit(env);
 }
 
@@ -4858,7 +4803,6 @@ void helper_reset_rf(void) {
     env->mflags &= ~RF_MASK;
 }
 
-#ifndef STATIC_TRANSLATOR
 void helper_raise_interrupt(int intno, int next_eip_addend) {
     raise_interrupt(env, intno, 1, 0, next_eip_addend);
 }
@@ -4866,21 +4810,6 @@ void helper_raise_interrupt(int intno, int next_eip_addend) {
 void helper_raise_exception(int exception_index) {
     raise_exception(env, exception_index);
 }
-#else
-/**
- * In static mode, interrupts are emulated by the
- * run-time library. They behave like normal function calls.
- */
-#ifndef SYMBEX_LLVM_LIB
-void helper_raise_interrupt(int intno, int next_eip_addend) {
-    assert(false && "Can't be called");
-}
-
-void helper_raise_exception(int exception_index) {
-    assert(false && "Can't be called");
-}
-#endif
-#endif
 
 void helper_cli(void) {
     env->mflags &= ~IF_MASK;
@@ -4933,88 +4862,95 @@ void helper_boundl(target_ulong a0, int v) {
     }
 }
 
-#define MMUSUFFIX _mmu
+/*
+ * The hooks that the softmmu (accel/cputlb.c) calls through TCGCPUOps.
+ *
+ * This file is compiled twice, natively and as LLVM bitcode for KLEE, and so
+ * is cputlb.c. The native softmmu reaches the hooks through cpu->cc->tcg_ops.
+ * The bitcode softmmu calls the bitcode copies by name, because the address
+ * it passes can be symbolic and a native function would force KLEE to fork
+ * on every possible value.
+ */
 
-#define SHIFT 0
-#include "softmmu_template.h"
-
-#define SHIFT 1
-#include "softmmu_template.h"
-
-#define SHIFT 2
-#include "softmmu_template.h"
-
-#define SHIFT 3
-#include "softmmu_template.h"
-
-#if defined(CONFIG_SYMBEX) && !defined(SYMBEX_LLVM_LIB)
-#undef MMUSUFFIX
-#define MMUSUFFIX _mmu_symb
-#define _raw      _raw_symb
-
-#define SHIFT 0
-#include "softmmu_template.h"
-
-#define SHIFT 1
-#include "softmmu_template.h"
-
-#define SHIFT 2
-#include "softmmu_template.h"
-
-#define SHIFT 3
-#include "softmmu_template.h"
-
-#undef _raw
-#endif
-
-#ifdef STATIC_TRANSLATOR
-void tlb_fill(CPUX86State *env1, target_ulong addr, target_ulong page_addr, int is_write, int mmu_idx, void *retaddr) {
-    assert(false);
-}
-
-#endif
-
-#if !defined(STATIC_TRANSLATOR)
-/* try to fill the TLB and return an exception if error. If retaddr is
-   NULL, it means that the function was called in C code (i.e. not
-   from generated code or from helper.c) */
-/* XXX: fix it to restore all registers */
-void tlb_fill(CPUX86State *env1, target_ulong addr, target_ulong page_addr, int is_write, int mmu_idx, void *retaddr) {
+/* Fills the TLB for one page, or raises the guest exception if the access
+   faults. A retaddr of 0 means that the caller is not generated code. */
+bool x86_cpu_tlb_fill(CPUState *cs, vaddr addr, int size, MMUAccessType access_type, int mmu_idx, bool probe,
+                      uintptr_t retaddr) {
+    CPUX86State *env = cpu_env(cs);
     int ret;
 
 #if defined(CONFIG_SYMBEX)
     if (unlikely(*g_sqi.events.on_tlb_miss_signals_count)) {
-        g_sqi.events.on_tlb_miss(addr, is_write, retaddr);
+        g_sqi.events.on_tlb_miss(addr, access_type, (void *) retaddr);
     }
 #endif
 
 #if defined(CONFIG_SYMBEX) && defined(CONFIG_SYMBEX_MP)
-    ret = cpu_x86_handle_mmu_fault(env, page_addr, is_write, mmu_idx);
+    /* The offset inside the page can be symbolic when this runs in KLEE, and
+       the page table walk is native code. Only the page address, which is
+       always concrete, is passed to it. */
+    ret = cpu_x86_handle_mmu_fault(env, addr & TARGET_PAGE_MASK, access_type, mmu_idx);
 #else
-    ret = cpu_x86_handle_mmu_fault(env1, addr, is_write, mmu_idx);
+    ret = cpu_x86_handle_mmu_fault(env, addr, access_type, mmu_idx);
 #endif
 
-    if (ret) {
+    if (!ret) {
+        return true;
+    }
+
+    if (probe) {
+        /* cpu_x86_handle_mmu_fault() has already written the fault to CR2 (or
+           the VMCB) and to the exception fields, which a probe must not do. */
+        cpu_abort(env, "page fault while probing address 0x%" VADDR_PRIx "\n", addr);
+    }
+
 #if defined(CONFIG_SYMBEX) && defined(CONFIG_SYMBEX_MP)
-        /* In symbex mode, pass page address instead of addr to cpu_x86_handle_mmu_fault,
-           since the latter can be symbolic while the former is always concrete.
-           To compensate, we reset fault address here. */
-        if (env->exception_index == EXCP0E_PAGE) {
-            if (env->intercept_exceptions & (1 << EXCP0E_PAGE))
-                stq_phys(env->vm_vmcb + offsetof(struct vmcb, control.exit_info_2), addr);
-            else
-                env->cr[2] = addr;
+    /* The page table walk recorded the page address as the fault address.
+       Replace it with the address of the access. */
+    if (cs->exception_index == EXCP0E_PAGE) {
+        if (env->intercept_exceptions & (1 << EXCP0E_PAGE)) {
+            stq_phys(env->vm_vmcb + offsetof(struct vmcb, control.exit_info_2), addr);
+        } else {
+            env->cr[2] = addr;
         }
+    }
 #endif
 
 #if defined(CONFIG_SYMBEX)
-        if (unlikely(*g_sqi.events.on_page_fault_signals_count)) {
-            g_sqi.events.on_page_fault(addr, is_write, retaddr);
-        }
-#endif
-        raise_exception_err_ra(env, env->exception_index, env->error_code, (uintptr_t) retaddr);
+    if (unlikely(*g_sqi.events.on_page_fault_signals_count)) {
+        g_sqi.events.on_page_fault(addr, access_type, (void *) retaddr);
     }
+#endif
+    raise_exception_err_ra(env, cs->exception_index, env->error_code, retaddr);
 }
+
+/* Raises the exception for an access that violates the alignment its
+   instruction requires. */
+void x86_cpu_do_unaligned_access(CPUState *cs, vaddr addr, MMUAccessType access_type, int mmu_idx, uintptr_t retaddr) {
+    raise_exception_err_ra(cpu_env(cs), EXCP0D_GPF, 0, retaddr);
+}
+
+/* Returns the address of the second page of an access that crosses a page
+   boundary. Outside of 64-bit code, addresses wrap around at 4GB. */
+vaddr x86_cpu_pointer_wrap(CPUState *cs, int mmu_idx, vaddr result, vaddr base) {
+    return (cpu_env(cs)->hflags & HF_CS64_MASK) ? result : (uint32_t) result;
+}
+
+#if !defined(SYMBEX_LLVM_LIB)
+static int x86_cpu_mmu_index(CPUState *cs, bool ifetch) {
+    return x86_mmu_index(cpu_env(cs));
+}
+
+static const TCGCPUOps s_x86_tcg_ops = {
+    .mmu_index = x86_cpu_mmu_index,
+    .tlb_fill = x86_cpu_tlb_fill,
+    .do_unaligned_access = x86_cpu_do_unaligned_access,
+    .pointer_wrap = x86_cpu_pointer_wrap,
+};
+
+const CPUClass g_x86_cpu_class = {
+    .tcg_ops = &s_x86_tcg_ops,
+};
 #endif
 
 /* Secure Virtual Machine helpers */
@@ -5046,7 +4982,7 @@ void helper_vmrun(int aflag, int next_eip_addend) {
     uint32_t event_inj;
     uint32_t int_ctl;
 
-#if defined(CONFIG_SYMBEX) && !defined(STATIC_TRANSLATOR)
+#if defined(CONFIG_SYMBEX)
     int cpl = env->hflags & HF_CPL_MASK;
 #endif
 
@@ -5152,17 +5088,17 @@ void helper_vmrun(int aflag, int next_eip_addend) {
             break;
         case TLB_CONTROL_FLUSH_ALL_ASID:
             /* FIXME: this is not 100% correct but should work for now */
-            tlb_flush(env, 1);
+            tlb_flush(env_cpu(env));
             break;
     }
 
     env->hflags2 |= HF2_GIF_MASK;
 
     if (int_ctl & V_IRQ_MASK) {
-        env->interrupt_request |= CPU_INTERRUPT_VIRQ;
+        env_cpu(env)->interrupt_request |= CPU_INTERRUPT_VIRQ;
     }
 
-#if defined(CONFIG_SYMBEX) && !defined(STATIC_TRANSLATOR)
+#if defined(CONFIG_SYMBEX)
     if (unlikely(*g_sqi.events.on_privilege_change_signals_count)) {
         g_sqi.events.on_privilege_change(cpl, dpl);
     }
@@ -5179,7 +5115,7 @@ void helper_vmrun(int aflag, int next_eip_addend) {
         /* FIXME: need to implement valid_err */
         switch (event_inj & SVM_EVTINJ_TYPE_MASK) {
             case SVM_EVTINJ_TYPE_INTR:
-                env->exception_index = vector;
+                env_cpu(env)->exception_index = vector;
                 env->error_code = event_inj_err;
                 env->exception_is_int = 0;
                 env->exception_next_eip = -1;
@@ -5188,7 +5124,7 @@ void helper_vmrun(int aflag, int next_eip_addend) {
                 do_interrupt_all(vector, 0, 0, 0, 1);
                 break;
             case SVM_EVTINJ_TYPE_NMI:
-                env->exception_index = EXCP02_NMI;
+                env_cpu(env)->exception_index = EXCP02_NMI;
                 env->error_code = event_inj_err;
                 env->exception_is_int = 0;
                 env->exception_next_eip = EIP;
@@ -5196,7 +5132,7 @@ void helper_vmrun(int aflag, int next_eip_addend) {
                 cpu_loop_exit(env);
                 break;
             case SVM_EVTINJ_TYPE_EXEPT:
-                env->exception_index = vector;
+                env_cpu(env)->exception_index = vector;
                 env->error_code = event_inj_err;
                 env->exception_is_int = 0;
                 env->exception_next_eip = -1;
@@ -5204,7 +5140,7 @@ void helper_vmrun(int aflag, int next_eip_addend) {
                 cpu_loop_exit(env);
                 break;
             case SVM_EVTINJ_TYPE_SOFT:
-                env->exception_index = vector;
+                env_cpu(env)->exception_index = vector;
                 env->error_code = event_inj_err;
                 env->exception_is_int = 1;
                 env->exception_next_eip = EIP;
@@ -5212,7 +5148,7 @@ void helper_vmrun(int aflag, int next_eip_addend) {
                 cpu_loop_exit(env);
                 break;
         }
-        libcpu_log_mask(CPU_LOG_TB_IN_ASM, " %#x %#x\n", env->exception_index, env->error_code);
+        libcpu_log_mask(CPU_LOG_TB_IN_ASM, " %#x %#x\n", env_cpu(env)->exception_index, env->error_code);
     }
 }
 
@@ -5306,7 +5242,7 @@ void helper_invlpga(int aflag) {
 
     /* XXX: could use the ASID to see if it is needed to do the
        flush */
-    tlb_flush_page(env, addr);
+    tlb_flush_page(env_cpu(env), addr);
 }
 
 void helper_svm_check_intercept_param(uint32_t type, uint64_t param) {
@@ -5405,7 +5341,7 @@ void helper_vmexit(uint32_t exit_code, uint64_t exit_info_1) {
     libcpu_log_mask(CPU_LOG_TB_IN_ASM, "vmexit(%08x, %016" PRIx64 ", %016" PRIx64 ", " TARGET_FMT_lx ")!\n", exit_code,
                     exit_info_1, ldq_phys(env->vm_vmcb + offsetof(struct vmcb, control.exit_info_2)), EIP);
 
-#if defined(CONFIG_SYMBEX) && !defined(STATIC_TRANSLATOR)
+#if defined(CONFIG_SYMBEX)
     int cpl = env->hflags & HF_CPL_MASK;
 #endif
 
@@ -5437,7 +5373,7 @@ void helper_vmexit(uint32_t exit_code, uint64_t exit_info_1) {
     int_ctl = ldl_phys(env->vm_vmcb + offsetof(struct vmcb, control.int_ctl));
     int_ctl &= ~(V_TPR_MASK | V_IRQ_MASK);
     int_ctl |= (cpu_apic_get_tpr(env) >> 4) & V_TPR_MASK;
-    if (env->interrupt_request & CPU_INTERRUPT_VIRQ)
+    if (env_cpu(env)->interrupt_request & CPU_INTERRUPT_VIRQ)
         int_ctl |= V_IRQ_MASK;
     stl_phys(env->vm_vmcb + offsetof(struct vmcb, control.int_ctl), int_ctl);
 
@@ -5454,7 +5390,7 @@ void helper_vmexit(uint32_t exit_code, uint64_t exit_info_1) {
     env->hflags &= ~HF_SVMI_MASK;
     env->intercept = 0;
     env->intercept_exceptions = 0;
-    env->interrupt_request &= ~CPU_INTERRUPT_VIRQ;
+    env_cpu(env)->interrupt_request &= ~CPU_INTERRUPT_VIRQ;
     env->tsc_offset = 0;
 
     env->gdt.base = ldq_phys(env->vm_hsave + offsetof(struct vmcb, save.gdtr.base));
@@ -5523,11 +5459,11 @@ void helper_vmexit(uint32_t exit_code, uint64_t exit_info_1) {
        #GP fault is delivered inside the host.) */
 
     /* remove any pending exception */
-    env->exception_index = -1;
+    env_cpu(env)->exception_index = -1;
     env->error_code = 0;
     env->old_exception = -1;
 
-#if defined(CONFIG_SYMBEX) && !defined(STATIC_TRANSLATOR)
+#if defined(CONFIG_SYMBEX)
     if (unlikely(*g_sqi.events.on_privilege_change_signals_count)) {
         g_sqi.events.on_privilege_change(cpl, dpl);
     }
@@ -5930,7 +5866,7 @@ __attribute__((weak)) void helper_se_ret(target_ulong pc, int retim_value) {
 }
 #endif
 
-#if !defined(CONFIG_SYMBEX) && !defined(STATIC_TRANSLATOR)
+#if !defined(CONFIG_SYMBEX)
 
 #if defined(CONFIG_SYMBEX_OPCODES)
 #include <s2e/opcodes.h>

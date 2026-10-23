@@ -2352,10 +2352,6 @@ static inline void gen_goto_tb(DisasContext *s, int tb_num, target_ulong eip) {
     pc = s->cs_base + eip;
     tb = s->tb;
 
-#ifdef STATIC_TRANSLATOR
-    gen_jmp_im(s, eip);
-    tcg_gen_exit_tb(tb, eip);
-#else
     /* NOTE: we handle the case where the TB spans two pages here */
     if ((pc & TARGET_PAGE_MASK) == (tb->pc & TARGET_PAGE_MASK) ||
         (pc & TARGET_PAGE_MASK) == ((s->pc - 1) & TARGET_PAGE_MASK)) {
@@ -2377,7 +2373,6 @@ static inline void gen_goto_tb(DisasContext *s, int tb_num, target_ulong eip) {
 #endif
         gen_eob(s);
     }
-#endif
 }
 
 static inline void gen_jcc(DisasContext *s, int b, target_ulong val, target_ulong next_eip) {
@@ -4062,8 +4057,9 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start) {
     target_ulong next_eip, tval;
     int rex_w, rex_r;
 
-    // This is required for precise pc generation
-    tcg_gen_insn_start(pc_start, s->cc_op);
+    // This is required for precise pc generation. The trailing zero pads out
+    // the fixed INSN_START_WORDS-wide slot; i386 only uses one extra word.
+    tcg_gen_insn_start(pc_start, s->cc_op, 0);
 
 #ifdef ENABLE_PRECISE_EXCEPTION_DEBUGGING
     tcg_gen_movi_tl(cpu_tmp0, pc_start - s->cs_base);
@@ -4636,9 +4632,7 @@ reswitch:
                     next_eip = s->pc - s->cs_base;
                     gen_movtl_T1_im(next_eip);
 
-#if !defined(STATIC_TRANSLATOR)
                     tcg_gen_st_tl(cpu_T[1], tcg_env, offsetof(CPUArchState, return_address));
-#endif
 
                     gen_push_T1(s);
                     gen_op_jmp_T0(s);
@@ -6280,9 +6274,7 @@ reswitch:
                 tval &= 0xffffffff;
             SET_TB_CALL_EIP(tval);
             gen_movtl_T0_im(next_eip);
-#if !defined(STATIC_TRANSLATOR)
             tcg_gen_st_tl(cpu_T[0], tcg_env, offsetof(CPUArchState, return_address));
-#endif
             gen_push_T0(s);
             gen_jmp(s, tval);
         } break;
@@ -6445,11 +6437,9 @@ reswitch:
                 }
                 gen_pop_update(s);
                 s->cc_op = CC_OP_EFLAGS;
-/* abort translation because TF flag may change */
-#ifndef STATIC_TRANSLATOR
+                /* abort translation because TF flag may change */
                 gen_jmp_im(s, s->pc - s->cs_base);
                 gen_eob(s);
-#endif
             }
             break;
         case 0x9e: /* sahf */
@@ -7713,7 +7703,8 @@ static inline void gen_tb_start(TranslationBlock *tb) {
 
         tcg_ctx->exitreq_label = gen_new_label();
         exit_request = tcg_temp_new_i32();
-        tcg_gen_ld_i32(exit_request, tcg_env, offsetof(CPUArchState, exit_request));
+        tcg_gen_ld_i32(exit_request, tcg_env,
+                       (int) offsetof(ArchCPU, parent_obj.exit_request) - (int) offsetof(ArchCPU, env));
 
         tcg_gen_brcondi_i32(TCG_COND_NE, exit_request, 0, tcg_ctx->exitreq_label);
     }
@@ -7756,7 +7747,7 @@ static inline void gen_intermediate_code_internal(CPUX86State *env, TranslationB
     dc->cpl = (flags >> HF_CPL_SHIFT) & 3;
     dc->iopl = (flags >> IOPL_SHIFT) & 3;
     dc->tf = (flags >> TF_SHIFT) & 1;
-    dc->singlestep_enabled = env->singlestep_enabled;
+    dc->singlestep_enabled = env_cpu(env)->singlestep_enabled;
     dc->cc_op = CC_OP_DYNAMIC;
     dc->cs_base = cs_base;
     dc->tb = tb;
@@ -7778,7 +7769,7 @@ static inline void gen_intermediate_code_internal(CPUX86State *env, TranslationB
     dc->code64 = (flags >> HF_CS64_SHIFT) & 1;
 #endif
     dc->flags = flags;
-    dc->jmp_opt = !(dc->tf || env->singlestep_enabled || (flags & HF_INHIBIT_IRQ_MASK)
+    dc->jmp_opt = !(dc->tf || env_cpu(env)->singlestep_enabled || (flags & HF_INHIBIT_IRQ_MASK)
 #ifndef CONFIG_SOFTMMU
                     || (flags & HF_SOFTMMU_MASK)
 #endif
@@ -7805,9 +7796,7 @@ static inline void gen_intermediate_code_internal(CPUX86State *env, TranslationB
     if (max_insns == 0)
         max_insns = TCG_MAX_INSNS;
 
-#ifndef STATIC_TRANSLATOR
     gen_tb_start(tb);
-#endif
 
 #ifdef CONFIG_SYMBEX
     dc->instrument = 1;
@@ -7817,21 +7806,20 @@ static inline void gen_intermediate_code_internal(CPUX86State *env, TranslationB
     tb->se_tb_type = TB_DEFAULT;
     tb->se_tb_call_eip = 0;
 
-/* Make sure to refer to the original TB instead of the
-   temporary one in case we regenerate LLVM bitcode */
-#ifndef STATIC_TRANSLATOR
+    /* Make sure to refer to the original TB instead of the
+       temporary one in case we regenerate LLVM bitcode */
     tcg_gen_movi_i64(cpu_tmp1_i64, (uint64_t) tb);
-    tcg_gen_st_i64(cpu_tmp1_i64, tcg_env, offsetof(CPUArchState, se_current_tb));
+    tcg_gen_st_i64(cpu_tmp1_i64, tcg_env,
+                   (int) offsetof(ArchCPU, parent_obj.se_current_tb) - (int) offsetof(ArchCPU, env));
 
     if (unlikely(*g_sqi.events.on_translate_block_start_signals_count && dc->instrument)) {
         g_sqi.events.on_translate_block_start(dc, tb, pc_start);
     }
 #endif
-#endif
 
     for (;;) {
-        if (unlikely(!QTAILQ_EMPTY(&env->breakpoints))) {
-            QTAILQ_FOREACH (bp, &env->breakpoints, entry) {
+        if (unlikely(!QTAILQ_EMPTY(&env_cpu(env)->breakpoints))) {
+            QTAILQ_FOREACH (bp, &env_cpu(env)->breakpoints, entry) {
                 if (bp->pc == pc_ptr && !((bp->flags & BP_CPU) && (tb->flags & HF_RF_MASK))) {
                     gen_debug(dc, pc_ptr - dc->cs_base);
                     break;
@@ -7883,7 +7871,8 @@ static inline void gen_intermediate_code_internal(CPUX86State *env, TranslationB
         /* if irq were inhibited with HF_INHIBIT_IRQ_MASK, we clear
            the flag and abort the translation to give the irqs a
            change to be happen */
-        if (dc->tf || dc->singlestep_enabled || (flags & HF_INHIBIT_IRQ_MASK) || env->translate_single_instruction) {
+        if (dc->tf || dc->singlestep_enabled || (flags & HF_INHIBIT_IRQ_MASK) ||
+            env_cpu(env)->translate_single_instruction) {
             gen_jmp_im(dc, pc_ptr - dc->cs_base);
 #ifdef CONFIG_SYMBEX
             gen_eob_event(dc, 1, pc_ptr - dc->cs_base);
@@ -7901,19 +7890,9 @@ static inline void gen_intermediate_code_internal(CPUX86State *env, TranslationB
             gen_eob(dc);
             break;
         }
-
-#if defined(CONFIG_SYMBEX) && defined(STATIC_TRANSLATOR)
-        if (tb->last_pc && dc->insPc == tb->last_pc) {
-            gen_jmp_im(dc, pc_ptr - dc->cs_base);
-            gen_eob(dc);
-            break;
-        }
-#endif
     }
 
-#ifndef STATIC_TRANSLATOR
     gen_tb_end(tb);
-#endif
 
 #ifdef CONFIG_SYMBEX
     if (dc->invalid_instr) {

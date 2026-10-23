@@ -174,7 +174,8 @@ struct CFIViolation {
         llvm::raw_string_ostream ss1(s1);
         if (state->disassemble(ss1, destPc, 32)) {
             os << "Disassembly at " << hexval(destPc) << "\n";
-            os << ss1.str() << "\n";
+            ss1.flush();
+            os << s1 << "\n";
         } else {
             os << "Could not disassemble " << hexval(destPc) << "\n";
         }
@@ -184,7 +185,8 @@ struct CFIViolation {
             llvm::raw_string_ostream ss2(s2);
             if (state->disassemble(ss2, expectedDestPc, 32)) {
                 os << "Disassembly at " << hexval(expectedDestPc) << "\n";
-                os << ss2.str() << "\n";
+                ss2.flush();
+                os << s2 << "\n";
             } else {
                 os << "Could not disassemble " << hexval(expectedDestPc) << "\n";
             }

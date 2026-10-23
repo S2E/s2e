@@ -68,7 +68,9 @@ void *tcg_llvm_gen_code(void *llvmTranslator, struct TCGContext *s, struct Trans
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/LegacyPassManager.h>
 #include <llvm/IR/Module.h>
+#include <llvm/IR/PassManager.h>
 #include <llvm/IR/Verifier.h>
+#include <llvm/Passes/PassBuilder.h>
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/Support/Threading.h>
 #include <llvm/Transforms/Scalar.h>
@@ -86,6 +88,19 @@ private:
     std::unique_ptr<llvm::Module> m_module;
 
     llvm::IRBuilder<> m_builder;
+
+    /*
+     * Pipeline that optimizes each translation block (see optimizeTbFunction()).
+     * The analysis managers reference each other and must be destroyed in the
+     * reverse order of these declarations. The analyses that they create on
+     * demand reference the pass builder, which must outlive them.
+     */
+    llvm::PassBuilder m_passBuilder;
+    llvm::LoopAnalysisManager m_lam;
+    llvm::FunctionAnalysisManager m_fam;
+    llvm::CGSCCAnalysisManager m_cgam;
+    llvm::ModuleAnalysisManager m_mam;
+    llvm::FunctionPassManager m_fpm;
 
 #ifdef CONFIG_SYMBEX
     /* Declaration of a wrapper function for helpers */
@@ -233,6 +248,8 @@ public:
     llvm::Function *createTbFunction(const std::string &name);
     llvm::Function *generateCode(TCGContext *s, TranslationBlock *tb);
     void removeInterruptExit();
+    void optimizeTbFunction();
+    void splitCommonReturn();
 
     static bool GetStaticBranchTarget(const llvm::BasicBlock *bb, uint64_t *target);
 };
