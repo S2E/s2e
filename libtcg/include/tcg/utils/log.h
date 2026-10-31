@@ -85,14 +85,14 @@ typedef int (*fprintf_function)(FILE *f, const char *fmt, ...);
 /* Special cases: */
 
 /* cpu_dump_state() logging functions: */
-#define log_cpu_state(env, f) cpu_dump_state((env), logfile, fprintf, (f));
-#define log_cpu_state_mask(b, env, f)  \
+#define log_cpu_state(cpu, f) cpu_dump_state((cpu), logfile, (f));
+#define log_cpu_state_mask(b, cpu, f)  \
     do {                               \
         if (loglevel & (b))            \
-            log_cpu_state((env), (f)); \
+            log_cpu_state((cpu), (f)); \
     } while (0)
 
-#define log_target_disas(env, start, len, flags) target_disas(env, logfile, (start), (len), (flags))
+#define log_target_disas(env, start, len, flags) target_disas_range(env, logfile, (start), (len), (flags))
 #define log_host_disas(start, len)               host_disas(logfile, (start), (len))
 
 /* page_dump() output to the log file: */

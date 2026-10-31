@@ -43,11 +43,11 @@ extern "C" {
 
 #include "precise-pc.h"
 
-void cpu_exit(CPUArchState *s);
+void cpu_exit(CPUState *cpu);
 void cpu_exec_init_all(void);
 void tcg_exec_init(unsigned long tb_size);
 
-void tb_flush(CPUArchState *env);
+void tb_flush(CPUState *cpu);
 
 /* page related stuff */
 
@@ -62,7 +62,7 @@ void *get_ram_list_phys_dirty(void);
 uint64_t get_ram_list_phys_dirty_size(void);
 ram_addr_t last_ram_offset(void);
 
-void cpu_dump_state(CPUArchState *env, FILE *f, fprintf_function cpu_fprintf, int flags);
+void cpu_dump_state(CPUState *cpu, FILE *f, int flags);
 void cpu_dump_statistics(CPUArchState *env, FILE *f, fprintf_function cpu_fprintf, int flags);
 
 /* Return the physical page corresponding to a virtual one. Use it
@@ -70,14 +70,15 @@ void cpu_dump_statistics(CPUArchState *env, FILE *f, fprintf_function cpu_fprint
    if no page found. */
 target_phys_addr_t cpu_get_phys_page_debug(CPUArchState *env, target_ulong addr);
 
-void LIBCPU_NORETURN cpu_abort(CPUArchState *env, const char *fmt, ...) GCC_FMT_ATTR(2, 3);
+void LIBCPU_NORETURN cpu_abort(CPUState *cpu, const char *fmt, ...) GCC_FMT_ATTR(2, 3);
 extern CPUArchState *first_cpu;
 
-typedef void (*CPUInterruptHandler)(CPUArchState *, int);
-extern CPUInterruptHandler cpu_interrupt_handler;
+void cpu_interrupt(CPUState *cpu, int mask);
+void cpu_reset_interrupt(CPUState *cpu, int mask);
 
-void LIBCPU_NORETURN cpu_loop_exit(CPUArchState *env1);
-void LIBCPU_NORETURN cpu_loop_exit_restore(CPUArchState *env1, uintptr_t ra);
+void LIBCPU_NORETURN cpu_loop_exit_noexc(CPUState *cpu);
+void LIBCPU_NORETURN cpu_loop_exit(CPUState *cpu);
+void LIBCPU_NORETURN cpu_loop_exit_restore(CPUState *cpu, uintptr_t ra);
 
 #define VGA_DIRTY_FLAG  0x01
 #define CODE_DIRTY_FLAG 0x02

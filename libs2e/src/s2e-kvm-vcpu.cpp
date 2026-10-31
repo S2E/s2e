@@ -655,7 +655,7 @@ void VCPU::flushDisk(void) {
 void VCPU::saveDeviceState(void) {
 #ifdef SE_KVM_DEBUG_DEV_STATE
     libcpu_log("Saving device state\n");
-    log_cpu_state(g_cpu_env, 0);
+    log_cpu_state(env_cpu(g_cpu_env), 0);
 #endif
     run_state_switch_step(KVM_SWITCH_STATE_SAVE_DEV_STATE);
 }
@@ -663,7 +663,7 @@ void VCPU::saveDeviceState(void) {
 void VCPU::restoreDeviceState(void) {
 #ifdef SE_KVM_DEBUG_DEV_STATE
     libcpu_log("Restoring device state\n");
-    log_cpu_state(g_cpu_env, 0);
+    log_cpu_state(env_cpu(g_cpu_env), 0);
 #endif
     run_state_switch_step(KVM_SWITCH_STATE_RESTORE_DEV_STATE);
 }
@@ -680,7 +680,7 @@ void VCPU::cloneProcess(void) {
 }
 
 void VCPU::request_exit_cpu_loop() {
-    cpu_exit(m_env);
+    cpu_exit(env_cpu(m_env));
 
     // The cpu only needs a wake up when it sleeps in wait_while_halted. In all the other
     // cases, it finds the flag before it goes to sleep. Keep the system call out of
@@ -996,7 +996,7 @@ void VCPU::interrupt(int mask, bool reset) {
     libcpu_log_mask(CPU_LOG_KVM, "interrupt: mask=%#x reset=%d scale=%d\n", mask, reset,
                     *g_sqi.exec.clock_scaling_factor);
 #endif
-    cpu_exit(m_env);
+    cpu_exit(env_cpu(m_env));
 
     // The request of an interrupt injected with KVM_INTERRUPT belongs to the kvm client
     assert(!(mask & CPU_INTERRUPT_HARD_EXT));

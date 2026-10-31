@@ -170,21 +170,25 @@ static int tb_find_guest_pc(TranslationBlock *tb, uintptr_t searched_host_pc, ta
  * When reset_icount is true, current TB will be interrupted and
  * icount should be recalculated.
  */
-static int cpu_restore_state_from_tb(CPUArchState *env, TranslationBlock *tb, uintptr_t searched_pc) {
+static int cpu_restore_state_from_tb(CPUState *cpu, TranslationBlock *tb, uintptr_t searched_pc) {
     target_ulong data[INSN_START_WORDS] = {tb->pc};
+    uint64_t data64[INSN_START_WORDS];
 
     if (tb_find_guest_pc(tb, searched_pc, data) < 0) {
         return -1;
     }
 
-    restore_state_to_opc(env, tb, data);
+    for (int i = 0; i < INSN_START_WORDS; ++i) {
+        data64[i] = data[i];
+    }
+    restore_state_to_opc(cpu, tb, data64);
 
     return 0;
 }
 
 extern TCGContext tcg_init_ctx;
 
-bool cpu_restore_state(CPUArchState *env, uintptr_t host_pc) {
+bool cpu_restore_state(CPUState *cpu, uintptr_t host_pc) {
     TranslationBlock *tb;
     bool r = false;
     uintptr_t check_offset;
@@ -207,7 +211,7 @@ bool cpu_restore_state(CPUArchState *env, uintptr_t host_pc) {
     if (check_offset < tcg_init_ctx.code_gen_buffer_size) {
         tb = tcg_tb_lookup(host_pc);
         if (tb) {
-            cpu_restore_state_from_tb(env, tb, host_pc);
+            cpu_restore_state_from_tb(cpu, tb, host_pc);
             if (tb_cflags(tb) & CF_NOCACHE) {
                 /* one-shot translation, invalidate it immediately */
                 tb_phys_invalidate(tb, -1);

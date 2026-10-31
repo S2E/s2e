@@ -159,7 +159,7 @@ void cpu_state_reset(CPUX86State *env) {
 
     if (libcpu_loglevel_mask(CPU_LOG_RESET)) {
         libcpu_log("CPU Reset (CPU %d)\n", env_cpu(env)->cpu_index);
-        log_cpu_state(env, X86_DUMP_FPU | X86_DUMP_CCOP);
+        log_cpu_state(env_cpu(env), X86_DUMP_FPU | X86_DUMP_CCOP);
     }
 
     memset(env, 0, offsetof(CPUX86State, size));
@@ -326,7 +326,9 @@ done:
 #define DUMP_CODE_BYTES_TOTAL    50
 #define DUMP_CODE_BYTES_BACKWARD 20
 
-void cpu_dump_state(CPUX86State *env, FILE *f, fprintf_function cpu_fprintf, int flags) {
+void cpu_dump_state(CPUState *cpu, FILE *f, int flags) {
+    CPUX86State *env = cpu_env(cpu);
+    fprintf_function cpu_fprintf = fprintf;
     int eflags, i, nb;
     char cc_op_name[32];
     static const char *seg_name[6] = {"ES", "CS", "SS", "DS", "FS", "GS"};
@@ -484,7 +486,7 @@ void cpu_x86_set_a20(CPUX86State *env, int a20_state) {
 #endif
         /* if the cpu is currently executing code, we must unlink it and
            all the potentially executing TB */
-        cpu_interrupt(env, CPU_INTERRUPT_EXITTB);
+        cpu_interrupt(env_cpu(env), CPU_INTERRUPT_EXITTB);
 
         /* when a20 is changed, all the MMU mappings are invalid, so
            we must flush everything */
@@ -1018,7 +1020,7 @@ static void breakpoint_handler(CPUX86State *env) {
             if (check_hw_breakpoints(env, 0))
                 raise_exception(env, EXCP01_DB);
             else
-                cpu_resume_from_signal(env, NULL);
+                cpu_loop_exit_noexc(env_cpu(env));
         }
     } else {
         QTAILQ_FOREACH (bp, &env_cpu(env)->breakpoints, entry)

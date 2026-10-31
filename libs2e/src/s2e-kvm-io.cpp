@@ -161,7 +161,7 @@ void s2e_kvm_mmio_write(target_phys_addr_t addr, uint64_t data, unsigned size) {
     // Some buggy guests may crash if we exit too late (e.g., winxp).
     // This mechanism is complementary to s2e_kvm_request_exit().
     if (is_apic_tpr_access) {
-        cpu_exit(env);
+        cpu_exit(env_cpu(env));
     }
 }
 

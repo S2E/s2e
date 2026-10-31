@@ -41,7 +41,7 @@ struct CPUX86State *env = 0;
 
 #ifdef DEBUG_PCALL
 #define LOG_PCALL(...)       libcpu_log_mask(CPU_LOG_PCALL, ##__VA_ARGS__)
-#define LOG_PCALL_STATE(env) log_cpu_state_mask(CPU_LOG_PCALL, (env), X86_DUMP_CCOP)
+#define LOG_PCALL_STATE(env) log_cpu_state_mask(CPU_LOG_PCALL, env_cpu(env), X86_DUMP_CCOP)
 #else
 #define LOG_PCALL(...) \
     do {               \
@@ -310,14 +310,14 @@ static inline void get_ss_esp_from_tss(CPUX86State *env, uint32_t *ss_ptr, uint3
 #endif
 
     if (!(env->tr.flags & DESC_P_MASK))
-        cpu_abort(env, "invalid tss");
+        cpu_abort(env_cpu(env), "invalid tss");
     type = (env->tr.flags >> DESC_TYPE_SHIFT) & 0xf;
 
     // XXX: this seems to fire when resuming KVM snapshots
     // in DBT mode. Not sure why this check is useful in the
     // context from which this function is called.
     // if ((type & 7) != 1)
-    //    cpu_abort(env, "invalid tss type");
+    //    cpu_abort(env_cpu(env), "invalid tss type");
 
     shift = type >> 3;
     index = (dpl * 4 + 2) << shift;
@@ -1145,7 +1145,7 @@ static inline target_ulong get_rsp_from_tss(int level) {
 #endif
 
     if (!(env->tr.flags & DESC_P_MASK))
-        cpu_abort(env, "invalid tss");
+        cpu_abort(env_cpu(env), "invalid tss");
     index = 8 * level + 4;
     if ((index + 7) > env->tr.limit)
         raise_exception_err(env, EXCP0A_TSS, env->tr.selector & 0xfffc);
@@ -1468,7 +1468,7 @@ static void do_interrupt_all(int intno, int is_int, int error_code, target_ulong
             }
             libcpu_log("\n");
 #ifndef SYMBEX_LLVM_LIB
-            log_cpu_state(env, X86_DUMP_CCOP);
+            log_cpu_state(env_cpu(env), X86_DUMP_CCOP);
 #endif
 #if 0
             {
@@ -1578,7 +1578,7 @@ static void LIBCPU_NORETURN raise_interrupt2(CPUX86State *env, int intno, int is
     env->error_code = error_code;
     env->exception_is_int = is_int;
     env->exception_next_eip = env->eip + next_eip_addend;
-    cpu_loop_exit_restore(env, retaddr);
+    cpu_loop_exit_restore(env_cpu(env), retaddr);
 }
 
 /* shortcuts to generate exceptions */
@@ -1623,7 +1623,7 @@ void do_smm_enter(CPUX86State *env1) {
     env = env1;
 
     libcpu_log_mask(CPU_LOG_INT, "SMM: enter\n");
-    log_cpu_state_mask(CPU_LOG_INT, env, X86_DUMP_CCOP);
+    log_cpu_state_mask(CPU_LOG_INT, env_cpu(env), X86_DUMP_CCOP);
 
     env->hflags |= HF_SMM_MASK;
     cpu_smm_update(env);
@@ -1860,7 +1860,7 @@ void helper_rsm(void) {
 
     libcpu_log_mask(CPU_LOG_INT, "SMM: after RSM\n");
 #ifndef SYMBEX_LLVM_LIB
-    log_cpu_state_mask(CPU_LOG_INT, env, X86_DUMP_CCOP);
+    log_cpu_state_mask(CPU_LOG_INT, env_cpu(env), X86_DUMP_CCOP);
 #endif
 }
 
@@ -3132,7 +3132,7 @@ void helper_write_crN(int reg, target_ulong t0) {
             // pending interrupts. Failing to exit the CPU loop
             // may cause missed interrupts in the guest and
             // result in various lock ups.
-            cpu_exit(env);
+            cpu_exit(env_cpu(env));
             break;
         default:
             env->cr[reg] = t0;
@@ -4762,7 +4762,7 @@ static void do_hlt(void) {
     env->hflags &= ~HF_INHIBIT_IRQ_MASK; /* needed if sti is just before */
     env_cpu(env)->halted = 1;
     env_cpu(env)->exception_index = EXCP_HLT;
-    cpu_loop_exit(env);
+    cpu_loop_exit(env_cpu(env));
 }
 
 void helper_hlt(int next_eip_addend) {
@@ -4796,7 +4796,7 @@ void helper_mwait(int next_eip_addend) {
 
 void helper_debug(void) {
     env_cpu(env)->exception_index = EXCP_DEBUG;
-    cpu_loop_exit(env);
+    cpu_loop_exit(env_cpu(env));
 }
 
 void helper_reset_rf(void) {
@@ -4901,7 +4901,7 @@ bool x86_cpu_tlb_fill(CPUState *cs, vaddr addr, int size, MMUAccessType access_t
     if (probe) {
         /* cpu_x86_handle_mmu_fault() has already written the fault to CR2 (or
            the VMCB) and to the exception fields, which a probe must not do. */
-        cpu_abort(env, "page fault while probing address 0x%" VADDR_PRIx "\n", addr);
+        cpu_abort(env_cpu(env), "page fault while probing address 0x%" VADDR_PRIx "\n", addr);
     }
 
 #if defined(CONFIG_SYMBEX) && defined(CONFIG_SYMBEX_MP)
@@ -5129,7 +5129,7 @@ void helper_vmrun(int aflag, int next_eip_addend) {
                 env->exception_is_int = 0;
                 env->exception_next_eip = EIP;
                 libcpu_log_mask(CPU_LOG_TB_IN_ASM, "NMI");
-                cpu_loop_exit(env);
+                cpu_loop_exit(env_cpu(env));
                 break;
             case SVM_EVTINJ_TYPE_EXEPT:
                 env_cpu(env)->exception_index = vector;
@@ -5137,7 +5137,7 @@ void helper_vmrun(int aflag, int next_eip_addend) {
                 env->exception_is_int = 0;
                 env->exception_next_eip = -1;
                 libcpu_log_mask(CPU_LOG_TB_IN_ASM, "EXEPT");
-                cpu_loop_exit(env);
+                cpu_loop_exit(env_cpu(env));
                 break;
             case SVM_EVTINJ_TYPE_SOFT:
                 env_cpu(env)->exception_index = vector;
@@ -5145,7 +5145,7 @@ void helper_vmrun(int aflag, int next_eip_addend) {
                 env->exception_is_int = 1;
                 env->exception_next_eip = EIP;
                 libcpu_log_mask(CPU_LOG_TB_IN_ASM, "SOFT");
-                cpu_loop_exit(env);
+                cpu_loop_exit(env_cpu(env));
                 break;
         }
         libcpu_log_mask(CPU_LOG_TB_IN_ASM, " %#x %#x\n", env_cpu(env)->exception_index, env->error_code);
@@ -5469,7 +5469,7 @@ void helper_vmexit(uint32_t exit_code, uint64_t exit_info_1) {
     }
 #endif
 
-    cpu_loop_exit(env);
+    cpu_loop_exit(env_cpu(env));
 }
 
 /* MMX/SSE */

@@ -282,8 +282,6 @@ S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMTranslator *translator)
 
     __DEFINE_EXT_VARIABLE(s2e_kill_state)
 
-    __DEFINE_EXT_FUNCTION(cpu_interrupt_handler)
-
     __DEFINE_EXT_FUNCTION(exit)
     __DEFINE_EXT_FUNCTION(fprintf)
     __DEFINE_EXT_FUNCTION(sprintf)
@@ -448,7 +446,7 @@ S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMTranslator *translator)
 }
 
 void S2EExecutor::flushTb() {
-    tb_flush(env); // release references to TB functions
+    tb_flush(env_cpu(env)); // release references to TB functions
 }
 
 S2EExecutor::~S2EExecutor() {
@@ -1767,7 +1765,7 @@ void s2e_set_cc_op_eflags(struct CPUX86State *env1) {
 }
 
 void s2e_switch_to_symbolic(void *retaddr) {
-    cpu_restore_state(env, (uintptr_t) retaddr);
+    cpu_restore_state(env_cpu(env), (uintptr_t) retaddr);
     g_s2e_state->jumpToSymbolic();
 }
 

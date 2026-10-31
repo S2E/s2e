@@ -88,12 +88,12 @@ static TranslationBlock *tb_alloc(target_ulong pc) {
 
 /* flush all the translation blocks */
 /* XXX: tb_flush is currently not thread safe */
-void tb_flush(CPUArchState *env) {
+void tb_flush(CPUState *cpu) {
 #ifdef CONFIG_SYMBEX
     g_sqi.tb.flush_tb_cache();
 #endif
 
-    env = first_cpu;
+    CPUArchState *env = first_cpu;
     if (env) {
         memset(env_cpu(env)->neg.tb_jmp_cache, 0, TB_JMP_CACHE_SIZE * sizeof(void *));
     }
@@ -235,7 +235,7 @@ again:
     tb = tb_alloc(pc);
     if (!tb) {
         /* flush must be done */
-        tb_flush(env);
+        tb_flush(env_cpu(env));
         /* cannot fail at this point */
         tb = tb_alloc(pc);
         /* Don't forget to invalidate previous TB info.  */
@@ -249,7 +249,7 @@ again:
     tb->cflags = cflags | CF_HAS_INTERRUPT_EXIT;
 
     if (cpu_gen_code(env, tb) < 0) {
-        tb_flush(env);
+        tb_flush(env_cpu(env));
         goto again;
     }
 
@@ -407,7 +407,7 @@ static void tb_invalidate_phys_page_range(CPUState *cpu, tb_page_addr_t start, t
                 }
             }
             if (current_tb == tb && (current_tb->cflags & CF_COUNT_MASK) != 1) {
-                cpu_restore_state(env, env_cpu(env)->mem_io_pc);
+                cpu_restore_state(cpu, cpu->mem_io_pc);
                 cpu_get_tb_cpu_state(env, &current_pc, &current_cs_base, &current_flags);
 
                 // When an instruction modifies itself, advance pc to the next instruction
