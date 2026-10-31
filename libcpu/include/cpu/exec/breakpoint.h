@@ -8,9 +8,9 @@
 #ifndef EXEC_BREAKPOINT_H
 #define EXEC_BREAKPOINT_H
 
-#include "exec/memattrs.h"
-#include "exec/vaddr.h"
-#include "qemu/queue.h"
+#include <cpu/exec/memattrs.h>
+#include <cpu/exec/vaddr.h>
+#include <qqueue.h>
 
 /* Breakpoint/watchpoint flags */
 #define BP_MEM_READ           0x01
@@ -32,10 +32,16 @@ typedef struct CPUBreakpoint {
     QTAILQ_ENTRY(CPUBreakpoint) entry;
 } CPUBreakpoint;
 
+/* S2E: C++ does not allow a member named vaddr to be declared with the type
+   vaddr, because the declaration changes the meaning of the name inside
+   the struct. The members use this alias so that C++ code can include this
+   header without errors. */
+typedef vaddr cpu_watchpoint_vaddr;
+
 typedef struct CPUWatchpoint {
-    vaddr vaddr;
-    vaddr len;
-    vaddr hitaddr;
+    cpu_watchpoint_vaddr vaddr;
+    cpu_watchpoint_vaddr len;
+    cpu_watchpoint_vaddr hitaddr;
     MemTxAttrs hitattrs;
     int flags; /* BP_* */
     QTAILQ_ENTRY(CPUWatchpoint) entry;

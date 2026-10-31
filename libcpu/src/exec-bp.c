@@ -44,11 +44,10 @@ static void breakpoint_invalidate(CPUArchState *env, target_ulong pc) {
 /* Add a watchpoint.  */
 int cpu_watchpoint_insert(CPUArchState *env, target_ulong addr, target_ulong len, int flags,
                           CPUWatchpoint **watchpoint) {
-    target_ulong len_mask = ~(len - 1);
     CPUWatchpoint *wp;
 
     /* sanity checks: allow power-of-2 lengths, deny unaligned watchpoints */
-    if ((len & (len - 1)) || (addr & ~len_mask) || len == 0 || len > TARGET_PAGE_SIZE) {
+    if ((len & (len - 1)) || (addr & (len - 1)) || len == 0 || len > TARGET_PAGE_SIZE) {
         fprintf(stderr, "qemu: tried to set invalid watchpoint at " TARGET_FMT_lx ", len=" TARGET_FMT_lu "\n", addr,
                 len);
         return -EINVAL;
@@ -56,7 +55,7 @@ int cpu_watchpoint_insert(CPUArchState *env, target_ulong addr, target_ulong len
     wp = g_malloc(sizeof(*wp));
 
     wp->vaddr = addr;
-    wp->len_mask = len_mask;
+    wp->len = len;
     wp->flags = flags;
 
     /* keep all GDB-injected watchpoints in front */
@@ -74,11 +73,10 @@ int cpu_watchpoint_insert(CPUArchState *env, target_ulong addr, target_ulong len
 
 /* Remove a specific watchpoint.  */
 int cpu_watchpoint_remove(CPUArchState *env, target_ulong addr, target_ulong len, int flags) {
-    target_ulong len_mask = ~(len - 1);
     CPUWatchpoint *wp;
 
     QTAILQ_FOREACH (wp, &env_cpu(env)->watchpoints, entry) {
-        if (addr == wp->vaddr && len_mask == wp->len_mask && flags == (wp->flags & ~BP_WATCHPOINT_HIT)) {
+        if (addr == wp->vaddr && len == wp->len && flags == (wp->flags & ~BP_WATCHPOINT_HIT)) {
             cpu_watchpoint_remove_by_ref(env, wp);
             return 0;
         }
@@ -185,16 +183,11 @@ void cpu_single_step(CPUArchState *env, int enabled) {
 #endif
 }
 
-/* Returns the length of the range that a watchpoint covers. */
-static inline vaddr watchpoint_len(const CPUWatchpoint *wp) {
-    return (vaddr) (target_ulong) ~wp->len_mask + 1;
-}
-
 static inline bool watchpoint_address_matches(const CPUWatchpoint *wp, vaddr addr, vaddr len) {
     /* Compare the last bytes of the two ranges instead of their ends, so
        that a range that ends at the top of the address space does not wrap
        around to zero. */
-    vaddr wpend = wp->vaddr + watchpoint_len(wp) - 1;
+    vaddr wpend = wp->vaddr + wp->len - 1;
     vaddr addrend = addr + len - 1;
 
     return !(addr > wpend || wp->vaddr > addrend);
@@ -234,8 +227,12 @@ void cpu_check_watchpoint(CPUState *cpu, vaddr addr, vaddr len, MemTxAttrs attrs
     }
 
     QTAILQ_FOREACH (wp, &cpu->watchpoints, entry) {
-        if ((wp->flags & flags) && watchpoint_address_matches(wp, addr, len)) {
-            wp->flags |= BP_WATCHPOINT_HIT;
+        int hit_flags = wp->flags & flags;
+
+        if (hit_flags && watchpoint_address_matches(wp, addr, len)) {
+            wp->flags |= hit_flags << BP_HIT_SHIFT;
+            wp->hitaddr = MAX(addr, wp->vaddr);
+            wp->hitattrs = attrs;
             if (!cpu->watchpoint_hit) {
                 cpu->watchpoint_hit = wp;
                 tb = tcg_tb_lookup(ra);
