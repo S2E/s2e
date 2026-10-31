@@ -51,6 +51,7 @@ void gen_intermediate_code(CPUArchState *env, struct TranslationBlock *tb);
 void restore_state_to_opc(CPUState *cpu, const struct TranslationBlock *tb, const uint64_t *data);
 
 int cpu_gen_code(CPUArchState *env, TranslationBlock *tb);
+int cpu_exec(CPUState *cpu);
 
 void LIBCPU_NORETURN cpu_io_recompile(CPUArchState *env, void *retaddr);
 TranslationBlock *tb_gen_code(CPUArchState *env, target_ulong pc, target_ulong cs_base, int flags, int cflags);

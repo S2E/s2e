@@ -435,8 +435,8 @@ static bool execution_loop(CPUArchState *env) {
     return false;
 }
 
-int cpu_exec(CPUArchState *env) {
-    CPUState *cpu = env_cpu(env);
+int cpu_exec(CPUState *cpu) {
+    CPUArchState *env = cpu_env(cpu);
     int ret;
 
     if (cpu->halted) {
@@ -454,8 +454,6 @@ int cpu_exec(CPUArchState *env) {
         return EXCP_SE;
     }
 #endif
-
-    cpu->exception_index = -1;
 
     libcpu_log_mask(CPU_LOG_EXEC, "cpu_loop enter mflags=%#lx hf1=%#x hf2=%#x\n", (uint64_t) env->mflags, env->hflags,
                     env->hflags2);
@@ -478,11 +476,6 @@ int cpu_exec(CPUArchState *env) {
 
             ret = process_exceptions(env);
             if (ret) {
-                if (ret == EXCP_HLT && cpu->interrupt_request) {
-                    cpu->exception_index = -1;
-                    cpu->halted = 0;
-                    continue;
-                }
                 break;
             }
 

@@ -356,7 +356,6 @@ static inline int hw_breakpoint_len(unsigned long dr7, int index) {
 #endif
 
 #define cpu_init           cpu_x86_init
-#define cpu_exec           cpu_x86_exec
 #define cpu_gen_code       cpu_x86_gen_code
 #define cpu_signal_handler cpu_x86_signal_handler
 #define cpu_list_id        x86_cpu_list
