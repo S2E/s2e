@@ -218,6 +218,13 @@ static inline unsigned memop_alignment_bits(MemOp memop) {
 
 #ifdef __cplusplus
 }
+
+/* S2E: in C++, the bitwise OR of two MemOp values is an int, which does not
+   convert back to MemOp implicitly. Headers that combine MemOp flags, such as
+   libcpu's cpu-ldst.h, need this operator to compile as C++. */
+static inline MemOp operator|(MemOp a, MemOp b) {
+    return (MemOp) ((unsigned) a | (unsigned) b);
+}
 #endif
 
 #endif

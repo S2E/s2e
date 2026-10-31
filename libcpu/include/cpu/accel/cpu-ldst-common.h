@@ -16,6 +16,11 @@
 #include <tcg/tcg-memopidx.h>
 #include <utils/int128.h>
 
+/* S2E: libcpu headers are also included from C++. */
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 uint8_t cpu_ldb_mmu(CPUArchState *env, vaddr ptr, MemOpIdx oi, uintptr_t ra);
 uint16_t cpu_ldw_mmu(CPUArchState *env, vaddr ptr, MemOpIdx oi, uintptr_t ra);
 uint32_t cpu_ldl_mmu(CPUArchState *env, vaddr ptr, MemOpIdx oi, uintptr_t ra);
@@ -96,5 +101,9 @@ uint8_t cpu_ldb_code_mmu(CPUArchState *env, vaddr addr, MemOpIdx oi, uintptr_t r
 uint16_t cpu_ldw_code_mmu(CPUArchState *env, vaddr addr, MemOpIdx oi, uintptr_t ra);
 uint32_t cpu_ldl_code_mmu(CPUArchState *env, vaddr addr, MemOpIdx oi, uintptr_t ra);
 uint64_t cpu_ldq_code_mmu(CPUArchState *env, vaddr addr, MemOpIdx oi, uintptr_t ra);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* ACCEL_TCG_CPU_LDST_COMMON_H */

@@ -24,6 +24,11 @@
 #include <cpu/exec/vaddr.h>
 #include <cpu/i386/cpu.h>
 
+/* S2E: libcpu headers are also included from C++. */
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifndef CONFIG_USER_ONLY
 
 void tlb_reset_dirty(CPUState *cpu, uintptr_t start, uintptr_t length);
@@ -238,4 +243,9 @@ static inline void tlb_flush_range_by_mmuidx_all_cpus_synced(CPUState *cpu, vadd
                                                              unsigned bits) {
 }
 #endif /* CONFIG_TCG && !CONFIG_USER_ONLY */
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif /* CPUTLB_H */
