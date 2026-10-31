@@ -32,8 +32,9 @@ extern "C" {
    the vmstate dump.  */
 
 /* External hardware interrupt pending.  This is typically used for
-   interrupts from devices.  There are two independent sources, each one
-   sets and clears its own bit:
+   interrupts from devices.
+   S2E: upstream has a single CPU_INTERRUPT_HARD bit.  libcpu has two
+   independent sources, and each one sets and clears its own bit:
    - CPU_INTERRUPT_HARD_EXT: the vector is supplied from outside of the
      interrupt controller of the cpu (e.g., by the kvm client).
    - CPU_INTERRUPT_HARD_APIC: the local apic of the cpu has a vector to
@@ -53,6 +54,9 @@ extern "C" {
 /* Debug event pending.  */
 #define CPU_INTERRUPT_DEBUG 0x0080
 
+/* Reset signal.  */
+#define CPU_INTERRUPT_RESET 0x0400
+
 /* Several target-specific external hardware interrupts.  Each target/cpu.h
    should define proper names based on these defines.  */
 #define CPU_INTERRUPT_TGT_EXT_0 0x0008
@@ -67,11 +71,10 @@ extern "C" {
    instruction being executed.  These, therefore, are not masked while
    single-stepping within the debugger.  */
 #define CPU_INTERRUPT_TGT_INT_0 0x0100
-#define CPU_INTERRUPT_TGT_INT_1 0x0400
-#define CPU_INTERRUPT_TGT_INT_2 0x0800
-#define CPU_INTERRUPT_TGT_INT_3 0x2000
+#define CPU_INTERRUPT_TGT_INT_1 0x0800
+#define CPU_INTERRUPT_TGT_INT_2 0x2000
 
-/* First unused bit: 0x8000.  */
+/* First unused bit: 0x8000.  S2E: 0x4000 is CPU_INTERRUPT_HARD_APIC.  */
 
 /* The set of all bits that should be masked when single-stepping.  */
 #define CPU_INTERRUPT_SSTEP_MASK                                                                        \
@@ -82,8 +85,12 @@ extern "C" {
 #define EXCP_HLT       0x10001 /* hlt instruction reached */
 #define EXCP_DEBUG     0x10002 /* cpu stopped after a breakpoint or singlestep */
 #define EXCP_HALTED    0x10003 /* cpu is halted (waiting for external event) */
+#define EXCP_YIELD     0x10004 /* cpu wants to yield timeslice to another */
+#define EXCP_ATOMIC    0x10005 /* stop-the-world and emulate atomic */
 #ifdef CONFIG_SYMBEX
-#define EXCP_SE 0x10004 /* Symbex engine requested exiting cpu loop */
+/* S2E: the value follows the last exception number of QEMU 11.1, so that
+   it does not collide with any of them.  */
+#define EXCP_SE 0x10006 /* Symbex engine requested exiting cpu loop */
 #endif
 
 #ifdef __cplusplus
