@@ -429,7 +429,7 @@ void WindowsMonitor::onKiRetireDpcCallSite(S2EExecutionState *state, uint64_t pc
 
         if (tracing) {
             // Ensure we get precise tracing the next time
-            tb_flush(env);
+            se_tb_safe_flush();
             throw CpuExitException();
         }
     }
@@ -851,7 +851,7 @@ void WindowsMonitor::handleOpcodeInvocation(S2EExecutionState *state, uint64_t g
             opcodeInitKernelStructs(state, guestDataPtr, command);
 
             // Make sure the guest code gets instrumented the next time
-            tb_flush(env);
+            se_tb_safe_flush();
             state->regs()->setPc(state->regs()->getPc() + OPCODE_SIZE);
             throw CpuExitException();
         } break;
