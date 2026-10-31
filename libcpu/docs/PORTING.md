@@ -6,11 +6,21 @@ document is the plan for doing that **concrete execution first**, keeping S2E's
 KVM-shim architecture and leaving symbolic execution to land on top afterwards.
 
 Measured against `~/softs/qemu` at `v11.1.0` and this tree at `9982579d`. Work that
-has landed since is marked **Done** in the phase it belongs to; the state
-management half of the TLB work (`tlb-update.md`), the move of the
-execution fields out of `CPUX86State`, and the replacement of the softmmu with
-upstream's `cputlb.c` (`softmmu-update.md`) are in, so phases 1, 2, 4 and 6
-are lighter than the estimates below.
+has landed since is marked **Done** in the phase it belongs to. The detailed
+plans are in this directory:
+
+| Document | Scope | Status |
+|---|---|---|
+| `tlb-update.md` | Take the TLB out of the execution state and flush it on every state switch | Landed |
+| `softmmu-update.md` | Replace the QEMU 1.0 softmmu with upstream's `cputlb.c` | Landed |
+| `softmmu-llvm-perf.md` | Reduce the work KLEE interprets in the new softmmu bitcode | Steps 2 to 4, 8 and 9 landed |
+| `cpu-exec.md` | Replace the rest of `accel/tcg` and move the QEMU 1.0 frontend onto upstream's translator interface | Plan, next |
+
+The move of the execution fields out of `CPUX86State` (phase 1) has landed
+too, so phases 1, 2, 4 and 6 are lighter than the estimates below.
+`cpu-exec.md` finishes phase 2 and takes the translator-interface part of
+phase 3. After it, phase 3 only has to replace the frontend, the helpers and
+the CPUID model.
 
 | | |
 |---|---|
@@ -46,13 +56,13 @@ needs from libcpu today is `helper_lookup_tb_ptr`. The boundary is already clean
 | `target-i386/ops_sse.h` | 1,891 | replace | `target/i386/ops_sse.h` (2,672) |
 | `target-i386/helper.c` | 1,119 | replace | `helper.c` + `cpu-dump.c` + `tcg/excp_helper.c` |
 | `target-i386/cpu.h` | 480 | replace | merged into the new `include/cpu/i386/cpu.h` |
-| `softmmu_{template,header,exec}.h` | 1,162 | replace | `cputlb.c` + `ldst_common.c.inc` |
-| `cpu-exec.c`, `exec-tb.c`, `exec-tlb.c`, `exec-phystb.c`, `exec-bp.c`, `translate-all.c`, `exec.c` | 2,766 | replace | `accel/tcg/{cpu-exec, tb-maint, cputlb, translate-all, translator, watchpoint}.c` |
+| `softmmu_{template,header,exec}.h` | 1,162 | replaced | `cputlb.c` + `ldst_common.c.inc`. **Done** (`softmmu-update.md`). |
+| `cpu-exec.c`, `exec-tb.c`, `exec-tlb.c`, `exec-phystb.c`, `exec-bp.c`, `translate-all.c`, `exec.c` | 2,766 | replace | `accel/tcg/{cpu-exec, tb-maint, cputlb, translate-all, translator, watchpoint}.c`. `exec-tlb.c` is gone (`cputlb.c`); the rest is planned in `cpu-exec.md`. |
 | `target-i386/cpuid.c` | 1,029 | replace | the CPUID/feature-model subset of `target/i386/cpu.c` (~8.0k lines) |
 | `include/cpu/i386/cpuid.h` | 176 | replace | `cpuid_t` and its 2011-era feature bits die; `FeatureWordArray` replaces them |
 | `exec-ram.c`, `exec-phys.c`, `exec-memdbg.c`, `memory.c`, `ioport.c` | 1,241 | adapt | S2E's `MemoryDesc` layer, the replacement for `MemoryRegion`; count includes the matching headers |
 | `cpus.c`, `timer.c`, `disas.c` | 555 | keep | reduced QEMU files plus the S2E-original capstone disassembler |
-| `precise-pc.c` | 221 | reconcile | upstream `translate-all.c` restore machinery + S2E's `tb_get_instruction_size()`; collides with the phase 2 import (see section 8) |
+| `precise-pc.c` | 221 | reconcile | upstream `translate-all.c` restore machinery + S2E's `tb_get_instruction_size()`; `cpu-exec.md` 2.1 keeps only the latter, in `src/s2e/translate-all-symbex.c.inc` |
 | `include/cpu/kvm.h` | 1,335 | keep | the ioctl ABI; untouched by this work |
 
 Roughly 22k lines go away and ~51k arrive: 8.3k from `accel/tcg/`, 31.5k from
@@ -120,7 +130,10 @@ imports as-is.
   (`exception_index`, `interrupt_request`, `halted`, `exit_request`,
   `jmp_env`, the breakpoint and watchpoint lists, the current TB and the S2E
   flags) ahead of `CPUNegativeOffsetState`, and `cpu_env()` / `env_cpu()` as
-  pointer arithmetic. `tcg_ops` is declared but unused until phase 2.
+  pointer arithmetic. `cc` points at a `CPUClass` that holds only
+  `tcg_ops`, so upstream's `cpu->cc->tcg_ops` compiles unchanged. It carries
+  the four softmmu hooks (`op_helper.c`); `cpu-exec.md` 2.3 adds the hooks of
+  the CPU loop and the translator.
 - Buys: accel/tcg and target/i386/tcg compile essentially unmodified.
 - Risk: **low**. Fields are added on demand; a missing one is a compile error,
   not a silent bug.
@@ -369,6 +382,10 @@ codebase.
 - Create a scratch branch that builds the *current* tree with `CONFIG_SYMBEX`
   off, so the concrete-only configuration is known-good before anything moves.
 
+Done for the tooling: `libcpu/scripts/upgrade/{BASELINE,mapping.tsv}` exist,
+the mapping has the 16 rows of the softmmu import, and the imported and
+S2E-original code lives in `src/accel/` and `src/s2e/` as proposed.
+
 **Exit:** `./merge.sh libcpu v11.1.0 v11.1.0` runs clean over an empty mapping;
 `normalize.sh` can emit any 11.1 file into its intended libcpu path;
 `x86_64-softmmu` builds and boots on the old code.
@@ -414,6 +431,10 @@ drives qht insert/lookup/remove/resize.
 
 ### Phase 2: accel/tcg core (2-3 weeks)
 
+The softmmu half of this phase has landed. `cpu-exec.md` is the plan for the
+rest. It also imports `translator.c` and adapts the QEMU 1.0 frontend to
+`translator_loop()`, which this document lists under phase 3.
+
 - Normalize and import: `cpu-exec.c`, `cpu-exec-common.c`, `cputlb.c`,
   `tb-maint.c`, `translate-all.c`, `translator.c`, `watchpoint.c`, plus
   `tb-hash.h`, `tb-context.h`, `tb-internal.h`, `tb-jmp-cache.h`,
@@ -440,14 +461,16 @@ drives qht insert/lookup/remove/resize.
   `softmmu_*.h` are already gone.
 - Reconcile `libtcg/include/tcg/tb.h` with upstream's `TranslationBlock`: the S2E
   copy has drifted (it still carries `phys_hash_next` and `page_next` from the
-  pre-qht era, alongside 11.1's `jmp_*` fields).
+  pre-qht era, alongside 11.1's `jmp_*` fields). `cpu-exec.md` 2.2: upstream's
+  `translation-block.h` goes into libtcg, with the S2E fields at the end.
 - Reconcile `precise-pc.c` with the imported `translate-all.c`: upstream owns
   `encode_search()` and `cpu_restore_state()` there, which `precise-pc.c`
   carries as its own copies, and `precise-pc.c` calls `restore_state_to_opc()`,
   defined in the old `translate.c` that phase 3 replaces and reached in
   11.1 through `TCGCPUOps.restore_state_to_opc`. Keep only the S2E extensions
   (`tb_get_instruction_size()`, `se_restore_state_to_opc()`) and re-home them
-  explicitly.
+  explicitly. `cpu-exec.md` 2.1: only `tb_get_instruction_size()` survives;
+  `se_restore_state_to_opc()` has no caller.
 
 **Exit:** `libcpu.a` builds and links against libtcg with only `target-i386`
 symbols undefined.
@@ -479,6 +502,13 @@ symbols undefined.
   elsewhere"), so this is a rename, not a redesign, and it removes a
   long-standing divergence.
 
+After `cpu-exec.md`, the old frontend already implements `TranslatorOps` and
+the x86 `TCGCPUOps` live in `target-i386/tcg-cpu.c`, so the new frontend
+replaces callbacks rather than an entry point. `cpu-exec.md` section 8 lists
+what it must respect: `CF_PCREL` stays off, `goto_ptr` stays disabled in S2E
+builds, and the new decoder's instruction rewind must not leave stale
+instrumentation behind.
+
 **Exit:** `x86_64-softmmu` and `i386-softmmu` build clean with `CONFIG_SYMBEX`
 off, in both release and debug trees.
 
@@ -490,14 +520,16 @@ off, in both release and debug trees.
   the per-state snapshot covers them: `saveConcreteState()` /
   `restoreConcreteState()` copy the `CpuExecutionState` object together with
   the concrete registers, and `doStateSwitch()` carries `jmp_env` across the
-  restore because it belongs to the host call stack doing the switch. What
-  remains here is renaming the S2E-only fields upstream does not have
-  (`current_tb`, `se_current_tb`, `translate_single_instruction`,
-  `se_tb_abort`, `generate_llvm`) onto their 11.1 equivalents where one
-  exists (`cflags_next_tb`, `tcg_tb_lookup()`). `mem_io_vaddr` is already
-  gone: upstream's softmmu passes the address directly.
-- Map libcpu's exit reasons onto `kvm_run` as before; `cpu_x86_exec()` keeps its
-  shape, `cpu_exec()` gains upstream's `cpu_exec_setjmp` structure.
+  restore because it belongs to the host call stack doing the switch.
+  `mem_io_vaddr` is already gone: upstream's softmmu passes the address
+  directly. `cpu-exec.md` removes `current_tb`, `mem_io_pc` and
+  `translate_single_instruction` (replaced by `cflags_next_tb`). The other
+  S2E-only fields (`se_current_tb`, `se_tb_abort`, `generate_llvm`) have no
+  11.1 equivalent and stay.
+- Map libcpu's exit reasons onto `kvm_run` as before. `cpu-exec.md` covers
+  this: `cpu_exec()` takes upstream's `cpu_exec_setjmp` structure, and
+  `cpu_x86_exec()` becomes a wrapper that keeps what the KVM shim relies on
+  (decision 4.6).
 - Re-derive `cpu_get_pic_interrupt()`, `do_cpu_init()`, `cpu_state_reset()`
   against the new state layout, including `cpu_init_fp_statuses()`, which must
   run after every reset memset.
@@ -533,7 +565,10 @@ need real thought are the instruction-shape hooks (jump start, indirect CTI
 start, LEA-RIP-relative, and the special-instruction hook for
 `RDTSC`/`SYSENTER`/`SYSCALL`/`PUSHIM`), because they were written against the old
 hand-rolled decoder's control flow. Budget for reading the new decoder properly
-rather than pattern-matching the old hooks onto it.
+rather than pattern-matching the old hooks onto it. `cpu-exec.md` moves the
+old frontend onto `translator_loop()` first, so the block and per-instruction
+hooks already sit in `TranslatorOps` callbacks when this phase starts. Only
+the hooks inside `disas_insn()` need to be re-placed.
 
 **Exit:** core-plugin events fire with the same semantics as before, verified
 against a recorded trace from the pre-port build.
@@ -554,6 +589,12 @@ against a recorded trace from the pre-port build.
   into `op_helper.bc`. The phase 3 helpers pass `GETPC()` to the softmmu, so
   `se_mmu_resolve()` will select `switch_to_symbolic()` for them
   (`softmmu-update.md` hazard 5.6).
+- Done: the cost of the new softmmu bitcode inside KLEE
+  (`softmmu-llvm-perf.md`). The bitcode load and store wrappers have their own
+  TLB hit path, 47 to 51 interpreted instructions per access against about 45
+  on master. The LLVM functions of TBs go through an optimization pipeline
+  (`optimizeTbFunction()` in `tcg-llvm.cpp`), and the bitcode library is
+  compiled with `-Oz`.
 - Check `tcg-llvm.cpp`'s opcode switch against 11.1's `tcg-opc.h`, and re-verify
   the `se_addend` / `fast_concrete_invocation` invariants end to end. Keep in
   mind `se_addend` is a native-execution concern only: the bitcode softmmu path
@@ -591,13 +632,15 @@ in `CPUX86State`.
 organization phase 3 lands on, the helper set has to reach a single
 `op_helper.bc`. Keep the helper translation units free of anything that will not
 survive `clang -emit-llvm` and `llvm-link` against `softfloat.bc`: no inline asm,
-no host intrinsics in a helper path, nothing pulled in from the KVM shim.
+no host intrinsics in a helper path, nothing pulled in from the KVM shim. The
+build enforces the first rule: `src/check-no-inline-asm.cmake` fails it when
+`op_helper.bc` contains inline assembly.
 
 **The TLB entry is shared with the code generator.** libtcg's x86_64 backend
 emits a load from `offsetof(CPUTLBEntry, se_addend)` on the TLB hit path, sized by
-`CPU_TLB_ENTRY_BITS`. Any change to `CPUTLBEntry` in phase 2 has to move in
-lock-step with `libtcg/include/tcg/tlb.h` and the `TCGContext` geometry fields,
-and the `QEMU_BUILD_BUG_ON` on entry size has to keep holding.
+`CPU_TLB_ENTRY_BITS`. Any change to `CPUTLBEntry` has to keep libtcg's
+backend in agreement with `tlb-common.h`, now the single definition for both
+components, and the `QEMU_BUILD_BUG_ON` on entry size has to keep holding.
 
 
 ## 8. Failure modes
@@ -620,7 +663,8 @@ new reset path does not call.
 `TranslationBlock` but `libcpu/include/cpu/tb.h` also declares TB functions, and
 libtcg's copy has drifted from upstream. The `tb-maint.c` import in phase 2 will
 expose this immediately. Decide the ownership boundary explicitly rather than
-patching both.
+patching both. `cpu-exec.md` 2.2 decides it: libtcg owns the struct, because
+libtcg reads it and cannot depend on libcpu.
 
 **`precise-pc.c` is not S2E-original either.** It carries copies of upstream
 `translate-all.c`'s restore machinery (`encode_sleb128`, `encode_search`,
@@ -629,7 +673,7 @@ it calls `restore_state_to_opc()`, defined today in `target-i386/translate.c`,
 which phase 3 replaces, and reached in 11.1 through
 `TCGCPUOps.restore_state_to_opc`. The phase 2 `translate-all.c` import collides
 with it exactly the way `tb-maint.c` collides with `tb.h`; decide its ownership
-there, not after the frontend lands.
+there, not after the frontend lands. `cpu-exec.md` 2.1 decides it.
 
 **Target-specific code in a target-independent library.** libtcg currently ships
 the i386 helper list and SSE header. Any plan that leaves them there will hit a
