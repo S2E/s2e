@@ -306,7 +306,7 @@ static inline void stl_phys_internal(target_phys_addr_t addr, uint32_t val) {
 
         if (!cpu_physical_memory_is_dirty(addr1)) {
             /* invalidate code */
-            tb_invalidate_phys_page_range(addr1, addr1 + 4, 0);
+            tb_invalidate_phys_range(NULL, addr1, addr1 + 3);
             /* set dirty bit */
             cpu_physical_memory_set_dirty_flags(addr1, (0xff & ~CODE_DIRTY_FLAG));
         }
@@ -340,7 +340,7 @@ static inline void stw_phys_internal(target_phys_addr_t addr, uint32_t val) {
         stw_raw(ptr, val);
         if (!cpu_physical_memory_is_dirty(addr1)) {
             /* invalidate code */
-            tb_invalidate_phys_page_range(addr1, addr1 + 2, 0);
+            tb_invalidate_phys_range(NULL, addr1, addr1 + 1);
             /* set dirty bit */
             cpu_physical_memory_set_dirty_flags(addr1, (0xff & ~CODE_DIRTY_FLAG));
         }

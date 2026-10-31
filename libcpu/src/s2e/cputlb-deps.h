@@ -208,7 +208,7 @@ static inline void tb_invalidate_phys_range_fast(CPUState *cpu, ram_addr_t ram_a
     cpu->mem_io_pc = retaddr;
     while (size) {
         unsigned len = MIN(size, 8 - (unsigned) (ram_addr & 7));
-        tb_invalidate_phys_page_fast(ram_addr, len);
+        tb_invalidate_phys_page_fast(cpu, ram_addr, len);
         ram_addr += len;
         size -= len;
     }

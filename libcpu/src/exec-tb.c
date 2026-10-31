@@ -350,17 +350,17 @@ static void build_page_bitmap(PageDesc *p) {
 
 /* invalidate all TBs which intersect with the target physical page
    starting in range [start;end[. NOTE: start and end must refer to
-   the same physical page. 'is_cpu_write_access' should be true if called
-   from a real cpu write access: the virtual CPU will exit the current
-   TB if code is modified inside this TB. */
-void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end, int is_cpu_write_access) {
+   the same physical page. 'cpu' should be non-NULL if called from a
+   real cpu write access: the virtual CPU will exit the current TB if
+   code is modified inside this TB. */
+static void tb_invalidate_phys_page_range(CPUState *cpu, tb_page_addr_t start, tb_page_addr_t end) {
     TranslationBlock *tb, *tb_next, *saved_tb;
-    CPUArchState *env = cpu_single_env;
+    CPUArchState *env = cpu ? cpu_env(cpu) : NULL;
     tb_page_addr_t tb_start, tb_end;
     PageDesc *p;
     int n;
 #ifdef TARGET_HAS_PRECISE_SMC
-    int current_tb_not_found = is_cpu_write_access;
+    int current_tb_not_found = cpu != NULL;
     TranslationBlock *current_tb = NULL;
     target_ulong current_pc = 0;
     target_ulong current_cs_base = 0;
@@ -370,7 +370,7 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end, int
     p = page_find(start >> TARGET_PAGE_BITS);
     if (!p)
         return;
-    if (!p->code_bitmap && ++p->code_write_count >= SMC_BITMAP_USE_THRESHOLD && is_cpu_write_access) {
+    if (!p->code_bitmap && ++p->code_write_count >= SMC_BITMAP_USE_THRESHOLD && cpu) {
         /* build code bitmap */
         build_page_bitmap(p);
     }
@@ -444,14 +444,29 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end, int
     /* if no code remaining, no need to continue to use slow writes */
     if (!p->first_tb) {
         invalidate_page_bitmap(p);
-        if (is_cpu_write_access) {
+        if (cpu) {
             tlb_unprotect_code(start);
         }
     }
 }
 
+/* Invalidate all TBs which intersect with the target physical address range
+   [start;last]. The range may span several pages. 'cpu' is non-NULL only for
+   a store from generated code, see tb_invalidate_phys_page_range(). */
+void tb_invalidate_phys_range(CPUState *cpu, tb_page_addr_t start, tb_page_addr_t last) {
+    tb_page_addr_t index, index_last;
+
+    index_last = last >> TARGET_PAGE_BITS;
+    for (index = start >> TARGET_PAGE_BITS; index <= index_last; index++) {
+        tb_page_addr_t page_start = index << TARGET_PAGE_BITS;
+        tb_page_addr_t page_last = MIN(page_start | ~TARGET_PAGE_MASK, last);
+
+        tb_invalidate_phys_page_range(cpu, MAX(page_start, start), page_last + 1);
+    }
+}
+
 /* len must be <= 8 and start must be a multiple of len */
-void tb_invalidate_phys_page_fast(tb_page_addr_t start, int len) {
+void tb_invalidate_phys_page_fast(CPUState *cpu, tb_page_addr_t start, int len) {
     PageDesc *p;
     int offset, b;
     p = page_find(start >> TARGET_PAGE_BITS);
@@ -464,7 +479,7 @@ void tb_invalidate_phys_page_fast(tb_page_addr_t start, int len) {
             goto do_invalidate;
     } else {
     do_invalidate:
-        tb_invalidate_phys_page_range(start, start + len, 1);
+        tb_invalidate_phys_page_range(cpu, start, start + len);
     }
 }
 
