@@ -24,3 +24,5 @@ include/cpu/exec/page-protection.h	include/exec/page-protection.h
 include/cpu/accel/cpu-ops.h	include/accel/tcg/cpu-ops.h
 src/accel/atomic_common.c.inc	accel/tcg/atomic_common.c.inc
 src/accel/atomic_template.h	accel/tcg/atomic_template.h
+# --- execution layer -----------------------------------------------------
+include/cpu/exec/breakpoint.h	include/exec/breakpoint.h
