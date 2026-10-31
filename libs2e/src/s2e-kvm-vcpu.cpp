@@ -330,7 +330,6 @@ void VCPU::coroutineFcn(void *opaque) {
         cpu_x86_exec(env);
         vcpu->m_cpuStateIsPrecise = true;
 
-        env_cpu(env)->exception_index = 0;
         coroutine_yield();
     }
 }
