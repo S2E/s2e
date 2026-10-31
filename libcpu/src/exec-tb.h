@@ -25,7 +25,7 @@
 
 struct TranslationBlock;
 
-void tb_invalidate_phys_page_fast(tb_page_addr_t start, int len);
+void tb_invalidate_phys_page_fast(CPUState *cpu, tb_page_addr_t start, int len);
 
 /* list iterators for lists of tagged pointers in TranslationBlock */
 #define TB_FOR_EACH_TAGGED(head, tb, n, field)                                                                \

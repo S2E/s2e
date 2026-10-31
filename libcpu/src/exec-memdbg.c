@@ -111,7 +111,7 @@ void cpu_physical_memory_rw(target_phys_addr_t addr, uint8_t *buf, int len, int 
 #endif
                 if (!cpu_physical_memory_is_dirty(addr1)) {
                     /* invalidate code */
-                    tb_invalidate_phys_page_range(addr1, addr1 + l, 0);
+                    tb_invalidate_phys_range(NULL, addr1, addr1 + l - 1);
                     /* set dirty bit */
                     cpu_physical_memory_set_dirty_flags(addr1, (0xff & ~CODE_DIRTY_FLAG));
                 }
@@ -203,7 +203,7 @@ void cpu_host_memory_rw(uintptr_t source, uintptr_t dest, int length, int is_wri
                 l = access_len;
             if (!cpu_physical_memory_is_dirty(addr1)) {
                 /* invalidate code */
-                tb_invalidate_phys_page_range(addr1, addr1 + l, 0);
+                tb_invalidate_phys_range(NULL, addr1, addr1 + l - 1);
                 /* set dirty bit */
                 cpu_physical_memory_set_dirty_flags(addr1, (0xff & ~CODE_DIRTY_FLAG));
             }

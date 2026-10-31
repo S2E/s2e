@@ -37,7 +37,7 @@ static void breakpoint_invalidate(CPUArchState *env, target_ulong pc) {
     }
 
     ram_addr = (sreg->ram_addr & TARGET_PAGE_MASK) + mem_desc_get_offset(sreg, addr);
-    tb_invalidate_phys_page_range(ram_addr, ram_addr + 1, 0);
+    tb_invalidate_phys_range(NULL, ram_addr, ram_addr);
 }
 #endif /* TARGET_HAS_ICE */
 
