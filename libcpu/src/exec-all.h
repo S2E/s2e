@@ -28,15 +28,6 @@
 
 #include <cpu/tb.h>
 
-struct cpu_stats_t {
-    uint64_t tb_hits;
-    uint64_t tb_misses;
-    uint64_t tb_regens;
-    uint64_t tb_unlinks;
-};
-
-extern struct cpu_stats_t g_cpu_stats;
-
 /* is_jmp field values */
 #define DISAS_NEXT    0 /* next instruction can be analyzed */
 #define DISAS_JUMP    1 /* only pc was modified dynamically */
@@ -56,17 +47,8 @@ extern struct cpu_stats_t g_cpu_stats;
 #define OPPARAM_BUF_SIZE (OPC_BUF_SIZE * MAX_OPC_PARAM)
 
 void gen_intermediate_code(CPUArchState *env, struct TranslationBlock *tb);
-void gen_intermediate_code_pc(CPUArchState *env, struct TranslationBlock *tb);
-
-#ifdef CONFIG_SYMBEX
-void cpu_gen_flush(void);
-void cpu_gen_init_opc(void);
-void se_restore_state_to_opc(CPUX86State *env, TranslationBlock *tb, target_ulong pc, int cc_op, target_ulong next_pc);
-#endif
 
 void restore_state_to_opc(CPUArchState *env, struct TranslationBlock *tb, target_ulong *data);
-
-int restore_state_to_next_pc(CPUX86State *env, TranslationBlock *tb);
 
 int cpu_gen_code(CPUArchState *env, TranslationBlock *tb);
 

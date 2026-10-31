@@ -250,8 +250,6 @@ typedef struct CPUState {
     int exception_index;
     int singlestep_enabled;
 
-    /* Currently executing TB; NULL while no generated code runs. */
-    struct TranslationBlock *current_tb;
     /* TB being executed, stored by the TB itself so that a regenerated LLVM
        function still names the original TB (S2E). */
     struct TranslationBlock *se_current_tb;
@@ -261,9 +259,6 @@ typedef struct CPUState {
        restore the CPU state without more arguments. */
     uintptr_t mem_io_pc;
 
-    /* Forces the translator to put a single instruction in the next TB.
-       Reset before code execution (S2E). */
-    uint32_t translate_single_instruction;
     /* Set when the LLVM interpreter must exit the current TB, e.g., after
        self-modifying code invalidated it (S2E). */
     uint32_t se_tb_abort;

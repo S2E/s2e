@@ -347,7 +347,13 @@ class S2EDisassembleTb(gdb.Command):
            count = gdb.parse_and_eval(argv[0])
 
         env = get_cpu_env()
-        tc = env['current_tb']['tc']
+        # The running TB is in the CPUState that precedes env in ArchCPU.
+        cpu = gdb.parse_and_eval('(ArchCPU *) ((char *) %s - (unsigned long) &((ArchCPU *) 0)->env)' % g_cpu_env)
+        tb = cpu['parent_obj']['se_current_tb']
+        if not tb:
+            print('No TB is running')
+            return
+        tc = tb['tc']
         print("TB ptr=%#x size=%#x pc=%#x" % (tc['ptr'], tc['size'], env['eip']))
         gdb.execute('x /%di 0x%x' % (count, tc['ptr']))
 

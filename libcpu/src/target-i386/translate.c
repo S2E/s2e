@@ -6911,7 +6911,7 @@ reswitch:
         case 0x134: /* sysenter */
             SET_TB_TYPE(TB_SYSENTER);
             /* For Intel SYSENTER is valid on 64-bit */
-            if (CODE64(s) && cpu_single_env->cpuid.cpuid_vendor1 != CPUID_VENDOR_INTEL_1)
+            if (CODE64(s) && s->env->cpuid.cpuid_vendor1 != CPUID_VENDOR_INTEL_1)
                 goto illegal_op;
             if (!s->pe) {
                 gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
@@ -6929,7 +6929,7 @@ reswitch:
             break;
         case 0x135: /* sysexit */
             /* For Intel SYSEXIT is valid on 64-bit */
-            if (CODE64(s) && cpu_single_env->cpuid.cpuid_vendor1 != CPUID_VENDOR_INTEL_1)
+            if (CODE64(s) && s->env->cpuid.cpuid_vendor1 != CPUID_VENDOR_INTEL_1)
                 goto illegal_op;
             if (!s->pe) {
                 gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
@@ -7871,8 +7871,7 @@ static inline void gen_intermediate_code_internal(CPUX86State *env, TranslationB
         /* if irq were inhibited with HF_INHIBIT_IRQ_MASK, we clear
            the flag and abort the translation to give the irqs a
            change to be happen */
-        if (dc->tf || dc->singlestep_enabled || (flags & HF_INHIBIT_IRQ_MASK) ||
-            env_cpu(env)->translate_single_instruction) {
+        if (dc->tf || dc->singlestep_enabled || (flags & HF_INHIBIT_IRQ_MASK)) {
             gen_jmp_im(dc, pc_ptr - dc->cs_base);
 #ifdef CONFIG_SYMBEX
             gen_eob_event(dc, 1, pc_ptr - dc->cs_base);
@@ -7936,22 +7935,6 @@ void gen_intermediate_code(CPUX86State *env, TranslationBlock *tb) {
     gen_intermediate_code_internal(env, tb);
 }
 
-#ifdef CONFIG_SYMBEX
-void se_restore_state_to_opc(CPUX86State *env, TranslationBlock *tb, target_ulong pc, int cc_op, target_ulong next_pc) {
-    target_ulong newpc = pc - tb->cs_base;
-    env->eip = newpc;
-
-#ifdef ENABLE_PRECISE_EXCEPTION_DEBUGGING
-    assert(env->eip == env->precise_eip);
-#endif
-
-    if (cc_op != CC_OP_DYNAMIC) {
-        WR_cpu(env, cc_op, cc_op);
-    }
-}
-
-#endif
-
 void restore_state_to_opc(CPUX86State *env, TranslationBlock *tb, target_ulong *data) {
     int cc_op = data[1];
     env->eip = data[0] - tb->cs_base;
@@ -7963,8 +7946,4 @@ void restore_state_to_opc(CPUX86State *env, TranslationBlock *tb, target_ulong *
     if (libcpu_loglevel_mask(CPU_LOG_EXEC)) {
         libcpu_log("restored state: eip=%#" PRIx64 " cc_op=%#x", (uint64_t) env->eip, cc_op);
     }
-}
-
-int restore_state_to_next_pc(CPUX86State *env, TranslationBlock *tb) {
-    abort();
 }

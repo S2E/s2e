@@ -50,31 +50,6 @@ static void signal_ioeventfd(int fd) {
     }
 }
 
-// This is an experimental feature
-// #define ENABLE_RETRANSLATE
-
-// This function aborts the execution of the current translation block.
-// It is useful when the KVM client modifies the program counter during
-// an I/O operation (e.g., VAPIC emulation).
-static void abort_and_retranslate_if_needed() {
-#ifdef ENABLE_RETRANSLATE
-    if (env_cpu(env)->se_current_tb->icount == 1) {
-        return;
-    }
-
-    if (cpu_restore_state(env_cpu(env)->se_current_tb, env, env_cpu(env)->mem_io_pc)) {
-        abort();
-    }
-
-    libcpu_log("Aborting and retranslating at eip=%#lx\n", (uint64_t) env->eip);
-
-    env_cpu(env)->translate_single_instruction = 1;
-    env_cpu(env)->exception_index = -1;
-    tb_phys_invalidate(env_cpu(env)->se_current_tb, -1);
-    cpu_loop_exit(env);
-#endif
-}
-
 uint64_t s2e_kvm_mmio_read(target_phys_addr_t addr, unsigned size) {
     auto dev_result = g_s2e_kvm->vm()->dev_mgr().mmio_read(addr, size);
     if (dev_result) {
@@ -90,10 +65,6 @@ uint64_t s2e_kvm_mmio_read(target_phys_addr_t addr, unsigned size) {
         if ((addr & 0xfff) == 0x80) {
             is_apic_tpr_access = 1;
         }
-    }
-
-    if (is_apic_tpr_access) {
-        abort_and_retranslate_if_needed();
     }
 
     set_exit_reason(KVM_EXIT_MMIO);
@@ -177,7 +148,6 @@ void s2e_kvm_mmio_write(target_phys_addr_t addr, uint64_t data, unsigned size) {
     bool is_apic_tpr_access = false;
     if ((addr >> TARGET_PAGE_BITS) == (cpu->vapic().get_apic_base() >> TARGET_PAGE_BITS)) {
         if ((addr & 0xfff) == 0x80) {
-            abort_and_retranslate_if_needed();
             cpu->vapic().set_tpr((uint8_t) data);
             is_apic_tpr_access = true;
         }

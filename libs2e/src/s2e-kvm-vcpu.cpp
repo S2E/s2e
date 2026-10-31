@@ -326,13 +326,9 @@ void VCPU::coroutineFcn(void *opaque) {
 
         libcpu_run_all_timers();
 
-        assert(env_cpu(env)->current_tb == NULL);
-
         vcpu->m_cpuStateIsPrecise = false;
         cpu_x86_exec(env);
         vcpu->m_cpuStateIsPrecise = true;
-
-        assert(env_cpu(env)->current_tb == NULL);
 
         env_cpu(env)->exception_index = 0;
         coroutine_yield();
@@ -447,9 +443,6 @@ int VCPU::run(int vcpu_fd) {
                             m_cpuBuffer->exit_reason == KVM_EXIT_SWITCH_STATE ||
                             m_cpuBuffer->exit_reason == KVM_EXIT_CLONE_PROCESS ||
                             m_cpuBuffer->exit_reason == KVM_EXIT_IOAPIC_EOI;
-
-    // Might not be NULL if resuming from an interrupted I/O
-    // assert(env_cpu(env)->current_tb == NULL);
 
     m_cpuBuffer->if_flag = (m_env->mflags & IF_MASK) != 0;
     m_cpuBuffer->apic_base = get_apic_base();

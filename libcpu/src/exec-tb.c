@@ -354,7 +354,7 @@ static void build_page_bitmap(PageDesc *p) {
    real cpu write access: the virtual CPU will exit the current TB if
    code is modified inside this TB. */
 static void tb_invalidate_phys_page_range(CPUState *cpu, tb_page_addr_t start, tb_page_addr_t end) {
-    TranslationBlock *tb, *tb_next, *saved_tb;
+    TranslationBlock *tb, *tb_next;
     CPUArchState *env = cpu ? cpu_env(cpu) : NULL;
     tb_page_addr_t tb_start, tb_end;
     PageDesc *p;
@@ -421,22 +421,7 @@ static void tb_invalidate_phys_page_range(CPUState *cpu, tb_page_addr_t start, t
                 }
             }
 #endif /* TARGET_HAS_PRECISE_SMC */
-            /* we need to do that to handle the case where a signal
-               occurs while doing tb_phys_invalidate() */
-            saved_tb = NULL;
-            if (env) {
-                saved_tb = env_cpu(env)->current_tb;
-                env_cpu(env)->current_tb = NULL;
-            }
             tb_phys_invalidate(tb, -1);
-            if (env) {
-                env_cpu(env)->current_tb = saved_tb;
-#if 0
-                if (env_cpu(env)->interrupt_request && env_cpu(env)->current_tb) {
-                    cpu_interrupt(env, env_cpu(env)->interrupt_request);
-                }
-#endif
-            }
         }
         tb = tb_next;
     }

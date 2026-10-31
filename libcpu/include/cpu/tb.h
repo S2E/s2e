@@ -58,7 +58,6 @@ typedef struct TranslationBlock TranslationBlock;
 ///
 int tb_get_instruction_size(TranslationBlock *tb, uint64_t pc);
 
-void tb_free(TranslationBlock *tb);
 void tb_link_page(TranslationBlock *tb, tb_page_addr_t phys_pc, tb_page_addr_t phys_page2);
 void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr);
 

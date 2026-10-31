@@ -81,8 +81,6 @@ void cpu_physical_memory_rw(target_phys_addr_t addr, uint8_t *buf, int len, int 
             if (!sreg) {
                 target_phys_addr_t addr1;
                 addr1 = addr;
-                /* XXX: could force cpu_single_env to NULL to avoid
-                   potential bugs */
                 if (l >= 4 && ((addr1 & 3) == 0)) {
                     /* 32 bit write access */
                     val = ldl_p(buf);
