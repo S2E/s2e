@@ -52,7 +52,7 @@
 /* TB consistency checks only implemented for usermode emulation.  */
 #undef DEBUG_TB_CHECK
 
-CPUArchState *first_cpu, *cpu_single_env;
+CPUArchState *first_cpu;
 
 #ifdef CONFIG_SYMBEX
 struct se_libcpu_interface_t g_sqi;
@@ -98,10 +98,8 @@ void cpu_exec_init(CPUArchState *env) {
 }
 
 void cpu_common_reset(CPUState *cpu) {
-    cpu->current_tb = NULL;
     cpu->se_current_tb = NULL;
     cpu->mem_io_pc = 0;
-    cpu->translate_single_instruction = 0;
     cpu->halted = 0;
     cpu->interrupt_request = 0;
     cpu->exit_request = 0;

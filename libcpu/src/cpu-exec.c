@@ -33,8 +33,6 @@
 
 int tb_invalidated_flag;
 
-struct cpu_stats_t g_cpu_stats;
-
 #ifdef CONFIG_SYMBEX
 static int tb_invalidate_before_fetch = 0;
 
@@ -46,7 +44,6 @@ void se_tb_safe_flush(void) {
 // #define CONFIG_DEBUG_EXEC
 
 void cpu_loop_exit(CPUArchState *env) {
-    env_cpu(env)->current_tb = NULL;
     longjmp(env_cpu(env)->jmp_env, 1);
 }
 
@@ -74,7 +71,6 @@ static TranslationBlock *tb_find_slow(CPUArchState *env, target_ulong pc, target
     TranslationBlock *tb, **ptb1;
     unsigned int h;
     tb_page_addr_t phys_pc, phys_page1;
-    target_ulong virt_page2;
 
     /* find translated block using physical mappings */
     phys_pc = get_page_addr_code(env, pc);
@@ -96,27 +92,13 @@ static TranslationBlock *tb_find_slow(CPUArchState *env, target_ulong pc, target
 
         if (tb->pc == pc && tb->page_addr[0] == phys_page1 && tb->cs_base == cs_base && tb->flags == flags &&
             !llvm_nok) {
-            /* check next page if needed */
-            if (tb->page_addr[1] != -1) {
-                tb_page_addr_t phys_page2;
-
-                virt_page2 = (pc & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
-                phys_page2 = get_page_addr_code(env, virt_page2);
-                if (tb->page_addr[1] == phys_page2) {
-                    ++g_cpu_stats.tb_misses;
-                }
-                goto found;
-            } else {
-                ++g_cpu_stats.tb_misses;
-                goto found;
-            }
+            goto found;
         }
         ptb1 = &tb->phys_hash_next;
     }
 not_found:
     /* if no translated code available, then translate it now */
     tb = tb_gen_code(env, pc, cs_base, flags, 0);
-    ++g_cpu_stats.tb_regens;
 
 found:
     /* Move the last found TB to the head of the list */
@@ -161,8 +143,6 @@ static inline TranslationBlock *tb_find_fast(CPUArchState *env) {
 
     if (unlikely(!tb || tb->pc != pc || tb->cs_base != cs_base || tb->flags != flags || llvm_nok)) {
         tb = tb_find_slow(env, pc, cs_base, flags);
-    } else {
-        ++g_cpu_stats.tb_hits;
     }
     return tb;
 }
@@ -244,18 +224,11 @@ static uintptr_t fetch_and_run_tb(TranslationBlock *prev_tb, int tb_exit_code, C
         tb_add_jump(prev_tb, tb_exit_code, tb);
     }
 
-    /* cpu_interrupt might be called while translating the
-       TB, but before it is linked into a potentially
-       infinite loop and becomes cpu->current_tb. Avoid
-       starting execution if there is a pending interrupt. */
-
-    cpu->current_tb = tb;
-
-    cpu->translate_single_instruction = 0;
-
+    /* cpu_exit() might be called while translating the TB, but before it is
+       linked into a potentially infinite loop. Avoid starting execution if
+       there is a pending exit request. */
     barrier();
     if (unlikely(cpu->exit_request)) {
-        cpu->current_tb = NULL;
         return 0;
     }
 
@@ -289,8 +262,6 @@ static uintptr_t fetch_and_run_tb(TranslationBlock *prev_tb, int tb_exit_code, C
     if (libcpu_log_enabled() && libcpu_loglevel_mask(CPU_LOG_EXEC)) {
         dump_regs(env, 0);
     }
-
-    cpu->current_tb = NULL;
 
     return last_tb;
 }
@@ -482,8 +453,6 @@ int cpu_exec(CPUArchState *env) {
         cpu->halted = 0;
     }
 
-    cpu_single_env = env;
-
 #ifdef CONFIG_SYMBEX
     if (!g_sqi.exec.is_runnable()) {
         if (g_sqi.exec.is_yielded())
@@ -500,13 +469,6 @@ int cpu_exec(CPUArchState *env) {
     /* prepare setjmp context for exception handling */
     for (;;) {
         if (setjmp(cpu->jmp_env) == 0) {
-            /**
-             * It is important to reset the current TB everywhere where the CPU loop exits.
-             * Otherwise, TB unchaining might get stuck on the next signal.
-             * This usually happens when TB cache is flushed but current tb is not reset.
-             */
-            cpu->current_tb = NULL;
-
             libcpu_log_mask(CPU_LOG_EXEC, "  setjmp entered eip=%#lx\n", (uint64_t) env->eip);
 
 #ifdef CONFIG_SYMBEX
@@ -514,8 +476,6 @@ int cpu_exec(CPUArchState *env) {
             if (g_sqi.exec.finalize_tb_exec()) {
                 g_sqi.exec.cleanup_tb_exec();
                 if (cpu->exception_index == EXCP_SE) {
-                    cpu_single_env = NULL;
-                    cpu->current_tb = NULL;
                     return EXCP_SE;
                 }
                 continue;
@@ -539,21 +499,14 @@ int cpu_exec(CPUArchState *env) {
 #ifdef CONFIG_SYMBEX
             g_sqi.exec.cleanup_tb_exec();
             if (!g_sqi.exec.is_runnable()) {
-                cpu_single_env = NULL;
-                cpu->current_tb = NULL;
                 return EXCP_SE;
             }
 #endif
-
-            /* Reload env after longjmp - the compiler may have smashed all
-             * local variables as longjmp is marked 'noreturn'. */
-            env = cpu_single_env;
-            cpu = env_cpu(env);
+            /* env and cpu are not modified after setjmp(), so they keep their
+               values after longjmp(). */
         }
     } /* for(;;) */
     libcpu_log_mask(CPU_LOG_EXEC, "cpu_loop exit ret=%#x eip=%#lx\n", ret, (uint64_t) env->eip);
-
-    cpu->current_tb = NULL;
 
 #if defined(TARGET_I386)
 #ifdef CONFIG_SYMBEX
@@ -594,9 +547,5 @@ int cpu_exec(CPUArchState *env) {
 #error unsupported target CPU
 #endif
 
-    cpu->current_tb = NULL;
-
-    /* fail safe : never use cpu_single_env outside cpu_exec() */
-    cpu_single_env = NULL;
     return ret;
 }

@@ -492,7 +492,6 @@ S2EExecutionState *S2EExecutor::createInitialState() {
     __DEFINE_EXT_OBJECT_RO(g_s2e)
     __DEFINE_EXT_OBJECT_RO(g_s2e_state)
 
-    __DEFINE_EXT_OBJECT_RO(cpu_single_env)
     __DEFINE_EXT_OBJECT_RO(loglevel)
     __DEFINE_EXT_OBJECT_RO(logfile)
     __DEFINE_EXT_OBJECT_RO_SYMB(parity_table)
@@ -702,8 +701,6 @@ void S2EExecutor::doLoadBalancing() {
 void S2EExecutor::stateSwitchTimerCallback(void *opaque) {
     S2EExecutor *c = (S2EExecutor *) opaque;
 
-    assert(env_cpu(env)->current_tb == nullptr);
-
     if (g_s2e_state) {
         c->doLoadBalancing();
         auto nextState = c->selectNextState(g_s2e_state);
@@ -820,8 +817,6 @@ void S2EExecutor::doStateSwitch(S2EExecutionStatePtr oldState, S2EExecutionState
     if (FlushTBsOnStateSwitch) {
         se_tb_safe_flush();
     }
-
-    assert(env_cpu(env)->current_tb == nullptr);
 
     g_se_disable_tlb_flush = 0;
 

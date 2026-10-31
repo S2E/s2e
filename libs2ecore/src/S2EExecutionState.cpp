@@ -112,14 +112,7 @@ ExecutionStatePtr S2EExecutionState::clone() {
 
     saveSharedConcreteMemory();
 
-    // We must not save the current tb, because this pointer will become
-    // stale on state restore. If a signal occurs while restoring the state,
-    // its handler will try to unlink a stale tb, which could cause a hang
-    // or a crash.
-    auto old_tb = env_cpu(env)->current_tb;
-    env_cpu(env)->current_tb = nullptr;
     m_registers.saveConcreteState();
-    env_cpu(env)->current_tb = old_tb;
 
     cpu_disable_ticks();
     s2e_kvm_save_device_state();
