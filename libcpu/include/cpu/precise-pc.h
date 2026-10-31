@@ -33,7 +33,7 @@ struct TranslationBlock;
 typedef struct TCGContext TCGContext;
 typedef struct TranslationBlock TranslationBlock;
 
-bool cpu_restore_state(CPUArchState *env, uintptr_t host_pc);
+bool cpu_restore_state(CPUState *cpu, uintptr_t host_pc);
 int tb_get_instruction_size(TranslationBlock *tb, uint64_t pc);
 int encode_search(TCGContext *tcg_ctx, TranslationBlock *tb, uint8_t *block);
 

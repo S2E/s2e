@@ -255,12 +255,6 @@ _symbex_define_st_raw_le(float64,  fq, 8)
 
 #define CPU_DUMP_CODE 0x00010000
 
-static inline void cpu_interrupt(CPUArchState *s, int mask) {
-    cpu_interrupt_handler(s, mask);
-}
-
-void cpu_reset_interrupt(CPUArchState *env, int mask);
-
 int cpu_breakpoint_insert(CPUArchState *env, target_ulong pc, int flags, CPUBreakpoint **breakpoint);
 int cpu_breakpoint_remove(CPUArchState *env, target_ulong pc, int flags);
 void cpu_breakpoint_remove_by_ref(CPUArchState *env, CPUBreakpoint *breakpoint);

@@ -357,7 +357,7 @@ void s2e_init_timers() {
 //(retaddr will be set to null there)
 void s2e_after_memory_access(uint64_t vaddr, uint64_t value, unsigned size, unsigned flags, uintptr_t retaddr) {
     if (retaddr && env_cpu(env)->se_current_tb) {
-        cpu_restore_state(env, (uintptr_t) retaddr);
+        cpu_restore_state(env_cpu(env), (uintptr_t) retaddr);
         flags |= MEM_TRACE_FLAG_PRECISE;
     }
 
@@ -370,7 +370,7 @@ void s2e_after_memory_access(uint64_t vaddr, uint64_t value, unsigned size, unsi
 
 void s2e_on_page_fault(uint64_t addr, int is_write, void *retaddr) {
     if (retaddr && env_cpu(env)->se_current_tb) {
-        cpu_restore_state(env, (uintptr_t) retaddr);
+        cpu_restore_state(env_cpu(env), (uintptr_t) retaddr);
     }
 
     try {
@@ -382,7 +382,7 @@ void s2e_on_page_fault(uint64_t addr, int is_write, void *retaddr) {
 
 void s2e_on_tlb_miss(uint64_t addr, int is_write, void *retaddr) {
     if (retaddr && env_cpu(env)->se_current_tb) {
-        cpu_restore_state(env, (uintptr_t) retaddr);
+        cpu_restore_state(env_cpu(env), (uintptr_t) retaddr);
     }
 
     try {
@@ -398,7 +398,7 @@ void s2e_trace_port_access(uint64_t port, uint64_t value, unsigned size, int isW
     }
 
     if (retaddr) {
-        cpu_restore_state(env, (uintptr_t) retaddr);
+        cpu_restore_state(env_cpu(env), (uintptr_t) retaddr);
     }
 
     try {

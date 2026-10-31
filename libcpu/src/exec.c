@@ -107,21 +107,19 @@ void cpu_common_reset(CPUState *cpu) {
 }
 
 /* mask must never be zero, except for A20 change call */
-static void tcg_handle_interrupt(CPUArchState *env, int mask) {
-    env_cpu(env)->interrupt_request |= mask;
+void cpu_interrupt(CPUState *cpu, int mask) {
+    cpu->interrupt_request |= mask;
 }
 
-CPUInterruptHandler cpu_interrupt_handler = tcg_handle_interrupt;
-
-void cpu_reset_interrupt(CPUArchState *env, int mask) {
-    env_cpu(env)->interrupt_request &= ~mask;
+void cpu_reset_interrupt(CPUState *cpu, int mask) {
+    cpu->interrupt_request &= ~mask;
 }
 
-void cpu_exit(CPUArchState *env) {
-    env_cpu(env)->exit_request = 1;
+void cpu_exit(CPUState *cpu) {
+    cpu->exit_request = 1;
 }
 
-void cpu_abort(CPUArchState *env, const char *fmt, ...) {
+void cpu_abort(CPUState *cpu, const char *fmt, ...) {
     va_list ap;
     va_list ap2;
 
@@ -131,18 +129,18 @@ void cpu_abort(CPUArchState *env, const char *fmt, ...) {
     vfprintf(stderr, fmt, ap);
     fprintf(stderr, "\n");
 #ifdef TARGET_I386
-    cpu_dump_state(env, stderr, fprintf, X86_DUMP_ALL);
+    cpu_dump_state(cpu, stderr, X86_DUMP_ALL);
 #else
-    cpu_dump_state(env, stderr, fprintf, 0);
+    cpu_dump_state(cpu, stderr, 0);
 #endif
     if (libcpu_log_enabled()) {
         libcpu_log("qemu: fatal: ");
         libcpu_log_vprintf(fmt, ap2);
         libcpu_log("\n");
 #ifdef TARGET_I386
-        log_cpu_state(env, X86_DUMP_ALL);
+        log_cpu_state(cpu, X86_DUMP_ALL);
 #else
-        log_cpu_state(env, 0);
+        log_cpu_state(cpu, 0);
 #endif
         libcpu_log_flush();
         libcpu_log_close();

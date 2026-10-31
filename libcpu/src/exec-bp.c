@@ -180,7 +180,7 @@ void cpu_single_step(CPUArchState *env, int enabled) {
 
         /* must flush all the translated code to avoid inconsistencies */
         /* XXX: only flush what is necessary */
-        tb_flush(env);
+        tb_flush(env_cpu(env));
     }
 #endif
 }
@@ -229,7 +229,7 @@ void cpu_check_watchpoint(CPUState *cpu, vaddr addr, vaddr len, MemTxAttrs attrs
         /* We re-entered the check after replacing the TB. Now raise
          * the debug interrupt so that is will trigger after the
          * current instruction. */
-        cpu_interrupt(env, CPU_INTERRUPT_DEBUG);
+        cpu_interrupt(cpu, CPU_INTERRUPT_DEBUG);
         return;
     }
 
@@ -240,20 +240,20 @@ void cpu_check_watchpoint(CPUState *cpu, vaddr addr, vaddr len, MemTxAttrs attrs
                 cpu->watchpoint_hit = wp;
                 tb = tcg_tb_lookup(ra);
                 if (!tb) {
-                    cpu_abort(env,
+                    cpu_abort(cpu,
                               "check_watchpoint: could not find TB for "
                               "pc=%p",
                               (void *) ra);
                 }
-                cpu_restore_state(env, ra);
+                cpu_restore_state(cpu, ra);
                 tb_phys_invalidate(tb, -1);
                 if (wp->flags & BP_STOP_BEFORE_ACCESS) {
                     cpu->exception_index = EXCP_DEBUG;
-                    cpu_loop_exit(env);
+                    cpu_loop_exit(cpu);
                 } else {
                     cpu_get_tb_cpu_state(env, &pc, &cs_base, &cpu_flags);
                     tb_gen_code(env, pc, cs_base, cpu_flags, 1);
-                    cpu_resume_from_signal(env, NULL);
+                    cpu_loop_exit_noexc(cpu);
                 }
             }
         } else {

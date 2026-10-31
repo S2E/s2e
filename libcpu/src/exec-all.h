@@ -48,11 +48,10 @@
 
 void gen_intermediate_code(CPUArchState *env, struct TranslationBlock *tb);
 
-void restore_state_to_opc(CPUArchState *env, struct TranslationBlock *tb, target_ulong *data);
+void restore_state_to_opc(CPUState *cpu, const struct TranslationBlock *tb, const uint64_t *data);
 
 int cpu_gen_code(CPUArchState *env, TranslationBlock *tb);
 
-void LIBCPU_NORETURN cpu_resume_from_signal(CPUArchState *env1, void *puc);
 void LIBCPU_NORETURN cpu_io_recompile(CPUArchState *env, void *retaddr);
 TranslationBlock *tb_gen_code(CPUArchState *env, target_ulong pc, target_ulong cs_base, int flags, int cflags);
 void cpu_exec_init(CPUArchState *env);
@@ -118,7 +117,7 @@ static inline tb_page_addr_t get_page_addr_code(CPUArchState *env, target_ulong 
     void *host;
     tb_page_addr_t ret = get_page_addr_code_hostp(env, addr, &host);
     if (ret == -1) {
-        cpu_abort(env, "Trying to execute code outside RAM or ROM at 0x" TARGET_FMT_lx "\n", addr);
+        cpu_abort(env_cpu(env), "Trying to execute code outside RAM or ROM at 0x" TARGET_FMT_lx "\n", addr);
     }
     return ret;
 }

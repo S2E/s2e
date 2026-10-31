@@ -92,7 +92,7 @@ int target_disas_ex(void *env, FILE *out, fprintf_function_t func, uintptr_t pc,
     return 0;
 }
 
-void target_disas(void *env, FILE *out, target_ulong pc, target_ulong size, int flags) {
+void target_disas_range(void *env, FILE *out, target_ulong pc, target_ulong size, int flags) {
     target_disas_ex(env, out, fprintf, pc, size, flags);
 }
 

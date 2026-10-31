@@ -43,29 +43,23 @@ void se_tb_safe_flush(void) {
 
 // #define CONFIG_DEBUG_EXEC
 
-void cpu_loop_exit(CPUArchState *env) {
-    longjmp(env_cpu(env)->jmp_env, 1);
+/* exit the current TB, but without causing any exception to be raised */
+void cpu_loop_exit_noexc(CPUState *cpu) {
+    cpu->exception_index = -1;
+    cpu_loop_exit(cpu);
 }
 
-void cpu_loop_exit_restore(CPUArchState *env, uintptr_t ra) {
+void cpu_loop_exit(CPUState *cpu) {
+    longjmp(cpu->jmp_env, 1);
+}
+
+void cpu_loop_exit_restore(CPUState *cpu, uintptr_t ra) {
     if (ra) {
-        cpu_restore_state(env, ra);
+        cpu_restore_state(cpu, ra);
     }
 
-    cpu_loop_exit(env);
+    cpu_loop_exit(cpu);
 }
-
-/* exit the current TB from a signal handler. The host registers are
-   restored in a state compatible with the CPU emulator
- */
-#if defined(CONFIG_SOFTMMU)
-void cpu_resume_from_signal(CPUArchState *env, void *puc) {
-    /* XXX: restore cpu registers saved in host registers */
-
-    env_cpu(env)->exception_index = -1;
-    longjmp(env_cpu(env)->jmp_env, 1);
-}
-#endif
 
 static TranslationBlock *tb_find_slow(CPUArchState *env, target_ulong pc, target_ulong cs_base, uint64_t flags) {
     TranslationBlock *tb, **ptb1;
@@ -125,7 +119,7 @@ static inline TranslationBlock *tb_find_fast(CPUArchState *env) {
 #ifdef CONFIG_SYMBEX
     if (tb_invalidate_before_fetch) {
         tb_invalidate_before_fetch = 0;
-        tb_flush(env);
+        tb_flush(env_cpu(env));
     }
 #endif
 
@@ -286,14 +280,14 @@ static bool process_interrupt_request(CPUArchState *env) {
     if (interrupt_request & CPU_INTERRUPT_DEBUG) {
         cpu->interrupt_request &= ~CPU_INTERRUPT_DEBUG;
         cpu->exception_index = EXCP_DEBUG;
-        cpu_loop_exit(env);
+        cpu_loop_exit(cpu);
     }
 
     if (interrupt_request & CPU_INTERRUPT_INIT) {
         svm_check_intercept(env, SVM_EXIT_INIT);
         do_cpu_init(env);
         cpu->exception_index = EXCP_HALTED;
-        cpu_loop_exit(env);
+        cpu_loop_exit(cpu);
     } else if (interrupt_request & CPU_INTERRUPT_SIPI) {
         perror("Not implemented");
     } else if (env->hflags2 & HF2_GIF_MASK) {
@@ -402,7 +396,7 @@ static bool execution_loop(CPUArchState *env) {
             cpu->exception_index = EXCP_INTERRUPT;
 
             // XXX: return status code instead
-            cpu_loop_exit(env);
+            cpu_loop_exit(cpu);
         }
 
 #if defined(DEBUG_DISAS) || defined(CONFIG_DEBUG_EXEC)
@@ -410,7 +404,7 @@ static bool execution_loop(CPUArchState *env) {
 #if defined(TARGET_I386)
             // It's too heavy to log all cpu state, usually gp regs are enough
             // TODO: add an option to customize which regs to print
-            log_cpu_state(env, X86_DUMP_GPREGS);
+            log_cpu_state(cpu, X86_DUMP_GPREGS);
 #endif
         }
 #endif /* DEBUG_DISAS || CONFIG_DEBUG_EXEC */

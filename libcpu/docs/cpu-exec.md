@@ -917,7 +917,10 @@ first.
    to `LocalApic` at line 183) and in `s2e-kvm-io.cpp:194`. The names KLEE
    registers do not change. In the same commit, give `cpu_reset_interrupt()`,
    `cpu_interrupt()`, `cpu_abort()` and `cpu_dump_state()` their upstream
-   signatures and rename the old `target_disas()` (2.2). This change is
+   signatures and rename the old `target_disas()` (2.2). `cpu_interrupt()`
+   becomes a function, as upstream's, instead of a call through
+   `cpu_interrupt_handler`. The handler pointer and its
+   `__DEFINE_EXT_FUNCTION` go away, because the bitcode never referenced it. This change is
    mechanical but touches every component.
 6. **The wrapper of 4.6**, around the old `cpu_exec()`. Rename the old
    function to `cpu_exec(CPUState *)` and delete the `cpu_exec` macro of 2.2,
@@ -1165,3 +1168,5 @@ These are known and left for implementation:
   dead code removal depends on. TB traces are no longer part of the
   baseline or of any exit criterion. Steps are judged on correct execution
   (the testsuite), not on TB-for-TB equality with the old layer.
+- 2026-10-31: step 2 item 5 also removes `cpu_interrupt_handler`, which the
+  plan did not mention.

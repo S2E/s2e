@@ -7935,7 +7935,8 @@ void gen_intermediate_code(CPUX86State *env, TranslationBlock *tb) {
     gen_intermediate_code_internal(env, tb);
 }
 
-void restore_state_to_opc(CPUX86State *env, TranslationBlock *tb, target_ulong *data) {
+void restore_state_to_opc(CPUState *cpu, const TranslationBlock *tb, const uint64_t *data) {
+    CPUX86State *env = cpu_env(cpu);
     int cc_op = data[1];
     env->eip = data[0] - tb->cs_base;
 
