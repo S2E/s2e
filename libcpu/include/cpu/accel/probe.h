@@ -14,6 +14,11 @@
 #include <cpu/exec/mmu-access-type.h>
 #include <cpu/exec/vaddr.h>
 
+/* S2E: libcpu headers are also included from C++. */
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * probe_access:
  * @env: CPUArchState
@@ -112,5 +117,9 @@ int probe_access_full_mmu(CPUArchState *env, vaddr addr, int size, MMUAccessType
  * TLB fill required, etc) return NULL.
  */
 void *tlb_vaddr_to_host(CPUArchState *env, vaddr addr, MMUAccessType access_type, int mmu_idx);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -21,6 +21,11 @@
 #include <tcg/tcg-memop.h>
 #include <tcg/tcg-mo.h>
 
+/* S2E: libcpu headers are also included from C++. */
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* S2E: libcpu's CPUState is hand-written (cpu/state.h) and only knows this
    structure by name. TCGTBCPUState belongs to upstream's TB lookup, which is
    not imported yet. */
@@ -245,8 +250,10 @@ struct TCGCPUOps {
      * @do_unaligned_access: Callback for unaligned access handling
      * The callback must exit via raising an exception.
      */
-    G_NORETURN void (*do_unaligned_access)(CPUState *cpu, vaddr addr, MMUAccessType access_type, int mmu_idx,
-                                           uintptr_t retaddr);
+    /* S2E: G_NORETURN is [[noreturn]] in C++, which does not apply to
+       function pointers. G_NORETURN_FUNCPTR works in C and C++. */
+    G_NORETURN_FUNCPTR void (*do_unaligned_access)(CPUState *cpu, vaddr addr, MMUAccessType access_type, int mmu_idx,
+                                                   uintptr_t retaddr);
 
     /**
      * @adjust_watchpoint_address: hack for cpu_check_watchpoint (used by ARM)
@@ -312,5 +319,9 @@ int cpu_watchpoint_address_matches(CPUState *cpu, vaddr addr, vaddr len);
  */
 vaddr cpu_pointer_wrap_notreached(CPUState *, int, vaddr, vaddr);
 vaddr cpu_pointer_wrap_uint32(CPUState *, int, vaddr, vaddr);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* TCG_CPU_OPS_H */

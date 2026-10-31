@@ -79,7 +79,13 @@
         int : (x) ? -1 : 1;         \
     }
 
+/* S2E: _Static_assert is a C keyword. libcpu headers are also included from
+   C++, which spells it static_assert. */
+#ifdef __cplusplus
+#define QEMU_BUILD_BUG_MSG(x, msg) static_assert(!(x), msg)
+#else
 #define QEMU_BUILD_BUG_MSG(x, msg) _Static_assert(!(x), msg)
+#endif
 
 #define QEMU_BUILD_BUG_ON(x) QEMU_BUILD_BUG_MSG(x, "not expecting: " #x)
 

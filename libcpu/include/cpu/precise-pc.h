@@ -27,6 +27,10 @@
 #include <cpu/exec.h>
 #include <cpu/types.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct TCGContext;
 struct TranslationBlock;
 
@@ -36,5 +40,9 @@ typedef struct TranslationBlock TranslationBlock;
 bool cpu_restore_state(CPUState *cpu, uintptr_t host_pc);
 int tb_get_instruction_size(TranslationBlock *tb, uint64_t pc);
 int encode_search(TCGContext *tcg_ctx, TranslationBlock *tb, uint8_t *block);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
