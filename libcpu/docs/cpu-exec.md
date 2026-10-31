@@ -331,8 +331,11 @@ The old `CPUArchState *first_cpu` becomes a `CPUState *` and
 
 `EXCP_SE` moves from `0x10004`, which is upstream's `EXCP_YIELD`, to
 `0x10006`, and `interrupt.h` defines `EXCP_YIELD` and `EXCP_ATOMIC` with
-upstream's values. `CPU_INTERRUPT_RESET` is defined as libcpu's
-`CPU_INTERRUPT_INIT` bit, as in upstream's `target/i386/cpu.h`.
+upstream's values. `CPU_INTERRUPT_RESET` is imported from upstream's
+`cpu-interrupt.h` (0x0400), together with its numbering of the
+`CPU_INTERRUPT_TGT_INT_*` bits. As in upstream's `target/i386/cpu.h`,
+`CPU_INTERRUPT_INIT` becomes an alias of `CPU_INTERRUPT_RESET`. No x86 bit
+changes value.
 
 `target-i386/cpu.h:359` defines `cpu_exec` as `cpu_x86_exec`. The macro is
 deleted: it would rename upstream's `cpu_exec()` to the name of the wrapper of
