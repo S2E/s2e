@@ -203,6 +203,31 @@ typedef struct CPUTLB {
 } CPUTLB;
 
 /*
+ * Low 16 bits: number of cycles left, used only in icount mode.
+ * High 16 bits: Set to -1 to force TCG to stop executing linked TBs
+ * for this CPU and return to its top level loop (even in non-icount mode).
+ * This allows a single read-compare-cbranch-write sequence to test
+ * for both decrementer underflow and exceptions.
+ *
+ * S2E: libcpu has no icount mode, so the low half stays 0. Every TB without
+ * CF_NOIRQ starts by testing u32 and exits if it is negative. cpu_exit() sets
+ * the high half, and the CPU loop clears it before it checks for interrupts
+ * and exit requests.
+ */
+typedef union IcountDecr {
+    uint32_t u32;
+    struct {
+#if HOST_BIG_ENDIAN
+        uint16_t high;
+        uint16_t low;
+#else
+        uint16_t low;
+        uint16_t high;
+#endif
+    } u16;
+} IcountDecr;
+
+/*
  * Elements of CPUState accessed from CPUArchState via negative offsets.
  * The most frequently used members should be last, closest to env.
  */
@@ -214,6 +239,8 @@ typedef struct CPUNegativeOffsetState {
     CPUTLBRAMEntry se_ram_tlb[CPU_TLB_SIZE];
 #endif
     struct TranslationBlock *tb_jmp_cache[TB_JMP_CACHE_SIZE];
+
+    IcountDecr icount_decr;
 
     /* Always true: libcpu has no icount mode. */
     bool can_do_io;
@@ -245,7 +272,7 @@ typedef struct CPUState {
     /* Nonzero if the CPU is in suspend state. */
     uint32_t halted;
     uint32_t interrupt_request;
-    /* Set by cpu_exit() to leave the CPU loop; tested by generated code. */
+    /* Set by cpu_exit() to leave the CPU loop, which tests it. */
     volatile sig_atomic_t exit_request;
     int exception_index;
     int singlestep_enabled;

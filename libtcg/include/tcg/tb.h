@@ -78,14 +78,19 @@ struct TranslationBlock {
     uint16_t size;    /* size of target code for this block (1 <=
                          size <= TARGET_PAGE_SIZE) */
 
-#define CF_COUNT_MASK         0x00007fff
-#define CF_NO_GOTO_TB         0x00000200 /* Do not chain with goto_tb */
-#define CF_NO_GOTO_PTR        0x00000400 /* Do not chain with goto_ptr */
-#define CF_NOCACHE            0x00010000 /* To be freed after execution */
-#define CF_HAS_INTERRUPT_EXIT 0x00020000 /* The TB has a prologue to handle quick CPU loop exit */
-#define CF_INVALID            0x00040000 /* TB is stale. Set with @jmp_lock held */
-#define CF_PARALLEL           0x00080000 /* Generate code for a parallel context */
-#define CF_PCREL              0x00200000 /* Opcodes in TB are PC-relative */
+#define CF_COUNT_MASK    0x000001ff
+#define CF_NO_GOTO_TB    0x00000200 /* Do not chain with goto_tb */
+#define CF_NO_GOTO_PTR   0x00000400 /* Do not chain with goto_ptr */
+#define CF_SINGLE_STEP   0x00000800 /* gdbstub single-step in effect */
+#define CF_MEMI_ONLY     0x00001000 /* Only instrument memory ops */
+#define CF_USE_ICOUNT    0x00002000
+#define CF_INVALID       0x00004000 /* TB is stale. Set with @jmp_lock held */
+#define CF_PARALLEL      0x00008000 /* Generate code for a parallel context */
+#define CF_NOIRQ         0x00010000 /* Generate an uninterruptible TB */
+#define CF_PCREL         0x00020000 /* Opcodes in TB are PC-relative */
+#define CF_BP_PAGE       0x00040000 /* Breakpoint present in code page */
+#define CF_CLUSTER_MASK  0xff000000 /* Top 8 bits are cluster ID */
+#define CF_CLUSTER_SHIFT 24
 
     uint32_t cflags; /* compile flags */
 

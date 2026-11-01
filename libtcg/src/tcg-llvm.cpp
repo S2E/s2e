@@ -1176,7 +1176,7 @@ Function *TCGLLVMTranslator::createTbFunction(const std::string &name) {
 
 ///
 /// \brief This function removes the branch that causes an early exit from
-/// a translation block if there is an interrupt pending.
+/// a translation block when cpu_exit() requested it through icount_decr.
 ///
 /// LLVM translation blocks are not chained, so there is no need for exit.
 ///
@@ -1189,7 +1189,7 @@ Function *TCGLLVMTranslator::createTbFunction(const std::string &name) {
 ///   %1 = getelementptr %struct.CPUX86State, %struct.CPUX86State* %0, i32 0, i32 18
 ///   %2 = getelementptr %struct.CPUX86State, %struct.CPUX86State* %0, i32 0, i32 1
 ///   ...
-///   %5 = icmp ne i32 %tmp12_v, 0
+///   %5 = icmp slt i32 %tmp12_v, 0
 ///   br i1 %5, label %label_0, label %6
 ///
 /// ; <label>:6:                                      ; preds = %entry
@@ -1205,9 +1205,35 @@ Function *TCGLLVMTranslator::createTbFunction(const std::string &name) {
 void TCGLLVMTranslator::removeInterruptExit() {
     auto &bb = m_tbFunction->front();
     auto br = dyn_cast<BranchInst>(bb.getTerminator());
+
+    // The branch must be the exit check that gen_tb_start() emits:
+    // icount_decr.u32 < 0, loaded from the CPU state. Anything else means that
+    // the frontend emitted code before the check, and erasing the branch would
+    // remove guest code instead.
+    assert(br && br->isConditional());
+    auto cmp = dyn_cast<ICmpInst>(br->getCondition());
+    assert(cmp && cmp->getPredicate() == ICmpInst::ICMP_SLT);
+    assert(isa<ConstantInt>(cmp->getOperand(1)) && cast<ConstantInt>(cmp->getOperand(1))->isZero());
+    auto load = dyn_cast<LoadInst>(cmp->getOperand(0));
+    assert(load && load->getType()->isIntegerTy(32));
+    auto gep = dyn_cast<GetElementPtrInst>(load->getPointerOperand());
+    assert(gep && gep->getPointerOperand() == m_cpuState);
+    (void) gep;
+
     auto target = br->getSuccessor(1);
     br->eraseFromParent();
     BranchInst::Create(target, &bb);
+
+    // Nothing uses the compare and the load once the branch is gone. The temp
+    // that holds the load is only used before the first label, so
+    // liveness_pass_0() makes it a TEMP_EBB, and setValue() stores no copy of
+    // such a temp. Erasing them here keeps KLEE from reading icount_decr, which
+    // is in the negative offset part of CPUState, without relying on the
+    // optimizer. The GEP only computes an address, so it can stay.
+    assert(cmp->use_empty());
+    cmp->eraseFromParent();
+    assert(load->use_empty());
+    load->eraseFromParent();
 }
 
 /// @brief Runs the pass pipeline that the constructor sets up on the current
@@ -1368,7 +1394,7 @@ Function *TCGLLVMTranslator::generateCode(TCGContext *s, TranslationBlock *tb) {
 
     m_labels.clear();
 
-    if (tb->cflags & CF_HAS_INTERRUPT_EXIT) {
+    if (!(tb->cflags & CF_NOIRQ)) {
         removeInterruptExit();
     }
 

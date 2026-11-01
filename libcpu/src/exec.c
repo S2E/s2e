@@ -24,6 +24,7 @@
 #include <cpu/memory.h>
 #include <tcg/exec/tswap.h>
 #include <tcg/tcg.h>
+#include <utils/atomic.h>
 #include <utils/osdep.h>
 #include "cpu.h"
 #include "qemu-common.h"
@@ -100,6 +101,7 @@ void cpu_exec_init(CPUArchState *env) {
 void cpu_common_reset(CPUState *cpu) {
     cpu->se_current_tb = NULL;
     cpu->mem_io_pc = 0;
+    qatomic_set(&cpu->neg.icount_decr.u32, 0);
     cpu->halted = 0;
     cpu->interrupt_request = 0;
     cpu->exit_request = 0;
@@ -115,8 +117,20 @@ void cpu_reset_interrupt(CPUState *cpu, int mask) {
     cpu->interrupt_request &= ~mask;
 }
 
+/* S2E: upstream's cpu_exit() followed by tcg_kick_vcpu_thread(), which upstream
+   calls through qemu_cpu_kick(). The FIXME below is about upstream's other
+   accelerators, which libcpu does not have. */
 void cpu_exit(CPUState *cpu) {
-    cpu->exit_request = 1;
+    /*
+     * Ensure cpu_exec will see the reason why the exit request was set.
+     * FIXME: this is not always needed.  Other accelerators instead
+     * read interrupt_request and set exit_request on demand from the
+     * CPU thread; see kvm_arch_pre_run() for example.
+     */
+    qatomic_store_release(&cpu->exit_request, 1);
+
+    /* Ensure cpu_exec will see the exit request after TCG has exited.  */
+    qatomic_store_release(&cpu->neg.icount_decr.u16.high, -1);
 }
 
 void cpu_abort(CPUState *cpu, const char *fmt, ...) {
