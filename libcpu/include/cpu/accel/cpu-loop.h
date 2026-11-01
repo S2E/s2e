@@ -10,6 +10,14 @@
 #error Can only include this header with TCG
 #endif
 
+/* S2E: libcpu headers can be used from C++. */
+#include <glib.h>
+#include <tcg/exec/translation-block.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * cpu_exec:
  * @cpu: the cpu context
@@ -72,5 +80,9 @@ G_NORETURN void cpu_loop_exit_atomic(CPUState *cpu, uintptr_t host_pc);
  * Exit the current TB.
  */
 G_NORETURN void cpu_loop_exit(CPUState *cpu);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

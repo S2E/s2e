@@ -9,10 +9,10 @@
 #ifndef ACCEL_TCG_INTERNAL_COMMON_H
 #define ACCEL_TCG_INTERNAL_COMMON_H
 
-#include "accel/tcg/tb-cpu-state.h"
-#include "exec/cpu-common.h"
-#include "exec/mmap-lock.h"
-#include "exec/translation-block.h"
+/* S2E: mmap-lock.h and the declarations of exec/cpu-common.h come from
+   s2e/accel-deps.h, which includes this file. */
+#include <cpu/accel/tb-cpu-state.h>
+#include <tcg/exec/translation-block.h>
 
 extern int64_t max_delay;
 extern int64_t max_advance;

@@ -20,8 +20,8 @@
 #ifndef QEMU_TB_CONTEXT_H
 #define QEMU_TB_CONTEXT_H
 
-#include "qemu/qht.h"
-#include "qemu/thread.h"
+#include <utils/qht.h>
+#include <utils/thread.h>
 
 #define CODE_GEN_HTABLE_BITS 15
 #define CODE_GEN_HTABLE_SIZE (1 << CODE_GEN_HTABLE_BITS)

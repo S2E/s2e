@@ -9,7 +9,7 @@
 #ifndef ACCEL_TCG_TB_INTERNAL_TARGET_H
 #define ACCEL_TCG_TB_INTERNAL_TARGET_H
 
-#include "exec/translation-block.h"
+#include <tcg/exec/translation-block.h>
 
 /*
  * The true return address will often point to a host insn that is part of
