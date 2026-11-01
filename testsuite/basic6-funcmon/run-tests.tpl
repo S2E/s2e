@@ -48,7 +48,9 @@ fi
 
 # Check that skipped functions are not executed
 grep -q "skipping func_e_skipped" $S2E_LAST/debug.txt
-! grep -q "This message must not appear" $S2E_LAST/debug.txt
+if grep -q "This message must not appear" $S2E_LAST/debug.txt; then
+    exit 1
+fi
 
 check_coverage {{project_name}} 60
 
