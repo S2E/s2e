@@ -17,31 +17,13 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "accel/tcg/cpu-loop.h"
-#include "accel/tcg/cpu-ops.h"
-#include "exec/cputlb.h"
-#include "exec/log.h"
-#include "exec/mmap-lock.h"
-#include "exec/page-protection.h"
-#include "exec/target_page.h"
-#include "exec/tb-flush.h"
-#include "internal-common.h"
-#include "qemu/interval-tree.h"
-#include "qemu/osdep.h"
-#include "qemu/qtree.h"
-#include "system/tcg.h"
+/* S2E: the include block is replaced, see accel-deps.h. */
+#include "s2e/accel-deps.h"
 #include "tb-context.h"
-#include "tb-hash.h"
 #include "tb-internal.h"
-#include "tcg/tcg.h"
-#ifdef CONFIG_USER_ONLY
-#include "user/page-protection.h"
-#define runstate_is_running() true
-#else
-#include "system-page-protection.h"
-#include "system/runstate.h"
-#endif
-#include "trace.h"
+
+#include <cpu/exec/tb-flush.h>
+#include <utils/qtree.h>
 
 /* List iterators for lists of tagged pointers in TranslationBlock. */
 #define TB_FOR_EACH_TAGGED(head, tb, n, field)                                                                \
@@ -718,6 +700,11 @@ static void tb_remove(TranslationBlock *tb) {
 void tb_flush__exclusive_or_serial(void) {
     CPUState *cpu;
 
+#ifdef CONFIG_SYMBEX
+    /* S2E: libs2ecore drops its references to the TBs. */
+    g_sqi.tb.flush_tb_cache();
+#endif
+
     trace_tb_flush();
     assert(tcg_enabled());
     /* Note that cpu_in_serial_context checks cpu_in_exclusive_context. */
@@ -1072,6 +1059,18 @@ static void tb_invalidate_phys_page_range__locked(CPUState *cpu, struct page_col
                 current_tb_modified = true;
                 cpu_restore_state_from_tb(cpu, current_tb, retaddr);
             }
+#ifdef CONFIG_SYMBEX
+            /*
+             * S2E: a store that KLEE runs has no return address, so the TB that
+             * makes it is not known here and may be this one. The LLVM code
+             * tests the flag at the next instruction boundary, after it stored
+             * the next PC, and returns. A native TB does not test the flag, and
+             * se_tb_exec() clears it before each TB.
+             */
+            if (cpu && !retaddr) {
+                cpu->se_tb_abort = 1;
+            }
+#endif
             do_tb_phys_invalidate(tb, true);
         }
     }

@@ -17,26 +17,19 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "qemu/osdep.h"
-
-#include "accel/tcg/cpu-loop.h"
-#include "accel/tcg/cpu-ops.h"
-#include "disas/disas.h"
-#include "exec/icount.h"
-#include "exec/log.h"
-#include "exec/mmap-lock.h"
-#include "exec/tb-flush.h"
-#include "internal-common.h"
-#include "qemu/cacheinfo.h"
-#include "qemu/target-info.h"
+/* S2E: the include block is replaced, see accel-deps.h. */
+#include "s2e/accel-deps.h"
 #include "tb-context.h"
-#include "tb-hash.h"
 #include "tb-internal.h"
-#include "tb-jmp-cache.h"
-#include "tcg/insn-start-words.h"
-#include "tcg/perf.h"
-#include "tcg/tcg.h"
-#include "trace.h"
+
+#include <cpu/exec/tb-flush.h>
+#include <tcg/insn-start-words.h>
+#include <tcg/perf.h>
+#include <utils/cacheinfo.h>
+
+#if defined(CONFIG_SYMBEX_MP)
+#include <tcg/tcg-llvm.h>
+#endif
 
 TBContext tb_ctx;
 
@@ -287,6 +280,12 @@ buffer_overflow:
         cpu_loop_exit(cpu);
     }
 
+#ifdef CONFIG_SYMBEX
+    /* S2E: every retry through buffer_overflow gets here with a new TB. */
+    tb->llvm_function = NULL;
+    tb->se_tb = g_sqi.tb.tb_alloc();
+#endif
+
     gen_code_buf = tcg_ctx->code_gen_ptr;
     tb->tc.ptr = tcg_splitwx_to_rx(gen_code_buf);
     if (!(s.cflags & CF_PCREL)) {
@@ -354,6 +353,10 @@ restart_translate:
                     tb_unlock_page1(phys_pc, phys_p2);
                     tb_set_page_addr1(tb, -1);
                 }
+#ifdef CONFIG_SYMBEX
+                /* S2E: plugins attached their signals to the previous attempt. */
+                tb->se_tb = g_sqi.tb.tb_alloc();
+#endif
                 goto restart_translate;
 
             case -3:
@@ -364,6 +367,10 @@ restart_translate:
                  * Restart with locks held on both pages.
                  */
                 qemu_log_mask(CPU_LOG_TB_OP | CPU_LOG_TB_OP_OPT, "Restarting code generation with re-locked pages");
+#ifdef CONFIG_SYMBEX
+                /* S2E: plugins attached their signals to the previous attempt. */
+                tb->se_tb = g_sqi.tb.tb_alloc();
+#endif
                 goto restart_translate;
 
             default:
@@ -379,6 +386,18 @@ restart_translate:
         goto buffer_overflow;
     }
     tb->tc.size = gen_code_size;
+
+#if defined(CONFIG_SYMBEX_MP)
+    /* S2E: KLEE interprets this function instead of running the host code. */
+    if (cpu->generate_llvm) {
+        tb->llvm_function = tcg_llvm_gen_code(tcg_llvm_translator, tcg_ctx, tb);
+        g_sqi.tb.set_tb_function(tb->se_tb, tb->llvm_function);
+    }
+#endif
+
+#ifdef CONFIG_SYMBEX
+    tb->instrumented = g_sqi.tb.is_tb_instrumented(tb->se_tb);
+#endif
 
     /*
      * For CF_PCREL, attribute all executions of the generated code
@@ -607,3 +626,5 @@ void tcg_flush_jmp_cache(CPUState *cpu) {
         qatomic_set(&jc->array[i].tb, NULL);
     }
 }
+
+#include "s2e/translate-all-symbex.c.inc"
