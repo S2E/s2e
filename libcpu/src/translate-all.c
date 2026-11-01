@@ -33,7 +33,6 @@
 #define NO_CPU_IO_DEFS
 #include <tcg/insn-start-words.h>
 #include <tcg/tcg.h>
-#include <utils/spinlock.h>
 #include "cpu.h"
 #include "timer.h"
 
@@ -212,7 +211,7 @@ tb_overflow:
 #endif
 
     /* init jump list */
-    tb->jmp_lock = SPIN_LOCK_UNLOCKED;
+    qemu_spin_init(&tb->jmp_lock);
     tb->jmp_list_head = (uintptr_t) NULL;
     tb->jmp_list_next[0] = (uintptr_t) NULL;
     tb->jmp_list_next[1] = (uintptr_t) NULL;

@@ -43,7 +43,6 @@
 #include <utils/mprotect.h>
 #include <utils/osdep.h>
 #include <utils/qtree.h>
-#include <utils/spinlock.h>
 #include <utils/thread.h>
 #include <utils/units.h>
 
@@ -185,7 +184,7 @@ static gint tb_tc_cmp(gconstpointer ap, gconstpointer bp, gpointer userdata) {
 
 static void tb_destroy(gpointer value) {
     TranslationBlock *tb = value;
-    spin_destroy(&tb->jmp_lock);
+    qemu_spin_destroy(&tb->jmp_lock);
 }
 
 static void tcg_region_trees_init(void) {
