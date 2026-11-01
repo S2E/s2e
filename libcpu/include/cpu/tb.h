@@ -20,6 +20,8 @@
 
 #define __LIBCPU_TB_H__
 
+#include <stdbool.h>
+
 #include <cpu/se_libcpu_config.h>
 #include <cpu/types.h>
 #include <tcg/exec/translation-block.h>
@@ -40,8 +42,15 @@ extern "C" {
 ///
 int tb_get_instruction_size(TranslationBlock *tb, uint64_t pc);
 
-void tb_link_page(TranslationBlock *tb, tb_page_addr_t phys_pc, tb_page_addr_t phys_page2);
-void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr);
+///
+/// \brief cpu_restore_state restores the CPU state of the guest instruction
+/// that was running at a host address inside generated code.
+///
+/// \param cpu the CPU to restore
+/// \param host_pc the host address
+/// \returns true if the state was restored, false if host_pc is not in generated code
+///
+bool cpu_restore_state(CPUState *cpu, uintptr_t host_pc);
 
 #ifdef __cplusplus
 }

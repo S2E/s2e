@@ -7733,7 +7733,7 @@ static inline void gen_tb_end(TranslationBlock *tb) {
 
 /* generate intermediate code in gen_opc_buf and gen_opparam_buf for
    basic block 'tb'.*/
-static inline void gen_intermediate_code_internal(CPUX86State *env, TranslationBlock *tb) {
+static inline void gen_intermediate_code_internal(CPUX86State *env, TranslationBlock *tb, int max_insns) {
     DisasContext dc1, *dc = &dc1;
     target_ulong pc_ptr, new_pc_ptr;
     CPUBreakpoint *bp;
@@ -7741,7 +7741,6 @@ static inline void gen_intermediate_code_internal(CPUX86State *env, TranslationB
     target_ulong pc_start;
     target_ulong cs_base;
     int num_insns;
-    int max_insns;
 
     /* generate intermediate code */
     pc_start = tb->pc;
@@ -7806,9 +7805,6 @@ static inline void gen_intermediate_code_internal(CPUX86State *env, TranslationB
     dc->is_jmp = DISAS_NEXT;
     pc_ptr = pc_start;
     num_insns = 0;
-    max_insns = tb->cflags & CF_COUNT_MASK;
-    if (max_insns == 0)
-        max_insns = TCG_MAX_INSNS;
 
     gen_tb_start(tb);
 
@@ -7945,6 +7941,6 @@ static inline void gen_intermediate_code_internal(CPUX86State *env, TranslationB
 #endif
 }
 
-void gen_intermediate_code(CPUX86State *env, TranslationBlock *tb) {
-    gen_intermediate_code_internal(env, tb);
+void gen_intermediate_code(CPUX86State *env, TranslationBlock *tb, int max_insns) {
+    gen_intermediate_code_internal(env, tb, max_insns);
 }

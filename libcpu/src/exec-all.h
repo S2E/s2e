@@ -46,39 +46,11 @@
 
 #define OPPARAM_BUF_SIZE (OPC_BUF_SIZE * MAX_OPC_PARAM)
 
-void gen_intermediate_code(CPUArchState *env, struct TranslationBlock *tb);
+void gen_intermediate_code(CPUArchState *env, struct TranslationBlock *tb, int max_insns);
 
-int cpu_gen_code(CPUArchState *env, TranslationBlock *tb);
-int cpu_exec(CPUState *cpu);
 void tcg_exec_cpu_init(CPUState *cpu);
-void tcg_flush_jmp_cache(CPUState *cpu);
-
-void LIBCPU_NORETURN cpu_io_recompile(CPUArchState *env, void *retaddr);
-TranslationBlock *tb_gen_code(CPUArchState *env, target_ulong pc, target_ulong cs_base, int flags, int cflags);
 void cpu_exec_init(CPUArchState *env);
 int page_unprotect(target_ulong address, uintptr_t pc, void *puc);
-
-#define CODE_GEN_PHYS_HASH_BITS 15
-#define CODE_GEN_PHYS_HASH_SIZE (1 << CODE_GEN_PHYS_HASH_BITS)
-
-/* estimated block size for TB allocation */
-/* XXX: use a per code average code fragment size and modulate it
-   according to the host CPU */
-#if defined(CONFIG_SOFTMMU)
-#define CODE_GEN_AVG_BLOCK_SIZE 128
-#else
-#define CODE_GEN_AVG_BLOCK_SIZE 64
-#endif
-
-#include <cpu/tb.h>
-
-static inline unsigned int tb_phys_hash_func(tb_page_addr_t pc) {
-    return (pc >> 2) & (CODE_GEN_PHYS_HASH_SIZE - 1);
-}
-
-extern TranslationBlock *tb_phys_hash[CODE_GEN_PHYS_HASH_SIZE];
-
-extern int tb_invalidated_flag;
 
 #include <cpu/exec.h>
 
@@ -86,22 +58,8 @@ extern int tb_invalidated_flag;
 
 #include "softmmu-compat.h"
 
-/* Entry points of accel/cputlb.c that upstream declares in
+/* Entry point of accel/cputlb.c that upstream declares in
    accel/tcg/internal-common.h. */
 void tlb_init(CPUState *cpu);
-void tlb_destroy(CPUState *cpu);
-tb_page_addr_t get_page_addr_code_hostp(CPUArchState *env, vaddr addr, void **hostp);
-
-/* Returns the ram address of the code page at addr, filling the TLB and
-   raising a guest exception if needed. libcpu cannot execute code from MMIO:
-   it has no way to translate one instruction at a time without caching. */
-static inline tb_page_addr_t get_page_addr_code(CPUArchState *env, target_ulong addr) {
-    void *host;
-    tb_page_addr_t ret = get_page_addr_code_hostp(env, addr, &host);
-    if (ret == -1) {
-        cpu_abort(env_cpu(env), "Trying to execute code outside RAM or ROM at 0x" TARGET_FMT_lx "\n", addr);
-    }
-    return ret;
-}
 
 #endif

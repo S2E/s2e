@@ -2,8 +2,9 @@
 # This work is licensed under the terms of the GNU LGPL, version 2.1 or later.
 
 add_library(
-    cpu cpu-exec.c cpus.c exec.c exec-bp.c exec-memdbg.c exec-phystb.c exec-ram.c exec-tb.c ioport.c memory.c timer.c translate-all.c
-    precise-pc.c accel/cputlb.c s2e/cpu-x86-exec.c s2e/tcg-init.c
+    cpu cpus.c exec.c exec-bp.c exec-memdbg.c exec-ram.c ioport.c memory.c timer.c
+    accel/cpu-exec.c accel/cpu-exec-common.c accel/cputlb.c accel/tb-maint.c accel/translate-all.c accel/watchpoint.c
+    s2e/cpu-x86-exec.c s2e/tcg-init.c
     target-i386/cpuid.c target-i386/helper.c target-i386/op_helper.c target-i386/tcg-cpu.c target-i386/translate.c disas.c
 )
 

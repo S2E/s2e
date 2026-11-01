@@ -53,7 +53,8 @@
 
 #endif /* !defined(NEED_CPU_H) */
 
-bool tcg_enabled(void);
+extern bool tcg_allowed;
+#define tcg_enabled() (tcg_allowed)
 
 void qemu_init_vcpu(void *env);
 

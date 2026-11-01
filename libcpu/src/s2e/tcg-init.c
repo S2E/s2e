@@ -31,12 +31,19 @@
 #include "cpu.h"
 #include "exec-all.h"
 
+#include "s2e/accel-deps.h"
+
 #include "accel/tb-jmp-cache.h"
 #include "accel/tlb-bounds.h"
 
 #include <cpu/accel/cpu-ops.h>
 
 extern TCGContext tcg_init_ctx;
+
+/* S2E: upstream defines these with its command line options, which libcpu does
+   not have. */
+bool one_insn_per_tb;
+bool icount_align_option;
 
 /* Minimum size of the code gen buffer.  This number is randomly chosen,
    but not so small that we can't have a fair number of TB's live.  */
@@ -73,10 +80,14 @@ static void cpu_gen_init(TCGContext *ctx) {
     ctx->tlb_fast_offset = (int) offsetof(ArchCPU, parent_obj.neg.tlb.f) - (int) offsetof(ArchCPU, env);
 }
 
-/* Must be called before using the QEMU cpus. 'tb_size' is the size
-   (in bytes) allocated to the translation buffer. Zero means default
-   size. */
+/* Must be called before using the QEMU cpus. The size of the translation
+   buffer is MIN_CODE_GEN_BUFFER_SIZE, whatever the value of 'tb_size'. */
 void tcg_exec_init(unsigned long tb_size) {
+    /* What upstream's tcg_init_machine() does before tcg_init(). */
+    tcg_allowed = true;
+    page_init();
+    tb_htable_init();
+
     tcg_init(MIN_CODE_GEN_BUFFER_SIZE, 0, 1);
     cpu_gen_init(&tcg_init_ctx);
 
@@ -96,6 +107,7 @@ void tcg_exec_cpu_init(CPUState *cpu) {
         assert(tcg_ops->cpu_exec_interrupt);
         assert(tcg_ops->cpu_exec_reset);
         assert(tcg_ops->pointer_wrap);
+        assert(tcg_ops->translate_code);
         assert(tcg_ops->get_tb_cpu_state);
         assert(tcg_ops->mmu_index);
         tcg_ops->initialize();

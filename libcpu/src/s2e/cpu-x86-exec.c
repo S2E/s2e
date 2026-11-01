@@ -26,9 +26,14 @@
 #include "cpu.h"
 #include "exec-all.h"
 
+#include <cpu/accel/cpu-loop.h>
+
 int cpu_x86_exec(CPUX86State *env) {
     CPUState *cpu = env_cpu(env);
     int ret;
+
+    libcpu_log_mask(CPU_LOG_EXEC, "cpu_loop enter mflags=%#lx hf1=%#x hf2=%#x\n", (uint64_t) env->mflags, env->hflags,
+                    env->hflags2);
 
     for (;;) {
         // cpu_exec() delivers any exception_index that is not negative. The
@@ -50,5 +55,7 @@ int cpu_x86_exec(CPUX86State *env) {
     // during the first cpu_exec() call, since the guest keeps running after the
     // halt retry above.
     cpu->exit_request = 0;
+
+    libcpu_log_mask(CPU_LOG_EXEC, "cpu_loop exit ret=%#x eip=%#lx\n", ret, (uint64_t) env->eip);
     return ret;
 }

@@ -269,6 +269,11 @@ typedef struct CPUState {
     bool ignore_memory_transaction_failures;
 
     int cpu_index;
+    /* Upstream fields that libcpu never sets: cpu_exec_step_atomic() and the icount
+       path of the CPU loop read them, and neither runs in libcpu. */
+    bool running;
+    int64_t icount_budget;
+    int64_t icount_extra;
 
     /* Longjmp target of the CPU loop. See the note on state switches above. */
     sigjmp_buf jmp_env;
@@ -295,9 +300,8 @@ typedef struct CPUState {
        function still names the original TB (S2E). */
     struct TranslationBlock *se_current_tb;
 
-    /* Softmmu support: the return address into generated code of the memory
-       access being handled, so that the MMIO and TB invalidation code can
-       restore the CPU state without more arguments. */
+    /* The return address into generated code of the MMIO access being handled.
+       io_prepare() stores it and nothing reads it. */
     uintptr_t mem_io_pc;
 
     /* Set when the LLVM interpreter must exit the current TB, e.g., after

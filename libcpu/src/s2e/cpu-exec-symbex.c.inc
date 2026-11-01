@@ -15,8 +15,56 @@
 /// License along with this library; if not, see <http://www.gnu.org/licenses/>.
 
 /// @file
-/// The S2E parts of the CPU loop in cpu-exec.c, which includes this file at its
-/// end.
+/// The S2E parts of the CPU loop in accel/cpu-exec.c, which includes this file at
+/// its end.
+
+#ifdef CONFIG_SYMBEX
+static bool s_tb_flush_requested;
+
+/// Requests a flush of all TBs before the next TB lookup. Unlike tb_flush(), this
+/// can be called while a TB runs.
+void se_tb_safe_flush(void) {
+    s_tb_flush_requested = true;
+}
+#endif
+
+static void se_tb_flush_if_requested(CPUState *cpu) {
+#ifdef CONFIG_SYMBEX
+    if (unlikely(s_tb_flush_requested)) {
+        s_tb_flush_requested = false;
+        tb_flush(cpu);
+    }
+#endif
+}
+
+/// Flushes all TBs. This must not be called while a TB runs, because the flush makes
+/// the code buffer of that TB available for new translations.
+void tb_flush(CPUState *cpu) {
+    tb_flush__exclusive_or_serial();
+}
+
+/// @return true when KLEE needs an LLVM function that this TB does not have.
+static bool se_tb_lacks_llvm_function(CPUState *cpu, const TranslationBlock *tb) {
+#if defined(CONFIG_SYMBEX_MP)
+    return cpu->generate_llvm && !tb->llvm_function;
+#else
+    return false;
+#endif
+}
+
+/// The interrupt window is closed during an interrupt shadow and opens after the
+/// next instruction.
+///
+/// @return true once, when the window that the KVM client asked for has opened.
+static bool se_interrupt_window_opened(CPUState *cpu) {
+    CPUArchState *env = cpu_env(cpu);
+
+    if (env->kvm_request_interrupt_window && (env->mflags & IF_MASK) && !(env->hflags & HF_INHIBIT_IRQ_MASK)) {
+        env->kvm_request_interrupt_window = 0;
+        return true;
+    }
+    return false;
+}
 
 static void dump_regs(CPUX86State *env, int isStart) {
 #if defined(CONFIG_SYMBEX)
@@ -46,12 +94,16 @@ static void dump_regs(CPUX86State *env, int isStart) {
 /// Runs a TB natively or in KLEE.
 ///
 /// @return the value of tcg_qemu_tb_exec() for a TB that ran natively, and 0 for
-/// a TB that KLEE ran or declined. A declined TB did not run, and the next lookup
-/// generates it again with an LLVM function. It gets the cflags of the declined TB,
-/// so that a request for a one-instruction TB survives the regeneration.
+/// a TB that KLEE ran or declined. A declined TB did not run. The next lookup uses
+/// its cflags, because the loop has already consumed cflags_next_tb, so that a request
+/// for a one-instruction TB survives the regeneration of the TB with an LLVM function.
 static uintptr_t se_tb_exec(CPUState *cpu, TranslationBlock *tb) {
     CPUArchState *env = cpu_env(cpu);
     uintptr_t last_tb;
+
+    libcpu_log_mask(CPU_LOG_EXEC, "se_tb_exec cs:eip=%#lx:%#lx e=%#lx fl=%lx riw=%d\n",
+                    (uint64_t) env->segs[R_CS].selector, (uint64_t) env->eip, (uint64_t) env->eip + tb->size,
+                    (uint64_t) env->mflags, env->kvm_request_interrupt_window);
 
     if (libcpu_log_enabled() && libcpu_loglevel_mask(CPU_LOG_EXEC)) {
         dump_regs(env, 1);

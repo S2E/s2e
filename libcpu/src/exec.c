@@ -35,7 +35,6 @@
 #include <cpu/se_libcpu_config.h>
 #endif
 #include "exec-ram.h"
-#include "exec-tb.h"
 #include "exec.h"
 
 // #define DEBUG_TB_INVALIDATE
@@ -54,6 +53,10 @@
 #undef DEBUG_TB_CHECK
 
 CPUState *first_cpu;
+
+/* S2E: upstream's variable is thread-local. libcpu has one vCPU, and only the CPU
+   loop reads this one. */
+CPUState *current_cpu;
 
 #ifdef CONFIG_SYMBEX
 struct se_libcpu_interface_t g_sqi;

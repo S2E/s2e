@@ -15,13 +15,13 @@
 /// License along with this library; if not, see <http://www.gnu.org/licenses/>.
 
 /// @file
-/// Everything that src/accel/cputlb.c needs from the rest of QEMU and that
+/// Everything that the files in src/accel/ need from the rest of QEMU and that
 /// libcpu does not have yet.
 ///
-/// cputlb.c is upstream's softmmu. It expects QEMU's memory API, its physical
-/// memory dirty tracking, its multi-CPU work queues, its plugin interface and
-/// its trace points. This header provides each of them in the smallest form
-/// that keeps the imported file close to upstream's text:
+/// These files are upstream's softmmu and execution layer. They expect QEMU's
+/// memory API, its physical memory dirty tracking, its multi-CPU work queues, its
+/// plugin interface and its trace points. This header provides each of them in the
+/// smallest form that keeps the imported files close to upstream's text:
 ///
 ///  - The memory API is a set of inline functions over MemoryDesc
 ///    (cpu/memory.h). A region is either RAM, backed by a MemoryDesc, or MMIO,
@@ -30,10 +30,11 @@
 ///  - libcpu has one vCPU, so work that upstream queues on another CPU runs
 ///    in place. The bitcode build does not take the TLB lock.
 ///  - Plugins, tracing, icount and record/replay do not exist. Their entry
-///    points compile to nothing.
+///    points compile to nothing, or return the value that keeps upstream's code on
+///    its normal path.
 ///
-/// Only cputlb.c includes this header. Each section disappears when the
-/// upstream code it stands in for is imported.
+/// Only the files in src/accel/ and target-i386/tcg-cpu.c include this header. Each
+/// section disappears when the upstream code it stands in for is imported.
 
 #ifndef S2E_ACCEL_DEPS_H
 #define S2E_ACCEL_DEPS_H
@@ -60,6 +61,7 @@
 // clang-format on
 
 #include <cpu/accel/cpu-ldst-common.h>
+#include <cpu/accel/cpu-loop.h>
 #include <cpu/accel/cpu-mmu-index.h>
 #include <cpu/accel/cpu-ops.h>
 #include <cpu/accel/probe.h>
@@ -73,7 +75,11 @@
 #include "cpu-all.h"
 #include "exec-all.h"
 #include "exec-ram.h"
-#include "exec-tb.h"
+#include "exec.h"
+#include "qemu-common.h"
+
+#include <cpu/disas.h>
+#include <cpu/exec/tb-flush.h>
 
 #include "accel/tb-hash.h"
 
@@ -87,8 +93,25 @@
  * Logging and tracing.
  */
 
-#define CPU_LOG_MMU                                 0
+#define CPU_LOG_MMU 0
+/* S2E: upstream's values of these masks are other flags in libcpu (tcg/utils/log.h).
+   qemu_loglevel_mask() is 0, so they have no effect. */
+#define CPU_LOG_TB_NOCHAIN                          0
+#define CPU_LOG_TB_FPU                              0
+#define CPU_LOG_TB_VPU                              0
+#define CPU_DUMP_CCOP                               X86_DUMP_CCOP
+#define CPU_DUMP_FPU                                X86_DUMP_FPU
+#define CPU_DUMP_VPU                                0
 #define qemu_log_mask(mask, ...)                    libcpu_log_mask(mask, __VA_ARGS__)
+#define qemu_log(...)                               libcpu_log(__VA_ARGS__)
+#define qemu_printf(...)                            printf(__VA_ARGS__)
+#define disas(file, code, size)                     host_disas(file, code, size)
+#define lookup_symbol(addr)                         ""
+#define trace_exec_tb(tb, pc)                       ((void) 0)
+#define trace_exec_tb_exit(tb, tb_exit)             ((void) 0)
+#define trace_tb_flush()                            ((void) 0)
+#define trace_tb_gen_code_buffer_overflow(name)     ((void) 0)
+#define trace_translate_block(tb, pc, ptr)          ((void) 0)
 #define error_report(fmt, ...)                      fprintf(stderr, fmt "\n", ##__VA_ARGS__)
 #define trace_memory_notdirty_write_access(a, b, c) ((void) 0)
 #define trace_memory_notdirty_set_dirty(a)          ((void) 0)
@@ -133,11 +156,63 @@ static inline void async_safe_run_on_cpu(CPUState *cpu, run_on_cpu_func func, ru
     func(cpu, data);
 }
 
-/* Upstream asks whether other vCPUs may run concurrently, to decide how much
-   atomicity a load or store needs. */
-static inline bool cpu_in_serial_context(CPUState *cpu) {
-    return true;
+/* Types that only appear in prototypes of internal-common.h. */
+typedef struct Error Error;
+typedef struct AccelState AccelState;
+
+/* There are no other vCPUs to exclude, so a CPU never enters an exclusive section
+   and never needs one: libcpu does not set CF_PARALLEL. */
+static inline bool cpu_in_exclusive_context(const CPUState *cpu) {
+    return false;
 }
+
+#define start_exclusive() g_assert_not_reached()
+#define end_exclusive()   g_assert_not_reached()
+
+/* Only upstream's user-mode emulation has this lock. */
+#define mmap_lock()   ((void) 0)
+#define mmap_unlock() ((void) 0)
+
+#define bql_lock()   ((void) 0)
+#define bql_unlock() ((void) 0)
+#define bql_locked() false
+
+/* False keeps the assertion at the top of tb_flush__exclusive_or_serial(), which
+   otherwise needs current_cpu. libcpu flushes from the vCPU thread. */
+#define runstate_is_running() false
+
+static inline bool cpu_test_interrupt(CPUState *cpu, int mask) {
+    return qatomic_load_acquire(&cpu->interrupt_request) & mask;
+}
+
+static inline bool cpu_single_stepping(const CPUState *cpu) {
+    return cpu->singlestep_flags & SSTEP_ENABLE;
+}
+
+/* Returns true when the next TB exits before running (see IcountDecr). */
+static inline bool cpu_loop_exit_requested(CPUState *cpu) {
+    return (int32_t) qatomic_read(&cpu->neg.icount_decr.u32) < 0;
+}
+
+/*
+ * Record and replay. replay_exception() returns true, because
+ * cpu_handle_exception() delivers an exception only in that case.
+ */
+#define REPLAY_MODE_PLAY       1
+#define replay_mode            0
+#define replay_has_exception() false
+#define replay_exception()     true
+#define replay_has_interrupt() false
+#define replay_interrupt()     ((void) 0)
+#define replay_running_debug() false
+#define replay_breakpoint()    ((void) 0)
+
+/* IOMMU notifiers, which only tcg_exec_realizefn() would set up. */
+#define tcg_iommu_init_notifier_list(cpu) ((void) 0)
+#define tcg_iommu_free_notifier_list(cpu) ((void) 0)
+
+#include "accel/internal-common.h"
+#include "accel/tb-internal.h"
 
 /* x86 guests on x86 hosts need no memory barrier (upstream: backend-ldst.h). */
 #define cpu_req_mo(cpu, type) ((void) 0)
@@ -152,11 +227,6 @@ static inline bool cpu_in_serial_context(CPUState *cpu) {
 /* Guards the page table of user-mode emulation. */
 #define WITH_MMAP_LOCK_GUARD()
 
-/* Upstream leaves the CPU loop to redo an access with all other vCPUs
-   stopped when it cannot give the required atomicity. There are no other
-   vCPUs, so the access never needs it. */
-#define cpu_loop_exit_atomic(cpu, ra) abort()
-
 #define trace_load_atom16_or_exit_fallback(ra) ((void) 0)
 #define trace_store_atom2_fallback(p, ra)      ((void) 0)
 #define trace_store_atom4_fallback(p, ra)      ((void) 0)
@@ -165,10 +235,12 @@ static inline bool cpu_in_serial_context(CPUState *cpu) {
 
 /*
  * icount. libcpu never restricts I/O to the last instruction of a TB, so
- * neg.can_do_io is always true and this function is never reached.
+ * neg.can_do_io is always true and cpu_io_recompile() is never called.
  */
-#undef cpu_io_recompile
-#define cpu_io_recompile(cpu, ra) abort()
+#define icount_enabled()     false
+#define icount_update(cpu)   ((void) 0)
+#define icount_to_ns(icount) 0
+#define qemu_clock_get_ns(c) 0
 
 /*
  * Plugins.
@@ -180,39 +252,15 @@ enum qemu_plugin_mem_rw {
     QEMU_PLUGIN_MEM_RW,
 };
 
-static inline bool cpu_plugin_mem_cbs_enabled(const CPUState *cpu) {
-    return false;
-}
+#define qemu_plugin_disable_mem_helpers(cpu) ((void) 0)
+#define qemu_plugin_flush_cb()               ((void) 0)
 
 static inline void qemu_plugin_vcpu_mem_cb(CPUState *cpu, uint64_t vaddr, uint64_t value_low, uint64_t value_high,
                                            MemOpIdx oi, enum qemu_plugin_mem_rw rw) {
 }
 
 /*
- * TB invalidation.
- */
-
-/*
- * Invalidates the TBs that a store of size bytes at ram_addr overwrites.
- *
- * The QEMU 1.0 function finds the TB that is doing the store through
- * mem_io_pc, to stop it if it overwrites its own code. It tests the store
- * against one byte of the bitmap of code bytes, which covers 8 bytes of the
- * page, so the store is split where it crosses a multiple of 8. The old
- * softmmu only called it for aligned accesses; upstream's does not align.
- */
-static inline void tb_invalidate_phys_range_fast(CPUState *cpu, ram_addr_t ram_addr, unsigned size, uintptr_t retaddr) {
-    cpu->mem_io_pc = retaddr;
-    while (size) {
-        unsigned len = MIN(size, 8 - (unsigned) (ram_addr & 7));
-        tb_invalidate_phys_page_fast(cpu, ram_addr, len);
-        ram_addr += len;
-        size -= len;
-    }
-}
-
-/*
- * Watchpoints. Defined in exec-bp.c over the QEMU 1.0 watchpoint list.
+ * Watchpoints. Upstream declares these in hw/core/cpu.h.
  */
 
 int cpu_watchpoint_address_matches(CPUState *cpu, vaddr addr, vaddr len);

@@ -24,35 +24,6 @@
 #include <cpu/memory.h>
 #include "target-i386/cpu.h"
 
-/* In system mode we want L1_MAP to be based on ram offsets,
-   while in user mode we want it to be based on virtual addresses.  */
-#if HOST_LONG_BITS < TARGET_PHYS_ADDR_SPACE_BITS
-#define L1_MAP_ADDR_SPACE_BITS HOST_LONG_BITS
-#else
-#define L1_MAP_ADDR_SPACE_BITS TARGET_PHYS_ADDR_SPACE_BITS
-#endif
-
-/* Size of the L2 (and L3, etc) page tables.  */
-#define L2_BITS 10
-#define L2_SIZE (1 << L2_BITS)
-
-#define P_L2_LEVELS (((TARGET_PHYS_ADDR_SPACE_BITS - TARGET_PAGE_BITS - 1) / L2_BITS) + 1)
-
-/* The bits remaining after N lower levels of page tables.  */
-#define V_L1_BITS_REM ((L1_MAP_ADDR_SPACE_BITS - TARGET_PAGE_BITS) % L2_BITS)
-
-#if V_L1_BITS_REM < 4
-#define V_L1_BITS (V_L1_BITS_REM + L2_BITS)
-#else
-#define V_L1_BITS V_L1_BITS_REM
-#endif
-
-#define V_L1_SIZE ((target_ulong) 1 << V_L1_BITS)
-
-#define V_L1_SHIFT (L1_MAP_ADDR_SPACE_BITS - TARGET_PAGE_BITS - V_L1_BITS)
-
-#define SMC_BITMAP_USE_THRESHOLD 10
-
 void tlb_protect_code(ram_addr_t ram_addr);
 void tlb_unprotect_code(ram_addr_t ram_addr);
 

@@ -41,8 +41,6 @@ extern "C" {
    smaller than 4 bytes, so we don't worry about special-casing this.  */
 #define GETPC_ADJ 2
 
-#include "precise-pc.h"
-
 void cpu_exit(CPUState *cpu);
 void cpu_exec_init_all(void);
 void tcg_exec_init(unsigned long tb_size);
@@ -72,6 +70,7 @@ target_phys_addr_t cpu_get_phys_page_debug(CPUArchState *env, target_ulong addr)
 
 void LIBCPU_NORETURN cpu_abort(CPUState *cpu, const char *fmt, ...) GCC_FMT_ATTR(2, 3);
 extern CPUState *first_cpu;
+extern CPUState *current_cpu;
 
 void cpu_interrupt(CPUState *cpu, int mask);
 void cpu_reset_interrupt(CPUState *cpu, int mask);
@@ -79,6 +78,7 @@ void cpu_reset_interrupt(CPUState *cpu, int mask);
 void LIBCPU_NORETURN cpu_loop_exit_noexc(CPUState *cpu);
 void LIBCPU_NORETURN cpu_loop_exit(CPUState *cpu);
 void LIBCPU_NORETURN cpu_loop_exit_restore(CPUState *cpu, uintptr_t ra);
+void LIBCPU_NORETURN cpu_loop_exit_atomic(CPUState *cpu, uintptr_t ra);
 
 #define VGA_DIRTY_FLAG  0x01
 #define CODE_DIRTY_FLAG 0x02

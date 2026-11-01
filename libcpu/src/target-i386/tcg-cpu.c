@@ -24,16 +24,46 @@
 /// is not registered as a KLEE object, so the softmmu hooks that the bitcode
 /// also needs stay in op_helper.c.
 
-#include <cpu/config.h>
-#include <cpu/types.h>
-#include <tcg/utils/log.h>
-#include "cpu.h"
+#include "s2e/accel-deps.h"
 
-#include <cpu/accel/cpu-ops.h>
+#include "accel/tb-internal.h"
 
-#ifdef CONFIG_SYMBEX
-#include <cpu/se_libcpu.h>
-#endif
+/*
+ * Translates a TB with the QEMU 1.0 frontend, which reads guest code without going
+ * through translator_ld(). This function then does what translator_ld() does when
+ * a TB reaches a second page: it records the page and locks it, so that a store to
+ * the page invalidates the TB. A TB that ends outside RAM must not be cached, because
+ * nothing would invalidate it when that memory changes.
+ */
+static void x86_cpu_translate_code(CPUState *cs, TranslationBlock *tb, int *max_insns, vaddr pc, void *host_pc) {
+    CPUX86State *env = cpu_env(cs);
+    vaddr page1;
+    tb_page_addr_t page0, old_page1, new_page1;
+
+    gen_intermediate_code(env, tb, *max_insns);
+
+    page1 = (pc + tb->size - 1) & TARGET_PAGE_MASK;
+    page0 = tb_page_addr0(tb);
+    if (page0 == -1 || page1 == (pc & TARGET_PAGE_MASK)) {
+        return;
+    }
+
+    new_page1 = get_page_addr_code(env, page1);
+    if (unlikely(new_page1 == -1)) {
+        tb_unlock_pages(tb);
+        tb_set_page_addr0(tb, -1);
+        return;
+    }
+
+    old_page1 = tb_page_addr1(tb);
+    if (likely(new_page1 != old_page1)) {
+        if (unlikely(old_page1 != -1)) {
+            tb_unlock_page1(page0, old_page1);
+        }
+        tb_set_page_addr1(tb, new_page1);
+        tb_lock_page1(page0, new_page1);
+    }
+}
 
 static TCGTBCPUState x86_get_tb_cpu_state(CPUState *cs) {
     CPUX86State *env = cpu_env(cs);
@@ -183,6 +213,7 @@ static const TCGCPUOps s_x86_tcg_ops = {
        left for a separate change. */
     .guest_default_memory_order = TCG_MO_ALL,
     .initialize = optimize_flags_init,
+    .translate_code = x86_cpu_translate_code,
     .get_tb_cpu_state = x86_get_tb_cpu_state,
     .synchronize_from_tb = x86_cpu_synchronize_from_tb,
     .restore_state_to_opc = x86_restore_state_to_opc,

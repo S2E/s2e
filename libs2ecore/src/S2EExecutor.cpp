@@ -319,6 +319,7 @@ S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMTranslator *translator)
     __DEFINE_EXT_FUNCTION(cpu_abort)
     __DEFINE_EXT_FUNCTION(cpu_loop_exit)
     __DEFINE_EXT_FUNCTION(cpu_loop_exit_restore)
+    __DEFINE_EXT_FUNCTION(cpu_loop_exit_atomic)
     __DEFINE_EXT_FUNCTION(cpu_get_tsc)
     __DEFINE_EXT_FUNCTION(cpu_exit)
 
