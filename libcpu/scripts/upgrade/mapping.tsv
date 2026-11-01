@@ -26,3 +26,5 @@ src/accel/atomic_template.h	accel/tcg/atomic_template.h
 # --- execution layer -----------------------------------------------------
 include/cpu/exec/breakpoint.h	include/exec/breakpoint.h
 include/cpu/accel/tb-cpu-state.h	include/accel/tcg/tb-cpu-state.h
+src/accel/tb-jmp-cache.h	accel/tcg/tb-jmp-cache.h
+src/accel/tb-hash.h	accel/tcg/tb-hash.h
