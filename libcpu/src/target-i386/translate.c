@@ -2353,8 +2353,8 @@ static inline void gen_goto_tb(DisasContext *s, int tb_num, target_ulong eip) {
     tb = s->tb;
 
     /* NOTE: we handle the case where the TB spans two pages here */
-    if ((pc & TARGET_PAGE_MASK) == (tb->pc & TARGET_PAGE_MASK) ||
-        (pc & TARGET_PAGE_MASK) == ((s->pc - 1) & TARGET_PAGE_MASK)) {
+    if (!(tb->cflags & CF_NO_GOTO_TB) && ((pc & TARGET_PAGE_MASK) == (tb->pc & TARGET_PAGE_MASK) ||
+                                          (pc & TARGET_PAGE_MASK) == ((s->pc - 1) & TARGET_PAGE_MASK))) {
 /* jump to same page: we can use a direct jump */
 #ifdef CONFIG_SYMBEX
         gen_jmp_im(s, eip);
@@ -7782,11 +7782,12 @@ static inline void gen_intermediate_code_internal(CPUX86State *env, TranslationB
     dc->code64 = (flags >> HF_CS64_SHIFT) & 1;
 #endif
     dc->flags = flags;
-    dc->jmp_opt = !(dc->tf || env_cpu(env)->singlestep_enabled || (flags & HF_INHIBIT_IRQ_MASK)
+    dc->jmp_opt =
+        !(dc->tf || env_cpu(env)->singlestep_enabled || (flags & HF_INHIBIT_IRQ_MASK) || (tb->cflags & CF_NO_GOTO_TB)
 #ifndef CONFIG_SOFTMMU
-                    || (flags & HF_SOFTMMU_MASK)
+          || (flags & HF_SOFTMMU_MASK)
 #endif
-    );
+        );
 
     cpu_T[0] = tcg_temp_new();
     cpu_T[1] = tcg_temp_new();

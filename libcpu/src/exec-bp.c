@@ -210,12 +210,29 @@ int cpu_watchpoint_address_matches(CPUState *cpu, vaddr addr, vaddr len) {
     return ret;
 }
 
+/* Restores the CPU state of the access and invalidates the TB that made it, as
+   upstream's tb_check_watchpoint() does. A store that KLEE runs has no return
+   address into generated code. The LLVM code stores the PC of each instruction
+   in the CPU state, so the TB is found through that PC. */
+static void tb_check_watchpoint(CPUState *cpu, uintptr_t ra) {
+    TranslationBlock *tb = tcg_tb_lookup(ra);
+
+    if (tb) {
+        cpu_restore_state(cpu, ra);
+        tb_phys_invalidate(tb, -1);
+    } else {
+        TCGTBCPUState s = cpu->cc->tcg_ops->get_tb_cpu_state(cpu);
+        tb_page_addr_t addr = get_page_addr_code(cpu_env(cpu), s.pc);
+
+        tb_invalidate_phys_range(NULL, addr, addr);
+    }
+}
+
 /* Generates a debug exception if the access hits a watchpoint. The softmmu
    calls it for accesses to pages that carry TLB_WATCHPOINT. ra is the return
    address of the access into generated code. */
 void cpu_check_watchpoint(CPUState *cpu, vaddr addr, vaddr len, MemTxAttrs attrs, int flags, uintptr_t ra) {
     CPUArchState *env = cpu_env(cpu);
-    TranslationBlock *tb;
     CPUWatchpoint *wp;
 
     if (cpu->watchpoint_hit) {
@@ -235,21 +252,16 @@ void cpu_check_watchpoint(CPUState *cpu, vaddr addr, vaddr len, MemTxAttrs attrs
             wp->hitattrs = attrs;
             if (!cpu->watchpoint_hit) {
                 cpu->watchpoint_hit = wp;
-                tb = tcg_tb_lookup(ra);
-                if (!tb) {
-                    cpu_abort(cpu,
-                              "check_watchpoint: could not find TB for "
-                              "pc=%p",
-                              (void *) ra);
-                }
-                cpu_restore_state(cpu, ra);
-                tb_phys_invalidate(tb, -1);
+                tb_check_watchpoint(cpu, ra);
                 if (wp->flags & BP_STOP_BEFORE_ACCESS) {
                     cpu->exception_index = EXCP_DEBUG;
                     cpu_loop_exit(cpu);
                 } else {
+                    /* The TB must return to the loop after one instruction, because
+                       the debug interrupt that the second check raises does not
+                       stop a chain of TBs. */
                     TCGTBCPUState s = cpu->cc->tcg_ops->get_tb_cpu_state(cpu);
-                    tb_gen_code(env, s.pc, s.cs_base, s.flags, 1);
+                    tb_gen_code(env, s.pc, s.cs_base, s.flags, 1 | CF_NO_GOTO_TB);
                     cpu_loop_exit_noexc(cpu);
                 }
             }
