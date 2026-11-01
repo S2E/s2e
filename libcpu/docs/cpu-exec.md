@@ -27,8 +27,8 @@ import.
 
 Measured against `~/softs/qemu` at `v11.1.0` and this tree at `40509541`.
 
-**Status: plan.** Steps 1 and 2 are done. Nothing else in this document has
-landed.
+**Status: plan.** Steps 1 and 2 are done. Step 2b is in progress. Nothing else in
+this document has landed.
 
 The plan therefore does not try to be complete: section 10 says how each
 step checks what the plan may have missed, and how the plan is updated when the
@@ -966,6 +966,61 @@ first.
 
 **Exit:** each commit builds on all six targets and passes the testsuite.
 
+### Step 2b: Groundwork that shrinks the switch (3-4 days)
+
+The review of step 2 found work that step 3 would otherwise do in one large
+change and that does not need the new files. Each item is its own commit, in
+this order. The tests come first so that they run on the old layer, which
+separates existing bugs from regressions of the switch.
+
+1. **The tests of the step 3 exit.** All of them are Linux guests, 32-bit and
+   64-bit, and do not need a Windows image.
+   - `basic13-smc`: a TB that overwrites its next instruction, a TB that
+     overwrites an instruction on its second page, a store from outside the TB
+     into the second page, an instruction that overwrites itself, and in 64-bit
+     mode a chain of instructions that decode each other. Each case runs
+     natively and in KLEE.
+   - `basic14-hw-watchpoint`: a data breakpoint set through `ptrace()`, hit
+     natively and in KLEE. This is the only test that reaches
+     `cpu_check_watchpoint()` and its one-instruction TB.
+   - `basic15-no-tb-flush`: a run that forks with
+     `flush-tbs-on-state-switch` set to false.
+   - `basic16-plugin-tb-flush`: `TBCoverageTracer` calls `se_tb_safe_flush()`
+     from an instruction handler.
+2. **Instruction count and `CF_NO_GOTO_TB`.** `cpu_gen_code()` takes the
+   instruction count from `tb->cflags`. It used to overwrite the count with
+   `TCG_MAX_INSNS`, so the one-instruction TB of `cpu_check_watchpoint()` was
+   a full TB. `gen_goto_tb()` and `jmp_opt` test `CF_NO_GOTO_TB` (2.4), which
+   no TB sets by accident since step 2 item 8. The watchpoint path sets it, so
+   that the TB cannot chain past the check for `CPU_INTERRUPT_DEBUG`. The
+   `tcg_debug_assert()` in `tcg_gen_goto_tb()` is not compiled in release or
+   debug builds, so nothing else would catch a missing test.
+   The old `cpu_check_watchpoint()` also aborted for a store in KLEE, which has
+   no return address. It now finds the TB through the saved PC, as upstream's
+   `tb_check_watchpoint()` does. `basic14-hw-watchpoint` found both bugs.
+3. **`CPUState` and initialization.** Add `tcg_cflags`, `cflags_next_tb` and
+   `singlestep_flags`, make `jmp_env` a `sigjmp_buf`, make `first_cpu` a
+   `CPUState *` with a `CPU_FOREACH` that visits it, and add
+   `CPUClass.get_pc` and `set_pc` (2.2). Create `src/s2e/tcg-init.c` with
+   `tcg_exec_init()`, `tcg_exec_cpu_init()` and the `TCGContext` fields that
+   are set once (2.1).
+4. **`CPUJumpCache`.** Import `tb-jmp-cache.h` and `tb-hash.h`, in two commits
+   as 2.1 requires. The jump cache moves to the heap, `cputlb.c` gets upstream's
+   `tb_jmp_cache_clear_page()` back, and `tcg_flush_jmp_cache()` moves to
+   `translate-all.c`, where upstream has it.
+5. **`se_tb_exec()`.** Move the TB dispatch and `dump_regs()` of the old loop to
+   `src/s2e/cpu-exec-symbex.c.inc` (D1). `g_sqi.exec.tb_exec()` returns
+   `SE_TB_EXEC_DECLINED` when it needs an LLVM function, and `se_tb_exec()` sets
+   `cflags_next_tb` back to `tb->cflags` in that case. The old lookup consumes
+   the request when it generates a TB.
+6. **`accel-deps.h`.** Rename `cputlb-deps.h`. The no-op `qemu_spin_*` macros
+   stay only in the bitcode build. Native code uses the real functions of
+   `utils/thread.h`, so `tb_lock_page1()` needs no `qemu_spin_trylock()` stub.
+   `precise-pc.c` decodes the search data into `uint64_t`, as upstream does.
+
+**Exit:** the same as step 2. The stall described in 10.3 must be understood
+first, because it would look like a regression of these items.
+
 ### Step 3: The switch (5-8 days)
 
 Import the files of 2.1 except `translator.c`, `translator.h` and
@@ -1160,8 +1215,11 @@ These are known and left for implementation:
   `abort()` in the bitcode build (hazard 5.3).
 - Whether `internal-common.h` compiles in the bitcode build of `cputlb.c`
   (2.1).
-- What `se_current_tb` holds in a state resumed by `finalize_tb_exec()`
-  (D8).
+- Why some symbolic Windows runs slow down until they time out. One state
+  spends its time in KLEE's expression simplifier (`Expr::compare()` under
+  `BitfieldSimplifier`). `basic7-instmon` did this once before step 2, on
+  2026-10-17, and six tests did it in the first full run after step 2, on
+  2026-11-01. Whether step 2 made it more frequent is *(unverified)*.
 - Whether a guest can reach the third-page assertion of hazard 5.13.
 - When to adopt upstream's memory order value (hazard 5.12).
 
@@ -1185,3 +1243,6 @@ These are known and left for implementation:
   new header needs, and defines `ram_addr_t` in `tcg/tb-s2e.h`. `jmp_lock`
   moves to `QemuSpin` in its own commit, which also deletes `tb_lock`, unused,
   and `utils/spinlock.h`, whose last user was `jmp_lock`.
+- 2026-11-01: added step 2b, from the review of step 2. Section 2.4 said that
+  debug builds abort when a breakpoint page holds a direct jump, but the
+  assertion is not compiled in any build.
