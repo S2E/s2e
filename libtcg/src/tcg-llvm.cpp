@@ -1351,7 +1351,7 @@ Function *TCGLLVMTranslator::generateCode(TCGContext *s, TranslationBlock *tb) {
                     generateQemuCpuStore(args, m_tcgContext->env_sizeof_ccop * 8, valueToStore);
                 }
 
-                // Check env->se_tb_abort: set by tb_phys_invalidate() when self-modifying
+                // Check env->se_tb_abort: set by tb_invalidate_phys_page_range__locked() when self-modifying
                 // code invalidates the currently running TB. The eip has already been stored
                 // above, so returning here lets the CPU loop re-fetch at the correct PC.
                 auto *abortPtr = generateCpuStatePtr(m_tcgContext->env_offset_se_tb_abort, sizeof(uint32_t));

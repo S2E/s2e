@@ -157,9 +157,6 @@ struct TranslationBlock {
     uintptr_t jmp_list_next[2];
     uintptr_t jmp_dest[2];
 
-    /* S2E: the old execution layer chains TBs that share a hash through this field. */
-    struct TranslationBlock *phys_hash_next;
-
 #ifdef CONFIG_SYMBEX
     /* S2E: pointer to LLVM translated code */
     void *llvm_function;

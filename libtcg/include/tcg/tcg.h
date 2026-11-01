@@ -1056,7 +1056,6 @@ static inline const TCGOpcode *tcg_swap_vecop_list(const TCGOpcode *n) {
 #endif
 }
 
-void tcg_target_force_tb_exit(uintptr_t gen_code, uintptr_t max_addr);
 bool tcg_can_emit_vecop_list(const TCGOpcode *, TCGType, unsigned);
 void tcg_dump_ops(TCGContext *s, FILE *f, bool have_prefs);
 /* tcg_dump_stats: Append TCG statistics to @buf */
