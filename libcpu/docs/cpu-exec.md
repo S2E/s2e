@@ -88,7 +88,7 @@ each item goes.
 |---|---|---|
 | S1 | Leave the CPU loop with `EXCP_SE` when the current state is not runnable, without normalizing EFLAGS (S11) | `cpu_exec()` entry and its longjmp branch, `g_sqi.exec.is_runnable()`. On entry, a yielded state also gets `g_sqi.exec.reset_state_switch_timer()`. |
 | S2 | Finish the interpretation of a TB that a state switch interrupted, and clean up the KLEE stack after a longjmp | `g_sqi.exec.finalize_tb_exec()` after each `setjmp()`, followed by `g_sqi.exec.cleanup_tb_exec()` when it returns true; `g_sqi.exec.cleanup_tb_exec()` after each longjmp |
-| S3 | Run a TB natively or in KLEE | `fetch_and_run_tb()`: `fast_concrete_invocation` selects `tcg_qemu_tb_exec()` or `g_sqi.exec.tb_exec()`; `se_tb_abort` and `se_current_tb` are set around the call. `g_sqi.exec.tb_exec()` runs the TB in KLEE and returns 0, runs it natively and returns what `tcg_qemu_tb_exec()` returned, or returns 0 without running it when it needs an LLVM function (S4). |
+| S3 | Run a TB natively or in KLEE | `fetch_and_run_tb()`: `fast_concrete_invocation` selects `tcg_qemu_tb_exec()` or `g_sqi.exec.tb_exec()`; `se_tb_abort` and `se_current_tb` are set around the call. `g_sqi.exec.tb_exec()` runs the TB in KLEE and returns 0, runs it natively and returns what `tcg_qemu_tb_exec()` returned, or returns `SE_TB_EXEC_DECLINED` without running it when it needs an LLVM function (S4). |
 | S4 | Generate an LLVM function when KLEE needs one | `generate_llvm` in `CPUState`; the lookup rejects a TB without `llvm_function`; `cpu_gen_code()` calls `tcg_llvm_gen_code()` and `g_sqi.tb.set_tb_function()` |
 | S5 | Attach an `S2ETranslationBlock` to every TB | `tb_alloc()` calls `g_sqi.tb.tb_alloc()`; `cpu_gen_code()` allocates a new one when it retries a block that was too large; `tb->instrumented` is set after translation |
 | S6 | Tell libs2ecore about a flush | `tb_flush()` calls `g_sqi.tb.flush_tb_cache()` |
@@ -469,8 +469,9 @@ rather than renumbered (section 10).
   through `g_sqi.regs`, which upstream's `log_cpu_exec()` does not. `g_sqi.exec.tb_exec()` has three outcomes (S3), and
   upstream's `cpu_tb_exec()` handles each one as the old loop did. A TB that
   KLEE ran returns 0, so `last_tb` is NULL and the loop does not chain from
-  it. A TB that it declined to run because it needs an LLVM function also
-  returns 0, with `eip` unchanged, and D3 regenerates it at the next lookup. A
+  it. A TB that it declined to run because it needs an LLVM function
+  returns `SE_TB_EXEC_DECLINED`, with `eip` unchanged. `se_tb_exec()` turns that
+  into 0, and D3 regenerates the TB at the next lookup. A
   TB that it ran natively returns the value of `tcg_qemu_tb_exec()`, which the
   loop chains from or passes to `synchronize_from_tb` like any native exit.
   A declined TB needs one more thing. The loop has already consumed
@@ -478,13 +479,10 @@ rather than renumbered (section 10).
   `curr_cflags()` and translate a full TB instead of the one-instruction TB
   that SMC or a watchpoint hit asked for. For a guest data breakpoint in KLEE,
   the debug exception would then arrive at the end of that full TB, because
-  libcpu's `cpu_interrupt()` does not stop a running TB. `se_tb_exec()`
-  therefore sets `cflags_next_tb` back to `tb->cflags` when the TB was
-  declined. `executeTranslationBlock()` declines exactly when it sets
-  `generate_llvm` and the TB has no `llvm_function`, so `se_tb_exec()` can test
-  that after the call. Having `tb_exec()` report the decline explicitly is an
-  alternative to choose during implementation. The old loop has no
-  `cflags_next_tb`, so this case is new.
+  libcpu's `cpu_interrupt()` does not stop a running TB. `g_sqi.exec.tb_exec()`
+  therefore returns `SE_TB_EXEC_DECLINED` for a declined TB, and `se_tb_exec()`
+  sets `cflags_next_tb` back to `tb->cflags` and returns 0. Step 2b item 5 has
+  this code on the old loop already.
 - **D2. Entry and longjmp** (S1, S2). `cpu_exec()` returns `EXCP_SE` after
   `cpu_handle_halt()` when the state is not runnable, the order of the old
   code. Before returning, it calls `reset_state_switch_timer()` if the state
@@ -559,12 +557,12 @@ rather than renumbered (section 10).
   as the old callers with `is_cpu_write_access` 0 did not.
   Limiting the abort to the TB in `se_current_tb` would avoid needless aborts,
   but `se_current_tb` does not reliably name the running TB while
-  `finalize_tb_exec()` finishes a TB of a resumed state. `CPUState` fields
-  before `neg` are snapshotted, so the value comes from that state's snapshot
-  and may name a TB that has been flushed since. A comment in
-  `S2EExecutionStateRegisters.cpp:527` says instead that it is NULL after a
-  state switch. Which of the two is true is *(unverified)*. Either way, the
-  narrower test could miss SMC in the finished TB.
+  `finalize_tb_exec()` finishes a TB of a resumed state. The field is
+  snapshotted, and `se_tb_exec()` clears it only when a TB returns normally. A
+  state that was switched out in the middle of a TB, or after a longjmp out of
+  one, therefore resumes with a pointer to that TB, which may have been flushed
+  since. A state that was switched out after a normal return resumes with NULL.
+  The narrower test could miss SMC in the TB that `finalize_tb_exec()` finishes.
 - **D9. Code fetches in S2E builds**, in `translator_ld()` and the four
   `translator_ld*()` functions. In symbex builds, `translator_ld()` does its
   page bookkeeping (the second page, its lock, the MMIO cap) and then returns

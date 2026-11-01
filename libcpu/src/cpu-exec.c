@@ -66,7 +66,8 @@ void cpu_loop_exit_restore(CPUState *cpu, uintptr_t ra) {
     cpu_loop_exit(cpu);
 }
 
-static TranslationBlock *tb_find_slow(CPUArchState *env, target_ulong pc, target_ulong cs_base, uint64_t flags) {
+static TranslationBlock *tb_find_slow(CPUArchState *env, target_ulong pc, target_ulong cs_base, uint64_t flags,
+                                      uint32_t cflags) {
     TranslationBlock *tb, **ptb1;
     unsigned int h;
     tb_page_addr_t phys_pc, phys_page1;
@@ -97,7 +98,7 @@ static TranslationBlock *tb_find_slow(CPUArchState *env, target_ulong pc, target
     }
 not_found:
     /* if no translated code available, then translate it now */
-    tb = tb_gen_code(env, pc, cs_base, flags, 0);
+    tb = tb_gen_code(env, pc, cs_base, flags, cflags);
 
 found:
     /* Move the last found TB to the head of the list */
@@ -134,6 +135,13 @@ static inline TranslationBlock *tb_find_fast(CPUArchState *env) {
        always be the same before a given translated block
        is executed. */
     TCGTBCPUState s = cpu->cc->tcg_ops->get_tb_cpu_state(cpu);
+
+    /* A request for specific cflags applies to the next TB only. It takes effect
+       when this lookup generates a TB, because cflags are not part of the key of
+       the lookup. */
+    uint32_t cflags = cpu->cflags_next_tb == -1 ? 0 : cpu->cflags_next_tb;
+    cpu->cflags_next_tb = -1;
+
     tb = qatomic_read(&cpu->tb_jmp_cache->array[tb_jmp_cache_hash_func(s.pc)].tb);
 
 #ifdef CONFIG_SYMBEX
@@ -143,7 +151,7 @@ static inline TranslationBlock *tb_find_fast(CPUArchState *env) {
 #endif
 
     if (unlikely(!tb || tb->pc != s.pc || tb->cs_base != s.cs_base || tb->flags != s.flags || llvm_nok)) {
-        tb = tb_find_slow(env, s.pc, s.cs_base, s.flags);
+        tb = tb_find_slow(env, s.pc, s.cs_base, s.flags, cflags);
     }
     return tb;
 }
@@ -166,36 +174,10 @@ static void cpu_handle_debug_exception(CPUState *cpu) {
 
 /* main execution loop */
 
-static void dump_regs(CPUX86State *env, int isStart) {
-#if defined(CONFIG_SYMBEX)
-    target_ulong eax, ebx, ecx, edx, esi, edi, ebp, esp;
-    g_sqi.regs.read_concrete(offsetof(CPUX86State, regs[R_EAX]), (uint8_t *) &eax, sizeof(eax));
-    g_sqi.regs.read_concrete(offsetof(CPUX86State, regs[R_EBX]), (uint8_t *) &ebx, sizeof(ebx));
-    g_sqi.regs.read_concrete(offsetof(CPUX86State, regs[R_ECX]), (uint8_t *) &ecx, sizeof(ecx));
-    g_sqi.regs.read_concrete(offsetof(CPUX86State, regs[R_EDX]), (uint8_t *) &edx, sizeof(edx));
-    g_sqi.regs.read_concrete(offsetof(CPUX86State, regs[R_ESI]), (uint8_t *) &esi, sizeof(esi));
-    g_sqi.regs.read_concrete(offsetof(CPUX86State, regs[R_EDI]), (uint8_t *) &edi, sizeof(edi));
-    g_sqi.regs.read_concrete(offsetof(CPUX86State, regs[R_EBP]), (uint8_t *) &ebp, sizeof(ebp));
-    g_sqi.regs.read_concrete(offsetof(CPUX86State, regs[R_ESP]), (uint8_t *) &esp, sizeof(esp));
-
-    fprintf(logfile, "%c cs:eip=%lx:%lx eax=%lx ebx=%lx ecx=%lx edx=%lx esi=%lx edi=%lx ebp=%lx ss:esp=%lx:%lx\n",
-            isStart ? 's' : 'e', (uint64_t) env->segs[R_CS].selector, (uint64_t) env->eip, (uint64_t) eax,
-            (uint64_t) ebx, (uint64_t) ecx, (uint64_t) edx, (uint64_t) esi, (uint64_t) edi, (uint64_t) ebp,
-            (uint64_t) env->segs[R_SS].selector, (uint64_t) esp);
-#else
-    fprintf(logfile, "%c cs:eip=%lx:%lx eax=%lx ebx=%lx ecx=%lx edx=%lx esi=%lx edi=%lx ebp=%lx ss:esp=%lx:%lx\n",
-            isStart ? 's' : 'e', (uint64_t) env->segs[R_CS].selector, (uint64_t) env->eip, (uint64_t) env->regs[R_EAX],
-            (uint64_t) env->regs[R_EBX], (uint64_t) env->regs[R_ECX], (uint64_t) env->regs[R_EDX],
-            (uint64_t) env->regs[R_ESI], (uint64_t) env->regs[R_EDI], (uint64_t) env->regs[R_EBP],
-            (uint64_t) env->segs[R_SS].selector, (uint64_t) env->regs[R_ESP]);
-#endif
-}
+static uintptr_t se_tb_exec(CPUState *cpu, TranslationBlock *tb);
 
 static uintptr_t fetch_and_run_tb(TranslationBlock *prev_tb, int tb_exit_code, CPUArchState *env) {
     CPUState *cpu = env_cpu(env);
-    const void *tc_ptr;
-    uintptr_t last_tb;
-
     TranslationBlock *tb = tb_find_fast(env);
 
     libcpu_log_mask(CPU_LOG_EXEC, "fetch_and_run_tb cs:eip=%#lx:%#lx e=%#lx fl=%lx riw=%d\n",
@@ -225,38 +207,12 @@ static uintptr_t fetch_and_run_tb(TranslationBlock *prev_tb, int tb_exit_code, C
         return 0;
     }
 
-    tc_ptr = tb->tc.ptr;
 #ifdef ENABLE_PRECISE_EXCEPTION_DEBUGGING
     assert(env->eip == env->precise_eip);
 #endif
 
     /* execute the generated code */
-
-    if (libcpu_log_enabled() && libcpu_loglevel_mask(CPU_LOG_EXEC)) {
-        dump_regs(env, 1);
-    }
-
-#if defined(CONFIG_SYMBEX)
-    cpu->se_tb_abort = 0;
-    cpu->se_current_tb = tb;
-    if (likely(*g_sqi.mode.fast_concrete_invocation)) {
-        **g_sqi.mode.running_exception_emulation_code = 0;
-        last_tb = tcg_qemu_tb_exec(env, tc_ptr);
-    } else {
-        last_tb = g_sqi.exec.tb_exec(env, tb);
-    }
-    cpu->se_current_tb = NULL;
-#else
-
-    last_tb = tcg_qemu_tb_exec(env, tc_ptr);
-
-#endif
-
-    if (libcpu_log_enabled() && libcpu_loglevel_mask(CPU_LOG_EXEC)) {
-        dump_regs(env, 0);
-    }
-
-    return last_tb;
+    return se_tb_exec(cpu, tb);
 }
 
 static bool process_interrupt_request(CPUArchState *env) {
@@ -462,3 +418,5 @@ int cpu_exec(CPUState *cpu) {
 
     return ret;
 }
+
+#include "s2e/cpu-exec-symbex.c.inc"

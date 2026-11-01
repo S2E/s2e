@@ -524,7 +524,7 @@ void S2EExecutionStateRegisters::dump(std::ostream &ss) const {
     do {                                                                                         \
         ref<Expr> reg;                                                                           \
         /* TODO: use state->getPointerWidth() instead of Expr::Int32. */                         \
-        /* It currenly fails because se_current_tb is nullptr after state switch. */             \
+        /* It fails if the state left its last TB normally: se_current_tb is then nullptr. */    \
         reg = readSymbolicRegion(CPU_OFFSET(regs[R_##name]), Expr::Int32);                       \
         concreteBytes << #name << " ";                                                           \
         for (int i = reg->getWidth() / CHAR_BIT - 1; i >= 0; i--) {                              \

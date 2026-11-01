@@ -32,6 +32,10 @@ extern "C" {
 struct TranslationBlock;
 struct CPUX86State;
 
+/* The value of tb_exec() when the TB did not run because KLEE needs its LLVM
+   function, which the TB does not have. */
+#define SE_TB_EXEC_DECLINED ((uintptr_t) -1)
+
 typedef uintptr_t (*se_libcpu_tb_exec_t)(struct CPUX86State *env1, struct TranslationBlock *tb);
 typedef void (*se_do_interrupt_all_t)(int intno, int is_int, int error_code, uintptr_t next_eip, int is_hw);
 
