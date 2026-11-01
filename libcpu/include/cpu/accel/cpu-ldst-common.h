@@ -12,7 +12,7 @@
 #endif
 
 #include <cpu/exec/mmu-access-type.h>
-#include <cpu/exec/vaddr.h>
+#include <tcg/exec/vaddr.h>
 #include <tcg/tcg-memopidx.h>
 #include <utils/int128.h>
 

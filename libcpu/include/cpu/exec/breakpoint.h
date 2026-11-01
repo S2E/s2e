@@ -9,7 +9,7 @@
 #define EXEC_BREAKPOINT_H
 
 #include <cpu/exec/memattrs.h>
-#include <cpu/exec/vaddr.h>
+#include <tcg/exec/vaddr.h>
 #include <qqueue.h>
 
 /* Breakpoint/watchpoint flags */

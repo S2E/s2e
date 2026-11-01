@@ -18,7 +18,7 @@
 #include <cpu/common.h>
 #include <cpu/exec/memattrs.h>
 #include <cpu/exec/mmu-access-type.h>
-#include <cpu/exec/vaddr.h>
+#include <tcg/exec/vaddr.h>
 #include <tcg/tcg-memop.h>
 #include <tcg/tcg-mo.h>
 
