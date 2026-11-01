@@ -60,6 +60,7 @@ include/tcg/exec/helper-proto.h.inc	include/exec/helper-proto.h.inc
 include/tcg/exec/helper-proto-common.h	include/exec/helper-proto-common.h
 include/tcg/exec/plugin-gen.h	include/exec/plugin-gen.h
 include/tcg/exec/translation-block.h	include/exec/translation-block.h
+include/tcg/exec/vaddr.h	include/exec/vaddr.h
 src/tcg-rt/tcg-runtime.c	accel/tcg/tcg-runtime.c
 src/tcg-rt/tcg-runtime-gvec.c	accel/tcg/tcg-runtime-gvec.c
 # --- target-dependent utilities -----------------------------------------

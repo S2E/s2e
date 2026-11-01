@@ -17,7 +17,6 @@ include/cpu/accel/cpu-ldst-common.h	include/accel/tcg/cpu-ldst-common.h
 include/cpu/accel/probe.h	include/accel/tcg/probe.h
 include/cpu/exec/cputlb.h	include/exec/cputlb.h
 include/cpu/exec/tlb-flags.h	include/exec/tlb-flags.h
-include/cpu/exec/vaddr.h	include/exec/vaddr.h
 include/cpu/exec/memattrs.h	include/exec/memattrs.h
 include/cpu/exec/mmu-access-type.h	include/exec/mmu-access-type.h
 include/cpu/exec/page-protection.h	include/exec/page-protection.h

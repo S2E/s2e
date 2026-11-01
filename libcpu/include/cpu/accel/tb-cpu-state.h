@@ -10,7 +10,7 @@
 #error Can only include this header with TCG
 #endif
 
-#include <cpu/exec/vaddr.h>
+#include <tcg/exec/vaddr.h>
 
 typedef struct TCGTBCPUState {
     vaddr pc;

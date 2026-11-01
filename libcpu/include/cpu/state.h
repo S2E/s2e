@@ -71,7 +71,7 @@
 #include <cpu/common.h>
 #include <cpu/exec/memattrs.h>
 #include <cpu/exec/mmu-access-type.h>
-#include <cpu/exec/vaddr.h>
+#include <tcg/exec/vaddr.h>
 #include <cpu/i386/defs.h>
 #include <cpu/memory.h>
 #include <cpu/tb.h>

@@ -12,7 +12,7 @@
 #endif
 
 #include <cpu/exec/mmu-access-type.h>
-#include <cpu/exec/vaddr.h>
+#include <tcg/exec/vaddr.h>
 
 /* S2E: libcpu headers are also included from C++. */
 #ifdef __cplusplus
