@@ -53,7 +53,7 @@
 /* TB consistency checks only implemented for usermode emulation.  */
 #undef DEBUG_TB_CHECK
 
-CPUArchState *first_cpu;
+CPUState *first_cpu;
 
 #ifdef CONFIG_SYMBEX
 struct se_libcpu_interface_t g_sqi;
@@ -86,7 +86,7 @@ void cpu_exec_init(CPUArchState *env) {
 
     /* libcpu emulates exactly one CPU. */
     assert(first_cpu == NULL);
-    first_cpu = env;
+    first_cpu = cpu;
 
     cpu->cpu_index = 0;
     cpu->cc = &g_x86_cpu_class;
@@ -100,6 +100,7 @@ void cpu_exec_init(CPUArchState *env) {
 
 void cpu_common_reset(CPUState *cpu) {
     cpu->se_current_tb = NULL;
+    cpu->cflags_next_tb = -1;
     cpu->mem_io_pc = 0;
     qatomic_set(&cpu->neg.icount_decr.u32, 0);
     cpu->halted = 0;
@@ -166,7 +167,6 @@ void cpu_abort(CPUState *cpu, const char *fmt, ...) {
 
 /* Note: start and end must be within the same ram block.  */
 void cpu_physical_memory_reset_dirty(ram_addr_t start, ram_addr_t end, int dirty_flags) {
-    CPUArchState *env;
     unsigned long length, start1;
 
     start &= TARGET_PAGE_MASK;
@@ -186,9 +186,8 @@ void cpu_physical_memory_reset_dirty(ram_addr_t start, ram_addr_t end, int dirty
         abort();
     }
 
-    env = first_cpu;
-    if (env) {
-        tlb_reset_dirty(env_cpu(env), start1, length);
+    if (first_cpu) {
+        tlb_reset_dirty(first_cpu, start1, length);
     }
 }
 

@@ -50,6 +50,7 @@ void gen_intermediate_code(CPUArchState *env, struct TranslationBlock *tb);
 
 int cpu_gen_code(CPUArchState *env, TranslationBlock *tb);
 int cpu_exec(CPUState *cpu);
+void tcg_exec_cpu_init(CPUState *cpu);
 
 void LIBCPU_NORETURN cpu_io_recompile(CPUArchState *env, void *retaddr);
 TranslationBlock *tb_gen_code(CPUArchState *env, target_ulong pc, target_ulong cs_base, int flags, int cflags);

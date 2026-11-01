@@ -177,6 +177,7 @@ void cpu_single_step(CPUArchState *env, int enabled) {
 #if defined(TARGET_HAS_ICE)
     if (env_cpu(env)->singlestep_enabled != enabled) {
         env_cpu(env)->singlestep_enabled = enabled;
+        env_cpu(env)->singlestep_flags = enabled;
 
         /* must flush all the translated code to avoid inconsistencies */
         /* XXX: only flush what is necessary */

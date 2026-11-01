@@ -90,9 +90,8 @@ void tb_flush(CPUState *cpu) {
     g_sqi.tb.flush_tb_cache();
 #endif
 
-    CPUArchState *env = first_cpu;
-    if (env) {
-        memset(env_cpu(env)->neg.tb_jmp_cache, 0, TB_JMP_CACHE_SIZE * sizeof(void *));
+    if (first_cpu) {
+        memset(first_cpu->neg.tb_jmp_cache, 0, TB_JMP_CACHE_SIZE * sizeof(void *));
     }
 
     memset(tb_phys_hash, 0, CODE_GEN_PHYS_HASH_SIZE * sizeof(void *));
@@ -178,7 +177,6 @@ static inline void invalidate_page_bitmap(PageDesc *p) {
 }
 
 void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr) {
-    CPUArchState *env;
     PageDesc *p;
     unsigned int h;
     tb_page_addr_t phys_pc;
@@ -204,10 +202,10 @@ void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr) {
 
     /* remove the TB from the hash list */
     h = tb_jmp_cache_hash_func(tb->pc);
-    env = first_cpu;
-    if (env) {
-        if (env_cpu(env)->neg.tb_jmp_cache[h] == tb)
-            env_cpu(env)->neg.tb_jmp_cache[h] = NULL;
+    if (first_cpu) {
+        if (first_cpu->neg.tb_jmp_cache[h] == tb) {
+            first_cpu->neg.tb_jmp_cache[h] = NULL;
+        }
     }
 
     /* suppress this TB from the two jump lists */
@@ -242,7 +240,7 @@ again:
     tb->pc = pc;
     tb->cs_base = cs_base;
     tb->flags = flags;
-    tb->cflags = cflags;
+    tb->cflags = cflags | env_cpu(env)->tcg_cflags;
 
     if (cpu_gen_code(env, tb) < 0) {
         tb_flush(env_cpu(env));

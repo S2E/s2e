@@ -457,12 +457,6 @@ static inline void cpu_pc_from_tb(CPUX86State *env, TranslationBlock *tb) {
     env->eip = tb->pc - tb->cs_base;
 }
 
-static inline void cpu_get_tb_cpu_state(CPUX86State *env, target_ulong *pc, target_ulong *cs_base, int *flags) {
-    *cs_base = env->segs[R_CS].base;
-    *pc = *cs_base + env->eip;
-    *flags = env->hflags | (env->mflags & (IOPL_MASK | TF_MASK | RF_MASK | VM_MASK));
-}
-
 /* op_helper.c */
 void do_interrupt(CPUX86State *env);
 void do_interrupt_x86_hardirq(CPUX86State *env, int intno, int is_hw);

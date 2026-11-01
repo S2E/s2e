@@ -116,8 +116,8 @@ typedef union {
 
 typedef void (*run_on_cpu_func)(CPUState *cpu, run_on_cpu_data data);
 
-/* There is no other CPU to iterate over. */
-#define CPU_FOREACH(cpu) for ((cpu) = NULL; false;)
+/* There is one CPU. */
+#define CPU_FOREACH(cpu) for ((cpu) = first_cpu; (cpu); (cpu) = NULL)
 
 static inline void async_run_on_cpu(CPUState *cpu, run_on_cpu_func func, run_on_cpu_data data) {
     func(cpu, data);
