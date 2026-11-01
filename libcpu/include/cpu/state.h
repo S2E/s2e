@@ -92,6 +92,8 @@ struct TranslationBlock;
 /* The part of upstream's CPUClass that accel/tcg reads. */
 typedef struct CPUClass {
     const struct TCGCPUOps *tcg_ops;
+    void (*set_pc)(CPUState *cpu, vaddr value);
+    vaddr (*get_pc)(CPUState *cpu);
 } CPUClass;
 
 typedef uint32_t MMUIdxMap;
@@ -267,7 +269,7 @@ typedef struct CPUState {
     int cpu_index;
 
     /* Longjmp target of the CPU loop. See the note on state switches above. */
-    jmp_buf jmp_env;
+    sigjmp_buf jmp_env;
 
     /* Nonzero if the CPU is in suspend state. */
     uint32_t halted;
@@ -276,6 +278,12 @@ typedef struct CPUState {
     volatile sig_atomic_t exit_request;
     int exception_index;
     int singlestep_enabled;
+    unsigned singlestep_flags;
+
+    /* The cflags of the next TB, or -1 for the default. */
+    uint32_t cflags_next_tb;
+    /* The cflags of every TB. S2E builds set CF_NO_GOTO_PTR. */
+    uint32_t tcg_cflags;
 
     /* TB being executed, stored by the TB itself so that a regenerated LLVM
        function still names the original TB (S2E). */

@@ -71,7 +71,7 @@ void cpu_dump_statistics(CPUArchState *env, FILE *f, fprintf_function cpu_fprint
 target_phys_addr_t cpu_get_phys_page_debug(CPUArchState *env, target_ulong addr);
 
 void LIBCPU_NORETURN cpu_abort(CPUState *cpu, const char *fmt, ...) GCC_FMT_ATTR(2, 3);
-extern CPUArchState *first_cpu;
+extern CPUState *first_cpu;
 
 void cpu_interrupt(CPUState *cpu, int mask);
 void cpu_reset_interrupt(CPUState *cpu, int mask);

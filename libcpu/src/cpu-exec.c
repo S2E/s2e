@@ -53,7 +53,7 @@ void cpu_loop_exit_noexc(CPUState *cpu) {
 }
 
 void cpu_loop_exit(CPUState *cpu) {
-    longjmp(cpu->jmp_env, 1);
+    siglongjmp(cpu->jmp_env, 1);
 }
 
 void cpu_loop_exit_restore(CPUState *cpu, uintptr_t ra) {
@@ -276,7 +276,7 @@ static bool process_interrupt_request(CPUArchState *env) {
         cpu_loop_exit(cpu);
     }
 
-    if (unlikely(cpu->singlestep_enabled & SSTEP_NOIRQ)) {
+    if (unlikely(cpu->singlestep_flags & SSTEP_NOIRQ)) {
         /* Mask out external interrupts for this step. */
         interrupt_request &= ~CPU_INTERRUPT_SSTEP_MASK;
     }
@@ -418,7 +418,7 @@ int cpu_exec(CPUState *cpu) {
 
     /* prepare setjmp context for exception handling */
     for (;;) {
-        if (setjmp(cpu->jmp_env) == 0) {
+        if (sigsetjmp(cpu->jmp_env, 0) == 0) {
             libcpu_log_mask(CPU_LOG_EXEC, "  setjmp entered eip=%#lx\n", (uint64_t) env->eip);
 
 #ifdef CONFIG_SYMBEX

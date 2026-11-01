@@ -1077,7 +1077,6 @@ int cpu_x86_get_descr_debug(CPUX86State *env, unsigned int selector, target_ulon
 
 CPUX86State *cpu_x86_init(const cpuid_t *cpuid) {
     CPUX86State *env;
-    static int inited;
 
     /* The env must be embedded in an ArchCPU so that the caches in CPUState
        are reachable at negative offsets from it; see cpu/state.h. */
@@ -1085,11 +1084,7 @@ CPUX86State *cpu_x86_init(const cpuid_t *cpuid) {
     env = &cpu->env;
     cpu_exec_init(env);
 
-    /* init various static tables used in TCG mode */
-    if (tcg_enabled() && !inited) {
-        inited = 1;
-        env_cpu(env)->cc->tcg_ops->initialize();
-    }
+    tcg_exec_cpu_init(env_cpu(env));
 
     env->cpuid = *cpuid;
 

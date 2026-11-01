@@ -50,49 +50,6 @@
 
 #include <cpu/accel/cpu-ops.h>
 
-extern TCGContext tcg_init_ctx;
-
-/* Minimum size of the code gen buffer.  This number is randomly chosen,
-   but not so small that we can't have a fair number of TB's live.  */
-#define MIN_CODE_GEN_BUFFER_SIZE (128 * 1024 * 1024)
-
-static void cpu_gen_init(TCGContext *ctx) {
-    extern CPUArchState *env;
-    ctx->tcg_struct_size = sizeof(*ctx);
-    ctx->env_ptr = (uintptr_t) &env;
-    ctx->env_offset_eip = offsetof(CPUArchState, eip);
-    ctx->env_sizeof_eip = sizeof(env->eip);
-    ctx->env_offset_ccop = offsetof(CPUArchState, cc_op);
-    ctx->env_sizeof_ccop = sizeof(env->cc_op);
-    ctx->env_offset_df = offsetof(CPUArchState, df);
-
-    ctx->tlbe_size = sizeof(CPUTLBEntry);
-    ctx->tlbe_offset_addend = offsetof(CPUTLBEntry, addend);
-    ctx->tlbe_offset_addr_read = offsetof(CPUTLBEntry, addr_read);
-    ctx->tlbe_offset_addr_write = offsetof(CPUTLBEntry, addr_write);
-
-#ifdef CONFIG_SYMBEX
-    ctx->tlbe_offset_symbex_addend = offsetof(CPUTLBEntry, se_addend);
-    ctx->env_offset_se_tb_abort = (int) offsetof(ArchCPU, parent_obj.se_tb_abort) - (int) offsetof(ArchCPU, env);
-#endif
-
-    ctx->target_page_bits = TARGET_PAGE_BITS;
-    ctx->cpu_tlb_entry_bits = CPU_TLB_ENTRY_BITS;
-    ctx->cpu_tlb_size = CPU_TLB_SIZE;
-}
-
-/* Must be called before using the QEMU cpus. 'tb_size' is the size
-   (in bytes) allocated to the translation buffer. Zero means default
-   size. */
-void tcg_exec_init(unsigned long tb_size) {
-    tcg_init(MIN_CODE_GEN_BUFFER_SIZE, 0, 1);
-    cpu_gen_init(&tcg_init_ctx);
-
-    /* There's no guest base to take into account, so go ahead and
-       initialize the prologue now.  */
-    tcg_prologue_init(tcg_ctx);
-}
-
 /*
  * Isolate the portion of code gen which can setjmp/longjmp.
  * Return the size of the generated code, or negative on error.
@@ -130,14 +87,6 @@ int cpu_gen_code(CPUArchState *env, TranslationBlock *tb) {
     tb->tc.ptr = gen_code_buf;
 
     tcg_ctx->gen_tb = tb;
-    tcg_ctx->addr_type = TARGET_LONG_BITS == 32 ? TCG_TYPE_I32 : TCG_TYPE_I64;
-
-#ifdef CONFIG_SOFTMMU
-    tcg_ctx->page_bits = TARGET_PAGE_BITS;
-    tcg_ctx->page_mask = TARGET_PAGE_MASK;
-    tcg_ctx->tlb_dyn_max_bits = CPU_TLB_DYN_MAX_BITS;
-    tcg_ctx->tlb_fast_offset = (int) offsetof(ArchCPU, parent_obj.neg.tlb.f) - (int) offsetof(ArchCPU, env);
-#endif
     tcg_ctx->guest_mo = env_cpu(env)->cc->tcg_ops->guest_default_memory_order;
 
 tb_overflow:

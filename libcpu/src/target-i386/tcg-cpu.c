@@ -199,6 +199,19 @@ static const TCGCPUOps s_x86_tcg_ops = {
     .debug_check_breakpoint = x86_debug_check_breakpoint,
 };
 
+static void x86_cpu_set_pc(CPUState *cs, vaddr value) {
+    cpu_env(cs)->eip = value;
+}
+
+static vaddr x86_cpu_get_pc(CPUState *cs) {
+    CPUX86State *env = cpu_env(cs);
+
+    /* Match x86_get_tb_cpu_state(). */
+    return env->eip + env->segs[R_CS].base;
+}
+
 const CPUClass g_x86_cpu_class = {
     .tcg_ops = &s_x86_tcg_ops,
+    .set_pc = x86_cpu_set_pc,
+    .get_pc = x86_cpu_get_pc,
 };
