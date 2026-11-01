@@ -77,6 +77,7 @@
 #include <cpu/tlb.h>
 #include <cpu/types.h>
 #include <tcg/exec/vaddr.h>
+#include <utils/thread.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -183,9 +184,11 @@ typedef struct CPUTLBDesc {
  * Data elements that are shared between all MMU modes.
  */
 typedef struct CPUTLBCommon {
-    /* Upstream serializes TLB updates with this lock. libcpu has one vCPU
-       and never takes it. */
-    int lock;
+    /*
+     * @lock serializes changes to the TLB. The bitcode build does not take it,
+     * see src/s2e/accel-deps.h.
+     */
+    QemuSpin lock;
     /*
      * Within dirty, for each bit N, modifications have been made to
      * mmu_idx N since the last time that mmu_idx was flushed.

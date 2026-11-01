@@ -30,7 +30,7 @@
 
 /* Encode VAL as a signed leb128 sequence at P.
    Return P incremented past the encoded value.  */
-static uint8_t *encode_sleb128(uint8_t *p, target_long val) {
+static uint8_t *encode_sleb128(uint8_t *p, int64_t val) {
     int more, byte;
 
     do {
@@ -48,18 +48,18 @@ static uint8_t *encode_sleb128(uint8_t *p, target_long val) {
 
 /* Decode a signed leb128 sequence at *PP; increment *PP past the
    decoded value.  Return the decoded value.  */
-static target_long decode_sleb128(const uint8_t **pp) {
+static int64_t decode_sleb128(const uint8_t **pp) {
     const uint8_t *p = *pp;
-    target_long val = 0;
+    int64_t val = 0;
     int byte, shift = 0;
 
     do {
         byte = *p++;
-        val |= (target_ulong) (byte & 0x7f) << shift;
+        val |= (int64_t) (byte & 0x7f) << shift;
         shift += 7;
     } while (byte & 0x80);
-    if (shift < TARGET_LONG_BITS && (byte & 0x40)) {
-        val |= -(target_ulong) 1 << shift;
+    if (shift < 64 && (byte & 0x40)) {
+        val |= -(int64_t) 1 << shift;
     }
 
     *pp = p;
@@ -114,7 +114,7 @@ int encode_search(TCGContext *tcg_ctx, TranslationBlock *tb, uint8_t *block) {
 }
 
 int tb_get_instruction_size(TranslationBlock *tb, uint64_t pc) {
-    target_ulong data[INSN_START_WORDS] = {tb->pc};
+    uint64_t data[INSN_START_WORDS] = {tb->pc};
     const uint8_t *p = tb->tc.ptr + tb->tc.size;
     int i, j, num_insns = tb->icount;
 
@@ -142,7 +142,7 @@ int tb_get_instruction_size(TranslationBlock *tb, uint64_t pc) {
     return 0;
 }
 
-static int tb_find_guest_pc(TranslationBlock *tb, uintptr_t searched_host_pc, target_ulong *data) {
+static int tb_find_guest_pc(TranslationBlock *tb, uintptr_t searched_host_pc, uint64_t *data) {
     uintptr_t host_pc = (uintptr_t) tb->tc.ptr;
     const uint8_t *p = tb->tc.ptr + tb->tc.size;
     int i, j, num_insns = tb->icount;
@@ -172,17 +172,13 @@ static int tb_find_guest_pc(TranslationBlock *tb, uintptr_t searched_host_pc, ta
  * icount should be recalculated.
  */
 static int cpu_restore_state_from_tb(CPUState *cpu, TranslationBlock *tb, uintptr_t searched_pc) {
-    target_ulong data[INSN_START_WORDS] = {tb->pc};
-    uint64_t data64[INSN_START_WORDS];
+    uint64_t data[INSN_START_WORDS] = {tb->pc};
 
     if (tb_find_guest_pc(tb, searched_pc, data) < 0) {
         return -1;
     }
 
-    for (int i = 0; i < INSN_START_WORDS; ++i) {
-        data64[i] = data[i];
-    }
-    cpu->cc->tcg_ops->restore_state_to_opc(cpu, tb, data64);
+    cpu->cc->tcg_ops->restore_state_to_opc(cpu, tb, data);
 
     return 0;
 }
