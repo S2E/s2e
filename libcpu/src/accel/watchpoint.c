@@ -17,18 +17,8 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "accel/tcg/cpu-loop.h"
-#include "accel/tcg/cpu-ops.h"
-#include "exec/breakpoint.h"
-#include "exec/cpu-interrupt.h"
-#include "exec/page-protection.h"
-#include "exec/translation-block.h"
-#include "hw/core/cpu.h"
-#include "internal-common.h"
-#include "qemu/main-loop.h"
-#include "qemu/osdep.h"
-#include "system/replay.h"
-#include "system/tcg.h"
+/* S2E: the include block is replaced, see accel-deps.h. */
+#include "s2e/accel-deps.h"
 
 /*
  * Return true if this watchpoint address matches the specified
@@ -125,8 +115,13 @@ void cpu_check_watchpoint(CPUState *cpu, vaddr addr, vaddr len, MemTxAttrs attrs
                 cpu->exception_index = EXCP_DEBUG;
                 cpu_loop_exit(cpu);
             } else {
-                /* Force execution of one insn next time.  */
-                cpu->cflags_next_tb = 1 | CF_NOIRQ | curr_cflags(cpu);
+                /*
+                 * Force execution of one insn next time.
+                 * S2E: CF_NO_GOTO_TB returns to the loop after that insn. Upstream's
+                 * cpu_interrupt() stops a chain of TBs, and libcpu's does not, so
+                 * the debug interrupt raised above would otherwise arrive late.
+                 */
+                cpu->cflags_next_tb = 1 | CF_NO_GOTO_TB | CF_NOIRQ | curr_cflags(cpu);
                 cpu_loop_exit_noexc(cpu);
             }
         } else {
