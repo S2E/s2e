@@ -1106,7 +1106,7 @@ uintptr_t S2EExecutor::executeTranslationBlock(S2EExecutionState *state, Transla
 
         if (executeKlee && !tb->llvm_function) {
             env_cpu(env)->generate_llvm = 1;
-            return 0;
+            return SE_TB_EXEC_DECLINED;
         }
 
         state->m_startSymbexAtPC = (uint64_t) -1;
@@ -1119,7 +1119,7 @@ uintptr_t S2EExecutor::executeTranslationBlock(S2EExecutionState *state, Transla
         if (state->m_toRunSymbolically.find(pair) != state->m_toRunSymbolically.end()) {
             if (!tb->llvm_function) {
                 env_cpu(env)->generate_llvm = 1;
-                return 0;
+                return SE_TB_EXEC_DECLINED;
             }
             state->m_toRunSymbolically.erase(pair);
         }
@@ -1137,7 +1137,7 @@ uintptr_t S2EExecutor::executeTranslationBlock(S2EExecutionState *state, Transla
 
     if (executeKlee && !tb->llvm_function) {
         env_cpu(env)->generate_llvm = 1;
-        return 0;
+        return SE_TB_EXEC_DECLINED;
     }
 
     if (executeKlee) {
