@@ -27,7 +27,8 @@ import.
 
 Measured against `~/softs/qemu` at `v11.1.0` and this tree at `40509541`.
 
-**Status: plan.** Step 1 is done. Nothing else in this document has landed.
+**Status: plan.** Step 1 and items 1 to 8 of step 2 are done. Nothing else in
+this document has landed.
 
 The plan therefore does not try to be complete: section 10 says how each
 step checks what the plan may have missed, and how the plan is updated when the
@@ -764,14 +765,12 @@ call is not reached. Which option is simpler is decided during step 3.
 
 **5.4 `icount_decr` is read by both code generators.** The native exit check
 reads `neg.icount_decr.u32` at a negative offset from `env`. The LLVM
-function contains the same load, and `removeInterruptExit()` removes the
-branch but not the load. The pass pipeline of `softmmu-llvm-perf.md` step 9
-should delete the load as dead *(unverified, for the old `exit_request` load
-as well)*. If the load survives, KLEE reads `neg`
-memory, and whether KLEE knows that memory is also *(unverified)*. If the branch stops being the terminator of
-the first block, `removeInterruptExit()` erases the wrong instruction, and
-KLEE would follow the exit path. Add an assertion that the erased branch
-compares a load from `icount_decr`.
+function contains the same load. `removeInterruptExit()` replaces the branch
+with a direct branch and then erases the compare and the load, which have no
+other users, so KLEE never reads `neg` memory for this check. It also asserts
+that the branch it erases is that check (`icmp slt` of an `i32` load from
+the CPU state, against 0). If the frontend ever emits code before the check,
+the assertion fails instead of letting the function drop guest code.
 
 **5.5 Code fetched in KLEE goes through the slow path.** D9 keeps code
 fetches on `cpu_ld*_code_mmu()` in symbex builds. A later change that enables
@@ -1156,8 +1155,6 @@ These are known and left for implementation:
   the plugins (2.2).
 - What `se_current_tb` holds in a state resumed by `finalize_tb_exec()`
   (D8).
-- Whether the dead `icount_decr` load disappears from the LLVM functions
-  (hazard 5.4).
 - Whether a guest can reach the third-page assertion of hazard 5.13.
 - When to adopt upstream's memory order value (hazard 5.12).
 
@@ -1170,3 +1167,6 @@ These are known and left for implementation:
   (the testsuite), not on TB-for-TB equality with the old layer.
 - 2026-10-31: step 2 item 5 also removes `cpu_interrupt_handler`, which the
   plan did not mention.
+- 2026-11-01: step 2 item 8 erases the dead `icount_decr` load in
+  `removeInterruptExit()` instead of relying on the optimizer (hazard 5.4),
+  and removes `CF_NOCACHE`, which nothing sets and upstream does not have.

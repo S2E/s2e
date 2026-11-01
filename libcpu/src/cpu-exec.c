@@ -20,6 +20,7 @@
 #include <cpu/types.h>
 #include <tcg/tcg.h>
 #include <tcg/utils/log.h>
+#include <utils/atomic.h>
 #include "cpu.h"
 #include "exec-tb.h"
 
@@ -383,6 +384,18 @@ static bool execution_loop(CPUArchState *env) {
 
     for (;;) {
         bool has_interrupt = false;
+
+        /* Clear the interrupt flag now since we're processing
+         * cpu->interrupt_request and cpu->exit_request.
+         * Ensure zeroing happens before reading cpu->exit_request or
+         * cpu->interrupt_request (see also store-release in
+         * tcg_kick_vcpu_thread())
+         *
+         * S2E: libcpu has no tcg_kick_vcpu_thread(), cpu_exit() does that
+         * store-release.
+         */
+        qatomic_set_mb(&cpu->neg.icount_decr.u16.high, 0);
+
         if (process_interrupt_request(env)) {
             // Ensure that no TB jump will be modified as
             // the program flow was changed

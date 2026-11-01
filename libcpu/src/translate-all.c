@@ -119,6 +119,8 @@ int cpu_gen_code(CPUArchState *env, TranslationBlock *tb) {
     int gen_code_size;
     int max_insns = TCG_MAX_INSNS;
 
+    QEMU_BUILD_BUG_ON(CF_COUNT_MASK + 1 != TCG_MAX_INSNS);
+
     //    tb->tc.ptr = tcg_ctx->code_gen_ptr;
     gen_code_buf = tcg_ctx->code_gen_ptr;
     tb->tc.ptr = gen_code_buf;

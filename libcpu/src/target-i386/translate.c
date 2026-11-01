@@ -7697,22 +7697,35 @@ void optimize_flags_init(void) {
 #endif
 }
 
+/* S2E: upstream's gen_tb_start() and gen_tb_end() from accel/tcg/translator.c,
+   without the instruction count updates under CF_USE_ICOUNT. libcpu has no
+   icount mode, so that flag is never set. */
 static inline void gen_tb_start(TranslationBlock *tb) {
-    if (tb->cflags & CF_HAS_INTERRUPT_EXIT) {
-        TCGv_i32 exit_request;
+    uint32_t cflags = tb->cflags;
+    TCGv_i32 count = NULL;
 
+    if ((cflags & CF_USE_ICOUNT) || !(cflags & CF_NOIRQ)) {
+        count = tcg_temp_new_i32();
+        tcg_gen_ld_i32(count, tcg_env, offsetof(CPUState, neg.icount_decr.u32) - sizeof(CPUState));
+    }
+
+    /*
+     * Emit the check against icount_decr.u32 to see if we should exit
+     * unless we suppress the check with CF_NOIRQ. If we are using
+     * icount and have suppressed interruption the higher level code
+     * should have ensured we don't run more instructions than the
+     * budget.
+     */
+    if (cflags & CF_NOIRQ) {
+        tcg_ctx->exitreq_label = NULL;
+    } else {
         tcg_ctx->exitreq_label = gen_new_label();
-        exit_request = tcg_temp_new_i32();
-        tcg_gen_ld_i32(exit_request, tcg_env,
-                       (int) offsetof(ArchCPU, parent_obj.exit_request) - (int) offsetof(ArchCPU, env));
-
-        tcg_gen_brcondi_i32(TCG_COND_NE, exit_request, 0, tcg_ctx->exitreq_label);
+        tcg_gen_brcondi_i32(TCG_COND_LT, count, 0, tcg_ctx->exitreq_label);
     }
 }
 
 static inline void gen_tb_end(TranslationBlock *tb) {
-    if (tb->cflags & CF_HAS_INTERRUPT_EXIT) {
-        assert(tcg_ctx->exitreq_label);
+    if (tcg_ctx->exitreq_label) {
         gen_set_label(tcg_ctx->exitreq_label);
         tcg_gen_exit_tb(tb, TB_EXIT_REQUESTED);
     }

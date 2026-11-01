@@ -246,7 +246,7 @@ again:
     tb->pc = pc;
     tb->cs_base = cs_base;
     tb->flags = flags;
-    tb->cflags = cflags | CF_HAS_INTERRUPT_EXIT;
+    tb->cflags = cflags;
 
     if (cpu_gen_code(env, tb) < 0) {
         tb_flush(env_cpu(env));
