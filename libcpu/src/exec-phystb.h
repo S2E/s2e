@@ -27,7 +27,7 @@ struct TranslationBlock;
 
 typedef struct PageDesc {
     /* list of TBs intersecting this ram page */
-    TranslationBlock *first_tb;
+    uintptr_t first_tb;
     /* in order to optimize self modifying code, we count the number
        of lookups we do to a given page to use a bitmap */
     unsigned int code_write_count;

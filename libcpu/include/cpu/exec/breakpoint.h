@@ -9,8 +9,8 @@
 #define EXEC_BREAKPOINT_H
 
 #include <cpu/exec/memattrs.h>
-#include <tcg/exec/vaddr.h>
 #include <qqueue.h>
+#include <tcg/exec/vaddr.h>
 
 /* Breakpoint/watchpoint flags */
 #define BP_MEM_READ           0x01

@@ -27,9 +27,6 @@
 #include <inttypes.h>
 #include "qqueue.h"
 
-#define RAM_ADDR_MAX UINTPTR_MAX
-#define RAM_ADDR_FMT "%" PRIxPTR
-
 /* memory API */
 /* This should only be used for ram local to a device.  */
 void *qemu_get_ram_ptr(ram_addr_t addr);

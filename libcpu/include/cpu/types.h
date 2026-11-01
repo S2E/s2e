@@ -23,6 +23,7 @@
 #include <inttypes.h>
 
 #include <cpu/config.h>
+#include <tcg/tb-s2e.h>
 #include <utils/compiler.h>
 
 #ifdef __cplusplus
@@ -74,8 +75,6 @@ typedef uint64_t target_phys_addr_t;
 #define TARGET_FMT_plx       "%016" PRIx64
 #endif
 #endif
-
-typedef uintptr_t ram_addr_t;
 
 /* Guest physical address. Upstream name of target_phys_addr_t. */
 typedef uint64_t hwaddr;

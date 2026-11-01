@@ -71,12 +71,12 @@
 #include <cpu/common.h>
 #include <cpu/exec/memattrs.h>
 #include <cpu/exec/mmu-access-type.h>
-#include <tcg/exec/vaddr.h>
 #include <cpu/i386/defs.h>
 #include <cpu/memory.h>
 #include <cpu/tb.h>
 #include <cpu/tlb.h>
 #include <cpu/types.h>
+#include <tcg/exec/vaddr.h>
 
 #ifdef __cplusplus
 extern "C" {

@@ -22,18 +22,11 @@
 
 #include <cpu/se_libcpu_config.h>
 #include <cpu/types.h>
-#include <tcg/tb.h>
+#include <tcg/exec/translation-block.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-/* Page tracking code uses ram addresses in system mode, and virtual
-   addresses in userspace mode.  Define tb_page_addr_t to be an appropriate
-   type.  */
-typedef ram_addr_t tb_page_addr_t;
-
-typedef struct TranslationBlock TranslationBlock;
 
 #define TB_JMP_CACHE_BITS 12
 #define TB_JMP_CACHE_SIZE (1 << TB_JMP_CACHE_BITS)

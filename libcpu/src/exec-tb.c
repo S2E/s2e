@@ -154,14 +154,13 @@ static inline void tb_remove(TranslationBlock **ptb, TranslationBlock *tb, int n
     }
 }
 
-static inline void tb_page_remove(TranslationBlock **ptb, TranslationBlock *tb) {
+static inline void tb_page_remove(uintptr_t *ptb, TranslationBlock *tb) {
     TranslationBlock *tb1;
     unsigned int n1;
 
     for (;;) {
-        tb1 = *ptb;
-        n1 = (long) tb1 & 3;
-        tb1 = (TranslationBlock *) ((long) tb1 & ~3);
+        n1 = *ptb & 3;
+        tb1 = (TranslationBlock *) (*ptb & ~(uintptr_t) 3);
         if (tb1 == tb) {
             *ptb = tb1->page_next[n1];
             break;
@@ -185,18 +184,18 @@ void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr) {
     tb_page_addr_t phys_pc;
 
     /* remove the TB from the hash list */
-    phys_pc = tb->page_addr[0] + (tb->pc & ~TARGET_PAGE_MASK);
+    phys_pc = tb_page_addr0(tb) + (tb->pc & ~TARGET_PAGE_MASK);
     h = tb_phys_hash_func(phys_pc);
     tb_remove(&tb_phys_hash[h], tb, offsetof(TranslationBlock, phys_hash_next));
 
     /* remove the TB from the page list */
-    if (tb->page_addr[0] != page_addr) {
-        p = page_find(tb->page_addr[0] >> TARGET_PAGE_BITS);
+    if (tb_page_addr0(tb) != page_addr) {
+        p = page_find(tb_page_addr0(tb) >> TARGET_PAGE_BITS);
         tb_page_remove(&p->first_tb, tb);
         invalidate_page_bitmap(p);
     }
-    if (tb->page_addr[1] != -1 && tb->page_addr[1] != page_addr) {
-        p = page_find(tb->page_addr[1] >> TARGET_PAGE_BITS);
+    if (tb_page_addr1(tb) != -1 && tb_page_addr1(tb) != page_addr) {
+        p = page_find(tb_page_addr1(tb) >> TARGET_PAGE_BITS);
         tb_page_remove(&p->first_tb, tb);
         invalidate_page_bitmap(p);
     }
@@ -274,7 +273,7 @@ static void page_flush_tb_1(int level, void **lp) {
     if (level == 0) {
         PageDesc *pd = *lp;
         for (i = 0; i < L2_SIZE; ++i) {
-            pd[i].first_tb = NULL;
+            pd[i].first_tb = 0;
             invalidate_page_bitmap(pd + i);
         }
     } else {
@@ -321,13 +320,14 @@ static inline void set_bits(uint8_t *tab, int start, int len) {
 static void build_page_bitmap(PageDesc *p) {
     int n, tb_start, tb_end;
     TranslationBlock *tb;
+    uintptr_t next;
 
     p->code_bitmap = g_malloc0(TARGET_PAGE_SIZE / 8);
 
-    tb = p->first_tb;
-    while (tb != NULL) {
-        n = (long) tb & 3;
-        tb = (TranslationBlock *) ((long) tb & ~3);
+    next = p->first_tb;
+    while (next) {
+        n = next & 3;
+        tb = (TranslationBlock *) (next & ~(uintptr_t) 3);
         /* NOTE: this is subtle as a TB may span two physical pages */
         if (n == 0) {
             /* NOTE: tb_end may be after the end of the page, but
@@ -341,7 +341,7 @@ static void build_page_bitmap(PageDesc *p) {
             tb_end = ((tb->pc + tb->size) & ~TARGET_PAGE_MASK);
         }
         set_bits(p->code_bitmap, tb_start, tb_end - tb_start);
-        tb = tb->page_next[n];
+        next = tb->page_next[n];
     }
 }
 
@@ -351,7 +351,8 @@ static void build_page_bitmap(PageDesc *p) {
    real cpu write access: the virtual CPU will exit the current TB if
    code is modified inside this TB. */
 static void tb_invalidate_phys_page_range(CPUState *cpu, tb_page_addr_t start, tb_page_addr_t end) {
-    TranslationBlock *tb, *tb_next;
+    TranslationBlock *tb;
+    uintptr_t next;
     CPUArchState *env = cpu ? cpu_env(cpu) : NULL;
     tb_page_addr_t tb_start, tb_end;
     PageDesc *p;
@@ -371,19 +372,19 @@ static void tb_invalidate_phys_page_range(CPUState *cpu, tb_page_addr_t start, t
 
     /* we remove all the TBs in the range [start, end[ */
     /* XXX: see if in some cases it could be faster to invalidate all the code */
-    tb = p->first_tb;
-    while (tb != NULL) {
-        n = (long) tb & 3;
-        tb = (TranslationBlock *) ((long) tb & ~3);
-        tb_next = tb->page_next[n];
+    next = p->first_tb;
+    while (next) {
+        n = next & 3;
+        tb = (TranslationBlock *) (next & ~(uintptr_t) 3);
+        next = tb->page_next[n];
         /* NOTE: this is subtle as a TB may span two physical pages */
         if (n == 0) {
             /* NOTE: tb_end may be after the end of the page, but
                it is not a problem */
-            tb_start = tb->page_addr[0] + (tb->pc & ~TARGET_PAGE_MASK);
+            tb_start = tb_page_addr0(tb) + (tb->pc & ~TARGET_PAGE_MASK);
             tb_end = tb_start + tb->size;
         } else {
-            tb_start = tb->page_addr[1];
+            tb_start = tb_page_addr1(tb);
             tb_end = tb_start + ((tb->pc + tb->size) & ~TARGET_PAGE_MASK);
         }
         if (!(tb_end <= start || tb_start >= end)) {
@@ -416,7 +417,6 @@ static void tb_invalidate_phys_page_range(CPUState *cpu, tb_page_addr_t start, t
 #endif /* TARGET_HAS_PRECISE_SMC */
             tb_phys_invalidate(tb, -1);
         }
-        tb = tb_next;
     }
 
     /* if no code remaining, no need to continue to use slow writes */
@@ -469,8 +469,8 @@ static inline void tb_alloc_page(TranslationBlock *tb, unsigned int n, tb_page_a
     tb->page_addr[n] = page_addr;
     p = page_find_alloc(page_addr >> TARGET_PAGE_BITS, 1);
     tb->page_next[n] = p->first_tb;
-    page_already_protected = p->first_tb != NULL;
-    p->first_tb = (TranslationBlock *) ((long) tb | n);
+    page_already_protected = p->first_tb != 0;
+    p->first_tb = (uintptr_t) tb | n;
     invalidate_page_bitmap(p);
 
 #if defined(TARGET_HAS_SMC) || 1

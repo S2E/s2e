@@ -181,7 +181,7 @@ tb_overflow:
     tcg_ctx->gen_tb = NULL;
 
     /* generate machine code */
-    gen_code_buf = tb->tc.ptr;
+    gen_code_buf = tcg_splitwx_to_rw(tb->tc.ptr);
 
     if (libcpu_loglevel_mask(CPU_LOG_TB_OUT_ASM)) {
         libcpu_log("----------------\n");

@@ -96,6 +96,6 @@ void target_disas_range(void *env, FILE *out, target_ulong pc, target_ulong size
     target_disas_ex(env, out, fprintf, pc, size, flags);
 }
 
-void host_disas(FILE *out, void *pc, size_t size) {
+void host_disas(FILE *out, const void *pc, size_t size) {
     target_disas_ex(NULL, out, fprintf, (uintptr_t) pc, size, 2);
 }

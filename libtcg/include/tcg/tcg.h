@@ -86,8 +86,7 @@ typedef uint64_t target_ulong __attribute__((aligned(TARGET_LONG_ALIGNMENT)));
 #error TARGET_LONG_SIZE undefined
 #endif
 
-// XXX: fix this
-#include <tcg/tb.h>
+#include <tcg/exec/translation-block.h>
 
 #define qemu_tcg_mttcg_enabled() (0)
 
@@ -95,8 +94,6 @@ typedef uint64_t target_ulong __attribute__((aligned(TARGET_LONG_ALIGNMENT)));
 
 #define trace_guest_mem_before_tcg(...)
 #define trace_mem_get_info(...)
-
-typedef struct TranslationBlock TranslationBlock;
 
 // #define CPUArchState CPUX86State
 // #define CPUState     CPUX86State
@@ -478,7 +475,7 @@ struct TCGContext {
     void *code_gen_highwater;
 
     /* Track which vCPU triggers events */
-    CPUX86State *cpu; /* *_trans */
+    CPUState *cpu; /* *_trans */
 
     /* These structures are private to tcg-target.c.inc.  */
     QSIMPLEQ_HEAD(, TCGLabelQemuLdst) ldst_labels;
