@@ -17,12 +17,8 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "accel/tcg/cpu-loop.h"
-#include "exec/log.h"
-#include "internal-common.h"
-#include "qemu/osdep.h"
-#include "qemu/plugin.h"
-#include "system/tcg.h"
+/* S2E: the include block is replaced, see accel-deps.h. */
+#include "s2e/accel-deps.h"
 
 bool tcg_allowed;
 

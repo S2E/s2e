@@ -17,38 +17,19 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "accel/tcg/cpu-loop.h"
-#include "accel/tcg/cpu-ops.h"
-#include "accel/tcg/helper-retaddr.h"
-#include "disas/disas.h"
-#include "exec/cpu-interrupt.h"
-#include "exec/helper-proto-common.h"
-#include "exec/icount.h"
-#include "exec/log.h"
-#include "exec/mmap-lock.h"
-#include "exec/page-protection.h"
-#include "exec/replay-core.h"
-#include "exec/translation-block.h"
-#include "hw/core/cpu.h"
-#include "internal-common.h"
-#include "qapi/error.h"
-#include "qapi/type-helpers.h"
-#include "qemu/atomic.h"
-#include "qemu/main-loop.h"
-#include "qemu/osdep.h"
-#include "qemu/qemu-print.h"
-#include "qemu/rcu.h"
-#include "system/tcg.h"
+/* S2E: the include block is replaced, see accel-deps.h. */
+#include "s2e/accel-deps.h"
 #include "tb-context.h"
-#include "tb-hash.h"
 #include "tb-internal.h"
+
 #include "tb-jmp-cache.h"
-#include "tcg-accel-ops.h"
-#include "tcg/tcg.h"
-#include "trace.h"
-#if !defined(CONFIG_USER_ONLY)
-#include "accel/tcg/iommu.h"
-#endif
+
+/* S2E: defined in s2e/cpu-exec-symbex.c.inc, which is included at the end of
+   this file. */
+static uintptr_t se_tb_exec(CPUState *cpu, TranslationBlock *tb);
+static bool se_interrupt_window_opened(CPUState *cpu);
+static void se_tb_flush_if_requested(CPUState *cpu);
+static bool se_tb_lacks_llvm_function(CPUState *cpu, const TranslationBlock *tb);
 
 /* -icount align implementation. */
 
@@ -399,14 +380,15 @@ static vaddr log_pc(CPUState *cpu, const TranslationBlock *tb) {
 static inline TranslationBlock *QEMU_DISABLE_CFI cpu_tb_exec(CPUState *cpu, TranslationBlock *itb, int *tb_exit) {
     uintptr_t ret;
     TranslationBlock *last_tb;
-    const void *tb_ptr = itb->tc.ptr;
 
     if (qemu_loglevel_mask(CPU_LOG_TB_CPU | CPU_LOG_EXEC)) {
         log_cpu_exec(log_pc(cpu, itb), cpu, itb);
     }
 
     qemu_thread_jit_execute();
-    ret = tcg_qemu_tb_exec(cpu_env(cpu), tb_ptr);
+    /* S2E: runs the TB natively or in KLEE. A TB that KLEE ran or declined
+       returns 0, so the loop does not chain from it. */
+    ret = se_tb_exec(cpu, itb);
     cpu->neg.can_do_io = true;
     qemu_plugin_disable_mem_helpers(cpu);
     /*
@@ -678,6 +660,9 @@ static inline bool cpu_handle_exception(CPUState *cpu, int *ret) {
     if (replay_exception()) {
         const TCGCPUOps *tcg_ops = cpu->cc->tcg_ops;
 
+        /* S2E: this line is part of what LIBCPU_LOG_LEVEL=int reports. */
+        qemu_log_mask(CPU_LOG_INT, "  do_interrupt exidx=%x\n", cpu->exception_index);
+
         bql_lock();
         tcg_ops->do_interrupt(cpu);
         bql_unlock();
@@ -878,6 +863,23 @@ static inline void cpu_loop_exec_tb(CPUState *cpu, TranslationBlock *tb, vaddr p
 
 static int __attribute__((noinline)) cpu_exec_loop(CPUState *cpu, SyncClocks *sc) {
     int ret;
+    /* S2E: the flush count just before the previous TB started. */
+    unsigned se_tb_flush_count = 0;
+
+#ifdef CONFIG_SYMBEX
+    /*
+     * S2E: this function runs on entry to cpu_exec() and after every longjmp,
+     * which is when a TB that a state switch or fork interrupted must be
+     * finished. A state that left the loop while finishing returns EXCP_SE.
+     */
+    assert(cpu->exception_index != EXCP_SE);
+    if (g_sqi.exec.finalize_tb_exec()) {
+        g_sqi.exec.cleanup_tb_exec();
+        if (cpu->exception_index == EXCP_SE) {
+            return EXCP_SE;
+        }
+    }
+#endif
 
     /* if an exception is pending, we execute it here */
     while (!cpu_handle_exception(cpu, &ret)) {
@@ -906,7 +908,19 @@ static int __attribute__((noinline)) cpu_exec_loop(CPUState *cpu, SyncClocks *sc
                 break;
             }
 
+            /* S2E: plugin code cannot flush while a TB runs, because the flush
+               would destroy the running code. It asks for a flush here instead. */
+            se_tb_flush_if_requested(cpu);
+
             tb = tb_lookup(cpu, s);
+
+            /* S2E: the hash table holds one TB per key, so a TB without the LLVM
+               function that KLEE needs is replaced by a new one. */
+            if (tb && se_tb_lacks_llvm_function(cpu, tb)) {
+                tb_phys_invalidate(tb, -1);
+                tb = NULL;
+            }
+
             if (tb == NULL) {
                 CPUJumpCache *jc;
                 uint32_t h;
@@ -936,12 +950,29 @@ static int __attribute__((noinline)) cpu_exec_loop(CPUState *cpu, SyncClocks *sc
                 last_tb = NULL;
             }
 #endif
+            /*
+             * S2E: a flush while the previous TB ran, or in tb_gen_code() above when
+             * the code buffer is full, reset the buffer that holds the previous TB.
+             * libcpu never sets CF_PARALLEL, so tb_gen_code() flushes without leaving
+             * the loop, and upstream's loop would patch the reset buffer here.
+             */
+            if (qatomic_read(&tb_ctx.tb_flush_count) != se_tb_flush_count) {
+                last_tb = NULL;
+            }
+
             /* See if we can patch the calling TB. */
             if (last_tb) {
                 tb_add_jump(last_tb, tb_exit, tb);
             }
 
+            se_tb_flush_count = qatomic_read(&tb_ctx.tb_flush_count);
             cpu_loop_exec_tb(cpu, tb, s.pc, &last_tb, &tb_exit);
+
+            /* S2E: leave the loop when the interrupt window of the KVM client opens. */
+            if (se_interrupt_window_opened(cpu)) {
+                cpu->exception_index = EXCP_INTERRUPT;
+                break;
+            }
 
             /* Try to align the host and virtual clocks
                if the guest is in advance */
@@ -952,12 +983,30 @@ static int __attribute__((noinline)) cpu_exec_loop(CPUState *cpu, SyncClocks *sc
 }
 
 static int cpu_exec_setjmp(CPUState *cpu, SyncClocks *sc) {
+    int ret;
+
     /* Prepare setjmp context for exception handling. */
     if (unlikely(sigsetjmp(cpu->jmp_env, 0) != 0)) {
         cpu_exec_longjmp_cleanup(cpu);
+
+#ifdef CONFIG_SYMBEX
+        /* S2E: unwinds the KLEE stack. The state may have yielded or terminated. */
+        g_sqi.exec.cleanup_tb_exec();
+        if (!g_sqi.exec.is_runnable()) {
+            return EXCP_SE;
+        }
+#endif
     }
 
-    return cpu_exec_loop(cpu, sc);
+    ret = cpu_exec_loop(cpu, sc);
+
+    /*
+     * S2E: upstream calls this from cpu_exec(), after this frame is gone. In S2E,
+     * the hook can run a helper in KLEE when the flags are symbolic. If the helper
+     * forks, libs2ecore longjmps to jmp_env, so this frame must still exist.
+     */
+    cpu_exec_exit(cpu);
+    return ret;
 }
 
 int cpu_exec(CPUState *cpu) {
@@ -971,6 +1020,16 @@ int cpu_exec(CPUState *cpu) {
         return EXCP_HALTED;
     }
 
+#ifdef CONFIG_SYMBEX
+    /* S2E: the current state cannot run, libs2ecore must pick another one. */
+    if (!g_sqi.exec.is_runnable()) {
+        if (g_sqi.exec.is_yielded()) {
+            g_sqi.exec.reset_state_switch_timer();
+        }
+        return EXCP_SE;
+    }
+#endif
+
     RCU_READ_LOCK_GUARD();
     cpu_exec_enter(cpu);
 
@@ -982,9 +1041,9 @@ int cpu_exec(CPUState *cpu) {
      */
     init_delay_params(&sc, cpu);
 
+    /* S2E: cpu_exec_setjmp() calls cpu_exec_exit(). */
     ret = cpu_exec_setjmp(cpu, &sc);
 
-    cpu_exec_exit(cpu);
     return ret;
 }
 
@@ -1026,3 +1085,5 @@ void tcg_exec_unrealizefn(CPUState *cpu) {
     tlb_destroy(cpu);
     g_free_rcu(cpu->tb_jmp_cache, rcu);
 }
+
+#include "s2e/cpu-exec-symbex.c.inc"
