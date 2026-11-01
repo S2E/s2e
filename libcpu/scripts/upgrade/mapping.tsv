@@ -26,3 +26,4 @@ src/accel/atomic_common.c.inc	accel/tcg/atomic_common.c.inc
 src/accel/atomic_template.h	accel/tcg/atomic_template.h
 # --- execution layer -----------------------------------------------------
 include/cpu/exec/breakpoint.h	include/exec/breakpoint.h
+include/cpu/accel/tb-cpu-state.h	include/accel/tcg/tb-cpu-state.h
