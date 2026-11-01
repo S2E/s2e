@@ -1,7 +1,7 @@
 # libtcg path <TAB> upstream QEMU path, as of the tag recorded in BASELINE.
 #
 # Only files that track upstream appear here. S2E-original files
-# (tcg-s2e.c, tcg-llvm.cpp, tcg/tb.h, tcg/regs.h,
+# (tcg-s2e.c, tcg-llvm.cpp, tcg/tb-s2e.h, tcg/regs.h,
 # tcg/helper.h, tcg/ops_sse_header.h, tcg/qemu-plugin.h) are deliberately
 # absent: they have no upstream counterpart to merge from.
 #

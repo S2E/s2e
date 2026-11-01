@@ -87,7 +87,7 @@ static TranslationBlock *tb_find_slow(CPUArchState *env, target_ulong pc, target
         }
 #endif
 
-        if (tb->pc == pc && tb->page_addr[0] == phys_page1 && tb->cs_base == cs_base && tb->flags == flags &&
+        if (tb->pc == pc && tb_page_addr0(tb) == phys_page1 && tb->cs_base == cs_base && tb->flags == flags &&
             !llvm_nok) {
             goto found;
         }
@@ -188,7 +188,7 @@ static void dump_regs(CPUX86State *env, int isStart) {
 
 static uintptr_t fetch_and_run_tb(TranslationBlock *prev_tb, int tb_exit_code, CPUArchState *env) {
     CPUState *cpu = env_cpu(env);
-    uint8_t *tc_ptr;
+    const void *tc_ptr;
     uintptr_t last_tb;
 
     TranslationBlock *tb = tb_find_fast(env);
@@ -208,7 +208,7 @@ static uintptr_t fetch_and_run_tb(TranslationBlock *prev_tb, int tb_exit_code, C
      * see if we can patch the calling TB. When the TB
      * spans two pages, we cannot safely do a direct jump.
      */
-    if (prev_tb && tb->page_addr[1] == -1) {
+    if (prev_tb && tb_page_addr1(tb) == -1) {
         tb_add_jump(prev_tb, tb_exit_code, tb);
     }
 

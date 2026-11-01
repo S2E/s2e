@@ -21,8 +21,8 @@
 #define CPUTLB_H
 
 #include <cpu/exec/memattrs.h>
-#include <tcg/exec/vaddr.h>
 #include <cpu/i386/cpu.h>
+#include <tcg/exec/vaddr.h>
 
 /* S2E: libcpu headers are also included from C++. */
 #ifdef __cplusplus

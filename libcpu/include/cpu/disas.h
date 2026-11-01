@@ -24,7 +24,7 @@
 extern "C" {
 #endif
 
-void host_disas(FILE *out, void *pc, size_t size);
+void host_disas(FILE *out, const void *pc, size_t size);
 
 void target_disas_range(void *env, FILE *out, target_ulong code, target_ulong size, int flags);
 

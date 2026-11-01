@@ -7,16 +7,25 @@
 #ifndef EXEC_TRANSLATION_BLOCK_H
 #define EXEC_TRANSLATION_BLOCK_H
 
-#include "exec/cpu-common.h"
-#include "exec/vaddr.h"
-#include "qemu/atomic.h"
-#include "qemu/thread.h"
+/* S2E: exec/cpu-common.h is not vendored. This header only needs CPUState from it. */
+#include <tcg/exec/vaddr.h>
+#include <utils/atomic.h>
+#include <utils/thread.h>
 #ifdef CONFIG_USER_ONLY
 #include "exec/target_page.h"
 #include "qemu/interval-tree.h"
 #else
-#include "system/ram_addr.h"
+/* S2E: tb-s2e.h has the ram_addr_t of system/ram_addr.h, which is not vendored. */
+#include <tcg/tb-s2e.h>
 #endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/* S2E: upstream declares these in qemu/typedefs.h, which is not vendored. */
+typedef struct CPUState CPUState;
+typedef struct TranslationBlock TranslationBlock;
 
 /*
  * Page tracking code uses ram addresses in system mode, and virtual
@@ -147,6 +156,22 @@ struct TranslationBlock {
     uintptr_t jmp_list_head;
     uintptr_t jmp_list_next[2];
     uintptr_t jmp_dest[2];
+
+    /* S2E: the old execution layer chains TBs that share a hash through this field. */
+    struct TranslationBlock *phys_hash_next;
+
+#ifdef CONFIG_SYMBEX
+    /* S2E: pointer to LLVM translated code */
+    void *llvm_function;
+
+    enum ETranslationBlockType se_tb_type;
+    uint64_t se_tb_call_eip;
+    void *se_tb;
+    uint64_t pcOfLastInstr; /* XXX: hack for call instructions */
+
+    /* Indicates whether there are execution handlers attached */
+    int instrumented;
+#endif
 };
 
 /* The alignment given to TranslationBlock during allocation. */
@@ -205,5 +230,9 @@ static inline void tb_set_page_addr1(TranslationBlock *tb, tb_page_addr_t addr) 
 
 /* TranslationBlock invalidate API */
 void tb_invalidate_phys_range(CPUState *cpu, tb_page_addr_t start, tb_page_addr_t last);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* EXEC_TRANSLATION_BLOCK_H */

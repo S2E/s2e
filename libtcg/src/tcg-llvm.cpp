@@ -29,7 +29,7 @@
 #include <tcg/tcg-internal.h>
 #include <tcg/insn-start-words.h>
 extern "C" {
-#include <tcg/tb.h>
+#include <tcg/exec/translation-block.h>
 }
 // clang-format on
 

@@ -55,9 +55,6 @@ void LIBCPU_NORETURN cpu_io_recompile(CPUArchState *env, void *retaddr);
 TranslationBlock *tb_gen_code(CPUArchState *env, target_ulong pc, target_ulong cs_base, int flags, int cflags);
 void cpu_exec_init(CPUArchState *env);
 int page_unprotect(target_ulong address, uintptr_t pc, void *puc);
-void tb_invalidate_phys_range(CPUState *cpu, tb_page_addr_t start, tb_page_addr_t last);
-
-#define CODE_GEN_ALIGN 16 /* must be >= of the size of a icache line */
 
 #define CODE_GEN_PHYS_HASH_BITS 15
 #define CODE_GEN_PHYS_HASH_SIZE (1 << CODE_GEN_PHYS_HASH_BITS)

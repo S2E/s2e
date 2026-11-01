@@ -22,7 +22,6 @@
  * THE SOFTWARE.
  */
 
-#include <tcg/tb.h>
 #include <utils/osdep.h>
 
 // clang-format off
@@ -30,6 +29,7 @@
 #include <tcg/tcg-op-common.h>
 #include <tcg/tcg-temp-internal.h>
 #include <tcg/tcg.h>
+#include <tcg/exec/translation-block.h>
 #include <tcg/tcg-internal.h>
 #include <tcg/x86_64/tcg-target-mo.h>
 #include <tcg/qemu-plugin.h>

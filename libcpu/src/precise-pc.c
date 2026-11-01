@@ -48,8 +48,8 @@ static uint8_t *encode_sleb128(uint8_t *p, target_long val) {
 
 /* Decode a signed leb128 sequence at *PP; increment *PP past the
    decoded value.  Return the decoded value.  */
-static target_long decode_sleb128(uint8_t **pp) {
-    uint8_t *p = *pp;
+static target_long decode_sleb128(const uint8_t **pp) {
+    const uint8_t *p = *pp;
     target_long val = 0;
     int byte, shift = 0;
 
@@ -115,7 +115,7 @@ int encode_search(TCGContext *tcg_ctx, TranslationBlock *tb, uint8_t *block) {
 
 int tb_get_instruction_size(TranslationBlock *tb, uint64_t pc) {
     target_ulong data[INSN_START_WORDS] = {tb->pc};
-    uint8_t *p = tb->tc.ptr + tb->tc.size;
+    const uint8_t *p = tb->tc.ptr + tb->tc.size;
     int i, j, num_insns = tb->icount;
 
     if (pc < tb->pc || pc >= tb->pc + tb->size) {
@@ -144,7 +144,7 @@ int tb_get_instruction_size(TranslationBlock *tb, uint64_t pc) {
 
 static int tb_find_guest_pc(TranslationBlock *tb, uintptr_t searched_host_pc, target_ulong *data) {
     uintptr_t host_pc = (uintptr_t) tb->tc.ptr;
-    uint8_t *p = tb->tc.ptr + tb->tc.size;
+    const uint8_t *p = tb->tc.ptr + tb->tc.size;
     int i, j, num_insns = tb->icount;
 
     searched_host_pc -= GETPC_ADJ;

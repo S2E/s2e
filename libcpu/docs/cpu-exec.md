@@ -27,8 +27,8 @@ import.
 
 Measured against `~/softs/qemu` at `v11.1.0` and this tree at `40509541`.
 
-**Status: plan.** Step 1 and items 1 to 9 of step 2 are done. Nothing else in
-this document has landed.
+**Status: plan.** Steps 1 and 2 are done. Nothing else in this document has
+landed.
 
 The plan therefore does not try to be complete: section 10 says how each
 step checks what the plan may have missed, and how the plan is updated when the
@@ -253,13 +253,16 @@ changes for libs2ecore and the plugins:
   and `tb_page_addr1()`.
 - `tb_page_addr_t` is `ram_addr_t` instead of libtcg's `uintptr_t`,
   `page_next[]` holds tagged `uintptr_t` values instead of pointers, and
-  `jmp_lock` is a `QemuSpin` instead of an `int`. libtcg needs a definition of
-  `ram_addr_t` that does not come from libcpu. During step 2, the old
-  `exec-tb.c` runs on this struct and is adapted to the three types.
-- Upstream's header includes `qemu/thread.h`, `exec/cpu-common.h` and
-  `system/ram_addr.h`. libs2ecore and the plugins include it from C++.
-  Whether these includes compile as C++, and which of them libtcg can provide,
-  is *(unverified)*.
+  `jmp_lock` is a `QemuSpin` instead of an `int`. `tcg/tb-s2e.h` defines
+  `ram_addr_t` for libtcg and libcpu, because libtcg cannot include libcpu.
+  During step 2, the old `exec-tb.c` runs on this struct and is adapted to the
+  three types.
+- Upstream's header includes `qemu/thread.h`, `exec/cpu-common.h`,
+  `exec/vaddr.h` and `system/ram_addr.h`. libs2ecore and the plugins include it
+  from C++. `qemu/thread.h` is libutils' `utils/thread.h`. Only `CPUState` is
+  needed from `exec/cpu-common.h`, and the header declares it. `vaddr.h` moves
+  from libcpu to libtcg. The header compiles with g++ and clang++ with and
+  without `CONFIG_SYMBEX`.
 - The `CF_*` values are upstream's. `CF_COUNT_MASK` is `0x1ff`, which
   `TCG_MAX_INSNS` already matches. `CF_HAS_INTERRUPT_EXIT` disappears: every
   TB checks for an exit request unless it has `CF_NOIRQ`, so the test in
@@ -1157,8 +1160,6 @@ These are known and left for implementation:
   `abort()` in the bitcode build (hazard 5.3).
 - Whether `internal-common.h` compiles in the bitcode build of `cputlb.c`
   (2.1).
-- Whether upstream's `translation-block.h` compiles as C++ for libs2ecore and
-  the plugins (2.2).
 - What `se_current_tb` holds in a state resumed by `finalize_tb_exec()`
   (D8).
 - Whether a guest can reach the third-page assertion of hazard 5.13.
@@ -1180,3 +1181,7 @@ These are known and left for implementation:
   step 3 although the `get_tb_cpu_state` hook returns its type. The item also
   drops the `cpu_get_tb_cpu_state()` call in the SMC path of `exec-tb.c`, whose
   results nothing read.
+- 2026-11-01: step 2 item 10 moves `vaddr.h` from libcpu to libtcg, which the
+  new header needs, and defines `ram_addr_t` in `tcg/tb-s2e.h`. `jmp_lock`
+  moves to `QemuSpin` in its own commit, which also deletes `tb_lock`, unused,
+  and `utils/spinlock.h`, whose last user was `jmp_lock`.
