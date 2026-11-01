@@ -38,6 +38,8 @@
 
 #include "exec-tb.h"
 
+#include "accel/tb-hash.h"
+
 TranslationBlock *tb_phys_hash[CODE_GEN_PHYS_HASH_SIZE];
 
 int g_tb_flush_count;
@@ -91,7 +93,7 @@ void tb_flush(CPUState *cpu) {
 #endif
 
     if (first_cpu) {
-        memset(first_cpu->neg.tb_jmp_cache, 0, TB_JMP_CACHE_SIZE * sizeof(void *));
+        tcg_flush_jmp_cache(first_cpu);
     }
 
     memset(tb_phys_hash, 0, CODE_GEN_PHYS_HASH_SIZE * sizeof(void *));
@@ -203,8 +205,10 @@ void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr) {
     /* remove the TB from the hash list */
     h = tb_jmp_cache_hash_func(tb->pc);
     if (first_cpu) {
-        if (first_cpu->neg.tb_jmp_cache[h] == tb) {
-            first_cpu->neg.tb_jmp_cache[h] = NULL;
+        CPUJumpCache *jc = first_cpu->tb_jmp_cache;
+
+        if (qatomic_read(&jc->array[h].tb) == tb) {
+            qatomic_set(&jc->array[h].tb, NULL);
         }
     }
 

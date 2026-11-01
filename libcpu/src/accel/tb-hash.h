@@ -20,10 +20,11 @@
 #ifndef EXEC_TB_HASH_H
 #define EXEC_TB_HASH_H
 
-#include "exec/target_page.h"
-#include "exec/translation-block.h"
-#include "exec/vaddr.h"
-#include "qemu/xxhash.h"
+/* S2E: cpu.h defines the page size that upstream gets from exec/target_page.h. */
+#include <tcg/exec/translation-block.h>
+#include <tcg/exec/vaddr.h>
+#include <utils/xxhash.h>
+#include "cpu.h"
 #include "tb-jmp-cache.h"
 
 #ifdef CONFIG_SOFTMMU

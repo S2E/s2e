@@ -50,6 +50,8 @@
 
 #include <cpu/accel/cpu-ops.h>
 
+#include "accel/tb-jmp-cache.h"
+
 /*
  * Isolate the portion of code gen which can setjmp/longjmp.
  * Return the size of the generated code, or negative on error.
@@ -183,4 +185,18 @@ tb_overflow:
 #endif
 
     return 0;
+}
+
+/* Discard all entries of the jump cache. */
+void tcg_flush_jmp_cache(CPUState *cpu) {
+    CPUJumpCache *jc = cpu->tb_jmp_cache;
+
+    /* During early initialization, the cache may not yet be allocated. */
+    if (unlikely(jc == NULL)) {
+        return;
+    }
+
+    for (int i = 0; i < TB_JMP_CACHE_SIZE; i++) {
+        qatomic_set(&jc->array[i].tb, NULL);
+    }
 }

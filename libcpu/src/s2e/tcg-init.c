@@ -31,6 +31,7 @@
 #include "cpu.h"
 #include "exec-all.h"
 
+#include "accel/tb-jmp-cache.h"
 #include "accel/tlb-bounds.h"
 
 #include <cpu/accel/cpu-ops.h>
@@ -100,6 +101,8 @@ void tcg_exec_cpu_init(CPUState *cpu) {
         tcg_ops->initialize();
         tcg_target_initialized = true;
     }
+
+    cpu->tb_jmp_cache = g_new0(CPUJumpCache, 1);
 
     /* cpu_x86_init() allocates the CPU with zeros, and cpu_common_reset() only
        runs on an INIT interrupt. */

@@ -75,6 +75,8 @@
 #include "exec-ram.h"
 #include "exec-tb.h"
 
+#include "accel/tb-hash.h"
+
 #ifdef CONFIG_SYMBEX
 #include <cpu/se_libcpu.h>
 #include <cpu/se_libcpu_config.h>
@@ -180,15 +182,6 @@ static inline bool cpu_plugin_mem_cbs_enabled(const CPUState *cpu) {
 
 static inline void qemu_plugin_vcpu_mem_cb(CPUState *cpu, uint64_t vaddr, uint64_t value_low, uint64_t value_high,
                                            MemOpIdx oi, enum qemu_plugin_mem_rw rw) {
-}
-
-/*
- * TB jump cache. The cache is still QEMU 1.0's array in neg; upstream's
- * CPUJumpCache arrives with cpu-exec.c.
- */
-
-static inline void tcg_flush_jmp_cache(CPUState *cpu) {
-    memset(cpu->neg.tb_jmp_cache, 0, sizeof(cpu->neg.tb_jmp_cache));
 }
 
 /*
