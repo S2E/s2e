@@ -27,7 +27,7 @@ import.
 
 Measured against `~/softs/qemu` at `v11.1.0` and this tree at `40509541`.
 
-**Status: plan.** Step 1 and items 1 to 8 of step 2 are done. Nothing else in
+**Status: plan.** Step 1 and items 1 to 9 of step 2 are done. Nothing else in
 this document has landed.
 
 The plan therefore does not try to be complete: section 10 says how each
@@ -131,7 +131,7 @@ Imported from `v11.1.0` through `normalize.sh`, each with a row in
 | `accel/tcg/{tb-hash,tb-context,tb-internal,tb-jmp-cache,internal-common}.h` | `src/accel/` | 346 | Unmodified |
 | `include/exec/translator.h` | `include/cpu/exec/translator.h` | 282 | |
 | `include/exec/tb-flush.h` | `include/cpu/exec/tb-flush.h` | 38 | |
-| `include/accel/tcg/tb-cpu-state.h` | `include/cpu/accel/tb-cpu-state.h` | 22 | |
+| `include/accel/tcg/tb-cpu-state.h` | `include/cpu/accel/tb-cpu-state.h` | 22 | Imported in step 2 item 9, which needs `TCGTBCPUState` |
 | `include/exec/translation-block.h` | libtcg `include/tcg/exec/translation-block.h` | 217 | libtcg mapping; S2E fields appended (2.2) |
 
 About 4,600 lines arrive. They replace `cpu-exec.c`, `exec-tb.{c,h}`,
@@ -945,7 +945,12 @@ first.
    `cpu_set_debug_excp_handler()`, which is deleted. After this, the switch
    replaces the code around the hooks, not the hooks. The hooks take upstream
    signatures (item 5) and `cpu_exec_reset` handles `CPU_INTERRUPT_RESET`
-   (item 1).
+   (item 1). The old loop keeps its `cpu_loop_exit()` after `cpu_exec_reset`,
+   because it has no path from the hook's return to `cpu_handle_exception()`.
+   The hooks that nothing can call yet, `precise_smc` and
+   `debug_check_breakpoint`, are set for step 3. `cpu_exec_enter` stays NULL
+   (2.3), so the old loop does not call it. `tb-cpu-state.h` comes in its own
+   commit before this item, as 2.1 requires.
 10. **`TranslationBlock`.** Import `translation-block.h` into libtcg in two
     commits (2.1): the normalized upstream file, then the S2E block and the
     deletion of `tcg/tb.h`. `phys_hash_next` stays in the S2E block
@@ -960,7 +965,8 @@ first.
 
 ### Step 3: The switch (5-8 days)
 
-Import the files of 2.1 except `translator.c` and `translator.h`. The first
+Import the files of 2.1 except `translator.c`, `translator.h` and
+`tb-cpu-state.h`, which step 2 item 9 imported. The first
 commit of the step adds all of them as `normalize.sh` emits them, together
 with their `mapping.tsv` rows, and changes nothing else. The build ignores
 them until the next commit. The commits after it apply the S2E deviations,
@@ -1170,3 +1176,7 @@ These are known and left for implementation:
 - 2026-11-01: step 2 item 8 erases the dead `icount_decr` load in
   `removeInterruptExit()` instead of relying on the optimizer (hazard 5.4),
   and removes `CF_NOCACHE`, which nothing sets and upstream does not have.
+- 2026-11-01: step 2 item 9 imports `tb-cpu-state.h`, which the plan left for
+  step 3 although the `get_tb_cpu_state` hook returns its type. The item also
+  drops the `cpu_get_tb_cpu_state()` call in the SMC path of `exec-tb.c`, whose
+  results nothing read.

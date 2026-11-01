@@ -4,7 +4,7 @@
 add_library(
     cpu cpu-exec.c cpus.c exec.c exec-bp.c exec-memdbg.c exec-phystb.c exec-ram.c exec-tb.c ioport.c memory.c timer.c translate-all.c
     precise-pc.c accel/cputlb.c s2e/cpu-x86-exec.c
-    target-i386/cpuid.c target-i386/helper.c target-i386/op_helper.c target-i386/translate.c disas.c
+    target-i386/cpuid.c target-i386/helper.c target-i386/op_helper.c target-i386/tcg-cpu.c target-i386/translate.c disas.c
 )
 
 

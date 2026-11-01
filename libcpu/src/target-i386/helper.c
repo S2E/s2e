@@ -20,6 +20,7 @@
 
 #include "cpu.h"
 
+#include <cpu/accel/cpu-ops.h>
 #include <cpu/memdbg.h>
 
 ///
@@ -1009,21 +1010,21 @@ int check_hw_breakpoints(CPUX86State *env, int force_dr6_update) {
     return hit_enabled;
 }
 
-static CPUDebugExcpHandler *prev_debug_excp_handler;
-
-static void breakpoint_handler(CPUX86State *env) {
+void breakpoint_handler(CPUState *cs) {
+    CPUX86State *env = cpu_env(cs);
     CPUBreakpoint *bp;
 
-    if (env_cpu(env)->watchpoint_hit) {
-        if (env_cpu(env)->watchpoint_hit->flags & BP_CPU) {
-            env_cpu(env)->watchpoint_hit = NULL;
-            if (check_hw_breakpoints(env, 0))
+    if (cs->watchpoint_hit) {
+        if (cs->watchpoint_hit->flags & BP_CPU) {
+            cs->watchpoint_hit = NULL;
+            if (check_hw_breakpoints(env, 0)) {
                 raise_exception(env, EXCP01_DB);
-            else
-                cpu_loop_exit_noexc(env_cpu(env));
+            } else {
+                cpu_loop_exit_noexc(cs);
+            }
         }
     } else {
-        QTAILQ_FOREACH (bp, &env_cpu(env)->breakpoints, entry)
+        QTAILQ_FOREACH (bp, &cs->breakpoints, entry) {
             if (bp->pc == env->eip) {
                 if (bp->flags & BP_CPU) {
                     check_hw_breakpoints(env, 1);
@@ -1031,10 +1032,7 @@ static void breakpoint_handler(CPUX86State *env) {
                 }
                 break;
             }
-    }
-
-    if (prev_debug_excp_handler) {
-        prev_debug_excp_handler(env);
+        }
     }
 }
 
@@ -1090,8 +1088,7 @@ CPUX86State *cpu_x86_init(const cpuid_t *cpuid) {
     /* init various static tables used in TCG mode */
     if (tcg_enabled() && !inited) {
         inited = 1;
-        optimize_flags_init();
-        prev_debug_excp_handler = cpu_set_debug_excp_handler(breakpoint_handler);
+        env_cpu(env)->cc->tcg_ops->initialize();
     }
 
     env->cpuid = *cpuid;

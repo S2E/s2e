@@ -14,6 +14,7 @@
 #error Can only include this header with TCG
 #endif
 
+#include <cpu/accel/tb-cpu-state.h>
 #include <cpu/common.h>
 #include <cpu/exec/memattrs.h>
 #include <cpu/exec/mmu-access-type.h>
@@ -27,14 +28,12 @@ extern "C" {
 #endif
 
 /* S2E: libcpu's CPUState is hand-written (cpu/state.h) and only knows this
-   structure by name. TCGTBCPUState belongs to upstream's TB lookup, which is
-   not imported yet. */
+   structure by name. */
 struct CPUState;
 typedef struct CPUState CPUState;
 struct CPUTLBEntryFull;
 typedef struct CPUTLBEntryFull CPUTLBEntryFull;
 typedef struct TranslationBlock TranslationBlock;
-typedef struct TCGTBCPUState TCGTBCPUState;
 typedef struct TCGCPUOps TCGCPUOps;
 
 struct TCGCPUOps {

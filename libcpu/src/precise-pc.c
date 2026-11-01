@@ -24,6 +24,7 @@
 #include "exec-tb.h"
 #include "exec.h"
 
+#include <cpu/accel/cpu-ops.h>
 #include <cpu/precise-pc.h>
 #include <tcg/insn-start-words.h>
 
@@ -181,7 +182,7 @@ static int cpu_restore_state_from_tb(CPUState *cpu, TranslationBlock *tb, uintpt
     for (int i = 0; i < INSN_START_WORDS; ++i) {
         data64[i] = data[i];
     }
-    restore_state_to_opc(cpu, tb, data64);
+    cpu->cc->tcg_ops->restore_state_to_opc(cpu, tb, data64);
 
     return 0;
 }

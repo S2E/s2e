@@ -24,6 +24,8 @@
 #include "cpu.h"
 #include "exec-tb.h"
 
+#include <cpu/accel/cpu-ops.h>
+
 #ifdef CONFIG_SYMBEX
 #include <cpu/se_libcpu.h>
 #endif
@@ -108,9 +110,8 @@ found:
 }
 
 static inline TranslationBlock *tb_find_fast(CPUArchState *env) {
+    CPUState *cpu = env_cpu(env);
     TranslationBlock *tb;
-    target_ulong cs_base, pc;
-    int flags;
 
 /**
  * Plugin code cannot usually invalidate the TB cache safely
@@ -120,47 +121,39 @@ static inline TranslationBlock *tb_find_fast(CPUArchState *env) {
 #ifdef CONFIG_SYMBEX
     if (tb_invalidate_before_fetch) {
         tb_invalidate_before_fetch = 0;
-        tb_flush(env_cpu(env));
+        tb_flush(cpu);
     }
 #endif
 
     /* we record a subset of the CPU state. It will
        always be the same before a given translated block
        is executed. */
-    cpu_get_tb_cpu_state(env, &pc, &cs_base, &flags);
-    tb = env_cpu(env)->neg.tb_jmp_cache[tb_jmp_cache_hash_func(pc)];
+    TCGTBCPUState s = cpu->cc->tcg_ops->get_tb_cpu_state(cpu);
+    tb = cpu->neg.tb_jmp_cache[tb_jmp_cache_hash_func(s.pc)];
 
 #ifdef CONFIG_SYMBEX
-    int llvm_nok = env_cpu(env)->generate_llvm && (!tb || !tb->llvm_function);
+    int llvm_nok = cpu->generate_llvm && (!tb || !tb->llvm_function);
 #else
     int llvm_nok = 0;
 #endif
 
-    if (unlikely(!tb || tb->pc != pc || tb->cs_base != cs_base || tb->flags != flags || llvm_nok)) {
-        tb = tb_find_slow(env, pc, cs_base, flags);
+    if (unlikely(!tb || tb->pc != s.pc || tb->cs_base != s.cs_base || tb->flags != s.flags || llvm_nok)) {
+        tb = tb_find_slow(env, s.pc, s.cs_base, s.flags);
     }
     return tb;
 }
 
-static CPUDebugExcpHandler *debug_excp_handler;
-
-CPUDebugExcpHandler *cpu_set_debug_excp_handler(CPUDebugExcpHandler *handler) {
-    CPUDebugExcpHandler *old_handler = debug_excp_handler;
-
-    debug_excp_handler = handler;
-    return old_handler;
-}
-
-static void cpu_handle_debug_exception(CPUArchState *env) {
+static void cpu_handle_debug_exception(CPUState *cpu) {
+    const TCGCPUOps *tcg_ops = cpu->cc->tcg_ops;
     CPUWatchpoint *wp;
 
-    if (!env_cpu(env)->watchpoint_hit) {
-        QTAILQ_FOREACH (wp, &env_cpu(env)->watchpoints, entry) {
+    if (!cpu->watchpoint_hit) {
+        QTAILQ_FOREACH (wp, &cpu->watchpoints, entry) {
             wp->flags &= ~BP_WATCHPOINT_HIT;
         }
     }
-    if (debug_excp_handler) {
-        debug_excp_handler(env);
+    if (tcg_ops->debug_excp_handler) {
+        tcg_ops->debug_excp_handler(cpu);
     }
 }
 
@@ -263,6 +256,7 @@ static uintptr_t fetch_and_run_tb(TranslationBlock *prev_tb, int tb_exit_code, C
 
 static bool process_interrupt_request(CPUArchState *env) {
     CPUState *cpu = env_cpu(env);
+    const TCGCPUOps *tcg_ops = cpu->cc->tcg_ops;
     int interrupt_request = cpu->interrupt_request;
 
     if (likely(!interrupt_request)) {
@@ -271,75 +265,26 @@ static bool process_interrupt_request(CPUArchState *env) {
 
     bool has_interrupt = false;
 
-    libcpu_log_mask(CPU_LOG_INT, "  process_interrupt intrq=%#x mflags=%#lx hf1=%#x hf2=%#x\n", interrupt_request,
-                    (uint64_t) env->mflags, env->hflags, env->hflags2);
-
-    if (unlikely(cpu->singlestep_enabled & SSTEP_NOIRQ)) {
-        /* Mask out external interrupts for this step. */
-        interrupt_request &= ~CPU_INTERRUPT_SSTEP_MASK;
-    }
     if (interrupt_request & CPU_INTERRUPT_DEBUG) {
         cpu->interrupt_request &= ~CPU_INTERRUPT_DEBUG;
         cpu->exception_index = EXCP_DEBUG;
         cpu_loop_exit(cpu);
     }
 
-    if (interrupt_request & CPU_INTERRUPT_INIT) {
-        svm_check_intercept(env, SVM_EXIT_INIT);
-        do_cpu_init(env);
-        cpu->exception_index = EXCP_HALTED;
+    if (interrupt_request & CPU_INTERRUPT_RESET) {
+        tcg_ops->cpu_exec_reset(cpu);
         cpu_loop_exit(cpu);
-    } else if (interrupt_request & CPU_INTERRUPT_SIPI) {
-        perror("Not implemented");
-    } else if (env->hflags2 & HF2_GIF_MASK) {
-        if ((interrupt_request & CPU_INTERRUPT_SMI) && !(env->hflags & HF_SMM_MASK)) {
-            svm_check_intercept(env, SVM_EXIT_SMI);
-            cpu->interrupt_request &= ~CPU_INTERRUPT_SMI;
-            do_smm_enter(env);
-            has_interrupt = true;
-        } else if ((interrupt_request & CPU_INTERRUPT_NMI) && !(env->hflags2 & HF2_NMI_MASK)) {
-            cpu->interrupt_request &= ~CPU_INTERRUPT_NMI;
-            env->hflags2 |= HF2_NMI_MASK;
-            do_interrupt_x86_hardirq(env, EXCP02_NMI, 1);
-            has_interrupt = true;
-        } else if (interrupt_request & CPU_INTERRUPT_MCE) {
-            cpu->interrupt_request &= ~CPU_INTERRUPT_MCE;
-            do_interrupt_x86_hardirq(env, EXCP12_MCHK, 0);
-            has_interrupt = true;
-        } else if ((interrupt_request & CPU_INTERRUPT_HARD) &&
-                   (((env->hflags2 & HF2_VINTR_MASK) && (env->hflags2 & HF2_HIF_MASK)) ||
-                    (!(env->hflags2 & HF2_VINTR_MASK) &&
-                     (env->mflags & IF_MASK && !(env->hflags & HF_INHIBIT_IRQ_MASK))))) {
-            int intno;
+    }
 
-            svm_check_intercept(env, SVM_EXIT_INTR);
-            cpu->interrupt_request &= ~CPU_INTERRUPT_VIRQ;
+    if (unlikely(cpu->singlestep_enabled & SSTEP_NOIRQ)) {
+        /* Mask out external interrupts for this step. */
+        interrupt_request &= ~CPU_INTERRUPT_SSTEP_MASK;
+    }
 
-            /* This clears the request of the source that supplies the vector.
-               The request of the other source stays pending. */
-            intno = cpu_get_pic_interrupt(env);
-            assert(intno >= 0);
-
-            libcpu_log_mask(CPU_LOG_INT, "Servicing hardware INT=%d\n", intno);
-            if (intno >= 0) {
-                libcpu_log_mask(CPU_LOG_INT, "Handling interrupt INT=%d\n", intno);
-                do_interrupt_x86_hardirq(env, intno, 1);
-            }
-
-            /* ensure that no TB jump will be modified as
-                   the program flow was changed */
-            has_interrupt = true;
-        } else if ((interrupt_request & CPU_INTERRUPT_VIRQ) && (env->mflags & IF_MASK) &&
-                   !(env->hflags & HF_INHIBIT_IRQ_MASK)) {
-            int intno;
-            /* FIXME: this should respect TPR */
-            svm_check_intercept(env, SVM_EXIT_VINTR);
-            intno = ldl_phys(env->vm_vmcb + offsetof(struct vmcb, control.int_vector));
-            libcpu_log_mask(CPU_LOG_TB_IN_ASM, "Servicing virtual hardware INT=0x%02x\n", intno);
-            do_interrupt_x86_hardirq(env, intno, 1);
-            cpu->interrupt_request &= ~CPU_INTERRUPT_VIRQ;
-            has_interrupt = true;
-        }
+    /* Ensure that no TB jump will be modified as the program flow was
+       changed. */
+    if (tcg_ops->cpu_exec_interrupt(cpu, interrupt_request)) {
+        has_interrupt = true;
     }
 
     /* Don't use the cached interrupt_request value,
@@ -365,11 +310,11 @@ static int process_exceptions(CPUArchState *env) {
         /* exit request from the cpu execution loop */
         ret = cpu->exception_index;
         if (ret == EXCP_DEBUG) {
-            cpu_handle_debug_exception(env);
+            cpu_handle_debug_exception(cpu);
         }
     } else {
         libcpu_log_mask(CPU_LOG_INT, "  do_interrupt exidx=%x\n", cpu->exception_index);
-        do_interrupt(env);
+        cpu->cc->tcg_ops->do_interrupt(cpu);
         cpu->exception_index = -1;
     }
 
@@ -434,7 +379,7 @@ static bool execution_loop(CPUArchState *env) {
         }
 
         if (last_tb_exit_code > TB_EXIT_IDXMAX) {
-            env->eip = ltb->pc - ltb->cs_base;
+            cpu->cc->tcg_ops->synchronize_from_tb(cpu, ltb);
             ltb = NULL;
         }
 
@@ -453,7 +398,7 @@ int cpu_exec(CPUState *cpu) {
     int ret;
 
     if (cpu->halted) {
-        if (!cpu_has_work(env)) {
+        if (!cpu->cc->tcg_ops->cpu_exec_halt(cpu)) {
             return EXCP_HALTED;
         }
 
@@ -508,44 +453,7 @@ int cpu_exec(CPUState *cpu) {
     } /* for(;;) */
     libcpu_log_mask(CPU_LOG_EXEC, "cpu_loop exit ret=%#x eip=%#lx\n", ret, (uint64_t) env->eip);
 
-#if defined(TARGET_I386)
-#ifdef CONFIG_SYMBEX
-    g_sqi.regs.set_cc_op_eflags(env);
-#else
-    /* restore flags in standard format */
-    WR_cpu(env, cc_src, cpu_cc_compute_all(env, CC_OP));
-    WR_cpu(env, cc_op, CC_OP_EFLAGS);
-    // WR_cpu(env, eflags, RR_cpu(env, eflags) |
-    //       helper_cc_compute_all(CC_OP) | (DF & DF_MASK));
-    /* restore flags in standard format */
-    // env->eflags = env->eflags | cpu_cc_compute_all(env, CC_OP)
-    //    | (DF & DF_MASK);
-
-    /* This mask corresponds to bits that must be 0 in eflags */
-    assert(((env->mflags | env->cc_src) & 0xffc08028) == 0);
-#endif
-
-#elif defined(TARGET_ARM)
-/* XXX: Save/restore host fpu exception state?.  */
-#elif defined(TARGET_UNICORE32)
-#elif defined(TARGET_SPARC)
-#elif defined(TARGET_PPC)
-#elif defined(TARGET_LM32)
-#elif defined(TARGET_M68K)
-    cpu_m68k_flush_flags(env, env->cc_op);
-    env->cc_op = CC_OP_FLAGS;
-    env->sr = (env->sr & 0xffe0) | env->cc_dest | (env->cc_x << 4);
-#elif defined(TARGET_MICROBLAZE)
-#elif defined(TARGET_MIPS)
-#elif defined(TARGET_SH4)
-#elif defined(TARGET_ALPHA)
-#elif defined(TARGET_CRIS)
-#elif defined(TARGET_S390X)
-#elif defined(TARGET_XTENSA)
-/* XXXXX */
-#else
-#error unsupported target CPU
-#endif
+    cpu->cc->tcg_ops->cpu_exec_exit(cpu);
 
     return ret;
 }
