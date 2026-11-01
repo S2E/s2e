@@ -48,8 +48,6 @@
 
 void gen_intermediate_code(CPUArchState *env, struct TranslationBlock *tb);
 
-void restore_state_to_opc(CPUState *cpu, const struct TranslationBlock *tb, const uint64_t *data);
-
 int cpu_gen_code(CPUArchState *env, TranslationBlock *tb);
 int cpu_exec(CPUState *cpu);
 
@@ -122,9 +120,5 @@ static inline tb_page_addr_t get_page_addr_code(CPUArchState *env, target_ulong 
     }
     return ret;
 }
-
-typedef void(CPUDebugExcpHandler)(CPUArchState *env);
-
-CPUDebugExcpHandler *cpu_set_debug_excp_handler(CPUDebugExcpHandler *handler);
 
 #endif

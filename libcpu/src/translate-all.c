@@ -49,6 +49,8 @@
 #include "exec-tb.h"
 #include "exec.h"
 
+#include <cpu/accel/cpu-ops.h>
+
 extern TCGContext tcg_init_ctx;
 
 /* Minimum size of the code gen buffer.  This number is randomly chosen,
@@ -134,11 +136,7 @@ int cpu_gen_code(CPUArchState *env, TranslationBlock *tb) {
     tcg_ctx->tlb_dyn_max_bits = CPU_TLB_DYN_MAX_BITS;
     tcg_ctx->tlb_fast_offset = (int) offsetof(ArchCPU, parent_obj.neg.tlb.f) - (int) offsetof(ArchCPU, env);
 #endif
-#ifdef TCG_GUEST_DEFAULT_MO
-    tcg_ctx->guest_mo = TCG_GUEST_DEFAULT_MO;
-#else
-    tcg_ctx->guest_mo = TCG_MO_ALL;
-#endif
+    tcg_ctx->guest_mo = env_cpu(env)->cc->tcg_ops->guest_default_memory_order;
 
 tb_overflow:
     gen_code_size = setjmp_gen_code(s, env, tb, &max_insns);

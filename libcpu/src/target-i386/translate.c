@@ -7947,17 +7947,3 @@ static inline void gen_intermediate_code_internal(CPUX86State *env, TranslationB
 void gen_intermediate_code(CPUX86State *env, TranslationBlock *tb) {
     gen_intermediate_code_internal(env, tb);
 }
-
-void restore_state_to_opc(CPUState *cpu, const TranslationBlock *tb, const uint64_t *data) {
-    CPUX86State *env = cpu_env(cpu);
-    int cc_op = data[1];
-    env->eip = data[0] - tb->cs_base;
-
-    if (cc_op != CC_OP_DYNAMIC) {
-        env->cc_op = cc_op;
-    }
-
-    if (libcpu_loglevel_mask(CPU_LOG_EXEC)) {
-        libcpu_log("restored state: eip=%#" PRIx64 " cc_op=%#x", (uint64_t) env->eip, cc_op);
-    }
-}

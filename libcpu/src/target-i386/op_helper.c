@@ -4936,23 +4936,6 @@ vaddr x86_cpu_pointer_wrap(CPUState *cs, int mmu_idx, vaddr result, vaddr base) 
     return (cpu_env(cs)->hflags & HF_CS64_MASK) ? result : (uint32_t) result;
 }
 
-#if !defined(SYMBEX_LLVM_LIB)
-static int x86_cpu_mmu_index(CPUState *cs, bool ifetch) {
-    return x86_mmu_index(cpu_env(cs));
-}
-
-static const TCGCPUOps s_x86_tcg_ops = {
-    .mmu_index = x86_cpu_mmu_index,
-    .tlb_fill = x86_cpu_tlb_fill,
-    .do_unaligned_access = x86_cpu_do_unaligned_access,
-    .pointer_wrap = x86_cpu_pointer_wrap,
-};
-
-const CPUClass g_x86_cpu_class = {
-    .tcg_ops = &s_x86_tcg_ops,
-};
-#endif
-
 /* Secure Virtual Machine helpers */
 static inline void svm_save_seg(target_phys_addr_t addr, const SegmentCache *sc) {
     stw_phys(addr + offsetof(struct vmcb_seg, selector), sc->selector);

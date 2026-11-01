@@ -25,6 +25,8 @@
 #include "exec.h"
 #include "qemu-common.h"
 
+#include <cpu/accel/cpu-ops.h>
+
 #if defined(TARGET_HAS_ICE)
 static void breakpoint_invalidate(CPUArchState *env, target_ulong pc) {
     target_phys_addr_t addr;
@@ -213,10 +215,8 @@ int cpu_watchpoint_address_matches(CPUState *cpu, vaddr addr, vaddr len) {
    address of the access into generated code. */
 void cpu_check_watchpoint(CPUState *cpu, vaddr addr, vaddr len, MemTxAttrs attrs, int flags, uintptr_t ra) {
     CPUArchState *env = cpu_env(cpu);
-    target_ulong pc, cs_base;
     TranslationBlock *tb;
     CPUWatchpoint *wp;
-    int cpu_flags;
 
     if (cpu->watchpoint_hit) {
         /* We re-entered the check after replacing the TB. Now raise
@@ -248,8 +248,8 @@ void cpu_check_watchpoint(CPUState *cpu, vaddr addr, vaddr len, MemTxAttrs attrs
                     cpu->exception_index = EXCP_DEBUG;
                     cpu_loop_exit(cpu);
                 } else {
-                    cpu_get_tb_cpu_state(env, &pc, &cs_base, &cpu_flags);
-                    tb_gen_code(env, pc, cs_base, cpu_flags, 1);
+                    TCGTBCPUState s = cpu->cc->tcg_ops->get_tb_cpu_state(cpu);
+                    tb_gen_code(env, s.pc, s.cs_base, s.flags, 1);
                     cpu_loop_exit_noexc(cpu);
                 }
             }
