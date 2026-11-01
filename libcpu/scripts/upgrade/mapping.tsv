@@ -28,3 +28,13 @@ include/cpu/exec/breakpoint.h	include/exec/breakpoint.h
 include/cpu/accel/tb-cpu-state.h	include/accel/tcg/tb-cpu-state.h
 src/accel/tb-jmp-cache.h	accel/tcg/tb-jmp-cache.h
 src/accel/tb-hash.h	accel/tcg/tb-hash.h
+src/accel/cpu-exec.c	accel/tcg/cpu-exec.c
+src/accel/cpu-exec-common.c	accel/tcg/cpu-exec-common.c
+src/accel/tb-maint.c	accel/tcg/tb-maint.c
+src/accel/translate-all.c	accel/tcg/translate-all.c
+src/accel/watchpoint.c	accel/tcg/watchpoint.c
+src/accel/tb-context.h	accel/tcg/tb-context.h
+src/accel/tb-internal.h	accel/tcg/tb-internal.h
+src/accel/internal-common.h	accel/tcg/internal-common.h
+include/cpu/exec/tb-flush.h	include/exec/tb-flush.h
+include/cpu/accel/cpu-loop.h	include/accel/tcg/cpu-loop.h
