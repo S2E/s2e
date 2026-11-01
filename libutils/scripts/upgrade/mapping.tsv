@@ -4,9 +4,9 @@
 # and src/utils/, plus include/qqueue.h (upstream include/qemu/queue.h).
 # The rest of libutils (QAPI, QObject, the visitors, coroutines,
 # fsigc++) is S2E-original or diverged far enough that it is not merged
-# mechanically, and the S2E-original utilities (utils/config-host.h,
-# utils/spinlock.h) have no upstream counterpart at all. The merge driver
-# is scripts/upgrade/merge.sh at the S2E source root.
+# mechanically, and the S2E-original utility utils/config-host.h has no
+# upstream counterpart at all. The merge driver is
+# scripts/upgrade/merge.sh at the S2E source root.
 #
 # upstream-dirs: util/ include/qemu/ host/include/
 #

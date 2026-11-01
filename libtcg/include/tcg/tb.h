@@ -22,6 +22,7 @@
 
 #include <inttypes.h>
 #include <utils/atomic.h>
+#include <utils/thread.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -55,9 +56,6 @@ typedef uintptr_t tb_page_addr_t;
 #elif defined(CONFIG_TCG_INTERPRETER)
 #define USE_DIRECT_JUMP
 #endif
-
-// XXX
-typedef int spinlock_t;
 
 /*
  * Translation Cache-related fields of a TB.
@@ -106,7 +104,7 @@ struct TranslationBlock {
     tb_page_addr_t page_addr[2];
 
     /* jmp_lock placed here to fill a 4-byte hole. Its documentation is below */
-    spinlock_t jmp_lock;
+    QemuSpin jmp_lock;
 
     /* The following data are used to directly call another TB from
      * the code of this one. This can be done either by emitting direct or

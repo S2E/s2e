@@ -40,9 +40,6 @@
 
 TranslationBlock *tb_phys_hash[CODE_GEN_PHYS_HASH_SIZE];
 
-/* any access to the tbs or the page table must use this lock */
-spinlock_t tb_lock = SPIN_LOCK_UNLOCKED;
-
 int g_tb_flush_count;
 int g_tb_phys_invalidate_count;
 int g_tb_alloc_count;
@@ -533,14 +530,14 @@ void tb_remove_from_jmp_list(TranslationBlock *orig, int n_orig) {
         return;
     }
 
-    spin_lock(&dest->jmp_lock);
+    qemu_spin_lock(&dest->jmp_lock);
     /*
      * While acquiring the lock, the jump might have been removed if the
      * destination TB was invalidated; check again.
      */
     ptr_locked = qatomic_read(&orig->jmp_dest[n_orig]);
     if (ptr_locked != ptr) {
-        spin_unlock(&dest->jmp_lock);
+        qemu_spin_unlock(&dest->jmp_lock);
         /*
          * The only possibility is that the jump was unlinked via
          * tb_jump_unlink(dest). Seeing here another destination would be a bug,
@@ -558,7 +555,7 @@ void tb_remove_from_jmp_list(TranslationBlock *orig, int n_orig) {
         if (tb == orig && n == n_orig) {
             *pprev = tb->jmp_list_next[n];
             /* no need to set orig->jmp_dest[n]; setting the LSB was enough */
-            spin_unlock(&dest->jmp_lock);
+            qemu_spin_unlock(&dest->jmp_lock);
             return;
         }
         pprev = &tb->jmp_list_next[n];
@@ -578,7 +575,7 @@ void tb_jmp_unlink(TranslationBlock *dest) {
     TranslationBlock *tb;
     int n;
 
-    spin_lock(&dest->jmp_lock);
+    qemu_spin_lock(&dest->jmp_lock);
 
     TB_FOR_EACH_JMP(dest, tb, n) {
         tb_reset_jump(tb, n);
@@ -587,7 +584,7 @@ void tb_jmp_unlink(TranslationBlock *dest) {
     }
     dest->jmp_list_head = (uintptr_t) NULL;
 
-    spin_unlock(&dest->jmp_lock);
+    qemu_spin_unlock(&dest->jmp_lock);
 }
 
 void tb_set_jmp_target(TranslationBlock *tb, int n, uintptr_t addr) {
@@ -610,7 +607,7 @@ void tb_add_jump(TranslationBlock *tb, int n, TranslationBlock *tb_next) {
 
     qemu_thread_jit_write();
     assert(n < ARRAY_SIZE(tb->jmp_list_next));
-    spin_lock(&tb_next->jmp_lock);
+    qemu_spin_lock(&tb_next->jmp_lock);
 
     /* make sure the destination TB is valid */
     if (tb_next->cflags & CF_INVALID) {
@@ -629,12 +626,12 @@ void tb_add_jump(TranslationBlock *tb, int n, TranslationBlock *tb_next) {
     tb->jmp_list_next[n] = tb_next->jmp_list_head;
     tb_next->jmp_list_head = (uintptr_t) tb | n;
 
-    spin_unlock(&tb_next->jmp_lock);
+    qemu_spin_unlock(&tb_next->jmp_lock);
 
     libcpu_log_mask(CPU_LOG_EXEC, "Linking TBs %p index %d -> %p\n", tb->tc.ptr, n, tb_next->tc.ptr);
     return;
 
 out_unlock_next:
-    spin_unlock(&tb_next->jmp_lock);
+    qemu_spin_unlock(&tb_next->jmp_lock);
     return;
 }
