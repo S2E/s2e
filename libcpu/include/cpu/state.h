@@ -29,9 +29,9 @@
  * CPUState holds the execution fields that upstream keeps there
  * (exception_index, interrupt_request, halted, jmp_env, the breakpoint and
  * watchpoint lists, ...), the S2E additions that go with them (the current
- * TB, the abort flag, generate_llvm), and the CPU caches: the TLB, the RAM
- * TLB and the TB jump cache. QEMU 1.0 kept all of these inside CPUX86State
- * (CPU_COMMON).
+ * TB, the abort flag, generate_llvm), and the CPU caches: the TLB and the RAM
+ * TLB. QEMU 1.0 kept all of these inside CPUX86State (CPU_COMMON). The TB jump
+ * cache is on the heap, as in upstream, because the bitcode never reads it.
  *
  * libs2ecore registers the structure as two KLEE objects, split at neg:
  *
@@ -240,7 +240,6 @@ typedef struct CPUNegativeOffsetState {
     /* The RAM TLB has no CPUTLBDescFast and keeps its own pinned size (PORTING.md 9.2). */
     CPUTLBRAMEntry se_ram_tlb[CPU_TLB_SIZE];
 #endif
-    struct TranslationBlock *tb_jmp_cache[TB_JMP_CACHE_SIZE];
 
     IcountDecr icount_decr;
 
@@ -284,6 +283,10 @@ typedef struct CPUState {
     uint32_t cflags_next_tb;
     /* The cflags of every TB. S2E builds set CF_NO_GOTO_PTR. */
     uint32_t tcg_cflags;
+
+    /* Allocated once by tcg_exec_cpu_init(), and no state changes the pointer.
+       The cache itself is not snapshotted. */
+    struct CPUJumpCache *tb_jmp_cache;
 
     /* TB being executed, stored by the TB itself so that a regenerated LLVM
        function still names the original TB (S2E). */

@@ -24,6 +24,8 @@
 #include "cpu.h"
 #include "exec-tb.h"
 
+#include "accel/tb-hash.h"
+
 #include <cpu/accel/cpu-ops.h>
 
 #ifdef CONFIG_SYMBEX
@@ -105,7 +107,10 @@ found:
         tb_phys_hash[h] = tb;
     }
     /* we add the TB in the virtual pc hash table */
-    env_cpu(env)->neg.tb_jmp_cache[tb_jmp_cache_hash_func(pc)] = tb;
+    CPUJumpCache *jc = env_cpu(env)->tb_jmp_cache;
+    h = tb_jmp_cache_hash_func(pc);
+    jc->array[h].pc = pc;
+    qatomic_set(&jc->array[h].tb, tb);
     return tb;
 }
 
@@ -129,7 +134,7 @@ static inline TranslationBlock *tb_find_fast(CPUArchState *env) {
        always be the same before a given translated block
        is executed. */
     TCGTBCPUState s = cpu->cc->tcg_ops->get_tb_cpu_state(cpu);
-    tb = cpu->neg.tb_jmp_cache[tb_jmp_cache_hash_func(s.pc)];
+    tb = qatomic_read(&cpu->tb_jmp_cache->array[tb_jmp_cache_hash_func(s.pc)].tb);
 
 #ifdef CONFIG_SYMBEX
     int llvm_nok = cpu->generate_llvm && (!tb || !tb->llvm_function);

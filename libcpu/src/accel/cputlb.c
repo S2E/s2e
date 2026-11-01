@@ -108,11 +108,17 @@ static void tlb_window_reset(CPUTLBDesc *desc, int64_t ns, size_t max_entries) {
 }
 
 static void tb_jmp_cache_clear_page(CPUState *cpu, vaddr page_addr) {
-    /* S2E: the jump cache is still QEMU 1.0's array of TB pointers in neg.
-       Upstream's CPUJumpCache arrives with cpu-exec.c. */
-    unsigned int i0 = tb_jmp_cache_hash_page(page_addr);
+    CPUJumpCache *jc = cpu->tb_jmp_cache;
+    int i, i0;
 
-    memset(&cpu->neg.tb_jmp_cache[i0], 0, TB_JMP_PAGE_SIZE * sizeof(TranslationBlock *));
+    if (unlikely(!jc)) {
+        return;
+    }
+
+    i0 = tb_jmp_cache_hash_page(page_addr);
+    for (i = 0; i < TB_JMP_PAGE_SIZE; i++) {
+        qatomic_set(&jc->array[i0 + i].tb, NULL);
+    }
 }
 
 /**
