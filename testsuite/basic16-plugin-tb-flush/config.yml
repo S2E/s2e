@@ -1,0 +1,9 @@
+test:
+    description: "Checks a TB flush that a plugin requests from an instruction handler"
+
+    targets:
+        - linux32-basic16-plugin-tb-flush
+        - linux64-basic16-plugin-tb-flush
+
+    build-options:
+        post-project-generation-script: fix-config.sh
