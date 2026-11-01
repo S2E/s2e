@@ -1,0 +1,9 @@
+test:
+    description: "Checks that data breakpoints trap, natively and in KLEE"
+
+    targets:
+        - linux32-basic14-hw-watchpoint
+        - linux64-basic14-hw-watchpoint
+
+    build-options:
+        post-project-generation-script: fix-config.sh

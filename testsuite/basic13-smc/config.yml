@@ -1,0 +1,7 @@
+test:
+    description: "Checks that stores into translated code take effect, natively and in KLEE"
+
+    targets:
+        - linux32-basic13-smc
+        - linux64-basic13-smc
+

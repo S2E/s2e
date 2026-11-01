@@ -1,0 +1,9 @@
+test:
+    description: "Checks forked execution when states share TBs across state switches"
+
+    targets:
+        - linux32-basic15-no-tb-flush
+        - linux64-basic15-no-tb-flush
+
+    build-options:
+        post-project-generation-script: fix-config.sh
