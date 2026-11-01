@@ -420,10 +420,10 @@ S2E-original code lives in `src/accel/` and `src/s2e/` as proposed.
   `memory_region_dispatch_*`, `qemu_ram_addr_from_host*` and the dirty-tracking
   predicates, expressed over `MemoryDesc` and `exec-ram.h`.
   Done for what `cputlb.c` needs: `cpu/memory.h` defines `MemoryRegion` and
-  `MemoryRegionSection` over `MemoryDesc`, and `src/s2e/cputlb-deps.h`
+  `MemoryRegionSection` over `MemoryDesc`, and `src/s2e/accel-deps.h`
   implements the memory API and dirty tracking on top of them.
 - Write the stub headers: BQL, icount, replay, plugins, `tcg_enabled()`,
-  target-info. Done for `cputlb.c`, in `src/s2e/cputlb-deps.h`. The other
+  target-info. Done for `cputlb.c`, in `src/s2e/accel-deps.h`. The other
   imported files will need more of them.
 
 **Exit:** the substrate compiles standalone against libtcg. A small unit test
@@ -445,7 +445,7 @@ rest. It also imports `translator.c` and adapts the QEMU 1.0 frontend to
   Done for the softmmu (`softmmu-update.md`): `cputlb.c`, `tlb-bounds.h`,
   `ldst_common.c.inc`, `ldst_atomicity.c.inc`, `atomic_common.c.inc` and
   `atomic_template.h` are imported. `internal-common.h` and `backend-ldst.h`
-  are not: `src/s2e/cputlb-deps.h` provides the little that `cputlb.c` uses
+  are not: `src/s2e/accel-deps.h` provides the little that `cputlb.c` uses
   from them. `watchpoint.c` is not imported either, and `exec-bp.c` implements
   the two functions `cputlb.c` calls.
 - Rewrite the eight `MemoryRegion` touch points in `cputlb.c` against the phase 1

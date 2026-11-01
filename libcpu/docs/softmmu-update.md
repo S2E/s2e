@@ -21,7 +21,7 @@ reference.
 
 - **Memory model (deviation 1).** `cputlb.c` keeps upstream's text for the
   memory API. `cpu/memory.h` defines a small `MemoryRegion` and
-  `MemoryRegionSection` over `MemoryDesc`, and `src/s2e/cputlb-deps.h`
+  `MemoryRegionSection` over `MemoryDesc`, and `src/s2e/accel-deps.h`
   implements `address_space_translate_for_iotlb()` and the
   `memory_region_*()` functions on top of them. `CPUTLBEntryFull` keeps its
   `section` field. This replaces the plan's `mem_desc` field and
@@ -31,7 +31,7 @@ reference.
   upstream's memory API does: the softmmu reads devices in big-endian order.
   They also split an 8-byte access into two 4-byte ones, which is the largest
   size that libs2e's device interface takes.
-- **One glue header.** `src/s2e/cputlb-deps.h` holds every stub and shim.
+- **One glue header.** `src/s2e/accel-deps.h` holds every stub and shim.
   `internal-common.h` and `backend-ldst.h` are not imported: the first
   mostly declares code that is not ported, and the second reduces to an
   empty `cpu_req_mo()` for an x86 guest on an x86 host.

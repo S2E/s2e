@@ -27,8 +27,8 @@ import.
 
 Measured against `~/softs/qemu` at `v11.1.0` and this tree at `40509541`.
 
-**Status: plan.** Steps 1 and 2 are done. Step 2b is in progress. Nothing else in
-this document has landed.
+**Status: plan.** Steps 1, 2 and 2b are done. Nothing else in this document
+has landed.
 
 The plan therefore does not try to be complete: section 10 says how each
 step checks what the plan may have missed, and how the plan is updated when the
@@ -128,7 +128,8 @@ Imported from `v11.1.0` through `normalize.sh`, each with a row in
 | `accel/tcg/translate-all.c` | `src/accel/translate-all.c` | 638 | Deviation D6; includes `s2e/translate-all-symbex.c.inc` |
 | `accel/tcg/translator.c` | `src/accel/translator.c` | 522 | Deviations D9, D10 |
 | `accel/tcg/watchpoint.c` | `src/accel/watchpoint.c` | 142 | Replaces the watchpoint hit check of `exec-bp.c` |
-| `accel/tcg/{tb-hash,tb-context,tb-internal,tb-jmp-cache,internal-common}.h` | `src/accel/` | 346 | Unmodified |
+| `accel/tcg/{tb-context,tb-internal,internal-common}.h` | `src/accel/` | 248 | Unmodified |
+| `accel/tcg/{tb-hash,tb-jmp-cache}.h` | `src/accel/` | 98 | Imported in step 2b item 4; include lines changed |
 | `include/exec/translator.h` | `include/cpu/exec/translator.h` | 282 | |
 | `include/exec/tb-flush.h` | `include/cpu/exec/tb-flush.h` | 38 | |
 | `include/accel/tcg/tb-cpu-state.h` | `include/cpu/accel/tb-cpu-state.h` | 22 | Imported in step 2 item 9, which needs `TCGTBCPUState` |
@@ -154,7 +155,8 @@ The same rule applies to `translation-block.h` in libtcg.
 
 S2E-original files:
 
-- `src/s2e/accel-deps.h`: `cputlb-deps.h`, renamed. The list below is what
+- `src/s2e/accel-deps.h`: `cputlb-deps.h`, which step 2b item 6 renamed. The
+  list below is what
   was found before implementation; the compiler and the checks of section 10
   find the rest.
   - **Added** for the new files: `current_cpu`, the trace-point, plugin,
@@ -176,19 +178,19 @@ S2E-original files:
     return the values that keep upstream on its normal path, for example
     `replay_exception()` true, or `cpu_handle_exception()` stops delivering
     exceptions.
-  - **Changed**: `CPU_FOREACH` is a loop that never runs today
-    (`cputlb-deps.h:120`). It must visit the single CPU, or
-    `tb_flush__exclusive_or_serial()` and `tb_jmp_cache_inval_tb()` leave
-    jump cache entries that point to flushed TBs. This also makes the three
-    `CPU_FOREACH` loops of `cputlb.c` run. All three skip the source CPU, so
-    they still do nothing. The `qemu_spin_*` macros are no-ops. A
-    `qemu_spin_trylock()` must be added that reports success (false), or
-    `tb_lock_page1()` takes the restart path of hazard 5.6 every time.
+  - **Changed** in step 2b: `CPU_FOREACH` visits the single CPU, so that
+    `tb_flush__exclusive_or_serial()` and `tb_jmp_cache_inval_tb()` do not
+    leave jump cache entries that point to flushed TBs. The three
+    `CPU_FOREACH` loops of `cputlb.c` now run, and all three skip the source
+    CPU, so they still do nothing. The `qemu_spin_*` macros only apply to the
+    bitcode build. Native code uses the real functions of `utils/thread.h`,
+    where an uncontended `qemu_spin_trylock()` reports success, so
+    `tb_lock_page1()` does not take the restart path of hazard 5.6. No S2E hook
+    that runs with the TLB lock held re-enters the TLB, throws or longjmps.
   - **Removed**, because the new files define the real ones: the TB shims
-    (`tb_invalidate_phys_range_fast()`, `tcg_flush_jmp_cache()`, and the
-    jump cache deviation in `cputlb.c`), the `cpu_loop_exit_atomic()` and
+    (`tb_invalidate_phys_range_fast()`), the `cpu_loop_exit_atomic()` and
     `cpu_io_recompile()` macros, which would rewrite the definitions in
-    `cpu-exec-common.c` and `translate-all.c` (`cputlb-deps.h:152` and
+    `cpu-exec-common.c` and `translate-all.c` (`accel-deps.h:152` and
     `:165`), and the inline `cpu_in_serial_context()` and
     `cpu_plugin_mem_cbs_enabled()`, which `internal-common.h` also defines.
     `cputlb.c` then includes `internal-common.h`, as upstream's does. Whether
@@ -218,7 +220,8 @@ S2E-original files:
   upstream's `tcg_exec_realizefn()`. libcpu does not call
   `tcg_exec_realizefn()` because it would call `tlb_init()` a second time
   (`cpu_exec_init()` already does) and set up the IOMMU notifiers.
-  `tcg_exec_cpu_init()` asserts the hooks that `tcg_exec_realizefn()` asserts,
+  `tcg_exec_cpu_init()` asserts the hooks that `tcg_exec_realizefn()` asserts
+  (`translate_code` from step 3 on, when the hook exists),
   calls `tcg_ops->initialize()` the first time, allocates `cpu->tb_jmp_cache`
   as upstream does, and sets `cflags_next_tb` to -1 (2.2).
   `cpu_x86_init()` (`helper.c:1091`) calls it where it calls
@@ -426,13 +429,12 @@ collision between the old `DISAS_JUMP` (1) and upstream's `DISAS_TOO_MANY`.
   is deleted. Upstream checks in the CPU loop (`check_for_breakpoints()`), and
   limits TBs on a page with a breakpoint to one instruction (`CF_BP_PAGE`).
   These TBs also get `CF_NO_GOTO_TB`, so that every instruction on the page
-  returns to the loop and its check. The old `gen_goto_tb()`
-  (`translate.c:2348`) and `jmp_opt` ignore that flag, and a direct jump on
-  such a page would chain to the next TB and skip the check. Both must test
-  `CF_NO_GOTO_TB`, as upstream's `translator_use_goto_tb()` does. This change
-  is needed from step 3 on, when `check_for_breakpoints()` arrives: libtcg's
-  `tcg_gen_goto_tb()` asserts that the flag is clear (`tcg-op.c:2309`), so
-  debug builds abort as soon as a breakpoint page holds a direct jump.
+  returns to the loop and its check. A direct jump on such a page must not chain to the next TB, which would skip
+  the check. `gen_goto_tb()` and `jmp_opt` must therefore test
+  `CF_NO_GOTO_TB`, as upstream's `translator_use_goto_tb()` does, and do since
+  step 2b item 2. libtcg's `tcg_gen_goto_tb()` also asserts that the flag is
+  clear (`tcg-op.c:2309`), but that `tcg_debug_assert()` is not compiled in
+  release or debug builds, so a missing test would go unnoticed.
 - **The instruction limit.** `max_insns` comes from `translator_loop()`, which
   takes it from `cflags`. `translate_single_instruction` was the last other
   source.
@@ -753,7 +755,7 @@ current one over the restored snapshot. Both are correct, but any new writer
 must restore it, or the next longjmp returns into a dead frame.
 
 **5.3 The bitcode build must not start calling native code KLEE does not
-know.** Deleting the TB shims of `cputlb-deps.h` turns inline code into calls
+know.** Deleting the TB shims of `accel-deps.h` turns inline code into calls
 to `tb-maint.c` and `translate-all.c`. Wherever `cputlb.c`'s bitcode build
 reaches them, they must be registered with `__DEFINE_EXT_FUNCTION`, or KLEE
 stops with an unresolved external. Check the undefined symbols of
@@ -783,7 +785,7 @@ the fast path for speed must first make `get_page_addr_code_hostp()` return a
 translation when the code is too large for one TB (`-2`), as the old code did,
 and when taking the second page's lock would violate the lock order (`-3`).
 The second case needs a second thread holding page locks and cannot happen in
-libcpu, provided that `qemu_spin_trylock()` reports success (2.1). D6 handles
+libcpu, because `qemu_spin_trylock()` succeeds without contention (2.1). D6 handles
 both anyway. It also restarts after a flush when the code
 buffer fills up during code generation or `encode_search()`
 (`goto buffer_overflow`), which D6 handles through the new `tcg_tb_alloc()`.
@@ -1013,7 +1015,8 @@ separates existing bugs from regressions of the switch.
    the request when it generates a TB.
 6. **`accel-deps.h`.** Rename `cputlb-deps.h`. The no-op `qemu_spin_*` macros
    stay only in the bitcode build. Native code uses the real functions of
-   `utils/thread.h`, so `tb_lock_page1()` needs no `qemu_spin_trylock()` stub.
+   `utils/thread.h`, including for the TLB lock, whose type becomes upstream's
+   `QemuSpin`. `tb_lock_page1()` therefore needs no `qemu_spin_trylock()` stub.
    `precise-pc.c` decodes the search data into `uint64_t`, as upstream does.
 
 **Exit:** the same as step 2. The stall described in 10.3 must be understood
@@ -1047,30 +1050,26 @@ would invalidate it when that memory changes. The adapter is deleted in step 4.
 
 Bring the targets up in this order:
 
-1. **`{i386,x86_64}-softmmu`.** D4 (the stale-chaining half), the
-   `cputlb-deps.h` to `accel-deps.h` rename with the changes of 2.1, the log
-   lines kept from the old loop (hazard 5.11), `tcg-init.c` with
-   `tcg_exec_cpu_init()`, the move of the `precise-pc.h` declarations to
-   `cpu/tb.h`, the upstream SMC path (decision 4.1), and the
-   `CF_NO_GOTO_TB` test in `gen_goto_tb()` and `jmp_opt` (2.4). Delete
-   `tcg_target_force_tb_exit()` from libtcg,
-   the jump cache deviation in `cputlb.c`, and the aborting
+1. **`{i386,x86_64}-softmmu`.** D4 (the stale-chaining half), the remaining
+   changes of 2.1 to `accel-deps.h`, the log lines kept from the old loop
+   (hazard 5.11), the move of the `precise-pc.h` declarations to `cpu/tb.h`,
+   and the upstream SMC path (decision 4.1). Delete
+   `tcg_target_force_tb_exit()` from libtcg and the aborting
    `helper_lookup_tb_ptr()` in `helper.c`, which `cpu-exec.c` now defines.
 2. **`-s2e_sp-softmmu`.** D1, D2, D4 (the deferred flush), D5, D6, D7, D8,
-   `cpu-exec-symbex.c.inc` and `translate-all-symbex.c.inc`. Update the
+   the rest of `cpu-exec-symbex.c.inc`, and `translate-all-symbex.c.inc`. Update the
    `__DEFINE_EXT_FUNCTION` list (hazard 5.3).
 3. **`-s2e-softmmu`.** D3 and the LLVM half of D6.
 
-**Exit:** a guest boots on all six targets, and the testsuite passes. The
-testsuite has to include, or gain:
+**Exit:** a guest boots on all six targets, and the testsuite passes. These
+tests of step 2b target the code of this step:
 
-- a guest that overwrites the next instruction of the TB it is executing, run
-  natively and in KLEE (decision 4.1, D8);
-- a guest that writes into the second page of a TB that crosses a page, then
-  executes the new code (the adapter);
-- a symbolic run with `flush-tbs-on-state-switch` set to false, which keeps
-  TBs and their LLVM functions across state switches (D3, D6);
-- a plugin that calls `se_tb_safe_flush()` from an instruction handler (D4).
+- `basic13-smc`: decision 4.1, D8 and the adapter;
+- `basic14-hw-watchpoint`: `cflags_next_tb`, the declined TB of D1 and
+  `watchpoint.c`, where upstream's `tb_check_watchpoint()` handles a store
+  without a return address;
+- `basic15-no-tb-flush`: D3 and D6;
+- `basic16-plugin-tb-flush`: D4.
 
 ### Step 4: The frontend on `translator_loop()` (4-6 days)
 
@@ -1243,4 +1242,7 @@ These are known and left for implementation:
   and `utils/spinlock.h`, whose last user was `jmp_lock`.
 - 2026-11-01: added step 2b, from the review of step 2. Section 2.4 said that
   debug builds abort when a breakpoint page holds a direct jump, but the
-  assertion is not compiled in any build.
+  assertion is not compiled in any build. D1 now reports a declined TB with
+  `SE_TB_EXEC_DECLINED`. D8 now states what `se_current_tb` holds in a resumed
+  state, which was an open question. The TLB lock is real in native code, where
+  the plan had a no-op with a `qemu_spin_trylock()` stub.

@@ -18,11 +18,11 @@
  */
 
 /*
- * S2E: the include block is replaced. cputlb-deps.h stands in for the QEMU
+ * S2E: the include block is replaced. accel-deps.h stands in for the QEMU
  * subsystems that libcpu does not have (memory API, dirty tracking, work
  * queues, plugins, tracing).
  */
-#include "s2e/cputlb-deps.h"
+#include "s2e/accel-deps.h"
 #include "tlb-bounds.h"
 
 /* DEBUG defines, enable DEBUG_TLB_LOG to log to the CPU_LOG_MMU target */
@@ -88,11 +88,11 @@ static inline uint64_t tlb_addr_write(const CPUTLBEntry *entry) {
 }
 
 /* Find the TLB index corresponding to the mmu_idx + address pair.  */
-/* S2E: SE_ALWAYS_INLINE here and on tlb_entry(), see cputlb-deps.h. */
+/* S2E: SE_ALWAYS_INLINE here and on tlb_entry(), see accel-deps.h. */
 static inline SE_ALWAYS_INLINE uintptr_t tlb_index(CPUState *cpu, uintptr_t mmu_idx, vaddr addr) {
     uintptr_t size_mask = cpu_tlb_fast(cpu, mmu_idx)->mask >> CPU_TLB_ENTRY_BITS;
 
-    /* S2E: the bitcode build forks on the page number, see cputlb-deps.h. */
+    /* S2E: the bitcode build forks on the page number, see accel-deps.h. */
     return SE_CONCRETE_PAGE(addr >> TARGET_PAGE_BITS) & size_mask;
 }
 
@@ -101,7 +101,7 @@ static inline SE_ALWAYS_INLINE CPUTLBEntry *tlb_entry(CPUState *cpu, uintptr_t m
     return &cpu_tlb_fast(cpu, mmu_idx)->table[tlb_index(cpu, mmu_idx, addr)];
 }
 
-#ifndef SYMBEX_LLVM_LIB /* S2E: native only, see cputlb-deps.h */
+#ifndef SYMBEX_LLVM_LIB /* S2E: native only, see accel-deps.h */
 static void tlb_window_reset(CPUTLBDesc *desc, int64_t ns, size_t max_entries) {
     desc->window_begin_ns = ns;
     desc->window_max_entries = max_entries;
@@ -326,7 +326,7 @@ static void tlb_flush_by_mmuidx_async_work(CPUState *cpu, run_on_cpu_data data) 
     MMUIdxMap all_dirty, work, to_clean;
     int64_t now = get_clock_realtime();
 
-    /* S2E: no flush while libs2ecore switches states, see cputlb-deps.h. */
+    /* S2E: no flush while libs2ecore switches states, see accel-deps.h. */
     if (se_tlb_flush_disabled()) {
         return;
     }
@@ -469,7 +469,7 @@ static void tlb_flush_page_locked(CPUState *cpu, int midx, vaddr page) {
 static void tlb_flush_page_by_mmuidx_async_0(CPUState *cpu, vaddr addr, MMUIdxMap idxmap) {
     int mmu_idx;
 
-    /* S2E: no flush while libs2ecore switches states, see cputlb-deps.h. */
+    /* S2E: no flush while libs2ecore switches states, see accel-deps.h. */
     if (se_tlb_flush_disabled()) {
         return;
     }
@@ -648,7 +648,7 @@ typedef struct {
 static void tlb_flush_range_by_mmuidx_async_0(CPUState *cpu, TLBFlushRangeData d) {
     int mmu_idx;
 
-    /* S2E: no flush while libs2ecore switches states, see cputlb-deps.h. */
+    /* S2E: no flush while libs2ecore switches states, see accel-deps.h. */
     if (se_tlb_flush_disabled()) {
         return;
     }
@@ -1123,7 +1123,7 @@ static inline bool tlb_hit(uint64_t tlb_addr, vaddr addr) {
 static bool tlb_fill_align(CPUState *cpu, vaddr addr, MMUAccessType type, int mmu_idx, MemOp memop, int size,
                            bool probe, uintptr_t ra) {
     /* S2E: SE_TCG_HAS_OP() and SE_TCG_OP() select the bitcode copies of the
-       target hooks in the bitcode build, see cputlb-deps.h. */
+       target hooks in the bitcode build, see accel-deps.h. */
     const TCGCPUOps *ops = cpu->cc->tcg_ops;
     CPUTLBEntryFull full;
 
@@ -1150,7 +1150,7 @@ static inline void cpu_unaligned_access(CPUState *cpu, vaddr addr, MMUAccessType
     SE_TCG_OP(cpu, do_unaligned_access)(cpu, addr, access_type, mmu_idx, retaddr); /* S2E, see tlb_fill_align() */
 }
 
-#ifndef SYMBEX_LLVM_LIB /* S2E: native only, see cputlb-deps.h */
+#ifndef SYMBEX_LLVM_LIB /* S2E: native only, see accel-deps.h */
 static MemoryRegionSection *io_prepare(hwaddr *out_offset, CPUState *cpu, CPUTLBEntryFull *full, vaddr addr,
                                        uintptr_t retaddr) {
     MemoryRegionSection *section;
@@ -1657,7 +1657,7 @@ static bool mmu_lookup(CPUState *cpu, vaddr addr, MemOpIdx oi, uintptr_t ra, MMU
     return crosspage;
 }
 
-#ifndef SYMBEX_LLVM_LIB /* S2E: native only, see cputlb-deps.h */
+#ifndef SYMBEX_LLVM_LIB /* S2E: native only, see accel-deps.h */
 /*
  * Probe for an atomic operation.  Do not allow unaligned operations,
  * or io operations to proceed.  Return the host address.
@@ -1780,7 +1780,7 @@ stop_the_world:
  * We don't bother with this widened value for SOFTMMU_CODE_ACCESS.
  */
 
-#ifndef SYMBEX_LLVM_LIB /* S2E: native only, see cputlb-deps.h */
+#ifndef SYMBEX_LLVM_LIB /* S2E: native only, see accel-deps.h */
 /**
  * do_ld_mmio_beN:
  * @cpu: generic cpu state
@@ -2267,7 +2267,7 @@ static Int128 do_ld16_mmu(CPUState *cpu, vaddr addr, MemOpIdx oi, uintptr_t ra) 
  * Store Helpers
  */
 
-#ifndef SYMBEX_LLVM_LIB /* S2E: native only, see cputlb-deps.h */
+#ifndef SYMBEX_LLVM_LIB /* S2E: native only, see accel-deps.h */
 /**
  * do_st_mmio_leN:
  * @cpu: generic cpu state
@@ -2639,7 +2639,7 @@ static void do_st16_mmu(CPUState *cpu, vaddr addr, Int128 val, MemOpIdx oi, uint
 
 #include "ldst_common.c.inc"
 
-#ifndef SYMBEX_LLVM_LIB /* S2E: native only, see cputlb-deps.h */
+#ifndef SYMBEX_LLVM_LIB /* S2E: native only, see accel-deps.h */
 /*
  * First set of functions passes in OI and RETADDR.
  * This makes them callable from other helpers.

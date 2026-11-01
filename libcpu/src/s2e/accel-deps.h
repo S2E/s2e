@@ -28,15 +28,15 @@
 ///    which is forwarded to cpu_mmio_read() and cpu_mmio_write().
 ///  - Dirty tracking maps onto the one-byte-per-page mask of exec-ram.h.
 ///  - libcpu has one vCPU, so work that upstream queues on another CPU runs
-///    in place and the TLB lock is not taken.
+///    in place. The bitcode build does not take the TLB lock.
 ///  - Plugins, tracing, icount and record/replay do not exist. Their entry
 ///    points compile to nothing.
 ///
 /// Only cputlb.c includes this header. Each section disappears when the
 /// upstream code it stands in for is imported.
 
-#ifndef S2E_CPUTLB_DEPS_H
-#define S2E_CPUTLB_DEPS_H
+#ifndef S2E_ACCEL_DEPS_H
+#define S2E_ACCEL_DEPS_H
 
 #include <glib.h>
 #include <string.h>
@@ -94,14 +94,18 @@
 #define trace_memory_notdirty_set_dirty(a)          ((void) 0)
 
 /*
- * One vCPU, one thread. The TLB lock is never taken, and work that upstream
- * queues on a CPU runs immediately on the calling one.
+ * One vCPU, one thread. Work that upstream queues on a CPU runs immediately on
+ * the calling one.
  */
 
+#ifdef SYMBEX_LLVM_LIB
+/* Bitcode only runs on the vCPU thread, which keeps it free of the atomic
+   operations of the real functions. */
 #define qemu_spin_init(l)    ((void) (l))
 #define qemu_spin_destroy(l) ((void) (l))
 #define qemu_spin_lock(l)    ((void) (l))
 #define qemu_spin_unlock(l)  ((void) (l))
+#endif
 
 #define qemu_cpu_is_self(cpu) true
 
