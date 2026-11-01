@@ -27,8 +27,9 @@ import.
 
 Measured against `~/softs/qemu` at `v11.1.0` and this tree at `40509541`.
 
-**Status: plan.** Steps 1, 2 and 2b are done. Nothing else in this document
-has landed.
+**Status: in progress.** Steps 1, 2 and 2b are done. Step 3 is committed, but
+its exit criteria have not all been checked (10.3). Nothing else in this
+document has landed.
 
 The plan therefore does not try to be complete: section 10 says how each
 step checks what the plan may have missed, and how the plan is updated when the
@@ -122,16 +123,17 @@ Imported from `v11.1.0` through `normalize.sh`, each with a row in
 
 | Upstream | libcpu path | Lines | Note |
 |---|---|---:|---|
-| `accel/tcg/cpu-exec.c` | `src/accel/cpu-exec.c` | 1,090 | Deviations D1 to D5 |
-| `accel/tcg/cpu-exec-common.c` | `src/accel/cpu-exec-common.c` | 91 | Unmodified |
+| `accel/tcg/cpu-exec.c` | `src/accel/cpu-exec.c` | 1,090 | Deviations D1 to D5, D12 |
+| `accel/tcg/cpu-exec-common.c` | `src/accel/cpu-exec-common.c` | 91 | Include lines changed |
 | `accel/tcg/tb-maint.c` | `src/accel/tb-maint.c` | 1,225 | Deviations D7, D8 |
 | `accel/tcg/translate-all.c` | `src/accel/translate-all.c` | 638 | Deviation D6; includes `s2e/translate-all-symbex.c.inc` |
 | `accel/tcg/translator.c` | `src/accel/translator.c` | 522 | Deviations D9, D10 |
-| `accel/tcg/watchpoint.c` | `src/accel/watchpoint.c` | 142 | Replaces the watchpoint hit check of `exec-bp.c` |
-| `accel/tcg/{tb-context,tb-internal,internal-common}.h` | `src/accel/` | 248 | Unmodified |
+| `accel/tcg/watchpoint.c` | `src/accel/watchpoint.c` | 142 | Deviation D11; replaces the watchpoint hit check of `exec-bp.c` |
+| `accel/tcg/{tb-context,tb-internal,internal-common}.h` | `src/accel/` | 248 | Include lines changed |
 | `accel/tcg/{tb-hash,tb-jmp-cache}.h` | `src/accel/` | 98 | Imported in step 2b item 4; include lines changed |
 | `include/exec/translator.h` | `include/cpu/exec/translator.h` | 282 | |
-| `include/exec/tb-flush.h` | `include/cpu/exec/tb-flush.h` | 38 | |
+| `include/exec/tb-flush.h` | `include/cpu/exec/tb-flush.h` | 38 | C++ guards added |
+| `include/accel/tcg/cpu-loop.h` | `include/cpu/accel/cpu-loop.h` | 73 | C++ guards added |
 | `include/accel/tcg/tb-cpu-state.h` | `include/cpu/accel/tb-cpu-state.h` | 22 | Imported in step 2 item 9, which needs `TCGTBCPUState` |
 | `include/exec/translation-block.h` | libtcg `include/tcg/exec/translation-block.h` | 217 | libtcg mapping; S2E fields appended (2.2) |
 
@@ -164,9 +166,11 @@ S2E-original files:
     Lock) no-ops. Also the exclusive-section functions that
     `cpu_exec_step_atomic()` and `tb_flush__exclusive_or_serial()` reference
     (`start_exclusive()`, `end_exclusive()`, `cpu_in_exclusive_context()`),
-    `qemu_cpu_kick()`, `cpu_test_interrupt()`, `cpu_single_stepping()` (over
-    `singlestep_enabled`), `one_insn_per_tb` (false, read by
-    `curr_cflags()`), `lookup_symbol()` and `target_disas()`. Upstream's
+    `cpu_test_interrupt()`, `cpu_single_stepping()` (over
+    `singlestep_flags`, as upstream) and `lookup_symbol()`. `current_cpu` is
+    defined in `exec.c` next to `first_cpu`, and `one_insn_per_tb` and
+    `icount_align_option` in `tcg-init.c`, because `internal-common.h`
+    declares them `extern`. Step 4 adds `target_disas()`. Upstream's
     `target_disas()` takes a `DisasContextBase`, and only the fallback
     disassembly of `translator_loop()` calls it, which does not run because
     the frontend provides `disas_log`. The stub can therefore do nothing.
@@ -193,8 +197,8 @@ S2E-original files:
     `cpu-exec-common.c` and `translate-all.c` (`accel-deps.h:152` and
     `:165`), and the inline `cpu_in_serial_context()` and
     `cpu_plugin_mem_cbs_enabled()`, which `internal-common.h` also defines.
-    `cputlb.c` then includes `internal-common.h`, as upstream's does. Whether
-    that header compiles in the bitcode build is *(unverified)*. The stale
+    `accel-deps.h` includes `internal-common.h`, so `cputlb.c` gets it as
+    upstream's does, and it compiles in the bitcode build. The stale
     declaration `cpu_io_recompile(CPUArchState *, void *)` in `exec-all.h:74`
     goes too. `cputlb.c:2424` is in the part of the file that is compiled to
     bitcode and calls `cpu_loop_exit_atomic()`, so removing the macro makes
@@ -382,7 +386,7 @@ so the step changes where the code is called from, not what it does.
 | `synchronize_from_tb` | `execution_loop()`'s `env->eip = ltb->pc - ltb->cs_base` for `TB_EXIT_REQUESTED` |
 | `restore_state_to_opc` | `restore_state_to_opc()` (`translate.c:7955`), taking `const uint64_t *data` |
 | `cpu_exec_enter` | none: libcpu keeps the flags in `mflags` and `cc_src`/`cc_op` already |
-| `cpu_exec_exit` | the EFLAGS normalization at the end of `cpu_exec()` (S11). In S2E builds, it does nothing when `g_sqi.exec.is_runnable()` is false. Upstream's `cpu_exec()` calls the hook after every return from `cpu_exec_setjmp()`, including the `EXCP_SE` returns of D2, and the old loop skips the normalization on those returns. The state is then yielded or a zombie, which is exactly when `is_runnable()` is false. |
+| `cpu_exec_exit` | the EFLAGS normalization at the end of `cpu_exec()` (S11). In S2E builds, it does nothing when `g_sqi.exec.is_runnable()` is false. `cpu_exec_setjmp()` calls the hook (D12) after `cpu_exec_loop()` returns, including the `EXCP_SE` return of D2, and the old loop skips the normalization on that return. The state is then yielded or a zombie, which is exactly when `is_runnable()` is false. |
 | `do_interrupt` | `do_interrupt()` |
 | `cpu_exec_interrupt` | `process_interrupt_request()`, without the `DEBUG` and `EXITTB` cases that upstream's `cpu_handle_interrupt()` handles itself. It keeps the `CPU_LOG_INT` lines and `cpu_get_pic_interrupt()`, which reaches libs2e's interrupt sources. |
 | `cpu_exec_halt` | `cpu_has_work()` |
@@ -497,9 +501,10 @@ rather than renumbered (section 10).
   `EXCP_SE`. Otherwise it continues into `cpu_handle_exception()`, as the old
   loop did after its `continue`. Upstream calls `cpu_exec_loop()` both on
   entry and after every longjmp, which are exactly the two places where the
-  old loop re-armed `setjmp()` and called `finalize_tb_exec()`. The two
-  returns from inside `cpu_exec_setjmp()` reach `cpu_exec_exit()`, which skips
-  the EFLAGS normalization for a state that is not runnable (2.3).
+  old loop re-armed `setjmp()` and called `finalize_tb_exec()`. The return
+  from the longjmp branch skips `cpu_exec_exit()`. The return from
+  `cpu_exec_loop()` reaches it (D12), and the hook skips the EFLAGS
+  normalization for a state that is not runnable (2.3).
 - **D3. LLVM TBs** (S4), in `cpu_exec_loop()` after `tb_lookup()`. When
   `generate_llvm` is set and the TB that was found has no `llvm_function`,
   `tb_phys_invalidate()` removes it and the loop generates a new one
@@ -582,9 +587,19 @@ rather than renumbered (section 10).
   frontend provides `disas_log`.
 - **D10. `can_do_io`**, in `translator_loop()`: the two `set_can_do_io()`
   stores are not emitted, so `can_do_io` stays true (decision 4.3).
+- **D11. One-instruction TB of a watchpoint hit**, in `cpu_check_watchpoint()`:
+  the request also has `CF_NO_GOTO_TB`. Upstream's second pass through the check
+  calls `cpu_interrupt()`, which stops a chain of TBs. libcpu's does not (2.2),
+  so a TB that chains (a `call` that pushes to a watched stack slot, for
+  example) would deliver the debug exception late.
+- **D12. `cpu_exec_exit()`**, called from `cpu_exec_setjmp()` instead of
+  `cpu_exec()`. When the flags are symbolic, the hook runs
+  `helper_set_cc_op_eflags` in KLEE. If that helper forks, `setCCOpEflags()`
+  longjmps to `jmp_env`. In upstream's place, the frame that called
+  `sigsetjmp()` has already returned.
 
-`cpu-exec-common.c`, `watchpoint.c` and the five headers in `src/accel/` import
-unmodified.
+`cpu-exec-common.c` and the five headers in `src/accel/` differ from upstream
+only in their include lines.
 
 
 ## 4. Decisions
@@ -759,12 +774,11 @@ know.** Deleting the TB shims of `accel-deps.h` turns inline code into calls
 to `tb-maint.c` and `translate-all.c`. Wherever `cputlb.c`'s bitcode build
 reaches them, they must be registered with `__DEFINE_EXT_FUNCTION`, or KLEE
 stops with an unresolved external. Check the undefined symbols of
-`op_helper.bc` after step 3. Today the bitcode reaches TB invalidation only
-through `notdirty_write()`, which is native and registered. One case is known:
-`cputlb.c:2424` calls `cpu_loop_exit_atomic()` from code compiled to bitcode,
-which today expands to `abort()`. Either register the native function or keep
-the `abort()` for the bitcode build. libcpu never sets `CF_PARALLEL`, so the
-call is not reached. Which option is simpler is decided during step 3.
+`op_helper.bc` after any change to this code. The bitcode reaches TB
+invalidation only through `notdirty_write()`, which is native and registered.
+`cputlb.c` calls `cpu_loop_exit_atomic()` from code compiled to bitcode, so
+`S2EExecutor.cpp` registers it. libcpu never sets `CF_PARALLEL`, so the call is
+not reached. It was the only new native reference that step 3 added.
 
 **5.4 `icount_decr` is read by both code generators.** The native exit check
 reads `neg.icount_decr.u32` at a negative offset from `env`. The LLVM
@@ -832,10 +846,10 @@ execution of TB chain" line of `cpu_tb_exec()`, the `in_asm` block of
 `translator_loop()` (and with it the frontend's `disas_log`) and the `out_asm`
 block of `tb_gen_code()` therefore never print. `qemu_log_mask()` goes through
 `libcpu_log_mask()`, so the "Linking TBs" line of `tb_add_jump()` does print.
-The old loop's own lines (loop entry and exit, `setjmp entered`,
-`fetch_and_run_tb`, `ltb`) are deleted with `cpu-exec.c`. Which of them to
-keep in `cpu-exec-symbex.c.inc` is decided during step 3, and section 7 checks
-the result. Making `qemu_loglevel_mask()` test libcpu's mask would enable the
+Of the old loop's own lines, the loop entry and exit lines move to
+`cpu_x86_exec()`, `fetch_and_run_tb` becomes `se_tb_exec` in
+`cpu-exec-symbex.c.inc`, and `do_interrupt` stays in `cpu_handle_exception()`.
+`setjmp entered` and `ltb` are deleted, and section 7 checks the result. Making `qemu_loglevel_mask()` test libcpu's mask would enable the
 upstream lines, but also every other use in libtcg, which was not reviewed
 *(unverified)*. It also requires that `CPU_LOG_TB_NOCHAIN` stays 0: upstream's
 value (bit 13) is libcpu's `CPU_LOG_KVM_IO`, and `curr_cflags()` would then
@@ -1024,8 +1038,8 @@ first, because it would look like a regression of these items.
 
 ### Step 3: The switch (5-8 days)
 
-Import the files of 2.1 except `translator.c`, `translator.h` and
-`tb-cpu-state.h`, which step 2 item 9 imported. The first
+Import the files of 2.1 except `translator.c` and `translator.h`, which step 4
+imports, and `tb-cpu-state.h`, which step 2 item 9 imported. The first
 commit of the step adds all of them as `normalize.sh` emits them, together
 with their `mapping.tsv` rows, and changes nothing else. The build ignores
 them until the next commit. The commits after it apply the S2E deviations,
@@ -1033,13 +1047,11 @@ wire the files into the build and delete the old ones, so that every S2E
 change to upstream text shows up as a diff against that first commit.
 
 `translate_code` is a temporary adapter around the old
-`gen_intermediate_code()`: it sets the instruction count from `*max_insns`,
-calls the old function, and then does what `translator_ld()` will do in step
-4. The old frontend reads the count from `tb->cflags`, and the old
-`setjmp_gen_code()` writes it there (`translate-all.c:107-108`). The adapter
-must restore `tb->cflags` after the call. Upstream compares `tb->cflags` with
-the `cflags` of each lookup, so a TB that was restarted with half the count
-(-2) and kept the changed `cflags` would never be found, and would be
+`gen_intermediate_code()`: it passes `*max_insns` to the old function, and then
+does what `translator_ld()` will do in step 4. The count is an argument, so
+`tb->cflags` never changes during translation. Upstream compares `tb->cflags`
+with the `cflags` of each lookup, so a TB that was restarted with half the count
+(-2) and kept a changed count in `cflags` would never be found, and would be
 translated again on every execution. When the TB crosses a page, it looks up the second page with
 `get_page_addr_code()`, records it with `tb_set_page_addr1()` and locks it with
 `tb_lock_page1()`. When `get_page_addr_code()` returns -1 (the second page is
@@ -1206,17 +1218,24 @@ step:
 
 These are known and left for implementation:
 
-- Which of the old loop's log lines to keep, and whether
-  `qemu_loglevel_mask()` should test libcpu's mask (hazard 5.11).
-- Whether to register `cpu_loop_exit_atomic()` with KLEE or keep the
-  `abort()` in the bitcode build (hazard 5.3).
-- Whether `internal-common.h` compiles in the bitcode build of `cputlb.c`
-  (2.1).
+- Whether `qemu_loglevel_mask()` should test libcpu's mask (hazard 5.11).
+- The checks of step 3 that were not done when it was committed: the debug
+  builds, the full testsuite, the comparison of `LLVMInstructions` with the
+  baseline, the `exec,int` log check and the TLB audit run of section 7. The
+  release builds of all six targets compile. `basic0-singlepath`,
+  `basic1-twopaths` and `basic13` to `basic16` passed, apart from the stall in
+  the next item.
 - Why some symbolic Windows runs slow down until they time out. One state
   spends its time in KLEE's expression simplifier (`Expr::compare()` under
   `BitfieldSimplifier`). `basic7-instmon` did this once before step 2, on
   2026-10-17, and six tests did it in the first full run after step 2, on
-  2026-11-01. Whether step 2 made it more frequent is *(unverified)*.
+  2026-11-01. Whether step 2 made it more frequent is *(unverified)*. On the
+  step 3 build, `windows64-basic1-twopaths` on `windows-7sp1ent-x86_64` did it
+  once in a parallel run of 26 targets. After the fork, state 1 stopped
+  translating new TBs and KLEE kept running a loop in a kernel driver at
+  `0xfffff880_0133xxxx`. Five sequential reruns of that target passed in 48
+  seconds each. The same runs were not repeated on the step 2b build, so whether
+  step 3 changes the frequency is *(unverified)*.
 - Whether a guest can reach the third-page assertion of hazard 5.13.
 - When to adopt upstream's memory order value (hazard 5.12).
 
@@ -1246,3 +1265,10 @@ These are known and left for implementation:
   `SE_TB_EXEC_DECLINED`. D8 now states what `se_current_tb` holds in a resumed
   state, which was an open question. The TLB lock is real in native code, where
   the plan had a no-op with a `qemu_spin_trylock()` stub.
+- 2026-11-01: step 3 added D11 and D12, which the plan missed: `cpu_interrupt()`
+  does not stop a chain of TBs, and `cpu_exec_exit()` can longjmp. It also imports
+  `cpu-loop.h`. The adapter passes the instruction count as an argument, because
+  a save and restore of `tb->cflags` would save the changed count when the
+  frontend itself longjmps with -2. Step 3 said that step 2 item 9 imported
+  `translator.c` and `translator.h`, but step 4 imports them. `watchpoint.c` is
+  not imported unmodified (D11).
