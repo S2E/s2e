@@ -15,11 +15,12 @@ jobs:
       - name: Build guest tools in container image
         run: |
           set -x
-          podman build --target s2e-build-env -t s2e-build-env .
+          # Same image and clang version as s2e build (s2e_env/commands/build.py)
+          podman build -f Dockerfile.tools --target s2e-build-env-tools -t s2e-build-env-tools .
 
           mkdir -p $HOME/s2e/env/build
           cd $HOME/s2e/env/build
-          podman run --rm -e S2E_PREFIX="$HOME/s2e/env/install" -w "$(pwd)" -v "$HOME:$HOME" \
-              s2e-build-env make -f "$GITHUB_WORKSPACE/Makefile.tools" install
+          podman run --rm -e SYSTEM_CLANG_VERSION=15 -e S2E_PREFIX="$HOME/s2e/env/install" -w "$(pwd)" \
+              -v "$HOME:$HOME" s2e-build-env-tools make -f "$GITHUB_WORKSPACE/Makefile.tools" install
 
       - run: echo "🍏 This job's status is ${{ job.status }}."
