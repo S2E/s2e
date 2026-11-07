@@ -33,7 +33,14 @@ if ! findmnt /mnt/disk; then
     mount /dev/vdb /mnt/disk
 fi
 
-apt-get -y install git gcc python3 python3-dev python3-venv docker.io
+apt-get -y install git gcc python3 python3-dev python3-venv podman uidmap
+
+# Podman 4.3 on Debian 12 defaults to the vfs storage driver, which stores a full
+# copy of every image layer. The kernel's overlay driver works rootless there.
+if grep -q '^VERSION_ID="12"' /etc/os-release && grep -q '^ID=debian' /etc/os-release; then
+    mkdir -p /etc/containers
+    printf '[storage]\ndriver = "overlay"\n' > /etc/containers/storage.conf
+fi
 
 # The Ubuntu image doesn't have enough space on the boot partition to install some packages.
 # Cleanup unused kernels.
@@ -42,6 +49,14 @@ if uname -a | grep -q ubuntu2004; then
 fi
 
 chown -R vagrant:vagrant /mnt/disk/
-usermod -a -G docker vagrant
 
+# Rootless Podman needs the user's systemd instance and its session bus. The
+# instance may have started before apt-get installed dbus-user-session, so it is
+# restarted to create /run/user/UID/bus. Lingering keeps it running without a
+# login session, which su does not create.
+loginctl enable-linger vagrant
+systemctl restart "user@$(id -u vagrant)"
+
+# su without "-" keeps the environment, so the *_BRANCH variables that the
+# Vagrantfile passes reach provision-user.sh.
 su -c "/bin/bash -c 'source /vagrant/provision-user.sh'" vagrant
