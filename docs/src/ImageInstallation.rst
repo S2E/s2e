@@ -61,8 +61,8 @@ In this section, we briefly discuss how Linux images are built.
 
 S2E ships with custom Linux kernels, one vanilla and one customized for DARPA CGC binary analysis. The kernels are
 available in this `repository <https://github.com/S2E/s2e-linux-kernel>`__. Basic build instructions are available in
-the README. We recommend however that you study the ``guest-images`` Makefiles, which build the kernel in a Docker image
-on the host, then inject the ``.deb`` files in the disk images during image creation.
+the README. We recommend however that you study the ``guest-images`` Makefiles, which build the kernel in a Podman
+container on the host, then inject the ``.deb`` files in the disk images during image creation.
 
 .. warning::
 

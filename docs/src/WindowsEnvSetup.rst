@@ -12,7 +12,7 @@ for Windows (e.g, the ``s2e.sys`` guest driver) or simply want to build and run 
 
     This tutorial is not about how to compile and run S2E itself on a Windows machine.
     We do not support running S2E on Windows hosts yet, but we got reports
-    that S2E builds and runs in the Windows 10 WSL environment or in a docker container.
+    that S2E builds and runs in the Windows 10 WSL environment or in a container.
 
 
 Throughout this tutorial, you will use various scripts located in the

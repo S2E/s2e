@@ -101,8 +101,8 @@ Release check list
 
     1. Check that the S2E `testsuite <Testsuite.rst>`__ passes.
     2. Check code style and unittests in ``s2e`` and ``s2e-env``.
-    3. Build a `docker image <BuildingS2E.rst>`__.
-    4. Run the docker demo from a fresh folder. This should automatically download the CGC image and run CADET_00001.
+    3. Build a `container image <BuildingS2E.rst>`__.
+    4. Run the container demo from a fresh folder. This should automatically download the CGC image and run CADET_00001.
        PoVs should be found.
     5. Build S2E from scratch on a fresh install of a supported OS.
        You can use this `script <https://github.com/S2E/ci/blob/master/tests-s2e-env/install.sh>`__.
@@ -111,6 +111,8 @@ Release check list
     7. Run the testsuite again on the freshly built images.
     8. Merge pull requests.
     9. Update guest tools binaries on the S2E `releases <https://github.com/S2E/s2e/releases>`__ page.
-    10. Push the docker image to dockerhub, possibly after rebuild it to take into account updated guest tools.
+    10. Push the container image to Docker Hub, possibly after rebuilding it to take into account updated guest tools.
+        Log in with ``podman login docker.io`` and push with ``podman push``. Rootless Podman keeps its own registry
+        credentials and does not read the Docker login in ``~/.docker/config.json``.
     11. Update the release notes + build documentation for the S2E web site.
     12. Send release annoucement to ``s2e-dev``.

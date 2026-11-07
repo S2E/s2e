@@ -23,7 +23,11 @@ set -xe
 
 ROOTDIR=/mnt/disk
 
-REPO_BRANCH=master
+# su can pass on the caller's XDG_RUNTIME_DIR, which points to root's runtime
+# directory. Podman needs the directory of the user's systemd instance.
+export XDG_RUNTIME_DIR="/run/user/$(id -u)"
+
+REPO_BRANCH="${REPO_BRANCH:-master}"
 # SCRIPTS_BRANCH=qemu-10.2
 # S2EENV_BRANCH=qemu-10.2
 # LIBS2E_BRANCH=issue/qemu-10.2-tmp
@@ -58,6 +62,11 @@ fi
 if [ "x$SCRIPTS_BRANCH" != "x" ]; then
     cd "$ROOTDIR/env/source/scripts"
     git checkout "$SCRIPTS_BRANCH"
+fi
+
+if [ "x$GUEST_IMAGES_BRANCH" != "x" ]; then
+    cd "$ROOTDIR/env/source/guest-images"
+    git checkout "$GUEST_IMAGES_BRANCH"
 fi
 
 if [ "x$QEMU_BRANCH" != "x" ]; then

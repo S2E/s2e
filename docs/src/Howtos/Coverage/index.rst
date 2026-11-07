@@ -151,11 +151,11 @@ The command should display errors about source code not found:
     ERROR: [lcov]
 
 In order to fix this, download the source packages as follows. Make sure first that you have built the guest VM images
-yourself and did not use the pre-built ones, otherwise the docker image ``linux-build-i386`` may be missing.
+yourself and did not use the pre-built ones, otherwise the container image ``linux-build-i386`` may be missing.
 
 .. code-block:: console
 
-    docker run --rm -ti -v "$HOME":"$HOME" linux-build-i386
+    podman run --rm -ti -v "$HOME":"$HOME" linux-build-i386
     # In the container's Bash prompt
     cd /home/user/s2e/env/projects/cat
     echo "deb-src http://deb.debian.org/debian/ stretch main" >> /etc/apt/sources.list

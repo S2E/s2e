@@ -12,11 +12,42 @@ to run them manually.
     Earlier versions may still work, but we do not support them anymore.
 
 
-Building using Docker
-=====================
+Building in a container
+=======================
 
-You can create a self-contained docker image that lets you analyze any supported binary. The following command builds
-the demo docker image.
+You can create a self-contained container image that lets you analyze any supported binary. S2E builds and runs its
+container images with rootless Podman.
+
+Host requirements
+-----------------
+
+Install the ``podman`` and ``uidmap`` packages together with their recommended packages. Rootless containers need some
+of the recommended packages, such as ``passt`` or ``slirp4netns`` for network access and ``dbus-user-session`` for the
+session bus. Log out and log in again after the installation, so that the session bus is available. Your user must also
+have a subordinate UID and GID range in ``/etc/subuid`` and ``/etc/subgid``. ``useradd`` creates one by default.
+
+.. code-block:: console
+
+    sudo apt-get install podman uidmap
+
+On Debian 12, Podman uses the slow ``vfs`` storage driver by default. Add the following to
+``~/.config/containers/storage.conf`` to use the kernel's overlay driver instead, then run ``podman system reset``.
+This command deletes all existing Podman images and containers.
+
+.. code-block:: toml
+
+    [storage]
+    driver = "overlay"
+
+.. note::
+
+    Environments built with Docker are not supported. Delete their build folders, stamps and images, or create a
+    fresh environment.
+
+Building the demo image
+-----------------------
+
+The following command builds the demo image.
 
 .. code-block:: console
 
@@ -29,14 +60,14 @@ the demo docker image.
     # Create a build directory
     mkdir build && cd build
 
-    # Build the docker image
-    make -f $S2EDIR/Makefile.docker demo
+    # Build the container image
+    make -f $S2EDIR/Makefile.container demo
 
 You can then run it as follows:
 
 .. code-block:: console
 
-    docker run --rm -ti -w $(pwd) -v $HOME:$HOME cyberhaven/s2e-demo /demo/run.sh $(id -u) $(id -g) /demo/CADET_00001
+    podman run --rm -ti -w $(pwd) -v $HOME:$HOME cyberhaven/s2e-demo /demo/run.sh /demo/CADET_00001
 
 This command starts the s2e-demo container and creates an S2E environment in ``$(pwd)/s2e-demo``. It then downloads a
 VM image and creates a default S2E configuration suitable for running the specified binary. Once configuration is done,
@@ -44,8 +75,8 @@ the container starts S2E.
 
 The S2E environment in ``$(pwd)/s2e-demo`` is persistent. It is not kept in the container. You may run the container
 multiple times without losing the previous settings. This is possible by mounting your home folder in the container.
-The command also takes your current user and group id in order to create the environment folder with the right
-permissions (docker uses root by default).
+In rootless Podman, container root is the calling user, so the files that the container creates belong to you. The
+image expects rootless Podman. With Docker, these files would belong to the host's root user.
 
 You may specify any binary you want and are not restricted to binaries stored inside the container. You just need to
 mount the folder that contains it using the ``-v`` option.
@@ -61,8 +92,8 @@ Required packages
 You must install a few packages in order to build S2E manually. Instead of giving you a list that will get out-of-date
 very quickly, we will give you some pointers that should be always up-to-date:
 
-- The packages for the build toolchain and S2E dependencies can be found in the S2E docker
-  `file <https://github.com/S2E/s2e/blob/master/Dockerfile>`__.
+- The packages for the build toolchain and S2E dependencies can be found in the S2E
+  `Dockerfile <https://github.com/S2E/s2e/blob/master/Dockerfile>`__.
 
 - The packages required to build the guest images can be found
   `here <https://github.com/S2E/guest-images/blob/master/README.md>`__.
