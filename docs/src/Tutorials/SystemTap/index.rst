@@ -27,7 +27,7 @@ Building and running SystemTap in S2E
 Using SystemTap in S2E is very simple, the workflow looks like this:
 
 1. Build the SystemTap probe on your host machine. This will produce a ``.ko`` file.
-   You can conveniently do this from the provided Docker image (see below).
+   You can conveniently do this from the provided container image (see below).
 
 2. Upload the ``.ko`` file from the host into the guest using ``s2ecmd get`` in the ``bootstrap.sh`` file.
    It is best to store the ``.ko`` directly in the project directory.
@@ -37,9 +37,9 @@ The S2E images built by ``s2e-env`` already have SystemTap pre-installed.
 If you want to customize the installed version, have a look at the image installation scripts. SystemTap is installed
 `here <https://github.com/S2E/guest-images/blob/master/Linux/s2e_home/launch.sh>`__.
 
-You must build the Linux images from scratch in order to have the required Docker containers and kernel ``*.deb``
+You must build the Linux images from scratch in order to have the required container images and kernel ``*.deb``
 packages. If you downloaded pre-built images, delete them and rebuild them from scratch. This process will create
-two Docker images on your host: ``linux-build-i386`` and ``linux-build-x86_64``.
+two container images on your host: ``linux-build-i386`` and ``linux-build-x86_64``.
 
 
 .. code-block:: console
@@ -51,21 +51,21 @@ two Docker images on your host: ``linux-build-i386`` and ``linux-build-x86_64``.
     host   $ cd /home/user/s2e/env
     host   $ s2e new_project -n systemtap -i debian-12.5-i386 --no-target --type linux
 
-    # Start the docker container in order to build the hello world SystemTap probe
-    host   $ docker run --rm -ti -v $HOME:$HOME linux-build-i386
+    # Start the container in order to build the hello world SystemTap probe
+    host   $ podman run --rm -ti -v $HOME:$HOME linux-build-i386
 
     # Install the kernel packages in the running container
-    docker # dpkg -i /home/user/s2e/env/images/.tmp-output/linux-4.9.3-i386/*.deb
+    container # dpkg -i /home/user/s2e/env/images/.tmp-output/linux-4.9.3-i386/*.deb
 
     # Compile the demo probe
-    docker # cd /home/user/s2e/env/projects/systemtap
-    docker # stap -a i386 -r 4.9.3-s2e  -e 'probe vfs.read { log("hello world") exit() }' -m simple
+    container # cd /home/user/s2e/env/projects/systemtap
+    container # stap -a i386 -r 4.9.3-s2e  -e 'probe vfs.read { log("hello world") exit() }' -m simple
 
 
 .. note::
 
     It is also possible to build the ``simple.ko`` module directly from ``bootstrap.sh`` inside the guest instead
-    of using a Docker image on the host. However, doing so is significantly slower (up to several minutes).
+    of using a container on the host. However, doing so is significantly slower (up to several minutes).
 
 
 At this point, you must have the ``/home/user/s2e/env/projects/systemtap/simple.ko`` file. Now it is time to update
@@ -114,7 +114,7 @@ Compile the script with SystemTap in the ``chroot`` environment, adjusting the k
 
 .. code-block:: console
 
-    docker # stap -a i386 -r 4.9.3-s2e  -g -m pcnet_probe pcnet32.stp
+    container # stap -a i386 -r 4.9.3-s2e  -g -m pcnet_probe pcnet32.stp
 
 
 This will result in a module called ``pcnet_probe.ko`` that we will upload to the VM as explained earlier in this

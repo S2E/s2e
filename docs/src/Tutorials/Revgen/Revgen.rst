@@ -64,7 +64,7 @@ much better CFG recovery. We plan to port Revgen to the latest version.
 2. Build the CGC binaries
 -------------------------
 
-S2E comes with a Docker image and `instructions <https://github.com/S2E/decree/blob/master/README.md>`__ on how to build
+S2E comes with a container image and `instructions <https://github.com/S2E/decree/blob/master/README.md>`__ on how to build
 all DARPA CyberGrandChallenge binaries. After you have completed this step, you should have a ``samples`` folder that
 contains ~280 binaries:
 

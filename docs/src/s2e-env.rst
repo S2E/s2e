@@ -199,7 +199,7 @@ autodetect an appropriate guest image.
     with previous versions of the distribution. You have the following options:
 
     1. Use the Ubuntu 22.04 guest image. Only a 64-bit image is available as Ubuntu no longer provides 32-bit images.
-    2. Build your binaries in a Docker environment that matches the guest.
+    2. Build your binaries in a container that matches the guest.
     3. Link your binaries statically. You will not be able to use `s2e.so <Tutorials/BasicLinuxSymbex/s2e.so.rst>`__.
 
     ``s2e new_project`` will pick the optimal guest for your host and will warn you if you specify
